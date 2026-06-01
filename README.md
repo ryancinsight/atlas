@@ -34,7 +34,8 @@ atlas/
 │   ├── CFDrs/            # submodule -> github.com/ryancinsight/CFDrs
 │   │                     #   depends on gaia + apollo via Git remote
 │   ├── gaia/             # submodule -> github.com/ryancinsight/gaia   (shared)
-│   └── apollo/           # submodule -> github.com/ryancinsight/apollo (shared)
+│   ├── apollo/           # submodule -> github.com/ryancinsight/apollo (shared)
+│   └── consus/           # submodule -> github.com/ryancinsight/consus (shared: storage formats)
 ├── scripts/              # cross-package orchestration
 ├── .gitmodules
 └── README.md

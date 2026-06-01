@@ -9,3 +9,7 @@
 	path = repos/apollo
 	url = https://github.com/ryancinsight/apollo.git
 	branch = main
+[submodule "repos/consus"]
+	path = repos/consus
+	url = https://github.com/ryancinsight/consus.git
+	branch = main
