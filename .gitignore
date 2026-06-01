@@ -1,0 +1,19 @@
+# Rust build artifacts (per-submodule targets)
+target/
+**/target/
+*.rs.bk
+*.pdb
+
+# Local environment / scratch
+.env
+*.log
+tmp/
+scratch/
+
+# IDE
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

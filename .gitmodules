@@ -1,0 +1,3 @@
+[submodule "repos/CFDrs"]
+	path = repos/CFDrs
+	url = https://github.com/ryancinsight/CFDrs.git
