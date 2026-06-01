@@ -1,3 +1,11 @@
 [submodule "repos/CFDrs"]
 	path = repos/CFDrs
 	url = https://github.com/ryancinsight/CFDrs.git
+[submodule "repos/gaia"]
+	path = repos/gaia
+	url = https://github.com/ryancinsight/gaia.git
+	branch = main
+[submodule "repos/apollo"]
+	path = repos/apollo
+	url = https://github.com/ryancinsight/apollo.git
+	branch = main

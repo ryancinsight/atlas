@@ -16,21 +16,25 @@ submodule (e.g. `CFDrs`) is its own workspace. `atlas` therefore:
 
 ### Shared crates
 
-Shared crates are themselves standalone repositories consumed as submodules
-wherever they are needed — the pattern `CFDrs` already uses for `gaia` and
-`apollo`. A crate shared by multiple packages lives in one repo and is added as
-a nested submodule in each consuming package, so there is a single source of
-truth and each package still builds in isolation.
+Shared crates are themselves standalone repositories, checked out at the atlas
+root under `repos/` alongside the packages that consume them (`gaia`, `apollo`).
+A crate shared by multiple packages lives in one repo (single source of truth);
+consuming packages depend on it by **Git remote** (default branch = latest), so
+each package still clones and builds in isolation without vendoring the source.
+
+Local development loop for a shared crate: edit its working copy under
+`repos/<crate>`, commit and push to its remote, then in each consuming package
+run `cargo update -p <crate>` to pick up the new commit.
 
 ## Layout
 
 ```
 atlas/
 ├── repos/
-│   └── CFDrs/            # submodule -> github.com/ryancinsight/CFDrs
-│       └── crates/
-│           ├── gaia/     # nested submodule -> github.com/ryancinsight/gaia
-│           └── apollo/   # nested submodule -> github.com/ryancinsight/apollo
+│   ├── CFDrs/            # submodule -> github.com/ryancinsight/CFDrs
+│   │                     #   depends on gaia + apollo via Git remote
+│   ├── gaia/             # submodule -> github.com/ryancinsight/gaia   (shared)
+│   └── apollo/           # submodule -> github.com/ryancinsight/apollo (shared)
 ├── scripts/              # cross-package orchestration
 ├── .gitmodules
 └── README.md
