@@ -17,3 +17,7 @@
 	path = repos/ritk
 	url = https://github.com/ryancinsight/ritk.git
 	branch = main
+[submodule "repos/mnemosyne"]
+	path = repos/mnemosyne
+	url = https://github.com/ryancinsight/Mnemosyne.git
+	branch = main
