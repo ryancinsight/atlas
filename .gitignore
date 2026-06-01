@@ -10,9 +10,10 @@ target/
 tmp/
 scratch/
 
-# IDE
+# IDE / local agent settings
 .idea/
 *.swp
+.claude/settings.local.json
 
 # OS
 .DS_Store

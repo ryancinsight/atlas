@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "PowerShell(git init -b main D:\\\\atlas 2>&1)",
-      "PowerShell(git -C D:\\\\atlas submodule add https://github.com/ryancinsight/CFDrs.git repos/CFDrs 2>&1)"
-    ]
-  }
-}
