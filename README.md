@@ -35,7 +35,8 @@ atlas/
 │   │                     #   depends on gaia + apollo via Git remote
 │   ├── gaia/             # submodule -> github.com/ryancinsight/gaia   (shared)
 │   ├── apollo/           # submodule -> github.com/ryancinsight/apollo (shared)
-│   └── consus/           # submodule -> github.com/ryancinsight/consus (shared: storage formats)
+│   ├── consus/           # submodule -> github.com/ryancinsight/consus (shared: storage formats)
+│   └── ritk/             # submodule -> github.com/ryancinsight/ritk   (shared: VTK + imaging)
 ├── scripts/              # cross-package orchestration
 ├── .gitmodules
 └── README.md

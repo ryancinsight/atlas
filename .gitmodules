@@ -13,3 +13,7 @@
 	path = repos/consus
 	url = https://github.com/ryancinsight/consus.git
 	branch = main
+[submodule "repos/ritk"]
+	path = repos/ritk
+	url = https://github.com/ryancinsight/ritk.git
+	branch = main
