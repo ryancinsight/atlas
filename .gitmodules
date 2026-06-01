@@ -21,3 +21,7 @@
 	path = repos/mnemosyne
 	url = https://github.com/ryancinsight/Mnemosyne.git
 	branch = main
+[submodule "repos/moirai"]
+	path = repos/moirai
+	url = https://github.com/ryancinsight/Moirai.git
+	branch = main

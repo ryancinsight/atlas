@@ -37,7 +37,8 @@ atlas/
 │   ├── apollo/           # submodule -> github.com/ryancinsight/apollo (shared)
 │   ├── consus/           # submodule -> github.com/ryancinsight/consus (shared: storage formats)
 │   ├── ritk/             # submodule -> github.com/ryancinsight/ritk   (shared: VTK + imaging)
-│   └── mnemosyne/        # submodule -> github.com/ryancinsight/Mnemosyne (shared: global allocator)
+│   ├── mnemosyne/        # submodule -> github.com/ryancinsight/Mnemosyne (shared: global allocator)
+│   └── moirai/           # submodule -> github.com/ryancinsight/Moirai    (shared: concurrency runtime)
 ├── scripts/              # cross-package orchestration
 ├── .gitmodules
 └── README.md
