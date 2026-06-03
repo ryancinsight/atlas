@@ -25,3 +25,6 @@
 	path = repos/moirai
 	url = https://github.com/ryancinsight/Moirai.git
 	branch = main
+[submodule "repos/melinoe"]
+	path = repos/melinoe
+	url = https://github.com/ryancinsight/melinoe.git
