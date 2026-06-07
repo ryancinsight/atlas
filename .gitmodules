@@ -28,3 +28,11 @@
 [submodule "repos/melinoe"]
 	path = repos/melinoe
 	url = https://github.com/ryancinsight/melinoe.git
+[submodule "repos/coeus"]
+	path = repos/coeus
+	url = https://github.com/ryancinsight/Coeus.git
+	branch = main
+[submodule "repos/hermes"]
+	path = repos/hermes
+	url = https://github.com/ryancinsight/hermes.git
+	branch = main
