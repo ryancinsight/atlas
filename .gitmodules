@@ -36,3 +36,7 @@
 	path = repos/hermes
 	url = https://github.com/ryancinsight/hermes.git
 	branch = main
+[submodule "repos/leto"]
+	path = repos/leto
+	url = https://github.com/ryancinsight/leto.git
+	branch = main
