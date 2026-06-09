@@ -44,9 +44,9 @@ README.
 | `leto` | Shared N-dimensional strided array, layout, view, slicing, and storage vocabulary for Atlas. It is the planned replacement for direct `ndarray` usage where Apollo and Coeus need a common non-differentiable array substrate. | Intended for `apollo` and `coeus`; uses `mnemosyne` for optional aligned allocation, `moirai` for parallel operations, and `hermes` for SIMD-backed kernels. |
 | `hermes` | Numeric and SIMD abstraction workspace: scalar/numeric foundations, SIMD core, intrinsics, register types, macros, examples, and benchmarks. | Consumed by `coeus` as the SIMD-effect single source of truth. |
 | `themis` | Typed placement-law crate for NUMA, HBM, memory-tier, worker, and locality-domain contracts. | Consumed by `mnemosyne` for allocation placement and by `moirai` for scheduler topology placement. |
-| `mnemosyne` | User-space allocator and memory-management workspace: core, backend, arena, local, heap, hardened, decay, profiling, C shim, and benchmarks. | Consumed by `CFDrs`, `coeus`, and `moirai`; paired conceptually with `melinoe` capability tokens. |
+| `mnemosyne` | User-space allocator and memory-management workspace: core, backend, arena, local, heap, hardened, decay, profiling, C shim, and benchmarks. | Consumed by `CFDrs`, `coeus`, and `moirai`; consumes `themis` for allocation placement law and pairs conceptually with `melinoe` capability tokens. |
 | `melinoe` | Branded, multi-token phantom capabilities for compile-time data-access and thread-synchronization proofs. | Supports the Mnemosyne memory ecosystem; currently tracked as a standalone foundation crate in atlas. |
-| `moirai` | Concurrency, scheduling, async, parallel iteration, transport, metrics, GPU, TLS, HTTP, and Python runtime workspace. | Consumed by `CFDrs`, `coeus`, `ritk`, `consus`, and selected `apollo` crates. |
+| `moirai` | Concurrency, scheduling, async, parallel iteration, transport, metrics, GPU, TLS, HTTP, and Python runtime workspace. | Consumed by `CFDrs`, `coeus`, `ritk`, `consus`, and selected `apollo` crates; consumes `themis` for scheduler topology and worker placement law. |
 
 ### Naming Conventions
 
@@ -67,7 +67,8 @@ Several repositories use names from classical mythology to represent their funct
 
 ### Dependency flow
 
-Current manifest-level dependency flow:
+Current dependency flow, including direct Git dependencies and provider-mediated
+Themis placement-law consumption:
 
 ```text
 CFDrs
@@ -92,6 +93,9 @@ leto
 ├── moirai     # parallel elementwise/reduction scheduling
 └── hermes     # SIMD operation backend
 
+themis
+└── melinoe     # optional branded placement scopes
+
 ritk
 ├── gaia       # mesh/geometry integration
 ├── consus     # HDF5 and scientific I/O support
@@ -103,6 +107,12 @@ consus
 apollo
 ├── leto       # planned ndarray replacement for array/view surfaces
 └── moirai     # selected transform crates with parallel execution
+
+mnemosyne
+└── themis     # allocation placement law
+
+moirai
+└── themis     # scheduler topology and worker placement law
 ```
 
 Repositories still depend on each other through Git remotes, not by path from
