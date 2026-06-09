@@ -40,3 +40,7 @@
 	path = repos/leto
 	url = https://github.com/ryancinsight/leto.git
 	branch = main
+[submodule "repos/themis"]
+	path = repos/themis
+	url = https://github.com/ryancinsight/themis.git
+	branch = main

@@ -43,6 +43,7 @@ README.
 | `coeus` | Strided tensor, operations, autodiff, neural-network, sparse, optimizer, distribution, GPU, CUDA, and Python workspace. | Consumes `mnemosyne` for storage allocation, `moirai` for data-parallel execution, `hermes` for SIMD effects, and `apollo` for FFT. |
 | `leto` | Shared N-dimensional strided array, layout, view, slicing, and storage vocabulary for Atlas. It is the planned replacement for direct `ndarray` usage where Apollo and Coeus need a common non-differentiable array substrate. | Intended for `apollo` and `coeus`; uses `mnemosyne` for optional aligned allocation, `moirai` for parallel operations, and `hermes` for SIMD-backed kernels. |
 | `hermes` | Numeric and SIMD abstraction workspace: scalar/numeric foundations, SIMD core, intrinsics, register types, macros, examples, and benchmarks. | Consumed by `coeus` as the SIMD-effect single source of truth. |
+| `themis` | Typed placement-law crate for NUMA, HBM, memory-tier, worker, and locality-domain contracts. | Consumed by `mnemosyne` for allocation placement and by `moirai` for scheduler topology placement. |
 | `mnemosyne` | User-space allocator and memory-management workspace: core, backend, arena, local, heap, hardened, decay, profiling, C shim, and benchmarks. | Consumed by `CFDrs`, `coeus`, and `moirai`; paired conceptually with `melinoe` capability tokens. |
 | `melinoe` | Branded, multi-token phantom capabilities for compile-time data-access and thread-synchronization proofs. | Supports the Mnemosyne memory ecosystem; currently tracked as a standalone foundation crate in atlas. |
 | `moirai` | Concurrency, scheduling, async, parallel iteration, transport, metrics, GPU, TLS, HTTP, and Python runtime workspace. | Consumed by `CFDrs`, `coeus`, `ritk`, `consus`, and selected `apollo` crates. |
@@ -59,6 +60,7 @@ Several repositories use names from classical mythology to represent their funct
 | `coeus` | **Coeus** (Titan of intellect and inquiry) | Strided tensors, neural networks, autodiff, and optimization. |
 | `leto` | **Leto** (Titaness, daughter of Coeus and mother of Apollo) | Shared strided-array substrate between Coeus tensor/autodiff systems and Apollo spectral transforms. |
 | `hermes` | **Hermes** (Messenger god of speed) | Low-level SIMD, register types, and vector abstractions. |
+| `themis` | **Themis** (Titaness of divine law and order; mother of the Moirai) | Placement law for NUMA, HBM, memory tiers, workers, and locality domains. |
 | `mnemosyne` | **Mnemosyne** (Titaness of memory) | User-space memory allocation and arena management. |
 | `melinoe` | **Melinoe** (Chthonic goddess of phantoms) | Phantom capability tokens for compile-time safety and synchronization proofs. |
 | `moirai` | **Moirai** (The Fates, spinners of the threads of life) | Concurrency, async task scheduling, and runtime orchestration. |
@@ -80,10 +82,12 @@ coeus
 ├── apollo     # FFT-backed tensor operations
 ├── leto       # planned shared array/layout substrate
 ├── hermes     # SIMD abstraction
+├── themis     # placement-law vocabulary through providers
 ├── mnemosyne  # tensor storage allocation
 └── moirai     # data-parallel execution
 
 leto
+├── themis     # placement-law vocabulary through providers
 ├── mnemosyne  # optional aligned storage backend
 ├── moirai     # parallel elementwise/reduction scheduling
 └── hermes     # SIMD operation backend
@@ -107,7 +111,7 @@ editing, review, and cross-package verification.
 
 ## Workspace And Crate Topology
 
-Atlas coordinates 11 independent package workspaces, each checked out under
+Atlas coordinates 12 independent package workspaces, each checked out under
 `repos/`. Each repository remains separate for versioning and publishing, while
 the crates form one Atlas stack through Git dependencies, shared verification
 contracts, and common infrastructure crates. Below is the current topology of
@@ -241,6 +245,12 @@ each Cargo workspace and its constituent crates:
 - **Crate Catalog**:
   - [melinoe](repos/melinoe): Zero-sized, branded capability tokens for safe cell access and thread synchronization.
 
+### [themis](repos/themis)
+- **Role**: Placement-law foundation for memory and runtime crates.
+- **Workspace Style**: Single-crate workspace.
+- **Crate Catalog**:
+  - [themis](repos/themis): Typed NUMA node, worker, locality-domain, memory-tier, placement-hint, topology, and current-node query contracts.
+
 ### [mnemosyne](repos/mnemosyne)
 - **Role**: User-space memory management and custom allocator workspace.
 - **Resolver**: v2
@@ -270,7 +280,7 @@ each Cargo workspace and its constituent crates:
   - [moirai-async](repos/moirai/moirai-async): Futures-compliant async/await executor and timer wheel.
   - [moirai-iter](repos/moirai/moirai-iter): Parallel iterator traits and adapter definitions.
   - [moirai-parallel](repos/moirai/moirai-parallel): Rayon-compatible data-parallel fork-join runtime.
-  - [moirai-tls](repos/moirai/moirai-tls): Fast thread-local storage implementation.
+  - [moirai-tls](repos/moirai/moirai-tls): Rustls-backed async Transport Layer Security over Moirai sockets.
   - [moirai-transport](repos/moirai/moirai-transport): Socket abstractions, asynchronous I/O, and platform pollers.
   - [moirai-http](repos/moirai/moirai-http): Sans-I/O HTTP/1.1 client and server engine.
   - [moirai-metrics](repos/moirai/moirai-metrics): Runtime instrumentation, queue latencies, and task counting.
@@ -315,6 +325,7 @@ atlas/
 │   ├── hermes/           # SIMD abstraction workspace
 │   ├── leto/             # shared N-dimensional strided array workspace
 │   ├── melinoe/          # branded phantom-capability foundation crate
+│   ├── themis/           # placement-law foundation crate
 │   ├── mnemosyne/        # user-space memory allocator workspace
 │   ├── moirai/           # concurrency library workspace
 │   └── ritk/             # medical image processing and registration workspace
