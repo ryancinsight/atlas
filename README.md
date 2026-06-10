@@ -47,7 +47,7 @@ README.
 | `mnemosyne` | User-space allocator and memory-management workspace: core, backend, arena, local, heap, hardened, decay, profiling, C shim, and benchmarks. | Consumed by `CFDrs`, `coeus`, and `moirai`; consumes `themis` for allocation placement law and pairs conceptually with `melinoe` capability tokens. |
 | `melinoe` | Branded, multi-token phantom capabilities for compile-time data-access and thread-synchronization proofs. | Supports the Mnemosyne memory ecosystem; currently tracked as a standalone foundation crate in atlas. |
 | `moirai` | Concurrency, scheduling, async, parallel iteration, transport, metrics, GPU, TLS, HTTP, and Python runtime workspace. | Consumed by `CFDrs`, `coeus`, `ritk`, `consus`, and selected `apollo` crates; consumes `themis` for scheduler topology and worker placement law. |
-| `hephaestus` *(planned)* | Shared GPU/accelerator device substrate: device/context/queue, device buffers, and a `ComputeBackend`-style dispatch seam with two backends — **wgpu** (portable) and **CUDA** (composing `cuda-oxide` for driver/runtime/memory/streams with `cutile` for tile/PTX kernel authoring). Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Intended for `apollo` (GPU transforms) and `coeus` (GPU tensor/autodiff backends); consumes `mnemosyne` for device-memory pools, `melinoe` for device-buffer ownership proofs, `themis` for placement, and reuses `leto` host-side layout metadata. |
+| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam (elementwise/scalar/unary/reduction kernels with pipeline caching) — **wgpu** backend live; **CUDA** backend planned (composing `cuda-oxide` for driver/runtime/memory/streams with `cutile` for tile/PTX kernel authoring). Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo` (`apollo-wgpu-helpers` delegates device acquisition here); `coeus` GPU backends re-base when coeus bumps to wgpu 26. Planned: `mnemosyne` device-memory pools, `melinoe` device-buffer ownership proofs, `themis` placement, `leto` host-side layout metadata reuse. |
 
 ### Naming Conventions
 
@@ -65,7 +65,7 @@ Several repositories use names from classical mythology to represent their funct
 | `mnemosyne` | **Mnemosyne** (Titaness of memory) | User-space memory allocation and arena management. |
 | `melinoe` | **Melinoe** (Chthonic goddess of phantoms) | Phantom capability tokens for compile-time safety and synchronization proofs. |
 | `moirai` | **Moirai** (The Fates, spinners of the threads of life) | Concurrency, async task scheduling, and runtime orchestration. |
-| `hephaestus` *(planned)* | **Hephaestus** (God of the forge and craftsmanship) | Shared GPU/accelerator device substrate (wgpu + CUDA) where compute kernels are forged. |
+| `hephaestus` | **Hephaestus** (God of the forge and craftsmanship) | Shared GPU/accelerator device substrate (wgpu + CUDA) where compute kernels are forged. |
 
 ### Dependency flow
 
@@ -107,8 +107,9 @@ consus
 └── moirai     # parallelism and native transport support
 
 apollo
-├── leto       # planned ndarray replacement for array/view surfaces
-└── moirai     # selected transform crates with parallel execution
+├── leto        # planned ndarray replacement for array/view surfaces
+├── hephaestus  # shared GPU device acquisition for the -wgpu crate family
+└── moirai      # selected transform crates with parallel execution
 
 mnemosyne
 └── themis     # allocation placement law
@@ -116,14 +117,14 @@ mnemosyne
 moirai
 └── themis     # scheduler topology and worker placement law
 
-hephaestus (planned)
-├── mnemosyne  # device-memory pools and pinned-host staging
-├── melinoe    # device-buffer ownership-transfer proofs
-├── themis     # device/placement law
-└── leto        # host-side layout metadata reuse (no compute dep)
+hephaestus
+├── mnemosyne  # planned: device-memory pools and pinned-host staging
+├── melinoe    # planned: device-buffer ownership-transfer proofs
+├── themis     # planned: device/placement law
+└── leto        # planned: host-side layout metadata reuse (no compute dep)
 
-coeus  → hephaestus (planned)   # GPU tensor/autodiff backends over the shared device substrate
-apollo → hephaestus (planned)   # GPU transforms over the shared device substrate
+apollo → hephaestus             # live: apollo-wgpu-helpers delegates device acquisition
+coeus  → hephaestus (planned)   # GPU tensor/autodiff backends re-base at wgpu 26 bump
 ```
 
 Repositories still depend on each other through Git remotes, not by path from

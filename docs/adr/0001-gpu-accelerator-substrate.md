@@ -73,7 +73,13 @@ must sit at or below the infrastructure tier; it cannot live in `coeus`.
 
 ## Status / next step
 
-Repository not yet scaffolded. Next: scaffold `hephaestus` (device/buffer/queue
-abstraction + wgpu backend first), then the composed CUDA backend, then re-base
-one consumer path (recommend a coeus elementwise kernel or an apollo FFT) as the
-first end-to-end slice.
+Scaffolded and integrated (2026-06-10). `hephaestus` 0.1.0 is live at
+<https://github.com/ryancinsight/hephaestus>: `hephaestus-core` (GPU-dep-free
+`ComputeDevice` seam) + `hephaestus-wgpu` (acquisition, typed buffers,
+elementwise/scalar/unary/reduction dispatch with pipeline caching), with
+differential contract tests green on real hardware. First consumer slice
+delivered: `apollo-wgpu-helpers` delegates device acquisition to hephaestus
+(public API preserved; apollo GPU FFT tests pass on the hephaestus-acquired
+device). Next: strided-layout-aware dispatch over leto metadata, the composed
+CUDA backend (cuda-oxide + cutile), mnemosyne device pools, and the coeus
+re-base at its wgpu 26 bump.

@@ -44,3 +44,6 @@
 	path = repos/themis
 	url = https://github.com/ryancinsight/themis.git
 	branch = main
+[submodule "repos/hephaestus"]
+	path = repos/hephaestus
+	url = https://github.com/ryancinsight/hephaestus.git
