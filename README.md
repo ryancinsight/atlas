@@ -334,6 +334,14 @@ each Cargo workspace and its constituent crates:
   - [ritk-cli](repos/ritk/crates/ritk-cli): Command-line utility for imaging conversions.
   - [ritk-snap](repos/ritk/crates/ritk-snap): Slice visualizer and interaction shell.
 
+## Zero-Copy and Modularity Invariants
+
+The Atlas stack enforces strict performance, memory efficiency, and structural modularity contracts across its packages (notably `apollo` and its GPU backend integrations):
+
+- **Zero-Copy Cow Promotion**: All typed execution boundaries (e.g., `execute_*_typed_into` and `*_typed` helpers) route inputs and outputs through `std::borrow::Cow` and dynamically check representations via `std::any::TypeId`. When layouts match the compute backend's internal layout (e.g. `f32` or `Complex32`), unsafe reinterpretation casts bypass heap allocation and quantization loops.
+- **Staging Buffer Pooling & Pipeline Caching**: Concrete GPU backends query a thread-safe compute pipeline cache (`pipeline_cache` in the shared `hephaestus-wgpu` substrate) to avoid recompilation on shader execution. GPU host-staging transfers reuse recycled staging buffers through `WgpuDevice`'s staging pool helper.
+- **Modularity Limits (500-Line Rule)**: Every source file in the workspaces targets a maximum of 500 lines. Monolithic files exceeding this limit (e.g., `device.rs` and `kernel.rs` in WGPU transform crates) are refactored into structured sub-folders (such as `device/forward.rs`, `device/inverse.rs`, `device/helpers.rs`) and extend the parent struct definitions via decentralized `impl` blocks.
+
 ## Layout
 
 ```
