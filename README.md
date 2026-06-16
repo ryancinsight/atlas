@@ -334,6 +334,112 @@ each Cargo workspace and its constituent crates:
   - [ritk-cli](repos/ritk/crates/ritk-cli): Command-line utility for imaging conversions.
   - [ritk-snap](repos/ritk/crates/ritk-snap): Slice visualizer and interaction shell.
 
+## Accelerator & Compute Substrate Architecture
+
+Here is the complete architectural layout of the `atlas` stack, showing the vertical layers from raw hardware up to the high-level neural network/autodiff tier.
+
+### Complete Architecture & Dataflow Diagram
+
+```mermaid
+graph TD
+    %% AUTODIFF & DEEP LEARNING (DEVICE AGNOSTIC)
+    subgraph DL_Tier ["1. Autodiff & Neural Network Tier (Backend-Agnostic)"]
+        Tape["coeus-autograd (Tape / TapeNodes)"]
+        NN["coeus-nn (Layers / Modules)"]
+        Optim["coeus-optim (Adam, SGD, AdamW)"]
+        Tensor["Tensor<T, B> / Var<T, B>"]
+    end
+
+    %% BACKEND OPS & SEAMS
+    subgraph Compute_Seams ["2. Compute & Linalg Engines (The Dispatch Seams)"]
+        BackendOps["BackendOps<T> (coeus-ops)"]
+        LetoCore["leto (Host Layout Metadata: Layout<N>)"]
+        LetoOps["leto-ops (CPU Linalg / Matrix kernels)"]
+        CoeusWgpu["coeus-wgpu (WgpuBackend)"]
+        CoeusCuda["coeus-cuda (CudaBackend)"]
+    end
+
+    %% INFRASTRUCTURE compute substrate
+    subgraph Infra_Compute ["3. Infrastructure Compute Substrates"]
+        Moirai["moirai (NUMA Work-Stealing Executor)"]
+        Hermes["hermes-simd (Portable Vector SIMD / SWAR)"]
+        HephaestusCore["hephaestus-core (ComputeDevice / DeviceBuffer)"]
+        HephaestusWgpu["hephaestus-wgpu (wgpu adapter / pipelines)"]
+        HephaestusCuda["hephaestus-cuda (cuda-oxide / cutile)"]
+    end
+
+    %% MEMORY & PLACEMENT
+    subgraph Memory_Placement ["4. Placement Law & Memory Ownership (Safety & Topology)"]
+        Themis["themis (CPU/GPU Placement & Topology)"]
+        Mnemosyne["mnemosyne (Pinned Staging & Unified Memory Pools)"]
+        Melinoe["melinoe (SyncRegion & SharedRead Tokens)"]
+    end
+
+    %% DRIVERS & HW
+    subgraph Hardware ["5. Raw Hardware & Platform APIs"]
+        CPU["CPU (Multi-core / sockets)"]
+        wgpu_driver["Vulkan / DX12 / Metal (wgpu runtime)"]
+        cuda_driver["CUDA Driver / Streams API"]
+    end
+
+    %% DATAFLOW CONNECTIONS
+    Tape --> Tensor
+    NN --> Tensor
+    Optim --> Tensor
+    
+    Tensor -->|Generic routing via B: ComputeBackend| BackendOps
+    BackendOps -->|impl CpuBackend| LetoOps
+    BackendOps -->|impl WgpuBackend| CoeusWgpu
+    BackendOps -->|impl CudaBackend| CoeusCuda
+
+    LetoOps -->|shape / strides / offset vocabulary| LetoCore
+    LetoOps -->|parallel loop blocks| Moirai
+    LetoOps -->|vectorized elementwise loops| Hermes
+
+    CoeusWgpu -->|metadata shapes / strides| LetoCore
+    CoeusWgpu -->|GPU device buffers & pipeline caches| HephaestusWgpu
+    CoeusCuda -->|metadata shapes / strides| LetoCore
+    CoeusCuda -->|GPU device buffers & streams| HephaestusCuda
+
+    HephaestusWgpu --> HephaestusCore
+    HephaestusCuda --> HephaestusCore
+
+    HephaestusCore -.->|registers devices into| Themis
+    Moirai -.->|registers NUMA nodes into| Themis
+
+    HephaestusWgpu -->|raw bindings| wgpu_driver
+    HephaestusCuda -->|raw bindings| cuda_driver
+    LetoOps -->|executes on| CPU
+
+    %% Memory tracking lines
+    Mnemosyne -.->|allocates host/device pages for| HephaestusCore
+    Melinoe -.->|proves safe access regions on| Mnemosyne
+```
+
+---
+
+### Detailed Integration Summary
+
+#### 1. Leto CPU Operations
+* **[`leto-ops`](repos/leto/crates/leto-ops)** handles all CPU-bound execution (general matrix multiplication, shifted QR eigenvalues, full-pivoting LU).
+* It optimizes CPU execution via:
+  * **[`hermes-simd`](repos/hermes)**: Provides portable SIMD type vectorization across different hardware architectures (AVX, NEON) for inner loops.
+  * **[`moirai`](repos/moirai)**: Performs thread-level loop partitioning and NUMA-aware scheduling for block-wise operations.
+* The indexing math uses the layout vocabulary of **[`leto`](repos/leto/crates/leto)** to correctly parse strided and sliced matrices.
+
+#### 2. Hephaestus GPU Substrate
+The low-level GPU acceleration substrate is split into three parts:
+* **[`hephaestus-core`](repos/hephaestus/crates/hephaestus-core)**: The central device/buffer interface traits.
+* **[`hephaestus-wgpu`](repos/hephaestus/crates/hephaestus-wgpu)**: The WebGPU backend, using WGSL shaders compiled and dispatched on-the-fly.
+* **`hephaestus-cuda` (planned sibling crate)**: Composes:
+  * `cuda-oxide` for driver, device stream, and CUDA context management.
+  * `cutile` for tiled PTX/CUDA kernel compilation and dispatch.
+
+#### 3. Coeus GPU Tensors
+* The tensor engine **[`coeus`](repos/coeus)** defines the generic `Tensor<T, B>` (and taped `Var<T, B>`).
+* If `B` is `WgpuBackend` or `CudaBackend`, tensor allocations and operations route through `coeus-wgpu` or `coeus-cuda`.
+* These crates translate tensor layouts ([`Layout<N>`](repos/leto/crates/leto/src/domain/layout/mod.rs) from `leto`) into GPU buffers, dispatching shaders over `hephaestus-wgpu` or `hephaestus-cuda` to run GPU calculations without copy overhead.
+
 ## Zero-Copy and Modularity Invariants
 
 The Atlas stack enforces strict performance, memory efficiency, and structural modularity contracts across its packages (notably `apollo` and its GPU backend integrations):
