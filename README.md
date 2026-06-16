@@ -435,6 +435,9 @@ The low-level GPU acceleration substrate is split into three parts:
   * `cuda-oxide` for driver, device stream, and CUDA context management.
   * `cutile` for tiled PTX/CUDA kernel compilation and dispatch.
 
+> [!NOTE]
+> **Hephaestus as the GPU Substrate (CuPy-Analogy)**: Much like **[`leto`](repos/leto)** serves as the CPU-bound non-differentiable array vocabulary, **[`hephaestus`](repos/hephaestus)** serves as the shared GPU/accelerator buffer and compute substrate. It decouples high-level packages (such as `apollo` spectral transforms and `coeus` tensor backends) so they can share device contexts and memory allocations without direct dependencies, conceptually mirroring the role of **CuPy** in the Python (NumPy/SciPy) ecosystem.
+
 #### 3. Coeus GPU Tensors
 * The tensor engine **[`coeus`](repos/coeus)** defines the generic `Tensor<T, B>` (and taped `Var<T, B>`).
 * If `B` is `WgpuBackend` or `CudaBackend`, tensor allocations and operations route through `coeus-wgpu` or `coeus-cuda`.
