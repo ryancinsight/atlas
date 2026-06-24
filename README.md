@@ -47,7 +47,7 @@ README.
 | `mnemosyne` | User-space allocator and memory-management workspace: core, backend, arena, local, heap, hardened, decay, profiling, C shim, and benchmarks. | Consumed by `CFDrs`, `coeus`, and `moirai`; consumes `themis` for allocation placement law and pairs conceptually with `melinoe` capability tokens. |
 | `melinoe` | Branded, multi-token phantom capabilities for compile-time data-access and thread-synchronization proofs. | Supports the Mnemosyne memory ecosystem; currently tracked as a standalone foundation crate in atlas. |
 | `moirai` | Concurrency, scheduling, async, parallel iteration, transport, metrics, GPU, TLS, HTTP, and Python runtime workspace. | Consumed by `CFDrs`, `coeus`, `ritk`, `consus`, and selected `apollo` crates; consumes `themis` for scheduler topology and worker placement law. |
-| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam (elementwise/scalar/unary/reduction kernels with pipeline caching) — **wgpu** backend live; **CUDA** backend planned (composing `cuda-oxide` for driver/runtime/memory/streams with `cutile` for tile/PTX kernel authoring). Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo` (`apollo-wgpu-helpers` delegates device acquisition here); `coeus` GPU backends re-base when coeus bumps to wgpu 26. Planned: `mnemosyne` device-memory pools, `melinoe` device-buffer ownership proofs, `themis` placement, `leto` host-side layout metadata reuse. |
+| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam (elementwise/scalar/unary/reduction kernels with pipeline caching) — **wgpu** backend live; **CUDA** backend planned (composing `cuda-oxide` for driver/runtime/memory/streams with `cutile` for tile/PTX kernel authoring). Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo` (`apollo-wgpu-helpers` delegates device acquisition here); `coeus` GPU backends re-base when coeus bumps to wgpu 26. Live: `leto`/`leto-ops` host-side layout SSOT + host-delegated linalg parity, `mnemosyne` device-memory pools and pinned-host staging (Stage D1), `moirai` GPU launch planning + sync primitives, `themis` placement/tiers. Planned: `melinoe` device-buffer ownership-transfer proofs; native GPU-kernel parity replacing the interim `leto-ops` host delegation. |
 
 ### Naming Conventions
 
@@ -111,17 +111,26 @@ apollo
 ├── hephaestus  # shared GPU device acquisition for the -wgpu crate family
 └── moirai      # selected transform crates with parallel execution
 
+hermes
+├── mnemosyne  # NUMA-aware aligned allocation backend
+└── themis     # NUMA/topology placement law
+
 mnemosyne
+├── melinoe    # branded capability tokens for arena/segment ownership
 └── themis     # allocation placement law
 
 moirai
+├── melinoe    # branded writer-shard capability cells (moirai-parallel)
+├── mnemosyne  # zero-copy ring-buffer allocation (feature-gated)
 └── themis     # scheduler topology and worker placement law
 
 hephaestus
-├── mnemosyne  # planned: device-memory pools and pinned-host staging
-├── melinoe    # planned: device-buffer ownership-transfer proofs
-├── themis     # planned: device/placement law
-└── leto        # planned: host-side layout metadata reuse (no compute dep)
+├── leto        # live: host-side layout metadata reuse (Layout SSOT)
+├── leto-ops    # live: host-delegated linalg parity (interim; native GPU kernels pending)
+├── mnemosyne  # live (Stage D1): device-memory pools and pinned-host staging
+├── moirai      # live: GPU launch planning (moirai-gpu) + sync primitives
+├── themis      # live: device/placement law and tiers
+└── melinoe     # planned: device-buffer ownership-transfer proofs
 
 apollo → hephaestus             # live: apollo-wgpu-helpers delegates device acquisition
 coeus  → hephaestus (planned)   # GPU tensor/autodiff backends re-base at wgpu 26 bump
