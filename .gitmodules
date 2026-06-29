@@ -47,3 +47,6 @@
 [submodule "repos/hephaestus"]
 	path = repos/hephaestus
 	url = https://github.com/ryancinsight/hephaestus.git
+[submodule "repos/eunomia"]
+	path = repos/eunomia
+	url = https://github.com/ryancinsight/eunomia.git
