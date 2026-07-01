@@ -36,6 +36,7 @@ README.
 | Repository | Atlas role | Used by |
 | --- | --- | --- |
 | `CFDrs` | CFD simulation suite and primary integration consumer. It combines mesh generation, transforms, scientific output, VTK output, allocator selection, and data-parallel execution. | Consumes `gaia`, `apollo`, `consus`, `ritk`, `mnemosyne`, and `moirai`. |
+| `kwavers` | Acoustic, ultrasound, elastography, therapy, imaging, PINN, and driver integration workspace. It is tracked in atlas so missing substrate capabilities can be filled in the owning provider repo before Kwavers consumes them. | Keeps `ritk` and `consus`; planned migration replaces direct `tokio`/`rayon` usage with `moirai`, direct `ndarray`/`nalgebra` usage with `leto`, direct SIMD paths with `hermes`, direct PINN `burn` usage with `coeus`, and memory placement/allocation paths with `mnemosyne` plus `themis`. |
 | `gaia` | Watertight CFD mesh generation and geometry kernel. It provides the `gaia` crate, consumed as `cfd-mesh` by CFDrs and directly by RITK. | Consumed by `CFDrs` and `ritk`. Optionally bridges to `cfd-schematics`. |
 | `apollo` | Fourier, spectral, number-theoretic, wavelet, and related transform implementations, with CPU, WGPU, validation, and Python crates. | Consumed by `CFDrs` for FFT/NUFFT, by `coeus` for FFT-backed tensor operations, and internally uses `moirai` in selected transform crates. |
 | `consus` | Pure-Rust scientific storage formats and I/O: HDF5, Zarr, NetCDF, Parquet, Arrow, FITS, MAT, NWB, HDMF, compression, and Python bindings. | Consumed by `CFDrs` for HDF5 output and by `ritk` for HDF5/core/compression/I/O support. Uses `moirai` for parallel and native transport paths. |
@@ -81,6 +82,16 @@ CFDrs
 ├── ritk       # VTK output through ritk-vtk
 ├── mnemosyne  # optional global allocator feature
 └── moirai     # parallel execution
+
+kwavers
+├── ritk        # medical imaging, registration, and codec support
+├── consus      # scientific storage and HDF5-style output
+├── leto        # planned replacement for direct ndarray/nalgebra surfaces
+├── hermes      # planned SIMD operation backend through Leto/Coeus kernels
+├── coeus       # planned replacement for burn-backed PINN/autodiff paths
+├── mnemosyne   # planned allocation and staging substrate
+├── themis      # planned placement-law vocabulary through providers
+└── moirai      # planned async/runtime and data-parallel execution substrate
 
 coeus
 ├── apollo     # FFT-backed tensor operations
@@ -143,7 +154,7 @@ editing, review, and cross-package verification.
 
 ## Workspace And Crate Topology
 
-Atlas coordinates 12 independent package workspaces, each checked out under
+Atlas coordinates independent package workspaces, each checked out under
 `repos/`. Each repository remains separate for versioning and publishing, while
 the crates form one Atlas stack through Git dependencies, shared verification
 contracts, and common infrastructure crates. Below is the current topology of
@@ -243,6 +254,36 @@ each Cargo workspace and its constituent crates:
   - [consus-nwb](repos/consus/crates/consus-nwb): Neurodata Without Borders schema mapping.
   - [consus-hdmf](repos/consus/crates/consus-hdmf): Hierarchical Data Modeling Framework implementation.
   - [consus-python](repos/consus/crates/consus-python): PyO3 bindings for Python data access.
+
+### [kwavers](repos/kwavers)
+- **Role**: Acoustic simulation, therapy, imaging, driver, and PINN integration workspace.
+- **Resolver**: v2
+- **Atlas migration contract**: `ritk` and `consus` remain the imaging/storage providers. Replacement work is sequenced through provider-owned gaps: `moirai` for `tokio`/`rayon` runtime and parallelism, `hermes` for SIMD kernels, `leto` for `ndarray`/`nalgebra` array and linear-algebra surfaces, `coeus` for PINN/autodiff paths that currently use `burn`, and `mnemosyne`/`themis` for allocation and placement law. If a replacement provider lacks a Kwavers-required capability, the gap is fixed in the provider repo first, then Kwavers updates its pinned dependency.
+- **Crate Catalog**:
+  - [kwavers](repos/kwavers/crates/kwavers): High-level facade and feature orchestration crate.
+  - [kwavers-core](repos/kwavers/crates/kwavers-core): Core error, unit, validation, and shared domain contracts.
+  - [kwavers-math](repos/kwavers/crates/kwavers-math): Numerical kernels and math utilities for wave simulation.
+  - [kwavers-signal](repos/kwavers/crates/kwavers-signal): Signal generation, sampling, and processing utilities.
+  - [kwavers-grid](repos/kwavers/crates/kwavers-grid): Grid geometry and simulation-domain discretization.
+  - [kwavers-field](repos/kwavers/crates/kwavers-field): Acoustic field containers and field operations.
+  - [kwavers-optics](repos/kwavers/crates/kwavers-optics): Optical/acoustic coupling support.
+  - [kwavers-medium](repos/kwavers/crates/kwavers-medium): Medium definitions and material-property models.
+  - [kwavers-mesh](repos/kwavers/crates/kwavers-mesh): Mesh ingestion and geometry adapters.
+  - [kwavers-phantom](repos/kwavers/crates/kwavers-phantom): Phantom and synthetic tissue model construction.
+  - [kwavers-boundary](repos/kwavers/crates/kwavers-boundary): Boundary condition implementations.
+  - [kwavers-source](repos/kwavers/crates/kwavers-source): Acoustic source and transducer-domain source contracts.
+  - [kwavers-receiver](repos/kwavers/crates/kwavers-receiver): Receiver and sensor models.
+  - [kwavers-transducer](repos/kwavers/crates/kwavers-transducer): Transducer geometry, steering, and propagation validation.
+  - [kwavers-imaging](repos/kwavers/crates/kwavers-imaging): Imaging and reconstruction workflows.
+  - [kwavers-physics](repos/kwavers/crates/kwavers-physics): Analytical physics, cavitation, and therapy-delivery models.
+  - [kwavers-solver](repos/kwavers/crates/kwavers-solver): Solver adapters, PSTD/FDTD/KZK execution, and PINN solver surfaces.
+  - [kwavers-analysis](repos/kwavers/crates/kwavers-analysis): Analysis workflows and quantitative validation.
+  - [kwavers-simulation](repos/kwavers/crates/kwavers-simulation): Simulation orchestration and scenario execution.
+  - [kwavers-diagnostics](repos/kwavers/crates/kwavers-diagnostics): Diagnostics, metrics, and reporting.
+  - [kwavers-therapy](repos/kwavers/crates/kwavers-therapy): Therapy-domain models and treatment workflows.
+  - [kwavers-gpu](repos/kwavers/crates/kwavers-gpu): GPU-adjacent execution surfaces and feature-gated accelerator support.
+  - [kwavers-driver](repos/kwavers/crates/kwavers-driver): Device-driver, board, and experiment integration code.
+  - [kwavers-python](repos/kwavers/crates/kwavers-python): Thin PyO3 bindings for Python access to Rust-owned logic.
 
 ### [gaia](repos/gaia)
 - **Role**: Watertight geometry kernel and mesh generation.
@@ -453,6 +494,11 @@ The low-level GPU acceleration substrate is split into three parts:
 * If `B` is `WgpuBackend` or `CudaBackend`, tensor allocations and operations route through `coeus-wgpu` or `coeus-cuda`.
 * These crates translate tensor layouts ([`Layout<N>`](repos/leto/crates/leto/src/domain/layout/mod.rs) from `leto`) into GPU buffers, dispatching shaders over `hephaestus-wgpu` or `hephaestus-cuda` to run GPU calculations without copy overhead.
 
+#### 4. Kwavers Domain Integration
+* **[`kwavers`](repos/kwavers)** is a domain/integrator workspace in the same Atlas submodule set as CFDrs. It can now build under `D:/atlas/target` when invoked from `repos/kwavers`, through the shared `repos/.cargo/config.toml` target-dir policy.
+* Kwavers keeps **[`ritk`](repos/ritk)** for imaging/registration and **[`consus`](repos/consus)** for scientific storage.
+* Migration work proceeds provider-first: missing array or linear-algebra capability is added to **[`leto`](repos/leto)**, missing SIMD capability to **[`hermes`](repos/hermes)**, missing PINN/autodiff capability to **[`coeus`](repos/coeus)**, missing runtime/parallel capability to **[`moirai`](repos/moirai)**, and missing allocator/placement capability to **[`mnemosyne`](repos/mnemosyne)** or **[`themis`](repos/themis)** before Kwavers updates its dependency pins.
+
 ## Zero-Copy and Modularity Invariants
 
 The Atlas stack enforces strict performance, memory efficiency, and structural modularity contracts across its packages (notably `apollo` and its GPU backend integrations):
@@ -472,6 +518,7 @@ atlas/
 │   ├── consus/           # scientific storage-format workspace
 │   ├── gaia/             # watertight CFD mesh-generation workspace
 │   ├── hermes/           # SIMD abstraction workspace
+│   ├── kwavers/          # acoustic simulation and therapy integration workspace
 │   ├── leto/             # shared N-dimensional strided array workspace
 │   ├── melinoe/          # branded phantom-capability foundation crate
 │   ├── themis/           # placement-law foundation crate
@@ -499,9 +546,12 @@ git submodule update --init --recursive
 ## Working with packages
 
 ```sh
-# Build / test a single package (it is a self-contained workspace)
-cargo build  --manifest-path repos/CFDrs/Cargo.toml
-cargo test   --manifest-path repos/CFDrs/Cargo.toml
+# Build / test a single package from inside repos/<name>.
+# This lets Cargo discover repos/.cargo/config.toml and reuse D:/atlas/target.
+cd repos/CFDrs
+cargo build
+cargo nextest run
+cd ../..
 
 # Build every package
 pwsh scripts/build-all.ps1     # Windows: cargo build

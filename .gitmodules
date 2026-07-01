@@ -50,3 +50,7 @@
 [submodule "repos/eunomia"]
 	path = repos/eunomia
 	url = https://github.com/ryancinsight/eunomia.git
+[submodule "repos/kwavers"]
+	path = repos/kwavers
+	url = https://github.com/ryancinsight/kwavers.git
+	branch = main
