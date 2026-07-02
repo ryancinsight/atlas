@@ -129,12 +129,18 @@ The `mnemosyne-memory`/`parallel` feature pair is REAL in ~8 crates (leto,
 hermes-simd-core numa, moirai-core/executor/scheduler, hermes-simd facade
 forward) and PHANTOM (`= []`, gate nothing) in ~40 (eunomia, themis, melinoe,
 hermes leaves, apollo's ~22 crates, moirai's leaf crates, hephaestus wgpu).
-FIXED this session in the clean 7-core repos: themis, melinoe. IN PROGRESS:
-hermes leaves. COORDINATED FOLLOW-UP: eunomia's phantom `parallel`/
-`mnemosyne-memory` are *forwarded* by hermes-simd/hermes-simd-intrinsics, so
-removing them is a coupled eunomia+hermes change (do after the hermes hygiene
-branch lands). Remaining ~35 phantom declarations (apollo, moirai leaves,
-hephaestus) are filed for those repos' owners.
+FIXED this session in the clean 7-core repos: themis, melinoe, hermes (leaf +
+the full `parallel` chain), and eunomia. The eunomia↔hermes coupling is
+resolved end-to-end: hermes's `parallel` feature was fully phantom (hermes ⊥
+moirai; it forwarded only to eunomia's phantom `parallel` and between hermes
+crates), so it was removed across all hermes crates + eunomia in one
+coordinated change (eunomia branch `fix/remove-phantom-features`, hermes branch
+`fix/simd-safety-and-hygiene`), preserving the real `mnemosyne-memory` chain
+(hermes-simd-core → `dep:mnemosyne`). No external consumer enabled it; verified
+by full resolution + eunomia/hermes test suites. Remaining ~35 phantom
+declarations (apollo's ~22 crates, moirai leaves, hephaestus wgpu) are filed
+for those repos' owners — mechanical `[patch]` removals, but each in a repo
+outside the clean 7-core-that-was-fixable-this-session.
 
 ## Version skew
 
