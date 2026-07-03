@@ -149,3 +149,40 @@ ipc SharedQueue hardening, BoundedMpmcQueue Vyukov protocol, TaskResultSlot.
 moirai-tls (real rustls delegation), moirai-python (real thin PyO3), moirai-http
 (real max_response_bytes budget), moirai-gpu occupancy planner, moirai-parallel
 (entire crate incl. concurrent WIP), and utils SIMD are all genuinely real.
+
+## 2026-07-02 (later) — wave-2 implementation status
+
+Branch `refactor/remove-dead-subsystems` (5 commits, pushed) executes most of
+the backlog above, all scoped disjoint from the concurrent moirai-parallel
+session:
+
+- DONE dead/mock removal: executor mock reactor + dead cluster; core
+  dtype/metrics/security/wasm_executor/coroutine-scheduler; pal reactor task
+  subsystem + broken AsyncOperation/AsyncResult; transport UdpTransport stub;
+  utils ~1050 L (bits/random/time/backoff/RingBuffer/aliases); tests-crate
+  ceremony (the 920 L zero-assert file, the 1922 L stub-property file, six
+  dormant gate features). Net across the branch ≈ −7,400 lines.
+- DONE integrity fixes: cancel_task is real cooperative cancellation;
+  wait_for_task is waker-driven (no sleep-poll in async); task_stats reports
+  real priority; shutdown_timeout bounds; dead metrics fields deleted; http
+  idempotent-only retry + typed malformed Content-Length; fabricated
+  ConnectionInfo counters wired; TcpServerConfig.nodelay wired; unwireable
+  knobs documented-or-deleted.
+- DONE SSOT/DRY: WaitQueue<G> replaces 4 hand-rolled waiter queues (tests
+  byte-unmodified); Priority::index() const fn replaces 3 mappings; spawn
+  boilerplate 5→3 (full merge pends benchmark contract strings); pal
+  poll_ready_op replaces 6 WouldBlock clones; one AtomicCounter; typed
+  SegmentPoisoned replaces Result<_, String>; Once alias gone.
+- DONE memory/perf: injector 65536→1024 slots (16 MiB→256 KiB per worker);
+  reactor per-poll buffer allocs removed (all 3 backends); timer-driver
+  cancelled-entry compaction (O(1) amortized, derivation in-code); watch/
+  broadcast O(n) scans → keyed map / O(1) dense index; sync-primitive Arc
+  layers removed; histogram variance → Welford.
+- REMAINING (filed): CR-7 consumer swap in moirai-parallel (blocked by the
+  concurrent session); metrics runtime wiring (executor core.rs held by the
+  concurrent session); CacheAligned/CachePadded twin merge (call sites in
+  core/executor); utils metrics/no-std/numa empty features pending forward
+  removal; benchmark contract-string relaxation to finish the spawn merge;
+  moirai-core TaskStats untracked fields; no_std plumbing decision ([arch],
+  owner); ExecutorBuilder::blocking_threads unused; pre-existing
+  rayon_adapter_surface_audit contract failure (peer-owned marker rename).
