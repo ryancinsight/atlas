@@ -199,3 +199,16 @@ target: delete the blanket allows; fix the surfaced lints at source (backticks,
 `# Errors`/`# Panics` sections, justified per-site `#[allow]` only where a cast is
 provably safe with an inline reason). Everything else from the core integrity/
 memory batch already landed (commit cfd4306); only this lint sweep remains.
+
+## D9 status update (2026-07-03)
+
+D9 partially resolved (moirai commit da83f1d), scoped and bounded per the prior
+lesson: Phase A (safety-relevant cast lints — cast_possible_truncation/sign_loss/
+wrap/precision_loss/ptr_alignment) removed the blanket allows and resolved all
+19 sites individually (try_from+invariant for lossy, per-site justified #[allow]
+for safe reinterprets); Phase B mechanical doc/format lints fixed. REMAINING
+(its own task): the missing_errors_doc (56 fns) + missing_panics_doc (25 fns)
+allows are TODO-marked in moirai-core/lib.rs — documenting 81 public fns'
+# Errors/# Panics sections is a dedicated doc pass, not to be bundled. Legitimate
+crate-style allows (module_name_repetitions etc.) are kept by design.
+Also merged in the same commit: CacheAligned/CachePadded twin consolidation (SSOT).
