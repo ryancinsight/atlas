@@ -186,3 +186,16 @@ session:
   moirai-core TaskStats untracked fields; no_std plumbing decision ([arch],
   owner); ExecutorBuilder::blocking_threads unused; pre-existing
   rayon_adapter_surface_audit contract failure (peer-owned marker rename).
+
+## D9 follow-up (deferred, bounded — filed 2026-07-02)
+
+moirai-core/src/lib.rs carries ~30 blanket `#![allow(clippy::…)]` under a
+"Temporarily allow while fixing critical issues" comment (needless_continue,
+doc_markdown, cast_possible_truncation/sign_loss/precision_loss, missing_errors_doc,
+missing_panics_doc, etc.). Removing them surfaces ~150 pedantic lints. This is a
+SELF-CONTAINED task (one crate, lint-by-lint) and must be scoped as its own agent
+run with a per-lint-category budget — NOT bundled with structural work. Restore
+target: delete the blanket allows; fix the surfaced lints at source (backticks,
+`# Errors`/`# Panics` sections, justified per-site `#[allow]` only where a cast is
+provably safe with an inline reason). Everything else from the core integrity/
+memory batch already landed (commit cfd4306); only this lint sweep remains.
