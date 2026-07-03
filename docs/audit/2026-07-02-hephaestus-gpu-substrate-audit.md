@@ -105,7 +105,8 @@ CUDA-hardware verification blocked) are excluded.
 
 ## 8. Residual risk / unverified
 
-- No runtime benchmarks were taken; all perf findings are mechanism-level. CU-P7 magnitude (managed-memory migration cost) and WG-P5/P9 need criterion baselines before/after per performance_engineering.
+- **CU-P7 update (2026-07-03, hardware-verified):** the CU-P7 hypothesis above (in-band metadata + `cuMemAdvise` ordinal) is **refuted** as the cause of the 9 CUDA `0xc0000006` aborts. Experiments on real hardware showed: (a) disabling the placement advice entirely left all 9 aborting; (b) the mnemosyne registry is out-of-band (`AtomicPtr` table), not in-band; (c) `CUDA_LAUNCH_BLOCKING=1` makes all 9 pass. Actual cause: WDDM does not support concurrent host/device access to `cuMemAllocManaged` ranges — a host access (next intermediate allocation, driver managed-heap bookkeeping) while a null-stream kernel is in flight faults. Fixed 8/9 with a Windows-gated post-launch `cuCtxSynchronize` (`hephaestus-cuda` KS-8). The 1 residual (`concurrent_device_acquisition_is_safe`) is multi-thread concurrent managed access and still motivates the real `cuMemAlloc` (non-managed) device tier in mnemosyne.
+- No runtime benchmarks were taken; all perf findings are mechanism-level. WG-P5/P9 need criterion baselines before/after per performance_engineering.
 - CUDA findings are unverifiable on real hardware in this environment (known gap_audit item).
 - mnemosyne CUDA allocation-registry capacity behavior (bounded → artificial `AllocationFailed` ceiling) needs a contract test (PLAUSIBLE).
 - hephaestus-local items in §1–§5 are not yet synced into `repos/hephaestus/{gap_audit,backlog}.md` (submodule untouched by this read-only audit); sync is the first action of whichever phase is approved.
