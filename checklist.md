@@ -9,14 +9,63 @@
 
 ---
 
-## CR-4 — `[major]` Rebase `coeus-core::Scalar` + `leto-ops::Scalar` over `eunomia::{NumericElement, RealField}` as supertraits
+## CR-4 — `[major]` Rebase `coeus-core::Scalar` + `leto-ops::Scalar` over `eunomia::NumericElement` (universal SSOT)
+
+> **Design SSOT**: `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (status: **Proposed**, awaiting user sign-off pre-implementation per `versioning` policy).
+>
+> **Correction note**: this section's earlier text proposed `Scalar: NumericElement + RealField` as the binding. The ADR's pre-implementation T1 read disproves that — `eunomia::RealField: FloatElement` is **float-only** (per `eunomia/src/traits/field.rs:17`), and `coeus_core::Int: Scalar` (`coeus-core/src/dtype/traits.rs:551-569`) is implemented for `i8`/`i16`/`i32`/`i64`/`u8`/`u16`/`u32`/`u64`. Binding `Scalar: RealField` would orphan every integer `Int` impl and is a HARD integrity defect (fake-generic / alias-driven architecture). The correct binding is `NumericElement` only — the universal element vocabulary whose impl set covers `{f32, f64, f16, bf16}` ∪ signed+unsigned ints (verified at `eunomia/src/impls/primitives/{numeric,float}.rs`). An empty-body `Scalar {}` supertrait is ALSO rejected — it would silently strip the legitimate backend extension surface (`add_slice`/.../`max_slice`, `gemv_*`, `tiled_gemm`, `leto_ops::Scalar::from_usize`) which belongs on the backend `Scalar`, NOT on `NumericElement`.
+
+**Pre-reqs** (Definition-of-Ready):
+- User signs off on `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (✅ entry on 2026-07-04).
+
+**Plan** (ordered, atomic commits per increment):
+1. **[arch] coeus-core** (`coeus/coeus-core/src/dtype/traits.rs:277-450`):
+   - Supertrait set: `pub trait Scalar: NumericElement + CpuUnaryDispatch + Pod + Rem<Output=Self> + Clone`. Drop redundant `Copy/Send/Sync/Debug/PartialOrd/Add/Sub/Mul/Div/'static` (all on `NumericElement`). Drop `private::Sealed` (eunomia's seal covers this).
+   - Delete required methods: `zero`, `one`, `to_f64`, `from_f64`, `from_usize`, `sqrt_val`, `abs_val` (each duplicates `NumericElement::ZERO`/`::ONE`/`::to_f64`, `FloatElement::from_f64`, or `ComplexField::sqrt`).
+   - Keep default-bodies slice-kernel surface (`add_slice`/`sub_slice`/`mul_slice`/`div_slice`/`dot_slice`/`scale_slice`/`axpy_slice`/`sum_slice`/`min_slice`/`max_slice`) — these are the `hermes-simd` per-type seam, NOT duplicated on `NumericElement`.
+   - Migrate `Complex<T>: Scalar` impl at `coeus-core/src/dtype/complex.rs:161-220`:
+     - `Complex::zero` → `ComplexField::from_real(<T as NumericElement>::ZERO)` (or inherent `Complex::new(ZERO, ZERO)`).
+     - `Complex::one` → `ComplexField::from_real(<T as NumericElement>::ONE)` (or `Complex::new(ONE, ZERO)`).
+     - `Complex::from_f64(v)` → inherent method `Complex { re: T::from_f64(v), im: <T as NumericElement>::ZERO }`.
+     - `Complex::from_usize(v)` → inherent method (delegating to `T::from_usize(v)` where `T: leto_ops::Scalar` — or, if `T` is bounded only on `coeus_core::Scalar` post-rebase, inline `v as T`-style upcast is NOT available; flag for §Leak-check below).
+     - `Complex::sqrt_val` → `eunomia::ComplexField::sqrt(self)` which already exists at `eunomia/src/impls/field.rs:158-160`.
+     - `Complex::abs_val` → `ComplexField::from_real(self.modulus())` (`modulus` at `field.rs:138-140`).
+     - `Complex::to_f64` → inline `self.re.to_f64()` at the single call site (`complex.rs:180`).
+   - Update `CpuUnaryDispatch for Complex<T>` `Sqrt`/`Abs` match arms at `complex.rs:257-258` to call the new inherent methods or `ComplexField::sqrt`/`from_real(modulus())`.
+   - Verify: `cargo nextest run -p coeus-core`, `cargo test --doc -p coeus-core`, `cargo doc --no-deps -p coeus-core`, `cargo semver-checks release -p coeus-core`. Atomic commit; bump per `cargo-semver-checks` output (likely `[major]`).
+2. **[patch or minor] leto-ops** (`leto/crates/leto-ops/src/domain/scalar.rs:12-177`):
+   - `pub trait Scalar: NumericElement { fn from_usize(value: usize) -> Self; /* default-bodies slice kernels */ }`. Only `from_usize` remains required.
+   - `impl_scalar_simd!` and `impl_scalar_plain!` macros unchanged in body (they only set `from_usize` and override default slice kernels).
+   - Verify `leto-ops`'s `eunomia` dep (`Cargo.toml:22`, already present) covers the new supertrait; no Cargo change.
+   - Optional follow-on [patch] (separate commit, separate batch entry): strip `num-traits` from `leto-ops/Cargo.toml:18` if `rg "num_traits" repos/leto/crates/leto-ops/src` returns zero after this change.
+   - Verify: `cargo nextest run -p leto -p leto-ops`, `cargo test --doc -p leto-ops`, `cargo doc --no-deps -p leto-ops`, `cargo semver-checks release -p leto-ops`. Atomic commit.
+3. **(verify-only) gaia** — `gaia/src/domain/core/scalar.rs:54-106` already bound over `eunomia::RealField`; no change. Verify `cargo nextest run -p gaia` green after #1+#2 land.
+4. **(verify-only) eunomia** — `NumericElement::ZERO`/`::ONE` already at `eunomia/src/traits/numeric.rs:27-29`; no source change. Verify `cargo doc --no-deps -p eunomia` warning-clean.
+5. **Consumer-repo verification** — `cargo nextest run` for downstream packages that consume `coeus-core::Scalar` or `leto-ops::Scalar`: `-p kwavers-math -p cfd-math -p ritk-registration` at minimum.
+6. **PM sync** (in the same commit as #1): mark CR-4 done here, mark `atlas/gap_audit.md` CR-4 row CLOSED, resequence Batches #2/#3/#4 as Definition-of-Ready in `atlas/backlog.md`, write provider-local backlog entries per `architecture_scoping` PM scope isolation.
+7. **CHANGELOG**: under `Breaking` in `repos/coeus/CHANGELOG.md` and `repos/leto/CHANGELOG.md` (subject to `cargo-semver-checks` final classification).
+
+**Leak-check (investigate during implementation; not blocking the ADR)**:
+- `Complex<T>::from_usize` post-rebase: if `T` is bounded only on `coeus_core::Scalar` (which after rebase is `NumericElement`, not `leto_ops::Scalar`), there is no `from_usize` on `T`. Two resolutions: (a) make `Complex<T>::from_usize` an inherent helper that delegates to `v as T` for floats (requires `T: FloatElement`) — works because `Complex<T>` is bounded on `Float` already, which inherits the f32/f64-only `as`-cast surface; or (b) require `Complex<T>: Scalar` impls also bound `T: leto_ops::Scalar` — unlikely. Resolution (a) is cleanest; investigate at impl time.
+
+**Completion condition (evidence)**:
+- `cargo nextest run -p eunomia -p coeus-core -p coeus-autograd -p coeus-ops -p leto -p leto-ops -p gaia -p kwavers-math -p cfd-math -p ritk-core -p ritk-registration` green.
+- `cargo test --doc -p coeus-core -p leto-ops -p eunomia` green.
+- `cargo semver-checks release -p coeus-core -p leto-ops` reports the §7-predicted classification (`[major]` for coeus-core; `[minor]` or `[patch]` for leto-ops).
+- `rg -n "<.+ as Scalar>::(zero|one|to_f64|from_f64|from_usize|sqrt_val|abs_val)\b" repos` returns zero matches (every duplicated call site migrated to `NumericElement`/`FloatElement`/inherent).
+- `rg -n "trait Scalar" repos/{coeus,leto,gaia,eunomia}` returns exactly 3 matches (the 3 backend `Scalar` traits); zero new redeclarations.
+- `Complex<T>` tests (wherever they live in `repos/coeus`) value-semantically green; principal `sqrt`/`abs`/`from_f64`/`to_f64` results bitwise-identical pre/post.
+
+**Next step after CR-4 (unblocks)**:
+- Batches #2 (CFDrs nalgebra finish), #3 (ritk Burn trait rebind), #4 (kwavers-solver PINN → Coeus) become Definition-of-Ready.
+- Per `decision_policy` lowest-risk-vertical-slice bias, Batch #1 (kwavers-solver/physics Rayon → Moirai) is sequenced next — but it is *not gated by CR-4* and can land in parallel; see its own checklist section.
 
 **Pre-reqs** (Definition-of-Ready):
 - `coeus/coeus-core/src/dtype/traits.rs` current shape T1-read by owner.
 - `leto/crates/leto-ops/src/domain/scalar.rs` current shape T1-read by owner.
 - Both redeclarations removed; `Scalar: eunomia::NumericElement + eunomia::RealField` is the single SSOT after the change.
 
-**Plan** (ordered):
+**Plan** (the old CR-4 plan, now superseded by ADR 0005 — left for archaeology; do NOT execute this version):
 1. Author `eunomia::NumericElement::zero() -> Self` and `::one() -> Self` directly (today only via `Default`). File: `eunomia/crates/eunomia/src/traits/numeric.rs:7-17` body. Owner: `eunomia`.
 2. Rebase `Scalar` in `coeus-core/src/dtype/traits.rs:1-11` as `pub trait Scalar: eunomia::NumericElement + eunomia::RealField {}`. Empty-body trait (no methods). File-line: `coeus/coeus-core/src/dtype/traits.rs`.
 3. Rebase `Scalar` in `let''o-ops/src/domain/scalar.rs:1-21` same shape.
@@ -32,15 +81,15 @@
    - `RITK/Cargo.toml:112 num-traits` strip.
 7. Changelog: `[major]` bump in `atlas` meta-version; CHANGELOG entry for `eunomia SSOT inheritance`.
 
-**Completion condition (evidence)**:
+**Completion condition (evidence)** (the old CR-4 completion condition, now superseded by ADR 0005 — use the new CR-4 completion condition above):
 - `cargo nextest run -p eunomia -p coeus-core -p leto-ops -p kwavers-math -p cfd-math -p ritk-registration` green.
 - `cargo tree -i num-traits -p kwavers` returns zero.
 - `cargo tree -i num-traits -p CFDrs` returns zero (or shows only `[dev-dependencies]` of an `apollo-validation` dev-crate).
 - `rg -n "Scalar = ..." crates/kwavers crates/CFDrs crates/ritk` returns zero matches outside the three SSOT sites.
 - `cargo clippy --all-targets -- -D warnings` green across the touched repos.
 
-**Next step after CR-4 (handoff to CFDrs queue)**:
-- Batches #2 (CFDrs nalgebra finish) become Definition-of-Ready.
+**Next step after CR-4 (unblocks, per ADR 0005)**:
+- Batches #2/#3/#4 become Definition-of-Ready. The token-batch ordering in `atlas/backlog.md` is: #5 (CR-1) → #6 (CR-2) → #1 → #2 → #3 → #4 → #8.
 
 ---
 
@@ -246,10 +295,12 @@ Each batch follows the atomic-commit rule:
 
 ## In-flight claim (this checkpoint)
 
-- Owned file: `atlas/backlog.md`, `atlas/checklist.md`, `atlas/gap_audit.md` only.
+- Owned files (this turn): `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (newly authored), `atlas/backlog.md`, `atlas/checklist.md`, `atlas/gap_audit.md` (corrected per the ADR's evidence-finding).
 - Owner: `claude-codex` (current session).
-- Claim end: pending commit (CI passes).
-- Next claim: Batch #7 (CR-4) upstream first as an `eunomia`-side contract; this is the frontmost `Definition-of-Ready` for batches #2, #3, #4.
+- Claim start: 2026-07-04.
+- Claim end: pending user sign-off on the ADR (per `versioning` policy, `[major]`/`[arch]` items require ADR sign-off pre-implementation).
+- Next claim: open Batch #7 implementation checklist item (CR-4 §1 coeus-core increment) after sign-off.
+- Concurrent claim stream to honor: `codex/kwavers-core-moirai-parallel` in `repos/kwavers` — disjoint scope (kwavers source); no collision.
 
 ## Residual risks (logged here per actions of `gap_audit.md`)
 
@@ -259,4 +310,6 @@ Each batch follows the atomic-commit rule:
 
 ## Next micro-sprint
 
-**Batch #7 (CR-4 eunomia SSOT)** first. Single coordinate commit in `coeus-core` + `let''o-ops` + body updates in dependent repos. See step 7 of this checklist for specific source files.
+**Await user sign-off on `atlas/docs/adr/0005-eunomia-scalar-ssot.md`** (status **Proposed**). Once accepted, the next micro-sprint opens Batch #7 increment §1 (coeus-core `Scalar` rebase + `Complex<T>` migration per ADR §1+§2).
+
+Branch: `codex/kwavers-atlas-integration`. Single coordinated commit for §1;#2 is a separate atomic commit; consumer-side verification (#5) and PM sync (#6) travel with their respective commits.

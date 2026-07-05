@@ -14,7 +14,7 @@ Three CR-class items carried from `docs/audit/2026-07-02-cross-repo-integration-
 
 | ID | Class | Title | Owner repo (provider land) | Supertypes | Consumer land unlocked |
 | --- | --- | --- | --- | --- | --- |
-| **CR-4** | `[major]` | Rebase `coeus-core::Scalar` + `leto-ops::Scalar` over `eunomia::{NumericElement, RealField}` as supertraits (single SSOT). Remove standalone redeclarations at `coeus/coeus-core/src/dtype/traits.rs` and `leto/crates/leto-ops/src/domain/scalar.rs`. | `coeus`, `leto` (joint) | `eunomia` is doctrine holder | kwavers `RealField` nalgebra → eunomia; CFDrs `cfd-math` solver-chain RealField seam; ritk `Burn::Module → coeus::Module` rebind |
+| **CR-4** | `[major]` | Rebase `coeus-core::Scalar` + `leto-ops::Scalar` over `eunomia::NumericElement` as the universal supertrait (single SSOT). Delete the vocabulary that already lives on `NumericElement` (`zero`/`one`/`to_f64`/`from_f64`/`from_usize`/`sqrt_val`/`abs_val`); keep the backend-specific slice-kernel surface (`add_slice`/.../`max_slice`, `gemv_*`, `tiled_gemm`, `axpy_rows`, leto-ops `from_usize`). See `atlas/docs/adr/0005-eunomia-scalar-ssot.md` for the proof that `RealField` (float-only) cannot be a universal `Scalar` supertrait (would orphan `coeus_core::Int` for i8/u8/.../u64). | `coeus`, `leto` (joint) | `eunomia` is doctrine holder | kwavers `RealField` nalgebra → eunomia; CFDrs `cfd-math` solver-chain RealField seam; ritk `Burn::Module → coeus::Module` rebind |
 | **CR-2** | `[arch]` | Consolidate `#[global_allocator]` to a single binary-only registration. Strip from `cfd-core`, `ritk-core`, `moirai/lib`. Pass `Mnemosyne` handles via DI to library callers. | `cfd-core`, `ritk-core`, `moirai` (joint) | `mnemosyne` is allocator holder | Library composition stays provider-neutral; binaries own allocator policy |
 | **CR-1** | `[arch]` | Delete `apollo/crates/apollo-ghostcell` standalone GhostCell reimplementation; redirect all apollo sites to `melinoe::MelinoeCell` (with `brand_scope!` mint). | `apollo`, `melinoe` (consumer) | `melinoe` is brand doctrine holder | All brand-borrow contention becomes provider-exclusive |
 
@@ -28,7 +28,7 @@ These cross-cut consumer migration but live in provider land. Each requires its 
 | `leto-ops` | `CscMatrix<T>`, `CooMatrix<T>`, `lu_batch`; `ExecutionStrategy` → `MoiraiBackend::ParIter` seam | ops | `leto/backlog.md` |
 | `moirai-async` | `mpsc::channel`, `oneshot::channel`, `Condvar`, `Mutex`; `#[moirai::main]` proc-macro | async | `moirai/docs/backlog.md` |
 | `apollo` | RustFFT-free differential oracle; prune workspace `rustfft = "6.4.1"` pin (`apollo/Cargo.toml:84`) gated behind `apollo-validation` dev-dep | validate | `apollo/backlog.md` |
-| `eunomia` | Author `eunomia-gpu` OR fold into `hephaestus::DialectScalar` (close README aspirational claim); expose `zero()`/`one()` constants on the `NumericElement` trait surface directly (today only `default()` derived) | basis | `eunomia/backlog.md` |
+| `eunomia` | Author `eunomia-gpu` OR fold into `hephaestus::DialectScalar` (close README aspirational claim). (The `NumericElement::ZERO`/`::ONE` constants already exist per `eunomia/src/traits/numeric.rs:27-29`; the prior register line proposing to add `zero()/one()` is disproven and removed.) | basis | `eunomia/backlog.md` |
 | `coeus` | Autograd-side `Var<T,B> {scatter_add}` wrapper (ops-only Tensor exists); `eq/ne/lt/gt` comparison free fns in `coeus-ops::BackendOps`; `Dataset`/`DataLoader` trait if PINN dataset paths require | autograd | `coeus/docs/backlog.md` |
 | `hephaestus` | `wgpu::PipelineCache` integration (perf, WG-P8 from substrate audit); close `CU-C1`, `CU-P1`, `WG-S1`, `BOTH-SCAN` HIGH-sev defects (substrate audit) | gpu | `hephaestus/backlog.md` |
 
@@ -55,7 +55,7 @@ Ordered per Definition-of-Ready (provider SSOT closes first). Each batch is self
 
 Batches #5, #6, #7 are the [arch] provider-SSOT gates. Per `decision_policy` nternals:
 
-1. **#7 first** (CR-4 eunomia SSOT) — Required by #2 (CFDrs nalgebra finish), #3 (ritk Burn], and #4 (kwavers PINN Burn → coeus). Lowest-blast-radius single commit; flips `Scalar` definitions to supertraits over `eunomia`.
+1. **#7 first** (CR-4 eunomia SSOT) — Required by #2 (CFDrs nalgebra finish), #3 (ritk Burn rebind), and #4 (kwavers PINN Burn → coeus). Single provider-only commit in `coeus-core` + `leto-ops` (+ tiny `complex.rs` impl update + optional `leto-ops/Cargo.toml num-traits` strip). ADR `0005-eunomia-scalar-ssot.md` (status **Proposed**) describes the actual rebase; `RealField` is NOT a universal `Scalar` supertrait (would orphan `Int`); `NumericElement` is. Awaiting user sign-off before implementation per `versioning` policy (`[major]`/`[arch]` require ADR sign-off pre-implementation).
 2. **#5 second** (CR-1) — Pure provider cleanup; no consumer call sites depend on it for the migration below.
 3. **#6 third** (CR-2) — Library-vs-binary layering; consumer migrations (#1, #2, #3, #4) are not strictly gated by it but the layering matters on connect-build.
 4. **#1 fourth** — `kwavers-solver` residual Rayon → Moirai. Self-contained. Calls CTE immediately after a clean CR-4.
