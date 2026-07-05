@@ -498,6 +498,7 @@ The low-level GPU acceleration substrate is split into three parts:
 * **[`kwavers`](repos/kwavers)** is a domain/integrator workspace in the same Atlas submodule set as CFDrs. It can now build under `D:/atlas/target` when invoked from `repos/kwavers`, through the shared `repos/.cargo/config.toml` target-dir policy.
 * Kwavers keeps **[`ritk`](repos/ritk)** for imaging/registration and **[`consus`](repos/consus)** for scientific storage.
 * Migration work proceeds provider-first: missing array or linear-algebra capability is added to **[`leto`](repos/leto)**, missing SIMD capability to **[`hermes`](repos/hermes)**, missing PINN/autodiff capability to **[`coeus`](repos/coeus)**, missing runtime/parallel capability to **[`moirai`](repos/moirai)**, and missing allocator/placement capability to **[`mnemosyne`](repos/mnemosyne)** or **[`themis`](repos/themis)** before Kwavers updates its dependency pins.
+* Provider-specific GPU errors, device acquisition, buffers, and kernel dispatch stay in **[`hephaestus`](repos/hephaestus)**, **[`coeus`](repos/coeus)**, or Kwavers' feature-gated GPU leaf crates. Foundational Kwavers crates must not grow WGPU/CUDA-specific conversion features just to make downstream `?` propagation compile.
 
 ## Zero-Copy and Modularity Invariants
 
