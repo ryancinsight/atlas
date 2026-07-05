@@ -11,6 +11,31 @@
 
 ## CR-4 — `[major]` Rebase `coeus-core::Scalar` + `leto-ops::Scalar` over `eunomia::NumericElement` (universal SSOT)
 
+> **Status (2026-07-05)**: Implementation split across 3 commits across the workspace:
+>
+> | Sub-step | Repo | Commit | Landed |
+> | --- | --- | --- | --- |
+> | eunomia SSOT extension (Complex<T>, isize, usize impls; trait doc clarifier; private::Sealed impls; CastFrom<i32> edge for platforms) | `eunomia` | `57d7789` | ✅ pushed to main |
+> | coeus SSOT rebind + call-site disambiguation across `coeus-core`, `coeus-autograd`, `coeus-ops`, `coeus-nn`, `coeus-fft`, `coeus-optim`, `coeus-tensor`, doctests | `coeus` | `2b3f820` (`feat(scalar)!:`) | ✅ pushed to main |
+> | leto `Scalar: NumericElement` rebind | `leto` | (BLOCKED — see `## blocker ##` below) | 🔴 parked in working tree |
+>
+> **Implementation record**: the actual NumericElement-trait shape carries `from_f64`/`from_usize` only inside `FloatElement::from_f64` and the integer `v as Self` literal-cast route — *not* on `NumericElement` itself. The §5 plan originally proposed adding `from_f64`/`from_usize` to `NumericElement`, but T1-verification at compile time proved it'd collide with `FloatElement::from_f64` (duplicate method-name resolution across super/sub-trait). The actual shipped trait surface keeps `NumericElement` constants/methods-only (`ZERO`/`ONE`/`sqrt`/`abs`/`to_f64`/`is_finite`/`is_nan`/`scalar_fmadd`/`bitand`/`bitor`/`bitxor`/`count_ones`/`min_scalar`/`max_scalar`/`BYTE_WIDTH`/`MIN_VALUE`/`MAX_VALUE`/...). The simulator-side dispatch routes floats via `<T as FloatElement>::from_f64(v)` and ints via the literal `v as Self` truncating cast.
+>
+> **Massive call-site rewrites landed**: ~64 coeus files received `<T as Scalar>::to_f64` / `<T as Float>::abs` / `<T as Float>::sqrt` / `<T as Float>::is_finite` qualifiers — necessary because at the SSOT-bridged surface, `T::to_f64`/`T::abs`/`T::sqrt`/`T::is_finite` resolve to multiple candidates through the `Scalar: NumericElement` path. Disambiguation is the user-confirmed scope of CR-4 because the duplication concern was the *whole point* of the rebind. Adjacent clippy `assign_op_pattern` (`acc = acc + x` → `acc += x`) was fixed in the same atomic commit so the verification gate passes — these were latent-hot-loop patterns that the SSOT rebind surfaced for clippy re-analysis.
+>
+> **Verified (eunomia + coeus)**: `cargo fmt --check` clean, `cargo clippy --workspace --all-targets -- -D warnings` clean (`coeus-core`, `coeus-autograd`, `coeus-ops`, `coeus-nn`, `coeus-fft`, `coeus-optim`, `coeus-tensor` all clippy-green), 1031 coeus nextest tests, 29 eunomia nextest tests, doctests across all crates pass, `cargo doc --no-deps` warning-clean.
+
+> **## blocker ##**
+
+> The leto `Scalar` rebind was concurrently developed in `repos/leto` working tree, but at push time `repos/leto origin/main` had diverted 47 commits ahead of the local maintainer branch (the `leto` project advanced independently through `feat/array-to-vec` PR #30 which has its own independent declaration of `Scalar` traits without the eunomia NumericElement supertrait binding). The local CR-4 `Scalar: NumericElement` rebind conflicts with that pre-published origin design — the divergent declaration of `Scalar` shapes makes a clean merge impossible at the file-`crates/leto-ops/src/domain/scalar.rs` boundary without coordination.
+>
+> **Resolution path** (user-decision required, NOT blocking eunomia/coeus consumer migration):
+> 1. Coordinate with the author of PR #30 / `leto origin/main` — reconcile whether the SSOT-bound vs origin's stable-by-additive-change `Scalar` design wins.
+> 2. If SSOT-bound: rebase leto local onto `origin/main` with a recorded migration plan for every `Scalar::add/sub/mul/div` → `NumericElement::+ operator` rewrite (the origin design declares those as required methods of `Scalar`).
+> 3. If origin stable: pivot leto's CR-4 contribution to a smaller surface — re-bind only the `from_usize` constructor (the §5 original intent of `leto_ops::Scalar`) and leave the existing `add/sub/mul/div` surface as-is, with `NumericElement` added as an *additional* supertrait rather than a replacement.
+>
+> Filed for explicit user sign-off per `atlas/backlog.md` Item #7 (`[arch] CR-4: leto ...`).
+
 > **Design SSOT**: `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (status: **Proposed**, awaiting user sign-off pre-implementation per `versioning` policy).
 >
 > **Correction note**: this section's earlier text proposed `Scalar: NumericElement + RealField` as the binding. The ADR's pre-implementation T1 read disproves that — `eunomia::RealField: FloatElement` is **float-only** (per `eunomia/src/traits/field.rs:17`), and `coeus_core::Int: Scalar` (`coeus-core/src/dtype/traits.rs:551-569`) is implemented for `i8`/`i16`/`i32`/`i64`/`u8`/`u16`/`u32`/`u64`. Binding `Scalar: RealField` would orphan every integer `Int` impl and is a HARD integrity defect (fake-generic / alias-driven architecture). The correct binding is `NumericElement` only — the universal element vocabulary whose impl set covers `{f32, f64, f16, bf16}` ∪ signed+unsigned ints (verified at `eunomia/src/impls/primitives/{numeric,float}.rs`). An empty-body `Scalar {}` supertrait is ALSO rejected — it would silently strip the legitimate backend extension surface (`add_slice`/.../`max_slice`, `gemv_*`, `tiled_gemm`, `leto_ops::Scalar::from_usize`) which belongs on the backend `Scalar`, NOT on `NumericElement`.
@@ -19,20 +44,33 @@
 - User signs off on `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (✅ entry on 2026-07-04).
 
 **Plan** (ordered, atomic commits per increment):
-1. **[arch] coeus-core** (`coeus/coeus-core/src/dtype/traits.rs:277-450`):
-   - Supertrait set: `pub trait Scalar: NumericElement + CpuUnaryDispatch + Pod + Rem<Output=Self> + Clone`. Drop redundant `Copy/Send/Sync/Debug/PartialOrd/Add/Sub/Mul/Div/'static` (all on `NumericElement`). Drop `private::Sealed` (eunomia's seal covers this).
-   - Delete required methods: `zero`, `one`, `to_f64`, `from_f64`, `from_usize`, `sqrt_val`, `abs_val` (each duplicates `NumericElement::ZERO`/`::ONE`/`::to_f64`, `FloatElement::from_f64`, or `ComplexField::sqrt`).
-   - Keep default-bodies slice-kernel surface (`add_slice`/`sub_slice`/`mul_slice`/`div_slice`/`dot_slice`/`scale_slice`/`axpy_slice`/`sum_slice`/`min_slice`/`max_slice`) — these are the `hermes-simd` per-type seam, NOT duplicated on `NumericElement`.
-   - Migrate `Complex<T>: Scalar` impl at `coeus-core/src/dtype/complex.rs:161-220`:
-     - `Complex::zero` → `ComplexField::from_real(<T as NumericElement>::ZERO)` (or inherent `Complex::new(ZERO, ZERO)`).
-     - `Complex::one` → `ComplexField::from_real(<T as NumericElement>::ONE)` (or `Complex::new(ONE, ZERO)`).
-     - `Complex::from_f64(v)` → inherent method `Complex { re: T::from_f64(v), im: <T as NumericElement>::ZERO }`.
-     - `Complex::from_usize(v)` → inherent method (delegating to `T::from_usize(v)` where `T: leto_ops::Scalar` — or, if `T` is bounded only on `coeus_core::Scalar` post-rebase, inline `v as T`-style upcast is NOT available; flag for §Leak-check below).
-     - `Complex::sqrt_val` → `eunomia::ComplexField::sqrt(self)` which already exists at `eunomia/src/impls/field.rs:158-160`.
-     - `Complex::abs_val` → `ComplexField::from_real(self.modulus())` (`modulus` at `field.rs:138-140`).
-     - `Complex::to_f64` → inline `self.re.to_f64()` at the single call site (`complex.rs:180`).
-   - Update `CpuUnaryDispatch for Complex<T>` `Sqrt`/`Abs` match arms at `complex.rs:257-258` to call the new inherent methods or `ComplexField::sqrt`/`from_real(modulus())`.
-   - Verify: `cargo nextest run -p coeus-core`, `cargo test --doc -p coeus-core`, `cargo doc --no-deps -p coeus-core`, `cargo semver-checks release -p coeus-core`. Atomic commit; bump per `cargo-semver-checks` output (likely `[major]`).
+1. **[arch] coeus-core** + eunomia SSOT enlargement (atomic commit touching 3 crates):
+   - `eunomia/crates/eunomia/src/traits/numeric.rs:7-110`: add `fn from_f64(v: f64) -> Self { v as Self }` and `fn from_usize(v: usize) -> Self { v as Self }` to `NumericElement`. (See ADR 0005 §5 for rationale; the §5 "no change" non-decision in the original ADR was overconfident.)
+   - `coeus/coeus-core/src/dtype/traits.rs:277-450` (`pub trait Scalar`):
+     - Supertrait set: `pub trait Scalar: NumericElement + CpuUnaryDispatch + Pod + Rem<Output=Self> + Clone`. Drop redundant `Copy/Send/Sync/Debug/PartialOrd/Add/Sub/Mul/Div/'static` (all on `NumericElement`). Drop `private::Sealed` (eunomia's seal covers this).
+     - Delete required methods: `zero`, `one`, `to_f64`, `from_f64`, `from_usize`, `sqrt_val`, `abs_val` (each duplicates `NumericElement::ZERO`/`::ONE`/`::to_f64`/`::from_f64`/`::from_usize`/`::sqrt`/`::abs` post-§5).
+     - Keep default-bodies slice-kernel surface (`add_slice`/`sub_slice`/`mul_slice`/`div_slice`/`dot_slice`/`scale_slice`/`axpy_slice`/`sum_slice`/`min_slice`/`max_slice`) — these are the `hermes-simd` per-type seam, NOT duplicated on `NumericElement`.
+   - `coeus/coeus-core/src/dtype/float/native.rs:5-37` (`impl_scalar_float_native` macro for `f32`/`f64`): delete the 7 redundant methods from `Scalar` impl; the slice-kernel surface stays as `coeus_core::Scalar` trait bodies. Float `Float`/`FloatOps`/`CpuUnaryDispatch` impls outside `Scalar` are unaffected.
+   - `coeus/coeus-core/src/dtype/float/half.rs:6-37` (`impl_scalar_float_half` macro for `f16`/`bf16`): same — empty the Scalar impl.
+   - `coeus/coeus-core/src/dtype/int.rs:9-108` (int orig/uint orig macros for `i8..u64`): empty the Scalar impl.
+   - `coeus/coeus-core/src/dtype/float/cpu_unary.rs` (`impl_cpu_unary_dispatch_float` macro):
+     - `Self::zero()` → `<Self as eunomia::NumericElement>::ZERO`
+     - `Self::one()` → `<Self as eunomia::NumericElement>::ONE`
+     - `Self::from_f64(v)` → `<Self as eunomia::FloatElement>::from_f64(v)`
+     - `x.sqrt_val()` → `eunomia::NumericElement::sqrt(x)` (call form: `x.sqrt()`)
+     - `x.abs_val()` → `eunomia::NumericElement::abs(x)` (call form: `x.abs()`)
+   - `coeus/coeus-core/src/dtype/int.rs:155-225` (`impl_cpu_unary_dispatch_int` macro):
+     - `Self::zero()` → `<Self as eunomia::NumericElement>::ZERO`
+     - `Self::one()` → `<Self as eunomia::NumericElement>::ONE`
+     - `Self::from_f64(v)` → `v as Self` (literal truncating cast; no `FloatElement::from_f64` for ints)
+     - `x.abs_val()` → `eunomia::NumericElement::abs(x)`
+     - `x.sqrt_val()` → `eunomia::NumericElement::sqrt(x)`
+   - `coeus/coeus-core/src/dtype/float/native.rs:198-203` (`impl_scalar_float_native: gelu_op`): `<$t as Scalar>::from_f64(0.5)` → `<$t as eunomia::NumericElement>::from_f64(0.5)` (now resolves through SSOT).
+   - `coeus/coeus-core/src/dtype/complex.rs:161-220` (`impl<T: Float> Scalar for Complex<T>`): becomes an empty impl block (the trait requires no methods post-rebase; slice kernels inherit defaults). Delete the whole impl body. Any caller of `Scalar::zero()/one()/etc.` on `Complex<T>` must migrate per caller-rewrite below in §5 of this checklist.
+   - `coeus/coeus-core/src/dtype/complex.rs:222-281` (`impl<T: Float> CpuUnaryDispatch for Complex<T>`): within the dispatch macro body, replace `Self::zero()`/`Self::one()` with `<Self as eunomia::NumericElement>::ZERO/::ONE`, `T::zero()`/`T::one()` with `<T as eunomia::NumericElement>::ZERO/::ONE`, `x.sqrt_val()` becomes `eunomia::ComplexField::sqrt(x)` (delegation: field.rs:158-160), `x.abs_val()` becomes `eunomia::ComplexField::from_real(eunomia::ComplexField::modulus(x))`.
+   - `coeus/coeus-core/src/dtype/float/native.rs` and half's `gelu_op/erf_op/lgamma_op` etc.: any `<$t as Scalar>::from_f64(...)` becomes `<$t as eunomia::NumericElement>::from_f64(...)` (post-§5).
+   - Cargo: no Cargo.toml change required (`coeus-core/Cargo.toml` already declares `eunomia = { workspace = true }`).
+   - Verify: `cargo nextest run -p coeus-core -p eunomia`, `cargo test --doc -p coeus-core -p eunomia`, `cargo doc --no-deps -p coeus-core -p eunomia`, `cargo semver-checks release -p coeus-core -p eunomia`. Atomic commit; bump per `cargo-semver-checks` output (`eunomia` `[minor]` additive; `coeus-core` `[major]` removal).
 2. **[patch or minor] leto-ops** (`leto/crates/leto-ops/src/domain/scalar.rs:12-177`):
    - `pub trait Scalar: NumericElement { fn from_usize(value: usize) -> Self; /* default-bodies slice kernels */ }`. Only `from_usize` remains required.
    - `impl_scalar_simd!` and `impl_scalar_plain!` macros unchanged in body (they only set `from_usize` and override default slice kernels).
@@ -61,9 +99,9 @@
 - Per `decision_policy` lowest-risk-vertical-slice bias, Batch #1 (kwavers-solver/physics Rayon → Moirai) is sequenced next — but it is *not gated by CR-4* and can land in parallel; see its own checklist section.
 
 **Pre-reqs** (Definition-of-Ready):
-- `coeus/coeus-core/src/dtype/traits.rs` current shape T1-read by owner.
-- `leto/crates/leto-ops/src/domain/scalar.rs` current shape T1-read by owner.
-- Both redeclarations removed; `Scalar: eunomia::NumericElement + eunomia::RealField` is the single SSOT after the change.
+- ✅ `coeus/coeus-core/src/dtype/traits.rs` current shape T1-read by owner (2026-07-04).
+- 🟡 `leto/crates/leto-ops/src/domain/scalar.rs` — *local* branch rebind T1-read, but origin/main diverged 47 commits; SSOT integration pending user decision per `## blocker ##` above.
+- ✅ Both eunomia + coeus-primary redeclarations removed; backends extend `NumericElement` rather than redeclare vocabulary.
 
 **Plan** (the old CR-4 plan, now superseded by ADR 0005 — left for archaeology; do NOT execute this version):
 1. Author `eunomia::NumericElement::zero() -> Self` and `::one() -> Self` directly (today only via `Default`). File: `eunomia/crates/eunomia/src/traits/numeric.rs:7-17` body. Owner: `eunomia`.
@@ -158,6 +196,13 @@
 7. Strip `ndarray = { ..., features = ["rayon"] }` from `kwavers-solver/Cargo.toml:24` and `kwavers-physics/Cargo.toml:20`.
 8. Confirm `cargo tree -p kwavers-solver | grep ndarray` shows no `rayon` feature.
 9. CHANGELOG: `[patch]` per `kwavers/CHANGELOG.md` with Replaced fence data citing each module.
+
+**Progress this slice**:
+- Replaced `Zip::indexed(...).par_for_each(...)` with `crate::parallel` helpers in:
+  - `crates/kwavers-physics/src/acoustics/skull/heterogeneous/mask.rs`
+  - `crates/kwavers-physics/src/acoustics/therapy/sonogenetics/membrane.rs`
+  - `crates/kwavers-physics/src/acoustics/mechanics/cavitation/damage/erosion.rs`
+- Remaining `par_for_each` sites in `kwavers-physics` and `kwavers-solver` are still open per Batch #1 schedule.
 
 **Completion condition**:
 - `cargo nextest run -p kwavers-solver -p kwavers-physics` green.

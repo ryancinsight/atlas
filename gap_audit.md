@@ -15,7 +15,7 @@
 | --- | --- | --- | --- | --- |
 | **CR-1** | `[arch]` | Delete `apollo-ghostcell` standalone GhostCell reimplementation; redirect all apollo sites to `melinoe::MelinoeCell`. | Source: `apollo/crates/apollo-ghostcell/src/lib.rs`; `melinoe/src/lib.rs:18-24,65-115,233` (`pub use cell::{MelinoeCell,MelinoeMut,MelinoeRef}`); `atlas/docs/audit/2026-07-02-cross-repo-integration-audit.md`:L71-75 ([arch] CR-1 citation). | OPEN. Carried into `backlog.md` Batch #5. |
 | **CR-2** | `[arch]` | Consolidate `#[global_allocator]` to a single binary-level registration. Strip library crate presence. Library crates pass Mnemosyne handle via DI. | Source citations T1: `cfd-core/src/lib.rs:45-53`; `ritk-core/src/lib.rs:15-17` (dead cfg gate per audits); `moirai/lib.rs`; `coeus/coeus-python/src/lib.rs:7-9`; `atlas/docs/audit/2026-07-02-cross-repo-integration-audit.md`:L76 (CR-2 [arch] citation, audit_id). | OPEN. Batch #6. |
-| **CR-4** | `[major]` | Rebase `coeus-core::Scalar` + `let''o-ops::Scalar` over `eunomia::NumericElement` (NOT `NumericElement + RealField` — `RealField` is float-only and would orphan `coeus_core::Int` for i8/u8/.../u64). Delete duplicated vocabulary (`zero`/`one`/`to_f64`/`from_f64`/`from_usize`/`sqrt_val`/`abs_val`); keep backend slice-kernel surface. | T1 evidence: `coeus/coeus-core/src/dtype/traits.rs:277-450` (Scalar redecl incl. 7 redundant methods + legitimate slice kernels); `leto/crates/leto-ops/src/domain/scalar.rs:12-177` (Scalar: only `from_usize` is required-redundant); `eunomia/crates/eunomia/src/traits/numeric.rs:7-110` (`NumericElement::ZERO`/`::ONE`/`::to_f64`/`::abs`/`::sqrt` already exist — the original audit's claim that `zero()/one()` need to be added is disproven); `eunomia/crates/eunomia/src/traits/field.rs:17-88` (`RealField: FloatElement` — float-only); `eunomia/crates/eunomia/src/impls/primitives/{numeric,float}.rs` (impl set covers f32/f64/f16/bf16 + signed/unsigned ints); `eunomia/crates/eunomia/src/impls/field.rs:122-175` (`ComplexField::sqrt` already implemented for `Complex<T: RealField>`, so `Complex::sqrt_val` migration is a one-line route). ADR: `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (status **Proposed**; awaiting user sign-off pre-implementation per `versioning` policy for `[major]`/`[arch]`). | OPEN (pre-implementation; ADR proposed). Batch #7. |
+| **CR-4** | `[major]` | Rebase `coeus-core::Scalar` + `let''o-ops::Scalar` over `eunomia::NumericElement` (NOT `NumericElement + RealField` — `RealField` is float-only and would orphan `coeus_core::Int` for i8/u8/.../u64). Delete duplicated vocabulary (`zero`/`one`/`to_f64`/`from_f64`/`from_usize`/`sqrt_val`/`abs_val`); keep backend slice-kernel surface. | **2026-07-05**: Implementation split across 3 commits. T1 evidence landed per repo sub-row: eunomia `57d7789` (SSOT trait doc + Complex<T>/isize/usize impls + private::Sealed + CastFrom<i32>); coeus `2b3f820` (`feat(scalar)!:` — coeus_core traits + 64-file call-site disambiguation across coeus-{autograd, ops, nn, fft, optim, tensor}, doctests, clippy `assign_op_pattern` adjacent fix); leto BLOCKED. ADR: `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (status **Accepted**). | PARTIALLY CLOSED (eunomia ✅, coeus ✅, leto 🟡 blocked on origin/main divergence — see checklist.md `## blocker ##`). |
 
 ---
 
@@ -78,6 +78,17 @@ Source: hand-verified grep over `crates/*/src` plus `Cargo.toml` per-file eviden
   - `crates/kwavers-solver/Cargo.toml:42` `[std,train,ndarray,autodiff]` (full suite).
   - `kwavers-solver/src/inverse/pinn/**`: ~325 `burn::` line-hits across 80+ files.
   - Top-level `crates/kwavers/{benches,examples,tests}`: 17 files using burn.
+- **Provider-boundary closure (2026-07-04)**: the 3-D beamforming WGPU
+  operation provider moved from `kwavers-analysis` to
+  `kwavers-gpu::beamforming::three_dimensional::WgpuBeamformingProvider`.
+  `kwavers-analysis` now keeps only `BeamformingGpuProvider` and the CPU
+  reference, and `kwavers-analysis/gpu` no longer forwards WGPU/bytemuck/
+  Hephaestus/pollster dependencies. Remaining GPU holdouts are exact:
+  `kwavers-analysis/src/visualization/**` still owns WGPU visualization behind
+  `gpu-visualization`; CUDA 3-D DAS kernels are not implemented; broader
+  `kwavers-gpu` WGPU providers still need real CUDA operation-family kernels
+  plus WGPU/CUDA differential tests; solver PINN Burn code is outside this
+  provider-boundary slice.
 - **Residual `num_complex`**: 12 crates declare `num-complex = "0.4"`; source-import sites 194 (kwavers-solver 55, kwavers-analysis 45, kwavers-physics 32). Apollo path is via `eunomia::Complex` already (`kwavers-math`).
 - **Residual `num_traits`**: 5 manifests (`kwavers-{analysis,grid,math,physics,solver}`); 11 source-import sites.
 - **Residual `std::arch::*` SIMD**: 27 line anchors across `kwavers-math/src/simd_*/...` (Hermes-routed), `kwavers-solver/src/forward/fdtd/avx512_stencil/{velocity,pressure}.rs` (libtargets for AVX-512), and `kwavers-analysis/src/performance/optimization/{config,cache}.rs` (`_mm_prefetch` hint). Stencil SIMD paths need separate [minor] migration to Hermes.

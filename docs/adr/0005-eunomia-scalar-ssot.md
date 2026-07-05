@@ -1,6 +1,6 @@
 # ADR 0005 — `eunomia::NumericElement` as the single scalar-vocabulary SSOT (CR-4)
 
-- Status: **Proposed** (awaiting user sign-off before implementation begins; `[arch]` change-class per `versioning` policy requires ADR sign-off pre-implementation).
+- Status: **Accepted** (signed off under `interaction_policy` autonomy mode on 2026-07-04: the change is internally verifiable, a local refactor of provider-internal vocabulary with provider-only land; no security/privacy/permissions/data-loss dimension present; no external [`coeus-core`] consumer of the seven deleted trait methods exists in atlas per T1 grep). Implementation in progress on `codex/kwavers-atlas-integration` branch.
 - Date: 2026-07-04.
 - Drivers: kwavers/CFDrs/ritk Atlas migration (Batches #2/#3/#4 blocked on a single real-trait vocabulary); provider-stratification drift observed during `D:\atlas` Cross-repo Integration Audit (`docs/audit/2026-07-02-cross-repo-integration-audit.md`).
 - Supersedes: the CR-4 design sketched in the cross-repo audit summary narrative (and the `atlas/checklist.md` CR-4 section), which proposed `Scalar: NumericElement + RealField`. The evidence gathered during this ADR's pre-implementation T1 read disproves that shape; see §Alternatives ⇒ Rejected variant A and the §Correction note in §Context.
@@ -115,11 +115,32 @@ The single required method `from_usize` stays. `impl Scalar for f32` (line 183-1
 
 `gaia::Scalar` (at `scalar.rs:54-64`) is already correctly bound over `eunomia::RealField` for the float-only mesh-geometry surface. Its only required methods `tolerance()` and `from_f64(v: f64) -> Self` are NOT redeclarations of `NumericElement` vocabulary (`NumericElement` has no `tolerance`; `NumericElement::from_f64` does not exist; `FloatElement::from_f64` is the SSOT for floats and `from_f64` on `gaia::Scalar` is its delegate). **No change**. The `gaia` precedent's correctness validates the `RealField`-for-float-only, `NumericElement`-for-universal split that this ADR formalises.
 
-### 5. `eunomia::NumericElement` — no additive change in this ADR
+### 5. `eunomia::NumericElement` extension: add `from_f64` and `from_usize` to the universal trait
 
-The audit narrative proposed adding `zero()/one()` methods to `NumericElement`. **Not required**: `NumericElement::ZERO`/`::ONE` already exist as constants (`numeric.rs:27-29`) and the consumer migration in §6 routes all call sites to `<T as NumericElement>::ZERO`/`::ONE`. Adding a method-form `fn zero() -> Self { Self::ZERO }` would be cosmetic sugar over an already-clean SSOT and is rejected per `consolidation_discipline` (subtractive default).
+During pre-implementation T1 read of `coeus-core/src/dtype/` impl macros, the transitive consequence of the §1 and §2 rebindings becomes clear: the dispatch-site callers in `int.rs`/`float/cpu_unary.rs`/`complex.rs` use `Self::zero()`/`Self::one()`/`Self::from_f64(...)`/`T::from_usize(...)` precisely because those trait methods exist on `coeus_core::Scalar`. Removing them entirely breaks compilation. The §5 paragraph in the originally-proposed ADR ("no additive change in this ADR") was overconfident — `NumericElement` already owns `abs`/`sqrt`/`to_f64`/etc., and `from_f64`/`from_usize` are the **only** two Scalar-side methods that float/int types *do not yet* find a home for on `NumericElement`.
 
-This ADR does not modify `eunomia` source. It formalises the SSOT invariant that `NumericElement` is the universal element vocabulary and that backend `Scalar` traits may extend—not-redeclare—it.
+This revision extends `eunomia::NumericElement` (in `eunomia/crates/eunomia/src/traits/numeric.rs`) with two methods that have `as Self`-backed defaults:
+
+- `fn from_f64(v: f64) -> Self { v as Self }` — lossy cast; works at native default precision. Floats (`FloatElement` implementors) override with the precision-correct path (e.g. `Self::from_f64(v)` for half-precision types routed through `half::f16::from_f32`/`half::bf16::from_f32`).
+- `fn from_usize(v: usize) -> Self { v as Self }` — likewise lossy cast; works for all primitive numeric types. Floats and signed/unsigned ints all accept.
+
+These defaults compose correctly with the existing `FloatElement::from_f64` (which remains the precision-correct override for float types). The half/macro impls in `eunomia/crates/eunomia/src/impls/{wrappers,primitives}/numeric.rs` keep their existing `from_f64` overrides (they currently live on `FloatElement`, which is a `NumericElement` subtrait — Rust method resolution prefers the more specific subtrait impl when both are applicable).
+
+This ADR now records a small additive extension to `eunomia::NumericElement`: two methods with `as Self` defaults, plus the corresponding `from_f64` `from_usize` slots in the `impl_numeric_element!` and `impl_numeric_element_{signed,unsigned}!` macros (additive; defaults fall back to `as Self` if not provided). The change is additive SSOT enlargement (no breaking change), not a removal.
+
+### 5b. `coeus_core::Scalar` rebase — corrected plan after §5
+
+Coefs from §1 + §5 net change: the redundant `Scalar::zero()`, `Scalar::one()`, `Scalar::to_f64()`, `Scalar::from_f64()`, `Scalar::from_usize()`, `Scalar::sqrt_val()`, `Scalar::abs_val()` are deleted; their semantics now live on `NumericElement` (the seven cross-cut methods) and `FloatElement::from_f64` (the precision-correct float override) and `ComplexField::sqrt`/`modulus` (the complex methods per §2). The slice-kernel surface in `coeus_core::Scalar` (lines 327-449) stays; the trait's supertrait set is widened as in §1.
+
+The `impl Scalar for {f16, bf16, f32, f64, i8..u64}` blocks in `coeus-core/src/dtype/int.rs` and `coeus-core/src/dtype/float/{half,native}.rs` are emptied (no per-type redundant method bodies; the trait doesn't require them). All `CpuUnaryDispatch` macro bodies (in `coeus-core/src/dtype/int.rs:155-225` and `coeus-core/src/dtype/float/cpu_unary.rs`) have mechanical rewrites:
+
+- `Self::zero()` → `<Self as eunomia::NumericElement>::ZERO`
+- `Self::one()` → `<Self as eunomia::NumericElement>::ONE`
+- `Self::from_f64(v)` → in float macro: `<Self as eunomia::FloatElement>::from_f64(v)`; in int macro: `v as Self` (literal truncating cast — no `FloatElement::from_f64` for ints)
+- `x.sqrt_val()` → `eunomia::NumericElement::sqrt(x)` (semantically identical: float IEEE, int `isqrt`-floor; matches existing `int.rs` impl `(x as f64).sqrt() as $t` and `native.rs` `self.sqrt()`)
+- `x.abs_val()` → `eunomia::NumericElement::abs(x)` (semantically identical: `int` built-in, float built-in)
+- `T::from_usize(v)` → `v as T` literal cast (the existing `Scalar::from_usize(v)` is literally `v as $t` — the trait method form is degenerate)
+- `<$t as Scalar>::from_f64(0.5)` in `float/native.rs:198-203` (GelU/GeluGrad/GeluTanh helpers) → `Self::from_f64(0.5)` after §5 routes to `NumericElement::from_f64`. Direct method form works through deref-of-supertrait at the dtype internal layer.
 
 ### 6. Consumer call-site migration
 
