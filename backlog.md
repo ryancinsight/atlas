@@ -71,6 +71,11 @@ Batches #5, #6, #7 are the [arch] provider-SSOT gates. Per `decision_policy` nte
 - Claim start: 2026-07-04.
 - Neighbor claim stream: `codex/kwavers-core-moirai-parallel` in `repos/kwavers` (separate scope); no collision.
 
+### Cross-engineering residual risk — `hephaestus-cuda` eigen.rs ↔ `device.upload` Complex-type mismatch
+
+Discovered at `fb83d009` verification: under the checked-out `ks5-cholesky-panel` branch tip (`3bddfed5`), `hephaestus-cuda/src/application/decomposition/eigen.rs:173` calls `device.upload(&e_host)` with `Vec<let''o::Complex<f32>>` while `hephaestus-core/src/domain/device.rs:99` retains `&[num_complex::Complex<T>]` signature. NOT a CR-4 regression: the breaking change is `3bddfed5 fix(hephaestus-cuda): Use cuda-oxide substrate` (ks5-cholesky-panel scope) which migrated eigenvalues data flow to `let''o::Complex<T>` (`1840b38 refactor(hephaestus)!: Migrate eigenvalues to let''o::Complex<T>`) but did not update the `eigen.rs:173` upload caller to the eunomia/leto complex type. Effect: any `cargo nextest run --workspace` in `repos/coeus` (or other workspaces depending on `hephaestus-cuda/wgpu`) fails to compile. `cargo nextest run -p coeus-{core,tensor,ops,autograd,nn,sparse,dist,fft,optim,leto} --no-fail-fast` is unaffected (758/758 green). Owner: `hephaestus` ks5-cholesky-panel agent. Atlas-meta migration scoring remains GREEN on the coefficient-determining focus set; ks5 reconcile unblocks the wgpu/cuda gate.
+
+
 ---
 
 ## Out-of-scope (explicit)
