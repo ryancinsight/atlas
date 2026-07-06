@@ -29,7 +29,7 @@
 
 > **2026-07-05 (atlas-meta sync, `fb83d009`)**: `fb83d009 chore(atlas): Align submodule pointers to CR-4 eunomia/coeus/leto commits` aligned `repos/{coeus,eunomia,leto}` to the three landing SHAs (`1ae2f30c8` / `57d778930` / `21681967e`) and recorded the kwavers-foundation GPU-error-boundary rule in `README.md`. Pushed to `origin/codex/kwavers-atlas-integration`. Re-verification at the chore commit: eunomia 29/29 + coeus core-set 758/758 nextest green; clippy `-D warnings` clean on the core set; doctests pass; `cargo doc --no-deps` warn-clean.
 >
-> **`coeus-wgpu` / `coeus-cuda` nextest blocked at `fb83d009`** by an unrelated `hephaestus-cuda` build break: `eigen.rs:173` calls `device.upload(&e_host)` with `Vec<let''o::Complex<f32>>` while `hephaestus-core/src/domain/device.rs:99` retains the `&[num_complex::Complex<T>]` signature — introduced on the `ks5-cholesky-panel` branch (`3bddfed5 fix(hephaestus-cuda): Use cuda-oxide substrate`). NOT a CR-4 regression; ownership belongs to the ks5-cholesky-panel agent. Atlas-meta migration scope remains GREEN on the coefficient-determining focus set; wgpu/cuda gate lift is a downstream ks5 reconcile, not a CR-4 followup.
+> **2026-07-06 Hephaestus CUDA blocker refresh**: the `fb83d009` `coeus-wgpu` / `coeus-cuda` note is stale for the checked-out `repos/hephaestus` `ks5-cholesky-panel` tree. `eigen.rs` now converts `leto_ops::eigenvalues(&view)` results into `num_complex::Complex<f32>` before `device.upload(&e_host)`. Focused compile evidence: `rustup run nightly cargo check -p hephaestus-cuda --features decomposition` completed successfully against local `leto`/`leto-ops` `0.36.0`. This is compile/build evidence only; runtime CUDA nextest coverage remains separate.
 
 > **## blocker ##**
 
@@ -371,7 +371,7 @@ Each batch follows the atomic-commit rule:
 - T1 confirms `kwavers-solver/src/forward/nonlinear/{kuznetsov,westervelt_spectral,solver/{model_impl,rhs}, operator_splitting/mod}` aggregating ~35 sites; full file-line inventory in `gap_audit.md` per the cross-repo master.
 - T1 confirms `kwavers-solver/src/inverse/same_aperture/{operator/linear_op:9 +, encoded:1}` already `moirai_parallel::ParallelSliceMut`; no Rayon created.
 - T1 confirms `ritk/python.rs` `numpy::{ndarray::Array2,3,4,}` import set for Python interop only; not a migration target.
-- `hephaestus-cuda/src/application/decomposition/eigen.rs:173` Complex-type mismatch (ks5-cholesky-panel scope, pre-CR-4 regression) does NOT affect `cargo nextest run -p kwavers-solver` — kwavers only consumes `hephaestus` indirectly via `coeus-leto` and not at the workspace scan path.
+- `hephaestus-cuda/src/application/decomposition/eigen.rs` Complex upload mismatch is stale in the checked-out `ks5-cholesky-panel` tree: `leto_ops::eigenvalues` output is converted to `num_complex::Complex<f32>` before upload, and `rustup run nightly cargo check -p hephaestus-cuda --features decomposition` passes. Runtime CUDA nextest coverage remains unclaimed.
 - Session 2026-07-05 22:19 tree-shift: peer ryancinsight landed two commits on `repos/kwavers codex/kwavers-core-moirai-parallel` while the prior atlas-meta commit (`5328de1c`) was being authored. Consequence: atlas-meta's kwavers submodule pointer (`1f320cfe6`) is now one commit behind the peer's latest (`f36995162`). Reconciliation deferred to the next Batch #1 increment commit on the kwavers side, after which the atlas-meta pointer bumps in lockstep.
 
 ## Next micro-sprint
