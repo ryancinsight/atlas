@@ -5,6 +5,7 @@
 - Drivers: kwavers/CFDrs/ritk Atlas migration (Batches #2/#3/#4 blocked on a single real-trait vocabulary); provider-stratification drift observed during `D:\atlas` Cross-repo Integration Audit (`docs/audit/2026-07-02-cross-repo-integration-audit.md`).
 - Supersedes: the CR-4 design sketched in the cross-repo audit summary narrative (and the `atlas/checklist.md` CR-4 section), which proposed `Scalar: NumericElement + RealField`. The evidence gathered during this ADR's pre-implementation T1 read disproves that shape; see §Alternatives ⇒ Rejected variant A and the §Correction note in §Context.
 - See also: ADR 0010 (`docs/adr/0010-cfdrs-atlas-pointer-advance.md`, Accepted 2026-07-05) — anchors the Atlas-parent pointer-advance + tag ritual for the 771-file CFDrs provider migration push (Batch #2) that consumed this numeric SSOT rebind. Tag: `cfdrs/atlas-migration-push/batch2` on inner CFDrs commit `d58d1fe320d046816425e1d20d16735fcfee7995`; Atlas-parent pointer advance `51922a56c4d4acab3dbe786b90cc5acf92e22277`; Atlas-parent docs-rounding `dd676d13`.
+- See also: ADR 0012 (`docs/adr/0012-ritk-burn-trait-rebind.md`, Accepted 2026-07-06) — consumes this numeric SSOT rebind by binding the ritk Burn-keyed trait surface (`Transform<B: Backend, D>`, `Interpolator<B>`, `Resampleable<B, D>`) to Atlas-typed parallels (`TransformAtlas<T: Scalar, B: ComputeBackend, D>`, etc.) across a 6-sub-batch atomic-commit cadence. Sub-batch #1 (Atlas-typed parallel trait surface, additive) closed 2026-07-06; sub-batches #2-#6 reserved per `atlas/backlog.md` §In-flight claims.
 
 - Index: docs/adr/INDEX.md#ADR-0005
 ## Context
@@ -223,3 +224,4 @@ Per `engineering_gates` (`local pre-merge gate`, `[arch]`-class change):
 - Routing CFDrs free-function `scalar::*` helpers through `eunomia` directly (skipping `NumericElement`). They already do (audit confirmed `<T as NumericElement>::abs`/`is_finite` usage); verifying no `Scalar::from_f64`/etc. callers remain is in-scope but no re-route is required.
 - The full nalgebra / burn / ndarray elimination in kwavers/CFDrs/ritk. CR-4 only unblocks Batches #2/#3/#4; it does not deliver them.
 - The `apollo-ghostcell` decommissioning (CR-1) and the `#[global_allocator]` consolidation (CR-2). Those are sequenced after CR-4 per the `atlas/backlog.md` token-batch ordering.
+- The ritk Burn-trait rebind sub-batches #2-#6. Sub-batch #1 (Atlas-typed parallel trait surface, additive) is captured in ADR 0012 (`docs/adr/0012-ritk-burn-trait-rebind.md`) §Decision §Sub-batch #1, closed 2026-07-06.
