@@ -359,6 +359,23 @@ Each batch follows the atomic-commit rule:
   - `cargo doc --no-deps`
 - Bump per the batch's change-class. Charged with the commit.
 
+## Per-batch Atlas-provider tag reservations (from ADR 0010 §Per-batch name pattern)
+
+Pre-allocating the per-batch inner-repo tag names at checklist level enforces the convention shape at the time of inner-repo closure, so no per-batch re-discovers its tag-name string. Each `git tag -a <reserved-name> <inner-SHA> -m <annotation>` invocation at the batch's inner-repo closure event binds to the row below; the Atlas-parent-side pointer advance + docs-rounding + ADR-authoring commits are then stampable in lockstep.
+
+| Batch | Class | Title | Reserved inner tag | Reserved-at | Closure status (2026-07-05) |
+|-------|-------|-------|--------------------|-------------|------------------------------|
+| **#2** | `[minor]` | CFDrs nalgebra → leto + nalgebra-sparse → leto-ops `CsrMatrix` | `cfdrs/atlas-migration-push/batch2` | 2026-07-05 | ✅ **CLOSED** — inner commit `d58d1fe3...` on branch `codex/cfdrs-atlas-migration`; annotated tag-object SHA `8b55e6ef...` on inner CFDrs remote. Atlas-parent pointer advance `51922a56...`; docs-rounding `dd676d13`; ADR authoring `92511912`; ADR 0007 lint fix `4038a576`. |
+| #1 | `[patch]` | kwavers-solver / kwavers-physics residual Rayon → Moirai | `kwavers/atlas-migration-push/batch1` | 2026-07-05 | reserved; peer-active on `repos/kwavers` `codex/kwavers-core-moirai-parallel` (last inner commit `f36995162...`). Closure still blocked on the peer's 107-Rayon-site residual inventory (`kwavers-solver` 62 sites + `kwavers-physics` 24 sites + 21 sites across forward-multiphysics) per `atlas/backlog.md` Batch #1 status line. |
+| #3 | `[minor]` | ritk Burn-keyed trait rebind | `ritk/atlas-migration-push/batch3` | 2026-07-05 | reserved; peer-WIP on `repos/ritk` `main` (631 modified files per the session 2026-07-05 22:30 inventory in `atlas/gap_audit.md` "PEER-WIP COLLISION" section). Closure blocked on the per-crate `B: Backend → B: ComputeBackend` rebind per `atlas/backlog.md` Batch #3 plan. |
+| #4 | `[minor]` | kwavers-solver PINN Burn → Coeus | `kwavers/atlas-migration-push/batch4` | 2026-07-05 | reserved; depends on #3 + the `coeus-autograd/{scatter_add}` extension. Inner commit will land on `repos/kwavers` (likely the same `codex/kwavers-core-moirai-parallel` branch as #1 if concatenated, otherwise a fresh per-batch branch). |
+| #5 | `[arch]` | CR-1: Apollo-ghostcell decommissioning + Melinoe `MelinoeCell` rebind | `apollo/atlas-migration-push/batch5` | 2026-07-05 | reserved; provider-side obstacle on `melinoe` brand-doctrine holder. Inner commit will land on `repos/apollo` (probable branch `refactor/apollo-fft-eunomia` per gap_audit.md peer-WIP inventory). |
+| #6 | `[arch]` | CR-2: `#[global_allocator]` consolidation across `cfd-core` / `ritk-core` / `moirai` | `cfd-core+ritk-core+moirai/atlas-migration-push/batch6` | 2026-07-05 | reserved; primary inner commit on `repos/CFDrs/crates/cfd-core` (the cfd-side first); tag annotation body enumerates the cross-repo commit chain. |
+
+The convention shape (per ADR 0010 §Decision §"Per-batch name pattern"): **one annotated tag per batch** at inner-repo closure, anchored on the inner consumer-repo commit. Atlas-parent side gets a `chore(atlas): Advance <consumer-repo> submodule pointer to <inner-SHA>` commit + a `chore(atlas): Sync <consumer-repo>/atlas-migration-push/<N> + migration push record` docs-commit + (when applicable) an ADR authoring commit. Atlas-parent itself is the ceremony repo — **no per-batch tag on Atlas-parent**. Tag namespace reserved: `{consumer-repo}/atlas-migration-push/batch{N}` where `{N}` matches the `atlas/backlog.md` row number and `{consumer-repo}` matches the leaf consumer responsible for the migration push. Multi-repo CR-class batches (#6 above) put the tag on the primary repo (`cfd-core`) and enumerate the cross-repo commit chain in the tag annotation body.
+
+Reference: `D:/atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` (Accepted 2026-07-05) §Decision §"Per-batch name pattern" is the source-of-truth; this checklist section is the pre-allocation tracker enforced before batch closure.
+
 ## In-flight claim (this checkpoint)
 
 - Owned files (atlas-meta, this turn): `backlog.md`, `checklist.md`, `gap_audit.md` at the atlas workspace root (NOT under `atlas/`); these are the cross-repo PM artifacts.
