@@ -327,6 +327,14 @@ Sub-batch #3 (`RITK-crate-migrate`, [minor]) is **OPENED** as a 7-per-crate sub-
 
 **Sub-batch #3 closeout (final per-crate commit lands + sub-batch #6 owns allowlist refresh ritual):** when the last per-crate commit (`#3.g`) lands, the `xtask/burn_surface.allowlist` source-entries parcel to the migration-done rows per sub-batch #6. The `ritk/atlas-migration-push/batch3` annotated tag annotation body will enumerate the 7 per-crate SHAs per ADR 0010 §Decision §Per-batch name pattern.
 
+##### Sub-batch #3.a CLOSED 2026-07-06 — `ritk-filter` (proof-of-pattern)
+
+Inner RITK commit `603ad51609ce68546bc0e66d511dcd8a5fd7dda8` lands the per-crate sub-atomic increment for `ritk-filter`. Per `docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §Sub-batch #3 atomic-boundary invariant, this commit is **strictly subtractive on test surface** (drops `burn_ndarray::NdArray`, `ritk_image::Image`, `ritk_image::tensor::{Shape,Tensor,TensorData}`, `ritk_image::test_support` from `tests_binary_erode.rs`) and **strictly additive on production surface** (new `AtlasBinaryErodeFilter` sibling consuming `AtlasImage<f32, B: ComputeBackend + Default, 3>`). Legacy `BinaryErodeFilter::apply<B: Backend>(&Image<B, 3>)` at `repos/ritk/crates/ritk-filter/src/morphology/binary_erode.rs:74` preserved verbatim.
+
+Inner-deliverable: 4 files / +215 lines (NEW `atlas_binary_erode.rs`; rewrite of `tests_binary_erode.rs`; `mod.rs` adds `pub mod atlas_binary_erode;` + re-export; `Cargo.toml` adds `coeus-tensor = { workspace = true }`).
+
+Compile/test gate (atomic-boundary rule §3): `cargo check -p ritk-filter` PASS; `cargo test -p ritk-filter --lib morphology::binary_erode::tests_binary_erode` PASS (T1-T7 7/7, 0 failed); `cargo tree -p ritk-filter -i burn-wgpu`, `-i burn-cuda`, `-i burn-rocm` zero each; `[dev-dependencies] burn-ndarray` retained; no `#[deprecated]` attr; `xtask/burn_surface.allowlist` contracts by 1 source-row (the rewritten `tests_binary_erode.rs`). Atlas-meta submodule pointer advance: `4ff70a74` (sub-batch #2) → `603ad516` (sub-batch #3.a). The `ritk/atlas-migration-push/batch3` annotated tag at `603ad516` enumerates the per-batch chain: #1 closed, #2 closed, #3 opened (7-per-crate queue), #3.a closed, #3.b..#3.g pending, #4/#5/#6 reserved.
+
 #### Sub-batch #2 closing (2026-07-06) — RITK trait soft deprecation documentation
 
 Sub-batch #2 (`RITK-trait-deprecate`, [patch]) is **closed** per the same ceremony template as sub-batch #1 (inner atomic doc-only commit + atlas-meta chore commit). Per-sub-batch evidence (cross-walked from `repos/ritk/CHECKLIST.md` and `repos/ritk/gap_audit.md` near-new sections):
