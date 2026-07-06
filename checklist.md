@@ -234,6 +234,8 @@
 
 ## Batch #2 — `[minor]` CFDrs nalgebra → leto completion; nalgebra-sparse → leto-ops
 
+> **Status (2026-07-05)**: ✅ **CLOSED**. Inner CFDrs HEAD advanced `0f578e1af110c5b8536476174bf266bf8b812c37` → **`d58d1fe320d046816425e1d20d16735fcfee7995`** via a single Atlas-provider migration push (subject `refactor(cfdrs): Atlas-provider migration push (Leto CSR + Eunomia scalar + Hephaestus GPU + cfd-math / cfd-2d / cfd-3d / cfd-1d / cfd-validation consumer cones)` — 752 modified + 19 added files, 51,857 insertions / 22,087 deletions, ~2,500 tests pass, 0 warnings). The 185-line xtask `legacy_surface.allowlist` + 176 source files + 7 manifests of legacy `nalgebra 0.33 [serde-serialize]` / `nalgebra-sparse 0.10` / `num-traits 0.2` / `num-complex 0.4` are consumed in this commit; post-push `cargo tree -p CFDrs | grep nalgebra` returns zero production ops. Atlas-parent submodule pointer advance recorded at parent HEAD `51922a56c4d4acab3dbe786b90cc5acf92e22277` (`chore(atlas): Advance CFDrs submodule pointer to d58d1fe3`). See `repos/CFDrs/CHANGELOG.md` `## Unreleased` Atlas-provider migration push section.
+
 **Pre-reqs** (post-CR-4):
 - `eunomia::RealField` reachable; consumers routed.
 - `let''o::Array1/2/3<T>` publicly exposed (confirmed T1).
@@ -362,7 +364,7 @@ Each batch follows the atomic-commit rule:
 - Owned files (atlas-meta, this turn): `backlog.md`, `checklist.md`, `gap_audit.md` at the atlas workspace root (NOT under `atlas/`); these are the cross-repo PM artifacts.
 - Owner: `claude-codex` (current session).
 - Atlas-meta claim start: 2026-07-04.
-- Atlas-meta last landed: `5328de1c` (CR-4 closure 2026-07-05 20:27) — pushed to `origin/codex/kwavers-atlas-integration`.
+- Atlas-meta last landed: `5328de1c` (CR-4 closure 2026-07-05 20:27) — pushed to `origin/codex/kwavers-atlas-integration`. **Latest closed migration batch** (this turn): Batch #2 (CFDrs nalgebra → leto + nalgebra-sparse → leto-ops CsrMatrix) — landed in inner CFDrs as **`d58d1fe3`** on branch `codex/cfdrs-atlas-migration` (2026-07-05 23:33); Atlas-parent submodule pointer advance landed as `51922a56`.
 - Next claim: observation-mode; **the kwavers Batch #1 surface is peer-active** (peer ryancinsight landed `f36995162` on 2026-07-05 22:19 ~2.5h ago, plus `1dc47028a`), so atlas-meta does not initiate kwavers-source edits. This layer remains ready to bump the `repos/kwavers` submodule pointer and sync cross-repo PM once the peer lands the Batch #1 closure.
 - Concurrent claim streams to honor (per `concurrent_agents`, all disjoint from atlas-meta's scope, all DO NOT touch source): `repos/kwavers` `codex/kwavers-core-moirai-parallel` (peer ryancinsight ACTIVE — see In-flight claims in `backlog.md`); `repos/moirai` `refactor/remove-dead-subsystems` (peer, 20+ WIP files — moirai source forbidden); `repos/leto` `codex/leto-fixed-spatial-reconcile` (peer, 2 stashes + ~41 unstaged + `Cargo.toml:39` serde_json workspace-dep placeholder still breaks leto's `cargo` parse — leto source forbidden); `repos/coeus` `crates/coeus-ops/Cargo.toml` melinoe 0.7.0 → 0.8.0 uncommitted; `repos/eunomia` `crates/eunomia/src/{traits,impls/primitives,impls/wrappers}/float.rs` `acos/asin/atan` uncommitted; plus various peer claims in `repos/{apollo,CFDrs,gaia,hermes,helios,melinoe,mnemosyne,ritk,themis}`.
 
