@@ -86,3 +86,58 @@ The earlier `fb83d009` residual risk is stale in the checked-out `repos/hephaest
 - **`**Spec composition layers**` updated later (e.g. `cfd-validation`, testing frameworks)**: not part of this migration; filing as separate backlog if it's not in CFDrs's own backlog.
 - **HELIOS/Python binding for kwavers**: Phase-3 rich-image scoping state; deferred-until `kwavers-python` intent-bledged beyond current net-style top-level.
 - **GPU backend complete production rollout across ritk-model**: PPG-model is reserved-wave per `docs/audit/2026-07-02-hephaestus-gpu-substrate-audit.md` HIGH-sev list; out of scope until defect closure.
+
+### Atlas-root working-tree dirty triage (2026-07-06)
+
+The Atlas-root `D:/atlas` working tree carries 29 dirty files (19 tracked-modified + 10 untracked) outside the migration-push closure chain. The vast majority have been classified as real Atlas-meta PM artifacts and committed in five atomic batches on 2026-07-06 (see commit history since `2c38db42`). The remainder is explicitly recorded below as **out-of-scope for the Atlas-parent pointer-advance ritual** — they live in scopes the Atlas-parent cannot reach (submodule internals, foreign root-level scratch, or non-submodule external dirs) and require separate-flow cleanup that is staged outside this branch's claim scope.
+
+#### A. Root-level scratch (Windows-reserved + atroot scratch)
+
+- `nul` — 0-byte Windows-reserved-name artifact (likely a `> nul` shell-redirect leak). **Recommendation**: delete + add `nul` line to `.gitignore`. Separate chore commit; out of scope here.
+- `script.py` — root-level Python scratch that doesn't belong at the meta layer (no shebang or module docstring; left at atlas workspace root by ad-hoc shell invocation during a peer-claim experiment). **Recommendation**: delete and re-stage under `scripts/`. Separate chore commit; out of scope here.
+
+#### B. External / non-ASCII-dir content
+
+- `repos/SynthSeg/` — external Python research project (SynthSeg brain segmentation). **Not** a submodule (no `.gitmodules` entry; no `.git` of its own; original `repos/SynthSeg/CHANGELOG` reads "external tooling"). **Recommendation**: add `repos/SynthSeg/` to `.gitignore` (single-line chore commit). Out of scope here.
+- `repos/report/` — non-ASCII-filename name dir (likely generated report output). Shell `find` fails to enter the path on the working machine, so its true contents are unknown. **Recommendation**: add `repos/report/` to `.gitignore` if generated, otherwise delete. Out of scope here (typed as an investigation, not a fix).
+
+#### C. Submodule-internal dirtiness (uncommitted in inner repos — out of Atlas-parent reach)
+
+These show up in Atlas-root `git status` as `M repos/<name>` (parent-tree entry marked dirty because the inner submodule's tree contains modifications relative to the gitlink pinned here). They are **cleanable only by an inner-submodule commit + parent-tree gitlink advance**, NOT by Atlas-parent commit. Each row is the inner-dirty count + inner HEAD as of 2026-07-06. No reclaim from Atlas-meta; these belong to the claim streams holding the inner repos.
+
+| Submodule | Inner dirty count | Inner HEAD | Inner branch / claim stream |
+|-----------|---:|------|---|
+| `apollo`         | 235 | `f1ddf7a`     | peer claim stream `codex/apollo-atlas-migration` (WIP) |
+| `CFDrs`          | 0   | `d58d1fe3`    | (clean post-Atlas-provider migration push, tagged `batch2` per ADR 0010) |
+| `coeus`          | 19  | `1ae2f30`     | peer claim stream |
+| `eunomia`        | 7   | `57d7789`     | peer claim stream (CR-4 ⏳ pending CR-EUNOMIA-COMPLEX-side `acos/asin/atan` land) |
+| `gaia`           | 5   | `8f4a862`     | peer claim stream |
+| `hephaestus`     | 0   | `007a1a1`     | (clean — `ks5-cholesky-panel` HEAD) |
+| `hermes`         | 46  | `1b5392a`     | peer claim stream |
+| `kwavers`        | 602 | `f36995162`   | peer claim stream `codex/kwavers-core-moirai-parallel` (Batch #1 Rayon→Moirai in flight) |
+| `leto`           | 7   | `626ebf5`     | peer claim stream `codex/leto-fixed-spatial-reconcile` (disjoint from CR-4 leto side) |
+| `melinoe`        | 13  | `7ec0a44`     | peer claim stream |
+| `mnemosyne`      | 0   | `3c41870`     | (clean — post-[patch] ChainMnemosyneHeap + macro-consolidation) |
+| `moirai`         | 26  | `9b7881f`     | peer claim stream `refactor/remove-dead-subsystems` |
+| `ritk`           | 631 | `3c36e847`    | peer claim stream |
+| `themis`         | 0   | `e87618a`     | (clean — no migration relevance; triaged 2026-07-06) |
+| **Σ** | **1591 inner files** | — | — |
+
+#### D. Helios-internal pre-session WIP (uncommitted inside `repos/helios`)
+
+The Atlas-root `M repos/helios/<file>` markers below denote 6 specifically-named files inside the inner-helios submodule, which itself carries 29 internal dirty files at HEAD `2c38db42` (= Atlas-parent HEAD, coincidence of SHA only; the inner working tree differs from its tree-commit baseline). These land in `repos/helios` (atomic commits there), not in Atlas-parent.
+
+| File | Description | Clearable by |
+|------|-------------|--------------|
+| `repos/helios/CHANGELOG.md`   | Sprint-1 prior paragraph updates pre-2026-07 | inner-helios commit |
+| `repos/helios/CHECKLIST.md`   | Pre-session `[arch]` cleanups | inner-helios commit |
+| `repos/helios/Cargo.lock`     | 3 dropped deps + 6 dep-cap bumps | inner-helios commit (post dep-drop) |
+| `repos/helios/Cargo.toml`     | num-traits removal (H-062) + dicom/ndarray feature-edge removal (H-061) — already in 2026-07-05 draft, not committed yet | inner-helios commit (H-061 / H-062) |
+| `repos/helios/backlog.md`     | Pre-session Helios Sprint-1 task adds | inner-helios commit |
+| `repos/helios/gap_audit.md`   | Pre-session Helios gap closures (H-061/H-062 entries, this turn's) | inner-helios commit |
+
+Plus 23 additional `repos/helios/**` file-dirty markers across helios-domain/dicom, helios-simulation, helios-planning, helios-analysis sub-tree — counted in `git -C repos/helios status --short | wc -l` = 29 internal total, minus the 6 named above. All require inner-helios commit; the Atlas-parent cannot reach them.
+
+#### E. Future-correction hooks (not in scope this turn)
+
+If during 2026-07-07 via 2026-07-13 cleanup sprints the Atlas-root commits listed in §A / §B land (deleting `nul`/`script.py`, `.gitignore` adding `repos/SynthSeg/`, `nul`, `repos/report/`), this OOS subsection can be retracted. The Atlas-root pointer-advance ritual deliberately does not own these fixes because (1) the user-scoped brief was "triage" not "fix", and (2) the inner-submodule rows (§C, §D) cleanup is intertwined with the per-repo claim streams and must not be reclaimed by Atlas-meta per `concurrent_agents` disjoint-scope rule.
