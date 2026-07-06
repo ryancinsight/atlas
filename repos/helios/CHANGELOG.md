@@ -7,6 +7,16 @@ under a Breaking subsection.
 
 ## [0.0.1] — Unreleased (Sprint 1: Foundation)
 
+### Changed
+- Removed Helios' unused direct `num-traits` workspace dependency. Numeric
+  operations already route through `helios-math` and Eunomia.
+- Removed the unused aggregate dicom-rs `ndarray` feature edge from the Helios
+  DICOM graph. DICOM pixel decoding remains owned by `ritk-dicom` through
+  `dicom-pixeldata`; Helios' direct dicom-rs usage is limited to parsed-object
+  attribute reads.
+- Added the synchronized local Melinoe patch so patched Gaia resolves its
+  `melinoe` 0.8.0 edge during Helios validation.
+
 ### Added
 - Cargo workspace skeleton (`edition = "2021"`, `resolver = "2"`) with
   `workspace.package`/`workspace.lints`/`workspace.dependencies` SSOT declaring the

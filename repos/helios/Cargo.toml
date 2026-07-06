@@ -60,7 +60,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 bytemuck = "1.0"
-num-traits = "0.2"
 pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
 proptest = "1.0"
 criterion = "0.5"
@@ -74,11 +73,10 @@ approx = "0.5"
 ritk-core = { git = "https://github.com/ryancinsight/ritk" }
 ritk-io = { git = "https://github.com/ryancinsight/ritk" }
 ritk-registration = { git = "https://github.com/ryancinsight/ritk" }
-# Native DICOM parse/decode (CT/MVCT real-input path). ritk-dicom is clean of the
-# Atlas numeric cluster (anyhow/arrayvec/dicom-rs/ritk-codecs only); `dicom` is
-# dicom-rs, used directly for attribute (Tag) reads on the parsed object.
+# Native DICOM parse/decode (CT/MVCT real-input path). ritk-dicom owns pixel
+# decoding; Helios uses dicom-rs directly only for parsed-object attributes.
 ritk-dicom = { git = "https://github.com/ryancinsight/ritk" }
-dicom = { version = "0.8", default-features = false, features = ["pixeldata", "ndarray"] }
+dicom = { version = "0.8", default-features = false }
 # Geometry kernel (binary MLC, collimators, jaws, patient meshes).
 gaia = { git = "https://github.com/ryancinsight/gaia", default-features = false }
 # GPU compute (wgpu/WGSL pipelines, kernel caching) + orchestration.
@@ -129,6 +127,9 @@ eunomia = { path = "../eunomia/crates/eunomia" }
 
 [patch."https://github.com/ryancinsight/gaia"]
 gaia = { path = "../gaia" }
+
+[patch."https://github.com/ryancinsight/melinoe.git"]
+melinoe = { path = "../melinoe" }
 
 [patch."https://github.com/ryancinsight/ritk"]
 ritk-dicom = { path = "../ritk/crates/ritk-dicom" }

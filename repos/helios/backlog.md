@@ -6,6 +6,13 @@ gaps → architecture drift → missing tests → docs → PM cleanup.
 
 Status: `todo` · `in-progress` · `review` · `done`
 
+## Atlas dependency cleanup
+
+| ID | Item | Class | Status | Owner | Scope |
+|----|------|-------|--------|-------|-------|
+| H-062 | Remove Helios' unused direct `num-traits` workspace dependency. Numeric operations are already routed through `helios-math` and Eunomia. | [patch] | done | codex | `Cargo.toml`, `Cargo.lock`, PM artifacts |
+| H-061 | Remove the unused aggregate `dicom/ndarray` feature edge from the Helios DICOM graph. `ritk-dicom` remains the pixel-decoding owner through `dicom-pixeldata`; Helios uses dicom-rs only for parsed-object attributes. Add the synchronized local Melinoe patch required by patched Gaia's `melinoe` 0.8.0 edge. | [patch] | done | codex | `Cargo.toml`, `Cargo.lock`, PM artifacts |
+
 ## Sprint 1 — Foundation
 
 | ID | Item | Class | Status | Owner | Scope |

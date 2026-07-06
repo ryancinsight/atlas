@@ -6,6 +6,27 @@
 
 ## Owner: claude-helios
 
+### H-062 done — remove unused direct num-traits dependency
+
+Helios source already routes scalar and numeric operations through
+`helios-math` re-exports of Eunomia (`NumericElement`, `FloatElement`,
+`RealField`). Removed the unused workspace-level `num-traits` dependency so
+the manifest matches the Atlas numeric SSOT. Completion condition: no Helios
+source references `num_traits`, and focused numeric/domain/physics crates
+compile through Eunomia. Verified with `rustup run nightly cargo check -p
+helios-math -p helios-domain -p helios-physics`.
+
+### H-061 done — remove unused dicom-rs ndarray feature
+
+`ritk-dicom` owns DICOM pixel decoding; Helios uses dicom-rs directly only for
+parsed-object attribute reads. Removed Helios' direct `dicom/ndarray` feature
+selection, so the `helios-domain/dicom` graph no longer requests ndarray
+through the aggregate dicom-rs crate. Added the synchronized local Melinoe patch
+because the patched Gaia graph requires `melinoe` 0.8.0. Completion condition:
+the DICOM feature compiles, the synthetic DICOM loader tests pass, and `cargo
+tree -p helios-domain --features dicom -e features -i dicom` shows no aggregate
+`dicom/ndarray` feature edge.
+
 ### H-020k done — gaia-`Aabb` collimator field aperture + delivery collimation (jaw field-shaping + penumbra). Next: H-011b NIST μ/ρ / wire aperture into the dose pipeline / oriented-scatter perf — `todo`
 
 `helios-domain::FieldAperture` (open field = gaia `Aabb`, geometric edge penumbra via box

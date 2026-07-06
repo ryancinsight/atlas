@@ -4,6 +4,26 @@ Physics, numerics, accuracy, architecture, and integration gaps. Closed by
 evidence, not silence. Each gap: ID, description, class, current evidence tier,
 target closure.
 
+## Recently closed Atlas dependency cleanup
+
+- **H-062 - RESOLVED.** Helios had an unused direct workspace dependency on
+  `num-traits`, while source already used `helios-math` re-exports of Eunomia
+  for `NumericElement`, `FloatElement`, and `RealField`. The direct dependency
+  is removed so the manifest matches the Atlas numeric SSOT. Evidence tier:
+  lexical source audit plus focused compile validation through the
+  numeric/domain/physics crates (`rustup run nightly cargo check -p
+  helios-math -p helios-domain -p helios-physics`).
+
+- **H-061 - RESOLVED.** Helios used dicom-rs directly for parsed-object
+  attribute reads while `ritk-dicom` owned pixel decoding. The Helios direct
+  `dicom` dependency no longer selects the `ndarray` feature, keeping the DICOM
+  loader aligned with the Atlas replacement goal without changing the
+  decoded-pixel contract. The synchronized local Melinoe patch is added because
+  patched Gaia now requires `melinoe` 0.8.0 while the remote Melinoe git source
+  still resolves to 0.7.0 in this graph. Evidence tier: source-level dependency
+  audit, downstream feature-tree validation, and focused compile/test validation
+  of the `helios-domain/dicom` feature.
+
 ## Open gaps
 
 ### Recently closed

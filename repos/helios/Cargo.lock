@@ -495,7 +495,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-autograd"
-version = "0.5.5"
+version = "0.5.8"
 dependencies = [
  "apollo-fft",
  "coeus-core",
@@ -509,7 +509,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-core"
-version = "0.5.5"
+version = "0.5.8"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -523,7 +523,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-leto"
-version = "0.5.5"
+version = "0.5.8"
 dependencies = [
  "coeus-core",
  "leto",
@@ -532,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-ops"
-version = "0.5.5"
+version = "0.5.8"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -541,14 +541,14 @@ dependencies = [
  "coeus-tensor",
  "half",
  "leto-ops",
- "melinoe 0.7.0",
+ "melinoe 0.8.0",
  "smallvec",
  "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "coeus-sparse"
-version = "0.5.5"
+version = "0.5.8"
 dependencies = [
  "coeus-core",
  "coeus-tensor",
@@ -558,7 +558,7 @@ dependencies = [
 
 [[package]]
 name = "coeus-tensor"
-version = "0.5.5"
+version = "0.5.8"
 dependencies = [
  "bytemuck",
  "coeus-core",
@@ -716,7 +716,6 @@ dependencies = [
  "dicom-encoding",
  "dicom-object",
  "dicom-parser",
- "dicom-pixeldata",
  "dicom-transfer-syntax-registry",
 ]
 
@@ -836,7 +835,6 @@ dependencies = [
  "dicom-object",
  "dicom-transfer-syntax-registry",
  "image",
- "ndarray",
  "num-traits",
  "rayon",
  "snafu",
@@ -1181,7 +1179,7 @@ dependencies = [
  "hashbrown 0.15.5",
  "indexmap",
  "leto",
- "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe 0.8.0",
  "rand 0.8.6",
  "serde",
  "serde_json",
@@ -1504,6 +1502,7 @@ name = "hephaestus-core"
 version = "0.11.0"
 dependencies = [
  "bytemuck",
+ "leto",
  "themis 0.6.0",
  "thiserror 2.0.18",
 ]
@@ -1537,6 +1536,7 @@ dependencies = [
  "hermes-simd-intrinsics",
  "hermes-simd-macros",
  "hermes-simd-types",
+ "themis 0.9.17",
 ]
 
 [[package]]
@@ -1992,21 +1992,19 @@ checksum = "7a79a3332a6609480d7d0c9eab957bca6b455b91bb84e66d19f5ff66294b85b8"
 
 [[package]]
 name = "leto"
-version = "0.35.1"
+version = "0.36.0"
 dependencies = [
  "bytemuck",
  "eunomia",
  "half",
  "mnemosyne",
- "num-complex",
- "num-traits",
  "serde",
  "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "leto-ops"
-version = "0.35.1"
+version = "0.36.0"
 dependencies = [
  "bytemuck",
  "eunomia",
@@ -2014,8 +2012,6 @@ dependencies = [
  "hermes-simd",
  "leto",
  "moirai",
- "num-complex",
- "num-traits",
  "themis 0.9.17",
  "thiserror 2.0.18",
 ]
@@ -2098,16 +2094,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "matrixmultiply"
-version = "0.3.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06de3016e9fae57a36fd14dba131fccf49f74b40b7fbdb472f96e361ec71a08"
-dependencies = [
- "autocfg",
- "rawpointer",
-]
-
-[[package]]
 name = "maybe-rayon"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2120,11 +2106,11 @@ dependencies = [
 [[package]]
 name = "melinoe"
 version = "0.7.0"
+source = "git+https://github.com/ryancinsight/melinoe.git#f0139dd77e2c175aeea51687669ef5d5fdafd078"
 
 [[package]]
 name = "melinoe"
-version = "0.7.0"
-source = "git+https://github.com/ryancinsight/melinoe.git#f0139dd77e2c175aeea51687669ef5d5fdafd078"
+version = "0.8.0"
 
 [[package]]
 name = "memchr"
@@ -2226,7 +2212,7 @@ dependencies = [
 name = "mnemosyne-heap"
 version = "0.1.0"
 dependencies = [
- "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe 0.8.0",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-core",
@@ -2239,7 +2225,7 @@ dependencies = [
 name = "mnemosyne-local"
 version = "0.1.0"
 dependencies = [
- "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe 0.7.0",
  "mnemosyne-arena",
  "mnemosyne-backend",
  "mnemosyne-build-util",
@@ -2262,7 +2248,7 @@ dependencies = [
 name = "moirai"
 version = "0.2.0"
 dependencies = [
- "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe 0.8.0",
  "mnemosyne",
  "moirai-async",
  "moirai-core",
@@ -2303,7 +2289,7 @@ dependencies = [
 name = "moirai-executor"
 version = "0.2.0"
 dependencies = [
- "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe 0.7.0",
  "mnemosyne",
  "moirai-core",
  "moirai-pal",
@@ -2342,7 +2328,7 @@ version = "0.2.0"
 dependencies = [
  "js-sys",
  "libc",
- "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe 0.7.0",
  "moirai-core",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -2354,7 +2340,7 @@ dependencies = [
 name = "moirai-parallel"
 version = "0.2.0"
 dependencies = [
- "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe 0.7.0",
  "moirai-executor",
 ]
 
@@ -2426,19 +2412,6 @@ dependencies = [
  "spirv",
  "thiserror 2.0.18",
  "unicode-ident",
-]
-
-[[package]]
-name = "ndarray"
-version = "0.15.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adb12d4e967ec485a5f71c6311fe28158e9d6f4bc4a447b474184d0f91a8fa32"
-dependencies = [
- "matrixmultiply",
- "num-complex",
- "num-integer",
- "num-traits",
- "rawpointer",
 ]
 
 [[package]]
@@ -3048,12 +3021,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 
 [[package]]
-name = "rawpointer"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "60a357793950651c4ed0f3f52338f53b2f809f32d83a07f72909fa13e4c6c1e3"
-
-[[package]]
 name = "rayon"
 version = "1.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3490,7 +3457,7 @@ name = "themis"
 version = "0.6.0"
 source = "git+https://github.com/ryancinsight/themis?rev=bdcddfe294f941ef2f84fd4ce38537906b0fec23#bdcddfe294f941ef2f84fd4ce38537906b0fec23"
 dependencies = [
- "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe 0.8.0",
 ]
 
 [[package]]
@@ -3498,7 +3465,7 @@ name = "themis"
 version = "0.9.17"
 source = "git+https://github.com/ryancinsight/themis#e87618a241c69502302da296767a9e3c0acc4906"
 dependencies = [
- "melinoe 0.7.0 (git+https://github.com/ryancinsight/melinoe.git)",
+ "melinoe 0.7.0",
 ]
 
 [[package]]
@@ -4155,10 +4122,6 @@ dependencies = [
 ]
 
 [[patch.unused]]
-name = "coeus-optim"
-version = "0.5.5"
-
-[[patch.unused]]
 name = "moirai-http"
 version = "0.2.0"
 
@@ -4173,3 +4136,7 @@ version = "0.2.0"
 [[patch.unused]]
 name = "moirai-tls"
 version = "0.2.0"
+
+[[patch.unused]]
+name = "coeus-optim"
+version = "0.5.8"
