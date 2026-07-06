@@ -73,10 +73,9 @@ approx = "0.5"
 ritk-core = { git = "https://github.com/ryancinsight/ritk" }
 ritk-io = { git = "https://github.com/ryancinsight/ritk" }
 ritk-registration = { git = "https://github.com/ryancinsight/ritk" }
-# Native DICOM parse/decode (CT/MVCT real-input path). ritk-dicom owns pixel
-# decoding; Helios uses dicom-rs directly only for parsed-object attributes.
+# Native DICOM parse/decode (CT/MVCT real-input path). RITK owns DICOM object
+# parsing, typed attribute reads, and pixel decoding.
 ritk-dicom = { git = "https://github.com/ryancinsight/ritk" }
-dicom = { version = "0.8", default-features = false }
 # Geometry kernel (binary MLC, collimators, jaws, patient meshes).
 gaia = { git = "https://github.com/ryancinsight/gaia", default-features = false }
 # GPU compute (wgpu/WGSL pipelines, kernel caching) + orchestration.

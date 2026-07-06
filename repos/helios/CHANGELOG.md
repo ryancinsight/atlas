@@ -16,6 +16,10 @@ under a Breaking subsection.
   attribute reads.
 - Added the synchronized local Melinoe patch so patched Gaia resolves its
   `melinoe` 0.8.0 edge during Helios validation.
+- Moved Helios' production DICOM attribute reads onto RITK's typed
+  `ritk-dicom::DicomAttributeRead` surface. Helios no longer has a direct
+  production `dicom` dependency; dicom-rs remains only as a dev-dependency for
+  synthetic Part 10 fixture generation.
 
 ### Added
 - Cargo workspace skeleton (`edition = "2021"`, `resolver = "2"`) with

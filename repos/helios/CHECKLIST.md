@@ -18,14 +18,15 @@ helios-math -p helios-domain -p helios-physics`.
 
 ### H-061 done — remove unused dicom-rs ndarray feature
 
-`ritk-dicom` owns DICOM pixel decoding; Helios uses dicom-rs directly only for
-parsed-object attribute reads. Removed Helios' direct `dicom/ndarray` feature
-selection, so the `helios-domain/dicom` graph no longer requests ndarray
-through the aggregate dicom-rs crate. Added the synchronized local Melinoe patch
-because the patched Gaia graph requires `melinoe` 0.8.0. Completion condition:
-the DICOM feature compiles, the synthetic DICOM loader tests pass, and `cargo
-tree -p helios-domain --features dicom -e features -i dicom` shows no aggregate
-`dicom/ndarray` feature edge.
+`ritk-dicom` owns DICOM object parsing, typed attribute reads, and pixel
+decoding. Removed Helios' direct production `dicom` feature edge; the
+`helios-domain/dicom` graph now reaches dicom-rs only through `ritk-dicom`.
+The remaining direct `dicom` edge is a `dev-dependency` used only to write the
+synthetic Part 10 fixture in value-semantic loader tests. Added the synchronized
+local Melinoe patch because the patched Gaia graph requires `melinoe` 0.8.0.
+Completion condition: the DICOM feature compiles, the synthetic DICOM loader
+tests pass, and `cargo tree -p helios-domain --features dicom -e normal -i
+dicom` shows `dicom` only below `ritk-dicom`.
 
 ### H-020k done — gaia-`Aabb` collimator field aperture + delivery collimation (jaw field-shaping + penumbra). Next: H-011b NIST μ/ρ / wire aperture into the dose pipeline / oriented-scatter perf — `todo`
 

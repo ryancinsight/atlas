@@ -96,9 +96,31 @@ Critical correction (cross-walked from the thinker's pre-implementation review):
 
 Soft deprecation markers on the Burn-keyed surface. Add `#![deprecated]`-equivalent documentation warnings only. No `#[deprecated]` attribute on Burn-keyed items (that would force consumer compile warnings on every use today, multiplied by 671 burner source files). Document the migration path on each trait's doc-comment. Cargo.toml, allowlist, Burn deps: untouched.
 
-### Sub-batch #3 — `RITK-crate-migrate` `[minor]` — RESERVED
+### Sub-batch #3 — `RITK-crate-migrate` `[minor]` — **OPENED 2026-07-06** (7 per-crate queue)
 
-Per-crate Atlas-typed migrators: `ritk-filter` (296 burner-touching files, leads), then `ritk-registration` (~109-129 files), then `ritk-segmentation` (88 files), then `ritk-model` (18-36 files), then `ritk-statistics` (~20-32 files), then `ritk-{io,interpolation,transform}` (24-30 each), then `ritk-{python,cli,snap}` (11-14 each). Each per-crate commit is itself sub-sub-atomic (allowlist is still the SSOT). The sub-batch #3 closeout is when the last per-crate commit lands and `xtask/burn_surface.allowlist` source-entries parcels to the migration-done rows.
+Per-crate Atlas-typed migrators. The atomic-boundary discipline §1 (strict additive OR strict subtractive per sub-batch) applies to each per-crate commit within sub-batch #3: each is its own subtractive-by-conversion commit that ports **one specific test module** from the Burn-keyed legacy public type (`burn_ndarray::NdArray<B>` or `Image<B: Backend, D>`) to the Atlas-typed parallel surface (`AtlasImage<T: Scalar, B: ComputeBackend, D>` already added in sub-batch #1 + `cargo dev-dep` of `coeus-core::Scalar`/`coeus-tensor::Tensor` via `MoiraiBackend` ZST).
+
+Why "port one test per per-crate commit":
+
+1. **Atomic-boundary discipline preservation** — each per-crate commit is strictly subtractive (drops `xtask/burn_surface.allowlist` source-row count by 1, removes a `burn_ndarray::NdArray` test consumer site), preserves all public `B: Backend`-keyed signature intact, and lands only Atlas-typed test bodies + Atlas-typed device/build patterns. Zero public Burn-keyed symbol removed/narrowed/renamed/re-exported-differently per per-crate commit. Sub-batch #5 remains the only commit authorised to delete or rename `[dependencies]` lines.
+2. **Allowlist contracts incrementally** — `xtask/burn_surface.allowlist` is auto-generated against the pre-migration `burn::` symbol surface; each per-crate test port removes one source-row from the allowlist as the carry-over Burn reference is migrated. Allowlist refresh ritual belongs to sub-batch #6; per-crate sub-batches only contract it.
+3. **Compile/test gate per per-crate commit** — each per-crate commit is preceded by `cargo nextest run -p ritk-<crate> --lib --tests` (or `-p ritk-snap --lib`) verifying the ported test body passes with `AtlasImage<T=MoiraiBackend, f32, 3>` semantics, while the rest of the Burn-keyed public type surface in the crate remains untouched. `cargo fmt --check` + `cargo clippy -p ritk-<crate> --all-targets -- -D warnings` + `cargo doc -p ritk-<crate> --no-deps` warning-clean.
+4. **Atlas-only validation per per-crate commit** — `cargo tree -p ritk-<crate> -i burn-wgpu`, `-i burn-cuda`, `-i burn-rocm` each return zero (Burn GPU defaults stay closed). `cargo tree -p ritk-<crate> -i burn-ndarray` continues to report the `burn-ndarray` CPU-ref tally (decrements by 1 per per-crate test port that pulled in `burn_ndarray` directly).
+5. **Cross-stream coordination** — review Batch #3 sub-batch #3 per `atlas/docs/coordination/concurrent_agents.md` disjoint-scope rule: each per-crate commit lands on its own `codex/ritk-<crate>-atlas-migration` branch (or the parent `codex/kwavers-atlas-integration` branch protocol per `atlas/backlog.md` §In-flight claims). Atlas-meta chore advances the `ritk/atlas-migration-push/batch3` annotated tag chain per ADR 0010 §Decision §Per-batch name pattern — one annotated tag per sub-batch #3 closeout, with the tag annotation body enumerating the 7 per-crate SHAs.
+
+#### Per-crate sub-atomic increment order (open 2026-07-06)
+
+| Per-crate | Crate | Burner-touching file count | Smallest sub-atomic increment | Atlas-side substrate |
+|---|---|---:|---|---|
+| #3.a | `ritk-filter` | 296 | `morphology/tests_binary_erode.rs` (binary erosion tests, 7 fixtures) | `AtlasImage<f32, MoiraiBackend, 3>` over `coeus_tensor::Tensor<f32, MoiraiBackend>` |
+| #3.b | `ritk-registration` | 109–129 | `metric/histogram/parzen/tests/cache_property_tests.rs` (Parzen-window cache property tests) | `AtlasImage<f32, MoiraiBackend, 3>` + Parzen-window ops native coeus path |
+| #3.c | `ritk-segmentation` | 88 | `morphology/binary_erosion/tests.rs` (binary erosion test fixtures) | `AtlasImage<f32, MoiraiBackend, 3>` over `coeus_tensor::Tensor` |
+| #3.d | `ritk-model` | 18–36 | `ssmmorph/encoder/tests.rs` (SSM-Morph encoder route) | `AtlasImage<f32, MoiraiBackend, 3>` + coeus_nn Module forward |
+| #3.e | `ritk-statistics` | 20–32 | `tests_image_statistics.rs` (image statistics golden values) | `AtlasImage<f32, MoiraiBackend, 3>` + image-statistics ops native coeus path |
+| #3.f | `ritk-io` (24–30) + `ritk-interpolation` (24–30) + `ritk-transform` (24–30) | 24–30 each | `format/dicom/color/tests.rs` (DICOM color path) + `interpolation/tests_trilinear.rs` + `transform/affine/tests_affine.rs` | `AtlasImage<f32, MoiraiBackend, 3>` + DICOM reader/trilinear/affine native coeus path |
+| #3.g | `ritk-python` (11–14) + `ritk-cli` (11–14) + `ritk-snap` (11–14) | 11–14 each | (one CLI command test + one snapshot handler test + one python binding test) | `AtlasImage<f32, MoiraiBackend, 3>` + pyo3-thin binding carrier |
+
+The sub-batch #3 closeout is when the last per-crate commit (`#3.g`) lands and `xtask/burn_surface.allowlist` source-entries parcels to the migration-done rows per sub-batch #6's refresh ritual.
 
 ### Sub-batch #4 — `RITK-spatial-rebind` `[patch]` — RESERVED
 

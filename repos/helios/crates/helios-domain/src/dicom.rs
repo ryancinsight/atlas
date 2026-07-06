@@ -16,25 +16,12 @@
 
 use crate::grid::VoxelGrid;
 use crate::volume::Volume;
-use dicom::core::Tag;
 use helios_core::HeliosError;
 use helios_math::{Point3, Scalar};
 use ritk_dicom::{
-    decode_frame_with, parse_file_with, DecodeFrameRequest, DicomRsBackend, PixelLayout,
-    PixelSignedness, TransferSyntaxKind,
+    decode_frame_with, parse_file_with, tags, DecodeFrameRequest, DicomAttributeRead,
+    DicomRsBackend, DicomTag, PixelLayout, PixelSignedness, TransferSyntaxKind,
 };
-
-// DICOM tags (group, element).
-const ROWS: Tag = Tag(0x0028, 0x0010);
-const COLUMNS: Tag = Tag(0x0028, 0x0011);
-const SAMPLES_PER_PIXEL: Tag = Tag(0x0028, 0x0002);
-const BITS_ALLOCATED: Tag = Tag(0x0028, 0x0100);
-const PIXEL_REPRESENTATION: Tag = Tag(0x0028, 0x0103);
-const RESCALE_INTERCEPT: Tag = Tag(0x0028, 0x1052);
-const RESCALE_SLOPE: Tag = Tag(0x0028, 0x1053);
-const PIXEL_SPACING: Tag = Tag(0x0028, 0x0030);
-const SLICE_THICKNESS: Tag = Tag(0x0018, 0x0050);
-const IMAGE_POSITION_PATIENT: Tag = Tag(0x0020, 0x0032);
 
 type Object = <DicomRsBackend as ritk_dicom::DicomParseBackend>::Object;
 
@@ -45,37 +32,47 @@ fn dicom_err(step: &str, e: impl core::fmt::Display) -> HeliosError {
 }
 
 /// Required unsigned-short attribute.
-fn req_usize(obj: &Object, tag: Tag, name: &'static str) -> Result<usize, HeliosError> {
-    let v: u16 = obj
-        .element(tag)
-        .map_err(|e| dicom_err(name, e))?
-        .value()
-        .to_int::<u16>()
+fn req_usize(obj: &Object, tag: DicomTag, name: &'static str) -> Result<usize, HeliosError> {
+    let v = obj
+        .required_unsigned(tag, name)
         .map_err(|e| dicom_err(name, e))?;
     Ok(v as usize)
 }
 
 /// Optional unsigned-short attribute with a default.
-fn opt_u16(obj: &Object, tag: Tag, default: u16) -> u16 {
-    obj.element(tag)
-        .ok()
-        .and_then(|e| e.value().to_int::<u16>().ok())
-        .unwrap_or(default)
+fn opt_unsigned(
+    obj: &Object,
+    tag: DicomTag,
+    name: &'static str,
+    default: u16,
+) -> Result<u16, HeliosError> {
+    Ok(obj
+        .optional_unsigned(tag, name)
+        .map_err(|e| dicom_err(name, e))?
+        .unwrap_or(default))
 }
 
 /// Optional decimal-string scalar with a default.
-fn opt_f64(obj: &Object, tag: Tag, default: f64) -> f64 {
-    obj.element(tag)
-        .ok()
-        .and_then(|e| e.value().to_float64().ok())
-        .unwrap_or(default)
+fn opt_decimal(
+    obj: &Object,
+    tag: DicomTag,
+    name: &'static str,
+    default: f64,
+) -> Result<f64, HeliosError> {
+    Ok(obj
+        .optional_decimal(tag, name)
+        .map_err(|e| dicom_err(name, e))?
+        .unwrap_or(default))
 }
 
 /// Optional multi-valued decimal string.
-fn multi_f64(obj: &Object, tag: Tag) -> Option<Vec<f64>> {
-    obj.element(tag)
-        .ok()
-        .and_then(|e| e.value().to_multi_float64().ok())
+fn multi_decimal(
+    obj: &Object,
+    tag: DicomTag,
+    name: &'static str,
+) -> Result<Option<Vec<f64>>, HeliosError> {
+    obj.optional_decimal_vec(tag, name)
+        .map_err(|e| dicom_err(name, e))
 }
 
 /// One parsed+decoded DICOM slice in native (f64/mm/HU) form, before it is mapped
@@ -98,31 +95,34 @@ struct SliceRaw {
 fn read_slice(path: &std::path::Path) -> Result<SliceRaw, HeliosError> {
     let obj = parse_file_with::<DicomRsBackend, _>(path).map_err(|e| dicom_err("parse", e))?;
 
-    let rows = req_usize(&obj, ROWS, "Rows")?;
-    let cols = req_usize(&obj, COLUMNS, "Columns")?;
-    let samples_per_pixel = opt_u16(&obj, SAMPLES_PER_PIXEL, 1) as usize;
-    let bits_allocated = opt_u16(&obj, BITS_ALLOCATED, 16);
-    let pixel_representation = if opt_u16(&obj, PIXEL_REPRESENTATION, 0) == 1 {
-        PixelSignedness::Signed
-    } else {
-        PixelSignedness::Unsigned
-    };
-    let rescale_slope = opt_f64(&obj, RESCALE_SLOPE, 1.0) as f32;
-    let rescale_intercept = opt_f64(&obj, RESCALE_INTERCEPT, 0.0) as f32;
+    let rows = req_usize(&obj, tags::ROWS, "Rows")?;
+    let cols = req_usize(&obj, tags::COLUMNS, "Columns")?;
+    let samples_per_pixel =
+        opt_unsigned(&obj, tags::SAMPLES_PER_PIXEL, "SamplesPerPixel", 1)? as usize;
+    let bits_allocated = opt_unsigned(&obj, tags::BITS_ALLOCATED, "BitsAllocated", 16)?;
+    let pixel_representation =
+        if opt_unsigned(&obj, tags::PIXEL_REPRESENTATION, "PixelRepresentation", 0)? == 1 {
+            PixelSignedness::Signed
+        } else {
+            PixelSignedness::Unsigned
+        };
+    let rescale_slope = opt_decimal(&obj, tags::RESCALE_SLOPE, "RescaleSlope", 1.0)? as f32;
+    let rescale_intercept =
+        opt_decimal(&obj, tags::RESCALE_INTERCEPT, "RescaleIntercept", 0.0)? as f32;
 
     // PixelSpacing is [row_spacing, col_spacing] (mm); default to 1 mm isotropic.
-    let spacing = multi_f64(&obj, PIXEL_SPACING).unwrap_or_default();
+    let spacing = multi_decimal(&obj, tags::PIXEL_SPACING, "PixelSpacing")?.unwrap_or_default();
     let row_spacing = spacing.first().copied().unwrap_or(1.0);
     let col_spacing = spacing.get(1).copied().unwrap_or(row_spacing);
-    let thickness = opt_f64(&obj, SLICE_THICKNESS, 1.0);
+    let thickness = opt_decimal(&obj, tags::SLICE_THICKNESS, "SliceThickness", 1.0)?;
 
-    let ipp = multi_f64(&obj, IMAGE_POSITION_PATIENT).unwrap_or_default();
+    let ipp = multi_decimal(&obj, tags::IMAGE_POSITION_PATIENT, "ImagePositionPatient")?
+        .unwrap_or_default();
     let origin_x = ipp.first().copied().unwrap_or(0.0);
     let origin_y = ipp.get(1).copied().unwrap_or(0.0);
     let z = ipp.get(2).copied().unwrap_or(0.0);
 
-    let transfer_syntax =
-        TransferSyntaxKind::from_uid(obj.meta().transfer_syntax.trim_end_matches('\0'));
+    let transfer_syntax = TransferSyntaxKind::from_uid(obj.transfer_syntax_uid());
     let frame = decode_frame_with::<DicomRsBackend>(
         &obj,
         DecodeFrameRequest {
@@ -301,7 +301,7 @@ pub fn load_ct_series<T: Scalar, P: AsRef<std::path::Path>>(
 mod tests {
     use super::*;
     use dicom::core::smallvec::SmallVec;
-    use dicom::core::{DataElement, PrimitiveValue, VR};
+    use dicom::core::{DataElement, PrimitiveValue, Tag, VR};
     use dicom::object::{FileMetaTableBuilder, InMemDicomObject};
 
     // Write a synthetic 2×2 unsigned-16 CT slice at position `z_mm` with a known
@@ -320,33 +320,58 @@ mod tests {
             "1.2.840.10008.5.1.4.1.1.2".into(),
         );
         put(&mut obj, Tag(0x0008, 0x0018), VR::UI, uid.into());
-        put(&mut obj, ROWS, VR::US, PrimitiveValue::from(2_u16));
-        put(&mut obj, COLUMNS, VR::US, PrimitiveValue::from(2_u16));
         put(
             &mut obj,
-            SAMPLES_PER_PIXEL,
+            Tag::from(tags::ROWS),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        );
+        put(
+            &mut obj,
+            Tag::from(tags::COLUMNS),
+            VR::US,
+            PrimitiveValue::from(2_u16),
+        );
+        put(
+            &mut obj,
+            Tag::from(tags::SAMPLES_PER_PIXEL),
             VR::US,
             PrimitiveValue::from(1_u16),
         );
         put(
             &mut obj,
-            BITS_ALLOCATED,
+            Tag::from(tags::BITS_ALLOCATED),
             VR::US,
             PrimitiveValue::from(16_u16),
         );
         put(
             &mut obj,
-            PIXEL_REPRESENTATION,
+            Tag::from(tags::PIXEL_REPRESENTATION),
             VR::US,
             PrimitiveValue::from(0_u16),
         );
-        put(&mut obj, RESCALE_SLOPE, VR::DS, "2".into());
-        put(&mut obj, RESCALE_INTERCEPT, VR::DS, "-10".into());
-        put(&mut obj, PIXEL_SPACING, VR::DS, "0.8\\1.25".into());
-        put(&mut obj, SLICE_THICKNESS, VR::DS, "3".into());
+        put(&mut obj, Tag::from(tags::RESCALE_SLOPE), VR::DS, "2".into());
         put(
             &mut obj,
-            IMAGE_POSITION_PATIENT,
+            Tag::from(tags::RESCALE_INTERCEPT),
+            VR::DS,
+            "-10".into(),
+        );
+        put(
+            &mut obj,
+            Tag::from(tags::PIXEL_SPACING),
+            VR::DS,
+            "0.8\\1.25".into(),
+        );
+        put(
+            &mut obj,
+            Tag::from(tags::SLICE_THICKNESS),
+            VR::DS,
+            "3".into(),
+        );
+        put(
+            &mut obj,
+            Tag::from(tags::IMAGE_POSITION_PATIENT),
             VR::DS,
             format!("5\\7\\{z_mm}").into(),
         );

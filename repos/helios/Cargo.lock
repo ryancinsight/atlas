@@ -4122,6 +4122,10 @@ dependencies = [
 ]
 
 [[patch.unused]]
+name = "coeus-optim"
+version = "0.5.8"
+
+[[patch.unused]]
 name = "moirai-http"
 version = "0.2.0"
 
@@ -4136,7 +4140,3 @@ version = "0.2.0"
 [[patch.unused]]
 name = "moirai-tls"
 version = "0.2.0"
-
-[[patch.unused]]
-name = "coeus-optim"
-version = "0.5.8"

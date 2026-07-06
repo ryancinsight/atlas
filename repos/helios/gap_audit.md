@@ -14,17 +14,25 @@ target closure.
   numeric/domain/physics crates (`rustup run nightly cargo check -p
   helios-math -p helios-domain -p helios-physics`).
 
-- **H-061 - RESOLVED.** Helios used dicom-rs directly for parsed-object
-  attribute reads while `ritk-dicom` owned pixel decoding. The Helios direct
-  `dicom` dependency no longer selects the `ndarray` feature, keeping the DICOM
-  loader aligned with the Atlas replacement goal without changing the
-  decoded-pixel contract. The synchronized local Melinoe patch is added because
-  patched Gaia now requires `melinoe` 0.8.0 while the remote Melinoe git source
-  still resolves to 0.7.0 in this graph. Evidence tier: source-level dependency
-  audit, downstream feature-tree validation, and focused compile/test validation
-  of the `helios-domain/dicom` feature.
+- **H-061 - RESOLVED.** Helios previously used dicom-rs directly for
+  parsed-object attribute reads while `ritk-dicom` owned pixel decoding. RITK
+  now exposes `DicomAttributeRead`, and Helios production DICOM loading uses
+  `ritk-dicom` for parsing, typed attribute reads, transfer-syntax lookup, and
+  pixel decoding. The Helios direct `dicom` dependency is now dev-only for the
+  synthetic Part 10 fixture writer used by loader tests. The synchronized local
+  Melinoe patch is retained because patched Gaia requires `melinoe` 0.8.0 while
+  the remote Melinoe git source still resolves to 0.7.0 in this graph. Evidence
+  tier: source-level dependency audit, downstream normal-dependency tree
+  validation, RITK attribute nextest, and focused `helios-domain/dicom` nextest.
 
 ## Open gaps
+
+- **H-063 - OPEN.** Helios must not grow into a generic image toolkit. The
+  DICOM real-input path now uses RITK for parsing, typed attributes, and pixel
+  decode; the remaining audit is `helios-imaging`. Domain-specific MVCT
+  projection/reconstruction kernels may stay in Helios because they implement
+  treatment/imaging physics, but generic medical-image I/O, registration, and
+  toolkit operations should be implemented in RITK first and consumed directly.
 
 ### Recently closed
 
