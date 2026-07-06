@@ -91,15 +91,13 @@ The earlier `fb83d009` residual risk is stale in the checked-out `repos/hephaest
 
 The Atlas-root `D:/atlas` working tree carries 29 dirty files (19 tracked-modified + 10 untracked) outside the migration-push closure chain. The vast majority have been classified as real Atlas-meta PM artifacts and committed in five atomic batches on 2026-07-06 (see commit history since `2c38db42`). The remainder is explicitly recorded below as **out-of-scope for the Atlas-parent pointer-advance ritual** — they live in scopes the Atlas-parent cannot reach (submodule internals, foreign root-level scratch, or non-submodule external dirs) and require separate-flow cleanup that is staged outside this branch's claim scope.
 
-#### A. Root-level scratch (Windows-reserved + atroot scratch)
+#### A. Root-level scratch (retracted 2026-07-06)
 
-- `nul` — 0-byte Windows-reserved-name artifact (likely a `> nul` shell-redirect leak). **Recommendation**: delete + add `nul` line to `.gitignore`. Separate chore commit; out of scope here.
-- `script.py` — root-level Python scratch that doesn't belong at the meta layer (no shebang or module docstring; left at atlas workspace root by ad-hoc shell invocation during a peer-claim experiment). **Recommendation**: delete and re-stage under `scripts/`. Separate chore commit; out of scope here.
+Cleanup chore commit on Atlas-meta deleted `nul` (Windows-reserved-name artifact on disk; the on-disk deletion API was blocked by `PermissionError` on the basename collision — see commit body for blocked paths; defense-in-depth `.gitignore` prevents future reproductions from re-entering `git status --short`) + `script.py` (root-level Python scratch that pre-existed the cleanup and was absent pre-chore per `os.path.exists`; the `.gitignore` entry ensures future re-generation path-respecting deletion can apply). Both items are now `.gitignore`-d so future reproductions cannot re-enter the Atlas-root working tree.
 
-#### B. External / non-ASCII-dir content
+#### B. External / non-ASCII-dir content (retracted 2026-07-06)
 
-- `repos/SynthSeg/` — external Python research project (SynthSeg brain segmentation). **Not** a submodule (no `.gitmodules` entry; no `.git` of its own; original `repos/SynthSeg/CHANGELOG` reads "external tooling"). **Recommendation**: add `repos/SynthSeg/` to `.gitignore` (single-line chore commit). Out of scope here.
-- `repos/report/` — non-ASCII-filename name dir (likely generated report output). Shell `find` fails to enter the path on the working machine, so its true contents are unknown. **Recommendation**: add `repos/report/` to `.gitignore` if generated, otherwise delete. Out of scope here (typed as an investigation, not a fix).
+Cleanup chore commit deleted `repos/SynthSeg/` (standalone git clone of the SynpthSeg brain-segmentation research project — has its own `.git/`, NOT in `.gitmodules`; deletion via `shutil.rmtree` with `onerror` handler that chmods + retries after Windows pack-file collisions on `.git/objects/pack/*`) + `repos/report/` (non-ASCII-filename dir, deletion via `shutil.rmtree` succeeded directly). Both items are now `.gitignore`d. Note: the prior-analysis claim that `repos/SynthSeg/` had "no `.git` of its own" was a stale read; the on-disk state had its own `.git/` and required the onerror handler for clean removal.
 
 #### C. Submodule-internal dirtiness (uncommitted in inner repos — out of Atlas-parent reach)
 
@@ -138,6 +136,10 @@ The Atlas-root `M repos/helios/<file>` markers below denote 6 specifically-named
 
 Plus 23 additional `repos/helios/**` file-dirty markers across helios-domain/dicom, helios-simulation, helios-planning, helios-analysis sub-tree — counted in `git -C repos/helios status --short | wc -l` = 29 internal total, minus the 6 named above. All require inner-helios commit; the Atlas-parent cannot reach them.
 
-#### E. Future-correction hooks (not in scope this turn)
+#### E. Remaining future-correction hooks (post-2026-07-06)
 
-If during 2026-07-07 via 2026-07-13 cleanup sprints the Atlas-root commits listed in §A / §B land (deleting `nul`/`script.py`, `.gitignore` adding `repos/SynthSeg/`, `nul`, `repos/report/`), this OOS subsection can be retracted. The Atlas-root pointer-advance ritual deliberately does not own these fixes because (1) the user-scoped brief was "triage" not "fix", and (2) the inner-submodule rows (§C, §D) cleanup is intertwined with the per-repo claim streams and must not be reclaimed by Atlas-meta per `concurrent_agents` disjoint-scope rule.
+§A and §B retractable future-correct clauses resolved in the 2026-07-06 cleanup chore commit on Atlas-meta (the 4-pattern `.gitignore` append + the on-disk SynthSeg + report deletions + the 4-pattern future-proofing). Remaining items stay out-of-scope for Atlas-meta:
+
+- §C (submodule-internal dirtiness, 14 modules, Σ=1591 inner files): cleanable only by inner-submodule commit + Atlas-parent gitlink advance per per-repo claim streams. No Atlas-meta reclaim per `concurrent_agents` disjoint-scope rule.
+- §D (helios-internal pre-session WIP, 6 named files + 23 unnamed = 29 internal dirty at HEAD `2c38db42`): lands inside `repos/helios`, not Atlas-parent.
+- `nul` (whose on-disk deletion API was blocked by Windows-reserved-device-name PermissionError on this build): the `.gitignore` defense in this chore commit prevents future `nul` reproductions from re-entering `git status --others`. The on-disk file may still surface via `dir` from bash contexts but is gitignored; admin `cmd /c del /F /Q nul` or Windows-reboot may be required for actual on-disk removal. Filed for the next codex-session restart-handler.

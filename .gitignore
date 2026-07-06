@@ -21,3 +21,14 @@ Thumbs.db
 
 # Local playground/clones
 repos/_halo_inspect/
+
+# Atlas-root working-tree cleanup (2026-07-06; chore commit retracted §A/§B of
+# backlog ## Out-of-scope (explicit) ## Atlas-root working-tree dirty triage).
+# `nul` line is defense in depth: the Windows-reserved-name on-disk file is
+# un-deletable via Python `os.remove` / `shutil.rmtree` / `os.rename` on this
+# build (PermissionError on the basename collision). The `.gitignore` pattern
+# prevents any future reproduction from re-entering `git status --others`.
+nul
+script.py
+repos/SynthSeg/
+repos/report/
