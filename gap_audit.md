@@ -114,7 +114,7 @@ Source: hand-verified grep over `crates/*/src` plus `Cargo.toml` per-file eviden
 Source: hand-verified scan over all 27 crates plus `RITK/Cargo.toml:69-72` workspace burn feature set.
 
 - **Manifest residual**:
-  - `RITK/Cargo.toml:69` `burn = { version = "0.19", default-features = false, features = ["std", "ndarray", "autodiff", "wgpu"] }` ← **`wgpu` still present despite `DEP-496-01` backlog-narrative DONE** — file drift flagged.
+  - ~~`RITK/Cargo.toml:69` retained `wgpu` in the workspace Burn feature list despite `DEP-496-01` being marked done.~~ **RETRACTED 2026-07-06**: `repos/ritk/Cargo.toml` now uses `features = ["std", "ndarray", "autodiff"]`. Verification: `rustup run nightly cargo tree --workspace -i burn-wgpu`, `-i burn-cuda`, and `-i burn-rocm` each reported no matching package; `rustup run nightly cargo metadata --locked --format-version 1` completed successfully. Evidence tier: dependency graph + locked metadata.
   - `RITK/Cargo.toml:70` `burn-ndarray = "0.19"`.
   - `RITK/Cargo.toml:88,112` `num-complex`, `num-traits` (manifest only; zero source uses detected).
 - **Source residual** (764 burner-touching files; top contributors):
@@ -132,7 +132,7 @@ Source: hand-verified scan over all 27 crates plus `RITK/Cargo.toml:69-72` works
   - `ritk-io::{ImageReader,ImageWriter}<Image<f32,B,3>>` writes `B: Backend` parameter.
   - `ritk-deformer_field_ops::deformable_field_ops::CpuOrGpu<B>` defaults `burn::backend::NdArray` post `DEP-496-01`.
 - **ndarray**: only 3 source sites, all in `ritk-python` for Python-side numpy interop (`use numpy::{ndarray::Array2, Array3, Array4}` etc.). Zero domain-side contact.
-- **Closure state**: Sprint 495 (native writers for 9 formats — `MIGH, META, MINC, TIFF, JPEG, NRRD, Analyze, NIfTI, PNG`) merged into `ritk-io::ImageWriter<Image<f32,B,3>>` with Burn + native façade; `DEP-496-01` (default Burn features) marked DONE in backlog narrative — **unconfirmed by file literal** (drift to reconcile).
+- **Closure state**: Sprint 495 (native writers for 9 formats — `MIGH, META, MINC, TIFF, JPEG, NRRD, Analyze, NIfTI, PNG`) merged into `ritk-io::ImageWriter<Image<f32,B,3>>` with Burn + native façade; `DEP-496-01` (default Burn features) is now file-literal consistent: `repos/ritk/Cargo.toml` removes Burn's `wgpu` feature and the workspace dependency graph selects no Burn GPU backend package.
 
 ### Cross-utility
 
@@ -197,14 +197,14 @@ These are TypeScript-style locks that prevent consumer migration until the provi
 
 ## Surfacing risks (closeout axioms for next sprint)
 
-1. **DRIFT**: `RITK/Cargo.toml:69` retains `wgpu` feature despite DEP-496-01's DONE narrative. Confirm whether the backlog narrative is canonical or the file literal — reopen DEP-496-01 if file is authoritative.
+1. ~~**DRIFT**: `RITK/Cargo.toml:69` retains `wgpu` feature despite DEP-496-01's DONE narrative. Confirm whether the backlog narrative is canonical or the file literal — reopen DEP-496-01 if file is authoritative.~~ **CLOSED 2026-07-06**: inner RITK commit `65a1a0fd` corrected the file literal to remove `wgpu`, refreshed `xtask/burn_surface.allowlist`, and verified Burn GPU backend packages are absent from the RITK workspace dependency tree.
 2. ~~**DEAD-FEATURE**: `ritk-core/src/lib.rs:15-17` cfg gate `feature = "mnemosyne-alloc"` references a feature that does not exist in `ritk-core/Cargo.toml`. Confirm and strip.~~ **RETRACTED 2026-07-06** (T1 re-verification): `ritk-core/Cargo.toml:8` declares `mnemosyne-alloc = ["dep:mnemosyne"]` and `Cargo.toml:7` lists it in `default = ["mnemosyne-alloc"]`; `src/lib.rs:15-17` cfg is consistent. The feature exists; the prior claim was a stale-memory misread. No action.
 3. ~~**NIGHTLY-PINNED TOOLCHAIN**: `kwavers` workspace pins `nightly` rust (`rust-toolchain-pinned nightly` per `crates/kwavers/simiconductor.rs`;; verify on kwavers toolchain).~~ **RETRACTED 2026-07-06** (T1 re-verification): no `rust-toolchain*` file exists at `repos/kwavers/` (workspace root) or in any first-level subdirectory; the cited `crates/kwavers/simiconductor.rs` path is fictitious. The workspace does not pin nightly at the manifest level. Any nightly-feature usage must be re-verified at the per-crate site, not at the workspace toolchain pin level.
 4. **TRAIN-PIN**: `let''o_dict`/realbind picked in mid-sprint between `coeus-tensor::Tensor` vs `let''o::Array` for autodiff carrier; coordinate via design note in `let''o/crate` and `coeus/docs/`.
 5. **CR-2 dependency-edge cycles**: removing `#[global_allocator]` from library crate `cfd-core`/`ritk-core` requires DI handles in main binaries — verify binaries have zero-handle init paths after tracking.
 6. **PEER-WIP COLLISION (session 2026-07-05 22:30 inventory)**: every consumer-batch-owning repo and most provider repos carry **active uncommitted peer WIP** in their working trees, blocking autonomous reclaim. Per-tree state (modified-files count on each branch's working tree):
    - `repos/CFDrs` `codex/cfdrs-atlas-migration`: **70 modified/untracked inner paths on 2026-07-06 recheck** after the `d58d1fe3` Batch #2 closure push. Batch #2 (CFDrs nalgebra → leto + nalgebra-sparse → leto-ops `CsrMatrix`) remains **CLOSED** at `d58d1fe3`, but the current dirty tree is live inner-repo WIP and is not reclaimable from Atlas-meta. Do not retract the CFDrs §C row until the inner tree is clean again or a new CFDrs commit lands.
-   - `repos/ritk` `main`: **631 modified files** (Batch #3 Burn→Coeus rebind WIP).
+   - `repos/ritk` `main`: **0 modified files** after inner commit `65a1a0fd`; the follow-up removed Burn's stale `wgpu` feature from the workspace dependency, refreshed `xtask/burn_surface.allowlist`, and synced RITK PM evidence. Batch #3 closure still requires current package gates before an Atlas-parent pointer advance.
    - `repos/apollo` `refactor/apollo-fft-eunomia`: **235 modified files** (Batch #5 / CR-1 ghostcell→melinoe rebind).
    - `repos/kwavers` `codex/kwavers-core-moirai-parallel`: **NEW commits today** (`1dc47028a` + `f36995162`, 2026-07-05 22:16/22:19) — peer is actively landing; migrated `kwavers-math` off nalgebra, added GPU provider seam. Batch #1 (107 residual Rayon sites in solver+physics, 40 files; plus 3 Cargo.toml strip sites) still open but peer-active.
    - `repos/hermes` `perf/compress-buffer-hoist`: 46 modified (peer SIMD-ISA dispatch).
