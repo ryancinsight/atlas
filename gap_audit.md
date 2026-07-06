@@ -68,11 +68,26 @@ Source: hand-verified grep over `crates/*/src` plus `Cargo.toml` per-file eviden
   - All 24 crates declare `ndarray` dep; `kwavers-phantom/gpu/phantom` use `workspace = true` → inherits `ndarray = "0.16" [rayon, serde]`.
 
 - **Residual `Zip::par_for_each` (transitive Rayon)**:
-  - `kwavers-solver`: 62 sites across `inverse/reconstruction/seismic/rtm/inherent/*` (23), `forward/nonlinear/{kuznetsov,westervelt_spectral}/*` (~21), `forward/elastic/swe/{integration,stress}/*` (13), `forward/pstd/extensions/elastic*` (4), `multiphysics/fluid_structure/{interface,solver}/*` (3), and `inverse/same_aperture/operator/linear_op` (6, already `moirai_parallel::ParMut`).
-  - `kwavers-physics`: 24 sites across `acoustics/{conservation, mechanics, therapy, skull}` and `optics/polarization/linear.rs`.
-- **Residual `ndarray = { features = ["rayon"] }` manifests**:
-  - `crates/kwavers-solver/Cargo.toml:24` ⚠ (OPEN `[patch]` per `kwavers/gap_audit.md:3016`).
-  - `crates/kwavers-physics/Cargo.toml:20` ⚠ (analogue).
+  - T1 evidence: `rg --count-matches 'par_for_each' crates --type rust` re-measured at inner HEAD `aa10a6e76` (2026-07-06). No `use rayon::*` direct imports anywhere in the kwavers tree; the Rayon path enters through `ndarray`'s `rayon` feature flag (`cargo tree -p kwavers-solver | grep rayon` shows `ndarray v0.16.1` → `rayon v1.11.0`).
+  - **Total: 84 occurrences across 28 files** (`kwavers-solver` 68 in 21 files; `kwavers-physics` 16 in 7 files).
+  - `kwavers-solver` per-directory breakdown (68 sites):
+    - `inverse/reconstruction/seismic/rtm/inherent/*` (6 files, 27 sites: `imaging.rs` 14, `wavefield.rs` 5, `laplacian.rs` 4, `mod.rs` 2, `illumination.rs` 1, `propagation.rs` 1).
+    - `forward/nonlinear/kuznetsov/{diffusion,nonlinear,numerical,operator_splitting/mod,solver/{model_impl,rhs},spectral,workspace}.rs` (8 files, 17 sites: `solver/rhs.rs` 7, `spectral.rs` 2, `solver/model_impl.rs` 2, `numerical.rs` 2, `workspace.rs` 1, `operator_splitting/mod.rs` 1, `nonlinear.rs` 1, `diffusion.rs` 1).
+    - `forward/nonlinear/westervelt_spectral/spectral.rs` (1 file, 2 sites).
+    - `forward/elastic/swe/{integration/integrator/mod.rs, stress/divergence.rs}` (2 files, 14 sites: `integrator/mod.rs` 11, `stress/divergence.rs` 3).
+    - `forward/pstd/extensions/{elastic.rs, elastic_orchestrator/pml/mod.rs}` (2 files, 5 sites: `elastic.rs` 4, `pml/mod.rs` 1).
+    - `multiphysics/fluid_structure/{interface.rs, solver/struct_impl.rs}` (2 files, 3 sites: `interface.rs` 1, `solver/struct_impl.rs` 2).
+  - `kwavers-physics` per-directory breakdown (16 sites):
+    - `acoustics/conservation/heat.rs` (2 sites).
+    - `acoustics/mechanics/acoustic_wave/nonlinear/{numerical_methods/{spectral/mod.rs (7), nonlinear_term.rs (1)}, wave_model.rs (1)}` (3 files, 9 sites).
+    - `acoustics/mechanics/cavitation/damage/model.rs` (1 site).
+    - `acoustics/therapy/sonogenetics/{arf_field.rs (2), channels/gating.rs (2)}` (2 files, 4 sites).
+  - Per-directory scan tallies add to 84 (68+16), matching the global ripgrep total. The peer migration in `ea7e09948 refactor(kwavers-physics)!: Route Rayon dispatch through moirai-parallel` (2026-07-06 10:21) drained sub-families elsewhere (`thermal`, `sonoluminescence/{blackbody,bremsstrahlung,cherenkov}`, `transducer`, `RTM`, `Monte Carlo`, `bubble interactions`, `field_surrogate`, `chemistry/{reaction-kinetics,ros-plasma}`, `optics/polarization`) but the `acoustics/{conservation, mechanics/{acoustic_wave,cavitation}, therapy/sonogenetics}` families remain on the pre-migration `Zip::*().par_for_each()` chain at this HEAD.
+  - Note: the per-family header site-count breakdown from the prior record (62 solver + 24 physics = 86) is the pre-`ea7e09948` snapshot; the peer migration drained 86 → 84 (-2 sites net).
+- **Residual `ndarray = { features = ["rayon", "serde"] }` manifests** (T1 grep at HEAD `aa10a6e76`):
+  - `crates/kwavers-solver/Cargo.toml:24` ⚠ OPEN — manifest retains `ndarray = { version = "0.16", features = ["rayon", "serde"] }`. Until this feature is stripped, `cargo tree -p kwavers-solver | grep rayon` returns `rayon v1.11.0`/`rayon-core v1.13.0`. The Batch #1 closure condition (zero-Rayon dep tree) is unmet at this HEAD.
+  - `crates/kwavers-physics/Cargo.toml:20` ⚠ OPEN — same manifest form. Same Batch #1 closure condition unmet for `kwavers-physics`.
+  - `kwavers-solver/src/inverse/same_aperture/operator/linear_op.rs` (6 sites) — already routes through `moirai_parallel::ParallelSliceMut`; not a migration target (preserved for downstream-batch completeness).
 - **Residual `burn`**:
   - `crates/kwavers/Cargo.toml:138` dev-deps `[std,ndarray,autodiff]` (no GPU features).
   - `crates/kwavers-solver/Cargo.toml:42` `[std,train,ndarray,autodiff]` (full suite).
