@@ -15,10 +15,11 @@
 | **0005** | `eunomia::NumericElement` as universal `Scalar` supertrait (CR-4 rebind); `coeus-core::Scalar` + `leto-ops::Scalar` rebase; supersedes prior RealField float-only supertrait | Accepted | 2026-07-04 | `[major]` | kwavers / CFDrs / ritk (consumers); coeus / leto / eunomia (providers) | numeric-ssot |
 | **0006** | `eunomia::ComplexField` as `kwavers-math` `CsrScalar` SSOT (CR-EUNOMIA-COMPLEX); sets the per-batch `num_complex::Complex<T>` migration convention | Approved | 2026-07-05 | `[minor]` | kwavers-math | numeric-ssot |
 | **0007** | per-subcrate `[patch]` sweep adopting ADR 0010's tag convention + closing `Complex<T>` call-sites per CR-EUNOMIA-COMPLEX; supersedes the per-crate CR-EUNOMIA-COMPLEX PR chain | Proposed | 2026-07-06 | `[minor]` | kwavers-solver / CFDrs / ritk | numeric-ssot |
+| **0008** | kwavers-math CsrScalar migration push (per-subcrate `[minor]`) — adopts ADR 0006 ComplexField doctrine + ADR 0007 per-subcrate `[patch]` sweep + ADR 0010 `<subcrate>/atlas-migration-push/<patch-id>` sub-counter tag convention; reserves `kwavers-math/atlas-migration-push/csrscalar-migration` | Proposed | 2026-07-06 | `[minor]` | kwavers-math (consumes `eunomia::ComplexField`); kwavers-solver / kwavers-physics / kwavers-gpu (downstream consumers) | numeric-ssot |
 | **0010** | Per-batch name pattern (`{consumer-repo}/atlas-migration-push/{batchN}`) + Atlas-parent pointer-advance + tag convention; closure-ritual counterpart for `D:/atlas/backlog.md` migration batches | Accepted | 2026-07-05 | `[minor]` | CFDrs (Batch #2 closure anchor); kwavers / ritk / apollo / moirai (future batches #1, #3, #5, #6) | atlas-ceremony |
 | **0011** | Atlas-root working-tree hygiene ritual — delegate-cleanup-by-class + disjoint-scope + OOS-record cadence; superseded the implicit `backlog.md` OOS-record shape from commit `283f38cf` | Accepted | 2026-07-06 | `[arch]` | atlas-meta | atlas-ceremony |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0007 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; 0010-0011 are the Atlas-provider ceremony counterparts. 0008 + 0009 are missing — see **Open Gaps** below.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain (with ADR 0008 capturing the kwavers-math CsrScalar per-subcrate `[patch]` specialization, the first per-subcrate instance per ADR 0007); 0010-0011 are the Atlas-provider ceremony counterparts. ADR 0009 remains missing — see **Open Gaps** below.
 
 ## Topic-keyword index
 
@@ -83,9 +84,9 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 
 ## Open gaps
 
-- **ADR 0008 missing** — no ADR captures the `kwavers-math` `CsrScalar` migration push's per-crate sweep as a separate documented decision. Filename placeholder: `D:/atlas/docs/adr/0008-kwavers-math-csrscalar-migration.md`. Recommend authoring as `[minor]` if a kwavers-math owner surfaces a need.
+- **ADR 0008 CLOSED 2026-07-06** — `D:/atlas/docs/adr/0008-kwavers-math-csrscalar-migration.md` authored with `Proposed` status (now 10th ADR; was Open Gap in the 2026-07-06 INDEX.md pre-update state). Implementation pending next codex-session authorship per ADR 0008 §Sequencing 6-step closure chain. Cross-walks ADR 0005 (NumericElement upstream) + ADR 0006 (ComplexField doctrine) + ADR 0007 (per-subcrate tactical) + ADR 0010 (Per-batch + sub-counter tag convention) + ADR 0011 (disjoint-scope rule). Reserves tag `kwavers-math/atlas-migration-push/csrscalar-migration`.
 - **ADR 0009 missing** — no ADR captures the Cadence-Tactic-Exercise (CTE) on Batch #1 (`kwavers-solver` / `kwavers-physics` Rayon → Moirai) as a roll-forward decision. Filename placeholder: `D:/atlas/docs/adr/0009-batch1-rayon-to-moirai-cte.md`. Recommend authoring when kwavers Batch #1 closes (gate: paragraph-collapse on the 107 residual `ndarray::Zip::*` sites per `D:/atlas/backlog.md` ## In-flight claims).
-- The 0008 + 0009 gaps are minor (each is a small `[minor]` `[patch]` doc-only artifact); they are not blockers but they break the numeric-sequence convention. Recommend closing in 2026 Q3 sprint 1.x.x.x hotfix pre-pull-request to round out the ADR sequence.
+- The 0009 gap remains a small `[minor]` `[patch]` doc-only artifact (the Cadence-Tactic-Exercise CTE on Batch #1 kwavers Rayon → Moirai); recommend closing in 2026 Q3 sprint 1.x.x.x hotfix pre-pull-request to round out the ADR sequence. Closing 0009 does NOT block CR-EUNOMIA-COMPLEX closure (0009 is the Batch #1 CTE, separate work stream).
 
 ## Navigation guidance (session-start recipes)
 
