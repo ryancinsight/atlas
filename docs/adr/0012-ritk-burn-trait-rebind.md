@@ -1,6 +1,6 @@
 # ADR 0012 — `ritk` Burn-trait rebind to Atlas-typed parallel trait surface (Batch #3, 6 atomic sub-batches)
 
-- Status: **Accepted** — Sub-batch #1 (`RITK Atlas-typed parallel trait surface, additive`) **closed** 2026-07-06. Sub-batches #2-#6 reserved per the §Sequencing / atomic-boundary discipline below.
+- Status: **Accepted** — Sub-batch #1 (`RITK Atlas-typed parallel trait surface, additive`) **closed** 2026-07-06. Sub-batch #2 (`RITK Atlas trait soft deprecation, docstring-only`) **closed** 2026-07-06. Sub-batches #3-#6 reserved per the §Sequencing / atomic-boundary discipline below.
 - Date: 2026-07-06.
 - Drivers: ritk Atlas migration (Batch #3 in `atlas/backlog.md`); provider-side Burn GPU-default drift closed 2026-07-06 by inner RITK commit `65a1a0fd` (cross-walked in `atlas/gap_audit.md` risk #1).
 - Anchors: `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (Accepted 2026-07-05) — confirms `coeus_core::Scalar: eunomia::NumericElement` (universal SSOT) and `coeus_core::ComputeBackend` as the Atlas-side backend seam; `atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` (Accepted 2026-07-05) — anchors the Atlas-pointer-advance + tag ritual that this ADR's commit chain follows (reserved inner tag: `ritk/atlas-migration-push/batch3`).
@@ -92,7 +92,7 @@ Trait-body shape: the three new traits use **default-method-only bodies with no 
 
 Critical correction (cross-walked from the thinker's pre-implementation review): the legacy `Transform` operates on **point geometries** (`Tensor<B, 2>` shape `[Batch, D]`) not full images; the legacy `Interpolator` uses **batched indices** (`Tensor<B, 2>`, `[Batch, Rank]`) not `[f64; D]` arrays. The Atlas-typed parallels must mirror these exactly — any operator signature confusion would force an additional cross-trait shape-bridging commit in sub-batch #3 and break the additive-only invariant.
 
-### Sub-batch #2 — `RITK-trait-deprecate` `[patch]` — RESERVED
+### Sub-batch #2 — `RITK-trait-deprecate` `[patch]` — **CLOSED 2026-07-06**
 
 Soft deprecation markers on the Burn-keyed surface. Add `#![deprecated]`-equivalent documentation warnings only. No `#[deprecated]` attribute on Burn-keyed items (that would force consumer compile warnings on every use today, multiplied by 671 burner source files). Document the migration path on each trait's doc-comment. Cargo.toml, allowlist, Burn deps: untouched.
 
