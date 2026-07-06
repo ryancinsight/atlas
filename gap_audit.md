@@ -187,6 +187,22 @@ These are TypeScript-style locks that prevent consumer migration until the provi
 3. **NIGHTLY-PINNED TOOLCHAIN**: `kwavers` workspace pins `nightly` rust (`rust-toolchain-pinned nightly` per `crates/kwavers/simiconductor.rs`;; verify on kwavers toolchain). Miri and nightly-feature-only requires per kwavers manual restriction.
 4. **TRAIN-PIN**: `let''o_dict`/realbind picked in mid-sprint between `coeus-tensor::Tensor` vs `let''o::Array` for autodiff carrier; coordinate via design note in `let''o/crate` and `coeus/docs/`.
 5. **CR-2 dependency-edge cycles**: removing `#[global_allocator]` from library crate `cfd-core`/`ritk-core` requires DI handles in main binaries — verify binaries have zero-handle init paths after tracking.
+6. **PEER-WIP COLLISION (session 2026-07-05 22:30 inventory)**: every consumer-batch-owning repo and most provider repos carry **active uncommitted peer WIP** in their working trees, blocking autonomous reclaim. Per-tree state (modified-files count on each branch's working tree):
+   - `repos/CFDrs` `codex/cfdrs-atlas-migration`: **772 modified files** (last commit 2026-06-14, but uncommitted WIP — NOT reclaimable per `concurrent_agents` "preserve peer's uncommitted work"). Batch #2 nalgebra→leto closure is peer-active despite apparent branch staleness.
+   - `repos/ritk` `main`: **631 modified files** (Batch #3 Burn→Coeus rebind WIP).
+   - `repos/apollo` `refactor/apollo-fft-eunomia`: **235 modified files** (Batch #5 / CR-1 ghostcell→melinoe rebind).
+   - `repos/kwavers` `codex/kwavers-core-moirai-parallel`: **NEW commits today** (`1dc47028a` + `f36995162`, 2026-07-05 22:16/22:19) — peer is actively landing; migrated `kwavers-math` off nalgebra, added GPU provider seam. Batch #1 (107 residual Rayon sites in solver+physics, 40 files; plus 3 Cargo.toml strip sites) still open but peer-active.
+   - `repos/hermes` `perf/compress-buffer-hoist`: 46 modified (peer SIMD-ISA dispatch).
+   - `repos/moirai` `refactor/remove-dead-subsystems`: 26 modified.
+   - `repos/leto` `codex/leto-cr4-ssot-rebind`: 42 modified (peer fixed-spatial-reconcile; `crates/leto/Cargo.toml:39` `serde_json = { workspace = true }` placeholder breaks `cargo` parse on this workspace).
+   - `repos/melinoe` `codex/halo-vecdeque-migration`: 13 modified.
+   - `repos/helios` `codex/kwavers-atlas-integration`: 35 modified.
+   - `repos/gaia` `refactor/migrate-to-leto-geometry`: 5 modified.
+   - `repos/coeus` `main`: 8 modified (melinoe 0.7→0.8 bump peer claim).
+   - `repos/eunomia` `main`: 6 modified (acos/asin/atan peer claim).
+   - **Clean working trees** (no uncommitted WIP): `repos/themis` (3-day-stale provider-cache crate, peripheral to migration), `repos/hephaestus` (clean; ks5-cholesky-panel active-regular commits), `repos/mnemosyne` (clean; codex/eunomia-local-source active-regular commits).
+   - **Net effect**: Atlas-meta's only disjoint-contribution surface during the 2026-07-05 22:30 window is the atlas-meta PM artifacts themselves (this file, `backlog.md`, `checklist.md`, and the ADR `0005` Proposed→Accepted state bump). The CR-class provider-side obstacles (CR-1 apollo, CR-2 global_allocator consolidation, CR-4 — DONE) and the consumer batches #1–#4 all reside inside trees with peer WIP, so the next autonomous consumer-batch sprint must defer until peer WIP commits land or the claim is genuinely released via the documented abandon-protocol.
+7. **CR-4 ADR 0005 status**: status **Proposed**, deferred bump-to-Accepted across this session (live implementation closed the rebind per `2b3f820` coeus + `b15439b` leto + `5328de1c` atlas closure). Next atlas-meta docs commit should set status **Accepted** in `docs/adr/0005-eunomia-scalar-ssot.md` and reference the closing commits.
 
 ---
 
@@ -194,4 +210,4 @@ These are TypeScript-style locks that prevent consumer migration until the provi
 
 - **Tier-A (cross-provider SSOT)**: CR-1, CR-2, CR-4 — landing arrangement coordinated per `atlas/AGENTS.md` documentation-disciple rule + ADR requirement.
 - **Tier-B (provider-extension)**: above, listed in provider-own backlogs but track at-meta-level here.
-- **Tier-C (consumer-batch)**: Batch #1–#4. Definition-of-Ready at the meta-level; batch itself is the perrepo backlog item.
+- **Tier-C (consumer-batch)**: Batch #1–#4. Definition-of-Ready at the meta-level; batch itself is the per-repo backlog item.

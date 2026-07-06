@@ -207,12 +207,21 @@
 8. Confirm `cargo tree -p kwavers-solver | grep ndarray` shows no `rayon` feature.
 9. CHANGELOG: `[patch]` per `kwavers/CHANGELOG.md` with Replaced fence data citing each module.
 
-**Progress this slice**:
-- Replaced `Zip::indexed(...).par_for_each(...)` with `crate::parallel` helpers in:
+**Progress this slice** (resumed 2026-07-05 after CR-4 closure unblocks):
+- Prior slice (2026-07-01, peer ryancinsight commits `e9f426d38`–`1f320cfe6`): replaced `Zip::indexed(...).par_for_each(...)` with `crate::parallel` helpers in:
   - `crates/kwavers-physics/src/acoustics/skull/heterogeneous/mask.rs`
   - `crates/kwavers-physics/src/acoustics/therapy/sonogenetics/membrane.rs`
   - `crates/kwavers-physics/src/acoustics/mechanics/cavitation/damage/erosion.rs`
-- Remaining `par_for_each` sites in `kwavers-physics` and `kwavers-solver` are still open per Batch #1 schedule.
+  - `crates/kwavers-physics/src/chemistry/{reaction_kinetics,ros_plasma/ros_species}/**`, `thermal/diffusion/{bioheat,hyperbolic}.rs`, `optics/sonoluminescence/{blackbody,bremsstrahlung,cherenkov}/**`, `field_surrogate/{cube,resample}.rs` — `crate::parallel::for_each_indexed_mut` / `for_each_indexed_pair_mut` / `zip_mut_two_refs` / `zip_mut_three_refs` / `zip_mut_four_refs` / `zip_two_mut_two_refs` family.
+  - `crates/kwavers-transducer/src/basic/{linear_array,matrix_array}.rs`, `transducers/focused/{arc,bowl,multi_bowl}.rs`, `transducers/phased_array/transducer.rs` — `enumerate_mut_with::<Adaptive, _, _>` direct.
+  - `kwavers-core` direct Rayon edge — full Moirai migration landed in `e9f426d38`.
+- **Session-window work (peer, 2026-07-05 22:16+22:19)**: `1dc47028a refactor(kwavers-math)!: Port to eunomia/leto/moirai-parallel, drop nalgebra` (8416 +/- 3734 across 131 files, includes `crates/kwavers-math` CSR + tensor + differential + simd-safe rewrite); `f36995162 refactor(kwavers-gpu, kwavers-solver)!: Generic GPU provider seam over Hephaestus`. These commits close the **`kwavers-math` migration** (separate from Batch #1) and add the GPU backend seam; they do NOT migrate `kwavers-solver`/`kwavers-physics` Rayon sites or strip the `rayon` feature from `Cargo.toml`. The peer is **actively landing adjacent scope** — Batch #1 is not stale/reclaimable; this meta layer does not initiate kwavers-source edits.
+- **Baseline (reclaim verification 2026-07-05, branch tip `1f320cfe6`)**: `cargo check -p kwavers-solver --lib` finishes green in 3m09s with all Atlas dependencies (eunomia, leto, moirai-parallel, hermes, coeus, apollo-fft, ritk) resolving via submodule path; CR-4 `leto 0.36.0` (`b15439ba`) integrates cleanly. No CR-4 fallout; auto-resolution via `eunomia::NumericElement` operator items. (Newer branch tip `f36995162` adds the GPU seam and the math port; full verification on that tip is the peer's responsibility.)
+- **Residual inventory (re-measured at branch tip)**: 107 `Zip::indexed(...).par_for_each(...)` / `Zip::from(...).par_for_each(...)` sites across 40 files — 31 in `kwavers-solver/src/{forward,inverse,integration,multiphysics,pstd}/**` and 9 in `kwavers-physics/src/{acoustics,optics,thermal}/**`. `kwavers-math` and `kwavers-core` are Rayon-free (zero residual). Top-density residual files: `inverse/reconstruction/seismic/rtm/inherent/imaging.rs`, `forward/elastic/swe/integration/integrator/mod.rs`, `forward/viscoacoustic/solver.rs`, `kwavers-physics/src/acoustics/mechanics/acoustic_wave/nonlinear/numerical_methods/spectral/mod.rs`, `forward/pstd/extensions/elastic_orchestrator/split_field_step/stress.rs`, `forward/nonlinear/kuznetsov/solver/rhs.rs`.
+- Arities present in residual set: 1-mut + N-imm (covered by existing `zip_mut_*_refs`); 2-mut + N-imm (covered by existing `zip_two_mut_two_refs`); **3-mut + N-imm (helper gap); 4-mut + N-imm (helper gap); 6-arity mixed mut/imm indexed (helper gap)**.
+- **Planned increment (peer-owned; tracked here for hand-off)**: extend `crates/kwavers-physics/src/parallel.rs` and add a parallel sibling helper module in `kwavers-solver` with `for_each_indexed_three_mut_*` / `for_each_indexed_four_mut_*` + indexed variants using `moirai-parallel::for_each_chunk_triple_mut_enumerated_with` / `for_each_chunk_quad_mut_enumerated_with` (already exposed at `src/ops.rs:335,408`). Disjoint-mut-pointer slice safety reused from existing helpers; contiguous-slice fast path + ndarray `Zip` fallback preserved as in existing patterns. Then migrate the 40 residual files mechanically. Then strip `rayon` feature from `Cargo.toml:43`, `crates/kwavers-solver/Cargo.toml:24`, `crates/kwavers-physics/Cargo.toml:20`.
+
+**Completion condition**:
 
 **Completion condition**:
 - `cargo nextest run -p kwavers-solver -p kwavers-physics` green.
@@ -350,21 +359,26 @@ Each batch follows the atomic-commit rule:
 
 ## In-flight claim (this checkpoint)
 
-- Owned files (this turn): `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (newly authored), `atlas/backlog.md`, `atlas/checklist.md`, `atlas/gap_audit.md` (corrected per the ADR's evidence-finding).
+- Owned files (atlas-meta, this turn): `backlog.md`, `checklist.md`, `gap_audit.md` at the atlas workspace root (NOT under `atlas/`); these are the cross-repo PM artifacts.
 - Owner: `claude-codex` (current session).
-- Claim start: 2026-07-04.
-- Claim end: pending user sign-off on the ADR (per `versioning` policy, `[major]`/`[arch]` items require ADR sign-off pre-implementation).
-- Next claim: open Batch #7 implementation checklist item (CR-4 §1 coeus-core increment) after sign-off.
-- Concurrent claim stream to honor: `codex/kwavers-core-moirai-parallel` in `repos/kwavers` — disjoint scope (kwavers source); no collision.
+- Atlas-meta claim start: 2026-07-04.
+- Atlas-meta last landed: `5328de1c` (CR-4 closure 2026-07-05 20:27) — pushed to `origin/codex/kwavers-atlas-integration`.
+- Next claim: observation-mode; **the kwavers Batch #1 surface is peer-active** (peer ryancinsight landed `f36995162` on 2026-07-05 22:19 ~2.5h ago, plus `1dc47028a`), so atlas-meta does not initiate kwavers-source edits. This layer remains ready to bump the `repos/kwavers` submodule pointer and sync cross-repo PM once the peer lands the Batch #1 closure.
+- Concurrent claim streams to honor (per `concurrent_agents`, all disjoint from atlas-meta's scope, all DO NOT touch source): `repos/kwavers` `codex/kwavers-core-moirai-parallel` (peer ryancinsight ACTIVE — see In-flight claims in `backlog.md`); `repos/moirai` `refactor/remove-dead-subsystems` (peer, 20+ WIP files — moirai source forbidden); `repos/leto` `codex/leto-fixed-spatial-reconcile` (peer, 2 stashes + ~41 unstaged + `Cargo.toml:39` serde_json workspace-dep placeholder still breaks leto's `cargo` parse — leto source forbidden); `repos/coeus` `crates/coeus-ops/Cargo.toml` melinoe 0.7.0 → 0.8.0 uncommitted; `repos/eunomia` `crates/eunomia/src/{traits,impls/primitives,impls/wrappers}/float.rs` `acos/asin/atan` uncommitted; plus various peer claims in `repos/{apollo,CFDrs,gaia,hermes,helios,melinoe,mnemosyne,ritk,themis}`.
 
 ## Residual risks (logged here per actions of `gap_audit.md`)
 
 - T1 confirms `kwavers-solver/src/forward/nonlinear/{kuznetsov,westervelt_spectral,solver/{model_impl,rhs}, operator_splitting/mod}` aggregating ~35 sites; full file-line inventory in `gap_audit.md` per the cross-repo master.
-- T1 confirms `kwavers-solver/src/inverse/same-aperture/{operator/linear_op:9 +, encoded:1}` already `moirai_parallel::ParallelSliceMut`; no Rayon created.
+- T1 confirms `kwavers-solver/src/inverse/same_aperture/{operator/linear_op:9 +, encoded:1}` already `moirai_parallel::ParallelSliceMut`; no Rayon created.
 - T1 confirms `ritk/python.rs` `numpy::{ndarray::Array2,3,4,}` import set for Python interop only; not a migration target.
+- `hephaestus-cuda/src/application/decomposition/eigen.rs:173` Complex-type mismatch (ks5-cholesky-panel scope, pre-CR-4 regression) does NOT affect `cargo nextest run -p kwavers-solver` — kwavers only consumes `hephaestus` indirectly via `coeus-leto` and not at the workspace scan path.
+- Session 2026-07-05 22:19 tree-shift: peer ryancinsight landed two commits on `repos/kwavers codex/kwavers-core-moirai-parallel` while the prior atlas-meta commit (`5328de1c`) was being authored. Consequence: atlas-meta's kwavers submodule pointer (`1f320cfe6`) is now one commit behind the peer's latest (`f36995162`). Reconciliation deferred to the next Batch #1 increment commit on the kwavers side, after which the atlas-meta pointer bumps in lockstep.
 
 ## Next micro-sprint
 
-**Await user sign-off on `atlas/docs/adr/0005-eunomia-scalar-ssot.md`** (status **Proposed**). Once accepted, the next micro-sprint opens Batch #7 increment §1 (coeus-core `Scalar` rebase + `Complex<T>` migration per ADR §1+§2).
+**Observation-mode hand-off for the kwavers peer**:
+- This session did NOT migrate kwavers source (peer is active) and so did NOT bump the `repos/kwavers` submodule pointer. The peer's next atomic commits to `codex/kwavers-core-moirai-parallel` continue the Batch #1 surface (help gap + 40 residual files + 3 Cargo.toml rayon strips).
+- Awaiting the peer's Batch #1 closure signal (clean `cargo nextest run -p kwavers-solver --no-fail-fast` + `cargo tree -p kwavers-solver | grep rayon` empty) on a branch tip not contemporaneous with this session's pointer.
+- Once the peer lands the closure or the claim goes stale (next session's check): atlas-meta bumps `repos/kwavers` pointer + closes Batch #1 entry in the in-flight section of `backlog.md`.
 
-Branch: `codex/kwavers-atlas-integration`. Single coordinated commit for §1;#2 is a separate atomic commit; consumer-side verification (#5) and PM sync (#6) travel with their respective commits.
+Branch: `codex/kwavers-atlas-integration`.
