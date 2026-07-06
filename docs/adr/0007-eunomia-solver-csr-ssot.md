@@ -8,6 +8,7 @@
 - **Depends on**: ADR 0006 §3 must be **merged** before this ADR can land (the csr.rs rewire establishes the per-`CsrScalar<T>` blanket impl `impl<T: eunomia::ComplexField> ...` that the migration here reuses at the kwavers-solver surface).
 - **Affected crates**: `kwavers-solver`, `kwavers-physics`, `kwavers-transducer`, `kwavers-diagnostics`, `kwavers-analysis`, `kwavers-medium`, `kwavers-source`, `kwavers-grid`, `kwavers-boundary` (the latter for the residual `num_complex::Complex64` sites not covered by §3).
 
+- Index: docs/adr/INDEX.md#ADR-0007
 ## Context
 
 `repos/kwavers/Cargo.toml` declares `kwavers` as a workspace with 24 members spanning the photoacoustic / thermoacoustic / photoacoustic-imaging compute stack. The Phase-1A pilot closed `kwavers_math::linear_algebra::NumericOps<T>` against the eunomia numeric SSOT (`eunomia::RealField` + `NumericElement::ZERO`); see `repos/kwavers/CHANGELOG.md` "Phase-1A pilot (2026-07-05)" and `repos/kwavers/backlog.md` "TODO: kwavers-math full num_traits sweep (Phase-1B)".

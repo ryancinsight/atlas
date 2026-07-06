@@ -7,6 +7,7 @@
 - Relates to: ADR 0005 (`eunomia::NumericElement` SSOT, CR-4); ADR 0004 (hephaestus kernel seam); ADR 0001 (hephaestus GPU substrate).
 - Affected crates: `eunomia` (additive SSOT extension), `kwavers-math` (CsrScalar rewire), `kwavers-boundary` (FEM/BEM `num_complex::Complex64` → `eunomia::Complex64` migration).
 
+- Index: docs/adr/INDEX.md#ADR-0006
 ## Context
 
 After Phase-1A, `kwavers_math::linear_algebra::NumericOps<T>` runs through `eunomia::RealField` for its trait body. The manifest declaration `eunomia = { workspace = true }` lives alongside a retained `num-traits = "0.2"` in `crates/kwavers-math/Cargo.toml` (with an inline comment flagging csr.rs as the blocker). Phase-1B's success criterion is to drop `num-traits` from that manifest.

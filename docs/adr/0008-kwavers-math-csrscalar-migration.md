@@ -7,6 +7,7 @@
 - Relates to: ADR 0005 (eunomia::NumericElement supertrait doctrine — upstream), ADR 0006 (eunomia::ComplexField SSOT doctrine — this push consumes), ADR 0007 (per-subcrate `[patch]` sweep tactical strategy — adopted by this push), ADR 0010 (Atlas-provider migration ceremony + Per-batch name pattern), ADR 0011 (Atlas-root working-tree hygiene ritual; disjoint-scope rule re-affirmed).
 - Supersedes: the implicit kwavers-math `CsrScalar` migration push scope previously carried inline under `D:/atlas/backlog.md` `## Migration batches (vertical slices)` consumer-cone descriptions (kwavers-math's `CsrScalar` limb was not separately documented prior to this ADR; ADR 0008 gives it a single anchor).
 
+- Index: docs/adr/INDEX.md#ADR-0008
 ## Context
 
 ### The eunomia numeric SSOT chain (3 limbs)

@@ -9,6 +9,7 @@
   `docs/audit/2026-07-02-hephaestus-gpu-substrate-audit.md`).
 - Fulfils the seam follow-up ADR promised by hephaestus ADR 0001.
 
+- Index: docs/adr/INDEX.md#ADR-0004
 ## Context
 
 Hephaestus core exposes `ComputeDevice` (memory lifecycle only) and a storage-kernel dispatch

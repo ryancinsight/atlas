@@ -6,6 +6,7 @@
 - Relates to: ADR 0005 (`eunomia::NumericElement` SSOT, status flow); ADR 0006 (`eunomia::ComplexField` SSOT, per-batch migration convention); ADR 0007 (`eunomia::Complex<T>` SSOT, per-subcrate `[patch]` sweep adopting this tag convention); ADR 0010 (Atlas-parent pointer-advance + per-batch tag convention — the closure-ritual counterpart to the hygiene ritual documented here); ADR 0011 (this ADR).
 - Supersedes: the implicit OOS-record shape previously carried only inline in `D:/atlas/backlog.md` `## Out-of-scope (explicit) ## Atlas-root working-tree dirty triage` (first introduced 2026-07-06 by commit `283f38cf`); no prior ADR anchored the ritual.
 
+- Index: docs/adr/INDEX.md#ADR-0011
 ## Context
 
 The Atlas-parent repo `D:/atlas` accumulates dirty files in 4 persistent categories whenever a codex session pauses mid-flight without committing in-scope items:

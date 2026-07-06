@@ -6,6 +6,7 @@
 - Relates to: ADR 0005 (`eunomia::NumericElement` SSOT, CR-4, Accepted 2026-07-04 — the SSOT this batch consumed); ADR 0006 (`eunomia::ComplexField` SSOT, Approved 2026-07-05 — sets the per-batch `num_complex::Complex<T>` migration convention that Batch #1 of the kwavers complex sweep will inherit); ADR 0007 (`eunomia::Complex<T>` SSOT, CR-EUNOMIA-COMPLEX, Proposed 2026-07-06 — documents the per-subcrate `[patch]` sweep that ADR 0010's tag convention will reuse); ADR 0011 (Atlas-root working-tree hygiene ritual — the disjoint-scope rule re-affirms ADR 0010's "Atlas-parent itself is the ceremony repo" boundary; the hygiene ritual's OOS-record cadence is the SSOT-where-to-find-out-which-file-dirtiness-delegates-to-Atlas-meta vs per-repo claim streams).
 - Supersedes: the implicit `git add repos/<submodule> + commit + sync-PM` ritual carried inline in `atlas/backlog.md` `## In-flight claims` + `## Token batch ordering` sections, which had no explicit ADR anchor or tag convention.
 
+- Index: docs/adr/INDEX.md#ADR-0010
 ## Context
 
 `D:/atlas/repos/CFDrs` accumulated **771 dirty files** during the Atlas-provider migration (Sprint 1.96.126–1.96.137 carried the body migration; the migration push itself rolled them into one atomic commit). The closure is a 3-commit pair across CFDrs and the Atlas-parent repo, plus this ADR authoring commit as the 4th atom:
