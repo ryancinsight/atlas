@@ -188,7 +188,6 @@ Per `cfdrs/xtask/src/{main.rs, migration_audit.rs}` (the canonical pattern the n
 ### Limitations and forward-looking hooks
 
 - Apollo's `xtask` exposes only `provider-audit` (no `legacy-migration-audit` / `refresh-legacy-allowlist` pair); a future `[minor]` Apollo-side chore may add the symmetric pair if phobos asks for the cfdrs/kwavers/ritk/helios-shape parity.
-- The `target/xtask-*.log` upload-artifact path remains on the **gaia + helios** workflows; Apollo's earlier-fix dropped it. A forward-looking chore commit may drop it on the other two for symmetry.
 - `Cargo.lock` cache key uses `'Cargo.lock'` non-recursive on all 3 new workflows (already tight per the prior ceremony's micro-nit convention).
 - First automated `cargo run -p xtask -- legacy-migration-audit` validation is deferred to CI day-1 (out-of-session for Atlas-meta); the per-repo workflow file presence + YAML schema-correctness is the Atlas-meta-side confirmation tier.
 
