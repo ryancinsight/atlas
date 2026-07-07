@@ -191,6 +191,7 @@ Per `cfdrs/xtask/src/{main.rs, migration_audit.rs}` (the canonical pattern the n
 - The `target/xtask-*.log` upload-artifact path remains on the **gaia + helios** workflows; Apollo's earlier-fix dropped it. A forward-looking chore commit may drop it on the other two for symmetry.
 - `Cargo.lock` cache key uses `'Cargo.lock'` non-recursive on all 3 new workflows (already tight per the prior ceremony's micro-nit convention).
 - First automated `cargo run -p xtask -- legacy-migration-audit` validation is deferred to CI day-1 (out-of-session for Atlas-meta); the per-repo workflow file presence + YAML schema-correctness is the Atlas-meta-side confirmation tier.
+- `[carryover]` D:/atlas working-tree `repos/ritk` gitlink advance `7aaae9eb…` → `6710f29a…` (19 commits ahead) is excluded from this turn's docs-only chore commits `cce3c64` + `a02d6d1` per disjoint-scope (ADR 0011 §Leg 2). Per ADR 0010 §Per-batch ceremony convention, this should land as a separate atomic chore `chore(atlas): Advance ritk submodule pointer to 6710f29ad7837f0ea8bb89abaafa025b0c063aa0` — or, if peer-claimed / WIP per `concurrent_agents`, surface as a working-tree dirty row in `atlas/backlog.md` §In-flight claims.
 
 ---
 
