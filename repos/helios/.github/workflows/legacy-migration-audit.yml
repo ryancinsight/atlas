@@ -49,12 +49,3 @@ jobs:
 
       - name: Run xtask legacy-migration-audit (Helios's Atlas gate)
         run: cargo run -p xtask -- legacy-migration-audit
-
-      - name: Upload audit log on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: helios-legacy-migration-audit-log
-          path: |
-            target/xtask-*.log
-          if-no-files-found: ignore
