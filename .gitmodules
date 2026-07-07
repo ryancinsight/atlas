@@ -10,6 +10,10 @@
 	path = repos/coeus
 	url = https://github.com/ryancinsight/coeus
 	active = true
+[submodule "repos/consus"]
+	path = repos/consus
+	url = https://github.com/ryancinsight/consus
+	active = true
 [submodule "repos/eunomia"]
 	path = repos/eunomia
 	url = https://github.com/ryancinsight/eunomia
