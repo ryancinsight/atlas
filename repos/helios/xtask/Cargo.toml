@@ -5,8 +5,12 @@ edition = "2021"
 publish = false
 
 [dependencies]
+# Mirrors cfdrs/xtask dependency surface verbatim. The migration_audit module
+# uses only `std::fs` (recursive walk) + `std::path` + `std::collections::BTreeSet`
+# + `anyhow`; no third-party walkdir/regex/chrono needed and none of them are
+# referenced from src/.
 anyhow = "1.0"
 clap = { version = "4.0", features = ["derive"] }
-walkdir = "2.3"
-regex = "1.8"
-chrono = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
