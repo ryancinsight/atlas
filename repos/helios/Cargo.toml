@@ -1,10 +1,13 @@
 # Helios (Helios-rs) — unified radiation therapy simulation/planning and imaging.
-#
-# Integrator workspace built on the Atlas stack, mirroring the kwavers/cfdrs model:
+## Integrator workspace built on the Atlas stack, mirroring the kwavers/cfdrs model:
 # Atlas foundation/infrastructure/domain crates are consumed as *remote git
 # dependencies* (each carries its own [workspace]; Cargo resolves their internal
 # inheritance against THEIR roots — no path scaffolding here). Members inherit the
 # shared version set below via `{ workspace = true }` (SSOT).
+# xtask is the Atlas-migration audit gate (legacy-migration-audit + refresh
+# subcommands); kept as a top-level workspace member so the gate operates on the
+# whole Helios workspace plus its lexically-present `xtask/legacy_surface.allowlist`
+# SSOT, mirroring cfdrs/kwavers/ritk.
 [workspace]
 members = [
     "crates/helios-core",
@@ -18,8 +21,8 @@ members = [
     "crates/helios-imaging",
     "crates/helios-planning",
     "crates/helios-python",
-]
-resolver = "2"
+    "xtask",
+] resolver = "2"
 
 [workspace.package]
 edition = "2021"
