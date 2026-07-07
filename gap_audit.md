@@ -198,7 +198,6 @@ Per `cfdrs/xtask/src/{main.rs, migration_audit.rs}` (the canonical pattern the n
 
 Per `D:/atlas/backlog.md` `## In-flight claims (per concurrent_agents)` precedent, transient atlas-meta carryovers that resolve via a separate atomic chore (peer-claim resolution OR next-session followup) are surfaced here rather than in the persistent `Limitations and forward-looking hooks` inventory above. Items here resolve away once the named chore commits — they are not forward-looking TODOs.
 
-- **[carryover] `repos/ritk` atom-pointer advance** (this turn's transient artifact) — D:/atlas working-tree `repos/ritk` gitlink advance `7aaae9eb2df00d77829c7ce6d1f451aea3051fb9` → `6710f29ad7837f0ea8bb89abaafa025b0c063aa0` (19 commits ahead) was excluded from this turn's docs-only chore commit chain (`cce3c64` = SSOT enforcement surface section + `a02d6d1` = numeric-superscript rendering fix) per disjoint-scope (ADR 0011 §Leg 2). Per ADR 0010 §Per-batch ceremony convention, this should land as a separate atomic chore `chore(atlas): Advance ritk submodule pointer to 6710f29ad7837f0ea8bb89abaafa025b0c063aa0` — or, if peer-claimed / WIP per `concurrent_agents`, surface as a working-tree dirty row in `atlas/backlog.md` §In-flight claims.
 
 ---
 
