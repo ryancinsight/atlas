@@ -12,7 +12,8 @@ Status: `todo` · `in-progress` · `review` · `done`
 |----|------|-------|--------|-------|-------|
 | H-062 | Remove Helios' unused direct `num-traits` workspace dependency. Numeric operations are already routed through `helios-math` and Eunomia. | [patch] | done | codex | `Cargo.toml`, `Cargo.lock`, PM artifacts |
 | H-061 | Remove the unused aggregate `dicom/ndarray` feature edge from the Helios DICOM graph and route production DICOM parsing, typed attribute reads, and pixel decoding through `ritk-dicom`. Keep dicom-rs direct only as a dev-dependency for synthetic Part 10 fixture generation. Add the synchronized local Melinoe patch required by patched Gaia's `melinoe` 0.8.0 edge. | [patch] | done | codex | `Cargo.toml`, `Cargo.lock`, `crates/helios-domain/**`, PM artifacts |
-| H-063 | Audit `helios-imaging` for generic medical-image toolkit operations that should move to RITK. Keep Helios-owned only the radiation-domain MVCT projection/reconstruction kernels whose physics belongs to treatment simulation. | [patch] | todo | — | `crates/helios-imaging/**`, RITK consumer APIs |
+| H-063 | Audit `helios-imaging` for generic medical-image toolkit operations that should move to RITK. Keep Helios-owned only the radiation-domain MVCT projection/reconstruction kernels whose physics belongs to treatment simulation. | [patch] | done | codex | `crates/helios-imaging/**`, RITK consumer APIs |
+| H-064 | Move generic translation/NCC image registration out of Helios and into RITK, then consume the RITK API from Helios for MVCT setup-correction workflows. `parallel_beam_radon`, `filtered_back_projection`, `sirt_reconstruction`, `back_project_rows`, and `add_quantum_noise` stay Helios-owned because they encode MVCT projection/reconstruction physics. | [minor] | todo | — | RITK registration provider API, `crates/helios-imaging/src/registration.rs` |
 
 ## Sprint 1 — Foundation
 

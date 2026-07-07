@@ -8,6 +8,10 @@ under a Breaking subsection.
 ## [0.0.1] — Unreleased (Sprint 1: Foundation)
 
 ### Changed
+- Classified `helios-imaging` ownership boundaries. MVCT projection,
+  reconstruction, backprojection, and detector-noise kernels remain
+  Helios-owned; generic translation/NCC image registration is filed for RITK
+  upstream extraction before Helios consumes it.
 - Removed Helios' unused direct `num-traits` workspace dependency. Numeric
   operations already route through `helios-math` and Eunomia.
 - Removed the unused aggregate dicom-rs `ndarray` feature edge from the Helios

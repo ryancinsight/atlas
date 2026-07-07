@@ -27,12 +27,25 @@ target closure.
 
 ## Open gaps
 
-- **H-063 - OPEN.** Helios must not grow into a generic image toolkit. The
+- **H-063 - RESOLVED.** Helios must not grow into a generic image toolkit. The
   DICOM real-input path now uses RITK for parsing, typed attributes, and pixel
-  decode; the remaining audit is `helios-imaging`. Domain-specific MVCT
-  projection/reconstruction kernels may stay in Helios because they implement
-  treatment/imaging physics, but generic medical-image I/O, registration, and
-  toolkit operations should be implemented in RITK first and consumed directly.
+  decode. `helios-imaging` now has a recorded ownership split: `parallel_beam_radon`,
+  `filtered_back_projection`, `sirt_reconstruction`, `back_project_rows`, and
+  `add_quantum_noise` stay in Helios because they encode MVCT projection,
+  reconstruction, and detector-noise physics over Helios `Volume`/`Sinogram`
+  types. `registration.rs` is generic image-toolkit functionality:
+  `register_translation` and `register_translation_ncc` should move upstream to
+  RITK before Helios consumes them for setup-correction workflows. Evidence tier:
+  source-structure audit over `crates/helios-imaging/**`.
+
+- **H-064 - OPEN.** Move generic translation/NCC registration upstream to RITK and
+  replace the Helios-local `registration.rs` surface with a RITK consumer call.
+  Definition of Ready: RITK provider API selected, value-semantic parity tests
+  for integer-pixel translation and NCC flat-background rejection defined, and
+  Helios setup-correction call sites identified. Definition of Done: Helios no
+  longer owns generic registration logic; its imaging crate retains only
+  MVCT-specific projection/reconstruction/noise kernels; RITK and Helios focused
+  nextest gates pass.
 
 ### Recently closed
 
