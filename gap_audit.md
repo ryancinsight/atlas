@@ -9,6 +9,168 @@
 
 ---
 
+## Atlas architectural directive (2026-07-08)
+
+> Migration target framing per the consolidation directive. All
+> subsequent tactical PM artifacts (`## Cross-repo architect coord
+> items`, `## Migration evidence inventory`, `## SSOT enforcement
+> surface`, etc.) operate under the directive framing below. This
+> section is the single canonical reference for the architectural
+> stack, migration targets, design principles, constraints, and
+> bulk-migration priority order; tactical content lives in the
+> sections below.
+
+### Stack (13 atlas crates)
+
+| Atlas crate | Role | Replaces | Gitlink SHA (2026-07-08) |
+| --- | --- | --- | --- |
+| `mnemosyne` + `themis` | Memory allocator (consolidator pair; `#[global_allocator]` per CR-2) | (consolidator; library crates pass handle via DI per CR-2 closure axiom) | `98a02b6...` / `2b6a3ac...` |
+| `moirai` | Runtime + async + parallel | `tokio`, `rayon` | `37ff12d5...` |
+| `hermes` | SIMD | `std::arch::*`, `packed_simd` | `c7b17b0...` |
+| `melinoe` | Branded types / cells | `ghostcell`, `typenum` | `375108b...` |
+| `leto` | CPU ndarray/nalgebra alternative | `nalgebra`, `ndarray` (CPU path) | `86d366b...` |
+| `hephaestus` | GPU ndarray/nalgebra alternative | `nalgebra`, `ndarray` (GPU path) | `676a260...` |
+| `coeus` | PyTorch/JAX/Burn alternative (autodiff + tensor + nn + optim + sparse + fft) | `burn` | `006f2a7...` |
+| `apollo` | FFT (rustfft replacement; pure-Rust SIMD FFT + MMS polynomial oracle) | `rustfft` | `e6ecce4...` |
+| `eunomia` | Numeric traits (SSOT for `NumericElement`, `FloatElement`, `RealField`, `Complex<T>`) | `num_traits`, `num_complex` | `7f84beb...` |
+| `ritk` | Image toolkit (provider for kwavers/helios DICOM + spatial + interpolation + transform + io) | (bespoke image-processing crate family; provider-side) | `529d665...` |
+| `helios` | (consumer; radiation therapy sim suite, built atop the same provider stack) | `--` | `5f6aef6...` |
+| `kwavers` | (consumer; acoustic / ultrasound / wave-propagation sim suite, built atop the same provider stack) | `--` | `ccc6bbf...` |
+| `CFDrs` | (consumer; computational fluid dynamics sim suite, built atop the same provider stack) | `--` | `7227534...` |
+
+### Migration consumer targets (3 in flight)
+
+Three consumer simulation suites are actively under migration to the
+Atlas provider stack:
+
+- **kwavers** (`D:/atlas/repos/kwavers`): acoustic / ultrasound /
+  wave-propagation simulation suite. Migration scope: all 24
+  internal crates + root workspace. Active migration axes:
+  Rayon->moirai (Batch #1), ndarray->leto's `ndarray-compat`
+  (TRACKING), nalgebra->leto (small scope, 13 sites / 5 manifests),
+  Burn->coeus (Batch #4, manifest + source surface met; awaits
+  KW-CV-001 watchpoint trigger).
+- **CFDrs** (`D:/atlas/repos/CFDrs`): computational fluid
+  dynamics simulation suite. Migration scope: 7 inner crates +
+  root workspace. **Batch #2 (nalgebra -> leto + nalgebra-sparse
+  -> leto-ops `CsrMatrix`) CLOSED 2026-07-05** per `d58d1fe3`
+  (the Atlas-provider migration push, 752 modified + 19 added
+  files, 51,857 insertions / 22,087 deletions, ~2,500 tests
+  pass, 0 warnings).
+- **helios** (`D:/atlas/repos/helios`): radiation therapy
+  simulation suite. Migration scope: domain/physics + DICOM
+  real-input integration. **H-061 / H-062 CLOSED 2026-07-07**
+  (production DICOM ownership through `ritk-dicom`; unused
+  `num-traits` + aggregate `dicom/ndarray` feature edges
+  stripped). H-063 imaging-toolkit decomposition pending.
+
+### Design principles (consolidator-binding, 11 axioms)
+
+- **SRP** (Single Responsibility Principle): per-module ownership
+  surface -- `coeus-core::Scalar`, `eunomia::NumericElement`,
+  `moirai::Scope` each hold one bounded responsibility.
+- **SoC** (Separation of Concerns): provider
+  (let''o / hephaestus / coeus) vs consumer (kwavers / CFDrs /
+  helios) layered separation. Per `## SSOT enforcement surface`
+  gate geometry below.
+- **SSOT** (Single Source of Truth): trait surfaces declared
+  once in the provider (e.g. `eunomia::NumericElement` for
+  numeric traits, `coeus_core::ComputeBackend` for all backend
+  traits, `moirai::Scope` for all async/parallel scopes). Per
+  ADR 0005 (eunomia SSOT rebind), ADR 0012 (RITK burn-trait
+  rebind), ADR 0010 (per-batch name pattern).
+- **DIP** (Dependency Inversion Principle): consumer crates
+  depend on provider traits, not on concrete implementations;
+  permits backend substitution (CPU -> GPU, scalar -> autodiff,
+  sync -> async).
+- **DRY** (Don't Repeat Yourself): shared vocabulary lives in
+  the provider (e.g. `Complex<T>` in `eunomia`, `Quaternion<T>`
+  in `let''o`, `MoiraiBackend` in `moirai`). Per-repo
+  reimplementations are prohibited.
+- **Zero-copy**: view types (`MelinoeCell`,
+  `ParallelSliceMut`, `let''o::ArrayView`) used wherever
+  possible to avoid allocation.
+- **Zero-cost abstractions**: trait dispatch monomorphized at
+  compile time; no runtime polymorphism for inner-loop hot
+  paths.
+- **Zero-sized types (ZSTs)**: type-level markers (e.g.
+  phantom parameters, sealed trait gates) used to carry
+  compile-time-only information without runtime cost.
+- **Phantoms**: `PhantomData<T>` for ownership / marker
+  semantics without runtime representation (per `melinoe`'s
+  branded-typed discipline).
+- **GATs** (Generic Associated Types): for trait-bound returns
+  that vary along the trait's generic parameter (e.g.
+  `InterpolatorAtlas<T, B>`, `ResampleableAtlas<T, B, D>` per
+  ADR 0012 sub-batch #1).
+- **`Cow<'_, T>`**: borrow-or-own views used wherever the
+  source may or may not be owned (publisher / consumer
+  boundary; e.g. atlas-meta bulk-pointer-advance reads).
+
+### Constraints (forward-only invariant, 4 axioms)
+
+- **Rust-only + pyo3 for Python**: the entire stack is Rust.
+  Python bindings (`kwavers-python`, `coeus-python`,
+  `helios-python`, `cfd-python`) are `pyo3`
+  `#[pyclass]` / `#[pyfunction]` surface only. No C / C++
+  extensions; no `cdylib` other than pyo3's managed
+  `abi3-py39` (or later).
+- **Don't rename anything with "atlas"**: avoid the
+  `atlas_*` / `atlas::` prefix on new symbols. The "Atlas"
+  name is the meta-consolidator's brand, not a code-root.
+  Migration push commits preserve original symbol names where
+  possible.
+- **Bulk migration followed by cleanup**: prioritize
+  batch-level code-replacement patterns over per-site
+  hand-edits. The `disjoint-scope` rule allows atlas-meta
+  bookkeeping + docs work without colliding with peer's
+  source-tree changes; bulk migration lands across all peer
+  crates in single commits, not file-by-file. Cleanup
+  follows as a separate phase (test resolution, deprecated
+  surface removal, allowlist contraction).
+- **Resolve all test / example issues**: pre-merge
+  authoritative classification (`cargo semver-checks` shape or
+  full `cargo nextest run` pass) is required for any
+  closure-mark promotion. Test residual (legacy 3-D PINN
+  loss thresholds, `coeus-wgpu` CUDA-pending tests, etc.) is
+  preserved as validation residuals, not weakened.
+
+### Bulk-migration priority order (7 items, 2026-07-08 snapshot)
+
+Ordered by current source-impact and peer-side closure proximity.
+Closure-progress count: 2 CLOSED + 5 OPEN.
+
+| # | Migration | Source-scope | Provider gate | Peer status | Disjoint-scope |
+| -- | --- | --- | --- | --- | --- |
+| **1** | kwavers Rayon -> moirai (Batch #1 source-side) | 41 `.par_for_each()` sites / 15 files at inner HEAD `05500930c` (`crates/kwavers-solver/src/**`) | manifest-strip CLOSED at `702e4f125` | source-side OPEN | atlas-meta defers; per KW-CV-001 watchpoint |
+| **2** | kwavers ndarray -> leto's `ndarray-compat` | 2,496 line-hits / 1,492 files at inner HEAD `35ee01076` | leo `ndarray-compat` feature live; N=1/24 consumer coverage (kwavers-math only) | TRACKING | atlas-meta defers |
+| **3** | kwavers nalgebra -> leto | 13 sites / 5 manifests; Kalman filter (DMatrix/DVector), Christoffel acoustic tensor (Matrix3, SymmetricEigen), MVDR beamforming, FWI-CBS, BEM-FEM coupling, Helmholtz FEM | leto `Quaternion<T>` + `Matrix4<T>` typed-const extensions (provider-land) | OPEN | atlas-meta defers |
+| **4** | ritk Batch #3 (Burn -> coeus) source-side | 176 `burn::` sites / 97 files at inner HEAD `1f49278c`; concentrated in `ritk-image` + `ritk-spatial` + `ritk-filter` + `ritk-registration` | sub-batch #1+#2 CLOSED; sub-batch #5 RITK-spatial rebind mid-flight | OPEN | atlas-meta defers; sub-batch #5 [major] standing reminder |
+| **5** | kwavers Burn -> coeus (Batch #4 surface met) | Closure-pinned: zero `burn::` source residual at inner HEAD `05500930c`; `Cargo.toml` strip landed at `8b128c478`; facade deleted | CR-4 eunomia SSOT rebind landed; `coeus_core::ComputeBackend` SSOT | surface met; awaits KW-CV-001 gitlink advance | atlas-meta defers |
+| **6** | CFDrs nalgebra migration push | 7 crates + nalgebra-sparse + num-traits; 51,857 insertions / 22,087 deletions | n/a | **CLOSED 2026-07-05** (`d58d1fe3`) | n/a |
+| **7** | helios H-061 / H-062 (DICOM + dep strip) | DICOM real-input closure through `ritk-dicom`; aggregate `dicom/ndarray` feature edge strip; Helios direct `num-traits` strip | RITK provider (`ritk-dicom::{DicomTag, tags, DicomAttributeRead}`) | **CLOSED 2026-07-07** | H-063 imaging-toolkit audit pending |
+
+**Migration queue summary**: 7 ordered targets. 2 CLOSED (CFDrs
+nalgebra, helios DICOM unification); 5 OPEN (kwavers Rayon source,
+kwavers ndarray, kwavers nalgebra, ritk Burn, kwavers Burn source).
+Atlas-meta pending bookkeeping: 0 (all gitlink-aligned per the
+`## Continual audit: WT dirty submodule classification (2026-07-08)`
+section above). Future atlas-meta work is purely docs-only PM
+artifact hygiene + parent-side gitlink advance on peer-driven
+closure.
+
+### Provider-extension register cross-link
+
+For the missing-surface inventory (provider land), see
+`## Provider extension register (provider land owned)` below. For
+the provider-side obstacles blocking consumer migration (SSOT
+gates), see `## Provider-side obstacles for consumer migration
+(SSOT gates)` below. For the architectural decisions shaping the
+directive, see `D:/atlas/atlas/docs/adr/` (especially ADR 0005
+eunomia SSOT, ADR 0008 kwavers-math CsrScalar migration push,
+ADR 0009 Batch #1 Rayon->Moirai CTE, ADR 0010 per-batch name
+pattern, ADR 0012 RITK burn-trait rebind).
+
 ## Cross-repo architect coord items (CR-class)
 
 | ID | Class | Title | Evidence | Status |
