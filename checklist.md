@@ -190,6 +190,19 @@
 ---
 
 ## Batch #1 — `[patch]` kwavers-solver / kwavers-physics residual Rayon → Moirai
+- **slice 1 partial-closure-mark 2026-07-08 (2/41 sites, 1/15 files)**: per the peer's `5cd8c708` chore
+  on `codex/kwavers-core-moirai-parallel` (atop parent `ccc6bbf9`):
+  `crates/kwavers-solver/src/multiphysics/fluid_structure/solver/
+  struct_impl.rs` has had its 2 `.par_for_each()` call-sites migrated to
+  `moirai_parallel::ParallelSliceMut::par_mut().enumerate()` (idiomatic
+  trait form, auto-Adaptive policy). Cargo-check pre-validate clean. 39/41
+  sites / 14/15 files remain; the full closure-mark (`✅ Batch #1 CLOSED
+  2026-07-08`) remains retracted per the prior retraction (`0060b1e` was
+  measured against an uncommitted working-tree snapshot, not the
+  committed inner HEAD `35ee01076`). The next slices are tracked via
+  per-slice partial-closure marks; the full-closure mark can be
+  reasserted only when the source-side count actually drops to zero.
+
 
 **Pre-reqs**:
 - `moirai-parallel/src/lib.rs:106-181` confirms `par()` / `par_mut()` rebind (T1 verification by owner).

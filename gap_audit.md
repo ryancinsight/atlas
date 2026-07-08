@@ -521,6 +521,31 @@ Source: hand-verified grep over `crates/*/src` plus `Cargo.toml` per-file eviden
   - Related call-graph evidence: `kwavers-solver/src/inverse/same_aperture/operator/linear_op.rs` (6 sites) already routes through `moirai_parallel::ParallelSliceMut`; not a migration target (preserved for downstream-batch completeness).
 
   - **Batch #1 closure-mark RETRACTION 2026-07-08**: the prior `0060b1e` closure-mark (`✅ Batch #1 CLOSED 2026-07-08`) is retracted. Per T1 re-verification at inner HEAD `35ee01076` (2026-07-08, after the peer's `0060b1e` landed on origin and `35ee01076` advanced kwavers inner by one more `fix(solver): Preserve adaptive-error layout order` commit): **41 `.par_for_each()` sites across 15 files** remain in `crates/kwavers-solver/src/**` (counted via `git --no-pager grep "par_for_each" HEAD -- "crates/" | wc -l` = 41; sites concentrate in `forward/{elastic/swe/{integration/integrator/mod,stress/divergence}, nonlinear/{kuznetsov/{diffusion,nonlinear,numerical,operator_splitting/mod,solver/{model_impl,rhs},spectral,workspace}, westervelt_spectral/spectral}, pstd/extensions/{elastic,elastic_orchestrator/pml/mod}, multiphysics/fluid_structure/{interface,solver/struct_impl}}`). The 41 sites are direct `Zip::indexed(...).and(...).par_for_each(...)` calls on `ndarray` arrays (e.g. `crates/kwavers-solver/src/forward/pstd/extensions/elastic.rs` line 143+ uses `use ndarray::Zip; Zip::indexed(...)...par_for_each(...)`) — NOT the `kwavers-medium` adapter. **The peer `0060b1e` claim of "0 sites" was incorrectly measured against an uncommitted working-tree snapshot**, not against the committed inner HEAD. **Dep-graph state**: `cargo tree -p kwavers-solver -i rayon` at inner HEAD `35ee01076` returns `rayon v1.11.0` (1 entry, transitively via `burn_common` `burn-autodiff` `burn` `ritk-*` -> `kwavers-{imaging,physics,solver}`). The ndarray-`rayon` feature strip (`702e4f125`) is preserved (manifest-only); the kwavers-solver direct dep tree still has `rayon` pulled in via the ritk -> burn path (provider-side obstacle, not Batch #1 closure). **Batch #1 closure status**: the **manifest surface** (`702e4f125` strip on kwavers-{solver,physics} ndarray-`rayon` feature) IS CLOSED. The **source surface** (par_for_each call-sites in `crates/kwavers-solver/src/**`) IS NOT CLOSED; the peer must continue migrating the residual `Zip::indexed().par_for_each()` chain through `moirai_parallel::*` (the kwavers-solver-side `crate::parallel::for_each_*` helpers + `moirai_parallel::enumerate_mut_with` already exist per the moirai API surface at `moirai-parallel/src/ops.rs:281,335,408,125,155`). The peer must then re-emit a corrected closure-mark once the source-side count actually drops to zero. **Atlas-meta path forward**: kwavers pointer advance remains deferred per the KW-CV-001 watchpoint trigger; the Batch #1 closure-mark must be reasserted by a future session after the peer lands the source-side migration.
+  - **Batch #1 source-side migration — slice 1 partial-closure-mark 2026-07-08**: per the peer's `5cd8c708`
+  chore (`refactor(kwavers-solver): Migrate struct_impl.rs par_for_each to
+  moirai_parallel::par_mut().enumerate() (Batch #1 source-side slice 1)`,
+  on `codex/kwavers-core-moirai-parallel` atop parent `ccc6bbf9`):
+  **2/41 sites migrated in 1/15 files**. The 2 sites live in
+  `crates/kwavers-solver/src/multiphysics/fluid_structure/solver/struct_impl.rs`
+  (3D `Array3<f64>` element-wise relaxation on `p_fluid_ghost` +
+  `p_fluid_ghost_prev`; plus a 1D sub-view relaxation on `t_solid_ghost` +
+  `t_solid_ghost_prev`). The migration uses the idiomatic
+  `moirai_parallel::ParallelSliceMut::par_mut().enumerate(closure)` trait
+  form (auto-Adaptive policy; no `ExecutionPolicy` generic needed),
+  preserves indentation via captured leading-whitespace group, and adds
+  the trait import `use moirai_parallel::ParallelSliceMut;` ahead of the
+  `ndarray` use-statement. Cargo-check pre-validate: `cargo check -p
+  kwavers-solver --lib --no-default-features` clean at inner HEAD
+  `5cd8c708`. The full-closure mark (`✅ Batch #1 CLOSED 2026-07-08`)
+  remains retracted; this entry is a **partial-closure mark**, not a full
+  reassertion. **39/41 sites / 14/15 files remain** for future slices per
+  ADR 0009 Batch #1 CTE shape
+  (`docs/adr/0009-kwavers-batch1-rayon-to-moirai-cte.md`). **Atlas-meta
+  path forward**: kwavers pointer advance remains deferred per the
+  KW-CV-001 watchpoint; the next slice(s) will be tracked via per-slice
+  partial-closure marks until the source-side count actually drops to
+  zero, at which point the full closure-mark can be reasserted.
+
 
 - **Residual `burn`** (T1 re-verified 2026-07-07 against the dirty inner `repos/kwavers` working tree after the neutral-name Burn cleanup continuation):
 
