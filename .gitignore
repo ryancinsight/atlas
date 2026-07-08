@@ -32,3 +32,9 @@ nul
 script.py
 repos/SynthSeg/
 repos/report/
+
+# Atlas-root transient scratch artifacts (NOT gitlinked; created during chore ceremony)
+.body-scratch-*
+.tmp-*.py
+.verify-*.sh
+ritk_errors.txt
