@@ -185,6 +185,51 @@ i.e., use `anchor_tail_old` / `anchor_tail_new` rather than `anchor_old_v3` /
 `anchor_new_v3` -- so future readers grepping for `anchor_tail_old` finds the
 intended meaning (anchor at footnote TAIL) rather than a record-version sentinel.
 
+Post-chore atomic loci (line-number enumeration; N1 nit apply):
+- **L339 PRESERVED**: basis-disclosure inside the row-7 COEUS Batch #4
+  figure-refresh supersede-application footnote (anchor_tail_old =
+  `` `min(22, 0)=0`). ``, anchor_tail_new =
+  `` `min(22, 0)=0`) (*basis note*: prior 8 measured at WT-vs-pre-715cff2-atlas-meta-gitlink;
+  fresh-probe 0 measured at detached inner HEAD `5e3e63967`). ``;
+  landed at chore `92cc1b62`; refines per ADR 0008 §0 framing of the
+  supersede coefficient rule `min(reconciliation-fig, fresh-probe-fig)` so
+  the `(*supersede application*:` footnote's paren frame now names both
+  measurement bases explicitly).
+- **L156 ADDED**: anchor-evolution history section (this section; N1 nit
+  follow-up post-`92cc1b62`; closes the v1->v2->v3 iteration arc +
+  documents the ASCII-only `anchor_tail_old`/`anchor_tail_new`
+  intent-over-version naming per N2 nit so future readers grepping for
+  `anchor_tail_old` find the intended meaning (anchor at footnote TAIL)
+  rather than a record-version sentinel).
+- **L152 ADDED**: ritk-python test-unblock record (sub-chore of `e237aca`;
+  bulk-provider pointer-advance sequence
+  `2e1c4f2 ... 274a6a9 ... a12d1dd ... 715cff2 ... 02da066 ... ab71f08 ...
+  36acbbc` unblocks `cargo nextest run -p ritk-python --lib` = `47 tests
+  run: 47 passed, 0 skipped` at inner RITK HEAD `1f49278c`, post the
+  `[major]` SEMVER-CHECKS RESOLUTION BLOCKER row 9 decomposition that
+  attributed the original `Arc::new(img)` type-mismatch at
+  `ritk-python/src/metrics/mod.rs:122` to provider-side version skew
+  rather than `burn_compat`-shaped surface mutation).
+
+Next-step probe targets (post-e237aca continuation; N5 nit apply):
+- **Row 8 (CFDrs migration-evidence inventory @ L24; STABLE/SYNCED @ L318)**:
+  re-probe inner HEAD `8aa7313f2980cdd9518b95e39f96487653c43148` on
+  `codex/cfdrs-atlas-migration` + check Batch #2 (CFDrs nalgebra -> leto +
+  nalgebra-sparse -> leto-ops `CsrMatrix`) closure persistence at the
+  pre-closure baseline SHA `d58d1fe320d046816425e1d20d16735fcfee7995`;
+  verify `cargo tree -p CFDrs | grep nalgebra` returns zero production ops
+  invariant holds; cross-tree scope: clean WT (`0 ahead/behind @{u}` on
+  `codex/cfdrs-atlas-migration`) with 2 dirty paths (active peer WIP).
+- **Row 9 (eunomia stable/synced @ L346)**: re-probe gitlink alignment at
+  `57d778930ecd25e77416c49ee10c9b6670f0ea70` + SSOT surface integrity
+  (`eunomia::NumericElement` SSOT trait + `private::Sealed` + `CastFrom<i32>`
+  + `Complex<T>`/`isize`/`usize` impls); confirm no regression on
+  `eunomia::csr.rs` non-sealed `Scalar` trait per ADR 0008 Phase-1B gate
+  (gating the kwavers-math `CsrScalar` migration push). Cross-tree scope:
+  clean WT, ALIGNED with atlas-meta gitlink (`57d778930...`), 7 dirty
+  paths (active peer WIP, unchanged from the 2026-07-06 inventory cut).
+
+
 - **2026-07-08 — Sub-batches #4–#6 (Batch #3) inner advance reconciliation**: per fresh T1 verification at inner HEAD `7a66d1ee` (branch `main`, dirty count 58+, after per-sub-batch-#5 mid-flight WT reshaping logged in the line-251 retraction note), per-sub-batch-#3–#6 status inventory per ADR 0012 §Decision:
   - **Sub-batch #4 (RITK-crate-migrate Cargo.toml dep strip) — IN PROGRESS**: inner commit `7a66d1ee` (`Strip unused production burn dep across 17 leaf crates`) has landed; `rg -n '\bburn\b' --include 'Cargo.toml' /d/atlas/repos/ritk` returns 37 manifest entries at the committed HEAD (10+ confirmed, up from the baseline 37 entry count cited in the line-240 Manifest residual entry).
   - **Sub-batch #6 (RITK-xtask-ci allowlist refresh + CI gate) — ACTIVE**: inner commit `925fbf33` (`refresh burn allowlist + wire CI gate`) has landed; `xtask/burn_surface.allowlist` re-confirmed at 645 lines (intact, awaiting the ritual sub-batch #5 Burn-trait surface removal + per-crate stamp before the refresh-allowlist ritual actually contracts).
