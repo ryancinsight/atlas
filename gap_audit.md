@@ -65,12 +65,14 @@ Source: hand-verified grep over `crates/*/src` plus `Cargo.toml` per-file eviden
   - `crates/kwavers-therapy/src/**` 148
   - `crates/kwavers-math/src/**` 106 (tensor/fft/numerical/simd)
   - `crates/kwavers-python/src/**` 100 (PyO3 bindings)
-  - All 24 crates declare `ndarray` dep; `kwavers-phantom/gpu/phantom` use `workspace = true` → inherits `ndarray = "0.16" [rayon, serde]`.
+  - All 24 crates declare `ndarray` dep; `kwavers-phantom/gpu/phantom` use `workspace = true` → inherits `ndarray = "0.16" [serde]` post-`702e4f125`.
 
-- **Residual `Zip::par_for_each` (transitive Rayon)**:
-  - T1 evidence: `rg --count-matches 'par_for_each' crates --type rust` re-measured at inner HEAD `aa10a6e76` (2026-07-06). No `use rayon::*` direct imports anywhere in the kwavers tree; the Rayon path enters through `ndarray`'s `rayon` feature flag (`cargo tree -p kwavers-solver | grep rayon` shows `ndarray v0.16.1` → `rayon v1.11.0`).
-  - **Total: 84 occurrences across 28 files** (`kwavers-solver` 68 in 21 files; `kwavers-physics` 16 in 7 files).
-  - `kwavers-solver` per-directory breakdown (68 sites):
+- **Moirai-routed parallel iteration**:
+  - T1 evidence at inner HEAD `05500930c` (re-verified at `f678dc35e` 2026-07-07 19:56): `rg --count-matches 'par_for_each' crates --type rust` totals `41` across `15` files in `crates/kwavers-solver/src`. Total reduced from `84 / 28` at `b605e2e74` (-51%).
+  - No `use rayon::*` direct imports in the kwavers tree (`rg -l 'use rayon' crates --type rust` returns zero hits); the residual `par_for_each` lexemes are kwavers-medium iterator API calls (medium iterator adapter at `crates/kwavers-medium/src/iterators/ext.rs:19,31` exposes `par_iter`; `crates/kwavers-medium/src/iterators/parallel.rs` routes via `moirai_parallel::{fold_reduce_with, map_collect_index_with}`). Dep-graph closure: `crates/kwavers-{solver,physics}/Cargo.toml:{24,20}` no longer declare `ndarray`'s `rayon` feature post-`702e4f125`; `cargo tree -p kwavers-solver | grep rayon` returns zero (the Rayon entry into the kwavers dep graph is closed).
+  - **Closing state**: the Batch #1 closure condition (zero Rayon dep-tree entry + moirai-routed parallel traversal) is now MET on both the manifest and source-side surfaces. The 41-source-site par_for_each count represents the kwavers-medium adapter API surface, not residual Rayon usage.
+  - Historical baseline (T1 at inner HEAD `aa10a6e76`, 2026-07-06): 84 occurrences across 28 files (`kwavers-solver` 68 in 21 files; `kwavers-physics` 16 in 7 files). The pre-`ea7e09948` per-family header site-count breakdown (62 solver + 24 physics = 86) was over-counted by 2 sites and superseded by the 84/28 measurement at `aa10a6e76`.
+  - `kwavers-solver` per-directory breakdown (68 sites at `aa10a6e76`):
     - `inverse/reconstruction/seismic/rtm/inherent/*` (6 files, 27 sites: `imaging.rs` 14, `wavefield.rs` 5, `laplacian.rs` 4, `mod.rs` 2, `illumination.rs` 1, `propagation.rs` 1).
     - `forward/nonlinear/kuznetsov/{diffusion,nonlinear,numerical,operator_splitting/mod,solver/{model_impl,rhs},spectral,workspace}.rs` (8 files, 17 sites: `solver/rhs.rs` 7, `spectral.rs` 2, `solver/model_impl.rs` 2, `numerical.rs` 2, `workspace.rs` 1, `operator_splitting/mod.rs` 1, `nonlinear.rs` 1, `diffusion.rs` 1).
     - `forward/nonlinear/westervelt_spectral/spectral.rs` (1 file, 2 sites).
