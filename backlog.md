@@ -177,3 +177,66 @@ Commit `c5f2a84e` closed the six-file Helios direct dependency slice under `repo
 - **§D (Helios/RITK DICOM ownership closure)**: closed by `c5f2a84e` plus RITK `8f8360ff` and this Helios consumer reroute; current Atlas-root status has no committed `repos/helios/**` direct-file dirtiness after the pointer-advance commit, and H-063 tracks the remaining `helios-imaging` generic-toolkit audit.
 
 - **`nul`** (whose on-disk deletion API was blocked by Windows-reserved-device-name PermissionError on this build): the `.gitignore` defense in this chore commit prevents future `nul` reproductions from re-entering `git status --others`. The on-disk file may still surface via `dir` from bash contexts but is gitignored; admin `cmd /c del /F /Q nul` or Windows-reboot may be required for actual on-disk removal. Filed for the next codex-session restart-handler.
+
+## Review nit rolling list (forward-looking improvement tracking, 2026-07-08)
+
+> Persistent review-improvement tracking items surfaced by the
+> post-`91896c4` code-reviewer pass on the Atlas architectural
+> directive framing chore. Each nit is annotated: ID, scope,
+> severity, source-chore, fix status, suggested follow-up.
+> Future chore-cycles reference this list when templating
+> `docs(atlas):` commits so the same drifts don't recur.
+
+| ID | Nit | Severity | Source chore | Status | Follow-up |
+| --- | --- | --- | --- | --- | --- |
+| **RN-01** | CR-2 closure axiom citation error -- mnemosyne row cited "per CR-2 closure axiom" but CR-2 is **OPEN** per Surfacing risks row 1.2 (Batch #6 reserved), not CLOSED. | factual | `91896c4` | **FIXED in `b29cfa2`** (mnemosyne row changed to "per CR-2 target axiom [open; Batch #6]") | file-wide rg `per CR-2 closure axiom` on subsequent docs-only chores; extend fix to any other inverted citations |
+| **RN-02** | 11+3 stack split -- the monolithic `### Stack (13 atlas crates)` table conflated 11 providers with 3 consumers in one 14-row table. | structural | `91896c4` | **FIXED in `b29cfa2`** (split into `### Provider stack (11 atlas crates)` + `### Consumer migration targets (3 simulation suites)`) | template future `Atlas-stack` table sections with the provider/consumer split pattern from the start; split mnemosyne+themis row when allocator-pair semantic is involved |
+| **RN-03** | Gitlink SHA truncation -- table used 7-char truncated SHAs (`98a02b6...`, `37ff12d5...`, etc.) which break grep-ability and don't match the 40-char convention used elsewhere in `gap_audit.md`. | presentational | `91896c4` | **FIXED in `b29cfa2`** (all 14 table SHAs now full 40-char live from `git ls-files --stage`) | prefer full 40-char SHA in all `docs(atlas):` table cells; only allow truncation when the SHA is genuinely abbreviated (e.g., an inner HEAD short-SHA in narrative prose) |
+| **RN-04** | FRONT-MATTER sync -- `gap_audit.md` lines 1-11 blockquote enumerated 4 record-types but the new `## Atlas architectural directive` section added a 5th without updating the enumeration. | presentational | `91896c4` | **FIXED in `b29cfa2`** (item 5 appended to front-matter blockquote: `Atlas architectural directive (2026-07-08); consolidator framing -- stack table, migration targets, design principles, constraints, bulk-migration priority order`) | when adding a new top-level section to `gap_audit.md`, also update lines 1-11 blockquote enumeration; consider automating via a pre-commit check |
+
+**File-wide open follow-ups surfaced by the post-`b29cfa2` review**:
+
+- **CR-2 file-wide citation scope (RN-01 scope extension)**: a file-wide
+  `rg -n 'per CR-2 closure axiom' gap_audit.md` post-patch may surface
+  additional inverted citations outside the table row that was fixed
+  in RN-01 (e.g., CR-class status cell, Surfacing risks row 1.2
+  narrative, cross-cutting notes). **Status**: not yet verified
+  post-patch; a follow-up patch chore should run the rg + extend the
+  fix to any other hits.
+- **Subsection naming collision (RN-02 cosmetic extension)**: the new
+  `### Consumer migration targets (3 simulation suites)` (table)
+  sits adjacent to the existing `### Migration consumer targets (3 in
+  flight)` (prose). The two names are lexically adjacent on
+  "consumer migration targets" -- a grep footgun. **Status**: not
+  yet renamed; recommend renaming the new table to `### Consumer
+  simulation suites (3 in flight)` for disjoint-name grep-ability.
+- **Prose subsection inner-HEAD SHA uniformity (RN-03 scope
+  extension)**: the preserved prose subsection (`### Migration
+  consumer targets (3 in flight)`) still uses 9-char short-SHAs
+  (`inner HEAD 05500930c`, `702e4f125`, `d58d1fe3`, etc.); the new
+  directive table uses 40-char SHAs. **Status**: deliberate scope
+  choice -- not yet upgraded for visual consistency. Either
+  upgrade in a follow-up patch, or document the inconsistency
+  explicitly in body-scratch as a preservation choice.
+- **Body-scratch subject parent-SHA anchor (RN-04 audit-discipline
+  extension)**: subject of `b29cfa2` is `Patch 4 review nits on
+  directive chore (...)` and doesn't grep-match `91896c4` (parent
+  SHA). **Status**: noted as a `concurrent_agents` precedent for
+  future subject-pattern discipline; recommend appending `(parent
+  <SHORT-SHA>)` to chore subject or putting parent-SHA on
+  body-scratch line 1.
+
+**Audit-lifecycle note**: this rolling list persists until (a) a
+follow-up chore closes all 4 RN items above (RN-01..RN-04 already
+FIXED in `b29cfa2`; 4 follow-up extension nits remain open), or
+(b) a future chore re-classifies any item as RESOLVED-by-design
+via explicit `docs(atlas): Mark RN-XX as RESOLVED-by-design (...)`
+commit. Re-probe cadence: per `docs(atlas):` chore landing that
+touches `gap_audit.md` PM surface.
+
+**Cross-link**: see `gap_audit.md` `## Atlas architectural directive
+(2026-07-08)` (line 12) for the source-chore context + `## Surfacing
+risks` for the open follow-ups' parent audit-class entries. See
+`D:/atlas/gap_audit.md` `L339 PRESERVED` parity-row in the
+`### Anchor-evolution history` section for the prior anchor-iteration
+history convention (anchor-tail intent-over-version naming).
