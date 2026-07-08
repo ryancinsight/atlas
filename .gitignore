@@ -35,6 +35,6 @@ repos/report/
 
 # Atlas-root transient scratch artifacts (NOT gitlinked; created during chore ceremony)
 .body-scratch-*
-.tmp-*.py
+.tmp-*
 .verify-*.sh
 ritk_errors.txt
