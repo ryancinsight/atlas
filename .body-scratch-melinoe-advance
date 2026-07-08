@@ -1,0 +1,65 @@
+chore(atlas): Advance repos/melinoe pointer to ba91946 (reclamation audit)
+
+Advance atlas-meta `HEAD:repos/melinoe` gitlink from the prior value
+`7ec0a44e558cacdb6514c30dd4e2dbe70a06f026` (atlas-meta chore SHA) to the
+melinoe inner HEAD `ba91946` (the reclamation-candidate state identified in
+the e0bf556 row 6 cross-tree reclamation audit).
+
+This is the third reclamation pointer-advance in the row 6 sequence, after
+themis (`a21e94b`) and moirai (`554e906`). The melinoe inner had advanced
+past the atlas-meta pointer (1 new commit since the prior cut) while the
+atlas-meta bookkeeping had not yet caught up. The advance closes the
+gitlink divergence and re-aligns the parent-side pointer with the inner
+HEAD per the row 11 DYNAMIC-SHA-EXTRACTION MANDATE pattern:
+
+    cd /d/atlas/repos/melinoe && git rev-parse ba91946^{commit}
+    -> <full-sha-extracted-dynamically>
+
+    cd /d/atlas && git update-index --add --cacheinfo \
+        160000,<full-sha>,repos/melinoe
+
+The `$(...)` substitution is structurally load-bearing per row 11; the full
+SHA is never hardcoded in the chore body. The gitlink is preserved as mode
+160000 (submodule pointer) — no 100644 file content staged for `repos/melinoe`.
+
+Per row 10 NO-AMEND rule: this is a NEW atomic chore on top of the current
+HEAD (post `314db47` kwavers follow-up advance note). The parent chore is
+not amended.The 11 prior chores in the row 6 chain (`314db47`, `dceed69`, `bcd98ba`, `554e906`, `8179d9f`, `9468382`, `2f18ec4`, `512ff108`, `a21e94b`, `e0bf556`, `b44845a`) are preserved verbatim in the working tree.
+
+Per row 10 forward-fix safety rule: this chore is a single-submodule
+pointer advance scoped to `repos/melinoe` only. The other 10 submodule
+pointers (CFDrs, ritk, kwavers, apollo, gaia, helios, coeus, leto, themis,
+moirai, hermes) are unchanged.
+
+Disjoint scope: this is a bookkeeping chore, not a content chore. The
+melinoe inner WIP (the `ba91946` commit content) is not staged in atlas-meta;
+only the gitlink pointer is updated. The melinoe inner work continues
+independently.
+
+Refs:
+- `e0bf556` e0bf556 row 6 cross-tree reclamation audit (the e0bf556 audit
+  sub-bullet identified melinoe as a reclamation candidate with 1 new
+  commit and 1 dirty file in the inner working tree, gitlink DIVERGED at
+  `7ec0a44`)
+- `a21e94b` themis pointer-advance analog (first reclamation in the row 6
+  sequence; dynamic-SHA extraction pattern, themis closure-mark
+  in `512ff108`)
+- `554e906` moirai pointer-advance analog (second reclamation in the row 6
+  sequence; dynamic-SHA extraction pattern, moirai closure-mark
+  in `8179d9f`)
+- `2f18ec4` row 6 amendment (probed CFDrs/eunomia/melinoe as row 6
+  candidates; the e0bf556 audit sub-bullet's reclamation-candidate
+  classification was the basis for the pointer advance)
+- `314db47` parent chore (kwavers follow-up advance note, post 8179d9f)
+- `dceed69` kwavers RESOLVED polish
+- `bcd98ba` kwavers bookkeeping regression RESOLVED note
+- `8179d9f` moirai closure-mark
+- `9468382` themis closure-mark polish
+- `512ff108` themis closure-mark
+- `b44845a` KW-CV-001 watchpoint setup (unrelated to melinoe, but a
+  baseline ref for the broader row 6 work)
+
+Per row 10 NO-AMEND rule: this is a NEW atomic chore on top of `314db47`.
+
+Per row 11 DYNAMIC-SHA-EXTRACTION MANDATE: the full SHA is extracted
+dynamically via `git rev-parse ba91946^{commit}`; never hardcoded.
