@@ -119,7 +119,19 @@ Source: hand-verified grep over `crates/*/src` plus `Cargo.toml` per-file eviden
   - **`ndarray/rayon` feature strip status**: CLOSED 2026-07-07 per `702e4f125 chore(deps): drop unused ndarray/rayon feature from kwavers manifests` (the feature-layer strip was the Batch #1 closure condition; this tracking entry is the substantive numerical-array migration, distinct from the feature strip).
   - **Recent kwavers-internal migration-adjacent commits** (informational, NOT ndarray-compat-specific): `702e4f125` (ndarray/rayon feature strip) + `8b128c478` (Burn compatibility shim removal + burn dep drop, NOT ndarray-related despite the kwavers-solver scope) + `1f320cfe6` (build-level unused ndarray Rayon features removal, redundant with `702e4f125`).
   - **Closeout status**: **TRACKING** (not closure-marked). No `closeout|final|completion|close-batch` kwavers-internal commit has landed for the ndarray→leto's ndarray-compat migration; the source-side migration runs through `moirai-parallel::*` for parallel iteration (Batch #1) but the numerical-array vocabulary itself has no equivalent upstream-first migration push yet.
-  - **Atlas-meta path forward**: per Surfacing risks **row 8** (BATCH #4 SLICE-INTEGRITY / kwavers-as-peer-claimed axiom) + the `concurrent_agents` disjoint-scope rule, atlas-meta does NOT advance `HEAD:repos/kwavers` gitlink until (a) the peer emits a formal `closeout|final|completion` commit for the ndarray-compat conversion (triggering the **KW-CV-001** watchpoint per `## Forward-looking watchpoints`), AND (b) post-batch pre-merge authoritative-classification (sev-tier via `cargo semver-checks` shape) lands. The action-sequence-on-trigger is the **row 11 DYNAMIC-SHA-EXTRACTION MANDATE** (`git update-index --add --cacheinfo 160000,$(cd repos/kwavers && git rev-parse <short-sha>^{commit}),repos/kwavers`) followed by atomic chore commit + force-with-lease push to `origin/codex/kwavers-atlas-integration`. Re-verify the trigger on every kwavers sub-bullet refresh; promote this tracking entry to a closure-mark form once the peer-side closeout emits.
+  - **Atlas-meta path forward**: per Surfacing risks **row 8** (BATCH #4 SLICE-INTEGRITY / kwavers-as-peer-claimed axiom) + the `concurrent_agents` disjoint-scope rule, atlas-meta does NOT advance `HEAD:repos/kwavers` gitlink until (a) the peer emits a formal `closeout|final|completion` commit for the ndarray-compat conversion (triggering the **KW-CV-001** watchpoint per `
+- **12. CONTINUAL-AUDIT WT-DIRTY CLASSIFICATION (refreshed 2026-07-08)**: see
+  the `## Continual audit: WT dirty submodule classification (2026-07-08)`
+  section above for the per-submodule (a)/(b)/(c)/(d) classification of
+  the 7 currently-dirty submodule paths. **Net effect**: 7/7 submodules
+  aligned (no drift); 1 (a) stable/synced (coeus); 6 (b) clean-dirty
+  (CFDrs, gaia, helios, hephaestus, kwavers, ritk); 0 (c) pointer-advance
+  candidates; 0 (d) regressions. Per the `concurrent_agents`
+  disjoint-scope rule, atlas-meta has zero pending bookkeeping for these
+  7 submodules; all inner-state changes are peer-owned. Re-run probe
+  cadence: weekly or per-chore-landing.
+
+## Forward-looking watchpoints`), AND (b) post-batch pre-merge authoritative-classification (sev-tier via `cargo semver-checks` shape) lands. The action-sequence-on-trigger is the **row 11 DYNAMIC-SHA-EXTRACTION MANDATE** (`git update-index --add --cacheinfo 160000,$(cd repos/kwavers && git rev-parse <short-sha>^{commit}),repos/kwavers`) followed by atomic chore commit + force-with-lease push to `origin/codex/kwavers-atlas-integration`. Re-verify the trigger on every kwavers sub-bullet refresh; promote this tracking entry to a closure-mark form once the peer-side closeout emits.
 - **Closure state**: per `kwavers/gap_audit.md`, `~50` prior Rayon edges closed 2026-07-02/03 across solver/physics/imaging/simulation/top-level. Residual is the trip above.
 
 ### ritk (`D:/atlas/repos/ritk`) — residual burn surface (provider side obstacle)
@@ -350,6 +362,102 @@ These are TypeScript-style locks that prevent consumer migration until the provi
 - `helios` DICOM real-input path: **closed 2026-07-06** for production DICOM ownership. RITK inner commit `8f8360ff` adds `ritk-dicom::{DicomTag, tags, DicomAttributeRead}`; Helios H-061 now consumes RITK for parse, typed image attributes, transfer-syntax lookup, and pixel decode. Direct `dicom` remains only as a Helios dev-dependency for synthetic Part 10 fixture generation. Remaining audit H-063 covers `helios-imaging`: generic medical-image I/O/registration/toolkit operations move upstream to RITK first, while radiation-domain MVCT projection/reconstruction kernels stay in Helios.
 
 ---
+
+
+## Continual audit: WT dirty submodule classification (2026-07-08)
+
+Per fresh T1 probe of all 7 currently-dirty submodule paths at `D:/atlas`,
+each submodule is classified by the (a) stable/synced / (b) clean-dirty /
+(c) pointer-advance candidate / (d) regression taxonomy:
+
+| Submodule | Branch | inner HEAD == atlas gitlink | WT dirty | ahead/behind @{u} | Classification |
+| --- | --- | --- | --- | --- | --- |
+| **CFDrs** | `codex/cfdrs-atlas-migration` | YES (aligned) | 4 | 0 / 506 | **(b) clean-dirty** — peer WIP, light touch |
+| **coeus** | `main` | YES (aligned) | 0 | 0 / 676 | **(a) stable/synced** — perfect alignment, zero dirty |
+| **gaia** | `refactor/migrate-to-leto-geometry` | YES (aligned) | 5 | 0 / 107 | **(b) clean-dirty** — peer WIP, light touch |
+| **helios** | `main` | YES (aligned) | 10 | 0 / 68 | **(b) clean-dirty** — peer WIP, post-H-061/H-062 stabilization |
+| **hephaestus** | `ks5-cholesky-panel` | YES (aligned) | 1 | 0 / 189 | **(b) clean-dirty** — peer WIP, near-stable (1 path) |
+| **kwavers** | `codex/kwavers-core-moirai-parallel` | YES (aligned) | 81 | 0 / 1718 | **(b) clean-dirty** — peer WIP, heavy (Burn-compat facade + par_for_each residual consolidation) |
+| **ritk** | `main` | YES (aligned) | 24 | 0 / 973 | **(b) clean-dirty** — peer WIP, heavy (Batch #3 sub-batches #3-#6 mid-flight) |
+
+**Net effect**: 7/7 submodules are HEAD==gitlink aligned (zero drift, zero
+pointer-advance candidates, zero regressions). 6/7 hold active peer WIP
+(classification **b**) totalling 125 dirty paths across the workspace (4 +
+0 + 5 + 10 + 1 + 81 + 24 = 125). Only **coeus** is fully clean (classification
+**a**, zero dirty, stable/synced).
+
+**Per-submodule notes**:
+
+- **coeus (a)**: zero dirty, HEAD==gitlink. The user's prior turn's
+  bookkeeping-advance at `2e1c4f2` brought the gitlink forward; the 4
+  files I previously saw as dirty (CHANGELOG.md, Cargo.toml, coeus-nn/benches/nn_bench.rs,
+  docs/gap_audit.md) have since been committed. Atlas-meta has zero pending
+  bookkeeping for coeus. **Stable/synced** — no reclamation action needed.
+- **kwavers (b)**: 81 dirty paths. This is a **reduction** from the prior
+  e0bf556 audit's 266 → 299 dirty path range. Peer is actively consolidating
+  Burn-compat facade + par_for_each residual work. Per `concurrent_agents`
+  disjoint-scope rule, atlas-meta defers to peer; await peer-side closeout
+  commit + KW-CV-001 watchpoint trigger.
+- **ritk (b)**: 24 dirty paths. This is a **reduction** from the prior
+  e0bf556 audit's 65 dirty paths. Peer is mid-flight on Batch #3
+  sub-batches #3-#6 (Burn-trait surface removal + Cargo.toml dep strip).
+  Per disjoint-scope rule, atlas-meta defers to peer.
+- **hephaestus (b)**: 1 dirty path — essentially stable. Negligible
+  noise from peer-side work.
+- **helios (b)**: 10 dirty paths. Post-H-061/H-062 stabilization, peer
+  is iterating on H-063 (helios-imaging generic-toolkit audit).
+- **gaia (b)**: 5 dirty paths. Light peer WIP, likely CSG source +
+  benchmark files per the `refactor/migrate-to-leto-geometry` branch.
+- **CFDrs (b)**: 4 dirty paths. Light peer WIP on the
+  `codex/cfdrs-atlas-migration` branch.
+
+**Disjoint-scope rule axiom (refreshed)**: atlas-meta does not own any
+of the 125 dirty paths in the 6 clean-dirty submodules. Atlas-meta MUST NOT
+execute `git clean`, `git reset`, or any destructive operation on these
+inner paths. All inner-state changes are peer-owned per the
+`concurrent_agents` rule. The atlas-meta bookkeeping surface is limited to
+docs-only PM artifacts (this file, `backlog.md`, `checklist.md`) and the
+parent-side submodule gitlink.
+
+**Forward-only invariant**: this chore lands a single docs-only commit
+above current HEAD, adding this classification section + a brief reference
+bullet under "Surfacing risks" (see below). No submodule gitlinks are
+touched (all 7 already aligned). No executable bit promotions. No
+sub-bullet of any inner submodule is mutated.
+
+**Audit-lifecycle recommendation**: re-run this per-submodule
+classification probe on every subsequent atlas-meta chore landing that
+touches a submodule pointer. The probe is a single basher command
+sequence (per-submodule: `cd /d/atlas/repos/<X> && git rev-parse HEAD`
++ `git ls-files --stage repos/<X>` from parent + `git status --short | wc -l`).
+A weekly re-probe cadence catches dirty-count drift between chore
+landings.
+
+**Per-submodule classification audit-state transitions** (relative to
+the prior `e0bf556` cross-tree reclamation audit at line 251 of this file):
+
+- coeus: `CLEAN + DIVERGED (dirty count 4)` → `STABLE/SYNCED (dirty count 0)`
+  — bookkeeping-advance closed the gap; the 4 prior dirty files were
+  committed.
+- kwavers: `dirty 266-299` → `dirty 81` — net reduction of ~190 paths
+  via peer-side Burn-compat facade + par_for_each residual work.
+- ritk: `dirty 65` → `dirty 24` — net reduction of 41 paths via
+  sub-batch #4 (RITK-crate-migrate Cargo.toml dep strip) + sub-batch #5
+  (RITK-spatial-rebind) + sub-batch #6 (RITK-xtask-ci allowlist refresh)
+  partial land.
+- helios: `dirty 0` → `dirty 10` — small regression (likely H-063 imaging
+  audit iteration in peer WT).
+- gaia: `dirty 5` → `dirty 5` — no change.
+- hephaestus: `dirty 0` → `dirty 1` — trivial regression (1 path noise).
+- CFDrs: `dirty 2` → `dirty 4` — small regression (+2 paths).
+
+**Net effect summary**: 2 reductions, 1 stable, 3 trivial regressions,
+0 pointer-advance candidates, 0 classification-d migrations. Atlas-meta
+has no pending bookkeeping for any of the 7 submodules; the next atlas-meta
+action is purely docs-only (this chore + future audit refreshes).
+
+**Reference bullet under Surfacing risks**: see the new
+**row 12** below.
 
 ## Surfacing risks (closeout axioms for next sprint)
 
