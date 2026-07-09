@@ -38,3 +38,7 @@ repos/report/
 .tmp-*
 .verify-*.sh
 ritk_errors.txt
+errors.txt
+errors[0-9]*.txt
+cargolog*.txt
+*.stderr
