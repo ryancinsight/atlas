@@ -332,6 +332,79 @@ artifact hygiene + parent-side gitlink advance on peer-driven
 
 closure.
 
+The `ndarray-compat` cargo feature on `leto`
+
+(`repos/leto/crates/leto/Cargo.toml`: `ndarray-compat = ["dep:ndarray", "std"]`)
+
+is a **transitional layer** for the kwavers ndarray → leto
+
+Bulk-Migration priority #2 — but **does not** resolve the E0369
+
+errors (`Mul<f64>` not implemented for `leto::Array<T, S, N>`)
+
+despite pulling `ndarray` into the resolved dep graph.
+
+**Type-system distinguisher** (verified via `cargo tree -p kwavers-math`
+
++ `repos/leto/crates/leto/src/application/aliases.rs`): the four
+
+explicit type aliases
+
+```
+pub type Array1<T> = Array<T, VecStorage<T>, 1>;   // aliases.rs:6
+pub type Array2<T> = Array<T, VecStorage<T>, 2>;   // aliases.rs:9
+pub type Array3<T> = Array<T, VecStorage<T>, 3>;   // aliases.rs:12
+pub type Array4<T> = Array<T, VecStorage<T>, 4>;   // aliases.rs:15
+```
+
+confirm `Array<T, S, N>` is **leto's own native type** — the lack of
+
+a `pub use ndarray::Array` re-export is what makes ndarray's blanket
+
+`Mul<T>` impl inapplicable. ndarray's blanket `Mul<T>` impl
+
+covers only ndarray's own `Array<T, D>`; it does NOT cross-type apply
+
+to leto's distinct type. So `features = ["ndarray-compat"]` adds
+
+ndarray as a transitive dep edge (verified: `cargo tree -p kwavers-math | grep ndarray`
+
+shows `ndarray v0.16.1` resolved transitively via leto→ndarray) without
+
+modifying type-system identity that E0369 complains about.
+
+**Consequence for the Bulk-Migration #2 closure path**: the only viable
+
+fix is per-site source-code rewiring — patterns like
+
+`array.iter_mut().for_each(|v| *v *= scalar)`, the project-native
+
+`as_slice_memory_order_mut()` slice accessor, and the `scale_array`
+
+helper in `crates/kwavers-math/src/simd_safe::auto_detect::ops` —
+
+NOT a Cargo.toml-level feature add. Adding `ndarray-compat` would
+
+re-inject a transitive ndarray dep edge already eliminated by Batch #1
+
+(`702e4f125` ndarray/`rayon` feature strip).
+
+**Routing discipline** (codifies the project's per-crate Cargo.toml
+
+commentary rule): cargo-feature architectural essays belong in
+
+`gap_audit.md` (this row); per-crate `Cargo.toml` comments stay as
+
+1-line pointers (`# see gap_audit.md Bulk-Migration priority #2 ...`)
+
+so the architectural reasoning rotates to one SSOT instead of
+
+fragmenting across every consumer crate's manifest. Per-crate Cargo.toml
+
+comment tri-version history (11-line essay → 3-line note → 1-line
+
+pointer) is recorded for future-auditor visibility.
+
 
 
 ### Provider-extension register cross-link
