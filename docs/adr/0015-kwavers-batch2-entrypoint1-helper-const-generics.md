@@ -131,22 +131,123 @@ Rejected because: (a) variadic functions in Rust are nightly-only and unsuitable
 
 ## Sequencing (implementation increments, atomic commits)
 
-### Atlas-meta orchestration chore commit (CURRENT TURN)
+### Atlas-meta orchestration chore commit (CURRENT TURN, COMPLETED 2026-07-09 commit `7f1e2b2`)
 
-1. **Step 1 — atlas-meta chore commit**: `chore(atlas): Author ADR 0015 + INDEX.md row + backlog.md trigger-chore brief — Open Batch #2 Entry Point #1 helper const-generics extension on kwavers peer stream per disjoint-scope`. Bundles:
+0. **Step 1 — atlas-meta chore commit**: `chore(atlas): Author ADR 0015 + INDEX.md row + backlog.md trigger-chore brief — Open Batch #2 Entry Point #1 helper const-generics extension on kwavers peer stream per disjoint-scope`. Bundles:
    - New file `atlas/docs/adr/0015-kwavers-batch2-entrypoint1-helper-const-generics.md` (this ADR, Status `Proposed`).
    - `atlas/docs/adr/INDEX.md` row addition between ADR 0014 + ADR 0016 (sort-order by ID).
    - `atlas/backlog.md` §In-flight claims forward-looking note recording the standing reminder + the kwavers-claim-stream trigger condition.
 
+### Atlas-meta Step 2 design-spec chore commit (CURRENT TURN, 2026-07-09 — Step 2 cannot execute, design-spec only)
+
+0a. **Step 2 — atlas-meta design-spec chore commit** (this turn): land the detailed Step 2 design-spec in this ADR's `### Step 2 detailed design specification` section (appended below). The implementation commit is FORBIDDEN from atlas-meta per disjoint-scope (ADR 0011 §Leg 2). The design-spec is the SSOT that the kwavers claim stream picks up once Block #5 clears.
+
 ### Kwavers peer stream chore commit (BLOCKED on Block #5 + disjoint-scope ownership)
 
-2. **Step 2 — kwavers peer stream atomic commit**: `feat(kwavers-safety): Extend with_zip_standard_layout with const-generics arity` on `D:/atlas/repos/kwavers/` `codex/kwavers-core-moirai-parallel`. Updates the helper signature per §Decision. Pre-flight gate must be clear (Block #5 closed); owner is kwavers claim stream per disjoint-scope.
+2. **Step 2 — kwavers peer stream atomic commit** (gated on Block #5 + disjoint-scope + this ADR's design-spec): `feat(kwavers-safety): Extend with_zip_standard_layout with const-generics arity` on `D:/atlas/repos/kwavers/` `codex/kwavers-core-moirai-parallel`. Implementation per the detailed design spec below (§§equencing §Step 2 detailed design specification). Pre-flight gate must be clear (Block #5 closed); owner is kwavers claim stream per disjoint-scope.
 3. **Step 3 — kwavers peer stream atomic commit**: `test(kwavers-solver): Backport slice 6b rhs.rs as helper-stress unit-test fixture (N=9)`. Adds a `helper-stress` integration test asserting const-generics helper ergonomics presence + bit-wise equivalence vs verbose-form RHS at all (i, j, k) grid points.
 4. **Step 4 — kwavers peer stream atomic commit**: `refactor(kwavers-solver): Adopt with_zip_standard_layout_<const N> in slice 6b rhs.rs heterogeneous Phase 2`. Replaces the 9 verbose-form asserts + 9 `as_slice()` unwraps + 9 named slice variables with the const-generics helper call.
 
 ### Atlas-meta status-flip chore commit (FUTURE TURN)
 
 5. **Step 5 — atlas-meta chore commit** (when AC-1 through AC-6 are all ✅): `chore(atlas): Flip ADR 0015 to Accepted after kwavers peer Batch #2 Entry Point #1 acceptance validation`. Updates ADR 0015 §head of file Status from `Proposed` to `Accepted` + records the kwavers peer inner SHA accepting the closure.
+
+### Step 2 detailed design specification (atlas-meta SSOT for the kwavers claim stream)
+
+**Target file (NEVER EDIT FROM ATLAS-META — for documentation only)**: `D:/atlas/repos/kwavers/crates/kwavers-solver/src/safety/mod.rs` (current signature at L84-130).
+
+**Modifications to apply on the kwavers peer stream** (per thinker's pre-implementation verdict for the const-generics arity extension; replacement of the existing dynamic-slice form):
+
+1. Add the const-generic parameter `const N: usize` to `with_zip_standard_layout`.
+2. Change the `immuts` parameter type from a dynamic slice `&'imm [(&'static str, &'imm Array3<A>)]` to a const-sized array `[(&'static str, &'imm Array3<A>); N]`.
+3. Replace the closure trait bound `F`'s second argument expectation from `&'s [&'s [A]]` to `[&'s [A]; N]` (HRTB `for<'s>` may be retained if caller lifetimes justify it; otherwise plain `FnOnce` with inferred `'s`).
+4. Replace the internal `Vec` allocation with `std::array::from_fn`.
+
+**Target signature and body** (verbatim — copy into the kwavers peer stream commit):
+
+```rust
+pub fn with_zip_standard_layout<'out, 'imm, A, F, R, const N: usize>(
+    out_name: &'static str,
+    out: &'out mut Array3<A>,
+    immuts: [(&'static str, &'imm Array3<A>); N],
+    f: F,
+) -> R
+where
+    A: Copy + Send + Sync,
+    F: for<'s> FnOnce(&'out mut [A], [&'s [A]; N]) -> R,
+{
+    assert!(
+        out.is_standard_layout(),
+        "{out_name} must be C-contiguous (default Array3 layout) for the Zip migration",
+    );
+    let out_slice = out
+        .as_slice_mut()
+        .expect("standard-layout asserted just above; layout matched");
+
+    // Replace previous heap-allocated Vec mapping with const-sized stack array.
+    let immut_slices = std::array::from_fn(|i| {
+        let (name, arr) = immuts[i];
+        assert!(
+            arr.is_standard_layout(),
+            "{name} must be C-contiguous (default Array3 layout) for the Zip migration",
+        );
+        arr.as_slice()
+            .expect("standard-layout asserted just above; layout matched")
+    });
+
+    f(out_slice, immut_slices)
+}
+```
+
+**Constraint surface (preserved verbatim from current helper)**:
+
+- `A: Copy + Send + Sync` is preserved verbatim (no relaxation; required for Rayon `ParallelIterator` parallel body execution).
+- The `'static` bound on `A` is consciously omitted (carries forward Nit 1 fix per code-reviewer-minimax-m3; helper never allocates or returns owned `A`).
+- The verbose panic message form `"{name} must be C-contiguous (default Array3 layout) for the Zip migration"` is preserved verbatim.
+- The `'out` lifetime on `out_slice` is preserved (fixed relative to helper's reborrow of `out`).
+
+**Monomorphization analysis**:
+
+- Each distinct `N` produces its own monomorphized helper instantiation (N=0, 1, 2, ..., 9 are the typical call-site arities across the kwavers-solver surface).
+- Per-arity binary impact: ~3 KB of IR per monomorphization. With N up to 9 expected at call sites, total binary impact is bounded at ~30 KB.
+- The const-N shift is a STABLE-feature in Rust since 1.51 (March 2021); no nightly channel needed.
+
+**Backwards-compatibility strategy**:
+
+- This is an additive shift. The helper signature changes from `&'imm [(&str, &Array3<A>)]` to `[(&str, &Array3<A>); N]`. Existing call sites that pass slice-literal immuts must be migrated to array-literal form.
+- Atlas-meta does NOT mandate an automatic migration tool — the call-site migration is part of Step 4 (`refactor(kwavers-solver): Adopt with_zip_standard_layout_<const N> in slice 6b rhs.rs heterogeneous Phase 2`).
+- Slice 6b's 9-immut heterogeneous Phase 2 site is the canonical backport candidate for Step 4 + the canonical unit-test fixture for Step 3.
+
+**Acceptance criteria for Step 2** (subset of ADR 0015 §Verification plan):
+
+- AC-2a: `cargo check -p kwavers-solver --lib --no-default-features` rc=0 post-Step-2 commit (Block #5 gate cleared; this is the prerequisite for AC-1 already).
+- AC-2b: All existing call sites where the helper is used continue to compile (the helper is currently NOT adopted in any of the 9 batch-#1-migrated sites, so this is a vacuous check; if the kwavers claim stream has speculatively adopted the helper elsewhere, those calls must also be migrated to array-literal form or the commit fails to compile).
+- AC-2c: `cargo build -p kwavers-safety` rc=0 (the helper SSOT crate builds standalone).
+
+**Send + Sync propagation analysis**:
+
+- `A: Copy + Send + Sync` unchanged.
+- The closure-bound immut capture is `[&'s [A]; N]`: N references to `[A]` slices via HRTB `&'s`. The HRTB allows the helper to construct the slice-array at any lifetime `'s` shorter than or equal to the helper's invocation, satisfying Rayon's parallel body lifetime requirements.
+- `Send + Sync` propagation through Rayon's `ParallelIterator` works because each closure invocation sees `r_slice: &'r_mut [A]` + `[&'s [A]; N]` where the immut borrows are shared (Rayon's `par_mut` reborrows `r_slice` separately) — disjoint-capture-rule safe under Rust 2021.
+
+**HRTB retention vs lift**:
+
+- The current helper uses `F: for<'s> FnOnce(&'out mut [A], &'s [&'s [A]]) -> R` (HRTB required because the local `Vec` lifetime is shorter than the helper's `'imm`).
+- The const-generics design eliminates the local `Vec` allocation; the immut-slice array is built into a stack-allocated `[&'imm [A]; N]` BEFORE the closure is invoked. The HRTB `for<'s>` may therefore be lifted to a simple lifetime bound `F: FnOnce(&'out mut [A], [&'imm [A]; N]) -> R`.
+- Recommendation per the thinker's verdict: KEEP the HRTB `for<'s>` form in the new signature for forward-compat with future sites that may have non-uniform caller lifetimes (e.g., sites where immuts are reborrowed from outer-scoped variables); the HRTB is a zero-cost extension (Rust 2021 monomorphizes cleanly). Net code change: signature modification is purely additive (adds const N + changes array form; HRTB stays).
+
+**Reviewing checklist for the kwavers claim stream pre-commit**:
+
+- Per ADR 0012 §Decision §1 atomic-boundary discipline: the const-N signature change + body rewrite is one atomic commit; intermixing with Step 3 (test fixture) or Step 4 (slice 6b adoption) violates §1.
+- Per ADR 0011 §Decision §Leg 2 disjoint-scope: the implementation commit lives EXCLUSIVELY on `D:/atlas/repos/kwavers/**`; atlas-meta does NOT co-emit.
+- Per ADR 0009 §Verification plan (paragraph-collapse closure gate, slices): `cargo check -p kwavers-solver --lib --no-default-features rc=0` is the primary compile-gate; the `cargo test -p kwavers-solver --lib` rc=0 progresses the layout-equivalence validation forward.
+- Code-reviewer-minimax-m3 verdict required pre-commit per atlas-meta's standard discipline (the kwavers claim stream applies its own review).
+
+**Status reaffirmation (probed 2026-07-09)**:
+
+- Block #5 pre-flight gate: STILL BLOCKED. `cargo check -p kwavers-solver --lib --no-default-features` returns rc≠0 with E0308 + E0599 errors in `kwavers-transducer` (`ArrayBase` vs `Array` type mismatches + missing `matmul` methods + missing `assign` methods + arc/transducer syntax issues).
+- Step 2 cannot land until Block #5 closes.
+- The design-spec is the SSOT the kwavers claim stream picks up once the gate clears.
 
 ## Out of scope (explicit non-goals)
 
