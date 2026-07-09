@@ -637,3 +637,7 @@ Per the peer `9595a99f5` chore (refactor(kwavers-solver): Migrate nonlinear.rs p
 ### H-066 done -- Batch #1 slice 5 partial-closure-mark 2026-07-08
 
 Per the peer `d614a7f57` chore (refactor(kwavers-solver): Migrate operator_splitting/mod.rs par_for_each to moirai_parallel::par_mut().enumerate() (Batch #1 source-side slice 5), on codex/kwavers-core-moirai-parallel atop parent 9595a99f = slice 4 nonlinear.rs = b21679f5c model_impl.rs Nit 1 fixup = d2cb977b slice 3 diffusion.rs = c77a926d8 struct_impl.rs fixup = 9541155f slice 2 model_impl.rs = 5cd8c708 slice 1): 7/41 sites migrated in 5/15 files cumulative across slices 1+2+3+4+5. The 1 new site is in `crates/kwavers-solver/src/forward/nonlinear/kuznetsov/operator_splitting/mod.rs` (1-mut + 1-immut Zip par_for_each at L191 in OperatorSplittingSolver::nonlinear_step), migrated to par_mut().enumerate() with 2 is_standard_layout() asserts applied in-chore. Cargo check clean at inner HEAD. **34/41 sites / 10/15 files remain**. KW-CV-001 watchpoint remains ACTIVE.
+
+## bash-heredoc artifact audit verification 2026-07-08
+
+> Audit verified: 0 unresolved `\$VAR` artifacts (matches pattern `\$[A-Z_]+`) remain in 3 PM artifacts after the \$SHORT substitution chore (commit `92dad112`). All residual `$` characters in the 3 PM artifacts are legitimate (Rust generic syntax `<$t as Scalar>`, command-substitution documentation `$(cd repos/...)`, mathematical notation, or anti-pattern template examples in audit prose). Code-reviewer N3 carry-forward from the \$SHORT substitution chore is now CLOSED.
