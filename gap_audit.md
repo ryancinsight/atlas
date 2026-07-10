@@ -757,6 +757,37 @@ Source: hand-verified grep over `crates/*/src` plus `Cargo.toml` per-file eviden
 
 
 
+### E0599 Closure-Front Peer-Side Fix Brief (kwavers `.view*()` surface)
+
+*External index alias: row 14.5.*
+
+**Section 1 -- Context + disjoint-scope.** The E0369 3-item idiom set (`array.iter_mut().for_each(|v| *v *= scalar)` / `as_slice_memory_order_mut()` / project-native `scale_array` helper) is operationally complete for the E0369 front as of the prior-session proof-of-pattern work. This row documents the SEPARATE E0599 closure-front, maintaining strict `concurrent_agents` disjoint-scope; peer-side kwavers claims the actual `.view*()` site fixes (atlas-meta records-only).
+
+**Section 2 -- Categorization + current-state.** Total **151 prefix-form call sites** across 27 distinct files on inner HEAD `7c42ba2dfbbe7b21e7ac17a3233fd74efe34df16` (live re-enumeration post-`a5134d8` gitlink advance). Breakdown:
+
+- **Category A (bare `.view()`):** 138 sites (per `9deb4ab` baseline; current enumeration held flat)
+- **Category B (`.view_mut()`):** 13 sites (NEW-visible post-`a5134d8`; previously not enumerated)
+- **Category C (`.view_slice()` / `.view_axis()`):** 0 sites / 0 sites (empty surface)
+
+**Section 3 -- Anchor cross-walk + baseline archival.** Baseline enumeration recorded in `9deb4ab` cited 138 `.view()` line-hits across 27 distinct files on the prior inner HEAD state. The current-state 151 count is the COMPOSITION of that 138 baseline + 13 NEW `.view_mut()` sites surfaced by recent peer-side migration cycles. The 91-site planning-stage figure (referenced in prior-session context) is officially RETIRED: it never landed in `gap_audit.md` -- the prior-session apply attempts `python3 _apply_v3.py` and `python3 _apply_v4.py` failed on Windows path-translation + bash heredoc fragility, then again on the structural mismatch where `### Bulk-migration priority #2` is not a markdown H3 in the actual file structure (only paragraph-text mentions exist). 91 is superseded by 151.
+
+**Section 4 -- Fix approach (peer-side).** Per-category strategy:
+
+- **Category A (138 bare `.view()`):** manual per-site rewrite (each site is heterogeneous; canonical `boundary.rs` refactor does not fit all bare calls). Per-site approach matches the E0369 idiom-set triage conclusion in `### Bulk-migration priority #2: repos/kwavers crate migration (E0369)` above.
+- **Category B (13 `.view_mut()`):** single atomic `Boundary<_>` refactor at `boundary.rs` (or per-site if heterogeneous). The `.view_mut()` calls have a more uniform carrier pattern (all ndarray `Array3`/`Array4` writable views on the kwavers-data plane).
+- **Category C (slice / axis):** no action.
+
+**Section 5 -- Atlas-meta pointer-advance gating.** Atlas-meta `repos/kwavers` gitlink is now stable at `7c42ba2dfbbe7b21e7ac17a3233fd74efe34df16` post-`a5134d8` (advanced by `a5134d8` chore). Any further kwavers peer-side commits that close E0599 sites should propagate to atlas-meta via chore-style gitlink-advances (mirror the existing `concurrent_agents` disjoint-scope pattern: atomic `git update-index --add --cacheinfo 160000,<sha>,repos/kwavers` parent-tree pointer advance ONLY, with the kwavers inner dirty state preserved as-is).
+
+**Section 6 -- Disjoint-scope rule preserved.** This brief is informational / records-only. Atlas-meta documents the surface + count + per-category fix approach; peer stream claims actual closure work. Future-session audit of E0599 progress is via the KW-CV-001 watchpoint + per-bullet propagation per `### Bulk-migration #2 closure-front triage` discipline.
+
+**Section 7 -- Migration-mechanism explanation.** Count grew from 138 to 151 (NOT shrank to 91 as planning-stage predicted) because peer-side migration cycles that close E0369 sites SIMULTANEOUSLY net-add `.view_mut()` sites through ndarray -> leto Axis-Typed view-mut conversions. This is a substantive feature of the kwavers peer stream migration, not an enumeration error. Future-session audits expecting catalogue shrinkage should be aware of the net-add dynamic.
+
+**Section 8 -- 91-site planning-stage figure archival.** The 91 number was a planning-stage estimate computed at a prior inner HEAD (before `a5134d8`'s gitlink advance). It is RETIRED here in favor of the state-verified 151 figure. Any future-session reference to "91 sites" should be interpreted as superseded by this SSOT (searchable via `rg -F "91 sites" gap_audit.md backlog.md` -- should return 0 hits post-`a96d46d` + this row).
+
+**Section 9 -- Cross-link chain (audit-trail).** `9deb4ab` (the carrying in-flight bullet; kwavers math enum) + `b29cfa23ea467a7e2a52a4024c6a3b1168eb9acf` (the `backlog.md` patch-up closing front-matter enumeration drift; corrected CR-2 status from CLOSED to OPEN) + `93a0723177676ac56de38878fd44b26e7e02c026` (RN-CC-01..03 closeout -- CR-2 file-wide cite + 9-char SHA upgrade + Parent-SHA body discipline declaration) + `a96d46d7294a367fb8837aa256379bdb2ea644bc` (RN-CC-02 follow-up -- Bulk-migration case canonicalization; the parent-SHA of this row 14.5) + post-this-row commit (the inherited `backlog.md` ## In-flight claims bullet propagation chore cycle).
+
+**Forward-only invariant:** Row 14.5 inserted injection-style BEFORE `## Forward-looking watchpoints` (stable grep anchor); per NO-AMEND atop the parent commit `a96d46d7294a367fb8837aa256379bdb2ea644bc`. 0 submodule gitlinks touched + 0 executable bit promotions + 0 `[UNDO]` / revert / amend / rebase / force-push.
 ## Forward-looking watchpoints`), AND (b) post-batch pre-merge authoritative-classification (sev-tier via `cargo semver-checks` shape) lands. The action-sequence-on-trigger is the **row 11 DYNAMIC-SHA-EXTRACTION MANDATE** (`git update-index --add --cacheinfo 160000,$(cd repos/kwavers && git rev-parse <short-sha>^{commit}),repos/kwavers`) followed by atomic chore commit + force-with-lease push to `origin/codex/kwavers-atlas-integration`. Re-verify the trigger on every kwavers sub-bullet refresh; promote this tracking entry to a closure-mark form once the peer-side closeout emits.
 
 - **Closure state**: per `kwavers/gap_audit.md`, `~50` prior Rayon edges closed 2026-07-02/03 across solver/physics/imaging/simulation/top-level. Residual is the trip above.
