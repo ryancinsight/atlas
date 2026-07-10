@@ -518,6 +518,13 @@ These are **not** a single meta-migration item; they're provider-own claims, cla
 
 ---
 
+
+### Pre-commit discipline row: Parent-SHA line-block + forward audit hooks
+
+- [ ] **Parent-SHA: line-block at top of body**: atlasside chores/docs commits MUST carry a `Parent-SHA: <40-char-sha>` line-block as the FIRST BODY LINE (per RN-CC-04 self-carry discipline, retroactively validated by RN-CC-05). Inline prose citation does NOT satisfy the discipline.
+- [ ] **Forward-propagation audit hooks present**: BEFORE committing, the chore author MUST verify `rg -F "Parent-SHA:" gap_audit.md backlog.md checklist.md docs/coordination/` yields >=2 line-hits (after this RN-CC-05 commit lands, that threshold is established).
+- [ ] **git log --grep "Parent-SHA:" audit pass**: post-commit, run `git log --grep "Parent-SHA:" --oneline` to verify the new commit is enumerated in the discoverable chain. Pre-RN-CC-04 baseline = 4 entries (`536366e`, `74df54d4`, `a96d46d`, `93a0723`); post-RN-CC-05 baseline = 5 entries (adds this RN-CC-05 commit).
+
 ## Per-batch atomic commit + version bump rules
 
 Each batch follows the atomic-commit rule:
@@ -616,7 +623,7 @@ Reference: `D:/atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` (Accepted 202
   - **CFDrs subset** `cargo nextest run -p cfd-math -p cfd-1d -p cfd-2d --lib`: PASSES **1335/1335** (24.9s, 1 skipped).
   - **kwavers** at `ccc6bbf9e6` inner HEAD: `cargo check -p kwavers-solver --workspace` PASSES (49.88s); the workspace-wide ndarray↔leto boundary integration landed.
   - **kwavers** at `ccc6bbf9e6` inner HEAD: `cargo check --workspace` PASSES with 1 dead-code warning (`fn to_leto3` unused in `crates/kwavers-simulation/src/dispatch/elastic_pstd.rs:8:4`).
-  - **kwavers** at `ccc6bbf9e6` inner HEAD: `cargo nextest run --workspace --lib` FAILS at compile due to 1 residual slip at `crates/kwavers-solver/src/plugin/mod.rs:204:21` — the `NullBoundary` test-mock `apply_acoustic_freq` method uses `use ndarray::Array3;` (line 182) which shadows the workspace's `leto::Array3` re-binding; the `Boundary` trait now declares `&mut leto::Array<eunomia::Complex<f64>, VecStorage<eunomia::Complex<f64>>, 3>`. One-line fix lands at line 182. **Disjoint-scope peer-owned**: record to `gap_audit.md` row 14.5; atlas-meta does NOT touch `repos/kwavers/crates/kwavers-solver/src/plugin/mod.rs`.
+Backlinked via checklist.md line ~619 (`Bulk-migration priority #1 × #2 source-side overlap (2026-07-09)`) + backlog.md `### Bulk-migration priority #1 × #2 source-side overlap (2026-07-09)`.
 - **Atlas-meta action posture**: round-4 captured all in-session churn; mid-session validation sweep found 1 residual slip in kwavers-solver (peer-owned per disjoint-scope) + 1 cosmetic dead_code warning. Awaiting peer's next kwavers commit (KW-CV-001 watchpoint catch + the 2-line plugin/mod.rs fix). Either path stays in observation mode; no source-tree work concrete to atlas-meta.
 
 Branch: `codex/kwavers-atlas-integration`.### H-063 done -- Batch #1 slice 3 partial-closure-mark 2026-07-08

@@ -30,6 +30,11 @@
 - **Per-claim-stream coordination**: coordination between two true-namespace occupants of the same inner-submodule (e.g. two co-located kwavers peers coordinating the per-subcrate `[patch]` sweep timing) belongs in the kwavers own `repos/kwavers/docs/coordination/` (if it exists), NOT here.
 - **Backlog PM artifact edits**: rows in `D:/atlas/backlog.md` are SSOT for cross-repo architect coordination ledger + Atlas-root working-tree triage + cross-engineering verification. Coordination notes here cross-walk to backlog.md rows but do NOT replace them — the backlogs are the operational SSOT, coordination notes are the architectural-handoff scaffolding.
 
+
+### RN-CC-05 references
+
+- **Parent-SHA: forward-propagation audit discipline (RN-CC-05 + RN-CC-04 self-carry)**: see `D:/atlas/gap_audit.md` `### RN-CC-04 self-carry discipline: retroactive disclosure (post-536366e)` for the substantive disclosure; `D:/atlas/backlog.md` `### RN-CC-05 (transitive parent-SHA chain breach detection + audit-discipline establishment)` for the audit-discipline registration; `D:/atlas/checklist.md` `### Pre-commit discipline row: Parent-SHA line-block + forward audit hooks` for the per-batch forward-propagation hooks. Cross-validate via `rg -F "Parent-SHA:" D:/atlas/gap_audit.md D:/atlas/backlog.md D:/atlas/checklist.md D:/atlas/docs/coordination/` (expect >=4 line-hits post-RN-CC-05; >=2 was the user-specified forward-propagation threshold).
+
 ## References
 
 - **ADR 0006** — `D:/atlas/docs/adr/0006-eunomia-complex-csr-ssot.md` — the canonical eunomia-side decision for the CR-EUNOMIA-COMPLEX migration; Path B (additive `ComplexField::zero()`/`::one()` defaults) chosen over Variant A (rejected).
