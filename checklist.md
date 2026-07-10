@@ -43,20 +43,11 @@
 >
 > **2026-07-06 Hephaestus CUDA blocker refresh**: the `fb83d009` `coeus-wgpu` / `coeus-cuda` note is stale for the checked-out `repos/hephaestus` `ks5-cholesky-panel` tree. `eigen.rs` now converts `leto_ops::eigenvalues(&view)` results into `num_complex::Complex<f32>` before `device.upload(&e_host)`. Focused compile evidence: `rustup run nightly cargo check -p hephaestus-cuda --features decomposition` completed successfully against local `leto`/`leto-ops` `0.36.0`. This is compile/build evidence only; runtime CUDA nextest coverage remains separate.
 
-> **## blocker ##**
+> **## RESOLVED — CR-4 leto side merged via PR #31 ##**
 
-> The leto `Scalar` rebind was concurrently developed in `repos/leto` working tree, but at push time `repos/leto origin/main` had diverted 47 commits ahead of the local maintainer branch (the `leto` project advanced independently through `feat/array-to-vec` PR #30 which has its own independent declaration of `Scalar` traits without the eunomia NumericElement supertrait binding). The local CR-4 `Scalar: NumericElement` rebind conflicts with that pre-published origin design — the divergent declaration of `Scalar` shapes makes a clean merge impossible at the file-`crates/leto-ops/src/domain/scalar.rs` boundary without coordination.
+> PR #31 (`codex/leto-cr4-ssot-rebind`) was merged into `origin/main` at `d9e8ac9`. Resolution (a) was applied: rebase onto origin/main post-PR-#30, remove `add/sub/mul/div` and `ZERO/ONE/bitand/bitor/bitxor/count_ones/to_f64` from `Scalar` (inherited from `NumericElement`), slice kernels rewritten to operator-syntax. 5 additional commits landed on top (`28d0a03`..`86d366bc`). Submodule pointer at `86d366bc` == `origin/main`. All downstream batches (Batch #2 CFDrs, Batch #3 ritk, Batch #4 kwavers PINN) are unblocked.
 >
-> **Resolution path** (user-decision required, NOT blocking eunomia/coeus consumer migration):
-> 1. Coordinate with the author of PR #30 / `leto origin/main` — reconcile whether the SSOT-bound vs origin's stable-by-additive-change `Scalar` design wins.
-> 2. If SSOT-bound: rebase leto local onto `origin/main` with a recorded migration plan for every `Scalar::add/sub/mul/div` → `NumericElement::+ operator` rewrite (the origin design declares those as required methods of `Scalar`).
-> 3. If origin stable: pivot leto's CR-4 contribution to a smaller surface — re-bind only the `from_usize` constructor (the §5 original intent of `leto_ops::Scalar`) and leave the existing `add/sub/mul/div` surface as-is, with `NumericElement` added as an *additional* supertrait rather than a replacement.
->
-> Filed for explicit user sign-off per `atlas/backlog.md` Item #7 (`[arch] CR-4: leto ...`).
->
-> **Structural-infeasibility addendum (2026-07-05)**: T1-verified at the local session that **additive SSOT** (option (b) above) **is not rustc-acceptable**. `Scalar: NumericElement` + PR #30's pre-existing `Scalar { const ZERO: Self; const ONE: Self; fn add(); fn sub(); fn mul(); fn div(); fn from_usize(); ... }` triggers **rustc E0034 ('multiple applicable items in scope')** because `eunomia::NumericElement::ZERO`/`ONE` shadow `Scalar::ZERO`/`ONE` from the supertrait, plus `Scalar::add/sub/mul/div` and `<Self as Add<Output=Self>>::add` collide. Origin/main's trait declares those constant and method names without NumericElement in scope, so any `: NumericElement` supertrait binding concretely requires renaming either the origin/constants OR splitting `Scalar` into two traits (e.g. `Scalar: NumericElement + scalar_arith!`). Pivoting the rebind to the additive design without coordinate changes fails to compile; the resolution options (a) rebase-onto-origin and rebind with a migration plan for every `add/sub/mul/div`, OR (a-prime) propose a rename/breaking-change to PR #30's `Scalar` shape and coordinate with its author+merge. **Verify reproducible**: cargo snippet `pub trait A { const X: i32; } pub trait B: A { const X: i32; } impl A for S { const X: i32 = 1; } impl B for S { const X: i32 = 2; }` produces `error[E0034]: multiple applicable items in scope` for `Self::X` resolution inside `B`.
->
-> **Resolution (a) applied 2026-07-05** (commit `b15439baf` on `codex/leto-cr4-ssot-rebind`): rebind rebased onto `origin/main` post-PR-#30; `add/sub/mul/div` and `ZERO/ONE/bitand/bitor/bitxor/count_ones/to_f64` removed from `Scalar` (now inherited from `NumericElement`); slice kernels rewritten to operator-syntax over `NumericElement`'s `Add`/`Sub`/`Mul`/`Div` items (`x + y`, `acc += x`, etc.); reductions converge to `<Self as NumericElement>::ZERO/abs`; `Cargo.toml` workspace version `0.35.1 -> 0.36.0`. Leto side closed; pull request ready for `ryancinsight/leto` review.
+> **Historical record retained in git log** — the resolution path, structural-infeasibility addendum (E0034), and user-decision-required state are preserved in the commit history for audit. See `git log --all --oneline origin/main | grep -E "b15439b|d9e8ac9"` for the merge trail.
 
 > **Design SSOT**: `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (status: **Proposed**, awaiting user sign-off pre-implementation per `versioning` policy).
 >
@@ -122,34 +113,18 @@
 
 **Pre-reqs** (Definition-of-Ready):
 - ✅ `coeus/coeus-core/src/dtype/traits.rs` current shape T1-read by owner (2026-07-04).
-- 🟡 `leto/crates/leto-ops/src/domain/scalar.rs` — *local* branch rebind T1-read, but origin/main diverged 47 commits; SSOT integration pending user decision per `## blocker ##` above.
+- ✅ `leto/crates/leto-ops/src/domain/scalar.rs` — CR-4 rebind merged via PR #31 (`d9e8ac9`) on `origin/main`. Submodule pointer at `86d366bc`.
 - ✅ Both eunomia + coeus-primary redeclarations removed; backends extend `NumericElement` rather than redeclare vocabulary.
 
-**Plan** (the old CR-4 plan, now superseded by ADR 0005 — left for archaeology; do NOT execute this version):
-1. Author `eunomia::NumericElement::zero() -> Self` and `::one() -> Self` directly (today only via `Default`). File: `eunomia/crates/eunomia/src/traits/numeric.rs:7-17` body. Owner: `eunomia`.
-2. Rebase `Scalar` in `coeus-core/src/dtype/traits.rs:1-11` as `pub trait Scalar: eunomia::NumericElement + eunomia::RealField {}`. Empty-body trait (no methods). File-line: `coeus/coeus-core/src/dtype/traits.rs`.
-3. Rebase `Scalar` in `let''o-ops/src/domain/scalar.rs:1-21` same shape.
-4. Update kwavers consumers:
-   - `crates/kwavers/Cargo.toml:52` already imports `eunomia`; pass-through fine.
-   - `crates/kwavers-math/Cargo.toml:18` still declares `num-traits = "0.2"`; strip it (verify no source uses `use num_traits::*`).
-   - Confirm `cfd-math/src/linear_solver/conjugate_gradient/mod.rs:6,7` `use nalgebra::RealField` → `use eunomia::RealField`. Same for `cwit-stub/mod.rs:6,7` etc.
-5. Update CFDrs consumers (parallel):
-   - `CFDrs/Cargo.toml:41` `num-traits = "0.2"` strip after all `nalgebra::RealField` refs replaced.
-   - `let''ops::Scalar` callers patched through `RealField` import migration.
-6. Update ritk consumers (parallel):
-   - `crates/ritk-registration/src/classical/spatial/kabsch.rs:11` `use eunomia::FloatElement` (existing) stays; verify SVD result type routes leto's `RealField`.
-   - `RITK/Cargo.toml:112 num-traits` strip.
-7. Changelog: `[major]` bump in `atlas` meta-version; CHANGELOG entry for `eunomia SSOT inheritance`.
-
-**Completion condition (evidence)** (the old CR-4 completion condition, now superseded by ADR 0005 — use the new CR-4 completion condition above):
-- `cargo nextest run -p eunomia -p coeus-core -p leto-ops -p kwavers-math -p cfd-math -p ritk-registration` green.
-- `cargo tree -i num-traits -p kwavers` returns zero.
-- `cargo tree -i num-traits -p CFDrs` returns zero (or shows only `[dev-dependencies]` of an `apollo-validation` dev-crate).
-- `rg -n "Scalar = ..." crates/kwavers crates/CFDrs crates/ritk` returns zero matches outside the three SSOT sites.
-- `cargo clippy --all-targets -- -D warnings` green across the touched repos.
+**Plan (archaeology — superseded by ADR 0005; closed via execution)**:
+The original CR-4 plan proposed methods and trait shapes that diverge from what actually shipped. See ADR 0005 for the correct design. The actual execution is recorded in the commit chain:
+- eunomia: `57d7789`
+- coeus: `2b3f820`
+- leto: `b15439b` (on `codex/leto-cr4-ssot-rebind`), merged to `origin/main` via PR #31 at `d9e8ac9`
 
 **Next step after CR-4 (unblocks, per ADR 0005)**:
-- Batches #2/#3/#4 become Definition-of-Ready. The token-batch ordering in `atlas/backlog.md` is: #5 (CR-1) → #6 (CR-2) → #1 → #2 → #3 → #4 → #8.
+- Batches #2/#3/#4 are Definition-of-Ready. The token-batch ordering in `atlas/backlog.md` is: #5 (CR-1) → #6 (CR-2) → #1 → #2 → #3 → #4 → #8.
+- Per `decision_policy` lowest-risk-vertical-slice bias, Batch #1 (kwavers-solver/physics Rayon → Moirai) is sequenced next — but it is *not gated by CR-4* and can land in parallel; see its own checklist section.
 
 ---
 
