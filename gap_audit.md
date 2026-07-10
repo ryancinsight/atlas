@@ -338,7 +338,7 @@ The `ndarray-compat` cargo feature on `leto`
 
 is a **transitional layer** for the kwavers ndarray → leto
 
-Bulk-Migration priority #2 — but **does not** resolve the E0369
+Bulk-migration priority #2 — but **does not** resolve the E0369
 
 errors (`Mul<f64>` not implemented for `leto::Array<T, S, N>`)
 
@@ -373,7 +373,7 @@ shows `ndarray v0.16.1` resolved transitively via leto→ndarray) without
 
 modifying type-system identity that E0369 complains about.
 
-**Consequence for the Bulk-Migration #2 closure path**: the only viable
+**Consequence for the Bulk-migration #2 closure path**: the only viable
 
 fix is per-site source-code rewiring — patterns like
 
@@ -395,7 +395,7 @@ commentary rule): cargo-feature architectural essays belong in
 
 `gap_audit.md` (this row); per-crate `Cargo.toml` comments stay as
 
-1-line pointers (`# see gap_audit.md Bulk-Migration priority #2 ...`)
+1-line pointers (`# see gap_audit.md Bulk-migration priority #2 ...`)
 
 so the architectural reasoning rotates to one SSOT instead of
 
@@ -443,7 +443,7 @@ For the Rayon-compatible trait shape, bindings route through the
 `ParallelSliceMut<T: Send>` trait at
 `repos/moirai/moirai-iter/src/parallel/sorting.rs:8` (`impl<T: Send>
 ParallelSliceMut<T> for [T]` at line 42). **Slice discipline** (mirrors
-the routing-discipline paragraph in the Bulk-Migration priority #2
+the routing-discipline paragraph in the Bulk-migration priority #2
 routing lesson above): each rewired site lives in a single peer-driven
 per-file slice commit that simultaneously closes one #1 site AND one
 #2 site. Per the `concurrent_agents` disjoint-scope rule, atlas-meta
