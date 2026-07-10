@@ -34,6 +34,12 @@ repos/SynthSeg/
 repos/report/
 
 # Atlas-root transient scratch artifacts (NOT gitlinked; created during chore ceremony)
+# `_*` catch-all catches session-work scratch (e.g. `_de-dup-audit.txt`,
+# `_e0599-*.txt`, `backlog-section-enum.txt`); the existing patterns cover
+# `.body-scratch-*` / `.tmp-*` / `.verify-*.sh` / `errors[0-9]*.txt` etc.
+# `*.bak` catches editor/stream-edit backup files (e.g. `backlog.md.bullet.bak`).
+_*
+*.bak
 .body-scratch-*
 .tmp-*
 .verify-*.sh
