@@ -256,6 +256,18 @@ Atlas provider stack:
 
   possible.
 
+  Current-tree correction (2026-07-09): existing transitional names such as
+
+  `AtlasImage`, `TransformAtlas`, `InterpolatorAtlas`, and
+
+  `ResampleableAtlas` violate this directive. Do not add another
+
+  provider-branded symbol. Remove these names in the post-bulk RITK cleanup by
+
+  completing the native public-surface migration in one breaking change; do
+
+  not retain aliases or forwarding compatibility shims.
+
 - **Bulk migration followed by cleanup**: prioritize
 
   batch-level code-replacement patterns over per-site

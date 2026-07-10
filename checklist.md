@@ -7,6 +7,18 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+> **Current execution order (2026-07-09, read-only re-audit)**:
+> 1. `[minor]` Hephaestus/CFDrs GPU Laplacian provider slice after the active
+>    Hephaestus branch closes: typed native-precision stencil, surfaced GPU
+>    failures, no duplicate CFDrs WGSL, focused `cargo nextest run` gates.
+> 2. `[patch]` Kwavers nonlinear acoustic cleanup after its peer stream
+>    stabilizes: delete the Leto-to-Leto allocating `array_boundary` and route
+>    the 14 call sites directly through `leto::Array3`.
+> 3. `[major]` RITK Burn cleanup after its current 112-file WIP is reconciled:
+>    delete the no-caller Burn round-trip trilinear adapter, retain the native
+>    kernel as SSOT, then complete the already-recorded public-surface rename
+>    without compatibility aliases.
+
 ---
 
 ## CR-4 — `[major]` Rebase `coeus-core::Scalar` + `leto-ops::Scalar` over `eunomia::NumericElement` (universal SSOT)

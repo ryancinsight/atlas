@@ -6,6 +6,16 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+> **2026-07-09 current-tree reconciliation**: the direct production
+> `nalgebra`/`ndarray`/`burn`/Tokio/Rayon removal front is closed in CFDrs.
+> The next cross-repo correctness slice is provider-first ownership of the
+> CFDrs 2D GPU Laplacian in Hephaestus: remove the falsely generic `f32` WGSL
+> boundary and silent CPU fallback, then leave `cfd-core`/`cfd-math` as thin
+> typed consumers. This candidate is not claimed while Hephaestus remains on
+> the active `ks5-cholesky-panel` branch. Kwavers and RITK each have a smaller
+> subtractive cleanup candidate, but their current dirty migration streams own
+> those files; no atlas-meta source edit crosses those claims.
+
 ---
 
 ## Cross-repo architect coordination ledger
