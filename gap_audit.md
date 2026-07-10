@@ -1047,6 +1047,18 @@ Next-step probe targets (post-e237aca continuation; N5 nit apply):
 
 
 
+
+### KW-CV-002 [Enumeration Validation]: kwavers-math `.view()` site stability (child of KW-CV-001)
+
+- **Identity**: KW-CV-002 derives from KW-CV-001 (the closure-style-trigger watchpoint). It validates the SSOT enumeration established in row 14.5 and the post-`536366e` reframe of §3 + §7.
+- **Re-audit protocol**: future-session auditors re-run `rg --no-filename '\.view(\)\|\.view_mut(\)\|\.view_slice(\)\|\.view_axis(\)' repos/kwavers/crates/kwavers-math/src/` at each new kwavers inner HEAD advance.
+- **Baseline expectation** (post-`a5134d8` + post-`536366e` reframe; inner HEAD `7c42ba2dfbbe7b21e7ac17a3233fd74efe34df16`): cross-file distinct = 27 files; matched-line counts = bare `.view()` = 138 + `.view_mut()` = 13 + `.view_slice()` = 0 + `.view_axis()` = 0, total = **151 sites** across 27 files.
+- **Count-delta detection**: any drift in either (a) cross-file distinct count != 27, (b) matched-line breakdown != 138+13+0+0, or (c) total != 151 triggers investigation.
+- **Recovery protocol**: open a fresh investigation chore cycle analogous to the post-`536366e` one. Execute 2-head diff verification between CURRENT inner HEAD and pre-`a5134d8` inner HEAD `445ab9b2a432e81325b103789974a4482e7e8d92`. If delta is peer code-growth dynamic (new `.view_mut()` callsites genuinely introduced by kwavers migration): reframe row 14.5 §3 + §7 + retire the prior enumeration-scope claim. If delta is enumeration-scope change (new regex variant): update baseline + the SSOT enumeration.
+- **Cross-link chain**: `536366e9` (post-investigation reframe, `Parent-SHA: 74df54d4f963b96d1b642ce89e77c9b019ad3de7`) + `row 14.5` (SSOT) + `465ec10` (RN-CC-05 audit-discipline registration) + this KW-CV-002 registration. Cross-validation: gap_audit.md ## Forward-looking watchpoints self-audit via the `rg -F "Parent-SHA:" gap_audit.md` predicate at any future audit cycle.
+
+**Forward-only invariant**: KW-CV-002 watchpoint registered atop current HEAD per NO-AMEND; pinned baseline inner HEAD `7c42ba2dfbbe7b21e7ac17a3233fd74efe34df16` is fp-pinned (does not drift on parent chore advance). Future-session recompute at each new kwavers inner HEAD advance is mandatory per the recovery protocol above.
+
 ## SSOT enforcement surface (per-repo migration-audit gate)
 
 
