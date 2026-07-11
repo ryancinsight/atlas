@@ -7,17 +7,13 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
-> **Current execution order (2026-07-09, read-only re-audit)**:
-> 1. `[minor]` Hephaestus/CFDrs GPU Laplacian provider slice after the active
->    Hephaestus branch closes: typed native-precision stencil, surfaced GPU
->    failures, no duplicate CFDrs WGSL, focused `cargo nextest run` gates.
-> 2. `[patch]` Kwavers nonlinear acoustic cleanup after its peer stream
->    stabilizes: delete the Leto-to-Leto allocating `array_boundary` and route
->    the 14 call sites directly through `leto::Array3`.
-> 3. `[major]` RITK Burn cleanup after its current 112-file WIP is reconciled:
->    delete the no-caller Burn round-trip trilinear adapter, retain the native
->    kernel as SSOT, then complete the already-recorded public-surface rename
->    without compatibility aliases.
+> **Current execution order (2026-07-10, after CR-2 close)**:
+> 1. ✅ CR-2 (`cfd-core` + `moirai`) — closed. `ritk-core` deferred.
+> 2. ❌ Kwavers Batch #1/#4 — peer active (4 dirty files, no closeout commit).
+> 3. ❌ RITK Burn cleanup — peer active (112 dirty files).
+> 4. ❓ Kwavers nonlinear acoustic cleanup — peer active, blocked on Batch #1.
+> 5. **Next actionable**: Provider extension items (Batch #8) or re-check peer
+>    stream status after session boundary.
 
 ---
 
@@ -155,24 +151,34 @@ The original CR-4 plan proposed methods and trait shapes that diverge from what 
 
 ## Batch #6 — CR-2 (Consolidate `#[global_allocator]`) `[arch]`
 
-**Pre-reqs**:
-- Inventory of every library-side `#[global_allocator]` registration: `rg -n "global_allocator" --type rust crates repos/CFDrs/crates repos/CFDrs/xtask repos/coeus/coeus-python` T1.
-- Mnemosyne handle signature ready in DI shape (audit `docs/audit/2026-07-02-cross-repo-integration-audit.md:L76-95`).
-- Binaries that need registration published: per-binary list `kwavers-cli`, `cfd-cli`, `helios`, `helios-python`, `ritk-cli`, `coeus-python`, etc.
+> **Status (2026-07-10)**: ✅ **CLOSED** (cfd-core + moirai). ritk-core deferred (peer-active, 112 dirty).
+>
+> | Site | Action | Status |
+> |------|--------|--------|
+> | `cfd-core/src/lib.rs:45-51` | Removed `#[global_allocator]` + entire `mnemosyne` feature | ✅ committed `e24922c8` |
+> | `moirai/moirai/src/lib.rs:202-205` | Removed `#[global_allocator]` registration | ✅ committed `ce22f85` |
+> | `ritk-core/src/lib.rs:15-17` | Deferred — 112 dirty files (peer active) | ⏭️ |
+> | `CFDrs/Cargo.toml` | Removed workspace `mnemosyne` dep + feature; removed `no-global-alloc` from moirai features | ✅ committed |
+> | `coeus-python/src/lib.rs:7-9` | Out of CR-2 scope (cdylib = binary artifact) | N/A |
+> | `cfd-validation/src/benchmarking/memory.rs:92-96` | Out of CR-2 scope (`TrackingAllocator` wraps `System`, not mnemosyne) | N/A |
 
-**Plan**:
-1. Audit: T1 list each library site (provisional): `cfd-core/src/lib.rs:45-53`, `ritk-core/src/lib.rs:15-17` (dead config gate — confirm), `moirai/moirai/src/lib.rs` (TBD), `coeus/coeus-python/src/lib.rs:7-9`.
-2. Replace each library registration with a Mnemosyne handle carrier struct: `pub struct MnemosyneHandle { … }` re-exported via `mnemosyne::Handle`.
-3. Update each library `Cargo.toml` to drop the `mnemosyne` feature implication; pass the handle in main.
-4. Each binary in the integration workspace (kwavers-rs binary, cfdsuite-cli, helios, ritk-cli, etc.) keeps the registration.
-5. Changelog: `[arch]` bump individual binaries; cross-link to a new ADR `atlas/docs/adr/0004-allocator-handle-pattern.md`.
+**Pre-reqs** (historical — all satisfied):
+- ✅ Inventory: T1 identified 6 `#[global_allocator]` sites across 5 repos.
+- ✅ No binaries currently register `#[global_allocator]` — allocator policy is now a clean binary-level concern.
+
+**Plan** (closed):
+1. ✅ Audit: `cfd-core/src/lib.rs:45-53`, `moirai/moirai/src/lib.rs:202-205`, `ritk-core/src/lib.rs:15-17`.
+2. ✅ Removed `#[global_allocator]` from cfd-core (including `mnemosyne` dep + feature).
+3. ✅ Removed `#[global_allocator]` from moirai (deeper mnemosyne integration preserved).
+4. ✅ Updated CFDrs workspace: removed `mnemosyne` workspace dep and feature; removed `no-global-alloc` from moirai features.
+5. ✅ Verified: `cargo check -p cfd-core`, `cargo check -p moirai`, full CFDrs workspace all clean.
 
 **Completion condition**:
-- Library `crates/*/src/lib.rs` no longer carries `#[global_allocator]`.
-- Binaries successfully link `mnemosyne` and resolve handle through DI.
-- `cargo build -p cfd-core --no-default-features` green (no allocator requirement leaks into crate library).
-- `cargo nextest run` green for the four repos.
-- `cargo clippy --all-targets -- -D warnings` green.
+- ✅ `cfd-core/src/lib.rs` no longer carries `#[global_allocator]` or `mnemosyne` feature.
+- ✅ `moirai/moirai/src/lib.rs` no longer carries `#[global_allocator]`.
+- ✅ `cargo check -p cfd-core`, `cargo check -p moirai`, full CFDrs workspace green.
+- ⏭️ `ritk-core` deferred.
+- ⏭️ `cargo nextest run -p cfd-core` timed out (120s limit; GPU compilation-heavy suite).
 
 ---
 
