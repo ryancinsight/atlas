@@ -9,11 +9,12 @@
 
 > **Current execution order (2026-07-10, after CR-2 close)**:
 > 1. ✅ CR-2 (`cfd-core` + `moirai`) — closed. `ritk-core` deferred.
-> 2. ❌ Kwavers Batch #1/#4 — peer active (4 dirty files, no closeout commit).
-> 3. ❌ RITK Burn cleanup — peer active (112 dirty files).
-> 4. ❓ Kwavers nonlinear acoustic cleanup — peer active, blocked on Batch #1.
-> 5. **Next actionable**: Provider extension items (Batch #8) or re-check peer
->    stream status after session boundary.
+> 2. ✅ Kwavers Leto compute-pipeline + Stage-B/Cleanup — `c5b1333b7` + `fa9abb664` landed on `codex/kwavers-core-moirai-parallel`; `--workspace --exclude kwavers-python` green; kwavers-python `--{no-default-features, gpu, plotting}` all green; tests/benches/examples green.
+>    Peer still owes the kwavers-solver `pinn` feature Batch #4 closeout (89 errors in source — feature-gated, out of bulk-migration scope).
+> 3. ❌ RITK Burn cleanup — peer active (113 dirty files). Sub-batch #3.g (python/cli/snap) pending.
+> 4. ❌ Kwavers Batch #1 (kwavers-solver/{solver,physics}/Rayon→Moirai `par_for_each`): peer active. **41→4 residual `par_for_each` sites** across 3 files.
+> 5. ❌ Kwavers Batch #4 (kwavers-solver PINN Burn → Coeus): source-residual zero (burn.rs + burn_compat deleted). Bulk `pinn` feature-gated errors remain — peer-owned.
+> 6. **Next actionable**: Provider extension items (Batch #8) or re-check peer stream status after session boundary.
 
 ---
 
@@ -183,6 +184,19 @@ The original CR-4 plan proposed methods and trait shapes that diverge from what 
 ---
 
 ## Batch #1 — `[patch]` kwavers-solver / kwavers-physics residual Rayon → Moirai
+
+> **Status (2026-07-10)**: peer advanced kwavers inner HEAD to `ca1530ffd`. Residual `par_for_each` sites reduced from 41→**4** across 3 files:
+>
+> | File | Sites |
+> |------|------:|
+> | `forward/elastic/swe/integration/integrator/mod.rs` | 1 |
+> | `forward/nonlinear/kuznetsov/solver/rhs.rs` | 1 |
+> | `forward/nonlinear/kuznetsov/workspace.rs` | 1 |
+> | `safety/mod.rs` | 2 |
+> | **Total** | **4** |
+>
+> The peer made substantial progress since the H-067 partial-closure mark (30 sites → 4). The `kwavers-solver/Cargo.toml` ndarray `rayon` feature strip was landed earlier at `702e4f125`. The `cargo tree -p kwavers-solver | grep rayon` still shows rayon transitively through `ritk → burn` (provider-side, not Batch #1 gate). 10 dirty files remain in the kwavers working tree (Batch #4 cleanup + nalgebra→leto residual migration in flight).
+
 - **slice 1 partial-closure-mark 2026-07-08 (2/41 sites, 1/15 files)**: per the peer's `5cd8c708` chore
   on `codex/kwavers-core-moirai-parallel` (atop parent `ccc6bbf9`):
   `crates/kwavers-solver/src/multiphysics/fluid_structure/solver/
