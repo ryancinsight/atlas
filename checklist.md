@@ -7,14 +7,15 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
-> **Current execution order (2026-07-10, after CR-2 close)**:
+> **Current execution order (2026-07-11, full-workspace build green)**:
 > 1. ✅ CR-2 (`cfd-core` + `moirai`) — closed. `ritk-core` deferred.
-> 2. ✅ Kwavers Leto compute-pipeline + Stage-B/Cleanup — `c5b1333b7` + `fa9abb664` landed on `codex/kwavers-core-moirai-parallel`; `--workspace --exclude kwavers-python` green; kwavers-python `--{no-default-features, gpu, plotting}` all green; tests/benches/examples green.
->    Peer still owes the kwavers-solver `pinn` feature Batch #4 closeout (89 errors in source — feature-gated, out of bulk-migration scope).
-> 3. ❌ RITK Burn cleanup — peer active (113 dirty files). Sub-batch #3.g (python/cli/snap) pending.
-> 4. ❌ Kwavers Batch #1 (kwavers-solver/{solver,physics}/Rayon→Moirai `par_for_each`): peer active. **41→4 residual `par_for_each` sites** across 3 files.
-> 5. ❌ Kwavers Batch #4 (kwavers-solver PINN Burn → Coeus): source-residual zero (burn.rs + burn_compat deleted). Bulk `pinn` feature-gated errors remain — peer-owned.
-> 6. **Next actionable**: Provider extension items (Batch #8) or re-check peer stream status after session boundary.
+> 2. ✅ Kwavers Stage-B (math + facade tests/examples/benches) + Stage-C (ky-python PyO3 boundary via complex_compat bridge) — `c5b1333b7` + `fa9abb664` + `ddf216ec0` + `01643ed9b` landed on `codex/kwavers-core-moirai-parallel`; cargo check --workspace --exclude kwavers-python green; cargo check -p kwavers-python --{no-default-features, gpu, plotting} all green; cargo check --tests --benches --examples --workspace --exclude kwavers-driver green (469/469 libTests, 38 doctests). The remaining kwavers-solver `pinn` feature Batch #4 closeout is peer-stream (89 errors).
+> 3. ✅ CFDrs all-features build — green with cfd-io → ritk-vtk → ritk-core → coeus-core fixed up.
+> 4. ✅ RITK coeus-core pinning fix — `4d52ff8b` build(ritk): Pin coeus workspace path-deps at 0.7.0 (track coeus/main HEAD); CFDrs cfd-suite now builds green.
+> 5. ❌ Kwavers Batch #1 (kwavers-solver/{solver,physics}/Rayon→Moirai `par_for_each`): peer active.
+> 6. ❌ Kwavers Batch #4 (kwavers-solver PINN Burn → Coeus): peer active (89 pinn-feature-gated errors).
+> 7. ❌ RITK Burn cleanup — peer active (113 dirty files). Sub-batch #3.g (python/cli/snap) pending.
+> 8. **Next actionable**: Provider extension items (Batch #8) or re-check peer stream status after session boundary.
 
 ---
 
