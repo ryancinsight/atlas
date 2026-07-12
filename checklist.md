@@ -651,3 +651,58 @@ Per the peer `d614a7f57` chore (refactor(kwavers-solver): Migrate operator_split
 ### H-067 done -- Batch #1 slice 6 partial-closure-mark 2026-07-08 (heterogeneous site 1 deferred)
 
 Per the peer `7be3fbbd8` chore (refactor(kwavers-solver): Migrate rhs.rs homogeneous par_for_each sites to moirai_parallel::par_mut().enumerate() (Batch #1 source-side slice 6), on codex/kwavers-core-moirai-parallel atop parent d614a7f5 = slice 5 = 9595a99f slice 4 = b21679f5c model_impl.rs Nit 1 fixup = d2cb977b slice 3 = c77a926d8 struct_impl.rs fixup = 9541155f slice 2 = 5cd8c708 slice 1): 11/41 sites migrated in **6/15 files** cumulative. The 4 new sites are in `crates/kwavers-solver/src/forward/nonlinear/kuznetsov/solver/rhs.rs` (1-mut + 1-immut Zip par_for_each in `KuznetsovWave::compute_rhs` homogeneous branch -- sites 2-5), migrated with 8 is_standard_layout asserts (2 per site) + 4 par_mut().enumerate with flat-index lookups. Cargo check clean. **30/41 sites / 9/15 files remain**. Heterogeneous site 1 (`Zip::indexed(rhs.view_mut())` with 3D-index closure arg + 8 (i,j,k) lookups) deferred to follow-up chore. KW-CV-001 watchpoint remains ACTIVE.
+
+## Session 2026-07-12 -- leto empty-layout fix + atlas-meta verification sweep
+
+### Closed (atlas-meta write-set)
+
+- **`leto` [patch]**: `Layout::has_zero_stride_aliasing` short-circuits on `size() ==
+  0` (commit `08d0b44` on `repos/leto` main, pushed to origin). Empty C/F-
+  contiguous layouts produced by `c_contiguous_strides` defensive
+  zero-stride collapse for zero-sized interior axes are no longer falsely
+  flagged as aliased. Regression tests added (5 cases). Provider gate:
+  fmt / clippy -D warnings / nextest --all-features 564/564 / doc --no-deps
+  all clean.
+- **Unblocked consumer test**: `kwavers-solver::inverse::fwi::time_domain::
+  encoded_source::tests::hadamard_averaged_encoded_gradient_matches_summed_shot_gradient`
+  now PASSES (was the sole documented kwavers lib test failure). Root cause:
+  test uses `CPMLConfig::default()` with `per_dimension.y == 0`, producing an
+  empty `psi_p_y` memory buffer of shape `[8, 0, 8]` with strides `[0, 8, 1]`;
+  the leto predicate rejected the mutable zip. No kwavers source change
+  required (the temporary `eprintln!` debug lines from the prior session were
+  uncommitted scratch; removed by restoring HEAD state on `axis.rs`).
+- **atlas-meta pointer**: `repos/leto` submodule bumped `a20286e -> 08d0b44`.
+
+### Verification sweep (consumer read-only)
+
+Full-workspace `cargo nextest run --no-fail-fast` from each consumer repo:
+
+| Repo | Inner HEAD | Branch | Result | Known peer-active items |
+|---|---|---|---|---|
+| `kwavers` | `7c70d1b1d` | `codex/kwavers-core-moirai-parallel` | 5611/5612 lib pass, 1 timeout, 15 skipped | `abdominal_preprocessing_selects_one_connected_treatment_component` (elastic-fwi profile 90 s budget) -- see `gap_audit.md` KW-WATCH-002 |
+| `CFDrs` | `e24922c8` | `codex/cfdrs-atlas-migration` | 3055/3056 pass, 1 fail, 30 skipped | `cfd-suite::cross_fidelity_blueprint_complex_branching` Picard non-convergence -- pre-filed by peer `fa28ce43` |
+| `ritk` | `0ca58574` | `codex/ritk-burn-ndarray-cleanup` | 4900/4900 pass, 26 skipped | `ritk-model ssmmorph::decoder::tests::test_decoder_forward` 293.9 s (9.8x slow threshold) on burn NdArray backend -- peer active Burn dep strip Batch #4/#5 |
+
+### Findings recorded in `gap_audit.md`
+
+See `gap_audit.md` "Findings 2026-07-12" section for the three recorded items:
+leto fix summary, KW-WATCH-002 (kwavers-therapy perf), and the CFDrs and
+ritk peer-stream watchpoints. Per ADR 0011 disjoint-scope, atlas-meta is
+NOT editing peer-active consumer source for any of these items; the leto
+fix is the sole closed write-set this session.
+
+### Concurrent peer activity (not mine)
+
+- kwavers peer stream advanced HEAD `1a27e922d -> 7c70d1b1d` mid-session
+  (`refactor(kwavers-python): Remove rank-one shim`). 11 dirty files in
+  `crates/kwavers-python` (peer Stage-C complex_compat bridge in flight).
+- CFDrs working tree: `Cargo.lock` artifact drift only.
+- ritk working tree: 5 modified files in `crates/ritk-core/tests` + Cargo.lock
+  (peer Burn dep strip WIP).
+
+### Next actionable
+
+- Await peer stream closure of the three watchpoints (kwavers-therapy perf,
+  CFDrs cfd-1d Picard convergence, ritk Burn dep strip Batch #4/#5).
+- Re-verify each consumer repo after peer closures, then trigger an
+  atlas-meta alignment sweep committing the new submodule pointers.

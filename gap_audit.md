@@ -1,6 +1,8 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
-
+> State refresh (2026-07-12): gap_audit.md last active edit was 2026-07-08.
+> kwavers inner HEAD has advanced by 40+ commits since then, resolving Batch #1–#4
+> (Rayon, ndarray, nalgebra, Burn migrations). See `## State refresh` below.
 
 > Cross-repo consolidator: per-repo gap audits (`repos/kwavers/gap_audit.md`, `repos/CFDrs/docs/gap_audit.md`/`backlog.md`, `repos/ritk/gap_audit.md`) remain authoritative for repo-local gaps. This file records:
 
@@ -22,9 +24,51 @@
 
 
 
+## State refresh (2026-07-12) — superseded batch status
+
+> Empirical re-verification against current tree. Evidence tier: grep/basher/dep-tree.
+
+### kwavers consumer-side migrations — substantially complete
+
+Verified at kwavers inner HEAD `7c70d1b1d` (`codex/kwavers-core-moirai-parallel`, clean WT).
+
+| Migration batch | gap_audit status (2026-07-08) | Current status (2026-07-12) | Evidence |
+|---|---|---|---|
+| **#1 (Rayon→moirai par_for_each)** | OPEN: 41 sites / 15 files | **CLOSED** — 0 sites | `grep -rn "par_for_each" repos/kwavers/crates/ --include="*.rs"` = 0 |
+| **#2 (ndarray→leto)** | TRACKING: 2,496 line-hits | **CLOSED** — 0 `use ndarray` imports, 0 direct `ndarray` dep | `grep "use ndarray\|^ndarray\b" repos/kwavers/crates/ --include="*.rs"` = 0; crate Cargo.tomls have comment-only ndarray refs |
+| **#3 (nalgebra→leto)** | OPEN: 13 sites / 5 manifests | **CLOSED** | `grep -rn "nalgebra" repos/kwavers/crates/` = 0 |
+| **#4 (Burn→coeus)** | OPEN: facade WIP | **CLOSED** — 0 burn in source/manifests | `grep -rn "burn" repos/kwavers/crates/ --include="*.rs" --include="*.toml"` = comments only |
+| **Tuple shapes→array syntax** | N/A (post-gap_audit) | **DONE** | 110 files in `fe6d2a174` (non-PINN) + `a4124b9d4` (PINN) |
+| **`.slice().unwrap()` restoration** | N/A | **DONE** | 26 sites in 3 files (`fe6d2a174`) |
+| **Boundary Leto traversal** | N/A | **DONE** | `e6bc57130`: 21 files, −158 net lines, deleted `parallel.rs` bridge |
+
+40+ commits landed on kwavers since the gap_audit baseline `35ee01076`, including Batch #1 source-side slices 1–9, kwavers-core/source/signal/grid/field→leto, Complex/ndarray types→eunomia, and workspace-wide ndarray↔leto boundary fixes.
+
+### Key gap_audit entries — stale / superseded
+
+- **Bulk-migration priority #1** lines 315–418: 41/15 par_for_each → 0
+- **Bulk-migration priority #2** lines 319, 347–418, 563–793: 2,496 ndarray hits → 0 imports
+- **Bulk-migration priority #3** line 320: 13 nalgebra sites → 0
+- **Bulk-migration priority #5** line 323: surface met → fully closed
+- **E0599 closure-front** lines 772–806: 151 .view()/.view_mut() → resolved by boundary migration
+- **KW-CV-001/002 watchpoints** lines 1063–1072, 1704: trigger exceeded (42+ commits since creation)
+- **Batch #1 partial-closure marks** lines 1717–1747: all superseded
+
+### Remaining open items
+
+| ID | Scope | Class | Notes |
+|---|---|---|---|
+| **CR-2** | Global allocator → DI handle | `[arch]` | Batch #6; low urgency |
+| **GPU provider abstraction** | kwavers-gpu kernel-buffer | `[arch]` | gap_audit provider register |
+| **eunomia Complex64 SSOT** | csr.rs numeric trait | `[arch]` | Verify if Complex→eunomia migration resolved |
+| **CLD-2** | Wire kzk_solver_plugin→HIFU | `[minor]` | CHECKLIST.md:5727 |
+| **SOL-10/11** | Rustdoc sweep; CI k-wave validators | `[patch]` | CHECKLIST.md:5726 |
+| **Phase 1 Foundation** | 100% audit | `[foundation]` | CHECKLIST.md:5730 |
+| **BOOK-CH24/CH26** | PyO3 import contract | `[patch]` | gap_audit.md:4317 — partial |
+| **COV-5** | Shell models | `[minor]` | gap_audit.md:4787 — partial |
+
+
 ## Atlas architectural directive (2026-07-08)
-
-
 
 > Migration target framing per the consolidation directive. All
 
@@ -298,41 +342,31 @@ Atlas provider stack:
 
 
 
-### Bulk-migration priority order (7 items, 2026-07-08 snapshot)
+### Bulk-migration priority order (refreshed 2026-07-12)
 
-
-
-Ordered by current source-impact and peer-side closure proximity.
-
-Closure-progress count: 2 CLOSED + 5 OPEN.
-
-
+Closure-progress count: 5 CLOSED + 1 OPEN (ritk Batch #3) + 1 CLOSED (helios).
 
 | # | Migration | Source-scope | Provider gate | Peer status | Disjoint-scope |
 
 | -- | --- | --- | --- | --- | --- |
 
-| **1** | kwavers Rayon -> moirai (Batch #1 source-side) | 41 `.par_for_each()` sites / 15 files at inner HEAD `05500930c` (`crates/kwavers-solver/src/**`) | manifest-strip CLOSED at `702e4f125` | source-side OPEN | atlas-meta defers; per KW-CV-001 watchpoint |
+| **1** | kwavers Rayon -> moirai (Batch #1 source-side) | 0 `.par_for_each()` sites at inner HEAD `7c70d1b1d` | manifest-strip CLOSED at `702e4f125` | **CLOSED 2026-07-12** | n/a |
 
-| **2** | kwavers ndarray -> leto's `ndarray-compat` | 2,496 line-hits / 1,492 files at inner HEAD `35ee01076` | leo `ndarray-compat` feature live; N=1/24 consumer coverage (kwavers-math only) | TRACKING | atlas-meta defers |
+| **2** | kwavers ndarray -> leto | 0 `use ndarray` imports; 0 direct `ndarray` dep at inner HEAD `7c70d1b1d` | n/a (leto native) | **CLOSED 2026-07-12** | n/a |
 
-| **3** | kwavers nalgebra -> leto | 13 sites / 5 manifests; Kalman filter (DMatrix/DVector), Christoffel acoustic tensor (Matrix3, SymmetricEigen), MVDR beamforming, FWI-CBS, BEM-FEM coupling, Helmholtz FEM | leto `Quaternion<T>` + `Matrix4<T>` typed-const extensions (provider-land) | OPEN | atlas-meta defers |
+| **3** | kwavers nalgebra -> leto | 0 `nalgebra` in source/manifests at inner HEAD `7c70d1b1d` | n/a | **CLOSED 2026-07-12** | n/a |
 
-| **4** | ritk Batch #3 (Burn -> coeus) source-side | 176 `burn::` sites / 97 files at inner HEAD `1f49278c`; concentrated in `ritk-image` + `ritk-spatial` + `ritk-filter` + `ritk-registration` | sub-batch #1+#2 CLOSED; sub-batch #5 RITK-spatial rebind mid-flight | OPEN | atlas-meta defers; sub-batch #5 [major] standing reminder |
+| **4** | ritk Batch #3 (Burn -> coeus) source-side | see gap_audit lines 814–1039; atlas-meta advancing RITK submodule pointers (60+ native filter advances) | sub-batch #1+#2 CLOSED; sub-batches #3–#6 peer-WIP | OPEN | atlas-meta advances RITK gitlinks (60+ commits) |
 
-| **5** | kwavers Burn -> coeus (Batch #4 surface met) | Closure-pinned: zero `burn::` source residual at inner HEAD `05500930c`; `Cargo.toml` strip landed at `8b128c478`; facade deleted | CR-4 eunomia SSOT rebind landed; `coeus_core::ComputeBackend` SSOT | surface met; awaits KW-CV-001 gitlink advance | atlas-meta defers |
+| **5** | kwavers Burn -> coeus (Batch #4) | 0 `burn::` source residual at inner HEAD `7c70d1b1d`; manifest strip landed | CR-4 eunomia SSOT rebind landed | **CLOSED 2026-07-12** | n/a |
 
-| **6** | CFDrs nalgebra migration push | 7 crates + nalgebra-sparse + num-traits; 51,857 insertions / 22,087 deletions | n/a | **CLOSED 2026-07-05** (`d58d1fe3`) | n/a |
+| **6** | CFDrs nalgebra migration push | 7 crates + nalgebra-sparse + num-traits; 51,857 / 22,087 deletions | n/a | **CLOSED 2026-07-05** (`d58d1fe3`) | n/a |
 
-| **7** | helios H-061 / H-062 (DICOM + dep strip) | DICOM real-input closure through `ritk-dicom`; aggregate `dicom/ndarray` feature edge strip; Helios direct `num-traits` strip | RITK provider (`ritk-dicom::{DicomTag, tags, DicomAttributeRead}`) | **CLOSED 2026-07-07** | H-063 imaging-toolkit audit pending |
+| **7** | helios H-061 / H-062 (DICOM + dep strip) | DICOM real-input closure through `ritk-dicom` | RITK provider (`ritk-dicom::{DicomTag, tags, DicomAttributeRead}`) | **CLOSED 2026-07-07** | H-063 imaging-toolkit audit pending |
 
 
 
-**Migration queue summary**: 7 ordered targets. 2 CLOSED (CFDrs
-
-nalgebra, helios DICOM unification); 5 OPEN (kwavers Rayon source,
-
-kwavers ndarray, kwavers nalgebra, ritk Burn, kwavers Burn source).
+**Migration queue summary (refreshed)**: 7 ordered targets. 5 CLOSED (kwavers #1/#2/#3/#5, CFDrs), 1 OPEN (ritk Batch #3), 1 CLOSED (helios).
 
 Atlas-meta pending bookkeeping: 0 (all gitlink-aligned per the
 
@@ -1701,7 +1735,7 @@ Active watchpoints for submodule pointer advances or other forward-only chore tr
 
 
 
-- **KW-CV-001 (kwavers final closeout)** — trigger condition: `cd /d/atlas/repos/kwavers && git log --oneline -30 | grep -iE 'closeout|final|completion|close-batch'` returns at least 1 match (currently 0 matches at inner HEAD `05500930c`, indicating the closeout has NOT landed; peer appears to be landing Batch #4 slice-by-slice without an explicit close). Action sequence per row 11 DYNAMIC-SHA-EXTRACTION MANDATE: (1) `cd /d/atlas/repos/kwavers && git rev-parse <short-sha-or-ref>^{commit}` to derive the full SHA dynamically (the `$(...)` substitution is structurally load-bearing per row 11); (2) `cd /d/atlas && git update-index --add --cacheinfo 160000,<full-sha>,repos/kwavers`; (3) write body-scratch at `/d/atlas/.body-scratch-kwavers-advance` with subject `chore(atlas): Advance repos/kwavers pointer to <short-sha> (final closeout)` and body citing the KW-CV-001 trigger + the `e0bf55684` row 6 audit sub-bullet + the `7b65bfeb` + `e128487a9` + `a7696c09e` kwavers sub-bullets + disjoint-scope-deferral closeout; (4) `git commit -F <body-scratch>` (NEW atomic chore per row 10 NO-AMEND rule, NOT `--amend` on a parent commit containing the affected gitlink) + `git push --force-with-lease origin codex/kwavers-atlas-integration`. **Status**: ACTIVE as of 2026-07-08. **Verification cadence**: any session surfacing a fresh kwavers row 6 sub-bullet should re-run the trigger check (`cd /d/atlas/repos/kwavers && git log --oneline -30 | grep -iE 'closeout|final|completion|close-batch' | wc -l`) before declaring this watchpoint CLOSED. Once a closeout-style commit lands, the action sequence above executes in a single NEW atomic chore and the watchpoint is marked CLOSED in this section.
+- **KW-CV-001 (kwavers final closeout)** — **CLOSED 2026-07-12**. Trigger substance was kwavers consumer-side Batch #1–#4 closure. All resolved per `## State refresh` above (0 par_for_each, 0 use ndarray, 0 nalgebra, 0 burn). No closeout-style commit subject naming convention was used, but the substantive condition (zero legacy migration surface) is met at kwavers inner HEAD `7c70d1b1d`. The atlas-meta `HEAD:repos/kwavers` gitlink is current (parent `01bb2e0` on `codex/kwavers-atlas-integration` already tracks the kwavers inner).
 
 
 
@@ -1745,3 +1779,126 @@ Per the peer `7be3fbbd8` chore (refactor(kwavers-solver): Migrate rhs.rs homogen
 Filename off-by-one correction: my slice 6 commit body draft said `5/15 files` but the correct cumulative is `6/15 files` (slice 6 adds `rhs.rs` as the 6th distinct migrated file). This audit closure-mark restores the correct arithmetic.
 
 Full-closure mark (Batch #1 CLOSED) remains retracted; this is the sixth per-slice partial-closure mark. KW-CV-001 watchpoint remains ACTIVE on the disjoint-scope rule. Cumulative arithmetic cross-check: 11 = 2 (slice 1) + 2 (slice 2) + 1 (slice 3) + 1 (slice 4) + 1 (slice 5) + 4 (slice 6); 6 files = struct_impl.rs (slice 1) + model_impl.rs (slice 2) + diffusion.rs (slice 3) + nonlinear.rs (slice 4) + operator_splitting/mod.rs (slice 5) + rhs.rs (slice 6).
+
+> **SUPERSEDED 2026-07-12**: Batch #1 source-side migration completed (0 `par_for_each` sites at kwavers inner HEAD `7c70d1b1d`). All six partial-closure marks above are historical records of the slice-by-slice migration progress. See `## State refresh` at the top of this file for current status.
+
+## Findings 2026-07-12: leto empty-layout aliasing fix + kwavers-therapy abdominal perf watchpoint
+
+### leto [patch]: `Layout::has_zero_stride_aliasing` short-circuits on size 0
+
+`Layout::has_zero_stride_aliasing` rejected empty C/F-contiguous layouts
+(shape with a zero-sized interior axis) as aliased, because
+`c_contiguous_strides` defensively collapses the leading stride to 0 when
+an interior axis has size 0 and the predicate only checked
+`dim > 1 && stride == 0` per axis without considering total element count.
+An empty layout has no addressable elements, so overlapping writes are
+impossible; the predicate now short-circuits on `size() == 0`.
+
+- **Provider fix**: leto inner commit `08d0b44` on `main` (atlas-meta submodule
+  pointer `repos/leto` advanced). Regression tests added at
+  `crates/leto/src/domain/layout/shape.rs` (5 tests: empty C-contiguous,
+  empty F-contiguous, positive zero-stride axis with non-unit dim, broadcast
+  axis alone, broadcast layout with zero dim). Provider gate: `cargo fmt --check`,
+  `cargo clippy --all-targets --all-features -- -D warnings`, `cargo nextest run
+  --workspace --all-features` (564/564), `cargo doc --no-deps` all clean.
+- **Consumer unblock**: `kwavers-solver::inverse::fwi::time_domain::encoded_source::tests::hadamard_averaged_encoded_gradient_matches_summed_shot_gradient`
+  now PASSES (was the sole documented kwavers lib test failure). Root cause: the
+  test uses `CPMLConfig::default()` with `per_dimension.y == 0`, producing an
+  empty `psi_p_y` memory buffer of shape `[8, 0, 8]` with strides `[0, 8, 1]`;
+  the `slice_with_mut` of that buffer inherited the leading zero stride and
+  the mutable zip predicate rejected it.
+- **Full-kwavers workspace nextest sweep post-fix**: 5611/5612 LIB tests pass,
+  1 timeouts (therapy profile, `elastic-fwi` test group with 90s timeout per
+  `repos/kwavers/.config/nextest.toml:70-74`), 15 skipped. The timeout is an
+  existing perf gap (see below), not a correctness regression from this fix.
+  Verification command: `cargo nextest run --workspace --exclude kwavers-driver
+  --no-fail-fast` from `repos/kwavers`.
+
+### kwavers-therapy `run_theranostic_inverse` perf regression — KW-WATCH-002
+
+`therapy::theranostic_guidance::tests::abdominal::abdominal_preprocessing_selects_one_connected_treatment_component`
+terminates at the 90s elastic-fwi profile timeout, reproducible in isolation
+(verified twice this session). The test exercises `run_theranostic_inverse` on
+a 72×72×3 phantom CT; the smaller-grid sibling
+`abdominal_theranostic_inverse_recovers_lesion_support` (42×42×3) passes at
+16–19 s, and `abdominal_preprocessing_keeps_external_skin_between_target_and_aperture`
+(64×64×3) passes at 81 s (just under the timeout). The FWI inverse scales
+super-linearly past the budget at the larger grids.
+
+- **Pre-existing**: the prior session (kwavers peer stream commits
+  `72333295f` "Use Moirai abdominal maps" + `4b83a6389` "Use Moirai thermal
+  maps" 2026-07-03) declared these timeouts closed at 340/340; gap_audit.md
+  entry at L4843-4848 re-opened as `[perf]` on 2026-07-10.
+- **Scope**: this is a kwavers peer-stream (`@ryancinsight`) test-time-budget
+  perf issue (`[perf]` per `repos/kwavers/gap_audit.md:4843-4848`), not an
+  atlas-meta migration-source-swap gap. Per ADR 0011 Leg 2 disjoint-scope,
+  atlas-meta is NOT editing `crates/kwavers-therapy/**` source for this. The
+  current atlas-meta item (leto empty-layout fix) is unrelated to the FWI
+  solver cost; my leto fix does not cause or worsen this timeout (reproduced
+  identically with leto at its pre-fix HEAD `a20286e`).
+- **Action**: surfaced as KW-WATCH-002 watchpoint for the kwavers peer stream.
+  The AGENTS.md test-time budget rule (`slow-timeout = { period = "30s",
+  terminate-after = 2 }`) governs the *default* profile; this test is on an
+  explicit override (`slow-timeout = { period = "90s", terminate-after = 1 }`,
+  `repos/kwavers/.config/nextest.toml:70-74`), so the 90 s bound is the
+  committed contract. The fix is an algorithm/perf optimization of
+  `run_theranostic_inverse` and `simulate_waveform_adjoint_rtm` in
+  `crates/kwavers-therapy/src/therapy/theranostic_guidance/solver.rs` per the
+  closure pattern recorded in `repos/kwavers/checklist.md` L3714-3728.
+
+### CFDrs `cross_fidelity_blueprint_complex_branching` -- peer-tracked cfd-1d convergence regression
+
+CFDrs full workspace nextest (`cargo nextest run --workspace --all-features
+--no-fail-fast` from `repos/CFDrs` at inner HEAD `e24922c8`) reports
+3055/3056 pass, 1 fail, 30 skipped. The single failure is
+`cfd-suite::cross_fidelity_blueprint cross_fidelity_blueprint_complex_branching`
+which panics with
+`MaxIterationsExceeded: Convergence failed: Maximum iterations (10000)
+exceeded` from `cfd-1d` `Network2DSolver` `solve_reference_trace` on the
+`double_trifurcation_cif_venturi_rect` network.
+
+- **Pre-filed by CFDrs peer stream**: `repos/CFDrs/gap_audit.md` Finding
+  2026-07-10 "cfd-1d double-trifurcation Picard non-convergence (test
+  regression)" (commit `fa28ce43`). Explicitly NOT a test-gaming item: the
+  peer stream records "the test asserts real mass-conservation physics; the
+  fix must be in the solver/assembly, never a weakened tolerance or raised
+  iteration cap."
+- **Scope**: peer-active -- the peer stream notes "the convergence path is
+  under active concurrent peer edit (`0d101352` "enhance Anderson QR
+  collapse detection"); coordinate before touching `solver/core`." Per ADR
+  0011 disjoint-scope, atlas-meta is NOT editing `crates/cfd-1d/**` or
+  `solver/core/mod.rs` for this. Verification command reproduced the exact
+  failure already on record.
+- **DoR for peer**: differential-test the assembled cfd-1d matrix + rhs for
+  this network against the pre-migration commit (parent of `d58d1fe3`) to
+  classify regression vs. genuine stiffness; capture the Picard residual
+  trajectory; verify Newton fallback engages on Picard stagnation. As of CFDrs
+  HEAD `e24922c8` this DoR is unmet (peer work in progress).
+
+### ritk `test_decoder_forward` slow-test watchpoint -- peer-stream burn dep strip scope
+
+ritk full workspace nextest (`cargo nextest run --workspace
+--all-features --no-fail-fast` from `repos/ritk` at inner HEAD `0ca58574`, branch
+`codex/ritk-burn-ndarray-cleanup`) reports 4900/4900 pass, 26 skipped.
+One test crosses the engineering_gates 30 s slow threshold:
+`ritk-model ssmmorph::decoder::tests::test_decoder_forward` at 293.9 s
+(9.8x over budget). The test uses `burn_ndarray::NdArray` as the test backend
+(see `crates/ritk-model/src/ssmmorph/decoder.rs:286`). 260 `use burn*`
+import sites remain across ritk source; workspace Cargo.toml declares
+`burn = "0.19"`, `burn-ndarray = "0.19"`; ndarray surfaces only via these
+burn deps (no direct ndarray dep). The most recent touch to `decoder.rs` is
+`c696ee41` (ComputeBackend rebind) -- a structural migration-side rebind, not
+a behavioral change.
+
+- **Scope**: this is the `[major]` ritk Batch #4/#5 Burn dep strip deferred
+to peer stream per `atlas-backlog.md`. The peer branch name
+`codex/ritk-burn-ndarray-cleanup` confirms the active migration. Per ADR 0011
+  disjoint-scope, atlas-meta is NOT editing ritk source/test files for this;
+  the slow-test cost is the burn NdArray backend executing the SSM-Morph
+  decoder forward pass and will be removed when the test backend migrates to
+  coeus under the peer stream Burn dep strip.
+- **DoR for peer**: when migrating `ritk-model/src/ssmmorph/decoder.rs` tests
+  from `burn_ndarray::NdArray` to coeus backend, verify the post-migration
+  decoder forward test executes within the default 30 s slow threshold.
+  Cross-check the underlying numerical cost is the model architecture
+  (32 / 64 / 128 / 256 encoder channels), not a backend inefficiency.
