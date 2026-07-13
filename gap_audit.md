@@ -2163,11 +2163,12 @@ Evidence is static source inspection unless a stronger tier is stated.
   tests, doctests, rustdoc, and semver classification pass; Hephaestus clippy,
   131/131 nextest, doctests, and rustdoc pass. Commits `3c1cf83` and `058a2b8`
   are pushed.
-- **P0 correctness — Hephaestus empty decompositions:** CUDA bidiagonal,
-  column-pivoted QR, full-pivot LU, Hessenberg, and QR plus WGPU QR synthesize a
-  1x1 zero factorization for empty matrices. Full-pivot LU determinant observes
-  that singular placeholder and returns zero instead of the empty-product
-  identity one. Use genuine empty state and value-semantic empty contracts.
+- **Resolved P0 correctness — Hephaestus empty decompositions (`65e89b7`):**
+  CUDA bidiagonal, column-pivoted QR, full-pivot LU, Hessenberg, and QR plus WGPU
+  QR now use canonical Leto empty state. Value-semantic contracts pin actual
+  dimensions, identity factors, rank, permutations, and the empty-product
+  determinant. Evidence: focused CUDA/WGPU contracts, Clippy, 239/239 nextest,
+  doctests, and rustdoc pass. No synthetic 1x1 factorization remains.
 - **P0 safety — Melinoe scoped partition registration:** safe
   `register_parallel_executor` accepts an implementation whose contract must
   prevent duplicate raw-slot writes and uninitialized output reads. Encode the

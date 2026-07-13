@@ -903,6 +903,7 @@ fix is the sole closed write-set this session.
   nextest, doctests, and rustdoc.
 - [x] Record ranked provider findings and acceptance criteria in
   `gap_audit.md` and `backlog.md`.
-- [ ] Next increment: HEPH-EMPTY-001 after the callback publish gate closes;
-  MOI-NUMA-001 remains parked until the active scheduler/deque peer scope is
-  committed and green.
+- [x] Close HEPH-EMPTY-001 with canonical Leto empty state, CUDA/WGPU
+  value-semantic contracts, and the full 239-test backend gate (`65e89b7`).
+- [ ] Next increment: MEL-SCOPE-001; MOI-NUMA-001 remains parked until the
+  active scheduler/deque peer scope is committed and green.
