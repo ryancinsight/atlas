@@ -2135,3 +2135,19 @@ fixes moirai OR a future cycle can verify ritk against the previously-pinned
 moirai HEAD `877cde0` (requires checking out that moirai commit in the inner
 WT, which `concurrent_agents` prohibits when the peer has uncommitted WT work
 — the deadlock condition is filed here as the re-open trigger).
+
+### Same-cycle hephaestus advance — verified (peer HEAD `c78a98e`)
+Peer HEAD `c78a98e1 docs(wgpu): Claim callback migration` atop prior pinned
+`b90923ef`. Single docs-only commit on `codex/fix-wgpu-callback-pair` branch.
+Re-verification at HEAD `c78a98e` (`cargo nextest run --workspace --no-fail-fast`
+from `repos/hephaestus`): **298/298 pass** (97.554 s suite total; slowest
+individual test `hephaestus-wgpu::volume_ray_integral
+affine_field_is_integrated_exactly_by_midpoint` at 1.196 s, well under the 30 s
+slow threshold in `.config/nextest.toml`). Inner hephaestus WT remains dirty
+on three files (`crates/hephaestus-wgpu/src/infrastructure/device.rs`,
+`crates/hephaestus-wgpu/src/lib.rs`, `crates/hephaestus-wgpu/tests/contract.rs`)
+— peer active on wgpu callback pair migration; atlas-meta pins only the
+verified committed HEAD, never WT state.
+Atlas-meta `repos/hephaestus` gitlink advanced
+`b90923ef25d8148b53716e652cdf5b807e31586d →
+c78a98e1c7d5615fc8744622a6c9013ed16e1e6b`.

@@ -862,3 +862,32 @@ fix is the sole closed write-set this session.
 - ⏳ **kwavers-therapy KW-WATCH-002 perf** — open.
 - ⏳ **ritk Burn dep strip Batch #4/#5/#6** — open.
 - ⏳ **MR-WATCH-001 (moirai-scheduler/executor rebuild)** — NEW, open.
+
+## Session 2026-07-13 (continued #2) -- hephaestus advance (docs-only peer commit, full gate green)
+
+### Closed (atlas-meta write-set)
+
+- **`hephaestus` advance**: peer HEAD `c78a98e1`
+  (`docs(wgpu): Claim callback migration`) atop prior pinned `b90923ef` on branch
+  `codex/fix-wgpu-callback-pair`. Single docs-only commit atop the previously-
+  verified `b90923e` `perf(hephaestus-wgpu): Gate pinv/matexp/random behind
+  decomposition/sparse features`. Re-verification at HEAD `c78a98e`:
+  `cargo nextest run --workspace --no-fail-fast` from `repos/hephaestus`:
+  **298/298 pass** (97.554s suite total; slowest single test 1.196s, well under
+  30s slow threshold). Inner hephaestus WT remains dirty on three wgpu files
+  (`device.rs`, `lib.rs`, `contract.rs`) — peer active on wgpu callback pair
+  migration — but atlas-meta pins only the verified committed HEAD, never WT
+  state. Atlas-meta `repos/hephaestus` gitlink advanced
+  `b90923ef25d8148b53716e652cdf5b807e31586d →
+  c78a98e1c7d5615fc8744622a6c9013ed16e1e6b`.
+
+### Next actionable
+
+- Two intentionally-blocked gitlink advances remain (moirai MR-WATCH-001,
+  ritk verify-blocked upstream via moirai path-dep). Re-open trigger is the
+  same for either: peer lands a clean-green moirai HEAD with zero WT edits.
+- Provider-repo Batch #8 `[minor]` extensions remain claimable in peer-clean
+  provider repos (`eunomia`, `gaia`, `hermes`, `leto`, `melinoe`, `themis`,
+  `consus`). Each requires editing the owning provider's own source per its
+  own backlog register; provider repos commit independently and the gitlink
+  advance is a follow-up increment in atlas-meta.
