@@ -1902,3 +1902,112 @@ to peer stream per `atlas-backlog.md`. The peer branch name
   decoder forward test executes within the default 30 s slow threshold.
   Cross-check the underlying numerical cost is the model architecture
   (32 / 64 / 128 / 256 encoder channels), not a backend inefficiency.
+
+## Findings 2026-07-12 (evening session): kwavers Batch #1 source-side closure + ritk coeus-native paths
+
+### kwavers Batch #1 (kwavers-solver / kwavers-physics Rayon → Moirai) — ✅ CLOSED
+
+Kwavers peer stream commit `5913f2946` (subject `perf(kwavers-solver):
+Migrate solver tree to moirai parallel iterators`, branch
+`codex/kwavers-core-moirai-parallel`), landed 2026-07-12 22:23 EDT, drives the
+Batch #1 source-side closure condition to ZERO. The commit's body declares
+"Closes remaining ndarray-parallel and rayon surface-level dependencies in
+kwavers-solver." Residual-surface re-verification at atlas-meta HEAD
+`5913f2946`:
+
+- `par_for_each` source sites: **0** (was 41 across 15 files at the prior
+  session's HEAD `7c70d1b1d` per gap_audit.md `### Remaining open items`).
+- `burn::` source hits: **0** (Batch #4 closeout landed on the prior peer
+  stream per gap_audit.md L1893-L1904; not a Batch #1 surface but
+  co-verified).
+- `nalgebra` source hits: **0** (was 13 sites / 5 manifests at the 2026-07-08
+  gap_audit baseline; closed by prior cuts).
+- `use ndarray` source imports: **0** (was 2,496 line-hits at the 2026-07-08
+  gap_audit baseline; closed by the Phase-3 + Phase-4 kwavers-core/source/
+  signal/grid/field migrations landed at `4b7f4804e`).
+- `kwavers-solver/Cargo.toml` deps section: zero `ndarray` / `rayon` /
+  `burn`; substrate is `leto` + `leto-ops` + `moirai-parallel` only. The "sole
+  remaining crate-level rayon dependency" cited in the commit body is
+  `kwavers-solver`'s Cargo.toml `ndarray` `rayon` feature gate carried as a
+  separate item per the commit body's final sentence — this is a manifest
+  detail, NOT a source-site residual.
+- Test verification at HEAD `5913f2946`:
+  `cargo nextest run --workspace --exclude kwavers-driver --no-fail-fast --lib`
+  from `repos/kwavers`: **5117/5119 pass, 2 timeouts, 7 skipped**.
+  The two timeouts are the pre-existing KW-WATCH-002 abdominal-preprocessing
+  perf tests (`abdominal_preprocessing_keeps_external_skin_between_target_and_aperture`
+  and `abdominal_preprocessing_selects_one_connected_treatment_component`, both
+  on the explicit 90s `elastic-fwi` profile override at
+  `repos/kwavers/.config/nextest.toml:70-74`). These are NOT regressions
+  introduced by the moirai-iterator migration — the prior session recorded
+  `abdominal_preprocessing_keeps_external_skin_between_target_and_aperture`
+  passing at 81 s (gap_audit.md L1825) and the FWI cost scales
+  super-linearly with grid size. Closing the perf gap is the kwavers peer
+  stream's responsibility per ADR 0011 disjoint-scope (KW-WATCH-002 DoR
+  unchanged); atlas-meta is NOT editing `crates/kwavers-therapy/**` source.
+- **KW-CV-001 watchpoint resolution**: the lexical-trigger probe
+  (`git log --oneline -30 | grep -iE 'closeout|final|completion|close-batch'`)
+  still returns 0 at HEAD `5913f2946` — the peer uses "Migrate ..." subject
+  phrasing. However, the underlying closure condition (zero `par_for_each`
+  source sites per gap_audit.md `### Remaining open items` table) IS met, and
+  the commit body explicitly declares closure of the surface-level
+  dependencies. Atlas-meta is therefore advancing the parent-side gitlink on
+  the substantive closure condition, not the lexical trigger — the lexical
+  trigger was a proxy, the zero-site condition is the invariant.
+- **Cross-crate residual**: kwavers-python `numpy = "0.27"` and the boundary
+  `ndarray-compat` feature on leto are required PyO3 / leto-compat surfaces,
+  not forbidden `ndarray` direct deps. No action.
+
+### Atlas-meta pointer advance — `repos/kwavers` gitlink
+
+`repos/kwavers` submodule pointer advanced `01643ed9b53fb42f54d0fcb2dfcfe3c1117bfb2f
+→ 5913f29466bb6b769aefbc1a9b794c63b139babb` via the dynamic-SHA-extraction
+convention (gap_audit.md row 11). Closes Batch #1 at the atlas-parent
+layer. Batch #4 (kwavers-solver PINN Burn → Coeus) was already closed at
+the prior peer HEAD `05500930c` per gap_audit.md L1893 — co-verified here at
+`5913f2946` (zero `burn::` source, zero `burn` in `kwavers-solver/Cargo.toml`).
+
+### ritk coeus-native paths advanced — `repos/ritk` gitlink
+
+Ritk peer stream advanced `57b2b1c3 → bcd3b726` on branch
+`codex/ritk-burn-ndarray-cleanup`, landing coeus-native paths in
+`ritk-filter` (intensity + grayscale morphology) and `ritk-statistics`
+(normalization, comparison) as incremental sub-batch #3 per-crate work per
+ADR 0012. Verification at HEAD `bcd3b726`:
+`cargo nextest run -p ritk-filter -p ritk-statistics -p ritk-image --lib
+--no-fail-fast` from `repos/ritk`: **1399/1399 pass, 0 skipped**.
+Residual `use burn` source imports: **320** (down from prior session's
+260-test-backend count baseline; the dep strip per Batch #3 sub-batch #5
+remains peer-stream-gated per ADR 0012 — sub-batches #4, #5, #6 are
+reserved pending sub-batch #3.g (python/cli/snap) closure per the standing
+reminders in backlog.md).
+
+`repos/ritk` submodule pointer advanced
+`57b2b1c3c5eb81b78f50c579730a3b8263b03955 →
+bcd3b726a99c55b591f01cc7e922322742ba203d` via the dynamic-SHA-extraction
+convention. Inner RITK WT remains dirty (peer-active Batch #4/#5 Burn dep
+strip WIP); atlas-meta is NOT absorbing inner-WT state into the parent
+pointer per the disjoint-scope rule — only the committed HEAD advance is
+pinned.
+
+### Out-of-scope this session (unchanged from prior findings)
+
+- **CFDrs** (`m` lowercase at atlas-parent): inner WT dirty with peer-active
+  cfd-1d Picard convergence work (the `cross_fidelity_blueprint_complex_branching`
+  finding above). Gitlink ALIGNED; no pointer advance needed. Atlas-meta is
+  NOT editing `crates/cfd-1d/**` per ADR 0011.
+- **helios** (`m` lowercase at atlas-parent): inner WT carries only untracked
+  `examples/` dirs under `crates/helios-{core,domain}`. Gitlink ALIGNED; no
+  pointer advance needed.
+- All 14 other actively-tracked submodules ALIGNED at inner HEAD with zero
+  diverged gitlinks.
+
+### Next actionable
+
+- Continue observing the three peer-stream watchpoints (kwavers-therapy
+  KW-WATCH-002 perf, CFDrs cfd-1d Picard convergence, ritk Burn dep strip
+  sub-batches #4/#5/#6).
+- Provider extension items (Batch #8) remain claimable, but require inner-repo
+  edits in provider repos whose WT is peer-clean (leto, moirai, apollo,
+  eunomia)._kwavers-solver `Cargo.toml` `ndarray` `rayon` feature gate strip
+  (the separate item flagged in `5913f2946`'s body) is a kwavers-peer item.

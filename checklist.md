@@ -7,15 +7,15 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
-> **Current execution order (2026-07-11, full-workspace build green)**:
+> **Current execution order (2026-07-12 evening session, kwavers Batch #1 + #4 closed)**:
 > 1. ✅ CR-2 (`cfd-core` + `moirai`) — closed. `ritk-core` deferred.
-> 2. ✅ Kwavers Stage-B (math + facade tests/examples/benches) + Stage-C (ky-python PyO3 boundary via complex_compat bridge) — `c5b1333b7` + `fa9abb664` + `ddf216ec0` + `01643ed9b` landed on `codex/kwavers-core-moirai-parallel`; cargo check --workspace --exclude kwavers-python green; cargo check -p kwavers-python --{no-default-features, gpu, plotting} all green; cargo check --tests --benches --examples --workspace --exclude kwavers-driver green (469/469 libTests, 38 doctests). The remaining kwavers-solver `pinn` feature Batch #4 closeout is peer-stream (89 errors).
+> 2. ✅ Kwavers Stage-B (math + facade tests/examples/benches) + Stage-C (ky-python PyO3 boundary via complex_compat bridge) — `c5b1333b7` + `fa9abb664` + `ddf216ec0` + `01643ed9b` landed on `codex/kwavers-core-moirai-parallel`; cargo check --workspace --exclude kwavers-python green; cargo check -p kwavers-python --{no-default-features, gpu, plotting} all green; cargo check --tests --benches --examples --workspace --exclude kwavers-driver green (469/469 libTests, 38 doctests).
 > 3. ✅ CFDrs all-features build — green with cfd-io → ritk-vtk → ritk-core → coeus-core fixed up.
 > 4. ✅ RITK coeus-core pinning fix — `4d52ff8b` build(ritk): Pin coeus workspace path-deps at 0.7.0 (track coeus/main HEAD); CFDrs cfd-suite now builds green.
-> 5. ❌ Kwavers Batch #1 (kwavers-solver/{solver,physics}/Rayon→Moirai `par_for_each`): peer active.
-> 6. ❌ Kwavers Batch #4 (kwavers-solver PINN Burn → Coeus): peer active (89 pinn-feature-gated errors).
-> 7. ❌ RITK Burn cleanup — peer active (113 dirty files). Sub-batch #3.g (python/cli/snap) pending.
-> 8. **Next actionable**: Provider extension items (Batch #8) or re-check peer stream status after session boundary.
+> 5. ✅ Kwavers Batch #1 (kwavers-solver/{solver,physics}/Rayon→Moirai `par_for_each`) — **CLOSED 2026-07-12**. Peer commit `5913f2946` "perf(kwavers-solver): Migrate solver tree to moirai parallel iterators" drives source-site count to zero: `par_for_each`=0, `burn::`=0, `nalgebra`=0, `use ndarray`=0, `kwavers-solver/Cargo.toml` clean of `ndarray`/`rayon`/`burn`. `cargo nextest run --workspace --exclude kwavers-driver --no-fail-fast --lib`: 5117/5119 pass, 2 timeouts (KW-WATCH-002 abdominal-preprocessing perf tests on 90s `elastic-fwi` profile override), 7 skipped — peer-stream perf, NOT a Batch #1 correctness regression. Atlas-meta `repos/kwavers` gitlink advanced `01643ed9 → 5913f2946`.
+> 6. ✅ Kwavers Batch #4 (kwavers-solver PINN Burn → Coeus) — **CLOSED** at the new HEAD `5913f2946`. `cargo check -p kwavers-solver --features pinn` PASSES (53 warnings, 0 errors); sole residual is `kwavers-solver/Cargo.toml`'s `ndarray` `rayon` feature gate (separate item flagged in the peer commit body). Co-verified with Batch #1.
+> 7. ❌ RITK Burn cleanup — peer active (dirty inner WT). Sub-batch #3 per-crate work continues (`bcd3b726` adds coeus-native paths for `ritk-filter` intensity + grayscale morphology atop `829ebfe5` convolution/stencil + `34c3836b` `ritk-statistics` normalization/comparison; `cargo nextest run -p ritk-filter -p ritk-statistics -p ritk-image --lib --no-fail-fast` 1399/1399 pass). Sub-batch #3.g (python/cli/snap) + sub-batches #4/#5/#6 remain reserved per ADR 0012 standing reminders. Atlas-meta `repos/ritk` gitlink advanced `57b2b1c3 → bcd3b726`.
+> 8. **Next actionable**: Provider extension items (Batch #8) in peer-clean provider repos (leto, moirai, apollo, eunomia, mnemosyne, themis, melinoe, hephaestus), OR re-check peer stream status after session boundary. The three watchpoints remain: kwavers-therapy KW-WATCH-002 perf, CFDrs cfd-1d Picard convergence, ritk Burn dep strip sub-batches #4/#5/#6.
 
 ---
 
@@ -706,3 +706,59 @@ fix is the sole closed write-set this session.
   CFDrs cfd-1d Picard convergence, ritk Burn dep strip Batch #4/#5).
 - Re-verify each consumer repo after peer closures, then trigger an
   atlas-meta alignment sweep committing the new submodule pointers.
+
+## Session 2026-07-12 (evening) -- kwavers Batch #1 closure + ritk coeus-native pointer advance
+
+### Closed (atlas-meta write-set)
+
+- **`kwavers` Batch #1 [patch]**: peer commit `5913f2946`
+  (`perf(kwavers-solver): Migrate solver tree to moirai parallel iterators`)
+  closes the Rayon→Moirai source-side migration. Closure-condition evidence
+  at HEAD `5913f2946`: `par_for_each`=0, `burn::`=0, `nalgebra`=0, `use
+  ndarray`=0; `kwavers-solver/Cargo.toml` deps section carries `leto` +
+  `leto-ops` + `moirai-parallel` only (zero `ndarray`/`rayon`/`burn`). Commit
+  body declares "Closes remaining ndarray-parallel and rayon surface-level
+  dependencies in kwavers-solver." `cargo nextest run --workspace --exclude
+  kwavers-driver --no-fail-fast --lib`: 5117/5119 pass, 2 timeouts (the
+  pre-existing KW-WATCH-002 abdominal-preprocessing perf tests on the
+  explicit 90s `elastic-fwi` profile override), 7 skipped — NOT regressions
+  introduced by the migration (peer-stream perf, atlas-meta is NOT editing
+  `crates/kwavers-therapy/**`). KW-CV-001 lexical-trigger probe still
+  returns 0 (peer uses `Migrate ...` subject phrasing) but the underlying
+  zero-site invariant IS met and the commit body declares closure.
+- **`kwavers` Batch #4 [minor]**: co-verified closed at the new HEAD —
+  `cargo check -p kwavers-solver --features pinn` PASSES (53 warnings, 0
+  errors). Sole residual is the `ndarray` `rayon` feature gate on
+  `kwavers-solver/Cargo.toml` flagged as a separate item in the peer
+  commit body (manifest detail, not a source-site residual).
+- **`ritk` [minor]**: peer advanced `57b2b1c3 → bcd3b726` on
+  `codex/ritk-burn-ndarray-cleanup` with coeus-native paths for
+  `ritk-filter` (intensity + grayscale morphology) atop `829ebfe5`
+  (convolution/stencil) and `34c3836b` (`ritk-statistics` normalization /
+  comparison). Verification at HEAD: `cargo nextest run -p ritk-filter -p
+  ritk-statistics -p ritk-image --lib --no-fail-fast`: 1399/1399 pass.
+  Residual `use burn` imports: 320 (down from prior); dep strip per
+  Batch #3 sub-batch #5/#6 remains reserved per ADR 0012 standing
+  reminders.
+- **Atlas-meta pointers**: `repos/kwavers` gitlink advanced `01643ed9
+  → 5913f2946`; `repos/ritk` gitlink advanced `57b2b1c3 → bcd3b726`.
+  All 16 submodules ALIGNED at inner HEAD post-advance.
+
+### Out-of-scope this session (unchanged)
+
+- `CFDrs` (submodule status `m` lowercase): inner WT dirty with peer-active
+  cfd-1d Picard convergence work (the `cross_fidelity_blueprint_complex_branching`
+  finding). Gitlink ALIGNED.
+- `helios` (submodule status `m` lowercase): inner WT carries only untracked
+  `examples/` dirs. Gitlink ALIGNED.
+- Atlas-meta does NOT absorb inner-WT state into parent pointers per the
+  disjoint-scope rule; only committed inner HEAD advances are pinned.
+
+### Next actionable
+
+- Continue observing the three peer-stream watchpoints: KW-WATCH-002
+  (kwavers-therapy abdominal-preprocessing perf), CFDrs cfd-1d Picard
+  convergence, ritk Burn dep strip sub-batches #4/#5/#6.
+- Provider extension items (Batch #8) remain claimable in peer-clean
+  provider repos (`leto`, `moirai`, `apollo`, `eunomia`, `mnemosyne`,
+  `themis`, `melinoe`, `hephaestus`).
