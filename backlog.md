@@ -346,7 +346,7 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 | ID | Class | Status | Owner/scope | Acceptance |
 |---|---|---|---|---|
 | HEPH-EMPTY-001 | [patch] | done (`65e89b7`) | Hephaestus decomposition state | Synthetic empty factors deleted; determinant, identity, rank, permutation, and shape contracts pass CUDA/WGPU value tests and the 239-test package suite. |
-| MEL-SCOPE-001 | [major] | todo | Melinoe partition + Moirai consumer | Unsafe implementer obligation encoded; consumers migrated; Miri and conformance pass. |
+| MEL-SCOPE-001 | [major] | in-progress — codex | Melinoe executor registration/ADR/tests/docs; Moirai registration call site only | Unsafe implementer obligation encoded; consumers migrated; Miri and conformance pass. |
 | MOI-NUMA-001 | [arch] | blocked — active peer scope | Moirai + Mnemosyne/Themis ownership | Real affinity/placement; typed failures; no fallback or duplicated topology. |
 | THEM-CACHE-001 | [minor] | todo | Themis cache detection | No fabricated topology values; consumers handle typed absence. |
 | LETO-SCALAR-001 | [major] | todo | Leto scalar execution | Mismatch mutates nothing; Hermes errors propagate; no fallback. |
