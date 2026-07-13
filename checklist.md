@@ -740,9 +740,22 @@ fix is the sole closed write-set this session.
   Residual `use burn` imports: 320 (down from prior); dep strip per
   Batch #3 sub-batch #5/#6 remains reserved per ADR 0012 standing
   reminders.
+  **Subsequent advances in same session**: peer landed
+  `5812cd17 feat(ritk-filter): add coeus-native paths for
+  spatial/intensity/morphology filters`, then later
+  `ef9420fb feat(ritk-filter): add coeus-native paths for
+  edge/diffusion/intensity filters`. Verification
+  `cargo nextest run -p ritk-filter --lib --no-fail-fast` at HEAD
+  `ef9420fb`: 1063/1063 pass (8.318s, well under 30s slow threshold).
+  Inner HEAD advanced `bcd3b726 → 5812cd17 → ef9420fb` across the session
+  per the `concurrent_agents` disjoint-scope rule — atlas-meta pins only
+  verified state.
 - **Atlas-meta pointers**: `repos/kwavers` gitlink advanced `01643ed9
-  → 5913f2946`; `repos/ritk` gitlink advanced `57b2b1c3 → bcd3b726`.
-  All 16 submodules ALIGNED at inner HEAD post-advance.
+  → 5913f2946`; `repos/ritk` gitlink advanced `57b2b1c3 → bcd3b726
+  → 5812cd17 → ef9420fb` (peer landed two further coeus-native filter
+  commits mid-session, each verified green 1063/1063 under
+  `cargo nextest run -p ritk-filter --lib --no-fail-fast` at HEAD before
+  pinning).
 
 ### Out-of-scope this session (unchanged)
 

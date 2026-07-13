@@ -1990,6 +1990,24 @@ strip WIP); atlas-meta is NOT absorbing inner-WT state into the parent
 pointer per the disjoint-scope rule — only the committed HEAD advance is
 pinned.
 
+**Subsequent advances (committed during same atlas-meta session)**:
+peer landed two further commits atop the `bcd3b726` pin:
+  - `5812cd175 feat(ritk-filter): add coeus-native paths for
+    spatial/intensity/morphology filters`
+  - `ef9420fb feat(ritk-filter): add coeus-native paths for
+    edge/diffusion/intensity filters`
+Verified green at HEAD `ef9420fb`:
+`cargo nextest run -p ritk-filter --lib --no-fail-fast` from `repos/ritk`:
+**1063/1063 pass** (8.318s, under 30s slow threshold per
+`engineering_gates`). `repos/ritk` gitlink advanced
+`bcd3b726a99c55b591f01cc7e922322742ba203d →
+ef9420fb30f9c82ec4a639bd0caaded4c65601f8` via the dynamic-SHA-extraction
+convention — inter-session concurrent-agent advances during the
+inter-turn window per `concurrent_agents` disjoint-scope rule, each
+verified before pinning. Inner ritk WT remains dirty (peer-active Batch
+#4/#5 Burn dep strip WIP); atlas-meta pins only the verified committed
+HEAD, never WT state.
+
 ### Out-of-scope this session (unchanged from prior findings)
 
 - **CFDrs** (`m` lowercase at atlas-parent): inner WT dirty with peer-active
