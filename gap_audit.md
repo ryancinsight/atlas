@@ -2191,7 +2191,7 @@ Evidence is static source inspection unless a stronger tier is stated.
   implementation in favor of Hermes; consolidate Moirai topology snapshots to
   borrowed Themis-owned data. These are structural, not performance claims.
 
-Residual publish risk: isolated Hephaestus semver analysis cannot resolve
-Moirai's Mnemosyne 0.3 requirement while the default Mnemosyne branch advertises
-0.2.0. The local Atlas patch graph is green. Re-open after the callback branch
-merges and Moirai updates its default-branch lock.
+Residual publish risk: isolated Hephaestus semver analysis builds the current
+0.12.0 rustdoc, then its baseline clone cannot resolve the repository-external
+`../leto/crates/leto` path dependency. The local Atlas graph is green with
+Moirai's committed Mnemosyne 0.2 requirement and no Moirai consumer-tree edit.
