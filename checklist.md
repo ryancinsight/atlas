@@ -775,3 +775,47 @@ fix is the sole closed write-set this session.
 - Provider extension items (Batch #8) remain claimable in peer-clean
   provider repos (`leto`, `moirai`, `apollo`, `eunomia`, `mnemosyne`,
   `themis`, `melinoe`, `hephaestus`).
+
+## Session 2026-07-13 -- atlas-meta pointer advance: CFDrs Picard watchpoint closure + helios/kwavers verified advances
+
+### Closed (atlas-meta write-set)
+
+- **CFDrs cfd-1d Picard convergence watchpoint — ✅ CLOSED**: peer HEAD
+  `153b0ed9` `fix(cfd-1d,cfd-2d): resolve cross_fidelity_blueprint_complex_branching
+  convergence` resolves the long-standing OPEN-033 / `cfd-suite::cross_fidelity_blueprint
+  cross_fidelity_blueprint_complex_branching` regression that previously panicked with
+  `MaxIterationsExceeded: Convergence failed: Maximum iterations (10000) exceeded`.
+  Re-verification at HEAD `153b0ed9`: `cargo nextest run --no-fail-fast` from
+  `repos/CFDrs`: **26/26 pass**; `cross_fidelity_blueprint_complex_branching` PASS
+  in 0.799s (orders of magnitude below the prior 10000-iteration stall, and well
+  under the 30s slow threshold). Atlas-meta `repos/CFDrs` gitlink advanced
+  `e24922c8d564816e6f0834912d900e698ef27b93 →
+  153b0ed95710460014bf2429bc5bd94e31f2d054`.
+- **`helios` advance**: peer HEAD `4efb14c` `fix(helios-domain): correct
+  voxel_grid_construction example type errors`. Re-verification at HEAD `4efb14c`:
+  `cargo nextest run --no-fail-fast` from `repos/helios`: **241/241 pass** (2.630s).
+  Atlas-meta `repos/helios` gitlink advanced `5f6aef65a47d716f26452592d3a91f3d934a2ffc
+  → 4efb14cd391fbd0653257865a3f3ea74fdf0e461`.
+- **`kwavers` advance**: peer HEAD `4453c2275` `fix(kwavers-driver): graceful
+  skip for missing KiCad fixture files`. Re-verification at HEAD `4453c2275`:
+  `cargo nextest run --workspace --no-fail-fast` from `repos/kwavers`:
+  **6097/6099 pass, 2 timeouts, 15 skipped**. The two timeouts are the pre-existing
+  KW-WATCH-002 abdominal-preprocessing perf tests on the explicit 90s `elastic-fwi`
+  profile override (`repos/kwavers/.config/nextest.toml:70-74`) — NOT regressions
+  introduced by this driver fix; test-count growth (5119 → 6099) reflects peer-added
+  tests. Atlas-meta `repos/kwavers` gitlink advanced `5913f29466bb6b769aefbc1a9b794c63b139babb
+  → 4453c227524d9f150fb1e299c967e98821368ea7`.
+
+### Watchpoint status post-advance
+
+- ✅ **CFDrs cfd-1d Picard convergence — CLOSED** (peer HEAD `153b0ed9`, verified
+  by atlas-meta run). Of the three peer-stream watchpoints, one is now closed.
+- ⏳ **kwavers-therapy KW-WATCH-002 perf** — still open; 2 abdominal-preprocessing
+  timeouts persist (peer-stream perf, NOT atlas-meta's to fix per ADR 0011).
+- ⏳ **ritk Burn dep strip Batch #4/#5/#6** — still open; inner ritk WT remains
+  dirty with peer WIP (Burn dep strip continuing).
+
+### Next actionable
+
+- Continue observing the two remaining peer-stream watchpoints (KW-WATCH-002,
+  ritk Burn dep strip).

@@ -2029,3 +2029,58 @@ HEAD, never WT state.
   edits in provider repos whose WT is peer-clean (leto, moirai, apollo,
   eunomia)._kwavers-solver `Cargo.toml` `ndarray` `rayon` feature gate strip
   (the separate item flagged in `5913f2946`'s body) is a kwavers-peer item.
+
+## Findings 2026-07-13: CFDrs cfd-1d Picard watchpoint closure + helios/kwavers verified advances
+
+### ✅ CLOSED: CFDrs `cross_fidelity_blueprint_complex_branching` Picard convergence (peer HEAD `153b0ed9`)
+Peer landed `153b0ed9 fix(cfd-1d,cfd-2d): resolve cross_fidelity_blueprint_complex_branching
+convergence` atop the prior pinned `e24922c8`. The historical defect (documented in this
+file at "## Findings 2026-07-12: ... kwavers-therapy abdominal perf watchpoint →### CFDrs
+cross_fidelity_blueprint_complex_branching -- peer-tracked cfd-1d convergence regression"
+and in `repos/CFDrs/gap_audit.md` Finding 2026-07-10 and `repos/CFDrs/docs/gap_audit.md`
+OPEN-033) panicked with `MaxIterationsExceeded: Convergence failed: Maximum iterations
+(10000) exceeded` from cfd-1d `Network2DSolver` `solve_reference_trace` on the
+`double_trifurcation_cif_venturi_rect` network.
+
+Re-verification at HEAD `153b0ed9` (`cargo nextest run --no-fail-fast` from `repos/CFDrs`):
+**26/26 pass**; `cross_fidelity_blueprint_complex_branching` PASS in **0.799 s**.
+This is three orders of magnitude faster than the prior 10000-iteration timeout
+cap and well below the 30s `slow-timeout` threshold in `.config/nextest.toml`.
+Evidence tier: empirical (test execution under the committed nextest config). The fix is
+the peer stream's work (cfd-math `AndersonAccelerator`, cfd-1d `convergence.rs` per
+OPEN-033 component list); atlas-meta confirms empirical closure but does not claim a
+proof of the algorithmic mechanism (that evidence belongs to the peer's commit body
+and `repos/CFDrs/docs/gap_audit.md` OPEN-033).
+
+Atlas-meta `repos/CFDrs` gitlink advanced
+`e24922c8d564816e6f0834912d900e698ef27b93 →
+153b0ed95710460014bf2429bc5bd94e31f2d054`.
+
+### Helios advance — verified (peer HEAD `4efb14c`)
+Peer HEAD `4efb14c fix(helios-domain): correct voxel_grid_construction example
+type errors` atop prior pinned `5f6aef6`. Example-only fix on
+`codex/helios-book-multichapter-scaffold` branch; inner WT dirty only on `Cargo.lock`
+(atlas-meta pins the committed HEAD, not WT state). Re-verification at HEAD `4efb14c`
+(`cargo nextest run --no-fail-fast` from `repos/helios`): **241/241 pass** (2.630 s).
+Atlas-meta `repos/helios` gitlink advanced
+`5f6aef65a47d716f26452592d3a91f3d934a2ffc →
+4efb14cd391fbd0653257865a3f3ea74fdf0e461`.
+
+### kwavers advance — verified (peer HEAD `4453c2275`, same residual watchpoint)
+Peer HEAD `4453c2275 fix(kwavers-driver): graceful skip for missing KiCad fixture
+files` atop prior pinned `5913f2946`. Small driver-only fix; inner WT clean.
+Re-verification at HEAD `4453c2275` (`cargo nextest run --workspace --no-fail-fast`
+from `repos/kwavers`): **6097/6099 pass, 2 timeouts, 15 skipped**.
+
+The two timeouts are the pre-existing **KW-WATCH-002** abdominal-preprocessing perf
+tests (`abdominal_preprocessing_keeps_external_skin_between_target_and_aperture` and
+`abdominal_preprocessing_selects_one_connected_treatment_component`, both on the
+explicit 90s `elastic-fwi` profile override at `repos/kwavers/.config/nextest.toml:70-74`).
+NOT regressions introduced by the driver fix — the test count grew from 5119 to 6099
+(peer added tests); the same 2 KW-WATCH-002 tests still time out at the 90s budget.
+KW-WATCH-002 remains **open** (peer-stream perf, NOT atlas-meta's to fix per ADR
+0011 disjoint-scope).
+
+Atlas-meta `repos/kwavers` gitlink advanced
+`5913f29466bb6b769aefbc1a9b794c63b139babb →
+4453c227524d9f150fb1e299c967e98821368ea7`.
