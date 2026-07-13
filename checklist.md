@@ -819,3 +819,46 @@ fix is the sole closed write-set this session.
 
 - Continue observing the two remaining peer-stream watchpoints (KW-WATCH-002,
   ritk Burn dep strip).
+
+## Session 2026-07-13 (continued) -- mnemosyne advance (single) + moirai peer-break watchpoint filed
+
+### Closed (atlas-meta write-set)
+
+- **`mnemosyne` advance**: peer HEAD `877cde0586`
+  (`docs(backend): Decide callback pair`) atop prior pinned `98a02b614`.
+  Re-verification at HEAD `877cde0`:
+  `cargo nextest run --workspace --no-fail-fast` from `repos/mnemosyne`:
+  **278/278 pass** (4.437 s). mnemosyne has zero moirai dependency; the peer-active
+  moirai break documented below does not propagate into this verification.
+  Atlas-meta `repos/mnemosyne` gitlink advanced
+  `98a02b61ccb8ce04f5b1920113d8315cae193ae8 →
+  877cde0586f0d25e70627fa2ad546f583116e47e`.
+
+### Discovered this cycle: moirai peer-stream break (MR-WATCH-001) — NOT pinned
+
+- **MR-WATCH-001 (new watchpoint)**: peer's breaking commit
+  `9c015a3 refactor(moirai)!: Remove allocator residue` followed by further
+  HEAD `5343ebfc` with uncommitted WT edits on
+  `moirai-scheduler/src/deque/{chase_lev,reclaim,split,mod}.rs`, `lib.rs`,
+  `docs/adr.md`, `docs/checklist.md` breaks `moirai-scheduler` lib test
+  compile (27 errors) and `moirai-executor` lib compile (10 errors) at the
+  in-worktree moirai HEAD. The peer is actively fixing (WT dirty mid-edit).
+  Atlas-meta WILL NOT advance `repos/moirai` gitlink until the peer rebuilds
+  green on a clean HEAD.
+- **ritk gitlink unpinned this cycle as co-consequence**: ritk's path dep
+  `moirai = { path = "../moirai/moirai" }` pulls the broken in-worktree
+  moirai into any ritk test build. ritk HEAD `39cf95bc`
+  (`feat(ritk): migrate IO crate tests from burn to coeus native path (ADR 0002)`)
+  and two intermediate commits (`2390f633`, `476ac35f`) remain unpinned until
+  either the peer fixes moirai (re-open trigger: clean green moirai HEAD with
+  zero WT edits) or a future cycle can verify ritk against the previously-
+  pinned moirai HEAD without disturbing the peer's in-progress moirai WT.
+  See `gap_audit.md` "### moirai peer-active break (NOT pinned) + ritk verify-
+  blocked" for the full evidence trace and re-open trigger.
+
+### Watchpoint status post-cycle
+
+- ✅ **CFDrs cfd-1d Picard convergence — CLOSED** (prior cycle, peer HEAD `153b0ed9`).
+- ⏳ **kwavers-therapy KW-WATCH-002 perf** — open.
+- ⏳ **ritk Burn dep strip Batch #4/#5/#6** — open.
+- ⏳ **MR-WATCH-001 (moirai-scheduler/executor rebuild)** — NEW, open.

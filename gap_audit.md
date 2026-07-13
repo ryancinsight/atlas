@@ -2084,3 +2084,54 @@ KW-WATCH-002 remains **open** (peer-stream perf, NOT atlas-meta's to fix per ADR
 Atlas-meta `repos/kwavers` gitlink advanced
 `5913f29466bb6b769aefbc1a9b794c63b139babb →
 4453c227524d9f150fb1e299c967e98821368ea7`.
+
+### Same-cycle mnemosyne advance — verified (peer HEAD `877cde0`)
+Peer HEAD `877cde0 docs(backend): Decide callback pair` atop prior pinned
+`98a02b61`. Five new commits on `codex/fix-miri-page-provenance` branch (docs/fix/perf
+around `mnemosyne-local` pages and `mnemosyne-prof` interns / leak detection):
+`5a9f49f fix(local): Refresh page provenance`, `477f957 fix(arena): Release
+converted buffer`, `4ba5958 perf(prof): Drop interned stacks unlocked`,
+`708428b docs(pm): Record workspace gate`, `877cde0 docs(backend): Decide callback
+pair`. Re-verification at HEAD `877cde0`
+(`cargo nextest run --workspace --no-fail-fast` from `repos/mnemosyne`):
+**278/278 pass** (4.437 s). mnemosyne has zero moirai dependency, so the peer-active
+moirai break documented below does not propagate into this verification.
+Atlas-meta `repos/mnemosyne` gitlink advanced
+`98a02b61ccb8ce04f5b1920113d8315cae193ae8 →
+877cde0586f0d25e70627fa2ad546f583116e47e`.
+
+### moirai peer-active break (NOT pinned) + ritk verify-blocked
+A peer-stream break in `repos/moirai` blocks the moirai and ritk gitlink advances
+this cycle.
+
+The breaking commit is `9c015a3 refactor(moirai)!: Remove allocator residue`
+(atop prior pinned `877cde0` referenced... actually atop pinned `4af0ff58` per the
+prior atlas-meta advance). The `!` in the subject marks a breaking change; per the
+`c5a3017 chore(build): ...` and CR-2 architecture decision, `#[global_allocator]`
+registration was removed from the library in `ce22f85`. Subsequent commits
+`24fc9f2 fix(iter): Release source buffers after moves` and `9c015a3` introduced
+compilation breaks in `moirai-scheduler` lib tests and `moirai-executor` lib:
+errors include `E0277`, `E0432`, `E0596`, `E0599`, `E0609` (10 errors in
+`moirai-executor`, 27 in `moirai-scheduler`; symptoms are `cannot borrow as
+mutable` and `cannot find type/value` after public-API surface removal).
+
+Followed by another peer advance mid-cycle to HEAD `5343ebfc` with uncommitted
+WT edits on `moirai-scheduler/src/deque/{chase_lev,reclaim,split,mod}.rs`,
+`lib.rs`, `docs/adr.md`, `docs/checklist.md` — the peer is actively fixing the
+break. `cargo nextest run --workspace --no-fail-fast` from `repos/moirai` fails
+at compile time. **Atlas-meta WILL NOT advance the `repos/moirai` gitlink**
+until the peer stream rebuilds green on a clean HEAD; this is recorded as watchpoint
+**MR-WATCH-001** (moirai-scheduler/executor rebuild after
+`#[global_allocator]`/allocator-residue removal).
+
+Co-breakage of `ritk` verification this cycle: ritk's `Cargo.toml` declares
+`moirai = { path "../moirai/moirai" }`, so building ritk tests transitively
+rebuilds the broken in-worktree moirai HEAD. `cargo nextest run -p ritk-io --lib
+--no-fail-fast` from `repos/ritk` at the new peer HEAD `39cf95bc` aborts at the
+moirai-executor compile step. This does NOT mean ritk is broken — only that
+verification is blocked by the upstream moirai break. ritk HEAD `39cf95bc`
+remains unpinned this cycle; atlas-meta WILL NOT pin it until either the peer
+fixes moirai OR a future cycle can verify ritk against the previously-pinned
+moirai HEAD `877cde0` (requires checking out that moirai commit in the inner
+WT, which `concurrent_agents` prohibits when the peer has uncommitted WT work
+— the deadlock condition is filed here as the re-open trigger).
