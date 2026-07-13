@@ -49,7 +49,7 @@ README.
 | `mnemosyne` | User-space allocator and memory-management workspace: core, backend, arena, local, heap, hardened, decay, profiling, C shim, and benchmarks. | Consumed by `CFDrs`, `coeus`, and `moirai`; consumes `themis` for allocation placement law and pairs conceptually with `melinoe` capability tokens. |
 | `melinoe` | Branded, multi-token phantom capabilities for compile-time data-access and thread-synchronization proofs. | Supports the Mnemosyne memory ecosystem; currently tracked as a standalone foundation crate in atlas. |
 | `moirai` | Concurrency, scheduling, async, parallel iteration, transport, metrics, GPU, TLS, HTTP, and Python runtime workspace. | Consumed by `CFDrs`, `coeus`, `ritk`, `consus`, and selected `apollo` crates; consumes `themis` for scheduler topology and worker placement law. |
-| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam (elementwise/scalar/unary/reduction kernels with pipeline caching) — **wgpu** backend live; **CUDA** backend planned (composing `cuda-oxide` for driver/runtime/memory/streams with `cutile` for tile/PTX kernel authoring). Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo` (`apollo-wgpu-helpers` delegates device acquisition here); `coeus` GPU backends re-base when coeus bumps to wgpu 26. Live: `leto`/`leto-ops` host-side layout SSOT + host-delegated linalg parity, `mnemosyne` device-memory pools and pinned-host staging (Stage D1), `moirai` GPU launch planning + sync primitives, `themis` placement/tiers. Planned: `melinoe` device-buffer ownership-transfer proofs; native GPU-kernel parity replacing the interim `leto-ops` host delegation. |
+| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam with live **wgpu** and **CUDA** backends. Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo` (`apollo-wgpu-helpers` delegates device acquisition here); `coeus` GPU backends re-base when coeus bumps to wgpu 26. Live: `leto`/`leto-ops` host-side layout SSOT + host-delegated linalg parity, `mnemosyne` device-memory pools and pinned-host staging (Stage D1), `moirai` GPU launch planning + sync primitives, `themis` placement/tiers. Planned: `melinoe` device-buffer ownership-transfer proofs; native GPU-kernel parity replacing the interim `leto-ops` host delegation. |
 
 ### Naming Conventions
 
@@ -295,7 +295,6 @@ each Cargo workspace and its constituent crates:
 - **Role**: Numeric and SIMD register/vector abstractions.
 - **Resolver**: v2
 - **Crate Catalog**:
-  - [hermes-numeric](repos/hermes/crates/hermes-numeric): Scalar mathematical traits and scalar-precision bounds.
   - [hermes-simd](repos/hermes/crates/hermes-simd): Main SIMD facade for platform-independent vector operations.
   - [hermes-simd-core](repos/hermes/crates/hermes-simd-core): Architecture-agnostic SIMD API traits and constraints.
   - [hermes-simd-intrinsics](repos/hermes/crates/hermes-simd-intrinsics): Platform-specific vector intrinsic bindings (AVX2, AVX-512, Neon).
@@ -482,7 +481,7 @@ graph TD
 The low-level GPU acceleration substrate is split into three parts:
 * **[`hephaestus-core`](repos/hephaestus/crates/hephaestus-core)**: The central device/buffer interface traits.
 * **[`hephaestus-wgpu`](repos/hephaestus/crates/hephaestus-wgpu)**: The WebGPU backend, using WGSL shaders compiled and dispatched on-the-fly.
-* **`hephaestus-cuda` (planned sibling crate)**: Composes:
+* **[`hephaestus-cuda`](repos/hephaestus/crates/hephaestus-cuda)**: Live CUDA backend composing:
   * `cuda-oxide` for driver, device stream, and CUDA context management.
   * `cutile` for tiled PTX/CUDA kernel compilation and dispatch.
 

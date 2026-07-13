@@ -2151,3 +2151,47 @@ verified committed HEAD, never WT state.
 Atlas-meta `repos/hephaestus` gitlink advanced
 `b90923ef25d8148b53716e652cdf5b807e31586d →
 c78a98e1c7d5615fc8744622a6c9013ed16e1e6b`.
+
+## 2026-07-13 provider integration audit
+
+Evidence is static source inspection unless a stronger tier is stated.
+
+- **Closed — immutable WGPU staging callbacks:** Mnemosyne publishes one
+  process-lifetime allocation/deallocation pair through one atomic pointer;
+  Hephaestus converts registration conflicts and callback panics to typed or ABI
+  failure values. Evidence: Mnemosyne clippy, 42/42 nextest, two focused Miri
+  tests, doctests, rustdoc, and semver classification pass; Hephaestus clippy,
+  131/131 nextest, doctests, and rustdoc pass. Commits `3c1cf83` and `058a2b8`
+  are pushed.
+- **P0 correctness — Hephaestus empty decompositions:** CUDA bidiagonal,
+  column-pivoted QR, full-pivot LU, Hessenberg, and QR plus WGPU QR synthesize a
+  1x1 zero factorization for empty matrices. Full-pivot LU determinant observes
+  that singular placeholder and returns zero instead of the empty-product
+  identity one. Use genuine empty state and value-semantic empty contracts.
+- **P0 safety — Melinoe scoped partition registration:** safe
+  `register_parallel_executor` accepts an implementation whose contract must
+  prevent duplicate raw-slot writes and uninitialized output reads. Encode the
+  obligation in an unsafe constructor or registration boundary and migrate
+  Moirai in the same breaking change.
+- **P0 integrity — Moirai NUMA path:** `moirai-iter/src/numa.rs` stores policy
+  without applying placement, executes synchronous loops in the async surface,
+  discards errors, and owns raw NUMA allocation policy that belongs in
+  Mnemosyne. Replace it with provider-owned placement and typed failure.
+- **P1 correctness — Themis cache topology:** detection substitutes fixed
+  32 KiB/256 KiB/8 MiB values and failure becomes a fabricated single-node
+  topology. Leto and Moirai consume these values; absence must remain typed.
+- **P1 correctness — Leto scalar execution:** scalar hooks discard Hermes
+  errors and can partially write the common prefix of mismatched slices.
+  Validate before mutation and propagate provider errors without fallback.
+- **P1 memory — Mnemosyne per-CPU cache:** a dormant production-disabled cache
+  reserves 720,896 bytes of static storage. Compile it only when activatable,
+  then measure binary size and retained RSS before changing live cache policy.
+- **P2 hierarchy/DRY:** split Melinoe's 693-line branded deque and Themis's
+  667-line sync-region file by operation family; remove Moirai's duplicate SIMD
+  implementation in favor of Hermes; consolidate Moirai topology snapshots to
+  borrowed Themis-owned data. These are structural, not performance claims.
+
+Residual publish risk: isolated Hephaestus semver analysis cannot resolve
+Moirai's Mnemosyne 0.3 requirement while the default Mnemosyne branch advertises
+0.2.0. The local Atlas patch graph is green. Re-open after the callback branch
+merges and Moirai updates its default-branch lock.

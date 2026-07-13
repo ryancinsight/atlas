@@ -891,3 +891,18 @@ fix is the sole closed write-set this session.
   `consus`). Each requires editing the owning provider's own source per its
   own backlog register; provider repos commit independently and the gitlink
   advance is a follow-up increment in atlas-meta.
+
+## Session 2026-07-13 — provider integration safety and audit
+
+- [x] Audit Mnemosyne, Moirai, Hephaestus, Leto, Themis, Hermes, and Melinoe
+  ownership, safety, topology, memory, contention, and hierarchy surfaces.
+- [x] Complete and push the immutable Mnemosyne WGPU callback pair plus
+  Hephaestus typed/no-unwind consumer migration.
+- [x] Verify Mnemosyne with clippy, 42/42 nextest, focused Miri, doctests,
+  rustdoc, and semver classification; verify Hephaestus with clippy, 131/131
+  nextest, doctests, and rustdoc.
+- [x] Record ranked provider findings and acceptance criteria in
+  `gap_audit.md` and `backlog.md`.
+- [ ] Next increment: HEPH-EMPTY-001 after the callback publish gate closes;
+  MOI-NUMA-001 remains parked until the active scheduler/deque peer scope is
+  committed and green.
