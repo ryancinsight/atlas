@@ -916,8 +916,10 @@ fix is the sole closed write-set this session.
   `gap_audit.md` and `backlog.md`.
 - [x] Close HEPH-EMPTY-001 with canonical Leto empty state, CUDA/WGPU
   value-semantic contracts, and the full 239-test backend gate (`65e89b7`).
-- [ ] In progress: MEL-SCOPE-001. Record the unsafe-registration ADR, encode
-  the Melinoe contract, migrate Moirai's registration call site, run Miri and
-  conformance gates, and synchronize both repository pointers. MOI-NUMA-001
-  remains parked until the active scheduler/deque peer scope is committed and
-  green.
+- [x] Close MEL-SCOPE-001 with ADR 0001, a pointer-sized validated executor
+  capability, three focused Miri tests, 121/121 Melinoe nextest, and the real
+  Moirai scheduler bridge. Publish the required Melinoe 0.9, Mnemosyne 0.3,
+  Themis, Gaia, Coeus, and Hephaestus dependency edges without duplicate
+  provider type identities.
+- [ ] Next increment: THEM-CACHE-001. MOI-NUMA-001 remains parked until the
+  active scheduler/deque peer scope is committed and green.

@@ -2169,11 +2169,14 @@ Evidence is static source inspection unless a stronger tier is stated.
   dimensions, identity factors, rank, permutations, and the empty-product
   determinant. Evidence: focused CUDA/WGPU contracts, Clippy, 239/239 nextest,
   doctests, and rustdoc pass. No synthetic 1x1 factorization remains.
-- **P0 safety — Melinoe scoped partition registration:** safe
-  `register_parallel_executor` accepts an implementation whose contract must
-  prevent duplicate raw-slot writes and uninitialized output reads. Encode the
-  obligation in an unsafe constructor or registration boundary and migrate
-  Moirai in the same breaking change.
+- **Resolved P0 safety — Melinoe scoped partition registration (`55ad20e`):**
+  `ParallelExecutor` is a transparent, pointer-sized capability whose unsafe
+  constructor owns exact-once normal-return and blocking lifetime obligations;
+  safe registration accepts only the validated value. Moirai constructs it at
+  the real scheduler bridge. Evidence: compile-time layout assertion, three
+  focused Miri executor-path tests, 121/121 Melinoe nextest, 83/83 Moirai
+  executor nextest, 196/196 Coeus operations nextest, and one unified Melinoe
+  0.9/Mnemosyne 0.3 backend graph. No alias or compatibility path remains.
 - **P0 integrity — Moirai NUMA path:** `moirai-iter/src/numa.rs` stores policy
   without applying placement, executes synchronous loops in the async surface,
   discards errors, and owns raw NUMA allocation policy that belongs in
