@@ -7,6 +7,17 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-LN-001 — Private LeoNeuro integration [arch]
+
+- [x] Relocate the local source to `repos/leoneuro-rs` and remove its old checkout.
+- [x] Create and verify the private `LeoNeuro-INC/leoneuro-rs` repository.
+- [x] Curate, scan, commit, and push the private source migration branch.
+- [x] Rewrite LeoNeuro's Kwavers paths for the adjacent Atlas checkout.
+- [x] Add the public Atlas gitlink, topology documentation, and ADR 0017.
+- [ ] Complete the source Clippy/nextest/doctest/doc gate after Melinoe 0.9 lands.
+- [ ] Promote the source branch to `main`, update `.gitmodules`, and verify an
+  authenticated recursive clone.
+
 > **Current execution order (2026-07-12 evening session, kwavers Batch #1 + #4 closed)**:
 > 1. ✅ CR-2 (`cfd-core` + `moirai`) — closed. `ritk-core` deferred.
 > 2. ✅ Kwavers Stage-B (math + facade tests/examples/benches) + Stage-C (ky-python PyO3 boundary via complex_compat bridge) — `c5b1333b7` + `fa9abb664` + `ddf216ec0` + `01643ed9b` landed on `codex/kwavers-core-moirai-parallel`; cargo check --workspace --exclude kwavers-python green; cargo check -p kwavers-python --{no-default-features, gpu, plotting} all green; cargo check --tests --benches --examples --workspace --exclude kwavers-driver green (469/469 libTests, 38 doctests).

@@ -2196,3 +2196,18 @@ Residual publish risk: isolated Hephaestus semver analysis builds the current
 0.12.0 rustdoc, then its baseline clone cannot resolve the repository-external
 `../leto/crates/leto` path dependency. The local Atlas graph is green with
 Moirai's committed Mnemosyne 0.2 requirement and no Moirai consumer-tree edit.
+# Private LeoNeuro integration risk register (2026-07-13)
+
+- **Metadata visibility — accepted.** Public Atlas exposes the private repository
+  name, URL, tracked branch, pinned commit, and topology relationship. Source
+  contents remain private. Evidence tier: Git index plus authenticated GitHub
+  visibility query; ADR 0017 records the boundary.
+- **Source publication boundary — verified.** The private staged snapshot had 141
+  files / 2.31 MB, no file over 100 MiB, no Python/MATLAB/Arduino implementation,
+  and no Gitleaks finding. Datasets, patient images, generated outputs, binary
+  references, and the legacy Python reference remain ignored and local.
+- **Full Rust gate — externally blocked.** Cargo metadata and formatting pass.
+  Clippy stops during dependency resolution because the live Atlas provider
+  worktrees are mid-Melinoe-0.9 migration. Moirai requires the breaking executor
+  API update; Coeus, Mnemosyne, Themis, and Gaia require synchronized constraints.
+  Peer-owned dirty scopes were preserved.
