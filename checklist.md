@@ -41,10 +41,12 @@
 - [x] Curate, scan, commit, and push the private source migration branch.
 - [x] Rewrite LeoNeuro's Kwavers paths for the adjacent Atlas checkout.
 - [x] Add the public Atlas gitlink, topology documentation, and ADR 0017.
-- [ ] Complete the source Clippy/nextest/doctest/doc gate against merged
-  Melinoe 0.9 (`bb07447`); the LeoNeuro owner is running this gate.
-- [ ] Promote the source branch to `main`, update `.gitmodules`, and verify an
-  authenticated recursive clone.
+- [x] Complete the exact-lock source Clippy/nextest/doctest/doc gate against
+  merged Melinoe 0.9 (`bb07447`): 317/317 Nextest tests pass, five existing
+  tests are skipped, and no test reaches the 30-second threshold.
+- [x] Push private LeoNeuro `0266cef`, push native-provider Kwavers `739527463`,
+  verify authenticated access and private visibility, and advance both public
+  Atlas gitlinks without publishing source contents.
 
 > **Current execution order (2026-07-12 evening session, kwavers Batch #1 + #4 closed)**:
 > 1. ✅ CR-2 (`cfd-core` + `moirai`) — closed. `ritk-core` deferred.

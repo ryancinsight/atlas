@@ -6,15 +6,18 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
-## ATLAS-LN-001 — Register private LeoNeuro workspace [arch] — in-progress
+## ATLAS-LN-001 — Register private LeoNeuro workspace [arch] — done
 
 - Owner: Codex; scope: `.gitmodules`, `README.md`, ADR 0017, the
   `repos/leoneuro-rs` gitlink, and matching PM entries.
 - Acceptance: public Atlas tracks the private source repository; LeoNeuro Cargo
   metadata resolves migrated Kwavers from `repos/kwavers`; no private source,
   datasets, medical images, generated artifacts, or credentials enter Atlas.
-- Re-open trigger satisfied: Melinoe 0.9 is merged at `bb07447`. The LeoNeuro
-  owner is running the full Rust gate and owns its 31-path migration delta.
+- Closure: Kwavers `739527463` removes the remaining Leto compatibility feature
+  and provider-side identity conversions. Private LeoNeuro `0266cef` consumes
+  the adjacent native provider graph and passes locked Clippy, 317/317 Nextest,
+  doctest, and warning-denied Rustdoc gates. Public Atlas records only the two
+  gitlinks and the already documented private-repository metadata.
 
 > **2026-07-09 current-tree reconciliation**: the direct production
 > `nalgebra`/`ndarray`/`burn`/Tokio/Rayon removal front is closed in CFDrs.
