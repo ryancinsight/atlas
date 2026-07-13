@@ -20,6 +20,20 @@
 - Evidence tier: Git state/diff inspection, process inspection, filesystem byte
   count, and semantic source review. No performance speedup is claimed.
 
+## Apollo Hephaestus 0.12 integration [major]
+
+- [x] Removed Apollo's inert Moirai `no-global-alloc` request and refreshed its
+  lock graph to one Melinoe 0.9 provider.
+- [x] Propagated fallible Hephaestus/Mnemosyne device construction through
+  `WgpuDeviceResult`, consolidated error translation, and added exact tests.
+- [x] Apollo commit `a65d0c7` is pushed on
+  `codex/apollo-moirai-feature-cleanup`; advance only its Atlas gitlink.
+- Evidence tier: workspace clippy, focused nextest 2/2, doctest, rustdoc,
+  locked metadata, dependency-tree, and structural-duplication checks.
+- Residual: `cargo semver-checks` cannot resolve the historical standalone
+  Mnemosyne/Melinoe 0.8 baseline; the branch is not release-eligible until that
+  baseline becomes reproducible.
+
 ## ATLAS-LN-001 — Private LeoNeuro integration [arch]
 
 - [x] Relocate the local source to `repos/leoneuro-rs` and remove its old checkout.

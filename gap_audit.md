@@ -20,6 +20,18 @@
 - Evidence tier: Git object/state inspection, filesystem metadata, process
   inspection, and semantic diff review.
 
+### Apollo provider integration
+
+- Apollo `a65d0c7` consumes the local Hephaestus 0.12/Mnemosyne 0.3 graph,
+  removes an inert Moirai feature request, and changes caller-owned WGPU device
+  construction to propagate callback-ownership failures.
+- The resolved graph now contains one Melinoe 0.9 package. Workspace clippy is
+  clean; focused nextest passes 2/2 exact error-mapping tests; doctest and
+  rustdoc gates pass.
+- Release-only residual: semver baseline construction fails before comparison
+  because historical Mnemosyne requires Melinoe `^0.8` while the live Git source
+  exposes 0.9. No release or merge is claimed.
+
 > State refresh (2026-07-12): gap_audit.md last active edit was 2026-07-08.
 > kwavers inner HEAD has advanced by 40+ commits since then, resolving Batch #1–#4
 > (Rayon, ndarray, nalgebra, Burn migrations). See `## State refresh` below.
