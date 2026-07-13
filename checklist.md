@@ -44,7 +44,7 @@
 - [x] Complete the exact-lock source Clippy/nextest/doctest/doc gate against
   merged Melinoe 0.9 (`bb07447`): 317/317 Nextest tests pass, five existing
   tests are skipped, and no test reaches the 30-second threshold.
-- [x] Push private LeoNeuro `0266cef`, push native-provider Kwavers `739527463`,
+- [x] Push private LeoNeuro `87328eb`, push native-provider Kwavers `739527463`,
   verify authenticated access and private visibility, and advance both public
   Atlas gitlinks without publishing source contents.
 

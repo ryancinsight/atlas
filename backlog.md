@@ -14,7 +14,7 @@
   metadata resolves migrated Kwavers from `repos/kwavers`; no private source,
   datasets, medical images, generated artifacts, or credentials enter Atlas.
 - Closure: Kwavers `739527463` removes the remaining Leto compatibility feature
-  and provider-side identity conversions. Private LeoNeuro `0266cef` consumes
+  and provider-side identity conversions. Private LeoNeuro `87328eb` consumes
   the adjacent native provider graph and passes locked Clippy, 317/317 Nextest,
   doctest, and warning-denied Rustdoc gates. Public Atlas records only the two
   gitlinks and the already documented private-repository metadata.
