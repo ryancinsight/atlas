@@ -33,6 +33,10 @@ script.py
 repos/SynthSeg/
 repos/report/
 
+# Local linked-worktree lanes and dependency junctions. All Rust builds use the
+# shared D:/atlas/target directory; per-worktree target trees are disposable.
+worktrees/
+
 # Atlas-root transient scratch artifacts (NOT gitlinked; created during chore ceremony)
 # `_*` catch-all catches session-work scratch (e.g. `_de-dup-audit.txt`,
 # `_e0599-*.txt`, `backlog-section-enum.txt`); the existing patterns cover

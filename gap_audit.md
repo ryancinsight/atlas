@@ -1,5 +1,25 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-13) — peer dirt and local artifacts
+
+- `repos/kwavers` and `repos/leoneuro-rs` are actively changing under peer-owned
+  verification. The 2026-07-12 clean-tree snapshot below is historical evidence,
+  not current working-tree state.
+- `worktrees/` is required local infrastructure: one registered RITK lane plus
+  11 junctions that resolve sibling Atlas path dependencies. It is ignored, not
+  deleted. Its private generated target cache consumed 325,213,153,514 bytes and
+  was removed; builds continue to use `D:/atlas/target`.
+- The untracked `fix_doc_links.py` was an unreferenced, non-idempotent one-off
+  mutator that stripped unresolved Rustdoc links. It was removed rather than
+  promoted to tooling.
+- RITK's uncommitted native NGF slice is not deliverable: it locally substitutes
+  a fixed-index grid for a missing first-party image operation, retains dual
+  substrate paths, and clones fixed coordinates per evaluation. The operation
+  must be implemented in the owning provider and consumed directly before the
+  slice can pass the no-shim and allocation-discipline gates.
+- Evidence tier: Git object/state inspection, filesystem metadata, process
+  inspection, and semantic diff review.
+
 > State refresh (2026-07-12): gap_audit.md last active edit was 2026-07-08.
 > kwavers inner HEAD has advanced by 40+ commits since then, resolving Batch #1–#4
 > (Rayon, ndarray, nalgebra, Burn migrations). See `## State refresh` below.

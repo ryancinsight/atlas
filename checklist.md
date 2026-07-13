@@ -7,6 +7,19 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## Atlas local-artifact cleanup [patch]
+
+- [x] Classified every dirty submodule and local worktree with peer/process
+  evidence; preserved all active migration scopes.
+- [x] Removed the unreferenced `fix_doc_links.py` mutator and the generated
+  `worktrees/ritk-native/target` cache (325,213,153,514 bytes).
+- [x] Retained the registered RITK lane and its 11 dependency junctions; added
+  `/worktrees/` to the root ignore policy so local topology is not repo dirt.
+- [x] Recorded the RITK native-NGF provider-ownership violation; the peer slice
+  is not commit-ready until its local grid substitute moves upstream.
+- Evidence tier: Git state/diff inspection, process inspection, filesystem byte
+  count, and semantic source review. No performance speedup is claimed.
+
 ## ATLAS-LN-001 — Private LeoNeuro integration [arch]
 
 - [x] Relocate the local source to `repos/leoneuro-rs` and remove its old checkout.
@@ -14,7 +27,8 @@
 - [x] Curate, scan, commit, and push the private source migration branch.
 - [x] Rewrite LeoNeuro's Kwavers paths for the adjacent Atlas checkout.
 - [x] Add the public Atlas gitlink, topology documentation, and ADR 0017.
-- [ ] Complete the source Clippy/nextest/doctest/doc gate after Melinoe 0.9 lands.
+- [ ] Complete the source Clippy/nextest/doctest/doc gate against merged
+  Melinoe 0.9 (`bb07447`); the LeoNeuro owner is running this gate.
 - [ ] Promote the source branch to `main`, update `.gitmodules`, and verify an
   authenticated recursive clone.
 
