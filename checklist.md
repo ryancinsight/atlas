@@ -79,7 +79,11 @@
 > 5. ✅ Kwavers Batch #1 (kwavers-solver/{solver,physics}/Rayon→Moirai `par_for_each`) — **CLOSED 2026-07-12**. Peer commit `5913f2946` "perf(kwavers-solver): Migrate solver tree to moirai parallel iterators" drives source-site count to zero: `par_for_each`=0, `burn::`=0, `nalgebra`=0, `use ndarray`=0, `kwavers-solver/Cargo.toml` clean of `ndarray`/`rayon`/`burn`. `cargo nextest run --workspace --exclude kwavers-driver --no-fail-fast --lib`: 5117/5119 pass, 2 timeouts (KW-WATCH-002 abdominal-preprocessing perf tests on 90s `elastic-fwi` profile override), 7 skipped — peer-stream perf, NOT a Batch #1 correctness regression. Atlas-meta `repos/kwavers` gitlink advanced `01643ed9 → 5913f2946`.
 > 6. ✅ Kwavers Batch #4 (kwavers-solver PINN Burn → Coeus) — **CLOSED** at the new HEAD `5913f2946`. `cargo check -p kwavers-solver --features pinn` PASSES (53 warnings, 0 errors); sole residual is `kwavers-solver/Cargo.toml`'s `ndarray` `rayon` feature gate (separate item flagged in the peer commit body). Co-verified with Batch #1.
 > 7. ❌ RITK Burn cleanup — peer active (dirty inner WT). Sub-batch #3 per-crate work continues (`bcd3b726` adds coeus-native paths for `ritk-filter` intensity + grayscale morphology atop `829ebfe5` convolution/stencil + `34c3836b` `ritk-statistics` normalization/comparison; `cargo nextest run -p ritk-filter -p ritk-statistics -p ritk-image --lib --no-fail-fast` 1399/1399 pass). Sub-batch #3.g (python/cli/snap) + sub-batches #4/#5/#6 remain reserved per ADR 0012 standing reminders. Atlas-meta `repos/ritk` gitlink advanced `57b2b1c3 → bcd3b726`.
-> 8. **Next actionable**: Provider extension items (Batch #8) in peer-clean provider repos (leto, moirai, apollo, eunomia, mnemosyne, themis, melinoe, hephaestus), OR re-check peer stream status after session boundary. The three watchpoints remain: kwavers-therapy KW-WATCH-002 perf, CFDrs cfd-1d Picard convergence, ritk Burn dep strip sub-batches #4/#5/#6.
+> 8. ✅ **Batch #8 (provider extension) — Leto**: `FixedMatrix<T,4,4>` determinant/try_inverse/row-major constructors + generic operators (Add/Sub/Neg/Mul<T>/Div<T>/SubAssign/MulAssign/DivAssign); `Quaternion<T>` Add/Sub/Neg/Mul<T>/Div<T> + `try_inverse`/`to_rotation_matrix`/`UnitQuaternion::to_rotation_matrix`. **All verified**: `cargo build -p leto && cargo clippy -p leto --all-targets -- -D warnings` clean, `cargo test -p leto` 229/229 green (75 lib + 145 core_tests + 8 layout + 1 doctest). Themis patch added to `leto/Cargo.toml` (themis 0.10 local override) to resolve dependency resolution.
+> 9. ✅ **Batch #8 (provider extension) — Hephaestus**: `f64` DialectScalar impls for Wgsl (`"f64"`) and CudaC (`"double"`) + GPU vector type DialectScalar impls for `[f32;{2,3,4}]`, `[f64;{2,3,4}]`, `[i32;{2,3,4}]`, `[u32;{2,3,4}]` across both dialects (24 impls via macro). Themis patch added to `hephaestus/Cargo.toml`. **Verified**: `cargo clippy -p hephaestus-core --all-targets -- -D warnings` clean, `cargo nextest run -p hephaestus-core` 47/47 green.
+> 10. ✅ **Batch #8 — moirai-async new crate**: `mpsc::channel`, `oneshot::channel`, `Condvar`, `Mutex`, `#[moirai::main]` proc-macro. **Verified**: 79/80 tests pass (only pre-existing flaky timer: `cancelled_timers_are_compacted_before_their_deadline` 101 vs 100), clippy `-D warnings` clean, proc-macro crate compiles.
+> 11. ⏭️ **Batch #8 — RITK sub-batch #3.g (python/cli/snap)**: Deferred — peer hasn't ported. 5 uncommitted files on `codex/ritk-burn-ndarray-cleanup` (direction.rs disambiguation fix + PM artifacts from prior session).
+> 12. **Next actionable**: Advance remaining Batch #8 provider extension items. Options: (a) `apollo` — RustFFT-free differential oracle; (b) `eunomia` — eunomia-gpu or hephaestus::DialectScalar consolidation; (c) `coeus` — autograd scatter_add, comparison ops, Dataset/DataLoader; (d) `leto-ops` — CscMatrix/CooMatrix/lu_batch. Watchpoints: kwavers-therapy KW-WATCH-002 perf, CFDrs cfd-1d Picard convergence, ritk Burn dep strip sub-batches #4/#5/#6.
 
 ---
 
@@ -976,3 +980,91 @@ fix is the sole closed write-set this session.
   provider type identities.
 - [ ] Next increment: THEM-CACHE-001. MOI-NUMA-001 remains parked until the
   active scheduler/deque peer scope is committed and green.
+
+## Session 2026-07-14 -- MR-WATCH-001 closure + full gitlink reconciliation
+
+### Cycle A -- MOI-NUMA/mr-watch + hermes + themis (closed prior to this cycle's start)
+
+- **MR-WATCH-001 CLOSED**: peer landed clean-green moirai HEAD `c43f86a`
+  (`build(moirai): Update Mnemosyne provider`) on `perf/moirai-contention-audit`,
+  720/720 pass (4.727s). Atlas-meta advanced → `c43f86a21e0e` in `b5a4c5e`.
+- **Hermes CLOSED**: HEAD `bcef1c8` `build(deps): Align mnemosyne rev to 0.4.0`,
+  388/388 pass. Advanced in `b5a4c5e`.
+- **Themis THEM-CACHE-001 CLOSED**: HEAD `1996018` `feat(themis): Report cache
+  topology honestly` (50/50 pass), merged to main `07bf558`. Atlas-meta
+  advanced → `07bf558804e9` in `93c4efe`.
+
+These three were already committed+p pushed before this cycle. PM artifacts sync
+this cycle to record them.
+
+### Cycle B -- kwavers + ritk verification + stale-cache root cause (this cycle)
+
+**KW-WATCH-003 (kwavers-python leto→ndarray E0277) — FALSE POSITIVE, CLOSED**.
+The prior cycle's 61 E0277 errors at `simulation_result_py.rs:364` (leto→ndarray
+TryInto conversion) were not a code bug but **stale build artifacts** in the
+shared `D:/atlas/target` dir: `ritk-spatial`'s `FixedMatrix` ambiguity left a
+partially-compiled artifact that caused downstream Cargo to report errors at
+the kwavers→ritk→leto boundary that do not exist in a clean build.
+`cargo clean -p ritk-spatial && cargo check -p ritk-spatial` succeeded;
+subsequent `cargo check --workspace` and `cargo check -p kwavers-python` both
+succeeded clean (full workspace: `optimized + debuginfo` target, zero errors).
+
+**Corrected verification this cycle (clean build, no stale artifacts)**:
+- `cargo check --workspace` from `repos/kwavers` at `f1dba7b7e` (includes
+  python + gpu): **zero errors** — builds `optimized + debuginfo` clean.
+- `cargo check --workspace --exclude xtask` from `repos/ritk` at `7f81384`:
+  **zero errors** — builds `dev` clean.
+
+**Root-cause learning (per gap_audit watchpoint)**: shared `CARGO_TARGET_DIR` +
+stale intermediate artifacts from a prior broken inner-HEAD compile can pollute
+other inner repo's `cargo check` when the two share a transitive dep (ritk-spatial
+is pulled by kwavers via `ritk`). A failure at a cross-repo boundary should be
+re-triaged after `cargo clean -p <broken-crate>` or `cargo sweep`. Stale-cache
+is NOT filed as a correctness defect on the broken crate's backlog.
+
+### Gitlink advances pending verification (ordered, pre-commit)
+
+| Repo | Parent pin | Inner HEAD (clean, 0-WT) | Evidence | New pin |
+|---|---|---|---|---|
+| kwavers | `739527463e4d` | `f1dba7b7e` `fix(gpu): update wgpu PollType Wait→wait_indefinitely WGPU 30` | `cargo check --workspace` clean (full), plus 5 commits past parent: `c400c432b`-`f1dba7b7e` | `f1dba7b7e...` |
+| ritk | `ef9420fb30f9` | `7f813840` `fix(spatial): disambiguate FixedMatrix from_row/col_major` (13 commits past parent) | `cargo check --workspace --exclude xtask` clean; `cargo nextest --workspace --exclude xtask` 5055/5055 pass | `7f813840...` |
+| coeus | `e0a53778218a` | `1cb9900` `build(coeus): Align themis version constraint to 0.10` (2 commits past parent) | `cargo nextest -p coeus-core` 21/21 pass; fix for `themis ^0.9.17 → ^0.10` Atlas co-evolution break | `1cb9900...` |
+| apollo | `96e67a2fd3e8` | `b633652` (3 commits past parent) | previously green 907/907 at `dffcb5b`, + DHT provider migration `40e3fb7`+`b633652` with WT dirty on 11 DHT CZT files — skip until clean | skip |
+| leoneuro-rs | `1ad323ee44fa` | `11874ed` (4 commits past parent) | themis co-evolution constraint break (requires pinned themis dependee update in own crate) | skip |
+
+**Batch advancement policy**: advance only fully clean+green HEADs. Per the
+drift map, kwavers f1dba7b, ritk 7f81384, coeus 1cb9900 each have 0 WT dirty
+and pass cargo check (kwavers/ritk) or coeus-core (coeus). Their advances land
+in this cycle's atlas-meta commit. apollo and leoneuro-rs remain pending.
+
+### PM artifact reconciliation (this commit's write-set)
+
+- Close KW-WATCH-003 as false-positive (stale cache) in gap_audit.
+- Record THEM-CACHE-001 closure (themis 50/50 green, merged to main `07bf558`).
+- Close MR-WATCH-001 + hermes advance as already-pushed (`b5a4c5e`, `93c4efe`).
+- Advance verified gitlinks: kwavers, ritk, coeus + confirm prior ones (moirai,
+  hermes, themis, helios) are already caught up.
+- Sync backlog.md with watchpoint table update + thrust.
+
+### Residual after this cycle
+
+- ⏳ apollo CZT/DHT provider: peer WT dirty on 11 files on
+  `codex/apollo-provider-kernel-migration`.
+- [ ] **LeoNeuro Themis co-evolution sweep** `[patch]` — reclaimed at 2026-07-14
+  12:31 after the prior claim exceeded the one-hour stale threshold. Update the
+  direct provider graph to merged Themis `07bf558`, regenerate `Cargo.lock`, and
+  verify the workspace metadata/build boundary. Scope is limited to the
+  dependency graph; the legacy Burn/ndarray/nalgebra source migration remains a
+  separate vertical item.
+- ⏳ ritk Burn strip sub-batches #4/#5/#6: 13-commit gitlink advance lands this
+  cycle, but final Burn Cpu-serverity strip + CR-2 ritk-core global allocator
+  landing remain (pending `coeus` finalize + `moirai`/`mnemosyne` provider dots).
+- ⏳ kwavers therapy KW-WATCH-002 perf (90s `elastic-fwi` timeout).
+- themis/hermes/moirai/helios: aligned, green, released from watch.
+
+### Out-of-scope this session (peer-owned, disjoint-scope per ADR 0011)
+
+- kwavers Batch #4 (PINN Burn→Coeus) implementation — peer-stream
+- ritk Batch #3 sub-batches #4–#6 remaining Burn strip — peer-stream's final cuts
+- kwavers-therapy KW-WATCH-002 perf — peer-stream
+- helios multichapter book scaffold beyond example organization — peer's main

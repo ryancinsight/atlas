@@ -2272,3 +2272,102 @@ Moirai's committed Mnemosyne 0.2 requirement and no Moirai consumer-tree edit.
   worktrees are mid-Melinoe-0.9 migration. Moirai requires the breaking executor
   API update; Coeus, Mnemosyne, Themis, and Gaia require synchronized constraints.
   Peer-owned dirty scopes were preserved.
+
+## Findings 2026-07-14: MR-WATCH-001 closure + hermes gitlink advance + kwavers peer-active break
+
+### ✅ CLOSED: MR-WATCH-001 (moirai-scheduler/executor rebuild)
+Peer landed clean-green moirai HEAD `c43f86a` (`build(moirai): Update Mnemosyne
+provider`) on `perf/moirai-contention-audit` with zero WT edits. The breaking
+committed `9c015a3 refactor(moirai)!: Remove allocator residue` and the mid-fix
+HEAD `5343ebfc` were resolved by the peer stream across 17 subsequent commits
+(`5343ebf → c43f86a`): SPSC publication order preservation, executor lane-chunk
+balancing, scheduler-admission bounding, deque-ownership encoding, kqueue
+send-safety, IPC errno isolation, and the Melinoe executor-capability adoption.
+Re-verification this cycle: `cargo nextest run --workspace --no-fail-fast` from
+`repos/moirai` = **720/720 pass** (4.727 s). MR-WATCH-001 is **CLOSED**.
+
+Atlas-meta `repos/moirai` gitlink advanced
+`877cde0586f0d25e70627fa2ad546f583116e47e →
+c43f86a21e0ea73d8e3bba68d75db9cedae3abb3`.
+Evidence tier: empirical (nextest 720/720 under committed config).
+
+### Hermes gitlink advance — verified (peer HEAD `bcef1c8`)
+Peer HEAD `bcef1c8 build(deps): Align mnemosyne rev to the stack's 0.4.0
+(4a9d2a3)` atop prior pinned `51c530f` on `codex/hermes-themis-pin`, clean WT.
+Re-verification at HEAD `bcef1c8`: `cargo nextest run --workspace --no-fail-fast`
+from `repos/hermes` = **388/388 pass** (2.120 s).
+Atlas-meta `repos/hermes` gitlink advanced
+`51c530fa4fe5 → bcef1c86f681`.
+Evidence tier: empirical (nextest 388/388 under committed config).
+
+### ⏳ NEW WATCHPOINT: KW-WATCH-003 (kwavers-python leto→ndarray conversion break at peer HEAD `b861254`)
+Peer HEAD `b861254 feat(kwavers-transducer): Add layered rays` on
+`codex/kwavers-core-moirai-parallel` has 4 commits past the parent gitlink
+`739527463e4d` (`c400c432b Own CT assembly`, `879582a57 piston field`,
+`25f6a82b6 Bound piston work`, `b861254c0 Add layered rays`) and does NOT build:
+`cargo nextest run --workspace --no-fail-fast` aborts in `kwavers-python` lib
+test compile with **61 E0277 errors** at
+`crates/kwavers-python/src/simulation_result_py.rs:364` — the
+`leto::Array<f64, VecStorage<f64>, 1>` → `ndarray::ArrayBase<OwnedRepr<f64>,
+Dim<[usize; 1]>>` `TryInto` conversion no longer resolves (the `ndarray-compat`
+feature surface on leto has been narrowed or the bound has changed).
+
+The peer is actively mid-flight: 13 uncommitted WT files in `kwavers-gpu`
+(`fdtd_gpu.rs`, `acoustic_field.rs`, `activate.rs`/`matmul.rs` neural-network
+shaders, `pstd_gpu` helpers/commands, beamforming delay-sum dispatch,
+`gpu_buffer/readback.rs`, `thermal_acoustic/buffers.rs`) and `kwavers-analysis`
+(`transfer.rs`), plus 3 stashes. **Atlas-meta WILL NOT advance `repos/kwavers`
+gitlink past the parent `739527463e4d`** until the peer lands a clean-green
+committed HEAD; the peer owns `kwavers-python` and the leto/ndarray boundary.
+Re-open trigger: peer commits a clean WT and `cargo nextest run --workspace
+--no-fail-fast` passes (the documented KW-WATCH-002 90s abdominal-preprocessing
+timeouts remain the accepted residual, not a regression).
+
+### Ritk verify-block — cleared by MR-WATCH-001 closure, but peer-active
+MR-WATCH-001 closure removes the transitive moirai-compile block on ritk's path
+dep `moirai = { path = "../moirai/moirai" }`. ritk HEAD `ba6da3a5` on
+`codex/ritk-burn-ndarray-cleanup` is **1 commit ahead of origin** with **5 WT-
+dirty files** (`CHANGELOG.md`, `backlog.md`, `checklist.md`,
+`crates/ritk-core/Cargo.toml`, `crates/ritk-core/src/lib.rs`) — the peer is
+actively mid-strip on the Burn-depend removal. **Atlas-meta WILL NOT pin ritk**
+until the peer lands a clean-green committed HEAD. Re-open trigger: peer pushes,
+cleans WT, and `cargo nextest run --workspace --no-fail-fast` passes.
+
+### Gitlink drift map (2026-07-14 — Cycle B updated — post gitlink advances this cycle)
+
+Verified building HEADs in this cycle:
+- kwavers `f1dba7b7e`: `cargo check --workspace` clean (optimized + debuginfo).
+- ritk `7f81384`: `cargo check --workspace --exclude xtask` clean (dev);
+  `cargo nextest --workspace --exclude xtask` 5055/5055 pass.
+- coeus `1cb9900`: `cargo nextest -p coeus-core` 21/21 pass (them is 0.10 fix).
+- apollo `b633652`: previously 907/907 at dffcb5b; peer WT dirty on 11 files
+  (DHT provider migration) — defer advance to next clean-HEAD cycle.
+- leoneuro-rs `11874ed`: themis version pin clash (same class as Coeus),
+  plus melinoe/themis git rev pin drift from 6140468 — defer until peer's
+  dependency sweep commit lands.
+- themis `07bf558`: aligned (peer merged `1996018` → `07bf558` main, 50/50 pass,
+  parent already at `07bf558`). THEM-CACHE-001 CLOSED.
+- hermes `bcef1c8`: aligned, 388/388 pass (pushed `b5a4c5e`).
+- moirai `c43f86a`: aligned, 720/720 pass (MR-WATCH-001 closed, `b5a4c5e`).
+
+| Submodule | Parent pre-cycle | Inner HEAD (pre-advance) | Verification | Post-cycle parent |
+|---|---|---|---|---|
+| kwavers | `739527463e4d` | `f1dba7b7e` (fix gpu: wgpu 30 Wait) | cargo check workspace full clean | `f1dba7b7e...` (advanced this cycle) |
+| ritk | `ef9420fb30f9` | `7f81384` (fix spatial: FixedMatrix) | check clean + 5055/5055 nextest pass | `7f81384...` (advanced this cycle) |
+| coeus | `e0a5377` | `1cb9900` (themis 0.10 fix) | coeus-core 21/21 pass | `1cb9900...` (advanced this cycle) |
+| apollo | `96e67a2` | `b633652` (docs: DHT migration) | 907/907 at dffcb5b but peer WT dirty 11 files | skip |
+| leoneuro-rs | `1ad323e` | `11874ed` | themis pin clash | skip |
+| themis | `07bf558` | `07bf558` | 50/50 pass, aligned | already aligned |
+| helios | `9ee3b6e` | `9ee3b6e` | multichapter scaffold merged to main | aligned |
+
+### Watchpoint summary — updated post Cycle B
+- ✅ MR-WATCH-001 (moirai rebuild) — CLOSED (720/720 at `c43f86a`, in `b5a4c5e`).
+- ✅ THEM-CACHE-001 (themis typed-absence) — CLOSED (50/50 at `1996018`→`07bf558`, in `93c4efe`).
+- ✅ KW-WATCH-003 (kwavers-python leto→ndarray) — CLOSED as **false-positive** this cycle: shared target-dir stale artifact from ritk-spatial polluted kwavers boundary compilation; clean-build recheck passes (`kwavers 0 errors`, `ritk 0 errors`). See gap_audit section above for evidence.
+- ✅ CFDrs cfd-1d Picard convergence — CLOSED (26/26, `153b0ed9`).
+- ⏳ KW-WATCH-002 (kwavers-therapy abdominal perf) — open (peer-stream perf).
+- ⏳ apollo CZT/DHT provider migration — open (peer WT dirty on 11 files).
+- ⏳ leoneuro-rs themis/mnemosyne co-evolution pin sweep — open.
+- ⏳ ritk Burn dep strip Batch #4/#5/#6 — open, but ritk gitlink advanced 13 commits this cycle with coeus-native paths.
+- ⏳ MOI-NUMA-001 — parked (peer scheduler/deque scope, now clearable by peer now that moirai clean WT + merged topology).
+- ⏳ MOI-CONTENTION-001 — parked, `perf/moirai-contention-audit` merged main per `perf/moirai-contention-audit` branch adv.
