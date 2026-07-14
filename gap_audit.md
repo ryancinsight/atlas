@@ -1,5 +1,22 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-14) — RITK PR #31 and Hermes pointer
+
+- RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) is mergeable and currently
+  running required CI. Its pushed head is `22d6b97f`; the parent pointer stays
+  at `62a19607` until the PR merge commit is available.
+- RITK local evidence is complete for this increment: 5,229/5,229 nextest
+  tests with 26 skipped, doctests, warnings-denied Clippy, fmt, warning-free
+  rustdoc, and clean `burn-migration-audit`. The inner audit still reports 14
+  Burn manifests and 645 Burn-surface source files, which remain explicit
+  dependency-ordered migration residuals.
+- Hermes PR #6 is merged at `1423e41d01f4f7787472ddc91961f0771f9728fe`; the
+  parent pointer is advanced in the current working tree. Kwavers and
+  LeoNeuro remain peer-owned and are not staged.
+- Full RITK nextest recorded three registration tests over the 30-second slow
+  threshold (30.510s, 35.422s, 37.823s). This is a profile-guided performance
+  residual, not a timeout or correctness failure.
+
 ## State refresh (2026-07-13) — peer dirt and local artifacts
 
 - `repos/kwavers` and `repos/leoneuro-rs` are actively changing under peer-owned

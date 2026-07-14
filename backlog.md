@@ -6,6 +6,21 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+## ATLAS-RITK-654 — RITK native migration reconciliation [patch] — review pending
+
+- Owner: Codex; scope: `repos/ritk` PR #31 and the `repos/ritk` gitlink. Peer
+  Kwavers and LeoNeuro source scopes remain excluded while their branches are
+  fresh and active.
+- Acceptance: RITK PR #31 is mergeable with required CI green; its native VTK
+  capability tests, workspace gates, rustdoc, and migration audit are clean;
+  Atlas advances the gitlink only to the merged commit.
+- Current evidence: RITK commit `22d6b97f` is pushed and local gates pass
+  (5,229/5,229 nextest tests, doctests, warning-free rustdoc, and clean
+  `burn-migration-audit`). PR #31 is mergeable; CI is still running.
+- Residual: RITK intentionally retains 14 Burn manifests and 645 Burn-surface
+  source files for dependency-ordered Coeus consumer cutovers. No shim or
+  fallback is accepted as closure evidence.
+
 ## ATLAS-WGPU-030 — Provider ABI migration [arch] — done
 
 - Owner: Codex; last-update: 2026-07-13; scope:

@@ -7,6 +7,28 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-RITK-654 — RITK native migration reconciliation [patch]
+
+- [x] Update RITK's native VTK CLI contracts and current provider call sites;
+  local value-semantic tests cover native round-trip shape and voxel values.
+- [x] Refresh RITK's Burn migration allowlist from actual source and remove
+  broken/private rustdoc links. The inner audit reports `Allowlist status:
+  clean`.
+- [x] Verify RITK local gates: workspace nextest 5,229/5,229 with 26 skipped,
+  doctests, warnings-denied Clippy, fmt, and warning-free rustdoc.
+- [ ] Wait for PR #31 required CI, merge it, then advance `repos/ritk` to the
+      merged commit. Completion condition: the parent pointer is the merged
+      PR commit and no peer-owned submodule pointer is staged.
+- Residual: RITK still has 14 Burn manifests and 645 Burn-surface source files;
+  the next item is a real Coeus/Leto consumer cutover. Three registration
+  tests exceeded 30 seconds locally and require a profile-guided performance
+  item; their assertions and workloads were not changed.
+
+## Hermes pointer closure [patch]
+
+- [x] Advance `repos/hermes` to merged PR #6 commit `1423e41d` after its
+      targeted and cross-architecture checks passed.
+
 ## Atlas local-artifact cleanup [patch]
 
 - [x] Classified every dirty submodule and local worktree with peer/process
