@@ -2271,6 +2271,32 @@ Moirai's committed Mnemosyne 0.2 requirement and no Moirai consumer-tree edit.
   Clippy stops during dependency resolution because the live Atlas provider
   worktrees are mid-Melinoe-0.9 migration. Moirai requires the breaking executor
   API update; Coeus, Mnemosyne, Themis, and Gaia require synchronized constraints.
+
+### Current provider-consumer reconciliation — 2026-07-14
+
+- **Themis:** provider fix `18807bb` is merged to `main`; Linux cache parsing now
+  maps malformed sysfs values to typed absence. The root gitlink is advanced to
+  this commit.
+- **LeoNeuro:** dependency-only PR #1 merged as `82eeb86` into
+  `codex/private-atlas-migration`; its lockfile sweep is complete without
+  changing the peer-owned source migration.
+- **Mnemosyne:** dependency-only PR #11 merged as `f95d372`; Themis 0.10 is
+  pinned to `18807bb`. Local evidence is metadata, clippy, 288/288 nextest,
+  doctests, and rustdoc.
+- **Hermes:** PR #6 commit `6080aa4` pins Themis 0.10 to `18807bb`. GitHub CI
+  passes fmt/clippy/tests/docs, cross-compile, ARM NEON, cargo-deny, and review;
+  only Miri fails. The same Mnemosyne allocator retag failure is present on
+  Hermes main, so this is a pre-existing correctness residual and the PR stays
+  open rather than merging around it.
+- **Global migration residuals:** RITK still has active Burn-keyed source and
+  manifest surfaces under the peer-owned Batch #3 #4-#6 work; Kwavers still has
+  active peer-owned ndarray/PyO3-boundary and solver migration work. These are
+  not closed by provider pin co-evolution and remain explicit blockers to a
+  truthful global-zero residual claim.
+- **Evidence tier:** provider and consumer pin claims are source/static graph
+  evidence plus compile, lint, nextest, doctest, and rustdoc results. The
+  Hermes residual classification is differential CI evidence: the failure is
+  reproduced on both PR and main.
   Peer-owned dirty scopes were preserved.
 
 ## Findings 2026-07-14: MR-WATCH-001 closure + hermes gitlink advance + kwavers peer-active break

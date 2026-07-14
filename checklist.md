@@ -1050,17 +1050,22 @@ in this cycle's atlas-meta commit. apollo and leoneuro-rs remain pending.
 
 - ⏳ apollo CZT/DHT provider: peer WT dirty on 11 files on
   `codex/apollo-provider-kernel-migration`.
-- [ ] **LeoNeuro Themis co-evolution sweep** `[patch]` — reclaimed at 2026-07-14
-  12:31 after the prior claim exceeded the one-hour stale threshold. Update the
-  direct provider graph to merged Themis `07bf558`, regenerate `Cargo.lock`, and
-  verify the workspace metadata/build boundary. Scope is limited to the
-  dependency graph; the legacy Burn/ndarray/nalgebra source migration remains a
-  separate vertical item.
+- [x] **LeoNeuro Themis co-evolution sweep** `[patch]` — clean dependency-only PR
+  #1 merged as `82eeb86` into `codex/private-atlas-migration`; the lockfile now
+  resolves the Themis 0.10 line without changing peer-owned source migration.
+- [x] **Mnemosyne fixed Themis pin** `[patch]` — PR #11 merged as `f95d372`;
+  Mnemosyne pins Themis 0.10 at `18807bb`. Metadata, clippy, 288/288 nextest,
+  doctests, and docs pass in the isolated lane.
+- ⏳ **Hermes fixed Themis pin** `[patch]` — PR #6 commit `6080aa4` pins Themis
+  0.10 at `18807bb`; all GitHub checks pass except the pre-existing Miri
+  allocator failure reproduced on Hermes main. Keep the PR open until that
+  independent correctness residual is resolved.
 - ⏳ ritk Burn strip sub-batches #4/#5/#6: 13-commit gitlink advance lands this
   cycle, but final Burn Cpu-serverity strip + CR-2 ritk-core global allocator
   landing remain (pending `coeus` finalize + `moirai`/`mnemosyne` provider dots).
 - ⏳ kwavers therapy KW-WATCH-002 perf (90s `elastic-fwi` timeout).
-- themis/hermes/moirai/helios: aligned, green, released from watch.
+- themis/moirai/helios: aligned and green. Hermes dependency migration is
+  delivered but remains review-blocked by the baseline Miri failure above.
 
 ### Out-of-scope this session (peer-owned, disjoint-scope per ADR 0011)
 
