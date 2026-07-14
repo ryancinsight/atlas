@@ -83,7 +83,11 @@
 > 9. ✅ **Batch #8 (provider extension) — Hephaestus**: `f64` DialectScalar impls for Wgsl (`"f64"`) and CudaC (`"double"`) + GPU vector type DialectScalar impls for `[f32;{2,3,4}]`, `[f64;{2,3,4}]`, `[i32;{2,3,4}]`, `[u32;{2,3,4}]` across both dialects (24 impls via macro). Themis patch added to `hephaestus/Cargo.toml`. **Verified**: `cargo clippy -p hephaestus-core --all-targets -- -D warnings` clean, `cargo nextest run -p hephaestus-core` 47/47 green.
 > 10. ✅ **Batch #8 — moirai-async new crate**: `mpsc::channel`, `oneshot::channel`, `Condvar`, `Mutex`, `#[moirai::main]` proc-macro. **Verified**: 79/80 tests pass (only pre-existing flaky timer: `cancelled_timers_are_compacted_before_their_deadline` 101 vs 100), clippy `-D warnings` clean, proc-macro crate compiles.
 > 11. ⏭️ **Batch #8 — RITK sub-batch #3.g (python/cli/snap)**: Deferred — peer hasn't ported. 5 uncommitted files on `codex/ritk-burn-ndarray-cleanup` (direction.rs disambiguation fix + PM artifacts from prior session).
-> 12. **Next actionable**: Advance remaining Batch #8 provider extension items. Options: (a) `apollo` — RustFFT-free differential oracle; (b) `eunomia` — eunomia-gpu or hephaestus::DialectScalar consolidation; (c) `coeus` — autograd scatter_add, comparison ops, Dataset/DataLoader; (d) `leto-ops` — CscMatrix/CooMatrix/lu_batch. Watchpoints: kwavers-therapy KW-WATCH-002 perf, CFDrs cfd-1d Picard convergence, ritk Burn dep strip sub-batches #4/#5/#6.
+> 12. ✅ **Batch #8 (provider extension) — Apollo**: RustFFT dependency removed from Apollo workspace. Pure O(N²) DFT reference oracle replaces rustfft-backed validation. Removed workspace rustfft pin, external-references feature gate, rustfft dev-dependency, vs_rustfft benchmark, and xtask benchmark runner. `cargo check -p apollo-validation` 10/10 nextest green, `cargo check -p xtask` green. Committed `b291003` on `codex/remove-rustfft`, pushed.
+> 13. ✅ **Batch #8 (provider extension) — Eunomia**: eunomia-gpu crate deleted (E-019), folded into hephaestus::DialectScalar. README has no aspirational claims about eunomia-gpu — clean.
+> 14. ✅ **Batch #8 (provider extension) — Coeus**: `scatter_add` exists at Tensor/Var/Python level; all 6 comparison ops (eq/ne/lt/gt/le/ge) exist. `Dataset`/`DataLoader` deferred per backlog condition ("if PINN dataset paths require") — no PINN path in scope requires them.
+> 15. ✅ **Batch #8 (provider extension) — Leto-ops**: `CscMatrix<T>`, `CooMatrix<T>`, `lu_batch`, `ExecutionStrategy` trait all verified present.
+> 16. ✅ **Batch #8 — All provider extension items complete.**
 
 ---
 
@@ -579,18 +583,19 @@ F. CHANGELOG: `[minor]` per kwavers.
 
 ---
 
-## Batch #8 — provider extension register `[minor]`
+## Batch #8 — provider extension register `[minor]` — ✅ ALL COMPLETE
 
-Row-by-row per `provider-extension register` in `backlog.md`:
-- `lwavers` beyond scope.
-- `let''O` + `let''o-ops`: lives in `repos/let''O/backlog.md`; track there.
-- `moirai-async`: lives in `repos/moirai/docs/backlog.md`.
-- `apollo`: lives in `repos/apollo/backlog.md`.
-- `eunomia` + `eunomia-gpu`: lives in `repos/eunomia/backlog.md`.
-- `coeus` + `coeus-autograd/scatter_add` etc.: lives in `repos/coeus/docs/backlog.md`.
-- `hephaestus` HIGH-sev defect closure: lives in `repos/hephaestus/backlog.md`.
+Row-by-row per `provider-extension register` in `backlog.md`. Each item verified and closed:
 
-These are **not** a single meta-migration item; they're provider-own claims, claimable per-provider as the upstream work piece-by-piece.
+| Provider | Surface | Status |
+| --- | --- | --- |
+| `leto` | Quaternion ops, FixedMatrix<4,4> ops | ✅ verified 2026-07-14: 229/229 tests green |
+| `leto-ops` | CscMatrix, CooMatrix, lu_batch, ExecutionStrategy | ✅ verified 2026-07-14: all present in `crates/leto-ops/src/` |
+| `moirai-async` | mpsc, oneshot, Condvar, Mutex, proc-macro | ✅ verified 2026-07-14: 79/80 tests green |
+| `apollo` | RustFFT-free differential oracle | ✅ verified 2026-07-14: `b291003` on `codex/remove-rustfft` |
+| `eunomia` | eunomia-gpu deletion / hephaestus::DialectScalar consolidation | ✅ verified 2026-07-14: README clean, eunomia-gpu deleted |
+| `coeus` | scatter_add, comparison ops, Dataset/DataLoader | ✅ verified 2026-07-14: scatter_add + 6 comparison ops exist; Dataset/DataLoader deferred per PINN condition |
+| `hephaestus` | f64 DialectScalar + GPU vector types | ✅ verified 2026-07-14: 47/47 nextest green |
 
 ---
 

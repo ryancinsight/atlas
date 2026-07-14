@@ -82,11 +82,11 @@ These cross-cut consumer migration but live in provider land. Each requires its 
 | Provider | Missing surface | Substrate | Tracked in |
 | --- | --- | --- | --- |
 | `leto` | ✅ `Quaternion<T>` Add/Sub/Neg/Mul&lt;T&gt;/Div&lt;T&gt; + `try_inverse` + `to_rotation_matrix`; ✅ `FixedMatrix&lt;4,4&gt;` determinant/try_inverse + generic Add/Sub/Neg/Mul&lt;T&gt;/Div&lt;T&gt;/Assign. **Verified 2026-07-14**: 229/229 tests green, clippy `-D warnings` clean. | math | `leto/backlog.md` |
-| `leto-ops` | `CscMatrix<T>`, `CooMatrix<T>`, `lu_batch`; `ExecutionStrategy` → `MoiraiBackend::ParIter` seam | ops | `leto/backlog.md` |
+| `leto-ops` | ✅ `CscMatrix<T>`, `CooMatrix<T>`, `lu_batch`; `ExecutionStrategy` trait — all verified present at `leto/crates/leto-ops/src/`. | ops | `leto/backlog.md` |
 | `moirai-async` | ✅ `mpsc::channel`, `oneshot::channel`, `Condvar`, `Mutex`; `#[moirai::main]` proc-macro — **Verified: 79/80 tests pass (pre-existing flaky timer), clippy `-D warnings` clean** | async | `moirai/docs/backlog.md` |
-| `apollo` | RustFFT-free differential oracle; prune workspace `rustfft = "6.4.1"` pin (`apollo/Cargo.toml:84`) gated behind `apollo-validation` dev-dep | validate | `apollo/backlog.md` |
-| `eunomia` | Author `eunomia-gpu` OR fold into `hephaestus::DialectScalar` (close README aspirational claim). (The `NumericElement::ZERO`/`::ONE` constants already exist per `eunomia/src/traits/numeric.rs:27-29`; the prior register line proposing to add `zero()/one()` is disproven and removed.) | basis | `eunomia/backlog.md` |
-| `coeus` | Autograd-side `Var<T,B> {scatter_add}` wrapper (ops-only Tensor exists); `eq/ne/lt/gt` comparison free fns in `coeus-ops::BackendOps`; `Dataset`/`DataLoader` trait if PINN dataset paths require | autograd | `coeus/docs/backlog.md` |
+| `apollo` | ✅ RustFFT-free differential oracle — pure O(N²) DFT reference replaces rustfft. `b291003` on `codex/remove-rustfft`. Workspace `rustfft = "6.4.1"` pin removed; `external-references` feature removed; dev-dep and vs_rustfft benchmark removed; xtask benchmark runner stripped. | validate | `apollo/backlog.md` |
+| `eunomia` | ✅ eunomia-gpu deleted (E-019); folded into `hephaestus::DialectScalar`. README clean — no aspirational claims about eunomia-gpu. | basis | `eunomia/backlog.md` |
+| `coeus` | ✅ `scatter_add` exists at Tensor/Var/Python; all 6 comparison ops (eq/ne/lt/gt/le/ge) exist. `Dataset`/`DataLoader` deferred per "if PINN dataset paths require" condition — no PINN path in current scope requires them. | autograd | `coeus/docs/backlog.md` |
 | `hephaestus` | ✅ `f64` DialectScalar impls (Wgsl `"f64"`, CudaC `"double"`) + 24 GPU vector type impls via macro. **Verified 2026-07-14**: 47/47 nextest green, clippy `-D warnings` clean. Remaining: `wgpu::PipelineCache` integration (WG-P8); CU-P1 async-stream-overlap. | gpu | `hephaestus/backlog.md` |
 
 ---
