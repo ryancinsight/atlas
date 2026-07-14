@@ -20,6 +20,24 @@
 - Evidence tier: Git state/diff inspection, process inspection, filesystem byte
   count, and semantic source review. No performance speedup is claimed.
 
+## WGPU 30 provider ABI closure [arch]
+
+- [x] Removed Mnemosyne's unsound raw-pointer WGPU allocator contract and
+  retained the subsequent pooled-segment lifetime correction in `01e7de7`.
+- [x] Released Hephaestus 0.13 at `090611d` on one WGPU 30 ABI and migrated its
+  complete WGPU surface without a compatibility adapter.
+- [x] Advanced Leto `8651dfc` and Moirai `c43f86a` to the corrected Mnemosyne
+  contract.
+- [x] Released Apollo 0.15 at `96e67a2`, removed the obsolete WGPU 26 and
+  archived `paste` constraints, and preserved native borrowed/mapped error
+  propagation.
+- [x] Advanced the five Atlas gitlinks only after their provider commits were
+  pushed and their consumer gates passed.
+- Evidence tier: compile-time API enforcement; 1029/1029 Apollo and 300/300
+  Hephaestus value-semantic nextest cases; 34/34 Python boundary cases;
+  warning-denied Clippy/rustdoc; doctest, provider, RustSec, cargo-deny, and
+  pre-1.0 API compatibility checks.
+
 ## Apollo 0.14.0 release eligibility [arch]
 
 - [x] Removed Apollo's inert Moirai `no-global-alloc` request and refreshed its
@@ -36,8 +54,8 @@
   nextest cases, 34/34 Python cases, doctest, provider audit, RustSec,
   cargo-deny, locked dependency resolution, and 196 applicable
   `apollo-fft` minor-release API checks.
-- Residual: WGPU 30 and its `ordered-float`/archived `paste` transitive cleanup
-  remain blocked on Hephaestus migrating its public WGPU 26 ABI.
+- Superseded: the WGPU 30 provider migration and archived `paste` cleanup are
+  closed by the release increment above.
 
 ## ATLAS-LN-001 — Private LeoNeuro integration [arch]
 

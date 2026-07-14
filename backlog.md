@@ -6,7 +6,7 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
-## ATLAS-WGPU-030 — Provider ABI migration [arch] — in-progress
+## ATLAS-WGPU-030 — Provider ABI migration [arch] — done
 
 - Owner: Codex; last-update: 2026-07-13; scope:
   `repos/mnemosyne`, `repos/hephaestus`, `repos/apollo`, their gitlinks, and matching cross-repo PM
@@ -20,6 +20,12 @@
   source identities.
 - Dependencies: current WGPU release/API metadata; existing Hephaestus and
   Apollo release branches; shared `D:/atlas/target` build cache.
+- Closure: Mnemosyne `01e7de7` contains the WGPU allocator removal from
+  `4a9d2a3`; Hephaestus `090611d`, Leto `8651dfc`, Moirai `c43f86a`, and Apollo
+  `96e67a2` are pushed. Apollo 0.15 owns one WGPU 30 graph and passes 1029/1029
+  Rust nextest cases, 34/34 Python cases, warning-denied Clippy and rustdoc,
+  doctest, provider audit, RustSec, cargo-deny policy checks, and applicable
+  pre-1.0 API checks.
 
 ## ATLAS-APOLLO-014 — Apollo release graph [arch] — done
 
@@ -31,8 +37,8 @@
 - Closure: Apollo `a4742bb` and provider commits Mnemosyne `eb0d941`, Hermes
   `51c530f`, Moirai `b2f3732`, Leto `1b125ce`, and Hephaestus `f726742` are
   pushed and release-gated; Atlas integration commit `e7f27a7` records their
-  gitlinks. WGPU 30 remains a separate provider-owned ABI migration, not a
-  blocker to the latest compatible Apollo 0.14 graph.
+  gitlinks. The completed `ATLAS-WGPU-030` increment supersedes this historical
+  WGPU 26 release graph.
 
 ## ATLAS-LN-001 — Register private LeoNeuro workspace [arch] — done
 

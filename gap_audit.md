@@ -20,7 +20,27 @@
 - Evidence tier: Git object/state inspection, filesystem metadata, process
   inspection, and semantic diff review.
 
-### Apollo provider integration
+### Apollo WGPU 30 provider integration
+
+- Apollo `96e67a2` consumes pushed Mnemosyne `4a9d2a3`, Moirai `c43f86a`, Leto
+  `8651dfc`, and Hephaestus `090611d` revisions. Atlas advances Mnemosyne to
+  descendant `01e7de7`, which retains the allocator removal and adds the
+  pooled-segment lifetime correction. Mnemosyne deletes the raw-pointer
+  allocator contract WGPU cannot represent safely; Hephaestus 0.13 owns one
+  WGPU 30 ABI; Apollo 0.15 removes the WGPU 26 and archived `paste` graph.
+- Release gates pass: warning-denied Clippy and rustdoc, 1029/1029 Rust nextest
+  cases, 34/34 Python cases, doctest, provider audit, RustSec, cargo-deny policy
+  checks, and applicable pre-1.0 API checks. GPU f16 and STFT paths execute on
+  real WGPU devices and validate value semantics or typed device-limit errors.
+- Residual risk: cargo-deny reports 12 permitted transitive multiple-version
+  families. They originate in current provider dependencies and are not a
+  source, license, advisory, correctness, or Apollo release blocker; no skip
+  suppression hides them.
+- Evidence tier: compile-time and documentation enforcement, value-semantic
+  Rust/Python tests, real-device differential tests, dependency-source
+  inspection, and API/supply-chain tools.
+
+### Historical Apollo 0.14 provider integration
 
 - Apollo `a4742bb` consumes one exact standalone-Git-resolvable provider graph:
   Mnemosyne `eb0d941`, Hermes `51c530f`, Moirai `b2f3732`, Leto `1b125ce`, and
@@ -30,10 +50,11 @@
   cases, 34/34 Python cases, doctest, provider audit, RustSec, cargo-deny, and
   196 applicable `apollo-fft` minor-release API checks. The intentionally
   fallible WGPU constructor is correctly classified as a major API change.
-- Residual risk: Apollo remains on latest-compatible WGPU 26.0.1 because
+- Historical constraint: Apollo remained on latest-compatible WGPU 26.0.1 because
   Hephaestus 0.12 publicly exposes that ABI. WGPU 30 migration also removes the
   current `ordered-float` cap and archived `paste` advisory exception. This is
-  provider-owned follow-up, not an unverified Apollo release claim.
+  provider-owned follow-up. `ATLAS-WGPU-030` closes this constraint with Apollo
+  0.15 and WGPU 30.
 - Evidence tier: compile-time and documentation enforcement, value-semantic
   Rust/Python tests, dependency-source inspection, and API/supply-chain tools.
 
