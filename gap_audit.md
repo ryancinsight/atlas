@@ -2283,6 +2283,11 @@ Moirai's committed Mnemosyne 0.2 requirement and no Moirai consumer-tree edit.
 - **Mnemosyne:** dependency-only PR #11 merged as `f95d372`; Themis 0.10 is
   pinned to `18807bb`. Local evidence is metadata, clippy, 288/288 nextest,
   doctests, and rustdoc.
+- **Leto:** PR #32 merged as `8d39f58`; the consumer lock graph now resolves one
+  Themis package at 0.10, cache-level fixtures model the provider's optional
+  line-size field, and the generic quaternion/fixed-matrix contracts are
+  covered by value-semantic tests. Local evidence is fmt, warning-denied
+  workspace Clippy, 568/568 locked nextest cases, doctests, and rustdoc.
 - **Hermes:** PR #6 commit `6080aa4` pins Themis 0.10 to `18807bb`. GitHub CI
   passes fmt/clippy/tests/docs, cross-compile, ARM NEON, cargo-deny, and review;
   only Miri fails. The same Mnemosyne allocator retag failure is present on
