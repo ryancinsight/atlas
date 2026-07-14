@@ -20,19 +20,24 @@
 - Evidence tier: Git state/diff inspection, process inspection, filesystem byte
   count, and semantic source review. No performance speedup is claimed.
 
-## Apollo Hephaestus 0.12 integration [major]
+## Apollo 0.14.0 release eligibility [arch]
 
 - [x] Removed Apollo's inert Moirai `no-global-alloc` request and refreshed its
   lock graph to one Melinoe 0.9 provider.
 - [x] Propagated fallible Hephaestus/Mnemosyne device construction through
   `WgpuDeviceResult`, consolidated error translation, and added exact tests.
-- [x] Apollo commit `a65d0c7` is pushed on
-  `codex/apollo-moirai-feature-cleanup`; advance only its Atlas gitlink.
-- Evidence tier: workspace clippy, focused nextest 2/2, doctest, rustdoc,
-  locked metadata, dependency-tree, and structural-duplication checks.
-- Residual: `cargo semver-checks` cannot resolve the historical standalone
-  Mnemosyne/Melinoe 0.8 baseline; the branch is not release-eligible until that
-  baseline becomes reproducible.
+- [x] Cascade verified Mnemosyne `eb0d941`, Hermes `51c530f`, Moirai `b2f3732`,
+  Leto `1b125ce`, and Hephaestus `f726742` provider revisions through Apollo's
+  manifest, lockfile, and CI checkout SSOT.
+- [x] Apollo release candidate `a4742bb` is pushed on
+  `codex/apollo-moirai-feature-cleanup`; advance only the five provider gitlinks
+  and Apollo gitlink in Atlas.
+- Evidence tier: warning-denied workspace clippy and rustdoc, 1027/1027 Rust
+  nextest cases, 34/34 Python cases, doctest, provider audit, RustSec,
+  cargo-deny, locked dependency resolution, and 196 applicable
+  `apollo-fft` minor-release API checks.
+- Residual: WGPU 30 and its `ordered-float`/archived `paste` transitive cleanup
+  remain blocked on Hephaestus migrating its public WGPU 26 ABI.
 
 ## ATLAS-LN-001 — Private LeoNeuro integration [arch]
 

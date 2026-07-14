@@ -6,6 +6,18 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+## ATLAS-APOLLO-014 — Apollo release graph [arch] — review
+
+- Owner: Codex; scope: `repos/{apollo,mnemosyne,moirai,hermes,leto,hephaestus}`
+  gitlinks and matching parent PM entries.
+- Acceptance: Apollo pins one exact, standalone-Git-resolvable Atlas provider
+  graph; Rust, Python, API, supply-chain, and documentation gates pass; all
+  provider and Apollo commits are pushed before Atlas advances their gitlinks.
+- Closure: Apollo `a4742bb` and provider commits Mnemosyne `eb0d941`, Hermes
+  `51c530f`, Moirai `b2f3732`, Leto `1b125ce`, and Hephaestus `f726742` are
+  pushed and release-gated. WGPU 30 remains a separate provider-owned ABI
+  migration, not a blocker to the latest compatible Apollo 0.14 graph.
+
 ## ATLAS-LN-001 — Register private LeoNeuro workspace [arch] — done
 
 - Owner: Codex; scope: `.gitmodules`, `README.md`, ADR 0017, the

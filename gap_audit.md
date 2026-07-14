@@ -22,15 +22,20 @@
 
 ### Apollo provider integration
 
-- Apollo `a65d0c7` consumes the local Hephaestus 0.12/Mnemosyne 0.3 graph,
-  removes an inert Moirai feature request, and changes caller-owned WGPU device
-  construction to propagate callback-ownership failures.
-- The resolved graph now contains one Melinoe 0.9 package. Workspace clippy is
-  clean; focused nextest passes 2/2 exact error-mapping tests; doctest and
-  rustdoc gates pass.
-- Release-only residual: semver baseline construction fails before comparison
-  because historical Mnemosyne requires Melinoe `^0.8` while the live Git source
-  exposes 0.9. No release or merge is claimed.
+- Apollo `a4742bb` consumes one exact standalone-Git-resolvable provider graph:
+  Mnemosyne `eb0d941`, Hermes `51c530f`, Moirai `b2f3732`, Leto `1b125ce`, and
+  Hephaestus `f726742`. It removes the inert Moirai feature request and
+  propagates callback-ownership failures through the public WGPU boundary.
+- Release gates pass: warning-denied clippy and rustdoc, 1027/1027 Rust nextest
+  cases, 34/34 Python cases, doctest, provider audit, RustSec, cargo-deny, and
+  196 applicable `apollo-fft` minor-release API checks. The intentionally
+  fallible WGPU constructor is correctly classified as a major API change.
+- Residual risk: Apollo remains on latest-compatible WGPU 26.0.1 because
+  Hephaestus 0.12 publicly exposes that ABI. WGPU 30 migration also removes the
+  current `ordered-float` cap and archived `paste` advisory exception. This is
+  provider-owned follow-up, not an unverified Apollo release claim.
+- Evidence tier: compile-time and documentation enforcement, value-semantic
+  Rust/Python tests, dependency-source inspection, and API/supply-chain tools.
 
 > State refresh (2026-07-12): gap_audit.md last active edit was 2026-07-08.
 > kwavers inner HEAD has advanced by 40+ commits since then, resolving Batch #1–#4
