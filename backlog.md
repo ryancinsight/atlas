@@ -14,9 +14,11 @@
 - Acceptance: RITK PR #31 is mergeable with required CI green; its native VTK
   capability tests, workspace gates, rustdoc, and migration audit are clean;
   Atlas advances the gitlink only to the merged commit.
-- Current evidence: RITK commit `22d6b97f` is pushed and local gates pass
-  (5,229/5,229 nextest tests, doctests, warning-free rustdoc, and clean
-  `burn-migration-audit`). PR #31 is mergeable; CI is still running.
+- Current evidence: RITK commit `a3df04f7` is pushed and the new reachable
+  OpenJPEG differential slice passes its local gates (14/14 interop tests and
+  256/256 `ritk-codecs` tests, warnings-denied Clippy, doctests, and rustdoc).
+  The prior CI source-fetch blocker is removed; PR #31 is mergeable and its
+  required CI is running against the public dependency revision.
 - Residual: RITK intentionally retains 14 Burn manifests and 645 Burn-surface
   source files for dependency-ordered Coeus consumer cutovers. No shim or
   fallback is accepted as closure evidence.

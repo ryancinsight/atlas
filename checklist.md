@@ -16,6 +16,9 @@
   clean`.
 - [x] Verify RITK local gates: workspace nextest 5,229/5,229 with 26 skipped,
   doctests, warnings-denied Clippy, fmt, and warning-free rustdoc.
+- [x] Replace the unreachable private OpenJPEG revision and stale `jpeg2k`
+  wrapper with the public `openjp2` API. The focused interop suite passes
+  14/14 and the full `ritk-codecs` package passes 256/256.
 - [ ] Wait for PR #31 required CI, merge it, then advance `repos/ritk` to the
       merged commit. Completion condition: the parent pointer is the merged
       PR commit and no peer-owned submodule pointer is staged.

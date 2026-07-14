@@ -3,12 +3,16 @@
 ## State refresh (2026-07-14) — RITK PR #31 and Hermes pointer
 
 - RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) is mergeable and currently
-  running required CI. Its pushed head is `22d6b97f`; the parent pointer stays
-  at `62a19607` until the PR merge commit is available.
+  running required CI. Its pushed head is `a3df04f7`; the parent pointer stays
+  at `62a19607` until the PR merge commit is available. The prior CI blocker
+  was the unreachable private `ryancinsight/openjp2` source; the branch now
+  pins public OpenJPEG PR 9 and calls `openjp2` directly from its differential
+  tests.
 - RITK local evidence is complete for this increment: 5,229/5,229 nextest
   tests with 26 skipped, doctests, warnings-denied Clippy, fmt, warning-free
-  rustdoc, and clean `burn-migration-audit`. The inner audit still reports 14
-  Burn manifests and 645 Burn-surface source files, which remain explicit
+  rustdoc, and clean `burn-migration-audit`; the new package slice adds 14/14
+  interop tests and 256/256 `ritk-codecs` tests. The inner audit still reports
+  14 Burn manifests and 645 Burn-surface source files, which remain explicit
   dependency-ordered migration residuals.
 - Hermes PR #6 is merged at `1423e41d01f4f7787472ddc91961f0771f9728fe`; the
   parent pointer is advanced in the current working tree. Kwavers and
