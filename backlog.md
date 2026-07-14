@@ -6,6 +6,20 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+## ATLAS-WGPU-030 — Provider ABI migration [arch] — in-progress
+
+- Owner: Codex; last-update: 2026-07-13; scope:
+  `repos/hephaestus`, `repos/apollo`, their gitlinks, and matching cross-repo PM
+  entries. Peer-owned CFDrs, Helios, RITK, and shared Cargo configuration are
+  excluded.
+- Acceptance: Hephaestus owns one current WGPU ABI; its complete WGPU feature
+  surface passes format, warning-denied Clippy, nextest, doctest, and rustdoc;
+  Apollo consumes the pushed provider commit, removes obsolete dependency and
+  advisory constraints, and repeats its release gates without duplicate WGPU
+  source identities.
+- Dependencies: current WGPU release/API metadata; existing Hephaestus and
+  Apollo release branches; shared `D:/atlas/target` build cache.
+
 ## ATLAS-APOLLO-014 — Apollo release graph [arch] — done
 
 - Owner: Codex; scope: `repos/{apollo,mnemosyne,moirai,hermes,leto,hephaestus}`
