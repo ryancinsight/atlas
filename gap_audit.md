@@ -2280,28 +2280,32 @@ Moirai's committed Mnemosyne 0.2 requirement and no Moirai consumer-tree edit.
 - **LeoNeuro:** dependency-only PR #1 merged as `82eeb86` into
   `codex/private-atlas-migration`; its lockfile sweep is complete without
   changing the peer-owned source migration.
-- **Mnemosyne:** dependency-only PR #11 merged as `f95d372`; Themis 0.10 is
-  pinned to `18807bb`. Local evidence is metadata, clippy, 288/288 nextest,
-  doctests, and rustdoc.
+- **Mnemosyne:** PR #11's Themis pin remains merged at `f95d372`; allocator
+  provenance PR #12 is superseded by merged PR #13 at `32b4a2a`. The provider
+  now defaults to zero retained segments under Miri, preserving the production
+  bounded cache while allowing leak checking to observe release. Local evidence
+  is fmt, warning-denied Clippy, 288/288 nextest, doctests, rustdoc, and the
+  Hermes Miri consumer suite without leak suppression.
 - **Leto:** PR #32 merged as `8d39f58`; the consumer lock graph now resolves one
   Themis package at 0.10, cache-level fixtures model the provider's optional
   line-size field, and the generic quaternion/fixed-matrix contracts are
   covered by value-semantic tests. Local evidence is fmt, warning-denied
   workspace Clippy, 568/568 locked nextest cases, doctests, and rustdoc.
-- **Hermes:** PR #6 commit `6080aa4` pins Themis 0.10 to `18807bb`. GitHub CI
-  passes fmt/clippy/tests/docs, cross-compile, ARM NEON, cargo-deny, and review;
-  only Miri fails. The same Mnemosyne allocator retag failure is present on
-  Hermes main, so this is a pre-existing correctness residual and the PR stays
-  open rather than merging around it.
+- **Hermes:** PR #6 head `db8e1a4` pins merged Mnemosyne `32b4a2a` and changes
+  the Miri workflow to nextest under the committed timeout profile. Local
+  evidence is fmt, metadata, warning-denied Clippy, 388/388 nextest, doctests,
+  rustdoc, and 23/23 Miri tests without leak suppression. GitHub CI is running;
+  merge remains gated on its fresh Miri, cross-compile, ARM, and supply-chain
+  results.
 - **Global migration residuals:** RITK still has active Burn-keyed source and
   manifest surfaces under the peer-owned Batch #3 #4-#6 work; Kwavers still has
   active peer-owned ndarray/PyO3-boundary and solver migration work. These are
   not closed by provider pin co-evolution and remain explicit blockers to a
   truthful global-zero residual claim.
 - **Evidence tier:** provider and consumer pin claims are source/static graph
-  evidence plus compile, lint, nextest, doctest, and rustdoc results. The
-  Hermes residual classification is differential CI evidence: the failure is
-  reproduced on both PR and main.
+  evidence plus compile, lint, nextest, doctest, rustdoc, and focused Miri
+  results. Hermes GitHub completion remains pending; no merge is claimed from
+  local evidence alone.
   Peer-owned dirty scopes were preserved.
 
 ## Findings 2026-07-14: MR-WATCH-001 closure + hermes gitlink advance + kwavers peer-active break

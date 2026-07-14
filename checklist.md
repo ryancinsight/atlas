@@ -1058,19 +1058,21 @@ in this cycle's atlas-meta commit. apollo and leoneuro-rs remain pending.
 - [x] **LeoNeuro Themis co-evolution sweep** `[patch]` — clean dependency-only PR
   #1 merged as `82eeb86` into `codex/private-atlas-migration`; the lockfile now
   resolves the Themis 0.10 line without changing peer-owned source migration.
-- [x] **Mnemosyne fixed Themis pin** `[patch]` — PR #11 merged as `f95d372`;
-  Mnemosyne pins Themis 0.10 at `18807bb`. Metadata, clippy, 288/288 nextest,
-  doctests, and docs pass in the isolated lane.
-- ⏳ **Hermes fixed Themis pin** `[patch]` — PR #6 commit `6080aa4` pins Themis
-  0.10 at `18807bb`; all GitHub checks pass except the pre-existing Miri
-  allocator failure reproduced on Hermes main. Keep the PR open until that
-  independent correctness residual is resolved.
+- [x] **Mnemosyne fixed Themis pin and Miri provenance** `[patch]` — PR #11
+  remains merged as `f95d372`; allocator PR #13 is merged as `32b4a2a`.
+  Production retention is unchanged; Miri defaults to zero retained segments.
+  Metadata, warning-denied Clippy, 288/288 nextest, doctests, docs, and focused
+  Hermes Miri evidence pass without leak suppression.
+- ⏳ **Hermes fixed Themis/Mnemosyne pin** `[patch]` — PR #6 head `db8e1a4`
+  pins Mnemosyne `32b4a2a` and runs Miri through nextest. Local gates pass:
+  388/388 native tests, 23/23 Miri tests, doctests, and docs. Fresh GitHub CI
+  remains the merge gate.
 - ⏳ ritk Burn strip sub-batches #4/#5/#6: 13-commit gitlink advance lands this
   cycle, but final Burn Cpu-serverity strip + CR-2 ritk-core global allocator
   landing remain (pending `coeus` finalize + `moirai`/`mnemosyne` provider dots).
 - ⏳ kwavers therapy KW-WATCH-002 perf (90s `elastic-fwi` timeout).
 - themis/moirai/helios: aligned and green. Hermes dependency migration is
-  delivered but remains review-blocked by the baseline Miri failure above.
+  delivered locally and remains review-blocked only by fresh GitHub CI.
 
 ### Out-of-scope this session (peer-owned, disjoint-scope per ADR 0011)
 
