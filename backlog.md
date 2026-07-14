@@ -9,10 +9,11 @@
 ## ATLAS-WGPU-030 — Provider ABI migration [arch] — in-progress
 
 - Owner: Codex; last-update: 2026-07-13; scope:
-  `repos/hephaestus`, `repos/apollo`, their gitlinks, and matching cross-repo PM
+  `repos/mnemosyne`, `repos/hephaestus`, `repos/apollo`, their gitlinks, and matching cross-repo PM
   entries. Peer-owned CFDrs, Helios, RITK, and shared Cargo configuration are
   excluded.
-- Acceptance: Hephaestus owns one current WGPU ABI; its complete WGPU feature
+- Acceptance: Mnemosyne removes the raw-pointer WGPU staging allocator contract
+  that WGPU 30 cannot represent safely; Hephaestus owns one current WGPU ABI; its complete WGPU feature
   surface passes format, warning-denied Clippy, nextest, doctest, and rustdoc;
   Apollo consumes the pushed provider commit, removes obsolete dependency and
   advisory constraints, and repeats its release gates without duplicate WGPU
