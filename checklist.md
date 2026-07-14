@@ -20,12 +20,25 @@
   wrapper with the public `openjp2` API. The focused interop suite passes
   14/14 and the full `ritk-codecs` package passes 256/256.
 - [ ] Wait for PR #31 required CI, merge it, then advance `repos/ritk` to the
-      merged commit. Completion condition: the parent pointer is the merged
-      PR commit and no peer-owned submodule pointer is staged.
+      merged commit. Current head is `5b8e4434`; CI runs 29376001568 and
+      29376001632 are still active. Completion condition: the parent pointer
+      is the merged PR commit and no peer-owned submodule pointer is staged.
 - Residual: RITK still has 14 Burn manifests and 645 Burn-surface source files;
   the next item is a real Coeus/Leto consumer cutover. Three registration
   tests exceeded 30 seconds locally and require a profile-guided performance
   item; their assertions and workloads were not changed.
+
+## Apollo RustFFT/WGPU provider promotion [major]
+
+- [x] Complete the provider branch migration and replace the RustFFT
+      validation oracle with the native DFT reference.
+- [x] Gate AVX Stockham modules to x86 targets. Completion condition:
+      `apollo-fft` passes 409/409 nextest and an `aarch64-apple-darwin` check.
+- [x] Open Apollo PR #8 from `codex/remove-rustfft` at `f1a44a7`.
+- [ ] Resolve the external `recurseml/analysis` error and obtain repository
+      review/CI green before promotion to Apollo `main`.
+- Residual: RITK pins `f1a44a7` temporarily and must replace it with the
+  merged Apollo commit after promotion.
 
 ## Hermes pointer closure [patch]
 

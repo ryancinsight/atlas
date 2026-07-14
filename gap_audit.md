@@ -1,13 +1,14 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
-## State refresh (2026-07-14) — RITK PR #31 and Hermes pointer
+## State refresh (2026-07-14) — RITK PR #31, Apollo PR #8, and Hermes pointer
 
 - RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) is mergeable and currently
-  running required CI. Its pushed head is `a3df04f7`; the parent pointer stays
+  running required CI. Its pushed head is `5b8e4434`; the parent pointer stays
   at `62a19607` until the PR merge commit is available. The prior CI blocker
   was the unreachable private `ryancinsight/openjp2` source; the branch now
   pins public OpenJPEG PR 9 and calls `openjp2` directly from its differential
-  tests.
+  tests. The action now pins Apollo `f1a44a7`, which fixes the x86-only AVX
+  module boundary exposed by Apple Silicon.
 - RITK local evidence is complete for this increment: 5,229/5,229 nextest
   tests with 26 skipped, doctests, warnings-denied Clippy, fmt, warning-free
   rustdoc, and clean `burn-migration-audit`; the new package slice adds 14/14
@@ -20,6 +21,13 @@
 - Full RITK nextest recorded three registration tests over the 30-second slow
   threshold (30.510s, 35.422s, 37.823s). This is a profile-guided performance
   residual, not a timeout or correctness failure.
+- Apollo PR #8 (`codex/remove-rustfft`) contains the RustFFT-free validation
+  oracle, WGPU 30 provider graph, and Apple Silicon target fix at `f1a44a7`.
+  The owning `apollo-fft` package passes 409/409 nextest, warnings-denied
+  Clippy, doctests, rustdoc, and an `aarch64-apple-darwin` check. Apollo has no
+  workflow run for the PR; the external `recurseml/analysis` status is `ERROR`
+  for the 4b8b9709..f1a44a7 range and CodeRabbit remains pending. No merge
+  bypass is authorized by the evidence.
 
 ## State refresh (2026-07-13) — peer dirt and local artifacts
 

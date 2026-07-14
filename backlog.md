@@ -14,14 +14,29 @@
 - Acceptance: RITK PR #31 is mergeable with required CI green; its native VTK
   capability tests, workspace gates, rustdoc, and migration audit are clean;
   Atlas advances the gitlink only to the merged commit.
-- Current evidence: RITK commit `a3df04f7` is pushed and the new reachable
+- Current evidence: RITK commit `5b8e4434` is pushed and the new reachable
   OpenJPEG differential slice passes its local gates (14/14 interop tests and
   256/256 `ritk-codecs` tests, warnings-denied Clippy, doctests, and rustdoc).
-  The prior CI source-fetch blocker is removed; PR #31 is mergeable and its
-  required CI is running against the public dependency revision.
+  The prior CI source-fetch and Apple Silicon Apollo compile blockers are
+  removed; PR #31 required CI is running against Apollo `f1a44a7`.
 - Residual: RITK intentionally retains 14 Burn manifests and 645 Burn-surface
   source files for dependency-ordered Coeus consumer cutovers. No shim or
   fallback is accepted as closure evidence.
+
+## ATLAS-APOLLO-015 — RustFFT/WGPU provider promotion [major] — review blocked
+
+- Owner: Codex; scope: `repos/apollo` PR #8 and its Atlas consumer pins. The
+  Apollo branch is not advanced in the parent until promotion to `main`.
+- Acceptance: Apollo PR #8 is reviewed with repository CI green, the provider
+  state reaches `main`, and consumers replace temporary branch pins with the
+  merged commit.
+- Current evidence: Apollo `f1a44a7` passes the owning `apollo-fft` gates
+  (409/409 nextest, warnings-denied Clippy, doctests, rustdoc, and an
+  `aarch64-apple-darwin` check). RITK CI consumes this exact commit.
+- Residual: Apollo has no workflow run for PR #8; the external
+  `recurseml/analysis` status is `ERROR` for the 4b8b9709..f1a44a7 range and
+  CodeRabbit remains pending. This is an external review/CI blocker, not a
+  reason to bypass merge protection.
 
 ## ATLAS-WGPU-030 — Provider ABI migration [arch] — done
 
