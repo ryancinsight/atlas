@@ -13,3 +13,15 @@
 # and take precedence over this file.
 [build]
 target-dir = "D:/atlas/target"
+
+# Debuginfo budget (build-size/memory policy): full DWARF/PDB is the dominant
+# debug-artifact and link-memory cost for generic-heavy code. Own code keeps
+# line tables (file:line backtraces, no variable/type info); dependencies get
+# no debuginfo at all — step-debugging a dep is the rare exception, re-enable
+# per-package locally when needed. Full debuginfo belongs only in an explicit
+# [profile.profiling] inside the workspace that needs it.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
