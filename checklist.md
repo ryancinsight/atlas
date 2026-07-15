@@ -1177,8 +1177,8 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
 - [x] Add a deterministic barrier regression for reservation/insertion versus
       clear, then run nextest, warning-denied Clippy, docs, and Criterion.
 - [x] Push the provider merge, advance the Atlas gitlink, and reconcile the
-      parent PM artifacts. PR #70 merged as `368acbd`; the Atlas gitlink now
-      points to that merged provider commit.
+      parent PM artifacts. PRs #70/#71 merged; the final provider head is
+      `b637064` and the Atlas gitlink now points to it.
 
 Acceptance: no resource remains hidden behind stale counters, no counter
 underflow occurs, and the measured steady-state path has no unreviewed
