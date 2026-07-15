@@ -19,12 +19,12 @@
 - [x] Replace the unreachable private OpenJPEG revision and stale `jpeg2k`
   wrapper with the public `openjp2` API. The focused interop suite passes
   14/14 and the full `ritk-codecs` package passes 256/256.
-- [x] Wait for PR #31 required CI, merge it, then advance `repos/ritk` to the
-      merged commit. PR #31 merged to `origin/main` at `be75a93a`; CI passed
-      (Rustfmt, Clippy, Workspace Dependency Alignment, Test Suite on
-      ubuntu/macos/windows, Python 3.9-3.13 on all platforms, Python Wheel,
-      CodeRabbit, Audit burn migration). Gitlink advanced `5452f441 → be75a93a`
-      via commit `4bc5381`.
+- [x] Merge RITK PR #31 and documentation closeout PR #32, then advance
+      `repos/ritk` to merged commit `4ba050ca`. CI passed (Rustfmt, Clippy,
+      Workspace Dependency Alignment, Test Suite on ubuntu/macos/windows,
+      Python 3.9-3.13 on all platforms, Python Wheel, CodeRabbit, and Audit
+      burn migration). The final pointer advance is committed with this
+      closeout.
 - Residual: RITK still has 14 Burn manifests and 645 Burn-surface source files;
   the next item is a real Coeus/Leto consumer cutover (sub-batches #3.g–#6,
   peer-owned). Three registration tests exceeded 30 seconds locally and require

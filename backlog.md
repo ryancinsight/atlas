@@ -8,10 +8,10 @@
 
 ## ATLAS-RITK-654 — RITK native migration reconciliation [patch] — ✅ done
 
-- Owner: Codex; scope: `repos/ritk` PR #31 and the `repos/ritk` gitlink.
-- Acceptance: RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) merged to
-  `origin/main` at `be75a93a`. All required CI passed. Atlas gitlink advanced
-  from `5452f441` to `be75a93a` via commit `4bc5381`.
+- Owner: Codex; scope: RITK PRs #31/#32 and the `repos/ritk` gitlink.
+- Acceptance: RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) and its
+  documentation closeout PR #32 merged to `origin/main`; all required CI
+  passed. Atlas gitlink advances from `be75a93a` to `4ba050ca`.
 - Residual: RITK retains 14 Burn manifests and 645 Burn-surface source files
   for dependency-ordered Coeus consumer cutovers (peer-owned sub-batches
   #3.g–#6). No shim or fallback is accepted as closure evidence.

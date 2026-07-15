@@ -1,17 +1,20 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
-## State refresh (2026-07-14) — RITK PR #31 MERGED, Apollo PR #8 blocked
+## State refresh (2026-07-14) — RITK PRs #31/#32 MERGED, Apollo PR #8 blocked
 
-- **RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) — ✅ MERGED** to
-  `origin/main` at `be75a93a`. All required CI passed (Rustfmt, Clippy,
-  Workspace Alignment, Test Suite on ubuntu/macos/windows, Python 3.9-3.13,
-  Python Wheel, CodeRabbit, Audit burn migration). Atlas gitlink advanced
-  `5452f441 → be75a93a` via commit `4bc5381`.
+- **RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) and PR #32 — ✅ MERGED**
+  to `origin/main` at `be75a93a` and `4ba050ca`. All required CI passed
+  (Rustfmt, Clippy, Workspace Alignment, Test Suite on ubuntu/macos/windows,
+  Python 3.9-3.13, Python Wheel, CodeRabbit, Audit burn migration). The Atlas
+  gitlink now advances to `4ba050ca`.
 - RITK local evidence confirmed pre-merge: 5,229/5,229 nextest tests with 26
   skipped, doctests, warnings-denied Clippy, fmt, warning-free rustdoc, and
   clean `burn-migration-audit`. 14 Burn manifests and 645 Burn-surface source
   files remain as dependency-ordered peer-owned residuals (sub-batches
   #3.g–#6).
+- The documentation closeout CI runs 29377346830, 29377346839, and
+  29377346848 also pass; the external `recurseml/analysis` status errored on
+  the closeout range but is not a protected required check.
 - Full RITK nextest recorded three registration tests over the 30-second slow
   threshold (30.510s, 35.422s, 37.823s). Profile-guided performance residual,
   not a timeout or correctness failure.
