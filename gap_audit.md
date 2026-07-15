@@ -34,9 +34,9 @@
 
 ## State refresh (2026-07-13) — peer dirt and local artifacts
 
-- `repos/kwavers` and `repos/leoneuro-rs` are actively changing under peer-owned
-  verification. The 2026-07-12 clean-tree snapshot below is historical evidence,
-  not current working-tree state.
+- `repos/kwavers` is actively changing under peer-owned verification. The
+  2026-07-12 clean-tree snapshot below is historical evidence, not current
+  working-tree state.
 - `worktrees/` is required local infrastructure: one registered RITK lane plus
   11 junctions that resolve sibling Atlas path dependencies. It is ignored, not
   deleted. Its private generated target cache consumed 325,213,153,514 bytes and
@@ -2289,29 +2289,11 @@ Residual publish risk: isolated Hephaestus semver analysis builds the current
 0.12.0 rustdoc, then its baseline clone cannot resolve the repository-external
 `../leto/crates/leto` path dependency. The local Atlas graph is green with
 Moirai's committed Mnemosyne 0.2 requirement and no Moirai consumer-tree edit.
-# Private LeoNeuro integration risk register (2026-07-13)
-
-- **Metadata visibility — accepted.** Public Atlas exposes the private repository
-  name, URL, tracked branch, pinned commit, and topology relationship. Source
-  contents remain private. Evidence tier: Git index plus authenticated GitHub
-  visibility query; ADR 0017 records the boundary.
-- **Source publication boundary — verified.** The private staged snapshot had 141
-  files / 2.31 MB, no file over 100 MiB, no Python/MATLAB/Arduino implementation,
-  and no Gitleaks finding. Datasets, patient images, generated outputs, binary
-  references, and the legacy Python reference remain ignored and local.
-- **Full Rust gate — externally blocked.** Cargo metadata and formatting pass.
-  Clippy stops during dependency resolution because the live Atlas provider
-  worktrees are mid-Melinoe-0.9 migration. Moirai requires the breaking executor
-  API update; Coeus, Mnemosyne, Themis, and Gaia require synchronized constraints.
-
 ### Current provider-consumer reconciliation — 2026-07-14
 
 - **Themis:** provider fix `18807bb` is merged to `main`; Linux cache parsing now
   maps malformed sysfs values to typed absence. The root gitlink is advanced to
   this commit.
-- **LeoNeuro:** dependency-only PR #1 merged as `82eeb86` into
-  `codex/private-atlas-migration`; its lockfile sweep is complete without
-  changing the peer-owned source migration.
 - **Mnemosyne:** PR #11's Themis pin remains merged at `f95d372`; allocator
   provenance PR #12 is superseded by merged PR #13 at `32b4a2a`. The provider
   now defaults to zero retained segments under Miri, preserving the production
@@ -2409,9 +2391,6 @@ Verified building HEADs in this cycle:
 - coeus `1cb9900`: `cargo nextest -p coeus-core` 21/21 pass (them is 0.10 fix).
 - apollo `b633652`: previously 907/907 at dffcb5b; peer WT dirty on 11 files
   (DHT provider migration) — defer advance to next clean-HEAD cycle.
-- leoneuro-rs `11874ed`: themis version pin clash (same class as Coeus),
-  plus melinoe/themis git rev pin drift from 6140468 — defer until peer's
-  dependency sweep commit lands.
 - themis `07bf558`: aligned (peer merged `1996018` → `07bf558` main, 50/50 pass,
   parent already at `07bf558`). THEM-CACHE-001 CLOSED.
 - hermes `bcef1c8`: aligned, 388/388 pass (pushed `b5a4c5e`).
@@ -2423,7 +2402,6 @@ Verified building HEADs in this cycle:
 | ritk | `ef9420fb30f9` | `7f81384` (fix spatial: FixedMatrix) | check clean + 5055/5055 nextest pass | `7f81384...` (advanced this cycle) |
 | coeus | `e0a5377` | `1cb9900` (themis 0.10 fix) | coeus-core 21/21 pass | `1cb9900...` (advanced this cycle) |
 | apollo | `96e67a2` | `b633652` (docs: DHT migration) | 907/907 at dffcb5b but peer WT dirty 11 files | skip |
-| leoneuro-rs | `1ad323e` | `11874ed` | themis pin clash | skip |
 | themis | `07bf558` | `07bf558` | 50/50 pass, aligned | already aligned |
 | helios | `9ee3b6e` | `9ee3b6e` | multichapter scaffold merged to main | aligned |
 
@@ -2434,7 +2412,6 @@ Verified building HEADs in this cycle:
 - ✅ CFDrs cfd-1d Picard convergence — CLOSED (26/26, `153b0ed9`).
 - ⏳ KW-WATCH-002 (kwavers-therapy abdominal perf) — open (peer-stream perf).
 - ⏳ apollo CZT/DHT provider migration — open (peer WT dirty on 11 files).
-- ⏳ leoneuro-rs themis/mnemosyne co-evolution pin sweep — open.
 - ⏳ ritk Burn dep strip Batch #4/#5/#6 — open, but ritk gitlink advanced 13 commits this cycle with coeus-native paths.
 - ⏳ MOI-NUMA-001 — parked (peer scheduler/deque scope, now clearable by peer now that moirai clean WT + merged topology).
 - ⏳ MOI-CONTENTION-001 — parked, `perf/moirai-contention-audit` merged main per `perf/moirai-contention-audit` branch adv.

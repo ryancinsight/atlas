@@ -37,12 +37,15 @@
       validation oracle with the native DFT reference.
 - [x] Gate AVX Stockham modules to x86 targets. Completion condition:
       `apollo-fft` passes 409/409 nextest and an `aarch64-apple-darwin` check.
-- [x] Open Apollo PR #8 from `codex/remove-rustfft` at `f1a44a7`.
-- [x] Resolve the Rust 1.97.0 / syn 2.0.119 incompatibility (E0119) by
-      pinning Cargo.lock to syn 2.0.118 (commit `b57c069`).
-- [ ] Obtain repository review/CI green before promotion to Apollo `main`.
-- Residual: RITK pins the branch commit temporarily and must replace it with the
-  merged Apollo commit after promotion.
+- [x] Open Apollo PR #8 from `codex/remove-rustfft` and resolve the Rust 1.97.0
+      / syn 2.0.119 incompatibility (E0119) by pinning Cargo.lock to syn
+      2.0.118 (commit `b57c069`).
+- [x] Obtain repository review/CI green and promote Apollo PR #8 to `main` at
+      `6e99a567c118f6bf5790f80346475b44db2c7555`. Authoritative CI run
+      `29381809234` passed the Rust, Python, documentation, provider-audit,
+      RustSec, and dependency-policy jobs.
+- Residual: RITK PR #33 is the downstream consumer verification; its checkout
+      action now pins merged Apollo and Coeus provider heads.
 
 ## Hermes pointer closure [patch]
 
@@ -98,20 +101,6 @@
   `apollo-fft` minor-release API checks.
 - Superseded: the WGPU 30 provider migration and archived `paste` cleanup are
   closed by the release increment above.
-
-## ATLAS-LN-001 — Private LeoNeuro integration [arch]
-
-- [x] Relocate the local source to `repos/leoneuro-rs` and remove its old checkout.
-- [x] Create and verify the private `LeoNeuro-INC/leoneuro-rs` repository.
-- [x] Curate, scan, commit, and push the private source migration branch.
-- [x] Rewrite LeoNeuro's Kwavers paths for the adjacent Atlas checkout.
-- [x] Add the public Atlas gitlink, topology documentation, and ADR 0017.
-- [x] Complete the exact-lock source Clippy/nextest/doctest/doc gate against
-  merged Melinoe 0.9 (`bb07447`): 317/317 Nextest tests pass, five existing
-  tests are skipped, and no test reaches the 30-second threshold.
-- [x] Push private LeoNeuro `87328eb`, push native-provider Kwavers `739527463`,
-  verify authenticated access and private visibility, and advance both public
-  Atlas gitlinks without publishing source contents.
 
 > **Current execution order (2026-07-12 evening session, kwavers Batch #1 + #4 closed)**:
 > 1. ✅ CR-2 (`cfd-core` + `moirai`) — closed. `ritk-core` deferred.
@@ -1058,7 +1047,6 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
 **Not advanced this cycle**:
 - coeus/ritk: already aligned with parent pins
 - moirai: git config issue (pre-existing, `core.bare`/`core.worktree` mismatch)
-- leoneuro-rs: 7 dirty files (peer active on `codex/sim-ct-medium`)
 - apollo: 11 dirty DHT CZT files on `codex/apollo-provider-kernel-migration`
 
 ### Residual watchpoints

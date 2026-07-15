@@ -65,19 +65,6 @@
   gitlinks. The completed `ATLAS-WGPU-030` increment supersedes this historical
   WGPU 26 release graph.
 
-## ATLAS-LN-001 — Register private LeoNeuro workspace [arch] — done
-
-- Owner: Codex; scope: `.gitmodules`, `README.md`, ADR 0017, the
-  `repos/leoneuro-rs` gitlink, and matching PM entries.
-- Acceptance: public Atlas tracks the private source repository; LeoNeuro Cargo
-  metadata resolves migrated Kwavers from `repos/kwavers`; no private source,
-  datasets, medical images, generated artifacts, or credentials enter Atlas.
-- Closure: Kwavers `739527463` removes the remaining Leto compatibility feature
-  and provider-side identity conversions. Private LeoNeuro `87328eb` consumes
-  the adjacent native provider graph and passes locked Clippy, 317/317 Nextest,
-  doctest, and warning-denied Rustdoc gates. Public Atlas records only the two
-  gitlinks and the already documented private-repository metadata.
-
 > **2026-07-09 current-tree reconciliation**: the direct production
 > `nalgebra`/`ndarray`/`burn`/Tokio/Rayon removal front is closed in CFDrs.
 > The next cross-repo correctness slice is provider-first ownership of the
@@ -165,7 +152,6 @@ Batches #5, #6, #7 are the [arch] provider-SSOT gates. Per `decision_policy` nte
 
 - Atlas-meta branch: `codex/kwavers-atlas-integration` (PM artifacts only).
 - Atlas-meta claim scope (this turn): `backlog.md`, `checklist.md`, `gap_audit.md` at the atlas workspace root; no per-repo files touched at the atlas-meta layer.
-- **LeoNeuro Themis co-evolution sweep** [patch]: **DONE** — clean dependency-only PR #1 merged as `82eeb86` into `codex/private-atlas-migration`; the lockfile resolves the Themis 0.10 line without changing peer-owned source migration work.
 - **Mnemosyne fixed Themis pin** [patch]: **DONE** — PR #11 merged as `f95d372`; Mnemosyne pins Themis 0.10 at `18807bb`, with metadata, clippy, 288/288 nextest, doctests, and docs green.
 - **Leto Themis co-evolution and provider extension** [patch]: **DONE** — PR #32 merged as `8d39f58`; the lock graph, cache-level contract, quaternion interpolation, and fixed-matrix value contracts are verified by the complete local gate.
 - **Hermes fixed Themis pin** [patch]: **DELIVERED / MERGE-BLOCKED** — PR #6 commit `6080aa4` pins Themis 0.10 at `18807bb`; all CI checks pass except the pre-existing Miri allocator failure reproduced on Hermes main. The PR remains open pending that independent correctness residual.
