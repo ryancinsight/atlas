@@ -1,5 +1,15 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-15) — moirai CONTENTION-001 closure: perf branch merged to main
+
+- **MOI-CONTENTION-001 — CLOSED**. `perf/moirai-contention-audit` merged to `main` at
+  `9cd650f` (merge commit). Contains 3 commits: scheduler themis cache_levels fix,
+  moirai-async sync primitives feature (Condvar/Mutex/oneshot/mpsc/macros), and
+  ATLAS-MOIRAI-016 cancellation/waker-leak fixes (NoopWaker pre-registration,
+  ID-based waiter tracking, rx_waker Drop cleanup). Verified: `cargo check` clean,
+  `cargo nextest run -p moirai-async` 82/82 pass. Pushed to `origin/main`.
+  Atlas parent gitlink advanced `e3d1a30` → `9cd650f` (staged, uncommitted).
+
 ## State refresh (2026-07-15) — Apollo/Coeus/RITK consumer closure
 
 - **RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) and PR #32 — ✅ MERGED**
@@ -2464,8 +2474,8 @@ Verified building HEADs in this cycle:
 - ⏳ KW-WATCH-002 (kwavers-therapy abdominal perf) — open (peer-stream perf).
 - ⏳ apollo CZT/DHT provider migration — open (peer WT dirty on 11 files).
 - ⏳ ritk Burn dep strip Batch #4/#5/#6 — open, but ritk gitlink advanced 13 commits this cycle with coeus-native paths.
+- ✅ MOI-CONTENTION-001 — CLOSED 2026-07-15: `perf/moirai-contention-audit` merged to `main` at `9cd650f` (ATLAS-MOIRAI-016 cancellation/waker-leak fixes + async sync primitives). 82/82 nextest pass.
 - ⏳ MOI-NUMA-001 — parked (peer scheduler/deque scope, now clearable by peer now that moirai clean WT + merged topology).
-- ⏳ MOI-CONTENTION-001 — parked, `perf/moirai-contention-audit` merged main per `perf/moirai-contention-audit` branch adv.
 
 ## Findings 2026-07-15: concurrent peer reconciliation + CFDrs `621395f9` verification + mnemosyne feature-branch root cause
 
