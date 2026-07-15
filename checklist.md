@@ -1186,8 +1186,8 @@ contention regression.
 
 ## Provider closeout — Moirai ISSUE-213 blocking lane [arch]
 
-- [x] Merge provider implementation PR #72 (`9b34cea`) and PM closeout PR #73
-      (`9b3caa5`).
+- [x] Merge provider implementation PR #72 (`9b34cea`), PM closeout PR #73
+      (`9b3caa5`), and review-record correction PR #74 (`6184f73`).
 - [x] Record the lazy bounded lane, compute/blocking counter separation, typed
       backpressure, starvation, priority, cancellation, shutdown, and
       concurrent-producer evidence in the provider PM artifacts.
