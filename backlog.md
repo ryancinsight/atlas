@@ -6,6 +6,27 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+## ATLAS-MOIRAI-016 — Cancellation-safe async wait queues [patch] — OPEN
+
+- Owner: Moirai; Atlas scope: cross-repo audit record only. The merged
+  `moirai-async` synchronization surface at `5514040` needs a provider-owned
+  correctness and memory-retention fix; its extension item is reopened.
+- Findings: `Condvar::wait` releases its `MutexGuard` before registering the
+  notification future, leaving a concurrent lost-notification window;
+  `mpsc::SendFuture`/`RecvFuture` retain wakers after cancellation; and the
+  oneshot receiver retains `rx_waker` after receiver cancellation while a
+  sender remains alive.
+- Acceptance: atomically couple condition-variable waiter registration with
+  mutex release; deregister cancelled channel waiters and release their
+  wakers; add deterministic value-semantic cancellation and lost-notification
+  regressions; run the provider's warnings-denied Clippy and `cargo nextest
+  run` gates with no slow or hanging test.
+- Evidence: source-level interleaving and ownership audit plus local
+  `cargo nextest run -p moirai-async --locked --no-fail-fast` at `5514040`,
+  80/80 passing. The current suite does not exercise the identified races.
+- Closure trigger: a provider commit and focused regression evidence covering
+  all three findings.
+
 ## ATLAS-RITK-654 — RITK native migration reconciliation [patch] — ✅ done
 
 - Owner: Codex; scope: RITK PRs #31/#32 and the `repos/ritk` gitlink.
@@ -95,7 +116,7 @@ These cross-cut consumer migration but live in provider land. Each requires its 
 | --- | --- | --- | --- |
 | `leto` | ✅ `Quaternion<T>` Add/Sub/Neg/Mul&lt;T&gt;/Div&lt;T&gt; + `try_inverse` + `to_rotation_matrix`; ✅ `FixedMatrix&lt;4,4&gt;` determinant/try_inverse + generic Add/Sub/Neg/Mul&lt;T&gt;/Div&lt;T&gt;/Assign. **Verified 2026-07-14**: 229/229 tests green, clippy `-D warnings` clean. | math | `leto/backlog.md` |
 | `leto-ops` | ✅ `CscMatrix<T>`, `CooMatrix<T>`, `lu_batch`; `ExecutionStrategy` trait — all verified present at `leto/crates/leto-ops/src/`. | ops | `leto/backlog.md` |
-| `moirai-async` | ✅ `mpsc::channel`, `oneshot::channel`, `Condvar`, `Mutex`; `#[moirai::main]` proc-macro — **Verified: 79/80 tests pass (pre-existing flaky timer), clippy `-D warnings` clean** | async | `moirai/docs/backlog.md` |
+| `moirai-async` | ⚠️ `mpsc::channel`, `oneshot::channel`, `Condvar`, `Mutex`, and `#[moirai::main]` exist, but cancellation and condition-variable contention audit `ATLAS-MOIRAI-016` is open; current local suite is 80/80, with no focused race regressions | async | `moirai/docs/backlog.md` |
 | `apollo` | ✅ RustFFT-free differential oracle — pure O(N²) DFT reference replaces rustfft. `b291003` on `codex/remove-rustfft`. Workspace `rustfft = "6.4.1"` pin removed; `external-references` feature removed; dev-dep and vs_rustfft benchmark removed; xtask benchmark runner stripped. | validate | `apollo/backlog.md` |
 | `eunomia` | ✅ eunomia-gpu deleted (E-019); folded into `hephaestus::DialectScalar`. README clean — no aspirational claims about eunomia-gpu. | basis | `eunomia/backlog.md` |
 | `coeus` | ✅ `scatter_add` exists at Tensor/Var/Python; all 6 comparison ops (eq/ne/lt/gt/le/ge) exist. `Dataset`/`DataLoader` deferred per "if PINN dataset paths require" condition — no PINN path in current scope requires them. | autograd | `coeus/docs/backlog.md` |

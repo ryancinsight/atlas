@@ -32,6 +32,31 @@
   `.git/modules/repos/moirai/config` from `core.bare=true` to `false`; peer
   source changes and its dirty Cargo.lock remain preserved.
 
+## State refresh (2026-07-15) — Moirai async contention and retention audit
+
+The merged Moirai async synchronization surface at `repos/moirai` commit
+`5514040` has three provider-owned residuals:
+
+- `moirai-async/src/sync/condvar.rs:26-34` drops the mutex guard before the
+  notification future registers. A concurrent notifier can acquire the mutex,
+  publish the condition, and notify before registration; the waiter then
+  sleeps through that notification.
+- `moirai-async/src/sync/mpsc.rs:79-110` stores send waiters and
+  `:157-176` stores receive waiters, but the corresponding future drops do not
+  deregister them. Cancelled futures therefore retain wakers and can retain
+  task state until channel closure or a later message, increasing memory use
+  and wake contention.
+- `moirai-async/src/sync/oneshot.rs:86-111` does not clear `rx_waker` when the
+  receiver is dropped. A live sender can retain the cancelled receiver's
+  waker until the shared state is released.
+
+The local package gate passes `cargo nextest run -p moirai-async --locked
+--no-fail-fast` with 80/80 tests, but it has no deterministic cancellation or
+lost-notification regression for these paths. This is source-level race and
+ownership evidence plus value-semantic package execution; no performance
+improvement is claimed until the provider fixes the state machines and adds
+the regressions. Cross-repo follow-up: `ATLAS-MOIRAI-016`.
+
 ## State refresh (2026-07-13) — peer dirt and local artifacts
 
 - `repos/kwavers` is actively changing under peer-owned verification. The
