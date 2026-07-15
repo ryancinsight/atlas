@@ -1165,3 +1165,20 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
 - Re-verify ritk at the resolved mnemosyne pin (the verification path this
   cycle was blocked by the stale feature-branch mnemosyne; now unblocked).
 - Re-probe apollo/coeus peer feature branches for merge to `main`.
+
+## In-flight claim — Moirai ISSUE-214 resource-pool linearizability [patch]
+
+- [x] Claim `MOI-RESOURCE-214` on the Atlas board with scope limited to the
+      Moirai resource-pool implementation, its co-located tests/benchmarks,
+      and provider PM artifacts.
+- [ ] Create the named provider branch and record the provider-side claim.
+- [ ] Make `clear` linearizable against `recycle`/`take` without adding a
+      shard-wide lock acquisition to steady-state operations.
+- [ ] Add a deterministic barrier regression for reservation/insertion versus
+      clear, then run nextest, warning-denied Clippy, docs, and Criterion.
+- [ ] Push the provider merge, advance the Atlas gitlink, and reconcile the
+      parent PM artifacts.
+
+Acceptance: no resource remains hidden behind stale counters, no counter
+underflow occurs, and the measured steady-state path has no unreviewed
+contention regression.
