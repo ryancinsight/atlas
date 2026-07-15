@@ -1183,3 +1183,17 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
 Acceptance: no resource remains hidden behind stale counters, no counter
 underflow occurs, and the measured steady-state path has no unreviewed
 contention regression.
+
+## Provider closeout — Moirai ISSUE-213 blocking lane [arch]
+
+- [x] Merge provider implementation PR #72 (`9b34cea`) and PM closeout PR #73
+      (`9b3caa5`).
+- [x] Record the lazy bounded lane, compute/blocking counter separation, typed
+      backpressure, starvation, priority, cancellation, shutdown, and
+      concurrent-producer evidence in the provider PM artifacts.
+- [x] Preserve peer-owned Moirai channel/iterator dirt and defer the parent
+      gitlink update until the shared submodule can be advanced without
+      switching a peer-owned working branch.
+
+Acceptance: provider `main` contains the verified blocking-lane commits; the
+Atlas parent does not stage peer-owned inner-repo changes.
