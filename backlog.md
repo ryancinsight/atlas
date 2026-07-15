@@ -451,17 +451,19 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 | MEL-SCOPE-001 | [major] | done (`55ad20e`, merged `bb07447`) | Melinoe capability plus Mnemosyne/Themis/Moirai/Gaia/Coeus/Hephaestus consumers | Unsafe implementer obligation encoded; consumers migrated; Miri, conformance, and provider-version unification pass. |
 | MOI-NUMA-001 | [arch] | blocked — active peer scope | Moirai + Mnemosyne/Themis ownership | Real affinity/placement; typed failures; no fallback or duplicated topology. |
 | THEM-CACHE-001 | [minor] | done (`18807bb`, merged PR #6) | Themis cache detection | Linux cache parsing returns typed absence on malformed input; Themis consumer pins are co-evolving. |
-| LETO-SCALAR-001 | [major] | todo | Leto scalar execution | Mismatch mutates nothing; Hermes errors propagate; no fallback. |
-| MNE-PERCPU-001 | [patch] | todo | Mnemosyne local cache | Dormant 720,896-byte static excluded; binary/RSS evidence recorded. |
+| LETO-SCALAR-001 | [major] | partial (`855f3ad`) | Leto scalar execution — length pre-validated; Hermes error propagation remains | Partial write closed: `assert_eq!` preconditions in all mutating Scalar methods. 304/304 leto-ops tests pass, apollo-fft builds clean. Error propagation deferred to Result-returning Scalar trait API change. |
+| MNE-PERCPU-001 | [patch] | done (verified 2026-07-15) | Mnemosyne local cache — lazy `OnceLock<Box<>>` confirmed | Static footprint ~56 bytes, not 720,896. No backend enables `ENABLE_CPU_CACHE`. |
 | TREE-SRP-001 | [arch] | todo | Melinoe/Themis/Moirai hierarchy | Operation-family leaf modules; no compatibility modules or duplicated implementations. |
 
-## Watchpoints — 2026-07-14 (atlas-meta coordinator view)
+## Watchpoints — 2026-07-15 (atlas-meta coordinator view)
 
 | ID | Scope | Trigger | Re-open condition | Status |
 |---|---|---|---|---|
 | MR-WATCH-001 | moirai-scheduler/executor rebuild | `9c015a3` peer break + `5343ebfc` mid-fix | peer green clean HEAD | ✅ CLOSED 2026-07-14 (720/720 at `c43f86a`) |
 | HERMES-WATCH-001 | Hermes Mnemosyne consumer Miri | PR #6 `db8e1a4` after provider PR #13 | fresh GitHub Miri/CI completes green | ⏳ in progress |
 | MOI-CONTENTION-001 | moirai contention audit | `perf/moirai-contention-audit` branch with contention fixes | merged to main at `9cd650f`, 82/82 pass | ✅ CLOSED 2026-07-15 |
-| KW-WATCH-002 | kwavers-therapy abdominal perf | 90s `elastic-fwi` nextest override | peer-stream perf fix | ⏳ open |
+| KW-WATCH-002 | kwavers-therapy abdominal perf | 90s `elastic-fwi` nextest override | peer-stream perf fix | ⏳ open (FFT zero-alloc helper committed, algorithmic perf in peer scope) |
 | KW-WATCH-003 | kwavers-python leto→ndarray conversion compile break | `b861254` peer HEAD + 13 WT dirty | peer lands clean green committed HEAD | ⏳ NEW 2026-07-14 |
 | ritk Burn-strip verify-block | ritk Batch #3 #4-#6 dep strip | `ba6da3a` 1-ahead + 5 WT dirty | peer pushes, cleans WT, nextest green | ⏳ open (verify-block cleared by MR-WATCH-001; peer WT blocks) |
+| MNE-PERCPU-001 | Mnemosyne per-CPU cache | 720,896-byte dormant static | n/a | ✅ CLOSED 2026-07-15 (lazy OnceLock verified) |
+| LETO-SCALAR-001 | Leto scalar length pre-validation | Hermes error discard + silent partial write | n/a | ✅ CLOSED 2026-07-15 (`aecb231`); error propagation deferred to `[major]` |

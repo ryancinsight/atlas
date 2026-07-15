@@ -2335,12 +2335,18 @@ Evidence is static source inspection unless a stronger tier is stated.
 - **P1 correctness — Themis cache topology:** detection substitutes fixed
   32 KiB/256 KiB/8 MiB values and failure becomes a fabricated single-node
   topology. Leto and Moirai consume these values; absence must remain typed.
-- **P1 correctness — Leto scalar execution:** scalar hooks discard Hermes
+- **P1 correctness — Leto scalar execution (PARTIAL — `aecb231`):** scalar hooks discard Hermes
   errors and can partially write the common prefix of mismatched slices.
-  Validate before mutation and propagate provider errors without fallback.
-- **P1 memory — Mnemosyne per-CPU cache:** a dormant production-disabled cache
-  reserves 720,896 bytes of static storage. Compile it only when activatable,
-  then measure binary size and retained RSS before changing live cache policy.
+  ***Length pre-validation (2026-07-15):** `assert_eq!` preconditions added to all mutating
+  Scalar methods (add/sub/mul/div_slice, axpy_slice, dot_slice) — the silent partial-write
+  defect is closed. 304/304 leto-ops tests pass; apollo-fft consumer builds clean.*
+  **Remaining:** Hermes SIMD error propagation needs Result-returning Scalar trait
+  signatures (`[major]` — API-breaking).
+- **P1 memory — Mnemosyne per-CPU cache (RESOLVED — verified 2026-07-15):** lazy
+  `OnceLock<Box<PerCpuCache>>` allocation confirmed: static footprint is ~56 bytes
+  (handle), not 720,896 bytes (full table).
+  `cache_handle_allocates_storage_on_first_access` test passes. No backend enables
+  `ENABLE_CPU_CACHE`. **MNE-PERCPU-001 closed.**
 - **P2 hierarchy/DRY:** split Melinoe's 693-line branded deque and Themis's
   667-line sync-region file by operation family; remove Moirai's duplicate SIMD
   implementation in favor of Hermes; consolidate Moirai topology snapshots to
@@ -2475,6 +2481,8 @@ Verified building HEADs in this cycle:
 - ⏳ apollo CZT/DHT provider migration — open (peer WT dirty on 11 files).
 - ⏳ ritk Burn dep strip Batch #4/#5/#6 — open, but ritk gitlink advanced 13 commits this cycle with coeus-native paths.
 - ✅ MOI-CONTENTION-001 — CLOSED 2026-07-15: `perf/moirai-contention-audit` merged to `main` at `9cd650f` (ATLAS-MOIRAI-016 cancellation/waker-leak fixes + async sync primitives). 82/82 nextest pass.
+- ✅ MNE-PERCPU-001 — CLOSED 2026-07-15: lazy `OnceLock<Box<PerCpuCache>>` verified; static footprint ~56 bytes, not 720,896. No backend enables `ENABLE_CPU_CACHE`.
+- ✅ LETO-SCALAR-001 (partial) — CLOSED 2026-07-15: length pre-validation (`assert_eq!`) added to all mutating Scalar methods. Silent partial-write defect eliminated. 304/304 test pass. Hermes error propagation deferred (`[major]` Result-returning API change).
 - ⏳ MOI-NUMA-001 — parked (peer scheduler/deque scope, now clearable by peer now that moirai clean WT + merged topology).
 
 ## Findings 2026-07-15: concurrent peer reconciliation + CFDrs `621395f9` verification + mnemosyne feature-branch root cause
@@ -2591,7 +2599,7 @@ Evidence tier: git insn state (machine-verifiable via `git ls-tree HEAD`,
 |---|---|---|---|---|
 | CFDrs | `621395f9` | `621395f9` | FULLY ALIGNED (== main) | none — verified green this cycle (1747/1747) |
 | helios | `8fdc3965` | `8fdc3965` | FULLY ALIGNED | none |
-| kwavers | `1af276575f` | `1af276575f` | FULLY ALIGNED (== main; peer has 10+ further commits on `codex/kwavers-core-moirai-parallel`, not merged) | watch KW-CV-001 closeout trigger |
+| kwavers | `9a1d72ec` | `1af276575f` | PIN-AHEAD (advanced to `codex/kwavers-core-moirai-parallel` HEAD — 10 commits ahead of main including FFT zero-alloc fix) | watch KW-CV-001 closeout trigger |
 | melinoe | `bb07447f` | `bb07447f` | FULLY ALIGNED | none |
 | ritk | `ab2ef6e4` | `ab2ef6e4` | FULLY ALIGNED (== main) | none (verifiable at the resolved mnemosyne 0.4 pin next cycle) |
 | apollo | `6e99a567` | `e6ecce49` | PIN-AHEAD-FEATURE (branch detached `HEAD`) | defer — peer feature branch |
@@ -2600,7 +2608,8 @@ Evidence tier: git insn state (machine-verifiable via `git ls-tree HEAD`,
 | moirai | `e3d1a30` | `e05b623` | DIVERGED (pin on `perf/moirai-contention-audit`; local `main` advanced separately to PR #15+) | acceptable per ATLAS-MOIRAI-016 + the peer `9ea1b49` commit; peer owns the moirai main merge chore separately |
 | consus | `ec386e3` | `0106b709` | DIVERGED | not in active stack (per `gap_audit.md` §Private consumers — consus is a local artifact not registered as a stack member) |
 | gaia | `79310ba2` | `9e481024` | DIVERGED | not in active stack (per §Private consumers) |
-| eunomia, hephaestus, hermes, leto, themis | (various) | (no `main` in metagit) | (not comparable via this probe) | origin-only submodule metagit layout; verification via `cargo check`/`nextest` directly |
+| leto | `855f3ad` | `efa235a` | PIN-AHEAD (advanced to `codex/leto-scalar-length-validation` — scalar length pre-validation) | verified: 304/304 nextest pass, apollo-fft consumer builds clean |
+| eunomia, hephaestus, hermes, themis | (various) | (no `main` in metagit) | (not comparable via this probe) | origin-only submodule metagit layout; verification via `cargo check`/`nextest` directly |
 
 ### Atlas-meta scope posture this cycle
 
