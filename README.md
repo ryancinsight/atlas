@@ -37,7 +37,6 @@ README.
 | --- | --- | --- |
 | `CFDrs` | CFD simulation suite and primary integration consumer. It combines mesh generation, transforms, scientific output, VTK output, allocator selection, and data-parallel execution. | Consumes `gaia`, `apollo`, `consus`, `ritk`, `mnemosyne`, and `moirai`. |
 | `kwavers` | Acoustic, ultrasound, elastography, therapy, imaging, PINN, and driver integration workspace. It is tracked in atlas so missing substrate capabilities can be filled in the owning provider repo before Kwavers consumes them. | Keeps `ritk` and `consus`; planned migration replaces direct `tokio`/`rayon` usage with `moirai`, direct `ndarray`/`nalgebra` usage with `leto`, direct SIMD paths with `hermes`, direct PINN `burn` usage with `coeus`, and memory placement/allocation paths with `mnemosyne` plus `themis`. |
-| `leoneuro-rs` | Private endovascular focused-ultrasound product, planning, imaging, and validation workspace. | Consumes the adjacent migrated `kwavers` workspace and selected Atlas providers. Source access requires LeoNeuro-INC authorization. |
 | `gaia` | Watertight CFD mesh generation and geometry kernel. It provides the `gaia` crate, consumed as `cfd-mesh` by CFDrs and directly by RITK. | Consumed by `CFDrs` and `ritk`. Optionally bridges to `cfd-schematics`. |
 | `apollo` | Fourier, spectral, number-theoretic, wavelet, and related transform implementations, with CPU, WGPU, validation, and Python crates. | Consumed by `CFDrs` for FFT/NUFFT, by `coeus` for FFT-backed tensor operations, and internally uses `moirai` in selected transform crates. |
 | `consus` | Pure-Rust scientific storage formats and I/O: HDF5, Zarr, NetCDF, Parquet, Arrow, FITS, MAT, NWB, HDMF, compression, and Python bindings. | Consumed by `CFDrs` for HDF5 output and by `ritk` for HDF5/core/compression/I/O support. Uses `moirai` for parallel and native transport paths. |
@@ -94,8 +93,6 @@ kwavers
 ├── themis      # planned placement-law vocabulary through providers
 └── moirai      # planned async/runtime and data-parallel execution substrate
 
-leoneuro-rs
-└── kwavers     # canonical acoustic simulation, planning, and imaging provider
 
 coeus
 ├── apollo     # FFT-backed tensor operations
@@ -523,7 +520,6 @@ atlas/
 │   ├── gaia/             # watertight CFD mesh-generation workspace
 │   ├── hermes/           # SIMD abstraction workspace
 │   ├── kwavers/          # acoustic simulation and therapy integration workspace
-│   ├── leoneuro-rs/      # private LeoNeuro product workspace
 │   ├── leto/             # shared N-dimensional strided array workspace
 │   ├── melinoe/          # branded phantom-capability foundation crate
 │   ├── themis/           # placement-law foundation crate
@@ -547,11 +543,6 @@ git clone --recurse-submodules https://github.com/<owner>/atlas.git
 # or, after a plain clone:
 git submodule update --init --recursive
 ```
-
-`repos/leoneuro-rs` is private. Public Atlas clones succeed for the public
-submodules; initializing the LeoNeuro submodule requires authenticated
-LeoNeuro-INC access. The public metadata intentionally exposes only its URL,
-tracked branch, and pinned commit—not repository contents.
 
 ## Working with packages
 

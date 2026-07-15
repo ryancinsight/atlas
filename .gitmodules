@@ -62,8 +62,3 @@
 	path = repos/themis
 	url = https://github.com/ryancinsight/themis
 	active = true
-[submodule "repos/leoneuro-rs"]
-	path = repos/leoneuro-rs
-	url = https://github.com/LeoNeuro-INC/leoneuro-rs.git
-	branch = codex/private-atlas-migration
-	active = true

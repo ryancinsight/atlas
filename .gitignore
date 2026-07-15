@@ -52,3 +52,4 @@ errors.txt
 errors[0-9]*.txt
 cargolog*.txt
 *.stderr
+repos/leoneuro-rs/

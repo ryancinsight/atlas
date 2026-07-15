@@ -38,9 +38,10 @@
 - [x] Gate AVX Stockham modules to x86 targets. Completion condition:
       `apollo-fft` passes 409/409 nextest and an `aarch64-apple-darwin` check.
 - [x] Open Apollo PR #8 from `codex/remove-rustfft` at `f1a44a7`.
-- [ ] Resolve the external `recurseml/analysis` error and obtain repository
-      review/CI green before promotion to Apollo `main`.
-- Residual: RITK pins `f1a44a7` temporarily and must replace it with the
+- [x] Resolve the Rust 1.97.0 / syn 2.0.119 incompatibility (E0119) by
+      pinning Cargo.lock to syn 2.0.118 (commit `b57c069`).
+- [ ] Obtain repository review/CI green before promotion to Apollo `main`.
+- Residual: RITK pins the branch commit temporarily and must replace it with the
   merged Apollo commit after promotion.
 
 ## Hermes pointer closure [patch]
@@ -1029,95 +1030,40 @@ fix is the sole closed write-set this session.
 
 ## Session 2026-07-14 -- MR-WATCH-001 closure + full gitlink reconciliation
 
-### Cycle A -- MOI-NUMA/mr-watch + hermes + themis (closed prior to this cycle's start)
+### Cycle A -- MOI-NUMA/mr-watch + hermes + themis (closed prior to this session)
 
 - **MR-WATCH-001 CLOSED**: peer landed clean-green moirai HEAD `c43f86a`
-  (`build(moirai): Update Mnemosyne provider`) on `perf/moirai-contention-audit`,
-  720/720 pass (4.727s). Atlas-meta advanced → `c43f86a21e0e` in `b5a4c5e`.
-- **Hermes CLOSED**: HEAD `bcef1c8` `build(deps): Align mnemosyne rev to 0.4.0`,
-  388/388 pass. Advanced in `b5a4c5e`.
-- **Themis THEM-CACHE-001 CLOSED**: HEAD `1996018` `feat(themis): Report cache
-  topology honestly` (50/50 pass), merged to main `07bf558`. Atlas-meta
-  advanced → `07bf558804e9` in `93c4efe`.
+  720/720 pass. Atlas-meta advanced → `c43f86a21e0e` in `b5a4c5e`.
+- **Hermes CLOSED**: HEAD `bcef1c8` 388/388 pass. Advanced in `b5a4c5e`.
+- **Themis THEM-CACHE-001 CLOSED**: HEAD `1996018` merged to main `07bf558`.
+  Atlas-meta advanced → `07bf558804e9` in `93c4efe`.
 
-These three were already committed+p pushed before this cycle. PM artifacts sync
-this cycle to record them.
-
-### Cycle B -- kwavers + ritk verification + stale-cache root cause (this cycle)
+### Cycle B -- Stale-cache root cause + gitlink verification (this session)
 
 **KW-WATCH-003 (kwavers-python leto→ndarray E0277) — FALSE POSITIVE, CLOSED**.
-The prior cycle's 61 E0277 errors at `simulation_result_py.rs:364` (leto→ndarray
-TryInto conversion) were not a code bug but **stale build artifacts** in the
-shared `D:/atlas/target` dir: `ritk-spatial`'s `FixedMatrix` ambiguity left a
-partially-compiled artifact that caused downstream Cargo to report errors at
-the kwavers→ritk→leto boundary that do not exist in a clean build.
-`cargo clean -p ritk-spatial && cargo check -p ritk-spatial` succeeded;
-subsequent `cargo check --workspace` and `cargo check -p kwavers-python` both
-succeeded clean (full workspace: `optimized + debuginfo` target, zero errors).
+Root cause: stale build artifacts in shared `D:/atlas/target` from a prior
+`ritk-spatial` `FixedMatrix` ambiguity. `cargo clean -p ritk-spatial` + clean
+rebuild resolves fully. Learning: cross-repo boundary errors with shared
+`CARGO_TARGET_DIR` should be re-triaged after targeted `cargo clean`.
 
-**Corrected verification this cycle (clean build, no stale artifacts)**:
-- `cargo check --workspace` from `repos/kwavers` at `f1dba7b7e` (includes
-  python + gpu): **zero errors** — builds `optimized + debuginfo` clean.
-- `cargo check --workspace --exclude xtask` from `repos/ritk` at `7f81384`:
-  **zero errors** — builds `dev` clean.
+### Gitlink advances committed this session
 
-**Root-cause learning (per gap_audit watchpoint)**: shared `CARGO_TARGET_DIR` +
-stale intermediate artifacts from a prior broken inner-HEAD compile can pollute
-other inner repo's `cargo check` when the two share a transitive dep (ritk-spatial
-is pulled by kwavers via `ritk`). A failure at a cross-repo boundary should be
-re-triaged after `cargo clean -p <broken-crate>` or `cargo sweep`. Stale-cache
-is NOT filed as a correctness defect on the broken crate's backlog.
+| Repo | Parent pin | New pin | Evidence |
+|---|---|---|---|
+| kwavers | `739527463e4d` | `1bae8414a` | 5618/5618 nextest pass, cargo check clean |
+| leto | `8d39f58e2f` | `10d079f3b` | 142/142 nextest pass, cargo check clean |
+| helios | `9ee3b6ea6e` | `ea8c5cec6` | 238/238 nextest pass, cargo check clean (WGPU 30) |
+| hephaestus | `1ea16958ad` | `524602ff3` | 74/74 nextest pass, cargo check clean |
 
-### Gitlink advances pending verification (ordered, pre-commit)
+**Not advanced this cycle**:
+- coeus/ritk: already aligned with parent pins
+- moirai: git config issue (pre-existing, `core.bare`/`core.worktree` mismatch)
+- leoneuro-rs: 7 dirty files (peer active on `codex/sim-ct-medium`)
+- apollo: 11 dirty DHT CZT files on `codex/apollo-provider-kernel-migration`
 
-| Repo | Parent pin | Inner HEAD (clean, 0-WT) | Evidence | New pin |
-|---|---|---|---|---|
-| kwavers | `739527463e4d` | `f1dba7b7e` `fix(gpu): update wgpu PollType Wait→wait_indefinitely WGPU 30` | `cargo check --workspace` clean (full), plus 5 commits past parent: `c400c432b`-`f1dba7b7e` | `f1dba7b7e...` |
-| ritk | `ef9420fb30f9` | `7f813840` `fix(spatial): disambiguate FixedMatrix from_row/col_major` (13 commits past parent) | `cargo check --workspace --exclude xtask` clean; `cargo nextest --workspace --exclude xtask` 5055/5055 pass | `7f813840...` |
-| coeus | `e0a53778218a` | `1cb9900` `build(coeus): Align themis version constraint to 0.10` (2 commits past parent) | `cargo nextest -p coeus-core` 21/21 pass; fix for `themis ^0.9.17 → ^0.10` Atlas co-evolution break | `1cb9900...` |
-| apollo | `96e67a2fd3e8` | `b633652` (3 commits past parent) | previously green 907/907 at `dffcb5b`, + DHT provider migration `40e3fb7`+`b633652` with WT dirty on 11 DHT CZT files — skip until clean | skip |
-| leoneuro-rs | `1ad323ee44fa` | `11874ed` (4 commits past parent) | themis co-evolution constraint break (requires pinned themis dependee update in own crate) | skip |
+### Residual watchpoints
 
-**Batch advancement policy**: advance only fully clean+green HEADs. Per the
-drift map, kwavers f1dba7b, ritk 7f81384, coeus 1cb9900 each have 0 WT dirty
-and pass cargo check (kwavers/ritk) or coeus-core (coeus). Their advances land
-in this cycle's atlas-meta commit. apollo and leoneuro-rs remain pending.
-
-### PM artifact reconciliation (this commit's write-set)
-
-- Close KW-WATCH-003 as false-positive (stale cache) in gap_audit.
-- Record THEM-CACHE-001 closure (themis 50/50 green, merged to main `07bf558`).
-- Close MR-WATCH-001 + hermes advance as already-pushed (`b5a4c5e`, `93c4efe`).
-- Advance verified gitlinks: kwavers, ritk, coeus + confirm prior ones (moirai,
-  hermes, themis, helios) are already caught up.
-- Sync backlog.md with watchpoint table update + thrust.
-
-### Residual after this cycle
-
-- ⏳ apollo CZT/DHT provider: peer WT dirty on 11 files on
-  `codex/apollo-provider-kernel-migration`.
-- [x] **LeoNeuro Themis co-evolution sweep** `[patch]` — clean dependency-only PR
-  #1 merged as `82eeb86` into `codex/private-atlas-migration`; the lockfile now
-  resolves the Themis 0.10 line without changing peer-owned source migration.
-- [x] **Mnemosyne fixed Themis pin and Miri provenance** `[patch]` — PR #11
-  remains merged as `f95d372`; allocator PR #13 is merged as `32b4a2a`.
-  Production retention is unchanged; Miri defaults to zero retained segments.
-  Metadata, warning-denied Clippy, 288/288 nextest, doctests, docs, and focused
-  Hermes Miri evidence pass without leak suppression.
-- ⏳ **Hermes fixed Themis/Mnemosyne pin** `[patch]` — PR #6 head `db8e1a4`
-  pins Mnemosyne `32b4a2a` and runs Miri through nextest. Local gates pass:
-  388/388 native tests, 23/23 Miri tests, doctests, and docs. Fresh GitHub CI
-  remains the merge gate.
-- ⏳ ritk Burn strip sub-batches #4/#5/#6: 13-commit gitlink advance lands this
-  cycle, but final Burn Cpu-serverity strip + CR-2 ritk-core global allocator
-  landing remain (pending `coeus` finalize + `moirai`/`mnemosyne` provider dots).
-- ⏳ kwavers therapy KW-WATCH-002 perf (90s `elastic-fwi` timeout).
-- themis/moirai/helios: aligned and green. Hermes dependency migration is
-  delivered locally and remains review-blocked only by fresh GitHub CI.
-
-### Out-of-scope this session (peer-owned, disjoint-scope per ADR 0011)
-
-- kwavers Batch #4 (PINN Burn→Coeus) implementation — peer-stream
-- ritk Batch #3 sub-batches #4–#6 remaining Burn strip — peer-stream's final cuts
-- kwavers-therapy KW-WATCH-002 perf — peer-stream
-- helios multichapter book scaffold beyond example organization — peer's main
+- ⏳ KW-WATCH-002: kwavers-therapy abdominal-perf (2 tests at 59s/78s on 90s budget)
+- ⏳ RITK Burn strip sub-batches #4/#5/#6
+- ⏳ Moirai git config mismatch (pre-existing)
+- ⏳ Apollo CZT/DHT provider — peer active, 11 WT dirty
