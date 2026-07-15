@@ -1,6 +1,6 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
-## State refresh (2026-07-15) — Apollo/Coeus merged, RITK consumer rerun active
+## State refresh (2026-07-15) — Apollo/Coeus/RITK consumer closure
 
 - **RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) and PR #32 — ✅ MERGED**
   to `origin/main` at `be75a93a` and `4ba050ca`. All required CI passed
@@ -15,6 +15,19 @@
 - The documentation closeout CI runs 29377346830, 29377346839, and
   29377346848 also pass; the external `recurseml/analysis` status errored on
   the closeout range but is not a protected required check.
+- **RITK PR #33 — ✅ MERGED** to `origin/main` at
+  `17b84bdc18c2395d6329f3435ed3d860d1c72e00`. The final docs-head matrix is
+  green: CI run `29421402596` (Rustfmt, dependency alignment, Clippy, wheel
+  smoke, and Linux/macOS/Windows nextest), Python run `29421402755` (Python
+  3.9–3.12 on Linux/macOS/Windows), and audit run `29421402503`; CodeRabbit is
+  also green.
+- The merged RITK state has 13 Burn-dependent manifests and 641 Burn-surface
+  source files. The residual is dependency-ordered Coeus/Leto consumer work,
+  not a compatibility alias or fallback. Native extrema now read a fallible
+  host slice rather than allocating a full `Vec`; the migration-audit fixture
+  roots use process-plus-sequence uniqueness and RAII cleanup. These are
+  source/data-flow memory and isolation improvements; no unbenchmarked speedup
+  is claimed.
 - Full RITK nextest recorded three registration tests over the 30-second slow
   threshold (30.510s, 35.422s, 37.823s). Profile-guided performance residual,
   not a timeout or correctness failure.
@@ -27,7 +40,7 @@
 - Coeus PR #209 is merged at `2026a0b65e363496b5ab79b09612f26b7729f9d5`,
   aligning Mnemosyne 0.4, Hephaestus 0.13/WGPU 30, and Themis 0.10. The first
   RITK consumer run failed at the stale Coeus `mnemosyne ^0.3.0` constraint;
-  RITK PR #33 now reruns against the merged provider graph.
+  RITK PR #33 completed successfully against the merged provider graph.
 - The invalid Moirai submodule metadata was repaired locally by changing
   `.git/modules/repos/moirai/config` from `core.bare=true` to `false`; peer
   source changes and its dirty Cargo.lock remain preserved.

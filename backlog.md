@@ -29,13 +29,22 @@
 
 ## ATLAS-RITK-654 — RITK native migration reconciliation [patch] — ✅ done
 
-- Owner: Codex; scope: RITK PRs #31/#32 and the `repos/ritk` gitlink.
-- Acceptance: RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) and its
-  documentation closeout PR #32 merged to `origin/main`; all required CI
-  passed. Atlas gitlink advances from `be75a93a` to `4ba050ca`.
-- Residual: RITK retains 14 Burn manifests and 645 Burn-surface source files
-  for dependency-ordered Coeus consumer cutovers (peer-owned sub-batches
-  #3.g–#6). No shim or fallback is accepted as closure evidence.
+- Owner: Codex; scope: RITK PRs #31/#32/#33 and the `repos/ritk` gitlink.
+- Acceptance: RITK PR #33 merged to `origin/main` at
+  `17b84bdc18c2395d6329f3435ed3d860d1c72e00`; Atlas advances the gitlink to
+  that merge commit. Final docs-head CI is green in run `29421402596`
+  (Rustfmt, dependency alignment, Clippy, wheel smoke, and Linux/macOS/Windows
+  nextest), run `29421402755` (Python 3.9–3.12 on Linux/macOS/Windows), and
+  audit run `29421402503`.
+- Performance and memory evidence: native statistics extrema now consume a
+  fallible host slice instead of materializing a `Vec`; the xtask audit fixture
+  roots use process-plus-sequence uniqueness and RAII cleanup. These are
+  source/data-flow improvements; no unbenchmarked speedup is claimed.
+- Residual: RITK retains 13 Burn manifests and 641 Burn-surface source files
+  for dependency-ordered Coeus/Leto consumer cutovers (peer-owned sub-batches
+  #3.g–#6). Three registration tests remain above the 30-second slow threshold
+  and require profile-guided optimization. No shim or fallback is accepted as
+  closure evidence.
 
 ## ATLAS-APOLLO-015 — RustFFT/WGPU provider promotion [major] — ✅ done
 
@@ -49,8 +58,9 @@
   Python bindings. Coeus PR #209 subsequently merged the Mnemosyne 0.4,
   Hephaestus 0.13, WGPU 30, and Themis 0.10 provider constraints required by
   RITK.
-- Residual: RITK PR #33 is rerunning its consumer matrix against the merged
-  Apollo/Coeus graph; the external `recurseml/analysis` status is non-required.
+- Closure: RITK PR #33 completed the consumer matrix against the merged
+  Apollo/Coeus graph at `17b84bdc`; the external `recurseml/analysis` status is
+  non-required.
 
 ## ATLAS-WGPU-030 — Provider ABI migration [arch] — done
 
