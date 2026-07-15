@@ -1,33 +1,25 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
-## State refresh (2026-07-14) — RITK PR #31, Apollo PR #8, and Hermes pointer
+## State refresh (2026-07-14) — RITK PR #31 MERGED, Apollo PR #8 blocked
 
-- RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) is mergeable and currently
-  running required CI. Its pushed head is `5b8e4434`; the parent pointer stays
-  at `62a19607` until the PR merge commit is available. The prior CI blocker
-  was the unreachable private `ryancinsight/openjp2` source; the branch now
-  pins public OpenJPEG PR 9 and calls `openjp2` directly from its differential
-  tests. The action now pins Apollo `f1a44a7`, which fixes the x86-only AVX
-  module boundary exposed by Apple Silicon.
-- RITK local evidence is complete for this increment: 5,229/5,229 nextest
-  tests with 26 skipped, doctests, warnings-denied Clippy, fmt, warning-free
-  rustdoc, and clean `burn-migration-audit`; the new package slice adds 14/14
-  interop tests and 256/256 `ritk-codecs` tests. The inner audit still reports
-  14 Burn manifests and 645 Burn-surface source files, which remain explicit
-  dependency-ordered migration residuals.
-- Hermes PR #6 is merged at `1423e41d01f4f7787472ddc91961f0771f9728fe`; the
-  parent pointer is advanced in the current working tree. Kwavers and
-  LeoNeuro remain peer-owned and are not staged.
+- **RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) — ✅ MERGED** to
+  `origin/main` at `be75a93a`. All required CI passed (Rustfmt, Clippy,
+  Workspace Alignment, Test Suite on ubuntu/macos/windows, Python 3.9-3.13,
+  Python Wheel, CodeRabbit, Audit burn migration). Atlas gitlink advanced
+  `5452f441 → be75a93a` via commit `4bc5381`.
+- RITK local evidence confirmed pre-merge: 5,229/5,229 nextest tests with 26
+  skipped, doctests, warnings-denied Clippy, fmt, warning-free rustdoc, and
+  clean `burn-migration-audit`. 14 Burn manifests and 645 Burn-surface source
+  files remain as dependency-ordered peer-owned residuals (sub-batches
+  #3.g–#6).
 - Full RITK nextest recorded three registration tests over the 30-second slow
-  threshold (30.510s, 35.422s, 37.823s). This is a profile-guided performance
-  residual, not a timeout or correctness failure.
-- Apollo PR #8 (`codex/remove-rustfft`) contains the RustFFT-free validation
-  oracle, WGPU 30 provider graph, and Apple Silicon target fix at `f1a44a7`.
-  The owning `apollo-fft` package passes 409/409 nextest, warnings-denied
-  Clippy, doctests, rustdoc, and an `aarch64-apple-darwin` check. Apollo has no
-  workflow run for the PR; the external `recurseml/analysis` status is `ERROR`
-  for the 4b8b9709..f1a44a7 range and CodeRabbit remains pending. No merge
-  bypass is authorized by the evidence.
+  threshold (30.510s, 35.422s, 37.823s). Profile-guided performance residual,
+  not a timeout or correctness failure.
+- Hermes PR #6 is merged at `1423e41d`; the parent pointer is correctly
+  advanced (ancestor of `origin/main`).
+- Apollo PR #8 (`codex/remove-rustfft`) remains OPEN at `f1a44a7` with a merge
+  conflict and external `recurseml/analysis` CI showing `ERROR`. Not
+  atlas-actionable.
 
 ## State refresh (2026-07-13) — peer dirt and local artifacts
 

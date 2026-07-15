@@ -19,14 +19,17 @@
 - [x] Replace the unreachable private OpenJPEG revision and stale `jpeg2k`
   wrapper with the public `openjp2` API. The focused interop suite passes
   14/14 and the full `ritk-codecs` package passes 256/256.
-- [ ] Wait for PR #31 required CI, merge it, then advance `repos/ritk` to the
-      merged commit. Current head is `5b8e4434`; CI runs 29376001568 and
-      29376001632 are still active. Completion condition: the parent pointer
-      is the merged PR commit and no peer-owned submodule pointer is staged.
+- [x] Wait for PR #31 required CI, merge it, then advance `repos/ritk` to the
+      merged commit. PR #31 merged to `origin/main` at `be75a93a`; CI passed
+      (Rustfmt, Clippy, Workspace Dependency Alignment, Test Suite on
+      ubuntu/macos/windows, Python 3.9-3.13 on all platforms, Python Wheel,
+      CodeRabbit, Audit burn migration). Gitlink advanced `5452f441 → be75a93a`
+      via commit `4bc5381`.
 - Residual: RITK still has 14 Burn manifests and 645 Burn-surface source files;
-  the next item is a real Coeus/Leto consumer cutover. Three registration
-  tests exceeded 30 seconds locally and require a profile-guided performance
-  item; their assertions and workloads were not changed.
+  the next item is a real Coeus/Leto consumer cutover (sub-batches #3.g–#6,
+  peer-owned). Three registration tests exceeded 30 seconds locally and require
+  a profile-guided performance item; their assertions and workloads were not
+  changed.
 
 ## Apollo RustFFT/WGPU provider promotion [major]
 

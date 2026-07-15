@@ -6,22 +6,15 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
-## ATLAS-RITK-654 — RITK native migration reconciliation [patch] — review pending
+## ATLAS-RITK-654 — RITK native migration reconciliation [patch] — ✅ done
 
-- Owner: Codex; scope: `repos/ritk` PR #31 and the `repos/ritk` gitlink. Peer
-  Kwavers and LeoNeuro source scopes remain excluded while their branches are
-  fresh and active.
-- Acceptance: RITK PR #31 is mergeable with required CI green; its native VTK
-  capability tests, workspace gates, rustdoc, and migration audit are clean;
-  Atlas advances the gitlink only to the merged commit.
-- Current evidence: RITK commit `5b8e4434` is pushed and the new reachable
-  OpenJPEG differential slice passes its local gates (14/14 interop tests and
-  256/256 `ritk-codecs` tests, warnings-denied Clippy, doctests, and rustdoc).
-  The prior CI source-fetch and Apple Silicon Apollo compile blockers are
-  removed; PR #31 required CI is running against Apollo `f1a44a7`.
-- Residual: RITK intentionally retains 14 Burn manifests and 645 Burn-surface
-  source files for dependency-ordered Coeus consumer cutovers. No shim or
-  fallback is accepted as closure evidence.
+- Owner: Codex; scope: `repos/ritk` PR #31 and the `repos/ritk` gitlink.
+- Acceptance: RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) merged to
+  `origin/main` at `be75a93a`. All required CI passed. Atlas gitlink advanced
+  from `5452f441` to `be75a93a` via commit `4bc5381`.
+- Residual: RITK retains 14 Burn manifests and 645 Burn-surface source files
+  for dependency-ordered Coeus consumer cutovers (peer-owned sub-batches
+  #3.g–#6). No shim or fallback is accepted as closure evidence.
 
 ## ATLAS-APOLLO-015 — RustFFT/WGPU provider promotion [major] — review blocked
 
