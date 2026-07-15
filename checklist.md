@@ -1176,9 +1176,9 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
       shard-wide lock acquisition to steady-state operations.
 - [x] Add a deterministic barrier regression for reservation/insertion versus
       clear, then run nextest, warning-denied Clippy, docs, and Criterion.
-- [ ] Push the provider merge, advance the Atlas gitlink, and reconcile the
-      parent PM artifacts. Provider PR #70 is ready but GitHub currently reports
-      `recurseml/analysis` errored and CodeRabbit pending.
+- [x] Push the provider merge, advance the Atlas gitlink, and reconcile the
+      parent PM artifacts. PR #70 merged as `368acbd`; the Atlas gitlink now
+      points to that merged provider commit.
 
 Acceptance: no resource remains hidden behind stale counters, no counter
 underflow occurs, and the measured steady-state path has no unreviewed
