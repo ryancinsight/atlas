@@ -7,6 +7,19 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-MNEMOSYNE-017 — Maximum-small deallocation audit [patch]
+
+- [x] Verify the merged Mnemosyne PR #25 at provider head `0012c4f`.
+- [x] Record the matched `large/8192` deallocation row (`36.960 ns` versus
+  RpMalloc `6.1139 ns`) and pin the exact same-owner branch with the opt-in
+  `MAX_SMALL_ALLOC_SIZE` regression.
+- [x] Advance the Atlas gitlink in `4908208` from `52cd5ee` to `0012c4f`.
+
+Evidence: 62/62 default local nextest, 3/3 feature-gated probe nextest,
+warning-denied Clippy, doctests, rustdoc, formatting, and matched Criterion.
+The provider PR's `recurseml/analysis` status failed at the service layer;
+CodeRabbit was rate-limited without actionable findings.
+
 ## ATLAS-MOIRAI-016 — Cancellation-safe async wait queues [patch] — ✅ done
 
 - [x] Audit the merged `moirai-async` synchronization surface for contention,
@@ -1075,7 +1088,7 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
 - ⏳ Moirai git config mismatch (pre-existing)
 - ⏳ Apollo CZT/DHT provider — peer active, 11 WT dirty
 
-## Session 2026-07-15 — concurrent peer reconciliation + CFDrs verification + mnemosyne root cause
+## Session 2026-07-15 — concurrent peer reconciliation + provider closure
 
 ### Orientation drift detected and reconciled
 
@@ -1102,6 +1115,16 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
       slow tests. Independent evidence corroborating the peer's gitlink
       advance.
 
+### Mnemosyne provider audit and pin closure
+
+- [x] Verify Mnemosyne PR #25 merged at `0012c4f`: the matched
+      `allocator deallocation latency/large/8192` row measures `36.960 ns`
+      versus RpMalloc `6.1139 ns`; the opt-in probe pins the exact maximum
+      small-class same-owner free to `InPlaceSmall`.
+- [x] Advance the Atlas gitlink in `4908208` from `52cd5ee` to `0012c4f`.
+      The provider's local gates are recorded in its PM artifacts; no
+      production allocator mutation was justified by the comparator residual.
+
 ### Root cause diagnosed (since corrected by peer)
 
 - [x] Trace the ritk verification failure (`error: failed to select a
@@ -1113,12 +1136,12 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
       Confirm peer's subsequent 5 mnemosyne pin commits advanced the gitlink
       to `origin/main` `2adec54` where the 0.4.0 path dep resolves.
 
-### Reconciled gitlink state — no atlas-meta advance actionable
+### Reconciled gitlink state — current provider pins
 
 - [x] Verify that every in-scope submodule is either FULLY ALIGNED
-      (CFDrs/helios/kwavers/melinoe/ritk at HEAD == main) or PIN-AHEAD on a
-      peer feature branch (apollo/coeus/mnemosyne/moirai) deferrable to
-      peer-stream trigger.
+      (CFDrs/helios/kwavers/melinoe/mnemosyne/ritk at HEAD == published main)
+      or PIN-AHEAD on a peer feature branch (apollo/coeus/moirai) deferrable
+      to a peer-stream trigger.
 - [x] Record findings + gitlink reconcile map in `gap_audit.md`
       (new section `## Findings 2026-07-15: concurrent peer reconciliation +
       CFDrs verification + mnemosyne feature-branch root cause`).
@@ -1126,21 +1149,17 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
 ### Residual risks
 
 - ritk at the updated mnemosyne 0.4.0 pin not re-verified with `cargo nextest`
-  this cycle (deferred to avoid build-lock contention with the peer's
-  in-flight mnemosyne pin block). Re-verify next cycle now that the 0.4.0
-  path dep resolves.
+  this cycle. Re-verify next cycle now that the provider pin is merged and the
+  0.4.0 path dependency resolves without the stale feature-branch state.
 - KW-CV-001 closeout trigger unchanged (kwavers peer has 10+ further commits
   on `codex/kwavers-core-moirai-parallel` feature branch, not merged to
   main).
 
 ### Next increment (re-probe standing triggers next cycle)
 
-- Re-probe mnemosyne inner `main`: peer merging
-  `codex/mnemosyne-segment-contention-baseline` to `main` would yield a
-  post-`2adec54` gitlink advance candidate. (Local `main` ref was 12 PRs
-  behind `origin/main` at session start; peer's chore advanced the
-  *gitlink* to `origin/main` but the local `main` ref may still be stale —
-  not atlas-meta's write-set to repair.)
+- Mnemosyne provider merge trigger is closed at `0012c4f`; Atlas pin closure is
+  committed in `4908208`. No further Mnemosyne pointer action is open in this
+  cycle.
 - Re-probe kwavers peer stream for KW-CV-001 closeout-style commit (Batch #1
   source-side migration finalization).
 - Re-verify ritk at the resolved mnemosyne pin (the verification path this

@@ -2511,6 +2511,14 @@ Branch context: the local mnemosyne clone was significantly stale — local
 PRs behind. The peer's advance to `2adec54` is the `origin/main` head — the
 local clone's `main` reference itself was stale until the peer's commits.
 
+The next Mnemosyne provider increment is now also merged: PR #25 landed at
+`0012c4fad0c44c0a40ec4d36de68e7138ae218d8`, and Atlas commit `4908208` advances
+the gitlink from `52cd5ee`. Its local audit found the `large/8192` RpMalloc
+comparison gap to be an in-place same-owner comparator residual, not a page-list
+or large/huge unmapping defect. Provider evidence is authoritative in
+`repos/mnemosyne/gap_audit.md`; this parent entry records only the cross-repo
+pin and closure.
+
 ### CFDrs `621395f9` verification evidence (independently gathered, corroborates peer `9ea1b49`)
 
 This agent verified CFDrs at inner HEAD `621395f9`
@@ -2574,12 +2582,12 @@ and `ab2ef6e4` is its merge to `main`, both legitimately titled because a
 squash-merge was NOT performed — this is a normal merge-commit shape, not
 a rebase artifact. The peer's `9ea1b49` advance is structurally sound.
 
-### Final gitlink reconciliation map (2026-07-15, post peer's `9ea1b49` + 5 mnemosyne pins)
+### Final gitlink reconciliation map (2026-07-15, post `4908208`)
 
 Evidence tier: git insn state (machine-verifiable via `git ls-tree HEAD`,
 `merge-base --is-ancestor`, inner `rev-parse`).
 
-| Submodule | Pin (HEAD `699abb7`) | Inner `main` | State | Action |
+| Submodule | Pin (HEAD `4908208`) | Inner `main` | State | Action |
 |---|---|---|---|---|
 | CFDrs | `621395f9` | `621395f9` | FULLY ALIGNED (== main) | none — verified green this cycle (1747/1747) |
 | helios | `8fdc3965` | `8fdc3965` | FULLY ALIGNED | none |
@@ -2588,7 +2596,7 @@ Evidence tier: git insn state (machine-verifiable via `git ls-tree HEAD`,
 | ritk | `ab2ef6e4` | `ab2ef6e4` | FULLY ALIGNED (== main) | none (verifiable at the resolved mnemosyne 0.4 pin next cycle) |
 | apollo | `6e99a567` | `e6ecce49` | PIN-AHEAD-FEATURE (branch detached `HEAD`) | defer — peer feature branch |
 | coeus | `2026a0b6` | `e0a53778` | PIN-AHEAD-FEATURE (branch detached `HEAD`) | defer — peer feature branch |
-| mnemosyne | `2adec54` | `3d1abd3e` | PIN-AHEAD (pin at `origin/main` PR #22; local `main` ref stale at PR #10) | local-clone `main` ref is stale; the gitlink pins `origin/main` which is the true default — acceptable per git_discipline (`origin/main` is the published default) |
+| mnemosyne | `0012c4f` | `0012c4f` (`origin/main`; local `main` ref stale) | FULLY ALIGNED with published default | none — PR #25 merged and the provider audit is closed |
 | moirai | `e3d1a30` | `e05b623` | DIVERGED (pin on `perf/moirai-contention-audit`; local `main` advanced separately to PR #15+) | acceptable per ATLAS-MOIRAI-016 + the peer `9ea1b49` commit; peer owns the moirai main merge chore separately |
 | consus | `ec386e3` | `0106b709` | DIVERGED | not in active stack (per `gap_audit.md` §Private consumers — consus is a local artifact not registered as a stack member) |
 | gaia | `79310ba2` | `9e481024` | DIVERGED | not in active stack (per §Private consumers) |
@@ -2596,16 +2604,13 @@ Evidence tier: git insn state (machine-verifiable via `git ls-tree HEAD`,
 
 ### Atlas-meta scope posture this cycle
 
-No atlas-meta-actionable gitlink advance remains. The peer's `9ea1b49`
-advance (moirai/ritk/CFDrs) plus the five mnemosyne pin chores closed every
-FULLY-ALIGNED and feature-branch-acceptable candidate. Further advances
-await (a) kwavers peer merge to `main` (KW-CV-001 closeout trigger), (b)
-apollo/coeus peer feature branches merging to their `main` refs, (c)
-mnemosyne peer merging `codex/mnemosyne-segment-contention-baseline` to
-`main`, (d) any divergent peer main (moirai) reconciling via peer chore.
-All four are peer-stream triggers; atlas-meta's role is bystander verification
-+ pointer advance on the trigger, per `concurrent_agents` contention
-response order and the operation loop's standing-increment re-probe.
+The Mnemosyne merge trigger is closed by `4908208`. Remaining parent-side
+advances await (a) kwavers peer merge to `main` (KW-CV-001 closeout trigger),
+(b) apollo/coeus peer feature branches merging to their `main` refs, and (c)
+any divergent peer main (moirai) reconciling via peer chore. These are
+peer-stream triggers; atlas-meta's role is bystander verification plus pointer
+advance on each trigger, per `concurrent_agents` contention response order and
+the operation loop's standing-increment re-probe.
 
 Residual risk: ritk at the updated mnemosyne 0.4.0 pin has not been
 re-verified with `cargo nextest` this session (deferred to avoid

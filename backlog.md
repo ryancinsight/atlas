@@ -6,6 +6,21 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+## ATLAS-MNEMOSYNE-017 — Maximum-small deallocation audit [patch] — ✅ done
+
+- Owner: Mnemosyne; Atlas scope: provider PR #25 and the `repos/mnemosyne`
+  gitlink.
+- Closure: PR #25 merged at `0012c4fad0c44c0a40ec4d36de68e7138ae218d8`.
+  The matched default-feature Criterion row measures Mnemosyne `36.960 ns`
+  versus RpMalloc `6.1139 ns` for `allocator deallocation latency/large/8192`.
+  The opt-in branch probe pins the maximum-small same-owner free to
+  `InPlaceSmall`; no page-list transition or large/huge classifier defect was
+  found, so no speculative production mutation was made.
+- Atlas pin closure: `4908208` advances `repos/mnemosyne` from `52cd5ee` to
+  the merged provider head. Provider verification is recorded in the inner
+  Mnemosyne PM artifacts; peer-owned submodule dirt remains outside this
+  item.
+
 ## ATLAS-MOIRAI-016 — Cancellation-safe async wait queues [patch] — ✅ done
 
 - Owner: Moirai; Atlas scope: cross-repo audit record only.
