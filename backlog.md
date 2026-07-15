@@ -16,20 +16,20 @@
   for dependency-ordered Coeus consumer cutovers (peer-owned sub-batches
   #3.g–#6). No shim or fallback is accepted as closure evidence.
 
-## ATLAS-APOLLO-015 — RustFFT/WGPU provider promotion [major] — review blocked
+## ATLAS-APOLLO-015 — RustFFT/WGPU provider promotion [major] — ✅ done
 
-- Owner: Codex; scope: `repos/apollo` PR #8 and its Atlas consumer pins. The
-  Apollo branch is not advanced in the parent until promotion to `main`.
+- Owner: Codex; scope: `repos/apollo` PR #8 and its Atlas consumer pins.
 - Acceptance: Apollo PR #8 is reviewed with repository CI green, the provider
   state reaches `main`, and consumers replace temporary branch pins with the
   merged commit.
-- Current evidence: Apollo `f1a44a7` passes the owning `apollo-fft` gates
-  (409/409 nextest, warnings-denied Clippy, doctests, rustdoc, and an
-  `aarch64-apple-darwin` check). RITK CI consumes this exact commit.
-- Residual: Apollo has no workflow run for PR #8; the external
-  `recurseml/analysis` status is `ERROR` for the 4b8b9709..f1a44a7 range and
-  CodeRabbit remains pending. This is an external review/CI blocker, not a
-  reason to bypass merge protection.
+- Closure: Apollo PR #8 merged at `6e99a567c118f6bf5790f80346475b44db2c7555`.
+  Authoritative CI run `29381809234` passed Rust format, Clippy, tests,
+  doctests, documentation, provider audit, RustSec, dependency policy, and
+  Python bindings. Coeus PR #209 subsequently merged the Mnemosyne 0.4,
+  Hephaestus 0.13, WGPU 30, and Themis 0.10 provider constraints required by
+  RITK.
+- Residual: RITK PR #33 is rerunning its consumer matrix against the merged
+  Apollo/Coeus graph; the external `recurseml/analysis` status is non-required.
 
 ## ATLAS-WGPU-030 — Provider ABI migration [arch] — done
 

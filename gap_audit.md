@@ -1,6 +1,6 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
-## State refresh (2026-07-14) — RITK PRs #31/#32 MERGED, Apollo PR #8 blocked
+## State refresh (2026-07-15) — Apollo/Coeus merged, RITK consumer rerun active
 
 - **RITK PR #31 (`codex/ritk-burn-ndarray-cleanup`) and PR #32 — ✅ MERGED**
   to `origin/main` at `be75a93a` and `4ba050ca`. All required CI passed
@@ -20,9 +20,17 @@
   not a timeout or correctness failure.
 - Hermes PR #6 is merged at `1423e41d`; the parent pointer is correctly
   advanced (ancestor of `origin/main`).
-- Apollo PR #8 (`codex/remove-rustfft`) remains OPEN at `f1a44a7` with a merge
-  conflict and external `recurseml/analysis` CI showing `ERROR`. Not
-  atlas-actionable.
+- Apollo PR #8 is merged at `6e99a567c118f6bf5790f80346475b44db2c7555`.
+  Authoritative CI run `29381809234` passed the Rust, Python, documentation,
+  provider-audit, RustSec, and dependency-policy jobs. The external
+  `recurseml/analysis` status is non-required.
+- Coeus PR #209 is merged at `2026a0b65e363496b5ab79b09612f26b7729f9d5`,
+  aligning Mnemosyne 0.4, Hephaestus 0.13/WGPU 30, and Themis 0.10. The first
+  RITK consumer run failed at the stale Coeus `mnemosyne ^0.3.0` constraint;
+  RITK PR #33 now reruns against the merged provider graph.
+- The invalid Moirai submodule metadata was repaired locally by changing
+  `.git/modules/repos/moirai/config` from `core.bare=true` to `false`; peer
+  source changes and its dirty Cargo.lock remain preserved.
 
 ## State refresh (2026-07-13) — peer dirt and local artifacts
 
