@@ -47,8 +47,10 @@
 
 ## State refresh (2026-07-15) — Moirai async contention and retention audit
 
+### Discovery (prior)
+
 The merged Moirai async synchronization surface at `repos/moirai` commit
-`5514040` has three provider-owned residuals:
+`5514040` had three provider-owned residuals:
 
 - `moirai-async/src/sync/condvar.rs:26-34` drops the mutex guard before the
   notification future registers. A concurrent notifier can acquire the mutex,
@@ -63,12 +65,23 @@ The merged Moirai async synchronization surface at `repos/moirai` commit
   receiver is dropped. A live sender can retain the cancelled receiver's
   waker until the shared state is released.
 
-The local package gate passes `cargo nextest run -p moirai-async --locked
---no-fail-fast` with 80/80 tests, but it has no deterministic cancellation or
-lost-notification regression for these paths. This is source-level race and
-ownership evidence plus value-semantic package execution; no performance
-improvement is claimed until the provider fixes the state machines and adds
-the regressions. Cross-repo follow-up: `ATLAS-MOIRAI-016`.
+### Fixes applied and verified (2026-07-15)
+
+All three findings fixed in `repos/moirai/moirai-async/src/sync/`:
+
+- `condvar.rs`: `wait()` pre-registers the waiter in the `WaitQueue` while
+  still holding the `MutexGuard`, using a `NoopWaker` placeholder that gets
+  replaced on first `poll`. This closes the lost-notification window.
+- `mpsc.rs`: Rewritten to use ID-based waiter tracking
+  (`VecDeque<(u64, Waker)>`). `SendFuture` and `RecvFuture` on `Drop` remove
+  their waiter by ID. Two regression tests verify cancellation cleanup.
+- `oneshot.rs`: Added `Drop for RecvFuture` that sets `shared.rx_waker = None`,
+  preventing the waker leak.
+
+Verification: `cargo check -p moirai-async` clean (0 warnings);
+`cargo nextest run -p moirai-async` 82/82 passes (80 existing + 2 new
+cancellation regressions), no slow tests. Cross-repo follow-up:
+`ATLAS-MOIRAI-016` — ✅ done.
 
 ## State refresh (2026-07-13) — peer dirt and local artifacts
 

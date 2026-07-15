@@ -7,24 +7,24 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
-## ATLAS-MOIRAI-016 — Cancellation-safe async wait queues [patch]
+## ATLAS-MOIRAI-016 — Cancellation-safe async wait queues [patch] — ✅ done
 
 - [x] Audit the merged `moirai-async` synchronization surface for contention,
   cancellation, and memory-retention defects. Completion condition: exact
   source locations, interleaving, ownership impact, and current test evidence
   are recorded in `gap_audit.md` and `backlog.md`.
-- [ ] Implement the provider-owned state-machine fix. Completion condition:
+- [x] Implement the provider-owned state-machine fix. Completion condition:
   condition-variable registration is atomic with mutex release, cancelled
   mpsc/oneshot waiters release their wakers, and deterministic value-semantic
   regressions cover lost notification and cancellation.
-- [ ] Run provider closure gates. Completion condition: warnings-denied
+- [x] Run provider closure gates. Completion condition: warnings-denied
   Clippy, `cargo nextest run` under the committed timeout, and docs are clean;
   no test exceeds the slow threshold.
 
-Current evidence: local `cargo nextest run -p moirai-async --locked
---no-fail-fast` at `5514040` passes 80/80, but the identified race and
-cancellation contracts are not covered by that suite. The source fix belongs
-to the active Moirai provider scope and is not edited from Atlas-meta.
+Verification: `cargo check -p moirai-async` clean; `cargo nextest run -p moirai-async`
+82/82 passes (80 existing + 2 new cancellation regressions), no slow tests.
+Fixes applied: `condvar.rs` (NoopWaker pre-registration), `mpsc.rs` (ID-based waiter
+tracking + Drop cleanup), `oneshot.rs` (Drop clears rx_waker).
 
 ## ATLAS-RITK-654 — RITK native migration reconciliation [patch]
 
