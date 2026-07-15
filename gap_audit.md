@@ -2466,3 +2466,141 @@ Verified building HEADs in this cycle:
 - ⏳ ritk Burn dep strip Batch #4/#5/#6 — open, but ritk gitlink advanced 13 commits this cycle with coeus-native paths.
 - ⏳ MOI-NUMA-001 — parked (peer scheduler/deque scope, now clearable by peer now that moirai clean WT + merged topology).
 - ⏳ MOI-CONTENTION-001 — parked, `perf/moirai-contention-audit` merged main per `perf/moirai-contention-audit` branch adv.
+
+## Findings 2026-07-15: concurrent peer reconciliation + CFDrs `621395f9` verification + mnemosyne feature-branch root cause
+
+### Concurrent peer activity during this session (reconciled)
+
+A peer agent (same author identity `ryanclanton@outlook.com`) committed six
+commits on `codex/kwavers-atlas-integration` while this agent was gathering
+verification evidence:
+
+- `9ea1b49 chore(atlas): Advance moirai/ritk/CFDrs submodule pointers` —
+  committed at 12:29:33, advancing `repos/moirai` `2431e05c → e3d1a30`,
+  `repos/ritk` `17b84bdc → ab2ef6e4`, `repos/CFDrs` `c2113d0f → 621395f9`.
+  This is exactly the trio this agent had independently identified as staged
+  during orientation; the peer committed them mid-session. Per
+  `concurrent_agents` `Detect & reconcile`, no collision occurred — this agent
+  had not committed. The peer's commit message provenance triples match the
+  SHAs this agent verified independently.
+- `a974cf9`, `45df600`, `96de591`, `e64d954`, `699abb7` — five sequential
+  `build(mnemosyne): Pin ...` chore commits advancing `repos/mnemosyne`
+  gitlink. This corrected the pre-existing defect this agent detected at the
+  start of the session: parent HEAD `9220f4a` had the mnemosyne gitlink at
+  `a281082`, a feature-branch tip on
+  `codex/mnemosyne-split-sampler-sampling` (NOT `main` — `a281082` had
+  `crates/mnemosyne/Cargo.toml version = "0.2.0"`)
+  while mnemosyne `main` (`3d1abd3e`) carried `version = "0.4.0"`. The peer
+  advanced the gitlink through to `2adec54` (PR #22,
+  `codex/mnemosyne-prof-contention-baseline`), aligning to `origin/main`.
+  This resolves the invalid feature-branch pin and the `mnemosyne ^0.4.0`
+  resolver mismatch this agent had traced into the ritk verify path (below).
+
+Branch context: the local mnemosyne clone was significantly stale — local
+`main` at `3d1abd3e` (PR #10) vs `origin/main` at `2adec54` (PR #22), 12
+PRs behind. The peer's advance to `2adec54` is the `origin/main` head — the
+local clone's `main` reference itself was stale until the peer's commits.
+
+### CFDrs `621395f9` verification evidence (independently gathered, corroborates peer `9ea1b49`)
+
+This agent verified CFDrs at inner HEAD `621395f9`
+(`fix(gpu): update wgpu 30 PollType API (#290)` — the merge of the full
+Atlas-provider migration push: Leto CSR + Eunomia scalar + Hephaestus GPU +
+cfd-math/cfd-2d/cfd-3d/cfd-1d/cfd-validation consumer cones, 51,857
+insertions + 22,087 deletions, on `main`, clean WT modulo dirty `Cargo.lock`)
+BEFORE the peer committed `9ea1b49`:
+
+- `cargo check --workspace` from `repos/CFDrs` = clean (0 warnings, 58.47s)
+- `cargo nextest run -p cfd-core -p cfd-math -p cfd-validation -p cfd-1d -p cfd-2d --lib` =
+  **1747/1747 pass, 1 skipped, 26.242s** (no slow tests under the 30s
+  threshold) — the venturi cross-fidelity cases at 1.5s/2.4s/3.0s/7.3s plus
+  the manufactured turbulent Spalart-Allmaras / Reynolds stress cases all
+clean.
+
+The dirty `Cargo.lock` in the CFDrs inner WT is a consus dependency resolution
+drift (`consus-core` path vs git-rev qualifier ambiguity) — exactly the
+"Cargo.lock dirty on inner submodules is normal-ish lockfile drift" documented
+pitfall, not a real source change. It does not block verification.
+
+The peer's `9ea1b49` advance is corroborated by this independent evidence.
+Evidence tier: empirical (nextest 1747/1747 under committed config +
+workspace `cargo check` clean).
+
+### Mnemosyne feature-branch root cause of the ritk resolver mismatch (diagnosed, since corrected by peer)
+
+While attempting to verify ritk `ab2ef6e4` (the burn-compat merge commit),
+this agent hit the documented SEMVER-CHECKS RESOLUTION BLOCKER (gap_audit row 9):
+`cargo nextest run -p ritk-image -p ritk-core -p ritk-spatial` (both default
+features and `--all-features`) failed at `cargo metadata` with
+`error: failed to select a version for the requirement "mnemosyne = \"^0.4.0\""`
+required by `coeus-core v0.8.0` via `ritk-filter v0.2.60`'
+path dep, candidate found: 0.2.0 at
+`D:\\atlas\\repos\\mnemosyne\\crates\\mnemosyne`.
+
+Root cause traced (T1 source verification):
+- inner mnemosyne working tree (detached at feature-branch tip `a281082` on
+  `codex/mnemosyne-split-sampler-sampling`) declared
+  `crates/mnemosyne/Cargo.toml version = "0.2.0"`; mnemosyne `main`
+  (`3d1abd3e` at that time) declared `version = "0.4.0"`.
+- `coeus-core`'s `mnemosyne = "^0.4.0"` could not resolve against the local
+path dep while the inner tree sat on the feature branch.
+
+This was a pre-existing configuration defect in committed state (the
+mnemosyne gitlink `a281082` at the then-parent HEAD `9220f4a`/`a974cf9`
+pinned a feature-branch tip stale on the 0.2.0 metadata).
+Per ADR 0011 §Leg 2, atlas-meta cannot `git switch`/`git fetch` the inner
+mnemosyne tree — peer scope. The peer (subsequent commits
+`45df600`...`699abb7`) advanced the mnemosyne gitlink to `main`'s `2adec54`
+where `mnemosyne = 0.4.0`, which unblocks the ritk verify path going
+forward. A re-verification of ritk at the updated mnemosyne pin was not
+attempted this session to avoid build-lock contention with the peer's
+in-flight mnemosyne commit block.
+
+ritk `ab2ef6e4` itself is a merge commit (`Merge: 3e4e0374 6d182d0f`, PR for
+burn-compat feature gate + selective burn dep migration), clean WT on
+`main`. The handoff's "duplicate commit titles = rebase artifact needing
+squash" assessment was a misread: `6d182d0f` is the feature-branch parent
+and `ab2ef6e4` is its merge to `main`, both legitimately titled because a
+squash-merge was NOT performed — this is a normal merge-commit shape, not
+a rebase artifact. The peer's `9ea1b49` advance is structurally sound.
+
+### Final gitlink reconciliation map (2026-07-15, post peer's `9ea1b49` + 5 mnemosyne pins)
+
+Evidence tier: git insn state (machine-verifiable via `git ls-tree HEAD`,
+`merge-base --is-ancestor`, inner `rev-parse`).
+
+| Submodule | Pin (HEAD `699abb7`) | Inner `main` | State | Action |
+|---|---|---|---|---|
+| CFDrs | `621395f9` | `621395f9` | FULLY ALIGNED (== main) | none — verified green this cycle (1747/1747) |
+| helios | `8fdc3965` | `8fdc3965` | FULLY ALIGNED | none |
+| kwavers | `1af276575f` | `1af276575f` | FULLY ALIGNED (== main; peer has 10+ further commits on `codex/kwavers-core-moirai-parallel`, not merged) | watch KW-CV-001 closeout trigger |
+| melinoe | `bb07447f` | `bb07447f` | FULLY ALIGNED | none |
+| ritk | `ab2ef6e4` | `ab2ef6e4` | FULLY ALIGNED (== main) | none (verifiable at the resolved mnemosyne 0.4 pin next cycle) |
+| apollo | `6e99a567` | `e6ecce49` | PIN-AHEAD-FEATURE (branch detached `HEAD`) | defer — peer feature branch |
+| coeus | `2026a0b6` | `e0a53778` | PIN-AHEAD-FEATURE (branch detached `HEAD`) | defer — peer feature branch |
+| mnemosyne | `2adec54` | `3d1abd3e` | PIN-AHEAD (pin at `origin/main` PR #22; local `main` ref stale at PR #10) | local-clone `main` ref is stale; the gitlink pins `origin/main` which is the true default — acceptable per git_discipline (`origin/main` is the published default) |
+| moirai | `e3d1a30` | `e05b623` | DIVERGED (pin on `perf/moirai-contention-audit`; local `main` advanced separately to PR #15+) | acceptable per ATLAS-MOIRAI-016 + the peer `9ea1b49` commit; peer owns the moirai main merge chore separately |
+| consus | `ec386e3` | `0106b709` | DIVERGED | not in active stack (per `gap_audit.md` §Private consumers — consus is a local artifact not registered as a stack member) |
+| gaia | `79310ba2` | `9e481024` | DIVERGED | not in active stack (per §Private consumers) |
+| eunomia, hephaestus, hermes, leto, themis | (various) | (no `main` in metagit) | (not comparable via this probe) | origin-only submodule metagit layout; verification via `cargo check`/`nextest` directly |
+
+### Atlas-meta scope posture this cycle
+
+No atlas-meta-actionable gitlink advance remains. The peer's `9ea1b49`
+advance (moirai/ritk/CFDrs) plus the five mnemosyne pin chores closed every
+FULLY-ALIGNED and feature-branch-acceptable candidate. Further advances
+await (a) kwavers peer merge to `main` (KW-CV-001 closeout trigger), (b)
+apollo/coeus peer feature branches merging to their `main` refs, (c)
+mnemosyne peer merging `codex/mnemosyne-segment-contention-baseline` to
+`main`, (d) any divergent peer main (moirai) reconciling via peer chore.
+All four are peer-stream triggers; atlas-meta's role is bystander verification
++ pointer advance on the trigger, per `concurrent_agents` contention
+response order and the operation loop's standing-increment re-probe.
+
+Residual risk: ritk at the updated mnemosyne 0.4.0 pin has not been
+re-verified with `cargo nextest` this session (deferred to avoid
+build-lock contention with the peer's in-flight mnemosyne pin block). The
+peer's `9ea1b49` commit body cites ritk `ab2ef6e4` as Batch #3
+burn-compat migration without explicit nextest numbers; the next
+gap-analysis cycle should re-run the ritk verify path now that mnemosyne
+0.4.0 resolves correctly at the parent gitlink.

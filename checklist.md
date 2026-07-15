@@ -1074,3 +1074,75 @@ rebuild resolves fully. Learning: cross-repo boundary errors with shared
 - ⏳ RITK Burn strip sub-batches #4/#5/#6
 - ⏳ Moirai git config mismatch (pre-existing)
 - ⏳ Apollo CZT/DHT provider — peer active, 11 WT dirty
+
+## Session 2026-07-15 — concurrent peer reconciliation + CFDrs verification + mnemosyne root cause
+
+### Orientation drift detected and reconciled
+
+- [x] Detect that parent HEAD moved from `9220f4a` (handoff HEAD) to `a974cf9`
+      mid-orientation; identify that a concurrent peer agent was active on the
+      same shared branch `codex/kwavers-atlas-integration`.
+- [x] Reconcile: peer committed `9ea1b49 chore(atlas): Advance
+      moirai/ritk/CFDrs submodule pointers` at 12:29:33 — exactly the trio
+      atlas-meta was independently verifying (moirai `e3d1a30`, ritk
+      `ab2ef6e4`, CFDrs `621395f9`). No collision (this agent had not
+      committed).
+- [x] Reconcile: peer committed `a974cf9` ... `699abb7` (5 sequential
+      `build(mnemosyne): Pin ...` chores) advancing the mnemosyne gitlink
+      from the stale feature-branch `a281082` to `origin/main` `2adec54`,
+      correcting the invalid feature-branch pin this agent had diagnosed as
+      root cause of the ritk `mnemosyne ^0.4.0` resolver failure.
+
+### Verification gathered (corroborates peer `9ea1b49`)
+
+- [x] CFDrs `621395f9` (WGPU 30 PollType PR #290, on `main`, clean WT
+      modulo dirty Cargo.lock consus drift): `cargo check --workspace` clean
+      (58.47s); `cargo nextest run -p cfd-core -p cfd-math -p cfd-validation
+      -p cfd-1d -p cfd-2d --lib` = 1747/1747 pass, 1 skipped, 26.242s, zero
+      slow tests. Independent evidence corroborating the peer's gitlink
+      advance.
+
+### Root cause diagnosed (since corrected by peer)
+
+- [x] Trace the ritk verification failure (`error: failed to select a
+      version for the requirement "mnemosyne = \"^0.4.0\""` from coeus-core via
+      ritk-filter path dep) to the mnemosyne inner tree checked out at
+      feature-branch tip `a281082` carrying `crates/mnemosyne/Cargo.toml
+      version = "0.2.0"` while `main` carried 0.4.0. Confirm ADR 0011 §Leg 2
+      forbids atlas-meta from `git switch`/`git fetch` in the inner tree.
+      Confirm peer's subsequent 5 mnemosyne pin commits advanced the gitlink
+      to `origin/main` `2adec54` where the 0.4.0 path dep resolves.
+
+### Reconciled gitlink state — no atlas-meta advance actionable
+
+- [x] Verify that every in-scope submodule is either FULLY ALIGNED
+      (CFDrs/helios/kwavers/melinoe/ritk at HEAD == main) or PIN-AHEAD on a
+      peer feature branch (apollo/coeus/mnemosyne/moirai) deferrable to
+      peer-stream trigger.
+- [x] Record findings + gitlink reconcile map in `gap_audit.md`
+      (new section `## Findings 2026-07-15: concurrent peer reconciliation +
+      CFDrs verification + mnemosyne feature-branch root cause`).
+
+### Residual risks
+
+- ritk at the updated mnemosyne 0.4.0 pin not re-verified with `cargo nextest`
+  this cycle (deferred to avoid build-lock contention with the peer's
+  in-flight mnemosyne pin block). Re-verify next cycle now that the 0.4.0
+  path dep resolves.
+- KW-CV-001 closeout trigger unchanged (kwavers peer has 10+ further commits
+  on `codex/kwavers-core-moirai-parallel` feature branch, not merged to
+  main).
+
+### Next increment (re-probe standing triggers next cycle)
+
+- Re-probe mnemosyne inner `main`: peer merging
+  `codex/mnemosyne-segment-contention-baseline` to `main` would yield a
+  post-`2adec54` gitlink advance candidate. (Local `main` ref was 12 PRs
+  behind `origin/main` at session start; peer's chore advanced the
+  *gitlink* to `origin/main` but the local `main` ref may still be stale —
+  not atlas-meta's write-set to repair.)
+- Re-probe kwavers peer stream for KW-CV-001 closeout-style commit (Batch #1
+  source-side migration finalization).
+- Re-verify ritk at the resolved mnemosyne pin (the verification path this
+  cycle was blocked by the stale feature-branch mnemosyne; now unblocked).
+- Re-probe apollo/coeus peer feature branches for merge to `main`.
