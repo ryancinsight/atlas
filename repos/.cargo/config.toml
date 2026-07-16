@@ -1,0 +1,9 @@
+# Shared Atlas build artifacts prevent one target tree per synchronized package.
+[build]
+target-dir = "D:/atlas/target"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false

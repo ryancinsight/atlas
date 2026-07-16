@@ -21,3 +21,6 @@ Thumbs.db
 
 # Local playground/clones
 repos/_halo_inspect/
+
+# Linked worktree lanes are local build infrastructure, not repository content.
+worktrees/

@@ -36,6 +36,8 @@ README.
 | Repository | Atlas role | Used by |
 | --- | --- | --- |
 | `CFDrs` | CFD simulation suite and primary integration consumer. It combines mesh generation, transforms, scientific output, VTK output, allocator selection, and data-parallel execution. | Consumes `gaia`, `apollo`, `consus`, `ritk`, `mnemosyne`, and `moirai`. |
+| `helios` | Radiotherapy dose, imaging, planning, and simulation workspace. | Consumes `ritk`, `coeus`, `hephaestus`, `moirai`, `leto`, `hermes`, `mnemosyne`, `themis`, `eunomia`, `apollo`, and `gaia`. |
+| `kwavers` | Acoustic, ultrasound, therapy, imaging, and PINN simulation workspace. | Consumes `ritk`, `coeus`, `hephaestus`, `moirai`, `leto`, `hermes`, `eunomia`, `apollo`, `mnemosyne`, `themis`, and `melinoe`. |
 | `gaia` | Watertight CFD mesh generation and geometry kernel. It provides the `gaia` crate, consumed as `cfd-mesh` by CFDrs and directly by RITK. | Consumed by `CFDrs` and `ritk`. Optionally bridges to `cfd-schematics`. |
 | `apollo` | Fourier, spectral, number-theoretic, wavelet, and related transform implementations, with Leto host boundaries, typed Hephaestus accelerator execution, validation, and Python bindings. | Consumed by `CFDrs` for FFT/NUFFT, by `coeus` for FFT-backed tensor operations, and internally uses `moirai` in selected transform crates. |
 | `consus` | Pure-Rust scientific storage formats and I/O: HDF5, Zarr, NetCDF, Parquet, Arrow, FITS, MAT, NWB, HDMF, compression, and Python bindings. | Consumed by `CFDrs` for HDF5 output and by `ritk` for HDF5/core/compression/I/O support. Uses `moirai` for parallel and native transport paths. |
@@ -81,6 +83,32 @@ CFDrs
 ├── ritk       # VTK output through ritk-vtk
 ├── mnemosyne  # optional global allocator feature
 └── moirai     # parallel execution
+
+helios
+├── ritk        # DICOM and medical-image I/O
+├── coeus       # planning autodiff
+├── hephaestus  # GPU dose and imaging kernels
+├── moirai      # simulation parallelism
+├── leto        # geometry and array substrate
+├── hermes      # SIMD kernels
+├── mnemosyne   # allocation substrate
+├── themis      # placement law
+├── eunomia     # numeric vocabulary
+├── apollo      # spectral operations
+└── gaia        # geometry primitives
+
+kwavers
+├── ritk        # medical imaging and registration
+├── coeus       # PINN and autodiff
+├── hephaestus  # optional GPU providers
+├── moirai      # parallel execution
+├── leto        # array and linear-algebra substrate
+├── hermes      # SIMD kernels
+├── eunomia     # numeric vocabulary
+├── apollo      # spectral operations
+├── mnemosyne   # allocation substrate
+├── themis      # placement law
+└── melinoe     # branded capability tokens
 
 coeus
 ├── apollo     # FFT-backed tensor operations
@@ -143,7 +171,7 @@ editing, review, and cross-package verification.
 
 ## Workspace And Crate Topology
 
-Atlas coordinates 12 independent package workspaces, each checked out under
+Atlas coordinates 16 independent package workspaces, each checked out under
 `repos/`. Each repository remains separate for versioning and publishing, while
 the crates form one Atlas stack through Git dependencies, shared verification
 contracts, and common infrastructure crates. Below is the current topology of
@@ -163,6 +191,22 @@ each Cargo workspace and its constituent crates:
   - [cfd-optim](repos/CFDrs/crates/cfd-optim): Design iteration, parameter optimization, and shape optimization routines.
   - [cfd-validation](repos/CFDrs/crates/cfd-validation): Benchmark analytical verification suits.
   - [cfd-python](repos/CFDrs/crates/cfd-python): PyO3 bindings for CFD solver access in Python.
+
+### [helios](repos/helios)
+
+- **Role**: Radiotherapy dose, imaging, planning, and simulation workspace.
+- **Provider graph**: `ritk` owns DICOM/image I/O; `coeus` owns optional
+  planning autodiff; `hephaestus` owns GPU dispatch; `moirai`, `leto`,
+  `hermes`, `mnemosyne`, `themis`, `eunomia`, `apollo`, and `gaia` provide the
+  remaining execution, numeric, memory, transform, and geometry substrates.
+
+### [kwavers](repos/kwavers)
+
+- **Role**: Acoustic, ultrasound, therapy, imaging, and PINN simulation workspace.
+- **Provider graph**: `ritk` owns imaging/registration; `coeus` owns PINN
+  autodiff; `hephaestus` owns optional GPU providers; `moirai`, `leto`,
+  `hermes`, `eunomia`, `apollo`, `mnemosyne`, `themis`, and `melinoe` provide
+  execution, numeric, transform, memory, placement, and capability substrates.
 
 ### [apollo](repos/apollo)
 - **Role**: High-performance transformations, spectral methods, and numerical transforms.
@@ -452,6 +496,8 @@ atlas/
 ├── repos/
 │   ├── apollo/           # Fourier transform planning and execution workspace
 │   ├── CFDrs/            # computational fluid dynamics simulation workspace
+│   ├── helios/           # radiotherapy dose and imaging simulation workspace
+│   ├── kwavers/          # acoustic and ultrasound simulation workspace
 │   ├── coeus/            # strided tensor library workspace
 │   ├── consus/           # scientific storage-format workspace
 │   ├── gaia/             # watertight CFD mesh-generation workspace
@@ -485,15 +531,15 @@ git submodule update --init --recursive
 ```sh
 # Build / test a single package (it is a self-contained workspace)
 cargo build  --manifest-path repos/CFDrs/Cargo.toml
-cargo test   --manifest-path repos/CFDrs/Cargo.toml
+cargo nextest run --manifest-path repos/CFDrs/Cargo.toml
 
 # Build every package
 pwsh scripts/build-all.ps1     # Windows: cargo build
 ./scripts/build-all.sh         # Unix: cargo build
 
 # Test every package
-pwsh scripts/build-all.ps1 test
-./scripts/build-all.sh test
+pwsh scripts/build-all.ps1 nextest run
+./scripts/build-all.sh nextest run
 
 # Run another Cargo subcommand across every package
 pwsh scripts/build-all.ps1 clippy --all-targets --all-features -- -D warnings
