@@ -1,10 +1,18 @@
 # Atlas checklist
 
 Sprint phase: Closure
-Target: META-001 public default-branch alignment
+Target: META-001 and META-002 public default-branch alignment
+
+## META-001
 
 - [x] Create a clean integration lane from `origin/main`.
 - [x] Fetch and resolve each public submodule's remote default branch.
 - [x] Stage only gitlinks that lag their resolved default branch.
 - [x] Verify staged gitlinks, whitespace, and conflict-marker absence.
-- [ ] Commit, push, review, merge, and remove the integration lane.
+- [x] Commit, push, review, and merge the integration lane.
+
+## META-002
+
+- [x] Detect the post-merge Apollo default-branch advance.
+- [x] Create a follow-up lane from the merged Atlas default branch.
+- [x] Advance the Apollo gitlink and re-verify every public gitlink.
