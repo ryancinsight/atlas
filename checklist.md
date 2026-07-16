@@ -1046,8 +1046,8 @@ fix is the sole closed write-set this session.
   Moirai scheduler bridge. Publish the required Melinoe 0.9, Mnemosyne 0.3,
   Themis, Gaia, Coeus, and Hephaestus dependency edges without duplicate
   provider type identities.
-- [ ] Next increment: THEM-CACHE-001. MOI-NUMA-001 remains parked until the
-  active scheduler/deque peer scope is committed and green.
+- [x] Next increment: THEM-CACHE-001 (closed `18807bb`). MOI-NUMA-001/002/003/004
+  (closed via ADR 0017 — deleted `numa.rs`, 4 P0 defects eliminated).
 
 ## Session 2026-07-14 -- MR-WATCH-001 closure + full gitlink reconciliation
 
@@ -1197,3 +1197,25 @@ contention regression.
 
 Acceptance: provider `main` contains the verified blocking-lane commits; the
 Atlas parent does not stage peer-owned inner-repo changes.
+
+## ADR 0018 — TREE-SRP-001 module hierarchy cleanup [minor]
+
+- [x] Draft ADR 0018 — four-phase plan: Phase 1 file splits (pre-session), Phase 2 themis test rehome, Phase 3 constants split (pre-session), Phase 4 dual-channel consolidation (deferred as TREE-DUP-002).
+- [x] Accept ADR 0018 (status `Accepted`).
+- [x] Phase 2 partial: delete dead `src/topology/tests/gpu.rs` and `src/topology/tests/tpu.rs` (these files were not declared in `mod.rs`; integration test copies already exist at `tests/gpu.rs` and `tests/tpu.rs`).
+- [x] Phase 2 completed: CPU topology tests (`src/topology/tests/cpu.rs`) → `tests/topology/cpu.rs`; branded tests (`src/branded/tests.rs`) → `tests/branded.rs`. Visibility blockers resolved: added `#[cfg(test)] pub fn new_for_test(...)` constructor on `CpuTopology`; widened builders/constants to `pub`; added `#[cfg(test)] pub use` re-exports in `src/lib.rs`. Deleted `src/topology/tests/mod.rs`, `src/topology/tests/cpu.rs`, `src/branded/tests.rs`. Committed and merged via PR #9 (`a9127ac`).
+- [ ] Phase 4 deferred as TREE-DUP-002 (moirai-core dual-channel consolidation).
+
+Verification: `cargo nextest run -p themis` 16/18 pass (2 pre-existing branded placement panics — `region_index 0 out of bounds for 0 region(s)` in `SafePlacement::cell_index`, pre-existing with `melinoe` feature). ADR 0018 Phase 2 implementation note updated. `themis/gap_audit.md` updated.
+
+## Melinoe halo sub-crate consolidation [major]
+
+- [x] Delete `repos/melinoe/crates/halo/` workspace member (`crates/halo/` sub-crate removed).
+- [x] Create `src/collections/` module (gated on `alloc`) with `BrandedVec`, `BrandedVecDeque`, `BrandedDrain`, `BrandedVecDequeDrain`.
+- [x] Re-export at crate root: `pub use collections::{...}` under `#[cfg(feature = "alloc")]`.
+- [x] Migrate tests, benches, and PM artifacts from halo to root crate.
+- [x] Fix unused-import warnings in `deque/partition.rs` and `tests/partition.rs` (std-gating).
+- [x] Gate `wrapped_three_three_queue` in `branded_deque.rs` under `#[cfg(feature = "std")]`.
+- [x] Verify local gate: `cargo nextest run` 121/121 pass, `clippy --all-targets --all-features -- -D warnings` clean, `cargo doc --no-deps` clean.
+
+Verification: `cargo nextest run` 121/121 pass, `cargo clippy --all-targets --all-features -- -D warnings` clean, `cargo doc --no-deps` clean, all feature combos build clean. Committed `2e9bf87` and pushed to melinoe/main. Atlas gitlink advanced at `73592be`.
