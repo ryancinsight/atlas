@@ -37,18 +37,18 @@ README.
 | --- | --- | --- |
 | `CFDrs` | CFD simulation suite and primary integration consumer. It combines mesh generation, transforms, scientific output, VTK output, allocator selection, and data-parallel execution. | Consumes `gaia`, `apollo`, `consus`, `ritk`, `mnemosyne`, and `moirai`. |
 | `gaia` | Watertight CFD mesh generation and geometry kernel. It provides the `gaia` crate, consumed as `cfd-mesh` by CFDrs and directly by RITK. | Consumed by `CFDrs` and `ritk`. Optionally bridges to `cfd-schematics`. |
-| `apollo` | Fourier, spectral, number-theoretic, wavelet, and related transform implementations, with CPU, WGPU, validation, and Python crates. | Consumed by `CFDrs` for FFT/NUFFT, by `coeus` for FFT-backed tensor operations, and internally uses `moirai` in selected transform crates. |
+| `apollo` | Fourier, spectral, number-theoretic, wavelet, and related transform implementations, with Leto host boundaries, typed Hephaestus accelerator execution, validation, and Python bindings. | Consumed by `CFDrs` for FFT/NUFFT, by `coeus` for FFT-backed tensor operations, and internally uses `moirai` in selected transform crates. |
 | `consus` | Pure-Rust scientific storage formats and I/O: HDF5, Zarr, NetCDF, Parquet, Arrow, FITS, MAT, NWB, HDMF, compression, and Python bindings. | Consumed by `CFDrs` for HDF5 output and by `ritk` for HDF5/core/compression/I/O support. Uses `moirai` for parallel and native transport paths. |
 | `ritk` | Medical image processing, registration, codec, and VTK workspace. It owns `ritk-vtk`, the VTK data model and I/O used by CFD output. | Consumed by `CFDrs` through `ritk-vtk`; consumes `gaia`, `moirai`, and `consus`. |
 | `coeus` | Strided tensor, operations, autodiff, neural-network, sparse, optimizer, distribution, GPU, CUDA, and Python workspace. | Consumes `mnemosyne` for storage allocation, `moirai` for data-parallel execution, `hermes` for SIMD effects, and `apollo` for FFT. |
-| `leto` | Shared N-dimensional strided array, layout, view, slicing, and storage vocabulary for Atlas. It is the planned replacement for direct `ndarray` usage where Apollo and Coeus need a common non-differentiable array substrate. | Intended for `apollo` and `coeus`; uses `mnemosyne` for optional aligned allocation, `moirai` for parallel operations, and `hermes` for SIMD-backed kernels. |
+| `leto` | Shared N-dimensional strided array, layout, view, slicing, and storage vocabulary for Atlas. It replaces direct `ndarray` usage where Apollo and Coeus need a common non-differentiable array substrate. | Consumed by `apollo` and `coeus`; uses `mnemosyne` for optional aligned allocation, `moirai` for parallel operations, and `hermes` for SIMD-backed kernels. |
 | `hermes` | SIMD abstraction workspace: SIMD core, intrinsics, register types, macros, examples, and benchmarks, computing over the `eunomia` datatype vocabulary. | Consumed by `coeus` and `leto` as the SIMD-effect single source of truth; consumes `eunomia` for scalar/numeric types. |
 | `eunomia` | Datatype-law foundation: the single source of truth for numeric/scalar datatype vocabulary — scalar wrapper types (`F16`/`Bf16`/`F32`/…), `Complex`, packed sub-byte formats, conversion lattices, and GPU vector element types (`eunomia-gpu`). Sibling of `themis` (placement law). | Consumed by `hermes`, `leto`, `coeus`, and `hephaestus` for datatype vocabulary; depends on nothing Atlas-local. |
 | `themis` | Typed placement-law crate for NUMA, HBM, memory-tier, worker, and locality-domain contracts. Sibling of `eunomia` (datatype law). | Consumed by `mnemosyne` for allocation placement and by `moirai` for scheduler topology placement. |
 | `mnemosyne` | User-space allocator and memory-management workspace: core, backend, arena, local, heap, hardened, decay, profiling, C shim, and benchmarks. | Consumed by `CFDrs`, `coeus`, and `moirai`; consumes `themis` for allocation placement law and pairs conceptually with `melinoe` capability tokens. |
 | `melinoe` | Branded, multi-token phantom capabilities for compile-time data-access and thread-synchronization proofs. | Supports the Mnemosyne memory ecosystem; currently tracked as a standalone foundation crate in atlas. |
 | `moirai` | Concurrency, scheduling, async, parallel iteration, transport, metrics, GPU, TLS, HTTP, and Python runtime workspace. | Consumed by `CFDrs`, `coeus`, `ritk`, `consus`, and selected `apollo` crates; consumes `themis` for scheduler topology and worker placement law. |
-| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam (elementwise/scalar/unary/reduction kernels with pipeline caching) — **wgpu** backend live; **CUDA** backend planned (composing `cuda-oxide` for driver/runtime/memory/streams with `cutile` for tile/PTX kernel authoring). Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo` (`apollo-wgpu-helpers` delegates device acquisition here); `coeus` GPU backends re-base when coeus bumps to wgpu 26. Live: `leto`/`leto-ops` host-side layout SSOT + host-delegated linalg parity, `mnemosyne` device-memory pools and pinned-host staging (Stage D1), `moirai` GPU launch planning + sync primitives, `themis` placement/tiers. Planned: `melinoe` device-buffer ownership-transfer proofs; native GPU-kernel parity replacing the interim `leto-ops` host delegation. |
+| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam (elementwise/scalar/unary/reduction kernels with pipeline caching) — **wgpu** backend live; **CUDA** backend planned (composing `cuda-oxide` for driver/runtime/memory/streams with `cutile` for tile/PTX kernel authoring). Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo` through typed transform kernels and crate-root accelerator exports; Apollo owns no raw WGPU surface or helper wrapper. `coeus` GPU backends re-base when coeus bumps to wgpu 26. Live: `leto`/`leto-ops` host-side layout SSOT + host-delegated linalg parity, `mnemosyne` device-memory pools and pinned-host staging (Stage D1), `moirai` GPU launch planning + sync primitives, `themis` placement/tiers. Planned: `melinoe` device-buffer ownership-transfer proofs; native GPU-kernel parity replacing the interim `leto-ops` host delegation. |
 
 ### Naming Conventions
 
@@ -108,8 +108,8 @@ consus
 └── moirai     # parallelism and native transport support
 
 apollo
-├── leto        # planned ndarray replacement for array/view surfaces
-├── hephaestus  # shared GPU device acquisition for the -wgpu crate family
+├── leto        # host array/view substrate
+├── hephaestus  # typed accelerator execution; no Apollo raw-WGPU layer
 └── moirai      # selected transform crates with parallel execution
 
 hermes
@@ -133,7 +133,7 @@ hephaestus
 ├── themis      # live: device/placement law and tiers
 └── melinoe     # planned: device-buffer ownership-transfer proofs
 
-apollo → hephaestus             # live: apollo-wgpu-helpers delegates device acquisition
+apollo → hephaestus             # live: typed accelerator execution at transform roots
 coeus  → hephaestus (planned)   # GPU tensor/autodiff backends re-base at wgpu 26 bump
 ```
 
@@ -166,47 +166,31 @@ each Cargo workspace and its constituent crates:
 
 ### [apollo](repos/apollo)
 - **Role**: High-performance transformations, spectral methods, and numerical transforms.
-- **Resolver**: v2
+- **Resolver**: v3
 - **Crate Catalog**:
-  - [apollo-czt](repos/apollo/crates/apollo-czt): Chirp Z-Transform (CZT) CPU implementation.
-  - [apollo-czt-wgpu](repos/apollo/crates/apollo-czt-wgpu): GPU-accelerated Chirp Z-Transform (CZT) via WGPU.
-  - [apollo-dctdst](repos/apollo/crates/apollo-dctdst): Discrete Cosine (DCT) and Discrete Sine (DST) transforms on CPU.
-  - [apollo-dctdst-wgpu](repos/apollo/crates/apollo-dctdst-wgpu): GPU-accelerated DCT and DST via WGPU.
-  - [apollo-dht](repos/apollo/crates/apollo-dht): Discrete Hartley Transform (DHT) CPU implementation.
-  - [apollo-dht-wgpu](repos/apollo/crates/apollo-dht-wgpu): GPU-accelerated Discrete Hartley Transform (DHT) via WGPU.
-  - [apollo-fft](repos/apollo/crates/apollo-fft): Fast Fourier Transform (FFT) CPU implementation.
-  - [apollo-fft-wgpu](repos/apollo/crates/apollo-fft-wgpu): GPU-accelerated Fast Fourier Transform (FFT) via WGPU.
+  - Transform crates: [apollo-czt](repos/apollo/crates/apollo-czt),
+    [apollo-dctdst](repos/apollo/crates/apollo-dctdst),
+    [apollo-dht](repos/apollo/crates/apollo-dht),
+    [apollo-fft](repos/apollo/crates/apollo-fft),
+    [apollo-frft](repos/apollo/crates/apollo-frft),
+    [apollo-fwht](repos/apollo/crates/apollo-fwht),
+    [apollo-gft](repos/apollo/crates/apollo-gft),
+    [apollo-hilbert](repos/apollo/crates/apollo-hilbert),
+    [apollo-mellin](repos/apollo/crates/apollo-mellin),
+    [apollo-ntt](repos/apollo/crates/apollo-ntt),
+    [apollo-nufft](repos/apollo/crates/apollo-nufft),
+    [apollo-qft](repos/apollo/crates/apollo-qft),
+    [apollo-radon](repos/apollo/crates/apollo-radon),
+    [apollo-sdft](repos/apollo/crates/apollo-sdft),
+    [apollo-sft](repos/apollo/crates/apollo-sft),
+    [apollo-sht](repos/apollo/crates/apollo-sht),
+    [apollo-stft](repos/apollo/crates/apollo-stft), and
+    [apollo-wavelet](repos/apollo/crates/apollo-wavelet) own transform
+    mathematics, Leto host boundaries, and optional typed Hephaestus execution.
   - [apollo-fft-macros](repos/apollo/crates/apollo-fft-macros): Procedural code-generation macros for FFT butterfly networks.
-  - [apollo-frft](repos/apollo/crates/apollo-frft): Fractional Fourier Transform (FRFT) CPU implementation.
-  - [apollo-frft-wgpu](repos/apollo/crates/apollo-frft-wgpu): GPU-accelerated Fractional Fourier Transform (FRFT) via WGPU.
-  - [apollo-fwht](repos/apollo/crates/apollo-fwht): Fast Walsh-Hadamard Transform (FWHT) CPU implementation.
-  - [apollo-fwht-wgpu](repos/apollo/crates/apollo-fwht-wgpu): GPU-accelerated Fast Walsh-Hadamard Transform (FWHT) via WGPU.
-  - [apollo-gft](repos/apollo/crates/apollo-gft): Generalized and Graph Fourier Transform (GFT) CPU implementation.
-  - [apollo-gft-wgpu](repos/apollo/crates/apollo-gft-wgpu): GPU-accelerated Graph Fourier Transform (GFT) via WGPU.
-  - [apollo-hilbert](repos/apollo/crates/apollo-hilbert): Hilbert Transform CPU implementation for analytic signals.
-  - [apollo-hilbert-wgpu](repos/apollo/crates/apollo-hilbert-wgpu): GPU-accelerated Hilbert Transform via WGPU.
-  - [apollo-mellin](repos/apollo/crates/apollo-mellin): Mellin Transform CPU implementation.
-  - [apollo-mellin-wgpu](repos/apollo/crates/apollo-mellin-wgpu): GPU-accelerated Mellin Transform via WGPU.
-  - [apollo-ntt](repos/apollo/crates/apollo-ntt): Number-Theoretic Transform (NTT) CPU implementation over finite fields.
-  - [apollo-ntt-wgpu](repos/apollo/crates/apollo-ntt-wgpu): GPU-accelerated Number-Theoretic Transform (NTT) via WGPU.
-  - [apollo-nufft](repos/apollo/crates/apollo-nufft): Non-Uniform Fast Fourier Transform (NUFFT) CPU implementation.
-  - [apollo-nufft-wgpu](repos/apollo/crates/apollo-nufft-wgpu): GPU-accelerated Non-Uniform Fast Fourier Transform (NUFFT) via WGPU.
-  - [apollo-qft](repos/apollo/crates/apollo-qft): Quaternion Fourier Transform (QFT) CPU implementation.
-  - [apollo-qft-wgpu](repos/apollo/crates/apollo-qft-wgpu): GPU-accelerated Quaternion Fourier Transform (QFT) via WGPU.
-  - [apollo-radon](repos/apollo/crates/apollo-radon): Radon and Inverse Radon Transforms on CPU.
-  - [apollo-radon-wgpu](repos/apollo/crates/apollo-radon-wgpu): GPU-accelerated Radon and Inverse Radon Transforms via WGPU.
-  - [apollo-sdft](repos/apollo/crates/apollo-sdft): Sliding Discrete Fourier Transform (SDFT) CPU implementation for real-time analysis.
-  - [apollo-sdft-wgpu](repos/apollo/crates/apollo-sdft-wgpu): GPU-accelerated Sliding Discrete Fourier Transform (SDFT) via WGPU.
-  - [apollo-sft](repos/apollo/crates/apollo-sft): Sparse Fourier Transform (SFT) CPU implementation.
-  - [apollo-sft-wgpu](repos/apollo/crates/apollo-sft-wgpu): GPU-accelerated Sparse Fourier Transform (SFT) via WGPU.
-  - [apollo-sht](repos/apollo/crates/apollo-sht): Spherical Harmonic Transform (SHT) CPU implementation.
-  - [apollo-sht-wgpu](repos/apollo/crates/apollo-sht-wgpu): GPU-accelerated Spherical Harmonic Transform (SHT) via WGPU.
-  - [apollo-stft](repos/apollo/crates/apollo-stft): Short-Time Fourier Transform (STFT) CPU implementation.
-  - [apollo-stft-wgpu](repos/apollo/crates/apollo-stft-wgpu): GPU-accelerated Short-Time Fourier Transform (STFT) via WGPU.
+  - [apollo-bench](repos/apollo/crates/apollo-bench): Native benchmark runtime.
+  - [apollo-leto-interop](repos/apollo/crates/apollo-leto-interop): Shared Leto host-boundary construction.
   - [apollo-validation](repos/apollo/crates/apollo-validation): Verification and error-bounds assertion engine.
-  - [apollo-wavelet](repos/apollo/crates/apollo-wavelet): Continuous (CWT) and Discrete (DWT) Wavelet Transforms on CPU.
-  - [apollo-wavelet-wgpu](repos/apollo/crates/apollo-wavelet-wgpu): GPU-accelerated Wavelet Transforms via WGPU.
-  - [apollo-wgpu-helpers](repos/apollo/crates/apollo-wgpu-helpers): Shared GPU compute utilities, pipeline, and binder helpers.
   - [apollo-python](repos/apollo/crates/apollo-python): PyO3 bindings for python-level transform operations.
 
 ### [coeus](repos/coeus)
