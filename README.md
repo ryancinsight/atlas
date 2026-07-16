@@ -36,6 +36,7 @@ README.
 | Repository | Atlas role | Used by |
 | --- | --- | --- |
 | `CFDrs` | CFD simulation suite and primary integration consumer. It combines mesh generation, transforms, scientific output, VTK output, allocator selection, and data-parallel execution. | Consumes `gaia`, `apollo`, `consus`, `ritk`, `mnemosyne`, and `moirai`. |
+| `helios` | Radiotherapy dose, imaging, planning, and simulation workspace. | Consumes `ritk`, `coeus`, `hephaestus`, `moirai`, `leto`, `hermes`, `mnemosyne`, `themis`, `eunomia`, `apollo`, and `gaia`. |
 | `kwavers` | Acoustic, ultrasound, elastography, therapy, imaging, PINN, and driver integration workspace. It is tracked in atlas so missing substrate capabilities can be filled in the owning provider repo before Kwavers consumes them. | Keeps `ritk` and `consus`; planned migration replaces direct `tokio`/`rayon` usage with `moirai`, direct `ndarray`/`nalgebra` usage with `leto`, direct SIMD paths with `hermes`, direct PINN `burn` usage with `coeus`, and memory placement/allocation paths with `mnemosyne` plus `themis`. |
 | `gaia` | Watertight CFD mesh generation and geometry kernel. It provides the `gaia` crate, consumed as `cfd-mesh` by CFDrs and directly by RITK. | Consumed by `CFDrs` and `ritk`. Optionally bridges to `cfd-schematics`. |
 | `apollo` | Fourier, spectral, number-theoretic, wavelet, and related transform implementations, with CPU, WGPU, validation, and Python crates. | Consumed by `CFDrs` for FFT/NUFFT, by `coeus` for FFT-backed tensor operations, and internally uses `moirai` in selected transform crates. |
@@ -49,7 +50,7 @@ README.
 | `mnemosyne` | User-space allocator and memory-management workspace: core, backend, arena, local, heap, hardened, decay, profiling, C shim, and benchmarks. | Consumed by `CFDrs`, `coeus`, and `moirai`; consumes `themis` for allocation placement law and pairs conceptually with `melinoe` capability tokens. |
 | `melinoe` | Branded, multi-token phantom capabilities for compile-time data-access and thread-synchronization proofs. | Supports the Mnemosyne memory ecosystem; currently tracked as a standalone foundation crate in atlas. |
 | `moirai` | Concurrency, scheduling, async, parallel iteration, transport, metrics, GPU, TLS, HTTP, and Python runtime workspace. | Consumed by `CFDrs`, `coeus`, `ritk`, `consus`, and selected `apollo` crates; consumes `themis` for scheduler topology and worker placement law. |
-| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam with live **wgpu** and **CUDA** backends. Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo` and the `coeus` GPU crates at Hephaestus 0.12. Live: `leto`/`leto-ops` host-side layout SSOT + host-delegated linalg parity, immutable `mnemosyne` staging callback registration, `moirai` GPU launch planning + sync primitives, and `themis` placement/tiers. Planned: `melinoe` device-buffer ownership-transfer proofs; native GPU-kernel parity replacing interim `leto-ops` host delegation. |
+| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam with live **wgpu** and **CUDA** backends. Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo` and the `coeus` GPU crates at Hephaestus 0.15. Live: `leto`/`leto-ops` host-side layout SSOT + host-delegated linalg parity, immutable `mnemosyne` staging callback registration, `moirai` GPU launch planning + sync primitives, and `themis` placement/tiers. Planned: `melinoe` device-buffer ownership-transfer proofs; native GPU-kernel parity replacing interim `leto-ops` host delegation. |
 
 ### Naming Conventions
 
@@ -92,6 +93,19 @@ kwavers
 ├── mnemosyne   # planned allocation and staging substrate
 ├── themis      # planned placement-law vocabulary through providers
 └── moirai      # planned async/runtime and data-parallel execution substrate
+
+helios
+├── ritk        # DICOM and medical-image I/O
+├── coeus       # planning autodiff
+├── hephaestus  # GPU dose and imaging kernels
+├── moirai      # execution and communication
+├── leto        # array and linear-algebra substrate
+├── hermes      # SIMD kernels
+├── mnemosyne   # allocation substrate
+├── themis      # placement law
+├── eunomia     # numeric vocabulary
+├── apollo      # spectral operations
+└── gaia        # geometry substrate
 
 
 coeus
@@ -145,8 +159,8 @@ hephaestus
 ├── themis      # live: device/placement law and tiers
 └── melinoe     # planned: device-buffer ownership-transfer proofs
 
-apollo → hephaestus             # live: apollo-wgpu-helpers delegates device acquisition
-coeus  → hephaestus             # live: GPU tensor/autodiff crates consume 0.12
+apollo → hephaestus             # live: typed accelerator execution at transform roots
+coeus  → hephaestus             # live: GPU tensor/autodiff crates consume 0.15
 ```
 
 Repositories still depend on each other through Git remotes, not by path from
@@ -255,6 +269,14 @@ each Cargo workspace and its constituent crates:
   - [consus-nwb](repos/consus/crates/consus-nwb): Neurodata Without Borders schema mapping.
   - [consus-hdmf](repos/consus/crates/consus-hdmf): Hierarchical Data Modeling Framework implementation.
   - [consus-python](repos/consus/crates/consus-python): PyO3 bindings for Python data access.
+
+### [helios](repos/helios)
+
+- **Role**: Radiotherapy dose, imaging, planning, and simulation workspace.
+- **Provider graph**: `ritk` owns DICOM/image I/O; `coeus` owns planning
+  autodiff; `hephaestus` owns GPU dispatch; `moirai`, `leto`, `hermes`,
+  `mnemosyne`, `themis`, `eunomia`, `apollo`, and `gaia` provide the remaining
+  execution, numeric, memory, transform, and geometry substrates.
 
 ### [kwavers](repos/kwavers)
 - **Role**: Acoustic simulation, therapy, imaging, driver, and PINN integration workspace.

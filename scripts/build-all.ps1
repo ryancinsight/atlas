@@ -2,12 +2,17 @@
 # Run a cargo command across every package workspace under repos/.
 # Usage: pwsh scripts/build-all.ps1 [cargo-subcommand] [extra args...]
 #   pwsh scripts/build-all.ps1            # cargo build
-#   pwsh scripts/build-all.ps1 test       # cargo test
+#   pwsh scripts/build-all.ps1 nextest run # cargo nextest run
+#   pwsh scripts/build-all.ps1 test --doc # cargo test --doc
 #   pwsh scripts/build-all.ps1 clippy --all-targets -- -D warnings
 
 $ErrorActionPreference = 'Stop'
 $cmd = if ($args.Count -ge 1) { $args[0] } else { 'build' }
 $rest = if ($args.Count -ge 2) { $args[1..($args.Count - 1)] } else { @() }
+
+if ($cmd -eq 'test' -and -not ($rest -contains '--doc')) {
+    throw "Use 'nextest run' for tests; 'test --doc' is reserved for doctests."
+}
 
 $root = Split-Path -Parent $PSScriptRoot
 $repos = Join-Path $root 'repos'

@@ -7,6 +7,13 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-001 — default-main reconciliation [complete]
+
+- [x] Resolve root metadata conflicts without discarding the migration SSOT.
+- [x] Advance Coeus and Gaia gitlinks to their merged default-branch commits.
+- [x] Confirm every conflicted provider gitlink is reachable from its current
+  remote default branch.
+
 ## ATLAS-MNEMOSYNE-017 — Maximum-small deallocation audit [patch]
 
 - [x] Verify the merged Mnemosyne PR #25 at provider head `0012c4f`.
