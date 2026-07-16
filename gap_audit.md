@@ -19,3 +19,12 @@
   therefore referenced Apollo `e17de6f` while fetched `origin/HEAD` resolved to
   `466e18b`.
 - Full follow-up comparison found no other public gitlink drift.
+
+## META-003 — stale branch replacement
+
+- Evidence tier: Git merge-tree and manifest inspection. Legacy Atlas PR #1
+  conflicts in `README.md`, every coordination artifact, and eight gitlinks;
+  its provider descriptions predate the current default branches.
+- Resolution: register the current Kwavers and Helios defaults in a clean
+  successor branch, retain the shared build-artifact policy, and exclude its
+  obsolete Python codemod and stale provider descriptions.

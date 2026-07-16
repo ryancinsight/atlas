@@ -2,12 +2,20 @@
 # Run a cargo command across every package workspace under repos/.
 # Usage: ./scripts/build-all.sh [cargo-subcommand] [extra args...]
 #   ./scripts/build-all.sh            # cargo build
-#   ./scripts/build-all.sh test       # cargo test
+#   ./scripts/build-all.sh nextest run # cargo nextest run
+#   ./scripts/build-all.sh test --doc # cargo test --doc
 #   ./scripts/build-all.sh clippy --all-targets -- -D warnings
 set -euo pipefail
 
 cmd="${1:-build}"
 shift || true
+
+if [ "$cmd" = "test" ]; then
+    if ! printf '%s\n' "$@" | grep -qx -- '--doc'; then
+        echo "Use 'nextest run' for tests; 'test --doc' is reserved for doctests." >&2
+        exit 2
+    fi
+fi
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 repos="$root/repos"

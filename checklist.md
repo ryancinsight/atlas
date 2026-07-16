@@ -16,3 +16,9 @@ Target: META-001 and META-002 public default-branch alignment
 - [x] Detect the post-merge Apollo default-branch advance.
 - [x] Create a follow-up lane from the merged Atlas default branch.
 - [x] Advance the Apollo gitlink and re-verify every public gitlink.
+
+## META-003
+
+- [x] Audit the conflicting legacy Atlas PR and retain only evidence-current scope.
+- [x] Register Kwavers and Helios and re-verify the complete public roster.
+- [x] Enforce the cross-stack test-runner contract and validate both drivers.
