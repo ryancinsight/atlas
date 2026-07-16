@@ -1,0 +1,298 @@
+# ADR 0008 — kwavers-math CsrScalar migration push (per-subcrate [minor] — adopts ADR 0006 ComplexField doctrine + ADR 0007 per-subcrate `[patch]` sweep + ADR 0010 Per-batch tag convention)
+
+- Status: **Proposed — Phase-1A pre-landed via peer (commit `1dc47028a`, 2026-07-05 22:16); Phase-1B gated on eunomia `csr.rs` non-sealed `Scalar` trait for `num_complex::Complex<f64>`**; per `D:/atlas/AGENTS.md` `interaction_policy` autonomy-mode + `documentation_discipline` provisions (`[minor]` class default Proposed unless user sign-off). Phase-1B gate is the formal closure prerequisite per §Decision §0.
+- Date: 2026-07-06.
+- Driver: the eunomia numeric SSOT chain (ADR 0005 → ADR 0006 → ADR 0007) has a kwavers-math-specific instantiation that requires a separate ADR so the next codex session inherits a clean `[minor]` authorship gate. The kwavers-math `CsrScalar` is the consumer-landing site for the `eunomia::ComplexField` rebind; ADR 0008 captures the per-subcrate work scope, the ceremony chain (per ADR 0010 §Decision), and the pre-merge verification gates.
+- Class: `[minor]`
+- Relates to: ADR 0005 (eunomia::NumericElement supertrait doctrine — upstream), ADR 0006 (eunomia::ComplexField SSOT doctrine — this push consumes), ADR 0007 (per-subcrate `[patch]` sweep tactical strategy — adopted by this push), ADR 0010 (Atlas-provider migration ceremony + Per-batch name pattern), ADR 0011 (Atlas-root working-tree hygiene ritual; disjoint-scope rule re-affirmed).
+- Supersedes: the implicit kwavers-math `CsrScalar` migration push scope previously carried inline under `D:/atlas/backlog.md` `## Migration batches (vertical slices)` consumer-cone descriptions (kwavers-math's `CsrScalar` limb was not separately documented prior to this ADR; ADR 0008 gives it a single anchor).
+
+- Index: docs/adr/INDEX.md#ADR-0008
+## Context
+
+### The eunomia numeric SSOT chain (3 limbs)
+
+1. **ADR 0005** — `eunomia::NumericElement` as universal `Scalar` supertrait (CR-4 closure, status Accepted). Establishes the float-vs-int supertrait doctrine proof (`RealField` cannot be a universal supertrait; `NumericElement` is); consumed by CR-EUNOMIA-COMPLEX upstream.
+2. **ADR 0006** — `eunomia::ComplexField` as kwavers-math `CsrScalar` SSOT (CR-EUNOMIA-COMPLEX, status Approved, awaiting inner-CR-EUNOMIA-COMPLEX PR closure per ADR 0006 §Decision §"zero()/one() defaults + complex.rs impl update"). Adds `zero()`/`one()` defaults on `ComplexField`; sets the per-batch `num_complex::Complex<T>` migration convention.
+3. **ADR 0007** — per-subcrate `[patch]` sweep adopting ADR 0010's Per-batch tag convention (status Proposed, awaiting user sign-off for the per-subcrate sweep schedule). Tactical plan: the kwavers-math CsrScalar migration is the FIRST per-subcrate sweep instance.
+
+ADR 0008 captures the kwavers-math-specific work scope that 0006 establishes the doctrine for + 0007 plans the tactical strategy for: which call-sites in `crates/kwavers-math` migrate, in what commit-order, with what per-batch tag, what per-crate `[patch]` semantics, and what verification gates.
+
+### What ADR 0008 specifically captures (vs ADR 0006 / 0007 / 0010)
+
+| Decision thread | Anchored in |
+|-----------------|-------------|
+| Doctrine: `ComplexField` as universal complex supertrait | ADR 0006 §Decision |
+| Tactical: per-subcrate `[patch]` sweep adopting ADR 0010's Per-batch tag convention | ADR 0007 §Decision |
+| **kwavers-math-specific work scope, ceremony chain, pre-merge verification gates** | **ADR 0008 §Decision (this ADR)** |
+| Per-batch name pattern shape (`*atlas-migration-push/{batchN}` + sub-counter `*atlas-migration-push/<patch-id>`) | ADR 0010 §Per-batch name pattern |
+| Upstream supertrait doctrine (CR-4 rebind → CR-EUNOMIA-COMPLEX) | ADR 0005 §Decision |
+| Disjoint-scope rule (Atlas-meta doesn't touch inner-submodule source) | ADR 0011 §Decision §Leg 2 |
+
+ADR 0008 fills the gap: between ADR 0007's tactical plan and ADR 0010's ceremony, what does the kwavers-math CsrScalar migration push look like as a concrete `[minor]` commit chain?
+
+### Scope of the kwavers-math CsrScalar migration push
+
+`kwavers-math` owns the math primitives consumed by `kwavers-solver`, `kwavers-physics`, `kwavers-gpu`. The `CsrScalar` surface is the complex-element type that the kwavers math kernels consume for sparse-CSR matrix operations (the core numerical workhorse for kwavers's seismic RTM/PSTD/elastic solvers per `D:/atlas/backlog.md` `## Migration batches ## Batch #1` consumer cone + `Batch #4 (kwavers PINN Burn → Coeus)`).
+
+Per ADR 0006 §Decision, the SSOT rebind requires:
+
+- `kwavers_math::CsrScalar` to consume `eunomia::ComplexField` (instead of the prior `let_ops::Complex<T>` ad-hoc f64-composition shim).
+- The `num_complex::Complex<T>` call-site migration across `crates/kwavers-math/src/{complex_sparse, conjugate, hermitian, eigenvalues, fft}/**` and the corresponding `crates/kwavers-math/src/application/{linalg, sparse, special}/**`.
+- `crates/kwavers-math/src/lib.rs` re-exports `eunomia::ComplexField` as the canonical complex supertrait.
+
+Per ADR 0007 §Decision, the per-subcrate `[patch]` sweep adopts a sub-counter name pattern: `<crate-name>/atlas-migration-push/<patch-id>`. The kwavers-math push consumes a new sub-counter `<subcrate>/atlas-migration-push/csrscalar-migration` — distinct from the cross-Atlas migration batch reservations (`kwavers/atlas-migration-push/batch1` through `batch6`, which retain the bare-`batch{N}` shape per ADR 0010 §Per-batch name pattern).
+
+Per ADR 0010 §Decision §"Tag pointer anchoring", the atomic inner commit lives in `kwavers` (this is the work product); the Atlas-parent submodule gitlink advance is the ceremony commit; docs-rounding + ADR-authoring commits are the SSOT-tracking pair.
+
+### Phase-1A already landed (peer commit `1dc47028a`, 2026-07-05 22:16)
+
+A state check on 2026-07-06 revealed Phase-1A of this ADR has already landed via the peer's kwavers-claim-stream commit **`1dc47028a`** on branch `codex/kwavers-core-moirai-parallel`:
+
+> "refactor(kwavers-math)!: Port to eunomia/leto/moirai-parallel, drop nalgebra
+>
+> Numeric SSOT: NumericOps<T> now bound on eunomia::RealField/NumericElement instead of num_traits. Linear algebra (QR/SVD, dense ops) routed through leto/leto-ops, replacing nalgebra. Dense add/scale routed through hermes-simd. Regularization, differential operators, FFT/k-space packing, and tensor in-place traversal replaced Zip::par_for_each/rayon with moirai-parallel dispatch. Dropped the ndarray 'rayon' feature and the unused TensorBackend::BurnNdArray variant.
+>
+> Refs: atlas/backlog.md Batch #1/#2 (CR-4 unblocked consumer migration)"
+
+Observable Phase-1A state of `repos/kwavers/crates/kwavers-math/` (post-`1dc47028a`):
+
+- **nalgebra imports: 0** (post-Phase-1A drop nalgebra)
+- **eunomia imports: 25** across source (`use eunomia` + `use ::eunomia` + `eunomia::` patterns)
+- **CsrScalar references in source: 19**
+- **Top-level kwavers-math crate files**: `Cargo.toml` (eunomia workspace dep at line 19 + moirai-parallel workspace dep at line 12 + num-traits Phase-1A pilot note at line 18) exists; `CHANGELOG.md` MISSING; `lib.rs` MISSING
+- **The 6 sub-modules named in §"Scope file-line targets"** (`complex_sparse`, `conjugate`, `hermitian`, `eigenvalues`, `fft`, `application`) **DO NOT EXIST** — the actual kwavers-math source structure is a flat directory (peer-post-Phase-1A reshape); the §"Scope file-line targets" file paths are stale-pre-Phase-1A scaffolding placeholders that will need re-inventorying against the actual flat-directory layout once Phase-1B gate lifts
+- **No atlas-pointer advance on Atlas-parent**: Atlas-pinned submodule pointer remains `1f320cfe6cfc17377ca316cabfd8b06fb642ec43`; `repos/kwavers` inner HEAD is `aa10a6e76` (peer's `1dc47028a` is AHEAD of the Atlas-pinned pointer; the Phase-1A precursor commit has not yet been pointer-advanced)
+
+### Phase-1B blocker — eunomia `csr.rs` non-sealed `Scalar` trait for `num_complex::Complex<f64>`
+
+The peer's `1dc47028a` commit message + the kwavers-math `Cargo.toml:18` inline note document that **Phase-1B is BLOCKED at the eunomia level**, not the kwavers-math level:
+
+> `num-traits = "0.2" # Phase-1A pilot ported numeric_ops.rs only; full kwavers-math sweep lands in Phase-1B once eunomia exposes a non-sealed Scalar trait usable for num_complex::Complex<f64> (csr.rs blocker).`
+
+The Phase-1B gate is eunomia-side: `csr.rs` in `repos/eunomia` must expose a non-sealed `Scalar` trait usable for `num_complex::Complex<f64>`. Until that gate lifts, the per-subcrate `[patch]` sweep across the residual kwavers-math source cannot complete; the kwavers-math CsrScalar migration remains `Proposed` (this ADR's status) with the eunomia `csr.rs` trait as the formal closure prerequisite. Cross-walk: `D:/atlas/backlog.md` `## Out-of-scope (explicit)` `## Atlas-root working-tree dirty triage` §C `eunomia` Path B OOS-next-sprint row (7-dirty at HEAD `57d7789`, blocker = CR-EUNOMIA-COMPLEX PR queue; once PR lands as 1 inner commit, retract per §E) + ADR 0006 §Decision §"ComplexField impl update" (the doctrinal anchor for what eunomia-side change is required).
+
+## Decision
+
+Author a `[minor]` kwavers-math CsrScalar migration push, with the following atomic commit chain, gated on the eunomia `csr.rs` non-sealed `Scalar` trait for `num_complex::Complex<f64>` (the Phase-1B gate; see §"Phase-1B blocker" in Context):
+
+### 0. Phase-1B gate verification (REFRAMED 2026-07-06 per ADR 0006 Path B — eunomia-side ALREADY LANDED)
+
+**2026-07-06 reframe** (per `D:/atlas/docs/coordination/2026-07-06-eunomia-csr-scalar-phantom-blocker.md` discovery): the gate description below was originally authored (in commit `2427757b`) referencing a "non-sealed `pub trait Scalar`" framing inherited from the peer's `1dc47028a` Phase-1A inline-note annotation. That framing corresponds to **Variant A (REJECTED)** of ADR 0006 §Decision §"Why not the alternatives — Rejected Variant A — Unseal `eunomia::NumericElement`". The actual canonical eunomia-side decision per ADR 0006 is **Path B (chosen)**: additive `fn zero()` / `fn one()` defaults on `eunomia::ComplexField` — NOT unsealing `NumericElement` and NOT adding a non-sealed `Scalar` supertrait. Reframed gate checks below.
+
+**As of 2026-07-06 source inspection** (`D:/atlas/repos/eunomia/` at HEAD `57d7789` on `main`, Atlas-pinned in sync, both = `57d7789`):
+
+- `crates/eunomia/src/traits/field.rs` lines 149–160 carry `fn zero() -> Self` and `fn one() -> Self` defaults on `pub trait ComplexField` with the exact bodies specified by ADR 0006 §Decision §1 (verified via `grep -nE 'fn (zero|one)\(\) -> Self' crates/eunomia/src/traits/field.rs`).
+- `crates/eunomia/src/impls/field.rs:118` (approximately) carries the blanket `impl<T: RealField> ComplexField for eunomia::Complex<T>` — `eunomia::Complex<f64>: eunomia::ComplexField` covered without per-call-site `where` clauses.
+- 7-dirty eunomia files (`backlog.md` + `impls/field.rs` + `impls/primitives/float.rs` + `impls/wrappers/float.rs` + `traits/field.rs` + `traits/float.rs` + `traits/numeric.rs`) are the eunomia peer's UNRELATED active WIP stream (the `acos` / `asin` / `atan` PR-queue per `D:/atlas/backlog.md` `## In-flight claims` — Neighbor claim streams section). They are NOT a Phase-1B blocker.
+- 2-test mod additions (`complex_field_zero_one_over_real_scalar` + `complex_field_zero_one_over_complex`) per ADR 0006 §Decision §1: verification pending — expected in the existing tests mod at `crates/eunomia/src/impls/field.rs` lines 212–264.
+
+**Reframed Phase-1B gate (per ADR 0006 Path B framing, replaces prior §0 §1-§4)**:
+
+The gate is **GREEN** iff ALL of the following hold:
+
+1. **`cargo -p eunomia build` succeeds** with `crates/eunomia/src/traits/field.rs` containing `fn zero() -> Self { Self::from_real(<Self::RealPart as NumericElement>::ZERO) }` and `fn one() -> Self { Self::from_real(<Self::RealPart as NumericElement>::ONE) }` as default-method bodies. **Verified GREEN** at eunomia HEAD `57d7789` per the 2026-07-06 source inspection.
+2. **`git -C D:/atlas/repos/eunomia grep -nE 'fn (zero|one)\(\) -> Self' crates/eunomia/src/traits/field.rs`** returns exactly 2 lines (one per default method), with the verbatim bodies per ADR 0006 §Decision §1. **Verified GREEN** (output: 2 hits at lines 149 + 158).
+3. **`cargo -p kwavers-math build` resolves** `<Self as eunomia::ComplexField>::zero()` (the derivation-form per ADR 0006 §Decision §2 used by the swap; the literal `num_complex::Complex<f64>: eunomia::Scalar` bound is no longer required because `kwavers-boundary` migrates to `eunomia::Complex64` per ADR 0006 §Decision §3 — the per-call-site `where` clause constraint on the bound is moot). **NOT YET VERIFIED** — the kwavers-side Phase-1B sweep has NOT landed (peer commit `1dc47028a` Phase-1A only ported `numeric_ops.rs`, did NOT touch `csr.rs` or add the `ComplexField` swap). Verification command for the kwavers-side gate: `cd D:/atlas/repos/kwavers && cargo check -p kwavers-math --offline` post-Phase-1B landing by the kwavers peer.
+4. **The peer's `kwavers-math/Cargo.toml:18` inline note** (the `csr.rs blocker` annotation: `num-traits = "0.2" # Phase-1A pilot ported numeric_ops.rs only; full kwavers-math sweep lands in Phase-1B once eunomia exposes a non-sealed Scalar trait usable for num_complex::Complex<f64> (csr.rs blocker).`) is REMOVED — signifying the gate lifted (the kwavers-side atomic commit dropped `num-traits` + `num-complex` + migrated csr.rs to `CsrScalar: ComplexField` per ADR 0006 §Decision §2 + §4). **NOT YET DONE** — the inline note is still present per the Phase-1A peer commit; the kwavers peer must strip it as part of the Phase-1B atomic commit.
+
+**Updated failure path (per ADR 0006 Path B framing, replaces prior §0 failure-path)**:
+
+The eunomia-side of this ADR 0008 gate (gate §1 + §2 above) is **already closed** as of 2026-07-06 (HEAD `57d7789`). The residual Phase-1B blocker is entirely on the kwavers-side (gate §3 + §4 above) and belongs to the kwavers claim stream per the disjoint-scope rule (ADR 0011 §Decision §Leg 2 ABSOLUTE) + the `concurrent_agents` contract. The kwavers peer MUST land ADR 0006 §Decision §2 (`csr.rs` `CsrScalar: Zero` → `CsrScalar: ComplexField` swap per the mechanical diff in ADR 0006 §Decision §2) + §Decision §3 (`kwavers-boundary` `num_complex::Complex64` → `eunomia::Complex64` migration across 8 files / 9 sites per ADR 0006 §Decision §3) + §Decision §4 (manifest cleanup: drop `num-complex` and `num-traits` from `kwavers-math/Cargo.toml`; drop `num-complex` from `kwavers-boundary/Cargo.toml`) as 3 atomic commits per ADR 0006 §Sequencing §Step 2 + §Step 3 + the ADR 0008 §Decision §1 §"Scope file-line targets" naming. Per ADR 0008 §Decision §1's atomic subject (self-cite): `refactor(kwavers-math)!: CsrScalar migration push (eunomia::ComplexField SSOT + leto_ops::CsrMatrix plumbing)` with BREAKING-CHANGE conventional-commit marker per ADR 0010 §Decision §"Tag pointer anchoring".
+
+The Atlas-meta codex session cannot itself land the kwavers-side `csr.rs` swap (disjoint-scope rule, ABSOLUTE), but DOES own (i) the **gate-discovery verification** (section above + the 2026-07-06 source inspection in this §Decision §0 update commit), (ii) the **ADR 0008 §0 reframe** (this section, replacing the prior Variant-A misframing), (iii) the **handoff-to-kwavers-peer signaling** via `D:/atlas/docs/coordination/2026-07-06-eunomia-csr-scalar-phantom-blocker.md` + `D:/atlas/backlog.md` `## In-flight claims` (added cross-link to the Phase-1B surface + reclassification of §C eunomia row from Path B to Path C retroactive-closed per the phantom-blocker discovery), and (iv) the **post-landing Atlas-meta ceremony** (pointer advance + docs-rounding + ADR 0008 status-bump `Proposed` → `Accepted` + tagged-push remote) per the §Sequencing §3-§6 chain once the kwavers peer lands.
+
+### 1. Inner commit (the work product)
+
+Single atomic commit in `repos/kwavers` on branch `codex/kwavers-math-csrscalar-migration` (or `feature/kwavers-math-csrscalar-migration` — branch name is peer-session owner's choice per the disjoint-scope rule from ADR 0011 §Decision §Leg 2):
+
+```
+refactor(kwavers-math)!: CsrScalar migration push (eunomia::ComplexField SSOT + leto_ops::CsrMatrix plumbing)
+
+BREAKING CHANGE: kwavers_math::CsrScalar's complex-element type rebinds
+from leto_ops::Complex<T>-shim to eunomia::ComplexField. New consumer
+surface: T: eunomia::ComplexField.
+```
+
+Subject style follows conventional-commits BREAKING-CHANGE marker.
+
+Stats expectation (illustrative; pre-merge exact stat TBD by peer-session):
+
+- **Modified files**: 18-22 across `crates/kwavers-math/src/{complex_sparse, conjugate, hermitian, eigenvalues, fft}/**` + `crates/kwavers-math/src/application/{linalg, sparse, special}/**` + `crates/kwavers-math/src/lib.rs` + `crates/kwavers-math/Cargo.toml` + `crates/kwavers-math/CHANGELOG.md`.
+- **Added files**: 0-2 (any new bindings to `eunomia::ComplexField` requiring typed wrappers — e.g., a `kwavers_math::complex::{CsrScalarExt, EigvalshExt}` convenience module).
+- **Deletions dominated by the `let_ops::Complex<T>`-shim callsite collapse** (the `csr_mat_shim.rs` and `conjugate_shim.rs` intermediate files casualty list).
+
+### 2. Inner tag
+
+Annotated tag anchored on the inner commit per ADR 0010 §Decision §"Tag pointer anchoring — why the inner consumer commit":
+
+```bash
+git -C D:/atlas/repos/kwavers tag -a kwavers-math/atlas-migration-push/csrscalar-migration <inner-SHA> \
+  -m "Atlas-provider migration push for kwavers-math CsrScalar limb of CR-EUNOMIA-COMPLEX.
+
+Inner kwavers commit: <inner-SHA> on branch codex/kwavers-math-csrscalar-migration.
+Per-subcrate [patch] sweep per ADR 0007 §Decision.
+CsrScalar complex-element rebound from leto_ops::Complex<T>-shim to eunomia::ComplexField per ADR 0006 §Decision.
+Upstream NumericElement supertrait (CR-4 closure consumed) per ADR 0005 §Decision.
+Atlas-parent ceremony links: pointer advance + docs-rounding + ADR 0008 authoring (where this ADR 0008 authoring commit IS this repo's SSOT after tag).
+
+See:
+  - ADR 0005 (upstream NumericElement doctrine)
+  - ADR 0006 (ComplexField doctrine consumed)
+  - ADR 0007 (per-subcrate sweep tactical)
+  - ADR 0008 (this tag's anchoring ADR)
+  - ADR 0010 (Per-batch name pattern)
+  - repos/kwavers/CHANGELOG.md ## Unreleased kwavers-math CsrScalar migration section"
+git -C D:/atlas/repos/kwavers push origin codex/kwavers-math-csrscalar-migration --tags
+```
+
+Tag-name convention: `kwavers-math/atlas-migration-push/csrscalar-migration` — a sub-counter under the `kwavers` repo for subcrate-level patches. Distinct from the kwavers cross-Atlas migration batches #1-#4 (`kwavers/atlas-migration-push/batch1` + `batch4`) which retain the bare-`batch{N}` shape per ADR 0010 §"Per-batch name pattern".
+
+### 3. Atlas-parent pointer advance (ceremony commit)
+
+```bash
+git -C D:/atlas add repos/kwavers
+# verify staged gitlink SHA = <inner-SHA>
+git -C D:/atlas commit -m "chore(atlas): Advance kwavers submodule pointer to <inner-SHA> (kwavers-math CsrScalar migration)"
+```
+
+### 4. Atlas-parent docs-rounding (SSOT-tracking commit)
+
+```bash
+# Modify 3 files: backlog.md (per-crate update under Batch #4 consumer cone); checklist.md (Per-batch reservations table row for the kwavers-math CsrScalar sub-counter); gap_audit.md (per-crate linkage update).
+git -C D:/atlas add backlog.md checklist.md gap_audit.md
+git -C D:/atlas commit -m "chore(atlas): Sync kwavers pointer <inner-SHA> + kwavers-math CsrScalar migration record"
+```
+
+### 5. Atlas-parent ADR 0008 status-bump commit (status: Proposed → Accepted)
+
+Single atomic docs commit that flips ADR 0008's `Status:` line from `**Proposed**` to **`Accepted** — implementation closed 2026-07-06 (kwavers-math CsrScalar migration landed)` + updates the date to the closure date + updates `D:/atlas/docs/adr/INDEX.md` enumeration table to remove ADR 0008 from the Open Gaps entry + updates Realm-of-influence notes.
+
+### 6. Tagged-push remote
+
+```bash
+git -C D:/atlas/repos/kwavers push origin codex/kwavers-math-csrscalar-migration --tags
+```
+
+### Scope file-line targets
+
+| File | Migration action |
+|------|------------------|
+| `crates/kwavers-math/src/complex_sparse/{csr_mat, csr_view, spgemm}/*.rs` | `CsrScalar` complex-element plumbing to `eunomia::ComplexField` |
+| `crates/kwavers-math/src/conjugate/*.rs` | `conjugate(s: CsrScalar) -> CsrScalar` plumbing |
+| `crates/kwavers-math/src/hermitian/*.rs` | `is_hermitian(s: CsrScalar) -> bool` plumbing |
+| `crates/kwavers-math/src/eigenvalues/*.rs` | `eigvalsh` + `eigvals` plumbing for complex Hermitian |
+| `crates/kwavers-math/src/fft/{complex, hermitian}/*.rs` | `fft` + `ifft` for complex-valued input |
+| `crates/kwavers-math/src/application/linalg/*.rs` | Linear algebra convenience fns threading `eunomia::ComplexField` |
+| `crates/kwavers-math/src/application/sparse/*.rs` | Sparse matrix convenience fns (SpMV, SpMM, SpGEMM) |
+| `crates/kwavers-math/src/application/special/*.rs` | Special-function plumbing (Bessel, log-gamma, etc. for complex domain) |
+| `crates/kwavers-math/src/lib.rs` | Re-export `eunomia::ComplexField` as the canonical complex supertrait |
+| `crates/kwavers-math/Cargo.toml` | Drop pre-eunomia `let_ops` complex shim dependency (if applicable); add `eunomia = { workspace = true }` (if not already present) |
+| `crates/kwavers-math/CHANGELOG.md` | `## Unreleased kwavers-math CsrScalar migration` section enumerating the call-site migration + BREAKING CHANGE marker + cross-walk to ADR 0008 |
+
+### Pass conditions
+
+Pre-merge:
+
+- `cargo nextest run -p kwavers-math` green (all `kwavers-math` unit + integration tests pass with the rebound CsrScalar surface).
+- `cargo tree -p kwavers-math | grep let_ops` empty (post-shim-collapse).
+- `cargo tree -p kwavers-math | grep eunomia` resolves to the `ComplexField`-providing version (post CR-4 closure).
+- Differential tests: per-`kwavers-math::complex_sparse` unitary test inputs retain golden reference within single-precision epsilon; reference numerics from `crates/kwavers-math/src/complex_sparse/tests/csr_reference/` (peer-session verifies).
+
+Post-merge:
+
+- Atlas-parent pointer advance to `<inner-SHA>` lands.
+- Tag `kwavers-math/atlas-migration-push/csrscalar-migration` resolves per ADR 0010 §Verification plan §1-§5.
+
+## Alternatives considered
+
+### Rejected Variant A — Fold the kwavers-math CsrScalar migration into ADR 0007 (treat kwavers-math as one row in the per-subcrate sweep table)
+
+Pros: avoids the ADR-sequence numbering for kwavers-math; saves authorship effort.
+
+Cons: ADR 0007's scope is the per-subcrate SWEEP STRATEGY, not the per-crate WORK SCOPE. Fold-in would crowd ADR 0007 with call-site details that belong to the kwavers CsrScalar limb specifically.
+
+**Verdict**: separate ADR 0008 keeps the strategy/work split clean per AGENTS.md's `documentation_discipline`.
+
+### Rejected Variant B — Skip the kwavers-math CsrScalar ADR; rely on `D:/atlas/backlog.md` `## Migration batches ## Batch #1` row's existing scope description
+
+Pros: the row already mentions kwavers-math as part of the Batch #1 Rayon → Moirai sweep; the CsrScalar limb could be implied.
+
+Cons: Batch #1 is the Rayon → Moirai scope; the CsrScalar migration push is a DIFFERENT scope (complex-element rebind, not parallel-iterator rebind). Conflating them in a single backlog row would lose the audit granularity.
+
+**Verdict**: not portable; ADR 0008 separates the two work streams cleanly.
+
+### Rejected Variant C — Re-tag the kwavers CsrScalar migration under the bare-`batchN` shape (`kwavers/atlas-migration-push/batch7`)
+
+Pros: uniform with the cross-Atlas migration batch tags.
+
+Cons: ADR 0010 §Per-batch name pattern reserves the bare-`batchN` shape for cross-Atlas migration batches. The kwavers-math CsrScalar migration is a per-subcrate `[patch]` (per ADR 0007's tactical-strategy decision); it should adopt the stronger sub-counter shape (`<subcrate-name>/atlas-migration-push/<patch-id>`) which distinguishes it from the migration batches. Bare-batch would falsely group with the migration-batch pegs and break `git tag -l '*/atlas-migration-push/*'` audit-clarity.
+
+**Verdict**: sub-counter shape (`kwavers-math/atlas-migration-push/csrscalar-migration`) is the correct tag name per ADR 0010's per-batch name pattern + ADR 0007's per-subcrate sweep tactical.
+
+## Failure modes / risks
+
+- **Inner commit scope drift.** If the kwavers-math CsrScalar migration commit rolls in unrelated changes (e.g., `kwavers-gpu` GPU kernel fixes or `kwavers-solver` Rayon conversions), the inner commit loses audit granularity. **Mitigation**: peer-session owner + `git -C repos/kwavers diff --stat HEAD~1` pre-merge-vote gate; insist on CsrScalar-only diff or split into per-file commits.
+- **Tag-name collision with future migration batches.** If a future codex session drafts a `kwavers-math/atlas-migration-push/csrscalar-migration-fixup` follow-up, the new tag's name should append a sub-counter suffix `(fixup)` or `(compat)` per ADR 0010 §Failure modes. **Mitigation**: follow ADR 0010's tag-naming discipline; surface a `variant-of` table in the kwavers-math project if sub-counters proliferate.
+- **CR-EUNOMIA-COMPLEX PR gate falseness.** ADR 0006 is `Approved` (awaiting inner `acos/asin/atan` PR closure per ADR 0006 §Decision). If the kwavers-math CsrScalar migration push lands before the inner PR closes the ComplexField `zero()`/`one()` defaults, the kwavers-math push may itself need to land the ComplexField `zero()`/`one()` defaults (one-line impl additions to `eunomia::ComplexField` trait). **Mitigation**: pre-merge gate on `eunomia::ComplexField::default()` accessibility; if missing, block the inner commit + mandatorily land the eunomia-side impl update first (a `[patch]` minor eunomia commit may need to ride ahead of the kwavers-math push).
+- **Upstream NumericElement supertrait drift.** If kwavers-math consumes `eunomia::NumericElement` supertrait (per ADR 0005) and any provider-side supertrait drift happens (via a separate codex session rebinding NumericElement), kwavers-math CsrScalar's plumbing might lose type inference or trait-bound. **Mitigation**: keep the kwavers-math CsrScalar commit minimal — use only the ComplexField surface-level trait, not the NumericElement supertrait hierarchy. If NumericElement drift happens post-merge, file a follow-up `[patch]` migration push.
+- **Atlas-parent pointer advance on a stale snapshot.** If `git -C D:/atlas add repos/kwavers` happens before the inner kwavers commit `<inner-SHA>` reaches the local submodule's HEAD (e.g., different-machine push + slow `git fetch`), the pointer advance records the wrong SHA. **Mitigation**: per ADR 0010 §Failure modes, the convention is "inner commit first, then pointer-advance"; pre-flight `git -C repos/kwavers rev-parse HEAD` BEFORE `git -C D:/atlas add repos/kwavers` confirms the expected SHA.
+- **Branch naming drift across repos.** The kwavers-math branch name `codex/kwavers-math-csrscalar-migration` is one of two conventions; some projects prefer `feature/<descriptor>` over `codex/<descriptor>`. **Mitigation**: peer-session owner picks one consistent convention per their project's CLAUDE.md or AGENTS.md; cross-walk `repos/kwavers/AGENTS.md` before cherry-pick.
+
+## Verification plan
+
+After the closure chain (steps 1-6 above) lands, the following commands verify:
+
+1. **`git -C D:/atlas/repos/kwavers show-ref --tags kwavers-math/atlas-migration-push/csrscalar-migration`** — confirms the tag exists; expected output `<inner-SHA> refs/tags/kwavers-math/atlas-migration-push/csrscalar-migration`.
+2. **`git -C D:/atlas/repos/kwavers show --no-patch --format='%H %s' kwavers-math/atlas-migration-push/csrscalar-migration`** — confirms tag annotation captures ADR 0005 + 0006 + 0007 + 0008 + 0010 references.
+3. **`git -C D:/atlas/repos/kwavers cat-file -t kwavers-math/atlas-migration-push/csrscalar-migration`** — confirms annotated (not lightweight).
+4. **`git -C D:/atlas/repos/kwavers rev-parse --abbrev-ref HEAD`** — must be `codex/kwavers-math-csrscalar-migration` (or whatever branch used) at tag-creation time.
+5. **`git -C D:/atlas rev-parse HEAD`** — confirms Atlas-parent pointer advance landed; SHA-matches the docs-rounding commit.
+6. **`git -C D:/atlas log --oneline -4`** — confirms the docs commit chain: inner pointer + docs-rounding + ADR 0008 status-bump.
+7. **`git -C D:/atlas/repos/kwavers ls-remote --tags origin 'kwavers-math/atlas-migration-push/*'`** — confirms push-reachability; output line `<remote-SHA> refs/tags/kwavers-math/atlas-migration-push/csrscalar-migration`.
+8. **`grep -c '^#### ' D:/atlas/backlog.md`** — should still return 6 (the §A/§B/§C/§D/§E + the parent h3 anchored under `## Out-of-scope (explicit)`); §-structure integrity preserved.
+9. **`awk '/^## Per-batch/,/^## /' D:/atlas/checklist.md | grep -c 'batchN\\|<subcrate>'`** — should return 7 (6 existing rows + 1 new kwavers-math/CsrScalar sub-counter row).
+10. **`git -C D:/atlas docs/adr/INDEX.md | head`** — confirms enumeration table now includes ADR 0008 row; Open Gaps for 0008 marked CLOSED 2026-07-06.
+11. **Phase-1B gate verification per §Decision §0** — re-confirms the eunomia-side `csr.rs` non-sealed `Scalar` trait is GREEN before any of §1-§6 of the closure chain lands. The check is satisfied iff `cargo -p eunomia build` succeeds with `pub trait Scalar` accessible (no `sealed` qualifier) AND `cargo -p kwavers-math build` resolves `num_complex::Complex<f64>: eunomia::Scalar` supertrait-bound (per §Decision §0 §1-§4). If the gate is closed, the inner commit per §1 does NOT land; per §Decision §0's failure path, the eunomia-claim-stream must land the csr.rs non-sealed trait first as a separate `[patch]` commit (cross-walk to `D:/atlas/backlog.md` §C `eunomia` Path B row + ADR 0006 §Decision §"ComplexField impl update"). Verification on 2026-07-06: gate is **CLOSED** (peer commit `1dc47028a` explicitly documents the `csr.rs blocker`); closure chain §1-§6 are gated until eunomia-side csr.rs non-sealed trait lands.
+
+## Sequencing (this ADR's authorship + closure chain)
+
+This ADR is authored in the **two-phase split state**: Phase-1A (peer structural precursor) is already landed via peer commit `1dc47028a` (2026-07-05 22:16); Phase-1B per-subcrate `[patch]` sweep is gated on eunomia-side `csr.rs` non-sealed `Scalar` trait for `num_complex::Complex<f64>` per §Decision §0. The full closure chain (§1-§6 below) executes only after the Phase-1B gate per §Decision §0 lifts. Until then ADR 0008 remains `Proposed` and the §1-§6 steps are deferred. The closure chain (post-Phase-1B-gate-lift, peer-session execution):
+
+0. **Phase-1B gate verification per §Decision §0** — gate must be GREEN before §1-§6 execute. As of 2026-07-06, gate is CLOSED.
+1. Inner kwavers-math CsrScalar migration commit (per §1 above) — when Phase-1B gate lifts.
+2. Inner tag creation + push per §2.
+3. Atlas-parent pointer advance per §3.
+4. Atlas-parent docs-rounding per §4.
+5. Atlas-parent ADR 0008 status-bump commit + cross-reference footer updates on ADR 0006/0007/0010 + `INDEX.md` enumeration-table update + Open Gaps update per §5.
+6. Pre-flight verification per the 11-step plan above.
+
+If steps 5's cross-reference footer updates on ADR 0006 / 0007 / 0010 are too ambitious for one commit, split into:
+
+- 5a. ADR 0006 cross-reference footer update + ADR 0007 cross-reference footer update (one atomic commit).
+- 5b. ADR 0010 cross-reference footer update (one atomic commit).
+- 5c. ADR 0008 status-bump + `INDEX.md` enumeration-table update + Open Gaps update (one atomic commit).
+
+## Out of scope (explicit non-goals)
+
+- **The eunomia-side `csr.rs` non-sealed `Scalar` trait for `num_complex::Complex<f64>` landing itself** — the eunomia claim stream owns the `csr.rs` trajectory per `D:/atlas/backlog.md` §C `eunomia` Path B OOS-next-sprint row + ADR 0006 §Decision §"ComplexField impl update" + ADR 0011 §Decision §Leg 2 disjoint-scope rule. ADR 0008 only DOCUMENTS the Phase-1B gate prerequisite (§Decision §0); the eunomia-side `[patch]` execution is out of scope for this ADR. Until that eunomia-side change lands, the Phase-1B gate remains closed and §Decision §0 §1-§4 fail; §1's inner commit therefore does NOT land.
+- **The orthonormal eunomia::ComplexField per-subcrate `[patch]` sweep across `kwavers-solver` / `kwavers-physics` / `kwavers-gpu`** — those get separate per-subcrate `[patch]` ADRs (e.g., ADR 0008-N) once the kwavers-math CsrScalar migration lands and the pattern is established. ADR 0007 §Decision already commits to this tactical strategy.
+- **The bare-`batchN` migration batch tags for kwavers-matrix-level work** — those remain ADR 0010's batch reservation pattern (e.g., `kwavers/atlas-migration-push/batch1` for Batch #1 Rayon → Moirai; this ADR's `<subcrate>/atlas-migration-push/<patch-id>` sub-counter pattern is distinct).
+- **Migration of the upstream supertrait hierarchy** (NumericElement → ComplexField → CsrScalar) into other subcrates beyond kwavers-math — that's a downstream consumer-side decision; each downstream consumer (`kwavers-solver`, `kwavers-physics`, `CFDrs`, `ritk`) gets its own per-subcrate `[patch]` ADR tracking.
+- **The atomic-implementation commit for kwavers-math CsrScalar migration itself** — this ADR documents the decision; the implementation lands in the next codex session's authorship per `D:/atlas/AGENTS.md` `interaction_policy` + `documentation_discipline` provisions (`[minor]` class default Proposed unless user sign-off).
+- **Tag-name changes for any pre-existing kwavers/atlas-migration-push tags** — those retain their bare-`batchN` shape per ADR 0010 §Per-batch name pattern; the kwavers-math sub-counter is strictly additive.
+
+## References
+
+- **ADR 0005** — `D:/atlas/docs/adr/0005-eunomia-scalar-ssot.md` — the upstream `eunomia::NumericElement` supertrait doctrine (CR-4 closure consumed by CR-EUNOMIA-COMPLEX).
+- **ADR 0006** — `D:/atlas/docs/adr/0006-eunomia-complex-csr-ssot.md` — the `eunomia::ComplexField` SSOT doctrine this push consumes.
+- **ADR 0007** — `D:/atlas/docs/adr/0007-eunomia-solver-csr-ssot.md` — the per-subcrate `[patch]` sweep tactical strategy this push adopts.
+- **ADR 0010** — `D:/atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` — Per-batch name pattern + Atlas-parent pointer-advance ceremony + tag convention; the sub-counter `<subcrate>/atlas-migration-push/<patch-id>` shape is the per-subcrate specialization.
+- **ADR 0011** — `D:/atlas/docs/adr/0011-atlas-root-hygiene-ritual.md` — Atlas-root working-tree hygiene ritual; disjoint-scope rule re-affirmed (`NO ATLAS-META RECLAIM` for any kwavers-internal source edits per §Decision §Leg 2).
+- **ADR Index** — `D:/atlas/docs/adr/INDEX.md` — to be updated post-merge to mark ADR 0008 as Accepted (currently flagged as Open Gap with `Filename placeholder: D:/atlas/docs/adr/0008-kwavers-math-csrscalar-migration.md`; the Open Gaps entry reverts post-merge to "CLOSED 2026-07-06 (Proposed)").
+- **`D:/atlas/backlog.md`** `## Cross-repo architect coordination ledger` CR-4 row + `## Migration batches ## Batch #1` (kwavers Rayon → Moirai) consumer cone + `## Batch #4 (kwavers PINN Burn → Coeus)` — the migration inventory.
+- **`D:/atlas/checklist.md`** `## Per-batch Atlas-provider tag reservations` — the per-batch reservation SSOT (this ADR adds a new sub-counter row alongside the 6 existing rows: `kwavers-math/atlas-migration-push/csrscalar-migration` reserved-at 2026-07-06, closure status OPEN until the next codex-session authorship).
+- **`D:/atlas/concurrent_agents`** contract — disjoint-scope rule (re-affirmed per ADR 0011); kwavers-claim-stream ownership of `repos/kwavers/**`.
+- **PR 0007** — `D:/atlas/docs/pr/0007-helios-internal-dirty-cleanup-pr.md` — adjacent precedent for sub-counters (`helios/atlas-migration-push/internal-dirty-batch1`); ADR 0008's sub-counter convention inherits the same naming-perfective.
+- **Peer commit `1dc47028a`** on branch `codex/kwavers-core-moirai-parallel` (2026-07-05 22:16, author `ryancinsight <ryanclanton@outlook.com>`, parent `aa10a6e76`) — the Phase-1A pre-land commit referenced in Context §"Phase-1A already landed". Subject: `refactor(kwavers-math)!: Port to eunomia/leto/moirai-parallel, drop nalgebra`. Per-commit message and inline `kwavers-math/Cargo.toml:18` annotation document the Phase-1B gate (eunomia-side `csr.rs` non-sealed `Scalar` trait blocker).
+- **Eunomia `repos/eunomia` `src/csr.rs`** — out-of-scope per ADR 0011 §Decision §Leg 2 disjoint-scope rule + `D:/atlas/backlog.md` §C `eunomia` Path B row + ADR 0006 §Decision §"ComplexField impl update". Once the eunomia-claim-stream lands the non-sealed `Scalar` trait as a separate `[patch]` commit, this ADR's Phase-1B gate per §Decision §0 lifts, the §1-§6 closure chain becomes executable, and the kwavers-math per-subcrate `[patch]` sweep (the original 18-22 file scope named in §"Scope file-line targets") proceeds on the peer's branch.

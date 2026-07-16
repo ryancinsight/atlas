@@ -1,60 +1,64 @@
-[submodule "repos/CFDrs"]
-	path = repos/CFDrs
-	url = https://github.com/ryancinsight/CFDrs.git
-[submodule "repos/gaia"]
-	path = repos/gaia
-	url = https://github.com/ryancinsight/gaia.git
-	branch = main
 [submodule "repos/apollo"]
 	path = repos/apollo
-	url = https://github.com/ryancinsight/apollo.git
-	branch = main
-[submodule "repos/consus"]
-	path = repos/consus
-	url = https://github.com/ryancinsight/consus.git
-	branch = main
-[submodule "repos/ritk"]
-	path = repos/ritk
-	url = https://github.com/ryancinsight/ritk.git
-	branch = main
-[submodule "repos/mnemosyne"]
-	path = repos/mnemosyne
-	url = https://github.com/ryancinsight/Mnemosyne.git
-	branch = main
-[submodule "repos/moirai"]
-	path = repos/moirai
-	url = https://github.com/ryancinsight/Moirai.git
-	branch = main
-[submodule "repos/melinoe"]
-	path = repos/melinoe
-	url = https://github.com/ryancinsight/melinoe.git
+	url = https://github.com/ryancinsight/apollo
+	active = true
+[submodule "repos/CFDrs"]
+	path = repos/CFDrs
+	url = https://github.com/ryancinsight/CFDrs
+	active = true
 [submodule "repos/coeus"]
 	path = repos/coeus
-	url = https://github.com/ryancinsight/Coeus.git
-	branch = main
-[submodule "repos/hermes"]
-	path = repos/hermes
-	url = https://github.com/ryancinsight/hermes.git
-	branch = main
-[submodule "repos/leto"]
-	path = repos/leto
-	url = https://github.com/ryancinsight/leto.git
-	branch = main
-[submodule "repos/themis"]
-	path = repos/themis
-	url = https://github.com/ryancinsight/themis.git
-	branch = main
-[submodule "repos/hephaestus"]
-	path = repos/hephaestus
-	url = https://github.com/ryancinsight/hephaestus.git
+	url = https://github.com/ryancinsight/coeus
+	active = true
+[submodule "repos/consus"]
+	path = repos/consus
+	url = https://github.com/ryancinsight/consus
+	active = true
 [submodule "repos/eunomia"]
 	path = repos/eunomia
-	url = https://github.com/ryancinsight/eunomia.git
+	url = https://github.com/ryancinsight/eunomia
+	active = true
+[submodule "repos/gaia"]
+	path = repos/gaia
+	url = https://github.com/ryancinsight/gaia
+	active = true
 [submodule "repos/helios"]
 	path = repos/helios
-	url = https://github.com/ryancinsight/helios.git
-	branch = main
+	url = https://github.com/ryancinsight/helios
+	active = true
+[submodule "repos/hephaestus"]
+	path = repos/hephaestus
+	url = https://github.com/ryancinsight/hephaestus
+	active = true
+[submodule "repos/hermes"]
+	path = repos/hermes
+	url = https://github.com/ryancinsight/hermes
+	active = true
 [submodule "repos/kwavers"]
 	path = repos/kwavers
-	url = https://github.com/ryancinsight/kwavers.git
-	branch = main
+	url = https://github.com/ryancinsight/kwavers
+	active = true
+[submodule "repos/leto"]
+	path = repos/leto
+	url = https://github.com/ryancinsight/leto
+	active = true
+[submodule "repos/melinoe"]
+	path = repos/melinoe
+	url = https://github.com/ryancinsight/melinoe
+	active = true
+[submodule "repos/mnemosyne"]
+	path = repos/mnemosyne
+	url = https://github.com/ryancinsight/Mnemosyne
+	active = true
+[submodule "repos/moirai"]
+	path = repos/moirai
+	url = https://github.com/ryancinsight/moirai
+	active = true
+[submodule "repos/ritk"]
+	path = repos/ritk
+	url = https://github.com/ryancinsight/ritk
+	active = true
+[submodule "repos/themis"]
+	path = repos/themis
+	url = https://github.com/ryancinsight/themis
+	active = true

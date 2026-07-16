@@ -6,6 +6,7 @@
   full memory hierarchy (registers, shared memory, L1/L2/L3 cache, NUMA DRAM,
   HBM, GDDR, pinned host, persistent)
 
+- Index: docs/adr/INDEX.md#ADR-0002
 ## Context
 
 The stack targets CPU (SIMD + MIMD), GPU (wgpu + CUDA via hephaestus), and —

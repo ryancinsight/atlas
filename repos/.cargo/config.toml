@@ -1,7 +1,25 @@
-# Shared Atlas build artifacts prevent one target tree per synchronized package.
+# Shared build directory for the whole atlas stack.
+#
+# Per the workspace build-budget policy, every repo under D:/atlas/repos routes
+# its build through one CARGO_TARGET_DIR so shared dependency artifacts (themis,
+# moirai, mnemosyne, half, …) are compiled once into a single cache instead of
+# being duplicated into a per-repo `target/` (which had grown to ~1.9 TB across
+# the stack). Cargo discovers this file by walking up from each package dir.
+#
+# Tradeoff (intentional, see the build-budget rule): concurrent builds across
+# repos serialize on the shared build lock — disk size outranks build
+# parallelism. Reversible by deleting this file (builds revert to per-repo
+# `target/`). Per-repo `.cargo/config.toml` settings (e.g. aliases) still merge
+# and take precedence over this file.
 [build]
 target-dir = "D:/atlas/target"
 
+# Debuginfo budget (build-size/memory policy): full DWARF/PDB is the dominant
+# debug-artifact and link-memory cost for generic-heavy code. Own code keeps
+# line tables (file:line backtraces, no variable/type info); dependencies get
+# no debuginfo at all — step-debugging a dep is the rare exception, re-enable
+# per-package locally when needed. Full debuginfo belongs only in an explicit
+# [profile.profiling] inside the workspace that needs it.
 [profile.dev]
 debug = "line-tables-only"
 

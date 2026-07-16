@@ -5,6 +5,7 @@
 - Scope: stack-level (atlas topology); drivers `coeus` and `apollo`
 - Class: [arch]
 
+- Index: docs/adr/INDEX.md#ADR-0001
 ## Context
 
 Both `apollo` (spectral transforms) and `coeus` (tensor/autodiff) need GPU
