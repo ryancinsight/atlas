@@ -11,3 +11,11 @@
   were present in the Atlas checkout during the audit.
 - Residual risk: mutable peer worktrees remain outside this clean meta lane and
   are intentionally not modified by META-001.
+
+## META-002 — concurrent Apollo advance
+
+- Evidence tier: Git object identity. Apollo merged its provider-boundary PR
+  after META-001's fetch and before the Atlas merge; the merged Atlas gitlink
+  therefore referenced Apollo `e17de6f` while fetched `origin/HEAD` resolved to
+  `466e18b`.
+- Full follow-up comparison found no other public gitlink drift.
