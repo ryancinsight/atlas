@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Advance the fixed Kwavers integration pin to `2fb8661`, which synchronizes
+  Apollo `0.24.0` in the consumer lockfile.
 - Refresh the fixed Kwavers Atlas provider graph to current Apollo,
   Hephaestus, Kwavers, Leto, and compiling RITK commits; document the exact
   gitlink closure theorem in ADR 0020.

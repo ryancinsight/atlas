@@ -22,7 +22,7 @@ currently used and verified by the consumer work:
 |---|---|
 | Apollo | `157467e` |
 | Hephaestus | `cf4df20` |
-| Kwavers | `921d3c8` |
+| Kwavers | `2fb8661` |
 | Leto | `37968f7` |
 | RITK | `a5e375f` |
 
