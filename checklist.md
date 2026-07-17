@@ -3,9 +3,25 @@
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
 > **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Integration base**: `main` at `baa6970`.
+> **Integration base**: `main` at `daeab9e`.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
+
+## ATLAS-INTEGRATION-010 — Hephaestus tiled scan provider closure [minor]
+
+- [x] Verify Hephaestus PR #44 merges the shared-memory tiled scan slice at
+      `d0eafc8`, with WGPU/CUDA provider ownership and ADR 0009 theorem
+      documentation.
+- [x] Confirm core 48/48 and WGPU 140/140 nextest, CUDA 108/108 excluding
+      the independent Windows access violation in
+      `concurrent_device_acquisition_is_safe`, doctests, rustdoc, Clippy,
+      and real-device long-line scan contracts.
+- [x] Advance only the `repos/hephaestus` gitlink and synchronize this board,
+      `gap_audit.md`, `CHANGELOG.md`, and ADR 0020.
+
+**Residual:** the full CUDA suite still aborts in the unrelated concurrent
+acquisition test with Windows `0xc0000005` (OS error 998); the provider and
+root gap audits retain the re-open trigger for that context investigation.
 
 ## ATLAS-INTEGRATION-006 — Refresh provider heads [arch]
 

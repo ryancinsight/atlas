@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Advance the Hephaestus provider gitlink to PR #44 merge `d0eafc8` for the
+  shared-memory tiled axis-scan kernels; the provider ADR and long-line
+  WGPU/CUDA contracts remain the theorem and behavioral SSOT.
+
 - Record Kwavers PR #294 merge `9eabc4e2` as the clean Hephaestus
   backend-kernel ownership increment; obsolete buffer and pipeline managers
   are deleted, the MVDR wall-clock assertion lives in Criterion, and the

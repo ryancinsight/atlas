@@ -1,5 +1,19 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — Hephaestus tiled scan provider closure
+
+- **Finding:** Hephaestus PR #44 replaces one-thread-per-line axis scans with
+  one workgroup/block per scan line and provider-owned shared-memory chunk
+  prefixes in WGPU and CUDA. Apollo remains on the Hephaestus/Leto provider
+  path; no consumer WGPU implementation is introduced.
+- **Evidence tier:** ADR 0009 theorem/spec, core nextest 48/48, WGPU nextest
+  140/140, CUDA nextest 108/108 with the independent concurrent-acquisition
+  abort excluded, warning-denied Clippy, doctests, rustdoc, and real-device
+  long-line integer contracts. The merged provider head is `d0eafc8`.
+- **Residual:** `concurrent_device_acquisition_is_safe` aborts on the current
+  Windows CUDA host with `0xc0000005` before assertions; it is recorded in the
+  provider gap audit and is outside this scan slice.
+
 ## State refresh (2026-07-17) — Kwavers hosted closure and Apollo provider audit
 
 - **Apollo evidence tier:** structural source and manifest audit at `0b5d11c`

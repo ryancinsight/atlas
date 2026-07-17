@@ -44,10 +44,15 @@ follow-up is therefore:
 | Provider | Current or pending commit |
 |---|---|
 | Apollo | `0b5d11c` (parent current) |
-| Hephaestus | `df33d4d` |
-| Kwavers | `9eabc4e2` (PR #294 merged; parent update in progress) |
+| Hephaestus | `d0eafc8` (PR #44 merged; tiled scan provider closure) |
+| Kwavers | `9eabc4e2` (parent current) |
 | Leto | `6a0e297` |
 | RITK | `ffda3ec` |
+
+Hephaestus PR #44 adds the provider-owned order-preserving tiled scan slice
+for WGPU and CUDA. Its theorem/spec is ADR 0009 in the provider repository;
+the current parent pin advances only after the provider merge and its
+consumer-independent gates complete.
 
 PR #294 merged at `9eabc4e2` after Architecture Validation `29614208770`,
 CI/CD `29614208862`, and Legacy Migration Audit `29614208769` passed. Its

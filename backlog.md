@@ -5,7 +5,22 @@
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
-> `baa6970`).
+> `daeab9e`).
+
+## ATLAS-INTEGRATION-010 — Hephaestus tiled scan provider closure [minor] — done
+
+- Owner: Atlas integration; scope: `repos/hephaestus` gitlink and the
+  provider-graph PM artifacts only.
+- Acceptance: the gitlink names the merged Hephaestus default-branch commit
+  that dispatches one shared-memory tiled scan workgroup/block per line in
+  both WGPU and CUDA; theorem/spec and long-line value contracts remain in
+  the provider repository.
+- Evidence: Hephaestus PR #44 merged at `d0eafc8`; core nextest 48/48, WGPU
+  nextest 140/140, CUDA nextest 108/108 when the independent
+  `concurrent_device_acquisition_is_safe` Windows access violation is
+  excluded, doctests, rustdoc, warning-denied Clippy, and real-device
+  long-line scan contracts pass. ADR 0009 is the provider theorem SSOT.
+- Closure: parent advances `repos/hephaestus` from `df33d4d` to `d0eafc8`.
 
 ## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch] — review
 
