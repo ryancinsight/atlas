@@ -6,7 +6,7 @@
   pinned stale Apollo/Hephaestus/Kwavers/Leto revisions and RITK batch commit
   `b1850302`; Kwavers hosted CI failed in `ritk-filter` before consumer tests.
 - **Correction:** gitlinks now point to Apollo `157467e`, Hephaestus `cf4df20`,
-  Kwavers `921d3c8`, Leto `37968f7`, and RITK `a5e375f`.
+  Kwavers `2fb8661`, Leto `37968f7`, and RITK `a5e375f`.
 - **Evidence tier:** structural Git object reachability plus exact staged
   gitlink equality. Behavioral evidence is pending the hosted rerun.
 - **Residual:** the Atlas integration branch must merge before the Kwavers

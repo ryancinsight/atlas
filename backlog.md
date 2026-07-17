@@ -10,7 +10,7 @@
 
 - Owner: Atlas meta; scope: integration-branch gitlinks and ADR 0020.
 - Acceptance: the checkout action's fixed branch resolves Apollo `157467e`,
-  Hephaestus `cf4df20`, Kwavers `921d3c8`, Leto `37968f7`, and compiling RITK
+  Hephaestus `cf4df20`, Kwavers `2fb8661`, Leto `37968f7`, and compiling RITK
   `a5e375f`; the graph theorem and exact object-reachability evidence are
   recorded; no consumer wrapper or floating revision is introduced.
 - Evidence: staged gitlink equality; provider commits are present in their
