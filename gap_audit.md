@@ -26,6 +26,11 @@
   and Ubuntu/macOS/Windows Nextest. The prior macOS DICOM release failure is
   closed by the `A-RELEASE-RQ`/`A-RELEASE-RP` lifecycle boundary; upstream
   transport correction is tracked in Enet4/dicom-rs#811.
+- RITK PR #38 is merged to `origin/main` at
+  `0dd71e5219dfc83c2d9538c3cdb48983e7657a44`. It synchronizes only the
+  Hephaestus patch metadata in the provider lock graph; Rustfmt, Clippy,
+  dependency alignment, migration audit, wheel smoke, Python 3.9–3.13, and
+  Ubuntu/macOS/Windows Nextest all pass before this root pin refresh.
 - Primary Atlas and peer worktrees remain dirty and out of scope; Atlas PR #9
   merged the clean lane's gitlink and root-artifact update at `e3380b6`.
 
