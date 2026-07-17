@@ -35,8 +35,8 @@ cross-platform hosted matrix passes.
 
 ## Follow-up graph status (2026-07-17)
 
-Apollo PR #46 and PM closure PR #47 are now merged at `eb46e77`. Their deep
-verification-tree change
+Apollo PR #46, PM closure PR #47, and canonical-export documentation PR #48
+are now merged at `0b5d11c`. Their deep verification-tree change
 does not alter the provider boundary: Apollo consumes Hephaestus/Leto and
 still owns no direct raw WGPU implementation. The current parent-side
 follow-up is therefore:
@@ -45,15 +45,17 @@ follow-up is therefore:
 |---|---|
 | Apollo | `0b5d11c` (parent update pending) |
 | Hephaestus | `df33d4d` |
-| Kwavers | PR #293 `203b1a0` (parent update pending hosted closure) |
+| Kwavers | PR #294 `e84bb571e` (parent update pending hosted closure) |
 | Leto | `6a0e297` |
 | RITK | `ffda3ec` |
 
-The Kwavers entry remains pending in the parent because Architecture Validation
-`29606149255` passes but CI/CD `29606149197` generated its coverage report and
-then received external Codecov HTTP 429 rate limiting. PR #293 `203b1a0`
-retains the tarpaulin report gate and makes only that external transport
-non-blocking; its hosted matrix must pass and merge before the parent pin moves.
+The Kwavers entry remains pending in the parent while PR #294's hosted
+Architecture Validation and CI/CD matrices run. Its source gate retains
+tarpaulin `cobertura.xml` generation, while the external tokenless Codecov
+upload is non-blocking after HTTP 429 rate limiting. The MVDR timing contract
+now lives in Criterion, leaving correctness tests value-semantic and
+instrumentation-independent. The PR must pass and merge before the parent pin
+moves.
 
 ## Theorem (provider-graph closure)
 

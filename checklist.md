@@ -3,7 +3,7 @@
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
 > **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Integration base**: `main` at `994b81f`.
+> **Integration base**: `main` at `3257584`.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
@@ -17,10 +17,12 @@
 - [x] Verify Apollo PR #46 hosted Rust and Python matrices and merge the
       PM-only closure at `eb46e77`; its recurseml analysis failure is
       external/non-required.
-- [ ] Verify the dependent Kwavers PR #293 matrix at `203b1a0`; it retains the
-      successful `cobertura.xml` source gate while making external tokenless
-      Codecov HTTP 429 upload transport non-blocking. Architecture Validation
-      `29610209018` and CI/CD `29610209076` are active.
+- [x] Verify Apollo PR #48 canonical-export documentation in the hosted Rust
+      and Python matrices; merge `0b5d11c`.
+- [ ] Verify Kwavers PR #294 head `e84bb571e`; it retains the successful
+      `cobertura.xml` source gate, makes external tokenless Codecov HTTP 429
+      upload transport non-blocking, and moves the MVDR timing contract into
+      Criterion. Architecture Validation and CI/CD matrices remain active.
 
 ## ATLAS-INTEGRATION-008 — Apollo dispatch verification tree [arch]
 
@@ -30,7 +32,8 @@
 - [x] Record the inverse-identity and `13*gamma_256` round-trip theorem in
       Apollo ADR 0034 and synchronize the parent graph record.
 - [x] Advance and merge the Atlas `repos/apollo` gitlink at `eb46e77` in the
-      parent integration increment (`56ad179`).
+      parent integration increment (`56ad179`); the next Apollo source head is
+      `0b5d11c`.
 
 ## ATLAS-INTEGRATION-009 — Kwavers hosted closure [patch]
 
@@ -39,12 +42,15 @@
       canonical layout operation without weakening the geometry assertions.
 - [x] Land the follow-up Hephaestus backend-kernel ownership cutover at
       `3f2a1b4`; local GPU Nextest passes 143/143 with one hardware skip.
-- [ ] Merge PR #293 only after its hosted matrix passes, then advance the
-      parent gitlink from `7a0691f` to the resulting clean Kwavers `main`
+- [x] Move the MVDR wall-clock assertion into the Criterion benchmark on PR
+      #294 head `e84bb571e`; the ultrasound physics correctness lane passes
+      18/18 under locked Nextest.
+- [ ] Merge PR #294 only after its hosted matrix passes, then advance the
+      parent gitlink from `7c7d60f` to the resulting clean Kwavers `main`
       commit.
 - [x] Record Kwavers `5f9e97b` as the clean Git-source identity correction and
       `54575460c` as the PSTD parity-call contract fix; keep the parent pinned
-      at `7a0691f` until the `3f2a1b4` hosted closure.
+      at `7c7d60f` until the `3f2a1b4` hosted closure.
 
 ## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch]
 

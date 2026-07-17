@@ -1,26 +1,30 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
-## State refresh (2026-07-17) — Kwavers clean-head and Apollo provider audit
+## State refresh (2026-07-17) — Kwavers hosted closure and Apollo provider audit
 
-- **Apollo evidence tier:** structural source and manifest audit at `eb46e77`
+- **Apollo evidence tier:** structural source and manifest audit at `0b5d11c`
   finds no direct raw WGPU, obsolete GPU wrapper, ndarray, nalgebra, or Burn
   residue in Apollo. `cargo tree -i wgpu` reaches Apollo only through
   `hephaestus-wgpu`; GPU execution therefore remains provider-owned by
   Hephaestus with Leto host arrays.
-- **Kwavers evidence tier:** clean default-branch head `3f2a1b4` contains the
-  public medium-accessor removal, abdominal geometry-test contract isolation,
-  and Hephaestus backend-kernel ownership cutover. Legacy Migration Audit
-  `29606149278` passes; local locked GPU Nextest passes 143/143 with one
-  hardware skip; Architecture Validation `29606149255` passes. CI/CD
-  `29606149197` generates `cobertura.xml`, then its Codecov upload receives
-  external HTTP 429 rate limiting. PR #293 `203b1a0` keeps that generated
-  report as the source gate and makes only the external upload non-blocking;
-  its Architecture Validation `29610209018` and CI/CD `29610209076` are
-  active. The isolated abdominal contracts also pass in locked Nextest run
-  `ae34bacf-471a-43cf-8ed5-9d2e48808472`.
-- **Residual:** the parent gitlink remains `7a0691f` until PR #293 passes and
-  merges to `main`. Apollo `main` is now `0b5d11c`; its parent pin also awaits
+- **Kwavers evidence tier:** PR #294 head `e84bb571e` contains the public
+  medium-accessor removal, abdominal geometry-test contract isolation,
+  Hephaestus backend-kernel ownership cutover, and the MVDR timing assertion
+  relocation to Criterion. Legacy Migration Audit `29614208769` passes;
+  local locked GPU Nextest passes 143/143 with one hardware skip, ultrasound
+  physics passes 18/18, and the benchmark target checks. Hosted Architecture
+  Validation and CI/CD matrices remain active. The Codecov policy from PR #293
+  keeps `cobertura.xml` generation as the source gate and makes only external
+  tokenless HTTP 429 transport non-blocking.
+- **Residual:** the parent currently records Kwavers `7c7d60f`; keep that pin
+  until PR #294 passes and
+  merges to `main`. Apollo `main` is `0b5d11c`; its parent pin is staged for
   this integration increment.
+
+**Decision/theorem note:** correctness tests assert value semantics; timing
+contracts are distributions owned by Criterion. This separation leaves
+tarpaulin's source-coverage gate input-sensitive without treating
+instrumented wall-clock variance as a physics failure.
 
 ## State refresh (2026-07-17) — Apollo dispatch verification merge
 
@@ -28,8 +32,8 @@
   Leto, but its verification tests were embedded in a dense 589-line leaf.
 - **Correction:** Apollo PR #46 partitions the tests into
   `gpu_fft/verification/dispatch.rs`, records the inverse-identity and
-  `13*gamma_256` bound in ADR 0034, and PR #47 closes its PM state at
-  `eb46e77`.
+  `13*gamma_256` bound in ADR 0034, PR #47 closes its PM state, and PR #48
+  clarifies the canonical root API export documentation at `0b5d11c`.
 - **Evidence tier:** hosted required checks plus local value-semantic tests:
   Apollo Rust workspace and Python bindings pass; locked Nextest 393/393,
   Clippy `-D warnings`, rustdoc `-D warnings`, and provider audit 5/5 pass.
