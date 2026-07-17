@@ -2,6 +2,14 @@
 
 ## State refresh (2026-07-17) — merged provider pins
 
+- Hephaestus PRs #40–#42 are merged to `origin/master` at
+  `29ff2ff`; 0.16.1 preserves WGPU downlevel defaults when converting the
+  typed device-limit contract.
+- CFDrs PR #295 is merged to `origin/main` at
+  `7d4c9edf`; its `GpuContext` now acquires a provider-owned `WgpuDevice` and
+  exposes typed capabilities rather than raw WGPU adapter, feature, or limits
+  fields. The grouped GPU nextest suites pass without cross-process device
+  contention.
 - Apollo PR #44 is merged to `origin/main` at
   `f26369eb2000b9a8b763066064173f8c5ebf8f65`.
 - Helios PR #5 is merged to `origin/main` at

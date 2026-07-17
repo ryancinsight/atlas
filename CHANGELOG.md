@@ -8,5 +8,7 @@
 - Advance Apollo, Helios, and RITK gitlinks to their merged default-branch
   commits after their provider and cross-platform CI closure.
 - Advance the Apollo submodule pin after its concurrent provider-boundary merge.
+- Advance the CFDrs and Hephaestus gitlinks after their typed GPU boundary
+  closure.
 - Register Kwavers and Helios in the Atlas public submodule roster.
 - Reject bare `cargo test` in cross-stack drivers while retaining doctests.
