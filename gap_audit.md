@@ -1,5 +1,20 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — merged provider pins
+
+- Apollo PR #44 is merged to `origin/main` at
+  `f26369eb2000b9a8b763066064173f8c5ebf8f65`.
+- Helios PR #5 is merged to `origin/main` at
+  `04e496b7370bcf9201f5cf5aecdc7a43ca148f8a`.
+- RITK PR #37 is merged to `origin/main` at
+  `ec7cb8329898835c3e63b6c307afb4919a37af78`. Its CI passes formatting,
+  dependency alignment, Clippy, migration audit, wheel smoke, Python 3.9–3.13,
+  and Ubuntu/macOS/Windows Nextest. The prior macOS DICOM release failure is
+  closed by the `A-RELEASE-RQ`/`A-RELEASE-RP` lifecycle boundary; upstream
+  transport correction is tracked in Enet4/dicom-rs#811.
+- Primary Atlas and peer worktrees remain dirty and out of scope; the clean
+  integration lane updates only gitlink objects and root PM artifacts.
+
 ## State refresh (2026-07-15) — MOI-NUMA-001/002/003/004 closure: deleted `moirai-iter/src/numa.rs`
 
 - **MOI-NUMA-001/002/003/004 — CLOSED** per ADR 0017 (accepted).
