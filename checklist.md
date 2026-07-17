@@ -37,6 +37,19 @@
 `recurseml/analysis` error reports an infrastructure failure and is not a
 required build gate.
 
+## ATLAS-INTEGRATION-014 — Hephaestus scan-limit theorem [patch]
+
+- [x] Verify Hephaestus PR #46 merges the scan-limit audit at `93bc38e` and
+      retains provider ownership without introducing a consumer kernel.
+- [x] Confirm nightly formatting and core Nextest 48/48; record the existing
+      WGPU/CUDA `L=513`, `W=256` value contracts and the shared-memory theorem.
+- [x] Advance only `repos/hephaestus` and synchronize the board,
+      `gap_audit.md`, `CHANGELOG.md`, and ADR 0020.
+
+**Residual:** KS-5b remains a measured performance follow-up. It reopens only
+on a device-specific workgroup/latency limit and a derived tolerance for any
+reordered floating-point multi-pass path.
+
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch]
 
 - [x] Verify Hephaestus PR #45 merges the memoized CUDA driver initialization

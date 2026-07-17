@@ -44,7 +44,7 @@ follow-up is therefore:
 | Provider | Current or pending commit |
 |---|---|
 | Apollo | `c874281` (PR #50 merged; Winograd re-export removal) |
-| Hephaestus | `3b68228` (PR #45 merged; CUDA initialization closure) |
+| Hephaestus | `93bc38e` (PR #46 merged; scan-limit theorem) |
 | Kwavers | `9eabc4e2` (parent current) |
 | Leto | `6a0e297` |
 | RITK | `ffda3ec` |
@@ -64,6 +64,12 @@ rewrites every caller to `components::winograd::ShortWinogradScalar`, merged at
 contains one trait definition path, so no forwarding alias can diverge from
 the codelet contract. Local 402/402 Nextest and the hosted Python, Rust, and
 CodeRabbit checks are green; the external analyzer error is non-required.
+
+Hephaestus PR #46 records the scan-limit theorem at `93bc38e`: with `W` lanes,
+the provider stores `W` partials and each lane folds at most `ceil(L/W)`
+values, so `shared_bytes = W * size_of(T)` does not grow with line length.
+The existing `L=513`, `W=256` WGPU/CUDA contracts provide the `L > W`
+witness; KS-5b reopens only after a measured device budget failure.
 
 PR #294 merged at `9eabc4e2` after Architecture Validation `29614208770`,
 CI/CD `29614208862`, and Legacy Migration Audit `29614208769` passed. Its

@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Record Hephaestus PR #46 merge `93bc38e` as the scan-limit theorem closure;
+  provider ADR 0009 proves shared storage is `W` partials independent of line
+  length, and the existing `L=513`, `W=256` WGPU/CUDA contracts cover the
+  long-line path. KS-5b remains a measured performance follow-up.
+
 - Record Apollo PR #50 merge `c874281` as the canonical Winograd trait
   ownership cutover; the obsolete internal `mixed_radix` re-export is deleted,
   all callers use `components::winograd`, and local 402/402 plus hosted Python,
