@@ -44,14 +44,17 @@ follow-up is therefore:
 | Provider | Current or pending commit |
 |---|---|
 | Apollo | `0b5d11c` (parent current) |
-| Hephaestus | `d0eafc8` (PR #44 merged; tiled scan provider closure) |
+| Hephaestus | `3b68228` (PR #45 merged; CUDA initialization closure) |
 | Kwavers | `9eabc4e2` (parent current) |
 | Leto | `6a0e297` |
 | RITK | `ffda3ec` |
 
 Hephaestus PR #44 adds the provider-owned order-preserving tiled scan slice
-for WGPU and CUDA. Its theorem/spec is ADR 0009 in the provider repository;
-the current parent pin advances only after the provider merge and its
+for WGPU and CUDA. Its theorem/spec is ADR 0009 in the provider repository.
+PR #45 then memoizes CUDA driver initialization and serializes only the
+process-global context-creation boundary on Windows; the provider's full
+109/109 CUDA nextest suite now includes the concurrent-acquisition contract.
+The parent pin advances only after each provider merge and its
 consumer-independent gates complete.
 
 PR #294 merged at `9eabc4e2` after Architecture Validation `29614208770`,

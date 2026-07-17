@@ -3,9 +3,23 @@
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
 > **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Integration base**: `main` at `daeab9e`.
+> **Integration base**: `main` at `1067eae`.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
+
+## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch]
+
+- [x] Verify Hephaestus PR #45 merges the memoized CUDA driver initialization
+      and serialized context-creation boundary at `3b68228`.
+- [x] Confirm the full CUDA nextest suite is 109/109, including the formerly
+      aborting concurrent-acquisition contract; Clippy, doctests, and rustdoc
+      are warning-clean.
+- [x] Advance only the `repos/hephaestus` gitlink and synchronize the board,
+      `gap_audit.md`, `CHANGELOG.md`, and ADR 0020.
+
+**Residual:** none for the reproduced Windows concurrent-acquisition abort;
+the lock covers driver context creation only, so transfers and kernels remain
+concurrent by construction.
 
 ## ATLAS-INTEGRATION-010 — Hephaestus tiled scan provider closure [minor]
 
@@ -19,9 +33,9 @@
 - [x] Advance only the `repos/hephaestus` gitlink and synchronize this board,
       `gap_audit.md`, `CHANGELOG.md`, and ADR 0020.
 
-**Residual:** the full CUDA suite still aborts in the unrelated concurrent
-acquisition test with Windows `0xc0000005` (OS error 998); the provider and
-root gap audits retain the re-open trigger for that context investigation.
+**Historical residual (closed by ATLAS-INTEGRATION-011):** the initial tiled
+scan slice excluded the concurrent-acquisition test while its provider-owned
+CUDA initialization defect was investigated.
 
 ## ATLAS-INTEGRATION-006 — Refresh provider heads [arch]
 
