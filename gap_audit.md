@@ -1,5 +1,18 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — Apollo Winograd re-export removal
+
+- **Finding:** Apollo's internal `mixed_radix::traits` re-export created a
+  second apparent ownership path for `ShortWinogradScalar`, contrary to the
+  deep vertical Winograd SSOT.
+- **Evidence tier:** Apollo merge `c874281`; local locked Nextest 402/402,
+  warning-denied Clippy, doctests, warning-clean rustdoc, source-residue scan,
+  provider audit, hosted Python bindings, hosted Rust workspace, and
+  CodeRabbit pass. The external `recurseml/analysis` error is non-required.
+- **Closure:** the parent advances `repos/apollo` from `e2f905a` to
+  `c874281`; the Apollo theorem records that every caller resolves the sole
+  `components::winograd::ShortWinogradScalar` definition path.
+
 ## State refresh (2026-07-17) — Apollo execution-policy wrapper removal
 
 - **Finding:** Apollo PR #49 deletes the duplicate public radix execution-policy

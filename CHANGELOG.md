@@ -4,6 +4,12 @@
 
 ### Changed
 
+- Record Apollo PR #50 merge `c874281` as the canonical Winograd trait
+  ownership cutover; the obsolete internal `mixed_radix` re-export is deleted,
+  all callers use `components::winograd`, and local 402/402 plus hosted Python,
+  Rust, and CodeRabbit checks pass. The external `recurseml/analysis` error is
+  non-required.
+
 - Record Apollo PR #49 merge `e2f905a` as the obsolete execution-policy-wrapper
   removal; `apollo-fft` now uses Moirai's canonical threshold policy and keeps
   the provider boundary on Hephaestus. Local 393/393 package evidence and the

@@ -22,6 +22,20 @@
   non-required and does not inspect the merged head's build gates.
 - Closure: parent advances `repos/apollo` from `0b5d11c` to `e2f905a`.
 
+## ATLAS-INTEGRATION-013 — Apollo Winograd re-export removal [patch] — done
+
+- Owner: Atlas integration; scope: `repos/apollo` gitlink and the provider-graph
+  PM artifacts only.
+- Acceptance: the gitlink names Apollo PR #50's merged default-branch commit,
+  which removes the obsolete `mixed_radix::traits::ShortWinogradScalar`
+  re-export and rewrites all callers to the canonical
+  `components::winograd` module without changing FFT value semantics.
+- Evidence: Apollo merge `c874281`; local locked Nextest 402/402,
+  warning-denied Clippy, doctests, warning-clean rustdoc, source-residue scan,
+  and provider audit pass. Hosted Python bindings, Rust workspace, and
+  CodeRabbit pass; the external `recurseml/analysis` error is non-required.
+- Closure: parent advances `repos/apollo` from `e2f905a` to `c874281`.
+
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch] — done
 
 - Owner: Atlas integration; scope: `repos/hephaestus` gitlink and the
