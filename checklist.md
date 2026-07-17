@@ -1253,3 +1253,18 @@ Verification: `cargo nextest run -p themis` 16/18 pass (2 pre-existing branded p
 - [x] Verify local gate: `cargo nextest run` 121/121 pass, `clippy --all-targets --all-features -- -D warnings` clean, `cargo doc --no-deps` clean.
 
 Verification: `cargo nextest run` 121/121 pass, `cargo clippy --all-targets --all-features -- -D warnings` clean, `cargo doc --no-deps` clean, all feature combos build clean. Committed `2e9bf87` and pushed to melinoe/main. Atlas gitlink advanced at `73592be`.
+
+## Session 2026-07-17 — typed GPU boundary pin closure
+
+- [x] Merge Hephaestus PRs #40–#42. The final `29ff2ff` 0.16.1 provider head
+  maps typed device limits over WGPU downlevel defaults; the exact descriptor
+  regression and 137/137 WGPU nextest suite pass.
+- [x] Merge CFDrs PR #295 at `7d4c9edf` (0.3.0). `GpuContext` now owns a typed
+  Hephaestus device acquisition/capability boundary; raw adapter, feature, and
+  limits fields are removed from its public contract.
+- [x] Verify CFDrs GPU suites under the committed `gpu-device` nextest group:
+  cfd-core 245/245, cfd-math 362/362, cfd-2d 570/570 (27 skipped), and
+  cfd-suite 26/26. The provider exact descriptor test and warning-denied
+  Clippy also pass.
+- [x] Advance the Atlas `repos/hephaestus` and `repos/CFDrs` gitlinks to their
+  merged default-branch heads.

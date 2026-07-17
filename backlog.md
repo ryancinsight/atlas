@@ -6,6 +6,18 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+## ATLAS-INTEGRATION-003 — provider-neutral GPU pin reconciliation [patch] — ✅ done
+
+- Owner: Codex; scope: `repos/{hephaestus,CFDrs}` gitlinks and Atlas PM
+  artifacts only.
+- Acceptance: Hephaestus `main` supplies downlevel-complete typed device limits,
+  CFDrs `main` owns no public raw WGPU adapter/feature/limits contract, and both
+  gitlinks name the merged default-branch heads.
+- Closure: Hephaestus PRs #40–#42 merged at `29ff2ff` (0.16.1); CFDrs PR #295
+  merged at `7d4c9edf` (0.3.0). The provider exact-descriptor test, CFDrs
+  GPU grouped nextest suites, warning-denied Clippy, and the major API
+  classification passed before the parent pin advance.
+
 ## ATLAS-INTEGRATION-001 — default-main reconciliation [patch] — ✅ done
 
 Resolved the root metadata and gitlink merge against `main`. The integrated
