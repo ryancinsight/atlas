@@ -35,22 +35,23 @@ cross-platform hosted matrix passes.
 
 ## Follow-up graph status (2026-07-17)
 
-Apollo PR #46 is now merged at `11fd1d0`. Its deep verification-tree change
+Apollo PR #46 and PM closure PR #47 are now merged at `eb46e77`. Their deep
+verification-tree change
 does not alter the provider boundary: Apollo consumes Hephaestus/Leto and
 still owns no direct raw WGPU implementation. The current parent-side
 follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `11fd1d0` (parent merge `56ad179`) |
+| Apollo | `eb46e77` (parent update pending) |
 | Hephaestus | `cf4df20` |
-| Kwavers | `2fb8661` (PR #292 `5f9e97b` pending hosted closure) |
+| Kwavers | `2fb8661` (PR #292 `54575460c` pending coverage diagnosis) |
 | Leto | `37968f7` |
 | RITK | `ffda3ec` |
 
 The Kwavers entry remains at the last clean parent pin because the corrected
-PR head still requires its fresh hosted matrix. Advancing an unverified
-gitlink would violate the reproducible graph obligation.
+PR head has a failed coverage job and active hosted checks. Advancing an
+unverified gitlink would violate the reproducible graph obligation.
 
 ## Theorem (provider-graph closure)
 

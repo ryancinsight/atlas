@@ -14,9 +14,11 @@
 - [x] Add ADR 0020 with the provider-graph closure theorem and update the ADR
   index, backlog, gap audit, and changelog.
 - [x] Merge Atlas PR #15 at `29041d9`.
-- [x] Verify Apollo PR #46 hosted Rust and Python matrices and merge at
-      `11fd1d0`; its recurseml analysis failure is external/non-required.
-- [ ] Verify the dependent Kwavers #292 hosted matrix at `aa5d29f`.
+- [x] Verify Apollo PR #46 hosted Rust and Python matrices and merge the
+      PM-only closure at `eb46e77`; its recurseml analysis failure is
+      external/non-required.
+- [ ] Verify the dependent Kwavers #292 hosted matrix at `54575460c`; the
+      coverage job currently fails and must be diagnosed before merge.
 
 ## ATLAS-INTEGRATION-008 — Apollo dispatch verification tree [arch]
 
@@ -25,16 +27,18 @@
 - [x] Confirm Apollo has no direct raw `wgpu` dependency or wrapper.
 - [x] Record the inverse-identity and `13*gamma_256` round-trip theorem in
       Apollo ADR 0034 and synchronize the parent graph record.
-- [x] Advance and merge the Atlas `repos/apollo` gitlink at `11fd1d0` in
-      Atlas PR #18 at `56ad179`.
+- [ ] Advance and merge the Atlas `repos/apollo` gitlink at `eb46e77` in the
+      parent integration increment.
 
 ## ATLAS-INTEGRATION-009 — Kwavers hosted closure [patch]
 
-- [ ] Wait for required Architecture Validation and CI/CD jobs on PR #292.
+- [ ] Diagnose the failed Code Coverage job and wait for the remaining
+      Architecture Validation and CI/CD jobs on PR #292.
 - [ ] Merge PR #292 only after required jobs pass, then advance the parent
       gitlink from `2fb8661` to the clean merged commit.
-- [x] Record Kwavers `5f9e97b` as the clean Git-source identity correction;
-      keep the parent at `2fb8661` until hosted closure.
+- [x] Record Kwavers `5f9e97b` as the clean Git-source identity correction and
+      `54575460c` as the PSTD parity-call contract fix; keep the parent at
+      `2fb8661` until hosted closure.
 
 ## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch]
 
