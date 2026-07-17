@@ -1,5 +1,17 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — ATLAS-KWAVERS-049 provider graph
+
+- **Finding:** the fixed `codex/kwavers-atlas-integration` checkout branch
+  pinned stale Apollo/Hephaestus/Kwavers/Leto revisions and RITK batch commit
+  `b1850302`; Kwavers hosted CI failed in `ritk-filter` before consumer tests.
+- **Correction:** gitlinks now point to Apollo `157467e`, Hephaestus `cf4df20`,
+  Kwavers `921d3c8`, Leto `37968f7`, and RITK `a5e375f`.
+- **Evidence tier:** structural Git object reachability plus exact staged
+  gitlink equality. Behavioral evidence is pending the hosted rerun.
+- **Residual:** the Atlas integration branch must merge before the Kwavers
+  checkout action consumes these revisions. See ADR 0020.
+
 ## State refresh (2026-07-15) — MOI-NUMA-001/002/003/004 closure: deleted `moirai-iter/src/numa.rs`
 
 - **MOI-NUMA-001/002/003/004 — CLOSED** per ADR 0017 (accepted).

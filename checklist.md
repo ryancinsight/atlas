@@ -7,6 +7,17 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-KWAVERS-049 — Refresh fixed provider graph [arch]
+
+- [x] Identify the stale CI graph: integration branch pin `ritk b1850302`
+  emits compile errors in RITK native filters.
+- [x] Advance the five consumer/provider gitlinks to the verified commits and
+  add ADR 0020 with the provider-graph closure theorem.
+- [ ] Push and merge the Atlas integration PR; rerun Kwavers PR #292.
+
+Evidence: exact staged gitlink diff and provider reachability are available;
+behavioral closure is pending the hosted rerun.
+
 ## ATLAS-INTEGRATION-001 — default-main reconciliation [complete]
 
 - [x] Resolve root metadata conflicts without discarding the migration SSOT.

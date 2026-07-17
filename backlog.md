@@ -6,6 +6,19 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+## ATLAS-KWAVERS-049 — Refresh fixed provider graph [arch] — ✅ review
+
+- Owner: Atlas meta; scope: integration-branch gitlinks and ADR 0020.
+- Acceptance: the checkout action's fixed branch resolves Apollo `157467e`,
+  Hephaestus `cf4df20`, Kwavers `921d3c8`, Leto `37968f7`, and compiling RITK
+  `a5e375f`; the graph theorem and exact object-reachability evidence are
+  recorded; no consumer wrapper or floating revision is introduced.
+- Evidence: staged gitlink equality; provider commits are present in their
+  remotes; the stale RITK `b1850302` source is the source of the CI compile
+  errors and is removed from the graph. RITK PR #39 is merged at `a5e375f`.
+- Next: merge this branch into `codex/kwavers-atlas-integration`, then rerun
+  Kwavers PR #292's hosted matrix.
+
 ## ATLAS-INTEGRATION-001 — default-main reconciliation [patch] — ✅ done
 
 Resolved the root metadata and gitlink merge against `main`. The integrated
