@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Advance the Hephaestus provider gitlink to PR #45 merge `3b68228`; memoized
+  CUDA driver initialization and serialized context creation close the
+  Windows concurrent-acquisition abort, with the full 109/109 CUDA suite
+  passing while transfers and kernels remain concurrent.
+
 - Advance the Hephaestus provider gitlink to PR #44 merge `d0eafc8` for the
   shared-memory tiled axis-scan kernels; the provider ADR and long-line
   WGPU/CUDA contracts remain the theorem and behavioral SSOT.

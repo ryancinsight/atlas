@@ -5,7 +5,20 @@
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
-> `daeab9e`).
+> `1067eae`).
+
+## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch] — done
+
+- Owner: Atlas integration; scope: `repos/hephaestus` gitlink and the
+  provider-graph PM artifacts only.
+- Acceptance: the gitlink names the merged Hephaestus default-branch commit
+  that memoizes CUDA driver initialization and serializes only process-global
+  context creation, while preserving concurrent transfers and kernels.
+- Evidence: Hephaestus PR #45 merged at `3b68228`; the full CUDA suite is
+  109/109 under `cargo nextest run -p hephaestus-cuda --locked`, including
+  `concurrent_device_acquisition_is_safe`; warning-denied Clippy, doctests,
+  and rustdoc pass.
+- Closure: parent advances `repos/hephaestus` from `d0eafc8` to `3b68228`.
 
 ## ATLAS-INTEGRATION-010 — Hephaestus tiled scan provider closure [minor] — done
 
