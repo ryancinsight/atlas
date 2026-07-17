@@ -18,6 +18,18 @@
   GPU grouped nextest suites, warning-denied Clippy, and the major API
   classification passed before the parent pin advance.
 
+## ATLAS-INTEGRATION-004 — CFDrs executable-example pin [patch] — ✅ done
+
+- Owner: Atlas integration; scope: `repos/CFDrs` gitlink and Atlas PM artifacts
+  only.
+- Acceptance: the gitlink names the merged CFDrs default-branch head after
+  its retained examples execute the provider implementation rather than emit
+  static validation reports.
+- Closure: CFDrs PR #296 merged at `a13f7f51`. It replaces the retained
+  one- and two-dimensional examples with executable provider calls and
+  deletes unexecutable three-dimensional/static-report examples. The parent
+  gitlink advance records that merged contract without introducing a wrapper.
+
 ## ATLAS-INTEGRATION-001 — default-main reconciliation [patch] — ✅ done
 
 Resolved the root metadata and gitlink merge against `main`. The integrated

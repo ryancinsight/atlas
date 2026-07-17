@@ -1268,3 +1268,6 @@ Verification: `cargo nextest run` 121/121 pass, `cargo clippy --all-targets --al
   Clippy also pass.
 - [x] Advance the Atlas `repos/hephaestus` and `repos/CFDrs` gitlinks to their
   merged default-branch heads.
+- [x] Advance the Atlas `repos/CFDrs` gitlink to `a13f7f51` after CFDrs PR
+  #296 restored executable one- and two-dimensional validation examples and
+  removed static/unexecutable reporting paths.

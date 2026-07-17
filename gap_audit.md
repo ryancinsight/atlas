@@ -10,6 +10,12 @@
   exposes typed capabilities rather than raw WGPU adapter, feature, or limits
   fields. The grouped GPU nextest suites pass without cross-process device
   contention.
+- CFDrs PR #296 is merged to `origin/main` at `a13f7f51`; retained
+  one- and two-dimensional validation examples now execute the owning solver
+  or model. The static/unexecutable three-dimensional reporting paths are
+  deleted. The unresolved labelled-outlet boundary contract remains tracked
+  in CFDrs as `CFD-3D-BIFURCATION-BOUNDARIES-1`, rather than being represented
+  by a false root-level validation claim.
 - Apollo PR #44 is merged to `origin/main` at
   `f26369eb2000b9a8b763066064173f8c5ebf8f65`.
 - Helios PR #5 is merged to `origin/main` at
