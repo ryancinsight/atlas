@@ -43,7 +43,7 @@ follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `e2f905a` (PR #49 merged; policy-wrapper removal) |
+| Apollo | `c874281` (PR #50 merged; Winograd re-export removal) |
 | Hephaestus | `3b68228` (PR #45 merged; CUDA initialization closure) |
 | Kwavers | `9eabc4e2` (parent current) |
 | Leto | `6a0e297` |
@@ -56,6 +56,14 @@ process-global context-creation boundary on Windows; the provider's full
 109/109 CUDA nextest suite now includes the concurrent-acquisition contract.
 The parent pin advances only after each provider merge and its
 consumer-independent gates complete.
+
+Apollo PR #49 then removed the duplicate execution-policy wrapper at
+`e2f905a`; PR #50 removes the internal Winograd compatibility re-export and
+rewrites every caller to `components::winograd::ShortWinogradScalar`, merged at
+`c874281`. The canonical-module theorem is structural: the Apollo caller graph
+contains one trait definition path, so no forwarding alias can diverge from
+the codelet contract. Local 402/402 Nextest and the hosted Python, Rust, and
+CodeRabbit checks are green; the external analyzer error is non-required.
 
 PR #294 merged at `9eabc4e2` after Architecture Validation `29614208770`,
 CI/CD `29614208862`, and Legacy Migration Audit `29614208769` passed. Its

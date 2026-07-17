@@ -22,6 +22,21 @@
 **Residual:** none for the wrapper-removal increment; the external
 `recurseml/analysis` failure is non-required.
 
+## ATLAS-INTEGRATION-013 — Apollo Winograd re-export removal [patch]
+
+- [x] Verify Apollo PR #50 merges the internal Winograd re-export removal at
+      `c874281`, with all callers using the canonical
+      `components::winograd::ShortWinogradScalar` path.
+- [x] Confirm local locked Nextest 402/402, warning-denied Clippy, doctests,
+      warning-clean rustdoc, source-residue scan, and provider audit pass;
+      hosted Python, Rust, and CodeRabbit checks are green.
+- [x] Advance only `repos/apollo` and synchronize the board, `gap_audit.md`,
+      `CHANGELOG.md`, and ADR 0020.
+
+**Residual:** none for the canonical re-export cutover; the external
+`recurseml/analysis` error reports an infrastructure failure and is not a
+required build gate.
+
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch]
 
 - [x] Verify Hephaestus PR #45 merges the memoized CUDA driver initialization
