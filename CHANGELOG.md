@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Refresh Apollo, Hephaestus, Kwavers, Leto, and RITK gitlinks to the current
+  provider graph; add ADR 0020 with the exact provider-graph closure theorem.
 - Align public Atlas submodule pins with their fetched default branches.
 - Advance Apollo, Helios, and RITK gitlinks to their merged default-branch
   commits after their provider and cross-platform CI closure.

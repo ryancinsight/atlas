@@ -4,7 +4,18 @@
 >
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
-> **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
+> **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/atlas-provider-heads-20260717`).
+
+## ATLAS-INTEGRATION-006 — Refresh provider heads [arch] — ✅ review
+
+- Owner: Atlas meta; scope: Apollo, Hephaestus, Kwavers, Leto, and RITK
+  gitlinks plus ADR 0020.
+- Acceptance: the fixed Kwavers checkout graph resolves Apollo `157467e`,
+  Hephaestus `cf4df20`, Kwavers `2fb8661`, Leto `37968f7`, and RITK `a5e375f`;
+  the provider-graph theorem and exact gitlink evidence are recorded.
+- Evidence: staged gitlink equality; provider commits are published and RITK
+  PR #39 is merged at `a5e375f`.
+- Next: merge this parent-pin PR, then rerun the Kwavers hosted matrix.
 
 ## ATLAS-INTEGRATION-005 — RITK lock-integrity pin [patch] — review
 

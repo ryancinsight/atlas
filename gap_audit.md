@@ -1,5 +1,16 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — ATLAS-INTEGRATION-006 provider graph
+
+- **Finding:** the fixed Kwavers checkout branch had stale Apollo, Hephaestus,
+  Kwavers, and Leto pins plus non-compiling RITK batch commit `b1850302`.
+- **Correction:** Atlas now stages Apollo `157467e`, Hephaestus `cf4df20`,
+  Kwavers `2fb8661`, Leto `37968f7`, and RITK `a5e375f`.
+- **Evidence tier:** exact staged gitlink equality and remote commit
+  reachability; behavioral closure is delegated to the dependent Kwavers CI.
+- **Residual:** the parent-pin branch must merge before default-branch users
+  consume these revisions. ADR 0020 is the theorem SSOT.
+
 ## State refresh (2026-07-17) — merged provider pins
 
 - Hephaestus PRs #40–#42 are merged to `origin/master` at

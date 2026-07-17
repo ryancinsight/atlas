@@ -3,9 +3,18 @@
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
 > **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Branch**: `codex/kwavers-atlas-integration`.
+> **Branch**: `codex/atlas-provider-heads-20260717`.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
+
+## ATLAS-INTEGRATION-006 — Refresh provider heads [arch]
+
+- [x] Replace the stale integration graph with current Apollo, Hephaestus,
+  Kwavers, Leto, and merged RITK commits.
+- [x] Add ADR 0020 with the provider-graph closure theorem and update the ADR
+  index, backlog, gap audit, and changelog.
+- [ ] Push and merge the Atlas parent-pin PR; verify the dependent Kwavers
+  hosted matrix.
 
 ## ATLAS-INTEGRATION-001 — default-main reconciliation [complete]
 
