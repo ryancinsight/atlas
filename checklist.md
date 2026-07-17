@@ -25,7 +25,8 @@
 - [x] Confirm Apollo has no direct raw `wgpu` dependency or wrapper.
 - [x] Record the inverse-identity and `13*gamma_256` round-trip theorem in
       Apollo ADR 0034 and synchronize the parent graph record.
-- [ ] Advance and merge the Atlas `repos/apollo` gitlink at `11fd1d0`.
+- [x] Advance and merge the Atlas `repos/apollo` gitlink at `11fd1d0` in
+      Atlas PR #18 at `56ad179`.
 
 ## ATLAS-INTEGRATION-009 — Kwavers hosted closure [patch]
 

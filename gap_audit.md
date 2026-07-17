@@ -12,7 +12,8 @@
   Clippy `-D warnings`, rustdoc `-D warnings`, and provider audit 5/5 pass.
 - **Provider audit:** Apollo owns no direct raw WGPU dependency; GPU device
   and dispatch infrastructure remain Hephaestus-owned.
-- **Residual:** Atlas has not yet advanced `repos/apollo` to `11fd1d0`.
+- **Closure:** Atlas PR #18 merged at `56ad179`; `repos/apollo` now resolves
+  to `11fd1d0` on the default branch.
 
 ## State refresh (2026-07-17) — Kwavers hosted closure
 

@@ -19,15 +19,17 @@
   workflows. This increment carries that verified head into the reproducible
   Atlas graph without a consumer-side fallback.
 
-## ATLAS-INTEGRATION-008 — Apollo dispatch verification tree [arch] — review
+## ATLAS-INTEGRATION-008 — Apollo dispatch verification tree [arch] — ✅ done
 
 - Owner: Atlas integration; scope: `repos/apollo` gitlink and provider-graph
   documentation.
 - Acceptance: Apollo PR #46 merges the deep GPU dispatch verification leaf,
-  keeps execution owned by Leto/Hephaestus, and exposes no Apollo-owned raw
-  WGPU path; the Atlas gitlink advances to the merge commit.
+  keeps execution owned by Leto/Hephaestus, exposes no Apollo-owned raw WGPU
+  path, and the Atlas gitlink advances to the merge commit.
 - Evidence: Apollo merge `11fd1d0`; locked `apollo-fft` Nextest 393/393,
   warning-denied Clippy, warning-clean rustdoc, and provider audit 5/5.
+- Closure: Atlas PR #18 merged at `56ad179`; `repos/apollo` now resolves to
+  `11fd1d0` on the default branch.
 
 ## ATLAS-INTEGRATION-009 — Kwavers hosted closure [patch] — in progress
 

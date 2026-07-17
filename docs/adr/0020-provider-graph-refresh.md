@@ -42,7 +42,7 @@ follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `11fd1d0` (merged; parent pin pending) |
+| Apollo | `11fd1d0` (parent merge `56ad179`) |
 | Hephaestus | `cf4df20` |
 | Kwavers | `2fb8661` (PR #292 `aa5d29f` pending hosted closure) |
 | Leto | `37968f7` |
