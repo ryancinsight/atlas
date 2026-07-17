@@ -43,15 +43,17 @@ follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `eb46e77` (parent update pending) |
-| Hephaestus | `cf4df20` |
-| Kwavers | `2fb8661` (PR #292 `54575460c` pending coverage diagnosis) |
-| Leto | `37968f7` |
+| Apollo | `0b5d11c` (parent update pending) |
+| Hephaestus | `df33d4d` |
+| Kwavers | PR #293 `203b1a0` (parent update pending hosted closure) |
+| Leto | `6a0e297` |
 | RITK | `ffda3ec` |
 
-The Kwavers entry remains at the last clean parent pin because the corrected
-PR head has a failed coverage job and active hosted checks. Advancing an
-unverified gitlink would violate the reproducible graph obligation.
+The Kwavers entry remains pending in the parent because Architecture Validation
+`29606149255` passes but CI/CD `29606149197` generated its coverage report and
+then received external Codecov HTTP 429 rate limiting. PR #293 `203b1a0`
+retains the tarpaulin report gate and makes only that external transport
+non-blocking; its hosted matrix must pass and merge before the parent pin moves.
 
 ## Theorem (provider-graph closure)
 

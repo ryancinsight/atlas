@@ -29,33 +29,40 @@
 - Evidence: Apollo merge `eb46e77` (PR #47 PM closure after PR #46); locked
   `apollo-fft` Nextest 393/393,
   warning-denied Clippy, warning-clean rustdoc, and provider audit 5/5.
-- Closure: Atlas PR #18 merged at `56ad179`; the pending parent increment
-  advances `repos/apollo` to `eb46e77` after the PM-only closure merge.
+- Closure: Atlas PR #18 merged at `56ad179`; the parent pin is now
+  `eb46e77` after the PM-only closure merge.
 
 ## ATLAS-INTEGRATION-009 — Kwavers hosted closure [patch] — in progress
 
-- Owner: Kwavers integration; scope: PR #292 head and the `repos/kwavers`
+- Owner: Codex `/root` takeover after the prior 60-minute claim expired;
+  scope: the verified Kwavers default-branch head and the `repos/kwavers`
   gitlink only.
-- Acceptance: required hosted checks pass for `54575460c`, PR #292 merges, and
-  the parent advances to the resulting clean default-branch commit.
-- Evidence: Kwavers head `54575460c` contains the source-identity correction
-  and the stale PSTD parity-call migration. Hosted architecture checks pass
-  through documentation, clean-architecture, migration, and feature lanes;
-  the required CI coverage job fails after its long tarpaulin step and the
-  remaining matrix is still running.
-- Residual: keep the parent at `2fb8661` until the coverage failure is
-  diagnosed and the fresh hosted matrix passes.
+- Acceptance: required hosted checks pass for the clean default-branch head,
+  and the parent advances only to that verified commit.
+- Evidence: Kwavers head `3f2a1b4` contains the Leto-backed medium accessor
+  major cleanup, the canonical abdominal geometry contract, and the
+  Hephaestus backend-kernel ownership cutover. Legacy Migration Audit
+  `29606149278` passes; local locked GPU Nextest passes 143/143 with one
+  hardware skip; Architecture Validation `29606149255` passes. CI/CD
+  `29606149197` generated `cobertura.xml`, then Codecov returned external HTTP
+  429 for its tokenless upload. PR #293 `203b1a0` retains the generated-report
+  gate while making that external transport non-blocking; its Architecture
+  Validation `29610209018`, CI/CD `29610209076`, and migration audit
+  `29610209013` are active. The isolated abdominal contracts also pass in
+  locked Nextest run `ae34bacf-471a-43cf-8ed5-9d2e48808472`.
+- Residual: keep the parent at `7a0691f` until PR #293 passes and merges to
+  Kwavers `main`; then advance only to the resulting default-branch commit.
 
 ## ATLAS-INTEGRATION-006 — Refresh provider heads [arch] — review
 
 - Owner: Atlas meta; scope: Apollo, Hephaestus, Kwavers, Leto, and RITK
   gitlinks plus ADR 0020.
-- Acceptance: the fixed Kwavers checkout graph resolves Apollo `157467e`,
-  Hephaestus `cf4df20`, Kwavers `2fb8661`, Leto `37968f7`, and the then-merged
-  RITK `a5e375f`;
+- Acceptance: the Atlas checkout graph resolves the verified Apollo,
+  Hephaestus, Kwavers, Leto, and RITK default-branch heads;
   the provider-graph theorem and exact gitlink evidence are recorded.
-- Evidence: staged gitlink equality; provider commits are published and RITK
-  PR #39 is merged at `a5e375f`.
+- Evidence: Apollo `0b5d11c`, Hephaestus `df33d4d`, Kwavers PR #293
+  `203b1a0`, Leto `6a0e297`, and RITK `ffda3ec` are the current provider
+  heads; the Kwavers pin remains pending its hosted closure.
 - Closure: Atlas PR #15 merged at `29041d9`. Its RITK source checkout repair
   is carried by ATLAS-INTEGRATION-007; the current Kwavers #291 matrix remains
   the behavioral closure for the Apollo axis-transform path.

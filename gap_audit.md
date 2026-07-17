@@ -1,5 +1,27 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — Kwavers clean-head and Apollo provider audit
+
+- **Apollo evidence tier:** structural source and manifest audit at `eb46e77`
+  finds no direct raw WGPU, obsolete GPU wrapper, ndarray, nalgebra, or Burn
+  residue in Apollo. `cargo tree -i wgpu` reaches Apollo only through
+  `hephaestus-wgpu`; GPU execution therefore remains provider-owned by
+  Hephaestus with Leto host arrays.
+- **Kwavers evidence tier:** clean default-branch head `3f2a1b4` contains the
+  public medium-accessor removal, abdominal geometry-test contract isolation,
+  and Hephaestus backend-kernel ownership cutover. Legacy Migration Audit
+  `29606149278` passes; local locked GPU Nextest passes 143/143 with one
+  hardware skip; Architecture Validation `29606149255` passes. CI/CD
+  `29606149197` generates `cobertura.xml`, then its Codecov upload receives
+  external HTTP 429 rate limiting. PR #293 `203b1a0` keeps that generated
+  report as the source gate and makes only the external upload non-blocking;
+  its Architecture Validation `29610209018` and CI/CD `29610209076` are
+  active. The isolated abdominal contracts also pass in locked Nextest run
+  `ae34bacf-471a-43cf-8ed5-9d2e48808472`.
+- **Residual:** the parent gitlink remains `7a0691f` until PR #293 passes and
+  merges to `main`. Apollo `main` is now `0b5d11c`; its parent pin also awaits
+  this integration increment.
+
 ## State refresh (2026-07-17) — Apollo dispatch verification merge
 
 - **Finding:** Apollo’s GPU dispatch execution already used Hephaestus and

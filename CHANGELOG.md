@@ -4,6 +4,14 @@
 
 ### Changed
 
+- Record Kwavers `3f2a1b4` as the clean Hephaestus backend-kernel ownership
+  head; obsolete buffer and pipeline managers are deleted and the parent pin
+  remains pending PR #293's Codecov-transport policy matrix.
+- Record Kwavers `11e577c` as the clean Leto medium-accessor and abdominal
+  geometry-contract head; Architecture Validation passes, while CI/CD coverage
+  is blocked only by an external Codecov HTTP 429 upload response; PR #293
+  retains the generated report gate and makes that transport non-blocking.
+- Mark the Apollo `eb46e77` parent pin complete after Atlas PR #18.
 - Merge Apollo PR #46 and PM closure PR #47 at `eb46e77`; partition GPU
   dispatch verification into a deep private leaf and retain Hephaestus/Leto
   provider ownership.
