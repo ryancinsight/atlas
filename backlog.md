@@ -5,7 +5,7 @@
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
-> `29041d9`).
+> `baa6970`).
 
 ## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch] — review
 
@@ -31,8 +31,7 @@
   `apollo-fft` Nextest 393/393,
   warning-denied Clippy, warning-clean rustdoc, and provider audit 5/5.
 - Closure: Atlas PR #18 merged at `56ad179`; Apollo `main` carries the
-  documentation-only PR #48 merge `0b5d11c`, and the parent pin is staged in
-  the current integration increment.
+  documentation-only PR #48 merge `0b5d11c`, and the parent pin is current.
 
 ## ATLAS-INTEGRATION-009 — Kwavers hosted closure [patch] — ✅ done
 
@@ -48,8 +47,8 @@
   from the tarpaulin correctness lane into the Criterion benchmark. Legacy
   Migration Audit `29614208769` passes; local locked GPU Nextest passes 143/143
   with one hardware skip, ultrasound physics passes 18/18, and the benchmark
-  target checks. The hosted Architecture Validation and CI/CD matrices are
-  generated report remains a source gate. Architecture Validation
+  target checks. The hosted Architecture Validation and CI/CD matrices retain
+  generated-report coverage as a source gate. Architecture Validation
   `29614208770`, CI/CD `29614208862`, and Legacy Migration Audit
   `29614208769` pass; only external `recurseml/analysis` remains errored.
 - Closure: the parent advances from `7c7d60f` to merged Kwavers `main`
