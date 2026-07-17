@@ -19,6 +19,27 @@
   workflows. This increment carries that verified head into the reproducible
   Atlas graph without a consumer-side fallback.
 
+## ATLAS-INTEGRATION-008 — Apollo dispatch verification tree [arch] — review
+
+- Owner: Atlas integration; scope: `repos/apollo` gitlink and provider-graph
+  documentation.
+- Acceptance: Apollo PR #46 merges the deep GPU dispatch verification leaf,
+  keeps execution owned by Leto/Hephaestus, and exposes no Apollo-owned raw
+  WGPU path; the Atlas gitlink advances to the merge commit.
+- Evidence: Apollo merge `11fd1d0`; locked `apollo-fft` Nextest 393/393,
+  warning-denied Clippy, warning-clean rustdoc, and provider audit 5/5.
+
+## ATLAS-INTEGRATION-009 — Kwavers hosted closure [patch] — in progress
+
+- Owner: Kwavers integration; scope: PR #292 head and the `repos/kwavers`
+  gitlink only.
+- Acceptance: required hosted checks pass for `aa5d29f`, PR #292 merges, and
+  the parent advances to the resulting clean default-branch commit.
+- Evidence: local locked GPU/simulation/solver Nextest 1036/1036 plus feature
+  Nextest 144/144; hosted Architecture Validation and CI/CD runs
+  `29593744645` and `29593747035` remain queued. The working tree also has an
+  uncommitted Cargo source-dependency edit, so no dirty gitlink is staged.
+
 ## ATLAS-INTEGRATION-006 — Refresh provider heads [arch] — review
 
 - Owner: Atlas meta; scope: Apollo, Hephaestus, Kwavers, Leto, and RITK

@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Merge Apollo PR #46 at `11fd1d0`; partition GPU dispatch verification into
+  a deep private leaf and retain Hephaestus/Leto provider ownership.
+- Keep Kwavers PR #292 at `aa5d29f` pending its required hosted matrix; no
+  dirty parent gitlink is advanced.
 - Advance the RITK gitlink to its verified Apollo 0.24 source-checkout repair
   on `main`.
 - Refresh Apollo, Hephaestus, Kwavers, Leto, and RITK gitlinks to the current

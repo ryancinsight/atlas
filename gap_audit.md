@@ -1,5 +1,30 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — Apollo dispatch verification merge
+
+- **Finding:** Apollo’s GPU dispatch execution already used Hephaestus and
+  Leto, but its verification tests were embedded in a dense 589-line leaf.
+- **Correction:** Apollo PR #46 partitions the tests into
+  `gpu_fft/verification/dispatch.rs`, records the inverse-identity and
+  `13*gamma_256` bound in ADR 0034, and merges at `11fd1d0`.
+- **Evidence tier:** hosted required checks plus local value-semantic tests:
+  Apollo Rust workspace and Python bindings pass; locked Nextest 393/393,
+  Clippy `-D warnings`, rustdoc `-D warnings`, and provider audit 5/5 pass.
+- **Provider audit:** Apollo owns no direct raw WGPU dependency; GPU device
+  and dispatch infrastructure remain Hephaestus-owned.
+- **Residual:** Atlas has not yet advanced `repos/apollo` to `11fd1d0`.
+
+## State refresh (2026-07-17) — Kwavers hosted closure
+
+- **Finding:** PR #292 head `aa5d29f` contains the locked workflow and
+  obsolete-deploy cleanup, but required hosted jobs are still queued.
+- **Evidence tier:** local locked GPU/simulation/solver Nextest 1036/1036 and
+  feature Nextest 144/144; Architecture Validation run `29593744645` and
+  CI/CD run `29593747035` are queued.
+- **Residual:** do not advance the Kwavers gitlink while its working tree has
+  an uncommitted Cargo source-dependency edit or before required hosted checks
+  complete.
+
 ## State refresh (2026-07-17) — ATLAS-INTEGRATION-007 RITK source checkout
 
 - **Finding:** RITK PR #39 raised `apollo-fft` to 0.24 but its composite
