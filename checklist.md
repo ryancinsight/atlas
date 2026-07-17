@@ -134,6 +134,23 @@ tracking + Drop cleanup), `oneshot.rs` (Drop clears rx_waker).
 - Superseded: the WGPU 30 provider migration and archived `paste` cleanup are
   closed by the release increment above.
 
+## TREE-DUP-002 — Moirai dual channel consolidation (ADR-0019) [major] — ✅ done
+
+- [x] Extend `Channel<T>` trait with `send_batch`/`recv_batch`/`close`/`is_closed`/`len`/`stats` (default impls).
+- [x] Add `InvalidConfig` variant to `ChannelError`.
+- [x] Move `UnifiedChannel` into `channel::unified` implementing `Channel<T>`.
+- [x] Move `ChannelConfig` → `channel/config.rs`, `ChannelStatistics` → `channel/stats.rs`.
+- [x] Update `channel/mod.rs` submodule declarations and re-exports.
+- [x] Remove `pub mod unified_channel` from `lib.rs`; consolidate re-exports through `channel`.
+- [x] Migrate `moirai-iter` imports from `unified_channel` to `channel::unified`.
+- [x] Delete `unified_channel/` directory.
+- [x] Verify: `cargo check` pass on moirai-core, moirai-iter, moirai, moirai-transport.
+- [x] Verify: `cargo clippy --all-targets -- -D warnings` on moirai-core, moirai-iter.
+- [x] Verify: `cargo nextest run -p moirai-core -p moirai-iter` 255/255 passed.
+- [x] Verify: `cargo doc -p moirai-core --no-deps` warning-clean.
+- [x] ADR-0019 written and indexed in `docs/adr/INDEX.md`.
+- [x] PM artifacts synced (backlog, CHANGELOG, checklist).
+
 > **Current execution order (2026-07-12 evening session, kwavers Batch #1 + #4 closed)**:
 > 1. ✅ CR-2 (`cfd-core` + `moirai`) — closed. `ritk-core` deferred.
 > 2. ✅ Kwavers Stage-B (math + facade tests/examples/benches) + Stage-C (ky-python PyO3 boundary via complex_compat bridge) — `c5b1333b7` + `fa9abb664` + `ddf216ec0` + `01643ed9b` landed on `codex/kwavers-core-moirai-parallel`; cargo check --workspace --exclude kwavers-python green; cargo check -p kwavers-python --{no-default-features, gpu, plotting} all green; cargo check --tests --benches --examples --workspace --exclude kwavers-driver green (469/469 libTests, 38 doctests).

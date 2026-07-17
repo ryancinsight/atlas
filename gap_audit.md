@@ -1,5 +1,18 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-15) — MOI-NUMA-001/002/003/004 closure: deleted `moirai-iter/src/numa.rs`
+
+- **MOI-NUMA-001/002/003/004 — CLOSED** per ADR 0017 (accepted).
+  1. **MOI-NUMA-001** (`NumaPolicy` stored but never applied) — eliminated by deletion.
+  2. **MOI-NUMA-002** (raw `libc::mmap`+`syscall(SYS_mbind)` in iterator crate) — eliminated by deletion. Mnemosyne already owns NUMA-tagged segments with per-node pools; Themis owns topology/placement.
+  3. **MOI-NUMA-003** (sequential single-threaded "batch" functions) — eliminated by deletion. Real NUMA-aware parallel iteration uses `moirai_parallel::ParallelIterator`.
+  4. **MOI-NUMA-004** (fake `async fn` with discarded errors) — eliminated by deletion.
+- Removed files: `moirai-iter/src/numa.rs`, `benchmarks/benches/numa_context_comparison.rs`.
+- Edited: `moirai-iter/src/lib.rs` (removed `pub mod numa`), `benchmarks/Cargo.toml` (removed `[[bench]]` entry), `benchmarks/tests/benchmark_contracts/iter_source_contracts.rs` (removed `numa_iter_consumes_owned_batches_without_clone` contract test).
+- Verification: `cargo check -p moirai-iter` clean, `cargo nextest run -p moirai-iter` 185/185 pass, `cargo nextest run -p moirai-benchmarks` 68/68 pass.
+- ADR: `D:/atlas/docs/adr/0017-moirai-numa-path-redesign.md` (Accepted).
+- Zero external consumers confirmed (no crate imports `moirai_iter::numa`).
+
 ## State refresh (2026-07-15) — moirai CONTENTION-001 closure: perf branch merged to main
 
 - **MOI-CONTENTION-001 — CLOSED**. `perf/moirai-contention-audit` merged to `main` at
@@ -2483,7 +2496,7 @@ Verified building HEADs in this cycle:
 - ✅ MOI-CONTENTION-001 — CLOSED 2026-07-15: `perf/moirai-contention-audit` merged to `main` at `9cd650f` (ATLAS-MOIRAI-016 cancellation/waker-leak fixes + async sync primitives). 82/82 nextest pass.
 - ✅ MNE-PERCPU-001 — CLOSED 2026-07-15: lazy `OnceLock<Box<PerCpuCache>>` verified; static footprint ~56 bytes, not 720,896. No backend enables `ENABLE_CPU_CACHE`.
 - ✅ LETO-SCALAR-001 (partial) — CLOSED 2026-07-15: length pre-validation (`assert_eq!`) added to all mutating Scalar methods. Silent partial-write defect eliminated. 304/304 test pass. Hermes error propagation deferred (`[major]` Result-returning API change).
-- ⏳ MOI-NUMA-001 — parked (peer scheduler/deque scope, now clearable by peer now that moirai clean WT + merged topology).
+- ✅ MOI-NUMA-001/002/003/004 — CLOSED 2026-07-15 per ADR 0017: deleted `moirai-iter/src/numa.rs` (334 lines, 4 P0 HARD defects). Redirected to Themis (placement), Mnemosyne (allocation), Moirai executor (work-stealing). Zero external consumers confirmed. 185/185 moirai-iter, 68/68 benchmarks green.
 
 ## Findings 2026-07-15: concurrent peer reconciliation + CFDrs `621395f9` verification + mnemosyne feature-branch root cause
 
