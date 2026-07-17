@@ -5,7 +5,22 @@
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
-> `1067eae`).
+> `aeb8726`).
+
+## ATLAS-INTEGRATION-012 — Apollo policy-wrapper removal [major] — done
+
+- Owner: Atlas integration; scope: `repos/apollo` gitlink and the provider-graph
+  PM artifacts only.
+- Acceptance: the gitlink names Apollo PR #49's merged default-branch commit,
+  which deletes the duplicate radix execution-policy wrapper, routes directly
+  through Moirai's `AdaptiveWithThreshold`, and advances `apollo-fft` to
+  0.25.0 without an Apollo-owned WGPU implementation.
+- Evidence: Apollo merge `e2f905a`; local locked `apollo-fft` Nextest 393/393,
+  warning-denied Clippy, doctests, rustdoc, source-residue scan, and provider
+  audit pass; hosted Python bindings and Rust workspace workflow
+  `29620388853` pass. The known external `recurseml/analysis` failure is
+  non-required and does not inspect the merged head's build gates.
+- Closure: parent advances `repos/apollo` from `0b5d11c` to `e2f905a`.
 
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch] — done
 

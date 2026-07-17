@@ -43,7 +43,7 @@ follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `0b5d11c` (parent current) |
+| Apollo | `e2f905a` (PR #49 merged; policy-wrapper removal) |
 | Hephaestus | `3b68228` (PR #45 merged; CUDA initialization closure) |
 | Kwavers | `9eabc4e2` (parent current) |
 | Leto | `6a0e297` |

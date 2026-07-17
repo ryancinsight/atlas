@@ -4,6 +4,12 @@
 
 ### Changed
 
+- Record Apollo PR #49 merge `e2f905a` as the obsolete execution-policy-wrapper
+  removal; `apollo-fft` now uses Moirai's canonical threshold policy and keeps
+  the provider boundary on Hephaestus. Local 393/393 package evidence and the
+  hosted Python and Rust workspace lanes pass; the external
+  `recurseml/analysis` failure is non-required.
+
 - Advance the Hephaestus provider gitlink to PR #45 merge `3b68228`; memoized
   CUDA driver initialization and serialized context creation close the
   Windows concurrent-acquisition abort, with the full 109/109 CUDA suite
