@@ -33,7 +33,8 @@
 - [ ] Wait for required Architecture Validation and CI/CD jobs on PR #292.
 - [ ] Merge PR #292 only after required jobs pass, then advance the parent
       gitlink from `2fb8661` to the clean merged commit.
-- [x] Keep the uncommitted Kwavers Cargo source-dependency edit un-staged.
+- [x] Record Kwavers `5f9e97b` as the clean Git-source identity correction;
+      keep the parent at `2fb8661` until hosted closure.
 
 ## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch]
 

@@ -17,14 +17,16 @@
 
 ## State refresh (2026-07-17) — Kwavers hosted closure
 
-- **Finding:** PR #292 head `aa5d29f` contains the locked workflow and
-  obsolete-deploy cleanup, but required hosted jobs are still queued.
+- **Finding:** PR #292 advanced to `5f9e97b`, which unifies Leto, Leto Ops,
+  and Eunomia as Git source identities while retaining Atlas-root path patches
+  for local integration. The prior `aa5d29f` head exposed a lock mismatch in
+  hosted builds because direct local path identities differed from the CI
+  provider graph.
 - **Evidence tier:** local locked GPU/simulation/solver Nextest 1036/1036 and
   feature Nextest 144/144; Architecture Validation run `29593744645` and
   CI/CD run `29593747035` are queued.
-- **Residual:** do not advance the Kwavers gitlink while its working tree has
-  an uncommitted Cargo source-dependency edit or before required hosted checks
-  complete.
+- **Residual:** fresh required hosted checks for `5f9e97b` must complete before
+  advancing the Kwavers gitlink from `2fb8661`.
 
 ## State refresh (2026-07-17) — ATLAS-INTEGRATION-007 RITK source checkout
 
