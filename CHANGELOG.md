@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Advance the RITK gitlink to its verified Apollo 0.24 source-checkout repair
+  on `main`.
 - Refresh Apollo, Hephaestus, Kwavers, Leto, and RITK gitlinks to the current
   provider graph; add ADR 0020 with the exact provider-graph closure theorem.
 - Align public Atlas submodule pins with their fetched default branches.

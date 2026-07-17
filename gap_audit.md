@@ -1,5 +1,18 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — ATLAS-INTEGRATION-007 RITK source checkout
+
+- **Finding:** RITK PR #39 raised `apollo-fft` to 0.24 but its composite
+  dependency checkout still selected the prior Apollo 0.23 source revision.
+- **Correction:** RITK `main` `ffda3ec` checks out Apollo `157467e`; Atlas
+  advances the RITK gitlink from `a5e375f` to that corrected default-branch
+  head.
+- **Evidence tier:** hosted integration evidence. RITK CI, Python CI, and
+  Legacy Migration Audit runs `29591782642`, `29591782812`, and `29591780940`
+  completed successfully.
+- **Residual:** Kwavers #291 must complete its independent hosted matrix;
+  the RITK correction itself has no remaining failed required check.
+
 ## State refresh (2026-07-17) — ATLAS-INTEGRATION-006 provider graph
 
 - **Finding:** the fixed Kwavers checkout branch had stale Apollo, Hephaestus,
