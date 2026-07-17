@@ -24,6 +24,18 @@
       Evidence: every recorded gitlink is an ancestor of its corresponding
       remote default branch.
 
+## ATLAS-INTEGRATION-005 — RITK lock-integrity pin [patch]
+
+- [x] Confirm RITK PR #38 is merged to `main` at `0dd71e52` after Linux,
+      macOS, and Windows Nextest; Python 3.9–3.13; wheel; Clippy; Rustfmt;
+      dependency-alignment; and migration-audit gates pass.
+- [x] Advance the `repos/ritk` gitlink without changing any other provider
+      pin.
+
+**Evidence:** RITK PR #38 merged after all recorded required checks completed
+successfully. The root diff contains only the RITK gitlink plus synchronized
+Atlas PM artifacts.
+
 ## ATLAS-MNEMOSYNE-017 — Maximum-small deallocation audit [patch]
 
 - [x] Verify the merged Mnemosyne PR #25 at provider head `0012c4f`.

@@ -12,5 +12,7 @@
   closure.
 - Advance the CFDrs gitlink after executable one- and two-dimensional
   validation examples replaced static reports on `main`.
+- Advance the RITK gitlink after its merged lock metadata repair aligned the
+  Hephaestus patch entries with the current provider graph.
 - Register Kwavers and Helios in the Atlas public submodule roster.
 - Reject bare `cargo test` in cross-stack drivers while retaining doctests.

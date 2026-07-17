@@ -6,6 +6,17 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+## ATLAS-INTEGRATION-005 — RITK lock-integrity pin [patch] — review
+
+- Owner: Atlas integration; scope: `repos/ritk` gitlink and Atlas PM artifacts
+  only.
+- Acceptance: the gitlink names the merged RITK default-branch head after its
+  lock metadata reconciles current Hephaestus patch entries.
+- Closure: RITK PR #38 merged at `0dd71e52` after its full cross-platform
+  Nextest, Python, wheel, lint, dependency, and migration-audit matrix passed.
+  This pin carries that verified provider graph into Atlas without modifying
+  a consumer-owned compatibility path.
+
 ## ATLAS-INTEGRATION-003 — provider-neutral GPU pin reconciliation [patch] — ✅ done
 
 - Owner: Codex; scope: `repos/{hephaestus,CFDrs}` gitlinks and Atlas PM
