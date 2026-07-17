@@ -20,9 +20,9 @@
 - [x] Confirm Helios PR #5 is merged to `main` at `04e496b7`.
 - [x] Confirm RITK PR #37 is merged to `main` at `ec7cb832` after all
       Ubuntu/macOS/Windows Nextest, Python, wheel, lint, and audit checks pass.
-- [ ] Advance the three gitlinks and submit the Atlas metadata-only integration
-      PR. Completion condition: every recorded gitlink is an ancestor of its
-      corresponding remote default branch.
+- [x] Advance the three gitlinks and merge Atlas PR #9 at `e3380b6`.
+      Evidence: every recorded gitlink is an ancestor of its corresponding
+      remote default branch.
 
 ## ATLAS-MNEMOSYNE-017 — Maximum-small deallocation audit [patch]
 
