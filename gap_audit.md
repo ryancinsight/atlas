@@ -13,6 +13,15 @@
 - ADR: `D:/atlas/docs/adr/0017-moirai-numa-path-redesign.md` (Accepted).
 - Zero external consumers confirmed (no crate imports `moirai_iter::numa`).
 
+## State refresh (2026-07-16) — root integration conflict resolution
+
+- **ATLAS-INTEGRATION-001 — CLOSED**. Merged the Atlas integration branch with
+  `main` in a clean worktree. The migration PM artifacts remain authoritative;
+  the README now registers Helios and current Hephaestus 0.15 consumers.
+- **Gitlink evidence tier**: Git object ancestry. Each conflicted submodule
+  resolves to a commit reachable from its current remote default branch;
+  Coeus is `093f31f` and Gaia is `9e48102`.
+
 ## State refresh (2026-07-15) — moirai CONTENTION-001 closure: perf branch merged to main
 
 - **MOI-CONTENTION-001 — CLOSED**. `perf/moirai-contention-audit` merged to `main` at

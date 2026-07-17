@@ -6,6 +6,14 @@
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/kwavers-atlas-integration`).
 
+## ATLAS-INTEGRATION-001 — default-main reconciliation [patch] — ✅ done
+
+Resolved the root metadata and gitlink merge against `main`. The integrated
+tree preserves the current migration artifacts, adds the Helios stack entry,
+and records conflicted submodules at commits reachable from their respective
+default branches. Coeus is pinned at merge `093f31f`; Gaia is pinned at merge
+`9e48102`.
+
 ## ATLAS-MNEMOSYNE-017 — Maximum-small deallocation audit [patch] — ✅ done
 
 - Owner: Mnemosyne; Atlas scope: provider PR #25 and the `repos/mnemosyne`
