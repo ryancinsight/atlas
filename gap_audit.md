@@ -6,27 +6,30 @@
   Leto, but its verification tests were embedded in a dense 589-line leaf.
 - **Correction:** Apollo PR #46 partitions the tests into
   `gpu_fft/verification/dispatch.rs`, records the inverse-identity and
-  `13*gamma_256` bound in ADR 0034, and merges at `11fd1d0`.
+  `13*gamma_256` bound in ADR 0034, and PR #47 closes its PM state at
+  `eb46e77`.
 - **Evidence tier:** hosted required checks plus local value-semantic tests:
   Apollo Rust workspace and Python bindings pass; locked Nextest 393/393,
   Clippy `-D warnings`, rustdoc `-D warnings`, and provider audit 5/5 pass.
 - **Provider audit:** Apollo owns no direct raw WGPU dependency; GPU device
   and dispatch infrastructure remain Hephaestus-owned.
-- **Closure:** Atlas PR #18 merged at `56ad179`; `repos/apollo` now resolves
-  to `11fd1d0` on the default branch.
+- **Closure:** Atlas PR #18 merged at `56ad179`; the pending parent increment
+  advances `repos/apollo` from `11fd1d0` to `eb46e77`.
 
 ## State refresh (2026-07-17) — Kwavers hosted closure
 
-- **Finding:** PR #292 advanced to `5f9e97b`, which unifies Leto, Leto Ops,
+- **Finding:** PR #292 advanced to `54575460c`, which unifies Leto, Leto Ops,
   and Eunomia as Git source identities while retaining Atlas-root path patches
   for local integration. The prior `aa5d29f` head exposed a lock mismatch in
   hosted builds because direct local path identities differed from the CI
-  provider graph.
-- **Evidence tier:** local locked GPU/simulation/solver Nextest 1036/1036 and
-  feature Nextest 144/144; Architecture Validation run `29593744645` and
-  CI/CD run `29593747035` are queued.
-- **Residual:** fresh required hosted checks for `5f9e97b` must complete before
-  advancing the Kwavers gitlink from `2fb8661`.
+  provider graph; the current head also updates stale PSTD parity callers.
+- **Evidence tier:** hosted migration, architecture, documentation, clean
+  architecture, minimal/plotting feature, solver, Miri, and security checks
+  pass. The CI Code Coverage job fails after the long tarpaulin step, while
+  stable/beta/nightly, GPU/full/PINN/CUDA, benchmark, and test-coverage jobs
+  remain active.
+- **Residual:** diagnose the coverage failure and complete the remaining
+  hosted checks before advancing the Kwavers gitlink from `2fb8661`.
 
 ## State refresh (2026-07-17) — ATLAS-INTEGRATION-007 RITK source checkout
 

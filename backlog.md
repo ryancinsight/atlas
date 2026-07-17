@@ -26,23 +26,25 @@
 - Acceptance: Apollo PR #46 merges the deep GPU dispatch verification leaf,
   keeps execution owned by Leto/Hephaestus, exposes no Apollo-owned raw WGPU
   path, and the Atlas gitlink advances to the merge commit.
-- Evidence: Apollo merge `11fd1d0`; locked `apollo-fft` Nextest 393/393,
+- Evidence: Apollo merge `eb46e77` (PR #47 PM closure after PR #46); locked
+  `apollo-fft` Nextest 393/393,
   warning-denied Clippy, warning-clean rustdoc, and provider audit 5/5.
-- Closure: Atlas PR #18 merged at `56ad179`; `repos/apollo` now resolves to
-  `11fd1d0` on the default branch.
+- Closure: Atlas PR #18 merged at `56ad179`; the pending parent increment
+  advances `repos/apollo` to `eb46e77` after the PM-only closure merge.
 
 ## ATLAS-INTEGRATION-009 — Kwavers hosted closure [patch] — in progress
 
 - Owner: Kwavers integration; scope: PR #292 head and the `repos/kwavers`
   gitlink only.
-- Acceptance: required hosted checks pass for `aa5d29f`, PR #292 merges, and
+- Acceptance: required hosted checks pass for `54575460c`, PR #292 merges, and
   the parent advances to the resulting clean default-branch commit.
-- Evidence: Kwavers head `5f9e97b` unifies Leto, Leto Ops, and Eunomia Git
-  source identities while Atlas-root patches provide local checkouts. The
-  prior `aa5d29f` local locked GPU/simulation/solver suites pass 1036/1036
-  plus feature Nextest 144/144; fresh hosted checks for `5f9e97b` are pending.
-- Residual: keep the parent at `2fb8661` until the fresh hosted matrix passes
-  and PR #292 merges.
+- Evidence: Kwavers head `54575460c` contains the source-identity correction
+  and the stale PSTD parity-call migration. Hosted architecture checks pass
+  through documentation, clean-architecture, migration, and feature lanes;
+  the required CI coverage job fails after its long tarpaulin step and the
+  remaining matrix is still running.
+- Residual: keep the parent at `2fb8661` until the coverage failure is
+  diagnosed and the fresh hosted matrix passes.
 
 ## ATLAS-INTEGRATION-006 — Refresh provider heads [arch] — review
 

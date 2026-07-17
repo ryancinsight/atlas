@@ -4,11 +4,12 @@
 
 ### Changed
 
-- Merge Apollo PR #46 at `11fd1d0`; partition GPU dispatch verification into
-  a deep private leaf and retain Hephaestus/Leto provider ownership.
+- Merge Apollo PR #46 and PM closure PR #47 at `eb46e77`; partition GPU
+  dispatch verification into a deep private leaf and retain Hephaestus/Leto
+  provider ownership.
 - Advance the Atlas Apollo gitlink in PR #18 at `56ad179`.
-- Keep Kwavers PR #292 at `5f9e97b` pending its required hosted matrix; no
-  dirty parent gitlink is advanced.
+- Keep Kwavers PR #292 at `54575460c` pending hosted coverage diagnosis and
+  the remaining matrix; no dirty parent gitlink is advanced.
 - Advance the RITK gitlink to its verified Apollo 0.24 source-checkout repair
   on `main`.
 - Refresh Apollo, Hephaestus, Kwavers, Leto, and RITK gitlinks to the current
