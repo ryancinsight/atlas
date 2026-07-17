@@ -12,8 +12,8 @@
   and Ubuntu/macOS/Windows Nextest. The prior macOS DICOM release failure is
   closed by the `A-RELEASE-RQ`/`A-RELEASE-RP` lifecycle boundary; upstream
   transport correction is tracked in Enet4/dicom-rs#811.
-- Primary Atlas and peer worktrees remain dirty and out of scope; the clean
-  integration lane updates only gitlink objects and root PM artifacts.
+- Primary Atlas and peer worktrees remain dirty and out of scope; Atlas PR #9
+  merged the clean lane's gitlink and root-artifact update at `e3380b6`.
 
 ## State refresh (2026-07-15) — MOI-NUMA-001/002/003/004 closure: deleted `moirai-iter/src/numa.rs`
 

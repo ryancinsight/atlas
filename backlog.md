@@ -14,7 +14,7 @@ and records conflicted submodules at commits reachable from their respective
 default branches. Coeus is pinned at merge `093f31f`; Gaia is pinned at merge
 `9e48102`.
 
-## ATLAS-INTEGRATION-002 — merged-provider pin reconciliation [patch] — REVIEW
+## ATLAS-INTEGRATION-002 — merged-provider pin reconciliation [patch] — ✅ done
 
 - Owner: Atlas integration; scope: `repos/{apollo,helios,ritk}` gitlinks and
   Atlas PM artifacts only.
@@ -23,7 +23,8 @@ default branches. Coeus is pinned at merge `093f31f`; Gaia is pinned at merge
 - Target heads: Apollo `f26369eb` (PR #44), Helios `04e496b7` (PR #5), and
   RITK `ec7cb832` (PR #37). RITK CI passes Rustfmt, dependency alignment,
   Clippy, migration audit, Python wheel, Python 3.9–3.13, and Ubuntu/macOS/
-  Windows Nextest on the merged PR head.
+  Windows Nextest on the merged PR head. Atlas PR #9 merged this pin set at
+  `e3380b6`.
 
 ## ATLAS-MNEMOSYNE-017 — Maximum-small deallocation audit [patch] — ✅ done
 
