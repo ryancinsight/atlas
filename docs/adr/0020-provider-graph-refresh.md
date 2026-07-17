@@ -43,19 +43,19 @@ follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `0b5d11c` (parent update pending) |
+| Apollo | `0b5d11c` (parent current) |
 | Hephaestus | `df33d4d` |
-| Kwavers | PR #294 `e84bb571e` (parent update pending hosted closure) |
+| Kwavers | `9eabc4e2` (PR #294 merged; parent update in progress) |
 | Leto | `6a0e297` |
 | RITK | `ffda3ec` |
 
-The Kwavers entry remains pending in the parent while PR #294's hosted
-Architecture Validation and CI/CD matrices run. Its source gate retains
-tarpaulin `cobertura.xml` generation, while the external tokenless Codecov
-upload is non-blocking after HTTP 429 rate limiting. The MVDR timing contract
-now lives in Criterion, leaving correctness tests value-semantic and
-instrumentation-independent. The PR must pass and merge before the parent pin
-moves.
+PR #294 merged at `9eabc4e2` after Architecture Validation `29614208770`,
+CI/CD `29614208862`, and Legacy Migration Audit `29614208769` passed. Its
+source gate retains tarpaulin `cobertura.xml` generation, while the external
+tokenless Codecov upload is non-blocking after HTTP 429 rate limiting. The
+MVDR timing contract now lives in Criterion, leaving correctness tests
+value-semantic and instrumentation-independent. The parent advances to the
+merged default-branch commit in this increment.
 
 ## Theorem (provider-graph closure)
 

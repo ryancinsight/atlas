@@ -4,10 +4,10 @@
 
 ### Changed
 
-- Record Kwavers PR #294 head `e84bb571e` as the clean Hephaestus
+- Record Kwavers PR #294 merge `9eabc4e2` as the clean Hephaestus
   backend-kernel ownership increment; obsolete buffer and pipeline managers
   are deleted, the MVDR wall-clock assertion lives in Criterion, and the
-  parent pin remains pending the hosted matrix.
+  parent pin advances from `7c7d60f`.
 - Record Kwavers `11e577c` as the clean Leto medium-accessor and abdominal
   geometry-contract head; Architecture Validation passes, while CI/CD coverage
   is blocked only by an external Codecov HTTP 429 upload response; PR #293

@@ -7,19 +7,20 @@
   residue in Apollo. `cargo tree -i wgpu` reaches Apollo only through
   `hephaestus-wgpu`; GPU execution therefore remains provider-owned by
   Hephaestus with Leto host arrays.
-- **Kwavers evidence tier:** PR #294 head `e84bb571e` contains the public
+- **Kwavers evidence tier:** PR #294 merged at `9eabc4e2`; its head
+  `e84bb571e` contains the public
   medium-accessor removal, abdominal geometry-test contract isolation,
   Hephaestus backend-kernel ownership cutover, and the MVDR timing assertion
   relocation to Criterion. Legacy Migration Audit `29614208769` passes;
   local locked GPU Nextest passes 143/143 with one hardware skip, ultrasound
   physics passes 18/18, and the benchmark target checks. Hosted Architecture
-  Validation and CI/CD matrices remain active. The Codecov policy from PR #293
+  Validation `29614208770`, CI/CD `29614208862`, and Legacy Migration Audit
+  `29614208769` pass. The Codecov policy from PR #293
   keeps `cobertura.xml` generation as the source gate and makes only external
   tokenless HTTP 429 transport non-blocking.
-- **Residual:** the parent currently records Kwavers `7c7d60f`; keep that pin
-  until PR #294 passes and
-  merges to `main`. Apollo `main` is `0b5d11c`; its parent pin is staged for
-  this integration increment.
+- **Closure:** the parent advances from Kwavers `7c7d60f` to merged `main`
+  `9eabc4e2`; Apollo `main` is `0b5d11c`. Only external `recurseml/analysis`
+  remains errored and is not a required source gate.
 
 **Decision/theorem note:** correctness tests assert value semantics; timing
 contracts are distributions owned by Criterion. This separation leaves

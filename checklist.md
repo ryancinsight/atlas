@@ -19,10 +19,12 @@
       external/non-required.
 - [x] Verify Apollo PR #48 canonical-export documentation in the hosted Rust
       and Python matrices; merge `0b5d11c`.
-- [ ] Verify Kwavers PR #294 head `e84bb571e`; it retains the successful
+- [x] Verify Kwavers PR #294 head `e84bb571e`; it retains the successful
       `cobertura.xml` source gate, makes external tokenless Codecov HTTP 429
       upload transport non-blocking, and moves the MVDR timing contract into
-      Criterion. Architecture Validation and CI/CD matrices remain active.
+      Criterion. Architecture Validation `29614208770`, CI/CD
+      `29614208862`, and Legacy Migration Audit `29614208769` pass; only the
+      external `recurseml/analysis` status remains errored.
 
 ## ATLAS-INTEGRATION-008 — Apollo dispatch verification tree [arch]
 
@@ -45,12 +47,12 @@
 - [x] Move the MVDR wall-clock assertion into the Criterion benchmark on PR
       #294 head `e84bb571e`; the ultrasound physics correctness lane passes
       18/18 under locked Nextest.
-- [ ] Merge PR #294 only after its hosted matrix passes, then advance the
+- [x] Merge PR #294 at `9eabc4e2` after its hosted matrix passes, then advance
       parent gitlink from `7c7d60f` to the resulting clean Kwavers `main`
       commit.
 - [x] Record Kwavers `5f9e97b` as the clean Git-source identity correction and
       `54575460c` as the PSTD parity-call contract fix; keep the parent pinned
-      at `7c7d60f` until the `3f2a1b4` hosted closure.
+      at `9eabc4e2` after hosted closure.
 
 ## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch]
 
