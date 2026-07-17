@@ -14,6 +14,16 @@
 - [x] Confirm every conflicted provider gitlink is reachable from its current
   remote default branch.
 
+## ATLAS-INTEGRATION-002 — merged-provider pin reconciliation [patch]
+
+- [x] Confirm Apollo PR #44 is merged to `main` at `f26369eb`.
+- [x] Confirm Helios PR #5 is merged to `main` at `04e496b7`.
+- [x] Confirm RITK PR #37 is merged to `main` at `ec7cb832` after all
+      Ubuntu/macOS/Windows Nextest, Python, wheel, lint, and audit checks pass.
+- [ ] Advance the three gitlinks and submit the Atlas metadata-only integration
+      PR. Completion condition: every recorded gitlink is an ancestor of its
+      corresponding remote default branch.
+
 ## ATLAS-MNEMOSYNE-017 — Maximum-small deallocation audit [patch]
 
 - [x] Verify the merged Mnemosyne PR #25 at provider head `0012c4f`.
