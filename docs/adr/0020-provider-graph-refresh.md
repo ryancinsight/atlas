@@ -44,14 +44,13 @@ follow-up is therefore:
 |---|---|
 | Apollo | `11fd1d0` (parent merge `56ad179`) |
 | Hephaestus | `cf4df20` |
-| Kwavers | `2fb8661` (PR #292 `aa5d29f` pending hosted closure) |
+| Kwavers | `2fb8661` (PR #292 `5f9e97b` pending hosted closure) |
 | Leto | `37968f7` |
 | RITK | `ffda3ec` |
 
-The Kwavers entry remains at the last clean parent pin because the PR head has
-an uncommitted Cargo source-dependency edit and its required hosted jobs are
-queued. Advancing a dirty or unverified gitlink would violate the reproducible
-graph obligation.
+The Kwavers entry remains at the last clean parent pin because the corrected
+PR head still requires its fresh hosted matrix. Advancing an unverified
+gitlink would violate the reproducible graph obligation.
 
 ## Theorem (provider-graph closure)
 

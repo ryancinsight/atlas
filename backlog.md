@@ -37,10 +37,12 @@
   gitlink only.
 - Acceptance: required hosted checks pass for `aa5d29f`, PR #292 merges, and
   the parent advances to the resulting clean default-branch commit.
-- Evidence: local locked GPU/simulation/solver Nextest 1036/1036 plus feature
-  Nextest 144/144; hosted Architecture Validation and CI/CD runs
-  `29593744645` and `29593747035` remain queued. The working tree also has an
-  uncommitted Cargo source-dependency edit, so no dirty gitlink is staged.
+- Evidence: Kwavers head `5f9e97b` unifies Leto, Leto Ops, and Eunomia Git
+  source identities while Atlas-root patches provide local checkouts. The
+  prior `aa5d29f` local locked GPU/simulation/solver suites pass 1036/1036
+  plus feature Nextest 144/144; fresh hosted checks for `5f9e97b` are pending.
+- Residual: keep the parent at `2fb8661` until the fresh hosted matrix passes
+  and PR #292 merges.
 
 ## ATLAS-INTEGRATION-006 — Refresh provider heads [arch] — review
 
