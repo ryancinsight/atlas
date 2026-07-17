@@ -4,18 +4,34 @@
 >
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
-> **Active sprint target version**: 0.16.0 (atlas meta — current branch `codex/atlas-provider-heads-20260717`).
+> **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
+> `29041d9`).
 
-## ATLAS-INTEGRATION-006 — Refresh provider heads [arch] — ✅ review
+## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch] — review
+
+- Owner: Atlas integration; scope: `repos/ritk` gitlink and Atlas PM artifacts
+  only.
+- Acceptance: the Atlas gitlink names RITK `main` at `ffda3ec`, which checks
+  out Apollo `157467e` for its dependency-alignment workflow and resolves
+  `apollo-fft` 0.24 from that source.
+- Evidence: RITK `main` at `ffda3ec` passes the cross-platform Nextest,
+  Python 3.9–3.13, wheel, lint, dependency-alignment, and migration-audit
+  workflows. This increment carries that verified head into the reproducible
+  Atlas graph without a consumer-side fallback.
+
+## ATLAS-INTEGRATION-006 — Refresh provider heads [arch] — review
 
 - Owner: Atlas meta; scope: Apollo, Hephaestus, Kwavers, Leto, and RITK
   gitlinks plus ADR 0020.
 - Acceptance: the fixed Kwavers checkout graph resolves Apollo `157467e`,
-  Hephaestus `cf4df20`, Kwavers `2fb8661`, Leto `37968f7`, and RITK `a5e375f`;
+  Hephaestus `cf4df20`, Kwavers `2fb8661`, Leto `37968f7`, and the then-merged
+  RITK `a5e375f`;
   the provider-graph theorem and exact gitlink evidence are recorded.
 - Evidence: staged gitlink equality; provider commits are published and RITK
   PR #39 is merged at `a5e375f`.
-- Next: merge this parent-pin PR, then rerun the Kwavers hosted matrix.
+- Closure: Atlas PR #15 merged at `29041d9`. Its RITK source checkout repair
+  is carried by ATLAS-INTEGRATION-007; the current Kwavers #291 matrix remains
+  the behavioral closure for the Apollo axis-transform path.
 
 ## ATLAS-INTEGRATION-005 — RITK lock-integrity pin [patch] — review
 

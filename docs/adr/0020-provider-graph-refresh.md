@@ -27,6 +27,11 @@ Apollo remains a consumer of `hephaestus-wgpu`; no Apollo crate owns a direct
 `wgpu` dependency. RITK `a5e375f` is the merged PR #39 head and removes the
 non-compiling batch source from the reproducible graph.
 
+The follow-up RITK default-branch head `ffda3ec` corrects the composite
+checkout action to select Apollo `157467e`, matching `apollo-fft` 0.24. That
+source correction is pinned separately by ATLAS-INTEGRATION-007 after its
+cross-platform hosted matrix passes.
+
 ## Theorem (provider-graph closure)
 
 Let `G` be the directed graph materialized by the Atlas gitlinks, and let `P`

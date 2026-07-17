@@ -3,7 +3,7 @@
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
 > **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Branch**: `codex/atlas-provider-heads-20260717`.
+> **Integration base**: `main` at `29041d9`.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
@@ -13,8 +13,18 @@
   Kwavers, Leto, and merged RITK commits.
 - [x] Add ADR 0020 with the provider-graph closure theorem and update the ADR
   index, backlog, gap audit, and changelog.
-- [ ] Push and merge the Atlas parent-pin PR; verify the dependent Kwavers
-  hosted matrix.
+- [x] Merge Atlas PR #15 at `29041d9`.
+- [ ] Verify the dependent Kwavers #291 hosted matrix.
+
+## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch]
+
+- [x] Confirm RITK `main` at `ffda3ec` passes its corrected Apollo 0.24
+      dependency-alignment workflow and full hosted matrix.
+- [x] Advance only the `repos/ritk` gitlink to that default-branch head.
+- [ ] Push and merge the isolated Atlas parent-pin PR.
+
+**Evidence:** RITK run `29591782642` (CI), `29591782812` (Python CI), and
+`29591780940` (Legacy Migration Audit) completed successfully at `ffda3ec`.
 
 ## ATLAS-INTEGRATION-001 — default-main reconciliation [complete]
 
