@@ -1,5 +1,17 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — Hephaestus scan-limit theorem
+
+- **Finding:** the open KS-5b multi-pass scan proposal assumed long lines
+  exhaust the current workgroup/shared-memory budget.
+- **Evidence tier:** Hephaestus merge `93bc38e`; nightly formatting and core
+  Nextest 48/48; provider ADR 0009; existing WGPU/CUDA integer contracts with
+  `L=513`, `W=256`.
+- **Closure:** the current one-workgroup algorithm stores exactly `W` partials
+  and each lane loops over `ceil(L/W)` values, so shared storage is independent
+  of `L`. The parent advances `repos/hephaestus` from `3b68228` to `93bc38e`;
+  KS-5b stays benchmark-triggered rather than speculative kernel work.
+
 ## State refresh (2026-07-17) — Apollo Winograd re-export removal
 
 - **Finding:** Apollo's internal `mixed_radix::traits` re-export created a

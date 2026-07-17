@@ -36,6 +36,19 @@
   CodeRabbit pass; the external `recurseml/analysis` error is non-required.
 - Closure: parent advances `repos/apollo` from `e2f905a` to `c874281`.
 
+## ATLAS-INTEGRATION-014 — Hephaestus scan-limit theorem [patch] — done
+
+- Owner: Atlas integration; scope: `repos/hephaestus` gitlink and the
+  provider-graph PM artifacts only.
+- Acceptance: the gitlink names Hephaestus PR #46's merged default-branch
+  commit, which records the scan shared-memory bound and keeps KS-5b
+  benchmark-triggered rather than adding an unneeded multi-pass kernel.
+- Evidence: Hephaestus merge `93bc38e`; nightly formatting and core Nextest
+  pass 48/48. The provider ADR records the theorem
+  `shared_bytes = W * size_of(T)` and existing WGPU/CUDA `L=513`, `W=256`
+  contracts witness the `L > W` path.
+- Closure: parent advances `repos/hephaestus` from `3b68228` to `93bc38e`.
+
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch] — done
 
 - Owner: Atlas integration; scope: `repos/hephaestus` gitlink and the
