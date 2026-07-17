@@ -3,7 +3,7 @@
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
 > **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Integration base**: `main` at `3257584`.
+> **Integration base**: `main` at `baa6970`.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
@@ -25,6 +25,7 @@
       Criterion. Architecture Validation `29614208770`, CI/CD
       `29614208862`, and Legacy Migration Audit `29614208769` pass; only the
       external `recurseml/analysis` status remains errored.
+- [x] Advance the Atlas Kwavers gitlink and merge Atlas PR #23 at `baa6970`.
 
 ## ATLAS-INTEGRATION-008 — Apollo dispatch verification tree [arch]
 
