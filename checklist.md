@@ -3,9 +3,24 @@
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
 > **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Integration base**: `main` at `1067eae`.
+> **Integration base**: `main` at `aeb8726`.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
+
+## ATLAS-INTEGRATION-012 — Apollo policy-wrapper removal [major]
+
+- [x] Verify Apollo PR #49 merges the obsolete radix execution-policy wrapper
+      removal at `e2f905a`, with Moirai owning the policy type and Apollo's
+      threshold remaining in the tuning SSOT.
+- [x] Confirm local locked `apollo-fft` Nextest 393/393, warning-denied
+      Clippy, doctests, rustdoc, source-residue scan, provider audit, and the
+      hosted Python bindings lane pass.
+- [x] Confirm hosted Rust workflow `29620388853` reaches a terminal green
+      result, then advance only `repos/apollo` and synchronize this board,
+      `gap_audit.md`, `CHANGELOG.md`, and ADR 0020.
+
+**Residual:** none for the wrapper-removal increment; the external
+`recurseml/analysis` failure is non-required.
 
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch]
 

@@ -1,5 +1,19 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — Apollo execution-policy wrapper removal
+
+- **Finding:** Apollo PR #49 deletes the duplicate public radix execution-policy
+  wrapper and binds the kernel directly to Moirai's
+  `AdaptiveWithThreshold<RADIX_PARALLEL_CHUNK_THRESHOLD>`. Apollo still owns
+  no raw WGPU implementation; Hephaestus remains the provider boundary.
+- **Evidence tier:** Apollo merge `e2f905a`; local locked `apollo-fft`
+  Nextest 393/393, warning-denied Clippy, doctests, rustdoc, source-residue
+  scan, provider audit, hosted Python bindings, and hosted Rust workflow
+  `29620388853` pass. The external `recurseml/analysis` failure is
+  non-required.
+- **Closure:** the parent advances `repos/apollo` from `0b5d11c` to `e2f905a`;
+  the theorem record remains Apollo ADR 0035.
+
 ## State refresh (2026-07-17) — Hephaestus CUDA initialization closure
 
 - **Finding:** Hephaestus PR #45 memoizes process-wide CUDA driver
@@ -27,7 +41,7 @@
 
 ## State refresh (2026-07-17) — Kwavers hosted closure and Apollo provider audit
 
-- **Apollo evidence tier:** structural source and manifest audit at `0b5d11c`
+- **Apollo evidence tier:** structural source and manifest audit at `e2f905a`
   finds no direct raw WGPU, obsolete GPU wrapper, ndarray, nalgebra, or Burn
   residue in Apollo. `cargo tree -i wgpu` reaches Apollo only through
   `hephaestus-wgpu`; GPU execution therefore remains provider-owned by
