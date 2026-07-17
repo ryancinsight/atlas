@@ -35,23 +35,27 @@ cross-platform hosted matrix passes.
 
 ## Follow-up graph status (2026-07-17)
 
-Apollo PR #46 and PM closure PR #47 are now merged at `eb46e77`. Their deep
-verification-tree change
+Apollo PR #46, PM closure PR #47, and canonical-export documentation PR #48
+are now merged at `0b5d11c`. Their deep verification-tree change
 does not alter the provider boundary: Apollo consumes Hephaestus/Leto and
 still owns no direct raw WGPU implementation. The current parent-side
 follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `eb46e77` (parent update pending) |
-| Hephaestus | `cf4df20` |
-| Kwavers | `2fb8661` (PR #292 `54575460c` pending coverage diagnosis) |
-| Leto | `37968f7` |
+| Apollo | `0b5d11c` (parent update pending) |
+| Hephaestus | `df33d4d` |
+| Kwavers | PR #294 `e84bb571e` (parent update pending hosted closure) |
+| Leto | `6a0e297` |
 | RITK | `ffda3ec` |
 
-The Kwavers entry remains at the last clean parent pin because the corrected
-PR head has a failed coverage job and active hosted checks. Advancing an
-unverified gitlink would violate the reproducible graph obligation.
+The Kwavers entry remains pending in the parent while PR #294's hosted
+Architecture Validation and CI/CD matrices run. Its source gate retains
+tarpaulin `cobertura.xml` generation, while the external tokenless Codecov
+upload is non-blocking after HTTP 429 rate limiting. The MVDR timing contract
+now lives in Criterion, leaving correctness tests value-semantic and
+instrumentation-independent. The PR must pass and merge before the parent pin
+moves.
 
 ## Theorem (provider-graph closure)
 
