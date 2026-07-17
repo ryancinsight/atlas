@@ -14,14 +14,33 @@
 - [x] Add ADR 0020 with the provider-graph closure theorem and update the ADR
   index, backlog, gap audit, and changelog.
 - [x] Merge Atlas PR #15 at `29041d9`.
-- [ ] Verify the dependent Kwavers #291 hosted matrix.
+- [x] Verify Apollo PR #46 hosted Rust and Python matrices and merge at
+      `11fd1d0`; its recurseml analysis failure is external/non-required.
+- [ ] Verify the dependent Kwavers #292 hosted matrix at `aa5d29f`.
+
+## ATLAS-INTEGRATION-008 — Apollo dispatch verification tree [arch]
+
+- [x] Merge Apollo PR #46 and confirm the private verification leaf keeps
+      GPU execution in the Hephaestus/Leto provider path.
+- [x] Confirm Apollo has no direct raw `wgpu` dependency or wrapper.
+- [x] Record the inverse-identity and `13*gamma_256` round-trip theorem in
+      Apollo ADR 0034 and synchronize the parent graph record.
+- [ ] Advance and merge the Atlas `repos/apollo` gitlink at `11fd1d0`.
+
+## ATLAS-INTEGRATION-009 — Kwavers hosted closure [patch]
+
+- [ ] Wait for required Architecture Validation and CI/CD jobs on PR #292.
+- [ ] Merge PR #292 only after required jobs pass, then advance the parent
+      gitlink from `2fb8661` to the clean merged commit.
+- [x] Keep the uncommitted Kwavers Cargo source-dependency edit un-staged.
 
 ## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch]
 
 - [x] Confirm RITK `main` at `ffda3ec` passes its corrected Apollo 0.24
       dependency-alignment workflow and full hosted matrix.
 - [x] Advance only the `repos/ritk` gitlink to that default-branch head.
-- [ ] Push and merge the isolated Atlas parent-pin PR.
+- [x] Push and merge the isolated Atlas parent-pin PR as Atlas PR #15 at
+      `29041d9`.
 
 **Evidence:** RITK run `29591782642` (CI), `29591782812` (Python CI), and
 `29591780940` (Legacy Migration Audit) completed successfully at `ffda3ec`.

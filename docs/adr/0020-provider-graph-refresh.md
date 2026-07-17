@@ -13,7 +13,8 @@ and Leto heads. The stale RITK source failed before Kwavers tests compiled.
 
 ## Decision
 
-Advance the Atlas provider gitlinks to merged or explicitly published heads:
+The initial ATLAS-INTEGRATION-006 graph advanced the Atlas provider gitlinks
+to merged or explicitly published heads:
 
 | Provider | Commit |
 |---|---|
@@ -31,6 +32,26 @@ The follow-up RITK default-branch head `ffda3ec` corrects the composite
 checkout action to select Apollo `157467e`, matching `apollo-fft` 0.24. That
 source correction is pinned separately by ATLAS-INTEGRATION-007 after its
 cross-platform hosted matrix passes.
+
+## Follow-up graph status (2026-07-17)
+
+Apollo PR #46 is now merged at `11fd1d0`. Its deep verification-tree change
+does not alter the provider boundary: Apollo consumes Hephaestus/Leto and
+still owns no direct raw WGPU implementation. The current parent-side
+follow-up is therefore:
+
+| Provider | Current or pending commit |
+|---|---|
+| Apollo | `11fd1d0` (merged; parent pin pending) |
+| Hephaestus | `cf4df20` |
+| Kwavers | `2fb8661` (PR #292 `aa5d29f` pending hosted closure) |
+| Leto | `37968f7` |
+| RITK | `ffda3ec` |
+
+The Kwavers entry remains at the last clean parent pin because the PR head has
+an uncommitted Cargo source-dependency edit and its required hosted jobs are
+queued. Advancing a dirty or unverified gitlink would violate the reproducible
+graph obligation.
 
 ## Theorem (provider-graph closure)
 
