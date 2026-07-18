@@ -1,5 +1,21 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — Apollo Hephaestus lock convergence
+
+- **Finding:** Apollo's lockfile still selected the Hephaestus parent
+  `93bc38e` after provider PR #47 removed its direct legacy math baselines.
+- **Resolution:** Apollo PR #53 (`a31b8f8`) updates `hephaestus-core`,
+  `hephaestus-wgpu`, and `hephaestus-cuda` to provider `cec0e33`; no Apollo
+  source or manifest compatibility path changes.
+- **Theorem:** Cargo.lock is the sole provider revision selector. Resolving
+  every Hephaestus package to the same merged default-source commit makes the
+  Apollo consumer graph reproducible and imports the provider's Leto-owned
+  numerical references without a downstream wrapper.
+- **Evidence tier:** Apollo locked compile, 402/402 Nextest, warning-denied
+  Clippy, doctests, warning-clean rustdoc, provider audit, hosted Rust/Python,
+  and CodeRabbit checks. The external analyzer error is non-required.
+- **Closure:** parent advances `repos/apollo` from `7303423` to `a31b8f8`.
+
 ## State refresh (2026-07-17) — Hephaestus legacy-math residue
 
 - **Finding:** Hephaestus retained direct legacy array/linear-algebra

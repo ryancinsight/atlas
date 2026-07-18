@@ -23,7 +23,7 @@
   doctests, warning-clean rustdoc, and all-target benchmark checks pass.
 - Closure: parent advances `repos/hephaestus` from `93bc38e` to `cec0e33`.
 
-## ATLAS-INTEGRATION-020 — Apollo Hephaestus lock convergence [patch] — in-progress
+## ATLAS-INTEGRATION-020 — Apollo Hephaestus lock convergence [patch] — done
 
 - Owner: Codex `/root`; scope: Apollo `Cargo.lock`, Apollo PM records, and
   the parent Apollo gitlink. The lock-only consumer refresh is sequenced after
@@ -31,8 +31,11 @@
 - Acceptance: Apollo's three Hephaestus packages resolve merged provider
   `cec0e33`, with no source/manifest compatibility path; locked Apollo gates
   and the provider audit remain green.
-- Last update: 2026-07-17; Apollo branch
-  `codex/apollo-hephaestus-legacy-math-pin` is claimed before lock edits.
+- Evidence: Apollo PR #53 merges at `a31b8f8`; all three lock entries select
+  `cec0e33`. Locked compile, 402/402 Nextest, warning-denied Clippy,
+  doctests, warning-clean rustdoc, provider audit, hosted Rust/Python, and
+  CodeRabbit checks pass. The external analyzer error is non-required.
+- Closure: parent advances `repos/apollo` from `7303423` to `a31b8f8`.
 
 ## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch] — done
 

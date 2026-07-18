@@ -43,7 +43,7 @@ follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `7303423` (PR #52 merged; Leto merge pin) |
+| Apollo | `a31b8f8` (PR #53 merged; Hephaestus lock convergence) |
 | CFDrs | `a833b7f` (PR #297 merged; sparse-direct contract retained) |
 | Eunomia | `a2e4f39` (PR #35 merged) |
 | Hephaestus | `cec0e33` (PR #47 merged; Leto-only CPU references) |
@@ -76,11 +76,13 @@ witness; KS-5b reopens only after a measured device budget failure. PR #47
 then removes obsolete CPU reference dependencies and makes Leto/Leto Ops the
 sole host-side differential vocabulary; its merged provider head is `cec0e33`.
 
-Apollo PR #51 then refreshed its consumer lockfile to the same Hephaestus head
-(`93bc38e`) and the current Eunomia, Leto, and Moirai default commits. The
-lockfile theorem is direct: committed Cargo source revisions are the only
-provider selectors, so the consumer cannot silently resolve the former heads
-or a local compatibility path.
+Apollo PR #51 then refreshed its consumer lockfile to the Hephaestus head
+(`93bc38e`) and the current Eunomia, Leto, and Moirai default commits. After
+Hephaestus PR #47 moved the provider to `cec0e33`, Apollo PR #53 refreshed all
+three Hephaestus lock entries to that merged head. The lockfile theorem is
+direct: committed Cargo source revisions are the only provider selectors, so
+the consumer cannot silently resolve the former heads or a local compatibility
+path.
 
 Apollo PR #52 aligns both Leto lock entries with the Atlas merge object
 `3ac0d203`, closing the one-parent drift left by PR #51. The provider tree is

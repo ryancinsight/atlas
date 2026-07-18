@@ -29,12 +29,17 @@ compilation pass. `numpy` remains only at the PyO3 FFI representation edge.
 
 ## ATLAS-INTEGRATION-020 — Apollo Hephaestus lock convergence [patch]
 
-- [ ] Refresh Apollo's `hephaestus-core`, `hephaestus-wgpu`, and
+- [x] Refresh Apollo's `hephaestus-core`, `hephaestus-wgpu`, and
       `hephaestus-cuda` lock entries to merged provider `cec0e33`.
-- [ ] Run Apollo's locked compile, Nextest, warning-denied Clippy, doctests,
+- [x] Run Apollo's locked compile, Nextest, warning-denied Clippy, doctests,
       rustdoc, and provider audit; hosted checks must inspect the new head.
-- [ ] Advance only the Apollo gitlink after the provider merge and synchronize
+- [x] Advance only the Apollo gitlink after the provider merge and synchronize
       the graph theorem, `gap_audit.md`, and `CHANGELOG.md`.
+
+**Evidence:** Apollo PR #53 merges at `a31b8f8`; locked compile, 402/402
+Nextest, warning-denied Clippy, doctests, warning-clean rustdoc, provider
+audit, hosted Rust/Python, and CodeRabbit pass. `recurseml/analysis` is an
+external non-required infrastructure error.
 
 ## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch]
 
