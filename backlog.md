@@ -7,6 +7,22 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
+## ATLAS-INTEGRATION-022 — Eunomia sub-byte graph [patch] — done
+
+- Owner: Codex `/root`; scope: merged Eunomia, Leto, and Hephaestus defaults,
+  consumer reproducibility locks, and cross-repo PM artifacts.
+- Acceptance: Eunomia owns one canonical reduced-format conversion kernel;
+  Leto and Hephaestus resolve Eunomia 0.4.0 from its merged default; every
+  provider/consumer gate is green; the parent records only merged defaults.
+- Evidence: Eunomia PR #39 merges at `49dc115` after 60/60 Nextest, exhaustive
+  encoding/rounding/dispatch coverage, AArch64 source compilation, and local
+  Leto/Hephaestus integration. Leto PR #44 merges at `f0b4d8e` after 593/593
+  Nextest. Hephaestus PR #50 merges at `ed7d76e` after 312/312 Nextest,
+  including real CUDA and WGPU contracts. All three warning-denied compile,
+  doctest, and rustdoc gates pass.
+- Closure: parent advances `repos/eunomia`, `repos/leto`, and
+  `repos/hephaestus`; all other dirty child and root paths remain unstaged.
+
 ## ATLAS-INTEGRATION-019 — Hephaestus legacy-math residue [patch] — done
 
 - Owner: Codex `/root`; scope: `repos/hephaestus` test/benchmark manifests,

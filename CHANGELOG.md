@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Record Eunomia PR #39 merge `49dc115` as the canonical sub-byte conversion
+  cutover, then advance Leto PR #44 `f0b4d8e` and Hephaestus PR #50 `ed7d76e`
+  after their reproducibility locks and full consumer gates resolve Eunomia
+  0.4.0. The Atlas graph advances only these three merged defaults.
+
 - Record Coeus PR #211 merge `4459d09` as the tensor legacy-benchmark removal;
   the consumer commits `Cargo.lock`, aligns Hephaestus `0.16.1`, and retains
   only Coeus Sequential/Moirai and Leto benchmark paths. Locked package
