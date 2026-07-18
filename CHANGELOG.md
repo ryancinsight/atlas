@@ -4,6 +4,12 @@
 
 ### Changed
 
+- Record Coeus PR #211 merge `4459d09` as the tensor legacy-benchmark removal;
+  the consumer commits `Cargo.lock`, aligns Hephaestus `0.16.1`, and retains
+  only Coeus Sequential/Moirai and Leto benchmark paths. Locked package
+  verification, 56/56 Nextest, warning-denied Clippy, doctests, rustdoc,
+  metadata, and residue scan pass.
+
 - Record Apollo PR #53 merge `a31b8f8` as the Hephaestus lock convergence;
   `hephaestus-core`, `hephaestus-wgpu`, and `hephaestus-cuda` now select
   provider `cec0e33` after its Leto-owned legacy-math cleanup. Locked compile,

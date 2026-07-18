@@ -44,6 +44,7 @@ follow-up is therefore:
 | Provider | Current or pending commit |
 |---|---|
 | Apollo | `a31b8f8` (PR #53 merged; Hephaestus lock convergence) |
+| Coeus | `4459d09` (PR #211 merged; tensor legacy benchmark removal) |
 | CFDrs | `a833b7f` (PR #297 merged; sparse-direct contract retained) |
 | Eunomia | `a2e4f39` (PR #35 merged) |
 | Hephaestus | `cec0e33` (PR #47 merged; Leto-only CPU references) |
