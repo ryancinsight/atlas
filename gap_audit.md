@@ -1,5 +1,26 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-18) — Coeus NN provider benchmark closure
+
+- **Finding:** stale Coeus PR #212 removed the complete NN Criterion target
+  while attempting to delete its Burn comparison dependency, contracting the
+  native performance evidence.
+- **Resolution:** the fix-forward commit retains all 211 operation groups and
+  424 Sequential/Moirai rows, removes only Burn setup and comparisons, moves
+  invariant layout cloning outside timed loops, and aligns the lock with
+  Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
+- **Theorem:** if the operation-group census and native-row census are
+  invariant before and after removing an external provider dimension, no
+  native scenario has been deleted. The retained counts are 211 and 424.
+- **Evidence tier:** compiler-checked locked metadata, warning-denied
+  all-target/all-feature Clippy, 268/268 configured Nextest, eight passing
+  doctests with two intentionally ignored, warning-clean rustdoc, mechanical
+  census, and hosted CodeRabbit success.
+- **Closure:** Coeus PR #212 merges at `bb97cc6`; the parent advances
+  `repos/coeus` from stale PR head `a365b25` to that merged default.
+- **Residual:** no Coeus residue in this scope. Concurrent Helios, RITK,
+  Themis, and root package-manager changes remain preserved and unstaged.
+
 ## State refresh (2026-07-18) — Eunomia sub-byte graph
 
 - **Finding:** the parent still pinned Eunomia before its canonical sub-byte

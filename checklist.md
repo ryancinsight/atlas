@@ -7,6 +7,23 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-023 — Coeus NN provider benchmark closure [patch]
+
+- [x] Reconcile stale PR #212 against current Coeus main without deleting the
+      canonical provider-performance instrument.
+- [x] Remove only Burn setup and comparison rows; retain all 211 operation
+      groups and 424 native Sequential/Moirai measurements.
+- [x] Align the locked graph to Eunomia 0.4.0, Leto 0.38.2, and Hephaestus
+      0.17.0; move invariant layout cloning outside Criterion timed loops.
+- [x] Run format, locked all-target/all-feature Clippy, configured Nextest,
+      doctests, rustdoc, metadata, hosted review, and merge PR #212.
+- [x] Advance only the merged Coeus gitlink while preserving concurrent child
+      and root working-tree state.
+
+**Evidence tier:** compiler-checked provider graph, warning-denied diagnostics,
+value-semantic test execution, mechanical benchmark census, and hosted review.
+No formal proof checker was run.
+
 ## ATLAS-INTEGRATION-022 — Eunomia sub-byte graph [patch]
 
 - [x] Merge Eunomia PR #39 at `49dc115` with one compile-time IEEE/finite-only

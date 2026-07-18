@@ -7,6 +7,22 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
+## ATLAS-INTEGRATION-023 — Coeus NN provider benchmark closure [patch] — done
+
+- Owner: Codex `/root`; scope: stale Coeus PR #212 takeover, merged Coeus
+  default, its provider lock, and the parent Coeus gitlink.
+- Acceptance: remove Burn without deleting or shrinking the native NN
+  benchmark instrument; retain every Sequential/Moirai scenario; resolve the
+  current Eunomia/Leto/Hephaestus graph; merge only after local and hosted
+  evidence is green.
+- Evidence: Coeus PR #212 merges at `bb97cc6`; the benchmark retains 211
+  operation groups and 424 native rows. Format, all-target/all-feature locked
+  Clippy, 268/268 configured Nextest, eight doctests with two intentionally
+  ignored, warning-clean rustdoc, locked metadata, and CodeRabbit pass.
+- Closure: parent advances only `repos/coeus` from stale PR head `a365b25` to
+  merged default `bb97cc6`; concurrent Helios, RITK, Themis, and root
+  package-manager state remains unstaged.
+
 ## ATLAS-INTEGRATION-022 — Eunomia sub-byte graph [patch] — done
 
 - Owner: Codex `/root`; scope: merged Eunomia, Leto, and Hephaestus defaults,
