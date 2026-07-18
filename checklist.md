@@ -7,6 +7,21 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-022 — Eunomia sub-byte graph [patch]
+
+- [x] Merge Eunomia PR #39 at `49dc115` with one compile-time IEEE/finite-only
+      conversion kernel and exhaustive reduced-format contracts.
+- [x] Advance Leto and Hephaestus locks to Eunomia 0.4.0 and merge consumer
+      PRs #44 (`f0b4d8e`) and #50 (`ed7d76e`).
+- [x] Verify Leto 593/593 and Hephaestus 312/312 configured Nextest suites,
+      warning-denied all-target/all-feature Clippy, doctests, and rustdoc.
+- [x] Advance only the Eunomia, Leto, and Hephaestus gitlinks; preserve
+      peer-owned Coeus, Helios, RITK, Themis, and root package-manager state.
+
+**Evidence tier:** compile-time policy selection, exhaustive analytical and
+differential Eunomia tests, complete consumer regression suites, and structural
+Git equality to fetched remote defaults. No formal proof checker was run.
+
 ## ATLAS-INTEGRATION-019 — Hephaestus legacy-math residue [patch]
 
 - [x] Remove the Hephaestus `ndarray`/`nalgebra` dev-dependency declarations

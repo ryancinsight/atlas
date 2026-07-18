@@ -46,11 +46,11 @@ follow-up is therefore:
 | Apollo | `a31b8f8` (PR #53 merged; Hephaestus lock convergence) |
 | Coeus | `4459d09` (PR #211 merged; tensor legacy benchmark removal) |
 | CFDrs | `a833b7f` (PR #297 merged; sparse-direct contract retained) |
-| Eunomia | `a2e4f39` (PR #35 merged) |
-| Hephaestus | `cec0e33` (PR #47 merged; Leto-only CPU references) |
+| Eunomia | `49dc115` (PR #39 merged; canonical sub-byte conversion) |
+| Hephaestus | `ed7d76e` (PR #50 merged; Eunomia 0.4.0 lock) |
 | Helios | `972fb53` (PR #6 merged) |
 | Kwavers | `9eabc4e2` (parent current) |
-| Leto | `3ac0d20` (PR #40 merged; sparse-direct ownership recorded) |
+| Leto | `f0b4d8e` (PR #44 merged; Eunomia 0.4.0 lock) |
 | RITK | `a41e03b` (PR #41 merged; Apollo 0.25 alignment) |
 
 Hephaestus PR #44 adds the provider-owned order-preserving tiled scan slice
@@ -108,6 +108,12 @@ RITK only to fetched remote-default commits. Active Apollo, Kwavers, and RITK
 feature work remains outside `G(P)`: a dirty working tree cannot enter the
 graph unless its commit is first reviewed and merged to that repository's
 default branch.
+
+The 2026-07-18 Eunomia sub-byte refresh advances Eunomia to PR #39 merge
+`49dc115`, Leto to PR #44 merge `f0b4d8e`, and Hephaestus to PR #50 merge
+`ed7d76e`. Leto and Hephaestus both commit Eunomia 0.4.0 at `49dc115`; the
+parent therefore records one provider identity from foundation through both
+consumers without a compatibility path.
 
 ## Theorem (provider-graph closure)
 

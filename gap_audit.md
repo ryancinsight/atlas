@@ -1,5 +1,22 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-18) — Eunomia sub-byte graph
+
+- **Finding:** the parent still pinned Eunomia before its canonical sub-byte
+  conversion merge, while Leto and Hephaestus locks selected earlier Eunomia
+  provider commits.
+- **Resolution:** Eunomia PR #39 (`49dc115`) consolidates E5M2, E2M1, E4M3,
+  and E3M0 conversion and corrects subnormal scales, finite limits, signed
+  constants, and packed SIMD widening. Leto PR #44 (`f0b4d8e`) and Hephaestus
+  PR #50 (`ed7d76e`) resolve Eunomia 0.4.0 from that merged default.
+- **Evidence tier:** compile-time policy selection; exhaustive analytical,
+  round-trip, rounding-boundary, and dispatch differential tests in Eunomia;
+  Leto 593/593 and Hephaestus 312/312 configured Nextest suites; warning-denied
+  all-target/all-feature Clippy, doctests, rustdoc; structural Git equality.
+- **Residual:** AArch64 evidence for the changed Eunomia NEON source is
+  compile-time only; execution evidence is x86-64. Peer-owned Coeus, Helios,
+  RITK, Themis, and root package-manager changes remain outside this closure.
+
 ## State refresh (2026-07-17) — Coeus tensor legacy benchmark removal
 
 - **Finding:** Coeus tensor still declared a legacy NdArray benchmark backend,
