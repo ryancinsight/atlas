@@ -1,5 +1,23 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-18) — Helios provider lock convergence
+
+- **Finding:** Helios carried a stale one-line Apollo version edit that was not
+  a complete Cargo resolution; its locked warning-denied gate rejected it.
+- **Resolution:** Helios PR #7 regenerates the package closure, selecting
+  Apollo 0.25.0, Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0. This
+  deletes Eunomia's obsolete `num-traits` edge and Hephaestus WGPU's
+  `num-complex` edge plus the package without changing Helios source or
+  manifests.
+- **Evidence tier:** locked metadata and format, warning-denied
+  all-target/all-feature workspace Clippy, 272/272 configured Nextest, ten
+  Rust library doctest targets, and warning-clean workspace rustdoc.
+- **Closure:** Helios PR #7 merges at `79b09e9`; Atlas advances only the
+  Helios gitlink.
+- **Residual:** remaining `num-traits` packages are third-party transitive
+  ownership, not Eunomia/Leto/Hephaestus or Helios direct edges. Concurrent
+  Leto, RITK, Themis, and root package-manager work remains preserved.
+
 ## State refresh (2026-07-18) — Coeus NN provider benchmark closure
 
 - **Finding:** stale Coeus PR #212 removed the complete NN Criterion target

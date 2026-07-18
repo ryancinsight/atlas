@@ -48,7 +48,7 @@ follow-up is therefore:
 | CFDrs | `a833b7f` (PR #297 merged; sparse-direct contract retained) |
 | Eunomia | `49dc115` (PR #39 merged; canonical sub-byte conversion) |
 | Hephaestus | `ed7d76e` (PR #50 merged; Eunomia 0.4.0 lock) |
-| Helios | `972fb53` (PR #6 merged) |
+| Helios | `79b09e9` (PR #7 merged; provider lock convergence) |
 | Kwavers | `9eabc4e2` (parent current) |
 | Leto | `f0b4d8e` (PR #44 merged; Eunomia 0.4.0 lock) |
 | RITK | `a41e03b` (PR #41 merged; Apollo 0.25 alignment) |
@@ -120,6 +120,11 @@ NN provider-performance instrument. Its merged default `bb97cc6` retains 211
 operation groups and 424 Sequential/Moirai rows while its lock selects Eunomia
 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0. The parent advances only after that
 consumer graph and hosted review are green.
+
+Helios PR #7 then replaces an invalid partial Apollo lock edit with a complete
+Cargo resolution at `79b09e9`. Its consumer graph selects Apollo 0.25.0,
+Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0 and removes the
+`num-complex` package without a consumer compatibility path.
 
 ## Theorem (provider-graph closure)
 
