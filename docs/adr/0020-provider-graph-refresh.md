@@ -50,7 +50,7 @@ follow-up is therefore:
 | Helios | `972fb53` (PR #6 merged) |
 | Kwavers | `9eabc4e2` (parent current) |
 | Leto | `3ac0d20` (PR #40 merged; sparse-direct ownership recorded) |
-| RITK | `aededa6` (PR #40 merged; Eunomia cast migration) |
+| RITK | `a41e03b` (PR #41 merged; Apollo 0.25 alignment) |
 
 Hephaestus PR #44 adds the provider-owned order-preserving tiled scan slice
 for WGPU and CUDA. Its theorem/spec is ADR 0009 in the provider repository.
@@ -84,6 +84,11 @@ Apollo PR #52 aligns both Leto lock entries with the Atlas merge object
 `3ac0d203`, closing the one-parent drift left by PR #51. The provider tree is
 PM-only between `6a0e297` and `3ac0d203`, so the preceding package evidence
 remains valid; hosted Rust/Python checks provide the fresh lock-only compile.
+
+RITK PR #41 then aligns its lockfile and composite provider checkout with
+Apollo 0.25 at `a41e03b`. All 22 repository and review checks pass across the
+cross-platform Rust, Python 3.9–3.13, wheel, lint, dependency-alignment, and
+migration-audit lanes.
 
 PR #294 merged at `9eabc4e2` after Architecture Validation `29614208770`,
 CI/CD `29614208862`, and Legacy Migration Audit `29614208769` passed. Its

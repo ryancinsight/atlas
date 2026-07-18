@@ -5,7 +5,20 @@
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
-> `f4e0098`).
+> `33b3bfe`).
+
+## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch] — done
+
+- Owner: Codex `/root`; scope: merged RITK default gitlink plus cross-repo PM
+  artifacts.
+- Acceptance: the gitlink names RITK PR #41's merged default-branch commit,
+  whose lock and composite checkout resolve Apollo 0.25 without staging the
+  active Kwavers GPU feature branch.
+- Evidence: RITK merge `a41e03b9`; all 22 repository and review checks pass,
+  including Linux/macOS/Windows Nextest, Python 3.9–3.13, wheel, Clippy,
+  formatting, dependency alignment, and migration audit. The external
+  `recurseml/analysis` error is non-required.
+- Closure: parent advances `repos/ritk` from `aededa6b` to `a41e03b9`.
 
 ## ATLAS-INTEGRATION-015 — Merged default refresh [patch] — done
 
