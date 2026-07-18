@@ -37,6 +37,20 @@
   CodeRabbit checks pass. The external analyzer error is non-required.
 - Closure: parent advances `repos/apollo` from `7303423` to `a31b8f8`.
 
+## ATLAS-INTEGRATION-021 — Coeus tensor legacy benchmark removal [patch] — done
+
+- Owner: Codex `/root`; scope: merged Coeus PR #211 gitlink and synchronized
+  provider-graph PM artifacts. The peer-owned Kwavers pointer remains outside
+  this increment.
+- Acceptance: Coeus tensor benchmarks no longer declare or execute a legacy
+  tensor backend; retained rows use Coeus Sequential/Moirai and Leto dispatch,
+  and the consumer lock graph aligns to merged Hephaestus `0.16.1`.
+- Evidence: Coeus PR #211 merges at `4459d09`; locked package check, 56/56
+  Nextest, warning-denied Clippy, five doctests, warning-clean rustdoc,
+  locked metadata, and the targeted residue scan pass. Coeus has no hosted
+  workflow; the external analyzer is non-required.
+- Closure: parent advances `repos/coeus` from `093f31f` to `4459d09`.
+
 ## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch] — done
 
 - Owner: Codex `/root`; scope: merged RITK default gitlink plus cross-repo PM

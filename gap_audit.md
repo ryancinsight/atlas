@@ -1,5 +1,25 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — Coeus tensor legacy benchmark removal
+
+- **Finding:** Coeus tensor still declared a legacy NdArray benchmark backend,
+  duplicating provider-owned Sequential/Moirai/Leto measurements and leaving
+  its Hephaestus floor behind the merged provider graph.
+- **Resolution:** Coeus PR #211 (`4459d09`) deletes the tensor benchmark
+  dependency and duplicate rows, commits `Cargo.lock`, and aligns Hephaestus
+  packages to `0.16.1`.
+- **Theorem:** for each retained benchmark input `x` and operation `f`, every
+  row evaluates a provider-owned path `P_f(x)` under one shape/layout/input
+  contract; deleting the legacy row cannot redefine the Coeus/Leto operation
+  semantics because it was not an implementation dependency.
+- **Evidence tier:** targeted source/manifest residue scan, locked package
+  compilation, 56/56 Nextest, warning-denied Clippy, five doctests,
+  warning-clean rustdoc, and locked metadata. Coeus has no hosted workflow;
+  the external analyzer is non-required.
+- **Closure:** parent advances `repos/coeus` from `093f31f` to `4459d09`.
+- **Residual:** Coeus MS-442 still covers the separate `coeus-nn` benchmark
+  dependency; it is not hidden by this tensor-only closure.
+
 ## State refresh (2026-07-17) — Apollo Hephaestus lock convergence
 
 - **Finding:** Apollo's lockfile still selected the Hephaestus parent

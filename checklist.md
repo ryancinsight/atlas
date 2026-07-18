@@ -41,6 +41,20 @@ Nextest, warning-denied Clippy, doctests, warning-clean rustdoc, provider
 audit, hosted Rust/Python, and CodeRabbit pass. `recurseml/analysis` is an
 external non-required infrastructure error.
 
+## ATLAS-INTEGRATION-021 — Coeus tensor legacy benchmark removal [patch]
+
+- [x] Verify Coeus PR #211 removes the tensor legacy dependency and duplicate
+      benchmark rows while retaining Coeus Sequential/Moirai and Leto paths.
+- [x] Verify the Coeus lock graph aligns Hephaestus `0.16.1` and commits the
+      reproducibility lock; preserve the provider-owned theorem in Coeus docs.
+- [x] Advance only the merged Coeus gitlink and synchronize the graph audit and
+      changelog; leave the peer-owned Kwavers pointer untouched.
+
+**Evidence:** Coeus merge `4459d09`; locked package check, 56/56 Nextest,
+warning-denied Clippy, five doctests, warning-clean rustdoc, locked metadata,
+and targeted residue scan pass. The next Coeus NN benchmark residue is filed
+in Coeus MS-442.
+
 ## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch]
 
 - [x] Verify RITK PR #41 merges the Apollo 0.25 lock and composite-checkout
