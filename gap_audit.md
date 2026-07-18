@@ -1,5 +1,25 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — Hephaestus legacy-math residue
+
+- **Finding:** Hephaestus retained direct legacy array/linear-algebra
+  dependencies only for comparative benches and WGPU differential oracles,
+  creating a second CPU vocabulary beside Leto.
+- **Resolution:** Hephaestus PR #47 (`cec0e33`) removes those manifest edges,
+  routes the oracles through Leto/Leto Ops, and keeps real Leto-versus-WGPU /
+  CUDA benchmark measurements for elementwise, reduction, and matmul paths.
+- **Theorem:** for fixed input (x), each comparison evaluates one operation
+  (f) as `leto_ops::f(x)` and as provider dispatch (P_f(x)); the downloaded
+  provider value is checked against the Leto storage oracle before timing.
+  The comparison therefore has one shape/layout/tolerance SSOT and no legacy
+  reference implementation can redefine the contract.
+- **Evidence tier:** compiler-checked source/manifest residue scan, core
+  48/48, WGPU 140/140, CUDA 109/109, warning-denied Clippy, doctests,
+  warning-clean rustdoc, and all-target benchmark compilation. The Python
+  `numpy` bridge is external FFI representation only, not domain compute.
+- **Closure:** Atlas integration advances `repos/hephaestus` from `93bc38e`
+  to `cec0e33`; Kwavers and RITK peer pointers remain untouched.
+
 ## State refresh (2026-07-17) — RITK Apollo 0.25 alignment
 
 - **Finding:** RITK's reproducible provider checkout and lockfile still selected

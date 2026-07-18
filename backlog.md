@@ -5,9 +5,9 @@
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
-> `33b3bfe`).
+> `3d0c340`).
 
-## ATLAS-INTEGRATION-019 — Hephaestus legacy-math residue [patch] — in-progress
+## ATLAS-INTEGRATION-019 — Hephaestus legacy-math residue [patch] — done
 
 - Owner: Codex `/root`; scope: `repos/hephaestus` test/benchmark manifests,
   CPU reference code, and synchronized provider-graph PM artifacts. Kwavers
@@ -16,7 +16,23 @@
   reference in tests/benches; differential references use Leto/Leto Ops or
   explicit analytical oracles, and the provider's value-semantic gates remain
   green.
-- Last update: 2026-07-17; claim is backed by this branch before source edits.
+- Evidence: Hephaestus PR #47 merges at `cec0e33`; its direct legacy math
+  edges and source references are deleted, WGPU differential oracles use Leto,
+  and the comparative benches measure Leto against real WGPU/CUDA dispatch.
+  Core Nextest is 48/48, WGPU 140/140, CUDA 109/109; warning-denied Clippy,
+  doctests, warning-clean rustdoc, and all-target benchmark checks pass.
+- Closure: parent advances `repos/hephaestus` from `93bc38e` to `cec0e33`.
+
+## ATLAS-INTEGRATION-020 — Apollo Hephaestus lock convergence [patch] — in-progress
+
+- Owner: Codex `/root`; scope: Apollo `Cargo.lock`, Apollo PM records, and
+  the parent Apollo gitlink. The lock-only consumer refresh is sequenced after
+  Hephaestus PR #47 and does not touch Kwavers or RITK peer scopes.
+- Acceptance: Apollo's three Hephaestus packages resolve merged provider
+  `cec0e33`, with no source/manifest compatibility path; locked Apollo gates
+  and the provider audit remain green.
+- Last update: 2026-07-17; Apollo branch
+  `codex/apollo-hephaestus-legacy-math-pin` is claimed before lock edits.
 
 ## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch] — done
 

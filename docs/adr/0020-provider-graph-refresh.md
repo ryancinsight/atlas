@@ -46,7 +46,7 @@ follow-up is therefore:
 | Apollo | `7303423` (PR #52 merged; Leto merge pin) |
 | CFDrs | `a833b7f` (PR #297 merged; sparse-direct contract retained) |
 | Eunomia | `a2e4f39` (PR #35 merged) |
-| Hephaestus | `93bc38e` (PR #46 merged; scan-limit theorem) |
+| Hephaestus | `cec0e33` (PR #47 merged; Leto-only CPU references) |
 | Helios | `972fb53` (PR #6 merged) |
 | Kwavers | `9eabc4e2` (parent current) |
 | Leto | `3ac0d20` (PR #40 merged; sparse-direct ownership recorded) |
@@ -72,7 +72,9 @@ Hephaestus PR #46 records the scan-limit theorem at `93bc38e`: with `W` lanes,
 the provider stores `W` partials and each lane folds at most `ceil(L/W)`
 values, so `shared_bytes = W * size_of(T)` does not grow with line length.
 The existing `L=513`, `W=256` WGPU/CUDA contracts provide the `L > W`
-witness; KS-5b reopens only after a measured device budget failure.
+witness; KS-5b reopens only after a measured device budget failure. PR #47
+then removes obsolete CPU reference dependencies and makes Leto/Leto Ops the
+sole host-side differential vocabulary; its merged provider head is `cec0e33`.
 
 Apollo PR #51 then refreshed its consumer lockfile to the same Hephaestus head
 (`93bc38e`) and the current Eunomia, Leto, and Moirai default commits. The
