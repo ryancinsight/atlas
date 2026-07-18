@@ -5,7 +5,25 @@
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
-> `aeb8726`).
+> `f4e0098`).
+
+## ATLAS-INTEGRATION-015 — Merged default refresh [patch] — done
+
+- Owner: Codex `/root`; scope: merged CFDrs, Eunomia, Helios, Leto, and RITK
+  default-branch gitlinks plus cross-repo PM artifacts.
+- Acceptance: every advanced gitlink names a merged remote-default commit;
+  fresh Apollo, Kwavers, and RITK peer work remains unmodified and no dirty
+  feature-branch head enters the parent graph.
+- Closure: CFDrs `a833b7fe` preserves the independent sparse-LU contract;
+  Eunomia `a2e4f390`, Helios `972fb53e`, Leto `3ac0d203`, and RITK
+  `aededa6b` carry their merged provider increments. Apollo remains at merged
+  `c8742814`, Hephaestus at `93bc38e6`, and Kwavers at merged `9eabc4e2`.
+- Evidence: each recorded object equals its fetched remote default. CFDrs
+  direct-solver Nextest passes 4/4, its direct-after-GMRES consumer regression
+  passes 1/1, and warning-denied `cfd-math` Clippy passes. RITK PR #40's
+  cross-platform Nextest, Python 3.9–3.13, wheel, lint, dependency-alignment,
+  and migration-audit lanes pass. Provider-specific evidence remains in each
+  repository's PM artifacts.
 
 ## ATLAS-INTEGRATION-012 — Apollo policy-wrapper removal [major] — done
 
