@@ -44,10 +44,13 @@ follow-up is therefore:
 | Provider | Current or pending commit |
 |---|---|
 | Apollo | `c874281` (PR #50 merged; Winograd re-export removal) |
+| CFDrs | `a833b7f` (PR #297 merged; sparse-direct contract retained) |
+| Eunomia | `a2e4f39` (PR #35 merged) |
 | Hephaestus | `93bc38e` (PR #46 merged; scan-limit theorem) |
+| Helios | `972fb53` (PR #6 merged) |
 | Kwavers | `9eabc4e2` (parent current) |
-| Leto | `6a0e297` |
-| RITK | `ffda3ec` |
+| Leto | `3ac0d20` (PR #40 merged; sparse-direct ownership recorded) |
+| RITK | `aededa6` (PR #40 merged; Eunomia cast migration) |
 
 Hephaestus PR #44 adds the provider-owned order-preserving tiled scan slice
 for WGPU and CUDA. Its theorem/spec is ADR 0009 in the provider repository.
@@ -78,6 +81,12 @@ tokenless Codecov upload is non-blocking after HTTP 429 rate limiting. The
 MVDR timing contract now lives in Criterion, leaving correctness tests
 value-semantic and instrumentation-independent. The parent advances to the
 merged default-branch commit in this increment.
+
+The 2026-07-17 default refresh also advances CFDrs, Eunomia, Helios, Leto, and
+RITK only to fetched remote-default commits. Active Apollo, Kwavers, and RITK
+feature work remains outside `G(P)`: a dirty working tree cannot enter the
+graph unless its commit is first reviewed and merged to that repository's
+default branch.
 
 ## Theorem (provider-graph closure)
 

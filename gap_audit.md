@@ -1,5 +1,22 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — merged provider defaults
+
+- **Advanced defaults:** CFDrs `a833b7fe`, Eunomia `a2e4f390`, Helios
+  `972fb53e`, Leto `3ac0d203`, and RITK `aededa6b`.
+- **Already current:** Apollo `c8742814`, Hephaestus `93bc38e6`, and Kwavers
+  `9eabc4e2`.
+- **Evidence tier:** structural Git equality between every recorded commit and
+  its fetched remote default, supplemented by the child repositories'
+  value-semantic and hosted gate records. CFDrs specifically retains a real
+  sparse-LU tier after GMRES failure; Leto now owns open item
+  `LETO-SPARSE-DIRECT-1` rather than a downstream iterative substitution.
+- **Preserved concurrent work:** Apollo's Hephaestus pin-refresh lock edit,
+  Kwavers' GPU peak-pressure implementation and example-book organization,
+  and RITK's Apollo 0.25 alignment were all written inside the one-hour
+  freshness window. The parent records only merged defaults and does not
+  mutate or stage those feature-branch heads.
+
 ## State refresh (2026-07-17) — Hephaestus scan-limit theorem
 
 - **Finding:** the open KS-5b multi-pass scan proposal assumed long lines

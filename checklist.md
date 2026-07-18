@@ -3,9 +3,27 @@
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
 > **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Integration base**: `main` at `aeb8726`.
+> **Integration base**: `main` at `f4e0098`.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
+
+## ATLAS-INTEGRATION-015 — Merged default refresh [patch]
+
+- [x] Verify CFDrs PR #297 and Leto PR #40 merge, then fetch every affected
+      child remote default.
+- [x] Advance CFDrs to `a833b7fe`, Eunomia to `a2e4f390`, Helios to
+      `972fb53e`, Leto to `3ac0d203`, and RITK to `aededa6b`.
+- [x] Keep Apollo at merged `c8742814`, Hephaestus at `93bc38e6`, and Kwavers
+      at merged `9eabc4e2`; do not stage Apollo's active lock refresh,
+      Kwavers' active GPU peak-pressure branch, or RITK's active Apollo 0.25
+      alignment branch.
+- [x] Synchronize the graph theorem, board, gap audit, and changelog; verify
+      the staged gitlinks against fetched remote defaults.
+
+**Evidence:** structural Git equality for all recorded default commits;
+CFDrs value-semantic Nextest 4/4 plus its 1/1 direct-after-GMRES consumer
+regression and warning-denied Clippy; RITK PR #40's complete hosted
+cross-platform, Python, wheel, lint, dependency, and migration matrices.
 
 ## ATLAS-INTEGRATION-012 — Apollo policy-wrapper removal [major]
 
