@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Advance Helios to PR #7 merge `79b09e9`; its reproducibility lock now
+  resolves Apollo 0.25.0, Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0
+  and contains no `num-complex` package.
+
 - Record Coeus PR #212 merge `bb97cc6` as the NN benchmark-provider closure.
   Burn is absent while all 211 operation groups and 424 native
   Sequential/Moirai measurements remain. The locked graph resolves Eunomia

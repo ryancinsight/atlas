@@ -7,6 +7,21 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-024 — Helios provider lock convergence [patch]
+
+- [x] Replace the stale partial Apollo lock edit with the complete Cargo
+      resolution for Apollo 0.25.0, Eunomia 0.4.0, Leto 0.38.2, and
+      Hephaestus 0.17.0.
+- [x] Verify the lock removes the Hephaestus WGPU `num-complex` edge and the
+      package itself without a Helios source or manifest compatibility change.
+- [x] Run locked metadata, format, warning-denied workspace Clippy, configured
+      workspace Nextest, doctests, and warning-clean rustdoc.
+- [x] Merge Helios PR #7 and advance only its parent gitlink.
+
+**Evidence tier:** compiler-checked dependency resolution, warning-denied
+diagnostics, and value-semantic workspace regression execution. No formal
+proof checker was run.
+
 ## ATLAS-INTEGRATION-023 — Coeus NN provider benchmark closure [patch]
 
 - [x] Reconcile stale PR #212 against current Coeus main without deleting the

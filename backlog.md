@@ -7,6 +7,19 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
+## ATLAS-INTEGRATION-024 — Helios provider lock convergence [patch] — done
+
+- Owner: Codex `/root`; scope: stale Helios lock takeover, merged Helios
+  default, and the parent Helios gitlink.
+- Acceptance: replace the invalid partial Apollo edit with one complete Cargo
+  resolution; select merged Eunomia/Leto/Hephaestus providers; remove
+  `num-complex`; pass the complete Helios workspace gate.
+- Evidence: Helios PR #7 merges at `79b09e9`; locked metadata and format,
+  warning-denied all-target/all-feature Clippy, 272/272 configured Nextest,
+  ten Rust library doctest targets, and warning-clean rustdoc pass.
+- Closure: parent advances only `repos/helios`; concurrent Leto, RITK, Themis,
+  and root package-manager state remains unstaged.
+
 ## ATLAS-INTEGRATION-023 — Coeus NN provider benchmark closure [patch] — done
 
 - Owner: Codex `/root`; scope: stale Coeus PR #212 takeover, merged Coeus
