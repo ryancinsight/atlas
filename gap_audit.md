@@ -40,6 +40,17 @@
 - **Closure:** the parent advances `repos/apollo` from `c874281` to `6dcb97c`;
   Cargo.lock is again the sole selector for the merged default-source heads.
 
+## State refresh (2026-07-17) — Apollo Leto merge pin
+
+- **Finding:** Apollo's lockfile selected Leto parent `6a0e297` while Atlas
+  pinned merged default `3ac0d203`.
+- **Evidence tier:** Apollo merge `7303423`; locked metadata, exact Git tree
+  comparison, hosted Rust/Python/CodeRabbit checks, and the preceding 402/402
+  identical-tree package sweep. The local fresh compile was blocked by stale
+  peer test executables holding shared target files.
+- **Closure:** the parent advances `repos/apollo` from `6dcb97c` to `7303423`;
+  both Leto lock entries now select the Atlas merge object.
+
 ## State refresh (2026-07-17) — Apollo Winograd re-export removal
 
 - **Finding:** Apollo's internal `mixed_radix::traits` re-export created a

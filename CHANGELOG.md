@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Record Apollo PR #52 merge `7303423` as the Leto merge-pin correction; both
+  Leto packages now select Atlas default `3ac0d203` rather than parent
+  `6a0e297`. Hosted Rust/Python/CodeRabbit checks pass; the external analyzer
+  remains non-required.
+
 - Record Apollo PR #51 merge `6dcb97c` as the provider-lock refresh; the
   consumer now resolves Hephaestus `93bc38e`, Eunomia `a2e4f390`, Leto
   `6a0e297`, and Moirai `8a51b2a7` from default sources. Locked 402/402

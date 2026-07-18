@@ -81,6 +81,19 @@ reordered floating-point multi-pass path.
 **Residual:** none for this graph-refresh increment; the external analyzer
 error is non-required infrastructure noise.
 
+## ATLAS-INTEGRATION-017 — Apollo Leto merge pin [patch]
+
+- [x] Verify Apollo PR #52 merges the Leto merge-pin correction at `7303423`.
+- [x] Confirm both Leto packages select Atlas default `3ac0d203`, with no
+      Apollo source/manifest change and exact provider-tree equality to the
+      prior tested revision.
+- [x] Advance only `repos/apollo` and synchronize the board, `gap_audit.md`,
+      `CHANGELOG.md`, and ADR 0020.
+
+**Residual:** the local fresh compile was blocked by stale peer test
+executables in the shared target; hosted Rust/Python/CodeRabbit checks are
+green and the external analyzer remains non-required.
+
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch]
 
 - [x] Verify Hephaestus PR #45 merges the memoized CUDA driver initialization

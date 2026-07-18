@@ -43,7 +43,7 @@ follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `6dcb97c` (PR #51 merged; provider-lock refresh) |
+| Apollo | `7303423` (PR #52 merged; Leto merge pin) |
 | CFDrs | `a833b7f` (PR #297 merged; sparse-direct contract retained) |
 | Eunomia | `a2e4f39` (PR #35 merged) |
 | Hephaestus | `93bc38e` (PR #46 merged; scan-limit theorem) |
@@ -79,6 +79,11 @@ Apollo PR #51 then refreshed its consumer lockfile to the same Hephaestus head
 lockfile theorem is direct: committed Cargo source revisions are the only
 provider selectors, so the consumer cannot silently resolve the former heads
 or a local compatibility path.
+
+Apollo PR #52 aligns both Leto lock entries with the Atlas merge object
+`3ac0d203`, closing the one-parent drift left by PR #51. The provider tree is
+PM-only between `6a0e297` and `3ac0d203`, so the preceding package evidence
+remains valid; hosted Rust/Python checks provide the fresh lock-only compile.
 
 PR #294 merged at `9eabc4e2` after Architecture Validation `29614208770`,
 CI/CD `29614208862`, and Legacy Migration Audit `29614208769` passed. Its
