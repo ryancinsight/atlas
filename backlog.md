@@ -7,6 +7,17 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `33b3bfe`).
 
+## ATLAS-INTEGRATION-019 — Hephaestus legacy-math residue [patch] — in-progress
+
+- Owner: Codex `/root`; scope: `repos/hephaestus` test/benchmark manifests,
+  CPU reference code, and synchronized provider-graph PM artifacts. Kwavers
+  and RITK working trees remain outside this claim.
+- Acceptance: Hephaestus has no `ndarray` or `nalgebra` dependency or source
+  reference in tests/benches; differential references use Leto/Leto Ops or
+  explicit analytical oracles, and the provider's value-semantic gates remain
+  green.
+- Last update: 2026-07-17; claim is backed by this branch before source edits.
+
 ## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch] — done
 
 - Owner: Codex `/root`; scope: merged RITK default gitlink plus cross-repo PM

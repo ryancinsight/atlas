@@ -7,6 +7,22 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-019 — Hephaestus legacy-math residue [patch]
+
+- [ ] Remove the Hephaestus `ndarray`/`nalgebra` dev-dependency declarations
+      and convert WGPU differential oracles to Leto/Leto Ops or closed-form
+      value references.
+- [ ] Replace the comparative benchmark's legacy CPU baselines with the
+      canonical Leto CPU baseline while retaining real GPU measurements.
+- [ ] Run the provider's formatting, locked check, warning-denied Clippy,
+      configured Nextest, doctest/rustdoc, and source-residue gates.
+- [ ] Advance the Atlas graph only after the provider merge and synchronize
+      `gap_audit.md`, `CHANGELOG.md`, and ADR 0020.
+
+**Acceptance:** no Hephaestus test/benchmark manifest or source path names
+`ndarray` or `nalgebra`; Leto remains the CPU array/linalg reference and GPU
+execution remains provider-owned.
+
 ## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch]
 
 - [x] Verify RITK PR #41 merges the Apollo 0.25 lock and composite-checkout
