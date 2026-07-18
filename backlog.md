@@ -67,6 +67,19 @@
   contracts witness the `L > W` path.
 - Closure: parent advances `repos/hephaestus` from `3b68228` to `93bc38e`.
 
+## ATLAS-INTEGRATION-016 — Apollo provider-lock refresh [patch] — done
+
+- Owner: Atlas integration; scope: `repos/apollo` gitlink and provider-graph
+  PM artifacts only.
+- Acceptance: the gitlink names Apollo PR #51's merged default-branch commit,
+  whose lockfile resolves Hephaestus `93bc38e`, Eunomia `a2e4f390`, Leto
+  `6a0e297`, and Moirai `8a51b2a7` without local path or revision overrides.
+- Evidence: Apollo merge `6dcb97c`; locked compile, 402/402 Nextest,
+  warning-denied Clippy, doctests, warning-clean rustdoc, and provider audit
+  pass. Hosted Python bindings, Rust workspace, and CodeRabbit pass; the
+  external `recurseml/analysis` error is non-required.
+- Closure: parent advances `repos/apollo` from `c874281` to `6dcb97c`.
+
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch] — done
 
 - Owner: Atlas integration; scope: `repos/hephaestus` gitlink and the

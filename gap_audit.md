@@ -29,6 +29,17 @@
   of `L`. The parent advances `repos/hephaestus` from `3b68228` to `93bc38e`;
   KS-5b stays benchmark-triggered rather than speculative kernel work.
 
+## State refresh (2026-07-17) — Apollo provider-lock refresh
+
+- **Finding:** Apollo's lockfile selected Hephaestus `87d478…` and stale
+  first-party provider revisions after the Atlas graph had advanced.
+- **Evidence tier:** Apollo merge `6dcb97c`; locked compile, 402/402 Nextest,
+  warning-denied Clippy, doctests, warning-clean rustdoc, provider audit, and
+  hosted Python, Rust, and CodeRabbit checks pass. The external analyzer error
+  is non-required.
+- **Closure:** the parent advances `repos/apollo` from `c874281` to `6dcb97c`;
+  Cargo.lock is again the sole selector for the merged default-source heads.
+
 ## State refresh (2026-07-17) — Apollo Winograd re-export removal
 
 - **Finding:** Apollo's internal `mixed_radix::traits` re-export created a

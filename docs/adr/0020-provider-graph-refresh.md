@@ -43,7 +43,7 @@ follow-up is therefore:
 
 | Provider | Current or pending commit |
 |---|---|
-| Apollo | `c874281` (PR #50 merged; Winograd re-export removal) |
+| Apollo | `6dcb97c` (PR #51 merged; provider-lock refresh) |
 | CFDrs | `a833b7f` (PR #297 merged; sparse-direct contract retained) |
 | Eunomia | `a2e4f39` (PR #35 merged) |
 | Hephaestus | `93bc38e` (PR #46 merged; scan-limit theorem) |
@@ -73,6 +73,12 @@ the provider stores `W` partials and each lane folds at most `ceil(L/W)`
 values, so `shared_bytes = W * size_of(T)` does not grow with line length.
 The existing `L=513`, `W=256` WGPU/CUDA contracts provide the `L > W`
 witness; KS-5b reopens only after a measured device budget failure.
+
+Apollo PR #51 then refreshed its consumer lockfile to the same Hephaestus head
+(`93bc38e`) and the current Eunomia, Leto, and Moirai default commits. The
+lockfile theorem is direct: committed Cargo source revisions are the only
+provider selectors, so the consumer cannot silently resolve the former heads
+or a local compatibility path.
 
 PR #294 merged at `9eabc4e2` after Architecture Validation `29614208770`,
 CI/CD `29614208862`, and Legacy Migration Audit `29614208769` passed. Its
