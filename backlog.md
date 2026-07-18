@@ -80,6 +80,20 @@
   external `recurseml/analysis` error is non-required.
 - Closure: parent advances `repos/apollo` from `c874281` to `6dcb97c`.
 
+## ATLAS-INTEGRATION-017 — Apollo Leto merge pin [patch] — done
+
+- Owner: Atlas integration; scope: `repos/apollo` gitlink and provider-graph
+  PM artifacts only.
+- Acceptance: the gitlink names Apollo PR #52's merged default-branch commit,
+  whose lockfile resolves both Leto packages to Atlas default merge
+  `3ac0d203` rather than parent `6a0e297`.
+- Evidence: Apollo merge `7303423`; `cargo metadata --locked --no-deps` and
+  exact provider-tree comparison pass. Hosted Rust workspace, Python
+  bindings, and CodeRabbit pass; the external analyzer error is non-required.
+  The local fresh compile was blocked by stale peer test executables holding
+  the shared target, while the preceding identical-tree sweep passed 402/402.
+- Closure: parent advances `repos/apollo` from `6dcb97c` to `7303423`.
+
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch] — done
 
 - Owner: Atlas integration; scope: `repos/hephaestus` gitlink and the
