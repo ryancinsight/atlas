@@ -9,6 +9,11 @@
   `6a0e297`. Hosted Rust/Python/CodeRabbit checks pass; the external analyzer
   remains non-required.
 
+- Advance RITK to PR #41 merge `a41e03b9`, aligning its lockfile and composite
+  provider checkout with Apollo 0.25. All 22 repository and review checks pass,
+  including cross-platform Nextest, Python 3.9–3.13, wheel, lint, dependency
+  alignment, and migration audit.
+
 - Record Apollo PR #51 merge `6dcb97c` as the provider-lock refresh; the
   consumer now resolves Hephaestus `93bc38e`, Eunomia `a2e4f390`, Leto
   `6a0e297`, and Moirai `8a51b2a7` from default sources. Locked 402/402

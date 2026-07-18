@@ -1,5 +1,16 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-17) — RITK Apollo 0.25 alignment
+
+- **Finding:** RITK's reproducible provider checkout and lockfile still selected
+  the Apollo 0.24 graph after Apollo 0.25 merged.
+- **Evidence tier:** RITK merge `a41e03b9`; all 22 repository and review checks
+  pass, including Linux/macOS/Windows Nextest, Python 3.9–3.13, wheel, Clippy,
+  formatting, dependency alignment, and migration audit. The external analyzer
+  error is non-required.
+- **Closure:** the parent advances `repos/ritk` from `aededa6b` to `a41e03b9`;
+  active Kwavers GPU work remains outside the reproducible parent graph.
+
 ## State refresh (2026-07-17) — merged provider defaults
 
 - **Advanced defaults:** CFDrs `a833b7fe`, Eunomia `a2e4f390`, Helios
