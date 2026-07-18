@@ -4,6 +4,17 @@
 
 ### Changed
 
+- Record Apollo PR #53 merge `a31b8f8` as the Hephaestus lock convergence;
+  `hephaestus-core`, `hephaestus-wgpu`, and `hephaestus-cuda` now select
+  provider `cec0e33` after its Leto-owned legacy-math cleanup. Locked compile,
+  402/402 Nextest, warning-denied Clippy, doctests, rustdoc, provider audit,
+  hosted Rust/Python, and CodeRabbit checks pass.
+
+- Record Hephaestus PR #47 merge `cec0e33` as the Leto-only CPU reference
+  cleanup. Its WGPU/CUDA tests and comparative benches no longer depend on
+  legacy array or linear-algebra crates; provider execution remains owned by
+  Hephaestus and the Python `numpy` bridge remains an FFI-only edge.
+
 - Record Apollo PR #52 merge `7303423` as the Leto merge-pin correction; both
   Leto packages now select Atlas default `3ac0d203` rather than parent
   `6a0e297`. Hosted Rust/Python/CodeRabbit checks pass; the external analyzer

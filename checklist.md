@@ -3,9 +3,43 @@
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
 > **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Integration base**: `main` at `33b3bfe`.
+> **Integration base**: `main` at `3d0c340`.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
+
+## ATLAS-INTEGRATION-019 — Hephaestus legacy-math residue [patch]
+
+- [x] Remove the Hephaestus `ndarray`/`nalgebra` dev-dependency declarations
+      and convert WGPU differential oracles to Leto/Leto Ops or closed-form
+      value references.
+- [x] Replace the comparative benchmark's legacy CPU baselines with the
+      canonical Leto CPU baseline while retaining real GPU measurements.
+- [x] Run the provider's formatting, locked check, warning-denied Clippy,
+      configured Nextest, doctest/rustdoc, and source-residue gates.
+- [x] Advance the Atlas graph only after the provider merge and synchronize
+      `gap_audit.md`, `CHANGELOG.md`, and ADR 0020.
+
+**Acceptance:** no Hephaestus test/benchmark manifest or source path names
+`ndarray` or `nalgebra`; Leto remains the CPU array/linalg reference and GPU
+execution remains provider-owned.
+
+**Evidence:** provider merge `cec0e33`; core 48/48, WGPU 140/140, CUDA
+109/109, warning-denied Clippy, doctests, rustdoc, and all-target benchmark
+compilation pass. `numpy` remains only at the PyO3 FFI representation edge.
+
+## ATLAS-INTEGRATION-020 — Apollo Hephaestus lock convergence [patch]
+
+- [x] Refresh Apollo's `hephaestus-core`, `hephaestus-wgpu`, and
+      `hephaestus-cuda` lock entries to merged provider `cec0e33`.
+- [x] Run Apollo's locked compile, Nextest, warning-denied Clippy, doctests,
+      rustdoc, and provider audit; hosted checks must inspect the new head.
+- [x] Advance only the Apollo gitlink after the provider merge and synchronize
+      the graph theorem, `gap_audit.md`, and `CHANGELOG.md`.
+
+**Evidence:** Apollo PR #53 merges at `a31b8f8`; locked compile, 402/402
+Nextest, warning-denied Clippy, doctests, warning-clean rustdoc, provider
+audit, hosted Rust/Python, and CodeRabbit pass. `recurseml/analysis` is an
+external non-required infrastructure error.
 
 ## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch]
 

@@ -5,7 +5,37 @@
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
-> `33b3bfe`).
+> `3d0c340`).
+
+## ATLAS-INTEGRATION-019 — Hephaestus legacy-math residue [patch] — done
+
+- Owner: Codex `/root`; scope: `repos/hephaestus` test/benchmark manifests,
+  CPU reference code, and synchronized provider-graph PM artifacts. Kwavers
+  and RITK working trees remain outside this claim.
+- Acceptance: Hephaestus has no `ndarray` or `nalgebra` dependency or source
+  reference in tests/benches; differential references use Leto/Leto Ops or
+  explicit analytical oracles, and the provider's value-semantic gates remain
+  green.
+- Evidence: Hephaestus PR #47 merges at `cec0e33`; its direct legacy math
+  edges and source references are deleted, WGPU differential oracles use Leto,
+  and the comparative benches measure Leto against real WGPU/CUDA dispatch.
+  Core Nextest is 48/48, WGPU 140/140, CUDA 109/109; warning-denied Clippy,
+  doctests, warning-clean rustdoc, and all-target benchmark checks pass.
+- Closure: parent advances `repos/hephaestus` from `93bc38e` to `cec0e33`.
+
+## ATLAS-INTEGRATION-020 — Apollo Hephaestus lock convergence [patch] — done
+
+- Owner: Codex `/root`; scope: Apollo `Cargo.lock`, Apollo PM records, and
+  the parent Apollo gitlink. The lock-only consumer refresh is sequenced after
+  Hephaestus PR #47 and does not touch Kwavers or RITK peer scopes.
+- Acceptance: Apollo's three Hephaestus packages resolve merged provider
+  `cec0e33`, with no source/manifest compatibility path; locked Apollo gates
+  and the provider audit remain green.
+- Evidence: Apollo PR #53 merges at `a31b8f8`; all three lock entries select
+  `cec0e33`. Locked compile, 402/402 Nextest, warning-denied Clippy,
+  doctests, warning-clean rustdoc, provider audit, hosted Rust/Python, and
+  CodeRabbit checks pass. The external analyzer error is non-required.
+- Closure: parent advances `repos/apollo` from `7303423` to `a31b8f8`.
 
 ## ATLAS-INTEGRATION-018 — RITK Apollo alignment [patch] — done
 
