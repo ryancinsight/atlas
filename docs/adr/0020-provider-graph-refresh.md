@@ -44,7 +44,7 @@ follow-up is therefore:
 | Provider | Current or pending commit |
 |---|---|
 | Apollo | `a31b8f8` (PR #53 merged; Hephaestus lock convergence) |
-| Coeus | `4459d09` (PR #211 merged; tensor legacy benchmark removal) |
+| Coeus | `bb97cc6` (PR #212 merged; NN provider benchmark closure) |
 | CFDrs | `a833b7f` (PR #297 merged; sparse-direct contract retained) |
 | Eunomia | `49dc115` (PR #39 merged; canonical sub-byte conversion) |
 | Hephaestus | `ed7d76e` (PR #50 merged; Eunomia 0.4.0 lock) |
@@ -114,6 +114,12 @@ The 2026-07-18 Eunomia sub-byte refresh advances Eunomia to PR #39 merge
 `ed7d76e`. Leto and Hephaestus both commit Eunomia 0.4.0 at `49dc115`; the
 parent therefore records one provider identity from foundation through both
 consumers without a compatibility path.
+
+Coeus PR #212 then removes the Burn comparison dimension without removing the
+NN provider-performance instrument. Its merged default `bb97cc6` retains 211
+operation groups and 424 Sequential/Moirai rows while its lock selects Eunomia
+0.4.0, Leto 0.38.2, and Hephaestus 0.17.0. The parent advances only after that
+consumer graph and hosted review are green.
 
 ## Theorem (provider-graph closure)
 

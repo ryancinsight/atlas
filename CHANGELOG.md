@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Record Coeus PR #212 merge `bb97cc6` as the NN benchmark-provider closure.
+  Burn is absent while all 211 operation groups and 424 native
+  Sequential/Moirai measurements remain. The locked graph resolves Eunomia
+  0.4.0, Leto 0.38.2, and Hephaestus 0.17.0.
+
 - Record Eunomia PR #39 merge `49dc115` as the canonical sub-byte conversion
   cutover, then advance Leto PR #44 `f0b4d8e` and Hephaestus PR #50 `ed7d76e`
   after their reproducibility locks and full consumer gates resolve Eunomia
