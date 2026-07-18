@@ -68,6 +68,19 @@ required build gate.
 on a device-specific workgroup/latency limit and a derived tolerance for any
 reordered floating-point multi-pass path.
 
+## ATLAS-INTEGRATION-016 — Apollo provider-lock refresh [patch]
+
+- [x] Verify Apollo PR #51 merges the lockfile refresh at `6dcb97c` and the
+      provider revisions resolve from default-source commits.
+- [x] Confirm locked compile, 402/402 Nextest, warning-denied Clippy,
+      doctests, warning-clean rustdoc, provider audit, and hosted Python,
+      Rust, and CodeRabbit checks pass.
+- [x] Advance only `repos/apollo` and synchronize the board, `gap_audit.md`,
+      `CHANGELOG.md`, and ADR 0020.
+
+**Residual:** none for this graph-refresh increment; the external analyzer
+error is non-required infrastructure noise.
+
 ## ATLAS-INTEGRATION-011 — Hephaestus CUDA initialization closure [patch]
 
 - [x] Verify Hephaestus PR #45 merges the memoized CUDA driver initialization

@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Record Apollo PR #51 merge `6dcb97c` as the provider-lock refresh; the
+  consumer now resolves Hephaestus `93bc38e`, Eunomia `a2e4f390`, Leto
+  `6a0e297`, and Moirai `8a51b2a7` from default sources. Locked 402/402
+  Nextest and hosted Python/Rust/CodeRabbit checks pass.
+
 - Advance CFDrs, Eunomia, Helios, Leto, and RITK to their merged
   default-branch commits while preserving active Apollo, Kwavers, and RITK
   feature work. The parent graph records only fetched remote defaults; Leto
