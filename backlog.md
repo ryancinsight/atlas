@@ -7,13 +7,15 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
-## ATLAS-INTEGRATION-028 — Hephaestus PM convergence [patch] — in progress
+## ATLAS-INTEGRATION-028 — Hephaestus PM convergence [patch] — done
 
 - Owner: Codex `/root`; scope: Hephaestus PR #52's PM-only default commit and
   its parent gitlink. Dirty child worktrees remain peer-owned.
 - Acceptance: the parent records exact Hephaestus default
   `cdfcd0cb38de03d28107fc231042eaf55e078e3a`; every other gitlink is unchanged;
   the final 16-link audit has zero drift.
+- Closure: Atlas PR #49 merges at `2c1ee62`; all 16 parent gitlinks resolve to
+  existing commits equal to their fetched remote defaults.
 
 ## ATLAS-INTEGRATION-027 — Provider-default convergence [patch] — done
 
