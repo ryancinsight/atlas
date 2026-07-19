@@ -17,8 +17,9 @@
   gitlink equals its fetched remote default.
 - Evidence: Hermes PRs #10-#11 merge at `6f9b81f` after warning-denied Clippy,
   388/388 Nextest cases, 18/18 runnable doctests, and warning-denied rustdoc.
-  Leto PR #48 merges at `bb03244` with its recorded 304/304 `leto-ops` tests
-  and criterion comparison.
+  Leto PR #48 merges at
+  `bb03244f05a9c43c318d103225c3ccad07e9fad9` with its recorded 304/304
+  `leto-ops` tests and criterion comparison.
 
 ## ATLAS-INTEGRATION-026 — Eunomia runtime-half retirement [patch] — done
 

@@ -4,8 +4,10 @@
 
 - **Finding:** Hermes' parent pointer predated its Eunomia 0.6 lock refresh,
   and Leto's parent pointer predated the merged Box-Muller increment.
-- **Resolution:** advance Hermes to `6f9b81f` and Leto to `bb03244`; no other
-  gitlink moves.
+- **Resolution:** advance Hermes to `6f9b81f` and Leto to the exact PR #48
+  merge object `bb03244f05a9c43c318d103225c3ccad07e9fad9`; no other gitlink
+  moves. The post-PR #46 audit detected and rejected an invalid Leto object
+  with the same seven-character prefix before closure.
 - **Evidence tier:** Hermes compiler, value-semantic test, doctest, and rustdoc
   gates; Leto PR #48's recorded value-semantic and criterion evidence; exact
   remote-default identity audit for all 16 parent gitlinks after merge.

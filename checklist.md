@@ -12,6 +12,8 @@
 - [x] Merge Hermes' Eunomia 0.6 lock refresh and PM closeout.
 - [x] Preserve Leto PR #48's merged Box-Muller increment.
 - [x] Advance only the Hermes and Leto gitlinks to their fetched defaults.
+- [x] Replace PR #46's invalid same-prefix Leto object ID with the exact PR #48
+      merge object `bb03244f05a9c43c318d103225c3ccad07e9fad9`.
 - [ ] Publish, merge, and reconcile the Atlas integration PR; rerun the
       16-gitlink remote-default audit.
 
