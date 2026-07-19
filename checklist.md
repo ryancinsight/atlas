@@ -15,7 +15,7 @@
       0.39 lock closure.
 - [x] Advance only the Eunomia and Hephaestus gitlinks; preserve peer-owned
       Coeus/RITK and root package-manager state.
-- [ ] Publish, merge, and reconcile the Atlas integration PR.
+- [x] Publish, merge, and reconcile Atlas PR #44 at `d207cf6`.
 
 ## ATLAS-INTEGRATION-025 — Eunomia precision graph [major]
 

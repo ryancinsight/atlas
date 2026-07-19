@@ -7,7 +7,7 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
-## ATLAS-INTEGRATION-026 — Eunomia runtime-half retirement [patch] — in progress
+## ATLAS-INTEGRATION-026 — Eunomia runtime-half retirement [patch] — done
 
 - Owner: Codex `/root`; scope: merged Eunomia and Hephaestus defaults, their
   parent gitlinks, and cross-repo evidence. Main-tree Coeus/RITK and root
@@ -20,6 +20,8 @@
   together with warning-denied diagnostics and documentation gates.
 - Integration state: the branch advances only `repos/eunomia` and
   `repos/hephaestus`; all other parent gitlinks remain unchanged.
+- Closure: Atlas PR #44 merges at `d207cf6`; the parent records Eunomia
+  `df77dfd` and Hephaestus `594d57a`.
 
 ## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — done
 
