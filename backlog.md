@@ -7,6 +7,16 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
+## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — in progress
+
+- Owner: Codex `/root`; scope: merged Eunomia, Hermes, and Leto defaults,
+  their parent gitlinks, and cross-repo evidence only. RITK, Coeus, and root
+  package-manager state remain peer-owned and outside this claim.
+- Acceptance: Eunomia owns the reduced-format bit and float-element contracts;
+  Hermes and Leto expose only Eunomia reduced-precision types; Leto resolves
+  current provider defaults and passes its complete gate; the parent records
+  only merged default commits.
+
 ## ATLAS-INTEGRATION-024 — Helios provider lock convergence [patch] — done
 
 - Owner: Codex `/root`; scope: stale Helios lock takeover, merged Helios
