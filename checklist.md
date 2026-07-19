@@ -14,8 +14,8 @@
 - [x] Advance only the Hermes and Leto gitlinks to their fetched defaults.
 - [x] Replace PR #46's invalid same-prefix Leto object ID with the exact PR #48
       merge object `bb03244f05a9c43c318d103225c3ccad07e9fad9`.
-- [ ] Publish, merge, and reconcile the Atlas integration PR; rerun the
-      16-gitlink remote-default audit.
+- [x] Merge Atlas PRs #46-#47 and rerun the 16-gitlink audit: every pointer is
+      an existing commit equal to its fetched remote default.
 
 ## ATLAS-INTEGRATION-026 — Eunomia runtime-half retirement [patch]
 
