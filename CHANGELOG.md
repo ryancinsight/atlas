@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Tombstone superseded CR-2, RITK, and Kwavers migration queues after their
+  recorded closures; refresh the provider/consumer stack table to the 16
+  fetched remote-default gitlinks.
+
 - Advance Eunomia to `c196db5`, Hermes to `c9bbdf8`, and Leto to `7afcbd0`.
   Eunomia owns exact reduced-format bit and float-element contracts; Hermes and
   Leto remove raw `half` public ownership in favor of Eunomia `F16`/`Bf16`.
