@@ -50,6 +50,25 @@
 - Closure: Atlas PR #44 merges at `d207cf6`; the parent records Eunomia
   `df77dfd` and Hephaestus `594d57a`.
 
+## ATLAS-INTEGRATION-029 — Hephaestus provider-first CFDrs 2D GPU Laplacian [minor] — done
+
+- Owner: Atlas integration; scope: `repos/hephaestus` provider-side stencil
+  surface and `repos/CFDrs` consumer thin-typed migration.
+- Acceptance: Hephaestus owns the 2D Laplacian WGSL kernel, parameters, and
+  boundary-condition enum; `cfd-core` no longer carries the shader source or
+  uniform layout; `cfd-core`/`cfd-math` remain thin typed consumers; all
+  relevant Clippy, nextest, and rustdoc gates pass.
+- Evidence: Hephaestus `crates/hephaestus-wgpu/src/application/stencil/` now
+  contains `Laplacian2DKernel`, `Laplacian2DParams`, and `BoundaryCondition`;
+  `cfd-core` `compute/gpu/kernels/laplacian/kernel.rs` forwards to the
+  provider; `cfd-core/src/compute/gpu/shaders.rs` deleted. Local verification:
+  `hephaestus-wgpu` 140/140 nextest; `cfd-core --features gpu` 245/245 nextest;
+  `cfd-math --features gpu` 362/362 nextest; `cargo clippy -D warnings` clean on
+  both crates.
+- Closure: provider-first ownership removes the falsely generic f32 WGSL
+  boundary from the consumer; the kernel is compiled once and reused, and the
+  consumer validates only the CFD grid contract.
+
 ## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — done
 
 - Owner: Codex `/root`; scope: merged Eunomia, Hermes, and Leto defaults,

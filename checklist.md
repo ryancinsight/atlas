@@ -7,6 +7,20 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-029 — Hephaestus provider-first CFDrs 2D GPU Laplacian [minor]
+
+- [x] Move provider-side stencil surface (`Laplacian2DKernel`,
+      `Laplacian2DParams`, `BoundaryCondition`) from `cfd-core` to
+      `repos/hephaestus`.
+- [x] Delete `cfd-core/src/compute/gpu/shaders.rs` and remove the uniform
+      layout from the consumer; keep `BoundaryType` as the CFD-facing enum.
+- [x] Forward `cfd-core` `Laplacian2DKernel` dispatch through
+      `hephaestus_wgpu::Laplacian2DKernel`.
+- [x] Verify `hephaestus-wgpu` 140/140 nextest, `cfd-core --features gpu`
+      245/245 nextest, `cfd-math --features gpu` 362/362 nextest; Clippy
+      `-D warnings` clean on both crates.
+- [x] Synchronize `backlog.md`, `gap_audit.md`, and this checklist.
+
 ## ATLAS-INTEGRATION-028 — Hephaestus PM convergence [patch]
 
 - [x] Merge Hephaestus PR #52 without touching peer-owned WGPU source changes.

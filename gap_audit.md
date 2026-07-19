@@ -2887,6 +2887,28 @@ Moirai's committed Mnemosyne 0.2 requirement and no Moirai consumer-tree edit.
   local evidence alone.
   Peer-owned dirty scopes were preserved.
 
+## Findings 2026-07-19: Hephaestus provider-first CFDrs 2D GPU Laplacian closure
+
+### ✅ CLOSED: CFDrs 2D GPU Laplacian provider ownership
+
+Provider-first ownership of the CFDrs 2D GPU Laplacian landed in Hephaestus.
+The WGSL source, uniform parameters, and boundary-condition enum now live in
+`repos/hephaestus/crates/hephaestus-wgpu/src/application/stencil/`. The
+consumer (`cfd-core`/`cfd-math`) is reduced to a thin typed wrapper that
+validates the CFD grid contract and forwards to the provider kernel.
+
+- Provider surface: `hephaestus_wgpu::stencil::{Laplacian2DKernel,
+  Laplacian2DParams, BoundaryCondition}`.
+- Consumer migration: `cfd-core/src/compute/gpu/kernels/laplacian/kernel.rs`
+  now constructs `hephaestus_wgpu::Laplacian2DKernel` and dispatches through
+  it; `cfd-core/src/compute/gpu/shaders.rs` deleted; `BoundaryType` conversion
+  to `BoundaryCondition` moved to `types.rs`.
+- Verification: `hephaestus-wgpu` 140/140 nextest; `cfd-core --features gpu`
+  245/245 nextest; `cfd-math --features gpu` 362/362 nextest; Clippy
+  `-D warnings` clean on both crates.
+- Atlas PM artifacts: `backlog.md` ATLAS-INTEGRATION-029;
+  `checklist.md` session 2026-07-19.
+
 ## Findings 2026-07-14: MR-WATCH-001 closure + hermes gitlink advance + kwavers peer-active break
 
 ### ✅ CLOSED: MR-WATCH-001 (moirai-scheduler/executor rebuild)

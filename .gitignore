@@ -53,3 +53,8 @@ errors[0-9]*.txt
 cargolog*.txt
 *.stderr
 repos/leoneuro-rs/
+
+# npm / opencode CLI install artifacts
+node_modules/
+package.json
+package-lock.json
