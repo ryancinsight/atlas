@@ -7,6 +7,16 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-026 — Eunomia runtime-half retirement [patch]
+
+- [x] Merge Eunomia 0.6.0 with the foreign raw-half numeric/cast surface
+      removed and `half` confined to the differential-oracle dev graph.
+- [x] Refresh and merge Hephaestus's coherent Eunomia 0.6/Hermes 0.4/Leto
+      0.39 lock closure.
+- [x] Advance only the Eunomia and Hephaestus gitlinks; preserve peer-owned
+      Coeus/RITK and root package-manager state.
+- [ ] Publish, merge, and reconcile the Atlas integration PR.
+
 ## ATLAS-INTEGRATION-025 — Eunomia precision graph [major]
 
 - [x] Merge Eunomia reduced-precision bit and float-element contracts.
