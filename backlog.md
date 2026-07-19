@@ -7,7 +7,7 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
-## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — review
+## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — done
 
 - Owner: Codex `/root`; scope: merged Eunomia, Hermes, and Leto defaults,
   their parent gitlinks, and cross-repo evidence. The cumulative Atlas branch
@@ -25,6 +25,7 @@
   All 16 Atlas gitlinks equal their fetched remote defaults.
 - Closure: this increment advances Eunomia, Hermes, and Leto and reconciles
   previously committed Coeus and RITK pointers to current merged defaults.
+  Atlas PR #41 merged at `3f5f51f`; local `main` reconciled to the same commit.
   Fresh RITK, Coeus, and root package-manager work remains unstaged.
 
 ## ATLAS-INTEGRATION-024 — Helios provider lock convergence [patch] — done

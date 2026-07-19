@@ -14,7 +14,7 @@
 - [x] Merge Leto scalar, real-math, array arithmetic, and fixture cutover.
 - [x] Advance Eunomia, Hermes, and Leto; reconcile the previously committed
   Coeus and RITK parent gitlinks with current merged defaults.
-- [ ] Review, publish, merge, and reconcile the Atlas default.
+- [x] Review, publish, merge, and reconcile Atlas PR #41 at `3f5f51f`.
 
 **Evidence tier:** exhaustive reduced-format bit-pattern tests in Eunomia,
 compile-time provider binding, exact reduced-precision value tests, configured
