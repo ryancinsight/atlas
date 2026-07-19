@@ -1,3 +1,7 @@
+[submodule "repos/aequitas"]
+	path = repos/aequitas
+	url = https://github.com/ryancinsight/aequitas
+	active = true
 [submodule "repos/apollo"]
 	path = repos/apollo
 	url = https://github.com/ryancinsight/apollo

@@ -30,7 +30,7 @@ provider implementations are not part of the Atlas model.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 16 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 17 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -47,6 +47,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 16 packages.
 | Compute | [`leto`](repos/leto) | N-dimensional host arrays, layouts, views, operations, and linear algebra. |
 | Compute | [`mnemosyne`](repos/mnemosyne) | Allocation, arenas, heaps, staging memory, and allocator instrumentation. |
 | Compute | [`moirai`](repos/moirai) | Scheduling, parallel iteration, async execution, synchronization, and transport. |
+| Foundation | [`aequitas`](repos/aequitas) | Physical-quantity law: type-level SI dimensions, transparent quantities, and linear-unit conversion over Eunomia scalars. |
 | Foundation | [`eunomia`](repos/eunomia) | Datatype law: scalar, complex, packed, conversion, and numeric-trait vocabulary. |
 | Foundation | [`melinoe`](repos/melinoe) | Branded capability evidence for memory access and synchronization. |
 | Foundation | [`themis`](repos/themis) | Placement law for NUMA nodes, workers, locality domains, and memory tiers. |
@@ -80,6 +81,7 @@ flowchart TB
     end
 
     subgraph Foundation["Law and capability foundation"]
+        aequitas
         eunomia
         melinoe
         themis
@@ -89,12 +91,14 @@ flowchart TB
     Integrators --> Compute
     Domains --> Compute
     Compute --> Foundation
+    aequitas --> eunomia
 ```
 
 ### Provider ownership
 
 | Concern | Owner | Boundary |
 | --- | --- | --- |
+| Physical quantities and dimensional law | `aequitas` | Owns dimensions and linear units over Eunomia scalars, not scalar representations or domain validity. |
 | Numeric representations and scalar laws | `eunomia` | Owns datatype vocabulary, not algorithms or storage. |
 | Placement and locality law | `themis` | Owns typed placement facts, not allocation or scheduling. |
 | Capability proofs | `melinoe` | Owns branded access evidence, not memory management. |
@@ -112,7 +116,9 @@ flowchart TB
 The accepted GPU boundary is recorded in
 [ADR 0001](docs/adr/0001-gpu-accelerator-substrate.md). The reproducible
 provider-pin contract and its evidence limits are recorded in
-[ADR 0020](docs/adr/0020-provider-graph-refresh.md).
+[ADR 0020](docs/adr/0020-provider-graph-refresh.md). Aequitas ownership and
+consumer-boundary integration are recorded in
+[ADR 0021](docs/adr/0021-aequitas-quantity-law-foundation.md).
 
 ## Naming
 
@@ -121,6 +127,7 @@ Classical names describe bounded contexts rather than implementation variants.
 | Repository | Classical reference | Mapping |
 | --- | --- | --- |
 | `atlas` | Atlas, the Titan who bears the heavens | Coordinates the independently versioned stack. |
+| `aequitas` | Aequitas, Roman personification of equity and fair measure | Physical quantities, units, and dimensional law. |
 | `apollo` | Apollo, associated with music and ordered harmony | Spectral and numerical transforms. |
 | `coeus` | Coeus, Titan associated with intellect and inquiry | Tensor computation and learning systems. |
 | `consus` | Consus, Roman god associated with stored grain | Scientific storage and persistence. |
@@ -167,7 +174,6 @@ A candidate becomes an Atlas package only when all of these conditions hold:
 
 | Priority | Working name | Classical reference | Proposed bounded context | Current drivers |
 | --- | --- | --- | --- | --- |
-| P0 | `aequitas` | Aequitas, Roman personification of equity and fair measure | Typed physical quantities, units, dimensions, and validated conversions over Eunomia scalars. It must not define a second scalar vocabulary. | Unit and quantity vocabularies recur across CFDrs, Helios, and Kwavers. |
 | P0 | `horae` | The Horae, goddesses of seasons and ordered time | Time-integration contracts, timestep control, subcycling, event clocks, and convergence metadata. It owns no domain equations. | Time-stepping families recur in CFDrs and Kwavers and are required by coupled Helios workflows. |
 | P0 | `athena` | Athena, goddess of wisdom and strategy | Operator-based linear and nonlinear solvers, Krylov methods, preconditioning contracts, and convergence reporting. Leto retains arrays, decompositions, and linear-algebra kernels. | Solver and convergence protocols recur across CFDrs, Kwavers, RITK, and Helios. |
 | P0 | `harmonia` | Harmonia, goddess of harmony and concord | Multiphysics coupling, state exchange, relaxation, fixed-point convergence, and heterogeneous subcycling. It owns coupling mechanics, not physics models. | Coupling orchestration recurs in CFDrs, Kwavers, and Helios. |
