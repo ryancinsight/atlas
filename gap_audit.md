@@ -1,5 +1,27 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-18) — RITK Batch #3 full closure + Coeus/Eunomia pointer advances
+
+- **Finding:** RITK Batch #3 (Burn→Coeus provider cutover) is fully closed via
+  PR #42 (`f01b1643`, 1298 files, -59482 lines) and PR #43 (`b4be04ca`,
+  closeout docs), plus post-merge fixups `6086d757` (warp axes), `9de12515`
+  (global MI), and `24a3cb08` (CI alignment). The `xtask/burn_surface.allowlist`
+  (523 lines) is deleted; all Burn/ndarray dependencies removed from the
+  workspace manifest; all consumers migrated to Coeus backend. This closes ALL
+  remaining sub-batches (#3.g, #4, #5, #6) in a single atomic cutover.
+- **Resolution:** Advance `repos/ritk` gitlink `b007326e` → `9af7dbbe`
+  (origin/main HEAD). Advance `repos/coeus` gitlink `bb97cc6` → `5ee07a2`
+  (PRs #213 host-extraction + #214 host-cow). Advance `repos/eunomia` gitlink
+  `58ce8ed` → `1b610d4` (PRs #44 AVX2 f8 coverage + #45 bf16 bulk conversion).
+- **Evidence tier:** structural Git equality to fetched remote default branches;
+  RITK Batch #3 sub-batch ledger fully consumed by PR #42-#43.
+- **Closure:** RITK Batch #3 is CLOSED. Migration queue is 7/7 CLOSED.
+- **Residual:** RITK projection hardening work on
+  `codex/ritk-filter-projection-cow` (3 commits ahead of origin/main) is
+  peer-owned and not yet merged to main. CR-2 ritk-core `#[global_allocator]`
+  removal remains deferred (peer-active). Kwavers Batch #1 (Rayon→Moirai) and
+  Batch #4 (PINN Burn→Coeus) remain peer-active.
+
 ## State refresh (2026-07-18) — Themis test-visibility defect fix
 
 - **Finding:** Themis ADR-0018 Phase 2 (PR #9 `a9127ac`, "Rehome themis tests to
@@ -890,7 +912,7 @@ Atlas provider stack:
 
 ### Bulk-migration priority order (refreshed 2026-07-12)
 
-Closure-progress count: 5 CLOSED + 1 OPEN (ritk Batch #3) + 1 CLOSED (helios).
+Closure-progress count: 7 CLOSED (kwavers #1/#2/#3/#5, CFDrs, ritk Batch #3, helios).
 
 | # | Migration | Source-scope | Provider gate | Peer status | Disjoint-scope |
 
@@ -902,7 +924,7 @@ Closure-progress count: 5 CLOSED + 1 OPEN (ritk Batch #3) + 1 CLOSED (helios).
 
 | **3** | kwavers nalgebra -> leto | 0 `nalgebra` in source/manifests at inner HEAD `7c70d1b1d` | n/a | **CLOSED 2026-07-12** | n/a |
 
-| **4** | ritk Batch #3 (Burn -> coeus) source-side | see gap_audit lines 814–1039; atlas-meta advancing RITK submodule pointers (60+ native filter advances) | sub-batch #1+#2 CLOSED; sub-batches #3–#6 peer-WIP | OPEN | atlas-meta advances RITK gitlinks (60+ commits) |
+| **4** | ritk Batch #3 (Burn -> coeus) source-side | PR #42 `f01b1643` (1298 files, -59482 lines) + PR #43 `b4be04ca` (closeout docs) + fixes `6086d757`/`9de12515`/`24a3cb08`; burn_surface.allowlist deleted, all consumers migrated to Coeus | sub-batches #1+#2+#3.a–#3.f CLOSED; sub-batches #3.g+#4+#5+#6 CLOSED by PR #42 | **CLOSED 2026-07-18** | atlas-meta advance `repos/ritk` `b007326e` → `9af7dbbe` |
 
 | **5** | kwavers Burn -> coeus (Batch #4) | 0 `burn::` source residual at inner HEAD `7c70d1b1d`; manifest strip landed | CR-4 eunomia SSOT rebind landed | **CLOSED 2026-07-12** | n/a |
 
@@ -912,7 +934,7 @@ Closure-progress count: 5 CLOSED + 1 OPEN (ritk Batch #3) + 1 CLOSED (helios).
 
 
 
-**Migration queue summary (refreshed)**: 7 ordered targets. 5 CLOSED (kwavers #1/#2/#3/#5, CFDrs), 1 OPEN (ritk Batch #3), 1 CLOSED (helios).
+**Migration queue summary (refreshed)**: 7 ordered targets. 7 CLOSED (kwavers #1/#2/#3/#5, CFDrs, ritk Batch #3, helios).
 
 Atlas-meta pending bookkeeping: 0 (all gitlink-aligned per the
 
