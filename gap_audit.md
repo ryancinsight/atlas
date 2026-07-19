@@ -2085,11 +2085,13 @@ action is purely docs-only (this chore + future audit refreshes).
 
 3. ~~**NIGHTLY-PINNED TOOLCHAIN**: `kwavers` workspace pins `nightly` rust (`rust-toolchain-pinned nightly` per `crates/kwavers/simiconductor.rs`;; verify on kwavers toolchain).~~ **RETRACTED 2026-07-06** (T1 re-verification): no `rust-toolchain*` file exists at `repos/kwavers/` (workspace root) or in any first-level subdirectory; the cited `crates/kwavers/simiconductor.rs` path is fictitious. The workspace does not pin nightly at the manifest level. Any nightly-feature usage must be re-verified at the per-crate site, not at the workspace toolchain pin level.
 
-4. **TRAIN-PIN**: `let''o_dict`/realbind picked in mid-sprint between `coeus-tensor::Tensor` vs `let''o::Array` for autodiff carrier; coordinate via design note in `let''o/crate` and `coeus/docs/`.
+4. ~~**TRAIN-PIN**: `let''o_dict`/realbind picked in mid-sprint between `coeus-tensor::Tensor` vs `let''o::Array` for autodiff carrier; coordinate via design note in `let''o/crate` and `coeus/docs/`.~~ **RETRACTED 2026-07-18**: kwavers PINN surface fully migrated to Coeus (Batch #4 CLOSED 2026-07-12); no `coeus_autograd`/`coeus_nn`/`coeus_optim` references remain in kwavers source; the carrier-choice design note is moot.
 
-5. **CR-2 dependency-edge cycles**: removing `#[global_allocator]` from library crate `cfd-core`/`ritk-core` requires DI handles in main binaries — verify binaries have zero-handle init paths after tracking.
+5. ~~**CR-2 dependency-edge cycles**: removing `#[global_allocator]` from library crate `cfd-core`/`ritk-core` requires DI handles in main binaries — verify binaries have zero-handle init paths after tracking.~~ **CLOSED 2026-07-18**: CR-2 fully closed — `rg -n "global_allocator"` returns zero across all three library crates (cfd-core, moirai, ritk-core).
 
 6. **PEER-WIP COLLISION (refreshed 2026-07-06 inventory)**: every consumer-batch-owning repo and most provider repos carry **active uncommitted peer WIP** in their working trees, blocking autonomous reclaim. Per-tree state (modified-files count on each branch's working tree):
+
+   > **2026-07-18 migration-complete note**: All 7 migration targets, CR-1, CR-2, and CR-4 are CLOSED. The per-repo WIP state below is historical snapshot data from 2026-07-08. Current atlas-level gitlink state: all submodules aligned to their respective origin/main (or origin/master for hephaestus) HEADs except `repos/hermes` (peer inner ahead) and `repos/ritk` (peer inner dirty) — both peer-owned per `concurrent_agents` rule. No atlas-meta reclamation action is pending.
 
    - `repos/CFDrs` `codex/cfdrs-atlas-migration`: **79 modified/untracked inner paths on 2026-07-06 recheck** after the `d58d1fe3` Batch #2 closure push. Batch #2 (CFDrs nalgebra → leto + nalgebra-sparse → leto-ops `CsrMatrix`) remains **CLOSED** at `d58d1fe3`, but the current dirty tree is live inner-repo WIP and is not reclaimable from Atlas-meta. Do not retract the CFDrs §C row until the inner tree is clean again or a new CFDrs commit lands.
 

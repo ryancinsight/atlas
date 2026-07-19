@@ -1534,7 +1534,7 @@ Atlas parent does not stage peer-owned inner-repo changes.
 - [x] Accept ADR 0018 (status `Accepted`).
 - [x] Phase 2 partial: delete dead `src/topology/tests/gpu.rs` and `src/topology/tests/tpu.rs` (these files were not declared in `mod.rs`; integration test copies already exist at `tests/gpu.rs` and `tests/tpu.rs`).
 - [x] Phase 2 completed: CPU topology tests (`src/topology/tests/cpu.rs`) → `tests/topology/cpu.rs`; branded tests (`src/branded/tests.rs`) → `tests/branded.rs`. Visibility blockers resolved: added `#[cfg(test)] pub fn new_for_test(...)` constructor on `CpuTopology`; widened builders/constants to `pub`; added `#[cfg(test)] pub use` re-exports in `src/lib.rs`. Deleted `src/topology/tests/mod.rs`, `src/topology/tests/cpu.rs`, `src/branded/tests.rs`. Committed and merged via PR #9 (`a9127ac`).
-- [ ] Phase 4 deferred as TREE-DUP-002 (moirai-core dual-channel consolidation).
+- [x] Phase 4 deferred as TREE-DUP-002 (moirai-core dual-channel consolidation) — **done** per checklist.md L450 and ADR 0019 Accepted.
 
 Verification: `cargo nextest run -p themis` 16/18 pass (2 pre-existing branded placement panics — `region_index 0 out of bounds for 0 region(s)` in `SafePlacement::cell_index`, pre-existing with `melinoe` feature). ADR 0018 Phase 2 implementation note updated. `themis/gap_audit.md` updated.
 
