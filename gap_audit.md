@@ -2909,6 +2909,23 @@ validates the CFD grid contract and forwards to the provider kernel.
 - Atlas PM artifacts: `backlog.md` ATLAS-INTEGRATION-029;
   `checklist.md` session 2026-07-19.
 
+## Findings 2026-07-19: HERMES-WATCH-001 closure — mnemosyne aliasing fix verified
+
+### ✅ CLOSED: HERMES-WATCH-001 (Hermes Mnemosyne consumer Miri)
+
+Mnemosyne's `Page`-pointer aliasing violation was fixed in commit `5a9f49f`
+("fix(local): Refresh page provenance"), which is an ancestor of the current
+mnemosyne HEAD (`cb103a5`). Hermes locks mnemosyne at `9b8585db`, which is
+a descendant of the fix commit.
+
+Local verification: `rustup run nightly cargo miri test -p hermes-simd-core`
+from `repos/hermes` = **14/14 pass, 2 ignored, 0 failed**. Only informational
+integer-to-pointer cast warnings from mnemosyne's exposed-provenance patterns
+(remainders documented in mnemosyne's gap_audit). No Stacked Borrows or Tree
+Borrows violations.
+
+HERMES-WATCH-001 is CLOSED.
+
 ## Findings 2026-07-14: MR-WATCH-001 closure + hermes gitlink advance + kwavers peer-active break
 
 ### ✅ CLOSED: MR-WATCH-001 (moirai-scheduler/executor rebuild)
