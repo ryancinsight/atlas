@@ -14,10 +14,11 @@
   diagnostics, 593/593 configured Leto Nextest cases, nine doctests, rustdoc,
   no-default-feature compilation, source/manifest residue scans, and exact
   equality between all 16 Atlas gitlinks and their fetched remote defaults.
-- **Parent closure:** advance `repos/eunomia`, `repos/hermes`, and `repos/leto`;
-  reconcile the cumulative branch's previously committed Coeus and RITK
-  pointers to current merged defaults. RITK, Coeus, and root package-manager
-  working state remain peer-owned and unstaged.
+- **Parent closure:** Atlas PR #41 merged at `3f5f51f`, advancing
+  `repos/eunomia`, `repos/hermes`, and `repos/leto` and reconciling the
+  cumulative branch's previously committed Coeus and RITK pointers to current
+  merged defaults. RITK, Coeus, and root package-manager working state remain
+  peer-owned and unstaged.
 - **Residual:** Leto's `leto-python` semver extraction reaches a Rust 1.95
   rustdoc ICE in NumPy 0.23; PyO3 0.23.5 retains two published advisories.
   These are isolated Python-boundary dependency-upgrade work, not numeric
