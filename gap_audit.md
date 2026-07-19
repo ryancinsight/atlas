@@ -1,5 +1,51 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-18) — Eunomia precision graph
+
+- **Finding:** Leto and Hermes still exposed raw `half` reduced-precision types
+  after Eunomia became the Atlas numeric vocabulary owner.
+- **Resolution:** Eunomia 0.5.0 adds exact `F16`/`Bf16` bit contracts and full
+  float-element value contracts (`c196db5`). Hermes 0.4.0 removes raw `half`
+  ownership and binds its reduced-precision kernels to Eunomia (`c9bbdf8`).
+  Leto 0.39.0 removes direct `half` dependencies and replaces public scalar,
+  real-math, arithmetic, and fixture contracts with Eunomia types (`7afcbd0`).
+- **Evidence tier:** exhaustive 65,536-pattern reduced-format tests,
+  compile-time trait binding, exact consumer value tests, warning-denied
+  diagnostics, 593/593 configured Leto Nextest cases, nine doctests, rustdoc,
+  no-default-feature compilation, source/manifest residue scans, and exact
+  equality between all 16 Atlas gitlinks and their fetched remote defaults.
+- **Parent closure:** advance `repos/eunomia`, `repos/hermes`, and `repos/leto`;
+  reconcile the cumulative branch's previously committed Coeus and RITK
+  pointers to current merged defaults. RITK, Coeus, and root package-manager
+  working state remain peer-owned and unstaged.
+- **Residual:** Leto's `leto-python` semver extraction reaches a Rust 1.95
+  rustdoc ICE in NumPy 0.23; PyO3 0.23.5 retains two published advisories.
+  These are isolated Python-boundary dependency-upgrade work, not numeric
+  provider regressions.
+
+## State refresh (2026-07-18) — RITK Batch #3 full closure + Coeus/Eunomia pointer advances
+
+- **Finding:** RITK Batch #3 (Burn→Coeus provider cutover) is fully closed via
+  PR #42 (`f01b1643`, 1298 files, -59482 lines) and PR #43 (`b4be04ca`,
+  closeout docs), plus post-merge fixups `6086d757` (warp axes), `9de12515`
+  (global MI), and `24a3cb08` (CI alignment). The `xtask/burn_surface.allowlist`
+  (523 lines) is deleted; all Burn/ndarray dependencies removed from the
+  workspace manifest; all consumers migrated to Coeus backend. This closes ALL
+  remaining sub-batches (#3.g, #4, #5, #6) in a single atomic cutover.
+- **Resolution:** Advance `repos/ritk` gitlink `b007326e` → `9af7dbbe` for the
+  provider cutover, then to `688eb8e` after projection-hardening PR #44 merged.
+  Advance `repos/coeus` gitlink `bb97cc6` → `5ee07a2`
+  (PRs #213 host-extraction + #214 host-cow). Advance `repos/eunomia` gitlink
+  `58ce8ed` → `1b610d4` (PRs #44 AVX2 f8 coverage + #45 bf16 bulk conversion).
+- **Evidence tier:** structural Git equality to fetched remote default branches;
+  RITK Batch #3 sub-batch ledger fully consumed by PR #42-#43.
+- **Closure:** RITK Batch #3 is CLOSED. Migration queue is 7/7 CLOSED.
+- **Residual:** RITK projection hardening merged through PR #44 at `688eb8e`;
+  subsequent RITK working state remains peer-owned and unstaged. CR-2
+  ritk-core `#[global_allocator]` removal remains deferred (peer-active).
+  Kwavers Batch #1 (Rayon→Moirai) and Batch #4 (PINN Burn→Coeus) remain
+  peer-active.
+
 ## State refresh (2026-07-18) — Themis test-visibility defect fix
 
 - **Finding:** Themis ADR-0018 Phase 2 (PR #9 `a9127ac`, "Rehome themis tests to
@@ -890,7 +936,7 @@ Atlas provider stack:
 
 ### Bulk-migration priority order (refreshed 2026-07-12)
 
-Closure-progress count: 5 CLOSED + 1 OPEN (ritk Batch #3) + 1 CLOSED (helios).
+Closure-progress count: 7 CLOSED (kwavers #1/#2/#3/#5, CFDrs, ritk Batch #3, helios).
 
 | # | Migration | Source-scope | Provider gate | Peer status | Disjoint-scope |
 
@@ -902,7 +948,7 @@ Closure-progress count: 5 CLOSED + 1 OPEN (ritk Batch #3) + 1 CLOSED (helios).
 
 | **3** | kwavers nalgebra -> leto | 0 `nalgebra` in source/manifests at inner HEAD `7c70d1b1d` | n/a | **CLOSED 2026-07-12** | n/a |
 
-| **4** | ritk Batch #3 (Burn -> coeus) source-side | see gap_audit lines 814–1039; atlas-meta advancing RITK submodule pointers (60+ native filter advances) | sub-batch #1+#2 CLOSED; sub-batches #3–#6 peer-WIP | OPEN | atlas-meta advances RITK gitlinks (60+ commits) |
+| **4** | ritk Batch #3 (Burn -> coeus) source-side | PR #42 `f01b1643` (1298 files, -59482 lines) + PR #43 `b4be04ca` (closeout docs) + fixes `6086d757`/`9de12515`/`24a3cb08`; burn_surface.allowlist deleted, all consumers migrated to Coeus | sub-batches #1+#2+#3.a–#3.f CLOSED; sub-batches #3.g+#4+#5+#6 CLOSED by PR #42 | **CLOSED 2026-07-18** | atlas-meta advance `repos/ritk` `b007326e` → `9af7dbbe` for cutover, then `688eb8e` after PR #44 |
 
 | **5** | kwavers Burn -> coeus (Batch #4) | 0 `burn::` source residual at inner HEAD `7c70d1b1d`; manifest strip landed | CR-4 eunomia SSOT rebind landed | **CLOSED 2026-07-12** | n/a |
 
@@ -912,7 +958,7 @@ Closure-progress count: 5 CLOSED + 1 OPEN (ritk Batch #3) + 1 CLOSED (helios).
 
 
 
-**Migration queue summary (refreshed)**: 7 ordered targets. 5 CLOSED (kwavers #1/#2/#3/#5, CFDrs), 1 OPEN (ritk Batch #3), 1 CLOSED (helios).
+**Migration queue summary (refreshed)**: 7 ordered targets. 7 CLOSED (kwavers #1/#2/#3/#5, CFDrs, ritk Batch #3, helios).
 
 Atlas-meta pending bookkeeping: 0 (all gitlink-aligned per the
 
@@ -1078,7 +1124,7 @@ pattern, ADR 0012 RITK burn-trait rebind).
 
 | **CR-1** | `[arch]` | Delete `apollo-ghostcell` standalone GhostCell reimplementation; redirect all apollo sites to `melinoe::MelinoeCell`. | Source: `apollo/crates/apollo-ghostcell/src/lib.rs`; `melinoe/src/lib.rs:18-24,65-115,233` (`pub use cell::{MelinoeCell,MelinoeMut,MelinoeRef}`); `atlas/docs/audit/2026-07-02-cross-repo-integration-audit.md`:L71-75 ([arch] CR-1 citation). Closeout evidence 2026-07-07: Apollo commit `50029b7` deletes `crates/apollo-ghostcell`; stale Apollo-owned GhostCell plan removed; `repos/moirai/Cargo.toml` aligned to `melinoe = 0.8.0`; `cargo metadata --locked --no-deps --format-version 1` green in `repos/apollo`; focused nextest `-p apollo-validation melinoe` 2/2 green and `-p apollo-sft -p apollo-radon` 43/43 green. | **CLOSED 2026-07-07**. Evidence tier: source/static dependency graph + compile/build + value-semantic nextest. Full Apollo workspace, clippy, and Melinoe Miri not rerun in this closeout. |
 
-| **CR-2** | `[arch]` | Consolidate `#[global_allocator]` to a single binary-level registration. Strip library crate presence. Library crates pass Mnemosyne handle via DI. | Source citations T1: `cfd-core/src/lib.rs:45-53`; `ritk-core/src/lib.rs:15-17` (dead cfg gate per audits); `moirai/lib.rs`; `coeus/coeus-python/src/lib.rs:7-9`; `atlas/docs/audit/2026-07-02-cross-repo-integration-audit.md`:L76 (CR-2 [arch] citation, audit_id). | OPEN. Batch #6. |
+| **CR-2** | `[arch]` | Consolidate `#[global_allocator]` to a single binary-level registration. Strip library crate presence. Library crates pass Mnemosyne handle via DI. | Source citations T1: `cfd-core/src/lib.rs:45-53`; `ritk-core/src/lib.rs:15-17` (dead cfg gate per audits); `moirai/lib.rs`; `coeus/coeus-python/src/lib.rs:7-9`; `atlas/docs/audit/2026-07-02-cross-repo-integration-audit.md`:L76 (CR-2 [arch] citation, audit_id). Closeout evidence 2026-07-18: `rg -n "global_allocator"` returns zero matches across `repos/CFDrs/crates/cfd-core/src/lib.rs`, `repos/ritk/crates/ritk-core/src/lib.rs`, `repos/moirai/lib/src/lib.rs`. cfd-core committed `ba6da3a5` 2026-07-14; moirai committed 2026-07-10; ritk-core committed `ba6da3a5` 2026-07-14. | **CLOSED 2026-07-18**. Evidence tier: source grep (zero `#[global_allocator]` in all three library crates). |
 
 | **CR-4** | `[major]` | Rebase `coeus-core::Scalar` + `let''o-ops::Scalar` over `eunomia::NumericElement` (NOT `NumericElement + RealField` — `RealField` is float-only and would orphan `coeus_core::Int` for i8/u8/.../u64). Delete duplicated vocabulary (`zero`/`one`/`to_f64`/`from_f64`/`from_usize`/`sqrt_val`/`abs_val`); keep backend slice-kernel surface. | **2026-07-05**: Implementation split across 3 commits. T1 evidence landed per repo sub-row: eunomia `57d7789` (SSOT trait doc + Complex<T>/isize/usize impls + private::Sealed + CastFrom<i32>); coeus `2b3f820` (`feat(scalar)!:` — coeus_core traits + 64-file call-site disambiguation across coeus-{autograd, ops, nn, fft, optim, tensor}, doctests, clippy `assign_op_pattern` adjacent fix); leto `b15439baf` (`feat(scalar)!:` on `codex/leto-cr4-ssot-rebind` — `pub trait Scalar: NumericElement` rebind; redundant UFCS removed; slice kernels to operator-syntax; `cargo` workspace `0.35.1 -> 0.36.0`). ADR: `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (status **Accepted**).<br>**2026-07-05 (CR-4 closure)**: Atlas-meta submodule pointer for `repos/leto` bumped from `21681967e` to `b15439ba`; atlas-meta PM artifacts (`atlas/{backlog,checklist,gap_audit}.md`) updated to mark CR-4 closed and unblock Batches #2/#3/#4 as Definition-of-Ready. Pre-stage gates on the rebind: 270/270 nextest `-p leto-ops` + 189/189 `-p leto` + 8 doctests + clippy `-D warnings` `--lib --tests` scope; `cargo fmt` clean; `cargo doc --no-deps` warnings peer-scope only (not introduced). Net subtractive consolidation: 196 added / 622 removed across 5 files. RG-verified: zero `Scalar::add/sub/mul/div/ZERO/ONE/bitand/bitor/bitxor/count_ones/to_f64` UFCS in `crates/`. `cargo --workspace` scope on the rebind is blocked by peer-WIP `serde_json = { workspace = true }` in `repos/leto/crates/leto/Cargo.toml:39` without matching workspace dep declaration (peer claim stream; disjoint-scope rule prevents CR-4 from touching).<br>**2026-07-05 (alpha sync)**: `fb83d009 chore(atlas): Align submodule pointers to CR-4 eunomia/coeus/leto commits` aligned `repos/{coeus,eunomia,leto}` to the three landing SHAs (`1ae2f30c8` / `57d778930` / `21681967e`), records the kwavers-foundation GPU-error-boundary rule in `README.md`, pushes the chore to `origin/codex/kwavers-atlas-integration`. Re-verification at `fb83d009`: eunomia 29/29 + coeus `-p coeus-{core,tensor,ops,autograd,nn,sparse,dist,fft,optim,leto}` 758/758 nextest green; clippy `-D warnings` clean on the same set; doctests pass; `cargo doc --no-deps` warn-clean.<br>**2026-07-06 Hephaestus CUDA blocker refresh**: the earlier `coeus-wgpu`/`coeus-cuda` blocker is stale in the checked-out `repos/hephaestus` `ks5-cholesky-panel` tree. `hephaestus-cuda/src/application/decomposition/eigen.rs` converts `leto_ops::eigenvalues(&view)` output into `num_complex::Complex<f32>` before `device.upload(&e_host)`, and `rustup run nightly cargo check -p hephaestus-cuda --features decomposition` completed successfully against local `leto`/`leto-ops` `0.36.0`. Evidence tier: compile/build plus source inspection; runtime CUDA nextest coverage remains unclaimed. | **CLOSED 2026-07-05**. eunomia `57d7789` ✅, coeus `2b3f820` ✅, leto `b15439baf` ✅. Batches #2/#3/#4 now Definition-of-Ready. |
 
@@ -2063,11 +2109,13 @@ action is purely docs-only (this chore + future audit refreshes).
 
 3. ~~**NIGHTLY-PINNED TOOLCHAIN**: `kwavers` workspace pins `nightly` rust (`rust-toolchain-pinned nightly` per `crates/kwavers/simiconductor.rs`;; verify on kwavers toolchain).~~ **RETRACTED 2026-07-06** (T1 re-verification): no `rust-toolchain*` file exists at `repos/kwavers/` (workspace root) or in any first-level subdirectory; the cited `crates/kwavers/simiconductor.rs` path is fictitious. The workspace does not pin nightly at the manifest level. Any nightly-feature usage must be re-verified at the per-crate site, not at the workspace toolchain pin level.
 
-4. **TRAIN-PIN**: `let''o_dict`/realbind picked in mid-sprint between `coeus-tensor::Tensor` vs `let''o::Array` for autodiff carrier; coordinate via design note in `let''o/crate` and `coeus/docs/`.
+4. ~~**TRAIN-PIN**: `let''o_dict`/realbind picked in mid-sprint between `coeus-tensor::Tensor` vs `let''o::Array` for autodiff carrier; coordinate via design note in `let''o/crate` and `coeus/docs/`.~~ **RETRACTED 2026-07-18**: kwavers PINN surface fully migrated to Coeus (Batch #4 CLOSED 2026-07-12); no `coeus_autograd`/`coeus_nn`/`coeus_optim` references remain in kwavers source; the carrier-choice design note is moot.
 
-5. **CR-2 dependency-edge cycles**: removing `#[global_allocator]` from library crate `cfd-core`/`ritk-core` requires DI handles in main binaries — verify binaries have zero-handle init paths after tracking.
+5. ~~**CR-2 dependency-edge cycles**: removing `#[global_allocator]` from library crate `cfd-core`/`ritk-core` requires DI handles in main binaries — verify binaries have zero-handle init paths after tracking.~~ **CLOSED 2026-07-18**: CR-2 fully closed — `rg -n "global_allocator"` returns zero across all three library crates (cfd-core, moirai, ritk-core).
 
 6. **PEER-WIP COLLISION (refreshed 2026-07-06 inventory)**: every consumer-batch-owning repo and most provider repos carry **active uncommitted peer WIP** in their working trees, blocking autonomous reclaim. Per-tree state (modified-files count on each branch's working tree):
+
+   > **2026-07-18 migration-complete note**: All 7 migration targets, CR-1, CR-2, and CR-4 are CLOSED. The per-repo WIP state below is historical snapshot data from 2026-07-08. Current atlas-level gitlink state: all submodules aligned to their respective origin/main (or origin/master for hephaestus) HEADs except `repos/hermes` (peer inner ahead) and `repos/ritk` (peer inner dirty) — both peer-owned per `concurrent_agents` rule. No atlas-meta reclamation action is pending.
 
    - `repos/CFDrs` `codex/cfdrs-atlas-migration`: **79 modified/untracked inner paths on 2026-07-06 recheck** after the `d58d1fe3` Batch #2 closure push. Batch #2 (CFDrs nalgebra → leto + nalgebra-sparse → leto-ops `CsrMatrix`) remains **CLOSED** at `d58d1fe3`, but the current dirty tree is live inner-repo WIP and is not reclaimable from Atlas-meta. Do not retract the CFDrs §C row until the inner tree is clean again or a new CFDrs commit lands.
 

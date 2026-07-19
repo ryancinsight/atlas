@@ -4,6 +4,13 @@
 
 ### Changed
 
+- Advance Eunomia to `c196db5`, Hermes to `c9bbdf8`, and Leto to `7afcbd0`.
+  Eunomia owns exact reduced-format bit and float-element contracts; Hermes and
+  Leto remove raw `half` public ownership in favor of Eunomia `F16`/`Bf16`.
+  Reconcile the cumulative Coeus pointer at `5ee07a2` and RITK pointer at
+  projection-hardening PR #44 merge `688eb8e`; peer working state remains
+  outside the parent commit.
+
 - Advance Helios to PR #7 merge `79b09e9`; its reproducibility lock now
   resolves Apollo 0.25.0, Eunomia 0.4.0, Leto 0.38.2, and Hephaestus 0.17.0
   and contains no `num-complex` package.
