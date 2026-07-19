@@ -7,6 +7,18 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
+## ATLAS-INTEGRATION-026 — Eunomia runtime-half retirement [patch] — in progress
+
+- Owner: Codex `/root`; scope: merged Eunomia and Hephaestus defaults, their
+  parent gitlinks, and cross-repo evidence. Main-tree Coeus/RITK and root
+  package-manager working state remain peer-owned and outside this claim.
+- Acceptance: Eunomia's production graph excludes `half`; Hephaestus resolves
+  the coherent Eunomia 0.6/Hermes 0.4/Leto 0.39 closure; both child defaults
+  are merged and the parent records only those defaults.
+- Evidence: Eunomia PR #48 merges at `df77dfd`; Hephaestus PR #51 merges at
+  `594d57a`. Producer Nextest passes 86/86 and Hephaestus passes 312/312,
+  together with warning-denied diagnostics and documentation gates.
+
 ## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — done
 
 - Owner: Codex `/root`; scope: merged Eunomia, Hermes, and Leto defaults,
