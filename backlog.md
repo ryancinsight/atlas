@@ -7,6 +7,19 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
+## ATLAS-INTEGRATION-027 — Provider-default convergence [patch] — in progress
+
+- Owner: Codex `/root`; scope: merged Hermes and Leto defaults and their parent
+  gitlinks. Dirty child worktrees and root package-manager state remain
+  peer-owned and outside this claim.
+- Acceptance: Hermes resolves merged Eunomia 0.6 without restoring raw-half
+  ownership; Leto's merged Box-Muller increment remains intact; every Atlas
+  gitlink equals its fetched remote default.
+- Evidence: Hermes PRs #10-#11 merge at `6f9b81f` after warning-denied Clippy,
+  388/388 Nextest cases, 18/18 runnable doctests, and warning-denied rustdoc.
+  Leto PR #48 merges at `bb03244` with its recorded 304/304 `leto-ops` tests
+  and criterion comparison.
+
 ## ATLAS-INTEGRATION-026 — Eunomia runtime-half retirement [patch] — done
 
 - Owner: Codex `/root`; scope: merged Eunomia and Hephaestus defaults, their

@@ -1,5 +1,17 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-19) — provider-default convergence
+
+- **Finding:** Hermes' parent pointer predated its Eunomia 0.6 lock refresh,
+  and Leto's parent pointer predated the merged Box-Muller increment.
+- **Resolution:** advance Hermes to `6f9b81f` and Leto to `bb03244`; no other
+  gitlink moves.
+- **Evidence tier:** Hermes compiler, value-semantic test, doctest, and rustdoc
+  gates; Leto PR #48's recorded value-semantic and criterion evidence; exact
+  remote-default identity audit for all 16 parent gitlinks after merge.
+- **Residual:** dirty CFDrs, Coeus, Hephaestus, Kwavers, and RITK worktrees plus
+  root package-manager files remain peer-owned and excluded from the commit.
+
 ## State refresh (2026-07-19) — Eunomia runtime-half retirement
 
 - **Finding:** Eunomia retained foreign numeric and cast implementations for
