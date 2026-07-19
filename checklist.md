@@ -7,6 +7,14 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-027 — Provider-default convergence [patch]
+
+- [x] Merge Hermes' Eunomia 0.6 lock refresh and PM closeout.
+- [x] Preserve Leto PR #48's merged Box-Muller increment.
+- [x] Advance only the Hermes and Leto gitlinks to their fetched defaults.
+- [ ] Publish, merge, and reconcile the Atlas integration PR; rerun the
+      16-gitlink remote-default audit.
+
 ## ATLAS-INTEGRATION-026 — Eunomia runtime-half retirement [patch]
 
 - [x] Merge Eunomia 0.6.0 with the foreign raw-half numeric/cast surface

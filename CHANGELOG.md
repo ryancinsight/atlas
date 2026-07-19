@@ -4,6 +4,10 @@
 
 ### Changed
 
+- Advance Hermes to PR #11 merge `6f9b81f`, locking Eunomia 0.6 after its
+  raw-half retirement. Advance Leto to PR #48 merge `bb03244`, preserving the
+  merged Box-Muller paired-normal performance increment.
+
 - Advance Eunomia to PR #48 merge `df77dfd`, removing its production
   `half` dependency and foreign raw-half numeric/cast surface. Advance
   Hephaestus to PR #51 merge `594d57a`, whose reproducibility lock resolves
