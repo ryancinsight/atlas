@@ -485,11 +485,13 @@ tracking + Drop cleanup), `oneshot.rs` (Drop clears rx_waker).
 > 4. ✅ RITK coeus-core pinning fix — `4d52ff8b` build(ritk): Pin coeus workspace path-deps at 0.7.0 (track coeus/main HEAD); CFDrs cfd-suite now builds green.
 > 5. ✅ Kwavers Batch #1 (kwavers-solver/{solver,physics}/Rayon→Moirai `par_for_each`) — **CLOSED 2026-07-12**. Peer commit `5913f2946` "perf(kwavers-solver): Migrate solver tree to moirai parallel iterators" drives source-site count to zero: `par_for_each`=0, `burn::`=0, `nalgebra`=0, `use ndarray`=0, `kwavers-solver/Cargo.toml` clean of `ndarray`/`rayon`/`burn`. `cargo nextest run --workspace --exclude kwavers-driver --no-fail-fast --lib`: 5117/5119 pass, 2 timeouts (KW-WATCH-002 abdominal-preprocessing perf tests on 90s `elastic-fwi` profile override), 7 skipped — peer-stream perf, NOT a Batch #1 correctness regression. Atlas-meta `repos/kwavers` gitlink advanced `01643ed9 → 5913f2946`.
 > 6. ✅ Kwavers Batch #4 (kwavers-solver PINN Burn → Coeus) — **CLOSED** at the new HEAD `5913f2946`. `cargo check -p kwavers-solver --features pinn` PASSES (53 warnings, 0 errors); sole residual is `kwavers-solver/Cargo.toml`'s `ndarray` `rayon` feature gate (separate item flagged in the peer commit body). Co-verified with Batch #1.
-> 7. ❌ RITK Burn cleanup — peer active (dirty inner WT). Sub-batch #3 per-crate work continues (`bcd3b726` adds coeus-native paths for `ritk-filter` intensity + grayscale morphology atop `829ebfe5` convolution/stencil + `34c3836b` `ritk-statistics` normalization/comparison; `cargo nextest run -p ritk-filter -p ritk-statistics -p ritk-image --lib --no-fail-fast` 1399/1399 pass). Sub-batch #3.g (python/cli/snap) + sub-batches #4/#5/#6 remain reserved per ADR 0012 standing reminders. Atlas-meta `repos/ritk` gitlink advanced `57b2b1c3 → bcd3b726`.
+> 7. ✅ RITK Burn cleanup — **FULLY CLOSED 2026-07-18** by PR #42, with
+> PR #43 closing the ledger. The prior peer-active queue is historical.
 > 8. ✅ **Batch #8 (provider extension) — Leto**: `FixedMatrix<T,4,4>` determinant/try_inverse/row-major constructors + generic operators (Add/Sub/Neg/Mul<T>/Div<T>/SubAssign/MulAssign/DivAssign); `Quaternion<T>` Add/Sub/Neg/Mul<T>/Div<T> + `try_inverse`/`to_rotation_matrix`/`UnitQuaternion::{slerp,to_rotation_matrix}`. Themis 0.10 cache-level fixtures now carry the provider's optional line-size field and the lock graph has one Themis package. **PR #32 merged as `8d39f58`** after the complete local gate: fmt, warning-denied workspace Clippy, 568/568 locked nextest cases, doctests, and rustdoc.
 > 9. ✅ **Batch #8 (provider extension) — Hephaestus**: `f64` DialectScalar impls for Wgsl (`"f64"`) and CudaC (`"double"`) + GPU vector type DialectScalar impls for `[f32;{2,3,4}]`, `[f64;{2,3,4}]`, `[i32;{2,3,4}]`, `[u32;{2,3,4}]` across both dialects (24 impls via macro). Themis patch added to `hephaestus/Cargo.toml`. **Verified**: `cargo clippy -p hephaestus-core --all-targets -- -D warnings` clean, `cargo nextest run -p hephaestus-core` 47/47 green.
 > 10. ✅ **Batch #8 — moirai-async new crate**: `mpsc::channel`, `oneshot::channel`, `Condvar`, `Mutex`, `#[moirai::main]` proc-macro. **Verified**: 79/80 tests pass (only pre-existing flaky timer: `cancelled_timers_are_compacted_before_their_deadline` 101 vs 100), clippy `-D warnings` clean, proc-macro crate compiles.
-> 11. ⏭️ **Batch #8 — RITK sub-batch #3.g (python/cli/snap)**: Deferred — peer hasn't ported. 5 uncommitted files on `codex/ritk-burn-ndarray-cleanup` (direction.rs disambiguation fix + PM artifacts from prior session).
+> 11. ✅ **Batch #8 — RITK sub-batch #3.g (python/cli/snap)**: consumed by
+> RITK PR #42; no deferred port remains.
 > 12. ✅ **Batch #8 (provider extension) — Apollo**: RustFFT dependency removed from Apollo workspace. Pure O(N²) DFT reference oracle replaces rustfft-backed validation. Removed workspace rustfft pin, external-references feature gate, rustfft dev-dependency, vs_rustfft benchmark, and xtask benchmark runner. `cargo check -p apollo-validation` 10/10 nextest green, `cargo check -p xtask` green. Committed `b291003` on `codex/remove-rustfft`, pushed.
 > 13. ✅ **Batch #8 (provider extension) — Eunomia**: eunomia-gpu crate deleted (E-019), folded into hephaestus::DialectScalar. README has no aspirational claims about eunomia-gpu — clean.
 > 14. ✅ **Batch #8 (provider extension) — Coeus**: `scatter_add` exists at Tensor/Var/Python level; all 6 comparison ops (eq/ne/lt/gt/le/ge) exist. `Dataset`/`DataLoader` deferred per backlog condition ("if PINN dataset paths require") — no PINN path in scope requires them.
@@ -632,13 +634,15 @@ The original CR-4 plan proposed methods and trait shapes that diverge from what 
 
 ## Batch #6 — CR-2 (Consolidate `#[global_allocator]`) `[arch]`
 
-> **Status (2026-07-10)**: ✅ **CLOSED** (cfd-core + moirai). ritk-core deferred (peer-active, 112 dirty).
+> **Status (2026-07-18)**: ✅ **FULLY CLOSED** across cfd-core, moirai, and
+> ritk-core. Source scans find zero `#[global_allocator]` sites in all three
+> library crates.
 >
 > | Site | Action | Status |
 > |------|--------|--------|
 > | `cfd-core/src/lib.rs:45-51` | Removed `#[global_allocator]` + entire `mnemosyne` feature | ✅ committed `e24922c8` |
 > | `moirai/moirai/src/lib.rs:202-205` | Removed `#[global_allocator]` registration | ✅ committed `ce22f85` |
-> | `ritk-core/src/lib.rs:15-17` | Deferred — 112 dirty files (peer active) | ⏭️ |
+> | `ritk-core/src/lib.rs:15-17` | Removed in commit `ba6da3a5` | ✅ committed |
 > | `CFDrs/Cargo.toml` | Removed workspace `mnemosyne` dep + feature; removed `no-global-alloc` from moirai features | ✅ committed |
 > | `coeus-python/src/lib.rs:7-9` | Out of CR-2 scope (cdylib = binary artifact) | N/A |
 > | `cfd-validation/src/benchmarking/memory.rs:92-96` | Out of CR-2 scope (`TrackingAllocator` wraps `System`, not mnemosyne) | N/A |
@@ -658,7 +662,7 @@ The original CR-4 plan proposed methods and trait shapes that diverge from what 
 - ✅ `cfd-core/src/lib.rs` no longer carries `#[global_allocator]` or `mnemosyne` feature.
 - ✅ `moirai/moirai/src/lib.rs` no longer carries `#[global_allocator]`.
 - ✅ `cargo check -p cfd-core`, `cargo check -p moirai`, full CFDrs workspace green.
-- ⏭️ `ritk-core` deferred.
+- ✅ `ritk-core` no longer registers a global allocator.
 - ⏭️ `cargo nextest run -p cfd-core` timed out (120s limit; GPU compilation-heavy suite).
 
 ---
@@ -796,17 +800,18 @@ Per ADR 0012 §Decision §Sub-batch #1, the new traits have **default-method-onl
 
 Compile-gate verifications: `cargo check -p ritk-core -p ritk-image -p ritk-transform -p ritk-interpolation` succeeds; `cargo tree --workspace -i burn-wgpu`, `-i burn-cuda`, `-i burn-rocm` each return zero (state preserved from `65a1a0fd`).
 
-### Sub-batches #2-#6 — RESERVED (#2 closed 2026-07-06; #3 OPENED 2026-07-06 with 7-per-crate queue, #3.a/#3.b/#3.c/#3.d/#3.e/#3.f closed 2026-07-06; #3.g + #4-#6 reserved)
+### Sub-batches #2-#6 — HISTORICAL PLAN (all closed 2026-07-18)
 
 Per ADR 0012 §Decision §Sub-batches #2-#6. The high-level `## Batch #3 — \[minor\] ritk Burn-keyed trait rebind (provider side)` section ABOVE (in this checklist, the original text under this H2 header) is now the sub-batch ceremony template + atomic-boundary discipline.
 
-#### Sub-batch #3 OPENED 2026-07-06 — 7-per-crate sub-atomic increment queue
+#### Historical sub-batch #3 queue — opened 2026-07-06, closed 2026-07-18
 
-Sub-batch #3 (`RITK-crate-migrate`, [minor]) is **OPENED** as a 7-per-crate sub-atomic increment queue. Per `docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §Sub-batch #3 (amended 2026-07-06):
+This is the original 7-per-crate decomposition. RITK PR #42 consumed the
+complete queue and PR #43 closed its ledger.
 
 **Per-crate sub-atomic increment = port ONE specific test module from `burn_ndarray::NdArray<B>` to `AtlasImage<T: Scalar, B: ComputeBackend, D>` over `coeus_tensor::Tensor<T, MoiraiBackend>`.** Each per-crate commit is strictly subtractive (drops 1 source-row from `xtask/burn_surface.allowlist`), preserves every public Burn-keyed signature intact, and lands only Atlas-typed test bodies + Atlas-typed device/build patterns. No `#[deprecated]` attribute added (would emit 671-file compile-warning cascade per the sub-batch #2 carry-over rule). No `Cargo.toml` mutation. No `pub use …;` re-export change.
 
-**Per-crate order (open):**
+**Historical per-crate order (closed):**
 
 | # | Crate | Burner-touching file-count | Smallest sub-atomic increment | Atlas-side substrate |
 |---|-------|---:|---|---|
@@ -825,7 +830,9 @@ Sub-batch #3 (`RITK-crate-migrate`, [minor]) is **OPENED** as a 7-per-crate sub-
 4. Atlas-only validation per per-crate commit: `cargo tree -p ritk-<crate> -i burn-wgpu`, `-i burn-cuda`, `-i burn-rocm` each return zero; `cargo tree -p ritk-<crate> -i burn-ndarray` decrements by 1.
 5. Reservation cross-link: `docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §Sub-batch #3 (amended 2026-07-06).
 
-**Sub-batch #3 closeout (final per-crate commit lands + sub-batch #6 owns allowlist refresh ritual):** when the last per-crate commit (`#3.g`) lands, the `xtask/burn_surface.allowlist` source-entries parcel to the migration-done rows per sub-batch #6. The `ritk/atlas-migration-push/batch3` annotated tag annotation body will enumerate the 7 per-crate SHAs per ADR 0010 §Decision §Per-batch name pattern.
+**Sub-batch #3 closeout:** PR #42 consumed #3.g and the downstream #4–#6
+contracts, deleted `xtask/burn_surface.allowlist`, and removed the Burn/ndarray
+workspace dependencies. PR #43 closed the documentation ledger.
 
 ##### Sub-batch #3.a CLOSED 2026-07-06 — `ritk-filter` (proof-of-pattern)
 
@@ -1042,7 +1049,10 @@ The convention shape (per ADR 0010 §Decision §"Per-batch name pattern"): **one
 
 Reference: `D:/atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` (Accepted 2026-07-05) §Decision §"Per-batch name pattern" is the source-of-truth; this checklist section is the pre-allocation tracker enforced before batch closure.
 
-## In-flight claim (this checkpoint)
+## Historical claim checkpoint (superseded)
+
+> The dated entries below are retained for audit only. No claim, watchpoint,
+> or next-session instruction in this section remains active.
 
 - Owned files (atlas-meta, this turn): `backlog.md`, `checklist.md`, `gap_audit.md` at the atlas workspace root (NOT under `atlas/`); these are the cross-repo PM artifacts.
 - Owner: `claude-codex` (current session).
@@ -1051,7 +1061,8 @@ Reference: `D:/atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` (Accepted 202
 - **Latest closed migration batch**: Batch #3 — RITK Burn→Coeus provider cutover **FULLY CLOSED 2026-07-18**. PR #42 (`f01b1643`, 1298 files, -59482 lines) + PR #43 (`b4be04ca`, closeout docs) + fixes `6086d757`/`9de12515`/`24a3cb08` merged on `origin/main` at `9af7dbbe`. All sub-batches consumed: #1 (#1 `d7a940b5`), #2 (docstring deprecation), #3.a–#3.f (per-crate queue `603ad516`→`310fcd6c`), #3.g+#4+#5+#6 (atomic cutover in PR #42). burn_surface.allowlist deleted; all Burn/ndarray deps removed from workspace manifest. Atlas pointer advanced `b007326e` → `9af7dbbe` for the cutover and now tracks projection-hardening PR #44 at `688eb8e`. Earlier closed: Batch #2 (CFDrs nalgebra → leto, `d58d1fe3`).
 - **This turn (2026-07-06, codex, resumed)**: T1 re-verification of the `kwavers` "Residual `burn`" inventory at inner HEAD `c6b845f81` post peer commit `c6b845f81` "Complete Burn-to-Coeus migration for 2D PINN dependency graph". Findings layered on prior `5adf4a27` baseline: (1) the residual inventory in `gap_audit.md` L91-103 (now refreshed) drained from 315 `burn::` line-hits / 144 files to **186 / 80** (−41% hits, −44% files) and `use burn` import-sites from 222/139 to **125/78** (−44% / −44%). Slice 2 rewrote the `burn_wave_equation_2d` family (`acoustic_wave`, `cavitation_coupled`, `sonoluminescence_coupled`, `electromagnetic`, `adaptive_sampling`, `meta_learning`, `transfer_learning`, `distributed_training`, `quantization`, `uncertainty_quantification`, `universal_solver`, `field_surrogate/training/trainer`) onto `coeus_autograd::Var` + `coeus_nn::Module` + `coeus_optim::SGD`; per-parameter gradients replace burn-shaped `ModuleMapper`/`GradientExtractor`/`GradientApplicator`/`MetaOptimizer<B>` — the peer's native-rewrite direction is now explicit and **substantively aligns with risk #8's hard-tier framing**. (2) `cargo tree -p kwavers-solver | grep burn` is still **non-empty** (full `burn v0.19.0` stack pulled via `kwavers-solver/Cargo.toml:53` `optional = true` `pinn` feature + `kwavers/Cargo.toml:138` non-optional dev-dep). Batch #4 completion condition (`cargo tree | grep burn` returns zero) is **unmet**. (3) Residual unmatched: `burn_wave_equation_3d/{wavespeed,solver,optimizer,mod,tests}`, `pinn/elastic_2d/{training/{loop,optimizer,adaptive_sampling},loss/pde_residual/tests}` (32+ hits in `elastic_2d/` alone), `pinn/ml/field_surrogate/{network,tests/training}`, 17 top-level `kwavers/{benches,examples,tests}/**` files. The `burn.rs` facade + `burn_compat` module remain on disk, referenced by these still-unmigrated families; deletion awaits the Burn-source purge. (4) Risk #8 status: **partially-resolved** by `c6b845f81`'s explicit non-shim direction + the major slice-2 surface drained; live until facade + Cargo.toml strip land. Atlas-meta authors one atomic observation-mode doc-sync commit replacing the `400c32624`-anchored burn residual inventory with the `c6b845f81`-anchored one and adding slice-2 record to checklist Batch #4 progress. Does NOT touch peer-claimed source (kwavers tree).
 - **This turn (2026-07-06, Helios/RITK DICOM ownership)**: RITK inner commit `8f8360ff` adds typed `ritk-dicom` attribute ownership (`DicomTag`, common DICOM image `tags`, and `DicomAttributeRead`). Helios H-061 now removes the direct production `dicom` edge and reads Rows/Columns/SamplesPerPixel/BitsAllocated/PixelRepresentation/RescaleSlope/RescaleIntercept/PixelSpacing/SliceThickness/ImagePositionPatient/transfer syntax through RITK. Evidence tier: value-semantic RITK attribute nextest (2/2), Helios DICOM loader nextest (5/5), and normal-dependency tree proof that `dicom` appears below `ritk-dicom` only. H-063 is filed for the remaining `helios-imaging` boundary audit: generic medical-image toolkit operations move to RITK; radiation-domain MVCT simulation kernels remain in Helios.
-- Next claim: observation-mode; both `kwavers` Batch #1 (Rayon→Moirai, 84 `.par_for_each` sites / 28 files remain orthogonal to Batch #4; unchanged across `ea7e09948`→`d4ff48285` snapshots) and Batch #4 (Burn→Coeus) are peer-active. Slices 3 `cd8cf776d` + slice 4 `7235d464a` + slice 5 `d4ff48285` drained the `burn_wave_equation_3d` family, the `field_surrogate/{network,tests/training}` subtree, and the `advanced_architectures` + `autodiff_utils` surface; residual after slice 5 at peer's working-tree HEAD `d4ff48285` (`[ahead 17]`): **145 `burn::` hits / 42 files** plus 43 `use burn` import-sites / 43 files (down from the handoff `c6b845f81` snapshot 186/80/125/78 — additional −22% hits / −48% files / −66% imports / −45% files on top of slice 2). Slices 6..N pending: `pinn/elastic_2d/{training/{loop,optimizer/{mappers,pinn_optimizer,tests},adaptive_sampling/batch},loss/pde_residual/tests}` (~32 hits) + 17 top-level `kwavers/{benches,examples,tests}/**` files (~55 hits) + `pinn/ml/burn_wave_equation_1d/physics/mod.rs` (2) + `xtask/src/migration_audit.rs` (1) + facade deletion (`crates/kwavers-solver/src/burn.rs` + `crates/kwavers-solver/src/inverse/pinn/ml/burn_compat.rs`) + Cargo.toml strip (`kwavers-solver/Cargo.toml:53` `burn` optional dep + `kwavers/Cargo.toml:138` `burn` non-optional dev-dep + `pinn` feature `dep:burn` line at L62-70). Atlas-meta remains ready to bump the `repos/kwavers` submodule pointer only when (a) Batch #1 closure lands cleanly (zero `par_for_each` + `ndarray` `rayon` feature strip from `kwavers-solver/Cargo.toml:24` + `kwavers-physics/Cargo.toml:20` + `cargo tree -p kwavers-solver | grep rayon` empty) AND (b) risk #8 fully resolves (peer deletes `burn.rs` + `burn_compat` and strips the three Cargo.toml dep lines).
+- **Historical next-claim snapshot:** the dated Kwavers Batch #1/#4 queue was
+  superseded by both closures on 2026-07-12.
   - Note on stale PM records: `backlog.md` L90 + `gap_audit.md` L91-97 + risk #6 kwavers-sub-row still anchor on the `c6b845f81` snapshot (186/80 + `[ahead 13]`). They are stale by 4 commits and 41 hits / 38 files; refresh held back this turn because peer concurrently authored in those two files (the pre-batch-#5 `cargo semver-checks` verification note + §Risk #9 `SEMVER-CHECKS RESOLUTION BLOCKER (mnemosyne-arena → themis dep-resolution)`, still-uncommitted working-tree edits per `git status -sb backlog.md gap_audit.md`). Composing the kwavers-burn refresh into peer's semver-blocker commit would violate `git_discipline` atomic-commit cleanliness; defer until peer's commit lands, then a follow-up atomic commit refreshes those two files to `d4ff48285`-anchored residual evidence.
 - Concurrent claim streams to honor (per `concurrent_agents`, all disjoint from atlas-meta's scope, all DO NOT touch source): `repos/kwavers` `codex/kwavers-core-moirai-parallel` (27 dirty paths + `[ahead 12]` ⇒ peer ACTIVE); `repos/moirai` `refactor/remove-dead-subsystems` (26 dirty paths); `repos/leto` `codex/leto-cr4-ssot-rebind` / fixed-spatial reconcile (14 dirty paths); `repos/coeus` `main` (19 dirty paths across dtype/tensor/Python/docs); `repos/gaia` `refactor/migrate-to-leto-geometry` (5 dirty paths across CSG source/bench/PM); `repos/eunomia` `main` (7 dirty paths, `acos`/`asin`/`atan` PR-queue); plus peer claims in `repos/{apollo,CFDrs,hermes,melinoe}` (`CFDrs` now 79 dirty paths). `repos/{helios,ritk,hephaestus,mnemosyne,themis}` have no inner dirty paths after the Helios/RITK DICOM ownership closure and prior pointer-sync commits.
 
@@ -1063,9 +1074,12 @@ Reference: `D:/atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` (Accepted 202
 - `hephaestus-cuda/src/application/decomposition/eigen.rs` Complex upload mismatch is stale in the checked-out `ks5-cholesky-panel` tree: `leto_ops::eigenvalues` output is converted to `num_complex::Complex<f32>` before upload, and `rustup run nightly cargo check -p hephaestus-cuda --features decomposition` passes. Runtime CUDA nextest coverage remains unclaimed.
 - **NEW (this turn 2026-07-06)**: `kwavers-solver/src/burn.rs` + `kwavers-solver/src/inverse/pinn/ml/burn_compat` form a burn→coeus face-shift alias module — `integrity` HARD-tier candidate (compatibility-soup / distributed-shim pattern). Peer-claim boundary: atlas-meta surfaces, peer resolves. See `gap_audit.md` surfacing risk #8 for full framing + two reconciliation options (commit-body retraction-or-burn.rs-delete-now) handed to peer.
 
-## Next micro-sprint
+## Historical next-micro-sprint archive
 
-**Observation-mode hand-off for active inner-repo peers**:
+> Superseded: the migration targets described below are closed. This section
+> preserves dated evidence and is not a current hand-off or work queue.
+
+**Historical observation-mode hand-off:**
 - This turn (2026-07-06, codex) surfaced the Batch #4 slice-1 partial-land + the burn.rs facade `integrity` concern via atomic atlas-meta doc edits only (PM artifacts at workspace root). Did NOT migrate kwavers/coeus/gaia source because those scopes are peer-active. Separately, the Helios/RITK DICOM ownership slice is closed: `ritk-dicom` now owns typed DICOM attribute reads, and Helios production DICOM loading consumes RITK for parse + attributes + transfer syntax + pixel decode.
 - Next turn (2026-07-06, codex resumed) refreshed the Batch #4 record against peer's actual working-tree HEAD `d4ff48285` (slices 3 `cd8cf776d` `burn_wave_equation_3d` + slice 4 `7235d464a` `field_surrogate/{network,tests}` + interstitial `ae86daecc` + slice 5 `d4ff48285` `advanced_architectures`+`autodiff_utils`), all drained to native coeus. This atlas-meta turn authored a single atomic commit editing `checklist.md` only (Batch #4 §Progress append + §In-flight §Next-claim refresh + §Next-micro-sprint refresh), explicitly NOT touching `backlog.md` or `gap_audit.md` because peer is concurrently authoring them with the pre-batch-#5 `cargo semver-checks` verification note + §Risk #9 `SEMVER-CHECKS RESOLUTION BLOCKER (mnemosyne-arena → themis dep-resolution)` (still-uncommitted working tree per `git status -sb backlog.md gap_audit.md`). Composing the kwavers-burn refresh with peer's semver-blocker commit would violate `git_discipline`'s atomic commit unit; deferred to a follow-up once peer's commit lands.
 - Peer's slice-2..N sequence progress (post-handoff): slice 2 `c6b845f81` (12-family `burn_wave_equation_2d` dependency graph) ✅ landed; slices 3-5 `cd8cf776d` + `7235d464a` + `d4ff48285` ✅ landed (drained `burn_wave_equation_3d` + `field_surrogate/{network,tests/training}` + `advanced_architectures`+`autodiff_utils`). Remaining peer queue: slice 6 `pinn/elastic_2d/{training/{loop,optimizer/{mappers,pinn_optimizer,tests},adaptive_sampling/batch},loss/pde_residual/tests}` → slice 7 17 top-level `kwavers/{benches,examples,tests}/**` files + `pinn/ml/burn_wave_equation_1d/physics/mod.rs` (2) + `xtask/src/migration_audit.rs` (1) → slice 8 `burn.rs`+`burn_compat` deletion + `kwavers-solver/Cargo.toml:53` `burn` optional dep + `kwavers/Cargo.toml:138` `burn` dev-dep removal + `pinn` feature `dep:burn` strip at L62-70.
@@ -1080,9 +1094,8 @@ Reference: `D:/atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` (Accepted 202
 - **Net alignment state post-`1fe3c0e56`**: all 12 actively-tracked submodules (apollo, coeus, eunomia, helios, hermes, leto, melinoe, mnemosyne, ritk, themis, CFDrs, kwavers) ALIGNED at inner HEAD with zero DIVERGED gitlinks — the first all-aligned state since the `e0bf55684` cross-tree reclamation audit shifted to round-2 bookkeeping. **ritk-python test suite (47/47)** compiled+passed at committed inner HEAD `1f49278c` (value-semantic asserts — see `gap_audit.md` line-154 bulk-advance unblock evidence). **KW-CV-001 watchpoint re-affirmed ACTIVE**: at inner HEAD `35ee01076`, trigger `(cd /d/atlas/repos/kwavers && git log --oneline -30 | grep -iE 'closeout|final|completion|close-batch' | wc -l)` returns 0; peer continues slice-by-slice Batch #1 + Batch #4 work without explicit closeout.
 - **Atlas-meta action posture**: peer's concurrent expansion across the kwavers Batch #1 + Batch #4 surfaces consumes the entire kwavers source surface, as described in the previous line-586 entry — there is no disjoint-contribution surface available to atlas-meta at this moment beyond observation-mode PM-record refresh. The round-3 block closes the 5 provider-pointer divergences that were the immediate-discovery billboard; the next bulk-advance round (round-4) is contingent on either inner HEAD churn (peer-WIP-after-push divergence) OR the KW-CV-001 watchpoint firing for kwavers.
 - Atlas-meta action posture: peer's concurrent expansion across two batch themes (Batch #4 slice-6+7 + `nalgebra`-residual-site migration) consumes the entire kwavers source surface — there is no disjoint-contribution surface available to atlas-meta at this moment beyond observation-mode PM-record refresh. The pending `backlog.md` L90 + `gap_audit.md` L51-59/L91-97 refresh is now **larger** than the kwavers-Burn-only refresh originally deferred — same atomic commit scope explodes to refresh BOTH the `nalgebra` L51-59 block AND the L91-97 burn residual block; the per-batch-theme atomic discipline argues for two separate follow-up atomic commits when peer's next landing stabilizes the tree. Both still deferred until peer's pre-batch-#5 semver-blocker commit (the `backlog.md`+`gap_audit.md` working tree) lands.
-- Awaiting the peer's `nalgebra` residual migration closure signal — when `nalgebra = { ..., features = ["serde-serialize"] }` is fully stripped from all 5 kwavers manifest files (`kwavers` workspace + `kwavers-mesh`/`-transducer`/`-medium`/`-solver` per `gap_audit.md` §kwavers L51 listing manifests) AND `git grep 'nalgebra' -- '*.rs'` returns zero in the kwavers tree, the L51-59 `gap_audit.md` block (and the related L51 `##### Residual nalgebra #####` enumeration) is ready for re-anchor per peer-landed commit SHA. Until then, `nalgebra = { ..., features = ["serde-serialize"] }` workspace dep may still be restored in peer's iteration, and the 164 transient line-hits will collapse to zero on commit.
-- Awaiting the peer's Batch #1 closure signal (clean `cargo nextest run -p kwavers-solver --no-fail-fast` + `cargo tree -p kwavers-solver | grep rayon` empty + `ndarray` `rayon` feature strip from `kwavers-solver/Cargo.toml:24` + `kwavers-physics/Cargo.toml:20`) on a branch tip not contemporaneous with this session's pointer.
-- Awaiting the peer's Batch #4 closure signal (`cargo tree -p kwavers-solver | grep burn` empty), conditioned on `burn.rs`+`burn_compat` facade deletion + Cargo.toml dep strip.
+- **Historical watchpoints:** the nalgebra, Batch #1, and Batch #4 closure
+  signals below this archive all fired; no peer closure signal remains pending.
 - Once the peer lands closure(s) or a claim goes stale (next session's check): atlas-meta bumps `repos/kwavers` pointer + closes the Batch #1 and/or Batch #4 entries in the in-flight section of `backlog.md`.
 
 - **2026-07-08 Bulk provider-surface round 4 — 6 atomic chore commits landed (post-`1fe3c0e56` session)**: the round-3 inner-churn capture cycle overshot and two divergent screenshots reappeared shortly after the `2d78fffa4` OOB session landed (a `chore(atlas): Advance repos/hephaestus pointer to 240b260 (CU-P6/CU-M3)` commit at `6902d2e92` merged with my staged r4 stash, both consuming hermes/leto r4 pointers + adding hephaestus to 240b260). Re-probe at session-resume returned `hermes c7b17b02c73a / leto 86d366bc0e90` ALREADY-RESOLVED via that OOB consolidation. The r5 round then captured (a) the OOB-merging of the hermes `5ad1b58 → c7b17b02` ergonomically inside the consolidated `6902d2e92`, (b) the leto `a9572da → 86d366b` (Migrate kwavers closure path unblock — `feat(leto-ops): batched LU, CSC sparse format, CG/GMRES iterative solvers`), plus 5 fresh divergences that surfaced mid-session:
@@ -1218,8 +1231,8 @@ fix is the sole closed write-set this session.
   comparison). Verification at HEAD: `cargo nextest run -p ritk-filter -p
   ritk-statistics -p ritk-image --lib --no-fail-fast`: 1399/1399 pass.
   Residual `use burn` imports: 320 (down from prior); dep strip per
-  Batch #3 sub-batch #5/#6 remains reserved per ADR 0012 standing
-  reminders.
+  Batch #3 sub-batches #5/#6 were reserved at this snapshot and closed in
+  RITK PR #42 on 2026-07-18.
   **Subsequent advances in same session**: peer landed
   `5812cd17 feat(ritk-filter): add coeus-native paths for
   spatial/intensity/morphology filters`, then later

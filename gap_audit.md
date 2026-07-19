@@ -42,10 +42,9 @@
   RITK Batch #3 sub-batch ledger fully consumed by PR #42-#43.
 - **Closure:** RITK Batch #3 is CLOSED. Migration queue is 7/7 CLOSED.
 - **Residual:** RITK projection hardening merged through PR #44 at `688eb8e`;
-  subsequent RITK working state remains peer-owned and unstaged. CR-2
-  ritk-core `#[global_allocator]` removal remains deferred (peer-active).
-  Kwavers Batch #1 (Rayon→Moirai) and Batch #4 (PINN Burn→Coeus) remain
-  peer-active.
+  subsequent RITK working state remains peer-owned and unstaged. CR-2 closed
+  on 2026-07-18 with zero library `#[global_allocator]` sites. Kwavers
+  Batches #1 and #4 closed on 2026-07-12.
 
 ## State refresh (2026-07-18) — Themis test-visibility defect fix
 
@@ -651,7 +650,6 @@ Verified at kwavers inner HEAD `7c70d1b1d` (`codex/kwavers-core-moirai-parallel`
 
 | ID | Scope | Class | Notes |
 |---|---|---|---|
-| **CR-2** | Global allocator → DI handle | `[arch]` | Batch #6; low urgency |
 | **GPU provider abstraction** | kwavers-gpu kernel-buffer | `[arch]` | gap_audit provider register |
 | **eunomia Complex64 SSOT** | csr.rs numeric trait | `[arch]` | Verify if Complex→eunomia migration resolved |
 | **CLD-2** | Wire kzk_solver_plugin→HIFU | `[minor]` | CHECKLIST.md:5727 |
@@ -689,27 +687,27 @@ Verified at kwavers inner HEAD `7c70d1b1d` (`codex/kwavers-core-moirai-parallel`
 
 | --- | --- | --- | --- |
 
-| `mnemosyne` | Memory allocator (consolidator; library crates pass handle via DI per CR-2 target axiom [open; Batch #6]) | (consolidator) | `98a02b61ccb8ce04f5b1920113d8315cae193ae8` |
+| `mnemosyne` | Memory allocator (consolidator; library crates pass handles via the closed CR-2 DI contract) | (consolidator) | `cb103a55648515069b6c3c56d738a7f27437f0d0` |
 
-| `themis` | Memory allocator (consolidator pair with mnemosyne) | (consolidator) | `2b6a3ace712acad0a3a5107f0e5a10cb290f22d0` |
+| `themis` | Memory allocator (consolidator pair with mnemosyne) | (consolidator) | `0ad45de04cf515e4726d4efcc35e9d038943caef` |
 
-| `moirai` | Runtime + async + parallel | `tokio`, `rayon` | `37ff12d584e1fb472f41b4e40c702d708aba1dac` |
+| `moirai` | Runtime + async + parallel | `tokio`, `rayon` | `8a51b2a7c5240bbeee6f1b766af2c54ac2898af6` |
 
-| `hermes` | SIMD | `std::arch::*`, `packed_simd` | `c7b17b02c73a81648af2bf8781a261e359a01165` |
+| `hermes` | SIMD | `std::arch::*`, `packed_simd` | `c9bbdf8a0b548b616fa179f94f64e3f314bdcda1` |
 
-| `melinoe` | Branded types / cells | `ghostcell`, `typenum` | `375108b6fe4386c2bffdb584460403c838ca35e8` |
+| `melinoe` | Branded types / cells | `ghostcell`, `typenum` | `159b71ac3c1d59b5bbdcbe0121248c7c451aa77a` |
 
-| `leto` | CPU ndarray/nalgebra alternative | `nalgebra`, `ndarray` (CPU path) | `86d366bc0e909b9aeb1df695170e4279dbc58781` |
+| `leto` | CPU ndarray/nalgebra alternative | `nalgebra`, `ndarray` (CPU path) | `7afcbd0e9ba0d79d16a1da0df7c64714fabfe865` |
 
-| `hephaestus` | GPU ndarray/nalgebra alternative | `nalgebra`, `ndarray` (GPU path) | `676a260552b013f873ce7b9e5db62a68631ae793` |
+| `hephaestus` | GPU ndarray/nalgebra alternative | `nalgebra`, `ndarray` (GPU path) | `ed7d76e547b495d13d5dbb8f1af6fed1c3e71e9f` |
 
-| `coeus` | PyTorch/JAX/Burn alternative (autodiff + tensor + nn + optim + sparse + fft) | `burn` | `006f2a7968d713d561fa02b3d205575cf07a8a70` |
+| `coeus` | PyTorch/JAX/Burn alternative (autodiff + tensor + nn + optim + sparse + fft) | `burn` | `5ee07a26cf13f13917a980cc94f145f69c34186c` |
 
-| `apollo` | FFT (rustfft replacement; pure-Rust SIMD FFT + MMS polynomial oracle) | `rustfft` | `e6ecce49c9f7df0c338422a8974aae907f00f90b` |
+| `apollo` | FFT (rustfft replacement; pure-Rust SIMD FFT + MMS polynomial oracle) | `rustfft` | `a31b8f859ded9a5f0ed1dbba01e77b76b7be4395` |
 
-| `eunomia` | Numeric traits (SSOT for `NumericElement`, `FloatElement`, `RealField`, `Complex<T>`) | `num_traits`, `num_complex` | `7f84beb2a8b1e2aeb08f0b4e865a175fc40b3e9b` |
+| `eunomia` | Numeric traits (SSOT for `NumericElement`, `FloatElement`, `RealField`, `Complex<T>`) | `num_traits`, `num_complex` | `c196db52a07fe34ef4e873013874c3167ae347cf` |
 
-| `ritk` | Image toolkit (provider for kwavers / CFDrs / helios DICOM + spatial + interpolation + transform + io) | (bespoke image-processing crate family; provider-side) | `529d6651671622da76346ce9e2193e6a717cc97d` |
+| `ritk` | Image toolkit (provider for kwavers / CFDrs / helios DICOM + spatial + interpolation + transform + io) | (bespoke image-processing crate family; provider-side) | `688eb8e02209413cb9b75ff96563142facb0d7f7` |
 
 
 
@@ -721,11 +719,11 @@ Verified at kwavers inner HEAD `7c70d1b1d` (`codex/kwavers-core-moirai-parallel`
 
 | --- | --- | --- |
 
-| `helios` | (consumer; radiation therapy sim suite, built atop the same provider stack) | `5f6aef65a47d716f26452592d3a91f3d934a2ffc` |
+| `helios` | (consumer; radiation therapy sim suite, built atop the same provider stack) | `79b09e98a1bb7fda4e80abd048e2b5ea768889aa` |
 
-| `kwavers` | (consumer; acoustic / ultrasound / wave-propagation sim suite, built atop the same provider stack) | `ccc6bbf9e699def2bbefd2413e58c5c6698a79fb` |
+| `kwavers` | (consumer; acoustic / ultrasound / wave-propagation sim suite, built atop the same provider stack) | `65521499abf5251680779bc36955dace9ec4947a` |
 
-| `CFDrs` | (consumer; computational fluid dynamics sim suite, built atop the same provider stack) | `72275347fb71ead3e0d5e5411560a335f6d29241` |
+| `CFDrs` | (consumer; computational fluid dynamics sim suite, built atop the same provider stack) | `8e00b40a3c8052cf4638d4c1e2b8c862771afc00` |
 
 
 
@@ -1486,6 +1484,10 @@ Source: hand-verified scan over all 27 crates plus `RITK/Cargo.toml:69-72` works
 
 - **Closure state**: Sprint 495 (native writers for 9 formats — `MIGH, META, MINC, TIFF, JPEG, NRRD, Analyze, NIfTI, PNG`) merged into `ritk-io::ImageWriter<Image<f32,B,3>>` with Burn + native façade; `DEP-496-01` (default Burn features) is now file-literal consistent: `repos/ritk/Cargo.toml` removes Burn's `wgpu` feature and the workspace dependency graph selects no Burn GPU backend package.
 
+> **Historical timeline:** the dated checkpoints below preserve the migration
+> sequence. Open/reserved language is superseded by RITK PR #42 and closeout
+> PR #43 on 2026-07-18.
+
 - **2026-07-06 — Sub-batch #1 of Batch #3 closed per ADR 0012**: inner RITK atomic commit adds Atlas-typed parallel trait surface (`TransformAtlas<T: Scalar, B: ComputeBackend, D>`, `InterpolatorAtlas<T: Scalar, B: ComputeBackend>`, `ResampleableAtlas<T: Scalar, B: ComputeBackend, D>`) + `pub use native::Image as AtlasImage;` re-export + 2-crate Cargo.toml dep additions (`coeus-core` + `coeus-tensor` referenced as `{ workspace = true }`). **Purely additive**: no Burn-keyed surface mutation; `xtask/burn_surface.allowlist` unchanged; Burn GPU-default drift (closed by inner commit `65a1a0fd`) preserved. Sub-batches #2-#6 (`RITK-trait-deprecate`, `RITK-crate-migrate`, `RITK-spatial-rebind`, `RITK-burn-remove`, `RITK-xtask-ci`) reserved per `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Decision.
 
 - **2026-07-06 — Sub-batch #2 of Batch #3 closed per ADR 0012**: inner RITK atomic commit (docstring-only) appends soft deprecation callout to the four Burn-keyed foundational surfaces `Transform<B, D>`, `Resampleable<B, D>`, `Interpolator<B>`, and `Image<B, D>`. **Docstring-only**: no `#[deprecated]` attribute (which would emit ≥671 `#[warn(deprecated)]` warnings across `xtask/burn_surface.allowlist` source files); zero public Burn-keyed surface symbol removal/narrowing/renaming; zero `Cargo.toml` mutation; `xtask/burn_surface.allowlist` unchanged (auto-generated, signature-keyed). Forward-pointing intra-doc-links `[`TransformAtlas`]` / `[`ResampleableAtlas`]` / `[`InterpolatorAtlas`]` / `[`AtlasImage`]` resolve to the Atlas-side parallels added in sub-batch #1. Compile-gate: `cargo check -p ritk-core -p ritk-image` passes; `cargo doc -p ritk-core -p ritk-image --no-deps` intra-doc-link resolution passes; `cargo tree --workspace -i burn-wgpu`, `-i burn-cuda`, `-i burn-rocm` each zero (Burn GPU-default state preserved from `65a1a0fd`). Sub-batches #3-#6 (`RITK-crate-migrate`, `RITK-spatial-rebind`, `RITK-burn-remove`, `RITK-xtask-ci`) reserved per ADR 0012 §Decision.
@@ -1499,6 +1501,9 @@ Source: hand-verified scan over all 27 crates plus `RITK/Cargo.toml:69-72` works
 - **2026-07-08 — Sub-batch #3 of Batch #3 closure-mark RETRACTION**: the prior peer `7cfe8a37d` closure-mark (`0 \`burn::\` occurrences in \`crates/\` (was 764)`) is retracted. Per T1 re-verification at inner HEAD `1f49278c` (2026-07-08, branch `main`, after the peer's `7cfe8a37d` landed on origin): `git --no-pager grep "burn::" HEAD -- "crates/"` returns **176 occurrences across 97 files** in `repos/ritk/crates/`; among them ~132 are real `use` statements (e.g. `crates/ritk-image/src/lib.rs` declares `pub use ::burn::{backend, module, nn, optim, prelude, record, tensor};` + 4 more `pub use burn::tensor::*` re-exports; `crates/ritk-image/src/host_extract.rs` declares `use crate::burn::backend::Autodiff;`; `crates/ritk-spatial/src/{direction,point,spacing}.rs` each re-declare `use crate::burn::module::{...};` + `use crate::burn::record::{...};` + `use crate::burn::tensor::backend::{...};`), ~6 are doc-comments (`crates/ritk-filter/src/morphology/tests_binary_erode.rs:54,140`, `crates/ritk-core/src/transform/trait_.rs:22`), and the remainder are in-line `burn::*` references in implementation. The working tree has 65 dirty paths (post-`7cfe8a37d`, sub-batch #5 RITK-spatial rebind work mid-flight per peer's dirty paths in `crates/ritk-spatial/src/{direction,point,spacing,vector}.rs` + Cargo.toml + Cargo.lock + CHANGELOG.md + gap_audit.md); the WIP diff is `65 files changed, 1352 insertions(+), 1448 deletions(-)` (the deletions include the `burn::module::*` + `burn::record::Record` impl removals on the 4 spatial types per sub-batch #5: 191 insertions-deletion reversal on `crates/ritk-spatial/src/{direction,point,spacing,vector}.rs`). **Sub-batch #3 closure status**: NOT CLOSED. The per-crate Atlas-typed migrator test-source ports have not landed in `1f49278c`; `burn::` is still the dominant backend surface for RITK (Burn-keyed re-exports in `ritk-image`, Burn-keyed type signatures in `ritk-spatial`, Burn-keyed implementation in `ritk-filter` morphology tests, etc.). **Sub-batches #4-#6 remain OPEN** per ADR 0012: #4 (RITK-crate-migrate per-crate Atlas-typed migrators' Cargo.toml dep strip) is not yet landed (the active inner-WIP reshapes `Ritk/Cargo.toml` but no per-crate stamp has landed); #5 (RITK-spatial-rebind + RITK-burn-remove) is the Burn-trait surface removal + `ritk-spatial` `burn::module` impl removal — actively in flight in the working tree at `1f49278c` (the `burn::module::{Module, AutodiffModule} + burn::record::Record` impls on `Direction/Point/Spacing/Vector` are deleted in the WIP commit but not committed); #6 (RITK-xtask-ci) is the `xtask/burn_surface.allowlist` refresh ritual. The overall Batch #3 is NOT yet closed — only sub-batches #1 + #2 are CLOSED. The peer's measurement of "0 \`burn::\` occurrences" was taken against an uncommitted working-tree snapshot, not against the committed inner HEAD `1f49278c`. **Atlas-meta path forward**: per the `concurrent_agents` disjoint-scope rule, atlas-meta continues to defer the parent-side gitlink for `repos/ritk` until the inner WIP lands; the ritk pointer advance must wait for the peer's sub-batches #3–#6 to actually complete (per the [major] blocker on `Mnemosyne.git?rev=...` + the themis-`^0.8.0` resolver issue per ritk handover notes), at which point a fresh closure-mark can replace this retraction.
 
 
+
+> **Superseded outcome for the 2026-07-08 retraction:** RITK PR #42
+> subsequently completed #3.a–#3.g and #4–#6; PR #43 closed the ledger.
 
 ### Anchor-evolution history (N1 nit follow-up, post-92cc1b62 basis-disclosure)
 
@@ -1655,6 +1660,9 @@ Next-step probe targets (post-e237aca continuation; N5 nit apply):
 
 
 - **2026-07-08 — Sub-batches #4–#6 (Batch #3) inner advance reconciliation**: per fresh T1 verification at inner HEAD `7a66d1ee` (branch `main`, dirty count 58+, after per-sub-batch-#5 mid-flight WT reshaping logged in the line-251 retraction note), per-sub-batch-#3–#6 status inventory per ADR 0012 §Decision:
+
+  **Historical checkpoint:** every open/pending state below was superseded by
+  RITK PR #42 and closeout PR #43 on 2026-07-18.
 
   - **Sub-batch #4 (RITK-crate-migrate Cargo.toml dep strip) — IN PROGRESS**: inner commit `7a66d1ee` (`Strip unused production burn dep across 17 leaf crates`) has landed; `rg -n '\bburn\b' --include 'Cargo.toml' /d/atlas/repos/ritk` returns 37 manifest entries at the committed HEAD (10+ confirmed, up from the baseline 37 entry count cited in the line-240 Manifest residual entry).
 
@@ -2116,7 +2124,12 @@ action is purely docs-only (this chore + future audit refreshes).
 
 6. **PEER-WIP COLLISION (refreshed 2026-07-06 inventory)**: every consumer-batch-owning repo and most provider repos carry **active uncommitted peer WIP** in their working trees, blocking autonomous reclaim. Per-tree state (modified-files count on each branch's working tree):
 
-   > **2026-07-18 migration-complete note**: All 7 migration targets, CR-1, CR-2, and CR-4 are CLOSED. The per-repo WIP state below is historical snapshot data from 2026-07-08. Current atlas-level gitlink state: all submodules aligned to their respective origin/main (or origin/master for hephaestus) HEADs except `repos/hermes` (peer inner ahead) and `repos/ritk` (peer inner dirty) — both peer-owned per `concurrent_agents` rule. No atlas-meta reclamation action is pending.
+   > **2026-07-18 migration-complete note (refreshed after final audit)**: All
+   > 7 migration targets, CR-1, CR-2, and CR-4 are CLOSED. The per-repo WIP
+   > state below is historical snapshot data from 2026-07-08. All 16 Atlas
+   > gitlinks equal fetched remote defaults; Coeus and RITK retain peer-owned
+   > working-tree changes outside the parent commit. No Atlas reclamation
+   > action is pending.
 
    - `repos/CFDrs` `codex/cfdrs-atlas-migration`: **79 modified/untracked inner paths on 2026-07-06 recheck** after the `d58d1fe3` Batch #2 closure push. Batch #2 (CFDrs nalgebra → leto + nalgebra-sparse → leto-ops `CsrMatrix`) remains **CLOSED** at `d58d1fe3`, but the current dirty tree is live inner-repo WIP and is not reclaimable from Atlas-meta. Do not retract the CFDrs §C row until the inner tree is clean again or a new CFDrs commit lands.
 
