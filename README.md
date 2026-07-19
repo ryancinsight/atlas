@@ -1,601 +1,304 @@
 # atlas
 
-Meta-repository aggregating independent Rust package workspaces that form one
-coordinated simulation, numerics, storage, memory, and runtime stack. Each
-package is a standalone Git repository, linked here as a Git submodule, and
-remains independently clonable and buildable on its own.
+Meta-repository for the Rust workspaces that form the Atlas multiphysics
+simulation stack. Atlas coordinates numeric laws, memory and execution
+providers, reusable scientific domains, and end-user simulation suites without
+collapsing their independent release histories.
 
-## Model
+## Repository model
 
-`atlas` is an **orchestration layer**, not a Cargo workspace. A Cargo
-workspace cannot contain a member that is itself a workspace, and each
-submodule can be its own workspace. `atlas` therefore:
+`atlas` is an orchestration repository, not a Cargo workspace. Each package is
+an independent Git repository mounted at `repos/<name>` as a submodule.
 
-- pins each package to a specific commit via submodules (`repos/<name>`),
-- drives cross-package build/test/update from one place (`scripts/`),
-- documents how shared crates are consumed together.
+The root repository owns:
 
-### Shared crates
+- the exact package set and remotes in [`.gitmodules`](.gitmodules);
+- a reproducible stack revision through the recorded submodule gitlinks;
+- cross-package build and verification drivers in [`scripts/`](scripts);
+- stack-wide architecture decisions in [`docs/adr/`](docs/adr).
 
-Shared crates are standalone repositories, checked out at the atlas root under
-`repos/` alongside the packages that consume them.
-A crate shared by multiple packages lives in one repo (single source of truth);
-consuming packages depend on it by **Git remote** (tracked branch = latest), so
-each package still clones and builds in isolation without vendoring the source.
+Each package owns its crate topology, direct dependencies, lockfile, tests,
+release policy, and detailed documentation. The package's `Cargo.toml` and
+`Cargo.lock` are authoritative for direct dependency edges; this README
+documents bounded-context ownership and must not be read as an exact Cargo
+dependency graph.
 
-Local development loop for a shared crate: edit its working copy under
-`repos/<crate>`, commit and push to its remote, then in each consuming package
-run `cargo update -p <crate>` to pick up the new commit.
+Shared first-party capabilities follow provider-first ownership. A missing
+operation is implemented in the provider that owns its bounded context, then
+consumers update their pins. Consumer-local compatibility layers and duplicate
+provider implementations are not part of the Atlas model.
 
-## Atlas stack
+## Current stack
 
-The submodules are separate repositories, but atlas treats them as a coordinated
-stack. Dependency evidence comes from each repository's `Cargo.toml` and local
-README.
+At this revision, [`.gitmodules`](.gitmodules) records 16 packages.
 
-| Repository | Atlas role | Used by |
+| Layer | Repository | Canonical role |
 | --- | --- | --- |
-| `CFDrs` | CFD simulation suite and primary integration consumer. It combines mesh generation, transforms, scientific output, VTK output, allocator selection, and data-parallel execution. | Consumes `gaia`, `apollo`, `consus`, `ritk`, `mnemosyne`, and `moirai`. |
-| `helios` | Radiotherapy dose, imaging, planning, and simulation workspace. | Consumes `ritk`, `coeus`, `hephaestus`, `moirai`, `leto`, `hermes`, `mnemosyne`, `themis`, `eunomia`, `apollo`, and `gaia`. |
-| `kwavers` | Acoustic, ultrasound, elastography, therapy, imaging, PINN, and driver integration workspace. It is tracked in atlas so missing substrate capabilities can be filled in the owning provider repo before Kwavers consumes them. | Keeps `ritk` and `consus`; planned migration replaces direct `tokio`/`rayon` usage with `moirai`, direct `ndarray`/`nalgebra` usage with `leto`, direct SIMD paths with `hermes`, direct PINN `burn` usage with `coeus`, and memory placement/allocation paths with `mnemosyne` plus `themis`. |
-| `gaia` | Watertight CFD mesh generation and geometry kernel. It provides the `gaia` crate, consumed as `cfd-mesh` by CFDrs and directly by RITK. | Consumed by `CFDrs` and `ritk`. Optionally bridges to `cfd-schematics`. |
-| `apollo` | Fourier, spectral, number-theoretic, wavelet, and related transform implementations, with CPU, WGPU, validation, and Python crates. | Consumed by `CFDrs` for FFT/NUFFT, by `coeus` for FFT-backed tensor operations, and internally uses `moirai` in selected transform crates. |
-| `consus` | Pure-Rust scientific storage formats and I/O: HDF5, Zarr, NetCDF, Parquet, Arrow, FITS, MAT, NWB, HDMF, compression, and Python bindings. | Consumed by `CFDrs` for HDF5 output and by `ritk` for HDF5/core/compression/I/O support. Uses `moirai` for parallel and native transport paths. |
-| `ritk` | Medical image processing, registration, codec, and VTK workspace. It owns `ritk-vtk`, the VTK data model and I/O used by CFD output. | Consumed by `CFDrs` through `ritk-vtk`; consumes `gaia`, `moirai`, and `consus`. |
-| `coeus` | Strided tensor, operations, autodiff, neural-network, sparse, optimizer, distribution, GPU, CUDA, and Python workspace. | Consumes `mnemosyne` for storage allocation, `moirai` for data-parallel execution, `hermes` for SIMD effects, and `apollo` for FFT. |
-| `leto` | Shared N-dimensional strided array, layout, view, slicing, and storage vocabulary for Atlas. It is the planned replacement for direct `ndarray` usage where Apollo and Coeus need a common non-differentiable array substrate. | Intended for `apollo` and `coeus`; uses `mnemosyne` for optional aligned allocation, `moirai` for parallel operations, and `hermes` for SIMD-backed kernels. |
-| `hermes` | SIMD abstraction workspace: SIMD core, intrinsics, register types, macros, examples, and benchmarks, computing over the `eunomia` datatype vocabulary. | Consumed by `coeus` and `leto` as the SIMD-effect single source of truth; consumes `eunomia` for scalar/numeric types. |
-| `eunomia` | Datatype-law foundation: the single source of truth for numeric/scalar datatype vocabulary — scalar wrapper types (`F16`/`Bf16`/`F32`/…), `Complex`, packed sub-byte formats, conversion lattices, and GPU vector element types (`eunomia-gpu`). Sibling of `themis` (placement law). | Consumed by `hermes`, `leto`, `coeus`, and `hephaestus` for datatype vocabulary; depends on nothing Atlas-local. |
-| `themis` | Typed placement-law crate for NUMA, HBM, memory-tier, worker, and locality-domain contracts. Sibling of `eunomia` (datatype law). | Consumed by `mnemosyne` for allocation placement and by `moirai` for scheduler topology placement. |
-| `mnemosyne` | User-space allocator and memory-management workspace: core, backend, arena, local, heap, hardened, decay, profiling, C shim, and benchmarks. | Consumed by `CFDrs`, `coeus`, and `moirai`; consumes `themis` for allocation placement law and pairs conceptually with `melinoe` capability tokens. |
-| `melinoe` | Branded, multi-token phantom capabilities for compile-time data-access and thread-synchronization proofs. | Supports the Mnemosyne memory ecosystem; currently tracked as a standalone foundation crate in atlas. |
-| `moirai` | Concurrency, scheduling, async, parallel iteration, transport, metrics, GPU, TLS, HTTP, and Python runtime workspace. | Consumed by `CFDrs`, `coeus`, `ritk`, `consus`, and selected `apollo` crates; consumes `themis` for scheduler topology and worker placement law. |
-| `hephaestus` | Shared GPU/accelerator device substrate: device/context/queue acquisition, typed device buffers, and a `ComputeDevice` dispatch seam with live **wgpu** and **CUDA** backends. Sits at the infrastructure tier so spectral and tensor packages share one device layer without an `apollo`→`coeus` edge. See [ADR docs/adr/0001](docs/adr/0001-gpu-accelerator-substrate.md). | Consumed by `apollo`, the `coeus` GPU crates, and CFDrs through the provider-neutral `ComputeDevice` boundary. Live: `leto`/`leto-ops` host-side layout SSOT + host-delegated linalg parity, immutable `mnemosyne` staging callback registration, `moirai` GPU launch planning + sync primitives, and `themis` placement/tiers. Planned: `melinoe` device-buffer ownership-transfer proofs; native GPU-kernel parity replacing interim `leto-ops` host delegation. |
+| Integrator | [`CFDrs`](repos/CFDrs) | Computational fluid dynamics, coupled flow simulation, validation, and scientific output. |
+| Integrator | [`helios`](repos/helios) | Radiation-therapy dose, planning, imaging, and delivery simulation. |
+| Integrator | [`kwavers`](repos/kwavers) | Acoustic, ultrasound, therapy, imaging, and coupled wave simulation. |
+| Domain | [`apollo`](repos/apollo) | Fourier, spectral, wavelet, number-theoretic, and related transforms. |
+| Domain | [`coeus`](repos/coeus) | Strided tensors, automatic differentiation, neural networks, optimization, and sparse operations. |
+| Domain | [`consus`](repos/consus) | Native scientific storage formats, compression, and data transport. |
+| Domain | [`gaia`](repos/gaia) | Geometry predicates, topology, watertight meshes, and mesh generation. |
+| Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, visualization, and VTK data models. |
+| Compute | [`hephaestus`](repos/hephaestus) | GPU device, buffer, transfer, and kernel substrate for WGPU and CUDA. |
+| Compute | [`hermes`](repos/hermes) | CPU SIMD/SWAR vocabulary, ISA dispatch, and vector kernels. |
+| Compute | [`leto`](repos/leto) | N-dimensional host arrays, layouts, views, operations, and linear algebra. |
+| Compute | [`mnemosyne`](repos/mnemosyne) | Allocation, arenas, heaps, staging memory, and allocator instrumentation. |
+| Compute | [`moirai`](repos/moirai) | Scheduling, parallel iteration, async execution, synchronization, and transport. |
+| Foundation | [`eunomia`](repos/eunomia) | Datatype law: scalar, complex, packed, conversion, and numeric-trait vocabulary. |
+| Foundation | [`melinoe`](repos/melinoe) | Branded capability evidence for memory access and synchronization. |
+| Foundation | [`themis`](repos/themis) | Placement law for NUMA nodes, workers, locality domains, and memory tiers. |
 
-### Naming Conventions
-
-Several repositories use names from classical mythology to represent their functional domains:
-
-| Repository | Mythological Entity | Domain Mapping |
-| --- | --- | --- |
-| `gaia` | **Gaia** (Personification of Earth) | Geometry kernels and watertight mesh generation. |
-| `apollo` | **Apollo** (God of music and harmony) | Fourier, spectral, and numerical transforms. |
-| `consus` | **Consus** (Roman god of storage and grain silos) | Scientific storage formats, I/O serialization, and file transport. |
-| `coeus` | **Coeus** (Titan of intellect and inquiry) | Strided tensors, neural networks, autodiff, and optimization. |
-| `leto` | **Leto** (Titaness, daughter of Coeus and mother of Apollo) | Shared strided-array substrate between Coeus tensor/autodiff systems and Apollo spectral transforms. |
-| `hermes` | **Hermes** (Messenger god of speed) | Low-level SIMD, register types, and vector abstractions. |
-| `themis` | **Themis** (Titaness of divine law and order; mother of the Moirai) | Placement law for NUMA, HBM, memory tiers, workers, and locality domains. |
-| `mnemosyne` | **Mnemosyne** (Titaness of memory) | User-space memory allocation and arena management. |
-| `melinoe` | **Melinoe** (Chthonic goddess of phantoms) | Phantom capability tokens for compile-time safety and synchronization proofs. |
-| `moirai` | **Moirai** (The Fates, spinners of the threads of life) | Concurrency, async task scheduling, and runtime orchestration. |
-| `hephaestus` | **Hephaestus** (God of the forge and craftsmanship) | Shared GPU/accelerator device substrate (wgpu + CUDA) where compute kernels are forged. |
-
-### Dependency flow
-
-Current dependency flow, including direct Git dependencies and provider-mediated
-Themis placement-law consumption:
-
-```text
-CFDrs
-├── gaia       # CFD mesh generation
-├── apollo     # FFT and NUFFT transforms
-├── consus     # HDF5/scientific output
-├── ritk       # VTK output through ritk-vtk
-├── mnemosyne  # optional global allocator feature
-└── moirai     # parallel execution
-
-kwavers
-├── ritk        # medical imaging, registration, and codec support
-├── consus      # scientific storage and HDF5-style output
-├── leto        # planned replacement for direct ndarray/nalgebra surfaces
-├── hermes      # planned SIMD operation backend through Leto/Coeus kernels
-├── coeus       # planned replacement for burn-backed PINN/autodiff paths
-├── mnemosyne   # planned allocation and staging substrate
-├── themis      # planned placement-law vocabulary through providers
-└── moirai      # planned async/runtime and data-parallel execution substrate
-
-helios
-├── ritk        # DICOM and medical-image I/O
-├── coeus       # planning autodiff
-├── hephaestus  # GPU dose and imaging kernels
-├── moirai      # execution and communication
-├── leto        # array and linear-algebra substrate
-├── hermes      # SIMD kernels
-├── mnemosyne   # allocation substrate
-├── themis      # placement law
-├── eunomia     # numeric vocabulary
-├── apollo      # spectral operations
-└── gaia        # geometry substrate
-
-
-coeus
-├── apollo     # FFT-backed tensor operations
-├── leto       # planned shared array/layout substrate
-├── hermes     # SIMD abstraction
-├── themis     # placement-law vocabulary through providers
-├── mnemosyne  # tensor storage allocation
-└── moirai     # data-parallel execution
-
-leto
-├── themis     # placement-law vocabulary through providers
-├── mnemosyne  # optional aligned storage backend
-├── moirai     # parallel elementwise/reduction scheduling
-└── hermes     # SIMD operation backend
-
-themis
-└── melinoe     # optional branded placement scopes
-
-ritk
-├── gaia       # mesh/geometry integration
-├── consus     # HDF5 and scientific I/O support
-└── moirai     # data-parallel execution
-
-consus
-└── moirai     # parallelism and native transport support
-
-apollo
-├── leto        # planned ndarray replacement for array/view surfaces
-├── hephaestus  # shared GPU device acquisition for the -wgpu crate family
-└── moirai      # selected transform crates with parallel execution
-
-hermes
-├── mnemosyne  # NUMA-aware aligned allocation backend
-└── themis     # NUMA/topology placement law
-
-mnemosyne
-├── melinoe    # branded capability tokens for arena/segment ownership
-└── themis     # allocation placement law
-
-moirai
-├── melinoe    # branded writer-shard capability cells (moirai-parallel)
-├── mnemosyne  # zero-copy ring-buffer allocation (feature-gated)
-└── themis     # scheduler topology and worker placement law
-
-hephaestus
-├── leto        # live: host-side layout metadata reuse (Layout SSOT)
-├── leto-ops    # live: host-delegated linalg parity (interim; native GPU kernels pending)
-├── mnemosyne  # live (Stage D1): device-memory pools and pinned-host staging
-├── moirai      # live: GPU launch planning (moirai-gpu) + sync primitives
-├── themis      # live: device/placement law and tiers
-└── melinoe     # planned: device-buffer ownership-transfer proofs
-
-apollo → hephaestus             # live: typed accelerator execution at transform roots
-coeus  → hephaestus             # live: GPU tensor/autodiff crates consume 0.15
-```
-
-Repositories still depend on each other through Git remotes, not by path from
-the atlas root. The checked-out copies under `repos/` provide synchronized local
-editing, review, and cross-package verification.
-
-## Workspace And Crate Topology
-
-Atlas coordinates independent package workspaces, each checked out under
-`repos/`. Each repository remains separate for versioning and publishing, while
-the crates form one Atlas stack through Git dependencies, shared verification
-contracts, and common infrastructure crates. Below is the current topology of
-each Cargo workspace and its constituent crates:
-
-### [CFDrs](repos/CFDrs)
-- **Role**: Primary computational fluid dynamics integration workspace and suite.
-- **Resolver**: v2
-- **Crate Catalog**:
-  - [cfd-core](repos/CFDrs/crates/cfd-core): Core simulation framework, grid topology, boundary conditions, and execution loop orchestration.
-  - [cfd-math](repos/CFDrs/crates/cfd-math): Numeric solver backends, sparse and dense linear algebra interfaces.
-  - [cfd-io](repos/CFDrs/crates/cfd-io): Simulation format translation (VTK, OpenFOAM, CSV, HDF5).
-  - [cfd-schematics](repos/CFDrs/crates/cfd-schematics): Microfluidic and millifluidic schematic and circuit vocabularies.
-  - [cfd-1d](repos/CFDrs/crates/cfd-1d): One-dimensional simulation solvers.
-  - [cfd-2d](repos/CFDrs/crates/cfd-2d): Two-dimensional simulation solvers.
-  - [cfd-3d](repos/CFDrs/crates/cfd-3d): Three-dimensional simulation solvers.
-  - [cfd-optim](repos/CFDrs/crates/cfd-optim): Design iteration, parameter optimization, and shape optimization routines.
-  - [cfd-validation](repos/CFDrs/crates/cfd-validation): Benchmark analytical verification suits.
-  - [cfd-python](repos/CFDrs/crates/cfd-python): PyO3 bindings for CFD solver access in Python.
-
-### [apollo](repos/apollo)
-- **Role**: High-performance transformations, spectral methods, and numerical transforms.
-- **Resolver**: v2
-- **Crate Catalog**:
-  - [apollo-czt](repos/apollo/crates/apollo-czt): Chirp Z-Transform (CZT) CPU implementation.
-  - [apollo-czt-wgpu](repos/apollo/crates/apollo-czt-wgpu): GPU-accelerated Chirp Z-Transform (CZT) via WGPU.
-  - [apollo-dctdst](repos/apollo/crates/apollo-dctdst): Discrete Cosine (DCT) and Discrete Sine (DST) transforms on CPU.
-  - [apollo-dctdst-wgpu](repos/apollo/crates/apollo-dctdst-wgpu): GPU-accelerated DCT and DST via WGPU.
-  - [apollo-dht](repos/apollo/crates/apollo-dht): Discrete Hartley Transform (DHT) CPU implementation.
-  - [apollo-dht-wgpu](repos/apollo/crates/apollo-dht-wgpu): GPU-accelerated Discrete Hartley Transform (DHT) via WGPU.
-  - [apollo-fft](repos/apollo/crates/apollo-fft): Fast Fourier Transform (FFT) CPU implementation.
-  - [apollo-fft-wgpu](repos/apollo/crates/apollo-fft-wgpu): GPU-accelerated Fast Fourier Transform (FFT) via WGPU.
-  - [apollo-fft-macros](repos/apollo/crates/apollo-fft-macros): Procedural code-generation macros for FFT butterfly networks.
-  - [apollo-frft](repos/apollo/crates/apollo-frft): Fractional Fourier Transform (FRFT) CPU implementation.
-  - [apollo-frft-wgpu](repos/apollo/crates/apollo-frft-wgpu): GPU-accelerated Fractional Fourier Transform (FRFT) via WGPU.
-  - [apollo-fwht](repos/apollo/crates/apollo-fwht): Fast Walsh-Hadamard Transform (FWHT) CPU implementation.
-  - [apollo-fwht-wgpu](repos/apollo/crates/apollo-fwht-wgpu): GPU-accelerated Fast Walsh-Hadamard Transform (FWHT) via WGPU.
-  - [apollo-gft](repos/apollo/crates/apollo-gft): Generalized and Graph Fourier Transform (GFT) CPU implementation.
-  - [apollo-gft-wgpu](repos/apollo/crates/apollo-gft-wgpu): GPU-accelerated Graph Fourier Transform (GFT) via WGPU.
-  - [apollo-hilbert](repos/apollo/crates/apollo-hilbert): Hilbert Transform CPU implementation for analytic signals.
-  - [apollo-hilbert-wgpu](repos/apollo/crates/apollo-hilbert-wgpu): GPU-accelerated Hilbert Transform via WGPU.
-  - [apollo-mellin](repos/apollo/crates/apollo-mellin): Mellin Transform CPU implementation.
-  - [apollo-mellin-wgpu](repos/apollo/crates/apollo-mellin-wgpu): GPU-accelerated Mellin Transform via WGPU.
-  - [apollo-ntt](repos/apollo/crates/apollo-ntt): Number-Theoretic Transform (NTT) CPU implementation over finite fields.
-  - [apollo-ntt-wgpu](repos/apollo/crates/apollo-ntt-wgpu): GPU-accelerated Number-Theoretic Transform (NTT) via WGPU.
-  - [apollo-nufft](repos/apollo/crates/apollo-nufft): Non-Uniform Fast Fourier Transform (NUFFT) CPU implementation.
-  - [apollo-nufft-wgpu](repos/apollo/crates/apollo-nufft-wgpu): GPU-accelerated Non-Uniform Fast Fourier Transform (NUFFT) via WGPU.
-  - [apollo-qft](repos/apollo/crates/apollo-qft): Quaternion Fourier Transform (QFT) CPU implementation.
-  - [apollo-qft-wgpu](repos/apollo/crates/apollo-qft-wgpu): GPU-accelerated Quaternion Fourier Transform (QFT) via WGPU.
-  - [apollo-radon](repos/apollo/crates/apollo-radon): Radon and Inverse Radon Transforms on CPU.
-  - [apollo-radon-wgpu](repos/apollo/crates/apollo-radon-wgpu): GPU-accelerated Radon and Inverse Radon Transforms via WGPU.
-  - [apollo-sdft](repos/apollo/crates/apollo-sdft): Sliding Discrete Fourier Transform (SDFT) CPU implementation for real-time analysis.
-  - [apollo-sdft-wgpu](repos/apollo/crates/apollo-sdft-wgpu): GPU-accelerated Sliding Discrete Fourier Transform (SDFT) via WGPU.
-  - [apollo-sft](repos/apollo/crates/apollo-sft): Sparse Fourier Transform (SFT) CPU implementation.
-  - [apollo-sft-wgpu](repos/apollo/crates/apollo-sft-wgpu): GPU-accelerated Sparse Fourier Transform (SFT) via WGPU.
-  - [apollo-sht](repos/apollo/crates/apollo-sht): Spherical Harmonic Transform (SHT) CPU implementation.
-  - [apollo-sht-wgpu](repos/apollo/crates/apollo-sht-wgpu): GPU-accelerated Spherical Harmonic Transform (SHT) via WGPU.
-  - [apollo-stft](repos/apollo/crates/apollo-stft): Short-Time Fourier Transform (STFT) CPU implementation.
-  - [apollo-stft-wgpu](repos/apollo/crates/apollo-stft-wgpu): GPU-accelerated Short-Time Fourier Transform (STFT) via WGPU.
-  - [apollo-validation](repos/apollo/crates/apollo-validation): Verification and error-bounds assertion engine.
-  - [apollo-wavelet](repos/apollo/crates/apollo-wavelet): Continuous (CWT) and Discrete (DWT) Wavelet Transforms on CPU.
-  - [apollo-wavelet-wgpu](repos/apollo/crates/apollo-wavelet-wgpu): GPU-accelerated Wavelet Transforms via WGPU.
-  - [apollo-wgpu-helpers](repos/apollo/crates/apollo-wgpu-helpers): Shared GPU compute utilities, pipeline, and binder helpers.
-  - [apollo-python](repos/apollo/crates/apollo-python): PyO3 bindings for python-level transform operations.
-
-### [coeus](repos/coeus)
-- **Role**: Strided tensors, automatic differentiation, neural networks, and optimizers.
-- **Resolver**: v2
-- **Crate Catalog**:
-  - [coeus-core](repos/coeus/coeus-core): Core allocation wrappers, tensor storage definitions, backend dispatch traits.
-  - [coeus-tensor](repos/coeus/coeus-tensor): Strided tensor representation, layouts, slices, and index management.
-  - [coeus-ops](repos/coeus/coeus-ops): Tensor mathematical operations (broadcasting, reductions, matrix multiplies).
-  - [coeus-autograd](repos/coeus/coeus-autograd): Dynamic computation graph and reverse-mode automatic differentiation.
-  - [coeus-nn](repos/coeus/coeus-nn): Neural network layers, weights initialization, activations.
-  - [coeus-optim](repos/coeus/coeus-optim): Model optimization algorithms (SGD, Adam, AdamW).
-  - [coeus-sparse](repos/coeus/coeus-sparse): Sparse tensor layouts (CSR, CSC, COO) and sparse arithmetic.
-  - [coeus-wgpu](repos/coeus/coeus-wgpu): WGPU compute shader backend.
-  - [coeus-cuda](repos/coeus/coeus-cuda): NVIDIA CUDA-specific execution backend.
-  - [coeus-dist](repos/coeus/coeus-dist): Distributed model training and communication primitives.
-  - [coeus-python](repos/coeus/coeus-python): PyO3 bindings providing tensor interop to Python.
-
-### [consus](repos/consus)
-- **Role**: Hierarchical and array-oriented scientific storage formats.
-- **Resolver**: v2
-- **Crate Catalog**:
-  - [consus](repos/consus/crates/consus): Unified high-level storage library facade.
-  - [consus-core](repos/consus/crates/consus-core): Base node, attribute hierarchy traits, metadata schemas.
-  - [consus-io](repos/consus/crates/consus-io): System and network I/O primitives.
-  - [consus-compression](repos/consus/crates/consus-compression): Compression codecs (Zstd, Deflate, Lz4, etc.).
-  - [consus-hdf5](repos/consus/crates/consus-hdf5): Pure-Rust HDF5 format reader and writer.
-  - [consus-zarr](repos/consus/crates/consus-zarr): Pure-Rust Zarr format reader and writer.
-  - [consus-netcdf](repos/consus/crates/consus-netcdf): Pure-Rust NetCDF-4 format reader and writer.
-  - [consus-parquet](repos/consus/crates/consus-parquet): Parquet reader and writer.
-  - [consus-arrow](repos/consus/crates/consus-arrow): Apache Arrow data structure integrations.
-  - [consus-fits](repos/consus/crates/consus-fits): FITS format reader and writer.
-  - [consus-mat](repos/consus/crates/consus-mat): MATLAB v5 .mat file parser and builder.
-  - [consus-nwb](repos/consus/crates/consus-nwb): Neurodata Without Borders schema mapping.
-  - [consus-hdmf](repos/consus/crates/consus-hdmf): Hierarchical Data Modeling Framework implementation.
-  - [consus-python](repos/consus/crates/consus-python): PyO3 bindings for Python data access.
-
-### [helios](repos/helios)
-
-- **Role**: Radiotherapy dose, imaging, planning, and simulation workspace.
-- **Provider graph**: `ritk` owns DICOM/image I/O; `coeus` owns planning
-  autodiff; `hephaestus` owns GPU dispatch; `moirai`, `leto`, `hermes`,
-  `mnemosyne`, `themis`, `eunomia`, `apollo`, and `gaia` provide the remaining
-  execution, numeric, memory, transform, and geometry substrates.
-
-### [kwavers](repos/kwavers)
-- **Role**: Acoustic simulation, therapy, imaging, driver, and PINN integration workspace.
-- **Resolver**: v2
-- **Atlas migration contract**: `ritk` and `consus` remain the imaging/storage providers. Replacement work is sequenced through provider-owned gaps: `moirai` for `tokio`/`rayon` runtime and parallelism, `hermes` for SIMD kernels, `leto` for `ndarray`/`nalgebra` array and linear-algebra surfaces, `coeus` for PINN/autodiff paths that currently use `burn`, and `mnemosyne`/`themis` for allocation and placement law. If a replacement provider lacks a Kwavers-required capability, the gap is fixed in the provider repo first, then Kwavers updates its pinned dependency.
-- **Crate Catalog**:
-  - [kwavers](repos/kwavers/crates/kwavers): High-level facade and feature orchestration crate.
-  - [kwavers-core](repos/kwavers/crates/kwavers-core): Core error, unit, validation, and shared domain contracts.
-  - [kwavers-math](repos/kwavers/crates/kwavers-math): Numerical kernels and math utilities for wave simulation.
-  - [kwavers-signal](repos/kwavers/crates/kwavers-signal): Signal generation, sampling, and processing utilities.
-  - [kwavers-grid](repos/kwavers/crates/kwavers-grid): Grid geometry and simulation-domain discretization.
-  - [kwavers-field](repos/kwavers/crates/kwavers-field): Acoustic field containers and field operations.
-  - [kwavers-optics](repos/kwavers/crates/kwavers-optics): Optical/acoustic coupling support.
-  - [kwavers-medium](repos/kwavers/crates/kwavers-medium): Medium definitions and material-property models.
-  - [kwavers-mesh](repos/kwavers/crates/kwavers-mesh): Mesh ingestion and geometry adapters.
-  - [kwavers-phantom](repos/kwavers/crates/kwavers-phantom): Phantom and synthetic tissue model construction.
-  - [kwavers-boundary](repos/kwavers/crates/kwavers-boundary): Boundary condition implementations.
-  - [kwavers-source](repos/kwavers/crates/kwavers-source): Acoustic source and transducer-domain source contracts.
-  - [kwavers-receiver](repos/kwavers/crates/kwavers-receiver): Receiver and sensor models.
-  - [kwavers-transducer](repos/kwavers/crates/kwavers-transducer): Transducer geometry, steering, and propagation validation.
-  - [kwavers-imaging](repos/kwavers/crates/kwavers-imaging): Imaging and reconstruction workflows.
-  - [kwavers-physics](repos/kwavers/crates/kwavers-physics): Analytical physics, cavitation, and therapy-delivery models.
-  - [kwavers-solver](repos/kwavers/crates/kwavers-solver): Solver adapters, PSTD/FDTD/KZK execution, and PINN solver surfaces.
-  - [kwavers-analysis](repos/kwavers/crates/kwavers-analysis): Analysis workflows and quantitative validation.
-  - [kwavers-simulation](repos/kwavers/crates/kwavers-simulation): Simulation orchestration and scenario execution.
-  - [kwavers-diagnostics](repos/kwavers/crates/kwavers-diagnostics): Diagnostics, metrics, and reporting.
-  - [kwavers-therapy](repos/kwavers/crates/kwavers-therapy): Therapy-domain models and treatment workflows.
-  - [kwavers-gpu](repos/kwavers/crates/kwavers-gpu): GPU-adjacent execution surfaces and feature-gated accelerator support.
-  - [kwavers-driver](repos/kwavers/crates/kwavers-driver): Device-driver, board, and experiment integration code.
-  - [kwavers-python](repos/kwavers/crates/kwavers-python): Thin PyO3 bindings for Python access to Rust-owned logic.
-
-### [gaia](repos/gaia)
-- **Role**: Watertight geometry kernel and mesh generation.
-- **Workspace Style**: Single-crate workspace.
-- **Crate Catalog**:
-  - [gaia](repos/gaia): Watertight geometry kernel, BSP trees, Delaunay triangulation, CSG Boolean operations, and millifluidic mesh generation.
-
-### [hermes](repos/hermes)
-- **Role**: Numeric and SIMD register/vector abstractions.
-- **Resolver**: v2
-- **Crate Catalog**:
-  - [hermes-simd](repos/hermes/crates/hermes-simd): Main SIMD facade for platform-independent vector operations.
-  - [hermes-simd-core](repos/hermes/crates/hermes-simd-core): Architecture-agnostic SIMD API traits and constraints.
-  - [hermes-simd-intrinsics](repos/hermes/crates/hermes-simd-intrinsics): Platform-specific vector intrinsic bindings (AVX2, AVX-512, Neon).
-  - [hermes-simd-types](repos/hermes/crates/hermes-simd-types): Native SIMD hardware register types.
-  - [hermes-simd-macros](repos/hermes/crates/hermes-simd-macros): Internal macros for register transmutations and code generation.
-  - [hermes-simd-examples](repos/hermes/crates/hermes-simd-examples): Example implementations.
-  - [hermes-simd-benches](repos/hermes/crates/hermes-simd-benches): SIMD lane-operation and reduction microbenchmarks.
-
-### [leto](repos/leto)
-- **Role**: Shared N-dimensional strided array vocabulary.
-- **Resolver**: v2
-- **Crate Catalog**:
-  - [leto](repos/leto/crates/leto): N-dimensional strided array representation, slicing, layouts, and views.
-  - [leto-ops](repos/leto/crates/leto-ops): Basic array mathematics, elementwise mapping, and reductions.
-  - [leto-python](repos/leto/crates/leto-python): PyO3 bindings for Leto arrays.
-
-### [melinoe](repos/melinoe)
-- **Role**: Branded phantom capability tokens for compile-time safety proofs.
-- **Workspace Style**: Single-crate workspace.
-- **Crate Catalog**:
-  - [melinoe](repos/melinoe): Zero-sized, branded capability tokens for safe cell access and thread synchronization.
-
-### [themis](repos/themis)
-- **Role**: Placement-law foundation for memory and runtime crates.
-- **Workspace Style**: Single-crate workspace.
-- **Crate Catalog**:
-  - [themis](repos/themis): Typed NUMA node, worker, locality-domain, memory-tier, placement-hint, topology, and current-node query contracts.
-
-### [mnemosyne](repos/mnemosyne)
-- **Role**: User-space memory management and custom allocator workspace.
-- **Resolver**: v2
-- **Crate Catalog**:
-  - [mnemosyne](repos/mnemosyne/crates/mnemosyne): Process-level global allocator configuration and setup facade.
-  - [mnemosyne-core](repos/mnemosyne/crates/mnemosyne-core): Basic allocator design patterns, metrics, and tracking structures.
-  - [mnemosyne-backend](repos/mnemosyne/crates/mnemosyne-backend): Virtual memory mapping and page allocation backends.
-  - [mnemosyne-arena](repos/mnemosyne/crates/mnemosyne-arena): Bump, stack, and fixed-block arena allocators.
-  - [mnemosyne-heap](repos/mnemosyne/crates/mnemosyne-heap): Thread-safe heap memory allocators.
-  - [mnemosyne-local](repos/mnemosyne/crates/mnemosyne-local): Thread-local caching allocations to minimize contention.
-  - [mnemosyne-decay](repos/mnemosyne/crates/mnemosyne-decay): Page scavenging and allocator decay strategies.
-  - [mnemosyne-prof](repos/mnemosyne/crates/mnemosyne-prof): Allocation profiling, trace logging, and memory analysis.
-  - [mnemosyne-hardened](repos/mnemosyne/crates/mnemosyne-hardened): Memory allocator with guard pages and double-free detection.
-  - [mnemosyne-c-shim](repos/mnemosyne/crates/mnemosyne-c-shim): Standard C `malloc`/`free` FFI overrides.
-  - [mnemosyne-benchmarks](repos/mnemosyne/crates/mnemosyne-benchmarks): Benchmarks checking throughput, latency, and fragmentation.
-
-### [moirai](repos/moirai)
-- **Role**: Concurrency, async task scheduler, parallel iterators, and network transport runtime.
-- **Resolver**: v2
-- **Crate Catalog**:
-  - [moirai](repos/moirai/moirai): General runtime entrypoint and facade.
-  - [moirai-core](repos/moirai/moirai-core): Runtime primitives, task queues, and control blocks.
-  - [moirai-pal](repos/moirai/moirai-pal): Platform Abstraction Layer (CPU topologies, affinity, thread pinning).
-  - [moirai-scheduler](repos/moirai/moirai-scheduler): Work-stealing scheduler, thread pools, and worker loops.
-  - [moirai-executor](repos/moirai/moirai-executor): Async event loop and executor engine.
-  - [moirai-sync](repos/moirai/moirai-sync): Synchronization structures (Mutex, Condvar, Semaphore, Channels).
-  - [moirai-async](repos/moirai/moirai-async): Futures-compliant async/await executor and timer wheel.
-  - [moirai-iter](repos/moirai/moirai-iter): Parallel iterator traits and adapter definitions.
-  - [moirai-parallel](repos/moirai/moirai-parallel): Rayon-compatible data-parallel fork-join runtime.
-  - [moirai-tls](repos/moirai/moirai-tls): Rustls-backed async Transport Layer Security over Moirai sockets.
-  - [moirai-transport](repos/moirai/moirai-transport): Socket abstractions, asynchronous I/O, and platform pollers.
-  - [moirai-http](repos/moirai/moirai-http): Sans-I/O HTTP/1.1 client and server engine.
-  - [moirai-metrics](repos/moirai/moirai-metrics): Runtime instrumentation, queue latencies, and task counting.
-  - [moirai-utils](repos/moirai/moirai-utils): Internal synchronization and utility primitives.
-  - [moirai-gpu](repos/moirai/moirai-gpu): GPU execution synchronization controls.
-  - [moirai-python](repos/moirai/moirai-python): PyO3 bindings for task execution in Python.
-
-### [ritk](repos/ritk)
-- **Role**: Medical image processing, format codecs, registrations, and VTK data models.
-- **Resolver**: v2
-- **Crate Catalog**:
-  - [ritk-core](repos/ritk/crates/ritk-core): Image definitions, coordinate transforms, and pixel layout metrics.
-  - [ritk-dicom](repos/ritk/crates/ritk-dicom): DICOM imaging standard parser and handler.
-  - [ritk-codecs](repos/ritk/crates/ritk-codecs): Medical compression codecs (lossless JPEG, JPEG, PNG, TIFF).
-  - [ritk-nifti](repos/ritk/crates/ritk-nifti): NIfTI-1 and NIfTI-2 format handlers.
-  - [ritk-nrrd](repos/ritk/crates/ritk-nrrd): NRRD format parser.
-  - [ritk-metaimage](repos/ritk/crates/ritk-metaimage): MetaImage format handler.
-  - [ritk-mgh](repos/ritk/crates/ritk-mgh): MGH/MGZ format handler (FreeSurfer).
-  - [ritk-analyze](repos/ritk/crates/ritk-analyze): Analyze 7.5 format handler.
-  - [ritk-png](repos/ritk/crates/ritk-png): PNG format codec interface.
-  - [ritk-jpeg](repos/ritk/crates/ritk-jpeg): JPEG format codec interface.
-  - [ritk-tiff](repos/ritk/crates/ritk-tiff): TIFF format codec interface.
-  - [ritk-minc](repos/ritk/crates/ritk-minc): MINC format handler.
-  - [ritk-vtk](repos/ritk/crates/ritk-vtk): VTK XML data model and reader/writer.
-  - [ritk-io](repos/ritk/crates/ritk-io): Unified image reader/writer interface with format autodetection.
-  - [ritk-model](repos/ritk/crates/ritk-model): 3D volumetric segmentation and isosurface mesh models.
-  - [ritk-registration](repos/ritk/crates/ritk-registration): Registration algorithms (affine, deformable).
-  - [ritk-python](repos/ritk/crates/ritk-python): PyO3 bindings for imaging tools in Python.
-  - [ritk-cli](repos/ritk/crates/ritk-cli): Command-line utility for imaging conversions.
-  - [ritk-snap](repos/ritk/crates/ritk-snap): Slice visualizer and interaction shell.
-
-## Accelerator & Compute Substrate Architecture
-
-Here is the complete architectural layout of the `atlas` stack, showing the vertical layers from raw hardware up to the high-level neural network/autodiff tier.
-
-### Complete Architecture & Dataflow Diagram
+The diagram is a layer map, not a literal manifest graph. Higher layers consume
+contracts owned below them, and a package may legitimately skip an intermediate
+layer.
 
 ```mermaid
-graph TD
-    %% AUTODIFF & DEEP LEARNING (DEVICE AGNOSTIC)
-    subgraph DL_Tier ["1. Autodiff & Neural Network Tier (Backend-Agnostic)"]
-        Tape["coeus-autograd (Tape / TapeNodes)"]
-        NN["coeus-nn (Layers / Modules)"]
-        Optim["coeus-optim (Adam, SGD, AdamW)"]
-        Tensor["Tensor<T, B> / Var<T, B>"]
+flowchart TB
+    subgraph Integrators
+        CFDrs
+        helios
+        kwavers
     end
 
-    %% BACKEND OPS & SEAMS
-    subgraph Compute_Seams ["2. Compute & Linalg Engines (The Dispatch Seams)"]
-        BackendOps["BackendOps<T> (coeus-ops)"]
-        LetoCore["leto (Host Layout Metadata: Layout<N>)"]
-        LetoOps["leto-ops (CPU Linalg / Matrix kernels)"]
-        CoeusWgpu["coeus-wgpu (WgpuBackend)"]
-        CoeusCuda["coeus-cuda (CudaBackend)"]
+    subgraph Domains["Reusable scientific domains"]
+        apollo
+        coeus
+        consus
+        gaia
+        ritk
     end
 
-    %% INFRASTRUCTURE compute substrate
-    subgraph Infra_Compute ["3. Infrastructure Compute Substrates"]
-        Moirai["moirai (NUMA Work-Stealing Executor)"]
-        Hermes["hermes-simd (Portable Vector SIMD / SWAR)"]
-        HephaestusCore["hephaestus-core (ComputeDevice / DeviceBuffer)"]
-        HephaestusWgpu["hephaestus-wgpu (wgpu adapter / pipelines)"]
-        HephaestusCuda["hephaestus-cuda (cuda-oxide / cutile)"]
+    subgraph Compute["Compute, data, memory, and execution"]
+        hephaestus
+        hermes
+        leto
+        mnemosyne
+        moirai
     end
 
-    %% MEMORY & PLACEMENT
-    subgraph Memory_Placement ["4. Placement Law & Memory Ownership (Safety & Topology)"]
-        Themis["themis (CPU/GPU Placement & Topology)"]
-        Mnemosyne["mnemosyne (Pinned Staging & Unified Memory Pools)"]
-        Melinoe["melinoe (SyncRegion & SharedRead Tokens)"]
+    subgraph Foundation["Law and capability foundation"]
+        eunomia
+        melinoe
+        themis
     end
 
-    %% DRIVERS & HW
-    subgraph Hardware ["5. Raw Hardware & Platform APIs"]
-        CPU["CPU (Multi-core / sockets)"]
-        wgpu_driver["Vulkan / DX12 / Metal (wgpu runtime)"]
-        cuda_driver["CUDA Driver / Streams API"]
-    end
-
-    %% DATAFLOW CONNECTIONS
-    Tape --> Tensor
-    NN --> Tensor
-    Optim --> Tensor
-    
-    Tensor -->|Generic routing via B: ComputeBackend| BackendOps
-    BackendOps -->|impl CpuBackend| LetoOps
-    BackendOps -->|impl WgpuBackend| CoeusWgpu
-    BackendOps -->|impl CudaBackend| CoeusCuda
-
-    LetoOps -->|shape / strides / offset vocabulary| LetoCore
-    LetoOps -->|parallel loop blocks| Moirai
-    LetoOps -->|vectorized elementwise loops| Hermes
-
-    CoeusWgpu -->|metadata shapes / strides| LetoCore
-    CoeusWgpu -->|GPU device buffers & pipeline caches| HephaestusWgpu
-    CoeusCuda -->|metadata shapes / strides| LetoCore
-    CoeusCuda -->|GPU device buffers & streams| HephaestusCuda
-
-    HephaestusWgpu --> HephaestusCore
-    HephaestusCuda --> HephaestusCore
-
-    HephaestusCore -.->|registers devices into| Themis
-    Moirai -.->|registers NUMA nodes into| Themis
-
-    HephaestusWgpu -->|raw bindings| wgpu_driver
-    HephaestusCuda -->|raw bindings| cuda_driver
-    LetoOps -->|executes on| CPU
-
-    %% Memory tracking lines
-    Mnemosyne -.->|allocates host/device pages for| HephaestusCore
-    Melinoe -.->|proves safe access regions on| Mnemosyne
+    Integrators --> Domains
+    Integrators --> Compute
+    Domains --> Compute
+    Compute --> Foundation
 ```
 
----
+### Provider ownership
 
-### Detailed Integration Summary
+| Concern | Owner | Boundary |
+| --- | --- | --- |
+| Numeric representations and scalar laws | `eunomia` | Owns datatype vocabulary, not algorithms or storage. |
+| Placement and locality law | `themis` | Owns typed placement facts, not allocation or scheduling. |
+| Capability proofs | `melinoe` | Owns branded access evidence, not memory management. |
+| Allocation and memory policy | `mnemosyne` | Owns host allocation, arenas, heaps, and staging memory. |
+| Execution and transport | `moirai` | Owns scheduling, parallelism, async execution, synchronization, and transport. |
+| CPU lane-parallel execution | `hermes` | Owns SIMD/SWAR kernels and runtime ISA selection. |
+| Host arrays and linear algebra | `leto` | Owns layouts, views, array operations, and CPU linear algebra. |
+| Accelerator execution | `hephaestus` | Owns GPU devices, buffers, transfers, pipelines, and provider kernels. |
+| Spectral transforms | `apollo` | Owns transform mathematics and plans; accelerator mechanics remain in Hephaestus. |
+| Tensors and autodiff | `coeus` | Owns tensor semantics, differentiation, neural-network operations, and optimizers. |
+| Geometry and meshes | `gaia` | Owns geometric predicates, topology, and mesh generation. |
+| Scientific persistence | `consus` | Owns storage formats, compression, and persistent scientific data exchange. |
+| Medical imaging | `ritk` | Owns image formats, processing, registration, and VTK data models. |
 
-#### 1. Leto CPU Operations
-* **[`leto-ops`](repos/leto/crates/leto-ops)** handles all CPU-bound execution (general matrix multiplication, shifted QR eigenvalues, full-pivoting LU).
-* It optimizes CPU execution via:
-  * **[`hermes-simd`](repos/hermes)**: Provides portable SIMD type vectorization across different hardware architectures (AVX, NEON) for inner loops.
-  * **[`moirai`](repos/moirai)**: Performs thread-level loop partitioning and NUMA-aware scheduling for block-wise operations.
-* The indexing math uses the layout vocabulary of **[`leto`](repos/leto/crates/leto)** to correctly parse strided and sliced matrices.
+The accepted GPU boundary is recorded in
+[ADR 0001](docs/adr/0001-gpu-accelerator-substrate.md). The reproducible
+provider-pin contract and its evidence limits are recorded in
+[ADR 0020](docs/adr/0020-provider-graph-refresh.md).
 
-#### 2. Hephaestus GPU Substrate
-The low-level GPU acceleration substrate is split into three parts:
-* **[`hephaestus-core`](repos/hephaestus/crates/hephaestus-core)**: The central device/buffer interface traits.
-* **[`hephaestus-wgpu`](repos/hephaestus/crates/hephaestus-wgpu)**: The WebGPU backend, using WGSL shaders compiled and dispatched on-the-fly.
-* **[`hephaestus-cuda`](repos/hephaestus/crates/hephaestus-cuda)**: Live CUDA backend composing:
-  * `cuda-oxide` for driver, device stream, and CUDA context management.
-  * `cutile` for tiled PTX/CUDA kernel compilation and dispatch.
+## Naming
 
-> [!NOTE]
-> **Hephaestus as the GPU Substrate (CuPy-Analogy)**: Much like **[`leto`](repos/leto)** serves as the CPU-bound non-differentiable array vocabulary, **[`hephaestus`](repos/hephaestus)** serves as the shared GPU/accelerator buffer and compute substrate. It decouples high-level packages (such as `apollo` spectral transforms and `coeus` tensor backends) so they can share device contexts and memory allocations without direct dependencies, conceptually mirroring the role of **CuPy** in the Python (NumPy/SciPy) ecosystem.
+Classical names describe bounded contexts rather than implementation variants.
 
-#### 3. Coeus GPU Tensors
-* The tensor engine **[`coeus`](repos/coeus)** defines the generic `Tensor<T, B>` (and taped `Var<T, B>`).
-* If `B` is `WgpuBackend` or `CudaBackend`, tensor allocations and operations route through `coeus-wgpu` or `coeus-cuda`.
-* These crates translate tensor layouts ([`Layout<N>`](repos/leto/crates/leto/src/domain/layout/mod.rs) from `leto`) into GPU buffers, dispatching shaders over `hephaestus-wgpu` or `hephaestus-cuda` to run GPU calculations without copy overhead.
+| Repository | Classical reference | Mapping |
+| --- | --- | --- |
+| `atlas` | Atlas, the Titan who bears the heavens | Coordinates the independently versioned stack. |
+| `apollo` | Apollo, associated with music and ordered harmony | Spectral and numerical transforms. |
+| `coeus` | Coeus, Titan associated with intellect and inquiry | Tensor computation and learning systems. |
+| `consus` | Consus, Roman god associated with stored grain | Scientific storage and persistence. |
+| `eunomia` | Eunomia, goddess of good order | Datatype laws and conversion order. |
+| `gaia` | Gaia, personification of Earth | Geometry, topology, and meshes. |
+| `helios` | Helios, personification of the Sun | Radiation and imaging simulation. |
+| `hephaestus` | Hephaestus, god of the forge | Accelerator devices and kernels. |
+| `hermes` | Hermes, swift messenger god | SIMD dispatch and vector execution. |
+| `leto` | Leto, mother of Apollo and daughter of Coeus | Shared array substrate between transform and tensor domains. |
+| `melinoe` | Melinoe, an underworld goddess associated with phantoms | Zero-sized phantom capability evidence. |
+| `mnemosyne` | Mnemosyne, Titaness of memory | Allocation and memory management. |
+| `moirai` | The Moirai, who govern the threads of fate | Scheduling and execution of program threads. |
+| `themis` | Themis, Titaness of divine law and order | Placement and locality law. |
 
-#### 4. Kwavers Domain Integration
-* **[`kwavers`](repos/kwavers)** is a domain/integrator workspace in the same Atlas submodule set as CFDrs. It can now build under `D:/atlas/target` when invoked from `repos/kwavers`, through the shared `repos/.cargo/config.toml` target-dir policy.
-* Kwavers keeps **[`ritk`](repos/ritk)** for imaging/registration and **[`consus`](repos/consus)** for scientific storage.
-* Migration work proceeds provider-first: missing array or linear-algebra capability is added to **[`leto`](repos/leto)**, missing SIMD capability to **[`hermes`](repos/hermes)**, missing PINN/autodiff capability to **[`coeus`](repos/coeus)**, missing runtime/parallel capability to **[`moirai`](repos/moirai)**, and missing allocator/placement capability to **[`mnemosyne`](repos/mnemosyne)** or **[`themis`](repos/themis)** before Kwavers updates its dependency pins.
-* Provider-specific GPU errors, device acquisition, buffers, and kernel dispatch stay in **[`hephaestus`](repos/hephaestus)**, **[`coeus`](repos/coeus)**, or Kwavers' feature-gated GPU leaf crates. Foundational Kwavers crates must not grow WGPU/CUDA-specific conversion features just to make downstream `?` propagation compile.
+`CFDrs`, `kwavers`, and `ritk` retain descriptive project names. New
+repositories use a classical name only when the mapping clarifies a stable
+bounded context.
 
-## Zero-Copy and Modularity Invariants
+## Future package roadmap
 
-The Atlas stack enforces strict performance, memory efficiency, and structural modularity contracts across its packages (notably `apollo` and its GPU backend integrations):
+The following names are architectural candidates, not current submodules,
+published crates, or implementation commitments. Names remain provisional until
+repository and crate-name availability is checked. No empty repository should
+be created from this list: promotion requires a real vertical implementation
+extracted from an existing need.
 
-- **Zero-Copy Cow Promotion**: All typed execution boundaries (e.g., `execute_*_typed_into` and `*_typed` helpers) route inputs and outputs through `std::borrow::Cow` and dynamically check representations via `std::any::TypeId`. When layouts match the compute backend's internal layout (e.g. `f32` or `Complex32`), unsafe reinterpretation casts bypass heap allocation and quantization loops.
-- **Staging Buffer Pooling & Pipeline Caching**: Concrete GPU backends query a thread-safe compute pipeline cache (`pipeline_cache` in the shared `hephaestus-wgpu` substrate) to avoid recompilation on shader execution. GPU host-staging transfers reuse recycled staging buffers through `WgpuDevice`'s staging pool helper.
-- **Modularity Limits (500-Line Rule)**: Every source file in the workspaces targets a maximum of 500 lines. Monolithic files exceeding this limit (e.g., `device.rs` and `kernel.rs` in WGPU transform crates) are refactored into structured sub-folders (such as `device/forward.rs`, `device/inverse.rs`, `device/helpers.rs`) and extend the parent struct definitions via decentralized `impl` blocks.
+### Promotion gate
+
+A candidate becomes an Atlas package only when all of these conditions hold:
+
+1. At least two packages need the capability, or an existing implementation is
+   already in the wrong dependency layer.
+2. A source audit proves that no current provider owns the same bounded context.
+3. An ADR defines the contract, dependency direction, migration, non-goals, and
+   conformance or differential oracle.
+4. The first change moves real computation into the new owner, migrates every
+   in-scope caller, and deletes the superseded implementation.
+5. The package is independently versioned or consumed across repository
+   boundaries; otherwise it remains a module or crate in the current owner.
+6. `.gitmodules`, this stack table, affected provider documentation, and
+   cross-package verification move in the same delivery unit.
+
+### Candidate packages
+
+| Priority | Working name | Classical reference | Proposed bounded context | Current drivers |
+| --- | --- | --- | --- | --- |
+| P0 | `aequitas` | Aequitas, Roman personification of equity and fair measure | Typed physical quantities, units, dimensions, and validated conversions over Eunomia scalars. It must not define a second scalar vocabulary. | Unit and quantity vocabularies recur across CFDrs, Helios, and Kwavers. |
+| P0 | `horae` | The Horae, goddesses of seasons and ordered time | Time-integration contracts, timestep control, subcycling, event clocks, and convergence metadata. It owns no domain equations. | Time-stepping families recur in CFDrs and Kwavers and are required by coupled Helios workflows. |
+| P0 | `athena` | Athena, goddess of wisdom and strategy | Operator-based linear and nonlinear solvers, Krylov methods, preconditioning contracts, and convergence reporting. Leto retains arrays, decompositions, and linear-algebra kernels. | Solver and convergence protocols recur across CFDrs, Kwavers, RITK, and Helios. |
+| P0 | `harmonia` | Harmonia, goddess of harmony and concord | Multiphysics coupling, state exchange, relaxation, fixed-point convergence, and heterogeneous subcycling. It owns coupling mechanics, not physics models. | Coupling orchestration recurs in CFDrs, Kwavers, and Helios. |
+| P1 | `proteus` | Proteus, the shape-changing sea god | Material, phase, mixture, and constitutive-property vocabulary parameterized by Aequitas quantities and Eunomia scalars. | Material-property models recur across flow, acoustics, therapy, and imaging domains. |
+| P1 | `tyche` | Tyche, goddess of fortune and chance | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies. Execution remains in Moirai and persistence in Consus. | Validation and design-space exploration recur across the three integrators. |
+| P1 | `asclepius` | Asclepius, god of medicine and healing | Biological-response, tissue-effect, treatment-response, and therapy outcome models. | Helios and Kwavers share treatment and tissue-response concerns; RITK supplies imaging inputs. |
+| P2 | `iris` | Iris, messenger goddess associated with the rainbow | Domain-neutral visualization, diagnostic views, and render/plot contracts. File formats remain with RITK or Consus. | Simulation and validation outputs need a common presentation boundary. |
+| P2 | `ares` | Ares, god of war | Solid mechanics, deformation, contact, and fluid-structure interaction. | Elastography and coupled CFD can provide the first two consumers. |
+| P2 | `hyperion` | Hyperion, Titan associated with heavenly light | Electromagnetic, optical, and radiation-transport operators. | Kwavers and Helios contain adjacent wave and radiation concerns. |
+| P2 | `prometheus` | Prometheus, Titan associated with fire and craft | Thermochemistry, reactions, combustion, and reactive transport. | Reactive-flow and thermal-therapy work can establish the shared contract. |
+
+### Dependency order
+
+The recommended extraction order is:
+
+```text
+eunomia
+└── aequitas
+    ├── horae
+    ├── athena
+    └── proteus
+         └── harmonia
+              └── CFDrs / helios / kwavers
+
+moirai + consus ── tyche
+coeus + aequitas ── asclepius
+domain result views ── iris
+```
+
+`harmonia` follows the units, time, solver, and material contracts because it
+must compose those contracts rather than create competing versions. `ares`,
+`hyperion`, and `prometheus` remain domain-level candidates until two concrete
+consumers justify extraction.
+
+The following concerns are not package gaps:
+
+- arrays, layouts, views, and host linear algebra belong to `leto`;
+- GPU devices, buffers, transfers, and kernels belong to `hephaestus`;
+- scheduling, async execution, synchronization, and transport belong to
+  `moirai`;
+- SIMD and SWAR execution belongs to `hermes`;
+- allocation and staging memory belongs to `mnemosyne`;
+- geometry and mesh generation belongs to `gaia`;
+- scientific storage and checkpoint persistence belongs to `consus`.
 
 ## Layout
 
-```
+```text
 atlas/
+├── docs/
+│   └── adr/              # stack-wide architectural decisions
 ├── repos/
-│   ├── apollo/           # Fourier transform planning and execution workspace
-│   ├── CFDrs/            # computational fluid dynamics simulation workspace
-│   ├── coeus/            # strided tensor library workspace
-│   ├── consus/           # scientific storage-format workspace
-│   ├── gaia/             # watertight CFD mesh-generation workspace
-│   ├── hermes/           # SIMD abstraction workspace
-│   ├── kwavers/          # acoustic simulation and therapy integration workspace
-│   ├── leto/             # shared N-dimensional strided array workspace
-│   ├── melinoe/          # branded phantom-capability foundation crate
-│   ├── themis/           # placement-law foundation crate
-│   ├── mnemosyne/        # user-space memory allocator workspace
-│   ├── moirai/           # concurrency library workspace
-│   └── ritk/             # medical image processing and registration workspace
+│   ├── CFDrs/
+│   ├── apollo/
+│   ├── coeus/
+│   ├── consus/
+│   ├── eunomia/
+│   ├── gaia/
+│   ├── helios/
+│   ├── hephaestus/
+│   ├── hermes/
+│   ├── kwavers/
+│   ├── leto/
+│   ├── melinoe/
+│   ├── mnemosyne/
+│   ├── moirai/
+│   ├── ritk/
+│   └── themis/
 ├── scripts/              # cross-package orchestration
 ├── .gitmodules
 └── README.md
 ```
 
-`.gitmodules` is the authoritative source for submodule remotes and tracked
-branches.
-
 ## Clone
 
-Submodules are nested, so clone recursively:
+```sh
+git clone --recurse-submodules https://github.com/ryancinsight/atlas.git
+cd atlas
+```
+
+After a non-recursive clone:
 
 ```sh
-git clone --recurse-submodules https://github.com/<owner>/atlas.git
-# or, after a plain clone:
 git submodule update --init --recursive
 ```
 
-## Working with packages
+## Work with packages
+
+Build or test one package from its repository:
 
 ```sh
-# Build / test a single package from inside repos/<name>.
-# This lets Cargo discover repos/.cargo/config.toml and reuse D:/atlas/target.
 cd repos/CFDrs
 cargo build
 cargo nextest run
-cd ../..
-
-# Build every package
-pwsh scripts/build-all.ps1     # Windows: cargo build
-./scripts/build-all.sh         # Unix: cargo build
-
-# Test every package
-pwsh scripts/build-all.ps1 test
-./scripts/build-all.sh test
-
-# Run another Cargo subcommand across every package
-pwsh scripts/build-all.ps1 clippy --all-targets --all-features -- -D warnings
-./scripts/build-all.sh clippy --all-targets --all-features -- -D warnings
-
-# Pull the latest commit of every submodule
-git submodule update --remote --recursive
+cargo test --doc
 ```
 
-## Adding a package
+Run the same Cargo command across every checked-out package:
+
+```sh
+# Windows
+pwsh scripts/build-all.ps1
+pwsh scripts/build-all.ps1 nextest run
+pwsh scripts/build-all.ps1 test --doc
+pwsh scripts/build-all.ps1 clippy --all-targets -- -D warnings
+
+# Unix
+./scripts/build-all.sh
+./scripts/build-all.sh nextest run
+./scripts/build-all.sh test --doc
+./scripts/build-all.sh clippy --all-targets -- -D warnings
+```
+
+Update the checkout to the commits recorded by the parent repository:
+
+```sh
+git submodule update --init --recursive
+```
+
+Advancing package pins is a reviewed provider-graph change. Fetch and verify
+the package's remote default branch, update its gitlink, run the affected
+provider and consumer gates, and commit the parent pointer only after the child
+revision is published.
+
+## Add a package
+
+A package must pass the [promotion gate](#promotion-gate) before it enters the
+meta-repository.
 
 ```sh
 git submodule add <url> repos/<name>
 git submodule update --init --recursive
-git commit -m "atlas: add <name> package"
+git commit -m "feat(atlas): Add <name> package"
 ```
