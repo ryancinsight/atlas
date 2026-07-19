@@ -7,6 +7,12 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-028 — Hephaestus PM convergence [patch]
+
+- [x] Merge Hephaestus PR #52 without touching peer-owned WGPU source changes.
+- [x] Advance only the Hephaestus gitlink to its exact fetched default.
+- [ ] Publish, merge, and rerun the 16-gitlink remote-default audit.
+
 ## ATLAS-INTEGRATION-027 — Provider-default convergence [patch]
 
 - [x] Merge Hermes' Eunomia 0.6 lock refresh and PM closeout.
