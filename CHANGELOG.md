@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Advance Hephaestus to PM closeout PR #52 merge `cdfcd0c`; runtime code and the
+  verified Eunomia 0.6 provider closure remain unchanged.
+
 - Advance Hermes to PR #11 merge `6f9b81f`, locking Eunomia 0.6 after its
   raw-half retirement. Advance Leto to the exact PR #48 merge object
   `bb03244f05a9c43c318d103225c3ccad07e9fad9`, preserving the merged

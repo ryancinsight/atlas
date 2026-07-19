@@ -1,5 +1,14 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-19) — Hephaestus PM convergence
+
+- **Finding:** Hephaestus PR #52 closed its provider-refresh checklist after
+  Atlas integration, advancing the child default without changing runtime code.
+- **Resolution:** advance only the Hephaestus parent gitlink to exact default
+  `cdfcd0cb38de03d28107fc231042eaf55e078e3a`.
+- **Evidence tier:** exact fetched commit identity and final 16-gitlink
+  remote-default audit. Fresh Hephaestus WGPU source edits remain excluded.
+
 ## State refresh (2026-07-19) — provider-default convergence
 
 - **Finding:** Hermes' parent pointer predated its Eunomia 0.6 lock refresh,
