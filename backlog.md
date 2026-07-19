@@ -7,7 +7,7 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
-## ATLAS-INTEGRATION-027 — Provider-default convergence [patch] — in progress
+## ATLAS-INTEGRATION-027 — Provider-default convergence [patch] — done
 
 - Owner: Codex `/root`; scope: merged Hermes and Leto defaults and their parent
   gitlinks. Dirty child worktrees and root package-manager state remain
@@ -20,6 +20,9 @@
   Leto PR #48 merges at
   `bb03244f05a9c43c318d103225c3ccad07e9fad9` with its recorded 304/304
   `leto-ops` tests and criterion comparison.
+- Closure: Atlas PR #46 advances Hermes and Leto; PR #47 corrects the invalid
+  same-prefix Leto object ID detected by the post-merge audit. All 16 parent
+  gitlinks then resolve to existing commits equal to their fetched defaults.
 
 ## ATLAS-INTEGRATION-026 — Eunomia runtime-half retirement [patch] — done
 
