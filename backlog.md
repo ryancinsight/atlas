@@ -7,7 +7,7 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
-## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — in progress
+## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — review
 
 - Owner: Codex `/root`; scope: merged Eunomia, Hermes, and Leto defaults,
   their parent gitlinks, and cross-repo evidence only. RITK, Coeus, and root
@@ -16,6 +16,12 @@
   Hermes and Leto expose only Eunomia reduced-precision types; Leto resolves
   current provider defaults and passes its complete gate; the parent records
   only merged default commits.
+- Evidence: Eunomia PRs #46-#47 merge at `c196db5`; Hermes PRs #8-#9 merge at
+  `c9bbdf8`; Leto PRs #46-#47 merge at `7afcbd0`. Leto passes format,
+  all-feature compilation, warning-denied Clippy, 593/593 configured Nextest,
+  nine doctests, rustdoc, no-default-feature compilation, and residue scans.
+- Closure: parent gitlinks advance only Eunomia, Hermes, and Leto. Fresh RITK,
+  Coeus, and root package-manager work remains unstaged.
 
 ## ATLAS-INTEGRATION-024 — Helios provider lock convergence [patch] — done
 

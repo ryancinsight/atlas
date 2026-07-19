@@ -1,5 +1,26 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-18) — Eunomia precision graph
+
+- **Finding:** Leto and Hermes still exposed raw `half` reduced-precision types
+  after Eunomia became the Atlas numeric vocabulary owner.
+- **Resolution:** Eunomia 0.5.0 adds exact `F16`/`Bf16` bit contracts and full
+  float-element value contracts (`c196db5`). Hermes 0.4.0 removes raw `half`
+  ownership and binds its reduced-precision kernels to Eunomia (`c9bbdf8`).
+  Leto 0.39.0 removes direct `half` dependencies and replaces public scalar,
+  real-math, arithmetic, and fixture contracts with Eunomia types (`7afcbd0`).
+- **Evidence tier:** exhaustive 65,536-pattern reduced-format tests,
+  compile-time trait binding, exact consumer value tests, warning-denied
+  diagnostics, 593/593 configured Leto Nextest cases, nine doctests, rustdoc,
+  no-default-feature compilation, and source/manifest residue scans.
+- **Parent closure:** advance only `repos/eunomia`, `repos/hermes`, and
+  `repos/leto`. RITK, Coeus, and root package-manager state remain peer-owned
+  and unstaged.
+- **Residual:** Leto's `leto-python` semver extraction reaches a Rust 1.95
+  rustdoc ICE in NumPy 0.23; PyO3 0.23.5 retains two published advisories.
+  These are isolated Python-boundary dependency-upgrade work, not numeric
+  provider regressions.
+
 ## State refresh (2026-07-18) — RITK Batch #3 full closure + Coeus/Eunomia pointer advances
 
 - **Finding:** RITK Batch #3 (Burn→Coeus provider cutover) is fully closed via

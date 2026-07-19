@@ -12,8 +12,13 @@
 - [x] Merge Eunomia reduced-precision bit and float-element contracts.
 - [x] Merge Hermes native Eunomia reduced-precision SIMD ownership.
 - [x] Merge Leto scalar, real-math, array arithmetic, and fixture cutover.
-- [ ] Advance only the Eunomia, Hermes, and Leto parent gitlinks.
+- [x] Advance only the Eunomia, Hermes, and Leto parent gitlinks.
 - [ ] Review, publish, merge, and reconcile the Atlas default.
+
+**Evidence tier:** exhaustive reduced-format bit-pattern tests in Eunomia,
+compile-time provider binding, exact reduced-precision value tests, configured
+consumer regression execution, warning-denied diagnostics, rustdoc, and remote
+default identity. No formal proof checker was run.
 
 ## ATLAS-INTEGRATION-024 — Helios provider lock convergence [patch]
 
