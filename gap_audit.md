@@ -1,5 +1,36 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-18) — Themis test-visibility defect fix
+
+- **Finding:** Themis ADR-0018 Phase 2 (PR #9 `a9127ac`, "Rehome themis tests to
+  `tests/`") broke `cargo nextest run` with 7 E0432/E0599 errors. The lib's
+  `#[cfg(test)] pub fn new_for_test` and `#[cfg(test)] pub use topology::{build_*}`
+  re-exports did not activate for the integration tests in `tests/branded.rs`, and
+  the peer's gap_audit entry claiming "Status: Complete" was verified only via
+  `cargo check --lib`, not the test target — a PM-vs-tree drift defect per
+  `documentation_discipline` + `integrity: anti-gaming`.
+- **Resolution:** Themis PR #10 (`b8f8b87`, merged `9677a47`) introduces a `testing`
+  cargo feature (implies `std`), gates `new_for_test` and the table-builder
+  re-exports under `cfg(any(test, feature = "testing"))`, adds a
+  `topology/mod.rs` re-export of `cpu::tables::{build_*}` so the `lib.rs`
+  `pub use topology::{build_*}` resolves, drops 2 unused imports from
+  `tests/branded.rs`, and adds doc comments to the 4 `build_*` builders (now
+  crate-root-visible, so `#![deny(missing_docs)]` requires them).
+- **Evidence tier:** `cargo nextest run -p themis --features testing` 36/36 green
+  (branded integration tests now compile and pass), `cargo nextest run -p themis`
+  default 21/21 green, `cargo clippy -p themis --all-targets --features testing
+  -- -D warnings` clean, default clippy clean, `cargo fmt --check` clean,
+  `cargo check -p themis --lib --no-default-features --features testing` clean,
+  `cargo test --doc -p themis` ok.
+- **Closure:** Themis PR #10 (`b8f8b87`) fixes the test-visibility defect and
+  merges at `9677a47`. Themis PR #11 (`8f7503b`) corrects the peer's stale
+  "Status: Complete" Phase-2 gap_audit entry and merges at `0ad45de`.
+  Atlas advances `repos/themis` gitlink `a9127ac..9677a47` (Atlas PR #39,
+  merged `f5dc2ce`) and then to `0ad45de` (Atlas PR, this commit).
+- **Residual:** none in this scope. Concurrent Leto sparse-support, RITK
+  Batch #3, Eunomia `num-traits` removal, Hephaestus `num-complex` removal,
+  and root package-manager residue remain preserved and unstaged.
+
 ## State refresh (2026-07-18) — Helios provider lock convergence
 
 - **Finding:** Helios carried a stale one-line Apollo version edit that was not
