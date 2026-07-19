@@ -1,5 +1,23 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-19) — Eunomia runtime-half retirement
+
+- **Finding:** Eunomia retained foreign numeric and cast implementations for
+  `half::f16`/`half::bf16` after Hermes and Leto migrated to native
+  `eunomia::F16`/`Bf16`. Hephaestus's lock still selected the older Hermes
+  0.3/Leto 0.38 closure that required those implementations.
+- **Resolution:** Eunomia 0.6.0 (`df77dfd`) removes the foreign surface and
+  keeps `half` only as a differential-oracle dev dependency. Hephaestus
+  (`594d57a`) advances to Eunomia 0.6.0, Hermes 0.4.0, and Leto 0.39.0.
+- **Evidence tier:** compiler-checked dependency graphs; exhaustive Eunomia
+  reduced-precision oracle tests (86/86 producer Nextest); Hephaestus CPU,
+  CUDA, WGPU, Metal, and Python contracts (312/312 Nextest); warning-denied
+  diagnostics, doctests, and rustdoc in both repos; exact merged-default
+  gitlink identities in the parent.
+- **Residual:** Apollo's raw-half FFT surface is Apollo-owned and independent
+  of Eunomia's deleted foreign implementations. Main-tree RITK, Coeus, and
+  root package-manager working state remains peer-owned and unmodified.
+
 ## State refresh (2026-07-18) — Eunomia precision graph
 
 - **Finding:** Leto and Hermes still exposed raw `half` reduced-precision types

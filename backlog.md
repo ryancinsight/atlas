@@ -18,6 +18,8 @@
 - Evidence: Eunomia PR #48 merges at `df77dfd`; Hephaestus PR #51 merges at
   `594d57a`. Producer Nextest passes 86/86 and Hephaestus passes 312/312,
   together with warning-denied diagnostics and documentation gates.
+- Integration state: the branch advances only `repos/eunomia` and
+  `repos/hephaestus`; all other parent gitlinks remain unchanged.
 
 ## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — done
 

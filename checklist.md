@@ -13,7 +13,7 @@
       removed and `half` confined to the differential-oracle dev graph.
 - [x] Refresh and merge Hephaestus's coherent Eunomia 0.6/Hermes 0.4/Leto
       0.39 lock closure.
-- [ ] Advance only the Eunomia and Hephaestus gitlinks; preserve peer-owned
+- [x] Advance only the Eunomia and Hephaestus gitlinks; preserve peer-owned
       Coeus/RITK and root package-manager state.
 - [ ] Publish, merge, and reconcile the Atlas integration PR.
 

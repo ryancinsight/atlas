@@ -4,6 +4,11 @@
 
 ### Changed
 
+- Advance Eunomia to PR #48 merge `df77dfd`, removing its production
+  `half` dependency and foreign raw-half numeric/cast surface. Advance
+  Hephaestus to PR #51 merge `594d57a`, whose reproducibility lock resolves
+  Eunomia 0.6.0, Hermes 0.4.0, and Leto 0.39.0 with 312/312 provider tests.
+
 - Tombstone superseded CR-2, RITK, and Kwavers migration queues after their
   recorded closures; refresh the provider/consumer stack table to the 16
   fetched remote-default gitlinks.
