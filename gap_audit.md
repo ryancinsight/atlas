@@ -13,9 +13,10 @@
   compile-time trait binding, exact consumer value tests, warning-denied
   diagnostics, 593/593 configured Leto Nextest cases, nine doctests, rustdoc,
   no-default-feature compilation, and source/manifest residue scans.
-- **Parent closure:** advance only `repos/eunomia`, `repos/hermes`, and
-  `repos/leto`. RITK, Coeus, and root package-manager state remain peer-owned
-  and unstaged.
+- **Parent closure:** advance `repos/eunomia`, `repos/hermes`, and `repos/leto`;
+  reconcile the cumulative branch's previously committed Coeus and RITK
+  pointers to current merged defaults. RITK, Coeus, and root package-manager
+  working state remain peer-owned and unstaged.
 - **Residual:** Leto's `leto-python` semver extraction reaches a Rust 1.95
   rustdoc ICE in NumPy 0.23; PyO3 0.23.5 retains two published advisories.
   These are isolated Python-boundary dependency-upgrade work, not numeric
@@ -30,18 +31,19 @@
   (523 lines) is deleted; all Burn/ndarray dependencies removed from the
   workspace manifest; all consumers migrated to Coeus backend. This closes ALL
   remaining sub-batches (#3.g, #4, #5, #6) in a single atomic cutover.
-- **Resolution:** Advance `repos/ritk` gitlink `b007326e` → `9af7dbbe`
-  (origin/main HEAD). Advance `repos/coeus` gitlink `bb97cc6` → `5ee07a2`
+- **Resolution:** Advance `repos/ritk` gitlink `b007326e` → `9af7dbbe` for the
+  provider cutover, then to `688eb8e` after projection-hardening PR #44 merged.
+  Advance `repos/coeus` gitlink `bb97cc6` → `5ee07a2`
   (PRs #213 host-extraction + #214 host-cow). Advance `repos/eunomia` gitlink
   `58ce8ed` → `1b610d4` (PRs #44 AVX2 f8 coverage + #45 bf16 bulk conversion).
 - **Evidence tier:** structural Git equality to fetched remote default branches;
   RITK Batch #3 sub-batch ledger fully consumed by PR #42-#43.
 - **Closure:** RITK Batch #3 is CLOSED. Migration queue is 7/7 CLOSED.
-- **Residual:** RITK projection hardening work on
-  `codex/ritk-filter-projection-cow` (3 commits ahead of origin/main) is
-  peer-owned and not yet merged to main. CR-2 ritk-core `#[global_allocator]`
-  removal remains deferred (peer-active). Kwavers Batch #1 (Rayon→Moirai) and
-  Batch #4 (PINN Burn→Coeus) remain peer-active.
+- **Residual:** RITK projection hardening merged through PR #44 at `688eb8e`;
+  subsequent RITK working state remains peer-owned and unstaged. CR-2
+  ritk-core `#[global_allocator]` removal remains deferred (peer-active).
+  Kwavers Batch #1 (Rayon→Moirai) and Batch #4 (PINN Burn→Coeus) remain
+  peer-active.
 
 ## State refresh (2026-07-18) — Themis test-visibility defect fix
 
@@ -945,7 +947,7 @@ Closure-progress count: 7 CLOSED (kwavers #1/#2/#3/#5, CFDrs, ritk Batch #3, hel
 
 | **3** | kwavers nalgebra -> leto | 0 `nalgebra` in source/manifests at inner HEAD `7c70d1b1d` | n/a | **CLOSED 2026-07-12** | n/a |
 
-| **4** | ritk Batch #3 (Burn -> coeus) source-side | PR #42 `f01b1643` (1298 files, -59482 lines) + PR #43 `b4be04ca` (closeout docs) + fixes `6086d757`/`9de12515`/`24a3cb08`; burn_surface.allowlist deleted, all consumers migrated to Coeus | sub-batches #1+#2+#3.a–#3.f CLOSED; sub-batches #3.g+#4+#5+#6 CLOSED by PR #42 | **CLOSED 2026-07-18** | atlas-meta advance `repos/ritk` `b007326e` → `9af7dbbe` |
+| **4** | ritk Batch #3 (Burn -> coeus) source-side | PR #42 `f01b1643` (1298 files, -59482 lines) + PR #43 `b4be04ca` (closeout docs) + fixes `6086d757`/`9de12515`/`24a3cb08`; burn_surface.allowlist deleted, all consumers migrated to Coeus | sub-batches #1+#2+#3.a–#3.f CLOSED; sub-batches #3.g+#4+#5+#6 CLOSED by PR #42 | **CLOSED 2026-07-18** | atlas-meta advance `repos/ritk` `b007326e` → `9af7dbbe` for cutover, then `688eb8e` after PR #44 |
 
 | **5** | kwavers Burn -> coeus (Batch #4) | 0 `burn::` source residual at inner HEAD `7c70d1b1d`; manifest strip landed | CR-4 eunomia SSOT rebind landed | **CLOSED 2026-07-12** | n/a |
 

@@ -10,8 +10,10 @@
 ## ATLAS-INTEGRATION-025 — Eunomia precision graph [major] — review
 
 - Owner: Codex `/root`; scope: merged Eunomia, Hermes, and Leto defaults,
-  their parent gitlinks, and cross-repo evidence only. RITK, Coeus, and root
-  package-manager state remain peer-owned and outside this claim.
+  their parent gitlinks, and cross-repo evidence. The cumulative Atlas branch
+  also reconciles previously committed Coeus and RITK gitlinks to their merged
+  defaults; their working trees and root package-manager state remain
+  peer-owned and outside this claim.
 - Acceptance: Eunomia owns the reduced-format bit and float-element contracts;
   Hermes and Leto expose only Eunomia reduced-precision types; Leto resolves
   current provider defaults and passes its complete gate; the parent records
@@ -20,8 +22,9 @@
   `c9bbdf8`; Leto PRs #46-#47 merge at `7afcbd0`. Leto passes format,
   all-feature compilation, warning-denied Clippy, 593/593 configured Nextest,
   nine doctests, rustdoc, no-default-feature compilation, and residue scans.
-- Closure: parent gitlinks advance only Eunomia, Hermes, and Leto. Fresh RITK,
-  Coeus, and root package-manager work remains unstaged.
+- Closure: this increment advances Eunomia, Hermes, and Leto and reconciles
+  previously committed Coeus and RITK pointers to current merged defaults.
+  Fresh RITK, Coeus, and root package-manager work remains unstaged.
 
 ## ATLAS-INTEGRATION-024 — Helios provider lock convergence [patch] — done
 
