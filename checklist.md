@@ -11,7 +11,8 @@
 
 - [x] Merge Hephaestus PR #52 without touching peer-owned WGPU source changes.
 - [x] Advance only the Hephaestus gitlink to its exact fetched default.
-- [ ] Publish, merge, and rerun the 16-gitlink remote-default audit.
+- [x] Merge Atlas PR #49 at `2c1ee62`; all 16 gitlinks exist and equal their
+      fetched remote defaults.
 
 ## ATLAS-INTEGRATION-027 — Provider-default convergence [patch]
 
