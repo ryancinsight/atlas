@@ -22,6 +22,7 @@
   `c9bbdf8`; Leto PRs #46-#47 merge at `7afcbd0`. Leto passes format,
   all-feature compilation, warning-denied Clippy, 593/593 configured Nextest,
   nine doctests, rustdoc, no-default-feature compilation, and residue scans.
+  All 16 Atlas gitlinks equal their fetched remote defaults.
 - Closure: this increment advances Eunomia, Hermes, and Leto and reconciles
   previously committed Coeus and RITK pointers to current merged defaults.
   Fresh RITK, Coeus, and root package-manager work remains unstaged.

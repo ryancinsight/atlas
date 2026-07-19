@@ -19,7 +19,7 @@
 **Evidence tier:** exhaustive reduced-format bit-pattern tests in Eunomia,
 compile-time provider binding, exact reduced-precision value tests, configured
 consumer regression execution, warning-denied diagnostics, rustdoc, and remote
-default identity. No formal proof checker was run.
+default identity across all 16 Atlas gitlinks. No formal proof checker was run.
 
 ## ATLAS-INTEGRATION-024 — Helios provider lock convergence [patch]
 

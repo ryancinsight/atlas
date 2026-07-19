@@ -12,7 +12,8 @@
 - **Evidence tier:** exhaustive 65,536-pattern reduced-format tests,
   compile-time trait binding, exact consumer value tests, warning-denied
   diagnostics, 593/593 configured Leto Nextest cases, nine doctests, rustdoc,
-  no-default-feature compilation, and source/manifest residue scans.
+  no-default-feature compilation, source/manifest residue scans, and exact
+  equality between all 16 Atlas gitlinks and their fetched remote defaults.
 - **Parent closure:** advance `repos/eunomia`, `repos/hermes`, and `repos/leto`;
   reconcile the cumulative branch's previously committed Coeus and RITK
   pointers to current merged defaults. RITK, Coeus, and root package-manager
