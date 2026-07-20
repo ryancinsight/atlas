@@ -1,0 +1,244 @@
+name: Build Python release wheels
+
+on:
+  workflow_call:
+    inputs:
+      distribution:
+        description: PyPI distribution name from wheel metadata
+        required: true
+        type: string
+      import-name:
+        description: Python module imported by the wheel smoke test
+        required: true
+        type: string
+      manifest-path:
+        description: Python crate manifest relative to the caller repository
+        required: true
+        type: string
+      atlas-ref:
+        description: Exact Atlas commit that owns the provider gitlink graph
+        required: true
+        type: string
+      abi3:
+        description: Build one stable-ABI wheel per operating system
+        required: false
+        default: false
+        type: boolean
+      abi3-python:
+        description: Oldest Python interpreter used to build an abi3 wheel
+        required: false
+        default: "3.9"
+        type: string
+      python-versions:
+        description: JSON array of CPython versions for non-abi3 wheels
+        required: false
+        default: '["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-abi3:
+    if: inputs.abi3
+    name: ${{ matrix.os }} / abi3
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64
+            manylinux: "2_17"
+          - os: windows-latest
+            target: x86_64
+            manylinux: "off"
+          - os: macos-latest
+            target: universal2-apple-darwin
+            manylinux: "off"
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+
+      - name: Checkout exact Atlas provider graph
+        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@cd6a78e8c9a9816b0fa5ff22ad9166edbb713894
+        with:
+          manifest: source/Cargo.toml
+          destination: .
+          atlas_ref: ${{ inputs.atlas-ref }}
+
+      - name: Set up Python ${{ inputs.abi3-python }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ inputs.abi3-python }}
+
+      - name: Build wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: v1.14.1
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          sccache: true
+          args: >-
+            --release
+            --locked
+            --compatibility pypi
+            --manifest-path source/${{ inputs.manifest-path }}
+            --out dist
+            -i ${{ matrix.os == 'ubuntu-latest' && format('python{0}', inputs.abi3-python) || 'python' }}
+
+      - name: Install and import wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check numpy
+          python -m pip install --disable-pip-version-check --force-reinstall dist/*.whl
+          python -c "import importlib; importlib.import_module('${{ inputs.import-name }}')"
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wheel-${{ matrix.os }}-abi3
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  build-cpython:
+    if: ${{ !inputs.abi3 }}
+    name: ${{ matrix.os }} / CPython ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ${{ fromJSON(inputs.python-versions) }}
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+
+      - name: Checkout exact Atlas provider graph
+        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@cd6a78e8c9a9816b0fa5ff22ad9166edbb713894
+        with:
+          manifest: source/Cargo.toml
+          destination: .
+          atlas_ref: ${{ inputs.atlas-ref }}
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Build wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: v1.14.1
+          target: ${{ matrix.os == 'macos-latest' && 'universal2-apple-darwin' || 'x86_64' }}
+          manylinux: ${{ matrix.os == 'ubuntu-latest' && '2_17' || 'off' }}
+          sccache: true
+          args: >-
+            --release
+            --locked
+            --compatibility pypi
+            --manifest-path source/${{ inputs.manifest-path }}
+            --out dist
+            -i ${{ matrix.os == 'ubuntu-latest' && format('python{0}', matrix.python-version) || 'python' }}
+
+      - name: Install and import wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check numpy
+          python -m pip install --disable-pip-version-check --force-reinstall dist/*.whl
+          python -c "import importlib; importlib.import_module('${{ inputs.import-name }}')"
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wheel-${{ matrix.os }}-cp${{ matrix.python-version }}
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  release-assets:
+    if: ${{ always() && !failure() && !cancelled() }}
+    name: Validate and attach release wheels
+    needs: [build-abi3, build-cpython]
+    runs-on: ubuntu-latest
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Download wheels
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: wheel-*
+          path: dist
+          merge-multiple: true
+
+      - name: Validate release identity and wheel set
+        shell: bash
+        env:
+          ABI3: ${{ inputs.abi3 }}
+          DISTRIBUTION: ${{ inputs.distribution }}
+          PYTHON_VERSIONS: ${{ inputs.python-versions }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          release_version="${RELEASE_TAG#v}"
+          mapfile -t wheels < <(find dist -maxdepth 1 -type f -name '*.whl' -print | sort)
+          if [[ "$ABI3" == "true" ]]; then
+            expected=3
+          else
+            expected=$((3 * $(jq 'length' <<<"$PYTHON_VERSIONS")))
+          fi
+          if (( ${#wheels[@]} != expected )); then
+            echo "expected $expected wheels, found ${#wheels[@]}" >&2
+            exit 1
+          fi
+
+          normalized_distribution=$(tr '[:upper:]' '[:lower:]' <<<"$DISTRIBUTION" | sed -E 's/[-_.]+/-/g' | tr -d '\r\n')
+          for wheel in "${wheels[@]}"; do
+            metadata=$(unzip -p "$wheel" '*/METADATA')
+            wheel_name=$(sed -n 's/^Name: //p' <<<"$metadata" | head -n 1 | tr -d '\r')
+            wheel_version=$(sed -n 's/^Version: //p' <<<"$metadata" | head -n 1 | tr -d '\r')
+            normalized_wheel_name=$(tr '[:upper:]' '[:lower:]' <<<"$wheel_name" | sed -E 's/[-_.]+/-/g' | tr -d '\r\n')
+            if [[ "$normalized_wheel_name" != "$normalized_distribution" ]]; then
+              echo "$wheel: distribution $wheel_name does not match $DISTRIBUTION" >&2
+              exit 1
+            fi
+            if [[ "$wheel_version" != "$release_version" ]]; then
+              echo "$wheel: version $wheel_version does not match tag $RELEASE_TAG" >&2
+              exit 1
+            fi
+          done
+          sha256sum "${wheels[@]}" > dist/SHA256SUMS
+
+      - name: Upload consolidated wheel artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-wheels
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attest release artifacts
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: dist/*
+
+      - name: Attach wheels to GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY"
