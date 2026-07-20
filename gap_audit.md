@@ -1,5 +1,45 @@
 # atlas — cross-repository integration gap audit
 
+## State refresh (2026-07-20) — Proteus/Tyche ADR backfill and coeus 0.18.0 bump
+
+- **Finding:** peer landed Proteus (`f043d22`, `beb2713`) and Tyche (`feed3bc`,
+  `edf99e4`) submodule registrations plus README updates that removed them
+  from the candidate table and added them to the current-stack table
+  (19 -> 22 packages) but did not file the stack-level ADR ceremony that
+  `documentation_discipline` makes the automatic first planning step of an
+  `[arch]` promotion. Separately, the peer hephaestus `v0.18.0` tag advance
+  left `coeus`'s workspace.dependencies pinning `^0.17.0`, blocking
+  `cargo check --workspace` at Atlas-graph level with a "failed to select a
+  version for the requirement `hephaestus-core = ^0.17.0`" dep-resolution
+  failure.
+- **Resolution:** file ADR 0025 (Proteus material-property promotion) and
+  ADR 0026 (Tyche uncertainty-quantification promotion) at `Accepted` with
+  bounded context, dependency direction, Phase scope, theorems and evidence,
+  rejected alternatives, consequences, and Relates-to to ADRs 0002/0005/0021/
+  0023/0025. Extend the ADR INDEX with rows 0025 and 0026 plus cross-walk
+  rows and a Group F topic-keyword group. Bump the three `hephaestus-*`
+  path-dep pins in `repos/coeus/Cargo.toml` from `0.17.0` to `0.18.0` and
+  advance the Atlas-parent gitlinks for coeus `56fa49a` -> `c290f3e` and leto
+  `4158b8e` -> `02d74fd`.
+- **Evidence tier:** atlas-graph-level `cargo check --workspace --all-targets`
+  rc=0 across all 20 actively-built packages via `scripts/build-all.ps1`
+  after the coeus bump; coeus `cargo nextest run --workspace` 938/938 passed
+  plus `cargo test --doc` 8-double-pass at HEAD `c290f3e`. ADR files are
+  markdown-only and author against peer-published remote HEADs `2b06be3`
+  (Proteus) and `7898899` (Tyche), cross-referencing the in-repo ADR 0001 of
+  each provider. The bounded-evidence strip at coeus is the bounded-evidence
+  strip at ADR 0025/0026; broader package-level verification (proteus tests,
+  tyche tests, hephaestus-cuda link) was already peer-verified at
+  package-level on each provider.
+- **Residual:** consumer material-property migrations to Proteus and consumer
+  UQ study migrations to Tyche remain separate dependency-ordered vertical
+  increments owned by the CFDrs/Kwavers/Helios claim streams; the ADRs file
+  the promotion boundary but authorize no migration. The hephaestus-cuda
+  Windows-gnu link fails because the upstream build script emits a
+  Linux-shaped CUDA SDK path that doesn't resolve on this MSYS2 host; this
+  is an environment defect, not a regression, and is recorded as a follow-up
+  watchpoint.
+
 ## State refresh (2026-07-20) — benchmark regression gate
 
 - **Finding:** Apollo, Helios, and Kwavers each copied a Python script and then

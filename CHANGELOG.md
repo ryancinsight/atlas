@@ -4,6 +4,30 @@
 
 ### Added
 
+- File ADR 0025 (`docs/adr/0025-proteus-material-property-promotion.md`) at
+  `Accepted` to record the Proteus promotion decision. Proteus owns shared
+  material-property and constitutive-law contracts: validated thermophysical
+  newtypes (`MassDensity`, `SpecificHeatCapacity`, `ThermalConductivity`)
+  over Aequitas quantities and Eunomia scalars with a GAT-based static
+  constitutive seam (`ConstitutiveLaw<Law>`, `ConstantLaw`, `NoState`) and
+  `Cow<str>` material identity. Cross-references Proteus ADR 0001, ADR 0002,
+  0005, 0021, and 0023 in the ADR INDEX cross-walk.
+
+- File ADR 0026 (`docs/adr/0026-tyche-uq-promotion.md`) at `Accepted` to
+  record the Tyche promotion decision. Tyche owns reproducible uncertainty
+  studies: counter-stream random-access Latin hypercube designs,
+  index-addressed ensemble execution, online Welford/Chan moments, Pearson
+  screening, finite-sample split-conformal calibration, and Moirai/Consus
+  provider adapters over a `no_std + alloc` core with GAT response seams
+  and const-generic numeric widths. Cross-references Tyche ADR 0001, ADR
+  0002, 0005, 0023, and 0025 in the ADR INDEX cross-walk.
+
+- Add a `build(atlas)` entry advancing the coeus gitlink from `56fa49a` to
+  `c290f3e` after bumping the hephaestus path-dep pins 0.17.0 -> 0.18.0 to
+  restore Atlas graph closure following Peer's v0.18.0 hephaestus tag
+  advance. Add a matching leto gitlink advance 4158b8e -> 02d74fd wrapping
+  PR #55 (perf/leto-ziggurat-normal).
+
 - Add ADR 0024 and the Atlas-owned `tools/criterion-regression` Rust gate for
   counterbalanced Criterion median regressions, 5% family-wise error control,
   and fail-closed missing or mismatched evidence.

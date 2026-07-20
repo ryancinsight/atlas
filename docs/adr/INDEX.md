@@ -29,8 +29,10 @@
 | <a id="ADR-0022"></a>**0022** | Promote Horae time-integration policy over Aequitas and Athena Krylov policy over Leto CPU plus Hephaestus WGPU after deleting Leto's duplicate CG and GMRES recurrences | Accepted | 2026-07-19 | `[arch]` `[minor]` | horae / athena / leto / hephaestus / atlas-meta | simulation-providers |
 | <a id="ADR-0023"></a>**0023** | Promote Harmonia partitioned multiphysics coupling over Horae subcycle plans and Athena Core convergence policy | Accepted | 2026-07-20 | `[arch]` `[minor]` | harmonia / horae / athena-core / eunomia / atlas-meta | simulation-providers |
 | <a id="ADR-0024"></a>**0024** | Centralize Criterion base/head regression classification in one Atlas-owned Rust gate | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / apollo / helios / kwavers | benchmark-verification |
+| <a id="ADR-0025"></a>**0025** | Promote Proteus as the Atlas owner for shared material-property and constitutive-law contracts: validated thermophysical newtypes (`MassDensity`, `SpecificHeatCapacity`, `ThermalConductivity`) over Aequitas quantities and Eunomia scalars with a GAT-based static constitutive seam (`ConstitutiveLaw<Law>`, `ConstantLaw`, `NoState`) and `Cow<str>` material identity | Accepted | 2026-07-20 | `[arch]` `[minor]` | proteus / aequitas / eunomia / atlas-meta | material-and-vocabulary |
+| <a id="ADR-0026"></a>**0026** | Promote Tyche as the Atlas owner for reproducible uncertainty studies: counter-stream random-access Latin hypercube designs, index-addressed ensemble execution, online Welford/Chan moments, Pearson screening, finite-sample split-conformal calibration, and Moirai/Consus provider adapters over a `no_std + alloc` core with GAT response seams and const-generic numeric widths | Accepted | 2026-07-20 | `[arch]` `[minor]` | tyche / tyche-core / moirai / consus / eunomia / atlas-meta | uncertainty-quantification |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0024 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, and verification decisions. The index now carries the authored sequence through ADR 0024; the **Open Gaps** section below is retired as of 2026-07-06.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0026 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, and uncertainty-quantification decisions. The index now carries the authored sequence through ADR 0026; the **Open Gaps** section below is retired as of 2026-07-06.
 
 ## Topic-keyword index
 
@@ -80,6 +82,27 @@ consumers.
   exact-revision consumer pins. **Anchor for Apollo, Helios, and Kwavers
   benchmark-regression CI.**
 
+### Group F — Material-property and UQ vocabulary providers (`topic-tag: material-and-vocabulary`, `uncertainty-quantification`)
+
+Cross-cuts material-property and reproducible-study vocabulary that recurs
+across CFDrs, Kwavers, and Helios. Affected crates (primary): `proteus`,
+`tyche`, `tyche-core`. Affected crates (supporting): `aequitas`, `eunomia`,
+`moirai` (Tyche execution adapter), `consus` (Tyche persistence adapter).
+
+- **ADR 0025** — `proteus` shared material-property and constitutive-law
+  contracts over Aequitas quantities and Eunomia scalars. **Anchor for any
+  thermophysical material-property question.**
+- **ADR 0026** — `tyche` reproducible uncertainty studies: random-access
+  Latin hypercube, ensemble moments, calibration, Moirai/Consus adapters.
+  **Anchor for any sampling / ensemble / sensitivity / conformal-calibration
+  question.**
+
+Cross-walks: 0025 composes 0005 (Eunomia scalar law) and 0021 (Aequitas
+quantity law) without re-owning either; 0026 composes 0005 (Eunomia scalar
+contract) and lifts 0023 (Harmonia) partitioned models and 0025 (Proteus)
+material parameters as study inputs without crossing ownership
+boundaries.
+
 ## Status flow legend
 
 The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `documentation_discipline`:
@@ -107,6 +130,8 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 | 0022 | 0001/0004 (Hephaestus GPU substrate and kernel seam) + 0005 (Eunomia scalar law) + 0021 (Aequitas quantity law) | Horae ADR 0001; Athena ADRs 0001-0002; Leto ADRs 0014-0015 record the completed solver extractions |
 | 0023 | 0002 (topology law — Coupling role) + 0021 (Aequitas quantity law — dev-dep fixture only) + 0022 (Horae and Athena Core providers composed, not re-owned) | Harmonia ADR 0001 |
 | 0024 | 0010 (cross-repo cadence) + 0011 (Atlas-meta ownership and consumer delivery) | copied Apollo, Helios, and Kwavers Python classifiers |
+| 0025 | 0002 (bounded material-property role in topology law) + 0005 (Eunomia scalar contract) + 0021 (Aequitas quantity law — property newtypes transparent over Aequitas quantities) + 0023 (Harmonia coupling, complementary boundary) | Proteus ADR 0001 |
+| 0026 | 0002 (bounded UQ role in topology law) + 0005 (Eunomia scalar contract) + 0023 (Harmonia — Tyche studies can wrap a partitioned model) + 0025 (Proteus — Tyche can sweep Proteus material parameters) | Tyche ADR 0001 |
 | 0010 | 0005 (consumed by Batch #2 closure), 0006 (next-batch adoption), 0007 (per-`[patch]` sweep reuses), 0011 (ceremony counterpart) | inline `D:/atlas/backlog.md` ritual without ADR anchor |
 | 0011 | 0005, 0006, 0007 (numeric SSOT chain hygiene), 0010 (Per-batch convention) | inline `D:/atlas/backlog.md` OOS-record shape (first introduced by commit `283f38cf`); implicit cadence carried only in the commit narrative pre-ADR-0011 |
 
