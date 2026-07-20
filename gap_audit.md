@@ -1,5 +1,25 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-19) — Aequitas consumer closure
+
+- **Finding:** Atlas `main` pinned Kwavers child commit `156531eeb` and CFDrs
+  child commit `a34a01d1`. Both were local-only objects absent from their
+  remote repositories; the CFDrs commit also retained a deprecated
+  compatibility alias. Kwavers PR #295 remained the final unmerged Aequitas
+  consumer.
+- **Resolution:** merge PR #295 after its complete exact-head matrix passes,
+  then advance the parent directly to fetched Kwavers `origin/main`
+  `49c116ffb7466f9163b7762f03bc74725d8026c3` and CFDrs `origin/main`
+  `7c37f7f30dc286e8853bdf41da7652abeadebe23`.
+- **Evidence tier:** exact remote object identity; all 24 hosted checks,
+  including 1,554 native tests and doctests, stable/beta/nightly compilation,
+  feature and CUDA builds, architecture audits, Miri, security, coverage, and
+  Criterion benchmarks; CFDrs warning-denied GPU Clippy and 13/13 focused
+  Laplacian tests.
+- **Residual:** none in the Aequitas integration scope. The unpushed child
+  commits remain preserved outside the parent graph and are not treated as
+  merged evidence.
+
 ## State refresh (2026-07-19) — Hephaestus PM convergence
 
 - **Finding:** Hephaestus PR #52 closed its provider-refresh checklist after

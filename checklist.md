@@ -7,6 +7,19 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-030 — Aequitas consumer closure [patch]
+
+- [x] Merge Kwavers PR #295 only after all 24 exact-head hosted checks pass.
+- [x] Verify merge object `49c116ffb7466f9163b7762f03bc74725d8026c3`
+      exists and equals fetched Kwavers `origin/main`.
+- [x] Verify CFDrs Aequitas merge object
+      `7c37f7f30dc286e8853bdf41da7652abeadebe23` equals its fetched
+      `origin/main`.
+- [x] Replace parent gitlinks `156531eeb` and `a34a01d1` with the merged
+      Kwavers and CFDrs remote-default objects.
+- [x] Synchronize ADR 0021, `backlog.md`, `gap_audit.md`, `CHANGELOG.md`, and
+      this checklist with exact merge and verification evidence.
+
 ## ATLAS-INTEGRATION-029 — Hephaestus provider-first CFDrs 2D GPU Laplacian [minor]
 
 - [x] Move provider-side stencil surface (`Laplacian2DKernel`,

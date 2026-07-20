@@ -4,6 +4,13 @@
 
 ### Changed
 
+- Advance Kwavers to PR #295 merge `49c116f`, replacing its bubble-energy
+  `uom` ownership with Aequitas quantities and correcting the heat-capacity
+  dimensional law. Pin CFDrs at PR #298 merge `7c37f7f`, where typed spacing
+  reaches Hephaestus. Replace the parent graph's local-only `156531e` and
+  `a34a01d` gitlinks with fetched merged defaults after their consumer gates
+  pass.
+
 - Advance Hephaestus to PM closeout PR #52 merge `cdfcd0c`; runtime code and the
   verified Eunomia 0.6 provider closure remain unchanged.
 
