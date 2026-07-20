@@ -1,11 +1,26 @@
-# atlas — kwavers/CFDrs/ritk → Atlas migration checklist
+# atlas — cross-repository integration checklist
 
 > Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
 >
-> **Active sprint target**: atlas migration 0.16.0 (meta version).
-> **Integration base**: `main` at `3d0c340`.
+> **Integration base**: fetched `origin/main`; Git owns the exact revision.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
+
+## ATLAS-INTEGRATION-032 — Documentation and checkout hygiene [patch]
+
+- [x] Audit every root gitlink against its working checkout and preserve unique
+      CFDrs, Athena, RITK, and Harmonia state.
+- [x] Restore only the clean, superseded Leto feature checkout to the recorded
+      merge commit.
+- [x] Correct Atlas's Harmonia dependency boundary and document reproducible
+      submodule inspection and targeted checkout recovery.
+- [x] Compile Athena and Horae README-backed doctests and rustdoc; verify
+      Horae without default features.
+- [x] Review Athena's external observer constructor, replace its tautological
+      internal test with an external doctest, and run focused Clippy and
+      nextest gates.
+- [x] Merge Athena PR #3 at `96fb26d` and Horae PR #2 at `92af1a2`; advance
+      only their parent gitlinks.
 
 ## ATLAS-INTEGRATION-030 — Aequitas consumer closure [patch]
 

@@ -28,6 +28,19 @@ operation is implemented in the provider that owns its bounded context, then
 consumers update their pins. Consumer-local compatibility layers and duplicate
 provider implementations are not part of the Atlas model.
 
+### Revision contract
+
+The parent gitlink is the reproducible package revision. A local package
+checkout may temporarily point elsewhere or contain uncommitted work without
+changing the Atlas revision. Use `git diff --submodule=log` to distinguish a
+published child commit from modified child content, and never advance a
+gitlink solely to make the parent working tree appear clean.
+
+Directories below `repos/` that are absent from `.gitmodules` are not part of
+the recorded stack. They are local work until they independently satisfy the
+[promotion gate](#promotion-gate) and enter Atlas through a reviewed submodule
+addition.
+
 ## Current stack
 
 At this revision, [`.gitmodules`](.gitmodules) records 19 packages.
@@ -209,19 +222,20 @@ eunomia
 eunomia + leto + hephaestus
 └── athena
 
-horae + athena + proteus
-└── harmonia
-    └── CFDrs / helios / kwavers
+horae + athena ── harmonia ──┐
+proteus ──────────────────────┼── CFDrs / helios / kwavers
+domain physics ───────────────┘
 
 moirai + consus ── tyche
 coeus + aequitas ── asclepius
 domain result views ── iris
 ```
 
-`harmonia` follows the units, time, solver, and material contracts because it
-must compose those contracts rather than create competing versions. `ares`,
-`hyperion`, and `prometheus` remain domain-level candidates until two concrete
-consumers justify extraction.
+`harmonia` follows typed time and convergence contracts but does not depend on
+material law or own physics. Integrators compose its coupling mechanics with
+`proteus` or domain-owned constitutive models. `ares`, `hyperion`, and
+`prometheus` remain domain-level candidates until two concrete consumers
+justify extraction.
 
 The following concerns are not package gaps:
 
@@ -311,6 +325,25 @@ Update the checkout to the commits recorded by the parent repository:
 
 ```sh
 git submodule update --init --recursive
+```
+
+Inspect local package state before cleanup or integration:
+
+```sh
+git submodule status
+git diff --submodule=log
+git submodule foreach --recursive 'git status --short --branch'
+```
+
+In `git submodule status`, a leading space matches the recorded gitlink, `+`
+means the package is checked out at another commit, and `-` means it is not
+initialized; `U` identifies a gitlink merge conflict. Modified content is
+reported separately by `git status` and must be preserved or completed in the
+owning package. After verifying that a clean alternate checkout is already
+contained in the recorded commit, restore only that package with:
+
+```sh
+git submodule update --checkout -- repos/<name>
 ```
 
 Advancing package pins is a reviewed provider-graph change. Fetch and verify

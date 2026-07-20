@@ -1,11 +1,30 @@
-# atlas — kwavers/CFDrs/ritk → Atlas migration backlog
+# atlas — cross-repository integration backlog
 
 > Cross-repo migration board. **Per-repo** PM artifacts remain SSOT for repo-local concerns (e.g. `repos/kwavers/backlog.md`, `repos/CFDrs/docs/backlog.md`, `repos/ritk/backlog.md`); this artifact owns only the migration scope that crosses repo boundaries (provider-side obstacles, dep-velocity closure, and shared definition-of-ready gates).
 >
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
 >
-> **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
-> `3d0c340`).
+> **Integration base**: fetched `origin/main`. Git owns the exact revision;
+> this board does not duplicate a commit that becomes stale after each merge.
+
+## ATLAS-INTEGRATION-032 — Documentation and checkout hygiene [patch] — done
+
+- Owner: Codex `/root`; scope: Atlas, Athena, and Horae READMEs; Athena
+  observer-construction review; published child documentation heads; parent
+  gitlinks. Unique CFDrs, RITK, and Harmonia working state remains excluded.
+- Acceptance: Atlas distinguishes recorded gitlinks from local child state,
+  does not encode a false Harmonia-to-Proteus dependency, and documents
+  targeted checkout recovery. Athena and Horae state their Atlas boundaries,
+  features, and infrastructure dependencies. Every README-backed rustdoc
+  target compiles.
+- Evidence: Athena external observer doctest, 2/2 focused nextest cases,
+  warning-denied Clippy, and merged README PR #3 at `96fb26d`; Horae
+  no-default-feature compilation, doctest, rustdoc, and merged README PR #2 at
+  `92af1a2`; Atlas package-count, target-path, stale-edge, and diff checks.
+- Closure: the parent advances only Athena and Horae. Leto's superseded
+  feature checkout was restored to recorded merge `1752058`; unpublished
+  CFDrs work, modified RITK content, and the unregistered Harmonia repository
+  remain preserved outside the parent commit.
 
 ## ATLAS-INTEGRATION-031 — Horae/Athena extraction [arch] [minor] — done
 
