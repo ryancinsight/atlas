@@ -24,6 +24,11 @@
   Both are active dependency-ordered slices under `ATLAS-INTEGRATION-037`; this
   registration does not claim their hosted or consumer closure prematurely.
   Public visibility and unauthenticated Git reachability are confirmed.
+- **Provider-graph evidence:** the checkout engine at pushed Atlas commit
+  `6fb5576` materializes the exact public Asclepius gitlink `ceb8b6d` into a
+  clean checkout and verifies the nested core manifest. Its format, locked
+  check, warning-denied Clippy, 11/11 Nextest cases, doctest, and
+  warning-clean rustdoc gates pass.
 
 ## Session 2026-07-20 (PM cycle 3) — bounded Nextest sweep + gitlink reconciliation to `000b77a`
 

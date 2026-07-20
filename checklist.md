@@ -21,6 +21,9 @@
 - [x] Synchronize the current-stack count and table, provider ownership,
       dependency graph, naming registry, roadmap graduation, repository layout,
       ADR index, changelog, backlog, checklist, and gap audit.
+- [x] Verify the pushed Atlas registration through the checkout engine:
+      exact public Asclepius gitlink `ceb8b6d`, clean worktree, and nested
+      package manifest all resolve from Atlas commit `6fb5576`.
 - [ ] Merge the Atlas registration and update Helios provider materialization
       to the exact Atlas merge OID; require exact-head hosted CI.
 - [ ] Replace Kwavers CEM43, Arrhenius, and independent-response duplicates

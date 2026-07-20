@@ -157,6 +157,11 @@ promotion record.
 
 The packages are `publish = false`; no registry baseline exists for
 `cargo-semver-checks`. SemVer comparison begins from the public Git contract.
+Atlas checkout-engine format, locked check, warning-denied Clippy, 11/11
+Nextest cases, doctest, and warning-clean rustdoc pass. A real provider-graph
+smoke test at pushed Atlas registration commit `6fb5576` materializes public
+Asclepius gitlink `ceb8b6d`, verifies its clean exact revision, and resolves
+`crates/asclepius/Cargo.toml`.
 
 ## Rejected alternatives
 

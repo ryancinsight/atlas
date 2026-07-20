@@ -26,12 +26,14 @@
   arbitrary exact-size thermal observations into caller-owned outputs without
   an intermediate collection and proves bitwise equivalence to borrowed
   histories. Analytical, property, differential, layout, ZST, GAT, `Cow`,
-  const-generic, allocation, and `f32`/`f64` tests pass. Helios commit
-  `dcf3ffc` passes 270/270 local Nextest plus workspace check, Clippy, doctest,
-  rustdoc, examples, and cargo-deny. Atlas registration and hosted-provider
-  materialization are active in this increment; Kwavers migration remains the
-  next dependency-ordered slice. Repository visibility is confirmed public and
-  unauthenticated Git resolves its exact remote-default head.
+  const-generic, allocation, and `f32`/`f64` tests pass. The Atlas checkout
+  engine materializes that public gitlink from pushed registration commit
+  `6fb5576` and verifies the nested package manifest. Helios commit `dcf3ffc`
+  passes 270/270 local Nextest plus workspace check, Clippy, doctest, rustdoc,
+  examples, and cargo-deny. Atlas merge and hosted consumer closure remain
+  active in this increment; Kwavers migration is the next dependency-ordered
+  slice. Repository visibility is confirmed public and unauthenticated Git
+  resolves its exact remote-default head.
 
 ## ATLAS-INTEGRATION-035 — Proteus and Tyche promotion ADRs [arch] [minor] — done
 
