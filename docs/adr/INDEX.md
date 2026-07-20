@@ -80,8 +80,8 @@ Cross-cuts statistical performance regression classification in Atlas
 consumers.
 
 - **ADR 0024** — one Atlas-owned Criterion confidence-interval gate with
-  counterbalanced execution, family-wise error control, and exact-revision
-  consumer pins. **Anchor for Apollo, Helios, and Kwavers
+  phase-reversed counterbalanced replication, family-wise error control, and
+  exact-revision consumer pins. **Anchor for Apollo, Helios, and Kwavers
   benchmark-regression CI.**
 
 ### Group F — Material-property and UQ vocabulary providers (`topic-tag: material-and-vocabulary`, `uncertainty-quantification`)

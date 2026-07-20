@@ -57,18 +57,22 @@
   Helios, and Kwavers CI integrations that introduced copied, same-run
   baseline checks. Unrelated benchmark bodies and performance tuning remain
   out of scope.
-- Acceptance: one Atlas-owned Rust tool classifies counterbalanced Criterion
-  relative median intervals, controls family-wise error at 5%, and fails closed
-  on missing or mismatched evidence; each consumer holds its candidate harness
-  constant, runs both revision orders on one runner, deletes copied Python
-  gates, and passes exact-head hosted CI.
+- Acceptance: one Atlas-owned Rust tool classifies two phase-reversed,
+  counterbalanced Criterion replications, controls family-wise error at 5%,
+  and fails closed on missing or mismatched evidence; each consumer holds its
+  candidate harness constant, runs both replications on one runner, deletes
+  copied Python gates, and passes exact-head hosted CI.
 - Evidence: unit and CLI tests, warning-denied Clippy and rustdoc, synthetic
   positive/overlapping/missing comparison fixtures, consumer workflow review,
   and hosted CI on each published child revision.
-- Current increment: the counterbalanced gate is merged. Atlas now owns one
-  exact-gitlink checkout action for Helios, Kwavers, and RITK; Apollo's
-  checkout is classified as dead because Apollo has no external Cargo path
-  dependencies. Consumer migration and hosted verification remain.
+- Current increment: Apollo hosted run `29764170548` reported twelve apparent
+  regressions across source-identical revisions under one ABBA block. The
+  Atlas gate now intersects phase-reversed ABBA and BAAB blocks and fails
+  closed across both benchmark universes; local static, value-semantic,
+  doctest, and documentation gates pass. Atlas also owns the exact-gitlink
+  checkout action for Helios, Kwavers, and RITK; Apollo's checkout is dead
+  because Apollo has no external Cargo path dependencies. Consumer hosted
+  verification remains.
 
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor] — done
 

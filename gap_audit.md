@@ -48,13 +48,17 @@
   omitted Atlas path-dependency checkout and used bare `cargo test`.
 - **Falsification:** Apollo hosted run `29757554816` reported 31 apparent
   regressions between source-identical revisions in fixed base→candidate
-  order, proving that one order does not control runner drift. A harness
-  revision change also changes the measurement instrument unless it is pinned.
-- **Resolution in progress:** the Atlas Rust tool now requires opposite-order
-  agreement, identical benchmark universes, complete estimates, and
-  Bonferroni confidence `1 - 0.05 / m` for `m` cases. Consumer CI will hold the
-  candidate harness constant, run both orders, and pin the authoritative Atlas
-  revision.
+  order. Counterbalancing removed that fixed-order confound, but hosted run
+  `29764170548` still reported twelve apparent regressions under one ABBA
+  block, exposing an unbalanced run-phase effect. A harness revision also
+  changes the measurement instrument unless it is pinned.
+- **Resolution in progress:** the Atlas Rust tool will require agreement
+  across phase-reversed ABBA and BAAB replications, identical benchmark
+  universes, complete estimates, and Bonferroni confidence `1 - 0.05 / m` for
+  `m` cases. Across the eight positions, baseline and candidate occupy equal
+  sums and squared sums, balancing their exposure to constant, linear, and
+  quadratic period terms. Consumer CI will hold the candidate harness constant
+  and pin the authoritative Atlas revision.
 - **Evidence tier:** analytical family-wise bound, synthetic
   counterbalanced/order-drift/missing/universe/confidence value tests, and
   exact-head hosted consumer CI. No performance claim follows from static or
