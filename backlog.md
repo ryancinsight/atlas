@@ -28,12 +28,14 @@
   histories. Analytical, property, differential, layout, ZST, GAT, `Cow`,
   const-generic, allocation, and `f32`/`f64` tests pass. The Atlas checkout
   engine materializes that public gitlink from pushed registration commit
-  `6fb5576` and verifies the nested package manifest. Helios commit `dcf3ffc`
-  passes 270/270 local Nextest plus workspace check, Clippy, doctest, rustdoc,
-  examples, and cargo-deny. Atlas merge and hosted consumer closure remain
-  active in this increment; Kwavers migration is the next dependency-ordered
-  slice. Repository visibility is confirmed public and unauthenticated Git
-  resolves its exact remote-default head.
+  `6fb5576` and verifies the nested package manifest. Hephaestus advances to
+  public merge `74dec5d`, where its Aequitas dependency uses the same
+  `be3a1ac` response-quantity revision as Asclepius and Helios. Helios commit
+  `dcf3ffc` passes 270/270 local Nextest plus workspace check, Clippy, doctest,
+  rustdoc, examples, and cargo-deny. Atlas merge and hosted consumer closure
+  remain active in this increment; Kwavers migration is the next
+  dependency-ordered slice. Repository visibility is confirmed public and
+  unauthenticated Git resolves its exact remote-default head.
 
 ## ATLAS-INTEGRATION-035 — Proteus and Tyche promotion ADRs [arch] [minor] — done
 
