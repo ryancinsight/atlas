@@ -4,6 +4,13 @@
 
 ### Changed
 
+- Promote Horae and Athena as public Atlas packages. Horae owns typed
+  time-integration policy over Aequitas. Athena owns shared PCG and restarted
+  right-preconditioned GMRES recurrences over Leto CPU and Hephaestus WGPU,
+  and Leto no longer exports duplicate iterative-solver recurrences. Record
+  both public gitlinks, advance Leto to PR #54 merge `1752058`, and make
+  `.gitmodules` the build-driver package-set SSOT.
+
 - Advance Kwavers to PR #295 merge `49c116f`, replacing its bubble-energy
   `uom` ownership with Aequitas quantities and correcting the heat-capacity
   dimensional law. Pin CFDrs at PR #298 merge `7c37f7f`, where typed spacing

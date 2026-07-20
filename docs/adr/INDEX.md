@@ -26,8 +26,9 @@
 | <a id="ADR-0019"></a>**0019** | TREE-DUP-002: Dual channel consolidation — fold `unified_channel` into `channel/` module, extend `Channel<T>` trait with batching/close/stats, merge error types, migrate sole consumer `moirai-iter` | Accepted | 2026-07-16 | `[major]` | moirai-core | module-hierarchy |
 | <a id="ADR-0020"></a>**0020** | Refresh Atlas provider heads and record the exact provider-graph closure theorem | Accepted | 2026-07-17 | `[arch]` | atlas-meta / kwavers | provider-graph |
 | <a id="ADR-0021"></a>**0021** | Promote Aequitas from roadmap candidate to the public physical-quantity and dimensional-law foundation | Accepted | 2026-07-19 | `[arch]` | aequitas / kwavers / atlas-meta | quantity-law |
+| <a id="ADR-0022"></a>**0022** | Promote Horae time-integration policy over Aequitas and Athena Krylov policy over Leto CPU plus Hephaestus WGPU after deleting Leto's duplicate CG and GMRES recurrences | Accepted | 2026-07-19 | `[arch]` `[minor]` | horae / athena / leto / hephaestus / atlas-meta | simulation-providers |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0021 record subsequent provider, hierarchy, graph, and quantity-law closures. The index now carries the authored sequence through ADR 0021; the **Open Gaps** section below is retired as of 2026-07-06.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0022 record subsequent provider, hierarchy, graph, quantity-law, and simulation-provider decisions. The index now carries the authored sequence through ADR 0022; the **Open Gaps** section below is retired as of 2026-07-06.
 
 ## Topic-keyword index
 
@@ -92,6 +93,7 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 | <a id="ADR-0019"></a>**0019** | TREE-DUP-002: Dual channel consolidation — fold `unified_channel` into `channel/` module, extend `Channel<T>` trait with batching/close/stats, merge error types, migrate sole consumer `moirai-iter` | Accepted | 2026-07-16 | `[major]` | moirai-core | module-hierarchy |
 | 0020 | 0011 (Atlas-root hygiene) + 0001 (provider ownership) | (none) |
 | 0021 | 0005 (Eunomia numeric SSOT) + 0020 (provider graph) | Aequitas ADR 0001; Kwavers ADR 040 |
+| 0022 | 0001/0004 (Hephaestus GPU substrate and kernel seam) + 0005 (Eunomia scalar law) + 0021 (Aequitas quantity law) | Horae ADR 0001; Athena ADRs 0001-0002; Leto ADRs 0014-0015 record the completed solver extractions |
 | 0010 | 0005 (consumed by Batch #2 closure), 0006 (next-batch adoption), 0007 (per-`[patch]` sweep reuses), 0011 (ceremony counterpart) | inline `D:/atlas/backlog.md` ritual without ADR anchor |
 | 0011 | 0005, 0006, 0007 (numeric SSOT chain hygiene), 0010 (Per-batch convention) | inline `D:/atlas/backlog.md` OOS-record shape (first introduced by commit `283f38cf`); implicit cadence carried only in the commit narrative pre-ADR-0011 |
 

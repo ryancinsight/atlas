@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-# Run a cargo command across every package workspace under repos/.
+# Run a cargo command across every package workspace recorded in .gitmodules.
 # Usage: pwsh scripts/build-all.ps1 [cargo-subcommand] [extra args...]
 #   pwsh scripts/build-all.ps1            # cargo build
 #   pwsh scripts/build-all.ps1 nextest run # cargo nextest run
@@ -15,13 +15,30 @@ if ($cmd -eq 'test' -and -not ($rest -contains '--doc')) {
 }
 
 $root = Split-Path -Parent $PSScriptRoot
-$repos = Join-Path $root 'repos'
+$moduleRows = & git -C $root config -f .gitmodules --get-regexp '^submodule\..*\.path$'
+if ($LASTEXITCODE -ne 0 -or -not $moduleRows) {
+    Write-Error "No package paths recorded in $root/.gitmodules"
+    exit 1
+}
 
-$manifests = Get-ChildItem -Path $repos -Directory |
-    ForEach-Object { Join-Path $_.FullName 'Cargo.toml' } |
-    Where-Object { Test-Path $_ }
-
-if (-not $manifests) { Write-Error "No package workspaces found under $repos"; exit 1 }
+$manifests = foreach ($row in @($moduleRows)) {
+    if ([string]::IsNullOrWhiteSpace($row)) {
+        Write-Error "Invalid empty package-path record in $root/.gitmodules"
+        exit 1
+    }
+    $parts = $row -split '\s+', 2
+    if ($parts.Count -ne 2 -or [string]::IsNullOrWhiteSpace($parts[1])) {
+        Write-Error "Invalid package-path record in $root/.gitmodules: $row"
+        exit 1
+    }
+    $modulePath = $parts[1]
+    $manifest = Join-Path (Join-Path $root $modulePath) 'Cargo.toml'
+    if (-not (Test-Path -LiteralPath $manifest)) {
+        Write-Error "Recorded package is not initialized or has no manifest: $modulePath"
+        exit 1
+    }
+    $manifest
+}
 
 $failed = @()
 foreach ($m in $manifests) {

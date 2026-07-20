@@ -30,7 +30,7 @@ provider implementations are not part of the Atlas model.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 17 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 19 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -38,9 +38,11 @@ At this revision, [`.gitmodules`](.gitmodules) records 17 packages.
 | Integrator | [`helios`](repos/helios) | Radiation-therapy dose, planning, imaging, and delivery simulation. |
 | Integrator | [`kwavers`](repos/kwavers) | Acoustic, ultrasound, therapy, imaging, and coupled wave simulation. |
 | Domain | [`apollo`](repos/apollo) | Fourier, spectral, wavelet, number-theoretic, and related transforms. |
+| Domain | [`athena`](repos/athena) | Backend-neutral PCG and restarted GMRES over Leto CPU and Hephaestus WGPU execution. |
 | Domain | [`coeus`](repos/coeus) | Strided tensors, automatic differentiation, neural networks, optimization, and sparse operations. |
 | Domain | [`consus`](repos/consus) | Native scientific storage formats, compression, and data transport. |
 | Domain | [`gaia`](repos/gaia) | Geometry predicates, topology, watertight meshes, and mesh generation. |
+| Domain | [`horae`](repos/horae) | Typed simulation time, explicit integration, adaptive policy, event clipping, and subcycle ratios. |
 | Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, visualization, and VTK data models. |
 | Compute | [`hephaestus`](repos/hephaestus) | GPU device, buffer, transfer, and kernel substrate for WGPU and CUDA. |
 | Compute | [`hermes`](repos/hermes) | CPU SIMD/SWAR vocabulary, ISA dispatch, and vector kernels. |
@@ -69,6 +71,8 @@ flowchart TB
         coeus
         consus
         gaia
+        horae
+        athena
         ritk
     end
 
@@ -92,6 +96,9 @@ flowchart TB
     Domains --> Compute
     Compute --> Foundation
     aequitas --> eunomia
+    horae --> aequitas
+    athena --> leto
+    athena --> hephaestus
 ```
 
 ### Provider ownership
@@ -107,6 +114,8 @@ flowchart TB
 | CPU lane-parallel execution | `hermes` | Owns SIMD/SWAR kernels and runtime ISA selection. |
 | Host arrays and linear algebra | `leto` | Owns layouts, views, array operations, and CPU linear algebra. |
 | Accelerator execution | `hephaestus` | Owns GPU devices, buffers, transfers, pipelines, and provider kernels. |
+| Time-integration policy | `horae` | Owns typed simulation time, explicit stepping, adaptive decisions, event clipping, and subcycle ratios; equations remain in domain packages. |
+| Iterative solver policy | `athena` | Owns Krylov recurrences, operator/preconditioner contracts, convergence, workspaces, and reports over Leto CPU and Hephaestus GPU execution. |
 | Spectral transforms | `apollo` | Owns transform mathematics and plans; accelerator mechanics remain in Hephaestus. |
 | Tensors and autodiff | `coeus` | Owns tensor semantics, differentiation, neural-network operations, and optimizers. |
 | Geometry and meshes | `gaia` | Owns geometric predicates, topology, and mesh generation. |
@@ -119,6 +128,8 @@ provider-pin contract and its evidence limits are recorded in
 [ADR 0020](docs/adr/0020-provider-graph-refresh.md). Aequitas ownership and
 consumer-boundary integration are recorded in
 [ADR 0021](docs/adr/0021-aequitas-quantity-law-foundation.md).
+Horae and Athena's extraction, backend, and promotion boundaries are recorded
+in [ADR 0022](docs/adr/0022-horae-athena-provider-extraction.md).
 
 ## Naming
 
@@ -129,6 +140,7 @@ Classical names describe bounded contexts rather than implementation variants.
 | `atlas` | Atlas, the Titan who bears the heavens | Coordinates the independently versioned stack. |
 | `aequitas` | Aequitas, Roman personification of equity and fair measure | Physical quantities, units, and dimensional law. |
 | `apollo` | Apollo, associated with music and ordered harmony | Spectral and numerical transforms. |
+| `athena` | Athena, goddess of wisdom and strategy | Iterative solver policy over CPU and accelerator providers. |
 | `coeus` | Coeus, Titan associated with intellect and inquiry | Tensor computation and learning systems. |
 | `consus` | Consus, Roman god associated with stored grain | Scientific storage and persistence. |
 | `eunomia` | Eunomia, goddess of good order | Datatype laws and conversion order. |
@@ -136,6 +148,7 @@ Classical names describe bounded contexts rather than implementation variants.
 | `helios` | Helios, personification of the Sun | Radiation and imaging simulation. |
 | `hephaestus` | Hephaestus, god of the forge | Accelerator devices and kernels. |
 | `hermes` | Hermes, swift messenger god | SIMD dispatch and vector execution. |
+| `horae` | The Horae, goddesses of seasons and ordered time | Time integration, event clocks, and subcycle policy. |
 | `leto` | Leto, mother of Apollo and daughter of Coeus | Shared array substrate between transform and tensor domains. |
 | `melinoe` | Melinoe, an underworld goddess associated with phantoms | Zero-sized phantom capability evidence. |
 | `mnemosyne` | Mnemosyne, Titaness of memory | Allocation and memory management. |
@@ -149,10 +162,10 @@ bounded context.
 ## Future package roadmap
 
 The following names are architectural candidates, not current submodules,
-published crates, or implementation commitments. Names remain provisional until
-repository and crate-name availability is checked. No empty repository should
-be created from this list: promotion requires a real vertical implementation
-extracted from an existing need.
+published crates, or implementation commitments. Names remain provisional
+until repository and crate-name availability is checked. No empty repository
+should be created from this list: promotion requires a real vertical
+implementation extracted from an existing need.
 
 ### Promotion gate
 
@@ -174,8 +187,6 @@ A candidate becomes an Atlas package only when all of these conditions hold:
 
 | Priority | Working name | Classical reference | Proposed bounded context | Current drivers |
 | --- | --- | --- | --- | --- |
-| P0 | `horae` | The Horae, goddesses of seasons and ordered time | Time-integration contracts, timestep control, subcycling, event clocks, and convergence metadata. It owns no domain equations. | Time-stepping families recur in CFDrs and Kwavers and are required by coupled Helios workflows. |
-| P0 | `athena` | Athena, goddess of wisdom and strategy | Operator-based linear and nonlinear solvers, Krylov methods, preconditioning contracts, and convergence reporting. Leto retains arrays, decompositions, and linear-algebra kernels. | Solver and convergence protocols recur across CFDrs, Kwavers, RITK, and Helios. |
 | P0 | `harmonia` | Harmonia, goddess of harmony and concord | Multiphysics coupling, state exchange, relaxation, fixed-point convergence, and heterogeneous subcycling. It owns coupling mechanics, not physics models. | Coupling orchestration recurs in CFDrs, Kwavers, and Helios. |
 | P1 | `proteus` | Proteus, the shape-changing sea god | Material, phase, mixture, and constitutive-property vocabulary parameterized by Aequitas quantities and Eunomia scalars. | Material-property models recur across flow, acoustics, therapy, and imaging domains. |
 | P1 | `tyche` | Tyche, goddess of fortune and chance | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies. Execution remains in Moirai and persistence in Consus. | Validation and design-space exploration recur across the three integrators. |
@@ -193,10 +204,14 @@ The recommended extraction order is:
 eunomia
 └── aequitas
     ├── horae
-    ├── athena
     └── proteus
-         └── harmonia
-              └── CFDrs / helios / kwavers
+
+eunomia + leto + hephaestus
+└── athena
+
+horae + athena + proteus
+└── harmonia
+    └── CFDrs / helios / kwavers
 
 moirai + consus ── tyche
 coeus + aequitas ── asclepius
@@ -227,7 +242,9 @@ atlas/
 │   └── adr/              # stack-wide architectural decisions
 ├── repos/
 │   ├── CFDrs/
+│   ├── aequitas/
 │   ├── apollo/
+│   ├── athena/
 │   ├── coeus/
 │   ├── consus/
 │   ├── eunomia/
@@ -235,6 +252,7 @@ atlas/
 │   ├── helios/
 │   ├── hephaestus/
 │   ├── hermes/
+│   ├── horae/
 │   ├── kwavers/
 │   ├── leto/
 │   ├── melinoe/
@@ -271,7 +289,9 @@ cargo nextest run
 cargo test --doc
 ```
 
-Run the same Cargo command across every checked-out package:
+Run the same Cargo command across every package recorded in `.gitmodules`.
+The driver fails if a recorded submodule is not initialized instead of
+silently omitting it:
 
 ```sh
 # Windows

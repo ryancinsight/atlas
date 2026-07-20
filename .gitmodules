@@ -6,6 +6,10 @@
 	path = repos/apollo
 	url = https://github.com/ryancinsight/apollo
 	active = true
+[submodule "repos/athena"]
+	path = repos/athena
+	url = https://github.com/ryancinsight/athena
+	active = true
 [submodule "repos/CFDrs"]
 	path = repos/CFDrs
 	url = https://github.com/ryancinsight/CFDrs
@@ -37,6 +41,10 @@
 [submodule "repos/hermes"]
 	path = repos/hermes
 	url = https://github.com/ryancinsight/hermes
+	active = true
+[submodule "repos/horae"]
+	path = repos/horae
+	url = https://github.com/ryancinsight/horae
 	active = true
 [submodule "repos/kwavers"]
 	path = repos/kwavers
