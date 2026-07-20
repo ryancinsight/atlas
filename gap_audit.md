@@ -28,7 +28,10 @@
   `6fb5576` materializes the exact public Asclepius gitlink `ceb8b6d` into a
   clean checkout and verifies the nested core manifest. Its format, locked
   check, warning-denied Clippy, 11/11 Nextest cases, doctest, and
-  warning-clean rustdoc gates pass.
+  warning-clean rustdoc gates pass. Advancing Hephaestus from `10f70a7` to
+  public merge `74dec5d` aligns its Aequitas dependency with Asclepius and
+  Helios at `be3a1ac`, so exact provider materialization no longer resolves a
+  second response-quantity type identity.
 
 ## Session 2026-07-20 (PM cycle 3) — bounded Nextest sweep + gitlink reconciliation to `000b77a`
 

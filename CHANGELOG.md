@@ -11,6 +11,8 @@
   Eunomia; `asclepius-coeus` supplies the one-way autodiff adapter. The stack
   map, dependency graph, provider table, naming registry, roadmap, layout,
   ADR index, backlog, checklist, and gap audit now share that boundary.
+  Hephaestus advances to merge `74dec5d`, aligning its Aequitas response
+  quantities with the registered provider graph.
 
 - File ADR 0025 (`docs/adr/0025-proteus-material-property-promotion.md`) at
   `Accepted` to record the Proteus promotion decision. Proteus owns shared

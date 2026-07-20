@@ -24,6 +24,8 @@
 - [x] Verify the pushed Atlas registration through the checkout engine:
       exact public Asclepius gitlink `ceb8b6d`, clean worktree, and nested
       package manifest all resolve from Atlas commit `6fb5576`.
+- [x] Advance Hephaestus to public merge `74dec5d`, eliminating its obsolete
+      `0f9d77a` Aequitas source identity from the materialized Helios graph.
 - [ ] Merge the Atlas registration and update Helios provider materialization
       to the exact Atlas merge OID; require exact-head hosted CI.
 - [ ] Replace Kwavers CEM43, Arrhenius, and independent-response duplicates
