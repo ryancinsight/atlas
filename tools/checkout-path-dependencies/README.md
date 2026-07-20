@@ -20,5 +20,5 @@ Consumers call the composite action at an exact Atlas SHA:
 below the manifest repository remain untouched. Every external path must fall
 below `destination/<provider>`, and every resulting dependency directory must
 contain `Cargo.toml`. Moving `main`, stale hard-coded provider lists,
-wrong-revision reuse, dirty reuse, and paths outside the authorized destination
-fail closed.
+wrong-revision reuse, dirty reuse, missing provider URLs, and paths outside the
+authorized destination fail closed.

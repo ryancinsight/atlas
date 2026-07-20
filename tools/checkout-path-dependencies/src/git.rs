@@ -5,7 +5,7 @@ use std::process::{Command, Output};
 use crate::CheckoutError;
 
 pub(super) fn run<I, S>(
-    directory: Option<&Path>,
+    directory: &Path,
     operation: &'static str,
     arguments: I,
 ) -> Result<(), CheckoutError>
@@ -16,14 +16,14 @@ where
     let output = command(directory, arguments)
         .output()
         .map_err(|source| CheckoutError::Io {
-            path: directory.unwrap_or_else(|| Path::new("git")).to_path_buf(),
+            path: directory.to_path_buf(),
             source,
         })?;
     require_success(operation, output).map(|_| ())
 }
 
 pub(super) fn output<I, S>(
-    directory: Option<&Path>,
+    directory: &Path,
     operation: &'static str,
     arguments: I,
 ) -> Result<String, CheckoutError>
@@ -34,7 +34,7 @@ where
     let output = command(directory, arguments)
         .output()
         .map_err(|source| CheckoutError::Io {
-            path: directory.unwrap_or_else(|| Path::new("git")).to_path_buf(),
+            path: directory.to_path_buf(),
             source,
         })?;
     let output = require_success(operation, output)?;
@@ -43,16 +43,14 @@ where
         .map_err(|source| CheckoutError::GitOutput { operation, source })
 }
 
-fn command<I, S>(directory: Option<&Path>, arguments: I) -> Command
+fn command<I, S>(directory: &Path, arguments: I) -> Command
 where
     I: IntoIterator<Item = S>,
     S: AsRef<OsStr>,
 {
     let mut command = Command::new("git");
     command.args(arguments);
-    if let Some(directory) = directory {
-        command.current_dir(directory);
-    }
+    command.current_dir(directory);
     command
 }
 

@@ -17,7 +17,7 @@ pub(super) fn materialize_atlas(
 ) -> Result<(), CheckoutError> {
     if root.exists() {
         let current = git::output(
-            Some(root),
+            root,
             "read existing Atlas revision",
             git::arguments(["rev-parse", "HEAD"]),
         )?;
@@ -37,12 +37,12 @@ pub(super) fn materialize_atlas(
         source,
     })?;
     git::run(
-        Some(root),
+        root,
         "initialize Atlas graph checkout",
         git::arguments(["init", "--quiet"]),
     )?;
     git::run(
-        Some(root),
+        root,
         "configure Atlas graph remote",
         [
             OsString::from("remote"),
@@ -63,7 +63,7 @@ pub(super) fn load(
     for name in names {
         let path = format!("repos/{name}");
         let tree_entry = git::output(
-            Some(atlas_root),
+            atlas_root,
             "locate Atlas provider gitlink",
             [
                 OsString::from("ls-tree"),
@@ -76,13 +76,13 @@ pub(super) fn load(
             return Err(CheckoutError::UnknownProvider(name));
         }
         let revision = git::output(
-            Some(atlas_root),
+            atlas_root,
             "read Atlas provider gitlink",
             [OsString::from("rev-parse"), format!("HEAD:{path}").into()],
         )?;
         let key = format!("submodule.{path}.url");
         let url = git::output(
-            Some(atlas_root),
+            atlas_root,
             "read Atlas provider URL",
             [
                 OsString::from("config"),
@@ -92,6 +92,9 @@ pub(super) fn load(
                 key.into(),
             ],
         )?;
+        if url.is_empty() {
+            return Err(CheckoutError::MissingProviderUrl(name));
+        }
         providers.insert(name, Provider { url, revision });
     }
     Ok(providers)
@@ -100,7 +103,7 @@ pub(super) fn load(
 pub(super) fn materialize_provider(path: &Path, provider: &Provider) -> Result<(), CheckoutError> {
     if path.exists() {
         let current = git::output(
-            Some(path),
+            path,
             "read existing provider revision",
             git::arguments(["rev-parse", "HEAD"]),
         )?;
@@ -120,12 +123,12 @@ pub(super) fn materialize_provider(path: &Path, provider: &Provider) -> Result<(
         source,
     })?;
     git::run(
-        Some(path),
+        path,
         "initialize provider checkout",
         git::arguments(["init", "--quiet"]),
     )?;
     git::run(
-        Some(path),
+        path,
         "configure provider remote",
         [
             OsString::from("remote"),
@@ -140,7 +143,7 @@ pub(super) fn materialize_provider(path: &Path, provider: &Provider) -> Result<(
 
 fn fetch_exact(path: &Path, revision: &str, operation: &'static str) -> Result<(), CheckoutError> {
     git::run(
-        Some(path),
+        path,
         operation,
         [
             OsString::from("fetch"),
@@ -154,7 +157,7 @@ fn fetch_exact(path: &Path, revision: &str, operation: &'static str) -> Result<(
 
 fn checkout_fetch_head(path: &Path, operation: &'static str) -> Result<(), CheckoutError> {
     git::run(
-        Some(path),
+        path,
         operation,
         git::arguments(["checkout", "--detach", "--quiet", "FETCH_HEAD"]),
     )
@@ -162,7 +165,7 @@ fn checkout_fetch_head(path: &Path, operation: &'static str) -> Result<(), Check
 
 fn ensure_clean(path: &Path) -> Result<(), CheckoutError> {
     let status = git::output(
-        Some(path),
+        path,
         "inspect checkout cleanliness",
         git::arguments(["status", "--porcelain"]),
     )?;

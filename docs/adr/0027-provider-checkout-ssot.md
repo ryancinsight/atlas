@@ -74,9 +74,9 @@ composite action at `.github/actions/checkout-path-dependencies`.
   gitlink, check out the exact provider revision, verify a nested dependency
   manifest, and reuse a clean checkout.
 - Negative tests reject dirty reuse, wrong-revision reuse, a non-exact Atlas
-  reference, a path outside the authorized destination, and a provider absent
-  from the graph.
-- Format, locked check, ten Nextest cases, one doctest, warning-denied
+  reference, a path outside the authorized destination, an absent provider,
+  and an empty provider URL.
+- Format, locked check, eleven Nextest cases, one doctest, warning-denied
   Clippy, and warning-clean rustdoc pass.
 - Each migrated consumer must pass exact-head hosted CI with the merged Atlas
   action revision.

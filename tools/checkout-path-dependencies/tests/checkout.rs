@@ -31,6 +31,10 @@ impl Fixture {
     }
 
     fn graph(&self) -> Graph {
+        self.graph_with_provider_url(None)
+    }
+
+    fn graph_with_provider_url(&self, configured_url: Option<&str>) -> Graph {
         let provider = self.path("provider-origin");
         init_repository(&provider);
         write(
@@ -43,15 +47,16 @@ impl Fixture {
         );
         commit_all(&provider, "provider");
         let provider_revision = git_output(&provider, &["rev-parse", "HEAD"]);
+        let provider_url = configured_url.map_or_else(
+            || provider.to_string_lossy().replace('\\', "/"),
+            str::to_owned,
+        );
 
         let atlas = self.path("atlas-origin");
         init_repository(&atlas);
         write(
             &atlas.join(".gitmodules"),
-            &format!(
-                "[submodule \"repos/leto\"]\n\tpath = repos/leto\n\turl = {}\n",
-                provider.to_string_lossy().replace('\\', "/")
-            ),
+            &format!("[submodule \"repos/leto\"]\n\tpath = repos/leto\n\turl = {provider_url}\n"),
         );
         git(&atlas, &["add", ".gitmodules"]);
         git(
@@ -102,7 +107,12 @@ impl Fixture {
 
 impl Drop for Fixture {
     fn drop(&mut self) {
-        fs::remove_dir_all(&self.root).unwrap();
+        if let Err(error) = fs::remove_dir_all(&self.root) {
+            if std::thread::panicking() {
+                return;
+            }
+            panic!("fixture cleanup failed at {}: {error}", self.root.display());
+        }
     }
 }
 
@@ -271,6 +281,20 @@ fn rejects_provider_absent_from_atlas_graph() {
     let error = checkout(&config).unwrap_err();
 
     assert!(matches!(error, CheckoutError::UnknownProvider(name) if name == "unknown"));
+}
+
+#[test]
+fn rejects_provider_without_submodule_url() {
+    let fixture = Fixture::new();
+    let graph = fixture.graph_with_provider_url(Some(""));
+    let (_, config) = fixture.consumer(&graph, "../leto");
+
+    let error = checkout(&config).unwrap_err();
+
+    assert!(matches!(
+        error,
+        CheckoutError::MissingProviderUrl(name) if name == "leto"
+    ));
 }
 
 fn init_repository(path: &Path) {

@@ -388,8 +388,8 @@ Consumers pass a Cargo manifest, provider destination, and exact Atlas commit.
 The action derives provider names from Cargo dependency, patch, and replacement
 paths, URLs from `.gitmodules`, and revisions from `repos/<provider>` gitlinks.
 Moving branch names, duplicated provider lists, wrong-revision reuse, dirty
-reuse, missing dependency manifests, and paths outside the authorized
-destination fail closed.
+reuse, missing provider URLs, missing dependency manifests, and paths outside
+the authorized destination fail closed.
 
 ## Add a package
 

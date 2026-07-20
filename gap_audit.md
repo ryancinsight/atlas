@@ -65,10 +65,11 @@
   Helios omitted checkout entirely.
 - **Checkout resolution:** ADR 0027 assigns dependency, patch, and replacement
   manifest parsing plus exact gitlink resolution to one Atlas Rust action.
-  Ten native tests include real local Git repositories plus dependency-,
+  Eleven native tests include real local Git repositories plus dependency-,
   patch-, and replacement-only discovery, a gitlink checkout/reuse path,
   dirty reuse, invalid reference, wrong-revision reuse, destination escape,
-  and unknown-provider rejection. Consumer hosted adoption remains.
+  and unknown- or malformed-provider rejection. Consumer hosted adoption
+  remains.
 
 ## State refresh (2026-07-20) — Harmonia Phase 0 promotion
 

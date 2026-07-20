@@ -28,6 +28,8 @@ pub enum CheckoutError {
     MissingProviderName(PathBuf),
     /// A required provider is absent from the Atlas graph.
     UnknownProvider(String),
+    /// A required provider has no URL in the Atlas submodule graph.
+    MissingProviderUrl(String),
     /// A provider checkout exists at the wrong revision.
     RevisionMismatch {
         /// Existing provider checkout.
@@ -103,6 +105,12 @@ impl Display for CheckoutError {
             }
             Self::UnknownProvider(provider) => {
                 write!(formatter, "Atlas has no recorded provider repos/{provider}")
+            }
+            Self::MissingProviderUrl(provider) => {
+                write!(
+                    formatter,
+                    "Atlas provider repos/{provider} has no .gitmodules URL"
+                )
             }
             Self::RevisionMismatch {
                 path,
