@@ -6,6 +6,18 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-034 — Benchmark gate repair [arch] [patch]
+
+- [x] Reproduce the tautological same-run comparison in Apollo, Helios, and
+      Kwavers CI and capture Helios's missing path-dependency failure.
+- [x] Implement the Atlas-owned Rust confidence-interval gate with recursive
+      Criterion result discovery and fail-closed missing comparisons.
+- [ ] Replace each copied Python gate with a pinned Atlas tool checkout and a
+      true base/head Criterion run on one runner.
+- [ ] Restore Helios path-dependency checkout and the committed nextest runner.
+- [ ] Merge all three child fixes, advance Atlas gitlinks, close the README
+      alignment review thread, and remove obsolete local artifacts.
+
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor]
 
 - [x] Define the coupling boundary, dependency direction, theorems, rejected
