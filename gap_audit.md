@@ -1,4 +1,23 @@
-# atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
+# atlas — cross-repository integration gap audit
+
+## State refresh (2026-07-20) — documentation and checkout hygiene
+
+- **Finding:** Atlas documented Harmonia as depending on future material-law
+  provider Proteus, conflating coupling mechanics with constitutive physics.
+  The root README also lacked a precise distinction between recorded gitlinks,
+  alternate child checkouts, modified child content, and unregistered
+  directories.
+- **Resolution:** make Harmonia depend only on Horae and Athena policy while
+  integrators compose material or domain physics separately. Document the
+  parent revision contract and targeted submodule recovery. Merge the aligned
+  Athena and Horae package documentation and advance only those gitlinks.
+- **Evidence tier:** README target and 19-package structural checks; Athena
+  external observer doctest, 2/2 focused nextest cases, warning-denied Clippy,
+  rustdoc, and merged PR #3 at `96fb26d`; Horae no-default-feature compile,
+  doctest, rustdoc, and merged PR #2 at `92af1a2`.
+- **Residual:** the CFDrs local commit, RITK modified content, and unregistered
+  Harmonia repository are unique working state and remain unmodified outside
+  the parent commit. No extra Atlas linked worktree remains after delivery.
 
 ## State refresh (2026-07-19) — Aequitas consumer closure
 
