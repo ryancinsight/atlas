@@ -2909,7 +2909,20 @@ validates the CFD grid contract and forwards to the provider kernel.
 - Atlas PM artifacts: `backlog.md` ATLAS-INTEGRATION-029;
   `checklist.md` session 2026-07-19.
 
-## Findings 2026-07-19: HERMES-WATCH-001 closure — mnemosyne aliasing fix verified
+## Findings 2026-07-19: Watchpoint closures — KW-WATCH-003, ritk Burn-strip, HERMES-WATCH-001
+
+### ✅ CLOSED: KW-WATCH-003 (kwavers-python leto→ndarray compile break)
+False positive: the 61 E0277 errors at `kwavers-python` were caused by
+the pyo3 0.27→0.29 version conflict (dual pyo3 native lib linking), not
+a genuine ndarray conversion break. Aligning pyo3 to 0.29 in kwavers-python
+and the workspace root resolved all errors. `cargo check -p kwavers-python`
+clean with 0 errors (18 pyo3 deprecation warnings only).
+
+### ✅ CLOSED: ritk Burn-strip verify-block
+Burn→Coeus doc rename committed (`22cdbffb`): 49 files, 68 changes,
+purely mechanical comment/type-alias renames. No functional changes.
+Zero Burn or ndarray production dependencies remain in ritk.
+`cargo check --workspace` clean.
 
 ### ✅ CLOSED: HERMES-WATCH-001 (Hermes Mnemosyne consumer Miri)
 
