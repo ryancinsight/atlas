@@ -6,6 +6,23 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor]
+
+- [x] Define the coupling boundary, dependency direction, theorems, rejected
+      alternatives, and Phase 0 exclusions in Harmonia ADR 0001.
+- [x] Implement the deep partition/transfer/relaxation/pair hierarchy with
+      const-generic subcycling, associated-type model bundling, ZST policies,
+      borrowed `Cow` transfers, and transactional workspace commits.
+- [x] Add analytical, property, differential, generic-scalar, transaction,
+      allocation, layout, doctest, example, and release-codegen evidence.
+- [x] Add Athena's missing public `IterationState` constructor, pass focused
+      gates, and merge Athena PR #2 at `e15aa44`.
+- [x] Publish Harmonia publicly, merge its Node 24 CI cleanup, and verify
+      exact-head hosted verification and supply-chain jobs.
+- [x] Register fetched Harmonia `origin/main` as the twentieth Atlas gitlink;
+      synchronize README, ADR 0023, ADR index, backlog, checklist, gap audit,
+      and changelog.
+
 ## ATLAS-INTEGRATION-032 — Documentation and checkout hygiene [patch]
 
 - [x] Audit every root gitlink against its working checkout and preserve unique
