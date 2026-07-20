@@ -6,7 +6,8 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use atlas_criterion_gate::criterion::{
-    Audit, ReplicatedAudit, audit_replicated_counterbalanced, required_confidence_level,
+    Audit, ReplicatedAudit, Replication, audit_replicated_counterbalanced,
+    required_confidence_level,
 };
 
 const USAGE: &str = "\
@@ -165,9 +166,12 @@ fn print_replicated_audit(audit: &ReplicatedAudit) {
     print_audit("first", &audit.first);
     print_audit("second", &audit.second);
     for mismatch in &audit.replication_universe_mismatches {
+        let replication = match mismatch.present_in {
+            Replication::First => "first",
+            Replication::Second => "second",
+        };
         println!(
-            "benchmark only present in {:?} replication: {}",
-            mismatch.present_in,
+            "benchmark only present in {replication} replication: {}",
             mismatch.benchmark.display()
         );
     }
