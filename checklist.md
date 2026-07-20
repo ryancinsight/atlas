@@ -6,6 +6,28 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor]
+
+- [x] Verify the public Asclepius remote-default merge object `ceb8b6d`,
+      two-crate workspace boundary, package gates, theorem suites, and exact
+      Aequitas/Coeus dependency pins.
+- [x] Register `repos/asclepius` in `.gitmodules` at the fetched merge object.
+- [x] File ADR 0028 with bounded context, inward/outward dependency direction,
+      migration, theorem/proof obligations, evidence limits, rejected
+      alternatives, and consequences.
+- [x] Add the exact-size streamed thermal-observation contract, caller-owned
+      cumulative output, allocation evidence, and borrowed/streamed bitwise
+      equivalence to the public provider branch.
+- [x] Synchronize the current-stack count and table, provider ownership,
+      dependency graph, naming registry, roadmap graduation, repository layout,
+      ADR index, changelog, backlog, checklist, and gap audit.
+- [ ] Merge the Atlas registration and update Helios provider materialization
+      to the exact Atlas merge OID; require exact-head hosted CI.
+- [ ] Replace Kwavers CEM43, Arrhenius, and independent-response duplicates
+      with direct Asclepius APIs and pass focused/full consumer gates.
+- [ ] Close Asclepius PM state, advance Atlas consumer gitlinks, run the final
+      structural residue audit, and record exact merged evidence.
+
 ## ATLAS-INTEGRATION-036 — Coeus hephaestus 0.18.0 bump [patch]
 
 - [x] Reproduce the build-error: `cargo check --workspace --all-targets` for
@@ -1895,9 +1917,9 @@ Out-of-scope this session \(unchanged from prior sessions\):
   `/root` work; atlas-meta records-only.
 - Helios/CFDrs book chapter authoring remains peer-owned scope; atlas-meta
   records-only without explicit user dispatch.
-- `repos/asclepius/` registration as the 23rd Atlas package awaits the peer's
-  `[arch]` promotion commit + in-repo ADR + `.gitmodules` entry + gitlink;
-  atlas-meta records-only until then.
+- `repos/asclepius/` registration was records-only during this historical
+  session. The explicit P1 promotion request later satisfied its reopen trigger;
+  `ATLAS-INTEGRATION-037` now owns the active work.
 
 Next actionable \(awaiting user or peer event\):
 
@@ -1905,8 +1927,8 @@ Next actionable \(awaiting user or peer event\):
    publishes; atlas-meta advances the CFDrs gitlink.
 2. Peer merges kwavers `codex/kwavers-policy-residual` to `origin/main` and
    publishes; atlas-meta advances the kwavers gitlink.
-3. Peer lands asclepius `[arch]` promotion commit; atlas-meta records the
-   registration and updates `.gitmodules` count to 23.
+3. ✅ Superseded by `ATLAS-INTEGRATION-037`, which registers Asclepius and
+   updates the package count to 23.
 4. Peer closes `ATLAS-INTEGRATION-034` consumer-side residuals on
    Apollo/Helios/Kwavers/RITK hosted CI; atlas-meta verifies and retires the
    row.

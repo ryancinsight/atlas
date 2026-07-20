@@ -32,8 +32,9 @@
 | <a id="ADR-0025"></a>**0025** | Promote Proteus as the Atlas owner for shared material-property and constitutive-law contracts: validated thermophysical newtypes (`MassDensity`, `SpecificHeatCapacity`, `ThermalConductivity`) over Aequitas quantities and Eunomia scalars with a GAT-based static constitutive seam (`ConstitutiveLaw<Law>`, `ConstantLaw`, `NoState`) and `Cow<str>` material identity | Accepted | 2026-07-20 | `[arch]` `[minor]` | proteus / aequitas / eunomia / atlas-meta | material-and-vocabulary |
 | <a id="ADR-0026"></a>**0026** | Promote Tyche as the Atlas owner for reproducible uncertainty studies: counter-stream random-access Latin hypercube designs, index-addressed ensemble execution, online Welford/Chan moments, Pearson screening, finite-sample split-conformal calibration, and Moirai/Consus provider adapters over a `no_std + alloc` core with GAT response seams and const-generic numeric widths | Accepted | 2026-07-20 | `[arch]` `[minor]` | tyche / tyche-core / moirai / consus / eunomia / atlas-meta | uncertainty-quantification |
 | <a id="ADR-0027"></a>**0027** | Resolve consumer path dependencies from one exact Atlas gitlink graph through an Atlas-owned Rust action | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / helios / kwavers / ritk | provider-graph |
+| <a id="ADR-0028"></a>**0028** | Promote Asclepius as the owner for typed gEUD, TCP, NTCP, CEM43, Arrhenius damage, and independent-response composition over Aequitas and Eunomia, with a one-way Coeus autodiff adapter | Accepted | 2026-07-20 | `[arch]` `[minor]` | asclepius / asclepius-coeus / helios / kwavers / atlas-meta | biological-response |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0027 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, and provider-checkout decisions. The index now carries the authored sequence through ADR 0027.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0028 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, provider-checkout, and biological-response decisions. The index now carries the authored sequence through ADR 0028.
 
 ## Topic-keyword index
 
@@ -113,6 +114,21 @@ Cross-cuts reproducible sibling path-dependency materialization.
 - **ADR 0027** — one Atlas-owned Rust action resolves consumer manifests
   against that graph. **Anchor for Helios, Kwavers, and RITK CI checkout.**
 
+### Group H — Biological response (`topic-tag: biological-response`)
+
+Cross-cuts response laws shared by radiation-therapy and therapeutic-ultrasound
+consumers. Affected crates (primary): `asclepius`, `asclepius-coeus`,
+`helios-analysis`, and `kwavers-physics`. Affected providers (supporting):
+`aequitas`, `eunomia`, and `coeus`.
+
+- **ADR 0028** — `asclepius` typed gEUD, TCP, NTCP, CEM43, Arrhenius damage,
+  and independent-insult composition, plus the outward Coeus gEUD adapter.
+  **Anchor for biological-response ownership and migration.**
+
+Cross-walks: 0028 composes 0005 (Eunomia scalar law), 0021 (Aequitas quantity
+law), 0020/0027 (exact provider graph and checkout), and remains complementary
+to 0025 (Proteus material properties).
+
 ## Status flow legend
 
 The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `documentation_discipline`:
@@ -143,6 +159,7 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 | 0025 | 0002 (bounded material-property role in topology law) + 0005 (Eunomia scalar contract) + 0021 (Aequitas quantity law — property newtypes transparent over Aequitas quantities) + 0023 (Harmonia coupling, complementary boundary) | Proteus ADR 0001 |
 | 0026 | 0002 (bounded UQ role in topology law) + 0005 (Eunomia scalar contract) + 0023 (Harmonia — Tyche studies can wrap a partitioned model) + 0025 (Proteus — Tyche can sweep Proteus material parameters) | Tyche ADR 0001 |
 | 0027 | 0020 (exact provider graph) + 0010 (cross-repo cadence) + 0011 (Atlas-meta ownership) | consumer-owned provider checkout actions and moving Atlas branch resolution |
+| 0028 | 0005 (Eunomia scalar law) + 0020 (exact provider graph) + 0021 (Aequitas quantity law) + 0025 (complementary material-property boundary) + 0027 (provider checkout) | Asclepius ADR 0001; duplicated Helios and Kwavers response formulas |
 | 0010 | 0005 (consumed by Batch #2 closure), 0006 (next-batch adoption), 0007 (per-`[patch]` sweep reuses), 0011 (ceremony counterpart) | inline `D:/atlas/backlog.md` ritual without ADR anchor |
 | 0011 | 0005, 0006, 0007 (numeric SSOT chain hygiene), 0010 (Per-batch convention) | inline `D:/atlas/backlog.md` OOS-record shape (first introduced by commit `283f38cf`); implicit cadence carried only in the commit narrative pre-ADR-0011 |
 
@@ -173,6 +190,9 @@ Map common codex-session scenarios to the ADR pairs (or triples) you should read
   the Atlas gate or any Apollo, Helios, or Kwavers integration.
 - **Changing path-dependency checkout**: read **ADR 0020** + **ADR 0027**
   before editing the Atlas action or any Helios, Kwavers, or RITK integration.
+- **Changing biological-response laws**: read **ADR 0028** and Asclepius
+  ADR 0001 before editing Asclepius, Helios response analysis, or Kwavers
+  thermal-response computation.
 
 ## References
 
