@@ -1,4 +1,5 @@
-use std::path::Path;
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
 
 use super::discovery::{ComparisonSet, discover};
 use super::error::CheckError;
@@ -43,38 +44,16 @@ pub fn required_confidence_level(
     confidence_for_count(comparisons.benchmarks.len())
 }
 
-/// Audits two opposite-order Criterion comparisons.
-///
-/// A regression requires a wholly positive candidate-versus-baseline interval
-/// in baseline-first execution and a wholly negative baseline-versus-candidate
-/// interval in candidate-first execution. Benchmark-universe differences,
-/// missing estimates, and intervals below the family-wise confidence
-/// requirement fail closed.
-///
-/// # Examples
-///
-/// ```no_run
-/// use std::path::Path;
-/// use atlas_criterion_gate::criterion::audit_counterbalanced;
-///
-/// let audit = audit_counterbalanced(
-///     Path::new("target/criterion-baseline-first"),
-///     Path::new("target/criterion-candidate-first"),
-///     "atlas-base",
-/// )?;
-/// assert!(!audit.has_failures());
-/// # Ok::<(), Box<dyn std::error::Error>>(())
-/// ```
-///
-/// # Errors
-///
-/// Returns [`CheckError`] when either Criterion root or named baseline is
-/// absent, filesystem traversal fails, or an estimate is malformed.
-pub fn audit_counterbalanced(
+pub(super) struct CounterbalancedAudit {
+    pub(super) audit: Audit,
+    pub(super) benchmarks: BTreeSet<PathBuf>,
+}
+
+pub(super) fn audit_counterbalanced(
     baseline_first_root: &Path,
     candidate_first_root: &Path,
     baseline_name: &str,
-) -> Result<Audit, CheckError> {
+) -> Result<CounterbalancedAudit, CheckError> {
     let baseline_first = discover(baseline_first_root, baseline_name)?;
     let candidate_first = discover(candidate_first_root, baseline_name)?;
     classify(&baseline_first, &candidate_first)
@@ -83,12 +62,13 @@ pub fn audit_counterbalanced(
 fn classify(
     baseline_first: &ComparisonSet,
     candidate_first: &ComparisonSet,
-) -> Result<Audit, CheckError> {
-    let benchmark_count = baseline_first
+) -> Result<CounterbalancedAudit, CheckError> {
+    let benchmarks: BTreeSet<_> = baseline_first
         .benchmarks
         .union(&candidate_first.benchmarks)
-        .count();
-    let required_confidence_level = confidence_for_count(benchmark_count)?;
+        .cloned()
+        .collect();
+    let required_confidence_level = confidence_for_count(benchmarks.len())?;
 
     let universe_mismatches = baseline_first
         .benchmarks
@@ -161,13 +141,16 @@ fn classify(
         }
     }
 
-    Ok(Audit {
-        comparisons,
-        required_confidence_level,
-        regressions,
-        missing_comparisons,
-        universe_mismatches,
-        insufficient_confidence,
+    Ok(CounterbalancedAudit {
+        audit: Audit {
+            comparisons,
+            required_confidence_level,
+            regressions,
+            missing_comparisons,
+            universe_mismatches,
+            insufficient_confidence,
+        },
+        benchmarks,
     })
 }
 

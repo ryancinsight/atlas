@@ -67,10 +67,12 @@
   and hosted CI on each published child revision.
 - Current increment: Apollo hosted run `29764170548` reported twelve apparent
   regressions across source-identical revisions under one ABBA block. The
-  Atlas gate is being strengthened to intersect two phase-reversed blocks,
-  ABBA and BAAB, before consumer migration continues. Atlas also owns the
-  exact-gitlink checkout action for Helios, Kwavers, and RITK; Apollo's
-  checkout is dead because Apollo has no external Cargo path dependencies.
+  Atlas gate now intersects phase-reversed ABBA and BAAB blocks and fails
+  closed across both benchmark universes; local static, value-semantic,
+  doctest, and documentation gates pass. Atlas also owns the exact-gitlink
+  checkout action for Helios, Kwavers, and RITK; Apollo's checkout is dead
+  because Apollo has no external Cargo path dependencies. Consumer hosted
+  verification remains.
 
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor] — done
 

@@ -1,5 +1,14 @@
 use std::path::PathBuf;
 
+/// Phase-reversed replication of a counterbalanced comparison.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Replication {
+    /// The first replication, executed as baseline-candidate-candidate-baseline.
+    First,
+    /// The second replication, executed as candidate-baseline-baseline-candidate.
+    Second,
+}
+
 /// Execution order for one half of a counterbalanced comparison.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MeasurementOrder {
@@ -24,7 +33,7 @@ pub struct RelativeMedianChange {
 }
 
 /// A candidate slowdown reproduced in both execution orders.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[must_use]
 pub struct Regression {
     /// Benchmark identifier relative to the Criterion root.
@@ -88,12 +97,61 @@ pub struct Audit {
 }
 
 impl Audit {
-    /// Returns `true` when the counterbalanced comparison cannot pass.
+    /// Returns `true` when this replication lacks valid comparison evidence.
+    ///
+    /// A regression in one replication is not an evidence failure because the
+    /// phase-reversed replication must reproduce it before the gate rejects.
+    #[must_use]
+    pub const fn has_evidence_failures(&self) -> bool {
+        !self.missing_comparisons.is_empty()
+            || !self.universe_mismatches.is_empty()
+            || !self.insufficient_confidence.is_empty()
+    }
+}
+
+/// A candidate slowdown reproduced in both phase-reversed replications.
+#[derive(Debug, PartialEq)]
+#[must_use]
+pub struct ReplicatedRegression {
+    /// Benchmark identifier relative to the Criterion root.
+    pub benchmark: PathBuf,
+    /// Counterbalanced evidence from the first replication.
+    pub first: Regression,
+    /// Counterbalanced evidence from the phase-reversed replication.
+    pub second: Regression,
+}
+
+/// A benchmark present in only one replication.
+#[derive(Debug, PartialEq, Eq)]
+#[must_use]
+pub struct ReplicationUniverseMismatch {
+    /// Benchmark identifier relative to the Criterion root.
+    pub benchmark: PathBuf,
+    /// Replication in which the benchmark is present.
+    pub present_in: Replication,
+}
+
+/// Complete phase-replicated Criterion audit.
+#[derive(Debug, PartialEq)]
+#[must_use]
+pub struct ReplicatedAudit {
+    /// Counterbalanced evidence from the first replication.
+    pub first: Audit,
+    /// Counterbalanced evidence from the phase-reversed replication.
+    pub second: Audit,
+    /// Candidate slowdowns reproduced in both replications.
+    pub regressions: Vec<ReplicatedRegression>,
+    /// Benchmarks absent from one replication.
+    pub replication_universe_mismatches: Vec<ReplicationUniverseMismatch>,
+}
+
+impl ReplicatedAudit {
+    /// Returns `true` when the replicated comparison cannot pass.
     #[must_use]
     pub const fn has_failures(&self) -> bool {
         !self.regressions.is_empty()
-            || !self.missing_comparisons.is_empty()
-            || !self.universe_mismatches.is_empty()
-            || !self.insufficient_confidence.is_empty()
+            || self.first.has_evidence_failures()
+            || self.second.has_evidence_failures()
+            || !self.replication_universe_mismatches.is_empty()
     }
 }

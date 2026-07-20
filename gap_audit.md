@@ -56,9 +56,9 @@
   across phase-reversed ABBA and BAAB replications, identical benchmark
   universes, complete estimates, and Bonferroni confidence `1 - 0.05 / m` for
   `m` cases. Across the eight positions, baseline and candidate occupy equal
-  sums and squared sums, eliminating constant, linear, and quadratic period
-  terms from their contrast. Consumer CI will hold the candidate harness
-  constant and pin the authoritative Atlas revision.
+  sums and squared sums, balancing their exposure to constant, linear, and
+  quadratic period terms. Consumer CI will hold the candidate harness constant
+  and pin the authoritative Atlas revision.
 - **Evidence tier:** analytical family-wise bound, synthetic
   counterbalanced/order-drift/missing/universe/confidence value tests, and
   exact-head hosted consumer CI. No performance claim follows from static or
