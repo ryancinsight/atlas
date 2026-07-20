@@ -1,6 +1,14 @@
 //! Criterion result discovery and regression classification.
 
+mod counterbalanced;
+mod discovery;
+mod error;
 mod estimate;
-mod regression;
+mod model;
 
-pub use regression::{Audit, CheckError, MissingComparison, Regression, audit};
+pub use counterbalanced::{audit_counterbalanced, required_confidence_level};
+pub use error::CheckError;
+pub use model::{
+    Audit, InsufficientConfidence, MeasurementOrder, MissingComparison, Regression,
+    RelativeMedianChange, UniverseMismatch,
+};

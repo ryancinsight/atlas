@@ -6,13 +6,19 @@
   saved a baseline from the same benchmark output they immediately checked.
   The gate was tautological and could not detect a regression. Helios CI also
   omitted Atlas path-dependency checkout and used bare `cargo test`.
-- **Resolution in progress:** replace the copies with one Atlas-owned Rust
-  tool that consumes Criterion's true base/head relative-change confidence
-  interval and fails closed when a baseline comparison is absent. Each child
-  workflow will pin the authoritative Atlas tool revision.
-- **Evidence tier:** synthetic confidence-interval and missing-comparison
-  value tests plus exact-head hosted consumer CI. No performance claim follows
-  from static or unit evidence alone.
+- **Falsification:** Apollo hosted run `29757554816` reported 31 apparent
+  regressions between source-identical revisions in fixed base→candidate
+  order, proving that one order does not control runner drift. A harness
+  revision change also changes the measurement instrument unless it is pinned.
+- **Resolution in progress:** the Atlas Rust tool now requires opposite-order
+  agreement, identical benchmark universes, complete estimates, and
+  Bonferroni confidence `1 - 0.05 / m` for `m` cases. Consumer CI will hold the
+  candidate harness constant, run both orders, and pin the authoritative Atlas
+  revision.
+- **Evidence tier:** analytical family-wise bound, synthetic
+  counterbalanced/order-drift/missing/universe/confidence value tests, and
+  exact-head hosted consumer CI. No performance claim follows from static or
+  unit evidence alone.
 
 ## State refresh (2026-07-20) — Harmonia Phase 0 promotion
 
