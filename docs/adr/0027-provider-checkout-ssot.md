@@ -27,9 +27,9 @@ composite action at `.github/actions/checkout-path-dependencies`.
 
 1. The caller supplies its root Cargo manifest, an authorized provider
    destination, and a full 40-character Atlas commit.
-2. The engine parses Cargo dependency sections. Paths inside the consumer
-   repository remain untouched; external paths must resolve below
-   `destination/<provider>`.
+2. The engine parses Cargo dependency, patch, and replacement sections. Paths
+   inside the consumer repository remain untouched; external paths must
+   resolve below `destination/<provider>`.
 3. The exact Atlas commit supplies each provider URL and gitlink revision.
    Provider lists, URLs, and revisions are never repeated in consumers.
 4. A missing provider is initialized and fetched at the exact gitlink.
@@ -69,13 +69,14 @@ composite action at `.github/actions/checkout-path-dependencies`.
 
 ## Verification
 
-- End-to-end tests synthesize local provider and Atlas repositories, create a
-  real gitlink, check out the exact provider revision, verify a nested
-  dependency manifest, and reuse a clean checkout.
+- End-to-end tests synthesize local provider and Atlas repositories, discover
+  dependency-, patch-, and replacement-only declarations, create a real
+  gitlink, check out the exact provider revision, verify a nested dependency
+  manifest, and reuse a clean checkout.
 - Negative tests reject dirty reuse, wrong-revision reuse, a non-exact Atlas
   reference, a path outside the authorized destination, and a provider absent
   from the graph.
-- Format, locked check, eight Nextest cases, one doctest, warning-denied
+- Format, locked check, ten Nextest cases, one doctest, warning-denied
   Clippy, and warning-clean rustdoc pass.
 - Each migrated consumer must pass exact-head hosted CI with the merged Atlas
   action revision.

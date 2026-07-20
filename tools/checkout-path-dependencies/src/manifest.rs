@@ -96,14 +96,22 @@ fn collect_dependency_paths<'a>(value: &'a Value, paths: &mut Vec<&'a str>) {
     };
 
     for (key, child) in table {
-        if matches!(
-            key.as_str(),
-            "dependencies" | "dev-dependencies" | "build-dependencies"
-        ) {
-            collect_section_paths(child, paths);
-        } else {
-            collect_dependency_paths(child, paths);
+        match key.as_str() {
+            "dependencies" | "dev-dependencies" | "build-dependencies" | "replace" => {
+                collect_section_paths(child, paths);
+            }
+            "patch" => collect_patch_paths(child, paths),
+            _ => collect_dependency_paths(child, paths),
         }
+    }
+}
+
+fn collect_patch_paths<'a>(value: &'a Value, paths: &mut Vec<&'a str>) {
+    let Some(sources) = value.as_table() else {
+        return;
+    };
+    for dependencies in sources.values() {
+        collect_section_paths(dependencies, paths);
     }
 }
 

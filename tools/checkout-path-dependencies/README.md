@@ -1,9 +1,10 @@
 # Atlas provider checkout
 
-`atlas-provider-checkout` reads one Cargo manifest, finds external sibling path
-dependencies, resolves each provider through an exact Atlas commit, and
-materializes the recorded gitlink revision. Existing provider directories are
-reused only when clean and already at the required revision.
+`atlas-provider-checkout` reads one Cargo manifest, finds external sibling
+paths in dependency, patch, and replacement sections, resolves each provider
+through an exact Atlas commit, and materializes the recorded gitlink revision.
+Existing provider directories are reused only when clean and already at the
+required revision.
 
 Consumers call the composite action at an exact Atlas SHA:
 

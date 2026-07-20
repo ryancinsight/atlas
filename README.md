@@ -385,10 +385,11 @@ Atlas owns sibling provider materialization in
 [`tools/checkout-path-dependencies`](tools/checkout-path-dependencies) and its
 [composite action](.github/actions/checkout-path-dependencies/action.yml).
 Consumers pass a Cargo manifest, provider destination, and exact Atlas commit.
-The action derives provider names from Cargo paths, URLs from `.gitmodules`,
-and revisions from `repos/<provider>` gitlinks. Moving branch names, duplicated
-provider lists, wrong-revision reuse, dirty reuse, missing dependency
-manifests, and paths outside the authorized destination fail closed.
+The action derives provider names from Cargo dependency, patch, and replacement
+paths, URLs from `.gitmodules`, and revisions from `repos/<provider>` gitlinks.
+Moving branch names, duplicated provider lists, wrong-revision reuse, dirty
+reuse, missing dependency manifests, and paths outside the authorized
+destination fail closed.
 
 ## Add a package
 

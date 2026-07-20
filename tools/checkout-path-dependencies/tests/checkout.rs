@@ -75,16 +75,20 @@ impl Fixture {
     }
 
     fn consumer(&self, graph: &Graph, dependency_path: &str) -> (PathBuf, CheckoutConfig) {
-        let workspace = self.path("workspace");
-        let consumer = workspace.join("consumer");
-        fs::create_dir_all(&consumer).unwrap();
-        write(
-            &consumer.join("Cargo.toml"),
+        self.consumer_manifest(
+            graph,
             &format!(
                 "[workspace]\nmembers = []\n\n[workspace.dependencies]\n\
                  leto = {{ path = \"{dependency_path}\" }}\n"
             ),
-        );
+        )
+    }
+
+    fn consumer_manifest(&self, graph: &Graph, manifest: &str) -> (PathBuf, CheckoutConfig) {
+        let workspace = self.path("workspace");
+        let consumer = workspace.join("consumer");
+        fs::create_dir_all(&consumer).unwrap();
+        write(&consumer.join("Cargo.toml"), manifest);
         let config = CheckoutConfig {
             manifest: consumer.join("Cargo.toml"),
             destination: workspace.clone(),
@@ -121,6 +125,48 @@ fn materializes_exact_gitlink_and_reuses_clean_checkout() {
     assert_eq!(first.providers, vec!["leto"]);
     assert_eq!(first.dependency_manifests, 1);
     assert_eq!(second, first);
+    assert_eq!(
+        git_output(&workspace.join("leto"), &["rev-parse", "HEAD"]),
+        graph.provider_revision
+    );
+}
+
+#[test]
+fn materializes_provider_declared_only_by_patch() {
+    let fixture = Fixture::new();
+    let graph = fixture.graph();
+    let (workspace, config) = fixture.consumer_manifest(
+        &graph,
+        "[workspace]\nmembers = []\n\n\
+         [patch.\"https://github.com/ryancinsight/leto\"]\n\
+         leto = { path = \"../leto/crates/leto\" }\n",
+    );
+
+    let outcome = checkout(&config).unwrap();
+
+    assert_eq!(outcome.providers, vec!["leto"]);
+    assert_eq!(outcome.dependency_manifests, 1);
+    assert_eq!(
+        git_output(&workspace.join("leto"), &["rev-parse", "HEAD"]),
+        graph.provider_revision
+    );
+}
+
+#[test]
+fn materializes_provider_declared_only_by_replacement() {
+    let fixture = Fixture::new();
+    let graph = fixture.graph();
+    let (workspace, config) = fixture.consumer_manifest(
+        &graph,
+        "[workspace]\nmembers = []\n\n\
+         [replace]\n\
+         \"leto:0.1.0\" = { path = \"../leto/crates/leto\" }\n",
+    );
+
+    let outcome = checkout(&config).unwrap();
+
+    assert_eq!(outcome.providers, vec!["leto"]);
+    assert_eq!(outcome.dependency_manifests, 1);
     assert_eq!(
         git_output(&workspace.join("leto"), &["rev-parse", "HEAD"]),
         graph.provider_revision

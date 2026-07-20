@@ -30,9 +30,10 @@
 
 - Add ADR 0027, the Atlas-owned
   `tools/checkout-path-dependencies` Rust engine, and its composite action.
-  Consumer Cargo paths resolve through exact Atlas gitlinks; moving refs,
-  duplicated provider lists, dirty or wrong-revision reuse, unknown providers,
-  missing manifests, and destination escapes fail closed.
+  Consumer Cargo dependency, patch, and replacement paths resolve through exact
+  Atlas gitlinks; moving refs, duplicated provider lists, dirty or
+  wrong-revision reuse, unknown providers, missing manifests, and destination
+  escapes fail closed.
 
 - Add ADR 0024 and the Atlas-owned `tools/criterion-regression` Rust gate for
   counterbalanced Criterion median regressions, 5% family-wise error control,
