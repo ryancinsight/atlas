@@ -7,6 +7,50 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-INTEGRATION-035 — Proteus and Tyche promotion ADRs [arch] [minor] — done
+
+- Owner: atlas-meta; scope: file ADRs 0025 and 0026 documenting the Proteus
+  and Tyche provider promotions peer landed via `f043d22`, `beb2713`,
+  `feed3bc`, and `edf99e4` without stack-level ADR ceremony — recording
+  bounded context, dependency direction, Phase scope, theorems and evidence,
+  rejected alternatives, consequences, and Relates-to to ADRs 0002/0005/0021/
+  0023/0025 per `documentation_discipline` ADR SSOT. Consumer material-property
+  and UQ migrations remain separate vertical increments.
+- Acceptance: ADR 0025 records the Proteus material-property promotion with
+  Phase-1 thermophysical boundary (MassDensity, SpecificHeatCapacity,
+  ThermalConductivity, derived thermal diffusivity), Aequitas-quantity-
+  transparent newtypes, GAT-based ConstitutiveLaw seam, NoState ZST, and
+  `Cow<str>` material identity; ADR 0026 records the Tyche UQ promotion with
+  Phase-0 random-access Latin hypercube, ensemble execution, online moments,
+  Pearson screening, split-conformal calibration, and Moirai/Consus adapters,
+  with no_std core and const-generic numeric widths. INDEX table adds rows
+  0025 and 0026, narrative extends through 0026, cross-walk adds two rows,
+  Group F topic-keyword index added, CHANGELOG `### Added` records the
+  backfilled ADRs.
+- Evidence: ADR files authored against peer-published remote HEADs (Proteus
+  `2b06be3`, Tyche `7898899`) cross-referencing the in-repo ADRs 0001 of each
+  provider; ADR INDEX updates compile-level stable (markdown only); the
+  promotion ceremonies themselves were already peer-verified at package-level
+  (Proteus property positivity/dimensional algebra/codegen fixture, Tyche
+  LHS permutation/replay/Welford/Cauchy-Schwarz/conformal rank).
+
+## ATLAS-INTEGRATION-036 — Coeus hephaestus 0.18.0 bump [patch] — done
+
+- Owner: atlas-meta; scope: `repos/coeus/Cargo.toml` workspace.dependencies
+  pin update for `hephaestus-{wgpu,core,cuda}` from `^0.17.0` to `^0.18.0`
+  after peer's v0.18.0 hephaestus tag advance, plus Atlas-parent gitlink
+  advance for coeus `56fa49a` -> `c290f3e` and leto `4158b8e` -> `02d74fd`.
+- Acceptance: `cargo check --workspace --all-targets` clean across all 20
+  Atlas packages (including coeus) after resolving the path-dep version
+  pin mismatch that blocked `coeus-wgpu` from selecting a hephaestus-core
+  version; Atlas-parent gitlinks advanced and pushed.
+- Evidence: `cargo check --workspace --all-targets` rc=0 across all 20
+  packages via `scripts/build-all.ps1` (1m 48s clean after bump);
+  `cargo nextest run --workspace` on coeus 938/938 passed;
+  `cargo test --doc --workspace` on coeus passed (8 doctests across
+  coeus-tensor and coeus-wgpu). Coeus merged via PR-style no-ff merge
+  `c290f3e`. Atlas-parent merge `3f40b79`.
+
 ## ATLAS-INTEGRATION-034 — Benchmark gate repair [arch] [patch] — in progress
 
 - Owner: Codex `/root`; scope: Atlas Criterion comparison SSOT and the Apollo,
@@ -995,6 +1039,7 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 | ID | Scope | Trigger | Re-open condition | Status |
 |---|---|---|---|---|
 | HARM-PUBLISH-001 | `repos/harmonia` submodule registration | Local `repos/harmonia` worktree was unversioned pending remote publish | Peer publishes the `repos/harmonia` worktree to `https://github.com/ryancinsight/harmonia` and advances the Atlas gitlink | ✅ CLOSED 2026-07-20 (peer PR #57 merged `0b0d01d`: Harmonia published at `cf6ce3e`, `.gitmodules` entry added, gitlink advanced, ADR 0023 flipped `Proposed` → `Accepted`, current-stack table reconciled to 20 packages) |
+| HEPH-CUDA-WIN-001 | `repos/hephaestus/crates/hephaestus-cuda` + `hephaestus-python` Windows-gnu link | Verified sweep across all 20 Atlas packages: `cargo check` clean across all 20; the bounded per-package nextest run reports `hephaestus-cuda` and `hephaestus-python` fail to build with `x86_64-w64-mingw32-gcc` link error reading `-L /usr/local/cuda-11.3/lib64/` and `-lcuda` on the Windows-gnu host. Hephaestus core/wgpu/metal subset (211/211) is clean | Upstream build script (in `cuda-oxide` or `cutile-rs`) emits a Windows-aware CUDA SDK path via `CUDA_PATH` (`%CUDA_PATH%\lib\x64\cuda.lib`) and the link succeeds on a Windows NVIDIA host; this is an environment defect, not a code regression | ⏳ open (environment-only link defect on MSYS2 Windows-gnu hosts; not a regression from anything in the active migration stream) |
 
 ## Provider integration audit queue — 2026-07-20
 

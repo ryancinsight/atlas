@@ -6,6 +6,73 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-036 — Coeus hephaestus 0.18.0 bump [patch]
+
+- [x] Reproduce the build-error: `cargo check --workspace --all-targets` for
+      Atlas at peer HEAD fails when selecting `hephaestus-core = ^0.17.0`
+      because the path-dep resolves to local tag `v0.18.0`.
+- [x] Bump all three `hephaestus-{wgpu,core,cuda}` path-dep version pins in
+      `repos/coeus/Cargo.toml` workspace.dependencies from `0.17.0` to
+      `0.18.0`.
+- [x] Verify the coeus workspace compiles and passes tests at the new pin:
+      `cargo check --workspace --all-targets` rc=0,
+      `cargo nextest run --workspace` 938/938, `cargo test --doc --workspace`
+      8 doctests across coeus-tensor and coeus-wgpu.
+- [x] Commit and push the coeus fix on a `fix/coeus-hephaestus-0.18-bump`
+      branch; merge to coeus `main` via no-ff merge at `c290f3e` and push to
+      origin.
+- [x] Advance the Atlas-parent gitlink for coeus `56fa49a` -> `c290f3e` and
+      leto `4158b8e` -> `02d74fd` (PR #55 perf/leto-ziggurat-normal merge).
+- [x] Push to origin and merge via no-ff merge `3f40b79`.
+
+## ATLAS-INTEGRATION-035 — Proteus and Tyche promotion ADRs [arch] [minor]
+
+- [x] Confirm peer's Proteus promotion: `.gitmodules` entry registered,
+      current-stack table reads 21 packages after `beb2713`, candidate
+      table retired `harmonia` earlier and now retired Proteus too.
+      Proteus HEAD on GitHub at `ryancinsight/proteus` is `2b06be3`.
+- [x] Confirm peer's Tyche promotion: `.gitmodules` entry registered,
+      current-stack table reads 22 packages after `feed3bc`, candidate
+      table retired Tyche. Tyche HEAD on GitHub is `7898899`.
+- [x] Author ADR 0025 `docs/adr/0025-proteus-material-property-promotion.md`
+      at `Accepted` recording the Proteus promotion: bounded context
+      (material-property validity boundaries, cohesive bundles, named
+      material composition, statically dispatched constitutive-law
+      evaluation; NO Aequitas/Eunomia re-ownership; NO domain physics
+      re-ownership), dependency direction (`proteus -> aequitas -> eunomia`),
+      migration plan (each consumer increment deletes local copy),
+      theorems and evidence (density/heat-capacity positivity,
+      conductivity non-negativity, thermal-diffusivity dimensional
+      reduction `alpha = k/(rho*c_p) >= 0`, Aequitas dimensional algebra
+      to `L^2/T`), rejected alternatives, consequences, Relates-to
+      (0002/0005/0021/0023/Proteus ADR 0001).
+- [x] Author ADR 0026 `docs/adr/0026-tyche-uq-promotion.md` at `Accepted`
+      recording the Tyche promotion: bounded context (study identity, seed
+      and replay laws, sampling designs, ensemble statistics, domain-neutral
+      sensitivity, calibration, logical artifact keys; NO Moirai/Consus
+      re-ownership; NO domain physics re-ownership), dependency direction
+      (tyche-core -> eunomia; tyche-moirai -> tyche-core + moirai;
+      tyche-consus -> tyche-core + consus; tyche facade composes),
+      migration plan, theorems and evidence (Latin hypercube permutation
+      `pi(i) = a*i + b (mod n)` is a permutation; counter-addressed replay
+      `(seed, index, dimension)` invariant; Welford recurrence; population
+      vs sample variance by zero-sized policy; squared Pearson screening
+      by Cauchy-Schwarz; split-conformal corrected rank), rejected
+      alternatives, consequences, Relates-to
+      (0002/0005/0023/0025/Tyche ADR 0001).
+- [x] Extend the ADR INDEX listing table with rows 0025 and 0026 and
+      extend the closing narrative line through 0026.
+- [x] Extend the ADR INDEX cross-walk table with rows for 0025 and 0026
+      pointing to Proteus ADR 0001 and Tyche ADR 0001 respectively.
+- [x] Add Group F topic-keyword group to the ADR INDEX for the
+      material-and-vocabulary + uncertainty-quantification provider pair.
+- [x] Add `### Added` entries to CHANGELOG.md covering ADRs 0025, 0026,
+      and the coeus bump.
+- [x] Add `ATLAS-INTEGRATION-035` and `ATLAS-INTEGRATION-036` rows to
+      backlog.md.
+- [x] Add a 2026-07-20 State refresh row to gap_audit.md covering the
+      Proteus/Tyche ADR backfill and the coeus hephaestus bump.
+
 ## ATLAS-INTEGRATION-034 — Benchmark gate repair [arch] [patch]
 
 - [x] Reproduce the tautological same-run comparison in Apollo, Helios, and
