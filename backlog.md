@@ -7,6 +7,28 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
+## ATLAS-INTEGRATION-031 — Horae/Athena extraction [arch] [minor] — done
+
+- Owner: Codex `/root`; scope: Horae and Athena provider repositories, Leto
+  CG/GMRES ownership deletion, public remotes, Atlas gitlinks, stack
+  documentation, and build-discovery SSOT. CFDrs/Kwavers consumer migrations
+  remain separate dependency-ordered increments.
+- Acceptance: Horae owns typed explicit time integration over Aequitas; Athena
+  owns backend-neutral PCG and restarted right-preconditioned GMRES over Leto
+  CPU and Hephaestus WGPU; Leto exports no duplicate iterative-solver
+  recurrence; both providers are public, versioned, CI-equipped packages with
+  exact parent gitlinks.
+- Evidence: Horae passes 14/14 configured nextest cases, its doctest, rustdoc,
+  analytical example, and dependency-policy gate. Athena passes 20/20 with no
+  skips, including generic CPU and real-device WGPU PCG/GMRES, post-workspace
+  allocation checks, four executed examples, doctest, rustdoc, and
+  dependency-policy gates. Leto PR #54 merges as `1752058` after 295/295
+  `leto-ops` cases and eight doctests; semver-checks classifies the removed
+  public surface as major.
+- Closure: public `ryancinsight/horae` main is `5bcb75b`; public
+  `ryancinsight/athena` main is `e5a54a2`; Atlas records both exact objects and
+  advances Leto to merged default `1752058`. The current package count is 19.
+
 ## ATLAS-INTEGRATION-030 — Aequitas consumer closure [patch] — done
 
 - Owner: Codex `/root`; scope: merged CFDrs PR #298 and Kwavers PR #295,

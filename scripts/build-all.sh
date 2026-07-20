@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run a cargo command across every package workspace under repos/.
+# Run a cargo command across every package workspace recorded in .gitmodules.
 # Usage: ./scripts/build-all.sh [cargo-subcommand] [extra args...]
 #   ./scripts/build-all.sh            # cargo build
 #   ./scripts/build-all.sh nextest run # cargo nextest run
@@ -18,22 +18,25 @@ if [ "$cmd" = "test" ]; then
 fi
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-repos="$root/repos"
 
 failed=()
 found=0
-for dir in "$repos"/*/; do
-    manifest="$dir/Cargo.toml"
-    [ -f "$manifest" ] || continue
+while read -r _ module_path; do
+    [ -n "$module_path" ] || continue
+    manifest="$root/$module_path/Cargo.toml"
+    if [ ! -f "$manifest" ]; then
+        echo "Recorded package is not initialized or has no manifest: $module_path" >&2
+        exit 1
+    fi
     found=1
-    pkg="$(basename "$dir")"
+    pkg="$(basename "$module_path")"
     echo "==> cargo $cmd ($pkg)"
     if ! cargo "$cmd" --manifest-path "$manifest" "$@"; then
         failed+=("$pkg")
     fi
-done
+done < <(git -C "$root" config -f .gitmodules --get-regexp '^submodule\..*\.path$')
 
-[ "$found" -eq 1 ] || { echo "No package workspaces found under $repos" >&2; exit 1; }
+[ "$found" -eq 1 ] || { echo "No package paths recorded in $root/.gitmodules" >&2; exit 1; }
 if [ "${#failed[@]}" -ne 0 ]; then
     echo "Failed: ${failed[*]}" >&2
     exit 1
