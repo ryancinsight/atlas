@@ -140,5 +140,7 @@ promotion.
   `cg`, `gmres`, `CgResult`, `GmresResult`, and the solver module.
 - `cargo-semver-checks` identifies the Leto removals as requiring a major
   release boundary.
+- Horae and Athena hosted verification and supply-chain jobs pass on their
+  merged public heads after the final numerical-oracle review fixes.
 - Both public gitlinks resolve to their remote `main` objects, and the Leto
   gitlink resolves to merged PR #54.

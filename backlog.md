@@ -22,11 +22,12 @@
   analytical example, and dependency-policy gate. Athena passes 20/20 with no
   skips, including generic CPU and real-device WGPU PCG/GMRES, post-workspace
   allocation checks, four executed examples, doctest, rustdoc, and
-  dependency-policy gates. Leto PR #54 merges as `1752058` after 295/295
-  `leto-ops` cases and eight doctests; semver-checks classifies the removed
-  public surface as major.
-- Closure: public `ryancinsight/horae` main is `5bcb75b`; public
-  `ryancinsight/athena` main is `e5a54a2`; Atlas records both exact objects and
+  dependency-policy gates. Follow-up provider CI verifies the derived Horae
+  bounds and Athena's direct `A*x=b` CPU/Jacobi/WGPU PCG oracles on merged
+  heads. Leto PR #54 merges as `1752058` after 295/295 `leto-ops` cases and
+  eight doctests; semver-checks classifies the removed public surface as major.
+- Closure: public `ryancinsight/horae` main is `e57f798`; public
+  `ryancinsight/athena` main is `7d647e7`; Atlas records both exact objects and
   advances Leto to merged default `1752058`. The current package count is 19.
 
 ## ATLAS-INTEGRATION-030 — Aequitas consumer closure [patch] — done

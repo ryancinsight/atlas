@@ -21,8 +21,17 @@ if ($LASTEXITCODE -ne 0 -or -not $moduleRows) {
     exit 1
 }
 
-$manifests = foreach ($row in $moduleRows) {
-    $modulePath = ($row -split '\s+', 2)[1]
+$manifests = foreach ($row in @($moduleRows)) {
+    if ([string]::IsNullOrWhiteSpace($row)) {
+        Write-Error "Invalid empty package-path record in $root/.gitmodules"
+        exit 1
+    }
+    $parts = $row -split '\s+', 2
+    if ($parts.Count -ne 2 -or [string]::IsNullOrWhiteSpace($parts[1])) {
+        Write-Error "Invalid package-path record in $root/.gitmodules: $row"
+        exit 1
+    }
+    $modulePath = $parts[1]
     $manifest = Join-Path (Join-Path $root $modulePath) 'Cargo.toml'
     if (-not (Test-Path -LiteralPath $manifest)) {
         Write-Error "Recorded package is not initialized or has no manifest: $modulePath"

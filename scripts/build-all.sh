@@ -21,8 +21,11 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 failed=()
 found=0
-while read -r _ module_path; do
-    [ -n "$module_path" ] || continue
+while read -r module_key module_path; do
+    if [ -z "$module_key" ] || [ -z "$module_path" ]; then
+        echo "Invalid package-path record in $root/.gitmodules" >&2
+        exit 1
+    fi
     manifest="$root/$module_path/Cargo.toml"
     if [ ! -f "$manifest" ]; then
         echo "Recorded package is not initialized or has no manifest: $module_path" >&2
