@@ -1,5 +1,66 @@
 # atlas — kwavers/CFDrs/ritk → Atlas migration gap audit
 
+## State refresh (2026-07-20) — Harmonia Phase 0 promotion gate evidence
+
+- **Finding:** `harmonia`, the Atlas P0 roadmap candidate for multiphysics
+  coupling orchestration, has a complete Phase 0 implementation in an
+  untracked local worktree at `repos/harmonia`. The implementation satisfies
+  the substantive conditions of the `README.md` §Promotion gate — real
+  computation (transactional two-partition Jacobi fixed-point iteration,
+  heterogeneous subcycling, interface transfer, relaxation), a documented
+  bounded context (Harmonia ADR 0001), and no current provider owning the
+  same domain — but fails the mechanical conditions: the worktree has no
+  commits, no `origin` remote, and no pushed identity. Atlas-meta cannot
+  create a GitHub repository and cannot pre-record a gitlink against a
+  non-existent remote object.
+- **Resolution:**
+  1. Filed ADR 0023 (`docs/adr/0023-harmonia-coupling-promotion.md`) at
+     `Proposed` status, recording the Phase 0 contract, dependency direction
+     (`harmonia → horae + athena-core + eunomia`), bounded-context ownership,
+     migration plan (4 steps; step 1 complete locally, step 2 blocked on
+     user action, steps 3–4 pending), rejected alternatives, consequences,
+     and the local verification evidence.
+  2. Updated `docs/adr/INDEX.md` with the ADR 0023 listing row and the
+     Group-A/B/C topic-tag cross-walk (`simulation-providers` group).
+  3. Updated `README.md` current-stack table with a `harmonia` row marked
+     `Promotion pending per ADR 0023`, expanded the `.gitmodules` count
+     narrative to disclose the in-flight promotion, added the coupling
+     entry to the Provider ownership table, threaded `harmonia → horae` and
+     `harmonia → athena` edges into the layer-map mermaid, retired `harmonia`
+     from the Candidate packages roadmap table, and updated the Layout
+     listing and dependency-order diagram to reflect the Phase 0 contract.
+  4. Filed `HARM-PROMOTE-001` in the 2026-07-20 Provider integration audit
+     queue and `HARM-PUBLISH-001` watchpoint in the 2026-07-20 Watchpoints
+     table, both surfacing the pending user-action condition.
+- **Evidence tier:** exact local toolchain execution at the harmonia
+  worktree against rustc 1.95.0 (Rev2, MSYS2) on the Windows agent host.
+  `cargo check --workspace --all-targets` rc=0; `cargo nextest run --workspace`
+  14/14 pass with no skips (transaction, contraction-residual,
+  relaxation-honesty, subcycle endpoint, codegen-equivalence,
+  pointer-identity, ZST-layout, allocation, dimension-mismatch tests);
+  `cargo test --doc` 1/1 pass (the README `PartitionedPair` example);
+  `cargo clippy --all-targets -- -D warnings` rc=0; `cargo fmt --check` rc=0;
+  `cargo doc --no-deps` rc=0 with no new warnings. Source-level walk:
+  `src/lib.rs` is a manifest-only re-export module; `partition`, `coupling`,
+  `relaxation`, `transfer` are dedicated leaf modules carrying the
+  contract trait and the two policy families hierarchies; tests/ contains
+  `theorems.rs`, `properties.rs`, `codegen_equivalence.rs`, `allocation.rs`,
+  `generic_scalar.rs`, `policies.rs`, `subcycling.rs` — value-semantic, not
+  existence-only. `#![no_std] + alloc`, `#![forbid(unsafe_code)]`,
+  `#![deny(missing_docs)]` enforced.
+- **Residual:** ADR 0023 `Proposed → Accepted` is **blocked on user action**:
+  publish `repos/harmonia` to the public remote at
+  `https://github.com/ryancinsight/harmonia` (the `repository =` field in
+  `Cargo.toml` is already configured for that URL). Once the remote exists
+  with the local tree pushed, atlas-meta can: (a) add the `repos/harmonia`
+  submodule entry to `.gitmodules`; (b) advance the parent gitlink to the
+  published HEAD SHA; (c) flip ADR 0023 to `Accepted`; (d) update the
+  README current-stack count from 19 → 20; (e) close `HARM-PROMOTE-001` and
+  `HARM-PUBLISH-001`. Consumer migrations (CFDrs, Kwavers, Helios coupling
+  loops → `PartitionedPair`) are dependency-ordered follow-up work owned by
+  the respective integrator claim streams per `concurrent_agents`
+  disjoint-scope; they are NOT authorized by this promotion.
+
 ## State refresh (2026-07-19) — Aequitas consumer closure
 
 - **Finding:** Atlas `main` pinned Kwavers child commit `156531eeb` and CFDrs

@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Added
+
+- File ADR 0023 (`docs/adr/0023-harmonia-coupling-promotion.md`) at `Proposed`
+  to promote `harmonia` as the Atlas coupling-mechanics provider. Phase 0
+  contract is two-partition synchronous Jacobi `PartitionedPair<M, T,
+  FIRST_SUBSTEPS, SECOND_SUBSTEPS>` with const-generic heterogeneous
+  subcycling over Horae subcycle plans and Athena Core convergence policy;
+  static transfer and relaxation policies are ZSTs and the workspace
+  allocates only at construction. Local Phase 0 evidence (14/14 nextest,
+  1/1 doctest, clippy/rustdoc clean) is recorded but the promotion is
+  blocked until `repos/harmonia` publishes to a public remote.
+
+- Add a `harmonia` row to the Atlas current-stack table and a coupling
+  entry to the Provider ownership table in `README.md`. Retire `harmonia`
+  from the Candidate packages roadmap. Add ADR 0023 to the ADR INDEX with
+  the topic-tag cross-walk. Surface the pending publish as the
+  `HARM-PROMOTE-001` audit row and `HARM-PUBLISH-001` watchpoint in the
+  2026-07-20 PM sections of `backlog.md`, and as a 2026-07-20 State refresh
+  row in `gap_audit.md`.
+
 ### Changed
 
 - Promote Horae and Athena as public Atlas packages. Horae owns typed

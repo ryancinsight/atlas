@@ -1648,3 +1648,86 @@ Verification: `cargo nextest run` 121/121 pass, `cargo clippy --all-targets --al
 - [x] Advance the Atlas `repos/CFDrs` gitlink to `a13f7f51` after CFDrs PR
   #296 restored executable one- and two-dimensional validation examples and
   removed static/unexecutable reporting paths.
+
+## Session 2026-07-20 — Harmonia Phase 0 promotion gate evidence
+
+Atlas-meta coordinator work. The user's directive (continue migration
+support, build out books for helios/CFDrs, accent the kwavers-model book
+pattern) was grounded against the actual repository state. Findings:
+
+- The established migration queue is 7/7 closed per `gap_audit.md`
+  2026-07-18 row (RITK Batch #3 PRs #42–#43 merged; kwavers Batches #1/#4
+  closed 2026-07-12; CR-2 closed 2026-07-18). The remaining
+  nalgebra/ndarray residue lives in per-integrator peer claim streams
+  (`CFDrs` 79-dirty on `codex/cfdrs-atlas-migration`, kwavers 27-dirty on
+  `codex/kwavers-core-moirai-parallel`, plus apollo/coeus/gaia/hermes/
+  leto/melinoe/moirai peer streams). Per `concurrent_agents` disjoint-scope,
+  atlas-meta cannot edit inside `repos/<X>/**` without a board claim, and
+  no claim exists for the consumer book work.
+- Helios already carries a full `docs/book/` (SUMMARY + 28 chapter files
+  covering foundations/dose/imaging/planning/workflow/validation/appendix);
+  CFDrs carries a `docs/book/` directory already scaffolded. The kwavers
+  book pattern exists as the template. Authoring new chapter content is
+  peer-owned scope and was deferred pending an explicit user dispatch.
+- `harmonia`, the P0 roadmap candidate, has a complete Phase 0
+  implementation as an untracked local worktree. Verified locally green.
+
+Closed (atlas-meta write-set):
+
+- [x] `cargo check --workspace --all-targets` on `repos/harmonia`: rc=0.
+- [x] `cargo nextest run --workspace` on `repos/harmonia`: 14/14 pass
+  (transaction theorem, contraction-residual bound, relaxation honesty,
+  heterogeneous subcycle endpoints, codegen equivalence, pointer identity,
+  ZST-layout, allocation rigor, dimension mismatch).
+- [x] `cargo test --doc` on `repos/harmonia`: 1/1 pass.
+- [x] `cargo clippy --all-targets -- -D warnings` on `repos/harmonia`: rc=0.
+- [x] `cargo fmt --check` on `repos/harmonia`: rc=0.
+- [x] `cargo doc --no-deps` on `repos/harmonia`: rc=0, no new warnings.
+- [x] File ADR 0023 at `docs/adr/0023-harmonia-coupling-promotion.md`
+  (`Proposed`): context, decision, dependency direction (`harmonia → horae
+  + athena-core + eunomia`), bounded context, migration plan, rejected
+  alternatives (consumer-owned loops, N>2 partitions, Harmonia-owned
+  time/convergence/units, dynamic dispatch), consequences, local
+  verification evidence, Relates-to cross-walk.
+- [x] Update `docs/adr/INDEX.md`: add ADR 0023 listing row + cross-walk row;
+  extend the authored-sequence narrative through 0023; update the
+  coupling-promotion topic-tag.
+- [x] Update `README.md` current-stack table with `harmonia` row marked
+  `Promotion pending per ADR 0023`; expand the `.gitmodules` count
+  narrative (19 packages + 1 in-flight); add `harmonia` to the Provider
+  ownership table (coupling-mechanics boundary); thread `harmonia → horae`
+  and `harmonia → athena` edges into the layer-map mermaid; retire
+  `harmonia` from the Candidate packages roadmap table; note the Phase 0
+  promotion in the Dependency order diagram; add `harmonia/` to the Layout
+  listing under `repos/`.
+- [x] File `HARM-PROMOTE-001` in the 2026-07-20 Provider integration audit
+  queue (`gap_audit.md`-anchored).
+- [x] File `HARM-PUBLISH-001` watchpoint in the 2026-07-20 Watchpoints
+  table.
+- [x] Record the 2026-07-20 State refresh row at the top of
+  `gap_audit.md` (Harmonia Phase 0 promotion gate evidence).
+
+Out-of-scope this session (unchanged):
+
+- Consumer migrations (`CFDrs`/`kwavers`/`helios` coupling loops →
+  `PartitionedPair`) are dependency-ordered follow-up work owned by the
+  respective integrator claim streams. They are NOT authorized by the
+  promotion and were not started.
+- Helios / CFDrs book chapter authoring is peer-owned scope. The existing
+  Helios book `docs/book/` has 28 chapter files; the CFDrs book
+  `docs/book/` is scaffolded. Authoring new content requires an explicit
+  user dispatch or a per-integrator claim-stream entry.
+- `harmonia` publish, `.gitmodules` registration, and parent gitlink
+  advance: blocked on user action (atlas-meta cannot create a GitHub
+  remote). Tracked in `HARM-PUBLISH-001`.
+
+Next actionable (awaiting user):
+
+1. Push the existing `repos/harmonia` worktree to
+   `https://github.com/ryancinsight/harmonia` (the `repository =` field in
+   `Cargo.toml` is already configured for that URL) and notify atlas-meta
+   with the published HEAD SHA.
+2. Decide whether the helios/CFDrs book expansion is dispatched to this
+   agent as a single session claim on those sub-trees, or routed through
+   the peer streams. Either is a valid dispatch; atlas-meta is currently
+   observing without a claim.

@@ -30,7 +30,12 @@ provider implementations are not part of the Atlas model.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 19 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 19 packages. A 20th
+package, `harmonia`, is in promotion per
+[ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md): the Phase 0
+implementation is complete and locally verified (14/14 nextest pass, clean
+clippy/rustdoc/doctest), but the public remote publish and parent gitlink
+advance remain pending.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -42,6 +47,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 19 packages.
 | Domain | [`coeus`](repos/coeus) | Strided tensors, automatic differentiation, neural networks, optimization, and sparse operations. |
 | Domain | [`consus`](repos/consus) | Native scientific storage formats, compression, and data transport. |
 | Domain | [`gaia`](repos/gaia) | Geometry predicates, topology, watertight meshes, and mesh generation. |
+| Domain | [`harmonia`](repos/harmonia) | Partitioned multiphysics coupling orchestration: two-partition synchronous Jacobi fixed-point iteration, interface transfer, relaxation, heterogeneous subcycling over Horae and Athena Core. Promotion pending per ADR 0023. |
 | Domain | [`horae`](repos/horae) | Typed simulation time, explicit integration, adaptive policy, event clipping, and subcycle ratios. |
 | Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, visualization, and VTK data models. |
 | Compute | [`hephaestus`](repos/hephaestus) | GPU device, buffer, transfer, and kernel substrate for WGPU and CUDA. |
@@ -71,6 +77,7 @@ flowchart TB
         coeus
         consus
         gaia
+        harmonia
         horae
         athena
         ritk
@@ -99,6 +106,8 @@ flowchart TB
     horae --> aequitas
     athena --> leto
     athena --> hephaestus
+    harmonia --> horae
+    harmonia --> athena
 ```
 
 ### Provider ownership
@@ -116,6 +125,7 @@ flowchart TB
 | Accelerator execution | `hephaestus` | Owns GPU devices, buffers, transfers, pipelines, and provider kernels. |
 | Time-integration policy | `horae` | Owns typed simulation time, explicit stepping, adaptive decisions, event clipping, and subcycle ratios; equations remain in domain packages. |
 | Iterative solver policy | `athena` | Owns Krylov recurrences, operator/preconditioner contracts, convergence, workspaces, and reports over Leto CPU and Hephaestus GPU execution. |
+| Multiphysics coupling | `harmonia` | Owns partitioned Jacobi coupling iteration, interface transfer, relaxation, and transactional state exchange; physics models, time law, convergence policy, arrays, devices, schedulers, and allocators remain in their authoritative providers. |
 | Spectral transforms | `apollo` | Owns transform mathematics and plans; accelerator mechanics remain in Hephaestus. |
 | Tensors and autodiff | `coeus` | Owns tensor semantics, differentiation, neural-network operations, and optimizers. |
 | Geometry and meshes | `gaia` | Owns geometric predicates, topology, and mesh generation. |
@@ -130,6 +140,8 @@ consumer-boundary integration are recorded in
 [ADR 0021](docs/adr/0021-aequitas-quantity-law-foundation.md).
 Horae and Athena's extraction, backend, and promotion boundaries are recorded
 in [ADR 0022](docs/adr/0022-horae-athena-provider-extraction.md).
+Harmonia's coupling-mechanics promotion boundary and Phase 0 contract are
+recorded in [ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md).
 
 ## Naming
 
@@ -185,9 +197,12 @@ A candidate becomes an Atlas package only when all of these conditions hold:
 
 ### Candidate packages
 
+`harmonia` was a P0 candidate; its Phase 0 promotion is recorded in
+[ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md) and reflected in the
+current-stack table. The remaining candidates are:
+
 | Priority | Working name | Classical reference | Proposed bounded context | Current drivers |
 | --- | --- | --- | --- | --- |
-| P0 | `harmonia` | Harmonia, goddess of harmony and concord | Multiphysics coupling, state exchange, relaxation, fixed-point convergence, and heterogeneous subcycling. It owns coupling mechanics, not physics models. | Coupling orchestration recurs in CFDrs, Kwavers, and Helios. |
 | P1 | `proteus` | Proteus, the shape-changing sea god | Material, phase, mixture, and constitutive-property vocabulary parameterized by Aequitas quantities and Eunomia scalars. | Material-property models recur across flow, acoustics, therapy, and imaging domains. |
 | P1 | `tyche` | Tyche, goddess of fortune and chance | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies. Execution remains in Moirai and persistence in Consus. | Validation and design-space exploration recur across the three integrators. |
 | P1 | `asclepius` | Asclepius, god of medicine and healing | Biological-response, tissue-effect, treatment-response, and therapy outcome models. | Helios and Kwavers share treatment and tissue-response concerns; RITK supplies imaging inputs. |
@@ -210,7 +225,7 @@ eunomia + leto + hephaestus
 └── athena
 
 horae + athena + proteus
-└── harmonia
+└── harmonia  (Phase 0 promoted per ADR 0023; pending remote publish)
     └── CFDrs / helios / kwavers
 
 moirai + consus ── tyche
@@ -219,9 +234,12 @@ domain result views ── iris
 ```
 
 `harmonia` follows the units, time, solver, and material contracts because it
-must compose those contracts rather than create competing versions. `ares`,
-`hyperion`, and `prometheus` remain domain-level candidates until two concrete
-consumers justify extraction.
+must compose those contracts rather than create competing versions; its
+Phase 0 contract is two-partition synchronous Jacobi coupling over Horae
+subcycle plans and Athena Core convergence policy, with no time, array,
+device, scheduler, or solver ownership. `ares`, `hyperion`, and `prometheus`
+remain domain-level candidates until two concrete consumers justify
+extraction.
 
 The following concerns are not package gaps:
 
@@ -249,6 +267,7 @@ atlas/
 │   ├── consus/
 │   ├── eunomia/
 │   ├── gaia/
+│   ├── harmonia/         # ADR 0023; pending submodule registration
 │   ├── helios/
 │   ├── hephaestus/
 │   ├── hermes/

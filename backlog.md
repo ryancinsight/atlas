@@ -937,3 +937,15 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 | ritk Burn-strip verify-block | ritk Batch #3 #4-#6 dep strip | `ba6da3a` 1-ahead + 5 WT dirty | peer pushes, cleans WT, nextest green | ✅ CLOSED 2026-07-19 (Burn→Coeus doc rename committed `22cdbffb`; zero Burn/ndarray production deps remain; `cargo check --workspace` clean) |
 | MNE-PERCPU-001 | Mnemosyne per-CPU cache | 720,896-byte dormant static | n/a | ✅ CLOSED 2026-07-15 (lazy OnceLock verified) |
 | LETO-SCALAR-001 | Leto scalar length pre-validation | Hermes error discard + silent partial write | n/a | ✅ CLOSED 2026-07-15 (`aecb231`); error propagation deferred to `[major]` |
+
+## Watchpoints — 2026-07-20 (atlas-meta coordinator view)
+
+| ID | Scope | Trigger | Re-open condition | Status |
+|---|---|---|---|---|
+| HARM-PUBLISH-001 | `repos/harmonia` submodule registration | Local `repos/harmonia` worktree is unversioned (`## No commits yet on main`); no `origin` remote configured; ADR 0023 filed `Proposed` with local Phase 0 evidence | User publishes the harmonia worktree to `https://github.com/ryancinsight/harmonia` and notifies atlas-meta (or a peer session confirms the remote exists with the local tree pushed); atlas-meta then runs the `.gitmodules` + gitlink advance, flips ADR 0023 to `Accepted`, and reconciles the current-stack table count | ⏳ open (local implementation green: 14/14 nextest, 1/1 doctest, clippy/fmt/rustdoc clean; remote publish pending user action) |
+
+## Provider integration audit queue — 2026-07-20
+
+| ID | Class | Status | Owner/scope | Acceptance |
+|---|---|---|---|---|
+| HARM-PROMOTE-001 | [arch] `[minor]` | **Proposed** — ADR 0023 filed; local evidence green; pending remote publish | harmonia / horae / athena-core / eunomia / atlas-meta | `repos/harmonia` published to `https://github.com/ryancinsight/harmonia`, then Atlas `.gitmodules` entry + parent gitlink advance, then ADR 0023 Status flip `Proposed` → `Accepted` + current-stack table reconciliation. Local evidence: 14/14 nextest pass (transaction theorem, contraction-residual bound, relaxation honesty, heterogeneous subcycle endpoints), 1/1 doctest, `cargo check --workspace --all-targets` rc=0, `cargo clippy --all-targets -- -D warnings` rc=0, `cargo fmt --check` rc=0, `cargo doc --no-deps` rc=0. Pending: atlas-meta cannot create GitHub remote; user is the only authority who can push the existing local clone to publish. |
