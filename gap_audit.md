@@ -59,6 +59,17 @@
   counterbalanced/order-drift/missing/universe/confidence value tests, and
   exact-head hosted consumer CI. No performance claim follows from static or
   unit evidence alone.
+- **Checkout duplication:** Kwavers resolved moving Atlas `main` through
+  shell text extraction, RITK duplicated eleven static provider pins, Apollo
+  cloned eight providers despite having no external path dependency, and
+  Helios omitted checkout entirely.
+- **Checkout resolution:** ADR 0027 assigns dependency, patch, and replacement
+  manifest parsing plus exact gitlink resolution to one Atlas Rust action.
+  Eleven native tests include real local Git repositories plus dependency-,
+  patch-, and replacement-only discovery, a gitlink checkout/reuse path,
+  dirty reuse, invalid reference, wrong-revision reuse, destination escape,
+  and unknown- or malformed-provider rejection. Consumer hosted adoption
+  remains.
 
 ## State refresh (2026-07-20) — Harmonia Phase 0 promotion
 

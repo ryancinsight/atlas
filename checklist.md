@@ -82,6 +82,9 @@
 - [x] Correct the gate after hosted falsification: require opposite-order
       agreement, pin the candidate measurement instrument, and derive
       family-wise confidence as `1 - 0.05 / m`.
+- [x] Implement one Atlas-owned exact-gitlink path-dependency checkout action
+      with Cargo-aware discovery, clean exact-revision reuse, and
+      value-semantic local Git integration tests.
 - [ ] Replace each copied Python gate with a pinned Atlas tool checkout and a
       true base/head Criterion run on one runner.
 - [ ] Restore Helios path-dependency checkout and the committed nextest runner.

@@ -1,0 +1,36 @@
+name: Checkout Atlas path dependencies
+description: Materialize sibling path dependencies at an exact Atlas gitlink graph
+
+inputs:
+  manifest:
+    description: Cargo manifest relative to GITHUB_WORKSPACE
+    required: true
+  destination:
+    description: Provider parent directory relative to GITHUB_WORKSPACE
+    required: true
+  atlas_ref:
+    description: Exact 40-character Atlas commit
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install checkout toolchain
+      uses: dtolnay/rust-toolchain@1.95.0
+
+    - name: Materialize exact provider graph
+      shell: bash
+      env:
+        ATLAS_MANIFEST: ${{ inputs.manifest }}
+        ATLAS_DESTINATION: ${{ inputs.destination }}
+        ATLAS_REVISION: ${{ inputs.atlas_ref }}
+        CARGO_TARGET_DIR: ${{ runner.temp }}/atlas-provider-checkout-target
+      run: |
+        set -euo pipefail
+        cargo run --locked \
+          --manifest-path "$GITHUB_ACTION_PATH/../../../tools/checkout-path-dependencies/Cargo.toml" \
+          -- \
+          --manifest "$GITHUB_WORKSPACE/$ATLAS_MANIFEST" \
+          --destination "$GITHUB_WORKSPACE/$ATLAS_DESTINATION" \
+          --atlas-ref "$ATLAS_REVISION" \
+          --scratch "$RUNNER_TEMP/atlas-provider-checkout"

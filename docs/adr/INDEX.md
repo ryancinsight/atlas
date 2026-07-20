@@ -31,8 +31,9 @@
 | <a id="ADR-0024"></a>**0024** | Centralize Criterion base/head regression classification in one Atlas-owned Rust gate | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / apollo / helios / kwavers | benchmark-verification |
 | <a id="ADR-0025"></a>**0025** | Promote Proteus as the Atlas owner for shared material-property and constitutive-law contracts: validated thermophysical newtypes (`MassDensity`, `SpecificHeatCapacity`, `ThermalConductivity`) over Aequitas quantities and Eunomia scalars with a GAT-based static constitutive seam (`ConstitutiveLaw<Law>`, `ConstantLaw`, `NoState`) and `Cow<str>` material identity | Accepted | 2026-07-20 | `[arch]` `[minor]` | proteus / aequitas / eunomia / atlas-meta | material-and-vocabulary |
 | <a id="ADR-0026"></a>**0026** | Promote Tyche as the Atlas owner for reproducible uncertainty studies: counter-stream random-access Latin hypercube designs, index-addressed ensemble execution, online Welford/Chan moments, Pearson screening, finite-sample split-conformal calibration, and Moirai/Consus provider adapters over a `no_std + alloc` core with GAT response seams and const-generic numeric widths | Accepted | 2026-07-20 | `[arch]` `[minor]` | tyche / tyche-core / moirai / consus / eunomia / atlas-meta | uncertainty-quantification |
+| <a id="ADR-0027"></a>**0027** | Resolve consumer path dependencies from one exact Atlas gitlink graph through an Atlas-owned Rust action | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / helios / kwavers / ritk | provider-graph |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0026 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, and uncertainty-quantification decisions. The index now carries the authored sequence through ADR 0026; the **Open Gaps** section below is retired as of 2026-07-06.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0027 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, and provider-checkout decisions. The index now carries the authored sequence through ADR 0027.
 
 ## Topic-keyword index
 
@@ -79,7 +80,8 @@ Cross-cuts statistical performance regression classification in Atlas
 consumers.
 
 - **ADR 0024** — one Atlas-owned Criterion confidence-interval gate with
-  exact-revision consumer pins. **Anchor for Apollo, Helios, and Kwavers
+  counterbalanced execution, family-wise error control, and exact-revision
+  consumer pins. **Anchor for Apollo, Helios, and Kwavers
   benchmark-regression CI.**
 
 ### Group F — Material-property and UQ vocabulary providers (`topic-tag: material-and-vocabulary`, `uncertainty-quantification`)
@@ -102,6 +104,14 @@ quantity law) without re-owning either; 0026 composes 0005 (Eunomia scalar
 contract) and lifts 0023 (Harmonia) partitioned models and 0025 (Proteus)
 material parameters as study inputs without crossing ownership
 boundaries.
+
+### Group G — Provider graph (`topic-tag: provider-graph`)
+
+Cross-cuts reproducible sibling path-dependency materialization.
+
+- **ADR 0020** — the Atlas gitlink graph is the exact provider revision SSOT.
+- **ADR 0027** — one Atlas-owned Rust action resolves consumer manifests
+  against that graph. **Anchor for Helios, Kwavers, and RITK CI checkout.**
 
 ## Status flow legend
 
@@ -132,6 +142,7 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 | 0024 | 0010 (cross-repo cadence) + 0011 (Atlas-meta ownership and consumer delivery) | copied Apollo, Helios, and Kwavers Python classifiers |
 | 0025 | 0002 (bounded material-property role in topology law) + 0005 (Eunomia scalar contract) + 0021 (Aequitas quantity law — property newtypes transparent over Aequitas quantities) + 0023 (Harmonia coupling, complementary boundary) | Proteus ADR 0001 |
 | 0026 | 0002 (bounded UQ role in topology law) + 0005 (Eunomia scalar contract) + 0023 (Harmonia — Tyche studies can wrap a partitioned model) + 0025 (Proteus — Tyche can sweep Proteus material parameters) | Tyche ADR 0001 |
+| 0027 | 0020 (exact provider graph) + 0010 (cross-repo cadence) + 0011 (Atlas-meta ownership) | consumer-owned provider checkout actions and moving Atlas branch resolution |
 | 0010 | 0005 (consumed by Batch #2 closure), 0006 (next-batch adoption), 0007 (per-`[patch]` sweep reuses), 0011 (ceremony counterpart) | inline `D:/atlas/backlog.md` ritual without ADR anchor |
 | 0011 | 0005, 0006, 0007 (numeric SSOT chain hygiene), 0010 (Per-batch convention) | inline `D:/atlas/backlog.md` OOS-record shape (first introduced by commit `283f38cf`); implicit cadence carried only in the commit narrative pre-ADR-0011 |
 
@@ -147,16 +158,6 @@ Cross-walk candidates (from ADR 0010 `## Per-batch name pattern`): each per-batc
 
 **Governed by**: **ADR 0010** (§Per-batch name pattern governs per-repo anchor reservations) + **ADR 0011** (§Decision §Leg 2 disjoint-scope rule governs the docs-only scope of this inventory — atlas-meta touches ONLY workspace-root + docs/ files for these ceremonies; the per-repo chore commits live in the inner-repo claim streams).
 
-## Open gaps
-
-- **ADR 0008 CLOSED 2026-07-06 (Phase-1B reframed — eunomia-side retroactive-closed, kwavers-side residual)** — `D:/atlas/docs/adr/0008-kwavers-math-csrscalar-migration.md` authored with `Proposed` status (now 10th ADR; was Open Gap in the 2026-07-06 INDEX.md pre-update state), §Decision §0 reframed 2026-07-06 per the phantom-blocker discovery in `D:/atlas/docs/coordination/2026-07-06-eunomia-csr-scalar-phantom-blocker.md`. **Phase-1A already landed via peer commit `1dc47028a` (2026-07-05 22:16)** on `codex/kwavers-core-moirai-parallel`: kwavers-math ported to eunomia/leto/moirai-parallel; nalgebra dropped (0 imports remaining); eunomia imports: 25; CsrScalar references in source: 19. **Phase-1B gate reframed** per the 2026-07-06 discovery: **the eunomia-side of the gate (eunomia `ComplexField::zero()`/`::one()` defaults per ADR 0006 Path B) is ALREADY CLOSED retroactively at eunomia HEAD `57d7789` (`crates/eunomia/src/traits/field.rs:149,158` verified)**; the residual Phase-1B is **kwavers-side only** (`kwavers-math/src/linear_algebra/sparse/csr.rs` `CsrScalar: Zero` → `CsrScalar: ComplexField` swap per ADR 0006 §Decision §2; `kwavers-boundary` `num_complex::Complex64` → `eunomia::Complex64` migration across 8 files / 9 sites per ADR 0006 §Decision §3; manifest cleanup per ADR 0006 §Decision §4) — owned by the kwavers claim stream per disjoint-scope (ADR 0011 §Decision §Leg 2 ABSOLUTE). Until the kwavers peer lands the per-subcrate `[patch]` atomic commit chain per ADR 0008 §Decision §1, the §1-§6 closure chain of ADR 0008 §Sequencing remains deferred. Cross-walks ADR 0005 (NumericElement upstream) + ADR 0006 (ComplexField doctrine, Path B chosen) + ADR 0007 (per-subcrate tactical) + ADR 0010 (Per-batch + sub-counter tag convention) + ADR 0011 (disjoint-scope rule) + the coordination discovery doc at `D:/atlas/docs/coordination/2026-07-06-eunomia-csr-scalar-phantom-blocker.md`. Reserves tag `kwavers-math/atlas-migration-push/csrscalar-migration` (sub-counter shape per ADR 0007).
-- **ADR 0009 missing** — no ADR captures the Cadence-Tactic-Exercise (CTE) on Batch #1 (`kwavers-solver` / `kwavers-physics` Rayon → Moirai) as a roll-forward decision. Filename placeholder: `D:/atlas/docs/adr/0009-batch1-rayon-to-moirai-cte.md`. Recommend authoring when kwavers Batch #1 closes (gate: paragraph-collapse on the 107 residual `ndarray::Zip::*` sites per `D:/atlas/backlog.md` ## In-flight claims).
-- **No open gaps as of 2026-07-06.** All 11 ADRs (0001-0008, 0009, 0010, 0011) are authored. The Atlas-meta doctrine sequence is closed. The next-open gaps will surface organically as the per-subcrate migration pushes (per ADR 0007, 0008, 0009) land and new cross-cutting decisions arise; the Open Gaps section is retired pending the next codex-session triage turn.
-
-### Recently closed (2026-07-06)
-
-- **ADR 0009 CLOSED 2026-07-06** — `D:/atlas/docs/adr/0009-kwavers-batch1-rayon-to-moirai-cte.md` authored with `Proposed` status (11th ADR; was Open Gap in prior INDEX.md state). Implementation pending next codex-session authorship per ADR 0009 §Sequencing 6-step closure chain + the 8-step paragraph-collapse closure gate (`cargo tree -p kwavers-solver | grep rayon` empty, etc.). Cross-walks ADR 0005 (NumericElement upstream) + ADR 0007 (per-subcrate sweep tactical) + ADR 0008 (per-subcrate `[minor]` precedent) + ADR 0010 (Per-batch + tag convention) + ADR 0011 (disjoint-scope rule). Reserves tag `kwavers/atlas-migration-push/batch1` (the FIRST cross-Atlas migration batch to land per the Per-batch reservations SSOT).
-
 ## Navigation guidance (session-start recipes)
 
 Map common codex-session scenarios to the ADR pairs (or triples) you should read BEFORE making any commit:
@@ -170,6 +171,8 @@ Map common codex-session scenarios to the ADR pairs (or triples) you should read
 - **Verifying an Atlas-provider migration push** (a tagged batch + pointer-advance + docs-rounding commit chain): cross-walk **ADR 0010** §Verification plan + **ADR 0011** §Decision §Leg 2 disjoint-scope rule.
 - **Changing benchmark-regression policy**: read **ADR 0024** before editing
   the Atlas gate or any Apollo, Helios, or Kwavers integration.
+- **Changing path-dependency checkout**: read **ADR 0020** + **ADR 0027**
+  before editing the Atlas action or any Helios, Kwavers, or RITK integration.
 
 ## References
 
