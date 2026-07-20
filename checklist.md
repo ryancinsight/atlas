@@ -82,6 +82,10 @@
 - [x] Correct the gate after hosted falsification: require opposite-order
       agreement, pin the candidate measurement instrument, and derive
       family-wise confidence as `1 - 0.05 / m`.
+- [ ] Correct the remaining run-phase confound after Apollo hosted run
+      `29764170548`: intersect two phase-reversed ABBA and BAAB replications,
+      fail closed across their benchmark universes, and retain the 5%
+      family-wise confidence bound.
 - [x] Implement one Atlas-owned exact-gitlink path-dependency checkout action
       with Cargo-aware discovery, clean exact-revision reuse, and
       value-semantic local Git integration tests.
