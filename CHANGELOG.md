@@ -28,6 +28,12 @@
   advance. Add a matching leto gitlink advance 4158b8e -> 02d74fd wrapping
   PR #55 (perf/leto-ziggurat-normal).
 
+- Add ADR 0027, the Atlas-owned
+  `tools/checkout-path-dependencies` Rust engine, and its composite action.
+  Consumer Cargo paths resolve through exact Atlas gitlinks; moving refs,
+  duplicated provider lists, dirty or wrong-revision reuse, unknown providers,
+  missing manifests, and destination escapes fail closed.
+
 - Add ADR 0024 and the Atlas-owned `tools/criterion-regression` Rust gate for
   counterbalanced Criterion median regressions, 5% family-wise error control,
   and fail-closed missing or mismatched evidence.

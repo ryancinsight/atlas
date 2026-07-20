@@ -65,6 +65,10 @@
 - Evidence: unit and CLI tests, warning-denied Clippy and rustdoc, synthetic
   positive/overlapping/missing comparison fixtures, consumer workflow review,
   and hosted CI on each published child revision.
+- Current increment: the counterbalanced gate is merged. Atlas now owns one
+  exact-gitlink checkout action for Helios, Kwavers, and RITK; Apollo's
+  checkout is classified as dead because Apollo has no external Cargo path
+  dependencies. Consumer migration and hosted verification remain.
 
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor] — done
 

@@ -31,8 +31,9 @@
 | <a id="ADR-0024"></a>**0024** | Centralize Criterion base/head regression classification in one Atlas-owned Rust gate | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / apollo / helios / kwavers | benchmark-verification |
 | <a id="ADR-0025"></a>**0025** | Promote Proteus as the Atlas owner for shared material-property and constitutive-law contracts: validated thermophysical newtypes (`MassDensity`, `SpecificHeatCapacity`, `ThermalConductivity`) over Aequitas quantities and Eunomia scalars with a GAT-based static constitutive seam (`ConstitutiveLaw<Law>`, `ConstantLaw`, `NoState`) and `Cow<str>` material identity | Accepted | 2026-07-20 | `[arch]` `[minor]` | proteus / aequitas / eunomia / atlas-meta | material-and-vocabulary |
 | <a id="ADR-0026"></a>**0026** | Promote Tyche as the Atlas owner for reproducible uncertainty studies: counter-stream random-access Latin hypercube designs, index-addressed ensemble execution, online Welford/Chan moments, Pearson screening, finite-sample split-conformal calibration, and Moirai/Consus provider adapters over a `no_std + alloc` core with GAT response seams and const-generic numeric widths | Accepted | 2026-07-20 | `[arch]` `[minor]` | tyche / tyche-core / moirai / consus / eunomia / atlas-meta | uncertainty-quantification |
+| <a id="ADR-0027"></a>**0027** | Resolve consumer path dependencies from one exact Atlas gitlink graph through an Atlas-owned Rust action | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / helios / kwavers / ritk | provider-graph |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0026 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, and uncertainty-quantification decisions. The index now carries the authored sequence through ADR 0026; the **Open Gaps** section below is retired as of 2026-07-06.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0027 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, and provider-checkout decisions. The index now carries the authored sequence through ADR 0027; the **Open Gaps** section below is retired as of 2026-07-06.
 
 ## Topic-keyword index
 
@@ -79,7 +80,8 @@ Cross-cuts statistical performance regression classification in Atlas
 consumers.
 
 - **ADR 0024** — one Atlas-owned Criterion confidence-interval gate with
-  exact-revision consumer pins. **Anchor for Apollo, Helios, and Kwavers
+  counterbalanced execution, family-wise error control, and exact-revision
+  consumer pins. **Anchor for Apollo, Helios, and Kwavers
   benchmark-regression CI.**
 
 ### Group F — Material-property and UQ vocabulary providers (`topic-tag: material-and-vocabulary`, `uncertainty-quantification`)
@@ -102,6 +104,14 @@ quantity law) without re-owning either; 0026 composes 0005 (Eunomia scalar
 contract) and lifts 0023 (Harmonia) partitioned models and 0025 (Proteus)
 material parameters as study inputs without crossing ownership
 boundaries.
+
+### Group G — Provider graph (`topic-tag: provider-graph`)
+
+Cross-cuts reproducible sibling path-dependency materialization.
+
+- **ADR 0020** — the Atlas gitlink graph is the exact provider revision SSOT.
+- **ADR 0027** — one Atlas-owned Rust action resolves consumer manifests
+  against that graph. **Anchor for Helios, Kwavers, and RITK CI checkout.**
 
 ## Status flow legend
 
@@ -132,6 +142,7 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 | 0024 | 0010 (cross-repo cadence) + 0011 (Atlas-meta ownership and consumer delivery) | copied Apollo, Helios, and Kwavers Python classifiers |
 | 0025 | 0002 (bounded material-property role in topology law) + 0005 (Eunomia scalar contract) + 0021 (Aequitas quantity law — property newtypes transparent over Aequitas quantities) + 0023 (Harmonia coupling, complementary boundary) | Proteus ADR 0001 |
 | 0026 | 0002 (bounded UQ role in topology law) + 0005 (Eunomia scalar contract) + 0023 (Harmonia — Tyche studies can wrap a partitioned model) + 0025 (Proteus — Tyche can sweep Proteus material parameters) | Tyche ADR 0001 |
+| 0027 | 0020 (exact provider graph) + 0010 (cross-repo cadence) + 0011 (Atlas-meta ownership) | consumer-owned provider checkout actions and moving Atlas branch resolution |
 | 0010 | 0005 (consumed by Batch #2 closure), 0006 (next-batch adoption), 0007 (per-`[patch]` sweep reuses), 0011 (ceremony counterpart) | inline `D:/atlas/backlog.md` ritual without ADR anchor |
 | 0011 | 0005, 0006, 0007 (numeric SSOT chain hygiene), 0010 (Per-batch convention) | inline `D:/atlas/backlog.md` OOS-record shape (first introduced by commit `283f38cf`); implicit cadence carried only in the commit narrative pre-ADR-0011 |
 
@@ -170,6 +181,8 @@ Map common codex-session scenarios to the ADR pairs (or triples) you should read
 - **Verifying an Atlas-provider migration push** (a tagged batch + pointer-advance + docs-rounding commit chain): cross-walk **ADR 0010** §Verification plan + **ADR 0011** §Decision §Leg 2 disjoint-scope rule.
 - **Changing benchmark-regression policy**: read **ADR 0024** before editing
   the Atlas gate or any Apollo, Helios, or Kwavers integration.
+- **Changing path-dependency checkout**: read **ADR 0020** + **ADR 0027**
+  before editing the Atlas action or any Helios, Kwavers, or RITK integration.
 
 ## References
 

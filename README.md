@@ -379,6 +379,17 @@ controls family-wise false regressions at 5%, and fails closed on missing
 comparisons or mismatched benchmark universes. It has no duplicated package
 scripts or empirical percentage threshold.
 
+### Path dependency checkout
+
+Atlas owns sibling provider materialization in
+[`tools/checkout-path-dependencies`](tools/checkout-path-dependencies) and its
+[composite action](.github/actions/checkout-path-dependencies/action.yml).
+Consumers pass a Cargo manifest, provider destination, and exact Atlas commit.
+The action derives provider names from Cargo paths, URLs from `.gitmodules`,
+and revisions from `repos/<provider>` gitlinks. Moving branch names, duplicated
+provider lists, wrong-revision reuse, dirty reuse, missing dependency
+manifests, and paths outside the authorized destination fail closed.
+
 ## Add a package
 
 A package must pass the [promotion gate](#promotion-gate) before it enters the
