@@ -24,6 +24,12 @@
 
 ### Changed
 
+- Clarify the parent-gitlink revision contract and safe submodule inspection in
+  the Atlas README. Correct the roadmap so Harmonia composes Horae and Athena
+  without depending on material-law ownership. Advance Athena to `96fb26d`
+  with external observer construction and package documentation, and Horae to
+  documentation merge `92af1a2`.
+
 - Promote Horae and Athena as public Atlas packages. Horae owns typed
   time-integration policy over Aequitas. Athena owns shared PCG and restarted
   right-preconditioned GMRES recurrences over Leto CPU and Hephaestus WGPU,
