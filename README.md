@@ -43,7 +43,7 @@ addition.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 21 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 22 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -59,6 +59,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 21 packages.
 | Domain | [`horae`](repos/horae) | Typed simulation time, explicit integration, adaptive policy, event clipping, and subcycle ratios. |
 | Domain | [`proteus`](repos/proteus) | Material-property, phase, mixture, and constitutive-law vocabulary parameterized by Aequitas quantities and Eunomia scalars. |
 | Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, visualization, and VTK data models. |
+| Domain | [`tyche`](repos/tyche) | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies over Moirai execution and Consus persistence. |
 | Compute | [`hephaestus`](repos/hephaestus) | GPU device, buffer, transfer, and kernel substrate for WGPU and CUDA. |
 | Compute | [`hermes`](repos/hermes) | CPU SIMD/SWAR vocabulary, ISA dispatch, and vector kernels. |
 | Compute | [`leto`](repos/leto) | N-dimensional host arrays, layouts, views, operations, and linear algebra. |
@@ -91,6 +92,7 @@ flowchart TB
         athena
         proteus
         ritk
+        tyche
     end
 
     subgraph Compute["Compute, data, memory, and execution"]
@@ -142,6 +144,7 @@ flowchart TB
 | Scientific persistence | `consus` | Owns storage formats, compression, and persistent scientific data exchange. |
 | Medical imaging | `ritk` | Owns image formats, processing, registration, and VTK data models. |
 | Material properties | `proteus` | Owns material, phase, mixture, and constitutive-property vocabulary over Aequitas quantities and Eunomia scalars. |
+| Uncertainty quantification | `tyche` | Owns sampling, statistics, sensitivity, ensemble, and reproducible study vocabulary over Moirai execution and Consus persistence. |
 
 The accepted GPU boundary is recorded in
 [ADR 0001](docs/adr/0001-gpu-accelerator-substrate.md). The reproducible
@@ -211,12 +214,12 @@ A candidate becomes an Atlas package only when all of these conditions hold:
 
 Harmonia graduated from this roadmap through
 [ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md). Proteus graduated
-as a registered submodule (material-property foundation, v0.1.0). The
+as a registered submodule (material-property foundation, v0.1.0). Tyche
+graduated as a registered submodule (UQ foundation, v0.1.0). The
 remaining candidates are:
 
 | Priority | Working name | Classical reference | Proposed bounded context | Current drivers |
 | --- | --- | --- | --- | --- |
-| P1 | `tyche` | Tyche, goddess of fortune and chance | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies. Execution remains in Moirai and persistence in Consus. | Validation and design-space exploration recur across the three integrators. |
 | P1 | `asclepius` | Asclepius, god of medicine and healing | Biological-response, tissue-effect, treatment-response, and therapy outcome models. | Helios and Kwavers share treatment and tissue-response concerns; RITK supplies imaging inputs. |
 | P2 | `iris` | Iris, messenger goddess associated with the rainbow | Domain-neutral visualization, diagnostic views, and render/plot contracts. File formats remain with RITK or Consus. | Simulation and validation outputs need a common presentation boundary. |
 | P2 | `ares` | Ares, god of war | Solid mechanics, deformation, contact, and fluid-structure interaction. | Elastography and coupled CFD can provide the first two consumers. |

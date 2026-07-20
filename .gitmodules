@@ -80,3 +80,6 @@
 [submodule "repos/proteus"]
 	path = repos/proteus
 	url = https://github.com/ryancinsight/proteus
+[submodule "repos/tyche"]
+	path = repos/tyche
+	url = https://github.com/ryancinsight/tyche
