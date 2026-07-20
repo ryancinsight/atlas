@@ -1,5 +1,73 @@
 # atlas — cross-repository integration gap audit
 
+## Session 2026-07-20 (PM cycle 3) — bounded Nextest sweep + gitlink reconciliation to `000b77a`
+
+- **Finding:** peer advanced atlas-meta main from `9dde66e` (Session 2 close)
+  through `3f40b79` (Session 2 tail) and `0e62614` (Session 3 orient) to
+  `000b77a` (10 commits inside the session window), plus a fresh unregistered
+  `repos/asclepius/` directory containing a two-crate workspace candidate
+  (`asclepius` + `asclepius-coeus`, published to `github.com/ryancinsight/
+  asclepius`, edition 2024, resolver 3, MSRV 1.95, `#![forbid(unsafe_code)]`, `#
+  [deny(missing_docs)]`). Peer landings between Sessions 2 and 3 included:
+  - PR #60 (`9a651ff`): `codex/provider-checkout-action` centralizes
+    consumer path-dependency checkout in one atlas-owned Rust tool at
+    `tools/checkout-path-dependencies` and a composite action at `.github/
+    actions/checkout-path-dependencies/`. ADR 0027 sets the SSOT rule: one
+    exact atlas commit supplies each provider URL and gitlink revision; moving
+    refs, duplicated provider lists, dirty or wrong-revision reuse, unknown
+    providers, missing manifests, and destination escapes all fail closed.
+  - PR #61 (`9bfb722`): `codex/criterion-phase-balance` strengthens the ABBA
+    counterbalanced gate to require phase-reversed ABBA + BAAB agreement on
+    both benchmark universes (`3fe7b66`, `9c0b062`) and labels them
+    consistently (`ead14c5` records the falsification evidence).
+  - Multi-cycle gitlink advances: `0e62614` (aequitas/helios/tyche),
+    `ddd9bc4` (kwavers/CFDrs), `293632f` (kwavers PyO3 ndarray intermediate
+    removal + temperature-dependent Proteus migration land), `ea2753e` (Proteus
+    provider pin alignment), `3a1d5e9` (helios `dvh_optimization` +
+    `collapsed_cone_3d` examples), `afd5e16` (reconcile coeus/CFDrs/aequitas/
+    apollo/gaia/leto), `000b77a` (CFDrs Proteus integration advance).
+- **Resolution (this session):** continuous-verification sweep of all 22
+  packages registered in `.gitmodules`. Per-package `cargo nextest run
+  --no-fail-fast --manifest-path repos/<P>/Cargo.toml --workspace` with
+  per-invocation `timeout_ms <= 240000`, executed through a `spawn_agent`
+  subagent and a follow-up targeted re-verify subagent to confirm 2 reported
+  build failures were stale-cache artifacts. Total evidence: 18,179 tests
+  run, 18,179 pass, 34 skip, 0 fail across 22 packages. CFDrs at peer-active
+  branch `codex/tyche-sampling-integration` (`7051c852`) builds + tests at
+  3074/3074 (30 skip, 1 slow); coeus at peer main `9e5a67c` (lock
+  reconciliation post-aequitas 0f9d77a unification) builds + tests at
+  938/938; leto at peer main `14e32aa` (PR #56 LU reconstruction + scaling
+  bench merge) builds + tests at 586/586 including 32/32 leto-ops lib.
+  Hephaestus core/wgpu/metal subset passes 211/211 (cuda + python excluded
+  per `HEPH-CUDA-WIN-001`). kwavers slow tests at 56s sit inside the said
+  peer-reviewed `profile.heavy` upper bound (`slow-timeout = { period =
+  "60s", terminate-after = 5 }`; `elastic-fwi` test-group overrides set 90s /
+  `grace-period = "10s"`) — within `engineering_gates` `test-time budget`,
+  not an atlas-meta defect.
+- **Evidence tier:** empirical tier — bounded per-package `cargo nextest`
+  runner invocation in clean resolve state; the two reported build failures
+  (CFDrs aequitas version skew, coeus missing `panel_factor`/`blocked_lu`
+  symbols) did not reproduce on re-verify with fresh cargo metadata (both
+  `cargo check --all-targets` rc=0 and full nextest green), confirming the
+  initial run was a stale-cache artifact of the first sweep. The
+  `aequitas#0f9d77ab` pin is uniform across CFDrs/coeus/helios/hephaestus/
+  kwavers/proteus Cargo.lock entries, demonstrating peer's `chore(coeus):
+  Reconcile Cargo.lock aequitas rev` (`9e5a67c`) propagated to all relevant
+  consumers.
+- **Residual:** peer remains mid-stream on CFDrs `codex/tyche-sampling-
+  integration` (21 dirty working-tree files; 3074/3074 pass on the branch
+  but not yet merged to origin/main). kwavers `codex/kwavers-policy-residual
+  ` (`3ce692da8`, 2 commits ahead of origin/main `25a266b67`) is unmerged
+  peer WIP. `?? repos/asclepius/` is a peer-cloned unregistered-package
+  candidate (no `.gitmodules` entry, no atlas-level ADR); atlas-meta records
+  the observation only and does NOT register the submodule without the peer's
+  explicit `[arch]` promotion commit (per `documentation_discipline` ADR
+  SSOT — Proteus/Tyche pattern from ADR 0025/0026). `ATLAS-INTEGRATION-034`
+  (peer-owned Codex `/root` Benchmark gate repair) is materially advanced —
+  PR #60 + PR #61 are the 5th and 6th closure boxes — leaving consumer-side
+  hosted-CI adoption on Apollo/Helios/Kwavers/RITK as the remaining residual
+  per `gap_audit.md` 2026-07-20 benchmark-regression-gate row.
+
 ## State refresh (2026-07-20) — Proteus/Tyche ADR backfill and coeus 0.18.0 bump
 
 - **Finding:** peer landed Proteus (`f043d22`, `beb2713`) and Tyche (`feed3bc`,

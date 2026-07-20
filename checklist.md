@@ -1849,6 +1849,72 @@ Next actionable (awaiting user):
    `Cargo.toml` is already configured for that URL) and notify atlas-meta
    with the published HEAD SHA.
 2. Decide whether the helios/CFDrs book expansion is dispatched to this
+
+## Session 2026-07-20 (PM cycle 3) — bounded Nextest sweep + peer gitlink reconciliation to `000b77a`
+
+- [x] Re-orient at session start: fetch and reconcile local main against
+      origin (entered at `9dde66e`, re-oriented to peer-advanced `0e62614`,
+      exited with peer advancing to `000b77a` mid-session — 10 peer commits
+      between Session 2 close and Session 3 close including PR #60 centralizing
+      provider checkout, PR #61 strengthening phase-balance gate, and 7
+      gitlink-advance chores).
+- [x] Delegate a bounded per-package `cargo nextest run --no-fail-fast
+      --workspace` sweep to a `spawn_agent` subagent across all 22 packages
+      in `.gitmodules` (hephaestus subset excludes `hephaestus-cuda` and
+      `hephaestus-python` per `HEPH-CUDA-WIN-001`). Total: 18,179 tests run,
+      18,179 pass, 34 skip, 0 fail.
+- [x] Follow-up targeted re-verify (second `spawn_agent`) for the 2 packages
+      the first sweep reported as build failures (CFDrs aequitas version skew,
+      coeus missing `panel_factor`/`blocked_lu`). Confirmed stale-cache
+      artifacts — both `cargo check --workspace --all-targets` rc=0 and full
+      nextest green on re-verify (CFDrs at peer-active `7051c852`
+      `codex/tyche-sampling-integration` 3074/3074 pass with 30 skip and 1
+      slow; coeus at peer main `9e5a67c` 938/938 pass after aequitas lock
+      reconciliation propagated by peer commit `9e5a67c`).
+- [x] Confirm kwavers slow tests (max 56s) sit inside the peer-reviewed
+      `profile.heavy` upper bound (`slow-timeout = { period = "60s",
+      terminate-after = 5 }` plus 90s `elastic-fwi` test-group override); not
+      an `engineering_gates` defect.
+- [x] Record the Session 3 State refresh row at the top of `gap_audit.md`
+      summarizing the sweep, peer landings, and stale-cache-artifact
+      finding.
+- [x] Append `ASCLEPIUS-REG-001` watchpoint to `backlog.md` Session 3
+      Watchpoints table recording the peer-cloned unregistered candidate
+      \(records-only observation; atlas-meta does not register the submodule
+      without the peer's explicit \`[arch]\` promotion commit per the
+      Proteus/Tyche pattern of ADR 0025/0026\).
+- [x] Refresh the `HEPH-CUDA-WIN-001` watchpoint with the Session 3
+      re-confirmation evidence \(211/211 core/wgpu/metal subset; cuda +
+      python skipped\).
+
+Out-of-scope this session \(unchanged from prior sessions\):
+
+- Consumer hosted-CI adoption of the centralized checkout action \(PR #60\)
+  and the strengthened Criterion gate \(PR #61\) on Apollo/Helios/Kwavers/RITK
+  is the residual of `ATLAS-INTEGRATION-034` and remains peer-owned Codex
+  `/root` work; atlas-meta records-only.
+- Helios/CFDrs book chapter authoring remains peer-owned scope; atlas-meta
+  records-only without explicit user dispatch.
+- `repos/asclepius/` registration as the 23rd Atlas package awaits the peer's
+  `[arch]` promotion commit + in-repo ADR + `.gitmodules` entry + gitlink;
+  atlas-meta records-only until then.
+
+Next actionable \(awaiting user or peer event\):
+
+1. Peer merges CFDrs `codex/tyche-sampling-integration` to `origin/main` and
+   publishes; atlas-meta advances the CFDrs gitlink.
+2. Peer merges kwavers `codex/kwavers-policy-residual` to `origin/main` and
+   publishes; atlas-meta advances the kwavers gitlink.
+3. Peer lands asclepius `[arch]` promotion commit; atlas-meta records the
+   registration and updates `.gitmodules` count to 23.
+4. Peer closes `ATLAS-INTEGRATION-034` consumer-side residuals on
+   Apollo/Helios/Kwavers/RITK hosted CI; atlas-meta verifies and retires the
+   row.
+5. User dispatches Helios/CFDrs book chapter authoring to atlas-meta OR
+   routes it through peer claim streams.
+6. User authorizes hephaestus-cuda Windows link fix upstream in
+   `cuda-oxide`/`cutile-rs` OR files upstream issues; atlas-meta supports
+   either path on explicit dispatch.
    agent as a single session claim on those sub-trees, or routed through
    the peer streams. Either is a valid dispatch; atlas-meta is currently
    observing without a claim.
