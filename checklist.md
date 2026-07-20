@@ -12,6 +12,9 @@
       Kwavers CI and capture Helios's missing path-dependency failure.
 - [x] Implement the Atlas-owned Rust confidence-interval gate with recursive
       Criterion result discovery and fail-closed missing comparisons.
+- [x] Correct the gate after hosted falsification: require opposite-order
+      agreement, pin the candidate measurement instrument, and derive
+      family-wise confidence as `1 - 0.05 / m`.
 - [ ] Replace each copied Python gate with a pinned Atlas tool checkout and a
       true base/head Criterion run on one runner.
 - [ ] Restore Helios path-dependency checkout and the committed nextest runner.
