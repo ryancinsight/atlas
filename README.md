@@ -43,7 +43,7 @@ addition.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 22 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 23 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -51,6 +51,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 22 packages.
 | Integrator | [`helios`](repos/helios) | Radiation-therapy dose, planning, imaging, and delivery simulation. |
 | Integrator | [`kwavers`](repos/kwavers) | Acoustic, ultrasound, therapy, imaging, and coupled wave simulation. |
 | Domain | [`apollo`](repos/apollo) | Fourier, spectral, wavelet, number-theoretic, and related transforms. |
+| Domain | [`asclepius`](repos/asclepius) | Biological-response, tissue-effect, treatment-response, and therapy-outcome laws over Aequitas quantities and Eunomia scalars, with a one-way Coeus adapter. |
 | Domain | [`athena`](repos/athena) | Backend-neutral PCG and restarted GMRES over Leto CPU and Hephaestus WGPU execution. |
 | Domain | [`coeus`](repos/coeus) | Strided tensors, automatic differentiation, neural networks, optimization, and sparse operations. |
 | Domain | [`consus`](repos/consus) | Native scientific storage formats, compression, and data transport. |
@@ -84,6 +85,7 @@ flowchart TB
 
     subgraph Domains["Reusable scientific domains"]
         apollo
+        asclepius
         coeus
         consus
         gaia
@@ -120,6 +122,8 @@ flowchart TB
     athena --> hephaestus
     harmonia --> horae
     harmonia --> athena
+    asclepius --> aequitas
+    asclepius --> eunomia
 ```
 
 ### Provider ownership
@@ -144,6 +148,7 @@ flowchart TB
 | Scientific persistence | `consus` | Owns storage formats, compression, and persistent scientific data exchange. |
 | Medical imaging | `ritk` | Owns image formats, processing, registration, and VTK data models. |
 | Material properties | `proteus` | Owns validated material properties, material identity, and static constitutive-law contracts over Aequitas quantities and Eunomia scalars. |
+| Biological response | `asclepius` | Owns typed gEUD, TCP, NTCP, CEM43, Arrhenius damage, and independent-response composition; consumer workflows, clinical parameters, imaging, and transport remain local. |
 | Uncertainty quantification | `tyche` | Owns sampling, statistics, sensitivity, ensemble, and reproducible study vocabulary over Moirai execution and Consus persistence. |
 
 The accepted GPU boundary is recorded in
@@ -155,7 +160,9 @@ consumer-boundary integration are recorded in
 Horae and Athena's extraction, backend, and promotion boundaries are recorded
 in [ADR 0022](docs/adr/0022-horae-athena-provider-extraction.md).
 Harmonia's Phase 0 coupling boundary and promotion evidence are recorded in
-[ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md).
+[ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md). Asclepius
+biological-response ownership and its consumer migration boundary are recorded
+in [ADR 0028](docs/adr/0028-asclepius-biological-response-promotion.md).
 
 ## Naming
 
@@ -166,6 +173,7 @@ Classical names describe bounded contexts rather than implementation variants.
 | `atlas` | Atlas, the Titan who bears the heavens | Coordinates the independently versioned stack. |
 | `aequitas` | Aequitas, Roman personification of equity and fair measure | Physical quantities, units, and dimensional law. |
 | `apollo` | Apollo, associated with music and ordered harmony | Spectral and numerical transforms. |
+| `asclepius` | Asclepius, god of medicine and healing | Biological-response and treatment-outcome laws. |
 | `athena` | Athena, goddess of wisdom and strategy | Iterative solver policy over CPU and accelerator providers. |
 | `coeus` | Coeus, Titan associated with intellect and inquiry | Tensor computation and learning systems. |
 | `consus` | Consus, Roman god associated with stored grain | Scientific storage and persistence. |
@@ -213,14 +221,14 @@ A candidate becomes an Atlas package only when all of these conditions hold:
 ### Candidate packages
 
 Harmonia graduated from this roadmap through
-[ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md). Proteus graduated
-as a registered submodule (material-property foundation, v0.1.0). Tyche
-graduated as a registered submodule (UQ foundation, v0.1.0). The
+[ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md). Proteus and Tyche
+graduated as registered material-property and uncertainty-quantification
+providers. Asclepius graduated through
+[ADR 0028](docs/adr/0028-asclepius-biological-response-promotion.md). The
 remaining candidates are:
 
 | Priority | Working name | Classical reference | Proposed bounded context | Current drivers |
 | --- | --- | --- | --- | --- |
-| P1 | `asclepius` | Asclepius, god of medicine and healing | Biological-response, tissue-effect, treatment-response, and therapy outcome models. | Helios and Kwavers share treatment and tissue-response concerns; RITK supplies imaging inputs. |
 | P2 | `iris` | Iris, messenger goddess associated with the rainbow | Domain-neutral visualization, diagnostic views, and render/plot contracts. File formats remain with RITK or Consus. | Simulation and validation outputs need a common presentation boundary. |
 | P2 | `ares` | Ares, god of war | Solid mechanics, deformation, contact, and fluid-structure interaction. | Elastography and coupled CFD can provide the first two consumers. |
 | P2 | `hyperion` | Hyperion, Titan associated with heavenly light | Electromagnetic, optical, and radiation-transport operators. | Kwavers and Helios contain adjacent wave and radiation concerns. |
@@ -244,7 +252,9 @@ proteus ──────────────────────┼─
 domain physics ───────────────┘
 
 moirai + consus ── tyche
-coeus + aequitas ── asclepius
+aequitas + eunomia ── asclepius
+asclepius + coeus ── asclepius-coeus ── helios
+asclepius ── kwavers
 domain result views ── iris
 ```
 
@@ -276,11 +286,13 @@ atlas/
 │   ├── CFDrs/
 │   ├── aequitas/
 │   ├── apollo/
+│   ├── asclepius/
 │   ├── athena/
 │   ├── coeus/
 │   ├── consus/
 │   ├── eunomia/
 │   ├── gaia/
+│   ├── harmonia/
 │   ├── helios/
 │   ├── hephaestus/
 │   ├── hermes/
@@ -290,8 +302,10 @@ atlas/
 │   ├── melinoe/
 │   ├── mnemosyne/
 │   ├── moirai/
+│   ├── proteus/
 │   ├── ritk/
-│   └── themis/
+│   ├── themis/
+│   └── tyche/
 ├── scripts/              # cross-package orchestration
 ├── .gitmodules
 └── README.md

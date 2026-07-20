@@ -4,6 +4,14 @@
 
 ### Added
 
+- Register Asclepius at merge object
+  `ceb8b6d9e0f119181258a27ae4888aa099b64d99` as the twenty-third Atlas
+  package and file ADR 0028. Asclepius owns typed gEUD, TCP, NTCP, CEM43,
+  Arrhenius damage, and independent-response composition over Aequitas and
+  Eunomia; `asclepius-coeus` supplies the one-way autodiff adapter. The stack
+  map, dependency graph, provider table, naming registry, roadmap, layout,
+  ADR index, backlog, checklist, and gap audit now share that boundary.
+
 - File ADR 0025 (`docs/adr/0025-proteus-material-property-promotion.md`) at
   `Accepted` to record the Proteus promotion decision. Proteus owns shared
   material-property and constitutive-law contracts: validated thermophysical

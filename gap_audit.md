@@ -1,5 +1,35 @@
 # atlas — cross-repository integration gap audit
 
+## State refresh (2026-07-20) — Asclepius P1 promotion
+
+- **Finding:** Helios and Kwavers owned repeated biological-response formulas
+  outside their transport domains: Helios gEUD/TCP/NTCP and a second Coeus
+  graph expression; Kwavers CEM43, Arrhenius damage, and independent-insult
+  composition. The public Asclepius workspace at merge `ceb8b6d` now owns
+  these laws through a `no_std` core and one-way Coeus adapter, but Atlas did
+  not register the provider and hosted Helios CI could not authenticate the
+  unmaterialized Git dependency.
+- **Resolution:** register the exact remote-default Asclepius gitlink, file
+  ADR 0028, and reconcile the stack map and PM artifacts. The design borrows
+  observations through a GAT, streams arbitrary exact-size iterator pipelines,
+  writes cumulative results into caller storage, uses a const-generic ZST for
+  fixed-mechanism composition, preserves borrowed or owned tissue identity
+  with `Cow`, and monomorphizes law and backend dispatch. Mathematical proofs
+  cover generalized-mean bounds/homogeneity, probability
+  midpoint/monotonicity, thermal accumulation/survival, stream equivalence,
+  and independent-response range; property, analytical, differential, layout,
+  and allocation tests establish implementation evidence.
+- **Residual:** Helios hosted CI must consume the exact merged Atlas provider
+  graph, and Kwavers must replace its remaining thermal-response duplicates.
+  Both are active dependency-ordered slices under `ATLAS-INTEGRATION-037`; this
+  registration does not claim their hosted or consumer closure prematurely.
+  Public visibility and unauthenticated Git reachability are confirmed.
+- **Provider-graph evidence:** the checkout engine at pushed Atlas commit
+  `6fb5576` materializes the exact public Asclepius gitlink `ceb8b6d` into a
+  clean checkout and verifies the nested core manifest. Its format, locked
+  check, warning-denied Clippy, 11/11 Nextest cases, doctest, and
+  warning-clean rustdoc gates pass.
+
 ## Session 2026-07-20 (PM cycle 3) — bounded Nextest sweep + gitlink reconciliation to `000b77a`
 
 - **Finding:** peer advanced atlas-meta main from `9dde66e` (Session 2 close)

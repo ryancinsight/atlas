@@ -83,3 +83,6 @@
 [submodule "repos/tyche"]
 	path = repos/tyche
 	url = https://github.com/ryancinsight/tyche
+[submodule "repos/asclepius"]
+	path = repos/asclepius
+	url = https://github.com/ryancinsight/asclepius.git

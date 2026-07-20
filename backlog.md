@@ -7,6 +7,34 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor] — in progress
+
+- Owner: Codex `/root`; scope: public Asclepius core and Coeus adapter, Atlas
+  registration, direct Helios and Kwavers adoption, deletion of superseded
+  response formulas, provider-graph checkout, documentation, and proof-backed
+  verification. Images, grids, transport, material properties, tissue
+  catalogs, planning objectives, and clinical parameter recommendations remain
+  consumer-owned.
+- Acceptance: Atlas pins fetched Asclepius `origin/HEAD`; ADR 0028 records the
+  dependency boundary and theorems; Helios directly uses Asclepius radiation
+  laws and the Coeus adapter; Kwavers directly uses Asclepius CEM43, Arrhenius,
+  and independent-insult laws; duplicate computation and compatibility
+  wrappers are absent; focused and full consumer gates plus exact-head hosted
+  CI pass.
+- Evidence: Asclepius merge object `ceb8b6d` contains the `no_std` law core and
+  one-way Coeus adapter. The public provider branch additionally streams
+  arbitrary exact-size thermal observations into caller-owned outputs without
+  an intermediate collection and proves bitwise equivalence to borrowed
+  histories. Analytical, property, differential, layout, ZST, GAT, `Cow`,
+  const-generic, allocation, and `f32`/`f64` tests pass. The Atlas checkout
+  engine materializes that public gitlink from pushed registration commit
+  `6fb5576` and verifies the nested package manifest. Helios commit `dcf3ffc`
+  passes 270/270 local Nextest plus workspace check, Clippy, doctest, rustdoc,
+  examples, and cargo-deny. Atlas merge and hosted consumer closure remain
+  active in this increment; Kwavers migration is the next dependency-ordered
+  slice. Repository visibility is confirmed public and unauthenticated Git
+  resolves its exact remote-default head.
+
 ## ATLAS-INTEGRATION-035 — Proteus and Tyche promotion ADRs [arch] [minor] — done
 
 - Owner: atlas-meta; scope: file ADRs 0025 and 0026 documenting the Proteus
@@ -1053,7 +1081,7 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 
 | ID | Scope | Trigger | Re-open condition | Status |
 |---|---|---|---|---|
-| ASCLEPIUS-REG-001 | `repos/asclepius/` unregistered 23rd candidate | Peer created untracked `repos/asclepius/` workspace with two crates (`asclepius` + `asclepius-coeus`), published to `github.com/ryancinsight/asclepius`; atlas `.gitmodules` does not yet register a submodule entry; no atlas-level ADR filed | Peer lands the `[arch]` promotion commit (register `.gitmodules` entry + advance gitlink + file ADR following Proteus/Tyche pattern of ADR 0025/0026); atlas-meta records-only meanwhile per `concurrent_agents` | ⏳ open (records-only observation; no action until peer emits promotion commit; asclepius appears in 5 sibling `Cargo.lock` files already as `aequitas#asclepius`/`asclepius#be3a1ac` so peer crate is consumer-active in advance of formal atlas-meta registration) |
+| ASCLEPIUS-REG-001 | `repos/asclepius/` registration | Published two-crate workspace and fetched remote-default merge `ceb8b6d`; explicit P1 promotion request satisfies the prior reopen trigger | Merge `.gitmodules`, exact gitlink, ADR 0028, and stack documentation; then materialize the provider in consumer CI | 🔄 in progress under `ATLAS-INTEGRATION-037` (registration authored on `codex/atlas-residual-closure`; consumer closure follows the exact Atlas merge OID) |
 
 ## Provider integration audit queue — 2026-07-20
 
