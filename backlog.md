@@ -7,6 +7,20 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-INTEGRATION-034 — Benchmark gate repair [arch] [patch] — in progress
+
+- Owner: Codex `/root`; scope: Atlas Criterion comparison SSOT and the Apollo,
+  Helios, and Kwavers CI integrations that introduced copied, same-run
+  baseline checks. Unrelated benchmark bodies and performance tuning remain
+  out of scope.
+- Acceptance: one Atlas-owned Rust tool classifies Criterion's base/head
+  relative median confidence interval, missing comparisons fail closed, each
+  consumer runs the base and head on one runner, copied Python gates are
+  deleted, and exact-head hosted CI passes.
+- Evidence: unit and CLI tests, warning-denied Clippy and rustdoc, synthetic
+  positive/overlapping/missing comparison fixtures, consumer workflow review,
+  and hosted CI on each published child revision.
+
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor] — done
 
 - Owner: Codex `/root`; scope: Harmonia Phase 0, Athena observer construction,

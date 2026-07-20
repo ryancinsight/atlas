@@ -28,8 +28,9 @@
 | <a id="ADR-0021"></a>**0021** | Promote Aequitas from roadmap candidate to the public physical-quantity and dimensional-law foundation | Accepted | 2026-07-19 | `[arch]` | aequitas / kwavers / atlas-meta | quantity-law |
 | <a id="ADR-0022"></a>**0022** | Promote Horae time-integration policy over Aequitas and Athena Krylov policy over Leto CPU plus Hephaestus WGPU after deleting Leto's duplicate CG and GMRES recurrences | Accepted | 2026-07-19 | `[arch]` `[minor]` | horae / athena / leto / hephaestus / atlas-meta | simulation-providers |
 | <a id="ADR-0023"></a>**0023** | Promote Harmonia partitioned multiphysics coupling over Horae subcycle plans and Athena Core convergence policy | Accepted | 2026-07-20 | `[arch]` `[minor]` | harmonia / horae / athena-core / eunomia / atlas-meta | simulation-providers |
+| <a id="ADR-0024"></a>**0024** | Centralize Criterion base/head regression classification in one Atlas-owned Rust gate | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / apollo / helios / kwavers | benchmark-verification |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0023 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, and coupling-promotion decisions. The index now carries the authored sequence through ADR 0023; the **Open Gaps** section below is retired as of 2026-07-06.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0024 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, and verification decisions. The index now carries the authored sequence through ADR 0024; the **Open Gaps** section below is retired as of 2026-07-06.
 
 ## Topic-keyword index
 
@@ -70,6 +71,15 @@ Cross-cuts the per-batch + per-class delegate + disjoint-scope + OOS-record cade
 
 Cross-walks: 0011's disjoint-scope rule (§Decision §Leg 2) re-affirms 0010's "Atlas-parent is the ceremony repo" boundary; 0011's `## Out-of-scope (explicit)` cadence is the SSOT for any submodule-internal (`§C`) or Helios-internal (`§D`) OOS record. 0010's Per-batch name pattern is the inheritance convention that per-submodule cleanup events (e.g. `PR 0007`'s `helios/atlas-migration-push/internal-dirty-batch1` sub-counter) follow.
 
+### Group E — Benchmark verification (`topic-tag: benchmark-verification`)
+
+Cross-cuts statistical performance regression classification in Atlas
+consumers.
+
+- **ADR 0024** — one Atlas-owned Criterion confidence-interval gate with
+  exact-revision consumer pins. **Anchor for Apollo, Helios, and Kwavers
+  benchmark-regression CI.**
+
 ## Status flow legend
 
 The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `documentation_discipline`:
@@ -96,6 +106,7 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 | 0021 | 0005 (Eunomia numeric SSOT) + 0020 (provider graph) | Aequitas ADR 0001; Kwavers ADR 040 |
 | 0022 | 0001/0004 (Hephaestus GPU substrate and kernel seam) + 0005 (Eunomia scalar law) + 0021 (Aequitas quantity law) | Horae ADR 0001; Athena ADRs 0001-0002; Leto ADRs 0014-0015 record the completed solver extractions |
 | 0023 | 0002 (topology law — Coupling role) + 0021 (Aequitas quantity law — dev-dep fixture only) + 0022 (Horae and Athena Core providers composed, not re-owned) | Harmonia ADR 0001 |
+| 0024 | 0010 (cross-repo cadence) + 0011 (Atlas-meta ownership and consumer delivery) | copied Apollo, Helios, and Kwavers Python classifiers |
 | 0010 | 0005 (consumed by Batch #2 closure), 0006 (next-batch adoption), 0007 (per-`[patch]` sweep reuses), 0011 (ceremony counterpart) | inline `D:/atlas/backlog.md` ritual without ADR anchor |
 | 0011 | 0005, 0006, 0007 (numeric SSOT chain hygiene), 0010 (Per-batch convention) | inline `D:/atlas/backlog.md` OOS-record shape (first introduced by commit `283f38cf`); implicit cadence carried only in the commit narrative pre-ADR-0011 |
 
@@ -132,6 +143,8 @@ Map common codex-session scenarios to the ADR pairs (or triples) you should read
 - **Working on GPU/accelerator substrate** (any consumer-authored kernel, dispatcher, device seam, or secure-parallelization question): read **ADR 0001** + **ADR 0002** + **ADR 0004** BEFORE any `hephaestus`/`apollo`/`coeus` GPU work. If the work crosses process boundaries, also read **ADR 0003**.
 - **Working on a per-submodule inner-cleanup event** (e.g. the PR 0007 `helios/atlas-migration-push/internal-dirty-batch1` sub-counter): follow **ADR 0010** §Per-batch name pattern (adopt the `{consumer-repo}/atlas-migration-push/{batch-id}` shape) + **ADR 0011** §Decision §Leg 2 disjoint-scope rule (NO ATLAS-META RECLAIM).
 - **Verifying an Atlas-provider migration push** (a tagged batch + pointer-advance + docs-rounding commit chain): cross-walk **ADR 0010** §Verification plan + **ADR 0011** §Decision §Leg 2 disjoint-scope rule.
+- **Changing benchmark-regression policy**: read **ADR 0024** before editing
+  the Atlas gate or any Apollo, Helios, or Kwavers integration.
 
 ## References
 

@@ -1,5 +1,19 @@
 # atlas — cross-repository integration gap audit
 
+## State refresh (2026-07-20) — benchmark regression gate
+
+- **Finding:** Apollo, Helios, and Kwavers each copied a Python script and then
+  saved a baseline from the same benchmark output they immediately checked.
+  The gate was tautological and could not detect a regression. Helios CI also
+  omitted Atlas path-dependency checkout and used bare `cargo test`.
+- **Resolution in progress:** replace the copies with one Atlas-owned Rust
+  tool that consumes Criterion's true base/head relative-change confidence
+  interval and fails closed when a baseline comparison is absent. Each child
+  workflow will pin the authoritative Atlas tool revision.
+- **Evidence tier:** synthetic confidence-interval and missing-comparison
+  value tests plus exact-head hosted consumer CI. No performance claim follows
+  from static or unit evidence alone.
+
 ## State refresh (2026-07-20) — Harmonia Phase 0 promotion
 
 - **Finding:** three integrators repeat coupling orchestration, while Atlas

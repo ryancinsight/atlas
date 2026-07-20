@@ -233,7 +233,7 @@ eunomia
 eunomia + leto + hephaestus
 └── athena
 
-horae + athena ── harmonia ──┐
+horae + athena ── harmonia ───┐
 proteus ──────────────────────┼── CFDrs / helios / kwavers
 domain physics ───────────────┘
 
@@ -362,6 +362,15 @@ Advancing package pins is a reviewed provider-graph change. Fetch and verify
 the package's remote default branch, update its gitlink, run the affected
 provider and consumer gates, and commit the parent pointer only after the child
 revision is published.
+
+### Benchmark regression gate
+
+Atlas owns the cross-package Criterion comparison policy in
+[`tools/criterion-regression`](tools/criterion-regression). Package CI runs a
+saved baseline at the pull request base revision and a comparison at the head
+revision on the same runner. The gate fails on a wholly positive relative
+median-change confidence interval or a missing comparison; it has no
+duplicated package scripts or arbitrary percentage threshold.
 
 ## Add a package
 

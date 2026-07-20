@@ -4,6 +4,10 @@
 
 ### Added
 
+- Add ADR 0024 and the Atlas-owned `tools/criterion-regression` Rust gate for
+  statistically significant Criterion median regressions and missing
+  base/head comparisons.
+
 - File ADR 0023 (`docs/adr/0023-harmonia-coupling-promotion.md`) at `Proposed`
   to promote `harmonia` as the Atlas coupling-mechanics provider. Phase 0
   contract is two-partition synchronous Jacobi `PartitionedPair<M, T,
