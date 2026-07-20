@@ -30,14 +30,14 @@ The promotion gate now has a concrete vertical implementation:
 The detailed package decision and comparison evidence live in
 [Aequitas ADR 0001](https://github.com/ryancinsight/aequitas/blob/49ee8004e008a480ac871c3782d00d921ba41c01/docs/adr/0001-aequitas-quantity-law.md).
 The public consumer migration is specified by
-[Kwavers ADR 040](https://github.com/ryancinsight/kwavers/blob/829f255a38d88a44eb4b85fa7d5b4ae65c17145a/docs/ADR/040-aequitas-quantity-provider.md).
+[Kwavers ADR 040](https://github.com/ryancinsight/kwavers/blob/49c116ffb7466f9163b7762f03bc74725d8026c3/docs/ADR/040-aequitas-quantity-provider.md).
 
 ## Decision
 
 Promote Aequitas from a roadmap candidate to the Atlas foundation layer and
 pin merge commit `eeff191f9b7caecf4f161b2fe832bf170f43c6ac` in the
-meta-repository. Advance the integrated Hephaestus, CFDrs, and Helios pointers
-with the same provider-graph unit.
+meta-repository. Advance the integrated Hephaestus, CFDrs, Helios, and Kwavers
+pointers with the same provider-graph unit.
 
 Provider ownership is:
 
@@ -89,13 +89,15 @@ duplication. `uom` is retained only as Aequitas test-oracle evidence.
 - Hephaestus PR #53 passes typed spacing through a live 4/4 GPU boundary suite
   and merged as `1ab1d6b`.
 - CFDrs PR #298 passes warning-denied GPU Clippy and 13/13 focused Laplacian
-  tests and merged as `7c37f7f`.
+  tests and merged as `7c37f7f`; Atlas pins that remote default instead of the
+  unpublished `a34a01d` compatibility-alias follow-up.
 - Helios PR #9 passes warning-denied Clippy, 17/17 native tests, doctests,
   rustdoc, and a Git-baseline SemVer check and merged as `71f565e`.
 - Release codegen for typed velocity arithmetic contains the same single
   scalar division body as the raw implementation.
-- Kwavers focused verification at `829f255a3` passed Clippy, 1,554 native
-  tests, and 8 runnable doctests. Its hosted matrix remains the merge gate for
-  PR #295 after the Atlas Hephaestus pointer advances.
+- Kwavers PR #295 passed all 24 hosted checks, including stable/beta/nightly,
+  feature combinations, CUDA compilation, 1,554 native tests, doctests,
+  Miri, security, coverage, and Criterion benchmarks, then merged as
+  `49c116ffb`.
 - `.gitmodules`, the current-stack table, provider ownership, naming table,
   layer diagram, roadmap, and ADR index agree on Aequitas's current role.

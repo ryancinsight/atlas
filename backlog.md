@@ -7,6 +7,22 @@
 > **Active sprint target version**: 0.16.0 (atlas meta — base `main` at
 > `3d0c340`).
 
+## ATLAS-INTEGRATION-030 — Aequitas consumer closure [patch] — done
+
+- Owner: Codex `/root`; scope: merged CFDrs PR #298 and Kwavers PR #295,
+  their parent gitlinks, and Aequitas provider-graph evidence.
+- Acceptance: Kwavers replaces bubble-energy `uom` ownership with Aequitas,
+  CFDrs carries typed spacing into Hephaestus, and Atlas records only merged
+  remote-default objects rather than local-only child commits.
+- Evidence: Kwavers head `0fb31d800` passes all 24 hosted checks, including
+  stable/beta/nightly, feature combinations, CUDA, 1,554 native tests,
+  doctests, Miri, security, coverage, and Criterion benchmarks. CFDrs PR #298
+  passes warning-denied GPU Clippy and 13/13 focused Laplacian tests.
+- Closure: Kwavers PR #295 merges as
+  `49c116ffb7466f9163b7762f03bc74725d8026c3`; CFDrs PR #298 merges as
+  `7c37f7f30dc286e8853bdf41da7652abeadebe23`. The parent replaces unpublished
+  gitlinks `156531eeb` and `a34a01d1` with those fetched `origin/main` commits.
+
 ## ATLAS-INTEGRATION-028 — Hephaestus PM convergence [patch] — done
 
 - Owner: Codex `/root`; scope: Hephaestus PR #52's PM-only default commit and
