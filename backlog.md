@@ -7,6 +7,24 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor] — done
+
+- Owner: Codex `/root`; scope: Harmonia Phase 0, Athena observer construction,
+  public Harmonia remote, Atlas submodule registration, ADR 0023, stack map,
+  and provider boundary documentation. Consumer coupling-loop migrations
+  remain separate vertical increments.
+- Acceptance: Harmonia owns transactional two-partition Jacobi coupling over
+  Horae time/subcycling and Athena convergence policy; production code is
+  `no_std`, statically dispatched, allocation-free after workspace
+  construction for built-in borrowed transfers, and contains no physics,
+  array, accelerator, allocator, or scheduler ownership.
+- Evidence: Harmonia 14/14 nextest, one doctest, `f32`/`f64` instantiations,
+  analytical contraction bound, generated properties, subcycle differential,
+  transaction, pointer-identity, ZST-layout, allocation, and release-codegen
+  checks; warning-denied Clippy/rustdoc, `no_std`, example, cargo-deny, and
+  exact-head GitHub CI. Atlas pins fetched Harmonia `origin/main`
+  `cf6ce3e9175bbc3eebc51918d137492b2da5edba`.
+
 ## ATLAS-INTEGRATION-032 — Documentation and checkout hygiene [patch] — done
 
 - Owner: Codex `/root`; scope: Atlas, Athena, and Horae READMEs; Athena

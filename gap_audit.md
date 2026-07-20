@@ -1,5 +1,26 @@
 # atlas — cross-repository integration gap audit
 
+## State refresh (2026-07-20) — Harmonia Phase 0 promotion
+
+- **Finding:** three integrators repeat coupling orchestration, while Atlas
+  listed Harmonia only as an unregistered roadmap candidate. Athena's
+  non-exhaustive iteration telemetry also lacked the public constructor an
+  external convergence orchestrator requires.
+- **Resolution:** add and merge Athena's canonical observer constructor;
+  implement and publish Harmonia's transactional two-partition Jacobi loop
+  over Horae subcycle plans and Athena convergence policy; register the
+  fetched public remote-default gitlink and accept ADR 0023.
+- **Evidence tier:** analytical contraction oracle and proof, 256 generated
+  contractive cases, subcycle differential, `f32`/`f64` instantiations,
+  transaction and relaxation-honesty regressions, borrowed-pointer and ZST
+  layout assertions, zero allocations after workspace construction, release
+  codegen equivalence, warning-denied static gates, and hosted verification
+  plus supply-chain CI.
+- **Residual:** CFDrs, Kwavers, and Helios still own their existing coupling
+  loops. Each consumer migration is a separate dependency-ordered vertical
+  replacement that must delete its superseded loop; Phase 0 contains no shim
+  or hidden fallback.
+
 ## State refresh (2026-07-20) — documentation and checkout hygiene
 
 - **Finding:** Atlas documented Harmonia as depending on future material-law

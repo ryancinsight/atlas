@@ -24,6 +24,11 @@
 
 ### Changed
 
+- Promote public Harmonia as the twentieth Atlas package. Phase 0 owns
+  transactional two-partition Jacobi coupling, borrowed interface transfer,
+  relaxation, and heterogeneous subcycling over Horae and Athena Core. Record
+  the fetched remote-default gitlink and ADR 0023.
+
 - Clarify the parent-gitlink revision contract and safe submodule inspection in
   the Atlas README. Correct the roadmap so Harmonia composes Horae and Athena
   without depending on material-law ownership. Advance Athena to `96fb26d`

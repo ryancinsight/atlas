@@ -43,7 +43,7 @@ addition.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 19 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 20 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -55,6 +55,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 19 packages.
 | Domain | [`coeus`](repos/coeus) | Strided tensors, automatic differentiation, neural networks, optimization, and sparse operations. |
 | Domain | [`consus`](repos/consus) | Native scientific storage formats, compression, and data transport. |
 | Domain | [`gaia`](repos/gaia) | Geometry predicates, topology, watertight meshes, and mesh generation. |
+| Domain | [`harmonia`](repos/harmonia) | Transactional partitioned multiphysics coupling, interface transfer, relaxation, and heterogeneous subcycling. |
 | Domain | [`horae`](repos/horae) | Typed simulation time, explicit integration, adaptive policy, event clipping, and subcycle ratios. |
 | Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, visualization, and VTK data models. |
 | Compute | [`hephaestus`](repos/hephaestus) | GPU device, buffer, transfer, and kernel substrate for WGPU and CUDA. |
@@ -84,6 +85,7 @@ flowchart TB
         coeus
         consus
         gaia
+        harmonia
         horae
         athena
         ritk
@@ -112,6 +114,8 @@ flowchart TB
     horae --> aequitas
     athena --> leto
     athena --> hephaestus
+    harmonia --> horae
+    harmonia --> athena
 ```
 
 ### Provider ownership
@@ -129,6 +133,7 @@ flowchart TB
 | Accelerator execution | `hephaestus` | Owns GPU devices, buffers, transfers, pipelines, and provider kernels. |
 | Time-integration policy | `horae` | Owns typed simulation time, explicit stepping, adaptive decisions, event clipping, and subcycle ratios; equations remain in domain packages. |
 | Iterative solver policy | `athena` | Owns Krylov recurrences, operator/preconditioner contracts, convergence, workspaces, and reports over Leto CPU and Hephaestus GPU execution. |
+| Multiphysics coupling | `harmonia` | Owns partitioned coupling iteration, interface transfer, relaxation, and transactional state exchange; physics models, time law, and convergence policy remain with their providers. |
 | Spectral transforms | `apollo` | Owns transform mathematics and plans; accelerator mechanics remain in Hephaestus. |
 | Tensors and autodiff | `coeus` | Owns tensor semantics, differentiation, neural-network operations, and optimizers. |
 | Geometry and meshes | `gaia` | Owns geometric predicates, topology, and mesh generation. |
@@ -143,6 +148,8 @@ consumer-boundary integration are recorded in
 [ADR 0021](docs/adr/0021-aequitas-quantity-law-foundation.md).
 Horae and Athena's extraction, backend, and promotion boundaries are recorded
 in [ADR 0022](docs/adr/0022-horae-athena-provider-extraction.md).
+Harmonia's Phase 0 coupling boundary and promotion evidence are recorded in
+[ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md).
 
 ## Naming
 
@@ -158,6 +165,7 @@ Classical names describe bounded contexts rather than implementation variants.
 | `consus` | Consus, Roman god associated with stored grain | Scientific storage and persistence. |
 | `eunomia` | Eunomia, goddess of good order | Datatype laws and conversion order. |
 | `gaia` | Gaia, personification of Earth | Geometry, topology, and meshes. |
+| `harmonia` | Harmonia, goddess of harmony and concord | Multiphysics coupling mechanics. |
 | `helios` | Helios, personification of the Sun | Radiation and imaging simulation. |
 | `hephaestus` | Hephaestus, god of the forge | Accelerator devices and kernels. |
 | `hermes` | Hermes, swift messenger god | SIMD dispatch and vector execution. |
@@ -198,9 +206,12 @@ A candidate becomes an Atlas package only when all of these conditions hold:
 
 ### Candidate packages
 
+Harmonia graduated from this roadmap through
+[ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md). The remaining
+candidates are:
+
 | Priority | Working name | Classical reference | Proposed bounded context | Current drivers |
 | --- | --- | --- | --- | --- |
-| P0 | `harmonia` | Harmonia, goddess of harmony and concord | Multiphysics coupling, state exchange, relaxation, fixed-point convergence, and heterogeneous subcycling. It owns coupling mechanics, not physics models. | Coupling orchestration recurs in CFDrs, Kwavers, and Helios. |
 | P1 | `proteus` | Proteus, the shape-changing sea god | Material, phase, mixture, and constitutive-property vocabulary parameterized by Aequitas quantities and Eunomia scalars. | Material-property models recur across flow, acoustics, therapy, and imaging domains. |
 | P1 | `tyche` | Tyche, goddess of fortune and chance | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies. Execution remains in Moirai and persistence in Consus. | Validation and design-space exploration recur across the three integrators. |
 | P1 | `asclepius` | Asclepius, god of medicine and healing | Biological-response, tissue-effect, treatment-response, and therapy outcome models. | Helios and Kwavers share treatment and tissue-response concerns; RITK supplies imaging inputs. |
@@ -232,10 +243,11 @@ domain result views ── iris
 ```
 
 `harmonia` follows typed time and convergence contracts but does not depend on
-material law or own physics. Integrators compose its coupling mechanics with
-`proteus` or domain-owned constitutive models. `ares`, `hyperion`, and
-`prometheus` remain domain-level candidates until two concrete consumers
-justify extraction.
+material law or own physics. Its Phase 0 API provides two-partition synchronous
+Jacobi coupling over Horae subcycle plans and Athena Core convergence policy.
+Integrators compose those mechanics with `proteus` or domain-owned
+constitutive models. `ares`, `hyperion`, and `prometheus` remain domain-level
+candidates until two concrete consumers justify extraction.
 
 The following concerns are not package gaps:
 
