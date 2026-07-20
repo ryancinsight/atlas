@@ -57,7 +57,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 22 packages.
 | Domain | [`gaia`](repos/gaia) | Geometry predicates, topology, watertight meshes, and mesh generation. |
 | Domain | [`harmonia`](repos/harmonia) | Transactional partitioned multiphysics coupling, interface transfer, relaxation, and heterogeneous subcycling. |
 | Domain | [`horae`](repos/horae) | Typed simulation time, explicit integration, adaptive policy, event clipping, and subcycle ratios. |
-| Domain | [`proteus`](repos/proteus) | Material-property, phase, mixture, and constitutive-law vocabulary parameterized by Aequitas quantities and Eunomia scalars. |
+| Domain | [`proteus`](repos/proteus) | Validated material-property, material-identity, and static constitutive-law vocabulary parameterized by Aequitas quantities and Eunomia scalars. |
 | Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, visualization, and VTK data models. |
 | Domain | [`tyche`](repos/tyche) | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies over Moirai execution and Consus persistence. |
 | Compute | [`hephaestus`](repos/hephaestus) | GPU device, buffer, transfer, and kernel substrate for WGPU and CUDA. |
@@ -143,7 +143,7 @@ flowchart TB
 | Geometry and meshes | `gaia` | Owns geometric predicates, topology, and mesh generation. |
 | Scientific persistence | `consus` | Owns storage formats, compression, and persistent scientific data exchange. |
 | Medical imaging | `ritk` | Owns image formats, processing, registration, and VTK data models. |
-| Material properties | `proteus` | Owns material, phase, mixture, and constitutive-property vocabulary over Aequitas quantities and Eunomia scalars. |
+| Material properties | `proteus` | Owns validated material properties, material identity, and static constitutive-law contracts over Aequitas quantities and Eunomia scalars. |
 | Uncertainty quantification | `tyche` | Owns sampling, statistics, sensitivity, ensemble, and reproducible study vocabulary over Moirai execution and Consus persistence. |
 
 The accepted GPU boundary is recorded in
