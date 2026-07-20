@@ -13,10 +13,11 @@
   Helios, and Kwavers CI integrations that introduced copied, same-run
   baseline checks. Unrelated benchmark bodies and performance tuning remain
   out of scope.
-- Acceptance: one Atlas-owned Rust tool classifies Criterion's base/head
-  relative median confidence interval, missing comparisons fail closed, each
-  consumer runs the base and head on one runner, copied Python gates are
-  deleted, and exact-head hosted CI passes.
+- Acceptance: one Atlas-owned Rust tool classifies counterbalanced Criterion
+  relative median intervals, controls family-wise error at 5%, and fails closed
+  on missing or mismatched evidence; each consumer holds its candidate harness
+  constant, runs both revision orders on one runner, deletes copied Python
+  gates, and passes exact-head hosted CI.
 - Evidence: unit and CLI tests, warning-denied Clippy and rustdoc, synthetic
   positive/overlapping/missing comparison fixtures, consumer workflow review,
   and hosted CI on each published child revision.

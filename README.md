@@ -372,11 +372,12 @@ revision is published.
 ### Benchmark regression gate
 
 Atlas owns the cross-package Criterion comparison policy in
-[`tools/criterion-regression`](tools/criterion-regression). Package CI runs a
-saved baseline at the pull request base revision and a comparison at the head
-revision on the same runner. The gate fails on a wholly positive relative
-median-change confidence interval or a missing comparison; it has no
-duplicated package scripts or arbitrary percentage threshold.
+[`tools/criterion-regression`](tools/criterion-regression). Package CI holds
+the candidate benchmark harness constant and runs both revision orders on one
+runner. The gate requires a candidate slowdown to reproduce in both orders,
+controls family-wise false regressions at 5%, and fails closed on missing
+comparisons or mismatched benchmark universes. It has no duplicated package
+scripts or empirical percentage threshold.
 
 ## Add a package
 
