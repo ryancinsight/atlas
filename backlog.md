@@ -7,9 +7,13 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch] — ready for specification
+## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch] — in progress
 
-- Owner: unclaimed. Outcome: replace the speculative two-package target with
+- Owner: Codex `/root`; last-update: 2026-07-21; claimed scope:
+  `repos/hyperion/**` plus this item's owner-keyed Atlas PM entries until the
+  provider is published. Consumer repositories remain outside this claim until
+  their live worktrees permit disjoint migration scopes. Outcome: replace the
+  speculative two-package target with
   an evidence-gated P2 program whose registrations are consequences of code
   consolidation. Scope is Hyperion's first photon/optical transport slice plus
   the prerequisites that decide whether Ares or Prometheus can become a second
