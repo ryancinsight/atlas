@@ -69,6 +69,11 @@
 
 ### Changed
 
+- Move the shared Cargo target configuration from `repos/.cargo` to the Atlas
+  root so root tools, provider repositories, and linked worktrees beneath
+  `worktrees/` resolve one `target` cache. Reconcile Apollo, Helios,
+  Hephaestus, Leto, and Tyche gitlinks with their fetched public defaults.
+
 - Promote public Harmonia as the twentieth Atlas package. Phase 0 owns
   transactional two-partition Jacobi coupling, borrowed interface transfer,
   relaxation, and heterogeneous subcycling over Horae and Athena Core. Record
