@@ -557,13 +557,14 @@ trigger for a peer-published main pointer).
   `29764170548` still reported twelve apparent regressions under one ABBA
   block, exposing an unbalanced run-phase effect. A harness revision also
   changes the measurement instrument unless it is pinned.
-- **Resolution in progress:** the Atlas Rust tool will require agreement
-  across phase-reversed ABBA and BAAB replications, identical benchmark
+- **Resolution in progress:** the Atlas Rust tool requires agreement across
+  two base-first and two candidate-first comparison pairs, identical benchmark
   universes, complete estimates, and Bonferroni confidence `1 - 0.05 / m` for
-  `m` cases. Across the eight positions, baseline and candidate occupy equal
-  sums and squared sums, balancing their exposure to constant, linear, and
-  quadratic period terms. Consumer CI will hold the candidate harness constant
-  and pin the authoritative Atlas revision.
+  `m` cases. Both revisions remain on one runner inside each pair; long
+  instruments may distribute pairs across isolated jobs without mixing
+  machines inside an interval. Each pair must also materialize both revisions
+  at the same filesystem path. Consumer CI holds the candidate harness constant
+  and pins the authoritative Atlas revision.
 - **Evidence tier:** analytical family-wise bound, synthetic
   counterbalanced/order-drift/missing/universe/confidence value tests, and
   exact-head hosted consumer CI. No performance claim follows from static or
@@ -577,8 +578,12 @@ trigger for a peer-published main pointer).
   Eleven native tests include real local Git repositories plus dependency-,
   patch-, and replacement-only discovery, a gitlink checkout/reuse path,
   dirty reuse, invalid reference, wrong-revision reuse, destination escape,
-  and unknown- or malformed-provider rejection. Consumer hosted adoption
-  remains.
+  and unknown- or malformed-provider rejection. Apollo and Helios hosted
+  adoption is complete. Kwavers PR 299 merges at `198f2b8c`; exact-head run
+  `29841101698` completes all four pair jobs but reports three replicated
+  apparent regressions with no semantic production delta. The workflow's
+  distinct fixed checkout paths remain correlated with revision, so a
+  same-path rerun is the final hosted gate.
 
 ## State refresh (2026-07-20) — Harmonia Phase 0 promotion
 

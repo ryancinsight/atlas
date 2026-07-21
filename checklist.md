@@ -134,8 +134,10 @@
 - [x] Implement one Atlas-owned exact-gitlink path-dependency checkout action
       with Cargo-aware discovery, clean exact-revision reuse, and
       value-semantic local Git integration tests.
-- [ ] Replace each copied Python gate with a pinned Atlas tool checkout and a
-      true base/head Criterion run on one runner.
+- [ ] Replace each copied Python gate with a pinned Atlas tool checkout and
+      four true, co-located base/head Criterion pairs: two base-first and two
+      candidate-first, with both revisions materialized at one filesystem path
+      inside each pair.
 - [x] Restore Helios path-dependency checkout and the committed nextest runner.
 - [ ] Merge all three child fixes, advance Atlas gitlinks, close the README
       alignment review thread, and remove obsolete local artifacts.

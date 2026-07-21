@@ -9,12 +9,11 @@ use super::model::{
 
 /// Audits two phase-reversed, counterbalanced Criterion replications.
 ///
-/// The first replication occupies run positions as
-/// baseline-candidate-candidate-baseline (ABBA). The second reverses the
-/// phases to candidate-baseline-baseline-candidate (BAAB). Across all eight
-/// positions, each revision has equal position and squared-position sums, so
-/// their complete-schedule exposure is balanced for constant, linear, and
-/// quadratic period terms.
+/// Each replication contains one baseline-first pair and one candidate-first
+/// pair. Every pair must compare both revisions on the same machine and from
+/// the same filesystem path. The two replications may execute serially on one
+/// machine or as isolated pair jobs; the audit depends only on their four
+/// retained comparison roots and cannot verify either provenance precondition.
 ///
 /// A regression requires opposite-order agreement inside each replication and
 /// agreement across both replications. Benchmark-universe differences,

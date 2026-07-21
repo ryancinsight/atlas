@@ -196,7 +196,9 @@ Classical names describe bounded contexts rather than implementation variants.
 | `melinoe` | Melinoe, an underworld goddess associated with phantoms | Zero-sized phantom capability evidence. |
 | `mnemosyne` | Mnemosyne, Titaness of memory | Allocation and memory management. |
 | `moirai` | The Moirai, who govern the threads of fate | Scheduling and execution of program threads. |
+| `proteus` | Proteus, the shape-changing Greek sea god | Material properties and constitutive response. |
 | `themis` | Themis, Titaness of divine law and order | Placement and locality law. |
+| `tyche` | Tyche, goddess of fortune and chance | Reproducible uncertainty studies. |
 
 `CFDrs`, `kwavers`, and `ritk` retain descriptive project names. New
 repositories use a classical name only when the mapping clarifies a stable
@@ -397,11 +399,15 @@ revision is published.
 
 Atlas owns the cross-package Criterion comparison policy in
 [`tools/criterion-regression`](tools/criterion-regression). Package CI holds
-the candidate benchmark harness constant and runs both revision orders on one
-runner. The gate requires a candidate slowdown to reproduce in both orders,
-controls family-wise false regressions at 5%, and fails closed on missing
-comparisons or mismatched benchmark universes. It has no duplicated package
-scripts or empirical percentage threshold.
+the candidate benchmark harness constant, materializes both revisions at the
+same filesystem path, and runs four co-located base/head pairs: two in
+base-then-candidate order and two in candidate-then-base order. Each confidence
+interval compares revisions on one runner; independent pair jobs may
+distribute a long instrument without mixing runners inside a comparison. The
+gate requires all four intervals to agree on a candidate slowdown, controls
+family-wise false regressions at 5%, and fails closed on missing comparisons or
+mismatched benchmark universes. It has no duplicated package scripts or
+empirical percentage threshold.
 
 ### Path dependency checkout
 
