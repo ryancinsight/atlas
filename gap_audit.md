@@ -6,20 +6,22 @@
   implemented normalized named-color lookup laws; RITK alone exposed two
   distinct public enums and interpolation engines. No existing provider owned
   the domain-neutral color/view/render boundary.
-- **Resolution:** public Iris remote default `e2edd476` owns
+- **Resolution:** public Iris remote default `a8ea96f7` owns
   validated normalized RGBA, ten named maps, const-generic fixed lookup tables,
   borrowed series/scalar-field views, `Cow` axis metadata, and a GAT lending
-  render seam. RITK PR 46 merged as `1bc665d4` from exact head `33855845`,
-  directly adopts Iris in Snap and VTK, and deletes both local color engines.
+  render seam. RITK PR 46 directly adopted Iris in Snap and VTK and deleted
+  both local color engines; PR 47 closed the merged consumer default as
+  `a36e65df`.
 - **Evidence:** Iris passes all-feature/no-default-feature checks,
   warning-denied Clippy, 14/14 Nextest, two doctests, warning-clean Rustdoc,
   example, cargo-deny, and package gates. RITK passes 943/943 focused Nextest,
   package format/Clippy/doctest/Rustdoc gates, exact comparison of 2,560 VTK
   table nodes, non-finite rendering regressions, SemVer classification of only
-  the intentional public removals, and green RITK hosted CI `29831435735`,
-  Python CI `29831435956`, and migration audit `29831435835`.
-- **Residual:** final public-default pinning and Atlas checkout/CI remain open.
-  Kwavers's separate lookup table and
+  the intentional public removals, and green final RITK hosted CI
+  `29833657517`, Python CI `29833657538`, and migration audit `29833657634`.
+  Iris PR 2 verify and supply-chain jobs pass, and Atlas pins both anonymous
+  public defaults as mode-160000 commit objects.
+- **Residual:** none in ATLAS-INTEGRATION-038. Kwavers's separate lookup table and
   CFDrs/Kwavers plot-series assembly remain DoR items after their consumer
   contract audits; they are not compatibility fallbacks for this increment.
 
