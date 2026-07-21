@@ -26,7 +26,7 @@
       package manifest all resolve from Atlas commit `6fb5576`.
 - [x] Advance Hephaestus to public merge `74dec5d`, eliminating its obsolete
       `0f9d77a` Aequitas source identity from the materialized Helios graph.
-- [ ] Merge the Atlas registration and update Helios provider materialization
+- [x] Merge the Atlas registration and update Helios provider materialization
       to the exact Atlas merge OID; require exact-head hosted CI.
 - [ ] Replace Kwavers CEM43, Arrhenius, and independent-response duplicates
       with direct Asclepius APIs and pass focused/full consumer gates.
@@ -118,7 +118,7 @@
       value-semantic local Git integration tests.
 - [ ] Replace each copied Python gate with a pinned Atlas tool checkout and a
       true base/head Criterion run on one runner.
-- [ ] Restore Helios path-dependency checkout and the committed nextest runner.
+- [x] Restore Helios path-dependency checkout and the committed nextest runner.
 - [ ] Merge all three child fixes, advance Atlas gitlinks, close the README
       alignment review thread, and remove obsolete local artifacts.
 

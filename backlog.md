@@ -21,7 +21,7 @@
   and independent-insult laws; duplicate computation and compatibility
   wrappers are absent; focused and full consumer gates plus exact-head hosted
   CI pass.
-- Evidence: Asclepius merge object `ceb8b6d` contains the `no_std` law core and
+- Evidence: Asclepius merge object `794f8c3` contains the `no_std` law core and
   one-way Coeus adapter. The public provider branch additionally streams
   arbitrary exact-size thermal observations into caller-owned outputs without
   an intermediate collection and proves bitwise equivalence to borrowed
@@ -30,12 +30,13 @@
   engine materializes that public gitlink from pushed registration commit
   `6fb5576` and verifies the nested package manifest. Hephaestus advances to
   public merge `74dec5d`, where its Aequitas dependency uses the same
-  `be3a1ac` response-quantity revision as Asclepius and Helios. Helios commit
-  `dcf3ffc` passes 270/270 local Nextest plus workspace check, Clippy, doctest,
-  rustdoc, examples, and cargo-deny. Atlas merge and hosted consumer closure
-  remain active in this increment; Kwavers migration is the next
-  dependency-ordered slice. Repository visibility is confirmed public and
-  unauthenticated Git resolves its exact remote-default head.
+  `be3a1ac` response-quantity revision as Asclepius and Helios. Helios PR 13
+  merges as `4ce96b1` after 270/270 local Nextest plus workspace check, Clippy,
+  doctest, rustdoc, examples, cargo-deny, and exact-head hosted CI. Atlas pins
+  fetched Asclepius default `794f8c3`; the complete Kwavers migration remains
+  the final dependency-ordered consumer slice. Repository visibility is
+  confirmed public and unauthenticated Git resolves its exact remote-default
+  head.
 
 ## ATLAS-INTEGRATION-035 — Proteus and Tyche promotion ADRs [arch] [minor] — done
 
@@ -101,8 +102,10 @@
   closed across both benchmark universes; local static, value-semantic,
   doctest, and documentation gates pass. Atlas also owns the exact-gitlink
   checkout action for Helios, Kwavers, and RITK; Apollo's checkout is dead
-  because Apollo has no external Cargo path dependencies. Consumer hosted
-  verification remains.
+  because Apollo has no external Cargo path dependencies. Apollo's hosted
+  benchmark gate merges through PRs 57-58 at `2a22319`; Helios PR 13 merges
+  at `4ce96b1` with hosted benchmark evidence. Kwavers remains the sole
+  consumer-side residual.
 
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor] — done
 
