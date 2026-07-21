@@ -43,7 +43,7 @@ addition.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 23 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 24 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -58,8 +58,9 @@ At this revision, [`.gitmodules`](.gitmodules) records 23 packages.
 | Domain | [`gaia`](repos/gaia) | Geometry predicates, topology, watertight meshes, and mesh generation. |
 | Domain | [`harmonia`](repos/harmonia) | Transactional partitioned multiphysics coupling, interface transfer, relaxation, and heterogeneous subcycling. |
 | Domain | [`horae`](repos/horae) | Typed simulation time, explicit integration, adaptive policy, event clipping, and subcycle ratios. |
+| Domain | [`iris`](repos/iris) | Domain-neutral normalized colors, fixed lookup tables, borrowed diagnostic views, and render-backend contracts. |
 | Domain | [`proteus`](repos/proteus) | Validated material-property, material-identity, and static constitutive-law vocabulary parameterized by Aequitas quantities and Eunomia scalars. |
-| Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, visualization, and VTK data models. |
+| Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, domain-specific visualization, and VTK data models. |
 | Domain | [`tyche`](repos/tyche) | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies over Moirai execution and Consus persistence. |
 | Compute | [`hephaestus`](repos/hephaestus) | GPU device, buffer, transfer, and kernel substrate for WGPU and CUDA. |
 | Compute | [`hermes`](repos/hermes) | CPU SIMD/SWAR vocabulary, ISA dispatch, and vector kernels. |
@@ -91,6 +92,7 @@ flowchart TB
         gaia
         harmonia
         horae
+        iris
         athena
         proteus
         ritk
@@ -124,6 +126,7 @@ flowchart TB
     harmonia --> athena
     asclepius --> aequitas
     asclepius --> eunomia
+    ritk --> iris
 ```
 
 ### Provider ownership
@@ -146,7 +149,8 @@ flowchart TB
 | Tensors and autodiff | `coeus` | Owns tensor semantics, differentiation, neural-network operations, and optimizers. |
 | Geometry and meshes | `gaia` | Owns geometric predicates, topology, and mesh generation. |
 | Scientific persistence | `consus` | Owns storage formats, compression, and persistent scientific data exchange. |
-| Medical imaging | `ritk` | Owns image formats, processing, registration, and VTK data models. |
+| Visualization contracts | `iris` | Owns normalized color laws, fixed lookup-table construction, borrowed series/scalar-field views, and render-backend contracts; file formats, domain interpretation, UI state, and device mechanics remain with their providers and consumers. |
+| Medical imaging | `ritk` | Owns image formats, processing, registration, medical-image presentation, and VTK data models. |
 | Material properties | `proteus` | Owns validated material properties, material identity, and static constitutive-law contracts over Aequitas quantities and Eunomia scalars. |
 | Biological response | `asclepius` | Owns typed gEUD, TCP, NTCP, CEM43, Arrhenius damage, and independent-response composition; consumer workflows, clinical parameters, imaging, and transport remain local. |
 | Uncertainty quantification | `tyche` | Owns sampling, statistics, sensitivity, ensemble, and reproducible study vocabulary over Moirai execution and Consus persistence. |
@@ -163,6 +167,8 @@ Harmonia's Phase 0 coupling boundary and promotion evidence are recorded in
 [ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md). Asclepius
 biological-response ownership and its consumer migration boundary are recorded
 in [ADR 0028](docs/adr/0028-asclepius-biological-response-promotion.md).
+Iris visualization ownership and the initial RITK consumer migration are
+recorded in [ADR 0029](docs/adr/0029-iris-visualization-promotion.md).
 
 ## Naming
 
@@ -184,6 +190,7 @@ Classical names describe bounded contexts rather than implementation variants.
 | `hephaestus` | Hephaestus, god of the forge | Accelerator devices and kernels. |
 | `hermes` | Hermes, swift messenger god | SIMD dispatch and vector execution. |
 | `horae` | The Horae, goddesses of seasons and ordered time | Time integration, event clocks, and subcycle policy. |
+| `iris` | Iris, messenger goddess associated with the rainbow | Domain-neutral visualization and diagnostic-view contracts. |
 | `leto` | Leto, mother of Apollo and daughter of Coeus | Shared array substrate between transform and tensor domains. |
 | `melinoe` | Melinoe, an underworld goddess associated with phantoms | Zero-sized phantom capability evidence. |
 | `mnemosyne` | Mnemosyne, Titaness of memory | Allocation and memory management. |
@@ -224,12 +231,13 @@ Harmonia graduated from this roadmap through
 [ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md). Proteus and Tyche
 graduated as registered material-property and uncertainty-quantification
 providers. Asclepius graduated through
-[ADR 0028](docs/adr/0028-asclepius-biological-response-promotion.md). The
-remaining candidates are:
+[ADR 0028](docs/adr/0028-asclepius-biological-response-promotion.md). Iris
+graduated through
+[ADR 0029](docs/adr/0029-iris-visualization-promotion.md). The remaining
+candidates are:
 
 | Priority | Working name | Classical reference | Proposed bounded context | Current drivers |
 | --- | --- | --- | --- | --- |
-| P2 | `iris` | Iris, messenger goddess associated with the rainbow | Domain-neutral visualization, diagnostic views, and render/plot contracts. File formats remain with RITK or Consus. | Simulation and validation outputs need a common presentation boundary. |
 | P2 | `ares` | Ares, god of war | Solid mechanics, deformation, contact, and fluid-structure interaction. | Elastography and coupled CFD can provide the first two consumers. |
 | P2 | `hyperion` | Hyperion, Titan associated with heavenly light | Electromagnetic, optical, and radiation-transport operators. | Kwavers and Helios contain adjacent wave and radiation concerns. |
 | P2 | `prometheus` | Prometheus, Titan associated with fire and craft | Thermochemistry, reactions, combustion, and reactive transport. | Reactive-flow and thermal-therapy work can establish the shared contract. |
@@ -255,7 +263,7 @@ moirai + consus ── tyche
 aequitas + eunomia ── asclepius
 asclepius + coeus ── asclepius-coeus ── helios
 asclepius ── kwavers
-domain result views ── iris
+iris ── ritk-snap / ritk-vtk
 ```
 
 `harmonia` follows typed time and convergence contracts but does not depend on
@@ -297,6 +305,7 @@ atlas/
 │   ├── hephaestus/
 │   ├── hermes/
 │   ├── horae/
+│   ├── iris/
 │   ├── kwavers/
 │   ├── leto/
 │   ├── melinoe/

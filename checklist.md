@@ -6,6 +6,21 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-038 — Iris visualization promotion [arch] [minor]
+
+- [x] Audit color-law and result-view duplication; confirm the promotion gate
+      and boundary against RITK, Kwavers, CFDrs, Leto, Hephaestus, and Consus.
+- [x] Publish Iris and verify its full local gate plus anonymous Git access.
+- [x] Add the first consumer-required upstream capability and merge Iris PR 1.
+- [x] Replace both RITK color engines, migrate every in-scope caller, and add
+      exact consumer differential/non-finite regressions in PR 46.
+- [x] Require RITK PR 46 exact-head hosted checks and merge it.
+- [x] Pin fetched Iris and RITK remote defaults, file ADR 0029, and synchronize
+      `.gitmodules`, stack map, provider table, naming, roadmap, layout, ADR
+      index, changelog, backlog, checklist, and gap audit.
+- [ ] Verify the Atlas checkout engine, exact gitlink object types, public
+      remote defaults, documentation consistency, and merged Atlas CI.
+
 ## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor]
 
 - [x] Verify public Asclepius remote default `eb65eaf`, the law/adapter merge

@@ -46,6 +46,10 @@
 	path = repos/horae
 	url = https://github.com/ryancinsight/horae
 	active = true
+[submodule "repos/iris"]
+	path = repos/iris
+	url = https://github.com/ryancinsight/iris
+	active = true
 [submodule "repos/kwavers"]
 	path = repos/kwavers
 	url = https://github.com/ryancinsight/kwavers
