@@ -1120,3 +1120,10 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 | ID | Class | Status | Owner/scope | Acceptance |
 |---|---|---|---|---|
 | HARM-PROMOTE-001 | [arch] `[minor]` | done — PR #57 merged `0b0d01d` | harmonia / horae / athena-core / eunomia / atlas-meta | `repos/harmonia` published to `https://github.com/ryancinsight/harmonia` (HEAD `cf6ce3e`, CI run `29753063192` green); Atlas `.gitmodules` entry recorded; parent gitlink advanced; ADR 0023 Status `Accepted`; README current-stack table reconciled to 20 packages. |
+
+## ATLAS-WORKTREE-001 — Canonical lane root consolidation [patch] — in-progress (residual)
+
+- Owner: Claude (prompt-reconciliation session); scope: worktree lane locations only, no member-repo code.
+- Done 2026-07-21: 24 verified-duplicate standalone clones (12 at `D:\worktrees`, 12 at `D:\atlas\worktrees`; all detached, clean, HEADs contained, zero local branches), the sha-keyed `.atlas-provider-checkout` cache, and the empty `D:\worktrees\atlas` removed; stray `report/figures` SVG rescued to `repos/report/figures/`. `D:\atlas\worktrees/` (gitignored, covered by the root `.cargo/config.toml` shared target) is the single canonical lane root per AGENTS.md git_discipline: Worktrees.
+- Residual: two live peer lanes remain at the legacy root — `D:\worktrees\cfdrs-iris-color`, `D:\worktrees\kwavers-grid-cardinality` (fresh claims; never move a lane under a running process). Re-open trigger: at each lane item completion, merge → `git worktree remove`; new lanes open only under `D:\atlas\worktrees/`; delete `D:\worktrees` when empty.
+- Note: untracked `fix_unwraps.py` / `ritk_fix.py` at meta root are unattributed scratch scripts — owning peer should absorb into xtask/scripts or delete (standards: Cleanup).
