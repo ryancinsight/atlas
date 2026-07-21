@@ -2162,25 +2162,38 @@ Out-of-scope this session (unchanged or advanced from prior sessions):
 - `HEPH-CUDA-WIN-001` (hephaestus-cuda / hephaestus-python Windows-gnu
   link) remains open; fix is upstream in `cuda-oxide`/`cutile-rs` per
   `architecture_scoping`. Awaiting user authorization to file upstream.
-- Consumer-source migration of helios-imaging/noise.rs and cfd-optim/sampling/mod.rs
-  stays peer-owned this session per `concurrent_agents` disjoint-scope.
+- Consumer-source migration of `helios-imaging/src/noise.rs` stays peer-owned.
+  CFDrs closed its Tyche migration in `fca1a9a9`, now present in public default
+  `394c9977`.
 
 Next actionable (awaiting user or peer event):
 
 1. Peer migrates `helios-imaging/src/noise.rs` to `StandardNormal<T, A>` (2-
    param form) per `HELIOS-TYCHE-MAJOR-001`; atlas-meta re-verifies the 251/251
    baseline once peer publishes.
-2. Peer migrates `cfd-optim/src/design/space/sampling/mod.rs:254-257` to the
-   `LatinHypercube<PARAMETERS, A>` + `Counter::<D, A>::word::<D>` form per
-   `CFDRS-TYCHE-MAJOR-001`; non-trivial typestate domain selection.
-3. Peer schedules `CFDRS-CFD1D-LINT-001` ratchet remediation (~50 sites /
+2. Peer schedules `CFDRS-CFD1D-LINT-001` ratchet remediation (~50 sites /
    15 files in `cfd-1d`); independent of tyche migration.
-4. Peer quiesces on kwavers; atlas-meta verifies kwavers consumer migration
-   for tyche-core breaking change (kwavers-analysis + kwavers-solver both
-   workspace-dep `tyche-core`).
-5. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization (file in
+3. Peer closes the active Kwavers renderer claim; the next Iris increment
+   audits and migrates its lookup table without crossing the live scope.
+4. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization (file in
    `cuda-oxide`/`cutile-rs` or ADR the Windows CUDA discovery convention).
-6. User dispatches CFDrs book chapter authoring OR routes it through peer
+5. User dispatches CFDrs book chapter authoring OR routes it through peer
    claim streams.
-7. User authorizes release/deploy of any stack version (none authorized
+6. User authorizes release/deploy of any stack version (none authorized
    this session per `interaction_policy` terminal delivery state).
+
+## Iris CFDrs consumer closure (ATLAS-INTEGRATION-039)
+
+- [x] Audit Iris, CFDrs, and Kwavers ownership; preserve the active Kwavers
+      renderer claim as a disjoint residual.
+- [x] Add and exhaustively verify the exact blue-red law in Iris; merge the
+      provider and closure PRs at `c7454ef3` with green default-branch CI.
+- [x] Migrate CFDrs directly, delete the local enum and formulas, reduce each
+      overlay range once, and borrow existing field maps through `Cow`.
+- [x] Merge CFDrs PR 303 at `394c9977` after focused behavioral, documentation,
+      lint, feature, and inspected-render verification.
+- [x] Reconcile the Atlas Iris and CFDrs gitlinks to their exact public default
+      commit objects and synchronize README, ADR, changelog, backlog, checklist,
+      and gap-audit ownership claims.
+- [x] Pass the Atlas metadata, gitlink-provenance, and documentation gates on
+      the exact staged delta.
