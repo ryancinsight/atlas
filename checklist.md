@@ -8,9 +8,9 @@
 
 ## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor]
 
-- [x] Verify the public Asclepius remote-default merge object `ceb8b6d`,
-      two-crate workspace boundary, package gates, theorem suites, and exact
-      Aequitas/Coeus dependency pins.
+- [x] Verify public Asclepius remote default `eb65eaf`, the law/adapter merge
+      `794f8c3`, two-crate workspace boundary, package gates, theorem suites,
+      and exact Aequitas/Coeus dependency pins.
 - [x] Register `repos/asclepius` in `.gitmodules` at the fetched merge object.
 - [x] File ADR 0028 with bounded context, inward/outward dependency direction,
       migration, theorem/proof obligations, evidence limits, rejected
@@ -28,10 +28,12 @@
       `0f9d77a` Aequitas source identity from the materialized Helios graph.
 - [x] Merge the Atlas registration and update Helios provider materialization
       to the exact Atlas merge OID; require exact-head hosted CI.
-- [ ] Replace Kwavers CEM43, Arrhenius, and independent-response duplicates
-      with direct Asclepius APIs and pass focused/full consumer gates.
-- [ ] Close Asclepius PM state, advance Atlas consumer gitlinks, run the final
-      structural residue audit, and record exact merged evidence.
+- [x] Replace Kwavers CEM43, Arrhenius, and independent-response duplicates
+      with direct public Asclepius APIs; PR 301 merges as `1cb01fe` after all
+      23 first-party hosted checks pass.
+- [x] Close Asclepius PM state at `eb65eaf`, pin Helios `33bba34` and Kwavers
+      `1cb01fe`, run the final structural residue audit, and record exact
+      merged evidence.
 
 ## ATLAS-INTEGRATION-036 — Coeus hephaestus 0.18.0 bump [patch]
 

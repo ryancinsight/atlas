@@ -89,10 +89,9 @@
 - **Finding:** Helios and Kwavers owned repeated biological-response formulas
   outside their transport domains: Helios gEUD/TCP/NTCP and a second Coeus
   graph expression; Kwavers CEM43, Arrhenius damage, and independent-insult
-  composition. The public Asclepius workspace at merge `ceb8b6d` now owns
-  these laws through a `no_std` core and one-way Coeus adapter, but Atlas did
-  not register the provider and hosted Helios CI could not authenticate the
-  unmaterialized Git dependency.
+  composition. The public Asclepius law core and one-way Coeus adapter at
+  `794f8c3` now own these laws; public remote default `eb65eaf` records the
+  completed consumer contract.
 - **Resolution:** register the exact remote-default Asclepius gitlink, file
   ADR 0028, and reconcile the stack map and PM artifacts. The design borrows
   observations through a GAT, streams arbitrary exact-size iterator pipelines,
@@ -103,11 +102,11 @@
   midpoint/monotonicity, thermal accumulation/survival, stream equivalence,
   and independent-response range; property, analytical, differential, layout,
   and allocation tests establish implementation evidence.
-- **Residual:** Helios hosted CI must consume the exact merged Atlas provider
-  graph, and Kwavers must replace its remaining thermal-response duplicates.
-  Both are active dependency-ordered slices under `ATLAS-INTEGRATION-037`; this
-  registration does not claim their hosted or consumer closure prematurely.
-  Public visibility and unauthenticated Git reachability are confirmed.
+- **Residual:** none inside the authorized P1 boundary. Helios remote default
+  `33bba34` contains the direct migration and Kwavers PR 301 merges as
+  `1cb01fe` after all 23 first-party hosted checks pass. Consumer grids,
+  workflows, tissue catalogs, and non-biological Arrhenius formulas remain
+  with their documented owners.
 - **Provider-graph evidence:** the checkout engine at pushed Atlas commit
   `6fb5576` materializes the exact public Asclepius gitlink `ceb8b6d` into a
   clean checkout and verifies the nested core manifest. Its format, locked
@@ -115,7 +114,9 @@
   warning-clean rustdoc gates pass. Advancing Hephaestus from `10f70a7` to
   public merge `74dec5d` aligns its Aequitas dependency with Asclepius and
   Helios at `be3a1ac`, so exact provider materialization no longer resolves a
-  second response-quantity type identity.
+  second response-quantity type identity. The final Atlas pin sweep advances
+  Asclepius to `eb65eaf`, Helios to `33bba34`, and Kwavers to `1cb01fe`;
+  anonymous Git resolves each OID from its public default branch.
 
 ## Session 2026-07-20 (PM cycle 3) — bounded Nextest sweep + gitlink reconciliation to `000b77a`
 
