@@ -13,9 +13,11 @@
   `repos/hyperion/**` plus this item's owner-keyed Atlas PM entries until the
   provider is published. The prerequisite Aequitas claim is limited to the
   reciprocal-length and area-per-mass SI dimensions, quantities, units, their
-  focused tests/docs, and the resulting lockfile. Consumer repositories remain
-  outside this claim until their live worktrees permit disjoint migration
-  scopes. Outcome: replace the speculative two-package target with
+  focused tests/docs, and the resulting lockfile. The Proteus prerequisite is
+  limited to consuming that merged Aequitas revision in its manifest and lock
+  so Hyperion has one quantity type identity. Consumer repositories remain
+  outside this claim until their live worktrees permit disjoint migration scopes.
+  Outcome: replace the speculative two-package target with
   an evidence-gated P2 program whose registrations are consequences of code
   consolidation. Scope is Hyperion's first photon/optical transport slice plus
   the prerequisites that decide whether Ares or Prometheus can become a second

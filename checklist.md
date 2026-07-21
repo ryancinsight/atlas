@@ -12,6 +12,9 @@
       Kwavers, Proteus, and accepted Atlas ownership boundaries.
 - [x] Replace package count as the P2 objective with named deletion ledgers,
       dependency direction, consumer triggers, and behavioral oracles.
+- [x] Extend Aequitas with reciprocal-length, area-per-mass, and energy-per-area
+      quantities and units; verify its generic, `uom` differential, doctest,
+      SemVer, and hosted CI gates at `cf9b2c3`.
 - [ ] At implementation start, verify `hyperion` repository/crate-name
       availability and draft the Phase 0 ADR with photon/optical attenuation as
       the bounded context; do not include general Maxwell, dose, or workflow
