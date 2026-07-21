@@ -127,11 +127,13 @@
   Helios, and Kwavers CI integrations that introduced copied, same-run
   baseline checks. Unrelated benchmark bodies and performance tuning remain
   out of scope.
-- Acceptance: one Atlas-owned Rust tool classifies two phase-reversed,
-  counterbalanced Criterion replications, controls family-wise error at 5%,
-  and fails closed on missing or mismatched evidence; each consumer holds its
-  candidate harness constant, runs both replications on one runner, deletes
-  copied Python gates, and passes exact-head hosted CI.
+- Acceptance: one Atlas-owned Rust tool classifies two replicated
+  base-first/candidate-first comparison pairs, controls family-wise
+  error at 5%, and fails closed on missing or mismatched evidence; each
+  consumer holds its candidate harness constant, keeps both revisions in each
+  pair on one runner and at one filesystem path, deletes copied Python gates,
+  and passes exact-head hosted CI. Long instruments may distribute the four
+  co-located pairs across isolated jobs.
 - Evidence: unit and CLI tests, warning-denied Clippy and rustdoc, synthetic
   positive/overlapping/missing comparison fixtures, consumer workflow review,
   and hosted CI on each published child revision.
@@ -143,8 +145,11 @@
   checkout action for Helios, Kwavers, and RITK; Apollo's checkout is dead
   because Apollo has no external Cargo path dependencies. Apollo's hosted
   benchmark gate merges through PRs 57-58 at `2a22319`; Helios PR 13 merges
-  at `4ce96b1` with hosted benchmark evidence. Kwavers remains the sole
-  consumer-side residual.
+  at `4ce96b1` with hosted benchmark evidence. Kwavers PR 299 merges at
+  `198f2b8c`; exact-head hosted run `29841101698` completed all four pair jobs
+  but found three replicated apparent regressions despite no semantic
+  production delta. Distinct checkout paths remained correlated with revision;
+  same-path materialization and a new exact-head run remain the closure gate.
 
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor] — done
 
