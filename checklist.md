@@ -2125,11 +2125,15 @@ Milestone summary:
     CFDrs peer owns this scope.
   - `CFDRS-CFD1D-LINT-001`: cfd-1d 15-file ~50-site pedantic lint debt,
     independent of tyche; under the ratchet for the CFDrs peer.
-- **Disjoint-scope:** kwavers peer actively committing on `main` — consumer
-  migration (kwavers-analysis + kwavers-solver both workspace-dep `tyche-core`)
-  not verified this session; watchpoint to be filed when peer quiesces or
-  on explicit dispatch. `repos/iris/` is the peer's new candidate stack
-  member (untracked this session) per `concurrent_agents` registration scope.
+- **Disjoint-scope:** kwavers peer actively committing on `main`; atlas-meta
+  records-only inspection via read-only `grep` confirms kwavers source has **zero **
+  references to tyche, random, Seed, StandardNormal, LatinHypercube, or sampling
+  vocabulary — the `tyche-core` workspace dep in kwavers-analysis + kwavers-solver
+  is plumbed-but-unused (vestigial/provider-ready), so kwavers is **NOT affected **
+  by the tyche-core breaking change. The kwavers consumer-migration watchpoint is
+  therefore not needed; kwavers peer's active work is unrelated to the tyche break.
+  `repos/iris/` is the peer's new candidate stack member (registered via PR #71
+  this session) per `concurrent_agents` registration scope.
 - [x] Integrate peer PRs #69/#70 via fast-forward from `4278283` to `589f899`.
 - [x] Commit 4 peer-advanced gitlinks (asclepius, consus, moirai, tyche) as
       a single chore commit, skipping kwavers dirty inner-HEAD.

@@ -76,9 +76,9 @@
   `cargo-semver-checks`):**
   | Symbol | Before (`e1a5964~1`) | After (`0fc810b`) | Atlas consumers affected |
   |---|---|---|---|
-  | `StandardNormal<T>` | `struct StandardNormal<T>` with `at(seed, sample, stream) -> T` | `struct StandardNormal<T, A: StreamAlgorithm>`; `at` now requires `T: SampleScalar, A: StreamAlgorithm` | helios (`noise.rs:45`), kwavers (expected, unverified) |
-  | `LatinHypercube<const PARAMETERS>` | `struct LatinHypercube<const PARAMETERS: usize>` | `struct LatinHypercube<const PARAMETERS: usize, A>` (no default) | CFDrs (`cfd-optim/.../sampling/mod.rs:254`), kwavers (expected, unverified) |
-  | `SplitMix64::word` | inherent `fn word(seed, sample, stream) -> u64` | removed inherent call; now `Counter::<D, A>::word::<D>(seed, index, draw) -> T` via `StreamAlgorithm` | CFDrs (`cfd-optim/.../sampling/mod.rs:255`), kwavers (expected, unverified) |
+  | `StandardNormal<T>` | `struct StandardNormal<T>` with `at(seed, sample, stream) -> T` | `struct StandardNormal<T, A: StreamAlgorithm>`; `at` now requires `T: SampleScalar, A: StreamAlgorithm` | helios (`noise.rs:45`); kwavers unaffected (dep unused) |
+  | `LatinHypercube<const PARAMETERS>` | `struct LatinHypercube<const PARAMETERS: usize>` | `struct LatinHypercube<const PARAMETERS: usize, A>` (no default) | CFDrs (`cfd-optim/.../sampling/mod.rs:254`); kwavers unaffected (dep unused) |
+  | `SplitMix64::word` | inherent `fn word(seed, sample, stream) -> u64` | removed inherent call; now `Counter::<D, A>::word::<D>(seed, index, draw) -> T` via `StreamAlgorithm` | CFDrs (`cfd-optim/.../sampling/mod.rs:255`); kwavers unaffected (dep unused) |
   | `SplitMix64::unit` / `::open_unit` | inherent f64-returning | removed; replaced by `Counter::<D, A>::unit::<T>` / `::open_unit::<T>` | (in-tree consumers only) |
   | `sampling::sequence` module | pub re-export of Seed/SplitMix64/StandardNormal | deleted (path-removal major) | (in-tree consumers only) |
   - New additive surface (post-`a75bacd` and `e1a5964`): `Counter<D, A>` ZST,
@@ -100,10 +100,13 @@
      the `Counter::<D, A>::word::<D>(...)` form, choosing among `LatinHypercubeOffset`,
      `LatinHypercubeJitter`, `LatinHypercubeStride` per the tyche typestate
      domain system at `tyche-core/src/sampling/counter/`.
-  3. kwavers: expected to need the same class of repairs in `crates/kwavers-analysis`
-     and `crates/kwavers-solver` (kwavers-analysis Cargo.toml:26 + kwavers-solver
-     Cargo.toml:42 both workspace-dep `tyche-core`); peer owns kwavers, atlas-meta
-     disjoint-scope this session.
+  3. kwavers: read-only `grep` evidence this session confirms kwavers source
+     has **zero** references to tyche, random, Seed, StandardNormal, LatinHypercube,
+     or sampling vocabulary — the `tyche-core` workspace dep in kwavers-analysis
+     (Cargo.toml:26) + kwavers-solver (Cargo.toml:42) is plumbed-but-unused
+     (vestigial/provider-ready), so kwavers is **NOT affected** by the tyche-core
+     breaking change; no kwavers consumer-migration watchpoint is warranted.
+     Peer's active kwavers commits are unrelated to the tyche break.
   4. The tyche-core `[patch]` override in helios and CFDrs means the manifest
      rev pins (`87923da9...`) are effectively dead code; peer may choose to
      bump the pins to `0fc810b` and refresh `Cargo.lock` once migration lands, or
@@ -115,9 +118,10 @@
   surface evidence; per `concurrent_agents` the consumer-source repairs in
   `repos/helios/**` and `repos/CFDrs/**` are peer-owned scope; atlas-meta does
   not edit consumer source without explicit scope claim or user dispatch.
-  `HEPH-CUDA-WIN-001` unchanged. Kwavers consumer migration not verified
-  (peer actively committing on `main`); watchpoint to be filed when kwavers
-  peer quiesces or on explicit dispatch.
+  `HEPH-CUDA-WIN-001` unchanged. Asclepius public PR #69 + Tyche PR #70 + Iris
+  PR #71 closures integrated this session via fast-forward. The kwavers
+  consumer migration surface was resolved to **no-op** by read-only inspection
+  (tyche-core dep is unused in kwavers source).
 
 ## Session 2026-07-20 (Session 5, PM cycle 5) — helios example audit + PR #14 merge
 
