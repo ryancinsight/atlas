@@ -1,29 +1,39 @@
 # atlas — cross-repository integration gap audit
 
-## Iris visualization promotion (ATLAS-INTEGRATION-038)
+## Iris visualization ownership (ATLAS-INTEGRATION-038/039)
 
 - **Finding:** `ritk-snap`, `ritk-vtk`, and Kwavers Analysis independently
   implemented normalized named-color lookup laws; RITK alone exposed two
   distinct public enums and interpolation engines. No existing provider owned
   the domain-neutral color/view/render boundary.
-- **Resolution:** public Iris remote default `a8ea96f7` owns
-  validated normalized RGBA, ten named maps, const-generic fixed lookup tables,
+- **Resolution:** public Iris remote default `c7454ef3` owns validated
+  normalized RGBA, eleven named maps, const-generic fixed lookup tables,
   borrowed series/scalar-field views, `Cow` axis metadata, and a GAT lending
   render seam. RITK PR 46 directly adopted Iris in Snap and VTK and deleted
   both local color engines; PR 47 closed the merged consumer default as
-  `a36e65df`.
+  `a36e65df`. CFDrs PR 303 adopted `NamedColorMap` directly and deleted its
+  local map enum and blue-red, grayscale, and Viridis formulas; its merged
+  default is `394c9977`.
 - **Evidence:** Iris passes all-feature/no-default-feature checks,
-  warning-denied Clippy, 14/14 Nextest, two doctests, warning-clean Rustdoc,
-  example, cargo-deny, and package gates. RITK passes 943/943 focused Nextest,
+  warning-denied Clippy, 15/15 Nextest, two doctests, warning-clean Rustdoc,
+  example, cargo-deny, 196/196 SemVer checks, and package gates. RITK passes
+  943/943 focused Nextest,
   package format/Clippy/doctest/Rustdoc gates, exact comparison of 2,560 VTK
   table nodes, non-finite rendering regressions, SemVer classification of only
   the intentional public removals, and green final RITK hosted CI
   `29833657517`, Python CI `29833657538`, and migration audit `29833657634`.
-  Iris PR 2 verify and supply-chain jobs pass, and Atlas pins both anonymous
-  public defaults as mode-160000 commit objects.
-- **Residual:** none in ATLAS-INTEGRATION-038. Kwavers's separate lookup table and
-  CFDrs/Kwavers plot-series assembly remain DoR items after their consumer
-  contract audits; they are not compatibility fallbacks for this increment.
+  Iris PR 4 default-branch CI run `29845556866` passes verify and supply-chain.
+  CFDrs passes 176/176 `cfd-schematics` tests, 10 focused iterator/window
+  tests, 16 doctests, warning-denied Clippy and Rustdoc, feature checks, and a
+  rendered Venturi pressure-field inspection. Its overlay validates and
+  reduces each scalar field once, borrows existing maps through `Cow`, and
+  performs constant-time color lookup without per-element range allocation.
+  Atlas pins the two public defaults as mode-160000 commit objects.
+- **Residual:** none in ATLAS-INTEGRATION-038/039. Kwavers's separate lookup
+  table remains outside this increment while its active shared-tree claim is
+  open. The attempted isolated CFDrs SemVer comparison was blocked before API
+  analysis by pre-existing distinct Aequitas and Leto Git-source identities;
+  no SemVer-pass claim is made for that consumer migration.
 
 ## Session 2026-07-21 (Session 6, PM cycle 6) — tyche breaking-change verification sweep + consumer-migration watchpoints
 

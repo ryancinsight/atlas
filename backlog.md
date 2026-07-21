@@ -29,6 +29,26 @@
   public removals. Atlas PR 71 registered Iris; this closure pins both final
   public defaults and passes the checkout-engine and documentation gates.
 
+## ATLAS-INTEGRATION-039 — Iris CFDrs consolidation [arch] [major] — done
+
+- Owner: Codex `/root`; scope: the exact Iris blue-red law, direct
+  `cfd-schematics` adoption, deletion of CFDrs's parallel map enum and
+  formulas, overlay range/allocation correction, exact Iris/CFDrs gitlinks,
+  ADR 0029 extension, and synchronized stack documentation. CFD field
+  semantics, Plotters rendering, and the actively claimed Kwavers renderer are
+  non-goals.
+- Acceptance: Iris exhaustively verifies the additive law; CFDrs consumes
+  `NamedColorMap` without a wrapper, computes range once per overlay, borrows
+  existing field maps, and contains no superseded map formula; both public
+  defaults merge and Atlas records their exact commit objects.
+- Evidence: Iris PRs 3 and 4 merge the provider and closure at `c7454ef3`;
+  default-branch CI `29845556866` passes. CFDrs PR 303 merges the consumer at
+  `394c9977`; 176/176 `cfd-schematics` tests, 10 iterator/window tests, 16
+  doctests, warning-denied Clippy and Rustdoc, feature checks, and Venturi
+  render inspection pass. The attempted isolated CFDrs SemVer comparison was
+  blocked before API analysis by pre-existing Aequitas/Leto Git-source
+  identity splits; no SemVer-pass claim is made.
+
 ## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor] — done
 
 - Owner: Codex `/root`; scope: public Asclepius core and Coeus adapter, Atlas
@@ -1112,7 +1132,7 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 | ID | Scope | Trigger | Re-open condition | Status |
 |---|---|---|---|---|
 | HELIOS-TYCHE-MAJOR-001 | `repos/helios/crates/helios-imaging/src/noise.rs` + workspace `tyche-core` pin | tyche peer landed breaking `e1a5964 feat(tyche-core)!: Type counter streams` (`StandardNormal<T>` -> `StandardNormal<T, A: StreamAlgorithm>`); the helios `[patch]` override resolves tyche-core to local HEAD `0fc810b` (post-break), bypassing the manifest rev `87923da9...` (dead pin) | Peer migrates `helios-imaging/src/noise.rs:17,45` to the two-param form `StandardNormal::<f64, SplitMix64>::at(seed, sample_index, 0)` (add `SplitMix64` to the `use tyche_core::{...}` import on line 17) and re-establishes the 251/251 nextest baseline; OR bumps the manifest rev pin to `0fc810b` and updates `Cargo.lock` accordingly | ⏳ open (2026-07-21 Session 6 verified: helios workspace rc=101 at `helios-imaging/src/noise.rs:45` E0107 "struct takes 2 generic arguments but 1 generic argument was supplied"; sole tyche-core import site in helios; 251/251 baseline not reproduced; `sirt_reconstruction` and `mvct_registration` examples blocked at runtime; one-line call-site repair documented in `gap_audit.md` Session 6 entry; helios peer is live claimer per `concurrent_agents`) |
-| CFDRS-TYCHE-MAJOR-001 | `repos/CFDrs/crates/cfd-optim/src/design/space/sampling/mod.rs` + workspace `tyche-core` pin | same tyche breaking change; the CFDrs `[patch]` override resolves tyche-core to local HEAD `0fc810b` (post-break), bypassing the manifest rev `87923da9...` (dead pin) | Peer migrates `cfd-optim/src/design/space/sampling/mod.rs:254-257` to (a) supply the `A: StreamAlgorithm` type argument to `LatinHypercube<PARAMETERS, A>` (eval `LatinHypercubeOffset` / `LatinHypercubeJitter` / `LatinHypercubeStride` per the tyche typestate system at `tyche-core/src/sampling/counter/`) and (b) replace `SplitMix64::word(root_seed, ordinal, 0)` with the `Counter::<D, A>::word::<D>(seed, idx, draw)` form; OR bumps the manifest rev pin to `0fc810b` with `Cargo.lock` update | ⏳ open (2026-07-21 Session 6 verified: CFDrs workspace rc=101 at `crates/cfd-optim/src/design/space/sampling/mod.rs:254-255` E0107 on `LatinHypercube<PARAMETERS>` (2 generics required) + E0599 on `SplitMix64::word` (now `Counter<D, A>::word` form); non-trivial API migration — typestate domain selection required; CFDrs peer owns this scope) |
+| CFDRS-TYCHE-MAJOR-001 | `repos/CFDrs/crates/cfd-optim/src/design/space/sampling/mod.rs` + workspace `tyche-core` pin | same tyche breaking change; the CFDrs `[patch]` override resolved the post-break provider | Peer supplies `SplitMix64` to `LatinHypercube` and routes indexed words through `Counter<UserDomain<0>, SplitMix64>` | ✅ CLOSED 2026-07-21 by CFDrs `fca1a9a9`; the exact migrated source is present in public default `394c9977` |
 | CFDRS-CFD1D-LINT-001 | `repos/CFDrs/crates/cfd-1d/**` (15 files, ~50 sites) | surfaced in Session 6 `cargo clippy --workspace --all-targets -- -D warnings` during tyche-break verification; pre-existing pedantic lint floor debt in cfd-1d independent of tyche | Peer brings cfd-1d to the workspace `-D warnings` floor: ~26 `uninlined_format_args`, ~6 `manual_map`, ~5 `useless_conversion` to `f64`, 3 `result_large_err` (Err variant >=160 bytes in `PrimarySolveError`), 2 `manual_range_contains`, 2 `field_reassign_with_default`, and ~6 scattered (`complexity`, `explicit_into_iter_loop`, `empty_line_after_doc_comments`, `iter_cloned_collect`) | ⏳ open (2026-07-21 Session 6 cataloged as an independent cfd-1d-owning-peer concern; not a blocking defect for tyche migration; recorded for the CFDrs peer to schedule under the ratchet) |
 
 ## Provider integration audit queue — 2026-07-20
@@ -1125,5 +1145,9 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 
 - Owner: Claude (prompt-reconciliation session); scope: worktree lane locations only, no member-repo code.
 - Done 2026-07-21: 24 verified-duplicate standalone clones (12 at `D:\worktrees`, 12 at `D:\atlas\worktrees`; all detached, clean, HEADs contained, zero local branches), the sha-keyed `.atlas-provider-checkout` cache, and the empty `D:\worktrees\atlas` removed; stray `report/figures` SVG rescued to `repos/report/figures/`. `D:\atlas\worktrees/` (gitignored, covered by the root `.cargo/config.toml` shared target) is the single canonical lane root per AGENTS.md git_discipline: Worktrees.
-- Residual: two live peer lanes remain at the legacy root — `D:\worktrees\cfdrs-iris-color`, `D:\worktrees\kwavers-grid-cardinality` (fresh claims; never move a lane under a running process). Re-open trigger: at each lane item completion, merge → `git worktree remove`; new lanes open only under `D:\atlas\worktrees/`; delete `D:\worktrees` when empty.
+- Residual: one live peer lane remains at the legacy root —
+  `D:\worktrees\kwavers-grid-cardinality` (fresh claim; never move a lane
+  under a running process). The completed CFDrs Iris lane was removed. Re-open
+  trigger: merge the remaining item, run `git worktree remove`, and delete
+  `D:\worktrees`; new lanes open only under `D:\atlas\worktrees/`.
 - Note: untracked `fix_unwraps.py` / `ritk_fix.py` at meta root are unattributed scratch scripts — owning peer should absorb into xtask/scripts or delete (standards: Cleanup).

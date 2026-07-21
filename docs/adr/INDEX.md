@@ -33,7 +33,7 @@
 | <a id="ADR-0026"></a>**0026** | Promote Tyche as the Atlas owner for reproducible uncertainty studies: counter-stream random-access Latin hypercube designs, index-addressed ensemble execution, online Welford/Chan moments, Pearson screening, finite-sample split-conformal calibration, and Moirai/Consus provider adapters over a `no_std + alloc` core with GAT response seams and const-generic numeric widths | Accepted | 2026-07-20 | `[arch]` `[minor]` | tyche / tyche-core / moirai / consus / eunomia / atlas-meta | uncertainty-quantification |
 | <a id="ADR-0027"></a>**0027** | Resolve consumer path dependencies from one exact Atlas gitlink graph through an Atlas-owned Rust action | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / helios / kwavers / ritk | provider-graph |
 | <a id="ADR-0028"></a>**0028** | Promote Asclepius as the owner for typed gEUD, TCP, NTCP, CEM43, Arrhenius damage, and independent-response composition over Aequitas and Eunomia, with a one-way Coeus autodiff adapter | Accepted | 2026-07-20 | `[arch]` `[minor]` | asclepius / asclepius-coeus / helios / kwavers / atlas-meta | biological-response |
-| <a id="ADR-0029"></a>**0029** | Promote Iris as the owner for normalized color laws, fixed lookup tables, borrowed scientific views, and static render-backend contracts; replace duplicate RITK Snap and VTK color engines | Accepted | 2026-07-21 | `[arch]` `[minor]` | iris / ritk-snap / ritk-vtk / atlas-meta | visualization-contracts |
+| <a id="ADR-0029"></a>**0029** | Promote Iris as the owner for normalized color laws, fixed lookup tables, borrowed scientific views, and static render-backend contracts; replace duplicate RITK and CFDrs color laws | Accepted | 2026-07-21 | `[arch]` `[minor]` | iris / ritk-snap / ritk-vtk / cfd-schematics / atlas-meta | visualization-contracts |
 
 The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0029 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, provider-checkout, biological-response, and visualization-contract decisions. The index now carries the authored sequence through ADR 0029.
 
@@ -134,8 +134,8 @@ to 0025 (Proteus material properties).
 
 Cross-cuts domain-neutral color mapping, borrowed result views, and static
 render seams used by scientific consumers. Affected crates (initial): `iris`,
-`ritk-snap`, and `ritk-vtk`. Future consumer migrations require separate
-audits in Kwavers and CFDrs.
+`ritk-snap`, `ritk-vtk`, and `cfd-schematics`. Future consumer migrations
+require a separate audit in Kwavers.
 
 - **ADR 0029** — Iris normalized colors, fixed lookup tables, borrowed views,
   and GAT render-backend contract. **Anchor for visualization ownership and

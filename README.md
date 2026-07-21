@@ -127,6 +127,7 @@ flowchart TB
     asclepius --> aequitas
     asclepius --> eunomia
     ritk --> iris
+    CFDrs --> iris
 ```
 
 ### Provider ownership
@@ -167,7 +168,7 @@ Harmonia's Phase 0 coupling boundary and promotion evidence are recorded in
 [ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md). Asclepius
 biological-response ownership and its consumer migration boundary are recorded
 in [ADR 0028](docs/adr/0028-asclepius-biological-response-promotion.md).
-Iris visualization ownership and the initial RITK consumer migration are
+Iris visualization ownership and the RITK and CFDrs consumer migrations are
 recorded in [ADR 0029](docs/adr/0029-iris-visualization-promotion.md).
 
 ## Naming
@@ -263,7 +264,7 @@ moirai + consus ── tyche
 aequitas + eunomia ── asclepius
 asclepius + coeus ── asclepius-coeus ── helios
 asclepius ── kwavers
-iris ── ritk-snap / ritk-vtk
+iris ── ritk-snap / ritk-vtk / cfd-schematics
 ```
 
 `harmonia` follows typed time and convergence contracts but does not depend on

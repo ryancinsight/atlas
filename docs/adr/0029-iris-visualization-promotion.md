@@ -41,6 +41,7 @@ domain result storage ──borrow──> iris views
 
 ritk-snap ──> iris color laws
 ritk-vtk  ──> iris color laws
+CFDrs     ──> iris color laws
 
 consumer renderer ──implements──> iris RenderBackend
 ```
@@ -49,8 +50,15 @@ RITK retains medical windowing, session/UI state, VTK data models and
 serialization, and GPU resource mechanics. RITK ADR 0011 removes the public
 `Colormap` and `ColormapPreset` contracts and migrates every in-tree caller to
 Iris `NamedColorMap`; no compatibility layer remains. The Kwavers and CFDrs
-view migrations remain later vertical increments after their separate source
-and contract audits.
+view migrations began as later vertical increments requiring separate source
+and contract audits. The CFDrs increment is now complete:
+
+CFDrs retains field interpretation, scalar-range policy, byte-color
+representation, and Plotters rendering. Its `cfd-schematics` boundary consumes
+Iris `NamedColorMap` directly and deletes the parallel `ColormapKind` enum and
+local blue-red, grayscale, and Viridis formulas. The consumer computes each
+range once per overlay and uses `Cow` to borrow pre-existing field maps. The
+Kwavers renderer remains a separate increment under its active branch claim.
 
 ## Theorems and proof obligations
 
@@ -84,8 +92,9 @@ evidence; neither category substitutes for the other.
    APIs; delete the superseded module, enum, and interpolation functions.
 4. Register the fetched public Iris default and merged RITK consumer revision
    as exact Atlas gitlinks.
-5. Audit and migrate the Kwavers lookup table and CFDrs/Kwavers result-view
-   assembly as separate complete consumer increments.
+5. Audit CFDrs, add its exact blue-red law upstream, then migrate its map and
+   overlay boundary as one complete consumer increment. Audit Kwavers only
+   after its active renderer claim closes.
 
 ## Evidence
 
@@ -116,6 +125,20 @@ green; RITK PR 47 merged as
 `29833657517`, Python CI `29833657538`, and migration audit `29833657634`
 passed. Atlas pins these two anonymous public defaults as commit gitlinks.
 
+Iris PR 3 adds the exact CFDrs blue-red law as a zero-sized static strategy and
+closed-set runtime variant. All 256 byte coordinates satisfy complement and
+monotonicity laws, and the 1,025-point generic suite covers every named map.
+PR 4 closes the provider record at `c7454ef349125e83728031726cee993aefb10a35`;
+default-branch CI run `29845556866` passes verify and supply-chain. CFDrs PR
+303 merges at `394c9977cc52de198b600bbd8c14a6386f0072d1`, deleting the local
+enum and formulas. The consumer passes 176/176 `cfd-schematics` tests, 10
+focused iterator/window tests, 16 doctests, warning-denied Clippy and Rustdoc,
+feature checks, and an inspected Venturi pressure render. Range reduction is
+linear once per overlay; subsequent color lookup is constant-time and creates
+no per-element range allocation. The isolated CFDrs SemVer comparison did not
+reach API analysis because its existing graph selected distinct Aequitas and
+Leto Git-source identities, so this ADR makes no SemVer-pass claim for CFDrs.
+
 ## Rejected alternatives
 
 - Keeping color laws in RITK leaves simulation consumers dependent on a
@@ -131,6 +154,7 @@ passed. Atlas pins these two anonymous public defaults as commit gitlinks.
 ## Consequences
 
 Atlas gains a small public visualization-law provider with one-way consumer
-dependencies. RITK has one normalized color authority and fixed VTK table
-storage. Additional plotting, diagnostic, and renderer capabilities enter Iris
-only when a complete consumer slice demonstrates the shared contract.
+dependencies. RITK and CFDrs share one normalized color authority; RITK keeps
+fixed VTK table storage, while CFDrs keeps its CFD range and rendering policy.
+Additional plotting, diagnostic, and renderer capabilities enter Iris only
+when a complete consumer slice demonstrates the shared contract.
