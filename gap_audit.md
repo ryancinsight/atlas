@@ -1,5 +1,51 @@
 # atlas — cross-repository integration gap audit
 
+## Session 2026-07-21 (Session 8, PM cycle 8) — leto gitlink reconciliation + verification contention record
+
+- Trigger: no user dispatch; standing continuation via gap-analysis cycle.
+  Session 7 closed at atlas-meta main ff63dc1. Re-orient at session start
+  found peer had advanced main 4 gitlink-reconciliation chores to 2729988
+  (leto+helios, kwavers+helios x2, kwavers ndarray-migration-complete).
+  Submodule count verified at 24 (iris registered Session 6; unchanged).
+- Gitlink reconciliation: repos/leto gitlink advanced b08b34b to
+  b7224832e (peer merged feat/array-to-vec-97 to main; subsequent
+  perf(leto-ops): Vectorize UDU weighted-dot landed). Leto inner working
+  tree clean (main vs origin/main aligned). Atomic chore commit f288b6d
+  on atlas-meta main; pushed to origin.
+- Other gitlinks verified aligned: kwavers e65cd8142, helios ebf196a,
+  CFDrs 85ef9a34, hephaestus 196b445 (master branch, not main: false
+  positive in initial drift probe); apollo/asclepius/athena/aequitas/coeus/
+  consus/eunomia/gaia/harmonia/hermes/horae/iris/melinoe/mnemosyne/moirai/
+  proteus/ritk/themis/tyche all aligned at latest peer-published main.
+- Verification attempt - leto: bounded subagent
+  (cargo nextest run --no-fail-fast --manifest-path
+  D:/atlas/repos/leto/Cargo.toml --workspace + cargo test --doc) BLOCKED
+  on shared CARGO_TARGET_DIR lock - peer running concurrent
+  cargo-nextest.exe (PID 48380) on the same shared tree. Per
+  concurrent_agents build-contention ladder: a held lock is not idle
+  time, queue and continue non-build work; this task's entire scope was the
+  test gate, so no non-build portion existed to advance.
+- Evidence: tasklist shows ~11 cargo.exe, 2 cargo-nextest.exe,
+  multiple rustc.exe (250-280 MB RSS each, active codegen). Lock is held
+  by a live, progressing peer build, not an orphan. Per concurrent_agents
+  the peer's green nextest run on this shared tree IS authoritative
+  verification evidence for this revision.
+- Residual risk: leto b722483 value-semantic correctness UNVERIFIED by
+  atlas-meta. The perf increment sits atop 9a03735 refactor(leto)!: Retire
+  ndarray boundary (a [major]) and b08b34b perf(leto-ops): SIMD-dispatch SVD
+  U/V accumulation; without nextest + doctest green at this revision,
+  preservation is unconfirmed. Mitigating: peer is concurrently running the
+  same gate - their green run, once landed, IS the authoritative evidence
+  per concurrent_agents. Re-verification trigger: peer build activity
+  ceases (no cargo-nextest.exe PID present), then bounded atlas-meta
+  nextest + doctest re-run for record. Per verification_policy
+  continuous-verification, re-verification is warrantable on material
+  advance (peer's Vectorize UDU weighted-dot qualifies); not blocking since
+  the peer's green run will supplant.
+- No source edits to any repos/X/** this session per concurrent_agents
+  disjoint-scope. The only mutation this session is the repos/leto gitlink
+  advance, which is a peer-published main pointer.
+
 ## Iris visualization ownership (ATLAS-INTEGRATION-038/039)
 
 - **Finding:** `ritk-snap`, `ritk-vtk`, and Kwavers Analysis independently

@@ -2318,3 +2318,72 @@ Next actionable (awaiting user or peer event):
    `cuda-oxide`/`cutile-rs` or ADR the Windows CUDA discovery convention).
 7. User authorizes release/deploy of any stack version (none authorized
    this session per `interaction_policy` terminal delivery state).
+
+## Session 2026-07-21 Session 8 (atlas-meta coordinator, PM cycle 8)
+
+Standing continuation; no user dispatch. Re-oriented at session start per
+`concurrent_agents` origin-sync-first.
+
+Done this session:
+
+- [x] Re-orient: `git fetch origin`; atlas-meta main advanced 4 peer
+      gitlink-reconciliation chores Session 7-close `ff63dc1` to `2729988`.
+      Submodule count verified at 24 (iris registered Session 6/7;
+      unchanged this session). No atlas-meta uncommitted state at start.
+- [x] Drift probe across all 24 submodules: only `repos/leto` gitlink stale
+      (`b08b34b` recorded vs leto main `b7224832e` peer-published). All
+      other gitlinks aligned at peer main; hephaestus false positive (uses
+      `master`, not `main` branch).
+- [x] Leto inner state confirmed clean `main...origin/main` (no dirty
+      inner tree; peer's `feat/array-to-vec-97` branch merged to main, then
+      `b722483 perf(leto-ops): Vectorize UDU weighted-dot` landed on top
+      of `9a03735 refactor(leto)!: Retire ndarray boundary` [major] and
+      `b08b34b perf(leto-ops): SIMD-dispatch SVD U/V accumulation`).
+- [x] Stage `repos/leto` gitlink advance selectively: `git add repos/leto`.
+      Confirm only leto gitlink staged, nothing else.
+- [x] Commit atomic chore `f288b6d chore(atlas): advance leto gitlink
+      (Vectorize UDU weighted-dot)`. Push to `origin/main` per
+      `git_discipline` cadence; pushed successfully `2729988..f288b6d`.
+- [x] Spawn bounded subagent for leto verification
+      (`cargo nextest run --no-fail-fast --workspace` + `cargo test --doc`,
+      timeout_ms 240000/180000 per proven per-package pattern).
+- [x] Verification BLOCKED on peer-held CARGO_TARGET_DIR lock
+      (live `cargo-nextest.exe` PID 48380; not orphan). Per
+      `concurrent_agents` build-contention ladder: held lock is not idle
+      time, queue and continue non-build work. No non-build scope remained
+      for this task. Per `concurrent_agents` peer's concurrent green nextest
+      run on this shared tree IS authoritative evidence for this revision.
+- [x] File `LETO-VERIFY-CONTENTION-001` watchpoint in `backlog.md` Session 8
+      table: not a defect; contention record with re-verification trigger
+      (peer quiescence, no live cargo-nextest in tasklist).
+- [x] Record Session 8 `gap_audit.md` entry at top (reverse-chronological).
+- [x] Record Session 8 row in this `checklist.md`.
+
+Out-of-scope this session (unchanged or advanced from Session 7):
+
+- CFDrs inner working tree dirty (Cargo.toml, Cargo.lock, cfd-1d paths
+  spanning 6+ files); peer mid-flight on Iris-color adoption + cfd-1d work.
+  Atlas-meta disjoint-scope per `concurrent_agents`.
+- Kwavers inner tree dirty only `xtask/legacy_surface.allowlist`; peer still
+  active. Atlas-meta disjoint-scope.
+- 4 active watchpoints (`HEPH-CUDA-WIN-001`, `CFDRS-CFD1D-LINT-001`,
+  `CFDRS-PERF-SLOW-001`, `CFDRS-LINT-CASCADE-001`) all peer-owned.
+  `LETO-VERIFY-CONTENTION-001` (new this session) is also peer-owned in the
+  sense that the peer's green nextest run supplants; atlas-meta re-verifies
+  only if peer quiesces without green.
+
+Next actionable (awaiting user or peer event):
+
+1. Peer's leto nextest run `PID 48380` lands green -> atlas-meta records it
+   as authoritative verification evidence for `b722483`; closes
+   `LETO-VERIFY-CONTENTION-001` per `concurrent_agents` shared-tree rule.
+2. Peer quiesces on CFDrs Iris-color adoption + cfd-1d work -> atlas-meta
+   re-verifies CFDrs workspace; restores baseline 3075/3075 PASS expectation
+   pending `CFDRS-PERF-SLOW-001` root-cause work.
+3. Peer schedules `CFDRS-PERF-SLOW-001` 3-timeout root-cause per
+   `engineering_gates` (optimize, never relax bound).
+4. Peer remediates `CFDRS-LINT-CASCADE-001` 4 clippy blockers; unblocks
+   `CFDRS-CFD1D-LINT-001` baseline.
+5. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization.
+6. User authorizes release/deploy of any stack version (none authorized
+   this session per `interaction_policy` terminal delivery state).
