@@ -78,6 +78,15 @@
 
 ### Changed
 
+- Document the supported four-job schedule for long consumer benchmark
+  instruments: two isolated, co-located base-first pairs and two isolated,
+  co-located candidate-first pairs. The Atlas classifier still requires
+  unanimous direction, identical benchmark universes, complete estimates, and
+  the derived 5% family-wise confidence bound; no comparison mixes
+  measurements from different runners or fixed checkout identities.
+
+- Add the registered Proteus and Tyche packages to the README naming registry.
+
 - Move the shared Cargo target configuration from `repos/.cargo` to the Atlas
   root so root tools, provider repositories, and linked worktrees beneath
   `worktrees/` resolve one `target` cache. Reconcile Apollo, Helios,

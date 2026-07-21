@@ -162,7 +162,7 @@ fn detects_nested_regression_in_both_replications() {
 }
 
 #[test]
-fn rejects_slowdown_confined_to_one_run_phase() {
+fn rejects_slowdown_confined_to_one_execution_order() {
     let fixture = Fixture::new();
     let (regression_forward, regression_reverse) = regression_estimates(0.95);
     let (stable_forward, stable_reverse) = stable_estimates(0.95);
