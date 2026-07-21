@@ -135,9 +135,9 @@ No forwarding wrapper, local adapter, or fallback implementation remains.
 
 ## Evidence
 
-Atlas pins Asclepius merge object
-`ceb8b6d9e0f119181258a27ae4888aa099b64d99`. That revision contains the law
-core and Coeus adapter and passed format, workspace and `no_std` checks,
+Atlas pins public Asclepius remote default
+`eb65eaf7bf83bbd6ad38778fc5e2b534b01ac6aa`. The law core and Coeus adapter
+merge at `794f8c3` and passed format, workspace and `no_std` checks,
 warning-denied Clippy, Nextest, doctests, warning-denied rustdoc, examples,
 and cargo-deny. Its tests cover `f32` and `f64`; generalized-mean bounds and
 homogeneity; TCP/NTCP midpoint and monotonicity; published CEM43 reference
@@ -148,20 +148,23 @@ equivalence; allocation-free lazy Celsius mapping; invalid step, empty input,
 and output-length failures; and Coeus value/gradient differential contracts
 over Sequential and Moirai backends.
 
-Helios commit `dcf3ffcff9fcd0e4850209efa233f2a1ac1d5acf`
-directly consumes Asclepius, deletes its scalar-law duplicate, delegates Coeus
-gEUD construction, and passes its local workspace gates. Hosted verification
-and the Kwavers thermal-response migration remain tracked by
-`ATLAS-INTEGRATION-037`; their completion evidence is not implied by this
-promotion record.
+Helios remote default `33bba347dd14d1690666e4bfe404230ddd150ae6`
+contains direct Asclepius adoption at `4ce96b1`, deletion of its scalar-law
+duplicate, delegated Coeus gEUD construction, local workspace gates, and
+hosted verification. Kwavers PR 301 merges as
+`1cb01feb985a3b3a842c5f0353de8e0b72fa8214`, removes the migrated response-law
+duplicates, consumes the public Git source without a sibling patch, and
+passes all 23 first-party hosted checks.
 
 The packages are `publish = false`; no registry baseline exists for
 `cargo-semver-checks`. SemVer comparison begins from the public Git contract.
 Atlas checkout-engine format, locked check, warning-denied Clippy, 11/11
 Nextest cases, doctest, and warning-clean rustdoc pass. A real provider-graph
-smoke test at pushed Atlas registration commit `6fb5576` materializes public
-Asclepius gitlink `ceb8b6d`, verifies its clean exact revision, and resolves
-`crates/asclepius/Cargo.toml`.
+smoke test at pushed Atlas registration commit `6fb5576` materializes the
+initial public Asclepius gitlink, verifies its clean exact revision, and
+resolves `crates/asclepius/Cargo.toml`. The final pin sweep resolves
+Asclepius `eb65eaf`, Helios `33bba34`, and Kwavers `1cb01fe` from their public
+default branches.
 
 ## Rejected alternatives
 

@@ -7,7 +7,7 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor] — in progress
+## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor] — done
 
 - Owner: Codex `/root`; scope: public Asclepius core and Coeus adapter, Atlas
   registration, direct Helios and Kwavers adoption, deletion of superseded
@@ -21,22 +21,19 @@
   and independent-insult laws; duplicate computation and compatibility
   wrappers are absent; focused and full consumer gates plus exact-head hosted
   CI pass.
-- Evidence: Asclepius merge object `794f8c3` contains the `no_std` law core and
-  one-way Coeus adapter. The public provider branch additionally streams
-  arbitrary exact-size thermal observations into caller-owned outputs without
-  an intermediate collection and proves bitwise equivalence to borrowed
-  histories. Analytical, property, differential, layout, ZST, GAT, `Cow`,
-  const-generic, allocation, and `f32`/`f64` tests pass. The Atlas checkout
-  engine materializes that public gitlink from pushed registration commit
-  `6fb5576` and verifies the nested package manifest. Hephaestus advances to
-  public merge `74dec5d`, where its Aequitas dependency uses the same
-  `be3a1ac` response-quantity revision as Asclepius and Helios. Helios PR 13
-  merges as `4ce96b1` after 270/270 local Nextest plus workspace check, Clippy,
-  doctest, rustdoc, examples, cargo-deny, and exact-head hosted CI. Atlas pins
-  fetched Asclepius default `794f8c3`; the complete Kwavers migration remains
-  the final dependency-ordered consumer slice. Repository visibility is
-  confirmed public and unauthenticated Git resolves its exact remote-default
-  head.
+- Evidence: public Asclepius remote default `eb65eaf` contains the `no_std` law
+  core and one-way Coeus adapter merged at `794f8c3`, plus the completed public
+  distribution contract. Analytical, property, differential, layout, ZST,
+  GAT, `Cow`, const-generic, allocation, and `f32`/`f64` tests pass. Helios
+  remote default `33bba34` contains direct adoption `4ce96b1` after 270/270
+  local Nextest plus workspace check, Clippy, doctest, rustdoc, examples,
+  cargo-deny, and exact-head hosted CI. Kwavers PR 301 merges as `1cb01fe`,
+  deletes consumer-owned response formulas, consumes the public Asclepius Git
+  source without a sibling patch, and passes all 23 first-party hosted checks.
+  Anonymous Git resolves all three exact remote-default OIDs. Atlas pins those
+  public defaults and the final structural residue scan finds no superseded
+  response-law implementation or compatibility wrapper in the migrated
+  consumer paths.
 
 ## ATLAS-INTEGRATION-035 — Proteus and Tyche promotion ADRs [arch] [minor] — done
 

@@ -4,15 +4,16 @@
 
 ### Added
 
-- Register Asclepius at merge object
-  `ceb8b6d9e0f119181258a27ae4888aa099b64d99` as the twenty-third Atlas
-  package and file ADR 0028. Asclepius owns typed gEUD, TCP, NTCP, CEM43,
-  Arrhenius damage, and independent-response composition over Aequitas and
-  Eunomia; `asclepius-coeus` supplies the one-way autodiff adapter. The stack
-  map, dependency graph, provider table, naming registry, roadmap, layout,
-  ADR index, backlog, checklist, and gap audit now share that boundary.
-  Hephaestus advances to merge `74dec5d`, aligning its Aequitas response
-  quantities with the registered provider graph.
+- Register public Asclepius remote default
+  `eb65eaf7bf83bbd6ad38778fc5e2b534b01ac6aa` as the twenty-third Atlas
+  package and file ADR 0028. The law core and one-way Coeus adapter merge at
+  `794f8c3`; Asclepius owns typed gEUD, TCP, NTCP, CEM43, Arrhenius damage,
+  and independent-response composition over Aequitas and Eunomia. Helios
+  `33bba34` and Kwavers `1cb01fe` consume the public provider directly, with no
+  sibling-directory source patch. The stack map, dependency graph, provider
+  table, naming registry, roadmap, layout, ADR index, backlog, checklist, and
+  gap audit share that boundary. Hephaestus `74dec5d` aligns its Aequitas
+  response quantities with the registered provider graph.
 
 - File ADR 0025 (`docs/adr/0025-proteus-material-property-promotion.md`) at
   `Accepted` to record the Proteus promotion decision. Proteus owns shared
