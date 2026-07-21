@@ -1,5 +1,89 @@
 # atlas — cross-repository integration gap audit
 
+## Session 2026-07-20 (Session 5, PM cycle 5) — helios example audit + PR #14 merge
+
+- **Finding:** user dispatched helios/kwavers book authoring with focus on
+  "implement and resolve examples for now, just keep in mind the future book
+  chapters or you can include organization for now at least." Re-orientation
+  post-Session 4 (`a39d456` CR-1 closure, in history): peer had advanced
+  atlas-meta main through PRs #64-#68, including the Helios Proteus closure
+  (PR #64, `d6d5686`) and the provider graph sync PR #68; Asclepius was
+  registered (`6fb5576`, ADR 0028 filed, `.gitmodules` lines 86-88) closing
+  watchpoint `ASCLEPIUS-REG-001`. Helios inner main at session start: `4ce96b1`
+  (PR #13 merged, peer had gone quiet ~40 min). Kwavers peer actively
+  committing (commits at 22:26 still landing) — disjoint-scope, observation only.
+- **Resolution (this session):** atlas-meta claimed the reclaimable helios
+  example scope (peer gone upstream gone). Subagent-delegated bounded
+  per-example `cargo check` + `cargo run` verification of all 10 existing
+  helios examples — **10/10 compile + run PASS** at `4ce96b1`. The audit
+  surfaced 2 `verification_policy` defects in helios examples:
+
+  1. `dvh_optimization.rs` (helios-planning): printed aspirational clinical
+     ideals (`D95 >= 1.90 Gy`, `PTV mean approx 2.00 Gy`, `OAR D_max <=
+     1.00 Gy`) while assertions were silently relaxed to `1.5` / `1.7` and
+     the OAR D_max was printed-only, never gated. The success line
+     "All DVH checks passed ✓" contradicted its own printed acceptance per
+     `integrity` (existence-only/compliance-only where value semantics
+     contradict).
+  2. `collapsed_cone_3d.rs` (helios-solver): top-level doc-comment described
+     energy conservation as `total dose approx total TERMA` (implies strict
+     equality) while the assertion block at the same example documented the
+     actual analytical bound: `< 30% energy loss acceptable due to finite-radius
+     kernel truncation at the 10-voxel phantom boundary`. The top-level
+     article summary was missing the boundary-truncation caveat that the
+     local assertion rationale already documented.
+
+  Atlas-meta branch `codex/helios-examples-bounds-tighten`, commit `3fb4cf03`,
+  PR #14: tightened `dvh_optimization` assertions to the analytically derived
+  achievable NNLS-optimum bounds (D95 `1.5 -> 1.7`, converges `1.7474` /
+  PTV_mean `1.7 -> 1.85`, converges `1.8785` / added OAR D_max assertion
+  `oar_max <= 0.7`, converges `0.6598` / replaced aspirational clinical
+  labels with achievable bounds in print + documented the rank-3 PTV/OAR
+  conflict inline per `integrity` analytical-bound escape hatch); updated
+  `collapsed_cone_3d` doc-comment to mention the boundary-truncation
+  analytical bound already documented at the assertion site. 2 files changed,
+  +43 / -13.
+- **Evidence tier:**
+  - `cargo check --workspace --all-targets` (helios inner main `4ce96b1`):
+    GREEN, all examples + lib + bin + test + bench targets compile.
+  - `cargo check --example dvh_optimization -p helios-planning` and `cargo
+    check --example collapsed_cone_3d -p helios-solver`: GREEN.
+  - `cargo run --example dvh_optimization -p helios-planning`: PASS, prints
+    tightened thresholds, exits 0.
+  - `cargo run --example collapsed_cone_3d -p helios-solver`: PASS, conservation
+    error `0.2187 < 0.30` documented bound, exits 0.
+  - `cargo nextest run -p helios-planning -p helios-solver --no-fail-fast`:
+    58/58 tests green.
+  - `cargo clippy -p helios-planning -p helios-solver --all-targets --
+    -D warnings`: warning-clean.
+  - PR #14 CI on GitHub: rust workspace PASS (5m59s), python bindings PASS
+    (1m33s), benchmark regression check PASS (45m26s — full phase-reversed
+    ABBA+BAAB per the strengthened gate from PR #61). CodeRabbit/recurseml
+    rate-limited (external review bots; same pattern as PRs #12/#13).
+  - PR #14 MERGED by peer (no-ff merge `d3104e73`) at `2026-07-21T01:53:18Z`.
+- **Post-merge peer follow-on:** peer landed `33bba347` "feat(helios-imaging):
+  add sirt_reconstruction and mvct_registration examples + book pages"
+  immediately after the merge — 2 new examples (SIRT iterative
+  reconstruction vs FBP; IGR t setup correction via translation
+  registration), each with stage tables, physics background, and analytical
+  bounds documented in situ. Verified both new examples PASS at runtime
+  with consistent assert/print alignment per `verification_policy`.
+  Helios examples now total 12 (10 peeled by this session audit + 2 from
+  peer follow-on); all 12 PASS a re-run sweep.
+  Helios `cargo nextest run --workspace`: 251/251 tests green. Helios
+  book organization: 83-line SUMMARY, 12 example `.rs` <-> 12 example `.md`
+  <-> 12 SUMMARY cross-refs (1:1:1), 7 parts + 3 appendices, 252-line
+  `BOOK_ORGANIZATION.md` forward roadmap. Book organization directive
+  met by peer stream — atlas-meta observes.
+- **Residual:** kwavers peer actively committing on `main` (5 commits in
+  last 60 min as of session close, latest `c89c57cb5` 22:26); kwavers book
+  has 75 example `.rs` files, 39 book MDs, 48 example MDs, 110-line
+  SUMMARY; kwavers peer is the live claimer per `concurrent_agents`
+  disjoint-scope, so atlas-meta does NOT touch kwavers this session.
+  CFDrs peer is also active (the Tyche integration work continues). The
+  helios peer took ownership of follow-on example additions immediately
+  after PR #14 merged — atlas-meta disjoint on helios examples now.
+
 ## State refresh (2026-07-20) — Asclepius P1 promotion
 
 - **Finding:** Helios and Kwavers owned repeated biological-response formulas

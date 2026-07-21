@@ -1945,3 +1945,106 @@ Next actionable \(awaiting user or peer event\):
    agent as a single session claim on those sub-trees, or routed through
    the peer streams. Either is a valid dispatch; atlas-meta is currently
    observing without a claim.
+
+## Session 2026-07-20 (PM cycle 5) — helios example audit + PR #14 merge + Asclepius watchpoint closeout
+
+Session 5 milestone: atlas-meta closed the helios example-bounds audit
+loop and filed the Asclepius registration closeout, capturing a peer-merged
+PRD with three green review gates and a benchmark regression gate held
+under the strengthened phase-reversed ABBA+BAAB gate from PR #61.
+
+Milestone summary:
+
+- **Re-orient:** atlas-meta main advanced past Session 4 close `a39d456`
+  to `8c4d328` (peer PRs #64-#68, the Helios Proteus closure, provider
+  graph sync, release/wheel CI + portability fixes, gitlink reconciliation).
+  Session 4 `CR-1` marker commit verified preserved in main history via
+  `git --all --grep="CR-1"`; Asclepius registered (`6fb5576`, ADR 0028
+  filed) closing the prior `ASCLEPIUS-REG-001` reopen trigger.
+- **Helios example audit (atlas-meta scope):** Subagent-delegated bounded
+  per-example `cargo check + cargo run` verification of all 10 existing
+  helios examples at inner main `4ce96b1` returned 10/10 compile + run
+  PASS, but surfaced 2 `verification_policy` defects: (1) `dvh_optimization.rs`
+  in `helios-planning` printed aspirational clinical ideals (`D95 >= 1.90`,
+  `PTV mean approx 2.00`, `OAR D_max <= 1.00`) while assertions were silently
+  relaxed to 1.5/1.7 and the OAR D_max was printed-only, contract
+  contradiction per `integrity`; (2) `collapsed_cone_3d.rs` in `helios-solver`
+  had a top-level doc-comment implying strict dose/TERMA equality while
+  the local assertion block documented the actual `< 30%` boundary-truncation
+  analytical bound.
+- **PR #14 repair + merge:** branch `codex/helios-examples-bounds-tighten`,
+  commit `3fb4cf03`, 2 files changed +43/-13, tightened `dvh_optimization`
+  to analytically derived achievable NNLS-optimum bounds (D95 1.5->1.7
+  converging to 1.7474 / PTV_mean 1.7->1.85 converging to 1.8785 / added
+  OAR D_max <= 0.7 asserting 0.6598 / documented the rank-3 PTV/OAR conflict
+  inline) and updated `collapsed_cone_3d` doc-comment to mention the
+  boundary-truncation analytical bound. Peer merged PR #14 via no-ff merge
+  `d3104e73` at `2026-07-21T01:53:18Z` with all three real CI gates green:
+  rust workspace PASS (5m59s), python bindings PASS (1m33s), benchmark
+  regression PASS (45m26s). CodeRabbit + recurseml "fail" recorded as
+  external review bots rate-limited (same non-gating pattern as PRs #12/#13).
+- **Peer follow-on (disjoint post-merge):** peer landed `33bba347`
+  "feat(helios-imaging): add sirt_reconstruction and mvct_registration examples
+  + book pages" ~14 min after the merge, adding 2 imaging examples (SIRT
+  vs FBP 62.9% lower RMSE; MVCT `register_translation` exact setup-error
+  recovery). Verified both PASS at runtime by subagent. Helios examples
+  now total 12 (10 peeled by this audit + 2 peer follow-on), all PASS.
+  Helios `cargo nextest run --workspace`: 251/251 green.
+- **Book organization directive observed on helios:** peer-stream
+  `docs/book/SUMMARY.md` 83 lines / 7 parts + 3 appendices / 12 example
+  `.rs` <-> 12 example `.md` <-> 12 SUMMARY cross-refs (1:1:1) / 252-line
+  `BOOK_ORGANIZATION.md` forward roadmap. Book organization directive
+  on helios MET by peer stream; atlas-meta records-only.
+- **Asclepius watchpoint closeout:** `ASCLEPIUS-REG-001` closed this
+  session with peer commit `6fb5576` + ADR `0028-asclepius-biological-response-promotion.md`
+  + `.gitmodules` lines 86-88 referencing `repos/asclepius` ->
+  `https://github.com/ryancinsight/asclepius.git`; stack reconciled to
+  23 packages in README + INDEX.
+- **Disjoint-scope:** kwavers and CFDrs peers actively committing at
+  session close. Kwavers book at 75 example `.rs` / 39 book MDs / 48
+  example MDs / 110-line SUMMARY — peer live claimer; atlas-meta does
+  NOT touch kwavers this session. Atlas-meta remains disjoint on helios
+  examples and helios book authoring post-PR #14 per `concurrent_agents`.
+- [x] Stage Session 5 `gap_audit.md` entry at top of file (helios example
+      audit + PR #14 merge + peer follow-on observation + Asclepius
+      watchpoint closeout cross-ref).
+- [x] Mark `ASCLEPIUS-REG-001` watchpoint CLOSED in `backlog.md` Session 3
+      Watchpoints table with closure evidence: peer commit `6fb5576` +
+      ADR 0028 + `.gitmodules` lines 86-88 + 23-package stack reconciliation.
+- [x] Append this Session 5 row to `checklist.md` capturing the full
+      helios example audit + PR #14 merge + peer follow-on + Asclepius
+      closeout milestone.
+- [x] Commit the three-file PM delta atomically to `origin/main` per
+      `git_discipline` cadence, leaving peer's submodule gitlink advances
+      (CFDrs / coeus / consus / hephaestus / kwavers / leto / mnemosyne /
+      ritk) for a separate chore commit to keep the PM delta clean.
+
+Out-of-scope this session (unchanged or advanced from prior sessions):
+
+- Consumer hosted-CI adoption of the centralized checkout action (PR #60)
+  and strengthened Criterion gate (PR #61) on Apollo/Helios/Kwavers/RITK
+  remains peer-owned Codex `/root` work; atlas-meta records-only.
+- Helios / CFDrs book chapter authoring remains peer-owned scope; atlas-meta
+  records-only without explicit user dispatch (the user's dispatch this
+  session authorized example resolution and book organization, both
+  consummated on helios peer-side; CFDrs book authoring is still awaiting
+  user dispatch).
+- `HEPH-CUDA-WIN-001` (hephaestus-cuda / hephaestus-python Windows-gnu
+  link) remains open; fix is upstream in `cuda-oxide`/`cutile-rs` per
+  `architecture_scoping`. Awaiting user authorization to file upstream.
+
+Next actionable (awaiting user or peer event):
+
+1. Peer quiesces on kwavers and CFDrs; atlas-meta advances gitlinks.
+2. User dispatches CFDrs book chapter authoring OR routes it through peer
+   claim streams (current dispatch routed helios + kwavers book authoring
+   peer-side with example resolution priority; CFDrs book remains
+   awaiting dispatch).
+3. User authorizes `HEPH-CUDA-WIN-001` upstream fix in `cuda-oxide`/
+   `cutile-rs` OR files upstream issues.
+4. User authorizes release/deploy of any stack version (none authorized
+   this session per `interaction_policy` terminal delivery state).
+5. Peer-advanced submodule gitlinks (`repos/CFDrs`, `repos/coeus`,
+   `repos/consus`, `repos/hephaestus`, `repos/kwavers`, `repos/leto`,
+   `repos/mnemosyne`, `repos/ritk`) land in a separate atlas-meta chore
+   commit immediately after the PM delta commit.
