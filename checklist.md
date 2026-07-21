@@ -15,13 +15,16 @@
 - [x] Extend Aequitas with reciprocal-length, area-per-mass, and energy-per-area
       quantities and units; verify its generic, `uom` differential, doctest,
       SemVer, and hosted CI gates at `cf9b2c3`.
-- [ ] At implementation start, verify `hyperion` repository/crate-name
+- [x] Align Proteus to Aequitas `cf9b2c3`, verify its complete local gate and
+      hosted CI at `a61d0e5`, and advance the Atlas gitlink.
+- [x] At implementation start, verify `hyperion` repository/crate-name
       availability and draft the Phase 0 ADR with photon/optical attenuation as
       the bounded context; do not include general Maxwell, dose, or workflow
       ownership.
-- [ ] Implement Hyperion typed coefficients, optical depth, Beer-Lambert
+- [x] Implement Hyperion typed coefficients, optical depth, Beer-Lambert
       transmission, and derived diffusion laws with analytical, adversarial,
-      and generic-scalar conformance tests.
+      generic-scalar, exact NIST-knot, layout, and allocation conformance tests
+      at `b428a28`.
 - [ ] Publish the verified Hyperion provider commit and confirm anonymous Git
       access before changing any consumer dependency.
 - [ ] Migrate Kwavers, Helios, and CFDrs directly; delete the README deletion
