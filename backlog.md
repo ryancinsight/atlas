@@ -11,9 +11,11 @@
 
 - Owner: Codex `/root`; last-update: 2026-07-21; claimed scope:
   `repos/hyperion/**` plus this item's owner-keyed Atlas PM entries until the
-  provider is published. Consumer repositories remain outside this claim until
-  their live worktrees permit disjoint migration scopes. Outcome: replace the
-  speculative two-package target with
+  provider is published. The prerequisite Aequitas claim is limited to the
+  reciprocal-length and area-per-mass SI dimensions, quantities, units, their
+  focused tests/docs, and the resulting lockfile. Consumer repositories remain
+  outside this claim until their live worktrees permit disjoint migration
+  scopes. Outcome: replace the speculative two-package target with
   an evidence-gated P2 program whose registrations are consequences of code
   consolidation. Scope is Hyperion's first photon/optical transport slice plus
   the prerequisites that decide whether Ares or Prometheus can become a second
