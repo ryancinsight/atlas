@@ -23,6 +23,102 @@
   CFDrs/Kwavers plot-series assembly remain DoR items after their consumer
   contract audits; they are not compatibility fallbacks for this increment.
 
+## Session 2026-07-21 (Session 6, PM cycle 6) — tyche breaking-change verification sweep + consumer-migration watchpoints
+
+- **Trigger:** standing continuation grant; tree shifted materially since
+  Session 5 close (peer landed the tyche breaking change `e1a5964 feat(tyche-core)!:
+  Type counter streams` plus a random-access Sobol feature and sampling-breadth
+  chore at tyche HEAD `0fc810b`; atlas-meta main advanced past Session 5
+  close `4278283` through PRs #69 (Asclepius P1 closure) and #70 (Tyche consumer
+  closure) plus the iris-public-registration branch). `verification_policy`
+  continuous-verification trigger fired (material tree shift + breaking change
+  without in-tree consumer migration).
+- **Sweep:** 3 parallel bounded subagents (read-only, disjoint scopes):
+  (1) tyche self-verification; (2) helios consumer verification; (3) CFDrs
+  consumer verification. Kwavers skipped (peer actively committing on `main`,
+  disjoint-scope per `concurrent_agents`).
+- **Evidence:**
+  - **tyche (self): GREEN.** `cargo check --workspace --all-targets` rc=0;
+    `cargo nextest run --no-fail-fast --workspace` 33/33 PASS, 13 binaries;
+    `cargo clippy --workspace --all-targets -- -D warnings` warning-clean;
+    `cargo test --workspace --doc` 14/14 doctests PASS; `cargo-semver-checks
+    -p tyche-core --baseline-rev e1a5964~1` 5 MAJOR + 0 MINOR violations confirm
+    the `!` marker — semver-major reclassification authority.
+  - **helios (consumer): RED.** `cargo check --workspace --all-targets` rc=101
+    at exactly one site: `repos/helios/crates/helios-imaging/src/noise.rs:45`
+    E0107 "struct takes 2 generic arguments but 1 generic argument was supplied"
+    on `StandardNormal::<f64>::at(seed, sample_index, 0)`. The patch override
+    (`helios/Cargo.toml:138`) resolves tyche-core to local HEAD `0fc810b` (post-break),
+    so the manifest rev `87923da9...` (`helios/Cargo.toml:103`) is dead code
+    (verified: `helios/Cargo.lock:3234-3240` records `tyche-core` with no source
+    line). 251/251 baseline not reproduced; `sirt_reconstruction` and
+    `mvct_registration` examples blocked at runtime since `helios-imaging` lib
+    fails to compile. Helios inner main `295e48c` (`chore: update Cargo.lock`).
+    Sole helios-side tyche-core import site is `noise.rs:17` (`use tyche_core::...`).
+  - **CFDrs (consumer): RED.** `cargo check --workspace --all-targets` rc=101 at
+    `repos/CFDrs/crates/cfd-optim/src/design/space/sampling/mod.rs:254-255`:
+    E0107 on `LatinHypercube<PARAMETERS>` (now 2 generics: `<const PARAMETERS:
+    usize, A: StreamAlgorithm>`) and E0599 on `SplitMix64::word(root_seed,
+    ordinal, 0)` (now inherent-free, lives on `Counter<D, A>::word::<D>`).
+    Same `[patch]` mechanism: CFDrs `Cargo.toml:150` overrides tyche-core to
+    local HEAD `0fc810b`; manifest rev `87923da9...` dead. CFDrs inner main
+    `28e23df`("refactor: migrate deprecated API usages").
+    **Side-finding: independent `cfd-1d` pedantic lint floor debt** surfaced by
+    the same clippy run (`cargo clippy --workspace --all-targets -- -D warnings`
+    emits 55 error lines; ~50 sites across 15 files in `crates/cfd-1d/`:
+    ~26 `uninlined_format_args`, ~6 `manual_map`, ~5 `useless_conversion` to
+    `f64`, 3 `result_large_err` (`PrimarySolveError` >=160-byte Err variant),
+    ~8 miscellaneous `manual_range_contains`/`field_reassign_with_default`/
+    `complexity`/`empty_line_after_doc_comments`/`iter_cloned_collect`).
+    These are pre-existing debt independent of tyche; cataloged under the
+    ratchet for the CFDrs peer to schedule.
+- **Tyche-core public API delta (semver-major, 5 violations confirmed by
+  `cargo-semver-checks`):**
+  | Symbol | Before (`e1a5964~1`) | After (`0fc810b`) | Atlas consumers affected |
+  |---|---|---|---|
+  | `StandardNormal<T>` | `struct StandardNormal<T>` with `at(seed, sample, stream) -> T` | `struct StandardNormal<T, A: StreamAlgorithm>`; `at` now requires `T: SampleScalar, A: StreamAlgorithm` | helios (`noise.rs:45`), kwavers (expected, unverified) |
+  | `LatinHypercube<const PARAMETERS>` | `struct LatinHypercube<const PARAMETERS: usize>` | `struct LatinHypercube<const PARAMETERS: usize, A>` (no default) | CFDrs (`cfd-optim/.../sampling/mod.rs:254`), kwavers (expected, unverified) |
+  | `SplitMix64::word` | inherent `fn word(seed, sample, stream) -> u64` | removed inherent call; now `Counter::<D, A>::word::<D>(seed, index, draw) -> T` via `StreamAlgorithm` | CFDrs (`cfd-optim/.../sampling/mod.rs:255`), kwavers (expected, unverified) |
+  | `SplitMix64::unit` / `::open_unit` | inherent f64-returning | removed; replaced by `Counter::<D, A>::unit::<T>` / `::open_unit::<T>` | (in-tree consumers only) |
+  | `sampling::sequence` module | pub re-export of Seed/SplitMix64/StandardNormal | deleted (path-removal major) | (in-tree consumers only) |
+  - New additive surface (post-`a75bacd` and `e1a5964`): `Counter<D, A>` ZST,
+    `trait SampleScalar: Sealed + RealField` (impls for `f32`, `f64`),
+    `trait StreamDomain: Sealed` with `const TAG: u64`, `trait StreamAlgorithm:
+    Sealed + Generate + Copy` with `const VERSION: StreamVersion`, `UserDomain<
+    const TAG: u64>`, `StreamVersion` repr(transparent) newtype, and the random-
+    access Sobol family (`Sobol`, `RuntimeSobol`, `SobolDimensions`, `SobolRange`,
+    `SobolScramble`, `DigitalShift`, `Unscrambled`, `RuntimeSampleError`).
+- **Migration surface summary** (for consumer-owner peers):
+  1. helios: one-line call-site repair at `helios-imaging/src/noise.rs:17,45`:
+     add `SplitMix64` to the `use tyche_core::{...}` import on line 17 and
+     rewrite the call as `StandardNormal::<f64, SplitMix64>::at(seed,
+     sample_index, 0)` matching tyche's own `StandardNormal::<f64, SplitMix64>::at(...)`
+     usage in `tyche-core` benches/tests.
+  2. CFDrs: non-trivial typestate migration in `cfd-optim/src/design/space/
+     sampling/mod.rs:254-257` — add the `A: StreamAlgorithm` type argument to
+     `LatinHypercube<PARAMETERS, A>` and replace `SplitMix64::word(...)` with
+     the `Counter::<D, A>::word::<D>(...)` form, choosing among `LatinHypercubeOffset`,
+     `LatinHypercubeJitter`, `LatinHypercubeStride` per the tyche typestate
+     domain system at `tyche-core/src/sampling/counter/`.
+  3. kwavers: expected to need the same class of repairs in `crates/kwavers-analysis`
+     and `crates/kwavers-solver` (kwavers-analysis Cargo.toml:26 + kwavers-solver
+     Cargo.toml:42 both workspace-dep `tyche-core`); peer owns kwavers, atlas-meta
+     disjoint-scope this session.
+  4. The tyche-core `[patch]` override in helios and CFDrs means the manifest
+     rev pins (`87923da9...`) are effectively dead code; peer may choose to
+     bump the pins to `0fc810b` and refresh `Cargo.lock` once migration lands, or
+     adjust the `[patch]` to a fixed rev. Coordinator recommendation: bump
+     manifest pins to the migrated HEAD to make the pin/patch pair self-consistent
+     and eliminate the silent rev drift.
+- **Residual:** atlas-meta files 3 watchpoints (`HELIOS-TYCHE-MAJOR-001`,
+  `CFDRS-TYCHE-MAJOR-001`, `CFDRS-CFD1D-LINT-001`) and records the migration
+  surface evidence; per `concurrent_agents` the consumer-source repairs in
+  `repos/helios/**` and `repos/CFDrs/**` are peer-owned scope; atlas-meta does
+  not edit consumer source without explicit scope claim or user dispatch.
+  `HEPH-CUDA-WIN-001` unchanged. Kwavers consumer migration not verified
+  (peer actively committing on `main`); watchpoint to be filed when kwavers
+  peer quiesces or on explicit dispatch.
+
 ## Session 2026-07-20 (Session 5, PM cycle 5) — helios example audit + PR #14 merge
 
 - **Finding:** user dispatched helios/kwavers book authoring with focus on

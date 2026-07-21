@@ -2065,3 +2065,117 @@ Next actionable (awaiting user or peer event):
    `repos/consus`, `repos/hephaestus`, `repos/kwavers`, `repos/leto`,
    `repos/mnemosyne`, `repos/ritk`) land in a separate atlas-meta chore
    commit immediately after the PM delta commit.
+
+## Session 2026-07-21 (PM cycle 6) — tyche breaking-change verification sweep + consumer-migration watchpoints
+
+Session 6 milestone: atlas-meta advanced two peer-landed PRs (#69 Asclepius
+P1 closure, #70 Tyche consumer closure) plus 4 peer-advanced gitlinks
+(asclepius, consus, moirai, tyche) — including the tyche-break with
+typed-counter-streams that requires consumer-migration work in helios and
+CFDrs. Discovered 2 RED consumer workspaces and 1 independent cfd-1d lint
+floor debt via a 3-subagent parallel bounded verification sweep; filed 3
+watchpoints with exact failure sites and migration surface evidence.
+
+Milestone summary:
+
+- **Re-orient:** atlas-meta main advanced from Session 5 close `4278283`
+  through PRs #69/#70 and 4 gitlink advances (asclepius, consus, moirai,
+  tyche) to `589f899`. Notable: tyche peer commit `a75bacd` landed
+  `feat(tyche-core)!: Type counter streams` (semver-major `!` marker) plus
+  `feat(tyche-core): Add random-access Sobol`. The helios `[patch]` and CFDrs
+  `[patch]` overrides resolve `tyche-core` to local HEAD `0fc810b` (post-break),
+  bypassing each manifest's dead rev pin `87923da9...`.
+- **Gitlink reconciliation:** committed 4 peer-advanced gitlinks as a single
+  chore: asclepius `eb65eaf..07bcaa2` (rewind); consus `631c7ce..af5400d`
+  (Python release merge); moirai `91c802e..fb56649` (Python release merge);
+  tyche `94d3c34..a75bacd` (Sobol + typed counter streams feat + sampling-
+  breadth chore). Kwavers inner-HEAD dirty in working tree (peer mid-edit);
+  skipped from this advance until peer publishes.
+- **Verification sweep (3 parallel bounded subagents, read-only disjoint):**
+  - **tyche (self): GREEN.** `cargo check --workspace --all-targets` rc=0;
+    `cargo nextest run --no-fail-fast --workspace` 33/33 PASS (13 binaries);
+    `cargo clippy --workspace --all-targets -- -D warnings` warning-clean;
+    `cargo test --workspace --doc` 14/14 doctests PASS; `cargo-semver-checks
+    -p tyche-core --baseline-rev e1a5964~1` reports 5 MAJOR + 0 MINOR
+    violations — semver-major reclassification authority per `engineering_gates`.
+  - **helios (consumer): RED.** `cargo check --workspace --all-targets` rc=101
+    at `repos/helios/crates/helios-imaging/src/noise.rs:45` E0107 on
+    `StandardNormal::<f64>::at(seed, sample_index, 0)` (now requires 2nd
+    generic `A: StreamAlgorithm`). 251/251 baseline not reproduced.
+    `sirt_reconstruction` and `mvct_registration` examples blocked at
+    runtime since `helios-imaging` lib fails to compile. Helios inner main
+    `295e48c`. Sole helios-side tyche-core import site is `noise.rs:17`.
+  - **CFDrs (consumer): RED.** `cargo check --workspace --all-targets` rc=101
+    at `repos/CFDrs/crates/cfd-optim/src/design/space/sampling/mod.rs:254-255`:
+    E0107 on `LatinHypercube<PARAMETERS>` (now 2 generics required) and E0599
+    on `SplitMix64::word(...)` (now lives on `Counter<D, A>::word::<D>`;
+    inherent form removed). Non-trivial typestate migration — domain
+    selection from `LatinHypercubeOffset` / `LatinHypercubeJitter` /
+    `LatinHypercubeStride` per the tyche typestate system. CFDrs inner main
+    `28e23df`. **Side-finding: ~50 independent `cfd-1d` pedantic lint floor
+    debt sites across 15 files** (`uninlined_format_args`, `manual_map`,
+    `useless_conversion`, `result_large_err` on `PrimarySolveError`, etc.),
+    cataloged under the ratchet for the CFDrs peer to schedule.
+- **Watchpoints filed in `backlog.md` Session 6 table:**
+  - `HELIOS-TYCHE-MAJOR-001`: helios-imaging/noise.rs:45; one-line call-site
+    repair (`StandardNormal::<f64, SplitMix64>::at(...)` + import); helios
+    peer owns this scope.
+  - `CFDRS-TYCHE-MAJOR-001`: cfd-optim sampling/mod.rs:254-257; non-trivial
+    typestate migration (`LatinHypercube<PARAMETERS, A>` + `Counter::<D, A>::word::<D>`);
+    CFDrs peer owns this scope.
+  - `CFDRS-CFD1D-LINT-001`: cfd-1d 15-file ~50-site pedantic lint debt,
+    independent of tyche; under the ratchet for the CFDrs peer.
+- **Disjoint-scope:** kwavers peer actively committing on `main` — consumer
+  migration (kwavers-analysis + kwavers-solver both workspace-dep `tyche-core`)
+  not verified this session; watchpoint to be filed when peer quiesces or
+  on explicit dispatch. `repos/iris/` is the peer's new candidate stack
+  member (untracked this session) per `concurrent_agents` registration scope.
+- [x] Integrate peer PRs #69/#70 via fast-forward from `4278283` to `589f899`.
+- [x] Commit 4 peer-advanced gitlinks (asclepius, consus, moirai, tyche) as
+      a single chore commit, skipping kwavers dirty inner-HEAD.
+- [x] Run 3 parallel bounded verification subagents (tyche self / helios
+      consumer / CFDrs consumer) under read-only disjoint scopes.
+- [x] File 3 watchpoints in `backlog.md` Session 6 table with exact
+      failure sites and migration surface evidence.
+- [x] Record the Session 6 entry in `gap_audit.md` documenting the sweep
+      evidence, the tyche-core public API delta table, the migration surface
+      summary, and the residual kwavers-disjoint observation.
+- [x] Append this Session 6 row to `checklist.md`.
+- [x] Commit the three-file PM delta atomically to `origin/main` per
+      `git_discipline` cadence.
+
+Out-of-scope this session (unchanged or advanced from prior sessions):
+
+- Consumer hosted-CI adoption of the centralized checkout action (PR #60)
+  and strengthened Criterion gate (PR #61) on Apollo/Helios/Kwavers/RITK
+  remains peer-owned Codex `/root` work; atlas-meta records-only.
+- Helios / CFDrs book chapter authoring remains peer-owned scope; atlas-meta
+  records-only without explicit user dispatch. The Session 5 closeout
+  noted helios book organization is now MET by peer stream (83-line SUMMARY,
+  7 parts + 3 appendices, 12 example `.rs` <-> 12 example `.md` <-> 12
+  SUMMARY cross-refs); CFDrs book authoring still awaits user dispatch.
+- `HEPH-CUDA-WIN-001` (hephaestus-cuda / hephaestus-python Windows-gnu
+  link) remains open; fix is upstream in `cuda-oxide`/`cutile-rs` per
+  `architecture_scoping`. Awaiting user authorization to file upstream.
+- Consumer-source migration of helios-imaging/noise.rs and cfd-optim/sampling/mod.rs
+  stays peer-owned this session per `concurrent_agents` disjoint-scope.
+
+Next actionable (awaiting user or peer event):
+
+1. Peer migrates `helios-imaging/src/noise.rs` to `StandardNormal<T, A>` (2-
+   param form) per `HELIOS-TYCHE-MAJOR-001`; atlas-meta re-verifies the 251/251
+   baseline once peer publishes.
+2. Peer migrates `cfd-optim/src/design/space/sampling/mod.rs:254-257` to the
+   `LatinHypercube<PARAMETERS, A>` + `Counter::<D, A>::word::<D>` form per
+   `CFDRS-TYCHE-MAJOR-001`; non-trivial typestate domain selection.
+3. Peer schedules `CFDRS-CFD1D-LINT-001` ratchet remediation (~50 sites /
+   15 files in `cfd-1d`); independent of tyche migration.
+4. Peer quiesces on kwavers; atlas-meta verifies kwavers consumer migration
+   for tyche-core breaking change (kwavers-analysis + kwavers-solver both
+   workspace-dep `tyche-core`).
+5. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization (file in
+   `cuda-oxide`/`cutile-rs` or ADR the Windows CUDA discovery convention).
+6. User dispatches CFDrs book chapter authoring OR routes it through peer
+   claim streams.
+7. User authorizes release/deploy of any stack version (none authorized
+   this session per `interaction_policy` terminal delivery state).
