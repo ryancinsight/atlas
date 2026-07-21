@@ -35,6 +35,122 @@
   analysis by pre-existing distinct Aequitas and Leto Git-source identities;
   no SemVer-pass claim is made for that consumer migration.
 
+## Session 2026-07-21 (Session 7, PM cycle 7) — tyche consumer migration closure + CFDrs book + Iris consumer integration verification
+
+- **Trigger:** user dispatched "a" from the Session 6 Ask-User round — CFDrs
+  book chapter authoring. Re-orient: peer had advanced CFDrs main to `fca1a9a9`
+  ("fix(cfd-optim): update LatinHypercube and Counter API for tyche-core
+  breaking change") DURING the dispatch window, then further with
+  `d90dfe07` ("docs(book): add 13 missing example pages and expand SUMMARY.md
+  to all 37 examples") and PR #72 closure (Iris registration) and PR #73
+  closure (Iris CFDrs-color consumer integration, `176aa74`). CFDrs peer
+  has therefore effectively authored the book organization the user
+  requested — atlas-meta's role is verification closeout + records, not source
+  authorship per `concurrent_agents` peer-assist ladder rung (2).
+- **Sweep:** 1 parallel bounded subagent (read-only, disjoint).
+- **Evidence:**
+  - **CFDrs tyche migration VERIFIED GREEN.** `cargo check --workspace
+    --all-targets --manifest-path D:\atlas\repos\CFDrs\Cargo.toml` rc=0 in
+    5m17s. The peer's `fca1a9a9` diff at `crates/cfd-optim/src/design/space/
+    sampling/mod.rs` exactly resolves both Session 6 errors:
+    - E0107 fix: `LatinHypercube<PARAMETERS>` -> `LatinHypercube<PARAMETERS,
+      SplitMix64>`
+    - E0599 fix: `SplitMix64::word(root_seed, ordinal, 0)` -> `Counter::<
+      UserDomain<0>, SplitMix64>::word(root_seed, ordinal, 0)`
+    Imports added: `tyche_core::{sampling::Counter, sampling::UserDomain, ...}`.
+  - **CFDrs workspace tests:** `cargo nextest run --no-fail-fast --workspace`:
+    3075 tests run, 3072 PASS, 3 TIMEOUT (30s slow budget), 30 skipped. 0
+    tyche-migration-related failures. 4 slow-but-passing tests
+    (>15s): `momentum_solver_validation::test_momentum_solver_deferred_correction`
+    (9.49s), `numerical::venturi_cross_fidelity::microventuri_35um_case`
+    (9.14s), `cross_fidelity_non_newtonian::cross_fidelity_stenosis_shear_thinning`
+    (7.83s), `integration_tests::test_3d_bifurcation_integration` (6.53s).
+  - **The 3 timeouts** are heavy 3D-CFD GPU integration tests, none touch the
+    tyche counter/LHS surface:
+    - `cfd-3d::poiseuille_test::validate_poiseuille_flow` (30.183s)
+    - `cfd-suite::cross_fidelity_blueprint::cross_fidelity_blueprint_complex_branching`
+      (30.212s)
+    - `cfd-validation::benchmarks::threed::bifurcation::tests::test_bifurcation_flow_3d_murray_and_mass`
+      (30.181s)
+    Filed as `CFDRS-PERF-SLOW-001` per `engineering_gates` (optimize real
+    components, never relax the slow-timeout bound).
+  - **Clippy:** `cargo clippy --workspace --all-targets -- -D warnings`
+    halts on 4 site-level errors before reaching cfd-1d/cfd-2d/cfd-3d/
+    cfd-core/cfd-validation/cfd-optim/cfd-suite/cfd-io/cfd-python/xtask.
+    - `cfd-math/src/iterators/stencils.rs:101` — `clippy::needless_question_mark`
+    - `cfd-math/src/iterators/windows.rs:108` — `clippy::needless_question_mark`
+    - `cfd-schematics/src/heatmap/mod.rs:286` — `clippy::print_literal`
+    - `cfd-schematics/src/interface/presets/composite/specialized/parallel_lane.rs:24`
+      — `clippy::manual_filter`
+    Filed as `CFDRS-LINT-CASCADE-001`. The Session 6 `CFDRS-CFD1D-LINT-001`
+    ~50-site baseline is unmeasurable until these 4 cascade blockers are
+    remediated.
+  - **CFDrs book verified 1:1:1.** `docs/book/` contains:
+    - 7 top-level chapter `.md` files (`foundations.md`, `core_flows.md`,
+      `numerics_and_solvers.md`, `turbulence_multiphase.md`, `biomedical_flows.md`,
+      `geometry_and_meshing.md`, `performance_and_atlas.md`)
+    - 2 appendices (`appendix_dependencies.md`, `appendix_migration.md`)
+    - `book.toml`, `README.md`, `SUMMARY.md`
+    - `docs/book/examples/` with 34 example `.md` pages — 1:1 with 34
+      chapter-worthy `.rs` files in `examples/` (3 dev/test scripts
+      `check_2d_seam_root.rs`, `csgrs_api_test.rs`, `test_csgrs.rs` excluded
+      from book scope)
+    - `SUMMARY.md` references all 34 example pages 1:1 across 7 parts
+    Book organization directive on CFDrs is MET by peer stream.
+    Direct cross-references to the kwavers (110-line SUMMARY, 34 example
+    cross-refs) + helios (83-line SUMMARY, 12 example cross-refs) templates;
+    CFDrs is the largest CFD scope with 34 examples across 7 parts.
+  - **Representative book examples FAIL PASS** (all 7 sample examples spanning
+    Parts I-VII run rc=0 with value-semantic numerical assertions; not
+    `is_ok()`-only):
+    - Part I  `cfd_demo`             — "All core components working correctly" (CG norm 1.732051)
+    - Part II `cavity_validation`    — "✅ Validation PASSED - Error within acceptable range" (Ghia RMS 0.0564)
+    - Part III `turbulence_models_demo` — "Demonstration completed successfully!"
+    - Part IV `blood_flow_1d_validation` — "Total: 4/4 tests passed (100.0%)" vs Merrill 1969, Murray 1926, Hagen-Poiseuille, Pries 1992
+    - Part V  `spectral_3d_poisson`   — "3D spectral Poisson solver demonstration completed!" (max ±0.030766, mean 0)
+    - Part VI `csg_primitives_demo`  — all primitives `[PASS]` on volume watertight/Euler χ/components/normals
+    - Part VII `simd_performance_benchmark` — "SIMD benchmark complete!" (2.13× SIMD speedup)
+- **Helios tyche migration also CLOSED** by peer-derived design (atlas-meta
+  notes this alongside CFDrs). Helios commit `4a01443 "feat(helios-imaging)!:
+  Pin Tyche stream"` (PR #15 merged at `d82e3bb`):
+  - Removed the `[patch]` path override entirely (eliminating the rev drift
+    atlas-meta flagged in Session 6), pinned the typed counter algorithm +
+    stream version as part of the replay identity.
+  - Filed ADR `0005-tyche-noise-stream.md`.
+  - Updated manifest `Cargo.toml` (+5/-1) — three unneeded dep lines
+    removed, one tyche-core lock added.
+  - The helios peer chose the strongest fix path (eliminate rev drift +
+    pin stream version) rather than atlas-meta's Session 6 suggested
+    minimal call-site repair; closed `HELIOS-TYCHE-MAJOR-001`. Helios main
+    `11487c2` is the post-PR-#15 default.
+- **Iris consumer integration closure (peer PR #73).** CFDrs PR #303
+  (`e522d8dd feat(cfd-schematics)!: Adopt Iris colors`) adopted `NamedColorMap`
+  directly, deleted CFDrs' local color map enum and blue-red / grayscale /
+  Viridis formulas. Merged default `394c9977`. `ATLAS-INTEGRATION-038/039`
+  is now CLOSED per peer's PR #73 follow-up; atlas-meta cross-references
+  the closure evidence.
+- **Watchpoints updated:**
+  - `HELIOS-TYCHE-MAJOR-001`: CLOSED by peer PR #15 (`d82e3bb`, commit
+    `4a01443`, ADR `0005-tyche-noise-stream.md`).
+  - `CFDRS-TYCHE-MAJOR-001`: CLOSED by peer `fca1a9a9` (already closed by
+    peer in atlas-meta-backlog during PR #73 chore; re-confirmed with
+    evidence in public default `394c9977`).
+  - New `CFDRS-PERF-SLOW-001`: 3 nextest 30s-slow-budget timeouts on heavy
+    GPU/3D-CFD integration tests; `engineering_gates` performance-defect
+    candidates (root-cause, not bound-relaxation).
+  - New `CFDRS-LINT-CASCADE-001`: 4 cfd-math/cfd-schematics clippy blockers;
+    blocks `CFDRS-CFD1D-LINT-001` baseline measurement.
+  - `CFDRS-CFD1D-LINT-001`: baseline unmeasurable until cascade remediated.
+- **Residual:** peer is mid-flight on Iris-color adoption (`Cargo.toml` +
+  2 example `.rs` dirty in CFDrs inner working tree); CFDrs main `8e792d9f`
+  is 2 commits behind origin/main (the Iris PR-merge pair at origin).
+  Atlas-meta disjoint-scope on Iris consumer source work; verification
+  of the Iris post-merge CFDrs state is a follow-up. `HEPH-CUDA-WIN-001`
+  unchanged — awaiting upstream authorization. No release/deploy authorized
+  this session. Book authoring dispatch satisfied by peer stream on all 3
+  consumer repos (kwavers + helios + CFDrs each have SUMMARY ↔ example .md ↔
+  example .rs 1:1:1 organization).
+
 ## Session 2026-07-21 (Session 6, PM cycle 6) — tyche breaking-change verification sweep + consumer-migration watchpoints
 
 - **Trigger:** standing continuation grant; tree shifted materially since

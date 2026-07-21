@@ -2197,3 +2197,124 @@ Next actionable (awaiting user or peer event):
       and gap-audit ownership claims.
 - [x] Pass the Atlas metadata, gitlink-provenance, and documentation gates on
       the exact staged delta.
+
+## Session 2026-07-21 (PM cycle 7) — tyche consumer migration closure + CFDrs book + Iris consumer integration verification
+
+Session 7 milestone: dispatched "a" (CFDrs book chapter authoring) from the
+Session 6 Ask-User round. Re-orient surfaced peer had effectively authored
+the CFDrs book organization during the dispatch window AND landed the tyche
+consumer migrations on both CFDrs and helios. Atlas-meta's role collapsed to
+verification closeout + records per `concurrent_agents` peer-assist ladder
+rung (2); the user's standing "implement and resolve examples for now"
+directive is satisfied on all 3 consumer repos (kwavers + helios + CFDrs).
+
+Milestone summary:
+
+- **Re-orient:** atlas-meta main advanced from Session 6 close `c3f9156`
+  through peer's Iris PR #71 (registration) -> PR #72 (closure) -> PR #73
+  (CFDrs-color consumer integration). 3-way Iris handshake: registration
+  + closure + consumer adoption unified under `ATLAS-INTEGRATION-038/039`.
+  CFDrs main advanced to `fca1a9a9` (tyche-migration) + `d90dfe07` (book
+  page expansion to all 37 examples) + `8e792d9f` (Cargo.lock resolve).
+  Helios main advanced to `11487c2` via PR #15 (tyche-stream-integration).
+- **CFDrs tyche migration VERIFIED GREEN.** Reads-only subagent at `D:\atlas\
+  repos\CFDrs` (commit `fca1a9a9`):
+  - `cargo check --workspace --all-targets` rc=0 in 5m17s.
+  - `cargo nextest run --no-fail-fast --workspace` 3072/3075 PASS, 3 TIMEOUTs
+    at 30s slow budget, 30 skipped. 0 tyche-migration-related failures.
+  - The 2 Session 6 RED sites (`crates/cfd-optim/src/design/space/sampling/
+    mod.rs:254-255`) exactly resolved by peer's `fca1a9a9` diff:
+    `LatinHypercube<PARAMETERS, SplitMix64>` + `Counter::<UserDomain<0>,
+    SplitMix64>::word(root_seed, ordinal, 0)`.
+  - All 7 representative book examples (one per Part I-VII) run rc=0 with
+    value-semantic numerical assertions: CG norm, Ghia RMS, Merrill/Murray/
+    Hagen-Poiseuille/Pries, spectral Poisson manufactured-solution matching,
+    CSG primitives Euler χ/watertight/normals, SIMD speedup.
+- **CFDrs book verified 1:1:1.** 7 top-level chapters + 2 appendices + 34
+  example `.md` pages + 34 SUMMARY references + 34 chapter-worthy `.rs` files
+  (3 dev/test scripts `check_2d_seam_root`, `csgrs_api_test`, `test_csgrs`
+  excluded). Book organization directive MET by peer stream. Cross-references
+  kwavers (110-line SUMMARY, 34 example cross-refs) + helios (83-line
+  SUMMARY, 12 example cross-refs) templates; CFDrs is the largest scope.
+- **Helios tyche migration CLOSED by peer-derived design.** PR #15 at
+  `d82e3bb`, commit `4a01443 "feat(helios-imaging)!: Pin Tyche stream"`:
+  removed the `[patch]` path override entirely (eliminating rev drift
+  atlas-meta flagged in Session 6), made algorithm + stream version part of
+  the replay identity, filed ADR `0005-tyche-noise-stream.md`. Helios main
+  `11487c2`. The helios peer chose the STRONGER systematic fix over
+  atlas-meta's suggested minimal call-site repair — closes `HELIOS-TYCHE-MAJOR-001`
+  with the more correct closure mechanism.
+- **Iris consumer integration closure observed (peer PR #73).** CFDrs PR
+  #303 (`feat(cfd-schematics)!: Adopt Iris colors`) merged at `394c9977`.
+  CFDrs adopted `NamedColorMap` directly, deleted local color map enum +
+  blue-red/grayscale/Viridis formulas. `ATLAS-INTEGRATION-038/039` now
+  CLOSED per peer's PR #73 follow-up; atlas-meta cross-references the
+  closure evidence.
+- **New issues cataloged:**
+  - `CFDRS-PERF-SLOW-001`: 3 nextest 30s-slow-budget TIMEOUTs on heavy GPU/
+    3D-CFD integration tests (`cfd-3d::poiseuille_test::validate_poiseuille_flow`,
+    `cfd-suite::cross_fidelity_blueprint::cross_fidelity_blueprint_complex_branching`,
+    `cfd-validation::benchmarks::threed::bifurcation::tests::test_bifurcation_flow_3d_murray_and_mass`);
+    `engineering_gates` performance-defect candidates (root-cause, not
+    bound-relaxation).
+  - `CFDRS-LINT-CASCADE-001`: 4 cfd-math / cfd-schematics clippy cascade
+    blockers (`needless_question_mark` ×2, `print_literal` + `manual_filter`);
+    blocks the `CFDRS-CFD1D-LINT-001` baseline measurement.
+- [x] Re-orient atlas-meta main from Session 6 close to PR #73 merged state
+      (`4d9d9f1`) via fast-forward after discarding CRLF-only README.md
+      artifact.
+- [x] Verify CFDrs `fca1a9a9` correctly migrates to `LatinHypercube<PARAMETERS,
+      SplitMix64>` + `Counter::<UserDomain<0>, SplitMix64>::word(...)` form;
+      `cargo check --workspace --all-targets` rc=0.
+- [x] Verify CFDrs `cargo nextest run --workspace` 3072/3075 PASS, 30 skipped,
+      3 TIMEOUTs (filed as `CFDRS-PERF-SLOW-001`); 0 tyche-migration-related
+      failures.
+- [x] Verify all 7 book examples run rc=0 with value-semantic assertions.
+- [x] Close `HELIOS-TYCHE-MAJOR-001` in `backlog.md` Session 6 watchpoint
+      table with peer PR #15 (`d82e3bb`) + commit `4a01443` + ADR
+      `0005-tyche-noise-stream.md` as closure evidence.
+- [x] Close `CFDRS-TYCHE-MAJOR-001` confirmation — peer already closed via
+      `fca1a9a9` in atlas-meta-backlog; re-confirmed in public default
+      `394c9977`.
+- [x] Append Session 7 watchpoint table to `backlog.md` with
+      `CFDRS-PERF-SLOW-001` and `CFDRS-LINT-CASCADE-001`.
+- [x] Record Session 7 entry in `gap_audit.md` documenting the verification
+      sweep + book state confirmation + Iris closure cross-ref + new issues.
+- [x] Append this Session 7 row to `checklist.md`.
+- [x] Commit the three-file PM delta atomically to `origin/main` per
+      `git_discipline` cadence.
+
+Out-of-scope this session (unchanged or advanced from prior sessions):
+
+- Peer's Iris consumer integration is mid-flight on CFDrs (`Cargo.toml` +
+  2 example `.rs` dirty in CFDrs inner working tree; CFDrs main 2 commits
+  behind `origin/main`). Atlas-meta disjoint-scope on Iris consumer source.
+- `HEPH-CUDA-WIN-001` (hephaestus-cuda / hephaestus-python Windows-gnu link)
+  remains open; fix is upstream in `cuda-oxide`/`cutile-rs` per
+  `architecture_scoping`. Awaiting user authorization.
+- `CFDRS-CFD1D-LINT-001` baseline unmeasurable until `CFDRS-LINT-CASCADE-001`
+  remediated.
+- Peer-owned: `CFDRS-PERF-SLOW-001` root-cause analysis, `CFDRS-LINT-CASCADE-001`
+  remediation, `CFDRS-CFD1D-LINT-001` ratchet scheduling.
+- Consumer hosted-CI adoption (PR #60 checkout action, PR #61 Criterion gate)
+  residual on Apollo/Helios/Kwavers/RITK remains peer-owned Codex `/root`
+  work; atlas-meta records-only.
+- Kwavers book chapter authoring remains peer-owned scope; atlas-meta
+  records-only per `concurrent_agents` (kwavers peer is the active claimer).
+
+Next actionable (awaiting user or peer event):
+
+1. Peer quiesces on CFDrs Iris consumer integration; atlas-meta re-verifies
+   CFDrs workspace post-Iris to confirm 3072+ / 3075 baseline restored.
+2. Peer schedules `CFDRS-PERF-SLOW-001` 3-timeout root-cause work per
+   `engineering_gates` (optimize real components, never relax slow bound).
+3. Peer remediates `CFDRS-LINT-CASCADE-001` 4 cfd-math / cfd-schematics
+   clippy blockers; unblocks `CFDRS-CFD1D-LINT-001` baseline measurement.
+4. Peer schedules `CFDRS-CFD1D-LINT-001` ratchet remediation.
+5. Peer quiesces on kwavers; atlas-meta records the kwavers-consumer-
+   unaffected-with-Iris-adoption-pending status (one residual consumer-
+   renderer claim from the Iris closure).
+6. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization (file in
+   `cuda-oxide`/`cutile-rs` or ADR the Windows CUDA discovery convention).
+7. User authorizes release/deploy of any stack version (none authorized
+   this session per `interaction_policy` terminal delivery state).
