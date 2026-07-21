@@ -7,6 +7,25 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-INTEGRATION-038 — Iris visualization promotion [arch] [minor] — in progress
+
+- Owner: Codex `/root`; scope: public Iris color/view/render contracts, direct
+  `ritk-snap` and `ritk-vtk` adoption, deletion of both RITK color engines,
+  exact Iris/RITK gitlinks, ADR 0029, and stack documentation. Medical
+  windowing, VTK formats, UI state, GPU mechanics, Kwavers migration, and
+  CFDrs/Kwavers plot-series assembly are non-goals for this increment.
+- Acceptance: Iris is anonymously readable and passes all crate/feature/docs/
+  supply-chain gates; RITK directly consumes the public revision with exact
+  table-node differential tests and no local interpolation; PR 46 hosted gates
+  pass and merge; Atlas pins both remote defaults and its checkout-engine and
+  documentation consistency gates pass.
+- Current evidence: Iris remote default `e2edd476` is public and green. RITK PR
+  46 merged as `1bc665d4` after CI run `29831435735`, Python CI run
+  `29831435956`, and migration-audit run `29831435835` passed on exact head
+  `33855845`. Local evidence includes 943/943 focused Nextest tests and SemVer
+  classification of only the intentional public removals. Atlas registration
+  and exact default-branch pin verification remain open.
+
 ## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor] — done
 
 - Owner: Codex `/root`; scope: public Asclepius core and Coeus adapter, Atlas

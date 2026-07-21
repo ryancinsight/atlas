@@ -33,8 +33,9 @@
 | <a id="ADR-0026"></a>**0026** | Promote Tyche as the Atlas owner for reproducible uncertainty studies: counter-stream random-access Latin hypercube designs, index-addressed ensemble execution, online Welford/Chan moments, Pearson screening, finite-sample split-conformal calibration, and Moirai/Consus provider adapters over a `no_std + alloc` core with GAT response seams and const-generic numeric widths | Accepted | 2026-07-20 | `[arch]` `[minor]` | tyche / tyche-core / moirai / consus / eunomia / atlas-meta | uncertainty-quantification |
 | <a id="ADR-0027"></a>**0027** | Resolve consumer path dependencies from one exact Atlas gitlink graph through an Atlas-owned Rust action | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / helios / kwavers / ritk | provider-graph |
 | <a id="ADR-0028"></a>**0028** | Promote Asclepius as the owner for typed gEUD, TCP, NTCP, CEM43, Arrhenius damage, and independent-response composition over Aequitas and Eunomia, with a one-way Coeus autodiff adapter | Accepted | 2026-07-20 | `[arch]` `[minor]` | asclepius / asclepius-coeus / helios / kwavers / atlas-meta | biological-response |
+| <a id="ADR-0029"></a>**0029** | Promote Iris as the owner for normalized color laws, fixed lookup tables, borrowed scientific views, and static render-backend contracts; replace duplicate RITK Snap and VTK color engines | Accepted | 2026-07-21 | `[arch]` `[minor]` | iris / ritk-snap / ritk-vtk / atlas-meta | visualization-contracts |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0028 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, provider-checkout, and biological-response decisions. The index now carries the authored sequence through ADR 0028.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0029 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, provider-checkout, biological-response, and visualization-contract decisions. The index now carries the authored sequence through ADR 0029.
 
 ## Topic-keyword index
 
@@ -129,6 +130,21 @@ Cross-walks: 0028 composes 0005 (Eunomia scalar law), 0021 (Aequitas quantity
 law), 0020/0027 (exact provider graph and checkout), and remains complementary
 to 0025 (Proteus material properties).
 
+### Group I — Visualization contracts (`topic-tag: visualization-contracts`)
+
+Cross-cuts domain-neutral color mapping, borrowed result views, and static
+render seams used by scientific consumers. Affected crates (initial): `iris`,
+`ritk-snap`, and `ritk-vtk`. Future consumer migrations require separate
+audits in Kwavers and CFDrs.
+
+- **ADR 0029** — Iris normalized colors, fixed lookup tables, borrowed views,
+  and GAT render-backend contract. **Anchor for visualization ownership and
+  color/view consumer migrations.**
+
+Cross-walks: 0029 composes 0020/0027 (exact provider graph and checkout) and
+keeps array storage, device mechanics, formats, and domain interpretation in
+their existing owners.
+
 ## Status flow legend
 
 The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `documentation_discipline`:
@@ -160,6 +176,7 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 | 0026 | 0002 (bounded UQ role in topology law) + 0005 (Eunomia scalar contract) + 0023 (Harmonia — Tyche studies can wrap a partitioned model) + 0025 (Proteus — Tyche can sweep Proteus material parameters) | Tyche ADR 0001 |
 | 0027 | 0020 (exact provider graph) + 0010 (cross-repo cadence) + 0011 (Atlas-meta ownership) | consumer-owned provider checkout actions and moving Atlas branch resolution |
 | 0028 | 0005 (Eunomia scalar law) + 0020 (exact provider graph) + 0021 (Aequitas quantity law) + 0025 (complementary material-property boundary) + 0027 (provider checkout) | Asclepius ADR 0001; duplicated Helios and Kwavers response formulas |
+| 0029 | 0020 (exact provider graph) + 0027 (provider checkout) | Iris ADR 0001; duplicated RITK Snap and VTK color laws |
 | 0010 | 0005 (consumed by Batch #2 closure), 0006 (next-batch adoption), 0007 (per-`[patch]` sweep reuses), 0011 (ceremony counterpart) | inline `D:/atlas/backlog.md` ritual without ADR anchor |
 | 0011 | 0005, 0006, 0007 (numeric SSOT chain hygiene), 0010 (Per-batch convention) | inline `D:/atlas/backlog.md` OOS-record shape (first introduced by commit `283f38cf`); implicit cadence carried only in the commit narrative pre-ADR-0011 |
 
@@ -193,6 +210,9 @@ Map common codex-session scenarios to the ADR pairs (or triples) you should read
 - **Changing biological-response laws**: read **ADR 0028** and Asclepius
   ADR 0001 before editing Asclepius, Helios response analysis, or Kwavers
   thermal-response computation.
+- **Changing visualization contracts**: read **ADR 0029**, Iris ADR 0001, and
+  the affected consumer ADR before editing Iris color/view/render APIs or
+  consumer-owned visualization computation.
 
 ## References
 
