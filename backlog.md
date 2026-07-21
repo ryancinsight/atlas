@@ -1166,3 +1166,9 @@ No new atlas-meta-owned watchpoints. Session 8 activity:
   trigger: merge the remaining item, run `git worktree remove`, and delete
   `D:\worktrees`; new lanes open only under `D:\atlas\worktrees/`.
 - Note: untracked `fix_unwraps.py` / `ritk_fix.py` at meta root are unattributed scratch scripts — owning peer should absorb into xtask/scripts or delete (standards: Cleanup).
+
+## ATLAS-TARGET-001 — One build cache, one debug budget [patch] — in-progress (residual)
+
+- Owner: Claude (prompt-reconciliation session); scope: cache trees and profile sections only, no logic.
+- Done 2026-07-21: 18 stale cache forks deleted (repo-local `target/`, `target_isolated`, `target_benches`, nested crate `target/`) reclaiming 177.8 GB; `moirai` dev/test profiles aligned to line-tables-only/deps-none (was `debug = true`, pushed `946b4a7`); root `.cargo/config.toml` gains `[profile.dev.build-override] debug = false`. Policy: AGENTS.md performance_engineering "one build cache per stack" — a discovered fork is disposable derived state.
+- Residual: `repos/kwavers/target_isolated` held by a live peer build (active during sweep) — delete once idle and remove whatever override created it. Debug-profile alignment audit for remaining members with own `[profile.*]`/`.cargo` sections (kwavers, helios, hermes, CFDrs, coeus, ritk, mnemosyne — several peer-held; verify each against the root budget, keep only justified deviations e.g. bench-with-debug for profiling). Live pre-fix sessions keep regenerating clone checkouts with private targets at `D:\worktrees` — self-resolves as sessions restart on updated instructions; re-audit the root then.

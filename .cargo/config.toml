@@ -27,3 +27,8 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 debug = false
+
+# Build scripts and proc-macros are compile-time-only tools; their debuginfo is
+# never stepped through in ordinary work and only inflates the shared cache.
+[profile.dev.build-override]
+debug = false
