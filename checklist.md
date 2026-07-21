@@ -18,8 +18,9 @@
 - [x] Pin fetched Iris and RITK remote defaults, file ADR 0029, and synchronize
       `.gitmodules`, stack map, provider table, naming, roadmap, layout, ADR
       index, changelog, backlog, checklist, and gap audit.
-- [ ] Verify the Atlas checkout engine, exact gitlink object types, public
-      remote defaults, documentation consistency, and merged Atlas CI.
+- [x] Verify the Atlas checkout engine, exact gitlink object types, anonymous
+      public remote defaults, documentation consistency, and merged consumer
+      CI; advance Iris to `a8ea96f7` and RITK to `a36e65df`.
 
 ## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor]
 
