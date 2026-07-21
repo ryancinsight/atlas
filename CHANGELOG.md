@@ -4,6 +4,12 @@
 
 ### Added
 
+- Promote public Iris as the twenty-fourth Atlas package and file ADR 0029.
+  Iris owns normalized color laws, fixed lookup tables, borrowed scientific
+  views, and static render-backend contracts. RITK Snap and VTK consume the
+  public provider directly and delete their independent color engines; file
+  formats, medical windowing, UI state, and GPU mechanics remain local.
+
 - Register public Asclepius remote default
   `eb65eaf7bf83bbd6ad38778fc5e2b534b01ac6aa` as the twenty-third Atlas
   package and file ADR 0028. The law core and one-way Coeus adapter merge at
