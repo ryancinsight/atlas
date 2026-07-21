@@ -2353,10 +2353,18 @@ Done this session:
       time, queue and continue non-build work. No non-build scope remained
       for this task. Per `concurrent_agents` peer's concurrent green nextest
       run on this shared tree IS authoritative evidence for this revision.
+- [x] Retry verification after peer's cargo-clippy shift cleared lock:
+      592/592 nextest PASS rc=0 (slowest 1.023s, zero timeouts) + 9/9
+      doctests PASS (leto 1, leto-ops 8, leto-python 0). Differential
+      oracles `*_matches_numpy`/`*_matches_scipy` pass over vectorized
+      UDU weighted-dot kernel. Value-semantic correctness PRESERVED at
+      `b7224832e` atop `9a03735 refactor(leto)!: Retire ndarray boundary`.
 - [x] File `LETO-VERIFY-CONTENTION-001` watchpoint in `backlog.md` Session 8
       table: not a defect; contention record with re-verification trigger
-      (peer quiescence, no live cargo-nextest in tasklist).
-- [x] Record Session 8 `gap_audit.md` entry at top (reverse-chronological).
+      (peer quiescence, no live cargo-nextest in tasklist). Then annotate
+      closure in same session once bounded retry produced green evidence.
+- [x] Record Session 8 `gap_audit.md` entry at top with verification
+      closure subsection.
 - [x] Record Session 8 row in this `checklist.md`.
 
 Out-of-scope this session (unchanged or advanced from Session 7):
@@ -2374,16 +2382,16 @@ Out-of-scope this session (unchanged or advanced from Session 7):
 
 Next actionable (awaiting user or peer event):
 
-1. Peer's leto nextest run `PID 48380` lands green -> atlas-meta records it
-   as authoritative verification evidence for `b722483`; closes
-   `LETO-VERIFY-CONTENTION-001` per `concurrent_agents` shared-tree rule.
-2. Peer quiesces on CFDrs Iris-color adoption + cfd-1d work -> atlas-meta
+1. Peer schedules `CFDRS-PERF-SLOW-001` 3-timeout root-cause per
+   `engineering_gates` (optimize, never relax bound).
+2. Peer remediates `CFDRS-LINT-CASCADE-001` 4 clippy blockers; unblocks
+   `CFDRS-CFD1D-LINT-001` baseline.
+3. Peer quiesces on CFDrs Iris-color adoption + cfd-1d work -> atlas-meta
    re-verifies CFDrs workspace; restores baseline 3075/3075 PASS expectation
    pending `CFDRS-PERF-SLOW-001` root-cause work.
-3. Peer schedules `CFDRS-PERF-SLOW-001` 3-timeout root-cause per
-   `engineering_gates` (optimize, never relax bound).
-4. Peer remediates `CFDRS-LINT-CASCADE-001` 4 clippy blockers; unblocks
-   `CFDRS-CFD1D-LINT-001` baseline.
-5. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization.
-6. User authorizes release/deploy of any stack version (none authorized
+4. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization.
+5. User authorizes release/deploy of any stack version (none authorized
    this session per `interaction_policy` terminal delivery state).
+
+Session 8 verification closure: 592/592 leto nextest + 9/9 doctests green at
+`b7224832e` after peer-build-contention lock cleared.

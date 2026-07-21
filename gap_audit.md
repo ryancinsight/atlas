@@ -46,7 +46,29 @@
   disjoint-scope. The only mutation this session is the repos/leto gitlink
   advance, which is a peer-published main pointer.
 
-## Iris visualization ownership (ATLAS-INTEGRATION-038/039)
+### Verification closure — b7224832e value-semantic correctness PRESERVED
+
+Retry attempt after peer's cargo-clippy shift cleared the build lock:
+
+- Gate 1 `cargo nextest run --no-fail-fast --workspace`: **592/592 PASS**,
+  rc=0, 0 fail, 0 skipped, 0 timeouts, slowest test `matexp_matches_scipy`
+  at 1.023s (well within the `engineering_gates` 30s slow budget).
+- Gate 2 `cargo test --doc --workspace`: **9/9 PASS** (leto 1, leto-ops 8,
+  leto-python 0), rc=0, 0 fail, 0 ignored.
+- Differential oracles `*_matches_numpy` and `*_matches_scipy` (covering
+  bunch_kaufman, cholesky, svd, solve, LDL^T-weighted decompositions riding
+  through the vectorized weighted-dot kernel) all green.
+- Wall time: nextest 5.856s test execution; build cached post first run.
+
+Conclusion: peer's vectorization change preserves value-semantic correctness
+atop `9a03735 refactor(leto)!: Retire ndarray boundary` (the [major] ndarray
+retirement). No regression. `LETO-VERIFY-CONTENTION-001` watchpoint closed
+with this evidence; no defect in leto. Lint floor and criterion
+performance-evidence gates were not run per scope (peer attaches performance
+baseline on perf-labeled commits; lint floor is not the verification
+trigger for a peer-published main pointer).
+
+## Iris visualization ownership (ATLAS-INTEGRATION-038/039)"
 
 - **Finding:** `ritk-snap`, `ritk-vtk`, and Kwavers Analysis independently
   implemented normalized named-color lookup laws; RITK alone exposed two
