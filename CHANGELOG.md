@@ -78,6 +78,14 @@
 
 ### Changed
 
+- Replace the speculative P2 package-count target with an evidence-gated
+  consolidation plan. Hyperion is ready for Phase 0 specification around a
+  three-consumer photon/optical attenuation deletion ledger; extraction remains
+  contingent on name, API, and ADR verification. Ares remains blocked on
+  Proteus elastic-property consolidation and a second structural consumer;
+  Prometheus remains blocked on Kwavers/Horae cleanup and a second production
+  reaction-network consumer.
+
 - Document the supported four-job schedule for long consumer benchmark
   instruments: two isolated, co-located base-first pairs and two isolated,
   co-located candidate-first pairs. The Atlas classifier still requires

@@ -7,6 +7,41 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch] — ready for specification
+
+- Owner: unclaimed. Outcome: replace the speculative two-package target with
+  an evidence-gated P2 program whose registrations are consequences of code
+  consolidation. Scope is Hyperion's first photon/optical transport slice plus
+  the prerequisites that decide whether Ares or Prometheus can become a second
+  package. General electromagnetics, dose workflow, fluid-structure coupling,
+  combustion closure, and release/deploy are non-goals.
+- Acceptance: Hyperion Phase 0 migrates Kwavers, Helios, and CFDrs to one typed
+  coefficient, optical-depth, Beer-Lambert, and derived-diffusion SSOT; deletes
+  all named duplicate formula/model sites; and passes analytical, invalid-
+  input, generic-scalar, and exact consumer-differential oracles. No empty
+  repository or compatibility layer enters Atlas.
+- P2-B readiness: Ares stays blocked until Proteus owns the duplicated elastic
+  conversions/catalogs and a second production solid-operator consumer is
+  ready in the same extraction. Prometheus stays blocked until Kwavers has one
+  reaction vocabulary, Horae owns reusable embedded stepping, and a second
+  production reaction-network consumer is ready. Manufactured validation alone
+  does not satisfy the trigger.
+- Dependencies and hierarchy: Proteus owns material identity/properties;
+  Hyperion Phase 0 owns photon/optical attenuation and derived transport laws;
+  Gaia/Leto/Athena/Hephaestus own geometry, arrays, solver policy, and
+  accelerator mechanics. Future Ares owns solid kinematics/balance while
+  Harmonia owns coupling orchestration. Future Prometheus owns reaction
+  networks while transport discretization stays in consumers.
+- Risk/change class: `[arch]`; each provider's additive public surface is
+  `[minor]`, while consumer removals are classified independently by
+  `cargo-semver-checks`. Package-name availability and exact provider APIs are
+  verified when the ADR and first code slice begin.
+- Planning evidence: read-only source audit found three independent
+  Beer-Lambert owners and repeated Kwavers optical laws. The same audit found
+  Ares's immediate duplicates belong to Proteus and Prometheus lacks a second
+  production consumer; these limits are promotion blockers, not deferred
+  assumptions.
+
 ## ATLAS-INTEGRATION-038 — Iris visualization promotion [arch] [minor] — done
 
 - Owner: Codex `/root`; scope: public Iris color/view/render contracts, direct

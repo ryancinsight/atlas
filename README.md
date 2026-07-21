@@ -206,11 +206,12 @@ bounded context.
 
 ## Future package roadmap
 
-The following names are architectural candidates, not current submodules,
-published crates, or implementation commitments. Names remain provisional
-until repository and crate-name availability is checked. No empty repository
-should be created from this list: promotion requires a real vertical
-implementation extracted from an existing need.
+The roadmap optimizes ownership, not package count. A new repository is an
+outcome of consolidation only when it replaces code in existing packages and
+creates a stable lower-level owner. Names remain provisional until repository
+and crate-name availability is checked. No empty repository should be created
+from this list: promotion requires a real vertical implementation extracted
+from an existing need.
 
 ### Promotion gate
 
@@ -221,14 +222,18 @@ A candidate becomes an Atlas package only when all of these conditions hold:
 2. A source audit proves that no current provider owns the same bounded context.
 3. An ADR defines the contract, dependency direction, migration, non-goals, and
    conformance or differential oracle.
-4. The first change moves real computation into the new owner, migrates every
-   in-scope caller, and deletes the superseded implementation.
-5. The package is independently versioned or consumed across repository
+4. A deletion ledger identifies the superseded types, formulas, dependencies,
+   and tests in every first-wave consumer; a proposed repository with no
+   named deletion is rejected.
+5. The first change moves real computation into the new owner, migrates every
+   in-scope caller, deletes the superseded implementations, and runs shared
+   conformance plus consumer differential tests.
+6. The package is independently versioned or consumed across repository
    boundaries; otherwise it remains a module or crate in the current owner.
-6. `.gitmodules`, this stack table, affected provider documentation, and
+7. `.gitmodules`, this stack table, affected provider documentation, and
    cross-package verification move in the same delivery unit.
 
-### Candidate packages
+### P2 consolidation decision
 
 Harmonia graduated from this roadmap through
 [ADR 0023](docs/adr/0023-harmonia-coupling-promotion.md). Proteus and Tyche
@@ -236,14 +241,82 @@ graduated as registered material-property and uncertainty-quantification
 providers. Asclepius graduated through
 [ADR 0028](docs/adr/0028-asclepius-biological-response-promotion.md). Iris
 graduated through
-[ADR 0029](docs/adr/0029-iris-visualization-promotion.md). The remaining
-candidates are:
+[ADR 0029](docs/adr/0029-iris-visualization-promotion.md).
 
-| Priority | Working name | Classical reference | Proposed bounded context | Current drivers |
-| --- | --- | --- | --- | --- |
-| P2 | `ares` | Ares, god of war | Solid mechanics, deformation, contact, and fluid-structure interaction. | Elastography and coupled CFD can provide the first two consumers. |
-| P2 | `hyperion` | Hyperion, Titan associated with heavenly light | Electromagnetic, optical, and radiation-transport operators. | Kwavers and Helios contain adjacent wave and radiation concerns. |
-| P2 | `prometheus` | Prometheus, Titan associated with fire and craft | Thermochemistry, reactions, combustion, and reactive transport. | Reactive-flow and thermal-therapy work can establish the shared contract. |
+A source audit does not support a commitment to add two more repositories.
+It supports one candidate for Phase 0 specification and two prerequisite
+cleanup lanes.
+A second P2 package is selected only when one deferred lane proves a second
+production consumer and a net-deletion result. The provisional names retain
+their classical mappings: Hyperion to light, Ares to war, and Prometheus to
+fire and craft.
+
+| Track | Decision | Current evidence | Required consolidation result |
+| --- | --- | --- | --- |
+| P2-A `hyperion` | Ready for Phase 0 specification; extraction is contingent on name, API, and ADR verification. | Beer-Lambert transmission is independently implemented in `kwavers-optics`, `helios-physics`/`helios-solver`, and `cfd-optim`. Kwavers also has four reduced-scattering formulas and repeated diffusion/effective-attenuation laws. | Establish one typed attenuation/optical-depth and derived-coefficient SSOT; publish it, migrate Kwavers, Helios, and CFDrs directly, and delete every superseded formula and parallel coefficient model. |
+| P2-B `ares` | Deferred; promotion gate unmet. | CFDrs and Kwavers duplicate isotropic modulus conversions and steel/aluminum catalogs, but those laws belong to Proteus. Kwavers is the only current solid-mechanics operator owner; CFDrs has no structural displacement/traction/contact solver. | First consolidate elastic properties in Proteus and delete both consumer copies. Reopen Ares only when a second integrator can consume the same solid-kinematics or balance operator in the extraction change. |
+| P2-B `prometheus` | Deferred; promotion gate unmet. | Kwavers has competing reaction representations and a bespoke RK45 implementation. CFDrs has manufactured reactive-flow oracles, not a production reaction-network consumer. Shared rheology temperature response belongs to Proteus. | Consolidate Kwavers reaction vocabulary and move reusable embedded stepping to Horae. Reopen Prometheus only when a second production consumer can delete a matching reaction-network implementation. |
+
+`hyperion` Phase 0 is deliberately narrower than the former proposal for all
+electromagnetics, optics, and radiation transport. It owns validated photon and
+optical interaction coefficients, additive optical depth, Beer-Lambert
+transmission, and coefficient-derived diffusion laws. Proteus retains material
+identity and general material properties. Helios retains CT calibration, dose
+deposition, planning, imaging, and delivery. Kwavers retains acoustic and
+photoacoustic coupling, sonoluminescence, and source workflows. CFDrs retains
+flow and device-scoring policy. Leto, Gaia, Athena, and Hephaestus retain
+arrays, geometry, solver policy, and accelerator mechanics.
+
+The Phase 0 deletion ledger includes:
+
+- `reduced_scattering`, `diffusion_coefficient`, `effective_attenuation`,
+  `penetration_depth`, and `planar_fluence_at_depth` from
+  `repos/kwavers/crates/kwavers-optics/src/optical_transport.rs`;
+  photoacoustic `initial_pressure`, `apparent_absorption`, and
+  `compensate_fluence` remain in Kwavers;
+- duplicate reduced-scattering and derived optical-property formulas in
+  `kwavers-medium`, `kwavers-physics`, and `kwavers-solver`, including
+  `DiffusionOpticalProperties` in
+  `repos/kwavers/crates/kwavers-physics/src/optics/diffusion/properties.rs`;
+  `OpticalPropertyData` may remain a consumer material aggregate but delegates
+  every moved derivation to Hyperion;
+- Helios-owned `LinearAttenuation`, `MassAttenuation`, the NIST coefficient
+  tables in `repos/helios/crates/helios-physics/src/attenuation/tables.rs`, and
+  optical-depth and beam-transmission laws, while leaving HU calibration and
+  dose workflow local;
+- the raw CFDrs 405-nm Beer-Lambert expression in
+  `repos/CFDrs/crates/cfd-optim/src/reporting/report_metrics.rs`, while leaving
+  its empirical coefficient and hematocrit policy local;
+- theorem tests transferred from the superseded Kwavers/Helios owners into one
+  Hyperion conformance suite, consumer differential tests retained at each
+  integration boundary, and manifest edges removed only where their sole use
+  was a moved law. `kwavers-optics` remains until its retained chromophore-
+  spectrum ownership is assigned and its last consumer migrates.
+
+Phase 0 closes only when analytical identities (`T(0) = 1`,
+`T(x + y) = T(x)T(y)`, additive optical depth, and `mu = (mu/rho)rho`), invalid-
+coefficient cases, generic `f32`/`f64` instantiations, and exact consumer
+differentials pass. General Maxwell, plasmonic, Monte Carlo, or dose ownership
+requires a later independent audit; it is not implied by the package name.
+
+The Ares prerequisite is a Proteus elastic-property slice, not a repository
+creation: one validated `(E, nu) <-> (lambda, mu) <-> (c_p, c_s)` contract and
+one named material catalog replace the CFDrs and Kwavers copies, including
+Kwavers's separate `lame_from_speeds` formula. If Ares later qualifies, it owns
+solid kinematics and balance operators. Gaia retains contact geometry;
+Harmonia retains partition transfer, relaxation, subcycling, and fluid-
+structure coupling orchestration.
+
+The Prometheus prerequisite is cleanup and upstream work, not a repository
+creation: Kwavers converges on one reaction/species representation and Horae
+owns the reusable embedded integration policy. CFDrs's production
+`sonosensitizer_activation_efficiency` is a single closed-form therapy metric,
+not a species/reaction network or source assembly, and has no matching Kwavers
+consumer; it remains consumer-local pending a separate ownership recurrence.
+If Prometheus later qualifies, it owns reaction-network species, stoichiometry,
+mass-action and Arrhenius rate laws, source assembly, and reaction enthalpy.
+Reactive-transport discretization, combustion closure, material response,
+biological damage, and coupling remain with CFDrs or their existing providers.
 
 ### Dependency order
 
@@ -267,14 +340,24 @@ aequitas + eunomia ── asclepius
 asclepius + coeus ── asclepius-coeus ── helios
 asclepius ── kwavers
 iris ── ritk-snap / ritk-vtk / cfd-schematics
+
+eunomia + aequitas + proteus ── hyperion ── helios / kwavers / CFDrs
+
+proteus ── elastic-property SSOT ── CFDrs / kwavers
+horae ── embedded-step policy ── kwavers chemistry
+
+future, only after the P2-B promotion trigger:
+proteus + leto ── ares ── CFDrs / kwavers
+eunomia + aequitas + horae ── prometheus ── CFDrs / kwavers
 ```
 
 `harmonia` follows typed time and convergence contracts but does not depend on
 material law or own physics. Its Phase 0 API provides two-partition synchronous
 Jacobi coupling over Horae subcycle plans and Athena Core convergence policy.
 Integrators compose those mechanics with `proteus` or domain-owned
-constitutive models. `ares`, `hyperion`, and `prometheus` remain domain-level
-candidates until two concrete consumers justify extraction.
+constitutive models. P2-A advances only through the Hyperion deletion ledger.
+P2-B remains a readiness competition between Ares and Prometheus; neither is
+registered until its explicit consumer trigger fires.
 
 The following concerns are not package gaps:
 

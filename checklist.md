@@ -6,6 +6,40 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
+
+- [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,
+      Kwavers, Proteus, and accepted Atlas ownership boundaries.
+- [x] Replace package count as the P2 objective with named deletion ledgers,
+      dependency direction, consumer triggers, and behavioral oracles.
+- [ ] At implementation start, verify `hyperion` repository/crate-name
+      availability and draft the Phase 0 ADR with photon/optical attenuation as
+      the bounded context; do not include general Maxwell, dose, or workflow
+      ownership.
+- [ ] Implement Hyperion typed coefficients, optical depth, Beer-Lambert
+      transmission, and derived diffusion laws with analytical, adversarial,
+      and generic-scalar conformance tests.
+- [ ] Publish the verified Hyperion provider commit and confirm anonymous Git
+      access before changing any consumer dependency.
+- [ ] Migrate Kwavers, Helios, and CFDrs directly; delete the README deletion
+      ledger's formula and model copies; run exact pre/post consumer
+      differentials and each affected repository's full publish gate.
+- [ ] Register the fetched Hyperion provider commit only after all first-wave
+      consumer deletions merge; synchronize gitlinks, ADRs, provider docs, and
+      the Atlas stack map in that delivery unit.
+- [ ] Extend Proteus with the one validated isotropic-elastic property/catalog
+      SSOT and delete the CFDrs/Kwavers copies, including
+      `lame_from_speeds`, without creating Ares. Verify
+      `(E,nu) <-> (lambda,mu)` and `(c_p,c_s) <-> (lambda,mu)` round trips,
+      invalid density/Poisson bounds, `f32`/`f64`, exact consumer
+      differentials, and zero residue for `ElasticSolid`, `SolidProperties`,
+      `ElasticPropertyData`, and `lame_from_speeds`.
+- [ ] Consolidate Kwavers reaction vocabulary and upstream its reusable
+      embedded integration policy to Horae without creating Prometheus.
+- [ ] Re-audit P2-B when either a second production solid-operator consumer or
+      a second production reaction-network consumer exists; select exactly the
+      candidate whose first slice deletes both consumer implementations.
+
 ## ATLAS-INTEGRATION-038 — Iris visualization promotion [arch] [minor]
 
 - [x] Audit color-law and result-view duplication; confirm the promotion gate

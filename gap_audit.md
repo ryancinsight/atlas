@@ -1,5 +1,52 @@
 # atlas — cross-repository integration gap audit
 
+## P2 package-readiness audit (2026-07-21)
+
+- **Hyperion is the only candidate ready for Phase 0 specification.** Extraction
+  remains contingent on repository/crate-name, API, and ADR verification.
+  Beer-Lambert transport has independent owners in
+  `repos/kwavers/crates/kwavers-optics/src/optical_transport.rs`,
+  `repos/helios/crates/helios-physics/src/attenuation.rs`,
+  `repos/helios/crates/helios-physics/src/projection.rs`,
+  `repos/helios/crates/helios-solver/src/dose.rs`, and
+  `repos/CFDrs/crates/cfd-optim/src/reporting/report_metrics.rs`. Kwavers also
+  repeats reduced scattering in `kwavers-optics`, `kwavers-medium`, and
+  `kwavers-medium/src/properties/optical/computed.rs`, and repeats diffusion,
+  effective-attenuation, and penetration laws across medium, physics, and
+  solver crates. A narrow photon/optical coefficient-and-attenuation provider
+  therefore has a concrete three-consumer deletion ledger.
+- **Ares is blocked by current ownership and consumer evidence.** CFDrs
+  `cfd-core/src/physics/material/{traits,solid}.rs` and Kwavers
+  `kwavers-medium/src/properties/elastic/{constructors,computed}.rs` duplicate
+  isotropic modulus conversions and steel/aluminum catalogs; Kwavers also
+  repeats its speed-to-Lame conversion in `kwavers-medium/src/elastic.rs` as
+  `lame_from_speeds`. Aluminum Young's modulus has already drifted (`70 GPa`
+  versus `69 GPa`). ADR 0025 assigns those properties and static constitutive
+  laws to Proteus. Kwavers is the only current solid-mechanics operator owner;
+  CFDrs FEM is a fluid solver, not a second structural consumer. Re-open
+  trigger: the Proteus cleanup is complete and a second production consumer can
+  migrate a shared solid-kinematics or balance operator in the extraction unit.
+- **Prometheus is blocked by the missing second production consumer.** Kwavers
+  has competing reaction types under `kwavers-physics/src/chemistry` and a
+  bespoke embedded RK45 implementation. CFDrs has manufactured species-
+  reaction validation but no production reaction-network solver. Its
+  production `sonosensitizer_activation_efficiency` is a standalone therapy
+  metric, not a network/source-assembly implementation, and has no matching
+  Kwavers consumer. Reusable material temperature response belongs to Proteus
+  and embedded stepping to Horae. Re-open trigger: Kwavers has one reaction
+  vocabulary, Horae owns the reusable stepping policy, and a second production
+  consumer can delete a matching network implementation.
+- **Decision:** P2 is not a commitment to add two repositories. Hyperion may
+  proceed to Phase 0 specification. Code extraction starts only after its name,
+  API, and ADR prerequisites pass, then proceeds through the deletion and
+  differential gates. Ares and Prometheus remain prerequisite cleanup lanes;
+  the first one to meet its re-open trigger becomes the second P2 candidate.
+  This prevents package-count growth from replacing SSOT, cleanup, and hierarchy
+  as acceptance criteria.
+- **Evidence tier:** read-only source and ownership audit. No compile, runtime,
+  performance, package-name availability, or remote-default claim follows from
+  this planning evidence.
+
 ## Session 2026-07-21 (Session 8, PM cycle 8) — leto gitlink reconciliation + verification contention record
 
 - Trigger: no user dispatch; standing continuation via gap-analysis cycle.
