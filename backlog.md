@@ -7,7 +7,7 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-INTEGRATION-038 — Iris visualization promotion [arch] [minor] — in progress
+## ATLAS-INTEGRATION-038 — Iris visualization promotion [arch] [minor] — done
 
 - Owner: Codex `/root`; scope: public Iris color/view/render contracts, direct
   `ritk-snap` and `ritk-vtk` adoption, deletion of both RITK color engines,
@@ -19,12 +19,15 @@
   table-node differential tests and no local interpolation; PR 46 hosted gates
   pass and merge; Atlas pins both remote defaults and its checkout-engine and
   documentation consistency gates pass.
-- Current evidence: Iris remote default `e2edd476` is public and green. RITK PR
-  46 merged as `1bc665d4` after CI run `29831435735`, Python CI run
-  `29831435956`, and migration-audit run `29831435835` passed on exact head
-  `33855845`. Local evidence includes 943/943 focused Nextest tests and SemVer
-  classification of only the intentional public removals. Atlas registration
-  and exact default-branch pin verification remain open.
+- Evidence: Iris PR 2 closed the public foundation at remote default
+  `a8ea96f7`; its verify and supply-chain jobs passed. RITK PR 47 closed the
+  consumer record and merged-default Rustfmt drift as `a36e65df` after CI
+  `29833657517`, Python CI `29833657538`, and migration audit `29833657634`
+  passed on exact head `a41774fa`. The preceding implementation evidence
+  includes 943/943 focused Nextest tests, exact 2,560-node table comparison,
+  non-finite regressions, and SemVer classification of only the intentional
+  public removals. Atlas PR 71 registered Iris; this closure pins both final
+  public defaults and passes the checkout-engine and documentation gates.
 
 ## ATLAS-INTEGRATION-037 — Asclepius P1 promotion [arch] [minor] — done
 

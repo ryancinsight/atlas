@@ -89,7 +89,7 @@ evidence; neither category substitutes for the other.
 
 ## Evidence
 
-Iris remote default `e2edd47615454111b4b0df2e68dc6076161ba457` is publicly
+Iris implementation revision `e2edd47615454111b4b0df2e68dc6076161ba457` is publicly
 readable without credentials. Format, all-feature and no-default-feature
 checks, warning-denied all-target Clippy, 14/14 Nextest cases, two doctests,
 warning-clean Rustdoc, example execution, cargo-deny, and package verification
@@ -107,6 +107,14 @@ Rustdoc pass. VTK compares all 256 nodes of all ten named maps bit-for-bit
 against direct Iris sampling. Snap tests display boundary vectors and
 deterministic non-finite window endpoints. `cargo-semver-checks` reports only
 the intentional major removals documented by RITK ADR 0011.
+
+The closure revisions preserve those implementations while synchronizing
+public evidence: Iris PR 2 merged as
+`a8ea96f7e74b3c2ed0f8cbe32e97094f8418393b` with verify and supply-chain jobs
+green; RITK PR 47 merged as
+`a36e65dfe1d4401d6950ebc31123205b9db04c50` from exact head `a41774fa` after CI
+`29833657517`, Python CI `29833657538`, and migration audit `29833657634`
+passed. Atlas pins these two anonymous public defaults as commit gitlinks.
 
 ## Rejected alternatives
 
