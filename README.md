@@ -246,7 +246,8 @@ graduated through
 A source audit does not support adding two repositories as a target. It
 supports one provider promotion, Hyperion, because that package consolidates
 three consumer implementations into a lower common owner. Hyperion is now
-published and its first-wave consumer migrations are in progress under
+published; Helios and Kwavers have deleted their superseded owners, and the
+remaining first-wave CFDrs reporting boundary is tracked under
 [ADR 0030](docs/adr/0030-hyperion-photon-optical-promotion.md).
 
 The second P2 slot is intentionally empty. Ares or Prometheus is selected only
@@ -257,7 +258,7 @@ mappings: Hyperion to light, Ares to war, and Prometheus to fire and craft.
 
 | Track | Decision | Current evidence | Required consolidation result |
 | --- | --- | --- | --- |
-| P2-A `hyperion` | Execution: provider published at `064a189`; Helios migration delivered at `105a093` with hosted run `29883200466` green; Kwavers and CFDrs remain. | The Helios coefficient, NIST-table, projection-law, and raw production transmission owners are deleted. Kwavers still repeats reduced-scattering, diffusion, and effective-attenuation laws; `cfd-optim` still owns a raw Beer–Lambert expression. | Complete the Kwavers and CFDrs direct migrations to the typed attenuation/optical-depth and derived-coefficient SSOT; delete every superseded formula and parallel coefficient model before registration. |
+| P2-A `hyperion` | Execution: provider published at `7b4561b`; Helios migration delivered at `105a093` with hosted run `29883200466` green; Kwavers migration published at `5fc6f0419`; CFDrs remains. | Helios and Kwavers have deleted their parallel coefficient, reduced-scattering, diffusion, effective-attenuation, optical-depth, and transmission owners. `cfd-optim` still owns one raw 405-nm Beer–Lambert expression. | Migrate the CFDrs report metric to Hyperion's typed optical-depth/transmission SSOT, delete the raw expression, retain its empirical coefficient and hematocrit policy locally, then register Hyperion in the stack map. |
 | P2-B `ares` | Deferred; promotion gate unmet. | CFDrs and Kwavers duplicate isotropic modulus conversions and steel/aluminum catalogs, but those laws belong to Proteus. Kwavers is the only current solid-mechanics operator owner; CFDrs has no structural displacement/traction/contact solver. | First consolidate elastic properties in Proteus and delete both consumer copies. Reopen Ares only when a second integrator can consume the same solid-kinematics or balance operator in the extraction change. |
 | P2-B `prometheus` | Deferred; promotion gate unmet. | Kwavers has competing reaction representations and a bespoke RK45 implementation. CFDrs has manufactured reactive-flow oracles, not a production reaction-network consumer. Shared rheology temperature response belongs to Proteus. | Consolidate Kwavers reaction vocabulary and move reusable embedded stepping to Horae. Reopen Prometheus only when a second production consumer can delete a matching reaction-network implementation. |
 
@@ -282,9 +283,10 @@ repository count:
 | Integrator code | Domain packages mix reusable laws with CT, acoustics, flow, dose, and workflow policy. | Integrators retain only spatial algorithms and domain policy, importing Hyperion directly. | Dependency direction becomes foundation → domain provider → integrator; no facade or circular edge remains. |
 | P2-B candidates | Shared elastic and integration code appears to justify new packages. | Proteus absorbs elastic-property recurrence; Horae absorbs reusable embedded-step policy first. | Existing providers are extended before any new topology is admitted. |
 
-The Phase 0 deletion ledger includes:
+The Phase 0 deletion ledger and current state are:
 
-- `reduced_scattering`, `diffusion_coefficient`, `effective_attenuation`,
+- **Kwavers — complete at `5fc6f0419`:** `reduced_scattering`,
+  `diffusion_coefficient`, `effective_attenuation`,
   `penetration_depth`, and `planar_fluence_at_depth` from
   `repos/kwavers/crates/kwavers-optics/src/optical_transport.rs`;
   photoacoustic `initial_pressure`, `apparent_absorption`, and
@@ -293,13 +295,14 @@ The Phase 0 deletion ledger includes:
   `kwavers-medium`, `kwavers-physics`, and `kwavers-solver`, including
   `DiffusionOpticalProperties` in
   `repos/kwavers/crates/kwavers-physics/src/optics/diffusion/properties.rs`;
-  `OpticalPropertyData` may remain a consumer material aggregate but delegates
+  `OpticalPropertyData` remains a consumer material aggregate but delegates
   every moved derivation to Hyperion;
-- Helios-owned `LinearAttenuation`, `MassAttenuation`, the NIST coefficient
+- **Helios — complete at `105a093`:** `LinearAttenuation`, `MassAttenuation`,
+  the NIST coefficient
   tables in `repos/helios/crates/helios-physics/src/attenuation/tables.rs`, and
   optical-depth and beam-transmission laws, while leaving HU calibration and
   dose workflow local;
-- the raw CFDrs 405-nm Beer-Lambert expression in
+- **CFDrs — remaining:** the raw 405-nm Beer-Lambert expression in
   `repos/CFDrs/crates/cfd-optim/src/reporting/report_metrics.rs`, while leaving
   its empirical coefficient and hematocrit policy local;
 - theorem tests transferred from the superseded Kwavers/Helios owners into one
