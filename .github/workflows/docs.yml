@@ -1,0 +1,159 @@
+# Atlas Physics Docs Invariant Gate (§7 #4 of MDBOOK_DETECTOR_PARITY.md)
+#
+# Runs the portion of the portable detector plus an mdbook v0.5.4 build
+# across all three atlas physics books.  See
+# MDBOOK_DETECTOR_PARITY.md §6 for the wiring rationale and §7 #5 for the
+# strict-mode flip (drop `--advisory` from the detector step).
+
+name: docs-invariant
+
+on:
+  pull_request:
+    paths:
+      - 'repos/**/docs/book/**.md'
+      - 'repos/**/docs/book/book.toml'
+      - 'repos/**/docs/book/SUMMARY.md'
+      - 'scripts/check_mdbook_links.py'
+      - '.github/workflows/docs.yml'
+      - 'parity_artefacts/smoke_test/**'
+      - 'MDBOOK_DETECTOR_PARITY_KWAVERS.md'
+  push:
+    branches: [main]
+    paths:
+      - 'repos/**/docs/book/**.md'
+      - 'repos/**/docs/book/book.toml'
+      - 'repos/**/docs/book/SUMMARY.md'
+      - 'scripts/check_mdbook_links.py'
+      - '.github/workflows/docs.yml'
+      - 'parity_artefacts/smoke_test/**'
+      - 'MDBOOK_DETECTOR_PARITY_KWAVERS.md'
+
+# Cancel in-flight runs of the same branch + workflow when a new commit lands.
+concurrency:
+  group: docs-invariant-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs-link-check:
+    name: Dead-link + mdbook build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: false
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install mdbook v0.5.4 (binary release)
+        run: |
+          mkdir -p /tmp/mdbook-install
+          curl -sSL --fail \
+            https://github.com/rust-lang/mdBook/releases/download/v0.5.4/mdbook-v0.5.4-x86_64-unknown-linux-gnu.tar.gz \
+            | tar -xz --directory=/tmp/mdbook-install
+          sudo mv /tmp/mdbook-install/mdbook-v0.5.4-x86_64-unknown-linux-gnu/mdbook /usr/local/bin/mdbook
+          mdbook --version
+
+      - name: Detector (STRICT mode — §7 #5 flipped) — 3 atlas physics books
+        run: |
+          python3 scripts/check_mdbook_links.py \
+            repos/CFDrs/docs/book \
+            repos/helios/docs/book \
+            repos/kwavers/docs/book \
+            | tee detector.log
+        # VARIANT 2 applied (post-§7-#5, see §7 #5 of the parity report):
+        # `--advisory` removed; the detector's exit-1 on FILE_MISSING > 0
+        # IS the strict gate — no other script changes required.  All 3
+        # atlases must reach `FILE_MISSING : 0` for CI to pass.
+
+      - name: mdbook build — repos/CFDrs/docs/book
+        run: mdbook build repos/CFDrs/docs/book
+
+      - name: mdbook build — repos/helios/docs/book
+        run: mdbook build repos/helios/docs/book
+
+      - name: mdbook build — repos/kwavers/docs/book (control)
+        run: mdbook build repos/kwavers/docs/book
+
+      - name: Upload detector log artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detector-log
+          path: detector.log
+          if-no-files-found: ignore
+
+      - name: Upload CFDrs mdbook HTML artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cfdrs-book-html
+          path: repos/CFDrs/docs/book/book/
+          if-no-files-found: ignore
+
+      - name: Upload helios mdbook HTML artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: helios-book-html
+          path: repos/helios/docs/book/book/
+          if-no-files-found: ignore
+
+      - name: Upload kwavers mdbook HTML artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kwavers-book-html
+          path: repos/kwavers/docs/book/book/
+          if-no-files-found: ignore
+
+  # Regression guard for the SINGLE_CHAR_HREF_RE filter in
+  # scripts/check_mdbook_links.py.  Catches future detector refactors
+  # that re-enable single-character hrefs (the FDTD-recurrence
+  # `[n+1](x)` false-positive class — see
+  # MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2 Issue B).  This job runs
+  # the portable detector over the fixture at
+  # `parity_artefacts/smoke_test/` and fails CI if FILE_MISSING > 0.
+  docs-link-smoke-test:
+    name: SINGLE_CHAR_HREF_RE filter regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: false
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Detector — smoke-test fixture (filter ON, must report FILE_MISSING : 0)
+        run: |
+          output=$(python3 scripts/check_mdbook_links.py parity_artefacts/smoke_test 2>&1)
+          echo "$output" | tee smoke-test.log
+          if ! echo "$output" | grep -qE '^  FILE_MISSING  : 0$'; then
+            echo "::error::SINGLE_CHAR_HREF_RE filter regression — FILE_MISSING > 0 on the smoke-test fixture. Investigate \`extract_links()\` in scripts/check_mdbook_links.py before merging this change. Do NOT silence the regression with an allow-list entry; the filter is supposed to drop these patterns detector-wide."
+            exit 1
+          fi
+        # Expected: `FILE_MISSING : 0` and exit 0.  The `::error::`
+        # annotation surfaces a clear root-cause hint in PR comments when
+        # the filter regresses.  An explicit grep (rather than relying on
+        # exit code alone) ensures the message attributes the failure to
+        # the smoke-test job even if the detector's exit-code logic
+        # changes in the future.
+
+      - name: Upload smoke-test log artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-log
+          path: smoke-test.log
+          if-no-files-found: ignore

@@ -1,0 +1,17 @@
+{
+  "_schema_version": "1",
+  "_purpose": "Forward-defence allow-list for the portable mdbook-equivalent dead-link detector (scripts/check_mdbook_links.py). The detector loads this file at startup and skips any FILE_MISSING row whose (source, href) pair matches an entry. The strict-mode CI gate (currently green) does not require this file; this scaffold documents the schema for future contributors who encounter a new false-positive pattern (e.g., a future recurrence-style FDTD/PDE notation, math-notation bracket pair, or LaTeX construct that the detector's regex over-grips).",
+  "_format": "JSON.  An object with one key: `allow` (an array of {source, href} objects).  Empty `allow` array is valid and means 'no entries'.",
+  "_key_semantics": "Each entry's `source` is the chapter-relative path (as the detector reports it in FILE_MISSING rows — e.g., 'examples/theranostic_fwi_platforms.md', NOT an absolute path).  Each entry's `href` is the EXACT href string the detector matches (e.g., 'x', '../parity_artefacts/', '../../crates/cfd-3d/src/turbulence.rs').  Match is exact-string after stripping the optional `https://` / `mailto:` / `#anchor` parts (which the detector already skips via `is_external`).",
+  "_known_entries_today": "ZERO.  The strict-mode gate is currently green across all 3 atlases (CFDrs / helios / kwavers).  The previously-flagged Pattern G `[n+1](x)` FDTD recurrence false positive was resolved by the SINGLE_CHAR_HREF_RE filter in scripts/check_mdbook_links.py (see MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2 Issue B), so it does NOT need an entry here.",
+  "_how_to_add_an_entry": [
+    "1. Re-run the detector in default mode and capture the FILE_MISSING row(s) you want to silence.",
+    "2. Verify the row is a false positive (not a real broken link) by manually inspecting the chapter file at the cited source + the cited href.",
+    "3. Decide which filter (LATEX_HREF_RE / SINGLE_CHAR_HREF_RE / future filter) should suppress this pattern detector-wide.  If a new filter is needed, prefer that over an allow-list entry — keep this file for true exceptions.",
+    "4. If an allow-list entry IS the right answer, add an object to the `allow` array with the exact (source, href) values from the detector output.  Do NOT use regex or glob — exact match keeps audit predictable.",
+    "5. Re-run `python3 scripts/check_mdbook_links.py repos/<book>/docs/book` to confirm the entry skips the row.  The detector prints 'allowlist: skipped <source>:<href>' for each match.",
+    "6. Commit the change with a comment in the PR description citing the chapter + the false-positive rationale."
+  ],
+  "_lifecycle": "Append-only.  Removing an entry requires re-running the detector to confirm the original FILE_MISSING is resolved (either by a chapter-side fix, a detector-side filter, or by the link becoming valid).  Never remove an entry just because 'the detector doesn't flag it anymore' — that may mean a different regression masked the original issue.",
+  "allow": []
+}
