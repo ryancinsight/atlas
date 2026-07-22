@@ -62,6 +62,39 @@ orders rejects a slowdown confined to one execution order. Requiring two
 pairs per order samples runner variation but does not claim immunity to
 arbitrary hosted noise. The gate has no empirical percentage threshold.
 
+## Runtime budget enforcement
+
+`enforce-budget` bounds how long producing benchmark results may take
+(AGENTS.md `engineering_gates`: runtime budgets). It compiles the selected
+target kind unbounded — build cost is shared-cache state, never charged to
+the artifact — then executes each produced binary directly under a wall
+clock, terminating it on breach and failing closed:
+
+```sh
+# Gate smoke: every bench binary runs one iteration within 60s.
+cargo run --locked --manifest-path <atlas>/tools/criterion-regression/Cargo.toml -- \
+  enforce-budget --manifest-path repos/<repo>/Cargo.toml --mode smoke
+
+# Timing: every bench binary completes its full measurement within 300s.
+cargo run --locked --manifest-path <atlas>/tools/criterion-regression/Cargo.toml -- \
+  enforce-budget --manifest-path repos/<repo>/Cargo.toml --mode timing
+
+# Examples: every CI-safe example completes within 60s
+# (skip GPU/display-bound targets explicitly).
+cargo run --locked --manifest-path <atlas>/tools/criterion-regression/Cargo.toml -- \
+  enforce-budget --manifest-path repos/<repo>/Cargo.toml --mode examples --skip <target>
+```
+
+Binaries run directly rather than through `cargo` so termination is
+reliable (killing `cargo` can orphan the grandchild benchmark), with
+`CARGO_TARGET_DIR` pinned to the metadata-resolved shared target so a
+directly executed Criterion binary never mints a repo-local `target/`. A
+breach is a defect to root-cause — oversized measurement design (fix the
+instrument: flat sampling for slow iterations, geometric sweeps, smallest
+regime-exercising inputs) or a genuinely slow kernel (profile and optimize
+the production code) — never resolved by deleting the bench, raising the
+bound in the offending diff, or skipping the smoke.
+
 [criterion-cli]: https://github.com/bheisler/criterion.rs/blob/0.4.0/src/lib.rs#L812-L816
 [criterion-estimate]: https://github.com/bheisler/criterion.rs/blob/0.4.0/src/estimate.rs#L27-L32
 [nist]: https://www.itl.nist.gov/div898/handbook/prc/section4/prc463.htm
