@@ -7,9 +7,9 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — in-progress
+## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — done
 
-- Owner: Codex `/root`; last-update: 2026-07-22; claimed scope:
+- Owner: Codex `/root`; last-update: 2026-07-22; delivered scope:
   `repos/leto`, `repos/ritk`, `repos/coeus`, `repos/hephaestus`, this item, and
   the corresponding checklist entry. Provider source changes, unrelated
   gitlinks, and release/deploy are non-goals.
@@ -22,10 +22,15 @@
   graph without Eunomia 0.6/0.7 type duplication.
 - Risk/change class: `[patch]`; verification uses the Atlas checkout gate plus
   Kwavers all-feature locked metadata, focused compile, and hosted CI.
-- Current evidence: the Atlas checkout tool passes 11/11 tests in 3.070 s. The
-  exact downstream graph resolves with one Eunomia 0.7 identity, passes locked
+- Evidence: the Atlas checkout tool passes 11/11 tests in 3.070 s. The exact
+  downstream graph resolves with one Eunomia 0.7 identity, passes locked
   all-feature metadata and `kwavers-math` compilation, and passes all 266
-  `kwavers-math` tests. Exact-head hosted Kwavers CI remains the final oracle.
+  `kwavers-math` tests. Kwavers head `909bcdfc7` passes 26 exact-head hosted
+  checks with zero failures: CI run `29917018067`, architecture run
+  `29917018155`, benchmark run `29917018135`, and legacy audit run
+  `29917018053`. The benchmark gate proves its three merge-critical executables
+  byte-identical and completes in 12 minutes without running redundant
+  statistical pairs; Kwavers PR #307 merges as `0602c1fd4`. No release occurs.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch] — done
 

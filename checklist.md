@@ -15,10 +15,14 @@
 - [x] Advance Hephaestus to merged provider-alignment head `8c6ab72d`.
 - [x] Verify the Atlas checkout-path-dependencies gate: 11/11 tests pass in
       3.070 s.
-- [ ] Verify Kwavers all-feature locked resolution, compilation, hosted CI,
-      and benchmark execution against the exact advanced graph.
-- [ ] Synchronize the Atlas and Kwavers tracking evidence, then merge both
-      delivery branches without releasing.
+- [x] Verify Kwavers all-feature locked resolution, compilation, hosted CI,
+      and benchmark execution against the exact advanced graph: 26 exact-head
+      checks pass across runs `29917018067`, `29917018155`, `29917018135`, and
+      `29917018053`, with zero failures.
+- [x] Synchronize the Atlas and Kwavers tracking evidence, then merge both
+      delivery branches without releasing: Atlas graph PR #79 merges as
+      `00a3467e2`; Kwavers PR #307 merges as `0602c1fd4` after its 12-minute
+      byte-identity benchmark gate skips only redundant statistical pairs.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
