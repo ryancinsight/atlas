@@ -4065,3 +4065,104 @@ with breaking-change candidates requiring [major]: CFDrs
 (`feat(cfd-schematics)!:`), eunomia (already at 0.6.0 breaking), leto
 (`refactor(leto)!:`), melinoe (x2 breaking Session 8 cataloged),
 mnemosyne (x1 breaking Session 8 cataloged).
+
+### Session 9 release dispatch closure — 2026-07-21
+
+Released (git tag + GitHub Release; no crates.io publication, the
+Atlas stack is git-dep-based):
+
+- **eunomia 0.7.0** [minor] (first formal git-tag of eunomia)
+  - Tag `v0.7.0` -> commit `7021628fe8eb3637c297105f626ee5df78abda84`
+  - GitHub Release: https://github.com/ryancinsight/eunomia/releases/tag/v0.7.0
+  - Public surface: `assert_relative_eq!`/`relative_eq!`/
+    `assert_abs_diff_eq!`/`abs_diff_eq!` macros plus `RelativeEq` trait
+    (E-034 provider-owned relative-equality assertions).
+  - Verification carried forward: nextest 91/91 + doctests 9/9 at
+    3e4f9eb (release commit's parent).
+
+- **leto 0.40.0** [major] (first formal git-tag of leto)
+  - Tag `v0.40.0` -> commit `630b44c3b7f4c2c7066583498793389b43005401`
+  - GitHub Release: https://github.com/ryancinsight/leto/releases/tag/v0.40.0
+  - Public-surface removals: `ndarray-compat` feature + `ndarray` re-export
+    + owned/borrowed conversions (ADR 0017); `leto_ops::{cg, gmres}`
+    + `CgResult`/`GmresResult` (extracted to Athena per ADRs 0014/0015).
+  - Verification: nextest 173/173 + doctests 9/9 at HEAD `80406d9`
+    (release commit's parent), preserved per Session 9.
+
+- **hermes 0.4.1** [patch] (first formal git-tag of hermes)
+  - Tag `v0.4.1` -> commit `0e0dfcff03c0ea0d4a6c19f97d2a0f5bcee93f3b`
+  - GitHub Release: https://github.com/ryancinsight/hermes/releases/tag/v0.4.1
+  - Internal CSR SpMV scalar remainder tail now `get_unchecked` under
+    `Validated<Csr>` + `validate_spmv_sizes` invariants, matching the
+    SIMD body's `Arch::gather` and the SellP vectorized path; bitwise-
+    identical results, ~20-25% speedup on fully-scalar short-row
+    CSR SpMV.
+  - Watchpoint carryover: HERMES-GEMM-UB-001 (5 pre-existing
+    `ptr::replace` alignment-UB aborts in GEMM/tiling) — disjoint
+    from the release, recorded in commit body.
+
+Peer-assist increments (own peer-assist work, peer pattern-matched from
+Landed aequitas/proteus/hyperion precedent `build(deps): Pin Eunomia 0.7`):
+
+- **asclepius** `7751d863e54eb6a5cfbef292bab1bda63de29be1`
+  `build(deps): Pin Eunomia 0.7, advance Aequitas`
+  - Cargo dep bumps: aequitas `cf9b2c3` -> `767e2d0`, eunomia
+    §0.6.0 -> §0.7.0 + `rev = 7021628f`.
+  - Verification: `cargo check --workspace` clean at HEAD
+    `e85350d` (release commit's parent), 1m 25s wall.
+  - Pushed to origin/main; no release tag (not a release crate per
+    peer's `aequitas` precedent — only `build(deps)` commit).
+
+- **tyche** `fd033940a0247d2ac7c62d45a6a5dd8eb9a73cd4`
+  `build(deps): Pin Eunomia 0.7`
+  - Cargo dep bump: eunomia §0.6.0 (rev `2a6cb2c`) -> §0.7.0 (rev
+    `7021628f`).
+  - Verification: `cargo check --workspace` clean at HEAD
+    `55ef4d0` (release commit's parent), 15.25s wall.
+  - Pushed to origin/main.
+
+Atlas-meta gitlink advance commit `1853cfa` lands six Eunomia-0.7
+wave members' submodules pins to align with the releases:
+- eunomia  `3e4f9eb` -> `7021628` (own release tag)
+- hermes   `53b8316` -> `fbdab54` (own release tag `0e0dfcf` + 3 peer follow-ups on origin/main, incl. `build(deps): Pin Eunomia 0.7`)
+- asclepius `e85350d` -> `7751d86` (own peer-assist, on origin/main)
+- tyche   `55ef4d0` -> `fd03394` (own peer-assist, on origin/main)
+- aequitas `cf9b2c3` -> `767e2d0` (peer origin/main `build(deps): Pin Eunomia 0.7`)
+- proteus  `a61d0e5` -> `83734a2` (peer origin/main `build(deps): Pin Eunomia 0.7`)
+
+Deferred (concurrent_agents: peer active WIP at session close):
+
+- **leto gitlink advance**: peer's local main advanced to
+  `000f41d build(deps): Unify provider graph` (unpushed at session
+  close). Origin/main is at `42604ad` (peer pasted my v0.40.0 tag
+  `630b44c` + 2 follow-up dep-alignment commits). I did not advance
+  the atlas-meta gitlink for leto in commit `1853cfa` because the
+  `git add` would record the unpushed `000f41d` (unresolvable pin
+  against origin), and resetting leto's local main to `42604ad` would
+  discard peer's `000f41d` WIP (`concurrent_agents`: preserve peer work).
+  Re-open trigger: peer pushes `000f41d` or pushes anything else onto
+  leto origin/main; advance the atlas-meta gitlink in the next session
+  or via a peer commit.
+
+- **helios release**: deferred. Helios's `## [0.1.0] — Unreleased`
+  CHANGELOG section is ready (`105a0939` is verified GREEN per
+  Session 9: nextest 251/251 + doctests 11/11). However, the helios
+  workspace transitively requires athena to align to Eunomia 0.7 +
+  leto 0.40. Athena's working tree currently has uncommitted peer WIP
+  on its `codex/athena-prepared-reductions` branch (Cargo.toml
+  already partially showing eunomia 0.7.0 + leto 0.40.0 inside the
+  peer WIP dirty diff; plus three Krylov solver source files dirty).
+  I rolled back my own helios Cargo.toml partial-pin advances and
+  reverted my CHANGELOG flip to leave the helios tree clean for peer.
+  Re-open trigger: peer commits athena Eunomia-0.7 alignment and
+  pushes it; re-cut helios 0.1.0 release at helios HEAD post-advance.
+
+- **harmonia, horae Eunomia-0.7 alignment**: attempted as peer-assist,
+  reverted after build-break. harmonia hits 7 eunomia-trait-bounds
+  errors (`FloatElement`, `ConvergencePolicy::max_iterations`/
+  `threshold`/`should_check`, `Instant::advance`); horae hits 1
+  aequitas `Quantity<T, Dimension<_, _, _, _, _, _, _>>` mismatch.
+  These require source adaptation to eunomia 0.7's API drift, not
+  mechanical dep-pin bumps, and are harmonia/horae peer-domain work
+  outside the release-dispatch scope. Their lock-pinning remains at
+  §0.6.0 (peer's ongoing wave, when they get there).

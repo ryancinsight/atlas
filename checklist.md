@@ -2547,3 +2547,77 @@ Next actionable (awaiting user or peer event):
 5. Peer lands Hyperion Phase 1 (register `repos/hyperion` in
    `.gitmodules`; kwavers optics extraction; helios migration book).
 6. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization.
+
+## Session 9 release dispatch — 2026-07-21 (atlas-meta coordinator)
+
+Dispatch: "begin releasing them all" (carries forward the verified-
+green crates from Session 9). Authority: `interaction_policy` release/
+deploy is the single explicit Ask-User dimension; user granted this
+in the dispatch; proceeding without further asking.
+
+### Released (git tag + GitHub Release)
+
+- [x] **eunomia 0.7.0** [minor] — first formal git-tag of eunomia.
+  - Tag `v0.7.0` -> `7021628f` (E-034 relative-equality provider
+    surface).
+  - https://github.com/ryancinsight/eunomia/releases/tag/v0.7.0
+  - Verification: nextest 91/91 + doctests 9/9 preserved from
+    Session 9 parent `3e4f9eb`.
+- [x] **leto 0.40.0** [major] — first formal git-tag of leto.
+  - Tag `v0.40.0` -> `630b44c3` (ndarray-compat retirement,
+    `leto_ops::{cg,gmres}` extraction to Athena).
+  - https://github.com/ryancinsight/leto/releases/tag/v0.40.0
+  - Verification: nextest 173/173 + doctests 9/9 at `80406d9`.
+- [x] **hermes 0.4.1** [patch] — first formal git-tag of hermes.
+  - Tag `v0.4.1` -> `0e0dfcf` (unchecked CSR SpMV tail gather).
+  - https://github.com/ryancinsight/hermes/releases/tag/v0.4.1
+  - Watchpoint `HERMES-GEMM-UB-001` carryover recorded in release
+    commit body (pre-existing, disjoint from release).
+
+### Peer-assist increments (peer-pattern-matched, pushed to main)
+
+- [x] **asclepius `7751d86`** `build(deps): Pin Eunomia 0.7,
+  advance Aequitas` — origin/main; `cargo check --workspace` green.
+- [x] **tyche `fd03394`** `build(deps): Pin Eunomia 0.7` —
+  origin/main; `cargo check --workspace` green.
+
+### Atlas-meta gitlink advance (commit `1853cfa`)
+
+- [x] 6 of 8 Eunomia-0.7 wave members advanced (eunomia, hermes,
+      asclepius, tyche, aequitas, proteus).
+- [ ] **leto gitlink** deferred: peer unpushed local main `000f41d
+      build(deps): Unify provider graph`. Re-open trigger:
+      peer pushes leto main.
+- [ ] **helios release** deferred: athena peer uncommitted WIP on
+      `codex/athena-prepared-reductions` branch includes the
+      Eunomia-0.7 + leto-0.40 alignment as part of a larger Krylov
+      solver feature. Re-open trigger: athena origin/main advances.
+
+### Reverted peer-assist attempts (out-of-scope peer-domain adaptation)
+
+- [ ] **harmonia Eunomia-0.7**: reverted; 7 eunomia trait-bounds
+      errors (FloatElement, ConvergencePolicy::* methods, Instant::
+      advance); requires source adaptation, peer domain.
+- [ ] **horae Eunomia-0.7**: reverted; 1 aequitas `Quantity<T, ...>`
+      type mismatch; requires source adaptation, peer domain.
+
+### PM closure for this release dispatch cycle
+
+- [x] `gap_audit.md` Session 9 release dispatch closure entry
+      appended (101 lines, tag SHAs, GitHub Release URLs, deferred
+      items with re-open triggers).
+- [x] This checklist row.
+
+Next actionable (awaiting user or peer event):
+
+1. Peer pushes leto local main `000f41d` to origin (then advance
+   atlas-meta leto gitlink in a follow-up commit).
+2. Peer commits athena Eunomia-0.7 + leto-0.40 alignment to
+   origin/main (then re-cut helios 0.1.0 release in a follow-up
+   session — helios CHANGELOG `## [0.1.0] — Unreleased` is ready,
+   helios Cargo.toml `version = "0.1.0"` stays).
+3. Peer adaptates harmonia/horae to eunomia 0.7 / aequitas API drift
+   (peer-domain work, recorded above).
+4. Carry-overs from Session 9 dispatch: `CFDRS-PERF-SLOW-001`,
+   `CFDRS-CFD1D-LINT-001`, `HERMES-GEMM-UB-001`,
+   `HEPH-CUDA-WIN-001`, Hyperion Phase 1 registration.
