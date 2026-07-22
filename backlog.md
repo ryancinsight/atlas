@@ -203,8 +203,10 @@
   merged the bounded same-path workflow as `00d06f00e`; exact head `a85aa58e5`
   passes complete candidate smoke, all four 21–23 minute AB/BA pairs, aggregate
   classification (`29884797777`), and the three ordinary workflow runs. PR
-  #308 closes KW-UQ-064 and KW-CI-063 as `402d9695`; Atlas advances that fetched
-  default-branch gitlink without modifying peer worktrees.
+  #308 closes KW-UQ-064 and KW-CI-063 as `402d9695`; its exact documentation
+  head `8373c8bb0` passes CI `29890089765`, architecture `29890089803`, and
+  legacy audit `29890089797`. Atlas advances that fetched default-branch
+  gitlink without modifying peer worktrees.
 
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor] — done
 

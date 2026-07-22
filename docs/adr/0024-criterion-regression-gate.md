@@ -154,6 +154,9 @@ first, then consumers advance that pin through reviewed commits.
 - Kwavers exact bounded head `a85aa58e5` passes complete candidate smoke, all
   four 21–23 minute AB/BA pair jobs, and aggregate classification in run
   `29884797777`; PR #306 merged that workflow as `00d06f00e`.
+- Kwavers PR #308's exact documentation head `8373c8bb0` passes CI
+  `29890089765`, architecture `29890089803`, and legacy audit `29890089797`;
+  the fetched default-branch merge is `402d9695`.
 
 ## Relates to
 

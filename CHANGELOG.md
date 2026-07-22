@@ -89,7 +89,9 @@
   candidate smoke, four counterbalanced 21–23 minute pair jobs, and aggregate
   classification while every non-critical benchmark remains covered by one
   candidate execution. PR #304's Tyche collocation integration passes its
-  exact-head ordinary CI, architecture, and legacy-audit workflows.
+  exact-head ordinary CI, architecture, and legacy-audit workflows. PR #308's
+  exact documentation head `8373c8bb0` passes CI `29890089765`, architecture
+  `29890089803`, and legacy audit `29890089797`.
 
 - Advance P2 from specification to execution. Hyperion `064a189` is public,
   anonymously readable, and hosted-green. Helios `105a093` completes the first

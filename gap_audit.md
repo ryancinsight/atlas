@@ -16,10 +16,12 @@
   passes complete candidate smoke, all four 21–23 minute AB/BA pair jobs, and
   aggregate classification in `29884797777`; ordinary CI `29884797767`,
   architecture `29884797709`, and legacy audit `29884797739` also pass.
-- PR #308 closes KW-UQ-064 and KW-CI-063 as fetched default `402d9695`. No
-  benchmark-classifier, collocation-provider, or Atlas gitlink residual remains
-  for ATLAS-INTEGRATION-034. Performance evidence remains statistical and does
-  not substitute for the value, allocation, or static evidence recorded by the
+- PR #308 closes KW-UQ-064 and KW-CI-063 as fetched default `402d9695`. Its
+  exact documentation head `8373c8bb0` passes CI `29890089765`, architecture
+  `29890089803`, and legacy audit `29890089797`. No benchmark-classifier,
+  collocation-provider, or Atlas gitlink residual remains for
+  ATLAS-INTEGRATION-034. Performance evidence remains statistical and does not
+  substitute for the value, allocation, or static evidence recorded by the
   child ADRs.
 
 ## P2 package-readiness audit (2026-07-21)
