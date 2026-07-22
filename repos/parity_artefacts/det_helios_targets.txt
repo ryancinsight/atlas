@@ -1,0 +1,6 @@
+    - in appendix_glossary.md: link [../../CFDrs/docs/book/appendix_glossary.md] -> D:\atlas\repos\helios\CFDrs\docs\book\appendix_glossary.md
+    - in appendix_glossary.md: link [../../kwavers/docs/book/appendix_glossary.md] -> D:\atlas\repos\helios\kwavers\docs\book\appendix_glossary.md
+    - in migration_concurrency.md: link [../../../moirai/crates/] -> D:\atlas\repos\moirai\crates
+    - in migration_overview.md: link [../../CFDrs/docs/book/migration_overview.md] -> D:\atlas\repos\helios\CFDrs\docs\book\migration_overview.md
+    - in migration_overview.md: link [../../kwavers/docs/book/migration_overview.md] -> D:\atlas\repos\helios\kwavers\docs\book\migration_overview.md
+    - in migration_simd.md: link [../../CFDrs/docs/book/examples/gpu_detection.md] -> D:\atlas\repos\helios\CFDrs\docs\book\examples\gpu_detection.md

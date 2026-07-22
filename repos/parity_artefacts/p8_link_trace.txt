@@ -1,0 +1,67 @@
+
+=== repos/CFDrs/docs/book ===
+  [MISSING]  in appendix_dependencies.md  line 65
+         href = '../../../README.md'
+         target = D:\atlas\repos\README.md
+  [OK     ]  in BOOK_ORGANIZATION.md  line 20
+         href = '../../../kwavers/docs/book/README.md'
+         target = D:\atlas\repos\kwavers\docs\book\README.md
+  [OK     ]  in BOOK_ORGANIZATION.md  line 21
+         href = '../../../helios/docs/book/README.md'
+         target = D:\atlas\repos\helios\docs\book\README.md
+  [OK     ]  in BOOK_ORGANIZATION.md  line 173
+         href = '../../../kwavers/docs/book/README.md'
+         target = D:\atlas\repos\kwavers\docs\book\README.md
+  [OK     ]  in BOOK_ORGANIZATION.md  line 175
+         href = '../../../helios/docs/book/README.md'
+         target = D:\atlas\repos\helios\docs\book\README.md
+  [OK     ]  in examples/spectral_poisson_3d_crate.md  line 5
+         href = '../../../crates/cfd-3d/examples/spectral_poisson_3d.rs'
+         target = D:\atlas\repos\CFDrs\crates\cfd-3d\examples\spectral_poisson_3d.rs
+  [MISSING]  in migration_concurrency.md  line 90
+         href = '../../../moirai/crates/'
+         target = D:\atlas\repos\moirai\crates
+  [MISSING]  in performance_and_atlas.md  line 86
+         href = '../../../README.md'
+         target = D:\atlas\repos\README.md
+  [OK     ]  in SUMMARY.md  line 3
+         href = 'README.md'
+         target = D:\atlas\repos\CFDrs\docs\book\README.md
+  [MISSING]  in turbulence_multiphase.md  line 105
+         href = '../../crates/cfd-3d/src/turbulence.rs'
+         target = D:\atlas\repos\CFDrs\crates\cfd-3d\src\turbulence.rs
+  [MISSING]  in turbulence_multiphase.md  line 106
+         href = '../../crates/cfd-3d/src/multiphase.rs'
+         target = D:\atlas\repos\CFDrs\crates\cfd-3d\src\multiphase.rs
+  [MISSING]  in turbulence_multiphase.md  line 107
+         href = '../../crates/cfd-3d/src/cavitation.rs'
+         target = D:\atlas\repos\CFDrs\crates\cfd-3d\src\cavitation.rs
+
+=== repos/helios/docs/book ===
+  [MISSING]  in appendix_glossary.md  line 6
+         href = '../../CFDrs/docs/book/appendix_glossary.md'
+         target = D:\atlas\repos\helios\CFDrs\docs\book\appendix_glossary.md
+  [MISSING]  in appendix_glossary.md  line 7
+         href = '../../kwavers/docs/book/appendix_glossary.md'
+         target = D:\atlas\repos\helios\kwavers\docs\book\appendix_glossary.md
+  [MISSING]  in BOOK_ORGANIZATION.md  line 251
+         href = 'https://github.com/ryancinsight/kwavers/docs/book'
+         target = D:\atlas\repos\helios\docs\book\https:\github.com\ryancinsight\kwavers\docs\book
+  [MISSING]  in migration_concurrency.md  line 94
+         href = '../../../moirai/crates/'
+         target = D:\atlas\repos\moirai\crates
+  [OK     ]  in migration_concurrency.md  line 96
+         href = '../../../moirai/docs/'
+         target = D:\atlas\repos\moirai\docs
+  [MISSING]  in migration_overview.md  line 81
+         href = '../../CFDrs/docs/book/migration_overview.md'
+         target = D:\atlas\repos\helios\CFDrs\docs\book\migration_overview.md
+  [MISSING]  in migration_overview.md  line 83
+         href = '../../kwavers/docs/book/migration_overview.md'
+         target = D:\atlas\repos\helios\kwavers\docs\book\migration_overview.md
+  [MISSING]  in migration_simd.md  line 78
+         href = '../../CFDrs/docs/book/examples/gpu_detection.md'
+         target = D:\atlas\repos\helios\CFDrs\docs\book\examples\gpu_detection.md
+  [OK     ]  in SUMMARY.md  line 3
+         href = 'README.md'
+         target = D:\atlas\repos\helios\docs\book\README.md

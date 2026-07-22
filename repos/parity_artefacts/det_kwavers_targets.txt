@@ -1,0 +1,8 @@
+    - in inverse_problems_and_pinns.md: link [\mathbf{r}_s, t] -> D:\mathbf{r}_s, t
+    - in inverse_problems_and_pinns.md: link [\Gamma_{sr}] -> D:\Gamma_{sr}
+    - in inverse_problems_and_pinns.md: link [\mathbf{r}\cdot\hat{n}_\phi] -> D:\mathbf{r}\cdot\hat{n}_\phi
+    - in photoacoustics.md: link [\mathbf{r}_s, R] -> D:\mathbf{r}_s, R
+    - in photoacoustics.md: link [\mathbf{r}_s, c_s t] -> D:\mathbf{r}_s, c_s t
+    - in photoacoustics.md: link [\mathbf{r}] -> D:\mathbf{r}
+    - in photoacoustics.md: link [\mathbf{r}_s,\lambda] -> D:\mathbf{r}_s,\lambda
+    - in theranostic_fwi_platforms.md: link [x] -> D:\atlas\repos\kwavers\docs\book\x
