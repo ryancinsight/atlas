@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-20
+- Integrated consumer: Kwavers, 2026-07-22
 - Class: `[arch]` `[minor]`
 
 ## Context
@@ -69,7 +70,8 @@ or persistence dependency.
 2. Migrate one consumer UQ site at a time in dependency order. Each
    integrator increment adopts the Tyche design and removes the local
    LHS, moments, and calibration in the same vertical slice; no adapter
-   or compatibility shim lands.
+   or compatibility shim lands. Kwavers completes this step through PRs #298
+   and #304; other consumers remain independently scoped increments.
 3. Extend sampling breadth and UQ breadth only after each new estimator
    has its scenario, replay law, and consumer overlap recorded and
    independently verifiable.
@@ -107,6 +109,16 @@ sampling and statistics allocate nothing.
 The package is `publish = false`; no `cargo-semver-checks` baseline
 exists against a prior registry release. SemVer comparison begins from
 this public Git contract.
+
+Kwavers PR #304 extends the consumer migration to physical collocation. One
+Tyche `Design` collector serves counter, Latin-hypercube, and Sobol inputs;
+validated rectangular, disk, and ball transforms preserve exact cardinality
+without rejection or an intermediate design matrix. Exact head
+`cc382dbc2243678fef55101aa106e9f8d7ad7bbf` passes ordinary CI
+`29875284052`, architecture validation `29875284007`, and legacy audit
+`29875283982`. Kwavers ADR 043 owns its mapping proofs, allocation evidence,
+public migration, and evidence limits. PR #308 closes the consumer record as
+fetched default `402d9695`.
 
 ## Rejected alternatives
 

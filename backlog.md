@@ -167,7 +167,7 @@
   coeus-tensor and coeus-wgpu). Coeus merged via PR-style no-ff merge
   `c290f3e`. Atlas-parent merge `3f40b79`.
 
-## ATLAS-INTEGRATION-034 — Benchmark gate repair [arch] [patch] — in progress
+## ATLAS-INTEGRATION-034 — Benchmark gate repair [arch] [patch] — done
 
 - Owner: Codex `/root`; scope: Atlas Criterion comparison SSOT and the Apollo,
   Helios, and Kwavers CI integrations that introduced copied, same-run
@@ -194,8 +194,19 @@
   at `4ce96b1` with hosted benchmark evidence. Kwavers PR 299 merges at
   `198f2b8c`; exact-head hosted run `29841101698` completed all four pair jobs
   but found three replicated apparent regressions despite no semantic
-  production delta. Distinct checkout paths remained correlated with revision;
-  same-path materialization and a new exact-head run remain the closure gate.
+  production delta. Distinct checkout paths remained correlated with revision.
+  Kwavers PR #304 then merged Tyche collocation as `9ad18523d` after exact-head
+  ordinary CI `29875284052`, architecture `29875284007`, and legacy audit
+  `29875283982` passed. Its superseded full-suite benchmark run `29875283986`
+  classified 190 cases and reported 37 regressions outside the three canonical
+  targets, confirming the already-recorded scope and latency defect. PR #306
+  merged the bounded same-path workflow as `00d06f00e`; exact head `a85aa58e5`
+  passes complete candidate smoke, all four 21–23 minute AB/BA pairs, aggregate
+  classification (`29884797777`), and the three ordinary workflow runs. PR
+  #308 closes KW-UQ-064 and KW-CI-063 as `402d9695`; its exact documentation
+  head `8373c8bb0` passes CI `29890089765`, architecture `29890089803`, and
+  legacy audit `29890089797`. Atlas advances that fetched default-branch
+  gitlink without modifying peer worktrees.
 
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor] — done
 

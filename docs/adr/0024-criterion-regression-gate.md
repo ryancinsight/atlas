@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-07-20
 - Amended: 2026-07-21
+- Closed: 2026-07-22
 - Class: `[arch]` `[patch]`
 
 ## Context
@@ -33,6 +34,13 @@ Finally, applying one 95% interval independently to every case does not provide
 95% confidence for the benchmark family. The classifier must control
 family-wise false regressions without assuming independent runs or cases.
 
+Kwavers run `29875283986` completed all four pairs for 190 cases and reported
+37 replicated regressions outside the three canonical production targets. The
+run finished almost five hours after dispatch and exercised long-horizon and
+ancillary scenarios already shown to exceed a finite pull-request budget. It
+therefore confirms that the complete statistical universe is not a viable PR
+instrument; it does not falsify the bounded target decision below.
+
 ## Decision
 
 Atlas owns one Rust tool at `tools/criterion-regression`. Consumer CI:
@@ -58,6 +66,13 @@ Consumers may execute all four pairs serially on one runner or distribute them
 across isolated pair jobs when the complete instrument exceeds a finite job
 budget. The tool also requires identical benchmark universes, complete change
 estimates, and the derived confidence level in all four comparisons.
+
+When even one distributed complete pair exceeds the finite budget, a consumer
+may record a canonical merge-critical target set whose existing workloads and
+sample counts remain unchanged. Every excluded statistical target must still
+execute once on the candidate in the same workflow. This separates functional
+benchmark coverage from repeated statistical inference without tuning the
+measurement bodies or hiding a failed scenario.
 
 For `m` cases with per-case interval miscoverage `alpha`, Bonferroni's
 inequality gives family-wise miscoverage at most `m * alpha` without an
@@ -93,16 +108,20 @@ first, then consumers advance that pin through reviewed commits.
   Kwavers run `29841101698`; path identity remained correlated with revision
   and three apparent regressions survived both orders and replications despite
   no semantic production delta.
+- Repeating every long-horizon scenario statistically on each PR was rejected
+  after Kwavers runs `29867760523` and `29875283986`; the first remained active
+  after 157 minutes and the second required almost five hours. One-pass
+  candidate execution retains scenario coverage without weakening the
+  canonical statistical target workloads.
 - A committed historical timing file compares different runner conditions and
   cannot isolate a code change without controlled hardware.
 - A moving `main` download makes CI behavior non-reproducible.
 
 ## Consequences
 
-- Pull-request benchmark jobs execute eight benchmark passes, increasing
-  aggregate compute while preserving the full benchmark workload. A consumer
-  may use four isolated pair jobs to keep the critical path within its derived
-  job budget.
+- Pull-request benchmark jobs execute eight passes of the selected statistical
+  universe. A consumer may use four isolated pair jobs and a one-pass complete
+  candidate smoke to keep the critical path within its derived job budget.
 - The candidate harness measures both revisions. Harness performance itself is
   outside this gate; a harness-only change must be validated separately.
 - Benchmark additions or removals fail closed until both order-specific
@@ -132,6 +151,12 @@ first, then consumers advance that pin through reviewed commits.
   rustdoc gates.
 - Each consumer workflow must pass exact-head hosted CI after adopting the
   pinned tool.
+- Kwavers exact bounded head `a85aa58e5` passes complete candidate smoke, all
+  four 21–23 minute AB/BA pair jobs, and aggregate classification in run
+  `29884797777`; PR #306 merged that workflow as `00d06f00e`.
+- Kwavers PR #308's exact documentation head `8373c8bb0` passes CI
+  `29890089765`, architecture `29890089803`, and legacy audit `29890089797`;
+  the fetched default-branch merge is `402d9695`.
 
 ## Relates to
 
