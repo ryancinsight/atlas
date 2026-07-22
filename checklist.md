@@ -183,13 +183,18 @@
 - [x] Implement one Atlas-owned exact-gitlink path-dependency checkout action
       with Cargo-aware discovery, clean exact-revision reuse, and
       value-semantic local Git integration tests.
-- [ ] Replace each copied Python gate with a pinned Atlas tool checkout and
+- [x] Replace each copied Python gate with a pinned Atlas tool checkout and
       four true, co-located base/head Criterion pairs: two base-first and two
       candidate-first, with both revisions materialized at one filesystem path
       inside each pair.
 - [x] Restore Helios path-dependency checkout and the committed nextest runner.
-- [ ] Merge all three child fixes, advance Atlas gitlinks, close the README
+- [x] Merge all three child fixes, advance Atlas gitlinks, close the README
       alignment review thread, and remove obsolete local artifacts.
+
+Closure evidence: Kwavers bounded head `a85aa58e5` passes full candidate smoke,
+four 21–23 minute counterbalanced pairs, and aggregate run `29884797777`; PR
+#306 merges as `00d06f00e`. PR #308 closes KW-UQ-064 and KW-CI-063 as
+`402d9695`, which is the Atlas gitlink recorded by this increment.
 
 ## ATLAS-INTEGRATION-033 — Harmonia Phase 0 [arch] [minor]
 

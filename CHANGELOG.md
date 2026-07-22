@@ -84,6 +84,13 @@
 
 ### Changed
 
+- Close the Atlas Criterion consumer rollout and advance Kwavers to PR #308
+  merge `402d9695`. Kwavers PR #306's bounded same-path head passes complete
+  candidate smoke, four counterbalanced 21–23 minute pair jobs, and aggregate
+  classification while every non-critical benchmark remains covered by one
+  candidate execution. PR #304's Tyche collocation integration passes its
+  exact-head ordinary CI, architecture, and legacy-audit workflows.
+
 - Advance P2 from specification to execution. Hyperion `064a189` is public,
   anonymously readable, and hosted-green. Helios `105a093` completes the first
   photon/optical deletion ledger and passes hosted run `29883200466`; Kwavers

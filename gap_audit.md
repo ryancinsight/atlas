@@ -1,5 +1,27 @@
 # atlas — cross-repository integration gap audit
 
+## Benchmark and Tyche consumer closure (2026-07-22)
+
+- Kwavers PR #304 merged the direct Tyche collocation boundary as `9ad18523d`.
+  Exact candidate head `cc382dbc2243678fef55101aa106e9f8d7ad7bbf`
+  passes ordinary CI `29875284052`, architecture validation `29875284007`, and
+  legacy audit `29875283982`.
+- The same head's run `29875283986` completed all four statistical pairs but
+  used the superseded complete universe: 190 long-horizon and ancillary cases,
+  37 replicated regressions, and none in `performance_baseline`,
+  `critical_path_benchmarks`, or `simd_field_ops`. This is evidence for the
+  full-suite scope and latency defect already rejected by ADR 0024, not a pass
+  claim for the bounded instrument.
+- Kwavers PR #306 merged the root fix as `00d06f00e`. Exact head `a85aa58e5`
+  passes complete candidate smoke, all four 21–23 minute AB/BA pair jobs, and
+  aggregate classification in `29884797777`; ordinary CI `29884797767`,
+  architecture `29884797709`, and legacy audit `29884797739` also pass.
+- PR #308 closes KW-UQ-064 and KW-CI-063 as fetched default `402d9695`. No
+  benchmark-classifier, collocation-provider, or Atlas gitlink residual remains
+  for ATLAS-INTEGRATION-034. Performance evidence remains statistical and does
+  not substitute for the value, allocation, or static evidence recorded by the
+  child ADRs.
+
 ## P2 package-readiness audit (2026-07-21)
 
 - **Hyperion is the only candidate ready for Phase 0 specification.** Extraction

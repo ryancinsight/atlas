@@ -507,6 +507,13 @@ family-wise false regressions at 5%, and fails closed on missing comparisons or
 mismatched benchmark universes. It has no duplicated package scripts or
 empirical percentage threshold.
 
+When a complete statistical suite cannot fit a finite pull-request budget, the
+consumer records a canonical merge-critical target set and retains each
+target's workload and sample count unchanged. Every remaining benchmark still
+executes once on the candidate as a build-and-runtime smoke. This bounds the
+critical path without weakening the selected statistical instruments or
+silently dropping scenario coverage.
+
 ### Path dependency checkout
 
 Atlas owns sibling provider materialization in
