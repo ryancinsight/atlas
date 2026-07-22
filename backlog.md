@@ -12,7 +12,7 @@
 - Owner: Codex `/root`; last-update: 2026-07-22; scope: already-merged Apollo,
   Hephaestus, and Moirai provider heads, the dependent Kwavers lock and
   scheduler-workaround removal, RITK's TLS security update, and the final Atlas
-  gitlinks. Unrelated live peer work in Leto and CFDrs is excluded.
+  gitlinks. No unrelated member-repository dirt is included.
 - Outcome: publish one canonical graph in which Apollo and Hephaestus retain
   portable Python wheels, Moirai preserves saturated indexed work and exposes
   borrowing scopes, and Kwavers consumes that merged scheduler without
@@ -1313,6 +1313,13 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   are this bounded final Atlas integration lane and the active Kwavers
   portability lane under the canonical `D:\atlas\worktrees/` root. Each repo
   remains within the main-tree-plus-one-lane bound.
+- Done 2026-07-22: a one-hour-stale 13-file Leto rewrite was adjudicated
+  against its merged ADR, parity-harness evidence, manifests, and benchmark
+  contract. It contained no valid unique delta: it removed independent
+  ndarray/nalgebra oracles, replaced them with duplicated self-reference
+  kernels, and broke the Criterion harness declaration. Exact `origin/main`
+  content was restored only for those files; locked metadata passes and Leto
+  is clean at `1112cf9` with one worktree.
 - Residual: merge Kwavers PRs #313 and #312, advance the final Atlas graph,
   then remove both completed lanes and their branches.
 

@@ -39,6 +39,14 @@
   (`leto-ops/src/domain/scalar.rs:11`, `coeus-core/src/dtype/traits.rs:295`);
   ATLAS-INTEGRATION-005/006/007 stale `review` statuses flipped to `done`
   (their pins were superseded by later merged items on the same board).
+- Stale-scope hygiene: the 13-file Leto parity rewrite remained unchanged for
+  one hour and contained no valid unique delta. It deleted the independent
+  ndarray/nalgebra differential oracles required by ADR 0017 and the completed
+  parity-harness acceptance evidence, introduced duplicated self-reference
+  kernels, and removed `harness = false` while retaining a Criterion bench.
+  The exact default content was restored for those files only. Locked metadata
+  passes with the intended dev-only oracle edges; Leto is clean and synchronized
+  at `1112cf9` with one worktree.
 - Environment finding (machine-local, not a repo artifact): an MSYS2 Rust
   1.97.0 toolchain shadows the rustup shims in `PATH`, so bare `cargo`/`rustc`
   invocations bypass the toolchain selected by each member repository. Member
