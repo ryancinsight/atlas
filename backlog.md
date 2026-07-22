@@ -10,13 +10,10 @@
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch] — in progress
 
 - Owner: Codex `/root`; last-update: 2026-07-21; claimed scope:
-  `repos/hyperion/**` plus this item's owner-keyed Atlas PM entries until the
-  provider is published. The prerequisite Aequitas claim is limited to the
-  reciprocal-length and area-per-mass SI dimensions, quantities, units, their
-  focused tests/docs, and the resulting lockfile. The Proteus prerequisite is
-  limited to consuming that merged Aequitas revision in its manifest and lock
-  so Hyperion has one quantity type identity. Consumer repositories remain
-  outside this claim until their live worktrees permit disjoint migration scopes.
+  `repos/hyperion/**`, the published Aequitas/Proteus/Asclepius/Leto/Hephaestus
+  dependency-alignment commits, the disjoint non-book Hyperion migration in
+  `repos/helios/**`, and this item's owner-keyed Atlas PM entries. Helios book
+  edits and unrelated dirty submodules remain outside the claim.
   Outcome: replace the speculative two-package target with
   an evidence-gated P2 program whose registrations are consequences of code
   consolidation. Scope is Hyperion's first photon/optical transport slice plus
@@ -44,11 +41,15 @@
   `[minor]`, while consumer removals are classified independently by
   `cargo-semver-checks`. Package-name availability and exact provider APIs are
   verified when the ADR and first code slice begin.
-- Planning evidence: read-only source audit found three independent
+- Execution evidence: the source audit found three independent
   Beer-Lambert owners and repeated Kwavers optical laws. The same audit found
   Ares's immediate duplicates belong to Proteus and Prometheus lacks a second
   production consumer; these limits are promotion blockers, not deferred
-  assumptions.
+  assumptions. Hyperion `064a189` is published, anonymously readable, and
+  passes local plus hosted gates. ADR 0030 records the bounded hierarchy and
+  consolidation accounting. Helios `45986d8` deletes its coefficient, NIST-
+  table, projection-law, and raw production transmission owners; its full local
+  consumer gate passes. Kwavers and CFDrs remain required first-wave migrations.
 
 ## ATLAS-INTEGRATION-038 — Iris visualization promotion [arch] [minor] — done
 

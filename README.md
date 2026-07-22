@@ -243,17 +243,21 @@ providers. Asclepius graduated through
 graduated through
 [ADR 0029](docs/adr/0029-iris-visualization-promotion.md).
 
-A source audit does not support a commitment to add two more repositories.
-It supports one candidate for Phase 0 specification and two prerequisite
-cleanup lanes.
-A second P2 package is selected only when one deferred lane proves a second
-production consumer and a net-deletion result. The provisional names retain
-their classical mappings: Hyperion to light, Ares to war, and Prometheus to
-fire and craft.
+A source audit does not support adding two repositories as a target. It
+supports one provider promotion, Hyperion, because that package consolidates
+three consumer implementations into a lower common owner. Hyperion is now
+published and its first-wave consumer migrations are in progress under
+[ADR 0030](docs/adr/0030-hyperion-photon-optical-promotion.md).
+
+The second P2 slot is intentionally empty. Ares or Prometheus is selected only
+when a prerequisite cleanup proves a second production consumer and a net-
+deletion result. Until then, creating either repository would add topology
+without consolidating code. The provisional names retain their classical
+mappings: Hyperion to light, Ares to war, and Prometheus to fire and craft.
 
 | Track | Decision | Current evidence | Required consolidation result |
 | --- | --- | --- | --- |
-| P2-A `hyperion` | Ready for Phase 0 specification; extraction is contingent on name, API, and ADR verification. | Beer-Lambert transmission is independently implemented in `kwavers-optics`, `helios-physics`/`helios-solver`, and `cfd-optim`. Kwavers also has four reduced-scattering formulas and repeated diffusion/effective-attenuation laws. | Establish one typed attenuation/optical-depth and derived-coefficient SSOT; publish it, migrate Kwavers, Helios, and CFDrs directly, and delete every superseded formula and parallel coefficient model. |
+| P2-A `hyperion` | Execution: provider published at `064a189`; Helios migration published at `45986d8`; Kwavers and CFDrs remain. | The Helios coefficient, NIST-table, projection-law, and raw production transmission owners are deleted. Kwavers still repeats reduced-scattering, diffusion, and effective-attenuation laws; `cfd-optim` still owns a raw Beer–Lambert expression. | Complete the Kwavers and CFDrs direct migrations to the typed attenuation/optical-depth and derived-coefficient SSOT; delete every superseded formula and parallel coefficient model before registration. |
 | P2-B `ares` | Deferred; promotion gate unmet. | CFDrs and Kwavers duplicate isotropic modulus conversions and steel/aluminum catalogs, but those laws belong to Proteus. Kwavers is the only current solid-mechanics operator owner; CFDrs has no structural displacement/traction/contact solver. | First consolidate elastic properties in Proteus and delete both consumer copies. Reopen Ares only when a second integrator can consume the same solid-kinematics or balance operator in the extraction change. |
 | P2-B `prometheus` | Deferred; promotion gate unmet. | Kwavers has competing reaction representations and a bespoke RK45 implementation. CFDrs has manufactured reactive-flow oracles, not a production reaction-network consumer. Shared rheology temperature response belongs to Proteus. | Consolidate Kwavers reaction vocabulary and move reusable embedded stepping to Horae. Reopen Prometheus only when a second production consumer can delete a matching reaction-network implementation. |
 
@@ -266,6 +270,17 @@ deposition, planning, imaging, and delivery. Kwavers retains acoustic and
 photoacoustic coupling, sonoluminescence, and source workflows. CFDrs retains
 flow and device-scoring policy. Leto, Gaia, Athena, and Hephaestus retain
 arrays, geometry, solver policy, and accelerator mechanics.
+
+The architectural benefit is measured by removed ownership, not by the new
+repository count:
+
+| Boundary | Before P2 | After Hyperion migration | Consolidation effect |
+| --- | --- | --- | --- |
+| Physical units | Consumers mix raw scalars and local unit conventions. | Aequitas supplies one reciprocal-length, area-per-mass, path, and fluence quantity identity. | Unit conversion and dimensional validity have one foundation owner. |
+| Material properties | Consumer attenuation code accepts raw density values. | Proteus validates material density; Hyperion consumes that property for mass-to-linear conversion. | Material state and photon interaction remain separate, composable layers. |
+| Photon/optical laws | Helios, Kwavers, and CFDrs own parallel coefficient validation and `exp(-tau)` paths. | Hyperion owns coefficient types, optical depth, transmission, and derived laws. | Formula, validation, diagnostics, and theorem tests collapse to one SSOT. |
+| Integrator code | Domain packages mix reusable laws with CT, acoustics, flow, dose, and workflow policy. | Integrators retain only spatial algorithms and domain policy, importing Hyperion directly. | Dependency direction becomes foundation → domain provider → integrator; no facade or circular edge remains. |
+| P2-B candidates | Shared elastic and integration code appears to justify new packages. | Proteus absorbs elastic-property recurrence; Horae absorbs reusable embedded-step policy first. | Existing providers are extended before any new topology is admitted. |
 
 The Phase 0 deletion ledger includes:
 

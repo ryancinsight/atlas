@@ -4,6 +4,12 @@
 
 ### Added
 
+- File ADR 0030 to promote published Hyperion as the bounded photon/optical
+  transport owner. The decision records the Aequitas → Proteus/Hyperion →
+  integrator hierarchy, per-consumer deletion ledger, measurable consolidation
+  effects, and the rule that P2 does not add Ares or Prometheus without a second
+  production consumer and net deletion.
+
 - Promote public Iris as the twenty-fourth Atlas package and file ADR 0029.
   Iris owns normalized color laws, fixed lookup tables, borrowed scientific
   views, and static render-backend contracts. RITK Snap and VTK consume the
@@ -78,13 +84,13 @@
 
 ### Changed
 
-- Replace the speculative P2 package-count target with an evidence-gated
-  consolidation plan. Hyperion is ready for Phase 0 specification around a
-  three-consumer photon/optical attenuation deletion ledger; extraction remains
-  contingent on name, API, and ADR verification. Ares remains blocked on
-  Proteus elastic-property consolidation and a second structural consumer;
-  Prometheus remains blocked on Kwavers/Horae cleanup and a second production
-  reaction-network consumer.
+- Advance P2 from specification to execution. Hyperion `064a189` is public,
+  anonymously readable, and hosted-green. Helios `45986d8` completes the first
+  photon/optical deletion ledger; Kwavers and CFDrs remain. Ares remains
+  blocked on Proteus elastic-property consolidation and a second structural
+  consumer; Prometheus remains
+  blocked on Kwavers/Horae cleanup and a second production reaction-network
+  consumer. Package count is not an acceptance criterion.
 
 - Document the supported four-job schedule for long consumer benchmark
   instruments: two isolated, co-located base-first pairs and two isolated,

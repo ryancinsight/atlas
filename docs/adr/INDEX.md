@@ -34,8 +34,9 @@
 | <a id="ADR-0027"></a>**0027** | Resolve consumer path dependencies from one exact Atlas gitlink graph through an Atlas-owned Rust action | Accepted | 2026-07-20 | `[arch]` `[patch]` | atlas-meta / helios / kwavers / ritk | provider-graph |
 | <a id="ADR-0028"></a>**0028** | Promote Asclepius as the owner for typed gEUD, TCP, NTCP, CEM43, Arrhenius damage, and independent-response composition over Aequitas and Eunomia, with a one-way Coeus autodiff adapter | Accepted | 2026-07-20 | `[arch]` `[minor]` | asclepius / asclepius-coeus / helios / kwavers / atlas-meta | biological-response |
 | <a id="ADR-0029"></a>**0029** | Promote Iris as the owner for normalized color laws, fixed lookup tables, borrowed scientific views, and static render-backend contracts; replace duplicate RITK and CFDrs color laws | Accepted | 2026-07-21 | `[arch]` `[minor]` | iris / ritk-snap / ritk-vtk / cfd-schematics / atlas-meta | visualization-contracts |
+| <a id="ADR-0030"></a>**0030** | Promote Hyperion as the bounded owner of photon/optical coefficients, reference attenuation data, optical depth, Beer–Lambert transmission, and derived transport laws; require direct three-consumer deletion before Atlas registration | Accepted | 2026-07-21 | `[arch]` `[minor]` | hyperion / helios / kwavers / CFDrs / proteus / aequitas / atlas-meta | photon-optical-transport |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0029 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, provider-checkout, biological-response, and visualization-contract decisions. The index now carries the authored sequence through ADR 0029.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0030 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, provider-checkout, biological-response, visualization-contract, and photon/optical-transport decisions. The index now carries the authored sequence through ADR 0030.
 
 ## Topic-keyword index
 
@@ -145,6 +146,22 @@ Cross-walks: 0029 composes 0020/0027 (exact provider graph and checkout) and
 keeps array storage, device mechanics, formats, and domain interpretation in
 their existing owners.
 
+### Group J — Photon and optical transport (`topic-tag: photon-optical-transport`)
+
+Cross-cuts coefficient validation, reference attenuation data, optical depth,
+Beer–Lambert transmission, and derived optical laws shared by Helios, Kwavers,
+and CFDrs. Supporting providers are Aequitas, Eunomia, and Proteus.
+
+- **ADR 0030** — Hyperion owns the bounded photon/optical transport law surface
+  and enters Atlas only after direct first-wave consumer deletion. **Anchor for
+  Hyperion scope, dependency direction, consolidation accounting, and the P2
+  second-package promotion block.**
+
+Cross-walks: 0030 composes 0005 (Eunomia scalar law), 0021 (Aequitas quantity
+law), 0025 (Proteus material properties), and 0020/0027 (exact provider graph
+and checkout) without moving consumer spatial, solver, backend, or workflow
+ownership.
+
 ## Status flow legend
 
 The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `documentation_discipline`:
@@ -177,6 +194,7 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 | 0027 | 0020 (exact provider graph) + 0010 (cross-repo cadence) + 0011 (Atlas-meta ownership) | consumer-owned provider checkout actions and moving Atlas branch resolution |
 | 0028 | 0005 (Eunomia scalar law) + 0020 (exact provider graph) + 0021 (Aequitas quantity law) + 0025 (complementary material-property boundary) + 0027 (provider checkout) | Asclepius ADR 0001; duplicated Helios and Kwavers response formulas |
 | 0029 | 0020 (exact provider graph) + 0027 (provider checkout) | Iris ADR 0001; duplicated RITK Snap and VTK color laws |
+| 0030 | 0005 (Eunomia scalar law) + 0021 (Aequitas quantity law) + 0025 (Proteus material properties) + 0020/0027 (exact provider graph and checkout) | Hyperion ADR 0001; duplicated Helios, Kwavers, and CFDrs photon/optical transport laws |
 | 0010 | 0005 (consumed by Batch #2 closure), 0006 (next-batch adoption), 0007 (per-`[patch]` sweep reuses), 0011 (ceremony counterpart) | inline `D:/atlas/backlog.md` ritual without ADR anchor |
 | 0011 | 0005, 0006, 0007 (numeric SSOT chain hygiene), 0010 (Per-batch convention) | inline `D:/atlas/backlog.md` OOS-record shape (first introduced by commit `283f38cf`); implicit cadence carried only in the commit narrative pre-ADR-0011 |
 

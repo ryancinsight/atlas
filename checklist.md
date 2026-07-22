@@ -24,12 +24,20 @@
 - [x] Implement Hyperion typed coefficients, optical depth, Beer-Lambert
       transmission, and derived diffusion laws with analytical, adversarial,
       generic-scalar, exact NIST-knot, layout, and allocation conformance tests
-      at `b428a28`.
-- [ ] Publish the verified Hyperion provider commit and confirm anonymous Git
-      access before changing any consumer dependency.
-- [ ] Migrate Kwavers, Helios, and CFDrs directly; delete the README deletion
-      ledger's formula and model copies; run exact pre/post consumer
-      differentials and each affected repository's full publish gate.
+      at final provider revision `064a189`.
+- [x] Publish Hyperion `064a189`, confirm anonymous Git access, and pass hosted
+      CI run `29877136400` before changing a consumer dependency.
+- [x] File ADR 0030 with the dependency hierarchy, consolidation accounting,
+      deletion ledger, non-goals, and explicit block on a package-count-driven
+      P2-B promotion.
+- [ ] Migrate first-wave consumers directly and run exact pre/post
+      differentials plus each affected repository's full publish gate:
+  - [x] Helios `45986d8`: coefficient/table/projection owners and raw production
+        Beer–Lambert paths deleted; transactional TERMA migration completed;
+        full local gate passed 257/257 configured tests plus analytical,
+        adversarial, and CPU/GPU differential oracles.
+  - [ ] Kwavers: delete repeated reduced-scattering/diffusion/transport laws.
+  - [ ] CFDrs: replace the raw 405-nm Beer-Lambert expression.
 - [ ] Register the fetched Hyperion provider commit only after all first-wave
       consumer deletions merge; synchronize gitlinks, ADRs, provider docs, and
       the Atlas stack map in that delivery unit.
