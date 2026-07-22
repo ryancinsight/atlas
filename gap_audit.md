@@ -47,6 +47,13 @@
   The exact default content was restored for those files only. Locked metadata
   passes with the intended dev-only oracle edges; Leto is clean and synchronized
   at `1112cf9` with one worktree.
+- Gitlink identity audit: the provisional Helios pointer used a nonexistent
+  full object whose first seven characters matched the real PR #19 merge.
+  A fresh origin fetch and full-object comparison rejected
+  `8463110688b17bc39d4589310f653b529eb49d8d` and pins the fetched default
+  `846311068878c6c042d172abbb68a537abd5ad49`. The final stack audit compares
+  complete object IDs; abbreviated equality is not accepted as integration
+  evidence.
 - Environment finding (machine-local, not a repo artifact): an MSYS2 Rust
   1.97.0 toolchain shadows the rustup shims in `PATH`, so bare `cargo`/`rustc`
   invocations bypass the toolchain selected by each member repository. Member

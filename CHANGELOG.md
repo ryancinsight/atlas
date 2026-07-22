@@ -105,6 +105,9 @@
   AVX-512 signed-byte bias broadcast, retains one canonical SIMD benchmark
   binary, and passes all 12 benchmark smokes below 60 seconds plus both changed
   canonical measurements below 300 seconds in exact run `29965053273`.
+  Pin Helios by its fetched full merge object
+  `846311068878c6c042d172abbb68a537abd5ad49`, correcting a nonexistent
+  same-prefix provisional gitlink.
 
 - Advance Kwavers to PR #307 merge `0602c1fd4` and close its debug build
   budget. Removing wildcard dependency `opt-level = 3` restores generic sharing
