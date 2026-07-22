@@ -48,12 +48,22 @@
 - [ ] Measure and align remaining member-specific debug/test profiles after
       their peer-owned worktrees become clean; CFDrs `test opt-level = 2` is
       the next observed candidate and must retain its current test workloads.
-- [ ] Route Atlas-meta root-worktree tool builds to the canonical cache without
-      an absolute machine path; until then, run those tools from the primary
-      root and reject lane-local `target` creation.
+- [x] Route Atlas-meta root-worktree tool builds to the canonical cache without
+      an absolute machine path. Verdict (2026-07-22): no portable tracked
+      route exists in Cargo's config model — relative `target-dir` resolves
+      per config-file location, so a lane checkout's copy of the tracked
+      config necessarily resolves lane-local; `CARGO_TARGET_DIR` is
+      machine-absolute and untracked; `[env]` does not govern Cargo's own
+      target resolution; config `include` is nightly-only. The interim policy
+      is therefore terminal: build Atlas-meta tools from the primary root and
+      reject lane-local `target` creation (`.cargo/config.toml` header and
+      README "Build cache and debug budget" already carry it).
 - [ ] Compare unchanged single-build and three-build workloads at the current
       job count and bounded alternatives before setting `build.jobs`; the live
       audit observed 23 concurrent `rustc` processes on 24 logical processors.
+      Re-open trigger: a quiet window on the shared `D:/atlas/target` lock
+      (no active peer build); concurrent builds serialize on that lock by
+      design, so the measurement must run when it is uncontended.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 

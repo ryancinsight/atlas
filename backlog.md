@@ -613,7 +613,7 @@
   long-line scan contracts pass. ADR 0009 is the provider theorem SSOT.
 - Closure: parent advances `repos/hephaestus` from `df33d4d` to `d0eafc8`.
 
-## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch] — review
+## ATLAS-INTEGRATION-007 — RITK Apollo checkout pin [patch] — done
 
 - Owner: Atlas integration; scope: `repos/ritk` gitlink and Atlas PM artifacts
   only.
@@ -660,7 +660,7 @@
 - Closure: the parent advances from `7c7d60f` to merged Kwavers `main`
   `9eabc4e2` in this increment.
 
-## ATLAS-INTEGRATION-006 — Refresh provider heads [arch] — review
+## ATLAS-INTEGRATION-006 — Refresh provider heads [arch] — done
 
 - Owner: Atlas meta; scope: Apollo, Hephaestus, Kwavers, Leto, and RITK
   gitlinks plus ADR 0020.
@@ -674,7 +674,7 @@
   is carried by ATLAS-INTEGRATION-007; the current Kwavers #291 matrix remains
   the behavioral closure for the Apollo axis-transform path.
 
-## ATLAS-INTEGRATION-005 — RITK lock-integrity pin [patch] — review
+## ATLAS-INTEGRATION-005 — RITK lock-integrity pin [patch] — done
 
 - Owner: Atlas integration; scope: `repos/ritk` gitlink and Atlas PM artifacts
   only.
@@ -846,7 +846,7 @@ Three CR-class items carried from `docs/audit/2026-07-02-cross-repo-integration-
 
 | ID | Class | Title | Owner repo (provider land) | Supertypes | Consumer land unlocked |
 | --- | --- | --- | --- | --- | --- |
-| **CR-4** | `[major]` | Rebase `coeus-core::Scalar` + `leto-ops::Scalar` over `eunomia::NumericElement` as the universal supertrait (single SSOT). Delete the vocabulary that already lives on `NumericElement` (`zero`/`one`/`to_f64`/`from_f64`/`from_usize`/`sqrt_val`/`abs_val`); keep the backend-specific slice-kernel surface (`add_slice`/.../`max_slice`, `gemv_*`, `tiled_gemm`, `axpy_rows`, leto-ops `from_usize`). See `atlas/docs/adr/0005-eunomia-scalar-ssot.md` for the proof that `RealField` (float-only) cannot be a universal `Scalar` supertrait (would orphan `coeus_core::Int` for i8/u8/.../u64). | `coeus`, `leto` (joint) | `eunomia` is doctrine holder | kwavers `RealField` nalgebra → eunomia; CFDrs `cfd-math` solver-chain RealField seam; ritk `Burn::Module → coeus::Module` rebind |
+| **CR-4** | `[major]` | Rebase `coeus-core::Scalar` + `leto-ops::Scalar` over `eunomia::NumericElement` as the universal supertrait (single SSOT) — **✅ CLOSED 2026-07-09** (eunomia `57d7789`, coeus `2b3f820`, leto PR #31 merge `d9e8ac9`; ADR 0005 Accepted; re-verified 2026-07-22: `leto-ops/src/domain/scalar.rs:11` and `coeus-core/src/dtype/traits.rs:295` carry `Scalar: NumericElement`; consumer unlocks tracked and closed in batches #2/#3). Delete the vocabulary that already lives on `NumericElement` (`zero`/`one`/`to_f64`/`from_f64`/`from_usize`/`sqrt_val`/`abs_val`); keep the backend-specific slice-kernel surface (`add_slice`/.../`max_slice`, `gemv_*`, `tiled_gemm`, `axpy_rows`, leto-ops `from_usize`). See `atlas/docs/adr/0005-eunomia-scalar-ssot.md` for the proof that `RealField` (float-only) cannot be a universal `Scalar` supertrait (would orphan `coeus_core::Int` for i8/u8/.../u64). | `coeus`, `leto` (joint) | `eunomia` is doctrine holder | kwavers `RealField` nalgebra → eunomia; CFDrs `cfd-math` solver-chain RealField seam; ritk `Burn::Module → coeus::Module` rebind |
 | **CR-2** | `[arch]` | Consolidate `#[global_allocator]` to a single binary-only registration. Strip from `cfd-core`, `ritk-core`, `moirai/lib`. Pass `Mnemosyne` handles via DI to library callers. | `cfd-core`, `ritk-core`, `moirai` (joint) | `mnemosyne` is allocator holder | Library composition stays provider-neutral; binaries own allocator policy — **✅ CLOSED 2026-07-18** (`cfd-core` ✅, `moirai` ✅, `ritk-core` ✅; zero `#[global_allocator]` in all three library crates) |
 | **CR-1** | `[arch]` | Delete `apollo/crates/apollo-ghostcell` standalone GhostCell reimplementation; redirect all apollo sites to `melinoe::MelinoeCell` (with `brand_scope!` mint). | `apollo`, `melinoe` (consumer) | `melinoe` is brand doctrine holder | All brand-borrow contention becomes provider-exclusive — **✅ CLOSED 2026-07-07** (Apollo commit `50029b7` deletes `crates/apollo-ghostcell`; `repos/moirai/Cargo.toml` aligned to `melinoe = 0.8.0`; focused nextest `-p apollo-validation melinoe` 2/2 green and `-p apollo-sft -p apollo-radon` 43/43 green; `find_path repos/apollo/crates/apollo-ghostcell/**` returns zero files 2026-07-20 re-confirm; full evidence at `gap_audit.md` L1429-1430) |
 

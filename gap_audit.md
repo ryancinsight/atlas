@@ -1,5 +1,39 @@
 # atlas — cross-repository integration gap audit
 
+## Checkout hygiene, cache-route verdict, and parity findings (2026-07-22)
+
+- `repos/hyperion` held a standalone clone (`.git/` directory, not a gitfile)
+  at recorded gitlink `7b4561b`, leaving the submodule unregistered (`-`
+  status). Repaired via `git submodule init` + `absorbgitdirs`; the checkout
+  is clean at `7b4561b` equal to fetched `origin/main`. No unique commits or
+  dirty state existed, so nothing required rescue. All 25 recorded packages
+  now resolve as initialized submodules.
+- Root-worktree cache route verdict: Cargo resolves a relative `target-dir`
+  against the config file's location, and the tracked `.cargo/config.toml`
+  duplicates into every Atlas-meta lane checkout, so no portable tracked
+  config can pin one cache across checkout roots. `CARGO_TARGET_DIR` is
+  machine-absolute and untracked; `[env]` does not govern Cargo's own target
+  resolution; config `include` is nightly-only. The primary-root policy is
+  terminal; ATLAS-TARGET-001's routing item closes with this justification.
+- Finding (peer parity stream owns disposition): `scripts/fix_link_depth.py`
+  is untracked but referenced by tracked `MDBOOK_DETECTOR_PARITY.md`;
+  `repos/parity_artefacts/` is untracked but referenced as the on-disk
+  archive by that report and by the CFDrs, Helios, and Kwavers book
+  `SUMMARY.md` files for in-context builds. Either track the referenced
+  artifacts or qualify the references; a tracked reference to an untracked
+  file fails a fresh clone. `helios_workflow_output/` is an untracked
+  run-output directory and belongs under the ignore policy per run-output
+  segregation.
+- ATLAS-TARGET-001 profile item re-verified blocked: CFDrs, Gaia, Helios,
+  Horae, Kwavers, Leto, and RITK worktrees remain peer-dirty, so the
+  `test opt-level = 2` comparison still cannot run against a clean CFDrs
+  baseline. The `build.jobs` measurement re-opens on an uncontended shared
+  `D:/atlas/target` lock.
+- Board hygiene: CR-4 ledger row marked closed with re-verified tree evidence
+  (`leto-ops/src/domain/scalar.rs:11`, `coeus-core/src/dtype/traits.rs:295`);
+  ATLAS-INTEGRATION-005/006/007 stale `review` statuses flipped to `done`
+  (their pins were superseded by later merged items on the same board).
+
 ## Debug build and cache budget (2026-07-22)
 
 - Kwavers PR #307 merges as `0602c1fd4`. Removing wildcard dependency
