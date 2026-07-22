@@ -1371,6 +1371,15 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Scope: (1) gate smoke — bench binaries run single-iteration (criterion `--test`) under the standard 30s/60s budget; (2) timing runs — per-binary wall-clock bound (default 300s) enforced in the criterion-regression runner/CI; (3) CI-safe examples complete within the test budget as scaled demos; (4) audit the 164 bench files (moirai 47, CFDrs 29, kwavers 22, hermes 12, ritk 10, rest ≤8) against the analytical time model — zero suites declare measurement_time/sample_size today, i.e. all run unbudgeted criterion defaults with sweeps; apply flat sampling for slow iterations, geometric sweeps, smallest regime-exercising inputs; where a single iteration is genuinely slow, profile and optimize the production kernel (farsight), never delete the bench or raise the bound in the offending diff.
 - Acceptance: budget enforcement merged in the runner + full-stack bench sweep completes within per-binary bounds; breaches root-caused and fixed or filed with derivation.
 - Done 2026-07-22: `enforce-budget` subcommand in tools/criterion-regression — modes smoke (bench single-iteration, 60s), timing (full measurement, 300s), examples (60s), `--bound-seconds`/`--skip` overrides. Compiles unbounded, executes binaries directly (killing cargo would orphan the bench grandchild) with CARGO_TARGET_DIR pinned to the shared target (no minted repo-local target/), fail-closed exit. Validated: themis smoke/timing clean; eunomia timing at 5s bound → breach terminated mid-measurement, exit 1. Gates: clippy pedantic clean, 21/21 nextest, doc clean.
+- Done 2026-07-22: Helios PR #19 merges as `8463110`; exact run
+  `29958771340` passes its committed smoke and timing budgets. Hermes PR #15
+  merges as `1819e0b` after replacing its invalid AVX-512 signed-byte bias
+  broadcast and consolidating the temporary seven-binary SIMD split back into
+  one canonical `simd_bench`. Exact PR run `29965053273` passes all 12 bench
+  binaries under the 60-second smoke bound and both changed canonical timing
+  binaries under 300 seconds; compile takes 1m47s, smoke 4m04s, scoped timing
+  4m05s, and the complete benchmark job 10m18s. Merge-head run `29965624848`
+  is green.
 - Residual: full-stack sweep at committed bounds (probe per repo; live peer scopes deferred to their completion), CI wiring per repo workflow convention, and suite resizing per breach (flat sampling, geometric sweeps) or kernel optimization per farsight.
 ## ATLAS-BUILD-STRUCTURE-001 — Consolidate leaf binaries; compiler-last dev profiles [patch] — todo
 

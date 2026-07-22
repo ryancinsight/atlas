@@ -100,6 +100,12 @@
   build gate while retaining the platform and executor fast paths; exact
   default run `29963043374` passes Rust and all three wheel platforms.
 
+- Advance Helios to PR #19 merge `8463110` and Hermes to PR #15 merge
+  `1819e0b`. Helios passes its committed benchmark budgets. Hermes fixes the
+  AVX-512 signed-byte bias broadcast, retains one canonical SIMD benchmark
+  binary, and passes all 12 benchmark smokes below 60 seconds plus both changed
+  canonical measurements below 300 seconds in exact run `29965053273`.
+
 - Advance Kwavers to PR #307 merge `0602c1fd4` and close its debug build
   budget. Removing wildcard dependency `opt-level = 3` restores generic sharing
   and reduces uncached feature-build stages by 18–45% while full-grid PSTD

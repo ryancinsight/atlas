@@ -58,6 +58,15 @@
   feature-build steps improve by 18–45%; exact head `909bcdfc7` passes all 26
   hosted checks, keeps the full-grid PSTD regression below 25 seconds, and
   establishes a clean 16,771,464,617-byte/6,109-file debug baseline.
+- Hermes PR #15 closes the SIMD benchmark-structure residual at merge
+  `1819e0b`. A failed exact-head run exposed a real AVX-512 signed-byte bias
+  defect: the 32-bit broadcast initialized only every fourth byte lane. The
+  byte-lane broadcast fix passes the full-range tile differential and irregular
+  dispatched-GEMM regression. Exact PR run `29965053273` also proves every one
+  of the 12 consolidated benchmark binaries below the 60-second smoke bound
+  and both changed canonical timing binaries below 300 seconds; merge-head run
+  `29965624848` is green. This is value-semantic and runtime-budget evidence,
+  not a whole-stack debug-build measurement.
 - All sampled package and Kwavers-worktree metadata resolves
   `D:/atlas/target`. Seven stale private targets instead held 9,363 files and
   approximately 4.49 GiB; Cargo removed them without cleaning or blocking the
