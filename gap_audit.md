@@ -4361,3 +4361,163 @@ Already documented above in the Environment finding block: an MSYS2 Rust
 session's gates: prepend `C:\Users\RyanClanton\.cargo\bin` to PATH per
 invocation (the `cargo` invocation prefix). Durable fix (PATH reorder or
 MSYS2 rust removal) is a user-level machine decision, not a repository change.
+
+## Session 11 — 2026-07-22 atlas-meta coordinator (gitlink wave + watchpoint verification)
+
+**Dispatched**: "proceed with next actionable items, takeover peer claims where
+needed". Swept peer-held scopes for staleness, advanced the two non-fresh
+gitlinks, and verifiably closed one standing watchpoint.
+
+### Gitlink advances delivered
+
+- **atlas-meta `c25ab2c`**: kwavers `55019f9 -> 83f066c` (peer's 9-commit
+  codex/kwavers-docs-closeout wave + FWI streaming adjoint gradient PR #309)
+  + leto `60c8080 -> 1112cf9` (peer's feat/leto-parity-harness merge PR #69:
+  nalgebra oracle target alignment + parity harness evidence closure). Both
+  SHAs verified against origin/main before staging; staged diff confirmed as
+  exactly two gitlink lines (+2/-2). Peer's uncommitted egui-feature-gate WIP
+  overlaying inner kwavers at the time of staging was preserved untouched.
+
+- **atlas-meta `a524a1d`** (peer follow-up, landed between my gitlink
+  verification and the watchpoint-evidence pass): advanced kwavers
+  `83f066c -> 1330795d` to capture peer's closure of the burn/legacy
+  migration allowlists (`2fdc4ea30`) + the egui opt-in fix landed
+  (`bce10e158`) + provider lock sweep after apollo approx removal
+  (`1330795d2`). The kwavers WIP seen at the inner checkout was peer's
+  actively-held scope; peer's finalization pushed cleanly past it.
+  Atlas-meta main tip at session close: `a524a1d`.
+
+- **Full submodule state at session close**: all 25 submodules synchronized
+  to their origin/main (master for hephaestus) tip — re-verified by full-tree
+  gitlink vs origin/main check (ok=25, desync=0).
+
+### Watchpoint verification outcomes
+
+**`HERMES-GEMM-UB-001` — CLOSED** by peer's intervening refactor.
+Re-verifiable on this Windows machine (the original failure environment):
+
+    $ cargo nextest run -p hermes-simd --workspace
+       Summary [  4.003s] 388 tests run: 388 passed, 0 skipped
+    $ grep -rln "ptr::replace" crates/hermes-simd/src
+       (no matches)
+
+The `ptr::replace` alignment UB pattern documented in the original watchpoint
+is no longer present in the hermes-simd source tree; all 5 GEMM dispatch
+tests plus the broader 388-test workspace pass without abort. Closed by
+peer work in commits `0e0dfcf`/`53b8316`/`355d202`一带 (CSR-SpMV tail +
+AMX TLS alignment + Eunomia reduced-precision migration wave); residual
+surface uses `safe_aligned_load_and_store_*` patterns subject to alignment
+validation. **Closed by evidence (empirical-tier: green test run on
+original failure environment + absence of UB pattern in source).**
+
+**`CFDRS-PERF-SLOW-001` — STILL OPEN**, re-verified with hands-on evidence.
+Reproduced on this Windows machine at CFDrs main `dba1161`:
+
+    $ cargo nextest run -p cfd-3d --test poiseuille_test
+       SLOW [> 15.000s] cfd-3d::poiseuille_test validate_poiseuille_flow
+       TERMINATING [> 30.000s] cfd-3d::poiseuille_test validate_poiseuille_flow
+       TIMEOUT [  30.020s] 1 test run: 0 passed, 1 timed out, 0 skipped
+
+- The 30s slow-budget timeout fires for `validate_poiseuille_flow` after
+  peer's `9a04f1d3` perf commit — that commit touched only
+  `tests/tvd_scheme_validation.rs` (allocating MUSCL buffers once outside the
+  inner `for _t in 0..3` loop and reseeding via `copy_from_slice`), not the
+  cfd-3d Poiseuille path. The 3 specific slow tests recorded at gap_audit.md
+  L285-293 remain the same triad (cfd-3d poiseuille, cfd-suite cross-fidelity
+  blueprint, cfd-validation 3D bifurcation Murray/mass).
+- Diagnosed scope of the bottleneck without a full root-cause fix:
+  `crates/cfd-3d/src/venturi/solver.rs:575` — the
+  `for iter in 0..max_nonlinear_iterations` body calls
+  `crate::fem::FemSolver::solve_picard` per iteration, with the test making
+  TWO sequential `solve_poiseuille` invocations (low + high u_avg). Peer's
+  `9a04f1d3` perf-audit pattern (pre-allocate outside the inner loop, reset
+  via `copy_from_slice` rather than reallocate) is the carry-over playbook
+  targeted at `FemSolver::solve_picard`. A flamegraph on `solve_picard`'s
+  allocation pattern is the next root-cause step; deferred to peer (peer
+  authored exactly this audit pattern in `tvd_scheme_validation.rs` at the
+  prior increment).
+- Per `engineering_gates` test-time budget rule: a 30s timeout is a perf
+  defect to root-cause (optimize real components), never a budget to relax;
+  this remains open per `decision_policy`.
+
+**`CFDRS-CFD1D-LINT-001` — BASELINE CHARACTERIZED** for the ratchet.
+Re-measured on this Windows machine with the rustup override
+`1.95.0-x86_64-pc-windows-gnu` set for the CFDrs tree (CFDrs repo has no
+`rust-toolchain.toml`; the override localizes the pinned toolchain while
+still inside the shared `target/` cache; rustup override is tree-local and
+NOT a workspace change).
+
+    $ rustup override set 1.95.0-x86_64-pc-windows-gnu  # CFDrs tree only
+    $ cargo clippy -p cfd-1d --all-targets -- -D warnings -A dead_code
+       47 unique pedantic violations across cfd-1d source/tests/benches:
+        26  uninlined_format_args    (in format! / assert! strings)
+         6  map_or_into_simplification (clippy::map_or producing Some/None)
+         5  useless_conversion        (e.g., `as f64` where input is already f64)
+         2  result_large_err         (Err variant exceeds threshold)
+         2  manual_range_contains    (manual Range::contains impl)
+         1  manual_range_inclusive_contains
+         1  very_complex_type
+         1  explicit_into_iter_loop  (call to .into_iter() in IntoIterator arg)
+         1  empty_line_after_doc_comments
+         1  empty_line_after_outer_doc_comments
+         1  could_not_compile        (test/bench test targets)
+
+- `uninlined_format_args` dominates (55%) — a single-pass mechanical edit
+  to inline variables into format strings would address the bulk in one
+  transaction. Other categories are individually localized.
+- Per `engineering_gates` brownfield lint floor: this is a non-increasing
+  tool-enforced baseline; remediation is a `[patch]` chore scheduled under
+  the ratchet (each remediation PR dropping at least one category). Filing
+  the baseline today so the next ratchet measurement has the comparison
+  point.
+- The rustup override remains on this CFDrs checkout for the ratchet's
+  work; cleanup when no longer needed: `rustup override unset
+  D:\atlas\repos\CFDrs`.
+
+### Other Session 10 watchpoints — confirmed state
+
+- `CFDRS-LINT-CASCADE-001` (peer closed inter-session; cf. gap audit Section
+  10 entry). Not re-measured this session.
+- `HYPERION-PHASE-0/1-001`, `EUNOMIA-DOCTEST-001`,
+  `HELIOS-APPROX-EUNOMIA-001`, `HERMES-ADVANCE-001`: closed by peer work in
+  the inter-session gap per prior gap_audit entries.
+- `HEPH-CUDA-WIN-001`: unchanged; awaiting user upstream-fix dispatch in
+  cuda-oxide/cutile-rs.
+
+### Peer mid-flight (preserved)
+
+- **kwavers**: peer pushed the egui feature gate work (3 new commits
+  `2fdc4ea3`, `bce10e15`, `1330795d2`) past the snapshot I gitlink-advanced;
+  peer's `a524a1d` atlas-meta follow-up closed the gap. No further kwavers
+  inner state was modified by this coordinator session.
+- **CFDrs**: peer's CFDrs main `dba1161` is unchanged; the inner-worktree
+  mdBook + `tests/momentum_solver_validation.rs` dirty state remains peer's
+  actively-held book authoring scope. Not touched this session.
+- **helios**: peer's `docs/helios-book-recovery` branch (`66e8a6b`) is on
+  `origin/docs/helios-book-recovery` as a parallel branch. Helios main
+  (`2468c7c`, my v0.1.0 release commit) is the book foundation per Session
+  10 release evidence. No helios inner state modified this session.
+
+### Next actionable
+
+1. **`CFDRS-PERF-SLOW-001` root-cause**: peer scope (cfd-3d fem
+   `solve_picard` allocation hot path). Carry-over playbook is peer's
+   `9a04f1d3` audit pattern (pre-allocate outside the iter loop, reset via
+   `copy_from_slice`). Takeover authorized by the Session 11 dispatch if
+   peer stalls on the root-cause pass; blocked on flamegraph evidence for
+   the full root-cause, but surgical buffer hoisting in
+   `FemSolver::solve_picard` is a candidate `[patch]` increment worth
+   trying first.
+2. **`CFDRS-CFD1D-LINT-001` ratchet kick-off**: baseline now recorded. Next
+   ratchet pass remediate the cheapest category (`uninlined_format_args` at
+   26 of 47 violations, 55% of the baseline) in a single `[patch]` chore.
+3. **`HEPH-CUDA-WIN-001`**: still awaiting user upstream-fix dispatch.
+
+### Mitigation used for this session's gates
+
+Per the documented MSYS2 Rust 1.97.0 toolchain shadow: per-invocation
+`PATH="/c/Users/RyanClanton/.cargo/bin:$PATH"` prefix plus a CFDrs-tree-local
+`rustup override set 1.95.0-x86_64-pc-windows-gnu` to defeat the MSYS2 path
+shadow for the lint-baseline measurement. Toolchain-pinned override stays
+in place for further ratchet passes; unset via
+`rustup override unset D:\atlas\repos\CFDrs` when no longer needed.

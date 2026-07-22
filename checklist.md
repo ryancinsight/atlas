@@ -2763,3 +2763,89 @@ Next actionable (awaiting user or peer event):
    apollo gitlink advance follows.
 4. Original Session 9 watchpoints still open: per `gap_audit.md`
    "Residual carry-overs" above.
+
+## Session 11 — 2026-07-22 (atlas-meta coordinator)
+
+### Gitlink advances (takeover-sweep results)
+
+- [x] Stale-claim sweep of all 25 submodules at atlas-meta main after
+      peer's inter-session gap work: kwavers `55019f9 -> 83f066c` (peer's
+      9-commit docs-closeout + FWI streaming) and leto `60c8080 ->
+      1112cf9` (peer's parity-harness merge) identified as the two
+      desynced gitlinks. Other 23 already at origin/main tips.
+- [x] Commit `c25ab2c`: kwavers + leto gitlink advances batched. Pushed.
+- [x] After peer's follow-up `a524a1d` (advance kwavers to `1330795d`
+      capturing the 3 new commits past my snapshot), all 25 submodules
+      re-verified synchronized to origin/main (master for hephaestus):
+      ok=25, desync=0.
+- [x] Two further peer follow-ups landed during this session's
+      verification pass: `57cf8fa build(atlas): advance hermes gitlink
+      — SELL-p fallback gather` and `3fe5ea7 build(atlas): Advance
+      helios gitlink (book recovery merged, PR #18)`. Atlas-meta main
+      tip at session close: `3fe5ea7`.
+
+### Watchpoint verification pass
+
+- [x] `HERMES-GEMM-UB-001` — CLOSED. Re-verified on this Windows
+      machine (the original failure environment):
+      `cargo nextest run -p hermes-simd --workspace` -> 388/388 PASS,
+      0 skipped; `grep -rn "ptr::replace" crates/hermes-simd/src`
+      returns no matches. Closed by peer's intervening refactor
+      (CSR SpMV tail + AMX TLS alignment + Eunomia reduced-precision
+      migration wave); residual surface uses
+      `safe_aligned_load_and_store_*` patterns subject to alignment
+      validation. Evidence tier: empirical (green test run on
+      original failure environment + absence of UB pattern in source).
+- [x] `CFDRS-PERF-SLOW-001` — STILL OPEN. Reproduced at CFDrs main
+      `dba1161` on this Windows machine:
+      `cargo nextest run -p cfd-3d --test poiseuille_test` ->
+      `validate_poiseuille_flow` TIMEOUT at 30.020s. Peer's `9a04f1d3`
+      perf commit touched only `tests/tvd_scheme_validation.rs` (MUSCL
+      buffer hoist + `copy_from_slice` reset), not the cfd-3d Poiseuille
+      path. Bottleneck scope diagnosed at
+      `crates/cfd-3d/src/venturi/solver.rs:575` —
+      `FemSolver::solve_picard` called per nonlinear iteration, with
+      the test making TWO sequential `solve_poiseuille` invocations
+      (low + high u_avg, both up to 20 nonlinear iterations).
+      Carry-over playbook is peer's `9a04f1d3` audit pattern (hoist
+      allocations outside the iter loop, reset via `copy_from_slice`).
+      Deferred to peer; takeover authorized if peer stalls.
+- [x] `CFDRS-CFD1D-LINT-001` — BASELINE CHARACTERIZED. 47 unique
+      pedantic violations measured on Windows with a tree-local
+      rustup override `1.95.0-x86_64-pc-windows-gnu` (CFDrs repo has
+      no rust-toolchain.toml; override localizes the pinned toolchain
+      while staying inside the shared target cache; rustup override
+      is tree-local, NOT a workspace change):
+        26 uninlined_format_args (55% of baseline)
+         6 map_or_into_simplification
+         5 useless_conversion
+         2 result_large_err
+         2 manual_range_contains
+         1 manual_range_inclusive_contains
+         1 very_complex_type
+         1 explicit_into_iter_loop
+         1 empty_line_after_doc_comments
+         1 empty_line_after_outer_doc_comments
+         1 could_not_compile (test/bench test targets)
+      Per `engineering_gates` brownfield lint floor: this is a
+      non-increasing tool-enforced baseline. First ratchet pass:
+      remediate the `uninlined_format_args` 26 sites (the cheapest
+      category) as a single [patch] chore.
+      Rustup override cleanup when no longer needed:
+      `rustup override unset D:\atlas\repos\CFDrs`.
+- [x] `HEPH-CUDA-WIN-001` — unchanged; awaiting user upstream-fix
+      dispatch in cuda-oxide/cutile-rs.
+
+### PM closure
+
+- [x] `gap_audit.md` Session 11 entry appended (this commit).
+- [x] This checklist row.
+
+Next actionable (awaiting user or peer):
+
+1. Peer escalates `CFDRS-PERF-SLOW-001` root-cause via atlas-meta
+   flamegraph; or coordinator takes over `FemSolver::solve_picard`
+   allocation hoisting per Session 11 dispatch if peer stalls.
+2. Coordinator (or peer) kicks off `CFDRS-CFD1D-LINT-001` ratchet
+   with the `uninlined_format_args` 26-site remediation [patch] chore.
+3. `HEPH-CUDA-WIN-001` still awaits user upstream-fix dispatch.
