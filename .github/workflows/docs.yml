@@ -56,7 +56,7 @@ jobs:
           curl -sSL --fail \
             https://github.com/rust-lang/mdBook/releases/download/v0.5.4/mdbook-v0.5.4-x86_64-unknown-linux-gnu.tar.gz \
             | tar -xz --directory=/tmp/mdbook-install
-          sudo mv /tmp/mdbook-install/mdbook-v0.5.4-x86_64-unknown-linux-gnu/mdbook /usr/local/bin/mdbook
+          sudo install -m 0755 /tmp/mdbook-install/mdbook /usr/local/bin/mdbook
           mdbook --version
 
       - name: Detector (STRICT mode — §7 #5 flipped) — 3 atlas physics books
@@ -138,7 +138,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Detector — consolidated filter smoke-test fixture (both filters ON, must report FILE_MISSING : 0)
+      - name: "Detector — consolidated filter smoke-test fixture (both filters ON, must report FILE_MISSING : 0)"
         run: |
           output=$(python3 scripts/check_mdbook_links.py parity_artefacts/smoke_test_filters 2>&1)
           echo "$output" | tee smoke-test-filters.log
