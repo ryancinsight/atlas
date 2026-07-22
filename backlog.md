@@ -18,12 +18,17 @@
   borrowing scopes, and Kwavers consumes that merged scheduler without
   serializing therapy tests.
 - Acceptance: Atlas first pins Apollo `614939fd`, Hephaestus `b726b39f`, and
-  Moirai `ddb665e9`; Kwavers regenerates its lock through Cargo, removes the
-  six-test serialization workaround, passes the affected therapy lane and
-  hosted Linux resolution, then Atlas advances the final Kwavers gitlink.
+  Moirai `ddb665e9`; RITK advances to its merged TLS-stack correction
+  `06cba046`; Kwavers regenerates its lock through Cargo, removes the six-test
+  serialization workaround, passes the affected therapy lane and hosted Linux
+  resolution, then Atlas advances the final Kwavers gitlink.
 - Evidence: Apollo PR #64, Hephaestus PR #63, and Moirai PR #83 are merged;
   Moirai exact head `b543b98` passes Rust, Linux, macOS, Windows, Greptile, and
-  CodeRabbit checks. Kwavers integration remains the active residual.
+  CodeRabbit checks. RITK PR #49 merged as `06cba046` after its exact head
+  `6ecac07a` passed Rustfmt, Clippy, dependency alignment, wheel smoke,
+  Linux/macOS/Windows Nextest, Python 3.9–3.13, and migration audit checks; the
+  external analysis error is non-required. Kwavers integration remains the
+  active residual.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — done
 
