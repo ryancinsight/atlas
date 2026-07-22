@@ -8,7 +8,7 @@
 
 ## ATLAS-INTEGRATION-041 — Align Leto with Eunomia 0.7 [patch]
 
-- [ ] Advance only the Leto gitlink to merged compatibility head `c00fa04a`.
+- [x] Advance only the Leto gitlink to merged compatibility head `c00fa04a`.
 - [ ] Verify the Atlas checkout-path-dependencies gate.
 - [ ] Verify Kwavers all-feature locked resolution, compilation, hosted CI,
       and benchmark execution against the exact advanced graph.
