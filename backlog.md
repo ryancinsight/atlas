@@ -7,17 +7,19 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-INTEGRATION-041 — Align Leto with Eunomia 0.7 [patch] — in-progress
+## ATLAS-INTEGRATION-041 — Align Leto and RITK with Eunomia 0.7 [patch] — in-progress
 
 - Owner: Codex `/root`; last-update: 2026-07-22; claimed scope:
-  `repos/leto`, this item, and the corresponding checklist entry. Provider
-  source changes, unrelated gitlinks, and release/deploy are non-goals.
+  `repos/leto`, `repos/ritk`, this item, and the corresponding checklist entry.
+  Provider source changes, unrelated gitlinks, and release/deploy are
+  non-goals.
 - Outcome: make the canonical Atlas graph resolve one Eunomia numeric identity
-  for Kwavers, Apollo, and Leto by advancing Leto to its already-merged 0.40
-  compatibility head.
-- Acceptance: Atlas pins Leto commit `c00fa04a`; the checkout-path-dependencies
-  gate passes; and Kwavers resolves, compiles, tests, and benchmarks through the
-  exact updated graph without Eunomia 0.6/0.7 type duplication.
+  for Kwavers, Apollo, Leto, and RITK by advancing Leto and its downstream RITK
+  consumer to their already-merged 0.40 compatibility heads.
+- Acceptance: Atlas pins Leto `c00fa04a` and RITK `5f57557a`; the
+  checkout-path-dependencies gate passes; and Kwavers resolves, compiles,
+  tests, and benchmarks through the exact updated graph without Eunomia
+  0.6/0.7 type duplication.
 - Risk/change class: `[patch]`; verification uses the Atlas checkout gate plus
   Kwavers all-feature locked metadata, focused compile, and hosted CI.
 
