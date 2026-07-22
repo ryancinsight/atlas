@@ -3,10 +3,7 @@
 This directory holds the **regression fixture** that proves both
 inline-link false-positive filters in
 `scripts/check_mdbook_links.py` are still suppressing their respective
-false-positive patterns on every CI run.  Consolidates the earlier
-per-filter fixtures (`parity_artefacts/smoke_test/` +
-`parity_artefacts/smoke_test_latex/`) into a single parametrized fixture
-so a single CI job exercises both filters.
+false-positive patterns on every CI run.
 
 ## Contents
 
@@ -76,5 +73,4 @@ any of the following change:
 
 Replaces the earlier per-filter jobs (`docs-link-smoke-test` for
 `SINGLE_CHAR_HREF_RE` + `docs-link-smoke-test-latex` for
-`LATEX_HREF_RE`) with a single parametrized job — same coverage, half
-the CI YAML.
+`LATEX_HREF_RE`).

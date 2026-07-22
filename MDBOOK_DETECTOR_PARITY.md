@@ -284,7 +284,7 @@ production state at `.github/workflows/docs.yml` and
      referenced `allowlist` as a free variable that was only defined locally
      inside `main()`.  Masked by FILE_MISSING : 0 on all 3 atlases — the
      `if allowlist and ...` line was unreachable.  Surfaced during the
-     `docs-link-smoke-test` fixture work when the negative test (filter
+     `docs-link-smoke-test-filters` fixture work when the negative test (filter
      disabled) produced FILE_MISSING > 0 and the detector raised
      `NameError`.  Fix: `allowlist` is now an explicit parameter on
      `check_book()` (default `frozenset()`); `check_book` is now a pure
@@ -337,16 +337,16 @@ production state at `.github/workflows/docs.yml` and
      CFDrs/helios/kwavers is multi-char (contain `/` or `.md` or are
      depth-prefixed).  Verified by enumerating all `classify_pattern`
      matches post-filter (zero false positives remaining).
-   - **Regression smoke-test fixture**: `parity_artefacts/smoke_test/`
-     (3 .md files + README — contains `[n+1](x)`, `[F(m)](x)`,
-     `[u^{n+1}](y)`, `p[n](x)`, `p[n-1](x)`, `q[n+1](y)` math notation
-     that the filter must drop).  Wired as the
-     `.github/workflows/docs.yml::docs-link-smoke-test` job — CI fails
-     if `FILE_MISSING > 0` on the fixture.  Permanent regression guard
-     so future detector refactors that accidentally re-enable single-
-     char hrefs fail CI before reaching production.  Manual
-     reproduction commands (positive + negative test) are in
-     `parity_artefacts/smoke_test/README.md`.
+   - **Regression smoke-test fixture** (consolidated): `parity_artefacts/smoke_test_filters/`
+     — single CI job `docs-link-smoke-test-filters` exercises both
+     `SINGLE_CHAR_HREF_RE` (6 FDTD-recurrence patterns in
+     `src/single_char_filter.md`) + `LATEX_HREF_RE` (7 categories /
+     8 patterns of LaTeX-cmd math notation in `src/latex_filter.md`)
+     in one book walk; CI fails if `FILE_MISSING > 0`.  Permanent
+     regression guard for future detector refactors that accidentally
+     re-enable either filter class.  Manual reproduction commands
+     (positive + negative test, both filters disabled together) are
+     in `parity_artefacts/smoke_test_filters/README.md`.
 6. ✅ **Parity-artefacts archive** — LANDED:
    - 43 files (~33.8 KB) copied from `parity_artefacts/` to
      `repos/parity_artefacts/` (full evidence chain: detector logs,
