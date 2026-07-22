@@ -84,6 +84,13 @@
 
 ### Changed
 
+- Advance Kwavers to PR #307 merge `0602c1fd4` and close its debug build
+  budget. Removing wildcard dependency `opt-level = 3` restores generic sharing
+  and reduces uncached feature-build stages by 18–45% while full-grid PSTD
+  remains below 25 seconds. Record the 16,771,464,617-byte clean debug baseline
+  and remove approximately 4.49 GiB from seven obsolete private target trees;
+  the shared `D:/atlas/target` cache remains intact.
+
 - Close the Atlas Criterion consumer rollout and advance Kwavers to PR #308
   merge `402d9695`. Kwavers PR #306's bounded same-path head passes complete
   candidate smoke, four counterbalanced 21–23 minute pair jobs, and aggregate

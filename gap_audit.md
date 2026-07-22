@@ -1,5 +1,40 @@
 # atlas — cross-repository integration gap audit
 
+## Debug build and cache budget (2026-07-22)
+
+- Kwavers PR #307 merges as `0602c1fd4`. Removing wildcard dependency
+  `opt-level = 3` restores exported generic monomorphization sharing while the
+  workspace keeps the runtime-required development level 1. Uncached hosted
+  feature-build steps improve by 18–45%; exact head `909bcdfc7` passes all 26
+  hosted checks, keeps the full-grid PSTD regression below 25 seconds, and
+  establishes a clean 16,771,464,617-byte/6,109-file debug baseline.
+- All sampled package and Kwavers-worktree metadata resolves
+  `D:/atlas/target`. Seven stale private targets instead held 9,363 files and
+  approximately 4.49 GiB; Cargo removed them without cleaning or blocking the
+  shared target used by an active CFDrs build.
+- Atlas-meta root worktrees copy the root Cargo configuration and resolve its
+  relative `target` below the lane. No build ran in the delivery lane; Atlas
+  tool verification runs from the primary root against `D:/atlas/target` until
+  a portable, machine-independent root-worktree route closes this residual.
+- CFDrs workspace tests currently compile at `opt-level = 2`. This is a
+  profile-fanout candidate, not yet a regression claim: its workspace contains
+  peer-owned changes and a full test build was active during the audit. The
+  next profile increment must compare unchanged test workloads at levels 2 and
+  1 before changing that contract.
+- Three overlapping top-level test workflows produced five Cargo processes and
+  23 concurrent `rustc` processes on a 24-thread/31.7-GiB host. Independent
+  Cargo jobservers permit this oversubscription. A global jobs cap remains
+  unselected until unchanged single-build and concurrent-build measurements
+  identify the latency/RSS optimum; terminating peer builds or guessing a cap
+  would not be performance evidence.
+- Evidence limits: hosted wall-clock comparisons establish build-time change;
+  clean tree bytes/file counts establish artifact footprint. Neither proves a
+  peak-RSS reduction, so no runtime-memory percentage is claimed.
+- Atlas-meta verification from the primary root passes format, warning-denied
+  Clippy, checkout-path Nextest 11/11 in 3.746 seconds, and doctests 1/1 in
+  1.93 seconds. A peer compile acquired the shared lock between Nextest and the
+  first doctest attempt; the doctest ran once the cache became idle.
+
 ## Benchmark and Tyche consumer closure (2026-07-22)
 
 - Kwavers PR #304 merged the direct Tyche collocation boundary as `9ad18523d`.

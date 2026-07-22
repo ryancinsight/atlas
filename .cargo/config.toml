@@ -5,8 +5,10 @@
 # mnemosyne, half, …) are compiled once into a single cache instead of being
 # duplicated into per-repo `target/` directories. Cargo resolves this path from
 # the parent of `.cargo`, so `target` maps to the Atlas target directory on
-# both Windows and WSL. Owning the configuration at the stack root also covers
-# Atlas tools and linked worktrees beneath `worktrees/`.
+# both Windows and WSL. Owning the configuration at the stack root covers
+# package worktrees beneath `worktrees/`; an Atlas-meta worktree contains its
+# own copy of this file, so its tools must be built from the primary root until
+# a portable root-worktree route can preserve this exact cache path.
 #
 # Tradeoff (intentional, see the build-budget rule): concurrent builds across
 # repos serialize on the shared build lock — disk size outranks build
