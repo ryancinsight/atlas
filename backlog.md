@@ -7,6 +7,24 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-INTEGRATION-042 — Close provider delivery graph [patch] — in progress
+
+- Owner: Codex `/root`; last-update: 2026-07-22; scope: already-merged Apollo,
+  Hephaestus, and Moirai provider heads, the dependent Kwavers lock and
+  scheduler-workaround removal, and the final Atlas gitlinks. Unrelated live
+  peer work in Leto, CFDrs, and private worktrees is excluded.
+- Outcome: publish one canonical graph in which Apollo and Hephaestus retain
+  portable Python wheels, Moirai preserves saturated indexed work and exposes
+  borrowing scopes, and Kwavers consumes that merged scheduler without
+  serializing therapy tests.
+- Acceptance: Atlas first pins Apollo `614939fd`, Hephaestus `b726b39f`, and
+  Moirai `ddb665e9`; Kwavers regenerates its lock through Cargo, removes the
+  six-test serialization workaround, passes the affected therapy lane and
+  hosted Linux resolution, then Atlas advances the final Kwavers gitlink.
+- Evidence: Apollo PR #64, Hephaestus PR #63, and Moirai PR #83 are merged;
+  Moirai exact head `b543b98` passes Rust, Linux, macOS, Windows, Greptile, and
+  CodeRabbit checks. Kwavers integration remains the active residual.
+
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-22; delivered scope:

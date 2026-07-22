@@ -2,6 +2,12 @@
 
 ## Checkout hygiene, cache-route verdict, and parity findings (2026-07-22)
 
+- Provider delivery refresh: Apollo PR #64 merges as `614939fd`, Hephaestus PR
+  #63 as `b726b39f`, and Moirai PR #83 as `ddb665e9`. Moirai exact head
+  `b543b98` passes Rust plus Linux, macOS, and Windows wheel gates and both
+  automated reviews. The remaining cross-repo integration is Kwavers lock
+  regeneration and removal of its temporary therapy-test serialization rule;
+  ATLAS-INTEGRATION-042 owns that residual.
 - `repos/hyperion` held a standalone clone (`.git/` directory, not a gitfile)
   at recorded gitlink `7b4561b`, leaving the submodule unregistered (`-`
   status). Repaired via `git submodule init` + `absorbgitdirs`; the checkout
