@@ -12,6 +12,8 @@
 - [x] Advance Hephaestus to PR #63 merge `b726b39f`.
 - [x] Advance Moirai to PR #83 merge `ddb665e9` after exact-head cross-platform
       checks pass.
+- [x] Advance RITK to PR #49 merge `06cba046` after its exact-head Rust,
+      Python, wheel, dependency-alignment, and migration-audit checks pass.
 - [ ] Merge the Atlas provider-graph pins so downstream hosted checkout uses
       the canonical Moirai head.
 - [ ] Regenerate the Kwavers lock through Cargo, delete the therapy-test
