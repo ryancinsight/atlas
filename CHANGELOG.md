@@ -89,6 +89,12 @@
 
 ### Changed
 
+- Advance Apollo to PR #64 merge `614939fd`, Hephaestus to portable-wheel PR
+  #63 merge `b726b39f`, and Moirai to PR #83 merge `ddb665e9`. The Moirai head
+  preserves saturated indexed work on the caller and adds a borrowing parallel
+  scope; the follow-on Kwavers lock and serialization cleanup remains tracked
+  by ATLAS-INTEGRATION-042.
+
 - Advance Kwavers to PR #307 merge `0602c1fd4` and close its debug build
   budget. Removing wildcard dependency `opt-level = 3` restores generic sharing
   and reduces uncached feature-build stages by 18–45% while full-grid PSTD

@@ -6,6 +6,18 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-042 — Close provider delivery graph [patch]
+
+- [x] Advance Apollo to PR #64 merge `614939fd`.
+- [x] Advance Hephaestus to PR #63 merge `b726b39f`.
+- [x] Advance Moirai to PR #83 merge `ddb665e9` after exact-head cross-platform
+      checks pass.
+- [ ] Merge the Atlas provider-graph pins so downstream hosted checkout uses
+      the canonical Moirai head.
+- [ ] Regenerate the Kwavers lock through Cargo, delete the therapy-test
+      serialization workaround, and pass the focused value-semantic lane.
+- [ ] Merge Kwavers and advance its final Atlas gitlink.
+
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch]
 
 - [x] Advance Leto to merged compatibility head `c00fa04a`.
