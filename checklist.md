@@ -6,6 +6,15 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-INTEGRATION-041 — Align Leto with Eunomia 0.7 [patch]
+
+- [ ] Advance only the Leto gitlink to merged compatibility head `c00fa04a`.
+- [ ] Verify the Atlas checkout-path-dependencies gate.
+- [ ] Verify Kwavers all-feature locked resolution, compilation, hosted CI,
+      and benchmark execution against the exact advanced graph.
+- [ ] Synchronize the Atlas and Kwavers tracking evidence, then merge both
+      delivery branches without releasing.
+
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
 - [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,
