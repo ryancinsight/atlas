@@ -40,6 +40,11 @@
 - [x] Apply the line-table-only workspace / no-dependency-debuginfo budget to
       the test profile so Nextest artifacts do not retain full symbols in the
       shared cache.
+- [x] Stop two abandoned full-target size scans, then remove the verified idle
+      `target/debug/incremental` tree. The five-day cache contained 27,085
+      session directories; deletion reclaimed 525,183,672,320 bytes in
+      337.052 seconds while preserving `deps`, linked targets, and the shared
+      target root. A later build recreated three current session directories.
 - [ ] Measure and align remaining member-specific debug/test profiles after
       their peer-owned worktrees become clean; CFDrs `test opt-level = 2` is
       the next observed candidate and must retain its current test workloads.
