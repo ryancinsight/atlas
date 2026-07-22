@@ -7,21 +7,25 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-INTEGRATION-041 — Align Leto and RITK with Eunomia 0.7 [patch] — in-progress
+## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — in-progress
 
 - Owner: Codex `/root`; last-update: 2026-07-22; claimed scope:
-  `repos/leto`, `repos/ritk`, this item, and the corresponding checklist entry.
-  Provider source changes, unrelated gitlinks, and release/deploy are
-  non-goals.
+  `repos/leto`, `repos/ritk`, `repos/coeus`, `repos/hephaestus`, this item, and
+  the corresponding checklist entry. Provider source changes, unrelated
+  gitlinks, and release/deploy are non-goals.
 - Outcome: make the canonical Atlas graph resolve one Eunomia numeric identity
-  for Kwavers, Apollo, Leto, and RITK by advancing Leto and its downstream RITK
-  consumer to their already-merged 0.40 compatibility heads.
-- Acceptance: Atlas pins Leto `c00fa04a` and RITK `5f57557a`; the
-  checkout-path-dependencies gate passes; and Kwavers resolves, compiles,
-  tests, and benchmarks through the exact updated graph without Eunomia
-  0.6/0.7 type duplication.
+  for Kwavers and Apollo by advancing Leto plus its RITK, Coeus, and Hephaestus
+  consumers to their already-merged Eunomia 0.7/Leto 0.40 compatibility heads.
+- Acceptance: Atlas pins Leto `c00fa04a`, RITK `5f57557a`, Coeus `eb93d124`,
+  and Hephaestus `8c6ab72d`; the checkout-path-dependencies gate passes; and
+  Kwavers resolves, compiles, tests, and benchmarks through the exact updated
+  graph without Eunomia 0.6/0.7 type duplication.
 - Risk/change class: `[patch]`; verification uses the Atlas checkout gate plus
   Kwavers all-feature locked metadata, focused compile, and hosted CI.
+- Current evidence: the Atlas checkout tool passes 11/11 tests in 3.070 s. The
+  exact downstream graph resolves with one Eunomia 0.7 identity, passes locked
+  all-feature metadata and `kwavers-math` compilation, and passes all 266
+  `kwavers-math` tests. Exact-head hosted Kwavers CI remains the final oracle.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch] — done
 
