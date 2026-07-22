@@ -524,9 +524,11 @@ not create a repo-local `target`, `target_isolated`, or command-specific target
 directory: those forks recompile the same provider graph, consume disk, and
 invalidate incremental reuse. Build Atlas-meta tools from the primary Atlas
 root; a root-repository worktree contains its own copy of the configuration and
-would otherwise resolve `target` relative to that lane. Workspace code retains
-line tables for file-and-line backtraces; dependencies, build scripts, and
-procedural macros carry no ordinary debug information. Concurrent top-level
+would otherwise resolve `target` relative to that lane. Workspace development
+and test code retain line tables for file-and-line backtraces; dependencies,
+build scripts, and procedural macros carry no ordinary debug information. Full
+symbols belong in an explicit profiling profile, not the shared cache.
+Concurrent top-level
 Cargo commands own independent jobservers, so coordinate them instead of
 starting overlapping workspace builds against the shared cache.
 
