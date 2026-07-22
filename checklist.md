@@ -2709,3 +2709,57 @@ Next actionable (awaiting user or peer event):
 - [x] Pass the Atlas package-count (25), stack-row (25), exact-gitlink,
       Markdown-link, and diff checks; merge the registration PR after the
       available review status completes.
+
+## Session 10 — 2026-07-22 (atlas-meta coordinator)
+
+### Eunomia-0.7 cascade closeout
+
+- [x] Take over horae Eunomia-0.7 source adaptation (peer's `f33dc3d`
+      left `step_size.rs:54` broken). Fix shipped at horae `2dd3f83`;
+      atlas-meta gitlink advanced at `423cc54`.
+- [x] Take over harmonia Eunomia-0.7 source adaptation
+      (previously blocked on horae + athena dual-version). After
+      athena canonical-source alignment landed at `7d7acb5`,
+      harmonia's Cargo.lock regenerated to single eunomia source
+      ID `c65e3244`. Fix shipped at harmonia `9b99294`; atlas-meta
+      gitlink advanced at `10f6c53`.
+- [x] Take over athena canonical-source eunomia alignment: dropped
+      `rev = "7021628..."` from `repos/athena/Cargo.toml:24`, URL-only
+      form matching peer's stated convention. Push at `7d7acb5`.
+
+### Helios 0.1.0 release
+
+- [x] ff-push peer's 5 unique helios main commits (`105a093..8d4db75`)
+      to make the dangling atlas-meta gitlink reachable.
+- [x] Bump `CHANGELOG.md` `## [0.1.0] — Unreleased -> ## [0.1.0] — 2026-07-22`.
+- [x] Focused verification: nextest 237/237 PASS, doctests clean,
+      cargo doc --no-deps --workspace warning-clean.
+- [x] Commit (`release(helios): 0.1.0`, helios `2468c7c`), push,
+      tag `v0.1.0`, gh release
+      (https://github.com/ryancinsight/helios/releases/tag/v0.1.0).
+- [x] Advance atlas-meta helios gitlink (`65dc0c5`).
+- [x] Peer helios mdBook dirty files preserved (16+ files staged
+      selectively only with Cargo.toml + CHANGELOG.md + Cargo.lock).
+
+### Submodule gitlink advances (batched)
+
+- [x] First wave: leto/ritk/consus (`1bb78a1`).
+- [x] Horae advance (`423cc54`).
+- [x] Eunomia-0.7 wave: athena/harmonia + consus/leto/ritk (`10f6c53`).
+
+### PM closure
+
+- [x] `gap_audit.md` Session 10 entry appended (this commit).
+- [x] This checklist row.
+
+Next actionable (awaiting user or peer event):
+
+1. Peer finishes kwavers Hyperion-extraction wave; atlas-meta
+   kwavers gitlink advance follows.
+2. Peer finishes CFDrs book authoring wave; atlas-meta CFDrs
+   gitlink advance follows, then the books for kwavers + CFDrs
+   modeled on the helios book template (already available).
+3. Peer finishes apollo leto-boundary-closeout branch; atlas-meta
+   apollo gitlink advance follows.
+4. Original Session 9 watchpoints still open: per `gap_audit.md`
+   "Residual carry-overs" above.

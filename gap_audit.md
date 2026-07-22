@@ -33,6 +33,15 @@
   (`leto-ops/src/domain/scalar.rs:11`, `coeus-core/src/dtype/traits.rs:295`);
   ATLAS-INTEGRATION-005/006/007 stale `review` statuses flipped to `done`
   (their pins were superseded by later merged items on the same board).
+- Environment finding (machine-local, not a repo artifact): an MSYS2 Rust
+  1.97.0 toolchain shadows the rustup shims in `PATH`, so bare `cargo`/`rustc`
+  invocations ignore every member repo's `rust-toolchain.toml` pin (1.95.0)
+  and poison the shared `D:/atlas/target` cache with 1.97.0 artifacts. The
+  pinned toolchain then rejects them with E0514 cascades and both versions
+  rebuild host dependencies on every alternation. Mitigation used for the
+  E-030 gates: prepend `C:\Users\RyanClanton\.cargo\bin` to `PATH` per
+  invocation; a durable fix (PATH reorder or MSYS2 rust removal) is a
+  user-level machine decision, not a repository change.
 
 ## Debug build and cache budget (2026-07-22)
 
@@ -4269,3 +4278,86 @@ incremental compilation on clean CI runners, and consolidates the approximately
 next clean Kwavers architecture run to compare artifact bytes and peak memory;
 do not claim the preferred 10 GiB clean-build budget until that runner records
 it. Local shared-cache size is a separate multi-repository retention metric.
+
+## Session 10 — 2026-07-22 atlas-meta coordinator (Eunomia-0.7 cascade + helios 0.1.0)
+
+**Delivered** (against the Session 10 dispatch "continue with all remaining
+active items, taking over peer work where needed"):
+
+- **Helios 0.1.0 released** — helios `2468c7c` + tag `v0.1.0`; GitHub release
+  https://github.com/ryancinsight/helios/releases/tag/v0.1.0. ff-pushed peer's
+  5 unique helios main commits (`105a093..8d4db75`) that were locally-only
+  (resolves the dangling gitlink recorded in atlas-meta `416f90f`). nextest
+  237/237 PASS, doctests clean, cargo doc --no-deps --workspace warning-clean.
+  CHANGELOG `## [0.1.0] — Unreleased -> ## [0.1.0] — 2026-07-22`.
+
+- **Horae Eunomia-0.7 source fix** — completed peer's `f33dc3d build(horae):
+  Unify Eunomia source` PR by resolving the `step_size.rs:54` `Mul` inference
+  ambiguity. `Self::new(self.0 * factor)` resolved the multiplicative
+  `Quantity × Quantity` impl instead of the scalar `mul for Quantity<T, D>`
+  (aequitas `scalar.rs:7-17`), producing a `Quantity<T, _>` mismatch against
+  `Self::new`. Replaced with
+  `Self::new(<Time<T> as core::ops::Mul<T>>::mul(self.0, factor))` — a
+  fully-qualified trait method call — plus a comment documenting the
+  ambiguity and disambiguation choice. nextest 14/14 PASS, fmt clean, doctest
+  1/1. Bumped `CHANGELOG.md` "Changed" subsection under `[Unreleased]`.
+  Atlas-meta gitlink advance at `423cc54`.
+
+- **Athena canonical-source eunomia alignment** — dropped the
+  `rev = "7021628..."` pin from `repos/athena/Cargo.toml:24` so athena's
+  eunomia dep resolves URL-only to main HEAD `c65e324`, matching peer's
+  "canonical source" convention across horae/aequitas/harmonia. This was the
+  structural root cause of harmonia's dual-version collision: athena's
+  transitive source ID carried `?rev=` while harmonia's direct dep + aequitas/
+  horae transitive deps resolved URL-only, producing two distinct eunomia
+  crates. Verification: cargo check clean (200 packages), nextest 21/21 PASS,
+  fmt clean, doctest 2/2. Pushed to origin: `04e4c10..7d7acb5`.
+
+- **Harmonia Eunomia-0.7 source adaptation** — bumped
+  `Cargo.toml:17 eunomia 0.6.0 -> 0.7.0` + lock regenerated. With athena
+  URL-aligned, lock resolves to single eunomia source ID (`c65e3244`),
+  eliminating the dual-version collision that broke `T: RealField` resolution
+  across the ConvergencePolicy and horae-time surfaces in prior attempts.
+  Verification: cargo check clean, nextest 14/14 PASS (theorems + properties +
+  policies + allocation + codegen + generic_scalar + subcycling), fmt clean,
+  doctest 1/1. Pushed to origin: `cf6ce3e..9b99294`. CHANGELOG "Changed"
+  subsection appended.
+
+- **Batched submodule gitlink advances** — three increments on atlas-meta
+  main: `1bb78a1` (first-batch leto/ritk/consus); `423cc54` (horae `2dd3f83`);
+  `10f6c53` (athena/harmonia + consus/leto/ritk Eunomia-0.7 wave). Each
+  advance corresponds to a SHA verified on its origin repository; no dangling
+  gitlinks at session close.
+
+- **Session 9 watchpoints closed by peer work in the inter-session gap**:
+  `HYPERION-PHASE-0/1-001` (Phase 0 + Phase 1 both closed — hyperion
+  registered, initialized, and aligned across the consumer ledger);
+  `CFDRS-LINT-CASCADE-001` (peer remediated sites 1-3; site 4 was already
+  clean at HEAD); `EUNOMIA-DOCTEST-001` (peer closed the doctest failure);
+  `HELIOS-APPROX-EUNOMIA-001` (peer migrated and verified GREEN);
+  `HERMES-ADVANCE-001` (peer advanced gitlink; residual `HERMES-GEMM-UB-001`
+  moved to standing watchpoint).
+
+**Residual carry-overs** (peer-owned or await user dispatch):
+
+- `CFDRS-PERF-SLOW-001` (3 GPU/3D tests timing out at 30s — awaiting peer
+  escalation or bounded atlas-meta flamegraph if peer delegates)
+- `CFDRS-CFD1D-LINT-001` (cfd-1d pedantic baseline — ready for peer to run
+  under the ratchet now that CFDRS-LINT-CASCADE-001 closed)
+- `HERMES-GEMM-UB-001` (pre-existing Windows `ptr::replace` alignment UB in
+  5 GEMM dispatch tests; peer's, root-cause pending)
+- `HEPH-CUDA-WIN-001` (awaiting user upstream-fix dispatch in
+  cuda-oxide/cutile-rs)
+
+**Peer mid-flight (preserved, not touched)**: kwavers Hyperion-extraction
+wave; CFDrs book authoring wave; helios mdBook authoring wave (16+ dirty book
+files preserved alongside helios 0.1.0 release commit); apollo
+`codex/apollo-leto-boundary-closeout` branch mid-flight.
+
+### MSYS2 Rust 1.97.0 toolchain shadow on the local machine
+
+Already documented above in the Environment finding block: an MSYS2 Rust
+1.97.0 toolchain shadows the rustup shims in `PATH`. Mitigation used for this
+session's gates: prepend `C:\Users\RyanClanton\.cargo\bin` to PATH per
+invocation (the `cargo` invocation prefix). Durable fix (PATH reorder or
+MSYS2 rust removal) is a user-level machine decision, not a repository change.
