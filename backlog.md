@@ -11,19 +11,30 @@
 
 - Owner: Codex `/root`; last-update: 2026-07-22; scope: already-merged Apollo,
   Hephaestus, and Moirai provider heads, the dependent Kwavers lock and
-  scheduler-workaround removal, and the final Atlas gitlinks. Unrelated live
-  peer work in Leto, CFDrs, and private worktrees is excluded.
+  scheduler-workaround removal, RITK's TLS security update, and the final Atlas
+  gitlinks. Unrelated live peer work in Leto and CFDrs is excluded.
 - Outcome: publish one canonical graph in which Apollo and Hephaestus retain
   portable Python wheels, Moirai preserves saturated indexed work and exposes
   borrowing scopes, and Kwavers consumes that merged scheduler without
   serializing therapy tests.
 - Acceptance: Atlas first pins Apollo `614939fd`, Hephaestus `b726b39f`, and
-  Moirai `ddb665e9`; Kwavers regenerates its lock through Cargo, removes the
-  six-test serialization workaround, passes the affected therapy lane and
-  hosted Linux resolution, then Atlas advances the final Kwavers gitlink.
+  Moirai `ddb665e9`; the follow-on Moirai cleanup removes only its unused core
+  TLS gate while preserving executor and platform fast paths; RITK advances to
+  merged TLS correction `06cba046` and Atlas publishes canonical graph
+  `c982fe0`; Kwavers regenerates its lock through Cargo, removes the six-test
+  serialization workaround, passes the affected therapy lane and hosted Linux
+  resolution, then Atlas advances the final Kwavers gitlink.
 - Evidence: Apollo PR #64, Hephaestus PR #63, and Moirai PR #83 are merged;
   Moirai exact head `b543b98` passes Rust, Linux, macOS, Windows, Greptile, and
-  CodeRabbit checks. Kwavers integration remains the active residual.
+  CodeRabbit checks. Kwavers PR #313's security job exposed inherited
+  RUSTSEC-2026-0098, RUSTSEC-2026-0099, and RUSTSEC-2026-0104 through the
+  Atlas-pinned RITK Reqwest 0.11 graph. RITK PR #49 exact head `6ecac07a`
+  passes 21 first-party Rust, Python 3.9–3.13, wheel, dependency, and migration
+  checks and merges as `06cba046`; the external analyzer alone errors. Atlas
+  correction PR #87 merges as `c982fe0` and pins that merged default, not the
+  provisional PR head. No downstream audit bypass is accepted. Moirai PR #84
+  merges as `e4d2855`; default closeout `c870eed` passes exact Rust and
+  three-platform wheel run `29963043374`.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — done
 
@@ -1285,16 +1296,22 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 |---|---|---|---|---|
 | HARM-PROMOTE-001 | [arch] `[minor]` | done — PR #57 merged `0b0d01d` | harmonia / horae / athena-core / eunomia / atlas-meta | `repos/harmonia` published to `https://github.com/ryancinsight/harmonia` (HEAD `cf6ce3e`, CI run `29753063192` green); Atlas `.gitmodules` entry recorded; parent gitlink advanced; ADR 0023 Status `Accepted`; README current-stack table reconciled to 20 packages. |
 
-## ATLAS-WORKTREE-001 — Canonical lane root consolidation [patch] — in-progress (residual)
+## ATLAS-WORKTREE-001 — Canonical lane root consolidation [patch] — in progress
 
-- Owner: Claude (prompt-reconciliation session); scope: worktree lane locations only, no member-repo code.
-- Done 2026-07-21: 24 verified-duplicate standalone clones (12 at `D:\worktrees`, 12 at `D:\atlas\worktrees`; all detached, clean, HEADs contained, zero local branches), the sha-keyed `.atlas-provider-checkout` cache, and the empty `D:\worktrees\atlas` removed; stray `report/figures` SVG rescued to `repos/report/figures/`. `D:\atlas\worktrees/` (gitignored, covered by the root `.cargo/config.toml` shared target) is the single canonical lane root per AGENTS.md git_discipline: Worktrees.
-- Residual: one live peer lane remains at the legacy root —
-  `D:\worktrees\kwavers-grid-cardinality` (fresh claim; never move a lane
-  under a running process). The completed CFDrs Iris lane was removed. Re-open
-  trigger: merge the remaining item, run `git worktree remove`, and delete
-  `D:\worktrees`; new lanes open only under `D:\atlas\worktrees/`.
-- Note: untracked `fix_unwraps.py` / `ritk_fix.py` at meta root are unattributed scratch scripts — owning peer should absorb into xtask/scripts or delete (standards: Cleanup).
+- Owner: Codex `/root` (stale-claim takeover 2026-07-22); scope: worktree lane
+  locations only, no member-repo code.
+- Done 2026-07-21: 24 verified-duplicate standalone clones (12 at
+  `D:\worktrees`, 12 at `D:\atlas\worktrees`; all detached, clean, HEADs
+  contained, zero local branches), the SHA-keyed `.atlas-provider-checkout`
+  cache, and the empty `D:\worktrees\atlas` were removed; stray
+  `report/figures` SVG was rescued to `repos/report/figures/`.
+- Done 2026-07-22: the legacy `D:\worktrees` root is absent, 16 redundant
+  junction aliases are removed, and the former scratch scripts are absent.
+  The only remaining lanes are the active Atlas RITK graph lane and Kwavers
+  portability lane under the canonical `D:\atlas\worktrees/` root. Each repo
+  remains within the main-tree-plus-one-lane bound.
+- Residual: merge Atlas PR #86 after RITK PR #49 and merge Kwavers PR #312
+  after PR #313, then remove both completed lanes and their branches.
 
 ## ATLAS-TARGET-001 — One build cache, one debug budget [patch] — in-progress (residual)
 
@@ -1324,6 +1341,12 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   Atlas-meta format and warning-denied Clippy pass; checkout-path Nextest passes
   11/11 in 3.746 seconds and doctests pass 1/1 in 1.93 seconds from the primary
   root against the shared cache.
+- Done 2026-07-22: a stack-wide sweep removed 13 additional disposable target
+  forks and reclaimed 18.465 GiB; no repository-local target directory
+  remains. Before the remaining hosted checks, `cargo clean` against the
+  canonical `D:/atlas/target` removed 68,854 files and 20.7 GiB. The configured
+  shared cache then measured 0 bytes, below the 10-GiB operating budget; the
+  final sweep must repeat after any later local gate.
 - Residual: audit member workspaces with their own `[profile.*]` or `.cargo`
   sections (helios, hermes, CFDrs, coeus, ritk, mnemosyne). CFDrs currently
   compiles workspace tests at `opt-level = 2`; its dirty peer-owned workspace

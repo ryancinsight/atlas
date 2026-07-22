@@ -12,10 +12,18 @@
 - [x] Advance Hephaestus to PR #63 merge `b726b39f`.
 - [x] Advance Moirai to PR #83 merge `ddb665e9` after exact-head cross-platform
       checks pass.
-- [ ] Merge the Atlas provider-graph pins so downstream hosted checkout uses
-      the canonical Moirai head.
-- [ ] Regenerate the Kwavers lock through Cargo, delete the therapy-test
-      serialization workaround, and pass the focused value-semantic lane.
+- [x] Merge Atlas PR #85 as `098de9bb` so downstream hosted checkout uses the
+      canonical Apollo, Hephaestus, and Moirai heads.
+- [x] Merge Moirai PR #84 as `e4d2855`, preserve its real platform/executor TLS
+      fast paths, and publish default closeout `c870eed` after exact-head Rust
+      and three-platform wheel checks pass in run `29963043374`.
+- [x] Regenerate the Kwavers lock through Cargo, delete the therapy-test
+      serialization workaround, and pass all six unchanged tests under
+      ordinary Nextest scheduling in 5.25 seconds.
+- [x] Merge RITK PR #49 as `06cba046` after 21 first-party checks pass, then
+      merge Atlas correction PR #87 as `c982fe0` so the graph records the
+      merged RITK default rather than its provisional PR head.
+- [ ] Pass the complete Kwavers exact-head hosted matrix.
 - [ ] Merge Kwavers and advance its final Atlas gitlink.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch]
@@ -57,6 +65,9 @@
       session directories; deletion reclaimed 525,183,672,320 bytes in
       337.052 seconds while preserving `deps`, linked targets, and the shared
       target root. A later build recreated three current session directories.
+- [x] Remove 13 additional target forks (18.465 GiB), verify zero repo-local
+      target directories, then clean the canonical cache before the remaining
+      hosted checks: 68,854 files and 20.7 GiB removed; measured result 0 bytes.
 - [ ] Measure and align remaining member-specific debug/test profiles after
       their peer-owned worktrees become clean; CFDrs `test opt-level = 2` is
       the next observed candidate and must retain its current test workloads.

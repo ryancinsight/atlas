@@ -41,12 +41,13 @@
   (their pins were superseded by later merged items on the same board).
 - Environment finding (machine-local, not a repo artifact): an MSYS2 Rust
   1.97.0 toolchain shadows the rustup shims in `PATH`, so bare `cargo`/`rustc`
-  invocations ignore every member repo's `rust-toolchain.toml` pin (1.95.0)
-  and poison the shared `D:/atlas/target` cache with 1.97.0 artifacts. The
-  pinned toolchain then rejects them with E0514 cascades and both versions
-  rebuild host dependencies on every alternation. Mitigation used for the
-  E-030 gates: prepend `C:\Users\RyanClanton\.cargo\bin` to `PATH` per
-  invocation; a durable fix (PATH reorder or MSYS2 rust removal) is a
+  invocations bypass the toolchain selected by each member repository. Member
+  pins vary; they are not uniformly Rust 1.95. Mixing the MSYS2 compiler with
+  rustup-selected builds poisons the shared cache with incompatible metadata,
+  produces E0514 cascades, and rebuilds host dependencies on alternation.
+  Mitigation used for these gates: prepend only
+  `C:\Users\RyanClanton\.cargo\bin` to `PATH` per invocation. No permanent
+  PATH mutation was made; reordering PATH or removing MSYS2 Rust remains a
   user-level machine decision, not a repository change.
 
 ## Debug build and cache budget (2026-07-22)
