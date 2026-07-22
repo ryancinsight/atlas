@@ -1283,6 +1283,11 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Owner: Codex `/root`; last-update: 2026-07-22; scope: cache trees and
   profile sections only, no simulation logic.
 - Done 2026-07-21: 18 stale cache forks deleted (repo-local `target/`, `target_isolated`, `target_benches`, nested crate `target/`) reclaiming 177.8 GB; `moirai` dev/test profiles aligned to line-tables-only/deps-none (was `debug = true`, pushed `946b4a7`); root `.cargo/config.toml` gains `[profile.dev.build-override] debug = false`. Policy: AGENTS.md performance_engineering "one build cache per stack" — a discovered fork is disposable derived state.
+- Done 2026-07-22: the root test profile now matches the development profile:
+  workspace test crates retain line tables, while dependencies, build scripts,
+  and procedural macros emit no test debuginfo. This closes the configuration
+  path through which Nextest could repopulate the shared cache with full
+  symbols.
 - Done 2026-07-22: Kwavers PR #307 merges as `0602c1fd4`. Its broad
   dependency graph inherits development `opt-level = 1` instead of wildcard
   `opt-level = 3`, restoring exported generic sharing. Uncached feature-build

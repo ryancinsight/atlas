@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Apply the shared line-table-only debug budget to test builds as well as
+  development builds. Dependencies, build scripts, and procedural macros emit
+  no ordinary test debuginfo, reducing Nextest artifact size and linker memory
+  without changing optimization, assertions, or test workloads.
+
 ### Added
 
 - File ADR 0030 to promote published Hyperion as the bounded photon/optical

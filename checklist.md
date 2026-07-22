@@ -37,6 +37,9 @@
 - [x] Verify the Atlas checkout tool from the primary root: format and
       warning-denied Clippy pass, Nextest passes 11/11 in 3.746 seconds, and
       doctests pass 1/1 in 1.93 seconds.
+- [x] Apply the line-table-only workspace / no-dependency-debuginfo budget to
+      the test profile so Nextest artifacts do not retain full symbols in the
+      shared cache.
 - [ ] Measure and align remaining member-specific debug/test profiles after
       their peer-owned worktrees become clean; CFDrs `test opt-level = 2` is
       the next observed candidate and must retain its current test workloads.
