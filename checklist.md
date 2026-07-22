@@ -24,36 +24,38 @@
 - [x] Implement Hyperion typed coefficients, optical depth, Beer-Lambert
       transmission, and derived diffusion laws with analytical, adversarial,
       generic-scalar, exact NIST-knot, layout, and allocation conformance tests
-      at final provider revision `064a189`.
-- [x] Publish Hyperion `064a189`, confirm anonymous Git access, and pass hosted
-      CI run `29877136400` before changing a consumer dependency.
+      at final provider revision `7b4561b`.
+- [x] Publish Hyperion `7b4561b`, confirm anonymous Git access, and pass exact-
+      head hosted CI run `29889918576` after canonical provider-source
+      alignment. Initial API revision `064a189` passed run `29877136400` before
+      changing a consumer dependency.
 - [x] File ADR 0030 with the dependency hierarchy, consolidation accounting,
       deletion ledger, non-goals, and explicit block on a package-count-driven
       P2-B promotion.
-- [ ] Migrate first-wave consumers directly and run exact pre/post
+- [x] Migrate first-wave consumers directly and run exact pre/post
       differentials plus each affected repository's full publish gate:
   - [x] Helios `105a093`: coefficient/table/projection owners and raw production
         Beer–Lambert paths deleted; transactional TERMA migration completed;
         full local gate passed 257/257 configured tests plus analytical,
         adversarial, and CPU/GPU differential oracles; hosted run `29883200466`
         passed the exact delivered head.
-  - [ ] Kwavers: delete repeated reduced-scattering/diffusion/transport laws.
-  - [ ] CFDrs: replace the raw 405-nm Beer-Lambert expression.
-- [ ] Register the fetched Hyperion provider commit only after all first-wave
+  - [x] Kwavers `5fc6f0419`: repeated reduced-scattering, diffusion, and
+        transport laws deleted; configured workspace gate passes 6,168/6,168.
+  - [x] CFDrs implementation `9c8ce32e`, merge `69323418`: raw 405-nm
+        Beer-Lambert expression replaced by the direct Hyperion boundary;
+        configured package gate passes 132/132 plus Clippy and documentation.
+- [x] Register the fetched Hyperion provider commit only after all first-wave
       consumer deletions merge; synchronize gitlinks, ADRs, provider docs, and
       the Atlas stack map in that delivery unit.
-- [ ] Extend Proteus with the one validated isotropic-elastic property/catalog
-      SSOT and delete the CFDrs/Kwavers copies, including
-      `lame_from_speeds`, without creating Ares. Verify
-      `(E,nu) <-> (lambda,mu)` and `(c_p,c_s) <-> (lambda,mu)` round trips,
-      invalid density/Poisson bounds, `f32`/`f64`, exact consumer
-      differentials, and zero residue for `ElasticSolid`, `SolidProperties`,
-      `ElasticPropertyData`, and `lame_from_speeds`.
-- [ ] Consolidate Kwavers reaction vocabulary and upstream its reusable
-      embedded integration policy to Horae without creating Prometheus.
-- [ ] Re-audit P2-B when either a second production solid-operator consumer or
-      a second production reaction-network consumer exists; select exactly the
-      candidate whose first slice deletes both consumer implementations.
+- [x] Classify the Proteus elastic-property consolidation as an Ares re-open
+      prerequisite, not authorization for a second P2 package. Re-open only
+      when a second production solid-operator consumer can delete the same
+      kinematics or balance implementation in the extraction change.
+- [x] Classify Kwavers reaction-vocabulary cleanup and Horae embedded stepping
+      as Prometheus prerequisites, not authorization for a second P2 package.
+      Re-open only when a second production reaction-network consumer exists.
+- [x] Complete the current P2-B audit: neither candidate passes its promotion
+      gate, so no second package or placeholder topology is added.
 
 ## ATLAS-INTEGRATION-038 — Iris visualization promotion [arch] [minor]
 
@@ -2549,8 +2551,9 @@ Next actionable (awaiting user or peer event):
    STATUS_STACK_BUFFER_OVERRUN); first probe `RUST_BACKTRACE=1
    cargo nextest run -p hermes-simd --test tiling_tests
    test_gemm_bf16_size_16`.
-5. Peer lands Hyperion Phase 1 (register `repos/hyperion` in
-   `.gitmodules`; kwavers optics extraction; helios migration book).
+5. Closed 2026-07-22: Hyperion Phase 1 registers `repos/hyperion` after
+   Helios `105a093`, Kwavers `5fc6f0419`, and CFDrs merge `69323418`
+   complete the first-wave deletion ledger.
 6. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization.
 
 ## Session 9 release dispatch — 2026-07-21 (atlas-meta coordinator)
@@ -2625,4 +2628,25 @@ Next actionable (awaiting user or peer event):
    (peer-domain work, recorded above).
 4. Carry-overs from Session 9 dispatch: `CFDRS-PERF-SLOW-001`,
    `CFDRS-CFD1D-LINT-001`, `HERMES-GEMM-UB-001`,
-   `HEPH-CUDA-WIN-001`, Hyperion Phase 1 registration.
+   `HEPH-CUDA-WIN-001`.
+
+## Hyperion Phase 1 registration — 2026-07-22
+
+- [x] Publish Hyperion provider head `7b4561b` over the unified Aequitas,
+      Eunomia, and Proteus foundation.
+- [x] Delete the superseded Helios optical owners at `105a093` and pass hosted
+      consumer verification.
+- [x] Delete the repeated Kwavers derived optical laws at `5fc6f0419`; pass the
+      exact configured workspace gate (6,168/6,168).
+- [x] Replace CFDrs's raw 405-nm expression with the direct Hyperion typed
+      boundary at `9c8ce32e`, merged as `69323418`; pass configured Nextest
+      (132/132), warning-denied all-target Clippy, doctests, and warning-denied
+      Rustdoc. The optional Recurse analyzer returned an infrastructure error;
+      no runnable hosted workflow existed for the PR.
+- [x] Register `repos/hyperion` at the exact public default, advance
+      `repos/CFDrs` to the merged consumer, and synchronize `.gitmodules`, the
+      README stack table/diagram/ownership map/deletion ledger, ADR 0030,
+      backlog, gap audit, and this checklist.
+- [x] Pass the Atlas package-count (25), stack-row (25), exact-gitlink,
+      Markdown-link, and diff checks; merge the registration PR after the
+      available review status completes.

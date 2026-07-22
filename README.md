@@ -43,7 +43,7 @@ addition.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 24 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 25 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -57,6 +57,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 24 packages.
 | Domain | [`consus`](repos/consus) | Native scientific storage formats, compression, and data transport. |
 | Domain | [`gaia`](repos/gaia) | Geometry predicates, topology, watertight meshes, and mesh generation. |
 | Domain | [`harmonia`](repos/harmonia) | Transactional partitioned multiphysics coupling, interface transfer, relaxation, and heterogeneous subcycling. |
+| Domain | [`hyperion`](repos/hyperion) | Validated photon and optical interaction coefficients, optical depth, Beer-Lambert transmission, derived transport laws, and bounded attenuation reference data. |
 | Domain | [`horae`](repos/horae) | Typed simulation time, explicit integration, adaptive policy, event clipping, and subcycle ratios. |
 | Domain | [`iris`](repos/iris) | Domain-neutral normalized colors, fixed lookup tables, borrowed diagnostic views, and render-backend contracts. |
 | Domain | [`proteus`](repos/proteus) | Validated material-property, material-identity, and static constitutive-law vocabulary parameterized by Aequitas quantities and Eunomia scalars. |
@@ -91,6 +92,7 @@ flowchart TB
         consus
         gaia
         harmonia
+        hyperion
         horae
         iris
         athena
@@ -126,6 +128,12 @@ flowchart TB
     harmonia --> athena
     asclepius --> aequitas
     asclepius --> eunomia
+    hyperion --> aequitas
+    hyperion --> eunomia
+    hyperion --> proteus
+    CFDrs --> hyperion
+    helios --> hyperion
+    kwavers --> hyperion
     ritk --> iris
     CFDrs --> iris
 ```
@@ -146,6 +154,7 @@ flowchart TB
 | Time-integration policy | `horae` | Owns typed simulation time, explicit stepping, adaptive decisions, event clipping, and subcycle ratios; equations remain in domain packages. |
 | Iterative solver policy | `athena` | Owns Krylov recurrences, operator/preconditioner contracts, convergence, workspaces, and reports over Leto CPU and Hephaestus GPU execution. |
 | Multiphysics coupling | `harmonia` | Owns partitioned coupling iteration, interface transfer, relaxation, and transactional state exchange; physics models, time law, and convergence policy remain with their providers. |
+| Photon and optical transport | `hyperion` | Owns validated interaction coefficients, optical depth, Beer-Lambert transmission, derived diffusion and attenuation laws, and bounded reference data; material identity, spatial solvers, dose, acoustics, and workflow policy remain with their existing owners. |
 | Spectral transforms | `apollo` | Owns transform mathematics and plans; accelerator mechanics remain in Hephaestus. |
 | Tensors and autodiff | `coeus` | Owns tensor semantics, differentiation, neural-network operations, and optimizers. |
 | Geometry and meshes | `gaia` | Owns geometric predicates, topology, and mesh generation. |
@@ -170,6 +179,9 @@ biological-response ownership and its consumer migration boundary are recorded
 in [ADR 0028](docs/adr/0028-asclepius-biological-response-promotion.md).
 Iris visualization ownership and the RITK and CFDrs consumer migrations are
 recorded in [ADR 0029](docs/adr/0029-iris-visualization-promotion.md).
+Hyperion photon and optical transport ownership and its three-consumer
+deletion ledger are recorded in
+[ADR 0030](docs/adr/0030-hyperion-photon-optical-promotion.md).
 
 ## Naming
 
@@ -191,6 +203,7 @@ Classical names describe bounded contexts rather than implementation variants.
 | `hephaestus` | Hephaestus, god of the forge | Accelerator devices and kernels. |
 | `hermes` | Hermes, swift messenger god | SIMD dispatch and vector execution. |
 | `horae` | The Horae, goddesses of seasons and ordered time | Time integration, event clocks, and subcycle policy. |
+| `hyperion` | Hyperion, Titan associated with heavenly light | Photon and optical interaction laws. |
 | `iris` | Iris, messenger goddess associated with the rainbow | Domain-neutral visualization and diagnostic-view contracts. |
 | `leto` | Leto, mother of Apollo and daughter of Coeus | Shared array substrate between transform and tensor domains. |
 | `melinoe` | Melinoe, an underworld goddess associated with phantoms | Zero-sized phantom capability evidence. |
@@ -242,12 +255,15 @@ providers. Asclepius graduated through
 [ADR 0028](docs/adr/0028-asclepius-biological-response-promotion.md). Iris
 graduated through
 [ADR 0029](docs/adr/0029-iris-visualization-promotion.md).
+Hyperion graduated through
+[ADR 0030](docs/adr/0030-hyperion-photon-optical-promotion.md) after all three
+first-wave consumers published their deletion slices.
 
 A source audit does not support adding two repositories as a target. It
 supports one provider promotion, Hyperion, because that package consolidates
 three consumer implementations into a lower common owner. Hyperion is now
-published and its first-wave consumer migrations are in progress under
-[ADR 0030](docs/adr/0030-hyperion-photon-optical-promotion.md).
+published and registered; Helios, Kwavers, and CFDrs have deleted their
+superseded production laws, completing the first-wave deletion ledger.
 
 The second P2 slot is intentionally empty. Ares or Prometheus is selected only
 when a prerequisite cleanup proves a second production consumer and a net-
@@ -257,7 +273,7 @@ mappings: Hyperion to light, Ares to war, and Prometheus to fire and craft.
 
 | Track | Decision | Current evidence | Required consolidation result |
 | --- | --- | --- | --- |
-| P2-A `hyperion` | Execution: provider published at `064a189`; Helios migration delivered at `105a093` with hosted run `29883200466` green; Kwavers and CFDrs remain. | The Helios coefficient, NIST-table, projection-law, and raw production transmission owners are deleted. Kwavers still repeats reduced-scattering, diffusion, and effective-attenuation laws; `cfd-optim` still owns a raw Beer–Lambert expression. | Complete the Kwavers and CFDrs direct migrations to the typed attenuation/optical-depth and derived-coefficient SSOT; delete every superseded formula and parallel coefficient model before registration. |
+| P2-A `hyperion` | Complete: provider `7b4561b`; Helios `105a093`; Kwavers `5fc6f0419`; CFDrs merge `69323418`; Atlas registration at the recorded `repos/hyperion` gitlink. | All three consumers deleted their parallel coefficient, reduced-scattering, diffusion, effective-attenuation, optical-depth, or transmission production owners. CFDrs retains only its empirical coefficient, path selection, and hematocrit policy. | Delivered: one typed optical-depth/transmission SSOT, direct inward dependencies, one theorem suite, consumer differential oracles, and a closed deletion ledger. |
 | P2-B `ares` | Deferred; promotion gate unmet. | CFDrs and Kwavers duplicate isotropic modulus conversions and steel/aluminum catalogs, but those laws belong to Proteus. Kwavers is the only current solid-mechanics operator owner; CFDrs has no structural displacement/traction/contact solver. | First consolidate elastic properties in Proteus and delete both consumer copies. Reopen Ares only when a second integrator can consume the same solid-kinematics or balance operator in the extraction change. |
 | P2-B `prometheus` | Deferred; promotion gate unmet. | Kwavers has competing reaction representations and a bespoke RK45 implementation. CFDrs has manufactured reactive-flow oracles, not a production reaction-network consumer. Shared rheology temperature response belongs to Proteus. | Consolidate Kwavers reaction vocabulary and move reusable embedded stepping to Horae. Reopen Prometheus only when a second production consumer can delete a matching reaction-network implementation. |
 
@@ -282,9 +298,10 @@ repository count:
 | Integrator code | Domain packages mix reusable laws with CT, acoustics, flow, dose, and workflow policy. | Integrators retain only spatial algorithms and domain policy, importing Hyperion directly. | Dependency direction becomes foundation → domain provider → integrator; no facade or circular edge remains. |
 | P2-B candidates | Shared elastic and integration code appears to justify new packages. | Proteus absorbs elastic-property recurrence; Horae absorbs reusable embedded-step policy first. | Existing providers are extended before any new topology is admitted. |
 
-The Phase 0 deletion ledger includes:
+The Phase 0 deletion ledger and current state are:
 
-- `reduced_scattering`, `diffusion_coefficient`, `effective_attenuation`,
+- **Kwavers — complete at `5fc6f0419`:** `reduced_scattering`,
+  `diffusion_coefficient`, `effective_attenuation`,
   `penetration_depth`, and `planar_fluence_at_depth` from
   `repos/kwavers/crates/kwavers-optics/src/optical_transport.rs`;
   photoacoustic `initial_pressure`, `apparent_absorption`, and
@@ -293,26 +310,31 @@ The Phase 0 deletion ledger includes:
   `kwavers-medium`, `kwavers-physics`, and `kwavers-solver`, including
   `DiffusionOpticalProperties` in
   `repos/kwavers/crates/kwavers-physics/src/optics/diffusion/properties.rs`;
-  `OpticalPropertyData` may remain a consumer material aggregate but delegates
+  `OpticalPropertyData` remains a consumer material aggregate but delegates
   every moved derivation to Hyperion;
-- Helios-owned `LinearAttenuation`, `MassAttenuation`, the NIST coefficient
+- **Helios — complete at `105a093`:** `LinearAttenuation`, `MassAttenuation`,
+  the NIST coefficient
   tables in `repos/helios/crates/helios-physics/src/attenuation/tables.rs`, and
   optical-depth and beam-transmission laws, while leaving HU calibration and
   dose workflow local;
-- the raw CFDrs 405-nm Beer-Lambert expression in
-  `repos/CFDrs/crates/cfd-optim/src/reporting/report_metrics.rs`, while leaving
-  its empirical coefficient and hematocrit policy local;
+- **CFDrs — complete at merge `69323418` (implementation `9c8ce32e`):** the
+  raw 405-nm Beer-Lambert expression is removed from
+  `repos/CFDrs/crates/cfd-optim/src/reporting/report_metrics.rs`; its empirical
+  coefficient, treatment-channel path selection, and nonnegative hematocrit
+  policy remain local, while Hyperion owns coefficient/path validation,
+  optical-depth construction, and transmission evaluation;
 - theorem tests transferred from the superseded Kwavers/Helios owners into one
   Hyperion conformance suite, consumer differential tests retained at each
   integration boundary, and manifest edges removed only where their sole use
   was a moved law. `kwavers-optics` remains until its retained chromophore-
   spectrum ownership is assigned and its last consumer migrates.
 
-Phase 0 closes only when analytical identities (`T(0) = 1`,
+Phase 0 is closed by analytical identities (`T(0) = 1`,
 `T(x + y) = T(x)T(y)`, additive optical depth, and `mu = (mu/rho)rho`), invalid-
 coefficient cases, generic `f32`/`f64` instantiations, and exact consumer
-differentials pass. General Maxwell, plasmonic, Monte Carlo, or dose ownership
-requires a later independent audit; it is not implied by the package name.
+differentials at the three published integration boundaries. General Maxwell,
+plasmonic, Monte Carlo, or dose ownership requires a later independent audit;
+it is not implied by the package name.
 
 The Ares prerequisite is a Proteus elastic-property slice, not a repository
 creation: one validated `(E, nu) <-> (lambda, mu) <-> (c_p, c_s)` contract and
@@ -370,7 +392,7 @@ eunomia + aequitas + horae ── prometheus ── CFDrs / kwavers
 material law or own physics. Its Phase 0 API provides two-partition synchronous
 Jacobi coupling over Horae subcycle plans and Athena Core convergence policy.
 Integrators compose those mechanics with `proteus` or domain-owned
-constitutive models. P2-A advances only through the Hyperion deletion ledger.
+constitutive models. P2-A is complete through the Hyperion deletion ledger.
 P2-B remains a readiness competition between Ares and Prometheus; neither is
 registered until its explicit consumer trigger fires.
 
@@ -406,6 +428,7 @@ atlas/
 │   ├── hephaestus/
 │   ├── hermes/
 │   ├── horae/
+│   ├── hyperion/
 │   ├── iris/
 │   ├── kwavers/
 │   ├── leto/

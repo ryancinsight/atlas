@@ -46,6 +46,9 @@
 	path = repos/horae
 	url = https://github.com/ryancinsight/horae
 	active = true
+[submodule "repos/hyperion"]
+	path = repos/hyperion
+	url = https://github.com/ryancinsight/hyperion.git
 [submodule "repos/iris"]
 	path = repos/iris
 	url = https://github.com/ryancinsight/iris

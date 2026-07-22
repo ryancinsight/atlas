@@ -4008,14 +4008,12 @@ verifiable via cargo exit codes and nextest summary lines).
 
 ### New watchpoints filed
 
-- `HYPERION-PHASE-0-001` open. Peer created ADR 0030 consolidating
-  photon/optical law across Asclepius/Leto/Hephaestus/Helios into a new
-  standalone crate `hyperion` at `D:\atlas\repos\hyperion\` (untracked,
-  NOT in `.gitmodules`). Phase 0 = scaffold + dep alignment; phase 1 =
-  register as atlas submodule. Peer's kwavers tree has 40+ dirty files
-  mid-Hyperion-extraction. Consistent with `architecture_scoping`
-  Workspace -> Multi-repo stack promotion trigger. Recorded for peer
-  Hyperion Phase 1 follow-up.
+- `HYPERION-PHASE-0-001` closed 2026-07-22. Hyperion `7b4561b`, Helios
+  `105a093`, Kwavers `5fc6f0419`, and CFDrs merge `69323418` complete the
+  three-consumer deletion ledger. Atlas registers the exact public provider
+  head, advances the CFDrs consumer gitlink, and synchronizes `.gitmodules`,
+  the stack map, ADR 0030, and PM state. Ares and Prometheus remain separate
+  evidence-gated candidates.
 - `HERMES-GEMM-UB-001` open. Filed during hermes audit: 5 GEMM
 dispatch
   tests ABORT with `core::ptr::mut_ptr.rs:1495:18: unsafe precondition(s)
