@@ -11,9 +11,10 @@
 
 - Owner: Codex `/root`; last-update: 2026-07-21; claimed scope:
   `repos/hyperion/**`, the published Aequitas/Proteus/Asclepius/Leto/Hephaestus
-  dependency-alignment commits, the disjoint non-book Hyperion migration in
-  `repos/helios/**`, and this item's owner-keyed Atlas PM entries. Helios book
-  edits and unrelated dirty submodules remain outside the claim.
+  dependency-alignment commits, the completed non-book Hyperion migration in
+  `repos/helios/**`, the next direct migration in `repos/kwavers/**`, and this
+  item's owner-keyed Atlas PM entries. Helios book edits and unrelated dirty
+  submodules remain outside the claim.
   Outcome: replace the speculative two-package target with
   an evidence-gated P2 program whose registrations are consequences of code
   consolidation. Scope is Hyperion's first photon/optical transport slice plus
@@ -47,9 +48,10 @@
   production consumer; these limits are promotion blockers, not deferred
   assumptions. Hyperion `064a189` is published, anonymously readable, and
   passes local plus hosted gates. ADR 0030 records the bounded hierarchy and
-  consolidation accounting. Helios `45986d8` deletes its coefficient, NIST-
+  consolidation accounting. Helios `105a093` deletes its coefficient, NIST-
   table, projection-law, and raw production transmission owners; its full local
-  consumer gate passes. Kwavers and CFDrs remain required first-wave migrations.
+  consumer gate and hosted run `29883200466` pass. Kwavers and CFDrs remain
+  required first-wave migrations.
 
 ## ATLAS-INTEGRATION-038 — Iris visualization promotion [arch] [minor] — done
 

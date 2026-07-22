@@ -100,12 +100,14 @@ Aequitas identity. Leto `80406d9` and Hephaestus `71b3ca7` pass their applicable
 local consumer gates; those repositories have no push-triggered Rust CI
 workflow.
 
-Helios `45986d8` deletes its local coefficient types, NIST tables, projection
-law, and production Beer–Lambert expressions, including transactional TERMA
-deposition. Its exact local revision passes all-feature warning-denied Clippy,
-257/257 configured Nextest cases, doctests, warning-denied Rustdoc, examples,
-dependency policy, residue scans, and consumer differentials. SemVer identifies
-the four intended major physics-facade removals and no additional violation.
+Helios implementation commit `45986d8` deletes its local coefficient types,
+NIST tables, projection law, and production Beer–Lambert expressions, including
+transactional TERMA deposition. Its local revision passes all-feature
+warning-denied Clippy, 257/257 configured Nextest cases, doctests,
+warning-denied Rustdoc, examples, dependency policy, residue scans, and
+consumer differentials. SemVer identifies the four intended major
+physics-facade removals and no additional violation. Delivered head `105a093`
+also passes hosted run `29883200466` against exact Atlas graph `4a69a6a`.
 
 Kwavers and CFDrs migration plus Atlas registration evidence remains open.
 Acceptance of this ownership decision does not claim that the three-consumer

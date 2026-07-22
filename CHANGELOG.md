@@ -85,8 +85,9 @@
 ### Changed
 
 - Advance P2 from specification to execution. Hyperion `064a189` is public,
-  anonymously readable, and hosted-green. Helios `45986d8` completes the first
-  photon/optical deletion ledger; Kwavers and CFDrs remain. Ares remains
+  anonymously readable, and hosted-green. Helios `105a093` completes the first
+  photon/optical deletion ledger and passes hosted run `29883200466`; Kwavers
+  and CFDrs remain. Ares remains
   blocked on Proteus elastic-property consolidation and a second structural
   consumer; Prometheus remains
   blocked on Kwavers/Horae cleanup and a second production reaction-network

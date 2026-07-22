@@ -32,10 +32,11 @@
       P2-B promotion.
 - [ ] Migrate first-wave consumers directly and run exact pre/post
       differentials plus each affected repository's full publish gate:
-  - [x] Helios `45986d8`: coefficient/table/projection owners and raw production
+  - [x] Helios `105a093`: coefficient/table/projection owners and raw production
         Beer–Lambert paths deleted; transactional TERMA migration completed;
         full local gate passed 257/257 configured tests plus analytical,
-        adversarial, and CPU/GPU differential oracles.
+        adversarial, and CPU/GPU differential oracles; hosted run `29883200466`
+        passed the exact delivered head.
   - [ ] Kwavers: delete repeated reduced-scattering/diffusion/transport laws.
   - [ ] CFDrs: replace the raw 405-nm Beer-Lambert expression.
 - [ ] Register the fetched Hyperion provider commit only after all first-wave
