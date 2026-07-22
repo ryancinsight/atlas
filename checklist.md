@@ -6,12 +6,15 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
-## ATLAS-INTEGRATION-041 — Align Leto and RITK with Eunomia 0.7 [patch]
+## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch]
 
 - [x] Advance Leto to merged compatibility head `c00fa04a`.
 - [x] Advance downstream RITK to its merged Leto 0.40 compatibility head
       `5f57557a`.
-- [ ] Verify the Atlas checkout-path-dependencies gate.
+- [x] Advance Coeus to merged provider-alignment head `eb93d124`.
+- [x] Advance Hephaestus to merged provider-alignment head `8c6ab72d`.
+- [x] Verify the Atlas checkout-path-dependencies gate: 11/11 tests pass in
+      3.070 s.
 - [ ] Verify Kwavers all-feature locked resolution, compilation, hosted CI,
       and benchmark execution against the exact advanced graph.
 - [ ] Synchronize the Atlas and Kwavers tracking evidence, then merge both
