@@ -1,7 +1,7 @@
-# FDTD Recurrence Regression Test
+# SINGLE_CHAR_HREF_RE Regression Test
 
-This chapter is the **regression fixture** for the `SINGLE_CHAR_HREF_RE`
-filter in `scripts/check_mdbook_links.py`.  The `docs-link-smoke-test`
+This chapter exercises the `SINGLE_CHAR_HREF_RE` filter in
+`scripts/check_mdbook_links.py`.  The `docs-link-smoke-test-filters`
 job in `.github/workflows/docs.yml` runs the portable detector over
 this file on every CI run that touches the detector or this fixture.
 
@@ -24,16 +24,16 @@ applied inside ``extract_links()`` to drop single-character hrefs that
 overwhelmingly come from math recurrence / indexed-call notation
 rather than real markdown links.
 
-Historical context: see `MDBOOK_DETECTOR_PARITY_KWAVERS.md` §3.2
-Issue B.  The filter landed as part of the §7 #5 strict-mode gate
-flip; this fixture is its permanent regression guard.
+Historical context: see `MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2
+Issue B`.  The filter landed as part of the §7 #5 strict-mode gate
+flip; this chapter is its permanent regression guard.
 
 ## Patterns this chapter exercises
 
-Each line below contains a recurrence or math-bracket pattern that
-**would** register as a broken markdown link if the filter were
-disabled or refactored away.  With the filter enabled, every one is
-silently dropped before reaching the ``FILE_MISSING`` counter:
+6 distinct single-char-href patterns that **would** register as a
+broken markdown link if the filter were disabled or refactored away.
+With the filter enabled, every one is silently dropped before reaching
+the ``FILE_MISSING`` counter:
 
 - Finite-difference recurrence: $p^{n+1}(x) = p^n(x) + \Delta t \cdot f(x)$
 - Indexed function call: ``p[n+1](x)`` evaluates the field at time n+1, position x
@@ -46,29 +46,22 @@ silently dropped before reaching the ``FILE_MISSING`` counter:
 
 These are real markdown links that the detector must still scan and
 validate.  They all resolve to existing files at atlas root or within
-this fixture:
+the fixture tree:
 
-- See the [parent parity report](../../MDBOOK_DETECTOR_PARITY.md).
-- See the [kwavers parity report](../../MDBOOK_DETECTOR_PARITY_KWAVERS.md).
-- See the [allow-list](../../.check_mdbook_links_allowlist).
-- See the [detector source](../../scripts/check_mdbook_links.py).
-- See the [smoke-test README](README.md).
+- See the [parent parity report](../../../MDBOOK_DETECTOR_PARITY.md).
+- See the [kwavers parity report](../../../MDBOOK_DETECTOR_PARITY_KWAVERS.md).
+- See the [allow-list](../../../.check_mdbook_links_allowlist).
+- See the [detector source](../../../scripts/check_mdbook_links.py).
+- See the [sibling chapter](latex_filter.md) (the LATEX_HREF_RE regression test).
+- See the [fixture README](../README.md).
 
-## Expected detector output
+## Expected detector output (consolidated fixture)
 
 When the ``SINGLE_CHAR_HREF_RE`` filter is functioning correctly, the
-detector must yield exactly:
-
-```
-== smoke_test ==
-  files scanned : 3
-  links scanned : 6
-  FILE_MISSING  : 0
-  ANCHOR_MISSING: 0
-  READ_FAIL     : 0
-```
-
-If ``FILE_MISSING`` is non-zero, the filter has regressed — investigate
-``extract_links()`` in ``scripts/check_mdbook_links.py`` immediately.
-Do NOT silence the regression with an allow-list entry; the filter is
-supposed to drop these patterns detector-wide.
+detector must report ``FILE_MISSING : 0`` across the whole
+`parity_artefacts/smoke_test_filters/` fixture (this chapter +
+`latex_filter.md` + SUMMARY.md + README.md).  If ``FILE_MISSING`` is
+non-zero, the filter has regressed — investigate ``extract_links()``
+in ``scripts/check_mdbook_links.py`` immediately.  Do NOT silence the
+regression with an allow-list entry; the filter is supposed to drop
+these patterns detector-wide.

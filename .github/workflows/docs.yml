@@ -15,7 +15,7 @@ on:
       - 'repos/**/docs/book/SUMMARY.md'
       - 'scripts/check_mdbook_links.py'
       - '.github/workflows/docs.yml'
-      - 'parity_artefacts/smoke_test/**'
+      - 'parity_artefacts/smoke_test_filters/**'
       - 'MDBOOK_DETECTOR_PARITY_KWAVERS.md'
   push:
     branches: [main]
@@ -25,7 +25,7 @@ on:
       - 'repos/**/docs/book/SUMMARY.md'
       - 'scripts/check_mdbook_links.py'
       - '.github/workflows/docs.yml'
-      - 'parity_artefacts/smoke_test/**'
+      - 'parity_artefacts/smoke_test_filters/**'
       - 'MDBOOK_DETECTOR_PARITY_KWAVERS.md'
 
 # Cancel in-flight runs of the same branch + workflow when a new commit lands.
@@ -112,15 +112,18 @@ jobs:
           path: repos/kwavers/docs/book/book/
           if-no-files-found: ignore
 
-  # Regression guard for the SINGLE_CHAR_HREF_RE filter in
-  # scripts/check_mdbook_links.py.  Catches future detector refactors
-  # that re-enable single-character hrefs (the FDTD-recurrence
-  # `[n+1](x)` false-positive class — see
-  # MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2 Issue B).  This job runs
-  # the portable detector over the fixture at
-  # `parity_artefacts/smoke_test/` and fails CI if FILE_MISSING > 0.
-  docs-link-smoke-test:
-    name: SINGLE_CHAR_HREF_RE filter regression
+  # Consolidated regression guard for both inline-link false-positive
+  # filters in scripts/check_mdbook_links.py:
+  #   - SINGLE_CHAR_HREF_RE  (FDTD recurrence: p[n+1](x))
+  #     see MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2 Issue B
+  #   - LATEX_HREF_RE        (LaTeX-cmd math: [F(m)](\mathbf{r}_s, t))
+  #     see MDBOOK_DETECTOR_PARITY_KWAVERS.md §3 Issue A
+  # Catches future detector refactors that re-enable either class.
+  # Runs the portable detector over the consolidated fixture at
+  # `parity_artefacts/smoke_test_filters/` (which exercises both
+  # filters in one book walk) and fails CI if FILE_MISSING > 0.
+  docs-link-smoke-test-filters:
+    name: Detector filter regression (single-char + LaTeX)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -135,25 +138,29 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Detector — smoke-test fixture (filter ON, must report FILE_MISSING : 0)
+      - name: Detector — consolidated filter smoke-test fixture (both filters ON, must report FILE_MISSING : 0)
         run: |
-          output=$(python3 scripts/check_mdbook_links.py parity_artefacts/smoke_test 2>&1)
-          echo "$output" | tee smoke-test.log
+          output=$(python3 scripts/check_mdbook_links.py parity_artefacts/smoke_test_filters 2>&1)
+          echo "$output" | tee smoke-test-filters.log
           if ! echo "$output" | grep -qE '^  FILE_MISSING  : 0$'; then
-            echo "::error::SINGLE_CHAR_HREF_RE filter regression — FILE_MISSING > 0 on the smoke-test fixture. Investigate \`extract_links()\` in scripts/check_mdbook_links.py before merging this change. Do NOT silence the regression with an allow-list entry; the filter is supposed to drop these patterns detector-wide."
+            echo "::error::Detector filter regression -- FILE_MISSING > 0 on the consolidated smoke-test fixture. One of SINGLE_CHAR_HREF_RE / LATEX_HREF_RE (or a future filter) has regressed. Investigate \`extract_links()\` in scripts/check_mdbook_links.py before merging this change. Do NOT silence the regression with an allow-list entry; the filters are supposed to drop these patterns detector-wide."
             exit 1
           fi
         # Expected: `FILE_MISSING : 0` and exit 0.  The `::error::`
         # annotation surfaces a clear root-cause hint in PR comments when
-        # the filter regresses.  An explicit grep (rather than relying on
+        # a filter regresses.  An explicit grep (rather than relying on
         # exit code alone) ensures the message attributes the failure to
         # the smoke-test job even if the detector's exit-code logic
-        # changes in the future.
+        # changes in the future.  The detector walks the whole fixture
+        # in one run -- both chapters (single_char_filter.md +
+        # latex_filter.md) are validated together; failure attribution
+        # between the two filters is via the `file_missing` per-link
+        # rows in the detector stdout if the gate ever trips.
 
-      - name: Upload smoke-test log artefact
+      - name: Upload smoke-test-filters log artefact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: smoke-test-log
-          path: smoke-test.log
+          name: smoke-test-filters-log
+          path: smoke-test-filters.log
           if-no-files-found: ignore
