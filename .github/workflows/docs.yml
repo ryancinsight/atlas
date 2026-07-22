@@ -138,7 +138,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Detector — consolidated filter smoke-test fixture (both filters ON, must report FILE_MISSING : 0)
+      - name: "Detector — consolidated filter smoke-test fixture (both filters ON, must report FILE_MISSING : 0)"
         run: |
           output=$(python3 scripts/check_mdbook_links.py parity_artefacts/smoke_test_filters 2>&1)
           echo "$output" | tee smoke-test-filters.log
