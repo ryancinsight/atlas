@@ -109,9 +109,15 @@ consumer differentials. SemVer identifies the four intended major
 physics-facade removals and no additional violation. Delivered head `105a093`
 also passes hosted run `29883200466` against exact Atlas graph `4a69a6a`.
 
-Kwavers and CFDrs migration plus Atlas registration evidence remains open.
-Acceptance of this ownership decision does not claim that the three-consumer
-deletion ledger is complete.
+The promoted provider is pinned at public default `7b4561b`; exact-head hosted
+CI run `29889918576` passes. Kwavers
+implementation `5fc6f0419` deletes its repeated derived optical laws and passes
+its exact 6,168-test workspace gate. CFDrs implementation `9c8ce32e`, merged as
+`69323418`, deletes its raw 405-nm transmission expression while retaining the
+empirical coefficient and hematocrit policy; configured Nextest passes 132/132,
+warning-denied all-target Clippy, doctests, and warning-denied Rustdoc pass.
+Atlas records the exact Hyperion and CFDrs heads in the same change. The
+three-consumer deletion ledger and Phase 0 registration gate are complete.
 
 ## Rejected alternatives
 
@@ -136,6 +142,6 @@ their own spatial or workflow policies. Public consumer removals are breaking
 changes and are classified independently; Hyperion's new API is additive.
 
 This split adds one dependency edge but removes several implementations and
-prevents future optical backends from copying laws into each integrator. The
-remaining risk is migration completeness, measured by the deletion ledger,
-residue scans, consumer differentials, and exact hosted revision gates.
+prevents future optical backends from copying laws into each integrator. Any
+future scope expansion requires a separate recurrence audit; the Hyperion name
+does not transfer ownership of Maxwell, Monte Carlo, dose, or workflow policy.
