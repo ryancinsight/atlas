@@ -3931,3 +3931,137 @@ peer's `9ea1b49` commit body cites ritk `ab2ef6e4` as Batch #3
 burn-compat migration without explicit nextest numbers; the next
 gap-analysis cycle should re-run the ritk verify path now that mnemosyne
 0.4.0 resolves correctly at the parent gitlink.
+
+## Session 9 — 2026-07-21 atlas-meta coordinator verification deltas
+
+atlas-meta main re-oriented at `abbec58` after peer landed 17 commits
+in the gap since Session 8 close (`b6d670d`). The peer wave
+substantially superseded every Session 8 dispatch item. Verification
+evidence tier: bounded subagent cargo-nextest/doctest runs (machine-
+verifiable via cargo exit codes and nextest summary lines).
+
+### Closed in-session
+
+- `CFDRS-LINT-CASCADE-001` closed. Bounded subagent audit at CFDrs
+  HEAD `7a521343`: `cargo clippy -p cfd-schematics --all-targets -- -D
+  warnings` exits rc=0 zero warnings. All 4 watchpoint sites verified
+  clean. Site 4 (`parallel_lane.rs:24`) was already in the
+  `Option::filter` idiom `manual_filter` recommends; the original
+  Session 7 report was stale when filed. Closure unblocks
+  `CFDRS-CFD1D-LINT-001` baseline measurement.
+- `EUNOMIA-DOCTEST-001` closed same session. Early-Session-9 audit
+  reported 2 doctest FAILs on staged `relative_eq` WIP with
+  self-contradictory `1e-10` bounds vs `1e-7` gap. Peer landed
+  `884d193 feat(eunomia): Add relative equality` +
+  `3e4f9eb docs(eunomia): Close equality provider gate`. Atlas-meta
+  gitlink advanced via peer's `a5279bf build(atlas): Advance Eunomia
+  provider`. Recheck at HEAD `3e4f9eb`: 9/9 doctests PASS.
+- `HELIOS-APPROX-EUNOMIA-001` closed. Bounded subagent verification at
+  helios HEAD `56e3572` (now `105a0939` on origin/main): nextest
+  251/251 PASS rc=0, slowest test 1.036s (`helios-imaging fbp::tests::
+  quantum_noise_degrades_recon_and_scales_with_flux`), doctests 11/11
+  GREEN (helios-python cdylib carries structural warning — expected).
+  `approx` fully excised from helios `Cargo.toml`. Caveat: helios still
+  uses edition 2021 / resolver 2 (project-wide observation, not a
+  migration defect).
+- `HERMES-ADVANCE-001` closed (made redundant by peer). Peer's
+  `99699ea build(atlas): advance hermes gitlink — SpMV unchecked tail`
+  advanced the gitlink `004e6a492 -> 53b83165` before atlas-meta needed
+  to. Bounded subagent audit: only commit in the window was
+  `53b8316 perf(hermes): Unchecked CSR SpMV tail gather`; code change
+  limited to `CHANGELOG.md` (+11) and `spmv.rs` (+8 -1) with a sound
+  `// SAFETY:` proof grounding the invariant in `Validated<Csr>` and
+  `validate_spmv_sizes`.
+- Session 8 `LETO-VERIFY-CONTENTION-001` re-verification at HEAD
+  `80406d9` (since Session 8's `b95f1aa`): single delta commit
+  `80406d9 build(deps): Align Aequitas quantity law` (Hyperion
+  Phase 0 dep-alignment). nextest workspace --lib 173/173 PASS rc=0,
+  doctests 9/9 PASS (leto 1, leto-ops 8, leto-python 0). Slowest test
+  identity unchanged (`matexp_matches_scipy` at 7.372s on the cold-cache
+  recheck; Session 8 warm figure was 1.023s — variance reflects build
+  cache state, not test semantics). Leto is release-ready at HEAD
+  `80406d9`.
+
+### New watchpoints filed
+
+- `HYPERION-PHASE-0-001` open. Peer created ADR 0030 consolidating
+  photon/optical law across Asclepius/Leto/Hephaestus/Helios into a new
+  standalone crate `hyperion` at `D:\atlas\repos\hyperion\` (untracked,
+  NOT in `.gitmodules`). Phase 0 = scaffold + dep alignment; phase 1 =
+  register as atlas submodule. Peer's kwavers tree has 40+ dirty files
+  mid-Hyperion-extraction. Consistent with `architecture_scoping`
+  Workspace -> Multi-repo stack promotion trigger. Recorded for peer
+  Hyperion Phase 1 follow-up.
+- `HERMES-GEMM-UB-001` open. Filed during hermes audit: 5 GEMM
+dispatch
+  tests ABORT with `core::ptr::mut_ptr.rs:1495:18: unsafe precondition(s)
+  violated: ptr::replace requires that the pointer argument is aligned
+  and non-null` (Windows surfaces as `STATUS_STACK_BUFFER_OVERRUN`
+  0xc0000409 -> abort). All 5 aborts in hermes-simd `tests/
+  host_capability_tests.rs` and `tests/tiling_tests.rs` — disjoint from
+  the CSR SpMV path introduced by the `53b83165` advance. Pre-existing:
+  reproducible at peer's pre-advance pin `004e6a492` as well. Disjoint
+  root cause recorded for peer scheduling.
+
+### Residual CFDrs watchpoints carried forward
+
+- `CFDRS-PERF-SLOW-001` still open. The 3 heavy GPU/3D-CFD tests
+  continue to time out at the 30s slow budget; peer's `869f3848`
+  commit body documents one timeout as "pre-existing" rather than
+  root-causing. Per `engineering_gates` test-time budget rule, this
+  remains a defect to optimize, not relax.
+- `CFDRS-CFD1D-LINT-001` now unblocked by `CFDRS-LINT-CASCADE-001`
+  closure. Peer can run the full `cargo clippy --workspace --all-targets
+  -- -D warnings` to measure the actual cfd-1d pedantic baseline.
+
+### Submodule gitlink state at atlas-meta main `abbec58`
+
+| Submodule | atlas-meta pin | Inner origin/main | Inner inner-HEAD | State |
+|---|---|---|---|---|
+| CFDrs | `204ab80c` | `85ef9a34` | `7a521343` (4 unpushed) | peer-in-flight (Hyperion-kwavers book + migration chapter authoring) |
+| kwavers | `81778e758` | `9ad18523` | `e66a9139` (10 unpushed) | peer-in-flight (40+ dirty files, Hyperion optics extraction) |
+| helios | `105a0939` | `105a0939` | `105a0939` + dirty mdBook | peer-in-flight (migration_*.md book content) |
+| hermes | `53b83165` | `53b83165` | `53b83165` clean | release-ready |
+| eunomia | `3e4f9eb` | `3e4f9eb` | `3e4f9eb` clean | release-ready |
+| leto | `80406d9` | `80406d9` | `80406d9` clean | release-ready |
+| coeus, consus, asclepius, athena, eunomia (deps) | aligned | aligned | aligned | stable per Session 8 |
+| hyperion | NOT PINNED | (no remote) | (untracked dir at `D:\atlas\repos\hyperion\`) | peer Hyperion Phase 0 scaffold, not yet registered |
+
+### Release-state assessment (dispatch b)
+
+Release-blocking state per `concurrent_agents` (no release can proceed
+while a candidate's inner main has unpushed commits):
+- CFDrs main: 4 commits unpushed, dirty `Cargo.lock` + 28 dirty mdBook
+  files (peer mid-flight kwavers-style migration book authoring).
+- kwavers main: 10 commits unpushed, 40+ dirty source files (peer
+  mid-flight Hyperion optics extraction).
+- helios main: pushed (release-ready per Session 9 verification) but
+  dirty untracked mdBook files (peer book content).
+- hermes main: clean and pushed (release-ready with the gemm UB
+  watchpoint carryover).
+- eunomia main: clean and pushed (release-ready).
+- leto main: clean and pushed (release-ready).
+
+Released since Session 8 close: hermes (`53b83165` SpMV tail), eunomia
+(`3e4f9eb` Close equality provider gate), leto (`80406d9` Aequitas
+quantity-law alignment), moirai (`946b4a7` profile alignment),
+proteus/aequitas/asclepius/hephaestus (Hyperion Phase 0 dep alignment).
+
+Breaking-change candidates requiring [major] per `versioning`:
+- CFDrs `feat(cfd-schematics)!: Adopt Iris colors` — already landed in
+  `e522d8dd` and pinned. ADR/catalog not consulted in this session.
+- eunomia `refactor(eunomia)!: Retire raw-half surface` +
+  `feat(eunomia): Add relative equality` — landed at 0.6.0; the new
+  relative_eq surface is additive [minor] under the published 0.6.0
+  line; the raw-half retirement is the [major] already absorbed.
+- leto `refactor(leto)!: Retire ndarray boundary` — Session 8 verified
+  GREEN against the new boundary.
+- melinoe, mnemosyne: Session 8 inventory notes breaking markers but
+  not consulted in Session 9.
+
+Ask-User dimension: which crate(s) to release and at what version bump
+is delivered in the session terminal report. Authorized-crate list
+with breaking-change candidates requiring [major]: CFDrs
+(`feat(cfd-schematics)!:`), eunomia (already at 0.6.0 breaking), leto
+(`refactor(leto)!:`), melinoe (x2 breaking Session 8 cataloged),
+mnemosyne (x1 breaking Session 8 cataloged).

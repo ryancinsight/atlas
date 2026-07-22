@@ -2446,3 +2446,104 @@ Next actionable (awaiting user or peer event):
 
 Session 8 verification closure: 592/592 leto nextest + 9/9 doctests green at
 `b7224832e` after peer-build-contention lock cleared.
+
+## Session 9 — 2026-07-21 (atlas-meta coordinator)
+
+Dispatch: "proceed as recommended" (carries forward Session 8 b/c dispatch).
+Re-oriented at atlas-meta main `abbec58` after peer landed 17 commits in
+the gap since Session 8 close (`b6d670d`). Peer wave substantially
+superseded every Session 8 dispatch item.
+
+Done:
+
+- [x] Re-orient atlas-meta main + submodule state (peer landed hermes
+      gitlink, eunomia gitlink, helios gitlink, kwavers gitlink, CFDrs
+      gitlink, moirai gitlink, aequitas/asclepius/hephaestus/proteus
+      Hyperion Phase 0 dep-alignment; ADR 0030 `hyperion-photon-optical-
+      promotion.md` filed; root `.cargo/config.toml` build-script
+      debuginfo strip landed via `5340c07`).
+- [x] Immobile dispatch (c) CFDrs book Part VIII rich content: peer's
+      `204ab80c` + `7a521343` authored all 16 Part VIII pages +
+      rewrote SUMMARY + Part VII Atlas Stack Integration + 10 migration
+      chapters. Atlas-meta Session 8 4-file authoring dovetailed
+      cleanly into peer's expansion (peer committed my 4 files in their
+      own `dc256705` wave). Atlas-meta disjoint-scope per
+      `concurrent_agents`; no new book content from atlas-meta.
+- [x] Bounded verification recheck leto `80406d9` (Hyperion-alignment
+      single dep commit post-Session 8): nextest 173/173 PASS rc=0,
+      doctests 9/9 PASS. Slowest `matexp_matches_scipy` 7.372s
+      cold-cache (Session 8 was 1.023s warm). GREEN preserved; leto
+      release-ready at `80406d9`.
+- [x] Bounded verification helios `105a0939` (peer `approx -> eunomia`
+      workspace migration): nextest 251/251 PASS rc=0, doctests 11/11
+      GREEN. `approx` fully excised from helios `Cargo.toml`. Caveat:
+      helios still edition 2021 / resolver 2 (project-wide observation).
+      Release-ready.
+- [x] Bounded verification hermes gitlink advance window
+      `004e6a492 -> 53b83165`: only `53b8316 perf(hermes): Unchecked CSR
+      SpMV tail gather` (+8 -1 in spmv.rs, +11 in CHANGELOG) with sound
+      `// SAFETY:` proof. nextest 388 tests 383 PASS / 5 ABORT but all 5
+      aborts in disjoint gemm/tiling `ptr::replace` UB and reproducible
+      at the pre-advance pin (peer confirmed by peer's own advance).
+      Doctests 18/18 PASS. Safe-to-advance = Y; peer did the advance.
+- [x] Bounded verification eunomia `3e4f9eb` : doctest recheck
+      confirms peer's `884d193`/`3e4f9eb` closed the equality gate.
+      Doctests 9/9 PASS (was 5 of 7 with 2 failures on staged WIP).
+      Release-ready.
+- [x] Bounded audit CFDrs `cfd-schematics --all-targets -D warnings`
+      at HEAD `7a521343`: rc=0 zero warnings. `CFDRS-LINT-CASCADE-001`
+      fully closed; all 4 cataloged sites clean.
+- [x] Append Session 9 PM delta: backlog.md Session 9 watchpoint table,
+      gap_audit.md Session 9 verification-delta section, this
+      checklist row.
+
+New watchpoints cataloged this session:
+
+- `HYPERION-PHASE-0-001` open (peer's new ADR 0030 stack);
+- `HERMES-GEMM-UB-001` open (pre-existing Windows `ptr::replace` UB in
+  GEMM/tiling, surfaced during hermes audit);
+- `EUNOMIA-DOCTEST-001` closed same session (peer landed the fix);
+- `HELIOS-APPROX-EUNOMIA-001` closed (peer landed + pushed + atlas-meta
+  pinned);
+- `HERMES-ADVANCE-001` closed (made redundant by peer's own
+  gitlink-advance);
+- `CFDRS-LINT-CASCADE-001` closed (peer's `dc256705` + audit verifies
+  -D warnings clean).
+
+Out-of-scope this session:
+
+- CFDrs inner main: 4 commits unpushed, dirty `Cargo.lock` + 28 dirty
+  mdBook files (peer mid-flight kwavers-style migration book authoring);
+  defer CFDrs gitlink advance past `204ab80c` per concurrent_agents.
+- kwavers inner main: 10 commits unpushed, 40+ dirty source files
+  (peer mid-flight Hyperion optics extraction); defer kwavers gitlink
+  advance past `81778e758` per concurrent_agents.
+- helios dirty untracked mdBook migration chapters (`migration_*.md`);
+  peer book content; defer per concurrent_agents.
+- `repos/hyperion/` untracked dir at `D:\atlas\` (NOT in
+  `.gitmodules`); peer Hyperion Phase 0 scaffold with its own git
+  history; defer registration and atlas-meta submodule tracking until
+  peer triggers Phase 1 per ADR 0030.
+- Scratch files at `D:\atlas\` root (`fix_unwraps.py`, `ritk_fix.py`,
+  `atlas_approx_sweep.py`, `helios_workflow_output/`): peer's
+  untracked scratch; not in atlas-meta's authorized scope.
+
+Next actionable (awaiting user or peer event):
+
+1. User dispatches release/deploy authorization for any of hermes
+   0.4.0+ (`53b83165`), eunomia 0.6.1+ (`3e4f9eb`), leto 0.39.x+
+   (`80406d9`), helios 0.1.0+ (`105a0939`); no release/deploy
+   authorized this session per `interaction_policy` terminal delivery
+   state.
+2. Peer root-causes `CFDRS-PERF-SLOW-001` 3 timeouts per
+   `engineering_gates` (optimize, never relax bound).
+3. Peer schedules `CFDRS-CFD1D-LINT-001` cfd-1d pedantic baseline
+   measurement now that `CFDRS-LINT-CASCADE-001` closure unblocks it.
+4. Peer root-causes `HERMES-GEMM-UB-001` `ptr::replace` alignment
+   precondition violation in GEMM/tiling dispatch (Windows
+   STATUS_STACK_BUFFER_OVERRUN); first probe `RUST_BACKTRACE=1
+   cargo nextest run -p hermes-simd --test tiling_tests
+   test_gemm_bf16_size_16`.
+5. Peer lands Hyperion Phase 1 (register `repos/hyperion` in
+   `.gitmodules`; kwavers optics extraction; helios migration book).
+6. User dispatches `HEPH-CUDA-WIN-001` upstream fix authorization.
