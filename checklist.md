@@ -24,6 +24,29 @@
       `00a3467e2`; Kwavers PR #307 merges as `0602c1fd4` after its 12-minute
       byte-identity benchmark gate skips only redundant statistical pairs.
 
+## ATLAS-TARGET-001 — One build cache, one debug budget [patch]
+
+- [x] Remove Kwavers' wildcard dependency `opt-level = 3` and retain the
+      runtime-required development optimization at level 1 across the graph.
+- [x] Prove uncached feature-build reductions of 18–45%, full-grid PSTD below
+      25 seconds, and a 16,771,464,617-byte clean debug baseline at exact head
+      `909bcdfc7` with 26/26 hosted checks passing.
+- [x] Advance the Kwavers gitlink to PR #307 merge `0602c1fd4`.
+- [x] Remove 9,363 files and approximately 4.49 GiB from seven obsolete private
+      target trees while preserving the shared `D:/atlas/target` cache.
+- [x] Verify the Atlas checkout tool from the primary root: format and
+      warning-denied Clippy pass, Nextest passes 11/11 in 3.746 seconds, and
+      doctests pass 1/1 in 1.93 seconds.
+- [ ] Measure and align remaining member-specific debug/test profiles after
+      their peer-owned worktrees become clean; CFDrs `test opt-level = 2` is
+      the next observed candidate and must retain its current test workloads.
+- [ ] Route Atlas-meta root-worktree tool builds to the canonical cache without
+      an absolute machine path; until then, run those tools from the primary
+      root and reject lane-local `target` creation.
+- [ ] Compare unchanged single-build and three-build workloads at the current
+      job count and bounded alternatives before setting `build.jobs`; the live
+      audit observed 23 concurrent `rustc` processes on 24 logical processors.
+
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
 - [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,

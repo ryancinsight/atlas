@@ -516,6 +516,26 @@ the package's remote default branch, update its gitlink, run the affected
 provider and consumer gates, and commit the parent pointer only after the child
 revision is published.
 
+### Build cache and debug budget
+
+Atlas routes package and child-repository worktree builds through
+`D:/atlas/target` via the root [Cargo configuration](.cargo/config.toml). Do
+not create a repo-local `target`, `target_isolated`, or command-specific target
+directory: those forks recompile the same provider graph, consume disk, and
+invalidate incremental reuse. Build Atlas-meta tools from the primary Atlas
+root; a root-repository worktree contains its own copy of the configuration and
+would otherwise resolve `target` relative to that lane. Workspace code retains
+line tables for file-and-line backtraces; dependencies, build scripts, and
+procedural macros carry no ordinary debug information. Concurrent top-level
+Cargo commands own independent jobservers, so coordinate them instead of
+starting overlapping workspace builds against the shared cache.
+
+Kwavers uses development `opt-level = 1` across workspace members and
+dependencies. Higher wildcard dependency optimization prevents Cargo from
+sharing exported generic monomorphizations and increased both uncached build
+time and artifact fanout. Full optimization is confined to release and the
+instrumented coverage profile whose runtime contract requires it.
+
 ### Benchmark regression gate
 
 Atlas owns the cross-package Criterion comparison policy in
