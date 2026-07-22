@@ -4223,3 +4223,15 @@ Deferred (concurrent_agents: peer active WIP at session close):
   mechanical dep-pin bumps, and are harmonia/horae peer-domain work
   outside the release-dispatch scope. Their lock-pinning remains at
   §0.6.0 (peer's ongoing wave, when they get there).
+
+## Shared incremental-cache growth — open
+
+The shared `target/debug/incremental` tree accumulated 27,085 session
+directories and 525,183,672,320 bytes in five days across the multi-repository
+stack. An idle-tree prune reclaimed those bytes but does not prevent recurrence.
+The corrective plan preserves local incremental edit builds, disables
+incremental compilation on clean CI runners, and consolidates the approximately
+950 leaf binary targets tracked by `ATLAS-BUILD-STRUCTURE-001`. Re-open on the
+next clean Kwavers architecture run to compare artifact bytes and peak memory;
+do not claim the preferred 10 GiB clean-build budget until that runner records
+it. Local shared-cache size is a separate multi-repository retention metric.

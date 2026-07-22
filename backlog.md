@@ -1288,6 +1288,13 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   and procedural macros emit no test debuginfo. This closes the configuration
   path through which Nextest could repopulate the shared cache with full
   symbols.
+- Done 2026-07-22: removed two abandoned full-target `du` scans that had
+  traversed the cache for about 2.5 hours, then pruned the idle incremental
+  tree. Its 27,085 session directories occupied 525,183,672,320 bytes
+  (approximately 489 GiB); the five-minute deletion preserved shared
+  dependencies and linked artifacts, and a subsequent build recreated only
+  three current session directories. This is operational reclamation, not a
+  clean-build footprint claim.
 - Done 2026-07-22: Kwavers PR #307 merges as `0602c1fd4`. Its broad
   dependency graph inherits development `opt-level = 1` instead of wildcard
   `opt-level = 3`, restoring exported generic sharing. Uncached feature-build
@@ -1324,6 +1331,6 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 ## ATLAS-BUILD-STRUCTURE-001 — Consolidate leaf binaries; compiler-last dev profiles [patch] — todo
 
 - Policy: AGENTS.md performance_engineering "Debug-tree and compile-time structure" + "Compiler-last optimization order". Monomorphization stays the design default — an instantiation codegens identically to its hand-written equivalent; the debug-tree multiplier is leaf-binary count and duplicate paths, never genericity.
-- Evidence 2026-07-22: ~950 leaf binaries stack-wide, each a full link with own incremental cache and PDB — tests/examples per repo: CFDrs 118/66, coeus 110/2, kwavers 94/62, consus 55/0, ritk 28/7, hermes 20/4, moirai 15/22, melinoe 15/1, others <=11. Dev-profile audit: helios declares wildcard `[profile.dev.package."*"] opt-level = 3` (the pattern removed from kwavers in PR #307); kwavers `opt-level = 1` with documented 5-10x PSTD justification is the sanctioned named-and-measured form.
+- Evidence 2026-07-22: ~950 leaf binaries stack-wide, each a full link with own incremental cache and PDB — tests/examples per repo: CFDrs 118/66, coeus 110/2, kwavers 94/62, consus 55/0, ritk 28/7, hermes 20/4, moirai 15/22, melinoe 15/1, others <=11. Dev-profile audit: helios declares wildcard `[profile.dev.package."*"] opt-level = 3` (the pattern removed from kwavers in PR #307); kwavers `opt-level = 1` with documented 5-10x PSTD justification is the sanctioned named-and-measured form. The shared incremental tree reached 27,085 session directories and approximately 489 GiB in five days, making leaf-target consolidation and CI `CARGO_INCREMENTAL=0` the next measured size levers.
 - Scope: (1) consolidate each repo's tests/*.rs into one-or-few area harness binaries (`tests/<area>/main.rs` with modules) — nextest still isolates per test function in its own process, so coverage and isolation are unchanged while link count, incremental caches, and debug artifacts drop by the file count; worst offenders first (CFDrs, coeus, kwavers, consus, ritk, hermes); (2) merge near-duplicate examples per consolidation_discipline; (3) replace wildcard dev dependency opt raises with named, measured, per-package exceptions (helios first, peer-held — coordinate via board); (4) record per-repo binary-target count and debug-tree size before/after as the acceptance measurement.
 - Acceptance: binary-target census reduced and recorded per repo; debug-tree size delta measured against the shared cache; test function count unchanged (no coverage loss); no wildcard dev opt-level overrides remain without a named measured justification.
