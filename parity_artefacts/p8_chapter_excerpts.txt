@@ -1,0 +1,124 @@
+
+=== repos/CFDrs/docs/book: rglob hits per chapter ===
+
+--- appendix_dependencies.md: found at appendix_dependencies.md (3681 bytes) ---
+    1: # Appendix A — Atlas Crate Dependency Map
+    2: 
+    3: A CFDrs-centric view of the Atlas stack — which crate owns which surface, which
+    4: CFDrs crate consumes it, and the migration phase each consumer is in.
+    5: 
+    6: ## Crate Map
+    7: 
+    8: | Atlas crate | Surface | CFDrs consumer | Status |
+    9: |---|---|---|---|
+   10: | `eunomia` | `RealField`, `ComplexField`, `FloatElement`, `IntElement` | every CFDrs crate | COMPLETE |
+   11: | `leto` | `NdArray<T,D>`, `CowArray`, geometry types | `cfd-math`, `cfd-1d`, `cfd-2d`, `cfd-3d`, `cfd-schematics` | in-progress |
+   12: | `leto` GAT | `LendingIterator`, `TileStreaming` | `cfd-2d::stencil`, `cfd-3d::stencil` | in-progress |
+   13: | `hermes-simd` | `SimdLane`, vectorized kernels | `cfd-2d::stencil`, `cfd-3d::fem`, `cfd-1d::kernel` | in-progress |
+   14: | `mnemosyne` | `Arena`, `ScratchArena` | every CFDrs crate | in-progress |
+   15: | `themis` | `Placement`, NUMA bindings | `cfd-3d`, `cfd-2d` | in-progress |
+   16: | `moirai` | `Executor`, `TaskGraph`, channels | `cfd-2d::parallel`, `cfd-3d::parallel`, `cfd-optim` | in-progress |
+   17: | `apollo` | `FftPlan` | `cfd-3d::spectral`, `cfd-2d::spectral` | graduating |
+   18: | `coeus` | `Tensor`, autodiff | n/a — no autodiff in CFDrs | n/a |
+   19: | `hephaestus` | `Backend`, GPU kernels | opt-in via `cfd-3d` GPU feature | partial |
+   20: | `ritk` | image I/O | n/a — no image data in CFDrs | n/a |
+   21: | `consus` | persistent storage | `cfd-io` (planned) | planned |
+   22: | `apollo` | spectral autodiff bridge | (planned) | planned |
+   23: 
+   24: ## Per-Crate Migration Phase
+   25: 
+   26: | CFDrs crate | Migration phase | Atlas deps |
+   27: |---|---|---|
+   28: | `cfd-core` | bulk — finalize eunomia trait frontier | `eunomia`, `mnemosyne` |
+   29: | `cfd-math` | graduation — finalize leto migration | `eunomia`, `leto`, `hermes-simd`, `apollo` |
+   30: | `cfd-1d` | bulk — mid-migration | `eunomia`, `leto`, `mnemosyne`, `moirai` |
+
+--- migration_concurrency.md: found at migration_concurrency.md (2833 bytes) ---
+    1: # Chapter 14 — Moirai: Concurrency
+    2: 
+    3: CFDrs migrates parallel execution from `rayon::ParIter` and bespoke
+    4: `std::thread::spawn` calls to **Moirai**'s unified executor.  Moirai
+    5: unifies what tokio does for async and what rayon does for CPU-bound
+    6: parallel iteration, so CFD workloads share one runtime.
+    7: 
+    8: ## Executor Surface
+    9: 
+   10: ```rust
+   11: pub struct Executor {
+   12:     inner: Arc<ExecutorInner>,
+   13: }
+   14: 
+   15: impl Executor {
+   16:     pub fn new(num_workers: usize) -> Self;
+   17:     pub fn num_cpus() -> usize;
+   18:     pub fn block_on<F: Future>(&self, fut: F) -> F::Output;
+   19:     pub fn spawn<F: Future + Send + 'static>(&self, fut: F) -> JoinHandle<F::Output>;
+   20: }
+   21: ```
+   22: 
+   23: The runtime presents an `Executor` whose `.spawn` and `.block_on` accept
+   24: **any** future — async I/O and parallel numerical kernels share the same
+   25: worker pool.
+   26: 
+   27: ## Task Graph
+   28: 
+   29: ```rust
+   30: pub struct TaskGraph {
+
+--- performance_and_atlas.md: found at performance_and_atlas.md (4303 bytes) ---
+    1: # Chapter 7 — Performance and Atlas Integration Overview
+    2: 
+    3: This Part is the **Atlas stack migration reference** for CFDrs.  It documents
+    4: how the legacy third-party crates have been — or are being — replaced
+    5: by the Atlas monolith: the unified, purpose-built crates that share one
+    6: trait frontier ([`eunomia::RealField`]) and one set of zero-cost
+    7: abstractions.
+    8: 
+    9: ## Performance Mandate
+   10: 
+   11: Atlas is held to a strict performance contract:
+   12: 
+   13: - **Zero heap allocations on hot paths.** All transient storage lives in
+   14:   [`mnemosyne::Arena`] sub-arenas.
+   15: - **Zero virtual dispatch on numeric kernels.** Trait specialization
+   16:   through [`eunomia`] gives the compiler monomorphized code per
+   17:   scalar type and backend.
+   18: - **Zero copy for read-only views.** [`Cow`] over [`leto::NdArray`]
+   19:   eliminates `clone()` calls in adjoint passes.
+   20: - **Zero abstraction tax.** Const generics, ZSTs, and GATs encode
+   21:   capability and lifetime variance at the type level — there is no
+   22:   runtime machinery to charge.
+   23: 
+   24: Where Atlas does not yet match legacy throughput, the gap is recorded in
+   25: the per-crate migration chapters of this Part and governed by the parity
+   26: test harness described in [Migration Validation](migration_validation.md).
+   27: 
+   28: ## Atlas Crate Layers
+   29: 
+   30: | Layer | Crate(s) | CFDrs consumer |
+
+--- turbulence_multiphase.md: found at turbulence_multiphase.md (3929 bytes) ---
+    1: # Chapter 3 — Turbulence Models and Cavitation
+    2: 
+    3: CFDrs models three coupled physical regimes: **turbulence** (RANS / LES
+    4: closures), **multiphase flows** (phases with distinct equations of state),
+    5: and **cavitation** (liquid–vapour phase transition at low pressure).
+    6: This chapter documents the integration contracts used to combine them.
+    7: 
+    8: ## Turbulence Closures
+    9: 
+   10: `cfd-3d` integrates the canonical closures through a single trait:
+   11: 
+   12: ```rust
+   13: pub trait TurbulenceModel {
+   14:     type Field;
+   15:     fn step<F: FloatElement>(&mut self, u: &Array3<F>, v: &Array3<F>, w: &Array3<F>,
+   16:                              nu_t: &mut Array3<F>, dt: F);
+   17:     fn label(&self) -> &'static str;
+   18: }
+   19: ```
+   20: 
+   21: CFDrs distributes three models:
+   22: 
+   23: | Model | Crate | Trait impl |
+   24: |---|---|---|
