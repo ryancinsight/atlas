@@ -1689,9 +1689,20 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   Clippy, format, and diff checks pass. Production NN code, fixtures, and
   tolerances remain unchanged; whole-workspace debug-tree measurement remains
   open.
-- Next claimed slice: audit `coeus-optim/tests/optim_tests.rs` (676 lines) for
-  optimizer, scheduler, convergence, and gradient-clipping family separation;
-  preserve all analytical oracles and value-semantic assertions.
+- Coeus-optim contract-family split complete at provider commit `b27d492f`:
+  the live 676-line `optim_tests.rs` leaf is now one `optim_ops` manifest with
+  optimizer, scheduler, convergence, and gradient-clipping family modules.
+  The pre/post source census remains 20 unique test functions and all 20
+  extracted Rust function bodies compare equal. Locked metadata reports one
+  `optim_ops` integration target. The largest new leaf is `convergence.rs` at
+  239 lines; every new leaf is below 250. Exact package Nextest passes 20/20
+  with 0 skipped in 0.188 seconds. Package check, warning-denied Clippy,
+  format, and diff checks pass. Production optimizer code and all test oracles
+  remain unchanged; whole-workspace debug-tree measurement remains open.
+- Next claimed slice: audit
+  `coeus-nn/tests/nn_ops/activations/act_extended_tests.rs` (648 lines) for
+  piecewise, parameterized, module-smoke, and smooth activation family
+  separation; preserve analytical derivatives and value-semantic assertions.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

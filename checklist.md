@@ -228,8 +228,39 @@ claimed.
 - [x] Verify format, package check, warning-denied Clippy, diff checks, and the
       exact package Nextest gate.
 
-Evidence: Coeus `37bf8d9b` contains the complete split. The pre/post source+census remains 24 unique test functions and all 24 extracted Rust function+bodies compare equal. The largest new leaf is `distance.rs` at 315 lines; every+new leaf is below 500 lines. Exact package Nextest passes 268/268 with 0 skipped+in 2.270 seconds. Package check, warning-denied Clippy, format, and diff checks+pass. Production NN code, fixtures, tolerances, and sibling loss test files are+unchanged. This is a test-topology and maintainability change only; no+production kernel or runtime/memory delta is claimed.+
-Next claimed slice: audit `coeus-optim/tests/optim_tests.rs` (676 lines) for+optimizer, scheduler, convergence, and gradient-clipping family separation;+preserve all analytical oracles and value-semantic assertions.
+Evidence: Coeus `37bf8d9b` contains the complete split. The pre/post source
+census remains 24 unique test functions and all 24 extracted Rust function
+bodies compare equal. The largest new leaf is `distance.rs` at 315 lines; every
+new leaf is below 500 lines. Exact package Nextest passes 268/268 with 0 skipped
+in 2.270 seconds. Package check, warning-denied Clippy, format, and diff checks
+pass. Production NN code, fixtures, tolerances, and sibling loss test files are
+unchanged. This is a test-topology and maintainability change only; no
+production kernel or runtime/memory delta is claimed.
+
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-optim contract-family harness split [patch]
+
+- [x] Split the live 676-line `coeus-optim/tests/optim_tests.rs` leaf into
+      optimizer, scheduler, convergence, and gradient-clipping modules under
+      `coeus-optim/tests/optim_ops/`.
+- [x] Preserve all 20 test functions, 20 `#[test]` attributes, analytical
+      comments, tolerances, and extracted Rust function bodies.
+- [x] Verify one integration target, format, package check, warning-denied
+      Clippy, diff checks, and the exact package Nextest gate.
+
+Evidence: Coeus `b27d492f` contains the complete split. The pre/post source
+census remains 20 unique test functions and all 20 extracted Rust function
+bodies compare equal. Locked metadata reports one `optim_ops` integration
+target. The largest new leaf is `convergence.rs` at 239 lines; every new leaf
+is below 250. Exact package Nextest passes 20/20 with 0 skipped in 0.188
+seconds. Package check, warning-denied Clippy, format, and diff checks pass.
+Production optimizer code and all test oracles are unchanged. This is a
+test-topology and maintainability change only; no production optimizer runtime
+or memory delta is claimed.
+
+Next claimed slice: audit
+`coeus-nn/tests/nn_ops/activations/act_extended_tests.rs` (648 lines) for
+piecewise, parameterized, module-smoke, and smooth activation family
+separation; preserve analytical derivatives and value-semantic assertions.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 
