@@ -1606,10 +1606,16 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   all-features Nextest passes 75/75 with 0 skipped; production PyO3, Python
   parity scripts, and generated artifacts remain unchanged. Whole-workspace
   debug-tree measurement remains open.
-- Next claimed slice: Coeus `coeus-wgpu/tests` has two integration targets with
-  63 listed tests: six fused-operation tests and 57 nested WGPU parity tests.
-  Consolidate them behind one hierarchical `wgpu_ops` harness while preserving
-  the nested backend-operation tree and all GPU-sensitive assertions.
+- Coeus-WGPU slice complete at provider commit `c507683e`: the two flat
+  integration targets now share one hierarchical `wgpu_ops` harness, with
+  fused operations under `fusion.rs` and the existing WGPU operation tree under
+  `backend/wgpu/`. Exact package Nextest passes 85/85 with 0 skipped; the moved
+  source files are content-identical renames and production GPU code is
+  unchanged. Whole-workspace debug-tree measurement remains open.
+- Next claimed slice: `coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity.rs` is an
+  808-line multi-family leaf. Split its shared oracle helpers and parity tests
+  into operation-family modules under `parity/`, preserving the exact 85-test
+  package surface and all tolerance/value assertions.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

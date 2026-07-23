@@ -229,14 +229,30 @@ debug-tree sizing is explicitly outside this slice.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU integration harness consolidation [patch]
 
-- [ ] Move the two flat `coeus-wgpu/tests/*.rs` targets into one hierarchical
+- [x] Move the two flat `coeus-wgpu/tests/*.rs` targets into one hierarchical
       `tests/wgpu_ops.rs` harness with fused-operation and backend-operation
       families; preserve the existing nested WGPU test modules.
-- [ ] Preserve all 63 listed WGPU/fused test functions and their value-semantic
+- [x] Preserve the exact 85-test package surface and its value-semantic
       assertions; do not alter production kernels, tolerances, or fixtures.
-- [ ] Verify the integration-target census drops from 2 to 1 while the exact
-      package test count remains unchanged; run format, Clippy, check, and the
-      focused package gate, recording any host GPU limitation precisely.
+- [x] Verify the integration-target census drops from 2 to 1 while Nextest
+      remains 85/85; run format, Clippy, check, and the focused package gate.
+
+Evidence: Coeus `c507683e` contains the complete WGPU slice. Locked metadata
+reports one `coeus-wgpu` integration target (`wgpu_ops`) instead of two; the
+exact package Nextest run passes 85/85 with 0 skipped in 84.155 seconds.
+Package check, warning-denied Clippy, format, and diff checks pass. The moved
+source files are content-identical renames; this is a target-topology change,
+not a production GPU or whole-workspace debug-tree performance claim.
+
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU parity-family split [patch]
+
+- [ ] Split `coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity.rs` into cohesive
+      operation-family modules under a `parity/` hierarchy, keeping the shared
+      CPU/GPU oracle helpers in one manifest.
+- [ ] Preserve all generated and explicit parity tests, tolerances, and the
+      exact package Nextest result; do not change production kernels or fixtures.
+- [ ] Keep each new parity leaf below the 500-line structural target where
+      domain cohesion permits, and verify format, Clippy, check, and Nextest.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
