@@ -197,6 +197,16 @@ one `coeus-core` integration target (`core_ops`); exact package Nextest passes
 library unit tests. Whole-workspace debug-tree sizing is explicitly outside
 this slice.
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA integration harness consolidation [patch]
+
+- [ ] Move the three flat `coeus-cuda/tests/*.rs` files into device and
+      fallback directories behind one `tests/cuda_ops.rs` feature-aware harness.
+- [ ] Preserve the `cuda` and `not(feature = "cuda")` gates and all three
+      default no-CUDA fallback tests; do not alter CUDA production code.
+- [ ] Verify default Nextest remains 3/3, all-features check/Clippy compile the
+      moved targets, and record the linker blocker for all-features execution:
+      missing `/usr/local/cuda-11.3/lib64/libcuda`.
+
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
 - [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,

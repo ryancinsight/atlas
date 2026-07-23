@@ -1591,6 +1591,12 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   skipped, comprising 14 integration cases and seven unchanged library unit
   tests. Production core code and all leaf test bodies remain unchanged.
   Whole-workspace debug-tree measurement remains open.
+- Next claimed slice: Coeus `coeus-cuda/tests` has three flat feature-gated
+  integration targets. Default mode lists three no-CUDA fallback tests; the
+  all-features target reaches compilation but cannot link here because the
+  GNU linker cannot find `/usr/local/cuda-11.3/lib64/libcuda`. Consolidate the
+  device and fallback leaves behind one feature-aware harness and preserve
+  both feature gates without masking the environment blocker.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 
