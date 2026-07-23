@@ -23,6 +23,9 @@
 - [x] Merge RITK PR #49 as `06cba046` after 21 first-party checks pass, then
       merge Atlas correction PR #87 as `c982fe0` so the graph records the
       merged RITK default rather than its provisional PR head.
+- [x] Merge Kwavers portability PR #312 as `1dc60bd7` after exact-head
+      Architecture, CI/CD, migration, benchmark, review, and three-platform
+      wheel checks pass.
 - [ ] Pass the complete Kwavers exact-head hosted matrix.
 - [ ] Merge Kwavers and advance its final Atlas gitlink.
 

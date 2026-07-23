@@ -8,6 +8,13 @@
   automated reviews. The remaining cross-repo integration is Kwavers lock
   regeneration and removal of its temporary therapy-test serialization rule;
   ATLAS-INTEGRATION-042 owns that residual.
+- Kwavers portability PR #312 merges as `1dc60bd7` after exact head
+  `b04cf397f` passes Architecture `29963556227`, CI/CD `29963556297`, migration
+  `29963556225`, and benchmark `29963556257`. PR #313 is rebased on that merged
+  default at `b6d85854b`; its duplicate portability/security commits are
+  removed and its lock matches the default byte-for-byte. The final delta is
+  limited to the Moirai scheduler closure, exact Atlas provider pin, scoped
+  certificate-license policy, workflow wiring, and synchronized evidence.
 - `repos/hyperion` held a standalone clone (`.git/` directory, not a gitfile)
   at recorded gitlink `7b4561b`, leaving the submodule unregistered (`-`
   status). Repaired via `git submodule init` + `absorbgitdirs`; the checkout

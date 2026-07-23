@@ -109,6 +109,12 @@
   `846311068878c6c042d172abbb68a537abd5ad49`, correcting a nonexistent
   same-prefix provisional gitlink.
 
+- Advance Kwavers portability through PR #312 merge `1dc60bd7`. Exact head
+  `b04cf397f` passes the complete Architecture, CI/CD, migration, benchmark,
+  review, and three-platform wheel matrix. Rebase the remaining Moirai/provider
+  closure on that default and remove its duplicate portability/security
+  commits before final integration.
+
 - Advance Kwavers to PR #307 merge `0602c1fd4` and close its debug build
   budget. Removing wildcard dependency `opt-level = 3` restores generic sharing
   and reduces uncached feature-build stages by 18–45% while full-grid PSTD

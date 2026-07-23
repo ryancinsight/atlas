@@ -34,7 +34,13 @@
   correction PR #87 merges as `c982fe0` and pins that merged default, not the
   provisional PR head. No downstream audit bypass is accepted. Moirai PR #84
   merges as `e4d2855`; default closeout `c870eed` passes exact Rust and
-  three-platform wheel run `29963043374`.
+  three-platform wheel run `29963043374`. Kwavers portability PR #312 exact
+  head `b04cf397f` passes Architecture `29963556227`, CI/CD `29963556297`,
+  migration `29963556225`, and benchmark `29963556257`, then merges as
+  `1dc60bd7`. PR #313 is rebased on that default at `b6d85854b`; duplicate
+  portability/security commits are removed, leaving the unique Moirai
+  closure, exact Atlas provider pin, scoped license policy, and synchronized
+  evidence as its final delta.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — done
 
