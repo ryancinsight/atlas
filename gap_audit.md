@@ -17,17 +17,20 @@ oracles.
   `AbsorbedDose`, `Power`, `MassDensity`, `DynamicViscosity`,
   `ThermalConductivity`, `ThermalDiffusivity`, `SpecificHeatCapacity`,
   `ReciprocalLength`, `VolumetricFlowRate`, `AcousticImpedance`, `Intensity`,
-  and `VolumetricPowerDensity`, with SI and scaled units used by the three
-  consumers.
+  `VolumetricPowerDensity`, `EnergyPerVolume`, and `TemperatureDifference`,
+  with SI and scaled units used by the three consumers.
 - CFDrs report arithmetic composes flow, power, pressure, viscosity, reciprocal
   time, time, length, volume, and velocity through Aequitas. The typed report
   carrier and one scalar serialization adapter are implemented on PR #315,
   pending merge.
-- The remaining provider semantic gaps are volumetric energy density
-  (energy-per-volume), an explicit temperature-difference dimension, and any
-  scaled units required by their consumer contracts. Kwavers' typed transducer
-  slice uses existing `MassDensity`, `AcousticImpedance`, `Time`, and
-  `ReciprocalLength`; no new provider dimension was required.
+- The provider semantic extension for volumetric energy density and an explicit
+  temperature-difference dimension is implemented on Aequitas PR #7 at commit
+  `5aa712c8`. It adds `JoulePerCubicMeter`, `JoulePerMilliliter`, Kelvin
+  temperature-difference units, and affine temperature arithmetic, with local
+  provider gates passing. Hosted `recurseml/analysis` errors while CodeRabbit,
+  supply-chain, and verify remain pending; consumers must update only after the
+  provider PR merges. Kwavers' typed transducer slice otherwise uses existing
+  `MassDensity`, `AcousticImpedance`, `Time`, and `ReciprocalLength`.
 - The merged Helios slices type dose deposition totals, portal energy fluence,
   DVH dose results and thresholds, gamma distance/dose criteria, attenuation
   coefficients, beam energy, and voxel spacing. `Volume<T>` remains the dense
@@ -42,10 +45,10 @@ oracles.
 | ID | Consumer surface | Missing metric contract | Owner | Status / acceptance |
 |---|---|---|---|---|
 | `CFDRS-AEQ-MET-01` | `cfd-optim` report and metric DTOs | Carry pressure, flow, length, volume, time, velocity, shear stress/rate, power, and temperature rise as typed values through computation; serialize only at one explicit boundary. | CFDrs | **IMPLEMENTED; PR #315 OPEN.** Commit `4c2551bc` adds one private typed report carrier, one scalar adapter, value/serde regressions, and compile-time unit separation. Hosted `recurseml/analysis` errors; merge is pending. |
-| `CFDRS-AEQ-MET-02` | SDT acoustic report | `acoustic_energy_density_j_m3` and `specific_cavitation_energy_j_ml` are energy-per-volume outputs with no Aequitas semantic alias/unit. | Aequitas, then CFDrs | Provider extension. Add energy-per-volume semantics and only required display units, then type both outputs and preserve the Gor'kov/specific-energy oracles. |
+| `CFDRS-AEQ-MET-02` | SDT acoustic report | `acoustic_energy_density_j_m3` and `specific_cavitation_energy_j_ml` are energy-per-volume outputs with no Aequitas semantic alias/unit. | Aequitas, then CFDrs | **PROVIDER IMPLEMENTED; Aequitas PR #7 OPEN.** `EnergyPerVolume`, `JoulePerCubicMeter`, and `JoulePerMilliliter` are implemented and locally verified. After merge, type both outputs in CFDrs and preserve the Gor'kov/specific-energy oracles. |
 | `CFDRS-AEQ-MET-03` | operating-point and network-solve boundaries | `flow_rate_m3_s`, gauge pressure, channel path length, channel volume, and residence-time fields remain raw in candidate/solve DTOs even though downstream report arithmetic is typed. | CFDrs | Ready after PR #315 merges; migrate the core boundary first and retain scalar JSON only in an explicit adapter. |
 | `CFDRS-AEQ-MET-04` | channel and network DTOs | `ChannelHemolysis` and operating-point/network structures still carry wall shear, transit time, flow, pressure, length, volume, and velocity as raw fields. | CFDrs | Ready after `CFDRS-AEQ-MET-03`; preserve per-channel hemolysis and total-flow value semantics. |
-| `CFDRS-AEQ-MET-05` | thermal-compliance report | `throat_temperature_rise_k` is a temperature difference, while Aequitas currently exposes only `ThermodynamicTemperature`. | Aequitas, then CFDrs | Provider extension; add explicit temperature-difference semantics without conflating ΔT with absolute temperature. |
+| `CFDRS-AEQ-MET-05` | thermal-compliance report | `throat_temperature_rise_k` is a temperature difference, while Aequitas currently exposes only `ThermodynamicTemperature`. | Aequitas, then CFDrs | **PROVIDER IMPLEMENTED; Aequitas PR #7 OPEN.** `TemperatureDifference` is distinct from `ThermodynamicTemperature`; subtraction and offset arithmetic preserve the affine semantics. After merge, type the report field and retain the thermal-compliance oracle. |
 | `HELIOS-AEQ-MET-01` | `helios-analysis::Dvh` | `min`, `max`, `mean`, `dose_at_volume_fraction`, and gEUD return `T` although the stored samples are `AbsorbedDose<T>`. Dose criteria in DVH APIs also enter as raw `T`. | Helios | **RESOLVED.** Helios PR #25 merged as `08b7559932fe5f46cfade74f33238e5d3db2598b` from implementation `8387fef`; DVH dose results and TCP/NTCP dose parameters are typed, with local Dx/gEUD/NaN/masked and end-to-end value evidence. Hosted checks were incomplete at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-02` | gamma analysis | `dta_mm`, normalization dose, low-dose cutoff, and dose-difference inputs were raw `T`; only the gamma field and pass rate are dimensionless. | Helios | **RESOLVED.** Helios PR #26 merged as `810bb2893723038f26f147847135b7a9e16e04e4` from implementation `07c7768`. Gamma distance/search radius use `Length`, normalization/cutoff/pass-rate thresholds use `AbsorbedDose`, and scalar gamma/pass-rate results retain Low, local/global, grid, and end-to-end value semantics. Local analysis 31/31 and simulation end-to-end 3/3 passed; hosted Rust/benchmark jobs were still running at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-03` | delivery and portal dosimetry | `DeliveryFrame::leaf_fluence`, total delivered fluence, leaf width, ray step, and beam geometry distances were raw values; portal code typed fluence only internally before converting it back. | Helios | **RESOLVED.** Helios PR #27 merged as `888015e0e2a4b03b8c1e25c7a8befcdc098fd98b` from implementation `6ae6c62`. Delivery frames, collimation, portal transmission, total fluence, and dose geometry use `EnergyPerArea`/`Length`; conversion occurs at the millimetre ray/voxel boundary. Local simulation 38/38, analysis 31/31, checks, Clippy, doctests, Rustdoc, mdBook, format, and diff gates passed. Hosted Rust/Python/benchmark jobs were still running at merge and `recurseml/analysis` errored; no hosted-green claim is made. |
@@ -64,13 +67,15 @@ oracles.
   scores, probabilities, CEM43 thresholds as clinical model parameters, and
   other ratios remain dimensionless or consumer-semantic values.
 - The current implementation state is: Kwavers transducer contracts are
-  partial on PR #324 with materials and Rayleigh propagation typed; the CFDrs report carrier is implemented on PR #315; the
-  next CFDrs slice is residence/safety intermediates. The Aequitas
-  energy-per-volume and temperature-difference extensions remain provider
-  work, followed by the dependent consumer metrics. Helios image-quality API
-  partition remains a separate follow-up after its three identified
-  physical-metric boundaries are closed. Each slice must update its child audit
-  and use its strongest value or analytical oracle before the next slice starts.
+  partial on PR #324 with materials and Rayleigh propagation typed; the CFDrs
+  report carrier is implemented on PR #315; and the Aequitas
+  energy-per-volume and temperature-difference provider extension is on PR #7.
+  The next consumer slices are CFDrs residence/safety intermediates and the
+  dependent energy-density and temperature-rise fields after provider merge.
+  Helios image-quality API partition remains a separate follow-up after its
+  three identified physical-metric boundaries are closed. Each slice must
+  update its child audit and use its strongest value or analytical oracle
+  before the next slice starts.
 
 ## Provider-native sparse-LU ownership (2026-07-23)
 
