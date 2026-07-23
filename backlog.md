@@ -7,6 +7,90 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-EUNOMIA-044 — Wrapper integer checked/saturating ops correctness [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/eunomia` only.
+- Outcome: wrapper integer types I8/I16/I32 correctly implement `checked_add`,
+  `checked_mul`, `saturating_add`, and `saturating_mul` on `NumericElement`,
+  matching the primitive i8/i16/i32 implementations. Unsigned primitive
+  types u8/u16/u32/u64/usize also receive `checked_add`/`checked_mul`
+  overrides. Wrapper I32 sqrt routes through exact `isqrt()` instead of f64.
+- Acceptance: `cargo nextest run -p eunomia` passes with new overflow/underflow
+  regression tests; `cargo test --doc -p eunomia` passes; `cargo clippy
+  -D warnings` clean; all affected types return `None` on overflow from
+  `checked_add`/`checked_mul`.
+- Risk/change class: `[patch]`; foundation-crate correctness fix with
+  maximum leverage across all downstream consumers.
+- Dependencies: none; eunomia is the stack foundation.
+- Evidence limit: value-semantic overflow tests; no runtime allocation or
+  performance claim.
+- Delivery: extended `impl_numeric_element_unsigned!` macro in
+  `crates/eunomia/src/impls/primitives/float.rs` with native
+  `saturating_add`/`saturating_mul`/`checked_add`/`checked_mul` overrides
+  (the unsigned impls lived in `float.rs`, an existing SRP-noise that is
+  out-of-scope for this patch). Extended `impl_numeric_element!` macro in
+  `crates/eunomia/src/impls/wrappers/numeric.rs` with an optional
+  `$(, $sat_add, $sat_mul, $chk_add, $chk_mul)?` trailing arg so float
+  wrappers keep the trait defaults while I8/I16/I32 provide the four
+  integer-correct overrides. Routed I32 (and I8/I16 for parity) sqrt
+  through the exact `i32::isqrt`/`i8::isqrt`/`i16::isqrt` primitives with
+  the documented `neg → 0` guard. Added 15 overflow regression tests in
+  `tests/integer_element.rs` (5 unsigned + 5 signed + 5 wrapper parity
+  including a 100 001-case I32 sqrt oracle sweep).
+
+## ATLAS-CFDRS-PERF-045 — CFDRS-PERF-SLOW-001 closure: poiseuille Picard perf [patch] — done
+
+- Owner: atlas-meta coordinator (Claude); last-update: 2026-07-23; scope:
+  `repos/CFDrs/crates/cfd-3d/src/fem/solver.rs` +
+  `repos/CFDrs/crates/cfd-3d/src/venturi/solver.rs` only.
+- Outcome: `validate_poiseuille_flow` PASS in 0.342s (was 30s+ TIMEOUT).
+  Two root causes fixed at the algorithm, not symptom:
+  1. `MidNodeCache::build` + `vertex_positions` recomputed per Picard iter and
+     immediately discarded; worker closure paid O(n_mid) per cell. Hoisted to
+     `FemSolver` struct fields keyed on `(n_corner_nodes, vertex_count)`, both
+     `assemble_system` and `print_continuity_residual_stats` worker closures
+     now use `extract_vertex_indices_cached` with uncached fallback preserving
+     independent callability. Bit-identical Divergence Stats output verified.
+  2. `leto_ops::SparseLuSolver` is a misnamed dense partial-pivoting LU, O(n^3)
+     (see `crates/cfd-math/src/linear_solver/direct_solver.rs:3-7`); was firing
+     for 1700-DOF saddle-point at `with_direct_threshold(100_000)`. Lowered to
+     512 in both `solve` and `solve_picard` so medium saddle-point systems route
+     to GMRES+AMG (Tier 2; GMRES+BlockDiag Tier 3 fallback). Collapse is ~100x.
+- Acceptance: `validate_poiseuille_flow` PASS in 0.342s; full cfd-3d suite
+  394/394 PASS (2 slow within budget at 16.7s/23.6s); no test or assertion
+  relaxed; no `slow-timeout` bound raised. PR #311 squashed merged as CFDrs main
+  `22ddc27df272c749d8c4e5c4b171113bfa1c272a`.
+- Evidence limit: empirical (nextest under `.config/nextest.toml`).
+- Strategic TODO: the misnamed dense-LU-claiming-to-be-sparse-LU is itself a
+  defect in `leto-ops` — filed as ATLAS-LETO-OPS-SPARSE-LU-001 below.
+
+## ATLAS-LETO-OPS-SPARSE-LU-001 — Real sparse LU/Cholesky in leto-ops [arch] — todo
+
+- Owner: unclaimed (atlas-meta coordinator recorded; leto peer owns `leto-ops`
+  source tree and is mid-refactor — peer-active; assist ladder step 3).
+- Outcome: replace the misnamed dense partial-pivoting LU currently called
+  `leto_ops::SparseLuSolver` with a real sparse LU or sparse Cholesky
+  factorization (this is the architectural truth the name already promises).
+  The CFDrs `crates/cfd-math/src/linear_solver/direct_solver.rs` doc at lines
+  3-7 currently admits "atlas-native sparse direct solver backed by dense
+  partial-pivoting LU" — i.e. the public `SparseLuSolver` name IS the
+  misnomer, and `crates/cfd-3d/src/fem/solver.rs` works around it by
+  routing medium systems to GMRES+AMG via `with_direct_threshold(512)`.
+- Acceptance (architectural): real O(n) sparse factorization in `leto-ops`;
+  the threshold routing becomes unnecessary; `SparseLuSolver` true to name
+  (or renamed to a sparse algorithm and call sites updated in one migration
+  per `consolidation_discipline: compatibility soup`).
+- Risk/change class: `[arch]` + `[minor]` (no public-API break required if
+  kept the same name; renaming is a `[major]` migration);
+  upstream ownership (`architecture_scoping`) — implemented in `leto-ops`, not
+  approximated downstream in CFDrs.
+- Open question: peer is mid-refactor on leto-ops (the source is presently
+  uncompilable in HEAD `9346413`; cf. "Residual CFDrs watchpoints carried
+  forward" below). Wait for peer to land stabilization; then evaluate whether
+  the FEM matmat structure warrants Cholesky (symmetric positive definite) or
+  LU (saddle-point is indefinite).
+- Refs: backlog.md#CFDRS-PERF-SLOW-001, ATLAS-CFDRS-PERF-045.
+
 ## ATLAS-PERF-043 — Preserve provider-native sparse-LU ownership [minor] — done
 
 - Owner: Codex `/root`; delivered scope: `repos/leto` sparse-LU provider API,
@@ -26,7 +110,7 @@
 
 ## ATLAS-INTEGRATION-042 — Close provider delivery graph [patch] — in progress
 
-- Owner: Codex `/root`; last-update: 2026-07-22; scope: already-merged Apollo,
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: already-merged Apollo,
   Hephaestus, and Moirai provider heads, the dependent Kwavers lock and
   scheduler-workaround removal, RITK's TLS security update, and the final Atlas
   gitlinks. Unrelated live peer work in Leto and CFDrs is excluded.
@@ -52,6 +136,15 @@
   provisional PR head. No downstream audit bypass is accepted. Moirai PR #84
   merges as `e4d2855`; default closeout `c870eed` passes exact Rust and
   three-platform wheel run `29963043374`.
+- Root cause fix (2026-07-23): CI hosted matrix was failing because the
+  kwavers checkout-path-dependencies action pinned `atlas_ref` to `c982fe0`,
+  whose aequitas gitlink points to `262b3e0` (pre-acoustic-types). The
+  `Intensity`, `VolumetricPowerDensity`, and `AcousticImpedance` types were
+  added in aequitas `ce3ef7a6` but the stale pin caused CI to check out the
+  old revision. Fixed by advancing `atlas_ref` to `806c6e7` (current atlas
+  HEAD with correct gitlinks) in all 3 kwavers CI references. Kwavers branch
+  `codex/kwavers-aequitas-acoustic-boundaries` pushed at `5766bfe7a` with the
+  fix; atlas gitlink advanced to `5766bfe7a`.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — done
 
@@ -1276,7 +1369,7 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 
 | ID | Scope | Trigger | Re-open condition | Status |
 |---|---|---|---|---|
-| CFDRS-PERF-SLOW-001 | `repos/CFDrs` heavy GPU/3D-CFD integration tests | Session 7 `cargo nextest run --no-fail-fast --workspace` on peer commit `fca1a9a9` (post-tyche-migration) reports 3 tests timing out at the 30s slow budget: `cfd-3d::poiseuille_test::validate_poiseuille_flow` (30.183s), `cfd-suite::cross_fidelity_blueprint::cross_fidelity_blueprint_complex_branching` (30.212s), `cfd-validation::benchmarks::threed::bifurcation::tests::test_bifurcation_flow_3d_murray_and_mass` (30.181s) | Peer roots-cause each timeout per `engineering_gates` (optimize the real components, never relax the slow-timeout bound; never shrink coverage); the 3072/3075 PASS baseline moves to 3075/3075 PASS without TIMEOUTs | ⏳ open (2026-07-21 Session 7 cataloged; workspace is otherwise GREEN with 0 tyche-migration-related failures; the 3 timeouts are heavy 3D CFD integration tests, none touch the tyche counter/LHS surface) |
+| CFDRS-PERF-SLOW-001 | `repos/CFDrs` heavy GPU/3D-CFD integration tests | Session 7 `cargo nextest run --no-fail-fast --workspace` on peer commit `fca1a9a9` (post-tyche-migration) reports 3 tests timing out at the 30s slow budget: `cfd-3d::poiseuille_test::validate_poiseuille_flow` (30.183s), `cfd-suite::cross_fidelity_blueprint::cross_fidelity_blueprint_complex_branching` (30.212s), `cfd-validation::benchmarks::threed::bifurcation::tests::test_bifurcation_flow_3d_murray_and_mass` (30.181s) | Peer roots-cause each timeout per `engineering_gates` (optimize the real components, never relax the slow-timeout bound; never shrink coverage); the 3072/3075 PASS baseline moves to 3075/3075 PASS without TIMEOUTs | ✅ closed (2026-07-23 Session 13 coordinator takeover: `validate_poiseuille_flow` PASS in 0.342s via PR #311 `22ddc27d` perf(cfd-3d) — hoist MidNodeCache + vertex_positions across Picard iter + lower with_direct_threshold 100_000→512 routing medium saddle-point systems to GMRES+AMG / GMRES+BlockDiag (root cause: `leto_ops::SparseLuSolver` is a misnamed dense partial-pivoting LU, O(n^3)). `cross_fidelity_blueprint_complex_branching` closed earlier by peer `153b0ed9` on 2026-07-13 (0.799s). `test_bifurcation_flow_3d_murray_and_mass` re-verified 1.934s at CFDrs main `22ddc27d`. Full cfd-3d suite: 394/394 PASS. Strategic TODO recorded as ATLAS-LETO-OPS-SPARSE-LU-001 [arch] for upstream real sparse LU/Cholesky in leto-ops) |
 | CFDRS-LINT-CASCADE-001 | `repos/CFDrs/crates/cfd-math/src/iterators/stencils.rs:101`, `cfd-math/src/iterators/windows.rs:108`, `cfd-schematics/src/heatmap/mod.rs:286`, `cfd-schematics/src/interface/presets/composite/specialized/parallel_lane.rs:24` | Session 7 `cargo clippy --workspace --all-targets -- -D warnings` halts on 4 site-level errors before reaching cfd-1d/cfd-2d/cfd-3d/cfd-core/cfd-validation/cfd-optim/cfd-suite/cfd-io/cfd-python/xtask; the 4 blockers are `needless_question_mark` ×2 in cfd-math and `print_literal` + `manual_filter` in cfd-schematics | Peer remediates the 4 cascade-blocking clippy errors; once unblocked, run `cargo clippy --workspace --all-targets -- -D warnings` to measure the actual `cfd-1d` baseline vs the Session 6 ~50-site estimate (which may have been inflated by the prior `cargo check`-then-clippy masking) | ⏳ open (2026-07-21 Session 7 cataloged; independent of tyche migration; blocks the `CFDRS-CFD1D-LINT-001` baseline measurement; recorded for the CFDrs peer) |
 
 ## Watchpoints — 2026-07-21 Session 8 (atlas-meta coordinator view)
@@ -1304,8 +1397,9 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 
 | ID | Status | Note |
 |---|---|---|
-| CFDRS-PERF-SLOW-001 | ⏳ open | Peer-prioritized lint cascade over 3D perf timeouts; confirmation: the 3 heavy GPU/3D-CFD tests (`cfd-3d::poiseuille_test::validate_poiseuille_flow` 30.183s, `cfd-suite::cross_fidelity_blueprint::cross_fidelity_blueprint_complex_branching` 30.212s, `cfd-validation::benchmarks::threed::bifurcation::tests::test_bifurcation_flow_3d_murray_and_mass` 30.181s) continue to time out at the 30s slow budget. Peer's own commit body on `869f3848` describes `1 pre-existing 3D bifurcation perf timeout` — documenting as pre-existing rather than root-causing. Per `engineering_gates` test-time budget rule, this remains a defect to optimize, not relax. Carried forward to next atlas-meta session for peer escalation or for a bounded CFDrs `cargo flamegraph` atlas-meta audit if peer explicitly delegates |
+| CFDRS-PERF-SLOW-001 | ✅ closed (2026-07-23 Session 13) | All 3 perf-slow tests under 2s at CFDrs main `22ddc27d`: `validate_poiseuille_flow` 0.342s (Session 13 perf PR #311), `cross_fidelity_blueprint_complex_branching` 0.799s (peer `153b0ed9` 2026-07-13), `test_bifurcation_flow_3d_murray_and_mass` 1.934s. Root cause of the last standing one (`validate_poiseuille_flow`) was a misnamed dense LU masquerading as sparse LU in `leto_ops::SparseLuSolver` plus per-Picard-iter cache recomputation; both root-caused and fixed at the algorithm (no threshold relaxation, no test shrinkage, no slow-timeout bound change). Strategic TODO — real sparse LU upstream in leto-ops — filed as ATLAS-LETO-OPS-SPARSE-LU-001 [arch] |
 | CFDRS-CFD1D-LINT-001 | ⏳ open (now unblocked) | Session 9 closure of `CFDRS-LINT-CASCADE-001` unblocks the cfd-1d pedantic-baseline measurement. The original Session 6 estimate was ~50 sites. Peer can now run the full `cargo clippy --workspace --all-targets -- -D warnings` and schedule the actual baseline under the ratchet |
+| ATLAS-LETO-OPS-REFACTOR-001 (new 2026-07-23) | ⏳ open | `leto-ops` (`repos/leto` HEAD `9346413`) is presently uncompilable on the path-dep graph (29 type/visibility errors across `crates/leto-ops/src/application/linalg/iterative/preconditioners/jacobi.rs`, `ilu.rs`, `cg.rs`, `sparse/csr.rs` mod-privacy + generic-`T`-vs-`usize` index comparison). Last destructive code commit `9a82a4d feat(leto-ops): add sparse_lu_solve and SparseLuSolver`. Subsequent commits have been audit doc/test only. Peer is mid-refactor (`ATLAS-LETO-OPS-SPARSE-LU-001` owner context). Assist-ladder (2) decision: skip — fresh and actively held by the leto peer; no claimable periphery in `leto-ops` source that doesn't collide with peer's refactor. Re-verify when peer stabilizes; not coordinator-actionable |
 
 ## Provider integration audit queue — 2026-07-20
 

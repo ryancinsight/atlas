@@ -35,6 +35,12 @@
 - [x] Merge RITK PR #49 as `06cba046` after 21 first-party checks pass, then
       merge Atlas correction PR #87 as `c982fe0` so the graph records the
       merged RITK default rather than its provisional PR head.
+- [x] Advance atlas_ref pin from `c982fe0` to `806c6e7` across all kwavers CI
+      workflows (3 occurrences) so the checkout-path-dependencies action
+      resolves aequitas at `ce3ef7a6` (with acoustic types) instead of
+      `262b3e0` (pre-acoustic-types). Root cause: stale atlas commit in the
+      composite action caused CI to check out aequitas without `Intensity`,
+      `VolumetricPowerDensity`, or `AcousticImpedance`.
 - [ ] Pass the complete Kwavers exact-head hosted matrix.
 - [ ] Merge Kwavers and advance its final Atlas gitlink.
 
