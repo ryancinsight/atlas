@@ -1659,10 +1659,19 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   `x86_64-w64-mingw32-gcc` cannot find `-lcuda` while searching
   `/usr/local/cuda-11.3/lib64/`; no live CUDA parity execution is claimed.
   Whole-workspace debug-tree measurement remains open.
-- Next claimed slice: audit the live 3,160-line
-  `coeus-python/tests/binding_ops/operations/binding_tests_ops.rs` leaf for
-  operation-family separation, preserving the thin PyO3 test boundary and its
-  Python parity coverage.
+- Coeus-Python operation binding split complete at provider commit `0d8784c1`:
+  the live 3,160-line `binding_tests_ops.rs` leaf is now fourteen
+  operation-family leaves with nested NN functional and module directories.
+  The pre/post source census remains 61 unique test functions and all 61
+  extracted Rust function bodies compare equal. The largest test-family leaf is
+  `reductions.rs` at 391 lines; every leaf is below 400 lines. Exact package
+  Nextest passes 75/75 with 0 skipped in 8.079 seconds. Package check,
+  warning-denied Clippy, format, and diff checks pass. Production PyO3,
+  Python parity scripts, and generated artifacts remain unchanged. Whole-
+  workspace debug-tree measurement remains open.
+- Next claimed slice: audit the live 1,262-line
+  `coeus-dist/tests/dist_tests.rs` leaf for operation-family separation and
+  preserve its distributed value-semantic contract tests.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 
