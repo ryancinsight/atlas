@@ -6,6 +6,18 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-PERF-043 — Preserve provider-native sparse-LU ownership [minor]
+
+- [x] Add the provider-owned Leto `ArrayView1` sparse-LU solve boundary.
+- [x] Migrate CFDrs `DirectSparseSolver` to `rhs.view()` and direct `Array1`
+      result ownership.
+- [x] Preserve positive, singular, fallback, and generic `f32`/`f64` value
+      semantics with focused native tests.
+- [x] Run provider and consumer check, warning-denied Clippy, Nextest,
+      doctest, Rustdoc, and provider SemVer gates.
+- [x] Merge Leto PR #70 and CFDrs PR #309; advance the Atlas gitlinks to the
+      merged child revisions.
+
 ## ATLAS-INTEGRATION-042 — Close provider delivery graph [patch]
 
 - [x] Advance Apollo to PR #64 merge `614939fd`.

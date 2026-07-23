@@ -7,6 +7,23 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-PERF-043 — Preserve provider-native sparse-LU ownership [minor] — done
+
+- Owner: Codex `/root`; delivered scope: `repos/leto` sparse-LU provider API,
+  `repos/CFDrs` direct-solver consumer, their focused tests/docs, exact merged
+  provider pin, and these cross-repo evidence entries. Broader solver-family
+  migration, dense-LU algorithm changes, and release/deploy are non-goals.
+- Outcome: `leto_ops::SparseLuSolver::solve_view` accepts `ArrayView1`; CFDrs
+  passes its native `Array1` view and returns the provider-owned result without
+  consumer-side RHS/result `Vec` staging.
+- Acceptance: Leto PR #70 merged at `b24fc860864abad84af3118aa2bb27c32bb81265`;
+  CFDrs PR #309 merged at `74efcceff0c737d09cc3251f24ed37bbb11de232`; provider
+  SemVer checks pass 196/196 with 57 skips; provider sparse Nextest passes
+  29/29; consumer direct-solver Nextest passes 4/4; doctest, Rustdoc, check,
+  and warning-denied Clippy gates pass on the exact child revisions.
+- Evidence limit: memory reduction is established by source/data-flow audit;
+  no runtime allocation profile or speedup claim is made.
+
 ## ATLAS-INTEGRATION-042 — Close provider delivery graph [patch] — in progress
 
 - Owner: Codex `/root`; last-update: 2026-07-22; scope: already-merged Apollo,
