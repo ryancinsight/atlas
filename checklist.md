@@ -6,6 +6,25 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-003 — Close shared CUDA layout ABI [major] [arch]
+
+- [x] Advance Coeus to provider commit `4129d31e` after replacing the
+      truncating public `GpuLayoutInfo` conversion with one crate-private
+      checked `TryFrom<&Layout>` seam and migrating all CUDA layout consumers.
+- [x] Preserve allocation-free descriptor transfer through
+      `bytemuck::cast_slice`; use checked forward convolution output counts;
+      record the breaking-boundary ADR and changelog entry.
+- [x] Verify feature-enabled check, warning-denied Clippy, default Nextest,
+      rustdoc, doctests, semver classification, and exact gitlink integration.
+
+Evidence: the provider's boundary tests compile for valid, rank, mismatch,
+and overflow cases. Default package Nextest passes 3/3 with zero skipped in
+0.053 seconds; rustdoc and doctests pass. Semver checks against the
+pre-change provider revision report the two intentional removed public items
+and classify the change as major. CUDA-feature Nextest remains blocked before
+execution because the Windows GNU linker cannot find `-lcuda` at
+`/usr/local/cuda-11.3/lib64/`.
+
 ## ATLAS-CUDA-SAFETY-002 — Close convolution launch ABI narrowing [patch]
 
 - [x] Advance Coeus to provider commit `1041b20d` after adding checked CUDA

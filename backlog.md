@@ -7,6 +7,24 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-003 — Close shared CUDA layout ABI [major] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `4129d31e` makes `GpuLayoutInfo` crate-private and replaces
+  truncating layout conversion with one checked `TryFrom<&Layout>` seam.
+  Rank, shape/stride rank, offset, shape, and stride violations now return
+  the established dispatch failure result; descriptor serialization remains
+  allocation-free through `bytemuck::cast_slice`. Forward convolution output
+  element counts use checked multiplication.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 in 0.053 seconds; rustdoc and doctests
+  pass; semver checks classify the two removed public implementation items as
+  an intentional major change.
+- Limit: CUDA-feature Nextest cannot link in the current Windows GNU
+  environment because `-lcuda` is absent from
+  `/usr/local/cuda-11.3/lib64/`; no feature-test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-002 — Close convolution launch ABI narrowing [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
