@@ -6,6 +6,23 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-WGPU-CORRECTNESS-001 — Close native WGPU missing operation paths [patch]
+
+- [x] Advance Coeus to provider commit `c8b9a013` after native WGPU
+      unfold/fold and 1D pooling implementation.
+- [x] Verify exact Coeus WGPU evidence: package check, warning-denied Clippy,
+      focused pool1d Nextest 2/2, and full package Nextest 89/89 with zero
+      skipped in 79.311 seconds.
+- [x] Preserve provider-owned device buffers and document the absence of an
+      unmeasured performance claim.
+
+Evidence: Coeus `c8b9a013` replaces four WGPU unfold/fold no-ops and four
+pool1d stubs with native WGSL dispatches, splits the pool1d family into
+manifest/shader/forward/backward leaves, and adds Sequential differential
+coverage for padded/dilated forward and backward behavior. Provider branch
+`main` is pushed; this root increment advances only the `repos/coeus` gitlink
+and its owner-local tracking entries.
+
 ## ATLAS-PERF-043 — Preserve provider-native sparse-LU ownership [minor]
 
 - [x] Add the provider-owned Leto `ArrayView1` sparse-LU solve boundary.

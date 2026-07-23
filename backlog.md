@@ -7,6 +7,20 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-WGPU-CORRECTNESS-001 — Close native WGPU missing operation paths [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `c8b9a013` replaces four WGPU unfold/fold no-ops and four
+  pool1d stubs with native WGSL kernels. The pool1d operation family is
+  vertically split into manifest, shader, forward, and backward leaves.
+- Acceptance: provider package check and warning-denied Clippy pass; focused
+  pool1d Nextest passes 2/2; exact package Nextest passes 89/89 with zero
+  skipped in 79.311 seconds. Provider `main` is pushed and the root gitlink is
+  advanced to `c8b9a013`.
+- Limit: this is a correctness/device-path closure; no performance or
+  allocation improvement is claimed without a controlled baseline.
+
 ## ATLAS-HELIOS-BOOK-087 — Helios mdbook deterministic figure set + prebook xtask [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/helios` only.
