@@ -121,6 +121,16 @@ one `coeus-ops` integration target, `nextest list` reports 87 harness tests,
 and the exact package run passes 196/196. Whole-workspace debug-tree sizing is
 explicitly outside this slice.
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN integration harness consolidation [patch]
+
+- [ ] Move the 33 flat `coeus-nn/tests/*.rs` leaf files under operation-family
+      directories behind one `tests/nn_ops.rs` harness; preserve the existing
+      `nn_tests.rs` harness and `tests/nn/` module tree.
+- [ ] Preserve all 254 test functions and their value-semantic assertions;
+      do not alter fixtures, tolerances, or production NN code.
+- [ ] Verify the integration-target census drops from 34 to 2, test count is
+      unchanged, and package format, Clippy, check, and Nextest pass.
+
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
 - [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,
