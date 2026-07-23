@@ -5,9 +5,9 @@
 - Provider delivery refresh: Apollo PR #64 merges as `614939fd`, Hephaestus PR
   #63 as `b726b39f`, and Moirai PR #83 as `ddb665e9`. Moirai exact head
   `b543b98` passes Rust plus Linux, macOS, and Windows wheel gates and both
-  automated reviews. The remaining cross-repo integration is Kwavers lock
-  regeneration and removal of its temporary therapy-test serialization rule;
-  ATLAS-INTEGRATION-042 owns that residual.
+  automated reviews. Kwavers PR #313 closes the dependent lock regeneration
+  and temporary therapy-test serialization removal; ATLAS-INTEGRATION-042 is
+  complete at merge `31633418b`.
 - Moirai default advances from verified TLS closeout `c870eed` to B1
   parity-scope documentation closeout `850ec96`; the tree is directly based on
   the verified implementation and exact Python-bindings run `29967785231`
@@ -15,11 +15,17 @@
   documentation parent.
 - Kwavers portability PR #312 merges as `1dc60bd7` after exact head
   `b04cf397f` passes Architecture `29963556227`, CI/CD `29963556297`, migration
-  `29963556225`, and benchmark `29963556257`. PR #313 is rebased on that merged
-  default at `b6d85854b`; its duplicate portability/security commits are
-  removed and its lock matches the default byte-for-byte. The final delta is
-  limited to the Moirai scheduler closure, exact Atlas provider pin, scoped
-  certificate-license policy, workflow wiring, and synchronized evidence.
+  `29963556225`, and benchmark `29963556257`. PR #314 merges as `21fc7119` and
+  removes eager imports of optional Python comparison modules. PR #313 exact
+  head `9d7f578f3` passes CI/CD `29969163137`, Architecture `29969163190`,
+  migration `29969163148`, Linux/Windows/macOS wheel smoke `29969163211`, and
+  both automated reviews, then merges as `31633418b`.
+- A peer-created `kwavers-python-v0.1.0` release at pre-fix default
+  `1dc60bd7` failed run `29967429949` because the base import required optional
+  Matplotlib. All wheel uploads, release attachment validation, and PyPI
+  publication were skipped; the release has zero assets. PR #314 corrects the
+  import boundary and PR #313 adds a three-platform pre-release wheel gate.
+  Reissuing or deleting the release remains outside merge authority.
 - `repos/hyperion` held a standalone clone (`.git/` directory, not a gitfile)
   at recorded gitlink `7b4561b`, leaving the submodule unregistered (`-`
   status). Repaired via `git submodule init` + `absorbgitdirs`; the checkout
@@ -42,10 +48,10 @@
   file fails a fresh clone. `helios_workflow_output/` is an untracked
   run-output directory and belongs under the ignore policy per run-output
   segregation.
-- ATLAS-TARGET-001 profile item re-verified blocked: CFDrs, Gaia, Helios,
-  Horae, Kwavers, Leto, and RITK worktrees remain peer-dirty, so the
-  `test opt-level = 2` comparison still cannot run against a clean CFDrs
-  baseline. The `build.jobs` measurement re-opens on an uncontended shared
+- ATLAS-TARGET-001 profile residual is measurement, not a dirty-tree block:
+  CFDrs is clean, but changing its `test opt-level = 2` contract still requires
+  controlled unchanged-workload comparisons at levels 2 and 1. The
+  `build.jobs` measurement likewise re-opens only on an uncontended shared
   `D:/atlas/target` lock.
 - Board hygiene: CR-4 ledger row marked closed with re-verified tree evidence
   (`leto-ops/src/domain/scalar.rs:11`, `coeus-core/src/dtype/traits.rs:295`);
@@ -94,6 +100,14 @@
   and both changed canonical timing binaries below 300 seconds; merge-head run
   `29965624848` is green. This is value-semantic and runtime-budget evidence,
   not a whole-stack debug-build measurement.
+- Hermes PR #16 exact head `4faa851` adds a native vector-to-mask primitive
+  across scalar, AVX2, AVX-512, and NEON backends and uses it to keep extrema
+  search in vector registers. Exact run `29971271586` passes x86 and native
+  AArch64 value-semantic tests, cross-compilation, Miri, dependency policy,
+  documentation, and the committed benchmark budgets before merge
+  `e8b66e46`. Its controlled Criterion evidence reports 8.4-14.1x lower
+  `argmin` latency across 256-16,384 elements; this is kernel evidence, not a
+  whole-stack simulation claim.
 - All sampled package and Kwavers-worktree metadata resolves
   `D:/atlas/target`. Seven stale private targets instead held 9,363 files and
   approximately 4.49 GiB; Cargo removed them without cleaning or blocking the
@@ -116,6 +130,11 @@
 - Evidence limits: hosted wall-clock comparisons establish build-time change;
   clean tree bytes/file counts establish artifact footprint. Neither proves a
   peak-RSS reduction, so no runtime-memory percentage is claimed.
+- A later focused Hermes check exposed cache identity rather than source cost:
+  Rust 1.95 rejected MSYS2 Rust 1.97 artifacts with E0514. Cleaning 12,181
+  files / 3.7 GiB and rebuilding through rustup Cargo completed the all-target
+  Hermes check in 28.17 seconds. The durable machine PATH order is still a
+  user-level configuration decision.
 - Atlas-meta verification from the primary root passes format, warning-denied
   Clippy, checkout-path Nextest 11/11 in 3.746 seconds, and doctests 1/1 in
   1.93 seconds. A peer compile acquired the shared lock between Nextest and the

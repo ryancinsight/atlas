@@ -113,9 +113,22 @@
 
 - Advance Kwavers portability through PR #312 merge `1dc60bd7`. Exact head
   `b04cf397f` passes the complete Architecture, CI/CD, migration, benchmark,
-  review, and three-platform wheel matrix. Rebase the remaining Moirai/provider
-  closure on that default and remove its duplicate portability/security
-  commits before final integration.
+  review, and three-platform wheel matrix. The Moirai/provider closure rebases
+  on that default and removes its duplicate portability/security commits.
+
+- Advance Kwavers through optional-import correction PR #314 merge `21fc7119`
+  and provider closure PR #313 merge `31633418b`. Exact head `9d7f578f3`
+  passes CI/CD, Architecture, both migration audits, Linux/Windows/macOS
+  stable-ABI base-wheel imports, and automated reviews. The base Python import
+  no longer requires comparison extras, and the same contract is now a
+  pre-release wheel gate.
+
+- Advance Hermes through PR #16 merge `e8b66e46`. One native
+  `vector_to_mask` seam spans scalar, AVX2, AVX-512, and NEON implementations;
+  extrema scans stay in vector registers while retaining NaN rejection,
+  first-occurrence, and signed-zero semantics. Exact run `29971271586` passes
+  cross-platform value checks, Miri, documentation, dependency policy, and
+  bounded benchmarks.
 
 - Advance Kwavers to PR #307 merge `0602c1fd4` and close its debug build
   budget. Removing wildcard dependency `opt-level = 3` restores generic sharing

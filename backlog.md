@@ -7,7 +7,7 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-INTEGRATION-042 — Close provider delivery graph [patch] — in progress
+## ATLAS-INTEGRATION-042 — Close provider delivery graph [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-22; scope: already-merged Apollo,
   Hephaestus, and Moirai provider heads, the dependent Kwavers lock and
@@ -37,14 +37,19 @@
   three-platform wheel run `29963043374`. Kwavers portability PR #312 exact
   head `b04cf397f` passes Architecture `29963556227`, CI/CD `29963556297`,
   migration `29963556225`, and benchmark `29963556257`, then merges as
-  `1dc60bd7`. PR #313 is rebased on that default at `b6d85854b`; duplicate
-  portability/security commits are removed, leaving the unique Moirai
-  closure, exact Atlas provider pin, scoped license policy, and synchronized
-  evidence as its final delta.
+  `1dc60bd7`. PR #314 then merges as `21fc7119`, keeping optional Python
+  comparison modules out of the base import. PR #313 exact head `9d7f578f3`
+  passes CI/CD `29969163137`, Architecture `29969163190`, migration
+  `29969163148`, Linux/Windows/macOS base-wheel smoke `29969163211`, and both
+  automated reviews, then merges as `31633418b`. Atlas advances the final
+  Kwavers gitlink to that fetched default.
 - A subsequent Moirai default documentation closeout records the B1 Rayon
   parity-scope ergonomics at `850ec96`, directly atop `c870eed`; exact
   Python-bindings run `29967785231` passes. The final Atlas graph advances to
   that fetched default without changing the verified scheduler implementation.
+- Apollo's follow-on audit-only default `5fdad684` passes exact CI run
+  `29968346932`; Atlas records that fetched default without changing its
+  verified numerical implementation.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — done
 
@@ -1319,10 +1324,9 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   junction aliases are removed, and the former scratch scripts are absent. An
   unregistered stale Winit clone with no Atlas consumer was removed after its
   sole unpushed Linux-cfg commit proved structurally invalid. The RITK graph
-  lane was removed after correction PR #87 merged. The only remaining lanes
-  are this bounded final Atlas integration lane and the active Kwavers
-  portability lane under the canonical `D:\atlas\worktrees/` root. Each repo
-  remains within the main-tree-plus-one-lane bound.
+  lane was removed after correction PR #87 merged. The Kwavers portability
+  lane was removed after PR #313 merged. The bounded final Atlas integration
+  lane is the sole remaining linked worktree in the stack.
 - Done 2026-07-22: a one-hour-stale 13-file Leto rewrite was adjudicated
   against its merged ADR, parity-harness evidence, manifests, and benchmark
   contract. It contained no valid unique delta: it removed independent
@@ -1330,8 +1334,10 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   kernels, and broke the Criterion harness declaration. Exact `origin/main`
   content was restored only for those files; locked metadata passes and Leto
   is clean at `1112cf9` with one worktree.
-- Residual: merge Kwavers PRs #313 and #312, advance the final Atlas graph,
-  then remove both completed lanes and their branches.
+- Done 2026-07-22: Kwavers PRs #312-#314 and Hermes PR #16 are merged. Their
+  completed lanes and merged local branches are removed; both repositories
+  are clean with one worktree. The final Atlas integration lane is the sole
+  remaining linked worktree in the stack and is removed after its merge.
 
 ## ATLAS-TARGET-001 — One build cache, one debug budget [patch] — in-progress (residual)
 
@@ -1367,12 +1373,19 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   canonical `D:/atlas/target` removed 68,854 files and 20.7 GiB. The configured
   shared cache then measured 0 bytes, below the 10-GiB operating budget; the
   final sweep must repeat after any later local gate.
+- Done 2026-07-22: a subsequent peer invocation through the PATH-shadowing
+  MSYS2 Rust 1.97 compiler repopulated the shared cache with incompatible
+  metadata. The pinned Rust 1.95 compiler failed closed with E0514. A verified
+  idle `cargo clean` removed 12,181 poisoned files / 3.7 GiB; rebuilding the
+  focused Hermes all-target check through rustup Cargo completed in 28.17
+  seconds. This proves the failure was cache/toolchain identity, not Hermes
+  source or monomorphization cost.
 - Residual: audit member workspaces with their own `[profile.*]` or `.cargo`
   sections (helios, hermes, CFDrs, coeus, ritk, mnemosyne). CFDrs currently
-  compiles workspace tests at `opt-level = 2`; its dirty peer-owned workspace
-  and active full test build preclude an unmeasured profile edit. Re-open that
-  member as a separate measured increment after the peer work integrates,
-  retaining only runtime- or profiling-justified deviations. Atlas-meta root
+  compiles workspace tests at `opt-level = 2`; the tree is clean, but an
+  unmeasured profile edit remains prohibited. Re-open that member as a separate
+  controlled comparison, retaining only runtime- or profiling-justified
+  deviations. Atlas-meta root
   worktrees copy `.cargo/config.toml` and therefore resolve a lane-local target;
   run meta-tool verification from the primary root until a portable route to
   the canonical cache is implemented and tested. One live sample found three

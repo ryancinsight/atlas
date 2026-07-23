@@ -29,8 +29,10 @@
 - [x] Merge Kwavers portability PR #312 as `1dc60bd7` after exact-head
       Architecture, CI/CD, migration, benchmark, review, and three-platform
       wheel checks pass.
-- [ ] Pass the complete Kwavers exact-head hosted matrix.
-- [ ] Merge Kwavers and advance its final Atlas gitlink.
+- [x] Pass the complete Kwavers exact-head hosted matrix at `9d7f578f3`: CI/CD
+      `29969163137`, Architecture `29969163190`, migration `29969163148`, and
+      three-platform base-wheel smoke `29969163211`.
+- [x] Merge Kwavers as `31633418b` and advance its final Atlas gitlink.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch]
 
