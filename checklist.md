@@ -197,9 +197,30 @@ generated artifacts are unchanged. This is a test-topology and maintainability
 change only; no Python-wheel, production-kernel, memory, or runtime-performance
 delta is claimed.
 
-Next claimed slice: audit the live 1,262-line
-`coeus-dist/tests/dist_tests.rs` leaf for operation-family separation and
-preserve its distributed value-semantic contract tests.
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-dist distributed-contract harness [patch]
+
+- [x] Replace the live 1,262-line `coeus-dist/tests/dist_tests.rs` leaf with
+      one `dist_ops` manifest and local/TCP transport subtrees under
+      `coeus-dist/tests/distributed/`.
+- [x] Preserve all 64 test functions, 64 `#[test]` attributes, panic contracts,
+      collective assertions, and extracted Rust function bodies.
+- [x] Verify one integration target, warning-denied Clippy, package check,
+      format, diff checks, and the exact package Nextest gate.
+
+Evidence: Coeus `c7838d90` contains the complete split. Locked metadata reports
+one `dist_ops` integration target; the pre/post source census remains 64 unique
+test functions and all 64 extracted Rust function bodies compare equal. The
+largest new leaf is `distributed/tcp/errors/collective.rs` at 464 lines; every
+leaf is below 500 lines. Exact package Nextest passes 64/64 with 0 skipped in
+0.444 seconds, with no slow tests. Package check, warning-denied Clippy, format,
+and diff checks pass. Production distributed code and test assertions are
+unchanged; active documentation references the `dist_ops` manifest. This is a
+test-topology and maintainability change only; no runtime or memory delta is
+claimed.
+
+Next claimed slice: audit the live 902-line
+`coeus-nn/tests/nn_ops/losses/nn_loss_tests.rs` leaf for operation-family
+separation while preserving its value-semantic loss contracts.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 

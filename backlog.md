@@ -1669,9 +1669,19 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   warning-denied Clippy, format, and diff checks pass. Production PyO3,
   Python parity scripts, and generated artifacts remain unchanged. Whole-
   workspace debug-tree measurement remains open.
-- Next claimed slice: audit the live 1,262-line
-  `coeus-dist/tests/dist_tests.rs` leaf for operation-family separation and
-  preserve its distributed value-semantic contract tests.
+- Coeus-dist distributed-contract split complete at provider commit `c7838d90`:
+  the live 1,262-line `dist_tests.rs` leaf is now one `dist_ops` manifest with
+  local and TCP transport subtrees, separated into collective, reduction,
+  invalid-input, and mesh-boundary families. The pre/post source census remains
+  64 unique test functions, all 64 `#[test]` attributes remain present, and
+  all 64 extracted Rust function bodies compare equal. The largest new leaf is
+  `distributed/tcp/errors/collective.rs` at 464 lines; every leaf is below 500
+  lines. Exact package Nextest passes 64/64 with 0 skipped in 0.444 seconds,
+  with no slow tests. Package check, warning-denied Clippy, format, and diff
+  checks pass. Whole-workspace debug-tree measurement remains open.
+- Next claimed slice: audit the live 902-line
+  `coeus-nn/tests/nn_ops/losses/nn_loss_tests.rs` leaf for operation-family
+  separation while preserving its value-semantic loss contracts.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 
