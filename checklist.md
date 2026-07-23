@@ -6,6 +6,25 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-BUILD-STRUCTURE-005 — Close CUDA operation impl hierarchy [patch]
+
+- [x] Advance Coeus to provider commit `2fb00ed6` after moving eight CUDA
+      operation trait implementations into `backend/ops/impls/`
+      operation-family leaves.
+- [x] Verify exact Coeus CUDA evidence: package check and warning-denied
+      Clippy in default and `cuda` configurations, locked metadata, default
+      package Nextest 3/3 with zero skipped in 0.059 seconds, and all-targets
+      CUDA-feature check.
+- [x] Preserve public CUDA helper module ownership in the 11-line manifest;
+      compare all eight moved impl blocks with the pre-change source.
+
+Evidence: provider `main` is pushed; this root increment advances only the
+`repos/coeus` gitlink and its owner-local tracking entries. The default
+Nextest gate is green. The CUDA-feature Nextest link step remains blocked by
+the environment's missing `-lcuda` library at `/usr/local/cuda-11.3/lib64/`;
+no feature-test pass is claimed. This is a module-topology/maintainability
+increment with no runtime, memory, or performance claim.
+
 ## ATLAS-BUILD-STRUCTURE-004 — Close CPU operation impl hierarchy [patch]
 
 - [x] Advance Coeus to provider commit `1a28b64b` after moving eight CPU

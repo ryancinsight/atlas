@@ -7,6 +7,22 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-BUILD-STRUCTURE-005 — Close CUDA operation impl hierarchy [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `2fb00ed6` moves eight CUDA operation trait impl blocks into
+  `coeus-cuda/src/backend/ops/impls/`; the operation manifest is 11 lines and
+  each impl leaf is below 301 lines.
+- Acceptance: provider default and `cuda`-feature package checks and
+  warning-denied Clippy pass; locked metadata remains one library, one
+  `cuda_ops` integration target, and two benchmarks. Default package Nextest
+  passes 3/3 with zero skipped in 0.059 seconds. Provider `main` is pushed and
+  the root gitlink is advanced to `2fb00ed6`.
+- Limit: the CUDA-feature Nextest link step cannot resolve `-lcuda` on this
+  Windows GNU environment because `/usr/local/cuda-11.3/lib64/` is absent.
+  No feature-test pass or runtime, memory, or performance delta is claimed.
+
 ## ATLAS-BUILD-STRUCTURE-004 — Close CPU operation impl hierarchy [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
