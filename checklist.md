@@ -108,13 +108,18 @@
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus integration harness consolidation [patch]
 
-- [ ] Move the 36 `coeus-ops/tests/*.rs` integration binaries under the
+- [x] Move the 36 `coeus-ops/tests/*.rs` integration binaries under the
       hierarchical `tests/ops/` module tree and add one `tests/ops.rs` harness.
-- [ ] Preserve all 87 test functions and module-local value-semantic behavior;
+- [x] Preserve all 87 test functions and module-local value-semantic behavior;
       do not weaken assertions, alter inputs, or add compatibility wrappers.
-- [ ] Verify the Cargo target census drops from 36 test binaries to 1 while
+- [x] Verify the Cargo target census drops from 36 test binaries to 1 while
       the Nextest test-function count remains 87; run format, Clippy, and the
       focused provider gate.
+
+Evidence: Coeus `f67789c4` contains the complete slice. Locked metadata reports
+one `coeus-ops` integration target, `nextest list` reports 87 harness tests,
+and the exact package run passes 196/196. Whole-workspace debug-tree sizing is
+explicitly outside this slice.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 

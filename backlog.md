@@ -1509,9 +1509,9 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Acceptance: budget enforcement merged in the runner + full-stack bench sweep completes within per-binary bounds; breaches root-caused and fixed or filed with derivation.
 - Done 2026-07-22: `enforce-budget` subcommand in tools/criterion-regression — modes smoke (bench single-iteration, 60s), timing (full measurement, 300s), examples (60s), `--bound-seconds`/`--skip` overrides. Compiles unbounded, executes binaries directly (killing cargo would orphan the bench grandchild) with CARGO_TARGET_DIR pinned to the shared target (no minted repo-local target/), fail-closed exit. Validated: themis smoke/timing clean; eunomia timing at 5s bound → breach terminated mid-measurement, exit 1. Gates: clippy pedantic clean, 21/21 nextest, doc clean.
 - Residual: full-stack sweep at committed bounds (probe per repo; live peer scopes deferred to their completion), CI wiring per repo workflow convention, and suite resizing per breach (flat sampling, geometric sweeps) or kernel optimization per farsight.
-## ATLAS-BUILD-STRUCTURE-001 — Consolidate leaf binaries; compiler-last dev profiles [patch] — in progress
+## ATLAS-BUILD-STRUCTURE-001 — Consolidate leaf binaries; compiler-last dev profiles [patch] — done
 
-- Owner: Codex `/root`; last-update: 2026-07-23; current vertical slice:
+- Owner: Codex `/root` (complete); last-update: 2026-07-23; completed vertical slice:
   `repos/coeus/coeus-ops/tests/**` only. Peer-owned member profiles and other
   repository test trees remain out of scope.
 - Claim: consolidate the 36 flat `coeus-ops` Rust integration-test binaries
@@ -1523,6 +1523,15 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Evidence 2026-07-22: ~950 leaf binaries stack-wide, each a full link with own incremental cache and PDB — tests/examples per repo: CFDrs 118/66, coeus 110/2, kwavers 94/62, consus 55/0, ritk 28/7, hermes 20/4, moirai 15/22, melinoe 15/1, others <=11. Dev-profile audit: helios declares wildcard `[profile.dev.package."*"] opt-level = 3` (the pattern removed from kwavers in PR #307); kwavers `opt-level = 1` with documented 5-10x PSTD justification is the sanctioned named-and-measured form. The shared incremental tree reached 27,085 session directories and approximately 489 GiB in five days, making leaf-target consolidation and CI `CARGO_INCREMENTAL=0` the next measured size levers.
 - Scope: (1) consolidate each repo's tests/*.rs into one-or-few area harness binaries (`tests/<area>/main.rs` with modules) — nextest still isolates per test function in its own process, so coverage and isolation are unchanged while link count, incremental caches, and debug artifacts drop by the file count; worst offenders first (CFDrs, coeus, kwavers, consus, ritk, hermes); (2) merge near-duplicate examples per consolidation_discipline; (3) replace wildcard dev dependency opt raises with named, measured, per-package exceptions (helios first, peer-held — coordinate via board); (4) record per-repo binary-target count and debug-tree size before/after as the acceptance measurement.
 - Acceptance: binary-target census reduced and recorded per repo; debug-tree size delta measured against the shared cache; test function count unchanged (no coverage loss); no wildcard dev opt-level overrides remain without a named measured justification.
+- Completed vertical slice: Coeus `coeus-ops/tests` moved from 36 flat
+  integration targets to one `ops` target with ten operation-family
+  directories. The harness exposes 87 integration tests and the exact
+  package Nextest run passes 196/196; whole-workspace debug-tree measurement
+  remains a later bounded slice.
+- Evidence: warning-denied Clippy, package check, format, and diff checks pass
+  on Coeus commit `f67789c4`; the 87 harness tests are unchanged by source
+  count and all 196 package tests pass. This item is closed for the bounded
+  Coeus slice; the broader stack-wide debug-tree delta remains open work.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 
