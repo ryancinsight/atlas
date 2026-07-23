@@ -7,6 +7,22 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-002 — Close convolution launch ABI narrowing [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `1041b20d` validates convolution launch layouts, parameters,
+  element counts, channel counts, and grid sizes before crossing the CUDA
+  `u32` ABI. The launcher is vertically organized into an 8-line manifest,
+  validation leaf, forward leaf, and three backward dimension leaves.
+- Acceptance: CUDA-feature all-targets check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.053 seconds.
+  Provider `main` is pushed and the root gitlink is advanced to `1041b20d`.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`. Shared
+  layout serialization and caller-side forward element-count calculation
+  remain separate residuals; no performance claim is made.
+
 ## ATLAS-CUDA-SAFETY-001 — Close convolution launch panic [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

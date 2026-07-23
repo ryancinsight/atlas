@@ -6,6 +6,24 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-002 — Close convolution launch ABI narrowing [patch]
+
+- [x] Advance Coeus to provider commit `1041b20d` after adding checked CUDA
+      `u32` boundary validation for convolution layouts, parameters, element
+      counts, channel counts, and derived grid sizes.
+- [x] Verify the vertical tree: an 8-line launch manifest, shared validation,
+      forward, and three per-dimensional backward leaves from 32 to 268 lines.
+- [x] Verify CUDA-feature all-targets check and warning-denied Clippy, the
+      default package Nextest 3/3 with zero skipped in 0.053 seconds, and the
+      source audit for removed unchecked casts/products/indexing/panics.
+
+Evidence: provider `main` is pushed; this root increment advances only the
+`repos/coeus` gitlink and its owner-local tracking entries. CUDA-feature
+Nextest remains blocked before execution because the Windows GNU linker cannot
+find `-lcuda` at `/usr/local/cuda-11.3/lib64/`. Shared `GpuLayoutInfo`
+serialization and caller-side forward element-count calculation remain open
+residuals; no performance claim is made.
+
 ## ATLAS-CUDA-SAFETY-001 — Close convolution launch panic [patch]
 
 - [x] Advance Coeus to provider commit `7e8e1ee2` after changing the CUDA
