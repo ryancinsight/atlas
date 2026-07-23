@@ -1543,6 +1543,10 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   while the three other direct targets move behind one `autograd_ops` harness.
   The four integration targets reduce to two; the exact package run passes
   94/94 with 0 skipped. Whole-workspace debug-tree measurement remains open.
+- Next claimed slice: Coeus `coeus-tensor/tests` has 13 flat integration
+  targets and 57 listed package tests. Move the operation-family leaves behind
+  one `tensor_ops` harness without changing tensor production code or test
+  assertions.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

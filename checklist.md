@@ -150,6 +150,15 @@ metadata reports `autograd_ops` and `autograd_tests`; exact package Nextest
 passes 94/94 with 0 skipped. The broader stack-wide debug-tree measurement
 remains open.
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-tensor integration harness consolidation [patch]
+
+- [ ] Move the 13 flat `coeus-tensor/tests/*.rs` files into operation-family
+      directories behind one `tests/tensor_ops.rs` harness.
+- [ ] Preserve all 57 listed package tests and their value-semantic assertions;
+      do not alter fixtures, tolerances, or tensor production code.
+- [ ] Verify the integration-target census drops from 13 to 1 while Nextest
+      remains 57/57; run format, Clippy, check, and the focused package gate.
+
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
 - [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,
