@@ -7,6 +7,34 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-HELIOS-BOOK-087 — Helios mdbook deterministic figure set + prebook xtask [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/helios` only.
+- Outcome: H-087 closes the gap between the (already-staged) `docs/book/`
+  chapter scaffolds and committed deterministic figures.  Seven hand-authored
+  SVGs committed under `repos/helios/docs/book/figures/`:
+  `photon_attenuation_depth.svg`, `ct_calibration_curve.svg`,
+  `radon_sinogram_disk.svg`, `dvh_curve.svg`, `dose_slice_heatmap.svg`,
+  `helical_mlc_fluence.svg`, `architecture_stack.svg`.  Each is linked
+  from `SUMMARY.md` and the corresponding example chapter (radon, photon
+  attenuation, dvh, tomotherapy_workflow); the README carries the
+  single-file figure index.  `helios/xtask` gains a `prebook` subcommand
+  (`repos/helios/xtask/src/prebook.rs`) that verifies + SHA-256-hashes
+  the figure set into `docs/book/figures/MANIFEST.json`.  The manifest is
+  byte-deterministic across repeated runs on unchanged inputs.  Appendix F
+  is added to `SUMMARY.md` pointing back to
+  `repos/parity_artefacts/INDEX.md`, which now carries a per-book figure-
+  manifest section listing each atlas’s committed figure set.
+- Acceptance: `cd repos/helios && mdbook build docs/book` exits 0 (no
+  `[WARN]` rows), `python3 scripts/check_mdbook_links.py
+  repos/helios/docs/book` returns `FILE_MISSING : 0`, and `cargo run -p
+  xtask -- prebook` regenerates `MANIFEST.json` with stable hex
+  fingerprints across two consecutive runs.
+- Risk/change class: `[patch]`; documentation / tooling increment with no
+  production-code change.  No peer provider graph touched.
+- Evidence limit: mdbook `FILE_MISSING : 0` per chapter; `xtask prebook`
+  byte-determinism across two runs.
+
 ## ATLAS-RITK-655 — RITK B-spline bounded dense hot-path closure [minor] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/ritk` only.
@@ -1563,3 +1591,9 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Evidence 2026-07-23: three books carry internal-migration process parts — CFDrs `docs/book` Part VII "Atlas Stack Integration (Migration Reference)" (13 files incl. appendix_changelog.md, appendix_migration.md); helios Part VIII (13 files incl. appendix_changelog.md); kwavers Part VI (10 files incl. migration_quick_reference.md). All three repos peer-held at filing time — owners coordinate via board, disjoint from live scopes.
 - Scope per repo: (1) delete the Migration Reference part and changelog/migration appendices from SUMMARY.md and the tree, salvaging any genuine theory-to-API mapping into usage chapters first (information preserved, then deletion — no orphaned SUMMARY entries; book builds green after); (2) audit the remaining book against the Domain-book rule — fundamentals-first structure, tested samples, figures from committed plotting code — and file chapter-gap DoR items; (3) repos with domain scope but no book (e.g. ritk, coeus, gaia, apollo, hephaestus) get an outline-first book item each.
 - Acceptance: no migration/status/changelog chapters remain in any book; each touched book builds in CI with tested samples; gaps filed as DoR items per repo.
+
+## ATLAS-MNEMOSYNE-001 — Allocator observability and adversarial-stress audit [patch] — todo
+
+- Policy: AGENTS.md performance_engineering "Allocation strategy & fragmentation" + verification_policy continuous verification (claims-vs-code). Context: mnemosyne already implements the core allocator lessons (size classes, thread-local fast paths, snmalloc-style cross-thread free queues, orphan adoption, decay, secure poisoning, cache-line page metadata) — this audit verifies the observability and adversarial evidence behind those claims, not the design.
+- Scope (verify each against code, file gaps as DoR items): (1) fragmentation observability — telemetry exposes per-size-class utilization and live-bytes vs resident-set divergence, the operational fragmentation signal; (2) adversarial fragmentation stress — a committed suite alternating size classes with pinned survivors under a steady-state RSS bound (the interleaving pattern that pins spans), run-output segregated; (3) decay verification — mnemosyne-decay empty-span purge is tested for actual RSS return, not just span accounting; (4) cross-thread free queues carry loom coverage per standards concurrency correctness (bounded-exhaustive, bound stated) plus a producer-consumer free-storm benchmark (alloc on thread A, free on thread B); (5) realloc in-place extension coverage; (6) differential correctness vs the system allocator under churn (existing conformance suite check).
+- Acceptance: each item verified with evidence recorded (or gap filed with its DoR item) in the mnemosyne repo board; no claim in the README stands without a matching test, metric, or benchmark.
