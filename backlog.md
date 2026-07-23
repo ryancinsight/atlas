@@ -1612,10 +1612,16 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   `backend/wgpu/`. Exact package Nextest passes 85/85 with 0 skipped; the moved
   source files are content-identical renames and production GPU code is
   unchanged. Whole-workspace debug-tree measurement remains open.
-- Next claimed slice: `coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity.rs` is an
-  808-line multi-family leaf. Split its shared oracle helpers and parity tests
-  into operation-family modules under `parity/`, preserving the exact 85-test
-  package surface and all tolerance/value assertions.
+- Coeus-WGPU parity split complete at provider commit `149aadb5`: the 808-line
+  multi-family leaf is now a shared oracle manifest plus seven operation-family
+  modules. The pre/post source-name census remains 47 unique parity identifiers;
+  exact package Nextest passes 85/85 with 0 skipped. Every new leaf is below
+  500 lines; production kernels and fixtures are unchanged. Whole-workspace
+  debug-tree measurement remains open.
+- Next claimed slice: Coeus `coeus-leto/tests` has two direct integration targets
+  (`contract.rs` and `sparse_dispatch.rs`) with 26 listed tests. Consolidate them
+  behind one hierarchical contract/dispatch harness while preserving all
+  cross-provider assertions.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

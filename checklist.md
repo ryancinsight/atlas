@@ -246,13 +246,29 @@ not a production GPU or whole-workspace debug-tree performance claim.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU parity-family split [patch]
 
-- [ ] Split `coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity.rs` into cohesive
+- [x] Split `coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity.rs` into cohesive
       operation-family modules under a `parity/` hierarchy, keeping the shared
       CPU/GPU oracle helpers in one manifest.
-- [ ] Preserve all generated and explicit parity tests, tolerances, and the
+- [x] Preserve all generated and explicit parity tests, tolerances, and the
       exact package Nextest result; do not change production kernels or fixtures.
-- [ ] Keep each new parity leaf below the 500-line structural target where
+- [x] Keep each new parity leaf below the 500-line structural target where
       domain cohesion permits, and verify format, Clippy, check, and Nextest.
+
+Evidence: Coeus `149aadb5` contains the complete parity split. The pre/post
+source-name census remains 47 unique parity identifiers; exact package Nextest
+passes 85/85 with 0 skipped in 80.113 seconds. The largest new parity leaf is
+`elementwise.rs` at 287 lines; all seven leaves are below 500 lines. Package
+check, warning-denied Clippy, format, and diff checks pass.
+
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto integration harness consolidation [patch]
+
+- [ ] Move the two flat `coeus-leto/tests/*.rs` targets into one hierarchical
+      harness with contract and sparse-dispatch operation families.
+- [ ] Preserve all 26 listed integration tests and their cross-provider
+      contract assertions; do not alter provider APIs, fixtures, or tolerances.
+- [ ] Verify the integration-target census drops from 2 to 1 while the exact
+      package test count remains unchanged; run format, Clippy, check, and the
+      focused Nextest gate.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
