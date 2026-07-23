@@ -277,9 +277,27 @@ diff checks pass. Production NN code, fixtures, formulas, and tolerances are
 unchanged. This is a test-topology and maintainability change only; no
 production activation runtime or memory delta is claimed.
 
-Next claimed slice: audit `coeus-leto/tests/leto_ops/contract.rs` (505 lines)
-for arithmetic, layout, shape, and accumulation contract-family separation;
-preserve all cross-provider value oracles and failure contracts.
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto contract-family split [patch]
+
+- [x] Split the live 505-line `leto_ops/contract.rs` leaf into arithmetic,
+      reductions, matmul, layout, and accumulation modules under
+      `coeus-leto/tests/leto_ops/contract/`.
+- [x] Preserve all 26 contract tests, 26 `#[test]` attributes, shared layout
+      oracle behavior, and extracted Rust test function bodies.
+- [x] Keep one `leto_ops` integration target and verify package check, format,
+      diff checks, warning-denied Clippy, and exact package Nextest.
+
+Evidence: provider commit `97d94566` preserves 26 unique contract tests and
+all 26 extracted Rust test function bodies. The largest new leaf is `layout.rs`
+at 197 lines; every new leaf is below 200 lines. Exact package Nextest passes
+28/28 with 0 skipped in 0.325 seconds, and locked metadata reports one
+`leto_ops` integration target. Production Leto dispatch code and test oracles
+remain unchanged. This is a test-topology and maintainability change only; no
+production runtime, memory, or zero-copy delta is claimed.
+
+Next claimed slice: run a fresh structural audit of the remaining Coeus test
+tree and take the next real family-boundary increment, if a live leaf exceeds
+the hierarchy trigger without violating test cohesion.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 

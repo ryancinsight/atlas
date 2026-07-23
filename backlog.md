@@ -1709,9 +1709,20 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   warning-denied Clippy, format, and diff checks pass. Production NN code,
   fixtures, formulas, and tolerances remain unchanged; whole-workspace
   debug-tree measurement remains open.
-- Next claimed slice: audit `coeus-leto/tests/leto_ops/contract.rs` (505 lines)
-  for arithmetic, layout, shape, and accumulation contract-family separation;
-  preserve all cross-provider value oracles and failure contracts.
+- Coeus-Leto contract-family split complete at provider commit `97d94566`:
+  the live 505-line `leto_ops/contract.rs` leaf is now a manifest with
+  arithmetic, reductions, matmul, layout, and accumulation families under
+  `coeus-leto/tests/leto_ops/contract/`. The pre/post source census remains
+  26 unique contract tests and all 26 extracted Rust test function bodies
+  compare equal. The largest new leaf is `layout.rs` at 197 lines; every new
+  leaf is below 200 lines. Locked metadata reports one `leto_ops` integration
+  target. Exact package Nextest passes 28/28 with 0 skipped in 0.325 seconds.
+  Package check, warning-denied Clippy, format, and diff checks pass.
+  Production Leto dispatch code and test oracles remain unchanged; whole-
+  workspace debug-tree measurement remains open.
+- Next claimed slice: run a fresh structural audit of the remaining Coeus test
+  tree and take the next real family-boundary increment, if a live leaf exceeds
+  the hierarchy trigger without violating test cohesion.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 
