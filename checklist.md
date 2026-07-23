@@ -152,12 +152,19 @@ remains open.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-tensor integration harness consolidation [patch]
 
-- [ ] Move the 13 flat `coeus-tensor/tests/*.rs` files into operation-family
+- [x] Move the 13 flat `coeus-tensor/tests/*.rs` files into operation-family
       directories behind one `tests/tensor_ops.rs` harness.
-- [ ] Preserve all 57 listed package tests and their value-semantic assertions;
-      do not alter fixtures, tolerances, or tensor production code.
-- [ ] Verify the integration-target census drops from 13 to 1 while Nextest
-      remains 57/57; run format, Clippy, check, and the focused package gate.
+- [x] Preserve the 53 annotated integration tests and their value-semantic
+      assertions; do not alter fixtures, tolerances, or tensor production code.
+- [x] Verify the integration-target census drops from 13 to 1 while the exact
+      package Nextest run passes 58/58; run format, Clippy, check, and the
+      focused package gate.
+
+Evidence: Coeus `49bb5858` contains the complete slice. Locked metadata reports
+one `coeus-tensor` integration target (`tensor_ops`); the source census remains
+53 annotated integration tests and exact package Nextest passes 58/58 with
+0 skipped, including five library unit tests. Whole-workspace debug-tree sizing
+is explicitly outside this slice.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
