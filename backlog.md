@@ -1538,6 +1538,11 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   harness, preserving the 268 total package tests. The 34 direct test targets
   reduced to 2 (`nn_ops` and `nn_tests`); the exact package run passes
   268/268 with 0 skipped. Whole-workspace debug-tree measurement remains open.
+- Next claimed slice: Coeus `coeus-autograd/tests` preserves the existing
+  `autograd_tests.rs` harness and `tests/autograd/` module tree while the three
+  other direct targets (`grid_sample_3d`, `linear_interpolation`, and
+  `selective_scan`) move behind one `autograd_ops` harness. The baseline is
+  four integration targets and 94 listed package tests.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 
