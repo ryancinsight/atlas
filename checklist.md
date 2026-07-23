@@ -123,13 +123,17 @@ explicitly outside this slice.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN integration harness consolidation [patch]
 
-- [ ] Move the 33 flat `coeus-nn/tests/*.rs` leaf files under operation-family
+- [x] Move the 33 flat `coeus-nn/tests/*.rs` leaf files under operation-family
       directories behind one `tests/nn_ops.rs` harness; preserve the existing
       `nn_tests.rs` harness and `tests/nn/` module tree.
-- [ ] Preserve all 254 test functions and their value-semantic assertions;
+- [x] Preserve all 268 package tests and their value-semantic assertions;
       do not alter fixtures, tolerances, or production NN code.
-- [ ] Verify the integration-target census drops from 34 to 2, test count is
+- [x] Verify the integration-target census drops from 34 to 2, test count is
       unchanged, and package format, Clippy, check, and Nextest pass.
+
+Evidence: Coeus-NN package check and warning-denied Clippy pass; locked
+metadata reports `nn_ops` and `nn_tests`; exact package Nextest passes 268/268
+with 0 skipped. The broader stack-wide debug-tree measurement remains open.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 

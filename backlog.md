@@ -1532,10 +1532,12 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   on Coeus commit `f67789c4`; the 87 harness tests are unchanged by source
   count and all 196 package tests pass. This item is closed for the bounded
   Coeus slice; the broader stack-wide debug-tree delta remains open work.
-- Next claimed slice: Coeus `coeus-nn/tests` top-level files only. The existing
+- Coeus-NN slice complete at provider commit `95bb9090`: the existing
   `nn_tests.rs` harness and its already hierarchical `tests/nn/` modules stay
-  intact; the 33 other direct test binaries will move behind one `nn_ops`
-  harness, preserving the 254 total test functions.
+  intact while the 33 other direct test binaries move behind one `nn_ops`
+  harness, preserving the 268 total package tests. The 34 direct test targets
+  reduced to 2 (`nn_ops` and `nn_tests`); the exact package run passes
+  268/268 with 0 skipped. Whole-workspace debug-tree measurement remains open.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 
