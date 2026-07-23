@@ -42,7 +42,7 @@ oracles.
 | `HELIOS-AEQ-MET-02` | gamma analysis | `dta_mm`, normalization dose, low-dose cutoff, and dose-difference inputs were raw `T`; only the gamma field and pass rate are dimensionless. | Helios | **RESOLVED.** Helios PR #26 merged as `810bb2893723038f26f147847135b7a9e16e04e4` from implementation `07c7768`. Gamma distance/search radius use `Length`, normalization/cutoff/pass-rate thresholds use `AbsorbedDose`, and scalar gamma/pass-rate results retain Low, local/global, grid, and end-to-end value semantics. Local analysis 31/31 and simulation end-to-end 3/3 passed; hosted Rust/benchmark jobs were still running at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-03` | delivery and portal dosimetry | `DeliveryFrame::leaf_fluence`, total delivered fluence, leaf width, ray step, and beam geometry distances were raw values; portal code typed fluence only internally before converting it back. | Helios | **RESOLVED.** Helios PR #27 merged as `888015e0e2a4b03b8c1e25c7a8befcdc098fd98b` from implementation `6ae6c62`. Delivery frames, collimation, portal transmission, total fluence, and dose geometry use `EnergyPerArea`/`Length`; conversion occurs at the millimetre ray/voxel boundary. Local simulation 38/38, analysis 31/31, checks, Clippy, doctests, Rustdoc, mdBook, format, and diff gates passed. Hosted Rust/Python/benchmark jobs were still running at merge and `recurseml/analysis` errored; no hosted-green claim is made. |
 | `KWAVERS-AEQ-MET-01` | `ThermalCEM43Grid` and HIFU planning results | Thermal dose outputs, thresholds, peak temperature, dwell time, and time-to-dose remain raw scalars. CEM43 is an equivalent-time clinical quantity, not an SI dose alias. | Kwavers | Ready, consumer-owned. Introduce a validated CEM43/equivalent-time type backed by Aequitas `Time`; type temperature and duration outputs without pretending CEM43 is `AbsorbedDose`. |
-| `KWAVERS-AEQ-MET-02` | pulsed laser/photoacoustic source | Peak/average power, pulse duration, repetition frequency, wavelength, beam radii, and peak fluence are raw public fields/results. | Kwavers | Ready. Use existing `Power`, `Time`, `Frequency`, `Length`, and `EnergyPerArea`; verify the Gaussian/top-hat fluence equations. |
+| `KWAVERS-AEQ-MET-02` | pulsed laser/photoacoustic source | Peak/average power, pulse duration, repetition frequency, wavelength, beam radii, and peak fluence are raw public fields/results. | Kwavers | **RESOLVED.** Kwavers PR #322 merged as `c2cf44c87a503f75b93d6c3a64f26aeba0a6ca1e` from implementation `4a997829`; `PulsedLaser` and `BeamProfile` now use `Power`, `Time`, `Frequency`, `Length`, `Energy`, and `EnergyPerArea`. Gaussian, flat-top, and Bessel fluence equations plus typed average-power value regressions pass locally; package check, focused nextest 2/2, warning-denied Clippy, doctests, Rustdoc, format, and diff gates passed. Hosted checks were still running at merge; `recurseml/analysis` errored and CodeRabbit succeeded, so no hosted-green claim is made. |
 | `KWAVERS-AEQ-MET-03` | transducer frequency, geometry, and Rayleigh models | Frequency response, element dimensions/area/volume, propagation range, wavelength, attenuation, and acoustic impedance cross public APIs as `f64`. | Kwavers | Ready. Migrate each bounded module with typed constructors/results; dimensionless Q, bandwidth fraction, directivity, and reflection coefficients remain scalar. |
 | `KWAVERS-AEQ-MET-04` | vessel analysis | Diameter, total vessel length, centerline coordinates, and Doppler-derived velocity are raw or voxel-unit values and rely on a caller-applied spacing convention. | Kwavers | Boundary-dependent. First make voxel spacing an explicit validated `Length` input; then return physical `Length`/`Velocity` and test the Doppler law. |
 | `KWAVERS-AEQ-MET-05` | thermal material and perfusion models | Conductivity/density/specific heat are typed internally but accessors and perfusion parameters return raw values; the existing thermal-dose path also exposes raw fields. | Kwavers / Proteus where the bundle owns the contract | Partial. Preserve the Proteus thermophysical bundle as SSOT; type consumer accessors and add a provider quantity only when a required perfusion-rate contract is established. |
@@ -55,11 +55,13 @@ oracles.
 - Cavitation numbers, shear/flow coefficients, contrast factors, CVs, risk
   scores, probabilities, CEM43 thresholds as clinical model parameters, and
   other ratios remain dimensionless or consumer-semantic values.
-- The next implementation order is: Helios image-quality API partition; Kwavers
-  pulsed-laser/transducer result contracts; CFDrs typed report carriers; then
-  the Aequitas volumetric-energy-density extension and the dependent acoustic
-  report. Each slice must update its child audit and use its strongest value
-  or analytical oracle before the next slice starts.
+- The next implementation order is: Kwavers CEM43/HIFU result contracts;
+  Kwavers transducer result contracts; CFDrs typed report carriers; then the
+  Aequitas volumetric-energy-density extension and the dependent acoustic
+  report. Helios image-quality API partition remains a separate follow-up after
+  its three identified physical-metric boundaries are closed. Each slice must
+  update its child audit and use its strongest value or analytical oracle before
+  the next slice starts.
 
 ## Provider-native sparse-LU ownership (2026-07-23)
 
