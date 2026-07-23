@@ -180,6 +180,17 @@ one `coeus-sparse` integration target (`sparse_ops`); exact package Nextest
 passes 19/19 with 0 skipped in 0.713 seconds. Whole-workspace debug-tree sizing
 is explicitly outside this slice.
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-core integration harness consolidation [patch]
+
+- [ ] Move the four flat `coeus-core/tests/*.rs` files into storage,
+      dependency-policy, and scalar directories behind one `tests/core_ops.rs`
+      harness.
+- [ ] Preserve the 14 integration cases and the seven existing library unit
+      tests; do not alter the dependency policy, scalar contracts, or storage
+      assertions.
+- [ ] Verify the integration-target census drops from 4 to 1 while the package
+      Nextest run remains 21/21; run format, Clippy, check, and the focused gate.
+
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
 - [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,
