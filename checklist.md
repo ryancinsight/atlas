@@ -6,6 +6,23 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-004 — Close reduction launch ABI [patch] [arch]
+
+- [x] Advance Coeus to provider commit `dfe23979` after promoting shared CUDA
+      validation to `kernels::validation` and applying it to standard and
+      fused reduction dispatch.
+- [x] Verify checked reduction layouts, axes, expression ranks, output
+      counts, parameter narrowing, and grid sizes; remove fused-expression
+      panic and raw layout serialization; retain native dispatch.
+- [x] Verify feature-enabled check, warning-denied Clippy, default Nextest,
+      rustdoc, doctests, overflow regressions, and exact gitlink integration.
+
+Evidence: provider reduction source has no input-dependent `as u32`, unchecked
+output product, expression-shape indexing, or panic. Default package Nextest
+passes 3/3 with zero skipped in 0.046 seconds; rustdoc and doctests pass.
+CUDA-feature Nextest remains blocked before execution because the Windows GNU
+linker cannot find `-lcuda` at `/usr/local/cuda-11.3/lib64/`.
+
 ## ATLAS-CUDA-SAFETY-003 — Close shared CUDA layout ABI [major] [arch]
 
 - [x] Advance Coeus to provider commit `4129d31e` after replacing the

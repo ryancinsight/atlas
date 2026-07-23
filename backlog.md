@@ -7,6 +7,23 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-004 — Close reduction launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `dfe23979` promotes CUDA `u32`, checked element-count,
+  layout-fit, and grid-size validation to one `kernels::validation` SSOT and
+  applies it to standard and fused reduction. Missing or over-rank fused
+  expression shapes now return the established dispatch failure result;
+  layout-vector serialization uses safe POD casting.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.046 seconds;
+  rustdoc and doctests pass; reduction source audit is clean for unchecked
+  casts, products, input indexing, and panics.
+- Limit: CUDA-feature Nextest cannot link in this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-003 — Close shared CUDA layout ABI [major] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
