@@ -227,6 +227,17 @@ one `coeus-python` integration target (`binding_ops`); exact all-features
 Nextest passes 75/75 with 0 skipped in 6.585 seconds. Whole-workspace
 debug-tree sizing is explicitly outside this slice.
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU integration harness consolidation [patch]
+
+- [ ] Move the two flat `coeus-wgpu/tests/*.rs` targets into one hierarchical
+      `tests/wgpu_ops.rs` harness with fused-operation and backend-operation
+      families; preserve the existing nested WGPU test modules.
+- [ ] Preserve all 63 listed WGPU/fused test functions and their value-semantic
+      assertions; do not alter production kernels, tolerances, or fixtures.
+- [ ] Verify the integration-target census drops from 2 to 1 while the exact
+      package test count remains unchanged; run format, Clippy, check, and the
+      focused package gate, recording any host GPU limitation precisely.
+
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
 - [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,
