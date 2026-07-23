@@ -7,6 +7,34 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-RITK-655 — RITK B-spline bounded dense hot-path closure [minor] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/ritk` only.
+- Outcome: PERF-432 / PERF-406-02 partially closed. The bounded dense
+  support-matrix path landed in
+  `ritk_registration::bspline_ffd::basis::{evaluate_bspline_displacement_dense_into,
+  should_use_dense_path, DENSE_LATTICE_CUTOFF}`. The registration engine
+  (`BSplineFFDRegistration::register` inner loop) auto-dispatches to the
+  dense path when `ctrl_dims.product() <= 1_000_000` AND the dense support
+  table stays within 16 MiB resident. Explicit `f64` arithmetic with `u32`
+  control-point indices sidesteps the historical `coeus-core`/`leto-ops`
+  `E0034` ambiguity on `from_f64`/`from_usize`.
+- Acceptance: `cargo clippy -p ritk-registration --all-targets -- -D warnings`
+  clean; `cargo nextest run -p ritk-registration bspline_dense` green
+  (3/3 — dense matches sparse / zero-input invariant / dispatch predicate);
+  equivalence asset: `bspline_dense_matches_sparse_on_small_lattice`
+  abs-tolerance `5e-5` over the 8³ voxel lattice.
+- Risk/change class: `[minor]`; performance increment with profiling
+  counterpart (`bspline_displacement` bench is unchanged at criterion level;
+  the dense path replaces the cache-based interior path on qualifying
+  lattices in the registration's inner loop).
+- Dependencies: none at the crate level — the change is purely additive
+  inside `bspline_ffd::basis`. Coeus/Leto path consumes the trait surface
+  only through `B: ComputeBackend` generic dispatch.
+- Evidence limit: value-semantic nextest plus in-tree benchmark;
+  no runtime allocation or perf claim in CI (the criterion bench reports
+  count only).
+
 ## ATLAS-EUNOMIA-044 — Wrapper integer checked/saturating ops correctness [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/eunomia` only.
@@ -1481,7 +1509,15 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Acceptance: budget enforcement merged in the runner + full-stack bench sweep completes within per-binary bounds; breaches root-caused and fixed or filed with derivation.
 - Done 2026-07-22: `enforce-budget` subcommand in tools/criterion-regression — modes smoke (bench single-iteration, 60s), timing (full measurement, 300s), examples (60s), `--bound-seconds`/`--skip` overrides. Compiles unbounded, executes binaries directly (killing cargo would orphan the bench grandchild) with CARGO_TARGET_DIR pinned to the shared target (no minted repo-local target/), fail-closed exit. Validated: themis smoke/timing clean; eunomia timing at 5s bound → breach terminated mid-measurement, exit 1. Gates: clippy pedantic clean, 21/21 nextest, doc clean.
 - Residual: full-stack sweep at committed bounds (probe per repo; live peer scopes deferred to their completion), CI wiring per repo workflow convention, and suite resizing per breach (flat sampling, geometric sweeps) or kernel optimization per farsight.
-## ATLAS-BUILD-STRUCTURE-001 — Consolidate leaf binaries; compiler-last dev profiles [patch] — todo
+## ATLAS-BUILD-STRUCTURE-001 — Consolidate leaf binaries; compiler-last dev profiles [patch] — in progress
+
+- Owner: Codex `/root`; last-update: 2026-07-23; current vertical slice:
+  `repos/coeus/coeus-ops/tests/**` only. Peer-owned member profiles and other
+  repository test trees remain out of scope.
+- Claim: consolidate the 36 flat `coeus-ops` Rust integration-test binaries
+  into one hierarchical `tests/ops.rs` harness with `tests/ops/*.rs` modules,
+  preserving all 87 test functions and their value-semantic assertions. The
+  target-count reduction and test-count parity are the acceptance oracle.
 
 - Policy: AGENTS.md performance_engineering "Debug-tree and compile-time structure" + "Compiler-last optimization order". Monomorphization stays the design default — an instantiation codegens identically to its hand-written equivalent; the debug-tree multiplier is leaf-binary count and duplicate paths, never genericity.
 - Evidence 2026-07-22: ~950 leaf binaries stack-wide, each a full link with own incremental cache and PDB — tests/examples per repo: CFDrs 118/66, coeus 110/2, kwavers 94/62, consus 55/0, ritk 28/7, hermes 20/4, moirai 15/22, melinoe 15/1, others <=11. Dev-profile audit: helios declares wildcard `[profile.dev.package."*"] opt-level = 3` (the pattern removed from kwavers in PR #307); kwavers `opt-level = 1` with documented 5-10x PSTD justification is the sanctioned named-and-measured form. The shared incremental tree reached 27,085 session directories and approximately 489 GiB in five days, making leaf-target consolidation and CI `CARGO_INCREMENTAL=0` the next measured size levers.

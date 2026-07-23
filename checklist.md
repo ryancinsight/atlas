@@ -106,6 +106,16 @@
       (no active peer build); concurrent builds serialize on that lock by
       design, so the measurement must run when it is uncontended.
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus integration harness consolidation [patch]
+
+- [ ] Move the 36 `coeus-ops/tests/*.rs` integration binaries under the
+      hierarchical `tests/ops/` module tree and add one `tests/ops.rs` harness.
+- [ ] Preserve all 87 test functions and module-local value-semantic behavior;
+      do not weaken assertions, alter inputs, or add compatibility wrappers.
+- [ ] Verify the Cargo target census drops from 36 test binaries to 1 while
+      the Nextest test-function count remains 87; run format, Clippy, and the
+      focused provider gate.
+
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
 - [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,
