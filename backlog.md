@@ -7,6 +7,21 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-001 — Close convolution launch panic [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `7e8e1ee2` makes a nonzero CUDA 1D convolution grad-input
+  launch result return `false`, preserving the operation boundary's fallback
+  contract instead of panicking.
+- Acceptance: CUDA-feature all-targets check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.072 seconds.
+  Provider `main` is pushed and the root gitlink is advanced to `7e8e1ee2`.
+- Limit: CUDA-feature Nextest cannot link on this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`. The
+  unchecked launch-parameter narrowing residual is recorded upstream in
+  Coeus `docs/gap_audit.md`; no performance claim is made.
+
 ## ATLAS-BUILD-STRUCTURE-005 — Close CUDA operation impl hierarchy [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
