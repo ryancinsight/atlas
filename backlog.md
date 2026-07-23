@@ -1649,9 +1649,20 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   664 lines; the other five leaves are below 250 lines. Package check,
   warning-denied Clippy, format, and diff checks pass. Whole-workspace
   debug-tree measurement remains open.
-- Next claimed slice: audit the 1,548-line `coeus-cuda/tests/cuda/parity.rs`
-  leaf for operation-family separation and preserve its CUDA-gated parity
-  surface with the repository's honest CUDA environment limits.
+- Coeus-CUDA parity split complete at provider commit `abe9211d`: the live
+  1,672-line multi-family parity leaf is now a shared oracle manifest plus
+  seven operation-family modules. The pre/post source-name census remains 29
+  unique parity test functions; every new leaf is below 500 lines, with
+  `convolution.rs` the largest at 365 lines. Default package Nextest passes
+  3/3 with 0 skipped; default and `--features cuda` package checks and
+  warning-denied Clippy pass. Feature-enabled Nextest cannot link because
+  `x86_64-w64-mingw32-gcc` cannot find `-lcuda` while searching
+  `/usr/local/cuda-11.3/lib64/`; no live CUDA parity execution is claimed.
+  Whole-workspace debug-tree measurement remains open.
+- Next claimed slice: audit the live 3,160-line
+  `coeus-python/tests/binding_ops/operations/binding_tests_ops.rs` leaf for
+  operation-family separation, preserving the thin PyO3 test boundary and its
+  Python parity coverage.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

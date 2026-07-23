@@ -157,9 +157,29 @@ warning-denied Clippy, format, and diff checks pass. This is a test-topology and
 maintainability change only; the broader stack-wide debug-tree measurement
 remains open.
 
-Next claimed slice: audit the 1,548-line `coeus-cuda/tests/cuda/parity.rs` leaf
-for operation-family separation and preserve its CUDA-gated parity surface with
-the repository's honest CUDA environment limits.
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA parity-family split [patch]
+
+- [x] Split the live 1,672-line `coeus-cuda/tests/cuda/parity.rs` leaf into
+      seven operation-family modules under `tests/cuda/parity/`.
+- [x] Preserve all 29 parity test functions, shared CPU/CUDA oracle helpers,
+      production CUDA code, fixtures, and tolerance contracts.
+- [x] Verify default and CUDA-feature checks, warning-denied Clippy, format,
+      diff checks, and the default Nextest gate; record the CUDA linker limit.
+
+Evidence: Coeus `abe9211d` contains the complete split. The pre/post source-name
+census remains 29 unique parity test functions; every new leaf is below 500
+lines, with `convolution.rs` the largest at 365 lines. Default package Nextest
+passes 3/3 with 0 skipped. Default and `--features cuda` package checks and
+warning-denied Clippy pass; feature-enabled Nextest cannot link because
+`x86_64-w64-mingw32-gcc` cannot find `-lcuda` while searching
+`/usr/local/cuda-11.3/lib64/`. No live CUDA parity execution is claimed. This
+is a test-topology and maintainability change only; production kernels are
+unchanged.
+
+Next claimed slice: audit the live 3,160-line
+`coeus-python/tests/binding_ops/operations/binding_tests_ops.rs` leaf for
+operation-family separation, preserving the thin PyO3 test boundary and its
+Python parity coverage.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 
