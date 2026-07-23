@@ -137,13 +137,18 @@ with 0 skipped. The broader stack-wide debug-tree measurement remains open.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 
-- [ ] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and
+- [x] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and
       `selective_scan.rs` behind one `tests/autograd_ops.rs` harness; preserve
       the existing `autograd_tests.rs` target and `tests/autograd/` tree.
-- [ ] Preserve all 94 listed package tests and their value-semantic assertions;
+- [x] Preserve all 94 listed package tests and their value-semantic assertions;
       do not alter fixtures, tolerances, or autograd production code.
-- [ ] Verify the integration-target census drops from 4 to 2 while Nextest
+- [x] Verify the integration-target census drops from 4 to 2 while Nextest
       remains 94/94; run format, Clippy, check, and the focused package gate.
+
+Evidence: Coeus-autograd package check and warning-denied Clippy pass; locked
+metadata reports `autograd_ops` and `autograd_tests`; exact package Nextest
+passes 94/94 with 0 skipped. The broader stack-wide debug-tree measurement
+remains open.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
