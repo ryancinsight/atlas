@@ -1699,10 +1699,19 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   with 0 skipped in 0.188 seconds. Package check, warning-denied Clippy,
   format, and diff checks pass. Production optimizer code and all test oracles
   remain unchanged; whole-workspace debug-tree measurement remains open.
-- Next claimed slice: audit
-  `coeus-nn/tests/nn_ops/activations/act_extended_tests.rs` (648 lines) for
-  piecewise, parameterized, module-smoke, and smooth activation family
-  separation; preserve analytical derivatives and value-semantic assertions.
+- Coeus-NN extended activation split complete at provider commit `d800be8c`:
+  the live 648-line `act_extended_tests.rs` leaf is now one `act_extended`
+  manifest with piecewise, parameterized, module-smoke, and smooth families.
+  The pre/post source census remains 17 unique test functions and all 17
+  extracted Rust test function bodies compare equal. The largest new leaf is
+  `piecewise.rs` at 354 lines; every new leaf is below 360. Exact package
+  Nextest passes 268/268 with 0 skipped in 3.155 seconds. Package check,
+  warning-denied Clippy, format, and diff checks pass. Production NN code,
+  fixtures, formulas, and tolerances remain unchanged; whole-workspace
+  debug-tree measurement remains open.
+- Next claimed slice: audit `coeus-leto/tests/leto_ops/contract.rs` (505 lines)
+  for arithmetic, layout, shape, and accumulation contract-family separation;
+  preserve all cross-provider value oracles and failure contracts.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

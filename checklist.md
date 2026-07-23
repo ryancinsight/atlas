@@ -257,10 +257,29 @@ Production optimizer code and all test oracles are unchanged. This is a
 test-topology and maintainability change only; no production optimizer runtime
 or memory delta is claimed.
 
-Next claimed slice: audit
-`coeus-nn/tests/nn_ops/activations/act_extended_tests.rs` (648 lines) for
-piecewise, parameterized, module-smoke, and smooth activation family
-separation; preserve analytical derivatives and value-semantic assertions.
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN extended activation contract split [patch]
+
+- [x] Split the live 648-line `nn_ops/activations/act_extended_tests.rs` leaf
+      into piecewise, parameterized, module-smoke, and smooth leaves under
+      `nn_ops/activations/act_extended/`.
+- [x] Preserve all 17 test functions, 17 `#[test]` attributes, analytical
+      derivatives, tolerances, and extracted Rust test function bodies.
+- [x] Keep the `close`/slice assertion helpers single-sourced and verify
+      format, package check, warning-denied Clippy, diff checks, and exact
+      package Nextest.
+
+Evidence: Coeus `d800be8c` contains the complete split. The pre/post source
+census remains 17 unique test functions and all 17 extracted Rust function
+bodies compare equal. The largest new leaf is `piecewise.rs` at 354 lines;
+every new leaf is below 360. Exact package Nextest passes 268/268 with 0
+skipped in 3.155 seconds. Package check, warning-denied Clippy, format, and
+diff checks pass. Production NN code, fixtures, formulas, and tolerances are
+unchanged. This is a test-topology and maintainability change only; no
+production activation runtime or memory delta is claimed.
+
+Next claimed slice: audit `coeus-leto/tests/leto_ops/contract.rs` (505 lines)
+for arithmetic, layout, shape, and accumulation contract-family separation;
+preserve all cross-provider value oracles and failure contracts.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 
