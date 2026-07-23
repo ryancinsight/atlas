@@ -215,12 +215,17 @@ blocked by the host linker dependency above.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-Python integration harness consolidation [patch]
 
-- [ ] Move the six flat `coeus-python/tests/*.rs` files into binding-family
+- [x] Move the six flat `coeus-python/tests/*.rs` files into binding-family
       directories behind one `tests/binding_ops.rs` harness.
-- [ ] Preserve all 75 listed package tests, the shared `tests/common` lock
+- [x] Preserve all 75 listed package tests, the shared `tests/common` lock
       module, and the Python parity files; do not alter binding behavior.
-- [ ] Verify the integration-target census drops from 6 to 1 while Nextest
+- [x] Verify the integration-target census drops from 6 to 1 while Nextest
       remains 75/75; run format, Clippy, check, and the focused package gate.
+
+Evidence: Coeus `8851c5f5` contains the complete slice. Locked metadata reports
+one `coeus-python` integration target (`binding_ops`); exact all-features
+Nextest passes 75/75 with 0 skipped in 6.585 seconds. Whole-workspace
+debug-tree sizing is explicitly outside this slice.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
