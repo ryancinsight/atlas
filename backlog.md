@@ -1626,10 +1626,17 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   tests, correcting the prior 26-test tracking claim. Package check,
   warning-denied Clippy, format, and diff checks pass. Whole-workspace
   debug-tree measurement remains open.
-- Next claimed slice: Coeus `coeus-autograd/tests` still has separate
-  `autograd_ops` and `autograd_tests` integration targets. Consolidate them
-  behind one hierarchical autograd harness while preserving all value-semantic
-  tests and the existing nested operation-family tree.
+- Coeus-autograd slice complete at provider commit `24a52be5`: the established
+  `tests/autograd/` module tree and standalone operation families now share one
+  hierarchical `autograd_ops` harness; the redundant `autograd_tests.rs`
+  manifest is removed. Locked metadata reports one integration target instead
+  of two; exact package Nextest passes 94/94 with 0 skipped in 1.535 seconds.
+  Package check, warning-denied Clippy, format, and diff checks pass. Whole-
+  workspace debug-tree measurement remains open.
+- Next claimed slice: Coeus `coeus-nn/tests` still has separate `nn_ops` and
+  `nn_tests` integration targets. Attach the established `tests/nn/` module
+  tree to the hierarchical `nn_ops` harness and remove the redundant target
+  manifest while preserving all value-semantic tests.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

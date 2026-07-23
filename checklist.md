@@ -138,17 +138,25 @@ with 0 skipped. The broader stack-wide debug-tree measurement remains open.
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 
 - [x] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and
-      `selective_scan.rs` behind one `tests/autograd_ops.rs` harness; preserve
-      the existing `autograd_tests.rs` target and `tests/autograd/` tree.
+      `selective_scan.rs` behind one `tests/autograd_ops.rs` harness together
+      with the established `tests/autograd/` module tree.
 - [x] Preserve all 94 listed package tests and their value-semantic assertions;
       do not alter fixtures, tolerances, or autograd production code.
-- [x] Verify the integration-target census drops from 4 to 2 while Nextest
+- [x] Verify the integration-target census drops from 2 to 1 while Nextest
       remains 94/94; run format, Clippy, check, and the focused package gate.
 
-Evidence: Coeus-autograd package check and warning-denied Clippy pass; locked
-metadata reports `autograd_ops` and `autograd_tests`; exact package Nextest
-passes 94/94 with 0 skipped. The broader stack-wide debug-tree measurement
+Evidence: Coeus `24a52be5` contains the complete slice. Package check and
+warning-denied Clippy pass; locked metadata reports one `autograd_ops` target;
+exact package Nextest passes 94/94 with 0 skipped in 1.535 seconds. The
+redundant `autograd_tests.rs` manifest is removed; the established module tree
+and operation-family test bodies remain unchanged. This is a test-topology and
+build-artifact change only; the broader stack-wide debug-tree measurement
 remains open.
+
+Next claimed slice: Coeus `coeus-nn/tests` still has separate `nn_ops` and
+`nn_tests` integration targets. Attach the established `tests/nn/` module tree
+to the hierarchical `nn_ops` harness and remove the redundant target manifest
+while preserving all value-semantic tests.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-tensor integration harness consolidation [patch]
 
