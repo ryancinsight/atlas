@@ -1584,10 +1584,13 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   integration target; the exact package Nextest run passes 19/19 with 0
   skipped in 0.713 seconds. Production sparse code and all leaf test bodies
   remain unchanged. Whole-workspace debug-tree measurement remains open.
-- Next claimed slice: Coeus `coeus-core/tests` has four flat integration
-  targets and 14 integration cases within a 21-test package run. Move the
-  storage, dependency-policy, and scalar leaves behind one core harness while
-  preserving the seven existing library unit tests and all assertions.
+- Coeus-core slice complete at provider commit `88dfd38f`: the four flat
+  integration targets move under storage, dependency-policy, and scalar
+  directories behind one `core_ops` harness. Locked metadata reports one
+  integration target; the exact package Nextest run passes 21/21 with 0
+  skipped, comprising 14 integration cases and seven unchanged library unit
+  tests. Production core code and all leaf test bodies remain unchanged.
+  Whole-workspace debug-tree measurement remains open.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

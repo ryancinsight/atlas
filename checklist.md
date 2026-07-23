@@ -182,14 +182,20 @@ is explicitly outside this slice.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-core integration harness consolidation [patch]
 
-- [ ] Move the four flat `coeus-core/tests/*.rs` files into storage,
+- [x] Move the four flat `coeus-core/tests/*.rs` files into storage,
       dependency-policy, and scalar directories behind one `tests/core_ops.rs`
       harness.
-- [ ] Preserve the 14 integration cases and the seven existing library unit
+- [x] Preserve the 14 integration cases and the seven existing library unit
       tests; do not alter the dependency policy, scalar contracts, or storage
       assertions.
-- [ ] Verify the integration-target census drops from 4 to 1 while the package
+- [x] Verify the integration-target census drops from 4 to 1 while the package
       Nextest run remains 21/21; run format, Clippy, check, and the focused gate.
+
+Evidence: Coeus `88dfd38f` contains the complete slice. Locked metadata reports
+one `coeus-core` integration target (`core_ops`); exact package Nextest passes
+21/21 with 0 skipped, comprising 14 integration cases and seven unchanged
+library unit tests. Whole-workspace debug-tree sizing is explicitly outside
+this slice.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
