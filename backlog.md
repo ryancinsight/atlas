@@ -41,6 +41,10 @@
   portability/security commits are removed, leaving the unique Moirai
   closure, exact Atlas provider pin, scoped license policy, and synchronized
   evidence as its final delta.
+- A subsequent Moirai default documentation closeout records the B1 Rayon
+  parity-scope ergonomics at `850ec96`, directly atop `c870eed`; exact
+  Python-bindings run `29967785231` passes. The final Atlas graph advances to
+  that fetched default without changing the verified scheduler implementation.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — done
 

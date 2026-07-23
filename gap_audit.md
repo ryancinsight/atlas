@@ -8,6 +8,11 @@
   automated reviews. The remaining cross-repo integration is Kwavers lock
   regeneration and removal of its temporary therapy-test serialization rule;
   ATLAS-INTEGRATION-042 owns that residual.
+- Moirai default advances from verified TLS closeout `c870eed` to B1
+  parity-scope documentation closeout `850ec96`; the tree is directly based on
+  the verified implementation and exact Python-bindings run `29967785231`
+  passes. Atlas records the fetched default rather than retaining a stale
+  documentation parent.
 - Kwavers portability PR #312 merges as `1dc60bd7` after exact head
   `b04cf397f` passes Architecture `29963556227`, CI/CD `29963556297`, migration
   `29963556225`, and benchmark `29963556257`. PR #313 is rebased on that merged

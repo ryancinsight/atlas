@@ -17,6 +17,9 @@
 - [x] Merge Moirai PR #84 as `e4d2855`, preserve its real platform/executor TLS
       fast paths, and publish default closeout `c870eed` after exact-head Rust
       and three-platform wheel checks pass in run `29963043374`.
+- [x] Advance Moirai to documentation closeout `850ec96`, directly atop the
+      verified implementation, after exact Python-bindings run `29967785231`
+      passes.
 - [x] Regenerate the Kwavers lock through Cargo, delete the therapy-test
       serialization workaround, and pass all six unchanged tests under
       ordinary Nextest scheduling in 5.25 seconds.

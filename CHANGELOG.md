@@ -99,6 +99,8 @@
   `c870eed`. The cleanup removes only the unused `moirai-core` nightly TLS
   build gate while retaining the platform and executor fast paths; exact
   default run `29963043374` passes Rust and all three wheel platforms.
+  Advance again to B1 parity-scope documentation closeout `850ec96`, whose
+  exact Python-bindings run `29967785231` passes.
 
 - Advance Helios to PR #19 merge `8463110` and Hermes to PR #15 merge
   `1819e0b`. Helios passes its committed benchmark budgets. Hermes fixes the
