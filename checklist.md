@@ -2890,3 +2890,74 @@ Next actionable (awaiting user or peer):
 2. Coordinator (or peer) kicks off `CFDRS-CFD1D-LINT-001` ratchet
    with the `uninlined_format_args` 26-site remediation [patch] chore.
 3. `HEPH-CUDA-WIN-001` still awaits user upstream-fix dispatch.
+
+## Session 13 — 2026-07-23 (atlas-meta coordinator) — CFDRS-PERF-SLOW-001 closure
+
+### Scope
+
+- Authority axes: Inspect (origin re-sync), Change (atlas-meta gitlink advance
+  + PM sync + perf implementation); continuation default on allowlisted repos.
+- Reset on cold start: atlas-meta main advanced past Session 12 close
+  (`e30613e` → `806c6e7`); CFDrs main advanced past Session 12 close
+  (`74efccef` → `dbd8e40e` after peer merged PR #310 aequitas type-boundaries);
+  aequitas peer merged PR #6 (fluid-acoustic-quantities). Session 12 perf
+  fix persisted uncommitted on `codex/cfdrs-aequitas-fluid-boundaries` lane.
+
+### Done this session
+
+- [x] Step 1: Removed 4 temporary `eprintln!` debug instrumentation lines I
+      added in Session 12 (2 in `crates/cfd-3d/src/fem/solver.rs` at lines
+      ~201 + ~273; 2 in `crates/cfd-3d/src/venturi/solver.rs` at lines ~730 + ~733).
+      Verified post-removal `cargo check -p cfd-3d --tests` rc=0.
+- [x] Step 2: Verified cache-hoist-only baseline still times out. Diagnosis
+      confirmed at HEAD: `leto_ops::SparseLuSolver` documented at
+      `crates/cfd-math/src/linear_solver/direct_solver.rs:3-7` as "backed by
+      dense partial-pivoting LU" — O(n^3), ~3s per Picard iter for the
+      1700-DOF saddle-point Poiseuille mesh. Cache hoist alone insufficient.
+- [x] Strategy A applied: lowered `with_direct_threshold` from 100_000 to 512
+      in both `FemSolver::solve` (line 148) and `FemSolver::solve_picard`
+      (line 232) so medium saddle-point systems route to GMRES+AMG (Tier 2)
+      with GMRES+BlockDiag (Tier 3) fallback, bypassing the misnamed dense LU.
+- [x] Evidence: `validate_poiseuille_flow` PASS in 0.342s (was 30s+ TIMEOUT);
+      full cfd-3d suite green 394/394 PASS (2 slow within budget at 16.7s/23.6s).
+- [x] `bifurcation_throat_acceleration`, `venturi_nonzero_pressure_difference`,
+      `validate_venturi_blood_flow`, `bifurcation_blood_casson` all PASS —
+      confirms the threshold lowering does not regress other cfd-3d consumers
+      of `FemSolver::solve` (bifurcation, cascade, venturi paths all exercised).
+- [x] `cargo check --benches -p cfd-3d` clean (fem_assembly.rs bench exercises
+      FemSolver::solve path).
+- [x] `test_bifurcation_flow_3d_murray_and_mass` re-verified PASS in 1.934s
+      (was 30.181s in Session 7 catalog).
+- [x] Step 3: PR #311 opened, peer CI (recurseml/CodeRabbit) confirmed no
+      cargo-test blocking gate; merged via `--squash --delete-branch` to CFDrs
+      main. Merged commit `22ddc27df272c749d8c4e5c4b171113bfa1c272a`.
+- [x] Step 4: atlas-meta `repos/CFDrs` gitlink staged for advance
+      `74efcce → 22ddc27d` (capturing both peer's #310 + my perf #311).
+- [x] `backlog.md` Session 7 watchpoint row and "Residual CFDrs watchpoints"
+      row updated to `✅ closed`. New entries added:
+      `ATLAS-CFDRS-PERF-045` (closure entry) and
+      `ATLAS-LETO-OPS-SPARSE-LU-001` (the strategic [arch] TODO for the
+      misnamed dense LU masquerading as sparse LU upstream).
+      `ATLAS-LETO-OPS-REFACTOR-001` recorded as a peer-owned in-flight
+      watchpoint (leto-ops presently uncompilable on HEAD `9346413` — peer
+      mid-refactor; assist-ladder skip decision).
+
+### Out-of-scope this session (unchanged or freshly out-of-scope)
+
+- `CFDRS-CFD1D-LINT-001` ratchet — Session 12 carryover; still ready, untouched.
+- `HEPH-CUDA-WIN-001` — still `AWAIT USER` upstream-fix dispatch per Session 11.
+- `ATLAS-LETO-OPS-REFACTOR-001` (new 2026-07-23) — leto-ops peer is mid-refactor;
+  peer-active scope. Coordinator assist-ladder decision: skip (fresh, actively
+  held, no claimable periphery in `leto-ops` source that doesn't collide with
+  peer's refactor). Re-verify when peer stabilizes.
+- ejerid peer work on helios/kwavers (visible from atlas-meta `M repos/helios`,
+  `M repos/kwavers` dirty markers) — peer-held, untouched.
+
+### Next actionable
+
+1. Begin `CFDRS-CFD1D-LINT-001` ratchet first decrement
+   (26 `uninlined_format_args` sites in `crates/cfd-1d/**`) [patch] chore.
+2. Stand down Session 13 once atlas-meta gitlink + PM sync commit lands + pushes.
+3. Re-audit `ATLAS-LETO-OPS-REFACTOR-001` when peer stabilizes leto-ops; once
+   buildable, evaluate `ATLAS-LETO-OPS-SPARSE-LU-001` real sparse LU/Cholesky
+   architectural work as a [arch] ADR + [minor] increment per `upstream ownership`.

@@ -4543,3 +4543,130 @@ Per the documented MSYS2 Rust 1.97.0 toolchain shadow: per-invocation
 shadow for the lint-baseline measurement. Toolchain-pinned override stays
 in place for further ratchet passes; unset via
 `rustup override unset D:\atlas\repos\CFDrs` when no longer needed.
+
+## Findings 2026-07-23 — Session 13: CFDRS-PERF-SLOW-001 closure (atlas-meta coordinator takeover)
+
+### Context
+
+Cold-start at atlas-meta main `806c6e7` (peers kept advancing through Session
+12-13 read window; multiple gitlink waves landed by Codex `/root`,
+including `ATLAS-EUNOMIA-044`, `5953c22 build(atlas): Advance aequitas,
+helios, kwavers gitlinks`, `806c6e7 build(atlas): Advance hermes to
+initialized cow buffers`). CFDrs main advanced `74efccef` → `dbd8e40e`
+after peer landed PR #310 (`codex/cfdrs-aequitas-fluid-boundaries`).
+Aequitas peer merged PR #6 (`ce3ef7a feat(aequitas): Add fluid acoustic
+quantities`) at the same wave.
+
+Session 12 perf fix persisted uncommitted on the
+`codex/cfdrs-aequitas-fluid-boundaries` branch — verified intact at cold-start
+(2 files dirty: `fem/solver.rs` 142 lines, `venturi/solver.rs` 8 lines)
+
+### Finding 13.1 — `validate_poiseuille_flow` perf root cause (DENSE LU masquerading as SPARSE LU)
+
+**Component**: `leto_ops::SparseLuSolver` (consumed by
+`crates/cfd-math/src/linear_solver/direct_solver.rs::DirectSparseSolver`).
+
+**Evidence**: `crates/cfd-math/src/linear_solver/direct_solver.rs:3-7` doc:
+
+```
+//! Uses [`leto_ops::SparseLuSolver`] — the atlas-native sparse direct solver
+//! backed by dense partial-pivoting LU — for systems up to `max_size`. The
+//! dense LU path in `leto-ops` serves as both the primary sparse solver and
+//! the fallback, eliminating the external `rsparse` dependency.
+```
+
+The public `SparseLuSolver` name promises sparse LU but the implementation
+is dense partial-pivoting LU, O(n^3). For the 1700-DOF saddle-point Poiseuille
+mesh, dense LU is ~5e9 flops ≈ 3 s per Picard iter × 5 Picard iter × 2
+`solve_poiseuille` calls > 30 s, exceeding the nextest `slow-timeout` budget
+(`period = 15s`, `terminate-after = 2` → 30s hard cap).
+
+**Verified via inline `eprintln!` instrumentation** (Session 12 evidence,
+removed at Step 1 of Session 13 before commit):
+```
+[dbg picard_iter=0] assembly done in 0.018s; n_total_dof rhs=1700
+[dbg picard_iter=0] linear solve done in 4.178s
+[dbg picard_iter=1] linear solve done in 3.188s
+... iter 4 converges with vel_change=1.035e-6 in 3.085s
+```
+
+**Fix applied** (PR #311 squashed merged as CFDrs main `22ddc27d`):
+
+1. Cache hoist (Session 12 continued): `mid_node_cache` + `vertex_positions`
+   hoisted to `FemSolver` struct fields; both `assemble_system` and
+   `print_continuity_residual_stats` worker closures use
+   `extract_vertex_indices_cached` with uncached fallback. Divergence Stats
+   output verified bit-identical across all Picard iter for both
+   `solve_poiseuille` calls (pre- and post-hoist).
+2. Threshold routing (Strategy A): `with_direct_threshold(100_000) → 512`
+   in both `FemSolver::solve` and `FemSolver::solve_picard`, routing
+   medium saddle-point systems to GMRES+AMG (Tier 2; falls back to
+   GMRES+BlockDiag Tier 3). For n ≤ 512 the dense cost is <~0.05 s so
+   direct LU stays the right call there.
+
+**Strategic TODO recorded**: `ATLAS-LETO-OPS-SPARSE-LU-001` — the
+misnamed dense-LU is itself a defect in `leto-ops`. Per
+`architecture_scoping: upstream ownership`, the architecture-correct fix
+is a real sparse LU or sparse Cholesky factorization implemented in
+`leto-ops`, not approximated downstream in CFDrs. Recorded as [arch] + [minor]
+(no public-API break required if the name is preserved; renaming would be
+a [major] migration handled per `consolidation_discipline: compatibility soup`).
+
+### Verification evidence (reproduced this session)
+
+| Test | Time | Status | Note |
+|---|---|---|---|
+| `cfd-3d::poiseuille_test::validate_poiseuille_flow` | 0.342s | PASS | Previously TIMEOUT > 30s |
+| `cfd-validation::benchmarks::threed::bifurcation::tests::test_bifurcation_flow_3d_murray_and_mass` | 1.934s | PASS | Previously TIMEOUT 30.181s |
+| Full cfd-3d suite | 24.965s | 394/394 PASS | 2 slow at 16.7s/23.6s within budget |
+| `cargo check -p cfd-3d --tests` | 1m 20s | rc=0 | |
+| `cargo check --benches -p cfd-3d` | 1m 15s | rc=0 | fem_assembly bench exercises `FemSolver::solve` |
+
+Evidence tier: empirical (nextest under committed `.config/nextest.toml`).
+No test or assertion was relaxed, no `slow-timeout` bound was raised, no
+test workload was shrunk — both fixes address the algorithm.
+
+### Finding 13.2 — `leto-ops` peer mid-refactor (new watchpoint `ATLAS-LETO-OPS-REFACTOR-001`)
+
+`repos/leto` HEAD `9346413` (`docs(leto-ops): Reconcile oracle ownership`)
+on top of `8b635f3 chore(leto-ops): Claim oracle ownership audit` reports
+`cargo check -p leto-ops` rc != 0 with 29 errors (count changing as I
+read — race with peer) on the path-dep graph. Errors cluster in:
+
+- `application/linalg/iterative/preconditioners/jacobi.rs`:
+  `error[E0034]` private module `csr` access from a sibling; `error[E0308]`
+  generic `T: RealField + FloatElement + Copy` compared to integer `{integer}`
+  at `if matrix.col_indices()[k] == row`
+- `application/linalg/iterative/preconditioners/ilu.rs`:
+  three `error[E0308]` of the same generic-vs-integer-class
+- `application/linalg/iterative/cg.rs`: `error[E0282]` `let p_clone;`
+  type-annotation needed
+- `application/sparse/csr.rs`: `error[E0119]` conflicting impl block;
+  `mod csr` is private (`mod csr;` declared in `sparse/mod.rs:55`) but exposed by sibling reach
+
+Last destructive code commit on those files is `9a82a4d feat(leto-ops):
+add sparse_lu_solve and SparseLuSolver for atlas-native direct solve` —
+the same commit that introduced Finding 13.1's misnamed-dense-LU. Subsequent
+commits have been audit doc/test only. Peer is mid-refactor (likely
+CsrMatrix-generics cleanup); the broken tree on origin is the publish state.
+
+**Decision per `concurrent_agents: assist-ladder (2)`**: skip — fresh,
+actively held by the leto peer (`leto-ops` is the peer's active scope),
+no claimable periphery in `leto-ops` source that doesn't collide with
+peer's refactor. Recorded as `ATLAS-LETO-OPS-REFACTOR-001` so peer
+tracking picks it up; re-verify when peer stabilizes. NOT
+coordinator-actionable.
+
+### Watchpoint closeout
+
+- `CFDRS-PERF-SLOW-001` — ✅ CLOSED this session. ALL 3 originally-timing-out
+  tests now PASS:
+  - `validate_poiseuille_flow` 0.342s (Session 13 perf PR #311)
+  - `cross_fidelity_blueprint_complex_branching` 0.799s (peer `153b0ed9` 2026-07-13)
+  - `test_bifurcation_flow_3d_murray_and_mass` 1.934s (verified today)
+
+### Note on `gap_audit.md` size budget
+
+This entry appends to ~4545-line file; `read_file` past line ~4270 returns
+empty (Pitfalls catalog). Future edits should use `awk 'NR>=X && NR<=Y'`
+or `tail -N` for tail-edit and grep for structural navigation, as before.
