@@ -168,12 +168,17 @@ is explicitly outside this slice.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-sparse integration harness consolidation [patch]
 
-- [ ] Move the three flat `coeus-sparse/tests/*.rs` files into operation-family
+- [x] Move the three flat `coeus-sparse/tests/*.rs` files into operation-family
       directories behind one `tests/sparse_ops.rs` harness.
-- [ ] Preserve all 19 listed package tests and their value-semantic assertions;
+- [x] Preserve all 19 listed package tests and their value-semantic assertions;
       do not alter sparse fixtures, tolerances, or production code.
-- [ ] Verify the integration-target census drops from 3 to 1 while Nextest
+- [x] Verify the integration-target census drops from 3 to 1 while Nextest
       remains 19/19; run format, Clippy, check, and the focused package gate.
+
+Evidence: Coeus `81cb68a6` contains the complete slice. Locked metadata reports
+one `coeus-sparse` integration target (`sparse_ops`); exact package Nextest
+passes 19/19 with 0 skipped in 0.713 seconds. Whole-workspace debug-tree sizing
+is explicitly outside this slice.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 

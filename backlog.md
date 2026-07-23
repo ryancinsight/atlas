@@ -1550,10 +1550,12 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   Nextest run passes 58/58 with 0 skipped, including five library unit tests.
   Production tensor code and all leaf test bodies remain unchanged. Whole-
   workspace debug-tree measurement remains open.
-- Next claimed slice: Coeus `coeus-sparse/tests` has three flat integration
-  targets and 19 listed package tests. Move the sparse conversion, differential,
-  and invariant leaves behind one operation-family harness without changing
-  sparse production code or test assertions.
+- Coeus-sparse slice complete at provider commit `81cb68a6`: the three flat
+  integration targets move under conversion, differential, and invariant
+  directories behind one `sparse_ops` harness. Locked metadata reports one
+  integration target; the exact package Nextest run passes 19/19 with 0
+  skipped in 0.713 seconds. Production sparse code and all leaf test bodies
+  remain unchanged. Whole-workspace debug-tree measurement remains open.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 
