@@ -6,6 +6,21 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-BUILD-STRUCTURE-002 — Close Coeus-NN attention parity leaf [patch]
+
+- [x] Advance Coeus to provider commit `006a1c7c` after extracting the
+      attention numerical oracle into `attention/expected.rs`.
+- [x] Verify exact Coeus-NN evidence: package check, warning-denied Clippy,
+      focused attention parity 1/1, and full package Nextest 268/268 with zero
+      skipped in 2.405 seconds.
+- [x] Preserve the 11-test source census and record the 182-line operational
+      leaf plus 91-line oracle leaf.
+
+Evidence: provider `main` is pushed; this root increment advances only the
+`repos/coeus` gitlink and its owner-local tracking entries. The change is a
+test-topology/oracle-maintainability increment with no production runtime,
+memory, or performance claim.
+
 ## ATLAS-WGPU-CORRECTNESS-001 — Close native WGPU missing operation paths [patch]
 
 - [x] Advance Coeus to provider commit `c8b9a013` after native WGPU

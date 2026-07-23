@@ -7,6 +7,20 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-BUILD-STRUCTURE-002 — Close Coeus-NN attention parity leaf [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `006a1c7c` isolates the attention parity numerical oracle in
+  `coeus-nn/tests/nn_ops/tensor/nn_parity/attention/expected.rs`; the
+  operational attention test is 182 lines and the oracle leaf is 91 lines.
+- Acceptance: the 11-test source census is unchanged; provider package check
+  and warning-denied Clippy pass; focused parity passes 1/1; exact package
+  Nextest passes 268/268 with zero skipped in 2.405 seconds. Provider `main`
+  is pushed and the root gitlink is advanced to `006a1c7c`.
+- Limit: this is a test-topology and oracle-maintainability closure; no
+  production runtime, memory, or performance delta is claimed.
+
 ## ATLAS-WGPU-CORRECTNESS-001 — Close native WGPU missing operation paths [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
