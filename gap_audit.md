@@ -23,8 +23,9 @@ oracles.
   reciprocal time, time, length, and velocity through Aequitas before the
   serialized report boundary.
 - The merged Helios slices type dose deposition totals, portal energy fluence,
-  attenuation coefficients, beam energy, and voxel spacing. `Volume<T>` remains
-  the dense scalar storage boundary for voxel fields.
+  DVH dose results and thresholds, attenuation coefficients, beam energy, and
+  voxel spacing. `Volume<T>` remains the dense scalar storage boundary for
+  voxel fields.
 - The merged Kwavers coupling slice types acoustic intensity, volumetric power
   density, velocity, density, temperature, and time at the thermal-acoustic
   coupling boundary; optical attenuation and thermal-property seams also use
@@ -37,7 +38,7 @@ oracles.
 | `CFDRS-AEQ-MET-01` | `cfd-optim` report and metric DTOs | Carry pressure, flow, length, volume, time, velocity, shear stress/rate, power, and temperature rise as typed values through computation; serialize only at one explicit boundary. | CFDrs | Ready. Value-semantic report regressions plus compile-time unit rejection; no duplicate typed/raw fields. |
 | `CFDRS-AEQ-MET-02` | SDT acoustic report | `acoustic_energy_density_j_m3` is a physical output with no Aequitas semantic alias/unit for J/m³. | Aequitas, then CFDrs | Provider extension. Add `VolumetricEnergyDensity` and J/m³ (and only required display units), then type the report output and preserve the Gor'kov oracle. |
 | `CFDRS-AEQ-MET-03` | operating-point and network-solve boundaries | `flow_rate_m3_s`, gauge pressure, channel path length, channel volume, and residence-time fields remain raw in candidate/solve DTOs even though downstream report arithmetic is typed. | CFDrs | Sequenced after `CFDRS-AEQ-MET-01`; migrate the core boundary first and retain scalar JSON only in an explicit adapter. |
-| `HELIOS-AEQ-MET-01` | `helios-analysis::Dvh` | `min`, `max`, `mean`, `dose_at_volume_fraction`, and gEUD return `T` although the stored samples are `AbsorbedDose<T>`. Dose criteria in DVH APIs also enter as raw `T`. | Helios | Ready. Return `AbsorbedDose<T>` for dose metrics, retain dimensionless Vx/HI/probabilities, and verify Dx/gEUD against the existing nearest-rank and Asclepius laws. |
+| `HELIOS-AEQ-MET-01` | `helios-analysis::Dvh` | `min`, `max`, `mean`, `dose_at_volume_fraction`, and gEUD return `T` although the stored samples are `AbsorbedDose<T>`. Dose criteria in DVH APIs also enter as raw `T`. | Helios | **RESOLVED.** Helios PR #25 merged as `08b7559932fe5f46cfade74f33238e5d3db2598b` from implementation `8387fef`; DVH dose results and TCP/NTCP dose parameters are typed, with local Dx/gEUD/NaN/masked and end-to-end value evidence. Hosted checks were incomplete at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-02` | gamma analysis | `dta_mm`, normalization dose, low-dose cutoff, and dose-difference inputs are raw `T`; only the gamma field and pass rate are dimensionless. | Helios | Ready. Type distance with `Length`, dose thresholds with `AbsorbedDose`, and retain the dimensionless `Volume<T>` result storage. |
 | `HELIOS-AEQ-MET-03` | delivery and portal dosimetry | `DeliveryFrame::leaf_fluence`, total delivered fluence, leaf width, ray step, and beam geometry distances are raw values; portal code types fluence only internally before converting it back. | Helios | Ready. Type fluence as `EnergyPerArea` and geometry as `Length`; prove linearity, attenuation, and zero closed-leaf behavior at the public boundary. |
 | `KWAVERS-AEQ-MET-01` | `ThermalCEM43Grid` and HIFU planning results | Thermal dose outputs, thresholds, peak temperature, dwell time, and time-to-dose remain raw scalars. CEM43 is an equivalent-time clinical quantity, not an SI dose alias. | Kwavers | Ready, consumer-owned. Introduce a validated CEM43/equivalent-time type backed by Aequitas `Time`; type temperature and duration outputs without pretending CEM43 is `AbsorbedDose`. |
@@ -54,7 +55,7 @@ oracles.
 - Cavitation numbers, shear/flow coefficients, contrast factors, CVs, risk
   scores, probabilities, CEM43 thresholds as clinical model parameters, and
   other ratios remain dimensionless or consumer-semantic values.
-- The next implementation order is: Helios DVH and gamma contracts; Kwavers
+- The next implementation order is: Helios gamma contracts; Kwavers
   pulsed-laser/transducer result contracts; CFDrs typed report carriers; then
   the Aequitas volumetric-energy-density extension and the dependent acoustic
   report. Each slice must update its child audit and use its strongest value
