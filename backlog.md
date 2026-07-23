@@ -1509,9 +1509,9 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Acceptance: budget enforcement merged in the runner + full-stack bench sweep completes within per-binary bounds; breaches root-caused and fixed or filed with derivation.
 - Done 2026-07-22: `enforce-budget` subcommand in tools/criterion-regression — modes smoke (bench single-iteration, 60s), timing (full measurement, 300s), examples (60s), `--bound-seconds`/`--skip` overrides. Compiles unbounded, executes binaries directly (killing cargo would orphan the bench grandchild) with CARGO_TARGET_DIR pinned to the shared target (no minted repo-local target/), fail-closed exit. Validated: themis smoke/timing clean; eunomia timing at 5s bound → breach terminated mid-measurement, exit 1. Gates: clippy pedantic clean, 21/21 nextest, doc clean.
 - Residual: full-stack sweep at committed bounds (probe per repo; live peer scopes deferred to their completion), CI wiring per repo workflow convention, and suite resizing per breach (flat sampling, geometric sweeps) or kernel optimization per farsight.
-## ATLAS-BUILD-STRUCTURE-001 — Consolidate leaf binaries; compiler-last dev profiles [patch] — done
+## ATLAS-BUILD-STRUCTURE-001 — Consolidate leaf binaries; compiler-last dev profiles [patch] — in progress
 
-- Owner: Codex `/root` (complete); last-update: 2026-07-23; completed vertical slice:
+- Owner: Codex `/root`; last-update: 2026-07-23; completed vertical slice:
   `repos/coeus/coeus-ops/tests/**` only. Peer-owned member profiles and other
   repository test trees remain out of scope.
 - Claim: consolidate the 36 flat `coeus-ops` Rust integration-test binaries
