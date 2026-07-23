@@ -7,6 +7,20 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-BUILD-STRUCTURE-004 — Close CPU operation impl hierarchy [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `1a28b64b` moves eight CPU operation trait impl blocks into
+  `coeus-ops/src/backend_ops/cpu_impl/impls/`; the manifest is 56 lines and
+  each operation-family leaf is below 325 lines.
+- Acceptance: provider package check, warning-denied Clippy, format, diff,
+  and locked metadata pass. Exact package Nextest passes 196/196 with zero
+  skipped in 4.325 seconds across two binaries. Provider `main` is pushed and
+  the root gitlink is advanced to `1a28b64b`.
+- Limit: this is a module-topology and maintainability closure; no runtime,
+  memory, or performance delta is claimed.
+
 ## ATLAS-BUILD-STRUCTURE-003 — Close WGPU operation impl hierarchy [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

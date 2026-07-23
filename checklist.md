@@ -6,6 +6,23 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-BUILD-STRUCTURE-004 — Close CPU operation impl hierarchy [patch]
+
+- [x] Advance Coeus to provider commit `1a28b64b` after moving eight CPU
+      operation trait implementations into `backend_ops/cpu_impl/impls/`
+      operation-family leaves.
+- [x] Verify exact Coeus CPU evidence: package check, warning-denied Clippy,
+      locked metadata, and full package Nextest 196/196 with zero skipped in
+      4.325 seconds across two binaries.
+- [x] Preserve `CpuBackend` ownership and execution-policy marker
+      implementations in the 56-line manifest; make no runtime or dispatch
+      changes.
+
+Evidence: provider `main` is pushed; this root increment advances only the
+`repos/coeus` gitlink and its owner-local tracking entries. The change is a
+module-topology/maintainability increment with no runtime, memory, or
+performance claim.
+
 ## ATLAS-BUILD-STRUCTURE-003 — Close WGPU operation impl hierarchy [patch]
 
 - [x] Advance Coeus to provider commit `310f9ffb` after moving seven WGPU
