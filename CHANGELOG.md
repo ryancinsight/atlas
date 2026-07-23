@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- [minor] Advance the Leto/CFDrs provider graph to merged sparse-LU native-view
+  ownership. CFDrs direct solves no longer stage the native RHS or returned
+  solution through consumer-owned `Vec` buffers; no release is performed.
+
 - Apply the shared line-table-only debug budget to test builds as well as
   development builds. Dependencies, build scripts, and procedural macros emit
   no ordinary test debuginfo, reducing Nextest artifact size and linker memory

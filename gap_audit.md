@@ -1,5 +1,20 @@
 # atlas — cross-repository integration gap audit
 
+## Provider-native sparse-LU ownership (2026-07-23)
+
+- **Finding:** the CFDrs direct-solver consumer staged its native Leto RHS into
+  `Vec`, called the provider slice API, and copied the `Vec` result into a new
+  `Array1`. This duplicated two linear buffers on every successful direct
+  solve.
+- **Resolution:** Leto owns `SparseLuSolver::solve_view` over `ArrayView1`;
+  CFDrs consumes it directly. Leto PR #70 merged at `b24fc860864abad84af3118aa2bb27c32bb81265`;
+  CFDrs PR #309 merged at `74efcceff0c737d09cc3251f24ed37bbb11de232`; Atlas
+  gitlinks now pin those merged child revisions.
+- **Evidence:** provider sparse Nextest 29/29, consumer direct-solver Nextest
+  4/4, provider SemVer 196/196 with 57 skips, and warning-denied check/Clippy,
+  doctest, and Rustdoc gates pass. The evidence establishes value semantics
+  and source-level allocation ownership, not runtime allocation or speedup.
+
 ## Checkout hygiene, cache-route verdict, and parity findings (2026-07-22)
 
 - Provider delivery refresh: Apollo PR #64 merges as `614939fd`, Hephaestus PR
