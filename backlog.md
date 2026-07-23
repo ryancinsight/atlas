@@ -1679,9 +1679,19 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   lines. Exact package Nextest passes 64/64 with 0 skipped in 0.444 seconds,
   with no slow tests. Package check, warning-denied Clippy, format, and diff
   checks pass. Whole-workspace debug-tree measurement remains open.
-- Next claimed slice: audit the live 902-line
-  `coeus-nn/tests/nn_ops/losses/nn_loss_tests.rs` leaf for operation-family
-  separation while preserving its value-semantic loss contracts.
+- Coeus-NN loss-contract split complete at provider commit `37bf8d9b`:
+  the live 902-line `nn_loss_tests.rs` leaf is now a nested manifest with
+  binary, classification, distance, and distribution operation families. The
+  pre/post source census remains 24 unique test functions and all 24 extracted
+  Rust function bodies compare equal. The largest new leaf is `distance.rs` at
+  315 lines; every new leaf is below 500 lines. Exact package Nextest passes
+  268/268 with 0 skipped in 2.270 seconds. Package check, warning-denied
+  Clippy, format, and diff checks pass. Production NN code, fixtures, and
+  tolerances remain unchanged; whole-workspace debug-tree measurement remains
+  open.
+- Next claimed slice: audit `coeus-optim/tests/optim_tests.rs` (676 lines) for
+  optimizer, scheduler, convergence, and gradient-clipping family separation;
+  preserve all analytical oracles and value-semantic assertions.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

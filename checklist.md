@@ -218,9 +218,18 @@ unchanged; active documentation references the `dist_ops` manifest. This is a
 test-topology and maintainability change only; no runtime or memory delta is
 claimed.
 
-Next claimed slice: audit the live 902-line
-`coeus-nn/tests/nn_ops/losses/nn_loss_tests.rs` leaf for operation-family
-separation while preserving its value-semantic loss contracts.
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN loss-contract family split [patch]
+
+- [x] Split the live 902-line `nn_ops/losses/nn_loss_tests.rs` leaf into
+      nested binary, classification, distance, and distribution leaves under
+      `nn_ops/losses/nn_loss/`.
+- [x] Preserve all 24 test functions, 24 `#[test]` attributes, analytical
+      assertions, tolerances, and extracted Rust function bodies.
+- [x] Verify format, package check, warning-denied Clippy, diff checks, and the
+      exact package Nextest gate.
+
+Evidence: Coeus `37bf8d9b` contains the complete split. The pre/post source+census remains 24 unique test functions and all 24 extracted Rust function+bodies compare equal. The largest new leaf is `distance.rs` at 315 lines; every+new leaf is below 500 lines. Exact package Nextest passes 268/268 with 0 skipped+in 2.270 seconds. Package check, warning-denied Clippy, format, and diff checks+pass. Production NN code, fixtures, tolerances, and sibling loss test files are+unchanged. This is a test-topology and maintainability change only; no+production kernel or runtime/memory delta is claimed.+
+Next claimed slice: audit `coeus-optim/tests/optim_tests.rs` (676 lines) for+optimizer, scheduler, convergence, and gradient-clipping family separation;+preserve all analytical oracles and value-semantic assertions.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 
