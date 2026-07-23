@@ -1633,10 +1633,17 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   of two; exact package Nextest passes 94/94 with 0 skipped in 1.535 seconds.
   Package check, warning-denied Clippy, format, and diff checks pass. Whole-
   workspace debug-tree measurement remains open.
-- Next claimed slice: Coeus `coeus-nn/tests` still has separate `nn_ops` and
-  `nn_tests` integration targets. Attach the established `tests/nn/` module
-  tree to the hierarchical `nn_ops` harness and remove the redundant target
-  manifest while preserving all value-semantic tests.
+- Coeus-NN slice complete at provider commit `5c416e12`: the established
+  `tests/nn/` module tree and operation-family modules now share one
+  hierarchical `nn_ops` harness; the redundant `nn_tests.rs` manifest is
+  removed. Locked metadata reports one integration target; exact package
+  Nextest passes 268/268 with 0 skipped in 4.463 seconds. Package check,
+  warning-denied Clippy, format, and diff checks pass. Whole-workspace
+  debug-tree measurement remains open.
+- Next claimed slice: `coeus-nn/tests/nn_ops/tensor/nn_parity.rs` is a 1,219-line
+  multi-family parity leaf containing linear, normalization, convolution,
+  embedding, softmax/loss, and attention tests. Split it into cohesive nested
+  operation-family modules while preserving all 12 value-semantic tests.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

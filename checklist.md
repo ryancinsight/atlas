@@ -124,16 +124,25 @@ explicitly outside this slice.
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN integration harness consolidation [patch]
 
 - [x] Move the 33 flat `coeus-nn/tests/*.rs` leaf files under operation-family
-      directories behind one `tests/nn_ops.rs` harness; preserve the existing
-      `nn_tests.rs` harness and `tests/nn/` module tree.
+      directories behind one `tests/nn_ops.rs` harness together with the
+      established `tests/nn/` module tree.
 - [x] Preserve all 268 package tests and their value-semantic assertions;
       do not alter fixtures, tolerances, or production NN code.
-- [x] Verify the integration-target census drops from 34 to 2, test count is
+- [x] Verify the integration-target census drops from 2 to 1, test count is
       unchanged, and package format, Clippy, check, and Nextest pass.
 
-Evidence: Coeus-NN package check and warning-denied Clippy pass; locked
-metadata reports `nn_ops` and `nn_tests`; exact package Nextest passes 268/268
-with 0 skipped. The broader stack-wide debug-tree measurement remains open.
+Evidence: Coeus `5c416e12` contains the complete slice. Package check and
+warning-denied Clippy pass; locked metadata reports one `nn_ops` integration
+target and the `nn_bench` benchmark target; exact package Nextest passes
+268/268 with 0 skipped in 4.463 seconds. The established NN module tree and
+all operation-family test bodies remain unchanged. This is a test-topology and
+build-artifact change only; the broader stack-wide debug-tree measurement
+remains open.
+
+Next claimed slice: `coeus-nn/tests/nn_ops/tensor/nn_parity.rs` is a 1,219-line
+multi-family parity leaf containing linear, normalization, convolution,
+embedding, softmax/loss, and attention tests. Split it into cohesive nested
+operation-family modules while preserving all 12 value-semantic tests.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 
