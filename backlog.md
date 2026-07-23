@@ -63,6 +63,91 @@
   no runtime allocation or perf claim in CI (the criterion bench reports
   count only).
 
+## ATLAS-CHECK-FIGURES-CI-1 — Wire `prebook check-figures` lint into PR CI [minor] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope:
+  `repos/helios/.github/workflows/ci.yml` + new
+  `repos/CFDrs/.github/workflows/ci.yml`.
+- Outcome: SSOT drift lint now runs automatically on every PR for both
+  atlases. helios uses an in-job append (new step in the existing
+  `rust` job, between `Documentation` and `RustSec audit`); CFDrs
+  gains a new dedicated `check-figures` job (no ci.yml existed
+  before — the only prior workflow was the path-filtered
+  `book-pages.yml` deploy job, which would exclude changes to
+  `xtask/src/prebook.rs` from triggering the lint).
+- Acceptance: workspace `xtask` member verified in both root
+  `Cargo.toml` whitelists; new step / job parsed as syntactically
+  valid YAML; existing `book-pages.yml` in both repos byte-identical
+  (md5sum unchanged); `env: CARGO_TERM_COLOR: always` set at workflow
+  level for clued diagnostics; `actions/checkout@v6` + `actions/cache@v6`
+  pins match the existing helios pattern (no action marketplace drift
+  risk); `cargo run -p xtask -- check-figures` returns
+  `SSOT_IN_SYNC: 7/7` for both repos on clean input.
+- Risk/change class: `[minor]`; CI scaffolding only, no production
+  code or canonical content touched.
+- Dependencies: depends on ATLAS-BOOK-CHECK-FIGURES-1 (the
+  `prebook check-figures` subcommand itself).
+- Closes CI-side drift detectability: a future PR that adds a
+  figure link to SUMMARY.md or README.md without a matching
+  FIGURE_SPECS entry (or vice versa) now fails CI before merge.
+
+## ATLAS-PARITY-HTML-RETIRE-1 — Retire stale `parity_artefacts/INDEX.html` [minor] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23;
+  scope: `parity_artefacts/INDEX.html` (deleted) + `parity_artefacts/INDEX.md`
+  (canonical source preserved).
+- Outcome: deleted the 29,886-byte untracked
+  `parity_artefacts/INDEX.html` (stale mdbook-generated build output from
+  a prior worktree, last-modified 2024-07-22). The canonical parity
+  archive lives at `parity_artefacts/INDEX.md` (6,625 bytes, tracked),
+  which is the source all three atlases' `SUMMARY.md` Appendix F entries
+  link to.
+- Pre-deletion evidence: `git ls-files parity_artefacts/` did not list
+  INDEX.html (file was untracked); no live callers existed in any
+  `SUMMARY.md`, `README.md`, workflow YAML, or active docs. The only
+  "reference" was a historical scope mention in
+  `repos/helios/backlog.md` H-083 entry — updated to point at
+  `parity_artefacts/INDEX.md` (the canonical source) in this slice.
+- Acceptance: `git status` unchanged after deletion (no commit required
+  since file was untracked); `parity_artefacts/INDEX.md` intact and
+  tracked; `mdbook build docs/book` exits 0 across all three atlases
+  (generated HTML depends on INDEX.md at build time, not the deleted
+  INDEX.html); detector reports `FILE_MISSING : 0 / ANCHOR_MISSING : 0 /
+  READ_FAIL : 0`; `prebook check-figures` lint still `SSOT_IN_SYNC : 7/7`.
+- Risk/change class: `[minor]`; stale build artefact deletion, no
+  production code or canonical content touched.
+- Dependencies: depends on ATLAS-HELIOS-BOOK-087 + 
+  ATLAS-CFDrs-BOOK-DETERMINISTIC-FIGURES-1 (the Appendix F targets that
+  point at INDEX.md).
+- Closes the parity-archive HTML-vs-MD SSOT confusion flagged during the
+  PARITY-ARCHIVE cleanup of the BOOK-MDBOOK-DUPLICATES-1 slice: the only
+  parity archive is now `parity_artefacts/INDEX.md` (tracked, canonical);
+  no duplicate untracked HTML derivative lingers on disk.
+
+## ATLAS-BOOK-CHECK-FIGURES-1 — Cross-atlas `prebook check-figures` SSOT lint [minor] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/helios/xtask`
+  + `repos/CFDrs/xtask`.
+- Outcome: added `prebook check-figures` subcommand in both atlases that
+  byte-scans `docs/book/SUMMARY.md` + `docs/book/README.md` for
+  `figures/*.svg` references and asserts each one is listed in
+  `super::prebook::FIGURE_SPECS`. Drift exits non-zero; SSOT_IN_SYNC
+  exits 0.
+- Acceptance: `cargo clippy -p xtask --all-targets -- -D warnings` clean
+  for both; `cargo run -p xtask -- check-figures` reports
+  `SSOT_IN_SYNC: 7/7` for both; `mdbook build docs/book` exits 0 for both.
+- Risk/change class: `[minor]`; lint addition, no production code paths
+  touched.
+- Dependencies: depends on ATLAS-CFDrs-BOOK-DETERMINISTIC-FIGURES-1 +
+  ATLAS-HELIOS-BOOK-087 (FIGURE_SPECS SSOTs already exist in both
+  `xtask/src/prebook.rs`).
+- Evidence limit: byte-scan parser + BTreeSet intersection; no regex
+  dep, no I/O beyond two `fs::read_to_string` calls per invocation.
+- Closes the SSOT drift risk reviewer flagged across HELIOS-BOOK-087
+  and CFDrs BOOK-DETERMINISTIC-FIGURES-1: a future SUMMARY.md edit
+  adding a new figure link without a matching FIGURE_SPECS entry will
+  now fail the lint at CI time.
+
 ## ATLAS-EUNOMIA-044 — Wrapper integer checked/saturating ops correctness [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/eunomia` only.
@@ -146,6 +231,70 @@
   the FEM matmat structure warrants Cholesky (symmetric positive definite) or
   LU (saddle-point is indefinite).
 - Refs: backlog.md#CFDRS-PERF-SLOW-001, ATLAS-CFDRS-PERF-045.
+
+## ATLAS-CFDRS-BOOK-MDBOOK-DUPLICATES-1 — Pre-existing duplicate-file references in CFDrs mdbook SUMMARY [patch] — done
+
+- Owner: Codex `/root`; delivered scope: `repos/CFDrs/docs/book/SUMMARY.md` + four
+  new dedicated chapter files (`cavitation.md`, `vascular_bifurcations.md`,
+  `matrix_free_operators.md`, `schematic_integration_2d.md`) + deletion of the
+  redundant `examples/turbulent_channel_flow.md#physics-background` anchor entry under
+  Ch 15. Files in their final state each carry an H1, extracted body content with a
+  "Further Reading" backlink to the parent chapter for SSOT.
+- Acceptance: `mdbook build docs/book` exits 0 across all three atlases (CFDrs,
+  helios, kwavers); detector reports `FILE_MISSING : 0 / ANCHOR_MISSING : 0 /
+  READ_FAIL : 0` across 116 files / 377 links in CFDrs (helios 250 links clean;
+  kwavers has 3 pre-existing FILE_MISSING in `examples/ORGANIZATION.md` unrelated
+  to this slice).
+- Risk/change class: `[patch]`; documentation-only restructuring (5 file content
+  moves + 4 file creates), zero production-code change.
+- Empirical finding: the installed `mdbook v0.5.4` rejects `[file.md#anchor]` syntax
+  in any SUMMARY entry with `os error 2 - failed to read chapter`, treating the
+  anchor as a literal filename segment. The originally-selected Option A (anchor
+  link) was therefore not viable; pivoted to Option B (file split), confirmed by an
+  isolated reproduction test (anchor-link test book built cleanly with anchor in body
+  prose; SUMMARY-entry anchor on this install is the failing case). Closed
+  documentation cross-reference: see CFD-BOOK-MDBOOK-ANCHOR-FORK-1.
+- Residual: `CFD-BOOK-MDBOOK-ANCHOR-FORK-1` (capture the v0.5.4
+  #anchor behaviour for future contributors).
+* PARENT-H2-DEDUPE-1 closed: four parent chapter files
+  (`turbulence_multiphase.md`, `biomedical_flows.md`,
+  `numerics_and_solvers.md`, `crate_schematics.md`) now own one-line
+  "see chapter X" pointers; canonical content lives in the dedicated
+  files (`cavitation.md`, `vascular_bifurcations.md`,
+  `matrix_free_operators.md`, `schematic_integration_2d.md`).
+* G3 orphan closed: parity_archive.md reduced to single-line redirect stub pointing at SUMMARY Appendix F (parity_artefacts/INDEX.md); preserved for GitHub-history backlinks only, not re-added to nav.
+
+## ATLAS-CFDRS-BOOK-DETERMINISTIC-FIGURES-1 — CFDrs mdbook deterministic figure set + prebook xtask [patch] — done
+
+- Owner: Codex `/root`; delivered scope: `repos/CFDrs` mdbook deterministic
+  figure set and prebook xtask — `CFDrs/xtask/src/prebook.rs` (FIGURE_SPECS
+  SSOT mirroring helios BOOK-087 contract), `CFDrs/xtask/src/main.rs`
+  Prebook subcommand, `CFDrs/xtask/Cargo.toml` (`sha2 = "0.10"` dep), seven
+  hand-authored deterministic SVGs at `CFDrs/docs/book/figures/` +
+  `SUMMARY.md` figure references under Parts II / V / VII / VIII + Appendix
+  F path refreshed to `../../../parity_artefacts/INDEX.md` + README Figures
+  index + four example pages (`cavity_validation`, `pipe_flow_validation`,
+  `richardson_convergence`, `turbulent_channel_flow`) embedding the
+  generated figures. `repos/parity_artefacts/INDEX.md` per-book figure
+  manifest card refreshed for CFDrs.
+- Acceptance: `cargo check -p xtask --all-targets` clean; `cargo clippy -p
+  xtask --all-targets -D warnings` clean; `mdbook build docs/book` exit 0;
+  detector `FILE_MISSING : 0` on `repos/CFDrs/docs/book`; prebook
+  byte-deterministic across two consecutive runs.
+- Risk/change class: `[patch]`; documentation + tooling surface, no
+  production-code change; the underlying flux kernels / solvers are
+  untouched.
+- Dependencies: sister slice `ATLAS-HELIOS-BOOK-087` (same FigureSpec
+  contract); CFDrs `parity_artefacts/INDEX.md` reconciliation.
+- Evidence limit: 7 committed SVGs, `MANIFEST.json` byte-determinism over
+  two runs (matched sha256
+  `b71b84fc8cbf863ca5f9d41c7cd371a512e621a32bfeb85d19ce30f7745930ac`),
+  detector `FILE_MISSING : 0 / ANCHOR_MISSING : 0 / READ_FAIL : 0` for
+  all 112 files / 363 links, single-link Appendix F resolved against the
+  shared parity archive. No runtime allocation or perf claim.
+
+  **Residual closed** by `ATLAS-CFDRS-BOOK-MDBOOK-DUPLICATES-1` (now
+  done — see entry above).
 
 ## ATLAS-PERF-043 — Preserve provider-native sparse-LU ownership [minor] — done
 
