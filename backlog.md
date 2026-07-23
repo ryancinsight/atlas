@@ -1599,6 +1599,10 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   host-blocked because the GNU linker cannot find
   `/usr/local/cuda-11.3/lib64/libcuda`. Whole-workspace debug-tree measurement
   remains open.
+- Next claimed slice: Coeus `coeus-python/tests` has six flat Rust integration
+  targets and 75 listed package tests. Move activation, distributed, NN,
+  operation, optimizer, and autodiff leaves behind one binding harness while
+  preserving the shared `tests/common` lock module and the Python parity files.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

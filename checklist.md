@@ -213,6 +213,15 @@ one `coeus-cuda` integration target (`cuda_ops`); default package Nextest passes
 plus warning-denied Clippy pass. All-features executable coverage remains
 blocked by the host linker dependency above.
 
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-Python integration harness consolidation [patch]
+
+- [ ] Move the six flat `coeus-python/tests/*.rs` files into binding-family
+      directories behind one `tests/binding_ops.rs` harness.
+- [ ] Preserve all 75 listed package tests, the shared `tests/common` lock
+      module, and the Python parity files; do not alter binding behavior.
+- [ ] Verify the integration-target census drops from 6 to 1 while Nextest
+      remains 75/75; run format, Clippy, check, and the focused package gate.
+
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
 - [x] Audit Ares, Hyperion, and Prometheus against live CFDrs, Helios,
