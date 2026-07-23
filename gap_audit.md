@@ -4670,3 +4670,48 @@ coordinator-actionable.
 This entry appends to ~4545-line file; `read_file` past line ~4270 returns
 empty (Pitfalls catalog). Future edits should use `awk 'NR>=X && NR<=Y'`
 or `tail -N` for tail-edit and grep for structural navigation, as before.
+
+## Findings 2026-07-23 Session 13 (cont.) — CFDRS-CFD1D-LINT-001 first ratchet decrement
+
+First ratchet decrement landed by atlas-meta coordinator via PR #312 on CFDrs
+(`codex/cfdrs-cfd1d-lint-ratchet` lane) squashed merged as
+CFDrs main `4ccd4f85`.
+
+Mechanism: `cargo clippy --fix --allow-dirty --manifest-path Cargo.toml -p cfd-1d
+--all-targets -- -A dead_code`.
+
+Baseline shift:
+- Pre-decrement pedantic warnings: 54
+- Post-decrement: 8 (-85%)
+- Net delta: +42 / -93 across 12 files
+
+Categories auto-fixed (the 26 + 20 the fixer reached):
+- `clippy::uninlined_format_args` (26 sites) -- `format!("x={}", x)` -> `format!("x={x}")`
+- `clippy::unnecessary_map_or` (6 sites) -- `map_or(false, |n| n.id == id)` -> `is_some_and(|n| n.id == id)`
+- `clippy::useless_conversion` (1 site) -- `iter().copied().collect()` -> `to_vec()`
+- A handful of `.into_iter()` / `.into()` cleanups
+
+Residual 8-warning baseline (manual-only categories parked as peer-architectural):
+- 3 `clippy::result_large_err` -- `PrimarySolveError` is >=160B; needs redesign or `Box`-wrap
+- 1 `clippy::very_complex_type` -- needs `type` factor extraction
+- 1 `clippy::empty_line_after_doc_comments` -- semantic doc fix
+- 3 doc-test wrap warnings
+
+Verification:
+- `cargo nextest run --no-fail-fast -p cfd-1d`: 728/728 PASS, 3 skipped,
+  0 timeouts (5.234s suite)
+- `cargo check -p cfd-1d --all-targets`: rc=0
+
+Discovery note: `cargo fmt -p cfd-1d --check` reports pre-existing use-statement
+reordering debt in cfd-1d (e.g., `use eunomia::assert_relative_eq` lines not in
+alphabetical canonical order relative to `use cfd_core::...`). These fmt diffs
+are PRE-EXISTING on peer's tree, NOT introduced by this commit (verified
+by inspecting that my diff hunks touch only assert/test bodies, not use-statement
+order). Per `git_discipline: stage selectively` + `decision_policy: don't fix
+unrelated bugs`, this ratchet patch leaves the fmt-debt untouched. Next
+ratchet decrement candidate or a separate `style(cfd-1d): cargo fmt` chore
+can address the use-statement canonicalization.
+
+Refs:
+- backlog.md#CFDRS-CFD1D-LINT-001
+- CFDrs PR #312 (squashed merged as `4ccd4f85`)

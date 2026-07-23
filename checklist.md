@@ -2955,9 +2955,18 @@ Next actionable (awaiting user or peer):
 
 ### Next actionable
 
-1. Begin `CFDRS-CFD1D-LINT-001` ratchet first decrement
-   (26 `uninlined_format_args` sites in `crates/cfd-1d/**`) [patch] chore.
-2. Stand down Session 13 once atlas-meta gitlink + PM sync commit lands + pushes.
-3. Re-audit `ATLAS-LETO-OPS-REFACTOR-001` when peer stabilizes leto-ops; once
-   buildable, evaluate `ATLAS-LETO-OPS-SPARSE-LU-001` real sparse LU/Cholesky
-   architectural work as a [arch] ADR + [minor] increment per `upstream ownership`.
+1. ~~Begin `CFDRS-CFD1D-LINT-001` ratchet first decrement
+   (26 `uninlined_format_args` sites in `crates/cfd-1d/**`) [patch] chore.~~
+   **DONE this session (warm-follow through)** — PR #312 squashed merged
+   as CFDrs main `4ccd4f85`. Mechanical `cargo clippy --fix --allow-dirty`
+   on `-p cfd-1d --all-targets`: 12 files, 54 pedantic warnings -> 8
+   (-85%), 728/728 cfd-1d nextest pass post-runtime. Residual 8-warning
+   baseline parked as peer-architectural (error-type redesign,
+   type-factor, doc-comment cleanup). Recorded in `backlog.md`
+   `CFDRS-CFD1D-LINT-001` row + Residual table.
+2. Stand down Session 13 once atlas-meta gitlink + PM sync commit (this
+   commit) lands + pushes.
+3. Re-audit `ATLAS-LETO-OPS-REFACTOR-001` when peer stabilizes leto-ops;
+   once buildable, evaluate `ATLAS-LETO-OPS-SPARSE-LU-001` real sparse
+   LU/Cholesky architectural work as a [arch] ADR + [minor] increment per
+   `upstream ownership`.
