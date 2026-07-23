@@ -1591,12 +1591,14 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   skipped, comprising 14 integration cases and seven unchanged library unit
   tests. Production core code and all leaf test bodies remain unchanged.
   Whole-workspace debug-tree measurement remains open.
-- Next claimed slice: Coeus `coeus-cuda/tests` has three flat feature-gated
-  integration targets. Default mode lists three no-CUDA fallback tests; the
-  all-features target reaches compilation but cannot link here because the
-  GNU linker cannot find `/usr/local/cuda-11.3/lib64/libcuda`. Consolidate the
-  device and fallback leaves behind one feature-aware harness and preserve
-  both feature gates without masking the environment blocker.
+- Coeus-CUDA slice complete at provider commit `573ad35e`: the three flat
+  feature-gated integration targets move under device and fallback directories
+  behind one `cuda_ops` harness, retaining the existing nested `tests/cuda/`
+  tree through an explicit path. Default Nextest passes 3/3 with 0 skipped;
+  all-features check and Clippy pass. All-features executable coverage remains
+  host-blocked because the GNU linker cannot find
+  `/usr/local/cuda-11.3/lib64/libcuda`. Whole-workspace debug-tree measurement
+  remains open.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

@@ -199,13 +199,19 @@ this slice.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA integration harness consolidation [patch]
 
-- [ ] Move the three flat `coeus-cuda/tests/*.rs` files into device and
+- [x] Move the three flat `coeus-cuda/tests/*.rs` files into device and
       fallback directories behind one `tests/cuda_ops.rs` feature-aware harness.
-- [ ] Preserve the `cuda` and `not(feature = "cuda")` gates and all three
+- [x] Preserve the `cuda` and `not(feature = "cuda")` gates and all three
       default no-CUDA fallback tests; do not alter CUDA production code.
-- [ ] Verify default Nextest remains 3/3, all-features check/Clippy compile the
+- [x] Verify default Nextest remains 3/3, all-features check/Clippy compile the
       moved targets, and record the linker blocker for all-features execution:
       missing `/usr/local/cuda-11.3/lib64/libcuda`.
+
+Evidence: Coeus `573ad35e` contains the complete slice. Locked metadata reports
+one `coeus-cuda` integration target (`cuda_ops`); default package Nextest passes
+3/3 with 0 skipped in 0.053 seconds, and default/all-features package checks
+plus warning-denied Clippy pass. All-features executable coverage remains
+blocked by the host linker dependency above.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
