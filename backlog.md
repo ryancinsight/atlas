@@ -1618,10 +1618,18 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   exact package Nextest passes 85/85 with 0 skipped. Every new leaf is below
   500 lines; production kernels and fixtures are unchanged. Whole-workspace
   debug-tree measurement remains open.
-- Next claimed slice: Coeus `coeus-leto/tests` has two direct integration targets
-  (`contract.rs` and `sparse_dispatch.rs`) with 26 listed tests. Consolidate them
-  behind one hierarchical contract/dispatch harness while preserving all
-  cross-provider assertions.
+- Coeus-Leto slice complete at provider commit `8d3b9082`: the two flat
+  integration targets now share one hierarchical `leto_ops` harness with
+  contract and sparse-dispatch operation families. Locked metadata reports one
+  integration target; exact package Nextest passes 28/28 with 0 skipped in
+  1.064 seconds. The live census is 26 contract tests plus 2 sparse-dispatch
+  tests, correcting the prior 26-test tracking claim. Package check,
+  warning-denied Clippy, format, and diff checks pass. Whole-workspace
+  debug-tree measurement remains open.
+- Next claimed slice: Coeus `coeus-autograd/tests` still has separate
+  `autograd_ops` and `autograd_tests` integration targets. Consolidate them
+  behind one hierarchical autograd harness while preserving all value-semantic
+  tests and the existing nested operation-family tree.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 

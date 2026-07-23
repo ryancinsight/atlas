@@ -262,13 +262,26 @@ check, warning-denied Clippy, format, and diff checks pass.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto integration harness consolidation [patch]
 
-- [ ] Move the two flat `coeus-leto/tests/*.rs` targets into one hierarchical
+- [x] Move the two flat `coeus-leto/tests/*.rs` targets into one hierarchical
       harness with contract and sparse-dispatch operation families.
-- [ ] Preserve all 26 listed integration tests and their cross-provider
+- [x] Preserve all 28 listed integration tests and their cross-provider
       contract assertions; do not alter provider APIs, fixtures, or tolerances.
-- [ ] Verify the integration-target census drops from 2 to 1 while the exact
+- [x] Verify the integration-target census drops from 2 to 1 while the exact
       package test count remains unchanged; run format, Clippy, check, and the
       focused Nextest gate.
+
+Evidence: Coeus `8d3b9082` contains the complete slice. Locked metadata reports
+one `leto_ops` integration target instead of two; exact package Nextest passes
+28/28 with 0 skipped in 1.064 seconds. The live test census is 26 contract
+tests plus 2 sparse-dispatch tests, correcting the prior 26-test tracking claim.
+Package check, warning-denied Clippy, format, and diff checks pass. This is a
+test-topology and maintainability change only; it does not claim a production
+kernel speedup, memory reduction, or whole-workspace debug-tree delta.
+
+Next claimed slice: Coeus `coeus-autograd/tests` still has separate
+`autograd_ops` and `autograd_tests` integration targets. Consolidate them behind
+one hierarchical autograd harness while preserving all value-semantic tests and
+the existing nested operation-family tree.
 
 ## ATLAS-ROADMAP-040 — P2 domain-provider consolidation [arch]
 
