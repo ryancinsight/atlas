@@ -139,10 +139,27 @@ all operation-family test bodies remain unchanged. This is a test-topology and
 build-artifact change only; the broader stack-wide debug-tree measurement
 remains open.
 
-Next claimed slice: `coeus-nn/tests/nn_ops/tensor/nn_parity.rs` is a 1,219-line
-multi-family parity leaf containing linear, normalization, convolution,
-embedding, softmax/loss, and attention tests. Split it into cohesive nested
-operation-family modules while preserving all 12 value-semantic tests.
+## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN tensor parity-family split [patch]
+
+- [x] Split the 1,317-line `coeus-nn/tests/nn_ops/tensor/nn_parity.rs` leaf
+      into a shared assertion manifest plus nested attention, convolution,
+      embedding, linear/normalization, losses, and regularization modules.
+- [x] Preserve all 11 live parity tests, expected values, tolerances, and
+      CPU/autograd assertions; do not alter production NN code or fixtures.
+- [x] Verify format, check, warning-denied Clippy, diff checks, and the exact
+      package Nextest gate.
+
+Evidence: Coeus `ee5be32f` contains the complete split. The pre/post source-name
+census remains 11 unique parity test functions; exact package Nextest passes
+268/268 with 0 skipped in 2.816 seconds. The largest new leaf is `attention.rs`
+at 664 lines; the other five leaves are below 250 lines. Package check,
+warning-denied Clippy, format, and diff checks pass. This is a test-topology and
+maintainability change only; the broader stack-wide debug-tree measurement
+remains open.
+
+Next claimed slice: audit the 1,548-line `coeus-cuda/tests/cuda/parity.rs` leaf
+for operation-family separation and preserve its CUDA-gated parity surface with
+the repository's honest CUDA environment limits.
 
 ## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
 

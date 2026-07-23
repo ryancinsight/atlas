@@ -1640,10 +1640,18 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   Nextest passes 268/268 with 0 skipped in 4.463 seconds. Package check,
   warning-denied Clippy, format, and diff checks pass. Whole-workspace
   debug-tree measurement remains open.
-- Next claimed slice: `coeus-nn/tests/nn_ops/tensor/nn_parity.rs` is a 1,219-line
-  multi-family parity leaf containing linear, normalization, convolution,
-  embedding, softmax/loss, and attention tests. Split it into cohesive nested
-  operation-family modules while preserving all 12 value-semantic tests.
+- Coeus-NN tensor parity split complete at provider commit `ee5be32f`: the
+  1,317-line multi-family parity leaf is now a shared assertion manifest plus
+  attention, convolution, embedding, linear/normalization, losses, and
+  regularization operation-family modules. The pre/post source-name census
+  remains 11 unique parity test functions; exact package Nextest passes 268/268
+  with 0 skipped in 2.816 seconds. The largest new leaf is `attention.rs` at
+  664 lines; the other five leaves are below 250 lines. Package check,
+  warning-denied Clippy, format, and diff checks pass. Whole-workspace
+  debug-tree measurement remains open.
+- Next claimed slice: audit the 1,548-line `coeus-cuda/tests/cuda/parity.rs`
+  leaf for operation-family separation and preserve its CUDA-gated parity
+  surface with the repository's honest CUDA environment limits.
 
 ## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
 
