@@ -7,6 +7,21 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-013 — Close transposed-convolution launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `382b74c7` validates transposed-convolution dimensions,
+  checked input/weight/bias/output capacities, all native `u32` values, and
+  the shared 1-D grid before native dispatch. Native execution is restricted
+  to rank-correct contiguous offset-zero layouts with matching batch/channel
+  contracts; device gather arithmetic uses overflow-safe intermediates.
+- Evidence: feature-enabled check, warning-denied Clippy, and feature
+  rustdoc pass. Default package Nextest passes 3/3 with zero skipped. The
+  CUDA-feature Nextest reaches the Windows GNU linker but cannot link because
+  `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature test
+  execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-012 — Close unfold/fold launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

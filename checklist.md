@@ -6,6 +6,22 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-013 — Close transposed-convolution launch ABI [patch] [arch]
+
+- [x] Advance Coeus to provider commit `382b74c7` after validating
+      transposed-convolution dimensions, storage capacities, native `u32`
+      values, and the shared 1-D grid before native dispatch.
+- [x] Restrict native execution to rank-correct contiguous offset-zero layouts
+      with matching batch/channel contracts and overflow-safe device gather
+      arithmetic; retain the native kernels and explicit CPU fallback.
+- [x] Verify feature-enabled check, warning-denied Clippy, default Nextest,
+      feature rustdoc, the feature-linker boundary, and exact gitlink state.
+
+Evidence: default package Nextest passes 3/3 with zero skipped; feature check,
+warning-denied Clippy, and rustdoc pass. CUDA-feature Nextest reaches the
+Windows GNU linker but cannot link because `-lcuda` is absent from
+`/usr/local/cuda-11.3/lib64/`; no feature test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-012 — Close unfold/fold launch ABI [patch] [arch]
 
 - [x] Advance Coeus to provider commit `de74d093` after splitting the former
