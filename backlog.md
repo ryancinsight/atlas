@@ -7,6 +7,22 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-008 — Close pool2d launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `45826c05` promotes pooling validation to one dedicated SSOT
+  and hardens 2-D average/max forward and backward dispatch for checked
+  parameters, work counts, grids, rank-four layouts, and shape contracts;
+  pool1d consumes the same seam.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.050 seconds;
+  rustdoc and doctests pass; pooling source scans are clean for narrowing,
+  unchecked products, and local grid derivation.
+- Limit: CUDA-feature Nextest cannot link in this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-007 — Close pool1d launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
