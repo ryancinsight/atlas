@@ -6,6 +6,20 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-TREE-002 — Close the attention kernel tree split [arch]
+
+- [x] Advance Coeus to provider commit `393d711e` after replacing the 567-line
+      attention kernel module with a manifest and validation/source/forward/
+      backward/test leaves.
+- [x] Verify all leaves remain below 500 lines and preserve the public launch
+      seam, checked dimensions, device-buffer ownership, and explicit fallback.
+- [x] Run format and diff checks; record the package compile/test blocker
+      without claiming compiled or test output.
+
+Evidence: leaves are 12, 81, 92, 101, 135, and 149 lines. Package gates are
+blocked by unrelated dirty Coeus `Cargo.toml` state: it requests
+`mnemosyne ^0.6.0` while locked Moirai requires `mnemosyne ^0.5.0`.
+
 ## ATLAS-CUDA-TREE-001 — Close the convolution backend tree split [arch]
 
 - [x] Advance Coeus to provider commit `9b5da9c7` after replacing the 614-line

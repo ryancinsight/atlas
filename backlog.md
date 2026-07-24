@@ -7,6 +7,18 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-TREE-002 — Close the attention kernel tree split [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `393d711e` replaces the 567-line attention kernel module with
+  a manifest and validation, source, forward, backward, and test leaves; all
+  leaves remain below the 500-line target.
+- Evidence: format and diff checks pass; package compilation and tests are
+  blocked by unrelated dirty Coeus `Cargo.toml` state requesting
+  `mnemosyne ^0.6.0` while locked Moirai requires `mnemosyne ^0.5.0`. No
+  compiled or test result is claimed for this slice.
+
 ## ATLAS-CUDA-TREE-001 — Close the convolution backend tree split [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
