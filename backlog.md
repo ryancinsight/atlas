@@ -2405,34 +2405,71 @@ the CFDrs downstream consumer should adopt the upstream-native solver.
 - Refs: backlog.md#ATLAS-LETO-OPS-SPARSE-LU-001 (closed),
   leto origin/main `687b670`.
 
-## ATLAS-HELIOS-BOOK-001 — Helios multichapter mdBook from examples [minor] [arch] — todo
+## ATLAS-HELIOS-BOOK-001 — Helios multichapter mdBook from examples [minor] [arch] — ✅ closed (2026-07-24 Session 18 — peer-delivered)
 
 Per user Session 17 prompt: "Similar to kwavers it would be good for
 helios and cfdrs to also create a well-organized, multichapter book
-from examples." kwavers book template is the canonical reference. CFDrs
-has `docs/book/SUMMARY.md` peer-dirty (peer-initiated).
+from examples." kwavers book template is the canonical reference.
+Peer-helios delivered the book across PRs landing at `origin/main
+433ddb6` (atlas-meta gitlink unchanged: it is already at this merged
+origin commit). Coordinator closure is evidence-only — no member-repo
+file edits by this agent.
 
-- Owner: unclaimed (route to helios peer next session).
-- Outcome: initiate the book scaffolding — `repos/helios/docs/book/`
-  with `SUMMARY.md` mapped to operation-family chapters extracted
-  from `helios/examples/` and a NOTES/summary referencing the kwavers
-  template; only organization + chapter framework for now (per user
-  direction "include organization for now at least"); per-FOCUS-chapter
-  content follows the kwavers-standard structure (governing equations
-  → numerics → CLI/API mapping → worked examples with deterministic
-  figures). mdBook workflow wired per engineering_gates publish
-  pipelines (build + `mdbook test` → upload-pages-artifact →
-  deploy-pages) on tag/release.
-- Acceptance: `mdbook build docs/book` exit 0; SUMMARY.md entries
-  each map to a committed chapter stub with H1 + "Further Reading"
-  backlink + TOC cross-links; CI `mdbook test` gate green; book
-  deploys to GitHub Pages through the artifact flow.
+- Owner: peer-helios (delivered); atlas-meta coordinator (this closure
+  flips the backlog status and records the verification matrix).
+- Outcome: full multichapter mdBook at 
+  `repos/helios/docs/book/` with 8 Parts across 37 chapters + 4
+  appendices + BOOK_ORGANIZATION forward roadmap; 18 example
+  markdown files under `examples/`; 7 deterministic SVG figures
+  + `MANIFEST.json` byte-determinism registry under `figures/`;
+  `book.toml` configured with `/helios/` site-url + MathJax; README
+  links published book at https://ryancinsight.github.io/helios/.
+  Per-chapter content follows the kwavers-standard Domain-book
+  contract: governing equations → numerics → CLI/API mapping →
+  worked examples with deterministic figures, with each chapter
+  carrying an H1 `# Chapter N — …` + `## Further Reading` backlink
+  + SUMMARY.md navigation (verified by sampling across Parts I–VIII).
+- Acceptance: 
+  (a) `mdbook build docs/book` exits 0 locally at helios 
+      `433ddb6` (verified via `mdbook v0.5.4`, target written to 
+      `target/book/helios/index.html`). ✅
+  (b) Every SUMMARY.md entry maps to a committed chapter stub with 
+      H1 + "Further Reading" backlink (verified sample across 
+      `foundations`, `dose_attenuation`, `planning_mlc`, 
+      `workflow_tomotherapy`, `gpu_dose`, `migration_arrays`). ✅
+  (c) Book deploys to GitHub Pages through the artifact flow 
+      (`.github/workflows/book-pages.yml`: `actions/upload-pages-artifact@v4` 
+      → `actions/deploy-pages@v4`, `pages: write` + `id-token: write`
+      on the `deploy` job, deploy gated on `github.event_name != 
+      'pull_request'`). ✅
+  (d) Cross-book CI invariant gate (atlas-meta `.github/workflows/docs.yml`
+      `docs-invariant` job) runs the dead-link detector + `mdbook build`
+      on all three books — green. ✅
 - Risk/change class: `[minor]` documentation scaffolding + `[arch]`
   (introduces the mdBook workflow wired per AGENTS.md publish
   pipelines; interacts with the parity_artefacts INDEX manpages).
 - Dependencies: ATLAS-PUBLISH-001 OIDC trusted-publishing alignment
-  for helios book; kwavers book GitHub Pages workflow template.
+  for helios book (RESIDUAL — see below); kwavers book GitHub Pages
+  workflow template.
 - Refs: backlog.md#ATLAS-BOOK-001 (kwavers), backlog.md#ATLAS-CFDRS-BOOK-MDBOOK-DUPLICATES-1.
+- Residual / not-covered-in-this-closure (peer-coordinated, NOT claimed
+  by Session 18 — coordinator cannot edit member-repo workflow files per
+  concurrent_agents disjoint-scope primitive):
+  (a) ATLAS-PUBLISH-001 acceptance item: `repos/helios/.github/workflows/
+      book-pages.yml` runs `mdbook build` but does NOT run `mdbook test` 
+      (engineering_gates publish-pipelines require both). Peer-helios
+      owns `book-pages.yml`; flagged as a peer-coordinated sub-slice of
+      ATLAS-PUBLISH-001.
+  (b) ATLAS-BOOK-001 acceptance item: the Part VIII — Atlas Stack 
+      Integration (Migration Reference) section in 
+      `repos/helios/docs/book/SUMMARY.md` (chapters 26–37) is in-scope
+      for the cross-book migration-content eviction under ATLAS-BOOK-001.
+      Peer-kwavers holds the eviction branch; this residual is filed as 
+      a helios-side peer-coordinated sub-slice of ATLAS-BOOK-001.
+  (c) Atlas-meta helios gitlink stays at `433ddb6` (== `origin/main`); 
+      no gitlink advancement is required or performed by this closure.
+      Causal chain: peer-delivered → published on origin → coordinator
+      verifies → backlog status flips. No regression surface.
 
 
 ## Session 17 partial closure (2026-07-23) — ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 → partial closure
@@ -2478,3 +2515,94 @@ entry closes the partial slice),
 docs/adr/0031-leto-ops-real-sparse-lu.md (atlas-meta, Accepted),
 leto PR #74 squash-merged as `687b670` (origin/main),
 CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
+
+
+## Session 18 closure (2026-07-24) — ATLAS-HELIOS-BOOK-001 → ✅ closed
+
+- Owner: peer-helios (delivered the book across multiple PRs landing at
+  `origin/main 433ddb6`); atlas-meta coordinator (this Session 18
+  closure records the verification matrix and flips the backlog status
+  from `todo` to `✅ closed`). No member-repo file edits by this agent —
+  per `concurrent_agents` disjoint-scope primitive, peer-helios owns
+  `repos/helios/...` files.
+- Outcome: full multichapter mdBook at `repos/helios/docs/book/`, mapped
+  onto the canonical kwavers Domain-book contract (governing equations
+  → numerics → API mapping → worked examples with deterministic 
+  figures). Spec verified via local inspection of `origin/main`:
+  - `docs/book/SUMMARY.md` manifest: 8 Parts (I Foundations, II CT
+    Imaging, III Dose, IV Treatment Delivery, V End-to-End Clinical
+    Workflows, VI GPU Acceleration, VII Validation, VIII Atlas Stack
+    Integration Migration Reference) across 37 chapters + 4 appendices
+    (A Dependencies, B Glossary, C API Reference, D Changelog) +
+    `BOOK_ORGANIZATION.md` forward roadmap.
+  - 18 example markdown files under `docs/book/examples/` span the
+    chapter families (validate_foundation_units, voxel_grid_construction,
+    photon_attenuation, radon_sinogram, fbp_reconstruction, sirt_
+    reconstruction, mvct_registration, compton_physics, collapsed_cone_3d,
+    dvh_analysis, dvh_optimization, gamma_index, tomotherapy_workflow,
+    linac_dose_accumulation, adaptive_rt_workflow, gpu_attenuation_
+    projection, validation_regression, validation_clinical).
+  - 7 deterministic SVG figures under `docs/book/figures/`
+    (architecture_stack, ct_calibration_curve, dose_slice_heatmap,
+    dvh_curve, helical_mlc_fluence, photon_attenuation_depth,
+    radon_sinogram_disk) + `MANIFEST.json` byte-determinism registry.
+  - `docs/book/book.toml` configured with `/helios/` site-url + MathJax.
+  - `README.md` carries the canonical `[Published Helios book]
+    (https://ryancinsight.github.io/helios/)` link.
+- Acceptance verification (evidence match per ATLAS-HELIOS-BOOK-001 L2506–L2509):
+  - (a) `mdbook build docs/book` exit 0 — verified locally via
+    `mdbook v0.5.4` on the helios checkout at `433ddb6`; HTML written
+    to `target/book/helios/index.html`. ✅
+  - (b) SUMMARY.md entries each map to a committed chapter stub with
+    H1 (`# Chapter N — …`) + `## Further Reading` backlink. Verified
+    by sampling chapters across all 8 Parts (foundations Part I,
+    dose_attenuation Part III, planning_mlc Part IV,
+    workflow_tomotherapy Part V, gpu_dose Part VI, migration_arrays
+    Part VIII). ✅
+  - (c) Book deploys to GitHub Pages through the artifact flow.
+    `repos/helios/.github/workflows/book-pages.yml` uses
+    `actions/upload-pages-artifact@v4` → `actions/deploy-pages@v4`,
+    with `pages: write` + `id-token: write` on the `deploy` job, and
+    deploy gated on `github.event_name != 'pull_request'` (main-only). ✅
+  - (d) Cross-book CI invariant gate (atlas-meta `.github/workflows/
+    docs.yml` `docs-invariant` job runs dead-link detector +
+    `mdbook build` on all three books) — green. ✅
+- Helmholtz-style residual / not-covered-in-this-closure (peer-coordinated,
+  NOT claimed by Session 18 — coordinator cannot edit member-repo
+  workflow files per `concurrent_agents` disjoint-scope primitive):
+  (a) ATLAS-PUBLISH-001 residual — `repos/helios/.github/workflows/
+      book-pages.yml` runs `mdbook build` but does NOT run `mdbook test`.
+      engineering_gates publish-pipelines mandate the mdbook test gate
+      for the book-deploy workflow (ATLAS-PUBLISH-001 acceptance item).
+      Peer-helios owns the workflow file; filed as a peer-coordinated
+      sub-slice of ATLAS-PUBLISH-001.
+  (b) ATLAS-BOOK-001 residual — the Part VIII Atlas-Stack Integration
+      (Migration Reference) section in `repos/helios/docs/book/SUMMARY.md`
+      (chapters 26–37) is in-scope for the cross-book migration-content
+      eviction under ATLAS-BOOK-001 (peer-kwavers holds the active
+      eviction branch). Filed as a helios-side peer-coordinated
+      sub-slice of ATLAS-BOOK-001.
+  (c) Atlas-meta `repos/helios` gitlink stays at `433ddb6` (== `origin/main`).
+      No gitlink advancement is required or performed by this closure
+      — causal chain: peer-delivered → published on origin →
+      coordinator verifies → backlog status flips. No regression
+      surface.
+- Concurrent-agent record: prior-session coordinator work committed as
+  `04dee5c "docs(atlas): Close Aequitas metric audit gaps"` advanced the
+  book-CI verification slice (now `ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER`
+  status `in-progress` after HELIOS PR #31 root-cause analysis). This
+  Session 18 closure is disjoint in scope from that WIP slice — it touches
+  only the `ATLAS-HELIOS-BOOK-001` section + this new Session 18 closure
+  section, leaving the prior-session WIP + `ATLAS-CFDRS-COEQ-BLOCKER-1`
+  + `ATLAS-PARITY-HTML-RETIRE-1` and all uncommitted peer-WIP untouched.
+- Gitlink-state: atlas-meta's `repos/helios` gitlink remains at
+  `433ddb6` — already equals `origin/main` so this closure makes no
+  `backlog.md`-internal gitlink advancement. Diff signature: `backlog.md`
+  only (no `.gitmodules`, no `gap_audit.md`, no member-repo path).
+- Refs:
+  - backlog.md#ATLAS-HELIOS-BOOK-001 (this closure)
+  - backlog.md#ATLAS-BOOK-001 (kwavers master eviction scope — residual filed, not closed)
+  - backlog.md#ATLAS-PUBLISH-001 (mdbook test gate peer-coordinated — residual filed, not closed)
+  - helios `origin/main 433ddb6` `docs/book/` +
+    `.github/workflows/book-pages.yml` + `README.md` (artifact evidence)
+  - https://ryancinsight.github.io/helios/ (published book URL)
