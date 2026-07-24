@@ -7,6 +7,20 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-014 — Close fused-dispatch launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `799e72f6` validates fused output counts and grids,
+  contiguous output indexing, broadcast contracts, null inputs, and input /
+  output storage bounds before dynamic CUDA launch. Physical layout storage
+  length is now shared with unfold/fold through the validation SSOT.
+- Evidence: feature-enabled check and warning-denied Clippy pass; default
+  package Nextest passes 3/3 with zero skipped; feature rustdoc and default
+  doctests pass 4/4 in 12.28 seconds. CUDA-feature Nextest reaches the
+  Windows GNU linker but cannot link because `-lcuda` is absent from
+  `/usr/local/cuda-11.3/lib64/`; no feature test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-013 — Close transposed-convolution launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
