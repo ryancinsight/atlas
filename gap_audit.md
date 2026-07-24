@@ -65,6 +65,7 @@ oracles.
 | `KWAVERS-AEQ-MET-04` | vessel analysis | Diameter, total vessel length, centerline coordinates, and Doppler-derived velocity were raw or voxel-unit values and relied on a caller-applied spacing convention. | Kwavers | **IMPLEMENTED; PR #325 OPEN.** Commit `9f95aa826` adds validated anisotropic `VoxelSpacing`, physical `Length<f64>` geometry, typed Doppler `Frequency`/`Velocity` boundaries, value-semantic spacing/Doppler/geometry regressions, ADR 047, and synchronized child PM. Focused compilation is blocked before Kwavers sources by peer `mnemosyne-heap` matches omitting `TierSelection::Hbm` and `TierSelection::Gddr`; format, diff, and metadata checks pass. |
 | `KWAVERS-AEQ-MET-05` | thermal material and perfusion models | Conductivity/density/specific heat were typed internally but accessors and perfusion parameters returned raw values; the existing Pennes path exposed the rate contract without a physical type. | Aequitas, Proteus, Kwavers | **RESOLVED.** Aequitas `MassDensityRate` merged as `b86a55d`; Kwavers commit `7756a20a` types thermal material constructors/accessors, temperature-dependent properties, and Pennes perfusion while preserving Proteus as the thermophysical SSOT. Scalar conversion remains explicit at display, DTO, and finite-difference kernel boundaries. Kwavers-medium Nextest 191/191, thermal/bubble physics Nextest 361/361, no-default-features checks for `kwavers-physics`/`kwavers-solver`, warning-denied Clippy, doctests, formatting, and diff checks pass. See Kwavers ADR 051. |
 | `KWAVERS-AEQ-MET-06` | `kwavers-grid` derived metric methods | Grid spacing, physical size, volume, cell volume, and CFL timestep crossed the public grid boundary as raw scalars. | Kwavers | **IMPLEMENTED on PR #324 head `cf06a3a93`; verification pending hosted dependency repair.** The grid API now returns Aequitas `Length`, `Volume`, and `Time`, accepts typed `Velocity`, and converts only at coordinate/stability-kernel boundaries. Direct value tests and all in-repository callers are migrated; see child ADR 053. |
+| `KWAVERS-AEQ-MET-08` | thermal-diffusion/Pennes/Cattaneo and coupled thermal configuration | Perfusion, blood properties, arterial/initial temperature, relaxation, conductivity, frequency, metabolic heat, and thermal step crossed Rust configuration seams as raw scalars. | Kwavers | **IMPLEMENTED on PR #324 head `37fcf346c`; verification pending hosted dependency repair.** The physics and simulation carriers now use Aequitas quantities, typed Pennes composition reaches the scalar numerical boundary, Python remains an explicit scalar conversion edge, and SI serialization round-trip coverage is added. See child ADR 054. |
 
 ### Explicit non-gaps and sequencing constraints
 
@@ -75,9 +76,10 @@ oracles.
   scores, probabilities, CEM43 thresholds as clinical model parameters, and
   other ratios remain dimensionless or consumer-semantic values.
 - The current implementation state is: CFDrs' audited public physical carriers
-  are closed in merged PR #315 (`9fa95f9c`); Kwavers' public transducer/Rayleigh
-  and thermal/perfusion metric gaps are closed on PR #324 head `ae345de7c`; the
-  derived-grid slice is now implemented on PR #324 head `cf06a3a93`; PR #325's
+  are closed in merged PR #315 (`9fa95f9c`); Kwavers' public transducer/Rayleigh,
+  thermal/perfusion, derived-grid, and thermal-diffusion configuration metric
+  gaps are implemented on PR #324 head `37fcf346c`;
+  PR #325's
   vessel-spacing slice is externally blocked by a conflicting branch and
   the peer Mnemosyne `TierSelection` dependency gap; and Helios PR #32 is merged
   as `02d7a775` with its replicated benchmark gate green. These are
@@ -108,7 +110,9 @@ oracles.
 - The grid-derived metric implementation is intentionally kept on PR #324;
   the vasculature implementation remains solely on peer PR #325 so the two
   branches do not duplicate the same public contract. PR #324 head
-  `cf06a3a93` reran the matrix: Legacy Migration Audit run `30092747314`
+  `37fcf346c` reran the matrix: the latest exact-head jobs are queued or
+  in progress after the typed thermal-configuration push; the prior Legacy
+  Migration Audit run `30092747314`
   reaches provider checkout and then fails before Kwavers compilation on the
   same Coeus `mnemosyne ^0.5.0` versus Atlas Mnemosyne `0.6.0` mismatch. The
   remaining exact-head jobs are still in progress; no hosted-green claim is
