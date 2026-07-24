@@ -3805,3 +3805,33 @@ Next actionable (awaiting user or peer):
   [arch] board item (per Session 17 closure; next session to draft the
   SUMMARY.md scaffold).
 
+
+## Session 17 partial closure (2026-07-23) — ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 partial slice
+
+Coordinator (Session 17 follow-up) landed the ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 partial doc-migration slice. Acceptance criterion (1) of the board item: PASS. Acceptance criteria (2)-(3): DEFERRED to follow-up slices per peer cfd-3d WIP and direct_threshold re-evaluation.
+
+### Closed this slice
+
+- [x] CFDrs `crates/cfd-math/src/linear_solver/direct_solver.rs` module doc migration to reflect leto PR #74 (squash-merged `687b670`) real CSC sparse LU per ADR 0031. Pre-merge misnomer "backed by dense partial-pivoting LU" removed; correct dispatch documented (dense path for `n ≤ small_switch=32` or `nnz/n² ≥ density_threshold=0.1`; CSC sparse LU path with Gilbert–Peierls symbolic reach + slot-indexed left-looking numeric factorization + internal dense fallback for partial pivoting). The CFDrs-side `dense_threshold=1024` retry documented as the orthogonal `max_size`-cap + small-`n` user-intent safety net (not the upstream internal fallback).
+- [x] `ordering: i8` field doc corrected; reserved for AMD follow-up `ATLAS-LETO-OPS-AMD-ORDERING-001`.
+- [x] Convergence composition with peer's pending `..Default::default()` adaptation to upstream `SparseLuSolver` struct expansion (`small_switch` + `density_threshold` fields per ADR 0031) — preserved in the slice for upstream compatibility.
+- [x] CFDrs PR #316 opened with the doc-migration commit (cherry-picked off origin/main `1b2c9018`), squash-merged as `5ac713b3` at 2026-07-24T03:43:21Z.
+- [x] Verification on local CFDrs main HEAD `2686b86d` + peer's dirty working tree: `cargo check -p cfd-math` Finished clean (14.6s after build-cache lock wait); `cargo nextest run -p cfd-math -E 'test(direct_solver) | test(dense_lu_fallback)'` 4/4 PASS in 0.193s.
+- [x] Atlas-meta `repos/CFDrs` gitlink advances from `1b2c901` to `5ac713b3` (submodule local working tree left at local `354266c0` with peer's WIP preserved per `concurrent_agents`).
+- [x] Atlas-meta `backlog.md` `ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001` status flip + tail closure entry appended; gap_audit + checklist closure entries appended.
+
+### Deferred to follow-up slices (peer-held scope or future evidence)
+
+- [ ] Acceptance (2): cfd-3d end-to-end re-verification of `validate_poiseuille_flow` (PR #311 root-caused fix at CFDrs `22ddc27d`) under the new upstream sparse LU path. Requires peer cfd-3d integration (`trifurcation/solver.rs` peer-WIP) and a fresh cfd-3d `cargo nextest run` re-profile with the new upstream sparse LU. Per the Session 13 baseline: `validate_poiseuille_flow` PASS at CFDrs `22ddc27d` in 0.342s post-PR-#311 — the goal is to verify that timing does not regress under the new upstream sparse LU dispatch and that the value-semantic correctness assertion still holds.
+- [ ] Acceptance (3): `direct_threshold` field re-evaluation. The CFDrs-side `dense_threshold=1024` retry is preserved as a user-intent safety net; ADR 0031 functional analysis shows it's orthogonal to (not redundant with) the upstream internal fallback. A follow-up slice should re-profile against new evidence to either remove or re-baseline this threshold.
+- [ ] Aequitas pin coherence verification across all atlas consumers (URL-only form per Session 12 dual-source-ID recurring risk). Peer's `4d72981` atlas-meta commit advances the path-deps migration; a follow-up slice verifies URL-only alignment and pins after peer integrates.
+- [ ] CFDrs `crates/cfd-math/src/lib.rs` `quadrature_rules` doctest path-mismatch watchpoint (peer doctest bug — `use cfd_math::quadrature::{...}` references module exported as `quadrature_rules`; NOT this slice's scope per integrity "do not fix unrelated bugs outside scope").
+
+### Verification matrix
+
+| Item | Method | Result | Evidence limit |
+|------|--------|--------|----------------|
+| `direct_solver.rs` test parity | `cargo nextest run -p cfd-math -E 'test(direct_solver) \| test(dense_lu_fallback)'` | 4/4 PASS in 0.193s | run on local CFDrs main + peer dirty tree (proteus Cargo.lock unverified at origin/main baseline) |
+| Check parity preserved | `cargo check -p cfd-math` Finished | clean (14.6s incl build-lock wait) | same dirty-tree evidence; isolated cherry-pick baseline proteus compile residual |
+| Gitlink advance coherent | `git update-index --cacheinfo` records CFDrs origin/main tip `5ac713b3` | OK | working submodule tree left at peer-preserved `354266c0` per concurrent_agents |
+| Out-of-scope peer WIP preserved | `git --no-optional-locks status -sb` confirms peer ATLAS-CHECK-FIGURES backlog Hunk + Cargo.lock + lib.rs + error.rs + trifurcation + parity_artefacts + xtask + docs/book all unstaged | OK | per `concurrent_agents` disjoint-scope composition |

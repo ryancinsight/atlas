@@ -4899,3 +4899,59 @@ Refs:
 - leto PR #74 squashed merged as `687b670`
 - Re-verify on next session via origin-sync (`git fetch origin`) per
   concurrent_agents origin-sync-first rule.
+
+## Session 17 partial closure (2026-07-23) — ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 partial slice
+
+Coordinator landed the doc-comment migration of
+`crates/cfd-math/src/linear_solver/direct_solver.rs` per
+`ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001` partial slice (acceptance (1)
+"no longer documents itself as 'atlas-native sparse direct solver
+backed by dense partial-pivoting LU'"). CFDrs PR #316 squash-merged
+as `5ac713b3` on origin/main at 2026-07-24T03:43:21Z.
+
+Evidence matrix:
+
+- `cargo check -p cfd-math` Finished clean (14.6s after build-cache
+  lock wait) on local CFDrs main HEAD `2686b86d` (peer-unpushed) +
+  peer's dirty Cargo.lock + peer's WIP leto checkout at `406497a`
+  (descendant of merged `687b670`).
+- `cargo nextest run -p cfd-math --no-fail-fast -E 'test(direct_solver)
+  | test(dense_lu_fallback)'` 4/4 PASS in 0.193s on the same dirty
+  tree; all 4 tests are the in-module tests in `direct_solver.rs`
+  itself plus the `dense_bridge` integration used by multigrid
+  `cycles.rs` coarsest-level solve.
+- Diff surface +25/-6 doc-only modulo `..Default::default()` adaptation
+  to upstream struct expansion (semantic-neutral; doc + adapting line).
+
+Evidence limits:
+
+- Isolated cherry-picked-onto-`origin/main` build could not be
+  verified because the CFDrs `origin/main` baseline `1b2c9018` has a
+  stale `proteus` Cargo.lock pin at `bb51ac4` that does not compile
+  against the local eunomia checkout `f6cd644` (semantic dimension
+  mismatch at `proteus/src/constitutive/temperature/law.rs:170`).
+  Peer's CFDrs WIP Cargo.lock and the `D:/atlas/target` build cache
+  (which held peer's prior successful proteus build artifact) address
+  this. Doc-only diff carries zero semantic risk.
+- cfd-3d end-to-end re-verification deferred: peer's cfd-3d has heavy
+  dirty WIP (`trifurcation/solver.rs` dirty); re-profile per
+  acceptance (2) is a follow-up slice.
+- `direct_threshold` field re-evaluation deferred per acceptance (3).
+
+Concurrent-agent record: peer simultaneously active on CFDrs
+book/prebook deterministic-figure work (mtimes later than 2026-07-23
+18:00); assist-ladder rule (1) sweep freshness: peer fresh, rule (3)
+disjoint strategy — peer's `docs/book/*`, `xtask/*`, `lib.rs`,
+`error.rs`, `trifurcation/solver.rs`, `backlog.md` (ATLAS-CHECK-FIGURES
+WIP), `Cargo.lock`, `.cargo/config.toml`, `parity_artefacts`
+untouched; coordinator staged only `direct_solver.rs` for the PR
+plus own `backlog.md` tail-append closure entry at atlas-meta.
+
+Refs:
+
+- backlog.md#ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 (this partial slice
+  closes (1); (2)-(3) follow-up)
+- docs/adr/0031-leto-ops-real-sparse-lu.md (atlas-meta, Accepted)
+- CFDrs PR #316 squash-merged as `5ac713b3` on origin/main
+- leto PR #74 squash-merged as `687b670` on origin/main (upstream
+  sparse LU landing this slice's diff reflects)

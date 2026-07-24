@@ -2372,7 +2372,7 @@ deferred performance increment.
 - Refs: docs/adr/0031-leto-ops-real-sparse-lu.md,
   backlog.md#ATLAS-LETO-OPS-SPARSE-LU-001 (closed).
 
-## ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 — Migrate CFDrs direct_solver to SparseLuSolver::solve_view [minor] — todo
+## ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 — Migrate CFDrs direct_solver to SparseLuSolver::solve_view [minor] — partial closure (2026-07-23 Session 17: doc-migration slice landed via PR #316 `5ac713b3`); cfd-3d end-to-end re-profile and direct_threshold re-evaluation deferred
 
 Filed as follow-up per Session 17 closure of `ATLAS-LETO-OPS-SPARSE-LU-001`.
 Now that real sparse LU + partial pivoting has landed at leto `687b670`,
@@ -2434,3 +2434,47 @@ has `docs/book/SUMMARY.md` peer-dirty (peer-initiated).
   for helios book; kwavers book GitHub Pages workflow template.
 - Refs: backlog.md#ATLAS-BOOK-001 (kwavers), backlog.md#ATLAS-CFDRS-BOOK-MDBOOK-DUPLICATES-1.
 
+
+## Session 17 partial closure (2026-07-23) — ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 → partial closure
+
+Coordinator (Session 17 follow-up) landed the doc-comment migration of
+`crates/cfd-math/src/linear_solver/direct_solver.rs` to reflect the
+real CSC sparse LU per ADR 0031 + leto origin/main `687b670` (PR #74
+squash-merge).
+
+- **CFDrs PR**: ryancinsight/CFDrs#316 — title
+  "docs(cfdrs-math): Migrate direct_solver doc to ADR 0031 real sparse LU
+  (ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 partial)" — squash-merged as
+  `5ac713b3fdf5fd45dbd295f3887c6f58b88c63f8` on CFDrs origin/main at
+  2026-07-24T03:43:21Z.
+- **Diff surface**: +25/-6 in
+  `crates/cfd-math/src/linear_solver/direct_solver.rs` — module doc
+  rewrite + `ordering` field doc correction + convergence composition
+  with peer's pending `..Default::default()` adaptation to the
+  upstream `SparseLuSolver` struct expansion (`small_switch` +
+  `density_threshold` fields per ADR 0031).
+- **Doc claim corrected**: the pre-merge module doc claimed the
+  atlas-native solver was "backed by dense partial-pivoting LU" — that
+  misnomer was filed for the Session 13 `CFDRS-PERF-SLOW-001` timeout
+  closure root cause; it is now stale per ADR 0031 since leto PR #74
+  landed the real CSC sparse LU (symbolic = sequential left-looking
+  Gilbert–Peierls reach per Davis 2006 §6.1; numeric = slot-indexed
+  left-looking with row_perm[slot]=original-row matching dense
+  `LuDecomposition::pivots`; density-gated dispatch `small_switch=32`,
+  `density_threshold=0.1` in `SparseLuSolver`).
+- **Safety net preserved**: the CFDrs-side `dense_threshold=1024`
+  retry at `DirectSparseSolver::retry_dense_or_error` is preserved as
+  the orthogonal catch case for the `max_size`-cap + small-`n`
+  user-intent safety net; NOT a duplicate of the upstream internal
+  fallback (which handles only `NumericalBreakdown` mid-sparse-path).
+
+Gitlink: atlas-meta `repos/CFDrs` advances from `1b2c901` to
+`5ac713b3` (submodule local working tree left at local main HEAD
+`354266c0` with peer's WIP unmodified per concurrent_agents
+preservation; the gitlink records the squash-merged origin/main tip).
+
+Refs: backlog.md#ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 (above; this
+entry closes the partial slice),
+docs/adr/0031-leto-ops-real-sparse-lu.md (atlas-meta, Accepted),
+leto PR #74 squash-merged as `687b670` (origin/main),
+CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
