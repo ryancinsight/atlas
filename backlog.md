@@ -7,6 +7,22 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-009 — Close pool3d launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `df331873` extends the pool-owned validation seam to 3-D
+  average/max forward and backward dispatch with checked positive parameters,
+  rank-five layout/work/grid bounds, prefix relationships, and backward shape
+  contracts.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.049 seconds;
+  rustdoc and doctests pass; all pooling source scans are clean for narrowing,
+  unchecked products, and local grid derivation.
+- Limit: CUDA-feature Nextest cannot link in this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-008 — Close pool2d launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

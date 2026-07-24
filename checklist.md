@@ -6,6 +6,22 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-009 — Close pool3d launch ABI [patch] [arch]
+
+- [x] Advance Coeus to provider commit `df331873` after applying the
+      pool-owned checked parameter, rank-five layout, work, grid, and shape
+      boundary to 3-D average/max dispatch.
+- [x] Verify all pooling dimensions share one validation seam and retain
+      native kernels and device-buffer ownership.
+- [x] Verify feature-enabled check, warning-denied Clippy, default Nextest,
+      rustdoc, doctests, source scans, and exact gitlink integration.
+
+Evidence: 1-D, 2-D, and 3-D pooling source contains no input-dependent
+parameter/count/grid/block narrowing or unchecked shape product. Default
+package Nextest passes 3/3 with zero skipped in 0.049 seconds; rustdoc and
+doctests pass. CUDA-feature Nextest remains blocked before execution because
+the Windows GNU linker cannot find `-lcuda` at `/usr/local/cuda-11.3/lib64/`.
+
 ## ATLAS-CUDA-SAFETY-008 — Close pool2d launch ABI [patch] [arch]
 
 - [x] Advance Coeus to provider commit `45826c05` after promoting pooling
