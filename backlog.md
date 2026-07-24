@@ -2948,3 +2948,134 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
   accumulating on coeus after the COEQ closeout commit `7d60724`
   advanced the coeus submodule past `15ee8e5`; user prompt
   2026-07-24.
+
+## ATLAS-COEUS-OPS-FALLIBLE-API-1 — Document `coeus_ops` fallibility boundary migration (`*_assign` + `elementwise_unary` Result return + downstream test adaptations) [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-24; scope: `repos/coeus`
+  (the upstream boundary commit + downstream test adaptations captured
+  by `ATLAS-COEUS-DIRTY-RECONCILE-1`).
+- Outcome: traces the `coeus_ops::*_assign` + `coeus_ops::elementwise_unary`
+  fallibility boundary migration. **CORRECTION 2026-07-24:** the user's
+  prior framing was **CORRECT** -- the primary fallibility boundary
+  lives in `crates/coeus-ops/src/backend_ops/cpu_impl/elementwise.rs`
+  (and the adjacent `cpu_impl/error.rs` + `cpu_impl/impls/elementwise.rs`)
+  at coeus commit `f8328027 refactor(coeus-ops): Propagate backend errors`
+  (Fri Jul 24 00:50:13 2026). The `--all --follow -- crates/coeus-ops/src/backend_ops/cpu_impl/elementwise.rs`
+  archaeology (basher 2026-07-24) surfaced `f8328027` as the upstream
+  coeus-ops-side boundary; the earlier path-filtered `git log -- crates/coeus-ops/`
+  pass missed it (it returns only 2 commits in current reachable history).
+  The commit title verbatim: "Route validation and provider failures
+  through the monomorphized backend seam without silent fallbacks.
+  Update high-level callers, parity tests, and ADR tracking together."
+  A SECOND distinct boundary in `coeus-wgpu/src/lib.rs` at
+  `39191754 fix(coeus-wgpu): Make public add fallible` covers the
+  coeus-wgpu-facade's own `add` API fallibility -- architecturally
+  separate from the coeus-ops boundary at `f8328027`. Both seams share
+  callers via the `coeus_ops::*` namespace but have distinct error types:
+  `coeus_core::backend::Error` (from `f8328027`'s new `coeus-core/src/backend/error.rs`)
+  vs `GpuLayoutError` (from `a6dfb2d6`'s coeus-wgpu layout boundary).
+- Acceptance: (a) coeus-wgpu public `add` API is fallible (returns
+  `Result`) per coeus commit `39191754 fix(coeus-wgpu): Make public add
+  fallible`; (b) the primary coeus-ops-side fallibility boundary commit
+  is `f8328027 refactor(coeus-ops): Propagate backend errors` (touched
+  files: `coeus-core/src/backend/error.rs` new 67-line Error module +
+  `coeus-core/src/backend/{mod,moirai,sequential,traits}.rs` + `coeus-core/src/lib.rs`
+  + `coeus-ops/src/backend_ops/cpu_impl/elementwise.rs` + `cpu_impl/error.rs` +
+  `cpu_impl/impls/elementwise.rs` + `cpu_impl/matmul.rs` +
+  `cpu_impl/defaults/matmul.rs` + `coeus-cuda/src/backend/ops/impls/elementwise.rs` +
+  `coeus-cuda/src/backend/ops/impls/matmul.rs` + `coeus-cuda/src/backend/ops/math.rs` +
+  `coeus-cuda/src/error.rs` + many more); (c) downstream test files
+  `coeus-tensor/tests/.../parity_tests.rs` (3 `.expect(...)` additions
+  at lines 246/269/272), `coeus-wgpu/src/kernels/layout.rs` (3
+  `matches!(...if...)` patterns + `vec![...]` ergonomic upgrades),
+  `coeus-wgpu/tests/.../parity/strided.rs` (3 `.expect(...)` patterns
+  for `Exp`/`Neg`/`Sqrt` strided transposed parity) all adapted per
+  coeus commit `53311c03 fix(coeus-wgpu): Repair fallible test calls`;
+  (d) post-`53311c03` partial revert `6b54e64a fix(coeus-ops): make
+  element-wise ops return Tensor directly (infallible API)` rolled
+  the OUTER PUBLIC `add/sub/mul/div` back to infallible with internal
+  shape-mismatch `.expect()` (programming-error crashes, not runtime
+  error surfacing), but the `*_assign` family and `elementwise_unary`
+  **remain fallible** at HEAD -- this is why the test files retain
+  `.expect(...)` calls at HEAD.
+- Co-located commits (chronological -- earliest first):
+  - `e840d019 refactor(ops): Split cpu_impl.rs into SRP family submodules`
+    (Fri Jun 26 19:14:30 2026) -- THE PREDECESSOR: extracted
+    `elementwise.rs` + `matmul.rs` + `conv/*.rs` as leaf modules from
+    the 931-line `cpu_impl.rs` shell. This separation of concerns
+    materially enabled `f8328027`'s targeted edit against `elementwise.rs`
+    alone.
+  - `79e76e86 docs(coeus): Specify fallible WGPU dispatch` (Thu Jul 23
+    22:08:38 2026) (CHECKLIST.md + docs/adr/0020-wgpu-fallible-dispatch-boundary.md)
+    -- ADR documents the boundary contract.
+  - `a6dfb2d6 fix(coeus-wgpu): Validate layout metadata ABI` (Thu Jul 23
+    22:12:02 2026) (126-line diff to coeus-wgpu/src/kernels/layout.rs) --
+    introduces the `GpuLayoutError` family + `try_from_layout` boundary.
+  - `f8328027 refactor(coeus-ops): Propagate backend errors`
+    (Fri Jul 24 00:50:13 2026) -- **THE primary coeus-ops-side
+    fallibility boundary commit** (corrected from prior path-filtered
+    basher pass). Title verbatim: "Route validation and provider
+    failures through the monomorphized backend seam without silent
+    fallbacks. Update high-level callers, parity tests, and ADR
+    tracking together." Touched files (basher-verified):
+    `coeus-core/src/backend/error.rs` (new 67-line Error
+    monomorphization module) +
+    `coeus-core/src/backend/{mod,moirai,sequential,traits}.rs` +
+    `coeus-core/src/lib.rs` +
+    `coeus-ops/src/backend_ops/cpu_impl/elementwise.rs` +
+    `coeus-ops/src/backend_ops/cpu_impl/error.rs` +
+    `coeus-ops/src/backend_ops/cpu_impl/impls/elementwise.rs` +
+    `coeus-ops/src/backend_ops/cpu_impl/matmul.rs` +
+    `coeus-ops/src/backend_ops/cpu_impl/defaults/matmul.rs` +
+    `coeus-cuda/src/backend/ops/impls/elementwise.rs` +
+    `coeus-cuda/src/backend/ops/impls/matmul.rs` +
+    `coeus-cuda/src/backend/ops/math.rs` + `coeus-cuda/src/error.rs` +
+    many others. `merge-base --is-ancestor f8328027 atlas/mnemosyne-0.6-compat`
+    returns EXIT=0 (in-branch).
+  - `39191754 fix(coeus-wgpu): Make public add fallible` (Fri Jul 24
+    08:05:02 2026) (5 files, 24+/7-) -- coeus-wgpu/src/lib.rs public
+    `add` API becomes Result-returning. SECONDARY boundary (the
+    coeus-wgpu facade, architecturally distinct from the coeus-ops
+    boundary at `f8328027`).
+  - `6b54e64a fix(coeus-ops): make element-wise ops return Tensor
+    directly (infallible API)` (Fri Jul 24 10:07:27 2026) -- partial
+    revert: outer `add/sub/mul/div` infallible, `*_assign` +
+    `elementwise_unary` STAYS fallible at HEAD.
+  - `53311c03 fix(coeus-wgpu): Repair fallible test calls` (Fri Jul 24
+    12:58:43 2026) -- downstream test adaptation (consumed by
+    DIRTY-RECONCILE-1).
+- Co-located evidence: `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md`
+  §3.2 sub-log enumerates `39191754` + `6b54e64a` + `53311c03` in the
+  same migration slice.
+- Cross-links: depends on `ATLAS-COEUS-DIRTY-RECONCILE-1 [done]` (parent
+  commit `dff78e7`) which captured `53311c03` + `4d59a0f3` + `c711dcb4`
+  in the parent-side gitlink advance. Also depends on
+  `ATLAS-CUDA-SAFETY-006..015 [done]` + `ATLAS-BUILD-STRUCTURE-003..005
+  [done]` for the broader coeus operation-family closure context.
+- Risk/change class: `[patch]` (call-site surface; behavior-preserving
+  -- callers now must explicitly handle the Result variant but the
+  success-path semantics are unchanged).
+- Dependencies: depends on the fallible boundary commit (`39191754`) being
+  PUBLIC-API-stable; the partial revert `6b54e64a` did not break that --
+  it explicitly carved out `*_assign` + `elementwise_unary` as fallible.
+- Evidence limit: basher grep of all `coeus_ops::*_assign` +
+  `coeus_ops::elementwise_unary` call-sites shows full `.expect(...)`
+  coverage; the post-`6b54e64a` infallible `add|sub|mul|div` outer
+  surface is verified by `coeus-autograd/src/ops/activation/*.rs`
+  having no outer `.expect()`; no production-code delta, no perf claim.
+- Discovered-by: live basher git log archaeology with
+  `--all --follow -- crates/coeus-ops/src/backend_ops/cpu_impl/elementwise.rs`
+  (post-DIRTY-RECONCILE-1 closure 2026-07-24). Earlier path-filtered
+  `git log -- crates/coeus-ops/` pass returned only 2 commits and missed
+  `f8328027` -- the path-filter truncation is why the Round-1 preliminary
+  draft misattributed the boundary to `coeus-wgpu/src/lib.rs` exclusively.
+  Corrected view: BOTH boundaries exist (`f8328027` PRIMARY in coeus-ops,
+  `39191754` SECONDARY in coeus-wgpu facade); the USER's prior framing in
+  the upstream sub-question was CORRECT (the coeus-ops-side boundary
+  indeed exists). Empirical inv: `git -C /d/atlas/repos/coeus log --all
+  --follow -- crates/coeus-ops/src/backend_ops/cpu_impl/elementwise.rs`
+  (basher 2026-07-24) returns the 4-commit chain
+  `4a05472b → f8328027 → e840d019 → (post-order ancestors)` from which
+  `f8328027` is identified as the boundary commit. `git
+  -C /d/atlas/repos/coeus merge-base --is-ancestor f8328027
+  atlas/mnemosyne-0.6-compat` returns EXIT=0 confirming in-branch.
