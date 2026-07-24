@@ -1,6 +1,6 @@
 # atlas — cross-repository integration gap audit
 
-## Aequitas physical-metric gap audit (2026-07-23)
+## Aequitas physical-metric gap audit (2026-07-24)
 
 This audit compares the Aequitas SI surface with the public physical inputs and
 metric outputs in CFDrs, Helios, and Kwavers. It counts a gap only when a
@@ -21,16 +21,13 @@ oracles.
   with SI and scaled units used by the three consumers.
 - CFDrs report arithmetic composes flow, power, pressure, viscosity, reciprocal
   time, time, length, volume, and velocity through Aequitas. The typed report
-  carrier and one scalar serialization adapter are implemented on PR #315,
-  pending merge.
+  carrier, residence/safety carriers, and per-channel hemolysis carrier are
+  implemented on PR #315 head `6d6ff613`; merge is clean but CodeRabbit is
+  still pending.
 - The provider semantic extension for volumetric energy density and an explicit
-  temperature-difference dimension is implemented on Aequitas PR #7 at commit
-  `5aa712c8`. It adds `JoulePerCubicMeter`, `JoulePerMilliliter`, Kelvin
-  temperature-difference units, and affine temperature arithmetic, with local
-  provider gates passing. Hosted `recurseml/analysis` errors while CodeRabbit,
-  supply-chain, and verify pass; consumers must update only after the provider
-  PR merges. Kwavers' typed transducer slice otherwise uses existing
-  `MassDensity`, `AcousticImpedance`, `Time`, and `ReciprocalLength`.
+  temperature-difference dimension merged as Aequitas commit `e0fc5f3`.
+  Proteus consumed the affine temperature-difference contract in merged commit
+  `1b25af1`; CFDrs and Helios now pin the merged provider graph.
 - The merged Helios slices type dose deposition totals, portal energy fluence,
   DVH dose results and thresholds, gamma distance/dose criteria, attenuation
   coefficients, beam energy, and voxel spacing. `Volume<T>` remains the dense
@@ -52,18 +49,18 @@ oracles.
 
 | ID | Consumer surface | Missing metric contract | Owner | Status / acceptance |
 |---|---|---|---|---|
-| `CFDRS-AEQ-MET-01` | `cfd-optim` report and metric DTOs | Carry pressure, flow, length, volume, time, velocity, shear stress/rate, power, and temperature rise as typed values through computation; serialize only at one explicit boundary. | CFDrs | **IMPLEMENTED; PR #315 OPEN.** Commit `4c2551bc` adds one private typed report carrier, one scalar adapter, value/serde regressions, and compile-time unit separation. Hosted `recurseml/analysis` errors; merge is pending. |
-| `CFDRS-AEQ-MET-02` | SDT acoustic report | `acoustic_energy_density_j_m3` and `specific_cavitation_energy_j_ml` are energy-per-volume outputs with no Aequitas semantic alias/unit. | Aequitas, then CFDrs | **PROVIDER IMPLEMENTED; Aequitas PR #7 OPEN.** `EnergyPerVolume`, `JoulePerCubicMeter`, and `JoulePerMilliliter` are implemented and locally verified. After merge, type both outputs in CFDrs and preserve the Gor'kov/specific-energy oracles. |
-| `CFDRS-AEQ-MET-03` | operating-point and network-solve boundaries | `flow_rate_m3_s`, gauge pressure, channel path length, channel volume, and residence-time fields remain raw in candidate/solve DTOs even though downstream report arithmetic is typed. | CFDrs | Ready after PR #315 merges; migrate the core boundary first and retain scalar JSON only in an explicit adapter. |
-| `CFDRS-AEQ-MET-04` | channel and network DTOs | `ChannelHemolysis` and operating-point/network structures still carry wall shear, transit time, flow, pressure, length, volume, and velocity as raw fields. | CFDrs | Ready after `CFDRS-AEQ-MET-03`; preserve per-channel hemolysis and total-flow value semantics. |
-| `CFDRS-AEQ-MET-05` | thermal-compliance report | `throat_temperature_rise_k` is a temperature difference, while Aequitas currently exposes only `ThermodynamicTemperature`. | Aequitas, then CFDrs | **PROVIDER IMPLEMENTED; Aequitas PR #7 OPEN.** `TemperatureDifference` is distinct from `ThermodynamicTemperature`; subtraction and offset arithmetic preserve the affine semantics. After merge, type the report field and retain the thermal-compliance oracle. |
+| `CFDRS-AEQ-MET-01` | `cfd-optim` report and metric DTOs | Carry pressure, flow, length, volume, time, velocity, shear stress/rate, power, and temperature rise as typed values through computation; serialize only at one explicit boundary. | CFDrs | **IMPLEMENTED; PR #315 head `6d6ff613`, mergeable.** Report, residence/safety, and channel carriers use private Aequitas types with explicit scalar adapters; focused package check, Nextest 2/2, and Clippy pass. |
+| `CFDRS-AEQ-MET-02` | SDT acoustic report | `acoustic_energy_density_j_m3` and `specific_cavitation_energy_j_ml` are energy-per-volume outputs with no Aequitas semantic alias/unit. | Aequitas, then CFDrs | **RESOLVED.** Aequitas `EnergyPerVolume`, `JoulePerCubicMeter`, and `JoulePerMilliliter` merged at `e0fc5f3`; CFDrs carries both through the typed report carrier and preserves positive-energy/serde oracles. |
+| `CFDRS-AEQ-MET-03` | residence and safety intermediates | Residence volume/time/velocity and safety pressure/shear/time crossed private metric producers as raw scalars. | CFDrs | **RESOLVED.** Private Aequitas carriers and adapter equality/conservation regressions landed in PR #315. |
+| `CFDRS-AEQ-MET-04` | channel and network DTOs | `OperatingPoint` and `BlueprintSolveSample` still carry flow, pressure, length, volume, and velocity as raw fields. | CFDrs | **PARTIAL.** Per-channel hemolysis now uses private typed pressure/time values before one DTO adapter; the operating-point and solve-sample public boundary is the remaining breaking slice. |
+| `CFDRS-AEQ-MET-05` | thermal-compliance report | `throat_temperature_rise_k` is a temperature difference, while Aequitas must distinguish it from absolute temperature. | Aequitas, then CFDrs | **RESOLVED.** `TemperatureDifference` merged at `e0fc5f3`; CFDrs carries the field through the typed carrier and preserves the thermal-compliance oracle. |
 | `HELIOS-AEQ-MET-01` | `helios-analysis::Dvh` | `min`, `max`, `mean`, `dose_at_volume_fraction`, and gEUD return `T` although the stored samples are `AbsorbedDose<T>`. Dose criteria in DVH APIs also enter as raw `T`. | Helios | **RESOLVED.** Helios PR #25 merged as `08b7559932fe5f46cfade74f33238e5d3db2598b` from implementation `8387fef`; DVH dose results and TCP/NTCP dose parameters are typed, with local Dx/gEUD/NaN/masked and end-to-end value evidence. Hosted checks were incomplete at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-02` | gamma analysis | `dta_mm`, normalization dose, low-dose cutoff, and dose-difference inputs were raw `T`; only the gamma field and pass rate are dimensionless. | Helios | **RESOLVED.** Helios PR #26 merged as `810bb2893723038f26f147847135b7a9e16e04e4` from implementation `07c7768`. Gamma distance/search radius use `Length`, normalization/cutoff/pass-rate thresholds use `AbsorbedDose`, and scalar gamma/pass-rate results retain Low, local/global, grid, and end-to-end value semantics. Local analysis 31/31 and simulation end-to-end 3/3 passed; hosted Rust/benchmark jobs were still running at merge and are not claimed green. |
-| `HELIOS-AEQ-MET-03` | delivery and portal dosimetry | `DeliveryFrame::leaf_fluence`, total delivered fluence, leaf width, ray step, and beam geometry distances were raw values; portal code typed fluence only internally before converting it back. | Helios | **RESOLVED; FOLLOW-UP PR #32 OPEN.** Helios PR #27 merged as `888015e0e2a4b03b8c1e25c7a8befcdc098fd98b` from implementation `6ae6c62`. Follow-up commit `b2a9ebe` keeps portal fluence as Aequitas `EnergyPerArea<T>` through Hyperion transmission before the established scalar frame return; existing portal value oracles remain the acceptance contract. A local focused Nextest attempt could not start because active peer CFDrs/Leto builds held the shared lock; hosted checks are rerunning on the latest PM-synchronized head, so no hosted-green result is claimed. |
+| `HELIOS-AEQ-MET-03` | delivery and portal dosimetry | `DeliveryFrame::leaf_fluence`, total delivered fluence, leaf width, ray step, and beam geometry distances were raw values; portal code typed fluence only internally before converting it back. | Helios | **RESOLVED; FOLLOW-UP PR #32 head `31147f0` OPEN.** Portal fluence remains Aequitas `EnergyPerArea<T>` through Hyperion transmission; the branch now pins merged Aequitas `e0fc5f3`. Hosted checks have restarted on the latest head; no hosted-green result is claimed while queued. |
 | `HELIOS-AEQ-MET-04` | image-quality analysis | ROI statistics and volume RMSE were raw scalars even when the clinical validation path analyzed dose volumes. | Helios | **IMPLEMENTED; PR #28 OPEN.** Commit `0c9374f` adds shared raw-value kernels plus `dose_roi_statistics` and `dose_volume_rmse` returning Aequitas `AbsorbedDose`; the clinical example uses typed Gray output and converts only at dimensionless contrast/CNR boundaries. Local analysis 33/33, warning-denied Clippy, doctest, Rustdoc, format, and clinical-example gates pass. Hosted build, Rust workspace, Python, benchmark, and review checks pass; merge remains pending. |
 | `KWAVERS-AEQ-MET-01` | `ThermalCEM43Grid` and HIFU planning results | Thermal dose outputs, thresholds, peak temperature, dwell time, and time-to-dose crossed public boundaries as raw scalars. CEM43 is an equivalent-time clinical quantity, not an SI dose alias. | Kwavers | **RESOLVED.** Kwavers PR #323 merged as `c19134ec77d5b819a1ad92729b59b70a53026d63` from implementation `e8f522b89`. `CumulativeEquivalentMinutes` is backed by Aequitas `Time`; thermal calculators return typed maxima/point queries, accept typed intervals/thresholds, and HIFU planning returns typed temperature/dwell/time-to-dose values with `Option<Time>` for unreachable targets. Local default CEM43 tests 15/15, clinical-imaging HIFU tests 2/2, HIFU planning tests 16/16, package checks, warning-denied Clippy, doctests, Rustdoc, format, and diff gates passed. Hosted checks were still running at merge and `recurseml/analysis` errored; no hosted-green claim is made. |
 | `KWAVERS-AEQ-MET-02` | pulsed laser/photoacoustic source | Peak/average power, pulse duration, repetition frequency, wavelength, beam radii, and peak fluence are raw public fields/results. | Kwavers | **RESOLVED.** Kwavers PR #322 merged as `c2cf44c87a503f75b93d6c3a64f26aeba0a6ca1e` from implementation `4a997829`; `PulsedLaser` and `BeamProfile` now use `Power`, `Time`, `Frequency`, `Length`, `Energy`, and `EnergyPerArea`. Gaussian, flat-top, and Bessel fluence equations plus typed average-power value regressions pass locally; package check, focused nextest 2/2, warning-denied Clippy, doctests, Rustdoc, format, and diff gates passed. Hosted checks were still running at merge; `recurseml/analysis` errored and CodeRabbit succeeded, so no hosted-green claim is made. |
-| `KWAVERS-AEQ-MET-03` | transducer frequency, geometry, materials, and Rayleigh models | Frequency response, element dimensions/area/volume, propagation range, wavelength, attenuation, and acoustic impedance cross public APIs as `f64`. | Kwavers | **PARTIAL; PR #324 OPEN.** Commits `65f5a200` and `f5d2f50f1` type frequency response, element geometry, materials/lenses, Rayleigh propagation coefficients/ranges, and design/PyO3 boundaries. Local full transducer Nextest passes 221/221 with one skipped; the hosted matrix still has failures across wheels, benchmarks, build/test, docs, and feature jobs. Residual: Rayleigh aperture coordinates, aperture radii, observation points, and KWaveArray rasterizer conversion. Dimensionless Q, bandwidth fraction, directivity, reflection coefficients, attenuation coefficients, and coherent phase/pressure accumulations remain scalar by contract. See Kwavers [ADR 050](https://github.com/ryancinsight/kwavers/blob/f5d2f50f1/docs/ADR/050-transducer-materials-rayleigh-quantities.md). |
+| `KWAVERS-AEQ-MET-03` | transducer frequency, geometry, materials, and Rayleigh models | Frequency response, element dimensions/area/volume, propagation range, wavelength, attenuation, and acoustic impedance cross public APIs as `f64`. | Kwavers | **RESOLVED for the public Rayleigh boundary; PR #324 head `0f7e09b5f` OPEN.** Rayleigh aperture radii/areas and centres/observation points now use Aequitas `Length`/`Area` and validated `CartesianPosition`; the KWaveArray rasterizer is the one explicit scalar grid adapter. Focused Rayleigh 12/12, planar rasterizer 1/1, package check, Clippy, and doctests pass. Hosted matrix is still running and has unrelated feature/workflow failures; no hosted-green claim is made. |
 | `KWAVERS-AEQ-MET-04` | vessel analysis | Diameter, total vessel length, centerline coordinates, and Doppler-derived velocity were raw or voxel-unit values and relied on a caller-applied spacing convention. | Kwavers | **IMPLEMENTED; PR #325 OPEN.** Commit `9f95aa826` adds validated anisotropic `VoxelSpacing`, physical `Length<f64>` geometry, typed Doppler `Frequency`/`Velocity` boundaries, value-semantic spacing/Doppler/geometry regressions, ADR 047, and synchronized child PM. Focused compilation is blocked before Kwavers sources by peer `mnemosyne-heap` matches omitting `TierSelection::Hbm` and `TierSelection::Gddr`; format, diff, and metadata checks pass. |
 | `KWAVERS-AEQ-MET-05` | thermal material and perfusion models | Conductivity/density/specific heat are typed internally but accessors and perfusion parameters return raw values; the existing thermal-dose path also exposes raw fields. | Kwavers / Proteus where the bundle owns the contract | Partial. Preserve the Proteus thermophysical bundle as SSOT; type consumer accessors and add a provider quantity only when a required perfusion-rate contract is established. |
 
@@ -75,19 +72,14 @@ oracles.
 - Cavitation numbers, shear/flow coefficients, contrast factors, CVs, risk
   scores, probabilities, CEM43 thresholds as clinical model parameters, and
   other ratios remain dimensionless or consumer-semantic values.
-- The current implementation state is: Kwavers transducer contracts are
-  partial on PR #324 with materials and Rayleigh propagation typed; the
-  Kwavers vessel physical-metric boundary is implemented on PR #325; the CFDrs
-  report carrier is implemented on PR #315; and the Aequitas
-  energy-per-volume and temperature-difference provider extension is on PR #7;
-  Helios portal fluence's final provider multiplication is on PR #32.
-  The next consumer slices are CFDrs residence/safety intermediates and the
-  dependent energy-density and temperature-rise fields after provider merge;
-  Kwavers still has transducer residuals plus vessel-spacing and perfusion
-  boundaries. Helios image-quality partition is implemented on PR #28 with
-  hosted checks passing; merge remains pending. Each slice must update its child audit
-  and use its strongest value or analytical oracle before the next slice
-  starts.
+- The current implementation state is: Kwavers' public transducer Rayleigh
+  gap is closed on PR #324; PR #325's vessel-spacing slice remains externally
+  blocked before Kwavers compilation by peer Mnemosyne `TierSelection` variants;
+  CFDrs has one remaining public operating-point/solve-sample boundary; and
+  Kwavers has a separate perfusion accessor contract that remains partial until
+  the public rate semantics are established. Helios PR #32 has restarted its
+  hosted matrix after the merged provider-pin update. Each slice updates its
+  child audit and uses its strongest value or analytical oracle before delivery.
 
 ## Provider-native sparse-LU ownership (2026-07-23)
 
