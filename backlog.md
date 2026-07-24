@@ -7,6 +7,19 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-TREE-001 — Close the convolution backend tree split [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `9b5da9c7` replaces the 614-line convolution backend file
+  with a manifest and forward, backward, and transposed-convolution leaves;
+  all leaves remain below the 500-line target.
+- Evidence: feature check, warning-denied Clippy, feature rustdoc, and default
+  package Nextest pass; default doctests pass 4/4 in 14.35 seconds. CUDA-
+  feature Nextest reaches the Windows GNU linker but cannot link because
+  `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature test
+  execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-015 — Close elementwise backend count/failure boundary [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
