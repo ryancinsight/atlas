@@ -17,17 +17,18 @@ oracles.
   `AbsorbedDose`, `Power`, `MassDensity`, `DynamicViscosity`,
   `ThermalConductivity`, `ThermalDiffusivity`, `SpecificHeatCapacity`,
   `ReciprocalLength`, `VolumetricFlowRate`, `AcousticImpedance`, `Intensity`,
-  `VolumetricPowerDensity`, `EnergyPerVolume`, and `TemperatureDifference`,
-  with SI and scaled units used by the three consumers.
+  `VolumetricPowerDensity`, `EnergyPerVolume`, `TemperatureDifference`, and
+  `MassDensityRate`, with SI and scaled units used by the three consumers.
 - CFDrs report arithmetic composes flow, power, pressure, viscosity, reciprocal
   time, time, length, volume, and velocity through Aequitas. The typed report,
   residence/safety, per-channel hemolysis, operating-point, and network-solve
-  carriers are implemented on PR #315 head `fbb19ea6`; mergeability is clean,
-  with CodeRabbit still pending.
-- The provider semantic extension for volumetric energy density and an explicit
-  temperature-difference dimension merged as Aequitas commit `e0fc5f3`.
-  Proteus consumed the affine temperature-difference contract in merged commit
-  `1b25af1`; CFDrs and Helios now pin the merged provider graph.
+  carriers are implemented in PR #315 implementation commit `fbb19ea6` and
+  merged as `9fa95f9c`.
+- The provider semantic extensions for volumetric energy density, temperature
+  difference, and Pennes mass-density rate merged as Aequitas commits
+  `e0fc5f3` and `b86a55d`. Proteus consumed the affine
+  temperature-difference contract in merged commit `1b25af1`; CFDrs and Helios
+  pin the merged provider graph, while Kwavers PR #324 now pins `b86a55d`.
 - The merged Helios slices type dose deposition totals, portal energy fluence,
   DVH dose results and thresholds, gamma distance/dose criteria, attenuation
   coefficients, beam energy, and voxel spacing. `Volume<T>` remains the dense
@@ -60,9 +61,9 @@ oracles.
 | `HELIOS-AEQ-MET-04` | image-quality analysis | ROI statistics and volume RMSE were raw scalars even when the clinical validation path analyzed dose volumes. | Helios | **IMPLEMENTED; PR #28 OPEN.** Commit `0c9374f` adds shared raw-value kernels plus `dose_roi_statistics` and `dose_volume_rmse` returning Aequitas `AbsorbedDose`; the clinical example uses typed Gray output and converts only at dimensionless contrast/CNR boundaries. Local analysis 33/33, warning-denied Clippy, doctest, Rustdoc, format, and clinical-example gates pass. Hosted build, Rust workspace, Python, benchmark, and review checks pass; merge remains pending. |
 | `KWAVERS-AEQ-MET-01` | `ThermalCEM43Grid` and HIFU planning results | Thermal dose outputs, thresholds, peak temperature, dwell time, and time-to-dose crossed public boundaries as raw scalars. CEM43 is an equivalent-time clinical quantity, not an SI dose alias. | Kwavers | **RESOLVED.** Kwavers PR #323 merged as `c19134ec77d5b819a1ad92729b59b70a53026d63` from implementation `e8f522b89`. `CumulativeEquivalentMinutes` is backed by Aequitas `Time`; thermal calculators return typed maxima/point queries, accept typed intervals/thresholds, and HIFU planning returns typed temperature/dwell/time-to-dose values with `Option<Time>` for unreachable targets. Local default CEM43 tests 15/15, clinical-imaging HIFU tests 2/2, HIFU planning tests 16/16, package checks, warning-denied Clippy, doctests, Rustdoc, format, and diff gates passed. Hosted checks were still running at merge and `recurseml/analysis` errored; no hosted-green claim is made. |
 | `KWAVERS-AEQ-MET-02` | pulsed laser/photoacoustic source | Peak/average power, pulse duration, repetition frequency, wavelength, beam radii, and peak fluence are raw public fields/results. | Kwavers | **RESOLVED.** Kwavers PR #322 merged as `c2cf44c87a503f75b93d6c3a64f26aeba0a6ca1e` from implementation `4a997829`; `PulsedLaser` and `BeamProfile` now use `Power`, `Time`, `Frequency`, `Length`, `Energy`, and `EnergyPerArea`. Gaussian, flat-top, and Bessel fluence equations plus typed average-power value regressions pass locally; package check, focused nextest 2/2, warning-denied Clippy, doctests, Rustdoc, format, and diff gates passed. Hosted checks were still running at merge; `recurseml/analysis` errored and CodeRabbit succeeded, so no hosted-green claim is made. |
-| `KWAVERS-AEQ-MET-03` | transducer frequency, geometry, materials, and Rayleigh models | Frequency response, element dimensions/area/volume, propagation range, wavelength, attenuation, and acoustic impedance cross public APIs as `f64`. | Kwavers | **RESOLVED for the public Rayleigh boundary; PR #324 head `0f7e09b5f` OPEN.** Rayleigh aperture radii/areas and centres/observation points now use Aequitas `Length`/`Area` and validated `CartesianPosition`; the KWaveArray rasterizer is the one explicit scalar grid adapter. Focused Rayleigh 12/12, planar rasterizer 1/1, package check, Clippy, and doctests pass. Hosted matrix is still running and has unrelated feature/workflow failures; no hosted-green claim is made. |
+| `KWAVERS-AEQ-MET-03` | transducer frequency, geometry, materials, and Rayleigh models | Frequency response, element dimensions/area/volume, propagation range, wavelength, attenuation, and acoustic impedance cross public APIs as `f64`. | Kwavers | **RESOLVED for the public Rayleigh boundary; PR #324 head `7756a20a` OPEN.** Rayleigh aperture radii/areas and centres/observation points now use Aequitas `Length`/`Area` and validated `CartesianPosition`; the KWaveArray rasterizer is the one explicit scalar grid adapter. Focused Rayleigh 12/12, planar rasterizer 1/1, package check, Clippy, and doctests pass. Hosted matrix is active on the updated head; no hosted-green result is claimed. |
 | `KWAVERS-AEQ-MET-04` | vessel analysis | Diameter, total vessel length, centerline coordinates, and Doppler-derived velocity were raw or voxel-unit values and relied on a caller-applied spacing convention. | Kwavers | **IMPLEMENTED; PR #325 OPEN.** Commit `9f95aa826` adds validated anisotropic `VoxelSpacing`, physical `Length<f64>` geometry, typed Doppler `Frequency`/`Velocity` boundaries, value-semantic spacing/Doppler/geometry regressions, ADR 047, and synchronized child PM. Focused compilation is blocked before Kwavers sources by peer `mnemosyne-heap` matches omitting `TierSelection::Hbm` and `TierSelection::Gddr`; format, diff, and metadata checks pass. |
-| `KWAVERS-AEQ-MET-05` | thermal material and perfusion models | Conductivity/density/specific heat are typed internally but accessors and perfusion parameters return raw values; the existing thermal-dose path also exposes raw fields. | Kwavers / Proteus where the bundle owns the contract | Partial. Preserve the Proteus thermophysical bundle as SSOT; type consumer accessors and add a provider quantity only when a required perfusion-rate contract is established. |
+| `KWAVERS-AEQ-MET-05` | thermal material and perfusion models | Conductivity/density/specific heat were typed internally but accessors and perfusion parameters returned raw values; the existing Pennes path exposed the rate contract without a physical type. | Aequitas, Proteus, Kwavers | **RESOLVED.** Aequitas `MassDensityRate` merged as `b86a55d`; Kwavers commit `7756a20a` types thermal material constructors/accessors, temperature-dependent properties, and Pennes perfusion while preserving Proteus as the thermophysical SSOT. Scalar conversion remains explicit at display, DTO, and finite-difference kernel boundaries. Kwavers-medium Nextest 191/191, thermal/bubble physics Nextest 361/361, no-default-features checks for `kwavers-physics`/`kwavers-solver`, warning-denied Clippy, doctests, formatting, and diff checks pass. See Kwavers ADR 051. |
 
 ### Explicit non-gaps and sequencing constraints
 
@@ -73,13 +74,15 @@ oracles.
   scores, probabilities, CEM43 thresholds as clinical model parameters, and
   other ratios remain dimensionless or consumer-semantic values.
 - The current implementation state is: CFDrs' audited public physical carriers
-  are closed on PR #315 head `fbb19ea6`; Kwavers' public transducer Rayleigh gap
-  is closed on PR #324; PR #325's vessel-spacing slice remains externally
-  blocked before Kwavers compilation by peer Mnemosyne `TierSelection` variants;
-  and Kwavers has a separate perfusion accessor contract that remains partial
-  until the public rate semantics are established. Helios PR #32 has restarted
-  its hosted matrix after the merged provider-pin update. Each slice updates its
-  child audit and uses its strongest value or analytical oracle before delivery.
+  are closed in merged PR #315 (`9fa95f9c`); Kwavers' public transducer/Rayleigh
+  and thermal/perfusion metric gaps are closed on PR #324 head `7756a20a`; PR
+  #325's vessel-spacing slice is externally blocked by a conflicting branch and
+  the peer Mnemosyne `TierSelection` dependency gap; and Helios PR #32 has
+  passed build, Rust workspace, Python, and review checks but its replicated
+  benchmark gate reports a beam-transmission CPU regression (+0.08%/+0.21%) on
+  the latest head. These are delivery/verification residuals, not unimplemented
+  Aequitas metric contracts. Each slice updates its child audit and uses its
+  strongest value or analytical oracle before delivery.
 
 ## Provider-native sparse-LU ownership (2026-07-23)
 
