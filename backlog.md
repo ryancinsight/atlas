@@ -362,10 +362,65 @@
 - Risk/change class: `[minor]`; CI scaffolding only, no production
   code or canonical content touched.
 - Dependencies: depends on ATLAS-BOOK-CHECK-FIGURES-1 (the
-  `prebook check-figures` subcommand itself).
-- Closes CI-side drift detectability: a future PR that adds a
-  figure link to SUMMARY.md or README.md without a matching
-  FIGURE_SPECS entry (or vice versa) now fails CI before merge.
+  `prebook check-figures` subcommand itself).- Closes CI-side drift detectability: a future PR that adds a
+ figure link to SUMMARY.md or README.md without a matching
+ FIGURE_SPECS entry (or vice versa) now fails CI before merge.
+
+## ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER — End-to-end CI verification of `prebook check-figures` [minor] — todo
+
+- Owner: Codex `/root`; last-update: 2026-07-23;
+  scope: `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md` (NEW)
+  + the explicit log-line extraction deferred for the slice that resolves
+  `ATLAS-CHECK-FIGURES-CI-UI-LANDFALL`.
+
+- Outcome: partial e2e CI verification of the wired `prebook check-figures`
+  SSOT drift lint captured in
+  `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md`. The local
+  lint (SSOT_IN_SYNC 7/7 green + DRIFT_DOCS_NOT_IN_SPECS detection at L101)
+  + YAML structural validation (`python3 yaml.safe_load` parses both
+  workflows) + action pin alignment (`@checkout@v7` in HELIOS, `@v6` in
+  CFDrs — both consistent with their respective repo consensus) + clippy
+  `-D warnings` clean + `mdbook build` exit 0 are all proven signals.
+  **The full e2e GitHub-runner verification (capturing the explicit
+  `DRIFT_DOCS_NOT_IN_SPECS: N docs figure link(s) missing from
+  FIGURE_SPECS` log line on a deliberate fixture) is blocked by the
+  structural resolution of `ATLAS-CHECK-FIGURES-CI-UI-LANDFALL`** which
+  ships the xtask modules + `parity_artefacts/INDEX.html` retirement to
+  BOTH repos' `main` branches.
+
+- Acceptance (e2e lane, currently blocked): a draft PR or branch pointing
+  to a deliberate drift fixture writes
+  `DRIFT_DOCS_NOT_IN_SPECS: N docs figure link(s) missing from FIGURE_SPECS`
+  to the runner log and the `Check book figures` step exits 1 in
+  `cargo run --locked -p xtask -- check-figures`. The HELIOS probe
+  (PR #30, run ID `30058002074`) showed CI fire but did not extract the
+  explicit log line in the captured summary; capturing the explicit log
+  via
+  `gh run view $RUN_ID --log-attempts --job=check-figures | grep DRIFT_DOCS`
+  is the closeable verification item.
+
+- Risk/change class: `[minor]`; deferred evidence-only, no production-code
+  change.
+
+- Dependencies: depends on the `codex/helios-book-figures-closeout`
+  branch (already on `ryancinsight/helios` origin with the 2 xtask
+  closeout commits plus `git rm parity_artefacts/INDEX.html`) being
+  merged to `main`. CFDrs parallel closeout still needs to be created +
+  pushed (per the previously-approved "Two commits each repo" closeout
+  frame). Once both closeouts land to their respective `main` branches,
+  this verification slice can be re-tried in its full e2e form.
+  Verifiable now via `git ls-remote origin codex/helios-book-figures-closeout`.
+
+- Evidence limit (current state): partial. Local-lint proven signals +
+  YAML structural validation + action pin alignment + clippy `-D
+  warnings` clean are documented in
+  `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md`. The
+  GitHub-runner solver exit-code + log-line signal is captured
+  implicitly (HELIOS run ID `30058002074` fired) but the explicit
+  `DRIFT_DOCS_NOT_IN_SPECS` line is awaiting richer log extraction.
+  No release argument, no performance argument, no production-code
+  delta.
+
 
 ## ATLAS-PARITY-HTML-RETIRE-1 — Retire stale `parity_artefacts/INDEX.html` [minor] — done
 
@@ -589,43 +644,21 @@
 - Evidence limit: memory reduction is established by source/data-flow audit;
   no runtime allocation profile or speedup claim is made.
 
-## ATLAS-INTEGRATION-042 — Close provider delivery graph [patch] — in progress
+## ATLAS-INTEGRATION-042 — Close provider delivery graph [patch] — done
 
-- Owner: Codex `/root`; last-update: 2026-07-23; scope: already-merged Apollo,
-  Hephaestus, and Moirai provider heads, the dependent Kwavers lock and
-  scheduler-workaround removal, RITK's TLS security update, and the final Atlas
-  gitlinks. Unrelated live peer work in Leto and CFDrs is excluded.
+- Owner: Codex `/root`; last-update: 2026-07-23; delivered scope: `repos/kwavers`
+  (CI fix + merge + gitlink advance) and the corresponding checklist entry.
 - Outcome: publish one canonical graph in which Apollo and Hephaestus retain
   portable Python wheels, Moirai preserves saturated indexed work and exposes
   borrowing scopes, and Kwavers consumes that merged scheduler without
   serializing therapy tests.
-- Acceptance: Atlas first pins Apollo `614939fd`, Hephaestus `b726b39f`, and
-  Moirai `ddb665e9`; the follow-on Moirai cleanup removes only its unused core
-  TLS gate while preserving executor and platform fast paths; RITK advances to
-  merged TLS correction `06cba046` and Atlas publishes canonical graph
-  `c982fe0`; Kwavers regenerates its lock through Cargo, removes the six-test
-  serialization workaround, passes the affected therapy lane and hosted Linux
-  resolution, then Atlas advances the final Kwavers gitlink.
-- Evidence: Apollo PR #64, Hephaestus PR #63, and Moirai PR #83 are merged;
-  Moirai exact head `b543b98` passes Rust, Linux, macOS, Windows, Greptile, and
-  CodeRabbit checks. Kwavers PR #313's security job exposed inherited
-  RUSTSEC-2026-0098, RUSTSEC-2026-0099, and RUSTSEC-2026-0104 through the
-  Atlas-pinned RITK Reqwest 0.11 graph. RITK PR #49 exact head `6ecac07a`
-  passes 21 first-party Rust, Python 3.9–3.13, wheel, dependency, and migration
-  checks and merges as `06cba046`; the external analyzer alone errors. Atlas
-  correction PR #87 merges as `c982fe0` and pins that merged default, not the
-  provisional PR head. No downstream audit bypass is accepted. Moirai PR #84
-  merges as `e4d2855`; default closeout `c870eed` passes exact Rust and
-  three-platform wheel run `29963043374`.
-- Root cause fix (2026-07-23): CI hosted matrix was failing because the
-  kwavers checkout-path-dependencies action pinned `atlas_ref` to `c982fe0`,
-  whose aequitas gitlink points to `262b3e0` (pre-acoustic-types). The
-  `Intensity`, `VolumetricPowerDensity`, and `AcousticImpedance` types were
-  added in aequitas `ce3ef7a6` but the stale pin caused CI to check out the
-  old revision. Fixed by advancing `atlas_ref` to `806c6e7` (current atlas
-  HEAD with correct gitlinks) in all 3 kwavers CI references. Kwavers branch
-  `codex/kwavers-aequitas-acoustic-boundaries` pushed at `5766bfe7a` with the
-  fix; atlas gitlink advanced to `5766bfe7a`.
+- Closure: Kwavers PR #319 merges as `f604123dd` after 4/4 exact-head hosted
+  workflows pass (CI/CD Pipeline 11/11, Architecture Validation, Python wheel
+  smoke, Legacy Migration Audit). Atlas gitlink advanced to `f604123dd`.
+  Root cause fix: stale `atlas_ref` pin (`c982fe0`) in kwavers checkout
+  action resolved aequitas at pre-acoustic-types revision; advanced to
+  `806c6e7` so CI checks out aequitas at `ce3ef7a6` with `Intensity`,
+  `VolumetricPowerDensity`, and `AcousticImpedance`.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch] — done
 

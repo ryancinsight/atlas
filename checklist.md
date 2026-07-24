@@ -338,8 +338,13 @@ and its owner-local tracking entries.
       `262b3e0` (pre-acoustic-types). Root cause: stale atlas commit in the
       composite action caused CI to check out aequitas without `Intensity`,
       `VolumetricPowerDensity`, or `AcousticImpedance`.
-- [ ] Pass the complete Kwavers exact-head hosted matrix.
-- [ ] Merge Kwavers and advance its final Atlas gitlink.
+- [x] Pass the complete Kwavers exact-head hosted matrix. 4/4 workflows
+      green: CI/CD Pipeline (11/11 jobs), Architecture Validation, Python wheel
+      smoke, Legacy Migration Audit. Run `30022927329` passes all jobs
+      including PINN, Solver Validation, Memory Safety, Benchmarks, Build &
+      Test stable/beta/nightly, and Code Coverage.
+- [x] Merge Kwavers and advance its final Atlas gitlink. Kwavers PR #319
+      merges as `f604123dd`; Atlas gitlink advanced to `f604123dd`.
 
 ## ATLAS-INTEGRATION-041 — Align the Leto consumer graph [patch]
 
