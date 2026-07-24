@@ -64,6 +64,7 @@ oracles.
 | `KWAVERS-AEQ-MET-03` | transducer frequency, geometry, materials, and Rayleigh models | Frequency response, element dimensions/area/volume, propagation range, wavelength, attenuation, and acoustic impedance cross public APIs as `f64`. | Kwavers | **RESOLVED for the public Rayleigh boundary; PR #324 head `ae345de7c` OPEN.** Rayleigh aperture radii/areas and centres/observation points now use Aequitas `Length`/`Area` and validated `CartesianPosition`; the KWaveArray rasterizer is the one explicit scalar grid adapter. Focused Rayleigh 12/12, planar rasterizer 1/1, package check, Clippy, and doctests pass. The hosted matrix reaches provider checkout before the peer Coeus/Mnemosyne dependency blocker; no hosted-green result is claimed. |
 | `KWAVERS-AEQ-MET-04` | vessel analysis | Diameter, total vessel length, centerline coordinates, and Doppler-derived velocity were raw or voxel-unit values and relied on a caller-applied spacing convention. | Kwavers | **IMPLEMENTED; PR #325 OPEN.** Commit `9f95aa826` adds validated anisotropic `VoxelSpacing`, physical `Length<f64>` geometry, typed Doppler `Frequency`/`Velocity` boundaries, value-semantic spacing/Doppler/geometry regressions, ADR 047, and synchronized child PM. Focused compilation is blocked before Kwavers sources by peer `mnemosyne-heap` matches omitting `TierSelection::Hbm` and `TierSelection::Gddr`; format, diff, and metadata checks pass. |
 | `KWAVERS-AEQ-MET-05` | thermal material and perfusion models | Conductivity/density/specific heat were typed internally but accessors and perfusion parameters returned raw values; the existing Pennes path exposed the rate contract without a physical type. | Aequitas, Proteus, Kwavers | **RESOLVED.** Aequitas `MassDensityRate` merged as `b86a55d`; Kwavers commit `7756a20a` types thermal material constructors/accessors, temperature-dependent properties, and Pennes perfusion while preserving Proteus as the thermophysical SSOT. Scalar conversion remains explicit at display, DTO, and finite-difference kernel boundaries. Kwavers-medium Nextest 191/191, thermal/bubble physics Nextest 361/361, no-default-features checks for `kwavers-physics`/`kwavers-solver`, warning-denied Clippy, doctests, formatting, and diff checks pass. See Kwavers ADR 051. |
+| `KWAVERS-AEQ-MET-06` | `kwavers-grid` derived metric methods | Grid spacing, physical size, volume, cell volume, and CFL timestep crossed the public grid boundary as raw scalars. | Kwavers | **IMPLEMENTED on PR #324 head `cf06a3a93`; verification pending hosted dependency repair.** The grid API now returns Aequitas `Length`, `Volume`, and `Time`, accepts typed `Velocity`, and converts only at coordinate/stability-kernel boundaries. Direct value tests and all in-repository callers are migrated; see child ADR 053. |
 
 ### Explicit non-gaps and sequencing constraints
 
@@ -75,8 +76,9 @@ oracles.
   other ratios remain dimensionless or consumer-semantic values.
 - The current implementation state is: CFDrs' audited public physical carriers
   are closed in merged PR #315 (`9fa95f9c`); Kwavers' public transducer/Rayleigh
-  and thermal/perfusion metric gaps are closed on PR #324 head `ae345de7c`; PR
-  #325's vessel-spacing slice is externally blocked by a conflicting branch and
+  and thermal/perfusion metric gaps are closed on PR #324 head `ae345de7c`; the
+  derived-grid slice is now implemented on PR #324 head `cf06a3a93`; PR #325's
+  vessel-spacing slice is externally blocked by a conflicting branch and
   the peer Mnemosyne `TierSelection` dependency gap; and Helios PR #32 is merged
   as `02d7a775` with its replicated benchmark gate green. These are
   delivery/verification residuals, not unimplemented Aequitas metric contracts.
@@ -96,13 +98,17 @@ oracles.
   repins the action to corrected Atlas graph `45bd370`; its replacement matrix
   reaches provider checkout before the peer dependency mismatch. These are CI
   graph-integrity residuals, not missing metrics.
-- The current Kwavers head `ae345de7c` reaches the corrected graph and verifies
+- The previous Kwavers head `ae345de7c` reached the corrected graph and verified
   13 providers across 46 manifests. Cargo resolution then fails in the hosted
   audit because Coeus `a6dfb2d` requires `mnemosyne ^0.5.0`, while the Atlas
   Mnemosyne checkout is `0.6.0`; the local Coeus worktree contains an
   uncommitted `^0.6.0` path-dependency migration. This requires the peer Coeus
   change to be published before Kwavers package, Python, and full-workspace
   gates can run; no local compatibility shim is introduced.
+- The grid-derived metric implementation is intentionally kept on PR #324;
+  the vasculature implementation remains solely on peer PR #325 so the two
+  branches do not duplicate the same public contract. PR #324 head
+  `cf06a3a93` must rerun the same provider-checkout and package matrix.
 - Kwavers PR #325 remains `CONFLICTING`/`DIRTY` at `07f60733b`; its vessel metric
   implementation is complete, but integration is not claimed until the peer
   worktree is clean and the Mnemosyne `TierSelection` API dependency is aligned.
