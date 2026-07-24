@@ -3523,3 +3523,80 @@ or git+branch), so all consume the increment without break.
 - Discovered-by: Session 21 fresh-origin-sync-and-audit; origin sync
   (per `concurrent_agents`) revealed diverged atlas-meta main and
   mandated this audit before any further gitlink mutation.
+- Mechanization follow-up filed as
+  `ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1` [patch] [arch]
+  (`todo`): a coordinator-owned `tools/gitlink-coherence/` sister
+  tool that mechanizes this audit pattern (per `operation`
+  toil-automation policy — the manual audit sequence has now run
+  twice, is drift-prone and error-prone, and has clear positive
+  maintenance value at PR-time). Tech preview: read `.gitmodules`,
+  enumerate submodule entries, run
+  `git --git-dir=... --work-tree=... merge-base --is-ancestor
+  <pin> origin/main` per repo, emit JSON/markdown/human output
+  with defect categorization, exit 0 on clean / 1 on defects / 2 on
+  invocation error. Zero external deps (mirror
+  `tools/criterion-regression` `Cargo.toml` template sans
+  `serde`/`serde_json` if a single-pass tool suffices, or
+  re-include `serde` if JSON output is desired).
+
+## ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1 — Mechanize the gitlink-coherence audit as a coordinator-owned `tools/gitlink-coherence/` sister tool [patch] [arch] — todo
+
+- Owner: unassigned (Atlas-Codex coordinator claimable; filed by
+  Session 21)
+- Outcome: a single-shot, optionally JSON-emitting command-line tool
+  that pre-empts future atlas-meta gitlink-coherence defects by
+  verifying each `.gitmodules` pin is ancestral to the per-member
+  `origin/main` and emits a categorization report. Closes the manual
+  toil pattern documented in `ATLAS-GITLINK-COHERENCE-DEFECT-1`;
+  fits the `operation` toil-automation policy (manual sequence
+  performed twice → mechanization candidate).
+- Scope:
+  * `tools/gitlink-coherence/Cargo.toml` package
+    `atlas-gitlink-coherence-gate`, edition 2024, rust-version 1.95,
+    forbid unsafe_code, deny missing_docs, clippy pedantic +
+    unwrap_used deny, MIT/Apache, debug line-tables-only on
+    dev/test (mirror the `tools/criterion-regression/Cargo.toml`
+    template).
+  * Modules: `gitmodules.rs` (parse `.gitmodules` into `Submodule`
+    table), `coherence.rs` (per-repo probe + DefectClass
+    categorization executing
+    `git --git-dir=... --work-tree=... merge-base --is-ancestor
+    <pin> origin/main`), `report.rs` (human-readable / markdown /
+    JSON formatters), `error.rs` (typed error, zero deps),
+    `main.rs` (CLI dispatcher with `audit` subcommand and
+    `--format <json|markdown|human> --target-repo <name>`
+    options).
+  * Tests (co-located `#[cfg(test)]` modules): parser round-trips,
+    defect-class categorization on synthetic probe results,
+    formatter snapshot on representative probe vectors, end-to-end
+    invocation against the checked-out atlas-meta working tree
+    (use the live `.gitmodules` as input; assert exit code 1 given
+    the current 8-defect state — provides a regression assertion
+    against regression in BOTH the tool AND the surrounding peer
+    publishing).
+- Acceptance oracle: in the current atlas-meta working tree the
+  tool's `audit` subcommand emits all 8 defect rows matching
+  `ATLAS-GITLINK-COHERENCE-DEFECT-1`'s inventory and exits
+  1; once peer publishing closes the defects the same command
+  exits 0 with empty defect inventory and surfaces a "clean"
+  summary. Reprised-but-stale pins (e.g. CFDrs pin `f33e469`
+  ancestral to `origin/main` `77201635`) emit row classified
+  `stale-advanceable` rather than `coherence-defect`.
+- Risk/change class: [patch] [arch] (adds a coordinator-owned
+  sibling tool — touches workspace/views via the new
+  `tools/gitlink-coherence/` directory but no production-code
+  delta; the [arch] marker reflects the new atlas-meta tool
+  boundary and the CI integration seam it implies).
+- Dependencies: depends on the live atlas-meta submodule working
+  trees at `repos/<R>/.git` being present (submodules
+  initialized) — the tool is read-only w.r.t. peers.
+- Verification plan: `cargo fmt --check`, `cargo clippy
+  --all-targets -- -D warnings`, `cargo nextest run`, `cargo test
+  --doc` (under the committed nextest 30s/60s budget) all clean on
+  the new package; cross-check the tool's audit output against
+  the manually-audited inventory from
+  `ATLAS-GITLINK-COHERENCE-DEFECT-1` (8 rows match exactly).
+- Sister cross-links: parent
+  `ATLAS-GITLINK-COHERENCE-DEFECT-1` [in-progress] at parent
+  commit `9eac5b0`.
+- Refs: backlog.md#ATLAS-GITLINK-COHERENCE-DEFECT-1 (parent slice)
