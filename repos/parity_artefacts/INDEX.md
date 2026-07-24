@@ -19,6 +19,25 @@ emits `Access is denied. (os error 5)` during `mdbook build`.  This
 INDEX is the canonical landing page that satisfies mdbook's file-based
 chapter resolution.
 
+## Per-book figure manifests
+
+Each atlas mdbook commits its deterministic figure set under
+`docs/book/figures/`. The manifest written by the per-repository
+`xtask prebook` subcommand pins every figure to the byte fingerprint
+of the file on disk; re-running `prebook` on unchanged inputs produces
+a byte-identical `MANIFEST.json`, satisfying the CI deterministic-
+evidence chain.
+
+- **CFDrs** -- seven deterministic figures under
+  `repos/CFDrs/docs/book/figures/`, regenerated into `MANIFEST.json`
+  by `cargo run -p xtask -- prebook`; full list in
+  [`repos/CFDrs/docs/book/README.md`](../CFDrs/docs/book/README.md).
+- **helios** -- seven deterministic figures under
+  `repos/helios/docs/book/figures/`, regenerated into
+  `MANIFEST.json` by `cargo run -p xtask -- prebook`; full list in
+  [`repos/helios/docs/book/README.md`](../helios/docs/book/README.md).
+- **kwavers** -- figure set under `repos/kwavers/docs/book/figures/`.
+
 ## What this archive contains
 
 | Subset | Files | Purpose |
