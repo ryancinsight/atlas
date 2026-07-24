@@ -7,6 +7,21 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-011 — Close attention launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `3ace27ec` hardens CUDA attention dimensions, checked element
+  counts, mask/head relationships, buffer lengths, compatible contiguous
+  dispatch layouts, and the shared 1-D grid launch seam.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.171 seconds;
+  default doctests pass 4/4 in 14.21 seconds; feature rustdoc passes. The
+  provider's pure attention boundary tests compile with the feature build.
+- Limit: CUDA-feature Nextest reaches the Windows GNU linker but cannot link
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-010 — Close matmul launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

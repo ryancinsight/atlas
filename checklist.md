@@ -6,6 +6,23 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-011 — Close attention launch ABI [patch] [arch]
+
+- [x] Advance Coeus to provider commit `3ace27ec` after enforcing checked
+      attention dimensions, counts, mask/head relationships, and buffer
+      lengths before native dispatch.
+- [x] Restrict native attention to compatible contiguous layouts and supported
+      rank-one/rank-two masks; retain the explicit CPU capability path for
+      unsupported layouts and shapes.
+- [x] Verify shared 1-D grid validation, feature-enabled check, warning-denied
+      Clippy, default Nextest, rustdoc, doctests, and exact gitlink integration.
+
+Evidence: default package Nextest passes 3/3 with zero skipped in 0.171
+seconds; default doctests pass 4/4 in 14.21 seconds; feature rustdoc and
+warning-denied Clippy pass. CUDA-feature Nextest reaches the Windows GNU
+linker but cannot link because `-lcuda` is absent from
+`/usr/local/cuda-11.3/lib64/`; no feature test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-010 — Close matmul launch ABI [patch] [arch]
 
 - [x] Advance Coeus to provider commit `b9876e7e` after enforcing rank-two
