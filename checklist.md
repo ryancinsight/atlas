@@ -6,6 +6,21 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-005 — Close elementwise launch ABI and tree [patch] [arch]
+
+- [x] Advance Coeus to provider commit `92bd4c8f` after splitting the
+      elementwise launch manifest into contiguous and strided leaves.
+- [x] Verify shared checked counts and grids, broadcast-rank validation,
+      zero-stride output rejection, and allocation-free POD layout transfer.
+- [x] Verify feature-enabled check, warning-denied Clippy, default Nextest,
+      rustdoc, doctests, source scans, and exact gitlink integration.
+
+Evidence: provider elementwise source contains no input-dependent `as u32`,
+raw layout slice, unchecked grid, or family-local validator. Default package
+Nextest passes 3/3 with zero skipped in 0.044 seconds; rustdoc and doctests
+pass. CUDA-feature Nextest remains blocked before execution because the
+Windows GNU linker cannot find `-lcuda` at `/usr/local/cuda-11.3/lib64/`.
+
 ## ATLAS-CUDA-SAFETY-004 — Close reduction launch ABI [patch] [arch]
 
 - [x] Advance Coeus to provider commit `dfe23979` after promoting shared CUDA

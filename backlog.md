@@ -7,6 +7,22 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-005 — Close elementwise launch ABI and tree [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `92bd4c8f` turns the 530-line CUDA elementwise launcher into
+  a manifest with contiguous and strided leaves. All four launchers use shared
+  checked count/grid validation; strided paths validate broadcast rank, reject
+  zero-stride output layouts, and transfer descriptors through safe POD views.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.044 seconds;
+  rustdoc and doctests pass; source and validation regressions cover unchecked
+  casts, raw layout slices, overflow, zero work, and zero-stride outputs.
+- Limit: CUDA-feature Nextest cannot link in this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-004 — Close reduction launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
