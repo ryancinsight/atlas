@@ -28,13 +28,20 @@ oracles.
   `5aa712c8`. It adds `JoulePerCubicMeter`, `JoulePerMilliliter`, Kelvin
   temperature-difference units, and affine temperature arithmetic, with local
   provider gates passing. Hosted `recurseml/analysis` errors while CodeRabbit,
-  supply-chain, and verify remain pending; consumers must update only after the
-  provider PR merges. Kwavers' typed transducer slice otherwise uses existing
+  supply-chain, and verify pass; consumers must update only after the provider
+  PR merges. Kwavers' typed transducer slice otherwise uses existing
   `MassDensity`, `AcousticImpedance`, `Time`, and `ReciprocalLength`.
 - The merged Helios slices type dose deposition totals, portal energy fluence,
   DVH dose results and thresholds, gamma distance/dose criteria, attenuation
   coefficients, beam energy, and voxel spacing. `Volume<T>` remains the dense
   scalar storage boundary for voxel fields.
+- Helios PR #28 at commit `0c9374f` adds the remaining image-quality semantic
+  partition: raw MVCT ROI/RMSE metrics remain scalar, while dose-specific ROI
+  mean/std and volume RMSE return Aequitas `AbsorbedDose`; contrast and CNR
+  remain dimensionless. The child audit, ADR 0009, clinical example, f64/f32
+  value tests, and focused analysis gates are synchronized. Hosted checks are
+  still pending and `recurseml/analysis` errors, so no hosted-green claim is
+  made.
 - The merged Kwavers coupling slice types acoustic intensity, volumetric power
   density, velocity, density, temperature, and time at the thermal-acoustic
   coupling boundary; optical attenuation and thermal-property seams also use
@@ -52,6 +59,7 @@ oracles.
 | `HELIOS-AEQ-MET-01` | `helios-analysis::Dvh` | `min`, `max`, `mean`, `dose_at_volume_fraction`, and gEUD return `T` although the stored samples are `AbsorbedDose<T>`. Dose criteria in DVH APIs also enter as raw `T`. | Helios | **RESOLVED.** Helios PR #25 merged as `08b7559932fe5f46cfade74f33238e5d3db2598b` from implementation `8387fef`; DVH dose results and TCP/NTCP dose parameters are typed, with local Dx/gEUD/NaN/masked and end-to-end value evidence. Hosted checks were incomplete at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-02` | gamma analysis | `dta_mm`, normalization dose, low-dose cutoff, and dose-difference inputs were raw `T`; only the gamma field and pass rate are dimensionless. | Helios | **RESOLVED.** Helios PR #26 merged as `810bb2893723038f26f147847135b7a9e16e04e4` from implementation `07c7768`. Gamma distance/search radius use `Length`, normalization/cutoff/pass-rate thresholds use `AbsorbedDose`, and scalar gamma/pass-rate results retain Low, local/global, grid, and end-to-end value semantics. Local analysis 31/31 and simulation end-to-end 3/3 passed; hosted Rust/benchmark jobs were still running at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-03` | delivery and portal dosimetry | `DeliveryFrame::leaf_fluence`, total delivered fluence, leaf width, ray step, and beam geometry distances were raw values; portal code typed fluence only internally before converting it back. | Helios | **RESOLVED.** Helios PR #27 merged as `888015e0e2a4b03b8c1e25c7a8befcdc098fd98b` from implementation `6ae6c62`. Delivery frames, collimation, portal transmission, total fluence, and dose geometry use `EnergyPerArea`/`Length`; conversion occurs at the millimetre ray/voxel boundary. Local simulation 38/38, analysis 31/31, checks, Clippy, doctests, Rustdoc, mdBook, format, and diff gates passed. Hosted Rust/Python/benchmark jobs were still running at merge and `recurseml/analysis` errored; no hosted-green claim is made. |
+| `HELIOS-AEQ-MET-04` | image-quality analysis | ROI statistics and volume RMSE were raw scalars even when the clinical validation path analyzed dose volumes. | Helios | **IMPLEMENTED; PR #28 OPEN.** Commit `0c9374f` adds shared raw-value kernels plus `dose_roi_statistics` and `dose_volume_rmse` returning Aequitas `AbsorbedDose`; the clinical example uses typed Gray output and converts only at dimensionless contrast/CNR boundaries. Local analysis 33/33, warning-denied Clippy, doctest, Rustdoc, format, and clinical-example gates pass. Hosted checks are pending and `recurseml/analysis` errors; merge is pending. |
 | `KWAVERS-AEQ-MET-01` | `ThermalCEM43Grid` and HIFU planning results | Thermal dose outputs, thresholds, peak temperature, dwell time, and time-to-dose crossed public boundaries as raw scalars. CEM43 is an equivalent-time clinical quantity, not an SI dose alias. | Kwavers | **RESOLVED.** Kwavers PR #323 merged as `c19134ec77d5b819a1ad92729b59b70a53026d63` from implementation `e8f522b89`. `CumulativeEquivalentMinutes` is backed by Aequitas `Time`; thermal calculators return typed maxima/point queries, accept typed intervals/thresholds, and HIFU planning returns typed temperature/dwell/time-to-dose values with `Option<Time>` for unreachable targets. Local default CEM43 tests 15/15, clinical-imaging HIFU tests 2/2, HIFU planning tests 16/16, package checks, warning-denied Clippy, doctests, Rustdoc, format, and diff gates passed. Hosted checks were still running at merge and `recurseml/analysis` errored; no hosted-green claim is made. |
 | `KWAVERS-AEQ-MET-02` | pulsed laser/photoacoustic source | Peak/average power, pulse duration, repetition frequency, wavelength, beam radii, and peak fluence are raw public fields/results. | Kwavers | **RESOLVED.** Kwavers PR #322 merged as `c2cf44c87a503f75b93d6c3a64f26aeba0a6ca1e` from implementation `4a997829`; `PulsedLaser` and `BeamProfile` now use `Power`, `Time`, `Frequency`, `Length`, `Energy`, and `EnergyPerArea`. Gaussian, flat-top, and Bessel fluence equations plus typed average-power value regressions pass locally; package check, focused nextest 2/2, warning-denied Clippy, doctests, Rustdoc, format, and diff gates passed. Hosted checks were still running at merge; `recurseml/analysis` errored and CodeRabbit succeeded, so no hosted-green claim is made. |
 | `KWAVERS-AEQ-MET-03` | transducer frequency, geometry, materials, and Rayleigh models | Frequency response, element dimensions/area/volume, propagation range, wavelength, attenuation, and acoustic impedance cross public APIs as `f64`. | Kwavers | **PARTIAL; PR #324 OPEN.** Commits `65f5a200` and `f5d2f50f1` type frequency response, element geometry, materials/lenses, Rayleigh propagation coefficients/ranges, and design/PyO3 boundaries. Local full transducer Nextest passes 221/221 with one skipped; hosted `recurseml/analysis` remains an error. Residual: Rayleigh aperture coordinates, aperture radii, observation points, and KWaveArray rasterizer conversion. Dimensionless Q, bandwidth fraction, directivity, reflection coefficients, attenuation coefficients, and coherent phase/pressure accumulations remain scalar by contract. See Kwavers [ADR 050](https://github.com/ryancinsight/kwavers/blob/f5d2f50f1/docs/ADR/050-transducer-materials-rayleigh-quantities.md). |
@@ -71,11 +79,12 @@ oracles.
   report carrier is implemented on PR #315; and the Aequitas
   energy-per-volume and temperature-difference provider extension is on PR #7.
   The next consumer slices are CFDrs residence/safety intermediates and the
-  dependent energy-density and temperature-rise fields after provider merge.
-  Helios image-quality API partition remains a separate follow-up after its
-  three identified physical-metric boundaries are closed. Each slice must
-  update its child audit and use its strongest value or analytical oracle
-  before the next slice starts.
+  dependent energy-density and temperature-rise fields after provider merge;
+  Kwavers still has transducer residuals plus vessel-spacing and perfusion
+  boundaries. Helios image-quality partition is implemented on PR #28 and
+  awaits hosted verification/merge. Each slice must update its child audit
+  and use its strongest value or analytical oracle before the next slice
+  starts.
 
 ## Provider-native sparse-LU ownership (2026-07-23)
 
