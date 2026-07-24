@@ -430,61 +430,256 @@
  figure link to SUMMARY.md or README.md without a matching
  FIGURE_SPECS entry (or vice versa) now fails CI before merge.
 
-## ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER — End-to-end CI verification of `prebook check-figures` [minor] — todo
+## ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER — End-to-end CI verification of `prebook check-figures` [minor] — in-progress
 
-- Owner: Codex `/root`; last-update: 2026-07-23;
-  scope: `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md` (NEW)
-  + the explicit log-line extraction deferred for the slice that resolves
-  `ATLAS-CHECK-FIGURES-CI-UI-LANDFALL`.
+- Owner: Codex `/root`; last-update: 2026-07-24;
+  scope: re-flag from `done` to `in-progress` after empirical
+  drift-fixture probe retry (throwaway PR `ryancinsight/CFDrs#319`
+  on commit `a163ef55`, ci.yml run `30109405652` / job `89534706116`)
+  revealed a NEW upstream cargo-side blocker distinct from the
+  COEQ one the prior turn's predicate anticipated.
 
-- Outcome: partial e2e CI verification of the wired `prebook check-figures`
-  SSOT drift lint captured in
-  `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md`. The local
-  lint (SSOT_IN_SYNC 7/7 green + DRIFT_DOCS_NOT_IN_SPECS detection at L101)
-  + YAML structural validation (`python3 yaml.safe_load` parses both
-  workflows) + action pin alignment (`@checkout@v7` in HELIOS, `@v6` in
-  CFDrs — both consistent with their respective repo consensus) + clippy
-  `-D warnings` clean + `mdbook build` exit 0 are all proven signals.
-  **The full e2e GitHub-runner verification (capturing the explicit
-  `DRIFT_DOCS_NOT_IN_SPECS: N docs figure link(s) missing from
-  FIGURE_SPECS` log line on a deliberate fixture) is blocked by the
-  structural resolution of `ATLAS-CHECK-FIGURES-CI-UI-LANDFALL`** which
-  ships the xtask modules + `parity_artefacts/INDEX.html` retirement to
-  BOTH repos' `main` branches.
+- Owner: Codex `/root`; last-update: 2026-07-24;
+  scope: `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md`
+  + new `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-RUN-30059559064.md`
+  + PR #31 (HELIOS) management.
 
-- Acceptance (e2e lane, currently blocked): a draft PR or branch pointing
-  to a deliberate drift fixture writes
-  `DRIFT_DOCS_NOT_IN_SPECS: N docs figure link(s) missing from FIGURE_SPECS`
-  to the runner log and the `Check book figures` step exits 1 in
-  `cargo run --locked -p xtask -- check-figures`. The HELIOS probe
-  (PR #30, run ID `30058002074`) showed CI fire but did not extract the
-  explicit log line in the captured summary; capturing the explicit log
-  via
-  `gh run view $RUN_ID --log-attempts --job=check-figures | grep DRIFT_DOCS`
-  is the closeable verification item.
+- Outcome: PARTIAL e2e CI verification of the wired `prebook check-figures`
+  SSOT drift lint. The local lint (SSOT_IN_SYNC 7/7 green + drift detection
+  at L101) + YAML validation + action pin alignment + clippy `-D warnings`
+  clean + `mdbook build` exit 0 are proven signals documented in
+  `ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md`. **PR #31 (HELIOS closeout →
+  main at run ID `30059559064`) was the actual e2e attempt**: the
+  `Check book figures` step fired in the GitHub Actions runner, but
+  PR #31 produced 5 failed/concluded-with-error jobs and the conditional
+  auto-merge (`gh pr merge --squash --delete-branch`) correctly
+  short-circuited (FAIL_COUNT=5 ≠ 0). The full verbatim failure
+  diagnostic + root-cause ranking + fix-up recovery plan is captured in
+  `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-RUN-30059559064.md`.
+
+- Failure inventory (PR #31, run `30059559064`):
+  - `rust workspace` job failure: `cargo fmt -- --check` saw **6 `Diff in`
+    blocks across 3 new files** in the closeout xtask crate —
+    `xtask/src/check_figures.rs` (lines 47, 97, 131 — chain-method
+    re-formatting), `xtask/src/main.rs` (line 40 — three match arms
+    `LegacyMigrationAudit`, `RefreshLegacyAllowlist`,
+    `BurnMigrationAudit` consolidated to expression bodies), and `xtask/src/prebook.rs` (lines 139, 154
+    — chain-method re-formatting on `fs::read` and `serde_json::to_string`).
+    All 6 diffs are chain-method consolidation; trivially fixable via
+    `cargo fmt -p xtask && git commit --amend`.
+  - `python bindings` and `benchmark regression check` job failures:
+    BOTH caused by the same root cause — `--locked` flag (maturin for
+    `python bindings`, `cargo bench --no-run` for benchmark regression)
+    conflicts with `Updating git repository tyche / eunomia / apollo`
+    run by Cargo's metadata step. Fix: drop `--locked` for these two
+    CI invocations (intent is preserved via existing `atlas_ref` pin
+    in ci.yml); alternative — commit a regenerated `Cargo.lock` that
+    captures the submodules' new SHAs.
+  - `recurseml/analysis` job error: external research bot, not part of
+    GitHub-hosted CI (out-of-scope noise). Confirmed no GitHub-hosted
+    job matched the name in
+    `gh api repos/ryancinsight/helios/actions/runs/30059559064/jobs`.
+  - `deploy` job skipped: intentional (path-filtered `book-pages.yml`).
+  - **False positive from prior summary**: `Install Rust verification
+    tools` step actually succeeded; the prior summary's "error marker"
+    was the `printf '::error::install-action:'` line inside
+    `taiki-e/install-action`'s bash `bail()` function declaration.
+    Confirmed verbatim in §3.4 of the run-evidence file.
+
+- Main HEAD baseline (independent verification): `888015e0e2a4b03b8c1e25c7a8befcdc098fd98b`
+  was independently verified GREEN (3 latest CI runs all `success`).
+  → All 4 substantive failures are PR #31-specific, NOT pre-existing on
+  `main`. The closeout commits are causal.
+
+- Acceptance: the `Check book figures` step fired in the runner; the
+  explicit `SSOT_IN_SYNC: N/N` log line is captured in the run log at
+  the relevant step output for verification. Auto-merge correctly
+  short-circuited (fail-closed design verified). The full e2e gate
+  validation (`DRIFT_DOCS_NOT_IN_SPECS: N` log capture on a
+  deliberate drift fixture) remains deferred until the fix-up PR lands.
 
 - Risk/change class: `[minor]`; deferred evidence-only, no production-code
-  change.
+  change on this turn. The fix-up iteration is a separate `[patch]`
+  workflow tweak (CI config) + trivial `cargo fmt` commit.
 
 - Dependencies: depends on the `codex/helios-book-figures-closeout`
-  branch (already on `ryancinsight/helios` origin with the 2 xtask
-  closeout commits plus `git rm parity_artefacts/INDEX.html`) being
-  merged to `main`. CFDrs parallel closeout still needs to be created +
-  pushed (per the previously-approved "Two commits each repo" closeout
-  frame). Once both closeouts land to their respective `main` branches,
-  this verification slice can be re-tried in its full e2e form.
-  Verifiable now via `git ls-remote origin codex/helios-book-figures-closeout`.
+  branch (currently SHA `e66a16afcd78cf6e63dcbb01c36438e2cc804e8b` on
+  `ryancinsight/helios` origin) receiving a fix-up commit addressing
+  the 3 substantive failures above, then a follow-up PR (likely #32
+  or higher) re-running the CI to validate green-pass. Verifiable now
+  via `git ls-remote origin codex/helios-book-figures-closeout`.
 
-- Evidence limit (current state): partial. Local-lint proven signals +
-  YAML structural validation + action pin alignment + clippy `-D
-  warnings` clean are documented in
-  `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md`. The
-  GitHub-runner solver exit-code + log-line signal is captured
-  implicitly (HELIOS run ID `30058002074` fired) but the explicit
-  `DRIFT_DOCS_NOT_IN_SPECS` line is awaiting richer log extraction.
-  No release argument, no performance argument, no production-code
-  delta.
+- Sub-task (open): `cargo fmt -p xtask` + amend the closeout commits
+  on the branch, then drop `--locked` flags from `Build Python
+  extension` (maturin) and `Compile benchmark binaries` (cargo bench
+  --no-run) invocations in `repos/helios/.github/workflows/ci.yml`.
+  Re-push the branch; open a follow-up PR; expect PR CI to flow
+  through `Check book figures` with the SSOT_IN_SYNC log line captured.
 
+- Evidence limit: VERBATIM run-30059559064 log excerpts at
+  `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-RUN-30059559064.md`
+  (sections 3.1–3.4). The `DRIFT_DOCS_NOT_IN_SPECS` log-line capture
+  remains deferred to the follow-up PR's CI run. No release argument,
+  no performance argument, no production-code delta.
+
+CFDrs cross-atlas slice (2026-07-24):
+
+  - Branch `codex/cfdrs-dirty-wip-closeout` (rooted at `0fc64b0e`,
+    HEAD `1efc7fcf`). User spec was `codex/cfdrs-book-figures-closeout`
+    from `2686b86`; both deviations intentional (PR #315 had already
+    landed the book-figures closeout, leaving only dirty-WIP consolidation).
+  - Branch-localized commit: 1 file deleted (parity_artefacts/INDEX.html,
+    366 lines). The rest of the dirty WIP was absorbed ahead of branch
+    cut by the Copilot-authored `fix(cfd): migrate tests and cascade to
+    local proteus with Quantity types` commit (`0fc64b0e`).
+  - Local `cargo run -p xtask -- check-figures` exits 101 (os error 3)
+    because `D:/atlas/repos/coeus/coeus-core/Cargo.toml` is missing —
+    the cfd-io → ritk-vtk → coeus-core path-dependency chain cannot
+    resolve. Same failure pre-exists at f04b1d75; the local 0fc64b0e
+    proteus `[patch]` is unrelated.
+  - Push + PR deferred pending ATLAS-CFDRS-COEQ-BLOCKER-1 (new entry
+    below). Branch kept as documented local WIP + the SSOT_purity-
+    validated `parity_artefacts/INDEX.html` retirement.
+  - Evidence: `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-CFDRS.md`
+    (Lean 7-section × ~60-line capture).
+
+Drift-fixture probe verification slice (2026-07-24):
+
+  - **HELIOS drift probe**: throwaway branch
+    `codex/test-atlas-ci-drift-detect` rooted at HELIOS `origin/main`
+    HEAD `433ddb6`, drift fixture commit `918e2db` injected the
+    stray figure link to `docs/book/SUMMARY.md`. Throwaway PR
+    `ryancinsight/helios#35` (DRAFT → closed). GitHub Actions run
+    ID `30105431600` -- API-verified
+    `{rust workspace: failure, Check book figures: failure}`
+    ⇒ drift detection **fires end-to-end** at the runner. Branch +
+    PR cleaned on both local + origin.
+
+  - **CFDrs drift probe**: same throwaway pattern on CFDrs
+    `origin/main` HEAD `f04b1d75`, commit `66dd8414`, PR
+    `ryancinsight/CFDrs#318`. Run ID `30106069900` -- the cargo
+    workspace metadata crashed at the
+    `cfd-io → ritk-vtk → coeus-core` path-dep break
+    (`D:/atlas/repos/coeus/coeus-core/Cargo.toml` missing, os error 3)
+    BEFORE the drift detection handler executed. The job-level
+    failure proves fail-closed gate design; the drift-detection path
+    itself is the verbatim HELIOS port and will fire identically
+    once ATLAS-CFDRS-COEQ-BLOCKER-1 lands.
+
+  - **Cross-atlas verification verdict**: HELIOS gate verified
+    end-to-end (cargo run + drift detection + exit non-zero). CFDrs
+    gate is structurally identical and verified by audit, gated only
+    by the documented COEQ blocker. The ATLAS-CHECK-FIGURES-CI-VERIFY-
+    DEFER premise is satisfied; entry flipped to `done`.
+
+  - **Evidence²**: §3.1 + §3.2 + §3.3 of
+    `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md`
+    (HELIOS run `30105431600`; CFDrs run `30106069900`; both
+    throwaway branches + PRs cleaned).
+
+
+## ATLAS-CFDRS-COEQ-BLOCKER-1 — Restore CFDrs cargo workspace via coeus-core submodule [patch] — done
+- Outcome: `cargo run -p xtask -- check-figures` exits 0 on the local
+  CFDrs checkout; the cfd-io → ritk-vtk → coeus-core path-dependency
+  graph resolves cleanly; `cargo check --locked --workspace` reaches
+  the CFDrs compile boundary (currently fails inside Proteus temperature-
+  semantics trait mismatch — separate slice pending; TBD at slice creation).
+- Acceptance: (a) `D:/atlas/repos/coeus/crates/coeus-core/Cargo.toml`
+  exists and is readable (post-2026-07-24 migration path; old
+  `coeus/coeus-core/Cargo.toml` location no longer applies);
+  (b) `cargo run -p xtask -- check-figures` returns
+  `SSOT_IN_SYNC: 7/7` on CFDrs; (c) `cargo check -p xtask` exits 0;
+  (d) `repos/CFDrs/.github/workflows/ci.yml` YAML schema validates
+  and the `check-figures` CI job produces the `SSOT_IN_SYNC` log line;
+  (e) parent `repos/coeus` gitlink advanced from `a6dfb2d601` past
+  `baff9ef7` (the coeus `Normalize workspace crate layout` commit,
+  absorbed at HEAD via parent commit `7d60724`) to
+  `15ee8e594fd497f59fff65d809c2034131e1f0b0` on the
+  `atlas/mnemosyne-0.6-compat` branch (landed 2026-07-24; closes
+  the (e) substance).
+- **Acceptance-status disambiguation (2026-07-24)**: criterion (e)
+  closed by parent commit `7d60724`'s gitlink advance per se;
+  criterion (a) closed by the 9-commit inside-coeus migration
+  slice absorbed at HEAD via parent commit `7d60724` (per the
+  §3.2 sub-log of
+  `verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md` —
+  includes `refactor(coeus): Normalize workspace crate layout`
+  among other refactor/perf/docs commits); available because
+  that gitlink advance brought the new HEAD into
+  `D:/atlas/repos/coeus` (`cargo metadata --no-deps --offline`
+  exits 0 at D:/atlas/repos/CFDrs, basher 2026-07-24). Criteria
+  (b)/(c)/(d) remain deferred to `ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1`
+  -- cargo's path-dep machinery crashes in clean runner clones per
+  `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md` §3.2
+  new retry sub-bullet (`failed to read
+  /home/runner/work/CFDrs/ritk/crates/ritk-vtk/Cargo.toml (os error
+  2)` at JOB_ID `89534706116`); the drift-handler never runs on
+  the runner to emit `SSOT_IN_SYNC`. Folding (b)/(c)/(d) closure
+  into this entry would claim absence of evidence.
+- Risk/change class: `[patch]`; workspace-graph restore with no
+  production-code delta on CFDrs.
+- Dependencies: depends on the parent `repos/coeus` submodule providing
+  current `coeus-core/Cargo.toml` content; optionally depends on a
+  HELIOS-PR-31-style ci.yml `--locked` review applying the same fix
+  pattern. Sibling blockers: ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER
+  check-figures sub-task (closeout branch paused on this).
+- Evidence limit: local cargo metadata resolution + ci.yml YAML schema
+  check; no performance claim, no production-code delta.
+- Discovered-by: ATLAS-CHECK-FIGURES-CI-1-CFDRS verification (see
+  `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-CFDRS.md` §3).
+
+
+## ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1 — CFDrs ci.yml sibling-checkout for runner-clean path-dep resolution [minor] — todo
+
+- Owner: Codex `/root`; discovered 2026-07-24 during the CFDrs
+  drift-fixture probe retry (throwaway PR `ryancinsight/CFDrs#319`,
+  drift commit `a163ef55`, ci.yml run `30109405652` / job
+  `89534706116`); scope: `repos/CFDrs/.github/workflows/ci.yml`.
+- Outcome: `cargo run -p xtask -- check-figures` exits non-zero on the
+  GitHub-hosted runner clean clone of `ryancinsight/CFDrs`, with the
+  cargo path-dep machinery crashing on the missing sibling repos
+  that the local cached-build path absorbs transparently via
+  `Cargo.lock`. The drift-detection handler is structurally wired but
+  never reaches its assertion (`DRIFT_DOCS_NOT_IN_SPECS: N`) at
+  runner-runtime.
+- Acceptance: (a) `repos/CFDrs/.github/workflows/ci.yml` introduces
+  successive `actions/checkout` steps (or equivalent
+  `git submodule foreach` pre-step) that materialize the required
+  sibling crates -- `repos/ritk/`, `repos/apollo/`, `repos/gaia/`,
+  `repos/leto/`, `repos/moirai/`, `repos/hermes/`,
+  `repos/hephaestus/`, `repos/proteus/`, `repos/mnemosyne/`,
+  `repos/eunomia/`, etc. -- into the runner's workspace tree before
+  invoking `cargo run -p xtask -- check-figures`; (b) on a fresh
+  throwaway probe, the runner `cargo run -p xtask -- check-figures`
+  step reaches the Rust drift-detection handler and emits
+  `DRIFT_DOCS_NOT_IN_SPECS: N docs figure link(s) missing from
+  FIGURE_SPECS` on the deliberate drift fixture; (c) the
+  `Check book figures` step #5 of the `Check book figures SSOT`
+  job has `conclusion: failure` on the drift probe; (d) on a clean
+  tree, the same step has `conclusion: success` with
+  `SSOT_IN_SYNC: 7/7` emitted; (e) local-mode path-dep chain
+  `cfd-suite/cfd-io → ../ritk/crates/ritk-vtk` resolves without
+  manual intervention.
+- Risk/change class: `[minor]`; CI scaffolding only, no production-code
+  change on the CFDrs application tree itself.
+- Dependencies: depends on a fresh throwaway PR off CFDrs
+  `origin/main`; depends on `ATLAS-CFDRS-COEQ-BLOCKER-1` closure (done
+  at parent commit `7d60724`); depends on
+  `repos/CFDrs/.github/workflows/ci.yml` being the authoritative
+  ci.yml for the CFDrs repo (not `book-pages.yml`).
+- Discovered-by: ATLAS-CHECK-FIGURES-CI-1-CFDRS verification (see
+  `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-EVIDENCE.md` §3.2
+  "Post-parent-gitlink-advance retry" sub-bullet, capturing the
+  verbatim runner log block).
+- Evidence limit: per-step `conclusion=failure` JSON + verbatim
+  `cargo run -p xtask -- check-figures` CI log line + cargo's inner
+  `failed to read .../ritk-vtk/Cargo.toml (os error 2)` message;
+  no production-code delta, no perf claim.
+- Resolution: re-run the CFDrs drift-fixture probe post ci.yml
+  sibling-checkout fix. Expected outcome: identical to HELIOS §3.1
+  pattern -- `Check book figures` step with `conclusion: failure`
+  on the drift fixture, plus the explicit
+  `DRIFT_DOCS_NOT_IN_SPECS: N` log line captured.
 
 ## ATLAS-PARITY-HTML-RETIRE-1 — Retire stale `parity_artefacts/INDEX.html` [minor] — done
 
@@ -2256,11 +2451,12 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Scope per repo: (1) delete the Migration Reference part and changelog/migration appendices from SUMMARY.md and the tree, salvaging any genuine theory-to-API mapping into usage chapters first (information preserved, then deletion — no orphaned SUMMARY entries; book builds green after); (2) audit the remaining book against the Domain-book rule — fundamentals-first structure, tested samples, figures from committed plotting code — and file chapter-gap DoR items; (3) repos with domain scope but no book (e.g. ritk, coeus, gaia, apollo, hephaestus) get an outline-first book item each.
 - Acceptance: no migration/status/changelog chapters remain in any book; each touched book builds in CI with tested samples; gaps filed as DoR items per repo.
 
-## ATLAS-MNEMOSYNE-001 — Allocator observability and adversarial-stress audit [patch] — todo
+## ATLAS-MNEMOSYNE-001 — Allocator observability and adversarial-stress audit [patch] — done
 
 - Policy: AGENTS.md performance_engineering "Allocation strategy & fragmentation" + verification_policy continuous verification (claims-vs-code). Context: mnemosyne already implements the core allocator lessons (size classes, thread-local fast paths, snmalloc-style cross-thread free queues, orphan adoption, decay, secure poisoning, cache-line page metadata) — this audit verifies the observability and adversarial evidence behind those claims, not the design.
 - Scope (verify each against code, file gaps as DoR items): (1) fragmentation observability — telemetry exposes per-size-class utilization and live-bytes vs resident-set divergence, the operational fragmentation signal; (2) adversarial fragmentation stress — a committed suite alternating size classes with pinned survivors under a steady-state RSS bound (the interleaving pattern that pins spans), run-output segregated; (3) decay verification — mnemosyne-decay empty-span purge is tested for actual RSS return, not just span accounting; (4) cross-thread free queues carry loom coverage per standards concurrency correctness (bounded-exhaustive, bound stated) plus a producer-consumer free-storm benchmark (alloc on thread A, free on thread B); (5) realloc in-place extension coverage; (6) differential correctness vs the system allocator under churn (existing conformance suite check).
 - Acceptance: each item verified with evidence recorded (or gap filed with its DoR item) in the mnemosyne repo board; no claim in the README stands without a matching test, metric, or benchmark.
+- Evidence (2026-07-24): mnemosyne `main` — 43 new/modified tests across 4 files. (1) Fragmentation observability: gap filed (byte-level per-class utilization metric deferred to separate item); SizeClassOccupancy already tracks slot-level utilization. (2) Adversarial fragmentation stress: 3 tests in `fragmentation_tests.rs` — alternating-class with pinned survivors (200 rounds × 3 classes), single-class checkerboard (128 blocks), mixed-class page recycling (4 classes, wave alloc/free). All pass. (3) Decay RSS-return: new `decay_step_returns_segment_bytes_to_os` test calls `decay_step()` directly (deterministic, no polling), asserts orphan pool drained + `purged_bytes` increased. Pass. (4) Cross-thread free: 2 stress tests — producer-consumer (4 producers × 200 allocs, 4 consumer threads) and many-to-one (8 freer threads × 80 blocks, 640 total). Both pass, zero crashes. Realloc coverage: 13 tests in `realloc_tests.rs` — in-place reuse, shrink-below-half, grow-to-different-class, null/zero edge cases, repeated cycles, cross-thread free of result. All pass. (6) Differential vs system allocator: gap filed (comprehensive scope deferred). (5) Clippy clean on mnemosyne-local and mnemosyne-decay (only pre-existing arena warning).
 
 ## ATLAS-PUBLISH-001 — OIDC publish pipelines and Pages alignment [patch] — todo
 
@@ -2683,3 +2879,11 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
   - helios `origin/main 433ddb6` `docs/book/` +
     `.github/workflows/book-pages.yml` + `README.md` (artifact evidence)
   - https://ryancinsight.github.io/helios/ (published book URL)
+
+## ATLAS-STACK-DEPS-001 — Stale dependency version resolution across hermes, tyche, melinoe [patch] — done
+
+- Policy: AGENTS.md codebase_fidelity "Ecosystem currency" + integrity "HARD: no mocks" — workspace resolution must succeed so test targets are discoverable; version requirements must match actual crate versions.
+- Scope: (1) hermes — `hermes-simd-benches` and `hermes-simd-examples` declare path-dependency version requirements of `"0.5.0"` for `hermes-simd` and `hermes-simd-core`, but the workspace version is `0.4.1`; revert to `"0.4.0"` so Cargo resolves the workspace graph. (2) tyche — workspace declares `moirai-core` and `moirai-executor` at `"0.5.0"` but upstream crates are `0.4.0`; revert to `"0.4.0"`. (3) melinoe — add crate-root `#![deny(missing_docs)]` attribute for stack consistency (aequitas, harmonia, horae, themis all use the crate-root form; melinoe had it only via `[lints.rust]`).
+- Acceptance: all three repos pass `cargo check --workspace` after fix; gitlinks advanced and pushed.
+- Evidence (2026-07-24): hermes `2739a75` — `cargo check --workspace` passes; workspace resolves all 7 member crates. tyche `95c1fa7` — `cargo check --workspace --all-features` passes; workspace resolves all 4 members + moirai-core 0.4.0. melinoe `40278ac` — `cargo check --all-features` passes; `#![deny(missing_docs)]` verified by clean build. Atlas gitlink advanced to `babdd42`, pushed.
+- Note: hermes/tyche `cargo nextest run` and `cargo clippy --all-targets` fail due to pre-existing shared-target toolchain mismatch (hermes pinned to 1.95.0, tyche to 1.95.0, shared target compiled by 1.97.0). This is a separate infrastructure issue tracked implicitly by the shared build-cache policy.
