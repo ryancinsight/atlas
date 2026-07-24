@@ -18,8 +18,10 @@ oracles.
   `SurfaceTension`,
   `ThermalConductivity`, `ThermalDiffusivity`, `SpecificHeatCapacity`,
   `ReciprocalLength`, `VolumetricFlowRate`, `AcousticImpedance`, `Intensity`,
-  `VolumetricPowerDensity`, `EnergyPerVolume`, `TemperatureDifference`, and
-  `MassDensityRate`, with SI and scaled units used by the three consumers.
+  `VolumetricPowerDensity`, `EnergyPerVolume`, `TemperatureDifference`,
+  `MassDensityRate`, and the semantic `Angle`/`Radian` pair, with SI and
+  scaled units used by the three consumers. The angle capability is provider
+  commit `19fc384`.
 - CFDrs report arithmetic composes flow, power, pressure, viscosity, reciprocal
   time, time, length, volume, and velocity through Aequitas. The typed report,
   residence/safety, per-channel hemolysis, operating-point, and network-solve
@@ -53,6 +55,13 @@ oracles.
   serialization, numerical-kernel, FFI, or source-trait boundary.
 - Aequitas now also owns the distinct `SurfaceTension` semantic dimension and
   canonical quantity serde support in commits `07e2252` and `6dc68c4`.
+- The current CFDrs cell-separation slice types cell geometry, density,
+  cascade dimensions, parent velocity, Zweifach–Fung channel diameter, and
+  optimization stage widths; the current Helios slices type helical delivery
+  and collimation metrics; and the current Kwavers sequencer slice types
+  transmission timing, PRF, frame rate, tilt, sound speed, and depth. Each
+  keeps scalar extraction at a validation, trigonometric, geometry-kernel, or
+  source-trait boundary.
 
 ### Cross-repository implementation ledger
 
@@ -65,11 +74,14 @@ oracles.
 | `CFDRS-AEQ-MET-05` | thermal-compliance report | `throat_temperature_rise_k` is a temperature difference, while Aequitas must distinguish it from absolute temperature. | Aequitas, then CFDrs | **RESOLVED.** `TemperatureDifference` merged at `e0fc5f3`; CFDrs carries the field through the typed carrier and preserves the thermal-compliance oracle. |
 | `CFDRS-AEQ-MET-06` | `cfd-3d::cascade` public channel configuration and results | Channel length/width/height, volumetric flow, outlet pressure, wall shear, pressure drop, and maximum velocity crossed the public FEM boundary as raw SI scalars despite internal Aequitas inlet arithmetic. | CFDrs | **IMPLEMENTED in `0fc64b0e`.** Cascade configuration/results now carry Aequitas `Length`, `VolumetricFlowRate`, `Pressure`, and `Velocity`; serde, mesh/FEM, examples, adversarial tests, and cross-fidelity callers use explicit SI adapters. Focused compilation is blocked before CFDrs source compilation by the peer Coeus path graph: it resolves `D:/atlas/repos/coeus/coeus-core/Cargo.toml`, while the checked-out manifest is at `D:/atlas/repos/coeus/crates/coeus-core/Cargo.toml`. |
 | `CFDRS-AEQ-MET-08` | `cfd-core` selective cavitation, `cfd-1d` Venturi screening, and `cfd-optim` Venturi placement/blueprint metrics | Pressure, density, velocity, length, viscosity, radius, and surface tension were converted back to raw scalars at public producer and optimization boundaries. | CFDrs, Aequitas | **IMPLEMENTED in `99318bca`; verification blocked.** Public physical fields now carry Aequitas quantities through the producer and optimization boundaries; formula kernels and the serialized `SdtMetrics` report DTO remain explicit scalar boundaries. Touched-file rustfmt, diff checks, residue scans, and PM synchronization pass. The locked `cfd-optim` check reaches the peer graph and fails on duplicate Aequitas/Eunomia identities plus the resulting Hyperion trait mismatches; the child audit records the exact blocker. |
+| `CFDRS-AEQ-MET-09` | `cfd-1d` cell separation, kappa-aware cascade, Zweifach–Fung routing, and `cfd-optim` stage summaries | Cell diameter/density, cascade treatment/recovery diameters, parent velocity, Zweifach–Fung channel diameter, and stage widths crossed public boundaries as raw SI scalars. | CFDrs, Aequitas | **IMPLEMENTED in `77201635`; focused verification passed.** Public contracts now carry Aequitas `Length`, `MassDensity`, and `Velocity`; cfd-1d Nextest 728/728 (3 skipped), cfd-optim Nextest 137/137, and focused validation Nextest 16/16 pass. The full cfd-validation package gate remains open because `test_venturi_flow_3d` and `microventuri_35um_case_produces_converged_informative_2d_result` exceeded the committed 30-second budget. |
 | `HELIOS-AEQ-MET-01` | `helios-analysis::Dvh` | `min`, `max`, `mean`, `dose_at_volume_fraction`, and gEUD return `T` although the stored samples are `AbsorbedDose<T>`. Dose criteria in DVH APIs also enter as raw `T`. | Helios | **RESOLVED.** Helios PR #25 merged as `08b7559932fe5f46cfade74f33238e5d3db2598b` from implementation `8387fef`; DVH dose results and TCP/NTCP dose parameters are typed, with local Dx/gEUD/NaN/masked and end-to-end value evidence. Hosted checks were incomplete at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-02` | gamma analysis | `dta_mm`, normalization dose, low-dose cutoff, and dose-difference inputs were raw `T`; only the gamma field and pass rate are dimensionless. | Helios | **RESOLVED.** Helios PR #26 merged as `810bb2893723038f26f147847135b7a9e16e04e4` from implementation `07c7768`. Gamma distance/search radius use `Length`, normalization/cutoff/pass-rate thresholds use `AbsorbedDose`, and scalar gamma/pass-rate results retain Low, local/global, grid, and end-to-end value semantics. Local analysis 31/31 and simulation end-to-end 3/3 passed; hosted Rust/benchmark jobs were still running at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-03` | delivery and portal dosimetry | `DeliveryFrame::leaf_fluence`, total delivered fluence, leaf width, ray step, and beam geometry distances were raw values; portal code typed fluence only internally before converting it back. | Helios | **RESOLVED; PR #32 merged as `02d7a7755f7d645997d0576118e81f89a56dc22e` and child PM sync PR #33 merged as `433ddb60ef7e9196f7361e18a8d1e79a112a0c1a`.** Portal fluence remains Aequitas `EnergyPerArea<T>` through Hyperion transmission; the hosted build, Rust workspace, Python binding, and replicated benchmark checks pass. |
 | `HELIOS-AEQ-MET-04` | image-quality analysis | ROI statistics and volume RMSE were raw scalars even when the clinical validation path analyzed dose volumes. | Helios | **RESOLVED; PR #28 merged as `b3c7b1c`.** Commit `0c9374f` adds shared raw-value kernels plus `dose_roi_statistics` and `dose_volume_rmse` returning Aequitas `AbsorbedDose`; the clinical example uses typed Gray output and converts only at dimensionless contrast/CNR boundaries. Local analysis 33/33, warning-denied Clippy, doctest, Rustdoc, format, clinical-example, and hosted build/Rust/Python/benchmark/review gates pass. |
 | `HELIOS-AEQ-MET-05` | `helios-physics` Compton/Klein–Nishina photon-energy inputs | Compton cross-section and mass-coefficient APIs accepted a scalar documented as MeV, so the public boundary carried no energy dimension. | Helios | **IMPLEMENTED in `4c8307a`, pushed to draft PR #34.** Rust APIs, examples, tests, and the Python conversion boundary now use Aequitas `Energy<T>`; the 1 MeV/1,000,000 eV equivalence test preserves the analytical result. Local checks and Nextest 18/18 pass; warning-denied Clippy is blocked by the peer missing `D:/atlas/worktrees/coeus/coeus-autograd/Cargo.toml` path. |
+| `HELIOS-AEQ-MET-07` | Helios helical delivery, projection, and frame outputs | Gantry angle, couch position, rotation timing, and couch velocity crossed delivery seams as raw radians, millimetres, and seconds. | Helios, Aequitas | **IMPLEMENTED in `951ef9c`; provider angle support in `19fc384`.** Helios consumes typed `Angle`, `Length`, `Time`, and `Velocity` through domain, simulation, dose/portal, examples, and end-to-end tests. Direct rustfmt and diff checks pass; Cargo gates remain blocked before source compilation by `D:/atlas/worktrees/coeus/coeus-autograd/Cargo.toml`. |
+| `HELIOS-AEQ-MET-08` | `helios-domain::FieldAperture` collimation | Penumbra half-width crossed the public collimation contract as a raw millimetre scalar. | Helios, Aequitas | **IMPLEMENTED in `4fd2c88`.** Domain and simulation constructors now require Aequitas `Length<T>`; conversion to millimetres is confined to the Gaia geometry kernel. Direct rustfmt, diff checks, and public residue scans pass; Cargo remains blocked before source compilation by the same Coeus manifest path. |
 | `KWAVERS-AEQ-MET-01` | `ThermalCEM43Grid` and HIFU planning results | Thermal dose outputs, thresholds, peak temperature, dwell time, and time-to-dose crossed public boundaries as raw scalars. CEM43 is an equivalent-time clinical quantity, not an SI dose alias. | Kwavers | **RESOLVED.** Kwavers PR #323 merged as `c19134ec77d5b819a1ad92729b59b70a53026d63` from implementation `e8f522b89`; HIFU planning physical carriers follow in PR #324 implementation `a5c101a4c`, current head `e52fee18f`. `CumulativeEquivalentMinutes` is backed by Aequitas `Time`; thermal calculators return typed maxima/point queries, and HIFU planning returns typed temperature/dwell/time-to-dose plus typed geometry, pressure, power, frequency, volume, and schedule coordinates. Local CEM43/HIFU value evidence and the HIFU source audit pass; hosted package verification remains blocked by peer Coeus normalization/API drift. |
 | `KWAVERS-AEQ-MET-02` | pulsed laser/photoacoustic source | Peak/average power, pulse duration, repetition frequency, wavelength, beam radii, and peak fluence are raw public fields/results. | Kwavers | **RESOLVED.** Kwavers PR #322 merged as `c2cf44c87a503f75b93d6c3a64f26aeba0a6ca1e` from implementation `4a997829`; `PulsedLaser` and `BeamProfile` now use `Power`, `Time`, `Frequency`, `Length`, `Energy`, and `EnergyPerArea`. Gaussian, flat-top, and Bessel fluence equations plus typed average-power value regressions pass locally; package check, focused nextest 2/2, warning-denied Clippy, doctests, Rustdoc, format, and diff gates passed. Hosted checks were still running at merge; `recurseml/analysis` errored and CodeRabbit succeeded, so no hosted-green claim is made. |
 | `KWAVERS-AEQ-MET-03` | transducer frequency, geometry, materials, and Rayleigh models | Frequency response, element dimensions/area/volume, propagation range, wavelength, attenuation, and acoustic impedance cross public APIs as `f64`. | Kwavers | **RESOLVED for the public Rayleigh boundary; PR #324 OPEN at head `e52fee18f`.** Rayleigh aperture radii/areas and centres/observation points now use Aequitas `Length`/`Area` and validated `CartesianPosition`; the KWaveArray rasterizer is the one explicit scalar grid adapter. Focused Rayleigh 12/12, planar rasterizer 1/1, package check, Clippy, and doctests pass. The hosted matrix reaches provider checkout before the peer Coeus/Mnemosyne dependency blocker; no hosted-green result is claimed. |
@@ -78,6 +90,8 @@ oracles.
 | `KWAVERS-AEQ-MET-06` | `kwavers-grid` derived metric methods | Grid spacing, physical size, volume, cell volume, and CFL timestep crossed the public grid boundary as raw scalars. | Kwavers | **IMPLEMENTED in `cf06a3a93`; PR #324 current head `e52fee18f`; verification pending hosted dependency repair.** The grid API now returns Aequitas `Length`, `Volume`, and `Time`, accepts typed `Velocity`, and converts only at coordinate/stability-kernel boundaries. Direct value tests and all in-repository callers are migrated; see child ADR 053. |
 | `KWAVERS-AEQ-MET-08` | thermal-diffusion/Pennes/Cattaneo and coupled thermal configuration | Perfusion, blood properties, arterial/initial temperature, relaxation, conductivity, frequency, metabolic heat, and thermal step crossed Rust configuration seams as raw scalars. | Kwavers | **IMPLEMENTED in `37fcf346c`; PR #324 current head `e52fee18f`; verification pending hosted dependency repair.** The physics and simulation carriers now use Aequitas quantities, typed Pennes composition reaches the scalar numerical boundary, Python remains an explicit scalar conversion edge, and SI serialization round-trip coverage is added. See child ADR 054. |
 | `KWAVERS-AEQ-MET-09` | `kwavers-transducer::basic::PistonConfig` and source builder | Piston centre, diameter/radius, and Gaussian apodization sigma crossed the public source boundary as raw geometry while the adjacent Rayleigh API already used Aequitas `Length` and validated `CartesianPosition`. | Kwavers | **IMPLEMENTED in `e52fee18f`, pushed to PR #324.** Piston configuration, builder, accessors, factory construction, Gaussian apodization, and typed geometry regression now use Aequitas; raw conversion remains at the existing grid/source trait boundary. Offline check, focused Nextest 222/222, and doctest 1/1 pass; Clippy and hosted full gates remain blocked by the peer provider graph. |
+| `KWAVERS-AEQ-MET-10` | `kwavers-transducer` impedance/frequency profiles | Acoustic impedance and frequency profiles crossed the public transducer boundary as raw scalars and duplicated interpolation ownership. | Kwavers, Aequitas | **IMPLEMENTED in `d692c2d6`; verification blocked.** The boundary uses Aequitas `AcousticImpedance` and `Frequency`, with one interpolation owner and analytical profile tests; Cargo gates remain blocked by the peer Coeus path. |
+| `KWAVERS-AEQ-MET-11` | `kwavers-transducer::ultrafast::sequencer` | Transmission timing, tilt, PRF/frame rate, total duration, sound speed, and depth crossed the sequencer boundary as raw SI scalars. | Kwavers, Aequitas | **IMPLEMENTED in `614c71197`; verification blocked.** The schedule and event contracts use Aequitas `Time`, `Angle`, `Frequency`, `Velocity`, and `Length`; direct rustfmt/diff checks pass, while Cargo remains blocked before source compilation by `D:/atlas/worktrees/coeus/coeus-autograd/Cargo.toml`. |
 
 ### Session refresh (2026-07-24)
 
@@ -97,6 +111,13 @@ rows remain for merge provenance.
   public-field residue scans pass. The locked `cfd-optim` check is blocked
   before CFDrs source compilation by the peer root path transition selecting
   duplicate Aequitas/Eunomia/Proteus identities and Hyperion trait mismatches.
+- **CFDRS-AEQ-MET-09 — implementation and focused verification complete.**
+  CFDrs commit `77201635` types cell-separation and cascade geometry/density/
+  velocity contracts plus Zweifach–Fung inputs and stage summaries. cfd-1d
+  Nextest 728/728 (3 skipped), cfd-optim Nextest 137/137, and focused
+  cell-separation validation Nextest 16/16 pass. The full cfd-validation gate
+  remains blocked by the two exact 30-second Venturi timeouts recorded in the
+  ledger.
 - **HELIOS-AEQ-MET-06 — implemented.** Helios commit `aa70fab` types CT
   attenuation reference density with `MassDensity` and GPU attenuation inputs
   with `AreaPerMass`/`MassDensity`; all in-tree solver, GPU, simulation, test,
@@ -108,6 +129,18 @@ rows remain for merge provenance.
   and `Frequency`, removes duplicate profile interpolation, and records the
   analytical boundary/profile tests and Rustfmt/diff evidence. Cargo gates are
   blocked before source compilation by the same peer Coeus path.
+- **HELIOS-AEQ-MET-07 — implemented.** Helios commit `951ef9c` consumes the
+  Aequitas angle capability from `19fc384` across helical delivery and
+  simulation outputs. Direct rustfmt/diff checks pass; Cargo remains blocked by
+  the missing Coeus manifest path.
+- **HELIOS-AEQ-MET-08 — implemented.** Helios commit `4fd2c88` types
+  `FieldAperture` penumbra as `Length<T>` and confines the millimetre conversion
+  to the Gaia geometry kernel. Direct rustfmt/diff/residue checks pass; Cargo
+  remains blocked by the same Coeus manifest path.
+- **KWAVERS-AEQ-MET-11 — implemented.** Kwavers commit `614c71197` types the
+  ultrafast transmission sequencer's time, angle, frequency, velocity, and
+  depth metrics. Direct rustfmt/diff checks pass; Cargo remains blocked by the
+  missing Coeus manifest path.
 - **Helios residual scan.** The remaining public raw `f64` fields in the
   audited planning/autodiff surfaces are penalty weights, dimensionless/model
   coefficients, or dense numerical storage; no additional existing Aequitas
@@ -123,10 +156,12 @@ rows remain for merge provenance.
   other ratios remain dimensionless or consumer-semantic values.
 - The current implementation state is: CFDrs' audited public physical carriers
   are closed in merged PR #315 (`9fa95f9c`) with the cascade slice implemented
-  in `0fc64b0e`; Kwavers' public transducer/Rayleigh, thermal/perfusion,
-  derived-grid, thermal-diffusion configuration, and basic-piston metric gaps
-  are implemented on PR #324 current head `e52fee18f`; Helios' Compton energy
-  gap is implemented in draft PR #34 at `4c8307a`;
+  in `0fc64b0e` and cell-separation metrics implemented in `77201635`;
+  Kwavers' public transducer/Rayleigh, thermal/perfusion, derived-grid,
+  thermal-diffusion configuration, basic-piston, impedance/frequency, and
+  ultrafast-sequencer metric gaps are implemented through `614c71197`;
+  Helios' Compton energy, helical delivery, and collimation gaps are implemented
+  through `4fd2c88`;
   PR #325's
   vessel-spacing slice is externally blocked by a conflicting branch and
   the peer Mnemosyne `TierSelection` dependency gap; and Helios PR #32 is merged
