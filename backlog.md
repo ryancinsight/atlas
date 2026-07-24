@@ -7,6 +7,21 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-010 — Close matmul launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `b9876e7e` hardens tiled CUDA matmul with checked rank-two
+  nonempty layout metadata, `A.cols == B.rows`, output shape compatibility,
+  and both checked 16-wide grid axes.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.044 seconds;
+  rustdoc and doctests pass; shared grid tests cover custom block widths and
+  matmul source scans are clean for rank/grid issues.
+- Limit: CUDA-feature Nextest cannot link in this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-009 — Close pool3d launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

@@ -6,6 +6,21 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-010 — Close matmul launch ABI [patch] [arch]
+
+- [x] Advance Coeus to provider commit `b9876e7e` after enforcing rank-two
+      shape compatibility and representable layout metadata at tiled matmul.
+- [x] Replace both unchecked 16-wide grid conversions with the shared checked
+      arbitrary-block helper; retain the native tiled kernel and buffers.
+- [x] Verify feature-enabled check, warning-denied Clippy, default Nextest,
+      rustdoc, doctests, source scans, and exact gitlink integration.
+
+Evidence: provider matmul source contains no input-dependent grid narrowing or
+unchecked rank indexing. Default package Nextest passes 3/3 with zero skipped
+in 0.044 seconds; rustdoc and doctests pass. CUDA-feature Nextest remains
+blocked before execution because the Windows GNU linker cannot find `-lcuda`
+at `/usr/local/cuda-11.3/lib64/`.
+
 ## ATLAS-CUDA-SAFETY-009 — Close pool3d launch ABI [patch] [arch]
 
 - [x] Advance Coeus to provider commit `df331873` after applying the
