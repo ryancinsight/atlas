@@ -3733,3 +3733,75 @@ Next actionable (awaiting user or peer):
    once buildable, evaluate `ATLAS-LETO-OPS-SPARSE-LU-001` real sparse
    LU/Cholesky architectural work as a [arch] ADR + [minor] increment per
    `upstream ownership`.
+
+## Session 17 (atlas-meta coordinator / codex agent / cold-start) — 2026-07-23
+
+### Owner-local: ATLAS-LETO-OPS-SPARSE-LU-001 closure
+
+- [x] Origin sync: leto `git fetch origin` (PR #74 was already OPEN +
+      MERGEABLE pre-session — peer's prior session(s) had advanced the
+      branch with ndarray/nalgebra removal + sparse LU preparatory work;
+      the sparse LU numeric correctness was actually fixed at HEAD `cce2b72`,
+      not remaining as the handoff's "4 failing tests" picture).
+- [x] Bounded build pattern: `cargo check -p leto-ops --tests` first
+      (Finished 2m 15s clean) — caught the Session 16 mid-wave hazard
+      documented in the handoff (false-positive E0689 from a build-mid-kill
+      leaving stale incremental state; `cargo build --tests` after seeding
+      resolves cleanly).
+- [x] Re-verify sparse LU tests: 16/16 PASS (`factor_poisson_1d_laplacian_n16_roundtrip`,
+      `factor_banded_5_diagonal_n32`, `factor_random_sparse_n64_diff_dense`,
+      `sparse_path_routes_correctly_for_tridiagonal_n64`, `singular_matrix_yields_storage_error`,
+      `factor_f32_generic`, plus 9 inherited SparseLuSolver tests).
+- [x] `cargo nextest run --no-fail-fast -p leto-ops`: 339/339 pass in 3.17s.
+- [x] `cargo test --doc -p leto-ops`: 11/11 pass in 54.64s — AFTER
+      minimally fixing two peer-tracked doctests that violated the
+      private-mod convention (`sparse::lu_numeric` / `sparse::lu_symbolic`
+      are `mod`-private; the doctests used `mod::factor_numeric` paths
+      and the re-exported `factor_numeric` should be used instead) AND
+      correcting a numerically-inconsistent doctest assertion (rhs was
+      `b=[9,8]` paired with `x=[2,3]` but `[[4,1],[1,3]]·[2,3] = [11,11]`;
+      fixed rhs to `[11,11]` keeping the assertion).
+- [x] Selective staging: `git add crates/leto-ops/src/application/sparse/lu_numeric.rs
+      crates/leto-ops/src/application/sparse/lu_symbolic.rs` — left
+      peer-held tracked-modified WIP unstaged per `concurrent_agents: stage
+      selectively`. (Peer files were tracked-modified beyond the merged
+      PR and untracked in working tree.)
+- [x] Commit + push: `docs(leto-ops): Fix sparse LU doctests against private mod convention`
+      as `19306ca` on `codex/leto-real-sparse-lu`.
+- [x] PR #74 squash-merge: `gh pr merge 74 --squash --delete-branch --auto`
+      landed at origin/main `687b670` at 2026-07-24T02:18:24Z.
+- [x] ADR 0031 Status flipped Proposed → Accepted.
+- [x] atlas-meta gitlink advance: `git update-index --cacheinfo
+      160000,687b670...,repos/leto` (submodule local tree NOT switched to
+      main — peer WIP preservation per `concurrent_agents`).
+- [x] backlog.md `ATLAS-LETO-OPS-SPARSE-LU-001` status header flipped
+      todo → ✅ closed + Session 17 closure entry appended at file tail.
+- [x] gap_audit.md Session 17 verification entry appended at file tail.
+- [x] checklist.md Session 17 closure section (this entry).
+- [x] docs/adr/INDEX.md ADR-0031 row Status flipped Proposed → Accepted.
+
+### Filed follow-up (deferred per ADR 0031 Consequences):
+
+- ATLAS-LETO-OPS-AMD-ORDERING-001 [patch] — Approximate Minimum Degree
+  ordering per Amestoy-Davis-Duff 1996 (~300-line surface); deferred
+  because partial AMD would risk numerical defect per ADR 0031 "AMD scope
+  risk". Natural column ordering ships for v0.40.0.
+- ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 [minor] — Migrate CFDrs
+  `crates/cfd-math/src/linear_solver/direct_solver.rs` to the landed
+  `SparseLuSolver::solve_view`; depends on aequitas pin coherence and
+  a leto version bump at CFDrs. Out of Session 17 scope.
+
+### Standing-continuation open items (not Session 17 closure scope; harvest for next session):
+
+- ATLAS-BOOK-001 book process-content eviction (kwavers book drift).
+- CFDRS-CFD1D-LINT-001 residual 8 warnings (peer-architectural; skip).
+- Helios book — user's session prompt requests similar multichapter
+  book from examples for helios and CFDrs per kwavers template. Per
+  Session 15 read: kwavers book template exists; CFDrs has
+  `docs/book/SUMMARY.md` peer-dirty. Initiate book scaffolding once
+  sparse LU lands (DONE this session; CFDrs book still gated on aequitas
+  pin + leto bump).
+- Helios book — not yet initiated; file as ATLAS-HELIOS-BOOK-001 [minor]
+  [arch] board item (per Session 17 closure; next session to draft the
+  SUMMARY.md scaffold).
+

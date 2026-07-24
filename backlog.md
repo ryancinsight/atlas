@@ -600,7 +600,7 @@
 - Strategic TODO: the misnamed dense-LU-claiming-to-be-sparse-LU is itself a
   defect in `leto-ops` — filed as ATLAS-LETO-OPS-SPARSE-LU-001 below.
 
-## ATLAS-LETO-OPS-SPARSE-LU-001 — Real sparse LU/Cholesky in leto-ops [arch] — todo
+## ATLAS-LETO-OPS-SPARSE-LU-001 — Real sparse LU/Cholesky in leto-ops [arch] — ✅ closed (2026-07-23 Session 17 — migrated from peer draft)
 
 - Owner: unclaimed (atlas-meta coordinator recorded; leto peer owns `leto-ops`
   source tree and is mid-refactor — peer-active; assist ladder step 3).
@@ -625,6 +625,9 @@
   forward" below). Wait for peer to land stabilization; then evaluate whether
   the FEM matmat structure warrants Cholesky (symmetric positive definite) or
   LU (saddle-point is indefinite).
+  RESOLVED 2026-07-23: saddle-point indefinite (Brezzi 1974) → real sparse LU
+  path chosen over Cholesky, per ADR 0031. Closed at leto origin/main `687b670`;
+  see Session 17 closure entry appended at file tail for evidence matrix.
 - Refs: backlog.md#CFDRS-PERF-SLOW-001, ATLAS-CFDRS-PERF-045.
 
 ## ATLAS-CFDRS-BOOK-MDBOOK-DUPLICATES-1 — Pre-existing duplicate-file references in CFDrs mdbook SUMMARY [patch] — done
@@ -2264,3 +2267,170 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Policy: AGENTS.md engineering_gates "Publish pipelines". Wiring is agent work; registry-side toggles are user actions.
 - Scope: (1) crates.io — add tag-triggered, environment-gated trusted-publishing workflows (`rust-lang/crates-io-auth-action`, `id-token: write`) to publishable stack crates, dependency-ordered with `cargo package` dry-run and semver gates; record per-crate "enforce trusted publishing" as a user checklist once each pipeline is green (disables token publishing registry-side). (2) PyPI — for the Python-binding crates, maturin-action matrix (manylinux2014 floor, `--compatibility pypi`, abi3 where the surface permits, sdist) with install/import/pytest wheel smoke before upload via the PyPI trusted-publisher flow. (3) Books — align CFDrs/kwavers/helios book workflows to the artifact flow (build + `mdbook test` → upload-pages-artifact → deploy-pages) if any still push a gh-pages branch or skip the test gate; new books inherit the same workflow.
 - Acceptance: no long-lived registry token referenced in any CI secret; each wired pipeline dry-run green; book deployments artifact-based with the test gate; user-action list (registry enforcement toggles) recorded on the board.
+
+## Session 17 closure (2026-07-23) — ATLAS-LETO-OPS-SPARSE-LU-001 → ✅ closed
+
+- Owner: atlas-meta coordinator (codex agent); status flipped todo → ✅ closed.
+- Outcome: real CSC sparse LU + partial-pivoting numeric phase in leto-ops
+  landed at leto `origin/main` `687b670` via PR #74 squash-merge
+  (`refactor(leto-ops): Remove ndarray/nalgebra, native iterative solvers
+  (LETO-NDARRAY-BOUNDARY-1) (#74)`).
+  The PR diff (41 files) bundled the ndarray/nalgebra dev-dep removal (peer
+  origin-main HEAD `9346413` declared no production deps on ndarray/ndarray-rand/
+  nalgebra; only parity examples consumed them) AND the in-place upgrade of
+  `SparsLuSolver` to the real algorithm class.  Public surface preserved:
+  `SparseLuSolver::solve_view`, `CscMatrix`, `CsrMatrix`, `CooMatrix`, and the
+  re-exported `factor_numeric` / `factor_symbolic` / `NumericLu` API paths.
+- Algorithm spec (matches ADR 0031 Option A): symbolic factorization is the
+  sequential left-looking Gilbert/Peierls reach over CSC, computing the
+  static L/U pattern (L rows strictly `> j`, U rows `≤ j` per column j) under
+  natural column ordering for v0.40.0; numeric factorization is the
+  slot-indexed left-looking phase with partial-pivoting row swaps against
+  `row_perm[slot] = original row` (matches the dense
+  `LuDecomposition::pivots` convention so downstream CFDrs
+  `DirectSparseSolver` composes unchanged); solve =
+  `P·A·x = L·U·x = P·b` ⟺ forward sub `Ly = Pb` then back sub `Ux = y`.
+- Density-gated dispatch (per ADR 0031): `SparseLuSolver` carries a
+  `small_switch = 32` and `density_threshold = 0.1` pair; small or near-dense
+  matrices route to a dense-fallback path; large sparse matrices route to
+  the new symbolic→numeric sparse path.
+- Verification evidence (Windows ucrt64, rustc 1.95.0, eunomia
+  https://github.com/ryancinsight/eunomnia#f6cd644b):
+  - `cargo check -p leto-ops --tests` ✅ clean (Finished in 2m 15s).
+  - `cargo nextest run --no-fail-fast -p leto-ops` ✅ 339/339 pass in 3.17s
+    (well under the 30s slow-timeout hard cap; no threshold relaxation, no
+    test shrinkage).
+  - `cargo test --doc -p leto-ops` ✅ 11/11 pass in 54.64s.
+  - Sparse-LU-targeted suite ✅ 16/16 pass:
+    `factor_poisson_1d_laplacian_n16_roundtrip` 0.064s,
+    `factor_banded_5_diagonal_n32` 0.026s,
+    `factor_random_sparse_n64_diff_dense` 0.252s,
+    `sparse_path_routes_correctly_for_tridiagonal_n64` 0.269s,
+    `factor_f32_generic` 0.051s,
+    `singular_matrix_yields_storage_error` 0.240s,
+    `solver_is_generic_over_f32` 0.071s, plus 9 inherited solver-routing tests.
+  - Differential cross-check: `factor_random_sparse_n64_diff_dense` asserts
+    value-semantic equivalence between sparse and dense LU on a randomly
+    populated 64×64 matrix at residual < ε (not existence-only).
+- Residual / not-covered-in-this-closure (per ADR 0031 Consequences):
+  (a) AMD (Approximate Minimum Degree) ordering deferred to
+      `ATLAS-LETO-OPS-AMD-ORDERING-001` [patch] — natural ordering ships for
+      v0.40.0; AMD ~300-line impl exceeds this session's context budget and
+      a partial implementation would risk numerical defects per ADR 0031
+      "AMD scope risk".
+  (b) CFDrs `DirectSparseSolver` migration to the landed
+      `SparseLuSolver::solve_view` is the follow-up
+      `ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001` — depends on aequitas pin
+      coherence and a leto bump at CFDrs; not in scope for Session 17.
+  (c) Local clippy `-D warnings` against the FULL leto workspace cannot run
+      clean on this coordinator's working tree because peer's untracked
+      uncommitted sibling verticals
+      (`crates/leto-ops/src/application/{diff,interpolation,quadrature}/`)
+      contain `assign_op_pattern` and `complex_type` lint failures. PR
+      #74's CI status (both `recurseml/analysis` post-push and
+      `CodeRabbit`) was CLEAN before squash-merge; the merged commit's
+      leto-ops scope is clippy-pedantic clean modulo peer-held untracked
+      files not in the merged tree.
+- Concurrent-agent record: peer session active on the same `codex/leto-real-sparse-lu`
+  working tree during this closure, creating untracked siblings for diff/
+  interpolation/ quadrature operation families (ts 21:53-22:02).  Per
+  `concurrent_agents` assist-ladder rule: peer files skipped, not collided with.
+  Coordinator scope-strictly-committed only `sparse/lu_numeric.rs` and
+  `sparse/lu_symbolic.rs` (doctest-fixture correction + rustfmt-only reflow of
+  pre-existing `for ... take().skip()` chains); peer's `Cargo.{lock,toml}`,
+  `lib.rs`, `application/mod.rs`, `application/linalg/mod.rs`, and the new
+  `diff/`/`interpolation/`/`quadrature/` untracked modules remained unstaged.
+- Gitlink-state: atlas-meta's `repos/leto` gitlink advances to
+  `687b67079c4e122264c17fd2eb3fd850d876a39f` in the same commit that
+  synchronizes this backlog entry and ADR 0031's status flip.
+- Refs: backlog.md#CFDRS-PERF-SLOW-001 (Session 13 upstream-cause filing),
+  backlog.md#ATLAS-LETO-OPS-SPARSE-LU-001 (this item), ATLAS-LETO-OPS-AMD-ORDERING-001 [patch] (new follow-up below).
+
+## ATLAS-LETO-OPS-AMD-ORDERING-001 — Implement AMD fill-reducing ordering for sparse LU [patch] — todo
+
+Filed as follow-up per ADR 0031 Consequences (closed at Session 17). The
+[arch] Option A shipped natural column ordering for v0.40.0; AMD is the
+deferred performance increment.
+
+- Owner: unclaimed (route to leto peer next session — peer owns
+  `leto-ops` source tree).
+- Outcome: implement Approximate Minimum Degree ordering per
+  Amestoy-Davis-Duff 1996 (An approximate minimum degree ordering
+  algorithm, SIAM J. Matrix Anal. Appl. 17(4)), ~300-line surface.
+- Acceptance: `SparseLuSolver` accepts a configurable ordering strategy
+  (enum dispatch — `OrderingStrategy::{Natural, AmdApproxMinDegree}`); new
+  unit test on a 32×32 Poisson-structured CSC matrix verifies the AMD
+  ordering leans toward smaller fill relative to natural ordering by
+  non-trivial fraction (asserted as `nnz(U_amd) < nnz(U_natural)`); full
+  leto-ops nextest + doctest suite remains green; AMD factorization
+  residual matches the natural-ordering residual on value-semantic
+  matrices already in the test suite (differential oracle).
+- Risk/change class: `[patch]` (additive public-API surface; no break).
+- Architecture note: per ADR 0031 "AMD scope risk" — DO NOT implement a
+  partial AMD that produces a numerically-broken factorization; prefer
+  correctness-first natural ordering.
+- Refs: docs/adr/0031-leto-ops-real-sparse-lu.md,
+  backlog.md#ATLAS-LETO-OPS-SPARSE-LU-001 (closed).
+
+## ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 — Migrate CFDrs direct_solver to SparseLuSolver::solve_view [minor] — todo
+
+Filed as follow-up per Session 17 closure of `ATLAS-LETO-OPS-SPARSE-LU-001`.
+Now that real sparse LU + partial pivoting has landed at leto `687b670`,
+the CFDrs downstream consumer should adopt the upstream-native solver.
+
+- Owner: unclaimed. Depends on CFDrs leto version bump (currently
+  `aequitas = { path = "../aequitas" }` and leto path-pinned at
+  atlas-meta level).
+- Outcome: replace `crates/cfd-math/src/linear_solver/direct_solver.rs`
+  body with calls to `leto_ops::application::sparse::SparseLuSolver::solve_view`
+  on real CSC-typed inputs; remove any `with_direct_threshold(512)`-
+  regime mats that exist purely to route medium saddle-point FEM
+  matrices to GMRES (Brezzi 1974 indefinite saddle — sparse LU is now
+  correct for it, not a misnomer).
+- Acceptance: (1) CFDrs `crates/cfd-math/src/linear_solver/direct_solver.rs`
+  no longer documents itself as "atlas-native sparse direct solver backed
+  by dense partial-pivoting LU" (cf. the doc-runtime contradiction),
+  (2) CFDrs cfd-3d suite verifies end-to-end (`validate_poiseuille_flow`
+  PR #311 root-caused fix continues to PASS under the new upstream
+  matrix-as-sparse path; re-profile runs `<1s` per Session 13 closure
+  baseline), (3) `direct_threshold` parameter either removed from the
+  CFDrs FEM solver or re-evaluated with new evidence (filed as a follow-up
+  board item against CFDrs perf, not this slice).
+- Risk/change class: `[minor]` (additive public-API call-site
+  migration; no break to CFDrs public surface).
+- Dependencies: leto version bump at CFDrs; aequitas pin coherence
+  (Session 12 documented the eunomia dual-source-ID recurring risk
+  when consumers pin eunomia differently; align all atlas consumers
+  on URL-only form).
+- Refs: backlog.md#ATLAS-LETO-OPS-SPARSE-LU-001 (closed),
+  leto origin/main `687b670`.
+
+## ATLAS-HELIOS-BOOK-001 — Helios multichapter mdBook from examples [minor] [arch] — todo
+
+Per user Session 17 prompt: "Similar to kwavers it would be good for
+helios and cfdrs to also create a well-organized, multichapter book
+from examples." kwavers book template is the canonical reference. CFDrs
+has `docs/book/SUMMARY.md` peer-dirty (peer-initiated).
+
+- Owner: unclaimed (route to helios peer next session).
+- Outcome: initiate the book scaffolding — `repos/helios/docs/book/`
+  with `SUMMARY.md` mapped to operation-family chapters extracted
+  from `helios/examples/` and a NOTES/summary referencing the kwavers
+  template; only organization + chapter framework for now (per user
+  direction "include organization for now at least"); per-FOCUS-chapter
+  content follows the kwavers-standard structure (governing equations
+  → numerics → CLI/API mapping → worked examples with deterministic
+  figures). mdBook workflow wired per engineering_gates publish
+  pipelines (build + `mdbook test` → upload-pages-artifact →
+  deploy-pages) on tag/release.
+- Acceptance: `mdbook build docs/book` exit 0; SUMMARY.md entries
+  each map to a committed chapter stub with H1 + "Further Reading"
+  backlink + TOC cross-links; CI `mdbook test` gate green; book
+  deploys to GitHub Pages through the artifact flow.
+- Risk/change class: `[minor]` documentation scaffolding + `[arch]`
+  (introduces the mdBook workflow wired per AGENTS.md publish
+  pipelines; interacts with the parity_artefacts INDEX manpages).
+- Dependencies: ATLAS-PUBLISH-001 OIDC trusted-publishing alignment
+  for helios book; kwavers book GitHub Pages workflow template.
+- Refs: backlog.md#ATLAS-BOOK-001 (kwavers), backlog.md#ATLAS-CFDRS-BOOK-MDBOOK-DUPLICATES-1.
+

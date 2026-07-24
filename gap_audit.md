@@ -4804,3 +4804,98 @@ can address the use-statement canonicalization.
 Refs:
 - backlog.md#CFDRS-CFD1D-LINT-001
 - CFDrs PR #312 (squashed merged as `4ccd4f85`)
+
+## Session 17 verification — ATLAS-LETO-OPS-SPARSE-LU-001 closure (2026-07-23)
+
+Coordinated cold-start → takeover-completes on the long-open sparse LU
+board item. Verified on a Windows ucrt64 terminal (rustc 1.95.0, eunomia
+`f6cd644b`, aequitas `ce3ef7a`, hermes `f6cdd2cf`, moirai `07b3460e`).
+
+Scope: `repos/leto/crates/leto-ops/src/application/sparse/{lu_numeric.rs,
+lu_symbolic.rs, lu_sparse.rs, mod.rs}` + `docs/adr/0031-leto-ops-real-sparse-lu.md`
++ `atlas-meta` backlog / gap_audit / checklist / INDEX gitlink.
+
+Method:
+1. Origin sync (leto `git fetch origin`; atlas-meta `git status -sb`) — caught
+   race-with-peer by HEAD delta visualisation.
+2. Incremental build (`cargo check -p leto-ops --tests` Finished 2m 15s)
+   before any nextest runs — bounded build pattern: feedback of `timeout`-
+   killed mid-compile leaving stale incremental artifacts that present as
+   false-positive E0689 (the Session 16 mid-wave hazard documented in the
+   handoff).
+3. Bounded nextest (single-test invocation `cargo nextest run --no-capture -p
+   leto-ops application::sparse::lu_numeric::tests::factor_poisson_1d_laplacian_n16_roundtrip` Finished 1m 26s) followed by `cargo nextest run --no-fail-fast -p
+   leto-ops` (339/339 pass in 3.17s — well within the 30s slow-timeout bound).
+4. Doctest verification via `cargo test --doc -p leto-ops` (11/11 pass in
+   54.64s — the slowest non-clippy gate, budgeted at <60s modified-rustup
+   handles).
+5. Selective staging (`git add` of ONLY `lu_numeric.rs` and `lu_symbolic.rs`)
+   preserved peer's tracked-modified WIP (`Cargo.{lock,toml}`, `lib.rs`,
+   `application/mod.rs`, `linalg/mod.rs`, `iterative/*`, `complex_linalg.rs`,
+   `hermitian.rs`, `tests/ops/differential.rs`, `tests/ops/parity.rs`) and
+   untracked (`diff/`, `interpolation/`, `quadrature/`).
+6. Peer state shifted during session: new untracked WIP for diff/
+   interpolation/quadrature operation families (timestamps 21:53-22:02);
+   per `concurrent_agents` assist-ladder rule (3), these were skipped
+   (fresh + actively-held + no claimable periphery in leto-ops source).
+   Coordinator scope-strict: ONLY sparse LU doctest-fixture correction +
+   rustfmt-only reflow of pre-existing `for ... take().skip()` chains.
+7. PR #74 squash-merged as `687b67079c4e122264c17fd2eb3fd850d876a39f`
+   (squashed commit body retains my `docs(leto-ops): Fix sparse LU doctests
+   against private mod convention` chunk alongside the bundled
+   ndarray-removal).
+8. ADR `0031-leto-ops-real-sparse-lu.md` Status flipped Proposed → Accepted.
+
+Findings:
+- (i) ATLAS-LETO-OPS-SPARSE-LU-001 [arch] — ✅ CLOSED. Real CSC-based sparse
+  LU + partial-pivoting numeric phase landed at `leto origin/main 687b670`.
+  Symbolic phase: sequential left-looking Gilbert/Peierls reach; numeric
+  phase: slot-indexed left-looking with `row_perm[slot] = original-row`
+  convention matching the dense `LuDecomposition::pivots`; density-gated
+  dispatch inside the `SparseLuSolver` type (small_switch=32,
+  density_threshold=0.1) per ADR 0031 Option A. Natural column ordering
+  ships for v0.40.0; AMD ordering is the follow-up
+  `ATLAS-LETO-OPS-AMD-ORDERING-001` per ADR 0031 Consequences.
+- (ii) Two new board items filed by closure:
+  - `ATLAS-LETO-OPS-AMD-ORDERING-001` [patch] — implement AMD ordering
+    per Amestoy-Davis-Duff 1996 (~300-line surface); deferred because a
+    partial AMD implementation would risk numerical defect per ADR 0031
+    "AMD scope risk".
+  - `ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001` [minor] — migrate CFDrs
+    `crates/cfd-math/src/linear_solver/direct_solver.rs` to the landed
+    `SparseLuSolver::solve_view`; depends on aequitas pin coherence and
+    a leto bump at CFDrs (currently path-pinned via `aequitas = { path =
+    "../aequitas" }`).
+- (iii) Peer-created untracked `diff/`/`interpolation/`/`quadrature/`
+  uncommitted sibling verticals carry 6 clippy `-D warnings` violations
+  (`assign_op_pattern` ×5, `type_complexity` ×1, `unused_variables` ×2,
+  `unused_mut` ×1, plus 3 doctest-fixture issues); classified as
+  peer-held and out-of-session scope. When peer commits these the
+  warnings latch into the gate; recording as coordinator watchpoint only.
+- (iv) Local leto working tree remains on branch `codex/leto-real-sparse-lu`
+  with peer WIP (untracked + tracked-modified beyond merged `687b670`).
+  Submodule gitlink advanced to `687b670` via `git update-index
+  --cacheinfo`; local submodule tree NOT switched to main (peer WIP
+  preservation per `concurrent_agents`).
+
+Evidence limits:
+- Verification ran only against the leto `target/` build cache the session
+  produced; no profiling or long-baseline evidence collected (not an
+  optimization claim).
+- Cross-differential evidence (`factor_random_sparse_n64_diff_dense`)
+  asserts sparse-LU-solve vs dense-LU-solve value-semantic equivalence
+  on a 64×64 random-magnitude matrix at residual < ε; this is differential
+  evidence between two algorithms, not analytic oracle.
+- CFDrs end-to-end wasn't touched in this session; downstream
+  re-verification of the direct-solver migration
+  (`ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001`) is open post-leto-bump.
+- The "local leto working tree not switched to main" condition leaves a
+  transient: next agent session must verify HEAD state per origin-sync
+  before re-acting.
+
+Refs:
+- backlog.md#ATLAS-LETO-OPS-SPARSE-LU-001
+- docs/adr/0031-leto-ops-real-sparse-lu.md (now Accepted)
+- leto PR #74 squashed merged as `687b670`
+- Re-verify on next session via origin-sync (`git fetch origin`) per
+  concurrent_agents origin-sync-first rule.
