@@ -106,9 +106,10 @@ oracles.
 - Kwavers PR #325 remains `CONFLICTING`/`DIRTY` at `07f60733b`; its vessel metric
   implementation is complete, but integration is not claimed until the peer
   worktree is clean and the Mnemosyne `TierSelection` API dependency is aligned.
-- Helios PR #32 remains open while the benchmark rerun for PM head `5832ffa`
-  is active. Merge is not claimed until the replicated beam-transmission CPU
-  benchmark passes.
+- Helios PR #32 is merged as `02d7a775`; its child PM synchronization PR #33
+  is open at `1adba69` and changes only `gap_audit.md` and `CHECKLIST.md`.
+  Python bindings pass while the Rust and benchmark lanes remain active; this
+  is documentation delivery residuals, not an implementation or metric gap.
 
 ## Provider-native sparse-LU ownership (2026-07-23)
 
