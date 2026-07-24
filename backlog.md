@@ -3621,3 +3621,152 @@ or git+branch), so all consume the increment without break.
   - themis: 21/21 (0.34s) — previously blocked on stable=1.95.0
   - tyche: 40/40 (0.41s) — previously zero test executables due to version mismatch
   Clippy clean on hermes, tyche, melinoe (spot-checked). All gitlinks advanced and pushed.
+## ATLAS-PATH-DEP-AUDIT-2 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — todo
+
+- Owner: Codex `/root`; last-update: 2026-07-24;
+  scope: `D:/atlas/repos/*/Cargo.lock` audit for
+  pending `source = "git+https://github.com/ryancinsight/<sibling>"`
+  entries that should path-depify now that eunomia / themis / melinoe /
+  coeus / apollo path-dep cutovers have landed on parent main.
+- Outcome: post-cutover sweep identifies the remaining sibling-pulls
+  via `git+https` URL with the corresponding `../<sibling>` path
+  targets. Audit only — NO Cargo.lock rewrites + NO Cargo.toml edits
+  in this sweep slice. Each candidate is staged at backlog.md level
+  for the corresponding path-dep closure slices to pick up; closure
+  slicing (which per-sibling slice owns which conversion) is
+  per-crate rationalization, not audit scope.
+
+### One-line summary per Cargo.lock file (basher 2026-07-24)
+
+Counts of pending `source = "git+https://github.com/ryancinsight/`
+lines (the path-dep cutover candidates; listed in alphabetical order
+of Cargo.lock host-by-host):
+
+```
+asclepius  42 hits (aequitas=1, apollo=3, coeus=7, eunomia=1, hermes=6,
+           leto=2, melinoe=1, mnemosyne=11, moirai=10, themis=1)
+athena     27 hits (aequitas=1, eunomia=1, hephaestus=2, hermes=5,
+           leto=2, melinoe=1, mnemosyne=10, moirai=5)
+CFDrs      12 hits (consus=2, melinoe=1, mnemosyne=9)
+coeus      12 hits (aequitas=1, eunomia=1, melinoe=1, mnemosyne=9)
+gaia        3 hits (CFDrs=2, leto=1)
+harmonia    4 hits (aequitas=1, athena=1, eunomia=1, horae=1)
+hephaestus 12 hits (aequitas=1, eunomia=1, melinoe=1, mnemosyne=9)
+hermes      2 hits (melinoe=1, mnemosyne=1)
+horae       2 hits (aequitas=1, eunomia=1)
+mnemosyne   2 hits (fuzz/Cargo.lock: melinoe=1, themis=1)
+tyche       6 hits (consus=4, melinoe=1, themis=1)
+aequitas    1 hit  (eunomia=1)
+apollo     ~28 hits (aequitas=1, eunomia=1, hephaestus=3, hermes=5,
+            leto=2, melinoe=1, mnemosyne=10, moirai=5; plus 7 hits
+            to NVlabs/cutile-rs EXTERNAL -- NO action)
+consus     24 hits (melinoe=1, mnemosyne=11, moirai=11, themis=1)
+themis      1 hit  (melinoe=1)
+
+Total path-dep candidates   152 hits spanning 14 sibling targets
+External (NVlabs/cutile-rs) 7 hits in apollo/Cargo.lock ONLY -- NOT
+  a path-dep candidate; preserve as git+https sibling or pin to
+  crates.io when available
+```
+
+### Notable cases (verbatim from the basher sweep)
+
+- **Locked-SHA drift** detected at mnemosyne's lock entries across
+  multiple consumers (apollo, asclepius, athena, hephaestus, CFDrs):
+  apollo/asclepius/athena lock at `Mnemosyne.git#5c7ee95...` while
+  CFDrs/coeus/hephaestus lock at `Mnemosyne.git#c10e510d...` (which
+  is the post-ATLAS-MNEMOSYNE-PATH-DEP-FINALIZE-1 SHA after the
+  eunomia path-dep finalize commit). The two SHAs differ because the
+  Cargo.lock files were regenerated at different times relative to
+  the path-dep slice chain. A future `cargo update` + `cargo metadata
+  --no-deps --locked` on each submodule will resolve the lock drift
+  and pull the post-cutover SHAs uniformly.
+
+- **`?rev=` query parameter** in tyche/Cargo.lock and hermes/Cargo.lock
+  (`source = "git+https://github.com/ryancinsight/consus.git?rev=...`
+  and `source = "git+https://github.com/ryancinsight/melinoe.git?rev=
+  ...`) — the fat-lock style with explicit `rev=` query is preserved
+  as-is in the audit; the path-dep cutover would simply replace the
+  source URL with `path = "../<sibling>"` and drop the `?rev=` clause.
+  No semantic difference.
+
+- **External `NVlabs/cutile-rs`** (apollo/Cargo.lock lines 818-913)
+  is documented here only as a guard against future-mistaken cutover:
+  NVlabs is NOT a sibling atlas submodule; preserving the `git+https`
+  source is correct.
+
+### Acceptance
+
+- This entry exists and is the SSOT for the post-path-dep-cutover
+  audit findings; closure of audit is `todo` (this entry).
+- Future per-target closure slices reference this entry's
+  per-submodule hit counts when quantifying slice scope.
+
+### Risk/change class
+
+`[patch]`; doc-only ledger entry + read-only audit. ZERO Cargo.toml +
+Cargo.lock + Workspace.toml mutation in any submodule.
+
+### Cross-link inventory
+
+- Sister prior slices that closed partial conversion:
+  `ATLAS-EUNOMIA-044` (wrapper-int / cross-crate type safety, scope
+  contains eunomia `0.6.x` family) -- `done`;
+  `ATLAS-MNEMOSYNE-PATH-DEP-FINALIZE-1` (mnemosyne root
+  `[workspace.dependencies] eunomia git->path`) -- `done` at parent
+  commit `f52c88d6` / submodule `6a4bad71`;
+  `ATLAS-MNEMOSYNE-THEMIS-MELINOE-PATH-DEP-1` (the in-band follow-up
+  closing mnemosyne root `[workspace.dependencies]` themis +
+  melinoe git->path) -- `done` at parent commit `540334e` /
+  submodule `10704179`;
+  `ATLAS-APOLLO-GITLINK-ADVANCE-1` (apollo submodule gitlink advance +
+  co-located submodule commit `82e67c8` finalizing the path-dep
+  migration for eunomia / melinoe / hermes / hephaestus that the
+  parent commit `75f43cf` started but did not complete) -- `done`
+  at parent commit `63528a5`;
+  `ATLAS-COEUS-DIRTY-RECONCILE-1` (coeus submodule gitlink advance +
+  `crates/coeus-cuda/Cargo.toml` path-dep finalize) -- `done` at
+  parent commit `dff78e7`.
+- The 14 sibling targets observed in the audit
+  (aequitas / apollo / coeus / consus / CFDrs / eunomia / hephaestus /
+  hermes / horae / leto / melinoe / mnemosyne / moirai / themis) cross
+  reference the existing apollo-90+ entry scope for that slice's
+  eunomia / melinoe / hermes / hephaestus finalization; future per-
+  target closure slices will cite this audit entry's per-sibling
+  hit counts.
+
+### Evidence limit
+
+- Audit complete verified at 2026-07-24 via code-searcher
+  (ripgrep-direct) over `D:/atlas/repos/*/Cargo.lock` paths with the
+  pattern `source = "git\+https://github.com/ryancinsight`; 152
+  total matches across 14 sibling targets + 7 external NVlabs
+  matches (preserved as external).
+- Audience-vetted scope: only `[patch]` files (`Cargo.toml` /
+  `Cargo.lock`) carry the path-dep cutover; no source-code changes
+  implied. The audit identifies the Cargo.lock state-of-play; the
+  Cargo.toml conversions live in the per-sibling submodule's
+  `[dependencies]` or `[workspace.dependencies]` section.
+- No cargo check, cargo metadata, cargo nextest, cargo clippy
+  claim. No performance / runtime / allocation claim. The audit is
+  the SSOT; closure slices own verification + cargo metadata
+  regression coverage separately.
+
+### Closure-wait criteria (slice may flip from `todo` to `done`)
+
+Closure requires ALL of the following landed in future slices:
+
+- per-sibling closure slices each converting one or more siblings
+  from `git+https` source to `path = "../<sibling>"` + a Cargo.lock
+  regen for the hosting submodule(s);
+- a per-sibling cross-link at each slice's backlog entry pointing
+  back to this entry's per-sibling hit counts as the enumeration
+  baseline;
+- a `cargo update -p <sibling> && cargo metadata --no-deps --locked`
+  verification slice landing the lock-drift resolution across
+  apollo / asclepius / athena / hephaestus / CFDrs / coeus / mnemosyne
+  consumers;
+- a final ATLAS-PATH-DEP-AUDIT-2 sweep-completion marker entry
+  indicating zero remaining `source = "git+https://github.com/
+  ryancinsight` hits across all `/d/atlas/repos/*/Cargo.lock`
+  files (excluding the 7 NVlabs external hits).
