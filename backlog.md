@@ -2887,3 +2887,64 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
 - Acceptance: all three repos pass `cargo check --workspace` after fix; gitlinks advanced and pushed.
 - Evidence (2026-07-24): hermes `2739a75` — `cargo check --workspace` passes; workspace resolves all 7 member crates. tyche `95c1fa7` — `cargo check --workspace --all-features` passes; workspace resolves all 4 members + moirai-core 0.4.0. melinoe `40278ac` — `cargo check --all-features` passes; `#![deny(missing_docs)]` verified by clean build. Atlas gitlink advanced to `babdd42`, pushed.
 - Note: hermes/tyche `cargo nextest run` and `cargo clippy --all-targets` fail due to pre-existing shared-target toolchain mismatch (hermes pinned to 1.95.0, tyche to 1.95.0, shared target compiled by 1.97.0). This is a separate infrastructure issue tracked implicitly by the shared build-cache policy.
+
+## ATLAS-COEUS-DIRTY-RECONCILE-1 — Commit post-`7d60724` coeus dirty state: workspace-graph migration + CUDA driver compat + lock disambiguation [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-24; scope: `repos/coeus`
+  branch `atlas/mnemosyne-0.6-compat` (2 atomic commits) + parent
+  submodule pointer advance + this backlog entry.
+- Outcome: cleared the live working-tree dirty state post-parent-commit
+  `7d60724` by landing two coupled atomic commits. Mega-bundle finalizes
+  (a) eunomia / themis / melinoe path-dep migration closing the
+  atlas-migration path-dep convergence, and (b) deletion of the 26-line
+  `[patch."https://github.com/ryancinsight/X.git"]` table block that
+  previously forced git+https deps to resolve as path-deps during the
+  in-flight migration -- obsolete now that every git+https call-site
+  in coeus has been migrated to its local sibling-checkout path-dep.
+  The deletion closes the "two VecStorage types" invariant the table
+  guarded.
+- Acceptance: (a) `cargo metadata --no-deps --offline` at
+  `D:/atlas/repos/CFDrs` exits 0 with empty stderr post-merge
+  (basher 2026-07-24) -- workspace-graph metadata resolves cleanly
+  with the deleted `[patch]` table; (b) parent `repos/coeus` submodule
+  gitlink advanced from `15ee8e594fd497f59fff65d809c2034131e1f0b0`
+  on `atlas/mnemosyne-0.6-compat` past `4d59a0f3` (commit 1) to
+  `c711dcb40011786ee9ad6fca510335879c97d632` (commit 2); (c) two
+  atomic commits authored under
+  `Ryan Clanton <ryanclanton@outlook.com>`.
+- Co-located commits on atlas/mnemosyne-0.6-compat:
+  - `c711dcb4` `build(coeus): workspace-graph path-deps + cuda driver
+    compat + lock disambiguation` (3 files changed, 204+/131-:
+    `.cargo/config.toml` + `Cargo.lock` + root `Cargo.toml`)
+  - `4d59a0f3` `fix(coeus-cuda): downgrade cuCtxCreate_v4 to v2 for
+    older-driver compat` (1 file: `crates/coeus-cuda/src/driver.rs`)
+  - `53311c03` `fix(coeus-wgpu): Repair fallible test calls`
+    (absorbed in branch; carries the
+    `coeus-tensor/tests/.../parity_tests.rs`,
+    `coeus-wgpu/src/kernels/layout.rs`,
+    `coeus-wgpu/tests/.../parity/strided.rs` fallible-API test
+    adaptations from the upstream coeus_ops signature change
+    per `verifier=basher`)
+- Cross-links: depends on `ATLAS-CFDRS-COEQ-BLOCKER-1` [done] (parent
+  commit `7d60724`) -- the parent-sided coeus submodule pointer
+  advance that exposed the workspace-graph fix slice this slice
+  closes. The parent commit this slice produces advances the
+  `repos/coeus` gitlink past `15ee8e5` to `c711dcb4`, capturing
+  both the cuCtxCreate v2 driver compat and the workspace-graph
+  mega-bundle.
+- Risk/change class: `[patch]`; workspace-graph topology migration
+  with no production-API delta on coeus consumers; clone-clean for
+  downstream consumers as proven by acceptance (a).
+- Dependencies: depends on local sibling-checkouts of `../eunomia`,
+  `../themis`, `../melinoe` (and transitive `../leto`, `../mnemosyne`,
+  `../moirai`, `../hephaestus`, `../apollo`) being present at SHAs
+  locked by their respective parent submodule pointers -- the deleted
+  `[patch]` table's safety net has been removed, so the workspace-
+  graph dependency migration must hold for every cross-atlas consumer.
+- Evidence limit: cargo metadata resolution at CFDrs post-merge;
+  no production-code delta; no perf claim; no behavior change.
+- Discovered-by: live basher porcelain captured 3 dirty files
+  (`.cargo/config.toml` + `Cargo.lock` + root `Cargo.toml`)
+  accumulating on coeus after the COEQ closeout commit `7d60724`
+  advanced the coeus submodule past `15ee8e5`; user prompt
+  2026-07-24.
