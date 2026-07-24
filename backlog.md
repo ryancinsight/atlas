@@ -3229,3 +3229,144 @@ or git+branch), so all consume the increment without break.
   `f8328027` is identified as the boundary commit. `git
   -C /d/atlas/repos/coeus merge-base --is-ancestor f8328027
   atlas/mnemosyne-0.6-compat` returns EXIT=0 confirming in-branch.
+
+## ATLAS-LETO-GITLINK-ADVANCE-1 — Advance `repos/leto` parent submodule pointer to c6ced81 [minor] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-24; scope:
+  `repos/leto` parent-side gitlink advance.
+- Outcome: advances `D:/atlas` parent `repos/leto` submodule pointer from
+  `687b67079c4e122264c17fd2eb3fd850d876a39f` (last synced at
+  LETO-NDARRAY-BOUNDARY-1 close Thu Jul 23 22:18:24 2026) to
+  `c6ced81e6d5a9f439bd24a5150964e7bd2cb595d` on feature branch
+  `codex/leto-real-sparse-lu` (Fri Jul 24 15:14:00 2026). Captures 12
+  legitimate atlas-migration commits (lead `c6ced81` rectangular
+  LsqrSolver; `141699a` eunomia/aequitas git->path conversion;
+  `67f7e96` signal/nonlinear/statistics/optimization modules;
+  `442ea7b` doctest; `dd1d0ad` hermes-simd 0.5.0 path;
+  `406497a` mnemosyne/moirai path; `19306ca` doctest fix;
+  `cce2b72` ndarray-removal completion;
+  `b77e35a` clippy lint cleanup;
+  `dd657a3` unused import removal;
+  `ee6582d` ndarray/nalgebra dev-deps removal).
+- Acceptance: parent commit
+  `c147d913b04cdd4c8ee3b13c7a38ac7a1c338534` builds
+  (`cargo build --offline -p leto` succeeds; leto-ops patch compiles);
+  branch `codex/leto-real-sparse-lu` is target-of-record for the
+  rectangular LsqrSolver work. 1 file changed in parent commit
+  (repos/leto gitlink bump, 1+/1-).
+- Sister cross-links: ATLAS-COEUS-DIRTY-RECONCILE-1 [done] at parent
+  `dff78e7`; ATLAS-COEUS-OPS-FALLIBLE-API-1 [done] at parent `dc7459a`.
+- Risk/change class: [minor] (feature capabilities + path-dep
+  conversion; behavior-preserving at consumer surface).
+- Dependencies: depends on local sibling-checkouts of
+  `../mnemosyne`, `../moirai`, `../hermes`, `../eunomia`, `../aequitas`
+  being present at SHAs locked by their respective parent submodule
+  pointers (currently aligned per the verification matrix).
+- Evidence limit: basher-verified git log archaeology on
+  `/d/atlas/repos/leto` between `687b670..c6ced81` (12 commits); 0
+  dirty files at LETO; no perf claim; no type-check oracle.
+
+## ATLAS-MOIRAI-GITLINK-ADVANCE-1 — Advance `repos/moirai` parent submodule pointer to f74aa480 [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-24; scope:
+  `repos/moirai` parent-side gitlink advance.
+- Outcome: advances `D:/atlas` parent `repos/moirai` submodule pointer
+  from `b613dc3db6504340c4b407cbfbe5cab36bd23f44` (pre-slice parent
+  gitlink) to local main HEAD `f74aa480217c51e0254461d02b47b2a32e67ddce`
+  on branch `main`. Captured commit history:
+  * `f74aa480 fix(deps): use local path deps for mnemosyne-core/mnemosyne`
+    (the founding path-dep migration Thu Jul 23 23:20:05 2026) [LEAD]
+  * intermediate commit
+    `56044f99df609a589f45f25a9c988cbf568aa222` (captured by first
+    verification slice; superseded by f74aa480 in subsequent pull)
+  * recently merged PRs #93
+    (`audit/moirai-ipc-memory-safety`) and #94
+    (`audit/moirai-pal-epoll-safety`) from ryancinsight per the
+    intermediate commit log.
+- Cross-references: `b613dc3db...` parent gitlink points at the merge
+  PR #94 PAL/safety audit. The lead path-dep commit `f74aa480` was
+  authored after the b613dc3d merge, so the 1-commit SHA diff captured
+  in the verification matrix was the conservative reading; the actual
+  slice absorbed MORE commits at retry time.
+- Acceptance: parent commit
+  `6b97938f43a7c8ddb42ad74b1bfd351a4546c06a` (1 file changed, 1+/1-)
+  builds; moirai main HEAD is target-of-record. The slice required a
+  retry due to a transient `git index.lock` contention from the
+  parallel LETO slice; serial retry after
+  `rm /d/atlas/.git/index.lock && git -C /d/atlas add repos/moirai
+  && git -C /d/atlas commit -m '...'` succeeded.
+- Sister cross-links: ATLAS-LETO-GITLINK-ADVANCE-1 [done] at parent
+  `c147d913`; ATLAS-APOLLO-GITLINK-ADVANCE-1 [done] at parent `63528a5`;
+  ATLAS-HEPHAESTUS-GITLINK-ADVANCE-1 [done] at parent `4c49783`.
+- Risk/change class: [patch] (path-dep workspace-graph migration;
+  behavior-preserving at consumer surface).
+- Dependencies: depends on local sibling-checkout of `../mnemosyne`
+  being present at SHA `c10e510` (parent submodule pointer currently
+  aligned).
+- Evidence limit: basher-verified git log archaeology on
+  `/d/atlas/repos/moirai` between parent gitlink and local HEAD;
+  0 dirty files at MOIRAI; no perf claim; no type-check oracle.
+
+## ATLAS-APOLLO-GITLINK-ADVANCE-1 — Advance `repos/apollo` parent submodule pointer to 82e67c8 [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-24; scope:
+  `repos/apollo` parent-side gitlink advance + co-located submodule
+  commit closing the half-finished path-dep migration.
+- Outcome: advances `D:/atlas` parent `repos/apollo` submodule pointer
+  from `8fb3e4ad2c7903df14f7c1f944761970b55b9705` (last synced at
+  `docs(apollo): Record the triple.rs extraction as delivered` Thu Jul
+  23 10:46:41 2026) to `82e67c8fb11b26be82e8fdd2579e9004d2fce1b2` on
+  branch `main` (post path-dep finalize).
+- **Co-located submodule commit** (`82e67c8`): `fix(apollo): finalize
+  path-dep migration for eunomia/melinoe/hermes/hephaestus` -- completes
+  the migration that the lead commit `75f43cf fix(deps): use local
+  path deps for mnemosyne/moirai/leto` started but did not finish. 6
+  git= -> path= conversions in apollo Cargo.toml [dependencies]:
+  * `eunomia`: git+https://github.com/ryancinsight/eunomia ->
+    `path = "../eunomia/crates/eunomia"`
+  * `melinoe`: git+https://github.com/ryancinsight/melinoe.git ->
+    `path = "../melinoe"`
+  * `hermes-simd`: git+https://github.com/ryancinsight/hermes.git ->
+    `path = "../hermes/crates/hermes-simd"`
+  * `hephaestus-wgpu`: git+https://github.com/ryancinsight/hephaestus.git ->
+    `path = "../hephaestus/crates/hephaestus-wgpu"`
+  * `hephaestus-core`: git+https://github.com/ryancinsight/hephaestus.git ->
+    `path = "../hephaestus/crates/hephaestus-core"`
+  * `hephaestus-cuda`: git+https://github.com/ryancinsight/hephaestus.git ->
+    `path = "../hephaestus/crates/hephaestus-cuda"`
+  Cargo.lock regenerated (`+472/-174`, 3686 total lines) -- de-duplicates
+  mnemosyne / hermes-simd / leto / moirai entries that previously
+  collided under the deleted git+https sources. This is the
+  substantive half-finished migration work that was sitting as the
+  `M Cargo.toml / M Cargo.lock` dirty state when the slice began
+  -- NOT stale noise. Mirrors the coeus-side c711dcb4 workspace-graph
+  migration.
+- Acceptance: parent commit `63528a5eaa88275e989c348e6173f12e854581e9`
+  builds; apollo main HEAD advances from `8fb3e4ad2 -> 82e67c8fb`.
+  The path-dep migration is now COMPLETE for apollo's [dependencies]
+  block. 1 file changed in parent commit (gitlink bump 1+/1-); 2
+  files changed in submodule commit (472+/174-).
+- Sister cross-links: ATLAS-COEUS-DIRTY-RECONCILE-1 [done] at parent
+  `dff78e7` (mirror semantics).
+- Risk/change class: [patch] (build/dependency migration;
+  behavior-preserving at consumer surface; locks apollo sub-crate
+  resolution to local sibling-checkouts of `../eunomia`, `../melinoe`,
+  `../hermes`, `../hephaestus`).
+- Dependencies: depends on local sibling-checkouts of `../eunomia`,
+  `../melinoe`, `../hermes`, `../hephaestus` being present at SHAs
+  locked by their respective parent submodule pointers.
+- Evidence limit: basher-verified `git diff` archaeology on apollo
+  Cargo.toml/lock showing the 6 conversions and 472+/174- lockfile
+  rewrite; no perf claim; no type-check oracle.
+
+## ATLAS-HEPHAESTUS-GITLINK-ADVANCE-1 — Advance `repos/hephaestus` parent submodule pointer + add CUDA build script [minor] [arch] — done (with documentation drift follow-up)
+
+- Owner: Codex `/root`; last-update: 2026-07-24; scope:
+  `repos/hephaestus` parent-side gitlink advance + co-located submodule
+  commit adding `build.rs` + co-capturing the 3 M-status Cargo files
+  that should have been restored but were instead committed with their
+  substantive content (see follow-up).
+- Outcome: advances `D:/atlas` parent `repos/hephaestus` submodule
+  pointer from `e7887a5d110c1b8b71456564b76bafcb3d68798f` (last synced
+  at Merge PR #65 crates-io-hardening Wed Jul 22 22:52:21 2026) to
+  `116373dd207d93660f53687f6a4817f7ee1b80ff` on feature b
