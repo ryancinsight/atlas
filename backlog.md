@@ -7,6 +7,22 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-006 — Close optimizer launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `f627ecbc` hardens AdaGrad, Adam, AdamW, RMSprop, and SGD
+  with shared checked element counts, grids, layout ABI, same-shape contracts,
+  and the canonical block size. Adam-family step exponents reject values
+  outside the kernel's `i32` contract.
+- Evidence: feature-enabled package check and warning-denied Clippy pass;
+  default package Nextest passes 3/3 with zero skipped in 0.048 seconds;
+  rustdoc and doctests pass; optimizer source scans are clean for input-
+  dependent narrowing.
+- Limit: CUDA-feature Nextest cannot link in this Windows GNU environment
+  because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+  test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-005 — Close elementwise launch ABI and tree [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

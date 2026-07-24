@@ -6,6 +6,22 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-006 — Close optimizer launch ABI [patch] [arch]
+
+- [x] Advance Coeus to provider commit `f627ecbc` after applying shared
+      checked count, grid, layout, shape, and block-size validation to all
+      five CUDA optimizer families.
+- [x] Reject Adam-family step exponents outside `i32`; retain native kernels,
+      layout views, and allocation-free dispatch.
+- [x] Verify feature-enabled check, warning-denied Clippy, default Nextest,
+      rustdoc, doctests, source scans, and exact gitlink integration.
+
+Evidence: optimizer source contains no input-dependent `as u32`, `as i32`,
+unchecked `numel`, or local grid/block derivation. Default package Nextest
+passes 3/3 with zero skipped in 0.048 seconds; rustdoc and doctests pass.
+CUDA-feature Nextest remains blocked before execution because the Windows GNU
+linker cannot find `-lcuda` at `/usr/local/cuda-11.3/lib64/`.
+
 ## ATLAS-CUDA-SAFETY-005 — Close elementwise launch ABI and tree [patch] [arch]
 
 - [x] Advance Coeus to provider commit `92bd4c8f` after splitting the
