@@ -6,6 +6,23 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-012 — Close unfold/fold launch ABI [patch] [arch]
+
+- [x] Advance Coeus to provider commit `de74d093` after splitting the former
+      unfold/fold monolith into source, dispatch, validation, and 1-D/2-D
+      leaves.
+- [x] Verify checked formulas, exact shape contracts, layout/storage bounds,
+      positive representable parameters, output aliasing, counts, and shared
+      1-D grid validation while retaining native source and buffers.
+- [x] Verify feature-enabled check, warning-denied Clippy, default Nextest,
+      feature rustdoc, and exact gitlink integration.
+
+Evidence: all provider unfold/fold leaves remain below the 500-line target;
+default package Nextest passes 3/3 with zero skipped in 0.193 seconds.
+Feature check, warning-denied Clippy, and rustdoc pass. CUDA-feature Nextest
+reaches the Windows GNU linker but cannot link because `-lcuda` is absent from
+`/usr/local/cuda-11.3/lib64/`; no feature test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-011 — Close attention launch ABI [patch] [arch]
 
 - [x] Advance Coeus to provider commit `3ace27ec` after enforcing checked

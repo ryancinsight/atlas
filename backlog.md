@@ -7,6 +7,20 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-012 — Close unfold/fold launch ABI [patch] [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `de74d093` replaces the unfold/fold monolith with a deep
+  source/dispatch/validation/1-D/2-D tree. It checks window formulas, exact
+  shapes, physical layout/storage bounds, positive representable parameters,
+  output aliasing, counts, and shared grids before native dispatch.
+- Evidence: feature-enabled check, warning-denied Clippy, and feature
+  rustdoc pass; default package Nextest passes 3/3 with zero skipped in
+  0.193 seconds. CUDA-feature Nextest reaches the Windows GNU linker but
+  cannot link because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`;
+  no feature test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-011 — Close attention launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
