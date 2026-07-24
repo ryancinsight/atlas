@@ -2888,6 +2888,156 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
 - Evidence (2026-07-24): hermes `2739a75` — `cargo check --workspace` passes; workspace resolves all 7 member crates. tyche `95c1fa7` — `cargo check --workspace --all-features` passes; workspace resolves all 4 members + moirai-core 0.4.0. melinoe `40278ac` — `cargo check --all-features` passes; `#![deny(missing_docs)]` verified by clean build. Atlas gitlink advanced to `babdd42`, pushed.
 - Note: hermes/tyche `cargo nextest run` and `cargo clippy --all-targets` fail due to pre-existing shared-target toolchain mismatch (hermes pinned to 1.95.0, tyche to 1.95.0, shared target compiled by 1.97.0). This is a separate infrastructure issue tracked implicitly by the shared build-cache policy.
 
+## ATLAS-AEQUITAS-001 — Wireless gitlink advance to origin/main `19fc3846` [minor] — done
+
+Standing-gitlink advance per ADR 0020 (provider-graph-refresh pattern) and
+`git_discipline` causal chain (peer publishes → coordinator verifies →
+gitlink advances). Three additive peer commits on aequitas origin/main,
+each CI-verified green via `gh api .../check-runs`:
+
+- `07e2252 feat(aequitas): Add surface tension units`
+- `6dc68c4 feat(aequitas): Add quantity serde support`
+- `19fc384 feat(aequitas): Add angle units`
+
+The prior pin `b86a55d` is ancestral to `19fc3846` via `merge-base
+--is-ancestor` (verified exit 0). The three commits are all `[minor]`
+additive public-API surface (new physical quantity types + serde bound);
+`SurfaceTension` was already live in `b86a55d`'s tree and consumed by
+CFDrs per `gap_audit.md`, so the net new domain surface at the consumer
+boundary is `Angle` (an SI base dimension). No atlas-meta source calls
+into the new surface; consumer references in CFDrs/helios/asclepius/
+athena/harmonia deny.toml and Cargo.toml pin `aequitas = "0.1.0"` (path
+or git+branch), so all consume the increment without break.
+
+- Owner: atlas-meta coordinator (Session 19, 2026-07-24). Scope-strict
+  to the `repos/aequitas` gitlink plus this backlog registry section.
+  Per `concurrent_agents` disjoint-scope primitive, the aequitas
+  working tree itself stays on the peer's `origin/main` HEAD — no
+  edits to `repos/aequitas/**`.
+- Outcome: atlas-meta gitlink for `repos/aequitas` advances from
+  `b86a55d` to `19fc384` (origin/main HEAD at filing date).
+- Acceptance: (a) origin/main publish verified
+  (`git --git-dir=repos/aequitas/.git fetch origin` reaches `19fc384`);
+  (b) per-commit CI verified green via `gh api
+  repos/ryancinsight/aequitas/commits/<sha>/check-runs` (subagent
+  panel inspected: `verify` + `supply-chain` jobs = `success` on
+  `07e2252`, `6dc68c4`, `19fc3846`); (c) `merge-base --is-ancestor
+  b86a55d 19fc3846` exit 0 — linear advance, no merge-bubble capture;
+  (d) atlas-meta cross-book docs.yml gate not affected by path filter
+  (`.gitmodules` not listed; no `docs/book/**` content touched); the
+  criterion-regression meta-coordinator tool remains warning-clean,
+  format-clean, 21/21 nextest green + 2/2 doctests green (continuous
+  verification re-run 2026-07-24).
+- Rejected advance candidates (not evidence-backable at this session, per
+  `concurrent_agents` origin-sync-first + `git_discipline` gitlink pin):
+  - **CFDrs** (`f33e469` → `99318bc`): main is CI-red on every commit
+    on the path; the `Check book figures SSOT` job fails on each of
+    `f33e469`, `ef231f2d`, `80a3e772`, `99318bc` (peer's `ci.yml`
+    still missing sibling-checkout, blocked by
+    `ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1`). Advancing imports unreviewed
+    CI-failed work — filed; no advance.
+  - **coeus** (`15ee8e5` → `a6dfb2d`): reverse direction — the pin
+    is 14 commits AHEAD of origin/main on a local branch
+    `atlas/mnemosyne-0.6-compat` that is not published to GitHub;
+    further, Coeus has had no active `ci.yml` workflow registered with
+    the Actions service since 2026-02-01 (last main-branch run was
+    conclusion=failure on `bfaf82b`). No `github-actions` check-runs
+    exist for any recent commit, so peer-CI-verified advancement is
+    not possible. This is a separate infrastructure gap filed via this
+    entry as a peer-coordinated slice for the coeus peer (workflow
+    re-registration + main CI green).
+  - **consus** (`eae5676` → `3137c4b`): the pin `eae5676` is a local
+    unpushed commit authored 2026-07-23 by Mistral Vibe (per git log)
+    on top of origin/main `3137c4b`; advancing to `3137c4b` would
+    abandon unique peer WIP — prohibited by `git_discipline`
+    fix-forward / no-revert. Not an advance candidate; live peer WIP.
+  - **kwavers** (`07f60733` → `c19134ec`): the pin `07f60733` is a
+    grafted commit on a local branch `codex/kwavers-aequitas-vessel-metrics`
+    matching PR #325 head, mergeable=false (`mergeStateStatus=DIRTY`).
+    The handoff's premise that `codex/kwavers-book-migration-eviction`
+    is on origin is FALSE — `git fetch origin
+    codex/kwavers-book-migration-eviction` returns `couldn't find
+    remote ref`; the eviction branch is local-only at `9bbcb6f0`. No
+    eviction work has been merged to origin/main. PR #324
+    (transducer) is mergeable but multi-job red (Numerous `fail`
+    conclusions; only Miri + Layer Boundary + CodeRabbit pass). With
+    PR-mergeable red or local-only DIRTY states, no advance is
+    evidence-backable. Filed against kwavers peer for eviction PR
+    publication to origin.
+- Risk/change class: `[minor]` (additive consumer-graph pin advance; no
+  semver-major surface, no break).
+- Dependencies: none at atlas-meta consumer level; documented above.
+- Evidence limit: per-commit CI verification via authenticated `gh api`
+  responses; no local build of aequitas or its consumers performed
+  (peer-WIP slippage on member-repo working trees makes per-repo
+  builds costly and outside coordinator scope per pitfalls doc).
+- Refs: backlog.md#ATLAS-STACK-DEPS-001 (Session 18 gitlink advance
+  precedent), docs/adr/0020-provider-graph-refresh.md (advance
+  pattern), gap_audit.md#Aequitas-physical-metric-gap-audit (Quantity
+  surface inventory).
+
+## Session 19 closure (2026-07-24) — ATLAS-AEQUITAS-001 gitlink advance + criterion-gate continuous verification
+
+- Owner: atlas-meta coordinator (this Session 19 closure records the
+  gitlink advance and the criterion-gate re-audit). No member-repo
+  files touched per `concurrent_agents` disjoint-scope primitive.
+- Outcome:
+  (1) ATLAS-AEQUITAS-001 above — atlas-meta gitlink for
+      `repos/aequitas` advances from `b86a55d` to `19fc384` (origin/main
+      HEAD). Three peer commits, all CI-green via `gh api`. Linear
+      advance (no merge-bubble), `[minor]` additive.
+  (2) ATLAS-BENCH-BUDGET-001 continuous-verification re-audit of the
+      meta-owned `tools/criterion-regression` tool:
+      - `cargo check --all-targets` Finished clean.
+      - `cargo clippy --all-targets -- -D warnings` clean (pedantic +
+        `clippy::unwrap_used`).
+      - `cargo fmt --check` clean.
+      - `cargo nextest run --no-fail-fast` 21/21 pass (max 0.451s;
+        well under the 30s slow / 60s terminate budget).
+      - `cargo test --doc` 2/2 pass.
+      The tool remains green for peer consumption; the residual
+      full-stack sweep (164 benches across moirai/CFDrs/kwavers/hermes/
+      ritk + per-repo CI wiring per `ATLAS-BENCH-BUDGET-001`) stays
+      deferred until the live peer scopes integrate.
+  (3) Stale-claim sweep + origin-sync-first per `concurrent_agents`:
+      all five drifted gitlinks (CFDrs, coeus, aequitas, consus, kwavers)
+      audited via authenticated `gh api` panel dispatched as a parallel
+      subagent panel inspecting per-repo states via `git ls-remote`,
+      `git --git-dir`, and authenticated `gh api` check-runs / status
+      queries. Session 19 takes the single evidence-backable advance
+      (aequitas); the other four are correctly rejected above with the
+      recorded reason.
+- Concurrent-agent record: peer-helios at `origin/main 433ddb6`
+  (unchanged from Session 18 closeout). Peer-CFDrs at `origin/main
+  99318bc` (advanced past Session 18 but CI red on check-figures job —
+  same `ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1` residual; the Venturi metric
+  closure `ATLAS-CFDRS-PERF-045` already recorded separately on main).
+  Peer-mnemosyne already integrated per Session 18's gitlink advance.
+  Peer-aequitas freshly advanced now. Other peer activity: peer-leto at
+  `origin/main 687b670` (stable — sparse LU landed Session 17). Peer
+  kwavers eviction remains local-only (PR #325 DIRTY, eviction branch
+  unpushed). Stale-claim sweep used the actual peer's published origin
+  + `gh api` for CI conclusions; no speculative merges or assumptions
+  about peer intent beyond their published state.
+- Diff signature: `repos/aequitas` gitlink only (index-staged) + this
+  backlog.md section. No `.gitmodules` URL change, no `gap_audit.md`
+  edit (currency-current via Session 18 closeout), no member-repo files,
+  no `tools/*` build (the continuous-verification re-audit ran
+  read-only against the existing tool tree and produced no source delta).
+- Refs: backlog.md#ATLAS-AEQUITAS-001 (the gitlink advance this closure
+  records), backlog.md#ATLAS-PUBLISH-001 (mdbook test gate per-repo
+  peers — unaffected), backlog.md#ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1
+  (CFDrs advance blocker), backlog.md#ATLAS-LETO-OPS-AMD-ORDERING-001
+  (leto peer work — peer-held, unclaimed here),
+  backlog.md#ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 (CFDrs cfd-3d
+  re-profile — partial closure, peer-held).
+- Coordinator exhaustion reached after this advance: no further
+  actionable gitlink atlases capable of evidence-backable advance at
+  this session; all `in-progress`/`todo` items either peer-held
+  (Codes `/root` peer) or peer-blocked on member-repo source files,
+  per `concurrent_agents` disjoint-scope primitive. Next wake triggers
+  documented at each rejected-advance entry above.
+
 ## ATLAS-COEUS-DIRTY-RECONCILE-1 — Commit post-`7d60724` coeus dirty state: workspace-graph migration + CUDA driver compat + lock disambiguation [patch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-24; scope: `repos/coeus`
