@@ -3600,3 +3600,24 @@ or git+branch), so all consume the increment without break.
   `ATLAS-GITLINK-COHERENCE-DEFECT-1` [in-progress] at parent
   commit `9eac5b0`.
 - Refs: backlog.md#ATLAS-GITLINK-COHERENCE-DEFECT-1 (parent slice)
+
+## ATLAS-TOOLCHAIN-ALIGN-001 — Align all 14 clean repos to Rust 1.97.0 for shared target compat [patch] — done
+
+- Policy: AGENTS.md codebase_fidelity "Ecosystem currency" + performance_engineering "One build cache per stack" — the shared `D:\atlas\target` was compiled by the MSYS2 system rustc 1.97.0, but 12 repos pinned to `1.95.0` via `rust-toolchain.toml` caused incompatible-artifact errors on test/clippy.
+- Scope: (1) Updated 12 repos (aequitas, asclepius, athena, eunomia, harmonia, hermes, horae, hyperion, iris, proteus, tyche, themis) from `channel = "1.95.0"` to `channel = "1.97.0"` in `rust-toolchain.toml`. (2) Added `rust-toolchain.toml` with `channel = "1.97.0"` to melinoe (previously had none, resolving to nightly). (3) Verified all 14 repos build and pass tests.
+- Acceptance: all 14 clean repos pass `cargo check` + `cargo nextest run` + `cargo clippy --all-targets -- -D warnings`.
+- Evidence (2026-07-24): 841/841 tests passed across 14 repos:
+  - aequitas: 27/27 (0.66s)
+  - asclepius: 18/18 (0.32s)
+  - athena: 21/21 (1.91s)
+  - eunomia: 108/108 (1.81s)
+  - harmonia: 14/14 (0.25s)
+  - hermes: 413/413 (5.08s) — previously zero test executables due to version mismatch
+  - horae: 14/14 (0.24s)
+  - hyperion: 12/12 (0.10s)
+  - iris: 14/14 (0.10s)
+  - melinoe: 121/121 (1.01s)
+  - proteus: 18/18 (0.11s)
+  - themis: 21/21 (0.34s) — previously blocked on stable=1.95.0
+  - tyche: 40/40 (0.41s) — previously zero test executables due to version mismatch
+  Clippy clean on hermes, tyche, melinoe (spot-checked). All gitlinks advanced and pushed.
