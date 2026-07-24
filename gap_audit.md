@@ -108,7 +108,11 @@ oracles.
 - The grid-derived metric implementation is intentionally kept on PR #324;
   the vasculature implementation remains solely on peer PR #325 so the two
   branches do not duplicate the same public contract. PR #324 head
-  `cf06a3a93` must rerun the same provider-checkout and package matrix.
+  `cf06a3a93` reran the matrix: Legacy Migration Audit run `30092747314`
+  reaches provider checkout and then fails before Kwavers compilation on the
+  same Coeus `mnemosyne ^0.5.0` versus Atlas Mnemosyne `0.6.0` mismatch. The
+  remaining exact-head jobs are still in progress; no hosted-green claim is
+  made.
 - Kwavers PR #325 remains `CONFLICTING`/`DIRTY` at `07f60733b`; its vessel metric
   implementation is complete, but integration is not claimed until the peer
   worktree is clean and the Mnemosyne `TierSelection` API dependency is aligned.
