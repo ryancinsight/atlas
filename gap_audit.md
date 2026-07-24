@@ -15,6 +15,7 @@ oracles.
 - The provider currently exposes `Length`, `Area`, `Volume`, `Time`,
   `ReciprocalTime`, `Velocity`, `Pressure`, `Energy`, `EnergyPerArea`,
   `AbsorbedDose`, `Power`, `MassDensity`, `DynamicViscosity`,
+  `SurfaceTension`,
   `ThermalConductivity`, `ThermalDiffusivity`, `SpecificHeatCapacity`,
   `ReciprocalLength`, `VolumetricFlowRate`, `AcousticImpedance`, `Intensity`,
   `VolumetricPowerDensity`, `EnergyPerVolume`, `TemperatureDifference`, and
@@ -50,6 +51,8 @@ oracles.
   Compton slice types photon energy; and the current Kwavers transducer slice
   types basic-piston geometry. Each keeps scalar conversion at its existing
   serialization, numerical-kernel, FFI, or source-trait boundary.
+- Aequitas now also owns the distinct `SurfaceTension` semantic dimension and
+  canonical quantity serde support in commits `07e2252` and `6dc68c4`.
 
 ### Cross-repository implementation ledger
 
@@ -61,6 +64,7 @@ oracles.
 | `CFDRS-AEQ-MET-04` | channel and network DTOs | `OperatingPoint` and `BlueprintSolveSample` carried flow, pressure, length, volume, and velocity as raw fields. | CFDrs | **RESOLVED; PR #315 merged as `9fa95f9c` from implementation `fbb19ea6`.** `OperatingPoint` and solve samples/summaries now carry Aequitas `VolumetricFlowRate`, `Pressure`, `Length`, and `Time`; serde, solver, report, integration-compile, focused Nextest 3/3, doctest, and Clippy evidence pass. |
 | `CFDRS-AEQ-MET-05` | thermal-compliance report | `throat_temperature_rise_k` is a temperature difference, while Aequitas must distinguish it from absolute temperature. | Aequitas, then CFDrs | **RESOLVED.** `TemperatureDifference` merged at `e0fc5f3`; CFDrs carries the field through the typed carrier and preserves the thermal-compliance oracle. |
 | `CFDRS-AEQ-MET-06` | `cfd-3d::cascade` public channel configuration and results | Channel length/width/height, volumetric flow, outlet pressure, wall shear, pressure drop, and maximum velocity crossed the public FEM boundary as raw SI scalars despite internal Aequitas inlet arithmetic. | CFDrs | **IMPLEMENTED in `0fc64b0e`.** Cascade configuration/results now carry Aequitas `Length`, `VolumetricFlowRate`, `Pressure`, and `Velocity`; serde, mesh/FEM, examples, adversarial tests, and cross-fidelity callers use explicit SI adapters. Focused compilation is blocked before CFDrs source compilation by the peer Coeus path graph: it resolves `D:/atlas/repos/coeus/coeus-core/Cargo.toml`, while the checked-out manifest is at `D:/atlas/repos/coeus/crates/coeus-core/Cargo.toml`. |
+| `CFDRS-AEQ-MET-08` | `cfd-core` selective cavitation, `cfd-1d` Venturi screening, and `cfd-optim` Venturi placement/blueprint metrics | Pressure, density, velocity, length, viscosity, radius, and surface tension were converted back to raw scalars at public producer and optimization boundaries. | CFDrs, Aequitas | **IMPLEMENTED in `99318bca`; verification blocked.** Public physical fields now carry Aequitas quantities through the producer and optimization boundaries; formula kernels and the serialized `SdtMetrics` report DTO remain explicit scalar boundaries. Touched-file rustfmt, diff checks, residue scans, and PM synchronization pass. The locked `cfd-optim` check reaches the peer graph and fails on duplicate Aequitas/Eunomia identities plus the resulting Hyperion trait mismatches; the child audit records the exact blocker. |
 | `HELIOS-AEQ-MET-01` | `helios-analysis::Dvh` | `min`, `max`, `mean`, `dose_at_volume_fraction`, and gEUD return `T` although the stored samples are `AbsorbedDose<T>`. Dose criteria in DVH APIs also enter as raw `T`. | Helios | **RESOLVED.** Helios PR #25 merged as `08b7559932fe5f46cfade74f33238e5d3db2598b` from implementation `8387fef`; DVH dose results and TCP/NTCP dose parameters are typed, with local Dx/gEUD/NaN/masked and end-to-end value evidence. Hosted checks were incomplete at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-02` | gamma analysis | `dta_mm`, normalization dose, low-dose cutoff, and dose-difference inputs were raw `T`; only the gamma field and pass rate are dimensionless. | Helios | **RESOLVED.** Helios PR #26 merged as `810bb2893723038f26f147847135b7a9e16e04e4` from implementation `07c7768`. Gamma distance/search radius use `Length`, normalization/cutoff/pass-rate thresholds use `AbsorbedDose`, and scalar gamma/pass-rate results retain Low, local/global, grid, and end-to-end value semantics. Local analysis 31/31 and simulation end-to-end 3/3 passed; hosted Rust/benchmark jobs were still running at merge and are not claimed green. |
 | `HELIOS-AEQ-MET-03` | delivery and portal dosimetry | `DeliveryFrame::leaf_fluence`, total delivered fluence, leaf width, ray step, and beam geometry distances were raw values; portal code typed fluence only internally before converting it back. | Helios | **RESOLVED; PR #32 merged as `02d7a7755f7d645997d0576118e81f89a56dc22e` and child PM sync PR #33 merged as `433ddb60ef7e9196f7361e18a8d1e79a112a0c1a`.** Portal fluence remains Aequitas `EnergyPerArea<T>` through Hyperion transmission; the hosted build, Rust workspace, Python binding, and replicated benchmark checks pass. |
@@ -86,6 +90,13 @@ rows remain for merge provenance.
   Nextest 728/728 passed (3 skipped), doctests 8/8 passed (3 ignored), and
   production-library warning-denied Clippy. All-targets Clippy and rustdoc
   still report pre-existing test/bench lint and link-warning debt.
+- **CFDRS-AEQ-MET-08 — implementation complete.** CFDrs commit `99318bca`
+  carries Aequitas `Pressure`, `MassDensity`, `Velocity`, `Length`,
+  `DynamicViscosity`, and `SurfaceTension` through selective cavitation,
+  Venturi screening, and optimization placement metrics. Direct rustfmt and
+  public-field residue scans pass. The locked `cfd-optim` check is blocked
+  before CFDrs source compilation by the peer root path transition selecting
+  duplicate Aequitas/Eunomia/Proteus identities and Hyperion trait mismatches.
 - **HELIOS-AEQ-MET-06 — implemented.** Helios commit `aa70fab` types CT
   attenuation reference density with `MassDensity` and GPU attenuation inputs
   with `AreaPerMass`/`MassDensity`; all in-tree solver, GPU, simulation, test,
