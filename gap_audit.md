@@ -89,9 +89,9 @@ oracles.
 
 - The Atlas provider graph is synchronized in this revision to merged Apollo
   `8fb3e4a`, Aequitas `b86a55d`, Coeus `a6dfb2d`, Gaia `d3660bf`, Hephaestus
-  `e7887a5`, Proteus `1b25af1`, CFDrs `9fa95f9c`, and Helios `b3c7b1c`.
-  Kwavers remains at merged PR #323 `c19134e` until the open PR #324 is
-  accepted.
+  `e7887a5`, Leto `687b670`, Proteus `1b25af1`, CFDrs `9fa95f9c`, and Helios
+  `b3c7b1c`. Kwavers remains at merged PR #323 `c19134e` until the open PR #324
+  is accepted.
 - Kwavers PR #324’s prior heads `c739c7b38` and `61b2198f` failed before
   compilation in hosted jobs: the first used stale provider graph materialization,
   and the second exposed a stale Apollo gitlink. The current head `f24fe56a`
