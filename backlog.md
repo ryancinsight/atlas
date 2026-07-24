@@ -3038,8 +3038,13 @@ or git+branch), so all consume the increment without break.
   per `concurrent_agents` disjoint-scope primitive. Next wake triggers
   documented at each rejected-advance entry above.
 
-## ATLAS-COEUS-DIRTY-RECONCILE-1 — Commit post-`7d60724` coeus dirty state: workspace-graph migration + CUDA driver compat + lock disambiguation [patch] — done
+## ATLAS-COEUS-DIRTY-RECONCILE-1 — Commit post-`7d60724` coeus dirty state: workspace-graph migration + CUDA driver compat + lock disambiguation [patch] — done (with coherence defect 1, see ATLAS-GITLINK-COHERENCE-DEFECT-1)
 
+- Coherence-defect cross-link: the pinned coeus HEAD `c711dcb4` is
+  NOT on coeus `origin/main` (`a6dfb2d`) as of 2026-07-24 16:24
+  -0400; peer-coeus's 18-unpushed-commits `atlas/mnemosyne-0.6-compat`
+  branch must merge to coeus origin/main to close the defect. See
+  `ATLAS-GITLINK-COHERENCE-DEFECT-1` row 1.
 - Owner: Codex `/root`; last-update: 2026-07-24; scope: `repos/coeus`
   branch `atlas/mnemosyne-0.6-compat` (2 atomic commits) + parent
   submodule pointer advance + this backlog entry.
@@ -3230,8 +3235,13 @@ or git+branch), so all consume the increment without break.
   -C /d/atlas/repos/coeus merge-base --is-ancestor f8328027
   atlas/mnemosyne-0.6-compat` returns EXIT=0 confirming in-branch.
 
-## ATLAS-LETO-GITLINK-ADVANCE-1 — Advance `repos/leto` parent submodule pointer to c6ced81 [minor] — done
+## ATLAS-LETO-GITLINK-ADVANCE-1 — Advance `repos/leto` parent submodule pointer to c6ced81 [minor] — done (with coherence defect 2, see ATLAS-GITLINK-COHERENCE-DEFECT-1)
 
+- Coherence-defect cross-link: the pinned leto HEAD `c6ced81e` is on
+  peer-leto's LOCAL branch `codex/leto-real-sparse-lu` only — no
+  remote branch exists on `origin`. Peer-leto must push the branch
+  to origin, open a PR, and merge to leto origin/main. See
+  `ATLAS-GITLINK-COHERENCE-DEFECT-1` row 2.
 - Owner: Codex `/root`; last-update: 2026-07-24; scope:
   `repos/leto` parent-side gitlink advance.
 - Outcome: advances `D:/atlas` parent `repos/leto` submodule pointer from
@@ -3266,8 +3276,12 @@ or git+branch), so all consume the increment without break.
   `/d/atlas/repos/leto` between `687b670..c6ced81` (12 commits); 0
   dirty files at LETO; no perf claim; no type-check oracle.
 
-## ATLAS-MOIRAI-GITLINK-ADVANCE-1 — Advance `repos/moirai` parent submodule pointer to f74aa480 [patch] — done
+## ATLAS-MOIRAI-GITLINK-ADVANCE-1 — Advance `repos/moirai` parent submodule pointer to f74aa480 [patch] — done (with coherence defect 3, see ATLAS-GITLINK-COHERENCE-DEFECT-1)
 
+- Coherence-defect cross-link: the pinned moirai HEAD `f74aa480` is
+  on peer-moirai's LOCAL main 1 commit ahead of `origin/main`
+  (`b613dc3d`). Peer-moirai must `git push origin main` to publish.
+  See `ATLAS-GITLINK-COHERENCE-DEFECT-1` row 3.
 - Owner: Codex `/root`; last-update: 2026-07-24; scope:
   `repos/moirai` parent-side gitlink advance.
 - Outcome: advances `D:/atlas` parent `repos/moirai` submodule pointer
@@ -3307,8 +3321,12 @@ or git+branch), so all consume the increment without break.
   `/d/atlas/repos/moirai` between parent gitlink and local HEAD;
   0 dirty files at MOIRAI; no perf claim; no type-check oracle.
 
-## ATLAS-APOLLO-GITLINK-ADVANCE-1 — Advance `repos/apollo` parent submodule pointer to 82e67c8 [patch] — done
+## ATLAS-APOLLO-GITLINK-ADVANCE-1 — Advance `repos/apollo` parent submodule pointer to 82e67c8 [patch] — done (with coherence defect 4, see ATLAS-GITLINK-COHERENCE-DEFECT-1)
 
+- Coherence-defect cross-link: the pinned apollo HEAD `82e67c8f` is
+  on peer-apollo's LOCAL main 2 commits ahead of `origin/main`
+  (`8fb3e4ad`). Peer-apollo must `git push origin main` to publish.
+  See `ATLAS-GITLINK-COHERENCE-DEFECT-1` row 4.
 - Owner: Codex `/root`; last-update: 2026-07-24; scope:
   `repos/apollo` parent-side gitlink advance + co-located submodule
   commit closing the half-finished path-dep migration.
@@ -3370,3 +3388,138 @@ or git+branch), so all consume the increment without break.
   pointer from `e7887a5d110c1b8b71456564b76bafcb3d68798f` (last synced
   at Merge PR #65 crates-io-hardening Wed Jul 22 22:52:21 2026) to
   `116373dd207d93660f53687f6a4817f7ee1b80ff` on feature b
+
+## ATLAS-GITLINK-COHERENCE-DEFECT-1 — Meta-coordinator audit: 8 atlas-meta gitlink pins target commits NOT on per-member origin/main [patch] [arch] — in-progress
+
+- Owner: Atlas-Codex (atlas-meta coordinator — coordinator-scope
+  risk-artifact recording; no member-repo source touched); last-update:
+  2026-07-24; scope: this `backlog.md` risk entry only.
+  Coordinator-scope per `interaction_policy` — Change delivery through
+  merge on allowlisted repos is the standing grant; this entry records
+  the defect without mutating any `.gitmodules` gitlink or any
+  member-repo source tree. Per `concurrent_agents` assist-ladder this
+  is the coordinator-safe path: peer-Codex/peer-coeus/peer-kwavers
+  own the publishing-on-origin actions; coordinator publishes evidence.
+- Outcome: surfaced a systemic gitlink-coherence defect across the
+  atlas-meta `origin/main` head `b18cdb4f03b2e65e8be87b6dc51df24e2b1643c3`.
+  Audit pattern: for each submodule `repos/<R>`, verify pinned SHA is
+  ancestral to that member's `origin/main` (`git --git-dir=... --work-tree=...
+  merge-base --is-ancestor <pin> origin/main`). A negative result is a
+  coherence defect: consumers cloning atlas-meta and initializing
+  submodules receive a SHA that the member repo's origin/main never
+  contained, breaking ADR 0020's gitlink-advance contract ("verified
+  peer commits pushed to origin/main").
+- Defect inventory (8 pins, ordered by defect-introduction commit on
+  atlas-meta origin/main):
+
+  | # | Member repo  | Atlas-meta commit | Pin SHA    | Member origin/main | Defect category |
+  |---|--------------|-------------------|------------|--------------------|-----------------|
+  | 1 | `repos/coeus`        | `dc7459a` (prior session) → `dff78e7` (re-affirmed) | `c711dcb4` | `a6dfb2d` | A — peer ahead of origin on feature branch |
+  | 2 | `repos/leto`          | `c147d91` | `c6ced81e` | `687b6707` | C — pin on local feature branch only |
+  | 3 | `repos/moirai`        | `6b97938` | `f74aa480` | `b613dc3d` | A — peer local main 1 ahead of origin |
+  | 4 | `repos/apollo`        | `63528a5` | `82e67c8f` | `8fb3e4ad` | A — peer local main 2 ahead of origin |
+  | 5 | `repos/kwavers`       | `7720163...` (pre-Session 20 state) | `07f60733` | `c19134ec` | B — pin on origin feature branch (PR #325 DIRTY), not on origin/main |
+  | 6 | `repos/hephaestus`    | `b18cdb4` (origin HEAD) | `599ff79a` | (no `main` on remote at all) | B — pin on origin feature branch diverged from missing main |
+  | 7 | `repos/mnemosyne`     | `7baa847` | `6a4bad71` | `c10e510d` | A — peer local main 1 ahead of origin |
+  | 8 | `repos/consus`        | (earlier) | `eae5676c` | `3137c4b8` | A — peer local main 1 ahead of origin |
+
+- Recovery action matrix (per-Defect category — coordinator does NOT
+  execute these; peers publish to their own origins and the
+  coordinator advances the atlas-meta gitlink ONLY after verification):
+
+  * **Category A** (peer local main ahead of origin/main; simple
+    `git push origin main` on the member repo recovers → then
+    atlas-meta gitlink becomes valid): coeus (peer operating on
+    `atlas/mnemosyne-0.6-compat` feature branch — 18 unpublished
+    commits — NOT a fast-forward candidate; require peer-coeus to
+    merge their feature branch to coeus origin/main first),
+    mnemosyne (1 commit `6a4bad7`), apollo (2 commits),
+    moirai (1 commit), consus (1 commit).
+  * **Category B** (pin on remote feature branch but origin/main
+    diverged or absent — needs peer to open/merge/rebase PR): kwavers
+    (peer PR #325 DIRTY against newer origin/main — requires rebasing
+    the branch onto `origin/main` or closing/abandoning the PR),
+    hephaestus (peer PR not known — requires peer-pusher to rebase
+    `codex/hephaestus-rocm-sparse-next` onto a (currently absent)
+    origin/main or create `main` first by merging the branch).
+  * **Category C** (pin on peer's LOCAL feature branch only, no remote
+    branch — needs peer to push the branch and open a PR): leto
+    (`codex/leto-real-sparse-lu` is local-only — peer-leto must push
+    the branch to origin, open PR, merge to origin/main).
+
+- Correction cross-links (per-Defect category reclassification of prior
+  `done` entries whose gitlinks are the defects above):
+
+  * `ATLAS-COEUS-DIRTY-RECONCILE-1` at line 3041 (parent commit
+    `dff78e7`) — claims `done` but the pinned coeus HEAD
+    `c711dcb4` is NOT on coeus `origin/main` as of this audit.
+    Status correction: `done (with coherence defect 1, see
+    ATLAS-GITLINK-COHERENCE-DEFECT-1)`.
+  * `ATLAS-LETO-GITLINK-ADVANCE-1` at line 3233 (parent commit
+    `c147d91`) — claims `done` but pinned `c6ced81e` is on local
+    branch `codex/leto-real-sparse-lu` only, no remote branch.
+    Status correction: `done (with coherence defect 2, see
+    ATLAS-GITLINK-COHERENCE-DEFECT-1)`.
+  * `ATLAS-MOIRAI-GITLINK-ADVANCE-1` at line 3269 (parent commit
+    `6b97938`) — claims `done` but pinned `f74aa480` is on peer's
+    local main 1 commit ahead of `origin/main`. Status correction:
+    `done (with coherence defect 3, see
+    ATLAS-GITLINK-COHERENCE-DEFECT-1)`.
+  * `ATLAS-APOLLO-GITLINK-ADVANCE-1` at line 3310 (parent commit
+    `63528a5`) — claims `done` but pinned `82e67c8f` is on peer's
+    local main 2 commits ahead of `origin/main`. Status correction:
+    `done (with coherence defect 4, see
+    ATLAS-GITLINK-COHERENCE-DEFECT-1)`.
+  * `ATLAS-HEPHAESTUS-GITLINK-ADVANCE-1` at line 3362 (parent commit
+    `4c49783`) — claims `done` but a follow-up advance at parent
+    `b18cdb4` (NOT recorded in a ledger entry on origin/main; the
+    ledger entry for that advance was lost in the discarded local
+    `c6ac87f` docs commit during this Session 21 recovery) pinned
+    `599ff79a` on `origin/codex/hephaestus-rocm-sparse-next`, with
+    no `origin/main`.Exists to ancestral-check against. Status
+    correction: add cross-link noting defect 6.
+
+- Recovery closure protocol (when each Defect recovers): peer publishes
+  the pinned SHA to their member-repo `origin/main` (via their own
+  `git push origin main`, branch merge-PR, or branch rebase-PR per
+  category); coordinator then re-runs the
+  `merge-base --is-ancestor <pin> origin/main` check; on a positive
+  result the defect sub-row moves to `closed (verifier: basher
+  merge-base <sha> <origin-main>)`; the parent commit's gitlink is
+  already correct (no `.gitmodules` mutation needed); only the ledger
+  entry's status correction flips back to `done (clean)`.
+
+- Sister cross-links:
+  * `ATLAS-COEUS-DIRTY-RECONCILE-1` [done (with coherence defect 1)]
+    at parent commit `dff78e7`.
+  * `ATLAS-LETO-GITLINK-ADVANCE-1` [done (with coherence defect 2)]
+    at parent commit `c147d91`.
+  * `ATLAS-MOIRAI-GITLINK-ADVANCE-1` [done (with coherence defect 3)]
+    at parent commit `6b97938`.
+  * `ATLAS-APOLLO-GITLINK-ADVANCE-1` [done (with coherence defect 4)]
+    at parent commit `63528a5`.
+
+- Risk/change class: [patch] [arch] — ledger-only commit. The risk is
+  architectural: the atlas-meta `origin/main` HEAD is a state that no
+  fresh clone can reproduce into a working tree, because submodule
+  initialization pulls SHAs not on member origins. Each defect's blast
+  radius is bounded by the consumers of that specific member crate
+  (e.g. `kwavers` consumers in `repos/kwavers` source; `coeus`
+  consumers throughout the stack). The defect is quietly hidden for
+  agents already initialized (whose local `repos/<R>` working trees
+  already have the SHA physically checked out), but breaks any fresh
+  clone, CI checkout from origin, or `git submodule update --remote`.
+
+- Dependencies: recovers when each of the 8 peer-publishing actions
+  per the recovery action matrix completes. No coordinator scope to
+  accelerate; only peers have authority to push to their member repos.
+
+- Evidence limit: basher-verified `git --git-dir=repos/<R>/.git
+  merge-base --is-ancestor <pin> origin/main` for each of the 8
+  defect rows, run during this Session 21 audit. Verification time:
+  2026-07-24 16:24 -0400 (+/-3 min). No perf claim; no type-check
+  oracle; no production-code delta.
+
+- Discovered-by: Session 21 fresh-origin-sync-and-audit; origin sync
+  (per `concurrent_agents`) revealed diverged atlas-meta main and
+  mandated this audit before any further gitlink mutation.
