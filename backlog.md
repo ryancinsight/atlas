@@ -7,6 +7,19 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-SAFETY-015 — Close elementwise backend count/failure boundary [patch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `f7372408` replaces unary/binary output-count products with
+  the checked kernel-count SSOT and routes Hephaestus contiguous/strided
+  errors through the explicit CPU fallback instead of panicking.
+- Evidence: feature-enabled check and warning-denied Clippy pass; default
+  package Nextest passes 3/3 with zero skipped; feature rustdoc passes. Default
+  doctests pass 4/4 in 13.62 seconds. CUDA-feature Nextest reaches the Windows
+  GNU linker but cannot link because `-lcuda` is absent from
+  `/usr/local/cuda-11.3/lib64/`; no feature test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-014 — Close fused-dispatch launch ABI [patch] [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

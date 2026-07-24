@@ -6,6 +6,22 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-SAFETY-015 — Close elementwise backend count/failure boundary [patch]
+
+- [x] Advance Coeus to provider commit `f7372408` after replacing unary/binary
+      output products with the checked count SSOT.
+- [x] Route Hephaestus contiguous/strided errors through the explicit CPU
+      fallback instead of panicking; preserve native ownership on success.
+- [x] Verify feature-enabled check, warning-denied Clippy, default Nextest,
+      doctests, feature rustdoc, the feature-linker boundary, and exact
+      gitlink state.
+
+Evidence: default package Nextest passes 3/3 with zero skipped; default
+doctests pass 4/4 in 13.62 seconds; feature check, warning-denied Clippy, and
+rustdoc pass. CUDA-feature Nextest reaches the Windows GNU linker but cannot
+link because `-lcuda` is absent from `/usr/local/cuda-11.3/lib64/`; no feature
+test execution is claimed.
+
 ## ATLAS-CUDA-SAFETY-014 — Close fused-dispatch launch ABI [patch] [arch]
 
 - [x] Advance Coeus to provider commit `799e72f6` after validating fused
