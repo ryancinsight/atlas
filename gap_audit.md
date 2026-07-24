@@ -87,9 +87,10 @@ oracles.
 
 ### Delivery residuals
 
-- The Atlas provider graph is synchronized in this revision to merged Aequitas
-  `b86a55d`, Proteus `1b25af1`, CFDrs `9fa95f9c`, and Helios `b3c7b1c`. Kwavers
-  remains at merged PR #323 `c19134e` until the open PR #324 is accepted.
+- The Atlas provider graph is synchronized in this revision to merged Apollo
+  `8fb3e4a`, Aequitas `b86a55d`, Proteus `1b25af1`, CFDrs `9fa95f9c`, and Helios
+  `b3c7b1c`. Kwavers remains at merged PR #323 `c19134e` until the open PR #324
+  is accepted.
 - Kwavers PR #324’s prior head `c739c7b38` failed before compilation in several
   hosted jobs because the CI checkout action materialized Atlas graph `806c6e7`
   while the branch pinned merged Aequitas and Proteus revisions; Cargo then
