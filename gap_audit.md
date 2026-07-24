@@ -75,6 +75,33 @@ oracles.
 | `KWAVERS-AEQ-MET-08` | thermal-diffusion/Pennes/Cattaneo and coupled thermal configuration | Perfusion, blood properties, arterial/initial temperature, relaxation, conductivity, frequency, metabolic heat, and thermal step crossed Rust configuration seams as raw scalars. | Kwavers | **IMPLEMENTED in `37fcf346c`; PR #324 current head `e52fee18f`; verification pending hosted dependency repair.** The physics and simulation carriers now use Aequitas quantities, typed Pennes composition reaches the scalar numerical boundary, Python remains an explicit scalar conversion edge, and SI serialization round-trip coverage is added. See child ADR 054. |
 | `KWAVERS-AEQ-MET-09` | `kwavers-transducer::basic::PistonConfig` and source builder | Piston centre, diameter/radius, and Gaussian apodization sigma crossed the public source boundary as raw geometry while the adjacent Rayleigh API already used Aequitas `Length` and validated `CartesianPosition`. | Kwavers | **IMPLEMENTED in `e52fee18f`, pushed to PR #324.** Piston configuration, builder, accessors, factory construction, Gaussian apodization, and typed geometry regression now use Aequitas; raw conversion remains at the existing grid/source trait boundary. Offline check, focused Nextest 222/222, and doctest 1/1 pass; Clippy and hosted full gates remain blocked by the peer provider graph. |
 
+### Session refresh (2026-07-24)
+
+This refresh supersedes earlier active-branch commit references below; historical
+rows remain for merge provenance.
+
+- **CFDRS-AEQ-MET-07 — resolved.** CFDrs commit `ef231f2d` types the public
+  hemolysis shear and exposure-duration boundary with Aequitas `Pressure` and
+  `Time`, migrates `cfd-1d`, `cfd-optim`, and `cfd-validation`, and records
+  Nextest 728/728 passed (3 skipped), doctests 8/8 passed (3 ignored), and
+  production-library warning-denied Clippy. All-targets Clippy and rustdoc
+  still report pre-existing test/bench lint and link-warning debt.
+- **HELIOS-AEQ-MET-06 — implemented.** Helios commit `aa70fab` types CT
+  attenuation reference density with `MassDensity` and GPU attenuation inputs
+  with `AreaPerMass`/`MassDensity`; all in-tree solver, GPU, simulation, test,
+  and example callers are migrated. Rustfmt and residue scans pass. Cargo
+  verification is blocked before source compilation by the peer
+  `D:/atlas/worktrees/coeus/coeus-autograd/Cargo.toml` path.
+- **KWAVERS-AEQ-MET-10 — implemented.** Kwavers commit `d692c2d6` types the
+  impedance boundary and frequency profiles with Aequitas `AcousticImpedance`
+  and `Frequency`, removes duplicate profile interpolation, and records the
+  analytical boundary/profile tests and Rustfmt/diff evidence. Cargo gates are
+  blocked before source compilation by the same peer Coeus path.
+- **Helios residual scan.** The remaining public raw `f64` fields in the
+  audited planning/autodiff surfaces are penalty weights, dimensionless/model
+  coefficients, or dense numerical storage; no additional existing Aequitas
+  quantity matches them without inventing semantics.
+
 ### Explicit non-gaps and sequencing constraints
 
 - `Volume<T>`/`Array3<T>` field storage is a representation boundary, not a
