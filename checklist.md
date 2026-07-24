@@ -6,6 +6,22 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-WGPU-SAFETY-001 — Close the pool1d dispatch mode boundary [patch]
+
+- [x] Advance Coeus to provider commit `23a7879c` after introducing the
+      forward-only pool1d dispatch mode type.
+- [x] Preserve the existing shader source and public pool1d launch functions;
+      remove the forward dispatcher’s backward-only `unreachable!` state.
+- [x] Run format, diff, and pool1d residual checks; record the package
+      dependency-resolution blocker without claiming compiled or test output.
+
+Evidence: Coeus `23a7879c` keeps shader generation single-sourced and makes
+the invalid forward/backward dispatch state unrepresentable at the forward
+boundary. The pool1d residual scan is clean; format and diff checks pass.
+Package checking is blocked before compilation because the preserved peer
+manifest requests `mnemosyne ^0.6.0` while locked Moirai requires
+`mnemosyne ^0.5.0`.
+
 ## ATLAS-CUDA-TREE-003 — Close the fused operation-tag tree split [arch]
 
 - [x] Advance Coeus to provider commit `edcded8d` after replacing the 625-line
