@@ -6,6 +6,20 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-WGPU-SAFETY-002 — Specify the fallible WGPU layout/dispatch boundary [arch]
+
+- [x] Advance Coeus to provider commit `79e76e86` with ADR-0020 and the
+      dependency-ordered migration contract.
+- [x] Record the 23 shared layout consumers, the infallible `coeus-ops`
+      operation seam, and the rejection of silent no-op/fallback adapters.
+- [ ] Migrate the first complete operation family through the typed error
+      seam and verify CPU/CUDA/WGPU callers.
+
+Evidence: ADR-0020 selects a backend-associated typed error and fallible
+operation traits. The provider format and diff checks pass; package gates
+remain blocked before compilation by the preserved Coeus `Cargo.toml` edit
+requesting `mnemosyne ^0.6.0` while locked Moirai requires `^0.5.0`.
+
 ## ATLAS-WGPU-SAFETY-001 — Close the pool1d dispatch mode boundary [patch]
 
 - [x] Advance Coeus to provider commit `23a7879c` after introducing the
