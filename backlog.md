@@ -7,6 +7,18 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-CUDA-TREE-003 — Close the fused operation-tag tree split [arch] — done
+
+- Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and
+  this root's `repos/coeus` gitlink only.
+- Outcome: Coeus `edcded8d` replaces the 625-line operation-tag module with a
+  manifest, a unary trait seam, and elementary/transcendental/activation
+  leaves; all leaves remain below the 500-line target.
+- Evidence: format and diff checks pass. Package checking is blocked by the
+  preserved peer edit in Coeus `Cargo.toml`: the manifest/dependency graph
+  cannot resolve Moirai's locked `mnemosyne ^0.5.0` requirement against the
+  available Mnemosyne `0.6.0`; no compiled or test result is claimed.
+
 ## ATLAS-CUDA-TREE-002 — Close the attention kernel tree split [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

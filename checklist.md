@@ -6,6 +6,21 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-CUDA-TREE-003 — Close the fused operation-tag tree split [arch]
+
+- [x] Advance Coeus to provider commit `edcded8d` after replacing the 625-line
+      operation-tag module with a unary trait subtree and operation-family
+      leaves.
+- [x] Verify public tag names, generic dispatch, WGSL rendering, and existing
+      binary/leaky-relu ownership remain unchanged without adapters.
+- [x] Run format and diff checks; record the package-resolution blocker without
+      claiming compiled or test output.
+
+Evidence: the operation-tag manifest is 9 lines and unary leaves are 27, 125,
+180, and 294 lines. The preserved Coeus `Cargo.toml` peer edit prevents package
+resolution: locked Moirai requires `mnemosyne ^0.5.0`, while the available Git
+candidate is `0.6.0`.
+
 ## ATLAS-CUDA-TREE-002 — Close the attention kernel tree split [arch]
 
 - [x] Advance Coeus to provider commit `393d711e` after replacing the 567-line
