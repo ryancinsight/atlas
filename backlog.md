@@ -3828,3 +3828,67 @@ Closure requires ALL of the following landed in future slices:
   peer-asclepius recovery (category A: peer publishes local main).
 - Pushed commit: see git log for SHA (atlas-meta origin/main
   following push).
+
+## ATLAS-TOOLS-TEMPLATE-EXTRACT-1 — Extract shared `tools/_template/` package module for coordinator-owned tool Cargo lints/profiles/deps after 3rd occurrence [patch] [arch] — todo
+
+- Owner: unassigned (Atlas-Codex coordinator claimable; filed by
+  Session 23).
+- Outcome: extract the recurring `[lints.rust]` / `[lints.clippy]`
+  / `[profile.*]` / `[dependencies]` configuration that is pasted
+  verbatim across the three coordinator-owned tool packages
+  (`tools/checkout-path-dependencies/Cargo.toml`,
+  `tools/criterion-regression/Cargo.toml`,
+  `tools/gitlink-coherence/Cargo.toml`) into a `tools/_template/`
+  directory carrying `template-Cargo.toml` (no `[package]` body,
+  only the shared sections, documented as copy-and-then-override)
+  and a matching `template-rust-toolchain.toml`. The third
+  coordinator-owned tool landing triggers `consolidation_discipline`'
+  'consolidate-on-second-occurrence' rule; failing to consolidate at
+  the third occurrence is drift debt (same lint-config diff must be
+  re-applied across all three packages for any policy update).
+- Scope:
+  * `tools/_template/template-Cargo.toml` — header comment naming
+    the consumer list (3 packages as listed above); selector
+    comments delimiting `[lints]` / `[profile]` / common
+    `[dependencies]` blocks.
+  * `tools/_template/template-rust-toolchain.toml` — same
+    `channel = "1.95.0"` / `components = ["clippy",
+    "rustfmt"]` /
+    `profile = "minimal"` as all 3 tools use.
+  * `tools/_template/README.md` — the SSOT policy: "copy-as-new,
+    then fill `[package]` and tool-specific `[dependencies]`", NOT
+    `./tools/_template/Cargo.toml` as a workspace member. Lint-config
+    derived from `agent.md` performance_engineering + integrity
+    error-handling restraint, with the source link to this entry.
+    Any future coordinator tool derives from this template by copy,
+    not by re-invention.
+  * The 3 existing tool packages' `Cargo.toml` sections are
+    reconciled to match the template exactly (consolidation removes
+    any drift).
+  * Drift audit: a small `bash` or Rust script under
+    `tools/_template/check-drift.sh` that greps the lint/profile
+    sections of each tool's `Cargo.toml` and asserts equality with
+    the template (CI-friendly; gates future tool additions).
+- Acceptance oracle: after the extract, all 3 existing tools still
+  pass their committed gates (`cargo fmt --check` + `cargo clippy
+  --all-targets -- -D warnings` + `cargo nextest run` + `cargo
+  test --doc` under committed budgets; the criterion-regression
+  21/21 budget, the gitlink-coherence 18/18 0.339s budget, and the
+  checkout-path-dependencies tests as configured). The drift
+  scanner passes. The README of the new template directory names
+  the consumers and is the SSOT for future coordinator tool
+  scaffolding.
+- Risk/change class: [patch] [arch]; consolidates committed tools'
+  Cargo.toml configuration (no production-code delta; no behavioral
+  shift). [arch] because new template directory establishes a
+  canonical component home per `architecture_scoping`.
+- Dependencies: none (clears on its own merits; no peer publishing).
+- Verification plan: per-tool `cargo fmt --check` +
+  `cargo clippy --all-targets -- -D warnings` + `cargo nextest run`
+  + `cargo test --doc`; cross-check the 3 `Cargo.toml`'s
+  `[lints]` / `[profile]` / `[dependencies]` sections are
+  byte-identical to the template after the reconciliation pass.
+- Sister cross-links: parent concern is the third-occurrence
+  consolidation trigger fired during `ATLAS-GITLINK-COHERENCE-
+  DEFECT-1-AUDIT-TOOL-1` closure. Refs:
+  backlog.md#ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1.
