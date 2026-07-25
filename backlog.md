@@ -3892,3 +3892,9 @@ Closure requires ALL of the following landed in future slices:
   consolidation trigger fired during `ATLAS-GITLINK-COHERENCE-
   DEFECT-1-AUDIT-TOOL-1` closure. Refs:
   backlog.md#ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1.
+
+## ATLAS-VERSION-GUARD-001 — Manifest-version guard and stack coherence check [patch] — todo
+
+- Policy: AGENTS.md git_discipline (version-bearing red-flag hunks) + architecture_scoping pin discipline (version metadata is sweep-triggering state). Motivating incident: `87ab265` (hermes) — a sed dep-conversion silently reverted the workspace release `0.5.0 -> 0.4.1` and internal requirements to `0.4.0`, unmentioned in its message; origin lied about versions for ~10 hours while integrators failed resolution, and coeus stacked 18 commits on the undeliverable base.
+- Scope: (1) per-repo guard — CI step (and optional pre-commit hook) failing when a diff changes `version =` or first-party dependency version requirements without a declared release/bump intent (commit type `chore(release)`/`build(deps)` or an explicit footer); backward version movement always fails without the declaration; (2) stack coherence check — a meta-level check (home: tools/, sibling to criterion-regression) verifying every first-party requirement across allowlisted members resolves against the stack's current workspace versions, run in the integration sweep and on any version-touching commit; (3) wire both into member CI per repository convention.
+- Acceptance: replaying `87ab265` against the guard fails it; coherence check passes on the current stack and fails on an injected backward-version fixture; guards live in committed CI/config, not agent memory.
