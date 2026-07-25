@@ -3412,16 +3412,17 @@ or git+branch), so all consume the increment without break.
 - Defect inventory (8 pins, ordered by defect-introduction commit on
   atlas-meta origin/main):
 
-  | # | Member repo  | Atlas-meta commit | Pin SHA    | Member origin/main | Defect category |
-  |---|--------------|-------------------|------------|--------------------|-----------------|
-  | 1 | `repos/coeus`        | `dc7459a` (prior session) → `dff78e7` (re-affirmed) | `c711dcb4` | `a6dfb2d` | A — peer ahead of origin on feature branch |
-  | 2 | `repos/leto`          | `c147d91` | `c6ced81e` | `687b6707` | C — pin on local feature branch only |
-  | 3 | `repos/moirai`        | `6b97938` | `f74aa480` | `b613dc3d` | A — peer local main 1 ahead of origin |
-  | 4 | `repos/apollo`        | `63528a5` | `82e67c8f` | `8fb3e4ad` | A — peer local main 2 ahead of origin |
-  | 5 | `repos/kwavers`       | `7720163...` (pre-Session 20 state) | `07f60733` | `c19134ec` | B — pin on origin feature branch (PR #325 DIRTY), not on origin/main |
-  | 6 | `repos/hephaestus`    | `b18cdb4` (origin HEAD) | `599ff79a` | (no `main` on remote at all) | B — pin on origin feature branch diverged from missing main |
-  | 7 | `repos/mnemosyne`     | `7baa847` | `6a4bad71` | `c10e510d` | A — peer local main 1 ahead of origin |
-  | 8 | `repos/consus`        | (earlier) | `eae5676c` | `3137c4b8` | A — peer local main 1 ahead of origin |
+  | # | Member repo  | Atlas-meta commit | Pin SHA    | Member origin/main | Defect category | Status |
+  |---|--------------|-------------------|------------|--------------------|-----------------|--------|
+  | 1 | `repos/coeus`        | `dc7459a` (prior session) → `dff78e7` (re-affirmed) | `c711dcb4` | `a6dfb2d` | A — peer ahead of origin on feature branch | open |
+  | 2 | `repos/leto`          | `c147d91` | `c6ced81e` | `687b6707` | C — pin on local feature branch only | open |
+  | 3 | `repos/moirai`        | `6b97938` | `f74aa480` | `b613dc3d` | A — peer local main 1 ahead of origin | **closed** (Session 23: peer-moirai published +(Session 22 advance `0979371` re-pointed atlas-meta gitlink to peer-published `2c14b94f`; verifier: `merge-base --is-ancestor 2c14b94f origin/main`) |
+  | 4 | `repos/apollo`        | `63528a5` | `82e67c8f` | `8fb3e4ad` | A — peer local main 2 ahead of origin | open |
+  | 5 | `repos/kwavers`       | `7720163...` (pre-Session 20 state) | `07f60733` | `c19134ec` | B — pin on origin feature branch (PR #325 DIRTY), not on origin/main | open |
+  | 6 | `repos/hephaestus`    | `b18cdb4` (origin HEAD) | `599ff79a` | (no `main` on remote at all) | B — pin on origin feature branch diverged from missing main | open |
+  | 7 | `repos/mnemosyne`     | `7baa847` | `6a4bad71` | `c10e510d` | A — peer local main 1 ahead of origin | open |
+  | 8 | `repos/consus`        | (earlier) | `eae5676c` | `3137c4b8` | A — peer local main 1 ahead of origin | open |
+  | 9 | `repos/asclepius`     | `c2227aa` (Session 23) | `47e73d1e` | `f1b6a8ff` | A — coordinator-authored advance to peer's local-only main | open |
 
 - Recovery action matrix (per-Defect category — coordinator does NOT
   execute these; peers publish to their own origins and the
@@ -3539,66 +3540,70 @@ or git+branch), so all consume the increment without break.
   `serde`/`serde_json` if a single-pass tool suffices, or
   re-include `serde` if JSON output is desired).
 
-## ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1 — Mechanize the gitlink-coherence audit as a coordinator-owned `tools/gitlink-coherence/` sister tool [patch] [arch] — todo
+## ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1 — Mechanize the gitlink-coherence audit as a coordinator-owned `tools/gitlink-coherence/` sister tool [patch] [arch] — done
 
-- Owner: unassigned (Atlas-Codex coordinator claimable; filed by
-  Session 21)
-- Outcome: a single-shot, optionally JSON-emitting command-line tool
-  that pre-empts future atlas-meta gitlink-coherence defects by
-  verifying each `.gitmodules` pin is ancestral to the per-member
-  `origin/main` and emits a categorization report. Closes the manual
-  toil pattern documented in `ATLAS-GITLINK-COHERENCE-DEFECT-1`;
-  fits the `operation` toil-automation policy (manual sequence
-  performed twice → mechanization candidate).
-- Scope:
-  * `tools/gitlink-coherence/Cargo.toml` package
-    `atlas-gitlink-coherence-gate`, edition 2024, rust-version 1.95,
-    forbid unsafe_code, deny missing_docs, clippy pedantic +
-    unwrap_used deny, MIT/Apache, debug line-tables-only on
-    dev/test (mirror the `tools/criterion-regression/Cargo.toml`
-    template).
-  * Modules: `gitmodules.rs` (parse `.gitmodules` into `Submodule`
-    table), `coherence.rs` (per-repo probe + DefectClass
-    categorization executing
-    `git --git-dir=... --work-tree=... merge-base --is-ancestor
-    <pin> origin/main`), `report.rs` (human-readable / markdown /
-    JSON formatters), `error.rs` (typed error, zero deps),
-    `main.rs` (CLI dispatcher with `audit` subcommand and
-    `--format <json|markdown|human> --target-repo <name>`
-    options).
-  * Tests (co-located `#[cfg(test)]` modules): parser round-trips,
-    defect-class categorization on synthetic probe results,
-    formatter snapshot on representative probe vectors, end-to-end
-    invocation against the checked-out atlas-meta working tree
-    (use the live `.gitmodules` as input; assert exit code 1 given
-    the current 8-defect state — provides a regression assertion
-    against regression in BOTH the tool AND the surrounding peer
-    publishing).
-- Acceptance oracle: in the current atlas-meta working tree the
-  tool's `audit` subcommand emits all 8 defect rows matching
-  `ATLAS-GITLINK-COHERENCE-DEFECT-1`'s inventory and exits
-  1; once peer publishing closes the defects the same command
-  exits 0 with empty defect inventory and surfaces a "clean"
-  summary. Reprised-but-stale pins (e.g. CFDrs pin `f33e469`
-  ancestral to `origin/main` `77201635`) emit row classified
-  `stale-advanceable` rather than `coherence-defect`.
-- Risk/change class: [patch] [arch] (adds a coordinator-owned
-  sibling tool — touches workspace/views via the new
-  `tools/gitlink-coherence/` directory but no production-code
-  delta; the [arch] marker reflects the new atlas-meta tool
-  boundary and the CI integration seam it implies).
-- Dependencies: depends on the live atlas-meta submodule working
-  trees at `repos/<R>/.git` being present (submodules
-  initialized) — the tool is read-only w.r.t. peers.
-- Verification plan: `cargo fmt --check`, `cargo clippy
-  --all-targets -- -D warnings`, `cargo nextest run`, `cargo test
-  --doc` (under the committed nextest 30s/60s budget) all clean on
-  the new package; cross-check the tool's audit output against
-  the manually-audited inventory from
-  `ATLAS-GITLINK-COHERENCE-DEFECT-1` (8 rows match exactly).
-- Sister cross-links: parent
-  `ATLAS-GITLINK-COHERENCE-DEFECT-1` [in-progress] at parent
-  commit `9eac5b0`.
+- Owner: Atlas-Codex coordinator (claim taken Session 22; closure
+  verification Session 23 2026-07-24).
+- Outcome: delivered `tools/gitlink-coherence/` Rust package
+  `atlas-gitlink-coherence-gate` (binary `gitlink-coherence`), a
+  single-shot read-only probe that verifies each `.gitmodules` pin
+  against its member's `origin/main` and emits a categorization
+  report. Mechanizes the manual toil pattern that produced
+  `ATLAS-GITLINK-COHERENCE-DEFECT-1`; closes the
+  `operation` toil-automation policy deficiency.
+- Verification (Session 23 2026-07-24): all gates green on the new
+  package — `cargo fmt --check`, `cargo clippy --all-targets --
+  -D warnings`, `cargo nextest run` (18/18 tests pass in 0.339s,
+  well within the 30s/60s nextest budget), `cargo test --doc`
+  (0 doctests, clean). End-to-end acceptance against the live
+  atlas-meta working tree:
+  `cargo run --release --quiet -- audit --atlas-root /d/atlas --fetch`
+  reports 8 defects (7 of the original Session 21 inventory —
+  moirai closed mid-Session 23 — plus 1 new asclepius defect recorded
+  below as defect #9 of the parent inventory) and 2 stale-advanceable
+  rows; exit code is 1, matching the DoD acceptance oracle. Read-only
+  default invocation (`--no-fetch`) reproduces the same categorization
+  against the cached `refs/remotes/origin/main`.
+- Defect inventory diff vs Session 21 (tool-emitted
+  categorizations):
+  - moirai — `Clean` (peer published `2c14b94f`; Session 22 gitlink
+    advance `0979371` re-pointed atlas-meta to the peer-published
+    pin). Closed.
+  - coeus — `cat-c` (pin on local `atlas/mnemosyne-0.6-compat`, no
+    remote). Matches Session 21 category-A reclassification note.
+  - leto — `cat-c` (pin on local `codex/leto-real-sparse-lu`, no
+    remote). Matches Session 21.
+  - apollo — `cat-a` (pin on local `main`, no remote). Matches
+    Session 21.
+  - kwavers — `cat-b` (pin on local AND remote
+    `codex/kwavers-aequitas-vessel-metrics`). Matches Session 21 cat-b.
+  - hephaestus — `no-origin-main` (remote has only `master`, not
+    `main`). Matches Session 21.
+  - mnemosyne — `cat-a` (pin on local `main`, no remote). Matches
+    Session 21.
+  - consus — `cat-a` (pin on local `main`, no remote). Matches
+    Session 21.
+  - asclepius — `cat-a` (coordinator-authored coordinator-side
+    advance `c2227aa` to peer's local-only main `47e73d1e`).
+    NEW (Session 23 discovery via the audit tool); inventoried as
+    defect #9 in the parent risk entry.
+- Root cause fixed during implementation: the original Session 22
+  tool scaffold passed Windows backslash-mixed paths to `--git-dir`,
+  which git's C-side path resolver then failed to re-anchor through
+  the `gitdir:` indirection file. Fixed via `git_dir_arg` helper
+  that normalizes backslashes to forward slashes on Windows (no-op
+  on POSIX). The `--fetch` failure path is no longer swallowed
+  (Session 22 swallowed the result via `let _ =`, masking network
+  failures and `no-main` signals alike); it now routes
+  `couldn't find remote ref refs/heads/main` to the
+  `NoOriginMainOnRemote` classification and propagates genuine network
+  failures via `?`. Per `integrity` error-handling restraint.
+- Risk/change class: [patch] [arch]; ledger-only commit + new
+  coordinator tool, no production-code delta, no member-repo source
+  touched.
+- Cross-links: parent
+  `ATLAS-GITLINK-COHERENCE-DEFECT-1` [in-progress] at parent commit
+  `9ae06c0` (atlas-meta origin/main at closure).
 - Refs: backlog.md#ATLAS-GITLINK-COHERENCE-DEFECT-1 (parent slice)
 
 ## ATLAS-TOOLCHAIN-ALIGN-001 — Align all 14 clean repos to Rust 1.97.0 for shared target compat [patch] — done
@@ -3778,3 +3783,48 @@ Closure requires ALL of the following landed in future slices:
   indicating zero remaining `source = "git+https://github.com/
   ryancinsight` hits across all `/d/atlas/repos/*/Cargo.lock`
   files (excluding the 7 NVlabs external hits).
+
+## Session 23 closure (2026-07-24) — ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1 → ✅ closed
+
+- Delivered the coordinator-owned `tools/gitlink-coherence/`
+  package (`atlas-gitlink-coherence-gate`, binary `gitlink-coherence`).
+- Verification (all gates green): `cargo fmt --check`, `cargo clippy
+  --all-targets -- -D warnings`, `cargo nextest run` (18/18 pass,
+  0.339s — within the 30s/60s nextest budget), `cargo test --doc`.
+  End-to-end acceptance against the live atlas-meta working tree:
+  `gitlink-coherence audit --atlas-root /d/atlas --fetch` reports 8
+  defects + 2 stale-advanceable rows and exits 1, matching the
+  DoR acceptance oracle.
+- Root cause of the Session 22 end-to-end failure fixed: Windows
+  backslash-mixed paths passed to `git --git-dir` fail through
+  `gitdir:` indirection files (git's C-side resolver can't re-anchor
+  the relative `gitdir:` target against a directory whose path
+  contains both `/` and `\`). Replaced with a `git_dir_arg` helper
+  that normalizes backslashes to forward slashes on Windows
+  (no-op on POSIX). Per-integrity fix: dropped the
+  `let _ = run_git(... "fetch" ...)` that swallowed the fetch
+  error; the `couldn't find remote ref refs/heads/main` signal now
+  routes to the `NoOriginMainOnRemote` classification, and genuine
+  network failures propagate via `?`.
+- Inventory movement: defect #3 (moirai) **closed** — peer-moirai
+  published pin `2c14b94f` to origin and Session 22's gitlink
+  advance `0979371` re-pointed atlas-meta to it. Defect #9
+  (asclepius) **new** — coordinator-authored commit `c2227aa`
+  advanced the asclepius gitlink to peer's local-only main
+  `47e73d1e`; same defect pattern that `ATLAS-GITLINK-COHERENCE-
+  DEFECT-1` is filed to expose. Recorded as defect #9 in the parent
+  risk entry's inventory. Recovery action: peer-asclepius
+  `git push origin main` to publish `47e73d1e` to `origin/main`.
+- Coordinator home-scope after closure: the audit tool was the one
+  substantive in-progress coordinator-claimable increment. After
+  this commit, the only remaining in-progress items are peer-held
+  member-repo source files (recovery actions for defects 1/2/4/5/
+  6/7/8/9). Coordinator scope returns to ledger-filing only.
+- Residual risk: the asclepius defect #9 is my own coordinator-side
+  mutation. It is the existing defect pattern's first confirmed
+  re-introduction since `ATLAS-GITLINK-COHERENCE-DEFECT-1` was
+  filed — an internal regression against the policy the parent
+  entry exists to enforce. Filed on the parent inventory for
+  peer-asclepius recovery (category A: peer publishes local main).
+- Pushed commit: see git log for SHA (atlas-meta origin/main
+  following push).
