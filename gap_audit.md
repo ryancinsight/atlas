@@ -209,21 +209,23 @@ integration tests over the 30-second nextest budget, while Kwavers and Helios
 retain provider/build warnings outside the metric contracts. No residual is
 masked by a consumer-side compatibility shim.
 
-### Verification refresh (2026-07-25)
+### Verification refresh (2026-07-26)
 
-- **CFDrs:** `a50a9e91` repairs the local quantity/dependency migration. Locked
-  `cfd-1d` check passes; focused Nextest passes 731/731 with 3 skipped.
-  The producer suite passes 1127/1127 with 3 skipped, warning-denied Clippy
-  and doctests pass, and the broader 825-test cfd-3d/cfd-validation gate has
-  8 tests exceeding the 30-second budget.
+- **CFDrs:** locked cfd-2d/cfd-3d/cfd-validation checks pass through the
+  current local graph. The producer suite remains 1,127/1,127 with 3 skips;
+  the cfd-2d library gate is 517/517 with 1 skip. The solver-heavy validation
+  residual remains a runtime-budget issue in the eight previously named tests;
+  it is not an Aequitas metric gap. The current increment adds typed failure
+  propagation and warm-start/state corrections without changing test budgets,
+  workloads, or assertions.
 - **Kwavers:** the workspace Coeus paths now target `../coeus/crates/*`.
-  Affected package check passes; the package suite passes 2913/2913 with 2
-  skipped; warning-denied Clippy and doctests pass for the touched package
-  surfaces.
+  Affected package check passes; the package suite remains 2,913/2,913 with 2
+  skips; warning-denied Clippy and doctests pass for the touched package
+  surfaces. No additional public metric gap was found.
 - **Helios:** the Coeus patch paths now target `../coeus/crates/*`.
   `helios-physics` check, warning-denied Clippy, and doctests pass; its
-  focused Nextest passes 18/18. The Compton energy equivalence regression
-  remains green.
+  focused Nextest remains 18/18. The Compton energy equivalence regression
+  remains green, and no additional public metric gap was found.
 
 ### Delivery residuals
 
