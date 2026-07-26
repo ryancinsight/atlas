@@ -66,6 +66,13 @@ oracles.
   transmission timing, PRF, frame rate, tilt, sound speed, and depth. Each
   keeps scalar extraction at a validation, trigonometric, geometry-kernel, or
   source-trait boundary.
+- CFDrs child commit `1a7aa1d6` records the latest broad-gate state: the
+  unchanged 825-test runtime acceptance remains open, and the current retry
+  stops before CFDrs compilation on live Leto WIP in
+  `leto-ops::three_dimensional` because generic `FloatElement` code calls
+  `.mul_add` instead of `NumericElement::scalar_fmadd`. This is an upstream
+  provider blocker, not an additional Aequitas metric gap or a CFDrs
+  compatibility-shim opportunity.
 - Aequitas now also owns the named vascular result dimensions used by CFDrs:
   `PressureGradient`, `HydraulicResistance`, `HydraulicInertance`, and
   `Compliance`, merged in provider commit `446eb9f`.
