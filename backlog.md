@@ -5339,3 +5339,59 @@ pitfall #2 (would capture peer's feature-branch HEAD, not origin/main).
   `ATLAS-WORKTREE-CLONES-001`, `ATLAS-DOWNSTREAM-COORDINATION-001`,
   `ATLAS-MATH-SSOT-CONSOLIDATION-1` (audit-only, partially overtaken by
   ADR 0033 Krylov sequence).
+
+## Session 27 (2026-07-27) — Athena stage A progress and the ADR 0034 scope refinement
+
+### Landed
+
+- `e965a95` right-preconditioned BiCGSTAB in `athena-core`.
+- `fef782c` `IncompleteLu` and `SuccessiveOverRelaxation` in `athena-leto`,
+  sharing one triangular-substitution module.
+- Athena gate green at each step: 38/38 nextest including the WGPU contracts,
+  clippy `-D warnings`, doctests, fmt.
+
+SSOR was deliberately **not** ported: a stack-wide scan finds no consumer, so
+building it would be speculative. CFDrs uses ILU most, then Jacobi, then SOR.
+
+Stage A remaining: **LSQR**. That completes the capability set and unblocks
+`ATLAS-GMRES-FORK-CONVERGE-001` stage B (CFDrs migration).
+
+### ATLAS-ATHENA-ACCEL-BACKEND-001 — refined, larger than first scoped
+
+Surveying Hephaestus changed the shape of this item. It is **not** "delete
+Athena's WGSL and call Hephaestus", because there is nothing device-neutral to
+call:
+
+- `hephaestus-core` carries the dialect-generic kernel machinery
+  (`KernelSource<L: KernelDialect>`, `UnaryStorageKernel`,
+  `BinaryStorageKernel`, `MultiStorageDevice`) and an op-expression algebra.
+- Each backend crate exposes `dot`, `norm_l2`, `scalar_elementwise_into`,
+  `binary_elementwise_into` — but as **per-backend free functions**.
+- `ComputeDevice`, the device-neutral trait, covers allocation and transfer
+  only.
+
+So a `KrylovBackend` generic over `D: ComputeDevice` cannot reach any vector
+operation. That is precisely why `athena-wgpu` hand-wrote WGSL against a
+concrete `WgpuDevice` and hardcoded `f32`: the seam it needed did not exist.
+
+The defect and the decision are unchanged — Athena must not own GPU kernels,
+and the per-device crate must go. What changes is that the first increment
+belongs to **Hephaestus**, not Athena: a device-neutral vector-operation seam
+in `hephaestus-core` that each backend implements by delegating to the free
+functions it already has. That closes a substrate gap benefiting every
+Hephaestus consumer.
+
+Staged, each with its own gate:
+
+1. `hephaestus-core`: the vector-operation seam (scale, axpy, dot, norm,
+   residual, and the two fused Krylov-shaped updates).
+2. `hephaestus-wgpu`: implement it by delegation. The only backend testable on
+   this host.
+3. `athena-hephaestus`: `KrylovBackend` over the seam, generic in scalar type
+   rather than `f32`-only.
+4. Delete `athena-wgpu` and its WGSL; move its contract tests in the same
+   change.
+
+CUDA, Metal, and ROCm implementations follow the same seam and are verifiable
+only where that hardware exists, so each is its own increment rather than a
+blocker on Athena.

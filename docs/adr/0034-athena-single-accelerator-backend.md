@@ -1,6 +1,6 @@
 # ADR 0034: Athena carries one accelerator backend over Hephaestus, not a per-device crate
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-07-27
 - Class: [major] [arch]
 - Relates to: [ADR 0022](0022-horae-athena-provider-extraction.md),
@@ -62,10 +62,24 @@ provider was rebuilt in the consumer.
    contract requires — `copy`, `scale`, `axpy`, `dot`, `norm_l2`, `residual`,
    `fused_cg_update`, `combine_direction` — resolves to a Hephaestus kernel.
 4. Where Hephaestus lacks a required primitive, implement it **upstream in
-   Hephaestus** as a generic device kernel, never downstream in Athena. The
-   two fused Krylov-shaped operations (`fused_cg_update`, `combine_direction`)
-   are the likely additions; both are ordinary vector kernels with no solver
-   knowledge, so they sit correctly in the substrate.
+   Hephaestus** as a generic device kernel, never downstream in Athena.
+
+   *Refined 2026-07-27 after surveying Hephaestus.* The missing piece is
+   larger than two fused kernels. Hephaestus already has everything needed at
+   the implementation level — `hephaestus-core` carries dialect-generic kernel
+   traits (`KernelSource<L: KernelDialect>`, `UnaryStorageKernel`,
+   `BinaryStorageKernel`, `MultiStorageDevice`) and an op-expression algebra,
+   and each backend crate exposes `dot`, `norm_l2`, `scalar_elementwise_into`,
+   and `binary_elementwise_into`. But those are **per-backend free functions**
+   (`hephaestus_wgpu::dot`, `hephaestus_cuda::dot`, …) with no device-neutral
+   trait over them, while `ComputeDevice` covers only allocation and transfer.
+
+   A backend generic over `D: ComputeDevice` therefore cannot call them, which
+   is the actual reason Athena hand-wrote WGSL against one concrete device
+   type. Closing this needs a device-neutral vector-operation seam in
+   `hephaestus-core` that each backend implements by delegating to the free
+   functions it already has. That is the substrate's own gap, and filling it
+   benefits every Hephaestus consumer, not just Athena.
 5. No compatibility re-export of `athena-wgpu`. The crate is removed, and its
    consumers — presently only Athena's own tests — move in the same change.
 
@@ -77,9 +91,17 @@ provider was rebuilt in the consumer.
   depended on by any repository outside Athena, so the break is confined.
 - `KrylovBackend` is unchanged. `athena-core` recurrences, including the CG,
   GMRES, and BiCGSTAB families, are untouched by this ADR.
-- Hephaestus gains two vector kernels it does not currently expose. They are
-  generic over its scalar and dialect traits, so every device backend gets
-  them from one implementation.
+- Hephaestus gains a device-neutral vector-operation seam plus, where a
+  backend lacks one, the underlying kernel. The seam is the larger part and
+  must land first; it is generic over the existing scalar and dialect traits,
+  so one implementation per backend delegates to kernels already present.
+- The work is therefore staged: (1) the `hephaestus-core` seam, (2) its
+  `hephaestus-wgpu` implementation, which is the only one testable on this
+  host, (3) `athena-hephaestus` over the seam, (4) deletion of `athena-wgpu`.
+  Stages 1-2 are Hephaestus increments with their own gates; CUDA, Metal, and
+  ROCm implementations follow the same seam and are verifiable only where that
+  hardware exists, so each is its own increment rather than a blocker on
+  Athena.
 - The `fused_cg_update` and `combine_direction` methods on `KrylovBackend`
   encode a solver-shaped fusion in a storage contract. They are retained for
   now because they exist to let a device fuse two traversals into one
