@@ -5069,6 +5069,12 @@ Stale-advanceable (still NOT safely advanceable):
 
 ## ATLAS-ATHENA-KRYLOV-CAPABILITY-001 — Close Athena's capability gap (ADR 0033 stage A) [minor] — in-progress
 
+- **Progress 2026-07-27**: BiCGSTAB landed, athena `e965a95`. Composes from
+  the existing `KrylovBackend` surface, so the trait and `athena-wgpu` are
+  untouched. Full athena gate green: 30/30 nextest including the WGPU
+  contracts, clippy `-D warnings` and doctests clean. Remaining: LSQR, and
+  the SOR/SSOR/ILU(0) preconditioners over the Leto backend.
+
 - Owner: coordinator. Scope: `repos/athena` `athena-core/src/solver/`,
   `athena-leto/src/preconditioner/`.
 - Outcome: Athena carries every Krylov capability its prospective consumers
