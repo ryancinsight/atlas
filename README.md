@@ -271,6 +271,10 @@ deletion result. Until then, creating either repository would add topology
 without consolidating code. The provisional names retain their classical
 mappings: Hyperion to light, Ares to war, and Prometheus to fire and craft.
 
+An optics, radiofrequency, or photomedicine package is not a third candidate
+for that slot. [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md)
+records why — see [Modality boundary decision](#modality-boundary-decision).
+
 | Track | Decision | Current evidence | Required consolidation result |
 | --- | --- | --- | --- |
 | P2-A `hyperion` | Complete: provider `7b4561b`; Helios `105a093`; Kwavers `5fc6f0419`; CFDrs merge `69323418`; Atlas registration at the recorded `repos/hyperion` gitlink. | All three consumers deleted their parallel coefficient, reduced-scattering, diffusion, effective-attenuation, optical-depth, or transmission production owners. CFDrs retains only its empirical coefficient, path selection, and hematocrit policy. | Delivered: one typed optical-depth/transmission SSOT, direct inward dependencies, one theorem suite, consumer differential oracles, and a closed deletion ledger. |
@@ -326,8 +330,10 @@ The Phase 0 deletion ledger and current state are:
 - theorem tests transferred from the superseded Kwavers/Helios owners into one
   Hyperion conformance suite, consumer differential tests retained at each
   integration boundary, and manifest edges removed only where their sole use
-  was a moved law. `kwavers-optics` remains until its retained chromophore-
-  spectrum ownership is assigned and its last consumer migrates.
+  was a moved law. `kwavers-optics` retained chromophore-spectrum ownership is
+  assigned to Hyperion by
+  [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md); the
+  crate is deleted when its last consumer migrates.
 
 Phase 0 is closed by analytical identities (`T(0) = 1`,
 `T(x + y) = T(x)T(y)`, additive optical depth, and `mu = (mu/rho)rho`), invalid-
@@ -355,6 +361,56 @@ mass-action and Arrhenius rate laws, source assembly, and reaction enthalpy.
 Reactive-transport discretization, combustion closure, material response,
 biological damage, and coupling remain with CFDrs or their existing providers.
 
+### Modality boundary decision
+
+[ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) settles
+where optics, radiofrequency, electromagnetics, and further modalities live, and
+records why the answer is not a package per modality.
+
+Helios is an **Integrator**, not the SSOT for radiation physics: Hyperion owns
+photon and optical law, Proteus owns materials, Asclepius owns biological
+response, and Aequitas owns quantities. A package "similar to Helios" is
+therefore an integrator decision, independent of who owns transport.
+
+A source audit at the ADR revision finds Kwavers the sole consumer of the
+diffusion and Monte-Carlo radiative-transfer optical solvers — CFDrs has no
+radiative, optical, or photon module, ritk has none, and Helios consumes
+Hyperion in the MeV regime. Gate conditions 1, 4, and 6 are unmet, so no
+`optics` package is admitted. When a second consumer appears, transport lands
+as a second crate in a promoted Hyperion workspace, keeping the `no_std` law
+crate free of an array substrate:
+
+```text
+crates/hyperion            law, no_std   (aequitas, eunomia, proteus)
+crates/hyperion-transport  solvers       (+ leto, hephaestus, moirai, athena)
+```
+
+Every modality shares one pipeline and differs only in the transport stage:
+
+```text
+source/applicator → transport → volumetric deposition → bioheat → damage → planning
+                    modality     SHARED                  SHARED    asclepius integrator
+```
+
+The reusable asset is that shared middle, typed in Aequitas quantities rather
+than raw scalars. The quantities already exist: `Intensity` (W·m⁻²),
+`VolumetricPowerDensity` (W·m⁻³), `AbsorbedDose` (J·kg⁻¹), `EnergyPerArea`
+(J·m⁻²), and the full `ThermalConductivity` / `SpecificHeatCapacity` /
+`MassDensity` bioheat set. Adopting them at the transport→deposition and
+deposition→bioheat boundaries makes a later modality extraction a typed slot
+rather than an architectural judgment, and is tracked as `ATLAS-MODALITY-002`.
+
+| Track | Decision | Current evidence | Required consolidation result |
+| --- | --- | --- | --- |
+| Chromophore spectra | Assigned to Hyperion. | 514 LOC of validated wavelength-dependent extinction data sits in the `kwavers-optics` integrator leaf crate while Hyperion owns optical coefficients. | Gate condition 1, second clause. Whole-crate deletion ledger; differential test at every tabulated wavelength. |
+| Optical transport | Deferred; gate 1/4/6 unmet. | Kwavers is the sole consumer of the diffusion and MC-RTE solvers. | Reopen when a second production consumer deletes a matching transport implementation in the extraction change; target is `hyperion-transport`, not a new package. |
+| RF / electromagnetics | Deferred; gate unmet. | Kwavers owns 2 835 LOC of electromagnetics across physics, FDTD solver, and sources. No RF integrator and no second consumer exist. | Consolidate Kwavers electromagnetics behind the deposition-spine contract (SAR → volumetric power → bioheat) first. |
+| Photomedicine integrator | Deferred; demand-gated, not duplication-gated. | 295 LOC of laser/LED/fiber source models; no photomedicine planning exists. Kwavers `therapy` is acoustic-therapy workflow. | Reopen when photomedicine planning exists and is large enough that Kwavers is the wrong home. |
+
+Sonoluminescence (3 006 LOC, bubble-driven emission) and photoacoustics
+(653 LOC, an acousto-optic coupling) are Kwavers-intrinsic and are excluded from
+every extraction scope above. Coupling orchestration belongs to Harmonia.
+
 ### Dependency order
 
 The recommended extraction order is:
@@ -380,12 +436,18 @@ iris ── ritk-snap / ritk-vtk / cfd-schematics
 
 eunomia + aequitas + proteus ── hyperion ── helios / kwavers / CFDrs
 
+aequitas quantities ── deposition spine ── every modality:
+    transport ─> Intensity / VolumetricPowerDensity ─> bioheat ─> asclepius
+
 proteus ── elastic-property SSOT ── CFDrs / kwavers
 horae ── embedded-step policy ── kwavers chemistry
 
 future, only after the P2-B promotion trigger:
 proteus + leto ── ares ── CFDrs / kwavers
 eunomia + aequitas + horae ── prometheus ── CFDrs / kwavers
+
+future, only after a second transport consumer appears (ADR 0032):
+hyperion + leto + hephaestus ── hyperion-transport ── kwavers / <second consumer>
 ```
 
 `harmonia` follows typed time and convergence contracts but does not depend on

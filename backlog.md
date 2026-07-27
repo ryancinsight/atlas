@@ -28,22 +28,65 @@
 
 ## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — todo
 
-- Owner: unclaimed; scope: `repos/aequitas` (quantity coverage audit),
-  `repos/kwavers/crates/kwavers-physics/src/{optics,electromagnetic,thermal}`.
-- Decision: [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) §5.
+- Owner: unclaimed. Decision:
+  [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) §5.
 - Outcome: every energy-transport implementation terminates in a
-  `VolumetricPower` (W·m⁻³) Aequitas quantity, and bioheat consumes that one
-  type. Irradiance (W·m⁻²), SAR (W·kg⁻¹), and absorbed dose (J·kg⁻¹) are the
-  other spine interface quantities. This is the reusable asset the optics
-  proposal was reaching for; it is what makes a later modality extraction
-  mechanical rather than a judgment call.
-- Non-goals: extracting any modality package; renaming or moving solvers.
+  `VolumetricPowerDensity` (W·m⁻³) Aequitas quantity, and bioheat consumes that
+  one type. This is the reusable asset the optics-extraction proposal was
+  reaching for, and it is what makes a later modality extraction a typed slot
+  rather than an architectural judgment.
+
+### Coverage audit (2026-07-27)
+
+Aequitas **already owns** the spine quantities and their units. This item is
+consumer-side adoption, not provider-side creation:
+
+| Spine quantity | SI | Aequitas status |
+| --- | --- | --- |
+| Irradiance / fluence rate | W·m⁻² | `Intensity` + `WattPerSquareMeter` — present |
+| Volumetric power density | W·m⁻³ | `VolumetricPowerDensity` + `WattPerCubicMeter` — present |
+| Energy fluence | J·m⁻² | `EnergyPerArea` — present |
+| Absorbed dose | J·kg⁻¹ | `AbsorbedDose` — present |
+| Bioheat coefficients | — | `ThermalConductivity`, `ThermalDiffusivity`, `SpecificHeatCapacity`, `MassDensity` — present |
+| Specific absorption rate | W·kg⁻¹ | **absent** — the one provider-side gap, needed for RF/EM |
+
+Kwavers already depends on Aequitas in 10 crates / 66 files, so the adoption
+path is open.
+
+### Named boundary defects
+
+- `kwavers-physics/src/thermal/diffusion/bioheat.rs` — `PennesBioheat::update`
+  takes `external_source: Option<ArrayView3<'_, f64>>`. That parameter *is* the
+  deposition spine boundary, and its unit exists only in a doc comment.
+- Same file — `BioheatParameters` is four raw `f64` fields (`perfusion_rate`,
+  `blood_density`, `blood_specific_heat`, `arterial_temperature`) with units in
+  comments. Primitive obsession; the blood properties are Proteus's bounded
+  context, not Kwavers's.
+
+### Phases
+
+1. `repos/aequitas` — add `SpecificAbsorptionRate` (W·kg⁻¹) dimension, quantity,
+   and `WattPerKilogram` unit. `[minor]`, self-contained, no consumer churn.
+2. `repos/kwavers` — type the deposition→bioheat boundary: `external_source`
+   becomes a `VolumetricPowerDensity` field, `BioheatParameters` becomes
+   validating newtypes over Aequitas quantities with blood properties sourced
+   from Proteus.
+3. `repos/kwavers` — type the transport→deposition boundary in
+   `optics/{monte_carlo,diffusion}` and `solver/forward/optical`, so optical
+   transport emits `Intensity` and deposits `VolumetricPowerDensity`.
+4. `repos/kwavers` — same treatment for `electromagnetic`, via SAR from phase 1.
+   This is also the ATLAS-MODALITY-003 RF prerequisite.
+
+- Non-goals: extracting any modality package; renaming or relocating solvers;
+  touching sonoluminescence or photoacoustics.
 - Acceptance: no untyped `f64` crosses the transport→deposition or
-  deposition→bioheat boundary in the audited modules; a property test asserts
-  the quantity type at each backend's output; an energy-conservation test
+  deposition→bioheat boundary in the named modules; a property test asserts the
+  quantity type at each transport backend's output; an energy-conservation test
   asserts integrated deposition equals absorbed source energy within a derived
-  bound (derivation cited at the assertion site).
-- Dependency: none. This is the prerequisite for ATLAS-MODALITY-003.
+  bound, with the derivation cited at the assertion site; both repos green under
+  their nextest budgets.
+- Dependency: none. Phase 4 is the prerequisite for the RF track in
+  ATLAS-MODALITY-003.
 
 ## ATLAS-MODALITY-003 — Optical-transport and RF/EM promotion watchpoint [arch] — blocked
 
