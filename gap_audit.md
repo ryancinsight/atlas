@@ -5166,3 +5166,74 @@ Refs:
 - CFDrs PR #316 squash-merged as `5ac713b3` on origin/main
 - leto PR #74 squash-merged as `687b670` on origin/main (upstream
   sparse LU landing this slice's diff reflects)
+
+## Findings 2026-07-27 Session 26: math SSOT consolidation audit pattern
+
+Reusable audit pattern for cross-repo SSOT consolidation sweeps (Atlas).
+Companion backlog: `ATLAS-MATH-SSOT-CONSOLIDATION-1` (audit-only); filing
+SHA recorded in the Session 26 closure section of `backlog.md`.
+
+### Inputs
+
+- SSOT baseline crate(s): for math, `repos/leto/crates/leto/src/` plus
+  `repos/leto/crates/leto-ops/src/` (or the appropriate SSOT crates for
+  the dimension under audit — `hermes` for SIMD, `apollo` for FFT,
+  `eunomia` for numeric traits).
+- Consumer crates: ones suspected of duplicate math residency. For the
+  math SSOT audit, that was `kwavers-math`, `cfd-math`, `helios-math`;
+  for future sweeps, the same shape (consumer `<name>-math` subcrates).
+- A reference thin-reexport crate as the canonical shape — `helios-math`
+  for math SSOT. Audit reports should flag consumer crates that have
+  NOT yet reached this shape.
+
+### Procedure
+
+1. **Establish the SSOT baseline inventory.**
+   `grep -rEh '^[[:space:]]*pub fn [a-z_][a-z0-9_]*' <ssot-src> | sed 's/^[[:space:]]*//; s/(.*//' | sort -u` — record symbol count and per-module capability surface (a one-line role + <=8 representative pub fns per module). Defines what "duplicate" can be measured against. The 2026-07-27 baseline was 253 distinct pub fns across leto + leto-ops.
+2. **Manifest audit (Cargo.toml scope).**
+   `grep -rn '<foreign-dep>' <consumer>/crates/*/Cargo.toml <consumer>/Cargo.toml` — confirm the migration has removed the named foreign crates (`nalgebra`, `ndarray`, `burn`, `rustfft`, `num-traits`, ...). When this returns zero hits, the migration is finished at the manifest layer and the remaining work is internal (wrapper/refactor). Exceptions (FFI bridges like PyO3's `numpy`) are flagged in the audit row.
+3. **Tree-shape audit (consumer math crate shape).**
+   `find <consumer>/crates/<consumer>-math/src -name '*.rs'` — compare the file tree to the SSOT baseline tree. Same-named files at differing paths are the primary duplicate-residency signal (e.g. `kwavers-math/src/linear_algebra/sparse/csr.rs` vs `leto-ops/src/application/sparse/csr.rs`; `cfd-math/src/linear_solver/gmres/{arnoldi,givens,solver}.rs` vs `leto-ops/src/application/linalg/iterative/gmres/{arnoldi,givens,solver/mod}.rs`).
+4. **Per-capability claim-vs-body audit.**
+   For each duplicate-residency file, read its module docstring (`head -50 <file>`) AND its body. Three document/implementation states:
+   - `WRAP` — docstring says "delegates to <SSOT crate>" and body has only covering API surface (positives + thin re-exports). Already migrated.
+   - `DUP-PARTIAL` — docstring says "delegates to <SSOT crate>" but the body contains self-storage/self-implementation. STALE refactor; needs finishing.
+   - `DUP` — both the docstring AND the body are locally-implemented, with no SSOT reference. Fresh duplicate.
+   - `DS` (domain-specific) — body implements physics-specific operations (wave-staggered-grid, DG/WENO, spectral element, time-stepping, inverse-problem regularizers specific to one physics domain). These stay in the consumer crate by canonical-component-homes, with a `// Domain-specific: <reason>` rationale.
+5. **Cross-tabulate capability matrix.**
+   Columns: `capability | SSOT canonical path | consumer-status (per consumer crate) | notes`. Capability rows: enumerate per the dimension's canonical capacity surface (for math: dense decompositions, iterative solvers, sparse formats + kernels, special functions, signal windows, interpolation, differential, quadrature, optimization, inverse problems, SIMD dispatch). One row per capability, not per file.
+6. **Categorize per row.** DUP -> consolidation candidate; DUP-PARTIAL -> finish the in-flight refactor; DS -> stays; WRAP -> no work.
+7. **Recommended sequencing lane split.**
+   - Lane A (upstream SSOT owner, peer-leto / peer-hermes / peer-apollo): extend the SSOT crate to absorb any capability gap the consumers want a home for but no SSOT path exists yet. New canonical paths follow the canonical-component-homes convention (e.g. `leto-ops/src/application/<family>/<leaf>.rs`). New capability is committed, tested, published FIRST; consumer consolidation waits for the bump.
+   - Lane B (consumer crate owner, peer-physics-crate): in dependency-ordered increments, replace each DUP / DUP-PARTIAL site with a thin re-export matching the reference shape (helios-math pattern: `pub use leto_ops::...;`). Each consumer increment lands after its upstream Lane A increment publishes.
+   - Lane C (coordinator): advances gitlinks per the standing stale-advanceable flow once Lane A or B lanes push. Coordinator does NOT edit `repos/<name>/...`.
+8. **Per-increment verification (NOT all-up-front).**
+   - Lane A: `cargo nextest run -p <ssot-crate>` and `cargo test --doc -p <ssot-crate>` under committed budgets; publish.
+   - Lane B: consumer tests green; manifest re-scan returns zero hits; the deleted `pub use` site re-resolves (`cargo check`); the consumer public API surface is unchanged (name + arity).
+   - Coordinator (Lane C): re-run `target/release/gitlink-coherence.exe audit` and confirm the relevant rows are clean.
+9. **Acceptance oracle (per Lane B increment).**
+   Every duplicate row in the matrix becomes either a thin re-export (matching helios-math shape) OR carries a `// Domain-specific: <reason>` rationale and is updated to `DS` status in the matrix. Cross-repo residue scan finds zero duplicate `pub fn` symbols shared between the SSOT crate and any consumer-math crate.
+
+### Reuse trace
+
+First applied 2026-07-27 to atlas math SSOT (cross-repo kwavers-math /
+cfd-math / helios-math vs leto / leto-ops). The first instance
+identified 11 WRAP rows, 4 DUP / DUP-PARTIAL rows (CSR self-storage in
+kwavers-math, GMRES four-way recurrence already filed as
+`ATLAS-GMRES-SSOT-001`, simd_safe hand-rolled avx2/neon awaiting a
+hermes-SSOT audit, cfd-math quadrature not yet delegated awaiting the
+leto-ops quadrature extension), and the helios-math canonical
+thin-reexport reference pattern. Future cross-repo SSOT audits (hermes /
+SIMD, apollo / FFT, eunomia / numeric traits) reuse this procedure
+verbatim, swapping the SSOT baseline crate and the consumer crates.
+
+### Out-of-scope for this template
+
+The math-SSOT audit explicitly defers the SIMD dimension to a separate
+hermes-SSOT audit (kwavers-math/simd_safe and cfd-math/simd should
+route through hermes-simd); the FFT dimension is already SSOT-clean
+(kwavers-math/fft re-exports apollo; the GPU side hephaestus is the
+separate GPU substrate). Recording those as future audit items, NOT
+actioning them here, matches the canonical-component-homes rule: a
+cross-repo consolidation audit names the locus, peer-leto and
+peer-physics-crate own the execution.
