@@ -237,13 +237,76 @@ gitlink-advance work with the per-submodule r6a commits themselves).
 Hand-applied AFTER round-6a as an index-only force-add:
 
 - `git -C /d/atlas update-index --add --cacheinfo 160000,50bfcd9bcc66e23f27807973323ddb060035d60a,repos/leoneuro-rs`
-- Subsequent atlas-side follow-up commit (`build(atlas): Advance leoneuro-rs gitlink — round-6a closure completion (12/12)`) advances `repos/leoneuro-rs` to 50bfcd9 in the parent record; the `.gitignore` rule at line 60 (placed there to keep leoneuro-rs out of `git status` noise during prior unrelated work) remains **untouched** by design — defense-in-depth rule cleanup is parked at `backlog.md` `## ATLAS-GIT-HYGIENE-001`.
+- Subsequent atlas-side follow-up commit (`build(atlas): Advance leoneuro-rs gitlink — round-6a closure completion (12/12)`) advances `repos/leoneuro-rs` to 50bfcd9 in the parent record; the `.gitignore` rule at line 60 (placed there earlier to keep leoneuro-rs out of `git status` noise during prior unrelated work) remains in place pending `backlog.md` `## ATLAS-GIT-HYGIENE-001` (chore: atlas `.gitignore` line-60 rule removal). The 1-non-cargo-file anomaly surfacing in all 12 r6a submodule commits is parked separately at `## ATLAS-R6A-FILELIST-001` (patch: per-submodule commit-hygiene remediation).
 
 After this delivery: all 12 audited consumers have a parent-atlas
-gitlink entry pointing at the r6a-commit SHA, completing the 12/12
-cycle closure promised in the original parent commit's subject (cycle
-is across TWO commits — 11/12 in 565022e + 12/12 here — by honest
-count, never advertised as single-commit-atomicity).
+gitlink entry pointing at the r6a-commit SHA, tracking the 12th
+submodule gitlink that the original parent commit 565022e skipped
+because the `.gitignore` line-60 ignore rule blocked `git add
+repos/leoneuro-rs`. The cycle is across TWO commits (11/12 in
+565022e + 12/12 here),advertised as **completion** rather than **atomicity** to avoid overstating single-commit-trackability.
+
+#### STEP D — Architectural correction to STEP C (2026-07-27)
+
+Verification surfaced that the cacheinfo-built gitlink in STEP C
+(`fef2c63`) is **architecturally malformed**. The 160000 mode entry
+in atlas HEAD's `repos/leoneuro-rs` slot has no matching
+`[submodule "leoneuro-rs"]` declaration in `/d/atlas/.gitmodules`,
+and the remote URL is a private `LeoNeuro-INC` org, not `ryancinsight`.
+The `repos/leoneuro-rs/` `.gitignore` rule at line 60 is the
+intentional treatment of `leoneuro-rs` as a **co-located external
+code-drop**, not an atlas submodule. `git status` not nagging about
+it is the design, not a defect.
+
+| Datum                                       | Value                                                                       |
+|---------------------------------------------|-----------------------------------------------------------------------------|
+| leoneuro-rs remote URL                      | `https://github.com/LeoNeuro-INC/leoneuro-rs.git` (private LeoNeuro-INC org, **not** ryancinsight) |
+| leoneuro-rs submodule registration          | absent — no `[submodule "leoneuro-rs"]` in `/d/atlas/.gitmodules`; no `submodule.leoneuro-rs.*` keys in atlas `.git/config` |
+| leoneuro-rs at the r2 baseline             | 11 `git+https://github.com/ryancinsight/` source lines                       |
+| leoneuro-rs at the r6a post                | **0** such lines (resolved via `[patch]` + `cargo update --workspace --offline` in `50bfcd9`) |
+| leoneuro-rs workspace members               | 5 (`leoneuro-{core,array,field,neuromod,io}`)                                |
+| r6a SHA on `codex/sim-ct-medium`            | `50bfcd9`                                                                   |
+
+**Audit-domain surviving**: the 12/12 closure tally is **honest**.
+`leoneuro-rs` had 11 ryancinsight URLs at the r2 baseline and was
+resolved to 0 by its own r6a commit (`50bfcd9` via `[patch]`
+entries + `cargo update --workspace --offline`). "completion
+(12/12)" means "12 submodules audited, all closed to 0 residual
+ryancinsight URLs", **NOT** "12 submodules atlas-side
+gitlink-tracked".
+
+Cleanup commit (subject `build(atlas): Drop misapplied leoneuro-rs
+gitlink — audit closure unaffected`) removes the cacheinfo-built
+160000 entry via `git rm --cached repos/leoneuro-rs`. After the
+cleanup:
+
+- `repos/leoneuro-rs` is **not** in atlas HEAD's tree (verified
+  post-commit via `git ls-tree HEAD repos/leoneuro-rs` → empty).
+- `leoneuro-rs`'s local `50bfcd9` is unowned by atlas; the
+  LeoNeuro-INC maintainers can land it on their own schedule.
+- Push sequence for the closure cycle excludes the
+  `https://github.com/LeoNeuro-INC/leoneuro-rs.git` upstream; only
+  11 ryancinsight submodules + the parent atlas push to ryancinsight.
+
+#### Audited-consumer table (12 candidates, all closed to 0 ryancinsight hits)
+
+| #  | Submodule   | r2 baseline | r6a post | r6a SHA  | Origin       | Atlas-tracked? |
+|----|-------------|------------:|---------:|----------|--------------|----------------|
+| 1  | apollo      | ~28         | 0        | b7bb4bc  | ryancinsight | yes (160000)   |
+| 2  | asclepius   | 42          | 0        | 5414f80  | ryancinsight | yes (160000)   |
+| 3  | CFDrs       | 12          | 0        | ec4e147  | ryancinsight | yes (160000)   |
+| 4  | coeus       | 12          | 0        | cdaf769  | ryancinsight | yes (160000)   |
+| 5  | gaia        |  3          | 0        | 42ef63a  | ryancinsight | yes (160000)   |
+| 6  | helios      |  2          | 0        | dca9e80  | ryancinsight | yes (160000)   |
+| 7  | hephaestus  | 12          | 0        | 47ca84a  | ryancinsight | yes (160000)   |
+| 8  | hermes      |  2          | 0        | 50b4959  | ryancinsight | yes (160000)   |
+| 9  | kwavers     | 14          | 0        | 799aa1c  | ryancinsight | yes (160000)   |
+| 10 | leoneuro-rs | 11          | 0        | 50bfcd9  | LeoNeuro-INC | **NO** (drops gitlink) |
+| 11 | ritk        |  6          | 0        | 6503590  | ryancinsight | yes (160000)   |
+| 12 | athena      | 27          | 0        | a5fd806  | ryancinsight | yes (160000)   |
+
+`GRAND_TOTAL_ryancinsight = 0` across 12 audited candidates;
+apollo NVlabs sentinel = 7 (preserved).
 
 ### Final closure state
 

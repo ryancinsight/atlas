@@ -188,27 +188,36 @@ path is open.
 - Dependency: sequence behind ATLAS-OVERLAY-002 where the repo also has pin
   drift, so the lock refresh and the manifest change do not interleave.
 
-## ATLAS-GIT-HYGIENE-001 — Remove stale `repos/leoneuro-rs/` rule from `/d/atlas/.gitignore` [chore] — todo
+## ATLAS-GIT-HYGIENE-001 — Confirm `repos/leoneuro-rs/` rule is intentional [chore] — done
 
-- Owner: unclaimed; scope: `/d/atlas/.gitignore` line 60 only. No
-  submodule or Cargo manifest edits in this scope.
-- Outcome: the stale ignore rule (`repos/leoneuro-rs/`) is removed so
-  `git status` at the atlas root no longer hides the submodule from
-  re-introduction tracking, AND `git add repos/leoneuro-rs` works
-  cleanly without needing the index-only force-add workaround that
-  the round-6a follow-up commit (`3d9e7db`) had to apply.
-- Acceptance: `grep leoneuro /d/atlas/.gitignore` returns empty (or
-  `!repos/leoneuro-rs/` if a deliberate whitelist exemption is
-  preferred); `git add repos/leoneuro-rs` succeeds uneventfully on a
-  fresh clone.
-- Method: `str_replace` to delete the line-60 rule; recommit
-  `/d/atlas/.gitignore`; verify `git ls-files --stage repos/leoneuro-rs`
-  returns a 160000-mode entry without needing the `update-index`
-  workaround. No follow-up atlas commits needed.
-- Cross-link: ATLAS-PATH-DEP-AUDIT-2 (cycle closed 2026-07-27) parked
-  this follow-up via STEP C; the index-only force-add used in STEP C
-  is the workaround this ticket retires.
-- Risk/change class: `[chore]`; single-line config edit only.
+- Owner: Codex `/root`; last-update: 2026-07-27;
+  scope: `/d/atlas/.gitignore` line 60 (CONFIRMED intentional).
+- Outcome: SPAWNED as a stale-rule-removal ticket on 2026-07-27
+  (parent commit `fef2c63`'s STEP C); closure surfaced that the
+  rule is actually the design, not a stale entry:
+  - `leoneuro-rs` remote = `https://github.com/LeoNeuro-INC/leoneuro-rs.git`
+    (private LeoNeuro-INC org, distinct from atlas' ryancinsight).
+  - atlas `.gitmodules` has no `[submodule "leoneuro-rs"]` entry.
+  - atlas `.git/config` has no `submodule.leoneuro-rs.*` keys.
+  - `repos/leoneuro-rs/` rule on line 60 keeps the external
+    code-drop out of `git status` noise — `git status` not
+    nagging about it is the design, not a defect.
+  Closing this ticket confirms the rule stays as-is. The
+  cacheinfo-built 160000 gitlink created in `fef2c63` is **dropped**
+  by the architectural-correction follow-up commit (subject
+  `build(atlas): Drop misapplied leoneuro-rs gitlink — audit
+  closure unaffected`) which executes `git rm --cached
+  repos/leoneuro-rs` and updates
+  `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` STEP D.
+- Acceptance: rule remains on line 60; the follow-up commit drops
+  the gitlink; `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` STEP D is the
+  audit ledger reflecting the correction.
+- Method: documentation-only update at
+  `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` STEP D + the parent atlas
+  commit drops the cacheinfo 160000. No `.gitignore` edit required.
+- Cross-link: ATLAS-PATH-DEP-AUDIT-2 STEP D is the corresponding
+  correction in the audit ledger.
+- Risk/change class: `[chore]`; documentation-only confirmation.
 
 ## ATLAS-R6A-FILELIST-001 — Per-submodule r6a commit file-list hygiene [patch] — todo
 
