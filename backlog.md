@@ -522,6 +522,41 @@
   remains deferred to the follow-up PR's CI run. No release argument,
   no performance argument, no production-code delta.
 
+## ATLAS-PATH-DEP-AUDIT-2 — Close 311 ryancinsight audit hits across 21 atlas submodule Cargo.lock files [patch] — in-progress
+
+- Owner: Codex `/root`; last-update: 2026-07-27;
+  scope: 13 NEEDS consumers' `Cargo.toml` + `Cargo.lock` files;
+  the 8 READY consumers (CFDrs, asclepius, coeus, helios,
+  hephaestus, kwavers, leoneuro-rs, ritk) already have `[patch]`
+  overlays but their `[patch]` re-resolution was never triggered.
+- Outcome: PARTIAL closure. 311 → 222 audit-format hits
+  (28.6% reduction). All 13 NEEDS consumers received the
+  unified `[patch]` overlay block via
+  `scripts/atlas-path-dep-audit2-closure.py` (one-shot tool).
+  Asclepius self-patch + 9 self-patch blocks (athena, consus,
+  hermes, horae, leto, mnemosyne, moirai, themis, aequitas)
+  stripped to unblock cargo. Round-1 + round-2
+  `cargo update --workspace --offline` reduced hits but did not
+  drive to 0 — `[patch]` redirects only fire at resolve-time,
+  and `cargo update --workspace` does NOT trigger re-resolution
+  of already-locked entries.
+- Evidence: per-consumer residual counts at
+  `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` §"Partial closure
+  progress (2026-07-27)".
+- Sub-task (open): per-package
+  `cargo update -p <pkg> --offline` for every ryancinsight
+  package in every consumer's lockfile (READY + NEEDS residual).
+  Approximate pair count: 222 hits × per-package invocation.
+- Sub-task (open): apollo/athena rc=101 root-cause investigation
+  post-self-patch-strip.
+- Sub-task (open): submodule-by-submodule commits
+  (Cargo.toml + Cargo.lock co-staged) + parent atlas gitlink
+  advance once residual reaches 0.
+- Acceptance-status disambiguation: criteria (a) (b) (c) (d)
+  remain deferred. Criterion (e) — final sweep-completion marker
+  at zero hits — is the explicit closure-wait criterion and
+  remains unmet at 222 hits.
+
 CFDrs cross-atlas slice (2026-07-24):
 
   - Branch `codex/cfdrs-dirty-wip-closeout` (rooted at `0fc64b0e`,
@@ -4177,3 +4212,55 @@ Closure requires ALL of the following landed in future slices:
 - Evidence: 135/135 kwavers-math tests pass, 218/218 kwavers-transducer
   tests pass, 396/396 leto-ops tests pass. `cargo check` clean.
 - Gitlink: atlas `d87e107`.
+
+## ATLAS-GMRES-SSOT-001 — Consolidate four GMRES implementations onto one recurrence [major] [arch] — todo
+
+- Outcome: one GMRES recurrence in the stack, with the other three call
+  sites migrated to it and deleted (no re-export, no forwarding wrapper).
+- Evidence (found during the leto-ops GMRES gap audit, session 2026-07-27):
+  1. `athena-core/src/solver/gmres/` — the ADR-blessed one. Backend-neutral
+     (Leto CPU + Hephaestus WGPU), right-preconditioned, `RESTART` const
+     generic, caller-owned workspace, value-semantic `Termination`, and
+     CPU+WGPU contract tests. See leto `docs/adr/0015-athena-gmres-extraction.md`,
+     which removed GMRES from leto-ops precisely to make Athena the SSOT.
+  2. `leto-ops/src/application/linalg/iterative/gmres/` — reintroduced after
+     ADR-0015 as part of the `LinearOperator`-seam solver family
+     (CG/BiCGSTAB/GMRES/LSQR) that replaced nalgebra for cfd-math and
+     kwavers-math. Corrected and covered by `dcc5d54`; still a second
+     recurrence.
+  3. `CFDrs/crates/cfd-math/src/linear_solver/gmres/` — a fork of (2): same
+     module names (`arnoldi.rs`, `givens.rs`, `solver.rs`), same function
+     names, same structure, plus its own `IterativeSolverConfig`. It has
+     therefore inherited every defect fixed in `dcc5d54`: convergence decided
+     on the preconditioned estimate, discarded happy breakdown, absent
+     non-finite guards, strided Krylov basis, per-restart `b.clone()`, and a
+     duplicated operator application per restart.
+  4. `kwavers/crates/kwavers-solver/src/integration/nonlinear/gmres/` — an
+     `f64`-hardcoded copy with its own `solve_upper_triangular`.
+- Scope: decide the surviving seam ((1) is backend-generic but not
+  dyn-friendly; (2) carries the `LinearOperator`/`Preconditioner` traits the
+  CFD consumers bind to), then migrate in dependency-ordered increments per
+  the anti-shim mandate. Non-goal: keeping any adapter layer.
+- Dependencies: an ADR is the first planning step; ADR-0015 must be either
+  honoured or superseded, since (2) currently contradicts it.
+- Acceptance: one `gmres` module remains in the stack; residue scan finds no
+  sibling recurrence; every consumer verifies against its own suite.
+- Risk: [major] [arch]. Blast radius spans leto, athena, CFDrs, kwavers.
+
+## ATLAS-GMRES-FORK-DEFECTS-001 — Port the leto-ops GMRES corrections to the CFDrs and kwavers forks [patch] — todo
+
+- Outcome: the four correctness/robustness defects fixed in leto `dcc5d54`
+  no longer reachable through the CFDrs and kwavers GMRES copies.
+- Rationale: consolidation (ATLAS-GMRES-SSOT-001) is the real fix, but it is
+  [major] [arch] and gated on an ADR. These forks currently ship a solver
+  that can report success on an unsolved system; that is not safe to leave
+  pending the larger item.
+- Scope: (1) terminate on the true residual, not the preconditioned Arnoldi
+  estimate; (2) treat happy breakdown as an explicit outcome instead of
+  leaving a stale basis vector in place; (3) guard non-finite recurrence
+  state; (4) port the conformance suite (`leto-ops/tests/ops/iterative_gmres.rs`),
+  whose scaled-identity-preconditioner case is the regression oracle for (1).
+- Non-goal: the performance work (row-contiguous basis, allocation removal) —
+  that follows consolidation rather than being duplicated a third time.
+- Acceptance: each fork either adopts the corrections with the ported suite
+  green, or is deleted by ATLAS-GMRES-SSOT-001 first.
