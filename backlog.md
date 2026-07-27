@@ -4593,3 +4593,103 @@ kwavers / CFDrs gitlink. Coordinator does NOT write `repos/<name>/...`.
 - Audit pattern template recorded in gap_audit.md as
   `## Findings 2026-07-27 Session 26: math SSOT consolidation audit pattern`
   for reuse across future cross-repo SSOT audits.
+
+## Session 26 closure (2026-07-27) — GMRES fork ports and the athena redundancy question
+
+`ATLAS-GMRES-FORK-DEFECTS-001` → done. `ATLAS-GMRES-SSOT-001` → re-scoped
+by decisive evidence; see below.
+
+### CFDrs — no port needed, already consolidated
+
+A peer landed `6d18a547 ssot(cfd-math): replace local CG/BiCGSTAB/GMRES with
+leto-ops wrappers` and `6484ad9e cleanup(cfd-math): remove orphaned arnoldi.rs
+and givens.rs from gmres/` earlier the same day, and has the remainder of
+`crates/cfd-math/src/linear_solver/` staged for deletion. CFDrs therefore
+inherits the leto-ops corrections directly. Porting into it was rejected: the
+target files are being deleted.
+
+### kwavers — ported, `a8c76b67e`
+
+Defects fixed in `crates/kwavers-solver/src/integration/nonlinear/gmres/`:
+
+1. Orthogonalisation was Classical Gram-Schmidt while the doc claimed Modified
+   (second- vs first-order loss of orthogonality). Fork-specific defect, not
+   present in leto-ops.
+2. Convergence accepted from the least-squares estimate alone — a singular
+   operator drives the estimate to zero on step 1 while `b − A·x` is untouched.
+3. No finiteness guard anywhere; NaN burned the whole iteration budget.
+4. Absolute `1e-14` breakdown threshold (scale-dependent), and breakdown
+   restarted into the same invariant subspace instead of surfacing.
+5. Krylov basis, Hessenberg and rotations reallocated per restart — `m + 1`
+   full 3-D fields at the default `krylov_dim = 30` — plus two field
+   allocations per Gram-Schmidt step. Now a workspace retained across solves,
+   which matters because the Newton loop calls the solver per outer iteration.
+
+Consolidating kwavers onto leto-ops instead was evaluated and rejected for now:
+`jacobian_vector_product` takes `&mut self`, so the operator closure is
+genuinely `FnMut`, and `leto_ops::LinearOperator::apply` takes `&self` with a
+`Send + Sync` bound. Consolidation is gated on refactoring that JVP to `&self`
+(its only mutation is a scratch-buffer cache). Recorded as the concrete blocker
+on `ATLAS-GMRES-SSOT-001`.
+
+Verification note: the kwavers working tree is mid-migration across ~60 files
+on three fronts, so `cargo check -p kwavers-solver` does not build. The module
+was verified in a standalone harness compiling it against the same `leto` and
+`kwavers-core` revisions: 9/9 tests, clippy `-D warnings` and rustfmt clean.
+Re-run the package gate once the peer migration lands.
+
+### ATLAS-GMRES-SSOT-001 — decisive evidence: athena's solvers have no consumers
+
+`athena_core::Gmres` and `athena_core::Cg` are referenced by **no code anywhere
+in the stack**. athena's only code consumer is harmonia, which imports solely
+`ConvergencePolicy`, `IterationObserver`, `IterationState`, `NoObserver` — the
+convergence-policy vocabulary, not the recurrences. Every `athena-*` entry in
+other repos' manifests is a `[patch]` overlay line, not a dependency.
+
+So ADR-0015 designated athena the GMRES SSOT and removed it from leto-ops, but
+adoption never happened: the real consumers (CFDrs, kwavers) went the other way
+and are now converging on leto-ops. The de-facto SSOT is leto-ops.
+
+Recommendation, for sign-off rather than unilateral action ([major] [arch]):
+
+- Supersede ADR-0015. Name `leto-ops` the CPU Krylov SSOT — it owns the
+  `LinearOperator`/`Preconditioner` seam the consumers actually bind to, and it
+  now carries the conformance suite.
+- Keep athena's `ConvergencePolicy`/observer vocabulary; it has a real consumer
+  and leto-ops has no equivalent.
+- Decide athena's `solver/{gmres,cg}` explicitly: delete as unadopted, or
+  retain solely as the GPU-resident Krylov path (its distinguishing asset is
+  the Hephaestus WGPU backend, which leto-ops has no answer to) with that role
+  recorded. What it cannot remain is an unconsumed second CPU recurrence.
+
+### Concurrent-agent record
+
+Assist edits left uncommitted in peer working trees, each completing a peer's
+own in-flight leto-ops SSOT migration and needed to reach a build:
+`kwavers-source/Cargo.toml` and `kwavers-physics/Cargo.toml` (missing
+`leto-ops` dependency behind imports the peer had already switched);
+`bessel.rs`, `acousto_optics.rs`, `wave/nonlinear.rs`, `burgers/solution.rs`
+(`u32` → `usize` for the leto-ops `jn` signature);
+`kwavers-transducer/.../processor.rs` (`Vec<f64>` → `Array1<f64>` conversion).
+Also `bessel_k0` added to `leto-ops/src/application/special.rs`, which the peer
+had already imported from there but not yet moved upstream — left uncommitted
+because that file is the peer's active rewrite and the addition cannot be
+separated from it by path. **That port fixed a transcribed A&S 9.8.1
+coefficient, `3.5156329` → `3.5156229`, which alone accounted for a 5e-7
+absolute error in K₀ near x = 1.** Reference-value tests added.
+
+## ATLAS-WORKTREE-CLONES-001 — Reconcile standalone clones under `worktrees/` [patch] — todo
+
+- Evidence: `D:/atlas/worktrees/` holds directories named after stack repos
+  (`leto`, `eunomia`, `moirai`, `ritk`, …) that are **standalone clones**, not
+  linked worktrees — `worktrees/eunomia/.git` is a full repo directory, and
+  `git worktree list` in `repos/eunomia` shows only `repos/eunomia`.
+- Impact: this is the prohibited repo-copy pattern (forked history, duplicated
+  disk). It also actively breaks lanes: a real worktree placed under
+  `worktrees/` resolves a member's `../<repo>` path dependencies to these
+  clones, producing `package collision in the lockfile` — encountered while
+  trying to lane the kwavers GMRES work.
+- Scope: per clone, rescue-commit any dirty state, fetch unique branches and
+  commits into the authoritative repo under `repos/`, then delete. Confirm
+  `git worktree list` per repo stays within the two-tree bound afterwards.
+- Non-goal: touching genuine linked worktrees.
