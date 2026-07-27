@@ -89,25 +89,38 @@ path is open.
    touched files (9 remaining warnings are peer-owned files), nextest 125/125
    on the thermal/bioheat/pennes/perfusion filterset.
 
-2b. **blocked** — retype `external_source` from `K/s` to
-   `VolumetricPowerDensity`, and source blood properties from Proteus's
-   validating `MassDensity` / `SpecificHeatCapacity`.
-   - **Finding (2026-07-27):** `external_source` is currently `K/s`, computed
-     by each caller as `(Q_acoustic + Q_metabolic) / (ρ·c_p)` — see
-     `kwavers-python/src/thermal_bindings.rs:279-296`. The deposition quantity
-     is therefore destroyed at the boundary, and each caller divides by a
-     *scalar* `ρ·c_p` while `PennesBioheat` internally uses the *spatially
-     varying* medium values. In a heterogeneous medium those disagree. This is
-     a physics defect, not only a typing one, and the retyping fixes it.
-   - **Blocker:** the fix requires `ThermalDiffusionSolver::new` to become
-     fallible (validated construction) and `update` to take a typed source.
-     12 call sites; 11 are clean but
-     `crates/kwavers-python/src/thermal_bindings.rs` is held dirty by a live
-     peer stream (modified 2026-07-27 13:05, peer commits through 12:39).
-     Editing across that claim boundary is prohibited; a partial change leaves
-     the tree red.
-   - **Re-open trigger:** `thermal_bindings.rs` is clean or its claim goes
-     stale per the `concurrent_agents` one-hour sweep.
+2b. **in-progress (edits complete, verification queued)** — `external_source`
+   retyped from `K/s` to a `VolumetricHeatSource<'_>` newtype carrying `W/m³`,
+   with the `ρ c_p` division moved into the two solver traversals so it uses the
+   *local* medium values. New leaf module
+   `kwavers-physics/src/thermal/source.rs`; three producers
+   (PSTD orchestrator, simulation dispatch, PyO3 bindings) lost their duplicated
+   scalar `ρ·c_p` division, and `ThermalOrchestrationInput::{rho_cp,
+   background_heat_ks}` collapse to `background_heat_wm3`.
+   - **Blocker:** verification only. `cargo check` is queuing behind a live
+     peer's continuous builds on the shared `CARGO_TARGET_DIR` (two 9-minute
+     timeouts). Edits are complete and uncommitted; nothing is committed
+     unverified.
+
+### ATLAS-MODALITY-004 — Unified field array has no heat-source variant [patch] — todo
+
+- Found while typing the deposition boundary (2b).
+  `crates/kwavers-solver/src/forward/thermal_diffusion/plugin.rs` read
+  `UnifiedFieldType::Temperature as usize + 1` as its heat source. `Temperature`
+  is 1, so index 2 is `UnifiedFieldType::BubbleRadius` — the plugin fed a bubble
+  radius in metres into a heat-rate slot whenever the field array had more than
+  two planes.
+- `UnifiedFieldType` (`crates/kwavers-field/src/type.rs`) has no
+  volumetric-heat-source variant, so there was no correct index to use. The 2b
+  change passes `None` and documents why; that path now runs diffusion and
+  perfusion only rather than a wrong source.
+- Outcome: add a `VolumetricHeatSource` variant to `UnifiedFieldType`, have the
+  deposition producers write it, and restore the plugin's external source
+  reading that variant.
+- Acceptance: no magic index arithmetic on `UnifiedFieldType` anywhere; a test
+  asserts the plugin's temperature rise matches an analytically derived value
+  for a known deposition field.
+
 3. `repos/kwavers` — type the transport→deposition boundary in
    `optics/{monte_carlo,diffusion}` and `solver/forward/optical`, so optical
    transport emits `Intensity` and deposits `VolumetricPowerDensity`.
