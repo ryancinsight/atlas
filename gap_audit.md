@@ -10,7 +10,7 @@ coefficients, probabilities, fractions, and clinical indices are not gaps by
 themselves. The child audits contain the file-level evidence and acceptance
 oracles.
 
-### Live child refresh (2026-07-26)
+### Live child refresh (2026-07-27)
 
 This refresh supersedes earlier branch-specific status claims for the named
 consumers. CFDrs' current child audit has no additional Aequitas metric gap;
@@ -21,12 +21,16 @@ implemented at the public analysis and diagnostics boundaries: validated
 outputs are typed `Length`, Doppler inputs/outputs are typed Aequitas
 quantities, and `FunctionalUltrasoundGPS` forwards construction-grid spacing.
 The locked `kwavers-analysis` check passes and the focused vasculature lane
-passes 22/22. Full Kwavers analysis/diagnostics verification remains blocked
-by peer-owned `mnemosyne-local` compile errors, currently a missing
-`refresh_page_pointer` plus related page-module errors. Kwavers MET-06 remains
-the only open consumer metric row until its perfusion contract and independent
-value oracles are closed. The stale Coeus path in the active RITK manifest was
-repaired on its live branch at `92893e23`; no local path shim is used.
+passes 22/22. The live Kwavers child commit `fbe2c8fc5` now also passes the full
+locked analysis and diagnostics package suites, 724/724 and 191/191, with both
+doctest lanes at 1/1 and both Rustdoc commands exiting 0. Warning-denied
+Clippy remains blocked only by three pre-existing `kwavers-math` findings in
+`linear_algebra/sparse/solver.rs`; the former peer-owned `mnemosyne-local`
+page-module compile blocker is resolved in the current dependency graph.
+Kwavers MET-06 remains the only open consumer metric row until its perfusion
+contract and independent value oracles are closed. The stale Coeus path in the
+active RITK manifest was repaired on its live branch at `92893e23`; no local
+path shim is used.
 
 ### Current Aequitas coverage
 
@@ -127,7 +131,7 @@ repaired on its live branch at `92893e23`; no local path shim is used.
 | `KWAVERS-AEQ-MET-02` | pulsed laser/photoacoustic source | Peak/average power, pulse duration, repetition frequency, wavelength, beam radii, and peak fluence are raw public fields/results. | Kwavers | **RESOLVED.** Kwavers PR #322 merged as `c2cf44c87a503f75b93d6c3a64f26aeba0a6ca1e` from implementation `4a997829`; `PulsedLaser` and `BeamProfile` now use `Power`, `Time`, `Frequency`, `Length`, `Energy`, and `EnergyPerArea`. Gaussian, flat-top, and Bessel fluence equations plus typed average-power value regressions pass locally; package check, focused nextest 2/2, warning-denied Clippy, doctests, Rustdoc, format, and diff gates passed. Hosted checks were still running at merge; `recurseml/analysis` errored and CodeRabbit succeeded, so no hosted-green claim is made. |
 | `KWAVERS-AEQ-MET-03` | transducer frequency, geometry, materials, and Rayleigh models | Frequency response, element dimensions/area/volume, propagation range, wavelength, attenuation, and acoustic impedance cross public APIs as `f64`. | Kwavers | **RESOLVED for the public Rayleigh boundary; PR #324 current head `0e02cfdf1` (implementation head `c25edb951`, lock closure `c57b9c799`).** Rayleigh aperture radii/areas and centres/observation points now use Aequitas `Length`/`Area` and validated `CartesianPosition`; the KWaveArray rasterizer is the one explicit scalar grid adapter. Focused Rayleigh 12/12, planar rasterizer 1/1, locked package check, and 222/222 Nextest with one skip pass; the broader affected-package evidence is 2,913/2,913 with 2 skips. The hosted matrix remains blocked by the peer Coeus/Mnemosyne dependency graph, so no hosted-green result is claimed. |
 | `KWAVERS-AEQ-MET-04` | `kwavers-therapy` HIFU planning DTOs and schedules | Focal dimensions/volumes, power, peak pressure, frequency, dwell, temperature, and schedule coordinates crossed the planning boundary as suffixed scalars. | Kwavers | **VERIFIED in `c25edb951`.** HIFU planning contracts use Aequitas `Frequency`, `Power`, `Length`, `Pressure`, `Volume`, and validated `CartesianPosition`; dwell and temperatures remain typed. Locked package check, Nextest 2913/2913 with 2 skipped, warning-denied Clippy, and doctests pass across the affected package set. |
-| `KWAVERS-AEQ-MET-05` | vessel analysis | Diameter, total vessel length, centerline coordinates, and Doppler-derived velocity were raw or voxel-unit values and relied on a caller-applied spacing convention. | Kwavers | **IMPLEMENTED in the live 2026-07-26 increment.** Validated `[Length; 3]` spacing, physical `Length` geometry, typed centerline coordinates, and typed Doppler `Frequency`/`Velocity` boundaries are migrated; `kwavers-diagnostics` forwards construction-grid spacing. Analysis locked check and focused vasculature Nextest pass 22/22. Full analysis/diagnostics gates remain blocked by peer-owned `mnemosyne-local` page-module errors. |
+| `KWAVERS-AEQ-MET-05` | vessel analysis | Diameter, total vessel length, centerline coordinates, and Doppler-derived velocity were raw or voxel-unit values and relied on a caller-applied spacing convention. | Kwavers | **RESOLVED in `fbe2c8fc5`.** Validated `[Length; 3]` spacing, physical `Length` geometry, typed centerline coordinates, and typed Doppler `Frequency`/`Velocity` boundaries are migrated; `kwavers-diagnostics` forwards construction-grid spacing. Analysis locked check and focused vasculature Nextest pass 22/22; full analysis/diagnostics Nextest passes 724/724 and 191/191, doctests pass 1/1 each, and Rustdoc exits 0. Clippy remains blocked only by three pre-existing `kwavers-math` findings outside this scope. |
 | `KWAVERS-AEQ-MET-06` | thermal material and perfusion models | Conductivity/density/specific heat were typed internally but accessors and perfusion parameters returned raw values; the existing Pennes path exposed the rate contract without a physical type. | Aequitas, Proteus, Kwavers | **OPEN / PARTIAL in the live child audit.** Thermal accessor typing is not re-verified on the current branch, and the public perfusion contract still requires an independent unit/oracle decision. No new provider dimension is inferred here. |
 | `KWAVERS-AEQ-MET-07` | `kwavers-grid` derived metric methods | Grid spacing, physical size, volume, cell volume, and CFL timestep crossed the public grid boundary as raw scalars. | Kwavers | **VERIFIED in `c25edb951`.** The grid API returns Aequitas `Length`, `Volume`, and `Time`, accepts typed `Velocity`, and converts only at coordinate/stability-kernel boundaries. The affected package set passes locked check, Nextest 2913/2913 with 2 skipped, warning-denied Clippy, and doctests. |
 | `KWAVERS-AEQ-MET-08` | thermal-diffusion/Pennes/Cattaneo and coupled thermal configuration | Perfusion, blood properties, arterial/initial temperature, relaxation, conductivity, frequency, metabolic heat, and thermal step crossed Rust configuration seams as raw scalars. | Kwavers | **VERIFIED in `c25edb951`.** The physics and simulation carriers use Aequitas quantities, typed Pennes composition reaches the scalar numerical boundary, Python remains an explicit scalar conversion edge, and SI serialization round-trip coverage is present. The affected package set passes locked check, Nextest 2913/2913 with 2 skipped, warning-denied Clippy, and doctests. |
