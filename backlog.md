@@ -5244,3 +5244,98 @@ the unblock for both this row and the 4-session-persistent defect.
   `ATLAS-DOWNSTREAM-COORDINATION-001` (new, peer-filed), `ATLAS-MATH-SSOT-
   CONSOLIDATION-1` (audit filed; execution owned by peer-leto/peer-physics-
   crate and now partially overtaken by ADR 0033's Krylov sequence).
+
+## Session 29 closure (2026-07-27) — athena gitlink advance + hephaestus 6-session escalation threshold
+
+### Re-orientation findings
+
+- HEAD moved from Session 28 close (`73d3042`) to `ac20857` before this session
+  opened via two peer-coordinator commits:
+  - `3df60c1 build(atlas): Advance kwavers gitlink — ATLAS-MODALITY-002 phase
+    2b closed` (peer-coordinator carried kwavers ATLAS-MODALITY-002 phase 2b
+    close forward; kwavers gitlink was not actually advanced — see defect
+    table below — the commit message subject and the kwavers gitlink advance
+    it claimed did not coincide: pin remained `37d50b96`)
+  - `ac20857 docs(pm): Record BiCGSTAB landing in Athena stage A` advanced
+    the **leto** gitlink to `78d9e9e0` (peer-leto merged
+    `codex/leto-real-sparse-lu` to `origin/main`, landing 17 commits since
+    prior pin `c6ced81e`, including the boundary execution
+    `687b670 refactor(leto-ops): Remove ndarray/nalgebra, native iterative
+    solvers (LETO-NDARRAY-BOUNDARY-1)` — directly advancing the standing
+    migration goal and aligning with ADR 0033's Krylov-ownership reaffirmation
+    by retiring leto-ops native iterative solvers)
+- Re-audited gitlink coherence: **4 defects | 2 stale-advanceable | 19
+  clean**. Compared to Session 28 close: leto resolved (cat-b → advanced);
+  athena newly stale-advanceable (peer-athena landed BiCGSTAB).
+
+### Assist-ladder action executed: athena gitlink advance
+
+- Verified: pin `a5fd8061` ancestral to origin/main `e965a95d` via
+  `merge-base --is-ancestor`; **WT HEAD == origin/main byte-for-byte**;
+  WT clean (`## main...origin/main`, no dirty files, not on feature branch).
+  Pitfall #2 satisfied.
+- Selective-staging discipline executed: `git reset HEAD -- .` →
+  `git add repos/athena` → verified staged SHA == athena origin/main →
+  verified only `repos/athena` staged (`git diff --cached --name-only` →
+  CLEAN).
+- Committed as `c38ca61 build(atlas): Advance athena gitlink to e965a95d`,
+  pushed same cycle (`ac20857..c38ca61 main -> main`). Aligns with ADR 0033
+  (Athena owns Krylov) and ATLAS-ATHENA-KRYLOV-CAPABILITY-001.
+
+### Hephaestus `no-origin-main` — now 6-session persistent, escalation exercised
+
+- Re-probed 2026-07-27 Session 29: hephaestus HEAD `47ca84a8`, last commit
+  2026-07-27T12:22:02-04:00 (~6h prior). WT on
+  `codex/hephaestus-product-axis-reduction-parity`, **ahead 1** of
+  `origin/codex/hephaestus-product-axis-reduction-parity` with dirty
+  `Cargo.lock`. Remote has only feature branches — **`origin/main` ref
+  does not exist**; the structural cause is peer-hephaestus works
+  exclusively on feature-branch flow and never publishes `main`.
+- Per the standing ATLAS-ATHENA-ACCEL-BACKEND-001 cross-reference
+  (L5139+) and the Session 28 next-session handoff instruction, the
+  5-session threshold having been crossed at Session 28 close, Session 29
+  confirms the defect is now **6-session persistent**.
+- Coordinator authority (assist-ladder) does not authorize executing peer
+  pushes. The escalation route is a **batched user-facing message** naming
+  peer-hephaestus as the worst blocker; the cluster trio
+  (`hephaestus`, `kwavers PR #325`, `ritk` `codex/docs-ritk-n4-figure-only`)
+  as the user-actionable remediation set; and the gating relationship to
+  `ATLAS-ATHENA-ACCEL-BACKEND-001` ([arch]) as the consequence of continued
+  blockage. This message is delivered in the session response (not as a
+  PM artifact, per no-report-file genre).
+
+### Post-push gitlink-coherence state
+
+| # | Repo | Category | Pin | origin/main | Last commit | Recovery (peer-owned) |
+|---|---|---|---|---|---|---|
+| 1 | coeus | cat-b | `cdaf769` | `971fab9` | 3h ago | peer-coeus: merge `codex/coeus-error-function-parity` to origin/main |
+| 2 | hephaestus | no-origin-main | `47ca84a` | (none) | 6h ago | peer-hephaestus: publish origin/main — **6-session persistent, gating ACCEL-BACKEND-001** |
+| 3 | kwavers | cat-b | `37d50b96` | `dce38e26` | <1h ago | peer-kwavers: merge/rebase `codex/kwavers-book-migration-eviction` (PR #325) |
+| 4 | ritk | cat-c | `65035908` | `c05f84d5` | 3h ago | peer-ritk: merge `codex/docs-ritk-n4-figure-only` + publish origin/main |
+
+**Stale-advanceable (this session close)**: `mnemosyne` only — pin `00c3f6d`,
+origin/main `905909b`, WT on `codex/mnemosyne-tier-selection` HEAD
+`ec1c000` (dirty `Cargo.lock`/`Cargo.toml`). NOT safely advanceable per
+pitfall #2 (would capture peer's feature-branch HEAD, not origin/main).
+
+### Next-session handoff
+
+- **Primary escalation (carried)**: peer-hephaestus publishing `origin/main`
+  or merging `codex/hephaestus-product-axis-reduction-parity` to main. This
+  now closes a 6-session persistent defect AND unlocks
+  `ATLAS-ATHENA-ACCEL-BACKEND-001` execution. A direct user → peer-hephaestus
+  nudge is now warranted prior to a 7th session.
+- **Cluster escalation (carried)**: kwavers PR #325 /
+  `codex/kwavers-book-migration-eviction` (3+ sessions), ritk
+  `codex/docs-ritk-n4-figure-only` (3+ sessions), coeus
+  `codex/coeus-error-function-parity` (3+ sessions). Batch a single
+  user-facing message if all are unchanged at Session 30 open.
+- **Watch for one-step gitlink advance opportunities**: peer-mnemosyne,
+  peer-coeus, peer-kwavers, peer-ritk if their feature branches merge to
+  origin/main (verify `WT HEAD == origin/main` before `git add` per
+  pitfall #2).
+- Standing coordinator-scope `todo` items unchanged:
+  `ATLAS-OVERLAY-001`, `ATLAS-VERSION-GUARD-001`,
+  `ATLAS-WORKTREE-CLONES-001`, `ATLAS-DOWNSTREAM-COORDINATION-001`,
+  `ATLAS-MATH-SSOT-CONSOLIDATION-1` (audit-only, partially overtaken by
+  ADR 0033 Krylov sequence).
