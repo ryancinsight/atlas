@@ -108,6 +108,57 @@
 - Dependency: sequence behind ATLAS-OVERLAY-002 where the repo also has pin
   drift, so the lock refresh and the manifest change do not interleave.
 
+## ATLAS-GIT-HYGIENE-001 — Remove stale `repos/leoneuro-rs/` rule from `/d/atlas/.gitignore` [chore] — todo
+
+- Owner: unclaimed; scope: `/d/atlas/.gitignore` line 60 only. No
+  submodule or Cargo manifest edits in this scope.
+- Outcome: the stale ignore rule (`repos/leoneuro-rs/`) is removed so
+  `git status` at the atlas root no longer hides the submodule from
+  re-introduction tracking, AND `git add repos/leoneuro-rs` works
+  cleanly without needing the index-only force-add workaround that
+  the round-6a follow-up commit (`3d9e7db`) had to apply.
+- Acceptance: `grep leoneuro /d/atlas/.gitignore` returns empty (or
+  `!repos/leoneuro-rs/` if a deliberate whitelist exemption is
+  preferred); `git add repos/leoneuro-rs` succeeds uneventfully on a
+  fresh clone.
+- Method: `str_replace` to delete the line-60 rule; recommit
+  `/d/atlas/.gitignore`; verify `git ls-files --stage repos/leoneuro-rs`
+  returns a 160000-mode entry without needing the `update-index`
+  workaround. No follow-up atlas commits needed.
+- Cross-link: ATLAS-PATH-DEP-AUDIT-2 (cycle closed 2026-07-27) parked
+  this follow-up via STEP C; the index-only force-add used in STEP C
+  is the workaround this ticket retires.
+- Risk/change class: `[chore]`; single-line config edit only.
+
+## ATLAS-R6A-FILELIST-001 — Per-submodule r6a commit file-list hygiene [patch] — todo
+
+- Owner: unclaimed; scope: the 12 r6a submodule commits (apollo,
+  asclepius, CFDrs, coeus, gaia, helios, hephaestus, kwavers,
+  leoneuro-rs, hermes, ritk, athena) whose `git show --stat <r6a_sha>`
+  verifier surfaced a 1-non-cargo-file anomaly on 2026-07-27 (each
+  commit contains exactly 1 file that is neither `Cargo.toml` nor
+  `Cargo.lock`). Per-submodule audit + per-submodule remediation. No
+  atlas manifest edits in this scope.
+- Outcome: each of the 12 r6a submodule commits produces
+  `git show --stat <sha>` showing strictly `Cargo.toml + Cargo.lock`,
+  OR carries an explicit per-consumer exemption row in
+  `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` STEP C documenting why the
+  additional file is a deliberate deviation.
+- Acceptance: per-consumer `git show --stat <r6a_sha> | grep -cE
+  'Cargo\.(toml|lock)'` returns 2; the verifier script
+  `scripts/atlas-path-dep-audit2-closure-r6a.py` exits 0 with the
+  "no extras in r6a commits" assertion.
+- Method: per-submodule `git reset --soft HEAD~1 && git restore --staged . && git add Cargo.toml Cargo.lock && git commit -m "build(<repo>): Refresh round-6a atlas-root path resolution — file-list hygiene"` (committed at the per-submodule level; carries a distinct verb (`Refresh` instead of `Apply`) so `git log --grep "Apply round-6a"` continues to surface only the original r6a commits while `git log --grep "Refresh round-6a"` surfaces the cleanup cycle), authorized amend per ticket scope, distinct from the parent-side follow-up amend at `77c60de`); then `cargo update --workspace --offline` per consumer to refresh Cargo.lock post-stick. Twelve follow-up commits land consumer-side; one atlas-side parent commit advances all 12 gitlinks atomically (or twelve separate follow-up commits if atomic amend is unsafe).d9e7db); then `cargo update --workspace --offline` per consumer to refresh Cargo.lock post-stick. Twelve follow-up commits land consumer-side; one atlas-side parent commit advances all 12 gitlinks atomically (or twelve separate follow-up commits if atomic amend is unsafe).
+- Cross-link: ATLAS-PATH-DEP-AUDIT-2 (cycle closed 2026-07-27) parked
+  this follow-up; the audit criterion (ryancinsight=0 / NVlabs
+  preserved) was met but the per-commit file-list hygiene was
+  separately uncovered.
+- Risk/change class: `[patch]`; per-submodule commit rewrite spanning
+  12 consumers + one parent-side gitlink advance. Distinct
+  operational domain from ATLAS-GIT-HYGIENE-001 (which is a
+  single-line atlas config edit only). Bundling the two was rejected
+  by the round-6a code review (Q2 blocker).
+
 ## ATLAS-CUDA-TREE-003 — Close the fused operation-tag tree split [arch] — done
 
 - Owner: Codex `/root`; last-update: 2026-07-23; scope: `repos/coeus` and

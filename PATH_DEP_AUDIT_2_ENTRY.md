@@ -226,6 +226,25 @@ predicate). Per-consumer per-iteration outcome:
   asclepius, CFDrs, coeus, gaia, helios, kwavers, hermes, ritk;
   mnemosyne/moirai never carried audit-format hits).
 
+#### STEP C — leoneuro-rs parent-gitlink follow-up (2026-07-27)
+
+The closure commit 565022e advanced 11 of 12 submodule gitlinks but
+skipped leoneuro-rs because `/d/atlas/.gitignore` line 60 contains
+`repos/leoneuro-rs/` at the time of commit. Closed via a separate
+parent-side follow-up delivery unit (so as not to interleave path-dep
+gitlink-advance work with the per-submodule r6a commits themselves).
+
+Hand-applied AFTER round-6a as an index-only force-add:
+
+- `git -C /d/atlas update-index --add --cacheinfo 160000,50bfcd9bcc66e23f27807973323ddb060035d60a,repos/leoneuro-rs`
+- Subsequent atlas-side follow-up commit (`build(atlas): Advance leoneuro-rs gitlink — round-6a closure completion (12/12)`) advances `repos/leoneuro-rs` to 50bfcd9 in the parent record; the `.gitignore` rule at line 60 (placed there to keep leoneuro-rs out of `git status` noise during prior unrelated work) remains **untouched** by design — defense-in-depth rule cleanup is parked at `backlog.md` `## ATLAS-GIT-HYGIENE-001`.
+
+After this delivery: all 12 audited consumers have a parent-atlas
+gitlink entry pointing at the r6a-commit SHA, completing the 12/12
+cycle closure promised in the original parent commit's subject (cycle
+is across TWO commits — 11/12 in 565022e + 12/12 here — by honest
+count, never advertised as single-commit-atomicity).
+
 ### Final closure state
 
 GRAND_TOTAL_ryancinsight = 0; apollo NVlabs sentinel = 7 (preserved
