@@ -28,9 +28,8 @@
 
 ## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — in-progress
 
-- Owner: session-808504af, phase 1 only; scope `repos/aequitas/src/systems/si/**` +
-  `tests/dimension_laws.rs` + `CHANGELOG.md`. Phases 2-4 remain unclaimed.
-  Decision:
+- Owner: unclaimed — phase 1 delivered, phases 2-4 open. Next claimable unit is
+  phase 2 (`repos/kwavers` bioheat boundary). Decision:
   [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) §5.
 - Outcome: every energy-transport implementation terminates in a
   `VolumetricPowerDensity` (W·m⁻³) Aequitas quantity, and bioheat consumes that
@@ -67,8 +66,19 @@ path is open.
 
 ### Phases
 
-1. `repos/aequitas` — add `SpecificAbsorptionRate` (W·kg⁻¹) dimension, quantity,
-   and `WattPerKilogram` unit. `[minor]`, self-contained, no consumer churn.
+1. ✅ **closed 2026-07-27 at aequitas `1003c88`** — `AbsorbedDoseRate`
+   dimension with `GrayPerSecond` and `WattPerKilogram` units, and
+   `SpecificAbsorptionRate` as its alias. W·kg⁻¹ and Gy·s⁻¹ are one coherent SI
+   dimension, so defining two axes would admit a conversion factor that does
+   not exist; the alias follows the existing
+   `KinematicViscosity = ThermalDiffusivity` precedent. Five dimensional
+   identities added (power/mass, dose/time, rate×time, unit coherence,
+   volumetric-power/density). Gate: fmt, clippy `-D warnings`, nextest 34/34,
+   11 doctests, `RUSTDOCFLAGS=-D warnings cargo doc` — all green. Incidental
+   fix-forward: `vascular_result_dimensions_are_named` and
+   `transducer_and_quadratic_flow_dimensions_are_named` compared `f64` with
+   `==` against the file's exact-binary contract and held the clippy gate red
+   at HEAD; both now assert on `to_bits` like the rest of the file.
 2. `repos/kwavers` — type the deposition→bioheat boundary: `external_source`
    becomes a `VolumetricPowerDensity` field, `BioheatParameters` becomes
    validating newtypes over Aequitas quantities with blood properties sourced
