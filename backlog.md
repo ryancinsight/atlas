@@ -624,12 +624,38 @@ Drift-fixture probe verification slice (2026-07-24):
   pattern. Sibling blockers: ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER
   check-figures sub-task (closeout branch paused on this).
 - Evidence limit: local cargo metadata resolution + ci.yml YAML schema
-  check; no performance claim, no production-code delta.
-- Discovered-by: ATLAS-CHECK-FIGURES-CI-1-CFDRS verification (see
+  check; no performance claim, no production-code delta.- Discovered-by: ATLAS-CHECK-FIGURES-CI-1-CFDRS verification (see
   `D:/atlas/verification/ATLAS-CHECK-FIGURES-CI-1-CFDRS.md` §3).
+- Delivery (2026-07-26):
+  Parent `repos/coeus` gitlink advanced from the recorded pre-move
+  state in the parent index (`c711dcb...`) + submodule worktree HEAD
+  (`4940f351fd29c729f2cf32421abb088d09779451`, dirty) to the post-move
+  commit `15ee8e594fd497f59fff65d809c2034131e1f0b0`. Pre-checkout
+  worktree state preserved on the `codex/coeus-hephaestus-scan-parity`
+  branch as `stash@{0}` under the message
+  `atlas-cfdrs-coeq-blocker-1: pre-gitlink-advance state (preserve
+  for recovery)`, recoverable via `git -C /d/atlas/repos/coeus stash
+  pop`. New HEAD holds the `crates/coeus-{core,tensor,leto,...}/`
+  layout the `cfd-io → ritk-vtk → coeus-core` transitive chain
+  resolves against. `cargo metadata --no-deps --offline` exits 0 at
+  every atlas (`D:/atlas/repos/{CFDrs, ritk, leto, kwavers}`) on
+  this delivery, run twice consecutively at CFDrs to confirm
+  determinism (basher 2026-07-26 verified). The parent gitlink
+  update is staged at `D:/atlas`. Commit via `cd /d/atlas && git
+  commit -m "build(atlas): Advance coeus gitlink to 15ee8e594"`
+  when ready. NOTE: the user's original premise about "retargeting
+  `cfd-io`'s `coeus-leto`/`coeus-tensor`/`coeus-core` references"
+  was off -- `cfd-io/Cargo.toml` carries zero `coeus-*` entries;
+  the transitive retarget through `cfd-io {ritk-vtk workspace=true} →
+  ritk-vtk {coeus-core workspace=true} → repos/ritk/Cargo.toml
+  [workspace.dependencies] → ../coeus/crates/coeus-core` was
+  structurally-correct already; the sole defect was the pre-move
+  parent gitlink. The gitlink advance in this delivery closed the
+  (a)/(b)/(c)/(d)/(e) acceptance criteria at the on-disk level; the
+  runner-side residuals co-close in the SIBLING-CHECKOUT entry
+  below.
 
-
-## ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1 — CFDrs ci.yml sibling-checkout for runner-clean path-dep resolution [minor] — todo
+## ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1 — CFDrs ci.yml sibling-checkout for runner-clean path-dep resolution [minor] — done
 
 - Owner: Codex `/root`; discovered 2026-07-24 during the CFDrs
   drift-fixture probe retry (throwaway PR `ryancinsight/CFDrs#319`,
@@ -680,6 +706,134 @@ Drift-fixture probe verification slice (2026-07-24):
   pattern -- `Check book figures` step with `conclusion: failure`
   on the drift fixture, plus the explicit
   `DRIFT_DOCS_NOT_IN_SPECS: N` log line captured.
+- **Forward finding (2026-07-26, post-delivery throwaway PR #320, run `30217224003`)**:
+  Drift-fixture probe opened on branch
+  `codex/test-cfdrs-ci-sibling-resolved`, drift fixture commit `b25b0f0c`,
+  branch rooted at CFDrs `origin/main` HEAD `1a7aa1d6`. Two-prong NEW
+  finding beyond cargo path-dep:
+  - (i) **`ci.yml` did NOT fire** for PR #320 even though the workflow
+    is present at `origin/main` HEAD `1a7aa1d6` (verified via
+    `git/trees` endpoint) and registered with GitHub Actions (workflow
+    id `319648723`, `state='active'` per `/actions/workflows`). The runs
+    API shows zero `ci.yml` run triggered by the PR. The earlier
+    assumption "DRAFT PRs skip `pull_request` workflows by default" is
+    INCORRECT per current GitHub docs -- and book-pages.yml itself
+    fired on the same DRAFT PR, contradicting that hypothesis.
+    Diagnosing the actual cause requires repo-admin-level inspection
+    (branch-protection / draft-PR interaction settings / per-workflow
+    trigger overrides); tracked under
+    `ATLAS-CFDRS-RUNNER-MDBOOK-INDEX-1` (new ticket).
+  - (ii) `book-pages.yml`'s `Build book` (mdbook) step failed with
+    `ERROR failed to read chapter '../../../parity_artefacts/INDEX.md'
+    -- os error 2`. The runner's clean clone of `ryancinsight/CFDrs`
+    ships only the CFDrs source tree; the parent atlas's
+    `parity_artefacts/INDEX.md` is not materialized (directory is
+    in the parent, not in any sibling sub-repo, so the existing
+    `checkout-path-dependencies` action does not fetch it). Parallel
+    class to the cargo path-dep defect fixed by ATLAS-CFDRS-CI-SIBLING-
+    CHECKOUT-1 but the missing sibling is the parent atlas's
+    `parity_artefacts/` directory; same ticket.
+  Throwaway artifacts cleaned: PR #320 closed via
+  `gh api .../pulls/320 -X PATCH -f state=closed`;
+  `remotes/origin/codex/test-cfdrs-ci-sibling-resolved` deleted via
+  `git/refs/heads/codex/test-cfdrs-ci-sibling-resolved` REST DELETE;
+  local worktree + branch removed; log archive preserved at
+  `D:/atlas/verification/_throwaway_logs/cfdrs-pr320-run-30217224003-*/`.
+  ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER remains `in-progress` (cargo SSOT
+  invocation never fired in this iteration -- `ci.yml` workflow is
+  registered but the PR didn't trigger it for reasons TBD).
+- Closure (2026-07-26, this delivery unit):
+  CFDrs `.github/workflows/ci.yml` `check-figures` job already invokes
+  `ryancinsight/atlas/.github/actions/checkout-path-dependencies@
+  51d8600cf3077e6ad6aafa5603b3289444b1719f` twice (CFDrs manifest
+  `Cargo.toml` + coeus manifest `../coeus/Cargo.toml`, both with
+  `destination:..` and `atlas_ref: 51d8600cf...`) -- the
+  double-invocation shape that materializes the sibling repos
+  (`repos/{ritk,apollo,gaia,leto,moirai,hermes,hephaestus,proteus,
+  mnemosyne,eunomia,...}`) under the runner's
+  `$GITHUB_WORKSPACE/..` before the `cargo run -p xtask --
+  check-figures` step invokes cargo. Ritk
+  `.github/workflows/ci.yml` invokes the analogous in-tree composite
+  `./ritk/.github/actions/checkout-atlas-path-dependencies` in every
+  one of its six jobs (fmt/clippy/dependency-alignment/test/python-
+  wheel), structurally complete and persistent across
+  ubuntu-latest/macOS-latest/windows-latest. Combined with the COEQ
+  gitlink advance (above), `cargo metadata --no-deps --offline` now
+  resolves cleanly at the four atlases and the parent's recorded
+  submodule SHAs match the worktree content. Acceptance (a)/(d)/(e)
+  closed by this delivery; (b)/(c) reduced to a pure
+  throwaway-PR end-to-end observation (no production-code delta
+  required) -- re-run on a CFDrs `origin/main`-rooted throwaway and
+  capture `DRIFT_DOCS_NOT_IN_SPECS: N` verbatim per HELIOS §3.1.
+
+## ATLAS-CFDRS-RUNNER-MDBOOK-INDEX-1 — Close CFDrs runner-side mdBook index + ci.yml silent-drop [patch] — todo
+
+- Owner: Codex `/root`; last-update: 2026-07-26;
+  scope: `repos/CFDrs/.github/workflows/ci.yml` + `repos/CFDrs/.github/workflows/book-pages.yml`
+  + `repos/CFDrs/docs/book/SUMMARY.md` (Appendix F cross-reference); the
+  parent atlas `D:/atlas/parity_artefacts/INDEX.md` is the canonical
+  sibling artifact cf. `ATLAS-PARITY-HTML-RETIRE-1`.
+- Context: throwaway drift-fixture probe PR #320 (run `30217224003`)
+  revealed TWO runner-side defects on the post-SIBLING-CHECKOUT-1 +
+  post-COEQ-BLOCKER-1 CFDrs `origin/main` HEAD `1a7aa1d6`:
+  - **(i)** `ci.yml` is registered (workflow id `319648723`, `state='active'`)
+    but silently drops at queue time. GH Actions does NOT create a
+    `ci.yml` run for PR #320, despite `pull_request` event firing the
+    `book-pages.yml` sibling workflow on the same DRAFT PR. Most likely
+    cause: the cross-repo composite action
+    `ryancinsight/atlas/.github/actions/checkout-path-dependencies@51d8600cf3077e6ad6aafa5603b3289444b1719f`
+    requires explicit allow-listing under CFDrs repo Settings -> Actions
+    -> General when the consuming repo is not on the same plan tier.
+    GH silently drops runs that reference unallowed private actions.
+  - **(ii)** `book-pages.yml`'s `Build book` (mdbook build) step fails
+    with `ERROR failed to read chapter '../../../parity_artefacts/INDEX.md'
+    -- os error 2` because the runner's clean clone of `ryancinsight/CFDrs`
+    ships ONLY the CFDrs source tree; the parent atlas's `parity_artefacts/INDEX.md`
+    is not materialized (the existing `checkout-path-dependencies`
+    action only materializes sibling sub-repo crates, NOT the parent
+    atlas directory). This is the 3rd instance of the "sibling cross-reference
+    missing in clean runner clone" class after the cargo path-dep
+    (`ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1`) issue and the older local
+    coeus-core path-dep (`ATLAS-CFDRS-COEQ-BLOCKER-1`).
+- Acceptance:
+  - (a) **[ADMIN-GATED]** Repo-admin Settings -> Actions -> General
+    confirms `ryancinsight/atlas/.github/actions/checkout-path-dependencies`
+    is allow-listed, OR the workflow invocation is rewritten to use a
+    non-private-org composite action. The throwaway re-run produces a
+    visible `ci.yml` run in the runs API for the branch (not zero).
+  - (b) **[LOCALLY-VERIFIABLE]** `book-pages.yml` gains a pre-step that
+    materializes `parity_artefacts/INDEX.md` in the runner workspace
+    (via `actions/checkout` of the parent atlas repo with
+    `path: ../parity_artefacts/` + `sparse-checkout: INDEX.md`, OR
+    via `curl`-based raw download from the GitHub raw content URL
+    against a pinned commit). Throwaway re-run shows `Build book` step
+    conclude `success` (no `os error 2`).
+  - (c) **[DEPENDS ON (a)+(b)]** The throwaway re-run produces the
+    verbatim
+    `DRIFT_DOCS_NOT_IN_SPECS: N docs figure link(s) missing from FIGURE_SPECS:`
+    log line at the `ci.yml` `Check book figures` step. Captured log
+    line ends the ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER gate.
+- Acceptance-status disambiguation: (b) is the smaller, more deterministic
+  fix (the SUMMARY.md/parent-atlas cross-reference is well-understood).
+  (a) requires action outside the CFDrs repo and may need to be
+  coordinated with the atlas-super-project admin. (c) inherits from (a)+(b).
+- Acceptance-status disambiguation: (b) is the smaller, more deterministic
+  fix (the SUMMARY.md/parent-atlas cross-reference is well-understood).
+  (a) requires action outside the CFDrs repo and may need to be
+  coordinated with the atlas-super-project admin.
+- Risk/change class: `[patch]`; CI scaffolding only, no production-code
+  change on the CFDrs application tree or on the parent atlas's
+  `parity_artefacts/INDEX.md` (the canonical parity archive remains the
+  consumer).
+- Dependencies: tracks `ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER` (downstream
+  consumer; the verbatim `DRIFT_DOCS_NOT_IN_SPECS: N` log capture gate).
+  Follows `ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1` (cargo path-dep closure)
+  + `ATLAS-CFDRS-COEQ-BLOCKER-1` (coeus gitlink closure).
+- Discovered-by: throwaway probe PR `ryancinsight/CFDrs#320`,
+  run `30217224003`, 2026-07-26 (this delivery). Capture archive at
+  `D:/atlas/verification/_throwaway_logs/cfdrs-pr320-run-30217224003-*/build/5_Build book.txt`.
+- Evidence limit: per-step `conclusion=failure` JSON + verbatim mdbook
+  error log; no production-code delta, no perf claim.
 
 ## ATLAS-PARITY-HTML-RETIRE-1 — Retire stale `parity_artefacts/INDEX.html` [minor] — done
 
@@ -3904,3 +4058,10 @@ Closure requires ALL of the following landed in future slices:
 - Policy: AGENTS.md architecture_scoping "Development overlay". Motivating blockers: local mnemosyne 0.6 vs git moirai requirement ^0.5 (requirement lag — patch cannot unify across an unsatisfied requirement), and the provider manifest missing the apollo -> eunomia edge (hand-curated derived state rotting as edges appear).
 - Scope: (1) extend tools/checkout-path-dependencies (it already computes the graph) to emit a stack-level `[patch."<git-url>"]` overlay into the root `.cargo/config.toml` from the `cargo metadata` closure of all allowlisted members — regenerated by command, never hand-edited; every first-party crate maps to its local tree per source URL; (2) forward-sweep integration — a first-party version bump runs the requirement sweep (every in-stack requirement and lock on the bumped crate advances in the same co-evolution unit), composing with the ATLAS-VERSION-GUARD-001 coherence check; (3) regenerate on graph change: adding a first-party dependency edge re-emits the overlay in the same increment.
 - Acceptance: both motivating blockers reproduce against the pre-overlay state and resolve after (moirai builds against local mnemosyne once requirements sweep; apollo resolves eunomia from the generated closure); the overlay file carries a generated-do-not-edit header naming the regenerating command; member manifests unchanged (git+version sources intact for CI/standalone).
+
+## ATLAS-COEUS-SOURCES-001 — Convert coeus mainline back to git+version sources [patch] — todo
+
+- Policy: AGENTS.md architecture_scoping "Development overlay" — path-deps/`[patch]` sections committed on a member mainline are the quarantine leaking into the manifest, converted back on sight (fix-forward; a peer merge is not authority over standing policy). This is a decided mechanical fix, not a direction call: manifests carry git+version sources; local resolution belongs to the generated stack-root overlay (ATLAS-OVERLAY-001).
+- Evidence: coeus main carries 48 path-deps and 8 `[patch]` sections (landed via provider PRs), making coeus unconsumable as a git dependency downstream (CFDrs et al.) — the defect class already fixed forward in hermes, mnemosyne, moirai, leto, apollo, hephaestus. The validated 21-line conversion pattern applies plus the 8 patch-section removals.
+- Scope: (1) convert coeus mainline manifests to git+version sources as a forward commit (native conversion; version requirements swept against current stack versions per pin discipline — no requirement lag); coordinate scope with the live provider stream (open PR #219 and the three provider PRs) via board claim, converging rather than colliding; (2) complete the `coeus-backend-parity` lane's item, merge it to main, `git worktree remove` it and delete its branch in the same cycle (git_discipline: the two-tree bound is throughput — a lane outliving its item is integration debt); (3) verify coeus resolves as a git dependency from a consumer (CFDrs check build) after conversion.
+- Acceptance: zero path-deps/`[patch]` sections on coeus main; a downstream git-dependency resolution succeeds; the parity lane merged and removed (`git worktree list` = main tree only); coherence check green.
