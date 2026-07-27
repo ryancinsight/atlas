@@ -766,7 +766,7 @@ Drift-fixture probe verification slice (2026-07-24):
   required) -- re-run on a CFDrs `origin/main`-rooted throwaway and
   capture `DRIFT_DOCS_NOT_IN_SPECS: N` verbatim per HELIOS §3.1.
 
-## ATLAS-CFDRS-RUNNER-MDBOOK-INDEX-1 — Close CFDrs runner-side mdBook index + ci.yml silent-drop [patch] — todo
+## ATLAS-CFDRS-RUNNER-MDBOOK-INDEX-1 — Close CFDrs runner-side mdBook index + ci.yml silent-drop [patch] — in-progress
 
 - Owner: Codex `/root`; last-update: 2026-07-26;
   scope: `repos/CFDrs/.github/workflows/ci.yml` + `repos/CFDrs/.github/workflows/book-pages.yml`
@@ -834,6 +834,19 @@ Drift-fixture probe verification slice (2026-07-24):
   `D:/atlas/verification/_throwaway_logs/cfdrs-pr320-run-30217224003-*/build/5_Build book.txt`.
 - Evidence limit: per-step `conclusion=failure` JSON + verbatim mdbook
   error log; no production-code delta, no perf claim.
+- Delivery (2026-07-27):
+  - (b) closed: third-iteration curl pre-step landed in
+    `D:/atlas/repos/CFDrs/.github/workflows/book-pages.yml`; runner-defensive
+    invariants (`set -euo pipefail`, `curl --max-time 60 --retry 3 --retry-delay 5`,
+    `printf | sha256sum -c` against certificate
+    `18b7d9def0625f312776e15b2f70b681f38cbcb8838c9a9fd0b6ffb38af50a5a`). Pinned
+    ref `51d8600cf3077e6ad6aafa5603b3289444b1719f` consistent with `ci.yml`
+    atlas_ref. Code-reviewer-minimax-m3 returned GO for closing (b).
+    End-to-end local emulation passes (`curl_exit=0`, `sha256_exit=0`).
+  - (a) admin-gated remains open: `ci.yml` silent-drop on Ryancinsight
+    DRAFT PRs unconfirmed root cause; tracked via
+    `ATLAS-CHECK-FIGURES-CI-VERIFY-DEFER` (the (c) follow-on requires
+    both (a) + (b) closures).
 
 ## ATLAS-PARITY-HTML-RETIRE-1 — Retire stale `parity_artefacts/INDEX.html` [minor] — done
 
