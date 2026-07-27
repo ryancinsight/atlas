@@ -4156,3 +4156,24 @@ Closure requires ALL of the following landed in future slices:
   - peer-leto: merge `origin/codex/leto-real-sparse-lu` to origin/main;
   - peer-asclepius: push local main `47e73d1e` to origin/main; the
     gitlink pin already points to that SHA.
+
+## ATLAS-KWAVERS-SPECIAL-FUNCTIONS-SSOT — Consolidate kwavers special functions into leto-ops [patch] — done
+
+- Owner: opencode/big-pickle; last-update: 2026-07-25; scope: `repos/leto`,
+  `repos/kwavers`, and atlas gitlink.
+- Outcome:
+  - leto-ops `ddd9cca`: fixed j1 sign handling (flip only in asymptotic
+    branch), fixed small-arg last coefficient (-30.16036606 per NR),
+    upgraded jn to two-buffer upward normalization from kwavers.
+  - kwavers `0a31706`: replaced local implementations of `sinc`, `erf`,
+    `j0`, `j1`, `jn` with re-exports from leto-ops SSOT; removed ~227
+    lines of duplicated numerics.
+  - directivity.rs: replaced crude 3-term Taylor approximation with
+    canonical j1 re-export.
+  - literature_validation_safe.rs: same replacement.
+  - nonlinear3d tests: use canonical j1, kept j2 as test helper (recurrence).
+  - simd_safe/avx2.rs and neon.rs: verified NOT dead — actively used by
+    operations.rs for Array3 field ops; audit corrected.
+- Evidence: 135/135 kwavers-math tests pass, 218/218 kwavers-transducer
+  tests pass, 396/396 leto-ops tests pass. `cargo check` clean.
+- Gitlink: atlas `d87e107`.
