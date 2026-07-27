@@ -1,0 +1,20 @@
+# Atlas coordinator-tool toolchain template
+#
+# Single source of truth for the Rust toolchain pinned across the
+# coordinator-owned tool packages. Consumers (verified at
+# `tools/_template/check-drift.sh`):
+#
+#   - tools/checkout-path-dependencies/rust-toolchain.toml
+#   - tools/criterion-regression/rust-toolchain.toml
+#   - tools/gitlink-coherence/rust-toolchain.toml
+#
+# Copy to `tools/<new-tool>/rust-toolchain.toml` when scaffolding a new
+# coordinator tool; do not alter the contents without a stack-wide
+# toolchain pin update recorded against `rust-toolchain.toml` at the
+# atlas-meta root. Refs:
+# backlog.md#ATLAS-TOOLS-TEMPLATE-EXTRACT-1.
+
+[toolchain]
+channel = "1.95.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

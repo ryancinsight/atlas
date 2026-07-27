@@ -44,6 +44,10 @@ worktrees/
 # `.body-scratch-*` / `.tmp-*` / `.verify-*.sh` / `errors[0-9]*.txt` etc.
 # `*.bak` catches editor/stream-edit backup files (e.g. `backlog.md.bullet.bak`).
 _*
+# tools/_template/ is the canonical coordinator-tool substrate
+# (architecture_scoping: _prefix marks non-buildable substrate); exempt it from the
+# _* catch-all above so the SSOT template actually tracks.
+!tools/_template/
 *.bak
 .body-scratch-*
 .tmp-*

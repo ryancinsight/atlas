@@ -1,0 +1,65 @@
+# Atlas coordinator-tool cargo template
+#
+# Single source of truth for the shared `[lints]`, `[profile.*]`, and
+# `[dependencies]` sections pasted verbatim across the coordinator-owned
+# tool packages. Consumers (this template's users):
+#
+#   - tools/checkout-path-dependencies/Cargo.toml
+#   - tools/criterion-regression/Cargo.toml
+#   - tools/gitlink-coherence/Cargo.toml
+#
+# Usage is copy-as-new, NOT workspace inclusion: scaffold a new tool by
+# copying this file to `tools/<new-tool>/Cargo.toml`, then fill in a real
+# `[package]` body (name, version, edition, rust-version, authors,
+# description, repository, license, `publish = false`), a `[lib]` /
+# `[[bin]]` declaration as appropriate, and append any tool-specific
+# `[dependencies]` below the shared block. Do NOT add this file as a
+# workspace member; it is a substrate, not a buildable crate.
+#
+# Drift discipline: `tools/_template/check-drift.sh` greps each tool's
+# Cargo.toml against this template and fails on byte-level divergence of
+# the lint/profile sections. Edit the policy here first, then propagate
+# the change to all consumers in the same delivery unit.
+#
+# Lint-config derivation: agent.md performance_engineering + integrity
+# error-handling restraint (clippy::unwrap_used denied; clippy::pedantic
+# warn-baseline; unsafe_code = forbid, missing_docs = deny). Refs:
+# backlog.md#ATLAS-TOOLS-TEMPLATE-EXTRACT-1.
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+
+[profile.dev]
+debug = "line-tables-only"
+overflow-checks = true
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.test]
+debug = "line-tables-only"
+overflow-checks = true
+
+[profile.release]
+debug = false
+strip = "symbols"
+
+# ---------------------------------------------------------------------------
+# Shared [dependencies] surface (consumers carrying serde / serde_json)
+# ---------------------------------------------------------------------------
+#
+# Tools that require serde/serde-json (criterion-regression,
+# gitlink-coherence) carry these entries verbatim between their
+# [profile.release] block and any tool-specific [dependencies] block.
+# Tools with no serde needs (checkout-path-dependencies) drop this block
+# entirely. The drift scanner compares shared-key (serde, serde_json)
+# entries only; tool-specific deps are unconstrained.
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
