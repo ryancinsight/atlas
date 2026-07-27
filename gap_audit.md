@@ -14,16 +14,17 @@ oracles.
 
 This refresh supersedes earlier branch-specific status claims for the named
 consumers. CFDrs' child audit now closes `CFDRS-AEQ-MET-18` through
-`CFDRS-AEQ-MET-21`: node/metadata quantities, transient droplet quantities,
-composition event/control quantities, and public composition/droplet timepoint
-vectors use Aequitas contracts. The implementation commits are `3282d6ed`
-and `40869330`; the cfd-1d test-target check passes, package Nextest passes
+`CFDRS-AEQ-MET-22`: node/metadata quantities, transient droplet quantities,
+composition event/control quantities, public composition/droplet timepoint
+vectors, and transient mixture fraction/concentration quantities use Aequitas
+contracts. The implementation commits are `3282d6ed`, `40869330`, and
+`3fd1bf5f`; the cfd-1d test-target check passes, package Nextest passes
 736/736 with 3 skips, warning-denied all-target Clippy passes, and doctests
-pass 8/8 with 3 ignored. The remaining CFDrs metric classification items are
-`MixtureComposition::fractions` as explicit dimensionless storage and solver
-residual norms whose units depend on the assembled/scaled equation. The
-separate CFDrs solver-runtime residual remains the exact 5 mm cfd-3d Venturi
-case at 30.042 s against the 30 s budget; it is not an Aequitas typing gap.
+pass 8/8 with 3 ignored. The remaining CFDrs solver residual norms are not
+assigned an SI dimension because their units depend on the assembled/scaled
+equation. The separate CFDrs solver-runtime residual remains the exact 5 mm
+cfd-3d Venturi case at 30.042 s against the 30 s budget; it is not an
+Aequitas typing gap.
 
 Helios' current child audit has no open Aequitas metric row. The helical
 delivery and collimation restoration is `283048d`, with typed `Angle`,
@@ -152,7 +153,8 @@ is peer-owned math/provider work, not a missing metric contract.
 | `CFDRS-AEQ-MET-18` | CFDrs node/metadata | `NodeProperties` and `NetworkMetadata` use Aequitas `Pressure`, `ThermodynamicTemperature`, and `Volume`; arbitrary metadata remains dimension-unknown by contract. Verified in the child audit with Nextest 735/735 and doctests 8/8. |
 | `CFDRS-AEQ-MET-19` | CFDrs transient droplets | Droplet volume, time, normalized positions, occupancy, and split metrics use Aequitas `Volume`, `Time`, and `Dimensionless`; droplet parity 9/9 and literature validation 5/5 pass. |
 | `CFDRS-AEQ-MET-20` | CFDrs transient composition controls | Event/control/snapshot time, hematocrit, flow, pressure, and CFL use Aequitas `Time`, `Dimensionless`, `VolumetricFlowRate`, and `Pressure`; composition parity 21/21 passes. |
-| `CFDRS-AEQ-MET-21` | CFDrs transient timepoints | Public composition/droplet requested, calculated, and returned timepoints use `Time<T>`; package Nextest 736/736 with 3 skips, all-target Clippy, and doctests 8/8 pass. Mixture fractions remain explicit dimensionless storage; solver residuals remain equation-dependent. |
+| `CFDRS-AEQ-MET-21` | CFDrs transient timepoints | Public composition/droplet requested, calculated, and returned timepoints use `Time<T>`; package Nextest 736/736 with 3 skips, all-target Clippy, and doctests 8/8 pass. Solver residuals remain equation-dependent. |
+| `CFDRS-AEQ-MET-22` | CFDrs transient mixture fractions | Public fraction maps, hematocrit construction/accessors, weighted blends, tolerances, and node/edge concentration queries use `Dimensionless<T>`; the same package gate passes 736/736 with 3 skips, all-target Clippy passes, and doctests pass 8/8 with 3 ignored. |
 | `HELIOS-AEQ-MET-07/08` | Helios helical delivery and collimation | `283048d` restores typed helical delivery/projection/frame and collimation metrics; focused value-semantic gates pass and no Aequitas metric row remains open. |
 | `KWAVERS-AEQ-MET-14` | Kwavers HIFU planning | `799aa1c0d` restores typed frequency, length, power, pressure, volume, position, and schedule metrics; focused source/check gates pass and no Aequitas metric row remains open. |
 
