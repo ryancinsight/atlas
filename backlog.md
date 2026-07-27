@@ -5096,3 +5096,34 @@ Stale-advanceable (still NOT safely advanceable):
   operator satisfies `LinearOperator::apply(&self, ...)`.
 - D: delete `leto-ops/src/application/linalg/iterative/` including the
   duplicated `LinearOperator`/`Preconditioner` traits; residue scan clean.
+
+## ATLAS-ATHENA-ACCEL-BACKEND-001 — Replace athena-wgpu with one Hephaestus-backed backend (ADR 0034) [major] [arch] — todo
+
+- Outcome: Athena carries two backend crates, one over Leto and one over
+  Hephaestus, neither naming a device API, and authors no GPU kernels.
+- Evidence (2026-07-27): `athena-wgpu/src/backend/kernels/{axpy,direction,
+  residual,scale,update}.rs` are hand-written WGSL compute shaders. ADR 0022
+  states Athena does not own "accelerator devices, buffers, transfers, sparse
+  kernels, reductions, or dispatch, which remain in Hephaestus". Hephaestus
+  already exposes `dot` and `norm_l2` over device buffers and carries an
+  `elementwise` module, so this is duplicated capability rather than a gap.
+- Second defect: Hephaestus has four device backends (cuda, metal, rocm,
+  wgpu); Athena has one. Adding CUDA under the present shape means an
+  `athena-cuda` with its own kernels, then `athena-metal` — the consumer-owned
+  per-vendor backend anti-pattern, re-forking the dimension the substrate
+  exists to own. This is the accelerator-side mirror of the Leto Krylov
+  regression in ADR 0033.
+- Scope: (1) add the missing generic vector kernels upstream in Hephaestus —
+  likely only the two fused Krylov-shaped operations, `fused_cg_update` and
+  `combine_direction`, both ordinary vector kernels with no solver knowledge;
+  (2) add `athena-hephaestus` implementing `KrylovBackend` over the
+  device-API-neutral Hephaestus surface; (3) delete `athena-wgpu` and its
+  WGSL, moving its contract tests in the same change; no compatibility
+  re-export.
+- Acceptance: residue scan finds no `wgsl`/`@compute`/`workgroup` literal in
+  `repos/athena` and no crate there naming a device API; the existing CG and
+  GMRES WGPU contract tests pass unchanged against the new backend.
+- Dependencies: none on ADR 0033 stage A; `KrylovBackend` is unchanged, so
+  this and the capability work proceed independently.
+- Note: `athena-wgpu` has no consumer outside Athena, so removing it breaks
+  nothing downstream.
