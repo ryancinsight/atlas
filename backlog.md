@@ -79,10 +79,35 @@ path is open.
    `transducer_and_quadratic_flow_dimensions_are_named` compared `f64` with
    `==` against the file's exact-binary contract and held the clippy gate red
    at HEAD; both now assert on `to_bits` like the rest of the file.
-2. `repos/kwavers` — type the deposition→bioheat boundary: `external_source`
-   becomes a `VolumetricPowerDensity` field, `BioheatParameters` becomes
-   validating newtypes over Aequitas quantities with blood properties sourced
-   from Proteus.
+2a. ✅ **closed 2026-07-27 at kwavers `81a40071c`** (branch
+   `codex/kwavers-book-migration-eviction`) — `BioheatParameters`' four public
+   `f64` fields became Aequitas quantities behind accessors, with a test
+   annotating `ω_b ρ_b c_b ΔT` as `VolumetricPowerDensity` so a wrong factor
+   fails to compile. The blood terms were read per voxel in both traversals and
+   now resolve once per step; `pennes_solver_path_equivalence` confirms
+   unchanged numerics. Gate: `cargo check` on both crates, clippy clean in the
+   touched files (9 remaining warnings are peer-owned files), nextest 125/125
+   on the thermal/bioheat/pennes/perfusion filterset.
+
+2b. **blocked** — retype `external_source` from `K/s` to
+   `VolumetricPowerDensity`, and source blood properties from Proteus's
+   validating `MassDensity` / `SpecificHeatCapacity`.
+   - **Finding (2026-07-27):** `external_source` is currently `K/s`, computed
+     by each caller as `(Q_acoustic + Q_metabolic) / (ρ·c_p)` — see
+     `kwavers-python/src/thermal_bindings.rs:279-296`. The deposition quantity
+     is therefore destroyed at the boundary, and each caller divides by a
+     *scalar* `ρ·c_p` while `PennesBioheat` internally uses the *spatially
+     varying* medium values. In a heterogeneous medium those disagree. This is
+     a physics defect, not only a typing one, and the retyping fixes it.
+   - **Blocker:** the fix requires `ThermalDiffusionSolver::new` to become
+     fallible (validated construction) and `update` to take a typed source.
+     12 call sites; 11 are clean but
+     `crates/kwavers-python/src/thermal_bindings.rs` is held dirty by a live
+     peer stream (modified 2026-07-27 13:05, peer commits through 12:39).
+     Editing across that claim boundary is prohibited; a partial change leaves
+     the tree red.
+   - **Re-open trigger:** `thermal_bindings.rs` is clean or its claim goes
+     stale per the `concurrent_agents` one-hour sweep.
 3. `repos/kwavers` — type the transport→deposition boundary in
    `optics/{monte_carlo,diffusion}` and `solver/forward/optical`, so optical
    transport emits `Intensity` and deposits `VolumetricPowerDensity`.
