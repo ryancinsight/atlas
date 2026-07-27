@@ -325,13 +325,27 @@ does not propose them):
   sensitive even when the URL string itself doesn't carry auth
   tokens.
 - *`git alternates` / `git worktree add` / `git sparse-checkout`
-  as alternatives for external co-location*: each fails for the
-  same fundamental reason — none provide an external-reference
-  primitive that bypasses the `.gitmodules` discovery seam. Any
-  160000 entry still requires an upstream URL declaration to be
-  discoverable by `git submodule update --init` (`.gitmodules` is
-  the only mechanism git honours). No DRY worktree-integration
-  primitive applies here.
+  as alternatives for external co-location*: each fails for a
+  *different* specific reason — none provide an external-reference
+  primitive that bypasses the `.gitmodules` discovery seam:
+
+  - `git alternates` (in `core.alternates`/`<repo>/info/alternates`):
+    local-only; the alternates file is NOT propagated via clone, so
+    a downstream atlas cloner would not inherit the LeoNeuro-INC
+    URL without manual alternates-file authoring. Doesn't scale.
+  - `git worktree add <path> <commitish>`: clones from a *local*
+    source meaning (existing repo); doesn't introduce an upstream
+    declaration. Cannot substitute for a missing `.gitmodules`
+    upstream entry.
+  - `git sparse-checkout`: subset filter for files within a *single*
+    clone; not a substitute for cross-repo external reference.
+    Operates on a checked-out tree rather than introducing a new
+    external origin.
+
+  Bottom line: `.gitmodules` is the only mechanism git honours for
+  a 160000 entry + upstream URL pairing; no DRY worktree-integration
+  primitive provides the equivalent.
+
 - *Leaving the bogus 160000 entry with a clarifying commit
   message in `fef2c63`*: doesn't fix the architectural problem.
   **Concrete artifact counter**: documentation alone leaves a
