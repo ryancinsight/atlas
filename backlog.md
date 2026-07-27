@@ -7,6 +7,63 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-MODALITY-001 — Move chromophore extinction spectra to Hyperion [arch] [minor] — todo
+
+- Owner: unclaimed; scope: `repos/hyperion/src/coefficient/`, `repos/hyperion/README.md`,
+  `repos/kwavers/crates/kwavers-optics/` (deleted), the kwavers workspace member
+  list, and consumers in `kwavers-physics` / `kwavers-imaging`.
+- Decision: [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) §4.
+- Outcome: 514 LOC of validated wavelength-dependent extinction reference data
+  moves out of an integrator leaf crate into the registered owner of optical
+  coefficients. Promotion gate condition 1 is met by the second clause —
+  existing implementation in the wrong dependency layer — and the deletion
+  ledger is the whole `kwavers-optics` crate.
+- Non-goals: transport solvers, sources, sonoluminescence, photoacoustics.
+- Acceptance: Hyperion exposes wavelength-resolved absorption coefficient as an
+  Aequitas quantity; a differential test asserts equality with the deleted
+  Kwavers tables at every tabulated wavelength; `kwavers-optics` is absent from
+  the workspace member list and from every `Cargo.toml`; both repos green under
+  their nextest budgets; Hyperion's spectra disclaimer is revised in the same
+  change.
+
+## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — todo
+
+- Owner: unclaimed; scope: `repos/aequitas` (quantity coverage audit),
+  `repos/kwavers/crates/kwavers-physics/src/{optics,electromagnetic,thermal}`.
+- Decision: [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) §5.
+- Outcome: every energy-transport implementation terminates in a
+  `VolumetricPower` (W·m⁻³) Aequitas quantity, and bioheat consumes that one
+  type. Irradiance (W·m⁻²), SAR (W·kg⁻¹), and absorbed dose (J·kg⁻¹) are the
+  other spine interface quantities. This is the reusable asset the optics
+  proposal was reaching for; it is what makes a later modality extraction
+  mechanical rather than a judgment call.
+- Non-goals: extracting any modality package; renaming or moving solvers.
+- Acceptance: no untyped `f64` crosses the transport→deposition or
+  deposition→bioheat boundary in the audited modules; a property test asserts
+  the quantity type at each backend's output; an energy-conservation test
+  asserts integrated deposition equals absorbed source energy within a derived
+  bound (derivation cited at the assertion site).
+- Dependency: none. This is the prerequisite for ATLAS-MODALITY-003.
+
+## ATLAS-MODALITY-003 — Optical-transport and RF/EM promotion watchpoint [arch] — blocked
+
+- Owner: unclaimed; scope: watchpoint only — no edits until the trigger fires.
+- Decision: [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) §1, §2, §6.
+- Blocker: promotion gate conditions 1, 4, and 6 are unmet. Source audit
+  2026-07-27: Kwavers is the sole consumer of the diffusion/Monte-Carlo-RTE
+  optical transport solvers (CFDrs has no radiative/optical/photon module;
+  ritk has none; Helios consumes Hyperion at MeV, a different regime). No RF
+  integrator or second electromagnetics consumer exists.
+- Re-open trigger: a second production consumer can delete a matching transport
+  implementation in the extraction change. At that point the target is
+  `hyperion-transport` as a second crate in a promoted Hyperion workspace — not
+  a new package — so the `no_std` law crate keeps its dependency set and Helios
+  and CFDrs inherit no array substrate.
+- Standing note: sonoluminescence (3 006 LOC) and photoacoustics (653 LOC) are
+  Kwavers-intrinsic and are excluded from any extraction scope. A photomedicine
+  integrator peer to Helios is a separate, demand-gated decision and is out of
+  scope here.
+
 ## ATLAS-OVERLAY-002 — Clear pin drift in asclepius, athena, hermes [patch] — todo
 
 - Owner: unclaimed; scope: `repos/{asclepius,athena,hermes}` `Cargo.lock` plus
