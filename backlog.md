@@ -89,7 +89,7 @@ path is open.
    touched files (9 remaining warnings are peer-owned files), nextest 125/125
    on the thermal/bioheat/pennes/perfusion filterset.
 
-2b. **in-progress (edits complete, verification queued)** — `external_source`
+2b. ✅ **closed 2026-07-27 at kwavers `37d50b96f`** — `external_source`
    retyped from `K/s` to a `VolumetricHeatSource<'_>` newtype carrying `W/m³`,
    with the `ρ c_p` division moved into the two solver traversals so it uses the
    *local* medium values. New leaf module
@@ -97,10 +97,15 @@ path is open.
    (PSTD orchestrator, simulation dispatch, PyO3 bindings) lost their duplicated
    scalar `ρ·c_p` division, and `ThermalOrchestrationInput::{rho_cp,
    background_heat_ks}` collapse to `background_heat_wm3`.
-   - **Blocker:** verification only. `cargo check` is queuing behind a live
-     peer's continuous builds on the shared `CARGO_TARGET_DIR` (two 9-minute
-     timeouts). Edits are complete and uncommitted; nothing is committed
-     unverified.
+   - Gate: `cargo check` green across kwavers-physics, kwavers-solver,
+     kwavers-simulation, kwavers-python; nextest 144/144 on the
+     thermal/bioheat/pennes/perfusion/heat filterset, including
+     `pennes_solver_path_equivalence`, the analytical `bioheat_*` cases, and
+     `test_heat_equation_mms_convergence`.
+   - Build-lock note: verification queued behind a live peer's continuous
+     builds on the shared `CARGO_TARGET_DIR`; one check took 42 minutes of
+     wall clock. Forking the target tree to dodge the lock stays prohibited —
+     the wait is the accepted cost.
 
 ### ATLAS-MODALITY-004 — Unified field array has no heat-source variant [patch] — todo
 
