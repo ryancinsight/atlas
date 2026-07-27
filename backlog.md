@@ -5355,6 +5355,17 @@ origin/main `905909b`, WT on `codex/mnemosyne-tier-selection` HEAD
 `ec1c000` (dirty `Cargo.lock`/`Cargo.toml`). NOT safely advanceable per
 pitfall #2 (would capture peer's feature-branch HEAD, not origin/main).
 
+**Athena — captured in two advances this session**:
+- `c38ca61` advanced athena to `e965a95d` for the right-preconditioned
+  BiCGSTAB landing.
+- `24ad6ea` advanced athena again to `fef782cb` for the incomplete-LU /
+  SuccessiveOverRelaxation preconditioner landing in `athena-leto`, which
+  pairs with the Krylov family covered by ADR 0033. (Pin `e965a95d`
+  stayed ancestral to `fef782cb`, so the second advance remained a clean
+  one-step `git add` after verifying `WT HEAD == origin/main`.)
+Both advances are attestable; the table above lists only the
+still-defective and still-stale-advanceable rows.
+
 ### Next-session handoff
 
 - **Primary escalation (carried)**: peer-hephaestus publishing `origin/main`
