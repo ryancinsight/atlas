@@ -4881,3 +4881,118 @@ absolute error in K₀ near x = 1.** Reference-value tests added.
   commits into the authoritative repo under `repos/`, then delete. Confirm
   `git worktree list` per repo stays within the two-tree bound afterwards.
 - Non-goal: touching genuine linked worktrees.
+
+## Session 27 closure (2026-07-27) — peer-coordinator ATLAS-MODALITY advance + the persistent gitlink defect set
+
+Re-oriented against `origin/main` at session open. The standing "next action"
+from the Session 26 handoff (append Session 26 closure to `backlog.md`) had
+already landed under peer-coordinator attribution: commit `1da7cea docs(pm):
+Close GMRES fork ports; record athena zero-consumer evidence` wrote the
+`## Session 26 closure` section at L4785. The math-SSOT audit content I drafted
+in Session 26 also survived intact at L4542 (`ATLAS-MATH-SSOT-CONSOLIDATION-1`)
+and the audit-pattern template in `gap_audit.md` at L5178 — peer commit
+`fad8c9e` reused my commit subject but its diff was a CFDrs gitlink advance;
+no content clobber. Same attribution-absorption pattern as Session 25
+`e519928`; no remediation needed because the content is correct DoR-level PM
+state.
+
+### Peer-coordinator landings during the inter-session gap (10 commits, b3106f4..20b03b8)
+
+A peer-coordinator session (same Ryan Clanton attribution) ran during the
+~90-minute gap and landed 10 commits, of which 7 are substantive coordinator-
+scope work on the modality-boundaries workstream and the CFDrs metric closure:
+
+| Commit | Subject summary |
+| :--- | :--- |
+| `20b03b8` | Advance CFDrs gitlink to its consumer-side metric closure |
+| `a802e0c` | Close CFDrs MET22 transient-composition metric gap in `gap_audit.md` |
+| `b804449` | Split `ATLAS-MODALITY-002` — 2a (kwavers bioheat boundary) closed, 2b (SpecificAbsorptionRate provider-side gap) blocked on peer |
+| `8571cc1` | Refresh Aequitas metric audit (reconcile CFDrs/Helios/Kwavers consumer closures) |
+| `5711c0c` | Advance aequitas gitlink — `ATLAS-MODALITY-002` phase 1 |
+| `537b22c` | Claim `ATLAS-MODALITY-002` phase 1 in aequitas |
+| `35f41e9` | Record modality boundaries (optics / RF / photomedicine) in the stack map + kwavers bioheat deposition spine |
+| `1da7cea` | (Session 26 carry-over) Close GMRES fork ports; record athena zero-consumer evidence; file `ATLAS-WORKTREE-CLONES-001` |
+| `fad8c9e` | (Session 26 carry-over, peer-reused subject) CFDrs gitlink advance |
+| `b3106f4` | (Session 26 close, peer-reused subject) Math SSOT audit pattern filed in `gap_audit.md` |
+
+These landings are accepted (peer-coordinator authority is granted by the
+standing Change intent on this allowlisted meta-repo; no clobber of my
+Session 26 work). They advance `ATLAS-MODALITY-002` from `todo` to
+`in-progress` (phase 1 delivered, phases 2b-4 open).
+
+### Residual gitlink defects (re-probed this session)
+
+`target/release/gitlink-coherence.exe audit` reports **5 defects + 1
+stale-advanceable + 19 clean** (down from Session 26's 11 defects — peers
+published `origin/main` for apollo/athena/gaia/helios/hermes/asclepius during
+the gap, resolving the cat-a class).
+
+Persistent defects, each blocked on peer recovery action the coordinator
+cannot execute (no write access to `repos/<name>/...`):
+
+| Repo | Category | Pin | origin/main | WT HEAD | Branch | Last commit | Recovery (peer-owned) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| coeus | cat-c | cdaf769 | e26ba668 | cdaf769 | `codex/coeus-error-function-parity` | 3h ago | peer-coeus: publish origin/main |
+| hephaestus | no-origin-main | 47ca84a | (none) | 47ca84a | `codex/hephaestus-product-axis-reduction-parity` | 3h ago | peer-hephaestus: create `origin/main` (4-session persistent defect) |
+| kwavers | cat-b | 81a40071 | dce38e26 | **a7922bcc** | `codex/kwavers-book-migration-eviction` | **59 min ago** | peer-kwavers: merge/rebase feature to origin/main OR roll WT to main; coordinator NOT advancing — peer is actively committing |
+| leto | cat-b | c6ced81 | 5ba88cc | dcc5d54 | `codex/leto-real-sparse-lu` | 5h ago | peer-leto: merge feature to origin/main |
+| ritk | cat-c | 65035908 | c05f84d5 | 65035908 | `codex/docs-ritk-n4-figure-only` | 3h ago | peer-ritk: merge feature + publish origin/main |
+
+Stale-advanceable (still NOT safely advanceable):
+
+- `mnemosyne`: pin=00c3f6d, origin-main=905909b, WT HEAD=ec1c000 on
+  `codex/mnemosyne-tier-selection` (7h ago). `git add` would capture the
+  feature-branch HEAD `ec1c000`, not `origin/main` `905909b`. Per pitfall #2,
+  this remains blocked until peer-mnemosyne either publishes `origin/main`
+  or rolls WT back to `main`.
+
+### Assist-ladder actions taken this session
+
+- **Audit recovery**: Verified peer-coordinator's Session 26 closure (L4785)
+  and the math-SSOT inventory (L4542) survived intact — no remediation
+  required.
+- **No gitlink advances**: Every defect row is either a structurally
+  peer-only recovery (publish `origin/main`, merge feature branch) or has
+  the working tree on a feature branch that would capture the wrong SHA.
+  `kwavers` peer committed 59 minutes ago — active, not stale; coordinator
+  escalation inappropriate per `concurrent_agents` assist-or-skip rules.
+- **Closure written**: This section.
+- **No new board entries**: The 5 defect rows above are already covered by
+  their prior-session backlog items; a louder board restate is not warranted
+  until a true stale-claim (1h+ no commit signal) develops. Three defects
+  (hephaestus, kwavers PR, leto) are at 3+ sessions persistence and would
+  become candidates for user-direction escalation if they persist into
+  Session 28.
+
+### Stale-memory re-verification (this session)
+
+- `rust-toolchain.toml` pinned, MSRV unchanged.
+- `target/release/gitlink-coherence.exe` present and unchanged.
+- 25 submodules in `.gitmodules` unchanged.
+- Shared `target-dir = "target"` at `/d/atlas/.cargo/config.toml` unchanged.
+- Re-confirmed: `repos/<name>/.git` is a `gitdir:` indirection file for the
+  submodule members (except `leto`/`hephaestus`, which are full directories);
+  the gitlink pin is what `atlas-meta`'s git index records, and it can differ
+  from `repos/<name>` WT HEAD when a peer has moved their WT onto a feature
+  branch without the coordinator committing the advance.
+
+### Next-session handoff
+
+- Re-fetch + re-probe at session open (utility `gitlink-coherence.exe audit`
+  is the canonical state read).
+- Watch for peer-kwavers landing the feature branch — if `origin/main`
+  advances, the gitlink is a one-step advance.
+- Watch for peer-coeus / peer-ritk / peer-mnemosyne / peer-leto feature
+  merges — same one-step advance opportunity.
+- Watch for peer-hephaestus publishing `origin/main` — would close the
+  4-session persistent `no-origin-main` defect.
+- If 3 of the 5 persistent defects are unchanged by Session 28 open,
+  escalate to user with a single batched message naming the 2-3 worst
+  blockers (likely hephaestus + the most-active-of-the-rest) and request
+  direction on peer-side remediation.
+- Stand-alone next coordinator items still `todo`:
+  `ATLAS-OVERLAY-001` (generated patch overlay), `ATLAS-VERSION-GUARD-001`
+  (manifest version guard), `ATLAS-MATH-SSOT-CONSOLIDATION-1` (audit filed;
+  execution owned by peer-leto/peer-physics-crate), `ATLAS-WORKTREE-CLONES-001`
+  (rescue the standalone clones under `worktrees/`). Review whether any
+  becomes urgent next session.
