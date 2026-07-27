@@ -5125,5 +5125,111 @@ Stale-advanceable (still NOT safely advanceable):
   GMRES WGPU contract tests pass unchanged against the new backend.
 - Dependencies: none on ADR 0033 stage A; `KrylovBackend` is unchanged, so
   this and the capability work proceed independently.
+- Blocking upstream state (re-probed 2026-07-27 Session 28): `hephaestus`
+  is the persistent `no-origin-main` gitlink-coherence defect (pin
+  `47ca84a`, no `origin/main`), now in its 5th session. Execution of this
+  item's [arch] deletion of `athena-wgpu` and the upstream Hephaestus
+  kernel additions both require `hephaestus` to publish `origin/main` for
+  the athena peer to consume a stable remote revision and for the
+  coordinator to advance the hephaestus gitlink post-merge. Until then
+  the work is staged locally in `repos/hephaestus` on
+  `codex/hephaestus-product-axis-reduction-parity` and
+  `repos/athena` against the local checkout. Recommend the user direct
+  peer-hephaestus to publish `origin/main` (or merge the feature branch)
+  as the unblock for both this row and the 4-session persistent defect.
 - Note: `athena-wgpu` has no consumer outside Athena, so removing it breaks
   nothing downstream.
+
+## Session 28 closure (2026-07-27) — ADR 0033/0034 (Krylov/Accelerator re-architecture), coeus cat-b promotion, 1 defect escalation
+
+Short session: re-oriented after peer-coordinator landings, integrated two new
+ADRs into PM state, escalated the standing 4-session hephaestus defect as a
+cross-referenced blocker on `ATLAS-ATHENA-ACCEL-BACKEND-001`, ended with no
+new gitlink advances (5 defects + 1 stale-advanceable + 19 clean unchanged
+this session).
+
+### Peer-coordinator landings during the inter-session gap (6 commits, 5ed51fa..2cd4c01)
+
+| Commit | Subject summary |
+| :--- | :--- |
+| `2cd4c01` | Propose one Hephaestus-backed Athena accelerator backend (ADR 0034, status `Proposed`) |
+| `a454976` | Record `ATLAS-MODALITY-002` 2b progress + the unified heat-source field defect |
+| `12d3fdf` | Reserve `ATLAS-DOWNSTREAM-COORDINATION-001` ticket for LeoNeuro-INC `50bfcd9` hand-off |
+| `051d1af` | Reaffirm Athena as the Krylov owner (ADR 0033, `Accepted`, `[major] [arch]`) |
+| `b23271b` / `eb3cdb9` | Refine STEP D axes table + alternatives-rejected grounds (PATH_DEP_AUDIT_2_ENTRY.md) |
+| `1fd57ae` | Clarify STEP D orthogonal axes + alternatives rejected + push-handoff |
+
+ADR 0033 supersedes the iterative-solver lane of my Session 26
+`ATLAS-MATH-SSOT-CONSOLIDATION-1` audit (L4542). ADR 0033's reasoning is
+correct: adoption-count inversion of a ratified boundary (ADR 0022 named
+Athena Krylov SSOT; leto-ops's `ee6582d` reintroduction is a regression, not
+a new SSOT, regardless of which has more current consumers). The
+`ATLAS-MATH-SSOT-CONSOLIDATION-1` row's direct-decomposition lane (LU/QR/
+Cholesky/SVD/eigen/Schur/Bunch-Kaufman/UDU — definitively leto-ops's
+ownership per ADR 0033 §2) and sparse-interpolation-quadrature lanes remain
+valid; only the iterative-solver recommendation is superseded by
+ATLAS-ATHENA-KRYLOV-CAPABILITY-001 / ATLAS-GMRES-FORK-CONVERGE-001 /
+ATLAS-ATHENA-ACCEL-BACKEND-001. The audit-inventory table itself (ssot-
+baseline + cross-capability matrix) is unmodified and remains useful as the
+broader cross-repon math consolidation inventory; it's just that one slice
+of its recommended action set has been overtaken by a more authoritative
+ADR.
+
+### Gitlink state re-probed (post-peer-landings)
+
+`target/release/gitlink-coherence.exe audit`: **5 defects + 1
+stale-advanceable + 19 clean** (Session 27 had identical counts; this
+session's only movement is the `coeus` defect upgrading from cat-c → cat-b).
+
+| Repo | Category | Pin | origin/main | Movement vs Session 27 |
+| :--- | :--- | :--- | :--- | :--- |
+| coeus | cat-b | cdaf769 | 971fab9 | **upgraded** from cat-c: peer-coeus pushed `codex/coeus-error-function-parity` to a tracked remote branch (`origin/codex/coeus-error-function-parity`); still not merged to `origin/main` |
+| hephaestus | no-origin-main | 47ca84a | (none) | unchanged (5-session persistent) |
+| kwavers | cat-b | 81a40071 | dce38e26 | unchanged; WT HEAD moved to `a7922bcc` (peer kwavers-book-migration-eviction, 59 min ago at session open — peer is actively committing in their feature branch) |
+| leto | cat-b | c6ced81 | 5ba88cc | unchanged |
+| ritk | cat-c | 65035908 | c05f84d5 | unchanged |
+| mnemosyne | stale-advanceable | 00c3f6d | 905909b | unchanged; WT on `codex/mnemosyne-tier-selection` |
+
+### Assisted ACCEL-BACKEND row with the hephaestus-`origin/main` cross-reference
+
+Appended a "Blocking upstream state" note at `ATLAS-ATHENA-ACCEL-BACKEND-001`
+(L5127→L5137) naming the hephaestus 5-session persistent `no-origin-main`
+defect as the upstream unblock for that [arch] item's deletion of
+`athena-wgpu` and Hephaestus kernel additions. Recommend the user direct
+peer-hephaestus to publish `origin/main` (or merge the feature branch) as
+the unblock for both this row and the 4-session-persistent defect.
+
+### Assist-ladder actions taken this session
+
+- **No gitlink advances**: every defect is structurally peer-only recovery
+  (publish/merge) or has the WT on a feature branch that would capture the
+  wrong SHA per pitfall #2.
+- **Doc-sync (anti-orphaning)**: cross-referenced the new ADR 0033/
+  0034 chain into the existing `ATLAS-MATH-SSOT-CONSOLIDATION-1` audit row's
+  recommendation set (no edit to that row, but the new PM state above makes
+  the supersedence traceable); appended the blocking-upstream note to
+  ACCEL-BACKEND.
+- **Closure written**: this section.
+
+### Next-session handoff
+
+- **Highest-priority unblock**: peer-hephaestus publishing `origin/main` or
+  merging `codex/hephaestus-product-axis-reduction-parity` to main. This
+  closes a 5-session persistent defect AND unlocks `ATLAS-ATHENA-ACCEL-
+  BACKEND-001` execution. Recommend the user message peer-hephaestus
+  directly if the defect is unchanged at Session 29 open.
+- **Watch for peer-kwavers feature-branch merge**: kwavers peer is actively
+  committing to `codex/kwavers-book-migration-eviction`. Once it lands on
+  `origin/main`, the gitlink is a one-step advance.
+- **Watch for peer-coeus / peer-ritk / peer-mnemosyne / peer-leto feature
+  branch merges** — same one-step advance opportunities.
+- **3+ session persistence threshold**: hephaestus now in its 5th session;
+  kwavers PR #325 (codex/kwavers-book-migration-eviction) and leto branch
+  (codex/leto-real-sparse-lu) at 3+ sessions each. At Session 29, if
+  hephaestus is still `no-origin-main`, escalate to user with batched
+  message naming hephaestus as the worst blocker.
+- Standing coordinator-scope `todo` items unchanged:
+  `ATLAS-OVERLAY-001`, `ATLAS-VERSION-GUARD-001`, `ATLAS-WORKTREE-CLONES-001`,
+  `ATLAS-DOWNSTREAM-COORDINATION-001` (new, peer-filed), `ATLAS-MATH-SSOT-
+  CONSOLIDATION-1` (audit filed; execution owned by peer-leto/peer-physics-
+  crate and now partially overtaken by ADR 0033's Krylov sequence).
