@@ -275,6 +275,65 @@ entries + `cargo update --workspace --offline`). "completion
 ryancinsight URLs", **NOT** "12 submodules atlas-side
 gitlink-tracked".
 
+**Distinct axes (orthogonal concerns)**. The audit closure tally
+and the atlas-side tracking count are **two separate dimensions**;
+this entry uses both:
+
+| Axis                    | Count | Members                                                                                |
+|-------------------------|------:|----------------------------------------------------------------------------------------|
+| Audit-domain candidates |   12  | apollo, asclepius, CFDrs, coeus, gaia, helios, hephaestus, hermes, kwavers, leoneuro-rs, ritk, athena |
+| ryancinsight-resolvable |   11  | same list minus `leoneuro-rs` (whose remote is `https://github.com/LeoNeuro-INC/...` — not `ryancinsight`) |
+| Atlas-side tracked      |   11  | same list minus `leoneuro-rs` (no `.gitmodules` declaration; the `.gitignore` line-60 rule is intentional) |
+
+The intersection is **11** (apollo + asclepius + CFDrs + coeus +
+gaia + helios + hephaestus + hermes + kwavers + ritk + athena) —
+the ones with parent-side 160000 gitlinks pointing at r6a-class
+SHAs and `ryancinsight` origins. `leoneuro-rs` appears in the
+audit-domain axis but not the others because its origin URL points
+to `https://github.com/LeoNeuro-INC/leoneuro-rs.git` rather than to
+`https://github.com/ryancinsight/<sibling>.git`.
+
+**Alternatives considered and rejected** (so a future reviewer
+does not propose them):
+
+- *`.gitmodules` registration with `https://github.com/LeoNeuro-INC/leoneuro-rs.git`
+  as the URL*: surfaces a private-org URL in atlas' public tree.
+  Privacy anti-pattern — contradicts the user's "private and in
+  leoneuro-inc" framing. Repository identifiers (who-owns-what,
+  org-layout) are sensitive even when the URL string itself doesn't
+  carry auth tokens.
+- *Promoting `repos/leoneuro-rs` to a "weak submodule" or
+  worktree-style external reference*: not a real git feature; any
+  160000 entry still requires an upstream URL declaration to be
+  discoverable by `git submodule update --init` (`.gitmodules` is
+  the only mechanism git honours). No DRY worktree-integration
+  primitive applies here.
+- *Leaving the bogus 160000 entry with a clarifying commit
+  message in `fef2c63`*: doesn't fix the architectural problem;
+  downstream cloners still cannot resolve the SHA without
+  manually `git clone`-ing the private org. Misleading state is
+  not improved by comment only.
+
+**Push-sequence handoff** (for the eventual closure-cycle push):
+the 11 ryancinsight submodules + the parent atlas push proceed per
+the closure sequence with `--force-with-lease` (asserted before
+each destructive rewrite). The `https://github.com/LeoNeuro-INC/leoneuro-rs.git`
+upstream is intentionally **skipped** from any atlas-side `git push`;
+LeoNeuro-INC maintainers land `50bfcd9` on their own schedule via
+a separate downstream coordination step (out-of-band from atlas).
+The `leoneuro-rs` working tree stays in `repos/leoneuro-rs/` for
+local development, hidden from atlas' `git status` by the existing
+`.gitignore` line-60 rule.
+
+Predecessor commit reference: the cleanup undoes the cacheinfo
+gitlink established by `fef2c63`:
+
+  git show fef2c63bcc66e23f27807973323ddb060035d60a --stat
+
+(`fef2c63` itself carries the index-only `update-index
+--cacheinfo` line; grep the body of that commit for the rationale
+that STEP C recorded before the architectural correction surfaced.)
+
 Cleanup commit (subject `build(atlas): Drop misapplied leoneuro-rs
 gitlink — audit closure unaffected`) removes the cacheinfo-built
 160000 entry via `git rm --cached repos/leoneuro-rs`. After the
