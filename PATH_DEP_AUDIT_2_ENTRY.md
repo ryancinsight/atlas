@@ -277,53 +277,97 @@ gitlink-tracked".
 
 **Distinct axes (orthogonal concerns)**. The audit closure tally
 and the atlas-side tracking count are **two separate dimensions**;
-this entry uses both:
+this entry uses both. Renamed for axis-clarity:
 
-| Axis                    | Count | Members                                                                                |
-|-------------------------|------:|----------------------------------------------------------------------------------------|
-| Audit-domain candidates |   12  | apollo, asclepius, CFDrs, coeus, gaia, helios, hephaestus, hermes, kwavers, leoneuro-rs, ritk, athena |
-| ryancinsight-resolvable |   11  | same list minus `leoneuro-rs` (whose remote is `https://github.com/LeoNeuro-INC/...` — not `ryancinsight`) |
-| Atlas-side tracked      |   11  | same list minus `leoneuro-rs` (no `.gitmodules` declaration; the `.gitignore` line-60 rule is intentional) |
+| Axis                          | Count | Members                                                                                |
+|-------------------------------|------:|----------------------------------------------------------------------------------------|
+| Audit-eligible (had r2 hits)  |   12  | apollo, asclepius, CFDrs, coeus, gaia, helios, hephaestus, hermes, kwavers, leoneuro-rs, ritk, athena |
+| ryancinsight-remote-URL       |   11  | same list minus `leoneuro-rs` (whose remote is `https://github.com/LeoNeuro-INC/leoneuro-rs.git` — not `ryancinsight`) |
+| Atlas-160000-tracked          |   11  | same list minus `leoneuro-rs` (no `.gitmodules` declaration; the `.gitignore` line-60 rule is intentional) |
 
-The intersection is **11** (apollo + asclepius + CFDrs + coeus +
-gaia + helios + hephaestus + hermes + kwavers + ritk + athena) —
-the ones with parent-side 160000 gitlinks pointing at r6a-class
-SHAs and `ryancinsight` origins. `leoneuro-rs` appears in the
-audit-domain axis but not the others because its origin URL points
-to `https://github.com/LeoNeuro-INC/leoneuro-rs.git` rather than to
-`https://github.com/ryancinsight/<sibling>.git`.
+The previous row labels (`Audit-domain candidates` /
+`ryancinsight-resolvable` / `Atlas-side tracked`) conflated axis
+meanings: "ryancinsight-resolvable" conflated URL ownership with
+overall repo authority, while "Atlas-side tracked" mixed the
+*intent* of tracking with the *mechanism* (160000 gitlink). The
+refined labels are mechanism-specific so a future reader can answer
+"why 11 not 12" without re-running verification.
+
+**Per-member asymmetry (leoneuro-rs only)**. Of the 12 audit-eligible
+submodules, only `leoneuro-rs` has a non-uniform tri-axis state:
+
+| Axis                       | leoneuro-rs                                                 |
+|----------------------------|-------------------------------------------------------------|
+| Audit-eligible             | yes                                                         |
+| ryancinsight-remote-URL    | NO (LeoNeuro-INC origin)                                    |
+| Atlas-160000-tracked       | NO (intentional; cleared by this entry's cleanup commit)    |
+
+The 11-row intersection (apollo + asclepius + CFDrs + coeus + gaia +
+helios + hephaestus + hermes + kwavers + ritk + athena) is the set
+with all three axes = yes. Their origin URLs are
+`https://github.com/ryancinsight/<sibling>.git` and they carry
+parent-side 160000 gitlinks pointing at r6a-class SHAs. `leoneuro-rs`
+appears in the audit-eligible axis but not the others because its
+origin URL points to `https://github.com/LeoNeuro-INC/leoneuro-rs.git`
+rather than to `https://github.com/ryancinsight/<sibling>.git`.
 
 **Alternatives considered and rejected** (so a future reviewer
 does not propose them):
 
 - *`.gitmodules` registration with `https://github.com/LeoNeuro-INC/leoneuro-rs.git`
-  as the URL*: surfaces a private-org URL in atlas' public tree.
-  Privacy anti-pattern — contradicts the user's "private and in
-  leoneuro-inc" framing. Repository identifiers (who-owns-what,
-  org-layout) are sensitive even when the URL string itself doesn't
-  carry auth tokens.
-- *Promoting `repos/leoneuro-rs` to a "weak submodule" or
-  worktree-style external reference*: not a real git feature; any
+  as the URL*: surfaces the private-org identity into atlas'
+  public tree. **Concrete leak**: a downstream `git clone` of atlas
+  would carry `https://github.com/LeoNeuro-INC/leoneuro-rs.git` to
+  clone logs as a discoverable string in any `git submodule update
+  --init` attempt that traverses atlas (e.g., CI bots scanning
+  submodules); this defeats the user's "private and in leoneuro-inc"
+  framing. Repository identifiers (org layout, naming) are
+  sensitive even when the URL string itself doesn't carry auth
+  tokens.
+- *`git alternates` / `git worktree add` / `git sparse-checkout`
+  as alternatives for external co-location*: each fails for the
+  same fundamental reason — none provide an external-reference
+  primitive that bypasses the `.gitmodules` discovery seam. Any
   160000 entry still requires an upstream URL declaration to be
   discoverable by `git submodule update --init` (`.gitmodules` is
   the only mechanism git honours). No DRY worktree-integration
   primitive applies here.
 - *Leaving the bogus 160000 entry with a clarifying commit
-  message in `fef2c63`*: doesn't fix the architectural problem;
-  downstream cloners still cannot resolve the SHA without
-  manually `git clone`-ing the private org. Misleading state is
-  not improved by comment only.
+  message in `fef2c63`*: doesn't fix the architectural problem.
+  **Concrete artifact counter**: documentation alone leaves a
+  160000 entry in atlas HEAD's tree, so a downstream atlas cloner
+  gets an empty `repos/leoneuro-rs/` directory plus a SHA they
+  cannot resolve without manually `git clone`-ing the private org.
+  The misleading-state problem (160000 → empty directory +
+  unverifiable SHA on clone) is not improved by comment only.
 
-**Push-sequence handoff** (for the eventual closure-cycle push):
-the 11 ryancinsight submodules + the parent atlas push proceed per
-the closure sequence with `--force-with-lease` (asserted before
-each destructive rewrite). The `https://github.com/LeoNeuro-INC/leoneuro-rs.git`
-upstream is intentionally **skipped** from any atlas-side `git push`;
-LeoNeuro-INC maintainers land `50bfcd9` on their own schedule via
-a separate downstream coordination step (out-of-band from atlas).
-The `leoneuro-rs` working tree stays in `repos/leoneuro-rs/` for
-local development, hidden from atlas' `git status` by the existing
-`.gitignore` line-60 rule.
+**Push-sequence handoff** (for the eventual closure-cycle push,
+when authorized via the standard push-authorization gate per agent
+guidelines on high-effect operations):
+
+- **11 ryancinsight submodules + the parent atlas** push proceed per
+  the closure sequence with `git push --force-with-lease origin
+  <branch>`. **`--force-with-lease` is the safer primitive** over
+  bare `--force` because the closure cycle amended HEAD 3 times;
+  bare `--force` would clobber any concurrent upstream updates
+  that landed during the cycle (e.g., the atlas-side doc commits
+  like `5566bfc` `docs(atlas): Record modality transport boundaries`).
+  The lease verifies the upstream matches expectation before
+  allowing the local rewrite, so concurrent upstream activity
+  aborts cleanly instead of clobbering.
+- **`https://github.com/LeoNeuro-INC/leoneuro-rs.git` upstream is
+  intentionally skipped** from any atlas-side `git push`. Reason:
+  leoneuro-rs is owned by a different GitHub org (LeoNeuro-INC);
+  atlas has no authority to push to its `main` or `codex/*`
+  branches.
+- **LeoNeuro-INC maintainer coordination is out-of-band**: the
+  `50bfcd9` commit lives locally at `repos/leoneuro-rs/` and is
+  available for the LeoNeuro-INC team to land on their own org via
+  their own CI/dispatch pipeline. Atlas does not gate leoneuro-rs's
+  downstream pipeline.
+- **`repos/leoneuro-rs/` working tree remains** in place for local
+  development; the `.gitignore` line-60 rule hides it from atlas'
+  `git status` so it shows up only when an operator `cd`s into it.
 
 Predecessor commit reference: the cleanup undoes the cacheinfo
 gitlink established by `fef2c63`:
