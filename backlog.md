@@ -4936,7 +4936,7 @@ separated from it by path. **That port fixed a transcribed A&S 9.8.1
 coefficient, `3.5156329` → `3.5156229`, which alone accounted for a 5e-7
 absolute error in K₀ near x = 1.** Reference-value tests added.
 
-## ATLAS-WORKTREE-CLONES-001 — Reconcile standalone clones under `worktrees/` [patch] — todo
+## ATLAS-WORKTREE-CLONES-001 — Reconcile standalone clones under `worktrees/` [patch] — in-progress
 
 - Evidence: `D:/atlas/worktrees/` holds directories named after stack repos
   (`leto`, `eunomia`, `moirai`, `ritk`, …) that are **standalone clones**, not
@@ -4951,6 +4951,43 @@ absolute error in K₀ near x = 1.** Reference-value tests added.
   commits into the authoritative repo under `repos/`, then delete. Confirm
   `git worktree list` per repo stays within the two-tree bound afterwards.
 - Non-goal: touching genuine linked worktrees.
+
+### Session 29 partial reconciliation (2026-07-27)
+
+Inventory at session open: 8 standalone clones (full `.git` dir at
+`worktrees/<repo>`): `aequitas`, `asclepius`, `eunomia`, `hephaestus`,
+`hermes`, `iris`, `leto`, `themis`.
+
+- **Reconciled and deleted this session**: `worktrees/iris`.
+  Safety verification satisfied byte-for-byte: WT HEAD `c3cc43b` ==
+  `worktrees/iris`'s `origin/main` == atlas-meta gitlink pin ==
+  `repos/iris` HEAD == `repos/iris`'s `origin/main`; zero unpushed commits
+  (`origin/main..HEAD` empty); clean WT (no dirty files, no untracked,
+  no stashes); single local branch `main`; not a linked worktree
+  (`git worktree list` in `repos/iris` lists only the main tree). 3 days
+  stale (well past the 1h staleness sweep threshold).
+- **Intentionally NOT touched (peer mid-flight or unique content)**:
+  - `leto` — last commit 18 min prior to close (actively in flight).
+  - `aequitas` — dirty WT (`CHANGELOG.md`, `Cargo.lock`, `README.md`,
+    `src/systems/si/*.rs`, `tests/*.rs`), 5h staleness. Mid-flight peer work;
+    deletion would trigger `interaction_policy` Ask-User (irreversible loss
+    of uncommitted unique work).
+  - `themis` — dirty `Cargo.toml` containing **ATLAS-PATH-DEP-AUDIT-2 /
+    ATLAS-OVERLAY-001 generated `[patch]` overlay content** (comment
+    `Last delivery: 2026-07-27 closure cycle`). This is the peer-attributed
+    draft of the ATLAS-OVERLAY-001 deliverable; deletion would destroy
+    unique peer-authored state.
+  - `asclepius`, `eunomia`, `hephaestus`, `hermes` — 6h staleness,
+    not exhaustively safety-verified this session. Hephaestus clone HEAD
+    matches the active peer-hephaestus feature branch, currently the focus
+    of the persistent `no-origin-main` defect.
+- **Next-session action**: re-safety-verify the 6h-stale and 3-day-stale
+  clones (`asclepius`, `eunomia`, `hermes`) using the iris verification
+  protocol (HEAD == origin/main AND clean WT AND no local-only branches AND
+  no unpushed commits AND not a linked worktree) and delete each that passes.
+  `aequitas` and `themis` require the user or the owning peer to rescue the
+  dirty state before the clone can be deleted. `leto` is freshly active and
+  should not be touched.
 
 ## Session 27 closure (2026-07-27) — peer-coordinator ATLAS-MODALITY advance + the persistent gitlink defect set
 
