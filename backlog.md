@@ -4835,29 +4835,35 @@ was verified in a standalone harness compiling it against the same `leto` and
 `kwavers-core` revisions: 9/9 tests, clippy `-D warnings` and rustfmt clean.
 Re-run the package gate once the peer migration lands.
 
-### ATLAS-GMRES-SSOT-001 — decisive evidence: athena's solvers have no consumers
+### ATLAS-GMRES-SSOT-001 — CORRECTED 2026-07-27: Athena is the owner
 
-`athena_core::Gmres` and `athena_core::Cg` are referenced by **no code anywhere
-in the stack**. athena's only code consumer is harmonia, which imports solely
-`ConvergencePolicy`, `IterationObserver`, `IterationState`, `NoObserver` — the
-convergence-policy vocabulary, not the recurrences. Every `athena-*` entry in
-other repos' manifests is a `[patch]` overlay line, not a dependency.
+An earlier entry in this session read the zero-consumer evidence as grounds to
+name `leto-ops` the Krylov SSOT and supersede leto ADR 0015. **That was wrong
+and is retracted.** It inverted a ratified boundary on evidence of
+non-adoption. See [ADR 0033](docs/adr/0033-krylov-ownership-reaffirmation.md).
 
-So ADR-0015 designated athena the GMRES SSOT and removed it from leto-ops, but
-adoption never happened: the real consumers (CFDrs, kwavers) went the other way
-and are now converging on leto-ops. The de-facto SSOT is leto-ops.
+Standing evidence, unchanged: nothing in the stack references
+`athena_core::Gmres` or `athena_core::Cg`; Athena's only code consumer is
+Harmonia, which imports `ConvergencePolicy`, `IterationObserver`,
+`IterationState`, `NoObserver` only. Every other `athena-*` manifest line is a
+`[patch]` overlay entry, not a dependency.
 
-Recommendation, for sign-off rather than unilateral action ([major] [arch]):
+Corrected reading of that evidence:
 
-- Supersede ADR-0015. Name `leto-ops` the CPU Krylov SSOT — it owns the
-  `LinearOperator`/`Preconditioner` seam the consumers actually bind to, and it
-  now carries the conformance suite.
-- Keep athena's `ConvergencePolicy`/observer vocabulary; it has a real consumer
-  and leto-ops has no equivalent.
-- Decide athena's `solver/{gmres,cg}` explicitly: delete as unadopted, or
-  retain solely as the GPU-resident Krylov path (its distinguishing asset is
-  the Hephaestus WGPU backend, which leto-ops has no answer to) with that role
-  recorded. What it cannot remain is an unconsumed second CPU recurrence.
+- Atlas ADR 0022 (Accepted, `[arch]`) names Athena the iterative-solver
+  provider, citing exactly this defect: "Leto, CFDrs, and Kwavers own
+  iterative-solver recurrences beside storage, discretization, or domain code".
+  The meta README stack map agrees: `athena` — "Iterative solver policy over
+  CPU and accelerator providers."
+- Leto executed the extraction in `aa8aa9b` (2026-07-19 22:29, ADR 0015).
+- `ee6582d chore(leto): remove ndarray/nalgebra dev-dependencies`
+  (2026-07-23 17:57) reintroduced the whole family — `cg.rs`, `bicgstab.rs`,
+  `gmres/`, `lsqr.rs`, Jacobi/SOR/SSOR/ILU — four days later, under a message
+  that never mentions it. That commit is the regression.
+- CFDrs `6d18a547` then wrapped the reintroduced Leto family, propagating it.
+
+So Athena's zero consumers measure a stalled extraction, not a wrong owner.
+The unwind sequence is ADR 0033 stages A-D, tracked below.
 
 ### Concurrent-agent record
 
@@ -5005,3 +5011,38 @@ Stale-advanceable (still NOT safely advanceable):
   execution owned by peer-leto/peer-physics-crate), `ATLAS-WORKTREE-CLONES-001`
   (rescue the standalone clones under `worktrees/`). Review whether any
   becomes urgent next session.
+
+## ATLAS-ATHENA-KRYLOV-CAPABILITY-001 — Close Athena's capability gap (ADR 0033 stage A) [minor] — in-progress
+
+- Owner: coordinator. Scope: `repos/athena` `athena-core/src/solver/`,
+  `athena-leto/src/preconditioner/`.
+- Outcome: Athena carries every Krylov capability its prospective consumers
+  actually use, so stages B-D can convert them without capability loss.
+- Gap, measured against what CFDrs and Kwavers call today:
+  | Capability | Athena | Leto family | Needed by |
+  |---|---|---|---|
+  | CG / PCG | yes | yes | CFDrs |
+  | GMRES(m) | yes | yes | CFDrs, Kwavers |
+  | BiCGSTAB | **no** | yes | CFDrs |
+  | LSQR | **no** | yes | CFDrs (rectangular) |
+  | Identity precond | yes | yes | all |
+  | Jacobi precond | yes (athena-leto) | yes | CFDrs |
+  | SOR / SSOR / ILU(0) | **no** | yes | CFDrs |
+- Acceptance per item: backend-neutral recurrence in `athena-core` over the
+  existing `KrylovBackend` surface (no new backend methods unless justified,
+  so `athena-wgpu` inherits it); caller-owned allocation-stable workspace;
+  validated `ConvergencePolicy`; value-semantic `Termination`; generic
+  conformance over `f32` and `f64` on the Leto backend plus a forced
+  multi-cycle case and dimension/termination error cases.
+- Non-goal: changing the `KrylovBackend` trait, which would force
+  `athena-wgpu` work in the same increment.
+
+## ATLAS-GMRES-FORK-CONVERGE-001 — Stages B-D: migrate consumers, delete the Leto family [major] [arch] — blocked
+
+- Blocker: `ATLAS-ATHENA-KRYLOV-CAPABILITY-001`. Re-open trigger: stage A done.
+- B: CFDrs from its `6d18a547` Leto-family wrappers to Athena.
+- C: Kwavers, gated on refactoring `jacobian_vector_product` from `&mut self`
+  to `&self` (its only mutation is a scratch-buffer cache) so the matrix-free
+  operator satisfies `LinearOperator::apply(&self, ...)`.
+- D: delete `leto-ops/src/application/linalg/iterative/` including the
+  duplicated `LinearOperator`/`Preconditioner` traits; residue scan clean.
