@@ -3983,10 +3983,29 @@ Closure requires ALL of the following landed in future slices:
 - Pushed commit: see git log for SHA (atlas-meta origin/main
   following push).
 
-## ATLAS-TOOLS-TEMPLATE-EXTRACT-1 — Extract shared `tools/_template/` package module for coordinator-owned tool Cargo lints/profiles/deps after 3rd occurrence [patch] [arch] — todo
+## ATLAS-TOOLS-TEMPLATE-EXTRACT-1 — Extract shared `tools/_template/` package module for coordinator-owned tool Cargo lints/profiles/deps after 3rd occurrence [patch] [arch] — done
 
-- Owner: unassigned (Atlas-Codex coordinator claimable; filed by
-  Session 23).
+- Owner: Atlas-meta coordinator (Session 25).
+- Delivery: commit `e260055` (`refactor(atlas): Extract tools/_template/
+  for shared coordinator-tool config`) landed and pushed to
+  `origin/main`. Four new files under `tools/_template/`
+  (`template-Cargo.toml`, `template-rust-toolchain.toml`, `README.md`,
+  `check-drift.sh`); `.gitignore` adds `!tools/_template/` to exempt
+  the canonical substrate dir from the `_*` catch-all.
+  `tools/checkout-path-dependencies/rust-toolchain.toml`
+  reconciled to canonical key order (`channel` → `components` →
+  `profile`).
+- Verification: per-tool gates under committed budgets —
+  `criterion-regression` 21/21 nextest in 5.681s + 2/2 doctests,
+  `gitlink-coherence` 18/18 nextest in 3.309s + 0 doctests,
+  `checkout-path-dependencies` 11/11 nextest in 7.520s + 1 doctest,
+  all under the 30s slow bound. `tools/_template/check-drift.sh`
+  exits 0 across all 3 consumers post-reconciliation.
+- Note on cargo.toml policy source: not invented by this template;
+  expresses `agent.md` performance_engineering + integrity lint floor
+  (unwrap_used denied, pedantic warn-baseline, unsafe_code forbid,
+  missing_docs deny; debug = line-tables-only with package.* debug =
+  false; release strip = symbols; overflow-checks = true).
 - Outcome: extract the recurring `[lints.rust]` / `[lints.clippy]`
   / `[profile.*]` / `[dependencies]` configuration that is pasted
   verbatim across the three coordinator-owned tool packages
@@ -4065,3 +4084,62 @@ Closure requires ALL of the following landed in future slices:
 - Evidence: coeus main carries 48 path-deps and 8 `[patch]` sections (landed via provider PRs), making coeus unconsumable as a git dependency downstream (CFDrs et al.) — the defect class already fixed forward in hermes, mnemosyne, moirai, leto, apollo, hephaestus. The validated 21-line conversion pattern applies plus the 8 patch-section removals.
 - Scope: (1) convert coeus mainline manifests to git+version sources as a forward commit (native conversion; version requirements swept against current stack versions per pin discipline — no requirement lag); coordinate scope with the live provider stream (open PR #219 and the three provider PRs) via board claim, converging rather than colliding; (2) complete the `coeus-backend-parity` lane's item, merge it to main, `git worktree remove` it and delete its branch in the same cycle (git_discipline: the two-tree bound is throughput — a lane outliving its item is integration debt); (3) verify coeus resolves as a git dependency from a consumer (CFDrs check build) after conversion.
 - Acceptance: zero path-deps/`[patch]` sections on coeus main; a downstream git-dependency resolution succeeds; the parity lane merged and removed (`git worktree list` = main tree only); coherence check green.
+
+## Session 25 closure (2026-07-26) — coordinator gitlink advances + tools/_template/ extract
+
+- Head: `77bcaca` → `e519928` on `origin/main` (pushed).
+- Outcomes delivered:
+  1. `b022211` build(atlas): Advance aequitas and apollo gitlinks to
+     origin/main. Two stale-advanceable gitlinks advanced after
+     `merge-base --is-ancestor` verification (aequitas `343ceb57` →
+     `f19ba151`, apollo `82e67c8f` → `d60828cd`). ritk left to peer
+     because the working tree was on `codex/docs-ritk-pages-closeout`
+     with a dirty Cargo.toml.
+  2. `e260055` refactor(atlas): Extract `tools/_template/` for shared
+     coordinator-tool config (closes `ATLAS-TOOLS-TEMPLATE-EXTRACT-1`).
+     Four new files (template-Cargo.toml, template-rust-toolchain.toml,
+     README.md, check-drift.sh) consolidate the third-occurrence
+     verbatim `[lints]`/`[profile.*]`/shared-`[dependencies]` section
+     across `checkout-path-dependencies` / `criterion-regression` /
+     `gitlink-coherence`. `checkout-path-dependencies/rust-
+     toolchain.toml` reconciled to template canonical key order.
+     `.gitignore` whitelisted `tools/_template/` (the `_*` catch-all
+     matches the leading underscore). Per-tool gates passed:
+     criterion-regression 21/21 in 5.681s + 2/2 doctests,
+     gitlink-coherence 18/18 in 3.309s, checkout-path-dependencies
+     11/11 in 7.520s + 1 doctest. `check-drift.sh` exits 0.
+  3. `e519928` build(atlas): Advance CFDrs, coeus, mnemosyne gitlinks
+     to origin/main after their origin/main advanced from under
+     earlier coordinator advances (CFDrs `d4bc1702` → `f083b65f`,
+     coeus `15ee8e59` → `765a0556`, mnemosyne `8ba205c9` →
+     `00c3f6de`). All pins verified ancestral to origin/main before
+     staging. ritk skipped again (peer on
+     `codex/docs-ritk-n4-figure-clarity`). This commit also absorbed
+     peer-Codex backlog updates recording the `ATLAS-CFDRS-COEQ-
+     BLOCKER-1` and `ATLAS-CFDRS-CI-SIBLING-CHECKOUT-1` closure
+     trailing peer `fc2fae5` coeus advance — concurrent agents
+     detect-and-reconcile: kept co-authored, attribution noted here.
+- Gitlink-coherence inventory at session close: 4 defects remain
+  (hephaestus no-origin-main, kwavers cat-b via PR #325, leto cat-b
+  via codex/leto-real-sparse-lu, asclepius cat-a local main not
+  pushed) + 1 stale-advanceable (ritk). Session started with 7
+  defects; closed during this session by peer pushes: mnemosyne #7,
+  consus #8, coeus #1, moirai #3 stayed clean. Stale-advanceable
+  `aequitas` and `apollo` advanced by this session.
+- Next-session handoff: the math-SSOT consolidation audit (new user
+  directive flagged this session) is the standing next coordinator
+  scope item — a cross-repo grep across `repos/kwavers/src`,
+  `repos/CFDrs/src`, `repos/helios/src`, `repos/leto/src` for math
+  capability (ndarray / nalgebra / rsparse / Matrix / solve / lu /
+  qr / svd / eigen / fft / convolve / sparse), tabulated
+  capability × repo × module. File `ATLAS-MATH-SSOT-CONSOLIDATION-1`
+  DoR-style in backlog (audit-only; execution is peer-leto /
+  peer-physics-crate work). Record the audit pattern in gap_audit.md
+  as a reusable audit template.
+- Open peer recovery work (coordinator cannot execute, only record):
+  - peer-hephaestus: publish `main` ref to origin (currently on
+    codex/comparison-expression-parity; no main);
+  - peer-kwavers: merge/close PR #325 onto origin/main;
+  - peer-leto: merge `origin/codex/leto-real-sparse-lu` to origin/main;
+  - peer-asclepius: push local main `47e73d1e` to origin/main; the
+    gitlink pin already points to that SHA.
