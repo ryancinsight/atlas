@@ -26,9 +26,11 @@
   their nextest budgets; Hyperion's spectra disclaimer is revised in the same
   change.
 
-## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — todo
+## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — in-progress
 
-- Owner: unclaimed. Decision:
+- Owner: session-808504af, phase 1 only; scope `repos/aequitas/src/systems/si/**` +
+  `tests/dimension_laws.rs` + `CHANGELOG.md`. Phases 2-4 remain unclaimed.
+  Decision:
   [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) §5.
 - Outcome: every energy-transport implementation terminates in a
   `VolumetricPowerDensity` (W·m⁻³) Aequitas quantity, and bioheat consumes that
