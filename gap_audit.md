@@ -1,6 +1,6 @@
 # atlas — cross-repository integration gap audit
 
-## Aequitas physical-metric gap audit (2026-07-24)
+## Aequitas physical-metric gap audit (2026-07-27)
 
 This audit compares the Aequitas SI surface with the public physical inputs and
 metric outputs in CFDrs, Helios, and Kwavers. It counts a gap only when a
@@ -13,32 +13,27 @@ oracles.
 ### Live child refresh (2026-07-27)
 
 This refresh supersedes earlier branch-specific status claims for the named
-consumers. CFDrs' child audit identified and closed `CFDRS-AEQ-MET-17`: network
-pressure/flow state, simulation time, and public network-analysis metrics now
-use Aequitas quantities, while equation-scaled residual norms remain explicit
-scalar solver diagnostics. Its remaining issue is the exact 5 mm solver
-runtime budget residual. Helios'
-current child audit has no open Aequitas metric row. Kwavers MET-05 is now
-implemented at the public analysis and diagnostics boundaries: validated
-`[Length; 3]` spacing reaches vasculature segmentation, geometry and centerline
-outputs are typed `Length`, Doppler inputs/outputs are typed Aequitas
-quantities, and `FunctionalUltrasoundGPS` forwards construction-grid spacing.
-The locked `kwavers-analysis` check passes and the focused vasculature lane
-passes 22/22. The live Kwavers child commit `fbe2c8fc5` now also passes the full
-locked analysis and diagnostics package suites, 724/724 and 191/191, with both
-doctest lanes at 1/1 and both Rustdoc commands exiting 0. Warning-denied
-Clippy remains blocked only by three pre-existing `kwavers-math` findings in
-`linear_algebra/sparse/solver.rs`; the former peer-owned `mnemosyne-local`
-page-module compile blocker is resolved in the current dependency graph.
-Kwavers MET-06 is now resolved in child commit `1ee64810e`: thermal material
-constructors/accessors and temperature-dependent properties use Aequitas
-thermal quantities, material perfusion uses `MassDensityRate`, and the therapy
-and Pennes callers are migrated. Locked `kwavers-medium` Nextest passes
-191/191, the thermal/bubble physics lane passes 361/361, and the simulation
-package check passes. No open consumer metric row remains; the only recorded
-Kwavers verification residual is the three pre-existing `kwavers-math`
-Clippy findings. The stale Coeus path in the active RITK manifest was repaired
-on its live branch at `92893e23`; no local path shim is used.
+consumers. CFDrs' child audit now closes `CFDRS-AEQ-MET-18` through
+`CFDRS-AEQ-MET-21`: node/metadata quantities, transient droplet quantities,
+composition event/control quantities, and public composition/droplet timepoint
+vectors use Aequitas contracts. The implementation commits are `3282d6ed`
+and `40869330`; the cfd-1d test-target check passes, package Nextest passes
+736/736 with 3 skips, warning-denied all-target Clippy passes, and doctests
+pass 8/8 with 3 ignored. The remaining CFDrs metric classification items are
+`MixtureComposition::fractions` as explicit dimensionless storage and solver
+residual norms whose units depend on the assembled/scaled equation. The
+separate CFDrs solver-runtime residual remains the exact 5 mm cfd-3d Venturi
+case at 30.042 s against the 30 s budget; it is not an Aequitas typing gap.
+
+Helios' current child audit has no open Aequitas metric row. The helical
+delivery and collimation restoration is `283048d`, with typed `Angle`,
+`Length`, `Time`, and `Velocity` through public delivery/simulation seams and
+focused value-semantic gates passing; the full dirty shared provider graph is
+not claimed as a clean workspace gate. Kwavers' current HIFU restoration is
+`799aa1c0d`; typed frequency, length, power, pressure, volume, and schedule
+coordinates are present and its focused source/check gates pass. No open
+Kwavers Aequitas metric row remains; the remaining recorded verification debt
+is peer-owned math/provider work, not a missing metric contract.
 
 ### Current Aequitas coverage
 
@@ -149,6 +144,17 @@ on its live branch at `92893e23`; no local path shim is used.
 | `KWAVERS-AEQ-MET-11` | `kwavers-transducer::ultrafast::sequencer` | Transmission timing, tilt, PRF/frame rate, total duration, sound speed, and depth crossed the sequencer boundary as raw SI scalars. | Kwavers, Aequitas | **VERIFIED in `614c71197`.** The schedule and event contracts use Aequitas `Time`, `Angle`, `Frequency`, `Velocity`, and `Length`; workspace check, transducer/boundary Nextest 318/318 with 1 skipped, warning-denied Clippy, and doctests pass after correcting the Coeus local paths. |
 | `KWAVERS-AEQ-MET-12` | `kwavers-transducer` design propagation and transducer validation | Aperture, frequency, sound speed, focal distance, timing step, pitch, wavelength, focal pressure, intensity, and spatial extents crossed the design/validation boundary as raw scalars. | Kwavers, Aequitas | **VERIFIED in `715ceeda7`; provider dimensions in `f19ba15`.** Design and validation carriers use Aequitas `Length`, `Frequency`, `Velocity`, `Time`, `Pressure`, and `Intensity`; workspace check, transducer/boundary Nextest 318/318 with 1 skipped, warning-denied Clippy, and doctests pass. |
 | `KWAVERS-AEQ-MET-13` | `kwavers-driver` beam, thermal, and experiment-result DTOs | Beam focal pressure/intensity/extents, timing and geometry inputs, thermal rises/headroom, and resistor margins crossed the public driver result boundary as raw scalars. | Kwavers, Aequitas | **VERIFIED in `e134cacda`.** Driver beam-step, beam-validation, pressure-map, thermal-state, and experiment-metrics carriers use Aequitas quantities; manifest serialization remains an explicit text boundary and scalar extraction stays at formula/check boundaries. Full workspace check, driver Nextest 487/487, warning-denied Clippy, and driver doctests pass. |
+
+### Current child closure ledger (2026-07-27)
+
+| ID | Consumer | Current closure and residual |
+|---|---|---|
+| `CFDRS-AEQ-MET-18` | CFDrs node/metadata | `NodeProperties` and `NetworkMetadata` use Aequitas `Pressure`, `ThermodynamicTemperature`, and `Volume`; arbitrary metadata remains dimension-unknown by contract. Verified in the child audit with Nextest 735/735 and doctests 8/8. |
+| `CFDRS-AEQ-MET-19` | CFDrs transient droplets | Droplet volume, time, normalized positions, occupancy, and split metrics use Aequitas `Volume`, `Time`, and `Dimensionless`; droplet parity 9/9 and literature validation 5/5 pass. |
+| `CFDRS-AEQ-MET-20` | CFDrs transient composition controls | Event/control/snapshot time, hematocrit, flow, pressure, and CFL use Aequitas `Time`, `Dimensionless`, `VolumetricFlowRate`, and `Pressure`; composition parity 21/21 passes. |
+| `CFDRS-AEQ-MET-21` | CFDrs transient timepoints | Public composition/droplet requested, calculated, and returned timepoints use `Time<T>`; package Nextest 736/736 with 3 skips, all-target Clippy, and doctests 8/8 pass. Mixture fractions remain explicit dimensionless storage; solver residuals remain equation-dependent. |
+| `HELIOS-AEQ-MET-07/08` | Helios helical delivery and collimation | `283048d` restores typed helical delivery/projection/frame and collimation metrics; focused value-semantic gates pass and no Aequitas metric row remains open. |
+| `KWAVERS-AEQ-MET-14` | Kwavers HIFU planning | `799aa1c0d` restores typed frequency, length, power, pressure, volume, position, and schedule metrics; focused source/check gates pass and no Aequitas metric row remains open. |
 
 ### Session refresh (2026-07-24)
 
