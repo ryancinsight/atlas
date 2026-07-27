@@ -14,17 +14,20 @@ oracles.
 
 This refresh supersedes earlier branch-specific status claims for the named
 consumers. CFDrs' child audit now closes `CFDRS-AEQ-MET-18` through
-`CFDRS-AEQ-MET-22`: node/metadata quantities, transient droplet quantities,
+`CFDRS-AEQ-MET-23`: node/metadata quantities, transient droplet quantities,
 composition event/control quantities, public composition/droplet timepoint
-vectors, and transient mixture fraction/concentration quantities use Aequitas
-contracts. The implementation commits are `3282d6ed`, `40869330`, and
-`3fd1bf5f`; the cfd-1d test-target check passes, package Nextest passes
-736/736 with 3 skips, warning-denied all-target Clippy passes, and doctests
-pass 8/8 with 3 ignored. The remaining CFDrs solver residual norms are not
-assigned an SI dimension because their units depend on the assembled/scaled
-equation. The separate CFDrs solver-runtime residual remains the exact 5 mm
-cfd-3d Venturi case at 30.042 s against the 30 s budget; it is not an
-Aequitas typing gap.
+vectors, transient mixture fraction/concentration quantities, and the public
+cell-separation force/geometry/fluid contracts use Aequitas types. MET-23 adds
+provider `Force`/`Newton`, typed `EquilibriumResult` force/position fields,
+typed direct margination/cell-interaction inputs, typed Fahraeus/CFL/rheology
+inputs and outputs, typed plasma-skimming diameters, and typed cross-junction
+geometry/flow inputs. CFDrs commit `f4be59c4` closes the slice: `cfd-1d`
+compilation, full Nextest (736/736, three skipped), focused cfd-validation
+Nextest (57/57), doctests (8/8, three ignored), and warning-denied Clippy pass.
+The remaining CFDrs solver residual norms are not assigned an SI dimension
+because their units depend on the assembled/scaled equation. The separate
+CFDrs solver-runtime residual remains the exact 5 mm cfd-3d Venturi case at
+30.042 s against the 30 s budget; it is not an Aequitas typing gap.
 
 Helios' current child audit has no open Aequitas metric row. The helical
 delivery and collimation restoration is `283048d`, with typed `Angle`,
@@ -40,7 +43,7 @@ is peer-owned math/provider work, not a missing metric contract.
 
 - The provider currently exposes `Length`, `Area`, `Volume`, `Time`,
   `ReciprocalTime`, `Velocity`, `Pressure`, `Energy`, `EnergyPerArea`,
-  `AbsorbedDose`, `Power`, `MassDensity`, `DynamicViscosity`,
+  `AbsorbedDose`, `Power`, `MassDensity`, `DynamicViscosity`, `Force`/`Newton`,
   `SurfaceTension`,
   `ThermalConductivity`, `ThermalDiffusivity`, `SpecificHeatCapacity`,
   `ReciprocalLength`, `VolumetricFlowRate`, `AcousticImpedance`, `Intensity`,
@@ -86,19 +89,16 @@ is peer-owned math/provider work, not a missing metric contract.
 - Aequitas now also owns the distinct `SurfaceTension` semantic dimension and
   canonical quantity serde support in commits `07e2252` and `6dc68c4`.
 - The current CFDrs cell-separation slice types cell geometry, density,
-  cascade dimensions, parent velocity, Zweifach–Fung channel diameter, and
-  optimization stage widths; the current Helios slices type helical delivery
+  cascade dimensions, parent velocity, Zweifach–Fung channel diameter, stage
+  widths, force balance, viscosity, shear rate, plasma-skimming diameters, and
+  cross-junction geometry/flow; the current Helios slices type helical delivery
   and collimation metrics; and the current Kwavers sequencer slice types
   transmission timing, PRF, frame rate, tilt, sound speed, and depth. Each
   keeps scalar extraction at a validation, trigonometric, geometry-kernel, or
   source-trait boundary.
-- CFDrs child commit `1a7aa1d6` records the latest broad-gate state: the
-  unchanged 825-test runtime acceptance remains open, and the current retry
-  stops before CFDrs compilation on live Leto WIP in
-  `leto-ops::three_dimensional` because generic `FloatElement` code calls
-  `.mul_add` instead of `NumericElement::scalar_fmadd`. This is an upstream
-  provider blocker, not an additional Aequitas metric gap or a CFDrs
-  compatibility-shim opportunity.
+- CFDrs commit `f4be59c4` closes the public cell-separation metric boundary.
+  The remaining broad solver gate is the 5 mm cfd-3d Venturi runtime residual,
+  not an Aequitas typing gap.
 - Aequitas now also owns the named vascular result dimensions used by CFDrs:
   `PressureGradient`, `HydraulicResistance`, `HydraulicInertance`, and
   `Compliance`, merged in provider commit `446eb9f`.
@@ -155,6 +155,7 @@ is peer-owned math/provider work, not a missing metric contract.
 | `CFDRS-AEQ-MET-20` | CFDrs transient composition controls | Event/control/snapshot time, hematocrit, flow, pressure, and CFL use Aequitas `Time`, `Dimensionless`, `VolumetricFlowRate`, and `Pressure`; composition parity 21/21 passes. |
 | `CFDRS-AEQ-MET-21` | CFDrs transient timepoints | Public composition/droplet requested, calculated, and returned timepoints use `Time<T>`; package Nextest 736/736 with 3 skips, all-target Clippy, and doctests 8/8 pass. Solver residuals remain equation-dependent. |
 | `CFDRS-AEQ-MET-22` | CFDrs transient mixture fractions | Public fraction maps, hematocrit construction/accessors, weighted blends, tolerances, and node/edge concentration queries use `Dimensionless<T>`; the same package gate passes 736/736 with 3 skips, all-target Clippy passes, and doctests pass 8/8 with 3 ignored. |
+| `CFDRS-AEQ-MET-23` | CFDrs cell-separation public family | **RESOLVED in `f4be59c4`; provider `Force`/`Newton` in Aequitas `8dfc6de`.** `Length`, `MassDensity`, `DynamicViscosity`, `Velocity`, `ReciprocalTime`, and `VolumetricFlowRate` type equilibrium, direct margination/cell-interaction, Fahraeus/CFL/rheology, plasma-skimming, cross-junction, model, and three-population boundaries. Scalar extraction remains at validation and numerical formula boundaries with no compatibility facade. cfd-1d Nextest passes 736/736 with 3 skipped, focused cfd-validation Nextest passes 57/57, doctests pass 8/8 with 3 ignored, and warning-denied Clippy passes. |
 | `HELIOS-AEQ-MET-07/08` | Helios helical delivery and collimation | `283048d` restores typed helical delivery/projection/frame and collimation metrics; focused value-semantic gates pass and no Aequitas metric row remains open. |
 | `KWAVERS-AEQ-MET-14` | Kwavers HIFU planning | `799aa1c0d` restores typed frequency, length, power, pressure, volume, position, and schedule metrics; focused source/check gates pass and no Aequitas metric row remains open. |
 
