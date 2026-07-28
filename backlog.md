@@ -187,6 +187,73 @@
   showing the change is a win. A site where the jagged shape is genuinely correct
   is recorded as such rather than converted.
 
+## ATLAS-GAIA-GITDEP-001 — Gaia's committed path dep makes it unconsumable as a git dependency [patch] — blocked
+
+- Owner: unclaimed, and **not claimable without colliding with a live peer**.
+  `.cargo/config.toml` was edited 1 minute before this entry was written and a
+  peer commit landed seconds before it; the stack overlay is the active scope of
+  the ATLAS-OVERLAY-003 / PATH_DEP_AUDIT_2 stream. Do not enter it from here.
+- Defect: `repos/gaia/Cargo.toml:40` declares
+  `eunomia = { path = "../eunomia/crates/eunomia", ... }`. A consumer that takes
+  `gaia` as a **git** dependency makes Cargo resolve that path inside the fetched
+  gaia repo, which has no `../eunomia`, so resolution fails with:
+
+  ```text
+  error: no matching package named `eunomia` found
+  location searched: Git repository https://github.com/ryancinsight/gaia
+  required by package `gaia v0.3.0 (...gaia#42ef63af)`
+      ... which satisfies git dependency `gaia` of package `helios-math`
+  ```
+
+  This is the prohibited state named in `AGENTS.md`: a committed path dep on a
+  member's mainline "make[s] the member unconsumable as a git dependency". Twelve
+  stack manifests currently commit sibling path deps; gaia's is the one on a
+  published consumption edge.
+- Blast radius, measured: `apollo`, `athena`, `hyperion`, `proteus`, `tyche`,
+  `harmonia`, and `horae` all resolve normally, so this is not stack-wide — it is
+  specific to gaia consumers. `helios` is confirmed dead (fails identically under
+  `--locked`, so the committed lock does not rescue it).
+- Compounding cause: `repos/helios/Cargo.toml` still carries the H-050 comment
+  block describing "Synchronized local-checkout patches" that redirect the git
+  sources to local paths, but **the `[patch]` sections it describes are gone**
+  (`grep -c '^\[patch' == 0`), and every one of the 128 patch lines in the root
+  `.cargo/config.toml` is `#OFF#`. The local-resolution mechanism was removed
+  while providers still carry path deps, leaving an orphaned comment and a
+  workspace that cannot resolve.
+- Fix direction (for whoever owns the overlay stream, not for a drive-by):
+  convert gaia's sibling path deps to `git + version` per upstream ownership, and
+  land it together with whichever local-resolution mechanism the overlay stream
+  settles on — otherwise gaia's own development loses its local eunomia.
+- Re-open trigger: the overlay stream lands, or `cargo metadata` in
+  `repos/helios` resolves.
+
+## ATLAS-HELIOS-GENERIC-001 — Instantiate the f32-only generic tests across shipped scalars [patch] — blocked
+
+- Owner: this stream; **blocked on ATLAS-GAIA-GITDEP-001** — helios cannot
+  resolve, so no test change in it is verifiable.
+- Defect, verified independently: **24 test functions across 21 helios files**
+  are named `*_is_generic_over_scalar_f32` and assert genericity at exactly one
+  concrete type, with **zero** f64 counterparts. Every monomorphization a caller
+  can instantiate beyond `f32` is therefore unverified — the mechanical form of
+  the fake-generics risk. The names additionally violate the naming prohibition
+  (a type name inside a function name). A concurrent peer audit reported 25
+  files; the true count is 21, all in helios.
+- Shipped scalar set is `{f32, f64}`: `helios_math::Scalar` is
+  `eunomia::RealField`, and `RealField` is implemented for `f32` and `f64` only,
+  so `f16`/`bf16` are not instantiable and are not part of this gap.
+- Pattern established and API-checked (one generic body + one `#[test]` per
+  shipped type, named by precision rather than by Rust type so the naming
+  prohibition holds): `T::from_f64(..)` builds literals, `RealField::exp`/`recip`
+  supply the math, and tolerances derive from `T::EPSILON * T::from_f64(ULPS)`
+  with the ulp budget justified from the operation chain — replacing fixed
+  literals like `epsilon = 1e-5`, which are themselves the analytical-threshold
+  violation.
+- In-tree, unverified: `repos/helios/crates/helios-solver/src/dose.rs` carries
+  the first conversion (`primary_fluence_matches_beer_lambert`, 16-ulp derived
+  bound, instantiated at both widths). It is held uncommitted because the
+  blocker prevents a green commit, not because it is incomplete. Remaining: 23
+  test functions across 20 files.
+
 ## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — todo
 
 - Owner: unclaimed; scope: `repos/{apollo,coeus,consus,hephaestus,kwavers,leto,moirai}/.github/workflows/rust-release.yml`
