@@ -21,13 +21,14 @@ metric contract:
 |---|---|---|
 | CFDrs | `f4be59c4` closes `CFDRS-AEQ-MET-23`; Aequitas provider `8dfc6de` adds `Force`/`Newton`. | The audit recheck found no new metric row. `cfd-1d` Nextest 736/736 with 3 skipped, focused `cfd-validation` Nextest 57/57, doctests 8/8 with 3 ignored, and warning-denied Clippy pass. The exact 5 mm `cfd-3d` Venturi case remains 30.042 s against the 30 s budget; this is a runtime defect, not a missing metric. |
 | Helios | `05a4067` closes `HELIOS-AEQ-MET-06` by typing GPU attenuation mass attenuation and density inputs; `283048d` and `4fd2c88` close helical delivery and collimation. | The audit recheck found no new metric row. `helios-gpu` check, 10/10 Nextest, warning-denied Clippy, doctests, and Rustdoc pass under the current local provider overlay. Shared unused-patch/linker warnings remain graph diagnostics, not consumer metric gaps. |
-| Kwavers | `c73fc9fe1`, `be7da06bb`, `6da60c3cf`, `d0d7d5a5f`, `b3d2e29ad`, `62275b3e4`, `c9ce4f3d8`, `eed5aef4a`, and `d00b07b28` close MET-22 through MET-30; `215d8915b` repairs typed CEUS tests and `58d1750c1` consolidates interpolation on `leto_ops`. `cae5ff22c` pins the electrical provider and `ed19f4e44` removes the obsolete Consus branch selector. | The audit recheck found no new metric row. The affected math/medium/physics lane passes 1,861/1,861 Nextest tests with one skip. Tyche `1527964` and Asclepius `bbf3840` now use portable provider sources. A shared dirty lock graph still needs a deliberate standalone lock refresh; duplicate provider identities in that overlay are integration debt, not an Aequitas metric gap. |
+| Kwavers | `c73fc9fe1`, `be7da06bb`, `6da60c3cf`, `d0d7d5a5f`, `b3d2e29ad`, `62275b3e4`, `c9ce4f3d8`, `eed5aef4a`, and `d00b07b28` close MET-22 through MET-30; `215d8915b` repairs typed CEUS tests and `58d1750c1` consolidates interpolation on `leto_ops`. `cae5ff22c` pins the electrical provider and `ed19f4e44` removes the obsolete Consus branch selector. | The audit recheck found no new metric row. The delivered math/medium/physics lane evidence is 1,861/1,861 Nextest tests with one skip. Tyche `1527964` and Asclepius `bbf3840` now use portable provider sources. Atlas overlay `69a8dba` maps Aequitas and Eunomia to canonical `repos/` trees; the generator check is green and duplicate scanning finds one local identity per provider. A locked package gate still requires a clean standalone lock refresh because peer-dirty provider manifests make Cargo rewrite the overlay lock. Current peer-WIP failures are recorded in the child audit and are not metric gaps. |
 
 No unimplemented Aequitas metric contract remains in the audited CFDrs, Helios,
 or Kwavers public surfaces. The remaining conditions are verification or
-integration defects: the CFDrs runtime-budget overrun, shared Atlas
-provider-overlay lock/source coherence debt, and peer-owned dirty work. None
-is hidden behind a consumer shim.
+integration defects: the CFDrs runtime-budget overrun, the clean standalone
+lock refresh required after the canonical overlay change, and peer-owned dirty
+work. The overlay no longer resolves duplicate Aequitas/Eunomia identities,
+and no residual is hidden behind a consumer shim.
 
 ### Prior child refresh baseline (2026-07-27)
 
