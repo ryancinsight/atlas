@@ -5760,7 +5760,7 @@ blocker on Athena.
 - Evidence: 425 leto-ops tests pass.
 - Blocker: peer-owned; not committed by this session per concurrent_agents policy.
 
-## ATLAS-OVERLAY-COHERENCE-001 — The stack overlay resolves worktree copies, not the authoritative repos [major] — todo
+## ATLAS-OVERLAY-COHERENCE-001 — The stack overlay resolves worktree copies, not the authoritative repos [major] — done (by peer)
 
 - **Evidence (2026-07-27).** In `repos/athena`, `cargo tree -p hephaestus-core`
   resolves to `D:\atlas\worktrees\hephaestus-unary-math-parity\crates\hephaestus-core`.
@@ -5797,6 +5797,15 @@ blocker on Athena.
   the real seam in isolation) and stage 4.
 - Related: `ATLAS-WORKTREE-CLONES-001` — the same `worktrees/` directory also
   holds standalone clones, which is how these paths became load-bearing.
+- **Closed 2026-07-28.** A peer landed the fix independently in `d89ccd9`
+  ("Own local resolution in one stack overlay") and `ad941c0` ("Normalize URL
+  stem before emitting variants"), with a generator at
+  `scripts/atlas-stack-overlay.py` (`generate` / `check`) so the overlay is
+  emitted rather than hand-pointed. Verified: `cargo tree -p hephaestus-core`
+  from `repos/athena` now resolves `repos/hephaestus/crates/hephaestus-core`,
+  and `aequitas` resolves `repos/aequitas`. No worktree paths remain in the
+  overlay. The residual scope item stands: consumer gate results recorded
+  before this fix were taken against lane state and are worth re-running.
 
 ## ATLAS-CFDRS-TEST-BUDGET — 8 integration tests exceed 30s nextest budget [patch] — blocked
 
@@ -5829,3 +5838,49 @@ blocker on Athena.
   state across the three microventuri cases, tighter rheology-update scheme.
 - Note: workload/assertion reduction is explicitly NOT an acceptance path
   per `CFDRS-RUNTIME-001`.
+
+## ATLAS-VECTOR-SEAM-PREPARED-CONTRACT-001 — Reconcile lending vs retained prepared reductions [major] [arch] — todo
+
+- **Blocks** `ATLAS-ATHENA-ACCEL-BACKEND-001` stage 3 merge. Not a defect in
+  anyone's work: two correct designs met at a seam and one has to give.
+- **What happened.** The `DenseVectorOps` seam landed with owned prepared
+  handles (hephaestus `e1f2800`). A peer then added CUDA and ROCm parity
+  (`d899d88`, `673a7bd`) by wiring through those backends' pre-existing
+  `PreparedDot<'a, T>` / `PreparedL2Norm<'a, T, N>`, which borrow their
+  operands. Accommodating both forced the associated types to become lending
+  GATs: `type PreparedDot<'a> where Self: 'a`, with
+  `prepare_dot<'a>(&self, …, left: &'a Buffer, …) -> Result<PreparedDot<'a>>`.
+- **The conflict.** Athena workspaces *retain* prepared reductions beside the
+  vectors they are bound to — `CgWorkspace` holds `residual_norm:
+  B::PreparedNorm` next to `residual: B::Vector` — which is exactly what makes
+  a solve allocation-free and is the seam doc's own stated rationale
+  ("so a solver reusing the same buffers across iterations allocates nothing
+  after setup"). A handle borrowing its operand cannot be stored that way: the
+  workspace would be self-referential. Instantiating at `'static` fails too,
+  since `prepare_dot` ties the handle to the operand borrow.
+- **Options.**
+  1. *Owned handles in the seam.* Have the CUDA and ROCm impls wrap their
+     borrowing types in an owning form, cloning cheap buffer handles as the
+     WGPU impl already does, and drop the lifetime. Restores the documented
+     retention property and unblocks Athena unchanged. Cost: touches two
+     backends whose hardware is not testable on this host.
+  2. *Solve-scoped handles in Athena.* Keep the lending seam and move prepared
+     reductions out of the workspace into a value created once per
+     `solve_into` and held for that call. Allocation stability is preserved
+     within a solve, which is where it matters, and handles stop outliving the
+     solve that uses them — arguably the better lifetime. Cost: an
+     `athena-core` refactor across the CG, GMRES, and BiCGSTAB workspaces plus
+     both existing backends, and it changes a published contract.
+  3. *Drop prepared reductions in the Hephaestus backend.* Use the seam's
+     one-shot `dot`/`norm_l2`. Compiles immediately and loses the
+     allocation-free guarantee `athena-wgpu` has today, so it is a regression
+     against what ADR 0034 promised to preserve. Rejected unless measurement
+     says the preparation is free.
+- **Recommendation: option 2.** It resolves the conflict where the mismatch
+  actually is — a handle bound to an operand should not outlive the operation
+  using it — and it does not require editing another agent's backend work on
+  untestable hardware. Option 1 is a reasonable fallback if the CUDA and ROCm
+  prepared types turn out to be cheaply ownable.
+- Stage 3 sits on athena branch `feat/athena-hephaestus-backend` (`eefa8ba`,
+  pushed, not merged), written against the pre-GAT seam and verified against it
+  in isolation before the contract changed.
