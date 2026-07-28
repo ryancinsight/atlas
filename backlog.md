@@ -742,7 +742,12 @@ path is open.
      wall clock. Forking the target tree to dodge the lock stays prohibited —
      the wait is the accepted cost.
 
-### ATLAS-MODALITY-004 — Unified field array has no heat-source variant [patch] — todo
+### ATLAS-MODALITY-004 — Unified field array has no heat-source variant [patch] — in-progress
+
+- Owner: current Codex session; scope: `repos/kwavers` unified-field enum,
+  thermal deposition producers, diffusion plugin, focused tests, and this
+  backlog entry. Non-goals: unrelated peer WIP, transport extraction, and
+  provider-lock cleanup.
 
 - Found while typing the deposition boundary (2b).
   `crates/kwavers-solver/src/forward/thermal_diffusion/plugin.rs` read
