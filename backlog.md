@@ -5145,7 +5145,19 @@ Stale-advanceable (still NOT safely advanceable):
 - D: delete `leto-ops/src/application/linalg/iterative/` including the
   duplicated `LinearOperator`/`Preconditioner` traits; residue scan clean.
 
-## ATLAS-ATHENA-ACCEL-BACKEND-001 — Replace athena-wgpu with one Hephaestus-backed backend (ADR 0034) [major] [arch] — todo
+## ATLAS-ATHENA-ACCEL-BACKEND-001 — Replace athena-wgpu with one Hephaestus-backed backend (ADR 0034) [major] [arch] — in-progress
+
+- **Stages 1-2 done 2026-07-27**, hephaestus `6ab822c`: `DenseVectorOps<D, T>`
+  in `hephaestus-core` plus its `hephaestus-wgpu` implementation. Copy, both
+  reductions, and subtraction delegate to existing capability; only scale,
+  axpy, and xpay needed new kernels, since the elementwise family rejects an
+  aliased output and so cannot express an in-place update. Differential tests
+  against a CPU reference across workgroup-boundary lengths. Full hephaestus
+  gate green: 221/221 nextest on real GPU hardware, clippy `-D warnings`, fmt.
+- Remaining: stage 3 `athena-hephaestus` over the seam (generic in scalar,
+  not `f32`-only), stage 4 delete `athena-wgpu` and its WGSL. CUDA, Metal and
+  ROCm implementations of the same seam are separate increments, verifiable
+  only where that hardware exists.
 
 - Outcome: Athena carries two backend crates, one over Leto and one over
   Hephaestus, neither naming a device API, and authors no GPU kernels.
@@ -5443,3 +5455,43 @@ Staged, each with its own gate:
 CUDA, Metal, and ROCm implementations follow the same seam and are verifiable
 only where that hardware exists, so each is its own increment rather than a
 blocker on Athena.
+
+## ATLAS-KWAVERS-PEER-WIP-COMPILE-FIX — Fix compilation errors in kwavers peer WIP [patch] — done
+
+- Owner: copilot; scope: `repos/kwavers/crates/kwavers-analysis/`,
+  `repos/kwavers/crates/kwavers-therapy/`, `repos/kwavers/crates/kwavers/Cargo.toml`.
+- Outcome: the peer's uncommitted math-consolidation WIP (60 files) had four
+  compilation defects blocking the full workspace. All fixed; workspace
+  compiles clean and all 6033 tests pass.
+- Defects fixed:
+  1. `kwavers-analysis/mvdr/weights.rs:28` — missing semicolon after `?` operator.
+  2. `ComplexLinearAlgebra::solve_linear_system_complex` (4 call sites across
+     `mvdr/spectrum.rs`, `mvdr/weights.rs`, `subspace/esmv.rs`,
+     `narrowband/capon/spectrum_complex.rs`) — replaced with
+     `leto_ops::complex_solve` after the peer deleted the
+     `linear_algebra/complex.rs` module.
+  3. `kwavers-therapy/hifu_planning/tests.rs` — missing `CartesianPosition`
+     import (added from `kwavers_transducer::transducers::physics`).
+  4. `kwavers/Cargo.toml` — `leto-ops` missing from `[dev-dependencies]`;
+     examples and benches use it directly.
+  5. `kwavers-therapy/hifu_planning/tests.rs:309` — floating-point precision
+     failure (`assert_eq!` on computed `[f64; 3]` positions); replaced with
+     per-component approximate comparison (`1e-12` tolerance).
+- Evidence: `cargo check --workspace --all-targets` → 0 errors;
+  `cargo nextest run --workspace` → 6033/6033 passed, 15 skipped.
+- Note: `kwavers-grid::geometry_allocation` test uses a global allocator
+  counter and is inherently racy under parallel execution; passes serially.
+  Not a defect in production code.
+
+## ATLAS-LETO-PEER-WIP — Leto uncommitted peer WIP [patch] — blocked (peer-owned)
+
+- Owner: peer session (codex); scope: `repos/leto/crates/leto-ops/`,
+  `repos/leto/Cargo.toml`.
+- Status: active peer WIP on `codex/leto-real-sparse-lu`. Contains:
+  - `special_legendre.rs` (new Legendre polynomial module, 111 lines, 3 tests)
+  - `Cargo.toml` path-dep overlay patches
+  - `special.rs` formatting normalization
+  - `lib.rs`/`mod.rs` module tree updates
+  - `bessel_k0` test tolerance fix (1e-7 → 1e-6, already applied)
+- Evidence: 425 leto-ops tests pass.
+- Blocker: peer-owned; not committed by this session per concurrent_agents policy.
