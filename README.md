@@ -935,8 +935,9 @@ sub-crates, following the shape `burn`, `bevy`, and `polars` use: a user depends
 on `coeus`, never `coeus-core`. The facade holds no logic — re-exports,
 feature gates that select optional backend sub-crates, and the crate-level
 overview. Sub-crates stay published so a consumer can take a narrow dependency,
-but they are not the advertised entry point. Versioning is lockstep at the
-workspace version, with backends as optional features.
+but they are not the advertised entry point. The facade pins exact sub-crate
+versions; the underlying scheme stays whatever the workspace already uses
+(roughly half the stack is lockstep, half versions per crate).
 [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md) records the
 practice survey, the naming rule, and the per-package table.
 

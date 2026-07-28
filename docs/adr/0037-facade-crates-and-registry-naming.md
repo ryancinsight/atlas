@@ -101,13 +101,32 @@ Sub-crates remain published — they are how a consumer takes a narrow dependenc
 and they are what other stack packages depend on internally. They are simply not
 the advertised entry point.
 
-### 2. Lockstep versioning with optional backend sub-crates
+### 2. Each workspace keeps its existing versioning scheme
 
-Following burn, bevy, and polars: the facade depends on its required sub-crates at
-the shared workspace version, and every backend or optional capability is an
-optional dependency behind a facade feature. Tokio's independent-versioning model
-is rejected — it requires per-crate semver reasoning across 173 crates, and the
-stack already versions per workspace.
+The facade depends on its required sub-crates at exact versions and puts every
+optional capability behind a feature. The *versioning scheme* underneath is
+deliberately not unified.
+
+An earlier revision of this section mandated lockstep versioning stack-wide,
+citing burn, bevy, and polars, and asserted that "the stack already versions per
+workspace". That assertion was wrong — it imported an external convention without
+checking local reality. Measured 2026-07-28 across every member manifest:
+
+| Scheme | Packages |
+| --- | --- |
+| Lockstep (`version.workspace = true`) | `athena`, `coeus`, `hephaestus`, `hermes`, `leto`, `tyche` |
+| Independent per crate | `apollo` (0.7.0–0.25.0 across 21 crates), `ritk` (10 distinct), `kwavers` (6), `mnemosyne` (5), `consus` (3), `moirai` (2), `helios` (2) |
+
+The split is roughly even, so a lockstep mandate would force version rewrites
+across `apollo`, `ritk`, `kwavers`, and `mnemosyne`, discarding independent
+release histories — a large, disruptive change that buys the facade goal nothing.
+A facade pins exact sub-crate versions either way; the scheme is invisible to the
+consumer who depends only on the facade.
+
+Both schemes therefore stand as-is. A workspace changes scheme only for its own
+reasons, recorded separately, never to satisfy this ADR. What this ADR does
+require is that the facade pin **exact** versions of what it re-exports, so a
+sub-crate cannot drift semantically out from under the entry point.
 
 ### 3. Naming rule: bare classical name where free, `<name>-<domain>` where taken
 
