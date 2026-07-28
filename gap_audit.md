@@ -12,20 +12,24 @@ oracles.
 
 ### Current live child refresh (2026-07-27)
 
-The latest provider-first increments close the remaining audited metric rows in
-the three named consumers:
+The latest provider-first increments close the audited metric rows through the
+CEUS family in the three named consumers. One next Kwavers family remains open
+because it requires new provider electrical dimensions:
 
 | Consumer | Latest metric closure | Evidence and residual |
 |---|---|---|
 | CFDrs | `f4be59c4` closes `CFDRS-AEQ-MET-23`; Aequitas provider `8dfc6de` adds `Force`/`Newton`. | `cfd-1d` Nextest 736/736 with 3 skipped, focused `cfd-validation` Nextest 57/57, doctests 8/8 with 3 ignored, and warning-denied Clippy pass. The exact 5 mm `cfd-3d` Venturi case remains 30.042 s against the 30 s budget; this is a runtime defect, not a missing metric. |
 | Helios | `05a4067` closes `HELIOS-AEQ-MET-06` by typing GPU attenuation mass attenuation and density inputs; `283048d` and `4fd2c88` close helical delivery and collimation. | `helios-gpu` check, 10/10 Nextest, warning-denied Clippy, doctests, and Rustdoc pass under the current local provider overlay. Shared unused-patch/linker warnings remain graph diagnostics, not consumer metric gaps. |
-| Kwavers | `c73fc9fe1`, `be7da06bb`, `6da60c3cf`, `d0d7d5a5f`, and `b3d2e29ad` close the ultrafast, core-time, grid-stability, HIFU-imaging, and hemispherical-array rows. | The latest hemispherical slice types geometry, constants, steering, focal metrics, validation, and configured source frequency; transducer check/example check, Nextest 219/219 with 1 skipped, doctests 2/2 with 6 ignored, warning-denied Clippy, and Rustdoc pass. Provider graph warnings and peer dirty files remain integration residuals. |
+| Kwavers | `c73fc9fe1`, `be7da06bb`, `6da60c3cf`, `d0d7d5a5f`, `b3d2e29ad`, `62275b3e4`, `c9ce4f3d8`, and `eed5aef4a` close the ultrafast, core-time, grid-stability, HIFU-imaging, hemispherical-array, therapeutic-cavitation, lithotripsy, and CEUS rows. | The CEUS slice types imaging, microbubble, population, cloud-dynamics, scattering, reconstruction, and simulation contracts; the affected packages pass 1,862/1,862 Nextest tests with one skip, warning-denied Clippy, doctests, targeted rustfmt, and diff checks. Rustdoc exits 0 with one pre-existing private-link warning. Sonogenetics electrical contracts remain open pending provider dimensions; provider graph warnings and peer dirty files remain integration residuals. |
 
-No unimplemented Aequitas metric contract remains in the audited public
-surfaces of CFDrs, Helios, or Kwavers. Remaining issues are verification or
-integration defects: the CFDrs runtime-budget overrun, shared Atlas provider
-overlay warnings/path-coherence debt, and peer-owned dirty work. They remain
-explicitly recorded and are not hidden behind consumer compatibility shims.
+No unimplemented Aequitas metric contract remains in the audited CFDrs or
+Helios public surfaces. Kwavers has one recorded open family:
+`KWAVERS-AEQ-MET-30` covers sonogenetics membrane geometry and LIF/channel
+capacitance, conductance, potential, and charge contracts. Aequitas currently
+lacks those dimensions, so the provider increment is the next implementation
+item. Other residuals are verification or integration defects: the CFDrs
+runtime-budget overrun, shared Atlas provider-overlay warnings/path-coherence
+debt, and peer-owned dirty work. None is hidden behind a consumer shim.
 
 ### Prior child refresh baseline (2026-07-27)
 
@@ -70,11 +74,11 @@ Helios' current child audit has no open Aequitas metric row. The helical
 delivery and collimation restoration is `283048d`, with typed `Angle`,
 `Length`, `Time`, and `Velocity` through public delivery/simulation seams and
 focused value-semantic gates passing; the full dirty shared provider graph is
-not claimed as a clean workspace gate. Kwavers' current HIFU restoration is
-`799aa1c0d`; typed frequency, length, power, pressure, volume, and schedule
-coordinates are present and its focused source/check gates pass. No open
-Kwavers Aequitas metric row remains; the remaining recorded verification debt
-is peer-owned math/provider work, not a missing metric contract.
+not claimed as a clean workspace gate. Kwavers' current child audit closes
+MET-22 through MET-29, including the pushed CEUS slice `eed5aef4a`; MET-30 is
+open for the provider-owned electrical dimensions recorded in the current
+ledger. The remaining non-metric verification debt is peer-owned math/provider
+work.
 
 ### Current Aequitas coverage
 
@@ -88,6 +92,11 @@ is peer-owned math/provider work, not a missing metric contract.
   `MassDensityRate`, and the semantic `Angle`/`Radian` pair, with SI and
   scaled units used by the three consumers. The angle capability is provider
   commit `19fc384`.
+- Aequitas commit `130ec5b` adds `NumberDensity`/`PerCubicMeter` for CEUS
+  bubble concentrations. Kwavers commit `eed5aef4a` consumes it with typed
+  CEUS frequency, length, pressure, density, viscosity, surface-tension, area,
+  and reciprocal-length contracts; scalar extraction remains at formula and
+  dense-storage boundaries.
 - Aequitas now also exposes `PressurePerElectricCurrent`,
   `QuadraticHydraulicResistance`, and `HydraulicConductance` for transducer
   gain and hydraulic-network composition. These dimensions and their law tests
@@ -202,6 +211,15 @@ is peer-owned math/provider work, not a missing metric contract.
 | `KWAVERS-AEQ-MET-19` | Kwavers clinical scenario and pulse contracts | **RESOLVED in `740da15ff`.** Histotripsy scenario frequency, pressures, duration, focal volume, pulse timing, PRF, and pulse-average intensity use Aequitas quantities; no-PRF patterns return `None`, and MI/duty/probability remain dimensionless. Focused Nextest passes 349/349 with one skip and four slow tests; doctests 8/8 with one ignored; Clippy, Rustdoc, and leaf rustfmt pass. |
 | `KWAVERS-AEQ-MET-20` | Kwavers neuromodulation pulse-train and dosimetry contracts | **RESOLVED in `2ebc23345`.** Pulse-train frequency/timing, pressure, medium density, sound speed, dosimetry intensity, total time, and ITRUSST temperature rise use Aequitas quantities; FDA conversion and numerical formulas are the only scalar boundaries, while MI, duty, safety, and CEM43 remain semantic scalars. Physics Nextest passes 1556/1556 with one skip and one leaky test; doctests 8/8 with four ignored; warning-denied Clippy passes; Rustdoc builds with two pre-existing link warnings. |
 | `KWAVERS-AEQ-MET-21` | Kwavers transducer array design and focused propagation | **RESOLVED in `0c0916e28`.** Array geometry, wavelength, frequency, sound speed, drive current, pressure-per-current, acoustic impedance, focal pressure, intensity, and beam extents use Aequitas quantities; scalar extraction remains at formula, width-search, validation, and explicit driver report boundaries. Transducer Nextest passes 218/218 with one skip; doctests pass 2/2 with six ignored; driver `kwavers`-feature Nextest passes 489/489 with no doctests; both package Clippy and Rustdoc pass. |
+| `KWAVERS-AEQ-MET-22` | Kwavers ultrafast public stack | **RESOLVED in `c73fc9fe1`.** Sequencer events/schedules, plane-wave/diverging-wave configuration, delay, and frame-rate contracts use Aequitas quantities; numerical delay tables remain scalar boundaries. |
+| `KWAVERS-AEQ-MET-23` | Kwavers core time and imaging ultrasound frequency | **RESOLVED in `be7da06bb`.** Core time and ultrasound frequency contracts use Aequitas `Time` and `Frequency`; numerical sampling boundaries remain scalar. |
+| `KWAVERS-AEQ-MET-24` | Kwavers grid stability | **RESOLVED in `6da60c3cf`.** Stability inputs/results use Aequitas `Velocity`, `ThermalDiffusivity`, and `Time`; Courant and mesh scalars remain dimensionless/structural. |
+| `KWAVERS-AEQ-MET-25` | Kwavers HIFU imaging | **RESOLVED in `d0d7d5a5f`.** HIFU transducer, treatment-plan, geometry, protocol, safety, and monitoring contracts use Aequitas quantities; CEM43 and focused-field arrays remain model/storage boundaries. |
+| `KWAVERS-AEQ-MET-26` | Kwavers hemispherical array | **RESOLVED in `b3d2e29ad`.** Geometry, elements, steering, focal metrics, validation, constants, and configured source frequency use typed quantities; dimensionless controls remain scalar. |
+| `KWAVERS-AEQ-MET-27` | Kwavers therapeutic cavitation | **RESOLVED in `62275b3e4`.** Detector frequency, nucleus radius, Blake threshold, Minnaert result, and pressure inputs use Aequitas; cavitation classifications and dense fields remain explicit scalar boundaries. |
+| `KWAVERS-AEQ-MET-28` | Kwavers lithotripsy | **RESOLVED in `c9ce4f3d8`.** Shock-wave peak pressure, pulse duration, and repetition rate use Aequitas `Pressure`, `Time`, and `Frequency`; future solver work remains separate. |
+| `KWAVERS-AEQ-MET-29` | Kwavers CEUS | **RESOLVED in `eed5aef4a`; provider `NumberDensity` in Aequitas `130ec5b`.** CEUS imaging, microbubble, population, cloud-dynamics, scattering, reconstruction, and simulation contracts use typed physical quantities; hidden unit conversions were removed and dense/model boundaries remain explicit. The affected package suite passes 1,862/1,862 with one skip. |
+| `KWAVERS-AEQ-MET-30` | Kwavers sonogenetics electrical contracts | **OPEN.** Public membrane geometry and LIF/channel capacitance, conductance, potential, and charge values still need typed contracts. Aequitas must add the missing dimensions before consumer migration; no local wrapper or scalar compatibility facade is authorized. |
 
 ### Session refresh (2026-07-24)
 
@@ -291,12 +309,13 @@ rows remain for merge provenance.
   Each slice updates its child audit and uses its strongest value or analytical
   oracle before delivery.
 
-No unimplemented Aequitas metric contract remains in CFDrs, Helios, or the
-audited Kwavers public surfaces. CFDrs retains the exact 5 mm cfd-3d Venturi
-runtime residual over the 30-second nextest budget; Kwavers retains provider
-warnings, peer-owned dirty files, and shared-overlay topology debt. These are
-verification/integration residuals, not missing metric contracts. No residual
-is masked by a consumer-side compatibility shim.
+No unimplemented Aequitas metric contract remains in CFDrs or Helios. Kwavers
+has the open MET-30 sonogenetics electrical family documented above. CFDrs
+retains the exact 5 mm cfd-3d Venturi runtime residual over the 30-second
+nextest budget; Kwavers retains provider warnings, peer-owned dirty files, and
+shared-overlay topology debt. These are verification/integration residuals,
+not additional metric contracts, and no residual is masked by a consumer-side
+compatibility shim.
 
 ### Verification refresh (2026-07-26)
 
