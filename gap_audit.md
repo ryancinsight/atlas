@@ -29,6 +29,21 @@ because their units depend on the assembled/scaled equation. The separate
 CFDrs solver-runtime residual remains the exact 5 mm cfd-3d Venturi case at
 30.042 s against the 30 s budget; it is not an Aequitas typing gap.
 
+Kwavers commits `9bb64b638`, `3433d36ba`, `26c18bb24`, `328a46f03`,
+`596ae06a7`, and `740da15ff` close `KWAVERS-AEQ-MET-15` through
+`KWAVERS-AEQ-MET-19` on the active child branch. Cavitation-control,
+therapy-integration, acoustic-solver, intensity-tracker, and clinical-scenario
+public boundaries now use Aequitas `Frequency`, `Time`, `Pressure`, `Length`,
+`Volume`, `Intensity`, `ThermodynamicTemperature`, and
+`TemperatureDifference`; dimensionless scores, probabilities, MI, duty cycle,
+dense arrays, and formula/mesh/GPU scalar boundaries remain explicit.
+The latest clinical-scenario package check passes; focused therapy Nextest
+passes 349/349 with one skip and four slow tests; doctests pass 8/8 with one
+ignored; warning-denied Clippy, Rustdoc, and MET-19 leaf formatting pass. The
+child branch is pushed but remains separate from the parent integration gitlink;
+provider warnings, dirty peer lock/source files, and shared-overlay path
+collisions remain verification/topology residuals, not open metric rows.
+
 Helios' current child audit has no open Aequitas metric row. The helical
 delivery and collimation restoration is `283048d`, with typed `Angle`,
 `Length`, `Time`, and `Velocity` through public delivery/simulation seams and
@@ -158,6 +173,11 @@ is peer-owned math/provider work, not a missing metric contract.
 | `CFDRS-AEQ-MET-23` | CFDrs cell-separation public family | **RESOLVED in `f4be59c4`; provider `Force`/`Newton` in Aequitas `8dfc6de`.** `Length`, `MassDensity`, `DynamicViscosity`, `Velocity`, `ReciprocalTime`, and `VolumetricFlowRate` type equilibrium, direct margination/cell-interaction, Fahraeus/CFL/rheology, plasma-skimming, cross-junction, model, and three-population boundaries. Scalar extraction remains at validation and numerical formula boundaries with no compatibility facade. cfd-1d Nextest passes 736/736 with 3 skipped, focused cfd-validation Nextest passes 57/57, doctests pass 8/8 with 3 ignored, and warning-denied Clippy passes. |
 | `HELIOS-AEQ-MET-07/08` | Helios helical delivery and collimation | `283048d` restores typed helical delivery/projection/frame and collimation metrics; focused value-semantic gates pass and no Aequitas metric row remains open. |
 | `KWAVERS-AEQ-MET-14` | Kwavers HIFU planning | `799aa1c0d` restores typed frequency, length, power, pressure, volume, position, and schedule metrics; focused source/check gates pass and no Aequitas metric row remains open. |
+| `KWAVERS-AEQ-MET-15` | Kwavers cavitation control | **RESOLVED in `9bb64b638`.** Detector and controller frequencies, response time, pulse duration/delay, safety pressure/temperature, and therapy callers use Aequitas quantities; dimensionless control values remain scalar and frequency modulation reports the shifted carrier. Physics Nextest passes 62/62 and the focused therapy lane passes 3/3. The child feature branch is pushed but not yet merged into the parent integration base. |
+| `KWAVERS-AEQ-MET-16` | Kwavers therapy integration | **RESOLVED in `3433d36ba` and `26c18bb24`.** Configuration, session state, safety-controller timing, intensity metrics, thermal temperature, and CEM43 use typed Aequitas contracts; scalar extraction remains at mesh, formula, and explicit unit-conversion boundaries. Focused therapy Nextest passes 349/349 with one skip and four slow tests. |
+| `KWAVERS-AEQ-MET-17` | Kwavers therapy acoustic solver | **RESOLVED in `328a46f03`.** Public time, pressure, and SPTA intensity results and helper intervals use `Time`, `Pressure`, and `Intensity`; focused Nextest passes 349/349 with one skip and two slow tests, doctests 8/8 with one ignored, Clippy, and Rustdoc pass. |
+| `KWAVERS-AEQ-MET-18` | Kwavers intensity tracker | **RESOLVED in `596ae06a7`.** Raw W/cm² accessors were removed in favor of canonical typed `Intensity` results; focused Nextest passes 349/349 with one skip and three slow tests, doctests 8/8 with one ignored, Clippy, and Rustdoc pass. |
+| `KWAVERS-AEQ-MET-19` | Kwavers clinical scenario and pulse contracts | **RESOLVED in `740da15ff`.** Histotripsy scenario frequency, pressures, duration, focal volume, pulse timing, PRF, and pulse-average intensity use Aequitas quantities; no-PRF patterns return `None`, and MI/duty/probability remain dimensionless. Focused Nextest passes 349/349 with one skip and four slow tests; doctests 8/8 with one ignored; Clippy, Rustdoc, and leaf rustfmt pass. |
 
 ### Session refresh (2026-07-24)
 
