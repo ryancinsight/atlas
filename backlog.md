@@ -146,7 +146,8 @@ path is open.
    nextest 18/18 on the diffusion/optical filterset, clippy clean in the touched
    files.
 
-3c. **todo** — adopt `hyperion::transport::absorbed_{power,energy}_density` at
+3c. **blocked (edits complete, unverifiable) on ATLAS-OVERLAY-004** — adopt
+   `hyperion::transport::absorbed_{power,energy}_density` at
    the kwavers optics deposition sites, and type `MCResult`'s `absorbed_energy`
    (J/m³) and `fluence` (J/m²) plus the diffusion solve boundary (source W/m³,
    fluence W/m²), which currently cross as bare `Vec<f64>` / `Array3<f64>` with
@@ -188,6 +189,44 @@ path is open.
   Kwavers-intrinsic and are excluded from any extraction scope. A photomedicine
   integrator peer to Helios is a separate, demand-gated decision and is out of
   scope here.
+
+## ATLAS-OVERLAY-004 — Worktree sprawl breaks stack dependency resolution [patch] — todo
+
+- Owner: unclaimed; scope: `worktrees/`, the root `.cargo/config.toml`, and the
+  13 lane-local `.cargo/config.toml` files. **Not** the lane branches' source.
+- Blocker evidence (2026-07-27): `cargo check -p kwavers-physics` fails before
+  compiling anything:
+  - `failed to select a version for smallvec` — `hephaestus-wgpu v0.18.0` at
+    `worktrees/hephaestus-unary-math-parity` requires `^1.15.2`; the kwavers lock
+    pins `1.15.1`.
+  - `cargo update -p smallvec --precise 1.15.2` then fails harder:
+    `package collision in the lockfile: packages aequitas v0.1.0
+    (D:tlas\worktreesequitas) and aequitas v0.1.0
+    (D:tlas\worktreesequitas-energy-temperature) are different, but only
+    one can be written to lockfile unambiguously`.
+- Two distinct defects behind it:
+  1. **`worktrees/aequitas` is a standalone clone, not a linked worktree.**
+     `git -C repos/aequitas worktree list` shows only `repos/aequitas` and
+     `worktrees/aequitas-energy-temperature`; `worktrees/aequitas/.git` is a
+     directory. It sits at `8dfc6de`, the same commit as `repos/aequitas` main,
+     with only `Cargo.lock` dirty — no unique work. This is the prohibited
+     repository copy (`concurrent_agents`: execution model). The root
+     `.cargo/config.toml` does not reference it, so a lane-local config reaches
+     it by relative path.
+  2. **13 lane-local `.cargo/config.toml` files.** Config-layer ownership
+     (`performance_engineering`) puts `target-dir` and the `[patch]` overlay at
+     the stack root only; a nested config re-declaring either forks resolution
+     and, as here, resolves a relative provider path into a second copy.
+- Also: `worktrees/` holds 28 entries against a documented bound of one main
+  tree plus one lane per repository. aequitas, coeus, hephaestus, kwavers, and
+  ritk each have two or more.
+- Acceptance: `cargo check -p kwavers-physics` resolves; `git worktree list` per
+  repo is within bound; no lane-local `.cargo/config.toml` re-declares
+  `target-dir` or `[patch]`; `worktrees/aequitas` removed after confirming no
+  unique commits.
+- **Ask-User gate**: removing `worktrees/aequitas` and other agents' lane
+  directories is destructive to possibly-live peer setups. Confirm before
+  deleting rather than reconciling unilaterally.
 
 ## ATLAS-OVERLAY-002 — Clear pin drift in asclepius, athena, hermes [patch] — todo
 
