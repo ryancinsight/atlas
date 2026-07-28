@@ -1,0 +1,84 @@
+# Atlas stack overlay coherence gate (architecture_scoping "pin discipline" + ATLAS-OVERLAY-001)
+#
+# Runs `python scripts/atlas-stack-overlay.py check`, which inspects every
+# first-party Cargo.lock against the current local provider heads and exits
+# nonzero when (a) a first-party requirement cannot be satisfied by the local
+# tree (version lag -- the failure that motivated `87ab265`), or (b) a lock
+# has drifted behind its provider's origin/main.
+#
+# Pin discipline (architecture_scoping): version metadata is sweep-triggering
+# state -- any commit changing `version =` or first-party version requirements
+# across an allowlisted member's manifest/lock fires this gate regardless of
+# the commit message. Version movement backward fails the gate without an
+# explicit declared release/bump intent footer; see ATLAS-VERSION-GUARD-001
+# for the per-member guard.
+#
+# The script writes a generated-do-not-edit overlay block into the stack-root
+# `.cargo/config.toml` from `cargo metadata` closure; this gate verifies the
+# generated overlay would still satisfy every consumer lock against the local
+# tree.
+
+name: atlas-stack-overlay
+
+on:
+  pull_request:
+    paths:
+      - '.cargo/config.toml'
+      - 'scripts/atlas-stack-overlay.py'
+      - 'repos/**/Cargo.toml'
+      - 'repos/**/Cargo.lock'
+      - 'repos/**/pyproject.toml'
+      - '.github/workflows/atlas-stack-overlay.yml'
+  push:
+    branches: [main]
+    paths:
+      - '.cargo/config.toml'
+      - 'scripts/atlas-stack-overlay.py'
+      - 'repos/**/Cargo.toml'
+      - 'repos/**/Cargo.lock'
+      - 'repos/**/pyproject.toml'
+      - '.github/workflows/atlas-stack-overlay.yml'
+
+# Cancel in-flight runs of the same branch + workflow when a new commit lands.
+concurrency:
+  group: atlas-stack-overlay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  overlay-check:
+    name: Stack overlay coherence (requirements satisfiable + locks match)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: false
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Overlay check (must exit 0)
+        run: |
+          output=$(python3 scripts/atlas-stack-overlay.py check 2>&1)
+          echo "$output" | tee overlay-check.log
+          if ! echo "$output" | grep -qE '^stack aligned:'; then
+            echo "::error::Atlas stack overlay drift detected. The first-party Cargo.locks across the allowlisted members no longer resolve against the current local provider heads. Run \`python scripts/atlas-stack-overlay.py check\` locally for per-crate detail; satisfy the lag either by advancing consumer requirements to the provider's published version, or by advancing the provider workspace version forward. Do NOT silence this gate -- it is the structural guard against the ATLAS-VERSION-GUARD-001 motivating incident (\`87ab265\` on hermes: a sed dep-conversion silently reverted the workspace release 0.5.0 -> 0.4.1 and internal requirements to 0.4.0; origin lied about versions for ~10 hours; coeus stacked 18 commits on the undeliverable base)."
+            exit 1
+          fi
+        # Explicit `grep '^stack aligned:'` rather than relying on exit code
+        # alone -- ensures the failure message attributes the gate to the
+        # overlay-check job if the script's exit-code logic changes in the
+        # future. The script's contract is "exit nonzero on lag, print
+        # `stack aligned:` on success"; the grep pins both.
+
+      - name: Upload overlay-check log artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: overlay-check-log
+          path: overlay-check.log
+          if-no-files-found: ignore
