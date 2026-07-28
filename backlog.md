@@ -7,6 +7,143 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-ARCH-001 — One generic ComputeBackend conformance suite [arch] [minor] — todo
+
+- Owner: unclaimed; scope: new `repos/hephaestus/crates/hephaestus-conformance`,
+  the four backend `tests/contract.rs` files, and the Hephaestus workspace member
+  list. Triage lands first as its own increment; each backend then migrates in
+  its own claim.
+- Decision: [ADR 0038](docs/adr/0038-compute-backend-conformance-crate.md).
+- Outcome: the seam's contract has one owner. Audit 2026-07-28: 15 939 lines of
+  per-backend contract tests, 221 distinct test names, **only 5 present in all
+  four backends**; `cuda`/`wgpu` share 87 by copy-paste while `rocm`/`wgpu` share
+  7; Metal is held to 40 assertions where WGPU is held to 130. No conformance
+  crate exists.
+- Non-goals: changing backend behaviour; merging backend-intrinsic tests into the
+  shared suite (ADR 0038 §2 triage governs).
+- Acceptance: each backend's `contract.rs` reduces to instantiation calls; the
+  assertions executed per backend are a **superset** of the pre-migration set,
+  shown by before/after counts; entry points are `<B: ComputeBackend, T: Scalar>`
+  instantiated across every scalar the backend ships; a deliberately broken
+  backend method fails only that backend.
+- Expected: raising Metal from 40 to the full contract will fail. Each failure is
+  a backend defect to fix — never a weakened assertion and never a clause
+  reclassified as backend-intrinsic to make the suite pass.
+
+## ATLAS-ARCH-002 — Instantiate generic tests across every shipped scalar [patch] — todo
+
+- Owner: unclaimed; scope: 25 files carrying `..._is_generic_over_scalar_f32`
+  tests. One package per claim.
+- Outcome: a generic kernel tested at one concrete type is unverified for the
+  rest. Audit 2026-07-28: 25 files assert genericity at `f32`; **zero** files
+  carry an `f64`, `f16`, or `bf16` counterpart stack-wide. The current tests would
+  still pass if the generic body only worked at `f32`.
+- Acceptance: each such test becomes generic and is instantiated across every
+  scalar type its crate ships; the test name loses its type suffix, since the
+  suffix only existed because the test was single-type.
+- Dependencies: converges with ATLAS-ARCH-001 §4 for the backend suites.
+
+## ATLAS-ARCH-003 — Make leto-ops statistics generic and resolve the split Pearson [minor] — todo
+
+- Owner: unclaimed; scope: `repos/leto/crates/leto-ops/src/application/statistics`,
+  its `kwavers-math` re-export, and the Tyche boundary. Provider-first: leto lands
+  before consumers.
+- Outcome: `leto_ops::application::statistics::pearson(a: &[f64], b: &[f64]) -> f64`
+  is concrete `f64` in the host-array substrate that is meant to be generic over
+  `T: Scalar`, alongside `nrmse`, `psnr`, `rmse`, and `percentile_range`.
+  `kwavers-math::statistics` re-exports the family verbatim, propagating the
+  concrete type to an integrator.
+- Second half: `tyche-core::statistics::sensitivity` owns generic squared-Pearson
+  screening (`CorrelationScreening<T, const PARAMETERS: usize>`) per ADR 0026, and
+  `tyche` already depends on `leto-ops`. Two Pearson implementations exist in a
+  provider/consumer pair. Decide one owner and delete the other in the same change
+  — the correlation primitive belongs with the generic implementation.
+- Acceptance: no `f64`-concrete signature remains in the leto-ops statistics
+  family; one Pearson implementation stack-wide; the kwavers re-export is
+  unchanged in shape (it is correct one-import-path practice, not the defect).
+
+## ATLAS-ARCH-004 — Rehome and genericize the cfd-math Pareto module [patch] — todo
+
+- Owner: unclaimed; scope: `repos/CFDrs/crates/cfd-math/src/statistics/pareto.rs`
+  and its callers.
+- Outcome: four defects in one file —
+  `pareto_front_nd(objectives: &[Vec<f64>], is_maximized: &[bool]) -> Vec<usize>`
+  and `crowding_distances(&[Vec<f64>])` are multi-objective optimization living
+  under a `statistics` module (misdescribed concern); the signatures are concrete
+  `f64` rather than `T: Scalar`; `&[Vec<f64>]` is a jagged per-row allocation
+  where a flat slice with a stride or a const-generic `[T; OBJECTIVES]` is the
+  cache-coherent form; and `&[bool]` parallel to the objective list is boolean
+  blindness where a two-variant enum belongs.
+- Acceptance: the module sits under an optimization concern named for what it
+  does; signatures are generic over `T: Scalar` with objective count const-generic
+  or stride-carried; no jagged container in the signature; objective sense is an
+  enum. Value-semantic tests over a known Pareto set, not existence assertions.
+
+## ATLAS-ARCH-005 — Replace closed-set dyn dispatch in per-timestep paths [arch] — todo
+
+- Owner: unclaimed; scope: `repos/kwavers` first (largest), then `repos/CFDrs`.
+  One operation family per claim.
+- Outcome: dispatch-site counts are `kwavers` 665, `CFDrs` 352, `gaia` 104,
+  `coeus` 98, `moirai` 83, `consus` 66. Sampling the kwavers solver shows the
+  pattern is not type erasure of an open plugin set but vtable dispatch over
+  closed design-time sets: `sources: &[Box<dyn Source>]` inside
+  `forward/nonlinear/westervelt/update.rs` (evaluated per timestep),
+  `boundary: Box<dyn Boundary>` held in the solver struct, plus `Box<dyn Signal>`
+  and `Box<dyn Solver>`.
+- Decision rule: a closed implementor set dispatched per timestep converts to an
+  exhaustiveness-checked enum — static dispatch, still runtime-selectable, no
+  vtable. Genuinely open plugin boundaries on cold paths keep `dyn` with the
+  applicable exception annotated inline.
+- Acceptance: per family, the count of `dyn` sites on the timestep path reaches
+  zero; the enum is exhaustively matched with no catch-all arm; a criterion
+  comparison on the affected kernel accompanies the change, since this is a
+  performance-motivated claim and must carry performance evidence.
+- Non-goals: mass-converting all 1 368 sites. Hot paths first, evidence per family.
+
+## ATLAS-ARCH-006 — Eliminate junk-drawer modules [patch] — todo
+
+- Owner: unclaimed; scope: 64 sites declaring `mod utils`, `mod helpers`,
+  `mod common`, or `mod shared`, concentrated in `apollo`, `CFDrs`, and `ritk`.
+  One package per claim.
+- Outcome: each is a module named for its lack of a bounded concern. Notable:
+  `apollo-fft/src/api/mod.rs` exposes `pub mod utils` on a **public API path**,
+  and `leto-ops/src/application/interpolation/mod.rs` carries `mod utils`.
+- Acceptance: each module is renamed for the concern it actually holds, or its
+  contents are distributed to the leaf modules that own them and the module is
+  deleted. A `utils` whose contents span two concerns splits; it is never renamed
+  to `support`.
+
+## ATLAS-ARCH-007 — Reduce manifest files carrying implementation [patch] — todo
+
+- Owner: unclaimed; scope: `repos/consus` first, then `CFDrs`, `kwavers`. One
+  crate per claim.
+- Outcome: 568 of 11 409 files exceed the 500-line target, 88 exceed 1 000, 11
+  exceed 2 000. The sharper defect is **61 `lib.rs`/`mod.rs` files over 500
+  lines** — manifest files are the module tree, curated re-exports, and crate
+  docs, never implementation. Worst: `consus-nwb/src/file/mod.rs` (2 032),
+  `consus-zarr/src/chunk/mod.rs` (1 958), `consus-parquet/src/writer/mod.rs`
+  (1 915), `consus-nwb/src/validation/mod.rs` (1 780),
+  `leto-python/src/lib.rs` (1 416).
+- By package, files over 500: CFDrs 138, kwavers 103, consus 89, gaia 43,
+  moirai 37, apollo 35, hephaestus 28, ritk 25, hermes 21, leto 18, coeus 17.
+- Acceptance: each touched `mod.rs`/`lib.rs` carries only the module tree,
+  re-exports, and docs; extracted leaf modules are named for their operation
+  family. Domain cohesion overrides the line target — never slice into ravioli
+  code to hit a number.
+
+## ATLAS-ARCH-008 — Replace pointer-scattered containers on traversal paths [patch] — todo
+
+- Owner: unclaimed; scope: the traversal-hot sites first, not all 318.
+- Outcome: 318 `Vec<Vec<_>>` occurrences across package sources, led by
+  `consus-compression/src/chunking/iterator.rs` (10),
+  `gaia/src/domain/topology/adjacency.rs` (8), and
+  `coeus-autograd/src/ops/nn/loss/ctc.rs` (6). Adjacency and chunk iteration are
+  prefetch-sensitive; a jagged per-row allocation defeats it.
+- Acceptance: the contiguous form is a flat buffer plus an offset table
+  (CSR-shaped) or an arena span, with a criterion comparison on the traversal
+  showing the change is a win. A site where the jagged shape is genuinely correct
+  is recorded as such rather than converted.
+
 ## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — todo
 
 - Owner: unclaimed; scope: `repos/{apollo,coeus,consus,hephaestus,kwavers,leto,moirai}/.github/workflows/rust-release.yml`
@@ -5929,3 +6066,10 @@ blocker on Athena.
 - Stage 3 sits on athena branch `feat/athena-hephaestus-backend` (`eefa8ba`,
   pushed, not merged), written against the pre-GAT seam and verified against it
   in isolation before the contract changed.
+
+## ATLAS-HYGIENE-BASELINE-001 — Eleven-class conformance baseline and namespace hygiene [patch] — todo
+
+- Policy: AGENTS.md engineering_gates conformance scan (now enumerating all eleven debt classes), documentation_discipline "Root manifest", architecture_scoping "Member namespace hygiene".
+- Baseline 2026-07-25 (per-repo counts recorded; the ratchet gate holds these non-increasing): files >500 lines: 574 (CFDrs 137, kwavers 91, consus 89); implementation-bearing lib.rs/mod.rs: 402 (kwavers 145); production `unwrap()`: 5833 (kwavers 3119, ritk 719); `#[allow]`: 798 (kwavers 330); print/dbg in src: 1082 (CFDrs 428); existence-only assertions: 444 (coeus 104, leto 79); type-suffixed fns: 380 (apollo 111); junk-drawer modules: 66 (kwavers 28); crates missing deny(missing_docs): 107/208; unsanctioned root files: 120 (kwavers 40); markers: 18.
+- Scope: (1) extend the committed conformance scan script to all eleven classes and record this baseline as its first output; (2) burn-down items per repo by triage (kwavers is the epicenter: unwraps, fat manifests, junk modules, root clutter); (3) `repos/parity_artefacts` (untracked run-output dump in the member namespace — det_*.log, url/target lists) relocates to a gitignored verification output root or deletes at the parity stream's item completion (owner: parity stream; regenerable evidence, rescue-first if any file proves unique); (4) kwavers root files triage per the Root manifest rule.
+- Acceptance: scan script covers all classes with committed baseline; member namespace holds registered members only; per-repo burn-down items filed DoR-shaped.
