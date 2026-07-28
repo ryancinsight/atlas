@@ -1,5 +1,164 @@
 # atlas — cross-repository integration gap audit
 
+## Structural and abstraction audit (2026-07-28)
+
+Scope: all 25 packages, 11 409 Rust source files. Method: mechanical scans over
+the working trees — file length, module naming, dispatch form, generic
+instantiation breadth, container shape — followed by targeted reading of each
+hit class to separate genuine violations from contract-fixed signatures.
+
+### A. `ComputeBackend` seam has four divergent conformance suites — no SSOT
+
+The four accelerator backends each carry a hand-written `tests/contract.rs`
+totalling 15 939 lines, and **no shared conformance crate exists** in the
+Hephaestus workspace:
+
+| Backend | `contract.rs` lines | Test fns | Unique to it |
+| --- | --- | --- | --- |
+| `hephaestus-wgpu` | 5 287 | 130 | 41 |
+| `hephaestus-rocm` | 4 657 | 70 | 53 |
+| `hephaestus-cuda` | 4 381 | 114 | 20 |
+| `hephaestus-metal` | 1 614 | 40 | 12 |
+
+Only **5 test-function names are present in all four**. Pairwise overlap is
+wildly uneven — `cuda`/`wgpu` share 87 names (copy-paste lineage), while
+`rocm`/`wgpu` share 7. The seam's contract is therefore defined by whichever
+backend happens to test the most behaviours: Metal is held to 40 assertions and
+WGPU to 130, for the same trait. This is simultaneously duplication (87 shared
+tests maintained twice) and a coverage hole (53 rocm behaviours verified nowhere
+else). Item: `ATLAS-ARCH-001`.
+
+### B. Generic instantiation coverage is single-type stack-wide
+
+25 files carry tests of the form `..._is_generic_over_scalar_f32`. **Zero files
+carry an `f64`, `f16`, or `bf16` counterpart.** Every "this code is generic" test
+in the stack asserts genericity at exactly one concrete type, so each
+monomorphization users can instantiate beyond `f32` is unverified. This is the
+mechanical form of the fake-generics risk: the tests would still pass if the
+generic body only worked at `f32`. Item: `ATLAS-ARCH-002`.
+
+### C. Concrete-`f64` statistics in a Compute-layer provider, duplicated upward
+
+`leto_ops::application::statistics` exposes `pearson(a: &[f64], b: &[f64]) -> f64`
+along with `nrmse`, `psnr`, `rmse`, and `percentile_range` — all hardcoded `f64`
+in the host-array substrate that is supposed to be generic over `T: Scalar`.
+`kwavers-math::statistics` re-exports the family verbatim as its vocabulary, so
+the concrete type propagates to an integrator.
+
+Separately, `tyche-core::statistics::sensitivity` owns generic squared-Pearson
+screening (`CorrelationScreening<T, const PARAMETERS: usize>`) per ADR 0026 —
+and `tyche` already depends on `leto-ops`. Two Pearson implementations exist in a
+provider/consumer pair, one generic and one not. Item: `ATLAS-ARCH-003`.
+
+### D. Misplaced concern and primitive obsession in `cfd-math`
+
+`repos/CFDrs/crates/cfd-math/src/statistics/pareto.rs` implements
+`pareto_front_nd(objectives: &[Vec<f64>], is_maximized: &[bool]) -> Vec<usize>`
+and `crowding_distances(front_objectives: &[Vec<f64>]) -> Vec<f64>`. Three
+defects in one file: Pareto-front and crowding distance are multi-objective
+optimization, not statistics, so the module name misdescribes the concern; the
+signatures are concrete `f64` rather than `T: Scalar`; and `&[Vec<f64>]` is a
+jagged per-row allocation where a flat slice with a stride, or a const-generic
+`[T; OBJECTIVES]`, is the cache-coherent form. A bare `&[bool]` parallel to the
+objective list is boolean blindness besides. Item: `ATLAS-ARCH-004`.
+
+### E. Dynamic dispatch on closed sets in per-timestep paths
+
+Dynamic-dispatch site counts (`Box<dyn`, `Arc<dyn`, `&dyn`, `Vec<Box<dyn`):
+`kwavers` 665, `CFDrs` 352, `gaia` 104, `coeus` 98, `moirai` 83, `consus` 66.
+
+Sampling the kwavers solver shows the pattern is not type erasure of an
+open-ended plugin set but vtable dispatch over closed design-time sets:
+`sources: &[Box<dyn Source>]` inside `forward/nonlinear/westervelt/update.rs`
+(evaluated per timestep), `boundary: Box<dyn Boundary>` held in the solver
+struct, plus `Box<dyn Signal>` and `Box<dyn Solver>`. A closed implementor set
+dispatched per timestep is the case enum dispatch exists for — exhaustiveness
+checked, statically dispatched, still runtime-selectable, no vtable.
+Item: `ATLAS-ARCH-005`.
+
+### F. Junk-drawer modules
+
+64 sites declare `mod utils`, `mod helpers`, `mod common`, or `mod shared`,
+concentrated in `apollo` (7+), `CFDrs` (6+), and `ritk` (6+) — including
+`apollo-fft/src/api/mod.rs: pub mod utils` on a public API path and
+`leto-ops/src/application/interpolation/mod.rs: mod utils`. Each is a module
+named for its lack of a bounded concern. Item: `ATLAS-ARCH-006`.
+
+### G. File-length distribution and manifest files carrying implementation
+
+568 of 11 409 files exceed the 500-line target, 88 exceed 1 000, and 11 exceed
+2 000. By package: `CFDrs` 138, `kwavers` 103, `consus` 89, `gaia` 43,
+`moirai` 37, `apollo` 35, `hephaestus` 28, `ritk` 25, `hermes` 21, `leto` 18,
+`coeus` 17.
+
+**61 `lib.rs`/`mod.rs` files exceed 500 lines**, which is the sharper defect —
+those are manifest files that should carry the module tree, curated re-exports,
+and crate docs, not implementation. The worst are
+`consus-nwb/src/file/mod.rs` (2 032), `consus-zarr/src/chunk/mod.rs` (1 958),
+`consus-parquet/src/writer/mod.rs` (1 915), `consus-nwb/src/validation/mod.rs`
+(1 780), and `leto-python/src/lib.rs` (1 416). Consus dominates and is the
+natural first scope. Item: `ATLAS-ARCH-007`.
+
+### H. Pointer-scattered containers
+
+318 `Vec<Vec<_>>` occurrences across package sources, led by
+`consus-compression/src/chunking/iterator.rs` (10),
+`gaia/src/domain/topology/adjacency.rs` (8), and
+`coeus-autograd/src/ops/nn/loss/ctc.rs` (6). Adjacency and chunk iteration are
+traversal-hot structures where the jagged allocation defeats prefetch; the
+contiguous form is an arena or a flat buffer plus an offset table (CSR-shaped).
+Item: `ATLAS-ARCH-008`.
+
+### I. Abstraction-mechanism adoption — largely healthy, two observations
+
+Checked because a structural audit that only counts violations will misreport a
+codebase that is using the mechanisms well.
+
+**Generic associated types: healthy.** 138 GAT declaration sites, and the shapes
+are the intended ones — `DispatchFuture<T: Scalar>` and `DeviceBuffer<T: Scalar>`
+(9 each) as backend type families, `Storage<'a, T>`, `View<'a>`/`ViewMut<'a>`,
+`Observation<'a>`, `Sequence<'s>`, `PreparedNorm<'a>`/`PreparedDot<'a>` as lending
+and borrowed-view families. No action.
+
+**Phantom and ZST markers: broadly adopted** — `moirai` 130, `hephaestus` 119,
+`hermes` 112, `coeus` 103, `leto` 27, `melinoe` 27, `eunomia` 15, `aequitas` 6.
+The one outlier is **`themis` at 0**, which is notable because Themis is the
+placement-law provider and typed placement facts are the canonical phantom/ZST
+use. This is an observation, not a filed defect: plain validated newtypes and
+enums may be the right encoding there. Warrants a targeted read before any item
+is filed.
+
+**Clone density**, `.clone()`/`.to_vec()`/`.to_owned()` in package sources:
+`coeus` 1 160, `apollo` 431, `hephaestus` 367, `leto` 184, `hermes` 28. Coeus is
+the outlier by a wide margin. This is **not** a defect on its face — refcounted
+tensor-handle clones are cheap by design and semantically correct — but the ratio
+against `leto` warrants a targeted read to separate handle clones from buffer
+copies on hot paths. No item filed without that read.
+
+**`trait ExecutionPolicy` does not exist anywhere in the stack**, though it is
+described as a canonical seam. Recorded as an observation rather than a gap: the
+standing rule is to introduce no seam without a present requirement, and Moirai
+already offers sync, async, and parallel entry points that consumers select
+directly. The seam becomes work only when a package genuinely needs the regime to
+vary across deployment targets.
+
+### Non-findings
+
+- **Correction to an earlier reading in this session:** a first GAT scan used a
+  regex requiring a `where Self:` clause and reported 1 file. That was wrong — the
+  accurate count is 138 declaration sites, recorded above. GAT adoption is a
+  strength of this codebase, not a gap.
+- Type-suffixed identifiers (`_f32`, `_f64`) return 456 hits across 195 files,
+  but reading them shows the overwhelming majority are contract-fixed and
+  therefore correct: wire-format readers/writers (`consus-parquet` Thrift,
+  `gaia` STL/PLY/OBJ), FFI edges, and `Scalar` conversion methods. The genuine
+  naming issue is finding B's single-type test coverage, not the identifiers.
+- `kwavers-math::statistics` is a pure re-export module pointing at its declared
+  SSOT. The defect there is the provider's concrete `f64` (finding C), not the
+  re-export, which is correct one-import-path practice.
+- No new *repository* is recommended by this audit. Every finding resolves inside
+  an existing workspace, one as a new workspace-level crate (finding A).
+
 ## Publication and documentation coverage audit (2026-07-28)
 
 Scope: every package recorded in `.gitmodules` (25). Method: enumerate
@@ -46,6 +205,21 @@ the crates.io API for account and name state.
 
 Available bare names, for the record: `aequitas`, `asclepius`, `coeus`, `consus`,
 `eunomia`, `hephaestus`, `horae`, `iris`, `kwavers`, `leto`, `melinoe`, `ritk`.
+
+### Publish-order audit (2026-07-28)
+
+Method: `scripts/publish-order.py` over every manifest in the recorded stack,
+plus two `cargo package --no-verify` experiments to establish what actually
+blocks a publish.
+
+| # | Finding | Evidence | Item |
+| --- | --- | --- | --- |
+| 19 | Cargo rewrites `{ version, git }` to a registry dependency; git sources are not the blocker | `cargo package` on `aequitas` fails with `no matching package named 'eunomia' found / location searched: crates.io index`, i.e. it looked on the registry, not at the git source. `hermes-simd`'s manifest comment ("crates.io disallows git dependencies") overstates the constraint. | ADR 0037 §4 |
+| 20 | `publish = false` across the stack is a correct ordering guard, not an oversight | A crate can publish only once its first-party dependencies are on crates.io. Four flips (`aequitas`, `asclepius`, `horae`, `hermes-simd`) were attempted and **reverted** on this evidence; `hermes-simd` carries an explicit comment stating the same reason. | ADR 0037 §4 |
+| 21 | **`mnemosyne-core` is the stack's publish critical path** | It sits in wave 0, has **172 transitive dependents**, and its crates.io name is taken by `bballer03`. 172 of 203 packages cannot publish until it is renamed. By contrast `helios-core` is also taken but has 10 dependents. `eunomia` (178) and `melinoe` (170) are comparably deep with free names. | ATLAS-PUB-007 |
+| 22 | The publish graph is acyclic and has a total order | 172 publishable crates across 38 waves; wave 0 is `consus-core`, `consus-onnx`, `eunomia`, `helios-core`, `hermes-simd-macros`, `hermes-simd-types`, `iris`, `kwavers-optics`, `melinoe`, `mnemosyne-core`, `moirai-async-macros`, `moirai-utils`, `ritk-codecs`, `ritk-morphology`, `ritk-wgpu-compat`. Dev-dependency cycles exist and are legal — they do not constrain order. | — |
+| 23 | The `xtask` name defect is now mechanically detected | `publish-order.py` exits non-zero on a registry name claimed by several manifests where at least one is publishable, reproducing by script the `repos/ritk/xtask` finding that was made by hand. Wiring it into CI waits on the fix so the gate does not land red. | ATLAS-PUB-007 |
+| 24 | `eunomia` packages with `readme = false` | The packaged manifest carries no README, so its crates.io page would render bare. Minor metadata gap, not a blocker. | ATLAS-PUB-006 |
 
 ### Full name and facade audit (2026-07-28) — supersedes findings 11-12 in scope
 
