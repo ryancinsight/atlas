@@ -30,19 +30,21 @@ CFDrs solver-runtime residual remains the exact 5 mm cfd-3d Venturi case at
 30.042 s against the 30 s budget; it is not an Aequitas typing gap.
 
 Kwavers commits `9bb64b638`, `3433d36ba`, `26c18bb24`, `328a46f03`,
-`596ae06a7`, and `740da15ff` close `KWAVERS-AEQ-MET-15` through
-`KWAVERS-AEQ-MET-19` on the active child branch. Cavitation-control,
-therapy-integration, acoustic-solver, intensity-tracker, and clinical-scenario
-public boundaries now use Aequitas `Frequency`, `Time`, `Pressure`, `Length`,
-`Volume`, `Intensity`, `ThermodynamicTemperature`, and
+`596ae06a7`, `740da15ff`, and `2ebc23345` close `KWAVERS-AEQ-MET-15`
+through `KWAVERS-AEQ-MET-20` on the active child branch. Cavitation-control,
+therapy-integration, acoustic-solver, intensity-tracker, clinical-scenario,
+and neuromodulation protocol public boundaries now use Aequitas `Frequency`,
+`Time`, `Pressure`, `Length`, `Volume`, `Intensity`, `MassDensity`, `Velocity`,
+`ThermodynamicTemperature`, and
 `TemperatureDifference`; dimensionless scores, probabilities, MI, duty cycle,
 dense arrays, and formula/mesh/GPU scalar boundaries remain explicit.
-The latest clinical-scenario package check passes; focused therapy Nextest
-passes 349/349 with one skip and four slow tests; doctests pass 8/8 with one
-ignored; warning-denied Clippy, Rustdoc, and MET-19 leaf formatting pass. The
-child branch is pushed but remains separate from the parent integration gitlink;
-provider warnings, dirty peer lock/source files, and shared-overlay path
-collisions remain verification/topology residuals, not open metric rows.
+The latest physics package check passes; physics Nextest passes 1556/1556 with
+one skip and one leaky test; doctests pass 8/8 with four ignored; warning-denied
+Clippy passes; Rustdoc builds with two pre-existing link warnings; and touched
+MET-20 leaves pass rustfmt and diff checks. The child branch is pushed but
+remains separate from the parent integration gitlink; provider warnings, dirty
+peer lock/source files, and shared-overlay path collisions remain
+verification/topology residuals, not open metric rows.
 
 Helios' current child audit has no open Aequitas metric row. The helical
 delivery and collimation restoration is `283048d`, with typed `Angle`,
@@ -178,6 +180,7 @@ is peer-owned math/provider work, not a missing metric contract.
 | `KWAVERS-AEQ-MET-17` | Kwavers therapy acoustic solver | **RESOLVED in `328a46f03`.** Public time, pressure, and SPTA intensity results and helper intervals use `Time`, `Pressure`, and `Intensity`; focused Nextest passes 349/349 with one skip and two slow tests, doctests 8/8 with one ignored, Clippy, and Rustdoc pass. |
 | `KWAVERS-AEQ-MET-18` | Kwavers intensity tracker | **RESOLVED in `596ae06a7`.** Raw W/cm² accessors were removed in favor of canonical typed `Intensity` results; focused Nextest passes 349/349 with one skip and three slow tests, doctests 8/8 with one ignored, Clippy, and Rustdoc pass. |
 | `KWAVERS-AEQ-MET-19` | Kwavers clinical scenario and pulse contracts | **RESOLVED in `740da15ff`.** Histotripsy scenario frequency, pressures, duration, focal volume, pulse timing, PRF, and pulse-average intensity use Aequitas quantities; no-PRF patterns return `None`, and MI/duty/probability remain dimensionless. Focused Nextest passes 349/349 with one skip and four slow tests; doctests 8/8 with one ignored; Clippy, Rustdoc, and leaf rustfmt pass. |
+| `KWAVERS-AEQ-MET-20` | Kwavers neuromodulation pulse-train and dosimetry contracts | **RESOLVED in `2ebc23345`.** Pulse-train frequency/timing, pressure, medium density, sound speed, dosimetry intensity, total time, and ITRUSST temperature rise use Aequitas quantities; FDA conversion and numerical formulas are the only scalar boundaries, while MI, duty, safety, and CEM43 remain semantic scalars. Physics Nextest passes 1556/1556 with one skip and one leaky test; doctests 8/8 with four ignored; warning-denied Clippy passes; Rustdoc builds with two pre-existing link warnings. |
 
 ### Session refresh (2026-07-24)
 
