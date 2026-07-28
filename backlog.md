@@ -7,6 +7,175 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — todo
+
+- Owner: unclaimed; scope: `repos/{apollo,coeus,consus,hephaestus,kwavers,leto,moirai}/.github/workflows/rust-release.yml`
+  and `repos/ritk/.github/workflows/release.yml`. One package per claim — the
+  scopes are disjoint by repository.
+- Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §1-§3.
+- Outcome: each package's crate-release workflow becomes a thin caller of
+  `ryancinsight/atlas/.github/workflows/crates-publish.yml@<atlas-sha>`, and the
+  duplicated 142-line body is deleted in the same change. Audit 2026-07-28: four
+  of the seven `rust-release.yml` files are byte-identical; the only real
+  variation is `RUST_TOOLCHAIN` (1.95.0 / 1.97.0 / 1.97.1) and whether the
+  package needs Atlas path dependencies (only `kwavers`).
+- Non-goals: changing any package's toolchain pin; changing tag conventions;
+  touching the already-shared wheel pipeline.
+- Acceptance per package: caller under 40 lines; the package's existing toolchain
+  value passed as `rust-toolchain`; `kwavers` passes `atlas-ref`; the old body
+  deleted, not kept beside the caller; one `workflow_dispatch` validation run
+  green before the next release.
+- Dependencies: none. ATLAS-PUB-003 must be complete for that package before its
+  next real publish, but the migration itself does not wait on it.
+
+## ATLAS-PUB-002 — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — todo
+
+- Owner: unclaimed; scope: `repos/{CFDrs,helios,kwavers,ritk}/.github/workflows/book-pages.yml`
+  plus `.github/workflows/docs.yml` in Atlas.
+- Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §1-§3, §5.
+- Outcome: each book workflow becomes a caller of
+  `ryancinsight/atlas/.github/workflows/book-pages.yml@<atlas-sha>` passing only
+  `output-path`; and `ritk` joins the Atlas cross-book dead-link and build gate,
+  which currently covers only CFDrs, helios, and kwavers.
+- Non-goals: flipping `mdbook-test` (ATLAS-PUB-005); authoring new books
+  (ATLAS-BOOK-001).
+- Acceptance: four callers, each passing its audited output path
+  (`target/book/cfdrs`, `target/book/helios`, `target/book`,
+  `target/book/ritk`); `docs.yml` runs the strict detector and an `mdbook build`
+  over four books; each package's Pages deployment succeeds once through the
+  shared workflow.
+
+## ATLAS-PUB-003 — Register trusted publishers and remove the unused PyPI token [chore] — todo
+
+- Owner: user-gated — registry and GitHub settings changes are Ask-User actions;
+  an agent prepares the values and verifies the result, it does not perform the
+  registration.
+- Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §4.
+- Outcome: every publishing package has a trusted publisher registered on the
+  target registry, so no long-lived registry credential exists anywhere in the
+  stack. Values per package: owner `ryancinsight`; repository = the package
+  repository; workflow filename = the **caller's** filename
+  (`rust-release.yml` / `python-release.yml`), because the OIDC claim carries the
+  caller's identity, not the Atlas reusable workflow's; environment `crates-io` /
+  `pypi`.
+- Registry verification 2026-07-28: crates.io **cannot bootstrap** a new crate
+  through trusted publishing — the crate must already exist and the first publish
+  requires an API token. The account `ryancinsight` (id 383645) has published one
+  crate, `imaginary-rs@0.1.0`; no Atlas crate is published. PyPI **can** bootstrap
+  through a pending publisher configured under the account sidebar.
+- Sequence per crate, therefore: (1) resolve its registry name (ATLAS-PUB-006 for
+  the twelve collisions); (2) one manual publish from the local Cargo credential
+  store, in workspace dependency order; (3) register the trusted publisher;
+  (4) enable trusted-publishing-only enforcement. PyPI distributions skip step 2.
+- Acceptance: one trusted-publishing release succeeds per package; the API token
+  in the `pypi` environment is deleted afterwards; trusted-publishing-only
+  enforcement is enabled in each registry's settings once its pipeline is proven.
+- Residual risk: an unregistered package fails closed at the auth step. That is
+  the intended failure mode, not a regression. A pending PyPI publisher does not
+  reserve the project name until first use, so a name can be lost in between.
+
+## ATLAS-PUB-006 — Decide the crates.io registry names for 12 colliding packages [minor] — blocked
+
+- Owner: user-gated — a published crate name is permanent and the choice is a
+  public-identity decision, so it is an Ask-User item, not an agent default.
+- Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §7 records
+  the evidence and scopes the question; it deliberately does not pick the names.
+- Blocker: awaiting the naming decision. Verified 2026-07-28 via the crates.io
+  API — crates.io has no namespaces, so publishable names are first-come:
+  - available: `aequitas`, `asclepius`, `coeus`, `consus`, `eunomia`,
+    `hephaestus`, `horae`, `iris`, `kwavers`, `leto`, `melinoe`, `ritk`;
+  - taken by unrelated owners: `apollo`, `athena`, `gaia`, `harmonia`, `helios`,
+    `hermes`, `hyperion`, `mnemosyne`, `moirai`, `proteus` (367 550 downloads),
+    `themis`, `tyche`;
+  - sub-crate names mostly free (`apollo-fft`, `athena-core`, `coeus-core`,
+    `hephaestus-core`, `hermes-simd`, `leto-ops`, `moirai-async`, `ritk-core`,
+    `tyche-core`) but `mnemosyne-core` is taken.
+- Scope: the `package.name` in the affected manifests and the crates.io
+  registration only. Repository names, submodule paths, directory names, internal
+  crate paths, and the classical-name mapping in the stack README are **out of
+  scope** and do not change.
+- Re-open trigger: the user's naming answer. Options carried for that decision,
+  with the tradeoff each accepts: a consistent stack-wide prefix (uniform,
+  discoverable, but adds a prefix the project has avoided in type names); a
+  per-package suffix such as `-rs` (idiomatic on crates.io, inconsistent across
+  the stack because only twelve need it); publishing only the already-free
+  sub-crate names and no facade crate (no rename, but no single entry point);
+  or a new classical name per collision (preserves the naming scheme, costs
+  repository renames and breaks the existing mapping).
+- Non-blocking: ATLAS-PUB-001, -002, -004, and -005 proceed independently. A
+  caller passes a package name, so a later rename is a manifest change, not a
+  workflow change.
+
+## ATLAS-PUB-004 — Pin the three Pages actions to verified digests [patch] — todo
+
+- Owner: unclaimed; scope: `.github/workflows/book-pages.yml`.
+- Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §7.
+- Outcome: `actions/configure-pages`, `actions/upload-pages-artifact`, and
+  `actions/deploy-pages` carry resolved commit digests instead of major-version
+  tags, matching every other action reference in the stack.
+- Acceptance: each digest is resolved against the upstream repository and the
+  resolution recorded in the commit body. A digest that has not been resolved is
+  fabricated evidence and must not be committed — this item exists precisely
+  because the shared workflow was authored without network access to resolve them.
+
+## ATLAS-PUB-005 — Flip `mdbook-test` per book as samples become compilable [patch] — todo
+
+- Owner: unclaimed; scope: one book per claim, in the owning repository.
+- Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §6.
+- Outcome: every published book runs `mdbook test` in CI so chapters cannot rot.
+  No book runs it today; the shared workflow defaults `mdbook-test` to `false` as
+  a staging mechanism, not an accepted end state.
+- Acceptance per book: samples compile against the package; the caller passes
+  `mdbook-test: true` and, where samples need providers, `atlas-ref`; the flip
+  commit demonstrates the gate failing on a deliberately broken sample before
+  landing green.
+- Dependencies: ATLAS-PUB-002 for that package.
+
+## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — todo
+
+- Owner: unclaimed; scope: one package per claim, `docs/book/` in that repository.
+- Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §5.
+- Outcome: every package teaches its field from the governing equations, through
+  the numerical method and its stability and convergence properties, to the
+  crate's abstractions mapped onto that theory with runnable worked examples.
+  Audit 2026-07-28: four packages have a book (`CFDrs`, `helios`, `kwavers`,
+  `ritk`); 21 have none.
+- Sequencing is provider-first so a domain chapter can cite the substrate chapter
+  it depends on: (1) `eunomia`, `aequitas`, `themis`, `melinoe`;
+  (2) `mnemosyne`, `moirai`, `hermes`, `leto`, `hephaestus`;
+  (3) `apollo`, `coeus`, `gaia`, `consus`, `horae`, `athena`, `proteus`,
+  `hyperion`, `iris`, `asclepius`, `harmonia`, `tyche`.
+- Non-goals: duplicating Rustdoc item contracts; migration guides (those belong
+  to the package `CHANGELOG.md`); execution state (that belongs to the boards).
+- Acceptance per package: outline lands first as its own increment, then chapters
+  as DoR items per subsystem; the book builds under `mdbook`; figures are
+  regenerated by committed plotting code and inspected, never hand-assembled;
+  the book joins Atlas `docs.yml` in the change that creates it.
+
+## ATLAS-NEURO-001 — RITK diffusion, tractography, and connectome crates [minor] — todo
+
+- Owner: unclaimed; scope: `repos/ritk/crates/ritk-diffusion`,
+  `repos/ritk/crates/ritk-tractography`, `repos/ritk/crates/ritk-connectome`,
+  and the RITK workspace member list. One crate per claim, in that order.
+- Decision: [ADR 0036](docs/adr/0036-neuroimaging-and-mr-ownership.md) §1-§3.
+- Outcome: diffusion MRI model fitting, streamline tractography, and connectome
+  construction land as RITK workspace crates. No new Atlas package: the gate
+  fails conditions 1, 2, 4, 5, and 6 — RITK is the sole consumer, owns every
+  primitive involved, and there is nothing to delete.
+- Non-goals: a `ritk-study` crate (cohort structure is Tyche's, per ADR 0026); MR
+  acquisition simulation (closed and demand-gated, ADR 0036 §4); any RF work
+  (ADR 0036 §5).
+- Acceptance per crate: no local optimizer, gradient, polyline type, or
+  `rayon`/`tokio` edge — fitting through `coeus-optim`/`coeus-autograd`,
+  geometry through `gaia`, execution through `moirai`; physical values are
+  Aequitas quantities; diffusion tensor estimation verified against a synthesized
+  round-trip within a tolerance derived from the scheme's condition number and
+  the machine epsilon of `T`, not an empirical constant; every generic entry
+  point instantiated across the shipped scalar types; the book chapter lands with
+  the crate.
+- Re-open trigger for a separate package: a second production consumer outside
+  the RITK workspace deletes a matching implementation in the extraction change.
+
 ## ATLAS-MODALITY-001 — Move chromophore extinction spectra to Hyperion [arch] [minor] — todo
 
 - Owner: unclaimed; scope: `repos/hyperion/src/coefficient/`, `repos/hyperion/README.md`,
@@ -146,8 +315,8 @@ path is open.
    nextest 18/18 on the diffusion/optical filterset, clippy clean in the touched
    files.
 
-3c. **blocked (edits complete, unverifiable) on ATLAS-OVERLAY-004** — adopt
-   `hyperion::transport::absorbed_{power,energy}_density` at
+3c. ✅ **closed 2026-07-28 at kwavers `6d1581a24`** — adopted
+   `hyperion::transport::absorbed_energy_density` at
    the kwavers optics deposition sites, and type `MCResult`'s `absorbed_energy`
    (J/m³) and `fluence` (J/m²) plus the diffusion solve boundary (source W/m³,
    fluence W/m²), which currently cross as bare `Vec<f64>` / `Array3<f64>` with
@@ -189,8 +358,17 @@ path is open.
   Kwavers-intrinsic and are excluded from any extraction scope. A photomedicine
   integrator peer to Helios is a separate, demand-gated decision and is out of
   scope here.
+- Refinement 2026-07-28 —
+  [ADR 0036](docs/adr/0036-neuroimaging-and-mr-ownership.md) §5: "RF" names two
+  unrelated concerns and this watchpoint covers only the first. RF power
+  deposition and SAR belong on the shared deposition spine (ATLAS-MODALITY-002),
+  where the transport stage is a modality slot and the stages behind it are
+  shared. RF at the Larmor frequency for spatial encoding belongs to MR
+  acquisition simulation, which is a closed, demand-gated *integrator* question —
+  not part of this trigger and not a RITK concern. A proposal that merges the two
+  is rejected on bounded-context grounds before the gate is even applied.
 
-## ATLAS-OVERLAY-004 — Worktree sprawl breaks stack dependency resolution [patch] — todo
+## ATLAS-OVERLAY-004 — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 
 - Owner: unclaimed; scope: `worktrees/`, the root `.cargo/config.toml`, and the
   13 lane-local `.cargo/config.toml` files. **Not** the lane branches' source.
@@ -205,14 +383,16 @@ path is open.
     (D:tlas\worktreesequitas-energy-temperature) are different, but only
     one can be written to lockfile unambiguously`.
 - Two distinct defects behind it:
-  1. **`worktrees/aequitas` is a standalone clone, not a linked worktree.**
-     `git -C repos/aequitas worktree list` shows only `repos/aequitas` and
-     `worktrees/aequitas-energy-temperature`; `worktrees/aequitas/.git` is a
-     directory. It sits at `8dfc6de`, the same commit as `repos/aequitas` main,
-     with only `Cargo.lock` dirty — no unique work. This is the prohibited
-     repository copy (`concurrent_agents`: execution model). The root
-     `.cargo/config.toml` does not reference it, so a lane-local config reaches
-     it by relative path.
+  1. ✅ **resolved 2026-07-28** — `worktrees/aequitas` was an **orphaned linked
+     worktree**, not a standalone clone: its `.git` file pointed at
+     `repos/aequitas/.git/worktrees/aequitas`, whose admin directory had been
+     pruned, leaving the checkout on disk with no git registration. Cargo still
+     discovered it as a path source, giving two providers for `aequitas v0.1.0`.
+     Contents were byte-identical to `repos/aequitas` (`diff -r` clean excluding
+     `target`, `Cargo.lock`, `.git`), so nothing unique was lost. Removed with
+     user authorization; `git worktree prune` run. `cargo check` across
+     kwavers-physics and kwavers-solver resolves again, and the `smallvec`
+     conflict cleared with it.
   2. **13 lane-local `.cargo/config.toml` files.** Config-layer ownership
      (`performance_engineering`) puts `target-dir` and the `[patch]` overlay at
      the stack root only; a nested config re-declaring either forks resolution
