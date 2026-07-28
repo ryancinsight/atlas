@@ -6129,7 +6129,7 @@ blocker on Athena.
 - Note: workload/assertion reduction is explicitly NOT an acceptance path
   per `CFDRS-RUNTIME-001`.
 
-## ATLAS-VECTOR-SEAM-PREPARED-CONTRACT-001 — Reconcile lending vs retained prepared reductions [major] [arch] — todo
+## ATLAS-VECTOR-SEAM-PREPARED-CONTRACT-001 — Reconcile lending vs retained prepared reductions [major] [arch] — done
 
 - **Blocks** `ATLAS-ATHENA-ACCEL-BACKEND-001` stage 3 merge. Not a defect in
   anyone's work: two correct designs met at a seam and one has to give.
@@ -6199,7 +6199,60 @@ blocker on Athena.
   - Preferred shape: `prepare_dot(&self, device, len) -> PreparedDot` with the
     operands supplied at `dot_prepared` time. Resources depend on length, not
     identity, so nothing is lost and every backend can own its handle.
-- Superseded recommendation, retained for the record: option 2. It resolves the conflict where the mismatch
+- Superseded recommendation, retained for the record: option 2.
+
+- **Resolved 2026-07-28 by extension, not by change.** Neither option as
+  framed was right. Option 2 does not borrow-check. Option 1 and the
+  length-keyed variant both require editing the CUDA and ROCm backends, and
+  neither compiles on this host — `hephaestus-cuda` fails to resolve its
+  manifest here and its default features need a CUDA 13.2 toolkit — so those
+  edits would have shipped unverified.
+
+  `RetainedReductions<D, T>: DenseVectorOps<D, T>` (hephaestus `7897c13`)
+  supplies the same two reductions with **owned** handles as an extension of
+  the seam rather than a modification of it. `DenseVectorOps` keeps the
+  borrowing form exactly as the CUDA and ROCm parity work left it, so those
+  backends are untouched. WGPU implements the extension over resources it
+  already owns — its buffers are shared handles, so cloning keeps operands
+  alive without copying device memory — meaning the retained and borrowing
+  forms are the same machinery reached through different lifetimes.
+
+  A backend whose buffers are owned allocations rather than shared handles
+  simply does not implement the extension, which is the honest expression of
+  the constraint that forced the lifetime in the first place.
+
+- **ADR 0034 stage 3 done**, athena `1d24c64` (merged to main).
+  `HephaestusBackend<D, V, T>` binds the retained form, and `ViewMut` is a
+  unique borrow because Hephaestus write operations take `&mut`. CG, GMRES,
+  and BiCGSTAB all solve to convergence on real GPU hardware through the
+  device-neutral backend with no device-specific solver code. Gates green:
+  athena 43/43 nextest, hephaestus core+wgpu clippy `-D warnings`, fmt, both
+  repos.
+
+- **Stage 4 remains blocked on a sparse seam.** `GpuCsrMatrix` and `spmv_into`
+  are per-backend exactly as the vector operations were, so the CSR operator
+  cannot yet be device-neutral and `athena-wgpu` cannot be deleted. The
+  stage-3 contract test builds its operator from WGPU sparse storage directly
+  to make that boundary explicit. Filed as
+  `ATLAS-HEPHAESTUS-SPARSE-SEAM-001`.
+
+## ATLAS-HEPHAESTUS-SPARSE-SEAM-001 — Device-neutral sparse operator seam [major] [arch] — todo
+
+- Outcome: a consumer can apply a device-resident sparse operator without
+  binding to a device API, closing the last gap before `athena-wgpu` is
+  deleted (ADR 0034 stage 4).
+- Evidence: `GpuCsrMatrix` and `spmv_into` exist in `hephaestus-wgpu`,
+  `hephaestus-cuda`, `hephaestus-metal`, and `hephaestus-rocm` with no
+  device-neutral contract over them — the same shape as the dense vector
+  operations before `DenseVectorOps`.
+- Scope: a `SparseOperatorOps`-style seam in `hephaestus-core` covering
+  upload, shape, and `spmv_into`, implemented by delegation in each backend;
+  then move the CSR operator out of `athena-wgpu` into `athena-hephaestus`
+  and delete `athena-wgpu` with its WGSL.
+- Precedent to follow: the dense seam landed as core contract plus one
+  backend implementation, with the other backends adopting it in their own
+  increments. Do the same rather than blocking on untestable hardware.
+ It resolves the conflict where the mismatch
   actually is — a handle bound to an operand should not outlive the operation
   using it — and it does not require editing another agent's backend work on
   untestable hardware. Option 1 is a reasonable fallback if the CUDA and ROCm
