@@ -6664,3 +6664,70 @@ this run too.
   `LinearOperator::apply(&self, ...)`. Its only mutation is a scratch cache.
 - **Stage D** — delete `leto-ops/src/application/linalg/iterative/` including
   the duplicated `LinearOperator`/`Preconditioner` traits; residue scan clean.
+
+## ATLAS-CFDRS-ATHENA-MIGRATION-001 — Stage B survey: CFDrs to Athena [major] [arch] — todo (2 decisions needed)
+
+Surveyed 2026-07-28 before starting. This is a redesign of the CFDrs
+linear-solver architecture, not a port, and two of the mismatches change a
+public CFDrs API — recording them rather than deciding unilaterally.
+
+### Scale
+
+56 files and 242 references across six crates (`cfd-1d`, `cfd-2d`, `cfd-3d`,
+`cfd-core`, `cfd-math`, `cfd-validation`), of which **24 are production solver
+construction sites** in 8 files; the rest are tests, benches, and re-exports.
+
+`cfd_math::iterative` is currently a pure re-export of the `leto-ops` family
+(`lib.rs:179`), so every consumer reaches the solvers through one facade.
+
+### Structural mismatches
+
+1. **Const-generic restart vs runtime config.** `Gmres<B, RESTART>` fixes the
+   restart width at compile time. `LinearSolverChain` carries
+   `krylov_restart: usize` as a runtime field with a builder
+   (`with_krylov_restart`) and clamps it per solve:
+   `min(self.krylov_restart, n_total_dof.max(1))`. A const generic cannot take
+   that value. **Decision needed** (see below).
+2. **Dynamic solver selection.** Four sites hold `Box<dyn LinearSolver<T>>`,
+   including `cfd-validation` which builds a `Vec` of boxed solvers to compare
+   CG against BiCGSTAB on the same system. Athena's solvers are ZST markers
+   with static `solve_into`; `KrylovBackend` has GATs and `Gmres` a const
+   generic, so none of it is dyn-compatible. The sanctioned replacement is
+   enum dispatch over the closed solver set — I can decide this one, it is
+   what the standards prescribe before reaching for `dyn`.
+3. **Preconditioner trait.** CFDrs preconditioners — `AlgebraicMultigrid`,
+   `BlockDiagonalPreconditioner`, `SimplePreconditioner`, `IncompleteLU`,
+   `DiagJacobi` — implement `leto_ops::Preconditioner<T>`. Each needs an
+   `athena_core::Preconditioner<LetoBackend<T>>` implementation instead.
+   Mechanical, but touches every preconditioner.
+4. **Caller-owned workspaces.** CFDrs solvers allocate internally per call;
+   Athena requires a workspace owned by the caller and sized to the system, so
+   every call site gains workspace lifetime management. This is the property
+   that makes Athena allocation-free, so it is a real improvement rather than
+   friction to work around — but it is a call-site change everywhere.
+5. **Config to policy.** `IterativeSolverConfig { max_iterations, tolerance,
+   relative_tolerance }` maps onto the validated `ConvergencePolicy`, which
+   also carries a check interval and rejects invalid tolerances at
+   construction. Mechanical.
+
+### Decisions needed
+
+**D1 — restart width.** Either (a) make `krylov_restart` a const parameter on
+`LinearSolverChain`, a breaking change to a public CFDrs API; or (b) keep the
+runtime field and dispatch across a small fixed set of `RESTART` instantiations
+by enum, paying monomorphisation for each; or (c) fix one restart width and
+delete the knob, checking first whether any caller sets it to a non-default
+value. Recommend (c) if the knob is unused in practice, else (b).
+
+**D2 — migration shape.** Either (a) convert all six crates in one change,
+green only at the end; or (b) convert crate by crate while `cfd_math::iterative`
+still re-exports `leto-ops`, deleting the facade last. (b) keeps the tree green
+per commit and is not a shim — the old path stays only until its last consumer
+is gone, which is what the anti-shim rule prescribes for a migration of this
+size. Recommend (b), ordered `cfd-math` internals, then `cfd-2d`, `cfd-3d`,
+`cfd-1d`, `cfd-validation`, then facade deletion.
+
+### Not started
+
+No CFDrs code changed. Nothing was added that would sit unused pending the
+decisions above.
