@@ -14,21 +14,64 @@
   list. Triage lands first as its own increment; each backend then migrates in
   its own claim.
 - Decision: [ADR 0038](docs/adr/0038-compute-backend-conformance-crate.md).
-- Outcome: the seam's contract has one owner. Audit 2026-07-28: 15 939 lines of
-  per-backend contract tests, 221 distinct test names, **only 5 present in all
-  four backends**; `cuda`/`wgpu` share 87 by copy-paste while `rocm`/`wgpu` share
-  7; Metal is held to 40 assertions where WGPU is held to 130. No conformance
-  crate exists.
-- Non-goals: changing backend behaviour; merging backend-intrinsic tests into the
-  shared suite (ADR 0038 §2 triage governs).
+- **Triage increment: done 2026-07-28** —
+  [ledger](docs/audit/2026-07-28-computebackend-conformance-triage.md). It
+  corrected the basis: the contract is the **112 public entry points declared by
+  all four backends**, not the 196 distinct test names, because `rocm` bundles
+  several clauses per test fn where `cuda`/`wgpu` split them. Real test counts are
+  wgpu 113 / cuda 100 / rocm 59 / metal 30 (the earlier 130/114/70/40 counted 52
+  helpers as tests). Coverage of the 112: wgpu 94, rocm 93, cuda 78, metal 50.
+  Classification: 112 contract, 5 capability-gated, 43 backend-intrinsic.
+- Key correction: `hephaestus-metal` declares **no native Metal code** — it
+  delegates wholly to `hephaestus-wgpu` via `WgpuDevice::try_metal`. Its low
+  coverage is not an unverified-kernel hole, and the 28 result accessors it
+  appears to lack are wgpu types it re-exports.
+- **Nine shared entry points are tested by no backend at all**:
+  `binary_elementwise_typed{,_into}`, `binary_elementwise_strided_typed{,_into}`,
+  `scalar_elementwise_strided`, `prod_axis_into`, `prepare_reduce_axis_into`,
+  `ray_line_integrals{,_into}`. These are authored first — `ray_line_integrals`
+  is the priority, since Helios depends on the substrate for radiographic
+  projection.
+- Non-goals: changing backend behaviour; merging backend-intrinsic entry points
+  into the shared suite; deciding whether `hephaestus-metal` should remain a
+  crate (`ATLAS-ARCH-009`).
 - Acceptance: each backend's `contract.rs` reduces to instantiation calls; the
   assertions executed per backend are a **superset** of the pre-migration set,
   shown by before/after counts; entry points are `<B: ComputeBackend, T: Scalar>`
   instantiated across every scalar the backend ships; a deliberately broken
-  backend method fails only that backend.
-- Expected: raising Metal from 40 to the full contract will fail. Each failure is
-  a backend defect to fix — never a weakened assertion and never a clause
-  reclassified as backend-intrinsic to make the suite pass.
+  backend method fails only that backend; **every tolerance in the shared suite
+  carries its derivation** — the existing suites use magic arguments such as
+  `assert_near(lower[0], 2.0, 64.0)`, and migrating an underived constant into the
+  shared suite would propagate it to every backend.
+- Flagged for the implementation increment: `gemm_trailing_update`,
+  `hh_trailing_update`, and `syrk_trailing_update` are blocked-decomposition inner
+  steps exposed as public API in `cuda` only. Confirm and demote to `pub(crate)`,
+  or justify the public surface.
+
+## ATLAS-ARCH-009 — Decide whether hephaestus-metal remains a crate [arch] — todo
+
+- Owner: unclaimed; scope: `repos/hephaestus/crates/hephaestus-metal` and the
+  workspace member list. Decision first, as an ADR; no code moves before it.
+- Raised by the
+  [conformance triage](docs/audit/2026-07-28-computebackend-conformance-triage.md)
+  §"topology", which established the evidence but deliberately did not decide.
+- Evidence: the crate contains **no native Metal API usage** — no `metal::`, no
+  `objc`, no `MTLDevice`, no MSL shaders. `MetalDevice` wraps a `WgpuDevice` from
+  `WgpuDevice::try_metal(...)`, and every `application/*` module forwards to
+  `wgpu_backend` (`decomposition.rs` 268 lines / 23 forwards, `reduction.rs`
+  521/25, `sparse.rs` 252/23, `linalg.rs` 246/18). It depends on
+  `hephaestus-wgpu` and `wgpu` directly. Its only unique public surface is the
+  two escape hatches `wgpu_device` and `wgpu_buffer`.
+- The question: ~2 300 lines of forwarding plus a 1 614-line contract suite exist
+  to present WGPU-with-a-Metal-adapter as a peer backend. Either that is the
+  right seam — a stable name for the Metal target, insulating consumers from the
+  fact that WGPU implements it — or it is a crate-shaped alias, and Metal
+  selection belongs inside `hephaestus-wgpu` as a device-preference path, which
+  is what `WgpuDevice::try_metal` already is.
+- Non-goals: this does not question whether the stack should target Metal. It
+  questions whether targeting it costs a crate.
+- Dependencies: sequence after ATLAS-ARCH-001, so the conformance suite is not
+  rewritten twice.
 
 ## ATLAS-ARCH-002 — Instantiate generic tests across every shipped scalar [patch] — todo
 
@@ -230,7 +273,18 @@
 - Audit 2026-07-28 — 14 of 25 packages cannot present a facade today:
   - **author a facade** (workspace root is virtual, no entry crate exists):
     `apollo` → `apollo-transforms`, `CFDrs` → `cfdrs`, `coeus` → `coeus`,
-    `helios` → `helios-radiation`, `hephaestus` → `hephaestus`, `ritk` → `ritk`;
+    `helios` → `helios-radiation`, ~~`hephaestus` → `hephaestus`~~ **delivered**,
+    `ritk` → `ritk`;
+  - `hephaestus` facade landed in `repos/hephaestus/crates/hephaestus`: flat
+    `#[doc(inline)]` re-export of the contract layer, backends under
+    `hephaestus::{wgpu,cuda,rocm,metal}` behind features, no backend enabled by
+    default (a default backend would make every trait consumer pull a device
+    stack, and `cuda`/`rocm` need vendor toolkits at build time). Two design
+    facts worth carrying to the remaining five: `default-features = false`
+    cannot override a workspace-inherited dependency, so a facade declares its
+    contract-layer dep directly; and weak feature refs (`dep?/feature`) are
+    required so forwarding `parallel` does not silently enable an unrequested
+    backend.
   - **flip `publish`** (facade exists, excluded from publishing): `aequitas`,
     `asclepius`, `horae`, `hermes-simd` — names already free;
   - **rename and flip `publish`**: `harmonia` → `harmonia-coupling`,
