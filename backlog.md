@@ -126,9 +126,36 @@ path is open.
   asserts the plugin's temperature rise matches an analytically derived value
   for a known deposition field.
 
-3. `repos/kwavers` — type the transport→deposition boundary in
-   `optics/{monte_carlo,diffusion}` and `solver/forward/optical`, so optical
-   transport emits `Intensity` and deposits `VolumetricPowerDensity`.
+3a. ✅ **closed 2026-07-27 at hyperion `12b2ad3`** — Hyperion owns the local
+   absorbed-deposition laws `Q = μ_a φ` (W/m³) and `q = μ_a Φ` (J/m³), with
+   validated `FluenceRate`, `AbsorbedPowerDensity`, and `AbsorbedEnergyDensity`
+   quantities. Both forms ship because both producers exist: rate for diffusion
+   and RTE solvers, energy for time-integrated Monte Carlo. Verified against the
+   Beer-Lambert conservation identity ∫ μ_a Φ₀ e^{-μ_a x} dx = Φ₀, an oracle
+   independent of the product under test. Gate: fmt, clippy `-D warnings`,
+   nextest 15/15, doctests, `--no-default-features`, rustdoc.
+
+3b. ✅ **closed 2026-07-27 at kwavers `224a9a293`** — deleted the vestigial
+   `DiffusionVolume` trait. It abstracted ndarray from leto during the array
+   migration; both names now resolve to `leto::Array3`, so `solve.rs` imported
+   one type under two aliases, the trait had a single impl, and `solve` /
+   `solve_leto` were the same function. `leto_solver_matches_ndarray_solver_bitwise`
+   compared those two functions on identical inputs and could not fail under any
+   defect — deleted rather than repointed. Net −101 lines; codegen-neutral, since
+   monomorphization already produced exactly the concrete code. Gate: check clean,
+   nextest 18/18 on the diffusion/optical filterset, clippy clean in the touched
+   files.
+
+3c. **todo** — adopt `hyperion::transport::absorbed_{power,energy}_density` at
+   the kwavers optics deposition sites, and type `MCResult`'s `absorbed_energy`
+   (J/m³) and `fluence` (J/m²) plus the diffusion solve boundary (source W/m³,
+   fluence W/m²), which currently cross as bare `Vec<f64>` / `Array3<f64>` with
+   units only in doc comments.
+   - Note: `multiphysics/monolithic/residual/compute.rs:84-101` computes its own
+     `inv_rho_cp` for the optical and acoustic terms, but `coeff` there is a
+     uniform-coefficient bundle by design, so that scalar division is a modelling
+     assumption rather than the phase-2b inconsistency. Only the `μ_a · Φ`
+     product is a spine law there.
 4. `repos/kwavers` — same treatment for `electromagnetic`, via SAR from phase 1.
    This is also the ATLAS-MODALITY-003 RF prerequisite.
 
