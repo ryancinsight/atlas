@@ -790,6 +790,53 @@ path is open.
   not part of this trigger and not a RITK concern. A proposal that merges the two
   is rejected on bounded-context grounds before the gate is even applied.
 
+## ATLAS-OVERLAY-005 — Clear first-party rev pins across the stack [patch] — in-progress
+
+- Owner: session-808504af. Decision: pin discipline (`architecture_scoping`) —
+  a `rev =` is quarantine with a removal trigger, not a durable source form.
+- Root cause: a rev-qualified git source is a **distinct package** to Cargo, so
+  the stack `[patch]` overlay — which matches the bare URL — can never unify it.
+  Sixteen first-party pins had accumulated across five repos at three different
+  `aequitas` commits and two `eunomia` commits, so any crate reaching a provider
+  by both forms received two incompatible copies of the same trait. Hyperion
+  could not multiply two `Quantity` values for exactly this reason.
+- ✅ Cleared and pushed: proteus `9a8655d` (also restored its manifest from a
+  local path-dep leak to git+version), asclepius `ccffb6b`, tyche `996b649`,
+  kwavers `df9008d93`.
+- **Remaining**: helios (5 pins) and ritk (6 pins) are depinned in the working
+  tree but uncommitted — neither has been build-verified yet. `openjp2` in ritk
+  keeps its pin; it is third-party, where a rev is legitimate.
+- **Mechanism worth mechanizing**: depinning alone is insufficient. Every lock
+  move needs `python scripts/atlas-stack-overlay.py generate` to re-derive the
+  patch block, otherwise the graph keeps a local-vs-git split. This is the
+  mechanism behind the recurring "local X cannot replace git-sourced Y" failures
+  on this board. `atlas-stack-overlay.py check` already exits nonzero on lag, so
+  wiring it into CI would catch the class at the source.
+- Evidence: `cargo tree -d` in kwavers reports no duplicate first-party crates;
+  `atlas-stack-overlay.py check` reports the stack aligned.
+
+## ATLAS-CONTENTION-001 — Transport-output typing blocked behind foundation WIP [patch] — blocked
+
+- Owner: session-808504af; scope `repos/kwavers` 18 files (uncommitted).
+- Delivers ATLAS-MODALITY-002 phase 3d: `DimensionedField<S, D>` in
+  `kwavers-core/src/units/field.rs` (zero-sized Aequitas dimension tag over any
+  sample container), `VolumetricHeatSource` consolidated onto it,
+  `MCResult::{absorbed_energy,fluence}` typed as `J/m³` and `J/m²`, and
+  `DiffusionSolver::solve` typed `W/m³` in → `W/m²` out.
+- Verified so far: `cargo check` green across kwavers-core, kwavers-physics,
+  kwavers-solver, kwavers-simulation; nextest **332/332** on kwavers-core +
+  kwavers-physics.
+- **Blocker**: the kwavers-solver test filterset has not run against this change.
+  Three successive attempts hit unrelated live peer WIP — first a missing
+  `Fft3dInOutExt` import in `pstd/.../stepper/step.rs` (peer landed it), now
+  `repos/aequitas` mid-refactor with duplicate definitions (E0592) in
+  `quantity/arithmetic/scalar.rs` and `construction.rs`, touched minutes ago.
+  Aequitas is the foundation crate, so nothing downstream compiles until it
+  settles.
+- Re-open trigger: `cargo check -p aequitas` green, then run
+  `cargo nextest run -p kwavers-solver -E 'test(~thermal_diffusion) or test(~optical::diffusion)'`
+  and commit if green.
+
 ## ATLAS-OVERLAY-004 — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 
 - Owner: unclaimed; scope: `worktrees/`, the root `.cargo/config.toml`, and the
