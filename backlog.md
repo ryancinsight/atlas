@@ -275,16 +275,32 @@
     `apollo` → `apollo-transforms`, `CFDrs` → `cfdrs`, `coeus` → `coeus`,
     `helios` → `helios-radiation`, ~~`hephaestus` → `hephaestus`~~ **delivered**,
     `ritk` → `ritk`;
-  - `hephaestus` facade landed in `repos/hephaestus/crates/hephaestus`: flat
-    `#[doc(inline)]` re-export of the contract layer, backends under
-    `hephaestus::{wgpu,cuda,rocm,metal}` behind features, no backend enabled by
-    default (a default backend would make every trait consumer pull a device
-    stack, and `cuda`/`rocm` need vendor toolkits at build time). Two design
-    facts worth carrying to the remaining five: `default-features = false`
-    cannot override a workspace-inherited dependency, so a facade declares its
-    contract-layer dep directly; and weak feature refs (`dep?/feature`) are
-    required so forwarding `parallel` does not silently enable an unrequested
-    backend.
+  - `hephaestus` facade landed in `repos/hephaestus/crates/hephaestus`
+    (`bf24b87`): flat `#[doc(inline)]` re-export of the contract layer, backends
+    under `hephaestus::{wgpu,cuda,rocm,metal}` behind features, no backend
+    enabled by default (a default backend would make every trait consumer pull a
+    device stack, and `cuda`/`rocm` need vendor toolkits at build time). Two
+    design facts worth carrying to the remaining five:
+    `default-features = false` cannot override a workspace-inherited dependency,
+    so a facade declares its contract-layer dep directly; and weak feature refs
+    (`dep?/feature`) are required so forwarding `parallel` does not silently
+    enable an unrequested backend.
+  - Verification complete — all four configurations pass: default `cargo check`,
+    `--no-default-features`, the doctest, and `--features wgpu,decomposition,sparse`
+    (11 m 32 s, queued behind a peer's build-directory lock). The `bf24b87`
+    commit message recorded the wgpu set as unconfirmed because it was still
+    building at commit time; this entry supersedes that.
+  - Evidence limit: those checks ran against a working tree carrying a peer's
+    uncommitted edits to `hephaestus-core/src/{lib.rs,domain/vector.rs}` and
+    `hephaestus-wgpu/src/application/vector/mod.rs`. They prove the facade
+    compiles against the tree as it stood, not against committed state. The glob
+    re-export is robust to surface additions, but re-verify on a clean tree once
+    that peer work lands.
+  - Not verified: that a backend is unnameable without its feature. That follows
+    directly from `#[cfg(feature = ...)]` on the re-export, and a `compile_fail`
+    doctest asserting it would itself pass or fail depending on which features
+    the test run enables — a fragile test of language semantics rather than of
+    this contract, so none was added.
   - **flip `publish`** (facade exists, excluded from publishing): `aequitas`,
     `asclepius`, `horae`, `hermes-simd` — names already free;
   - **rename and flip `publish`**: `harmonia` → `harmonia-coupling`,
