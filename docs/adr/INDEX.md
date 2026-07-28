@@ -37,8 +37,13 @@
 | <a id="ADR-0030"></a>**0030** | Promote Hyperion as the bounded owner of photon/optical coefficients, reference attenuation data, optical depth, Beer–Lambert transmission, and derived transport laws; require direct three-consumer deletion before Atlas registration | Accepted | 2026-07-21 | `[arch]` `[minor]` | hyperion / helios / kwavers / CFDrs / proteus / aequitas / atlas-meta | photon-optical-transport |
 | <a id="ADR-0031"></a>**0031** | Real sparse LU factorization for `leto-ops::SparseLuSolver` — replace dense-backed misnamed LU with CSC-based sparse LU + partial pivoting; natural column ordering for v0.40.0, AMD ordering tracked as follow-up | Accepted | 2026-07-23 | `[arch]` `[minor]` | leto / CFDrs / atlas-meta | upstream-algorithm |
 | <a id="ADR-0032"></a>**0032** | Modality transport and therapy-integrator boundaries — reject a standalone `optics` package (gate 1/4/6 unmet, sole consumer); optical transport extends Hyperion as `hyperion-transport`, not a rival package; chromophore spectra move to Hyperion now; the reusable seam is the Aequitas-typed deposition spine, not "optics"; RF/EM and a photomedicine integrator stay deferred with named triggers | Proposed | 2026-07-27 | `[arch]` | hyperion / kwavers / aequitas / atlas-meta | boundary-decision |
+| <a id="ADR-0033"></a>**0033** | Reaffirm Athena as the Krylov owner and unwind the Leto regression; amends ADR 0022 without superseding it | Accepted | 2026-07-27 | `[major]` `[arch]` | athena / leto / atlas-meta | simulation-providers |
+| <a id="ADR-0034"></a>**0034** | Athena carries one accelerator backend over Hephaestus rather than a per-device crate | Accepted | 2026-07-27 | `[major]` `[arch]` | athena / hephaestus / atlas-meta | simulation-providers |
+| <a id="ADR-0035"></a>**0035** | Atlas owns the release and documentation publication pipelines as reusable `workflow_call` workflows (`crates-publish.yml`, `book-pages.yml`, existing `python-wheels.yml`); package workflows become thin callers pinned to an exact Atlas commit; both registries stay tokenless through OIDC trusted publishing; every package owes a `docs/book/` book, with `mdbook test` staged per book | Proposed | 2026-07-28 | `[arch]` `[patch]` | atlas-meta / all publishing packages | publication-pipelines |
+| <a id="ADR-0037"></a>**0037** | Workspace facade crates and crates.io registry naming — every package publishes one facade crate re-exporting its sub-crates (the `burn`/`bevy`/`polars` shape: users depend on `coeus`, not `coeus-core`), lockstep versioning with optional backend features; facade name is the bare classical name where free and `<name>-<domain>` where taken (no `atlas-` prefix, no stack-wide `-rs`); 165 of 173 publishable names free, 8 collide, 14 packages have no facade yet | Proposed | 2026-07-28 | `[arch]` `[minor]` | atlas-meta / all publishing packages | publication-pipelines |
+| <a id="ADR-0036"></a>**0036** | Neuroimaging, diffusion MRI, tractography, and connectomics land as RITK workspace crates (`ritk-diffusion` / `ritk-tractography` / `ritk-connectome`), not a new package — gate 1/2/4/5/6 unmet; cohort studies stay in Tyche; MR acquisition simulation is a closed, demand-gated integrator question; "RF" splits into deposition-spine SAR and Larmor-frequency encoding, neither a package | Proposed | 2026-07-28 | `[arch]` | ritk / coeus / gaia / tyche / atlas-meta | boundary-decision |
 
-The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0030 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, provider-checkout, biological-response, visualization-contract, and photon/optical-transport decisions. ADR 0032 records the modality boundary decision that scopes future optics, RF/EM, and therapy-integrator packages against the promotion gate. The index now carries the authored sequence through ADR 0032.
+The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0031 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, provider-checkout, biological-response, visualization-contract, photon/optical-transport, and upstream-algorithm decisions; 0033-0034 amend the Athena solver ownership and fix its accelerator-backend shape. ADR 0032 and ADR 0036 are the two boundary decisions that scope future packages against the promotion gate — 0032 for optics, RF/EM, and therapy integrators, 0036 for neuroimaging, diffusion MRI, and MR physics. ADR 0035 moves publication (crates.io, PyPI, GitHub Pages) into Atlas-owned reusable workflows, and ADR 0037 settles the facade-crate shape and registry names those pipelines publish. The index now carries the authored sequence through ADR 0037.
 
 ## Topic-keyword index
 
@@ -164,6 +169,51 @@ law), 0025 (Proteus material properties), and 0020/0027 (exact provider graph
 and checkout) without moving consumer spatial, solver, backend, or workflow
 ownership.
 
+### Group K — Package boundary decisions (`topic-tag: boundary-decision`)
+
+Cross-cuts every "should this be its own package" question. These ADRs record
+answers *against the promotion gate*, so a future proposal is compared to a
+decided precedent instead of re-argued. Affected packages: all.
+
+- **ADR 0032** — optics, RF/electromagnetics, and a photomedicine integrator.
+  Rejects a per-modality package; the reusable seam is the Aequitas-typed
+  deposition spine, and optical transport extends Hyperion. **Anchor for any
+  modality-package proposal.**
+- **ADR 0036** — neuroimaging, diffusion MRI, tractography, connectomics, MR
+  physics. Places the work as RITK workspace crates; separates MR image
+  processing from MR acquisition simulation; splits "RF" into deposition-spine
+  SAR and Larmor-frequency encoding. **Anchor for any imaging-modality or
+  neuroimaging proposal.**
+
+Cross-walks: 0036 extends 0032's modality reasoning to MR and RF, and depends on
+0029 (Iris view/color contracts consumed by tract display) and 0026 (Tyche owns
+cohort studies, so no RITK study crate is created). Both ADRs share one shape —
+source audit, gate table, named reopen trigger — which is the reusable template
+for the next boundary question.
+
+### Group L — Publication pipelines (`topic-tag: publication-pipelines`)
+
+Cross-cuts crate publishing to crates.io, wheel publishing to PyPI, and package
+book deployment to GitHub Pages. Affected packages: every package with an
+external audience; Atlas owns the pipelines.
+
+- **ADR 0035** — Atlas owns all three pipelines as reusable `workflow_call`
+  workflows; package workflows are thin callers pinned to an exact Atlas commit;
+  both registries stay tokenless through OIDC trusted publishing; every package
+  owes one repository-level `docs/book/` book, with `mdbook test` staged per book.
+  **Anchor for any release-workflow, Pages, or registry-credential question.**
+- **ADR 0037** — one facade crate per package re-exporting its sub-crates, lockstep
+  versioning, optional backend features, and the registry naming rule with the
+  per-package facade table. **Anchor for any question about what a user depends
+  on, or what a crate is called on crates.io.**
+
+Cross-walks: 0035 reuses 0027's `atlas-ref` gitlink contract for the caller pin,
+follows 0024's precedent of Atlas owning a cross-package CI gate rather than
+duplicated package scripts, and generalizes the already-consolidated
+`python-wheels.yml` shape to the crate and book concerns. 0037 closes the naming
+question 0035 §7 deliberately left open, and supplies the package names 0035's
+pipelines consume — the two are read together for any publishing work.
+
 ## Status flow legend
 
 The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `documentation_discipline`:
@@ -197,6 +247,13 @@ The ADR status flow is a 3-tier decision gradient per `D:/atlas/AGENTS.md` `docu
 | 0028 | 0005 (Eunomia scalar law) + 0020 (exact provider graph) + 0021 (Aequitas quantity law) + 0025 (complementary material-property boundary) + 0027 (provider checkout) | Asclepius ADR 0001; duplicated Helios and Kwavers response formulas |
 | 0029 | 0020 (exact provider graph) + 0027 (provider checkout) | Iris ADR 0001; duplicated RITK Snap and VTK color laws |
 | 0030 | 0005 (Eunomia scalar law) + 0021 (Aequitas quantity law) + 0025 (Proteus material properties) + 0020/0027 (exact provider graph and checkout) | Hyperion ADR 0001; duplicated Helios, Kwavers, and CFDrs photon/optical transport laws |
+| 0031 | 0005 (Eunomia scalar law) + 0020 (provider graph) | the dense-backed implementation misnamed `SparseLuSolver` in `leto-ops` |
+| 0032 | 0030 (Hyperion owns photon/optical law) + 0021 (Aequitas quantity law — the deposition spine is typed in it) + 0023 (Harmonia owns coupling orchestration) | the proposal for a standalone `optics` package "similar to Helios" |
+| 0033 | 0022 (amends, does not supersede — reaffirms Athena's Krylov ownership) | the Leto-side Krylov regression that reintroduced duplicate recurrences |
+| 0034 | 0022 (Athena does not own device mechanics) + 0033 (Krylov ownership) + 0001/0004 (Hephaestus substrate and kernel seam) | the per-device Athena backend crate shape |
+| 0035 | 0027 (`atlas-ref` gitlink contract reused by callers) + 0024 (precedent: Atlas owns a cross-package CI gate) + 0011 (Atlas-meta ownership) | eight duplicated `rust-release.yml` copies and four duplicated `book-pages.yml` copies |
+| 0036 | 0032 (extends the modality boundary reasoning to MR and RF) + 0029 (Iris view/color contracts) + 0026 (Tyche owns cohort studies) + 0005/0021 (scalar and quantity law) | the proposal for a standalone neuroimaging package |
+| 0037 | 0035 §7 (closes the naming question it left open; supplies the names its pipelines consume) | the `atlas-` prefix and stack-wide `-rs` suffix proposals; `-core` crates as the advertised entry point |
 | 0010 | 0005 (consumed by Batch #2 closure), 0006 (next-batch adoption), 0007 (per-`[patch]` sweep reuses), 0011 (ceremony counterpart) | inline `D:/atlas/backlog.md` ritual without ADR anchor |
 | 0011 | 0005, 0006, 0007 (numeric SSOT chain hygiene), 0010 (Per-batch convention) | inline `D:/atlas/backlog.md` OOS-record shape (first introduced by commit `283f38cf`); implicit cadence carried only in the commit narrative pre-ADR-0011 |
 

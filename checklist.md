@@ -6,6 +6,69 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-PUB-001/002 — Adopt the Atlas-shared publication pipelines [patch]
+
+- [x] Audit the duplication: 8 crate-release workflows (4 byte-identical at 142
+      lines; variation is `RUST_TOOLCHAIN` 1.95.0/1.97.0/1.97.1 and `kwavers`
+      path dependencies) and 4 book workflows (variation is the output path).
+- [x] Add `.github/workflows/crates-publish.yml` — `validate` + `publish` jobs,
+      `rust-toolchain` required, optional `atlas-ref` path-dependency step,
+      crates.io OIDC via `rust-lang/crates-io-auth-action`, `crates-io`
+      environment gate.
+- [x] Add `.github/workflows/book-pages.yml` — `build` + `deploy` jobs,
+      `output-path` required, staged `mdbook-test` input, Pages artifact flow
+      under `pages: write` + `id-token: write`.
+- [x] Verify both parse as `workflow_call` workflows with the audited variation
+      exposed as inputs.
+- [x] Reuse only action refs already present in the stack; do not introduce an
+      unresolved commit digest (three Pages actions stay on major-version tags,
+      filed as ATLAS-PUB-004).
+- [x] Add `ritk` to the Atlas `docs.yml` cross-book gate (all four books now
+      build under the strict detector).
+- [ ] Migrate one crate-release caller and prove it with a `workflow_dispatch`
+      validation run before migrating the rest.
+- [ ] Migrate the four book callers.
+- [ ] Delete each duplicated workflow body in the same change that adds its
+      caller — never keep both.
+
+Evidence: ADR 0035 records the audit, the caller contract, the tokenless
+authentication decision, and the per-package adoption ledger. The `atlas-ref`
+caller pin reuses ADR 0027's gitlink contract. Registry registration is
+user-gated and tracked as ATLAS-PUB-003.
+
+## ATLAS-PUB-006/007 — Facade crates and registry names [arch] [minor]
+
+- [x] Survey facade practice in comparable projects: `burn` 0.21.0 (lockstep
+      `^0.21.0` across 4 required + 18 optional sub-crates), `bevy` 0.19.0,
+      `polars` 0.54.4 lockstep; `tokio` 1.53.1 independent. Coeus already has
+      burn's crate shape.
+- [x] Confirm crates.io policy: first-come names, no namespaces, no team-forced
+      transfer without owner approval, squatting removable case-by-case.
+- [x] Audit all 207 package manifests (34 `publish = false`, 173 publishable) and
+      check every publishable name — 165 free, 8 collide.
+- [x] Audit the facade gap: 6 virtual workspace roots with no entry crate, 8
+      facades marked `publish = false`, 6 already publishable.
+- [x] Verify availability of every proposed `<name>-<domain>` facade name, and
+      rule out a stack-wide `-rs` suffix (4 of those are taken).
+- [x] Record the decision, the per-package facade table, and the rejected
+      alternatives in ADR 0037.
+- [ ] Author the six missing facade crates: `apollo-transforms`, `cfdrs`,
+      `coeus`, `helios-radiation`, `hephaestus`, `ritk`.
+- [ ] Flip `publish` on `aequitas`, `asclepius`, `horae`, `hermes-simd`.
+- [ ] Rename and flip: `harmonia-coupling`, `hyperion-photon`, `moirai-runtime`,
+      `proteus-materials`.
+- [ ] Rename: `athena-solvers`, `gaia-geometry`, `mnemosyne-alloc`,
+      `themis-placement`, `tyche-uq`.
+- [ ] Rename `helios-core`; rename `mnemosyne-core` as one co-evolution unit with
+      `leto`, `hephaestus`, and `moirai`.
+- [ ] Add `publish = false` to `repos/ritk/xtask/Cargo.toml`.
+- [ ] Re-check each facade name against the registry immediately before its first
+      publish — availability decays under first-come.
+
+Evidence: ADR 0037 carries the practice survey, the 173-name audit with owners
+and download counts, the facade-gap audit, and the availability check for every
+proposed name. Naming is settled; nothing here waits on a user answer.
+
 ## ATLAS-WGPU-SAFETY-002 — Specify the fallible WGPU layout/dispatch boundary [arch]
 
 - [x] Advance Coeus to provider commit `a6dfb2d6` with ADR-0020 and the

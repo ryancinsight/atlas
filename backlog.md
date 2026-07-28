@@ -35,14 +35,18 @@
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §1-§3, §5.
 - Outcome: each book workflow becomes a caller of
   `ryancinsight/atlas/.github/workflows/book-pages.yml@<atlas-sha>` passing only
-  `output-path`; and `ritk` joins the Atlas cross-book dead-link and build gate,
-  which currently covers only CFDrs, helios, and kwavers.
+  `output-path`.
+- **Closed sub-item (2026-07-28):** `ritk` now joins the Atlas cross-book gate —
+  `.github/workflows/docs.yml` runs the strict detector and an `mdbook build`
+  over all four books. The same change dropped the three per-book HTML artefact
+  uploads, leaving `detector.log` as the only retained artefact; that is a
+  deliberate narrowing, not a regression, since Pages deployment is the book's
+  delivery path and the artefacts were diagnostic only.
 - Non-goals: flipping `mdbook-test` (ATLAS-PUB-005); authoring new books
   (ATLAS-BOOK-001).
 - Acceptance: four callers, each passing its audited output path
   (`target/book/cfdrs`, `target/book/helios`, `target/book`,
-  `target/book/ritk`); `docs.yml` runs the strict detector and an `mdbook build`
-  over four books; each package's Pages deployment succeeds once through the
+  `target/book/ritk`); each package's Pages deployment succeeds once through the
   shared workflow.
 
 ## ATLAS-PUB-003 — Register trusted publishers and remove the unused PyPI token [chore] — todo
@@ -74,37 +78,78 @@
   the intended failure mode, not a regression. A pending PyPI publisher does not
   reserve the project name until first use, so a name can be lost in between.
 
-## ATLAS-PUB-006 — Decide the crates.io registry names for 12 colliding packages [minor] — blocked
+## ATLAS-PUB-006 — Stand up one facade crate per package [minor] — todo
 
-- Owner: user-gated — a published crate name is permanent and the choice is a
-  public-identity decision, so it is an Ask-User item, not an agent default.
-- Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §7 records
-  the evidence and scopes the question; it deliberately does not pick the names.
-- Blocker: awaiting the naming decision. Verified 2026-07-28 via the crates.io
-  API — crates.io has no namespaces, so publishable names are first-come:
-  - available: `aequitas`, `asclepius`, `coeus`, `consus`, `eunomia`,
-    `hephaestus`, `horae`, `iris`, `kwavers`, `leto`, `melinoe`, `ritk`;
-  - taken by unrelated owners: `apollo`, `athena`, `gaia`, `harmonia`, `helios`,
-    `hermes`, `hyperion`, `mnemosyne`, `moirai`, `proteus` (367 550 downloads),
-    `themis`, `tyche`;
-  - sub-crate names mostly free (`apollo-fft`, `athena-core`, `coeus-core`,
-    `hephaestus-core`, `hermes-simd`, `leto-ops`, `moirai-async`, `ritk-core`,
-    `tyche-core`) but `mnemosyne-core` is taken.
-- Scope: the `package.name` in the affected manifests and the crates.io
-  registration only. Repository names, submodule paths, directory names, internal
-  crate paths, and the classical-name mapping in the stack README are **out of
-  scope** and do not change.
-- Re-open trigger: the user's naming answer. Options carried for that decision,
-  with the tradeoff each accepts: a consistent stack-wide prefix (uniform,
-  discoverable, but adds a prefix the project has avoided in type names); a
-  per-package suffix such as `-rs` (idiomatic on crates.io, inconsistent across
-  the stack because only twelve need it); publishing only the already-free
-  sub-crate names and no facade crate (no rename, but no single entry point);
-  or a new classical name per collision (preserves the naming scheme, costs
-  repository renames and breaks the existing mapping).
-- Non-blocking: ATLAS-PUB-001, -002, -004, and -005 proceed independently. A
-  caller passes a package name, so a later rename is a manifest change, not a
-  workflow change.
+- Owner: unclaimed; scope: one package per claim, in that package's repository.
+  The `mnemosyne-core` rename is a cross-repo co-evolution unit and is claimed as
+  a single item spanning `mnemosyne`, `leto`, `hephaestus`, and `moirai`.
+- Decision: [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md).
+  Naming is settled; nothing here waits on a user answer.
+- Outcome: every package presents one facade crate that re-exports its
+  sub-crates, so a user depends on `coeus`, not `coeus-core` — the shape `burn`,
+  `bevy`, and `polars` use. The facade holds no logic: re-exports with
+  `#[doc(inline)]`, feature gates selecting optional backend sub-crates, and the
+  crate-level overview. Lockstep versioning at the workspace version.
+- Audit 2026-07-28 — 14 of 25 packages cannot present a facade today:
+  - **author a facade** (workspace root is virtual, no entry crate exists):
+    `apollo` → `apollo-transforms`, `CFDrs` → `cfdrs`, `coeus` → `coeus`,
+    `helios` → `helios-radiation`, `hephaestus` → `hephaestus`, `ritk` → `ritk`;
+  - **flip `publish`** (facade exists, excluded from publishing): `aequitas`,
+    `asclepius`, `horae`, `hermes-simd` — names already free;
+  - **rename and flip `publish`**: `harmonia` → `harmonia-coupling`,
+    `hyperion` → `hyperion-photon`, `moirai` → `moirai-runtime`,
+    `proteus` → `proteus-materials`;
+  - **rename only** (publishable under a colliding name): `athena` →
+    `athena-solvers`, `gaia` → `gaia-geometry`, `mnemosyne` →
+    `mnemosyne-alloc`, `themis` → `themis-placement`, `tyche` → `tyche-uq`;
+  - **ready, no action**: `consus`, `eunomia`, `iris`, `kwavers`, `leto`,
+    `melinoe`.
+- Non-goals: repository names, submodule paths, directory names, module paths,
+  and the classical-name mapping in the stack README. This is registry identity
+  only. Also out of scope: negotiating a colliding name from its current owner —
+  permitted, but no publish waits on it (ADR 0037 §5).
+- Acceptance per package: the facade's `src/lib.rs` contains no logic; `cargo doc`
+  shows re-exported items inline at facade paths; `--no-default-features` builds
+  and no backend is reachable without its feature; `cargo publish --dry-run`
+  passes after the sub-crates; the facade name returns 404 from the registry
+  immediately before first publish, since availability decays.
+- Non-blocking: ATLAS-PUB-001, -002, -004, and -005 proceed independently — a
+  caller passes a package name, so every rename here is a manifest change.
+
+## ATLAS-PUB-007 — Rename the two colliding sub-crates and fix the ritk xtask publish flag [patch] — todo
+
+- Owner: unclaimed; scope: `repos/helios` (one repo) and
+  `repos/{mnemosyne,leto,hephaestus,moirai}` (one co-evolution unit), plus
+  `repos/ritk/xtask/Cargo.toml`.
+- Decision: [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md) §4.
+- Outcome: the three publishable names that collide below the facade layer are
+  resolved. Verified 2026-07-28:
+  - `helios-core` is taken (`ncitron`, v0.1.0, 1 067 downloads) — rename the
+    Helios internal crate alongside the `helios-radiation` facade work;
+  - `mnemosyne-core` is taken (`bballer03`, v0.2.0) **and is a live dependency
+    edge** — `leto`, `hephaestus`, and `moirai` all depend on it, so the rename is
+    a co-evolution unit: upstream first, then each consumer's requirement and
+    lock, verified as one unit;
+  - `xtask` is taken, and `repos/ritk/xtask/Cargo.toml` lacks the
+    `publish = false` that `apollo`, `CFDrs`, `helios`, and `kwavers` all carry.
+    Fix the manifest, not the name — an internal build-automation crate must never
+    be publishable.
+- Acceptance: no manifest in the stack depends on `mnemosyne-core` afterwards;
+  every `xtask` manifest carries `publish = false`; each renamed crate's
+  consumers build and test green as one unit.
+
+## ATLAS-PUB-008 — Audit facade names immediately before each first publish [chore] — todo
+
+- Owner: unclaimed; scope: the pre-publish check only.
+- Decision: [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md) §3,
+  verification item 1.
+- Outcome: name availability is a point-in-time observation and decays — 165 of
+  173 names were free on 2026-07-28, and first-come means any of them can be
+  claimed by a third party before the stack publishes. Each first publish
+  re-checks its own name.
+- Acceptance: `GET /api/v1/crates/<name>` returns 404 immediately before the
+  publish, recorded in the release evidence. A collision discovered here is
+  resolved by ADR 0037 §3's rule, not by an ad-hoc name.
 
 ## ATLAS-PUB-004 — Pin the three Pages actions to verified digests [patch] — todo
 

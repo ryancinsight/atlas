@@ -1,0 +1,191 @@
+name: Publish crate to crates.io
+
+# Atlas owns the crate release pipeline once for the whole stack (ADR 0035).
+# Package repositories call this workflow instead of copying it: before this
+# workflow existed, seven packages carried the same 142-line file and differed
+# only in the toolchain pin and whether they needed Atlas path dependencies.
+#
+# Authentication is OIDC trusted publishing. crates.io trusts the calling
+# repository's workflow identity and mints a short-lived token for one publish,
+# so no long-lived CARGO_REGISTRY_TOKEN secret exists anywhere in the stack.
+# Each crate registers its publisher once under
+# crates.io -> crate Settings -> Trusted Publishing; an unregistered crate fails
+# closed at the auth step rather than falling back to a stored credential.
+#
+# The reusable workflow inherits the caller's event context, so a release-tag
+# publish and a workflow_dispatch dry run both resolve here.
+
+on:
+  workflow_call:
+    inputs:
+      rust-toolchain:
+        description: Exact Rust toolchain used to package and publish
+        required: true
+        type: string
+      tag-prefix:
+        description: Release-tag prefix preceding <package>-v<version>
+        required: false
+        default: "crate-"
+        type: string
+      atlas-ref:
+        description: >-
+          Exact Atlas commit owning the provider gitlink graph. Set only for
+          packages whose manifests carry Atlas path dependencies; leave empty to
+          skip provider materialization.
+        required: false
+        default: ""
+        type: string
+      manifest:
+        description: Manifest scanned for path dependencies when atlas-ref is set
+        required: false
+        default: Cargo.toml
+        type: string
+      dispatch-package:
+        description: Workspace package validated without publishing on workflow_dispatch
+        required: false
+        default: ""
+        type: string
+      dispatch-version:
+        description: Exact Cargo version validated on workflow_dispatch
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate crate package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      package: ${{ steps.release.outputs.package }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Check out the release revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name || github.sha }}
+
+      - name: Check out exact Atlas path dependencies
+        if: inputs.atlas-ref != ''
+        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@cd6a78e8c9a9816b0fa5ff22ad9166edbb713894
+        with:
+          manifest: ${{ inputs.manifest }}
+          destination: ..
+          atlas_ref: ${{ inputs.atlas-ref }}
+
+      - name: Install the pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+
+      - name: Resolve and validate release identity
+        id: release
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PACKAGE: ${{ inputs.dispatch-package }}
+          INPUT_VERSION: ${{ inputs.dispatch-version }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          TAG_PREFIX: ${{ inputs.tag-prefix }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            pattern="^${TAG_PREFIX}(.+)-v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?)$"
+            if [[ "$RELEASE_TAG" =~ $pattern ]]; then
+              package="${BASH_REMATCH[1]}"
+              version="${BASH_REMATCH[2]}"
+            else
+              echo "release tag must be ${TAG_PREFIX}<package>-v<version>" >&2
+              exit 1
+            fi
+          else
+            package="$INPUT_PACKAGE"
+            version="$INPUT_VERSION"
+            if [[ -z "$package" || -z "$version" ]]; then
+              echo "dispatch-package and dispatch-version are required outside a release event" >&2
+              exit 1
+            fi
+          fi
+
+          if [[ ! "$package" =~ ^[A-Za-z0-9][A-Za-z0-9_-]*$ ]]; then
+            echo "invalid Cargo package name: $package" >&2
+            exit 1
+          fi
+
+          metadata="$(cargo metadata --locked --no-deps --format-version 1)"
+          matches="$(jq --arg package "$package" '[.packages[] | select(.name == $package)] | length' <<<"$metadata")"
+          if [[ "$matches" != "1" ]]; then
+            echo "expected exactly one workspace package named $package; found $matches" >&2
+            exit 1
+          fi
+
+          manifest_version="$(jq -r --arg package "$package" '.packages[] | select(.name == $package) | .version' <<<"$metadata")"
+          if [[ "$version" != "$manifest_version" ]]; then
+            echo "release version $version does not match Cargo version $manifest_version" >&2
+            exit 1
+          fi
+
+          publishable="$(jq -r --arg package "$package" '.packages[] | select(.name == $package) | (.publish == null or (.publish | index("crates-io") != null))' <<<"$metadata")"
+          if [[ "$publishable" != "true" ]]; then
+            echo "Cargo metadata marks $package as publish = false" >&2
+            exit 1
+          fi
+
+          echo "package=$package" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Package and verify without publishing
+        shell: bash
+        env:
+          RELEASE_PACKAGE: ${{ steps.release.outputs.package }}
+        run: cargo publish --locked --package "$RELEASE_PACKAGE" --dry-run
+
+  publish:
+    if: github.event_name == 'release'
+    needs: validate
+    name: Publish crate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: crates-io
+      url: https://crates.io/crates/${{ needs.validate.outputs.package }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out the release revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Check out exact Atlas path dependencies
+        if: inputs.atlas-ref != ''
+        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@cd6a78e8c9a9816b0fa5ff22ad9166edbb713894
+        with:
+          manifest: ${{ inputs.manifest }}
+          destination: ..
+          atlas_ref: ${{ inputs.atlas-ref }}
+
+      - name: Install the pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+
+      - name: Request a short-lived crates.io token
+        id: auth
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+
+      - name: Publish the validated package
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          RELEASE_PACKAGE: ${{ needs.validate.outputs.package }}
+        run: cargo publish --locked --package "$RELEASE_PACKAGE"

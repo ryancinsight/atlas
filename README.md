@@ -5,6 +5,63 @@ simulation stack. Atlas coordinates numeric laws, memory and execution
 providers, reusable scientific domains, and end-user simulation suites without
 collapsing their independent release histories.
 
+The delivered suite simulates **radiation transport and therapy**, **fluid
+dynamics**, and **acoustics and ultrasound**, with **optical transport** shared
+across them. Each modality is an integrator over the same providers rather than
+a self-contained program: a modality contributes its transport stage, and the
+deposition, bioheat, damage, and planning stages behind that stage are shared
+(see [Modality boundary decision](#modality-boundary-decision)). Everything
+below the integrators is Rust; Python exists only as a thin PyO3 binding surface
+over a Rust core.
+
+## Substrate composition
+
+The stack is built from first-party substrate crates rather than the usual
+third-party equivalents, so one owner exists per bounded context and the
+provider graph stays acyclic. Ownership is enforced by the
+[promotion gate](#promotion-gate) and the [provider table](#provider-ownership);
+the equivalence column below states what a package displaces, not an API
+compatibility promise.
+
+| Concern | Atlas owner | Displaces |
+| --- | --- | --- |
+| Allocation, arenas, staging memory | `mnemosyne` | ad-hoc global allocation and per-crate pools |
+| Scheduling, parallel iteration, async, transport | `moirai` | `rayon` and `tokio` |
+| CPU lane-parallel kernels and ISA dispatch | `hermes` | hand-written intrinsics and per-ISA crates |
+| Host arrays, layouts, views, linear algebra | `leto` | `ndarray` and its linear-algebra satellites |
+| Accelerator devices, buffers, kernels | `hephaestus` | direct `wgpu`/CUDA orchestration in domain code |
+| Transforms (Fourier, spectral, wavelet, NTT) | `apollo` | `rustfft` and FFTW-family bindings |
+| Tensors, autodiff, neural networks, optimizers | `coeus` | `burn`, JAX, PyTorch, and MLX |
+| Medical image formats, processing, registration | `ritk` | VTK, ITK, MITK, and SimpleITK |
+
+`leto` and `hephaestus` are not alternatives to each other. They are the CPU and
+accelerator backends of the same `ComputeBackend` seam, and are normally used
+together: `coeus` binds both through zero-cost generic dispatch, so one tensor
+program monomorphizes to either backend without a runtime vtable and without a
+cloned per-backend algorithm. The two are layered rather than parallel —
+`hephaestus` depends on `leto` for host-side staging arrays — so selecting the
+accelerator backend never removes the host array substrate from the build.
+
+`coeus` consumes `apollo` rather than reimplementing transforms. Apollo owns the
+forward and inverse transform mathematics and plans; Coeus adds the
+differentiation layer on top, so a transform inside a differentiated program has
+one implementation and one set of adjoint rules.
+
+`ritk` runs on `coeus` tensors. Its former `burn` dependency is fully retired —
+the current `ritk` manifests contain no `burn` edge, and `ritk-core`,
+`ritk-analyze`, and `ritk-cli` depend on `coeus-core` directly.
+
+```text
+memory       execution    CPU lanes   host arrays   accelerator
+mnemosyne ──> moirai ───> hermes ───> leto ───────> hephaestus
+                                        │               │
+                                        └───────┬───────┘
+                                                v
+                                    apollo ──> coeus ──> ritk
+                                              tensors +
+                                              autodiff
+```
+
 ## Repository model
 
 `atlas` is an orchestration repository, not a Cargo workspace. Each package is
@@ -53,7 +110,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 25 packages.
 | Domain | [`apollo`](repos/apollo) | Fourier, spectral, wavelet, number-theoretic, and related transforms. |
 | Domain | [`asclepius`](repos/asclepius) | Biological-response, tissue-effect, treatment-response, and therapy-outcome laws over Aequitas quantities and Eunomia scalars, with a one-way Coeus adapter. |
 | Domain | [`athena`](repos/athena) | Backend-neutral PCG and restarted GMRES over Leto CPU and Hephaestus WGPU execution. |
-| Domain | [`coeus`](repos/coeus) | Strided tensors, automatic differentiation, neural networks, optimization, and sparse operations. |
+| Domain | [`coeus`](repos/coeus) | Strided tensors, automatic differentiation, neural networks, optimization, and sparse operations over the Leto CPU and Hephaestus accelerator backends, with Apollo transforms differentiated in place. |
 | Domain | [`consus`](repos/consus) | Native scientific storage formats, compression, and data transport. |
 | Domain | [`gaia`](repos/gaia) | Geometry predicates, topology, watertight meshes, and mesh generation. |
 | Domain | [`harmonia`](repos/harmonia) | Transactional partitioned multiphysics coupling, interface transfer, relaxation, and heterogeneous subcycling. |
@@ -61,7 +118,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 25 packages.
 | Domain | [`horae`](repos/horae) | Typed simulation time, explicit integration, adaptive policy, event clipping, and subcycle ratios. |
 | Domain | [`iris`](repos/iris) | Domain-neutral normalized colors, fixed lookup tables, borrowed diagnostic views, and render-backend contracts. |
 | Domain | [`proteus`](repos/proteus) | Validated material-property, material-identity, and static constitutive-law vocabulary parameterized by Aequitas quantities and Eunomia scalars. |
-| Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, domain-specific visualization, and VTK data models. |
+| Domain | [`ritk`](repos/ritk) | Medical-image formats, processing, registration, domain-specific visualization, and VTK data models over Coeus tensors. |
 | Domain | [`tyche`](repos/tyche) | Uncertainty quantification, sampling, ensembles, sensitivity, and reproducible stochastic studies over Moirai execution and Consus persistence. |
 | Compute | [`hephaestus`](repos/hephaestus) | GPU device, buffer, transfer, and kernel substrate for WGPU and CUDA. |
 | Compute | [`hermes`](repos/hermes) | CPU SIMD/SWAR vocabulary, ISA dispatch, and vector kernels. |
@@ -136,7 +193,24 @@ flowchart TB
     kwavers --> hyperion
     ritk --> iris
     CFDrs --> iris
+    coeus --> apollo
+    coeus --> leto
+    coeus --> hephaestus
+    ritk --> coeus
+    hephaestus --> leto
+    leto --> hermes
+    leto --> moirai
+    hermes --> mnemosyne
+    moirai --> mnemosyne
+    moirai --> melinoe
+    moirai --> themis
 ```
+
+The substrate edges above are read from the package manifests at this revision:
+`coeus` depends on `apollo-fft`, `leto`/`leto-ops`, and the `hephaestus-*`
+provider crates; `ritk` depends on `coeus-core`; `hephaestus` depends on `leto`
+for host-side staging arrays, so the two backends are layered rather than
+parallel.
 
 ### Provider ownership
 
@@ -181,7 +255,16 @@ Iris visualization ownership and the RITK and CFDrs consumer migrations are
 recorded in [ADR 0029](docs/adr/0029-iris-visualization-promotion.md).
 Hyperion photon and optical transport ownership and its three-consumer
 deletion ledger are recorded in
-[ADR 0030](docs/adr/0030-hyperion-photon-optical-promotion.md).
+[ADR 0030](docs/adr/0030-hyperion-photon-optical-promotion.md). Athena's Krylov
+ownership is reaffirmed against the Leto regression in
+[ADR 0033](docs/adr/0033-krylov-ownership-reaffirmation.md), and its single
+accelerator backend over Hephaestus — rather than a per-device crate — is
+recorded in
+[ADR 0034](docs/adr/0034-athena-single-accelerator-backend.md). The
+Atlas-owned release and documentation publication pipelines are recorded in
+[ADR 0035](docs/adr/0035-shared-publication-pipelines.md), and neuroimaging
+ownership in
+[ADR 0036](docs/adr/0036-neuroimaging-and-mr-ownership.md).
 
 ## Naming
 
@@ -274,6 +357,11 @@ mappings: Hyperion to light, Ares to war, and Prometheus to fire and craft.
 An optics, radiofrequency, or photomedicine package is not a third candidate
 for that slot. [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md)
 records why — see [Modality boundary decision](#modality-boundary-decision).
+Neuroimaging, diffusion MRI, tractography, and connectomics are likewise not
+candidates:
+[ADR 0036](docs/adr/0036-neuroimaging-and-mr-ownership.md) places them as RITK
+workspace crates — see
+[Neuroimaging, diffusion MRI, and MR physics](#neuroimaging-diffusion-mri-and-mr-physics).
 
 | Track | Decision | Current evidence | Required consolidation result |
 | --- | --- | --- | --- |
@@ -411,6 +499,56 @@ Sonoluminescence (3 006 LOC, bubble-driven emission) and photoacoustics
 (653 LOC, an acousto-optic coupling) are Kwavers-intrinsic and are excluded from
 every extraction scope above. Coupling orchestration belongs to Harmonia.
 
+### Neuroimaging, diffusion MRI, and MR physics
+
+[ADR 0036](docs/adr/0036-neuroimaging-and-mr-ownership.md) settles where
+diffusion MRI, tractography, connectomics, and MRI study processing live. The
+answer is the RITK workspace, not a new repository, and the reasoning is the
+promotion gate rather than subject-matter novelty.
+
+RITK already owns every input and every primitive this work consumes: DICOM,
+NIfTI, MGH, MINC, and NRRD readers; spatial transforms, interpolation, and
+resampling; registration; filtering and morphology; per-image statistics; and
+tensor operations on Coeus. Diffusion model fitting is image processing over
+those primitives, so it lands as workspace crates in the package that owns them:
+
+```text
+crates/ritk-diffusion      DWI signal models: tensor, kurtosis, multi-compartment, ODF
+crates/ritk-tractography   streamline integration and termination criteria
+crates/ritk-connectome     parcellation-to-graph construction and graph measures
+```
+
+Gate conditions 1 and 6 are unmet for a separate package — RITK is the only
+consumer, and none of these crates is consumed across a repository boundary.
+Creating a repository now would add topology without consolidating code, which
+the gate exists to prevent. The trigger to reopen is explicit: a second
+production consumer outside RITK that deletes a matching implementation in the
+extraction change.
+
+Existing owners are not duplicated by this decision:
+
+| Concern | Owner | Boundary |
+| --- | --- | --- |
+| Nonlinear model fitting | `coeus` | Diffusion fits use Coeus autodiff and optimizers; RITK adds no local optimizer. |
+| Streamline geometry | `gaia` | Streamlines are polyline geometry and topology typed in Gaia primitives; RITK owns the integration policy that produces them. |
+| Population and group statistics | `tyche` | Cohort sampling, ensembles, sensitivity, and reproducible study vocabulary stay in Tyche; RITK supplies per-subject image measures. |
+| Rendering and color | `iris` | Tract and connectome display uses Iris color law and view contracts through `ritk-snap` / `ritk-vtk`. |
+| Derived-array persistence | `consus` | Fitted fields, streamline sets, and connectivity matrices persist through Consus formats. |
+| Quantities and scalars | `aequitas`, `eunomia` | Diffusivity, b-values, and gradient directions are typed quantities over Eunomia scalars, not raw floats. |
+
+MR *physics* is a separate question from MR *image processing*, and the two must
+not be merged. Bloch-equation acquisition simulation — spin evolution, gradient
+encoding, k-space formation, sequence timing — is an integrator concern of the
+same kind as Helios and Kwavers, not a RITK concern, and no consumer for it
+exists at this revision. It is demand-gated, not duplication-gated.
+
+RF likewise remains a transport stage rather than a package. ADR 0032 defers
+RF/electromagnetics with a named trigger, and the distinction ADR 0036 adds is
+that "RF" covers two unrelated concerns: RF power deposition and SAR belong on
+the shared deposition spine with every other modality, while RF at the Larmor
+frequency for spatial encoding belongs to MR acquisition simulation. Neither
+justifies a package on its own.
+
 ### Dependency order
 
 The recommended extraction order is:
@@ -448,6 +586,11 @@ eunomia + aequitas + horae ── prometheus ── CFDrs / kwavers
 
 future, only after a second transport consumer appears (ADR 0032):
 hyperion + leto + hephaestus ── hyperion-transport ── kwavers / <second consumer>
+
+neuroimaging inside the ritk workspace, no new package (ADR 0036):
+coeus + aequitas ── ritk-diffusion ── ritk-tractography ── ritk-connectome
+                                          └── gaia (streamline geometry)
+                                          └── tyche (cohort studies)
 ```
 
 `harmonia` follows typed time and convergence contracts but does not depend on
@@ -471,40 +614,56 @@ The following concerns are not package gaps:
 
 ## Layout
 
+Atlas owns only cross-package concerns. Anything specific to one package lives
+in that package's repository.
+
 ```text
 atlas/
+├── .cargo/
+│   └── config.toml                  # shared target dir, debug budget, stack [patch] overlay
+├── .github/
+│   ├── actions/
+│   │   └── checkout-path-dependencies/   # provider materialization from one gitlink graph
+│   └── workflows/
+│       ├── atlas-stack-overlay.yml       # overlay freshness gate (regenerate-and-diff)
+│       ├── book-pages.yml                # reusable: mdBook test, build, Pages deploy
+│       ├── crates-publish.yml            # reusable: crates.io OIDC trusted publishing
+│       ├── docs.yml                      # cross-book dead-link and mdbook build gate
+│       └── python-wheels.yml             # reusable: maturin wheel matrix + release assets
 ├── docs/
-│   └── adr/              # stack-wide architectural decisions
-├── repos/
-│   ├── CFDrs/
-│   ├── aequitas/
-│   ├── apollo/
-│   ├── asclepius/
-│   ├── athena/
-│   ├── coeus/
-│   ├── consus/
-│   ├── eunomia/
-│   ├── gaia/
-│   ├── harmonia/
-│   ├── helios/
-│   ├── hephaestus/
-│   ├── hermes/
-│   ├── horae/
-│   ├── hyperion/
-│   ├── iris/
-│   ├── kwavers/
-│   ├── leto/
-│   ├── melinoe/
-│   ├── mnemosyne/
-│   ├── moirai/
-│   ├── proteus/
-│   ├── ritk/
-│   ├── themis/
-│   └── tyche/
-├── scripts/              # cross-package orchestration
-├── .gitmodules
+│   ├── adr/                         # stack-wide architectural decisions + INDEX.md
+│   ├── audit/                       # dated provider audits
+│   ├── coordination/                # cross-repo hand-off records
+│   └── pr/                          # review checklists for in-flight deliveries
+├── repos/                           # one submodule per package (see .gitmodules)
+│   ├── aequitas/  eunomia/  melinoe/  themis/            # Foundation
+│   ├── mnemosyne/ moirai/   hermes/   leto/  hephaestus/  # Compute
+│   ├── apollo/    asclepius/ athena/  coeus/ consus/      # Domain
+│   │   gaia/      harmonia/ horae/    hyperion/ iris/
+│   │   proteus/   ritk/     tyche/
+│   └── CFDrs/     helios/   kwavers/                      # Integrator
+├── scripts/
+│   ├── atlas-stack-overlay.py       # generates the [patch] overlay from cargo metadata
+│   ├── build-all.ps1 / build-all.sh # run one Cargo command across every recorded package
+│   └── check_mdbook_links.py        # portable book dead-link detector
+├── tools/
+│   ├── checkout-path-dependencies/  # Rust backend for the composite action
+│   ├── criterion-regression/        # cross-package benchmark regression classifier
+│   └── gitlink-coherence/           # gitlink/pin drift checker
+├── worktrees/                       # canonical root for member-repo worktree lanes
+├── backlog.md                       # shared state and ownership board
+├── checklist.md                     # owner-keyed execution steps
+├── gap_audit.md                     # unresolved material risk and audit patterns
+├── CHANGELOG.md
+├── .gitmodules                      # authoritative package set and remotes
 └── README.md
 ```
+
+`repos/` groups packages by layer for readability; on disk each entry is a
+single directory. A directory under `repos/` that is absent from
+[`.gitmodules`](.gitmodules) is local work, not part of the recorded stack.
+`target/` is the one shared build cache for the whole stack and is never
+committed.
 
 ## Clone
 
@@ -632,6 +791,172 @@ paths, URLs from `.gitmodules`, and revisions from `repos/<provider>` gitlinks.
 Moving branch names, duplicated provider lists, wrong-revision reuse, dirty
 reuse, missing provider URLs, missing dependency manifests, and paths outside
 the authorized destination fail closed.
+
+## Documentation
+
+Each package carries two documentation layers with different jobs. Rustdoc is
+the item-contract layer: every public crate denies `missing_docs`, and every
+public item documents its invariants, errors, panics, and safety obligations
+with runnable doctests. The package book is the pedagogical layer: it teaches
+the field from the governing equations, through the discretization and its
+stability and convergence properties, to the crate's abstractions mapped onto
+that theory with runnable worked examples. The two layers complement each other
+and must not duplicate one another.
+
+**One book per repository, not one per crate.** The book is a workspace-level
+document: it teaches the package's field once and maps the whole crate family
+onto that theory, so a sub-crate contributes a chapter rather than a book of its
+own. A per-crate book would fragment the theory across 173 crates and duplicate
+the shared derivations in every one.
+
+A book lives at `docs/book/` in its own repository, builds under `mdbook`, has
+its code samples tested so chapters cannot rot, and deploys to GitHub Pages from
+the package's own Actions run through
+[`book-pages.yml`](.github/workflows/book-pages.yml). Books are not process
+dumps: migration guides belong to the package `CHANGELOG.md` and execution state
+belongs to the boards, never to a chapter.
+
+At this revision four packages publish a book — `CFDrs`, `helios`, `kwavers`,
+and `ritk`. The remaining 21 have none. That is tracked board work, not an
+accepted steady state, and it is sequenced provider-first so a domain chapter
+can cite the substrate chapter it depends on.
+
+Atlas owns the cross-book invariant gate in
+[`docs.yml`](.github/workflows/docs.yml), which runs the portable dead-link
+detector in strict mode and an `mdbook` build over all four registered books. A
+new book joins that gate in the same change that creates it.
+
+## Publication
+
+Where a package has an external audience it publishes a crate to crates.io, and
+a wheel to PyPI when it carries a PyO3 binding surface. Eleven packages have a
+binding crate today: `apollo`, `CFDrs`, `coeus`, `consus`, `eunomia`, `helios`,
+`hephaestus`, `kwavers`, `leto`, `moirai`, and `ritk`.
+
+Both registries authenticate through OIDC trusted publishing. The registry
+trusts the repository's workflow identity and mints a short-lived token for one
+publish; **no long-lived registry token is stored in a GitHub secret**, and a
+package whose pipeline is wired should have trusted-publishing-only enforcement
+enabled in its registry settings.
+
+Atlas owns the pipelines as reusable `workflow_call` workflows so the release
+logic exists once for the whole stack:
+
+| Pipeline | Atlas workflow | Registry authentication |
+| --- | --- | --- |
+| Crate publish | [`crates-publish.yml`](.github/workflows/crates-publish.yml) | `rust-lang/crates-io-auth-action` under `id-token: write`, gated by the `crates-io` environment |
+| Wheel build and release assets | [`python-wheels.yml`](.github/workflows/python-wheels.yml) | none; builds, validates, attests, and attaches wheels |
+| Wheel publish | caller job after `python-wheels.yml` | `pypa/gh-action-pypi-publish` under `id-token: write`, gated by the `pypi` environment |
+| Book deploy | [`book-pages.yml`](.github/workflows/book-pages.yml) | `actions/deploy-pages` under `pages: write` + `id-token: write` |
+
+A package workflow is a thin caller pinned to an exact Atlas commit — the same
+`atlas-ref` contract the provider checkout uses — so a pipeline fix lands once
+in Atlas and each package adopts it by advancing one pin. Package workflows must
+not re-implement the release logic; a divergent copy is a defect. The pipeline
+ownership boundary, the caller contract, and the per-package adoption ledger are
+recorded in
+[ADR 0035](docs/adr/0035-shared-publication-pipelines.md).
+
+Publishing is gated, not automatic. A tagged release runs the pipeline; the
+crate pipeline additionally requires `cargo publish --dry-run` content
+verification and the semver gate, and the wheel pipeline requires the wheel set,
+distribution name, and version to match the release tag before any upload.
+Workspace crates publish in dependency order.
+
+### One-time registry setup
+
+Each registry needs one manual registration per package, performed by the
+account owner in the registry's own interface. The pipeline supplies no
+credential, so an unregistered package fails closed at the publish step.
+
+The two registries differ on bootstrapping, and the difference decides the order
+of operations:
+
+| | crates.io | PyPI |
+| --- | --- | --- |
+| Can trusted publishing create a new package? | **No.** The crate must already exist; the first publish requires an API token. | **Yes**, through a *pending publisher* configured under the account sidebar with the project name. |
+| Registration location | the crate's **Settings → Trusted Publishing** | project **Manage → Publishing**, or the account sidebar for a pending publisher |
+| Token lifetime | 30 minutes | short-lived, per publish |
+
+So a crate that has never been published needs one manual first publish from the
+local Cargo credential store, and only then can its trusted publisher be
+registered. A PyPI distribution needs no such bootstrap.
+
+For crates.io, under the crate's **Settings → Trusted Publishing**:
+
+```text
+Repository owner:   ryancinsight
+Repository name:    <package repository>
+Workflow filename:  rust-release.yml
+Environment:        crates-io
+```
+
+For PyPI, under the project's **Manage → Publishing**:
+
+```text
+Owner:              ryancinsight
+Repository name:    <package repository>
+Workflow name:      python-release.yml
+Environment:        pypi
+```
+
+In both cases the workflow filename is the **caller's** filename in the package
+repository, not the Atlas reusable workflow's, because the OIDC claim carries the
+caller's identity. Registering the Atlas filename rejects every publish, and it
+is the most likely setup error.
+
+### Facade crates and registry names
+
+Each package presents exactly one **facade crate** that re-exports its
+sub-crates, following the shape `burn`, `bevy`, and `polars` use: a user depends
+on `coeus`, never `coeus-core`. The facade holds no logic — re-exports,
+feature gates that select optional backend sub-crates, and the crate-level
+overview. Sub-crates stay published so a consumer can take a narrow dependency,
+but they are not the advertised entry point. Versioning is lockstep at the
+workspace version, with backends as optional features.
+[ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md) records the
+practice survey, the naming rule, and the per-package table.
+
+No Atlas crate is published yet. Of 173 publishable names audited on 2026-07-28,
+**165 are free and 8 collide**: `athena`, `gaia`, `helios-core`, `mnemosyne`,
+`mnemosyne-core`, `themis`, `tyche`, and `xtask`. crates.io has no namespaces and
+will not transfer a name without the current owner's approval, so the facade name
+is the bare classical name where it is free and `<name>-<domain>` where it is not.
+There is no `atlas-` prefix and no stack-wide `-rs` suffix — `-rs` is itself
+unavailable for four of the affected names.
+
+| Facade | Package | | Facade | Package |
+| --- | --- | --- | --- | --- |
+| `aequitas` | aequitas | | `hyperion-photon` | hyperion |
+| `apollo-transforms` | apollo | | `iris` | iris |
+| `asclepius` | asclepius | | `kwavers` | kwavers |
+| `athena-solvers` | athena | | `leto` | leto |
+| `cfdrs` | CFDrs | | `melinoe` | melinoe |
+| `coeus` | coeus | | `mnemosyne-alloc` | mnemosyne |
+| `consus` | consus | | `moirai-runtime` | moirai |
+| `eunomia` | eunomia | | `proteus-materials` | proteus |
+| `gaia-geometry` | gaia | | `ritk` | ritk |
+| `harmonia-coupling` | harmonia | | `themis-placement` | themis |
+| `helios-radiation` | helios | | `tyche-uq` | tyche |
+| `hephaestus` | hephaestus | | | |
+| `hermes-simd` | hermes | | | |
+| `horae` | horae | | | |
+
+Repository names, submodule paths, module paths, and the classical-name
+[mapping](#naming) are unaffected; this governs registry identity only. Fourteen
+packages cannot present a facade yet — six workspace roots are virtual and have no
+entry crate, and eight have one marked `publish = false` — tracked as
+`ATLAS-PUB-006`.
+
+The `crates-io` and `pypi` GitHub environments exist to scope the OIDC claim and
+to hold the deployment protection rules. They need no secrets. If a PyPI API
+token was previously added to the `pypi` environment, it is unused by these
+workflows and should be removed once a trusted-publishing release has
+succeeded — a long-lived registry token in CI is the failure mode trusted
+publishing exists to remove.
+
+GitHub Pages is enabled once per repository with **Settings → Pages → Source:
+GitHub Actions**. No branch or `gh-pages` push is involved.
 
 ## Add a package
 

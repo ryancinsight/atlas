@@ -1,5 +1,128 @@
 # atlas — cross-repository integration gap audit
 
+## Publication and documentation coverage audit (2026-07-28)
+
+Scope: every package recorded in `.gitmodules` (25). Method: enumerate
+`.github/workflows/`, `docs/book/book.toml`, and `pyo3`-bearing manifests per
+repository; diff the release workflows against each other. Decisions recorded in
+[ADR 0035](docs/adr/0035-shared-publication-pipelines.md).
+
+### Findings
+
+| # | Finding | Evidence | Item |
+| --- | --- | --- | --- |
+| 1 | Crate-release logic is duplicated 8× | `rust-release.yml` in `apollo`, `coeus`, `consus`, `hephaestus`, `kwavers`, `leto`, `moirai`; `release.yml` in `ritk`. Four are byte-identical at 142 lines. Only real variation: `RUST_TOOLCHAIN` (1.95.0 / 1.97.0 / 1.97.1) and `kwavers`'s 12-line path-dependency step. | ATLAS-PUB-001 |
+| 2 | Book publication logic is duplicated 4× | `book-pages.yml` in `CFDrs`, `helios`, `kwavers`, `ritk`; identical apart from the built output path. | ATLAS-PUB-002 |
+| 3 | `ritk`'s book was absent from the Atlas cross-book gate — **closed 2026-07-28** | `.github/workflows/docs.yml` covered CFDrs, helios, and kwavers only; it now runs the strict detector and `mdbook build` over all four books. The same change dropped the three per-book HTML artefact uploads, retaining only `detector.log` — a deliberate narrowing, since Pages is the delivery path and those artefacts were diagnostic. | ATLAS-PUB-002 (closed) |
+| 4 | No book runs `mdbook test` | None of the four `book-pages.yml` files invokes it; book code samples are unprotected against rot. Enabling it stack-wide in one change would fail every book whose samples are illustrative — staged per book instead. | ATLAS-PUB-005 |
+| 5 | 21 of 25 packages have no book | `book.toml` exists only under `repos/{CFDrs,helios,kwavers,ritk}/docs/book/`. Every foundation and compute provider is undocumented at the pedagogical layer. | ATLAS-BOOK-001 |
+| 6 | An unused PyPI API token sits in the `pypi` environment | Both registries already authenticate by OIDC trusted publishing (`rust-lang/crates-io-auth-action`, `pypa/gh-action-pypi-publish` under `id-token: write`). No workflow reads a registry token. A long-lived credential that no pipeline uses is exposure without function. | ATLAS-PUB-003 |
+| 7 | Three Pages actions are tag-pinned, not digest-pinned | `configure-pages`, `upload-pages-artifact`, `deploy-pages` carry major-version tags in the new Atlas workflow, matching the four existing package copies. Digests were not resolvable when the workflow was authored, and an unresolved digest is fabricated evidence. | ATLAS-PUB-004 |
+
+### Non-findings
+
+- Wheel publication is already consolidated: Atlas owns `python-wheels.yml` as a
+  `workflow_call` workflow and the package `python-release.yml` files are thin
+  callers pinned to an exact Atlas commit. This audit generalizes that proven
+  shape rather than proposing a new one.
+- No registry token is read by any workflow in the stack. Finding 6 is an unused
+  credential, not a pipeline dependency.
+- 11 packages carry a `pyo3` binding crate (`apollo`, `CFDrs`, `coeus`, `consus`,
+  `eunomia`, `helios`, `hephaestus`, `kwavers`, `leto`, `moirai`, `ritk`). The
+  remaining 14 having no wheel is correct, not a gap.
+
+### Registry verification (2026-07-28)
+
+Method: crates.io and PyPI trusted-publishing documentation read directly, plus
+the crates.io API for account and name state.
+
+| # | Finding | Evidence | Item |
+| --- | --- | --- | --- |
+| 8 | crates.io cannot bootstrap a new crate through trusted publishing | Documented prerequisite: "Your crate must already be published to crates.io (initial publish requires an API token)". Fields confirmed as Repository owner / Repository name / Workflow filename / Environment (optional). Token lifetime 30 minutes. | ATLAS-PUB-003 |
+| 9 | No Atlas crate is published | `GET /api/v1/crates?user_id=383645` returns exactly one crate for account `ryancinsight`: `imaginary-rs@0.1.0`. Every stack crate's first publish is therefore manual, in workspace dependency order. | ATLAS-PUB-003 |
+| 10 | PyPI *can* bootstrap, unlike crates.io | Pending publishers are configured under the account sidebar with the project name and convert to normal publishers on first use. A pending publisher does not reserve the name until used. | ATLAS-PUB-003 |
+| 11 | 12 of 25 bare package names are taken on crates.io by unrelated owners | `apollo`, `athena` (`zakarumych`), `gaia`, `harmonia` (`sogh`), `helios`, `hermes` (`YeluriKetan`), `hyperion` (`patrickisgreene`), `mnemosyne` (`elde-n`), `moirai` (`PsichiX`), `proteus` (367 550 downloads), `themis`, `tyche` (`Gawdl3y`). Owner lookups confirm no relation to this account. crates.io has no namespaces, so this is not resolvable by scoping. | ATLAS-PUB-006 |
+| 12 | Sub-crate names are mostly free but not reliably so | Available: `apollo-fft`, `athena-core`, `coeus-core`, `hephaestus-core`, `hermes-simd`, `leto-ops`, `moirai-async`, `ritk-core`, `tyche-core`. Taken: `mnemosyne-core`. A prefix convention cannot be assumed safe without checking each name. | ATLAS-PUB-006 |
+
+Available bare names, for the record: `aequitas`, `asclepius`, `coeus`, `consus`,
+`eunomia`, `hephaestus`, `horae`, `iris`, `kwavers`, `leto`, `melinoe`, `ritk`.
+
+### Full name and facade audit (2026-07-28) — supersedes findings 11-12 in scope
+
+Findings 11 and 12 counted bare *repository* names. Enumerating all 207 package
+manifests (34 `publish = false`, 173 publishable) and checking every publishable
+name against the registry gives the accurate picture, and it reframes the problem.
+
+| # | Finding | Evidence | Item |
+| --- | --- | --- | --- |
+| 13 | Only 8 of 173 publishable names collide | `athena` (v0.0.0, `zakarumych`), `gaia` (v0.2.1 2018, `ucarion`), `helios-core` (`ncitron`), `mnemosyne` (`elde-n`), `mnemosyne-core` (`bballer03`), `themis` (19 629 dl, Cossack Labs), `tyche` (`Gawdl3y`), `xtask` (`AprilNEA`). 165 names are free. Most bare repository names from finding 11 are **not** publishable crate names, because those workspaces have no crate bearing the bare name. | ATLAS-PUB-006/007 |
+| 14 | **14 of 25 packages cannot present an entry crate at all** — the real blocker | Six workspace roots are virtual with no facade crate: `apollo`, `CFDrs`, `coeus`, `helios`, `hephaestus`, `ritk`. Eight have a facade marked `publish = false`: `aequitas`, `asclepius`, `harmonia`, `hermes-simd`, `horae`, `hyperion`, `moirai`, `proteus`. This blocks the "user depends on `coeus`, not `coeus-core`" requirement independently of any name collision. | ATLAS-PUB-006 |
+| 15 | `mnemosyne-core` is a colliding name **and** a live dependency edge | `leto`, `hephaestus`, and `moirai` all depend on `mnemosyne-core`, so its rename is a cross-repo co-evolution unit rather than a local edit. | ATLAS-PUB-007 |
+| 16 | `repos/ritk/xtask/Cargo.toml` is missing `publish = false` | `apollo`, `CFDrs`, `helios`, and `kwavers` all carry it on their `xtask`; `ritk` does not. `xtask` is also taken on crates.io, so a publish would fail — but the defect is the missing flag, since an internal build-automation crate must never be publishable. | ATLAS-PUB-007 |
+| 17 | The facade pattern is settled by precedent, not invented | crates.io API 2026-07-28: `burn` 0.21.0 depends on `burn-core`/`burn-nn`/`burn-optim`/`burn-std` at lockstep `^0.21.0` plus 18 optional sub-crates (`burn-wgpu`, `burn-cuda`, `burn-rocm`, …); `bevy` 0.19.0 and `polars` 0.54.4 are lockstep likewise; `tokio` 1.53.1 versions independently. Coeus already has burn's exact crate shape. | ADR 0037 |
+| 18 | A stack-wide `-rs` suffix is not viable | `apollo-rs`, `athena-rs`, `hermes-rs`, and `mnemosyne-rs` are all taken, so the suffix fails as a uniform rule. Every `<name>-<domain>` facade target in ADR 0037 §3 was verified available. | ADR 0037 |
+
+### Residual risk
+
+- Trusted-publisher registration is a registry-settings change and therefore
+  Ask-User; an agent cannot close ATLAS-PUB-003 unaided. Until a package is
+  registered, its publish job fails closed at the auth step. That is the intended
+  failure mode.
+- The naming rule is settled by [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md)
+  and no publish waits on a user decision. What remains is the facade work
+  (finding 14): six crates to author, eight `publish` flags to flip, seven
+  renames. The pipelines take a package name as input, so every rename is a
+  manifest change and does not touch a workflow.
+- Negotiating a colliding name from its owner is permitted but unscheduled:
+  crates.io will not transfer without the owner's approval, and squatting removal
+  is a case-by-case team decision. `themis` is explicitly not a squatting
+  candidate — it is an actively used crypto library.
+- Name availability is a point-in-time observation and decays: re-check
+  immediately before each first publish. A pending PyPI publisher likewise does
+  not hold its project name.
+- The workflow-filename value registered with each registry is the **caller's**
+  filename, not the Atlas reusable workflow's, because the OIDC claim carries the
+  caller's identity. Registering the Atlas filename would reject every publish;
+  this is the most likely setup error and is recorded in ADR 0035 §4.
+- ATLAS-PUB-004 remains open until each Pages action digest is resolved against
+  its upstream repository. Substituting a plausible-looking digest would be worse
+  than the tag it replaced.
+
+## Stack narrative reconciliation (2026-07-28)
+
+Scope: the Atlas README's description of the substrate against the package
+manifests at this revision. Method: read first-party dependency edges from each
+provider's root `Cargo.toml`.
+
+- **Corrected:** the stated premise that `ritk` uses `burn` internally is false at
+  this revision. `grep -r burn --include=Cargo.toml repos/ritk` returns nothing;
+  `ritk-core`, `ritk-analyze`, and `ritk-cli` depend on `coeus-core`, and the
+  workspace declares `coeus-{nn,optim,core,tensor,ops,leto,autograd}`. The
+  burn→coeus migration is complete. The README now states the Coeus dependency
+  and the retirement explicitly so the stale premise is not reintroduced.
+- **Corrected:** `leto` and `hephaestus` are layered, not parallel.
+  `repos/hephaestus/Cargo.toml` depends on `leto` and `leto-ops`, so selecting the
+  accelerator backend never removes the host array substrate. The README's
+  backend description and both diagrams reflect this.
+- **Verified:** `coeus` consumes `apollo-fft`, `leto`/`leto-ops`, and
+  `hephaestus-{core,wgpu,cuda,rocm,metal}`, plus `moirai`, `mnemosyne`,
+  `hermes-simd`, `eunomia`, `themis`, and `melinoe` — the substrate composition
+  the README describes.
+- **Verified:** `rayon`/`tokio` manifest edges survive in exactly two packages —
+  `consus` (4 manifests) and `moirai` (6). No integrator or domain package
+  carries either. Moirai's are its interop and comparison targets; Consus's are
+  the subject of its own network-stack replacement work.
+- **Verified:** the substitution claims the README now makes are complete, not
+  aspirational. Across all 25 packages, `grep` over every `Cargo.toml` finds zero
+  `ndarray` dependency edges and zero `rustfft` / `realfft` / `fftw` edges, so
+  Leto is the sole host-array substrate and Apollo the sole transform provider
+  with no third-party fallback left in any manifest. `burn` likewise appears in no
+  `ritk` manifest.
+- **Unchanged:** the package count stays 25. `repos/leoneuro-rs/` remains a
+  private consumer, absent from `.gitmodules`, the stack table, the diagrams, and
+  every ADR, with a `.gitignore` entry as its only sanctioned trace. Its absence
+  from the stack map is intentional and is not a documentation defect.
+
 ## Aequitas physical-metric gap audit (2026-07-28)
 
 This audit compares the Aequitas SI surface with the public physical inputs and

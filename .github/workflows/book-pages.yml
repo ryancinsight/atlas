@@ -1,0 +1,147 @@
+name: Build and deploy the package book
+
+# Atlas owns the book publication pipeline once for the whole stack (ADR 0035).
+# Package repositories call this workflow instead of copying it: the four
+# existing per-repo copies were identical apart from the built output directory.
+#
+# The book is the pedagogical documentation layer — field theory, then numerical
+# method, then the crate's abstractions mapped onto that theory. Rustdoc remains
+# the item-contract layer and is published separately. Deployment uses the Pages
+# artifact flow under OIDC, so no gh-pages branch and no deploy key exist.
+#
+# Enable Pages once per repository under
+# Settings -> Pages -> Source: GitHub Actions.
+
+on:
+  workflow_call:
+    inputs:
+      book-path:
+        description: Book source directory containing book.toml
+        required: false
+        default: docs/book
+        type: string
+      output-path:
+        description: >-
+          Built HTML directory produced by mdbook, relative to the repository
+          root. Read this from the book's build-dir setting rather than guessing.
+        required: true
+        type: string
+      mdbook-version:
+        description: Exact mdBook release used to build the book
+        required: false
+        default: "0.5.4"
+        type: string
+      mdbook-test:
+        description: >-
+          Run `mdbook test` so book code samples cannot rot. Requires the book's
+          samples to compile against the package. Each book flips this to true
+          as its samples become testable; see ADR 0035 for the adoption ledger.
+        required: false
+        default: false
+        type: boolean
+      rust-toolchain:
+        description: Toolchain used by `mdbook test`; ignored when mdbook-test is false
+        required: false
+        default: "stable"
+        type: string
+      atlas-ref:
+        description: >-
+          Exact Atlas commit owning the provider gitlink graph. Set only when
+          `mdbook test` must compile against Atlas path dependencies.
+        required: false
+        default: ""
+        type: string
+      manifest:
+        description: Manifest scanned for path dependencies when atlas-ref is set
+        required: false
+        default: Cargo.toml
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build book
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the book source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The three first-party Pages actions carry major-version tags rather than
+      # commit pins, matching the four existing package book workflows. Pinning
+      # them to verified digests is tracked as ATLAS-PUB-004; do not substitute a
+      # digest that has not been resolved against the upstream repository.
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install mdBook
+        shell: bash
+        env:
+          MDBOOK_VERSION: ${{ inputs.mdbook-version }}
+        run: |
+          set -euo pipefail
+          curl --fail --location --silent --show-error \
+            "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
+            --output mdbook.tar.gz
+          tar -xzf mdbook.tar.gz
+          echo "$PWD" >> "$GITHUB_PATH"
+          export PATH="$PWD:$PATH"
+          mdbook --version
+
+      - name: Check out exact Atlas path dependencies
+        if: inputs.mdbook-test && inputs.atlas-ref != ''
+        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@cd6a78e8c9a9816b0fa5ff22ad9166edbb713894
+        with:
+          manifest: ${{ inputs.manifest }}
+          destination: ..
+          atlas_ref: ${{ inputs.atlas-ref }}
+
+      - name: Install the pinned Rust toolchain
+        if: inputs.mdbook-test
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+
+      - name: Test book code samples
+        if: inputs.mdbook-test
+        shell: bash
+        run: mdbook test "${{ inputs.book-path }}"
+
+      - name: Build book
+        shell: bash
+        env:
+          BOOK_PATH: ${{ inputs.book-path }}
+          OUTPUT_PATH: ${{ inputs.output-path }}
+        run: |
+          set -euo pipefail
+          mdbook build "$BOOK_PATH"
+          if [[ ! -f "$OUTPUT_PATH/index.html" ]]; then
+            echo "mdbook produced no $OUTPUT_PATH/index.html; check the book's build-dir against the output-path input" >&2
+            exit 1
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ inputs.output-path }}
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
