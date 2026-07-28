@@ -5220,8 +5220,18 @@ Stale-advanceable (still NOT safely advanceable):
   aliased output and so cannot express an in-place update. Differential tests
   against a CPU reference across workgroup-boundary lengths. Full hephaestus
   gate green: 221/221 nextest on real GPU hardware, clippy `-D warnings`, fmt.
-- Remaining: stage 3 `athena-hephaestus` over the seam (generic in scalar,
-  not `f32`-only), stage 4 delete `athena-wgpu` and its WGSL. CUDA, Metal and
+- **Stage 3 written 2026-07-27**, athena branch `feat/athena-hephaestus-backend`
+  (`eefa8ba`, pushed, not merged): `HephaestusBackend<D, V, T>` over the seam,
+  generic in scalar. `combine_direction` maps to `xpay`; `fused_cg_update` to
+  two `axpy` calls, trading one dispatch per CG iteration to keep a
+  solver-shaped operation out of the substrate contract. Verified to compile
+  against the real seam in isolation; the workspace gate is blocked by
+  `ATLAS-OVERLAY-COHERENCE-001`.
+- The seam itself is on hephaestus **master** at `e1f2800` (cherry-picked off
+  a branch that was 39 commits behind master), 223/223 green there.
+- Remaining: stage 4 delete `athena-wgpu` and its WGSL, plus a device-neutral
+  sparse seam — `GpuCsrMatrix`/`spmv_into` are per-backend too, so the CSR
+  operator cannot yet be device-neutral. CUDA, Metal and
   ROCm implementations of the same seam are separate increments, verifiable
   only where that hardware exists.
 
@@ -5561,3 +5571,41 @@ blocker on Athena.
   - `bessel_k0` test tolerance fix (1e-7 → 1e-6, already applied)
 - Evidence: 425 leto-ops tests pass.
 - Blocker: peer-owned; not committed by this session per concurrent_agents policy.
+
+## ATLAS-OVERLAY-COHERENCE-001 — The stack overlay resolves worktree copies, not the authoritative repos [major] — todo
+
+- **Evidence (2026-07-27).** In `repos/athena`, `cargo tree -p hephaestus-core`
+  resolves to `D:\atlas\worktrees\hephaestus-unary-math-parity\crates\hephaestus-core`.
+  The same run resolves `aequitas` to `worktrees/aequitas-energy-temperature`
+  and `eunomia` to `worktrees/eunomia`. The stack-root `.cargo/config.toml`
+  carries 15 entries pointing into `worktrees/`, and a cargo-config `[patch]`
+  overrides a member manifest `[patch]`, so athena's own
+  `[patch."…/hephaestus.git"] hephaestus-core = { path = "../hephaestus/…" }`
+  is silently ignored.
+- **Impact.** Work committed in `repos/*` is invisible to every consumer
+  build. Consumers compile against whatever state a lane happens to hold —
+  including another agent's uncommitted WIP — rather than against the
+  authoritative tree. This was hit directly: the `DenseVectorOps` seam landed
+  on hephaestus master (`e1f2800`, 223/223 green) and `athena-hephaestus`
+  still cannot resolve it, because the overlay routes to a lane sitting at the
+  previous master tip on a different branch.
+- **Why it matters beyond one increment.** The architecture_scoping
+  development-overlay rule requires the overlay to be *generated* from the
+  `cargo metadata` closure and to map each first-party crate to its local
+  tree — meaning `repos/<name>`, the tree that gets committed and pushed. A
+  hand-pointed overlay aimed at lanes makes the whole stack's local
+  verification test a different tree than the one under review, which
+  undermines every gate result taken from it.
+- **Scope.** (1) Regenerate the overlay from the closure so every first-party
+  crate maps to `repos/<name>`; (2) re-run the affected consumer gates, since
+  prior green results were taken against lane state; (3) mechanize the
+  regeneration so a lane can never re-enter the overlay by hand.
+- **Sequencing.** Deliberately not applied unilaterally: peers are building
+  against the current overlay right now, and flipping 15 entries mid-flight
+  would change what their in-progress verification means. Needs a quiet
+  window or an explicit go-ahead.
+- **Blocks.** `ATLAS-ATHENA-ACCEL-BACKEND-001` stage 3 merge
+  (athena branch `feat/athena-hephaestus-backend`, pushed, verified against
+  the real seam in isolation) and stage 4.
+- Related: `ATLAS-WORKTREE-CLONES-001` — the same `worktrees/` directory also
+  holds standalone clones, which is how these paths became load-bearing.
