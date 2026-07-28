@@ -228,9 +228,17 @@ path is open.
   directories is destructive to possibly-live peer setups. Confirm before
   deleting rather than reconciling unilaterally.
 
-## ATLAS-OVERLAY-002 — Clear pin drift in asclepius, athena, hermes [patch] — todo
+## ATLAS-OVERLAY-002 — Clear pin drift in asclepius, athena, hermes [patch] — done
 
-- Owner: unclaimed; scope: `repos/{asclepius,athena,hermes}` `Cargo.lock` plus
+- Owner: atlas coordinator (Session 30, 2026-07-28); scope: `repos/{asclepius,athena,hermes}`
+  `Cargo.lock` plus their parent gitlinks. No manifest, source, or requirement edits.
+- Closure: `python scripts/atlas-stack-overlay.py check` reports `stack aligned: requirements
+  satisfiable and locks match the local trees` (verified 2026-07-28). All three gitlinks
+  align to origin/main: athena advanced to `fef782cb` in Session 29 commit `24ad6ea`;
+  asclepius advanced to `bbf38400` and hermes to `cf69175` in Session 30 commit
+  `323279e` (both verified safe per pitfall #2 — WT HEAD == origin/main, pin ancestor
+  of origin/main, staged Subproject commit matches origin/main exactly).
+- Pre-Session 28 carryover (retained for trace): Owner: was unclaimed; scope was `repos/{asclepius,athena,hermes}` `Cargo.lock` plus
   their parent gitlinks. No manifest, source, or requirement edits.
 - Outcome: each lock resolves onto current provider heads, so the stack
   overlay unifies instead of failing with "candidate versions found which
