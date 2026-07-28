@@ -34,6 +34,7 @@ from pathlib import Path
 
 ATLAS_ROOT = Path(__file__).resolve().parent.parent
 REPOS = ATLAS_ROOT / "repos"
+WORKTREES = ATLAS_ROOT / "worktrees"
 CONFIG = ATLAS_ROOT / ".cargo" / "config.toml"
 
 BEGIN = "# >>> atlas stack development overlay (generated) >>>"
@@ -64,9 +65,12 @@ HEADER = f"""{BEGIN}
 """
 
 
-def _skip(path: Path) -> bool:
+def _skip(path: Path, *, include_worktrees: bool = False) -> bool:
     parts = {p.lower() for p in path.parts}
-    return bool(parts & {"target", "worktrees", ".git", "node_modules"})
+    excluded = {"target", ".git", "node_modules"}
+    if not include_worktrees:
+        excluded.add("worktrees")
+    return bool(parts & excluded)
 
 
 def load_packages() -> dict[str, tuple[Path, str | None]]:
@@ -76,6 +80,15 @@ def load_packages() -> dict[str, tuple[Path, str | None]]:
 
     manifests = [m for m in REPOS.glob("*/**/Cargo.toml") if not _skip(m)]
     manifests += [m for m in REPOS.glob("*/Cargo.toml") if not _skip(m)]
+    if WORKTREES.exists():
+        manifests += [
+            m for m in WORKTREES.glob("*/**/Cargo.toml")
+            if not _skip(m, include_worktrees=True)
+        ]
+        manifests += [
+            m for m in WORKTREES.glob("*/Cargo.toml")
+            if not _skip(m, include_worktrees=True)
+        ]
 
     for manifest in sorted(set(manifests)):
         try:
@@ -133,6 +146,15 @@ def collect_first_party_deps() -> list[tuple[str, str, str | None, Path]]:
     found: list[tuple[str, str, str | None, Path]] = []
     manifests = [m for m in REPOS.glob("*/**/Cargo.toml") if not _skip(m)]
     manifests += [m for m in REPOS.glob("*/Cargo.toml") if not _skip(m)]
+    if WORKTREES.exists():
+        manifests += [
+            m for m in WORKTREES.glob("*/**/Cargo.toml")
+            if not _skip(m, include_worktrees=True)
+        ]
+        manifests += [
+            m for m in WORKTREES.glob("*/Cargo.toml")
+            if not _skip(m, include_worktrees=True)
+        ]
 
     for manifest in sorted(set(manifests)):
         try:
@@ -164,8 +186,11 @@ def build_overlay(packages: dict[str, tuple[Path, str | None]]) -> tuple[str, li
 
     # Cargo matches the source URL literally, so a repo referenced both with and
     # without the `.git` suffix, or with different casing, needs each form.
+    # Normalize to the stem before emitting variants: appending to an input
+    # that already carries the suffix minted dead `.git.git` keys.
     for url in list(by_url):
-        for variant in (url + ".git", url.removesuffix(".git")):
+        stem = url.removesuffix(".git")
+        for variant in (stem, stem + ".git"):
             if variant != url:
                 by_url.setdefault(variant, set()).update(by_url[url])
 
