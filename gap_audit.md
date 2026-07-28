@@ -10,7 +10,24 @@ coefficients, probabilities, fractions, and clinical indices are not gaps by
 themselves. The child audits contain the file-level evidence and acceptance
 oracles.
 
-### Live child refresh (2026-07-27)
+### Current live child refresh (2026-07-27)
+
+The latest provider-first increments close the remaining audited metric rows in
+the three named consumers:
+
+| Consumer | Latest metric closure | Evidence and residual |
+|---|---|---|
+| CFDrs | `f4be59c4` closes `CFDRS-AEQ-MET-23`; Aequitas provider `8dfc6de` adds `Force`/`Newton`. | `cfd-1d` Nextest 736/736 with 3 skipped, focused `cfd-validation` Nextest 57/57, doctests 8/8 with 3 ignored, and warning-denied Clippy pass. The exact 5 mm `cfd-3d` Venturi case remains 30.042 s against the 30 s budget; this is a runtime defect, not a missing metric. |
+| Helios | `05a4067` closes `HELIOS-AEQ-MET-06` by typing GPU attenuation mass attenuation and density inputs; `283048d` and `4fd2c88` close helical delivery and collimation. | `helios-gpu` check, 10/10 Nextest, warning-denied Clippy, doctests, and Rustdoc pass under the current local provider overlay. Shared unused-patch/linker warnings remain graph diagnostics, not consumer metric gaps. |
+| Kwavers | `c73fc9fe1`, `be7da06bb`, `6da60c3cf`, `d0d7d5a5f`, and `b3d2e29ad` close the ultrafast, core-time, grid-stability, HIFU-imaging, and hemispherical-array rows. | The latest hemispherical slice types geometry, constants, steering, focal metrics, validation, and configured source frequency; transducer check/example check, Nextest 219/219 with 1 skipped, doctests 2/2 with 6 ignored, warning-denied Clippy, and Rustdoc pass. Provider graph warnings and peer dirty files remain integration residuals. |
+
+No unimplemented Aequitas metric contract remains in the audited public
+surfaces of CFDrs, Helios, or Kwavers. Remaining issues are verification or
+integration defects: the CFDrs runtime-budget overrun, shared Atlas provider
+overlay warnings/path-coherence debt, and peer-owned dirty work. They remain
+explicitly recorded and are not hidden behind consumer compatibility shims.
+
+### Prior child refresh baseline (2026-07-27)
 
 This refresh supersedes earlier branch-specific status claims for the named
 consumers. CFDrs' child audit now closes `CFDRS-AEQ-MET-18` through
