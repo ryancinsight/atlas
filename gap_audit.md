@@ -487,10 +487,12 @@ remaining non-metric verification debt is peer-owned math/provider work.
 
 ### Cross-repository implementation ledger
 
-`KWAVERS-AEQ-MET-31` is implemented in the Aequitas/Kwavers working trees:
+`KWAVERS-AEQ-MET-31` is resolved by the Aequitas/Kwavers working trees:
 complex pressure phasors use `Pressure<Complex64>`, electrical impedance uses
 `ElectricalImpedance<Complex64>`, and the Aequitas provider owns the complex
-conversion plus `Ohm` dimension. Closure remains verification-gated.
+conversion plus `Ohm` dimension. The crosstalk extension uses
+`AcousticImpedance<Complex64>`; no separate imaginary unit exists. Kwavers
+transducer Nextest passes 219/219 with one declared skip.
 
 | ID | Consumer surface | Missing metric contract | Owner | Status / acceptance |
 |---|---|---|---|---|
