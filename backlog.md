@@ -5838,7 +5838,7 @@ Stale-advanceable (still NOT safely advanceable):
   (rescue the standalone clones under `worktrees/`). Review whether any
   becomes urgent next session.
 
-## ATLAS-ATHENA-KRYLOV-CAPABILITY-001 — Close Athena's capability gap (ADR 0033 stage A) [minor] — in-progress
+## ATLAS-ATHENA-KRYLOV-CAPABILITY-001 — Close Athena's capability gap (ADR 0033 stage A) [minor] — done
 
 - **Progress 2026-07-27**: BiCGSTAB landed, athena `e965a95`. Composes from
   the existing `KrylovBackend` surface, so the trait and `athena-wgpu` are
@@ -5869,9 +5869,9 @@ Stale-advanceable (still NOT safely advanceable):
 - Non-goal: changing the `KrylovBackend` trait, which would force
   `athena-wgpu` work in the same increment.
 
-## ATLAS-GMRES-FORK-CONVERGE-001 — Stages B-D: migrate consumers, delete the Leto family [major] [arch] — blocked
+## ATLAS-GMRES-FORK-CONVERGE-001 — Stages B-D: migrate consumers, delete the Leto family [major] [arch] — todo
 
-- Blocker: `ATLAS-ATHENA-KRYLOV-CAPABILITY-001`. Re-open trigger: stage A done.
+- Unblocked 2026-07-28: `ATLAS-ATHENA-KRYLOV-CAPABILITY-001` is done.
 - B: CFDrs from its `6d18a547` Leto-family wrappers to Athena.
 - C: Kwavers, gated on refactoring `jacobian_vector_product` from `&mut self`
   to `&self` (its only mutation is a scratch-buffer cache) so the matrix-free
@@ -6564,3 +6564,59 @@ hephaestus workspace gates once that settles.
 - Audit 2026-07-26 of `D:\atlas\worktrees` (26 entries): 4 compliant live lanes (coeus-backend-parity, hephaestus-mixed-reduction-batch, kwavers-aequitas-vessel-metrics, ritk-ebcot-magnitude-view); 13 gitdir-mirror checkouts on main (the improvised-provider species); 7 standalone clones; 3 bare directories; 1 broken meta lane. Legacy root `D:\worktrees` now empty — its lanes completed and dissolved per ATLAS-WORKTREE-001.
 - Done: `report` re-mint deleted (SVG already rescued to repos/report/figures); broken `atlas-final-integration` meta lane deleted + `worktree prune` (meta lanes prohibited); 5 stale clones rescue-fetched into their authoritative repos under `refs/rescue-worktrees/<name>/*` then deleted (leto incl. codex/leto-real-sparse-lu); 13 gitdir-mirrors deleted — and regenerated within seconds: a live process on pre-fix instructions re-mints the mirror farm (signature: `.git` file -> `../../.git/modules/repos/<r>`, checkout on main). Self-resolves as sessions roll onto current instructions; re-audit the root then and delete survivors.
 - Residuals: (1) `hephaestus-unary-math-parity` — git-less source snapshot with real unique deltas (6/12 sampled files differ from authoritative): reconcile into a branch of repos/hephaestus (diff, salvage, commit under the unary-math-parity item), then delete the snapshot; (2) `ritk-book-complete` — near-duplicate snapshot (11/12 identical): verify the delta, salvage if real, delete; (3) stale lanes `coeus` (codex/coeus-error-function-parity, 30h) and `mnemosyne` (codex/mnemosyne-tier-selection, 33h) — takeover material: complete their items or confirm branches landed, then remove the lanes; (4) fresh clones `aequitas`/`eunomia` left in place (regenerator-owned) — delete at re-audit.
+
+## Session 28 closure (2026-07-28) — ADR 0033 stage A complete
+
+LSQR landed in athena `24b5c56`. Athena now carries every Krylov capability
+its prospective consumers call, and the capability table from
+`ATLAS-ATHENA-KRYLOV-CAPABILITY-001` has no gaps left:
+
+| Capability | Athena | Needed by |
+|---|---|---|
+| CG / PCG | yes | CFDrs |
+| GMRES(m) | yes | CFDrs, Kwavers |
+| BiCGSTAB | yes (`e965a95`) | CFDrs |
+| LSQR | yes (`24b5c56`) | CFDrs |
+| Identity / Jacobi | yes | all |
+| SOR / ILU(0) | yes (`fef782c`) | CFDrs |
+
+SSOR remains deliberately unbuilt: no consumer anywhere in the stack.
+
+### LSQR design notes
+
+- `RectangularOperator` is a separate contract from `LinearOperator`, not an
+  extension: a square operator does not necessarily expose a transpose, and
+  requiring one would burden every consumer that never needs it.
+- `RectangularCsrOperator` scatters the adjoint through the same CSR arrays the
+  forward product reads rather than materialising a transpose, which matters
+  because LSQR applies the adjoint once per iteration.
+- Termination needs **two** criteria. A consistent system is caught on the
+  residual; an inconsistent one — the genuine least-squares case — keeps a
+  residual bounded away from zero, so its optimum is only visible through the
+  normal-equation residual `‖Aᵀr‖`. That is a new `Termination::NormalEquations`
+  rather than a reuse of `Converged`, because the two say different things about
+  the answer. Both quantities fall out of the plane rotation, so neither costs
+  an extra operator application.
+- Optimality is tested by perturbation rather than against a quoted answer:
+  every neighbour of the returned solution must have a larger residual.
+
+### Gates
+
+Athena workspace **51/51** nextest, clippy `-D warnings`, doctests, fmt — all
+green. This also discharges the gate that could not run at the end of the
+previous session, when an in-flight `aequitas` change was breaking `leto`
+beneath the stack; that has since settled and the ADR 0034 work is covered by
+this run too.
+
+### Next
+
+`ATLAS-GMRES-FORK-CONVERGE-001` is now unblocked:
+
+- **Stage B** — migrate CFDrs from its `leto-ops` wrappers (`6d18a547`) to
+  Athena. Note the direction: CFDrs currently consolidates onto the Leto family,
+  which ADR 0033 identifies as the regression to unwind.
+- **Stage C** — Kwavers, gated on refactoring `jacobian_vector_product` from
+  `&mut self` to `&self` so its matrix-free operator satisfies
+  `LinearOperator::apply(&self, ...)`. Its only mutation is a scratch cache.
+- **Stage D** — delete `leto-ops/src/application/linalg/iterative/` including
+  the duplicated `LinearOperator`/`Preconditioner` traits; residue scan clean.
