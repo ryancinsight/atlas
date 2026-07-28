@@ -833,9 +833,20 @@ path is open.
   `quantity/arithmetic/scalar.rs` and `construction.rs`, touched minutes ago.
   Aequitas is the foundation crate, so nothing downstream compiles until it
   settles.
-- Re-open trigger: `cargo check -p aequitas` green, then run
+- Fourth attempt (15:10) hit a different pair: `kwavers-transducer/src/bulk_piezo.rs`
+  (peer-dirty) imports `aequitas::systems::si::quantities::ElectricalImpedance`,
+  which the aequitas peer has added to the local tree but which the build did not
+  resolve. This is an aequitas↔kwavers co-evolution unit in flight, not a defect
+  in either side — the consumer landed ahead of the provider being consumable.
+- Assessment: four distinct transient failures in ~30 minutes, all from
+  concurrent edits to shared foundations (aequitas, kwavers-transducer,
+  kwavers-solver) plus 40-minute build cycles on the shared target dir. Retrying
+  against a tree three peers are actively rewriting is not productive; this item
+  waits for a quiet tree rather than polling.
+- Re-open trigger: `cargo check -p aequitas` and `cargo check -p kwavers-transducer`
+  both green, then run
   `cargo nextest run -p kwavers-solver -E 'test(~thermal_diffusion) or test(~optical::diffusion)'`
-  and commit if green.
+  and commit the 18 files if green. No edits are needed to the change itself.
 
 ## ATLAS-OVERLAY-004 — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 
