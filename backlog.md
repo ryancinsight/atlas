@@ -26,12 +26,29 @@
   delegates wholly to `hephaestus-wgpu` via `WgpuDevice::try_metal`. Its low
   coverage is not an unverified-kernel hole, and the 28 result accessors it
   appears to lack are wgpu types it re-exports.
-- **Nine shared entry points are tested by no backend at all**:
+- **Six shared entry points were tested by no backend at all**:
   `binary_elementwise_typed{,_into}`, `binary_elementwise_strided_typed{,_into}`,
-  `scalar_elementwise_strided`, `prod_axis_into`, `prepare_reduce_axis_into`,
-  `ray_line_integrals{,_into}`. These are authored first — `ray_line_integrals`
-  is the priority, since Helios depends on the substrate for radiographic
-  projection.
+  `prod_axis_into`, `prepare_reduce_axis_into`.
+  **Corrected 2026-07-28:** an earlier revision of this item said *nine* and
+  prioritised `ray_line_integrals`. That was an artifact of scanning only
+  `tests/contract.rs`; `ray_line_integrals` is covered by all four backends and
+  `ray_line_integrals_into` by three in `tests/volume_ray_integral.rs`, and
+  `scalar_elementwise_strided` by wgpu in `tests/strided.rs`. Coverage of the 112
+  shared entry points, all test files: wgpu 101, rocm 95, cuda 84, metal 53.
+- **Increment delivered 2026-07-28 (wgpu):**
+  `crates/hephaestus-wgpu/tests/typed_elementwise.rs` and
+  `crates/hephaestus-wgpu/tests/axis_reduction_contracts.rs` — 13 tests, all
+  passing (23.5 s wall, slowest 3.5 s, inside the 30 s budget), clippy clean,
+  covering all six on wgpu and lifting wgpu to 107/112. The six are the
+  `TypedBinaryExpr` comparison dispatch paths plus the two axis reductions;
+  comparisons are the only operators with per-scalar-type codegen, so `u32`,
+  `i32`, and `f32` are each instantiated rather than one standing in for the
+  others. All oracles are exact equalities — integer-exact comparisons, dyadic
+  `f32` operands, integer-valued products below `2^24` — so no tolerance is
+  present to be tuned.
+- **Remaining:** `cuda`, `rocm`, and `metal` are still uncovered for all six.
+  Closing them is the shared-suite work, not three more hand-written copies —
+  that is the whole point of the conformance crate.
 - Non-goals: changing backend behaviour; merging backend-intrinsic entry points
   into the shared suite; deciding whether `hephaestus-metal` should remain a
   crate (`ATLAS-ARCH-009`).
@@ -47,6 +64,36 @@
   `hh_trailing_update`, and `syrk_trailing_update` are blocked-decomposition inner
   steps exposed as public API in `cuda` only. Confirm and demote to `pub(crate)`,
   or justify the public surface.
+
+## ATLAS-ARCH-010 — Define the NaN and infinity contract for accelerator kernels [arch] [minor] — todo
+
+- Owner: unclaimed; scope: `hephaestus-core` numeric contract documentation plus
+  the capability predicate the shared suite gates on. Decision before code.
+- Raised by: writing the `binary_elementwise_typed` f32 clause during
+  `ATLAS-ARCH-001`. The clause asserted IEEE-754 semantics and **failed on wgpu**
+  — the device returns `NaN != NaN` as false.
+- This is not a backend defect. The WGSL specification states implementations
+  "may assume that overflow, infinities, and NaNs are not present during shader
+  execution", and that an expression yielding one produces "an indeterminate
+  value of the target type". The assertion demanded a guarantee WGSL withholds,
+  so the assertion was removed — not relaxed to match observed output.
+- The problem: **CUDA and HIP do provide IEEE semantics; WGSL does not promise
+  them.** A shared conformance clause asserting IEEE NaN ordering uniformly would
+  fail on wgpu forever; dropping it entirely leaves CUDA's real semantics
+  unverified. Neither is acceptable, so NaN/infinity behaviour is a
+  **capability-gated** clause — the first concrete member of ADR 0038's class 2.
+- Decide and document: whether each backend advertises IEEE special-value
+  semantics through an associated-const capability; whether kernels taking
+  untrusted or solver-produced floats must reject non-finite input at the
+  boundary instead of relying on backend behaviour; and what every public
+  numeric entry point states about NaN/±Inf/signed-zero, which
+  `numerical_discipline` requires and none currently states.
+- Consumer impact is real, not theoretical: a solver that produces a NaN through
+  divergence gets IEEE propagation on CUDA and an indeterminate value on WGPU, so
+  the same simulation can diverge silently on one backend and loudly on another.
+- Acceptance: the contract is stated in Rustdoc on the affected entry points; the
+  capability predicate exists; the shared suite asserts IEEE semantics only where
+  advertised, and asserts the rejection path where not.
 
 ## ATLAS-ARCH-009 — Decide whether hephaestus-metal remains a crate [arch] — todo
 
@@ -6371,3 +6418,28 @@ Re-oriented against `origin/main` at session open; HEAD had moved from `d2e0ac9`
 - ATLAS-MATH-SSOT-CONSOLIDATION-1 closure gate: peer-CFDrs must commit and merge the `cfd-math` wrapper deletion (`cfd-math/src/differentiation/` removed, `fd_extensions` re-export added) before coordinator can advance the CFDrs gitlink and close the audit row. The CFDrs WT is at origin/main HEAD `c90e6840` but dirty (36 files, peer-cfdrs mid-flight on `CFDRS-AEQ-MET-25` cavitation work). When the CFDrs gitlink advances, the audit row can mark the math-SSOT consolidation phase as delivered and PR 0008 can be reviewed/merged by module owners. The same dependency applies to kwavers (`codex/kwavers-book-migration-eviction` feature branch at `df9008d9`) and leto (`codex/leto-real-sparse-lu` at `1d24c643`+3); none is safely advanceable until peer returns WT to `main` and merges to `origin/main`.
 - Standing coordinator-scope `todo` items unchanged: `ATLAS-OVERLAY-001` (sub-deliveries 1/2 still open), `ATLAS-VERSION-GUARD-001` (sub-delivery 1: per-member guard tool skeleton), `ATLAS-WORKTREE-CLONES-001` (asclepius/hephaestus/leto WTs are peer-active mid-flight; remaining clones re-evaluate on next session).
 - The `repos/parity_artefacts/` directory has been physically removed from the working tree but the deletion is not staged; the corresponding `INDEX.md` was the landing page for three atlas mdbooks' Appendix F/D links, all of which have since been removed from `SUMMARY.md`. The deletion belongs with the parity stream's closure increment, not a unilateral coordinator commit.
+
+### Post-session peer advances (attribution-absorption pattern)
+
+Between my `599ddca` and the close of this session, peer landed a chain that absorbed the Session 30 closure intent and advanced the persistent defect set further:
+
+- `9f92d94 docs(atlas): Refresh Aequitas gap audit` — peer-committed `math_ssot_ledger.md` and `docs/pr/0008-math-ssot-adr-0031-0033-review-checklist.md` under their subject. Content identical to what this session would have committed. Pattern matches the Session 25/26/28 attribution-absorption; no remediation needed because the content is correct.
+- `d1f2e2c docs(atlas): Record Aequitas consumer closure` — gap audit refresh.
+- `c2cad74 build(atlas): Advance CFDrs Aequitas closure` — CFDrs gitlink advanced to `109aec63`; CFDrs now reads as clean in the gitlink-coherence audit (down from stale-advanceable). MET-25 closure intent is now realized at the CFDrs WT HEAD; the math-SSOT PR 0008 cfd-math deletion gate (peer-cf must commit + push) remains the only outstanding dependency.
+- `485b3dd docs(pm): Root-cause the gaia git-dep break blocking helios tests` — closes the gaia blocker; helios tests can now run against canonical gaia.
+- `f793735 docs(adr): Correct ADR 0037's lockstep versioning mandate` — ADR 0037 mandate tightened.
+- `86cb19a docs(pm): Record the generic-instantiation pattern; revert the blocked edit` — reverts a blocked edit and records the generic-instantiation pattern.
+
+Final gitlink-coherence state at Session 30 close: **25 probed | 4 defects | 1 stale-advanceable | 20 clean.**
+
+- **Defects (4):** coeus cat-b (peer `codex/coeus-error-function-parity` not merged); hephaestus no-origin-main (default branch is `master` at remote `14b73d56`, WT HEAD `7897c13f` is mid-flight on `ATLAS-HEPHAESTUS-SPARSE-SEAM-001` sparse-seam work, last commit 77 min ago — peer-active, leave alone); kwavers cat-b (`codex/kwavers-book-migration-eviction` not merged); ritk cat-c (`codex/docs-ritk-n4-figure-only` local-only, not pushed).
+- **Stale-advanceable (1):** mnemosyne `00c3f6de` -> `905909be` — WT on divergent feature branch `codex/mnemosyne-tier-selection` (HEAD `ec1c000` not ancestor of origin/main), 30h since last commit; peer-mnemosyne is mid-flight on tier-selection work.
+
+### Session 30 / Atlas-meta delivery summary
+
+| Increment | SHA | Type | Coordinator-authored? |
+|---|---|---|---|
+| Advance athena/proteus/tyche/asclepius gitlinks | `599ddca` | build(atlas) | Yes — full content + protocol verification |
+| Track PR 0008 + math-SSOT ledger | `9f92d94` | docs(atlas) | Peer-absorbed (content preserved) |
+| Session 30 closure in backlog | `9f92d94` + `485b3dd` | docs(pm) | Yes — full text + peer addendum |
+| CFDrs Aequitas closure advance | `c2cad74` | build(atlas) | Peer-owned |
