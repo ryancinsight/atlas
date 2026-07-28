@@ -316,16 +316,19 @@ metric contract:
 
 | Consumer | Latest metric closure | Evidence and residual |
 |---|---|---|
-| CFDrs | `f4be59c4` closes `CFDRS-AEQ-MET-23`; Aequitas provider `8dfc6de` adds `Force`/`Newton`. | The audit recheck found no new metric row. `cfd-1d` Nextest 736/736 with 3 skipped, focused `cfd-validation` Nextest 57/57, doctests 8/8 with 3 ignored, and warning-denied Clippy pass. The exact 5 mm `cfd-3d` Venturi case remains 30.042 s against the 30 s budget; this is a runtime defect, not a missing metric. |
+| CFDrs | `5ad79292` closes `CFDRS-AEQ-MET-24`; `CFDRS-AEQ-MET-25` extends the closure through shared cfd-core cavitation and the standalone cfd-3d closure seam. | The live scan typed Rayleigh-Plesset, Venturi, cavitation-number, nuclei-transport, damage, biological-damage, regime-analysis, phase-transfer, and public cavitation-constant metrics. cfd-core Nextest passes 202/202 with no skips and the cfd-3d test-target check passes through the command-line local-provider overlay. The broad cfd-3d run passes 291/292; the sole timeout is the separate 30.663-second 5 mm Venturi runtime residual under `CFDRS-RUNTIME-001`. The standalone lock/provider identity residual and runtime overrun are integration/performance defects, not metric gaps. |
 | Helios | `05a4067` closes `HELIOS-AEQ-MET-06` by typing GPU attenuation mass attenuation and density inputs; `283048d` and `4fd2c88` close helical delivery and collimation. | The audit recheck found no new metric row. `helios-gpu` check, 10/10 Nextest, warning-denied Clippy, doctests, and Rustdoc pass under the current local provider overlay. Shared unused-patch/linker warnings remain graph diagnostics, not consumer metric gaps. |
 | Kwavers | `c73fc9fe1`, `be7da06bb`, `6da60c3cf`, `d0d7d5a5f`, `b3d2e29ad`, `62275b3e4`, `c9ce4f3d8`, `eed5aef4a`, and `d00b07b28` close MET-22 through MET-30; `215d8915b` repairs typed CEUS tests and `58d1750c1` consolidates interpolation on `leto_ops`. `cae5ff22c` pins the electrical provider and `ed19f4e44` removes the obsolete Consus branch selector. | The audit recheck found no new metric row. The delivered math/medium/physics lane evidence is 1,861/1,861 Nextest tests with one skip. Tyche `1527964` and Asclepius `bbf3840` now use portable provider sources. Atlas overlay `69a8dba` maps Aequitas and Eunomia to canonical `repos/` trees; the generator check is green and duplicate scanning finds one local identity per provider. A locked package gate still requires a clean standalone lock refresh because peer-dirty provider manifests make Cargo rewrite the overlay lock. Current peer-WIP failures are recorded in the child audit and are not metric gaps. |
 
 No unimplemented Aequitas metric contract remains in the audited CFDrs, Helios,
-or Kwavers public surfaces. The remaining conditions are verification or
-integration defects: the CFDrs runtime-budget overrun, the clean standalone
-lock refresh required after the canonical overlay change, and peer-owned dirty
-work. The overlay no longer resolves duplicate Aequitas/Eunomia identities,
-and no residual is hidden behind a consumer shim.
+or Kwavers public surfaces. CFDrs MET-25 closes the deeper shared-cavitation
+scan and removes the public cfd-3d closure placeholders. cfd-core Nextest is
+202/202 with no skips, and the broad cfd-3d evidence is 291/292 with the sole
+30.663-second Venturi runtime timeout recorded under `CFDRS-RUNTIME-001`.
+The remaining conditions are verification or integration defects: that
+runtime-budget overrun, the clean standalone lock refresh required after the
+canonical overlay change, and peer-owned dirty work. No residual is hidden
+behind a consumer shim.
 
 ### Prior child refresh baseline (2026-07-27)
 
@@ -505,6 +508,8 @@ remaining non-metric verification debt is peer-owned math/provider work.
 | `CFDRS-AEQ-MET-20` | CFDrs transient composition controls | Event/control/snapshot time, hematocrit, flow, pressure, and CFL use Aequitas `Time`, `Dimensionless`, `VolumetricFlowRate`, and `Pressure`; composition parity 21/21 passes. |
 | `CFDRS-AEQ-MET-21` | CFDrs transient timepoints | Public composition/droplet requested, calculated, and returned timepoints use `Time<T>`; package Nextest 736/736 with 3 skips, all-target Clippy, and doctests 8/8 pass. Solver residuals remain equation-dependent. |
 | `CFDRS-AEQ-MET-22` | CFDrs transient mixture fractions | Public fraction maps, hematocrit construction/accessors, weighted blends, tolerances, and node/edge concentration queries use `Dimensionless<T>`; the same package gate passes 736/736 with 3 skips, all-target Clippy passes, and doctests pass 8/8 with 3 ignored. |
+| `CFDRS-AEQ-MET-24` | CFDrs cfd-3d VOF cavitation and bubble dynamics | **RESOLVED in `5ad79292`.** `SurfaceTension`, `Length`, `NumberDensity`, `Time`, `Pressure`, `MassDensity`, and `Velocity` now carry the unit-bearing VOF/cavitation public contracts; scalar extraction remains at Rayleigh-Plesset, damage, mesh, and dense-field formula boundaries. Focused cfd-3d Nextest passes 83/83. |
+| `CFDRS-AEQ-MET-25` | CFDrs shared cfd-core cavitation and standalone cfd-3d closure | **VERIFIED in `109aec63`.** Rayleigh-Plesset, Venturi, cavitation-number, nuclei-transport, damage, biological-damage, regime-analysis, phase-transfer, and public cavitation constants now use typed Aequitas quantities; the standalone closure delegates to real cfd-core models and has no placeholder collapse path. cfd-core Nextest passes 202/202; cfd-3d test-target compilation passes; the broad cfd-3d run passes 291/292 with the separate 30.663-second Venturi runtime timeout tracked under `CFDRS-RUNTIME-001`. |
 | `CFDRS-AEQ-MET-23` | CFDrs cell-separation public family | **RESOLVED in `f4be59c4`; provider `Force`/`Newton` in Aequitas `8dfc6de`.** `Length`, `MassDensity`, `DynamicViscosity`, `Velocity`, `ReciprocalTime`, and `VolumetricFlowRate` type equilibrium, direct margination/cell-interaction, Fahraeus/CFL/rheology, plasma-skimming, cross-junction, model, and three-population boundaries. Scalar extraction remains at validation and numerical formula boundaries with no compatibility facade. cfd-1d Nextest passes 736/736 with 3 skipped, focused cfd-validation Nextest passes 57/57, doctests pass 8/8 with 3 ignored, and warning-denied Clippy passes. |
 | `HELIOS-AEQ-MET-07/08` | Helios helical delivery and collimation | `283048d` restores typed helical delivery/projection/frame and collimation metrics; focused value-semantic gates pass and no Aequitas metric row remains open. |
 | `KWAVERS-AEQ-MET-14` | Kwavers HIFU planning | `799aa1c0d` restores typed frequency, length, power, pressure, volume, position, and schedule metrics; focused source/check gates pass and no Aequitas metric row remains open. |
