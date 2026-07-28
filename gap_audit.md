@@ -20,7 +20,7 @@ open Aequitas metric contract:
 |---|---|---|
 | CFDrs | `f4be59c4` closes `CFDRS-AEQ-MET-23`; Aequitas provider `8dfc6de` adds `Force`/`Newton`. | `cfd-1d` Nextest 736/736 with 3 skipped, focused `cfd-validation` Nextest 57/57, doctests 8/8 with 3 ignored, and warning-denied Clippy pass. The exact 5 mm `cfd-3d` Venturi case remains 30.042 s against the 30 s budget; this is a runtime defect, not a missing metric. |
 | Helios | `05a4067` closes `HELIOS-AEQ-MET-06` by typing GPU attenuation mass attenuation and density inputs; `283048d` and `4fd2c88` close helical delivery and collimation. | `helios-gpu` check, 10/10 Nextest, warning-denied Clippy, doctests, and Rustdoc pass under the current local provider overlay. Shared unused-patch/linker warnings remain graph diagnostics, not consumer metric gaps. |
-| Kwavers | `c73fc9fe1`, `be7da06bb`, `6da60c3cf`, `d0d7d5a5f`, `b3d2e29ad`, `62275b3e4`, `c9ce4f3d8`, `eed5aef4a`, and `d00b07b28` close MET-22 through MET-30. | The CEUS and sonogenetics slices type public physical contracts and keep scalar extraction at formula, mesh, and dense-storage boundaries. `kwavers-physics` passes 1,556/1,556 Nextest tests with one skip, warning-denied Clippy, doctests 8/8 with 4 ignored, targeted rustfmt, and warning-free package Rustdoc. Provider graph warnings and peer dirty files remain integration residuals. |
+| Kwavers | `c73fc9fe1`, `be7da06bb`, `6da60c3cf`, `d0d7d5a5f`, `b3d2e29ad`, `62275b3e4`, `c9ce4f3d8`, `eed5aef4a`, and `d00b07b28` close MET-22 through MET-30; `cae5ff22c` pins the consumer to the electrical provider revision. | The CEUS and sonogenetics slices type public physical contracts and keep scalar extraction at formula, mesh, and dense-storage boundaries. `kwavers-physics` passes 1,556/1,556 Nextest tests with one skip, warning-denied Clippy, doctests 8/8 with 4 ignored, targeted rustfmt, and warning-free package Rustdoc. `cargo metadata --locked --no-deps` passes outside the Atlas overlay; a no-overlay package check is blocked offline by external Consus branch `codex/consus-npy-provider`. Provider graph warnings and peer dirty files remain integration residuals. |
 
 No unimplemented Aequitas metric contract remains in the audited CFDrs, Helios,
 or Kwavers public surfaces. The remaining conditions are verification or
@@ -73,9 +73,9 @@ delivery and collimation restoration is `283048d`, with typed `Angle`,
 focused value-semantic gates passing; the full dirty shared provider graph is
 not claimed as a clean workspace gate. Kwavers' current child audit closes
 MET-22 through MET-30, including the pushed CEUS slice `eed5aef4a` and
-sonogenetics slice `d00b07b28`; the provider-owned electrical dimensions are in
-Aequitas `f91bf02`. The remaining non-metric verification debt is peer-owned
-math/provider work.
+sonogenetics slice `d00b07b28`; consumer pin/lock coherence is in `cae5ff22c`,
+and the provider-owned electrical dimensions are in Aequitas `f91bf02`. The
+remaining non-metric verification debt is peer-owned math/provider work.
 
 ### Current Aequitas coverage
 
@@ -96,7 +96,7 @@ math/provider work.
   dense-storage boundaries.
 - Aequitas commit `f91bf02` adds `ElectricCharge`, `Capacitance`,
   `ElectricConductance`, and `ElectricPotential` with SI unit markers and
-  dimension-law tests. Kwavers commit `d00b07b28` consumes those dimensions,
+  dimension-law tests. Kwavers commits `d00b07b28` and `cae5ff22c` consume those dimensions,
   alongside typed sonogenetics membrane geometry, temperature, time, current,
   and frequency; scalar extraction remains at exponential, numerical, and
   dense-array boundaries.
@@ -222,7 +222,7 @@ math/provider work.
 | `KWAVERS-AEQ-MET-27` | Kwavers therapeutic cavitation | **RESOLVED in `62275b3e4`.** Detector frequency, nucleus radius, Blake threshold, Minnaert result, and pressure inputs use Aequitas; cavitation classifications and dense fields remain explicit scalar boundaries. |
 | `KWAVERS-AEQ-MET-28` | Kwavers lithotripsy | **RESOLVED in `c9ce4f3d8`.** Shock-wave peak pressure, pulse duration, and repetition rate use Aequitas `Pressure`, `Time`, and `Frequency`; future solver work remains separate. |
 | `KWAVERS-AEQ-MET-29` | Kwavers CEUS | **RESOLVED in `eed5aef4a`; provider `NumberDensity` in Aequitas `130ec5b`.** CEUS imaging, microbubble, population, cloud-dynamics, scattering, reconstruction, and simulation contracts use typed physical quantities; hidden unit conversions were removed and dense/model boundaries remain explicit. The affected package suite passes 1,862/1,862 with one skip. |
-| `KWAVERS-AEQ-MET-30` | Kwavers sonogenetics electrical contracts | **RESOLVED in `d00b07b28`; provider dimensions in Aequitas `f91bf02`.** Public membrane geometry and LIF/channel capacitance, conductance, potential, current, charge, temperature, time, and frequency contracts use Aequitas quantities. Scalar extraction remains at exponential, numerical, and dense-array boundaries; package verification passes 1,556/1,556 with one skip, doctests 8/8 with four ignored, warning-denied Clippy, targeted rustfmt, and warning-free Rustdoc. |
+| `KWAVERS-AEQ-MET-30` | Kwavers sonogenetics electrical contracts | **RESOLVED in `d00b07b28`; consumer pin/lock coherence in `cae5ff22c`; provider dimensions in Aequitas `f91bf02`.** Public membrane geometry and LIF/channel capacitance, conductance, potential, current, charge, temperature, time, and frequency contracts use Aequitas quantities. Scalar extraction remains at exponential, numerical, and dense-array boundaries; package verification passes 1,556/1,556 with one skip, doctests 8/8 with four ignored, warning-denied Clippy, targeted rustfmt, and warning-free Rustdoc. |
 
 ### Session refresh (2026-07-24)
 
