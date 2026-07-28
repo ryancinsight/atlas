@@ -648,7 +648,8 @@ atlas/
 ├── scripts/
 │   ├── atlas-stack-overlay.py       # generates the [patch] overlay from cargo metadata
 │   ├── build-all.ps1 / build-all.sh # run one Cargo command across every recorded package
-│   └── check_mdbook_links.py        # portable book dead-link detector
+│   ├── check_mdbook_links.py        # portable book dead-link detector
+│   └── publish-order.py             # derives the crates.io publish wave order
 ├── tools/
 │   ├── checkout-path-dependencies/  # Rust backend for the composite action
 │   ├── criterion-regression/        # cross-package benchmark regression classifier
@@ -884,6 +885,25 @@ of operations:
 So a crate that has never been published needs one manual first publish from the
 local Cargo credential store, and only then can its trusted publisher be
 registered. A PyPI distribution needs no such bootstrap.
+
+Publishing is also strictly dependency-ordered. Cargo rewrites a
+`{ version, git }` dependency to a registry dependency when packaging, so a git
+source is not a blocker — but the dependency must already exist on crates.io.
+A crate therefore becomes publishable only once its first-party dependencies are
+published, which is why `publish = false` appears throughout the stack as an
+ordering guard rather than an oversight. Derive the order rather than maintaining
+it by hand:
+
+```sh
+python3 scripts/publish-order.py           # wave-partitioned publish order
+python3 scripts/publish-order.py --json    # machine-readable
+```
+
+The script builds the first-party graph over normal and build dependencies,
+separates dev-dependency edges (which do not constrain order and legally form
+cycles), and fails when one registry name is claimed by more than one manifest.
+At this revision it reports 172 publishable crates across 38 waves with no
+ordering cycle.
 
 For crates.io, under the crate's **Settings → Trusted Publishing**:
 

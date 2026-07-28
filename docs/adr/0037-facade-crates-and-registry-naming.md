@@ -155,7 +155,60 @@ Every target below was verified available on 2026-07-28:
 `hyperion-photon` deliberately leaves `hyperion-transport` free for the future
 crate ADR 0032 reserves.
 
-### 4. Two sub-crate collisions are renamed, and one is a publish defect
+### 4. `publish = false` is an ordering guard, not a defect
+
+An earlier reading of this ADR treated the eight `publish = false` facades as
+oversights to flip. Evidence contradicts that, and the correction matters because
+flipping them early would produce failing releases.
+
+Two facts, established 2026-07-28 by packaging real crates rather than by
+inspection:
+
+- Cargo **does** rewrite a `{ version, git }` dependency to a registry
+  dependency when packaging. `hermes-simd`'s manifest comment — "crates.io
+  disallows git dependencies" — is imprecise; the git source is stripped.
+- The binding constraint is that the dependency must already be **on** crates.io.
+  `cargo package` on `aequitas` fails with `no matching package named 'eunomia'
+  found / location searched: crates.io index`, because `eunomia` is unpublished.
+
+So a crate becomes publishable exactly when its first-party dependencies are
+published, and not before. Every `publish = false` in the stack is therefore a
+correct ordering guard. Each flips as the last step of its own bootstrap publish,
+in dependency order — never as a standalone change, and never ahead of its
+dependencies.
+
+### 5. Publish order is derived, and `mnemosyne-core` is the critical path
+
+Ordering this by hand would drift on the first new crate, so
+[`scripts/publish-order.py`](../../scripts/publish-order.py) derives it from the
+manifests: it builds the first-party graph over normal and build dependencies,
+emits a wave-partitioned topological order, separates dev-dependency edges (which
+do not constrain order and legally form cycles), and fails when a registry name is
+claimed by more than one manifest.
+
+At this revision the graph is acyclic over ordering edges — **172 publishable
+crates across 38 waves**. Wave 0, which depends on nothing first-party, is:
+
+```text
+consus-core  consus-onnx  eunomia  helios-core  hermes-simd-macros
+hermes-simd-types  iris  kwavers-optics  melinoe  mnemosyne-core
+moirai-async-macros  moirai-utils  ritk-codecs  ritk-morphology  ritk-wgpu-compat
+```
+
+Two wave-0 crates carry taken names, and their impact differs by two orders of
+magnitude:
+
+| Crate | Transitive dependents | Consequence |
+| --- | --- | --- |
+| `mnemosyne-core` | **172** | Nothing downstream can publish until the name is resolved. This is the stack's critical path. |
+| `helios-core` | 10 | Contained within Helios; blocks only that package. |
+
+For scale, `eunomia` has 178 transitive dependents and `melinoe` 170, but both
+names are free. `mnemosyne-core` is thus the single highest-priority naming item
+in the stack — it gates 172 of 203 packages — and it is reclassified from cleanup
+to release-blocking.
+
+### 6. Two sub-crate collisions are renamed, and one is a publish defect
 
 - `helios-core` is taken (`ncitron`). The Helios internal crate is renamed in the
   same change that authors the `helios-radiation` facade.
@@ -167,7 +220,7 @@ crate ADR 0032 reserves.
   inconsistency defect: an internal build-automation crate must never be
   publishable. Fix the manifest rather than the name.
 
-### 5. Taking a colliding name is not part of the plan
+### 7. Taking a colliding name is not part of the plan
 
 Contacting an owner is permitted and may succeed for the clearly dormant names
 (`athena` at v0.0.0, `gaia` untouched since 2018, `apollo` at v0.0.2). It is not

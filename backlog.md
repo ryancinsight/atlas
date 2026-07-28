@@ -244,7 +244,7 @@
 - Non-goals: repository names, submodule paths, directory names, module paths,
   and the classical-name mapping in the stack README. This is registry identity
   only. Also out of scope: negotiating a colliding name from its current owner —
-  permitted, but no publish waits on it (ADR 0037 §5).
+  permitted, but no publish waits on it (ADR 0037 §7).
 - Acceptance per package: the facade's `src/lib.rs` contains no logic; `cargo doc`
   shows re-exported items inline at facade paths; `--no-default-features` builds
   and no backend is reachable without its feature; `cargo publish --dry-run`
@@ -252,13 +252,51 @@
   immediately before first publish, since availability decays.
 - Non-blocking: ATLAS-PUB-001, -002, -004, and -005 proceed independently — a
   caller passes a package name, so every rename here is a manifest change.
+- **Correction 2026-07-28 — do not flip `publish = false` ahead of dependencies.**
+  An earlier reading of this item treated the eight guards as oversights. They are
+  correct ordering guards: `cargo package` on `aequitas` fails with
+  `no matching package named 'eunomia' found`, because a crate can only publish
+  once its first-party dependencies are on the registry. Cargo *does* rewrite a
+  `{ version, git }` dependency to a registry dependency, so git sources are not
+  the blocker (`hermes-simd`'s manifest comment overstates it) — dependency order
+  is. Each flip is the final step of that crate's own bootstrap publish, in the
+  order `scripts/publish-order.py` derives. Four flips were attempted and reverted
+  on this evidence; see [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md) §4.
+- Peer-held at this revision, so not claimable without a staleness sweep:
+  `coeus` (`codex/coeus-error-function-parity`, 24 dirty), `ritk`
+  (`codex/docs-ritk-n4-figure-only`, 11 dirty, active), `leto`
+  (`codex/leto-real-sparse-lu`, 25 dirty), `mnemosyne`
+  (`codex/mnemosyne-tier-selection`, clean). The `coeus` facade — the flagship
+  case for this item — is among them.
 
-## ATLAS-PUB-007 — Rename the two colliding sub-crates and fix the ritk xtask publish flag [patch] — todo
+## ATLAS-PUB-007 — Rename `mnemosyne-core`: the stack's publish critical path [patch] — todo
 
-- Owner: unclaimed; scope: `repos/helios` (one repo) and
-  `repos/{mnemosyne,leto,hephaestus,moirai}` (one co-evolution unit), plus
-  `repos/ritk/xtask/Cargo.toml`.
-- Decision: [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md) §4.
+> **Highest-priority publishing item.** `mnemosyne-core` sits in publish wave 0
+> and has **172 transitive dependents**, and its crates.io name is taken by an
+> unrelated owner. Until it is renamed, 172 of 203 packages cannot publish at all.
+> This is release-blocking, not cleanup — it outranks all facade work
+> (ATLAS-PUB-006), which is cosmetic by comparison.
+
+- Owner: unclaimed. `mnemosyne` is currently on the peer branch
+  `codex/mnemosyne-tier-selection` (clean tree, last commit 28 h ago) — sweep for
+  staleness before claiming, and do not branch-switch a tree a peer holds.
+- Scope, as one co-evolution unit: `repos/mnemosyne` (upstream rename) then
+  `repos/{leto,hephaestus,moirai}` (requirement + lock), verified together.
+  `repos/helios` and `repos/ritk/xtask/Cargo.toml` are separate, smaller claims.
+- Decision: [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md) §5, §6.
+- Evidence: `scripts/publish-order.py` derives the wave order from the manifests;
+  the graph is acyclic over normal/build edges at 172 publishable crates across 38
+  waves. For scale, `eunomia` (178 dependents) and `melinoe` (170) are comparably
+  deep but their names are free; `helios-core` is also taken but has only 10
+  dependents, so it blocks Helios alone.
+- Sub-item — **blocked on a live peer:** `repos/ritk/xtask/Cargo.toml` lacks the
+  `publish = false` that `apollo`, `CFDrs`, `helios`, and `kwavers` carry.
+  `repos/ritk` is checked out on `codex/docs-ritk-n4-figure-only` with 11 dirty
+  files touched minutes ago, so the fix is neither branch-switchable nor
+  committable without polluting that peer's PR with an unrelated manifest change.
+  Re-open trigger: the ritk tree returns to `main`, or that branch merges.
+  `scripts/publish-order.py` now fails on this defect, so it cannot be forgotten —
+  and wiring that script into CI waits on this fix so the gate does not land red.
 - Outcome: the three publishable names that collide below the facade layer are
   resolved. Verified 2026-07-28:
   - `helios-core` is taken (`ncitron`, v0.1.0, 1 067 downloads) — rename the
