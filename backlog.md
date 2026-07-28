@@ -6058,7 +6058,40 @@ blocker on Athena.
      allocation-free guarantee `athena-wgpu` has today, so it is a regression
      against what ADR 0034 promised to preserve. Rejected unless measurement
      says the preparation is free.
-- **Recommendation: option 2.** It resolves the conflict where the mismatch
+- **Option 2 was selected, attempted, and disproven 2026-07-28.** A minimal
+  probe reproducing Athena's `Execution` shape — a generic backend with
+  `type Prepared<'a>`, a workspace behind `&mut`, and a prepare-once-then-
+  iterate loop — fails to borrow-check:
+
+  ```
+  error[E0502]: cannot borrow `self.workspace.residual` as mutable
+                because it is also borrowed as immutable
+    let prepared = self.backend.prepare(&self.workspace.residual);
+                                        ------------------------ immutable borrow
+    self.backend.scale(&mut self.workspace.residual, 0.5);
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ mutable borrow
+  ```
+
+  Moving the handle from the workspace to solve scope does not help: the
+  conflict is not *where* the handle lives but that it holds a borrow of a
+  vector every Krylov iteration mutates. In generic code the compiler must
+  assume `B::Prepared<'a>` captures `'a` even for backends whose concrete type
+  ignores it, so this is not fixable by instantiation.
+
+- **Correction: prepared handles must be owned.** The seam should drop the
+  lifetime and return an owned handle, as the WGPU implementation already
+  does by cloning cheap buffer handles. Preparation binds scratch storage and
+  pipeline state; binding it to a specific *allocation* was an over-constraint
+  introduced for validation, and it is what forced the lifetime.
+  - Feasibility check: `hephaestus_cuda::PreparedDot<'a, T>` holds
+    `&'a CudaBuffer<T>` for both operands, and `CudaBuffer<T>` derives only
+    `Debug` — it is not clonable today. So this needs either a clonable
+    buffer handle in CUDA and ROCm, or a prepared form keyed by length rather
+    than by operand.
+  - Preferred shape: `prepare_dot(&self, device, len) -> PreparedDot` with the
+    operands supplied at `dot_prepared` time. Resources depend on length, not
+    identity, so nothing is lost and every backend can own its handle.
+- Superseded recommendation, retained for the record: option 2. It resolves the conflict where the mismatch
   actually is — a handle bound to an operand should not outlive the operation
   using it — and it does not require editing another agent's backend work on
   untestable hardware. Option 1 is a reasonable fallback if the CUDA and ROCm
