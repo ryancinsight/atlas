@@ -1,5 +1,29 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer refresh — unified thermal deposition — 2026-07-28
+
+The named-consumer metric contracts remain closed: CFDrs and Helios expose
+real physical outputs through Aequitas, Kwavers uses typed Aequitas contracts
+for its MEMS and complex phasor surfaces, and Eunomia provides the shared
+real/complex `UnitScalar` scaling seam. The remaining Kwavers finding was not
+a missing SI dimension; it was an untyped unified-field storage slot that made
+the thermal plugin read `BubbleRadius` (metres) as deposition or suppress the
+source entirely.
+
+Kwavers commit `5aef5f551` adds the appended
+`UnifiedFieldType::VolumetricHeatSource` (`W/m³`) slot, fixes reverse lookup to
+the unified layout, and routes `ThermalDiffusionPlugin` through the typed
+`VolumetricHeatSource` boundary. Existing field indices remain stable; dense
+`Array4<f64>` storage is retained only as the explicit formula/storage
+boundary. Complex quantities are unaffected because this path is real-valued
+thermal deposition.
+
+Evidence: focused `cargo check --offline -p kwavers-field -p kwavers-solver
+--tests`, rustfmt, and diff check pass; nextest run
+`106a11a9-ba01-401d-b23b-1904c7e48144` passes 5/5 targeted tests; warning-denied
+Clippy passes for both touched packages. The child audit records the same
+evidence and retains the provider-lock and peer-lint residuals separately.
+
 ## Structural and abstraction audit (2026-07-28)
 
 Scope: all 25 packages, 11 409 Rust source files. Method: mechanical scans over

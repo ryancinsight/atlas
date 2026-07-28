@@ -742,12 +742,13 @@ path is open.
      wall clock. Forking the target tree to dodge the lock stays prohibited —
      the wait is the accepted cost.
 
-### ATLAS-MODALITY-004 — Unified field array has no heat-source variant [patch] — in-progress
+### ATLAS-MODALITY-004 — Unified field array has no heat-source variant [patch] — done
 
-- Owner: current Codex session; scope: `repos/kwavers` unified-field enum,
-  thermal deposition producers, diffusion plugin, focused tests, and this
-  backlog entry. Non-goals: unrelated peer WIP, transport extraction, and
-  provider-lock cleanup.
+- Owner: current Codex session; closed 2026-07-28 at Kwavers
+  `5aef5f551`. Scope: `repos/kwavers` unified-field enum, thermal deposition
+  producers, diffusion plugin, focused tests, and this backlog entry.
+  Non-goals: unrelated peer WIP, transport extraction, and provider-lock
+  cleanup.
 
 - Found while typing the deposition boundary (2b).
   `crates/kwavers-solver/src/forward/thermal_diffusion/plugin.rs` read
@@ -765,6 +766,11 @@ path is open.
 - Acceptance: no magic index arithmetic on `UnifiedFieldType` anywhere; a test
   asserts the plugin's temperature rise matches an analytically derived value
   for a known deposition field.
+- Evidence: `cargo check --offline -p kwavers-field -p kwavers-solver --tests`,
+  targeted rustfmt, `git diff --check`, warning-denied Clippy, and nextest
+  `106a11a9-ba01-401d-b23b-1904c7e48144` (5/5 targeted tests) pass. Existing
+  field indices remain stable; the new slot is index 17 and the analytical
+  regression verifies `q/(rho*cp) * dt = 10 K`.
 
 3a. ✅ **closed 2026-07-27 at hyperion `12b2ad3`** — Hyperion owns the local
    absorbed-deposition laws `Q = μ_a φ` (W/m³) and `q = μ_a Φ` (J/m³), with
