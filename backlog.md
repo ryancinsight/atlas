@@ -248,11 +248,29 @@
   with the ulp budget justified from the operation chain — replacing fixed
   literals like `epsilon = 1e-5`, which are themselves the analytical-threshold
   violation.
-- In-tree, unverified: `repos/helios/crates/helios-solver/src/dose.rs` carries
-  the first conversion (`primary_fluence_matches_beer_lambert`, 16-ulp derived
-  bound, instantiated at both widths). It is held uncommitted because the
-  blocker prevents a green commit, not because it is incomplete. Remaining: 23
-  test functions across 20 files.
+- Nothing is left in the tree. The first conversion was written against the real
+  APIs in `helios-solver/src/dose.rs`
+  (`primary_fluence_matches_beer_lambert`, 16-ulp derived bound, one `#[test]` per
+  shipped width) and then **reverted**: it could not be compiled, and an
+  unverified edit in a `#[cfg(test)]` module would turn a peer's
+  `cargo test`/`--all-targets` red for a reason the board could not explain from
+  their side. The design above is the deliverable to re-apply; redoing the edit
+  once helios resolves is minutes of work, and the intellectual content — shipped
+  scalar set, tolerance derivation, naming-compliant instantiation shape — is
+  recorded here rather than parked in a dirty file.
+- Worked reference for the pattern, applicable to all 24 sites:
+  - hoist the body into `fn <behaviour><T: Scalar>()`, drop the `_f32` suffix
+    (the old name is itself a naming-prohibition violation);
+  - build every literal with `T::from_f64(..)`; `T::from_f64(0.0)` rather than
+    `T::ZERO` avoids needing `NumericElement` in test scope;
+  - replace fixed epsilons with `max_relative = T::EPSILON * T::from_f64(ULPS)`,
+    where `ULPS` is a named constant carrying its derivation from the operation
+    chain — `assert_relative_eq!` accepts `max_relative`, and the fixed literals
+    being replaced (`epsilon = 1e-5`) are themselves analytical-threshold
+    violations;
+  - add one `#[test]` per shipped width delegating to the generic body, named by
+    precision (`..._in_single_precision` / `..._in_double_precision`) so failure
+    attribution survives without putting a Rust type name in a function name.
 
 ## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — todo
 
