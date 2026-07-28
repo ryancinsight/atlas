@@ -30,21 +30,24 @@ CFDrs solver-runtime residual remains the exact 5 mm cfd-3d Venturi case at
 30.042 s against the 30 s budget; it is not an Aequitas typing gap.
 
 Kwavers commits `9bb64b638`, `3433d36ba`, `26c18bb24`, `328a46f03`,
-`596ae06a7`, `740da15ff`, and `2ebc23345` close `KWAVERS-AEQ-MET-15`
-through `KWAVERS-AEQ-MET-20` on the active child branch. Cavitation-control,
-therapy-integration, acoustic-solver, intensity-tracker, clinical-scenario,
-and neuromodulation protocol public boundaries now use Aequitas `Frequency`,
-`Time`, `Pressure`, `Length`, `Volume`, `Intensity`, `MassDensity`, `Velocity`,
-`ThermodynamicTemperature`, and
-`TemperatureDifference`; dimensionless scores, probabilities, MI, duty cycle,
-dense arrays, and formula/mesh/GPU scalar boundaries remain explicit.
-The latest physics package check passes; physics Nextest passes 1556/1556 with
-one skip and one leaky test; doctests pass 8/8 with four ignored; warning-denied
-Clippy passes; Rustdoc builds with two pre-existing link warnings; and touched
-MET-20 leaves pass rustfmt and diff checks. The child branch is pushed but
-remains separate from the parent integration gitlink; provider warnings, dirty
-peer lock/source files, and shared-overlay path collisions remain
-verification/topology residuals, not open metric rows.
+`596ae06a7`, `740da15ff`, `2ebc23345`, and `0c0916e28` close
+`KWAVERS-AEQ-MET-15` through `KWAVERS-AEQ-MET-21` on the active child branch.
+Cavitation-control, therapy-integration, acoustic-solver, intensity-tracker,
+clinical-scenario, neuromodulation protocol, and transducer design/propagation
+public boundaries now use Aequitas `Frequency`, `Time`, `Pressure`, `Length`,
+`Volume`, `Intensity`, `MassDensity`, `Velocity`, `ElectricCurrent`,
+`PressurePerElectricCurrent`, `AcousticImpedance`,
+`ThermodynamicTemperature`, and `TemperatureDifference`; dimensionless scores,
+probabilities, MI, duty cycle, dense arrays, and formula/mesh/GPU/report scalar
+boundaries remain explicit. The MET-20 physics package gate passes with
+Nextest 1556/1556, one skip, one leaky test, doctests 8/8 with four ignored,
+warning-denied Clippy, and Rustdoc with two pre-existing link warnings.
+The MET-21 transducer package gate passes Nextest 218/218 with one skip and
+doctests 2/2 with six ignored; the driver `kwavers`-feature gate passes
+Nextest 489/489 with no doctests. Both package Clippy and Rustdoc gates pass.
+The child branch is pushed but remains separate from the parent integration
+gitlink; provider warnings, dirty peer lock/source files, and shared-overlay
+path collisions remain verification/topology residuals, not open metric rows.
 
 Helios' current child audit has no open Aequitas metric row. The helical
 delivery and collimation restoration is `283048d`, with typed `Angle`,
@@ -181,6 +184,7 @@ is peer-owned math/provider work, not a missing metric contract.
 | `KWAVERS-AEQ-MET-18` | Kwavers intensity tracker | **RESOLVED in `596ae06a7`.** Raw W/cm² accessors were removed in favor of canonical typed `Intensity` results; focused Nextest passes 349/349 with one skip and three slow tests, doctests 8/8 with one ignored, Clippy, and Rustdoc pass. |
 | `KWAVERS-AEQ-MET-19` | Kwavers clinical scenario and pulse contracts | **RESOLVED in `740da15ff`.** Histotripsy scenario frequency, pressures, duration, focal volume, pulse timing, PRF, and pulse-average intensity use Aequitas quantities; no-PRF patterns return `None`, and MI/duty/probability remain dimensionless. Focused Nextest passes 349/349 with one skip and four slow tests; doctests 8/8 with one ignored; Clippy, Rustdoc, and leaf rustfmt pass. |
 | `KWAVERS-AEQ-MET-20` | Kwavers neuromodulation pulse-train and dosimetry contracts | **RESOLVED in `2ebc23345`.** Pulse-train frequency/timing, pressure, medium density, sound speed, dosimetry intensity, total time, and ITRUSST temperature rise use Aequitas quantities; FDA conversion and numerical formulas are the only scalar boundaries, while MI, duty, safety, and CEM43 remain semantic scalars. Physics Nextest passes 1556/1556 with one skip and one leaky test; doctests 8/8 with four ignored; warning-denied Clippy passes; Rustdoc builds with two pre-existing link warnings. |
+| `KWAVERS-AEQ-MET-21` | Kwavers transducer array design and focused propagation | **RESOLVED in `0c0916e28`.** Array geometry, wavelength, frequency, sound speed, drive current, pressure-per-current, acoustic impedance, focal pressure, intensity, and beam extents use Aequitas quantities; scalar extraction remains at formula, width-search, validation, and explicit driver report boundaries. Transducer Nextest passes 218/218 with one skip; doctests pass 2/2 with six ignored; driver `kwavers`-feature Nextest passes 489/489 with no doctests; both package Clippy and Rustdoc pass. |
 
 ### Session refresh (2026-07-24)
 
@@ -257,26 +261,25 @@ rows remain for merge provenance.
   MET-13, vascular/Womersley/Murray/Olufsen metrics in `e3b664e5`, and
   network edge hydraulic metrics in `df6b1341`;
   Kwavers' public transducer/Rayleigh, thermal/perfusion, derived-grid,
-  thermal-diffusion configuration, basic-piston, impedance/frequency, and
-  ultrafast-sequencer metric gaps are implemented through `614c71197`, with
-  design-propagation validation in `715ceeda7` and driver beam/thermal/result
-  DTOs in `e134cacda`;
+  thermal-diffusion configuration, basic-piston, impedance/frequency,
+  ultrafast-sequencer, and design/propagation metric gaps are implemented
+  through `0c0916e28`, with explicit driver report conversion;
   Helios' Compton energy, helical delivery, and collimation gaps are implemented
   through `4fd2c88`; a fresh public-surface scan found no additional Helios
   unit-bearing metric boundary requiring an Aequitas contract;
   the peer Mnemosyne page-module compile gap; and Helios PR #32 is merged as
-  `02d7a775` with its replicated benchmark gate green. Kwavers MET-06 remains
-  a real child-audit item; the other listed conditions are delivery or
-  verification residuals, not additional metric contracts.
+  `02d7a775` with its replicated benchmark gate green. The remaining listed
+  conditions are delivery or verification residuals, not additional metric
+  contracts.
   Each slice updates its child audit and uses its strongest value or analytical
   oracle before delivery.
 
-No unimplemented Aequitas metric contract remains in CFDrs or Helios. Kwavers
-has one open child metric contract, MET-06, for thermal accessors/perfusion;
-the remaining Kwavers vasculature row is implemented but broad verification is
-blocked externally. CFDrs also has eight named integration tests over the
-30-second nextest budget. No residual is masked by a consumer-side
-compatibility shim.
+No unimplemented Aequitas metric contract remains in CFDrs, Helios, or the
+audited Kwavers public surfaces. CFDrs retains the exact 5 mm cfd-3d Venturi
+runtime residual over the 30-second nextest budget; Kwavers retains provider
+warnings, peer-owned dirty files, and shared-overlay topology debt. These are
+verification/integration residuals, not missing metric contracts. No residual
+is masked by a consumer-side compatibility shim.
 
 ### Verification refresh (2026-07-26)
 
@@ -331,6 +334,25 @@ compatibility shim.
 - Kwavers PR #325 remains `CONFLICTING`/`DIRTY` at `07f60733b`; its vessel metric
   implementation is complete, but integration is not claimed until the peer
   worktree is clean and the Mnemosyne `TierSelection` API dependency is aligned.
+
+## Math/Linalg SSOT ADRs accepted (2026-07-27)
+
+The first three math/linalg SSOT moves from `math_ssot_ledger.md` are now
+accepted as ADRs in `repos/leto/docs/adr/`:
+
+- **ADR 0031** — CFDrs `cfd-math` finite-difference/iterative wrapper deletion sweep.
+  - Status: **Accepted / Implemented**. The `differentiation` wrapper was removed and
+    replaced with `cfd_math::fd` (leto-ops SSOT) plus a new `fd_extensions` module for
+    CFD-specific helpers.
+- **ADR 0032** — Kwavers `kwavers-math` `linear_algebra::{ext, complex}` wrapper deletion sweep.
+  - Status: **Accepted (completed in place)**. The wrappers were already deleted; call
+    sites use `leto_ops` directly.
+- **ADR 0033** — Kwavers 3-D finite-difference staggered-grid migration to `leto-ops`.
+  - Status: **Accepted / Implemented**. `kwavers-math::StaggeredGridOperator` was removed
+    and `kwavers-solver` now uses `leto_ops::FiniteDifference3D`.
+
+These ADRs are design/closure artifacts; the source changes are owned by their
+respective implementation commits.
 
 ## Provider-native sparse-LU ownership (2026-07-23)
 
