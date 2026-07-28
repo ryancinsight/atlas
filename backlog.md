@@ -5879,7 +5879,7 @@ Stale-advanceable (still NOT safely advanceable):
 - D: delete `leto-ops/src/application/linalg/iterative/` including the
   duplicated `LinearOperator`/`Preconditioner` traits; residue scan clean.
 
-## ATLAS-ATHENA-ACCEL-BACKEND-001 — Replace athena-wgpu with one Hephaestus-backed backend (ADR 0034) [major] [arch] — in-progress
+## ATLAS-ATHENA-ACCEL-BACKEND-001 — Replace athena-wgpu with one Hephaestus-backed backend (ADR 0034) [major] [arch] — done
 
 - **Stages 1-2 done 2026-07-27**, hephaestus `6ab822c`: `DenseVectorOps<D, T>`
   in `hephaestus-core` plus its `hephaestus-wgpu` implementation. Copy, both
@@ -6426,7 +6426,7 @@ blocker on Athena.
   to make that boundary explicit. Filed as
   `ATLAS-HEPHAESTUS-SPARSE-SEAM-001`.
 
-## ATLAS-HEPHAESTUS-SPARSE-SEAM-001 — Device-neutral sparse operator seam [major] [arch] — todo
+## ATLAS-HEPHAESTUS-SPARSE-SEAM-001 — Device-neutral sparse operator seam [major] [arch] — done
 
 - Outcome: a consumer can apply a device-resident sparse operator without
   binding to a device API, closing the last gap before `athena-wgpu` is
@@ -6501,3 +6501,59 @@ Final gitlink-coherence state at Session 30 close: **25 probed | 4 defects | 1 s
 | Track PR 0008 + math-SSOT ledger | `9f92d94` | docs(atlas) | Peer-absorbed (content preserved) |
 | Session 30 closure in backlog | `9f92d94` + `485b3dd` | docs(pm) | Yes — full text + peer addendum |
 | CFDrs Aequitas closure advance | `c2cad74` | build(atlas) | Peer-owned |
+
+## Session 28 (2026-07-28) — ADR 0034 complete
+
+`SparseOperatorOps` landed in hephaestus `317bd7a`, and `athena-wgpu` is gone
+in athena `045efe4`. ADR 0034 is closed.
+
+- **Sparse seam.** Takes canonical CSR parts rather than a host matrix type, so
+  `hephaestus-core` keeps its no-sparse-storage charter and any CSR producer
+  can feed it. Raw parts arrive without the invariants a matrix type enforces
+  at construction, so the seam validates structure before upload — dispatching
+  on malformed CSR would read out of bounds on the device. `GpuCsrMatrix`
+  gained `from_parts` and `from_cpu` now delegates, so the upload path exists
+  once.
+- **Operator.** `athena_hephaestus::CsrOperator` applies a device-resident
+  operator through the seam, making the operator half as device-neutral as the
+  vector half. That was the last thing keeping `athena-wgpu` alive.
+- **Deletion.** `athena-wgpu` removed outright with its five hand-written WGSL
+  kernels and `f32`-only backend, no compatibility re-export; nothing outside
+  Athena depended on it and its contract tests moved in the same change. The
+  facade feature is now `accelerator`, not `wgpu`.
+- **ADR 0034 residue scan passes**: no `wgsl`, `@compute`, or `workgroup`
+  literal under `repos/athena/crates`, and no crate there names a device API.
+  Athena went from one device API to every Hephaestus backend, and from
+  `f32`-only to generic in the scalar.
+
+### Verification and its limit
+
+`athena-hephaestus` passed 7/7 on GPU hardware — CG, GMRES and BiCGSTAB each to
+convergence through the device-neutral backend and operator, plus retained-handle
+reuse across solves, dimension rejection, rectangular rejection, and three
+malformed-CSR rejections. Clippy `--all-targets` and fmt were clean immediately
+before commit.
+
+The workspace-wide gate could **not** be run afterwards: an in-flight `aequitas`
+change (14 dirty files in `repos/aequitas`) began failing `leto` and `leto-ops`
+beneath the whole stack —
+
+```
+error[E0599]: the method `in_unit` exists for struct `Quantity<...>`, but its
+trait bounds were not satisfied
+  --> repos/leto/crates/leto/src/application/stencil.rs:121
+     = note: `T: UnitScalar` not satisfied
+```
+
+`stencil.rs` is committed and unmodified, so this is upstream drift rather than
+local breakage, and it predates nothing of this increment. Re-run the athena and
+hephaestus workspace gates once that settles.
+
+### Remaining
+
+- ADR 0033 stage A: **LSQR**, the last capability before the CFDrs migration
+  (`ATLAS-GMRES-FORK-CONVERGE-001` stage B).
+- CUDA, Metal and ROCm adopt `RetainedReductions` and `SparseOperatorOps` in
+  their own increments, verifiable only where that hardware exists. Until then
+  the accelerator backend runs on WGPU alone — but adding a device now adds no
+  Athena code, which is the property ADR 0034 existed to establish.
