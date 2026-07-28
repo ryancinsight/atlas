@@ -234,12 +234,54 @@
   showing the change is a win. A site where the jagged shape is genuinely correct
   is recorded as such rather than converted.
 
-## ATLAS-GAIA-GITDEP-001 — Gaia's committed path dep makes it unconsumable as a git dependency [patch] — blocked
+## ATLAS-ARCH-CYCLE-001 — Break the CFDrs -> gaia -> CFDrs repository cycle [arch] — todo
 
-- Owner: unclaimed, and **not claimable without colliding with a live peer**.
-  `.cargo/config.toml` was edited 1 minute before this entry was written and a
-  peer commit landed seconds before it; the stack overlay is the active scope of
-  the ATLAS-OVERLAY-003 / PATH_DEP_AUDIT_2 stream. Do not enter it from here.
+- Owner: unclaimed. `repos/CFDrs` had 13 dirty files at filing; sweep before
+  claiming.
+- Defect: `repos/CFDrs/Cargo.toml:78` declares
+  `cfd-mesh = { path = "../gaia", package = "gaia" }` — CFDrs consumes gaia under
+  an alias — and `crates/cfd-3d` enables gaia's `cfdrs-integration` feature, which
+  activates `gaia`'s dependency on `../CFDrs/crates/cfd-schematics`. That is a
+  repository-level cycle **CFDrs -> gaia -> CFDrs**, against the one-way
+  foundation → domain → integrator layering the stack README requires. Cargo does
+  not reject it only because the two edges land on different member crates
+  (`cfd-3d` vs `cfd-schematics`), so no package-level cycle exists.
+- Why it matters beyond tidiness: it is the last reason gaia cannot be fully
+  consumed as a git dependency. `ATLAS-GAIA-GITDEP-001` converted the other five
+  sibling path deps; `cfd-schematics` had to stay, because converting it would
+  cement the inversion in gaia's published manifest and drag the whole CFDrs graph
+  into every gaia consumer's resolution — observed directly as a `smallvec`
+  version conflict (`hephaestus-wgpu` wants `^1.15.2`, `wgpu 30` wants `^1.14`)
+  reached only through the `gaia -> cfd-schematics -> cfd-core -> hephaestus-wgpu`
+  chain.
+- Evidence that the edge is currently dead to the stack: nothing outside gaia's
+  own manifest and examples enables `cfdrs-integration`, and no crate named
+  `cfd-mesh` exists in CFDrs — the name is purely gaia's alias.
+- Fix direction: the integrator owns the bridge, so relocate
+  `repos/gaia/src/application/pipeline/blueprint_mesh.rs` (2 057 lines, ~1 886
+  implementation and ~170 test) into CFDrs as a crate depending on both `gaia` and
+  `cfd-schematics`; drop gaia's `cfdrs-integration` feature, its
+  `scheme-io = ["cfdrs-integration"]` alias, the three examples gated on it, and
+  the `cfd-schematics` dependency. The module uses 13 `crate::`-internal imports
+  (`application::channel::*`, `application::csg::boolean`, `domain::core::*`), so
+  the move requires confirming each is `pub` in gaia and widening what is not.
+- Acceptance: gaia has zero path dependencies; `gaia` resolves as a git dependency
+  from a scratch consumer with no Atlas overlay; the relocated bridge's tests pass
+  in CFDrs; the stack README's dependency-direction claim holds under a mechanical
+  check.
+
+## ATLAS-GAIA-GITDEP-001 — Gaia's committed path dep makes it unconsumable as a git dependency [patch] — done
+
+- **Resolved 2026-07-28** at gaia `1190ace`: eunomia, leto, melinoe, mnemosyne,
+  and moirai are now declared `git + version`, and the dev-dependency copies moved
+  with them because Cargo requires one canonical source per dependency name across
+  sections. `cargo check --lib` green in gaia; `cargo metadata` in helios exits 0
+  where it previously failed. Atlas gitlinks advanced at `1459c99`.
+- The other half of the split landed concurrently: the overlay stream turned the
+  root `.cargo/config.toml` patches back on (42 active sections, 0 `#OFF#`), so
+  declared git sources are the release SSOT while umbrella builds resolve locally —
+  the architecture `AGENTS.md` prescribes.
+- Residual: `cfd-schematics` remains a path dep, tracked as ATLAS-ARCH-CYCLE-001.
 - Defect: `repos/gaia/Cargo.toml:40` declares
   `eunomia = { path = "../eunomia/crates/eunomia", ... }`. A consumer that takes
   `gaia` as a **git** dependency makes Cargo resolve that path inside the fetched
@@ -274,10 +316,11 @@
 - Re-open trigger: the overlay stream lands, or `cargo metadata` in
   `repos/helios` resolves.
 
-## ATLAS-HELIOS-GENERIC-001 — Instantiate the f32-only generic tests across shipped scalars [patch] — blocked
+## ATLAS-HELIOS-GENERIC-001 — Instantiate the f32-only generic tests across shipped scalars [patch] — in-progress
 
-- Owner: this stream; **blocked on ATLAS-GAIA-GITDEP-001** — helios cannot
-  resolve, so no test change in it is verifiable.
+- Owner: this stream; **unblocked** — ATLAS-GAIA-GITDEP-001 is resolved and
+  helios resolves and builds. 1 of 24 conversions delivered and verified at
+  helios `9193c18`; 23 remain across 20 files.
 - Defect, verified independently: **24 test functions across 21 helios files**
   are named `*_is_generic_over_scalar_f32` and assert genericity at exactly one
   concrete type, with **zero** f64 counterparts. Every monomorphization a caller
@@ -295,16 +338,17 @@
   with the ulp budget justified from the operation chain — replacing fixed
   literals like `epsilon = 1e-5`, which are themselves the analytical-threshold
   violation.
-- Nothing is left in the tree. The first conversion was written against the real
-  APIs in `helios-solver/src/dose.rs`
-  (`primary_fluence_matches_beer_lambert`, 16-ulp derived bound, one `#[test]` per
-  shipped width) and then **reverted**: it could not be compiled, and an
-  unverified edit in a `#[cfg(test)]` module would turn a peer's
-  `cargo test`/`--all-targets` red for a reason the board could not explain from
-  their side. The design above is the deliverable to re-apply; redoing the edit
-  once helios resolves is minutes of work, and the intellectual content — shipped
-  scalar set, tolerance derivation, naming-compliant instantiation shape — is
-  recorded here rather than parked in a dirty file.
+- Delivered and verified: `helios-solver/src/dose.rs`
+  — `primary_fluence_matches_beer_lambert`, 16-ulp derived bound, one `#[test]` per
+  shipped width. Both instantiations pass; the f64 case passing at 16 ulps is the
+  evidence the kernel is correct beyond the width it was written against.
+- Two bounds the design missed and compilation caught, needed at every remaining
+  site: `Scalar` implies neither `eunomia::RelativeEq<Epsilon = Self>` (required by
+  `assert_relative_eq!`) nor `eunomia::UnitScalar` (required by kernels taking
+  Aequitas quantities). Both are folded into a local `ShippedScalar` trait with one
+  `impl` per shipped width, so admitting a new type is one line rather than an edit
+  per test. It stays local to `dose.rs` until a second module needs it, per
+  consolidate-on-second-occurrence; the shared home is `helios-math`.
 - Worked reference for the pattern, applicable to all 24 sites:
   - hoist the body into `fn <behaviour><T: Scalar>()`, drop the `_f32` suffix
     (the old name is itself a naming-prohibition violation);
