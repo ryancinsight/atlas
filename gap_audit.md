@@ -43,6 +43,23 @@ output work, not an identified metric gap. See the child audits for the exact
 residuals: [`Helios`](repos/helios/gap_audit.md) and
 [`Kwavers`](repos/kwavers/gap_audit.md).
 
+## Aequitas consumer re-audit extension — 2026-07-29
+
+The current CFDrs scan found a second public physical family after the
+cell-tracking closure: `cfd-core::physics::material::SolidProperties` and
+`ElasticSolid` exposed density, Young's modulus, thermal conductivity,
+specific heat capacity, and thermal expansion as raw scalars. CFDRS-AEQ-MET-28
+types the solid contract with Aequitas and records that the real-valued
+Eunomia trait has no imaginary-unit requirement. The broader fluid
+`FluidState`/`FluidProperties` family remains an explicitly recorded next
+CFDrs item until its many implementors and callers are migrated.
+
+Helios and Kwavers still have no new missing Aequitas metric dimension in this
+refresh. Kwavers' existing complex public quantities remain
+`Pressure<Complex64>`, `ElectricalImpedance<Complex64>`,
+`AcousticImpedance<Complex64>`, and `Dimensionless<Complex64>` over Eunomia's
+real/complex scalar seam; no separate imaginary-unit quantity is required.
+
 ## Architecture improvement batch — 2026-07-29 (Session 2026-07-29)
 
 Scope: ATLAS-ARCH-002, ATLAS-ARCH-003, ATLAS-ARCH-004, ATLAS-ARCH-006 partial.
@@ -477,7 +494,7 @@ formula/storage boundaries. See the provider ADR
 [`0009-complex-physical-quantities`](repos/aequitas/docs/adr/0009-complex-physical-quantities.md)
 and Kwavers [ADR 069](repos/kwavers/docs/ADR/069-complex-quantities.md).
 
-### Current live child refresh (2026-07-28)
+### Historical live child refresh (2026-07-28; superseded by the 2026-07-29 extension)
 
 The latest provider-first increments close the audited metric rows through the
 sonogenetics family in the three named consumers, with Eunomia `cea0158`,
@@ -493,18 +510,12 @@ contract:
 | Helios | `05a4067` closes `HELIOS-AEQ-MET-06` by typing GPU attenuation mass attenuation and density inputs; `283048d` and `4fd2c88` close helical delivery and collimation; `eb97ec3` propagates Eunomia `UnitScalar` through all Aequitas-backed generic analysis, physics, solver, domain, and simulation APIs. | The audit recheck found no new metric row. Workspace test compilation and Helios simulation Nextest pass 38/38; shared unused-patch/linker warnings remain graph diagnostics, not consumer metric gaps. The dirty peer manifest/lockfile remains outside this slice. |
 | Kwavers | `c73fc9fe1`, `be7da06bb`, `6da60c3cf`, `d0d7d5a5f`, `b3d2e29ad`, `62275b3e4`, `c9ce4f3d8`, `eed5aef4a`, and `d00b07b28` close MET-22 through MET-30; `215d8915b` repairs typed CEUS tests and `58d1750c1` consolidates interpolation on `leto_ops`. `cae5ff22c` pins the electrical provider and `ed19f4e44` removes the obsolete Consus branch selector. `1afd09768` types MEMS crosstalk and `6d15b5850` completes CMUT, PMUT, plate, flexible-apodization, comparison, and sensitivity metrics; `2d3329dbd` closes the synchronized audit. The complex boundary uses `Pressure<Complex64>`, `ElectricalImpedance<Complex64>`, `AcousticImpedance<Complex64>`, and `Dimensionless<Complex64>` over the Eunomia `UnitScalar` seam. | The audit recheck found no new metric row. The delivered math/medium/physics lane evidence is 1,861/1,861 Nextest tests with one skip; the complete transducer lane is 219/219 with one skip. Tyche `1527964` and Asclepius `bbf3840` now use portable provider sources. Atlas overlay `69a8dba` maps Aequitas and Eunomia to canonical `repos/` trees; the generator check is green and duplicate scanning finds one local identity per provider. A locked package gate still requires a clean standalone lock refresh because peer-dirty provider manifests make Cargo rewrite the overlay lock. Full-target Clippy remains blocked by the peer-owned `kwavers-math/src/simd/mod.rs:6` `doc_overindented_list_items` diagnostic. These are integration/verification residuals, not metric gaps. |
 
-No unimplemented Aequitas metric contract remains in the audited CFDrs, Helios,
-or Kwavers public surfaces. CFDrs MET-25 closes the deeper shared-cavitation
-scan and removes the public cfd-3d closure placeholders; `b6e0e61d` also closes
-the final blueprint trace metrics. cfd-core Nextest is 202/202 with no skips,
-blueprint integration is 6/6, and the broad cfd-3d evidence is 291/292 with
-the sole 30.663-second Venturi runtime timeout recorded under
-`CFDRS-RUNTIME-001`. Kwavers MET-32 is closed with 219/219 transducer tests.
-The remaining conditions are verification or integration defects: that
-runtime-budget overrun, the clean standalone lock refresh required after the
-canonical overlay change, CFDrs' 47 peer-owned all-target Clippy diagnostics,
-and Kwavers' peer-owned math documentation lint. No residual is hidden behind
-a consumer shim.
+The 2026-07-28 baseline had no unimplemented Aequitas metric contract in the
+audited CFDrs, Helios, or Kwavers surfaces. The 2026-07-29 CFDrs extension
+supersedes that statement: solid-material metrics are now tracked by
+CFDRS-AEQ-MET-28, and the broader fluid property family remains open in the
+CFDrs child audit. The Helios and Kwavers conclusions remain unchanged. No
+residual is hidden behind a consumer shim.
 
 ### Prior child refresh baseline (2026-07-27)
 
