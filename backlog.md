@@ -7009,3 +7009,79 @@ cfd-validation, then delete the `cfd_math::iterative` facade.
 - Scope: (1) decide and document one compiler identity for the stack (rustup-managed stable matching the pin is the straightforward choice) and remove the conflicting `RUSTC`/`RUSTDOC` overrides from the agent environment; (2) normalize member pins — the 1.95.0 pair, the bare `stable`, and the 1.97.1 outlier to the standard, and add pins to the 10 unpinned members (missing verification infrastructure, retrofit at first touch); (3) one-time purge of the poisoned artifact generation once the environment is coherent; (4) a preflight check (compiler identity vs pin) in the sweep so a mismatch fails loudly instead of surfacing as dependency breakage.
 - Acceptance: `rustc -V` under every member and tool matches its pin; a full-stack build produces no E0514; the preflight check is green in the sweep.- Fixed 2026-07-29: persistent user env vars `RUSTC` and `RUSTDOC` (both pointing at the rustup shim, whose default toolchain was nightly) removed from the user registry — machine PATH puts `D:\msys64\ucrt64\bin` ahead of `~/.cargo/bin`, so `cargo` was MSYS2 stable 1.97.0 while the overrides forced rustc to rustup nightly; every build emitted artifacts no pinned peer could consume. `rustup default` advanced nightly -> `1.97.0-x86_64-pc-windows-gnu`, matching the stack pin standard (nightly stays installed for the miri/sanitizer suites, invoked explicitly). Poisoned debug generation flushed (`target/debug/{deps,.fingerprint,build}`, 92.6 GB reclaimed). Verified in the shared cache: tools 18/18 + 21/21 + 11/11 green, `cargo check --workspace` clean on themis/eunomia/hermes, and `cargo`/`rustc` now resolve to the same MSYS2 1.97.0 (hash 2d8144b78, matching rustup's 1.97.0).
 - Residuals: (1) live agent processes started before the fix still carry `RUSTC` in their inherited environment and will re-emit nightly artifacts until they restart — re-check for E0514 and re-flush once sessions roll; (2) one transient `rustup` download race observed (concurrent rustup fetches colliding in `~/.rustup/downloads`) — retry-safe, but worth noting as a fleet-scale contention source; (3) pin normalization still open: 2 members at 1.95.0, one bare `stable`, one 1.97.1 outlier, 10 unpinned; (4) preflight compiler-identity-vs-pin check for the sweep still to build.
+
+## ATLAS-TOOLCHAIN-COHERENCE-001 — Rustup overrides fight over the shared target cache [major] — todo
+
+- **Evidence (2026-07-29).** `rustup override list`:
+
+  ```
+  D:tlasepos\CFDrs        1.95.0-x86_64-pc-windows-gnu
+  D:tlasepos\hephaestus   1.95.0-x86_64-pc-windows-msvc
+  D:tlasepos\leto         1.95.0-x86_64-pc-windows-gnu
+  D:tlasepos\coeus        1.97.0-x86_64-pc-windows-msvc
+  ```
+
+  plus `repos/athena/rust-toolchain.toml` pinning `1.97.0`,
+  `repos/moirai/rust-toolchain.toml` pinning `1.95.0`, and an ambient MSYS2
+  `rustc 1.97.0 (Rev1)` that is a *different build* from rustup's `1.97.0`.
+  Every one of these writes into the single `CARGO_TARGET_DIR`.
+- **Impact.** Builds fail with `E0514 found crate ... compiled by an
+  incompatible version of rustc` on unrelated dependencies — `mnemosyne`,
+  `bytemuck`, `eunomia`, `leto` — and the failure moves depending on which
+  agent built last. It looks exactly like dependency breakage and is not.
+  Observed repeatedly today: a `cfd-math` check failed under 1.95, passed
+  under `rustup run 1.97.0-gnu`, then clippy failed again minutes later once a
+  concurrent build re-poisoned the same artifacts. This is the failure mode
+  the toolchain-coherence rule names, including its "recurs after any clean"
+  signature.
+- **Worse than a version split.** The overrides mix `gnu` and `msvc` ABIs, so
+  the artifacts are not merely stale-but-compatible.
+- **Scope.** Pick one toolchain identity for the stack — the athena pin,
+  `1.97.0`, is the only one already expressed as a committed
+  `rust-toolchain.toml` — then clear the per-directory rustup overrides,
+  align `moirai`, and add a committed pin at the stack root so the identity is
+  reproducible rather than ambient. Verify with a single `cargo build` sweep
+  across members afterwards.
+- **Not done unilaterally**: clearing rustup overrides changes environment
+  state every concurrent agent is building against, and some pins may exist
+  for MSRV checking. Needs a quiet window or an explicit decision.
+- Cost so far: clippy could not be run for the `chain.rs` increment
+  (`40ef080c`) or the cfd-2d pressure increment (`10fdd86e`).
+
+### Stage B progress 2026-07-29 (later) — chain.rs converted
+
+`40ef080c`. cfd-math is now fully off the leto-ops iterative family.
+
+- **The tier ladder needed a semantic change, not a rename.** leto-ops reported
+  a stalled or broken-down solve as `Err`, so each tier matched `Ok`/`Err` and
+  fell through on `Err`. Athena reports both value-semantically in
+  `SolveReport`, so a bare match would have **accepted a non-converged iterate
+  as success**. Each tier now asks whether the solve converged, through a
+  `converged_or_none` helper that logs the termination and falls through
+  otherwise — which also collapses each fourteen-line match to four.
+- The BiCGSTAB last resort deliberately differs: nowhere to fall through to, so
+  non-convergence fails the chain.
+- The ILU tier now uses Athena's `IncompleteLu` instead of the cfd-math
+  duplicate, so that duplicate has lost a consumer ahead of removal.
+- **Deliberately not consolidated**: the cold and warm ladders are *not*
+  identical — the warm path resets the iterate between tiers and skips the
+  unpreconditioned tier after a block-preconditioned stall, with a documented
+  saddle-point rationale. Merging them changes solver behaviour and is its own
+  change. Filed below.
+
+Verification: cfd-math 223/223 nextest, `cargo check` clean, cfd-3d (the only
+external `LinearSolverChain` consumer) checks clean, fmt clean. Clippy blocked
+by `ATLAS-TOOLCHAIN-COHERENCE-001`.
+
+## ATLAS-CFDRS-CHAIN-LADDER-001 — Consolidate the two tiered ladders [patch] — todo
+
+`LinearSolverChain::solve` and `solve_with_state` run the same five tiers with
+three deliberate differences: log prefix, an iterate reset between tiers, and
+the warm path skipping the unpreconditioned tier once a block preconditioner
+was built but stalled. Express the ladder once with those as parameters, and
+decide explicitly whether the cold path should adopt the skip policy — it is
+an improvement the warm path received and the cold one did not, and adopting
+it changes which solver answers a given system.
+
+Remaining stage B: cfd-3d, cfd-1d, cfd-validation, then delete the
+`cfd_math::iterative` facade and the leto-ops iterative dependency.
