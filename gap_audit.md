@@ -24,6 +24,25 @@ Evidence: focused `cargo check --offline -p kwavers-field -p kwavers-solver
 Clippy passes for both touched packages. The child audit records the same
 evidence and retains the provider-lock and peer-lint residuals separately.
 
+## Aequitas consumer re-audit — 2026-07-29
+
+The follow-up scan found one additional consumer-owned physical metric family in
+CFDrs: `cfd-2d::solvers::cell_tracking` now carries positions, velocities, time,
+fluid/cell properties, hydraulic geometry, and routing geometry through Aequitas
+quantities. The child closure is recorded as `CFDRS-AEQ-MET-27` with focused
+check, 5/5 filtered Nextest, and doctest evidence in
+[`repos/CFDrs/gap_audit.md`](repos/CFDrs/gap_audit.md) and
+[`cell-tracking-physical-metrics.md`](repos/CFDrs/docs/atlas-migration/cell-tracking-physical-metrics.md).
+
+The Helios and Kwavers re-audits found no new missing Aequitas metric dimension;
+their current production contracts remain typed, including Eunomia-compatible
+real/complex boundaries. Eunomia complex values are not applicable to the
+real-valued CFDrs tracker, so no imaginary-unit extension is required. Kwavers'
+remaining EM/SAR consumer increment is sequencing behind peer-owned transport
+output work, not an identified metric gap. See the child audits for the exact
+residuals: [`Helios`](repos/helios/gap_audit.md) and
+[`Kwavers`](repos/kwavers/gap_audit.md).
+
 ## Structural and abstraction audit (2026-07-28)
 
 Scope: all 25 packages, 11 409 Rust source files. Method: mechanical scans over
