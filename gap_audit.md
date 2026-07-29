@@ -60,6 +60,27 @@ refresh. Kwavers' existing complex public quantities remain
 `AcousticImpedance<Complex64>`, and `Dimensionless<Complex64>` over Eunomia's
 real/complex scalar seam; no separate imaginary-unit quantity is required.
 
+## Aequitas consumer re-audit closure — 2026-07-29
+
+CFDrs `CFDRS-AEQ-MET-29` closes the next public fluid-state family. Its
+`FluidState`, fluid provider seams, and derived Reynolds/Prandtl/Peclet/Mach
+metrics now use Aequitas quantities, with scalar extraction confined to
+formula, Proteus, mesh, FEM/GPU, and serialization boundaries. The cfd-2d
+channel adapter propagates field-solver and hemolysis errors, and preserves
+directed reverse-flow signs without reference-trace fallback values. The
+broader `FluidProperties` raw storage remains separately tracked rather than
+being misclassified as part of this closure.
+
+CFDrs evidence is recorded in
+[`repos/CFDrs/gap_audit.md`](repos/CFDrs/gap_audit.md) and
+[`fluid-state-metrics.md`](repos/CFDrs/docs/atlas-migration/fluid-state-metrics.md):
+cfd-core Nextest 259/259, cfd-core doctests 3/3, cfd-2d Nextest 571/571 with
+27 skips, warning-denied cfd-core/cfd-2d Clippy, and dependent cfd-1d,
+cfd-3d, and cfd-validation test-target checks pass. Helios and Kwavers have
+no new missing metric dimension in this pass. Kwavers' complex quantities
+remain typed over Eunomia's real/complex seam; no imaginary-unit Aequitas
+extension is required.
+
 ## Architecture improvement batch — 2026-07-29 (Session 2026-07-29)
 
 Scope: ATLAS-ARCH-002, ATLAS-ARCH-003, ATLAS-ARCH-004, ATLAS-ARCH-006 partial.
