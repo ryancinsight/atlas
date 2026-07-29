@@ -693,8 +693,9 @@
 
 ## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — in-progress
 
-- Owner: unclaimed — phase 1 delivered, phases 2-4 open. Next claimable unit is
-  phase 2 (`repos/kwavers` bioheat boundary). Decision:
+- Owner: unclaimed — provider and Kwavers phases 1, 2a, 2b, and 3a-3c are
+  closed; phase 3d is blocked behind `ATLAS-CONTENTION-001`, and the phase-4
+  Kwavers EM/SAR consumer remains open. Decision:
   [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) §5.
 - Outcome: every energy-transport implementation terminates in a
   `VolumetricPowerDensity` (W·m⁻³) Aequitas quantity, and bioheat consumes that
@@ -714,20 +715,17 @@ consumer-side adoption, not provider-side creation:
 | Energy fluence | J·m⁻² | `EnergyPerArea` — present |
 | Absorbed dose | J·kg⁻¹ | `AbsorbedDose` — present |
 | Bioheat coefficients | — | `ThermalConductivity`, `ThermalDiffusivity`, `SpecificHeatCapacity`, `MassDensity` — present |
-| Specific absorption rate | W·kg⁻¹ | **absent** — the one provider-side gap, needed for RF/EM |
+| Specific absorption rate | W·kg⁻¹ | `SpecificAbsorptionRate` + `WattPerKilogram` — present at Aequitas `1003c88` |
 
 Kwavers already depends on Aequitas in 10 crates / 66 files, so the adoption
 path is open.
 
 ### Named boundary defects
 
-- `kwavers-physics/src/thermal/diffusion/bioheat.rs` — `PennesBioheat::update`
-  takes `external_source: Option<ArrayView3<'_, f64>>`. That parameter *is* the
-  deposition spine boundary, and its unit exists only in a doc comment.
-- Same file — `BioheatParameters` is four raw `f64` fields (`perfusion_rate`,
-  `blood_density`, `blood_specific_heat`, `arterial_temperature`) with units in
-  comments. Primitive obsession; the blood properties are Proteus's bounded
-  context, not Kwavers's.
+- The two named thermal defects are closed by Kwavers `81a40071c` and
+  `37d50b96f`: `BioheatParameters` uses Aequitas quantities and
+  `external_source` uses `VolumetricHeatSource<'_>`. No raw physical value
+  crosses those deposition/bioheat boundaries.
 
 ### Phases
 
@@ -833,8 +831,12 @@ path is open.
      uniform-coefficient bundle by design, so that scalar division is a modelling
      assumption rather than the phase-2b inconsistency. Only the `μ_a · Φ`
      product is a spine law there.
-4. `repos/kwavers` — same treatment for `electromagnetic`, via SAR from phase 1.
-   This is also the ATLAS-MODALITY-003 RF prerequisite.
+4. **open — Kwavers EM/SAR consumer** — the provider-side SAR metric is present,
+   but Kwavers has no public SAR deposition result yet. The remaining slice is
+   to type the electromagnetic deposition consumer and prove the
+   conductivity·|E|²/density law; it is sequenced behind phase 3d and is also
+   the ATLAS-MODALITY-003 RF prerequisite. The independent plasmonics metric
+   gap is closed by Kwavers `f6a77671e` and does not constitute SAR closure.
 
 - Non-goals: extracting any modality package; renaming or relocating solvers;
   touching sonoluminescence or photoacoustics.
