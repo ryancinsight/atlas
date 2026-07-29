@@ -319,8 +319,38 @@
 ## ATLAS-HELIOS-GENERIC-001 — Instantiate the f32-only generic tests across shipped scalars [patch] — in-progress
 
 - Owner: this stream; **unblocked** — ATLAS-GAIA-GITDEP-001 is resolved and
-  helios resolves and builds. 1 of 24 conversions delivered and verified at
-  helios `9193c18`; 23 remain across 20 files.
+  helios resolves and builds.
+- Progress at helios `78bf9c0`: **8 of 24 delivered and verified**, 3 written and
+  awaiting verification, 13 untouched.
+  - **helios-solver complete** (8): `dose`, `attenuation_map`, `projector`,
+    `deposition`, `scatter` x3, `oriented_scatter`. 62 lib tests pass, 16 of them
+    per-width instantiations enumerated by name; no `is_generic_over_scalar_f32`
+    remains in the crate.
+  - **helios-domain written, unverified** (3): `mlc`, `volume`, `collimation`.
+    Blocked on a transient — a live peer is mid-edit in `repos/aequitas`
+    (`src/systems/si/{dimensions,quantities,units}` touched 20:02, "MEMS metric
+    dimensions"), and aequitas does not compile: first a conflicting `LinearUnit`
+    pair on `PerCubicMeter` (`NumberDensity` vs `ReciprocalVolume` resolving to one
+    dimension), then E0432 on retry as they continue. Nothing downstream of
+    aequitas can build. These three edits are left in the tree because
+    helios-domain is unbuildable regardless of them; re-run
+    `cargo test -p helios-domain --lib` once aequitas is green.
+  - **Untouched** (13): `helios-analysis` (`dvh`, `gamma`), `helios-imaging`
+    (`fbp`, `noise`, `registration` x2, `sirt`), `helios-physics` (`compton`),
+    `helios-planning` (`optimize`), `helios-simulation` (`acquisition`,
+    `delivery`, `dose_accumulation`, `portal`).
+- `ShippedScalar` now lives in `helios-math` as public vocabulary, so the
+  remaining crates need only `use helios_math::ShippedScalar;`.
+- `GeometryScalar` stays a per-site bound rather than joining `ShippedScalar`: it
+  is feature-gated in helios-math, so folding it in would break
+  `--no-default-features`. Where it applies, it collides with `FloatElement` on
+  `from_f64`, so those bodies bind `let cast = <T as helios_math::FloatElement>::from_f64;`.
+- Two mechanical traps, both silent, worth avoiding in the remaining 13: replacing
+  a test body without its `#[test]` leaves the attribute stranded on whatever
+  follows, and a regex broad enough to clean that up will also strip `#[test]`
+  from the per-width wrappers — the suite then goes green with the new tests
+  simply not running. Always confirm the per-width names appear in the runner
+  output and that the total moved by the expected delta.
 - Defect, verified independently: **24 test functions across 21 helios files**
   are named `*_is_generic_over_scalar_f32` and assert genericity at exactly one
   concrete type, with **zero** f64 counterparts. Every monomorphization a caller
