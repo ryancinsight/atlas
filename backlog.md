@@ -6706,7 +6706,7 @@ this run too.
 - **Stage D** — delete `leto-ops/src/application/linalg/iterative/` including
   the duplicated `LinearOperator`/`Preconditioner` traits; residue scan clean.
 
-## ATLAS-CFDRS-ATHENA-MIGRATION-001 — Stage B survey: CFDrs to Athena [major] [arch] — todo (2 decisions needed)
+## ATLAS-CFDRS-ATHENA-MIGRATION-001 — Stage B: CFDrs to Athena [major] [arch] — in-progress
 
 Surveyed 2026-07-28 before starting. This is a redesign of the CFDrs
 linear-solver architecture, not a port, and two of the mismatches change a
@@ -6772,3 +6772,52 @@ size. Recommend (b), ordered `cfd-math` internals, then `cfd-2d`, `cfd-3d`,
 
 No CFDrs code changed. Nothing was added that would sit unused pending the
 decisions above.
+
+### Stage B progress 2026-07-28 — foundation landed, D1 corrected
+
+**D1 was answered (c), and the check that answer depended on disproved it.**
+`krylov_restart` is not an unused knob: `cfd-3d/fem/solver.rs` sets
+`min(200, n)` at two sites, `cfd-1d/newton_fallback.rs` derives it from
+`max_krylov_iterations`, and `cfd-math/nonlinear_solver/jfnk.rs` carries it in
+its own config with 30 and 10 in tests and `min(n)` at runtime; the direct
+`GMRES::new` sites use 30 and 100. Fixing one width would have silently
+changed four solver configurations, so I took the fallback named in the same
+decision — **(b), a fixed ladder with dispatch**.
+
+- athena `f24dded`: `BorrowedCsrOperator`. `CsrOperator` takes ownership,
+  which would force a per-solve `O(nnz)` sparse clone in a chain that tries
+  several preconditioners against one system. Mirrors `BorrowedDenseOperator`.
+- CFDrs `6a13a672`: `cfd_math::linear_solver::krylov` — the restart ladder
+  (8/16/32/64/128/256, smallest covering width), `ConvergencePolicy`
+  translation, and `gmres`/`gmres_preconditioned`/`bicgstab` entry points over
+  Athena. Additive per D2(b): the `iterative` facade still re-exports leto-ops,
+  so no consumer changed and the tree stays green per commit.
+- Also repaired two cfd-math benches that had not compiled since `8aee5e59`
+  left a stray brace in their imports.
+
+Verification: cfd-math library compiles, clippy clean on the library, both
+ladder cases pass, fmt clean. The package `--all-targets` gate is red for
+reasons predating this change — unused imports and a dead struct in cfd-math
+tests from the in-flight SSOT migration.
+
+### Contention on the next increment
+
+`chain.rs` is the next conversion target and a peer is **actively working in
+it**: commit `16096fbc` ("resolve Quantity type mismatches in cfd-1d examples
+and chain.rs") landed at 19:05 today and its rewrite of
+`linear_solver/mod.rs` dropped the `pub mod krylov;` registration I had added,
+leaving my file an orphan until I restored it. Converting `chain.rs` now would
+collide directly.
+
+Next increment should either wait for that scope to go quiet, or start at a
+crate the peer is not in — `cfd-2d/src/physics/momentum/solver.rs` and
+`cfd-2d/src/pressure_velocity/pressure.rs` are independent of `chain.rs` and
+carry four of the twenty-four construction sites.
+
+Remaining conversion order: `cfd-math` internals (`chain.rs`, multigrid),
+`cfd-2d`, `cfd-3d`, `cfd-1d`, `cfd-validation`, then delete the
+`cfd_math::iterative` facade and the leto-ops iterative dependency.
+
+Note for `cfd-validation`: four sites hold `Box<dyn LinearSolver<T>>` to
+compare solvers on one system. Athena's markers are not dyn-compatible, so
+that becomes enum dispatch over the closed solver set, per the standards.
