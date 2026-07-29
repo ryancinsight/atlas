@@ -6964,3 +6964,9 @@ increment.
 
 Remaining: `chain.rs` and multigrid in cfd-math, then cfd-3d, cfd-1d,
 cfd-validation, then delete the `cfd_math::iterative` facade.
+
+## ATLAS-ADR-GOVERNANCE-001 — Retrofit ADR indexes, statuses, and chains [patch] — todo
+
+- Policy: AGENTS.md context_and_memory "ADR governance". Census 2026-07-27: 312 ADRs across the meta repo + 20 members; indexes exist in 3 of 21 (meta, ritk, iris); 7 duplicate numbers (kwavers x2, coeus x3, leto, hermes); 104 ADRs without a Status line; casing drift (Accepted vs accepted) plus a non-canonical "investigated"; supersession links on 4 of 312.
+- Scope per repo: (1) generate `docs/adr/README.md` indexes (number, title, status) — mechanize as a committed script deriving the index from ADR headers (toil automation; hand-maintained indexes rot), wired into CI as a regenerate-and-diff freshness check like the overlay; (2) normalize statuses to the canonical set with exact casing, adding Status lines where absent (default: Accepted for implemented decisions, verified against the code); (3) resolve the 7 numbering collisions by renumbering the later ADR and updating its citations; (4) supersession audit: where a later ADR replaced an earlier decision without links, add Superseded-by/supersedes pairs so chains navigate both ways; (5) verify board items citing ADRs and ADRs citing items resolve (bidirectional linkage).
+- Acceptance: every ADR directory carries a current generated index; zero duplicate numbers; every ADR has a canonical status; the freshness check is green in CI; a spot-check of decision recall (pick three active items, confirm governing ADRs discoverable from the index in one step) passes.
