@@ -6917,3 +6917,50 @@ Remaining conversion order: `cfd-math` internals (`chain.rs`, multigrid),
 Note for `cfd-validation`: four sites hold `Box<dyn LinearSolver<T>>` to
 compare solvers on one system. Athena's markers are not dyn-compatible, so
 that becomes enum dispatch over the closed solver set, per the standards.
+
+### Stage B progress 2026-07-29 — cfd-2d converted
+
+`58f6caab` momentum, `10fdd86e` pressure correction. cfd-2d is off the leto-ops
+iterative family; the `cfd_math::iterative` facade still serves the other
+crates, per D2(b).
+
+- **Stateful solver objects removed.** Both consumers stored solver instances —
+  `MomentumSolver` one GMRES, `PressureCorrectionSolver` three of which at most
+  one was ever used, since `solver_type` already selected the recurrence.
+  Athena solvers are stateless markers with caller-owned workspaces, so each
+  collapses to the configuration it carried.
+- **Triplicated policy consolidated.** `correction.rs` repeated the same
+  solve-then-retry block verbatim per recurrence: solve with AMG, and on
+  breakdown retry unpreconditioned, because a hierarchy built for a stale
+  stencil can break the recurrence while the bare operator stays solvable.
+  Written once now, with one dispatch over the closed solver set.
+- **A real regression, caught and fixed at the right level.** Momentum assembly
+  omits the diagonal of rows with no self-coupling. Athena's SOR rejects that;
+  the leto-ops one had been *silently* defaulting those rows to a unit pivot.
+  Rather than loosen the default, athena `461cdd5` added
+  `from_csr_with_identity_rows` — same behaviour, opted into visibly at the
+  call site, with a test pinning it.
+- athena `f24dded` `BorrowedCsrOperator` removes a per-solve `O(nnz)` clone;
+  the Athena SOR likewise borrows where the previous one took ownership, which
+  matters because momentum rebuilds it after every coefficient update.
+- `AlgebraicMultigrid` gained an Athena preconditioner implementation. Its
+  V-cycle recurses over owned vectors while Athena passes borrowed views, so
+  the boundary copies through cached buffers rather than allocating per
+  application. Two `O(n)` passes against the cycle's `O(nnz)` sweeps.
+  **Follow-up: rework the V-cycle onto slices to remove them.**
+
+Verification: cfd-2d 570/571 nextest at both increments; the timeout is a
+cross-fidelity tree test with no solver involvement that times out identically
+without these changes. Clippy ran clean on the libraries for the first
+increment; for the second it could not run — an in-flight `gaia` change removed
+the `cfdrs-integration` feature cfd-2d depends on, breaking resolution for
+unrelated reasons. **Re-run clippy on cfd-2d once gaia settles.**
+
+Process note: the momentum commit `58f6caab` swept up six files of a peer's
+*staged* Quantity-migration work through an over-broad `git add crates/cfd-2d`.
+Their work is preserved and pushed, but under a message that does not describe
+it. Not reverted — that would discard it. Staging was per-file for the second
+increment.
+
+Remaining: `chain.rs` and multigrid in cfd-math, then cfd-3d, cfd-1d,
+cfd-validation, then delete the `cfd_math::iterative` facade.
