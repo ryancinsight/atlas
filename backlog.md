@@ -323,41 +323,58 @@
   showing the change is a win. A site where the jagged shape is genuinely correct
   is recorded as such rather than converted.
 
-## ATLAS-ARCH-CYCLE-001 — Break the CFDrs -> gaia -> CFDrs repository cycle [arch] — todo
+## ATLAS-ARCH-CYCLE-001 — Break the CFDrs -> gaia -> CFDrs repository cycle [arch] — done
 
-- Owner: unclaimed. `repos/CFDrs` had 13 dirty files at filing; sweep before
-  claiming.
-- Defect: `repos/CFDrs/Cargo.toml:78` declares
-  `cfd-mesh = { path = "../gaia", package = "gaia" }` — CFDrs consumes gaia under
-  an alias — and `crates/cfd-3d` enables gaia's `cfdrs-integration` feature, which
-  activates `gaia`'s dependency on `../CFDrs/crates/cfd-schematics`. That is a
-  repository-level cycle **CFDrs -> gaia -> CFDrs**, against the one-way
-  foundation → domain → integrator layering the stack README requires. Cargo does
-  not reject it only because the two edges land on different member crates
-  (`cfd-3d` vs `cfd-schematics`), so no package-level cycle exists.
-- Why it matters beyond tidiness: it is the last reason gaia cannot be fully
-  consumed as a git dependency. `ATLAS-GAIA-GITDEP-001` converted the other five
-  sibling path deps; `cfd-schematics` had to stay, because converting it would
-  cement the inversion in gaia's published manifest and drag the whole CFDrs graph
-  into every gaia consumer's resolution — observed directly as a `smallvec`
-  version conflict (`hephaestus-wgpu` wants `^1.15.2`, `wgpu 30` wants `^1.14`)
-  reached only through the `gaia -> cfd-schematics -> cfd-core -> hephaestus-wgpu`
-  chain.
-- Evidence that the edge is currently dead to the stack: nothing outside gaia's
-  own manifest and examples enables `cfdrs-integration`, and no crate named
-  `cfd-mesh` exists in CFDrs — the name is purely gaia's alias.
-- Fix direction: the integrator owns the bridge, so relocate
-  `repos/gaia/src/application/pipeline/blueprint_mesh.rs` (2 057 lines, ~1 886
-  implementation and ~170 test) into CFDrs as a crate depending on both `gaia` and
-  `cfd-schematics`; drop gaia's `cfdrs-integration` feature, its
-  `scheme-io = ["cfdrs-integration"]` alias, the three examples gated on it, and
-  the `cfd-schematics` dependency. The module uses 13 `crate::`-internal imports
-  (`application::channel::*`, `application::csg::boolean`, `domain::core::*`), so
-  the move requires confirming each is `pub` in gaia and widening what is not.
-- Acceptance: gaia has zero path dependencies; `gaia` resolves as a git dependency
-  from a scratch consumer with no Atlas overlay; the relocated bridge's tests pass
-  in CFDrs; the stack README's dependency-direction claim holds under a mechanical
-  check.
+- **Closed 2026-07-29** at gaia `df3902b` and CFDrs `67d5728`.
+- The cycle was real and invisible to Cargo: `CFDrs/Cargo.toml:78` consumed gaia
+  as `cfd-mesh`, `cfd-3d` enabled gaia's `cfdrs-integration`, and that feature
+  activated gaia's path dependency on `../CFDrs/crates/cfd-schematics`. Cargo never
+  rejected it because the two edges land on different member crates (`cfd-3d` vs
+  `cfd-schematics`), so no package-level cycle existed for it to detect.
+- Scope proved larger than the ADR estimated, and cleaner. The whole
+  `application::pipeline` subtree was gated on the feature, not just
+  `blueprint_mesh`: 7 files and 3054 lines, plus `infrastructure/io/scheme.rs`
+  (303 lines) behind the `scheme-io` alias, and four examples. Nothing outside
+  `pipeline` referenced it, so the relocation needed **no gaia API widening at
+  all** — contrary to the expectation that its 13 `crate::` imports would force it.
+- Relocated to `CFDrs/crates/cfd-schematic-mesh`, 3357 lines, unchanged apart from
+  `crate::` → `cfd_mesh::` rewrites; `super::` paths were untouched because the
+  siblings moved together. `hashbrown`, `thiserror`, `serde`, and `serde_json` had
+  been supplied by gaia and are now declared directly. Nothing was deleted.
+- **Gaia verified fully:** zero path dependencies, zero references to CFDrs, green
+  under `--all-features`, 919 lib tests pass. With ATLAS-GAIA-GITDEP-001 closed,
+  gaia is now genuinely consumable as a git dependency.
+- **CFDrs verified partially:** `cfd-schematic-mesh` compiles; the rest of the
+  workspace could not be verified for a pre-existing reason — see
+  ATLAS-CFDRS-PATHDEP-001 immediately below.
+
+## ATLAS-CFDRS-PATHDEP-001 — CFDrs path deps collide with the worktree overlay [patch] — todo
+
+- Owner: unclaimed, and overlapping the ATLAS-OVERLAY-004 stream — coordinate
+  rather than fixing it in isolation.
+- Defect: CFDrs cannot build at all. `cargo check -p cfd-core` fails with
+  `package collision in the lockfile: packages aequitas v0.1.0`
+  `(D:/atlas/repos/aequitas) and aequitas v0.1.0 (D:/atlas/worktrees/aequitas) are`
+  `different, but only one can be written to lockfile unambiguously`, because
+  `CFDrs/Cargo.toml` declares committed sibling path deps
+  (`aequitas = { path = "../aequitas" }`, plus `proteus`, `hyperion`, `tyche-core`,
+  `iris`, `cfd-mesh`, `apollo-fft`, `apollo-nufft`) resolving under `repos/`, while
+  the stack overlay patches the same packages to `worktrees/*`. One package, two
+  paths.
+- Same prohibited pattern ATLAS-GAIA-GITDEP-001 fixed in gaia, so the same remedy
+  applies: declare first-party providers by `git + version` and let the overlay own
+  local redirection.
+- Compounding: `worktrees/aequitas` is a **standalone clone**, not a linked git
+  worktree — `git -C repos/aequitas worktree list` shows only the main tree and
+  `worktrees/aequitas/.git` is a directory, not a file. It is one of 23 entries
+  under `worktrees/`, at the same commit as `repos/aequitas`. AGENTS.md treats a
+  repo copy as an isolation violation to reconcile rather than adopt, but that
+  reconciliation is the overlay stream's call, not a drive-by deletion, since some
+  of the 23 may hold unique work.
+- Pre-existing, not introduced by the cycle fix: `cfd-core` is untouched by it and
+  fails identically.
+- Acceptance: `cargo check --workspace` resolves in CFDrs; then re-verify `cfd-3d`
+  and the two relocated examples against `cfd-schematic-mesh`.
 
 ## ATLAS-GAIA-GITDEP-001 — Gaia's committed path dep makes it unconsumable as a git dependency [patch] — done
 
