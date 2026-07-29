@@ -316,29 +316,34 @@
 - Re-open trigger: the overlay stream lands, or `cargo metadata` in
   `repos/helios` resolves.
 
-## ATLAS-HELIOS-GENERIC-001 — Instantiate the f32-only generic tests across shipped scalars [patch] — in-progress
+## ATLAS-HELIOS-GENERIC-001 — Instantiate the f32-only generic tests across shipped scalars [patch] — done
 
-- Owner: this stream; **unblocked** — ATLAS-GAIA-GITDEP-001 is resolved and
-  helios resolves and builds.
-- Progress at helios `78bf9c0`: **8 of 24 delivered and verified**, 3 written and
-  awaiting verification, 13 untouched.
-  - **helios-solver complete** (8): `dose`, `attenuation_map`, `projector`,
-    `deposition`, `scatter` x3, `oriented_scatter`. 62 lib tests pass, 16 of them
-    per-width instantiations enumerated by name; no `is_generic_over_scalar_f32`
-    remains in the crate.
-  - **helios-domain written, unverified** (3): `mlc`, `volume`, `collimation`.
-    Blocked on a transient — a live peer is mid-edit in `repos/aequitas`
-    (`src/systems/si/{dimensions,quantities,units}` touched 20:02, "MEMS metric
-    dimensions"), and aequitas does not compile: first a conflicting `LinearUnit`
-    pair on `PerCubicMeter` (`NumberDensity` vs `ReciprocalVolume` resolving to one
-    dimension), then E0432 on retry as they continue. Nothing downstream of
-    aequitas can build. These three edits are left in the tree because
-    helios-domain is unbuildable regardless of them; re-run
-    `cargo test -p helios-domain --lib` once aequitas is green.
-  - **Untouched** (13): `helios-analysis` (`dvh`, `gamma`), `helios-imaging`
-    (`fbp`, `noise`, `registration` x2, `sirt`), `helios-physics` (`compton`),
-    `helios-planning` (`optimize`), `helios-simulation` (`acquisition`,
-    `delivery`, `dose_accumulation`, `portal`).
+- **Closed 2026-07-29 at helios `3fdfa8d`.** All 24 sites converted. Workspace-wide
+  verification: 259 lib tests pass across 11 crates, 46 per-width instantiations
+  plus the compton differential, and `grep` finds no `is_generic_over_scalar_f32`
+  anywhere in helios.
+- Per-crate: `helios-solver` 62 (8 sites), `helios-simulation` 39 (4),
+  `helios-domain` 37 (3), `helios-analysis` 35 (2), `helios-imaging` 33 (5),
+  `helios-physics` 17 (1), `helios-planning` 8 (1).
+- `ShippedScalar` landed in `helios-math` as public vocabulary
+  (`Scalar + UnitScalar + RelativeEq<Epsilon = Self>`), with one `impl` per shipped
+  width. `f16`/`bf16` are absent because `RealField` has no impl for them, so they
+  are not instantiable rather than merely untested — admitting either is one line
+  here plus whatever `eunomia` needs.
+- **Not every tolerance became epsilon-derived, and that was the substantive
+  judgement.** Rounding bounds were derived from the operation chain (4 ulps for a
+  product, 16 for an exponential, 64 for a ~40-step accumulation or a
+  cancellation-amplified absorbed fraction, 256 for a whole-grid sum). But five
+  sites carry non-numerical error and keep bounds stated as such: convergence after
+  a fixed iteration budget (`optimize`, `sirt`), reconstruction accuracy from
+  limited-angle sampling (`fbp`), Poisson counting statistics (`noise`), and two
+  exact integer-offset assertions that carry no tolerance at all (`registration`).
+  Deriving those from `T::EPSILON` would assert a precision the algorithm does not
+  deliver — the same analytical-threshold error as an underived literal, inverted.
+- `compton` was never the fake-generics defect: it already compared the f32 path
+  against the f64 path, so only its name carried the problem. It kept its single
+  differential assertion and gained a bound expressed in ulps of the narrower
+  width (500, ~6e-5) rather than a bare 1e-4.
 - `ShippedScalar` now lives in `helios-math` as public vocabulary, so the
   remaining crates need only `use helios_math::ShippedScalar;`.
 - `GeometryScalar` stays a per-site bound rather than joining `ShippedScalar`: it
