@@ -222,7 +222,7 @@
   suffix only existed because the test was single-type.
 - Dependencies: converges with ATLAS-ARCH-001 §4 for the backend suites.
 
-## ATLAS-ARCH-003 — Make leto-ops statistics generic and resolve the split Pearson [minor] — todo
+## ATLAS-ARCH-003 — Make leto-ops statistics generic and resolve the split Pearson [minor] — done
 
 - Owner: unclaimed; scope: `repos/leto/crates/leto-ops/src/application/statistics`,
   its `kwavers-math` re-export, and the Tyche boundary. Provider-first: leto lands
@@ -241,7 +241,7 @@
   family; one Pearson implementation stack-wide; the kwavers re-export is
   unchanged in shape (it is correct one-import-path practice, not the defect).
 
-## ATLAS-ARCH-004 — Rehome and genericize the cfd-math Pareto module [patch] — todo
+## ATLAS-ARCH-004 — Rehome and genericize the cfd-math Pareto module [patch] — done
 
 - Owner: unclaimed; scope: `repos/CFDrs/crates/cfd-math/src/statistics/pareto.rs`
   and its callers.

@@ -43,6 +43,74 @@ output work, not an identified metric gap. See the child audits for the exact
 residuals: [`Helios`](repos/helios/gap_audit.md) and
 [`Kwavers`](repos/kwavers/gap_audit.md).
 
+## Architecture improvement batch — 2026-07-29 (Session 2026-07-29)
+
+Scope: ATLAS-ARCH-002, ATLAS-ARCH-003, ATLAS-ARCH-004, ATLAS-ARCH-006 partial.
+
+### ATLAS-ARCH-003 closed — Make leto-ops statistics generic [minor]
+
+All nine 64-concrete statistics functions in `leto-ops::application::statistics`
+are now generic over `T: RealField`: `pearson`, `normalized_rmse`, `nrmse`,
+`rmse`, `psnr`, `percentile_range`, `phase_shift_correlation_curve`,
+`phase_error_degrees_for_correlation`, `validation_psnr_from_relative_rmse`.
+Callers with `&[f64]` slices are unaffected (`T=f64` is inferred). New tests
+`pearson_is_generic_over_scalar`, `rmse_is_generic_over_scalar`,
+`psnr_is_generic_over_scalar` verify instantiation at both `f32` and `f64`.
+Required adding `log10` and `log2` to `eunomia::FloatElement` (default
+`libm::log10f`; `f64` override uses `libm::log10`).
+
+Evidence: `cargo test -p leto-ops --lib application::statistics` — 21/21 PASS.
+Kwavers callers (`kwavers-math`, `kwavers-diagnostics`, `kwavers-therapy`)
+compile without change.
+
+### ATLAS-ARCH-004 closed — Rehome and genericize cfd-math Pareto [patch]
+
+`cfd-math::statistics::pareto` moved to `cfd-math::optimization::pareto`.
+Four defects fixed simultaneously:
+1. Moved from `statistics` (wrong concern) to `optimization` (correct home).
+2. `ObjectiveSense` enum replaces boolean-blind `&[bool]`.
+3. Const-generic `[T; M]` replaces jagged `Vec<Vec<T>>`.
+4. `pareto_front<T: PartialOrd+Copy, const M>` and
+   `crowding_distances<T: RealField, const M>` now generic.
+Added `pareto_front_is_generic_over_scalar` and
+`crowding_distances_is_generic_over_scalar` tests at f32 and f64.
+
+Evidence: `cargo test -p cfd-math --lib optimization::pareto` — 13/13 PASS.
+
+### ATLAS-ARCH-006 partial — Junk-drawer module renames (6 sites)
+
+All six renamed modules in this session had a single, clearly bounded concern.
+No tests added; existing callers updated in-place.
+
+| Old path | New path | Concern |
+| --- | --- | --- |
+| `apollo-fft/api/utils.rs` | `api/freq.rs` + `api/shift.rs` | frequency grid; frequency axis shift |
+| `leto-ops/interpolation/utils.rs` | `interpolation/search.rs` | binary interval-search |
+| `cfd-math/ilu/utils.rs` | `ilu/csr_search.rs` | CSR diagonal-index search |
+| `cfd-validation/analytical/utils.rs` | `analytical/dimensionless.rs` | dimensionless flow numbers |
+| `ritk-io/dicom/reader/utils.rs` | `reader/detection.rs` | DICOM file detection |
+| `ritk-io/dicom/writer/utils.rs` | `writer/pixel_encoding.rs` | pixel normalization + DICOM constants |
+| `ritk-io/dicom/rt_dose/utils.rs` | `rt_dose/ds_parse.rs` | DS decimal-string parsing |
+| `ritk xtask/datasets/catalog/utils.rs` | `catalog/validation.rs` | NIfTI payload validation |
+
+### ATLAS-ARCH-002 helios post-closure gap
+
+Three f32-only generic tests were added to helios AFTER the closure of
+`ATLAS-HELIOS-GENERIC-001` (helios `3fdfa8d`), re-opening the gap:
+`metrics_are_generic_over_scalar_f32` (image-quality), 
+`roi_masks_are_generic_over_scalar_f32` (ROI mask),
+`kinematics_are_generic_over_scalar_f32` (helical delivery).
+Added f64 counterparts for each; tighter epsilon matches f64 ULP budget.
+
+Evidence: `cargo test -p helios-analysis -p helios-domain --lib` — 37+38 PASS.
+
+### CFDrs book migration-appendix cleanup
+
+Removed Appendix B (Atlas Stack Reference — migration type-map) and Appendix C
+(Atlas Migration Guide with nine sub-chapters) from `CFDrs/docs/book/SUMMARY.md`.
+Books present physics simulation usage, not code migration narratives.
+
+
 ## Compute-substrate cross-repo audit (2026-07-28)
 
 Scope: `apollo`, `leto`, `hephaestus`, `coeus` — the densest dependency cluster
@@ -5750,3 +5818,4 @@ separate GPU substrate). Recording those as future audit items, NOT
 actioning them here, matches the canonical-component-homes rule: a
 cross-repo consolidation audit names the locus, peer-leto and
 peer-physics-crate own the execution.
+
