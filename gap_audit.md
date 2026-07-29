@@ -43,6 +43,41 @@ output work, not an identified metric gap. See the child audits for the exact
 residuals: [`Helios`](repos/helios/gap_audit.md) and
 [`Kwavers`](repos/kwavers/gap_audit.md).
 
+## Compute-substrate cross-repo audit (2026-07-28)
+
+Scope: `apollo`, `leto`, `hephaestus`, `coeus` — the densest dependency cluster
+in the stack. Method: crate inventory, normalized diffs between sibling vendor
+crates, shared-entry-point comparison, and directory-shape counting. Decisions in
+[ADR 0039](docs/adr/0039-compute-substrate-topology.md).
+
+| # | Finding | Evidence | Item |
+| --- | --- | --- | --- |
+| 19 | Coeus carries the same vendor crate four times | `coeus-rocm` and `coeus-metal` have identical file trees and identical per-file line counts; **1 185 of 1 247 lines match after normalizing the vendor token** (elementwise 462/2 differ, reduction 109/0, runtime 153/4, provider 19/8, tests 484/40). `coeus-wgpu` 15 696 lines and `coeus-cuda` 17 047 repeat the shape. | ATLAS-SUBSTRATE-002 |
+| 20 | The cause is Hephaestus's free-function surface, not Coeus's design | `coeus-hephaestus` already owns the generic half — its docs state vendor crates "do not copy the consumer-side operation orchestration". But operations are free functions per vendor crate (`hephaestus_rocm::sum_axis_into` vs `hephaestus_metal::sum_axis_into`), so no generic impl is expressible. Coeus binds `ComputeDevice` at 43 sites and **none** of the operation seams. | ATLAS-SUBSTRATE-001 |
+| 21 | Apollo repeats a per-transform scaffold 19 times | 19 of 23 crates carry the identical `application/execution/plan/<transform>/` shape plus `domain/contracts`. Apollo also holds the largest junk-drawer concentration (7+ crates, incl. `apollo-fft/src/api/mod.rs` `pub mod utils` on a public path) and 35 files over 500 lines. | ATLAS-SUBSTRATE-004 |
+| 22 | The Leto/Hephaestus pair lacks the pair's obligations | 14 shared decomposition entry points (`cholesky_decompose`, `lu_decompose`, `qr_decompose`, `svd_decompose`, `svd_rank_revealing`, `schur`, `hessenberg`, `bunch_kaufman`, `udu_decompose`, `bidiagonalize`, `col_piv_qr`, `full_piv_lu`, `eigenvalues`, `singular_values`). A drop-in CPU/GPU pair owes one role trait, one shared conformance suite, and differential tests; none exists. Hephaestus names Leto as an ad-hoc oracle per operation (`matches_leto_reference`). | ATLAS-SUBSTRATE-003 |
+
+### Non-findings
+
+- `coeus-fft` is 567 lines and depends on `apollo-fft`. Coeus consumes Apollo's
+  transforms and adds differentiation rather than reimplementing them, exactly as
+  the stack README describes. Recorded explicitly so it is not swept into a
+  consolidation by pattern-matching on the name.
+- `coeus-<vendor>`'s `HephaestusProvider` impl (19 lines: device acquisition via
+  `OnceLock`) is legitimately per-vendor and stays. Only the operation
+  orchestration around it is cloned.
+- Apollo's 23-crate split is not itself the defect. Per-transform crates give
+  feature-gating and compile isolation; the repeated scaffold inside them is the
+  duplication.
+
+### Sequencing constraint
+
+Finding 20 fixes finding 19, and the order cannot be reversed: collapsing Coeus
+first would require it to define a second abstraction over Hephaestus, which the
+real seam would then obsolete. The seam work landed today
+(`AxisReductionOps` + `hephaestus-conformance`) is the first increment of that
+sequence, not a separate effort.
+
 ## Structural and abstraction audit (2026-07-28)
 
 Scope: all 25 packages, 11 409 Rust source files. Method: mechanical scans over

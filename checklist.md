@@ -6,6 +6,37 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-SUBSTRATE-001..004 — Compute-substrate consolidation [arch]
+
+Ordered by dependency, not by size. Steps 1-2 must not be reversed: collapsing
+Coeus before the seams exist would make it define a second abstraction over
+Hephaestus that then has to be deleted (ADR 0039, alternatives).
+
+- [x] Audit the four packages for cross-repo duplication: Coeus vendor clones
+      (1 185 of 1 247 lines identical modulo the vendor token), Apollo's
+      19-of-23 repeated plan/execution scaffold, the 14-entry-point
+      Leto/Hephaestus decomposition pair with no shared seam.
+- [x] Establish that `coeus-fft` correctly delegates to `apollo-fft` (567 lines)
+      — recorded as a non-finding so it is not "consolidated" by mistake.
+- [x] Land the first device-generic seam (`AxisReductionOps`) and the
+      conformance crate, proving the shape the remaining families follow.
+- [ ] **SUBSTRATE-001** Extend the seams to elementwise, reduction, and scan —
+      one family per claim, each with backend impls and conformance clauses.
+- [ ] **SUBSTRATE-002** Write one generic provider impl in `coeus-hephaestus`;
+      delete the cloned `backend/{elementwise,reduction,runtime}.rs` and their
+      cloned tests from each vendor crate; keep only device acquisition.
+- [ ] **SUBSTRATE-003** One role trait for the 14 shared decompositions; fold the
+      per-operation `matches_leto_reference` tests into one parameterized
+      differential clause with derived tolerances.
+- [ ] **SUBSTRATE-004** Generic plan/execution layer for Apollo; adopt in two
+      crates to prove it, then the remaining 17 one per claim.
+- [ ] Remove `mod helpers` / `mod utils` in each crate as it is touched — not as
+      a separate pass (ADR 0039 §5).
+
+Evidence: ADR 0039 carries the normalized-diff table, the shared-entry-point
+list, and the scaffold count. The deletion ledger for SUBSTRATE-002 is roughly
+3 700 lines across four vendor crates.
+
 ## ATLAS-PUB-001/002 — Adopt the Atlas-shared publication pipelines [patch]
 
 - [x] Audit the duplication: 8 crate-release workflows (4 byte-identical at 142

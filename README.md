@@ -47,6 +47,17 @@ forward and inverse transform mathematics and plans; Coeus adds the
 differentiation layer on top, so a transform inside a differentiated program has
 one implementation and one set of adjoint rules.
 
+**The vendor dimension belongs to `hephaestus` alone.** A consumer binds a
+device-generic seam — `DenseVectorOps`, `SparseOperatorOps`, `AxisReductionOps`,
+and the families following them — and monomorphizes to whichever backend it was
+given. Per-vendor code in a consumer is limited to device acquisition; a consumer
+that carries one crate per vendor for operations the substrate already provides
+has re-forked the dimension the substrate exists to own.
+[ADR 0039](docs/adr/0039-compute-substrate-topology.md) records the topology
+across these four packages, the audit behind it, and the sequence that closes the
+gap — seam coverage in Hephaestus first, consumer collapse second, because the
+reverse order would make a consumer invent a second abstraction over the first.
+
 `ritk` runs on `coeus` tensors. Its former `burn` dependency is fully retired —
 the current `ritk` manifests contain no `burn` edge, and `ritk-core`,
 `ritk-analyze`, and `ritk-cli` depend on `coeus-core` directly.

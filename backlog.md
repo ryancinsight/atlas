@@ -7,6 +7,95 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-SUBSTRATE-001 — Extend the Hephaestus operation seams to Coeus's call surface [arch] [minor] — todo
+
+- Owner: unclaimed; scope: `repos/hephaestus/crates/hephaestus-core/src/domain/`
+  (new seam modules) plus one `<backend>/src/application/*_seam.rs` adapter per
+  family. One operation family per claim.
+- Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §1-§2.
+- Outcome: elementwise, reduction, and scan gain device-generic seams beside the
+  existing `DenseVectorOps`, `SparseOperatorOps`, and `AxisReductionOps`, so a
+  consumer can write one generic provider impl. Until they exist, Coeus
+  *cannot* deduplicate — its vendor crates clone because there is nothing to be
+  generic over.
+- Follow the shape already established: trait in
+  `hephaestus-core/src/domain/<family>.rs` generic over `<D: ComputeDevice, T>`
+  with an associated `Dialect` where the kernel expression is dialect-specific;
+  ZST marker impl per backend; conformance clauses in `hephaestus-conformance`.
+- Non-goals: one mega-trait (ADR 0039 rejects it — interface segregation);
+  changing kernel behaviour.
+- Acceptance per family: every backend implements it; the conformance clauses for
+  that family pass on every backend; `coeus-hephaestus` can express its provider
+  contract in terms of the seam without naming a vendor crate.
+- Blocks: ATLAS-SUBSTRATE-002.
+
+## ATLAS-SUBSTRATE-002 — Collapse Coeus's cloned per-vendor provider impls [arch] [minor] — blocked
+
+- Owner: unclaimed; scope: `repos/coeus/crates/coeus-hephaestus` (one generic
+  impl) and `coeus-{rocm,metal,wgpu,cuda}` (deletion).
+- Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §1-§2.
+- Blocker: ATLAS-SUBSTRATE-001 for the families being collapsed. Reversing the
+  order would make Coeus define a second abstraction over Hephaestus, which then
+  has to be deleted — explicitly rejected in the ADR's alternatives.
+- Evidence 2026-07-28: `coeus-rocm` and `coeus-metal` have identical file trees
+  and identical per-file line counts; after normalizing the vendor token
+  **1 185 of 1 247 lines are the same crate written twice** (elementwise 462
+  lines / 2 differ, reduction 109 / 0, runtime 153 / 4, provider 19 / 8, tests
+  484 / 40). `coeus-wgpu` (15 696 lines) and `coeus-cuda` (17 047) repeat the
+  shape at scale. The diff is a module-path substitution:
+  `hephaestus_rocm::sum_axis_into` vs `hephaestus_metal::sum_axis_into`.
+- What stays per vendor: device acquisition only — `coeus-rocm`'s 19-line
+  `HephaestusProvider` impl selecting `RocmDevice` is correct.
+- What is deleted: the cloned `backend/elementwise.rs`, `backend/reduction.rs`,
+  `backend/runtime.rs`, and their cloned test files, replaced by one generic impl
+  in `coeus-hephaestus` — whose crate docs already claim this ownership
+  ("vendor crates ... do not copy the consumer-side operation orchestration").
+- Acceptance: a normalized diff between `coeus-rocm` and `coeus-metal` shows no
+  shared operation code; the generic impl is instantiated per vendor; the Coeus
+  suite passes on every vendor that has hardware present; ~3 700 lines net
+  deleted.
+
+## ATLAS-SUBSTRATE-003 — Give the Leto/Hephaestus decomposition pair one seam and one oracle [arch] [minor] — todo
+
+- Owner: unclaimed; scope: the role trait's home crate, `leto-ops`, the
+  Hephaestus backends, and `hephaestus-conformance`.
+- Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §3.
+- Evidence: Leto and Hephaestus share **14 decomposition entry points** —
+  `cholesky_decompose`, `lu_decompose`, `qr_decompose`, `svd_decompose`,
+  `svd_rank_revealing`, `schur`, `hessenberg`, `bunch_kaufman`, `udu_decompose`,
+  `bidiagonalize`, `col_piv_qr`, `full_piv_lu`, `eigenvalues`,
+  `singular_values`. That is the sanctioned CPU/GPU drop-in pair, which owes one
+  role trait, one shared generic conformance suite, and differential tests. None
+  exists; Hephaestus instead names Leto as an ad-hoc oracle per operation
+  (`matches_leto_reference`), which is the differential test written by hand
+  once per operation per backend.
+- Acceptance: one role trait with Leto and each backend as implementors; the
+  conformance suite gains a decomposition module; the per-operation
+  `matches_leto_reference` tests become instantiations of one parameterized
+  differential clause; **every tolerance cites its derivation** from the
+  condition number and growth factor rather than the constants currently inline.
+
+## ATLAS-SUBSTRATE-004 — Consolidate Apollo's per-transform scaffold [arch] — todo
+
+- Owner: unclaimed; scope: a new generic plan/execution layer, then one adopting
+  crate per claim. Sequenced last: 19 crates change, so the generic layer lands
+  and proves itself on two crates before the rest follow.
+- Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §4.
+- Evidence: **19 of 23 Apollo crates carry the identical
+  `application/execution/plan/<transform>/` shape** alongside
+  `domain/contracts`. The transform mathematics genuinely differ; the plan,
+  execution, and dispatch scaffolding around them does not. Apollo also holds the
+  stack's largest junk-drawer concentration (`mod helpers`/`mod utils` in 7+
+  crates, including `apollo-fft/src/api/mod.rs` on a **public** path) and 35 files
+  over the 500-line target.
+- Non-goals: flattening the 23 crates into one — the ADR rejects it; the scaffold
+  is the duplication, not the crate split. Feature-gating and compile isolation
+  per transform are the reason the split exists.
+- Acceptance: each adopting crate depends on the generic layer and its file count
+  falls; the transform crate retains its kernel and mathematical contract only;
+  no `mod helpers`/`mod utils` remains in an adopting crate; transform results are
+  unchanged, shown by the existing per-transform tests passing untouched.
+
 ## ATLAS-ARCH-001 — One generic ComputeBackend conformance suite [arch] [minor] — todo
 
 - Owner: unclaimed; scope: new `repos/hephaestus/crates/hephaestus-conformance`,
