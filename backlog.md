@@ -593,17 +593,35 @@
   counting allocator, or assert on a re-measured quiet window with the
   race documented), and the test passes under full-suite load repeatedly.
 
-## ATLAS-COEUS-SWALLOWED-RESULTS-1 — coeus-autograd ignores fallible add_assign [patch] — todo
+## ATLAS-COEUS-SWALLOWED-RESULTS-1 — coeus-autograd ignores fallible add_assign [patch] — done (fixed upstream; superseded by ATLAS-COEUS-MAIN-SYNC-1)
 
-- Owner: unclaimed; scope: `repos/coeus` `crates/coeus-autograd` +
-  `crates/coeus-nn` (~120 sites, `cargo check` enumerates them).
-- A landed change made `coeus_ops::add_assign` (and siblings) return `Result`,
-  but internal gradient-accumulation callers ignore it — every consumer build
-  now emits ~120 `unused_must_use` warnings from clean coeus trees, and a
-  failing accumulation would be silently dropped (defect-masking per
-  error-handling restraint, not a cosmetic lint).
-- Acceptance: each site propagates or handles the `Result`; consumer builds of
-  coeus-autograd/coeus-nn are warning-clean again.
+- **Closed 2026-07-30 without local code**: coeus `origin/main` already fixes
+  every site — `81eeec09 fix(autograd)!: Propagate backward errors` makes
+  `backward` return `Result<(), B::Error>` and propagates
+  `coeus_ops::add_assign(...)?`. The ~120 warnings come only from the stack's
+  pinned pre-fix state (`80bb2707`, tip of
+  `codex/coeus-error-function-parity`). Fixing them locally would duplicate
+  landed work; the cure is the integration item below.
+
+## ATLAS-COEUS-MAIN-SYNC-1 — Integrate coeus origin/main into the stack [arch] [major] — todo
+
+- Owner: unclaimed; scope: `repos/coeus` + every stack consumer of coeus
+  (ritk, kwavers, helios at minimum) + the umbrella gitlink and overlay.
+- The stack pins coeus at `80bb2707`, now **103 commits behind**
+  `origin/main` (`d77937dc`), which carries multiple breaking changes:
+  fallible module forward (`5e64ee75`), module error contract (`fd19a983`),
+  backward error propagation (`81eeec09`), convolution provider routing
+  (`e742dca7`). The pinned branch also holds 4 commits **not** in main
+  (error-function parity, round-6a path resolution, ADR index) — a union
+  merge like the leto one (ATLAS-LETO-BRANCH-SPLIT-1) is required, then a
+  dependency-ordered consumer sweep: earlier this session, a partial mix of
+  git `d77937dc` coeus-nn with local `80bb2707` coeus-autograd produced
+  ~1034 trait-bound errors, so the advance and the consumer fixes are one
+  co-evolution unit, never piecemeal.
+- Acceptance: repos/coeus tree = union of the pinned branch and main, pushed;
+  gitlink advanced; overlay regenerated; ritk/kwavers/helios locked checks and
+  nextest budgets green against it; consumer `unused_must_use` count from
+  coeus crates is zero.
 
 ## ATLAS-ENV-CC-1 — Host gcc is broken, blocking every C dev-dependency [chore] — todo
 
