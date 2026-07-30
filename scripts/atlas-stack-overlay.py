@@ -115,7 +115,25 @@ def load_packages() -> dict[str, tuple[Path, str | None]]:
                     version = ver
         if not isinstance(version, str):
             version = None
-        packages[pkg["name"]] = (manifest.parent.relative_to(ATLAS_ROOT), version)
+        rel = manifest.parent.relative_to(ATLAS_ROOT)
+
+        # `repos/` is authoritative; a lane never becomes an overlay target.
+        # The overlay must point at the canonical main trees, so when the same
+        # package name appears under both, `repos/` wins regardless of iteration
+        # order. Letting a worktree win points the overlay at `worktrees/<repo>`
+        # while member manifests resolve siblings under `repos/<repo>`, and Cargo
+        # then refuses the build entirely:
+        #
+        #   error: package collision in the lockfile: packages aequitas v0.1.0
+        #   (repos/aequitas) and aequitas v0.1.0 (worktrees/aequitas) are
+        #   different, but only one can be written to lockfile unambiguously
+        #
+        # which presents as dependency breakage rather than an overlay defect.
+        previous = packages.get(pkg["name"])
+        if previous is not None and previous[0].parts[0] == "repos" and rel.parts[0] != "repos":
+            continue
+
+        packages[pkg["name"]] = (rel, version)
     return packages
 
 

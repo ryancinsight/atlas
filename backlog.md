@@ -348,33 +348,64 @@
   workspace could not be verified for a pre-existing reason — see
   ATLAS-CFDRS-PATHDEP-001 immediately below.
 
-## ATLAS-CFDRS-PATHDEP-001 — CFDrs path deps collide with the worktree overlay [patch] — todo
+## ATLAS-CFDRS-PATHDEP-001 — CFDrs path deps collide with the worktree overlay [patch] — done
 
-- Owner: unclaimed, and overlapping the ATLAS-OVERLAY-004 stream — coordinate
-  rather than fixing it in isolation.
-- Defect: CFDrs cannot build at all. `cargo check -p cfd-core` fails with
-  `package collision in the lockfile: packages aequitas v0.1.0`
-  `(D:/atlas/repos/aequitas) and aequitas v0.1.0 (D:/atlas/worktrees/aequitas) are`
-  `different, but only one can be written to lockfile unambiguously`, because
-  `CFDrs/Cargo.toml` declares committed sibling path deps
-  (`aequitas = { path = "../aequitas" }`, plus `proteus`, `hyperion`, `tyche-core`,
-  `iris`, `cfd-mesh`, `apollo-fft`, `apollo-nufft`) resolving under `repos/`, while
-  the stack overlay patches the same packages to `worktrees/*`. One package, two
-  paths.
-- Same prohibited pattern ATLAS-GAIA-GITDEP-001 fixed in gaia, so the same remedy
-  applies: declare first-party providers by `git + version` and let the overlay own
-  local redirection.
-- Compounding: `worktrees/aequitas` is a **standalone clone**, not a linked git
-  worktree — `git -C repos/aequitas worktree list` shows only the main tree and
-  `worktrees/aequitas/.git` is a directory, not a file. It is one of 23 entries
-  under `worktrees/`, at the same commit as `repos/aequitas`. AGENTS.md treats a
-  repo copy as an isolation violation to reconcile rather than adopt, but that
-  reconciliation is the overlay stream's call, not a drive-by deletion, since some
-  of the 23 may hold unique work.
-- Pre-existing, not introduced by the cycle fix: `cfd-core` is untouched by it and
-  fails identically.
-- Acceptance: `cargo check --workspace` resolves in CFDrs; then re-verify `cfd-3d`
-  and the two relocated examples against `cfd-schematic-mesh`.
+- **Closed 2026-07-29** at CFDrs `bf65a41` and atlas `HEAD`.
+- The collision itself was already gone: the overlay stream landed their fix
+  (40 sections active, 0 `#OFF#`, targets under `repos/`), so the two-source
+  conflict this item was filed for no longer reproduced. What remained were six
+  committed sibling path deps — `tyche-core`, `iris`, `ritk-vtk`,
+  `hephaestus-wgpu`, `athena-core`, `athena-leto` — now converted to
+  `git + version`. Zero sibling path deps remain in `CFDrs/Cargo.toml`.
+- `iris` was the trap: it was absent from the overlay entirely, so converting it
+  naively would have resolved CFDrs against *published* iris instead of the local
+  tree — a silent behaviour change, not a build error. Regenerating from the
+  dependency closure covers it.
+- **Root cause found in the generator, not the config.** `load_packages()` in
+  `scripts/atlas-stack-overlay.py` enumerated `repos/` then `worktrees/` into one
+  dict, and `sorted()` puts `repos/` first, so **lane trees overwrote canonical
+  ones** and every regeneration re-pointed the overlay at `worktrees/*`. That is
+  what produced the original collision, and it silently reverted the overlay
+  stream's manual correction the moment anyone regenerated. Fixed by making
+  `repos/` authoritative at the assignment, so precedence holds regardless of
+  iteration order. Without this, the hand-fix and the generator fight each other
+  indefinitely.
+- Verified with a coherent toolchain: 98 overlay targets all under `repos/`, zero
+  under `worktrees/`; regeneration is a fixed point (idempotent per the generator
+  contract); the diff against the overlay stream's version is purely additive
+  (`iris`, `athena-leto`, `ritk-vtk`); `atlas-stack-overlay.py check` reports
+  "stack aligned"; all eleven first-party providers resolve to local `repos/`
+  trees with zero non-local resolutions; `cargo check --workspace` green in CFDrs;
+  `cfd-schematic-mesh` 29 lib tests pass and all four relocated examples compile.
+- Also closes the outstanding verification debt on ATLAS-ARCH-CYCLE-001: `cfd-3d`
+  compiles against the relocated bridge, which could not be checked when that item
+  landed.
+- Not addressed, and still open: `worktrees/` holds 23 **standalone clones** rather
+  than linked git worktrees (`worktrees/aequitas/.git` is a directory; `git -C
+  repos/aequitas worktree list` shows only the main tree). All spot-checked entries
+  sit at the same commit as their `repos/` counterpart, so nothing unique is at
+  risk today, but the directories are an isolation violation per AGENTS.md and the
+  overlay no longer needs them. Reconciling or deleting them belongs to
+  ATLAS-OVERLAY-004.
+
+## ATLAS-ENV-TOOLCHAIN-001 — RUSTC override breaks the shared cache [chore] — todo
+
+- Owner: environment, not code — recorded so the next agent does not misdiagnose it
+  as dependency breakage.
+- Symptom: `error[E0514]: found crate 'quote' compiled by an incompatible version
+  of rustc`, on crates nobody touched, recurring after any clean.
+- Cause: `PATH` resolves `cargo`/`rustc` to the MSYS2 build (1.97.0, `/d/msys64/
+  ucrt64/bin`), while `RUSTC`/`RUSTDOC` are exported to rustup's shims
+  (`~/.cargo/bin`), and rustup carries a **directory override to 1.95.0 for
+  `D:\atlas\repos\CFDrs`**. So cargo 1.97.0 drives rustc 1.95.0, and proc-macro
+  artifacts built by one are unusable by the other. AGENTS.md already names this
+  the shared-cache precondition; this is a live instance of it.
+- Workaround used for every build in this session: `env -u RUSTC -u RUSTDOC cargo
+  ...`, which makes cargo use its sibling rustc coherently.
+- Fix direction: pick one distribution for the whole stack, drop the `RUSTC`/
+  `RUSTDOC` exports, and either remove the CFDrs rustup directory override or give
+  CFDrs a `rust-toolchain.toml` that matches what peers use. Artifacts built under
+  the mismatch are disposable derived state.
 
 ## ATLAS-GAIA-GITDEP-001 — Gaia's committed path dep makes it unconsumable as a git dependency [patch] — done
 
