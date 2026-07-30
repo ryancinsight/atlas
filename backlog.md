@@ -202,9 +202,13 @@
   steps exposed as public API in `cuda` only. Confirm and demote to `pub(crate)`,
   or justify the public surface.
 
-- **Blocked 2026-07-29 on ATLAS-ENV-TOOLCHAIN-001.** The next increment is the
+- **Blocked 2026-07-29; blocker updated 2026-07-30.** The E0514 cache-poisoning
+  half is cleared (see ATLAS-TOOLCHAIN-COHERENCE-001: `hephaestus-core
+  --all-targets` checks and nextest runs 60/60). What still blocks backend test
+  binaries is the broken host `gcc` failing the `alloca` dev dependency —
+  ATLAS-ENV-CC-1 is the live blocker. The next increment is the
   conformance crate itself (closing the six entry points on cuda/rocm/metal), and
-  no backend test target compiles in this environment, so it cannot be verified.
+  no GPU-backend test target links in this environment, so it cannot be verified.
   An independent re-measurement this session reproduced the duplication
   (16 472 `contract.rs` lines, 220 distinct `fn` names, 4 shared by all four) but
   added nothing to the triage ledger, and its headline reading was **wrong**: it
@@ -507,102 +511,23 @@
 - Acceptance: the five links resolve and the doc gate passes under `-D warnings`,
   so the gate can be trusted to catch the next regression.
 
-## ATLAS-PM-TOOLCHAIN-SSOT-1 — Three board records for one toolchain fact [patch] — todo
+## ATLAS-PM-TOOLCHAIN-SSOT-1 — Three board records for one toolchain fact [patch] — done
 
-- Owner: unclaimed; scope: `backlog.md` only.
-- The host toolchain-coherence problem is recorded three times: this file's
-  `ATLAS-ENV-TOOLCHAIN-001`, and `ATLAS-TOOLCHAIN-COHERENCE-001` **twice** — two
-  `##` headings carrying the same ID with different statuses
-  (`— in-progress (environment fixed; residuals)` and `— todo`), while the
-  resolution narrative under them says resolved. A duplicated ID means a status
-  query has no single answer, which is how the 07-29 "coherent host" conclusion
-  survived long enough to be corrected twice.
-- Acceptance: one record owns the fact, with one ID and one status; the other two
-  collapse to a one-line cross-reference per the artifact-compaction rule. No
-  content is lost — the corroborating evidence merges into the surviving record.
-- Cheap and mechanical, but it gates trusting any toolchain status on this board.
+- **Resolved 2026-07-30** (owner: session-2026-07-30-board-ssot; scope
+  `backlog.md` only). `ATLAS-TOOLCHAIN-COHERENCE-001` is the single owning
+  record — its two duplicate `##` headings merged into one with the 07-30
+  resolution, the E0514 version-string lesson, and the residual list;
+  `ATLAS-ENV-TOOLCHAIN-001` collapsed to a cross-reference stub with its unique
+  evidence (eviction convergence, gcc/E0514 disambiguation) merged into the
+  owner. The stale ATLAS-ARCH-001 blocked-reference repointed to the live
+  blocker. No content lost; one ID, one status.
 
-## ATLAS-ENV-TOOLCHAIN-001 — RUSTC override breaks the shared cache [chore] — todo
+## ATLAS-ENV-TOOLCHAIN-001 — RUSTC override breaks the shared cache [chore] — merged
 
-- Owner: environment, not code — recorded so the next agent does not misdiagnose it
-  as dependency breakage.
-- Symptom: `error[E0514]: found crate 'quote' compiled by an incompatible version
-  of rustc`, on crates nobody touched, recurring after any clean.
-- Cause: `PATH` resolves `cargo`/`rustc` to the MSYS2 build (1.97.0, `/d/msys64/
-  ucrt64/bin`), while `RUSTC`/`RUSTDOC` are exported to rustup's shims
-  (`~/.cargo/bin`), and rustup carries a **directory override to 1.95.0 for
-  `D:\atlas\repos\CFDrs`**. So cargo 1.97.0 drives rustc 1.95.0, and proc-macro
-  artifacts built by one are unusable by the other. AGENTS.md already names this
-  the shared-cache precondition; this is a live instance of it.
-- Workaround used for every build in this session: `env -u RUSTC -u RUSTDOC cargo
-  ...`, which makes cargo use its sibling rustc coherently.
-- Fix direction: pick one distribution for the whole stack, drop the `RUSTC`/
-  `RUSTDOC` exports, and either remove the CFDrs rustup directory override or give
-  CFDrs a `rust-toolchain.toml` that matches what peers use. Artifacts built under
-  the mismatch are disposable derived state.
+- Merged into ATLAS-TOOLCHAIN-COHERENCE-001 (the owning record) per
+  ATLAS-PM-TOOLCHAIN-SSOT-1; its eviction-convergence and gcc/E0514
+  disambiguation evidence travels there.
 
-- **Escalated 2026-07-29 — now blocking, and it needs a decision rather than a fix.**
-  The cache holds a poisoned artifact generation, not just a wrong `RUSTC`. Root
-  cause is sharper than first recorded: MSYS2 `rustc 1.97.0` and rustup's `1.97.0`
-  are **different compilers** as far as E0514 is concerned, and the cache contains
-  artifacts from both. Neither choice works against it — MSYS2 fails on
-  `version_check`/`memchr`/`futures_*`, rustup 1.95.0 fails on
-  `backtrace`/`futures_*`.
-- Scope: `cargo check -p hephaestus-core` (lib) succeeds while every `--tests`
-  target fails, so the poisoning concentrates in the dev-dependency graph. All four
-  hephaestus backends fail `cargo check --tests`.
-- Targeted eviction was attempted and abandoned as non-convergent: two rounds
-  removed **1.4 GB** (`ahash`, `object`, `version_check`, `memchr`,
-  `futures-{core,sink,macro,util,channel}`, `backtrace`, `mnemosyne-prof`) and the
-  next round surfaced `futures_task`, `slab`, `futures_io`, `pin_project_lite`,
-  `seahash`, `rkyv`. Peers will see slower builds from that eviction; nothing was
-  corrupted, only rebuilt.
-- A blanket `cargo clean` is deliberately **not** taken: cleaning without fixing the
-  selection re-poisons on the next build from the other toolchain, and AGENTS.md is
-  explicit that the selection is what gets fixed. It also costs every peer a full
-  rebuild of a multi-GB tree, which is not an agent's call.
-- The decision, in one question: **which single toolchain does the stack build
-  with?** Then drop the `RUSTC`/`RUSTDOC` exports so cargo and rustc always come
-  from one distribution, reconcile the `repos/CFDrs` rustup directory override
-  (1.95.0) against the default (1.97.0) — preferably by committing a
-  `rust-toolchain.toml` so the pin lives in the repo rather than in one machine's
-  rustup state — and clean once afterwards.
-- Blocks ATLAS-ARCH-001's shared-suite increment and any hephaestus test build.
-- Workaround for lib-only work: `env -u RUSTC -u RUSTDOC cargo ...` builds
-  coherently against the MSYS2 pair; it does not help `--tests`.
-
-- **Converged 2026-07-30 — pick rustup, not MSYS2, and eviction terminates.**
-  The "non-convergent" result above came from choosing the *MSYS2* pair. Choosing
-  the **rustup** pair converges, because the cache is predominantly rustup-built:
-  prepend `C:\Users\<user>\.cargo\bin` to `PATH` **and keep** `RUSTC` pointed at
-  rustup's shim, so cargo *and* rustc are both rustup 1.97.0-gnu. Note this means
-  the existing `RUSTC` export is **correct and load-bearing** — unsetting it is
-  what silently hands cargo the MSYS2 rustc. That inverts the "drop the exports"
-  fix direction recorded above; what actually has to change is `PATH` order.
-- Under that pair, eviction terminated after **two** packages — `object` (156
-  files, 106 MB) and `memchr` — and `cargo check -p hephaestus-core --all-targets`
-  then succeeded, with `nextest` running 60/60. So a hephaestus **test** build is
-  no longer blocked, and the recorded "does not help `--tests`" no longer holds.
-- Disambiguation that matters for the next agent: `hephaestus-wgpu --all-targets`
-  still fails, but **not** from E0514 — it is the broken host `gcc` failing the
-  `alloca` dev dependency (ATLAS-ENV-CC-1). The earlier entry attributed all
-  `--tests` failures to cache poisoning; they have two independent causes, and
-  only the poisoning one is now cleared.
-- **SSOT correction — this item is not the owner.** The same environment root
-  cause is tracked twice: here, and as `ATLAS-TOOLCHAIN-COHERENCE-001`, which a
-  peer marked **resolved** on 2026-07-30 with user authorisation to clear the
-  rustup overrides (7 entries purged, mixed generations evicted, `rustup override
-  list` now empty). That record is more complete than this one and reaches the
-  same conclusion independently — two rustc distributions on one host are two
-  compilers regardless of matching version hashes, and MSYS2's rust on `PATH` is
-  the surviving residual. Treat `ATLAS-TOOLCHAIN-COHERENCE-001` as the owning
-  record; the paragraphs above stand only as this session's corroborating
-  evidence, and the "still a user decision" framing they replaced is withdrawn.
-- Consolidation defect found while reconciling: `ATLAS-TOOLCHAIN-COHERENCE-001`
-  appears as **two separate `##` headings with the same ID** (one
-  `— in-progress (environment fixed; residuals)`, one `— todo`), and this
-  `ATLAS-ENV-TOOLCHAIN-001` is a third record of the same concern. Three records,
-  one fact. Filed as ATLAS-PM-TOOLCHAIN-SSOT-1.
 ## ATLAS-GAIA-GITDEP-001 — Gaia's committed path dep makes it unconsumable as a git dependency [patch] — done
 
 - **Resolved 2026-07-28** at gaia `1190ace`: eunomia, leto, melinoe, mnemosyne,
@@ -7189,123 +7114,74 @@ cfd-validation, then delete the `cfd_math::iterative` facade.
 - Acceptance: tool merged and green under the standard gates; harness lane removed; version-guard item updated to reference the landed checker.
 - Resolution 2026-07-29: no unique work was stranded — all 9 lane files are byte-identical to `origin/main` (`f8305ac feat(atlas): add tools/gitlink-coherence audit package`); the tool had already landed and the harness lane was a superseded leftover, now deleted and pruned. Verifying it exposed the real defect: `RUSTC`/`RUSTDOC` env vars pointing at a rustup shim (default nightly) while `cargo` came from MSYS2 at stable 1.97.0, so nightly artifacts entered the shared cache and every pinned-toolchain build failed E0514 — recurring after each clean because a live peer keeps regenerating them. With the override removed, all three tools are green (gitlink-coherence 18/18, criterion-regression 21/21, checkout-path-dependencies 11/11; fmt and clippy clean). Tool pins advanced 1.95.0 -> 1.97.0 to match the stack standard (14 of 18 pinned members) per ecosystem currency. Remaining: wire the coherence check into the integration sweep per ATLAS-VERSION-GUARD-001.
 
-## ATLAS-TOOLCHAIN-COHERENCE-001 — One compiler identity across the shared cache [patch] — in-progress (environment fixed; residuals)
+## ATLAS-TOOLCHAIN-COHERENCE-001 — One compiler identity across the shared cache [patch] — todo (environment fixed; residuals open)
 
-- Policy: AGENTS.md engineering_gates "Supply chain & toolchain" (the pin must be what actually runs) + performance_engineering one-build-cache-per-stack. This is the root cause behind recurring "compilation issues as components are tested" across the fleet.
-- Evidence 2026-07-29: `RUSTC=~/.cargo/bin/rustc.exe` (rustup shim, default toolchain nightly) with `cargo` resolving to `D:\msys64\ucrt64\bin\cargo.exe` (stable 1.97.0). Nightly-built dependency artifacts (`libserde-9d158b02d9b1ddf7`, serde_core, serde_derive, toml family) land in `D:/atlas/target` and every stable-pinned build then fails `E0514: found crate compiled by an incompatible version of rustc`; deleting them is futile while a peer regenerates them. Member pins: 14 at 1.97.0, 2 at 1.95.0, 1 `stable`, 1 at 1.97.1, 10 unpinned.
-- Scope: (1) decide and document one compiler identity for the stack (rustup-managed stable matching the pin is the straightforward choice) and remove the conflicting `RUSTC`/`RUSTDOC` overrides from the agent environment; (2) normalize member pins — the 1.95.0 pair, the bare `stable`, and the 1.97.1 outlier to the standard, and add pins to the 10 unpinned members (missing verification infrastructure, retrofit at first touch); (3) one-time purge of the poisoned artifact generation once the environment is coherent; (4) a preflight check (compiler identity vs pin) in the sweep so a mismatch fails loudly instead of surfacing as dependency breakage.
-- Acceptance: `rustc -V` under every member and tool matches its pin; a full-stack build produces no E0514; the preflight check is green in the sweep.- Fixed 2026-07-29: persistent user env vars `RUSTC` and `RUSTDOC` (both pointing at the rustup shim, whose default toolchain was nightly) removed from the user registry — machine PATH puts `D:\msys64\ucrt64\bin` ahead of `~/.cargo/bin`, so `cargo` was MSYS2 stable 1.97.0 while the overrides forced rustc to rustup nightly; every build emitted artifacts no pinned peer could consume. `rustup default` advanced nightly -> `1.97.0-x86_64-pc-windows-gnu`, matching the stack pin standard (nightly stays installed for the miri/sanitizer suites, invoked explicitly). Poisoned debug generation flushed (`target/debug/{deps,.fingerprint,build}`, 92.6 GB reclaimed). Verified in the shared cache: tools 18/18 + 21/21 + 11/11 green, `cargo check --workspace` clean on themis/eunomia/hermes, and `cargo`/`rustc` now resolve to the same MSYS2 1.97.0 (hash 2d8144b78, matching rustup's 1.97.0).
-- Residuals: (1) live agent processes started before the fix still carry `RUSTC` in their inherited environment and will re-emit nightly artifacts until they restart — re-check for E0514 and re-flush once sessions roll; (2) one transient `rustup` download race observed (concurrent rustup fetches colliding in `~/.rustup/downloads`) — retry-safe, but worth noting as a fleet-scale contention source; (3) pin normalization still open: 2 members at 1.95.0, one bare `stable`, one 1.97.1 outlier, 10 unpinned; (4) preflight compiler-identity-vs-pin check for the sweep still to build.
-
-## ATLAS-TOOLCHAIN-COHERENCE-001 — Rustup overrides fight over the shared target cache [major] — todo
-
-- **Evidence (2026-07-29).** `rustup override list`:
-
-  ```
-  D:tlas
-epos\CFDrs        1.95.0-x86_64-pc-windows-gnu
-  D:tlas
-epos\hephaestus   1.95.0-x86_64-pc-windows-msvc
-  D:tlas
-epos\leto         1.95.0-x86_64-pc-windows-gnu
-  D:tlas
-epos\coeus        1.97.0-x86_64-pc-windows-msvc
-  ```
-
-  plus `repos/athena/rust-toolchain.toml` pinning `1.97.0`,
-  `repos/moirai/rust-toolchain.toml` pinning `1.95.0`, and an ambient MSYS2
-  `rustc 1.97.0 (Rev1)` that is a *different build* from rustup's `1.97.0`.
-  Every one of these writes into the single `CARGO_TARGET_DIR`.
-- **Impact.** Builds fail with `E0514 found crate ... compiled by an
-  incompatible version of rustc` on unrelated dependencies — `mnemosyne`,
-  `bytemuck`, `eunomia`, `leto` — and the failure moves depending on which
-  agent built last. It looks exactly like dependency breakage and is not.
-  Observed repeatedly today: a `cfd-math` check failed under 1.95, passed
-  under `rustup run 1.97.0-gnu`, then clippy failed again minutes later once a
-  concurrent build re-poisoned the same artifacts. This is the failure mode
-  the toolchain-coherence rule names, including its "recurs after any clean"
-  signature.
-- **Worse than a version split.** The overrides mix `gnu` and `msvc` ABIs, so
-  the artifacts are not merely stale-but-compatible.
-- **Scope.** Pick one toolchain identity for the stack — the athena pin,
-  `1.97.0`, is the only one already expressed as a committed
-  `rust-toolchain.toml` — then clear the per-directory rustup overrides,
-  align `moirai`, and add a committed pin at the stack root so the identity is
-  reproducible rather than ambient. Verify with a single `cargo build` sweep
-  across members afterwards.
-- **Not done unilaterally**: clearing rustup overrides changes environment
-  state every concurrent agent is building against, and some pins may exist
-  for MSRV checking. Needs a quiet window or an explicit decision.
-- Cost so far: clippy could not be run for the `chain.rs` increment
-  (`40ef080c`) or the cfd-2d pressure increment (`10fdd86e`).
-
-### Resolved 2026-07-30 — user authorised clearing the overrides
-
-Status: **resolved**; clippy runs clean again and the blocker is discharged.
-
-**Correction to the 07-29 resolution above.** That entry concluded the host was
-coherent because "`cargo`/`rustc` now resolve to the same MSYS2 1.97.0 (hash
-2d8144b78, matching rustup's 1.97.0)". The hash matching is not sufficient, and
-this is why the problem recurred. `rustc -vV` for the two builds:
-
-```
-rustc 1.97.0 (2d8144b78 2026-07-07) (Rev1, Built by MSYS2 project)  LLVM 22.1.8
-rustc 1.97.0 (2d8144b78 2026-07-07)                                 LLVM 22.1.6
-```
-
-Same commit, same host triple, **different version strings** — and E0514
-compares the version string, not the hash. Today's errors printed both strings
-side by side in the same build. Two rustc distributions on one host are two
-compiler identities regardless of how close their versions look.
-
-**Five distinct cache-forking sources found and fixed:**
-
-1. *Rustup directory overrides* — 7 entries, mixing 1.95.0/1.97.0 and
-   gnu/msvc, 3 of them pointing at directories that no longer exist. All
-   cleared (`rustup override unset`); every member now resolves through its
-   committed pin. `rustup override list` reports none.
-2. *Divergent committed pins* — `moirai` 1.95.0 (`a091db2`), `consus` a
-   floating `stable` that resolved to 1.95.0 on this host (`f0c2869`),
-   `helios` 1.97.1 (`9be1b9d`). All to 1.97.0, the standard held by 13 other
-   members. Moirai's MSRV (`rust-version = "1.95"`) is deliberately unchanged
-   — the build pin and the support floor are different things.
-3. *`-C target-cpu=native` in `.cargo/config.toml`* — `hephaestus`
-   (`54794f2`) and `leto` (`29acd60`). Not previously identified as a cache
-   problem and arguably the most expensive one: **rustflags are part of
-   Cargo's fingerprint**, so every dependency these two shared with their
-   siblings was compiled twice and each repo switch invalidated the other's
-   copy. Leto sits near the bottom of the stack, so its fork propagated
-   through nearly everything above it. It was also the wrong layer — both are
-   consumed as libraries, so ISA selection belongs at runtime.
-   `consus/.cargo/config.toml` carries the same flag but scoped to
-   `linux-gnu`/`windows-msvc`, inert on this host; left alone, noted.
-4. *Cache forks* — `target_isolated/` (2.7 GB) plus repo-local `target/`
-   trees in CFDrs, helios, kwavers, mnemosyne, ritk. 3.4 GB, all deleted.
-5. *The poisoned generation itself* — `D:\atlas\target` held 308.7 GB across
-   three compiler generations (MSYS2 1.97.0, rustup 1.97.0, 1.95.0). Purged;
-   **307 GB reclaimed**. A peer build started during the delete and holds the
-   1.6 GB remainder, which is its own fresh output.
-
-**Verification.** `cargo clippy -p cfd-io --all-targets` — the command that had
-failed three times — completes clean, no E0514. Toolchain resolution now
-uniform at `1.97.0-x86_64-pc-windows-gnu` across all 28 members.
-
-**Residual — one root cause survives.** Two rustc distributions are still
-installed, and `D:\msys64\ucrt64\bin` precedes `~/.cargo/bin` in the *machine*
-PATH, so a bare `cargo` still gets MSYS2's, which ignores `rust-toolchain.toml`
-entirely. Every pin above is only honoured when the build routes through
-rustup. Agents must therefore export `RUSTUP_TOOLCHAIN` and put the toolchain
-bin first, which is fragile. The clean fix is to remove MSYS2's rust package
-(`pacman -R mingw-w64-ucrt-x86_64-rust`, 235 MiB, `Required By: None`) — this
-leaves `ucrt64/bin` and its gcc/ld intact, which the gnu target needs, and
-removes only the duplicate compiler. Software removal, so it needs the user's
-go-ahead.
-
-**Still open from the original scope:** pins for the 9 unpinned members
-(CFDrs, coeus, gaia, hephaestus, kwavers, leto, mnemosyne, ritk,
-parity_artefacts) — they resolve to 1.97.0 today only because that is the
-rustup default, so a `rustup default` change would silently move them; and the
-preflight compiler-identity-vs-pin check for the sweep.
+- Owning record for the host toolchain-coherence fact (SSOT). The former
+  duplicate heading under this ID and `ATLAS-ENV-TOOLCHAIN-001` are collapsed
+  here per ATLAS-PM-TOOLCHAIN-SSOT-1; their evidence is merged below.
+- Policy: AGENTS.md engineering_gates "Supply chain & toolchain" (the pin must
+  be what actually runs) + one-build-cache-per-stack. Failure signature:
+  `E0514: found crate compiled by an incompatible version of rustc` on crates
+  nobody touched, recurring after any clean, moving with whichever agent built
+  last. It looks exactly like dependency breakage and is not.
+- Root-cause lesson (why the 07-29 "coherent host" conclusion failed twice):
+  E0514 compares the rustc **version string**, not the commit hash. MSYS2's
+  `rustc 1.97.0 (2d8144b78) (Rev1, Built by MSYS2 project) LLVM 22.1.8` and
+  rustup's `rustc 1.97.0 (2d8144b78) LLVM 22.1.6` are two compiler identities
+  despite the same commit and host triple. Two installed rustc distributions on
+  one host are two compilers, regardless of matching versions.
+- **Resolved 2026-07-30 (environment), user-authorised.** Five cache-forking
+  sources fixed:
+  1. 7 rustup directory overrides cleared (mixed 1.95.0/1.97.0 and gnu/msvc,
+     3 pointing at directories that no longer existed); `rustup override list`
+     now empty.
+  2. Divergent committed pins normalized to the 1.97.0 standard: moirai 1.95.0
+     (`a091db2`), consus floating `stable` (`f0c2869`), helios 1.97.1
+     (`9be1b9d`). Moirai's MSRV floor (`rust-version = "1.95"`) deliberately
+     unchanged — build pin and support floor are different things.
+  3. `-C target-cpu=native` rustflags removed from hephaestus (`54794f2`) and
+     leto (`29acd60`) — rustflags enter Cargo's fingerprint, so the flag forked
+     every shared dependency; ISA selection belongs at runtime for library
+     crates. consus carries the same flag scoped to other hosts — inert here,
+     left, noted.
+  4. Cache forks deleted: `target_isolated/` (2.7 GB) plus repo-local `target/`
+     trees in CFDrs, helios, kwavers, mnemosyne, ritk (3.4 GB total).
+  5. Poisoned artifact generation purged from `D:\atlas\target` — 308.7 GB
+     across three compiler generations, 307 GB reclaimed.
+  Earlier the same day, the persistent user env `RUSTC`/`RUSTDOC` registry
+  exports (rustup shim, default-nightly, while `cargo` came from MSYS2) were
+  removed and `rustup default` set to `1.97.0-x86_64-pc-windows-gnu`.
+- Verification: `cargo clippy -p cfd-io --all-targets` — the command that had
+  failed three times — completes clean with no E0514; toolchain resolution
+  uniform at 1.97.0-gnu across all 28 members.
+- Corroborating evidence (merged from ATLAS-ENV-TOOLCHAIN-001): choosing the
+  rustup pair makes cache eviction terminate — two packages (`object`,
+  `memchr`) — after which `cargo check -p hephaestus-core --all-targets`
+  succeeded and nextest ran 60/60; choosing the MSYS2 pair was non-convergent
+  (1.4 GB evicted across two rounds with new E0514 crates still surfacing). The
+  residual `hephaestus-wgpu --all-targets` failure is the broken host `gcc`
+  failing the `alloca` dev dependency (ATLAS-ENV-CC-1), not E0514 — two
+  independent causes, only the poisoning one is cleared.
+- Residuals, in claimable order:
+  1. **MSYS2 rust removal (parked — Ask-User; re-open on user go-ahead).**
+     `D:\msys64\ucrt64\bin` precedes `~/.cargo/bin` in the *machine* PATH, so a
+     bare `cargo` still resolves to MSYS2's, which ignores
+     `rust-toolchain.toml` entirely. Interim rule: route builds through rustup
+     (toolchain bin first / `RUSTUP_TOOLCHAIN`). Clean fix:
+     `pacman -R mingw-w64-ucrt-x86_64-rust` (235 MiB, `Required By: None`;
+     leaves ucrt64 gcc/ld intact, which the gnu target needs). Software
+     removal, so it needs the user's go-ahead.
+  2. Pins for the 9 unpinned members (CFDrs, coeus, gaia, hephaestus, kwavers,
+     leto, mnemosyne, ritk, parity_artefacts): they resolve to 1.97.0 today
+     only because that is the rustup default, so a `rustup default` change
+     would silently move them.
+  3. Preflight compiler-identity-vs-pin check in the sweep, so a mismatch fails
+     loudly instead of surfacing as dependency breakage.
+- Watchpoints: sessions started before the registry fix carry `RUSTC` in their
+  inherited environment and re-emit foreign artifacts until they roll — re-check
+  for E0514 as sessions restart (likely expired by now). One transient rustup
+  download race observed (concurrent fetches colliding in `~/.rustup/downloads`)
+  — retry-safe, noted as a fleet-scale contention source.
 
 ## ATLAS-CFDMATH-MATRIX-FREE-OPERATOR-001 — Restore the matrix-free operator [patch] — todo
 
