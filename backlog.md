@@ -455,85 +455,45 @@
 
 ## ATLAS-HELIOS-GENERIC-001 — Instantiate the f32-only generic tests across shipped scalars [patch] — done
 
-- **Closed 2026-07-29 at helios `3fdfa8d`.** All 24 sites converted. Workspace-wide
-  verification: 259 lib tests pass across 11 crates, 46 per-width instantiations
-  plus the compton differential, and `grep` finds no `is_generic_over_scalar_f32`
-  anywhere in helios.
-- Per-crate: `helios-solver` 62 (8 sites), `helios-simulation` 39 (4),
-  `helios-domain` 37 (3), `helios-analysis` 35 (2), `helios-imaging` 33 (5),
-  `helios-physics` 17 (1), `helios-planning` 8 (1).
-- `ShippedScalar` landed in `helios-math` as public vocabulary
-  (`Scalar + UnitScalar + RelativeEq<Epsilon = Self>`), with one `impl` per shipped
-  width. `f16`/`bf16` are absent because `RealField` has no impl for them, so they
-  are not instantiable rather than merely untested — admitting either is one line
-  here plus whatever `eunomia` needs.
-- **Not every tolerance became epsilon-derived, and that was the substantive
-  judgement.** Rounding bounds were derived from the operation chain (4 ulps for a
-  product, 16 for an exponential, 64 for a ~40-step accumulation or a
-  cancellation-amplified absorbed fraction, 256 for a whole-grid sum). But five
-  sites carry non-numerical error and keep bounds stated as such: convergence after
-  a fixed iteration budget (`optimize`, `sirt`), reconstruction accuracy from
-  limited-angle sampling (`fbp`), Poisson counting statistics (`noise`), and two
-  exact integer-offset assertions that carry no tolerance at all (`registration`).
-  Deriving those from `T::EPSILON` would assert a precision the algorithm does not
-  deliver — the same analytical-threshold error as an underived literal, inverted.
-- `compton` was never the fake-generics defect: it already compared the f32 path
-  against the f64 path, so only its name carried the problem. It kept its single
-  differential assertion and gained a bound expressed in ulps of the narrower
-  width (500, ~6e-5) rather than a bare 1e-4.
-- `ShippedScalar` now lives in `helios-math` as public vocabulary, so the
-  remaining crates need only `use helios_math::ShippedScalar;`.
-- `GeometryScalar` stays a per-site bound rather than joining `ShippedScalar`: it
-  is feature-gated in helios-math, so folding it in would break
-  `--no-default-features`. Where it applies, it collides with `FloatElement` on
-  `from_f64`, so those bodies bind `let cast = <T as helios_math::FloatElement>::from_f64;`.
-- Two mechanical traps, both silent, worth avoiding in the remaining 13: replacing
-  a test body without its `#[test]` leaves the attribute stranded on whatever
-  follows, and a regex broad enough to clean that up will also strip `#[test]`
-  from the per-width wrappers — the suite then goes green with the new tests
-  simply not running. Always confirm the per-width names appear in the runner
-  output and that the total moved by the expected delta.
-- Defect, verified independently: **24 test functions across 21 helios files**
-  are named `*_is_generic_over_scalar_f32` and assert genericity at exactly one
-  concrete type, with **zero** f64 counterparts. Every monomorphization a caller
-  can instantiate beyond `f32` is therefore unverified — the mechanical form of
-  the fake-generics risk. The names additionally violate the naming prohibition
-  (a type name inside a function name). A concurrent peer audit reported 25
-  files; the true count is 21, all in helios.
-- Shipped scalar set is `{f32, f64}`: `helios_math::Scalar` is
-  `eunomia::RealField`, and `RealField` is implemented for `f32` and `f64` only,
-  so `f16`/`bf16` are not instantiable and are not part of this gap.
-- Pattern established and API-checked (one generic body + one `#[test]` per
-  shipped type, named by precision rather than by Rust type so the naming
-  prohibition holds): `T::from_f64(..)` builds literals, `RealField::exp`/`recip`
-  supply the math, and tolerances derive from `T::EPSILON * T::from_f64(ULPS)`
-  with the ulp budget justified from the operation chain — replacing fixed
-  literals like `epsilon = 1e-5`, which are themselves the analytical-threshold
-  violation.
-- Delivered and verified: `helios-solver/src/dose.rs`
-  — `primary_fluence_matches_beer_lambert`, 16-ulp derived bound, one `#[test]` per
-  shipped width. Both instantiations pass; the f64 case passing at 16 ulps is the
-  evidence the kernel is correct beyond the width it was written against.
-- Two bounds the design missed and compilation caught, needed at every remaining
-  site: `Scalar` implies neither `eunomia::RelativeEq<Epsilon = Self>` (required by
-  `assert_relative_eq!`) nor `eunomia::UnitScalar` (required by kernels taking
-  Aequitas quantities). Both are folded into a local `ShippedScalar` trait with one
-  `impl` per shipped width, so admitting a new type is one line rather than an edit
-  per test. It stays local to `dose.rs` until a second module needs it, per
-  consolidate-on-second-occurrence; the shared home is `helios-math`.
-- Worked reference for the pattern, applicable to all 24 sites:
-  - hoist the body into `fn <behaviour><T: Scalar>()`, drop the `_f32` suffix
-    (the old name is itself a naming-prohibition violation);
-  - build every literal with `T::from_f64(..)`; `T::from_f64(0.0)` rather than
-    `T::ZERO` avoids needing `NumericElement` in test scope;
-  - replace fixed epsilons with `max_relative = T::EPSILON * T::from_f64(ULPS)`,
-    where `ULPS` is a named constant carrying its derivation from the operation
-    chain — `assert_relative_eq!` accepts `max_relative`, and the fixed literals
-    being replaced (`epsilon = 1e-5`) are themselves analytical-threshold
-    violations;
-  - add one `#[test]` per shipped width delegating to the generic body, named by
-    precision (`..._in_single_precision` / `..._in_double_precision`) so failure
-    attribution survives without putting a Rust type name in a function name.
+- **Closed 2026-07-29** at helios `f3038b2`. All 24 original sites are converted,
+  plus four duplicated width pairs that appeared afterwards.
+- Split of the work: this stream delivered 8 in helios-solver and 3 in
+  helios-domain; peers delivered helios-imaging (`3fdfa8d`), and analysis /
+  physics / planning / simulation (`cda0e8c`). Final state across helios is
+  **52 per-width instantiations in 24 files**, workspace green at 262 lib tests.
+- **Anti-pattern found and removed — duplicated width pairs.** Four sites
+  (`image_quality`, `roi`, `helical`, `grid`) satisfied the requirement's letter by
+  keeping two concrete tests side by side (`..._f32` next to a `..._f64` twin)
+  instead of instantiating a generic body. That proves less than it looks like:
+  neither test is generic so no generic entry point is exercised, the copies must
+  be kept in step by hand, tolerances were picked per width (1e-6/1e-12,
+  1e-4/1e-12) rather than derived, and the names carry a Rust type. Each is now one
+  generic body plus per-width wrappers with an `T::EPSILON`-derived bound. Worth
+  watching for in future work: it passes a `grep` for the old name while leaving
+  the gap open.
+- `grid.rs` was the subtler case: it already shared a body but took the tolerance
+  as a *parameter*, so each caller passed a literal. The bound is now derived
+  inside, where no instantiation can be handed a value that happens to pass; its
+  f32 bound tightened from 1e-5 to ~7.6e-6 and still passes.
+- Two sites are correctly exempt, and should not be "fixed" later:
+  - `helios-physics/compton.rs` is a **differential** f32-vs-f64 test — it compares
+    the two widths against each other, so a generic body would compare a type to
+    itself. Peer commit `cda0e8c` renamed it and replaced the bare `1e-4` with
+    `f32::EPSILON * 500.0` carrying its derivation. Correct as-is.
+  - `helios-domain/storage.rs` (`f64_le`, `f32_volume_round_trips_through_the_f64_archive`)
+    and `dicom.rs` (`opt_f64`, `multi_f64`) name concrete archive datatypes and
+    DICOM wire representations, not generic parameters. The type name is the
+    subject matter.
+- Method note for the remaining stack: my first sweep used
+  `grep is_generic_over_scalar_f32` and reported zero remaining, which was wrong —
+  the duplicated pairs used `are_generic_over_scalar_f32`. Sweep with
+  `fn [a-z0-9_]*(f32|f64|f16|bf16)[a-z0-9_]*\(` instead, then subtract the
+  legitimate wire-format cases.
+- Shipped scalar set remains `{f32, f64}`: `helios_math::Scalar` is
+  `eunomia::RealField`, implemented for those two only, so `f16`/`bf16` are not
+  instantiable rather than untested. `ShippedScalar` in `helios-math` is the single
+  vocabulary point — admitting a width is one `impl` line and every generic test
+  inherits it.
 
 ## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — todo
 
