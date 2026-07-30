@@ -154,6 +154,16 @@
   steps exposed as public API in `cuda` only. Confirm and demote to `pub(crate)`,
   or justify the public surface.
 
+- **Blocked 2026-07-29 on ATLAS-ENV-TOOLCHAIN-001.** The next increment is the
+  conformance crate itself (closing the six entry points on cuda/rocm/metal), and
+  no backend test target compiles in this environment, so it cannot be verified.
+  An independent re-measurement this session reproduced the duplication
+  (16 472 `contract.rs` lines, 220 distinct `fn` names, 4 shared by all four) but
+  added nothing to the triage ledger, and its headline reading was **wrong**: it
+  concluded from name overlap that rocm lacked the basic contract, whereas the
+  ledger's entry-point basis shows rocm at 95/112 against wgpu's 101 — rocm bundles
+  several clauses per test fn, so name counts understate it. Entry points, not test
+  names, are the basis; the ledger stands.
 ## ATLAS-ARCH-010 — Define the NaN and infinity contract for accelerator kernels [arch] [minor] — todo
 
 - Owner: unclaimed; scope: `hephaestus-core` numeric contract documentation plus
@@ -407,6 +417,35 @@
   CFDrs a `rust-toolchain.toml` that matches what peers use. Artifacts built under
   the mismatch are disposable derived state.
 
+- **Escalated 2026-07-29 — now blocking, and it needs a decision rather than a fix.**
+  The cache holds a poisoned artifact generation, not just a wrong `RUSTC`. Root
+  cause is sharper than first recorded: MSYS2 `rustc 1.97.0` and rustup's `1.97.0`
+  are **different compilers** as far as E0514 is concerned, and the cache contains
+  artifacts from both. Neither choice works against it — MSYS2 fails on
+  `version_check`/`memchr`/`futures_*`, rustup 1.95.0 fails on
+  `backtrace`/`futures_*`.
+- Scope: `cargo check -p hephaestus-core` (lib) succeeds while every `--tests`
+  target fails, so the poisoning concentrates in the dev-dependency graph. All four
+  hephaestus backends fail `cargo check --tests`.
+- Targeted eviction was attempted and abandoned as non-convergent: two rounds
+  removed **1.4 GB** (`ahash`, `object`, `version_check`, `memchr`,
+  `futures-{core,sink,macro,util,channel}`, `backtrace`, `mnemosyne-prof`) and the
+  next round surfaced `futures_task`, `slab`, `futures_io`, `pin_project_lite`,
+  `seahash`, `rkyv`. Peers will see slower builds from that eviction; nothing was
+  corrupted, only rebuilt.
+- A blanket `cargo clean` is deliberately **not** taken: cleaning without fixing the
+  selection re-poisons on the next build from the other toolchain, and AGENTS.md is
+  explicit that the selection is what gets fixed. It also costs every peer a full
+  rebuild of a multi-GB tree, which is not an agent's call.
+- The decision, in one question: **which single toolchain does the stack build
+  with?** Then drop the `RUSTC`/`RUSTDOC` exports so cargo and rustc always come
+  from one distribution, reconcile the `repos/CFDrs` rustup directory override
+  (1.95.0) against the default (1.97.0) — preferably by committing a
+  `rust-toolchain.toml` so the pin lives in the repo rather than in one machine's
+  rustup state — and clean once afterwards.
+- Blocks ATLAS-ARCH-001's shared-suite increment and any hephaestus test build.
+- Workaround for lib-only work: `env -u RUSTC -u RUSTDOC cargo ...` builds
+  coherently against the MSYS2 pair; it does not help `--tests`.
 ## ATLAS-GAIA-GITDEP-001 — Gaia's committed path dep makes it unconsumable as a git dependency [patch] — done
 
 - **Resolved 2026-07-28** at gaia `1190ace`: eunomia, leto, melinoe, mnemosyne,
