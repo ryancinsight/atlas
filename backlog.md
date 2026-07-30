@@ -7165,3 +7165,48 @@ Athena. Filed below.
 Remaining stage B: cfd-3d (blocked on peer activity in `cfd-3d/src/fem`), JFNK,
 then delete the `cfd_math::iterative` facade and the leto-ops iterative
 dependency.
+
+### Verification debt review 2026-07-30
+
+**cfd-3d is still not clear.** Peer commit `63e49604` landed at 01:40, twelve
+minutes before the check, and `projection_solver.rs` carries their uncommitted
+continuation of the same Quantity migration (`.into_base()` conversions).
+Fresh and commit-backed, so the scope stays blocked. `solver.rs` is clean now,
+but it is the same live scope. Re-check later.
+
+**cfd-validation tests: discharged.** The hephaestus rebase finished, so the
+suite ran: **184/187 passed, 3 timed out** in
+`numerical::venturi_cross_fidelity`.
+
+Those three were investigated rather than assumed pre-existing, because they
+drive `cfd_2d::solvers::ns_fvm` SIMPLE and could plausibly have been a
+convergence regression from the pressure-correction migration. They are not:
+`ns_fvm` solves its pressure-correction Poisson with **its own hand-rolled SOR
+sweep** (`solvers/ns_fvm/solver/pressure/poisson.rs`), never reaching
+`PressureCorrectionSolver` or any Krylov solver in this migration. Running one
+case without a timeout shows SIMPLEC continuity stagnant at ~4.59e2 across ten
+iterations and still running past 400s, which is that SOR failing to converge
+on a micro-scale geometry. The file is also peer-dirty. Filed below.
+
+**Clippy: still blocked**, third consecutive attempt, now surfacing on
+`cfd-io` whose dependencies were built by a different rustc. Note the tests
+passed minutes earlier under the same toolchain — the poisoned artifact set
+differs by which crates a command pulls, which is exactly why this presents as
+moving, unrelated breakage. `ATLAS-TOOLCHAIN-COHERENCE-001` is the blocker and
+is now the single largest drag on verification.
+
+## ATLAS-NSFVM-SOR-CONVERGENCE-001 — Micro-geometry SIMPLEC continuity stagnation [major] — todo
+
+- Three `venturi_cross_fidelity` cases time out: the 35um and fallback
+  microventuri cases and the 45um option-2 routing case.
+- `cfd_2d::solvers::ns_fvm` solves pressure correction with a hand-rolled SOR
+  sweep. On these micro-scale geometries the continuity residual holds near
+  4.59e2 while velocity falls, so the outer SIMPLEC loop never terminates and
+  the case runs past 400s against a 30s budget.
+- Independent of the Athena migration — this path contains no Krylov solver.
+- Two candidate directions, needing measurement first: the SOR sweep is not
+  converging for this conditioning and should be replaced by a proper Krylov
+  solve now that `cfd_math::linear_solver::krylov` exists, or the case is
+  genuinely stiff and the fallback routing is selecting the wrong model. The
+  budget breach is a defect either way and must not be resolved by raising the
+  bound.
