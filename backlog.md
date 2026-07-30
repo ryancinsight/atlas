@@ -364,6 +364,12 @@
   contents are distributed to the leaf modules that own them and the module is
   deleted. A `utils` whose contents span two concerns splits; it is never renamed
   to `support`.
+- Recurring defect pattern (3 landed instances found 2026-07-30): rename
+  commits verified with lib-profile gates miss `#[cfg(test)]`/tests-dir
+  references — kwavers `1b4952823` (2 sites), the kwavers-therapy sweep
+  (3 sites), ritk `be610931` (xtask tests.rs). Every rename in this item must
+  gate on `cargo nextest run` (or at minimum `cargo check --all-targets`) for
+  the touched package, not `cargo check` alone.
 
 ## ATLAS-ARCH-007 — Reduce manifest files carrying implementation [patch] — todo
 
