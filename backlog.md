@@ -495,10 +495,25 @@
 - Acceptance: a trivial `gcc` compile succeeds, or the stack pins the msvc host
   with the cache cost accepted and recorded.
 
-## ATLAS-HEPH-DOC-LINKS-1 — hephaestus-core fails the rustdoc gate [patch] — todo
+## ATLAS-HEPH-DOC-LINKS-1 — hephaestus-core fails the rustdoc gate [patch] — blocked
 
 - Owner: unclaimed; scope: `repos/hephaestus/crates/hephaestus-core/src/domain/`
   module docs.
+- **Blocked 2026-07-30 — the fix is already authored on the live peer's branch.**
+  All five sites carry the resolving `` [`crate::Item`] `` form on
+  `codex/hephaestus-compute-seams` (verified by reading `device.rs:176`,
+  `reduction.rs:13,17,18`, `view.rs:9` on that branch); `master` still carries
+  the bare forms. Fixing master independently would duplicate the peer's change,
+  and no verification tree exists: `repos/hephaestus` holds the peer's branch,
+  the repo is at its two-worktree cap (`worktrees/hephaestus-product-axis-parity`
+  holds the second slot), and the peer's branch does not compile against the
+  local leto tree — `leto::{ConvolutionParameters, TransposedConvolutionParameters}`
+  are absent because the leto gitlink was pointed back at the sparse-LU branch
+  (`d6d893a`) while the convolution provider lives on the
+  `worktrees/leto-convolution-provider` lane. That cross-repo coupling is the
+  seams peer's frontier, noted here for them.
+- Re-open trigger: `codex/hephaestus-compute-seams` merges to master — then run
+  the gate on master and close on a green pass, or fix any residual links.
 - `RUSTDOCFLAGS=-D warnings cargo doc -p hephaestus-core --no-deps` fails on
   `master` with five unresolved intra-doc links, all pre-existing:
   `HephaestusError::LengthMismatch` (`device.rs:176`), and `AxisReductionOps`,
