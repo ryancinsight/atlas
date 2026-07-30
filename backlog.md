@@ -498,6 +498,21 @@
 - Acceptance: the five links resolve and the doc gate passes under `-D warnings`,
   so the gate can be trusted to catch the next regression.
 
+## ATLAS-PM-TOOLCHAIN-SSOT-1 — Three board records for one toolchain fact [patch] — todo
+
+- Owner: unclaimed; scope: `backlog.md` only.
+- The host toolchain-coherence problem is recorded three times: this file's
+  `ATLAS-ENV-TOOLCHAIN-001`, and `ATLAS-TOOLCHAIN-COHERENCE-001` **twice** — two
+  `##` headings carrying the same ID with different statuses
+  (`— in-progress (environment fixed; residuals)` and `— todo`), while the
+  resolution narrative under them says resolved. A duplicated ID means a status
+  query has no single answer, which is how the 07-29 "coherent host" conclusion
+  survived long enough to be corrected twice.
+- Acceptance: one record owns the fact, with one ID and one status; the other two
+  collapse to a one-line cross-reference per the artifact-compaction rule. No
+  content is lost — the corroborating evidence merges into the surviving record.
+- Cheap and mechanical, but it gates trusting any toolchain status on this board.
+
 ## ATLAS-ENV-TOOLCHAIN-001 — RUSTC override breaks the shared cache [chore] — todo
 
 - Owner: environment, not code — recorded so the next agent does not misdiagnose it
@@ -564,12 +579,21 @@
   `alloca` dev dependency (ATLAS-ENV-CC-1). The earlier entry attributed all
   `--tests` failures to cache poisoning; they have two independent causes, and
   only the poisoning one is now cleared.
-- Still open, and still a user decision rather than an agent fix: one distribution
-  for the stack, committed as `rust-toolchain.toml` rather than living in one
-  machine's `PATH` order and rustup state. The rustup default is
-  `1.97.0-x86_64-pc-windows-gnu`; `rustup override list` reported **no** overrides
-  from `repos/hephaestus`, so the CFDrs 1.95.0 override noted above may already be
-  gone — re-verify before acting on it.
+- **SSOT correction — this item is not the owner.** The same environment root
+  cause is tracked twice: here, and as `ATLAS-TOOLCHAIN-COHERENCE-001`, which a
+  peer marked **resolved** on 2026-07-30 with user authorisation to clear the
+  rustup overrides (7 entries purged, mixed generations evicted, `rustup override
+  list` now empty). That record is more complete than this one and reaches the
+  same conclusion independently — two rustc distributions on one host are two
+  compilers regardless of matching version hashes, and MSYS2's rust on `PATH` is
+  the surviving residual. Treat `ATLAS-TOOLCHAIN-COHERENCE-001` as the owning
+  record; the paragraphs above stand only as this session's corroborating
+  evidence, and the "still a user decision" framing they replaced is withdrawn.
+- Consolidation defect found while reconciling: `ATLAS-TOOLCHAIN-COHERENCE-001`
+  appears as **two separate `##` headings with the same ID** (one
+  `— in-progress (environment fixed; residuals)`, one `— todo`), and this
+  `ATLAS-ENV-TOOLCHAIN-001` is a third record of the same concern. Three records,
+  one fact. Filed as ATLAS-PM-TOOLCHAIN-SSOT-1.
 ## ATLAS-GAIA-GITDEP-001 — Gaia's committed path dep makes it unconsumable as a git dependency [patch] — done
 
 - **Resolved 2026-07-28** at gaia `1190ace`: eunomia, leto, melinoe, mnemosyne,
