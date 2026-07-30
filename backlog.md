@@ -1290,10 +1290,19 @@ path is open.
   resolution domain; closing athena's 36 residual requires this entry to
   flip from `todo` to `done` independently via the pin-drift method above.
 
-## ATLAS-OVERLAY-003 — Retire committed [patch] blocks from 7 member manifests [patch] — todo
+## ATLAS-OVERLAY-003 — Retire committed [patch] blocks from 7 member manifests [patch] — in-progress
 
-- Owner: unclaimed; scope: `repos/{CFDrs,coeus,gaia,helios,kwavers,leoneuro-rs,ritk}`
-  `Cargo.toml` and their parent gitlinks.
+- Owner: session-2026-07-30-board-ssot; last-update: 2026-07-30. Scope claimed:
+  `repos/{kwavers,leoneuro-rs,ritk}` `Cargo.toml` + `Cargo.lock` and their
+  parent gitlinks — the four other repos are already clean (re-measured:
+  CFDrs 0, coeus 0, gaia 0, helios 0 `[patch]` sections; kwavers 9,
+  leoneuro-rs 5, ritk 9 remain).
+- Re-measurement notes: every first-party melinoe dependency is git-form, so
+  the `[patch.crates-io] melinoe` entries in kwavers/leoneuro-rs patch a source
+  no dependency uses — dead entries, dropped with the rest. ritk's `Cargo.toml`
+  carries 36h-stale uncommitted path→git conversion dirt (dead session,
+  taken over under this item); its segment-command source dirt is separate
+  work, not absorbed here, left in place.
 - Outcome: each member returns to `git + version` sources and is consumable as
   a clean git dependency. Cargo honors a manifest `[patch]` only in the root
   manifest of the build, so these blocks are already inert for every consumer;
