@@ -7,11 +7,59 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-SUBSTRATE-001 — Extend the Hephaestus operation seams to Coeus's call surface [arch] [minor] — todo
+## ATLAS-SUBSTRATE-001 — Extend the Hephaestus operation seams to Coeus's call surface [arch] [minor] — in-progress
 
-- Owner: unclaimed; scope: `repos/hephaestus/crates/hephaestus-core/src/domain/`
+- Owner: shared — the seam **declarations** are landed by this session on
+  `hephaestus` branch `codex/hephaestus-compute-seams`; a live peer is working
+  the **wgpu implementors** on that same branch. Scope split recorded under
+  "Composition" below. Scope: `repos/hephaestus/crates/hephaestus-core/src/domain/`
   (new seam modules) plus one `<backend>/src/application/*_seam.rs` adapter per
   family. One operation family per claim.
+
+### Landed 2026-07-30 — seam declarations (branch `codex/hephaestus-compute-seams`)
+
+- `d3aa627` declares all three families in `hephaestus-core/src/domain/`:
+  `ElementwiseOps` (new `elementwise.rs`: unary / binary / typed-binary, each
+  with a prepared+dispatch pair), `FullReductionOps` (`reduction.rs`), and
+  `ScanOps` (`scan.rs`). All follow the established shape — generic over
+  `<D: ComputeDevice, T: Pod>`, associated `Dialect`, GAT `Prepared<const N>`,
+  no `dyn`. `AxisReductionOps` additionally gains a **defaulted**
+  `reduce_axis_into`, and `prod_axis_into` becomes defaulted in terms of it, so
+  no existing implementor breaks; `hephaestus-wgpu` overrides
+  `reduce_axis_into` with its prepared-dispatch path.
+- `8d1c6b1` formats them and resolves their intra-doc links.
+- Provenance: `d3aa627` is a **rescue** of uncommitted work found in the
+  `repos/hephaestus` tree on lane branch
+  `codex/hephaestus-product-axis-reduction-parity`, whose base was 23 commits
+  behind `master`. Replayed onto `master` rather than developed further on the
+  stale base. That lane also holds `f778445` (product-axis parity: `ProdOp`,
+  `prod_axis_into`, `reduce_axis`), which is **not** superseded by master and
+  **not** carried here — it conflicts with master's `EqOp`/typed-comparison work
+  as a genuine union merge. Filed as ATLAS-HEPH-PRODUCT-PARITY-1.
+- Verified (`hephaestus-core`): `cargo fmt --check` clean; `clippy --all-targets
+  -D warnings` clean; `nextest` 60/60 in 0.34s; `hephaestus-wgpu --lib` check and
+  clippy clean. **Not** verified: any backend test binary — the host `gcc` is
+  broken (silent exit 1 on a trivial compile), which fails the `alloca` **dev**
+  dependency, so `--all-targets` cannot build for the GPU backends. Filed as
+  ATLAS-ENV-CC-1. The library path is unaffected.
+- Remaining for acceptance: the three new seams have **zero implementors**, so no
+  conformance clause exercises them and the Coeus deduplication stays blocked.
+  Declarations alone do not close this item.
+
+### Composition with the live peer (2026-07-30)
+
+- Evidence of a live tree-mate in `repos/hephaestus`: cargo package-cache lock
+  contention during this session, `.cargo/config.toml` changing mid-session, the
+  peer pushing this session's own `d3aa627` to `origin`, and an untracked
+  `crates/hephaestus-wgpu/src/application/full_reduction_seam.rs` appearing.
+- Split: this session owns `hephaestus-core/src/domain/*` (declarations,
+  formatting, docs). The peer owns the `hephaestus-wgpu` `*_seam.rs`
+  implementors. Their untracked file was left untouched; their
+  `54794f2` (`build: Drop target-cpu=native from the workspace cargo config`) was
+  preserved rather than absorbed after it was inadvertently swept into an amend.
+- Because the branch is shared and the peer is mid-work, it is **not** merged to
+  `master` by this session: the item's DoD is unmet and merging would cut off
+  in-flight work. Whoever lands the implementors integrates the branch.
 - Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §1-§2.
 - Outcome: elementwise, reduction, and scan gain device-generic seams beside the
   existing `DenseVectorOps`, `SparseOperatorOps`, and `AxisReductionOps`, so a
@@ -398,6 +446,58 @@
   overlay no longer needs them. Reconciling or deleting them belongs to
   ATLAS-OVERLAY-004.
 
+## ATLAS-HEPH-PRODUCT-PARITY-1 — Land the stranded product-axis parity commit [patch] — todo
+
+- Owner: unclaimed; scope: `repos/hephaestus` commit `f778445` on lane branch
+  `codex/hephaestus-product-axis-reduction-parity`.
+- The lane's base is 23 commits behind `master`; its seam work was rescued and
+  replayed under ATLAS-SUBSTRATE-001, but `f778445` was left behind because it
+  is **not** superseded — it adds `ProdOp`, `prod_axis_into`, and `reduce_axis`
+  to the CUDA/ROCm/WGPU contract-test export lists, while `master` independently
+  added `EqOp`, `binary_elementwise_strided_typed`, and
+  `scalar_elementwise_strided` to the same lines. Cherry-picking conflicts in
+  `crates/hephaestus-{cuda,rocm}/tests/contract.rs` as a genuine **union** merge,
+  not a supersession.
+- Acceptance: `f778445` replayed onto `master` with both export sets unioned; the
+  contract tests build. Note the local test-build caveat in ATLAS-ENV-CC-1.
+- Once landed, delete the stale lane branch (it holds nothing else unique).
+
+## ATLAS-ENV-CC-1 — Host gcc is broken, blocking every C dev-dependency [chore] — todo
+
+- Owner: environment, not code — recorded so the next agent does not misdiagnose
+  it as a dependency or backend defect.
+- Symptom: `error occurred in cc-rs: command did not execute successfully` for the
+  `alloca` crate, so `cargo check -p hephaestus-wgpu --all-targets` fails while
+  `--lib` succeeds. `alloca` is a **dev** dependency, so only test/bench/example
+  targets are affected; library code verifies normally.
+- Cause is the host toolchain, not cargo: `D:\msys64\ucrt64\bin\gcc.exe` (16.1.0)
+  answers `gcc -v` correctly but **exits 1 with no diagnostic at all** on a
+  trivial `int main(void){return 0;}` compile. That silent failure pattern is a
+  broken/partial MinGW installation — typically `cc1.exe` failing to load — not a
+  flag or include-path problem.
+- Impact: no GPU-backend test binary can be built locally on the gnu host, so
+  backend work is limited to `--lib` verification plus CI. An msvc 1.97.0 rustup
+  toolchain is installed and would avoid MinGW entirely, but switching host
+  triple re-keys the shared cache and forces a stack-wide rebuild.
+- Acceptance: a trivial `gcc` compile succeeds, or the stack pins the msvc host
+  with the cache cost accepted and recorded.
+
+## ATLAS-HEPH-DOC-LINKS-1 — hephaestus-core fails the rustdoc gate [patch] — todo
+
+- Owner: unclaimed; scope: `repos/hephaestus/crates/hephaestus-core/src/domain/`
+  module docs.
+- `RUSTDOCFLAGS=-D warnings cargo doc -p hephaestus-core --no-deps` fails on
+  `master` with five unresolved intra-doc links, all pre-existing:
+  `HephaestusError::LengthMismatch` (`device.rs:176`), and `AxisReductionOps`,
+  `DenseVectorOps`, `SparseOperatorOps` (`reduction.rs:13,17,18`), `StridedView`
+  (`view.rs:9`).
+- Root cause: a bare `` [`Item`] `` link written in a module-level `//!` doc does
+  not resolve in this crate; the crate-root path form (`` [`crate::Item`] ``)
+  does. ATLAS-SUBSTRATE-001's `8d1c6b1` used the resolving form for its own new
+  links, so the count is unchanged rather than increased.
+- Acceptance: the five links resolve and the doc gate passes under `-D warnings`,
+  so the gate can be trusted to catch the next regression.
+
 ## ATLAS-ENV-TOOLCHAIN-001 — RUSTC override breaks the shared cache [chore] — todo
 
 - Owner: environment, not code — recorded so the next agent does not misdiagnose it
@@ -446,6 +546,30 @@
 - Blocks ATLAS-ARCH-001's shared-suite increment and any hephaestus test build.
 - Workaround for lib-only work: `env -u RUSTC -u RUSTDOC cargo ...` builds
   coherently against the MSYS2 pair; it does not help `--tests`.
+
+- **Converged 2026-07-30 — pick rustup, not MSYS2, and eviction terminates.**
+  The "non-convergent" result above came from choosing the *MSYS2* pair. Choosing
+  the **rustup** pair converges, because the cache is predominantly rustup-built:
+  prepend `C:\Users\<user>\.cargo\bin` to `PATH` **and keep** `RUSTC` pointed at
+  rustup's shim, so cargo *and* rustc are both rustup 1.97.0-gnu. Note this means
+  the existing `RUSTC` export is **correct and load-bearing** — unsetting it is
+  what silently hands cargo the MSYS2 rustc. That inverts the "drop the exports"
+  fix direction recorded above; what actually has to change is `PATH` order.
+- Under that pair, eviction terminated after **two** packages — `object` (156
+  files, 106 MB) and `memchr` — and `cargo check -p hephaestus-core --all-targets`
+  then succeeded, with `nextest` running 60/60. So a hephaestus **test** build is
+  no longer blocked, and the recorded "does not help `--tests`" no longer holds.
+- Disambiguation that matters for the next agent: `hephaestus-wgpu --all-targets`
+  still fails, but **not** from E0514 — it is the broken host `gcc` failing the
+  `alloca` dev dependency (ATLAS-ENV-CC-1). The earlier entry attributed all
+  `--tests` failures to cache poisoning; they have two independent causes, and
+  only the poisoning one is now cleared.
+- Still open, and still a user decision rather than an agent fix: one distribution
+  for the stack, committed as `rust-toolchain.toml` rather than living in one
+  machine's `PATH` order and rustup state. The rustup default is
+  `1.97.0-x86_64-pc-windows-gnu`; `rustup override list` reported **no** overrides
+  from `repos/hephaestus`, so the CFDrs 1.95.0 override noted above may already be
+  gone — re-verify before acting on it.
 ## ATLAS-GAIA-GITDEP-001 — Gaia's committed path dep makes it unconsumable as a git dependency [patch] — done
 
 - **Resolved 2026-07-28** at gaia `1190ace`: eunomia, leto, melinoe, mnemosyne,
