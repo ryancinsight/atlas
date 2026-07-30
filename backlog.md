@@ -7163,3 +7163,45 @@ silently absorbed.
 
 Remaining stage B: cfd-3d (blocked), cfd-1d, then delete the
 `cfd_math::iterative` facade and the leto-ops iterative dependency.
+
+### Stage B progress 2026-07-29 (late) — cfd-1d converted
+
+`4ca6518d`. The network solver's iterative tier is on Athena.
+
+- The CG and BiCGSTAB arms were identical apart from the recurrence, so they
+  collapse onto `SolverKind`. `LinearSolverMethod` stays as the domain-facing
+  choice and maps onto it.
+- `DiagJacobi` gained an Athena implementation that applies straight over the
+  borrowed views — elementwise, so no scratch and no copy, unlike the AMG
+  boundary which must buffer.
+- The post-solve residual check is kept, with its reason now explicit: the
+  solve runs on the **row-equilibrated** matrix, so meeting the tolerance
+  there does not bound the residual of the original system. Athena reporting
+  convergence is one of two acceptance conditions, not the only one.
+
+Verification: cfd-1d **736/736** nextest including the primary-solve
+reliability cases that exercise this path, `cargo check` clean.
+
+### Correction to an earlier claim
+
+I recorded after `40ef080c` that "cfd-math is fully off the leto-ops iterative
+family". True as stated, but incomplete as an impression: `cfd-math`
+`nonlinear_solver/jfnk.rs` carries its **own hand-rolled matrix-free
+restarted GMRES** (`gmres_matrix_free`), which never used leto-ops. It is a
+fifth GMRES in the stack after leto-ops, the deleted CFDrs copy, kwavers, and
+Athena. Filed below.
+
+## ATLAS-JFNK-MATRIX-FREE-GMRES-001 — Converge JFNK onto Athena [minor] — todo
+
+- `cfd-math/src/nonlinear_solver/jfnk.rs` implements restarted GMRES inline for
+  Jacobian-free Newton-Krylov, using only matrix-vector products.
+- Migrating it needs Athena's `LinearOperator` over a Jacobian-vector closure.
+  Check first whether that closure needs `&mut self` — if so it hits the same
+  blocker as Kwavers stage C (`ATLAS-GMRES-FORK-CONVERGE-001`), and the two
+  should be solved together rather than separately.
+- `cfd-1d/src/solver/core/newton_fallback.rs:223` feeds `krylov_restart` into
+  this config, so it is the last cfd-1d reference to a non-Athena solver.
+
+Remaining stage B: cfd-3d (blocked on peer activity in `cfd-3d/src/fem`), JFNK,
+then delete the `cfd_math::iterative` facade and the leto-ops iterative
+dependency.
