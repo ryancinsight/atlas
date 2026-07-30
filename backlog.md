@@ -603,9 +603,14 @@
   `codex/coeus-error-function-parity`). Fixing them locally would duplicate
   landed work; the cure is the integration item below.
 
-## ATLAS-COEUS-MAIN-SYNC-1 — Integrate coeus origin/main into the stack [arch] [major] — todo
+## ATLAS-COEUS-MAIN-SYNC-1 — Integrate coeus origin/main into the stack [arch] [major] — in-progress
 
-- Owner: unclaimed; scope: `repos/coeus` + every stack consumer of coeus
+- Owner: session-2026-07-30-board-ssot; last-update: 2026-07-30 (evening).
+  Increment 1 claimed: the provider-side union merge inside `repos/coeus`
+  (main into the pinned branch), verified by coeus's own gates — consumers
+  untouched until it lands. Scope claimed for this increment: `repos/coeus`
+  only.
+- Full scope: `repos/coeus` + every stack consumer of coeus
   (ritk, kwavers, helios at minimum) + the umbrella gitlink and overlay.
 - The stack pins coeus at `80bb2707`, now **103 commits behind**
   `origin/main` (`d77937dc`), which carries multiple breaking changes:
