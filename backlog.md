@@ -7082,6 +7082,113 @@ epos\coeus        1.97.0-x86_64-pc-windows-msvc
 - Cost so far: clippy could not be run for the `chain.rs` increment
   (`40ef080c`) or the cfd-2d pressure increment (`10fdd86e`).
 
+### Resolved 2026-07-30 — user authorised clearing the overrides
+
+Status: **resolved**; clippy runs clean again and the blocker is discharged.
+
+**Correction to the 07-29 resolution above.** That entry concluded the host was
+coherent because "`cargo`/`rustc` now resolve to the same MSYS2 1.97.0 (hash
+2d8144b78, matching rustup's 1.97.0)". The hash matching is not sufficient, and
+this is why the problem recurred. `rustc -vV` for the two builds:
+
+```
+rustc 1.97.0 (2d8144b78 2026-07-07) (Rev1, Built by MSYS2 project)  LLVM 22.1.8
+rustc 1.97.0 (2d8144b78 2026-07-07)                                 LLVM 22.1.6
+```
+
+Same commit, same host triple, **different version strings** — and E0514
+compares the version string, not the hash. Today's errors printed both strings
+side by side in the same build. Two rustc distributions on one host are two
+compiler identities regardless of how close their versions look.
+
+**Five distinct cache-forking sources found and fixed:**
+
+1. *Rustup directory overrides* — 7 entries, mixing 1.95.0/1.97.0 and
+   gnu/msvc, 3 of them pointing at directories that no longer exist. All
+   cleared (`rustup override unset`); every member now resolves through its
+   committed pin. `rustup override list` reports none.
+2. *Divergent committed pins* — `moirai` 1.95.0 (`a091db2`), `consus` a
+   floating `stable` that resolved to 1.95.0 on this host (`f0c2869`),
+   `helios` 1.97.1 (`9be1b9d`). All to 1.97.0, the standard held by 13 other
+   members. Moirai's MSRV (`rust-version = "1.95"`) is deliberately unchanged
+   — the build pin and the support floor are different things.
+3. *`-C target-cpu=native` in `.cargo/config.toml`* — `hephaestus`
+   (`54794f2`) and `leto` (`29acd60`). Not previously identified as a cache
+   problem and arguably the most expensive one: **rustflags are part of
+   Cargo's fingerprint**, so every dependency these two shared with their
+   siblings was compiled twice and each repo switch invalidated the other's
+   copy. Leto sits near the bottom of the stack, so its fork propagated
+   through nearly everything above it. It was also the wrong layer — both are
+   consumed as libraries, so ISA selection belongs at runtime.
+   `consus/.cargo/config.toml` carries the same flag but scoped to
+   `linux-gnu`/`windows-msvc`, inert on this host; left alone, noted.
+4. *Cache forks* — `target_isolated/` (2.7 GB) plus repo-local `target/`
+   trees in CFDrs, helios, kwavers, mnemosyne, ritk. 3.4 GB, all deleted.
+5. *The poisoned generation itself* — `D:\atlas\target` held 308.7 GB across
+   three compiler generations (MSYS2 1.97.0, rustup 1.97.0, 1.95.0). Purged;
+   **307 GB reclaimed**. A peer build started during the delete and holds the
+   1.6 GB remainder, which is its own fresh output.
+
+**Verification.** `cargo clippy -p cfd-io --all-targets` — the command that had
+failed three times — completes clean, no E0514. Toolchain resolution now
+uniform at `1.97.0-x86_64-pc-windows-gnu` across all 28 members.
+
+**Residual — one root cause survives.** Two rustc distributions are still
+installed, and `D:\msys64\ucrt64\bin` precedes `~/.cargo/bin` in the *machine*
+PATH, so a bare `cargo` still gets MSYS2's, which ignores `rust-toolchain.toml`
+entirely. Every pin above is only honoured when the build routes through
+rustup. Agents must therefore export `RUSTUP_TOOLCHAIN` and put the toolchain
+bin first, which is fragile. The clean fix is to remove MSYS2's rust package
+(`pacman -R mingw-w64-ucrt-x86_64-rust`, 235 MiB, `Required By: None`) — this
+leaves `ucrt64/bin` and its gcc/ld intact, which the gnu target needs, and
+removes only the duplicate compiler. Software removal, so it needs the user's
+go-ahead.
+
+**Still open from the original scope:** pins for the 9 unpinned members
+(CFDrs, coeus, gaia, hephaestus, kwavers, leto, mnemosyne, ritk,
+parity_artefacts) — they resolve to 1.97.0 today only because that is the
+rustup default, so a `rustup default` change would silently move them; and the
+preflight compiler-identity-vs-pin check for the sweep.
+
+## ATLAS-CFDMATH-MATRIX-FREE-OPERATOR-001 — Restore the matrix-free operator [patch] — todo
+
+First finding the toolchain fix exposed: `cargo clippy --all-targets` on
+cfd-math fails E0432 — `benches/math_benchmarks.rs` imports
+`linear_solver::matrix_free::{LaplacianOperator2D, LinearOperator}`, a module
+deleted by `6d18a547` ("replace local CG/BiCGSTAB/GMRES with leto-ops
+wrappers"). The bench has not compiled since, and nothing caught it because
+`--all-targets` could not run. Not caused by the Athena migration, but it is
+cfd-math's defect and a rotted build target.
+
+- **Deleting the bench is not the fix** (runtime-budget rule: a breaching or
+  broken bench is root-caused, never removed). `LaplacianOperator2D` needs
+  reinstating as an Athena `LinearOperator` implementation.
+- **Shares its deliverable with JFNK.** `nonlinear_solver/jfnk.rs` still
+  carries its own `gmres_matrix_free`, and migrating it needs exactly this —
+  an Athena `LinearOperator` over a Jacobian-vector product. Build the
+  matrix-free operator once and both consumers land on it; doing JFNK first
+  would build it twice.
+
+## ATLAS-CFDMATH-CLIPPY-FINDINGS-001 — Discharge the clippy backlog [patch] — todo
+
+With clippy running again, the previously ungated increments report. Mine:
+
+- `linear_solver/block_preconditioner.rs:1132` — the Athena `Preconditioner`
+  impl was appended *after* the `mod tests` block (`items_after_test_module`).
+- `preconditioners/multigrid/amg.rs:131` — `athena_boundary:
+  Arc<Mutex<Option<(MultigridVector<T>, MultigridVector<T>)>>>` trips
+  `type_complexity`; the cached-boundary pair wants a named type.
+- `preconditioners/ilu/tests.rs:5` — `cfd_core::error::Error` no longer used.
+- `tests/amg_integration_test.rs` — **not just unused imports**: every helper
+  in the file is dead (`PoissonSystem`, `create_poisson_system`,
+  `create_rhs`, `apply_preconditioner`, `energy_norm`, …), so the file has
+  lost its `#[test]` coverage rather than merely its imports. This is a
+  coverage regression from the migration and needs the tests rewritten
+  against Athena, not the warnings silenced.
+
+Pre-existing, tidy-first candidates: `optimization/pareto.rs:179`
+(`assign_op_pattern`), `:291` (`cast_lossless`).
+
 ### Stage B progress 2026-07-29 (later) — chain.rs converted
 
 `40ef080c`. cfd-math is now fully off the leto-ops iterative family.
