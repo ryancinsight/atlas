@@ -470,18 +470,47 @@
   and CudaC, `IdentityToken` across f32/u32/i32 for all three dialects, and
   `OpIdentity` for the integer scalars. All four backends `check --tests` clean;
   cuda, rocm, and metal clippy clean at `-D warnings`.
-- Verification limits, recorded rather than papered over: `hephaestus-wgpu`
-  clippy could not complete, blocked by ATLAS-HEPH-CONFORMANCE-LETO-1 below —
-  independent of this commit and reproducing without it. Device-executed cases
-  need vendor hardware absent from this host; the contract tests compile but
-  only their typed-unavailable paths run here.
+- **Verification completed after the leto blocker cleared** (superseding the
+  limits first recorded here, which were pessimistic). Full suite at `8bc589a`,
+  run in a throwaway lane at `master`: `hephaestus-wgpu` clippy `--tests
+  -D warnings` clean, and **487 tests pass with none slow or terminated** —
+  wgpu 199/199 (114s wall for the suite), cuda 132/132, core 67/67, rocm 53/53,
+  metal 36/36.
+- Correction to this commit's own message: it says device-executed cases "still
+  require vendor hardware absent from this host". That is wrong for wgpu — the
+  host **does** expose an adapter, so the new column/row product, transposed-
+  layout, and typed-rejection cases really executed device dispatch rather than
+  compiling only. Left uncorrected in git (the commit is on `master` and shared);
+  corrected here, which is the record that gets read. Genuinely unexercised
+  here: ROCm needs Linux and Metal needs macOS, so those two suites ran their
+  typed-unavailable paths only.
 - Retired with it: lane branch `codex/hephaestus-product-axis-reduction-parity`,
   whose two unique commits are both now on `master` by content (ADR 0028,
   the `ProdOp` assertions, and `elementwise.rs` all verified present).
 
-## ATLAS-HEPH-CONFORMANCE-LETO-1 — Stale `repos/leto` checkout breaks conformance stack-wide [patch] — todo
+## ATLAS-HEPH-CONFORMANCE-LETO-1 — Stale `repos/leto` checkout breaks conformance stack-wide [patch] — done
 
-- Owner: unclaimed; scope: the `repos/leto` checkout, **not** hephaestus source.
+- **Resolved 2026-07-30, within the hour it was filed**, by a tree-mate moving
+  `repos/leto` from `codex/leto-real-sparse-lu` onto `main` (branch content fully
+  merged, 0 behind). `cargo check -p hephaestus-conformance` now finishes clean,
+  and the `hephaestus-wgpu` verification it was blocking is discharged under
+  ATLAS-HEPH-PRODUCT-PARITY-1 above.
+- Kept rather than deleted because the **failure mode** is the reusable lesson,
+  not the incident: a member parked on a feature branch silently becomes the
+  version every consumer resolves, since the stack `[patch]` overlay points at
+  local working trees. It surfaces as a compile error in the *consumer*
+  (`hephaestus-conformance`), attributable to neither repo, and no lockfile or
+  manifest records it. First diagnostic step for an unexplained
+  `E0432: unresolved import` on a first-party crate is `git -C repos/<provider>
+  rev-parse --abbrev-ref HEAD`, not the provider's source.
+- Sweep run at closure: no other member is parked on a branch carrying unique
+  unmerged work. Pin drift is a separate matter — `coeus` sits 103 commits and
+  `ritk` 33 behind their defaults at the gitlink, which is pinning rather than
+  this defect, but worth a deliberate look under the overlay items.
+
+- Original diagnosis retained below.
+- Owner: was unclaimed; scope: the `repos/leto` checkout, **not** hephaestus
+  source.
 - `cargo check -p hephaestus-conformance` fails with `E0432: unresolved imports
   leto::ConvolutionParameters, leto::TransposedConvolutionParameters` (and, one
   layer in, `leto_ops::convolution_forward_into`,
