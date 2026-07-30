@@ -572,6 +572,21 @@
   now trivial — main is an ancestor of `054244a`); until then the pin stays on
   the branch. Owner of the sparse-LU item should merge and retire the branch.
 
+## ATLAS-KWAVERS-ALLOC-TEST-RACE-1 — Allocation-count test races the harness [patch] — todo
+
+- Owner: unclaimed; scope: `repos/kwavers`
+  `crates/kwavers-grid/tests/geometry_allocation.rs` (landed with the Tyche
+  collocation integration `e5a3462fe`).
+- `fixed_domains_allocate_only_their_output_matrix` asserts constructor
+  allocations == 0 through a process-global `stats_alloc` counter. The counter
+  observes every thread in the process, including nextest harness/output
+  threads, so under full-suite load the window occasionally records foreign
+  allocations (observed: 2 at `geometry_allocation.rs:17`); in isolation it
+  passes 3/3. Flakiness is authored into the instrument, not the constructors.
+- Acceptance: the measurement is confined to the test's own effects (per-thread
+  counting allocator, or assert on a re-measured quiet window with the
+  race documented), and the test passes under full-suite load repeatedly.
+
 ## ATLAS-COEUS-SWALLOWED-RESULTS-1 — coeus-autograd ignores fallible add_assign [patch] — todo
 
 - Owner: unclaimed; scope: `repos/coeus` `crates/coeus-autograd` +
