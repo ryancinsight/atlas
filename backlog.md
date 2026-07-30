@@ -7015,10 +7015,14 @@ cfd-validation, then delete the `cfd_math::iterative` facade.
 - **Evidence (2026-07-29).** `rustup override list`:
 
   ```
-  D:tlasepos\CFDrs        1.95.0-x86_64-pc-windows-gnu
-  D:tlasepos\hephaestus   1.95.0-x86_64-pc-windows-msvc
-  D:tlasepos\leto         1.95.0-x86_64-pc-windows-gnu
-  D:tlasepos\coeus        1.97.0-x86_64-pc-windows-msvc
+  D:tlas
+epos\CFDrs        1.95.0-x86_64-pc-windows-gnu
+  D:tlas
+epos\hephaestus   1.95.0-x86_64-pc-windows-msvc
+  D:tlas
+epos\leto         1.95.0-x86_64-pc-windows-gnu
+  D:tlas
+epos\coeus        1.97.0-x86_64-pc-windows-msvc
   ```
 
   plus `repos/athena/rust-toolchain.toml` pinning `1.97.0`,
@@ -7084,4 +7088,47 @@ an improvement the warm path received and the cold one did not, and adopting
 it changes which solver answers a given system.
 
 Remaining stage B: cfd-3d, cfd-1d, cfd-validation, then delete the
+`cfd_math::iterative` facade and the leto-ops iterative dependency.
+
+### Stage B progress 2026-07-29 (evening) — cfd-3d deferred, cfd-validation converted
+
+**cfd-3d was not attempted.** Both its solver files were being edited live:
+`crates/cfd-3d/src/fem/solver.rs` had a modification timestamp one minute
+before I began, alongside 17 other dirty cfd-3d files from a peer's Quantity
+migration. Editing there would have collided destructively, so the scope was
+skipped rather than taken. **Re-open trigger: cfd-3d/src/fem goes quiet.**
+
+Its two sites when it does: `projection_solver.rs` holds a `GMRES` and a
+`ConjugateGradient` field, and `solver.rs` holds `_linear_solver: GMRES<T>` —
+note the underscore, it is already dead and should be deleted rather than
+converted. `solver.rs` also drives `LinearSolverChain`, which is already on
+Athena.
+
+**cfd-validation converted instead**, `f8634e43` — a clean, disjoint file.
+
+- `Vec<(&str, Box<dyn LinearSolver<T>>)>` becomes `SolverKind`, the closed-set
+  enum dispatch decided earlier. Athena's markers carry const generics and
+  backend GATs and are not object-safe, so this was the one site that could
+  not be a mechanical swap.
+- Same correction `chain.rs` needed: Athena reports a stalled or broken-down
+  solve in the report, not as `Err`, so a bare match would have **recorded a
+  non-converged iterate as a validation result**.
+- The split between fatal and tolerated failure is preserved deliberately: the
+  ill-conditioned Hilbert case is expected to break down; the diagonal and
+  Poisson cases are not.
+- `SolverKind` lives in cfd-math beside the other entry points so the
+  pressure-velocity dispatch can adopt it rather than keep its own match —
+  **follow-up**.
+
+Verification: `cargo check` clean for cfd-validation and cfd-math. Tests could
+not run — `repos/hephaestus` is mid-rebase onto a branch four commits behind
+master, so `hephaestus-core` does not compile in the shared tree. **Re-run the
+cfd-validation suite once that settles.**
+
+Note the compounding cost: three consecutive increments have now had a gate
+blocked by shared-tree churn — clippy twice by `ATLAS-TOOLCHAIN-COHERENCE-001`,
+tests once by a mid-rebase hephaestus. The verification debt is tracked, not
+silently absorbed.
+
+Remaining stage B: cfd-3d (blocked), cfd-1d, then delete the
 `cfd_math::iterative` facade and the leto-ops iterative dependency.
