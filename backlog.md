@@ -450,19 +450,60 @@
   overlay no longer needs them. Reconciling or deleting them belongs to
   ATLAS-OVERLAY-004.
 
-## ATLAS-HEPH-PRODUCT-PARITY-1 — Land the stranded product-axis parity commit [patch] — in-progress
+## ATLAS-HEPH-PRODUCT-PARITY-1 — Land the stranded product-axis parity commit [patch] — done
 
-- Owner: session-2026-07-30-seams; last-update: 2026-07-30. Scope claimed:
-  `repos/hephaestus` `crates/hephaestus-core/src/domain/ops.rs`,
-  `crates/hephaestus-{cuda,metal,rocm,wgpu}/tests/contract.rs`,
-  `crates/hephaestus-rocm/src/lib.rs`, `docs/adr/0028-*`, CHANGELOG, README —
-  replaying commit `f778445` from lane branch
-  `codex/hephaestus-product-axis-reduction-parity`.
-- Peer note: a tree-mate is working `hephaestus-rocm` convolution lint contracts
-  on `codex/hephaestus-compute-seams`. This claim touches `hephaestus-rocm`
-  only at the `ProdOp` re-export line in `src/lib.rs` and the axis-reduction
-  block of `tests/contract.rs`; if that collides, the rocm hunk defers and the
-  rest lands.
+- **Landed 2026-07-30** on `hephaestus` `master` as `8bc589a` (fast-forward from
+  `196bc84`). Replayed in worktree lane
+  `worktrees/hephaestus-product-axis-parity`, since the main tree was held by a
+  tree-mate on another branch; lane removed and both branches deleted after the
+  merge, so `git worktree list` is back to the main tree alone.
+- Union resolution, as predicted: `master` had independently added
+  `batched_matmul`, `matpow`, `EqOp`, `binary_elementwise_strided_typed`, and
+  `scalar_elementwise_strided` to the same import lines the lane adds `ProdOp`,
+  `prod_axis_into`, and `reduce_axis` to. Both sides kept in
+  `hephaestus-{cuda,rocm}/tests/contract.rs`; metal and wgpu applied clean.
+- The predicted `hephaestus-rocm` collision with the tree-mate did **not**
+  materialise: their edits sit in the elementwise/full-reduction/scan seam
+  export blocks of `src/lib.rs`, this commit's in the `axis_reduction` block.
+- Verified: `hephaestus-core` fmt, clippy `-D warnings`, and **67/67** nextest —
+  up from 60, the seven new assertions being `ProdOp`'s `CombineExpr` for Wgsl
+  and CudaC, `IdentityToken` across f32/u32/i32 for all three dialects, and
+  `OpIdentity` for the integer scalars. All four backends `check --tests` clean;
+  cuda, rocm, and metal clippy clean at `-D warnings`.
+- Verification limits, recorded rather than papered over: `hephaestus-wgpu`
+  clippy could not complete, blocked by ATLAS-HEPH-CONFORMANCE-LETO-1 below —
+  independent of this commit and reproducing without it. Device-executed cases
+  need vendor hardware absent from this host; the contract tests compile but
+  only their typed-unavailable paths run here.
+- Retired with it: lane branch `codex/hephaestus-product-axis-reduction-parity`,
+  whose two unique commits are both now on `master` by content (ADR 0028,
+  the `ProdOp` assertions, and `elementwise.rs` all verified present).
+
+## ATLAS-HEPH-CONFORMANCE-LETO-1 — Stale `repos/leto` checkout breaks conformance stack-wide [patch] — todo
+
+- Owner: unclaimed; scope: the `repos/leto` checkout, **not** hephaestus source.
+- `cargo check -p hephaestus-conformance` fails with `E0432: unresolved imports
+  leto::ConvolutionParameters, leto::TransposedConvolutionParameters` (and, one
+  layer in, `leto_ops::convolution_forward_into`,
+  `convolution_backward_accumulate`, `TransposedConvolutionGradients`,
+  `convolution_transposed_forward_into`,
+  `convolution_transposed_backward_accumulate`).
+- Cause is checkout state, not a provider gap: `repos/leto` sits on branch
+  `codex/leto-real-sparse-lu`, which predates the convolution provider. Leto's
+  default branch `origin/main` **does** carry it
+  (`crates/leto-ops/src/application/convolution/forward.rs`). Because the stack
+  `[patch]` overlay resolves `leto` to the local working tree, every consumer
+  building under the umbrella gets the branch's leto rather than the released
+  one — so this presents as a hephaestus defect while being neither hephaestus's
+  nor leto's.
+- Not fixed unilaterally: switching a branch in a shared tree moves it for every
+  tree-mate, which AGENTS.md forbids. The checkout was clean and may be held
+  deliberately, though ATLAS-LETO-OPS-SPARSE-LU-001 (the item that branch names)
+  is already closed, which suggests leftover integration debt.
+- Acceptance: `repos/leto` back on `main` (or the branch merged), and
+  `cargo check -p hephaestus-conformance` clean. Worth a general check first —
+  any other member parked on a stale feature branch poisons its consumers the
+  same way, silently.
 - The lane's base is 23 commits behind `master`; its seam work was rescued and
   replayed under ATLAS-SUBSTRATE-001, but `f778445` was left behind because it
   is **not** superseded — it adds `ProdOp`, `prod_axis_into`, and `reduce_axis`
