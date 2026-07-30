@@ -1386,10 +1386,26 @@ path is open.
   leoneuro-rs 5, ritk 9 remain).
 - Re-measurement notes: every first-party melinoe dependency is git-form, so
   the `[patch.crates-io] melinoe` entries in kwavers/leoneuro-rs patch a source
-  no dependency uses — dead entries, dropped with the rest. ritk's `Cargo.toml`
-  carries 36h-stale uncommitted path→git conversion dirt (dead session,
-  taken over under this item); its segment-command source dirt is separate
-  work, not absorbed here, left in place.
+  no dependency uses — dead entries, dropped with the rest.
+- Progress 2026-07-30: **kwavers done** (`395a1e74a` on
+  `codex/kwavers-book-migration-eviction`, pushed; gitlink advanced `48ed142`;
+  standalone git resolution proven with the overlay off — 46 packages lock
+  from pushed revisions; nextest 6042/6043, the one failure filed as
+  ATLAS-KWAVERS-ALLOC-TEST-RACE-1). **leoneuro-rs done locally** (`1b71a79` on
+  `codex/sim-ct-medium`, NOT pushed — third-party org remote, see
+  ATLAS-DOWNSTREAM-COORDINATION-001; workspace was already red before the
+  change from kwavers' typed-Quantity API sweep, ATLAS-MODALITY-002 debt;
+  restoring the old aequitas rev pin makes it worse, 41 vs 37 errors).
+  **ritk in flight**: tree was a detached HEAD at `d1e70df2`, 3 commits behind
+  its own pushed branch `codex/safe-growcut-book` (whose `be610931` already
+  landed the ritk-io junk-drawer renames) — dirt exported, tree attached to the
+  branch tip, dirt 3-way reapplied cleanly (the ARCH-006 filter/cli/io-tests
+  continuation + the path→git manifest conversion incl. all 10 remaining path
+  deps and 9 patch sections removed; overlay regenerated for the new coeus
+  edges). Workspace check green; full nextest running after fixing
+  `tests_native.rs` reduction assertions to the now-fallible coeus sum/mean.
+  Next: commit sweep + manifest on the branch, push, merge origin/main
+  (33 ahead) into it, re-verify, advance the ritk gitlink.
 - Outcome: each member returns to `git + version` sources and is consumable as
   a clean git dependency. Cargo honors a manifest `[patch]` only in the root
   manifest of the build, so these blocks are already inert for every consumer;
