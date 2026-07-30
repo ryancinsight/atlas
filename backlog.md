@@ -1383,10 +1383,22 @@ path is open.
   resolution domain; closing athena's 36 residual requires this entry to
   flip from `todo` to `done` independently via the pin-drift method above.
 
-## ATLAS-OVERLAY-003 — Retire committed [patch] blocks from 7 member manifests [patch] — in-progress
+## ATLAS-OVERLAY-003 — Retire committed [patch] blocks from 7 member manifests [patch] — done
 
-- Owner: session-2026-07-30-board-ssot; last-update: 2026-07-30. Scope claimed:
-  `repos/{kwavers,leoneuro-rs,ritk}` `Cargo.toml` + `Cargo.lock` and their
+- **Resolved 2026-07-30** (session-2026-07-30-board-ssot). Zero `[patch]`
+  sections remain in any member manifest. Closure per repo: **ritk** delivered
+  to main `7840331f` (sweep + full path→git conversion + origin/main merge;
+  nextest 4703/4703; standalone git resolution proven overlay-off; the
+  `codex/safe-growcut-book` branch merged and deleted; gitlink `4caf32b`);
+  **kwavers** `395a1e74a` (gitlink `48ed142`); **leoneuro-rs** `1b71a79`
+  local-only (third-party remote, ATLAS-DOWNSTREAM-COORDINATION-001);
+  CFDrs/coeus/gaia/helios were already clean. `atlas-stack-overlay.py check`:
+  stack aligned. Known limitation: `cargo check --locked` is unreliable under
+  the overlay fleet-wide — cargo writes `[[patch.unused]]` in nondeterministic
+  order, so locked verification runs overlay-off (resolution-level) instead;
+  the churn is ambient derived noise, never committed deliberately.
+- Original scope (for trace): `repos/{kwavers,leoneuro-rs,ritk}`
+  `Cargo.toml` + `Cargo.lock` and their
   parent gitlinks — the four other repos are already clean (re-measured:
   CFDrs 0, coeus 0, gaia 0, helios 0 `[patch]` sections; kwavers 9,
   leoneuro-rs 5, ritk 9 remain).
