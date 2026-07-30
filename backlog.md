@@ -7150,6 +7150,52 @@ increment; for the second it could not run — an in-flight `gaia` change remove
 the `cfdrs-integration` feature cfd-2d depends on, breaking resolution for
 unrelated reasons. **Re-run clippy on cfd-2d once gaia settles.**
 
+## ATLAS-LETO-OWNED-LU-001 — cfd-math consumes an unlanded Leto LU surface [major] — todo
+
+`cfd-math` does not compile on CFDrs main. Not a toolchain fault — the
+compiler is now coherent and the errors are ordinary resolution failures:
+
+```
+E0432 unresolved imports leto_ops::{OwnedNumericLu, SymbolicLu, factor_symbolic}
+E0599 no method `factor_sparse_with_symbolic` on leto_ops::SparseLuSolver
+```
+
+Introduced by `63e49604` ("fix(cfd-3d): Close FEM metric solver gaps"), which
+landed a consumer against a Leto API that was never published — the
+co-evolution order inverted, upstream last instead of first.
+
+**What Leto actually has** (`crates/leto-ops/src/application/sparse/`):
+
+| cfd-math expects | Leto has |
+| --- | --- |
+| `OwnedNumericLu<T>` | nothing — the name exists nowhere in the repo or its history |
+| `SymbolicLu`, `factor_symbolic` | both exist, but are **not** re-exported from `lib.rs` |
+| `SparseLuSolver::factor_sparse_with_symbolic` | no such method |
+| — | `NumericLu<'a, T>`, `factor_numeric` |
+
+**The real requirement is the owned variant, not the re-exports.**
+`NumericLu<'a, T>` borrows the matrix it factorises, so
+`block_preconditioner.rs:629` cannot hold `Vec<OwnedNumericLu<T>>` alongside
+the blocks that produced them — the lending form is what forces an owned
+factorisation to exist. That is upstream work in Leto (upstream ownership),
+not something to approximate inside cfd-math.
+
+- Scope: implement the owned numeric factorisation in `leto-ops` beside
+  `NumericLu`, re-export it with `SymbolicLu`/`factor_symbolic` from
+  `lib.rs`, add the symbolic-reuse entry point, land it, then let cfd-math
+  resolve against it.
+- Acceptance: `cargo clippy -p cfd-math --lib` clean; the block
+  preconditioner's per-block factorisations reused across applications rather
+  than refactored each time.
+- **Warning — possible lost work.** `repos/leto` was destroyed and re-cloned
+  by an external actor mid-session (`git reflog` bottoms out at
+  `clone: from https://github.com/ryancinsight/leto`). Any uncommitted
+  sparse-LU work in that tree is gone, and no branch or dangling object in the
+  repository contains `OwnedNumericLu`. Both Leto lanes under `worktrees/`
+  were searched as well; a stack-wide grep finds the name in exactly one
+  place — the CFDrs consumer that needs it. Whoever wrote `63e49604` should
+  check for an unpushed copy before this is rebuilt from scratch.
+
 Process note: the momentum commit `58f6caab` swept up six files of a peer's
 *staged* Quantity-migration work through an over-broad `git add crates/cfd-2d`.
 Their work is preserved and pushed, but under a message that does not describe
@@ -7454,3 +7500,282 @@ is now the single largest drag on verification.
   genuinely stiff and the fallback routing is selecting the wrong model. The
   budget breach is a defect either way and must not be resolved by raising the
   bound.
+
+---
+
+# Diffusion MRI capability program (gap analysis 2026-07-30)
+
+Audit of the Atlas stack against the reference diffusion-MRI toolchains
+(FreeSurfer, MRtrix3, FSL, DIPY), scoped by
+[ADR 0036](docs/adr/0036-neuroimaging-and-mr-ownership.md). Ownership is settled
+by that ADR — RITK workspace crates, no new package. These items are the
+capability gap under that ownership, ordered by dependency. Waves 0 and 1 gate
+everything after them.
+
+Evidence for each claim is the cited file and line at the gitlink revision of
+2026-07-30. The ADR source audit and the README section were corrected in the
+same change; see ADR 0036 decision 7.
+
+## Wave 0 — acquisition-series ingest (blocks every later wave)
+
+## ATLAS-DMRI-IO-001 — Rank-generic acquisition-series I/O [minor] — todo
+
+- **Outcome**: `ritk-nifti`, `ritk-nrrd`, and `ritk-dicom` read and write a
+  series carrying an acquisition axis, and `ritk-io` dispatches it.
+- **Evidence of gap**: `ritk-nifti/src/header/validate.rs:74` bails on
+  `dim[0] != 3`; `ritk-nrrd/src/reader/mod.rs:137` bails on
+  `dimension != 2 && dimension != 3` and `writer.rs:129` emits a hardcoded
+  `dimension: 3` with `kinds: domain domain domain`;
+  `ritk-io/src/lib.rs:164` fixes `NativeImage = Image<f32, NativeBackend, 3>`.
+- **Non-goals**: no change to `Image<T, B, D>`, which is already rank-generic;
+  no arbitrary-rank generalization beyond one acquisition axis.
+- **Design note**: a DWI series is 3 spatial axes plus 1 acquisition axis, not a
+  4-D image. `Point<4>`/`Spacing<4>`/`Direction<4>` would assert direction
+  cosines over the acquisition axis, which is meaningless. The type carries 3-D
+  spatial metadata plus a per-volume scheme (ATLAS-DMRI-SCHEME-003), so the
+  metadata stays 3-D and only storage gains the axis.
+- **Acceptance**: round-trip a synthesized N-volume series through each codec
+  recovering voxels and spatial metadata exactly; the existing 3-D entry points
+  keep their signatures and tests.
+- **Class**: `[minor]` — additive public surface.
+
+## ATLAS-DMRI-MGH-FRAMES-002 — MGH silently discards frames past the first [patch] — todo
+
+- **Outcome**: multi-frame MGH/MGZ either loads every frame or fails loudly.
+- **Evidence**: `ritk-mgh/src/reader/mod.rs:96-99` reads `nframes`, warns, and
+  returns frame 0 only. A FreeSurfer 4-D `.mgz` therefore loads as valid-looking
+  wrong data — a silent-degradation defect under the error-handling restraint
+  rule, independent of the diffusion program.
+- **Acceptance**: a 3-frame fixture either round-trips all frames or returns a
+  typed error naming the unsupported frame count; no path returns frame 0 while
+  reporting success.
+- **Class**: `[patch]` — defect fix. Deliverable before ATLAS-DMRI-IO-001 lands
+  the full series path.
+
+## ATLAS-DMRI-SCHEME-003 — Typed gradient scheme and its codecs [minor] — todo
+
+- **Outcome**: one typed acquisition scheme — b-value and unit gradient
+  direction per volume, in a declared frame — owned by a RITK domain crate, with
+  codecs in the format crates that carry it.
+- **Evidence of gap**: no b-value, gradient, or diffusion tag handling exists
+  anywhere in the workspace. `ritk-nrrd/src/reader/mod.rs:90` parses the
+  key-value header into a map and discards `DWMRI_gradient_NNNN` and
+  `modality:=DWMRI`; `ritk-dicom` has no `(0018,9087)` / `(0018,9089)` handling
+  and no vendor private-block path.
+- **Scope**: FSL `.bval`/`.bvec` pair; MRtrix `.b` scheme; NRRD DWMRI keys;
+  DICOM standard tags plus Siemens/GE/Philips private blocks. MRtrix `.mif` /
+  `.mif.gz` is a separate container item, not folded in here.
+- **Frame contract**: gradient directions are conventionally in the image axis
+  frame; RITK physical metadata is LPS. Each reader declares the frame it
+  produces and converts once at the boundary.
+- **Acceptance**: cross-codec differential test — one dataset expressed in all
+  four conventions yields the same typed scheme; per-codec round-trip; b-values
+  and directions are Aequitas quantities per ADR 0036 decision 2, not raw `f32`.
+- **Class**: `[minor]`.
+
+## Wave 1 — upstream provider capability (ADR 0036 decision 2 edges)
+
+Each of these lands in the provider that owns the bounded context. A RITK-local
+implementation of any of them is a boundary violation and fails ADR 0036
+verification condition 2.
+
+## ATLAS-COEUS-NLLS-004 — Gauss-Newton / Levenberg-Marquardt in coeus-optim [minor] — todo
+
+- **Evidence of gap**: `coeus-optim` ships `SGD`, `Adam`, `AdamW`, `RMSProp`,
+  and `Adagrad` only — all first-order stochastic, sized for network training.
+- **Why it blocks**: per-voxel diffusion fitting is millions of independent
+  small dense residual problems. A damped Gauss-Newton step with an analytic
+  Jacobian converges in single-digit iterations; a first-order stochastic
+  optimizer is the wrong instrument by orders of magnitude. Log-linear DTI is
+  unaffected — it routes through `leto-ops` (`pinv`, `qr_decompose`,
+  `cholesky_solve`), which already exist.
+- **Blocks**: DKI, NODDI, IVIM, free-water, and every other nonlinear model.
+- **Acceptance**: batched over a leading problem axis; verified against an
+  analytical oracle with a known minimum and against a published test problem
+  set; convergence criterion is a derived relative-residual bound, never a fixed
+  iteration count.
+- **Class**: `[minor]`, repository `repos/coeus`.
+
+## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis over scattered directions [minor] — todo
+
+- **Evidence of gap**: `apollo-sht` owns complex SH on Gauss-Legendre product
+  grids. `infrastructure/kernel/spherical_harmonic.rs:234` exposes
+  `spherical_harmonic(degree, order, theta, phi) -> Complex64`, so pointwise
+  evaluation at an arbitrary direction already exists; the real, even-order,
+  antipodally symmetric basis, the design matrix over a scattered direction set,
+  and Laplace-Beltrami regularization do not.
+- **Why Apollo and not RITK**: Apollo owns the transform bounded context. A
+  RITK-local associated-Legendre or normalization path forks the SH dimension
+  and is the exact failure mode ADR 0036 decision 2 exists to prevent.
+- **Convention pinning**: the basis has several published orderings and
+  normalizations (Descoteaux and Tournier differ). The implementation declares
+  one, and a reference-case test asserts it against published coefficients.
+- **Blocks**: every ODF/FOD model in `ritk-diffusion`.
+- **Class**: `[minor]`, repository `repos/apollo`.
+
+## ATLAS-GAIA-POLYLINE-006 — Polyline geometry and unit-sphere direction sets [minor] — todo
+
+- **Evidence of gap**: `repos/gaia/src/domain` holds `core`, `geometry`, `mesh`,
+  `topology`, and `grid.rs`; no open polyline or curve type exists.
+- **Why it blocks**: ADR 0036 verification condition 5 requires streamline output
+  in Gaia geometry types — a RITK-local polyline type is a boundary violation.
+  `ritk-tractography` cannot satisfy that condition until the type exists.
+- **Second scope**: unit-sphere tessellation and direction-set generation (the
+  DIPY `sphere` and MRtrix `dirs` role), currently unassigned. It is pure 3-D
+  geometry over the unit sphere; Gaia is the owner. Needed for ODF sampling and
+  peak extraction as well as tractography.
+- **Class**: `[minor]`, repository `repos/gaia`.
+
+## ATLAS-LETO-NNLS-007 — Non-negative constrained solve [minor] — todo
+
+- **Evidence of gap**: no `nnls` or constrained quadratic program in `leto`,
+  `coeus`, or `eunomia`.
+- **Why it blocks**: constrained spherical deconvolution — the standard FOD
+  estimator and the core of the MRtrix `dwi2fod` role — is a
+  non-negativity-constrained solve. Unconstrained deconvolution produces negative
+  lobes and is not a substitute.
+- **Owner**: `leto-ops`, alongside the existing `cholesky`, `qr`, `svd`, and
+  `pinv` decompositions.
+- **Sequencing**: assign and land before CSD is scheduled, not during it.
+- **Class**: `[minor]`, repository `repos/leto`.
+
+## Wave 2 — preprocessing (RITK, existing crate owners)
+
+## ATLAS-DMRI-DENOISE-008 — MP-PCA denoising and Gibbs unringing [minor] — todo
+
+- **Outcome**: `ritk-filter` gains Marchenko-Pastur PCA denoising and subvoxel
+  Gibbs ringing removal — the `dwidenoise` and `mrdegibbs` roles, and the first
+  two stages of every current dMRI pipeline.
+- **Evidence of gap**: `ritk-filter` has bilateral, patch-based, median, rank,
+  and anisotropic-diffusion denoising; none is the MP-PCA estimator, which
+  derives its threshold from random-matrix theory rather than a tuned parameter.
+  `ritk-statistics/src/noise_estimation.rs` is MAD over additive Gaussian noise —
+  correct as written, but not the Rician/noncentral-chi model magnitude DWI
+  actually follows.
+- **Related**: Rician bias correction is a third item in the same crate, split
+  out if MP-PCA outgrows its acceptance criteria.
+- **Acceptance**: the MP-PCA threshold is derived from the Marchenko-Pastur
+  distribution and the patch geometry, never an empirical constant; verified on
+  a synthesized field with a known noise level.
+- **Class**: `[minor]`.
+
+## ATLAS-DMRI-CORRECT-009 — Motion, eddy-current, and susceptibility correction [minor] — todo
+
+- **Outcome**: a series-level correction driver in `ritk-registration` — the
+  `eddy` and `topup` roles.
+- **Present**: rigid, affine, B-Spline FFD, Demons, SyN, and LDDMM registration
+  all exist; `ritk-filter/src/bias/n4` covers B1 bias. The registration machinery
+  is not the gap.
+- **Gap**: (a) no driver that registers volume-to-volume across an acquisition
+  axis, which ATLAS-DMRI-IO-001 gates; (b) **no gradient reorientation** — the
+  rotational part of each correction must be applied to that volume gradient
+  direction. A correction that omits this yields a silently wrong tensor field
+  and is the most common defect class in this domain; (c) no
+  susceptibility-distortion path (reversed-phase-encode fieldmap estimation).
+- **Acceptance**: ADR 0036 verification condition 7 — a synthesized anisotropic
+  tensor field rotated by a known transform recovers its principal eigenvector
+  after correction, and the same test fails when reorientation is skipped.
+- **Class**: `[minor]`.
+
+## Wave 3 — the three ADR 0036 crates
+
+## ATLAS-RITK-DIFFUSION-010 — ritk-diffusion crate, tensor model first [minor] — todo
+
+- **Outcome**: the crate ADR 0036 decision 1 names, delivered as complete
+  vertical increments: DTI (log-linear weighted least squares) first, then
+  kurtosis, then multi-compartment, then ODF/FOD.
+- **Present primitive**: `leto/src/application/fixed.rs:290`
+  `FixedMatrix<f64,3>::symmetric_eigen` is exactly the 3x3 symmetric eigen-solve
+  FA/MD/AD/RD and principal-direction extraction need — no new decomposition.
+- **Provider edges (each is an acceptance criterion, per ADR decision 2)**:
+  design-matrix solve through `leto-ops`; nonlinear fitting through
+  ATLAS-COEUS-NLLS-004; SH basis through ATLAS-APOLLO-REALSH-005; per-voxel
+  parallelism through Moirai; physical values as Aequitas quantities.
+- **Acceptance**: ADR 0036 verification condition 3 — a synthesized tensor field
+  round-trips through signal simulation and estimation within a tolerance derived
+  from the scheme condition number and the machine epsilon of `T`. Generic
+  instantiation across every shipped scalar type.
+- **Depends on**: 001, 003; nonlinear increments additionally on 004; ODF
+  increments on 005 and 006.
+- **Class**: `[minor]`.
+
+## ATLAS-RITK-TRACTOGRAPHY-011 — ritk-tractography crate [minor] — todo
+
+- **Scope**: streamline integration (deterministic and probabilistic), seeding
+  strategies, termination criteria, and anatomically-constrained termination.
+  Output typed in Gaia polylines per ADR 0036 verification condition 5.
+- **Depends on**: 006 (polyline type), 010 (a field to track through).
+- **Deferred within scope**: SIFT/SIFT2-class streamline filtering is a separate
+  item once base tractography lands.
+- **Class**: `[minor]`.
+
+## ATLAS-RITK-CONNECTOME-012 — ritk-connectome crate [minor] — todo
+
+- **Scope**: parcellation-to-graph construction and graph measures.
+- **Depends on**: 011 (edges) and 013 (surface parcellations defining nodes).
+- **Constraint**: ADR 0036 decision 6 — graph vocabulary is not promoted to a
+  provider speculatively. It stays in this crate until a second package needs the
+  same vocabulary, at which point the promotion gate is applied.
+- **Class**: `[minor]`.
+
+## Wave 4 — surfaces, containers, delivery
+
+## ATLAS-RITK-FSSURF-013 — FreeSurfer surface formats and label table [minor] — todo
+
+- **Outcome**: RITK reads the FreeSurfer surface family — surface binaries
+  (`lh.white`, `pial`, `inflated`), `curv`, `label`, `annot` — plus the color
+  LUT, and GIFTI as the interchange equivalent.
+- **Evidence of gap**: `ritk-mgh` covers FreeSurfer *volumes* only; no surface,
+  annotation, or LUT reader exists in the workspace.
+- **Why it is a prerequisite, not an optional format**: surface parcellations are
+  how connectome nodes are conventionally defined, so ATLAS-RITK-CONNECTOME-012
+  depends on it.
+- **Deletion ledger** (promotion-gate condition 4, satisfied): the FreeSurfer
+  `aseg` and Desikan `aparc` label table is hand-rolled in a downstream consumer
+  at `repos/leoneuro-rs/crates/leoneuro-gui/src/freesurfer.rs` (137 lines). The
+  RITK owner first increment deletes it and repoints that consumer.
+- **Open**: CIFTI is deferred until a consumer needs HCP-convention data.
+- **Class**: `[minor]`.
+
+## ATLAS-DMRI-TRACTOGRAM-FMT-014 — Tractogram container ownership [arch] — todo
+
+- **Decision needed**: MRtrix `.tck`, TrackVis `.trk`, and TRX are published
+  byte-level interchange specifications, which is the RITK format-crate pattern;
+  ADR 0036 decision 2 routes derived-array persistence to Consus. The two rules
+  point at different owners for the same artifact.
+- **Recommended resolution** (per bias-to-completion, proceed on this unless
+  overridden): an interchange format that other toolchains read is a RITK format
+  crate; a derived-array store for Atlas-internal persistence is Consus. A
+  streamline set written for MRtrix or TrackVis to read is interchange.
+- **Also open**: MRtrix `.mif` / `.mif.gz`, which is both an image container and
+  an embedded gradient-scheme carrier, so it spans 001 and 003.
+- **Deliverable**: ADR 0036 revision recording the resolution, or a new ADR if it
+  generalizes beyond this artifact.
+- **Class**: `[arch]`, no public-surface break — `[patch]` on the SemVer axis.
+
+## ATLAS-DMRI-DELIVERY-015 — CLI, Python, and book surface [minor] — todo
+
+- **CLI**: `ritk` currently exposes `convert`, `filter`, `register`, `segment`,
+  and `stats` (`ritk-cli/src/commands/`). The program adds `dwi` and `tract`
+  command groups.
+- **Python**: `ritk-python` gains the diffusion surface as a thin PyO3 layer —
+  no domain logic, per the binding boundary rule. This is the practical adoption
+  path against the incumbent DIPY workflows.
+- **Book**: ADR 0036 consequences require a diffusion section in the RITK book,
+  sequenced so it can cite the Coeus and Gaia chapters it depends on.
+  `repos/ritk/docs/book/` has the chapter set; `diffusion_filters.md` is
+  anisotropic-diffusion *filtering* and is a different subject — the naming
+  collision needs resolving under the terminology SSOT rule when the dMRI
+  chapter lands.
+- **Class**: `[minor]`. Last wave; each surface follows its crate.
+
+## Out of scope for this program
+
+- **Surface reconstruction** (the `recon-all` role — white and pial surface
+  generation from T1). Ingest of existing FreeSurfer surfaces is item 013;
+  generating them is a distinct research-scale capability with no current
+  consumer, and is demand-gated.
+- **MR acquisition simulation** — closed by ADR 0036 decision 4; opens as an
+  integrator when a program needs to simulate acquisition.
+- **Study and cohort structure** — ADR 0036 decision 3 assigns it to Tyche;
+  RITK supplies per-subject measures as study responses. No `ritk-study` crate.
