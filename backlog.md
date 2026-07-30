@@ -346,6 +346,17 @@
 - Owner: unclaimed; scope: 64 sites declaring `mod utils`, `mod helpers`,
   `mod common`, or `mod shared`, concentrated in `apollo`, `CFDrs`, and `ritk`.
   One package per claim.
+- 2026-07-30 status: a dead session left a large uncommitted ritk sweep
+  (~65 files across ritk-io/ritk-filter/ritk-cli — helpers deleted, importers
+  rewired). Its ritk-io slice was completed and committed by
+  session-2026-07-30-board-ssot (writer `utils.rs` → `pixel_encoding.rs`, the
+  never-created module the importers pointed at; `helpers.rs` → `tag_parse.rs`
+  already done in the dirt): ritk-io compiles. The ritk-filter/ritk-cli dirt
+  remains uncommitted takeover material for this item — `reader/utils.rs` and
+  `rt_dose/utils.rs` in ritk-io are also still unrenamed. Separately, kwavers'
+  landed rename commit `1b4952823` missed two `utils::` references in
+  `fusion/algorithms/tests/registration.rs` (test-profile only, so its gate
+  missed them) — fixed forward to `fusion_ops::`.
 - Outcome: each is a module named for its lack of a bounded concern. Notable:
   `apollo-fft/src/api/mod.rs` exposes `pub mod utils` on a **public API path**,
   and `leto-ops/src/application/interpolation/mod.rs` carries `mod utils`.
@@ -545,6 +556,34 @@
   contract tests build. Note the local test-build caveat in ATLAS-ENV-CC-1.
 - Once landed, delete the stale lane branch (it holds nothing else unique).
 
+## ATLAS-LETO-BRANCH-SPLIT-1 — Leto main and sparse-LU diverged under one pin [patch] — done
+
+- **Resolved 2026-07-30** by session-2026-07-30-board-ssot at leto `054244a`
+  (pushed; umbrella gitlink advanced in `116b98d`). The stack pin targeted
+  `codex/leto-real-sparse-lu` while `main` independently landed the convolution
+  promotion (PRs #78–#80): kwavers-math needed sparse-LU's index-space
+  interpolation, the hephaestus tree needed main's `ConvolutionParameters` —
+  no single branch built the stack, and `repos/leto` was even checked out on
+  `main` against the recorded gitlink. Cure: restored the tree to the pinned
+  branch, merged `main` into it (union; two mechanical conflicts + two
+  merge-surfaced clippy lints fixed; phantom ADR-index rows dropped), verified
+  clippy `-D warnings` clean / nextest 737/737 / doctests, pushed.
+- Residual: sparse-LU still needs to land on leto `main` (a mainline merge is
+  now trivial — main is an ancestor of `054244a`); until then the pin stays on
+  the branch. Owner of the sparse-LU item should merge and retire the branch.
+
+## ATLAS-COEUS-SWALLOWED-RESULTS-1 — coeus-autograd ignores fallible add_assign [patch] — todo
+
+- Owner: unclaimed; scope: `repos/coeus` `crates/coeus-autograd` +
+  `crates/coeus-nn` (~120 sites, `cargo check` enumerates them).
+- A landed change made `coeus_ops::add_assign` (and siblings) return `Result`,
+  but internal gradient-accumulation callers ignore it — every consumer build
+  now emits ~120 `unused_must_use` warnings from clean coeus trees, and a
+  failing accumulation would be silently dropped (defect-masking per
+  error-handling restraint, not a cosmetic lint).
+- Acceptance: each site propagates or handles the `Result`; consumer builds of
+  coeus-autograd/coeus-nn are warning-clean again.
+
 ## ATLAS-ENV-CC-1 — Host gcc is broken, blocking every C dev-dependency [chore] — todo
 
 - Owner: environment, not code — recorded so the next agent does not misdiagnose
@@ -582,6 +621,10 @@
   (`d6d893a`) while the convolution provider lives on the
   `worktrees/leto-convolution-provider` lane. That cross-repo coupling is the
   seams peer's frontier, noted here for them.
+- 2026-07-30 later: the leto side of that coupling is cured —
+  ATLAS-LETO-BRANCH-SPLIT-1 merged main's convolution parameters into the
+  pinned branch, and `hephaestus-core` on the seams branch now compiles against
+  `repos/leto` (verified). Only the worktree-cap constraint remains.
 - Re-open trigger: `codex/hephaestus-compute-seams` merges to master — then run
   the gate on master and close on a green pass, or fix any residual links.
 - `RUSTDOCFLAGS=-D warnings cargo doc -p hephaestus-core --no-deps` fails on

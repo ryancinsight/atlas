@@ -99,12 +99,18 @@ athena-leto = { path = "repos/athena/crates/athena-leto" }
 [patch."https://github.com/ryancinsight/Coeus"]
 coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
 coeus-core = { path = "repos/coeus/crates/coeus-core" }
+coeus-leto = { path = "repos/coeus/crates/coeus-leto" }
+coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
+coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
 coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
 coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
 
 [patch."https://github.com/ryancinsight/Coeus.git"]
 coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
 coeus-core = { path = "repos/coeus/crates/coeus-core" }
+coeus-leto = { path = "repos/coeus/crates/coeus-leto" }
+coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
+coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
 coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
 coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
 
@@ -141,15 +147,11 @@ gaia = { path = "repos/gaia" }
 [patch."https://github.com/ryancinsight/hephaestus"]
 hephaestus-core = { path = "repos/hephaestus/crates/hephaestus-core" }
 hephaestus-cuda = { path = "repos/hephaestus/crates/hephaestus-cuda" }
-hephaestus-metal = { path = "repos/hephaestus/crates/hephaestus-metal" }
-hephaestus-rocm = { path = "repos/hephaestus/crates/hephaestus-rocm" }
 hephaestus-wgpu = { path = "repos/hephaestus/crates/hephaestus-wgpu" }
 
 [patch."https://github.com/ryancinsight/hephaestus.git"]
 hephaestus-core = { path = "repos/hephaestus/crates/hephaestus-core" }
 hephaestus-cuda = { path = "repos/hephaestus/crates/hephaestus-cuda" }
-hephaestus-metal = { path = "repos/hephaestus/crates/hephaestus-metal" }
-hephaestus-rocm = { path = "repos/hephaestus/crates/hephaestus-rocm" }
 hephaestus-wgpu = { path = "repos/hephaestus/crates/hephaestus-wgpu" }
 
 [patch."https://github.com/ryancinsight/hermes"]
@@ -200,7 +202,6 @@ mnemosyne-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
 [patch."https://github.com/ryancinsight/Moirai"]
 moirai = { path = "repos/moirai/moirai" }
-moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
@@ -209,7 +210,6 @@ moirai-sync = { path = "repos/moirai/moirai-sync" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai = { path = "repos/moirai/moirai" }
-moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
