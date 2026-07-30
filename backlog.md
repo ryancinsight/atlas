@@ -446,10 +446,19 @@
   overlay no longer needs them. Reconciling or deleting them belongs to
   ATLAS-OVERLAY-004.
 
-## ATLAS-HEPH-PRODUCT-PARITY-1 — Land the stranded product-axis parity commit [patch] — todo
+## ATLAS-HEPH-PRODUCT-PARITY-1 — Land the stranded product-axis parity commit [patch] — in-progress
 
-- Owner: unclaimed; scope: `repos/hephaestus` commit `f778445` on lane branch
+- Owner: session-2026-07-30-seams; last-update: 2026-07-30. Scope claimed:
+  `repos/hephaestus` `crates/hephaestus-core/src/domain/ops.rs`,
+  `crates/hephaestus-{cuda,metal,rocm,wgpu}/tests/contract.rs`,
+  `crates/hephaestus-rocm/src/lib.rs`, `docs/adr/0028-*`, CHANGELOG, README —
+  replaying commit `f778445` from lane branch
   `codex/hephaestus-product-axis-reduction-parity`.
+- Peer note: a tree-mate is working `hephaestus-rocm` convolution lint contracts
+  on `codex/hephaestus-compute-seams`. This claim touches `hephaestus-rocm`
+  only at the `ProdOp` re-export line in `src/lib.rs` and the axis-reduction
+  block of `tests/contract.rs`; if that collides, the rocm hunk defers and the
+  rest lands.
 - The lane's base is 23 commits behind `master`; its seam work was rescued and
   replayed under ATLAS-SUBSTRATE-001, but `f778445` was left behind because it
   is **not** superseded — it adds `ProdOp`, `prod_axis_into`, and `reduce_axis`
