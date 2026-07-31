@@ -1,5 +1,17 @@
 # atlas — cross-repository integration gap audit
 
+## Active Aequitas consumer re-audit — Kwavers sound-speed field — 2026-07-31
+
+The next Kwavers diagnostics gap is public sound-speed-shift result fields
+that expose unit-suffixed Leto `Array2<f64>` storage. `KWAVERS-AEQ-MET-51` is
+scoped to a typed `SoundSpeedShiftField` with Aequitas `Velocity` iteration;
+raw storage extraction remains confined to solver/provider boundaries.
+
+This field is real-valued and has no physical phasor, so Eunomia compatibility
+requires no imaginary physical unit. See
+[`Kwavers ADR 090`](repos/kwavers/docs/ADR/090-sound-speed-field-quantity.md)
+and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
+
 ## Aequitas consumer re-audit closure — Kwavers sound-speed error metrics — 2026-07-31
 
 `KWAVERS-AEQ-MET-50` is closed. Kwavers diagnostics now uses Aequitas
