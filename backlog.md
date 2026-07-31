@@ -7383,7 +7383,7 @@ cfd-validation, then delete the `cfd_math::iterative` facade.
 - Acceptance: tool merged and green under the standard gates; harness lane removed; version-guard item updated to reference the landed checker.
 - Resolution 2026-07-29: no unique work was stranded — all 9 lane files are byte-identical to `origin/main` (`f8305ac feat(atlas): add tools/gitlink-coherence audit package`); the tool had already landed and the harness lane was a superseded leftover, now deleted and pruned. Verifying it exposed the real defect: `RUSTC`/`RUSTDOC` env vars pointing at a rustup shim (default nightly) while `cargo` came from MSYS2 at stable 1.97.0, so nightly artifacts entered the shared cache and every pinned-toolchain build failed E0514 — recurring after each clean because a live peer keeps regenerating them. With the override removed, all three tools are green (gitlink-coherence 18/18, criterion-regression 21/21, checkout-path-dependencies 11/11; fmt and clippy clean). Tool pins advanced 1.95.0 -> 1.97.0 to match the stack standard (14 of 18 pinned members) per ecosystem currency. Remaining: wire the coherence check into the integration sweep per ATLAS-VERSION-GUARD-001.
 
-## ATLAS-TOOLCHAIN-COHERENCE-001 — One compiler identity across the shared cache [patch] — todo (environment fixed; residuals open)
+## ATLAS-TOOLCHAIN-COHERENCE-001 — One compiler identity across the shared cache [patch] — in-progress (one residual: sweep preflight check)
 
 - Owning record for the host toolchain-coherence fact (SSOT). The former
   duplicate heading under this ID and `ATLAS-ENV-TOOLCHAIN-001` are collapsed
@@ -7431,6 +7431,15 @@ cfd-validation, then delete the `cfd_math::iterative` facade.
   residual `hephaestus-wgpu --all-targets` failure is the broken host `gcc`
   failing the `alloca` dev dependency (ATLAS-ENV-CC-1), not E0514 — two
   independent causes, only the poisoning one is cleared.
+- Residual burn-down 2026-07-31: (1) **MSYS2 rust removed** — `D:\msys64  ucrt64in\cargo.exe` no longer exists, so rustup's toolchain is the only
+  compiler identity on the host and every committed pin is honored
+  unconditionally. (2) **Pins retrofitted to all 8 floating members** —
+  CFDrs `c00e8f65`, coeus `29dafd52`, gaia `9a0f700`, hephaestus `426d500`,
+  kwavers `5a6f4c281` (branch), leto `f4bab71` (branch), mnemosyne `3bbe981`
+  (also landed its stranded ADR-index commit; benchmarks excluded from the
+  gate — snmalloc-sys trips host g++ -Werror, ENV-CC-1 class),
+  ritk `ea11f4fb`. `parity_artefacts` holds no Rust workspace — nothing to
+  pin. (3) Only the sweep preflight identity-vs-pin check remains.
 - Residuals, in claimable order:
   1. **MSYS2 rust removal (parked — Ask-User; re-open on user go-ahead).**
      `D:\msys64\ucrt64\bin` precedes `~/.cargo/bin` in the *machine* PATH, so a
