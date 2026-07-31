@@ -144,9 +144,14 @@
   no `mod helpers`/`mod utils` remains in an adopting crate; transform results are
   unchanged, shown by the existing per-transform tests passing untouched.
 
-## ATLAS-ARCH-001 — One generic ComputeBackend conformance suite [arch] [minor] — todo
+## ATLAS-ARCH-001 — One generic ComputeBackend conformance suite [arch] [minor] — in-progress
 
-- Owner: unclaimed; scope: new `repos/hephaestus/crates/hephaestus-conformance`,
+- Owner: session-2026-07-30-board-ssot; last-update: 2026-07-31. Claimed
+  scope for this increment: new `repos/hephaestus/crates/hephaestus-conformance`,
+  the workspace member list, and instantiation tests for the six
+  uncovered entry points on cuda/rocm/metal (wgpu re-instantiated from
+  the same generic suite).
+- Formerly unclaimed; scope: new `repos/hephaestus/crates/hephaestus-conformance`,
   the four backend `tests/contract.rs` files, and the Hephaestus workspace member
   list. Triage lands first as its own increment; each backend then migrates in
   its own claim.
