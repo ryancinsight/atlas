@@ -34,14 +34,30 @@ check, 5/5 filtered Nextest, and doctest evidence in
 [`repos/CFDrs/gap_audit.md`](repos/CFDrs/gap_audit.md) and
 [`cell-tracking-physical-metrics.md`](repos/CFDrs/docs/atlas-migration/cell-tracking-physical-metrics.md).
 
-The Helios and Kwavers re-audits found no new missing Aequitas metric dimension;
-their current production contracts remain typed, including Eunomia-compatible
-real/complex boundaries. Eunomia complex values are not applicable to the
-real-valued CFDrs tracker, so no imaginary-unit extension is required. Kwavers'
-remaining EM/SAR consumer increment is sequencing behind peer-owned transport
-output work, not an identified metric gap. See the child audits for the exact
-residuals: [`Helios`](repos/helios/gap_audit.md) and
-[`Kwavers`](repos/kwavers/gap_audit.md).
+The Helios re-audit found no new missing Aequitas metric dimension; its current
+production contracts remain typed, including Eunomia-compatible real/complex
+boundaries. Eunomia complex values are not applicable to the real-valued CFDrs
+tracker, so no imaginary-unit extension is required. Kwavers' latest audit
+found and closed the neural-diagnostics geometry/timing family below; the
+remaining EM/SAR increment is sequencing behind peer-owned transport output
+work, not part of this closure. See the child audits for exact residuals:
+[`Helios`](repos/helios/gap_audit.md) and [`Kwavers`](repos/kwavers/gap_audit.md).
+
+## Aequitas consumer re-audit extension — Kwavers neural diagnostics — 2026-07-31
+
+The current Kwavers audit found a previously untyped public neural-diagnostics
+family: lesion diameters and voxel spacing were millimetre scalars, and
+beamforming targets and stage durations were millisecond scalars. Kwavers
+closure `KWAVERS-AEQ-MET-39` moves those contracts to Aequitas `Length` and
+`Time`, types confidence/significance/utilization as `Dimensionless`, stores
+workflow history as typed time values, and represents unavailable GPU
+telemetry as absence instead of `NaN`. Memory remains an explicit byte-count
+instrumentation boundary because no Aequitas information dimension exists.
+
+The family is real-valued, so Eunomia complex support is not required. The
+child ADR and audit record the boundary rule and verification state:
+[`Kwavers ADR 077`](repos/kwavers/docs/ADR/077-neural-diagnostics-quantities.md)
+and [`Kwavers audit`](repos/kwavers/gap_audit.md).
 
 ## Aequitas consumer re-audit extension — 2026-07-29
 
