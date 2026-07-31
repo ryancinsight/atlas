@@ -70,3 +70,7 @@ package-lock.json
 # Run outputs: experiment/probe artifacts are derived state, never committed
 # (run-output segregation: results live outside git).
 output/
+
+# Python bytecode caches (derived state).
+__pycache__/
+*.pyc
