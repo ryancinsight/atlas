@@ -240,8 +240,11 @@
     clauses delivered 2026-07-31** (hephaestus `7a70be2`): sum/prod/min/max
     over an exact fixture + transposed traversal + pre-mutation rejection,
     instantiated ×4, green on physical cuda and wgpu, workspace 533/533.
-    Remaining in 001a: the DenseVectorOps family clauses (dot/norm/axpy…)
-    and the FullReductionOps prepared-rebind GAT flip, which first needs a
+    **Dense-vector clauses delivered too** (hephaestus `cbbe341`): the full
+    DenseVectorOps surface under exact oracles including prepared dot/norm
+    rebind and mismatched-operand rejection, ×4, green on physical cuda and
+    wgpu, workspace 535/535. Remaining in 001a: only the FullReductionOps
+    prepared-rebind GAT flip, which first needs a
     plan-run-over-input API upstream — the cuda prepare currently
     materializes a contiguous copy and round-trips the scalar through the
     host, so its prepared form cannot yet re-read bound inputs.
