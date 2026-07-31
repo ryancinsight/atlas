@@ -202,13 +202,11 @@
   steps exposed as public API in `cuda` only. Confirm and demote to `pub(crate)`,
   or justify the public surface.
 
-- **Blocked 2026-07-29; blocker updated 2026-07-30.** The E0514 cache-poisoning
-  half is cleared (see ATLAS-TOOLCHAIN-COHERENCE-001: `hephaestus-core
-  --all-targets` checks and nextest runs 60/60). What still blocks backend test
-  binaries is the broken host `gcc` failing the `alloca` dev dependency —
-  ATLAS-ENV-CC-1 is the live blocker. The next increment is the
-  conformance crate itself (closing the six entry points on cuda/rocm/metal), and
-  no GPU-backend test target links in this environment, so it cannot be verified.
+- **Unblocked 2026-07-31.** Both former blockers are discharged: the E0514
+  cache poisoning (ATLAS-TOOLCHAIN-COHERENCE-001, done) and the broken host
+  gcc (ATLAS-ENV-CC-1, done — `hephaestus-wgpu --all-targets` now builds).
+  The next increment is the conformance crate itself (closing the six entry
+  points on cuda/rocm/metal), now locally verifiable.
   An independent re-measurement this session reproduced the duplication
   (16 472 `contract.rs` lines, 220 distinct `fn` names, 4 shared by all four) but
   added nothing to the triage ledger, and its headline reading was **wrong**: it
@@ -638,7 +636,7 @@
   coeus's own boards; coeus-dist `test_tcp_all_reduce` single 60s timeout
   under a partially-cancelled run (passed all full runs).
 
-## ATLAS-ENV-CC-1 — Host gcc is broken, blocking every C dev-dependency [chore] — todo
+## ATLAS-ENV-CC-1 — Host gcc is broken, blocking every C dev-dependency [chore] — done
 
 - Owner: environment, not code — recorded so the next agent does not misdiagnose
   it as a dependency or backend defect.
@@ -655,8 +653,27 @@
   backend work is limited to `--lib` verification plus CI. An msvc 1.97.0 rustup
   toolchain is installed and would avoid MinGW entirely, but switching host
   triple re-keys the shared cache and forces a stack-wide rebuild.
-- Acceptance: a trivial `gcc` compile succeeds, or the stack pins the msvc host
-  with the cache cost accepted and recorded.
+- **Closed 2026-07-31**: the acceptance holds — a trivial
+  `gcc t.c` compile+run succeeds and `cargo check -p hephaestus-wgpu
+  --all-targets` (the recorded victim, via the `alloca` dev dependency)
+  builds clean. The MinGW installation was evidently repaired in the same
+  maintenance that removed the MSYS2 rust package. One narrow C++ case
+  survives and is NOT host breakage: `snmalloc-sys` (mnemosyne-benchmarks
+  only) fails `cc1plus: all warnings being treated as errors` under
+  g++ 16.1 — an upstream -Werror incompatibility, filed as
+  ATLAS-MNEMOSYNE-SNMALLOC-1.
+
+## ATLAS-MNEMOSYNE-SNMALLOC-1 — snmalloc-sys fails g++ 16's new warnings [patch] — todo
+
+- Owner: unclaimed; scope: `repos/mnemosyne` `crates/mnemosyne-benchmarks`
+  (its `snmalloc-rs = 0.3` dependency).
+- `snmalloc-sys 0.3.8` builds its C++ with `-Werror`; g++ 16.1 introduces
+  warnings the vendored source trips, so every `--workspace` gate in
+  mnemosyne must exclude the benchmarks package.
+- Fix upstream-first: a newer `snmalloc-rs` that builds under g++ 16, or the
+  crate's documented flag to relax -Werror; a repo-local CXXFLAGS override in
+  committed config is the fallback, recorded as quarantine with the upstream
+  fix as its removal trigger.
 
 ## ATLAS-HEPH-DOC-LINKS-1 — hephaestus-core fails the rustdoc gate [patch] — done
 
@@ -7697,7 +7714,22 @@ same change; see ADR 0036 decision 7.
 
 ## Wave -1 — peer contention, not RITK work (recorded 2026-07-30)
 
-## ATLAS-RITK-MODULE-FORWARD-000 — RITK is red against in-flight Coeus WIP — blocked
+## ATLAS-RITK-MODULE-FORWARD-000 — RITK is red against in-flight Coeus WIP — resolved
+
+**Resolved 2026-07-31 by the peer landing both sides.** Coeus committed the
+contract (`repos/coeus` `5e64ee75 feat(coeus-nn)!: Make forward fallible`, now on
+`origin/main`) and RITK adopted it (`repos/ritk` `d82efc23 feat(model)!: Adopt
+Coeus's fallible module forward`, on `origin/main`). `ritk-transform` and
+`ritk-io` build; 400/400 `ritk-mgh` + `ritk-io` tests pass at `ea11f4fb`. The
+re-open trigger below fired exactly as recorded; waiting rather than converting
+against uncommitted upstream was the correct call.
+
+One item from the analysis survived the peer's sweep unfixed and is promoted to
+ATLAS-RITK-DISPLACEMENT-FORWARD-016 below.
+
+The original record is kept for the diagnostic pattern — a consumer red that is
+really a provider's in-flight working tree reaching it through the stack
+`[patch]` overlay.
 
 **Not a RITK defect and not a claimable RITK item.** Recorded so the next agent
 does not re-diagnose it, and does not do what this session started doing.
@@ -7742,7 +7774,41 @@ does not re-diagnose it, and does not do what this session started doing.
   `ritk-nifti`, `ritk-nrrd`. The wave-0 format-crate work below therefore
   proceeds; only the `ritk-io` dispatch tail of ATLAS-DMRI-IO-001 waits.
 
-## Wave 0 — acquisition-series ingest (blocks every later wave)
+## ATLAS-RITK-DISPLACEMENT-FORWARD-016 — `forward` panics on a real interpolation failure [patch] — todo
+
+- **Evidence**: `ritk-transform/src/transform/displacement_field/transform.rs`
+  now carries the fallible signature but keeps the panic inside it:
+
+  ```rust
+  Ok(self
+      .transform_points(input)
+      .expect("invariant: Module::forward receives valid field coordinates"))
+  ```
+
+  `transform_points` returns `Result<_, DisplacementTransformError>`, whose
+  `Interpolation` variant carries a genuine runtime failure —
+  `NonFiniteCoordinate` fires on a NaN sampling coordinate, which a diverging
+  optimizer produces routinely. The sweep at `d82efc23` adopted the signature
+  everywhere but wrapped this one body in `Ok(..)` instead of propagating, so the
+  method gained a `Result` return that cannot express the one failure it has.
+  Panic policy: library code does not panic on input-dependent paths, and the
+  `expect` message asserts an invariant the type does not enforce.
+- **Blocked on upstream**: `ModuleError` has no variant able to carry a
+  `coeus_ops::InterpolationError`. `Backend { source: E }` requires
+  `E = B::Error`, and `InterpolationError::{NonFiniteCoordinate, SizeOverflow}`
+  have no counterpart among the rank/shape variants, so any downstream mapping
+  collapses distinct failure modes.
+- **Fix, in order**: (1) add `Interpolation(#[from] InterpolationError)` to
+  `coeus_nn::ModuleError` — additive on an already `#[non_exhaustive]` enum, and
+  in the same provider family since `coeus-nn` already depends on `coeus-ops`;
+  (2) in RITK, map `DisplacementTransformError::PointShape` losslessly
+  (`actual.len() != 2` → `InvalidRank`, else `ShapeMismatch` with
+  `expected: [actual[0], D]`) and propagate `Interpolation` through the new
+  variant.
+- **Acceptance**: a NaN sampling coordinate returns a typed error naming the
+  axis and point instead of panicking; existing displacement tests unchanged.
+- **Class**: `[patch]` in RITK, `[minor]` in Coeus. Raise the upstream half with
+  the `coeus-nn` owner rather than mapping around it downstream.
 
 ## Wave 0 — acquisition-series ingest (blocks every later wave)
 
@@ -7766,15 +7832,17 @@ does not re-diagnose it, and does not do what this session started doing.
   recovering voxels and spatial metadata exactly; the existing 3-D entry points
   keep their signatures and tests.
 - **Class**: `[minor]` — additive public surface.
-- **Sequencing note (2026-07-30)**: split at the crate boundary.
-  `ritk-nifti`, `ritk-nrrd`, and `ritk-mgh` are verifiable today and are the
-  first increments. The `ritk-io` dispatch tail is blocked behind
-  ATLAS-RITK-MODULE-FORWARD-000, because `ritk-io` pulls `ritk-transform`.
+- **Sequencing note (2026-07-31)**: no longer split — the `ritk-io` block
+  cleared when ATLAS-RITK-MODULE-FORWARD-000 resolved. `ritk-nifti` is still the
+  first increment (it carries the hard `dim[0] != 3` reject), then `ritk-nrrd`,
+  then the `ritk-io` dispatch tail. `ritk-mgh` already fails loudly on a
+  multi-frame file per ATLAS-DMRI-MGH-FRAMES-002, so its series read is an
+  extension rather than a defect fix.
 
 ## ATLAS-DMRI-MGH-FRAMES-002 — MGH silently discards frames past the first [patch] — done
 
-**Delivered** at `ritk` `8a79da6d` on `fix/mgh-multi-frame-rejection`
-(local commit, unpushed). `read_mgh` rejects `nframes > 1` with an error naming
+**Merged** to `ritk` `origin/main` at `8a79da6d`. `read_mgh` rejects
+`nframes > 1` with an error naming
 the declared count and the frames that would be lost; `nframes == 1` is
 unchanged and no signature moved. `SINGLE_FRAME`, `GOOD_RAS_VALID`, and
 `DOF_UNSET` replace the bare header literals the reader and writer shared, and
