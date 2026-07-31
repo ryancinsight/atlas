@@ -658,7 +658,7 @@
 - Acceptance: a trivial `gcc` compile succeeds, or the stack pins the msvc host
   with the cache cost accepted and recorded.
 
-## ATLAS-HEPH-DOC-LINKS-1 — hephaestus-core fails the rustdoc gate [patch] — blocked
+## ATLAS-HEPH-DOC-LINKS-1 — hephaestus-core fails the rustdoc gate [patch] — done
 
 - Owner: unclaimed; scope: `repos/hephaestus/crates/hephaestus-core/src/domain/`
   module docs.
@@ -679,8 +679,12 @@
   ATLAS-LETO-BRANCH-SPLIT-1 merged main's convolution parameters into the
   pinned branch, and `hephaestus-core` on the seams branch now compiles against
   `repos/leto` (verified). Only the worktree-cap constraint remains.
-- Re-open trigger: `codex/hephaestus-compute-seams` merges to master — then run
-  the gate on master and close on a green pass, or fix any residual links.
+- **Closed 2026-07-30 (night)**: the seams branch (5 post-PR-159 commits:
+  backend-native elementwise/reduction/scan seams, GPU zero-init elimination,
+  the featureless scan-seam unsafe fix, fmt, deps cleanup) passed the full
+  gate battery (clippy -D warnings, nextest 490/490, doctests) and merged to
+  master `eb58c86`; branch retired. `RUSTDOCFLAGS=-D warnings cargo doc -p
+  hephaestus-core --no-deps` on master: clean — all five links resolve.
 - `RUSTDOCFLAGS=-D warnings cargo doc -p hephaestus-core --no-deps` fails on
   `master` with five unresolved intra-doc links, all pre-existing:
   `HephaestusError::LengthMismatch` (`device.rs:176`), and `AxisReductionOps`,
