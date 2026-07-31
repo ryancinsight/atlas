@@ -101,6 +101,28 @@ Clippy, doctests (1 executable, 5 ignored), RustDoc, formatting, and diff
 checks pass. Shared unused-provider-patch and linker warnings remain outside
 this metric closure.
 
+## Aequitas consumer re-audit extension — Kwavers plane-wave compounding — 2026-07-31
+
+The next Kwavers diagnostics audit found a public plane-wave compounding
+family with angle sweep, transmit frequency, sound speed, aperture and
+sampling geometry, log-compression dynamic range, and frame-rate estimates
+represented as raw scalars. Internal wavelength, wave number, angular
+frequency, and generated angles were also untyped. `KWAVERS-AEQ-MET-42` closes
+the gap with Aequitas `Angle`, `Frequency`, `Velocity`, `Length`, and
+`Dimensionless` contracts, and rejects non-finite or non-positive physical
+configuration values before allocation. Scalar extraction is confined to
+phase/math formulas, mesh/solver configuration, and display/report boundaries.
+
+The coherent image arrays remain Eunomia `Complex` numerical storage; the
+family is real-valued at the physical-unit boundary and requires no imaginary
+unit. The child record is
+[`Kwavers ADR 081`](repos/kwavers/docs/ADR/081-plane-wave-compounding-quantities.md)
+and [`Kwavers audit`](repos/kwavers/gap_audit.md). Package check passes;
+focused plane-wave Nextest passes 10/10 with 185 skipped; warning-denied
+all-target Clippy, doctests (1 executable, 5 ignored), RustDoc, formatting, and
+diff checks pass. Shared unused-provider-patch and linker warnings remain
+outside this metric closure.
+
 ## Aequitas consumer re-audit extension — 2026-07-29
 
 The current CFDrs scan found a second public physical family after the
