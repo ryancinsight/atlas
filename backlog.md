@@ -620,10 +620,23 @@
   load-flake observed once and not reproduced: coeus-dist
   `test_tcp_all_reduce` 60s timeout under a partially-cancelled run; passed
   in both full runs.
-- **Increment 2 (next): consumer sweep** — ritk, kwavers, helios locked
-  checks + nextest against coeus `c01a313a`; the ~120 coeus
-  `unused_must_use` warnings in consumer builds should vanish; fallible
-  forward/backward may break consumer call sites (fix forward per repo).
+- **Increment 2 in progress: consumer sweep** — kwavers workspace check
+  against coeus `c01a313a` fails only inside ritk (ritk-transform,
+  ritk-model): coeus-nn `Module::forward` is now fallible. WIP held in the
+  `repos/ritk` tree (owner: session-2026-07-30-board-ssot, scope
+  `crates/{ritk-transform,ritk-model}`): all 16 trait `forward` impls
+  converted to `Result<Var<_, B>, coeus_nn::ModuleError<<B as
+  coeus_core::ComputeBackend>::Error>>` (bodies Ok-wrapped or ?-chained;
+  chain composition and the generic affine network fully propagated).
+  Remaining: **57 call sites in 12 ritk-model files** (`cargo check -p
+  ritk-transform -p ritk-model` enumerates them) where inner fallible
+  forwards feed fns returning ritk's own `ModelError`. **Design decision
+  needed before finishing**: bridge `ModuleError<B::Error>` into
+  `ModelError` without a stringly catch-all — either genericize
+  `ModelError<E>` with a `#[from] Module(ModuleError<E>)` variant, or add
+  an upstream type-erased display-preserving variant; pick per
+  failure-mode-preservation, record as a ritk ADR. Tests will need the same
+  propagation. After ritk: kwavers/helios verification.
 - Full scope: `repos/coeus` + every stack consumer of coeus
   (ritk, kwavers, helios at minimum) + the umbrella gitlink and overlay.
 - The stack pins coeus at `80bb2707`, now **103 commits behind**
