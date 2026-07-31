@@ -59,6 +59,29 @@ child ADR and audit record the boundary rule and verification state:
 [`Kwavers ADR 077`](repos/kwavers/docs/ADR/077-neural-diagnostics-quantities.md)
 and [`Kwavers audit`](repos/kwavers/gap_audit.md).
 
+## Aequitas consumer re-audit extension — Kwavers clinical workflow metrics — 2026-07-31
+
+The next Kwavers diagnostics audit found a separate orchestration family in
+`kwavers-diagnostics::workflows`: latency configuration, acquisition and
+processing durations, total and per-stage timing, confidence, GPU utilization,
+and memory usage were raw millisecond/percentage/MB values. The monitor also
+fabricated GPU and memory samples and recorded cumulative elapsed values under
+individual stage names. `KWAVERS-AEQ-MET-40` closes the implementation gap with
+Aequitas `Time` and `Dimensionless` contracts, interval-accurate stage timing,
+and optional telemetry. Memory remains an explicit byte-count boundary because
+Aequitas has no information dimension. The neural beamforming timing conversion
+now stores SI seconds before presentation conversion to milliseconds.
+
+This family is real-valued; no imaginary-unit or complex Aequitas dimension is
+required. Future coherent imaging outputs continue to use the existing
+Eunomia-backed complex scalar support at the formula/storage boundary. The
+child record is [`Kwavers ADR 078`](repos/kwavers/docs/ADR/078-clinical-workflow-quantities.md)
+and [`Kwavers audit`](repos/kwavers/gap_audit.md). Package check and
+warning-denied library Clippy pass. Focused native tests and doctests remain
+blocked by concurrent peer-owned workspace failures in `ritk-mgh` and
+`kwavers-grid`; those exact diagnostics are recorded in the child board and
+are not attributed to this metric closure.
+
 ## Aequitas consumer re-audit extension — 2026-07-29
 
 The current CFDrs scan found a second public physical family after the
