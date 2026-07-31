@@ -605,11 +605,25 @@
 
 ## ATLAS-COEUS-MAIN-SYNC-1 — Integrate coeus origin/main into the stack [arch] [major] — in-progress
 
-- Owner: session-2026-07-30-board-ssot; last-update: 2026-07-30 (evening).
-  Increment 1 claimed: the provider-side union merge inside `repos/coeus`
-  (main into the pinned branch), verified by coeus's own gates — consumers
-  untouched until it lands. Scope claimed for this increment: `repos/coeus`
-  only.
+- Owner: session-2026-07-30-board-ssot; last-update: 2026-07-30 (night).
+- **Increment 1 done — coeus main = `c01a313a`** (union merge delivered,
+  parity branch deleted, gitlink `81a7992`, overlay aligned). Gates on the
+  union: check clean, clippy `-D warnings` clean, nextest **1019/1019**,
+  doctests green. Union calls recorded in the merge message; notable:
+  provider-owned activation-tail dispatch kept for wgpu (hephaestus exports
+  the op family), main's cuda-local Mish kernels kept — **cuda
+  provider-parity residual**; main's fallible autograd supersedes the
+  branch's expect() band-aids; the branch's local ARCH-006 rename commit
+  `9ac74e13` (conv_node, host_access) rescued and delivered. Post-merge
+  repairs included a hephaestus scan-seam unsafe fix (landed upstream on the
+  seams branch, `29eb02d`) since featureless consumers forbid unsafe. One
+  load-flake observed once and not reproduced: coeus-dist
+  `test_tcp_all_reduce` 60s timeout under a partially-cancelled run; passed
+  in both full runs.
+- **Increment 2 (next): consumer sweep** — ritk, kwavers, helios locked
+  checks + nextest against coeus `c01a313a`; the ~120 coeus
+  `unused_must_use` warnings in consumer builds should vanish; fallible
+  forward/backward may break consumer call sites (fix forward per repo).
 - Full scope: `repos/coeus` + every stack consumer of coeus
   (ritk, kwavers, helios at minimum) + the umbrella gitlink and overlay.
 - The stack pins coeus at `80bb2707`, now **103 commits behind**
@@ -7660,6 +7674,55 @@ Evidence for each claim is the cited file and line at the gitlink revision of
 2026-07-30. The ADR source audit and the README section were corrected in the
 same change; see ADR 0036 decision 7.
 
+## Wave -1 — peer contention, not RITK work (recorded 2026-07-30)
+
+## ATLAS-RITK-MODULE-FORWARD-000 — RITK is red against in-flight Coeus WIP — blocked
+
+**Not a RITK defect and not a claimable RITK item.** Recorded so the next agent
+does not re-diagnose it, and does not do what this session started doing.
+
+- **Symptom**: `cargo check -p ritk-transform` gives 10 `E0053`/`E0308` errors —
+  every `Module::forward` impl returns `Var<f32, B>` where the trait now expects
+  `Result<Var<f32, B>, ModuleError<B::Error>>`. `ritk-io`, `ritk-registration`,
+  `ritk-cli`, and `ritk-snap` cannot build behind it.
+- **Actual cause**: the fallible `Module::forward` and `ModuleError` are a live
+  peer's **uncommitted** work in `repos/coeus`. `crates/coeus-nn/src/module/`
+  (`trait_def.rs`, `error.rs`, `mod.rs`) has *no git history at all* — it exists
+  only staged in the working tree, alongside ~143 other staged `coeus-nn` files
+  and a staged `coeus-autograd` set, on branch
+  `codex/coeus-error-function-parity`. RITK compiles against it because the
+  stack `[patch]` overlay resolves first-party dependencies to local working
+  trees, so a peer's in-flight refactor reaches every consumer immediately.
+- **Therefore this is not "RITK failed to adopt a landed contract."** There is no
+  landed contract. Converting RITK's 25 `Module` implementors now would commit
+  RITK to a signature that exists in no commit on any branch, break RITK against
+  Coeus `HEAD`, and collide with the peer when they land. This session began that
+  conversion, then discarded it on discovering the above — the discard is the
+  correct outcome, not lost work.
+- **Peer freshness**: last `repos/coeus` commit `9ac74e13`, 2026-07-29 06:34
+  (~1 day), with the change set staged and uncommitted since. Stale by the
+  sweep's clock, but a 143-file in-flight refactor is not blind-takeover
+  material. Re-check before assuming the peer is gone.
+- **Re-open trigger**: the peer commits the `coeus-nn` module contract. At that
+  point the RITK sweep becomes a real `[patch]` item — convert every implementor
+  to the fallible signature and propagate at call sites with `?`, no `.expect()`
+  at any site that has a caller to return to.
+- **Known blocker for that future item**: `ModuleError` cannot carry a
+  `coeus_ops::InterpolationError`. `DisplacementFieldTransform::forward`
+  currently `.expect()`s one (`transform/displacement_field/transform.rs:124`),
+  and `InterpolationError::{NonFiniteCoordinate, SizeOverflow}` have no
+  `ModuleError` counterpart, so any mapping collapses distinct failure modes.
+  The fix is an additive `Interpolation(#[from] InterpolationError)` variant on
+  the (already `#[non_exhaustive]`) `ModuleError` in `coeus-nn` — upstream, in
+  the same provider family, `[minor]`. Raise it with the peer rather than
+  working around it downstream.
+- **What is still verifiable meanwhile**: everything not depending on
+  `coeus-nn`'s `Module`. Confirmed green this session: `ritk-mgh` (34/34),
+  `ritk-nifti`, `ritk-nrrd`. The wave-0 format-crate work below therefore
+  proceeds; only the `ritk-io` dispatch tail of ATLAS-DMRI-IO-001 waits.
+
+## Wave 0 — acquisition-series ingest (blocks every later wave)
+
 ## Wave 0 — acquisition-series ingest (blocks every later wave)
 
 ## ATLAS-DMRI-IO-001 — Rank-generic acquisition-series I/O [minor] — todo
@@ -7682,8 +7745,29 @@ same change; see ADR 0036 decision 7.
   recovering voxels and spatial metadata exactly; the existing 3-D entry points
   keep their signatures and tests.
 - **Class**: `[minor]` — additive public surface.
+- **Sequencing note (2026-07-30)**: split at the crate boundary.
+  `ritk-nifti`, `ritk-nrrd`, and `ritk-mgh` are verifiable today and are the
+  first increments. The `ritk-io` dispatch tail is blocked behind
+  ATLAS-RITK-MODULE-FORWARD-000, because `ritk-io` pulls `ritk-transform`.
 
-## ATLAS-DMRI-MGH-FRAMES-002 — MGH silently discards frames past the first [patch] — todo
+## ATLAS-DMRI-MGH-FRAMES-002 — MGH silently discards frames past the first [patch] — done
+
+**Delivered** at `ritk` `8a79da6d` on `fix/mgh-multi-frame-rejection`
+(local commit, unpushed). `read_mgh` rejects `nframes > 1` with an error naming
+the declared count and the frames that would be lost; `nframes == 1` is
+unchanged and no signature moved. `SINGLE_FRAME`, `GOOD_RAS_VALID`, and
+`DOF_UNSET` replace the bare header literals the reader and writer shared, and
+the byte fixture builder takes the frame count as a parameter — it hardcoded
+`1`, which is why no test could reach the multi-frame path.
+
+Verified at package scope: 34/34 `ritk-mgh` tests in 0.249s, clippy
+`--all-targets -D warnings` clean, `RUSTDOCFLAGS=-D warnings cargo doc` clean.
+Workspace scope was not reachable — see ATLAS-RITK-MODULE-FORWARD-000. Two
+regression tests: a 3-frame file with a *complete* payload (frame 0 alone was
+decodable, so the reader could still have reported success) and its boundary
+partner asserting `nframes == 1` still round-trips its voxels.
+
+
 
 - **Outcome**: multi-frame MGH/MGZ either loads every frame or fails loudly.
 - **Evidence**: `ritk-mgh/src/reader/mod.rs:96-99` reads `nframes`, warns, and
