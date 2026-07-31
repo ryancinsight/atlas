@@ -603,7 +603,7 @@
   `codex/coeus-error-function-parity`). Fixing them locally would duplicate
   landed work; the cure is the integration item below.
 
-## ATLAS-COEUS-MAIN-SYNC-1 — Integrate coeus origin/main into the stack [arch] [major] — in-progress
+## ATLAS-COEUS-MAIN-SYNC-1 — Integrate coeus origin/main into the stack [arch] [major] — done
 
 - Owner: session-2026-07-30-board-ssot; last-update: 2026-07-30 (night).
 - **Increment 1 done — coeus main = `c01a313a`** (union merge delivered,
@@ -620,40 +620,23 @@
   load-flake observed once and not reproduced: coeus-dist
   `test_tcp_all_reduce` 60s timeout under a partially-cancelled run; passed
   in both full runs.
-- **Increment 2 in progress: consumer sweep** — kwavers workspace check
-  against coeus `c01a313a` fails only inside ritk (ritk-transform,
-  ritk-model): coeus-nn `Module::forward` is now fallible. WIP held in the
-  `repos/ritk` tree (owner: session-2026-07-30-board-ssot, scope
-  `crates/{ritk-transform,ritk-model}`): all 16 trait `forward` impls
-  converted to `Result<Var<_, B>, coeus_nn::ModuleError<<B as
-  coeus_core::ComputeBackend>::Error>>` (bodies Ok-wrapped or ?-chained;
-  chain composition and the generic affine network fully propagated).
-  Remaining: **57 call sites in 12 ritk-model files** (`cargo check -p
-  ritk-transform -p ritk-model` enumerates them) where inner fallible
-  forwards feed fns returning ritk's own `ModelError`. **Design decision
-  needed before finishing**: bridge `ModuleError<B::Error>` into
-  `ModelError` without a stringly catch-all — either genericize
-  `ModelError<E>` with a `#[from] Module(ModuleError<E>)` variant, or add
-  an upstream type-erased display-preserving variant; pick per
-  failure-mode-preservation, record as a ritk ADR. Tests will need the same
-  propagation. After ritk: kwavers/helios verification.
-- Full scope: `repos/coeus` + every stack consumer of coeus
-  (ritk, kwavers, helios at minimum) + the umbrella gitlink and overlay.
-- The stack pins coeus at `80bb2707`, now **103 commits behind**
-  `origin/main` (`d77937dc`), which carries multiple breaking changes:
-  fallible module forward (`5e64ee75`), module error contract (`fd19a983`),
-  backward error propagation (`81eeec09`), convolution provider routing
-  (`e742dca7`). The pinned branch also holds 4 commits **not** in main
-  (error-function parity, round-6a path resolution, ADR index) — a union
-  merge like the leto one (ATLAS-LETO-BRANCH-SPLIT-1) is required, then a
-  dependency-ordered consumer sweep: earlier this session, a partial mix of
-  git `d77937dc` coeus-nn with local `80bb2707` coeus-autograd produced
-  ~1034 trait-bound errors, so the advance and the consumer fixes are one
-  co-evolution unit, never piecemeal.
-- Acceptance: repos/coeus tree = union of the pinned branch and main, pushed;
-  gitlink advanced; overlay regenerated; ritk/kwavers/helios locked checks and
-  nextest budgets green against it; consumer `unused_must_use` count from
-  coeus crates is zero.
+- **Increment 2 done — consumer sweep delivered.** ritk main `d82efc23`:
+  all 16 trait `forward` impls fallible, inherent model forwards propagate
+  through `ModelError::Module` (type-erased, chain-preserving — ritk ADR
+  0016), registration driver/pooled-metric Results surfaced, tests and
+  examples migrated; all-targets error- and unused-warning-clean, nextest
+  4705/4705; delivered with the peer's MGH multi-frame rejection, branch
+  retired, gitlink `861a16d`. kwavers `91aedd5d6`: typed temporal-sync
+  adoption (value-semantic 6.25-frame assertion inside the default search
+  range) + 18 dead python-binding imports removed; nextest **6043/6043**
+  (the allocation-race flake passed this run too); gitlink `4be28d1`.
+  helios: workspace check green, no coeus-nn surface consumed. Overlay
+  aligned. The coeus `unused_must_use` consumer warnings are gone.
+- Residuals (filed, not blocking): cuda-side provider parity for the
+  activation tail (main's local CUDA kernels kept; wgpu dispatches
+  providers) — continues under the activation-tail parity records in
+  coeus's own boards; coeus-dist `test_tcp_all_reduce` single 60s timeout
+  under a partially-cancelled run (passed all full runs).
 
 ## ATLAS-ENV-CC-1 — Host gcc is broken, blocking every C dev-dependency [chore] — todo
 
