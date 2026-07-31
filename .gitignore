@@ -66,3 +66,7 @@ package-lock.json
 
 # Downloaded package artifacts
 *.deb
+
+# Run outputs: experiment/probe artifacts are derived state, never committed
+# (run-output segregation: results live outside git).
+output/
