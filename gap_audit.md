@@ -1,5 +1,24 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer re-audit extension — Kwavers real-time SIRT — 2026-07-31
+
+The next Kwavers diagnostics scan found raw frame timestamps, computation
+budgets, per-frame elapsed computation time, average frame rate, convergence
+error, and quality ratios in `reconstruction::real_time_sirt`.
+`KWAVERS-AEQ-MET-46` now uses Aequitas `Time`, `Frequency`, and
+`Dimensionless`, with unit suffixes removed from public names.
+
+RF/image arrays, grid-point smoothing, and raw amplitude thresholds remain
+explicit numerical boundaries. SNR is a dimensionless logarithmic ratio. This
+SIRT path is real-valued and has no physical phasor, so Eunomia compatibility
+requires no imaginary physical unit. See [`Kwavers ADR 085`](repos/kwavers/docs/ADR/085-real-time-sirt-quantities.md)
+and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
+
+Evidence: diagnostics test-target check passes; focused Nextest passes 14/14
+with 185 skipped; warning-denied all-target Clippy, doctests, RustDoc, package
+formatting, diff, and public-contract scan pass. Workspace-wide rustfmt is
+Windows filename-length blocked (`os error 206`); package formatting passes.
+
 ## Aequitas consumer re-audit extension — Kwavers clinical monitoring — 2026-07-31
 
 The current Kwavers diagnostics scan found raw processing time, frame rate,
