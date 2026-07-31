@@ -219,8 +219,10 @@
   broader contract.rs-to-instantiation migration (the 112-entry-point ledger
   burn-down), the elementwise seam's prepared-rebind unification under the
   GAT pattern (its ZST execute-at-prepare forms are the axis-reduction
-  shortcut the suite already rejected once), and the cuda-only
-  `*_trailing_update` surface demotion.
+  shortcut the suite already rejected once), and the elementwise
+  prepared-rebind GAT unification. The cuda-only `*_trailing_update` surface
+  is demoted to `pub(crate)` (hephaestus `2dace5a`; wgpu's twins were already
+  private, no stack consumer referenced them).
 - **Increment delivered 2026-07-31 (axis reduction × all backends,
   hephaestus `a1c7e0a`):** `AxisReductionOps` is now implemented by CUDA and
   ROCm (adapting their kernels and borrowing prepared plans) and Metal
