@@ -9,9 +9,13 @@ from __future__ import annotations
 
 import re
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
-from _loader import cml, repo_root
+import check_mdbook_links as cml
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 class SmokeFixtureTestCase(unittest.TestCase):
@@ -27,12 +31,12 @@ class SmokeFixtureTestCase(unittest.TestCase):
 
     def test_smoke_test_filters_has_no_broken_links(self) -> None:
         """The consolidated smoke-test fixture must report zero bad links."""
-        fixture_dir = repo_root() / "parity_artefacts" / "smoke_test_filters"
+        fixture_dir = REPO_ROOT / "parity_artefacts" / "smoke_test_filters"
         self.assertEqual(self._missing(fixture_dir), [])
 
     def test_smoke_fixture_produces_bad_links_when_filters_disabled(self) -> None:
         """Disabling the false-positive filters reveals the phantom bad links."""
-        fixture_dir = repo_root() / "parity_artefacts" / "smoke_test_filters"
+        fixture_dir = REPO_ROOT / "parity_artefacts" / "smoke_test_filters"
         never_match = re.compile(r"^$")  # matches only empty strings → never matches fixture hrefs
         with (
             patch.object(cml, "SINGLE_CHAR_HREF_RE", never_match),

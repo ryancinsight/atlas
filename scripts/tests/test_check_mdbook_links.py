@@ -15,7 +15,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from _loader import cml, script_path
+import check_mdbook_links as cml
+
+
+SCRIPT_PATH = Path(__file__).resolve().parents[1] / "check_mdbook_links.py"
 
 # The module prints its per-book counters in a fixed column layout; it no
 # longer exports a FILE_MISSING_PREFIX constant, so the tests pin the
@@ -243,7 +246,7 @@ class MainTestCase(unittest.TestCase):
             (book / "SUMMARY.md").write_text("# Summary\n", encoding="utf-8")
             (book / "README.md").write_text("# Overview\n", encoding="utf-8")
             result = subprocess.run(
-                [sys.executable, str(script_path()), str(book)],
+                [sys.executable, str(SCRIPT_PATH), str(book)],
                 capture_output=True,
                 text=True,
                 check=False,
@@ -257,7 +260,7 @@ class MainTestCase(unittest.TestCase):
             (book / "SUMMARY.md").write_text("# Summary\n", encoding="utf-8")
             (book / "chapter.md").write_text("See [broken](missing.md).\n", encoding="utf-8")
             result = subprocess.run(
-                [sys.executable, str(script_path()), str(book)],
+                [sys.executable, str(SCRIPT_PATH), str(book)],
                 capture_output=True,
                 text=True,
                 check=False,
