@@ -256,8 +256,13 @@
     pattern (same shape as the delivered elementwise flip).
   - ATLAS-ARCH-001c — dense vector + sparse operator families
     (DenseVectorOps/SparseOperatorOps declared by SUBSTRATE-001).
-  - ATLAS-ARCH-001d — volume ray-integral family (covered by per-backend
-    tests today; genericize the oracle).
+  - ATLAS-ARCH-001d — **done 2026-07-31** (hephaestus `a4a51c3`):
+    `RayIntegralOps` seam added in core with four thin backend impls, and
+    the analytical oracles genericized into the conformance crate
+    (value×chord, affine-exact midpoint, step invariance, exact-zero miss,
+    rejection-without-mutation) with the former magic 1e-4 now derived at
+    the module head. Instantiated ×4; green on physical cuda and wgpu;
+    workspace 539/539.
   - ATLAS-ARCH-001e — linalg/decomposition family (largest; blocked-panel
     Cholesky/LU/QR conformance vs Leto oracles, tolerances derived per
     numerical_discipline).
