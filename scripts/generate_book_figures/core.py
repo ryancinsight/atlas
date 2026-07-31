@@ -102,7 +102,10 @@ def process_book(book_dir: Path, dry_run: bool = False, force: bool = False) -> 
         md_text = md_file.read_text(encoding="utf-8")
 
         fig_label = f"{label}.{idx}" if label else str(idx)
-        caption = f"Figure {fig_label} — {title}"
+        # The figure label already carries the chapter number; drop a leading
+        # "NN." from the title so captions do not read "Figure 18.1 — 18. …".
+        caption_title = re.sub(r"^\d+\.\s*", "", title)
+        caption = f"Figure {fig_label} — {caption_title}"
 
         # Marker-based detection: the comment fences delimit generated content,
         # so a retitled chapter (different SVG path) is still recognized and
