@@ -1,5 +1,19 @@
 # atlas — cross-repository integration gap audit
 
+## Active Aequitas consumer re-audit — Kwavers sound-speed-shift curved-array/frequency — 2026-07-31
+
+The next Kwavers diagnostics gap is public curved-array radius/angle
+contracts and OpenPros waveform peak frequency, which remain raw scalars
+after the sound-speed-shift spatial-scale migration. `KWAVERS-AEQ-MET-49` is
+scoped to Aequitas `Length`, `Angle`, and `Frequency`, with base extraction
+only at trigonometry, validation, and derived wavelength boundaries.
+
+Solver-owned `PlanarPoint` coordinates, dense images, and benchmark error
+metrics remain explicit numerical/storage boundaries for later slices. This
+path is real-valued and has no physical phasor, so Eunomia compatibility
+requires no imaginary physical unit. See [`Kwavers ADR 088`](repos/kwavers/docs/ADR/088-sound-speed-curved-array-frequency-quantities.md)
+and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
+
 ## Aequitas consumer re-audit extension — Kwavers sound-speed-shift spatial scales — 2026-07-31
 
 The Kwavers diagnostics scan found reference sound speed, grid spacing,
