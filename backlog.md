@@ -207,6 +207,23 @@
   steps exposed as public API in `cuda` only. Confirm and demote to `pub(crate)`,
   or justify the public surface.
 
+- **Increment delivered 2026-07-31 (axis reduction × all backends,
+  hephaestus `a1c7e0a`):** `AxisReductionOps` is now implemented by CUDA and
+  ROCm (adapting their kernels and borrowing prepared plans) and Metal
+  (delegating to WGPU), each with the shared conformance instantiation. The
+  seam's `Prepared` became a lending GAT (`Prepared<'op>`) — the conformance
+  rebind clause (dispatch must observe writes to the bound input) rejected an
+  execute-at-prepare shortcut on CUDA and forced the borrowing design, which
+  is the suite doing exactly its job. CUDA passes the contract on physical
+  hardware; WGPU re-passes; ROCm/Metal instantiations are platform-gated for
+  hosted CI. Workspace 491/491, clippy and doctests clean. `prod_axis_into`
+  and `prepare_reduce_axis_into` are now covered on all four backends;
+  remaining are the four `binary_elementwise_*typed*` entry points on
+  cuda/rocm/metal (genericize wgpu's `typed_elementwise.rs` clauses into the
+  conformance crate, then instantiate). Doc-drift note: the item's ADR link
+  names `0038-compute-backend-conformance-crate.md`, which does not exist in
+  hephaestus (its 0038 is the blocked-QR ADR) — the crate is real; the
+  decision record needs backfilling under ADR governance.
 - **Unblocked 2026-07-31.** Both former blockers are discharged: the E0514
   cache poisoning (ATLAS-TOOLCHAIN-COHERENCE-001, done) and the broken host
   gcc (ATLAS-ENV-CC-1, done — `hephaestus-wgpu --all-targets` now builds).
@@ -7824,7 +7841,41 @@ does not re-diagnose it, and does not do what this session started doing.
 
 ## Wave 0 — acquisition-series ingest (blocks every later wave)
 
-## ATLAS-DMRI-IO-001 — Rank-generic acquisition-series I/O [minor] — todo
+## ATLAS-DMRI-IO-001 — Rank-generic acquisition-series I/O [minor] — in-progress
+
+**`ritk-nifti` increment delivered** at `ritk` `2a4b1f62`, pushed to
+`codex/perf-ritk-mgh-stream-book` (PR #78, a peer's branch — the scopes are
+disjoint, `ritk-nifti` vs the peer's `ritk-mgh` streaming slice, so the increment
+rides that branch per the shared-branch model rather than opening a second PR).
+
+Rank 3 and rank 4 both parse; the payload byte range spans every declared volume
+instead of one; `read_nifti_series` / `read_nifti_series_from_bytes` /
+`write_nifti_series` / `write_nifti2_series` are the series surface. The writer
+selects rank from the volume count, so a one-volume series stays a rank-3 file
+byte-identical to `write_nifti`, and it validates that every volume shares one
+grid rather than emitting a file whose sform covers only part of its content.
+`read_nifti` and `read_nifti_labels` now name the volume count and fail on a
+rank-4 file instead of decoding volume 0 — the MGH defect class, caught before it
+could ship in a second codec.
+
+Verified: 49/49 `ritk-nifti` (0.564s), 370/370 `ritk-io` + `ritk-analyze`
+downstream, clippy `--all-targets -D warnings` clean, `RUSTDOCFLAGS=-D warnings
+cargo doc` clean.
+
+Design decision recorded here rather than an ADR, being reversible and internal:
+the series surface returns `Vec<Image<f32, B, 3>>` rather than a new
+`ImageSeries` domain type. Volumes on one grid is what the format states, it
+needs no cross-crate public API, and it does not prejudge the type
+ATLAS-DMRI-SCHEME-003 actually needs — which carries the gradient scheme
+alongside the volumes and is where the per-voxel-across-volumes access pattern
+will be known. A contiguous layout stays open behind that type.
+
+Remaining sub-increments: `ritk-nrrd` (still rejects `dimension != 2 | 3`, and
+its writer hardcodes `dimension: 3`), `ritk-mgh` series read (currently fails
+loudly per ATLAS-DMRI-MGH-FRAMES-002, so this is an extension not a fix),
+`ritk-dicom` multi-frame/series assembly, and the `ritk-io` dispatch tail.
+
+## ATLAS-DMRI-IO-001 original specification
 
 - **Outcome**: `ritk-nifti`, `ritk-nrrd`, and `ritk-dicom` read and write a
   series carrying an acquisition axis, and `ritk-io` dispatches it.
