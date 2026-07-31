@@ -220,7 +220,19 @@
   burn-down), the elementwise seam's prepared-rebind unification under the
   GAT pattern (its ZST execute-at-prepare forms are the axis-reduction
   shortcut the suite already rejected once), and the elementwise
-  prepared-rebind GAT unification. The cuda-only `*_trailing_update` surface
+  prepared-rebind GAT unification — design scoped 2026-07-31: evolve the
+  three `ElementwiseOps` prepared associated types to the `Prepared<'op, N>`
+  GAT (the axis-reduction pattern, one atomic trait flip across all four
+  seams); cuda/rocm gain real borrowing prepared forms per family in their
+  strided modules — the split points already exist (`StridedMeta` is Copy,
+  the launch takes a borrowed-bundle struct, `cached_kernel` returns a
+  clonable `Arc<SafeCachedKernel>`), so each prepared struct stores the
+  validated meta + kernel + operand borrows and its dispatch re-reads raw
+  pointers (rebind semantics); wgpu/metal keep their owning
+  `PreparedElementwise` ignoring `'op`; the conformance suite then gains the
+  prepared-rebind clauses for the elementwise families. Note: a live peer
+  holds the attention-provider claim on lane
+  `codex/hephaestus-attention-provider` — elementwise files are disjoint. The cuda-only `*_trailing_update` surface
   is demoted to `pub(crate)` (hephaestus `2dace5a`; wgpu's twins were already
   private, no stack consumer referenced them).
 - **Increment delivered 2026-07-31 (axis reduction × all backends,
