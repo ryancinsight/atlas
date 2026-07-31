@@ -243,8 +243,13 @@
     **Dense-vector clauses delivered too** (hephaestus `cbbe341`): the full
     DenseVectorOps surface under exact oracles including prepared dot/norm
     rebind and mismatched-operand rejection, ×4, green on physical cuda and
-    wgpu, workspace 535/535. Remaining in 001a: only the FullReductionOps
-    prepared-rebind GAT flip, which first needs a
+    wgpu, workspace 535/535. **001a is complete 2026-07-31** (hephaestus `1e36071`): the
+    FullReductionOps GAT flip landed — cuda/rocm prepared forms own staging
+    + the multi-pass plan and borrow their operands, the rebind clause
+    (1728 → 4096 after an input rewrite) is green on physical cuda and
+    wgpu, workspace 539/539. The design note below is historical: the
+    plan-dispatch-over-input API already existed, so no upstream change was
+    needed beyond a
     plan-run-over-input API upstream — the cuda prepare currently
     materializes a contiguous copy and round-trips the scalar through the
     host, so its prepared form cannot yet re-read bound inputs.
