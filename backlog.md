@@ -670,10 +670,17 @@
 - `snmalloc-sys 0.3.8` builds its C++ with `-Werror`; g++ 16.1 introduces
   warnings the vendored source trips, so every `--workspace` gate in
   mnemosyne must exclude the benchmarks package.
-- Fix upstream-first: a newer `snmalloc-rs` that builds under g++ 16, or the
-  crate's documented flag to relax -Werror; a repo-local CXXFLAGS override in
-  committed config is the fallback, recorded as quarantine with the upstream
-  fix as its removal trigger.
+- Fix upstream-first: a newer `snmalloc-rs` vendoring a g++16-compatible
+  snmalloc, or upstream support for disabling the vendored CMake's -Werror.
+- Probe evidence (2026-07-31): `cargo update` holds 0.3.8 (mnemosyne's 1.95
+  MSRV caps resolution); `CXXFLAGS=-Wno-error[=sfinae-incomplete]` does NOT
+  reach the compile line — snmalloc-sys's build.rs passes its own hardcoded
+  `-DCMAKE_CXX_FLAGS=...`, and snmalloc's CMake appends `-Wall -Wextra
+  -Werror` after it (the failing diagnostic is g++16's new
+  `-Wsfinae-incomplete` at `backend/globalconfig.h:28`). Env-var quarantine
+  is therefore not available; until upstream moves, mnemosyne gates exclude
+  `mnemosyne-benchmarks` (`--exclude mnemosyne-benchmarks`), already the
+  recorded practice.
 
 ## ATLAS-HEPH-DOC-LINKS-1 — hephaestus-core fails the rustdoc gate [patch] — done
 
