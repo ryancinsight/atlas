@@ -248,8 +248,12 @@
     plan-run-over-input API upstream — the cuda prepare currently
     materializes a contiguous copy and round-trips the scalar through the
     host, so its prepared form cannot yet re-read bound inputs.
-  - ATLAS-ARCH-001b — scan family (ScanOps seam exists; rebind clause per
-    ADR 0041 once its prepared form joins the GAT pattern).
+  - ATLAS-ARCH-001b — scan family. **Value clauses delivered 2026-07-31**
+    (hephaestus `89a99c1`): forward/reverse prefix sums, prefix products,
+    axis discrimination, and rejection-without-mutation, instantiated ×4,
+    green on physical cuda and wgpu, workspace 537/537. Remaining: the
+    prepared-rebind clause once the cuda/rocm scan seams adopt the GAT
+    pattern (same shape as the delivered elementwise flip).
   - ATLAS-ARCH-001c — dense vector + sparse operator families
     (DenseVectorOps/SparseOperatorOps declared by SUBSTRATE-001).
   - ATLAS-ARCH-001d — volume ray-integral family (covered by per-backend
