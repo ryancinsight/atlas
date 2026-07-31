@@ -1,5 +1,19 @@
 # atlas — cross-repository integration gap audit
 
+## Active Aequitas consumer re-audit — Kwavers sound-speed error metrics — 2026-07-31
+
+The next Kwavers diagnostics gap is public OpenPros mean absolute and root
+mean square sound-speed errors, which remain unit-suffixed raw scalars after
+the image-comparison path. `KWAVERS-AEQ-MET-50` is scoped to Aequitas
+`Velocity`; base extraction stays inside the numerical comparison formula.
+
+Normalized error and Pearson correlation are dimensionless; objective values,
+regularization weights, and dense Leto image arrays remain explicit numerical
+or provider-storage boundaries. This path is real-valued and has no physical
+phasor, so Eunomia compatibility requires no imaginary physical unit. See
+[`Kwavers ADR 089`](repos/kwavers/docs/ADR/089-sound-speed-error-quantities.md)
+and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
+
 ## Aequitas consumer re-audit closure — Kwavers sound-speed-shift curved-array/frequency — 2026-07-31
 
 `KWAVERS-AEQ-MET-49` is closed. Kwavers diagnostics now uses Aequitas
