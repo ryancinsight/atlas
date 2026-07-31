@@ -137,20 +137,35 @@ class CheckBookTestCase(unittest.TestCase):
             (book / "README.md").write_text("# Intro\n", encoding="utf-8")
             self.assertEqual(self._report(book)["file_missing"], [])
 
-    def test_root_absolute_link_is_resolved_against_the_filesystem(self) -> None:
-        # Characterization, not an endorsement. mdBook treats a leading
-        # `/` as book-root-relative; this module resolves it against the
-        # filesystem root instead, so `/README.md` is reported missing
-        # even though the book contains README.md. Pinned so the
-        # behaviour cannot change silently -- see the note filed with
-        # this retarget.
+    def test_root_absolute_link_resolves_against_the_book_root(self) -> None:
+        # mdBook semantics: a leading `/` is book-root-relative. Guards
+        # the `Path.__truediv__` trap, where an absolute right operand
+        # discards the base and escapes to the drive root.
         with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
             book = Path(book)
             (book / "chapter.md").write_text("See [overview](/README.md).\n", encoding="utf-8")
             (book / "README.md").write_text("# Overview\n", encoding="utf-8")
+            self.assertEqual(self._report(book)["file_missing"], [])
+
+    def test_root_absolute_link_from_subdirectory_uses_book_root(self) -> None:
+        # The distinguishing case: `/README.md` from a nested chapter
+        # must reach the book root, not the chapter's own directory.
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "README.md").write_text("# Overview\n", encoding="utf-8")
+            nested = book / "guide"
+            nested.mkdir()
+            (nested / "chapter.md").write_text("See [overview](/README.md).\n", encoding="utf-8")
+            self.assertEqual(self._report(book)["file_missing"], [])
+
+    def test_root_absolute_link_to_absent_file_is_still_reported(self) -> None:
+        # The fix must not mask genuinely broken root-absolute links.
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text("See [gone](/nope.md).\n", encoding="utf-8")
             missing = self._report(book)["file_missing"]
             self.assertEqual(len(missing), 1)
-            self.assertEqual(missing[0][1], "/README.md")
+            self.assertEqual(missing[0][1], "/nope.md")
 
     def test_broken_link_entry_names_origin_href_and_target(self) -> None:
         with tempfile.TemporaryDirectory(prefix="mdbook-") as book:

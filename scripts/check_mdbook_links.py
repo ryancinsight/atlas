@@ -206,7 +206,15 @@ def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
                 if anchor and slugify(anchor) not in local_anchor_set:
                     anchor_missing.append((origin, href, anchor))
                 continue
-            target = (md.parent / path_part).resolve()
+            if path_part.startswith("/"):
+                # mdBook resolves a leading `/` against the book root, not
+                # the filesystem. `Path.__truediv__` silently discards the
+                # left operand when the right side is absolute, which sent
+                # `/README.md` to the drive root and reported every
+                # root-absolute link as missing.
+                target = (root / path_part.lstrip("/")).resolve()
+            else:
+                target = (md.parent / path_part).resolve()
             links_checked += 1
             if not target.exists():
                 # Forward-defence allow-list: if (origin, href) is in the
