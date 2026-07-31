@@ -220,7 +220,16 @@
   burn-down), the elementwise seam's prepared-rebind unification under the
   GAT pattern (its ZST execute-at-prepare forms are the axis-reduction
   shortcut the suite already rejected once), and the elementwise
-  prepared-rebind GAT unification — design scoped 2026-07-31: evolve the
+  prepared-rebind GAT unification — **delivered 2026-07-31** (hephaestus
+  master `512f153`, via the parameterized-unary lane while the attention
+  peer holds the main tree): `ElementwiseOps`'s prepared types are
+  `Prepared*<'op, N>` lending GATs; CUDA/ROCm bind new borrowing strided
+  plans replacing the execute-at-prepare ZSTs; WGPU/Metal ignore `'op`; the
+  conformance suite gained the prepared-rebind clause, green on physical
+  cuda and wgpu; workspace 531/531. The umbrella gitlink advances when the
+  main tree returns to the master lineage (attention lane merge). Remaining
+  ARCH-001 tail: only the 112-entry-point contract.rs ledger burn-down.
+  Original design note: evolve the
   three `ElementwiseOps` prepared associated types to the `Prepared<'op, N>`
   GAT (the axis-reduction pattern, one atomic trait flip across all four
   seams); cuda/rocm gain real borrowing prepared forms per family in their
