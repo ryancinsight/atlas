@@ -155,7 +155,9 @@
   the four backend `tests/contract.rs` files, and the Hephaestus workspace member
   list. Triage lands first as its own increment; each backend then migrates in
   its own claim.
-- Decision: [ADR 0038](docs/adr/0038-compute-backend-conformance-crate.md).
+- Decision: hephaestus [ADR 0041](docs/adr/0041-compute-backend-conformance-crate.md)
+  (backfilled 2026-07-31; the item's earlier "ADR 0038" reference was a
+  phantom — hephaestus's 0038 is the blocked-QR record).
 - **Triage increment: done 2026-07-28** —
   [ledger](docs/audit/2026-07-28-computebackend-conformance-triage.md). It
   corrected the basis: the contract is the **112 public entry points declared by
@@ -229,6 +231,22 @@
   cuda and wgpu; workspace 531/531. The umbrella gitlink advances when the
   main tree returns to the master lineage (attention lane merge). Remaining
   ARCH-001 tail: only the 112-entry-point contract.rs ledger burn-down.
+  Ledger burn-down decomposition (each item DoR-shaped, claim separately;
+  acceptance for every one: the family's shared entry points covered by
+  generic clauses instantiated by all four backends, per-backend assertions
+  a superset of the pre-migration set by before/after count, hand-written
+  duplicates deleted in the same increment, tolerances derived):
+  - ATLAS-ARCH-001a — full-reduction + map-reduction families (sum/prod/
+    min/max/dot/norm entry points; FullReductionOps seam exists).
+  - ATLAS-ARCH-001b — scan family (ScanOps seam exists; rebind clause per
+    ADR 0041 once its prepared form joins the GAT pattern).
+  - ATLAS-ARCH-001c — dense vector + sparse operator families
+    (DenseVectorOps/SparseOperatorOps declared by SUBSTRATE-001).
+  - ATLAS-ARCH-001d — volume ray-integral family (covered by per-backend
+    tests today; genericize the oracle).
+  - ATLAS-ARCH-001e — linalg/decomposition family (largest; blocked-panel
+    Cholesky/LU/QR conformance vs Leto oracles, tolerances derived per
+    numerical_discipline).
   Original design note: evolve the
   three `ElementwiseOps` prepared associated types to the `Prepared<'op, N>`
   GAT (the axis-reduction pattern, one atomic trait flip across all four
