@@ -77,10 +77,10 @@ required. Future coherent imaging outputs continue to use the existing
 Eunomia-backed complex scalar support at the formula/storage boundary. The
 child record is [`Kwavers ADR 078`](repos/kwavers/docs/ADR/078-clinical-workflow-quantities.md)
 and [`Kwavers audit`](repos/kwavers/gap_audit.md). Package check and
-warning-denied library Clippy pass. Focused native tests and doctests remain
-blocked by concurrent peer-owned workspace failures in `ritk-mgh` and
-`kwavers-grid`; those exact diagnostics are recorded in the child board and
-are not attributed to this metric closure.
+warning-denied all-target Clippy pass. Focused workflow Nextest passes 57/57
+with 136 skipped; doctests pass with 1 executable and 5 ignored; RustDoc,
+formatting, and diff checks pass. Shared unused-provider-patch and linker
+warnings remain outside this metric closure.
 
 ## Aequitas consumer re-audit extension — 2026-07-29
 
