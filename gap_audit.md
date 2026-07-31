@@ -1,5 +1,28 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer re-audit extension — Kwavers clinical monitoring — 2026-07-31
+
+The current Kwavers diagnostics scan found raw processing time, frame rate,
+spatial resolution, temperature rise, mechanical index, quality, and mixed
+safety-event values in `reconstruction::clinical_monitoring`.
+`KWAVERS-AEQ-MET-45` now uses Aequitas `Time`, `Frequency`, `Length`,
+`TemperatureDifference`, `ThermodynamicTemperature`, and `Dimensionless`,
+with `MonitoringMetric` preserving the physical meaning of heterogeneous
+safety values. Temperature and mechanical-index checks return
+`KwaversResult` and propagate event-log failures.
+
+`SystemTime`, counters, and numerical formula/storage values remain explicit
+infrastructure boundaries. SNR is a dimensionless logarithmic ratio because
+no decibel unit is present in the contract. The workflow is real-valued, so
+Eunomia complex compatibility does not require an imaginary physical unit and
+none is introduced. See [`Kwavers ADR 084`](repos/kwavers/docs/ADR/084-clinical-monitoring-quantities.md)
+and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
+
+Evidence: diagnostics test-target check passes; focused Nextest passes 13/13
+with 186 skipped; warning-denied all-target Clippy, doctests, RustDoc, package
+formatting, diff, and public-contract scan pass. Workspace-wide rustfmt is
+Windows filename-length blocked (`os error 206`); package formatting passes.
+
 ## Aequitas consumer re-audit extension — Kwavers f-k migration — 2026-07-31
 
 The current Kwavers diagnostics scan found raw lateral sample spacing, temporal
