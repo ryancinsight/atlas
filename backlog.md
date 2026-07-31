@@ -7383,7 +7383,7 @@ cfd-validation, then delete the `cfd_math::iterative` facade.
 - Acceptance: tool merged and green under the standard gates; harness lane removed; version-guard item updated to reference the landed checker.
 - Resolution 2026-07-29: no unique work was stranded — all 9 lane files are byte-identical to `origin/main` (`f8305ac feat(atlas): add tools/gitlink-coherence audit package`); the tool had already landed and the harness lane was a superseded leftover, now deleted and pruned. Verifying it exposed the real defect: `RUSTC`/`RUSTDOC` env vars pointing at a rustup shim (default nightly) while `cargo` came from MSYS2 at stable 1.97.0, so nightly artifacts entered the shared cache and every pinned-toolchain build failed E0514 — recurring after each clean because a live peer keeps regenerating them. With the override removed, all three tools are green (gitlink-coherence 18/18, criterion-regression 21/21, checkout-path-dependencies 11/11; fmt and clippy clean). Tool pins advanced 1.95.0 -> 1.97.0 to match the stack standard (14 of 18 pinned members) per ecosystem currency. Remaining: wire the coherence check into the integration sweep per ATLAS-VERSION-GUARD-001.
 
-## ATLAS-TOOLCHAIN-COHERENCE-001 — One compiler identity across the shared cache [patch] — in-progress (one residual: sweep preflight check)
+## ATLAS-TOOLCHAIN-COHERENCE-001 — One compiler identity across the shared cache [patch] — done
 
 - Owning record for the host toolchain-coherence fact (SSOT). The former
   duplicate heading under this ID and `ATLAS-ENV-TOOLCHAIN-001` are collapsed
@@ -7431,6 +7431,18 @@ cfd-validation, then delete the `cfd_math::iterative` facade.
   residual `hephaestus-wgpu --all-targets` failure is the broken host `gcc`
   failing the `alloca` dev dependency (ATLAS-ENV-CC-1), not E0514 — two
   independent causes, only the poisoning one is cleared.
+- **Closed 2026-07-31**: `scripts/atlas-toolchain-preflight.py` asserts, in
+  order, rustup-shim PATH identity, absent `RUSTC`/`RUSTDOC` overrides, no
+  rustup directory overrides, and every committed member pin resolving via
+  `rustc -V` from inside the member (26 pins green). Its first runs caught
+  and cleared two live conditions: this session's inherited `RUSTC` export
+  (registry already cleaned — new sessions are unaffected) and a redundant
+  stack-root rustup override. Full acceptance holds: one identity on PATH,
+  pins are what actually runs, and post-MSYS2-removal builds across
+  coeus/ritk/kwavers/hephaestus/leto/mnemosyne produced no E0514 (one
+  pre-removal poisoned `moirai_utils` artifact was evicted, not rebuilt
+  around). Wire the preflight into CI alongside `atlas-stack-overlay.py
+  check` when the sweep workflow next changes.
 - Residual burn-down 2026-07-31: (1) **MSYS2 rust removed** — `D:\msys64  ucrt64in\cargo.exe` no longer exists, so rustup's toolchain is the only
   compiler identity on the host and every committed pin is honored
   unconditionally. (2) **Pins retrofitted to all 8 floating members** —
