@@ -82,6 +82,25 @@ with 136 skipped; doctests pass with 1 executable and 5 ignored; RustDoc,
 formatting, and diff checks pass. Shared unused-provider-patch and linker
 warnings remain outside this metric closure.
 
+## Aequitas consumer re-audit extension — Kwavers stereotactic targeting — 2026-07-31
+
+The next Kwavers diagnostics audit found a public functional-ultrasound
+targeting family with AP/ML/DV coordinates, Bregma, Euclidean distance, and
+confidence represented as raw millimetre/fraction scalars. `KWAVERS-AEQ-MET-41`
+closes the gap with Aequitas `Length<f64>` and `Dimensionless<f64>` contracts.
+Scalar extraction is limited to the existing millimetre-based atlas conversion
+boundary, and a typed round-trip regression covers voxel/stereotactic mapping.
+
+This family is real-valued under Eunomia and has no phasor or imaginary
+component. Future coherent imaging outputs continue to use the existing
+Eunomia-backed complex formula/storage boundary. The child record is
+[`Kwavers ADR 080`](repos/kwavers/docs/ADR/080-stereotactic-targeting-quantities.md)
+and [`Kwavers audit`](repos/kwavers/gap_audit.md). Package check passes;
+targeting Nextest passes 10/10 with 184 skipped; warning-denied all-target
+Clippy, doctests (1 executable, 5 ignored), RustDoc, formatting, and diff
+checks pass. Shared unused-provider-patch and linker warnings remain outside
+this metric closure.
+
 ## Aequitas consumer re-audit extension — 2026-07-29
 
 The current CFDrs scan found a second public physical family after the
