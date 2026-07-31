@@ -1,18 +1,25 @@
 # atlas — cross-repository integration gap audit
 
-## Active Aequitas consumer re-audit — Kwavers sound-speed-shift curved-array/frequency — 2026-07-31
+## Aequitas consumer re-audit closure — Kwavers sound-speed-shift curved-array/frequency — 2026-07-31
 
-The next Kwavers diagnostics gap is public curved-array radius/angle
-contracts and OpenPros waveform peak frequency, which remain raw scalars
-after the sound-speed-shift spatial-scale migration. `KWAVERS-AEQ-MET-49` is
-scoped to Aequitas `Length`, `Angle`, and `Frequency`, with base extraction
-only at trigonometry, validation, and derived wavelength boundaries.
+`KWAVERS-AEQ-MET-49` is closed. Kwavers diagnostics now uses Aequitas
+`Length`, `Angle`, and `Frequency` for public curved-array radius, first angle,
+angular pitch, aperture, and OpenPros waveform peak frequency. Base extraction
+is restricted to trigonometry, validation, and derived wavelength boundaries.
 
-Solver-owned `PlanarPoint` coordinates, dense images, and benchmark error
-metrics remain explicit numerical/storage boundaries for later slices. This
-path is real-valued and has no physical phasor, so Eunomia compatibility
-requires no imaginary physical unit. See [`Kwavers ADR 088`](repos/kwavers/docs/ADR/088-sound-speed-curved-array-frequency-quantities.md)
+Solver-owned `PlanarPoint` coordinates, dense Leto image storage, and
+benchmark error-metric storage remain explicit numerical/storage boundaries
+for the next audit slice. This path is real-valued and has no physical
+phasor, so Eunomia compatibility requires no imaginary physical unit. See
+[`Kwavers ADR 088`](repos/kwavers/docs/ADR/088-sound-speed-curved-array-frequency-quantities.md)
 and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
+
+Evidence: Kwavers diagnostics test-target check passes; focused
+sound-speed-shift Nextest run `9544d32a-ea02-4c1f-b57a-1e4944a68a30` passes
+34/34 with 165 skipped; warning-denied all-target Clippy, doctests, RustDoc,
+package formatting, diff checks, and the public-contract scan pass.
+Workspace-wide rustfmt remains Windows filename-length blocked (`os error
+206`); package formatting passes.
 
 ## Aequitas consumer re-audit extension — Kwavers sound-speed-shift spatial scales — 2026-07-31
 
