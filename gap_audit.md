@@ -1,5 +1,21 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer re-audit extension — Kwavers f-k migration — 2026-07-31
+
+The current Kwavers diagnostics scan found raw lateral sample spacing, temporal
+sample interval, and propagation speed in the public Stolt f-k migration
+entrypoint. `KWAVERS-AEQ-MET-44` now uses Aequitas `Length`, `Time`, and
+`Velocity`, validates finite positive inputs, and returns a typed error before
+FFT allocation. RF arrays and internal complex FFT values remain numerical
+boundaries rather than physical quantity contracts.
+
+The workflow is real-valued; its internal complex FFT representation is not a
+physical phasor and needs no imaginary unit. See [`Kwavers ADR 083`](repos/kwavers/docs/ADR/083-fk-migration-quantities.md)
+and the [`Kwavers audit`](repos/kwavers/gap_audit.md). Diagnostics test-target
+check passes; focused Nextest passes 3/3 with 196 skipped; warning-denied
+all-target Clippy, doctests, RustDoc, formatting, and diff checks pass. No raw
+physical scalar remains in the public signature.
+
 ## Aequitas consumer refresh — unified thermal deposition — 2026-07-28
 
 The named-consumer metric contracts remain closed: CFDrs and Helios expose
