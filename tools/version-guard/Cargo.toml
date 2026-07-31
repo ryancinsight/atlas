@@ -1,0 +1,49 @@
+# Coordinator tool — see tools/_template/template-Cargo.toml for the policy
+# block (lints, profiles, dependencies) that this file mirrors verbatim.
+# Refs: backlog.md#ATLAS-TOOLS-TEMPLATE-EXTRACT-1.
+
+[package]
+name = "atlas-version-guard"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+authors = ["Ryan Clanton <ryanclanton@outlook.com>"]
+description = "Manifest-version guard for Atlas member repos; detects undeclared version bumps and backward version movement"
+repository = "https://github.com/ryancinsight/atlas"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+name = "atlas_version_guard"
+path = "src/lib.rs"
+
+[[bin]]
+name = "version-guard"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "deny"
+
+[profile.dev]
+debug = "line-tables-only"
+overflow-checks = true
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.test]
+debug = "line-tables-only"
+overflow-checks = true
+
+[profile.release]
+debug = false
+strip = "symbols"
