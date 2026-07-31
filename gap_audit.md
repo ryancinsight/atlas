@@ -1,5 +1,27 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer re-audit extension — Kwavers sound-speed-shift — 2026-07-31
+
+The next Kwavers diagnostics scan found measured travel-time shifts crossing
+the `reconstruction::sound_speed_shift` sample, prediction, curved-array,
+fixed-acquisition, and batch APIs as raw seconds. `KWAVERS-AEQ-MET-47` now
+uses Aequitas `Time`, removes unit-suffixed public time-shift names and scalar
+compatibility paths, and extracts seconds only inside numerical operators and
+validation formulas.
+
+Reference velocity, grid spacing, curved-array geometry, and dense speed-shift
+image arrays remain explicit numerical boundaries for the next slice. This
+workflow is real-valued and has no physical phasor, so Eunomia compatibility
+requires no imaginary physical unit. See [`Kwavers ADR 086`](repos/kwavers/docs/ADR/086-sound-speed-shift-time-quantities.md)
+and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
+
+Evidence: diagnostics test-target check passes; focused sound-speed-shift
+Nextest run `2a1acd7a-63f6-40a1-8742-1840913fac1d` passes 34/34 with 165
+skipped; warning-denied all-target Clippy, doctests, RustDoc, package
+formatting, diff checks, and the public-contract scan pass. Workspace-wide
+rustfmt remains Windows filename-length blocked (`os error 206`); package
+formatting passes.
+
 ## Aequitas consumer re-audit extension — Kwavers real-time SIRT — 2026-07-31
 
 The next Kwavers diagnostics scan found raw frame timestamps, computation
