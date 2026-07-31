@@ -123,6 +123,27 @@ all-target Clippy, doctests (1 executable, 5 ignored), RustDoc, formatting, and
 diff checks pass. Shared unused-provider-patch and linker warnings remain
 outside this metric closure.
 
+## Aequitas consumer re-audit extension — Kwavers blood oxygenation — 2026-07-31
+
+The next Kwavers diagnostics audit found raw public optical wavelengths,
+minimum hemoglobin concentration, and absorption-reference coefficients in
+`workflows::blood_oxygenation`. Provider Aequitas ADR 0010 adds semantic
+`MolarConcentration` with `mol/m³`, `mol/L`, and `µmol/L` units plus
+`Nanometer`; Kwavers `KWAVERS-AEQ-MET-43` now exposes `Length`,
+`MolarConcentration`, and `ReciprocalLength` at the public contract.
+
+The existing optical database and spectral unmixer retain explicit scalar
+boundaries, while dense Leto maps remain numerical storage. The runnable
+photoacoustic example uses the typed configuration. This workflow is
+real-valued; Eunomia complex values remain confined to coherent formula or
+storage boundaries and no imaginary physical unit is introduced. See
+[`Aequitas ADR 0010`](repos/aequitas/docs/adr/0010-molar-concentration-optical-wavelength.md),
+[`Kwavers ADR 082`](repos/kwavers/docs/ADR/082-blood-oxygenation-quantities.md),
+and the [`Kwavers audit`](repos/kwavers/gap_audit.md). Provider checks pass;
+Kwavers diagnostics and example checks pass; focused Nextest passes 3/3 with
+195 skipped; warning-denied all-target Clippy, doctests, RustDoc, formatting,
+and diff checks pass. The only remaining raw fields are dense numerical maps.
+
 ## Aequitas consumer re-audit extension — 2026-07-29
 
 The current CFDrs scan found a second public physical family after the
