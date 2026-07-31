@@ -207,6 +207,20 @@
   steps exposed as public API in `cuda` only. Confirm and demote to `pub(crate)`,
   or justify the public surface.
 
+- **Increment delivered 2026-07-31 (typed elementwise × all backends,
+  hephaestus `bfba2dd`):** the scalar-aware comparison clauses are now
+  generic in `hephaestus-conformance::typed_elementwise` — u32/i32/f32 each
+  instantiated, exact-equality oracles only, plus into-form idempotence,
+  pre-mutation shape rejection, and transposed-stride traversal — and all
+  four backends instantiate them. CUDA passes on physical hardware; WGPU
+  passes; ROCm/Metal are platform-gated. **All six formerly uncovered shared
+  entry points are now conformance-covered on every backend** (the item's
+  headline gap). Workspace 493/493. Remaining for full acceptance: the
+  broader contract.rs-to-instantiation migration (the 112-entry-point ledger
+  burn-down), the elementwise seam's prepared-rebind unification under the
+  GAT pattern (its ZST execute-at-prepare forms are the axis-reduction
+  shortcut the suite already rejected once), and the cuda-only
+  `*_trailing_update` surface demotion.
 - **Increment delivered 2026-07-31 (axis reduction × all backends,
   hephaestus `a1c7e0a`):** `AxisReductionOps` is now implemented by CUDA and
   ROCm (adapting their kernels and borrowing prepared plans) and Metal
