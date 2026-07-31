@@ -1,5 +1,20 @@
 # atlas — cross-repository integration gap audit
 
+## Active Aequitas consumer re-audit — Kwavers sound-speed-shift spatial scales — 2026-07-31
+
+The next Kwavers diagnostics gap is the remaining sound-speed-shift spatial
+configuration boundary: reference sound speed, grid spacing, curved-path
+sagitta, and finite-frequency wavelength/support scales are still raw
+unit-suffixed values. `KWAVERS-AEQ-MET-48` is scoped to Aequitas `Velocity` and
+`Length`, with base scalar extraction only at ray, propagation, validation,
+and solver formulas.
+
+Solver-owned `PlanarPoint` coordinates and dense Leto image storage remain
+explicit numerical boundaries for later slices. This path is real-valued and
+has no physical phasor, so Eunomia compatibility requires no imaginary
+physical unit. See [`Kwavers ADR 087`](repos/kwavers/docs/ADR/087-sound-speed-shift-spatial-quantities.md)
+and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
+
 ## Aequitas consumer re-audit extension — Kwavers sound-speed-shift — 2026-07-31
 
 The next Kwavers diagnostics scan found measured travel-time shifts crossing
