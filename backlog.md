@@ -416,9 +416,16 @@
       with exact clause oracles (L1=11, max=6 on the quadruple), and the
       full-reduction module gained the diagonal-strided trace clause
       (15, exact — the kernel path backend trace conveniences take).
-      Green on physical cuda+wgpu, workspace 529/529. Remaining in 001g:
-      mean_axis only (no MeanOp combine expr — decide seam-expressible vs
-      convenience-over-sum, then clause or record).
+      Green on physical cuda+wgpu, workspace 529/529. **001g is complete
+      2026-08-01** (hephaestus `670a75b`): mean has its own kernel per
+      backend (PipelineKey::MeanAxis), so it entered the seam as the
+      named method mean_axis_into beside prod_axis_into (mean is not a
+      combining operator — it carries the divisor), forwarded ×4, with
+      exact dyadic mean clauses along both axes. The reduction family's
+      ledger surface is now fully clause-covered: sum/prod/min/max via
+      the operator generic, mean via the named method, norms l1/l2/max
+      and dot via DenseVectorOps, trace via the diagonal-view full
+      reduction. Green on physical cuda+wgpu, workspace 529/529.
     - 001h — sparse remainder (5: spmv_many{,_into}, spmm{,_into}, nnz).
       Seam has upload/shape/apply only; batched SpMV + SpMM need seam
       methods.
