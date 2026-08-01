@@ -161,8 +161,12 @@
   (hephaestus `dffefa0`, via the rocm-pivot lane) — exact CSR SpMV,
   current-input re-application, shape, five structural rejections; WGPU
   passes on a physical adapter, Metal platform-gated, workspace 541/541.
-  001c's remainder: native CSR SpMV kernels on cuda/rocm, then their
-  instantiations. (Bookkeeping: umbrella commit `5319bff` carried a peer
+  **001c closed 2026-07-31 (late)**: cuda and rocm already owned full
+  CSR machinery (GpuCsrMatrix + spmv), so thin seam adapters completed the
+  implementor set — all four backends now implement SparseOperatorOps and
+  instantiate the sparse clauses, with validate_csr consolidated into
+  hephaestus-core; CUDA passes on physical hardware; workspace 542/542
+  (hephaestus rocm-pivot lane, merges to master with it). (Bookkeeping: umbrella commit `5319bff` carried a peer
   coordinator's uncommitted NLLS board narrative under this session's
   message — content legitimate, label wrong, recorded here.) Two transient torn-read compiles (leto-ops macro,
   hephaestus-rocm) resolved on re-run — live-peer build interleaving, not
