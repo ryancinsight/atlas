@@ -480,10 +480,16 @@
       convolution delegation layer (seam.rs + prepared.rs newtypes) is
       f32-concrete. Fix = genericize the delegation over T bounded by
       `WgpuConvolutionOps: ConvolutionOps<WgpuDevice, T>`, then gate the
-      instantiation on DeviceFeature::ShaderF64 like wgpu's. Owner:
-      claude-loop, lane `worktrees/hephaestus-conformance-tail`
-      (branch test/conformance-tail — main hephaestus tree is held by a
-      live codex peer on codex/hephaestus-matrix-properties-host-reuse).
+      instantiation on DeviceFeature::ShaderF64 like wgpu's. **Complete
+      2026-08-01** (hephaestus master `275f622`, delivered via a worktree
+      lane fast-forward push while the codex peer holds the main tree):
+      metal's convolution delegation genericized over T (one impl bounded
+      by the wgpu seam, replacing the f32-concrete layer), and the metal
+      instantiation now gates the f64 clauses on
+      DeviceFeature::ShaderF64 exactly like wgpu. Lane removed on merge.
+      NOTE: the umbrella hephaestus gitlink intentionally NOT advanced
+      this cycle — repos/hephaestus is checked out on the peer's live
+      branch; the next integrator advances it to merged master.
     Also unexercised: RetainedReductions (retain_dot/norm) and
     StridedComputeBackend have no conformance reference. Scan-seam GAT flip complete 2026-08-01 (hephaestus
     `39dd602`): PreparedScan<'op, N> across all four backends — cuda/rocm
@@ -8380,7 +8386,41 @@ names. The single-problem solver is the first vertical increment.
   iteration count.
 - **Class**: `[minor]`, repository `repos/coeus`.
 
-## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis over scattered directions [minor] — todo
+## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis over scattered directions [minor] — review
+
+**Delivered in two parts, by different agents.** A peer landed the basis,
+`evaluate`/`evaluate_at_direction`, and the scattered-direction `design_matrix`
+in `apollo` PR #69 (`bf06987`, `1062400`), merged at `db21866`. The
+Laplace-Beltrami regularization this item also specified was absent from that
+work and landed separately: `apollo` `112d378` on
+`feat/apollo-sht-laplace-beltrami`, PR #70.
+
+`RealSphericalHarmonicBasis::laplace_beltrami_diagonal` /
+`laplace_beltrami_matrix` / `laplace_beltrami_eigenvalue`. The operator
+diagonalizes in this basis — spherical harmonics are its eigenfunctions with
+eigenvalue `-l(l+1)` — so the roughness functional reduces to a diagonal form
+with entries `l²(l+1)²`. Degree zero carries zero penalty, leaving the isotropic
+component unshrunk. Formulation per Descoteaux et al., *MRM* 58(3), 2007, §2.3.
+
+Verified at `112d378`: 42/42 `apollo-sht` tests, `RUSTDOCFLAGS=-D warnings cargo
+doc` clean, clippy clean in the changed files.
+
+**Watchpoint, not owned here**: `cargo clippy -p apollo-sht --all-targets -D
+warnings` fails on two pre-existing `clippy::missing_const_for_thread_local`
+diagnostics at `application/execution/plan/sht/helpers.rs:15`. They are a false
+positive on the pinned 1.97.0 toolchain — the code already uses `const {
+ScratchPool::new() }`. Left untouched because local `apollo` `main` carries an
+unpushed rename of that file (ATLAS-ARCH-006), so editing it would conflict.
+Whoever lands that rename should add a per-site `#[expect(...)]` with the
+false-positive reason.
+
+**Also recorded**: local `apollo` `main` has diverged from `origin/main` — two
+unpushed local commits (`a3390e7`, `89ab56e`, the ATLAS-ARCH-006 junk-drawer
+renames) against five remote-only commits including the PR #69 merge. Not
+resolved here; a peer owns the local commits. This branch was cut from
+`origin/main` to avoid touching that divergence.
+
+## ATLAS-APOLLO-REALSH-005 original specification
 
 - **Evidence of gap**: `apollo-sht` owns complex SH on Gauss-Legendre product
   grids. `infrastructure/kernel/spherical_harmonic.rs:234` exposes
