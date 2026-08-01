@@ -1,24 +1,35 @@
 # atlas — cross-repository integration gap audit
 
-## Active Aequitas consumer re-audit — Kwavers sound-speed field — 2026-07-31
+## Aequitas consumer re-audit closure — CFDrs, Helios, and Kwavers — 2026-07-31
 
-The next Kwavers diagnostics gap is public sound-speed-shift result fields
-that expose unit-suffixed Leto `Array2<f64>` storage. `KWAVERS-AEQ-MET-51` is
-scoped to a typed `SoundSpeedShiftField` with Aequitas `Velocity` iteration;
-raw storage extraction remains confined to solver/provider boundaries.
+The named-consumer gap audit closed three additional public metric families.
+All three remain real-valued at the physical-unit boundary; Eunomia complex
+support remains available for numerical phasors elsewhere, but no separate
+imaginary physical unit is introduced.
 
-This field is real-valued and has no physical phasor, so Eunomia compatibility
-requires no imaginary physical unit. See
-[`Kwavers ADR 090`](repos/kwavers/docs/ADR/090-sound-speed-field-quantity.md)
-and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
+- **CFDrs `CFDRS-AEQ-MET-43`** (`cbae03ca`) types schematic fluid-volume
+  summaries and mesh/pipeline traces with Aequitas `Length`, `Area`, `Volume`,
+  and `Dimensionless`. Scalar extraction is confined to provider conversion,
+  display, and the relative-volume formula. The focused schematics/mesh suite
+  passes 207/207, with package check, warning-denied Clippy, doctests,
+  RustDoc, formatting, and diff checks passing.
+- **Helios `H-096`** (`ca27abb`) types helical acquisition optical
+  depth and transmission as Aequitas `Dimensionless`, retaining Hyperion's
+  optical-depth ownership and scalar extraction only at the transmission
+  formula boundary. The simulation suite passes 42/42, with package check,
+  warning-denied Clippy, doctests, and RustDoc passing. The child
+  `gap_audit.md` remains peer-dirty and was not edited.
+- **Kwavers `KWAVERS-AEQ-MET-51`** (`6a6b4a1f8`) replaces public
+  sound-speed-shift `Array2<f64>` result fields with `SoundSpeedShiftField`,
+  which owns Leto storage and exposes Aequitas `Velocity` iteration. The
+  diagnostics suite passes 199/199, with package check, warning-denied Clippy,
+  doctest, RustDoc, formatting, and diff checks passing. Raw storage remains
+  at solver/provider boundaries.
 
-Kwavers source migration and package formatting are complete. The focused
-diagnostics check is externally blocked before Kwavers compilation by the
-peer-owned dirty `leto-ops` branch
-`codex/leto-mutable-zip-provider`: `crates/leto-ops/src/application/zip.rs`
-currently fails with callback-arity `E0057` and mutable-output move `E0507`
-errors. Provider repair is outside this item; Kwavers Nextest, Clippy,
-doctests, RustDoc, and value-semantic tests remain pending on that repair.
+The child records are [`CFDrs`](repos/CFDrs/gap_audit.md),
+[`Helios`](repos/helios/gap_audit.md), and
+[`Kwavers`](repos/kwavers/gap_audit.md). The Kwavers field decision is
+[`ADR 090`](repos/kwavers/docs/ADR/090-sound-speed-field-quantity.md).
 
 ## Aequitas consumer re-audit closure — Kwavers sound-speed error metrics — 2026-07-31
 
