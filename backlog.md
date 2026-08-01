@@ -466,9 +466,14 @@
       (ComputeDevice, storage-kernel traits, CommandStream) with zero
       generic clauses.
     - 001n — stencil family: absent from the ledger entirely (its
-      pub-fn-union basis missed struct-API kernels — Laplacian2DKernel);
-      four hand-written per-backend suites diverge today. Ledger
-      methodology note recorded.
+      pub-fn-union basis missed struct-API kernels — Laplacian2DKernel).
+      **Seam+clauses complete 2026-08-01** (hephaestus `98e9e3e`):
+      StencilOps in core, four Laplacian2DKernel adapters, analytical
+      quadratic oracle (interior 5-point Laplacian of x²+y² = 4 exactly),
+      reuse determinism, short-buffer rejection, ×4, green on physical
+      cuda+wgpu, workspace 535/535. The per-backend stencil_laplacian
+      suites stay — their Dirichlet/Neumann/periodic edge coverage
+      exceeds the shared interior clause (not superseded).
     - 001o — metal skips assert_convolution_f64_contract while the other
       three instantiate it: convert the unstated skip into a capability
       gate or an instantiation.
