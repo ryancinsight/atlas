@@ -328,8 +328,12 @@
     drafted as hephaestus [ADR 0042](docs/adr/0042-device-neutral-decomposition-seam.md)
     (Proposed, 2026-08-01, `98ef339`): one `DecompositionOps` trait with
     lifetime-parameterized per-family result handles bounded by
-    oracle-minimal accessor traits; implementation proceeds per the
-    recommendation with review as the veto.
+    oracle-minimal accessor traits; **e1 is complete 2026-08-01**: all four
+    DecompositionOps implementors delivered (wgpu adapter, cuda/rocm
+    feature-gated twins, metal cheap-rewrap newtypes over the orphan
+    boundary), ADR 0042 Accepted with its as-built revision (LU/QR/Cholesky
+    trio, f32-fixed per kernel coverage), workspace 545/545. e2 next:
+    the derived-tolerance conformance clauses.
   Original design note: evolve the
   three `ElementwiseOps` prepared associated types to the `Prepared<'op, N>`
   GAT (the axis-reduction pattern, one atomic trait flip across all four
