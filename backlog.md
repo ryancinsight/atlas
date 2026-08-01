@@ -373,8 +373,16 @@
     (generic clauses ×4 instantiation, derived tolerances, superseded
     hand tests deleted with superset accounting):
     - 001f — elementwise remainder (12: unary/binary/scalar ×
-      plain/into/strided/strided_into). CHEAPEST: `ElementwiseOps` seam
-      already exposes the surface; clauses simply not authored.
+      plain/into/strided/strided_into). **Clauses delivered 2026-08-01**
+      (hephaestus `916c9b7`): new conformance `elementwise` module —
+      exact dyadic unary (Neg/Abs/Sqrt) and binary (Add/Sub/Mul/Div)
+      oracles, transposed-layout traversal, prepared unary+binary rebind,
+      rejection-without-mutation — instantiated ×4, green on physical
+      cuda+wgpu, workspace 529/529. Remaining in 001f: the hand-written
+      per-backend duplicates deletion sweep with superset accounting, and
+      the scalar_elementwise ↔ ParameterizedUnaryOps equivalence check
+      (backend scalar entry points likely map to the parameterized seam
+      already covered — verify, then record or clause).
     - 001g — reduction remainder (~11: sum/mean/min/max_axis{,_into},
       reduce_axis, norm_l1, norm_max, trace). Axis ops reachable via the
       existing operator-generic seam; norm_l1/norm_max/trace have NO seam
