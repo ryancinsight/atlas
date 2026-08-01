@@ -435,8 +435,16 @@
       cuda+wgpu, workspace 529/529.
     - 001i — linalg family (12: matmul{,_into}, batched_matmul{,_into},
       kron{,_into}, matexp, matpow, det, pinv,
-      matrix_rank{,_with_tolerance}). Largest no-seam hole; needs a core
-      seam design increment first.
+      matrix_rank{,_with_tolerance}). **Kernel tier complete 2026-08-01**
+      (hephaestus `40dfc5a`, ADR 0044 Accepted): DenseProductOps in core
+      (matmul/batched_matmul/kron over StridedViews, per-impl scalar
+      bounds), four thin adapters, conformance dense_product module with
+      exact integer oracles + transposed traversal + rejection, ×4
+      instantiation, green on physical cuda+wgpu, workspace 531/531.
+      Remaining in 001i: the host-orchestrated composition tier
+      (matexp/matpow/det/pinv/matrix_rank) staged per the ADR — enters as
+      provided methods over DenseProductOps + DecompositionOps once the
+      decomposition seam grows SVD (001j).
     - 001j — decomposition remainder (18 of 21: blocked variants,
       col_piv_qr, full_piv_lu, bunch_kaufman, udu, hessenberg,
       bidiagonalize, schur, SVD family, eigen family). ADR 0042 scoped
