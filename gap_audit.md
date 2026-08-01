@@ -6,7 +6,7 @@ The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
 implemented on clean main-based Kwavers branch
-`codex/kwavers-aequitas-microbubble` at PR head `a4aba5919` and tracked by
+`codex/kwavers-aequitas-microbubble` at PR head `33776dfc3` and tracked by
 `KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
@@ -20,7 +20,7 @@ Eunomia `18459875` alongside Aequitas `8cc90b2`. The subsequent provider-graph
 closure updated Asclepius, Hyperion, Proteus, and Tyche lock revisions,
 migrated Leto 0.40 tuple-source operations, and corrected the Kwavers thermal
 energy path to use `TemperatureDifference`. The current CI head is
-`a4aba5919`; the hosted matrix is the remaining integration gate.
+`33776dfc3`; the hosted matrix is the remaining integration gate.
 
 The provider gap was the missing shared vocabulary for acceleration and
 pressure-time derivative. Aequitas now owns `Acceleration` (`m/s²`) and
@@ -38,9 +38,10 @@ Verification for this increment: Aequitas provider Nextest 47/47 and the
 pressure-rate dimensional-law filter 1/1; Kwavers physics microbubble Nextest
 38/38, math 266/266, and solver 854/854 with 4 skipped; locked metadata and
 package checks pass outside the Atlas overlay; exact-file formatting and diff
-checks pass. The hosted head currently reports lockfile mismatches in jobs
-that materialize the exact Atlas graph; the stale `ritk-diffusion-scheme`
-entry is being removed from the consumer lock. Kwavers therapy Nextest also
+checks pass. The prior hosted head reported lockfile mismatches in jobs that
+materialize the exact Atlas graph; the stale `ritk-diffusion-scheme` entry
+absent from the Atlas-pinned RITK gitlink is removed from the consumer lock.
+Kwavers therapy Nextest also
 retains an environment residual: shared-cache compilation of unrelated
 `ritk-jpeg` terminated without a Rust diagnostic, and the bounded single-job
 retry timed out without output. The clean main-based lane cannot run local
