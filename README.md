@@ -517,17 +517,26 @@ diffusion MRI, tractography, connectomics, and MRI study processing live. The
 answer is the RITK workspace, not a new repository, and the reasoning is the
 promotion gate rather than subject-matter novelty.
 
-RITK already owns every input and every primitive this work consumes: DICOM,
-NIfTI, MGH, MINC, and NRRD readers; spatial transforms, interpolation, and
-resampling; registration; filtering and morphology; per-image statistics; and
-tensor operations on Coeus. Diffusion model fitting is image processing over
-those primitives, so it lands as workspace crates in the package that owns them:
+RITK owns the bounded context of every input this work consumes: DICOM, NIfTI,
+MGH, MINC, and NRRD readers; spatial transforms, interpolation, and resampling;
+registration; filtering and morphology; per-image statistics; and tensor
+operations on Coeus. Diffusion model fitting is image processing over those
+primitives, so it lands as workspace crates in the package that owns them:
 
 ```text
 crates/ritk-diffusion      DWI signal models: tensor, kurtosis, multi-compartment, ODF
 crates/ritk-tractography   streamline integration and termination criteria
 crates/ritk-connectome     parcellation-to-graph construction and graph measures
 ```
+
+Owning the context is not the same as having the capability. A 2026-07-30
+capability audit against FreeSurfer, MRtrix3, FSL, and DIPY found that no RITK
+reader accepts a diffusion-weighted series — the readers are 3-D only, and MGH
+silently drops frames past the first — and that no crate models b-values or
+gradient directions. Both are RITK format-crate prerequisites sequenced ahead of
+the three crates above, not arguments against the ownership decision; ADR 0036
+decision 7 records them, and four provider edges below terminate in upstream
+capability that must be built in the provider first.
 
 Gate conditions 1 and 6 are unmet for a separate package — RITK is the only
 consumer, and none of these crates is consumed across a repository boundary.
@@ -540,8 +549,10 @@ Existing owners are not duplicated by this decision:
 
 | Concern | Owner | Boundary |
 | --- | --- | --- |
-| Nonlinear model fitting | `coeus` | Diffusion fits use Coeus autodiff and optimizers; RITK adds no local optimizer. |
-| Streamline geometry | `gaia` | Streamlines are polyline geometry and topology typed in Gaia primitives; RITK owns the integration policy that produces them. |
+| Nonlinear model fitting | `coeus` | Diffusion fits use Coeus autodiff and optimizers; RITK adds no local optimizer. Upstream gap: `coeus-optim` has only first-order stochastic optimizers, so Gauss-Newton/Levenberg-Marquardt lands there before nonlinear models are fitted. |
+| Dense linear least squares | `leto` | Log-linear tensor estimation solves through `leto-ops`; RITK assembles the design matrix and does not implement a solve. |
+| Spherical harmonic basis | `apollo` | Orientation distribution functions are SH expansions owned by `apollo-sht`. Upstream gap: the real even-order symmetric basis over scattered gradient directions does not exist yet; it lands in Apollo, never in RITK. |
+| Streamline geometry | `gaia` | Streamlines are polyline geometry and topology typed in Gaia primitives; RITK owns the integration policy that produces them. Upstream gap: Gaia has meshes and topology but no polyline type. |
 | Population and group statistics | `tyche` | Cohort sampling, ensembles, sensitivity, and reproducible study vocabulary stay in Tyche; RITK supplies per-subject image measures. |
 | Rendering and color | `iris` | Tract and connectome display uses Iris color law and view contracts through `ritk-snap` / `ritk-vtk`. |
 | Derived-array persistence | `consus` | Fitted fields, streamline sets, and connectivity matrices persist through Consus formats. |

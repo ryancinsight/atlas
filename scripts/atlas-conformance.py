@@ -75,8 +75,33 @@ CLASSES = [
     "root_sprawl", "markers", "reexport_shims", "sleep_synced_tests",
     "commented_out_code", "target_forks", "gitattributes_missing",
     "nextest_budget_missing", "workspace_lints_missing",
-    "member_namespace_pollution",
+    "member_namespace_pollution", "tag_pinned_actions",
+    "workflow_missing_timeout", "workflow_missing_permissions",
+    "pull_request_target_use", "missing_cargo_lock",
 ]
+
+SHA_PIN = re.compile(r"^\s*(?:-\s+)?uses:\s*[^\s@#]+@([A-Za-z0-9._/-]+)", re.MULTILINE)
+
+
+def scan_workflows(repo: Path, c: dict[str, int]) -> None:
+    """Workflow-hygiene classes (engineering_gates): SHA pins, bounds, tokens."""
+    wf_dir = repo / ".github" / "workflows"
+    if not wf_dir.is_dir():
+        return
+    for wf in sorted(wf_dir.iterdir()):
+        if wf.suffix not in (".yml", ".yaml"):
+            continue
+        text = wf.read_text(encoding="utf-8", errors="replace")
+        c["tag_pinned_actions"] += sum(
+            1 for m in SHA_PIN.finditer(text)
+            if not re.fullmatch(r"[0-9a-f]{40}", m.group(1))
+        )
+        if "timeout-minutes" not in text:
+            c["workflow_missing_timeout"] += 1
+        if "permissions:" not in text:
+            c["workflow_missing_permissions"] += 1
+        if "pull_request_target" in text or "workflow_run" in text:
+            c["pull_request_target_use"] += 1
 
 
 def registered_members() -> set[str]:
@@ -185,6 +210,9 @@ def scan_repo(repo: Path) -> dict[str, int]:
         manifest = (repo / "Cargo.toml").read_text(errors="replace")
         if "[workspace]" in manifest and "[workspace.lints]" not in manifest:
             c["workspace_lints_missing"] = 1
+        if not (repo / "Cargo.lock").is_file():
+            c["missing_cargo_lock"] = 1
+    scan_workflows(repo, c)
     return c
 
 
@@ -206,6 +234,7 @@ def scan_stack() -> dict[str, dict[str, int]]:
     ga = ROOT / ".gitattributes"
     if not (ga.is_file() and "text=auto" in ga.read_text(errors="replace")):
         meta["gitattributes_missing"] = 1
+    scan_workflows(ROOT, meta)
     out["<meta>"] = meta
     return out
 

@@ -22,10 +22,10 @@ novelty. Diffusion MRI is unfamiliar relative to the current stack contents,
 which makes a new repository feel proportionate. Familiarity is not a gate
 condition.
 
-### Source audit (2026-07-28)
+### Source audit (2026-07-28, corrected 2026-07-30)
 
-RITK already owns every input and every primitive this work consumes. At this
-revision its workspace carries 30 crates, including:
+RITK borders every bounded context this work occupies. At this revision its
+workspace carries 30 crates, including:
 
 | Crate | Capability the neuroimaging work needs |
 | --- | --- |
@@ -38,7 +38,37 @@ revision its workspace carries 30 crates, including:
 | `ritk-snap`, `ritk-vtk` | display through Iris color law and view contracts |
 
 Diffusion model fitting is image processing over those primitives. Nothing in
-the requirement introduces a bounded context that RITK does not already border.
+the requirement introduces a bounded context that RITK does not already border,
+so the ownership conclusion below stands.
+
+**Correction (2026-07-30).** The first version of this audit read "RITK already
+owns every input and every primitive this work consumes." A capability audit
+against the reference pipelines (FreeSurfer, MRtrix3, FSL, DIPY) disproved that
+sentence on two counts, and it is withdrawn. Ownership is not the same as
+capability: RITK owns the *bounded context* of every input, but the table above
+lists crate names, not verified capability. Specifically:
+
+1. **No RITK reader accepts a diffusion-weighted series.** A DWI volume is 4-D
+   (three spatial axes plus one acquisition axis). `ritk-nifti` rejects it
+   outright (`crates/ritk-nifti/src/header/validate.rs:74` — `dim[0] != 3`
+   bails), `ritk-nrrd` rejects it outright
+   (`crates/ritk-nrrd/src/reader/mod.rs:137` — `dimension != 2 && != 3` bails,
+   and the writer emits a hardcoded `dimension: 3`), and `ritk-mgh` accepts the
+   file but silently discards every frame after the first
+   (`crates/ritk-mgh/src/reader/mod.rs:96`). The public alias is
+   `ritk_io::NativeImage = Image<f32, NativeBackend, 3>`. The `Image<T, B, D>`
+   contract is rank-generic, so this is an I/O restriction, not a domain one.
+2. **No crate models the acquisition scheme.** b-values and gradient directions
+   arrive out-of-band (FSL `.bval`/`.bvec`), embedded in the container (MRtrix
+   `.mif`, NRRD `DWMRI_gradient_NNNN` keys), or in DICOM tags `(0018,9087)` and
+   `(0018,9089)` plus vendor private blocks. `ritk-nrrd` parses the key-value
+   header into a map and discards these keys; `ritk-dicom` has no diffusion tag
+   handling. Without a gradient scheme a DWI series is an unlabelled stack, and
+   every model in decision 1 is unfittable.
+
+Both are prerequisites, not counter-arguments: they are RITK format-crate work
+under the ownership this ADR assigns, and they are sequenced ahead of
+`ritk-diffusion` in decision 7.
 
 Applying the gate to a candidate `neuro` package:
 
@@ -86,7 +116,9 @@ that exists as a module tree without oracles is not delivered.
 | Concern | Owner | Boundary RITK must not cross |
 | --- | --- | --- |
 | Nonlinear model fitting | `coeus` | Diffusion fits use Coeus autodiff and optimizers. RITK adds no local optimizer, no local gradient, and no local linear-least-squares path that duplicates `coeus-optim`. |
-| Streamline geometry and topology | `gaia` | Streamlines are polyline geometry. RITK owns the integration and termination policy that produces them; Gaia owns the geometric predicates, topology, and any mesh they become. |
+| Dense linear least squares | `leto` | Log-linear tensor estimation solves a per-voxel overdetermined system through `leto-ops` (`pinv`, `qr_decompose`, `cholesky_solve`). RITK assembles the design matrix; it does not implement a solve. |
+| Spherical harmonic basis and transforms | `apollo` | Orientation distribution functions are spherical-harmonic expansions. Apollo owns the basis, its normalization, and its transforms — including the real, even-order, antipodally symmetric basis and the design matrix evaluated at scattered gradient directions. A RITK-local associated-Legendre or SH normalization path is a boundary violation. |
+| Streamline geometry and topology | `gaia` | Streamlines are polyline geometry. RITK owns the integration and termination policy that produces them; Gaia owns the polyline type, geometric predicates, topology, and any mesh they become. |
 | Population and group statistics | `tyche` | Cohort sampling designs, ensembles, sensitivity, and reproducible study vocabulary stay in Tyche. RITK supplies per-subject image measures as study responses. |
 | Rendering and color | `iris` | Tract and connectome display uses Iris color law and borrowed view contracts through `ritk-snap` / `ritk-vtk`, per ADR 0029. |
 | Derived-array persistence | `consus` | Fitted fields, streamline sets, and connectivity matrices persist through Consus formats, not bespoke writers. |
@@ -97,6 +129,22 @@ The recurring failure mode for this kind of work is a package that grows its own
 optimizer, its own geometry, and its own statistics because each is locally
 convenient. Each of those is a provider edge, and the audit above is the
 acceptance criterion.
+
+Four of those edges terminate in a provider that does not yet have the
+capability. Under upstream ownership the capability is built in the provider, not
+worked around in RITK, so each is an upstream item that gates the RITK crate
+consuming it:
+
+| Edge | Provider state at 2026-07-30 | Upstream item |
+| --- | --- | --- |
+| Nonlinear least squares | `coeus-optim` ships `SGD`, `Adam`, `AdamW`, `RMSProp`, `Adagrad` only — all first-order stochastic. Per-voxel model fitting is millions of small dense residual problems needing a Gauss-Newton/Levenberg-Marquardt or trust-region step with an analytic Jacobian. | Add damped Gauss-Newton / Levenberg-Marquardt to `coeus-optim`, batched over the voxel axis. Blocks DKI, NODDI, IVIM, and free-water fitting; log-linear DTI is unblocked because it routes through `leto-ops`. |
+| Real symmetric SH basis | `apollo-sht` owns complex SH on Gauss-Legendre product grids. `spherical_harmonic(degree, order, theta, phi)` is public and evaluates pointwise, so the primitive exists; the real even-order antipodally symmetric basis, its design matrix over scattered directions, and Laplace-Beltrami regularization do not. | Extend `apollo-sht` with the real symmetric basis and scattered-direction design matrix. Blocks every ODF/FOD model. |
+| Non-negative constrained solve | No `nnls` or constrained quadratic program exists in `leto`, `coeus`, or `eunomia`. | Constrained spherical deconvolution needs one. Owner is `leto-ops` alongside the existing decompositions; assign before CSD is scheduled. |
+| Polyline geometry | `gaia` owns meshes and topology (`domain/mesh`, `domain/topology`); it has no open polyline or curve type. | Add the polyline type to Gaia. Blocks `ritk-tractography`, whose output type this ADR requires to be a Gaia type (verification condition 5). |
+
+Sphere tessellation and direction-set generation (the DIPY `sphere` and MRtrix
+`dirs` role) are unassigned. They are pure 3-D geometry over the unit sphere and
+belong to Gaia, not RITK; record the assignment before the first ODF increment.
 
 ### 3. Cohort and study processing is a Tyche consumption, not a new owner
 
@@ -151,6 +199,50 @@ Graph algorithms are the one plausible lower-level owner in this area. They are
 not promoted speculatively: if a second package needs the same graph vocabulary,
 the recurrence is recorded and the gate is applied then.
 
+### 7. Acquisition-series I/O is a prerequisite wave, ahead of the three crates
+
+The corrected source audit puts two RITK format-crate items ahead of
+`ritk-diffusion`, because no model can be fitted to data no reader accepts:
+
+1. **Rank-generic series I/O.** `ritk-nifti`, `ritk-nrrd`, `ritk-mgh`, and
+   `ritk-dicom` read and write the acquisition axis. `Image<T, B, D>` is already
+   rank-generic; the restriction is in the format crates and the
+   `NativeImage`/3-D reader aliases. The MGH silent frame-drop is a defect
+   independent of this decision and is fixed regardless.
+2. **A gradient-scheme domain type.** One typed acquisition scheme — b-value and
+   unit gradient direction per volume, in a declared frame — owned by a RITK
+   domain crate, with codecs in the format crates that carry it: FSL
+   `.bval`/`.bvec` pairs, the MRtrix `.b` scheme and `.mif` embedded table, NRRD
+   `DWMRI_gradient_NNNN` and `modality:=DWMRI` keys, and DICOM `(0018,9087)` /
+   `(0018,9089)` with the vendor private blocks. Per decision 2 the b-value and
+   direction are Aequitas quantities in a declared frame, not raw `f32`.
+
+The frame is load-bearing and is pinned at this boundary, not per consumer:
+gradient directions are conventionally expressed in the image axis frame, while
+RITK physical metadata is LPS. Every reader states which frame it produces and
+converts once, and any transform applied to the series reorients the directions
+with it — a rigid motion correction that does not rotate the gradient table
+produces a silently wrong tensor field, which is the single most common defect
+class in this domain.
+
+Two format families this decision does *not* place are recorded as open, to be
+settled before their first consumer lands rather than by whichever crate reaches
+them first:
+
+- **Tractogram containers** — MRtrix `.tck`, TrackVis `.trk`, and TRX. These are
+  published byte-level interchange specifications, which is the RITK format-crate
+  pattern, but decision 2 routes derived-array persistence to Consus. The
+  distinction that resolves it: an interchange format read by other toolchains is
+  a RITK format crate; a derived-array store is Consus. Confirm on the record.
+- **Surface-based parcellation** — FreeSurfer surface binaries, `curv`,
+  `label`, and `annot`, plus GIFTI/CIFTI. `ritk-mgh` covers FreeSurfer volumes
+  only. `ritk-connectome` needs surface parcellations to define nodes, so this is
+  a real prerequisite for decision 1's third crate rather than an optional
+  format. It also has an existing deletion ledger: the FreeSurfer `aseg`/`aparc`
+  label table is hand-rolled in a downstream consumer at
+  `repos/leoneuro-rs/crates/leoneuro-gui/src/freesurfer.rs`, which the RITK
+  owner's first increment deletes.
+
 ## Consequences
 
 - RITK grows three leaf crates and gains diffusion, tractography, and connectome
@@ -166,6 +258,30 @@ the recurrence is recorded and the gate is applied then.
   neuroimaging package on a second-consumer recurrence.
 - RITK's book gains a diffusion section, and the crates are sequenced so the
   chapter can cite the Coeus and Gaia chapters they depend on.
+
+### Revision 2026-07-30
+
+A capability audit against FreeSurfer, MRtrix3, FSL, and DIPY was run against the
+tree this ADR asserted was ready for the three crates. It changed no ownership
+conclusion — the promotion gate result and the three-crate decomposition stand —
+and changed three things about what those conclusions cost:
+
+- The source audit's "RITK already owns every input and every primitive" is
+  withdrawn and replaced with the evidence above. Owning the bounded context of
+  an input is not the same as being able to read it.
+- Decision 7 adds a prerequisite wave ahead of the three crates: rank-generic
+  series I/O and a typed gradient scheme. Neither is new topology; both are work
+  in format crates this ADR already assigns to RITK.
+- Decision 2 gains four provider edges that terminate in capability the provider
+  does not have yet — nonlinear least squares in Coeus, the real symmetric SH
+  basis in Apollo, a non-negative constrained solve in Leto, and a polyline type
+  in Gaia. Under upstream ownership each is built in the provider, so each
+  becomes a sequencing dependency rather than a RITK workaround.
+
+The consequence for planning is that the first `ritk-diffusion` increment is
+further out than this ADR originally implied, and the intervening work is spread
+across four provider repositories. The gap set is tracked as the diffusion MRI
+capability program in the Atlas [`backlog.md`](../../backlog.md).
 
 ## Alternatives rejected
 
@@ -199,8 +315,10 @@ conditions the first implementation increment must satisfy:
 
 1. `.gitmodules` and the Atlas stack table are unchanged — no package is added.
 2. The first `ritk-diffusion` increment contains no local optimizer, no local
-   gradient computation, and no `rayon`/`tokio` edge; fitting routes through
-   `coeus-optim` and `coeus-autograd`, execution through Moirai.
+   gradient computation, no local spherical-harmonic basis, and no
+   `rayon`/`tokio` edge; linear fitting routes through `leto-ops`, nonlinear
+   fitting through `coeus-optim` and `coeus-autograd`, the SH basis through
+   `apollo-sht`, and execution through Moirai.
 3. Diffusion tensor estimation is verified against an analytical oracle:
    a synthesized tensor field round-trips through signal simulation and
    estimation within a tolerance derived from the scheme's condition number and
@@ -211,6 +329,14 @@ conditions the first implementation increment must satisfy:
    type is a boundary violation.
 6. Every generic entry point is instantiated across the shipped scalar types in
    the test suite, not only at one concrete type.
+7. A rigid or affine correction applied to a diffusion series reorients the
+   gradient scheme with it. The oracle is a synthesized anisotropic tensor field
+   rotated by a known transform: the fitted principal eigenvector after
+   correction must recover the original within a tolerance derived from the
+   scheme's condition number, and must fail if the reorientation is skipped.
+8. A round-trip over each acquisition-scheme codec (FSL, MRtrix, NRRD, DICOM)
+   recovers the same typed scheme, and a cross-codec differential test asserts
+   the four agree on one dataset expressed in all four conventions.
 
 ## References
 
