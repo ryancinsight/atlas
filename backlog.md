@@ -414,12 +414,21 @@
   ledger's entry-point basis shows rocm at 95/112 against wgpu's 101 — rocm bundles
   several clauses per test fn, so name counts understate it. Entry points, not test
   names, are the basis; the ledger stands.
-## ATLAS-ARCH-010 — Define the NaN and infinity contract for accelerator kernels [arch] [minor] — in-progress
+## ATLAS-ARCH-010 — Define the NaN and infinity contract for accelerator kernels [arch] [minor] — done
 
-- Owner: claude-loop (claimed 2026-08-01); scope: `hephaestus-core`
-  `domain/dialect.rs` + seam trait docs + `hephaestus-conformance`
-  typed-elementwise clause + `docs/adr/0043`. Decision before code: ADR
-  drafting is the first step per the automatic-ADR rule.
+- **Done 2026-08-01** (hephaestus `6996f12`, ADR 0043 Accepted).
+  `KernelDialect::IEEE_SPECIAL_VALUES` is the capability predicate (CudaC
+  and HipC true per their language guarantees, Wgsl false per its spec's
+  indeterminate-value allowance); the const's Rustdoc is the normative
+  contract and all eight numeric seam traits reference it. The
+  typed-elementwise conformance module gained the capability-gated clause
+  (unordered NaN comparisons, add/mul propagation, directed infinities,
+  Inf+(-Inf) and 0*Inf), compiled behind the const so a non-advertising
+  backend skips by construction. Decision recorded: no per-kernel
+  finiteness rejection (hot-path cost, wrong layer; validation stays at
+  host trust boundaries) — the ADR documents why the item's drafted
+  rejection-path alternative was not taken. CUDA asserted on physical
+  hardware; workspace 527/527.
 - Raised by: writing the `binary_elementwise_typed` f32 clause during
   `ATLAS-ARCH-001`. The clause asserted IEEE-754 semantics and **failed on wgpu**
   — the device returns `NaN != NaN` as false.
