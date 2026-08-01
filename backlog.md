@@ -472,9 +472,12 @@
       j1 pivoted eliminations — **e1 delivered 2026-08-01** (hephaestus
       master `acf5f0b`): col_piv_qr/full_piv_lu seam methods with
       oracle-minimal handles ×4 adapters (metal via rewrap newtypes),
-      workspace 554/554; j1-e2 (rank-revelation +
-      reconstruction-through-permutation clauses ×4 with hardware
-      verification) is the next claimable increment; j2 symmetric spectral (Jacobi eigen — closed-form
+      workspace 554/554; **j1 is complete 2026-08-01**
+      (e2 at hephaestus master `34bdbc7`): rank revelation, permutation
+      validity both sides, exact det/solve/LS oracles, and f64
+      P·A·Q = L·U reconstruction (FullPivLuHandle gained factors());
+      both gather conventions matched leto on first hardware contact;
+      green on physical cuda+wgpu, workspace 554/554; j2 symmetric spectral (Jacobi eigen — closed-form
       spectrum fixtures, ‖QᵀQ−I‖ and ‖AV−VΛ‖ at derived bounds); j3 SVD
       family (known exact spectra, two-sided orthogonality,
       rank-revealing tolerance as input contract); j4 general spectral
