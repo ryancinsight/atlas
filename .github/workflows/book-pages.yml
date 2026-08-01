@@ -71,10 +71,6 @@ jobs:
         with:
           persist-credentials: false
 
-      # The three first-party Pages actions carry major-version tags rather than
-      # commit pins, matching the four existing package book workflows. Pinning
-      # them to verified digests is tracked as ATLAS-PUB-004; do not substitute a
-      # digest that has not been resolved against the upstream repository.
       - name: Configure Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
 
