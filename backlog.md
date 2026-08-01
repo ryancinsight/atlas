@@ -151,11 +151,15 @@
   a to_f64 ambiguity, coeus `53816ebf`), **helios green**, **ritk green**.
   The sweep also caught and fixed overlay rot (missing hephaestus-metal/
   -rocm entries mixing an old git snapshot with the local core — umbrella
-  `b08161e`). **kwavers parked**: its red is a live peer's in-flight
-  mutable-zip-provider migration (leto claim `441e36d`, kwavers dirt ~45
-  min fresh; `kwavers-simulation` calls `leto_ops::indexed_zip_mut_with`
-  without the manifest edge yet) — re-open the kwavers verification when
-  that migration lands. Two transient torn-read compiles (leto-ops macro,
+  `b08161e`). **kwavers park updated 2026-07-31 (night)**: the zip migration landed
+  (kwavers `2974b8109`) and its red cleared, but the graph now trips on the
+  NEXT live frontier — the diffusion-MRI pipeline claim (ritk `85413a81`,
+  new ritk-diffusion-scheme/dicom/nrrd crates mid-write, dirt minutes
+  fresh). Re-open the kwavers verification when the diffusion claim lands.
+  Meanwhile MetalSparseOps landed as the second SparseOperatorOps
+  implementor (delegating to WGPU), opening 001c; cuda/rocm need native
+  CSR SpMV kernels, and the sparse conformance module instantiates on
+  wgpu+metal first. Two transient torn-read compiles (leto-ops macro,
   hephaestus-rocm) resolved on re-run — live-peer build interleaving, not
   defects.
 
