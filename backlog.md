@@ -477,8 +477,10 @@
       validity both sides, exact det/solve/LS oracles, and f64
       P·A·Q = L·U reconstruction (FullPivLuHandle gained factors());
       both gather conventions matched leto on first hardware contact;
-      green on physical cuda+wgpu, workspace 554/554; j2 symmetric spectral (Jacobi eigen — closed-form
-      spectrum fixtures, ‖QᵀQ−I‖ and ‖AV−VΛ‖ at derived bounds); j3 SVD
+      green on physical cuda+wgpu, workspace 554/554; j2 symmetric spectral — **complete 2026-08-01** (hephaestus master
+      `fec1785`): symmetric_eigen + symmetric_eigenvalues seam methods
+      ×4 adapters, exact-spectrum multiset + f64 residual/orthogonality
+      clauses green on physical cuda+wgpu first contact, 554/554; j3 SVD
       family (known exact spectra, two-sided orthogonality,
       rank-revealing tolerance as input contract); j4 general spectral
       (eigenvalues via eunomia::Complex, schur, hessenberg,
