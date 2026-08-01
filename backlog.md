@@ -343,8 +343,9 @@
     hardware contact caught two real cross-backend divergences, both now
     pinned in the seam contract: `pivots()` is a permutation vector
     (leto's row-gather convention, not a swap sequence), and `r_buffer()`
-    is n×n on wgpu but m×n on cuda/rocm — n×n normalization is the
-    recorded follow-up. Instantiated ×4 (`tests/decomposition_contracts.rs`
+    shape — corrected 2026-08-01 (`2ffef9e`): the recorded wgpu-vs-cuda
+    shape split was a misdiagnosis (both upload leto's full m×n R); the
+    contract now pins m×n row-major, leto's convention. Instantiated ×4 (`tests/decomposition_contracts.rs`
     per backend); green on physical cuda and wgpu; workspace 547/547.
     **e3 is complete 2026-08-01** (hephaestus `9216872`): four clauses
     added first so deletion stays a superset — leto-differential LU
@@ -352,16 +353,16 @@
     leto-differential Cholesky, analytical+differential QR least squares,
     exact-identity factorizations — then the ten wgpu + ten cuda
     hand-written trio tests deleted (38+37 assertions; the clauses
-    execute more per backend at derived bounds). Third real divergence
-    caught: cuda's Householder R = −I (leto's sign) vs wgpu's +I —
-    identity-QR asserts magnitudes, sign is backend-owned per the seam
-    doc. Two recorded strength conversions (bitwise→epsilon per the
+    execute more per backend at derived bounds). The identity-QR sign
+    contrast recorded here (cuda −I vs wgpu +I) was the same inference
+    error, corrected in `2ffef9e`: both carry leto's sign; the clause's
+    magnitude-only assertion stands because sign remains backend-owned. Two recorded strength conversions (bitwise→epsilon per the
     reduction-order rule). Blocked/full-pivot/col-pivot/strided/rejection
     tests remain per-backend (outside the seam trio). Workspace 527/527;
     cuda physical battery 92/92. **ATLAS-ARCH-001e is closed.** Remaining
     001 tail: broader contract.rs→instantiation migration per the
-    112-entry-point ledger, r_buffer n×n normalization (cuda/rocm store
-    m×n today). Scan-seam GAT flip complete 2026-08-01 (hephaestus
+    112-entry-point ledger (r_buffer normalization resolved by the
+    `2ffef9e` convention pin — no copy needed, all backends already m×n). Scan-seam GAT flip complete 2026-08-01 (hephaestus
     `39dd602`): PreparedScan<'op, N> across all four backends — cuda/rocm
     execute-at-prepare ZSTs replaced with borrowing plans
     (plan_scan_launch/launch_planned_scan split, dispatch re-reads device
