@@ -484,11 +484,14 @@
         params relaxed to shared borrows ×4 (every impl stored shared;
         StridedView precedent) with call sites updated, prepared-SpMV
         rebind clause green on physical cuda+wgpu, workspace 540/540.
-      - k2 (ADR-first): submit_prepared_*_batch ×3 — a cross-operation
-        batch-submission seam (one command buffer for many prepared
-        dispatches); needs a design record before a trait lands
-        (candidates: a BatchSubmit trait over prepared handles, or an
-        explicit CommandStream-level surface).
+      - k2 (ADR drafted 2026-08-01): hephaestus
+        [ADR 0045](docs/adr/0045-prepared-batch-submission-seam.md)
+        (Proposed, master `77ffbad`) — BatchSubmitOps with a per-backend
+        Dispatch<'op> union associated type mirroring the existing
+        dispatch-handle enums; sparse union first, reduction variants
+        second; CommandStream routing rejected (cuda/hip launch eagerly).
+        Next increment: the sparse-union implementation ×4 + the
+        heterogeneous-batch equivalence clause.
     - 001l — random (2: uniform_with_seed, normal_with_seed; no seam) and
       device topology (1). **Random complete 2026-08-01** (hephaestus
       `a386aa6`): RandomInitOps in core with determinism as contract
