@@ -1247,11 +1247,10 @@
   their nextest budgets; Hyperion's spectra disclaimer is revised in the same
   change.
 
-## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — in-progress
+## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — done
 
-- Owner: unclaimed — provider and Kwavers phases 1, 2a, 2b, and 3a-3c are
-  closed; phase 3d is blocked behind `ATLAS-CONTENTION-001`, and the phase-4
-  Kwavers EM/SAR consumer remains open. Decision:
+- Owner: Codex — provider and Kwavers phases 1, 2a, 2b, 3a-3d, and phase 4
+  are closed. Decision:
   [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md) §5.
 - Outcome: every energy-transport implementation terminates in a
   `VolumetricPowerDensity` (W·m⁻³) Aequitas quantity, and bioheat consumes that
@@ -1387,12 +1386,21 @@ path is open.
      uniform-coefficient bundle by design, so that scalar division is a modelling
      assumption rather than the phase-2b inconsistency. Only the `μ_a · Φ`
      product is a spine law there.
-4. **open — Kwavers EM/SAR consumer** — the provider-side SAR metric is present,
-   but Kwavers has no public SAR deposition result yet. The remaining slice is
-   to type the electromagnetic deposition consumer and prove the
-   conductivity·|E|²/density law; it is sequenced behind phase 3d and is also
-   the ATLAS-MODALITY-003 RF prerequisite. The independent plasmonics metric
-   gap is closed by Kwavers `f6a77671e` and does not constitute SAR closure.
+3d. ✅ **closed 2026-07-31 at kwavers `e0918d1f2`** — completed the
+   Aequitas-tagged `DimensionedField<S, D>` deposition spine for thermal and
+   optical outputs, including typed Monte Carlo energy/fluence and the
+   diffusion solver's volumetric-power input and fluence output. The exact
+   re-open filter passes 14/14:
+   `cargo nextest run -p kwavers-solver -E 'test(~thermal_diffusion) or test(~optical::diffusion)'`.
+4. ✅ **closed 2026-07-31 at aequitas `edf746d` and kwavers `fc3ff1bf0`** —
+   Aequitas now owns `ElectricalConductivity`/`SiemensPerMeter`; Kwavers
+   carries typed conductivity through the electromagnetic material field and
+   returns typed volumetric power density and specific absorption rate from
+   `q = σ·|E|²`, `SAR = q/ρ`. The public path is real-valued. Future Eunomia
+   complex phasors must use the Hermitian magnitude at the numerical boundary;
+   no imaginary physical unit is introduced. EM/SAR and phase-3d value tests,
+   package checks, warning-denied Clippy, doctests, RustDoc, formatting, and
+   public-contract scans pass.
 
 - Non-goals: extracting any modality package; renaming or relocating solvers;
   touching sonoluminescence or photoacoustics.
@@ -1402,8 +1410,9 @@ path is open.
   asserts integrated deposition equals absorbed source energy within a derived
   bound, with the derivation cited at the assertion site; both repos green under
   their nextest budgets.
-- Dependency: none. Phase 4 is the prerequisite for the RF track in
-  ATLAS-MODALITY-003.
+- Dependency: none. Phase 4 supplies the RF deposition prerequisite for
+  ATLAS-MODALITY-003; that separate promotion watchpoint remains blocked by
+  its own second-consumer conditions.
 
 ## ATLAS-MODALITY-003 — Optical-transport and RF/EM promotion watchpoint [arch] — blocked
 
@@ -1458,38 +1467,20 @@ path is open.
 - Evidence: `cargo tree -d` in kwavers reports no duplicate first-party crates;
   `atlas-stack-overlay.py check` reports the stack aligned.
 
-## ATLAS-CONTENTION-001 — Transport-output typing blocked behind foundation WIP [patch] — blocked
+## ATLAS-CONTENTION-001 — Transport-output typing blocked behind foundation WIP [patch] — done
 
-- Owner: session-808504af; scope `repos/kwavers` 18 files (uncommitted).
+- Owner: Codex; closed 2026-07-31 on Kwavers branch
+  `codex/kwavers-book-migration-eviction`.
 - Delivers ATLAS-MODALITY-002 phase 3d: `DimensionedField<S, D>` in
   `kwavers-core/src/units/field.rs` (zero-sized Aequitas dimension tag over any
   sample container), `VolumetricHeatSource` consolidated onto it,
   `MCResult::{absorbed_energy,fluence}` typed as `J/m³` and `J/m²`, and
   `DiffusionSolver::solve` typed `W/m³` in → `W/m²` out.
-- Verified so far: `cargo check` green across kwavers-core, kwavers-physics,
-  kwavers-solver, kwavers-simulation; nextest **332/332** on kwavers-core +
-  kwavers-physics.
-- **Blocker**: the kwavers-solver test filterset has not run against this change.
-  Three successive attempts hit unrelated live peer WIP — first a missing
-  `Fft3dInOutExt` import in `pstd/.../stepper/step.rs` (peer landed it), now
-  `repos/aequitas` mid-refactor with duplicate definitions (E0592) in
-  `quantity/arithmetic/scalar.rs` and `construction.rs`, touched minutes ago.
-  Aequitas is the foundation crate, so nothing downstream compiles until it
-  settles.
-- Fourth attempt (15:10) hit a different pair: `kwavers-transducer/src/bulk_piezo.rs`
-  (peer-dirty) imports `aequitas::systems::si::quantities::ElectricalImpedance`,
-  which the aequitas peer has added to the local tree but which the build did not
-  resolve. This is an aequitas↔kwavers co-evolution unit in flight, not a defect
-  in either side — the consumer landed ahead of the provider being consumable.
-- Assessment: four distinct transient failures in ~30 minutes, all from
-  concurrent edits to shared foundations (aequitas, kwavers-transducer,
-  kwavers-solver) plus 40-minute build cycles on the shared target dir. Retrying
-  against a tree three peers are actively rewriting is not productive; this item
-  waits for a quiet tree rather than polling.
-- Re-open trigger: `cargo check -p aequitas` and `cargo check -p kwavers-transducer`
-  both green, then run
-  `cargo nextest run -p kwavers-solver -E 'test(~thermal_diffusion) or test(~optical::diffusion)'`
-  and commit the 18 files if green. No edits are needed to the change itself.
+- Verified: `cargo check` is green across kwavers-core, kwavers-physics,
+  kwavers-solver, and kwavers-simulation; the exact re-open filter passes
+  14/14; and the phase-3d result is included in the Kwavers `e0918d1f2`
+  implementation history. The former lock/provider failures were transient
+  shared-tree contention, not defects in the typed field implementation.
 
 ## ATLAS-OVERLAY-004 — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 

@@ -31,6 +31,34 @@ The child records are [`CFDrs`](repos/CFDrs/gap_audit.md),
 [`Kwavers`](repos/kwavers/gap_audit.md). The Kwavers field decision is
 [`ADR 090`](repos/kwavers/docs/ADR/090-sound-speed-field-quantity.md).
 
+## Aequitas consumer gap audit closure — Kwavers deposition spine and EM/SAR — 2026-07-31
+
+The remaining root-board gaps are closed. `ATLAS-MODALITY-002` phase 3d is
+verified against its recorded re-open trigger: Kwavers' exact thermal/optical
+solver filter passes 14/14 on the typed `DimensionedField<S, D>` deposition
+spine delivered at `e0918d1f2`. The phase-4 EM/SAR consumer is delivered by
+Kwavers `fc3ff1bf0` against Aequitas provider commit `edf746d`.
+
+The EM material boundary now carries Aequitas `ElectricalConductivity` and
+`SiemensPerMeter`; the public deposition result carries typed volumetric power
+density and specific absorption rate and proves `q = σ·|E|²`, `SAR = q/ρ`.
+The named consumers CFDrs, Helios, and Kwavers have no remaining missing SI
+metric in the audited families. Raw arrays remain only at provider storage,
+mesh, and numerical-formula boundaries. CFDrs and the current Kwavers
+electromagnetic fields are real-valued; Helios retains complex-capable
+numerical boundaries where required. No imaginary physical unit is introduced.
+If a future Eunomia complex-phasor SAR input is added, it must use the
+Hermitian magnitude at the formula boundary and return the same real power
+quantities.
+
+Evidence: CFDrs 207/207, Helios 42/42, Kwavers MET-51 199/199, Kwavers
+EM/SAR physics 26/26 plus medium 4/4 and solver 4/4, the phase-3d trigger
+14/14, provider Aequitas 45/45, warning-denied Clippy on affected packages,
+package doctests, RustDoc, exact-file formatting, and public-contract scans.
+The previous combined Kwavers doctest command exceeded the shell wall limit
+after reporting zero failures; package-scoped doctest runs completed and are
+the authoritative evidence.
+
 ## Aequitas consumer re-audit closure — Kwavers sound-speed error metrics — 2026-07-31
 
 `KWAVERS-AEQ-MET-50` is closed. Kwavers diagnostics now uses Aequitas
