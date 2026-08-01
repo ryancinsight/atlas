@@ -332,8 +332,22 @@
     DecompositionOps implementors delivered (wgpu adapter, cuda/rocm
     feature-gated twins, metal cheap-rewrap newtypes over the orphan
     boundary), ADR 0042 Accepted with its as-built revision (LU/QR/Cholesky
-    trio, f32-fixed per kernel coverage), workspace 545/545. e2 next:
-    the derived-tolerance conformance clauses.
+    trio, f32-fixed per kernel coverage), workspace 545/545. **e2 is
+    complete 2026-08-01** (hephaestus `fbcc894`): the conformance crate's
+    `decomposition` module ships five generic clauses (forced-pivot LU
+    with det/solve/permutation-validity/f64 P·A=L·U reconstruction,
+    non-square rejection, SPD Cholesky with L·Lᵀ reconstruction,
+    indefinite rejection, QR consistent least squares with
+    upper-triangular structure), bound `1e-3` derived at the module head
+    (Higham c(n)·ε·κ ≈ 3.5e-4 for the n≤3, κ<32 fixtures). First
+    hardware contact caught two real cross-backend divergences, both now
+    pinned in the seam contract: `pivots()` is a permutation vector
+    (leto's row-gather convention, not a swap sequence), and `r_buffer()`
+    is n×n on wgpu but m×n on cuda/rocm — n×n normalization is the
+    recorded follow-up. Instantiated ×4 (`tests/decomposition_contracts.rs`
+    per backend); green on physical cuda and wgpu; workspace 547/547.
+    e3 next: retire the superseded hand-written per-backend decomposition
+    tests with assertion-count superset proof.
   Original design note: evolve the
   three `ElementwiseOps` prepared associated types to the `Prepared<'op, N>`
   GAT (the axis-reduction pattern, one atomic trait flip across all four
