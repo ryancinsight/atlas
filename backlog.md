@@ -399,9 +399,16 @@
       memory pressure or AV interference. Root-cause before it normalizes
       rerun-until-green.
     - 001g — reduction remainder (~11: sum/mean/min/max_axis{,_into},
-      reduce_axis, norm_l1, norm_max, trace). Axis ops reachable via the
-      existing operator-generic seam; norm_l1/norm_max/trace have NO seam
-      method (DenseVectorOps carries norm_l2 only) — seam extension first.
+      reduce_axis, norm_l1, norm_max, trace). **Min/max clauses delivered
+      2026-08-01** (hephaestus `0215d34`): both order statistics along
+      both axes through the operator-generic seam, exact oracles, green
+      on physical cuda+wgpu (sum was already exercised by the
+      operator-parameterization clause). Remaining in 001g: mean_axis
+      (no MeanOp combine expr — verify whether it is seam-expressible or
+      a convenience over sum), and norm_l1/norm_max/trace seam extension
+      (DenseVectorOps carries norm_l2 only; trace may instead be
+      expressible as a full reduction over a diagonal-strided rank-1
+      view — decide seam-vs-view route first).
     - 001h — sparse remainder (5: spmv_many{,_into}, spmm{,_into}, nnz).
       Seam has upload/shape/apply only; batched SpMV + SpMM need seam
       methods.
