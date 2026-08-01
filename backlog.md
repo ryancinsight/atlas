@@ -1246,9 +1246,13 @@
   publish, recorded in the release evidence. A collision discovered here is
   resolved by ADR 0037 §3's rule, not by an ad-hoc name.
 
-## ATLAS-PUB-004 — Pin the three Pages actions to verified digests [patch] — todo
+## ATLAS-PUB-004 — Pin the three Pages actions to verified digests [patch] — done
 
-- Owner: unclaimed; scope: `.github/workflows/book-pages.yml`.
+- **Done 2026-08-01** (umbrella `1551269`): all three digests resolved live
+  against upstream via the GitHub API and recorded in the commit body
+  (configure-pages v5.0.0 `983d773…`, upload-pages-artifact v4.0.0
+  `7b1f4a7…`, deploy-pages v4.0.5 `d6db901…`); the workflow's
+  pin-tracking comment removed in the follow-up commit.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §7.
 - Outcome: `actions/configure-pages`, `actions/upload-pages-artifact`, and
   `actions/deploy-pages` carry resolved commit digests instead of major-version
