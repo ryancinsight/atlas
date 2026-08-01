@@ -475,8 +475,15 @@
       suites stay — their Dirichlet/Neumann/periodic edge coverage
       exceeds the shared interior clause (not superseded).
     - 001o — metal skips assert_convolution_f64_contract while the other
-      three instantiate it: convert the unstated skip into a capability
-      gate or an instantiation.
+      three instantiate it. Scoped 2026-08-01: the skip is STRUCTURAL —
+      `ConvolutionOps<MetalDevice, f64>` is unimplemented; metal's
+      convolution delegation layer (seam.rs + prepared.rs newtypes) is
+      f32-concrete. Fix = genericize the delegation over T bounded by
+      `WgpuConvolutionOps: ConvolutionOps<WgpuDevice, T>`, then gate the
+      instantiation on DeviceFeature::ShaderF64 like wgpu's. Owner:
+      claude-loop, lane `worktrees/hephaestus-conformance-tail`
+      (branch test/conformance-tail — main hephaestus tree is held by a
+      live codex peer on codex/hephaestus-matrix-properties-host-reuse).
     Also unexercised: RetainedReductions (retain_dot/norm) and
     StridedComputeBackend have no conformance reference. Scan-seam GAT flip complete 2026-08-01 (hephaestus
     `39dd602`): PreparedScan<'op, N> across all four backends — cuda/rocm
