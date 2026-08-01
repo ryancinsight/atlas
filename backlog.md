@@ -156,10 +156,15 @@
   NEXT live frontier — the diffusion-MRI pipeline claim (ritk `85413a81`,
   new ritk-diffusion-scheme/dicom/nrrd crates mid-write, dirt minutes
   fresh). Re-open the kwavers verification when the diffusion claim lands.
-  Meanwhile MetalSparseOps landed as the second SparseOperatorOps
-  implementor (delegating to WGPU), opening 001c; cuda/rocm need native
-  CSR SpMV kernels, and the sparse conformance module instantiates on
-  wgpu+metal first. Two transient torn-read compiles (leto-ops macro,
+  Meanwhile 001c progressed: MetalSparseOps (second implementor,
+  delegating to WGPU) and the sparse conformance module both landed
+  (hephaestus `dffefa0`, via the rocm-pivot lane) — exact CSR SpMV,
+  current-input re-application, shape, five structural rejections; WGPU
+  passes on a physical adapter, Metal platform-gated, workspace 541/541.
+  001c's remainder: native CSR SpMV kernels on cuda/rocm, then their
+  instantiations. (Bookkeeping: umbrella commit `5319bff` carried a peer
+  coordinator's uncommitted NLLS board narrative under this session's
+  message — content legitimate, label wrong, recorded here.) Two transient torn-read compiles (leto-ops macro,
   hephaestus-rocm) resolved on re-run — live-peer build interleaving, not
   defects.
 
