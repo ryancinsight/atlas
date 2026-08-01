@@ -6,7 +6,7 @@ The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
 implemented on clean main-based Kwavers branch
-`codex/kwavers-aequitas-microbubble` at PR head `e122cd0c6` and tracked by
+`codex/kwavers-aequitas-microbubble` at PR head `dc1be58e8` and tracked by
 `KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
@@ -20,7 +20,7 @@ Eunomia `18459875` alongside Aequitas `8cc90b2`. The subsequent provider-graph
 closure updated Asclepius, Hyperion, Proteus, and Tyche lock revisions,
 migrated Leto 0.40 tuple-source operations, and corrected the Kwavers thermal
 energy path to use `TemperatureDifference`. The current CI head is
-`e122cd0c6`; the hosted matrix is the remaining integration gate.
+`dc1be58e8`; the hosted matrix is the remaining integration gate.
 
 The provider gap was the missing shared vocabulary for acceleration and
 pressure-time derivative. Aequitas now owns `Acceleration` (`m/s²`) and
