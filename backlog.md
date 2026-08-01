@@ -378,11 +378,26 @@
       exact dyadic unary (Neg/Abs/Sqrt) and binary (Add/Sub/Mul/Div)
       oracles, transposed-layout traversal, prepared unary+binary rebind,
       rejection-without-mutation — instantiated ×4, green on physical
-      cuda+wgpu, workspace 529/529. Remaining in 001f: the hand-written
-      per-backend duplicates deletion sweep with superset accounting, and
-      the scalar_elementwise ↔ ParameterizedUnaryOps equivalence check
-      (backend scalar entry points likely map to the parameterized seam
-      already covered — verify, then record or clause).
+      cuda+wgpu, workspace 529/529. **001f is complete 2026-08-01**
+      (hephaestus `24d955e`). Deletion sweep verdict: clean pass, zero
+      deletions — the hand-written elementwise tests cover dimensions the
+      clauses do not (1027-element workgroup tails, u32 fixtures,
+      transcendentals with derived tolerances, NaN unary branches) and are
+      not superseded. Equivalence check verdict: scalar_elementwise is NOT
+      the parameterized seam (broadcast-scalar binary vs fixed two-param
+      unary) — so ElementwiseOps gained its fourth family
+      (scalar_into/prepare/dispatch over PreparedScalar<'op,N>), cuda/rocm
+      borrowing plans + shared scalar_strided_meta, wgpu seam scalar
+      shader (uniform scalar), metal delegation, and exact scalar clauses
+      + prepared-scalar rebind in the conformance module. Green on
+      physical cuda+wgpu, workspace 529/529.
+    - ATLAS-ENV-LINKER-1 (filed 2026-08-01): recurring silent
+      collect2/mingw link failures on shared-target test binaries under
+      this session (sparse_contracts ×2, stencil_laplacian, concurrency,
+      convolution_contracts) — no diagnostic, passes on rerun; one
+      incremental-cache purge helped temporarily. Suspects: parallel link
+      memory pressure or AV interference. Root-cause before it normalizes
+      rerun-until-green.
     - 001g — reduction remainder (~11: sum/mean/min/max_axis{,_into},
       reduce_axis, norm_l1, norm_max, trace). Axis ops reachable via the
       existing operator-generic seam; norm_l1/norm_max/trace have NO seam
