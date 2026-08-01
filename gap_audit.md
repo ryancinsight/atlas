@@ -12,6 +12,14 @@ requires no imaginary physical unit. See
 [`Kwavers ADR 090`](repos/kwavers/docs/ADR/090-sound-speed-field-quantity.md)
 and the [`Kwavers audit`](repos/kwavers/gap_audit.md).
 
+Kwavers source migration and package formatting are complete. The focused
+diagnostics check is externally blocked before Kwavers compilation by the
+peer-owned dirty `leto-ops` branch
+`codex/leto-mutable-zip-provider`: `crates/leto-ops/src/application/zip.rs`
+currently fails with callback-arity `E0057` and mutable-output move `E0507`
+errors. Provider repair is outside this item; Kwavers Nextest, Clippy,
+doctests, RustDoc, and value-semantic tests remain pending on that repair.
+
 ## Aequitas consumer re-audit closure — Kwavers sound-speed error metrics — 2026-07-31
 
 `KWAVERS-AEQ-MET-50` is closed. Kwavers diagnostics now uses Aequitas
