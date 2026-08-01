@@ -21,6 +21,26 @@
   compiler diagnostic. This is recorded as an environment/provider residual;
   no audited Aequitas metric gap remains.
 
+## ATLAS-AEQUITAS-CONSUMERS-003 — Extend therapeutic microbubble metric audit [arch] [major] — in-progress
+
+- Owner: current session; scope: Aequitas acceleration and pressure-rate
+  vocabulary plus Kwavers therapeutic microbubble public contracts and their
+  synchronized audit artifacts. CFDrs and Helios are read-only re-audit
+  surfaces for this increment.
+- Outcome: public therapeutic microbubble SI metrics use Aequitas quantities;
+  numerical and storage scalar boundaries remain explicit; Eunomia complex
+  representation is not promoted to an imaginary physical unit.
+- Evidence: Aequitas `8b38636`, PR #10; Kwavers `a396ca8fb`, PR #327; provider
+  47/47 plus pressure-rate 1/1; Kwavers physics microbubble 38/38; physics
+  and therapy test-target checks pass offline; exact-file format and diff
+  checks pass.
+- Residual: Kwavers therapy Nextest is blocked by shared target-cache
+  compilation of unrelated `ritk-jpeg` without a Rust diagnostic. PR #327 is
+  merge-conflicting because the branch carries the active migration series;
+  update it after peer work is reconciled without rewriting peer dirt.
+- Re-open trigger: a clean branch update and successful therapy Nextest, or a
+  source diagnostic from the provider/consumer integration.
+
 ## ATLAS-SUBSTRATE-001 — Extend the Hephaestus operation seams to Coeus's call surface [arch] [minor] — in-progress
 
 - Owner: shared — the seam **declarations** are landed by this session on
@@ -8483,7 +8503,49 @@ resolved here; a peer owns the local commits. This branch was cut from
   a synthesized field with a known noise level.
 - **Class**: `[minor]`.
 
-## ATLAS-DMRI-CORRECT-009 — Motion, eddy-current, and susceptibility correction [minor] — todo
+## ATLAS-DMRI-CORRECT-009 — Motion, eddy-current, and susceptibility correction [minor] — in-progress
+
+**Scheme-side reorientation delivered**: `ritk` `660783da` on
+`feat/per-volume-gradient-reorientation`, PR #82.
+`GradientScheme::reorient_per_volume` applies one rotation per volume in
+acquisition order, with an exact count match and whole-list validation before
+any rotation is applied. 22/22 `ritk-diffusion-scheme` tests, clippy and doc
+gates clean.
+
+A peer had already landed the single-rotation `GradientScheme::reorient` and the
+FSL codecs in `ritk-diffusion-scheme`. That method applies one rotation to the
+whole scheme — correct for a fixed frame change, unusable for correction, where
+each volume is registered independently. Nothing in the workspace called
+`reorient` at all before this.
+
+**Remaining, in dependency order:**
+
+1. **Rotation extraction from an affine.** Eddy-current correction produces an
+   affine, not a rigid, transform. The gradient must be rotated by the *proper
+   rotation nearest* that affine's linear part — the polar factor `R` from
+   `A = RS` — not by the raw upper-left 3×3, which carries scale and shear.
+   `reorient_per_volume` rejects a non-orthonormal matrix, so this cannot be
+   skipped silently, but nothing computes it yet. Placement is open:
+   `ritk-spatial` owns the geometry vocabulary and is the better home, but
+   `ritk-diffusion-scheme` is dependency-light (thiserror, ritk-spatial,
+   aequitas) and pulling leto in for a 3×3 decomposition is a real cost. leto's
+   `FixedMatrix<f64,3>::symmetric_eigen` (`leto/src/application/fixed.rs:290`)
+   is the primitive either way. Decide before implementing.
+2. **The series correction driver** in `ritk-registration`: register each volume
+   to a reference across the acquisition axis, extract each rotation, and apply
+   it to the scheme. Gated on ATLAS-DMRI-IO-001's `ritk-io` dispatch tail.
+3. **Susceptibility distortion** (reversed-phase-encode fieldmap estimation) —
+   the `topup` role. Independent of 1 and 2; largest of the three.
+
+**Acceptance oracle is still unbuildable here.** ADR 0036 verification condition
+7 needs a synthesized anisotropic tensor field fitted after correction, which
+needs `ritk-diffusion`'s tensor fit — peer-owned and in flight. The tests in
+PR #82 verify the reorientation contract directly (per-volume indexing, the
+`R`/`Rᵀ` round trip that catches a transposed application, rejection of
+non-orthonormal and improper matrices); the end-to-end eigenvector oracle
+attaches once the tensor fit lands.
+
+## ATLAS-DMRI-CORRECT-009 original specification
 
 - **Outcome**: a series-level correction driver in `ritk-registration` — the
   `eddy` and `topup` roles.

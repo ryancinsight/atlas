@@ -6,6 +6,25 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-AEQUITAS-CONSUMERS-003 — Therapeutic microbubble metric audit
+
+- [x] Audit CFDrs, Helios, and Kwavers public physical contracts and record
+      the current missing metric family.
+- [x] Add Aequitas `Acceleration` and `PressureRate` with dimensional-law
+      coverage and the Eunomia real/complex boundary decision.
+- [x] Type Kwavers therapeutic microbubble state, shell, force, streaming,
+      dynamics, and sampling public contracts; keep formula/storage scalar
+      extraction explicit.
+- [x] Synchronize Kwavers ADR 092, backlog, checklist, changelog, and child
+      gap audit; commit and push Aequitas `8b38636` and Kwavers `a396ca8fb`.
+- [ ] Update Kwavers PR #327 onto `main` after peer work is reconciled and
+      rerun the blocked therapy Nextest lane.
+
+Acceptance: the implementation gap is closed in source and child PM artifacts;
+provider and consumer branches are delivered for integration; no imaginary
+physical unit is introduced. Implementation met. Integration remains pending
+on the recorded branch-conflict and shared-cache verification residual.
+
 ## ATLAS-AEQUITAS-CONSUMERS-002 — Aequitas consumer closure
 
 - [x] Merge the Aequitas `SpecificEnergy` semantic surface (`8e75ee3`).
