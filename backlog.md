@@ -427,8 +427,12 @@
       and dot via DenseVectorOps, trace via the diagonal-view full
       reduction. Green on physical cuda+wgpu, workspace 529/529.
     - 001h — sparse remainder (5: spmv_many{,_into}, spmm{,_into}, nnz).
-      Seam has upload/shape/apply only; batched SpMV + SpMM need seam
-      methods.
+      **Complete 2026-08-01** (hephaestus `e5aba2d`): SparseOperatorOps
+      gained apply_batch (the SpMM kernel; batched SpMV is the same
+      dispatch) and nnz, ×4 backends over existing machinery; clauses
+      assert exact SpMM on the CSR fixture, the nnz count, and
+      batch-shape rejection-without-mutation. Green on physical
+      cuda+wgpu, workspace 529/529.
     - 001i — linalg family (12: matmul{,_into}, batched_matmul{,_into},
       kron{,_into}, matexp, matpow, det, pinv,
       matrix_rank{,_with_tolerance}). Largest no-seam hole; needs a core
