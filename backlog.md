@@ -509,7 +509,13 @@
       generator is a bitwise oracle), four adapters, clauses for bitwise
       host equality, range, same-seed reproduction, and seed
       sensitivity, ×4, green on physical cuda+wgpu, workspace 533/533.
-      Remaining in 001l: device topology (1 entry point).
+      **Topology complete 2026-08-01** (hephaestus master
+      `8df628a`): ComputeDevice::topology() ×6 impls + the
+      consistency clause constraining only reported fields — the draft's
+      compute_units>0 assertion was rejected by wgpu's PINNED
+      zero-means-unreported convention on first hardware contact; the
+      zero-sentinel modeling is filed as ATLAS-THEMIS-TOPOLOGY-OPTION-1.
+      **001l is closed.**
     - 001m — transfer/storage-kernel/stream (7). **Complete 2026-08-01**
       (hephaestus master `913d1aa`, via lane ff-push — codex peer holds
       the main tree on a new prepared-L2 item): conformance transfer
@@ -597,6 +603,25 @@
   ledger's entry-point basis shows rocm at 95/112 against wgpu's 101 — rocm bundles
   several clauses per test fn, so name counts understate it. Entry points, not test
   names, are the basis; the ledger stands.
+## ATLAS-THEMIS-TOPOLOGY-OPTION-1 — Model unreported GPU capacities in the type [minor] — todo
+
+- Owner: unclaimed; scope: `repos/themis` `src/topology/gpu.rs`
+  (`GpuDeviceProperties`) + hephaestus consumers.
+- Raised 2026-08-01 by the topology conformance clause (ATLAS-ARCH-001):
+  wgpu populates `GpuTopology` with zero for every capacity WebGPU cannot
+  introspect (compute units, registers, shared memory, L2, memory bytes),
+  and its contract tests PIN zero-as-unreported. A zero sentinel in plain
+  `u32`/`usize` fields is the unrepresentable-invalid-state anti-pattern:
+  any consumer computing occupancy or placement from a wgpu topology
+  divides by or partitions over zero.
+- Outcome: unreported capacities become type-level (`Option<NonZeroU32>`
+  or a reported/unreported field wrapper) in themis, with the provider
+  constructors and all hephaestus backends migrated in the same
+  co-evolution unit; the conformance clause then asserts full consistency
+  on reported values with no sentinel branch.
+- Acceptance: no zero-sentinel capacity field remains in GpuTopology's
+  public surface; hephaestus ×4 and the conformance clause build green.
+
 ## ATLAS-ARCH-010 — Define the NaN and infinity contract for accelerator kernels [arch] [minor] — done
 
 - **Done 2026-08-01** (hephaestus `6996f12`, ADR 0043 Accepted).
