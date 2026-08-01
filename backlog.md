@@ -310,7 +310,12 @@
     derived per algorithm, orthogonality ‖QᵀQ−I‖, pivot-permutation
     validity, SPD fixtures for Cholesky; (e3) four adapters,
     instantiations, and deletion of the superseded hand-written
-    decomposition tests. Each of e1–e3 is its own claimable increment.
+    decomposition tests. Each of e1–e3 is its own claimable increment. e1's design is
+    drafted as hephaestus [ADR 0042](docs/adr/0042-device-neutral-decomposition-seam.md)
+    (Proposed, 2026-08-01, `98ef339`): one `DecompositionOps` trait with
+    lifetime-parameterized per-family result handles bounded by
+    oracle-minimal accessor traits; implementation proceeds per the
+    recommendation with review as the veto.
   Original design note: evolve the
   three `ElementwiseOps` prepared associated types to the `Prepared<'op, N>`
   GAT (the axis-reduction pattern, one atomic trait flip across all four
