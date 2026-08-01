@@ -30,14 +30,15 @@
 - Outcome: public therapeutic microbubble SI metrics use Aequitas quantities;
   numerical and storage scalar boundaries remain explicit; Eunomia complex
   representation is not promoted to an imaginary physical unit.
-- Evidence: Aequitas `8b38636`, PR #10; Kwavers `a396ca8fb`, PR #327; provider
+- Evidence: Aequitas merged `8cc90b2`, PR #10; Kwavers `4c3506b64`, PR #328; provider
   47/47 plus pressure-rate 1/1; Kwavers physics microbubble 38/38; physics
   and therapy test-target checks pass offline; exact-file format and diff
   checks pass.
 - Residual: Kwavers therapy Nextest is blocked by shared target-cache
-  compilation of unrelated `ritk-jpeg` without a Rust diagnostic. PR #327 is
-  merge-conflicting because the branch carries the active migration series;
-  update it after peer work is reconciled without rewriting peer dirt.
+  compilation of unrelated `ritk-jpeg` without a Rust diagnostic. The clean
+  PR #328 matrix is the integration gate; local Cargo checks in its worktree
+  are additionally blocked by the `apollo-fft` repos/worktrees overlay
+  collision.
 - Re-open trigger: a clean branch update and successful therapy Nextest, or a
   source diagnostic from the provider/consumer integration.
 

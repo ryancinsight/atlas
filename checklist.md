@@ -16,14 +16,15 @@
       dynamics, and sampling public contracts; keep formula/storage scalar
       extraction explicit.
 - [x] Synchronize Kwavers ADR 092, backlog, checklist, changelog, and child
-      gap audit; commit and push Aequitas `8b38636` and Kwavers `a396ca8fb`.
-- [ ] Update Kwavers PR #327 onto `main` after peer work is reconciled and
-      rerun the blocked therapy Nextest lane.
+      gap audit; merge Aequitas `8cc90b2` and push Kwavers `4c3506b64`.
+- [ ] Collect and resolve any source failures from the authoritative Kwavers
+      PR #328 matrix; retain the two environment residuals if they recur.
 
 Acceptance: the implementation gap is closed in source and child PM artifacts;
 provider and consumer branches are delivered for integration; no imaginary
 physical unit is introduced. Implementation met. Integration remains pending
-on the recorded branch-conflict and shared-cache verification residual.
+on the authoritative PR #328 matrix and the recorded shared-cache/overlay
+verification residuals.
 
 ## ATLAS-AEQUITAS-CONSUMERS-002 — Aequitas consumer closure
 

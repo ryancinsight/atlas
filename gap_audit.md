@@ -5,19 +5,18 @@
 The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
-implemented on Kwavers branch `codex/kwavers-book-migration-eviction` as
-`a396ca8fb` and tracked by `KWAVERS-AEQ-MET-53`. Public contracts now use
+implemented on clean main-based Kwavers branch
+`codex/kwavers-aequitas-microbubble` as `4c3506b64` and tracked by
+`KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
 boundaries.
 
 The provider gap was the missing shared vocabulary for acceleration and
 pressure-time derivative. Aequitas now owns `Acceleration` (`m/s²`) and
-`PressureRate` (`Pa/s`) in `8b38636`; the provider PR is #10. The Kwavers
-consumer PR is #327. The consumer branch is currently merge-conflicting with
-`main` because it carries the active migration series; integration requires a
-fresh branch update after the existing peer work is reconciled. No peer dirty
-file was rewritten or discarded.
+`PressureRate` (`Pa/s`) in merged commit `8cc90b2`; provider PR #10 is merged.
+The clean Kwavers consumer PR is #328. The superseded long-lived PR #327 was
+closed without deleting its branch or touching its peer-owned dirty file.
 
 CFDrs and Helios were re-audited in the current trees and have no new missing
 Aequitas physical metric in the named scope. Their real-valued public
@@ -31,8 +30,12 @@ pressure-rate dimensional-law filter 1/1; Kwavers physics microbubble Nextest
 formatting and diff checks pass. Kwavers therapy Nextest remains an
 environment residual: shared-cache compilation of unrelated `ritk-jpeg`
 terminated without a Rust diagnostic, and the bounded single-job retry timed
-out without output. The source checks expose no failure in the typed metric
-implementation. See the child [`Kwavers gap audit`](repos/kwavers/gap_audit.md)
+out without output. The clean main-based lane also cannot run local Cargo
+checks under the Atlas overlay because relative worktree dependencies resolve
+`apollo-fft` from both `repos/apollo` and `worktrees/apollo`; the previous
+migration lane's focused checks are the source evidence. The source checks
+expose no failure in the typed metric implementation. See the child
+[`Kwavers gap audit`](repos/kwavers/gap_audit.md)
 and ADRs [Aequitas 0013](repos/aequitas/docs/adr/0013-acceleration-quantity.md)
 and [Kwavers 092](repos/kwavers/docs/ADR/092-therapeutic-microbubble-quantities.md).
 
