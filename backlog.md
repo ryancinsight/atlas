@@ -469,9 +469,12 @@
     - 001j — decomposition remainder. **Staged 2026-08-01** (ADR 0042
       second revision, hephaestus master `9da83bd`) into five DoR-shaped
       e1+e2 increment pairs by result-shape family:
-      j1 pivoted eliminations (col_piv_qr, full_piv_lu — permutation/rank
-      handles, rank-revelation + reconstruction-through-permutation
-      oracles); j2 symmetric spectral (Jacobi eigen — closed-form
+      j1 pivoted eliminations — **e1 delivered 2026-08-01** (hephaestus
+      master `acf5f0b`): col_piv_qr/full_piv_lu seam methods with
+      oracle-minimal handles ×4 adapters (metal via rewrap newtypes),
+      workspace 554/554; j1-e2 (rank-revelation +
+      reconstruction-through-permutation clauses ×4 with hardware
+      verification) is the next claimable increment; j2 symmetric spectral (Jacobi eigen — closed-form
       spectrum fixtures, ‖QᵀQ−I‖ and ‖AV−VΛ‖ at derived bounds); j3 SVD
       family (known exact spectra, two-sided orthogonality,
       rank-revealing tolerance as input contract); j4 general spectral
