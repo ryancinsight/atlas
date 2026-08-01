@@ -6,7 +6,7 @@ The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
 implemented on clean main-based Kwavers branch
-`codex/kwavers-aequitas-microbubble` at PR head `14e923b69` and tracked by
+`codex/kwavers-aequitas-microbubble` at PR head `fc2a5b863` and tracked by
 `KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
@@ -21,7 +21,7 @@ graph carrying Eunomia `18459875` alongside Aequitas `8cc90b2`. The subsequent
 provider-graph closure updated Asclepius, Hyperion, Proteus, and Tyche lock
 revisions, migrated Leto 0.40 tuple-source operations, and corrected the
 Kwavers thermal energy path to use `TemperatureDifference`. The current CI
-head is `14e923b69`. The implementation also propagates fallible Coeus
+head is `fc2a5b863`. The implementation also propagates fallible Coeus
 forward/backward errors through PINN networks, residuals, autodiff, losses,
 and trainers, removes zero-gradient fallback paths, and completes the Leto
 mutable-view API cleanup required by the exact graph. The hosted matrix is the
@@ -64,7 +64,7 @@ validation then found one stale downstream test contract: RITK's typed
 `TemporalSyncResult` had replaced the old tuple and quality aggregate in
 `crates/kwavers/tests/ultrasound_physics_validation.rs`. Source fix
 `1fd08058f` updates that test to assert typed shift, correlation, overlap, and
-residual metrics; `14e923b69` synchronizes the child PM artifacts. The
+residual metrics; `fc2a5b863` synchronizes the child PM artifacts. The
 refreshed hosted matrix is pending on the new exact head.
 Kwavers therapy Nextest also
 retains an environment residual: shared-cache compilation of unrelated
