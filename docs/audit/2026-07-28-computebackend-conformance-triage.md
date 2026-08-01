@@ -163,11 +163,11 @@ conformance-crate module that will own it (ADR 0038 §1):
 | --- | --- | --- |
 | `transfer.rs` | `from_cpu`, `to_cpu`, `new`, `try_default`, `output`, `shape`, `dispatch` | 7 |
 | `elementwise.rs` | `unary_elementwise{,_into,_strided,_strided_into}`, `binary_elementwise{,_into,_typed,_typed_into,_strided,_strided_into,_strided_typed,_strided_typed_into}`, `scalar_elementwise{,_into,_strided,_strided_into}` | 16 |
-| `reduction.rs` | `reduction{,_with_width}`, `reduce_axis{,_into}`, `sum_axis{,_into}`, `prod_axis{,_into}`, `mean_axis{,_into}`, `min_axis{,_into}`, `max_axis{,_into}`, `norm_l1`, `norm_l2`, `norm_max`, `dot`, `trace` | 21 |
+| `reduction.rs` | `reduction{,_with_width}`, `reduce_axis{,_into}`, `sum_axis{,_into}`, `prod_axis{,_into}`, `mean_axis{,_into}`, `min_axis{,_into}`, `max_axis{,_into}`, `norm_l1`, `norm_l2`, `norm_max`, `dot`, `trace` | 19 |
 | `scan.rs` | `scan_axis{,_into}`, `cumsum{,_into}`, `cumprod{,_into}`, `suffix_sum{,_into}`, `suffix_prod{,_into}` | 10 |
 | `prepared.rs` | `prepare_dot`, `prepare_norm_l2`, `prepare_reduction{,_with_width}`, `prepare_reduce_axis_into`, `prepare_{sum,mean,min,max}_axis_into`, `prepare_spmv{,_many}`, `prepare_spmm`, `submit_prepared_{reduction,axis_reduction,sparse}_batch` | 15 |
 | `sparse.rs` | `spmv{,_into}`, `spmv_many{,_into}`, `spmm{,_into}`, `nnz` | 7 |
-| `linalg.rs` | `matmul{,_into}`, `batched_matmul{,_into}`, `kron{,_into}`, `matexp`, `matpow`, `det`, `pinv`, `matrix_rank{,_with_tolerance}` | 13 |
+| `linalg.rs` | `matmul{,_into}`, `batched_matmul{,_into}`, `kron{,_into}`, `matexp`, `matpow`, `det`, `pinv`, `matrix_rank{,_with_tolerance}` | 12 |
 | `decomposition.rs` | `cholesky_decompose{,_blocked}`, `lu_decompose{,_blocked}`, `qr_decompose{,_blocked}`, `col_piv_qr{,_blocked}`, `full_piv_lu{,_blocked}`, `bunch_kaufman`, `udu_decompose`, `hessenberg`, `bidiagonalize`, `schur`, `svd_decompose`, `svd_rank_revealing`, `singular_values`, `eigenvalues`, `symmetric_eigen_jacobi`, `symmetric_eigenvalues_jacobi` | 21 |
 | `volume.rs` | `ray_line_integrals{,_into}` | 2 |
 | `random.rs` | `uniform_with_seed`, `normal_with_seed` | 2 |
@@ -223,9 +223,9 @@ delegated implementation; intrinsic by construction.
 3. **`hephaestus-metal`'s 1 614-line `contract.rs` is the most redundant of the
    four** and should reduce furthest — to the suite instantiation plus a small
    file covering device acquisition and the two escape hatches.
-4. **The nine untested shared entry points are authored first.** They are the only
-   part of this work that adds coverage nothing currently provides, and
-   `ray_line_integrals` is the priority given its Helios consumer.
+4. **The six untested shared entry points are authored first** (count corrected
+   with the entry-point re-basis above). They are the only part of this work
+   that adds coverage nothing currently provides.
 5. **A prior question is now answered**: whether `hephaestus-metal` should exist as
    a crate at all, given it contains no Metal code, is a separate architectural
    question. It is *not* resolved here and is not in ARCH-001's scope. Recorded as
