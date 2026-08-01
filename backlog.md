@@ -7,6 +7,20 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-AEQUITAS-CONSUMERS-002 — Close CFDrs, Helios, and Kwavers metric audit [patch] — done
+
+- Owner: current session; scope: Aequitas provider plus the named CFDrs,
+  Helios, and Kwavers consumer audit.
+- Closure: CFDrs turbulence outputs are typed as Aequitas kinematic
+  viscosity and specific energy; Aequitas owns the specific-energy semantic
+  unit; Helios and Kwavers retain typed real-valued public physical metrics.
+- Evidence: provider `8e75ee3`, CFDrs `c91cccc6`, locked standalone metadata
+  and library checks, overlay focused suite 70/70, and hosted runs
+  `30684819418`/`30684819430`.
+- Residual: standalone focused Nextest stops in `mnemosyne-heap` without a
+  compiler diagnostic. This is recorded as an environment/provider residual;
+  no audited Aequitas metric gap remains.
+
 ## ATLAS-SUBSTRATE-001 — Extend the Hephaestus operation seams to Coeus's call surface [arch] [minor] — in-progress
 
 - Owner: shared — the seam **declarations** are landed by this session on

@@ -6,6 +6,18 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-AEQUITAS-CONSUMERS-002 — Aequitas consumer closure
+
+- [x] Merge the Aequitas `SpecificEnergy` semantic surface (`8e75ee3`).
+- [x] Merge CFDrs typed turbulence metrics (`c91cccc6`).
+- [x] Record Eunomia real/complex compatibility: complex values remain
+      phasor/quadrature data for an existing dimension; no imaginary unit.
+- [x] Record hosted book and Pages evidence (`30684819418`,
+      `30684819430`) and the exact standalone Nextest residual
+      (`mnemosyne-heap`, no compiler diagnostic).
+- [x] Confirm no remaining Aequitas metric gap in the named CFDrs, Helios,
+      and Kwavers audit scope.
+
 ## ATLAS-SUBSTRATE-001..004 — Compute-substrate consolidation [arch]
 
 Ordered by dependency, not by size. Steps 1-2 must not be reversed: collapsing

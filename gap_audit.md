@@ -1,5 +1,30 @@
 # atlas — cross-repository integration gap audit
 
+## Final Aequitas consumer closure — CFDrs MET44 and provider graph — 2026-07-31
+
+The remaining audited provider/consumer increment is closed. CFDrs merged
+`CFDRS-AEQ-MET-44` as `c91cccc6`, replacing the public turbulence facade's
+scalar outputs with Aequitas `KinematicViscosity<T>` (m²/s) and
+`SpecificEnergy<T>` (J/kg). The implementation preserves native scalar
+arithmetic and extracts scalars only at formula, serialization, and assertion
+boundaries. Aequitas merged the required `SpecificEnergy` semantic surface as
+`8e75ee3`.
+
+The standalone CFDrs lockfile pins Aequitas `8e75ee3` and Eunomia
+`18459875ad8eb7a67e3fd7f512193cde80947b54`. Locked standalone metadata and
+`cfd-core`/`cfd-3d` library checks pass. The overlay focused suite passes
+70/70; hosted book-figure and Pages builds pass at runs `30684819418` and
+`30684819430`. The standalone focused Nextest remains environment-limited at
+`mnemosyne-heap` with no compiler diagnostic; this is a provider/toolchain
+residual, not an Aequitas metric gap.
+
+Helios and Kwavers retain the previously audited closure. Their public
+physical contracts are real-valued; Eunomia complex values remain valid
+quadrature/phasor data for the same dimension, with Hermitian magnitude or
+another explicit formula-boundary reduction where required. No imaginary unit
+is introduced, and no missing Aequitas metric remains in the named audited
+scope.
+
 ## Aequitas consumer re-audit closure — CFDrs, Helios, and Kwavers — 2026-07-31
 
 The named-consumer gap audit closed three additional public metric families.
