@@ -98,6 +98,14 @@ athena-leto = { path = "repos/athena/crates/athena-leto" }
 athena-core = { path = "repos/athena/crates/athena-core" }
 athena-leto = { path = "repos/athena/crates/athena-leto" }
 
+[patch."https://github.com/ryancinsight/coeus"]
+coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
+coeus-core = { path = "repos/coeus/crates/coeus-core" }
+coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
+coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
+coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
+coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
+
 [patch."https://github.com/ryancinsight/Coeus"]
 coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
 coeus-core = { path = "repos/coeus/crates/coeus-core" }
@@ -111,6 +119,14 @@ coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
 coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
 coeus-core = { path = "repos/coeus/crates/coeus-core" }
 coeus-leto = { path = "repos/coeus/crates/coeus-leto" }
+coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
+coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
+coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
+coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
+
+[patch."https://github.com/ryancinsight/coeus.git"]
+coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
+coeus-core = { path = "repos/coeus/crates/coeus-core" }
 coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
 coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
 coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
@@ -213,6 +229,7 @@ moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
 moirai-http = { path = "repos/moirai/moirai-http" }
+moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
@@ -222,6 +239,7 @@ moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
 moirai-http = { path = "repos/moirai/moirai-http" }
+moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
 
 [patch."https://github.com/ryancinsight/proteus"]
@@ -233,15 +251,19 @@ proteus = { path = "repos/proteus" }
 [patch."https://github.com/ryancinsight/ritk"]
 ritk-core = { path = "repos/ritk/crates/ritk-core" }
 ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
+ritk-image = { path = "repos/ritk/crates/ritk-image" }
 ritk-io = { path = "repos/ritk/crates/ritk-io" }
 ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
+ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
 ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
 
 [patch."https://github.com/ryancinsight/ritk.git"]
 ritk-core = { path = "repos/ritk/crates/ritk-core" }
 ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
+ritk-image = { path = "repos/ritk/crates/ritk-image" }
 ritk-io = { path = "repos/ritk/crates/ritk-io" }
 ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
+ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
 ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
 
 [patch."https://github.com/ryancinsight/themis"]

@@ -937,11 +937,28 @@
   now trivial — main is an ancestor of `054244a`); until then the pin stays on
   the branch. Owner of the sparse-LU item should merge and retire the branch.
 
-## ATLAS-KWAVERS-ALLOC-TEST-RACE-1 — Allocation-count test races the harness [patch] — todo
+## ATLAS-KWAVERS-ALLOC-TEST-RACE-1 — Allocation-count test races the harness [patch] — blocked
 
-- Owner: unclaimed; scope: `repos/kwavers`
-  `crates/kwavers-grid/tests/geometry_allocation.rs` (landed with the Tyche
-  collocation integration `e5a3462fe`).
+- Owner: claude-loop (claimed 2026-08-01); scope now: the two stats_alloc
+  test binaries + workspace manifest. **Fix implemented on lane branch
+  `fix/alloc-test-race`** (pushed; lane `worktrees/kwavers-alloc-race`):
+  new `kwavers-alloc-probe` dev crate counts allocator traffic only on
+  threads holding an open Window (depth-counted const-init TLS), both
+  allocation tests converted, stats_alloc removed. The same commit
+  converts kwavers' 19 committed sibling path deps + one dead consus-npy
+  branch pin to canonical git sources (CFDRS-PATHDEP class — from a lane,
+  `../apollo` is another lane, which produced a lockfile package
+  collision) and the overlay regenerated (44 sections).
+- **Blocked on the in-flight leto co-evolution sweep**: leto main renamed
+  `zip2_mut_with` (`f2fb1ca`, 12:54) and kwavers main still imports it,
+  so the workspace cannot build against the local leto tree until the
+  kwavers-side migration lands (a live codex peer holds repos/kwavers
+  with a dirty solver file — plausibly that exact migration). Re-open
+  trigger: kwavers main builds against leto main; then regenerate the
+  lane lock, run both tests under full-suite load, merge, remove lane.
+- Original defect (for the record): the process-global stats_alloc
+  counter observed harness threads; flakiness was authored into the
+  instrument, not the constructors.
 - `fixed_domains_allocate_only_their_output_matrix` asserts constructor
   allocations == 0 through a process-global `stats_alloc` counter. The counter
   observes every thread in the process, including nextest harness/output
@@ -8524,17 +8541,32 @@ each volume is registered independently. Nothing in the workspace called
 
 **Remaining, in dependency order:**
 
-1. **Rotation extraction from an affine.** Eddy-current correction produces an
-   affine, not a rigid, transform. The gradient must be rotated by the *proper
-   rotation nearest* that affine's linear part — the polar factor `R` from
-   `A = RS` — not by the raw upper-left 3×3, which carries scale and shear.
-   `reorient_per_volume` rejects a non-orthonormal matrix, so this cannot be
-   skipped silently, but nothing computes it yet. Placement is open:
-   `ritk-spatial` owns the geometry vocabulary and is the better home, but
-   `ritk-diffusion-scheme` is dependency-light (thiserror, ritk-spatial,
-   aequitas) and pulling leto in for a 3×3 decomposition is a real cost. leto's
-   `FixedMatrix<f64,3>::symmetric_eigen` (`leto/src/application/fixed.rs:290`)
-   is the primitive either way. Decide before implementing.
+1. ~~**Rotation extraction from an affine.**~~ **Delivered**: `ritk` `216f21f7`,
+   same branch and PR #82. `ritk_spatial::rotation::rotation_from_linear`
+   returns the orthogonal polar factor.
+
+   Placement resolved to `ritk-spatial`, and the open question dissolved on
+   inspection: `ritk-spatial` already depends on `leto`, so there was no new
+   dependency to weigh. The operation is geometry rather than diffusion, and its
+   consumers (gradient reorientation, tensor and ODF reorientation, resampled
+   grid orientation) all already depend on that crate.
+
+   **Numerical finding worth keeping.** The eigen route alone
+   (`S = (AᵀA)^{1/2}` via leto's `symmetric_eigen`) is least accurate at the
+   input that matters most: when `A` is already a rotation, `AᵀA = I` has a
+   triple eigenvalue and the analytic cubic derives eigenvectors from cross
+   products of a near-zero matrix. Measured drift was ~3.8e-9 — *above* the
+   1e-9 orthonormality bar `reorient_per_volume` enforces, so the undistorted
+   case would have been rejected downstream. One Newton step of Higham's polar
+   iteration (`X ← ½(X + X⁻ᵀ)`) is a fixed point at an exactly orthogonal
+   matrix and converges quadratically, restoring machine precision. Any future
+   consumer of `symmetric_eigen` on a near-degenerate matrix faces the same
+   thing.
+
+   Reflections are rejected rather than repaired to the nearest proper rotation:
+   the Kabsch sign flip suits fitting to noisy point correspondences, but a
+   handedness reversal between two images of one subject means the transform is
+   wrong, and repairing it would hide the defect.
 2. **The series correction driver** in `ritk-registration`: register each volume
    to a reference across the acquisition axis, extract each rotation, and apply
    it to the scheme. Gated on ATLAS-DMRI-IO-001's `ritk-io` dispatch tail.
