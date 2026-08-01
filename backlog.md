@@ -395,20 +395,30 @@
       collect2/mingw link failures on shared-target test binaries under
       this session (sparse_contracts ×2, stencil_laplacian, concurrency,
       convolution_contracts) — no diagnostic, passes on rerun; one
-      incremental-cache purge helped temporarily. Suspects: parallel link
-      memory pressure or AV interference. Root-cause before it normalizes
-      rerun-until-green.
+      incremental-cache purge helped temporarily. Diagnosis refined
+      2026-08-01: single-link transient failures — the failing binary
+      always builds clean solo and each failure names a different target;
+      `--build-jobs 4` reduced but did not eliminate them (one failure
+      even at 2). Consistent with per-link memory spikes (mingw ld,
+      fully-static stack binaries, ~9 GB free of 32) possibly compounded
+      by peer builds. Candidate durable fixes: a committed lower
+      build-jobs default for test runs, fewer test binaries per crate
+      (harness consolidation per the debug-tree structure rule), or lld.
+      Still open.
     - 001g — reduction remainder (~11: sum/mean/min/max_axis{,_into},
       reduce_axis, norm_l1, norm_max, trace). **Min/max clauses delivered
       2026-08-01** (hephaestus `0215d34`): both order statistics along
       both axes through the operator-generic seam, exact oracles, green
       on physical cuda+wgpu (sum was already exercised by the
-      operator-parameterization clause). Remaining in 001g: mean_axis
-      (no MeanOp combine expr — verify whether it is seam-expressible or
-      a convenience over sum), and norm_l1/norm_max/trace seam extension
-      (DenseVectorOps carries norm_l2 only; trace may instead be
-      expressible as a full reduction over a diagonal-strided rank-1
-      view — decide seam-vs-view route first).
+      operator-parameterization clause). **Norms+trace delivered
+      2026-08-01** (hephaestus `44518a2`): DenseVectorOps gained
+      norm_l1/norm_max ×4 backends over existing map-reduction kernels
+      with exact clause oracles (L1=11, max=6 on the quadruple), and the
+      full-reduction module gained the diagonal-strided trace clause
+      (15, exact — the kernel path backend trace conveniences take).
+      Green on physical cuda+wgpu, workspace 529/529. Remaining in 001g:
+      mean_axis only (no MeanOp combine expr — decide seam-expressible vs
+      convenience-over-sum, then clause or record).
     - 001h — sparse remainder (5: spmv_many{,_into}, spmm{,_into}, nnz).
       Seam has upload/shape/apply only; batched SpMV + SpMM need seam
       methods.
