@@ -16,7 +16,10 @@
       dynamics, and sampling public contracts; keep formula/storage scalar
       extraction explicit.
 - [x] Synchronize Kwavers ADR 092, backlog, checklist, changelog, and child
-      gap audit; merge Aequitas `8cc90b2` and push Kwavers `f37896521`.
+      gap audit; merge Aequitas `8cc90b2` and push Kwavers `abbe79d4a`.
+- [x] Refresh Kwavers' Atlas checkout-action and Python-release pins to Atlas
+      `8573cc5d` after the superseded matrix exposed the Eunomia
+      `UnitScalar` graph mismatch.
 - [ ] Collect and resolve any source failures from the authoritative Kwavers
       PR #328 matrix; retain the two environment residuals if they recur.
 

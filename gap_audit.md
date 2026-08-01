@@ -6,11 +6,19 @@ The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
 implemented on clean main-based Kwavers branch
-`codex/kwavers-aequitas-microbubble` as `f37896521` and tracked by
+`codex/kwavers-aequitas-microbubble` as `abbe79d4a` and tracked by
 `KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
 boundaries.
+
+The current PR #328 head is `abbe79d4a`. Its prior head
+`f37896521` failed the wheel matrix because Kwavers' pinned Atlas checkout
+materialized Eunomia before `UnitScalar`; benchmark smoke failed downstream
+from that same provider error. The Kwavers checkout action and Python-release
+workflow now pin Atlas `8573cc5d`, which carries Eunomia `18459875`
+alongside Aequitas `8cc90b2`. The corrected hosted matrix is the remaining
+integration gate.
 
 The provider gap was the missing shared vocabulary for acceleration and
 pressure-time derivative. Aequitas now owns `Acceleration` (`m/s²`) and
