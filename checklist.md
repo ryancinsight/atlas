@@ -16,7 +16,7 @@
       dynamics, and sampling public contracts; keep formula/storage scalar
       extraction explicit.
 - [x] Synchronize Kwavers ADR 092, backlog, checklist, changelog, and child
-      gap audit; merge Aequitas `8cc90b2` and push Kwavers `f044b28a8`.
+      gap audit; merge Aequitas `8cc90b2` and push Kwavers `f37896521`.
 - [ ] Collect and resolve any source failures from the authoritative Kwavers
       PR #328 matrix; retain the two environment residuals if they recur.
 

@@ -30,7 +30,7 @@
 - Outcome: public therapeutic microbubble SI metrics use Aequitas quantities;
   numerical and storage scalar boundaries remain explicit; Eunomia complex
   representation is not promoted to an imaginary physical unit.
-- Evidence: Aequitas merged `8cc90b2`, PR #10; Kwavers `f044b28a8`, PR #328; provider
+- Evidence: Aequitas merged `8cc90b2`, PR #10; Kwavers `f37896521`, PR #328; provider
   47/47 plus pressure-rate 1/1; Kwavers physics microbubble 38/38; physics
   and therapy test-target checks pass offline; exact-file format and diff
   checks pass.
