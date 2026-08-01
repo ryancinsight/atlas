@@ -146,6 +146,19 @@
 
 ## ATLAS-ARCH-001 — One generic ComputeBackend conformance suite [arch] [minor] — in-progress
 
+- Consumer sweep 2026-07-31 (evening) against hephaestus `1e36071`'s seam
+  GATs: **coeus 1050/1050** (after fixing an optim source-field misuse and
+  a to_f64 ambiguity, coeus `53816ebf`), **helios green**, **ritk green**.
+  The sweep also caught and fixed overlay rot (missing hephaestus-metal/
+  -rocm entries mixing an old git snapshot with the local core — umbrella
+  `b08161e`). **kwavers parked**: its red is a live peer's in-flight
+  mutable-zip-provider migration (leto claim `441e36d`, kwavers dirt ~45
+  min fresh; `kwavers-simulation` calls `leto_ops::indexed_zip_mut_with`
+  without the manifest edge yet) — re-open the kwavers verification when
+  that migration lands. Two transient torn-read compiles (leto-ops macro,
+  hephaestus-rocm) resolved on re-run — live-peer build interleaving, not
+  defects.
+
 - Owner: session-2026-07-30-board-ssot; last-update: 2026-07-31. Claimed
   scope for this increment: new `repos/hephaestus/crates/hephaestus-conformance`,
   the workspace member list, and instantiation tests for the six
@@ -7820,6 +7833,37 @@ Evidence for each claim is the cited file and line at the gitlink revision of
 2026-07-30. The ADR source audit and the README section were corrected in the
 same change; see ADR 0036 decision 7.
 
+## ATLAS-STACK-LETO-CHURN-017 — Upstream working-tree churn blocks consumer verification — todo
+
+Third occurrence on 2026-07-31 of the same pattern, now costing real delivery
+time, so it is recorded as its own item rather than re-diagnosed each session.
+
+- **Symptom**: a consumer repo's `cargo check`/`nextest` fails inside
+  `repos/leto` with errors that change between consecutive runs and reference
+  code the consumer never touched.
+- **Cause**: the stack `[patch]` overlay resolves first-party dependencies to
+  local working trees, so a peer's *uncommitted, mid-edit* state in an upstream
+  repo reaches every downstream consumer immediately. Observed today in
+  `leto-ops/src/application/attention/` (cleared on retry) and
+  `leto-ops/src/application/zip.rs` (still red; file modified seconds before
+  each check).
+- **Not a defect in either repo.** The overlay behaving as designed, plus
+  normal peer activity. Same class as ATLAS-RITK-MODULE-FORWARD-000.
+- **Cost**: any consumer increment depending on the churning crate cannot be
+  verified, so it cannot be committed. ATLAS-COEUS-NLLS-004 is parked on
+  exactly this.
+- **Candidate directions, needing a decision rather than more diagnosis**:
+  (a) accept it and treat upstream redness as a park-and-switch signal, which is
+  current practice and what the contention response order already prescribes;
+  (b) have the overlay resolve to each member's last *committed* revision rather
+  than its working tree, making peer WIP invisible until committed — this is the
+  real fix but changes the development overlay contract in
+  architecture_scoping and needs an ADR;
+  (c) narrow the overlay per session to the repos an agent actually edits.
+  Option (b) is the recommendation: an uncommitted edit is not a published
+  state, and the overlay currently makes it one for the whole stack.
+- **Class**: `[arch]` if (b) is taken, since it revises the development overlay.
+
 ## Wave -1 — peer contention, not RITK work (recorded 2026-07-30)
 
 ## ATLAS-RITK-MODULE-FORWARD-000 — RITK is red against in-flight Coeus WIP — resolved
@@ -8038,7 +8082,57 @@ Each of these lands in the provider that owns the bounded context. A RITK-local
 implementation of any of them is a boundary violation and fails ADR 0036
 verification condition 2.
 
-## ATLAS-COEUS-NLLS-004 — Gauss-Newton / Levenberg-Marquardt in coeus-optim [minor] — todo
+## ATLAS-COEUS-NLLS-004 — Gauss-Newton / Levenberg-Marquardt in coeus-optim [minor] — blocked
+
+**Implemented, unverified, uncommitted** in `repos/coeus` working tree at
+2026-07-31. `crates/coeus-optim/src/least_squares/` holds the
+`LeastSquaresProblem` contract, `LevenbergMarquardtConfig`/`Termination`
+vocabulary, the damped Gauss-Newton solver, and a generic test suite
+instantiated across `f32` and `f64`.
+
+**Blocker**: `leto-ops` does not compile. A live peer is mid-edit in
+`crates/leto-ops/src/application/zip.rs` (modified seconds before each check,
+errors changing between runs: `E0057` → `E0407`/`E0576`/`E0599`). The solver
+depends on `leto-ops::cholesky_solve` for the damped normal-equations solve, so
+its test suite cannot run. The diff stays uncommitted rather than landing
+unverified.
+
+**Re-open trigger**: `cargo check -p leto-ops` green. Then run
+`cargo nextest run -p coeus-optim`, fix what it finds, and commit.
+
+Design notes worth keeping, so a takeover does not re-derive them:
+
+- LM does not fit the existing `Optimizer` trait. That trait steps on gradients
+  already accumulated into parameters (the network-training shape); a
+  least-squares solver re-evaluates the model at trial points to accept or
+  reject a step, and exploits the Gauss-Newton structure `JᵀJ ≈ H` a bare
+  gradient hides. Two contracts, not two spellings of one — hence a separate
+  module rather than a fifth `impl Optimizer`.
+- The scalar bound is `Scalar + RealScalar`, composing coeus's element
+  vocabulary with leto's dense-linear-algebra vocabulary. This is the existing
+  bridge pattern, not a new one: `coeus-leto`'s `AttentionScalar: Float +
+  RealScalar` does the same thing. The normal-equations solve stays leto's per
+  upstream ownership; coeus owns only the iteration and damping.
+- Damping scales by `diag(JᵀJ)` (Marquardt's modification) rather than the
+  identity, making the step invariant to per-parameter rescaling. A diffusion
+  model mixing diffusivities near `1e-3` with signal amplitudes near `1e3` is
+  exactly the badly-scaled case that motivates it.
+- A `ProblemError::Domain` from the model is treated as a rejected step, not a
+  solver failure: negative diffusivity under a square root is a statement about
+  the trial point, and damping pulls the next trial back toward the last
+  accepted one.
+- Convergence criteria are derived, per this item's acceptance: gradient
+  infinity norm, relative step against parameter scale, relative cost
+  reduction. Tolerances default to `sqrt(ε)` of the working type, derived by
+  bisection since `Scalar` exposes no epsilon constant. The iteration cap is a
+  runaway guard reported as a *non-converged* `Termination::IterationLimit`,
+  never as success.
+
+Remaining after the blocker clears: batching over a leading problem axis, which
+is what per-voxel fitting needs and what the board item's original acceptance
+names. The single-problem solver is the first vertical increment.
+
+## ATLAS-COEUS-NLLS-004 original specification
 
 - **Evidence of gap**: `coeus-optim` ships `SGD`, `Adam`, `AdamW`, `RMSProp`,
   and `Adagrad` only — all first-order stochastic, sized for network training.
