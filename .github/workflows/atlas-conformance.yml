@@ -1,0 +1,67 @@
+# Atlas conformance ratchet gate (engineering_gates "lint floor" + ATLAS-HYGIENE-BASELINE-001)
+#
+# Runs `python scripts/atlas-conformance.py check`: re-scans every registered
+# member for the measured debt classes and fails when any per-repo count rises
+# above the committed baseline (scripts/conformance-baseline.json). The
+# baseline only decreases — a tightening is recorded by regenerating the
+# baseline in the same change; an increase is new debt and blocks the merge.
+#
+# Triggers follow gitlink advances: a member submodule bump appears as a
+# `repos/<name>` path, so every integration sweep re-measures the stack.
+
+name: atlas-conformance
+
+on:
+  pull_request:
+    paths:
+      - 'repos/**'
+      - 'scripts/atlas-conformance.py'
+      - 'scripts/conformance-baseline.json'
+      - '.github/workflows/atlas-conformance.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'repos/**'
+      - 'scripts/atlas-conformance.py'
+      - 'scripts/conformance-baseline.json'
+      - '.github/workflows/atlas-conformance.yml'
+
+concurrency:
+  group: atlas-conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  conformance-check:
+    name: Debt-class ratchet (counts non-increasing vs committed baseline)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          lfs: false
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Conformance check (ratchet must hold)
+        run: |
+          python3 scripts/atlas-conformance.py check | tee conformance-check.log
+        # The script exits 1 on any RATCHET VIOLATION line; tightenings print
+        # as baseline-update candidates and pass. Fix new debt at the source —
+        # never by editing the baseline upward (that edit is the gamed ratchet
+        # the gate exists to catch in review).
+
+      - name: Upload conformance log artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-check-log
+          path: conformance-check.log
+          if-no-files-found: ignore
