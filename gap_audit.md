@@ -6,19 +6,21 @@ The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
 implemented on clean main-based Kwavers branch
-`codex/kwavers-aequitas-microbubble` as `abbe79d4a` and tracked by
+`codex/kwavers-aequitas-microbubble` at PR head `a4aba5919` and tracked by
 `KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
 boundaries.
 
-The current PR #328 head is `abbe79d4a`. Its prior head
-`f37896521` failed the wheel matrix because Kwavers' pinned Atlas checkout
-materialized Eunomia before `UnitScalar`; benchmark smoke failed downstream
-from that same provider error. The Kwavers checkout action and Python-release
-workflow now pin Atlas `8573cc5d`, which carries Eunomia `18459875`
-alongside Aequitas `8cc90b2`. The corrected hosted matrix is the remaining
-integration gate.
+PR #328 previously failed the wheel matrix at `f37896521` because Kwavers'
+pinned Atlas checkout materialized Eunomia before `UnitScalar`; benchmark
+smoke failed downstream from that same provider error. The Kwavers checkout
+action and Python-release workflow now pin Atlas `8573cc5d`, which carries
+Eunomia `18459875` alongside Aequitas `8cc90b2`. The subsequent provider-graph
+closure updated Asclepius, Hyperion, Proteus, and Tyche lock revisions,
+migrated Leto 0.40 tuple-source operations, and corrected the Kwavers thermal
+energy path to use `TemperatureDifference`. The current CI head is
+`a4aba5919`; the hosted matrix is the remaining integration gate.
 
 The provider gap was the missing shared vocabulary for acceleration and
 pressure-time derivative. Aequitas now owns `Acceleration` (`m/s²`) and
@@ -34,15 +36,18 @@ an imaginary physical unit.
 
 Verification for this increment: Aequitas provider Nextest 47/47 and the
 pressure-rate dimensional-law filter 1/1; Kwavers physics microbubble Nextest
-38/38; physics and therapy test-target checks pass offline; exact-file
-formatting and diff checks pass. Kwavers therapy Nextest remains an
-environment residual: shared-cache compilation of unrelated `ritk-jpeg`
-terminated without a Rust diagnostic, and the bounded single-job retry timed
-out without output. The clean main-based lane also cannot run local Cargo
-checks under the Atlas overlay because relative worktree dependencies resolve
-`apollo-fft` from both `repos/apollo` and `worktrees/apollo`; the previous
-migration lane's focused checks are the source evidence. The source checks
-expose no failure in the typed metric implementation. See the child
+38/38, math 266/266, and solver 854/854 with 4 skipped; locked metadata and
+package checks pass outside the Atlas overlay; exact-file formatting and diff
+checks pass. The hosted head currently reports lockfile mismatches in jobs
+that materialize the exact Atlas graph; the stale `ritk-diffusion-scheme`
+entry is being removed from the consumer lock. Kwavers therapy Nextest also
+retains an environment residual: shared-cache compilation of unrelated
+`ritk-jpeg` terminated without a Rust diagnostic, and the bounded single-job
+retry timed out without output. The clean main-based lane cannot run local
+Cargo checks under the Atlas overlay because relative worktree dependencies
+resolve `apollo-fft` from both `repos/apollo` and `worktrees/apollo`; the
+previous migration lane's focused checks are the source evidence. The source
+checks expose no failure in the typed metric implementation. See the child
 [`Kwavers gap audit`](repos/kwavers/gap_audit.md)
 and ADRs [Aequitas 0013](repos/aequitas/docs/adr/0013-acceleration-quantity.md)
 and [Kwavers 092](repos/kwavers/docs/ADR/092-therapeutic-microbubble-quantities.md).

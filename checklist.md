@@ -20,6 +20,10 @@
 - [x] Refresh Kwavers' Atlas checkout-action and Python-release pins to Atlas
       `8573cc5d` after the superseded matrix exposed the Eunomia
       `UnitScalar` graph mismatch.
+- [x] Refresh the standalone Kwavers lock graph to Aequitas `8cc90b2`,
+      Asclepius `5404271`, Hyperion `4657996`, Proteus `3eaa720`, and Tyche
+      `df8ae8f`; migrate all Leto 0.40 tuple-source callers and correct the
+      Aequitas `TemperatureDifference` thermal-energy boundary.
 - [ ] Collect and resolve any source failures from the authoritative Kwavers
       PR #328 matrix; retain the two environment residuals if they recur.
 
