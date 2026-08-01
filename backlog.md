@@ -155,7 +155,12 @@
   (kwavers `2974b8109`) and its red cleared, but the graph now trips on the
   NEXT live frontier — the diffusion-MRI pipeline claim (ritk `85413a81`,
   new ritk-diffusion-scheme/dicom/nrrd crates mid-write, dirt minutes
-  fresh). Re-open the kwavers verification when the diffusion claim lands.
+  fresh). **Park closed 2026-08-01**: the diffusion pipeline landed
+  (ritk `8dd0e640`) and the kwavers verification completed —
+  one landed rename (TherapyVerdict's typed-Pressure fields dropping
+  their _pa suffixes) had missed its python binding, fixed forward
+  (kwavers `09231ee3b`), and the full suite runs **6045/6045**. The
+  post-GAT consumer sweep is closed across all four consumers.
   Meanwhile 001c progressed: MetalSparseOps (second implementor,
   delegating to WGPU) and the sparse conformance module both landed
   (hephaestus `dffefa0`, via the rocm-pivot lane) — exact CSR SpMV,
