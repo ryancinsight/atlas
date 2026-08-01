@@ -360,8 +360,15 @@
     tests remain per-backend (outside the seam trio). Workspace 527/527;
     cuda physical battery 92/92. **ATLAS-ARCH-001e is closed.** Remaining
     001 tail: broader contract.rs→instantiation migration per the
-    112-entry-point ledger, cuda/rocm scan-seam prepared-rebind GAT flip,
-    r_buffer n×n normalization (cuda/rocm store m×n today).
+    112-entry-point ledger, r_buffer n×n normalization (cuda/rocm store
+    m×n today). Scan-seam GAT flip complete 2026-08-01 (hephaestus
+    `39dd602`): PreparedScan<'op, N> across all four backends — cuda/rocm
+    execute-at-prepare ZSTs replaced with borrowing plans
+    (plan_scan_launch/launch_planned_scan split, dispatch re-reads device
+    addresses), wgpu/metal keep owning forms; conformance scan module
+    gains the prepared-rebind clause; green on physical cuda+wgpu,
+    workspace 527/527. All five seam families now share the
+    prepared-rebind GAT shape.
   Original design note: evolve the
   three `ElementwiseOps` prepared associated types to the `Prepared<'op, N>`
   GAT (the axis-reduction pattern, one atomic trait flip across all four
