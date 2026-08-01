@@ -65,14 +65,51 @@ class ExtractLinksTestCase(unittest.TestCase):
         text = "Use `[n+1](x)` to index into the array."
         self.assertEqual(list(cml.extract_links(text)), [])
 
-    def test_fenced_code_links_are_still_extracted(self) -> None:
-        # Characterization, not an endorsement: there is no fence
-        # stripping in the module, so a link inside a fenced block is
-        # extracted and would be link-checked. Documented here so that
-        # adding fence handling fails this test and prompts an update
-        # rather than silently changing behaviour.
+    def test_ignores_fenced_code(self) -> None:
         text = "```\n# See [docs](missing.md)\n```"
-        self.assertEqual(list(cml.extract_links(text)), ["missing.md"])
+        self.assertEqual(list(cml.extract_links(text)), [])
+
+    def test_ignores_fenced_code_with_info_string(self) -> None:
+        text = "```markdown\nSee [docs](missing.md)\n```"
+        self.assertEqual(list(cml.extract_links(text)), [])
+
+    def test_ignores_tilde_fenced_code(self) -> None:
+        text = "~~~\nSee [docs](missing.md)\n~~~"
+        self.assertEqual(list(cml.extract_links(text)), [])
+
+    def test_ignores_indented_fence(self) -> None:
+        # Up to three leading spaces still opens a fence in CommonMark.
+        text = "  ```\n  See [docs](missing.md)\n  ```"
+        self.assertEqual(list(cml.extract_links(text)), [])
+
+    def test_longer_closing_fence_still_closes(self) -> None:
+        text = "````\n[a](x.md)\n````\nThen [real](real.md)."
+        self.assertEqual(list(cml.extract_links(text)), ["real.md"])
+
+    def test_inner_shorter_backtick_run_does_not_close_fence(self) -> None:
+        # A ``` line inside a ```` block is content, not a closing fence.
+        text = "````\n```\n[a](x.md)\n```\n````\nThen [real](real.md)."
+        self.assertEqual(list(cml.extract_links(text)), ["real.md"])
+
+    def test_links_after_a_closed_fence_are_extracted(self) -> None:
+        # The mask must not swallow the rest of the document.
+        text = "```\n[hidden](nope.md)\n```\nSee [chapter](chapter.md)."
+        self.assertEqual(list(cml.extract_links(text)), ["chapter.md"])
+
+    def test_unterminated_fence_masks_to_end_of_document(self) -> None:
+        # CommonMark: an unclosed fence runs to the end of the document.
+        text = "```\n[hidden](nope.md)\nSee [also-hidden](chapter.md)."
+        self.assertEqual(list(cml.extract_links(text)), [])
+
+    def test_ignores_inline_code_link(self) -> None:
+        # Previously leaked: only single-char hrefs were filtered, so a
+        # full link inside backticks was extracted.
+        text = "Write `[docs](missing.md)` to link a chapter."
+        self.assertEqual(list(cml.extract_links(text)), [])
+
+    def test_inline_code_does_not_mask_the_rest_of_the_line(self) -> None:
+        text = "Use `cargo build`, then see [chapter](chapter.md)."
+        self.assertEqual(list(cml.extract_links(text)), ["chapter.md"])
 
     def test_ignores_single_char_href(self) -> None:
         text = "The recurrence p[n+1](x) is defined as ..."

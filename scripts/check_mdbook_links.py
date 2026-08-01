@@ -120,8 +120,50 @@ def is_external(href: str) -> bool:
     return bool(p.scheme)
 
 
+# Fenced code block (CommonMark): a run of 3+ backticks or tildes,
+# indented at most 3 spaces, with an optional info string. The closing
+# fence uses the same character and is at least as long. An unterminated
+# fence runs to end of document, which is also CommonMark's rule.
+FENCE_OPEN_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})\s*(?P<info>[^`]*)$")
+# Inline code span: a backtick run, single-line content, closing run.
+INLINE_CODE_RE = re.compile(r"`+[^`\n]*`+")
+
+
+def mask_code(content: str) -> str:
+    """Blank out code regions so link syntax inside them is not checked.
+
+    mdBook does not resolve links inside code, and book prose routinely
+    shows markdown, shell, or TOML snippets containing bracket-paren
+    text that is not a link (``[dependencies]``, ``[foo](bar)`` in a
+    markdown example). Fenced blocks and inline spans are replaced with
+    blanks. Line structure is preserved so the masked text stays
+    positionally aligned with the original.
+    """
+    out: list[str] = []
+    fence: tuple[str, int] | None = None
+    for line in content.split("\n"):
+        if fence is None:
+            opened = FENCE_OPEN_RE.match(line)
+            if opened:
+                run = opened.group("fence")
+                fence = (run[0], len(run))
+                out.append("")
+                continue
+            out.append(line)
+            continue
+        char, length = fence
+        closing = line.strip()
+        if closing and set(closing) == {char} and len(closing) >= length:
+            fence = None
+        out.append("")
+    return INLINE_CODE_RE.sub(" ", "\n".join(out))
+
+
 def extract_links(content: str):
     """Yield raw href strings from inline `[text](href)` and reference-style"""
+    # Code is masked first: a link inside a fenced block or inline span is
+    # illustrative text, not a link mdBook would resolve.
+    content = mask_code(content)
     # Inline form.  `[^)\n]+` (rather than the more permissive `[^)]+`)
     # restricts the href to a single line; combined with the LaTeX-
     # noise filter (LATEX_HREF_RE, module-level) below, it silences

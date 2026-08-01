@@ -35,12 +35,20 @@ class SmokeFixtureTestCase(unittest.TestCase):
         self.assertEqual(self._missing(fixture_dir), [])
 
     def test_smoke_fixture_produces_bad_links_when_filters_disabled(self) -> None:
-        """Disabling the false-positive filters reveals the phantom bad links."""
+        """Disabling the false-positive defences reveals the phantom bad links.
+
+        The fixture writes its phantom patterns inside inline code spans,
+        so code masking now catches them before the href filters get a
+        look. Masking is disabled here alongside the two regexes;
+        otherwise this test would pass for the wrong reason and stop
+        proving the href filters carry any weight.
+        """
         fixture_dir = REPO_ROOT / "parity_artefacts" / "smoke_test_filters"
         never_match = re.compile(r"^$")  # matches only empty strings → never matches fixture hrefs
         with (
             patch.object(cml, "SINGLE_CHAR_HREF_RE", never_match),
             patch.object(cml, "LATEX_HREF_RE", never_match),
+            patch.object(cml, "mask_code", lambda content: content),
         ):
             bad_links = self._missing(fixture_dir)
 
