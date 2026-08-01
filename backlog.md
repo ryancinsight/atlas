@@ -490,8 +490,18 @@
         Dispatch<'op> union associated type mirroring the existing
         dispatch-handle enums; sparse union first, reduction variants
         second; CommandStream routing rejected (cuda/hip launch eagerly).
-        Next increment: the sparse-union implementation ×4 + the
-        heterogeneous-batch equivalence clause.
+        **Implemented 2026-08-01**
+        (hephaestus master `82c580a`, ADR 0045 Accepted with the
+        as-built lifetime revision): BatchSubmitOps ×4 over the existing
+        dispatch enums, spmv_dispatch with decoupled plan/operand
+        lifetimes, batch clause (empty no-op + exact two-operation
+        equivalence) green on physical cuda+wgpu, workspace 553/553.
+        Remaining in k2 per the ADR's staging: the reduction-batch
+        variants join the union once their prepared handles are wrapped
+        (second increment). **With k0/k1/k2-sparse done, the 001 ledger's
+        no-seam groups are all closed**; the remaining 001 tail is 001j
+        (decomposition remainder, ADR-0042 revision + SVD/eigen) and the
+        single topology entry point.
     - 001l — random (2: uniform_with_seed, normal_with_seed; no seam) and
       device topology (1). **Random complete 2026-08-01** (hephaestus
       `a386aa6`): RandomInitOps in core with determinism as contract
