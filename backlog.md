@@ -470,11 +470,26 @@
       col_piv_qr, full_piv_lu, bunch_kaufman, udu, hessenberg,
       bidiagonalize, schur, SVD family, eigen family). ADR 0042 scoped
       the seam to the trio deliberately; extending is an ADR revision.
-    - 001k — prepared remainder (12: prepare_reduction{,_with_width},
-      prepare_{sum,mean,min,max}_axis_into, prepare_spmv{,_many},
-      prepare_spmm, submit_prepared_*_batch ×3). prepare_reduce_full and
-      prepare_scan_axis exist but are unexercised; the batch-submit trio
-      has no seam.
+    - 001k — prepared remainder, decomposed 2026-08-01 after scoping:
+      - k0 (covered-by-equivalence, record only): prepare_reduction
+        {,_with_width} and prepare_{sum,mean,min,max}_axis_into are
+        backend conveniences over the prepared machinery the seam's
+        prepare_reduce_full/prepare_reduce_axis_into clauses already
+        drive (rebind clauses green ×2 hardware); the audit's
+        "unexercised" note predates those clauses.
+      - k1 (ready): prepared-sparse seam — SparseOperatorOps gains
+        PreparedApply<'op> GAT + prepare_apply/dispatch_apply (and the
+        batch/spmm analog), adapting cuda's existing borrowing
+        PreparedSpmv (re-reads raw pointers at dispatch — already
+        rebind-correct) and wgpu/rocm equivalents. Harmonization note:
+        cuda's prepare_spmv takes &mut output but stores a shared borrow
+        (advisory &mut) — pick the seam mutability once and adapt.
+        Rebind clause joins the conformance sparse module.
+      - k2 (ADR-first): submit_prepared_*_batch ×3 — a cross-operation
+        batch-submission seam (one command buffer for many prepared
+        dispatches); needs a design record before a trait lands
+        (candidates: a BatchSubmit trait over prepared handles, or an
+        explicit CommandStream-level surface).
     - 001l — random (2: uniform_with_seed, normal_with_seed; no seam) and
       device topology (1). **Random complete 2026-08-01** (hephaestus
       `a386aa6`): RandomInitOps in core with determinism as contract
