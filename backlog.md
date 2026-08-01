@@ -346,8 +346,22 @@
     is n×n on wgpu but m×n on cuda/rocm — n×n normalization is the
     recorded follow-up. Instantiated ×4 (`tests/decomposition_contracts.rs`
     per backend); green on physical cuda and wgpu; workspace 547/547.
-    e3 next: retire the superseded hand-written per-backend decomposition
-    tests with assertion-count superset proof.
+    **e3 is complete 2026-08-01** (hephaestus `9216872`): four clauses
+    added first so deletion stays a superset — leto-differential LU
+    (exact pivots on unique-maximum fixtures, epsilon-bounded factors),
+    leto-differential Cholesky, analytical+differential QR least squares,
+    exact-identity factorizations — then the ten wgpu + ten cuda
+    hand-written trio tests deleted (38+37 assertions; the clauses
+    execute more per backend at derived bounds). Third real divergence
+    caught: cuda's Householder R = −I (leto's sign) vs wgpu's +I —
+    identity-QR asserts magnitudes, sign is backend-owned per the seam
+    doc. Two recorded strength conversions (bitwise→epsilon per the
+    reduction-order rule). Blocked/full-pivot/col-pivot/strided/rejection
+    tests remain per-backend (outside the seam trio). Workspace 527/527;
+    cuda physical battery 92/92. **ATLAS-ARCH-001e is closed.** Remaining
+    001 tail: broader contract.rs→instantiation migration per the
+    112-entry-point ledger, cuda/rocm scan-seam prepared-rebind GAT flip,
+    r_buffer n×n normalization (cuda/rocm store m×n today).
   Original design note: evolve the
   three `ElementwiseOps` prepared associated types to the `Prepared<'op, N>`
   GAT (the axis-reduction pattern, one atomic trait flip across all four
