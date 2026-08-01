@@ -477,14 +477,13 @@
         prepare_reduce_full/prepare_reduce_axis_into clauses already
         drive (rebind clauses green ×2 hardware); the audit's
         "unexercised" note predates those clauses.
-      - k1 (ready): prepared-sparse seam — SparseOperatorOps gains
-        PreparedApply<'op> GAT + prepare_apply/dispatch_apply (and the
-        batch/spmm analog), adapting cuda's existing borrowing
-        PreparedSpmv (re-reads raw pointers at dispatch — already
-        rebind-correct) and wgpu/rocm equivalents. Harmonization note:
-        cuda's prepare_spmv takes &mut output but stores a shared borrow
-        (advisory &mut) — pick the seam mutability once and adapt.
-        Rebind clause joins the conformance sparse module.
+      - k1 **complete 2026-08-01** (hephaestus master `bd107ce`, lane
+        ff-push after rebasing over two peer merges): PreparedApply<'op>
+        + prepare_apply/dispatch_apply on SparseOperatorOps, four
+        adapters over existing prepared machinery, prepare_spmv output
+        params relaxed to shared borrows ×4 (every impl stored shared;
+        StridedView precedent) with call sites updated, prepared-SpMV
+        rebind clause green on physical cuda+wgpu, workspace 540/540.
       - k2 (ADR-first): submit_prepared_*_batch ×3 — a cross-operation
         batch-submission seam (one command buffer for many prepared
         dispatches); needs a design record before a trait lands
@@ -8622,8 +8621,42 @@ each volume is registered independently. Nothing in the workspace called
    `correct_diffusion_series` entry point exists. That composition belongs with
    the diffusion consumer and is the natural next increment once
    `ritk-diffusion` settles.
-3. **Susceptibility distortion** (reversed-phase-encode fieldmap estimation) —
-   the `topup` role. Independent of 1 and 2; largest of the three.
+3. **Susceptibility distortion** — the `topup` role. **Model delivered**:
+   `ritk` `3042601f`, same branch and PR #82.
+   `ritk_registration::epi::{distort, unwarp}` with `PhaseEncoding`
+   (axis + polarity). The forward model is what field estimation later fits
+   against; `unwarp` solves the observed-to-true map per line rather than
+   assuming small displacements, so the round trip is exact.
+
+   Convention pinned in the module docs (per numerical_discipline): for field
+   `f` in voxels and polarity sign `s`,
+   `observed(y) = true(y + s·f(y)) · |1 + s·∂f/∂y|`. Toolchains differ here, so
+   it is stated rather than assumed.
+
+   A folding field is rejected, not clamped: where the Jacobian reaches zero,
+   distinct true positions map to one observed position and their signal is
+   summed, which no unwarping separates.
+
+   **Two test-oracle corrections worth keeping**, both cases where the first
+   assertion was wrong rather than the code:
+   - Signal conservation is an identity over the *mapped* range, not the grid.
+     A ramp field with non-zero boundary value stretches the domain and
+     legitimately raises the grid total — measured at exactly 10% for slope
+     0.1, which is the Jacobian working. The test now uses a
+     boundary-vanishing field, where the map is onto the grid and conservation
+     is exact.
+   - The warp/unwarp round trip cannot be exact on a step edge: two linear
+     interpolations do not reconstruct a discontinuity. That is a property of
+     resampling, not of the model. The test uses a linear image, which linear
+     interpolation reproduces exactly, isolating the geometry and Jacobian
+     bookkeeping.
+
+   **Remaining**: field *estimation* from a reversed-polarity pair. That is a
+   regularized nonlinear fit over a field parameterization (spline coefficients
+   or per-voxel with a smoothness penalty) — thousands of parameters, so the
+   dense `coeus-optim` Levenberg-Marquardt from ATLAS-COEUS-NLLS-004 is the
+   wrong instrument and a large-scale or sparse-Jacobian path is needed first.
+   Size and owner of that solver is an open question, not a scheduled item.
 
 **Acceptance oracle is still unbuildable here.** ADR 0036 verification condition
 7 needs a synthesized anisotropic tensor field fitted after correction, which
