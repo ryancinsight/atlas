@@ -301,9 +301,9 @@
   - ATLAS-ARCH-001b — scan family. **Value clauses delivered 2026-07-31**
     (hephaestus `89a99c1`): forward/reverse prefix sums, prefix products,
     axis discrimination, and rejection-without-mutation, instantiated ×4,
-    green on physical cuda and wgpu, workspace 537/537. Remaining: the
-    prepared-rebind clause once the cuda/rocm scan seams adopt the GAT
-    pattern (same shape as the delivered elementwise flip).
+    green on physical cuda and wgpu, workspace 537/537. **001b is complete
+    2026-08-01**: the scan-seam GAT flip (hephaestus `39dd602`) landed the
+    borrowing plans and the prepared-rebind clause.
   - ATLAS-ARCH-001c — dense vector + sparse operator families
     (DenseVectorOps/SparseOperatorOps declared by SUBSTRATE-001).
   - ATLAS-ARCH-001d — **done 2026-07-31** (hephaestus `a4a51c3`):
@@ -414,10 +414,12 @@
   ledger's entry-point basis shows rocm at 95/112 against wgpu's 101 — rocm bundles
   several clauses per test fn, so name counts understate it. Entry points, not test
   names, are the basis; the ledger stands.
-## ATLAS-ARCH-010 — Define the NaN and infinity contract for accelerator kernels [arch] [minor] — todo
+## ATLAS-ARCH-010 — Define the NaN and infinity contract for accelerator kernels [arch] [minor] — in-progress
 
-- Owner: unclaimed; scope: `hephaestus-core` numeric contract documentation plus
-  the capability predicate the shared suite gates on. Decision before code.
+- Owner: claude-loop (claimed 2026-08-01); scope: `hephaestus-core`
+  `domain/dialect.rs` + seam trait docs + `hephaestus-conformance`
+  typed-elementwise clause + `docs/adr/0043`. Decision before code: ADR
+  drafting is the first step per the automatic-ADR rule.
 - Raised by: writing the `binary_elementwise_typed` f32 clause during
   `ATLAS-ARCH-001`. The clause asserted IEEE-754 semantics and **failed on wgpu**
   — the device returns `NaN != NaN` as false.
