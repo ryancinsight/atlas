@@ -7854,8 +7854,11 @@ time, so it is recorded as its own item rather than re-diagnosed each session.
 - **Not a defect in either repo.** The overlay behaving as designed, plus
   normal peer activity. Same class as ATLAS-RITK-MODULE-FORWARD-000.
 - **Cost**: any consumer increment depending on the churning crate cannot be
-  verified, so it cannot be committed. ATLAS-COEUS-NLLS-004 is parked on
-  exactly this.
+  verified, so it cannot be committed. ATLAS-COEUS-NLLS-004 parked on exactly
+  this for roughly 25 minutes, clearing only when the peer committed `zip.rs`.
+  The park was the correct call — the errors changed between consecutive runs,
+  so retrying would have chased a moving target — but it is dead time that
+  option (b) would remove.
 - **Candidate directions, needing a decision rather than more diagnosis**:
   (a) accept it and treat upstream redness as a park-and-switch signal, which is
   current practice and what the contention response order already prescribes;
@@ -8086,23 +8089,36 @@ Each of these lands in the provider that owns the bounded context. A RITK-local
 implementation of any of them is a boundary violation and fails ADR 0036
 verification condition 2.
 
-## ATLAS-COEUS-NLLS-004 — Gauss-Newton / Levenberg-Marquardt in coeus-optim [minor] — blocked
+## ATLAS-COEUS-NLLS-004 — Gauss-Newton / Levenberg-Marquardt in coeus-optim [minor] — review
 
-**Implemented, unverified, uncommitted** in `repos/coeus` working tree at
-2026-07-31. `crates/coeus-optim/src/least_squares/` holds the
-`LeastSquaresProblem` contract, `LevenbergMarquardtConfig`/`Termination`
-vocabulary, the damped Gauss-Newton solver, and a generic test suite
-instantiated across `f32` and `f64`.
+**Delivered.** `crates/coeus-optim/src/least_squares/` holds the
+`LeastSquaresProblem` contract, the `LevenbergMarquardtConfig`/`Termination`
+vocabulary, the damped Gauss-Newton solver, and a suite instantiated across
+`f32` and `f64`. The blocker below cleared when the peer committed
+`leto-ops/src/application/zip.rs`.
 
-**Blocker**: `leto-ops` does not compile. A live peer is mid-edit in
-`crates/leto-ops/src/application/zip.rs` (modified seconds before each check,
-errors changing between runs: `E0057` → `E0407`/`E0576`/`E0599`). The solver
-depends on `leto-ops::cholesky_solve` for the damped normal-equations solve, so
-its test suite cannot run. The diff stays uncommitted rather than landing
-unverified.
+Landed in two commits, the split being a peer takeover rather than a plan:
+`coeus` `53816ebf` (a peer picked up the uncommitted module and committed it)
+and `coeus` `4d634750` on `feat/coeus-optim-least-squares`, PR #258 (the clippy
+gate the first commit had not been run through).
 
-**Re-open trigger**: `cargo check -p leto-ops` green. Then run
-`cargo nextest run -p coeus-optim`, fix what it finds, and commit.
+**The peer's commit fixed two real defects in this work**, both worth recording
+because neither is obvious from the code:
+
+- `SolverError::NonFinite` had a `&'static str` field named `source`.
+  `thiserror` treats a field of that name as the error source and requires it to
+  implement `Error`, which `&str` does not. Renamed to `evaluation`, its actual
+  meaning.
+- `LeastSquaresScalar`'s supertrait chain surfaces both `Scalar::to_f64` and
+  eunomia's `NumericElement::to_f64`, so bare method calls are ambiguous. The
+  tests now UFCS-qualify them. Any future consumer composing these two
+  vocabularies hits the same thing.
+
+Verified at `4d634750`: 36/36 `coeus-optim` tests (16 least-squares across both
+scalar types, 20 pre-existing), clippy `--all-targets -D warnings` clean,
+`RUSTDOCFLAGS=-D warnings cargo doc` clean.
+
+Design notes kept below; they explain choices the diff does not.
 
 Design notes worth keeping, so a takeover does not re-derive them:
 
