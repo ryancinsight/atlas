@@ -6,7 +6,7 @@ The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
 implemented on clean main-based Kwavers branch
-`codex/kwavers-aequitas-microbubble` at PR head `06037aa18` and tracked by
+`codex/kwavers-aequitas-microbubble` at PR head `5189b3cc6` and tracked by
 `KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
@@ -21,7 +21,7 @@ graph carrying Eunomia `18459875` alongside Aequitas `8cc90b2`. The subsequent
 provider-graph closure updated Asclepius, Hyperion, Proteus, and Tyche lock
 revisions, migrated Leto 0.40 tuple-source operations, and corrected the
 Kwavers thermal energy path to use `TemperatureDifference`. The current CI
-head is `06037aa18`. The implementation also propagates fallible Coeus
+head is `5189b3cc6`. The implementation also propagates fallible Coeus
 forward/backward errors through PINN networks, residuals, autodiff, losses,
 and trainers, removes zero-gradient fallback paths, and completes the Leto
 mutable-view API cleanup required by the exact graph. The hosted matrix is the
@@ -55,8 +55,12 @@ against the same graph. The source policy admits the transitive RITK Gaia
 provider and no longer carries the unused cutile-rs entry. The first refreshed
 hosted run exposed six Windows-target `wgpu` dependency entries that made
 Linux `--locked` commands rewrite the lock; the current lock removes that
-platform-specific drift. The refreshed hosted matrix is pending on the new
-exact head.
+platform-specific drift. The hosted run then exposed a second provider-source
+defect: Kwavers direct Consus edges used the URL without `.git`, while RITK's
+`consus-onnx` edge used the canonical `.git` URL. Kwavers now uses the
+canonical URL and the lock aligns shared Consus packages with Atlas head
+`f0c28690`; only the required `consus-npy` branch remains distinct. The
+refreshed hosted matrix is pending on the new exact head.
 Kwavers therapy Nextest also
 retains an environment residual: shared-cache compilation of unrelated
 `ritk-jpeg` terminated without a Rust diagnostic, and the bounded single-job
