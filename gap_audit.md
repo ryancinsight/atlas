@@ -6,7 +6,7 @@ The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
 implemented on clean main-based Kwavers branch
-`codex/kwavers-aequitas-microbubble` at PR head `ddef71529` and tracked by
+`codex/kwavers-aequitas-microbubble` at PR head `2bedc44bf` and tracked by
 `KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
@@ -21,7 +21,11 @@ graph carrying Eunomia `18459875` alongside Aequitas `8cc90b2`. The subsequent
 provider-graph closure updated Asclepius, Hyperion, Proteus, and Tyche lock
 revisions, migrated Leto 0.40 tuple-source operations, and corrected the
 Kwavers thermal energy path to use `TemperatureDifference`. The current CI
-head is `ddef71529`; the hosted matrix is the remaining integration gate.
+head is `2bedc44bf`. The implementation also propagates fallible Coeus
+forward/backward errors through PINN networks, residuals, autodiff, losses,
+and trainers, removes zero-gradient fallback paths, and completes the Leto
+mutable-view API cleanup required by the exact graph. The hosted matrix is the
+remaining integration gate.
 
 The provider gap was the missing shared vocabulary for acceleration and
 pressure-time derivative. Aequitas now owns `Acceleration` (`m/s²`) and
@@ -37,9 +41,12 @@ an imaginary physical unit.
 
 Verification for this increment: Aequitas provider Nextest 47/47 and the
 pressure-rate dimensional-law filter 1/1; Kwavers physics microbubble Nextest
-38/38, math 266/266, and solver 854/854 with 4 skipped; locked metadata and
-package checks pass outside the Atlas overlay; exact-file formatting and diff
-checks pass. The prior hosted head reported lockfile mismatches and an
+38/38 and the preceding math slice 266/266; the current exact-graph workspace
+check, locked metadata, solver clippy at `-D warnings`, 79-file Rustfmt, PINN
+Nextest 422/422 with 848 skipped, and solver doctests 4/4 pass outside the
+Atlas overlay. The workspace check reports only the existing
+`kwavers-analysis::principal_axis` dead-code warning and external provider
+linker warnings. The prior hosted head reported lockfile mismatches and an
 incompatible Coeus/Leto pair. The current lock is regenerated from the exact
 pinned Atlas graph, including its `ritk-diffusion-scheme` package and edges;
 disposable `cargo metadata --locked --all-features` passes against the same
