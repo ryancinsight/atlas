@@ -294,9 +294,18 @@
     rejection-without-mutation) with the former magic 1e-4 now derived at
     the module head. Instantiated ×4; green on physical cuda and wgpu;
     workspace 539/539.
-  - ATLAS-ARCH-001e — linalg/decomposition family (largest; blocked-panel
-    Cholesky/LU/QR conformance vs Leto oracles, tolerances derived per
-    numerical_discipline).
+  - ATLAS-ARCH-001e — linalg/decomposition family (largest). Scoped
+    2026-07-31 (night): there is NO device-neutral decomposition seam —
+    each backend declares its own device-concrete `MatrixDecompose`
+    (metal `linalg_traits.rs`, cuda/rocm `linalg/matrix.rs`), so 001e
+    decomposes into (e1) a core seam over ComputeDevice with associated
+    decomposition-result types (GAT-shaped, like the prepared forms);
+    (e2) generic clauses with leto-differential oracles — reconstruction
+    residuals ‖A−LU‖/‖A−QR‖ bounded by c(n)·ε·‖A‖ with the constant
+    derived per algorithm, orthogonality ‖QᵀQ−I‖, pivot-permutation
+    validity, SPD fixtures for Cholesky; (e3) four adapters,
+    instantiations, and deletion of the superseded hand-written
+    decomposition tests. Each of e1–e3 is its own claimable increment.
   Original design note: evolve the
   three `ElementwiseOps` prepared associated types to the `Prepared<'op, N>`
   GAT (the axis-reduction pattern, one atomic trait flip across all four
