@@ -455,7 +455,13 @@
       prepare_scan_axis exist but are unexercised; the batch-submit trio
       has no seam.
     - 001l — random (2: uniform_with_seed, normal_with_seed; no seam) and
-      device topology (1).
+      device topology (1). **Random complete 2026-08-01** (hephaestus
+      `a386aa6`): RandomInitOps in core with determinism as contract
+      (all backends host-delegate to leto-ops and upload, so the host
+      generator is a bitwise oracle), four adapters, clauses for bitwise
+      host equality, range, same-seed reproduction, and seed
+      sensitivity, ×4, green on physical cuda+wgpu, workspace 533/533.
+      Remaining in 001l: device topology (1 entry point).
     - 001m — transfer/storage-kernel/stream (7): seams exist
       (ComputeDevice, storage-kernel traits, CommandStream) with zero
       generic clauses.
