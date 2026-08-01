@@ -466,10 +466,24 @@
       (matexp/matpow/det/pinv/matrix_rank) staged per the ADR — enters as
       provided methods over DenseProductOps + DecompositionOps once the
       decomposition seam grows SVD (001j).
-    - 001j — decomposition remainder (18 of 21: blocked variants,
-      col_piv_qr, full_piv_lu, bunch_kaufman, udu, hessenberg,
-      bidiagonalize, schur, SVD family, eigen family). ADR 0042 scoped
-      the seam to the trio deliberately; extending is an ADR revision.
+    - 001j — decomposition remainder. **Staged 2026-08-01** (ADR 0042
+      second revision, hephaestus master `9da83bd`) into five DoR-shaped
+      e1+e2 increment pairs by result-shape family:
+      j1 pivoted eliminations (col_piv_qr, full_piv_lu — permutation/rank
+      handles, rank-revelation + reconstruction-through-permutation
+      oracles); j2 symmetric spectral (Jacobi eigen — closed-form
+      spectrum fixtures, ‖QᵀQ−I‖ and ‖AV−VΛ‖ at derived bounds); j3 SVD
+      family (known exact spectra, two-sided orthogonality,
+      rank-revealing tolerance as input contract); j4 general spectral
+      (eigenvalues via eunomia::Complex, schur, hessenberg,
+      bidiagonalize — similarity invariants + structural zero patterns);
+      j5 symmetric-indefinite (bunch_kaufman, udu — inertia against a
+      known signature). Blocked variants recorded as execution
+      strategies behind the unblocked seam methods, NOT seam contracts —
+      covered by the existing per-backend blocked-vs-leto differential
+      tests; explicit strategy selection would enter as a policy
+      parameter, never *_blocked seam methods. Each jN is independently
+      claimable.
     - 001k — prepared remainder, decomposed 2026-08-01 after scoping:
       - k0 (covered-by-equivalence, record only): prepare_reduction
         {,_with_width} and prepare_{sum,mean,min,max}_axis_into are
