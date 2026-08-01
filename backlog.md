@@ -362,7 +362,53 @@
     cuda physical battery 92/92. **ATLAS-ARCH-001e is closed.** Remaining
     001 tail: broader contract.rs→instantiation migration per the
     112-entry-point ledger (r_buffer normalization resolved by the
-    `2ffef9e` convention pin — no copy needed, all backends already m×n). Scan-seam GAT flip complete 2026-08-01 (hephaestus
+    `2ffef9e` convention pin — no copy needed, all backends already m×n).
+  - **Ledger coverage audit 2026-08-01** (subagent cross-check of the 112
+    entry points vs the 11 conformance modules; ledger count-column and
+    consequence-4 defects fixed in the same cycle): instantiation is
+    complete and symmetric — all four backends carry all 11
+    `tests/*_contracts.rs` — but eight family REMAINDERS still lack
+    generic clauses. New DoR-shaped sub-items, ranked by
+    (entry points × seam-readiness); acceptance for each mirrors 001a–e
+    (generic clauses ×4 instantiation, derived tolerances, superseded
+    hand tests deleted with superset accounting):
+    - 001f — elementwise remainder (12: unary/binary/scalar ×
+      plain/into/strided/strided_into). CHEAPEST: `ElementwiseOps` seam
+      already exposes the surface; clauses simply not authored.
+    - 001g — reduction remainder (~11: sum/mean/min/max_axis{,_into},
+      reduce_axis, norm_l1, norm_max, trace). Axis ops reachable via the
+      existing operator-generic seam; norm_l1/norm_max/trace have NO seam
+      method (DenseVectorOps carries norm_l2 only) — seam extension first.
+    - 001h — sparse remainder (5: spmv_many{,_into}, spmm{,_into}, nnz).
+      Seam has upload/shape/apply only; batched SpMV + SpMM need seam
+      methods.
+    - 001i — linalg family (12: matmul{,_into}, batched_matmul{,_into},
+      kron{,_into}, matexp, matpow, det, pinv,
+      matrix_rank{,_with_tolerance}). Largest no-seam hole; needs a core
+      seam design increment first.
+    - 001j — decomposition remainder (18 of 21: blocked variants,
+      col_piv_qr, full_piv_lu, bunch_kaufman, udu, hessenberg,
+      bidiagonalize, schur, SVD family, eigen family). ADR 0042 scoped
+      the seam to the trio deliberately; extending is an ADR revision.
+    - 001k — prepared remainder (12: prepare_reduction{,_with_width},
+      prepare_{sum,mean,min,max}_axis_into, prepare_spmv{,_many},
+      prepare_spmm, submit_prepared_*_batch ×3). prepare_reduce_full and
+      prepare_scan_axis exist but are unexercised; the batch-submit trio
+      has no seam.
+    - 001l — random (2: uniform_with_seed, normal_with_seed; no seam) and
+      device topology (1).
+    - 001m — transfer/storage-kernel/stream (7): seams exist
+      (ComputeDevice, storage-kernel traits, CommandStream) with zero
+      generic clauses.
+    - 001n — stencil family: absent from the ledger entirely (its
+      pub-fn-union basis missed struct-API kernels — Laplacian2DKernel);
+      four hand-written per-backend suites diverge today. Ledger
+      methodology note recorded.
+    - 001o — metal skips assert_convolution_f64_contract while the other
+      three instantiate it: convert the unstated skip into a capability
+      gate or an instantiation.
+    Also unexercised: RetainedReductions (retain_dot/norm) and
+    StridedComputeBackend have no conformance reference. Scan-seam GAT flip complete 2026-08-01 (hephaestus
     `39dd602`): PreparedScan<'op, N> across all four backends — cuda/rocm
     execute-at-prepare ZSTs replaced with borrowing plans
     (plan_scan_launch/launch_planned_scan split, dispatch re-reads device
