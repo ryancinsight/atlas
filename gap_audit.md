@@ -31,6 +31,19 @@ The child records are [`CFDrs`](repos/CFDrs/gap_audit.md),
 [`Kwavers`](repos/kwavers/gap_audit.md). The Kwavers field decision is
 [`ADR 090`](repos/kwavers/docs/ADR/090-sound-speed-field-quantity.md).
 
+## Review 2026-07-31 — Kwavers vessel-metric delivery
+
+The final source-level residual in Kwavers `KW-AEQ-MET-04` was redundant
+centerline extraction during segmentation. The classifier now returns its
+validated centerline with the Aequitas classification, and total physical
+length reuses it. This closes the review finding without adding a fallback,
+changing the `Length`/`Velocity` boundary, or introducing an imaginary unit.
+PR #325 merged as Kwavers main `cc5c9c4dd`; its exact-head hosted matrix passed
+Code Coverage in 39m33s, Test Suite Coverage in 32m45s, and all other required
+build, feature, solver, security, Miri, wheel, documentation, migration, and
+benchmark checks. The named CFDrs, Helios, and Kwavers audit therefore has no
+remaining missing Aequitas metric implementation in the audited scope.
+
 ## Aequitas consumer gap audit closure — Kwavers deposition spine and EM/SAR — 2026-07-31
 
 The remaining root-board gaps are closed. `ATLAS-MODALITY-002` phase 3d is
