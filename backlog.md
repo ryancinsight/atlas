@@ -483,9 +483,15 @@
       host equality, range, same-seed reproduction, and seed
       sensitivity, ×4, green on physical cuda+wgpu, workspace 533/533.
       Remaining in 001l: device topology (1 entry point).
-    - 001m — transfer/storage-kernel/stream (7): seams exist
-      (ComputeDevice, storage-kernel traits, CommandStream) with zero
-      generic clauses.
+    - 001m — transfer/storage-kernel/stream (7). **Complete 2026-08-01**
+      (hephaestus master `913d1aa`, via lane ff-push — codex peer holds
+      the main tree on a new prepared-L2 item): conformance transfer
+      module pins the ComputeDevice contract (bitwise round-trip incl.
+      NaN payload/signed zero, alloc_zeroed, full+sub writes, D2D copy,
+      mismatch rejections leaving targets untouched, zero-length no-ops),
+      ×4 instantiation, green on physical cuda+wgpu. Storage-kernel and
+      command-stream layers recorded as transitively exercised by every
+      kernel clause — no parallel kernel-authoring module.
     - 001n — stencil family: absent from the ledger entirely (its
       pub-fn-union basis missed struct-API kernels — Laplacian2DKernel).
       **Seam+clauses complete 2026-08-01** (hephaestus `98e9e3e`):
@@ -8567,9 +8573,37 @@ each volume is registered independently. Nothing in the workspace called
    the Kabsch sign flip suits fitting to noisy point correspondences, but a
    handedness reversal between two images of one subject means the transform is
    wrong, and repairing it would hide the defect.
-2. **The series correction driver** in `ritk-registration`: register each volume
-   to a reference across the acquisition axis, extract each rotation, and apply
-   it to the scheme. Gated on ATLAS-DMRI-IO-001's `ritk-io` dispatch tail.
+2. ~~**The series correction driver**~~ **Delivered**: `ritk` `4633b5e3`, same
+   branch and PR #82. `ritk_registration::series::register_series` fits each
+   volume to a reference and reports the transform plus the proper rotation it
+   carries. The `ritk-io` gate cleared — a peer landed
+   `read_image_series_native`.
+
+   **Layering decision.** The module carries no diffusion vocabulary. Motion
+   correction is the same operation whether volumes vary by gradient,
+   timepoint, or inversion time, and a diffusion consumer depends on
+   registration rather than the reverse. `SeriesAlignment::rotations()` returns
+   exactly the shape `GradientScheme::reorient_per_volume` consumes, so the two
+   compose without `ritk-registration` ever depending on
+   `ritk-diffusion-scheme`.
+
+   **Two contract choices worth keeping.** The reference is assigned the
+   identity rather than registered to itself — self-registration returns a
+   near-identity fit perturbed by optimizer noise, injecting a spurious rotation
+   into the one volume known to need none. Its `quality` is `None` rather than a
+   zeroed metrics struct, which would claim a mutual information and correlation
+   of zero for a registration that never ran.
+
+   Rigid is the default model: it cannot deform anatomy, so a caller who has not
+   considered eddy currents does not silently receive a shape-changing fit.
+   `SeriesTransformModel::Affine` admits the extra freedom eddy-current
+   distortion needs.
+
+   **Not yet wired end to end.** `register_series` reports what moved; applying
+   the transforms to resample the volumes is the caller's step and no composed
+   `correct_diffusion_series` entry point exists. That composition belongs with
+   the diffusion consumer and is the natural next increment once
+   `ritk-diffusion` settles.
 3. **Susceptibility distortion** (reversed-phase-encode fieldmap estimation) —
    the `topup` role. Independent of 1 and 2; largest of the three.
 
