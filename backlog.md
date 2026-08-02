@@ -138,7 +138,7 @@
   suite passes on every vendor that has hardware present; ~3 700 lines net
   deleted.
 
-## ATLAS-SUBSTRATE-003 — Give the Leto/Hephaestus decomposition pair one seam and one oracle [arch] [minor] — todo (rescoped)
+## ATLAS-SUBSTRATE-003 — Give the Leto/Hephaestus decomposition pair one seam and one oracle [arch] [minor] — done 2026-08-02
 
 - Reconciled 2026-08-02 against the delivered ATLAS-ARCH-001 arc, which
   satisfied most of this item's acceptance ahead of it: the role trait
@@ -190,10 +190,19 @@
   seam-generic conformance clauses at the derived bound; backend copies
   deleted (net -273 lines; cuda+wgpu 353/353 on hardware). The blocked_*
   stress tests stay backend-local by design (execution strategies, not
-  seam entries, per ADR 0042). Remaining residual: the tolerance sweep —
-  derive the blocked trio's 16·eps per-element bounds at n=66 and the
-  wgpu kron/matpow/rank/det site tolerances, citing each derivation at
-  the assertion site.
+  seam entries, per ADR 0042).
+  Tolerance sweep DELIVERED 2026-08-02 (hephaestus 7762aa1): every
+  blocked-trio magic epsilon in both backends replaced by a bound
+  derived at the assertion site (Higham backward-stability scaled by
+  fixture κ and growth; dyadic-exactness for the small systems;
+  flop-count residual bounds) — most bounds TIGHTENED (LU solve 1e-4
+  → ~1.4e-6) and all 40 hardware tests stay green; TEST_CHOL/debug
+  printlns removed. Audit finding: the wgpu kron/matpow/rank/det
+  sites need no tolerance work — exactly representable dyadic
+  fixtures whose bitwise asserts pin provider identity. **ITEM
+  CLOSED**: role trait (14 entries), host reference pair (ADR 0046
+  Accepted), conformance oracle with derived bounds, and the
+  differential migration are all delivered.
 
 - Owner: unclaimed; scope: the role trait's home crate, `leto-ops`, the
   Hephaestus backends, and `hephaestus-conformance`.
