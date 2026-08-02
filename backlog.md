@@ -298,8 +298,8 @@
   collapsed into the per-side generic dispatch (the second precision
   argument only restated the storage types; every exercised pair was
   matching-profile); both local storage traits deleted; 25/25 on
-  hardware. sft adoption
-  APPLIED in the lane 2026-08-02 (SparsityPlan executor for the dense
+  hardware. **sft ADOPTED 2026-08-02** (apollo, verified
+  41/41 after the moirai docs sweep settled; details below) — originally (SparsityPlan executor for the dense
   DFT/IDFT + SparseExecution extension trait carrying the sparse
   selection/reconstruction/quantization surface with sparse_* names;
   shared error gained PrecisionLoss) — verification pending: the moirai
