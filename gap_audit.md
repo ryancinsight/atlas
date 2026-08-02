@@ -1,5 +1,45 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer gap-audit extension — CFDrs geometry, Helios Radon, and Kwavers ultrafast scheduling — 2026-08-02
+
+The current re-audit found and closed the remaining public physical-metric
+gaps in the three named consumers. CFDrs `cfd-schematic-mesh` now carries SBS
+plate bounds, wall-clearance inputs, hydraulic-diameter constraints, emitted
+centerlines, and existing pipeline geometry through Aequitas `Length`,
+`Angle`, and `Dimensionless`; Helios Radon imaging carries projection angles,
+detector/source geometry, and ray-march steps through `Angle` and `Length`;
+Kwavers ultrafast scheduling carries sound speed, depth, PRF, event time,
+frame rate, and tilt through `Velocity`, `Length`, `Frequency`, `Time`, and
+`Angle`.
+
+Scalar extraction remains at mesh, routing, trigonometric, timing, and other
+formula or storage boundaries. All three models are real-valued physical
+contracts. Eunomia complex values remain representation data for genuine
+phasor/Fourier or quadrature fields under their existing physical unit; no
+imaginary SI unit or consumer compatibility wrapper is introduced.
+
+Child evidence:
+
+- CFDrs PR [#322](https://github.com/ryancinsight/CFDrs/pull/322), head
+  `ce6a4f39`: standalone locked package check, Clippy with `-D warnings`,
+  Nextest `5091fabe-e3da-4e76-a6ed-8c0377b0b0ee` (29/29), doctests, Rustdoc,
+  residue scan, and diff check pass. Hosted book-figure and review checks are
+  pending.
+- Helios PR [#36](https://github.com/ryancinsight/helios/pull/36), head
+  `4a301bc`: focused imaging check, Nextest 18/18, Clippy, doctests, and
+  Rustdoc pass. Hosted Python and Rust workspace checks pass; benchmark
+  regression remains pending.
+- Kwavers PR [#332](https://github.com/ryancinsight/kwavers/pull/332), head
+  `87afe809f`: standalone locked package check, Nextest 218/218, Clippy,
+  doctests, Rustdoc, and residue scans pass. The hosted matrix is green except
+  for pending code coverage and the external `recurseml/analysis` service
+  error, which is not repository-code evidence.
+
+No missing Aequitas metric implementation remains in the audited public scope.
+The remaining integration state is hosted-gate completion and PR merge, not a
+source or dimensionality gap. See the child audits for exact contracts and
+residual limitations.
+
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 
 The audit found and closed `KWAVERS-AEQ-MET-33`, the remaining named-consumer

@@ -7,6 +7,22 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-AEQUITAS-CONSUMERS-004 — Close geometry and scheduling metric extensions [arch] [major] — in-progress
+
+- Owner: current session; scope: the Aequitas consumer gap audit and child
+  contracts in CFDrs, Helios, and Kwavers.
+- Outcome: close the remaining public geometry/imaging/scheduling metric gaps
+  with typed Aequitas quantities, preserve formula/storage scalar boundaries,
+  and document the Eunomia real/complex rule without imaginary SI units.
+- Evidence: CFDrs PR #322 head `ce6a4f39`, Helios PR #36 head `4a301bc`, and
+  Kwavers PR #332 head `87afe809f`; child focused gates pass as recorded in
+  `gap_audit.md`.
+- Residual: hosted CFDrs book/review, Helios benchmark, and Kwavers coverage
+  gates are pending; Kwavers also reports an external `recurseml/analysis`
+  service error. Merge follows exact-head hosted gate completion.
+- Re-open trigger: any hosted source failure, dimensional residue, or Eunomia
+  complex-boundary mismatch in the named child scope.
+
 ## ATLAS-AEQUITAS-CONSUMERS-002 — Close CFDrs, Helios, and Kwavers metric audit [patch] — done
 
 - Owner: current session; scope: Aequitas provider plus the named CFDrs,
@@ -21,7 +37,7 @@
   compiler diagnostic. This is recorded as an environment/provider residual;
   no audited Aequitas metric gap remains.
 
-## ATLAS-AEQUITAS-CONSUMERS-003 — Extend therapeutic microbubble metric audit [arch] [major] — in-progress
+## ATLAS-AEQUITAS-CONSUMERS-003 — Extend therapeutic microbubble metric audit [arch] [major] — done
 
 - Owner: current session; scope: Aequitas acceleration and pressure-rate
   vocabulary plus Kwavers therapeutic microbubble public contracts and their
@@ -30,17 +46,14 @@
 - Outcome: public therapeutic microbubble SI metrics use Aequitas quantities;
   numerical and storage scalar boundaries remain explicit; Eunomia complex
   representation is not promoted to an imaginary physical unit.
-- Evidence: Aequitas merged `8cc90b2`, PR #10; Kwavers `f37896521`, PR #328; provider
-  47/47 plus pressure-rate 1/1; Kwavers physics microbubble 38/38; physics
-  and therapy test-target checks pass offline; exact-file format and diff
-  checks pass.
-- Residual: Kwavers therapy Nextest is blocked by shared target-cache
-  compilation of unrelated `ritk-jpeg` without a Rust diagnostic. The clean
-  PR #328 matrix is the integration gate; local Cargo checks in its worktree
-  are additionally blocked by the `apollo-fft` repos/worktrees overlay
-  collision.
-- Re-open trigger: a clean branch update and successful therapy Nextest, or a
-  source diagnostic from the provider/consumer integration.
+- Evidence: Aequitas merged `8cc90b2`, PR #10; Kwavers implementation
+  `77be364b9`, PM synchronization `2acd72ccd`, and merged PR #330 commit
+  `5dad60d69`; provider 47/47 plus pressure-rate 1/1; Kwavers physics
+  microbubble 38/38; physics and therapy test-target checks pass offline;
+  exact-file format and diff checks pass.
+- Closure: the superseded PR #328 path was replaced by Kwavers PR #330, which
+  merged with its hosted implementation matrix green. The old shared-cache
+  and overlay residuals are retained in the historical audit record only.
 
 ## ATLAS-SUBSTRATE-001 — Extend the Hephaestus operation seams to Coeus's call surface [arch] [minor] — in-progress
 

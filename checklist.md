@@ -6,6 +6,26 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-AEQUITAS-CONSUMERS-004 — Geometry and scheduling metric extensions
+
+- [x] Audit current CFDrs, Helios, and Kwavers public physical boundaries and
+      identify the remaining geometry, imaging, and scheduling metrics.
+- [x] Type CFDrs SBS plate/constraint geometry, Helios Radon geometry, and
+      Kwavers ultrafast scheduler metrics through Aequitas; keep scalar
+      extraction at formula/storage boundaries.
+- [x] Synchronize child ADRs, gap audits, backlogs, checklists, and changelogs;
+      record the Eunomia real/complex boundary with no imaginary SI unit.
+- [ ] Collect the exact-head hosted gates and merge CFDrs PR #322, Helios PR
+      #36, and Kwavers PR #332.
+
+Acceptance: child implementation gaps are closed and child focused gates pass;
+hosted gates are green before merge, and no missing Aequitas metric or
+imaginary-unit physical contract remains in the named scope.
+
+Current residuals: CFDrs book/review, Helios benchmark, and Kwavers coverage
+are pending; Kwavers also has an external `recurseml/analysis` service error.
+These are integration gates, not source-level metric gaps.
+
 ## ATLAS-AEQUITAS-CONSUMERS-003 — Therapeutic microbubble metric audit
 
 - [x] Audit CFDrs, Helios, and Kwavers public physical contracts and record
@@ -16,7 +36,8 @@
       dynamics, and sampling public contracts; keep formula/storage scalar
       extraction explicit.
 - [x] Synchronize Kwavers ADR 092, backlog, checklist, changelog, and child
-      gap audit; merge Aequitas `8cc90b2` and push Kwavers `abbe79d4a`.
+      gap audit; merge Aequitas `8cc90b2` and Kwavers PR #330
+      (`5dad60d69`, PM `2acd72ccd`).
 - [x] Refresh Kwavers' Atlas checkout-action and Python-release pins to Atlas
       `8573cc5d` after the superseded matrix exposed the Eunomia
       `UnitScalar` graph mismatch.
@@ -24,14 +45,15 @@
       Asclepius `5404271`, Hyperion `4657996`, Proteus `3eaa720`, and Tyche
       `df8ae8f`; migrate all Leto 0.40 tuple-source callers and correct the
       Aequitas `TemperatureDifference` thermal-energy boundary.
-- [ ] Collect and resolve any source failures from the authoritative Kwavers
-      PR #328 matrix; retain the two environment residuals if they recur.
+- [x] Collect the superseded PR #328 source failures and replace that path with
+      the merged Kwavers PR #330 matrix; retain the environment residuals only
+      as historical audit evidence.
 
 Acceptance: the implementation gap is closed in source and child PM artifacts;
 provider and consumer branches are delivered for integration; no imaginary
-physical unit is introduced. Implementation met. Integration remains pending
-on the authoritative PR #328 matrix and the recorded shared-cache/overlay
-verification residuals.
+physical unit is introduced. Implementation and integration met through the
+merged Kwavers PR #330; later geometry/scheduling integration is tracked by
+ATLAS-AEQUITAS-CONSUMERS-004.
 
 ## ATLAS-AEQUITAS-CONSUMERS-002 — Aequitas consumer closure
 
