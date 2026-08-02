@@ -259,7 +259,12 @@
   with typed forward_into/inverse_into (replacing the inverse flag), so
   complex and asymmetric transforms (mellin f32→Complex32) fit; typed
   f16/f32 dispatch narrows to Sample=Bin=f32 backends via a bounded
-  impl block; dht/fwht/wavelet migrated, 517/517 on hardware; czt/radon/mellin/sht/sdft/stft/nufft each carry
+  impl block; dht/fwht/wavelet migrated, 517/517 on hardware; **qft
+  ADOPTED 2026-08-02 (apollo a085e79)** as the first complex adopter —
+  GpuStorage generalized over GpuElement (f32/Complex32 families with
+  per-element scratch pools; [f16;2] mirrors f16), QftGpuStorage
+  deleted, 554/554 across the five adopter crates on hardware; adopted
+  so far: dht, fwht, wavelet, qft; czt/radon/mellin/sht/sdft/stft/nufft each carry
   richer payloads to enumerate at claim; ntt last or exemption.
   Remaining: 16 adoptions, one item per crate. Lane
   worktrees/apollo-execution-scaffold stays open.
