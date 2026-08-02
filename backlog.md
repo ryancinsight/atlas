@@ -175,18 +175,17 @@
   same increment absorbed the landed mnemosyne-memory-core package
   rename (hephaestus's git requirement dangled on the old name —
   PUB-007's rename is live upstream; other consumers likely owe the
-  same sweep). **HostDecompositionOps implemented but PARKED
-  2026-08-02** on lane branch `feat/host-decomposition` (pushed): twelve
-  host handles adapting all fourteen leto-ops entry points, suite
-  instantiation test written — unverifiable until the moirai
-  package-alias release (Moirai PR #114, `moirai` → `moirai-runtime`,
-  landed 02:23) finishes its stack-wide consumer sweep; leto-ops still
-  requires the old name, so lane resolution fails outside my scope.
-  This is the third facade rename absorbed this session (themis →
-  themis-topology was pre-swept by the release stream, mnemosyne-core →
-  mnemosyne-memory-core absorbed in the HostDevice increment). Re-open
-  trigger: leto main resolves against Moirai main; then verify, merge,
-  flip ADR 0046 Accepted.
+  same sweep). **HostDecompositionOps DELIVERED 2026-08-02**
+  (hephaestus 60928c8 on master, lane removed): twelve host handles
+  adapting all fourteen leto-ops entry points; the host pair runs the
+  full decomposition conformance suite green (nextest 2/2 with the
+  transfer clauses; fmt/clippy/doc clean). ADR 0046 flipped Accepted.
+  The moirai → moirai-runtime park lasted one tick — leto's binding fix
+  (leto PR #89) landed while parked; this workspace's own `moirai`
+  requirement was repointed to `package = "moirai-runtime"` in the same
+  commit. Residual for SUBSTRATE-003: migrate the hand-written
+  `matches_leto_reference` differential tests in the GPU backends onto
+  the host pair, then the tolerance sweep.
 
 - Owner: unclaimed; scope: the role trait's home crate, `leto-ops`, the
   Hephaestus backends, and `hephaestus-conformance`.
