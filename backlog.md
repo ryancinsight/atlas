@@ -368,8 +368,17 @@
   single-marker scaffold. **Sixteen of nineteen adopted, the sweep's
   adoption phase is COMPLETE** (dht, fwht, wavelet, qft, czt, hilbert,
   gft, frft, sdft, sft, mellin, dctdst, radon, sht, stft, ntt; nufft
-  exempted with rationale). Remaining SUBSTRATE-004 residuals: the
-  application/plan-layer sweep and the cuda-transport assessment — it HAS a gpu transport tree, nonstandard shape;
+  exempted with rationale). Junk-drawer + cuda residuals CLOSED
+  2026-08-02 (apollo 49632c6): the last nine mod-helpers dumping
+  grounds renamed to their bounded concerns (workspace, boundary,
+  strategy, twiddles, complex_simd, quadrature, windowing, conversion;
+  dctdst's lone validator folded into typed.rs) — zero
+  helpers/utils modules remain in the workspace; the cuda survey
+  closed by finding (only apollo-fft carries a cuda transport, its own
+  provider). Eight crates 771/771 on hardware. Remaining
+  SUBSTRATE-004 residual: the per-crate typed-storage/f64-scratch
+  plan-layer duplication (TYPED_*64_SCRATCH pattern) — assess whether
+  a shared CPU-side workspace vocabulary pays, or record acceptance — it HAS a gpu transport tree, nonstandard shape;
   plan-layer and cuda-transport sweeps) (dctdst separable, sft sparse, mellin bounds,
   radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
   plan-layer and cuda-transport sweeps) (dctdst separable,
