@@ -21,24 +21,28 @@ imaginary SI unit or consumer compatibility wrapper is introduced.
 Child evidence:
 
 - CFDrs PR [#322](https://github.com/ryancinsight/CFDrs/pull/322), head
-  `ce6a4f39`: standalone locked package check, Clippy with `-D warnings`,
-  Nextest `5091fabe-e3da-4e76-a6ed-8c0377b0b0ee` (29/29), doctests, Rustdoc,
-  residue scan, and diff check pass. Hosted book-figure and review checks are
-  pending.
+  `ce6a4f39`, merged as `57bb47ea`: standalone locked package check, Clippy
+  with `-D warnings`, Nextest `5091fabe-e3da-4e76-a6ed-8c0377b0b0ee` (29/29),
+  doctests, Rustdoc, residue scan, diff check, and hosted book-figure gate
+  pass.
 - Helios PR [#36](https://github.com/ryancinsight/helios/pull/36), head
   `4a301bc`: focused imaging check, Nextest 18/18, Clippy, doctests, and
-  Rustdoc pass. Hosted Python and Rust workspace checks pass; benchmark
-  regression remains pending.
+  Rustdoc pass. Hosted Python and Rust workspace checks pass. The first
+  benchmark run failed only in a late phase-reversed comparison: unchanged
+  CPU projection timings rose about 41--43% after earlier parity runs. The
+  failed job is being re-run as `30761913034`; no Helios projector source
+  changed in the PR.
 - Kwavers PR [#332](https://github.com/ryancinsight/kwavers/pull/332), head
   `87afe809f`: standalone locked package check, Nextest 218/218, Clippy,
-  doctests, Rustdoc, and residue scans pass. The hosted matrix is green except
-  for pending code coverage and the external `recurseml/analysis` service
-  error, which is not repository-code evidence.
+  doctests, Rustdoc, and residue scans pass. The hosted repository-owned
+  matrix, including code coverage run `30761573093`, is green; the external
+  `recurseml/analysis` service still reports an error, which is not
+  repository-code evidence.
 
 No missing Aequitas metric implementation remains in the audited public scope.
-The remaining integration state is hosted-gate completion and PR merge, not a
-source or dimensionality gap. See the child audits for exact contracts and
-residual limitations.
+The remaining integration state is the Helios benchmark rerun and the external
+Kwavers analysis check, not a source or dimensionality gap. See the child
+audits for exact contracts and residual limitations.
 
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 

@@ -15,16 +15,21 @@
       extraction at formula/storage boundaries.
 - [x] Synchronize child ADRs, gap audits, backlogs, checklists, and changelogs;
       record the Eunomia real/complex boundary with no imaginary SI unit.
-- [ ] Collect the exact-head hosted gates and merge CFDrs PR #322, Helios PR
-      #36, and Kwavers PR #332.
+- [x] Collect the exact-head hosted gates and merge CFDrs PR #322 as
+      `57bb47ea`.
+- [ ] Collect the Helios PR #36 benchmark rerun and merge its exact head after
+      the repository-owned gate is green.
+- [ ] Record the Kwavers PR #332 external `recurseml/analysis` error as
+      report-only and merge its exact head when the repository permits it.
 
 Acceptance: child implementation gaps are closed and child focused gates pass;
 hosted gates are green before merge, and no missing Aequitas metric or
 imaginary-unit physical contract remains in the named scope.
 
-Current residuals: CFDrs book/review, Helios benchmark, and Kwavers coverage
-are pending; Kwavers also has an external `recurseml/analysis` service error.
-These are integration gates, not source-level metric gaps.
+Current residuals: the Helios benchmark rerun is queued after an isolated
+late-run slowdown in unchanged projection code; Kwavers repository-owned gates
+are green but its external `recurseml/analysis` service errors. These are
+integration gates, not source-level metric gaps.
 
 ## ATLAS-AEQUITAS-CONSUMERS-003 — Therapeutic microbubble metric audit
 
