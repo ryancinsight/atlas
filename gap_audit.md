@@ -3,10 +3,10 @@
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 
 The audit found and closed `KWAVERS-AEQ-MET-33`, the remaining named-consumer
-gap in Kwavers' public plasmonics contracts. The current PR #330 head
-`dcc106758` includes source commit `77be364b9`, the fixed coordinate contract
-`9fb70554f`, and synchronized child PM
-state. Public Mie, enhancement, nanoparticle-array, and electromagnetic
+gap in Kwavers' public plasmonics contracts. PR #330 merged as `5dad60d69`;
+the follow-up PM synchronization merged as `2acd72ccd`. The implementation
+includes source commit `77be364b9` and the fixed coordinate contract
+`9fb70554f`. Public Mie, enhancement, nanoparticle-array, and electromagnetic
 equation surfaces now use Aequitas `Length`, `Frequency`, `Area`,
 `NumberDensity`, `ReciprocalLength`, `ReciprocalVolume`, `Dimensionless`, and
 `Polarizability` quantities. Existing scalar extraction remains confined to
@@ -23,18 +23,18 @@ lock now records Git-sourced Aequitas, Eunomia, Gaia, and RITK packages, and
 locked all-feature metadata passes outside the Atlas overlay. CFDrs and Helios
 remain clean on re-audit with no missing Aequitas metric in the named scope.
 The ordinary local lane check remains blocked only by the pre-existing Apollo
-dual-path lock collision; hosted PR checks are the remaining external gate.
+dual-path lock collision; the hosted implementation matrix passed before merge.
 
 See the child [`Kwavers gap audit`](repos/kwavers/gap_audit.md) and
 [`Kwavers plasmonics ADR`](repos/kwavers/docs/ADR/071-plasmonics-quantities.md).
 
-## Aequitas consumer gap-audit extension — therapeutic microbubble contracts — 2026-08-01
+## Aequitas consumer gap-audit extension — therapeutic microbubble contracts — 2026-08-02
 
 The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
-implemented on current-main-based Kwavers branch
-`codex/kwavers-aequitas-integration` at PR head `dcc106758` and tracked by
+implemented on current-main-based Kwavers branch and merged as PR #330 commit
+`5dad60d69`, with PM synchronization in `2acd72ccd`; tracked by
 `KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
@@ -58,7 +58,7 @@ on stale `field_surrogate_demo.rs` and `pinn_elastic_2d_training.rs` Coeus
 call sites (`E0609`/`E0308`); source fix `0d956071a` propagates the errors and
 the exact disposable graph passes locked `cargo check --examples
 --features pinn` and `cargo check --benches --features pinn`. The current CI
-head is `dcc106758`; its hosted matrix is the remaining integration gate.
+head is `5dad60d69`; its hosted matrix passed before merge.
 
 The provider gap was the missing shared vocabulary for acceleration and
 pressure-time derivative. Aequitas now owns `Acceleration` (`m/s²`) and
@@ -97,9 +97,10 @@ validation then found one stale downstream test contract: RITK's typed
 `TemporalSyncResult` had replaced the old tuple and quality aggregate in
 `crates/kwavers/tests/ultrasound_physics_validation.rs`. Source fix
 `1fd08058f` updates that test to assert typed shift, correlation, overlap, and
-residual metrics; `dcc106758` synchronizes the child PM artifacts and records
-the follow-up source closure. The refreshed hosted matrix is pending on the
-new exact head.
+residual metrics; `2acd72ccd` synchronizes the child PM artifacts and records
+the merged source closure. The hosted implementation matrix passed on PR #330,
+including the wheel, architecture, benchmark, coverage, Miri, security,
+feature, and documentation jobs.
 Kwavers therapy Nextest also
 retains an environment residual: shared-cache compilation of unrelated
 `ritk-jpeg` terminated without a Rust diagnostic, and the bounded single-job
