@@ -298,8 +298,16 @@
   collapsed into the per-side generic dispatch (the second precision
   argument only restated the storage types; every exercised pair was
   matching-profile); both local storage traits deleted; 25/25 on
-  hardware. Nine adopted (dht, fwht, wavelet, qft, czt, hilbert, gft,
-  frft, sdft), ten remain (dctdst separable, sft sparse, mellin bounds,
+  hardware. sft adoption
+  APPLIED in the lane 2026-08-02 (SparsityPlan executor for the dense
+  DFT/IDFT + SparseExecution extension trait carrying the sparse
+  selection/reconstruction/quantization surface with sparse_* names;
+  shared error gained PrecisionLoss) — verification pending: the moirai
+  peer is landing per-crate missing_docs enforcement commits and the
+  shared tree churns mid-build (one peer-assist landed: moirai
+  6ee653f documenting the executor metrics/task fields their
+  enforcement left red). Nine adopted (dht, fwht, wavelet, qft, czt,
+  hilbert, gft, frft, sdft), ten remain (dctdst separable, sft sparse, mellin bounds,
   radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
   plan-layer and cuda-transport sweeps) (dctdst separable,
   mellin bounds, sft sparse, sdft dual-storage, frft, radon, sht, stft,
