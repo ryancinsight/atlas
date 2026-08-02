@@ -245,12 +245,20 @@
   fwht's power-of-two constraint moved into its kernel; its typed GPU
   path lost the per-call typed_to_f32 allocation and the silent f64
   narrowing (sealed GpuStorage rejects it at compile time). 479/479
-  incl. both GPU suites on hardware; workspace check green. Remaining:
-  17 adoptions, one item per crate (czt, dctdst, frft, gft, hilbert,
-  mellin, qft, radon, sdft, sft, sht, stft, wavelet, nufft, hilbert…
-  enumerate at claim; ntt last or exemption; cuda-transport crates
-  assessed per crate). Lane worktrees/apollo-execution-scaffold stays
-  open for the next adoption batch.
+  incl. both GPU suites on hardware; workspace check green. Scaffold v2 + wavelet
+  DELIVERED 2026-08-02 (apollo 6c7f593): GpuTransformExecutor gained an
+  associated Plan payload (input_len/output_len/validate hooks) since
+  only gft/hilbert/qft of the remaining crates are len-only; wavelet
+  adopted as the first richer-payload transform (HaarDwtPlan{len,
+  levels}); shared WgpuError gained UnsupportedExecution. 517/517 with
+  GPU suites on hardware. Adoption survey findings: dctdst carries
+  separable 2D/3D extension surface; hilbert an analytic-signal trio
+  (extension-trait design); gft threads a basis matrix; qft/sft are
+  Complex32 (need element-type genericization of the scaffold — a
+  future v3 evolution); czt/radon/mellin/sht/sdft/stft/nufft each carry
+  richer payloads to enumerate at claim; ntt last or exemption.
+  Remaining: 16 adoptions, one item per crate. Lane
+  worktrees/apollo-execution-scaffold stays open.
 - Previously: scope: a new generic plan/execution layer, then one adopting
   crate per claim. Sequenced last: 19 crates change, so the generic layer lands
   and proves itself on two crates before the rest follow.
