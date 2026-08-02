@@ -168,7 +168,15 @@
   to master) — HostDevice in a new hephaestus-host crate
   (RwLock-backed HostBuffer; reference substrate, never a performance
   path), HostDecompositionOps over leto-ops as the first implementor.
-  Next increment: the crate + device + adapter + suite instantiation.
+  **HostDevice delivered 2026-08-02** (hephaestus master `31f797f`,
+  ADR 0046 still Proposed pending the adapter): the hephaestus-host
+  crate ships HostDevice + RwLock-backed HostBuffer, passes the
+  transfer conformance clauses as the suite's first CPU pair, and the
+  same increment absorbed the landed mnemosyne-memory-core package
+  rename (hephaestus's git requirement dangled on the old name —
+  PUB-007's rename is live upstream; other consumers likely owe the
+  same sweep). Next increment: HostDecompositionOps over leto-ops +
+  suite instantiation, then the ADR flips Accepted.
 
 - Owner: unclaimed; scope: the role trait's home crate, `leto-ops`, the
   Hephaestus backends, and `hephaestus-conformance`.
