@@ -235,13 +235,22 @@
   by transform name; device.rs/verification.rs differ 225/181 lines AFTER
   name normalization = drift (dht modern: scratch pools, _into forms,
   mnemosyne outputs; fwht lagging: per-call allocs, f32 round-trips).
-  Design: apollo_fft transport tree with shared WgpuCapabilities,
-  label-parameterized WgpuError, WgpuPlan<T> ZST-marker descriptors,
-  GpuTransform trait + one generic device orchestration, generic
-  verification. Next increment: implement the layer, adopt dht + fwht
-  (lane worktrees/apollo-execution-scaffold, branch
-  feat/execution-scaffold-adr). apollo-ntt (no apollo-fft dep, integer
-  domain) adopts last or records an exemption.
+  Layer + proving pair DELIVERED 2026-08-02 (apollo 29e7b6d on main,
+  ADR 0037 Accepted): apollo-fft infrastructure/transport/transform
+  ships WgpuCapabilities/WgpuError (shared), WgpuTransformPlan<X>,
+  sealed GpuStorage, and WgpuTransformBackend<X: GpuTransformExecutor>
+  (validation, scratch-pool typed dispatch, _into forms,
+  Mnemosyne-native Leto outputs). apollo-dht and apollo-fwht adopted:
+  each keeps kernel + domain-name aliases; scaffold copies deleted.
+  fwht's power-of-two constraint moved into its kernel; its typed GPU
+  path lost the per-call typed_to_f32 allocation and the silent f64
+  narrowing (sealed GpuStorage rejects it at compile time). 479/479
+  incl. both GPU suites on hardware; workspace check green. Remaining:
+  17 adoptions, one item per crate (czt, dctdst, frft, gft, hilbert,
+  mellin, qft, radon, sdft, sft, sht, stft, wavelet, nufft, hilbert…
+  enumerate at claim; ntt last or exemption; cuda-transport crates
+  assessed per crate). Lane worktrees/apollo-execution-scaffold stays
+  open for the next adoption batch.
 - Previously: scope: a new generic plan/execution layer, then one adopting
   crate per claim. Sequenced last: 19 crates change, so the generic layer lands
   and proves itself on two crates before the rest follow.
