@@ -278,7 +278,13 @@
   the planner, so extra-operand transforms (gft basis, mellin bounds,
   sft sparse spectra) implement the planner alone and carry their
   surface as extension traits — all six adopters split, 652/652 on
-  hardware. Next: gft adoption over the new seam. Survey refinements:
+  hardware. **gft ADOPTED 2026-08-02 (apollo
+  8fa893f)** — first planner-only adopter: BasisTransform extension
+  trait carries the whole basis-parameterized surface; shared error
+  gained ShapeMismatch; 28/28 on hardware. Seven adopted (dht, fwht,
+  wavelet, qft, czt, hilbert, gft), twelve remain (dctdst separable,
+  mellin bounds, sft sparse, sdft dual-storage, frft, radon, sht, stft,
+  nufft, sdft, ntt exemption-or-adopt, plus the plan-layer sweep). Survey refinements:
   mellin takes per-call signal bounds and sft's inverse consumes a
   SparseSpectrum — both are extension-surface designs, not standard
   adopters; czt/radon/mellin/sht/sdft/stft/nufft each carry
