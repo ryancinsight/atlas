@@ -480,9 +480,12 @@
       green on physical cuda+wgpu, workspace 554/554; j2 symmetric spectral — **complete 2026-08-01** (hephaestus master
       `fec1785`): symmetric_eigen + symmetric_eigenvalues seam methods
       ×4 adapters, exact-spectrum multiset + f64 residual/orthogonality
-      clauses green on physical cuda+wgpu first contact, 554/554; j3 SVD
-      family (known exact spectra, two-sided orthogonality,
-      rank-revealing tolerance as input contract); j4 general spectral
+      clauses green on physical cuda+wgpu first contact, 554/554; j3 SVD family —
+      **complete 2026-08-01** (hephaestus master, feat/svd-seam): svd +
+      singular_values seam methods ×4, exact spectra {3,4}/{5,0}, f64
+      reconstruction + two-sided orthogonality, rank-revealing recorded
+      as an algorithm choice over the same contract (no tolerance param
+      exists on the backends), green ×2 hardware first contact, 554/554; j4 general spectral
       (eigenvalues via eunomia::Complex, schur, hessenberg,
       bidiagonalize — similarity invariants + structural zero patterns);
       j5 symmetric-indefinite (bunch_kaufman, udu — inertia against a
