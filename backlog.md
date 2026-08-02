@@ -227,6 +227,21 @@
 - Owner: claude/fable-loop (claimed 2026-08-02); scope this increment: survey
   the 19-crate scaffold, design the generic plan/execution layer (ADR), land
   it, and adopt on two crates; remaining crates follow as separate increments.
+- Survey + ADR delivered 2026-08-02 (apollo ebb2df7 on main): apollo
+  [ADR 0037](repos/apollo/docs/adr/0037-generic-transform-execution-scaffold.md)
+  (Proposed). Measured evidence: capabilities.rs byte-identical across
+  copies (and already importing apollo_fft::PrecisionProfile — apollo-fft
+  is the layer's home per ADR 0039 no-new-package); error.rs differs only
+  by transform name; device.rs/verification.rs differ 225/181 lines AFTER
+  name normalization = drift (dht modern: scratch pools, _into forms,
+  mnemosyne outputs; fwht lagging: per-call allocs, f32 round-trips).
+  Design: apollo_fft transport tree with shared WgpuCapabilities,
+  label-parameterized WgpuError, WgpuPlan<T> ZST-marker descriptors,
+  GpuTransform trait + one generic device orchestration, generic
+  verification. Next increment: implement the layer, adopt dht + fwht
+  (lane worktrees/apollo-execution-scaffold, branch
+  feat/execution-scaffold-adr). apollo-ntt (no apollo-fft dep, integer
+  domain) adopts last or records an exemption.
 - Previously: scope: a new generic plan/execution layer, then one adopting
   crate per claim. Sequenced last: 19 crates change, so the generic layer lands
   and proves itself on two crates before the rest follow.
