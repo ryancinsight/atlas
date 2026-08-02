@@ -6,6 +6,26 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-AEQUITAS-CONSUMERS-005 — Kwavers ultrafast geometry metric extensions
+
+- [x] Audit the adjacent Kwavers plane-wave and diverging-wave public
+      contracts and identify raw geometry, timing, angle, frequency,
+      dimensionless, and image-coordinate metrics.
+- [x] Type the contracts through Aequitas; keep scalar extraction at formula
+      and explicit Leto dense-storage boundaries; remove `angles_degrees`.
+- [x] Add Kwavers ADR 094, synchronized child PM artifacts, and the Eunomia
+      shared-unit/real-observable rule with no imaginary SI unit.
+- [x] Collect local locked check, Nextest 218/218, Clippy, doctest, Rustdoc,
+      Rustfmt, diff, and typed/complex residue evidence.
+- [ ] Collect the hosted repository-owned matrix and merge Kwavers PR #333.
+
+Acceptance: no missing metric remains in the bounded plane/diverging-wave
+scope, local and hosted repository-owned gates pass, and no imaginary-unit
+physical contract is introduced.
+
+Current residual: PR #333 is open at `b1247203e`; hosted checks are running.
+The external `recurseml/analysis` error is report-only.
+
 ## ATLAS-AEQUITAS-CONSUMERS-004 — Geometry and scheduling metric extensions
 
 - [x] Audit current CFDrs, Helios, and Kwavers public physical boundaries and

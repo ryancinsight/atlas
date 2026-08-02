@@ -39,10 +39,35 @@ Child evidence:
   green; the external `recurseml/analysis` service error was report-only and
   did not block the merge.
 
-No missing Aequitas metric implementation remains in the audited public scope.
-The remaining integration state is the Helios benchmark rerun, not a source or
-dimensionality gap. See the child audits for exact contracts and residual
-limitations.
+No missing Aequitas metric implementation remains in that original public
+scope. A broader Kwavers ultrafast audit then found an adjacent plane-wave and
+diverging-wave geometry gap; it is tracked separately below. The remaining
+integration state for the original scope is the Helios benchmark rerun, not a
+source or dimensionality gap. See the child audits for exact contracts and
+residual limitations.
+
+## Aequitas consumer gap-audit extension — Kwavers ultrafast plane/diverging geometry — 2026-08-02
+
+The broader Kwavers audit found and implemented `KWAVERS-AEQ-MET-55`: the
+public `plane_wave` and `diverging_wave` APIs still exposed element positions,
+image coordinates, sound speed, virtual-source depth, sampling frequency,
+angles, delays, PRF, F-number, and scalar Hann weights as untyped SI values.
+The implementation uses Aequitas `Length`, `Velocity`, `Frequency`, `Angle`,
+`Time`, and `Dimensionless`; dense Leto delay and apodization buffers remain
+scalar only at the explicit storage boundary.
+
+Kwavers PR [#333](https://github.com/ryancinsight/kwavers/pull/333) is open at
+head `b1247203e`. Local locked package check, Nextest
+`789c6fcc-a55c-49ce-9ff9-d12d6a4f944f` (218/218, one ignored), Clippy with
+`-D warnings`, doctests, Rustdoc, targeted Rustfmt, diff check, and typed/
+complex residue scans pass. Repository-owned hosted gates are running; the
+external `recurseml/analysis` error is report-only as in the prior Kwavers
+merge. No imaginary physical unit is introduced: Eunomia complex phasors
+retain one existing physical unit and reduce to the real observable before
+real geometry or timing metrics.
+
+The remaining raw metrics in other Kwavers transducer families are outside this
+bounded vertical slice and remain explicit audit candidates.
 
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 

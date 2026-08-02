@@ -7,6 +7,23 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — in-progress
+
+- Owner: current session; scope: the Kwavers plane-wave and diverging-wave
+  public contracts and their cross-repository audit state.
+- Outcome: type geometry, timing, angles, sampling, F-number, image-coordinate
+  arrays, and scalar aperture metrics with Aequitas while preserving explicit
+  formula and Leto storage boundaries and the Eunomia real/complex rule.
+- Evidence: Kwavers PR #333 at head `b1247203e`; local locked package check,
+  Nextest `789c6fcc-a55c-49ce-9ff9-d12d6a4f944f` (218/218, one ignored),
+  Clippy, doctests, Rustdoc, Rustfmt, diff, and typed/complex residue scans
+  pass.
+- Residual: repository-owned hosted checks are running; external
+  `recurseml/analysis` is report-only. Merge after the repository-owned matrix
+  is green.
+- Re-open trigger: hosted source failure, dimensional residue, or Eunomia
+  complex-boundary mismatch in the Kwavers ultrafast scope.
+
 ## ATLAS-AEQUITAS-CONSUMERS-004 — Close geometry and scheduling metric extensions [arch] [major] — in-progress
 
 - Owner: current session; scope: the Aequitas consumer gap audit and child
