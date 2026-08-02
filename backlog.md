@@ -676,6 +676,15 @@
   on reported values with no sentinel branch.
 - Acceptance: no zero-sentinel capacity field remains in GpuTopology's
   public surface; hephaestus ×4 and the conformance clause build green.
+- Blast radius enumerated 2026-08-01 (DoR complete): themis
+  `src/topology/gpu.rs` (owner) → hephaestus 7 infrastructure files +
+  `hephaestus-core/domain/launch.rs` (occupancy math — the live
+  divide-by-zero hazard) → mnemosyne-core `kernel_budget.rs` (consumes
+  registers/shared-mem/max-threads as plain quantities, already
+  zero-guarding at `blocks_limited_by_threads`). Three-repo co-evolution
+  unit, themis-first; mnemosyne's zero guards become type-level at its
+  boundary. themis main tree is quiet (detached at the pin, last commit
+  2026-07-24).
 
 ## ATLAS-ARCH-010 — Define the NaN and infinity contract for accelerator kernels [arch] [minor] — done
 
