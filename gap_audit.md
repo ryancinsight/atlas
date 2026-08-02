@@ -33,16 +33,16 @@ Child evidence:
   failed job is being re-run as `30761913034`; no Helios projector source
   changed in the PR.
 - Kwavers PR [#332](https://github.com/ryancinsight/kwavers/pull/332), head
-  `87afe809f`: standalone locked package check, Nextest 218/218, Clippy,
-  doctests, Rustdoc, and residue scans pass. The hosted repository-owned
-  matrix, including code coverage run `30761573093`, is green; the external
-  `recurseml/analysis` service still reports an error, which is not
-  repository-code evidence.
+  `87afe809f`, merged as `6b706ad9`: standalone locked package check, Nextest
+  218/218, Clippy, doctests, Rustdoc, and residue scans pass. The hosted
+  repository-owned matrix, including code coverage run `30761573093`, is
+  green; the external `recurseml/analysis` service error was report-only and
+  did not block the merge.
 
 No missing Aequitas metric implementation remains in the audited public scope.
-The remaining integration state is the Helios benchmark rerun and the external
-Kwavers analysis check, not a source or dimensionality gap. See the child
-audits for exact contracts and residual limitations.
+The remaining integration state is the Helios benchmark rerun, not a source or
+dimensionality gap. See the child audits for exact contracts and residual
+limitations.
 
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 

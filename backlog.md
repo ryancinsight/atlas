@@ -15,13 +15,12 @@
   with typed Aequitas quantities, preserve formula/storage scalar boundaries,
   and document the Eunomia real/complex rule without imaginary SI units.
 - Evidence: CFDrs PR #322 head `ce6a4f39` merged as `57bb47ea`, Helios PR #36
-  head `4a301bc`, and Kwavers PR #332 head `87afe809f`; child focused gates
-  pass as recorded in `gap_audit.md`.
+  head `4a301bc`, and Kwavers PR #332 head `87afe809f` merged as `6b706ad9`;
+  child focused gates pass as recorded in `gap_audit.md`.
 - Residual: Helios benchmark rerun `30761913034` is queued after an isolated
   late-run slowdown in unchanged projection code. Kwavers repository-owned
   gates, including coverage, pass; its external `recurseml/analysis` service
-  still errors. Merge follows exact-head hosted gate completion, with the
-  external check treated as report-only.
+  error was report-only and did not block its merge.
 - Re-open trigger: any hosted source failure, dimensional residue, or Eunomia
   complex-boundary mismatch in the named child scope.
 

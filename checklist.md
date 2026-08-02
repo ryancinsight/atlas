@@ -19,17 +19,16 @@
       `57bb47ea`.
 - [ ] Collect the Helios PR #36 benchmark rerun and merge its exact head after
       the repository-owned gate is green.
-- [ ] Record the Kwavers PR #332 external `recurseml/analysis` error as
-      report-only and merge its exact head when the repository permits it.
+- [x] Record the Kwavers PR #332 external `recurseml/analysis` error as
+      report-only and merge its exact head as `6b706ad9`.
 
 Acceptance: child implementation gaps are closed and child focused gates pass;
 hosted gates are green before merge, and no missing Aequitas metric or
 imaginary-unit physical contract remains in the named scope.
 
-Current residuals: the Helios benchmark rerun is queued after an isolated
-late-run slowdown in unchanged projection code; Kwavers repository-owned gates
-are green but its external `recurseml/analysis` service errors. These are
-integration gates, not source-level metric gaps.
+Current residual: the Helios benchmark rerun is queued after an isolated
+late-run slowdown in unchanged projection code. This is an integration gate,
+not a source-level metric gap.
 
 ## ATLAS-AEQUITAS-CONSUMERS-003 — Therapeutic microbubble metric audit
 
