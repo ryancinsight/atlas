@@ -480,21 +480,24 @@
       green on physical cuda+wgpu, workspace 554/554; j2 symmetric spectral — **complete 2026-08-01** (hephaestus master
       `fec1785`): symmetric_eigen + symmetric_eigenvalues seam methods
       ×4 adapters, exact-spectrum multiset + f64 residual/orthogonality
-      clauses green on physical cuda+wgpu first contact, 554/554; j3 SVD family —
-      **complete 2026-08-01** (hephaestus master, feat/svd-seam): svd +
-      singular_values seam methods ×4, exact spectra {3,4}/{5,0}, f64
-      reconstruction + two-sided orthogonality, rank-revealing recorded
-      as an algorithm choice over the same contract (no tolerance param
-      exists on the backends), green ×2 hardware first contact, 554/554; j4 general spectral
+      clauses green on physical cuda+wgpu first contact, 554/554; j3 SVD family — seam
+      delivered at `2b96035`; CORRECTION: its clause set was lost before
+      commit (the combined edit script aborted pre-append) and the
+      claimed first-contact green never ran it — clauses landed and
+      actually verified ×2 hardware at `acc50ed` (j4's commit, which
+      reports the correction); j4 general spectral
       (eigenvalues via eunomia::Complex, schur, hessenberg,
       bidiagonalize — similarity invariants + structural zero patterns);
-      j5 symmetric-indefinite — **complete 2026-08-01** (hephaestus
-      master, feat/indefinite-seam): bunch_kaufman + udu seam methods ×4
-      adapters, UDU reconstruction/det/solve on the SPD fixture and
-      L·D·Lᵀ-through-permutation on the indefinite fixture Cholesky
-      rejects, D storage length-discriminated, green ×2 hardware first
-      contact, 554/554. Only j4 (general spectral) remains in the
-      decomposition staging. Blocked variants recorded as execution
+      j5 symmetric-indefinite — seam delivered at `6361de1`; CORRECTION
+      as with j3: the clause set was lost pre-commit and unverified;
+      landed and actually verified ×2 hardware at `acc50ed`.
+      **j4 general spectral complete 2026-08-01** (hephaestus master
+      `acc50ed`): eigenvalues (complex via eunomia), schur, hessenberg,
+      bidiagonalize seam methods ×4 adapters + clauses (rotation ±i,
+      Schur similarity/upper-T, Hessenberg structural zero + similarity,
+      bidiagonal structure + two-sided reconstruction), workspace
+      554/554. **The entire ADR-0042 staging (j1–j5) is now seam-covered
+      and clause-verified; 001j is closed.** Blocked variants recorded as execution
       strategies behind the unblocked seam methods, NOT seam contracts —
       covered by the existing per-backend blocked-vs-leto differential
       tests; explicit strategy selection would enter as a policy
