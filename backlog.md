@@ -163,6 +163,12 @@
      assertion sites get derivations or the clauses replace them.
 - Sequencing: HostDevice design (small ADR) → LetoDecompositionOps
   adapter + suite instantiation → differential migration sweep.
+- ADR drafted 2026-08-02: hephaestus
+  [ADR 0046](docs/adr/0046-host-reference-device.md) (Proposed, pushed
+  to master) — HostDevice in a new hephaestus-host crate
+  (RwLock-backed HostBuffer; reference substrate, never a performance
+  path), HostDecompositionOps over leto-ops as the first implementor.
+  Next increment: the crate + device + adapter + suite instantiation.
 
 - Owner: unclaimed; scope: the role trait's home crate, `leto-ops`, the
   Hephaestus backends, and `hephaestus-conformance`.
