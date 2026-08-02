@@ -322,9 +322,15 @@
   enforcement left red). **mellin ADOPTED 2026-08-02** (second
   planner-only adopter — ResampledExecution extension with per-call
   bounds operands; shared layer gained InvalidSignalDomain and public
-  WgpuTransformPlan::validate; 30/30 on hardware). Eleven adopted (dht,
-  fwht, wavelet, qft, czt, hilbert, gft, frft, sdft, sft, mellin),
-  eight remain (dctdst separable, sft sparse, mellin bounds,
+  WgpuTransformPlan::validate; 30/30 on hardware). **dctdst ADOPTED 2026-08-02** (executor for
+  the eight 1-D real transforms + SeparableExecution extension for the
+  batched 2D/3D passes; the shared plan gained its public validate()
+  gate — the mellin increment's plan.rs hunk had never reached its
+  commit, caught by dctdst's build; 72/72 + mellin 30/30 regression on
+  hardware). Twelve adopted (dht, fwht, wavelet, qft, czt, hilbert,
+  gft, frft, sdft, sft, mellin, dctdst), seven remain (radon, sht,
+  stft, nufft grid-shaped; ntt exemption-or-adopt; plan-layer and
+  cuda-transport sweeps) (dctdst separable, sft sparse, mellin bounds,
   radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
   plan-layer and cuda-transport sweeps) (dctdst separable,
   mellin bounds, sft sparse, sdft dual-storage, frft, radon, sht, stft,
