@@ -285,9 +285,14 @@
   0a2f62c)** — two executor markers (sampled + Candan-Grunbaum unitary)
   over one OrderPlan payload; mode/chirp derivation moved into the
   executor; unitary surface normalized onto standard method names;
-  shared error gained NonFiniteParameter; 52/52 on hardware. Eight
-  adopted (dht, fwht, wavelet, qft, czt, hilbert, gft, frft), eleven
-  remain (dctdst separable,
+  shared error gained NonFiniteParameter; 52/52 on hardware. Typed dispatch
+  per-side generalization DELIVERED 2026-08-02 (apollo f8b0d2b):
+  typed mixed-precision surface takes independent I: GpuStorage<Sample>
+  / O: GpuStorage<Bin> parameters with per-direction validation and
+  with_output_scratch completing the pool family — sdft's asymmetric
+  f32-window→Complex32-bin typed dispatch now fits; nine crates 732/732
+  on hardware. Eight adopted (dht, fwht, wavelet, qft, czt, hilbert,
+  gft, frft), eleven remain (sdft next — groundwork done) (dctdst separable,
   mellin bounds, sft sparse, sdft dual-storage, frft, radon, sht, stft,
   nufft, sdft, ntt exemption-or-adopt, plus the plan-layer sweep). Survey refinements:
   mellin takes per-call signal bounds and sft's inverse consumes a
