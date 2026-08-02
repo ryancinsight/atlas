@@ -328,9 +328,13 @@
   gate — the mellin increment's plan.rs hunk had never reached its
   commit, caught by dctdst's build; 72/72 + mellin 30/30 regression on
   hardware). Twelve adopted (dht, fwht, wavelet, qft, czt, hilbert,
-  gft, frft, sdft, sft, mellin, dctdst), seven remain (radon, sht,
-  stft, nufft grid-shaped; ntt exemption-or-adopt; plan-layer and
-  cuda-transport sweeps) (dctdst separable, sft sparse, mellin bounds,
+  gft, frft, sdft, sft, mellin, dctdst), **radon ADOPTED 2026-08-02** (third
+  planner-only adopter — ProjectionExecution extension threading the
+  per-call angle arrays; typed paths lost their drifted per-call
+  allocation and f16→f64→f32 double rounding; 35/35 on hardware).
+  Thirteen adopted, six remain (sht, stft, nufft grid-shaped; ntt
+  exemption-or-adopt — it HAS a gpu transport tree, nonstandard shape;
+  plan-layer and cuda-transport sweeps) (dctdst separable, sft sparse, mellin bounds,
   radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
   plan-layer and cuda-transport sweeps) (dctdst separable,
   mellin bounds, sft sparse, sdft dual-storage, frft, radon, sht, stft,
