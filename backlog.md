@@ -281,8 +281,13 @@
   hardware. **gft ADOPTED 2026-08-02 (apollo
   8fa893f)** — first planner-only adopter: BasisTransform extension
   trait carries the whole basis-parameterized surface; shared error
-  gained ShapeMismatch; 28/28 on hardware. Seven adopted (dht, fwht,
-  wavelet, qft, czt, hilbert, gft), twelve remain (dctdst separable,
+  gained ShapeMismatch; 28/28 on hardware. **frft ADOPTED 2026-08-02 (apollo
+  0a2f62c)** — two executor markers (sampled + Candan-Grunbaum unitary)
+  over one OrderPlan payload; mode/chirp derivation moved into the
+  executor; unitary surface normalized onto standard method names;
+  shared error gained NonFiniteParameter; 52/52 on hardware. Eight
+  adopted (dht, fwht, wavelet, qft, czt, hilbert, gft, frft), eleven
+  remain (dctdst separable,
   mellin bounds, sft sparse, sdft dual-storage, frft, radon, sht, stft,
   nufft, sdft, ntt exemption-or-adopt, plus the plan-layer sweep). Survey refinements:
   mellin takes per-call signal bounds and sft's inverse consumes a
