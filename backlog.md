@@ -14,7 +14,7 @@
 - Outcome: type geometry, timing, angles, sampling, F-number, image-coordinate
   arrays, and scalar aperture metrics with Aequitas while preserving explicit
   formula and Leto storage boundaries and the Eunomia real/complex rule.
-- Evidence: Kwavers PR #333 at head `b1247203e`; local locked package check,
+- Evidence: Kwavers PR #333 at head `c57f7649`; local locked package check,
   Nextest `789c6fcc-a55c-49ce-9ff9-d12d6a4f944f` (218/218, one ignored),
   Clippy, doctests, Rustdoc, Rustfmt, diff, and typed/complex residue scans
   pass.

@@ -23,7 +23,7 @@ Acceptance: no missing metric remains in the bounded plane/diverging-wave
 scope, local and hosted repository-owned gates pass, and no imaginary-unit
 physical contract is introduced.
 
-Current residual: PR #333 is open at `b1247203e`; hosted checks are running.
+Current residual: PR #333 is open at `c57f7649`; hosted checks are running.
 The external `recurseml/analysis` error is report-only.
 
 ## ATLAS-AEQUITAS-CONSUMERS-004 — Geometry and scheduling metric extensions

@@ -57,7 +57,7 @@ The implementation uses Aequitas `Length`, `Velocity`, `Frequency`, `Angle`,
 scalar only at the explicit storage boundary.
 
 Kwavers PR [#333](https://github.com/ryancinsight/kwavers/pull/333) is open at
-head `b1247203e`. Local locked package check, Nextest
+head `c57f7649`. Local locked package check, Nextest
 `789c6fcc-a55c-49ce-9ff9-d12d6a4f944f` (218/218, one ignored), Clippy with
 `-D warnings`, doctests, Rustdoc, targeted Rustfmt, diff check, and typed/
 complex residue scans pass. Repository-owned hosted gates are running; the
