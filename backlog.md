@@ -332,7 +332,10 @@
   planner-only adopter — ProjectionExecution extension threading the
   per-call angle arrays; typed paths lost their drifted per-call
   allocation and f16→f64→f32 double rounding; 35/35 on hardware).
-  Thirteen adopted, six remain (sht, stft, nufft grid-shaped; ntt
+  **sht ADOPTED 2026-08-02**
+  (SphericalPlan planner + HarmonicExecution extension over the
+  Complex64 coefficient domain with the explicit quantize bridge; 47/47
+  on hardware). Fourteen adopted, five remain (stft, nufft; ntt
   exemption-or-adopt — it HAS a gpu transport tree, nonstandard shape;
   plan-layer and cuda-transport sweeps) (dctdst separable, sft sparse, mellin bounds,
   radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
