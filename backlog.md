@@ -340,8 +340,19 @@
   planner + FramedExecution extension incl. the reusable-buffer path;
   four duplicated geometry-validation blocks collapsed into one gate;
   typed paths lost their f64 round-trips; shared error gained
-  InputTooShort; 44/44 on hardware). Fifteen adopted, four remain
-  (nufft; ntt exemption-or-adopt — it HAS a gpu transport tree, nonstandard shape;
+  InputTooShort; 44/44 on hardware). **ntt ADOPTED and nufft EXEMPTED
+  2026-08-02**: ntt joined as a planner (ResiduePlan field contract +
+  omega derivation on the payload; ModularExecution extension for the
+  exact u64/u32 residue surface; the planner gained a MIXED_PRECISION
+  const so capability descriptors stay truthful for integer
+  transforms; 36/36 + 139/139 adopter regression on hardware). nufft's
+  exemption is recorded in ADR 0037 with evidence: one backend serving
+  two plan families across 36 method variants distorts under the
+  single-marker scaffold. **Sixteen of nineteen adopted, the sweep's
+  adoption phase is COMPLETE** (dht, fwht, wavelet, qft, czt, hilbert,
+  gft, frft, sdft, sft, mellin, dctdst, radon, sht, stft, ntt; nufft
+  exempted with rationale). Remaining SUBSTRATE-004 residuals: the
+  application/plan-layer sweep and the cuda-transport assessment — it HAS a gpu transport tree, nonstandard shape;
   plan-layer and cuda-transport sweeps) (dctdst separable, sft sparse, mellin bounds,
   radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
   plan-layer and cuda-transport sweeps) (dctdst separable,
