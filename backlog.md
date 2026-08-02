@@ -179,7 +179,29 @@
   no `mod helpers`/`mod utils` remains in an adopting crate; transform results are
   unchanged, shown by the existing per-transform tests passing untouched.
 
-## ATLAS-ARCH-001 — One generic ComputeBackend conformance suite [arch] [minor] — in-progress
+## ATLAS-ARCH-001 — One generic ComputeBackend conformance suite [arch] [minor] — done
+
+- **Closed 2026-08-01** (hephaestus master `acc50ed`). Final state: the
+  conformance crate carries 13 clause modules (transfer, typed +
+  untyped elementwise, parameterized unary, axis/full reduction, scan,
+  dense vector, dense product, sparse incl. prepared + batch, ray
+  integral, stencil, decomposition covering the trio + all five ADR-0042
+  stages, random init), every module instantiated by all four backends
+  and verified on physical cuda + wgpu. Ledger disposition: the 112
+  shared entry points are clause-covered directly or by recorded
+  equivalence (blocked/rank-revealing variants as algorithm choices;
+  conveniences over clause-driven kernels); the 43 backend-intrinsic
+  tests stay per-backend per the triage classification; the deletion
+  sweeps removed the 20 genuinely subsumed trio tests (e3) and recorded
+  clean-pass non-subsumption verdicts elsewhere (001f, 001n). Seam
+  fallout delivered along the way: three prepared-rebind GAT
+  unifications, four new seam families (DecompositionOps ×5 stages,
+  DenseProductOps, RandomInitOps, StencilOps), ComputeDevice::topology,
+  DenseVectorOps norms, SparseOperatorOps batch+prepared, ADRs
+  0041–0045, and the ATLAS-ARCH-010 capability. Residual follow-ups
+  filed separately: ADR-0045's reduction-batch variants,
+  ATLAS-THEMIS-TOPOLOGY-OPTION-1, ATLAS-ENV-LINKER-1, and the
+  dense-product composition tier (ADR 0044 staging).
 
 - Consumer sweep 2026-07-31 (evening) against hephaestus `1e36071`'s seam
   GATs: **coeus 1050/1050** (after fixing an optim source-field misuse and
