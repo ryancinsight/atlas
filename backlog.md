@@ -335,8 +335,12 @@
   **sht ADOPTED 2026-08-02**
   (SphericalPlan planner + HarmonicExecution extension over the
   Complex64 coefficient domain with the explicit quantize bridge; 47/47
-  on hardware). Fourteen adopted, five remain (stft, nufft; ntt
-  exemption-or-adopt — it HAS a gpu transport tree, nonstandard shape;
+  on hardware). **stft ADOPTED 2026-08-02** (FramePlan
+  planner + FramedExecution extension incl. the reusable-buffer path;
+  four duplicated geometry-validation blocks collapsed into one gate;
+  typed paths lost their f64 round-trips; shared error gained
+  InputTooShort; 44/44 on hardware). Fifteen adopted, four remain
+  (nufft; ntt exemption-or-adopt — it HAS a gpu transport tree, nonstandard shape;
   plan-layer and cuda-transport sweeps) (dctdst separable, sft sparse, mellin bounds,
   radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
   plan-layer and cuda-transport sweeps) (dctdst separable,
