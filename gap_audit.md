@@ -3,8 +3,9 @@
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 
 The audit found and closed `KWAVERS-AEQ-MET-33`, the remaining named-consumer
-gap in Kwavers' public plasmonics contracts. The current PR #328 head
-`ee4557cd7` includes source commit `ed4472adf` and synchronized child PM
+gap in Kwavers' public plasmonics contracts. The current PR #330 head
+`dcc106758` includes source commit `77be364b9`, the fixed coordinate contract
+`9fb70554f`, and synchronized child PM
 state. Public Mie, enhancement, nanoparticle-array, and electromagnetic
 equation surfaces now use Aequitas `Length`, `Frequency`, `Area`,
 `NumberDensity`, `ReciprocalLength`, `ReciprocalVolume`, `Dimensionless`, and
@@ -17,9 +18,11 @@ imaginary physical unit or consumer compatibility wrapper is introduced. The
 provider complex-unit law passes 1/1; the exact pinned Kwavers graph passes
 the plasmonics package test-target check, plasmonics Nextest 10/10, package
 Clippy at `-D warnings`, doctests 8/8 executable, package Rustdoc, targeted
-Rustfmt, and the raw public-signature residue scan. CFDrs and Helios remain
-clean on re-audit with no missing Aequitas metric in the named scope. The
-ordinary local lane check remains blocked only by the pre-existing Apollo
+Rustfmt, and the raw public-signature residue scan. The standalone provider
+lock now records Git-sourced Aequitas, Eunomia, Gaia, and RITK packages, and
+locked all-feature metadata passes outside the Atlas overlay. CFDrs and Helios
+remain clean on re-audit with no missing Aequitas metric in the named scope.
+The ordinary local lane check remains blocked only by the pre-existing Apollo
 dual-path lock collision; hosted PR checks are the remaining external gate.
 
 See the child [`Kwavers gap audit`](repos/kwavers/gap_audit.md) and
@@ -30,8 +33,8 @@ See the child [`Kwavers gap audit`](repos/kwavers/gap_audit.md) and
 The current audit found one remaining named-consumer implementation gap in
 Kwavers: public therapeutic microbubble state, shell, force, streaming,
 dynamics, and sampling contracts still exposed SI-valued scalars. That gap is
-implemented on clean main-based Kwavers branch
-`codex/kwavers-aequitas-microbubble` at PR head `ee4557cd7` and tracked by
+implemented on current-main-based Kwavers branch
+`codex/kwavers-aequitas-integration` at PR head `dcc106758` and tracked by
 `KWAVERS-AEQ-MET-53`. Public contracts now use
 Aequitas quantities, while Keller–Miksis, Marmottant, Leto storage, drug
 payloads, and numerical formulas extract base scalars only at explicit
@@ -55,12 +58,12 @@ on stale `field_surrogate_demo.rs` and `pinn_elastic_2d_training.rs` Coeus
 call sites (`E0609`/`E0308`); source fix `0d956071a` propagates the errors and
 the exact disposable graph passes locked `cargo check --examples
 --features pinn` and `cargo check --benches --features pinn`. The current CI
-head is `ee4557cd7`; its hosted matrix is the remaining integration gate.
+head is `dcc106758`; its hosted matrix is the remaining integration gate.
 
 The provider gap was the missing shared vocabulary for acceleration and
 pressure-time derivative. Aequitas now owns `Acceleration` (`m/s²`) and
 `PressureRate` (`Pa/s`) in merged commit `8cc90b2`; provider PR #10 is merged.
-The clean Kwavers consumer PR is #328. The superseded long-lived PR #327 was
+The clean Kwavers consumer PR is #330. The superseded long-lived PR #327 was
 closed without deleting its branch or touching its peer-owned dirty file.
 
 CFDrs and Helios were re-audited in the current trees and have no new missing
@@ -94,7 +97,7 @@ validation then found one stale downstream test contract: RITK's typed
 `TemporalSyncResult` had replaced the old tuple and quality aggregate in
 `crates/kwavers/tests/ultrasound_physics_validation.rs`. Source fix
 `1fd08058f` updates that test to assert typed shift, correlation, overlap, and
-residual metrics; `ee4557cd7` synchronizes the child PM artifacts and records
+residual metrics; `dcc106758` synchronizes the child PM artifacts and records
 the follow-up source closure. The refreshed hosted matrix is pending on the
 new exact head.
 Kwavers therapy Nextest also
