@@ -26,7 +26,8 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MEMBER_ROOT = ROOT / "repos"
+sys.path.insert(0, str(ROOT / "scripts"))
+from atlas_stack import registered_members  # noqa: E402
 
 
 def fail(message: str) -> None:
@@ -89,8 +90,10 @@ def pinned_channel(manifest: Path) -> str | None:
 
 def check_member_pins() -> int:
     checked = 0
-    for pin in sorted(MEMBER_ROOT.glob("*/rust-toolchain.toml")):
-        member = pin.parent
+    for member in registered_members():
+        pin = member / "rust-toolchain.toml"
+        if not pin.is_file():
+            continue
         channel = pinned_channel(pin)
         if channel is None:
             fail(f"{pin} declares no channel")
@@ -110,7 +113,7 @@ def check_member_pins() -> int:
             )
         checked += 1
     if checked == 0:
-        fail(f"no member pins found under {MEMBER_ROOT}")
+        fail("no member pins found among registered members")
     return checked
 
 
