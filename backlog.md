@@ -291,8 +291,17 @@
   / O: GpuStorage<Bin> parameters with per-direction validation and
   with_output_scratch completing the pool family — sdft's asymmetric
   f32-window→Complex32-bin typed dispatch now fits; nine crates 732/732
-  on hardware. Eight adopted (dht, fwht, wavelet, qft, czt, hilbert,
-  gft, frft), eleven remain (sdft next — groundwork done) (dctdst separable,
+  on hardware. **sdft ADOPTED
+  2026-08-02 (apollo 0167b2f)** — first Sample≠Bin executor (f32
+  windows → Complex32 bins, output_len=bin_count, complete-spectrum
+  inverse rule in the kernel); its dual-precision typed surface
+  collapsed into the per-side generic dispatch (the second precision
+  argument only restated the storage types; every exercised pair was
+  matching-profile); both local storage traits deleted; 25/25 on
+  hardware. Nine adopted (dht, fwht, wavelet, qft, czt, hilbert, gft,
+  frft, sdft), ten remain (dctdst separable, sft sparse, mellin bounds,
+  radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
+  plan-layer and cuda-transport sweeps) (dctdst separable,
   mellin bounds, sft sparse, sdft dual-storage, frft, radon, sht, stft,
   nufft, sdft, ntt exemption-or-adopt, plus the plan-layer sweep). Survey refinements:
   mellin takes per-call signal bounds and sft's inverse consumes a
