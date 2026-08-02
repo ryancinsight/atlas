@@ -1209,7 +1209,21 @@
   now trivial — main is an ancestor of `054244a`); until then the pin stays on
   the branch. Owner of the sparse-LU item should merge and retire the branch.
 
-## ATLAS-KWAVERS-ALLOC-TEST-RACE-1 — Allocation-count test races the harness [patch] — blocked
+## ATLAS-KWAVERS-ALLOC-TEST-RACE-1 — Allocation-count test races the harness [patch] — done 2026-08-02
+
+- **DELIVERED** (kwavers 02eee237a on main): the re-open trigger fired
+  (kwavers main dropped its last zip2_mut_with imports), the parked
+  branch rebased onto main (manifest conflicts resolved to main's
+  versioned pins; the leftover melinoe sibling-path patch died), and
+  the ThreadScopedAllocator/Window probe crate + confined counting
+  passed 900/900 across grid+solver under full parallel load. En route:
+  repos/ritk sat on a 19h-stale peer branch with 833 lines of
+  uncommitted connectome WIP blocking the moirai-rename resolution —
+  rescue-committed verbatim on the peer's branch, merged main into it
+  (union-merged PM artifacts, dropped two embedded OpenNeuro dataset
+  gitlinks from the index), tree resolves; the peer meanwhile landed
+  their diffusion closure to main via PR #91, so their branch holds
+  both their WIP and the rescue.
 
 - Owner: claude-loop (claimed 2026-08-01); scope now: the two stats_alloc
   test binaries + workspace manifest. **Fix implemented on lane branch
