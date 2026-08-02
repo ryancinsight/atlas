@@ -488,8 +488,13 @@
       exists on the backends), green ×2 hardware first contact, 554/554; j4 general spectral
       (eigenvalues via eunomia::Complex, schur, hessenberg,
       bidiagonalize — similarity invariants + structural zero patterns);
-      j5 symmetric-indefinite (bunch_kaufman, udu — inertia against a
-      known signature). Blocked variants recorded as execution
+      j5 symmetric-indefinite — **complete 2026-08-01** (hephaestus
+      master, feat/indefinite-seam): bunch_kaufman + udu seam methods ×4
+      adapters, UDU reconstruction/det/solve on the SPD fixture and
+      L·D·Lᵀ-through-permutation on the indefinite fixture Cholesky
+      rejects, D storage length-discriminated, green ×2 hardware first
+      contact, 554/554. Only j4 (general spectral) remains in the
+      decomposition staging. Blocked variants recorded as execution
       strategies behind the unblocked seam methods, NOT seam contracts —
       covered by the existing per-backend blocked-vs-leto differential
       tests; explicit strategy selection would enter as a policy
