@@ -658,7 +658,26 @@
   ledger's entry-point basis shows rocm at 95/112 against wgpu's 101 — rocm bundles
   several clauses per test fn, so name counts understate it. Entry points, not test
   names, are the basis; the ledger stands.
-## ATLAS-THEMIS-TOPOLOGY-OPTION-1 — Model unreported GPU capacities in the type [minor] — todo
+## ATLAS-THEMIS-TOPOLOGY-OPTION-1 — Model unreported GPU capacities in the type [minor] — done
+
+- **Done 2026-08-01** as one themis-first co-evolution unit: themis
+  `e6ec649` (GpuDeviceProperties fields and accessors Option<NonZero*>;
+  max_resident_warps Some only when all inputs reported; plus two
+  fix-forward commits for a pre-existing thread-local const lint, one a
+  documented clippy false positive scoped with #[expect] inside the
+  macro), hephaestus `3ff23b6` (cuda/rocm providers wrap driver values,
+  wgpu placeholders become None by construction, conformance clause
+  drops its sentinel branch, per-backend tests assert Some/None;
+  verified on physical cuda+wgpu), moirai `eccf931` (occupancy binds
+  units by let-else; unreported per-unit capacities pass to the kernel
+  budget as its documented no-limiter input). mnemosyne kernel_budget
+  needed no change (deliberately decoupled plain-quantity signatures).
+  The original DoR sweep missed moirai-gpu (head-truncated grep) —
+  caught at compile time by the overlay.
+- Residual: moirai-executor carries three pre-existing
+  missing_const_for_thread_local sites (untouched by this item) that
+  block a workspace-wide moirai clippy gate — same lint class as the
+  themis false positive; triage them when moirai is next claimed.
 
 - Owner: unclaimed; scope: `repos/themis` `src/topology/gpu.rs`
   (`GpuDeviceProperties`) + hephaestus consumers.
@@ -8651,7 +8670,27 @@ resolved here; a peer owns the local commits. This branch was cut from
   a synthesized field with a known noise level.
 - **Class**: `[minor]`.
 
-## ATLAS-DMRI-CORRECT-009 — Motion, eddy-current, and susceptibility correction [minor] — in-progress
+## ATLAS-DMRI-CORRECT-009 — Motion, eddy-current, and susceptibility correction [minor] — review
+
+**PR mapping (2026-08-01).** PR #82 grew to four commits and ~1,700 lines, past
+a reviewable unit, and also carried four unrelated JPEG 2000 commits inherited
+from its base. Split into four PRs cut fresh from `origin/main`, each verified
+standalone; #82 closed. References to "PR #82" below predate the split.
+
+| PR | Scope | Base | Standalone verification |
+| --- | --- | --- | --- |
+| #84 | `ritk-diffusion-scheme` per-volume reorientation | `main` | 23/23 |
+| #85 | `ritk-spatial` rotation extraction | `main` | 54/54 + doctest |
+| #86 | `ritk-registration` series alignment | **#85** | 352/352 |
+| #87 | `ritk-registration` EPI distortion model | `main` | 367/367 |
+
+#86 targets #85 because it consumes `rotation_from_linear`; GitHub retargets it
+to `main` on merge. The other three are independent and may merge in any order.
+
+The split was done in a bounded worktree lane rather than the main tree, which
+was dirty with peer edits — branch switches there had been aborting. The lane is
+deregistered; its directory at `worktrees/ritk-pr-split` could not be deleted
+(held by another process) and needs sweeping once that releases.
 
 **Scheme-side reorientation delivered**: `ritk` `660783da` on
 `feat/per-volume-gradient-reorientation`, PR #82.
