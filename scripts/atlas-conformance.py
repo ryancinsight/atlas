@@ -34,8 +34,9 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-MEMBER_ROOT = ROOT / "repos"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atlas_stack import MEMBER_ROOT, ROOT, is_git_ignored, registered_member_names
+
 BASELINE = ROOT / "scripts" / "conformance-baseline.json"
 
 PRUNE_DIRS = {".git", "worktrees", "__pycache__", "node_modules", ".claude", "book"}
@@ -104,31 +105,15 @@ def scan_workflows(repo: Path, c: dict[str, int]) -> None:
             c["pull_request_target_use"] += 1
 
 
-def registered_members() -> set[str]:
-    """Member directory names registered in .gitmodules — the scan universe.
-
-    Scanning only registered members is what keeps the baseline an artifact
-    of the documented stack: an unregistered, git-ignored directory is the
-    sanctioned private-consumer trace (never named in stack artifacts), and
-    an unregistered, un-ignored one is namespace pollution counted without
-    being named (architecture_scoping: member namespace hygiene).
-    """
-    gm = ROOT / ".gitmodules"
-    if not gm.is_file():
-        return set()
-    return {
-        m.group(1)
-        for m in re.finditer(r"path\s*=\s*repos/([^\s/]+)", gm.read_text(errors="replace"))
-    }
+def count_root_sprawl(repo: Path) -> int:
+    return sum(
+        1 for e in repo.iterdir() if e.is_file() and e.name not in SANCTIONED_ROOT
+    )
 
 
-def is_git_ignored(path: Path) -> bool:
-    import subprocess
-
-    return subprocess.run(
-        ["git", "-C", str(ROOT), "check-ignore", "-q", str(path.relative_to(ROOT))],
-        capture_output=True,
-    ).returncode == 0
+def lf_policy_missing(repo: Path) -> int:
+    ga = repo / ".gitattributes"
+    return 0 if ga.is_file() and "text=auto" in ga.read_text(errors="replace") else 1
 
 
 def rust_files(repo: Path):
@@ -194,15 +179,11 @@ def scan_repo(repo: Path) -> dict[str, int]:
         c["existence_only_assertions"] += len(EXISTENCE_ONLY.findall(test))
         c["sleep_synced_tests"] += len(SLEEP.findall(test))
 
-    for entry in repo.iterdir():
-        if entry.is_file() and entry.name not in SANCTIONED_ROOT:
-            c["root_sprawl"] += 1
-        if entry.is_dir() and entry.name.startswith("target") and repo != ROOT:
-            c["target_forks"] += 1
-
-    ga = repo / ".gitattributes"
-    if not (ga.is_file() and "text=auto" in ga.read_text(errors="replace")):
-        c["gitattributes_missing"] = 1
+    c["root_sprawl"] = count_root_sprawl(repo)
+    c["target_forks"] = sum(
+        1 for e in repo.iterdir() if e.is_dir() and e.name.startswith("target")
+    )
+    c["gitattributes_missing"] = lf_policy_missing(repo)
     if has_cargo:
         nx = repo / ".config" / "nextest.toml"
         if not (nx.is_file() and "slow-timeout" in nx.read_text(errors="replace")):
@@ -218,7 +199,7 @@ def scan_repo(repo: Path) -> dict[str, int]:
 
 def scan_stack() -> dict[str, dict[str, int]]:
     out = {}
-    members = registered_members()
+    members = registered_member_names()
     meta = dict.fromkeys(CLASSES, 0)
     if MEMBER_ROOT.is_dir():
         for repo in sorted(MEMBER_ROOT.iterdir()):
@@ -228,12 +209,8 @@ def scan_stack() -> dict[str, dict[str, int]]:
                 out[repo.name] = scan_repo(repo)
             elif not is_git_ignored(repo):
                 meta["member_namespace_pollution"] += 1
-    for entry in ROOT.iterdir():
-        if entry.is_file() and entry.name not in SANCTIONED_ROOT:
-            meta["root_sprawl"] += 1
-    ga = ROOT / ".gitattributes"
-    if not (ga.is_file() and "text=auto" in ga.read_text(errors="replace")):
-        meta["gitattributes_missing"] = 1
+    meta["root_sprawl"] = count_root_sprawl(ROOT)
+    meta["gitattributes_missing"] = lf_policy_missing(ROOT)
     scan_workflows(ROOT, meta)
     out["<meta>"] = meta
     return out

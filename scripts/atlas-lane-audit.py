@@ -28,35 +28,19 @@ Run: `python scripts/atlas-lane-audit.py`
 
 from __future__ import annotations
 
-import re
-import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-MEMBER_ROOT = ROOT / "repos"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atlas_stack import ROOT, git, registered_members
+
 LANE_ROOT = ROOT / "worktrees"
 
 
-def git(repo: Path, *args: str) -> str:
-    proc = subprocess.run(
-        ["git", "-C", str(repo), *args], capture_output=True, text=True
-    )
-    return proc.stdout
-
-
-def registered_members() -> list[Path]:
-    gm = ROOT / ".gitmodules"
-    if not gm.is_file():
-        return []
-    names = re.findall(r"path\s*=\s*repos/([^\s/]+)", gm.read_text(errors="replace"))
-    return [MEMBER_ROOT / n for n in sorted(names) if (MEMBER_ROOT / n).is_dir()]
-
-
 def canonical_lane(path: Path) -> bool:
-    parts = {p.name for p in path.parents} | {path.parent.name}
+    parents = {p.name for p in path.parents}
     return path.is_relative_to(LANE_ROOT) or (
-        "worktrees" in parts and ".claude" in {p.name for p in path.parents}
+        "worktrees" in parents and ".claude" in parents
     )
 
 
