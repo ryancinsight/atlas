@@ -271,7 +271,14 @@
   backend for the real-in/complex-out surface; the shared layer gained
   forward_only capabilities and GpuElement::with_input_scratch since
   zero-length scratch trips mnemosyne's alignment assert; 43/43 on
-  hardware)**. Six adopted, thirteen remain. Survey refinements:
+  hardware)**. Six adopted, thirteen remain.
+  Planner/executor segregation DELIVERED 2026-08-02 (apollo fc16f4e):
+  GpuTransformPlanner (plan payload + length/validate hooks) split from
+  GpuTransformExecutor; the backend shell and validation helpers bind
+  the planner, so extra-operand transforms (gft basis, mellin bounds,
+  sft sparse spectra) implement the planner alone and carry their
+  surface as extension traits — all six adopters split, 652/652 on
+  hardware. Next: gft adoption over the new seam. Survey refinements:
   mellin takes per-call signal bounds and sft's inverse consumes a
   SparseSpectrum — both are extension-surface designs, not standard
   adopters; czt/radon/mellin/sht/sdft/stft/nufft each carry
