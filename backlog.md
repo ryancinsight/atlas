@@ -183,9 +183,17 @@
   The moirai → moirai-runtime park lasted one tick — leto's binding fix
   (leto PR #89) landed while parked; this workspace's own `moirai`
   requirement was repointed to `package = "moirai-runtime"` in the same
-  commit. Residual for SUBSTRATE-003: migrate the hand-written
-  `matches_leto_reference` differential tests in the GPU backends onto
-  the host pair, then the tolerance sweep.
+  commit. Leto-differential migration DELIVERED 2026-08-02
+  (hephaestus 1fe2bd4): the six per-backend hand-written
+  `matches_leto_reference` tests (col-piv QR, full-piv LU, UDU,
+  Bunch-Kaufman, symmetric eigen, general eigenvalues) are now
+  seam-generic conformance clauses at the derived bound; backend copies
+  deleted (net -273 lines; cuda+wgpu 353/353 on hardware). The blocked_*
+  stress tests stay backend-local by design (execution strategies, not
+  seam entries, per ADR 0042). Remaining residual: the tolerance sweep —
+  derive the blocked trio's 16·eps per-element bounds at n=66 and the
+  wgpu kron/matpow/rank/det site tolerances, citing each derivation at
+  the assertion site.
 
 - Owner: unclaimed; scope: the role trait's home crate, `leto-ops`, the
   Hephaestus backends, and `hephaestus-conformance`.
