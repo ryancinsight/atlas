@@ -266,7 +266,12 @@
   deleted, 554/554 across the five adopter crates on hardware; adopted
   so far: dht, fwht, wavelet, qft, **czt (76ba934, first
   input_len≠output_len adopter — output_len hook proven; square-inverse
-  rule lives in its kernel; 55/55 on hardware)**. Survey refinements:
+  rule lives in its kernel; 55/55 on hardware)**, **hilbert (a2513e0,
+  first extension-trait adopter — AnalyticSignal trait on the aliased
+  backend for the real-in/complex-out surface; the shared layer gained
+  forward_only capabilities and GpuElement::with_input_scratch since
+  zero-length scratch trips mnemosyne's alignment assert; 43/43 on
+  hardware)**. Six adopted, thirteen remain. Survey refinements:
   mellin takes per-call signal bounds and sft's inverse consumes a
   SparseSpectrum — both are extension-surface designs, not standard
   adopters; czt/radon/mellin/sht/sdft/stft/nufft each carry
