@@ -222,9 +222,12 @@
   differential clause; **every tolerance cites its derivation** from the
   condition number and growth factor rather than the constants currently inline.
 
-## ATLAS-SUBSTRATE-004 — Consolidate Apollo's per-transform scaffold [arch] — todo
+## ATLAS-SUBSTRATE-004 — Consolidate Apollo's per-transform scaffold [arch] — in-progress
 
-- Owner: unclaimed; scope: a new generic plan/execution layer, then one adopting
+- Owner: claude/fable-loop (claimed 2026-08-02); scope this increment: survey
+  the 19-crate scaffold, design the generic plan/execution layer (ADR), land
+  it, and adopt on two crates; remaining crates follow as separate increments.
+- Previously: scope: a new generic plan/execution layer, then one adopting
   crate per claim. Sequenced last: 19 crates change, so the generic layer lands
   and proves itself on two crates before the rest follow.
 - Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §4.
