@@ -254,8 +254,12 @@
   GPU suites on hardware. Adoption survey findings: dctdst carries
   separable 2D/3D extension surface; hilbert an analytic-signal trio
   (extension-trait design); gft threads a basis matrix; qft/sft are
-  Complex32 (need element-type genericization of the scaffold — a
-  future v3 evolution); czt/radon/mellin/sht/sdft/stft/nufft each carry
+  Complex32 — **v3 DELIVERED 2026-08-02 (apollo
+  aea658d)**: GpuTransformExecutor now carries Sample/Bin element types
+  with typed forward_into/inverse_into (replacing the inverse flag), so
+  complex and asymmetric transforms (mellin f32→Complex32) fit; typed
+  f16/f32 dispatch narrows to Sample=Bin=f32 backends via a bounded
+  impl block; dht/fwht/wavelet migrated, 517/517 on hardware; czt/radon/mellin/sht/sdft/stft/nufft each carry
   richer payloads to enumerate at claim; ntt last or exemption.
   Remaining: 16 adoptions, one item per crate. Lane
   worktrees/apollo-execution-scaffold stays open.
