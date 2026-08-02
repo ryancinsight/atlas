@@ -319,8 +319,12 @@
   peer is landing per-crate missing_docs enforcement commits and the
   shared tree churns mid-build (one peer-assist landed: moirai
   6ee653f documenting the executor metrics/task fields their
-  enforcement left red). Nine adopted (dht, fwht, wavelet, qft, czt,
-  hilbert, gft, frft, sdft), ten remain (dctdst separable, sft sparse, mellin bounds,
+  enforcement left red). **mellin ADOPTED 2026-08-02** (second
+  planner-only adopter — ResampledExecution extension with per-call
+  bounds operands; shared layer gained InvalidSignalDomain and public
+  WgpuTransformPlan::validate; 30/30 on hardware). Eleven adopted (dht,
+  fwht, wavelet, qft, czt, hilbert, gft, frft, sdft, sft, mellin),
+  eight remain (dctdst separable, sft sparse, mellin bounds,
   radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
   plan-layer and cuda-transport sweeps) (dctdst separable,
   mellin bounds, sft sparse, sdft dual-storage, frft, radon, sht, stft,
