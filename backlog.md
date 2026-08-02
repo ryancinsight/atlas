@@ -138,7 +138,31 @@
   suite passes on every vendor that has hardware present; ~3 700 lines net
   deleted.
 
-## ATLAS-SUBSTRATE-003 — Give the Leto/Hephaestus decomposition pair one seam and one oracle [arch] [minor] — todo
+## ATLAS-SUBSTRATE-003 — Give the Leto/Hephaestus decomposition pair one seam and one oracle [arch] [minor] — todo (rescoped)
+
+- Reconciled 2026-08-02 against the delivered ATLAS-ARCH-001 arc, which
+  satisfied most of this item's acceptance ahead of it: the role trait
+  EXISTS (`hephaestus_core::DecompositionOps` now spans all 14 shared
+  entry points — trio + pivoted + symmetric/general spectral + SVD +
+  indefinite, ADR 0042 stages 1–5), the conformance decomposition module
+  exists with derived module-head tolerances, and the trio's
+  `matches_leto_reference` tests are already parameterized differential
+  clauses.
+- RESIDUAL scope (this item's remaining claim):
+  1. Leto as an implementor. The trait lives in hephaestus-core (above
+     leto), so the leto impl is an adapter INSIDE hephaestus over
+     leto-ops — which first needs a host ComputeDevice (CPU device with
+     host-memory buffers) in hephaestus-core. That HostDevice is
+     high-leverage beyond this item: every conformance module could then
+     instantiate a CPU reference implementor, turning all differential
+     clauses into cross-implementor suite runs.
+  2. The remaining hand-written `matches_leto_reference` tests (blocked
+     and pivoted variants per backend) migrate to differential clause
+     instantiations once the leto implementor exists.
+  3. Tolerance sweep: the inline constants at the remaining hand-written
+     assertion sites get derivations or the clauses replace them.
+- Sequencing: HostDevice design (small ADR) → LetoDecompositionOps
+  adapter + suite instantiation → differential migration sweep.
 
 - Owner: unclaimed; scope: the role trait's home crate, `leto-ops`, the
   Hephaestus backends, and `hephaestus-conformance`.
