@@ -264,7 +264,12 @@
   GpuStorage generalized over GpuElement (f32/Complex32 families with
   per-element scratch pools; [f16;2] mirrors f16), QftGpuStorage
   deleted, 554/554 across the five adopter crates on hardware; adopted
-  so far: dht, fwht, wavelet, qft; czt/radon/mellin/sht/sdft/stft/nufft each carry
+  so far: dht, fwht, wavelet, qft, **czt (76ba934, first
+  input_len≠output_len adopter — output_len hook proven; square-inverse
+  rule lives in its kernel; 55/55 on hardware)**. Survey refinements:
+  mellin takes per-call signal bounds and sft's inverse consumes a
+  SparseSpectrum — both are extension-surface designs, not standard
+  adopters; czt/radon/mellin/sht/sdft/stft/nufft each carry
   richer payloads to enumerate at claim; ntt last or exemption.
   Remaining: 16 adoptions, one item per crate. Lane
   worktrees/apollo-execution-scaffold stays open.
