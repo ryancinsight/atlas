@@ -1509,6 +1509,30 @@
   g++ 16.1 — an upstream -Werror incompatibility, filed as
   ATLAS-MNEMOSYNE-SNMALLOC-1.
 
+## ATLAS-WORKTREE-JUNCTION-1 — `worktrees/apollo` is a junction onto the main tree [chore] — todo
+
+- Owner: unclaimed; scope: the single directory entry
+  `D:tlas\worktreespollo`.
+- Found 2026-08-02 during lane cleanup. It is **not** a worktree and not
+  a copy: it is a Windows directory junction whose target is
+  `D:tlasepospollo`, so both paths are the same tree. That is
+  why it presents the main tree's branch and HEAD, why its `.git` file
+  holds the identical gitdir pointer, and why a `git status` run through
+  it briefly showed phantom modifications (shared index refresh).
+- Why it matters: `worktrees/` is reserved for linked worktrees, so an
+  alias there reads as a lane that does not exist, and any tool walking
+  the lane root traverses into the main tree. The sharp edge is
+  deletion — a lane-cleanup `rm -rf worktrees/apollo*` follows the
+  junction and destroys the real repository contents.
+- Not deleted: the junction predates this session and its purpose is
+  unknown (plausibly a peer's convenience alias). Removal is one
+  reversible command that touches no content, but it is someone else's
+  artifact.
+- Acceptance: confirm no tooling depends on the alias, then remove the
+  link only (never `rm -rf`, which follows it):
+  `Remove-Item -LiteralPath D:tlas\worktreespollo -Force` or
+  `cmd /c rmdir "D:tlas\worktreespollo"`.
+
 ## ATLAS-MNEMOSYNE-SNMALLOC-1 — snmalloc-sys fails g++ 16's new warnings [patch] — todo
 
 - Owner: unclaimed; scope: `repos/mnemosyne` `crates/mnemosyne-benchmarks`
