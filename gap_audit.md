@@ -366,6 +366,23 @@ remain PAM delay-and-sum/neural sensor geometry, aperture/design synthesis,
 propagation coordinates and acoustic impedance, and focused, hemispherical,
 MEMS, flexible, and two-dimensional array contracts.
 
+Read-only next-frontier inventory (2026-08-03): the remaining PAM/neural
+sensor boundary is concrete and disjoint from MET-58. PAM exposes raw
+`DelayAndSumConfig::sound_speed` and `sampling_frequency`,
+`PamBeamformingConfig::frequency_range`, `spatial_resolution`, and
+`focal_point`, `PAMConfig::frequency_bands` and `integration_time`, plus
+`PamCavitationEvent::{position,time,peak_frequency}` in
+`crates/kwavers-analysis/src/signal_processing/pam/{config.rs,delay_and_sum/types.rs}`.
+The neural `SensorGeometry` contract exposes raw positions, pitch, sampling
+frequency, and sound speed, while neural DAS accepts raw steering angles in
+`crates/kwavers-analysis/src/signal_processing/beamforming/neural/{config/geometry.rs,beamformer/das.rs}`.
+These are candidate Aequitas `Length`, `Frequency`, `Time`, `Velocity`, and
+`Angle` boundaries; sample indices, channel counts, intensities, confidence,
+and apodization weights remain dimensionless or representation values. No
+imaginary SI unit is indicated by this inventory; complex signal buffers, if
+introduced at a formula/storage boundary, retain one observable unit for real
+and quadrature components.
+
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 
 The audit found and closed `KWAVERS-AEQ-MET-33`, the remaining named-consumer
