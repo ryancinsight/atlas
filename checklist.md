@@ -15,15 +15,16 @@
       and explicit Leto dense-storage boundaries; remove `angles_degrees`.
 - [x] Add Kwavers ADR 094, synchronized child PM artifacts, and the Eunomia
       shared-unit/real-observable rule with no imaginary SI unit.
-- [x] Collect local locked check, Nextest 218/218, Clippy, doctest, Rustdoc,
+- [x] Collect local locked check, Nextest 219/219, Clippy, doctest, Rustdoc,
       Rustfmt, diff, and typed/complex residue evidence.
-- [ ] Collect the hosted repository-owned matrix and merge Kwavers PR #333.
+- [ ] Collect the hosted repository-owned matrix and merge Kwavers PR #333 at
+      corrected head `0b38f2d3e`.
 
 Acceptance: no missing metric remains in the bounded plane/diverging-wave
 scope, local and hosted repository-owned gates pass, and no imaginary-unit
 physical contract is introduced.
 
-Current residual: PR #333 is open at `c57f7649`; hosted checks are running.
+Current residual: PR #333 is open at `0b38f2d3e`; hosted checks are running.
 The external `recurseml/analysis` error is report-only.
 
 ## ATLAS-AEQUITAS-CONSUMERS-004 — Geometry and scheduling metric extensions
@@ -37,8 +38,9 @@ The external `recurseml/analysis` error is report-only.
       record the Eunomia real/complex boundary with no imaginary SI unit.
 - [x] Collect the exact-head hosted gates and merge CFDrs PR #322 as
       `57bb47ea`.
-- [ ] Collect the Helios PR #36 benchmark rerun and merge its exact head after
-      the repository-owned gate is green.
+- [ ] Resolve the Helios PR #36 replicated `beam_transmission/cpu` slowdown or
+      prove the unchanged benchmark/dependency interaction is external, then
+      rerun and merge its exact head after the repository-owned gate is green.
 - [x] Record the Kwavers PR #332 external `recurseml/analysis` error as
       report-only and merge its exact head as `6b706ad9`.
 
@@ -46,9 +48,10 @@ Acceptance: child implementation gaps are closed and child focused gates pass;
 hosted gates are green before merge, and no missing Aequitas metric or
 imaginary-unit physical contract remains in the named scope.
 
-Current residual: the Helios benchmark rerun is queued after an isolated
-late-run slowdown in unchanged projection code. This is an integration gate,
-not a source-level metric gap.
+Current residual: Helios benchmark run `30761913034` fails its replicated
+classifier on five `beam_transmission/cpu` cases at about +2.6% in both
+counterbalanced replications. This is a hosted performance gate residual,
+not a source-level Aequitas metric gap.
 
 ## ATLAS-AEQUITAS-CONSUMERS-003 — Therapeutic microbubble metric audit
 

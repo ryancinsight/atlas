@@ -27,11 +27,12 @@ Child evidence:
   pass.
 - Helios PR [#36](https://github.com/ryancinsight/helios/pull/36), head
   `4a301bc`: focused imaging check, Nextest 18/18, Clippy, doctests, and
-  Rustdoc pass. Hosted Python and Rust workspace checks pass. The first
-  benchmark run failed only in a late phase-reversed comparison: unchanged
-  CPU projection timings rose about 41--43% after earlier parity runs. The
-  failed job is being re-run as `30761913034`; no Helios projector source
-  changed in the PR.
+  Rustdoc pass. Hosted Python and Rust workspace checks pass. The benchmark
+  rerun `30761913034` completed with five replicated `beam_transmission/cpu`
+  regressions at about +2.6% in both counterbalanced replications, with
+  complete 99.545% confidence intervals. The benchmark and CPU projector
+  sources are unchanged by the PR; H-098 remains open as a hosted performance
+  gate residual rather than an Aequitas dimensional gap.
 - Kwavers PR [#332](https://github.com/ryancinsight/kwavers/pull/332), head
   `87afe809f`, merged as `6b706ad9`: standalone locked package check, Nextest
   218/218, Clippy, doctests, Rustdoc, and residue scans pass. The hosted
@@ -57,8 +58,8 @@ The implementation uses Aequitas `Length`, `Velocity`, `Frequency`, `Angle`,
 scalar only at the explicit storage boundary.
 
 Kwavers PR [#333](https://github.com/ryancinsight/kwavers/pull/333) is open at
-head `c57f7649`. Local locked package check, Nextest
-`789c6fcc-a55c-49ce-9ff9-d12d6a4f944f` (218/218, one ignored), Clippy with
+head `0b38f2d3e`. Local locked package check, Nextest
+`f1d0db2a-5e11-450b-831e-a4290847d6ee` (219/219, one ignored), Clippy with
 `-D warnings`, doctests, Rustdoc, targeted Rustfmt, diff check, and typed/
 complex residue scans pass. Repository-owned hosted gates are running; the
 external `recurseml/analysis` error is report-only as in the prior Kwavers

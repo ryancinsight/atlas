@@ -14,11 +14,12 @@
 - Outcome: type geometry, timing, angles, sampling, F-number, image-coordinate
   arrays, and scalar aperture metrics with Aequitas while preserving explicit
   formula and Leto storage boundaries and the Eunomia real/complex rule.
-- Evidence: Kwavers PR #333 at head `c57f7649`; local locked package check,
-  Nextest `789c6fcc-a55c-49ce-9ff9-d12d6a4f944f` (218/218, one ignored),
+- Evidence: Kwavers PR #333 at head `0b38f2d3e`; local locked package check,
+  Nextest `f1d0db2a-5e11-450b-831e-a4290847d6ee` (219/219, one ignored),
   Clippy, doctests, Rustdoc, Rustfmt, diff, and typed/complex residue scans
   pass.
-- Residual: repository-owned hosted checks are running; external
+- Residual: repository-owned hosted checks are running at the corrected head;
+  external
   `recurseml/analysis` is report-only. Merge after the repository-owned matrix
   is green.
 - Re-open trigger: hosted source failure, dimensional residue, or Eunomia
@@ -34,10 +35,12 @@
 - Evidence: CFDrs PR #322 head `ce6a4f39` merged as `57bb47ea`, Helios PR #36
   head `4a301bc`, and Kwavers PR #332 head `87afe809f` merged as `6b706ad9`;
   child focused gates pass as recorded in `gap_audit.md`.
-- Residual: Helios benchmark rerun `30761913034` is queued after an isolated
-  late-run slowdown in unchanged projection code. Kwavers repository-owned
-  gates, including coverage, pass; its external `recurseml/analysis` service
-  error was report-only and did not block its merge.
+- Residual: Helios benchmark rerun `30761913034` completed with five replicated
+  `beam_transmission/cpu` regressions of about +2.6% in both counterbalanced
+  replications; the unchanged benchmark/projector source is not in the PR.
+  Kwavers repository-owned gates, including coverage, pass; its external
+  `recurseml/analysis` service error was report-only and did not block its
+  merge.
 - Re-open trigger: any hosted source failure, dimensional residue, or Eunomia
   complex-boundary mismatch in the named child scope.
 
