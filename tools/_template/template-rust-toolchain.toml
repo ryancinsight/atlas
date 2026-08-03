@@ -7,6 +7,7 @@
 #   - tools/checkout-path-dependencies/rust-toolchain.toml
 #   - tools/criterion-regression/rust-toolchain.toml
 #   - tools/gitlink-coherence/rust-toolchain.toml
+#   - tools/version-guard/rust-toolchain.toml
 #
 # Copy to `tools/<new-tool>/rust-toolchain.toml` when scaffolding a new
 # coordinator tool; do not alter the contents without a stack-wide
@@ -15,6 +16,6 @@
 # backlog.md#ATLAS-TOOLS-TEMPLATE-EXTRACT-1.
 
 [toolchain]
-channel = "1.95.0"
+channel = "1.97.0"
 components = ["clippy", "rustfmt"]
 profile = "minimal"

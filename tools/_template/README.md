@@ -12,7 +12,7 @@ here, and there is no `[package]`.
   The file carries only shared sections plus a header comment naming the
   consumers; never add a `[package]` body to it.
 - `template-rust-toolchain.toml` — the pinned toolchain
-  (`channel = "1.95.0"`, `components = ["clippy", "rustfmt"]`,
+  (`channel = "1.97.0"`, `components = ["clippy", "rustfmt"]`,
   `profile = "minimal"`) shared by every coordinator tool.
 - `check-drift.sh` — bash scanner that byte-diffs each consumer's
   lint/profile sections against the template and fails on divergence.
@@ -28,6 +28,8 @@ here, and there is no `[package]`.
 - `tools/gitlink-coherence/` — `atlas-gitlink-coherence-gate`,
   gitlink coherence auditor for the meta-repo; uses `serde` +
   `serde_json`.
+- `tools/version-guard/` — `atlas-version-guard`, per-member
+  manifest-version guard; uses `serde` + `serde_json`.
 
 ## SSOT policy — copy-as-new, then fill
 

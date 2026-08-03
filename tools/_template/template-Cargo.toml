@@ -7,6 +7,7 @@
 #   - tools/checkout-path-dependencies/Cargo.toml
 #   - tools/criterion-regression/Cargo.toml
 #   - tools/gitlink-coherence/Cargo.toml
+#   - tools/version-guard/Cargo.toml
 #
 # Usage is copy-as-new, NOT workspace inclusion: scaffold a new tool by
 # copying this file to `tools/<new-tool>/Cargo.toml`, then fill in a real
@@ -54,11 +55,11 @@ strip = "symbols"
 # ---------------------------------------------------------------------------
 #
 # Tools that require serde/serde-json (criterion-regression,
-# gitlink-coherence) carry these entries verbatim between their
-# [profile.release] block and any tool-specific [dependencies] block.
-# Tools with no serde needs (checkout-path-dependencies) drop this block
-# entirely. The drift scanner compares shared-key (serde, serde_json)
-# entries only; tool-specific deps are unconstrained.
+# gitlink-coherence, version-guard) carry these entries verbatim between
+# their [profile.release] block and any tool-specific [dependencies]
+# block. Tools with no serde needs (checkout-path-dependencies) drop
+# this block entirely. The drift scanner compares shared-key (serde,
+# serde_json) entries only; tool-specific deps are unconstrained.
 
 [dependencies]
 serde = { version = "1.0.229", features = ["derive"] }

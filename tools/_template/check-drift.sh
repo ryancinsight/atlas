@@ -37,6 +37,7 @@ consumers=(
   "$script_dir/../checkout-path-dependencies"
   "$script_dir/../criterion-regression"
   "$script_dir/../gitlink-coherence"
+  "$script_dir/../version-guard"
 )
 
 # extract_section <file> <heading>

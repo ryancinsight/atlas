@@ -1854,7 +1854,8 @@
   `D:tlas\worktreespollo`.
 - Found 2026-08-02 during lane cleanup. It is **not** a worktree and not
   a copy: it is a Windows directory junction whose target is
-  `D:tlasepospollo`, so both paths are the same tree. That is
+  `D:tlas
+epospollo`, so both paths are the same tree. That is
   why it presents the main tree's branch and HEAD, why its `.git` file
   holds the identical gitdir pointer, and why a `git status` run through
   it briefly showed phantom modifications (shared index refresh).
@@ -7092,11 +7093,45 @@ Closure requires ALL of the following landed in future slices:
   DEFECT-1-AUDIT-TOOL-1` closure. Refs:
   backlog.md#ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1.
 
-## ATLAS-VERSION-GUARD-001 — Manifest-version guard and stack coherence check [patch] — todo
+## ATLAS-VERSION-GUARD-001 — Manifest-version guard and stack coherence check [patch] — in-progress (sub-delivery 1 done)
 
 - Policy: AGENTS.md git_discipline (version-bearing red-flag hunks) + architecture_scoping pin discipline (version metadata is sweep-triggering state). Motivating incident: `87ab265` (hermes) — a sed dep-conversion silently reverted the workspace release `0.5.0 -> 0.4.1` and internal requirements to `0.4.0`, unmentioned in its message; origin lied about versions for ~10 hours while integrators failed resolution, and coeus stacked 18 commits on the undeliverable base.
 - Scope: (1) per-repo guard — CI step (and optional pre-commit hook) failing when a diff changes `version =` or first-party dependency version requirements without a declared release/bump intent (commit type `chore(release)`/`build(deps)` or an explicit footer); backward version movement always fails without the declaration; (2) stack coherence check — a meta-level check (home: tools/, sibling to criterion-regression) verifying every first-party requirement across allowlisted members resolves against the stack's current workspace versions, run in the integration sweep and on any version-touching commit; (3) wire both into member CI per repository convention.
 - Acceptance: replaying `87ab265` against the guard fails it; coherence check passes on the current stack and fails on an injected backward-version fixture; guards live in committed CI/config, not agent memory.
+- Sub-delivery 1 — per-member guard tool skeleton: **done 2026-07-31** at `
+  c70af8b` (`fix(tools,scripts): Make version-guard build and retarget link tests`).
+  `tools/version-guard/` (`atlas-version-guard`) parses both bare
+  `version = "X"` lines and inline-table `dep = { ..., version = "X" }`
+  entries from `git diff <range> -- '*.toml'`, pairs `+`/`-` per file by
+  ordered position, classifies each as Identical / Forward / Backward, and
+  flags a finding as a defect when backward (always) or forward-undeclared.
+  Borrow-checker errors that surfaced in Session 32 (E0382 borrow-after-move
+  of `v` in `scan_diff`; E0499 double `&mut` in `files_entry`) were
+  resolved by capturing the side before the move and indexing the per-file
+  slot, respectively (ownership fix, not a workaround). Live acceptance replay
+  on `87ab265` produces **9 backward findings across 5 files**
+  (`Cargo.toml` + `hermes-simd-core` + `hermes-simd-intrinsics` +
+  `hermes-simd-types` + `hermes-simd`), exit 1. Tests 47/47 (44 lib + 3
+  bin). Skeleton-scope: `[package].version` + inline-table first-party deps;
+  third-party shorthand (`dep = "X.Y.Z"`) without surrounding `{...}` and
+  TOML-section tracking (`[workspace.package]` vs `[package]`) deferred to
+  sub-delivery 2.
+- Sub-delivery 2 — CI wiring per member repo: **todo**. Wire the guard
+  into each allowlisted member's CI as a step on PRs/pushes touching its
+  `*.toml`; the guard runs once per repo against its own range.
+- Sub-delivery 3 — stack coherence check tool: **todo**. A meta-level sweep
+  (sibling to `gitlink-coherence` in `tools/`) verifying every first-party
+  requirement across allowlisted members resolves against the stack's
+  current workspace versions; run on any version-touching commit.
+
+Toolchain-template drift corrected 2026-08-03 (Session 33 closure): the
+peer's `1.95.0 -> 1.97.0` pin advance (ATLAS-TOOLCHAIN-COHERENCE-001
+resolution) had been propagated to the three existing consumers but not to
+`tools/_template/template-rust-toolchain.toml` (still `1.95.0`), so the
+Session-32 version-guard skeleton copied the stale pin. Both files now
+match `1.97.0`, `check-drift.sh` extended to a fourth consumer
+(`tools/version-guard/`), and `template-Cargo.toml` / README consumers
+list updated. `check-drift.sh` reports `4 consumers clean`.
 
 ## ATLAS-OVERLAY-001 — Generated [patch] overlay for local-vs-git coherence [patch] — in-progress
 
