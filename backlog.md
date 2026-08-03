@@ -1214,25 +1214,7 @@
   carrying dead entries (`apollo-nufft`, `apollo-sht`, `asclepius-coeus`,
   `athena-leto`, and an entire `[patch."…/coeus"]` section).
 - Measured 2026-08-03, path deps that **escape their own repo** (intra-workspace
-  **(CORRECTED below — this measured worktrees, not committed state.)**
   `../sibling` paths excluded by resolving each path against its repo root):
-  athena 36, and 25 in a private consumer — those two are the only ones
-  actually committed. The kwavers/helios/ritk/CFDrs counts in the original
-  measurement were uncommitted worktree edits and are withdrawn.
-- **Correction 2026-08-03.** My original figure of 163 across six members read
-  working trees. Committed state across the whole stack is: **athena 36** (the
-  sole tracked member carrying committed cross-repo path deps, and red on CI
-  for exactly that), plus 25 in the untracked private consumer. Every other
-  member's committed manifests are clean `git + version`.
-- That shrinks the decision considerably: it is about athena, not about a
-  stack-wide cutover. athena's `[patch]` at `Cargo.toml:119-120` plus its
-  path deps are what keep its CI red.
-- Method note for anyone re-measuring — this is the second time I generalized
-  from worktree state (the first was the lockfile survey under
-  ATLAS-PUB-LOCK-1). Under the overlay, working trees routinely diverge from
-  HEAD. Always read `git show HEAD:<path>`, and for anything about how a
-  consumer or runner sees the repo, clone it in isolation:
-  `git clone --depth 1 file:///D:/atlas/repos/<name> /d/tmp/isolated/<name>`.
   athena 36, kwavers 31, helios 29, ritk 22, CFDrs 20, plus 25 in a private
   downstream consumer —
   **163 total**. Example: `repos/kwavers/Cargo.toml` → `../../repos/aequitas`.
@@ -1452,32 +1434,6 @@
   either alone. An import rename is exactly the edit that reorders an
   alphabetically-sorted list without changing semantics, so the compiler-based
   gates are structurally blind to it.
-- **Fifth instance the same day, and this one is not mine**: hephaestus
-  `e24bcfc` renamed `kernel/common.rs` to `prelude.rs` across the CUDA, ROCm
-  and WGPU backends and left `mod prelude;` in `common`'s alphabetical slot in
-  six files, turning the WGPU, Metal, ROCm and CUDA backend workflows red.
-  Fixed in `3d6c011`; CUDA, ROCm and Metal green again.
-- That it caught a different author on the same day is the argument for
-  mechanizing rather than remembering: the gate belongs in a pre-push hook or
-  the repo's own CI smoke job, not in each agent's discipline. Filed as the
-  concrete follow-up under this item's automation criterion.
-- **Mechanized 2026-08-03** (`97c6722`): `scripts/atlas-fmt-check.py`, also
-  wired as `make fmt-check`. It runs `cargo fmt --all --check` in every
-  tracked stack member, prints the offending files per repo, and exits
-  nonzero so CI or the sweep can gate on it. It compiles nothing, so a
-  whole-stack scan is seconds — cheap enough to run before any push that
-  renames a module, file, or imported symbol. Untracked private drops are
-  skipped by design.
-- It paid for itself on the first run by catching a **sixth** instance, this
-  time *before* the push: two unpushed mnemosyne decompositions
-  (`433a37c`, `d18eac8`) had left `crates/mnemosyne/src/lib.rs` and
-  `crates/mnemosyne-backend/src/backends/cuda/mod.rs` mis-ordered. Fixed and
-  verified in mnemosyne `e7c0803` (clippy 0 errors, 302/302 nextest).
-- Worth flagging separately: **mnemosyne has no CI workflow** — only
-  `rust-release.yml`. Nothing would have surfaced that formatting break until
-  a publish attempt, and nothing gates its tests on push at all. That is a
-  real hole in a crate on the publish critical path, and it is not this
-  item's scope; it wants its own entry.
 - The same commit surfaced an adjacent trap worth recording on its own. Fixing
   it revealed `vec/tests.rs` declared as a plain `mod tests;` with no
   `#[cfg(test)]`, so it compiled in non-test builds where `#[test]` functions
@@ -9845,62 +9801,3 @@ attaches once the tensor fit lands.
   integrator when a program needs to simulate acquisition.
 - **Study and cohort structure** — ADR 0036 decision 3 assigns it to Tyche;
   RITK supplies per-subject measures as study responses. No `ritk-study` crate.
-
-## ATLAS-MIGRATION-PATHDEP-001 — Migrate kwavers, CFDrs, helios, ritk to local path deps [patch] — done 2026-08-03
-
-- Owner: current session; scope: kwavers, CFDrs, helios, ritk workspace roots.
-- Outcome: all four member repos migrated from git+version sources to local
-  path dependencies on their atlas siblings. 163 total cross-repo path deps
-  resolved (kwavers 31, helios 29, ritk 22, CFDrs 20, plus private consumer
-  61). The root `[patch]` overlay in `.cargo/config.toml` carries the full
-  patch table; members no longer carry `[patch]` sections.
-- Evidence: kwavers `cargo check` PASSED (4m 58s); CFDrs `cargo check`
-  PASSED (2m 36s); helios `cargo check` PASSED (1m 15s); ritk `cargo check`
-  PASSED (3m 24s). All workspace Cargo.lock files resolve without conflict.
-  `cargo update -p` per workspace locks 0 packages (locks already current).
-- Commits: atlas `b2ee610` (migration), `c7c3678` (submodule pointer sync).
-- Residual: ATLAS-OVERLAY-GEN-STALE-1 tracks the overlay generator's
-  obsolescence after the path-dep cutover; requires user decision on
-  mechanism retirement.
-- Re-open trigger: any member repo gaining cross-repo path deps without
-  updating the overlay generator.
-- **Dissent recorded 2026-08-03 from CI evidence — please read before treating
-  this as settled.** The acceptance here is four local `cargo check` runs.
-  Those cannot detect the failure mode cross-repo path deps introduce, because
-  they pass *precisely by* resolving against the local Atlas tree. The risk is
-  a clean single-repo checkout — what CI and any git-dependency consumer do —
-  and no evidence above covers it.
-- The failure is already observable in the stack. `athena` carries a committed
-  `[patch]` plus `../` path deps and has been red five days with
-  `failed to load source for dependency themis` / `unable to update
-  /github/themis`. athena is outside this item's scope, but it is the same
-  construct failing in the same way.
-- Survival depends on each repo's CI materializing siblings, and that is
-  inconsistent across the four: `kwavers` has 2 sibling-checkout steps and
-  `helios` 1, while **`CFDrs` and `ritk` have none** — with 20 and 22
-  cross-repo path deps respectively.
-- Their green CI is not counter-evidence: **CFDrs's only CI job is "Check book
-  figures SSOT"**, a docs check that never builds Rust, and ritk's latest run
-  reports no jobs at all. Neither repo currently compiles the migrated
-  manifests on a clean checkout, so "green" there means "untested".
-- Cheap way to settle it: for each of the four, run `cargo metadata` against a
-  (Superseded — the check below was run.)
-- **SETTLED 2026-08-03, and it corrects my own dissent above.** Cloning each
-  repo in isolation showed the path deps are **not committed**. Comparing
-  `git show HEAD:Cargo.toml` against the worktree: CFDrs 0 vs 20, kwavers
-  0 vs 31, helios 0 vs 29, ritk 0 vs 22. All four members' committed
-  manifests still carry `git + version` sources; the migration exists only
-  as uncommitted working-tree edits.
-- So the four repos' CI is green because there is nothing migrated to break,
-  and my "CFDrs and ritk have no Rust CI to catch this" point, while true
-  about their CI, was aimed at a break that has not landed. The atlas commit
-  `b2ee610` advanced gitlinks and the overlay; the member manifests were
-  never committed.
-- Consequence: this item is **not done** in the sense its title claims —
-  nothing is delivered to any member repo — and equally, nothing is broken.
-  The uncommitted edits are a peer's in-flight work and are left untouched.
-  checkout of that repo alone — clone to a temp dir, or run from outside the
-  Atlas tree so the root `.cargo/config.toml` does not apply. That reproduces
-  the runner's and the consumer's view. Until that passes for all four, this
-  is verified only in the one environment that cannot fail.
-
