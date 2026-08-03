@@ -1434,6 +1434,15 @@
   either alone. An import rename is exactly the edit that reorders an
   alphabetically-sorted list without changing semantics, so the compiler-based
   gates are structurally blind to it.
+- **Fifth instance the same day, and this one is not mine**: hephaestus
+  `e24bcfc` renamed `kernel/common.rs` to `prelude.rs` across the CUDA, ROCm
+  and WGPU backends and left `mod prelude;` in `common`'s alphabetical slot in
+  six files, turning the WGPU, Metal, ROCm and CUDA backend workflows red.
+  Fixed in `3d6c011`; CUDA, ROCm and Metal green again.
+- That it caught a different author on the same day is the argument for
+  mechanizing rather than remembering: the gate belongs in a pre-push hook or
+  the repo's own CI smoke job, not in each agent's discipline. Filed as the
+  concrete follow-up under this item's automation criterion.
 - The same commit surfaced an adjacent trap worth recording on its own. Fixing
   it revealed `vec/tests.rs` declared as a plain `mod tests;` with no
   `#[cfg(test)]`, so it compiled in non-test builds where `#[test]` functions
