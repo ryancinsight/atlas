@@ -2060,7 +2060,7 @@
   invocations, so this failure predates the migration and would have hit the
   first real release either way. The migration is what made it visible.
 
-## ATLAS-PUB-LOCK-1 — `--locked` publish is incompatible with the stack's lock convention [arch] — todo (needs user decision)
+## ATLAS-PUB-LOCK-1 — Overlay-stripped lockfiles get committed and break `--locked` [patch] — in-progress
 
 - Owner: unclaimed; scope: the lock convention itself, `crates-publish.yml`,
   and every package's release. **Blocks the first real publish of any crate
@@ -2097,6 +2097,38 @@
   writes `[[patch.unused]]` entries in nondeterministic order; that is a known
   local-verification wrinkle and is *not* the cause here. The cause is the
   missing `source` lines, which is deterministic.
+- **CORRECTED 2026-08-03. No user decision is needed, and no convention has to
+  change — I had this wrong.** I filed it as "the fleet commits stripped locks,
+  so `--locked` is structurally incompatible". It is not a convention: it is an
+  accident that a few commits made, and it is straightforwardly fixable.
+- What actually happened in leto: before `520f248`, its committed lock carried
+  proper git sources (`eunomia ... source = "git+…#98f8537"`), which is why CI
+  was green. That commit regenerated the lock **while the Atlas overlay was
+  enabled**, which strips first-party `source` lines and drags in the overlay's
+  unrelated members. Every `--locked` step then failed on a clean checkout —
+  CI's minimal-features gate *and* the publish validation, from one bad lock.
+- Fixed in leto (`0992e24`); **leto CI is green** (`a3be57f`). The repair is
+  mechanical: regenerate the lock from a working directory **outside** the
+  Atlas tree, since cargo discovers `.cargo/config.toml` from the CWD upward,
+  so the overlay does not apply:
+  `cd <dir outside D:/atlas> && cargo generate-lockfile --manifest-path
+  D:/atlas/repos/<repo>/Cargo.toml`. No overlay toggling, so concurrent peer
+  builds are undisturbed. Verify the diff carries no `+version` lines — it
+  should be source lines plus removal of overlay-only packages (leto: 31
+  added, 164 removed, zero dependency changes).
+- **Still stripped, committed, and therefore red on any `--locked` step:
+  `kwavers` and `CFDrs`.** Every other member checked (apollo, coeus, consus,
+  hephaestus, moirai, ritk, helios, gaia, leto) carries correct git sources.
+  Not fixed here because both are currently on live peer branches, and a lock
+  rewrite under someone's feet mid-branch is the wrong move. Whoever owns
+  those branches should apply the one-liner above.
+- The trap that makes this recur: **any local build under the overlay rewrites
+  the lock into stripped form.** leto's working tree was re-stripped within
+  minutes of the fix, just by running clippy and nextest. So the lock shows as
+  dirty constantly, and `git add`-ing it alongside real work re-introduces the
+  defect — which is precisely how `520f248` did. Treat a dirty `Cargo.lock`
+  under the overlay as noise to leave alone, never as part of a commit, unless
+  it was regenerated outside the tree on purpose.
 
 ## ATLAS-PUB-002 — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — todo
 
