@@ -1084,7 +1084,7 @@
 - Dependencies: sequence after ATLAS-ARCH-001, so the conformance suite is not
   rewritten twice.
 
-## ATLAS-ARCH-002 — Instantiate generic tests across every shipped scalar [patch] — in-progress
+## ATLAS-ARCH-002 — Instantiate generic tests across every shipped scalar [patch] — done 2026-08-03
 
 - Owner: claude/fable-loop (claimed 2026-08-03). Burn-down is nearly
   complete: the 25 audited files are down to **2** stack-wide
@@ -1102,8 +1102,23 @@
   build: a live peer is mid-rewrite of the ritk manifests, leaving
   `[[bench]]`/`[[example]]` sections without the required `name`, which
   fails `cargo metadata` for **every** crate in the stack (the overlay
-  parses all member manifests). Re-open trigger: ritk manifests parse.
-  Then verify, commit, and do cfd-math the same way to close the item.
+  parses all member manifests).
+- **ITEM CLOSED 2026-08-03.** The blocker cleared, and the parked leto-ops
+  rewrite verified 3/3 (21/21 for the statistics module). A peer had
+  committed it meanwhile as leto `cf716c0`, refining `T::one()` to the
+  `T::ONE` const — kept as theirs. cfd-math needed no work: a peer had
+  already genericized both pareto contracts in the same
+  contract-fn-plus-instantiation form. A stack-wide census now finds
+  **zero** type-suffixed genericity tests.
+- Verification note: the assertions were mutation-checked, not just run
+  green. Injecting a 100·ε perturbation into the pearson contract makes
+  it fail at f32 with a width-naming diagnostic, so the derived
+  `accumulation_tolerance` (4·n·ε — 2.4e-6 at f32, 4.4e-15 at f64) is a
+  bound that can actually catch a defect, and it is strictly tighter
+  than the hand-picked 1e-5/1e-12 epsilons it replaced. A first mutation
+  attempt appeared to survive; it had silently failed to apply against
+  the peer's refined constant, which is why the check is worth doing
+  against the real anchor rather than trusting the injection.
 
 - Owner: unclaimed; scope: 25 files carrying `..._is_generic_over_scalar_f32`
   tests. One package per claim.
