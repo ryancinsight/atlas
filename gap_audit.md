@@ -29,7 +29,30 @@ Additional 18 files decomposed in batch 3:
 
 
 
-## ATLAS-ARCH-007 partial — manifest file decomposition batch 2 — 2026-08-02
+## ATLAS-ARCH-007 batch 4 — manifest file decomposition — 2026-08-02
+
+Additional files decomposed in batch 4 (continuing from batches 1-3):
+
+| Repository | File | Commit |
+|---|---|---|
+| consus-fits | image/mod.rs | 0df2042 |
+| consus-zarr | shard/mod.rs | a91b19a |
+| moirai-transport | lib.rs | 67cadf4 |
+| moirai-core | mpmc/mod.rs | 90fcf3d |
+| moirai-core | channel/mod.rs | 2a9df6b |
+| apollo-stft | gpu/mod.rs | 47e64bf |
+| hermes-simd-intrinsics | amx/mod.rs | 97eb329 |
+
+In-flight (agents running): apollo GPU batch, mnemosyne-backend cuda, mnemosyne lib.rs, CFDrs boundary_conditions, consus-hdmf file.
+
+**Skipped (domain cohesion / mostly tests)**:
+- consus-hdf5/file/mod.rs (42K): one `Hdf5File` impl — domain cohesion
+- cascade_junction/mod.rs (52K): 170L prod + ~1000L tests — skip
+- kwavers-solver/self_adjoint (33K): complex test-helper mix — skip
+- CFDrs/scoring (28K): ~430L tests — skip
+- hermes-simd-core/view (17K): private helpers shared across child mods — skip
+
+
 
 Additional 24 files decomposed in batch 2 (continuing from batch 1's 10):
 
