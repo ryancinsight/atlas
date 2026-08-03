@@ -1420,6 +1420,32 @@
   (CSR-shaped) or an arena span, with a criterion comparison on the traversal
   showing the change is a win. A site where the jagged shape is genuinely correct
   is recorded as such rather than converted.
+- **Evidence re-measured 2026-08-03; two of the three named sites are wrong.**
+  Verify before claiming — as written this item would send someone to rewrite
+  test code.
+  - `consus-compression/src/chunking/iterator.rs` (listed as the worst, 10
+    occurrences): **all 10 are test-local.** `#[cfg(test)] mod tests` opens at
+    line 156 of a 400-line file and every occurrence is at lines 167-383, each
+    a `let coords: Vec<Vec<usize>> = ChunkIterator::new(..).collect()`
+    collecting an iterator's output for an assertion. That is not a container
+    on a traversal path; it is a test binding, and converting it would be
+    rewriting tests to suit a metric.
+  - `gaia/src/domain/topology/adjacency.rs` (listed at 8): now **zero**
+    occurrences. The file is 679 lines and no longer contains the pattern.
+  - The raw stack-wide count is ~370, up from the recorded 318, so the
+    headline number is not shrinking even though its named exemplars have
+    evaporated — which is the signal that the count is measuring the pattern,
+    not the defect.
+- What the item still needs before it is claimable: a classifier that
+  separates production containers from `#[cfg(test)]`-local and
+  `tests/`/`benches/` bindings. I wrote one and do not trust it — it
+  mis-classified `kwavers-math/.../lsqr/tests.rs` as production, so its
+  per-repo split is not recorded here rather than recorded wrongly. The
+  two corrections above were each confirmed by reading the file.
+- Re-scoped acceptance: the deliverable is first a *correct site list* —
+  production-only, ranked by traversal hotness rather than raw count — and
+  only then the CSR conversions with their criterion evidence. A raw
+  `Vec<Vec<` count is not a defect list.
 
 ## ATLAS-ARCH-CYCLE-001 — Break the CFDrs -> gaia -> CFDrs repository cycle [arch] — done
 
