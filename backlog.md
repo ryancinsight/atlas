@@ -391,9 +391,15 @@
 
 ## ATLAS-SUBSTRATE-005 — Shared CPU-tier storage vocabulary for Apollo [arch] [minor] — in-progress
 
-- Owner: claude/fable-loop (claimed 2026-08-02); this increment: the
-  CpuStorage/CpuElement layer in apollo-fft + dht (real) and qft
-  (complex) as the proving pair; scope: a `CpuStorage<E: CpuElement = f64>` family in
+- Owner: claude/fable-loop (claimed 2026-08-02). **Layer + proving pair
+  DELIVERED 2026-08-02** (apollo, ADR 0037 dated revision): CpuElement
+  (f64/Complex64, per-element pools, capacity observer) + CpuStorage
+  in apollo-fft's domain storage module; dht and qft migrated — their
+  storage traits keep only plan-coupled dispatch, conversion
+  impls/pools/dead views deleted; 478/478 on hardware. Remaining:
+  twelve crates (czt, dctdst, frft, fwht, gft, hilbert, mellin, nufft,
+  radon, sdft, sft, sht, stft, wavelet minus the pair — enumerate at
+  claim), one migration increment each or batched; scope: a `CpuStorage<E: CpuElement = f64>` family in
   apollo-fft (elements f64/Complex64 with per-element scratch pools,
   mirroring the shipped GpuStorage/GpuElement design), then per-crate
   migration of the fourteen conversion-impl copies; the plan-coupled
