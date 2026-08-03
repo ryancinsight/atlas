@@ -54,11 +54,6 @@
   70-minute budget while tarpaulin was running `session2_source_injection_test`;
   the log records passing tests followed by `The operation was canceled` and
   orphan-process cleanup. No source assertion failure was reported.
-- The PR branch now shards the complete LLVM-instrumented Kwavers target set
-  and the long `session2_source_injection_test` binary into concurrent
-  Cobertura reports after one clean. No coverage target, full-grid workload,
-  or finite timeout was removed or raised; the exact head must be rerun before
-  merge.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 
@@ -1278,6 +1273,24 @@
   `hephaestus-conformance/src/sparse.rs:201` point at the *batch submission*
   one, so they must not be swept blindly); the index lists each exactly once.
 - Re-open trigger: the peer's stateful-update item completes.
+- **RESOLVED 2026-08-03** (hephaestus `010b14d`). The body above predates the
+  fix and is kept for trace; what happened differs from its plan. The trigger
+  fired (the peer's branch is gone), but their `64653b3` had renumbered
+  batch-submission from 0045 to **0047** — the number `b5020e1` took six hours
+  earlier for the Metal decision. The collision moved rather than cleared, and
+  two files carried 0047.
+- Settled by the claim-race rule, the later claim renumbers: batch-submission
+  is now **0048** and Metal keeps 0047.
+- The renumber had left the tail undone, which is the reusable lesson — a
+  rename is never just the file. The index still linked the deleted
+  `0045-prepared-batch-submission-seam.md`, and both doc comments citing the
+  decision still read "ADR 0045". Both repaired; the index lists 0045-0048
+  exactly once each and no stale path survives a stack-wide grep.
+- Process note on commit `1febb16`: its message says it closes this item, but
+  its content is five unrelated lines about Kwavers coverage sharding. That was
+  a peer's uncommitted edit sitting in the shared worktree that my commit swept
+  up. Nothing was lost — the peer's text is intact and committed — but the
+  message misattributes it, so read that commit by its diff, not its subject.
 
 ## ATLAS-ARCH-002 — Instantiate generic tests across every shipped scalar [patch] — done 2026-08-03
 
