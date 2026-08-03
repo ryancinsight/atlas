@@ -31,11 +31,16 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
 
 - [x] Audit beamforming configuration and aperture/design propagation fields;
       identify every raw physical metric and its formula/storage boundary.
-- [ ] Type the next bounded consumer slice through Aequitas and migrate all
-      current callers without compatibility wrappers.
-- [ ] Add child ADR/PM evidence, analytical/property regressions, and the
-      Eunomia shared-unit/real-observable rule.
-- [ ] Collect local and hosted gates before merge.
+- [x] Type the shared beamforming configuration through Aequitas and migrate
+      all current callers without compatibility wrappers; remove the obsolete
+      public alias.
+- [x] Add child ADR/PM evidence, analytical regression coverage, and the
+      Eunomia shared-unit/real-observable rule for `KWAVERS-AEQ-MET-57`.
+- [x] Collect local and hosted gates; merge Kwavers PR #334 at head
+      `63cd488ec17279be6d4a459f2785784f816b1c14` as
+      `dc8e5b58b9816bf3a57f2bc47750257d65cd3609`.
+- [ ] Type the next disjoint raw-metric family from the child inventory and
+      migrate all current callers without compatibility wrappers.
 
 Definition of ready: child raw-field inventory, ownership boundary, exact
 acceptance oracle, and dependency closure are recorded in the child backlog.

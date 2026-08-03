@@ -273,6 +273,44 @@ hemispherical, MEMS, flexible, and two-dimensional array contracts.
 See the child [`Kwavers gap audit`](repos/kwavers/gap_audit.md) and
 [`Kwavers rectangular-transducer ADR`](repos/kwavers/docs/ADR/095-rectangular-transducer-quantities.md).
 
+## Aequitas consumer gap-audit extension — Kwavers beamforming configuration — 2026-08-03
+
+The next bounded audit found and closed `KWAVERS-AEQ-MET-57`: the shared
+beamforming configuration still exposed sound speed, sampling frequency, and
+reference frequency as raw scalars. `BeamformingCoreConfig` now uses Aequitas
+`Velocity` and `Frequency`; all current analysis, diagnostics, neural,
+localization, PAM, processor, signal-processing, and three-dimensional callers
+use the canonical core configuration. Scalar extraction remains at delay,
+trigonometric, and explicit storage/formula boundaries. The obsolete public
+`BeamformingConfig` alias was removed rather than retained as a compatibility
+wrapper.
+
+Kwavers PR [#334](https://github.com/ryancinsight/kwavers/pull/334), head
+`63cd488ec17279be6d4a459f2785784f816b1c14`, merged as
+`dc8e5b58b9816bf3a57f2bc47750257d65cd3609`. Local locked package checks,
+Clippy with `-D warnings`, full package Nextest (transducer 223/223,
+analysis 725/725, diagnostics 191/191), focused regressions, doctests,
+Rustdoc, Rustfmt, diff checks, and typed/complex residue scans pass. The
+hosted repository-owned matrix, including coverage, feature, Miri, CUDA,
+benchmark, solver, PINN, wheels, security, and documentation gates, passed;
+the benchmark pair was correctly skipped by the changed-path policy.
+
+The external RecurseML analyzer reported an opaque service error for the PR
+range without a source diagnostic. Greptile reached its trial credit limit and
+Gemini Code Assist reports service sunset; these are external report-only
+residuals, not repository source failures.
+
+Aequitas and Eunomia remain compatible for complex observables: Eunomia
+`Complex` buffers retain real and quadrature components under one existing
+physical unit, while beamforming configuration metrics are real-valued. No
+imaginary SI unit or consumer compatibility wrapper was introduced.
+
+Remaining Kwavers raw-metric families are explicitly bounded for subsequent
+increments: sensor-beamformer processing parameters; PAM delay-and-sum and
+neural sensor geometry; aperture/design synthesis; propagation coordinates and
+acoustic impedance; and focused, hemispherical, MEMS, flexible, and
+two-dimensional array contracts.
+
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 
 The audit found and closed `KWAVERS-AEQ-MET-33`, the remaining named-consumer
