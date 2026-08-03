@@ -1154,9 +1154,9 @@
   gate on `cargo nextest run` (or at minimum `cargo check --all-targets`) for
   the touched package, not `cargo check` alone.
 
-## ATLAS-ARCH-007 — Reduce manifest files carrying implementation [patch] — todo
+## ATLAS-ARCH-007 — Reduce manifest files carrying implementation [patch] — in-progress
 
-- Owner: unclaimed; scope: `repos/consus` first, then `CFDrs`, `kwavers`. One
+- Owner: current session; scope: `repos/consus` first, then `CFDrs`, `kwavers`. One
   crate per claim.
 - Outcome: 568 of 11 409 files exceed the 500-line target, 88 exceed 1 000, 11
   exceed 2 000. The sharper defect is **61 `lib.rs`/`mod.rs` files over 500

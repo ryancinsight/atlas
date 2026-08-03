@@ -1,5 +1,28 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-ARCH-007 partial — manifest file decomposition batch 1 — 2026-08-02
+
+Decomposed 10 oversized `mod.rs`/`lib.rs` files. Each reduced to docs, module
+declarations, and `pub use` re-exports only.
+
+| File | Before | After (mod.rs) | Commit |
+|---|---|---|---|
+| consus-nwb/src/file/mod.rs | 2032 L | 53 L | d970dab |
+| consus-zarr/src/chunk/mod.rs | 1958 L | 17 L | 17e6567 |
+| consus-parquet/src/writer/mod.rs | 1915 L | ~30 L | 5190855 |
+| consus-nwb/src/validation/mod.rs | 1780 L | ~25 L | 2d18f98 |
+| consus-nwb/src/storage/mod.rs | ~1300 L | ~20 L | 90e2951 |
+| leto-python/src/lib.rs | 1416 L | 576 L | 520f248 |
+| kwavers-math/src/fft/mod.rs | 725 L | ~30 L | 03b749d98 |
+| kwavers-python/src/simulation_py/mod.rs | 785 L | 23 L | 2eb38bcb4 |
+| consus-hdf5/src/attribute/mod.rs | ~750 L | ~15 L | 36c2a35 |
+| consus-hdf5/src/filter/mod.rs | 627 L | 321 L | fa4abf6 |
+
+Additional in-flight: consus-fits/table, consus-arrow/conversion,
+consus-parquet/dataset (background agents).
+
+
+
 ## ATLAS-ARCH-006 closure — junk-drawer module elimination — 2026-08-02
 
 All 64 original `mod utils`, `mod helpers`, `mod common`, `mod shared`
