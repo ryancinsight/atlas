@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Merge Kwavers PR #341 (`e3389e79`) for typed two-dimensional transducer-array
+  geometry, curvature, focus, frequency, velocity, steering, and delay
+  contracts through Aequitas. Center-to-center pitch generation is corrected;
+  Python retains SI/degree scalars only at serialization boundaries. Eunomia
+  real/quadrature values retain one observable signal unit with no imaginary SI
+  unit. Hosted Code Coverage `91842334110` and Test Suite Coverage
+  `91842333977` pass; the RecurseML analyzer remains report-only.
+
 - [minor] Advance the Leto/CFDrs provider graph to merged sparse-LU native-view
   ownership. CFDrs direct solves no longer stage the native RHS or returned
   solution through consumer-owned `Vec` buffers; no release is performed.

@@ -1,5 +1,42 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer gap-audit extension — Kwavers 2-D array — 2026-08-03
+
+Kwavers MET-62 closes the two-dimensional transducer-array metric family in
+PR [#341](https://github.com/ryancinsight/kwavers/pull/341). The source head
+`3e053bd56d7ec656ba8b5e13ab5ed2221cc1fd60` merged as
+`e3389e798a2b5bb2a4d7c34e0fe8d5f7fa49f650`. Rust 2-D array configuration,
+element, builder, source, Rayleigh-Sommerfeld, and Python simulation mesh
+contracts now use Aequitas `Length`, `Velocity`, `Frequency`, `Time`, and
+`Angle` values. Flat versus finite cylindrical curvature is explicit,
+no-focus is `Option<Length>`, and transmit/receive weights remain
+dimensionless. The direct Python surface retains SI scalars and degree angles
+only at the explicit serialization boundary.
+
+The audit also found and corrected a center-to-center pitch defect: generated
+element centers previously added element width to the configured spacing.
+Analytical regressions cover adjacent-center pitch, cylindrical radius/sag,
+invalid radius, no-focus state, and typed delay values. Scalar extraction is
+limited to validation, trigonometric/delay formulas, mesh/index construction,
+and source/Python serialization. ADR 101 records the contract and rejected
+infinity-sentinel alternative.
+
+The Eunomia compatibility rule is explicit: geometry is real, and coherent
+real/quadrature signal components retain one observable signal unit. No
+imaginary length, angle, delay, or complex physical wrapper is introduced.
+Local evidence is transducer Nextest 228/228 with one skip, strict offline
+Clippy for transducer and Python with `-D warnings`, the transducer doctest
+1/1 with six ignored, Python binding compilation, formatting, diff, and scoped
+raw-unit scans. The final hosted repository-owned matrix passes, including
+Code Coverage `91842334110`, Test Suite Coverage `91842333977`, stable/beta/
+nightly, feature, CUDA, Miri, security, solver, benchmark, documentation,
+architecture, migration, and wheel gates. RecurseML analysis remains the
+known report-only analyzer failure.
+
+MET-62 is closed. Focused/hemispherical, MEMS, flexible, and other remaining
+array families remain separate audit candidates until their direct public
+contracts are inspected; no raw-metric removal is claimed for those scopes.
+
 ## Aequitas consumer gap-audit extension — Kwavers acquisition geometry — 2026-08-03
 
 Kwavers MET-61 closes the shared acquisition-geometry metric family in PR

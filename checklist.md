@@ -33,23 +33,29 @@ Acceptance: no raw physical scalar remains in the bounded transducer
 design/propagation public contracts; focused real/quadrature values retain one
 observable pressure signal unit; hosted repository-owned gates pass.
 
-## ATLAS-AEQUITAS-CONSUMERS-009 — Kwavers 2-D array metric audit — in progress
+## ATLAS-AEQUITAS-CONSUMERS-009 — Kwavers 2-D array metric audit — done 2026-08-03
 
 Owner: `codex/kwavers-aequitas-2d-array`  
 Claimed scope: `crates/kwavers-transducer/src/array_2d/`, its direct callers,
 and the corresponding Kwavers PM artifacts.
 
-- [ ] Enumerate the 2-D array configuration, element, and source contracts;
+- [x] Enumerate the 2-D array configuration, element, and source contracts;
       classify raw dimensions, curvature, positions, delays, frequencies,
       and angles, including the flat-array representation.
-- [ ] Decide the typed representation for finite curvature versus a flat
+- [x] Decide the typed representation for finite curvature versus a flat
       array before editing callers; preserve the distinction without encoding
       infinity as a physical `Length`.
-- [ ] Type the public contract and migrate every direct caller without
+- [x] Type the public contract and migrate every direct caller without
       compatibility wrappers; extract scalars only at numerical and mesh
       boundaries.
-- [ ] Add analytical geometry and boundary regressions, synchronize Kwavers
+- [x] Add analytical geometry and boundary regressions, synchronize Kwavers
       PM artifacts, and collect local plus hosted evidence.
+- [x] Merge Kwavers PR #341 at source head `3e053bd56` as merge commit
+      `e3389e798`; all repository-owned CI gates (Build & Test stable/beta/nightly,
+      Code Coverage `91842334110`, Test Suite Coverage `91842333977`, Feature
+      Combinations, CUDA, wheels, benchmark, documentation, architecture,
+      security, Miri, solver, and audit gates) pass. RecurseML remains
+      report-only and failed with its known analyzer error.
 
 Acceptance: the 2-D array public contracts have no unclassified raw physical
 metrics, flat and finite curvature are represented distinctly, direct callers
