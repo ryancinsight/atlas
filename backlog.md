@@ -1059,10 +1059,13 @@
   capability predicate exists; the shared suite asserts IEEE semantics only where
   advertised, and asserts the rejection path where not.
 
-## ATLAS-ARCH-009 — Decide whether hephaestus-metal remains a crate [arch] — todo
+## ATLAS-ARCH-009 — Decide whether hephaestus-metal remains a crate [arch] — in-progress
 
-- Owner: unclaimed; scope: `repos/hephaestus/crates/hephaestus-metal` and the
-  workspace member list. Decision first, as an ADR; no code moves before it.
+- Owner: claude/fable-loop (claimed 2026-08-03); scope:
+  `repos/hephaestus/crates/hephaestus-metal` and the workspace member list.
+  Decision first, as an ADR; no code moves before it. Unblocked: its
+  dependency ATLAS-ARCH-001 is done, so the conformance suite is settled
+  and will not be rewritten twice.
 - Raised by the
   [conformance triage](docs/audit/2026-07-28-computebackend-conformance-triage.md)
   §"topology", which established the evidence but deliberately did not decide.
