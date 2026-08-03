@@ -378,7 +378,9 @@ frequency, and sound speed, while neural DAS accepts raw steering angles in
 `crates/kwavers-analysis/src/signal_processing/beamforming/neural/{config/geometry.rs,beamformer/das.rs}`.
 These are candidate Aequitas `Length`, `Frequency`, `Time`, `Velocity`, and
 `Angle` boundaries; sample indices, channel counts, intensities, confidence,
-and apodization weights remain dimensionless or representation values. No
+and apodization weights remain dimensionless or representation values. The
+PAM-wide `threshold` field still lacks a declared physical semantic and must
+be classified from its consuming formula before any unit is assigned. No
 imaginary SI unit is indicated by this inventory; complex signal buffers, if
 introduced at a formula/storage boundary, retain one observable unit for real
 and quadrature components.
