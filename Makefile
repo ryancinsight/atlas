@@ -7,6 +7,7 @@ help:
 	@echo "Atlas developer targets:"
 	@echo "  make check-mdbook-links  Verify internal mdBook links across all four books"
 	@echo "  make build-mdbooks       Build all four mdBooks"
+	@echo "  make fmt-check           cargo fmt --check across every stack member"
 
 check-mdbook-links:
 	python3 scripts/check_mdbook_links.py $(BOOKS)
@@ -17,3 +18,6 @@ build-mdbooks:
 		 echo "=== building $$book ==="; \
 		 (cd "$$book" && mdbook build); \
 	done
+
+fmt-check:
+	@python scripts/atlas-fmt-check.py
