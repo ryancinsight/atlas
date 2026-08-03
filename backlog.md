@@ -2314,7 +2314,7 @@
   (`codex/mnemosyne-tier-selection`, clean). The `coeus` facade — the flagship
   case for this item — is among them.
 
-## ATLAS-PUB-007 — Rename `mnemosyne-core`: the stack's publish critical path [patch] — todo
+## ATLAS-PUB-007 — Rename `mnemosyne-core`: the stack's publish critical path [patch] — done 2026-08-03
 
 > **Highest-priority publishing item.** `mnemosyne-core` sits in publish wave 0
 > and has **172 transitive dependents**, and its crates.io name is taken by an
