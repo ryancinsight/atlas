@@ -256,7 +256,7 @@
   differential clause; **every tolerance cites its derivation** from the
   condition number and growth factor rather than the constants currently inline.
 
-## ATLAS-SUBSTRATE-004 — Consolidate Apollo's per-transform scaffold [arch] — in-progress
+## ATLAS-SUBSTRATE-004 — Consolidate Apollo's per-transform scaffold [arch] — done 2026-08-02
 
 - Owner: claude/fable-loop (claimed 2026-08-02); scope this increment: survey
   the 19-crate scaffold, design the generic plan/execution layer (ADR), land
@@ -378,10 +378,34 @@
   dctdst's lone validator folded into typed.rs) — zero
   helpers/utils modules remain in the workspace; the cuda survey
   closed by finding (only apollo-fft carries a cuda transport, its own
-  provider). Eight crates 771/771 on hardware. Remaining
-  SUBSTRATE-004 residual: the per-crate typed-storage/f64-scratch
-  plan-layer duplication (TYPED_*64_SCRATCH pattern) — assess whether
-  a shared CPU-side workspace vocabulary pays, or record acceptance — it HAS a gpu transport tree, nonstandard shape;
+  provider). Eight crates 771/771 on hardware. **ITEM
+  CLOSED 2026-08-02**: the ADR 0039 section-4 acceptance is met — one
+  generic plan/execution layer in apollo-fft (ADR 0037, Accepted, with
+  the nufft exemption recorded), sixteen adoptions with every scaffold
+  copy deleted, zero junk-drawer modules, cuda survey closed. The
+  CPU-tier typed-storage duplication surveyed at closure (fourteen
+  crates with to_f64/from_f64 or to_complex64/from_complex64 conversion
+  impls + f64/Complex64 scratch pools — the GpuStorage shape one
+  precision tier up) is decomposed into ATLAS-SUBSTRATE-005 below
+  rather than widening this item.
+
+## ATLAS-SUBSTRATE-005 — Shared CPU-tier storage vocabulary for Apollo [arch] [minor] — todo
+
+- Owner: unclaimed; scope: a `CpuStorage<E: CpuElement = f64>` family in
+  apollo-fft (elements f64/Complex64 with per-element scratch pools,
+  mirroring the shipped GpuStorage/GpuElement design), then per-crate
+  migration of the fourteen conversion-impl copies; the plan-coupled
+  dispatch methods stay in each crate's storage trait, which gains the
+  shared vocabulary as a supertrait.
+- Evidence: fourteen crates re-implement the identical
+  f32/f64/f16-to-f64 (and complex) conversion ladder with private
+  PROFILE consts and private scratch pools; a new scalar admission
+  (bf16) today means fourteen edits.
+- Acceptance: conversion impls exist once in apollo-fft; each migrated
+  crate's storage trait derives its conversions from the shared
+  supertrait; existing per-transform CPU tests pass untouched.
+- Decision: extends apollo ADR 0037's storage section; record as a
+  dated revision when the layer lands. — it HAS a gpu transport tree, nonstandard shape;
   plan-layer and cuda-transport sweeps) (dctdst separable, sft sparse, mellin bounds,
   radon/sht/stft/nufft grid-shaped, ntt exemption-or-adopt, plus the
   plan-layer and cuda-transport sweeps) (dctdst separable,
