@@ -1188,30 +1188,48 @@
   `HephaestusBackend<P>`. The only content not reproducible from a ~56-line
   provider marker is one `fill_zero` override.
 
-## ATLAS-OVERLAY-GEN-STALE-1 — Overlay generator regressed by the package renames [patch] — todo
+## ATLAS-OVERLAY-GEN-STALE-1 — Cross-repo path deps on member mainlines [arch] — todo (needs user decision)
 
-- Owner: unclaimed; scope: `scripts/atlas-stack-overlay.py` and
-  `.cargo/config.toml`.
-- `python scripts/atlas-stack-overlay.py generate` is **not a fixed point**
-  against the committed overlay: it emits 38 lines fewer, reporting
-  `skipped (no local tree)` for `mnemosyne`, `mnemosyne-core`, `moirai`, and
-  `themis`. Those are the pre-rename package names. The packages are now
-  `mnemosyne-memory`, `mnemosyne-memory-core`, `moirai-runtime`, and
-  `themis-topology` (the patch table was corrected by hand in `b2ee610`), so
-  the generator's name-to-tree resolution misses them and silently drops
-  their patch entries.
-- Consequence: running `generate` — which the generator contract says is the
-  *only* sanctioned way to touch this file — currently regresses local
-  resolution for four first-party crates. Anyone regenerating after a member
-  change gets a broken overlay and no error; the generator's own contract
-  requires regeneration to be idempotent and every emitted entry validated.
-- Found 2026-08-03 while executing ATLAS-ARCH-010, which needed a
-  regeneration after removing a member crate. Worked around there by
-  restoring the committed file from its blob.
-- Acceptance: `generate` run twice in a row produces no diff, and produces no
-  diff against the committed overlay on an unchanged tree; the four renamed
-  packages resolve to their local trees; a regenerate-and-diff freshness
-  check runs in the sweep so this fails loudly next time.
+- Owner: unclaimed; scope: `.cargo/config.toml`, `scripts/atlas-stack-overlay.py`,
+  and the member manifests listed below. **Held for a user decision** — see the
+  conflict at the end.
+- **My 2026-08-03 diagnosis on this item was wrong and is corrected here.** I
+  filed it as "the generator is stale against the package renames". It is not.
+  Run twice in a row the generator is byte-identical (`cmp` clean), and it emits
+  the same 38-line reduction against the committed overlay each time. It is
+  idempotent and its output is *correct*.
+- The real cause: the generator derives the overlay from the **git**-dependency
+  closure, and six members no longer declare git dependencies — they were
+  migrated to cross-repo path dependencies. So the generator rightly stops
+  emitting patches for them, and the committed overlay is what is stale,
+  carrying dead entries (`apollo-nufft`, `apollo-sht`, `asclepius-coeus`,
+  `athena-leto`, and an entire `[patch."…/coeus"]` section).
+- Measured 2026-08-03, path deps that **escape their own repo** (intra-workspace
+  `../sibling` paths excluded by resolving each path against its repo root):
+  athena 36, kwavers 31, helios 29, leoneuro-rs 25, ritk 22, CFDrs 20 —
+  **163 total**. Example: `repos/kwavers/Cargo.toml` → `../../repos/aequitas`.
+- These landed deliberately in `b2ee610` ("Migrate kwavers/cfdrs/helios/ritk to
+  local path deps", authored by a non-Claude agent). Two notes on that commit:
+  its body claims the migration covers manifests whose recorded gitlinks do not
+  in fact contain it, and it states plainly that it landed with builds still
+  failing ("remaining build failures are pre-existing code errors").
+- **The conflict, which is why this is not being fixed unilaterally.** Standing
+  stack policy is that member manifests keep `git + version` sources and the
+  root `[patch]` overlay owns local resolution — a member carrying path deps is
+  unconsumable as a git dependency, and the two mechanisms now contradict each
+  other. The mechanical fix is to convert all 163 back and regenerate. But that
+  is a 6-repo revert of another agent's deliberate, stated intent, and three of
+  those repos currently have live peer branches (`coeus` mid-publish-cycle,
+  `CFDrs` on a codex branch, `ritk` on a feature branch). Reverting a peer's
+  intentional migration at that blast radius is a call for the user, not for an
+  autonomous tick.
+- Whichever way it goes, one of the two mechanisms should be retired rather than
+  left in contradiction: either the path deps convert back and the overlay stays
+  authoritative, or the overlay is deliberately narrowed and the generator's
+  freshness check updated so `generate` stops looking like a regression.
+- Note for whoever measures this again: a naive `grep 'path = "\.\./'` is
+  useless here — it counts ordinary intra-workspace sibling paths and reported
+  473. Resolve each path against its repo root and keep only the escapes.
 
 
 ## ATLAS-HEPH-ADR-NUM-1 — Two ADRs both numbered 0045 [patch] — todo
