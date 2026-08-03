@@ -1215,7 +1215,8 @@
   `athena-leto`, and an entire `[patch."…/coeus"]` section).
 - Measured 2026-08-03, path deps that **escape their own repo** (intra-workspace
   `../sibling` paths excluded by resolving each path against its repo root):
-  athena 36, kwavers 31, helios 29, leoneuro-rs 25, ritk 22, CFDrs 20 —
+  athena 36, kwavers 31, helios 29, ritk 22, CFDrs 20, plus 25 in a private
+  downstream consumer —
   **163 total**. Example: `repos/kwavers/Cargo.toml` → `../../repos/aequitas`.
 - These landed deliberately in `b2ee610` ("Migrate kwavers/cfdrs/helios/ritk to
   local path deps", authored by a non-Claude agent). Two notes on that commit:
@@ -1449,6 +1450,61 @@
   production-only, ranked by traversal hotness rather than raw count — and
   only then the CSR conversions with their criterion evidence. A raw
   `Vec<Vec<` count is not a defect list.
+- **Site list delivered 2026-08-03.** A classifier now separates production
+  containers from `#[cfg(test)]`-guarded and `tests/`/`benches/`/`examples/`
+  bindings, and it carries two self-checks derived from files read by hand —
+  it refuses to print numbers unless it reproduces both. That gate earned its
+  keep: the first version failed, because it matched only the bare
+  `#[cfg(test)]` and the consus module is gated
+  `#[cfg(all(test, feature = "alloc"))]`. Any cfg predicate carrying a bare
+  `test` token now counts, with string literals stripped first so a
+  `feature = "test-utils"` value cannot pose as the predicate.
+- Verified totals: **297 production, 73 test/bench-local** (370 raw). So ~20%
+  of the recorded 318 was never a defect.
+- **There is no hotspot, and that changes how this item should be worked.**
+  Production counts per repo are ritk 81, kwavers 70, CFDrs 46, gaia 37,
+  consus 24, coeus 12, apollo 6, moirai 5, leto 2 — but the top *file* has 10
+  (in a private downstream consumer, out of stack scope), the next has 6, and
+  everything after is a tail of 4s and 3s across unrelated subsystems
+  (`coeus-autograd/.../ctc.rs` 6; `ritk-vtk/.../poly_data.rs`,
+  `ritk-filter/.../anti_alias_binary/solver.rs`,
+  `cfd-optim/.../search/genetic.rs`, `consus/src/sync/mod.rs` 4 each).
+  There is no "fix the top three files" increment available.
+- Consequence for the acceptance oracle: ranking by *count* is worthless here.
+  A claimant should pick sites by traversal hotness — profile first, per the
+  measurement-first rule — and convert the ones that a profile implicates,
+  recording the rest as correct-as-jagged. The classifier lives in the session
+  scratchpad; it should be committed under `scripts/` if this item is claimed,
+  since re-deriving it is the expensive part (toil automation).
+
+## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
+
+- Owner: unclaimed; scope: `backlog.md`, `gap_audit.md`,
+  `docs/adr/0036-neuroimaging-and-mr-ownership.md`, and
+  `PATH_DEP_AUDIT_2_ENTRY.md`.
+- The consumer at `repos/leoneuro-rs/` is a private external org's code drop:
+  gitignored at `.gitignore:60`, no `.gitmodules` entry, no
+  `submodule.*` keys, remote on a different GitHub org. ATLAS-GIT-HYGIENE-001
+  confirmed that arrangement is deliberate design, not a stale rule.
+- Standing policy for such a consumer is that it stays out of the stack map
+  entirely — the gitignore entry is the only sanctioned trace, and upstream
+  items it motivates cite "a downstream consumer" generically. Its name is
+  currently in four tracked artifacts, including an ADR and the closed
+  audit ledger, across roughly a dozen references.
+- I redacted only the one reference I added myself (in
+  ATLAS-OVERLAY-GEN-STALE-1's measurement). The rest is **not** being swept
+  unilaterally: several sit in closed items' audit trails and an Accepted ADR,
+  where a blind rename would break the traceability those records exist to
+  provide, and peers reference those item names.
+- The decision needed: does this consumer's name count as confidential for
+  artifact purposes? If yes, the sweep should be one deliberate pass that
+  rewrites references generically and preserves each record's meaning
+  (git history keeps the old text either way — the redaction is forward-only).
+  If no, the standing rule should be recorded as not applying here, so this
+  keeps being re-raised.
+- Adjacent, unrelated to the naming question: `PATH_DEP_AUDIT_2_ENTRY.md` sits
+  at the repository root, where the root-manifest rule admits no loose report
+  files. Its content belongs in the closed item it serves.
 
 ## ATLAS-ARCH-CYCLE-001 — Break the CFDrs -> gaia -> CFDrs repository cycle [arch] — done
 
