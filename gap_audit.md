@@ -1,6 +1,44 @@
 # atlas — cross-repository integration gap audit
 
-## ATLAS-ARCH-007 partial — manifest file decomposition batch 1 — 2026-08-02
+## ATLAS-ARCH-007 partial — manifest file decomposition batch 2 — 2026-08-02
+
+Additional 24 files decomposed in batch 2 (continuing from batch 1's 10):
+
+| Repository | File | Commit |
+|---|---|---|
+| consus-fits | table/mod.rs | 59558cf |
+| consus-arrow | conversion/mod.rs | 9e76961 |
+| consus-parquet | dataset/mod.rs | 9700e5f |
+| consus-nwb | namespace/mod.rs | 0f2ef8b |
+| consus-hdf5 | link/mod.rs | 79f35e5 |
+| consus-zarr | metadata/mod.rs | c699cec |
+| consus-nwb | conventions/mod.rs | 593f30d |
+| consus-fits | hdu/mod.rs | 630d5b2 |
+| consus-parquet | conversion/mod.rs | 3492438 |
+| consus-fits | file/mod.rs | 7adcd4f |
+| hermes-simd | dispatch/mod.rs | 090eac7 |
+| coeus-python | tensor/pyimpl/mod.rs | 6e906dd1 |
+| ritk-nifti | header/mod.rs | f1938cd0 |
+| ritk-nrrd | reader/mod.rs | a53f54c8 |
+| ritk-tck | lib.rs | 4a43fa00 |
+| ritk-tractography | lib.rs | 2d42d535 |
+| ritk-trk | lib.rs | 7b69678f |
+| ritk-trx | lib.rs | 544a5161 |
+| hermes-simd-core | vec/mod.rs | cef8d7f |
+| kwavers-solver | integrator/mod.rs | ce75a256e |
+| cfd-2d | serpentine_flow/mod.rs | feb5069b |
+| cfd-2d | momentum/boundary/mod.rs | 28032cf4 |
+| cfd-validation | reporting/mod.rs | fab91acf |
+| coeus-python | lib.rs (NoGradCtx) | cdcd62fe |
+
+**Total: 34 files decomposed** across consus, hermes, ritk, kwavers, CFDrs, coeus, leto.
+Remaining high-value targets (domain cohesion args against full split, or in-progress):
+- consus-hdf5/file/mod.rs: one cohesive Hdf5File impl (domain cohesion rule, skip)
+- CFDrs/cascade_junction: mostly tests (domain cohesion)  
+- kwavers-solver/self_adjoint: already has `mod tests;`, production code is small
+- CFDrs/cascade, hemolysis, solver/core, gmg still viable targets
+
+
 
 Decomposed 10 oversized `mod.rs`/`lib.rs` files. Each reduced to docs, module
 declarations, and `pub use` re-exports only.
