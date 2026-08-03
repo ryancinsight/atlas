@@ -1,5 +1,45 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer gap-audit extension — Kwavers acquisition geometry — 2026-08-03
+
+Kwavers MET-61 closes the shared acquisition-geometry metric family in PR
+[#340](https://github.com/ryancinsight/kwavers/pull/340). The merged child
+revision is `9a6aac1ce04390339b317296e7b16316dc134cc9`, with source head
+`a6cd74547e7fa4af6137ebf9054f3c1a9132548f`. `ElementPosition` coordinates,
+transcranial bowl radius, multi-row ring diameter and row spacing, breast-FWI
+ring geometry, and CBS/linear-Born geometry callers now use Aequitas `Length`.
+Scalar extraction is restricted to Euclidean distance, mesh, and numerical
+formula boundaries; Python retains raw values only at its explicit
+serialization boundary. The absorption reference assertion now uses a
+scale-relative 16-ulp bound derived from the composed conversion operations.
+
+The Eunomia compatibility rule remains explicit: real and quadrature values
+are components of one observable signal, not imaginary SI quantities. No
+imaginary length, complex-unit wrapper, or scalar compatibility path is
+introduced. Local evidence is core Nextest 3074/3074 with six skips, the
+changed top-level integration suite 6/6, warning-denied Clippy, formatting,
+diff, and residue scans. The final hosted repository-owned matrix passed,
+including Code Coverage `91827476450`, Test Suite Coverage `91827477067`,
+Miri, security, feature, CUDA, solver, benchmark, architecture,
+documentation, migration, and wheel gates. PR #340 merged as
+`9a6aac1ce04390339b317296e7b16316dc134cc9`.
+
+MET-61 is closed. The next Kwavers audit frontier is the 2-D array family,
+followed by focused/hemispherical and MEMS/flexible families. Those frontiers
+remain open until their direct callers and flat-array curvature semantics are
+audited; no raw-metric removal is claimed for them here.
+
+Helios PR [#36](https://github.com/ryancinsight/helios/pull/36) remains a
+separate integration residual, not a new metric gap. Its current hosted
+checkout fails before compilation because `checkout-path-dependencies` rejects
+the committed `../../repos/...` path sources as outside the provider
+destination; the benchmark job is blocked by the same error. The book job
+also fails because the workflow invokes the unavailable `mdbook-linkcheck`
+binary. The branch is peer-owned and remains unmodified in this audit; its
+exact re-open condition is a corrected provider source policy plus an
+installed or explicitly optional linkcheck backend, followed by the full
+locked matrix.
+
 ## Aequitas consumer gap-audit extension — Kwavers transducer design and propagation — 2026-08-03
 
 Kwavers MET-60 implements the next transducer-design metric family in PRs
@@ -27,25 +67,6 @@ feature combinations, CUDA, Miri, security, solver, PINN, benchmark, quality,
 architecture, documentation, and layer-boundary jobs all passed. The external
 RecurseML analysis remained report-only and failed with its known analysis
 error.
-
-MET-60 is closed. The next concrete Kwavers gap is shared acquisition geometry:
-`ElementPosition`
-still exposes Cartesian coordinates as raw metres, while `TransducerGeometry`
-is consumed by transcranial bowl and multi-row ring FWI paths. The follow-up
-should type those coordinates and the constructors' radius/diameter/row-spacing
-values as Aequitas `Length`, extracting only at Euclidean, mesh, and numerical
-kernel boundaries. Focused/hemispherical, MEMS/flexible, and 2-D array families
-remain separate candidates until their direct caller closure is enumerated.
-
-Helios PR [#36](https://github.com/ryancinsight/helios/pull/36) remains a
-separate integration residual, not a new metric gap. Its current hosted
-checkout fails before compilation because `checkout-path-dependencies` rejects
-the committed `../../repos/...` path sources as outside the provider
-destination; the benchmark job is blocked by the same error. The book job also
-fails because the workflow invokes the unavailable `mdbook-linkcheck` binary.
-The branch is peer-owned and remains unmodified in this audit; its exact
-re-open condition is a corrected provider source policy plus an installed or
-explicitly optional linkcheck backend, followed by the full locked matrix.
 
 ## Aequitas consumer gap-audit closure — Kwavers PAM/neural metrics — 2026-08-03
 

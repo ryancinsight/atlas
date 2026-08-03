@@ -35,6 +35,15 @@
   `91794808091` pass, with the external RecurseML analysis remaining
   report-only.
 
+- Merge Kwavers MET-61 for typed acquisition geometry: element coordinates,
+  bowl radius, ring diameter and row spacing, breast-FWI geometry, and CBS/
+  Born numerical callers now use Aequitas `Length` through PR #340. The
+  absorption reference assertion uses a scale-relative 16-ulp bound. Eunomia
+  real/quadrature values retain one observable signal unit with no imaginary SI
+  unit. PR #340 merged at `9a6aac1c`; hosted Code Coverage `91827476450` and
+  Test Suite Coverage `91827477067` pass with the complete repository-owned
+  matrix.
+
 ### Added
 
 - File ADR 0030 to promote published Hyperion as the bounded photon/optical

@@ -24,13 +24,32 @@
       #339 at their final green heads; child merge `3f96514d` and hosted Code
       Coverage `91794809116` plus Test Suite Coverage `91794808091` pass. The
       external RecurseML analysis remains report-only and failed.
-- [ ] Start the next disjoint acquisition-geometry family after this WIP slot
-      closes: typed `ElementPosition` coordinates and ring/bowl radius,
-      diameter, and row-spacing contracts.
+- [x] Close the acquisition-geometry follow-up in Kwavers PR #340 at source
+      head `a6cd74547` and merge commit `9a6aac1c`; hosted Code Coverage
+      `91827476450` and Test Suite Coverage `91827477067` plus the complete
+      repository-owned matrix pass.
 
 Acceptance: no raw physical scalar remains in the bounded transducer
 design/propagation public contracts; focused real/quadrature values retain one
 observable pressure signal unit; hosted repository-owned gates pass.
+
+## ATLAS-AEQUITAS-CONSUMERS-009 — Kwavers 2-D array metric audit — ready
+
+- [ ] Enumerate the 2-D array configuration, element, and source contracts;
+      classify raw dimensions, curvature, positions, delays, frequencies,
+      and angles, including the flat-array representation.
+- [ ] Decide the typed representation for finite curvature versus a flat
+      array before editing callers; preserve the distinction without encoding
+      infinity as a physical `Length`.
+- [ ] Type the public contract and migrate every direct caller without
+      compatibility wrappers; extract scalars only at numerical and mesh
+      boundaries.
+- [ ] Add analytical geometry and boundary regressions, synchronize Kwavers
+      PM artifacts, and collect local plus hosted evidence.
+
+Acceptance: the 2-D array public contracts have no unclassified raw physical
+metrics, flat and finite curvature are represented distinctly, direct callers
+are migrated, and Eunomia uses no imaginary SI unit.
 
 ## ATLAS-AEQUITAS-CONSUMERS-007 — Kwavers PAM/neural metric closure — done
 
