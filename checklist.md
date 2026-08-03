@@ -61,6 +61,29 @@ Acceptance: the 2-D array public contracts have no unclassified raw physical
 metrics, flat and finite curvature are represented distinctly, direct callers
 are migrated, and Eunomia uses no imaginary SI unit.
 
+## ATLAS-AEQUITAS-CONSUMERS-010 — Kwavers focused-source metric audit — in progress
+
+Owner: `codex/kwavers-aequitas-focused`  
+Claimed scope: `crates/kwavers-transducer/src/transducers/focused/`, its direct
+Rust/Python callers, and the corresponding Kwavers PM artifacts.
+
+- [ ] Enumerate focused bowl, arc, spherical-cap, and multi-bowl physical
+      contracts and their direct callers; classify geometry, timing, frequency,
+      pressure, area, and dimensionless metrics.
+- [ ] Select the Aequitas representation for real geometry and optional focus
+      state; preserve scalar extraction only at formula, mesh, and explicit
+      serialization boundaries.
+- [ ] Type the public contracts and migrate every direct caller without
+      compatibility wrappers; preserve Eunomia's one-observable-unit rule for
+      coherent real/quadrature signals.
+- [ ] Add analytical geometry/source regressions, ADR, and synchronized child
+      PM artifacts; collect local and hosted evidence.
+
+Acceptance: no unclassified raw physical metric remains in the focused-source
+scope; geometry, source timing, and pressure values retain analytical semantics;
+direct callers compile against typed APIs; no imaginary physical unit is
+introduced.
+
 ## ATLAS-AEQUITAS-CONSUMERS-007 — Kwavers PAM/neural metric closure — done
 
 - [x] Audit PAM delay-and-sum, PAM configuration, neural sensor geometry, and
