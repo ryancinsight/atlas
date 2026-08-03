@@ -1203,7 +1203,7 @@
   gate on `cargo nextest run` (or at minimum `cargo check --all-targets`) for
   the touched package, not `cargo check` alone.
 
-## ATLAS-ARCH-007 — Reduce manifest files carrying implementation [patch] — in-progress
+## ATLAS-ARCH-007 — Reduce manifest files carrying implementation [patch] — done
 
 - Owner: current session; scope: `repos/consus` first, then `CFDrs`, `kwavers`. One
   crate per claim.

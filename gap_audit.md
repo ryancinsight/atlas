@@ -29,7 +29,45 @@ Additional 18 files decomposed in batch 3:
 
 
 
-## ATLAS-ARCH-007 batch 4 — manifest file decomposition — 2026-08-02
+## ATLAS-ARCH-007 batch 5 — manifest file decomposition — 2026-08-02
+
+Additional files decomposed in batch 5:
+
+| Repository | File | Commit |
+|---|---|---|
+| apollo-radon | gpu/mod.rs | 23f43de |
+| apollo-sft | gpu/mod.rs | d78b109 |
+| apollo-sht | gpu/mod.rs | b4c12ab |
+| apollo-mellin | gpu/mod.rs | 16f1b88 |
+| apollo-gft | gpu/mod.rs | 1961a7f |
+| apollo-ntt | gpu/mod.rs | 35f4b74 |
+| mnemosyne-backend | backends/cuda/mod.rs | d18eac8 |
+| mnemosyne | lib.rs | 433a37c |
+| moirai-transport | lib.rs | 67cadf4 |
+| moirai-core | channel/mpmc/mod.rs | 90fcf3d |
+| moirai-core | channel/mod.rs | 2a9df6b |
+| cfd-2d | turbulence/boundary_conditions/mod.rs | 5d972bd2 |
+| consus-hdmf | file/mod.rs | 8084d23 |
+| kwavers-phantom | scatterers/mod.rs | 4bd053df3 |
+| ritk-io | lib.rs | 0b591109 |
+
+**Grand total: ~64 files decomposed** across consus, hermes, ritk, kwavers, CFDrs, apollo, coeus, moirai, mnemosyne.
+
+Remaining files above 15KB threshold (all have valid skip reasons):
+- cascade_junction/mod.rs (52K): 170L prod + 1000L tests
+- consus-hdf5/file/mod.rs (42K): one Hdf5File impl — domain cohesion
+- self_adjoint/mod.rs (33K): complex test-helper mix
+- scoring/mod.rs (28K): mostly tests
+- critic/mod.rs (23K): one large function — domain cohesion
+- hermes-simd-core/view/mod.rs: private helpers shared across child mods
+- transducer/mod.rs (21K): already a proper manifest (tests only)
+- coeus-wgpu/ops/mod.rs (21K): cohesive dispatch — domain cohesion
+- leto-python/lib.rs (20K): 372L after extraction — acceptable
+- Various test-only files
+
+ATLAS-ARCH-007 effectively complete for all viable targets.
+
+
 
 Additional files decomposed in batch 4 (continuing from batches 1-3):
 
