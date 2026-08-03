@@ -6,7 +6,7 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
-## ATLAS-AEQUITAS-CONSUMERS-005 — Kwavers ultrafast geometry metric extensions
+## ATLAS-AEQUITAS-CONSUMERS-005 — Kwavers ultrafast geometry metric extensions — done
 
 - [x] Audit the adjacent Kwavers plane-wave and diverging-wave public
       contracts and identify raw geometry, timing, angle, frequency,
@@ -17,15 +17,28 @@
       shared-unit/real-observable rule with no imaginary SI unit.
 - [x] Collect local locked check, Nextest 219/219, Clippy, doctest, Rustdoc,
       Rustfmt, diff, and typed/complex residue evidence.
-- [ ] Collect the hosted repository-owned matrix and merge Kwavers PR #333 at
-      corrected head `0b38f2d3e`.
+- [x] Collect the hosted repository-owned matrix and merge Kwavers PR #333 at
+      head `8ffb198bc`; merge commit `b2c437bab011d99d6403e23b4a373905f7905cde`.
 
 Acceptance: no missing metric remains in the bounded plane/diverging-wave
 scope, local and hosted repository-owned gates pass, and no imaginary-unit
 physical contract is introduced.
 
-Current residual: PR #333 is open at `0b38f2d3e`; hosted checks are running.
-The external `recurseml/analysis` error is report-only.
+Current residual: local simulation doctest and FNM smoke collection exceed the
+300-second shared-target bound without a diagnostic; hosted equivalents pass.
+
+## ATLAS-AEQUITAS-CONSUMERS-006 — Kwavers beamforming and design metric extensions
+
+- [ ] Audit beamforming configuration and aperture/design propagation fields;
+      identify every raw physical metric and its formula/storage boundary.
+- [ ] Type the next bounded consumer slice through Aequitas and migrate all
+      current callers without compatibility wrappers.
+- [ ] Add child ADR/PM evidence, analytical/property regressions, and the
+      Eunomia shared-unit/real-observable rule.
+- [ ] Collect local and hosted gates before merge.
+
+Definition of ready: child raw-field inventory, ownership boundary, exact
+acceptance oracle, and dependency closure are recorded in the child backlog.
 
 ## ATLAS-AEQUITAS-CONSUMERS-004 — Geometry and scheduling metric extensions
 

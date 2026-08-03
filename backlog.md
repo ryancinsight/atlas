@@ -7,23 +7,39 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — in-progress
+## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
 - Owner: current session; scope: the Kwavers plane-wave and diverging-wave
   public contracts and their cross-repository audit state.
 - Outcome: type geometry, timing, angles, sampling, F-number, image-coordinate
   arrays, and scalar aperture metrics with Aequitas while preserving explicit
   formula and Leto storage boundaries and the Eunomia real/complex rule.
-- Evidence: Kwavers PR #333 at head `0b38f2d3e`; local locked package check,
-  Nextest `f1d0db2a-5e11-450b-831e-a4290847d6ee` (219/219, one ignored),
-  Clippy, doctests, Rustdoc, Rustfmt, diff, and typed/complex residue scans
+- Evidence: Kwavers PR #333 at head `8ffb198bc` merged as
+  `b2c437bab011d99d6403e23b4a373905f7905cde`; local locked checks, focused
+  Nextest, Clippy, doctests, Rustdoc, Rustfmt, diff, typed/complex residue
+  scans, hosted coverage, benchmark, feature, and full repository-owned gates
   pass.
-- Residual: repository-owned hosted checks are running at the corrected head;
-  external
-  `recurseml/analysis` is report-only. Merge after the repository-owned matrix
-  is green.
+- Residual: simulation doctest and local benchmark smoke collection exceed
+  the 300-second shared-target bound without a diagnostic; hosted equivalents
+  pass. Remaining raw transducer metrics are tracked in the next item.
 - Re-open trigger: hosted source failure, dimensional residue, or Eunomia
   complex-boundary mismatch in the Kwavers ultrafast scope.
+
+## ATLAS-AEQUITAS-CONSUMERS-006 — Close Kwavers beamforming and design metric extensions [arch] [major] — todo
+
+- Owner: next session; scope: Kwavers beamforming configuration, aperture
+  design synthesis, focused propagation, and the explicitly listed focused,
+  hemispherical, MEMS, flexible, and two-dimensional array contracts.
+- Outcome: type remaining public sound speed, sampling/reference frequency,
+  aperture, pitch, kerf, wavelength, coordinates, impedance, and derived
+  physical metrics with Aequitas; keep scalar extraction at formula and
+  storage boundaries; preserve Eunomia shared-unit complex representation.
+- Acceptance: child gap audit names every raw physical public field in scope;
+  callers migrate without compatibility wrappers; analytical/property tests,
+  locked checks, Nextest, Clippy, doctests, Rustdoc, residue scans, and hosted
+  gates pass; no imaginary SI unit is introduced.
+- Re-open trigger: any dimensional residue, formula-boundary mismatch, or
+  Eunomia complex-unit incompatibility.
 
 ## ATLAS-AEQUITAS-CONSUMERS-004 — Close geometry and scheduling metric extensions [arch] [major] — in-progress
 

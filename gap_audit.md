@@ -108,18 +108,42 @@ The implementation uses Aequitas `Length`, `Velocity`, `Frequency`, `Angle`,
 `Time`, and `Dimensionless`; dense Leto delay and apodization buffers remain
 scalar only at the explicit storage boundary.
 
-Kwavers PR [#333](https://github.com/ryancinsight/kwavers/pull/333) is open at
-head `0b38f2d3e`. Local locked package check, Nextest
-`f1d0db2a-5e11-450b-831e-a4290847d6ee` (219/219, one ignored), Clippy with
-`-D warnings`, doctests, Rustdoc, targeted Rustfmt, diff check, and typed/
-complex residue scans pass. Repository-owned hosted gates are running; the
-external `recurseml/analysis` error is report-only as in the prior Kwavers
-merge. No imaginary physical unit is introduced: Eunomia complex phasors
-retain one existing physical unit and reduce to the real observable before
-real geometry or timing metrics.
+Kwavers PR [#333](https://github.com/ryancinsight/kwavers/pull/333) merged as
+`b2c437bab011d99d6403e23b4a373905f7905cde` from head `8ffb198bc`. Local locked
+package checks pass; transducer Nextest `8e15dcb4-76e5-4ef3-9768-0e9051705be4`
+passes 2/2 and FNM Nextest `3d2af317-dfce-4fae-99d7-74c61ca554d9` passes 6/6.
+Affected package Clippy, transducer/solver doctests, Rustdoc, Rustfmt, diff
+check, and typed/complex residue scans pass. The simulation doctest and local
+FNM smoke command each exceeded the 300-second shared-target collection bound
+without a diagnostic; hosted Test Suite Coverage, Code Coverage, benchmark
+smoke/regression, and the full repository-owned matrix pass. No imaginary
+physical unit is introduced: Eunomia complex phasors retain one existing
+physical unit and reduce to the real observable before real geometry or timing
+metrics.
 
 The remaining raw metrics in other Kwavers transducer families are outside this
 bounded vertical slice and remain explicit audit candidates.
+
+## Aequitas consumer gap-audit extension — Kwavers rectangular/FNM geometry — 2026-08-02
+
+The next Kwavers audit found and closed `KWAVERS-AEQ-MET-56`: rectangular
+transducer width, height, frequency, element size, and wavenumber, plus the
+fast-nearfield medium speed and density, were still raw SI scalars. The merged
+implementation uses Aequitas `Length`, `Frequency`, `Velocity`,
+`MassDensity`, and `ReciprocalLength`; rejects zero or unrepresentable element
+counts and invalid physical values; and keeps scalar extraction inside the
+Green-function, FFT, and direct-sum formulas. Eunomia complex arrays remain
+numeric buffers whose real and quadrature components share the existing field
+unit; no imaginary SI unit is introduced.
+
+The child audit records the exact implementation, ADR 095, local evidence,
+and the remaining raw metric candidates: beamforming sound speed/sampling and
+reference frequency; aperture design dimensions, pitch, kerf, wavelength, and
+sound speed; propagation coordinates and acoustic impedance; and focused,
+hemispherical, MEMS, flexible, and two-dimensional array contracts.
+
+See the child [`Kwavers gap audit`](repos/kwavers/gap_audit.md) and
+[`Kwavers rectangular-transducer ADR`](repos/kwavers/docs/ADR/095-rectangular-transducer-quantities.md).
 
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 
