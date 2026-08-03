@@ -42,8 +42,8 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
 - [x] Type the sensor-beamformer processing metrics through Aequitas,
       migrate direct callers, and record the Eunomia complex-observable
       boundary for `KWAVERS-AEQ-MET-58`.
-- [ ] Collect the remaining Code Coverage gate for Kwavers PR #335 and merge
-      the exact tested head before marking the increment delivered.
+- [ ] Resolve the Code Coverage budget breach for Kwavers PR #335, rerun the
+      exact tested head, and merge only after the repository gate is green.
 - [ ] Type the next disjoint raw-metric family from the child inventory and
       migrate all current callers without compatibility wrappers.
 

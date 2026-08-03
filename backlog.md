@@ -50,7 +50,10 @@
   callers, and records the Eunomia complex-observable boundary. PR #335 is
   open at tested head `3bc28739160388fad0a904470ca5c22fc380d3a0`; local gates
   pass; Build & Test (stable) job `91609692920` and Test Suite Coverage job
-  `91609692683` are green. Code Coverage job `91609692912` remains in progress.
+  `91609692683` are green. Code Coverage job `91609692912` failed at its
+  70-minute budget while tarpaulin was running `session2_source_injection_test`;
+  the log records passing tests followed by `The operation was canceled` and
+  orphan-process cleanup. No source assertion failure was reported.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 

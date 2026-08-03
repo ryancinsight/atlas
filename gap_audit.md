@@ -328,12 +328,16 @@ head `3bc28739160388fad0a904470ca5c22fc380d3a0`. The child branch has local
 locked checks, Clippy, full transducer Nextest (226/226 with one skipped),
   focused sensor regressions (13/13), direct Kwavers delay/steering regressions
   (1/1 each), doctests, Rustdoc, formatting, diff checks, and residue scans
-  passing. Repository-owned hosted gates are green except the still-running
-  Code Coverage job `91609692912`; Build & Test (stable) job `91609692920` and
-  Test Suite Coverage job `91609692683` are green. The external RecurseML
-  analyzer reports the opaque error
-  `Error occurred during analysis (dc8e5b58..3bc28739)` with no source
-  diagnostic. Merge and closure remain gated on Code Coverage.
+  passing. Build & Test (stable) job `91609692920` and Test Suite Coverage job
+  `91609692683` are green. Code Coverage job `91609692912` failed at the
+  committed 70-minute budget while tarpaulin was running
+  `session2_source_injection_test`; the log records the preceding tests
+  passing, then `The operation was canceled`, followed by orphan-process
+  cleanup. This is a hosted verification-budget blocker with no source
+  assertion diagnostic. The external RecurseML analyzer also reports the
+  opaque error `Error occurred during analysis (dc8e5b58..3bc28739)` with no
+  source diagnostic. Merge and closure remain gated on a green Code Coverage
+  rerun.
 
 Eunomia `Complex` remains a representation of real and quadrature observables
 under one existing physical unit. No imaginary SI unit, complex-valued Aequitas
