@@ -397,9 +397,27 @@
   in apollo-fft's domain storage module; dht and qft migrated — their
   storage traits keep only plan-coupled dispatch, conversion
   impls/pools/dead views deleted; 478/478 on hardware. Remaining:
-  twelve crates (czt, dctdst, frft, fwht, gft, hilbert, mellin, nufft,
-  radon, sdft, sft, sht, stft, wavelet minus the pair — enumerate at
-  claim), one migration increment each or batched; scope: a `CpuStorage<E: CpuElement = f64>` family in
+**ten more migrated 2026-08-02** (apollo 7d212a2:
+  fwht, hilbert, gft, czt, frft, sft, radon, wavelet, dctdst, mellin —
+  432/432 on hardware); twelve of fourteen now share the vocabulary,
+  remaining sdft and stft whose multi-trait storage families (real
+  input + bin output; four traits in stft) need per-trait element
+  bindings rather than the single-trait recipe.
+- **Regression caught and fixed in the same increment**: the mellin GPU
+  adoption (apollo 2325333) had been silently reverted in the shared
+  tree — a peer's merge resolved my scaffold deletions against their
+  concurrent edits by keeping the modified copies, restoring the whole
+  pre-adoption device tree and dropping the InvalidSignalDomain error
+  variant. The resurrected files were undeclared, so every gate stayed
+  green while the adoption was gone. Restored fix-forward; an audit of
+  all sixteen adoption markers confirms the other fifteen are intact.
+  **Process lesson**: a marker-presence audit belongs in the
+  verification rotation after any peer merge touching adopted trees —
+  undeclared orphans are invisible to compile and test gates.
+- Peer-assist en route: hermes d0a153f completed a live peer's tensor
+  helpers→strides rename whose half-landed state left the whole shared
+  tree unbuildable.
+- Original scope; scope: a `CpuStorage<E: CpuElement = f64>` family in
   apollo-fft (elements f64/Complex64 with per-element scratch pools,
   mirroring the shipped GpuStorage/GpuElement design), then per-crate
   migration of the fourteen conversion-impl copies; the plan-coupled
