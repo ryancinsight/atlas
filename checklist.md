@@ -44,6 +44,9 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
       boundary for `KWAVERS-AEQ-MET-58`.
 - [ ] Resolve the Code Coverage budget breach for Kwavers PR #335, rerun the
       exact tested head, and merge only after the repository gate is green.
+      The PR branch now shards the complete LLVM-instrumented target set and
+      the long `session2_source_injection_test` binary into concurrent reports;
+      no target, workload, or finite timeout was removed or raised.
 - [ ] Type the next disjoint raw-metric family from the child inventory and
       migrate all current callers without compatibility wrappers.
 
