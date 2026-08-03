@@ -1951,7 +1951,7 @@ epospollo`, so both paths are the same tree. That is
     `kwavers-aequitas-sensor-beamformer` (open draft PR #340, opened today) —
     left untouched, both live peer work.
 
-## ATLAS-RITK-LAND-1 — Verify and deliver `origin/land/main` [minor] — todo
+## ATLAS-RITK-LAND-1 — Verify and deliver `origin/land/main` [minor] — in-progress (PR #106)
 
 - Owner: unclaimed; scope: `repos/ritk`, branch `land/main`.
 - One commit, `5bb1fc3a` "feat(ritk): Land diffusion tractography, tractogram
@@ -1964,6 +1964,34 @@ epospollo`, so both paths are the same tree. That is
   opened and green, then merged. Overlaps ATLAS-NEURO-001 (RITK diffusion,
   tractography, connectome crates) — reconcile scope with that item first
   rather than duplicating it.
+- **Superseded in part 2026-08-03: the commit is already on `origin/main`** — a
+  peer pushed it directly while the lane cleanup was running, so this is no
+  longer about delivering it. It is about the fact that **it broke ritk's
+  default branch**, which is exactly the risk that made me decline to merge
+  31k unverified lines during the cleanup.
+- Three workflows went red on it (CI, Python CI, Deploy mdBook), for reasons
+  that stack:
+  1. **Cross-repo path deps.** The landing converted all 22 workspace
+     dependencies to `../../repos/...`. Atlas's provider-checkout action
+     rejects them — `path dependency /home/runner/work/ritk/repos/aequitas is
+     outside provider destination` — so every job failed before compiling.
+     Fixed by restoring each declaration from the pre-conversion manifest,
+     preserving package renames; the stack-root overlay owns local resolution.
+  2. **No rustfmt pass**: 180 diffs against `cargo fmt --all --check`.
+  3. **Clippy denials**: ten cleared (needless range loops, a collapsible if,
+     a complex return type, Default-then-assign, redundant borrow, needless
+     `Ok(..?)`, let-and-return, enumerate-and-discard, unused import).
+- Delivered as **ritk PR #106**, which turns the provider-checkout step and
+  the dependency-alignment job green.
+- **17 clippy denials remain and are deliberately not silenced.** Most sit in
+  `crates/ritk-tractography/src/tests.rs`: unused `gx`, `gy`, `d`. Those are
+  test bodies computing values they never assert on, which is the
+  existence-only-assertion smell rather than lint debt — the fix is to assert
+  on them or delete them, and that needs someone who knows the intended
+  contract. One `this if has identical blocks` is a possible real defect in
+  the same category. Silencing either would hide the finding.
+- Follow-up owner should also reconcile with ATLAS-NEURO-001, whose scope this
+  landing covers.
 ## ATLAS-ATHENA-ALLOC-1 — Zero-allocation solver test fails only on Linux [patch] — closed 2026-08-03 (not reproduced)
 
 - Owner: unclaimed; scope: `repos/athena/crates/athena-leto/tests/allocation.rs`
