@@ -54,6 +54,11 @@
   70-minute budget while tarpaulin was running `session2_source_injection_test`;
   the log records passing tests followed by `The operation was canceled` and
   orphan-process cleanup. No source assertion failure was reported.
+- The PR branch now shards the complete LLVM-instrumented Kwavers target set
+  and the long `session2_source_injection_test` binary into concurrent
+  Cobertura reports after one clean. No coverage target, full-grid workload,
+  or finite timeout was removed or raised; the exact head must be rerun before
+  merge.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 
