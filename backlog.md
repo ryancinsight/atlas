@@ -2007,6 +2007,34 @@
   green before the next release.
 - Dependencies: none. ATLAS-PUB-003 must be complete for that package before its
   next real publish, but the migration itself does not wait on it.
+- **hephaestus slice done 2026-08-03** (`38f36bc`): 142-line body → 39-line
+  caller pinned to atlas `9772542`, toolchain 1.95.0 preserved, `crate-` tag
+  convention unchanged. Acceptance met including the validation run —
+  `workflow_dispatch` run 30795798452 is green, with the validate job passing
+  in 1m3s and the publish job correctly skipped (it gates on
+  `github.event_name == 'release'`, so a dispatch cannot publish).
+- **Carry this into the remaining seven migrations: the tag gate must stay in
+  the caller.** The audit's "byte-identical apart from the toolchain" reading
+  misses it. Each package's current workflow skips non-`crate-` releases via a
+  job-level `if`, but the shared workflow's validate job has **no** prefix
+  check and `exit 1`s on a tag it cannot parse. Porting without the gate
+  converts today's silent skip of a legacy `<package>-v<version>` release into
+  a red CI run.
+- Evidence that this is live, not theoretical: hephaestus's two most recent
+  release events (`hephaestus-metal-v0.18.0`, `hephaestus-host-v0.18.0`, both
+  2026-08-02) show `skipped` in the run list. Legacy-convention tags are still
+  being cut, so the gate is doing real work today.
+- Tag-convention state, surveyed 2026-08-03 across all eight packages: every
+  one gates on `crate-`, and there is exactly **one** matching tag in the whole
+  stack — apollo's `crate-apollo-fft-macros-v0.2.0`, cut 2026-08-02. So
+  `crate-` is the newly adopted convention rather than a dead gate, and the
+  default `tag-prefix` is correct for these callers. Worth stating explicitly
+  because the raw numbers (1 matching tag out of 77) read like dead automation
+  until the dates are checked.
+- Separate observation, not part of this item: because those 0.18.0 release
+  events skipped, they were not published by this pipeline. Whether the crates
+  reached crates.io by another route is a question for ATLAS-PUB-003, which
+  owns publisher registration.
 
 ## ATLAS-PUB-002 — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — todo
 
