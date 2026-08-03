@@ -1,1 +1,5 @@
 * text=auto
+# Markdown PM artifacts carry very long lines; pin them to LF explicitly
+# so text=auto's content heuristic cannot skip normalization and turn an
+# edit into a whole-file line-ending diff.
+*.md text eol=lf
