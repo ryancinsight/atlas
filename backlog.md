@@ -405,7 +405,7 @@
   precision tier up) is decomposed into ATLAS-SUBSTRATE-005 below
   rather than widening this item.
 
-## ATLAS-SUBSTRATE-005 — Shared CPU-tier storage vocabulary for Apollo [arch] [minor] — in-progress
+## ATLAS-SUBSTRATE-005 — Shared CPU-tier storage vocabulary for Apollo [arch] [minor] — done 2026-08-02
 
 - Owner: claude/fable-loop (claimed 2026-08-02). **Layer + proving pair
   DELIVERED 2026-08-02** (apollo, ADR 0037 dated revision): CpuElement
@@ -418,7 +418,21 @@
   432/432 on hardware); twelve of fourteen now share the vocabulary,
   remaining sdft and stft whose multi-trait storage families (real
   input + bin output; four traits in stft) need per-trait element
-  bindings rather than the single-trait recipe.
+  bindings rather than the single-trait recipe. **ITEM CLOSED
+  2026-08-02** (apollo b31948d + 6876b55): sdft, stft, sht, and nufft
+  finished it — 190/190 on hardware, and a workspace-wide census now
+  finds **zero conversion ladders**. The multi-trait families turned
+  out to be an artifact: each trait carried one direction of one
+  element, so sdft's two and stft's four collapse to two CpuStorage
+  bounds and all six dissolve (no plan-coupled dispatch remained in
+  them); stft's storage module went with them. sht took the supertrait
+  recipe; nufft keeps a view-only trait because its reinterpret views
+  are live in the device helpers and the shared vocabulary models
+  conversions but no views. ADR 0037 carries the completion note.
+  Verification honesty: two runs each flaked one different GPU test
+  while a peer rebuilt hermes concurrently; both passed in isolation
+  and the suite is green on a settled host — the known
+  quiet-host-gate pattern, not a defect.
 - **Regression caught and fixed in the same increment**: the mellin GPU
   adoption (apollo 2325333) had been silently reverted in the shared
   tree — a peer's merge resolved my scaffold deletions against their
