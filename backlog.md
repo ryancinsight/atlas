@@ -2068,6 +2068,21 @@
 - **leto slice done 2026-08-03** (`c42b87d`), plus `bf7bf2b` fixing four unused
   imports that the earlier `520f248` decomposition left behind — CI denies
   warnings, so that would have failed the gate regardless of this item.
+- **moirai slice done 2026-08-03** (`08d5095`): identical caller with its own
+  toolchain (1.97.0) passed through; the repo's workflow differed from the
+  others only in that value. Validation run 30811438728 green, and its
+  `--locked` step passing independently confirms moirai's lock is sound.
+  Repository CI also green, covering the three refactor commits the push
+  carried.
+- **3 of 8 done** (hephaestus, leto, moirai). The five left — apollo, coeus,
+  consus, kwavers, ritk — are all currently on live peer branches, so their
+  slices wait for those branches rather than for anything in this item.
+- Practical note for the remaining slices: pass `version` from the workspace
+  table, not a grep of the member manifest. Members use
+  `version.workspace = true`, so a naive extraction sends the literal string
+  (or an empty value) to `workflow_dispatch` and the run fails on a version
+  mismatch that looks like a pipeline defect but is just a bad argument. It
+  cost a wasted run on both leto and moirai.
 - **The validation run then exposed a blocking, stack-wide publish defect.**
   See ATLAS-PUB-LOCK-1 below. The leto migration itself is behavior-preserving
   and correct — the old and shared workflows use byte-identical `--locked`
