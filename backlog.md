@@ -45,6 +45,12 @@
   `dc8e5b58b9816bf3a57f2bc47750257d65cd3609`; local and hosted evidence is in
   `gap_audit.md`. Complex Eunomia buffers remain shared-unit representation
   data; no imaginary SI unit is introduced.
+- Increment in progress: `KWAVERS-AEQ-MET-58` types the sensor-beamformer
+  processing metrics through Aequitas, migrates direct Kwavers tests and
+  callers, and records the Eunomia complex-observable boundary. PR #335 is
+  open at tested head `3bc28739160388fad0a904470ca5c22fc380d3a0`; local gates
+  pass, while Build & Test (stable) job `91609692920`, Code Coverage job
+  `91609692912`, and Test Suite Coverage job `91609692683` remain in progress.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 

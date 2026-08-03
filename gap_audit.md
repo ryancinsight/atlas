@@ -311,6 +311,37 @@ neural sensor geometry; aperture/design synthesis; propagation coordinates and
 acoustic impedance; and focused, hemispherical, MEMS, flexible, and
 two-dimensional array contracts.
 
+## Aequitas consumer gap-audit extension — Kwavers sensor beamformer — 2026-08-03
+
+`KWAVERS-AEQ-MET-58` closes the next disjoint raw-metric family in the child
+inventory at the implementation level. `SensorProcessingParams` now exposes
+typed Aequitas frequency and length quantities; derived F-number and maximum
+spatial-frequency metrics return typed dimensionless/frequency results with
+finite-positive validation. `SensorBeamformer` stores typed sensor positions
+and sampling frequency, and its delay/steering boundaries accept typed
+frequency, velocity, length, and angle quantities. Scalar extraction remains
+limited to distance, trigonometric, phase, and existing storage-kernel
+boundaries.
+
+Kwavers PR [#335](https://github.com/ryancinsight/kwavers/pull/335) is open at
+head `3bc28739160388fad0a904470ca5c22fc380d3a0`. The child branch has local
+locked checks, Clippy, full transducer Nextest (226/226 with one skipped),
+focused sensor regressions (13/13), direct Kwavers delay/steering regressions
+(1/1 each), doctests, Rustdoc, formatting, diff checks, and residue scans
+passing. Repository-owned hosted gates are green except the still-running
+Build & Test (stable) job `91609692920`, Code Coverage job `91609692912`, and
+Test Suite Coverage job `91609692683`; the external RecurseML analyzer reports
+the opaque error `Error occurred during analysis (dc8e5b58..3bc28739)` with no
+source diagnostic. Merge and closure remain gated on the three repository-owned
+job conclusions.
+
+Eunomia `Complex` remains a representation of real and quadrature observables
+under one existing physical unit. No imaginary SI unit, complex-valued Aequitas
+quantity, or compatibility wrapper is introduced. The next unclosed families
+remain PAM delay-and-sum/neural sensor geometry, aperture/design synthesis,
+propagation coordinates and acoustic impedance, and focused, hemispherical,
+MEMS, flexible, and two-dimensional array contracts.
+
 ## Aequitas consumer gap-audit extension — Kwavers plasmonics — 2026-08-02
 
 The audit found and closed `KWAVERS-AEQ-MET-33`, the remaining named-consumer

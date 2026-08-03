@@ -39,6 +39,11 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
 - [x] Collect local and hosted gates; merge Kwavers PR #334 at head
       `63cd488ec17279be6d4a459f2785784f816b1c14` as
       `dc8e5b58b9816bf3a57f2bc47750257d65cd3609`.
+- [x] Type the sensor-beamformer processing metrics through Aequitas,
+      migrate direct callers, and record the Eunomia complex-observable
+      boundary for `KWAVERS-AEQ-MET-58`.
+- [ ] Collect the remaining hosted gates for Kwavers PR #335 and merge the
+      exact tested head before marking the increment delivered.
 - [ ] Type the next disjoint raw-metric family from the child inventory and
       migrate all current callers without compatibility wrappers.
 
