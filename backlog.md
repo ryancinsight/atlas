@@ -1393,6 +1393,22 @@
   (3 sites), ritk `be610931` (xtask tests.rs). Every rename in this item must
   gate on `cargo nextest run` (or at minimum `cargo check --all-targets`) for
   the touched package, not `cargo check` alone.
+- **Fourth instance, 2026-08-03, and it extends the pattern to `fmt`.** The
+  hermes `helpers` → `strides` rename (`d0a153f`) left hermes CI red for ~7
+  hours on the **format** check: the renamed module and its `use` lines kept
+  the old alphabetical position, which `cargo check`/`nextest` do not notice.
+  Fixed in `fc0e1ec`; CI green.
+- So the gate for a rename is `cargo fmt --check` **and** `--all-targets`, not
+  either alone. An import rename is exactly the edit that reorders an
+  alphabetically-sorted list without changing semantics, so the compiler-based
+  gates are structurally blind to it.
+- The same commit surfaced an adjacent trap worth recording on its own. Fixing
+  it revealed `vec/tests.rs` declared as a plain `mod tests;` with no
+  `#[cfg(test)]`, so it compiled in non-test builds where `#[test]` functions
+  are stripped, and its two imports were reported unused. The warning invites
+  deleting those imports; doing so would have broken the tests, which use them
+  under `cfg(test)`. An "unused import" inside a test module is a signal to
+  check the module's `cfg` gate before touching the imports.
 
 ## ATLAS-ARCH-007 — Reduce manifest files carrying implementation [patch] — done
 
