@@ -38,6 +38,13 @@
   callers migrate without compatibility wrappers; analytical/property tests,
   locked checks, Nextest, Clippy, doctests, Rustdoc, residue scans, and hosted
   gates pass; no imaginary SI unit is introduced.
+- Increment closed: `KWAVERS-AEQ-MET-57` types the canonical beamforming core
+  configuration as Aequitas `Velocity`/`Frequency`, migrates all current
+  callers, and removes the obsolete `BeamformingConfig` alias. Kwavers PR
+  #334 head `63cd488ec17279be6d4a459f2785784f816b1c14` merged as
+  `dc8e5b58b9816bf3a57f2bc47750257d65cd3609`; local and hosted evidence is in
+  `gap_audit.md`. Complex Eunomia buffers remain shared-unit representation
+  data; no imaginary SI unit is introduced.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 
@@ -1059,10 +1066,13 @@
   capability predicate exists; the shared suite asserts IEEE semantics only where
   advertised, and asserts the rejection path where not.
 
-## ATLAS-ARCH-009 — Decide whether hephaestus-metal remains a crate [arch] — todo
+## ATLAS-ARCH-009 — Decide whether hephaestus-metal remains a crate [arch] — done 2026-08-03
 
-- Owner: unclaimed; scope: `repos/hephaestus/crates/hephaestus-metal` and the
-  workspace member list. Decision first, as an ADR; no code moves before it.
+- Owner: claude/fable-loop (claimed 2026-08-03); scope:
+  `repos/hephaestus/crates/hephaestus-metal` and the workspace member list.
+  Decision first, as an ADR; no code moves before it. Unblocked: its
+  dependency ATLAS-ARCH-001 is done, so the conformance suite is settled
+  and will not be rewritten twice.
 - Raised by the
   [conformance triage](docs/audit/2026-07-28-computebackend-conformance-triage.md)
   §"topology", which established the evidence but deliberately did not decide.
@@ -1083,6 +1093,81 @@
   questions whether targeting it costs a crate.
 - Dependencies: sequence after ATLAS-ARCH-001, so the conformance suite is not
   rewritten twice.
+- **DECIDED 2026-08-03 — hephaestus [ADR 0047][adr47] (Accepted, commit
+  `b5020e1`): retire the crate.** Metal is an adapter preference of the WGPU
+  backend, which is what `WgpuDevice::try_metal` already is.
+- The sibling comparison is what settled it, and it was not in the triage:
+  `hephaestus-cuda` is 18 600 src lines with 66 native device-API references
+  and no wgpu dependency; `hephaestus-rocm` is 17 925 / 62 / none. Both earn
+  their crates by owning a device API nothing else can express.
+  `hephaestus-metal` is 5 449 lines with **0** native references and *depends
+  on* `hephaestus-wgpu`. It is the only per-vendor crate carrying a duplicated
+  accelerator layer and no device-API impl — the inverse of the sanctioned
+  shape.
+- Two premises were checked and one was corrected. The escape hatches
+  `wgpu_device`/`wgpu_buffer` mean the crate never insulated consumers from
+  the WGPU underneath, so the "stable vendor name" argument fails on its own
+  terms. But the obvious follow-through — making `backend_name()` report the
+  adapter — would break `cfd-core/tests/gpu_integration_test.rs:24` and
+  `CFDrs/tests/gpu_integration.rs:17`, which hold a hephaestus `WgpuDevice`
+  directly and assert `"wgpu"`. It is also unnecessary:
+  `WgpuDevice::adapter_info()` is already public and carries `.backend`. So
+  the decision keeps `backend_name` naming the backend implementation, and
+  the retirement needs **no new API and no consumer break**.
+- Execution is deliberately a separate item (ATLAS-ARCH-010): removing a
+  published crate at 0.18.0 is `[major]`, a different change class and blast
+  radius from the decision this item was scoped to.
+
+[adr47]: repos/hephaestus/docs/adr/0047-metal-as-a-wgpu-adapter-preference.md
+
+## ATLAS-ARCH-010 — Retire hephaestus-metal per ADR 0047 [arch] [major] — todo
+
+- Owner: unclaimed; scope: `repos/hephaestus` (`crates/hephaestus-metal`, the
+  workspace member list, the `hephaestus` facade's `metal` feature, and the
+  conformance suite's Metal instantiation). Coeus is **out of scope** — see
+  the note under ATLAS-SUBSTRATE-002.
+- Outcome: the crate and its 5 449 forwarding lines plus 2 606 test lines are
+  deleted. Metal targeting survives unchanged as
+  `WgpuDevice::try_metal(...)`, and the vendor identity as
+  `device.adapter_info().map(|i| i.backend)`.
+- The facade's `metal` feature is **kept and re-pointed**, so consumers'
+  spelling of intent survives the removal: it comes to mean "acquire a
+  Metal-preferring `WgpuDevice`" instead of "compile a second copy of the
+  operation surface".
+- Acceptance oracle: (a) `cargo nextest run` green for the hephaestus
+  workspace at `--all-targets` with the member entry gone, and the `metal`
+  feature seam building in its re-pointed form; (b) the conformance suite
+  passes with the Metal instantiation removed and no clause left
+  unreferenced; (c) a stack-wide grep finds no `hephaestus_metal` reference
+  outside Coeus's tracked item; (d) the two CFDrs `backend_name()`
+  assertions still pass, confirming no observable contract moved.
+- Risk/change class: `[major]` — a published crate is removed. Needs a
+  CHANGELOG entry under Unreleased with the one-line migration
+  (`MetalDevice::try_default` → `WgpuDevice::try_metal`). Release itself
+  stays outside this item's authority.
+- Verification note: coverage is not lost. The Metal instantiation ran the
+  same clauses over the same code path as the WGPU one, so it asserted
+  nothing WGPU does not already assert; Metal-*adapter* coverage is a
+  question of which adapter CI acquires, not of which crate the suite names.
+- Dependencies: none. ADR 0047 is Accepted.
+
+## ATLAS-HEPH-ADR-NUM-1 — Two ADRs both numbered 0045 [patch] — todo
+
+- Owner: unclaimed; scope: `repos/hephaestus/docs/adr`.
+- `0045-prepared-batch-submission-seam.md` and
+  `0045-provider-owned-stateful-updates.md` share a number, and the index
+  listed them out of order (the ordering is fixed as of commit `b5020e1`;
+  the collision is not).
+- Deliberately **not** fixed in passing: a live peer (Codex on
+  `codex/hephaestus-stateful-update`) is mid-item on the stateful-update ADR
+  and cites "ADR 0045" in `repos/hephaestus/checklist.md:390,398`. Renaming
+  their file mid-flight would break those references, so ADR 0047 took the
+  next free number instead of renumbering across a peer's claim.
+- Acceptance: the later ADR takes a free number; every inbound reference
+  moves with it (`hephaestus-core/src/domain/sparse.rs:135` and
+  `hephaestus-conformance/src/sparse.rs:201` point at the *batch submission*
+  one, so they must not be swept blindly); the index lists each exactly once.
+- Re-open trigger: the peer's stateful-update item completes.
 
 ## ATLAS-ARCH-002 — Instantiate generic tests across every shipped scalar [patch] — done 2026-08-03
 
