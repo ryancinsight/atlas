@@ -11,6 +11,13 @@
   no ordinary test debuginfo, reducing Nextest artifact size and linker memory
   without changing optimization, assertions, or test workloads.
 
+- Merge Kwavers PR #335 (`c3e0ca39`) to type sensor-beamformer positions,
+  sampling and steering frequencies, angles, sound speed, spacing, aperture,
+  F-number, and spatial-frequency metrics through Aequitas. The corrected
+  LLVM coverage workflow selects targets by Cargo feature requirements and
+  preserves Eunomia's real/quadrature shared-unit representation without an
+  imaginary SI unit.
+
 ### Added
 
 - File ADR 0030 to promote published Hyperion as the bounded photon/optical

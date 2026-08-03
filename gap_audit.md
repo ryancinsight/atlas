@@ -338,8 +338,9 @@ frequency, velocity, length, and angle quantities. Scalar extraction remains
 limited to distance, trigonometric, phase, and existing storage-kernel
 boundaries.
 
-Kwavers PR [#335](https://github.com/ryancinsight/kwavers/pull/335) is open at
-head `9840b964df9823ec8ab81060dd8113dcf64ff67a`. The child branch has local
+Kwavers PR [#335](https://github.com/ryancinsight/kwavers/pull/335) merged as
+`c3e0ca39da0c928c83125ca27f9689de49b389f4` from tested head
+`9840b964df9823ec8ab81060dd8113dcf64ff67a`. The child branch has local
 locked checks, Clippy, full transducer Nextest (226/226 with one skipped),
   focused sensor regressions (13/13), direct Kwavers delay/steering regressions
   (1/1 each), doctests, Rustdoc, formatting, diff checks, and residue scans
@@ -360,7 +361,10 @@ concurrently with `session2_source_injection_test` under the same LLVM
 instrumentation, and emits two Cobertura reports for one Codecov upload.
 Feature-only targets remain covered by their dedicated matrix jobs; no target
 workload or finite per-test timeout is reduced or raised. Exact-head hosted
-evidence is still pending.
+Code Coverage job `91693171499` passes in 27m7s, and Test Suite Coverage job
+`91693169453` passes in 37m56s; the repository-owned matrix is green and the
+merge is complete. The external RecurseML analyzer remains report-only and
+rate-limited/opaque where applicable.
 
 Eunomia `Complex` remains a representation of real and quadrature observables
 under one existing physical unit. No imaginary SI unit, complex-valued Aequitas

@@ -42,13 +42,15 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
 - [x] Type the sensor-beamformer processing metrics through Aequitas,
       migrate direct callers, and record the Eunomia complex-observable
       boundary for `KWAVERS-AEQ-MET-58`.
-- [ ] Resolve the Code Coverage budget breach for Kwavers PR #335, rerun the
-      exact tested head, and merge only after the repository gate is green.
-      The PR branch now shards the complete plotting-compatible
+- [x] Resolve the Code Coverage budget breach for Kwavers PR #335 without
+      weakening coverage, rerun the exact tested head, and merge the green
+      PR. The corrected workflow shards the complete plotting-compatible
       LLVM-instrumented target set and the long `session2_source_injection_test`
       binary into concurrent reports; feature-only targets remain in their
       dedicated matrix jobs, and no workload or finite timeout was removed or
-      raised.
+      raised. Code Coverage job `91693171499` passes in 27m7s; Test Suite
+      Coverage job `91693169453` passes in 37m56s; all other repository-owned
+      checks pass. PR #335 merges as `c3e0ca39da0c928c83125ca27f9689de49b389f4`.
 - [ ] Type the next disjoint raw-metric family from the child inventory and
       migrate all current callers without compatibility wrappers.
 
