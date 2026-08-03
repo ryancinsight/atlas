@@ -1256,7 +1256,7 @@
   473. Resolve each path against its repo root and keep only the escapes.
 
 
-## ATLAS-HEPH-ADR-NUM-1 — Two ADRs both numbered 0045 [patch] — todo
+## ATLAS-HEPH-ADR-NUM-1 — Two ADRs both numbered 0045 [patch] — done 2026-08-03
 
 - Owner: unclaimed; scope: `repos/hephaestus/docs/adr`.
 - `0045-prepared-batch-submission-seam.md` and
