@@ -8,6 +8,7 @@ help:
 	@echo "  make check-mdbook-links  Verify internal mdBook links across all four books"
 	@echo "  make build-mdbooks       Build all four mdBooks"
 	@echo "  make fmt-check           cargo fmt --check across every stack member"
+	@echo "  make board-lint          Check backlog.md for duplicate item ids"
 
 check-mdbook-links:
 	python3 scripts/check_mdbook_links.py $(BOOKS)
@@ -21,3 +22,6 @@ build-mdbooks:
 
 fmt-check:
 	@python scripts/atlas-fmt-check.py
+
+board-lint:
+	@python scripts/atlas-board-lint.py
