@@ -1124,7 +1124,7 @@
   performance-motivated claim and must carry performance evidence.
 - Non-goals: mass-converting all 1 368 sites. Hot paths first, evidence per family.
 
-## ATLAS-ARCH-006 — Eliminate junk-drawer modules [patch] — in-progress
+## ATLAS-ARCH-006 — Eliminate junk-drawer modules [patch] — done
 
 - Owner: unclaimed; scope: 64 sites declaring `mod utils`, `mod helpers`,
   `mod common`, or `mod shared`, concentrated in `apollo`, `CFDrs`, and `ritk`.

@@ -1,5 +1,33 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-ARCH-006 closure — junk-drawer module elimination — 2026-08-02
+
+All 64 original `mod utils`, `mod helpers`, `mod common`, `mod shared`
+production modules eliminated. Final residuals: 2 (both semantically correct:
+`kwavers-analysis/integration_tests/helpers.rs` is a test-only fixture helper;
+`melinoe/src/token/shared.rs` implements `SharedReadToken`).
+
+### Evidence by repository
+
+- **kwavers** (commit `7427c2889` on branch `codex/kwavers-aequitas-sequencer`):
+  30 renames across kwavers-math, kwavers-phantom, kwavers-transducer,
+  kwavers-physics, kwavers-solver, kwavers-therapy, kwavers-gpu,
+  kwavers-simulation, kwavers-receiver, kwavers-python.
+  `cargo check --workspace --all-targets` exits 0.
+- **apollo** (commit `f20c0d1` on branch `fix/apollo-sht-thread-local-lint`):
+  10 renames across apollo-czt, apollo-dctdst, apollo-dht, apollo-fft,
+  apollo-nufft, apollo-sht, apollo-stft, apollo-wavelet.
+  `cargo check --workspace --all-targets` exits 0.
+- **hermes**: `tensor/helpers.rs` → `strides.rs` was already committed at
+  `d0a153f` by a peer; callers updated in same commit; compiles clean.
+- **CFDrs**, **ritk**, **coeus**, **consus**, **leto**: renames completed in
+  prior sessions (see checkpoint 013).
+
+### Defect pattern enforced
+All renames verified with `--all-targets` (not lib-only) per the recurring
+pattern identified in the backlog: lib-only gates miss `#[cfg(test)]` and
+`tests/` callers.
+
 ## Aequitas consumer gap-audit extension — CFDrs geometry, Helios Radon, and Kwavers ultrafast scheduling — 2026-08-02
 
 The current re-audit found and closed the remaining public physical-metric
