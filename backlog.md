@@ -1237,6 +1237,20 @@
   left in contradiction: either the path deps convert back and the overlay stays
   authoritative, or the overlay is deliberately narrowed and the generator's
   freshness check updated so `generate` stops looking like a regression.
+- **Concrete consequence found 2026-08-03: this breaks CI, not just theory.**
+  `athena` has been red for five days with
+  `failed to load source for dependency themis` / `unable to update
+  /github/themis`. Its manifest carries a committed
+  `[patch."https://github.com/ryancinsight/themis"] themis = { path = "../themis" }`
+  (`athena/Cargo.toml:119-120`). That resolves inside the Atlas tree and cannot
+  resolve on a runner that checks out one repo — which is exactly the property
+  that makes a member unconsumable as a git dependency.
+- So the cost of leaving this unresolved is now measurable: at least one member
+  is permanently red, and any repo that gains cross-repo path deps joins it.
+  athena is deliberately **not** fixed here — removing that `[patch]` is the
+  decision this item is waiting on, and athena additionally needs the
+  ATLAS-PUB-LOCK-1 lock repair, so its CI will not go green from either fix
+  alone.
 - Note for whoever measures this again: a naive `grep 'path = "\.\./'` is
   useless here — it counts ordinary intra-workspace sibling paths and reported
   473. Resolve each path against its repo root and keep only the escapes.
@@ -2116,12 +2130,21 @@
   builds are undisturbed. Verify the diff carries no `+version` lines — it
   should be source lines plus removal of overlay-only packages (leto: 31
   added, 164 removed, zero dependency changes).
+- **hyperion fixed 2026-08-03** (`6544d22`) — same defect, red for five days on
+  its feature check, now green. Verified before pushing with
+  `cargo metadata --locked` run from outside the tree, which reproduces the
+  runner's resolution exactly. 3 lines added, 160 removed, no version changes.
 - **Still stripped, committed, and therefore red on any `--locked` step:
   `kwavers` and `CFDrs`.** Every other member checked (apollo, coeus, consus,
   hephaestus, moirai, ritk, helios, gaia, leto) carries correct git sources.
   Not fixed here because both are currently on live peer branches, and a lock
   rewrite under someone's feet mid-branch is the wrong move. Whoever owns
   those branches should apply the one-liner above.
+- Survey caveat for whoever re-runs this: a naive scan reports `aequitas`,
+  `eunomia`, `hermes`, `mnemosyne`, and `moirai` as stripped too. Those are
+  each repo's **own** workspace members, which correctly have no `source`
+  line. Only crates external to the repo count. Read committed content
+  (`git show HEAD:Cargo.lock`), never the worktree copy.
 - The trap that makes this recur: **any local build under the overlay rewrites
   the lock into stripped form.** leto's working tree was re-stripped within
   minutes of the fix, just by running clippy and nextest. So the lock shows as
