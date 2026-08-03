@@ -2140,6 +2140,21 @@
   Not fixed here because both are currently on live peer branches, and a lock
   rewrite under someone's feet mid-branch is the wrong move. Whoever owns
   those branches should apply the one-liner above.
+- **proteus fixed 2026-08-03** (`6c002c2`), a *different* cause in the same
+  family — worth separating so the next person does not assume overlay
+  stripping. Its lock was git-pinned and correct in form, but stale: `9a8655d`
+  deliberately dropped a `rev =` pin on aequitas from the manifest without
+  refreshing the lock, so the lock still pinned that rev **and** an older
+  eunomia. The pinned aequitas needs `eunomia::UnitScalar`, which the pinned
+  eunomia predates, so `aequitas` would not compile and CI was red five days.
+  Regenerating resolved both forward; no intentional pin was lost, since the
+  manifest carries none. Verified with `cargo check --locked
+  --no-default-features` from outside the tree.
+- Generalization: a manifest edit that changes a **source** (adding or removing
+  a `rev`, moving a branch, changing a version requirement) invalidates the
+  lock, and nothing local catches it — under the overlay the lock resolves
+  against local trees regardless. Only `--locked` on a clean checkout notices.
+  Pair every source-changing manifest commit with a lock regeneration.
 - Survey caveat for whoever re-runs this: a naive scan reports `aequitas`,
   `eunomia`, `hermes`, `mnemosyne`, and `moirai` as stripped too. Those are
   each repo's **own** workspace members, which correctly have no `source`
