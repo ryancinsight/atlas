@@ -6,6 +6,28 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-AEQUITAS-CONSUMERS-007 — Kwavers PAM/neural metric closure — done
+
+- [x] Audit PAM delay-and-sum, PAM configuration, neural sensor geometry, and
+      traditional DAS boundaries; record the uncalibrated threshold/intensity
+      exception and Eunomia real-plus-quadrature rule.
+- [x] Type positions, pitch, focal points, spatial resolution, sound speed,
+      sampling/band/peak frequencies, event/integration times, steering angles,
+      and coherence through Aequitas; migrate all direct callers without
+      compatibility wrappers.
+- [x] Add analytical delay/geometry and invalid-input regressions; repair the
+      hosted canonical Aequitas test imports without weakening coverage.
+- [x] Merge Kwavers PR #337 at final head `6456c43a1` as
+      `d5d2d9642ca594100a391a6472c71ddd7b2835a8`.
+- [x] Record final hosted evidence: Test Suite Coverage `91762818479`, Code
+      Coverage `91762819466`, Architecture Validation `91762818609`, and the
+      complete repository-owned matrix pass.
+
+Acceptance: no raw physical scalar remains in the bounded PAM/neural public
+contracts; uncalibrated representation fields remain explicitly untyped;
+Eunomia complex signal data retains one observable unit with no imaginary SI
+unit. Residual Helios benchmark work remains a separate performance item.
+
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Kwavers ultrafast geometry metric extensions — done
 
 - [x] Audit the adjacent Kwavers plane-wave and diverging-wave public
@@ -42,6 +64,8 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
 - [x] Type the sensor-beamformer processing metrics through Aequitas,
       migrate direct callers, and record the Eunomia complex-observable
       boundary for `KWAVERS-AEQ-MET-58`.
+- [x] Type the PAM/neural sensor metrics through Aequitas, migrate direct
+      callers, and close `KWAVERS-AEQ-MET-59` through merged Kwavers PR #337.
 - [x] Resolve the Code Coverage budget breach for Kwavers PR #335 without
       weakening coverage, rerun the exact tested head, and merge the green
       PR. The corrected workflow shards the complete plotting-compatible

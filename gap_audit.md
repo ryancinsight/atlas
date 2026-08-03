@@ -1,5 +1,37 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer gap-audit closure — Kwavers PAM/neural metrics — 2026-08-03
+
+Kwavers PR [#337](https://github.com/ryancinsight/kwavers/pull/337) closes the
+next bounded Aequitas metric family. PAM delay-and-sum configuration and event
+contracts now carry `Length`, `Velocity`, `Frequency`, `Time`, and
+`Dimensionless`; neural sensor geometry and traditional DAS steering now carry
+typed positions, pitch, sampling, sound speed, and `Angle` values. Scalar
+extraction remains at delay-index, trigonometric, FFT-bin, and dense Leto
+storage boundaries, with all direct analysis, Python, therapy, and test callers
+migrated without wrappers.
+
+The signal calibration boundary is explicit: PAM-wide threshold and event
+intensity remain representation values because the input spectrum is
+uncalibrated; `detection_threshold` and coherence are dimensionless. Eunomia
+complex FFT/storage values remain real-plus-quadrature components of one
+observable signal unit. No imaginary SI unit or complex-unit compatibility
+wrapper is introduced.
+
+Implementation commits are `6248ad9b5`, `5d70126f5`, `49adf4764`, with PM
+closure commit `6456c43a1`; PR head `6456c43a1` merged as
+`d5d2d9642ca594100a391a6472c71ddd7b2835a8`. Final repository-owned evidence
+includes Test Suite Coverage `91762818479`, Code Coverage `91762819466`,
+Architecture Validation `91762818609`, and green stable/beta/nightly, Miri,
+security, solver, benchmark, PINN, feature, wheel, documentation, migration,
+and boundary gates.
+
+No missing Aequitas metric remains in this PAM/neural scope. Remaining audit
+items are the uncalibrated signal fields above and other Kwavers transducer
+families outside this bounded slice. CFDrs and Helios have no new dimensional
+gap in the current re-audit; Helios PR #36 retains the independent replicated
+`beam_transmission/cpu` slowdown as a performance gate residual.
+
 ## ATLAS-ARCH-007 batch 3 — manifest file decomposition — 2026-08-02
 
 Additional 18 files decomposed in batch 3:

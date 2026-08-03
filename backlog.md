@@ -1917,36 +1917,6 @@ epospollo`, so both paths are the same tree. That is
   `Remove-Item -LiteralPath D:tlas\worktreespollo -Force` or
   `cmd /c rmdir "D:tlas\worktreespollo"`.
 
-## ATLAS-MNEMOSYNE-CI-1 — mnemosyne CI gate landed; two exclusions to retire [patch] — todo
-
-- Owner: unclaimed; scope: `repos/mnemosyne`.
-- mnemosyne had **no CI workflow at all** — only `rust-release.yml` — so its
-  282 tests ran nowhere on push, on a crate that sits on the publish critical
-  path. A formatting break earlier today would have gone unnoticed until a
-  publish attempt. Gate added 2026-08-03 (`49b4ad9`), now green.
-- Three exclusions, each with its trigger, none of them silent:
-  1. `mnemosyne-benchmarks` — pulls `snmalloc-rs`, which fails to build on
-     current host compilers (ATLAS-MNEMOSYNE-SNMALLOC-1). Retire with that.
-  2. `clippy::missing_const_for_thread_local` — a **clippy 1.97.0 false
-     positive**: it fires on initializers that are already `const { .. }`.
-     Confirmed independently in two repos (`mnemosyne-arena`
-     `segment/pool/segment_pool.rs:67` and moirai's `moirai-sync`). Retire
-     when the pinned toolchain moves.
-  3. `clippy::needless_return` and `clippy::collapsible_if` — real debt at
-     `mnemosyne-backend/src/backends/unix.rs:99,:200,:260`, inside unsafe
-     `madvise` paths whose `cfg` arms cover Linux, macOS and FreeBSD. A fix
-     is verifiable on one of those three from here, so it was not attempted.
-  4. `mnemosyne-c-shim` is excluded from the **test** steps only: nextest
-     fails at discovery there on Linux — the binary exits emitting no test
-     list, with empty stdout and stderr. Predates this work and is not
-     understood. The crate is still compiled and linted.
-- Lesson recorded for other repos adopting the template: the gate was
-  verified against an isolated **Windows** clone and still failed twice on
-  the runner, because `cfg(unix)` code never compiled locally. The cheap fix
-  is `cargo clippy --target x86_64-unknown-linux-gnu`, which reproduces the
-  runner's lints without a Linux box; the c-shim discovery failure remains
-  Linux-only and cannot be reproduced that way.
-
 ## ATLAS-MNEMOSYNE-SNMALLOC-1 — snmalloc-sys fails g++ 16's new warnings [patch] — todo
 
 - Owner: unclaimed; scope: `repos/mnemosyne` `crates/mnemosyne-benchmarks`

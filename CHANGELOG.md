@@ -18,6 +18,13 @@
   preserves Eunomia's real/quadrature shared-unit representation without an
   imaginary SI unit.
 
+- Merge Kwavers PR #337 (`d5d2d964`) to type PAM delay-and-sum and neural sensor
+  geometry, timing, frequency, angle, event-coordinate, and coherence metrics
+  through Aequitas. Uncalibrated PAM threshold/intensity remain representation
+  values; Eunomia complex FFT data retains one observable unit with no
+  imaginary SI unit. Final hosted coverage, architecture, safety, feature,
+  benchmark, and platform gates pass.
+
 ### Added
 
 - File ADR 0030 to promote published Hyperion as the bounded photon/optical
