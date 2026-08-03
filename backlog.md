@@ -1917,6 +1917,30 @@ epospollo`, so both paths are the same tree. That is
   `Remove-Item -LiteralPath D:tlas\worktreespollo -Force` or
   `cmd /c rmdir "D:tlas\worktreespollo"`.
 
+## ATLAS-ATHENA-ALLOC-1 — Zero-allocation solver test fails only on Linux [patch] — todo
+
+- Owner: unclaimed; scope: `repos/athena/crates/athena-leto/tests/allocation.rs`
+  and the GMRES path it measures.
+- `athena-leto::allocation repeated_gmres_solves_allocate_nothing_after_initialization`
+  fails on the CI runner with `left: 4, right: 0` — four allocations inside a
+  region asserted to make none across 16 warm solves. The same test passes
+  locally on Windows (52/52), so this is platform-specific and needs a Linux
+  box or runner to diagnose; it cannot be reproduced from this host.
+- **Newly visible, not newly broken.** athena CI had failed at dependency
+  resolution for its previous eight runs, so the test steps never executed.
+  Fixing resolution (`cdb5fca`) advanced the pipeline to the first real
+  failure. Format and Feature checks now pass for the first time.
+- Worth checking first, in this order: whether a lazily-initialized
+  thread-local or pool inside the measured region initializes on Linux but
+  not Windows; whether the count scales with the 16-iteration loop (4 is not
+  a multiple of 16, so it looks like one-time setup, not per-iteration
+  churn); and whether `stats_alloc`'s `Region` sees allocations from a
+  different global allocator path on the two platforms.
+- Non-goal: relaxing the assertion. A zero-allocation guarantee on a warm
+  solver path is the property the test exists to defend; four allocations on
+  a supported platform is either a real regression in that guarantee or a
+  measurement artifact, and both deserve an answer rather than a wider bound.
+
 ## ATLAS-MNEMOSYNE-CI-1 — mnemosyne CI gate landed; two exclusions to retire [patch] — todo
 
 - Owner: unclaimed; scope: `repos/mnemosyne`.
