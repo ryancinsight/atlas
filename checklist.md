@@ -27,9 +27,9 @@ physical contract is introduced.
 Current residual: local simulation doctest and FNM smoke collection exceed the
 300-second shared-target bound without a diagnostic; hosted equivalents pass.
 
-## ATLAS-AEQUITAS-CONSUMERS-006 — Kwavers beamforming and design metric extensions
+## ATLAS-AEQUITAS-CONSUMERS-006 — Kwavers beamforming and design metric extensions — in progress
 
-- [ ] Audit beamforming configuration and aperture/design propagation fields;
+- [x] Audit beamforming configuration and aperture/design propagation fields;
       identify every raw physical metric and its formula/storage boundary.
 - [ ] Type the next bounded consumer slice through Aequitas and migrate all
       current callers without compatibility wrappers.

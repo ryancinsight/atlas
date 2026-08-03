@@ -25,9 +25,9 @@
 - Re-open trigger: hosted source failure, dimensional residue, or Eunomia
   complex-boundary mismatch in the Kwavers ultrafast scope.
 
-## ATLAS-AEQUITAS-CONSUMERS-006 — Close Kwavers beamforming and design metric extensions [arch] [major] — todo
+## ATLAS-AEQUITAS-CONSUMERS-006 — Close Kwavers beamforming and design metric extensions [arch] [major] — in-progress
 
-- Owner: next session; scope: Kwavers beamforming configuration, aperture
+- Owner: current session; scope: Kwavers beamforming configuration, aperture
   design synthesis, focused propagation, and the explicitly listed focused,
   hemispherical, MEMS, flexible, and two-dimensional array contracts.
 - Outcome: type remaining public sound speed, sampling/reference frequency,
