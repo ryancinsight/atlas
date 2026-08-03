@@ -1892,7 +1892,7 @@
   g++ 16.1 — an upstream -Werror incompatibility, filed as
   ATLAS-MNEMOSYNE-SNMALLOC-1.
 
-## ATLAS-WORKTREE-JUNCTION-1 — `worktrees/apollo` is a junction onto the main tree [chore] — todo
+## ATLAS-WORKTREE-JUNCTION-1 — `worktrees/apollo` is a junction onto the main tree [chore] — done 2026-08-03
 
 - Owner: unclaimed; scope: the single directory entry
   `D:tlas\worktreespollo`.
@@ -1917,6 +1917,53 @@ epospollo`, so both paths are the same tree. That is
   `Remove-Item -LiteralPath D:tlas\worktreespollo -Force` or
   `cmd /c rmdir "D:tlas\worktreespollo"`.
 
+- **Whole lane root cleaned 2026-08-03; the audit now reports clean.** It went
+  from 37 directories and 30 violations to the two legitimate lanes, with
+  every repo inside the two-tree bound.
+- What the 37 actually were, since "34 stale lanes" was the wrong reading:
+  - **18 Windows junctions** aliasing `repos/<name>`. apollo was not special,
+    it was one of eighteen. They are not worktrees and hold no unique work by
+    construction. Removed via the reparse point only (`DirectoryInfo.Delete()`),
+    never a recursive delete, which would have followed the link into the real
+    repository and destroyed it.
+  - **10 empty directories**, removed after re-verifying each was empty.
+  - **2 full copies with no git metadata** (`hephaestus-unary-math-parity`,
+    `ritk-book-complete`). Rescue-first: every differing file's blob was found
+    in the owning repo's history, and the only files unique to the copies were
+    the junk-drawer `helpers.rs`/`utils.rs` modules ATLAS-ARCH-006 deliberately
+    deleted, plus two ritk book files whose exact blobs are in `cdaa8122` and
+    `6bfe2e33`. Nothing was lost.
+  - **1 orphan** (`leto-convolution-provider`) whose gitdir no longer existed;
+    its one unique file was `interpolation/utils.rs`, renamed to `search.rs`
+    in `b7b71ed`.
+  - **6 real lanes**, handled below.
+- Lane dispositions:
+  - `aequitas-crates-release`, `hermes-crates-release`, `moirai-crates-release`
+    — already merged into their default branches; lane and branch removed.
+  - `hephaestus-ks5-blocked-lu` — **completed**: PR #189 had sat open ~20 hours
+    at 19 commits behind. Merged master in cleanly, verified (fmt, `cargo check
+    --workspace --all-targets`, 84/84 hephaestus-core), pushed, waited for every
+    check green, merged, removed.
+  - `ritk-land` — one undelivered commit, 115 files, +31k lines, with **no PR**.
+    Not merged unverified; the branch was pushed to `origin/land/main` so the
+    work cannot be lost, and the lane removed. See ATLAS-RITK-LAND-1.
+  - `coeus-rope-provider` (42 dirty files) and
+    `kwavers-aequitas-sensor-beamformer` (open draft PR #340, opened today) —
+    left untouched, both live peer work.
+
+## ATLAS-RITK-LAND-1 — Verify and deliver `origin/land/main` [minor] — todo
+
+- Owner: unclaimed; scope: `repos/ritk`, branch `land/main`.
+- One commit, `5bb1fc3a` "feat(ritk): Land diffusion tractography, tractogram
+  formats, and book": 115 files, +31 193 / -2 672. It sat in a lane with
+  nothing pushed and no PR; the branch is now on origin so it cannot be lost,
+  but it is still undelivered.
+- Deliberately not merged during the lane cleanup: 31k unverified lines is not
+  a safe unattended merge, and ritk's main tree is on a peer branch.
+- Acceptance: the branch builds and its tests pass on a clean checkout, a PR is
+  opened and green, then merged. Overlaps ATLAS-NEURO-001 (RITK diffusion,
+  tractography, connectome crates) — reconcile scope with that item first
+  rather than duplicating it.
 ## ATLAS-ATHENA-ALLOC-1 — Zero-allocation solver test fails only on Linux [patch] — closed 2026-08-03 (not reproduced)
 
 - Owner: unclaimed; scope: `repos/athena/crates/athena-leto/tests/allocation.rs`
