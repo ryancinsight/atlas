@@ -389,9 +389,11 @@
   precision tier up) is decomposed into ATLAS-SUBSTRATE-005 below
   rather than widening this item.
 
-## ATLAS-SUBSTRATE-005 — Shared CPU-tier storage vocabulary for Apollo [arch] [minor] — todo
+## ATLAS-SUBSTRATE-005 — Shared CPU-tier storage vocabulary for Apollo [arch] [minor] — in-progress
 
-- Owner: unclaimed; scope: a `CpuStorage<E: CpuElement = f64>` family in
+- Owner: claude/fable-loop (claimed 2026-08-02); this increment: the
+  CpuStorage/CpuElement layer in apollo-fft + dht (real) and qft
+  (complex) as the proving pair; scope: a `CpuStorage<E: CpuElement = f64>` family in
   apollo-fft (elements f64/Complex64 with per-element scratch pools,
   mirroring the shipped GpuStorage/GpuElement design), then per-crate
   migration of the fourteen conversion-impl copies; the plan-coupled
