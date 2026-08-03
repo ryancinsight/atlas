@@ -1120,9 +1120,10 @@
 
 [adr47]: repos/hephaestus/docs/adr/0047-metal-as-a-wgpu-adapter-preference.md
 
-## ATLAS-ARCH-010 — Retire hephaestus-metal per ADR 0047 [arch] [major] — todo
+## ATLAS-ARCH-010 — Retire hephaestus-metal per ADR 0047 [arch] [major] — in-progress
 
-- Owner: unclaimed; scope: `repos/hephaestus` (`crates/hephaestus-metal`, the
+- Owner: claude/fable-loop (claimed 2026-08-03); scope: `repos/hephaestus`
+  (`crates/hephaestus-metal`, the
   workspace member list, the `hephaestus` facade's `metal` feature, and the
   conformance suite's Metal instantiation). Coeus is **out of scope** — see
   the note under ATLAS-SUBSTRATE-002.
