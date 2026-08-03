@@ -6,6 +6,30 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-AEQUITAS-CONSUMERS-008 — Kwavers transducer design and propagation metrics — in progress
+
+- [x] Audit transducer design and focused propagation contracts for raw
+      geometry, frequency, velocity, calibration, impedance, pressure, and
+      intensity metrics.
+- [x] Type the contracts through Aequitas and migrate the direct Kwavers driver
+      callers without compatibility wrappers; keep scalar extraction at
+      validation, formula, mesh, and legacy report boundaries.
+- [x] Add Kwavers ADR 099, synchronized child PM artifacts, analytical focal
+      pressure/intensity regressions, and the Eunomia real-plus-quadrature rule
+      with no imaginary SI unit.
+- [x] Collect local evidence: transducer Nextest 226/226 with one skip, driver
+      Nextest 489/489, warning-denied Clippy, formatting, diff, and residue
+      scans.
+- [ ] Collect the exact hosted locked matrix and merge Kwavers PR #338 at its
+      final green head; then close the child and Atlas PM records.
+- [ ] Start the next disjoint acquisition-geometry family after this WIP slot
+      closes: typed `ElementPosition` coordinates and ring/bowl radius,
+      diameter, and row-spacing contracts.
+
+Acceptance: no raw physical scalar remains in the bounded transducer
+design/propagation public contracts; focused real/quadrature values retain one
+observable pressure signal unit; hosted repository-owned gates pass.
+
 ## ATLAS-AEQUITAS-CONSUMERS-007 — Kwavers PAM/neural metric closure — done
 
 - [x] Audit PAM delay-and-sum, PAM configuration, neural sensor geometry, and

@@ -25,6 +25,13 @@
   imaginary SI unit. Final hosted coverage, architecture, safety, feature,
   benchmark, and platform gates pass.
 
+- Add Kwavers MET-60 for typed transducer design and focused propagation
+  contracts: geometry, wavelength, frequency, velocity, calibration,
+  impedance, pressure, intensity, and extents now use Aequitas through the
+  driver boundary. Focused real/quadrature accumulators remain components of
+  one observable pressure signal; no imaginary SI unit is introduced. Hosted
+  locked verification and merge remain pending for PR #338.
+
 ### Added
 
 - File ADR 0030 to promote published Hyperion as the bounded photon/optical

@@ -1,5 +1,34 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer gap-audit extension — Kwavers transducer design and propagation — 2026-08-03
+
+Kwavers MET-60 implements the next transducer-design metric family in PR
+[#338](https://github.com/ryancinsight/kwavers/pull/338). `ApertureDesignSpec`,
+`ArrayDesign`, focused propagation specifications, pressure maps, and their
+direct driver callers now carry typed `Length`, `Frequency`, `Velocity`,
+`Dimensionless`, `ElectricCurrent`, `PressurePerElectricCurrent`,
+`AcousticImpedance`, `Pressure`, and SI `Intensity` values. Scalar extraction is
+restricted to validation, Euclidean/formula calculations, mesh propagation,
+and the existing raw driver report boundary; the public transducer contracts do
+not retain a parallel scalar API.
+
+The Eunomia compatibility rule is explicit in Kwavers ADR 099: real and
+quadrature accumulators in the focused propagation formula are components of
+one observable pressure signal. They are not imaginary SI quantities, so no
+imaginary physical dimension or complex-unit wrapper is introduced. The
+analytical focal-pressure/intensity tests and invalid-input tests cover the
+typed contract. Local evidence is transducer Nextest 226/226 with one skip,
+driver Nextest 489/489, warning-denied Clippy, formatting, diff, and scoped
+residue scans. The hosted locked matrix remains the final acceptance gate.
+
+The next concrete Kwavers gap is shared acquisition geometry: `ElementPosition`
+still exposes Cartesian coordinates as raw metres, while `TransducerGeometry`
+is consumed by transcranial bowl and multi-row ring FWI paths. The follow-up
+should type those coordinates and the constructors' radius/diameter/row-spacing
+values as Aequitas `Length`, extracting only at Euclidean, mesh, and numerical
+kernel boundaries. Focused/hemispherical, MEMS/flexible, and 2-D array families
+remain separate candidates until their direct caller closure is enumerated.
+
 ## Aequitas consumer gap-audit closure — Kwavers PAM/neural metrics — 2026-08-03
 
 Kwavers PR [#337](https://github.com/ryancinsight/kwavers/pull/337) closes the
