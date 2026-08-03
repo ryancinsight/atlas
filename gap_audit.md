@@ -339,7 +339,7 @@ limited to distance, trigonometric, phase, and existing storage-kernel
 boundaries.
 
 Kwavers PR [#335](https://github.com/ryancinsight/kwavers/pull/335) is open at
-head `67aa775f543bcea067b968529795d2fe82b244a4`. The child branch has local
+head `9840b964df9823ec8ab81060dd8113dcf64ff67a`. The child branch has local
 locked checks, Clippy, full transducer Nextest (226/226 with one skipped),
   focused sensor regressions (13/13), direct Kwavers delay/steering regressions
   (1/1 each), doctests, Rustdoc, formatting, diff checks, and residue scans
@@ -352,12 +352,15 @@ locked checks, Clippy, full transducer Nextest (226/226 with one skipped),
   assertion diagnostic. The external RecurseML analyzer also reports the
   opaque error `Error occurred during analysis (dc8e5b58..3bc28739)` with no
   source diagnostic. Merge and closure remain gated on a green Code Coverage
-  rerun. The PR branch now derives the full Kwavers test-target list from Cargo
-  metadata and runs it concurrently with `session2_source_injection_test` under
-  the same LLVM instrumentation, emitting two Cobertura reports for one Codecov
-  upload. This preserves every target and the existing finite per-test timeout
-  without shrinking the full-grid workload or raising the job budget; exact-head
-  hosted evidence is still pending.
+rerun. The first sharded retry exposed a target-selection error because
+`solver_test` requires the `full` feature while the plotting coverage lane
+enables only `plotting`. The corrected PR head filters Cargo metadata by
+required features, runs the complete plotting-compatible target set
+concurrently with `session2_source_injection_test` under the same LLVM
+instrumentation, and emits two Cobertura reports for one Codecov upload.
+Feature-only targets remain covered by their dedicated matrix jobs; no target
+workload or finite per-test timeout is reduced or raised. Exact-head hosted
+evidence is still pending.
 
 Eunomia `Complex` remains a representation of real and quadrature observables
 under one existing physical unit. No imaginary SI unit, complex-valued Aequitas
