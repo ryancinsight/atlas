@@ -8857,7 +8857,7 @@ cfd-math's defect and a rotted build target.
   matrix-free operator once and both consumers land on it; doing JFNK first
   would build it twice.
 
-## ATLAS-CFDMATH-CLIPPY-FINDINGS-001 — Discharge the clippy backlog [patch] — todo
+## ATLAS-CFDMATH-CLIPPY-FINDINGS-001 — Discharge the clippy backlog [patch] — done 2026-08-03
 
 With clippy running again, the previously ungated increments report. Mine:
 
