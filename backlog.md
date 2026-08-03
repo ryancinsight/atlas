@@ -49,8 +49,8 @@
   processing metrics through Aequitas, migrates direct Kwavers tests and
   callers, and records the Eunomia complex-observable boundary. PR #335 is
   open at tested head `3bc28739160388fad0a904470ca5c22fc380d3a0`; local gates
-  pass, while Build & Test (stable) job `91609692920`, Code Coverage job
-  `91609692912`, and Test Suite Coverage job `91609692683` remain in progress.
+  pass; Build & Test (stable) job `91609692920` and Test Suite Coverage job
+  `91609692683` are green. Code Coverage job `91609692912` remains in progress.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 

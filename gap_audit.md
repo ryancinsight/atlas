@@ -326,14 +326,14 @@ boundaries.
 Kwavers PR [#335](https://github.com/ryancinsight/kwavers/pull/335) is open at
 head `3bc28739160388fad0a904470ca5c22fc380d3a0`. The child branch has local
 locked checks, Clippy, full transducer Nextest (226/226 with one skipped),
-focused sensor regressions (13/13), direct Kwavers delay/steering regressions
-(1/1 each), doctests, Rustdoc, formatting, diff checks, and residue scans
-passing. Repository-owned hosted gates are green except the still-running
-Build & Test (stable) job `91609692920`, Code Coverage job `91609692912`, and
-Test Suite Coverage job `91609692683`; the external RecurseML analyzer reports
-the opaque error `Error occurred during analysis (dc8e5b58..3bc28739)` with no
-source diagnostic. Merge and closure remain gated on the three repository-owned
-job conclusions.
+  focused sensor regressions (13/13), direct Kwavers delay/steering regressions
+  (1/1 each), doctests, Rustdoc, formatting, diff checks, and residue scans
+  passing. Repository-owned hosted gates are green except the still-running
+  Code Coverage job `91609692912`; Build & Test (stable) job `91609692920` and
+  Test Suite Coverage job `91609692683` are green. The external RecurseML
+  analyzer reports the opaque error
+  `Error occurred during analysis (dc8e5b58..3bc28739)` with no source
+  diagnostic. Merge and closure remain gated on Code Coverage.
 
 Eunomia `Complex` remains a representation of real and quadrature observables
 under one existing physical unit. No imaginary SI unit, complex-valued Aequitas
