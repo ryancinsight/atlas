@@ -151,7 +151,22 @@ consus-parquet/dataset (background agents).
 
 
 
-## ATLAS-ARCH-006 closure — junk-drawer module elimination — 2026-08-02
+## ATLAS-ARCH-002 closure — generic statistics and pareto test contracts — 2026-08-03
+
+Completed the final outstanding scope items:
+
+1. **leto-ops statistics** (commit `cf716c0`): Three test contracts
+   (`pearson_contract<T>`, `rmse_contract<T>`, `psnr_contract<T>`) genericized
+   over `T: RealField`, instantiated at both f32 and f64. Tolerances derived
+   from `T::EPSILON * c(n)` via `accumulation_tolerance<T>()`. All 492 tests pass.
+   Park condition cleared: ritk-registration/Cargo.toml had unnamed `[[bench]]`
+   and `[[example]]` targets; fixed in ritk commit `81815639`.
+
+2. **cfd-math pareto** (commit `e67f7f07`): `pareto_front_contract<T>` and
+   `crowding_distances_contract<T>` generic contract functions replace inline
+   f32/f64 duplication. 13 pareto tests pass.
+
+
 
 All 64 original `mod utils`, `mod helpers`, `mod common`, `mod shared`
 production modules eliminated. Final residuals: 2 (both semantically correct:
