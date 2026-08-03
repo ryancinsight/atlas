@@ -33,7 +33,11 @@ Acceptance: no raw physical scalar remains in the bounded transducer
 design/propagation public contracts; focused real/quadrature values retain one
 observable pressure signal unit; hosted repository-owned gates pass.
 
-## ATLAS-AEQUITAS-CONSUMERS-009 — Kwavers 2-D array metric audit — ready
+## ATLAS-AEQUITAS-CONSUMERS-009 — Kwavers 2-D array metric audit — in progress
+
+Owner: `codex/kwavers-aequitas-2d-array`  
+Claimed scope: `crates/kwavers-transducer/src/array_2d/`, its direct callers,
+and the corresponding Kwavers PM artifacts.
 
 - [ ] Enumerate the 2-D array configuration, element, and source contracts;
       classify raw dimensions, curvature, positions, delays, frequencies,
