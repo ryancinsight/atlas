@@ -9846,4 +9846,28 @@ attaches once the tensor fit lands.
   mechanism retirement.
 - Re-open trigger: any member repo gaining cross-repo path deps without
   updating the overlay generator.
+- **Dissent recorded 2026-08-03 from CI evidence — please read before treating
+  this as settled.** The acceptance here is four local `cargo check` runs.
+  Those cannot detect the failure mode cross-repo path deps introduce, because
+  they pass *precisely by* resolving against the local Atlas tree. The risk is
+  a clean single-repo checkout — what CI and any git-dependency consumer do —
+  and no evidence above covers it.
+- The failure is already observable in the stack. `athena` carries a committed
+  `[patch]` plus `../` path deps and has been red five days with
+  `failed to load source for dependency themis` / `unable to update
+  /github/themis`. athena is outside this item's scope, but it is the same
+  construct failing in the same way.
+- Survival depends on each repo's CI materializing siblings, and that is
+  inconsistent across the four: `kwavers` has 2 sibling-checkout steps and
+  `helios` 1, while **`CFDrs` and `ritk` have none** — with 20 and 22
+  cross-repo path deps respectively.
+- Their green CI is not counter-evidence: **CFDrs's only CI job is "Check book
+  figures SSOT"**, a docs check that never builds Rust, and ritk's latest run
+  reports no jobs at all. Neither repo currently compiles the migrated
+  manifests on a clean checkout, so "green" there means "untested".
+- Cheap way to settle it: for each of the four, run `cargo metadata` against a
+  checkout of that repo alone — clone to a temp dir, or run from outside the
+  Atlas tree so the root `.cargo/config.toml` does not apply. That reproduces
+  the runner's and the consumer's view. Until that passes for all four, this
+  is verified only in the one environment that cannot fail.
 
