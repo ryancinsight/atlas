@@ -79,7 +79,23 @@ families outside this bounded slice. CFDrs and Helios have no new dimensional
 gap in the current re-audit; Helios PR #36 retains the independent replicated
 `beam_transmission/cpu` slowdown as a performance gate residual.
 
-## ATLAS-ARCH-007 batch 3 — manifest file decomposition — 2026-08-02
+## Migration completeness audit — 2026-08-03
+
+All three consumer crates (kwavers, CFDrs, ritk) are clean:
+- **nalgebra**: 0 Cargo.toml dependencies remaining ✅
+- **ndarray**: 0 Cargo.toml dependencies remaining ✅ (numpy crate in kwavers-python is PyO3 binding, not ndarray)
+- **burn**: 0 Cargo.toml dependencies remaining ✅
+
+### Additional fixes this session
+- kwavers-solver: GMRES defects (true residual, happy breakdown, non-finite guards) ported from leto dcc5d54
+- cfd-3d projection_solver: migrated to Athena krylov (krylov::gmres + krylov::cg)
+- cfd-math multigrid: wrong super path after ARCH-007 split fixed
+- CFDrs production iterative imports: migrated to cfd_math::linear_solver canonical path
+- ritk-trx: TrxRawOutput missing re-export fixed (ARCH-007 follow-up)
+- ATLAS-GMRES-FORK-DEFECTS-001: CLOSED
+- ATLAS-CFDMATH-MATRIX-FREE-OPERATOR-001: CLOSED (bench was already deleted)
+
+
 
 Additional 18 files decomposed in batch 3:
 
