@@ -6,7 +6,7 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
-## ATLAS-AEQUITAS-CONSUMERS-008 — Kwavers transducer design and propagation metrics — in progress
+## ATLAS-AEQUITAS-CONSUMERS-008 — Kwavers transducer design and propagation metrics — done
 
 - [x] Audit transducer design and focused propagation contracts for raw
       geometry, frequency, velocity, calibration, impedance, pressure, and
@@ -20,8 +20,10 @@
 - [x] Collect local evidence: transducer Nextest 226/226 with one skip, driver
       Nextest 489/489, warning-denied Clippy, formatting, diff, and residue
       scans.
-- [ ] Collect the exact hosted locked matrix and merge Kwavers PR #338 at its
-      final green head; then close the child and Atlas PM records.
+- [x] Collect the exact hosted locked matrix and merge Kwavers PRs #338 and
+      #339 at their final green heads; child merge `3f96514d` and hosted Code
+      Coverage `91794809116` plus Test Suite Coverage `91794808091` pass. The
+      external RecurseML analysis remains report-only and failed.
 - [ ] Start the next disjoint acquisition-geometry family after this WIP slot
       closes: typed `ElementPosition` coordinates and ring/bowl radius,
       diameter, and row-spacing contracts.

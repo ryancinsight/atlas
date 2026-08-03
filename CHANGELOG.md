@@ -25,12 +25,15 @@
   imaginary SI unit. Final hosted coverage, architecture, safety, feature,
   benchmark, and platform gates pass.
 
-- Add Kwavers MET-60 for typed transducer design and focused propagation
+- Merge Kwavers MET-60 for typed transducer design and focused propagation
   contracts: geometry, wavelength, frequency, velocity, calibration,
   impedance, pressure, intensity, and extents now use Aequitas through the
   driver boundary. Focused real/quadrature accumulators remain components of
-  one observable pressure signal; no imaginary SI unit is introduced. Hosted
-  locked verification and merge remain pending for PR #338.
+  one observable pressure signal; no imaginary SI unit is introduced. PR #338
+  merged at `7ec566b6` and PM closure PR #339 merged at
+  `3f96514d`; hosted Code Coverage `91794809116` and Test Suite Coverage
+  `91794808091` pass, with the external RecurseML analysis remaining
+  report-only.
 
 ### Added
 

@@ -2,8 +2,10 @@
 
 ## Aequitas consumer gap-audit extension — Kwavers transducer design and propagation — 2026-08-03
 
-Kwavers MET-60 implements the next transducer-design metric family in PR
-[#338](https://github.com/ryancinsight/kwavers/pull/338). `ApertureDesignSpec`,
+Kwavers MET-60 implements the next transducer-design metric family in PRs
+[#338](https://github.com/ryancinsight/kwavers/pull/338) and
+[#339](https://github.com/ryancinsight/kwavers/pull/339). The merged child
+revision is `3f96514d59d76dc8868a678f399f0f715fe887fb`. `ApertureDesignSpec`,
 `ArrayDesign`, focused propagation specifications, pressure maps, and their
 direct driver callers now carry typed `Length`, `Frequency`, `Velocity`,
 `Dimensionless`, `ElectricCurrent`, `PressurePerElectricCurrent`,
@@ -19,9 +21,15 @@ imaginary physical dimension or complex-unit wrapper is introduced. The
 analytical focal-pressure/intensity tests and invalid-input tests cover the
 typed contract. Local evidence is transducer Nextest 226/226 with one skip,
 driver Nextest 489/489, warning-denied Clippy, formatting, diff, and scoped
-residue scans. The hosted locked matrix remains the final acceptance gate.
+residue scans. The hosted locked matrix passed at the merged head: Code
+Coverage `91794809116`, Test Suite Coverage `91794808091`, stable/beta/nightly,
+feature combinations, CUDA, Miri, security, solver, PINN, benchmark, quality,
+architecture, documentation, and layer-boundary jobs all passed. The external
+RecurseML analysis remained report-only and failed with its known analysis
+error.
 
-The next concrete Kwavers gap is shared acquisition geometry: `ElementPosition`
+MET-60 is closed. The next concrete Kwavers gap is shared acquisition geometry:
+`ElementPosition`
 still exposes Cartesian coordinates as raw metres, while `TransducerGeometry`
 is consumed by transcranial bowl and multi-row ring FWI paths. The follow-up
 should type those coordinates and the constructors' radius/diameter/row-spacing
