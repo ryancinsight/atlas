@@ -29,6 +29,16 @@ values as Aequitas `Length`, extracting only at Euclidean, mesh, and numerical
 kernel boundaries. Focused/hemispherical, MEMS/flexible, and 2-D array families
 remain separate candidates until their direct caller closure is enumerated.
 
+Helios PR [#36](https://github.com/ryancinsight/helios/pull/36) remains a
+separate integration residual, not a new metric gap. Its current hosted
+checkout fails before compilation because `checkout-path-dependencies` rejects
+the committed `../../repos/...` path sources as outside the provider
+destination; the benchmark job is blocked by the same error. The book job also
+fails because the workflow invokes the unavailable `mdbook-linkcheck` binary.
+The branch is peer-owned and remains unmodified in this audit; its exact
+re-open condition is a corrected provider source policy plus an installed or
+explicitly optional linkcheck backend, followed by the full locked matrix.
+
 ## Aequitas consumer gap-audit closure — Kwavers PAM/neural metrics — 2026-08-03
 
 Kwavers PR [#337](https://github.com/ryancinsight/kwavers/pull/337) closes the
