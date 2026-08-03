@@ -1,5 +1,34 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-ARCH-007 batch 3 — manifest file decomposition — 2026-08-02
+
+Additional 18 files decomposed in batch 3:
+
+| Repository | File | Commit |
+|---|---|---|
+| cfd-2d | serpentine_flow/mod.rs | feb5069b |
+| cfd-2d | momentum/boundary/mod.rs | 28032cf4 |
+| cfd-validation | reporting/mod.rs | fab91acf |
+| kwavers-solver | mofi/mod.rs | 6438b7e71 |
+| cfd-3d | cascade/mod.rs | 1b00723a |
+| cfd-1d | hemolysis/mod.rs | fdc6575f |
+| cfd-1d | solver/core/mod.rs | 5e8e6a5e |
+| cfd-2d | ns_fvm/solver/mod.rs | 4823f929 |
+| apollo-stft | gpu/mod.rs | 47e64bf |
+| hermes-simd-intrinsics | amx/mod.rs | 97eb329 |
+| cfd-2d | spalart_allmaras/mod.rs | a05b4413 |
+| cfd-math | gmg/mod.rs | 08bb20e2 |
+| cfd-math | dg/operators/mod.rs | 4fab9435 |
+| cfd-1d | serpentine/mod.rs | 3ec492cf |
+| cfd-2d | venturi_flow/mod.rs | e786526b |
+| ritk-snap | ui/sidebar/mod.rs | 34a4994e |
+| coeus-python | lib.rs (NoGradCtx) | cdcd62fe |
+| hermes-simd-core | vec/mod.rs | cef8d7f |
+
+**Running total across all batches: 52 files decomposed.**
+
+
+
 ## ATLAS-ARCH-007 partial — manifest file decomposition batch 2 — 2026-08-02
 
 Additional 24 files decomposed in batch 2 (continuing from batch 1's 10):
