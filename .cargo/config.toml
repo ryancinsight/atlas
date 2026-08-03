@@ -215,31 +215,31 @@ melinoe = { path = "repos/melinoe" }
 melinoe = { path = "repos/melinoe" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne"]
-mnemosyne = { path = "repos/mnemosyne/crates/mnemosyne" }
-mnemosyne-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
+mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
+mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne.git"]
-mnemosyne = { path = "repos/mnemosyne/crates/mnemosyne" }
-mnemosyne-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
+mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
+mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
 [patch."https://github.com/ryancinsight/Moirai"]
-moirai = { path = "repos/moirai/moirai" }
 moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
 moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
+moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
-moirai = { path = "repos/moirai/moirai" }
 moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
 moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
+moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
 
 [patch."https://github.com/ryancinsight/proteus"]
@@ -267,10 +267,10 @@ ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
 ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
 
 [patch."https://github.com/ryancinsight/themis"]
-themis = { path = "repos/themis" }
+themis-topology = { path = "repos/themis" }
 
 [patch."https://github.com/ryancinsight/themis.git"]
-themis = { path = "repos/themis" }
+themis-topology = { path = "repos/themis" }
 
 [patch."https://github.com/ryancinsight/tyche"]
 tyche-core = { path = "repos/tyche/crates/tyche-core" }
