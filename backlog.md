@@ -2035,6 +2035,52 @@
   events skipped, they were not published by this pipeline. Whether the crates
   reached crates.io by another route is a question for ATLAS-PUB-003, which
   owns publisher registration.
+- **leto slice done 2026-08-03** (`c42b87d`), plus `bf7bf2b` fixing four unused
+  imports that the earlier `520f248` decomposition left behind — CI denies
+  warnings, so that would have failed the gate regardless of this item.
+- **The validation run then exposed a blocking, stack-wide publish defect.**
+  See ATLAS-PUB-LOCK-1 below. The leto migration itself is behavior-preserving
+  and correct — the old and shared workflows use byte-identical `--locked`
+  invocations, so this failure predates the migration and would have hit the
+  first real release either way. The migration is what made it visible.
+
+## ATLAS-PUB-LOCK-1 — `--locked` publish is incompatible with the stack's lock convention [arch] — todo (needs user decision)
+
+- Owner: unclaimed; scope: the lock convention itself, `crates-publish.yml`,
+  and every package's release. **Blocks the first real publish of any crate
+  that has a first-party dependency.**
+- Symptom: `cargo publish --locked` / `cargo metadata --locked` fails on the
+  runner with `cannot update the lock file ... because --locked was passed`.
+  Observed 2026-08-03 on leto run 30798559165 (`leto-ops` 0.40.0).
+- Cause: member `Cargo.lock`s are committed in **overlay-on stripped form** —
+  first-party packages carry no `source` line, because the stack-root
+  `[patch]` overlay supplies local paths. Verified on leto's committed lock:
+  **9 first-party packages have no `source`, 0 have one.** CI has no overlay,
+  so cargo must write the git `source` lines back, which `--locked` forbids.
+- Why it has stayed hidden, and the evidence that it is real:
+  - Across apollo's whole release history, **22 runs skipped and exactly 1
+    succeeded**. Every skip is a legacy `<package>-v<version>` tag missing the
+    `crate-` gate, so the pipeline never ran.
+  - The one success is `apollo-fft-macros 0.2.0`, whose dependencies are
+    `proc-macro2`, `quote`, `syn` — **zero first-party deps**, so nothing in
+    its lock needed a git source and `--locked` held.
+  - So the pipeline is not proven working; it is proven working for the one
+    shape of crate that cannot exhibit the defect.
+- The decision needed (a convention change either way, which is why this is
+  not being taken unilaterally):
+  1. Commit locks in git-pinned (overlay-off) form, so CI resolution matches.
+     Contradicts the fleet's current practice and needs a regeneration pass
+     across every member.
+  2. Drop `--locked` from the publish pipeline, trading reproducibility of the
+     published artifact for a working release.
+  3. Have the pipeline materialize a git-form lock itself before packaging,
+     keeping both the committed convention and `--locked`.
+  Option 3 looks closest to preserving both properties, but it is a real
+  change to ADR 0035's pipeline, not a tweak.
+- Note: `--locked` under the overlay is separately unreliable because cargo
+  writes `[[patch.unused]]` entries in nondeterministic order; that is a known
+  local-verification wrinkle and is *not* the cause here. The cause is the
+  missing `source` lines, which is deterministic.
 
 ## ATLAS-PUB-002 — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — todo
 
