@@ -1917,7 +1917,7 @@ epospollo`, so both paths are the same tree. That is
   `Remove-Item -LiteralPath D:tlas\worktreespollo -Force` or
   `cmd /c rmdir "D:tlas\worktreespollo"`.
 
-## ATLAS-ATHENA-ALLOC-1 — Zero-allocation solver test fails only on Linux [patch] — todo
+## ATLAS-ATHENA-ALLOC-1 — Zero-allocation solver test fails only on Linux [patch] — closed 2026-08-03 (not reproduced)
 
 - Owner: unclaimed; scope: `repos/athena/crates/athena-leto/tests/allocation.rs`
   and the GMRES path it measures.
@@ -1941,6 +1941,32 @@ epospollo`, so both paths are the same tree. That is
   a supported platform is either a real regression in that guarantee or a
   measurement artifact, and both deserve an answer rather than a wider bound.
 
+- **athena CI is green as of `34ce3b6`** — the first green run in its recorded
+  history. The allocation tests pass there now.
+- **I never reproduced the failure, and did not "fix" it.** The only change to
+  that test was reporting the whole `Stats` on failure instead of the first
+  field (`346a1df`); no bound was relaxed and no production code was touched.
+  It passed on the very next run and every run since.
+- What was ruled out, so a recurrence is not re-investigated from scratch: it
+  passes on Windows; and in WSL Linux under rustc 1.97.0 with CI's exact
+  dependency revisions and its exact `cargo nextest run --workspace
+  --all-features` invocation — including 40 consecutive runs, at 1, 2 and 4
+  cores, and with AVX2/FMA disabled. Every configuration I could construct
+  passes, so the trigger is something specific to the GitHub runner.
+- Treat a recurrence as a live lead rather than a flake: the diagnostic now
+  prints allocations, reallocations, deallocations and bytes, which
+  distinguishes a retained buffer from a temporary and sizes it. Reopen this
+  item with that output attached.
+- Two further failures were hidden behind it and are fixed, both orphans of
+  the `045efe4` device-neutral refactor that only became visible as each
+  earlier step went green:
+  - `48e3876` — a `pub fn` doc linked to `DiagonalIndex`, which is
+    `pub(super)`, so rustdoc under `-D warnings` failed. Now names the public
+    errors it actually returns, which is the better contract anyway.
+  - `34ce3b6` — two examples still imported the deleted `athena::wgpu` module
+    and required a `wgpu` feature the refactor had renamed to `accelerator`.
+    Ported to the device-neutral API rather than deleted, and verified by
+    running on a real adapter: they print the exact solutions.
 ## ATLAS-MNEMOSYNE-CI-1 — mnemosyne CI gate landed; two exclusions to retire [patch] — todo
 
 - Owner: unclaimed; scope: `repos/mnemosyne`.
