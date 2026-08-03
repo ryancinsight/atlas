@@ -1123,13 +1123,13 @@
   `WgpuDevice::adapter_info()` is already public and carries `.backend`. So
   the decision keeps `backend_name` naming the backend implementation, and
   the retirement needs **no new API and no consumer break**.
-- Execution is deliberately a separate item (ATLAS-ARCH-010): removing a
+- Execution is deliberately a separate item (ATLAS-ARCH-011): removing a
   published crate at 0.18.0 is `[major]`, a different change class and blast
   radius from the decision this item was scoped to.
 
 [adr47]: repos/hephaestus/docs/adr/0047-metal-as-a-wgpu-adapter-preference.md
 
-## ATLAS-ARCH-010 — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
+## ATLAS-ARCH-011 — Retire hephaestus-metal per ADR 0047 [arch] [major] — blocked
 
 - Owner: claude/fable-loop (claimed 2026-08-03); scope: `repos/hephaestus`
   (`crates/hephaestus-metal`, the
