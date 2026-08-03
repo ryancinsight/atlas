@@ -1084,7 +1084,26 @@
 - Dependencies: sequence after ATLAS-ARCH-001, so the conformance suite is not
   rewritten twice.
 
-## ATLAS-ARCH-002 — Instantiate generic tests across every shipped scalar [patch] — todo
+## ATLAS-ARCH-002 — Instantiate generic tests across every shipped scalar [patch] — in-progress
+
+- Owner: claude/fable-loop (claimed 2026-08-03). Burn-down is nearly
+  complete: the 25 audited files are down to **2** stack-wide
+  (`leto-ops` statistics, `cfd-math` optimization/pareto), both already
+  asserting at f32 *and* f64. What remains is the acceptance's second
+  half — the assertions are hand-duplicated per type, so a newly
+  admitted scalar would not inherit them. The shipped implementor set is
+  exactly `{f32, f64}` (eunomia's only `RealField` impls), so coverage is
+  met and only the form needs fixing.
+- **leto-ops rewritten, verification PARKED 2026-08-03**: the three
+  contracts are now single generic bodies over `T: RealField`
+  instantiated at both widths, with tolerances derived from `T::EPSILON`
+  via a shared `accumulation_tolerance` helper instead of the two
+  hand-picked magic epsilons. Uncommitted in `repos/leto` pending a
+  build: a live peer is mid-rewrite of the ritk manifests, leaving
+  `[[bench]]`/`[[example]]` sections without the required `name`, which
+  fails `cargo metadata` for **every** crate in the stack (the overlay
+  parses all member manifests). Re-open trigger: ritk manifests parse.
+  Then verify, commit, and do cfd-math the same way to close the item.
 
 - Owner: unclaimed; scope: 25 files carrying `..._is_generic_over_scalar_f32`
   tests. One package per claim.
