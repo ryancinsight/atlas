@@ -7334,7 +7334,7 @@ list updated. `check-drift.sh` reports `4 consumers clean`.
   sibling recurrence; every consumer verifies against its own suite.
 - Risk: [major] [arch]. Blast radius spans leto, athena, CFDrs, kwavers.
 
-## ATLAS-GMRES-FORK-DEFECTS-001 — Port the leto-ops GMRES corrections to the CFDrs and kwavers forks [patch] — todo
+## ATLAS-GMRES-FORK-DEFECTS-001 — Port the leto-ops GMRES corrections to the CFDrs and kwavers forks [patch] — done 2026-08-03
 
 - Outcome: the four correctness/robustness defects fixed in leto `dcc5d54`
   no longer reachable through the CFDrs and kwavers GMRES copies.
