@@ -8965,7 +8965,7 @@ cfd-validation, then delete the `cfd_math::iterative` facade.
   download race observed (concurrent fetches colliding in `~/.rustup/downloads`)
   — retry-safe, noted as a fleet-scale contention source.
 
-## ATLAS-CFDMATH-MATRIX-FREE-OPERATOR-001 — Restore the matrix-free operator [patch] — todo
+## ATLAS-CFDMATH-MATRIX-FREE-OPERATOR-001 — Restore the matrix-free operator [patch] — done 2026-08-03
 
 First finding the toolchain fix exposed: `cargo clippy --all-targets` on
 cfd-math fails E0432 — `benches/math_benchmarks.rs` imports
