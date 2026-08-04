@@ -2608,14 +2608,22 @@ epospollo`, so both paths are the same tree. That is
 
 ## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — in-progress
 
-- Owner: this session — **eunomia**, **aequitas**, **themis**, and **melinoe** claims.
-  Claimed scope: `docs/book/` in each of those four packages.
-  Other packages remain unclaimed.
-- Claim status:
-  - **eunomia** `aa1be92` on `fix/rkyv-0.8-migration` — 3 examples delivered.
-  - **aequitas** `35fe13e` on `main` — book + 2 examples.
-  - **themis** `54b89f9` on `main` — book + 2 examples.
-  - **melinoe** `40d0f7c` on `main` — book + 2 examples.
+- Owner: this session — sequences (1) and (2) claimed and delivered.
+  Sequence (3) packages remain unclaimed.
+- Claim status (as of 2026-08-04):
+  - **Sequence 1** (foundation):
+    - **eunomia** `aa1be92` on `fix/rkyv-0.8-migration` — 3 examples.
+    - **aequitas** `35fe13e` on `main` — book + 2 examples.
+    - **themis** `54b89f9` on `main` — book + 2 examples.
+    - **melinoe** `40d0f7c` on `main` — book + 2 examples.
+  - **Sequence 2** (compute):
+    - **mnemosyne** `820258c` on `main` — book + 2 examples + ATLAS-MNEMOSYNE-CI-1 FP fix.
+    - **moirai** `af23ea0` on `main` — book + 2 examples + clippy FP fixes (4 sites).
+    - **hermes** `4d9c398` on `fix/rkyv-0.8-migration` — book + 2 examples + locality.rs FP fix.
+    - **leto** dedicated branch `codex/leto-book` — book + 2 examples (peer holds main).
+    - **hephaestus** dedicated branch `codex/hephaestus-book` — book + 2 examples (peer holds master).
+  - **Sequence 3** (domain): unclaimed — `apollo`, `coeus`, `gaia`, `consus`, `horae`,
+    `athena`, `proteus`, `hyperion`, `iris`, `asclepius`, `harmonia`, `tyche`.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §5.
 - Outcome: every package teaches its field from the governing equations, through
   the numerical method and its stability and convergence properties, to the
