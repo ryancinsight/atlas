@@ -14,7 +14,7 @@ and area-formula boundaries. The direct external caller
 `brain_theranostic_monitor.rs` wraps the constructor constants inline.
 235/235 kwavers-transducer nextest pass.
 
-## hermes SIMD adoption — kwavers-math — 2026-08-03
+## hermes SIMD adoption — kwavers-math — 2026-08-04
 
 PR [#344](https://github.com/ryancinsight/kwavers/pull/344) on branch
 `codex/kwavers-hermes-simd` (CI in progress):
@@ -26,6 +26,18 @@ PR [#344](https://github.com/ryancinsight/kwavers/pull/344) on branch
   The `auto_detect/` subtree already used `hermes_simd` via `ops.rs` — unchanged.
 - Transcranial-FUS Python bindings migrated from `complex_compat` to `array_utils`.
 - 256/256 kwavers-math tests pass.
+
+## Aequitas consumer gap-audit — Kwavers flexible array config — 2026-08-04
+
+Kwavers MET-65 closes the flexible transducer array configuration metric family in
+PR [#345](https://github.com/ryancinsight/kwavers/pull/345) on branch
+`codex/kwavers-aequitas-mems` (CI in progress). All raw physical fields in
+`FlexibleTransducerConfig`, `FlexibilityModel`, `CalibrationMethod`, and
+`TrackingSystem` are typed: `Length<f64>` for spacings/thicknesses/noise,
+`Frequency<f64>` for operating/tracking/sampling rates, `Pressure<f64>` for
+Young's/bulk moduli, `SpringStiffness<f64>` for membrane tension, `Time<f64>`
+for calibration intervals. `field_strength` remains `f64` (Tesla not yet in
+Aequitas). Mesh coordinate arrays stay `[f64; 3]`. 228/228 nextest pass.
 
 ## Aequitas consumer gap-audit extension — Kwavers 2-D array — 2026-08-03
 
