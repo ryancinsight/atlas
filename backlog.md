@@ -2608,16 +2608,19 @@ epospollo`, so both paths are the same tree. That is
 
 ## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — in-progress
 
-- Owner: this session — **eunomia** package claim.
-  Claimed scope: `repos/eunomia/docs/book/` (book skeleton + full outline),
-  the eunomia `book-pages.yml` caller, and the Atlas `docs.yml` wiring for the
-  eunomia book. Other packages remain unclaimed.
-- Claim status: **examples increment delivered 2026-08-04** — three runnable
-  book examples committed at `aa1be92` on branch `fix/rkyv-0.8-migration`
-  (`book_choosing_precision`, `book_complex_arithmetic`,
-  `book_rounding_behaviour`); companion chapter pages updated with embedded
-  source listings and verified run output; `mdbook build docs/book` clean;
-  `cargo clippy --examples -- -D warnings` clean.
+- Owner: this session — **eunomia** and **aequitas** package claims.
+  Claimed scope: `repos/eunomia/docs/book/`, `repos/aequitas/docs/book/`,
+  their `book-pages.yml` callers. Other packages remain unclaimed.
+- Claim status:
+  - **eunomia examples delivered 2026-08-04** — three runnable examples at
+    `aa1be92` on `fix/rkyv-0.8-migration` (`book_choosing_precision`,
+    `book_complex_arithmetic`, `book_rounding_behaviour`); chapter pages embed
+    source listings and verified run output; mdbook build + clippy -D warnings
+    clean.
+  - **aequitas book + examples delivered 2026-08-04** — full book skeleton
+    (8 chapters, SUMMARY, book.toml, book-pages.yml caller) plus two runnable
+    examples at `35fe13e` on `main` (`book_first_quantities`,
+    `book_acoustic_impedance`); mdbook build + clippy -D warnings clean.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §5.
 - Outcome: every package teaches its field from the governing equations, through
   the numerical method and its stability and convergence properties, to the
