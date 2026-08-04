@@ -16,8 +16,8 @@ and area-formula boundaries. The direct external caller
 
 ## hermes SIMD adoption — kwavers-math — 2026-08-03
 
-PR [#342](https://github.com/ryancinsight/kwavers/pull/342) on branch
-`codex/kwavers-aequitas-sequencer` (CI in progress):
+PR [#344](https://github.com/ryancinsight/kwavers/pull/344) on branch
+`codex/kwavers-hermes-simd` (CI in progress):
 - `SimdOps` in `kwavers-math/simd_safe/operations.rs` rewritten to delegate
   directly to `hermes_simd::{elementwise_add, elementwise_sub, elementwise_mul,
   scale, dot}` for contiguous slices; scalar fallback for non-contiguous views.
