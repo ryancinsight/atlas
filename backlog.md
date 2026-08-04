@@ -7,6 +7,55 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-KWAVERS-MNEMOSYNE-FIX-1 — Complete mnemosyne dep wiring stranded in kwavers `bf3e17861` [patch] — in-progress
+
+- Owner: current session; scope: kwavers `[workspace.dependencies]`
+  (`repos/kwavers/Cargo.toml`), `kwavers-core/Cargo.toml`, and the six
+  `crates/kwavers-core/src/arena/**` modules that consume the mnemosyne
+  arena/backend/memory-core seam (`numa_aware.rs`, `field_arena.rs`,
+  `temp_arena.rs`, `batch/soa_buffer.rs`, `layout/pool.rs`,
+  `layout/soa/mod.rs`, `pool/mod.rs`, `pool/pool_impl.rs`); meta-side
+  `.cargo/config.toml` overlay regeneration and a `kwavers` gitlink advance.
+- Outcome: close the orphan mnemosyne dep wiring that the kwavers-math to
+  leto-ops SSOT consolidation (`bf3e17861` on `refactor/retire-kwavers-optics`)
+  left unwrapped. Manifests reference `mnemosyne-arena`, `mnemosyne-backend`,
+  `mnemosyne-core` (crate name; package `mnemosyne-memory-core`) but the
+  workspace `[workspace.dependencies]` declarations and the local overlay had
+  not yet propagated. Complete the dead-peer WIP's six-file rewrite of the
+  arena layer (`std::alloc::{alloc,dealloc}` goes to
+  `mnemosyne_arena::{allocate,deallocate_large_or_huge}` with `segment_ptr`
+  recovery via the metadata-slot pattern) and resolve the resulting dead-code
+  lint floor: drop the now-unused `layout: Layout` fields and
+  `Layout::from_size_align` validators where mnemosyne owns the validation;
+  drop unused `deallocate_large_or_huge` re-import in `pool/mod.rs`. Build-green
+  DoD: `cargo check -p kwavers-core --lib` rc=0; `xtask legacy-migration-audit`
+  runs clean; `-D warnings` floor holds.
+- Acceptance: kwavers build resolves `mnemosyne-arena`, `mnemosyne-backend`,
+  `mnemosyne-memory-core` (crate `mnemosyne_core`) via the local overlay;
+  `cargo check -p kwavers-core --lib` exits 0 with no warnings under
+  `[workspace.lints]` `-D warnings`; audit runs to completion; `.cargo/config.toml`
+  carries `[patch]` entries for `mnemosyne-arena`, `mnemosyne-backend` (both URL
+  variants) in addition to the pre-existing `mnemosyne-memory`,
+  `mnemosyne-memory-core`.
+- Residual risk (recorded, NOT closed in this slice): an mnemosyne's
+  `allocate_large_or_huge` allocates in `SEGMENT_SIZE` (2 MiB) granular
+  segments, so small `BumpAllocator`, `FieldArena` transient arenas now
+  over-allocate by up to ~30x the requested `size_bytes` — the behavioral
+  contract (transient small-object arena) diverges from mnemosyne's "large
+  or huge" segment-pool design intent. The `NumaAwareAllocator` stores only
+  last `(user_ptr, segment_ptr)` pair, so a second `allocate()` call leaks the
+  first; the peer's WIP was preserving a single-allocation lifetime. No NUMA
+  `mbind(2)` is performed after the mnemosyne allocate, so "NUMA-aware" is now
+  first-touch only (pre-existing; the prior `std::alloc::alloc` path was also
+  first-touch-only). These are kwavers-local design considerations for the
+  mnemosyne-themis adoption axis, recorded for follow-up. NOT regressions
+  introduced by this slice. They describe the dead-peer WIP state advanced on
+  top of `bf3e17861`.
+- Re-open trigger: kwavers workspace build fails inside the meta overlay with
+  `mnemosyne-arena`, `mnemosyne-backend`, `mnemosyne-core` resolution errors;
+  or `cargo check -p kwavers-core --lib` re-introduces dead-code warnings in
+  the six arena modules.
+
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
 - Owner: current session; scope: the Kwavers plane-wave and diverging-wave
@@ -2559,12 +2608,16 @@ epospollo`, so both paths are the same tree. That is
 
 ## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — in-progress
 
-- Owner: this session (claimed 2026-08-03) — **eunomia** package claim.
+- Owner: this session — **eunomia** package claim.
   Claimed scope: `repos/eunomia/docs/book/` (book skeleton + full outline),
   the eunomia `book-pages.yml` caller, and the Atlas `docs.yml` wiring for the
   eunomia book. Other packages remain unclaimed.
-- Claim status: outline increment in progress (book skeleton authored,
-  verification + delivery pending).
+- Claim status: **examples increment delivered 2026-08-04** — three runnable
+  book examples committed at `aa1be92` on branch `fix/rkyv-0.8-migration`
+  (`book_choosing_precision`, `book_complex_arithmetic`,
+  `book_rounding_behaviour`); companion chapter pages updated with embedded
+  source listings and verified run output; `mdbook build docs/book` clean;
+  `cargo clippy --examples -- -D warnings` clean.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §5.
 - Outcome: every package teaches its field from the governing equations, through
   the numerical method and its stability and convergence properties, to the
