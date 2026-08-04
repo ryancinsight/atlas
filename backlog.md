@@ -7,58 +7,6 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-KWAVERS-ELASTOGRAPHY-SLOW-1 — Elastography test sits on the 60s termination bound [patch] — todo
-
-- Owner: unclaimed; scope: `repos/kwavers`,
-  `kwavers-solver inverse::elastography::*`, and `.config/nextest.toml`.
-- kwavers PR #348 (a **docs-only** change) failed its "Test Suite Coverage"
-  job with `TIMEOUT [60.009s] (4718/5674)` on an elastography test, taking
-  956 further tests with it via fail-fast. PR #347 — same branch, one commit
-  earlier — passed that job ~40 minutes before. Neither commit touches solver
-  code, so the test is sitting on the bound and variance decides the verdict.
-- The job is not what its name suggests: it runs `cargo nextest run --locked
-  --workspace --exclude kwavers-python --exclude kwavers-gpu --lib
-  --test-threads=1`. No coverage instrumentation, and no `--profile`, so it
-  inherits `[profile.default]`'s 60s termination (`slow-timeout = 10s`,
-  `terminate-after = 6`). Serial execution gives each test the whole machine,
-  so this is not instrumentation overhead: the test genuinely takes ~60s.
-- **Do not fix this by raising the bound.** By the stack's own test-budget
-  rule, crossing the slow bound is a performance defect in the system under
-  test and a termination is a hang to root-cause — the bound exists to make
-  that visible. The work is to profile the elastography path until the same
-  non-simplified test fits, or to establish its workload as analytically
-  irreducible and give it a dedicated reviewed profile with a derived bound.
-- Worth checking alongside it: the job runs fail-fast, so one slow test hides
-  the status of 956 others on a whole-workspace serial run.
-- Evidence: run 30886006001 (fail); the same job green on #347.
-
-## ATLAS-RITK-LABELMAP-FLAKE-1 — MergeLabelMap test passes or fails by scheduling [patch] — todo
-
-- Owner: unclaimed; scope: `crates/ritk-python/tests/test_simpleitk_cmake_data.py`
-  (`test_cmake_merge_label_map[2]`) and the label-map path it exercises.
-- **Confirmed flaky, not a regression.** On ritk main commit `0b9e4211` the
-  wheel smoke test failed with `MergeLabelMap(method=2) differs at 2 voxels`
-  (1244 passed). Re-running the same job on the **same commit**, with no code
-  change, passed. Same input, same binary, different verdict.
-- Suspected cause, from the test's own docstring: it "exercises the persistent
-  deferred queue". A queue that persists across calls is global mutable state,
-  and the suite runs under pytest-xdist (`gw1` appears in the log), so which
-  worker picks up which test — and what ran before it in that process — varies
-  run to run. That is the same defect class as the Rust temp-file race fixed in
-  `dacd2976`: parallel execution over shared state.
-- Why this is worth an item rather than a retry habit: a test whose verdict
-  depends on scheduling is not testing what it claims, and re-running until
-  green converts a real defect into invisible noise. The two-voxel delta is
-  also small enough to be a genuine ordering-dependent result rather than
-  random corruption, which makes it diagnosable.
-- Acceptance: either the deferred queue is made per-call (or per-instance) so
-  the result cannot depend on execution order, or the test is shown to be
-  order-independent and the true cause identified. Reproduce by running the
-  label-map tests repeatedly under `-p xdist` with varying worker counts.
-- Note: ritk main CI is otherwise **green** as of `0b9e4211` — Rustfmt, Clippy,
-  Workspace Dependency Alignment, all three Test Suites, Python CI and the
-  mdBook deploy all pass. This flake is the only remaining instability.
-
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
 - Owner: current session; scope: the Kwavers plane-wave and diverging-wave
@@ -2282,29 +2230,6 @@ epospollo`, so both paths are the same tree. That is
   Repository CI also green, covering the three refactor commits the push
   carried.
 - **3 of 8 done** (hephaestus, leto, moirai). The five left — apollo, coeus,
-- **kwavers slice done 2026-08-03/04** (`cdf566e81`): 154-line body → 39-line
-  caller, toolchain 1.97.1 passed through. **4 of 8 done** (hephaestus, leto,
-  moirai, kwavers).
-- `atlas-ref` deliberately omitted, correcting this item's own note. The old
-  body carried two "Check out exact Atlas path dependencies" steps, but every
-  `../` path dependency in kwavers now resolves inside the repository
-  (`../kwavers-core` and siblings) — none escape it, so there is nothing to
-  materialise and the steps were vestigial.
-- **The validation dispatch fails, and not because of the caller.** It gets
-  through checkout, toolchain and release-identity resolution, then
-  `cargo publish --dry-run` reports `no matching package named
-  'ritk-registration' found; location searched: crates.io index; required by
-  kwavers-core v3.0.0`. Packaging requires every dependency to resolve from
-  the registry, and the stack's first-party crates are not published yet.
-- That is pre-existing: the old 154-line body ran the same
-  `cargo publish --locked --dry-run` and would fail identically. The
-  migration is sound; kwavers-core simply is not publishable today.
-- Consequence for this item's acceptance: the "one green workflow_dispatch
-  validation run" clause cannot be met for any package whose dependency
-  closure includes unpublished first-party crates. It is satisfiable only for
-  leaf crates (as apollo-fft-macros was), and otherwise waits on the publish
-  ordering in ATLAS-PUB-006. Worth splitting that clause rather than leaving
-  four slices looking unfinished.
   consus, kwavers, ritk — are all currently on live peer branches, so their
   slices wait for those branches rather than for anything in this item.
 - Practical note for the remaining slices: pass `version` from the workspace
@@ -2434,20 +2359,6 @@ epospollo`, so both paths are the same tree. That is
   `target/book/ritk`); each package's Pages deployment succeeds once through the
   shared workflow.
 
-- **kwavers slice done 2026-08-04** (`c47270f45`): 70-line body → 37-line
-  caller pinned to atlas `9772542`, passing only `output-path: target/book`.
-  **1 of 4 done**; CFDrs, helios and ritk are on live peer branches.
-- The output path was read from `docs/book/book.toml`'s
-  `build-dir = "../../target/book"` rather than assumed, as this item
-  instructs. `mdbook-version` stays at the shared 0.5.4 default, which is the
-  version the book already pinned, so the built artefact is unchanged.
-- Verified end to end, not just by inspection: the push triggered the caller
-  and the run completed **success**, including the Pages deploy. The shared
-  workflow keeps the pull-request build and skips deployment there
-  (`if: github.event_name != 'pull_request'`), so PRs still prove the book
-  builds without publishing it.
-- `mdbook-test` is left at its `false` default; flipping it per book is
-  ATLAS-PUB-005's job and needs the samples to compile first.
 ## ATLAS-PUB-003 — Register trusted publishers and remove the unused PyPI token [chore] — todo
 
 - Owner: user-gated — registry and GitHub settings changes are Ask-User actions;
@@ -2694,9 +2605,7 @@ epospollo`, so both paths are the same tree. That is
 - Re-open trigger for a separate package: a second production consumer outside
   the RITK workspace deletes a matching implementation in the extraction change.
 
-## ATLAS-MODALITY-001 — Move chromophore extinction spectra to Hyperion [arch] [minor] — in-progress
-- Owner: claude/fable-loop (claimed 2026-08-04); hyperion half first, per the
-  co-evolution order recorded below.
+## ATLAS-MODALITY-001 — Move chromophore extinction spectra to Hyperion [arch] [minor] — todo
 
 - Owner: unclaimed; scope: `repos/hyperion/src/coefficient/`, `repos/hyperion/README.md`,
   `repos/kwavers/crates/kwavers-optics/` (deleted), the kwavers workspace member
@@ -2715,68 +2624,6 @@ epospollo`, so both paths are the same tree. That is
   their nextest budgets; Hyperion's spectra disclaimer is revised in the same
   change.
 
-- **Unblocked 2026-08-04**: both repos are on their default branches and green
-  for the first time, so this is claimable. Groundwork done, to make the claim
-  fast rather than to pre-empt it:
-  - The `kwavers -> hyperion` edge **already exists**
-    (`kwavers/Cargo.toml:8`, consumed by `kwavers-medium` and
-    `kwavers-physics`), so the move needs no new architectural edge — only the
-    data and its consumers relocate.
-  - Target module is `hyperion/src/coefficient/optical.rs`, alongside
-    `interaction.rs`, `mass.rs` and `role.rs`; hyperion already depends on
-    aequitas, so the Aequitas-quantity clause has its vocabulary in place.
-  - `kwavers-optics` is 514 LOC (`lib.rs` + `chromophores/`), matching this
-    item's figure. Consumers to rewire: `crates/kwavers/Cargo.toml`,
-    `crates/kwavers-diagnostics/Cargo.toml`, the
-    `photoacoustic_blood_oxygenation` example, the crate-list doc comment in
-    `crates/kwavers/src/lib.rs`, and the `architecture_boundaries` test, which
-    names `kwavers-optics` explicitly and will fail until updated.
-  - Sequencing is the co-evolution order: hyperion lands and is pinned first,
-    then kwavers rewires and deletes the crate. Doing it in the other order
-    leaves the tables duplicated across repos.
-- **Watch the hyperion worktree when claiming this.** Its committed
-  `Cargo.toml` is clean, but the local tree carries 3 uncommitted cross-repo
-  path deps (`path = "../aequitas"` and friends) — the overlay quarantine
-  leaking into the manifest. Committing them would reproduce exactly the
-  breakage fixed in athena (`cdb5fca`) and ritk (#106). Stage hyperion's
-  manifest only if you have deliberately changed it.
-- **Upstream half DONE 2026-08-04**: hyperion PR #1 merged (`ce5a413`). The
-  spectra now live in `hyperion/src/coefficient/chromophore.rs`, exposed as
-  `OXYHEMOGLOBIN`, `DEOXYHEMOGLOBIN` and `hemoglobin_absorption(...)`
-  returning `InteractionCoefficient<T, Absorption>` — the Aequitas-quantity
-  clause. The differential test asserts bit-exact equality against the kwavers
-  tables at all 24 tabulated wavelengths for both species.
-- Rewritten rather than ported: the source was `f64`-hardcoded, used
-  `String`/`BTreeMap`/`anyhow`, and hyperion is generic, `no_std` and
-  typed-error. Two defects were corrected in transit and are pinned by tests:
-  interpolation now happens in continuous wavelength (the original quantised
-  the query to whole nanometres first, discarding sub-nm resolution below
-  600 nm where samples differ by an order of magnitude), and out-of-range
-  wavelengths are rejected with a typed error instead of silently clamped to
-  the nearest endpoint.
-- **The consumer half is much larger than this item states, and the stated
-  consumers are wrong.** It names `kwavers-physics` / `kwavers-imaging`;
-  the actual surface is:
-  - `kwavers-phantom` — **5 files** (`builder/blood_oxygenation.rs`,
-    `builder/tumor_detection.rs`, `builder/vascular.rs`, `utils.rs`, plus its
-    manifest). This is the heaviest consumer and is unlisted.
-  - `kwavers-diagnostics` — `workflows/blood_oxygenation.rs` + manifest.
-  - `crates/kwavers` — manifest, the `photoacoustic_blood_oxygenation`
-    example, the crate-list doc in `src/lib.rs`, and
-    `tests/architecture_boundaries.rs`, which names `kwavers-optics`
-    explicitly and fails until updated.
-  - `kwavers-physics/.../optoacoustic.rs` — a doc reference only.
-- Call-site census: **73 `absorption_coefficient(...)`**, 14
-  `HemoglobinDatabase::standard`, 6 `extinction_pair`, 3
-  `HemoglobinDatabase::default`, 2 `typical_blood_parameters`, 2
-  `oxygen_saturation`. These are not import swaps: the acceptance requires the
-  Aequitas-typed return, so each site adapts from a bare `f64` to
-  `InteractionCoefficient`.
-- Open design question for whoever takes the consumer half: `oxygen_saturation`
-  is a trivial concentration ratio and `typical_blood_parameters` is a
-  reference tuple — neither is spectra. Decide whether they follow the data
-  into hyperion or stay as integrator-level conveniences in kwavers; the
-  answer changes how many of the 100-odd sites move.
 ## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — done
 
 - Owner: Codex — provider and Kwavers phases 1, 2a, 2b, 3a-3d, and phase 4
