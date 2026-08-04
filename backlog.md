@@ -62,6 +62,28 @@
   `Cargo.lock`. The lock cannot distinguish an activated optional dependency
   from a dormant one, which is exactly the distinction that decides whether
   this is urgent.
+- **Direction set by the user 2026-08-04, recorded as
+  [ADR 0040](docs/adr/0040-first-party-zero-copy-archives.md) (Proposed):**
+  zero-copy archival is a first-class capability, not an optional feature, and
+  should be preferred over serde/JSON in a performance-first stack. Long term,
+  Consus — the registered storage owner — implements an Atlas-specific
+  zero-copy form that can monomorphize to our containers.
+- **This rules out one of the two fixes I proposed.** "Drop the `rkyv` feature
+  where unused" would have been the cheap mitigation, but it moves the stack
+  in the opposite direction to the decision: it treats archival as removable.
+  It stays available only as an emergency lever, not as the plan.
+- **Short-term route is therefore the rkyv 0.8 upgrade** (`>= 0.8.17`, the
+  advisory's own remedy), keeping archival first-class while the Consus layer
+  is designed. Scope: eunomia's `packed/rkyv.rs` (200 LOC, hand-written
+  `Archive` impl for `Packed4Cow`) and hermes-simd-core's `cow/rkyv.rs`
+  (`ArchivedSimdCow`, `SimdCowResolver`). 0.7 to 0.8 is a breaking API change,
+  so this is a migration rather than a version bump.
+- While it is open, PR #349 (MODALITY-001, otherwise green at 25 checks) stays
+  unmerged. Merging past a security gate is not the default.
+- Housekeeping found on the way: **`repos/eunomia` is in detached HEAD** at
+  `add4b9c` with one dirty file. The commit is on `origin/main`, so nothing is
+  stranded, but that tree needs returning to a branch before anyone edits it —
+  the third repository found detached today.
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
 - Owner: current session; scope: the Kwavers plane-wave and diverging-wave
