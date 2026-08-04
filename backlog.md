@@ -2172,7 +2172,7 @@ epospollo`, so both paths are the same tree. That is
   vocabulary point — admitting a width is one `impl` line and every generic test
   inherits it.
 
-## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — todo
+## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — in-progress
 
 - Owner: unclaimed; scope: `repos/{apollo,coeus,consus,hephaestus,kwavers,leto,moirai}/.github/workflows/rust-release.yml`
   and `repos/ritk/.github/workflows/release.yml`. One package per claim — the
@@ -2198,6 +2198,8 @@ epospollo`, so both paths are the same tree. That is
   `workflow_dispatch` run 30795798452 is green, with the validate job passing
   in 1m3s and the publish job correctly skipped (it gates on
   `github.event_name == 'release'`, so a dispatch cannot publish).
+- **leto and moirai slices done (prior session)**: both migrated to 39-line callers.
+- **apollo, coeus, consus, ritk PRs open 2026-08-04**: apollo PR #75, coeus PR #289, consus PR #11, ritk PR #107 — 142-line bodies → 39-line callers, format/lock fixes applied, CIs running.
 - **Carry this into the remaining seven migrations: the tag gate must stay in
   the caller.** The audit's "byte-identical apart from the toolchain" reading
   misses it. Each package's current workflow skips non-`crate-` releases via a
@@ -5941,14 +5943,15 @@ performed against each repo's `origin/main` HEAD.
 - Refs: backlog.md#CFDRS-PERF-SLOW-001 (Session 13 upstream-cause filing),
   backlog.md#ATLAS-LETO-OPS-SPARSE-LU-001 (this item), ATLAS-LETO-OPS-AMD-ORDERING-001 [patch] (new follow-up below).
 
-## ATLAS-LETO-OPS-AMD-ORDERING-001 — Implement AMD fill-reducing ordering for sparse LU [patch] — todo
+## ATLAS-LETO-OPS-AMD-ORDERING-001 — Implement AMD fill-reducing ordering for sparse LU [patch] — in-progress (claimed 2026-08-04 Session 32)
 
 Filed as follow-up per ADR 0031 Consequences (closed at Session 17). The
 [arch] Option A shipped natural column ordering for v0.40.0; AMD is the
 deferred performance increment.
 
-- Owner: unclaimed (route to leto peer next session — peer owns
-  `leto-ops` source tree).
+- Owner: self (claimed 2026-08-04 against `repos/leto` gitlink `d1c3a1c`
+  on origin/main; peer overlay dirt on `Cargo.lock`/`Cargo.toml` is
+  excluded from this increment's staging).
 - Outcome: implement Approximate Minimum Degree ordering per
   Amestoy-Davis-Duff 1996 (An approximate minimum degree ordering
   algorithm, SIAM J. Matrix Anal. Appl. 17(4)), ~300-line surface.
