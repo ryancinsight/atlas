@@ -7,6 +7,31 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-KWAVERS-ELASTOGRAPHY-SLOW-1 — Elastography test sits on the 60s termination bound [patch] — todo
+
+- Owner: unclaimed; scope: `repos/kwavers`,
+  `kwavers-solver inverse::elastography::*`, and `.config/nextest.toml`.
+- kwavers PR #348 (a **docs-only** change) failed its "Test Suite Coverage"
+  job with `TIMEOUT [60.009s] (4718/5674)` on an elastography test, taking
+  956 further tests with it via fail-fast. PR #347 — same branch, one commit
+  earlier — passed that job ~40 minutes before. Neither commit touches solver
+  code, so the test is sitting on the bound and variance decides the verdict.
+- The job is not what its name suggests: it runs `cargo nextest run --locked
+  --workspace --exclude kwavers-python --exclude kwavers-gpu --lib
+  --test-threads=1`. No coverage instrumentation, and no `--profile`, so it
+  inherits `[profile.default]`'s 60s termination (`slow-timeout = 10s`,
+  `terminate-after = 6`). Serial execution gives each test the whole machine,
+  so this is not instrumentation overhead: the test genuinely takes ~60s.
+- **Do not fix this by raising the bound.** By the stack's own test-budget
+  rule, crossing the slow bound is a performance defect in the system under
+  test and a termination is a hang to root-cause — the bound exists to make
+  that visible. The work is to profile the elastography path until the same
+  non-simplified test fits, or to establish its workload as analytically
+  irreducible and give it a dedicated reviewed profile with a derived bound.
+- Worth checking alongside it: the job runs fail-fast, so one slow test hides
+  the status of 956 others on a whole-workspace serial run.
+- Evidence: run 30886006001 (fail); the same job green on #347.
+
 ## ATLAS-RITK-LABELMAP-FLAKE-1 — MergeLabelMap test passes or fails by scheduling [patch] — todo
 
 - Owner: unclaimed; scope: `crates/ritk-python/tests/test_simpleitk_cmake_data.py`
