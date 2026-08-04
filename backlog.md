@@ -2555,9 +2555,14 @@ epospollo`, so both paths are the same tree. That is
   landing green.
 - Dependencies: ATLAS-PUB-002 for that package.
 
-## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — todo
+## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — in-progress
 
-- Owner: unclaimed; scope: one package per claim, `docs/book/` in that repository.
+- Owner: this session (claimed 2026-08-03) — **eunomia** package claim.
+  Claimed scope: `repos/eunomia/docs/book/` (book skeleton + full outline),
+  the eunomia `book-pages.yml` caller, and the Atlas `docs.yml` wiring for the
+  eunomia book. Other packages remain unclaimed.
+- Claim status: outline increment in progress (book skeleton authored,
+  verification + delivery pending).
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §5.
 - Outcome: every package teaches its field from the governing equations, through
   the numerical method and its stability and convergence properties, to the
@@ -9645,18 +9650,46 @@ resolved here; a peer owns the local commits. This branch was cut from
   peak extraction as well as tractography.
 - **Class**: `[minor]`, repository `repos/gaia`.
 
-## ATLAS-LETO-NNLS-007 — Non-negative constrained solve [minor] — todo
+## ATLAS-LETO-NNLS-007 — Non-negative constrained solve [minor] — done 2026-08-03
 
-- **Evidence of gap**: no `nnls` or constrained quadratic program in `leto`,
-  `coeus`, or `eunomia`.
-- **Why it blocks**: constrained spherical deconvolution — the standard FOD
-  estimator and the core of the MRtrix `dwi2fod` role — is a
-  non-negativity-constrained solve. Unconstrained deconvolution produces negative
-  lobes and is not a substitute.
-- **Owner**: `leto-ops`, alongside the existing `cholesky`, `qr`, `svd`, and
-  `pinv` decompositions.
-- **Sequencing**: assign and land before CSD is scheduled, not during it.
-- **Class**: `[minor]`, repository `repos/leto`.
+- Owner: current session; scope: `repos/leto/crates/leto-ops/src/application/linalg/nnls.rs`
+  and the dMRI Wave 1 backlog entry's stale evidence-of-gap claim.
+- Outcome: NNLS already exists in `leto-ops` (Lawson & Hanson active-set
+  algorithm, O(m·n) inner-loop QR solves via `qr_decompose`), is publicly
+  re-exported at the crate root as `leto_ops::nnls` alongside `NnlsConfig`
+  and `NnlsResult`, and was the original cargo entry point from the
+  dMRI Wave 1 audit. The backlog item's premise ("no `nnls` or
+  constrained quadratic program in `leto`, `coeus`, or `eunomia`") was
+  contradicted by code and is a stale-memory / doc-impact defect —
+  discovered during this session's stale-claim sweep on `repos/leto`.
+- Doctest defect carried alongside: the public doctest was marked
+  `rust,ignore` (a `[integration.md doc-test gate] no-ignored-doctests`
+  violation) and broken-as-runnable because `Array2::from_vec`'s
+  `Result` was unwrapped on only one of two constructors. This session
+  fixed the doctest (removed `rust,ignore`, added missing `use` for
+  `NnlsConfig`, added `.unwrap()` on `Array2::from_vec`, added a
+  `result.converged` assertion so the doctest is value-semantic rather
+  than is-ok-only) and added a CSD-shape recovery test that grounds the
+  file's doc-claimed CSD motivation in a synthesised analytical oracle
+  (a Toeplitz-of-exponentials basis with a non-negative sparse spike
+  ground truth, asserting non-negativity, exact spike recovery, no
+  spurious lobes, and zero residual — the dMRI equivalent of the
+  negative-lobe defect class).
+- Verification: `cargo nextest run -p leto-ops --lib nnls` 13/13 pass
+  in 0.691s (the 12 pre-existing tests plus the new
+  `csd_shape_sparse_spike_recovered`); `cargo test --doc -p leto-ops nnls`
+  1/1 pass, 0 ignored (was `rust,ignore`); `cargo clippy -p leto-ops
+  --all-targets -- -D warnings` clean; `cargo fmt -p leto-ops --check`
+  clean; diff is a single file, 77 insertions / 4 deletions.
+- Why it is now `done`: the Wave 1 gate is met — `nnls` exists, is
+  exported, has a runnable doctest, and has a CSD-shape recovery test
+  — so the item does not block the dMRI Wave 3 RITK crates (the CSD
+  consumer). The remaining Wave 1 items (`coeus-nlls-004` Gauss-Newton/
+  Levenberg-Marquardt, `apollo-realsh-005` real-symmetric SH basis,
+  `gaia-polyline-006` polyline / unit-sphere directions) are independent.
+- Class: `[minor]`, repository `repos/leto`. Doc-only change to
+  `backlog.md`; the leto source change is `[patch]` (doctest fix +
+  cross-verification test, no algorithm or public-API delta).
 
 ## Wave 2 — preprocessing (RITK, existing crate owners)
 
