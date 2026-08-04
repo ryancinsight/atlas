@@ -7,6 +7,68 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-RITK-LAND-1 — Verify and deliver `origin/land/main` [minor] — in-progress (PR #106)
+
+- Owner: unclaimed; scope: `repos/ritk`, branch `land/main`.
+- One commit, `5bb1fc3a` "feat(ritk): Land diffusion tractography, tractogram
+  formats, and book": 115 files, +31 193 / -2 672. It sat in a lane with
+  nothing pushed and no PR; the branch is now on origin so it cannot be lost,
+  but it is still undelivered.
+- Deliberately not merged during the lane cleanup: 31k unverified lines is not
+  a safe unattended merge, and ritk's main tree is on a peer branch.
+- Acceptance: the branch builds and its tests pass on a clean checkout, a PR is
+  opened and green, then merged. Overlaps ATLAS-NEURO-001 (RITK diffusion,
+  tractography, connectome crates) — reconcile scope with that item first
+  rather than duplicating it.
+- **Superseded in part 2026-08-03: the commit is already on `origin/main`** — a
+  peer pushed it directly while the lane cleanup was running, so this is no
+  longer about delivering it. It is about the fact that **it broke ritk's
+  default branch**, which is exactly the risk that made me decline to merge
+  31k unverified lines during the cleanup.
+- Three workflows went red on it (CI, Python CI, Deploy mdBook), for reasons
+  that stack:
+  1. **Cross-repo path deps.** The landing converted all 22 workspace
+     dependencies to `../../repos/...`. Atlas's provider-checkout action
+     rejects them — `path dependency /home/runner/work/ritk/repos/aequitas is
+     outside provider destination` — so every job failed before compiling.
+     Fixed by restoring each declaration from the pre-conversion manifest,
+     preserving package renames; the stack-root overlay owns local resolution.
+  2. **No rustfmt pass**: 180 diffs against `cargo fmt --all --check`.
+  3. **Clippy denials**: ten cleared (needless range loops, a collapsible if,
+     a complex return type, Default-then-assign, redundant borrow, needless
+     `Ok(..?)`, let-and-return, enumerate-and-discard, unused import).
+- Delivered as **ritk PR #106**, which turns the provider-checkout step and
+  the dependency-alignment job green.
+- **17 clippy denials remain and are deliberately not silenced.** Most sit in
+  `crates/ritk-tractography/src/tests.rs`: unused `gx`, `gy`, `d`. Those are
+  test bodies computing values they never assert on, which is the
+  existence-only-assertion smell rather than lint debt — the fix is to assert
+  on them or delete them, and that needs someone who knows the intended
+  contract. One `this if has identical blocks` is a possible real defect in
+  the same category. Silencing either would hide the finding.
+- Follow-up owner should also reconcile with ATLAS-NEURO-001, whose scope this
+  landing covers.
+- **Status update, later 2026-08-03**: PR #106 is at **21 checks passing, 1
+  failing (Clippy)**. Path-dep breakage and rustfmt are fixed; ~20 clippy
+  denials cleared across two commits.
+- **The clippy tail is deeper than any count suggests, by construction.**
+  Clippy fail-fasts per crate, so the reported number is only what it reached
+  before the first crate failed. Clearing ten exposed ten more; clearing those
+  exposed ~20 further in `ritk-diffusion` test files it had never compiled.
+  Budget several passes.
+- Two findings that are **not** lint debt and need a domain answer:
+  - `ritk-mif/src/writer.rs`: `if nframes > 1 { write "file: . 0" } else {
+    write "file: . 0" }` — byte-identical branches, collapsed to preserve
+    behaviour. The multi-frame case looks unimplemented, not intentionally
+    identical.
+  - `ritk-tractography/src/tests.rs` and `ritk-diffusion/tests/phantom.rs`
+    carry unused locals (`gx`, `gy`, `d`, `tensor`) — computed and never
+    asserted on, the existence-only-assertion smell. Assert or delete; naming
+    them `_` would hide it.
+- Until Clippy is green the PR cannot merge and ritk main stays red.
+- Note: this whole item was dropped from the board by `43682a8`, a stale-base
+  rewrite, and restored here from `65d789c`.
+
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
 - Owner: current session; scope: the Kwavers plane-wave and diverging-wave
