@@ -2607,7 +2607,7 @@ epospollo`, so both paths are the same tree. That is
 - Re-open trigger for a separate package: a second production consumer outside
   the RITK workspace deletes a matching implementation in the extraction change.
 
-## ATLAS-MODALITY-001 — Move chromophore extinction spectra to Hyperion [arch] [minor] — todo
+## ATLAS-MODALITY-001 — Move chromophore extinction spectra to Hyperion [arch] [minor] — done 2026-08-04
 
 - Owner: unclaimed; scope: `repos/hyperion/src/coefficient/`, `repos/hyperion/README.md`,
   `repos/kwavers/crates/kwavers-optics/` (deleted), the kwavers workspace member
