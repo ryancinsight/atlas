@@ -14,10 +14,10 @@ and area-formula boundaries. The direct external caller
 `brain_theranostic_monitor.rs` wraps the constructor constants inline.
 235/235 kwavers-transducer nextest pass.
 
-## hermes SIMD adoption — kwavers-math — 2026-08-04
+## hermes SIMD adoption — kwavers-math — 2026-08-04 ✓ MERGED
 
-PR [#344](https://github.com/ryancinsight/kwavers/pull/344) on branch
-`codex/kwavers-hermes-simd` (CI in progress):
+PR [#344](https://github.com/ryancinsight/kwavers/pull/344) merged as
+`1453678d1` on `2026-08-04`. All repository-owned CI gates passed.
 - `SimdOps` in `kwavers-math/simd_safe/operations.rs` rewritten to delegate
   directly to `hermes_simd::{elementwise_add, elementwise_sub, elementwise_mul,
   scale, dot}` for contiguous slices; scalar fallback for non-contiguous views.
