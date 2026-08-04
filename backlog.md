@@ -2740,6 +2740,43 @@ epospollo`, so both paths are the same tree. That is
   leaking into the manifest. Committing them would reproduce exactly the
   breakage fixed in athena (`cdb5fca`) and ritk (#106). Stage hyperion's
   manifest only if you have deliberately changed it.
+- **Upstream half DONE 2026-08-04**: hyperion PR #1 merged (`ce5a413`). The
+  spectra now live in `hyperion/src/coefficient/chromophore.rs`, exposed as
+  `OXYHEMOGLOBIN`, `DEOXYHEMOGLOBIN` and `hemoglobin_absorption(...)`
+  returning `InteractionCoefficient<T, Absorption>` — the Aequitas-quantity
+  clause. The differential test asserts bit-exact equality against the kwavers
+  tables at all 24 tabulated wavelengths for both species.
+- Rewritten rather than ported: the source was `f64`-hardcoded, used
+  `String`/`BTreeMap`/`anyhow`, and hyperion is generic, `no_std` and
+  typed-error. Two defects were corrected in transit and are pinned by tests:
+  interpolation now happens in continuous wavelength (the original quantised
+  the query to whole nanometres first, discarding sub-nm resolution below
+  600 nm where samples differ by an order of magnitude), and out-of-range
+  wavelengths are rejected with a typed error instead of silently clamped to
+  the nearest endpoint.
+- **The consumer half is much larger than this item states, and the stated
+  consumers are wrong.** It names `kwavers-physics` / `kwavers-imaging`;
+  the actual surface is:
+  - `kwavers-phantom` — **5 files** (`builder/blood_oxygenation.rs`,
+    `builder/tumor_detection.rs`, `builder/vascular.rs`, `utils.rs`, plus its
+    manifest). This is the heaviest consumer and is unlisted.
+  - `kwavers-diagnostics` — `workflows/blood_oxygenation.rs` + manifest.
+  - `crates/kwavers` — manifest, the `photoacoustic_blood_oxygenation`
+    example, the crate-list doc in `src/lib.rs`, and
+    `tests/architecture_boundaries.rs`, which names `kwavers-optics`
+    explicitly and fails until updated.
+  - `kwavers-physics/.../optoacoustic.rs` — a doc reference only.
+- Call-site census: **73 `absorption_coefficient(...)`**, 14
+  `HemoglobinDatabase::standard`, 6 `extinction_pair`, 3
+  `HemoglobinDatabase::default`, 2 `typical_blood_parameters`, 2
+  `oxygen_saturation`. These are not import swaps: the acceptance requires the
+  Aequitas-typed return, so each site adapts from a bare `f64` to
+  `InteractionCoefficient`.
+- Open design question for whoever takes the consumer half: `oxygen_saturation`
+  is a trivial concentration ratio and `typical_blood_parameters` is a
+  reference tuple — neither is spectra. Decide whether they follow the data
+  into hyperion or stay as integrator-level conveniences in kwavers; the
+  answer changes how many of the 100-odd sites move.
 ## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — done
 
 - Owner: Codex — provider and Kwavers phases 1, 2a, 2b, 3a-3d, and phase 4
