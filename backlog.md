@@ -54,6 +54,14 @@
   70-minute budget while tarpaulin was running `session2_source_injection_test`;
   the log records passing tests followed by `The operation was canceled` and
   orphan-process cleanup. No source assertion failure was reported.
+- Increment closed: `KWAVERS-AEQ-MET-63` closes the focused-source contracts
+  through PR #346 at source head `7ae4080b4`, merged as
+  `1217058ebadc2c6be862e31b205898aec93508ac`. Local focused transducer
+  Nextest is 233/233 with strict Clippy, package checks, package-by-package
+  doctests, formatting, diff, and typed/complex residue scans passing.
+  Eunomia complex values remain one-observable-unit phasors; no imaginary SI
+  unit is introduced. Hosted checks were pending at merge and remain a
+  watchpoint.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 

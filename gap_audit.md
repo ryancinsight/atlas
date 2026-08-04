@@ -14,6 +14,29 @@ and area-formula boundaries. The direct external caller
 `brain_theranostic_monitor.rs` wraps the constructor constants inline.
 235/235 kwavers-transducer nextest pass.
 
+## Aequitas consumer gap-audit extension — Kwavers focused source — 2026-08-04 ✓ MERGED
+
+Kwavers MET-63 closes the focused-source metric family in PR
+[#346](https://github.com/ryancinsight/kwavers/pull/346). The source head
+`7ae4080b4` merged as `1217058ebadc2c6be862e31b205898aec93508ac` on
+`2026-08-04`. Focused bowl, arc, spherical-cap, and multi-bowl contracts now
+carry Aequitas `Length`, `Area`, `Frequency`, `Time`, `Angle`, `Pressure`,
+`Velocity`, and `Dimensionless` values through their public Rust boundaries;
+direct therapy, diagnostics, and example callers were migrated without
+compatibility wrappers. Beam steering now retargets the typed focus and
+recomputes element normals rather than only changing an unused configuration
+field.
+
+Scalar extraction remains limited to trigonometric, acoustic, mesh/GPU, and
+explicit serialization boundaries. Eunomia complex values are used only as
+real/quadrature phasor components at the numerical signal boundary; they retain
+one observable signal unit. No imaginary length, angle, delay, pressure, or
+other SI unit is introduced. Local evidence at the merged source head is
+233/233 focused transducer Nextest tests, strict offline Clippy for affected
+packages, package checks, package-by-package doctests, formatting, diff, and
+typed/complex residue scans. The hosted repository-owned checks were pending
+when the PR merge was observed; their status remains an external watchpoint.
+
 ## hermes SIMD adoption — kwavers-math — 2026-08-04 ✓ MERGED
 
 PR [#344](https://github.com/ryancinsight/kwavers/pull/344) merged as
@@ -74,9 +97,10 @@ nightly, feature, CUDA, Miri, security, solver, benchmark, documentation,
 architecture, migration, and wheel gates. RecurseML analysis remains the
 known report-only analyzer failure.
 
-MET-62 is closed. Focused/hemispherical, MEMS, flexible, and other remaining
-array families remain separate audit candidates until their direct public
-contracts are inspected; no raw-metric removal is claimed for those scopes.
+MET-62 and the focused-source MET-63 increment are closed. MEMS MET-64,
+flexible-array, and other remaining array families remain separate audit
+candidates until their direct public contracts are inspected; no raw-metric
+removal is claimed for those scopes.
 
 ## Aequitas consumer gap-audit extension — Kwavers acquisition geometry — 2026-08-03
 
@@ -102,10 +126,10 @@ Miri, security, feature, CUDA, solver, benchmark, architecture,
 documentation, migration, and wheel gates. PR #340 merged as
 `9a6aac1ce04390339b317296e7b16316dc134cc9`.
 
-MET-61 is closed. The next Kwavers audit frontier is the 2-D array family,
-followed by focused/hemispherical and MEMS/flexible families. Those frontiers
-remain open until their direct callers and flat-array curvature semantics are
-audited; no raw-metric removal is claimed for them here.
+MET-61 is closed. The 2-D, hemispherical, and focused-source frontiers are now
+closed by their recorded increments. MEMS/flexible and other array families
+remain open until their direct callers and physical semantics are audited; no
+raw-metric removal is claimed for those scopes here.
 
 Helios PR [#36](https://github.com/ryancinsight/helios/pull/36) remains a
 separate integration residual, not a new metric gap. Its current hosted
