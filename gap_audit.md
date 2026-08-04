@@ -1,5 +1,32 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas consumer gap-audit extension — Kwavers hemispherical array — 2026-08-03
+
+Kwavers MET-63 closes the hemispherical-array metric family in
+PR [#343](https://github.com/ryancinsight/kwavers/pull/343). Source head
+`b5a66a916` on branch `codex/kwavers-aequitas-hemispherical` (CI in progress).
+`HemisphereGeometry` (`radius`, `aperture`, `focal_length`), `ElementConfiguration`
+(`radius`, `phase_offset`), `FocalPoint::amplitude`, `SteeringController`
+(`frequency`, `sound_speed`), `HemisphericalArrayMetrics` (`peak_pressure`,
+`steering_range`), and `ArrayValidator::max_pressure` are all typed through
+Aequitas. Scalar extraction is restricted to mesh coordinates, signal-factory,
+and area-formula boundaries. The direct external caller
+`brain_theranostic_monitor.rs` wraps the constructor constants inline.
+235/235 kwavers-transducer nextest pass.
+
+## hermes SIMD adoption — kwavers-math — 2026-08-03
+
+PR [#342](https://github.com/ryancinsight/kwavers/pull/342) on branch
+`codex/kwavers-aequitas-sequencer` (CI in progress):
+- `SimdOps` in `kwavers-math/simd_safe/operations.rs` rewritten to delegate
+  directly to `hermes_simd::{elementwise_add, elementwise_sub, elementwise_mul,
+  scale, dot}` for contiguous slices; scalar fallback for non-contiguous views.
+- Hand-written per-architecture intrinsic modules deleted:
+  `simd_safe/avx2.rs`, `simd_safe/neon.rs`, `simd_safe/swar.rs` (−681 lines).
+  The `auto_detect/` subtree already used `hermes_simd` via `ops.rs` — unchanged.
+- Transcranial-FUS Python bindings migrated from `complex_compat` to `array_utils`.
+- 256/256 kwavers-math tests pass.
+
 ## Aequitas consumer gap-audit extension — Kwavers 2-D array — 2026-08-03
 
 Kwavers MET-62 closes the two-dimensional transducer-array metric family in
