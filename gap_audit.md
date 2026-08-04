@@ -36,6 +36,9 @@ other SI unit is introduced. Local evidence at the merged source head is
 packages, package checks, package-by-package doctests, formatting, diff, and
 typed/complex residue scans. The hosted repository-owned checks were pending
 when the PR merge was observed; their status remains an external watchpoint.
+Other Kwavers complex-valued contracts remain dimensionless or signal
+representation data (for example, Eunomia complex dielectric values); they do
+not create an imaginary dimensional unit.
 
 ## hermes SIMD adoption — kwavers-math — 2026-08-04 ✓ MERGED
 
