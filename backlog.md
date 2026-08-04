@@ -7,6 +7,34 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-SEC-RKYV-1 — RUSTSEC-2026-0235 blocks every kwavers merge [patch] [security] — todo
+
+- Owner: unclaimed; scope: `repos/eunomia/Cargo.toml` (the pin), and any
+  consumer whose audit gate now fails.
+- `cargo audit` reports **RUSTSEC-2026-0235**, "insufficient archive
+  validation can cause out-of-bounds", against **rkyv v0.7.46**. Solution per
+  the advisory: upgrade to `>= 0.8.17`. Reached as
+  `kwavers -> eunomia v0.7.0 -> rkyv v0.7.46`; eunomia pins
+  `rkyv = { version = "0.7", default-features = false }`
+  (`eunomia/Cargo.toml:18`).
+- **Newly published, not newly introduced.** rkyv 0.7.46 is in kwavers'
+  lockfile both before and after the MODALITY-001 lock bump, and kwavers PRs
+  #346, #347 and #348 all passed Security Audit and merged within the last
+  several hours. The dependency did not move; the advisory did.
+- Blast radius: **20 repositories declare eunomia**, so any of them running a
+  `cargo audit` gate starts failing on the same finding. kwavers is simply the
+  first to surface it. This is not a kwavers defect and should not be fixed
+  per-consumer.
+- The fix is upstream and is a real migration, not a version bump: rkyv 0.7 to
+  0.8 is a breaking API change, so eunomia's archived types and any derives
+  move with it, and every consumer of eunomia's rkyv surface re-verifies.
+- Immediate consequence: **PR #349 (MODALITY-001's consumer half) is otherwise
+  green — 25 checks pass — and is held only by this gate.** Whoever picks this
+  up should decide explicitly whether unrelated PRs wait for the rkyv
+  migration or the gate is temporarily narrowed to this advisory with a
+  removal trigger; silently merging past a security gate is the one option
+  that should not be taken by default.
+
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
 - Owner: current session; scope: the Kwavers plane-wave and diverging-wave
