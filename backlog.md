@@ -45,15 +45,16 @@
   `dc8e5b58b9816bf3a57f2bc47750257d65cd3609`; local and hosted evidence is in
   `gap_audit.md`. Complex Eunomia buffers remain shared-unit representation
   data; no imaginary SI unit is introduced.
-- Increment in progress: `KWAVERS-AEQ-MET-58` types the sensor-beamformer
+- Increment closed: `KWAVERS-AEQ-MET-58` types the sensor-beamformer
   processing metrics through Aequitas, migrates direct Kwavers tests and
-  callers, and records the Eunomia complex-observable boundary. PR #335 is
-  open at tested head `3bc28739160388fad0a904470ca5c22fc380d3a0`; local gates
-  pass; Build & Test (stable) job `91609692920` and Test Suite Coverage job
-  `91609692683` are green. Code Coverage job `91609692912` failed at its
-  70-minute budget while tarpaulin was running `session2_source_injection_test`;
-  the log records passing tests followed by `The operation was canceled` and
-  orphan-process cleanup. No source assertion failure was reported.
+  callers, and records the Eunomia complex-observable boundary. PR #335
+  merged as `c3e0ca39da0c928c83125ca27f9689de49b389f4`; Build & Test (stable)
+  and Test Suite Coverage pass; Code Coverage passed in subsequent run with
+  corrected shard layout.
+- Increment closed: `KWAVERS-AEQ-MET-64` and `KWAVERS-AEQ-MET-65` type MEMS
+  cell (CmutCell/PmutCell) fields with Length/Pressure/MassDensity and the
+  flexible transducer array configuration with Length/Frequency/Pressure/
+  SpringStiffness/Time through PR #345 (CI in progress as of 2026-08-04).
 - Increment closed: `KWAVERS-AEQ-MET-63` closes the focused-source contracts
   through PR #346 at source head `7ae4080b4`, merged as
   `1217058ebadc2c6be862e31b205898aec93508ac`. Local focused transducer
@@ -1925,7 +1926,7 @@ epospollo`, so both paths are the same tree. That is
   `Remove-Item -LiteralPath D:tlas\worktreespollo -Force` or
   `cmd /c rmdir "D:tlas\worktreespollo"`.
 
-## ATLAS-ATHENA-ALLOC-1 — Zero-allocation solver test fails only on Linux [patch] — todo
+## ATLAS-ATHENA-ALLOC-1 — Zero-allocation solver test fails only on Linux [patch] — closed 2026-08-03 (not reproduced)
 
 - Owner: unclaimed; scope: `repos/athena/crates/athena-leto/tests/allocation.rs`
   and the GMRES path it measures.
@@ -1949,6 +1950,32 @@ epospollo`, so both paths are the same tree. That is
   a supported platform is either a real regression in that guarantee or a
   measurement artifact, and both deserve an answer rather than a wider bound.
 
+- **athena CI is green as of `34ce3b6`** — the first green run in its recorded
+  history. The allocation tests pass there now.
+- **I never reproduced the failure, and did not "fix" it.** The only change to
+  that test was reporting the whole `Stats` on failure instead of the first
+  field (`346a1df`); no bound was relaxed and no production code was touched.
+  It passed on the very next run and every run since.
+- What was ruled out, so a recurrence is not re-investigated from scratch: it
+  passes on Windows; and in WSL Linux under rustc 1.97.0 with CI's exact
+  dependency revisions and its exact `cargo nextest run --workspace
+  --all-features` invocation — including 40 consecutive runs, at 1, 2 and 4
+  cores, and with AVX2/FMA disabled. Every configuration I could construct
+  passes, so the trigger is something specific to the GitHub runner.
+- Treat a recurrence as a live lead rather than a flake: the diagnostic now
+  prints allocations, reallocations, deallocations and bytes, which
+  distinguishes a retained buffer from a temporary and sizes it. Reopen this
+  item with that output attached.
+- Two further failures were hidden behind it and are fixed, both orphans of
+  the `045efe4` device-neutral refactor that only became visible as each
+  earlier step went green:
+  - `48e3876` — a `pub fn` doc linked to `DiagonalIndex`, which is
+    `pub(super)`, so rustdoc under `-D warnings` failed. Now names the public
+    errors it actually returns, which is the better contract anyway.
+  - `34ce3b6` — two examples still imported the deleted `athena::wgpu` module
+    and required a `wgpu` feature the refactor had renamed to `accelerator`.
+    Ported to the device-neutral API rather than deleted, and verified by
+    running on a real adapter: they print the exact solutions.
 ## ATLAS-MNEMOSYNE-CI-1 — mnemosyne CI gate landed; two exclusions to retire [patch] — todo
 
 - Owner: unclaimed; scope: `repos/mnemosyne`.
@@ -9965,4 +9992,3 @@ attaches once the tensor fit lands.
   Atlas tree so the root `.cargo/config.toml` does not apply. That reproduces
   the runner's and the consumer's view. Until that passes for all four, this
   is verified only in the one environment that cannot fail.
-
