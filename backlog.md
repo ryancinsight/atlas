@@ -2434,6 +2434,20 @@ epospollo`, so both paths are the same tree. That is
   `target/book/ritk`); each package's Pages deployment succeeds once through the
   shared workflow.
 
+- **kwavers slice done 2026-08-04** (`c47270f45`): 70-line body → 37-line
+  caller pinned to atlas `9772542`, passing only `output-path: target/book`.
+  **1 of 4 done**; CFDrs, helios and ritk are on live peer branches.
+- The output path was read from `docs/book/book.toml`'s
+  `build-dir = "../../target/book"` rather than assumed, as this item
+  instructs. `mdbook-version` stays at the shared 0.5.4 default, which is the
+  version the book already pinned, so the built artefact is unchanged.
+- Verified end to end, not just by inspection: the push triggered the caller
+  and the run completed **success**, including the Pages deploy. The shared
+  workflow keeps the pull-request build and skips deployment there
+  (`if: github.event_name != 'pull_request'`), so PRs still prove the book
+  builds without publishing it.
+- `mdbook-test` is left at its `false` default; flipping it per book is
+  ATLAS-PUB-005's job and needs the samples to compile first.
 ## ATLAS-PUB-003 — Register trusted publishers and remove the unused PyPI token [chore] — todo
 
 - Owner: user-gated — registry and GitHub settings changes are Ask-User actions;
