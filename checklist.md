@@ -285,10 +285,12 @@ list, and the scaffold count. The deletion ledger for SUBSTRATE-002 is roughly
       filed as ATLAS-PUB-004).
 - [x] Add `ritk` to the Atlas `docs.yml` cross-book gate (all four books now
       build under the strict detector).
-- [ ] Migrate one crate-release caller and prove it with a `workflow_dispatch`
-      validation run before migrating the rest.
+- [x] Migrate one crate-release caller and prove it with a `workflow_dispatch`
+      validation run before migrating the rest. hephaestus 38f36bc, kwavers
+      c47270f4, leto (prior session), moirai (prior session), consus 5c2e393,
+      apollo 8f8fa332, coeus 40a9ba9d merged; ritk PR #108 pending.
 - [ ] Migrate the four book callers.
-- [ ] Delete each duplicated workflow body in the same change that adds its
+- [x] Delete each duplicated workflow body in the same change that adds its
       caller — never keep both.
 
 Evidence: ADR 0035 records the audit, the caller contract, the tokenless
