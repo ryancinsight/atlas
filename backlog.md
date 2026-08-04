@@ -2282,6 +2282,29 @@ epospollo`, so both paths are the same tree. That is
   Repository CI also green, covering the three refactor commits the push
   carried.
 - **3 of 8 done** (hephaestus, leto, moirai). The five left — apollo, coeus,
+- **kwavers slice done 2026-08-03/04** (`cdf566e81`): 154-line body → 39-line
+  caller, toolchain 1.97.1 passed through. **4 of 8 done** (hephaestus, leto,
+  moirai, kwavers).
+- `atlas-ref` deliberately omitted, correcting this item's own note. The old
+  body carried two "Check out exact Atlas path dependencies" steps, but every
+  `../` path dependency in kwavers now resolves inside the repository
+  (`../kwavers-core` and siblings) — none escape it, so there is nothing to
+  materialise and the steps were vestigial.
+- **The validation dispatch fails, and not because of the caller.** It gets
+  through checkout, toolchain and release-identity resolution, then
+  `cargo publish --dry-run` reports `no matching package named
+  'ritk-registration' found; location searched: crates.io index; required by
+  kwavers-core v3.0.0`. Packaging requires every dependency to resolve from
+  the registry, and the stack's first-party crates are not published yet.
+- That is pre-existing: the old 154-line body ran the same
+  `cargo publish --locked --dry-run` and would fail identically. The
+  migration is sound; kwavers-core simply is not publishable today.
+- Consequence for this item's acceptance: the "one green workflow_dispatch
+  validation run" clause cannot be met for any package whose dependency
+  closure includes unpublished first-party crates. It is satisfiable only for
+  leaf crates (as apollo-fft-macros was), and otherwise waits on the publish
+  ordering in ATLAS-PUB-006. Worth splitting that clause rather than leaving
+  four slices looking unfinished.
   consus, kwavers, ritk — are all currently on live peer branches, so their
   slices wait for those branches rather than for anything in this item.
 - Practical note for the remaining slices: pass `version` from the workspace
