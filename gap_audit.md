@@ -54,18 +54,20 @@ PR [#344](https://github.com/ryancinsight/kwavers/pull/344) merged as
 
 Kwavers MET-64 closes the MEMS cell (CmutCell, PmutCell) metric family in
 PR [#345](https://github.com/ryancinsight/kwavers/pull/345) on branch
-`codex/kwavers-aequitas-mems` (not merged). CmutCell and PmutCell struct fields
+`codex/kwavers-aequitas-mems` (not merged; formatting fix `31482cbad` pushed).
+CmutCell and PmutCell struct fields
 typed: `radius`, `thickness`, `gap`, `piezo_thickness`, `passive_thickness` →
 `Length<f64>`; `youngs` → `Pressure<f64>`; `density` → `MassDensity<f64>`.
 Added private `raw_dims()` scalar-extraction helper for formula/plate boundaries.
 Constructors typed. All internal methods updated with scalar extraction.
 Python mems/helpers.rs wrappers updated. comparison.rs tests updated.
-228/228 nextest pass locally. Hosted Code Quality and Validate Clean
-Architecture currently fail at `cargo fmt -- --check` for
-`crates/kwavers-python/src/analytical_bindings/mems/helpers.rs`; the remaining
-matrix is still pending. This is a formatting blocker, not a metric or Eunomia
-semantic failure. The metric implementation remains branch-only until the
-formatting correction lands and the PR is merged.
+228/228 nextest pass locally. The prior hosted Code Quality and Validate Clean
+Architecture failures were both the same `cargo fmt -- --check` diff in
+`crates/kwavers-python/src/analytical_bindings/mems/helpers.rs`; commit
+`31482cbad` applies rustfmt and the exact file is now rustfmt-equivalent. The
+hosted matrix has restarted and is pending. This was a formatting blocker, not
+a metric or Eunomia semantic failure. The metric implementation remains
+branch-only until the restarted matrix passes and the PR is merged.
 
 
 
