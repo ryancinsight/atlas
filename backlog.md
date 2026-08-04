@@ -2606,24 +2606,36 @@ epospollo`, so both paths are the same tree. That is
   landing green.
 - Dependencies: ATLAS-PUB-002 for that package.
 
-## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — in-progress
+## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — done 2026-08-04
 
-- Owner: this session — sequences (1) and (2) claimed and delivered.
-  Sequence (3) packages remain unclaimed.
-- Claim status (as of 2026-08-04):
+- Owner: this session — all three sequences delivered.
+- Claim status (delivered 2026-08-04):
   - **Sequence 1** (foundation):
     - **eunomia** `aa1be92` on `fix/rkyv-0.8-migration` — 3 examples.
     - **aequitas** `35fe13e` on `main` — book + 2 examples.
     - **themis** `54b89f9` on `main` — book + 2 examples.
     - **melinoe** `40d0f7c` on `main` — book + 2 examples.
   - **Sequence 2** (compute):
-    - **mnemosyne** `820258c` on `main` — book + 2 examples + ATLAS-MNEMOSYNE-CI-1 FP fix.
-    - **moirai** `af23ea0` on `main` — book + 2 examples + clippy FP fixes (4 sites).
-    - **hermes** `4d9c398` on `fix/rkyv-0.8-migration` — book + 2 examples + locality.rs FP fix.
-    - **leto** dedicated branch `codex/leto-book` — book + 2 examples (peer holds main).
-    - **hephaestus** dedicated branch `codex/hephaestus-book` — book + 2 examples (peer holds master).
-  - **Sequence 3** (domain): unclaimed — `apollo`, `coeus`, `gaia`, `consus`, `horae`,
-    `athena`, `proteus`, `hyperion`, `iris`, `asclepius`, `harmonia`, `tyche`.
+    - **mnemosyne** `820258c` on `main` — book + 2 examples + ATLAS-MNEMOSYNE-CI-1 clippy FP fix (missing_const_for_thread_local, 1 site).
+    - **moirai** `af23ea0` on `main` — book + 2 examples + same FP fix (4 sites) + moirai-gpu question_mark rewrite.
+    - **hermes** `4d9c398` on `fix/rkyv-0.8-migration` — book + 2 examples + same FP fix (1 site).
+    - **leto** `codex/leto-book` — book + 2 examples (peer holds main; disjoint files).
+    - **hephaestus** `codex/hephaestus-book` — book + 2 examples (peer holds master; disjoint files).
+  - **Sequence 3** (domain):
+    - **apollo** `codex/apollo-book` — book + 2 FFT examples.
+    - **coeus** on `main` — book + 2 tensor/matmul examples.
+    - **gaia** `codex/gaia-book` — example page added (book already existed; peer holds SUMMARY.md).
+    - **consus** `codex/consus-book` — book + 2 examples (shapes, hyperslab).
+    - **horae** on `main` — book; references existing ordered_decay example.
+    - **athena** on `main` — book + 2 examples (convergence policy, CG solver).
+    - **proteus** on `main` — book; references 2 existing examples.
+    - **hyperion** on `main` — book; references 2 existing examples.
+    - **iris** `codex/iris-book` — book; references existing colormap_lut example.
+    - **asclepius** `codex/asclepius-book` — book + 2 examples (biological values, gEUD).
+    - **harmonia** on `main` — book; references existing coupled_decay example.
+    - **tyche** on `main` — book + 2 examples (LHC sampling, moments).
+- All 21 packages: `mdbook build` clean, `cargo clippy --examples -- -D warnings` clean.
+  Chapter prose deferred (DoR items per-chapter per the acceptance criteria).
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §5.
 - Outcome: every package teaches its field from the governing equations, through
   the numerical method and its stability and convergence properties, to the
