@@ -138,16 +138,17 @@ closed by their recorded increments. MEMS/flexible and other array families
 remain open until their direct callers and physical semantics are audited; no
 raw-metric removal is claimed for those scopes here.
 
-Helios PR [#36](https://github.com/ryancinsight/helios/pull/36) remains a
-separate integration residual, not a new metric gap. Its current hosted
-checkout fails before compilation because `checkout-path-dependencies` rejects
-the committed `../../repos/...` path sources as outside the provider
-destination; the benchmark job is blocked by the same error. The book job
-also fails because the workflow invokes the unavailable `mdbook-linkcheck`
-binary. The branch is peer-owned and remains unmodified in this audit; its
-exact re-open condition is a corrected provider source policy plus an
-installed or explicitly optional linkcheck backend, followed by the full
-locked matrix.
+Helios PR [#36](https://github.com/ryancinsight/helios/pull/36) is closed; its
+hosted checkout failed before compilation because
+`checkout-path-dependencies` rejected provider path sources outside the
+destination, and its book lane invoked the unavailable `mdbook-linkcheck`
+binary. The replacement PR [#37](https://github.com/ryancinsight/helios/pull/37)
+now carries source head `d87859c` and removes the obsolete provider-checkout
+steps from the Rust, Python, and counterbalanced benchmark lanes. Local locked
+metadata without the shared overlay passes; the full offline metadata check in
+the Atlas umbrella remains blocked by the umbrella's path patches attempting a
+lockfile rewrite. PR #37 hosted checks are pending after the correction, so
+Helios remains an integration watchpoint rather than a closed delivery.
 
 ## Aequitas consumer gap-audit extension — Kwavers transducer design and propagation — 2026-08-03
 
@@ -444,14 +445,15 @@ Child evidence:
   with `-D warnings`, Nextest `5091fabe-e3da-4e76-a6ed-8c0377b0b0ee` (29/29),
   doctests, Rustdoc, residue scan, diff check, and hosted book-figure gate
   pass.
-- Helios PR [#36](https://github.com/ryancinsight/helios/pull/36), head
-  `4a301bc`: focused imaging check, Nextest 18/18, Clippy, doctests, and
-  Rustdoc pass. Hosted Python and Rust workspace checks pass. The benchmark
-  rerun `30761913034` completed with five replicated `beam_transmission/cpu`
-  regressions at about +2.6% in both counterbalanced replications, with
-  complete 99.545% confidence intervals. The benchmark and CPU projector
-  sources are unchanged by the PR; H-098 remains open as a hosted performance
-  gate residual rather than an Aequitas dimensional gap.
+- Historical Helios PR [#36](https://github.com/ryancinsight/helios/pull/36),
+  head `4a301bc`: focused imaging check, Nextest 18/18, Clippy, doctests, and
+  Rustdoc pass. Its hosted checkout was later found to fail before the matrix
+  could provide valid source evidence; the replacement is PR #37. The
+  benchmark rerun `30761913034` completed with five replicated
+  `beam_transmission/cpu` regressions at about +2.6% in both counterbalanced
+  replications, with complete 99.545% confidence intervals. The benchmark and
+  CPU projector sources are unchanged by the PR; H-098 remains open as a
+  hosted performance gate residual rather than an Aequitas dimensional gap.
 - Kwavers PR [#332](https://github.com/ryancinsight/kwavers/pull/332), head
   `87afe809f`, merged as `6b706ad9`: standalone locked package check, Nextest
   218/218, Clippy, doctests, Rustdoc, and residue scans pass. The hosted

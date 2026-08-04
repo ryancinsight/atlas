@@ -176,9 +176,11 @@ acceptance oracle, and dependency closure are recorded in the child backlog.
       record the Eunomia real/complex boundary with no imaginary SI unit.
 - [x] Collect the exact-head hosted gates and merge CFDrs PR #322 as
       `57bb47ea`.
-- [ ] Resolve the Helios PR #36 replicated `beam_transmission/cpu` slowdown or
-      prove the unchanged benchmark/dependency interaction is external, then
-      rerun and merge its exact head after the repository-owned gate is green.
+- [ ] Resolve the Helios PR #37 hosted checkout/benchmark residual, or prove the
+      unchanged benchmark/dependency interaction is external, then rerun and
+      merge its exact head after the repository-owned gate is green. PR #36 is
+      closed; PR #37 source head `d87859c` removes the obsolete provider
+      checkout action that failed before compilation.
 - [x] Record the Kwavers PR #332 external `recurseml/analysis` error as
       report-only and merge its exact head as `6b706ad9`.
 
@@ -186,10 +188,11 @@ Acceptance: child implementation gaps are closed and child focused gates pass;
 hosted gates are green before merge, and no missing Aequitas metric or
 imaginary-unit physical contract remains in the named scope.
 
-Current residual: Helios benchmark run `30761913034` fails its replicated
-classifier on five `beam_transmission/cpu` cases at about +2.6% in both
-counterbalanced replications. This is a hosted performance gate residual,
-not a source-level Aequitas metric gap.
+Current residual: the historical Helios benchmark run `30761913034` fails its
+replicated classifier on five `beam_transmission/cpu` cases at about +2.6% in
+both counterbalanced replications. PR #37's corrected hosted matrix is pending;
+this remains a hosted performance/integration residual, not a source-level
+Aequitas metric gap.
 
 ## ATLAS-AEQUITAS-CONSUMERS-003 — Therapeutic microbubble metric audit
 

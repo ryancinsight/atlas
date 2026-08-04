@@ -73,13 +73,16 @@
 - Outcome: close the remaining public geometry/imaging/scheduling metric gaps
   with typed Aequitas quantities, preserve formula/storage scalar boundaries,
   and document the Eunomia real/complex rule without imaginary SI units.
-- Evidence: CFDrs PR #322 head `ce6a4f39` merged as `57bb47ea`, Helios PR #36
-  head `4a301bc`, and Kwavers PR #332 head `87afe809f` merged as `6b706ad9`;
+- Evidence: CFDrs PR #322 head `ce6a4f39` merged as `57bb47ea`, Helios PR #37
+  source head `d87859c` (pending hosted re-verification), and Kwavers PR #332
+  head `87afe809f` merged as `6b706ad9`;
   child focused gates pass as recorded in `gap_audit.md`.
-- Residual: Helios benchmark rerun `30761913034` completed with five replicated
-  `beam_transmission/cpu` regressions of about +2.6% in both counterbalanced
-  replications; the unchanged benchmark/projector source is not in the PR.
-  Kwavers repository-owned gates, including coverage, pass; its external
+- Residual: historical Helios benchmark rerun `30761913034` completed with five
+  replicated `beam_transmission/cpu` regressions of about +2.6% in both
+  counterbalanced replications; the unchanged benchmark/projector source is
+  not in the PR. Helios PR #37 removes the provider checkout action that failed
+  before compilation and is awaiting its hosted matrix. Kwavers
+  repository-owned gates, including coverage, pass; its external
   `recurseml/analysis` service error was report-only and did not block its
   merge.
 - Re-open trigger: any hosted source failure, dimensional residue, or Eunomia
