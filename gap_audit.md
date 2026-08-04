@@ -27,17 +27,19 @@ PR [#344](https://github.com/ryancinsight/kwavers/pull/344) merged as
 - Transcranial-FUS Python bindings migrated from `complex_compat` to `array_utils`.
 - 256/256 kwavers-math tests pass.
 
-## Aequitas consumer gap-audit — Kwavers flexible array config — 2026-08-04
+## Aequitas consumer gap-audit — Kwavers MEMS cell metrics — 2026-08-04
 
-Kwavers MET-65 closes the flexible transducer array configuration metric family in
+Kwavers MET-64 closes the MEMS cell (CmutCell, PmutCell) metric family in
 PR [#345](https://github.com/ryancinsight/kwavers/pull/345) on branch
-`codex/kwavers-aequitas-mems` (CI in progress). All raw physical fields in
-`FlexibleTransducerConfig`, `FlexibilityModel`, `CalibrationMethod`, and
-`TrackingSystem` are typed: `Length<f64>` for spacings/thicknesses/noise,
-`Frequency<f64>` for operating/tracking/sampling rates, `Pressure<f64>` for
-Young's/bulk moduli, `SpringStiffness<f64>` for membrane tension, `Time<f64>`
-for calibration intervals. `field_strength` remains `f64` (Tesla not yet in
-Aequitas). Mesh coordinate arrays stay `[f64; 3]`. 228/228 nextest pass.
+`codex/kwavers-aequitas-mems` (CI queued). CmutCell and PmutCell struct fields
+typed: `radius`, `thickness`, `gap`, `piezo_thickness`, `passive_thickness` →
+`Length<f64>`; `youngs` → `Pressure<f64>`; `density` → `MassDensity<f64>`.
+Added private `raw_dims()` scalar-extraction helper for formula/plate boundaries.
+Constructors typed. All internal methods updated with scalar extraction.
+Python mems/helpers.rs wrappers updated. comparison.rs tests updated.
+228/228 nextest pass.
+
+
 
 ## Aequitas consumer gap-audit extension — Kwavers 2-D array — 2026-08-03
 
