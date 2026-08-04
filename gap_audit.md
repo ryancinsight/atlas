@@ -1,10 +1,10 @@
 # atlas — cross-repository integration gap audit
 
-## Aequitas consumer gap-audit extension — Kwavers hemispherical array — 2026-08-03
+## Aequitas consumer gap-audit extension — Kwavers hemispherical array — 2026-08-04 ✓ MERGED
 
 Kwavers MET-63 closes the hemispherical-array metric family in
-PR [#343](https://github.com/ryancinsight/kwavers/pull/343). Source head
-`b5a66a916` on branch `codex/kwavers-aequitas-hemispherical` (CI in progress).
+PR [#343](https://github.com/ryancinsight/kwavers/pull/343). Merged as
+`00a031015` on `2026-08-04`. All repository-owned CI gates passed.
 `HemisphereGeometry` (`radius`, `aperture`, `focal_length`), `ElementConfiguration`
 (`radius`, `phase_offset`), `FocalPoint::amplitude`, `SteeringController`
 (`frequency`, `sound_speed`), `HemisphericalArrayMetrics` (`peak_pressure`,
