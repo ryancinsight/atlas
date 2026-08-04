@@ -35,6 +35,33 @@
   removal trigger; silently merging past a security gate is the one option
   that should not be taken by default.
 
+- **Chain corrected 2026-08-04, and the exposure is real.** My first note said
+  `kwavers -> eunomia -> rkyv`. eunomia declares rkyv **optional**
+  (`crates/eunomia/Cargo.toml:14`, gated by its `rkyv` feature), so that alone
+  would not pull it in — and `Cargo.lock` lists optional dependencies whether
+  or not they are activated, which makes a lockfile-only reading ambiguous.
+- The feature is enabled by **`hermes-simd-core`**
+  (`eunomia = { workspace = true, features = ["rkyv"] }`,
+  `hermes/crates/hermes-simd-core/Cargo.toml:12`). `cargo tree -p eunomia`
+  from kwavers confirms `rkyv v0.7.46` is in the **compiled** graph, not just
+  the lock. So this is a genuine exposure, not an audit false positive.
+- Real chain: `kwavers -> hermes-simd-core -> eunomia[rkyv] -> rkyv 0.7.46`.
+- That gives two candidate fixes, and they differ enormously in cost:
+  1. **Migrate eunomia to rkyv 0.8** (advisory's own remedy, `>= 0.8.17`).
+     Breaking: 0.7 to 0.8 changed the API, and eunomia's `packed::rkyv`
+     module plus hermes-simd-core's 51-reference `cow::rkyv` surface
+     (`ArchivedSimdCow`, `SimdCowResolver`) both move with it.
+  2. **Establish whether hermes-simd-core still needs the feature.** Its rkyv
+     use is one module providing zero-copy archived SIMD containers. If no
+     current consumer archives a `SimdCow`, dropping the feature removes the
+     vulnerable crate from every downstream graph without touching an API.
+     This should be checked first: it is cheap to answer and, if true, fixes
+     20 repositories by deleting a dependency edge rather than migrating one.
+- Verification note for whoever takes it: confirm with
+  `cargo tree -p eunomia -e normal` from a consumer, not by reading
+  `Cargo.lock`. The lock cannot distinguish an activated optional dependency
+  from a dormant one, which is exactly the distinction that decides whether
+  this is urgent.
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
 - Owner: current session; scope: the Kwavers plane-wave and diverging-wave
