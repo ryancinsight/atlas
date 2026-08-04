@@ -98,14 +98,6 @@ athena-leto = { path = "repos/athena/crates/athena-leto" }
 athena-core = { path = "repos/athena/crates/athena-core" }
 athena-leto = { path = "repos/athena/crates/athena-leto" }
 
-[patch."https://github.com/ryancinsight/coeus"]
-coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
-coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
-coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
-coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
-coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
-
 [patch."https://github.com/ryancinsight/Coeus"]
 coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
 coeus-core = { path = "repos/coeus/crates/coeus-core" }
@@ -124,14 +116,6 @@ coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
 coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
 coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
 
-[patch."https://github.com/ryancinsight/coeus.git"]
-coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
-coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
-coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
-coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
-coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
-
 [patch."https://github.com/ryancinsight/consus"]
 consus-compression = { path = "repos/consus/crates/consus-compression" }
 consus-core = { path = "repos/consus/crates/consus-core" }
@@ -139,7 +123,6 @@ consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
 consus-onnx = { path = "repos/consus/crates/consus-onnx" }
-consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/consus.git"]
 consus-compression = { path = "repos/consus/crates/consus-compression" }
@@ -148,7 +131,6 @@ consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
 consus-onnx = { path = "repos/consus/crates/consus-onnx" }
-consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
 eunomia = { path = "repos/eunomia/crates/eunomia" }
@@ -215,29 +197,27 @@ melinoe = { path = "repos/melinoe" }
 melinoe = { path = "repos/melinoe" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne"]
+mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
+mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne.git"]
+mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
+mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
 [patch."https://github.com/ryancinsight/Moirai"]
 moirai-async = { path = "repos/moirai/moirai-async" }
-moirai-core = { path = "repos/moirai/moirai-core" }
-moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
-moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai-async = { path = "repos/moirai/moirai-async" }
-moirai-core = { path = "repos/moirai/moirai-core" }
-moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
-moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }

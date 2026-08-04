@@ -2608,19 +2608,18 @@ epospollo`, so both paths are the same tree. That is
 
 ## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — in-progress
 
-- Owner: this session — **eunomia** and **aequitas** package claims.
+- Owner: this session — **eunomia**, **aequitas**, and **themis** package claims.
   Claimed scope: `repos/eunomia/docs/book/`, `repos/aequitas/docs/book/`,
-  their `book-pages.yml` callers. Other packages remain unclaimed.
+  `repos/themis/docs/book/`, their `book-pages.yml` callers.
+  Other packages remain unclaimed.
 - Claim status:
-  - **eunomia examples delivered 2026-08-04** — three runnable examples at
-    `aa1be92` on `fix/rkyv-0.8-migration` (`book_choosing_precision`,
-    `book_complex_arithmetic`, `book_rounding_behaviour`); chapter pages embed
-    source listings and verified run output; mdbook build + clippy -D warnings
-    clean.
-  - **aequitas book + examples delivered 2026-08-04** — full book skeleton
-    (8 chapters, SUMMARY, book.toml, book-pages.yml caller) plus two runnable
-    examples at `35fe13e` on `main` (`book_first_quantities`,
-    `book_acoustic_impedance`); mdbook build + clippy -D warnings clean.
+  - **eunomia examples delivered 2026-08-04** — `aa1be92` on
+    `fix/rkyv-0.8-migration` (`book_choosing_precision`,
+    `book_complex_arithmetic`, `book_rounding_behaviour`).
+  - **aequitas book + examples delivered 2026-08-04** — full skeleton +
+    `book_first_quantities` / `book_acoustic_impedance` at `35fe13e` on main.
+  - **themis book + examples delivered 2026-08-04** — full skeleton +
+    `book_placement_hints` / `book_gpu_topology` at `54b89f9` on main.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §5.
 - Outcome: every package teaches its field from the governing equations, through
   the numerical method and its stability and convergence properties, to the
