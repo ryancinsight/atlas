@@ -2340,7 +2340,7 @@ epospollo`, so both paths are the same tree. That is
   under the overlay as noise to leave alone, never as part of a commit, unless
   it was regenerated outside the tree on purpose.
 
-## ATLAS-PUB-002 — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — todo
+## ATLAS-PUB-002 — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — in-progress
 
 - Owner: unclaimed; scope: `repos/{CFDrs,helios,kwavers,ritk}/.github/workflows/book-pages.yml`
   plus `.github/workflows/docs.yml` in Atlas.

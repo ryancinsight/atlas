@@ -289,7 +289,7 @@ list, and the scaffold count. The deletion ledger for SUBSTRATE-002 is roughly
       validation run before migrating the rest. hephaestus 38f36bc, kwavers
       c47270f4, leto (prior session), moirai (prior session), consus 5c2e393,
       apollo 8f8fa332, coeus 40a9ba9d merged; ritk PR #108 pending.
-- [ ] Migrate the four book callers.
+- [x] Migrate the four book callers. CFDrs PR #324, helios PR #38, ritk PR #109 open; kwavers already done.
 - [x] Delete each duplicated workflow body in the same change that adds its
       caller — never keep both.
 
