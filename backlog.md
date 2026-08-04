@@ -7,7 +7,7 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-KWAVERS-MNEMOSYNE-FIX-1 — Complete mnemosyne dep wiring stranded in kwavers `bf3e17861` [patch] — in-progress
+## ATLAS-KWAVERS-MNEMOSYNE-FIX-1 — Complete mnemosyne dep wiring stranded in kwavers `bf3e17861` [patch] — done 2026-08-04
 
 - Owner: current session; scope: kwavers `[workspace.dependencies]`
   (`repos/kwavers/Cargo.toml`), `kwavers-core/Cargo.toml`, and the six
@@ -2608,18 +2608,14 @@ epospollo`, so both paths are the same tree. That is
 
 ## ATLAS-BOOK-001 — Author the 21 missing package books [minor] — in-progress
 
-- Owner: this session — **eunomia**, **aequitas**, and **themis** package claims.
-  Claimed scope: `repos/eunomia/docs/book/`, `repos/aequitas/docs/book/`,
-  `repos/themis/docs/book/`, their `book-pages.yml` callers.
+- Owner: this session — **eunomia**, **aequitas**, **themis**, and **melinoe** claims.
+  Claimed scope: `docs/book/` in each of those four packages.
   Other packages remain unclaimed.
 - Claim status:
-  - **eunomia examples delivered 2026-08-04** — `aa1be92` on
-    `fix/rkyv-0.8-migration` (`book_choosing_precision`,
-    `book_complex_arithmetic`, `book_rounding_behaviour`).
-  - **aequitas book + examples delivered 2026-08-04** — full skeleton +
-    `book_first_quantities` / `book_acoustic_impedance` at `35fe13e` on main.
-  - **themis book + examples delivered 2026-08-04** — full skeleton +
-    `book_placement_hints` / `book_gpu_topology` at `54b89f9` on main.
+  - **eunomia** `aa1be92` on `fix/rkyv-0.8-migration` — 3 examples delivered.
+  - **aequitas** `35fe13e` on `main` — book + 2 examples.
+  - **themis** `54b89f9` on `main` — book + 2 examples.
+  - **melinoe** `40d0f7c` on `main` — book + 2 examples.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §5.
 - Outcome: every package teaches its field from the governing equations, through
   the numerical method and its stability and convergence properties, to the
