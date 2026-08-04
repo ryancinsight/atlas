@@ -1904,7 +1904,7 @@
   g++ 16.1 — an upstream -Werror incompatibility, filed as
   ATLAS-MNEMOSYNE-SNMALLOC-1.
 
-## ATLAS-WORKTREE-JUNCTION-1 — `worktrees/apollo` is a junction onto the main tree [chore] — todo
+## ATLAS-WORKTREE-JUNCTION-1 — `worktrees/apollo` is a junction onto the main tree [chore] — done 2026-08-04
 
 - Owner: unclaimed; scope: the single directory entry
   `D:tlas\worktreespollo`.
