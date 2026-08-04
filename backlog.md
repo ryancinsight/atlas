@@ -7,6 +7,33 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-RITK-LABELMAP-FLAKE-1 — MergeLabelMap test passes or fails by scheduling [patch] — todo
+
+- Owner: unclaimed; scope: `crates/ritk-python/tests/test_simpleitk_cmake_data.py`
+  (`test_cmake_merge_label_map[2]`) and the label-map path it exercises.
+- **Confirmed flaky, not a regression.** On ritk main commit `0b9e4211` the
+  wheel smoke test failed with `MergeLabelMap(method=2) differs at 2 voxels`
+  (1244 passed). Re-running the same job on the **same commit**, with no code
+  change, passed. Same input, same binary, different verdict.
+- Suspected cause, from the test's own docstring: it "exercises the persistent
+  deferred queue". A queue that persists across calls is global mutable state,
+  and the suite runs under pytest-xdist (`gw1` appears in the log), so which
+  worker picks up which test — and what ran before it in that process — varies
+  run to run. That is the same defect class as the Rust temp-file race fixed in
+  `dacd2976`: parallel execution over shared state.
+- Why this is worth an item rather than a retry habit: a test whose verdict
+  depends on scheduling is not testing what it claims, and re-running until
+  green converts a real defect into invisible noise. The two-voxel delta is
+  also small enough to be a genuine ordering-dependent result rather than
+  random corruption, which makes it diagnosable.
+- Acceptance: either the deferred queue is made per-call (or per-instance) so
+  the result cannot depend on execution order, or the test is shown to be
+  order-independent and the true cause identified. Reproduce by running the
+  label-map tests repeatedly under `-p xdist` with varying worker counts.
+- Note: ritk main CI is otherwise **green** as of `0b9e4211` — Rustfmt, Clippy,
+  Workspace Dependency Alignment, all three Test Suites, Python CI and the
+  mdBook deploy all pass. This flake is the only remaining instability.
+
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
 - Owner: current session; scope: the Kwavers plane-wave and diverging-wave
