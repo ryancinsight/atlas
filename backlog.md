@@ -2713,6 +2713,31 @@ epospollo`, so both paths are the same tree. That is
   their nextest budgets; Hyperion's spectra disclaimer is revised in the same
   change.
 
+- **Unblocked 2026-08-04**: both repos are on their default branches and green
+  for the first time, so this is claimable. Groundwork done, to make the claim
+  fast rather than to pre-empt it:
+  - The `kwavers -> hyperion` edge **already exists**
+    (`kwavers/Cargo.toml:8`, consumed by `kwavers-medium` and
+    `kwavers-physics`), so the move needs no new architectural edge — only the
+    data and its consumers relocate.
+  - Target module is `hyperion/src/coefficient/optical.rs`, alongside
+    `interaction.rs`, `mass.rs` and `role.rs`; hyperion already depends on
+    aequitas, so the Aequitas-quantity clause has its vocabulary in place.
+  - `kwavers-optics` is 514 LOC (`lib.rs` + `chromophores/`), matching this
+    item's figure. Consumers to rewire: `crates/kwavers/Cargo.toml`,
+    `crates/kwavers-diagnostics/Cargo.toml`, the
+    `photoacoustic_blood_oxygenation` example, the crate-list doc comment in
+    `crates/kwavers/src/lib.rs`, and the `architecture_boundaries` test, which
+    names `kwavers-optics` explicitly and will fail until updated.
+  - Sequencing is the co-evolution order: hyperion lands and is pinned first,
+    then kwavers rewires and deletes the crate. Doing it in the other order
+    leaves the tables duplicated across repos.
+- **Watch the hyperion worktree when claiming this.** Its committed
+  `Cargo.toml` is clean, but the local tree carries 3 uncommitted cross-repo
+  path deps (`path = "../aequitas"` and friends) — the overlay quarantine
+  leaking into the manifest. Committing them would reproduce exactly the
+  breakage fixed in athena (`cdb5fca`) and ritk (#106). Stage hyperion's
+  manifest only if you have deliberately changed it.
 ## ATLAS-MODALITY-002 — Type the deposition spine in Aequitas quantities [arch] — done
 
 - Owner: Codex — provider and Kwavers phases 1, 2a, 2b, 3a-3d, and phase 4
