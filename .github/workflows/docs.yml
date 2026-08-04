@@ -1,7 +1,8 @@
 # Atlas Physics Docs Invariant Gate (§7 #4 of MDBOOK_DETECTOR_PARITY.md)
 #
 # Runs the portion of the portable detector plus an mdbook v0.5.4 build
-# across all four atlas physics books.  See
+# across all five atlas physics books (CFDrs, helios, kwavers, ritk, and
+# the eunomia datatype-law book added 2026-08-03).  See
 # MDBOOK_DETECTOR_PARITY.md §6 for the wiring rationale and §7 #5 for the
 # strict-mode flip (drop `--advisory` from the detector step).
 
@@ -59,17 +60,18 @@ jobs:
           sudo install -m 0755 /tmp/mdbook-install/mdbook /usr/local/bin/mdbook
           mdbook --version
 
-      - name: Detector (STRICT mode — §7 #5 flipped) — 4 atlas physics books
+      - name: Detector (STRICT mode — §7 #5 flipped) — 5 atlas physics books
         run: |
           python3 scripts/check_mdbook_links.py \
             repos/CFDrs/docs/book \
             repos/helios/docs/book \
             repos/kwavers/docs/book \
             repos/ritk/docs/book \
+            repos/eunomia/docs/book \
             | tee detector.log
         # VARIANT 2 applied (post-§7-#5, see §7 #5 of the parity report):
         # `--advisory` removed; the detector's exit-1 on FILE_MISSING > 0
-        # IS the strict gate — no other script changes required.  All 4
+        # IS the strict gate — no other script changes required.  All 5
         # atlases must reach `FILE_MISSING : 0` for CI to pass.
 
       - name: mdbook build — repos/CFDrs/docs/book
@@ -83,6 +85,9 @@ jobs:
 
       - name: mdbook build — repos/ritk/docs/book
         run: mdbook build repos/ritk/docs/book
+
+      - name: mdbook build — repos/eunomia/docs/book
+        run: mdbook build repos/eunomia/docs/book
 
       - name: Upload detector log artefact
         if: always()
