@@ -71,6 +71,11 @@ package-lock.json
 # (run-output segregation: results live outside git).
 output/
 
+# Static symbol and API indexes: derived state, revision-keyed under the
+# generator contract (scripts/search-ladder-index.py, scripts/rustdoc-oracle.py).
+.scip/
+.rustdoc-json/
+
 # Python bytecode caches (derived state).
 __pycache__/
 *.pyc

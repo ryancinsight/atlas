@@ -1683,7 +1683,8 @@
   oracle going forward. The production-only site list is
   regenerated with
   `python scripts/atlas_scattered_containers_classify.py --site-list
-  outputs/arch-008-production-sites.txt`. Ranking by traversal hotness
+  scripts/oracles/arch-008-production-sites.txt` (see the gate bullet
+  below). Ranking by traversal hotness
   (profile-first) and the conversions themselves remain the open work — this
   item stays `todo`.
 - **First conversion delivered 2026-08-05 — moirai collective family.**
@@ -1708,6 +1709,122 @@
   it is a candidate only if its consumers move to borrowed chunks. The next
   conversion should be picked from a different repo family per the
   one-family-per-claim rule.
+- **Oracle gate wired 2026-08-05 — the split can no longer drift silently.**
+  `scripts/atlas_scattered_containers_classify.py --verify-oracle
+  scripts/oracles/arch-008-production-sites.txt` re-verifies the current
+  production split against the committed oracle (read-only; exit 0 = match,
+  1 = drift, 2 = unreadable oracle), wired as `make verify-scattered-oracle`
+  following the `fmt-check`/`board-lint` convention. `outputs/` is gitignored
+  by design (derived state), so the oracle now lives at the tracked path
+  `scripts/oracles/arch-008-production-sites.txt` and is regenerated
+  deliberately with `--site-list` and committed in the same change that
+  caused the drift. Oracle refresh after the moirai conversion:
+  **256 production / 71 test-bench / 327 total** (per member — CFDrs 42/11,
+  apollo 6/2, coeus 12/0, consus 20/15, gaia 34/2, kwavers 63/5, leto 3/13,
+  mnemosyne 0/1, moirai 2/15, ritk 74/7). The sole delta vs the recorded
+  260/65/325 is the moirai conversion: −4 production sites (the
+  `collective.rs` family left the scattered set) and +6 test-local sites
+  (the new parity tests build jagged vectors). The 2 remaining moirai
+  production sites are `channel_fusion` and `owned_chunks`, both recorded
+  correct-as-jagged / owned-by-contract above. Verify-mode coverage:
+  `scripts/tests/test_atlas_scattered_containers_classify.py` gained
+  oracle-parse, added/removed drift, blank/member-suffix tolerance, and CLI
+  exit-code (0/1/2) tests (classifier suite now 32; full scripts suite 92 +
+  20 subtests).
+- **Spot-check 2026-08-05 — classifier matches a manual read.** Hand-verified
+  the top per-member production files and the complete discrepancy set for
+  ritk (74), kwavers (63), CFDrs (42): all 33 production sites in the top 3
+  files per member match the oracle exactly (raw `Vec<Vec<` lines == oracle
+  claims, same lines), and all 39 occurrences the classifier excluded from
+  production were confirmed by hand to be comment/doc text (16 — stripped,
+  never counted) or test/bench/example code (23 — counted test-local, e.g.
+  the `#[cfg(test)]`-guarded `clahe_2d` in interpolate.rs:168 and the
+  `#[cfg(test)] mod tests` VOF reconstruction.rs cases exercise the
+  brace-depth path; `tests.rs`/`tests/`/`examples/` paths exercise the
+  heuristics). Zero production code misclassified as test and zero test code
+  counted as production. Read-only; no tree edits.
+- **Spot-check 2026-08-05 — mid-count members + claimed-sites sweep; classifier
+  extended; oracle corrected 256/71 → 250/77.** Hand-verified the six remaining
+  members (gaia 34, consus 20, coeus 12, apollo 6, leto 3, mnemosyne 0) with
+  the same discrepancy-set method: every top-file raw `Vec<Vec<` line matches
+  the oracle claims (all 34 gaia, 20 consus, 12 coeus, 6 apollo, 3 leto
+  claims), every excluded occurrence (doc comments, in-file `#[cfg(test)]` /
+  `mod tests` regions, `tests/`/`examples/` paths) confirmed non-production,
+  and a reverse stale-check confirmed all 75 mid-count claims point at live
+  `Vec<Vec<` lines. The claimed-sites direction then surfaced a genuine
+  classifier blind spot: it could not see **include-site gates**
+  (`#[cfg(test)] mod <name>;` declared in a parent module) or bare
+  `#[test]`/`proptest!` regions, so whole test-only files were misreported as
+  production. The earlier top-member spot-check verified the excluded-direction
+  only; the claimed-sites sweep here is what caught the remaining sites.
+- **Classifier fix.** `compute_test_regions` now also treats `#[test]`
+  attributes and `proptest! {` blocks as test regions, and `classify_file`
+  gains `_is_include_gated`: it locates the file's `mod <name>;` declaration
+  (`dir/mod.rs`, sibling `dir.rs`, `src/lib.rs`/`src/main.rs`, or crate-root
+  `mod <dir>;` for `dir/mod.rs`) and checks the stacked attributes directly
+  above it, stopping at the first non-attribute line so a cfg attribute of a
+  *previous* declaration never leaks (the `boolean_csg` regression: its
+  `#[cfg(test)]` belongs to the neighbouring `adversarial_tests_2`, and its
+  claims are genuinely production). Files loaded under an arbitrary module
+  name via `#[path = "..."]` (e.g. `#[cfg(test)] #[path = "tests_ply.rs"]
+  mod tests;`) are covered by a per-member `#[path]`-declaration map keyed by
+  the *resolved* target path (`#[path]` is relative to the declaring file's
+  directory) — a basename key would collide on the many `mod.rs` modules and
+  wrongly gate unrelated production files (caught live: the MGH reader, DICOM
+  directory scanner and DICOM Association SCU `mod.rs` files are production
+  and stay claimed). 11 new unit tests (classifier suite now 43) cover
+  include-gated module, plain include, previous-declaration leak, dir module,
+  `#[test]` fn, `#[test]` non-leak, `proptest!` block, and the `#[path]` map
+  + stacked-attribute gate. Residual, deliberately-conservative blind spots
+  (test code kept as production, never the reverse): a `mod foo;` nested
+  inside an in-file `#[cfg(test)]` block of the parent, a `//` comment between
+  the attribute and the `mod` declaration, `#[cfg_attr(test, ...)]`, and
+  parenthesized `proptest!(...)`.
+- **Corrected oracle: 250 production / 77 test-bench / 327 total** (was
+  256/71 — total unchanged, pure reclassification). Six sites moved
+  production → test-local, all hand-verified genuine test code: consus
+  `reader_proptest.rs:151` and `tests_extra.rs:101` (include-gated), and ritk
+  `tests_staple.rs:142,243` (include-gated) and `tests_ply.rs:89,123`
+  (include-gated via stacked `#[path]` attribute, plus `#[test]` regions).
+  Corrected per-member split: CFDrs 42/11, apollo 6/2, coeus 12/0, consus
+  18/17, gaia 34/2, kwavers 63/5, leto 3/13, mnemosyne 0/1, moirai 2/15,
+  ritk 70/11. Final independent verification: all 250 committed claims are
+  live `Vec<Vec<` lines and none classify as test under the committed logic;
+  `make verify-scattered-oracle` passes on the corrected oracle.
+- **Second conversion 2026-08-05 — ritk-vtk Laplacian adjacency family.**
+  `repos/ritk` `ritk-vtk/src/domain/filters/smooth.rs`: the smoothing
+  filter's `build_adjacency`/`laplacian_step` now use a CSR-shaped
+  `Adjacency` (contiguous `neighbors` buffer + per-vertex `offsets` table —
+  the VTK `VtkCellArray` layout) instead of jagged `Vec<Vec<u32>>`. The
+  build is jagged-free (degree count → prefix-sum offsets → direct flat fill
+  → in-place sort+dedup per run), so the oracle site `smooth.rs:133`
+  disappears rather than moves; the sorted/deduped layout is fully
+  deterministic where the old `HashSet` build left neighbor order
+  implementation-defined. Neighbor *sets* are unchanged, so filter results
+  are preserved to within the existing 1e-5 test tolerance; a parity test
+  pins the CSR runs against the sorted jagged reference (polygon + line
+  edges, an isolated vertex, and a quad-grid interior vertex with its four
+  edge-sharing neighbors sorted/deduped). `Adjacency` and `Adjacency::build`
+  become documented public API (the only API change; `laplacian_step` stays
+  private) so the criterion bench measures the production path. Criterion
+  (`crates/ritk-vtk/benches/smooth_adjacency_comparison.rs`, `harness =
+  false`, jagged baseline kept inline, 4096/16384-vertex quad grids): build
+  **~7.8× at 4096 / ~8.5× at 16384** faster (857.7→110.5 µs / 3.523→0.415
+  ms) — the CSR build replaces one `HashSet` allocation per vertex with a
+  single flat buffer; traversal **~1.07× at 16384** (78.5→73.2 µs) and
+  statistically flat at 4096, the short degree-4 runs amortizing the layout
+  win — the honest headline is the build, which runs once per filter
+  invocation while traversal runs once per iteration. Oracle regenerated to
+  **249/78/327** (ritk 69/12): the smooth.rs production claim moved to the
+  bench baseline, where the pre-conversion formulation lives by design
+  (mirroring the moirai bench precedent). Gate: `ritk-vtk` nextest 258/258,
+  warning-denied Clippy, fmt clean, `make verify-scattered-oracle` exit 0.
+  The other named ritk families were assessed and deliberately left
+  unclaimed this slice: `ritk-filter/.../anti_alias_binary/solver.rs`
+  layers are a push-front/pop-front work-queue — CSR would turn every front
+  insert into an O(n) memmove across all layers (**correct-as-jagged**),
+  and `ritk-vtk poly_data.rs` cell arrays are the native CSR end state but a
+  ~225-reference data-model migration that warrants its own dedicated claim.
 
 ## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
 
@@ -7623,6 +7740,20 @@ list updated. `check-drift.sh` reports `4 consumers clean`.
   claim-vs-body drift shows a stale refactor stage, or (iii) the
   capability genuinely belongs with the physics crate as domain-specific.
   This audit scoping distinguishes those three cases per capability.
+- **2026-08-05 (residual flush, kwavers `e4e9966b6`)**: closed the
+  lingering `array_utils.rs` doc-comment surface that kept the kwavers
+  `legacy-migration-audit` flag red. Reworded the nine ``ndarray::ArrayN<T>``
+  literal substrings in the `copy_pyarray*` / `pyarray*_to_leto*` /
+  `leto*_to_pyarray*` helper doc comments to plain legacy-array prose while
+  preserving the existing ``#[doc(alias = "ndarray")]`` Rustdoc search-alias
+  markers (the audit counts substrings, not AST nodes — the aliases carry
+  `ndarray` without `::` and were never what the audit flagged). Also
+  updated the trailing comment on `numpy = { workspace = true }` in
+  `crates/kwavers-python/Cargo.toml` so it no longer describes ndarray as
+  a transitive dependency. Post-edit: audit `Allowlist status: clean`,
+  `array_utils.rs` source-token count 9 -> 0, manifest-token count 0.
+  The conversion helpers themselves — and the FFI-boundary Python `numpy`
+  workspace dep they wrap — are unchanged.
 - Relationships: this audit item sits ABOVE the peer-filed
   `ATLAS-GMRES-SSOT-001` (the [major] [arch] consolidation of the four
   GMRES recurrences). GMRES is one row in the cross-capability matrix here;
