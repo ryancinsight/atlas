@@ -1477,9 +1477,10 @@
   or stride-carried; no jagged container in the signature; objective sense is an
   enum. Value-semantic tests over a known Pareto set, not existence assertions.
 
-## ATLAS-ARCH-005 — Replace closed-set dyn dispatch in per-timestep paths [arch] — todo
+## ATLAS-ARCH-005 — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
 
-- Owner: unclaimed; scope: `repos/kwavers` first (largest), then `repos/CFDrs`.
+- Owner: opencode-2026-08-05 (ADR phase; ADR 0041 drafted; execution slice waits on a
+  free kwavers lane). scope: `repos/kwavers` first (largest), then `repos/CFDrs`.
   One operation family per claim.
 - Outcome: dispatch-site counts are `kwavers` 665, `CFDrs` 352, `gaia` 104,
   `coeus` 98, `moirai` 83, `consus` 66. Sampling the kwavers solver shows the
