@@ -7,6 +7,23 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## AEQUITAS-THERMAL-COEFFICIENTS — Add temperature-dependent acoustic coefficient dimensions [minor] — in-progress
+
+- Owner: current session; scope: Aequitas SI dimensions/quantity aliases and
+  coherent Kelvin units for velocity-per-temperature, mass-density-per-
+  temperature, and reciprocal-length-per-temperature coefficients; consumer
+  integration follows in Kwavers `KWAVERS-AEQ-MET-67`.
+- Outcome: provide named provider-owned dimensions so temperature-dependent
+  acoustic-property coefficients are not represented by raw scalars or local
+  aliases. Preserve Eunomia real/quadrature compatibility; no imaginary SI
+  unit is introduced.
+- Acceptance: dimensional aliases and unit markers compile under the pinned
+  provider graph; value/unit conversions and dimensional composition tests pass;
+  public docs and CHANGELOG are synchronized; no consumer shim or duplicate
+  local dimension is added.
+- Dependency: after the provider increment lands, migrate Kwavers thermal
+  coupling contracts and formula outputs through the new quantities.
+
 ## ATLAS-KWAVERS-MNEMOSYNE-FIX-1 — Complete mnemosyne dep wiring stranded in kwavers `bf3e17861` [patch] — done 2026-08-04
 
 - Owner: current session; scope: kwavers `[workspace.dependencies]`
