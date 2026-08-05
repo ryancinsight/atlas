@@ -28,9 +28,14 @@ from pathlib import Path
 
 ATLAS_ROOT = Path(__file__).resolve().parent.parent
 CANONICAL = {"Proposed", "Accepted", "Rejected"}
-STATUS_RE = re.compile(r"^\s*Status:\s*(.+?)\s*$", re.MULTILINE)
+STATUS_RE = re.compile(r"^\s*(?:-\s+)?Status\s*:\s*(.+?)\s*$", re.MULTILINE)
+STATUS_BOLD_RE = re.compile(
+    r"^\s*(?:-\s+)?\*\*Status(?:\*\*\s*:|\s*:\*\*)\s*(.+?)\s*$", re.MULTILINE
+)
 STATUS_HEADING_RE = re.compile(r"^##\s*Status\s*\n+\s*([A-Za-z][^\n]*?)\s*$", re.MULTILINE)
-TITLE_RE = re.compile(r"^#\s+(?:ADR[- ]?\d+\s*[:\-]\s*)?(.+?)\s*$", re.MULTILINE)
+TITLE_RE = re.compile(
+    r"^#\s+(?:ADR[- ]?\d+\s*(?:[:\-]|–|—)\s*)?(.+?)\s*$", re.MULTILINE
+)
 NUMBER_RE = re.compile(r"^(\d+)")
 
 HEADER = """# ADR index
@@ -58,6 +63,16 @@ def adr_dirs() -> list[Path]:
     return dirs
 
 
+def status_base(status: str) -> str:
+    """First canonical-status token of a recorded status line, Markdown stripped.
+
+    ADRs annotate statuses with Markdown bold, hyphenated phases, and sign-off
+    narrative; the index records only the canonical token (`**Accepted** - ...`
+    -> `Accepted`). A missing status ("—") maps to itself.
+    """
+    return status.split("-", 1)[0].split(" ", 1)[0].strip("*` ").strip()
+
+
 def parse_adr(path: Path) -> tuple[str, str, str]:
     """Return (number, title, status) as recorded, without correcting them."""
     number_match = NUMBER_RE.match(path.name)
@@ -68,7 +83,11 @@ def parse_adr(path: Path) -> tuple[str, str, str]:
         return number, path.stem, "—"
     title_match = TITLE_RE.search(head)
     title = title_match.group(1) if title_match else path.stem
-    status_match = STATUS_RE.search(head) or STATUS_HEADING_RE.search(head)
+    status_match = (
+        STATUS_RE.search(head)
+        or STATUS_BOLD_RE.search(head)
+        or STATUS_HEADING_RE.search(head)
+    )
     status = status_match.group(1) if status_match else "—"
     return number, title, status
 
@@ -82,7 +101,7 @@ def build_index(directory: Path) -> tuple[str, list[str]]:
     )
     for f in files:
         number, title, status = parse_adr(f)
-        base = status.split("-", 1)[0].split(" ", 1)[0]
+        base = status_base(status)
         if status == "—":
             anomalies.append(f"missing status: {f.name}")
         elif base.capitalize() not in CANONICAL:
@@ -97,7 +116,7 @@ def build_index(directory: Path) -> tuple[str, list[str]]:
             else:
                 seen[number] = f.name
         title = title.replace("|", "\\|")
-        rows.append(f"| [{number}]({f.name}) | {title} | {status} |")
+        rows.append(f"| [{number}]({f.name}) | {title} | {base} |")
     return HEADER + "\n".join(rows) + "\n", anomalies
 
 
