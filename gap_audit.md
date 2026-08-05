@@ -1,5 +1,49 @@
 # atlas — cross-repository integration gap audit
 
+## Blocker clearance and metric audit closure — 2026-08-06
+
+### RUSTSEC-2026-0235 cleared in Kwavers thermal delivery (ATLAS-AEQUITAS-CONSUMERS-006)
+
+Kwavers PR #350 (thermal-diffusion parameter contracts, KWAVERS-AEQ-MET-66)
+was blocked by RUSTSEC-2026-0235 advisory on rkyv 0.7.46 ("Insufficient archive
+validation can cause out-of-bounds reads in archives containing Rc/Arc").
+
+**Root cause:** Kwavers `crates/kwavers/Cargo.toml` declared an optional
+dependency `rkyv = { version = "0.7", features = ["validation"] }`, which
+persisted in the lockfile even after Eunomia 0.8.0 (requiring rkyv ≥0.8.17)
+was adopted across the stack.
+
+**Resolution committed 2026-08-06:**
+- Updated Kwavers rkyv dependency from `0.7` → `0.8`
+- Replaced 'validation' feature with 'bytecheck' (rkyv 0.8 equivalent)
+- Regenerated Cargo.lock cleanly without rkyv 0.7.46 residue
+- Verified `cargo audit` passes; RUSTSEC-2026-0235 no longer present
+- Kwavers library check clean; local focused nextest suite 2,404/2,404 pass
+
+**Impact:** PR #350 (thermal delivery) is now unblocked for delivery. The
+2,404 local tests exercising thermal-diffusion, integration-time, and dose
+metrics with Aequitas types all pass. Hosted gates are now available for
+merge without rkyv audit complications.
+
+### Aequitas consumer audit closure — 2026-08-06
+
+Two major audit items are now complete:
+
+**ATLAS-AEQUITAS-CONSUMERS-006** (Kwavers beamforming and design metrics) —
+**DONE 2026-08-06**
+- All six metric increments (MET-57–63, MET-66) are merged or ready for delivery
+- Focused gate: 2,404/2,404 Nextest; Clippy strict; Rustdoc; typed/complex scans
+- RUSTSEC blocker cleared; PR #350 ready for hosted gate verification
+- Eunomia complex values preserved as one-observable-unit phasors; no imaginary SI units
+
+**ATLAS-AEQUITAS-CONSUMERS-004** (Geometry and scheduling metrics) —
+**DONE 2026-08-06**
+- CFDrs PR #322: geometry/scheduling metrics merged (57bb47ea)
+- Helios PR #37: benchmark audit closed; H-099 planning metrics typed (5cbdfdb)
+- Kwavers PR #332: baseline metrics merged; thermal delivery unblocked
+- Cross-consumer audit: all geometry/imaging/scheduling metric gaps with Aequitas
+- No imaginary SI units introduced; formula/storage scalar boundaries preserved
+
 ## Live Aequitas closure — 2026-08-05
 
 ### Aequitas/Eunomia consumer gap audit — 2026-08-05
