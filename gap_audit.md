@@ -6,9 +6,14 @@
 
 The cross-repository audit covered public physical contracts and numerical
 provider boundaries in Aequitas, CFDrs, Helios, and Kwavers. No new missing
-Aequitas dimension was found in the named consumers. CFDrs remains closed
-through `CFDRS-AEQ-MET-46`; its open solver-runtime and provider-lock items
-are verification or dependency issues, not missing physical metric types.
+Aequitas dimension was found in the named consumers. The audit did identify a
+semantic refinement required for Kwavers MEMS mutual-radiation crosstalk:
+force-per-velocity impedance is `kg/s`, not acoustic impedance
+`kg/(m²·s)`. Aequitas now owns that distinct `MechanicalImpedance` quantity,
+and Kwavers MET-65 uses it at the complex crosstalk boundary. CFDrs remains
+closed through `CFDRS-AEQ-MET-46`; its open solver-runtime and provider-lock
+items are verification or dependency issues, not missing physical metric
+types.
 Helios H-099 is closed at merged head `41f2c3b`, with final hosted run
 `31016097153` green at implementation head `5cbdfdb` and no complex-valued
 planning contract. Kwavers' current thermal and array metric families are
@@ -23,9 +28,26 @@ operation-level `Scalar` extension and admits the same complex values. Kwavers'
 remaining CSR cutover is a consumer migration in peer-owned dirty files; it
 must use those provider APIs rather than unsealing Eunomia traits or adding an
 imaginary SI dimension. A complex value is a phasor: real and quadrature
-components retain one observable physical unit. Aequitas now has a regression
-covering kilometer-to-meter conversion of both components. Its full nextest
-suite passes 52/52.
+components retain one observable physical unit. Aequitas now has regressions
+covering complex conversion for both component values and the mechanical-
+impedance semantic. Its full nextest suite passes 53/53. No imaginary SI
+dimension is introduced.
+
+### Kwavers MEMS crosstalk semantic boundary — MET-65 closed 2026-08-05
+
+Kwavers commit `d31e1a03e23c3f4ae9447f9a410d0ecf57929448` types the mutual-
+radiation crosstalk inputs as Aequitas `Area`, `Length`, `Frequency`,
+`MassDensity`, and `Velocity`, and returns
+`MechanicalImpedance<eunomia::Complex64>`. The matrix stores the same typed
+complex quantity, including its zero diagonal. Scalar extraction remains
+inside wavenumber, magnitude, and Euclidean-distance formulas.
+
+Aequitas commit `4fa8bbf83bec4392d36fb25797c26b51caf4272c` supplies the
+semantic quantity and its complex provider law. Kwavers focused crosstalk
+nextest passes 7/7, including magnitude/phase, reciprocity, inverse-distance
+scaling, zero diagonal, and degenerate inputs. The child audit and ADR 070
+record the decision. MEMS cell-output and flexible-array boundaries remain
+separate audit candidates; this entry does not claim their closure.
 
 ### Helios inverse-planning dose metrics — H-099 closed; hosted gates green
 
@@ -59,8 +81,9 @@ CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
 their existing observable unit and do not create an imaginary SI quantity.
 
 Kwavers' current Aequitas audit artifacts likewise close the focused-source,
-hemispherical, 2-D array, MEMS, acquisition, and thermal families. Its live
-working tree contains a large peer-owned optics/math migration, so this pass
+hemispherical, 2-D array, MEMS crosstalk, acquisition, and thermal families.
+MEMS cell-output and flexible-array boundaries remain separate audit items.
+Its live working tree contains a large peer-owned optics/math migration, so this pass
 did not mutate or rebase that scope. The documented clean Eunomia 0.8/rkyv
 0.8 graph and typed thermal evidence remain the applicable closure evidence;
 the Windows GNU linker limitation remains a verification residual, not a
