@@ -66,9 +66,9 @@
   or `cargo check -p kwavers-core --lib` re-introduces dead-code warnings in
   the six arena modules.
 
-## ATLAS-RITK-MELINOE-DOC-SYNC-1 — Sync ritk parallel-prose comments to moirai/melinoe routing [patch] — in-progress
+## ATLAS-RITK-MELINOE-DOC-SYNC-1 — Sync ritk parallel-prose comments to moirai/melinoe routing [patch] — done 2026-08-05
 
-- Owner: current session; scope: nine doc-comment files across four ritk
+- Owner: current session; scope: eight doc-comment files across four ritk
   domain crates — `crates/ritk-filter/src/discrete_gaussian/convolve.rs`,
   `crates/ritk-filter/src/intensity/clahe/mod.rs`,
   `crates/ritk-filter/src/median.rs`,
@@ -84,25 +84,60 @@
 - Outcome: ritk source already routes parallelism through
   `moirai::{for_each_chunk_mut_enumerated_with, map_collect_index_with,
   fold_reduce_with}` with the `Adaptive` execution policy carried by moirai's
-  `melinoe` feature (declared at `repos/ritk/Cargo.toml:95`), but 13 inline /
-  doc comments across those nine files still call the path "Rayon-parallel" /
+  `melinoe` feature (declared at `repos/ritk/Cargo.toml:95`); 13 inline /
+  doc comments across those eight files called the path "Rayon-parallel" /
   "Rayon thread" — drift relative to the migration that already landed in
-  code. Retire the stale Rayon prose and describe the actual moirai primitive
-  where the comment allows it without overengineering.
-- Acceptance: `grep -rIn "Rayon" crates/ritk-filter crates/ritk-registration
-  crates/ritk-snap crates/ritk-statistics` (run from `repos/ritk`) returns
-  empty; `cargo clippy -p ritk-filter -p ritk-registration -p ritk-snap -p
-  ritk-statistics --all-targets -- -D warnings` reports zero warnings
-  attributed to the touched files; `cargo test --doc -p ritk-filter -p
-  ritk-registration -p ritk-snap -p ritk-statistics` compiles the rewritten
-  doc comments; `rustfmt --check` clean on the touched files.
+  code. Retired the stale Rayon prose and described the actual moirai
+  primitive where the comment allowed it without overengineering.
+- Evidence: ritk commit `a03deeae` (branch `ci/migrate-release-workflow-to-
+  shared-caller`, pushed to origin) — `docs(ritk): Sync parallel-prose
+  comments to moirai/melinoe routing` — 8 files, +27/-18. Peer's nine dirty
+  files on the same branch left untouched via selective `git add <path>`.
+  Acceptance gates from ritk working tree at HEAD `a03deeae`:
+  - `grep -rIn "Rayon" crates/ritk-filter crates/ritk-registration
+    crates/ritk-snap crates/ritk-statistics` returns exit 1 (no matches).
+  - `cargo check -p ritk-filter -p ritk-registration -p ritk-snap -p
+    ritk-statistics --lib` rc=0 (only the unused-patch overlay warns).
+  - `cargo clippy -p ritk-filter -p ritk-registration -p ritk-snap -p
+    ritk-statistics --all-targets -- -D warnings` rc=0.
+  - `cargo test --doc` across the same four crates rc=0; 8 doctests pass,
+    0 fail.
+  - `rustfmt --check --edition 2024` on each touched file: my edited lines
+    fmt-clean (pre-existing peer fmt debt on unedited lines noted at
+    `tests_clahe_apply.rs`, `tests_jacobian.rs`, `:226` `if count == 0`
+    block in `forces.rs` authored by `a5e375fe` 2026-07-17 — baseline
+    outside this slice per `concurrent_agents`).
+- Residual: this slice closes the prose-drift sub-axis only. The
+  mnemosyne/themis/melinoe source-seam axis for ritk remains evaluated
+  but not yet activated: ritk has zero direct mnemosyne/themis/melinoe
+  source sites — feature-toggle plumbing only (`moirai` with `melinoe`
+  feature, `mnemosyne` with `eunomia` feature, both at root
+  `repos/ritk/Cargo.toml`). The existing `moirai::...` routes already
+  carry the melinoe surface end-to-end. A deeper ritk-local
+  mnemosyne/themis/melinoe source-seam increment (e.g. arena use in
+  `ritk-snap` GPU volume staging or `ritk-registration` voxel buffers)
+  is filed as a separate DoR-shaped item only if a measured allocation
+  churn justifies it; absent that evidence, the ritk axis under the
+  priority-2 brief is closed with prose-drift retired and no further
+  source-seam gap identified here.
+- Note on the prior “Narrowed safely 2026-08-05” annotation: that note
+  mischaracterised `ritk-snap/src/render/gpu_volume/{mod.rs,renderer.rs}`
+  and `crates/ritk-statistics/src/jacobian.rs` as already-clean, on the
+  basis of a glob-based search that returned no matches. The actual tree
+  at peer HEAD `b4cfff62` contained stale `Rayon` prose at
+  `crates/ritk-snap/src/render/gpu_volume/mod.rs:30`,
+  `:renderer.rs:220,237`, and `crates/ritk-statistics/src/jacobian.rs:326`
+  (verified via `grep -rnE "Rayon|rayon"` from the ritk working tree).
+  Commit `a03deeae` retired those three sites alongside the other ten,
+  superseding the note. This dissent preserves the peer's intent (close
+  the prose-drift axis) and corrects only the factual premise.
 - Class: `[patch]` — doc-comment-only sync of prose to the existing moirai
   routing; no structural surface change; no ADR.
-- Build-pipelining: if the shared ritk branch carries unrelated peer redness
-  from the in-flight `ritk-vtk` Laplacian / release-workflow work, attribute
-  diagnostics to the touched files only via focused `cargo check`/
-  `cargo build --message-format=short | grep <file-path>`, and proceed with
-  deliverable evidence scoped to my files per `concurrent_agents`.
+- Re-open trigger: "Rayon" language re-introduced in
+  `crates/ritk-{filter,registration,snap,statistics}` prose; or a future
+  peer audit surfaces a real consumer-local need for explicit mnemosyne
+  arena/themis placement sources in ritk outside the moirai routing that
+  the priority-2 brief already covers.
 
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
