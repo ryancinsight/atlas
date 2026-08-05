@@ -1,5 +1,38 @@
 # atlas — cross-repository integration gap audit
 
+## Live Aequitas closure — 2026-08-05
+
+### Kwavers thermal-diffusion metrics — implementation complete; delivery blocked
+
+Kwavers `KWAVERS-AEQ-MET-66` is implemented at PR [#350](https://github.com/ryancinsight/kwavers/pull/350),
+head `1753134614819fe8130dfe91bd61d5c5084bbe76`. Public thermal-diffusion
+parameters and integration-time arguments use Aequitas typed quantities; CEM43
+remains a domain dose representation. Local evidence is 2,404/2,404 focused
+Nextest tests, warning-denied Clippy, doctests, examples, Rustdoc, formatting,
+diff, and typed-boundary/complex-unit scans. Eunomia compatibility preserves one
+observable unit for real/quadrature values and introduces no imaginary SI unit.
+
+The hosted matrix is still running. Security remains a pre-existing delivery
+residual: both the PR and base `main` fail RustSec `RUSTSEC-2026-0235` through
+Eunomia 0.7's `rkyv 0.7.46`. A clean Eunomia 0.8 resolution reaches the current
+Aequitas/Apollo/Gaia provider heads and stops at Ritk registration
+`cabc7115e360db52bfc700973ca1767786c48373`, whose manifest still requires
+Eunomia `^0.7.0`. No advisory ignore or feature narrowing is acceptable. The
+dependency-ordered closure is Ritk's Eunomia 0.8 cutover, followed by Kwavers
+lock regeneration and a new hosted matrix. The Ritk repository currently has
+both worktree slots occupied by live peer work, so that cutover is recorded as
+an integration blocker rather than silently modifying peer-owned state.
+
+### Helios Radon geometry — source and provider-lock residual corrected
+
+Helios PR [#37](https://github.com/ryancinsight/helios/pull/37) now carries the
+workflow correction at head `98b571e65a0409b9fd7a33afbfd63049aa48237f`.
+The historical baseline lock is regenerated before the locked benchmark build,
+and the checkout action uses Atlas `main` `4f1aab830e6e9c41e95cbf34fa49202ac6833c5e`,
+which restores the current `mnemosyne-memory` provider package identity. Rust
+workspace and Python binding gates pass; the replicated benchmark is running.
+The earlier failure was CI graph normalization, not an Aequitas metric defect.
+
 ## Aequitas consumer gap-audit extension — Kwavers hemispherical array — 2026-08-04 ✓ MERGED
 
 Kwavers MET-63 closes the hemispherical-array metric family in
@@ -57,7 +90,9 @@ PR [#344](https://github.com/ryancinsight/kwavers/pull/344) merged as
 
 Kwavers MET-64 closes the MEMS cell (CmutCell, PmutCell) metric family in
 PR [#345](https://github.com/ryancinsight/kwavers/pull/345) on branch
-`codex/kwavers-aequitas-mems` (not merged; formatting fix `31482cbad` pushed).
+`codex/kwavers-aequitas-mems`, merged as
+`80555fa69c95008cbfbd49059a235e3aaaf8e3e7` from source head
+`31482cbadaafda9703fc1f00e9d84e35e4398606`.
 CmutCell and PmutCell struct fields
 typed: `radius`, `thickness`, `gap`, `piezo_thickness`, `passive_thickness` →
 `Length<f64>`; `youngs` → `Pressure<f64>`; `density` → `MassDensity<f64>`.
@@ -67,10 +102,10 @@ Python mems/helpers.rs wrappers updated. comparison.rs tests updated.
 228/228 nextest pass locally. The prior hosted Code Quality and Validate Clean
 Architecture failures were both the same `cargo fmt -- --check` diff in
 `crates/kwavers-python/src/analytical_bindings/mems/helpers.rs`; commit
-`31482cbad` applies rustfmt and the exact file is now rustfmt-equivalent. The
-hosted matrix has restarted and is pending. This was a formatting blocker, not
-a metric or Eunomia semantic failure. The metric implementation remains
-branch-only until the restarted matrix passes and the PR is merged.
+`31482cbad` applied rustfmt and the exact file became rustfmt-equivalent. The
+replacement hosted matrix passed all repository-owned checks through the merge.
+This was a formatting blocker, not a metric or Eunomia semantic failure. The
+MEMS and flexible-array metric closure is delivered.
 
 
 

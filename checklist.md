@@ -164,11 +164,13 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
       `31482cbadaafda9703fc1f00e9d84e35e4398606` as
       `80555fa69c95008cbfbd49059a235e3aaaf8e3e7`; all repository-owned gates
       pass, including the corrected formatting gate.
-- [ ] `KWAVERS-AEQ-MET-66`: type the thermal-diffusion public parameter family
-      (`ThermalDiffusionConfig`, `BioheatParameters`, `HyperbolicParameters`)
-      and integration-time arguments through Aequitas; preserve CEM43 as a
-      domain dose representation, migrate all callers, and add value-semantic
-      dimensional regressions without compatibility wrappers.
+- [ ] `KWAVERS-AEQ-MET-66`: implementation is complete in Kwavers PR #350 at
+      head `1753134614819fe8130dfe91bd61d5c5084bbe76`; local focused evidence is
+      2,404/2,404 Nextest with strict Clippy, doctests, examples, Rustdoc,
+      formatting, diff, and typed/complex scans passing. Delivery remains
+      blocked by the pre-existing hosted RustSec `RUSTSEC-2026-0235` finding
+      through Eunomia 0.7/rkyv 0.7.46; the dependency-ordered reopen trigger is
+      the Ritk Eunomia 0.8 cutover, followed by Kwavers lock regeneration.
 
 Definition of ready: child raw-field inventory, ownership boundary, exact
 acceptance oracle, and dependency closure are recorded in the child backlog.
@@ -187,9 +189,10 @@ acceptance oracle, and dependency closure are recorded in the child backlog.
 - [ ] Resolve the Helios PR #37 hosted checkout/benchmark residual, or prove the
       unchanged benchmark/dependency interaction is external, then rerun and
       merge its exact head after the repository-owned gate is green. PR #36 is
-      closed; PR #37 correction head `17ec167` restores only the historical
-      baseline path-dependency checkout, removes error masking, and requires
-      locked benchmark commands.
+      closed; PR #37 correction head `98b571e` updates the Atlas checkout to
+      `4f1aab830e6e9c41e95cbf34fa49202ac6833c5e` and regenerates the historical
+      baseline lock before the locked benchmark build. Rust and Python gates
+      pass; the replicated benchmark remains in progress.
 - [x] Record the Kwavers PR #332 external `recurseml/analysis` error as
       report-only and merge its exact head as `6b706ad9`.
 
@@ -197,13 +200,10 @@ Acceptance: child implementation gaps are closed and child focused gates pass;
 hosted gates are green before merge, and no missing Aequitas metric or
 imaginary-unit physical contract remains in the named scope.
 
-Current residual: the historical Helios benchmark run `30761913034` fails its
-replicated classifier on five `beam_transmission/cpu` cases at about +2.6% in
-both counterbalanced replications. The unchanged benchmark/projector source is
-outside PR #37. Its correction head `17ec167` now has a replacement hosted
-matrix pending; the pre-execution path-dependency failure is fixed in CI, and
-this remains a hosted performance/integration residual, not a source-level
-Aequitas metric gap.
+Current residual: PR #37 head `98b571e` has passed the Rust workspace and Python
+binding gates. Its replacement benchmark is still running after the historical
+provider-lock normalization fix; the earlier path-dependency failure was a CI
+graph issue, not a source-level Aequitas metric gap.
 
 ## ATLAS-AEQUITAS-CONSUMERS-003 — Therapeutic microbubble metric audit
 

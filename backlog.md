@@ -116,12 +116,17 @@
   Eunomia complex values remain one-observable-unit phasors; no imaginary SI
   unit is introduced. Hosted checks were pending at merge and remain a
   watchpoint.
-- Increment claimed: `KWAVERS-AEQ-MET-66` types the public thermal-diffusion
-  parameter contracts (`ThermalDiffusionConfig`, `BioheatParameters`, and
-  `HyperbolicParameters`) plus integration-time arguments through Aequitas;
-  dose values remain a domain-specific CEM43 representation rather than a
-  mislabeled SI time quantity. Scalar extraction stays at numerical formula
-  boundaries, and callers migrate without compatibility wrappers.
+- Increment implemented: `KWAVERS-AEQ-MET-66` is complete at Kwavers PR #350
+  head `1753134614819fe8130dfe91bd61d5c5084bbe76`. The public thermal-diffusion
+  parameter contracts and integration-time arguments use Aequitas; dose values
+  remain a domain-specific CEM43 representation rather than a mislabeled SI
+  time quantity. Local focused evidence is 2,404/2,404 Nextest with strict
+  Clippy, doctests, examples, Rustdoc, formatting, diff, and typed/complex
+  scans passing. Delivery is blocked by the pre-existing hosted
+  `RUSTSEC-2026-0235` finding through Eunomia 0.7/rkyv 0.7.46. A clean 0.8
+  provider resolution stops at Ritk registration `cabc7115`, whose manifest
+  still requires Eunomia `^0.7.0`; no advisory ignore or feature narrowing is
+  used. Reopen after the Ritk 0.8 cutover and regenerate the Kwavers lock.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 
@@ -133,18 +138,15 @@
   with typed Aequitas quantities, preserve formula/storage scalar boundaries,
   and document the Eunomia real/complex rule without imaginary SI units.
 - Evidence: CFDrs PR #322 head `ce6a4f39` merged as `57bb47ea`, Helios PR #37
-  correction head `17ec167` (hosted re-verification pending), and Kwavers PR #332
-  head `87afe809f` merged as `6b706ad9`;
+  correction head `98b571e` (Rust and Python hosted gates pass; benchmark
+  running), and Kwavers PR #332 head `87afe809f` merged as `6b706ad9`;
   child focused gates pass as recorded in `gap_audit.md`.
-- Residual: historical Helios benchmark rerun `30761913034` completed with five
-  replicated `beam_transmission/cpu` regressions of about +2.6% in both
-  counterbalanced replications; the unchanged benchmark/projector source is
-  not in the PR. Helios PR #37 correction head `17ec167` restores only the
-  historical baseline path-dependency checkout, removes CI error masking, and
-  requires locked benchmark commands; its hosted matrix is pending. Kwavers
-  repository-owned gates, including coverage, pass; its external
-  `recurseml/analysis` service error was report-only and did not block its
-  merge.
+- Residual: Helios PR #37 head `98b571e` has passed its Rust and Python hosted
+  gates; its corrected benchmark is still running after the provider-lock
+  normalization fix. Kwavers thermal delivery remains blocked by the
+  pre-existing Eunomia 0.7 RustSec finding recorded under
+  `KWAVERS-AEQ-MET-66`; the required Ritk 0.8 cutover cannot be started while
+  both Ritk worktree slots contain live peer work.
 - Re-open trigger: any hosted source failure, dimensional residue, or Eunomia
   complex-boundary mismatch in the named child scope.
 
