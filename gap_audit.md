@@ -13,11 +13,14 @@ scalars only at the Coeus/Asclepius formula boundaries. Beamlet weights,
 penalty coefficients, response slopes, and dense influence entries remain
 scalar model/storage data with no fixed SI dimension.
 
-Helios ADR 0017, checklist, backlog, changelog, dependency policy, and CI
-workflow are synchronized. The planning and analysis all-feature overlay
-checks plus focused Nextest pass. The clean locked source-identity and hosted
-gates remain tied to Helios H-098; its phase-replicated benchmark still has the documented
-`scan_reference/1024` residual. The real planning law has no phasor boundary,
+Helios ADR 0017, checklist, backlog, changelog, dependency policy, CI
+workflow, and lockfile are synchronized. The planning and analysis all-feature
+overlay checks, clean locked package check, and focused 55/55 Nextest pass.
+The hosted phase-replicated benchmark initially failed before compilation
+because the candidate lock lacked the new direct edge; the follow-up lock
+refresh is pushed for re-validation. H-098's earlier
+`scan_reference/1024` measurement residual remains a separate benchmark item.
+The real planning law has no phasor boundary,
 so Eunomia requires no imaginary dose unit or complex physical wrapper.
 
 ### CFDrs and Kwavers re-audit — no new typed-metric gap
