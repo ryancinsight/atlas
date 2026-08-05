@@ -77,8 +77,9 @@
 ## ATLAS-AEQUITAS-CONSUMERS-006 — Close Kwavers beamforming and design metric extensions [arch] [major] — in-progress
 
 - Owner: current session; scope: Kwavers beamforming configuration, aperture
-  design synthesis, focused propagation, and the explicitly listed focused,
-  hemispherical, MEMS, flexible, and two-dimensional array contracts.
+  design synthesis, focused propagation, the explicitly listed focused,
+  hemispherical, MEMS, flexible, and two-dimensional array contracts, and the
+  next disjoint thermal-diffusion parameter family.
 - Outcome: type remaining public sound speed, sampling/reference frequency,
   aperture, pitch, kerf, wavelength, coordinates, impedance, and derived
   physical metrics with Aequitas; keep scalar extraction at formula and
@@ -103,7 +104,10 @@
 - Increment closed: `KWAVERS-AEQ-MET-64` and `KWAVERS-AEQ-MET-65` type MEMS
   cell (CmutCell/PmutCell) fields with Length/Pressure/MassDensity and the
   flexible transducer array configuration with Length/Frequency/Pressure/
-  SpringStiffness/Time through PR #345 (CI in progress as of 2026-08-04).
+  SpringStiffness/Time through PR #345 at source head
+  `31482cbadaafda9703fc1f00e9d84e35e4398606`, merged as
+  `80555fa69c95008cbfbd49059a235e3aaaf8e3e7`. The complete repository-owned
+  matrix passed, including the corrected formatting gate.
 - Increment closed: `KWAVERS-AEQ-MET-63` closes the focused-source contracts
   through PR #346 at source head `7ae4080b4`, merged as
   `1217058ebadc2c6be862e31b205898aec93508ac`. Local focused transducer
@@ -112,6 +116,12 @@
   Eunomia complex values remain one-observable-unit phasors; no imaginary SI
   unit is introduced. Hosted checks were pending at merge and remain a
   watchpoint.
+- Increment claimed: `KWAVERS-AEQ-MET-66` types the public thermal-diffusion
+  parameter contracts (`ThermalDiffusionConfig`, `BioheatParameters`, and
+  `HyperbolicParameters`) plus integration-time arguments through Aequitas;
+  dose values remain a domain-specific CEM43 representation rather than a
+  mislabeled SI time quantity. Scalar extraction stays at numerical formula
+  boundaries, and callers migrate without compatibility wrappers.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 
@@ -123,14 +133,15 @@
   with typed Aequitas quantities, preserve formula/storage scalar boundaries,
   and document the Eunomia real/complex rule without imaginary SI units.
 - Evidence: CFDrs PR #322 head `ce6a4f39` merged as `57bb47ea`, Helios PR #37
-  source head `d87859c` (pending hosted re-verification), and Kwavers PR #332
+  correction head `17ec167` (hosted re-verification pending), and Kwavers PR #332
   head `87afe809f` merged as `6b706ad9`;
   child focused gates pass as recorded in `gap_audit.md`.
 - Residual: historical Helios benchmark rerun `30761913034` completed with five
   replicated `beam_transmission/cpu` regressions of about +2.6% in both
   counterbalanced replications; the unchanged benchmark/projector source is
-  not in the PR. Helios PR #37 removes the provider checkout action that failed
-  before compilation and is awaiting its hosted matrix. Kwavers
+  not in the PR. Helios PR #37 correction head `17ec167` restores only the
+  historical baseline path-dependency checkout, removes CI error masking, and
+  requires locked benchmark commands; its hosted matrix is pending. Kwavers
   repository-owned gates, including coverage, pass; its external
   `recurseml/analysis` service error was report-only and did not block its
   merge.

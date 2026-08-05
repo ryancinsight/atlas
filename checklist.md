@@ -159,8 +159,16 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
       raised. Code Coverage job `91693171499` passes in 27m7s; Test Suite
       Coverage job `91693169453` passes in 37m56s; all other repository-owned
       checks pass. PR #335 merges as `c3e0ca39da0c928c83125ca27f9689de49b389f4`.
-- [ ] Type the next disjoint raw-metric family from the child inventory and
-      migrate all current callers without compatibility wrappers.
+- [x] Type the MEMS cell and flexible-array metric contracts through Aequitas,
+      migrate callers, and merge Kwavers PR #345 at source head
+      `31482cbadaafda9703fc1f00e9d84e35e4398606` as
+      `80555fa69c95008cbfbd49059a235e3aaaf8e3e7`; all repository-owned gates
+      pass, including the corrected formatting gate.
+- [ ] `KWAVERS-AEQ-MET-66`: type the thermal-diffusion public parameter family
+      (`ThermalDiffusionConfig`, `BioheatParameters`, `HyperbolicParameters`)
+      and integration-time arguments through Aequitas; preserve CEM43 as a
+      domain dose representation, migrate all callers, and add value-semantic
+      dimensional regressions without compatibility wrappers.
 
 Definition of ready: child raw-field inventory, ownership boundary, exact
 acceptance oracle, and dependency closure are recorded in the child backlog.
@@ -179,8 +187,9 @@ acceptance oracle, and dependency closure are recorded in the child backlog.
 - [ ] Resolve the Helios PR #37 hosted checkout/benchmark residual, or prove the
       unchanged benchmark/dependency interaction is external, then rerun and
       merge its exact head after the repository-owned gate is green. PR #36 is
-      closed; PR #37 source head `d87859c` removes the obsolete provider
-      checkout action that failed before compilation.
+      closed; PR #37 correction head `17ec167` restores only the historical
+      baseline path-dependency checkout, removes error masking, and requires
+      locked benchmark commands.
 - [x] Record the Kwavers PR #332 external `recurseml/analysis` error as
       report-only and merge its exact head as `6b706ad9`.
 
@@ -190,7 +199,9 @@ imaginary-unit physical contract remains in the named scope.
 
 Current residual: the historical Helios benchmark run `30761913034` fails its
 replicated classifier on five `beam_transmission/cpu` cases at about +2.6% in
-both counterbalanced replications. PR #37's corrected hosted matrix is pending;
+both counterbalanced replications. The unchanged benchmark/projector source is
+outside PR #37. Its correction head `17ec167` now has a replacement hosted
+matrix pending; the pre-execution path-dependency failure is fixed in CI, and
 this remains a hosted performance/integration residual, not a source-level
 Aequitas metric gap.
 
