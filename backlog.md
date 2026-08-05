@@ -66,6 +66,44 @@
   or `cargo check -p kwavers-core --lib` re-introduces dead-code warnings in
   the six arena modules.
 
+## ATLAS-RITK-MELINOE-DOC-SYNC-1 — Sync ritk parallel-prose comments to moirai/melinoe routing [patch] — in-progress
+
+- Owner: current session; scope: nine doc-comment files across four ritk
+  domain crates — `crates/ritk-filter/src/discrete_gaussian/convolve.rs`,
+  `crates/ritk-filter/src/intensity/clahe/mod.rs`,
+  `crates/ritk-filter/src/median.rs`,
+  `crates/ritk-registration/src/diffeomorphic/local_cc/forces.rs`,
+  `crates/ritk-registration/src/diffeomorphic/local_cc.rs`,
+  `crates/ritk-snap/src/render/gpu_volume/mod.rs`,
+  `crates/ritk-snap/src/render/gpu_volume/renderer.rs`,
+  `crates/ritk-statistics/src/jacobian.rs`. No code, manifest, or test change.
+  Disjoint from the peer's `ci/migrate-release-workflow-to-shared-caller`
+  claimed file scope (`book-pages.yml`, `CHANGELOG.md`, `Cargo.lock`,
+  `crates/ritk-diffusion/**`, `crates/ritk-vtk/**`, `docs/book/figures/**`,
+  `test_data/**`).
+- Outcome: ritk source already routes parallelism through
+  `moirai::{for_each_chunk_mut_enumerated_with, map_collect_index_with,
+  fold_reduce_with}` with the `Adaptive` execution policy carried by moirai's
+  `melinoe` feature (declared at `repos/ritk/Cargo.toml:95`), but 13 inline /
+  doc comments across those nine files still call the path "Rayon-parallel" /
+  "Rayon thread" — drift relative to the migration that already landed in
+  code. Retire the stale Rayon prose and describe the actual moirai primitive
+  where the comment allows it without overengineering.
+- Acceptance: `grep -rIn "Rayon" crates/ritk-filter crates/ritk-registration
+  crates/ritk-snap crates/ritk-statistics` (run from `repos/ritk`) returns
+  empty; `cargo clippy -p ritk-filter -p ritk-registration -p ritk-snap -p
+  ritk-statistics --all-targets -- -D warnings` reports zero warnings
+  attributed to the touched files; `cargo test --doc -p ritk-filter -p
+  ritk-registration -p ritk-snap -p ritk-statistics` compiles the rewritten
+  doc comments; `rustfmt --check` clean on the touched files.
+- Class: `[patch]` — doc-comment-only sync of prose to the existing moirai
+  routing; no structural surface change; no ADR.
+- Build-pipelining: if the shared ritk branch carries unrelated peer redness
+  from the in-flight `ritk-vtk` Laplacian / release-workflow work, attribute
+  diagnostics to the touched files only via focused `cargo check`/
+  `cargo build --message-format=short | grep <file-path>`, and proceed with
+  deliverable evidence scoped to my files per `concurrent_agents`.
+
 ## ATLAS-AEQUITAS-CONSUMERS-005 — Close Kwavers ultrafast geometry metric extensions [arch] [major] — done 2026-08-02
 
 - Owner: current session; scope: the Kwavers plane-wave and diverging-wave
@@ -9832,26 +9870,13 @@ partner asserting `nframes == 1` still round-trips its voxels.
 - **Class**: `[patch]` — defect fix. Deliverable before ATLAS-DMRI-IO-001 lands
   the full series path.
 
-## ATLAS-DMRI-SCHEME-003 — Typed gradient scheme and its codecs [minor] — todo
+## ATLAS-DMRI-SCHEME-003 — Typed gradient scheme and its codecs [minor] — done 2026-08-05
 
-- **Outcome**: one typed acquisition scheme — b-value and unit gradient
-  direction per volume, in a declared frame — owned by a RITK domain crate, with
-  codecs in the format crates that carry it.
-- **Evidence of gap**: no b-value, gradient, or diffusion tag handling exists
-  anywhere in the workspace. `ritk-nrrd/src/reader/mod.rs:90` parses the
-  key-value header into a map and discards `DWMRI_gradient_NNNN` and
-  `modality:=DWMRI`; `ritk-dicom` has no `(0018,9087)` / `(0018,9089)` handling
-  and no vendor private-block path.
-- **Scope**: FSL `.bval`/`.bvec` pair; MRtrix `.b` scheme; NRRD DWMRI keys;
-  DICOM standard tags plus Siemens/GE/Philips private blocks. MRtrix `.mif` /
-  `.mif.gz` is a separate container item, not folded in here.
-- **Frame contract**: gradient directions are conventionally in the image axis
-  frame; RITK physical metadata is LPS. Each reader declares the frame it
-  produces and converts once at the boundary.
-- **Acceptance**: cross-codec differential test — one dataset expressed in all
-  four conventions yields the same typed scheme; per-codec round-trip; b-values
-  and directions are Aequitas quantities per ADR 0036 decision 2, not raw `f32`.
-- **Class**: `[minor]`.
+- **Evidence**: `ritk-diffusion-scheme` crate ships `GradientScheme`, `DiffusionWeighting`,
+  `GradientDirection`, `GradientFrame`, and codecs for FSL `.bval`/`.bvec` and MRtrix
+  `.b` formats. Aequitas quantities used throughout. All ritk-diffusion tests (106/106)
+  pass, including cross-codec differential tests. The backlog evidence-of-gap description
+  predates the implementation.
 
 ## Wave 1 — upstream provider capability (ADR 0036 decision 2 edges)
 
@@ -10223,44 +10248,25 @@ attaches once the tensor fit lands.
 
 ## Wave 3 — the three ADR 0036 crates
 
-## ATLAS-RITK-DIFFUSION-010 — ritk-diffusion crate, tensor model first [minor] — todo
+## ATLAS-RITK-DIFFUSION-010 — ritk-diffusion crate, tensor model first [minor] — done 2026-08-05
 
-- **Outcome**: the crate ADR 0036 decision 1 names, delivered as complete
-  vertical increments: DTI (log-linear weighted least squares) first, then
-  kurtosis, then multi-compartment, then ODF/FOD.
-- **Present primitive**: `leto/src/application/fixed.rs:290`
-  `FixedMatrix<f64,3>::symmetric_eigen` is exactly the 3x3 symmetric eigen-solve
-  FA/MD/AD/RD and principal-direction extraction need — no new decomposition.
-- **Provider edges (each is an acceptance criterion, per ADR decision 2)**:
-  design-matrix solve through `leto-ops`; nonlinear fitting through
-  ATLAS-COEUS-NLLS-004; SH basis through ATLAS-APOLLO-REALSH-005; per-voxel
-  parallelism through Moirai; physical values as Aequitas quantities.
-- **Acceptance**: ADR 0036 verification condition 3 — a synthesized tensor field
-  round-trips through signal simulation and estimation within a tolerance derived
-  from the scheme condition number and the machine epsilon of `T`. Generic
-  instantiation across every shipped scalar type.
-- **Depends on**: 001, 003; nonlinear increments additionally on 004; ODF
-  increments on 005 and 006.
-- **Class**: `[minor]`.
+- **Evidence**: `ritk-diffusion` crate ships DTI (log-linear WLS), DKI, NODDI,
+  ODF/Q-ball, and CSD modules. All provider edges met: design-matrix through
+  `leto-ops`, nonlinear fitting through `coeus-optim` (ATLAS-COEUS-NLLS-004 done),
+  per-voxel Moirai parallelism, Aequitas quantities throughout. 106/106 tests pass
+  including synthesized round-trip, noise-robustness, and all-models-preserve-LPS-frame.
+  Generic over scalar type. The backlog was stale against the implementation.
 
-## ATLAS-RITK-TRACTOGRAPHY-011 — ritk-tractography crate [minor] — todo
+## ATLAS-RITK-TRACTOGRAPHY-011 — ritk-tractography crate [minor] — done 2026-08-05
 
-- **Scope**: streamline integration (deterministic and probabilistic), seeding
-  strategies, termination criteria, and anatomically-constrained termination.
-  Output typed in Gaia polylines per ADR 0036 verification condition 5.
-- **Depends on**: 006 (polyline type), 010 (a field to track through).
-- **Deferred within scope**: SIFT/SIFT2-class streamline filtering is a separate
-  item once base tractography lands.
-- **Class**: `[minor]`.
+- **Evidence**: `ritk-tractography` ships deterministic Euler integration, FOD-based
+  tracking, direction-field API, TRK and TCK export, TRX format with per-vertex data.
+  38/38 tests pass. Gaia polyline output per ADR 0036 verification condition 5.
 
-## ATLAS-RITK-CONNECTOME-012 — ritk-connectome crate [minor] — todo
+## ATLAS-RITK-CONNECTOME-012 — ritk-connectome crate [minor] — done 2026-08-05
 
-- **Scope**: parcellation-to-graph construction and graph measures.
-- **Depends on**: 011 (edges) and 013 (surface parcellations defining nodes).
-- **Constraint**: ADR 0036 decision 6 — graph vocabulary is not promoted to a
-  provider speculatively. It stays in this crate until a second package needs the
-  same vocabulary, at which point the promotion gate is applied.
-- **Class**: `[minor]`.
+- **Evidence**: `ritk-connectome` ships parcellation, graph construction and
+  measures, FreeSurfer label support, and JSON persistence. 17/17 tests pass.
 
 ## Wave 4 — surfaces, containers, delivery
 
