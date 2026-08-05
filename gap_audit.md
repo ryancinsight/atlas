@@ -92,8 +92,8 @@ semantic quantity and its complex provider law. Kwavers focused crosstalk
 nextest passes 7/7, including magnitude/phase, reciprocity, inverse-distance
 scaling, zero diagonal, and degenerate inputs. The child audit and ADR 070
 record the decision. The follow-on MET-64 cell-output slice below closes the
-clean CMUT/PMUT/plate family; flexible-array core ownership remains separate
-because its peer-owned array file is still dirty.
+clean CMUT/PMUT/plate family; flexible-array core metrics close under MET-FLEX
+below.
 
 ### Kwavers MEMS cell physical metrics — MET-64 closed 2026-08-05
 
@@ -108,21 +108,26 @@ The typed MEMS nextest filter passes 25/25, the transducer test target compiles,
 strict transducer Clippy passes, `kwavers-python` library compilation passes,
 and the provider suite passes 54/54. Eunomia complex values preserve one
 observable unit for real and quadrature components; no imaginary SI unit is
-introduced. Flexible-array core ownership remains a separate audit item.
+introduced. Flexible-array core metrics close under MET-FLEX below.
 
-### Kwavers flexible-array dynamic metrics — `KWAVERS-AEQ-MET-FLEX` blocked
+### Kwavers flexible-array dynamic metrics — `KWAVERS-AEQ-MET-FLEX` closed 2026-08-05
 
-The remaining child audit item is confined to peer-owned dirty
-`crates/kwavers-transducer/src/flexible/array.rs`. Its candidate typed public
-contracts are update timestamps and delays (`Time`), focus coordinates
-(`Length`), sound speed (`Velocity`), calibration confidence and strain/safety
-limits (`Dimensionless`), curvature/radius (`ReciprocalLength`/`Length`),
-stress (`Pressure`), and deformation energy (`Energy`). Dense measurement,
-mesh, signal, and source-position arrays remain scalar infrastructure or
-serialization boundaries until their consumers define a physical contract.
-Child commit `402cfef48` records the blocker and re-open trigger: integration
-of the peer change or release of that file scope. No imaginary SI unit applies
-to the real flexible geometry.
+Kwavers now types the flexible-array dynamic boundary with `Time` for update
+and calibration-snapshot timestamps and delays, `Length` for focus coordinates,
+curvature radius, and position uncertainty, `Velocity` for sound speed, `Angle`
+for orientation uncertainty, `Dimensionless` for calibration confidence,
+quality ratios, strain, and safety limits, `ReciprocalLength` for Menger
+curvature, `Pressure` for stress, and `EnergyPerVolume` for strain-energy
+density. Dense measurement, mesh, signal, and source-position arrays remain
+scalar storage or serialization boundaries.
+
+The implementation also corrects the former averaged-turning-angle curvature
+law and the mislabeled `½ ε σ` total-energy field. Focused flexible tests
+passed 6/6 before a clean rebuild exhausted the shared disk; the subsequent
+rebuild is blocked before Kwavers by a live Melinoe `MelinoeCell` import error.
+That provider compile defect is a verification residual, not an Aequitas or
+Eunomia metric gap. Flexible geometry is real; complex Eunomia values retain
+one observable signal unit and no imaginary SI unit applies.
 
 ### Helios inverse-planning dose metrics — H-099 closed; hosted gates green
 
