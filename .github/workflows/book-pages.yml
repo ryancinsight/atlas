@@ -44,6 +44,15 @@ on:
         required: false
         default: "stable"
         type: string
+      cargo-package:
+        description: >-
+          Cargo package name to build before running `mdbook test`. When set,
+          the workflow builds the package first so that `mdbook test` can
+          resolve the crate in fenced code blocks. Ignored when mdbook-test
+          is false.
+        required: false
+        default: ""
+        type: string
       atlas-ref:
         description: >-
           Exact Atlas commit owning the provider gitlink graph. Set only when
@@ -101,6 +110,33 @@ jobs:
         uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
         with:
           toolchain: ${{ inputs.rust-toolchain }}
+
+      - name: Build package for book code sample testing
+        if: inputs.mdbook-test && inputs.cargo-package != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build -p "${{ inputs.cargo-package }}"
+          # Find the compiled rlib and set RUSTDOCFLAGS so mdbook test
+          # can resolve the crate in fenced code blocks.
+          pkg="${{ inputs.cargo-package }}"
+          # Package name uses hyphens; crate name uses underscores.
+          crate="${pkg//-/_}"
+          lib_dir="$(cargo metadata --no-deps --format-version 1 | python3 -c "
+          import json, sys
+          meta = json.load(sys.stdin)
+          for pkg in meta['packages']:
+              if pkg['name'] == '${{ inputs.cargo-package }}':
+                  print(pkg.get('targets', [{}])[0].get('name', '').replace('-', '_'))
+                  break
+          " 2>/dev/null || echo "$crate")"
+          target_dir="$(cargo metadata --no-deps --format-version 1 | python3 -c "import json,sys; print(json.load(sys.stdin)['target_directory'])")"
+          deps_dir="$target_dir/debug/deps"
+          rlib=$(ls "$deps_dir/lib${crate}-"*.rlib 2>/dev/null | head -n1 || true)
+          if [[ -n "$rlib" ]]; then
+            export RUSTDOCFLAGS="-L $deps_dir --extern ${crate}=${rlib}"
+            echo "RUSTDOCFLAGS=${RUSTDOCFLAGS}" >> "$GITHUB_ENV"
+          fi
 
       - name: Test book code samples
         if: inputs.mdbook-test
