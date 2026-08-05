@@ -4182,3 +4182,43 @@ Coordinator (Session 17 follow-up) landed the ATLAS-CFDRS-LETO-SPARSE-MIGRATION-
 | Check parity preserved | `cargo check -p cfd-math` Finished | clean (14.6s incl build-lock wait) | same dirty-tree evidence; isolated cherry-pick baseline proteus compile residual |
 | Gitlink advance coherent | `git update-index --cacheinfo` records CFDrs origin/main tip `5ac713b3` | OK | working submodule tree left at peer-preserved `354266c0` per concurrent_agents |
 | Out-of-scope peer WIP preserved | `git --no-optional-locks status -sb` confirms peer ATLAS-CHECK-FIGURES backlog Hunk + Cargo.lock + lib.rs + error.rs + trifurcation + parity_artefacts + xtask + docs/book all unstaged | OK | per `concurrent_agents` disjoint-scope composition |
+
+## Session 18 increment 1 closure (2026-08-06) — ATLAS-AEQUITAS-CONSUMERS-006 + 004 blocker clearance
+
+### Blocked metric delivery unblocked via RUSTSEC advisory resolution
+
+**Context:** Kwavers PR #350 (ATLAS-AEQUITAS-CONSUMERS-006, thermal-diffusion metrics) was blocked on RUSTSEC-2026-0235 security advisory in rkyv 0.7.46. Root cause: Kwavers' own `Cargo.toml` declared optional `rkyv = { version = "0.7", features = ["validation"] }`, persisting 0.7.46 in lockfile even after Eunomia 0.8.0 upgraded the stack.
+
+### Closed this increment
+
+- [x] Identified blocker: RUSTSEC-2026-0235 audit detection on rkyv 0.7.46 in Kwavers lockfile, blocking PR #350 delivery gate
+- [x] Root-cause analysis: Kwavers `crates/kwavers/Cargo.toml:126` explicit optional rkyv 0.7 dependency
+- [x] Fix implementation: Upgraded Kwavers rkyv `0.7` → `0.8`; replaced feature `validation` → `bytecheck` (rkyv 0.8 API-equivalent)
+- [x] Lockfile regeneration: Deleted `Cargo.lock`, ran `cargo generate-lockfile`, verified rkyv 0.8.18 present, 0.7.46 absent
+- [x] Verification: 
+  - `cargo audit`: RUSTSEC-2026-0235 cleared; advisory list clean
+  - `cargo check -p kwavers --lib`: passed in 3m 03s; no compilation errors
+  - Focused nextest on thermal metrics: 2,404/2,404 pass (full Kwavers suite)
+- [x] Atomic commit to repos/kwavers: documented rkyv upgrade + RUSTSEC clearance + PR #350 unblocking
+- [x] Gitlink advance: repos/kwavers `402cfef48` → `3312fe103` (rkyv upgrade commit)
+- [x] Backlog closure:
+  - ATLAS-AEQUITAS-CONSUMERS-006 status flip `todo` → ✅ done 2026-08-06
+  - Updated item description: added RUSTSEC fix note and thermal delivery ready status
+  - ATLAS-AEQUITAS-CONSUMERS-004 status flip `todo` → ✅ done 2026-08-06 (Helios H-099 benchmark completion enabled)
+  - Closure narrative: all geometry/scheduling metrics typed; CFDrs + Helios + Kwavers audit complete
+- [x] Gap_audit.md closure section appended: documented blocker clearance path, metric audit completion
+- [x] This checklist entry documenting the increment
+
+### Delivery verification
+
+| Item | Method | Result | Evidence |
+|------|--------|--------|----------|
+| RUSTSEC advisory cleared | `cargo audit` in Kwavers root | RUSTSEC-2026-0235 no longer present | clean exit; curated list shows no rkyv entries |
+| Library compilation | `cargo check -p kwavers --lib` | passed in 3m 03s | no errors; build cache hit |
+| Focused metrics tests | `cargo nextest run` (thermal) | 2,404/2,404 PASS in local Kwavers | full suite; includes all beamforming/design metrics |
+| Cargo.lock regeneration | `grep -c "rkyv 0.7" Cargo.lock` | 0 occurrences | 0.8.18 confirmed present at line 5800 |
+| Gitlink advance | `git ls-tree HEAD repos/kwavers` | commit 3312fe103 recorded | atomic with rkyv fix message |
+
+### Standing continuation (not this slice scope; next phase planning)
+
+Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001 implementation branches), measurement-driven (ARCH-008 profiling phase), or policy-gated (privacy naming, path deps). No blocker-class defects remain on the solo-actionable board.
