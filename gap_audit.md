@@ -1603,6 +1603,23 @@ already offers sync, async, and parallel entry points that consumers select
 directly. The seam becomes work only when a package genuinely needs the regime to
 vary across deployment targets.
 
+**Consumer-side placement/memory-locality adoption — measured 2026-08-05.**
+The provider crates are ready (themis ships `NumaNodePlacement`,
+`ConstNumaPinnedSlice`, `PinnedCell` behind its `melinoe` feature; mnemosyne
+ships the arena/backend/core seam), but the three integrators adopt them only
+as feature plumbing, not source seams. Measured from committed state:
+- **themis**: zero source references in any crate of kwavers, CFDrs, or helios.
+  Declared only in helios `Cargo.toml:114`, unused.
+- **melinoe**: zero source references in any integrator crate. Reachable only
+  via moirai features (`moirai = { features = ["melinoe"] }` in CFDrs and ritk).
+- **mnemosyne**: source seams only in kwavers-core's arena layer
+  (`temp_arena`, `pool/*`, `layout/{soa,pool,numa_aware}.rs` via
+  `mnemosyne_arena`/`mnemosyne_backend`/`mnemosyne_core`). CFDrs reaches it via
+  moirai features; helios declares `mnemosyne-core` (line 113) with zero source
+  sites.
+Filed as DoR-shaped claimable item `ATLAS-THEMIS-MELINOE-ADOPTION-001` (one
+repo per claim). All three consumer trees were peer-held at measurement time.
+
 ### Non-findings
 
 - **Correction to an earlier reading in this session:** a first GAT scan used a
