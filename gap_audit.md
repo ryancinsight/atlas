@@ -2,6 +2,31 @@
 
 ## Live Aequitas closure — 2026-08-05
 
+### Aequitas/Eunomia consumer gap audit — 2026-08-05
+
+The cross-repository audit covered public physical contracts and numerical
+provider boundaries in Aequitas, CFDrs, Helios, and Kwavers. No new missing
+Aequitas dimension was found in the named consumers. CFDrs remains closed
+through `CFDRS-AEQ-MET-46`; its open solver-runtime and provider-lock items
+are verification or dependency issues, not missing physical metric types.
+Helios H-099 is closed at merged head `41f2c3b`, with final hosted run
+`31016097153` green at implementation head `5cbdfdb` and no complex-valued
+planning contract. Kwavers' current thermal and array metric families are
+closed; its active optics/math working tree is peer-owned and was not mutated
+by this audit.
+
+The former `CR-EUNOMIA-COMPLEX` request is reclassified as resolved at the
+provider boundary, not an Eunomia API gap. Eunomia already owns sealed native
+`Complex<T>` implementations, `ComplexField::{real, imaginary, modulus}`,
+`Complex::norm`, and `UnitScalar` componentwise scaling. Leto owns the
+operation-level `Scalar` extension and admits the same complex values. Kwavers'
+remaining CSR cutover is a consumer migration in peer-owned dirty files; it
+must use those provider APIs rather than unsealing Eunomia traits or adding an
+imaginary SI dimension. A complex value is a phasor: real and quadrature
+components retain one observable physical unit. Aequitas now has a regression
+covering kilometer-to-meter conversion of both components. Its full nextest
+suite passes 52/52.
+
 ### Helios inverse-planning dose metrics — H-099 closed; hosted gates green
 
 The fresh Helios consumer audit found one untyped physical planning boundary
@@ -16,11 +41,11 @@ scalar model/storage data with no fixed SI dimension.
 Helios ADR 0017, checklist, backlog, changelog, dependency policy, CI
 workflow, and lockfile are synchronized. The planning and analysis all-feature
 overlay checks, clean locked package check, and focused 55/55 Nextest pass.
-Hosted run `31011688127` passes the Rust, Python, dependency, and
-phase-replicated benchmark gates at exact implementation head `c00d270`; its
+Final hosted run `31016097153` passes the Rust, Python, dependency, and
+phase-replicated benchmark gates at exact implementation head `5cbdfdb`; its
 classifier reports 0 regressions and 0 replication-universe mismatches. The
-real planning law has no phasor boundary, so Eunomia requires no imaginary
-dose unit or complex physical wrapper.
+merged PR head is `41f2c3b`. The real planning law has no phasor boundary, so
+Eunomia requires no imaginary dose unit or complex physical wrapper.
 
 ### CFDrs and Kwavers re-audit — no new typed-metric gap
 
@@ -45,7 +70,7 @@ metric or complex-unit defect.
 
 Kwavers `KWAVERS-AEQ-MET-66` and `KWAVERS-AEQ-MET-67` are implemented and
 merged through PR [#350](https://github.com/ryancinsight/kwavers/pull/350),
-with merge commit `5044c0c13`. The public thermal-diffusion and
+with merge commit `67c98a46e`. The public thermal-diffusion and
 thermal-acoustic contracts use
 Aequitas typed quantities; CEM43 remains a domain dose representation, and
 the nonlinear acoustic formula now exposes the provider-owned `W/m⁴`
@@ -70,7 +95,7 @@ failure.
 
 Helios PR [#37](https://github.com/ryancinsight/helios/pull/37) carries the
 workflow and provider-graph corrections through implementation head `c00d270`
-and PM closure head `5cbdfdb`. Hosted run `31011688127` passes the Rust
+and PM closure head `5cbdfdb`. Final hosted run `31016097153` passes the Rust
 workspace, Python bindings, dependency policy, and phase-replicated benchmark
 jobs. The benchmark classifier reports 0 regressions and 0
 replication-universe mismatches; the `scan_reference/1024` pair is
