@@ -2,7 +2,7 @@
 
 ## Live Aequitas closure — 2026-08-05
 
-### Helios inverse-planning dose metrics — H-099 closed locally; hosted gate pending
+### Helios inverse-planning dose metrics — H-099 closed; hosted gates green
 
 The fresh Helios consumer audit found one untyped physical planning boundary
 spanning autodiff `DvhPenalty`/`EudPenalty` and the shared `Dvh` gEUD entry
@@ -16,12 +16,11 @@ scalar model/storage data with no fixed SI dimension.
 Helios ADR 0017, checklist, backlog, changelog, dependency policy, CI
 workflow, and lockfile are synchronized. The planning and analysis all-feature
 overlay checks, clean locked package check, and focused 55/55 Nextest pass.
-The hosted phase-replicated benchmark initially failed before compilation
-because the candidate lock lacked the new direct edge; the follow-up lock
-refresh is pushed for re-validation. H-098's earlier
-`scan_reference/1024` measurement residual remains a separate benchmark item.
-The real planning law has no phasor boundary,
-so Eunomia requires no imaginary dose unit or complex physical wrapper.
+Hosted run `31011688127` passes the Rust, Python, dependency, and
+phase-replicated benchmark gates at exact implementation head `c00d270`; its
+classifier reports 0 regressions and 0 replication-universe mismatches. The
+real planning law has no phasor boundary, so Eunomia requires no imaginary
+dose unit or complex physical wrapper.
 
 ### CFDrs and Kwavers re-audit — no new typed-metric gap
 
@@ -63,19 +62,18 @@ binaries. Eunomia real and complex values retain one observable unit; no
 imaginary SI unit is introduced. Hosted Kwavers checks are pending at the
 exact PR head.
 
-### Helios Radon geometry — hosted benchmark residual remains
+### Helios historical benchmark and provider graph — H-098 closed
 
-Helios PR [#37](https://github.com/ryancinsight/helios/pull/37) now carries the
-workflow correction at head `98b571e65a0409b9fd7a33afbfd63049aa48237f`.
-The historical baseline lock is regenerated before the locked benchmark build,
-and the checkout action uses Atlas `main` `4f1aab830e6e9c41e95cbf34fa49202ac6833c5e`,
-which restores the current `mnemosyne-memory` provider package identity. Rust
-workspace and Python binding gates pass. The hosted benchmark now replicates a
-`scan_reference/1024` regression: baseline-first `+0.46%` then `+0.54%`,
-candidate-first `-0.27%` then `-0.49%`; the production DVH candidate does not
-reproduce the slowdown. PR #37 remains open until that exact benchmark
-residual is diagnosed; it is not masked by changing the classifier or
-workload.
+Helios PR [#37](https://github.com/ryancinsight/helios/pull/37) carries the
+workflow and provider-graph corrections through implementation head `c00d270`
+and PM closure head `5cbdfdb`. Hosted run `31011688127` passes the Rust
+workspace, Python bindings, dependency policy, and phase-replicated benchmark
+jobs. The benchmark classifier reports 0 regressions and 0
+replication-universe mismatches; the `scan_reference/1024` pair is
+counterbalanced (`+0.17%` baseline-first versus `-0.27%` candidate-first).
+The pre-execution failures in runs `30913557127`, `30967195570`, and
+`30970135338` are retained as diagnostic history, not open residuals. No
+classifier or workload change was used.
 
 ## Aequitas consumer gap-audit extension — Kwavers hemispherical array — 2026-08-04 ✓ MERGED
 

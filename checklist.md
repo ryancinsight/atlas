@@ -189,30 +189,30 @@ acceptance oracle, and dependency closure are recorded in the child backlog.
       record the Eunomia real/complex boundary with no imaginary SI unit.
 - [x] Collect the exact-head hosted gates and merge CFDrs PR #322 as
       `57bb47ea`.
-- [ ] Resolve the Helios PR #37 hosted checkout/benchmark residual, or prove the
-      unchanged benchmark/dependency interaction is external, then rerun and
-      merge its exact head after the repository-owned gate is green. PR #36 is
-      closed; PR #37 correction head `98b571e` updates the Atlas checkout to
-      `4f1aab830e6e9c41e95cbf34fa49202ac6833c5e` and regenerates the historical
-      baseline lock before the locked benchmark build. Rust and Python gates
-      pass; the replicated benchmark remains in progress.
+- [x] Resolve the Helios PR #37 hosted checkout/benchmark residual. Hosted run
+      `31011688127` passes the Rust workspace, Python bindings, dependency
+      policy, and phase-replicated benchmark jobs at implementation head
+      `c00d270`; the classifier reports 0 regressions and 0
+      replication-universe mismatches. The PM closure is pushed as `5cbdfdb`.
 - [x] Record the Kwavers PR #332 external `recurseml/analysis` error as
       report-only and merge its exact head as `6b706ad9`.
 - [x] Close Helios H-099 inverse-planning dose objectives: type DVH
       floor/ceiling and gEUD reference doses with Aequitas, type the public
       DVH gEUD exponent, remove the stale RustSec 2026 ignore, and synchronize
       ADR 0017 plus child PM artifacts. The local all-feature planning and
-      analysis checks plus focused Nextest pass; clean hosted gates remain
-      under H-098.
+      analysis checks plus focused Nextest pass; hosted run `31011688127`
+      passes the Rust, Python, dependency, and benchmark gates with 0
+      regressions and 0 replication-universe mismatches.
 
 Acceptance: child implementation gaps are closed and child focused gates pass;
 hosted gates are green before merge, and no missing Aequitas metric or
 imaginary-unit physical contract remains in the named scope.
 
-Current residual: PR #37 head `98b571e` has passed the Rust workspace and Python
-binding gates. Its replacement benchmark is still running after the historical
-provider-lock normalization fix; the earlier path-dependency failure was a CI
-graph issue, not a source-level Aequitas metric gap.
+Current residual: none in the Helios checkout/benchmark closure. The prior
+path-dependency and provider-lock failures were CI graph issues, not source-
+level Aequitas metric gaps. The remaining named-consumer watchpoints are the
+independent Kwavers PR #350 hosted matrix and the documented Windows GNU
+linker limitation; neither is an untyped metric or imaginary-unit defect.
 
 ## ATLAS-AEQUITAS-CONSUMERS-003 — Therapeutic microbubble metric audit
 
