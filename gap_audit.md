@@ -1,5 +1,60 @@
 # atlas — cross-repository integration gap audit
 
+## Provider engineering audit — 2026-08-06
+
+Focused audit pass over the clean, unclaimed provider repos (melinoe, tyche,
+athena) covering the engineering-gate battery plus the deep vertical file-tree
+and zero-cost-abstraction criteria. All three are on `main`, unclaimed, and
+verified at committed state.
+
+### melinoe — provenance fix delivered (melinoe `6ec0165`, pushed)
+
+- **Baseline**: nextest 121/121, clippy `--all-targets --all-features
+  -D warnings` clean, 29 doctests, rustdoc `-D warnings` clean,
+  `--no-default-features` and alloc-only builds clean, fmt clean. Tree is
+  deeply hierarchical (largest source file 397 lines, all leaves < 500).
+- **Fixed**: `BrandedVecDeque::as_slices`/`as_mut_slices` in
+  `src/collections/deque/views.rs` cast the ring-buffer segments through a bare
+  `*const MelinoeCell<T> as *const T` pointer cast, bypassing the
+  interior-mutability provenance chain the crate establishes elsewhere
+  (`cell/slice.rs`, `region/shard.rs` via `MelinoeCell::slice_as_unsafe_cell`).
+  Both views now route through that SSOT helper, so shared and exclusive slice
+  views carry the same `UnsafeCell` provenance as `CellSliceExt::borrow_slice*`
+  and the region shards. The `as_mut_slices` SAFETY comment now also states the
+  `VecDeque::as_slices` disjointness invariant the two `&mut [T]` regions rely
+  on.
+- **Cleanliness**: the two site-local `#[allow(clippy::mut_from_ref)]`
+  suppressions converted to `#[expect(clippy::mut_from_ref, reason = "...")]`,
+  so accidental removal of the triggering `&self -> &mut [T]` shape is caught
+  by `unfulfilled_lint_expectations` rather than silently retired.
+- Re-open trigger: a bare `as *const T` cast re-introduced on a
+  `MelinoeCell<T>` slice outside the `slice_as_unsafe_cell` SSOT; or a
+  `#[allow]` (non-expect) suppression added for `mut_from_ref`.
+
+### tyche — clean baseline, no defects found
+
+- **Baseline**: nextest 40/40, clippy `--workspace --all-targets -- -D
+  warnings` clean, doctests green, `unsafe_code = forbid` at workspace level,
+  pedantic clippy + `unwrap_used = deny`, overflow-checks on in all profiles.
+- **Tree**: deeply hierarchical (largest file 178 lines); allocation-free
+  affine-permutation Latin hypercube (`LatinHypercube<const PARAMETERS, A>`),
+  Welford-Chan online moments with the parallel `merge` recurrence, sobol
+  direction tables split into runtime/error/range/policy/fixed/direction
+  leaves. No debt markers, no `dbg!`/`todo!`.
+- No defect identified in this pass; no change delivered.
+
+### athena — clean baseline, no defects found
+
+- **Baseline**: nextest 52/52, clippy `--workspace --all-targets -- -D
+  warnings` clean, no debt markers.
+- **Tree**: GMRES decomposed into algorithm/rotation/workspace leaves;
+  scaled Givens rotations with overflow/underflow guards and finite-breakdown
+  detection; `GmresWorkspace` performs every host/backend allocation once at
+  construction and binds prepared norms/dots to workspace vectors (no
+  allocation on the hot path). CG/BiCGStab/LSQR share the same workspace
+  discipline.
+- No defect identified in this pass; no change delivered.
+
 ## Blocker clearance and metric audit closure — 2026-08-06
 
 ### RUSTSEC-2026-0235 cleared in Kwavers thermal delivery (ATLAS-AEQUITAS-CONSUMERS-006)
