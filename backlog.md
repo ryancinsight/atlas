@@ -7805,6 +7805,40 @@ kwavers / CFDrs gitlink. Coordinator does NOT write `repos/<name>/...`.
   `## Findings 2026-07-27 Session 26: math SSOT consolidation audit pattern`
   for reuse across future cross-repo SSOT audits.
 
+### Re-verification and closure (2026-08-05, coordinator)
+
+Baseline and all `?` matrix cells re-checked against the current trees
+(kwavers `refactor/retire-kwavers-optics`, CFDrs `deps/eunomia-0.8`,
+helios `codex/helios-radon-geometry-clean`, leto `main`). Evidence per cell:
+
+- Baseline: 410 distinct `pub fn` (was 253) — leto-ops surface grew via
+  `special_legendre` + quadrature additions. Command re-run 2026-08-05.
+- QR / SVD (kw): no residency — no quadratic-eig path, no SVD module.
+- Hermitian eigen / Hessenberg / Schur / BunchKaufman / UDU (cf): no
+  decomposition residency (`schur_diag_inv` in `block_preconditioner.rs` is
+  a field name, not a Schur decomposition).
+- LSQR (kw): `LsqrSolver`/`LsqrConfig`/`LsqrResult` re-exported from
+  leto-ops (`linear_algebra/mod.rs:25`, `lib.rs:91`) — WRAP.
+- Legendre (leto/kw/cf): leto-ops `special_legendre` landed; kw re-exports
+  (`lib.rs:72`); cf `high_order/dg/basis.rs` + `lgl.rs` consume it — Lane A
+  increment 1 closed.
+- Quadrature 1D (cf): `integration/` deleted; cf re-exports `quadrature_rules`
+  = leto-ops rules (`lib.rs:213`) — closed. kw: no quadrature module in
+  kwavers-math (BEM/DG solver-level quadrature is wave-domain DS).
+- Quadrature 3D/tensor (cf): `integration/quadrature_3d.rs`/`tensor.rs`/
+  `variable.rs` deleted at cf `8aee5e59`; leto-ops lacks the rules — deferred.
+- Nonlinear Anderson (cf): re-exports `leto_ops::{AndersonAccelerator,
+  AndersonConfig, AndersonMethod}` (`nonlinear_solver/mod.rs:15`) — WRAP.
+- CSR storage (kw): `coo.rs`/`eigenvalue.rs` deleted; `csr.rs` self-storage
+  `CompressedSparseRowMatrix` + `to_csr()` bridge remains — the single open
+  DUP-PARTIAL row (Lane B item 1).
+
+Open work that REMAINS (execution, peer-owned, not this audit):
+kw `csr.rs` self-storage swap (Lane B 1), SIMD consolidation via
+`hermes-simd` (separate hermes-SSOT audit), GMRES consolidation
+(`ATLAS-GMRES-SSOT-001`), deferred leto-ops 3D/tensor quadrature (YAGNI
+until a consumer needs it).
+
 ## Session 26 closure (2026-07-27) — GMRES fork ports and the athena redundancy question
 
 `ATLAS-GMRES-FORK-DEFECTS-001` → done. `ATLAS-GMRES-SSOT-001` → re-scoped
