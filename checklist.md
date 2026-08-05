@@ -198,6 +198,12 @@ acceptance oracle, and dependency closure are recorded in the child backlog.
       pass; the replicated benchmark remains in progress.
 - [x] Record the Kwavers PR #332 external `recurseml/analysis` error as
       report-only and merge its exact head as `6b706ad9`.
+- [x] Close Helios H-099 inverse-planning dose objectives: type DVH
+      floor/ceiling and gEUD reference doses with Aequitas, type the public
+      DVH gEUD exponent, remove the stale RustSec 2026 ignore, and synchronize
+      ADR 0017 plus child PM artifacts. The local all-feature planning and
+      analysis checks plus focused Nextest pass; clean hosted gates remain
+      under H-098.
 
 Acceptance: child implementation gaps are closed and child focused gates pass;
 hosted gates are green before merge, and no missing Aequitas metric or

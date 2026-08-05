@@ -2,6 +2,43 @@
 
 ## Live Aequitas closure — 2026-08-05
 
+### Helios inverse-planning dose metrics — H-099 closed locally; hosted gate pending
+
+The fresh Helios consumer audit found one untyped physical planning boundary
+spanning autodiff `DvhPenalty`/`EudPenalty` and the shared `Dvh` gEUD entry
+points: dose bands and references were raw `f64`, and the gEUD volume-effect
+parameter was an untyped dimensionless scalar. Helios now carries these values
+as Aequitas `AbsorbedDose<f64>` and `Dimensionless<f64>`, extracting base
+scalars only at the Coeus/Asclepius formula boundaries. Beamlet weights,
+penalty coefficients, response slopes, and dense influence entries remain
+scalar model/storage data with no fixed SI dimension.
+
+Helios ADR 0017, checklist, backlog, changelog, dependency policy, and CI
+workflow are synchronized. The planning and analysis all-feature overlay
+checks plus focused Nextest pass. The clean locked source-identity and hosted
+gates remain tied to Helios H-098; its phase-replicated benchmark still has the documented
+`scan_reference/1024` residual. The real planning law has no phasor boundary,
+so Eunomia requires no imaginary dose unit or complex physical wrapper.
+
+### CFDrs and Kwavers re-audit — no new typed-metric gap
+
+The 2026-08-05 read-only re-audit found the named CFDrs public metric families
+closed through CFDRS-AEQ-MET-46: schematic geometry, volumes, analytical
+validation, fluid properties, blood/rheology, turbulence, cavitation, and
+transient contracts use Aequitas at their physical boundaries. Remaining
+CFDrs direct numeric-provider or solver convergence items are separate
+Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
+CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
+their existing observable unit and do not create an imaginary SI quantity.
+
+Kwavers' current Aequitas audit artifacts likewise close the focused-source,
+hemispherical, 2-D array, MEMS, acquisition, and thermal families. Its live
+working tree contains a large peer-owned optics/math migration, so this pass
+did not mutate or rebase that scope. The documented clean Eunomia 0.8/rkyv
+0.8 graph and typed thermal evidence remain the applicable closure evidence;
+the Windows GNU linker limitation remains a verification residual, not a
+metric or complex-unit defect.
+
 ### Kwavers thermal metrics — provider cutover complete; hosted gate pending
 
 Kwavers `KWAVERS-AEQ-MET-66` and `KWAVERS-AEQ-MET-67` are implemented in PR
