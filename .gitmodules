@@ -55,7 +55,7 @@
 	active = true
 [submodule "repos/kwavers"]
 	path = repos/kwavers
-	url = https://github.com/ryancinsight/kwavers
+	url = https://github.com/ryancinsight/kwavers.git
 	active = true
 [submodule "repos/leto"]
 	path = repos/leto
