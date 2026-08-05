@@ -5,7 +5,7 @@
 ### Kwavers thermal-diffusion metrics — implementation complete; delivery blocked
 
 Kwavers `KWAVERS-AEQ-MET-66` is implemented at PR [#350](https://github.com/ryancinsight/kwavers/pull/350),
-head `1753134614819fe8130dfe91bd61d5c5084bbe76`. Public thermal-diffusion
+head `6a543c7e222ac72094ef6b76a5f11472ee3e8ab7`. Public thermal-diffusion
 parameters and integration-time arguments use Aequitas typed quantities; CEM43
 remains a domain dose representation. Local evidence is 2,404/2,404 focused
 Nextest tests, warning-denied Clippy, doctests, examples, Rustdoc, formatting,

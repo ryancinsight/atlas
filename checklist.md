@@ -165,7 +165,7 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
       `80555fa69c95008cbfbd49059a235e3aaaf8e3e7`; all repository-owned gates
       pass, including the corrected formatting gate.
 - [ ] `KWAVERS-AEQ-MET-66`: implementation is complete in Kwavers PR #350 at
-      head `1753134614819fe8130dfe91bd61d5c5084bbe76`; local focused evidence is
+      head `6a543c7e222ac72094ef6b76a5f11472ee3e8ab7`; local focused evidence is
       2,404/2,404 Nextest with strict Clippy, doctests, examples, Rustdoc,
       formatting, diff, and typed/complex scans passing. Delivery remains
       blocked by the pre-existing hosted RustSec `RUSTSEC-2026-0235` finding

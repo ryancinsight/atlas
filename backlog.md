@@ -117,7 +117,7 @@
   unit is introduced. Hosted checks were pending at merge and remain a
   watchpoint.
 - Increment implemented: `KWAVERS-AEQ-MET-66` is complete at Kwavers PR #350
-  head `1753134614819fe8130dfe91bd61d5c5084bbe76`. The public thermal-diffusion
+  head `6a543c7e222ac72094ef6b76a5f11472ee3e8ab7`. The public thermal-diffusion
   parameter contracts and integration-time arguments use Aequitas; dose values
   remain a domain-specific CEM43 representation rather than a mislabeled SI
   time quantity. Local focused evidence is 2,404/2,404 Nextest with strict
