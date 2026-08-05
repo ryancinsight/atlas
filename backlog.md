@@ -1597,7 +1597,10 @@
 
 ## ATLAS-ARCH-008 — Replace pointer-scattered containers on traversal paths [patch] — todo
 
-- Owner: unclaimed; scope: the traversal-hot sites first, not all 318.
+- Owner: current session (claimed 2026-08-05); scope: the traversal-hot sites
+  first, not all 318. Claimed deliverable: commit the classifier under
+  `scripts/` and refresh the production-only site list; the hotness-ranked
+  conversion remains the item's open work.
 - Outcome: 318 `Vec<Vec<_>>` occurrences across package sources, led by
   `consus-compression/src/chunking/iterator.rs` (10),
   `gaia/src/domain/topology/adjacency.rs` (8), and
@@ -1659,6 +1662,34 @@
   recording the rest as correct-as-jagged. The classifier lives in the session
   scratchpad; it should be committed under `scripts/` if this item is claimed,
   since re-deriving it is the expensive part (toil automation).
+- **Delivered 2026-08-05 — classifier committed, site list refreshed.**
+  `scripts/atlas_scattered_containers_classify.py` is the committed,
+  reproducible form (underscore-named and importable, matching the
+  testable-script convention), with pytest coverage in
+  `scripts/tests/test_atlas_scattered_containers_classify.py` (24 tests:
+  production vs test/bench/example split, `#[cfg(test)]`/`mod tests`
+  brace-depth tracking, comment/string/char/raw-literal stripping with
+  char-vs-lifetime disambiguation and multiline-string state, `cfg(not(test))`
+  and `feature = "test-utils"` exclusions, filename heuristics, semicolon-line
+  leak guard, determinism). It scans only the `.gitmodules`-registered members via
+  `atlas_stack.registered_members()`, so the git-ignored private consumer
+  never surfaces. Refreshed verification totals on the 2026-08-05 tree:
+  **260 production / 65 test-bench / 325 total**, per member — CFDrs 42/11,
+  apollo 6/2, coeus 12/0, consus 20/15, gaia 34/2, kwavers 63/5, leto 3/13,
+  mnemosyne 0/1, moirai 6/9, ritk 74/7. The delta vs the 2026-08-03 recording
+  (297/73/370) is tree drift plus method differences: this implementation
+  strips comments, string/char/raw literals and block comments before any
+  matching (so a `feature = "test-utils"` value or a `"mod tests {"` template
+  string cannot arm a predicate and commented `Vec<Vec<` sites are not
+  counted), narrows the test-filename heuristic to `tests.rs`/`*_test.rs`/
+  `bench.rs`-style names (so `test_utils.rs` helpers stay production), and
+  emits root-relative site paths; the committed script is the reproducible
+  oracle going forward. The production-only site list is
+  regenerated with
+  `python scripts/atlas_scattered_containers_classify.py --site-list
+  outputs/arch-008-production-sites.txt`. Ranking by traversal hotness
+  (profile-first) and the conversions themselves remain the open work — this
+  item stays `todo`.
 
 ## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
 
@@ -2058,7 +2089,7 @@ epospollo`, so both paths are the same tree. That is
     and required a `wgpu` feature the refactor had renamed to `accelerator`.
     Ported to the device-neutral API rather than deleted, and verified by
     running on a real adapter: they print the exact solutions.
-## ATLAS-MNEMOSYNE-CI-1 — mnemosyne CI gate landed; two exclusions to retire [patch] — todo
+## ATLAS-MNEMOSYNE-CI-1 — mnemosyne CI gate landed; two exclusions to retire [patch] — done 2026-08-05
 
 - Owner: unclaimed; scope: `repos/mnemosyne`.
 - mnemosyne had **no CI workflow at all** — only `rust-release.yml` — so its
@@ -2080,13 +2111,8 @@ epospollo`, so both paths are the same tree. That is
   4. `mnemosyne-c-shim` is excluded from the **test** steps only: nextest
      fails at discovery there on Linux — the binary exits emitting no test
      list, with empty stdout and stderr. Predates this work and is not
-     understood. The crate is still compiled and linted.
-- Lesson recorded for other repos adopting the template: the gate was
-  verified against an isolated **Windows** clone and still failed twice on
-  the runner, because `cfg(unix)` code never compiled locally. The cheap fix
-  is `cargo clippy --target x86_64-unknown-linux-gnu`, which reproduces the
-  runner's lints without a Linux box; the c-shim discovery failure remains
-  Linux-only and cannot be reproduced that way.
+     understood. The crate is still compiled and linted.- Lesson recorded for other repos adopting the template: the gate was verified against an isolated **Windows** clone and still failed twice on the runner, because `cfg(unix)` code never compiled locally. The cheap fix is `cargo clippy --target x86_64-unknown-linux-gnu`, which reproduces the runner's lints without a Linux box; the c-shim discovery failure remains Linux-only and cannot be reproduced that way.
+- **Lint-exclusion retirement done 2026-08-05** (claim: current session). All three command-line Clippy allows are removed from `ci.yml`; the lint step is now bare `-D warnings`. Evidence: workspace clippy `--workspace --exclude mnemosyne-benchmarks --all-targets --target x86_64-unknown-linux-gnu -- -D warnings` exits 0 on the pinned 1.97.0 toolchain with zero clippy diagnostics — exclusions 2 and 3 no longer fire (the cfg(unix) madvise sites were cleaned in later revisions), and exclusion 2's single false-positive site is already suppressed by a site-local `#[allow(clippy::missing_const_for_thread_local)]` with its own removal trigger (`segment_pool.rs`). Local `--locked` resolution fails under the atlas overlay (CI checks out mnemosyne standalone); evidence was gathered with plain resolution and `Cargo.lock` restored — the lock is untouched by this slice. Remaining exclusions are tracked elsewhere, not silent: `mnemosyne-benchmarks` under ATLAS-MNEMOSYNE-SNMALLOC-1, and the `mnemosyne-c-shim` test-discovery exclusion stays with the crate-level note in `ci.yml` (Linux-only, not understood).
 
 ## ATLAS-MNEMOSYNE-SNMALLOC-1 — snmalloc-sys fails g++ 16's new warnings [patch] — todo
 
@@ -7523,7 +7549,7 @@ list updated. `check-drift.sh` reports `4 consumers clean`.
 - Acceptance: each fork either adopts the corrections with the ported suite
   green, or is deleted by ATLAS-GMRES-SSOT-001 first.
 
-## ATLAS-MATH-SSOT-CONSOLIDATION-1 — Cross-repo math SSOT consolidation audit [patch] — todo
+## ATLAS-MATH-SSOT-CONSOLIDATION-1 — Cross-repo math SSOT consolidation audit [patch] — done 2026-08-05
 
 - Owner: atlas-meta coordinator (audit-only); execution is peer-leto /
   peer-physics-crate work — coordinator files the inventory and the
@@ -7543,7 +7569,13 @@ list updated. `check-drift.sh` reports `4 consumers clean`.
   manifests are already clean (verified 2026-07-27: zero `nalgebra` /
   `ndarray` / `burn` / `rustfft` workspace deps; the only residual is the
   `numpy = "0.29"` PyO3 bridge in `kwavers-python/Cargo.toml`, which is
-  FFI surface, not the rust ndarray crate). The remaining work is
+  FFI surface, not the rust ndarray crate). **2026-08-05: Closed** — the
+  numpy workspace dep was updated to 0.29 (unifying with eunomia's pin),
+  kwavers-python migrated to `numpy.workspace = true`, and Rustdoc aliases
+  (`ndarray`, `from_numpy`, `to_numpy`) were added to all PyArray ↔ leto
+  conversion helpers in `array_utils.rs` (kwavers `a19a5d977`). Cargo
+  manifests are now fully clean of all ndarray/numpy version fragmentation.
+  The remaining work is
   *internal*: consumer math crates have already begun delegating to
   `leto-ops` and `leto`, but a non-trivial amount of math still lives in
   `kwavers-math` and `cfd-math` either because (i) it has not yet been
@@ -7562,8 +7594,10 @@ list updated. `check-drift.sh` reports `4 consumers clean`.
 
 ### SSOT baseline (leto + leto-ops, verified 2026-07-27)
 
-Capability surface that `leto` / `leto-ops` already owns. 253 distinct
-`pub fn` symbols across the two crates — re-verify with
+Capability surface that `leto` / `leto-ops` already owns. Re-verified
+2026-08-05: 410 distinct `pub fn` symbols across the two crates (up from
+253 at the 2026-07-27 draft; the surface grew via `special_legendre`,
+`GaussLegendreN`, and quadrature additions). Verify with
 `grep -rEh '^[[:space:]]*pub fn' repos/leto/crates/leto-ops/src/ repos/leto/crates/leto/src/application/ | sed 's/.*fn //; s/(.*//' | sort -u | wc -l`.
 
 - `leto/src/application/` — dense n-d array: `Array`, `ArrayView`,
@@ -7599,14 +7633,18 @@ Capability surface that `leto` / `leto-ops` already owns. 253 distinct
     kwavers-math/numerics/operators/{differential/spectral},
     cfd-math/stencils).
   - `interpolation/` — `linear`, `lagrange`, `cubic_spline`, `utils`.
-  - `quadrature/` — basic composite/variable (1D); 3D / tensor-product
-    quadrature with many specific rules (Gauss–Legendre, Gauss–Jacobi) is
-    *not* yet in leto-ops; that gap is a consolidation candidate.
+  - `quadrature/` — `mod.rs` with `Quadrature` trait, `TrapezoidalRule`,
+    `SimpsonsRule`, `GaussLegendre2/3/5`, `GaussLegendreN` (arbitrary-order
+    via `gauss_legendre_nodes_weights`), `CompositeQuadrature`. 3D /
+    tensor-product / Gauss-Jacobi quadrature are *not* yet in leto-ops.
   - `signal/` — `phase` (`wrap_to_pi`), `window` (`hann`, `hamming`,
     `blackman`, `tukey`).
   - `optimization/` — `lbfgs.rs`.
   - `nonlinear/` — `anderson.rs` (Anderson acceleration), `linalg.rs`.
   - `special.rs` — `j0`/`j1`/`jn` Bessel, `erf`.
+  - `special_legendre.rs` — `legendre_poly`, `legendre_poly_and_deriv`
+    (recurrence-backed; the `quadrature` Gauss-Legendre rules build on it).
+    Present since the 2026-07-27 draft; kw/cf already consume it.
   - `random.rs`, `statistics/`, `scan.rs`, `zip.rs`, `unary.rs`,
     `map.rs`, `stencil.rs`, `reduction.rs`.
 - `apollo` — FFT SSOT (rustfft replacement) plus broader transforms
@@ -7634,26 +7672,26 @@ Consumer cols: `kw` = `kwavers-math`, `cf` = `cfd-math`, `hl` = `helios-math`.
 | :---                         | :---                                                | :-- | :-- | :- | :---  |
 | Dense LU (full piv)          | `linalg/full_piv_lu/`                               | WRAP | WRAP | — | cf `direct_solver.rs` routes via leto-ops. |
 | Cholesky                     | `linalg/cholesky.rs`                                | WRAP | WRAP | — | cf `direct_solver.rs`. |
-| QR / col-piv QR              | `linalg/qr/`, `linalg/col_piv_qr/`                   | ?    | WRAP | — | spot-check kw quadratic-eig path. |
-| SVD / pseudoinverse           | `linalg/svd/`                                       | ?    | WRAP | — |. |
+| QR / col-piv QR              | `linalg/qr/`, `linalg/col_piv_qr/`                   | —    | WRAP | — | kw has no QR residency (no quadratic-eig path found; `hermitian_eigen_qr` re-export only). |
+| SVD / pseudoinverse           | `linalg/svd/`                                       | —    | WRAP | — | no kw SVD/pseudoinverse residency. |
 | Eigen (symmetric/Jacobi)     | `linalg/eigenvalues/`, `linalg/eigen.rs`            | WRAP | WRAP | — | kw `eigendecomposition/mod.rs` declares SSOT delegation. |
-| Hermitian eigen              | `linalg/hermitian.rs`                               | WRAP | ?    | — |. |
-| Hessenberg / Schur           | `linalg/hessenberg/`, `linalg/schur/`               | —    | ?    | — |. |
-| BunchKaufman / UDU           | `linalg/bunch_kaufman/`, `linalg/udu/`              | —    | ?    | — |. |
+| Hermitian eigen              | `linalg/hermitian.rs`                               | WRAP | —    | — | no cf hermitian-eigen residency. |
+| Hessenberg / Schur           | `linalg/hessenberg/`, `linalg/schur/`               | —    | —    | — | cf only has a `schur_diag_inv` field name (block_preconditioner), not a decomposition; no hessenberg. |
+| BunchKaufman / UDU           | `linalg/bunch_kaufman/`, `linalg/udu/`              | —    | —    | — |. |
 | Iterative CG                 | `linalg/iterative/cg.rs`                            | WRAP | WRAP | — | cf `6d18a547` "replace local CG…". |
 | Iterative GMRES (single recurrence) | `linalg/iterative/gmres/`                     | DUP  | DUP  | — | per `ATLAS-GMRES-SSOT-001`: kw has `kwavers-solver/integration/nonlinear/gmres/` f64-hardcoded; cf `linear_solver/gmres/` was a fork; peer-cf just deleted arnoldi/givens at `6484ad9e`. |
 | Iterative BiCGSTAB            | `linalg/iterative/bicgstab.rs`                      | WRAP | WRAP | — | cf `6d18a547`. |
-| Iterative LSQR               | `linalg/iterative/lsqr.rs`                           | ?    | WRAP | — |. |
+| Iterative LSQR               | `linalg/iterative/lsqr.rs`                           | WRAP | WRAP | — | kw re-exports `LsqrSolver/LsqrConfig/LsqrResult` (kwavers-math `lib.rs:91`, `linear_algebra/mod.rs:25`). |
 | matmul / kron / matexp / matpow | `linalg/products/`, `linalg/matrix.rs`            | —    | —    | — | served by leto `Array2` ops. |
 | det / inv / trace / rank / cond | `linalg/properties/`, `linalg/{lu,qr,...}`       | WRAP | WRAP | — |. |
-| CSR / CSC / COO storage      | `infrastructure/sparse/`, `leto-ops/sparse/`        | DUP-PARTIAL | WRAP | — | cf `sparse/operations.rs` delegates to leto-ops `CsrMatrix`; kw `sparse/csr.rs` declares delegate in doc but body uses self storage `Vec<Vec<(usize,T)>>`. |
+| CSR / CSC / COO storage      | `infrastructure/sparse/`, `leto-ops/sparse/`        | DUP-PARTIAL | WRAP | — | cf `sparse/operations.rs` delegates to leto-ops `CsrMatrix`; kw `sparse/csr.rs` (self `CompressedSparseRowMatrix` with `to_csr()` bridge) still holds a self-storage copy — `coo.rs` already deleted; `mod.rs` re-exports leto-ops `CsrMatrix/CooMatrix/CscMatrix`. |
 | SpMV / SpMM / SpGEMM          | `leto-ops/sparse/spmv.rs` etc.                      | WRAP | WRAP | — |. |
 | Sparse symbolic LU           | `leto-ops/sparse/lu_symbolic.rs`                     | WRAP | WRAP | — |. |
 | Sparse numeric LU            | `leto-ops/sparse/lu_numeric.rs`                      | WRAP | WRAP | — | ATLAS-CFDRS-LETO-SPARSE-MIGRATION-001 partial slice. |
 | Vector norms (l1/l2/max)      | `linalg/norms.rs`                                   | WRAP | WRAP | — | kw `linear_algebra/norms.rs` pure re-export. |
 | Bessel j0/j1/jn               | `special.rs`                                        | WRAP | —    | — | ATLAS-KWAVERS-SPECIAL-FUNCTIONS-SSOT closed at leto `ddd9cca` / kwavers `0a31706`. |
 | erf                           | `special.rs`                                        | WRAP | —    | — | ATLAS-KWAVERS-SPECIAL-FUNCTIONS-SSOT. |
-| Legendre                      | ?                                                   | DS   | —    | — | kw keeps its own (wave-domain); leto-ops `special.rs` has not yet been extended to hold Legendre. Candidate: extend leto-ops `special.rs` with Legendre primitives, then re-export. |
+| Legendre                      | `special_legendre.rs`                               | WRAP | WRAP | — | Lane A increment 1 landed: leto-ops `special_legendre` (`legendre_poly`, `legendre_poly_and_deriv`); kw re-exports at `lib.rs:72`; cf `high_order/dg/basis.rs` + `lgl.rs` consume it. kw no longer keeps its own. |
 | sinc                          | `sinc` (leto-ops)                                   | WRAP | —    | — | ATLAS-KWAVERS-SPECIAL-FUNCTIONS-SSOT. |
 | Window: hann/hamming/blackman/tukey | `signal/window.rs`                            | WRAP | —    | — | kw `signal/window` pure re-export. |
 | phase wrap_to_pi              | `signal/phase.rs`                                   | WRAP | —    | — |. |
@@ -7664,15 +7702,15 @@ Consumer cols: `kw` = `kwavers-math`, `cf` = `cfd-math`, `hl` = `helios-math`.
 | Staggered-grid differential   | —                                                   | DS   | —    | — | k-Wave PSTD/staggered-grid operator is genuinely wave-domain; stays in kwavers-math/numerics/operators/differential/staggered_grid. |
 | Spectral derivative           | —                                                   | DS   | DS   | — | kw `numerics/operators/spectral/derivative.rs`, cf `high_order/spectral/`. |
 | Spectral filter / k-space ops  | —                                                   | DS   | —    | — | kw `numerics/operators/spectral/filter.rs`. |
-| Quadrature 1D / composite     | `quadrature/mod.rs`                                 | ?    | WRAP-or-DS | — | cf `integration/quadrature.rs` carries 0 leto imports (not yet delegated); leto-ops quadrature is a thin baseline. Candidate: cf integration/quadrature routes through leto-ops if rules match, otherwise keep cf rules as domain-specific. |
-| Quadrature 3D / tensor / variable | —                                                | —    | DUP-DS | — | cf `integration/quadrature_3d.rs`, `tensor.rs`, `variable.rs`. Candidate: extend leto-ops `quadrature/` with 3D / tensor / Gauss–Legendre / Gauss–Jacobi primitives (peer-leto), then re-export cf versions as thin wrappers (peer-CFDrs). |
+| Quadrature 1D / composite     | `quadrature/mod.rs`                                 | DS   | WRAP | — | cf deleted `integration/` and now re-exports `quadrature_rules` = leto-ops `{Quadrature, GaussLegendre2/3/5, CompositeQuadrature, SimpsonsRule, TrapezoidalRule}` (`lib.rs:213`); kw has no quadrature module in kwavers-math — solver-level BEM/DG quadrature (Dunavant triangle) is wave-domain DS. |
+| Quadrature 3D / tensor / variable | —                                                | —    | —    | — | cf `integration/quadrature_3d.rs`/`tensor.rs`/`variable.rs` deleted at cf `8aee5e59`; leto-ops still lacks 3D/tensor/Gauss-Jacobi rules — Lane A candidate stands (deferred: no present consumer). |
 | Time-stepping RK / IMEX / exponential / adaptive | —                                  | —    | DS   | — | cf `time_stepping/` is CFDODE-domain; leto-ops does NOT own this. Stays. |
 | High-order DG / WENO / spectral element | —                                            | —    | DS   | — | cf `high_order/{dg,weno,spectral}` are CFD-method specific; leto-ops does NOT own this. Stays. |
 | Pressure-velocity coupling SIMPLE | —                                            | —    | DS   | — | cf `pressure_velocity/simple.rs`. Stays. |
 | Inverse problems / regularization (Tikhonov/TV/L1/L-curve/Morozov/PnP) | — | DS | —    | — | kw `inverse_problems/`. No cf/hl counterpart today. Stays unless/untilil ritk/helios imaging requires shared regularizer kernels — at that point lift the canonical pieces (config, regularizer_1d/2d/3d, parameter_selection) into a new `leto-ops/src/application/inverse_problems/` leaf per canonical-component-homes. |
 | Optimisation L-BFGS           | `optimization/lbfgs.rs`                              | WRAP | —    | — | kw `optimization/lbfgs` pure re-export. |
-| Nonlinear Anderson            | `nonlinear/anderson.rs`                             | ?    | —    | — | cf `linear_solver/operators` may flow linear/nonlinear together; re-verify. |
-| SIMD run-time dispatch (x86_64 avx2/avx512/sse4.2 / aarch64 neon) | `hermes-simd` (separate SSOT) | DUP | DUP | — | kw `simd_safe/{avx2.rs,neon.rs,swar.rs,auto_detect/*}` reimplements auto-dispatch despite depending on `hermes-simd`. cf `simd/{cfd,vector,vectorization,fdtd_ops}` likewise. Consolidation target is `hermes-simd`, NOT leto-ops. |
+| Nonlinear Anderson            | `nonlinear/anderson.rs`                             | —    | WRAP | — | cf re-exports `leto_ops::{AndersonAccelerator, AndersonConfig, AndersonMethod}` (`nonlinear_solver/mod.rs:15`); kw has no Anderson-accelerator residency (only Mie-scattering citations). |
+| SIMD run-time dispatch (x86_64 avx2/avx512/sse4.2 / aarch64 neon) | `hermes-simd` (separate SSOT) | DUP | DUP | — | kw `simd_safe/{auto_detect/x86_64/{avx2,avx512,sse42}.rs,auto_detect/aarch64.rs,operations.rs}` reimplements auto-dispatch despite depending on `hermes-simd`. cf `simd/{cfd,vector,vectorization,fdtd_ops}` likewise. Consolidation target is `hermes-simd`, NOT leto-ops. |
 | Geometry primitives (AABB, Ray, Aabb intersect) | `gaia` (SSOT forHelios)                     | —    | —    | WRAP | `helios-math` already re-exports `gaia::{Aabb, Ray}` — canonical pattern. |
 
 ### Recommended consolidation plan (peer-leto + peer-physics-crate sequencing)
@@ -7682,15 +7720,15 @@ Two lanes, decoupled.
 **Lane A — peer-leto extends `leto-ops` (upstream ownership).** Add only
 where the matrix above names a capability the consumers want a leto-ops
 home for but no canonical path exists yet.
-1. Extend `leto-ops/src/application/special.rs` with Legendre primitives
-   (`P_n`, `P_n_assoc` recurrence). Then ATLAS-KWAVERS-SPECIAL-FUNCTIONS-SSOT
-   can be widened to also re-export Legendre, deleting kw `special/legendre.rs`.
+1. ~~Extend `leto-ops/src/application/special.rs` with Legendre primitives~~ —
+   DONE: `special_legendre.rs` (`legendre_poly`, `legendre_poly_and_deriv`)
+   landed; kw re-exports (kwavers-math `lib.rs:72`) and cf DG/`lgl.rs`
+   consume it. Closed.
 2. Extend `leto-ops/src/application/quadrature/` with multi-dimensional / tensor /
-   Gauss–Legendre / Gauss–Jacobi wrappers. New leaf files:
-   `quadrature/tensor.rs`, `quadrature/gauss_legendre.rs`,
-   `quadrature/gauss_jacobi.rs`, `quadrature/variable.rs`. Coordinate with
-   peer-CFDrs since cf `integration/quadrature_3d.rs`/`tensor.rs` are
-   the donor bodies — short cf → leto-ops cycle, then re-export from cf.
+   Gauss-Jacobi rules. Partially landed: `GaussLegendreN` +
+   `gauss_legendre_nodes_weights` exist. Remaining: tensor / 3D /
+   Gauss-Jacobi / variable rules. Deferred until a present consumer needs
+   them (the former cf donor bodies were deleted at cf `8aee5e59`).
 3. Add `leto-ops/src/application/inverse_problems/` leaf ONLY if ritk
    or helios imaging surfaces a shared regularizer requirement within the
    active coevolution unit. Until then defer (YAGNI per the canonical
@@ -7703,18 +7741,19 @@ home for but no canonical path exists yet.
 consumer crate, in dependency-ordered increments:
 - `kwavers-math`: (1) replace `linear_algebra/sparse/csr.rs` self-storage
   with a thin re-export of `leto_ops::CsrMatrix` (claim-vs-body gap fd
-  the docstring already promises); (2) delete `linear_algebra/sparse/coo.rs`
-  and `eigenvalue.rs` once they route through leto-ops; (3) `simd_safe/` /
+  the docstring already promises) — the single open DUP-PARTIAL row;
+  (2) ~~delete `linear_algebra/sparse/coo.rs` and `eigenvalue.rs`~~ — both
+  already deleted; (3) `simd_safe/` /
   `simd/` flow through `hermes-simd` rather than re-implement avx2/neon
-  (or be deleted if unused) — `(ATLAS-GMRES-SSOT-001` already showed
+  (or be deleted if unused) — `ATLAS-GMRES-SSOT-001` already showed
   simd_safe/avx2.rs and simd_safe/neon.rs are used by operations.rs at
   the kwavers Array3 boundary; treat that case as a partial-deletion:
   re-route operations.rs through hermes-simd kernels, then delete the
-  hand-rolled ISA files.) (4) Review the GMRES row under
+  hand-rolled ISA files. (4) Review the GMRES row under
   `ATLAS-GMRES-SSOT-001` (peer already owns).
-- `cfd-math`: (1) close the gap that `integration/quadrature*.rs`  does
-   NOT yet delegate — once peer-leto lands Lane A increment 2, route
-   them through leto-ops or mark as DS-keep with rationale. (2) Review
+- `cfd-math`: (1) ~~close the gap that `integration/quadrature*.rs` does
+   NOT yet delegate~~ — `integration/` deleted at cf `8aee5e59`; cf now
+   re-exports `quadrature_rules` from leto-ops. Closed. (2) Review
    the `high_order/` family for any redundant helper math (matrix assembly
    using dense leto-ops instead of reinvented element-stiffness ops).
    (3) `linear_solver/operators/`, `matrix_free/` are domain-specific.
