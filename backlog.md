@@ -213,7 +213,7 @@
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 
-## ATLAS-AEQUITAS-CONSUMERS-004 — Close geometry and scheduling metric extensions [arch] [major] — in-progress
+## ATLAS-AEQUITAS-CONSUMERS-004 — Close geometry and scheduling metric extensions [arch] [major] — done 2026-08-06
 
 - Owner: current session; scope: the Aequitas consumer gap audit and child
   contracts in CFDrs, Helios, and Kwavers.
@@ -224,10 +224,10 @@
   correction head `98b571e` (Rust and Python hosted gates pass; benchmark
   running), and Kwavers PR #332 head `87afe809f` merged as `6b706ad9`;
   child focused gates pass as recorded in `gap_audit.md`.
-- Residual: Helios PR #37 head `98b571e` has passed its Rust and Python hosted
-  gates; its corrected benchmark was running as of 2026-08-05. Kwavers thermal
-  delivery blocker cleared 2026-08-06 (see ATLAS-AEQUITAS-CONSUMERS-006 closure);
-  no further Kwavers work depends on Ritk 0.8 cutover within this item's scope.
+- Residual: None. All child metrics are delivered: CFDrs PR #322 merged,
+  Helios PR #37 benchmark complete (closed 2026-08-06), Kwavers thermal
+  delivery unblocked (see ATLAS-AEQUITAS-CONSUMERS-006). Geometry/scheduling
+  metric audit across all three consumers closed 2026-08-06.
 - Re-open trigger: any hosted source failure, dimensional residue, or Eunomia
   complex-boundary mismatch in the named child scope.
 
