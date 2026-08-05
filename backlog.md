@@ -1479,8 +1479,10 @@
 
 ## ATLAS-ARCH-005 — Replace closed-set dyn dispatch in per-timestep paths [arch] — in-progress
 
-- Owner: opencode-2026-08-05 (ADR phase; ADR 0041 drafted; execution slice waits on a
-  free kwavers lane). scope: `repos/kwavers` first (largest), then `repos/CFDrs`.
+- Owner: opencode-2026-08-05 (ADR phase delivered, ADR 0041; execution slice parked —
+  both scope repos peer-held today: kwavers `refactor/retire-kwavers-optics`
+  `e4e9966b6`, CFDrs `deps/eunomia-0.8`). scope: `repos/kwavers` first (largest), then
+  `repos/CFDrs`.
   One operation family per claim.
 - Outcome: dispatch-site counts are `kwavers` 665, `CFDrs` 352, `gaia` 104,
   `coeus` 98, `moirai` 83, `consus` 66. Sampling the kwavers solver shows the
@@ -9144,7 +9146,12 @@ cfd-validation, then delete the `cfd_math::iterative` facade.
 - Acceptance: every ADR directory carries a current generated index; zero duplicate numbers; every ADR has a canonical status; the freshness check is green in CI; a spot-check of decision recall (pick three active items, confirm governing ADRs discoverable from the index in one step) passes.
 - Update 2026-07-27: `scripts/adr-index.py` landed (generate/check per the generator contract, parsing both inline `Status:` and MADR `## Status` conventions); generated indexes committed and pushed to all 20 member repos plus meta; check mode green and idempotent. The 290-line anomaly report is the burn-down census: 7 numbering collisions itemized with file pairs (coeus 0021 x3-way + 0025, hermes 007, kwavers 037 + 040, leto 0011), missing/non-canonical statuses per repo. Remaining judgment work: status verification against code, collision renumbering with citation updates, the merge audit, content conformance, and per-repo backfill inventories for canonical seams lacking any ADR.
 
-## ATLAS-CODE-INDEX-001 — Search-ladder infrastructure for context economy [patch] — todo
+## ATLAS-CODE-INDEX-001 — Search-ladder infrastructure for context economy [patch] — in-progress
+
+- Owner: opencode-2026-08-05; scope: the atlas meta-repo and its `repos/*` members
+  (tooling and generator contract only — no member Cargo.toml/manifest edits).
+  Host tooling verified: `rust-analyzer` and nightly toolchain present; `ast-grep`
+  absent (install is scope item 1).
 
 - Policy: AGENTS.md context_and_memory "Code-search ladder". Motivation: 325 tool-output truncations and 66 compactions across eight recent fleet sessions — agents read where they should search; the fleet-recommended tools were researched and the ladder chosen over them where they misfit (agent-memory graph stores such as Graphiti duplicate the board/ADR/git memory layer and are rejected — one curated memory, one archive).
 - Scope: (1) ast-grep availability as committed tooling (structural queries, stateless per tree — worktree-safe by construction); (2) SCIP emission per member repo (`rust-analyzer scip`), revision-keyed under a gitignored index directory with a generator-contract freshness check, plus a thin lookup wrapper (scip CLI) so agents resolve definitions/references without full-file reads; (3) rustdoc JSON as the machine-readable API oracle for the anti-hallucination check, emitted under the nightly verification toolchain like miri; (4) evaluate a Zoekt trigram server over the shared gitdirs only if per-tree tooling proves insufficient at fleet scale — standing infrastructure needs the toil-automation justification; (5) wire ladder usage guidance into each repo agent-facing docs if repo convention keeps local instructions.
