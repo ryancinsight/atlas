@@ -55,6 +55,77 @@
   free `main`; the above source-reference count is confirmed non-zero only
   where adoption landed.
 
+## ATLAS-KWAVERS-NUMA-FIX-1 — Close kwavers `NumaAwareAllocator` single-pair leak + unused `BindToNode`/`Interleaved` policy variants [patch] — in-progress
+
+- Owner: current session (Zed GLM-5.2 — ryanclanton@outlook.com); last-
+  update: 2026-08-05 (claim by current session). Sub-slice of
+  ATLAS-THEMIS-MELINOE-ADOPTION-001 (kwavers-only first increment); cites
+  ATLAS-KWAVERS-MNEMOSYNE-FIX-1 L98-111 residual (single-pair leak + no
+  `mbind(2)` + small-arena over-allocation are the three recorded kwavers-
+  local design considerations advanced from dead-peer WIP).
+- Scope: kwavers-local, kwavers-core arena layer only. Single file under
+  edit:
+  `repos/kwavers/crates/kwavers-core/src/arena/layout/numa_aware.rs`. Lane
+  lives at `D:/atlas/worktrees/kwavers-themis-numa-fix` on kwavers branch
+  `feat/kwavers-numa-allocator-fix` off `origin/main` `01f3c4193` (kwavers
+  main is free; kwavers peer is on `refactor/retire-kwavers-optics` with
+  broad but file-disjoint WIP — no overlap with `arena/**`). Adjacent but
+  out-of-scope (verified, no edits required):
+    * `crates/kwavers-core/src/arena/numa/memory.rs` — already supplies
+      `bind_memory_to_node` (Linux `mbind(2)` FFI via libc::syscall) at L20-46
+      and `allocate_interleaved_memory` at L63+; re-used by this slice.
+    * `crates/kwavers-core/src/arena/layout/pool.rs` — single-alloc pool,
+      no single-pair leak (verified).
+    * `crates/kwavers-analysis/src/performance/arena/mod.rs:18-22` — pure
+      re-export shim; no production callsites construct
+      `NumaAwareAllocator`. Zero blast radius.
+  Three defects to close, narrow and surgical:
+  1. **Single-pair leak (HARD)** — `NumaAwareAllocator.user_ptr` (L25,
+      `Option<*mut u8>`) and `segment_ptr` (L27, `*mut Segment`) hold only
+      the last allocation; a second `allocate()` overwrites both, leaking
+      the first mnemosyne segment. Fix: replace the two fields with
+      `Vec<Allocation>` (a small struct: `user_ptr: NonNull<u8>` +
+      `segment_ptr: *mut Segment`); `Drop` iterates and frees all. The
+      `Send`/`Sync` invariants retire (raw `*mut Segment` is `!Send`); the
+      struct is already non-`Send` (no `unsafe impl Send`).
+  2. **`ArenaLayoutNumaPolicy::BindToNode(usize)` declared but never
+      honored** — variant at `arena/layout/mod.rs:101` has zero source
+      sites honoring it; `allocate()` always runs the first-touch path
+      regardless of policy. Fix: when `policy == BindToNode(n)`, call
+      `crate::arena::numa::memory::bind_memory_to_node(ptr, size, n)` (the
+      existing Linux `mbind(2)` FFI) on the allocated region after
+      `mnemosyne_arena::allocate_large_or_huge` succeeds. Non-Linux keeps
+      the existing `Ok(())` no-op stub already exported by `numa/memory.rs`.
+      `Interleaved` is deferred this slice (no `Interleaved` source site
+      exists in `kwavers-core`; honouring it would require an
+      allocator-level interleaver — recorded as residual for follow-up).
+  3. **Doc prose sync** — L13-19 + L49-52 prose claims "NUMA-aware" +
+      "first-touch policy" while the actual policy honored is "anything
+      FirstTouch; nothing else". Amend the Rustdoc: name the three
+      policies (`FirstTouch`, `BindToNode(n)` honored via `mbind(2)` on
+      Linux, `Interleaved` deferred) and the actual placement contract;
+      add a `# Platform support` section noting Linux `mbind(2)` and the
+      non-Linux `Ok(())` no-op.
+- Outcome: kwavers `NumaAwareAllocator` performs the real NUMA placement
+  its doc promises and matches its `ArenaLayoutNumaPolicy` parameter. The
+  three ATLAS-KWAVERS-MNEMOSYNE-FIX-1 residual design defects collapse to
+  two: (a) over-allocation by `mnemosyne_arena`'s `SEGMENT_SIZE` 2 MiB
+  granularity remains (mnemosyne-side design, recorded for an upstream
+  `mnemosyne-arena` slice — not kwavers-local); (b) `Interleaved` still
+  un-honored (recorded as residual for a future kwavers-arena slice).
+  Acceptance: lane `cargo check -p kwavers-core --lib` rc=0; `cargo
+  clippy -p kwavers-core --all-targets -- -D warnings` rc=0;
+  `cargo nextest run -p kwavers-core` rc=0; `cargo test --doc -p
+  kwavers-core` rc=0; `cargo run -p xtask -- legacy-migration-audit`
+  (from inside `repos/kwavers`) runs to completion with no new flags;
+  atlas-meta `.cargo/config.toml` overlay repo-localizes the existing
+  `themis-topology` `[patch]` section (no manifest change for this slice
+  — the FFI is kwavers-internal at `arena/numa/memory.rs`, no new
+  dependency).
+- Re-open trigger: `NumaAwareAllocator::allocate()` regresses to the
+  single-pair leak; or `ArenaLayoutNumaPolicy::BindToNode(n)` no longer
+  triggers `bind_memory_to_node` on Linux.
+
 ## AEQUITAS-THERMAL-COEFFICIENTS — Add temperature-dependent acoustic coefficient dimensions [minor] — done 2026-08-04
 
 - Owner: prior session; scope: Aequitas SI dimensions/quantity aliases and
@@ -9856,7 +9927,7 @@ does not re-diagnose it, and does not do what this session started doing.
   `ritk-nifti`, `ritk-nrrd`. The wave-0 format-crate work below therefore
   proceeds; only the `ritk-io` dispatch tail of ATLAS-DMRI-IO-001 waits.
 
-## ATLAS-RITK-DISPLACEMENT-FORWARD-016 — `forward` panics on a real interpolation failure [patch] — todo
+## ATLAS-RITK-DISPLACEMENT-FORWARD-016 — `forward` panics on a real interpolation failure [patch] — implemented; validation blocked 2026-08-05
 
 - **Evidence**: `ritk-transform/src/transform/displacement_field/transform.rs`
   now carries the fallible signature but keeps the panic inside it:
@@ -9889,8 +9960,20 @@ does not re-diagnose it, and does not do what this session started doing.
   variant.
 - **Acceptance**: a NaN sampling coordinate returns a typed error naming the
   axis and point instead of panicking; existing displacement tests unchanged.
+- **Delivered 2026-08-05**:  `coeus-nn::ModuleError` now carries typed `InterpolationError`;
+  `DisplacementFieldTransform::forward` maps rank failures to `InvalidRank`,
+
+  width failures to `ShapeMismatch`, and propagates interpolation failures
+  instead of using `expect`. Ritk tests now cover NaN propagation through the
+  public `Module::forward` path and verify wrong `[N, D]` input becomes a
+  typed `ShapeMismatch`. Coeus Python maps interpolation failures to
+  `PyValueError` with a focused mapping test. Rustfmt and diff checks
+  pass for all four touched files. Package check/Clippy/nextest remain blocked
+  by the peer-modified Coeus reduction refactor: `coeus-ops/src/reduction/norms.rs`
+  references `ReductionOps`, but the current workspace compilation cannot
+  resolve that trait; no peer-owned reduction files were changed here.
 - **Class**: `[patch]` in RITK, `[minor]` in Coeus. Raise the upstream half with
-  the `coeus-nn` owner rather than mapping around it downstream.
+  the `coeus-nn` owner rather than mapping around it.
 
 ## Wave 0 — acquisition-series ingest (blocks every later wave)
 
