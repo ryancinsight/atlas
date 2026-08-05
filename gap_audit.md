@@ -5,12 +5,13 @@
 ### Aequitas/Eunomia consumer gap audit — 2026-08-05
 
 The cross-repository audit covered public physical contracts and numerical
-provider boundaries in Aequitas, CFDrs, Helios, and Kwavers. No new missing
-Aequitas dimension was found in the named consumers. The audit did identify a
-semantic refinement required for Kwavers MEMS mutual-radiation crosstalk:
-force-per-velocity impedance is `kg/s`, not acoustic impedance
-`kg/(m²·s)`. Aequitas now owns that distinct `MechanicalImpedance` quantity,
-and Kwavers MET-65 uses it at the complex crosstalk boundary. CFDrs remains
+provider boundaries in Aequitas, CFDrs, Helios, and Kwavers. The audit closed
+the remaining clean Kwavers MEMS cell family after identifying two semantic
+requirements: force-per-velocity crosstalk impedance is `kg/s`, not acoustic
+impedance `kg/(m²·s)`, and the PMUT charge-gradient and shared plate rigidity
+metrics require `C/m³` and `J` contracts. Aequitas now owns distinct
+`MechanicalImpedance`, `VolumeChargeDensity`, and `FlexuralRigidity` quantities;
+Kwavers MET-65 and MET-64 use them at the typed Rust boundaries. CFDrs remains
 closed through `CFDRS-AEQ-MET-46`; its open solver-runtime and provider-lock
 items are verification or dependency issues, not missing physical metric
 types.
@@ -29,9 +30,9 @@ remaining CSR cutover is a consumer migration in peer-owned dirty files; it
 must use those provider APIs rather than unsealing Eunomia traits or adding an
 imaginary SI dimension. A complex value is a phasor: real and quadrature
 components retain one observable physical unit. Aequitas now has regressions
-covering complex conversion for both component values and the mechanical-
-impedance semantic. Its full nextest suite passes 53/53. No imaginary SI
-dimension is introduced.
+covering complex conversion for ordinary component values, mechanical
+impedance, volume charge density, and flexural rigidity. Its full nextest
+suite passes 54/54. No imaginary SI dimension is introduced.
 
 ### Kwavers MEMS crosstalk semantic boundary — MET-65 closed 2026-08-05
 
@@ -46,8 +47,24 @@ Aequitas commit `4fa8bbf83bec4392d36fb25797c26b51caf4272c` supplies the
 semantic quantity and its complex provider law. Kwavers focused crosstalk
 nextest passes 7/7, including magnitude/phase, reciprocity, inverse-distance
 scaling, zero diagonal, and degenerate inputs. The child audit and ADR 070
-record the decision. MEMS cell-output and flexible-array boundaries remain
-separate audit candidates; this entry does not claim their closure.
+record the decision. The follow-on MET-64 cell-output slice below closes the
+clean CMUT/PMUT/plate family; flexible-array core ownership remains separate
+because its peer-owned array file is still dirty.
+
+### Kwavers MEMS cell physical metrics — MET-64 closed 2026-08-05
+
+Kwavers commit `464bdf92f` types CMUT, PMUT, shared clamped-plate, comparison,
+flex-apodization, and MEMS Python boundary metrics with Aequitas. Provider
+commit `adc272b` adds `VolumeChargeDensity` (`C/m³`) for the PMUT
+`charge_density_gradient` contract and semantically distinct
+`FlexuralRigidity` (`J`) for plate rigidity. Scalar extraction remains confined
+to formulas, assertions, and explicit Python serialization.
+
+The typed MEMS nextest filter passes 25/25, the transducer test target compiles,
+strict transducer Clippy passes, `kwavers-python` library compilation passes,
+and the provider suite passes 54/54. Eunomia complex values preserve one
+observable unit for real and quadrature components; no imaginary SI unit is
+introduced. Flexible-array core ownership remains a separate audit item.
 
 ### Helios inverse-planning dose metrics — H-099 closed; hosted gates green
 
@@ -81,8 +98,8 @@ CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
 their existing observable unit and do not create an imaginary SI quantity.
 
 Kwavers' current Aequitas audit artifacts likewise close the focused-source,
-hemispherical, 2-D array, MEMS crosstalk, acquisition, and thermal families.
-MEMS cell-output and flexible-array boundaries remain separate audit items.
+hemispherical, 2-D array, MEMS crosstalk, MEMS cell-output, acquisition, and
+thermal families. Flexible-array core ownership remains a separate audit item.
 Its live working tree contains a large peer-owned optics/math migration, so this pass
 did not mutate or rebase that scope. The documented clean Eunomia 0.8/rkyv
 0.8 graph and typed thermal evidence remain the applicable closure evidence;
@@ -180,26 +197,22 @@ PR [#344](https://github.com/ryancinsight/kwavers/pull/344) merged as
 - Transcranial-FUS Python bindings migrated from `complex_compat` to `array_utils`.
 - 256/256 kwavers-math tests pass.
 
-## Aequitas consumer gap-audit — Kwavers MEMS cell metrics — 2026-08-04
+## Aequitas consumer gap-audit — Kwavers MEMS cell metrics — reconciled 2026-08-05
 
-Kwavers MET-64 closes the MEMS cell (CmutCell, PmutCell) metric family in
-PR [#345](https://github.com/ryancinsight/kwavers/pull/345) on branch
-`codex/kwavers-aequitas-mems`, merged as
-`80555fa69c95008cbfbd49059a235e3aaaf8e3e7` from source head
-`31482cbadaafda9703fc1f00e9d84e35e4398606`.
-CmutCell and PmutCell struct fields
-typed: `radius`, `thickness`, `gap`, `piezo_thickness`, `passive_thickness` →
-`Length<f64>`; `youngs` → `Pressure<f64>`; `density` → `MassDensity<f64>`.
-Added private `raw_dims()` scalar-extraction helper for formula/plate boundaries.
-Constructors typed. All internal methods updated with scalar extraction.
-Python mems/helpers.rs wrappers updated. comparison.rs tests updated.
-228/228 nextest pass locally. The prior hosted Code Quality and Validate Clean
-Architecture failures were both the same `cargo fmt -- --check` diff in
-`crates/kwavers-python/src/analytical_bindings/mems/helpers.rs`; commit
-`31482cbad` applied rustfmt and the exact file became rustfmt-equivalent. The
-replacement hosted matrix passed all repository-owned checks through the merge.
-This was a formatting blocker, not a metric or Eunomia semantic failure. The
-MEMS and flexible-array metric closure is delivered.
+The earlier MET-64 record described a superseded branch state. The current
+closure is Kwavers commit `464bdf92f`, with provider support in Aequitas commit
+`adc272b`. CMUT, PMUT, shared clamped-plate, comparison, flex-apodization, and
+MEMS Python boundaries now use typed Aequitas quantities. The provider owns
+`VolumeChargeDensity` (`C/m³`) for `charge_density_gradient` and
+`FlexuralRigidity` (`J`) for plate rigidity; formulas and explicit Python
+serialization remain the scalar extraction boundaries.
+
+The typed MEMS filter passes 25/25, the transducer test target compiles, strict
+transducer Clippy passes, `kwavers-python` library compilation passes, and the
+Aequitas provider suite passes 54/54. Eunomia complex values preserve one
+observable unit for real and quadrature components; no imaginary SI unit is
+introduced. Flexible-array core ownership remains a separate audit item while
+`crates/kwavers-transducer/src/flexible/array.rs` is peer-owned dirty work.
 
 
 
