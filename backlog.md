@@ -7,22 +7,15 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## AEQUITAS-THERMAL-COEFFICIENTS — Add temperature-dependent acoustic coefficient dimensions [minor] — in-progress
+## AEQUITAS-THERMAL-COEFFICIENTS — Add temperature-dependent acoustic coefficient dimensions [minor] — done 2026-08-04
 
-- Owner: current session; scope: Aequitas SI dimensions/quantity aliases and
+- Owner: prior session; scope: Aequitas SI dimensions/quantity aliases and
   coherent Kelvin units for velocity-per-temperature, mass-density-per-
-  temperature, and reciprocal-length-per-temperature coefficients; consumer
-  integration follows in Kwavers `KWAVERS-AEQ-MET-67`.
-- Outcome: provide named provider-owned dimensions so temperature-dependent
-  acoustic-property coefficients are not represented by raw scalars or local
-  aliases. Preserve Eunomia real/quadrature compatibility; no imaginary SI
-  unit is introduced.
-- Acceptance: dimensional aliases and unit markers compile under the pinned
-  provider graph; value/unit conversions and dimensional composition tests pass;
-  public docs and CHANGELOG are synchronized; no consumer shim or duplicate
-  local dimension is added.
-- Dependency: after the provider increment lands, migrate Kwavers thermal
-  coupling contracts and formula outputs through the new quantities.
+  temperature, and reciprocal-length-per-temperature coefficients.
+- Evidence: aequitas PR #12 merged as `7a9a21f` ("feat(si): Add thermal
+  coefficient dimensions"); 110 insertions across dimensions.rs, quantities.rs,
+  units/derived.rs, units/mod.rs, tests/dimension_laws.rs. Consumer integration
+  in Kwavers (`KWAVERS-AEQ-MET-67`) remains pending on the kwavers peer stream.
 
 ## ATLAS-KWAVERS-MNEMOSYNE-FIX-1 — Complete mnemosyne dep wiring stranded in kwavers `bf3e17861` [patch] — done 2026-08-04
 
@@ -1690,6 +1683,28 @@
   outputs/arch-008-production-sites.txt`. Ranking by traversal hotness
   (profile-first) and the conversions themselves remain the open work — this
   item stays `todo`.
+- **First conversion delivered 2026-08-05 — moirai collective family.**
+  `repos/moirai` `moirai-core/src/communication/collective.rs`:
+  `CollectiveOps::{scatter,gather,all_to_all}` now build and traverse a
+  CSR-shaped `ChunkedVec<T>` (contiguous flat buffer + chunk-offset table)
+  instead of jagged `Vec<Vec<T>>`. Semantics preserved exactly (chunk tiling,
+  all-to-all column truncation at the chunk count); the empty-input / zero-
+  participant edge returns an empty buffer rather than the historical
+  `chunks(0)` panic. Consumers were verified tests-only, so the signature
+  change is contained. Criterion
+  (`benchmarks/benches/collective_ops_comparison.rs`, `harness = false`,
+  jagged baselines kept inline, 32/128 participants × 4096/8192 items):
+  gather **~10–13×** faster (O(1) hand-off), traverse **~1.6×**, scatter
+  **~1.1–2.2×**, all_to_all **~1.3–3.2×** — a win on every measured path.
+  moirai-core gate: check 0, collective nextest 4/4 (round-trip, empty/
+  zero-participant, all-to-all parity), strict clippy 0.
+  `channel_fusion` per-channel buffers are recorded as **correct-as-jagged**:
+  each channel grows and flushes independently, so a shared flat buffer would
+  add reallocation complexity without a traversal win. `owned_chunks`
+  (hybrid.rs) stays owned-per-worker by contract (parallel ownership model);
+  it is a candidate only if its consumers move to borrowed chunks. The next
+  conversion should be picked from a different repo family per the
+  one-family-per-claim rule.
 
 ## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
 
