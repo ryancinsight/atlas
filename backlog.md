@@ -225,11 +225,9 @@
   running), and Kwavers PR #332 head `87afe809f` merged as `6b706ad9`;
   child focused gates pass as recorded in `gap_audit.md`.
 - Residual: Helios PR #37 head `98b571e` has passed its Rust and Python hosted
-  gates; its corrected benchmark is still running after the provider-lock
-  normalization fix. Kwavers thermal delivery remains blocked by the
-  pre-existing Eunomia 0.7 RustSec finding recorded under
-  `KWAVERS-AEQ-MET-66`; the required Ritk 0.8 cutover cannot be started while
-  both Ritk worktree slots contain live peer work.
+  gates; its corrected benchmark was running as of 2026-08-05. Kwavers thermal
+  delivery blocker cleared 2026-08-06 (see ATLAS-AEQUITAS-CONSUMERS-006 closure);
+  no further Kwavers work depends on Ritk 0.8 cutover within this item's scope.
 - Re-open trigger: any hosted source failure, dimensional residue, or Eunomia
   complex-boundary mismatch in the named child scope.
 
