@@ -164,13 +164,16 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
       `31482cbadaafda9703fc1f00e9d84e35e4398606` as
       `80555fa69c95008cbfbd49059a235e3aaaf8e3e7`; all repository-owned gates
       pass, including the corrected formatting gate.
-- [ ] `KWAVERS-AEQ-MET-66`: implementation is complete in Kwavers PR #350 at
-      head `6a543c7e222ac72094ef6b76a5f11472ee3e8ab7`; local focused evidence is
-      2,404/2,404 Nextest with strict Clippy, doctests, examples, Rustdoc,
-      formatting, diff, and typed/complex scans passing. Delivery remains
-      blocked by the pre-existing hosted RustSec `RUSTSEC-2026-0235` finding
-      through Eunomia 0.7/rkyv 0.7.46; the dependency-ordered reopen trigger is
-      the Ritk Eunomia 0.8 cutover, followed by Kwavers lock regeneration.
+- [x] `KWAVERS-AEQ-MET-66`: thermal-diffusion contracts are implemented and
+      the historical Eunomia 0.7/rkyv 0.7.46 security residual is closed by
+      Ritk PR #110 (`cfeebc7`) and the Kwavers clean-lock refresh.
+- [x] `KWAVERS-AEQ-MET-67`: thermal-acoustic coupling contracts and the
+      provider-owned `W/m⁴` nonlinear gradient are implemented in Kwavers PR
+      #350 at head `2cd5a007a`; Aequitas PR #13 is merged at `3c51a27`.
+      Clean locked checking/Clippy pass; focused clean physics tests pass
+      1,706/1,706 with one configured skip. The clean top-level Kwavers
+      Nextest build remains blocked by `ld.lld` missing `libLIBCMT.a` and
+      `libOLDNAMES.a`; hosted checks are pending at the exact head.
 
 Definition of ready: child raw-field inventory, ownership boundary, exact
 acceptance oracle, and dependency closure are recorded in the child backlog.

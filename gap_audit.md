@@ -2,36 +2,40 @@
 
 ## Live Aequitas closure — 2026-08-05
 
-### Kwavers thermal-diffusion metrics — implementation complete; delivery blocked
+### Kwavers thermal metrics — provider cutover complete; hosted gate pending
 
-Kwavers `KWAVERS-AEQ-MET-66` is implemented at PR [#350](https://github.com/ryancinsight/kwavers/pull/350),
-head `6a543c7e222ac72094ef6b76a5f11472ee3e8ab7`. Public thermal-diffusion
-parameters and integration-time arguments use Aequitas typed quantities; CEM43
-remains a domain dose representation. Local evidence is 2,404/2,404 focused
-Nextest tests, warning-denied Clippy, doctests, examples, Rustdoc, formatting,
-diff, and typed-boundary/complex-unit scans. Eunomia compatibility preserves one
-observable unit for real/quadrature values and introduces no imaginary SI unit.
+Kwavers `KWAVERS-AEQ-MET-66` and `KWAVERS-AEQ-MET-67` are implemented in PR
+[#350](https://github.com/ryancinsight/kwavers/pull/350), current head
+`2cd5a007a`. The public thermal-diffusion and thermal-acoustic contracts use
+Aequitas typed quantities; CEM43 remains a domain dose representation, and
+the nonlinear acoustic formula now exposes the provider-owned `W/m⁴`
+volumetric power-density gradient. Aequitas PR #13 is merged at `3c51a27` and
+Ritk PR #110 is merged at `cfeebc7`.
 
-The hosted matrix is still running. Security remains a pre-existing delivery
-residual: both the PR and base `main` fail RustSec `RUSTSEC-2026-0235` through
-Eunomia 0.7's `rkyv 0.7.46`. A clean Eunomia 0.8 resolution reaches the current
-Aequitas/Apollo/Gaia provider heads and stops at Ritk registration
-`cabc7115e360db52bfc700973ca1767786c48373`, whose manifest still requires
-Eunomia `^0.7.0`. No advisory ignore or feature narrowing is acceptable. The
-dependency-ordered closure is Ritk's Eunomia 0.8 cutover, followed by Kwavers
-lock regeneration and a new hosted matrix. The Ritk repository currently has
-both worktree slots occupied by live peer work, so that cutover is recorded as
-an integration blocker rather than silently modifying peer-owned state.
+The clean Kwavers lock resolves Eunomia `0.8.0` and rkyv `0.8.17` only; the
+previous Eunomia 0.7/rkyv 0.7 RustSec path is absent. Clean locked checking and
+strict Clippy pass, and the focused clean `kwavers-physics` suite passes
+1,706/1,706 tests with one configured skip, including all thermal coupling
+tests. The overlay package run passes 530/530 CI-profile tests. The clean
+top-level package Nextest build is separately blocked by the Windows GNU
+linker missing `libLIBCMT.a` and `libOLDNAMES.a` while linking unrelated test
+binaries. Eunomia real and complex values retain one observable unit; no
+imaginary SI unit is introduced. Hosted Kwavers checks are pending at the
+exact PR head.
 
-### Helios Radon geometry — source and provider-lock residual corrected
+### Helios Radon geometry — hosted benchmark residual remains
 
 Helios PR [#37](https://github.com/ryancinsight/helios/pull/37) now carries the
 workflow correction at head `98b571e65a0409b9fd7a33afbfd63049aa48237f`.
 The historical baseline lock is regenerated before the locked benchmark build,
 and the checkout action uses Atlas `main` `4f1aab830e6e9c41e95cbf34fa49202ac6833c5e`,
 which restores the current `mnemosyne-memory` provider package identity. Rust
-workspace and Python binding gates pass; the replicated benchmark is running.
-The earlier failure was CI graph normalization, not an Aequitas metric defect.
+workspace and Python binding gates pass. The hosted benchmark now replicates a
+`scan_reference/1024` regression: baseline-first `+0.46%` then `+0.54%`,
+candidate-first `-0.27%` then `-0.49%`; the production DVH candidate does not
+reproduce the slowdown. PR #37 remains open until that exact benchmark
+residual is diagnosed; it is not masked by changing the classifier or
+workload.
 
 ## Aequitas consumer gap-audit extension — Kwavers hemispherical array — 2026-08-04 ✓ MERGED
 
