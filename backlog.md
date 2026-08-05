@@ -7,6 +7,54 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — todo
+
+- Owner: unclaimed; last-update: 2026-08-05 (gap-replenishment filing by
+  current session). Scope per consumer: one repo per claim (kwavers, CFDrs,
+  helios), each a self-contained co-evolution unit against the local
+  provider tree. **All three consumer trees were peer-held at filing time**
+  (kwavers `refactor/retire-kwavers-optics` 402cfef48 15:46; CFDrs
+  `deps/eunomia-0.8` 77e8a77f; helios `codex/helios-radon-geometry-clean`
+  10:36) — claim only after the tree returns to a free main, per the
+  stale-claim rule.
+- Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §2
+  (themis/melinoe consumed by the compute layer, not domain); the
+  moirai-executor residual noted in ATLAS-THEMIS-TOPOLOGY-OPTION-1 remains
+  separate.
+- Evidence (2026-08-05 gap-analysis, measured from committed state):
+  - **themis**: zero source references (`themis`/`themis::`) in any crate
+    of kwavers, CFDrs, or helios. Declared only in helios `Cargo.toml:114`
+    and unused. The stack abstraction audit already flags themis as the
+    zero-adoption outlier (`gap_audit.md` §I, line 1542).
+  - **melinoe**: zero source references in any integrator crate. Reachable
+    only as moirai feature plumbing (`moirai = { features = ["melinoe"] }`
+    in CFDrs and ritk). kwavers and helios do not reach it at all.
+  - **mnemosyne**: the sole source-seam adoption in the three is
+    kwavers-core's arena layer (ATLAS-KWAVERS-MNEMOSYNE-FIX-1: `temp_arena`,
+    `pool/*`, `layout/{soa,pool,numa_aware}.rs` use
+    `mnemosyne_arena`/`mnemosyne_backend`/`mnemosyne_core`). CFDrs reaches
+    it only via moirai features; helios declares `mnemosyne-core` (line 113)
+    with zero source sites.
+- Outcome: each integrator adopts the placement/memory-locality seam at a
+  genuine consumer-local site — e.g. kwavers NUMA-aware field arenas move to
+  themis `NumaNodePlacement`/`ConstNumaPinnedSlice` typed placement (the
+  residual recorded under ATLAS-KWAVERS-MNEMOSYNE-FIX-1 names the first-touch-
+  only weakness as the motivating defect), CFDrs/helios worker-pool or
+  mesh-buffer locality uses themis placement, and branded capability
+  evidence flows through melinoe where moirai routing already carries it.
+  Consumer-local need precedes the dependency (priority-2 brief): no blanket
+  imports.
+- Acceptance per repo: the workspace manifest declares `themis` (and
+  `melinoe` where the surface is consumed) as `git + version`; at least one
+  production source site binds the typed placement (not feature-only
+  plumbing); `cargo check`/nextest/clippy `-D warnings` clean under the
+  `[workspace.lints]` floor; the `xtask legacy-migration-audit` stays clean;
+  the umbrella `.cargo/config.toml` overlay regenerated via
+  `scripts/atlas-stack-overlay.py` and `check` reports aligned.
+- Re-open trigger (for the claiming session): the consumer tree is on a
+  free `main`; the above source-reference count is confirmed non-zero only
+  where adoption landed.
+
 ## AEQUITAS-THERMAL-COEFFICIENTS — Add temperature-dependent acoustic coefficient dimensions [minor] — done 2026-08-04
 
 - Owner: prior session; scope: Aequitas SI dimensions/quantity aliases and
@@ -1918,6 +1966,18 @@
   artifacts owned by the concurrent root oracle stream. Re-run
   `--site-list` and `make verify-scattered-oracle` when that stream lands the
   derived artifacts.
+- **Fourth conversion 2026-08-05 — Apollo prime-pair macro tables.**
+  `repos/apollo/crates/apollo-fft-macros/src/prime_pair_tables.rs` now keeps
+  expansion-time cosine/sine values in flat `Vec<f64>` buffers and chunks them
+  only while emitting the unchanged fixed-size `[[T; H]; H]` token arrays. This
+  removes the nested `Vec<Vec<f64>>` allocation and preserves row-major token
+  order and the `PrimePairTable<N, H>` API. Zero-height inputs avoid
+  `chunks_exact(0)`; zero `N` and `H × H` overflow return deliberate procedural
+  macro compile errors. Evidence: macro/FFT checks, rustfmt, strict Clippy,
+  doctests, and `cargo nextest run -p apollo-fft --lib` **394/394** pass;
+  targeted diff and nested-vector residue checks are clean. The ARCH-008 oracle
+  remains deferred exactly as recorded above because its classifier/oracle files
+  are owned untracked artifacts in the concurrent root stream.
 
 ## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
 
