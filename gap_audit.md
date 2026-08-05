@@ -41,11 +41,12 @@ did not mutate or rebase that scope. The documented clean Eunomia 0.8/rkyv
 the Windows GNU linker limitation remains a verification residual, not a
 metric or complex-unit defect.
 
-### Kwavers thermal metrics — provider cutover complete; hosted gate pending
+### Kwavers thermal metrics — provider cutover and hosted gate complete
 
-Kwavers `KWAVERS-AEQ-MET-66` and `KWAVERS-AEQ-MET-67` are implemented in PR
-[#350](https://github.com/ryancinsight/kwavers/pull/350), current head
-`2cd5a007a`. The public thermal-diffusion and thermal-acoustic contracts use
+Kwavers `KWAVERS-AEQ-MET-66` and `KWAVERS-AEQ-MET-67` are implemented and
+merged through PR [#350](https://github.com/ryancinsight/kwavers/pull/350),
+with merge commit `5044c0c13`. The public thermal-diffusion and
+thermal-acoustic contracts use
 Aequitas typed quantities; CEM43 remains a domain dose representation, and
 the nonlinear acoustic formula now exposes the provider-owned `W/m⁴`
 volumetric power-density gradient. Aequitas PR #13 is merged at `3c51a27` and
@@ -59,8 +60,11 @@ tests. The overlay package run passes 530/530 CI-profile tests. The clean
 top-level package Nextest build is separately blocked by the Windows GNU
 linker missing `libLIBCMT.a` and `libOLDNAMES.a` while linking unrelated test
 binaries. Eunomia real and complex values retain one observable unit; no
-imaginary SI unit is introduced. Hosted Kwavers checks are pending at the
-exact PR head.
+imaginary SI unit is introduced. The hosted PR #350 matrix passes the
+repository-owned gates, including stable/beta/nightly, feature combinations,
+Miri, security, solver validation, coverage, documentation, architecture,
+and benchmark jobs. The local linker limitation is not a hosted or metric
+failure.
 
 ### Helios historical benchmark and provider graph — H-098 closed
 
@@ -109,9 +113,9 @@ one observable signal unit. No imaginary length, angle, delay, pressure, or
 other SI unit is introduced. Local evidence at the merged source head is
 233/233 focused transducer Nextest tests, strict offline Clippy for affected
 packages, package checks, package-by-package doctests, formatting, diff, and
-typed/complex residue scans. The hosted repository-owned checks were pending
-when the PR merge was observed; their status remains an external watchpoint.
-Other Kwavers complex-valued contracts remain dimensionless or signal
+typed/complex residue scans. Hosted run `30869833772` passes the complete
+repository-owned matrix for the merged head, including benchmark smoke and
+coverage. Other Kwavers complex-valued contracts remain dimensionless or signal
 representation data (for example, Eunomia complex dielectric values); they do
 not create an imaginary dimensional unit.
 

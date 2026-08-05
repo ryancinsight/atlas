@@ -81,9 +81,9 @@ Rust/Python callers, and the corresponding Kwavers PM artifacts.
 - [x] Merge Kwavers PR #346 at source head `7ae4080b4` as merge commit
       `1217058ebadc2c6be862e31b205898aec93508ac`; local focused transducer
       Nextest is 233/233 with strict Clippy, package checks, doctests,
-      formatting, diff, and typed/complex residue scans passing. Hosted checks
-      were pending when the repository accepted the merge and remain a
-      watchpoint.
+      formatting, diff, and typed/complex residue scans passing. Hosted run
+      `30869833772` passes the complete repository-owned matrix, including
+      benchmark smoke and coverage.
 
 Acceptance: no unclassified raw physical metric remains in the focused-source
 scope; geometry, source timing, and pressure values retain analytical semantics;
@@ -133,7 +133,7 @@ physical contract is introduced.
 Current residual: local simulation doctest and FNM smoke collection exceed the
 300-second shared-target bound without a diagnostic; hosted equivalents pass.
 
-## ATLAS-AEQUITAS-CONSUMERS-006 — Kwavers beamforming and design metric extensions — in progress
+## ATLAS-AEQUITAS-CONSUMERS-006 — Kwavers beamforming and design metric extensions — done 2026-08-05
 
 - [x] Audit beamforming configuration and aperture/design propagation fields;
       identify every raw physical metric and its formula/storage boundary.
@@ -168,12 +168,14 @@ Current residual: local simulation doctest and FNM smoke collection exceed the
       the historical Eunomia 0.7/rkyv 0.7.46 security residual is closed by
       Ritk PR #110 (`cfeebc7`) and the Kwavers clean-lock refresh.
 - [x] `KWAVERS-AEQ-MET-67`: thermal-acoustic coupling contracts and the
-      provider-owned `W/m⁴` nonlinear gradient are implemented in Kwavers PR
-      #350 at head `2cd5a007a`; Aequitas PR #13 is merged at `3c51a27`.
+      provider-owned `W/m⁴` nonlinear gradient are implemented and merged in
+      Kwavers PR #350 as merge commit `5044c0c13`; Aequitas PR #13 is merged at
+      `3c51a27`.
       Clean locked checking/Clippy pass; focused clean physics tests pass
       1,706/1,706 with one configured skip. The clean top-level Kwavers
       Nextest build remains blocked by `ld.lld` missing `libLIBCMT.a` and
-      `libOLDNAMES.a`; hosted checks are pending at the exact head.
+      `libOLDNAMES.a`; the hosted PR #350 matrix passes the repository-owned
+      gates, including benchmark smoke and coverage.
 
 Definition of ready: child raw-field inventory, ownership boundary, exact
 acceptance oracle, and dependency closure are recorded in the child backlog.
