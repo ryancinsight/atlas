@@ -66,6 +66,20 @@ and the provider suite passes 54/54. Eunomia complex values preserve one
 observable unit for real and quadrature components; no imaginary SI unit is
 introduced. Flexible-array core ownership remains a separate audit item.
 
+### Kwavers flexible-array dynamic metrics — `KWAVERS-AEQ-MET-FLEX` blocked
+
+The remaining child audit item is confined to peer-owned dirty
+`crates/kwavers-transducer/src/flexible/array.rs`. Its candidate typed public
+contracts are update timestamps and delays (`Time`), focus coordinates
+(`Length`), sound speed (`Velocity`), calibration confidence and strain/safety
+limits (`Dimensionless`), curvature/radius (`ReciprocalLength`/`Length`),
+stress (`Pressure`), and deformation energy (`Energy`). Dense measurement,
+mesh, signal, and source-position arrays remain scalar infrastructure or
+serialization boundaries until their consumers define a physical contract.
+Child commit `402cfef48` records the blocker and re-open trigger: integration
+of the peer change or release of that file scope. No imaginary SI unit applies
+to the real flexible geometry.
+
 ### Helios inverse-planning dose metrics — H-099 closed; hosted gates green
 
 The fresh Helios consumer audit found one untyped physical planning boundary
