@@ -157,7 +157,7 @@
 - Re-open trigger: hosted source failure, dimensional residue, or Eunomia
   complex-boundary mismatch in the Kwavers ultrafast scope.
 
-## ATLAS-AEQUITAS-CONSUMERS-006 — Close Kwavers beamforming and design metric extensions [arch] [major] — in-progress
+## ATLAS-AEQUITAS-CONSUMERS-006 — Close Kwavers beamforming and design metric extensions [arch] [major] — done 2026-08-06
 
 - Owner: current session; scope: Kwavers beamforming configuration, aperture
   design synthesis, focused propagation, the explicitly listed focused,
@@ -200,16 +200,16 @@
   unit is introduced. Hosted checks were pending at merge and remain a
   watchpoint.
 - Increment implemented: `KWAVERS-AEQ-MET-66` is complete at Kwavers PR #350
-  head `6a543c7e222ac72094ef6b76a5f11472ee3e8ab7`. The public thermal-diffusion
-  parameter contracts and integration-time arguments use Aequitas; dose values
-  remain a domain-specific CEM43 representation rather than a mislabeled SI
-  time quantity. Local focused evidence is 2,404/2,404 Nextest with strict
-  Clippy, doctests, examples, Rustdoc, formatting, diff, and typed/complex
-  scans passing. Delivery is blocked by the pre-existing hosted
-  `RUSTSEC-2026-0235` finding through Eunomia 0.7/rkyv 0.7.46. A clean 0.8
-  provider resolution stops at Ritk registration `cabc7115`, whose manifest
-  still requires Eunomia `^0.7.0`; no advisory ignore or feature narrowing is
-  used. Reopen after the Ritk 0.8 cutover and regenerate the Kwavers lock.
+  head `6a543c7e222ac72094ef6b76a5f11472ee3e8ab7`, merged as `67c98a46e`.
+  The public thermal-diffusion parameter contracts and integration-time
+  arguments use Aequitas; dose values remain a domain-specific CEM43
+  representation rather than a mislabeled SI time quantity. Local focused
+  evidence is 2,404/2,404 Nextest with strict Clippy, doctests, examples,
+  Rustdoc, formatting, diff, and typed/complex scans passing.
+  **Blocker cleared 2026-08-06:** Eunomia 0.8 and Ritk 0.8 are now available.
+  Kwavers rkyv optional dependency updated from 0.7 → 0.8, regenerating the
+  lockfile without rkyv 0.7.46. Cargo audit now passes; RUSTSEC-2026-0235
+  advisory is cleared. Hosted gates are available for PR #350 delivery.
 - Re-open trigger: any dimensional residue, formula-boundary mismatch, or
   Eunomia complex-unit incompatibility.
 
@@ -1898,6 +1898,28 @@
   insert into an O(n) memmove across all layers (**correct-as-jagged**),
   and `ritk-vtk poly_data.rs` cell arrays are the native CSR end state but a
   ~225-reference data-model migration that warrants its own dedicated claim.
+- **Third conversion 2026-08-05 — Apollo CWT output buffer.**
+  `repos/apollo/crates/apollo-wavelet/src/application/execution/plan/cwt.rs`
+  now collects the row-major `(scales, signal_len)` coefficient matrix through
+  `moirai::map_collect_index_with::<moirai::Adaptive>` into one flat buffer,
+  then reshapes it into the existing `leto::Array2`. This removes the
+  per-scale `Vec<Vec<f64>>` intermediate and its row allocations while
+  preserving indexed output order, adaptive parallel execution, and the public
+  `CwtCoefficients` API. The flattened dimension is checked with `checked_mul`
+  and returns `CoefficientShapeMismatch` on overflow. The selected production
+  site is gone rather than moved; no DWT coefficient API was changed because
+  those vectors represent intentionally level-shaped detail bands and remain
+  correct-as-jagged for this slice. Evidence: Apollo `cargo check -p
+  apollo-wavelet`, rustfmt, strict Clippy, doctests, and `cargo nextest run -p
+  apollo-wavelet --lib` **21/21** pass; `git diff --check` and the targeted
+  no-`Vec<Vec<` residue scan are clean. The separate oracle gate reports the
+  expected single stale claim at `cwt.rs:72` (current split **248 production /
+  78 test-bench / 326 total**); oracle refresh is intentionally deferred because
+  `scripts/atlas_scattered_containers_classify.py` and
+  `scripts/oracles/arch-008-production-sites.txt` are pre-existing untracked
+  artifacts owned by the concurrent root oracle stream. Re-run
+  `--site-list` and `make verify-scattered-oracle` when that stream lands the
+  derived artifacts.
 
 ## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
 
