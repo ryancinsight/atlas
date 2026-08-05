@@ -2129,7 +2129,7 @@ epospollo`, so both paths are the same tree. That is
      understood. The crate is still compiled and linted.- Lesson recorded for other repos adopting the template: the gate was verified against an isolated **Windows** clone and still failed twice on the runner, because `cfg(unix)` code never compiled locally. The cheap fix is `cargo clippy --target x86_64-unknown-linux-gnu`, which reproduces the runner's lints without a Linux box; the c-shim discovery failure remains Linux-only and cannot be reproduced that way.
 - **Lint-exclusion retirement done 2026-08-05** (claim: current session). All three command-line Clippy allows are removed from `ci.yml`; the lint step is now bare `-D warnings`. Evidence: workspace clippy `--workspace --exclude mnemosyne-benchmarks --all-targets --target x86_64-unknown-linux-gnu -- -D warnings` exits 0 on the pinned 1.97.0 toolchain with zero clippy diagnostics — exclusions 2 and 3 no longer fire (the cfg(unix) madvise sites were cleaned in later revisions), and exclusion 2's single false-positive site is already suppressed by a site-local `#[allow(clippy::missing_const_for_thread_local)]` with its own removal trigger (`segment_pool.rs`). Local `--locked` resolution fails under the atlas overlay (CI checks out mnemosyne standalone); evidence was gathered with plain resolution and `Cargo.lock` restored — the lock is untouched by this slice. Remaining exclusions are tracked elsewhere, not silent: `mnemosyne-benchmarks` under ATLAS-MNEMOSYNE-SNMALLOC-1, and the `mnemosyne-c-shim` test-discovery exclusion stays with the crate-level note in `ci.yml` (Linux-only, not understood).
 
-## ATLAS-MNEMOSYNE-SNMALLOC-1 — snmalloc-sys fails g++ 16's new warnings [patch] — in-progress
+## ATLAS-MNEMOSYNE-SNMALLOC-1 — snmalloc-sys fails g++ 16's new warnings [patch] — done
 
 - Owner: opencode-2026-08-05; scope: `repos/mnemosyne` `crates/mnemosyne-benchmarks`
   (its `snmalloc-rs = 0.3` dependency).
@@ -2147,6 +2147,26 @@ epospollo`, so both paths are the same tree. That is
   is therefore not available; until upstream moves, mnemosyne gates exclude
   `mnemosyne-benchmarks` (`--exclude mnemosyne-benchmarks`), already the
   recorded practice.
+- **Re-verified 2026-08-05 — neither upstream-first path exists; quarantine
+  is the terminal state.** `snmalloc-rs 0.7.4` (2026-03-25, tracks upstream
+  `microsoft/snmalloc` directly) was evaluated and does NOT fix the failure:
+  its vendored `upstream/src/snmalloc/backend/globalconfig.h:30-31` carries
+  the identical recursive
+  `using GlobalPoolState = PoolState<Allocator<StandardConfigClientMeta<...>>>`
+  instantiation that trips `-Wsfinae-incomplete`, byte-structurally unchanged
+  from the 0.3.8 vendored source; upstream `main` (fetched 2026-08-05) is
+  byte-identical at that site too. The vendored CMake applies
+  `-Wall -Wextra -Werror -Wundef` unconditionally on non-MSVC
+  (`CMakeLists.txt:212` `add_compile_options`, `:445`
+  `add_warning_flags`) with no cache variable or flag to disable it, and
+  `snmalloc-rs 0.7.4`'s build.rs `flag_if_supported` is a no-op on the cmake
+  path, so no `-Wno-error=` injection route exists. No upstream issue or
+  commit addresses g++16 (only old GCC-9/10 issue #168). The quarantine
+  (`--exclude mnemosyne-benchmarks`, present in `ci.yml` at lines 48, 63, 75,
+  80) remains the resolution; its removal trigger is upstream snmalloc
+  removing the `-Wsfinae-incomplete` trigger or the unconditional `-Werror`,
+  after which mnemosyne bumps `snmalloc-rs` (0.3 → 0.7) and re-includes the
+  benchmarks package.
 
 ## ATLAS-HEPH-DOC-LINKS-1 — hephaestus-core fails the rustdoc gate [patch] — done
 
