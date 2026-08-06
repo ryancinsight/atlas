@@ -456,6 +456,16 @@ separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. 
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
 their existing observable unit and do not create an imaginary SI quantity.
 
+The CFDrs closure is extended by implementation commit `757242ff` and claim
+`5914cc0b` for `CFDRS-AEQ-MET-59`: `MetadataConfig` and emitted
+`ChannelGeometryMetadata` now carry Eunomia `Length<f64>` in base metres.
+Millimetres are extracted only inside the existing split-spacing and layout
+formulas, and the generator regression preserves the configured value in
+emitted metadata. The cfd-schematics all-target check, warning-denied Clippy,
+191/191 Nextest run `cdecc3ab-849e-4a51-a231-2f28bb1be8c1`, 16/16 doctests,
+and Rustdoc pass. This real geometry contract has no complex or imaginary SI
+quantity.
+
 Kwavers' current Aequitas audit artifacts likewise close the focused-source,
 hemispherical, 2-D array, MEMS crosstalk, MEMS cell-output, acquisition, and
 thermal families. Flexible-array core ownership remains a separate audit item.
