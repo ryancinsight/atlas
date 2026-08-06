@@ -426,6 +426,20 @@ cfd-optim 2/2 with 3 ignored; Rustdoc builds all three directly changed
 packages. The request geometry is real-valued; no complex or imaginary SI
 quantity applies. The separate generic `PrimitiveSelectiveTreeRequest` and
 `SelectiveTreeRequest` contracts remain distinct audit boundaries.
+The source closure is extended by `4902f9cb` and `d3a9cc2d` for
+`CFDRS-AEQ-MET-57`: `PrimitiveSelectiveTreeRequest` and
+`SelectiveTreeRequest` now carry plate, channel, branch, outlet, outlet-tail,
+and inter-throat geometry as Eunomia `Length<f64>` values in base metres.
+Direct cfd-schematics, cfd-1d, and cfd-2d consumers migrate without adapters;
+scalar extraction remains confined to geometry and layout boundaries. A typed
+generic-request propagation regression is included. Affected all-target checks
+and warning-denied Clippy pass for cfd-schematics, cfd-1d, and cfd-2d. Nextest
+passes cfd-schematics 190/190, cfd-1d 736/736 with 3 skipped, and cfd-2d
+571/571 with 27 skipped. Doctests pass cfd-1d 8/8 and cfd-2d 1/1; the
+cfd-schematics doctest set is 15/16 because Defender quarantined the frustum
+doctest executable with Windows error 225. Rustdoc completes with pre-existing
+broken/private intra-doc-link warnings. The contract is real-valued; no
+complex or imaginary SI quantity applies.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
