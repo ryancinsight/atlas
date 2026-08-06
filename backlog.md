@@ -31,6 +31,27 @@
   once; the `PATH_DEP_AUDIT_2_ENTRY.md` filename either moves with its ID or
   is re-pointed by its owning item.
 
+## ATLAS-TAKEOVER-001 — Land stranded delivered slices in tyche, hermes, eunomia, CFDrs [chore] — done 2026-08-06
+
+- Owner: current session. Scope: land work recorded as delivered in
+  per-repo backlogs but stranded uncommitted/unmerged in provider trees.
+- Tyche `main` d25311e: landed the stranded TYCHE-004 bootstrap increment
+  (Bootstrap/BootstrapError API, bounded_u64 kernel shared with categorical
+  sampling, BootstrapIndex stream domain, tests; 13 files, +519). Tests pass;
+  clippy clean apart from overlay patch notices.
+- Hermes `main` bde7010: landed stranded HS-409 fused ternary AXPY provider
+  (`axpy_mul`, dispatch wiring, dense tests) plus the prior rkyv-0.8 migration
+  and book commits stranded on `fix/rkyv-0.8-migration`; main fast-forwarded.
+- Eunomia `main` 69ff96d: landed stranded ATLAS-PUB-005 book-examples and
+  mdbook-test gate commits from `fix/rkyv-0.8-migration`; main fast-forwarded.
+- CFDrs `codex/takeover-csr-connectivity` cf32eab6: cherry-picked the stranded
+  CSR-connectivity commit `fb324697` (perf: flatten unstructured connectivity
+  to CSR-style storage) whose branch `deps/eunomia-0.8` was deleted from
+  origin. Branch pushed with PR link; not yet merged to main.
+- Not taken over (no matching delivered record, ambiguous ownership): leto
+  sparse-LU staged work (no backlog claim), moirai scheduler-diagnostics +
+  reactor-TLS uncommitted work, mnemosyne dependency-removal + test tweaks.
+
 ## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — todo
 
 - Owner: unclaimed; last-update: 2026-08-05 (gap-replenishment filing by
