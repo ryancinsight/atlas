@@ -171,13 +171,13 @@ requirements: force-per-velocity crosstalk impedance is `kg/s`, not acoustic
 impedance `kg/(m²·s)`, and the PMUT charge-gradient and shared plate rigidity
 metrics require `C/m³` and `J` contracts. Aequitas now owns distinct
 `MechanicalImpedance`, `VolumeChargeDensity`, and `FlexuralRigidity` quantities;
-Kwavers MET-65 and MET-64 use them at the typed Rust boundaries. CFDrs remains
-closed through `CFDRS-AEQ-MET-46`; its open solver-runtime and provider-lock
+Kwavers MET-65 and MET-64 use them at the typed Rust boundaries. CFDrs is
+closed through `CFDRS-AEQ-MET-49`; its open solver-runtime and provider-lock
 items are verification or dependency issues, not missing physical metric
-types. A fresh CFDrs scan then opened `CFDRS-AEQ-MET-47` for the residual
-Venturi metadata boundary: typed geometry, pressure-drop, cavitation-dose, and
-FDA compliance contracts are being migrated in the child repository while
-topology authoring inputs remain an explicit next boundary.
+types. The Venturi metadata and topology authoring boundaries now carry
+Eunomia `Length` and `Angle` values through the direct schematic and
+optimization callers, with scalar extraction only at formula, validation,
+mesh, reporting, and serialization edges.
 Helios H-099 is closed at merged head `41f2c3b`, with final hosted run
 `31016097153` green at implementation head `5cbdfdb` and no complex-valued
 planning contract. Kwavers' current thermal and array metric families are
@@ -273,20 +273,19 @@ Eunomia requires no imaginary dose unit or complex physical wrapper.
 The 2026-08-05 read-only re-audit found the named CFDrs public metric families
 closed through CFDRS-AEQ-MET-46: schematic geometry, volumes, analytical
 validation, fluid properties, blood/rheology, turbulence, cavitation, and
-transient contracts use Aequitas at their physical boundaries. The same scan
-found the Venturi metadata family still scalar at the `cfd-schematics`
-metadata/formula seam. `CFDRS-AEQ-MET-47` is now closed in CFDrs commits
-`9dfd57c2`, `5aa2d9f1`, and audit closure `2d42412d`: geometry metadata,
-pressure-drop, cavitation-dose, and FDA compliance contracts use Aequitas
-quantities, with scalar extraction only at formula, mesh/interchange, and
-serialization boundaries. The source closure is covered by
-`cfd-schematics` Nextest 158/158, cfd-1d library Nextest 498/498, the
-blueprint metadata integration target 5/5, warning-denied cfd-schematics
-Clippy, focused cfd-1d/cfd-2d/mesh checks, and the exact current-revision
-cfd-schematics doctest gate 16/16. An earlier doctest attempt was transiently
-quarantined by Windows Defender; the clean rerun passed without an exclusion,
-test weakening, or source workaround.
-Topology authoring inputs remain the next explicit CFDrs metric boundary.
+transient contracts use Aequitas at their physical boundaries. The Venturi
+metadata family was then closed in CFDrs commits `9dfd57c2`, `5aa2d9f1`, and
+audit closure `2d42412d`, followed by `add6236a` for
+`CFDRS-AEQ-MET-49`: `ThroatGeometrySpec` now carries Eunomia `Length<f64>`
+dimensions in base metres and `Angle<f64>` half-angles in base radians.
+Direct schematic, optimization, integration, and serialized example callers
+are migrated without adapters; scalar extraction remains only at formula,
+validation, mesh, reporting, and serialization boundaries. The combined source
+closure is covered by cfd-schematics Nextest 159/159, cfd-optim Nextest 137/137
+across five binaries, schematic export 7/7, warning-denied all-targets Clippy
+for both crates, and cfd-schematics doctests 16/16. An earlier doctest attempt
+was transiently quarantined by Windows Defender; the clean rerun passed
+without an exclusion, test weakening, or source workaround.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
