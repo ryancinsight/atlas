@@ -21,7 +21,8 @@ Helios, and Kwavers.
   and extracts scalars only inside the coordinate formulas. The change merged
   in Kwavers PR #352 at
   `7346ae4f4d9f4a8836b765ff160c1c6697a3215d` after the repository-owned
-  validation matrix passed.
+  validation matrix passed. Local evidence includes 9/9 focused B-mode
+  Nextest tests, strict all-target Clippy, doctests, rustdoc, and formatting.
 - **Eunomia compatibility**: the current provider exposes native complex
   scalars and `ComplexField` operations, and Kwavers CSR already consumes
   `Complex64` through that provider contract. The audited physical geometry
