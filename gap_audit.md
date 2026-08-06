@@ -217,12 +217,14 @@ impedance `kg/(m²·s)`, and the PMUT charge-gradient and shared plate rigidity
 metrics require `C/m³` and `J` contracts. Aequitas now owns distinct
 `MechanicalImpedance`, `VolumeChargeDensity`, and `FlexuralRigidity` quantities;
 Kwavers MET-65 and MET-64 use them at the typed Rust boundaries. CFDrs is
-closed through `CFDRS-AEQ-MET-49`; its open solver-runtime and provider-lock
+closed through `CFDRS-AEQ-MET-50`; its open solver-runtime and provider-lock
 items are verification or dependency issues, not missing physical metric
 types. The Venturi metadata and topology authoring boundaries now carry
 Eunomia `Length` and `Angle` values through the direct schematic and
 optimization callers, with scalar extraction only at formula, validation,
-mesh, reporting, and serialization edges.
+mesh, reporting, and serialization edges. `ChannelRouteSpec` route length,
+width, and height are now Eunomia `Length<f64>` values in base metres, with a
+builder/JSON value round-trip regression and no complex or imaginary SI unit.
 Helios H-099 is closed at merged head `41f2c3b`, with final hosted run
 `31016097153` green at implementation head `5cbdfdb` and no complex-valued
 planning contract. Kwavers' current thermal and array metric families are
@@ -326,11 +328,18 @@ dimensions in base metres and `Angle<f64>` half-angles in base radians.
 Direct schematic, optimization, integration, and serialized example callers
 are migrated without adapters; scalar extraction remains only at formula,
 validation, mesh, reporting, and serialization boundaries. The combined source
-closure is covered by cfd-schematics Nextest 159/159, cfd-optim Nextest 137/137
-across five binaries, schematic export 7/7, warning-denied all-targets Clippy
-for both crates, and cfd-schematics doctests 16/16. An earlier doctest attempt
+closure is extended by `d89eeb8a` for `CFDRS-AEQ-MET-50`:
+`ChannelRouteSpec` length, width, and height now carry Eunomia `Length<f64>`
+values in base metres. The direct schematic, optimization, integration, and
+serialization callers are migrated without adapters; scalar extraction remains
+only at formula, validation, mesh, reporting, and serialization boundaries.
+The combined source closure is covered by cfd-schematics Nextest 183/183,
+cfd-optim Nextest 137/137 across five binaries, schematic export 7/7,
+warning-denied all-targets Clippy for both crates, and cfd-schematics doctests
+16/16. cfd-optim doctests pass 2 with 3 ignored. An earlier doctest attempt
 was transiently quarantined by Windows Defender; the clean rerun passed
-without an exclusion, test weakening, or source workaround.
+without an exclusion, test weakening, or source workaround. The route contract
+remains real-valued; no complex or imaginary SI quantity applies.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
