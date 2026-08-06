@@ -275,10 +275,19 @@ closed through CFDRS-AEQ-MET-46: schematic geometry, volumes, analytical
 validation, fluid properties, blood/rheology, turbulence, cavitation, and
 transient contracts use Aequitas at their physical boundaries. The same scan
 found the Venturi metadata family still scalar at the `cfd-schematics`
-metadata/formula seam; `CFDRS-AEQ-MET-47` records the active typed closure and
-its real-valued Eunomia semantics. Remaining CFDrs direct numeric-provider or
-solver convergence items are separate Eunomia/provider or numerical issues,
-not missing Aequitas dimensions. Real
+metadata/formula seam. `CFDRS-AEQ-MET-47` is now closed in CFDrs commits
+`9dfd57c2`, `5aa2d9f1`, and audit closure `2d42412d`: geometry metadata,
+pressure-drop, cavitation-dose, and FDA compliance contracts use Aequitas
+quantities, with scalar extraction only at formula, mesh/interchange, and
+serialization boundaries. The source closure is covered by
+`cfd-schematics` Nextest 158/158, cfd-1d library Nextest 498/498, the
+blueprint metadata integration target 5/5, warning-denied cfd-schematics
+Clippy, and focused cfd-1d/cfd-2d/mesh checks. The cfd-schematics doctest gate
+ran 15/16 because Windows Defender quarantined an unrelated doctest
+executable; this is recorded as host verification debt in the child audit.
+Topology authoring inputs remain the next explicit CFDrs metric boundary.
+Remaining CFDrs direct numeric-provider or solver convergence items are
+separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
 their existing observable unit and do not create an imaginary SI quantity.
 
