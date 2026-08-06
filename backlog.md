@@ -7,6 +7,30 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-BOARD-HYGIENE-001 — Resolve duplicate item IDs in backlog.md [chore] — todo
+
+- Owner: unclaimed; scope: `backlog.md` only (plus `PATH_DEP_AUDIT_2_ENTRY.md`
+  if that filename's ID moves). Raised by `make board-lint` (2026-08-06),
+  which reports two item-ID collisions:
+  1. `ATLAS-BOOK-001` at line 3115 ("Author the 21 missing package books",
+     done 2026-08-04) vs line 6367 ("Domain books teach the field; evict
+     process content", todo). The line-6367 item is the live eviction item
+     cited by ~10 peer sub-slices; the line-3115 item is closed.
+  2. `ATLAS-PATH-DEP-AUDIT-2` at line 4182 ("Close 311 ryancinsight audit
+     hits", done) vs line 7558 ("Sweep git+https source URLs", todo). The
+     line-7558 item is the live audit whose ID is embedded in the
+     `PATH_DEP_AUDIT_2_ENTRY.md` filename.
+- Both collisions are pre-existing on origin/main (verified 14 and 8 ID
+  references respectively); neither was introduced by the current session.
+- Renumber rule (per ATLAS-HEPH-ADR-NUM-1): a rename is never just the file —
+  every inbound reference moves with it. The renumber is deliberately NOT
+  performed unilaterally here because it spans a tracked filename plus ~20
+  references across `backlog.md`, `gap_audit.md`, `checklist.md`, and
+  cross-repo `Cargo.toml` comments.
+- Acceptance: `make board-lint` exits 0; each ID is an anchor cited exactly
+  once; the `PATH_DEP_AUDIT_2_ENTRY.md` filename either moves with its ID or
+  is re-pointed by its owning item.
+
 ## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — todo
 
 - Owner: unclaimed; last-update: 2026-08-05 (gap-replenishment filing by
