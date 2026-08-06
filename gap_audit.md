@@ -1,5 +1,37 @@
 # atlas — cross-repository integration gap audit
 
+## Aequitas/Eunomia consumer audit — ATLAS-AEQ-MET-69 (closed 2026-08-06)
+
+This audit covers the requested Aequitas/Eunomia metric boundaries in CFDrs,
+Helios, and Kwavers.
+
+- **CFDrs**: the ChannelSpec hydraulic boundary is typed with Aequitas
+  resistance, quadratic resistance, volumetric flow, pressure, and valve
+  metadata. The implementation is merged upstream at CFDrs PR #325
+  (`50fa243b6c3e6d6563ab469f10059a6503fe40c0`); the stale audit residual was
+  corrected in PR #327, which is merged.
+- **Helios**: the current main head has no untyped physical metric gap in the
+  audited paths. Planning weights remain dimensionless by contract, while
+  Radon geometry, dose planning, scatter inputs, and provider integration are
+  already recorded as closed audit items. No public Helios contract requires
+  an imaginary or complex SI quantity.
+- **Kwavers**: B-mode scan-conversion geometry exposed angles and distances as
+  raw `f64` values. MET-69 adds Aequitas `Angle<f64>` and `Length<f64>` at the
+  public geometry boundary, validates finite/order/positivity constraints,
+  and extracts scalars only inside the coordinate formulas. The change merged
+  in Kwavers PR #352 at
+  `7346ae4f4d9f4a8836b765ff160c1c6697a3215d` after the repository-owned
+  validation matrix passed.
+- **Eunomia compatibility**: the current provider exposes native complex
+  scalars and `ComplexField` operations, and Kwavers CSR already consumes
+  `Complex64` through that provider contract. The audited physical geometry
+  metrics are real-valued SI quantities; no imaginary-unit dimension is
+  introduced or needed.
+
+The Atlas gitlink is advanced to the merged Kwavers head by this delivery.
+No additional missing metric or delivery gap was identified in the named
+consumers during this pass.
+
 ## Atlas conformance checkout — ATLAS-CI-SUBMODULE-01 (closed 2026-08-06)
 
 The debt-ratchet job initialized submodules recursively even though its
