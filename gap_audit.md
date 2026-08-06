@@ -482,6 +482,18 @@ skipped (`0b5162ea-10b3-4ca4-8443-2822f17c2b36`), cfd-schematic-mesh 29/29
 cfd-1d link warnings. This real geometry contract has no complex or
 imaginary SI quantity.
 
+The CFDrs closure is extended by implementation commit `2670b599` and claim
+`7e2de66f` for `CFDRS-AEQ-MET-61`: `TpmsFillSpec.period` and the
+`AdaptiveGradient` period endpoints now carry Eunomia `Length<f64>` values in
+base metres through schematic authoring, TPMS mesh construction, and rendering.
+`period_mm()` and `period_at_mm()` isolate scalar extraction at the existing
+millimetre formula boundaries. Affected all-target check and warning-denied
+Clippy pass; cfd-schematics Nextest passes 191/191
+(`2d46b8a3-990a-4caa-91e2-2e1051519d5c`), cfd-schematic-mesh passes 29/29
+(`f8a94bb6-b0bf-462f-a27b-3beb50211c81`), doctests pass 16/16, and Rustdoc
+completes. This real geometry contract has no complex or imaginary SI
+quantity.
+
 Kwavers' current Aequitas audit artifacts likewise close the focused-source,
 hemispherical, 2-D array, MEMS crosstalk, MEMS cell-output, acquisition, and
 thermal families. Flexible-array core ownership remains a separate audit item.
