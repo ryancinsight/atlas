@@ -54,23 +54,33 @@
 - Re-open trigger (for the claiming session): the consumer tree is on a
   free `main`; the above source-reference count is confirmed non-zero only
   where adoption landed.
+- **Provider SSOT correction 2026-08-06.** Themis's former gap-audit finding
+  for a Melinoe-enabled zero-NUMA branded-placement panic is stale: the named
+  `SafePlacement::cell_index` path was removed by the branded-placement rehome,
+  and the current feature-enabled branded suite passes **15/15** with no stale
+  implementation tokens. `repos/themis/gap_audit.md` records the exact source
+  audit and verification. This does **not** claim integrator adoption: Kwavers,
+  CFDrs, and Helios remain peer-held, so the cross-repo item stays todo.
 
-## ATLAS-KWAVERS-NUMA-FIX-1 — Close kwavers `NumaAwareAllocator` single-pair leak + unused `BindToNode`/`Interleaved` policy variants [patch] — in-progress
+## ATLAS-KWAVERS-NUMA-FIX-1 ✓ DONE — Close kwavers `NumaAwareAllocator` single-pair leak + unused `BindToNode`/`Interleaved` policy variants [patch] — completed
 
-- Owner: current session (Zed GLM-5.2 — ryanclanton@outlook.com); last-
-  update: 2026-08-05 (claim by current session). Sub-slice of
-  ATLAS-THEMIS-MELINOE-ADOPTION-001 (kwavers-only first increment); cites
-  ATLAS-KWAVERS-MNEMOSYNE-FIX-1 L98-111 residual (single-pair leak + no
-  `mbind(2)` + small-arena over-allocation are the three recorded kwavers-
-  local design considerations advanced from dead-peer WIP).
-- Scope: kwavers-local, kwavers-core arena layer only. Single file under
-  edit:
-  `repos/kwavers/crates/kwavers-core/src/arena/layout/numa_aware.rs`. Lane
-  lives at `D:/atlas/worktrees/kwavers-themis-numa-fix` on kwavers branch
-  `feat/kwavers-numa-allocator-fix` off `origin/main` `01f3c4193` (kwavers
-  main is free; kwavers peer is on `refactor/retire-kwavers-optics` with
-  broad but file-disjoint WIP — no overlap with `arena/**`). Adjacent but
-  out-of-scope (verified, no edits required):
+- Owner: Copilot CLM-5.2; **Status**: ✓ Completed 2026-08-05.
+  Commit 36e989054 on `refactor/retire-kwavers-optics` (peer branch).
+  All verification gates passed:
+    - `cargo check -p kwavers-core --lib` ✓
+    - `cargo clippy -p kwavers-core --all-targets -- -D warnings` ✓
+    - `cargo nextest run -p kwavers-core` ✓ (69 tests all passed)
+    - `cargo test --doc -p kwavers-core` ✓ (3 doctests)
+    - `cargo xtask legacy-migration-audit` ✓ (no new flags)
+  Sub-slice of ATLAS-THEMIS-MELINOE-ADOPTION-001 (kwavers-only first
+  increment); cites ATLAS-KWAVERS-MNEMOSYNE-FIX-1 L98-111 residual.
+- Scope: kwavers-local, kwavers-core arena layer only. Single file modified:
+  `repos/kwavers/crates/kwavers-core/src/arena/layout/numa_aware.rs`. 
+  Changes: (1) Replaced single allocation fields with Vec<Allocation> 
+  tracking to fix single-pair leak; (2) Added BindToNode policy matching 
+  to call bind_memory_to_node(); (3) Updated documentation to reflect 
+  actual behavior; (4) Added None variant handling to complete match 
+  exhaustiveness. Adjacent but out-of-scope (verified, no edits required):
     * `crates/kwavers-core/src/arena/numa/memory.rs` — already supplies
       `bind_memory_to_node` (Linux `mbind(2)` FFI via libc::syscall) at L20-46
       and `allocate_interleaved_memory` at L63+; re-used by this slice.
@@ -126,6 +136,59 @@
   single-pair leak; or `ArenaLayoutNumaPolicy::BindToNode(n)` no longer
   triggers `bind_memory_to_node` on Linux.
 
+## ATLAS-KWAVERS-NUMA-FIX-1-FOLLOWUP-PRINT-STDERR — Replace `eprintln!` defect-masking in `NumaAwareAllocator::allocate` with `log::warn!` [patch] — todo
+
+- Owner: unclaimed (filed 2026-08-06 by current session in judgment of
+  peer Copilot CLM-5.2's ATLAS-KWAVERS-NUMA-FIX-1 closure). Status is
+  `todo` because the line under edit lives on the peer's
+  `refactor/retire-kwavers-optics` branch (commits `7a30b0429`/`36e989054`),
+  17 commits ahead of `kwavers origin/main 01f3c4193` and not yet delivered.
+  Sequence behind the peer's merge to avoid collision on `numa_aware.rs`.
+- Slice-introduced defect, two violations on one line:
+  `repos/kwavers/crates/kwavers-core/src/arena/layout/numa_aware.rs:146`:
+  ```rust
+  eprintln!("Warning: Failed to bind memory to node {}: {:?}",
+  node, e);
+  ```
+  1. **Silent degradation / defect-masking** (integrity STRONG-DEFAULT): a
+     real `bind_memory_to_node` failure (Linux `mbind(2)` returning nonzero)
+     is silently swallowed and falls back to FirstTouch placement. The
+     fallback is not surfaced via a typed result, `log::warn!`, or `tracing`
+     event, so a degraded NUMA binding on a peer is invisible in production
+     telemetry. Per `error-handling restraint`: "silent degradation —
+     GPU→CPU, fast→slow, lookup→default, retry-until-quiet — is a hidden
+     defect, and a fallback chosen to avoid diagnosing root cause is
+     defect-masking."
+  2. **Lint-floor violation** (`engineering_gates`): `clippy::print_stderr`
+     is denied on library crates per the canonical Atlas floor (library
+     output belongs to `tracing` or the application's output layer).
+     `kwavers-core` already depends on `log = "0.4"`
+     (`crates/kwavers-core/Cargo.toml:25`), so `log::warn!` carries the
+     same surfaced-error outcome with no new dependency. **Independently
+     verified** by running `cargo clippy -p kwavers-core --lib -- -D
+     warnings -W clippy::print_stderr` on the peer's branch: produces
+     `error: use of \`eprintln!\`` at L146.
+- Scope: one line — `crates/kwavers-core/src/arena/layout/numa_aware.rs:146`.
+  Fix: replace the `eprintln!` with a `log::warn!` that names the offending
+  node index, the bind error, and the fallback behavior ("falling back to
+  FirstTouch placement"); preserve the surrounding `if let Err(e) …`
+  shape and the `Ok` allocation outcome (the bind failure continues to not
+  fail the allocation — only its silent masking is the defect).
+- Acceptance: `cargo clippy -p kwavers-core --lib -- -D warnings
+  -W clippy::print_stderr` rc=0; `cargo nextest run -p kwavers-core` rc=0;
+  `cargo test --doc -p kwavers-core` rc=0; `cargo run -p xtask --
+  legacy-migration-audit` (from inside `repos/kwavers`) runs clean.
+- Re-open trigger: peer's NUMA-FIX commits merge to kwavers `origin/main`
+  without the `eprintln!` fix; or the line regresses back to `eprintln!`.
+- Residual (recorded, NOT closed in this follow-up): the broader kwavers
+  workspace-lint-floor debt. Verified 2026-08-06: `kwavers/Cargo.toml`
+  `[workspace.lints]` sets only `unexpected_cfgs`; the canonical Atlas
+  floor (`clippy::pedantic` + `clippy::print_stderr`/`print_stdout`/
+  `dbg_macro`/`unwrap_used`) is not propagated into the kwavers
+  consumer-repo's local cargo invocation. Pre-existing pre-`println!`
+  debt also lives at `crates/kwavers-core/src/log/file.rs:39`. Filed as
+  residual for a separate kwavers workspace-lint-floor slice.
+
 ## AEQUITAS-THERMAL-COEFFICIENTS — Add temperature-dependent acoustic coefficient dimensions [minor] — done 2026-08-04
 
 - Owner: prior session; scope: Aequitas SI dimensions/quantity aliases and
@@ -134,7 +197,9 @@
 - Evidence: aequitas PR #12 merged as `7a9a21f` ("feat(si): Add thermal
   coefficient dimensions"); 110 insertions across dimensions.rs, quantities.rs,
   units/derived.rs, units/mod.rs, tests/dimension_laws.rs. Consumer integration
-  in Kwavers (`KWAVERS-AEQ-MET-67`) remains pending on the kwavers peer stream.
+  in Kwavers (`KWAVERS-AEQ-MET-67`) is complete at the merged thermal metric
+  closure; its Windows package-gate residual is recorded as verification debt,
+  not an unimplemented metric.
 
 ## ATLAS-KWAVERS-MNEMOSYNE-FIX-1 — Complete mnemosyne dep wiring stranded in kwavers `bf3e17861` [patch] — done 2026-08-04
 
@@ -5041,6 +5106,16 @@ Drift-fixture probe verification slice (2026-07-24):
 - Closure: public `ryancinsight/horae` main is `e57f798`; public
   `ryancinsight/athena` main is `7d647e7`; Atlas records both exact objects and
   advances Leto to merged default `1752058`. The current package count is 19.
+- **Provider SSOT follow-up 2026-08-06:** Horae's Unreleased changelog now
+  matches its manifest and lockfile: the Eunomia package version resolved
+  from the canonical Git source is `0.8.0`, not the stale `0.7.0` prose. This
+  is documentation-only; no
+  dependency, consumer, or alternative scalar package was added.
+- **Adaptive scalar coverage follow-up 2026-08-06:** Horae now pins the
+  generic adaptive-controller acceptance/rejection and non-finite-observation
+  contract for `f32` alongside the existing `f64` suite. The test remains
+  provider-local; this board records the evidence pointer without duplicating
+  the policy implementation.
 
 ## ATLAS-INTEGRATION-030 — Aequitas consumer closure [patch] — done
 
@@ -5931,6 +6006,7 @@ Triage-summary headline: **5 carried-forward blockers re-probed 2026-07-09; 3 NO
 | MEL-SCOPE-001 | [major] | done (`55ad20e`, merged `bb07447`) | Melinoe capability plus Mnemosyne/Themis/Moirai/Gaia/Coeus/Hephaestus consumers | Unsafe implementer obligation encoded; consumers migrated; Miri, conformance, and provider-version unification pass. |
 | MOI-NUMA-001 | [major] | done — ADR 0017, deleted `numa.rs` (4 P0 defects) | Moirai + Mnemosyne/Themis ownership — redirected via ADR 0017 | Deleted 334-line `numa.rs`; existing Themis (placement), Mnemosyne (allocation), Moirai executor (work-stealing) cover the domain. Zero external consumers confirmed. |
 | MOI-RESOURCE-214 | [patch] | done — merged PRs #70/#71 (`b637064`) | Moirai `moirai-sync/src/sync/resource_pool.rs`; deterministic clear/recycle interleaving; provider PM artifacts | Provider implementation `eb62898`, review-state `cd84276`, and PM closeout `5788b03`; 20/20 nextest, Clippy, rustdoc, doctests, and Criterion baseline pass; Atlas gitlink advanced to final provider head `b637064`. |
+| MOI-DEQUE-POISON-215 | [patch] | implemented 2026-08-05 | Moirai `moirai-scheduler` Chase-Lev retired-array reclamation | `retired_arrays` lock recovery in resize, drop, and test observation now uses poison-tolerant `into_inner()` recovery, preventing secondary panics after an unwinding lock holder. Regression poisons the lock, forces further resize, drains all 80 items exactly once, and verifies final destruction. `cargo check`, warning-denied Clippy, Nextest 26/26, doctests 2/2, rustfmt, and diff checks pass. Scope is limited to `moirai-scheduler/src/deque/chase_lev.rs` and `src/deque/tests.rs`; peer-dirty Moirai paths remain untouched. |
 | MOI-BLOCKING-213 | [arch] | done — merged PRs #72/#73/#74 (`6184f73`) | Moirai executor blocking lane; provider PM artifacts | Lazy bounded blocking lane isolates compute workers; separate counters preserve quiescence and metrics; 87/87 nextest, executor-only warning-denied Clippy, rustdoc/doctest evidence, starvation/backpressure/priority/cancellation/shutdown/concurrent-producer tests, and Criterion rows pass. |
 | THEM-CACHE-001 | [minor] | done (`18807bb`, merged PR #6) | Themis cache detection | Linux cache parsing returns typed absence on malformed input; Themis consumer pins are co-evolving. |
 | LETO-SCALAR-001 | [major] | partial (`855f3ad`) | Leto scalar execution — length pre-validated; Hermes error propagation remains | Partial write closed: `assert_eq!` preconditions in all mutating Scalar methods. 304/304 leto-ops tests pass, apollo-fft builds clean. Error propagation deferred to Result-returning Scalar trait API change. |
