@@ -369,6 +369,20 @@ with 3 skips, cfd-2d 571/571 with 27 skips, cfd-schematic-mesh 29/29,
 cfd-optim 137/137, cfd-validation cross-fidelity 26/26, and cfd-3d adversarial
 19/19. Affected-package doctests pass. The channel-length contract is
 real-valued; no complex or imaginary SI quantity applies.
+The source closure is extended by `698753f5` and `1d355afb` for
+`CFDRS-AEQ-MET-53`: `SerpentineSpec`, `ChannelShape::Serpentine`, and the
+public center-serpentine path specifications now carry Eunomia `Length<f64>`
+bend radii and segment lengths. Geometry, cfd-1d resistance, cfd-optim,
+rendering, and serialization consumers migrate without adapters; scalar
+extraction remains at path, resistance, rendering, optimization, and
+serialization formula boundaries. The JSON round-trip regression passes.
+Affected all-target checks pass for cfd-schematics, cfd-1d, cfd-2d, and
+cfd-optim; warning-denied Clippy passes for cfd-schematics, cfd-1d, and
+cfd-optim. Nextest passes cfd-schematics 186/186, cfd-1d 736/736 with 3
+skips, and cfd-optim 137/137. Affected doctests pass. The serpentine contract
+is real-valued; no complex or imaginary SI quantity applies. The broad
+cfd-validation runtime residual and pre-existing cfd-3d test-only lint debt
+remain separate.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
