@@ -1,5 +1,14 @@
 # atlas — cross-repository integration gap audit
 
+## Atlas conformance checkout — ATLAS-CI-SUBMODULE-01 (closed 2026-08-06)
+
+The debt-ratchet job initialized submodules recursively even though its
+conformance scan measures only registered top-level Atlas members. RITK
+contains an internal diffusion fixture gitlink without nested `.gitmodules`
+metadata, so the job failed during checkout before running the scan. The job
+now initializes direct Atlas submodules only; nested fixture repositories are
+outside the scan contract. No provider or consumer source was changed.
+
 ## CFDrs ChannelSpec hydraulic metrics — CFDRS-AEQ-MET-63 (closed 2026-08-06)
 
 CFDrs still exposed hydraulic resistance, quadratic loss, pump flow, pump
