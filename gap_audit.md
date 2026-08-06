@@ -390,13 +390,26 @@ peripheral recovery flow-fraction and hydraulic-diameter formulas, without
 adapters or duplicate scalar fields. The JSON round-trip regression preserves
 value semantics. Affected all-target checks and warning-denied Clippy pass for
 cfd-schematics and cfd-optim. Nextest passes cfd-schematics 187/187 and
-cfd-optim 137/137; Rustdoc builds for both packages. The current
-cfd-schematics doctest command exceeded its 240-second collection allowance
-without a test failure summary; the prior adjacent revision passed all 16
-cfd-schematics doctests, so the timeout remains a verification residual rather
-than a source or metric defect. The recovery geometry contract is real-valued;
-no complex or imaginary SI quantity applies. `BlueprintTopologySpec` envelope
-dimensions remain a separate audit boundary.
+cfd-optim 137/137; Rustdoc builds for both packages. Affected doctests pass
+cfd-schematics 16/16; the earlier collection timeout is superseded by the
+clean pass and is not a source or metric defect. The recovery geometry contract
+is real-valued; no complex or imaginary SI quantity applies.
+`BlueprintTopologySpec` envelope dimensions remain a separate audit boundary.
+The source closure is extended by `c6eff675` and `57c25409` for
+`CFDRS-AEQ-MET-55`: `BlueprintTopologySpec` plate dimensions, inlet and outlet
+widths, trunk length, and outlet-tail length now use Eunomia `Length<f64>` values
+in base metres. The old `box_dims_mm` field is replaced by `box_dims_m`, with
+`box_dims_mm()` as the explicit millimetre layout projection. Topology factory,
+geometry, mesh, reporting, optimization, and serialization consumers migrate
+without adapters; scalar extraction remains at their formula and layout
+boundaries. The JSON round-trip and millimetre projection regression pass.
+Affected all-target checks pass for cfd-schematics and cfd-optim; warning-denied
+Clippy passes for both; cfd-1d and cfd-2d all-target checks pass. Nextest passes
+cfd-schematics 188/188 and cfd-optim 137/137. Doctests pass cfd-schematics
+16/16 and cfd-optim 2/2 with 3 ignored; Rustdoc builds for both affected
+packages. The envelope contract is real-valued; no complex or imaginary SI
+quantity applies. Shared-stack unused-patch/config warnings remain environment
+warnings, not metric defects.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
