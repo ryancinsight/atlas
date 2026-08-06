@@ -9,6 +9,13 @@ metadata, so the job failed during checkout before running the scan. The job
 now initializes direct Atlas submodules only; nested fixture repositories are
 outside the scan contract. No provider or consumer source was changed.
 
+## CFDrs upstream integration — ATLAS-CFDRS-MERGE-01 (closed 2026-08-06)
+
+CFDrs PR #325 merged at `fa29c517` after its repository-owned verification
+passed. Atlas now advances the `repos/CFDrs` gitlink to that merged provider
+head, completing the upstream-to-consumer integration sweep for the typed
+hydraulic metrics.
+
 ## CFDrs ChannelSpec hydraulic metrics — CFDRS-AEQ-MET-63 (closed 2026-08-06)
 
 CFDrs still exposed hydraulic resistance, quadratic loss, pump flow, pump
