@@ -176,6 +176,42 @@ ATLAS-PUB-LOCK-1 throughout.
   (23 files), `mnemosyne` benchmark/heap edits, `asclepius` manifest —
   substantive multi-file in-flight peer branches.
 
+## Provider audit, fourth pass — stranded delivery + provider-identity resolution — 2026-08-06
+
+### melinoe — panic-recovery hardening landed (melinoe `d272934`, pushed)
+
+`sync::scoped::partition::driver_core` captured the first panic payload with
+`if let Ok(mut g) = payload.lock()`, so a poisoned payload mutex (a panic
+while the payload mutex was held) silently dropped the first captured panic
+payload. Both the task-wrapper reporting path and the executor teardown path
+now recover through `PoisonError::into_inner`, preserving the original panic
+cause. Regression poisons the mutex, reports a second panic, verifies the
+first payload remains recoverable. Verified: nextest 122/122, strict clippy,
+29/29 doctests.
+
+### helios — provider-identity bindings restored local resolution (helios `fc157df`, pushed to `codex/helios-radon-geometry-clean`)
+
+The helios workspace declared `moirai`, `mnemosyne-core`, and `themis` as
+bare pre-rename package names, so the Atlas overlay generator could not map
+them to the local provider trees (`moirai-runtime`, `mnemosyne-memory-core`,
+`themis-topology`) and helios resolved them against published/stale crates
+instead of local first-party providers — despite `helios-gpu` genuinely
+consuming themis (`MemoryTier`, `PlacementHint`). Added the `package =`
+identity to all three declarations (the peer's worktree had already fixed
+themis; this completes moirai and mnemosyne-core).
+
+Verified: `cargo tree` shows `themis-topology` and `mnemosyne-memory-core`
+resolving from `D:\atlas\repos\{themis,mnemosyne}`; helios-gpu and
+helios-simulation `cargo check` clean; overlay regenerate reports only the
+expected `helios-book-wf` worktree-lane skips.
+
+**Stack-wide overlay closure**: after the helios fix, the overlay probe finds
+zero unresolved first-party deps in any main tree — the only remaining
+unresolved declarations are in the `helios-book-wf` worktree lane, which
+resolves against the overlay and inherits the renames when rebased. This
+closes the provider-utilization gap that left helios consuming stale
+published themis/mnemosyne/moirai.
+
 ## Blocker clearance and metric audit closure — 2026-08-06
 
 ### RUSTSEC-2026-0235 cleared in Kwavers thermal delivery (ATLAS-AEQUITAS-CONSUMERS-006)
