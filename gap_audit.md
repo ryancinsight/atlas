@@ -282,9 +282,10 @@ quantities, with scalar extraction only at formula, mesh/interchange, and
 serialization boundaries. The source closure is covered by
 `cfd-schematics` Nextest 158/158, cfd-1d library Nextest 498/498, the
 blueprint metadata integration target 5/5, warning-denied cfd-schematics
-Clippy, and focused cfd-1d/cfd-2d/mesh checks. The cfd-schematics doctest gate
-ran 15/16 because Windows Defender quarantined an unrelated doctest
-executable; this is recorded as host verification debt in the child audit.
+Clippy, focused cfd-1d/cfd-2d/mesh checks, and the exact current-revision
+cfd-schematics doctest gate 16/16. An earlier doctest attempt was transiently
+quarantined by Windows Defender; the clean rerun passed without an exclusion,
+test weakening, or source workaround.
 Topology authoring inputs remain the next explicit CFDrs metric boundary.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
