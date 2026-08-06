@@ -494,6 +494,19 @@ Clippy pass; cfd-schematics Nextest passes 191/191
 completes. This real geometry contract has no complex or imaginary SI
 quantity.
 
+The CFDrs closure is extended by implementation commit `e1a03ae6` and claim
+`76e7672f` for `CFDRS-AEQ-MET-62`: `ShellCuboid.outer_dims`, `shell_thickness`,
+and derived `inner_dims` now carry Eunomia `Length<f64>` values in base metres
+through authoring, validation, and rendering. `outer_dims_mm()`,
+`inner_dims_mm()`, and `shell_thickness_mm()` isolate scalar extraction at
+schematic-coordinate and interchange boundaries, while
+`InterchangeShellCuboid` remains the explicit millimetre wire DTO. Affected
+all-target check and warning-denied Clippy pass; cfd-schematics Nextest passes
+191/191 (`25084464-8eb9-4daf-b141-bb1ff54c3c31`), cfd-schematic-mesh passes
+29/29 (`475a8f8b-a8dc-4c60-a360-d60297b3cba4`), doctests pass 16/16, and
+Rustdoc completes. The real shell geometry has no complex or imaginary SI
+quantity.
+
 Kwavers' current Aequitas audit artifacts likewise close the focused-source,
 hemispherical, 2-D array, MEMS crosstalk, MEMS cell-output, acquisition, and
 thermal families. Flexible-array core ownership remains a separate audit item.
