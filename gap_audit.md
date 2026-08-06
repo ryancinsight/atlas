@@ -115,6 +115,51 @@ clean.
   deliberate uncommitted ATLAS-MIGRATION-PATHDEP-001 migration.
 - `hyperion` chromophore, `horae` schedule, `harmonia` transfer, `coeus`
   error-variant work — substantive uncommitted changes, no clear owner.
+  **(Since landed — see the third-pass section below.)**
+
+## Provider audit, third pass — stranded-delivery reconciliation — 2026-08-06
+
+The same stranded pattern (backlog-documented or coherent work left
+uncommitted in a clean tree) recurred across more providers. All landed
+slices verified green (nextest + clippy `-D warnings` on the touched
+packages) at committed state; Cargo.lock overlay-strip noise excluded per
+ATLAS-PUB-LOCK-1 throughout.
+
+- **coeus `874b61e9` (pushed)** — `ModuleError` gains an `Interpolation`
+  variant mapping `coeus_ops::InterpolationError` transparently; the Python
+  error mapper routes it to `ValueError`; value-semantic test pins the
+  mapping. coeus-nn + coeus-python 393/393.
+- **hyperion `8dd3e8c` (pushed)** — `hemoglobin_absorption` validates both
+  molar concentrations through the shared `finite_non_negative` boundary
+  check (`ValueKind::ChromophoreConcentration`) before combining them;
+  rejects negative/non-finite input instead of propagating. Pins f32/f64
+  monomorphization at the extinction lookup; adds chromophore-spectra
+  contract doc + runnable spectrum example + README pointer. 22/22.
+- **horae `b6fa57f` (pushed)** — documents and pins `EventSchedule`
+  duplicate-skip and no-clip-without-crossing semantics with a value-semantic
+  test (duplicate skip, no-clip-without-crossing, empty schedule). 15/15.
+- **harmonia `a019f3c` (pushed)** — identity transfer validates scratch has
+  exactly the destination dimension, returning `TransferError::Dimension` on
+  mismatch instead of silently ignoring scratch; contract doc states the
+  invariant; test pins the rejection. 15/15.
+- **apollo `eb6073a1` (local on `deps/eunomia-0.8`, rides the peer branch to
+  main)** — three slices: CWT collects the row-major coefficient matrix via
+  `map_collect_index_with::<Adaptive>` into one flat buffer (removes the
+  per-scale `Vec<Vec<f64>>` intermediate, `checked_mul` overflow → 
+  `CoefficientShapeMismatch`); short-Winograd codelet dispatch replaces the
+  raw `as *mut [T; N]` cast with checked `try_into` (removes an unsafe cast
+  and its alignment assumption, monomorphization preserved, differential f32
+  test vs direct DFT); prime-pair table generation rejects zero size with a
+  `syn::Error` and builds cos/sin tables flat. 431/431.
+
+### Not claimed this pass (peer-in-flight)
+
+- `leto` sparse-LU edits — matches the claimed AMD-ordering item.
+- `consus`, `themis`, `ritk`, `CFDrs` manifest path-dep edits — the
+  deliberate uncommitted ATLAS-MIGRATION-PATHDEP-001 migration.
+- `hephaestus` decomposition QR work, `gaia` delaunay/geometry/mesh work
+  (23 files), `mnemosyne` benchmark/heap edits, `asclepius` manifest —
+  substantive multi-file in-flight peer branches.
 
 ## Blocker clearance and metric audit closure — 2026-08-06
 
