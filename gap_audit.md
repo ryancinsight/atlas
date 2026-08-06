@@ -47,11 +47,14 @@ reports "stack aligned" (the only unresolved entries are the
   allowlist clean).
 - CFDrs `xtask legacy-migration-audit`: clean.
 - ritk `xtask dependency-alignment`: passed.
-- `make board-lint`: reports two pre-existing duplicate item IDs
-  (`ATLAS-BOOK-001`, `ATLAS-PATH-DEP-AUDIT-2`) — filed as
-  `ATLAS-BOARD-HYGIENE-001` (committed `07605cd`); renumber deliberately
-  left unclaimed because it spans a tracked filename plus ~20 cross-repo
-  references.
+- `make board-lint`: the two pre-existing duplicate item IDs were resolved
+  under `ATLAS-BOARD-HYGIENE-001` (2026-08-06): the live book eviction is
+  `ATLAS-BOOK-002`, the live git+https path sweep is
+  `ATLAS-PATH-DEP-AUDIT-001`, and its ledger is
+  `PATH_DEP_AUDIT_001_ENTRY.md`; closed historical anchors remain unchanged.
+  The historical missing-package-books finding remains linked to
+  `ATLAS-BOOK-001`, while the historical 311-hit closure remains linked to
+  `ATLAS-PATH-DEP-AUDIT-2`.
 
 ## Aequitas/Eunomia consumer audit — ATLAS-AEQ-MET-69 (closed 2026-08-06)
 
@@ -91,6 +94,30 @@ and a queued-run cancellation before executing steps; no repository diagnostic
 was produced, and the Rust analysis plus debt-ratchet gates passed. The Atlas
 change itself is limited to audit documentation and the merged Kwavers gitlink;
 consumer source changes are carried by the merged child PRs above.
+
+### Follow-up open-PR reconciliation — 2026-08-06
+
+- **Helios H-101** remains an implementation-complete delivery residual in
+  [PR #34](https://github.com/ryancinsight/helios/pull/34): Compton photon-energy
+  APIs now carry Aequitas `Energy<T>` and extract MeV only at the Klein–Nishina
+  formula boundary. Rust and benchmark gates pass. The Python binding job
+  failed during runner setup before executing a workflow step and was rerun;
+  no source diagnostic exists. The contract is real-valued and requires no
+  imaginary or complex SI unit.
+- **Kwavers PRs #324 and #328** were stale branches, not remaining source
+  gaps. Their typed transducer, plasmonics, and therapeutic-microbubble
+  contracts are already represented on current `main` by later landed commits.
+  Both branches conflicted with current `main` and were closed as superseded
+  with replacement commit evidence; no compatibility path was retained.
+- **CFDrs** current `origin/main` retains the typed hydraulic and geometry
+  boundaries recorded above. Its remaining raw values are solver, layout,
+  serialization, or reporting boundaries, not missing physical contracts.
+
+This reconciliation leaves H-101's hosted Python setup rerun as the only open
+delivery watchpoint in the named Aequitas/Eunomia consumer scope. The source
+metric audit is otherwise closed; Eunomia complex values remain phasors or
+quadrature components under one observable physical unit, never an imaginary
+SI dimension.
 
 ## Atlas conformance checkout — ATLAS-CI-SUBMODULE-01 (closed 2026-08-06)
 
@@ -2163,7 +2190,7 @@ repository; diff the release workflows against each other. Decisions recorded in
 | 2 | Book publication logic is duplicated 4× | `book-pages.yml` in `CFDrs`, `helios`, `kwavers`, `ritk`; identical apart from the built output path. | ATLAS-PUB-002 |
 | 3 | `ritk`'s book was absent from the Atlas cross-book gate — **closed 2026-07-28** | `.github/workflows/docs.yml` covered CFDrs, helios, and kwavers only; it now runs the strict detector and `mdbook build` over all four books. The same change dropped the three per-book HTML artefact uploads, retaining only `detector.log` — a deliberate narrowing, since Pages is the delivery path and those artefacts were diagnostic. | ATLAS-PUB-002 (closed) |
 | 4 | No book runs `mdbook test` | None of the four `book-pages.yml` files invokes it; book code samples are unprotected against rot. Enabling it stack-wide in one change would fail every book whose samples are illustrative — staged per book instead. | ATLAS-PUB-005 |
-| 5 | 21 of 25 packages have no book | `book.toml` exists only under `repos/{CFDrs,helios,kwavers,ritk}/docs/book/`. Every foundation and compute provider is undocumented at the pedagogical layer. | ATLAS-BOOK-001 |
+| 5 | 21 of 25 packages have no book | `book.toml` exists only under `repos/{CFDrs,helios,kwavers,ritk}/docs/book/`. Every foundation and compute provider is undocumented at the pedagogical layer. | ATLAS-BOOK-002 |
 | 6 | An unused PyPI API token sits in the `pypi` environment | Both registries already authenticate by OIDC trusted publishing (`rust-lang/crates-io-auth-action`, `pypa/gh-action-pypi-publish` under `id-token: write`). No workflow reads a registry token. A long-lived credential that no pipeline uses is exposure without function. | ATLAS-PUB-003 |
 | 7 | Three Pages actions are tag-pinned, not digest-pinned | `configure-pages`, `upload-pages-artifact`, `deploy-pages` carry major-version tags in the new Atlas workflow, matching the four existing package copies. Digests were not resolvable when the workflow was authored, and an unresolved digest is fabricated evidence. | ATLAS-PUB-004 |
 
