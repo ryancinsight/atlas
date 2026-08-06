@@ -440,6 +440,17 @@ cfd-schematics doctest set is 15/16 because Defender quarantined the frustum
 doctest executable with Windows error 225. Rustdoc completes with pre-existing
 broken/private intra-doc-link warnings. The contract is real-valued; no
 complex or imaginary SI quantity applies.
+The source closure is extended by CFDrs implementation commit `951a82d1` and
+claim `970fee6b` for `CFDRS-AEQ-MET-58`:
+`BranchBoundarySpecification` now carries Eunomia `Pressure<f64>` and
+`VolumetricFlowRate<f64>` through serialized schematic metadata. cfd-1d
+network conversion and cfd-2d coupling extract base scalars only at their
+solver/formula boundaries. The JSON round-trip regression preserves typed
+values. Affected all-target checks and warning-denied Clippy pass for
+cfd-schematics, cfd-1d, and cfd-2d. Nextest passes cfd-schematics 191/191,
+cfd-1d 736/736 with 3 skipped, and cfd-2d 571/571 with 27 skipped. Doctests
+pass cfd-schematics 16/16, cfd-1d 8/8, and cfd-2d 1/1. The real boundary
+contract has no complex or imaginary SI quantity.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
