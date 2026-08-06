@@ -55,6 +55,67 @@ verified at committed state.
   discipline.
 - No defect identified in this pass; no change delivered.
 
+## Provider audit, stranded-delivery reconciliation, and build-cache unblock — 2026-08-06 (second pass)
+
+### Build environment: shared target cache exhausted the D: drive
+
+The shared `D:\atlas\target` had grown to ~2 TB with the `debug/incremental`
+cache at ~568 GB; `cargo clippy` on any member failed with
+`os error 112 (not enough space on disk)` at ~660 MB free. Cleaned the
+incremental cache (regenerable derived state only) to ~527 GB free. This
+unblocks every member build; the incremental cache rebuilds on next use.
+Not a code change; recorded so a future agent does not misdiagnose the
+failure as a manifest or toolchain defect.
+
+### mnemosyne — stranded ATLAS-MNEMOSYNE-CI-1 lint retirement landed (mnemosyne `9ce21d4`, pushed)
+
+The item's code-side evidence (site-local
+`#[allow(clippy::missing_const_for_thread_local)]` with removal trigger; the
+cfg(unix) madvise `needless_return`/`collapsible_if` cleanups) was committed
+at `820258c`, but the `ci.yml` portion removing the three `-A clippy::`
+flags never reached `origin/main` — the committed workflow still carried
+them. Verified the exact CI invocation locally (`cargo clippy --workspace
+--exclude mnemosyne-benchmarks --all-targets --target
+x86_64-unknown-linux-gnu -- -D warnings` exits 0 on 1.97.0; host target
+clean too; nextest 282/282; fmt clean), then landed `ci.yml` + `CHANGELOG.md`.
+The Cargo.lock overlay-strip noise was excluded per ATLAS-PUB-LOCK-1.
+
+### moirai — two stranded deliveries landed as separate commits (moirai `10913c3`, `25b005d`, pushed)
+
+- **`10913c3` fix(moirai-scheduler)**: retired-array reclamation in the
+  Chase-Lev deque used `.lock().unwrap()` / `.expect(...)`, so a panic while
+  holding the retired-array mutex poisoned it and every later resize, drop,
+  or test observation panicked. All three sites recover the poison via
+  `into_inner()`; a regression poisons the lock, forces a further resize,
+  drains all 80 items exactly once, and verifies final destruction
+  (MOI-DEQUE-POISON-215). moirai-scheduler 26/26, clippy clean.
+- **`25b005d` perf(moirai-core)**: `CollectiveOps` scatter/gather/all_to_all
+  converted from jagged `Vec<Vec<T>>` to a CSR-shaped `ChunkedVec<T>` (flat
+  buffer + chunk-offset table) — gather becomes an O(1) buffer hand-off,
+  traversal a single allocation. Criterion: gather ~10–13×, traverse ~1.6×,
+  scatter ~1.1–2.2×, all_to_all ~1.3–3.2×. Empty-input edge returns an empty
+  buffer instead of `chunks(0)` panic (ATLAS-ARCH-008 first conversion).
+  moirai-core 87/87, clippy clean.
+
+### iris — stranded zero-extent contract slice landed (iris `10da737`, pushed to `codex/iris-crates-release`)
+
+`ScalarFieldView::new`'s zero-extent behavior (shape containing `0` valid
+only with an empty `values` slice, storage pointer preserved, no sentinel
+allocation) was implemented but undocumented. Landed the doc clarification
+plus a value-semantic test asserting extents, storage pointer, and shape are
+preserved on the empty view. iris 15/15 (incl. the new regression), clippy
+clean.
+
+### Not claimed this pass (peer-in-flight or ambiguous ownership)
+
+- `leto` sparse-LU edits (`lu_{numeric,sparse,symbolic}.rs`, `mod.rs`,
+  `lib.rs`) — ahead 2 / behind 5 on main with staged work; matches the
+  claimed AMD-ordering item.
+- `consus`, `themis`, `ritk`, `CFDrs` manifest path-dep edits — the
+  deliberate uncommitted ATLAS-MIGRATION-PATHDEP-001 migration.
+- `hyperion` chromophore, `horae` schedule, `harmonia` transfer, `coeus`
+  error-variant work — substantive uncommitted changes, no clear owner.
+
 ## Blocker clearance and metric audit closure — 2026-08-06
 
 ### RUSTSEC-2026-0235 cleared in Kwavers thermal delivery (ATLAS-AEQUITAS-CONSUMERS-006)
@@ -113,7 +174,10 @@ metrics require `C/m³` and `J` contracts. Aequitas now owns distinct
 Kwavers MET-65 and MET-64 use them at the typed Rust boundaries. CFDrs remains
 closed through `CFDRS-AEQ-MET-46`; its open solver-runtime and provider-lock
 items are verification or dependency issues, not missing physical metric
-types.
+types. A fresh CFDrs scan then opened `CFDRS-AEQ-MET-47` for the residual
+Venturi metadata boundary: typed geometry, pressure-drop, cavitation-dose, and
+FDA compliance contracts are being migrated in the child repository while
+topology authoring inputs remain an explicit next boundary.
 Helios H-099 is closed at merged head `41f2c3b`, with final hosted run
 `31016097153` green at implementation head `5cbdfdb` and no complex-valued
 planning contract. Kwavers' current thermal and array metric families are
@@ -204,14 +268,17 @@ classifier reports 0 regressions and 0 replication-universe mismatches. The
 merged PR head is `41f2c3b`. The real planning law has no phasor boundary, so
 Eunomia requires no imaginary dose unit or complex physical wrapper.
 
-### CFDrs and Kwavers re-audit — no new typed-metric gap
+### CFDrs and Kwavers re-audit — Venturi metadata follow-up
 
 The 2026-08-05 read-only re-audit found the named CFDrs public metric families
 closed through CFDRS-AEQ-MET-46: schematic geometry, volumes, analytical
 validation, fluid properties, blood/rheology, turbulence, cavitation, and
-transient contracts use Aequitas at their physical boundaries. Remaining
-CFDrs direct numeric-provider or solver convergence items are separate
-Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
+transient contracts use Aequitas at their physical boundaries. The same scan
+found the Venturi metadata family still scalar at the `cfd-schematics`
+metadata/formula seam; `CFDRS-AEQ-MET-47` records the active typed closure and
+its real-valued Eunomia semantics. Remaining CFDrs direct numeric-provider or
+solver convergence items are separate Eunomia/provider or numerical issues,
+not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
 their existing observable unit and do not create an imaginary SI quantity.
 
