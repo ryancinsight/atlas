@@ -1,5 +1,58 @@
 # atlas — cross-repository integration gap audit
 
+## Stack-wide audit pass — 2026-08-06 (provider utilization, hierarchy, build health)
+
+### Overlay alignment fixed
+
+The root `.cargo/config.toml` was missing local patches for `consus-zarr`
+(consus) and `moirai-core`/`moirai-executor` (moirai). Regenerated via
+`scripts/atlas-stack-overlay.py generate` (42 patch sections); `check`
+reports "stack aligned" (the only unresolved entries are the
+`helios-book-wf` worktree lane, expected). Committed as
+`c787c2a` on `codex/atlas-aequitas-gap-audit`, pushed.
+
+### Provider utilization audit
+
+- **themis**: zero source refs in kwavers/CFDrs/ritk; real consumer is
+  `helios-gpu` (3 files: `attenuation.rs`, `projection.rs`,
+  `transmission.rs` using `PlacementHint::Tier(MemoryTier::Device)` for GPU
+  uploads). The `ATLAS-THEMIS-MELINOE-ADOPTION-001` cross-repo item stays
+  `todo` because all three integrators remain peer-held (kwavers
+  `refactor/retire-kwavers-optics`, CFDrs `deps/eunomia-0.8` [remote gone],
+  helios `codex/helios-radon-geometry-clean`, ritk
+  `ci/migrate-release-workflow-to-shared-caller`).
+- **melinoe**: zero source refs in the three integrators (feature plumbing
+  only via moirai). Provider itself is clean on main, 122/122 nextest,
+  strict clippy, and already carries the prior provenance + panic-recovery
+  fixes.
+- **lint floors**: athena and tyche are the model (`missing_docs = deny`,
+  `unsafe_code = forbid`, `pedantic = warn`, `unwrap_used = deny`,
+  `overflow-checks = true`). leto is the weakest (`warn(missing_docs)`
+  only) but its tree is peer-dirty (sparse-LU AMD work); hephaestus-core
+  has crate-root `forbid(unsafe_code)` + `deny(missing_docs)`. Lint-floor
+  promotion for leto/hephaestus is deferred until their trees return to
+  clean main.
+
+### Hierarchy audit
+
+- All junk-drawer `mod utils/helpers/common` production sites are in
+  kwavers (~28) and one in ritk (`ritk-segmentation/level_set`), both
+  peer-held — remediation blocked on the consumer side.
+- athena largest source file `bicgstab/algorithm.rs` at 542 lines (just
+  over the 500 target); domain-cohesion exception noted, not split.
+
+### Build/migration gates
+
+- kwavers `xtask legacy-migration-audit`: clean (0 legacy deps/tokens,
+  allowlist clean).
+- CFDrs `xtask legacy-migration-audit`: clean.
+- ritk `xtask dependency-alignment`: passed.
+- `make board-lint`: reports two pre-existing duplicate item IDs
+  (`ATLAS-BOOK-001`, `ATLAS-PATH-DEP-AUDIT-2`) — filed as
+  `ATLAS-BOARD-HYGIENE-001` (committed `07605cd`); renumber deliberately
+  left unclaimed because it spans a tracked filename plus ~20 cross-repo
+  references.
+
 ## Aequitas/Eunomia consumer audit — ATLAS-AEQ-MET-69 (closed 2026-08-06)
 
 This audit covers the requested Aequitas/Eunomia metric boundaries in CFDrs,
