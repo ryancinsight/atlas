@@ -92,18 +92,17 @@ delivery telemetry, not an implementation or metric-contract gap. The Atlas
 CodeQL Actions/Python jobs also encountered hosted action-resolution outages
 and a queued-run cancellation before executing steps; no repository diagnostic
 was produced, and the Rust analysis plus debt-ratchet gates passed. The Atlas
-change itself is limited to audit documentation and the merged Kwavers gitlink;
+change itself is limited to audit documentation and merged child gitlinks;
 consumer source changes are carried by the merged child PRs above.
 
 ### Follow-up open-PR reconciliation — 2026-08-06
 
-- **Helios H-101** remains an implementation-complete delivery residual in
-  [PR #34](https://github.com/ryancinsight/helios/pull/34): Compton photon-energy
-  APIs now carry Aequitas `Energy<T>` and extract MeV only at the Klein–Nishina
-  formula boundary. Rust and benchmark gates pass. The Python binding job
-  failed during runner setup before executing a workflow step and was rerun;
-  no source diagnostic exists. The contract is real-valued and requires no
-  imaginary or complex SI unit.
+- **Helios H-101** is closed in
+  [PR #34](https://github.com/ryancinsight/helios/pull/34), merged as
+  `1b41b36e6a896270b6f8362380e4f72dc6348e3b`. Compton photon-energy APIs now
+  carry Aequitas `Energy<T>` and extract MeV only at the Klein–Nishina formula
+  boundary. Rust, Python, and benchmark gates pass. The contract is
+  real-valued and requires no imaginary or complex SI unit.
 - **Kwavers PRs #324 and #328** were stale branches, not remaining source
   gaps. Their typed transducer, plasmonics, and therapeutic-microbubble
   contracts are already represented on current `main` by later landed commits.
@@ -113,11 +112,10 @@ consumer source changes are carried by the merged child PRs above.
   boundaries recorded above. Its remaining raw values are solver, layout,
   serialization, or reporting boundaries, not missing physical contracts.
 
-This reconciliation leaves H-101's hosted Python setup rerun as the only open
-delivery watchpoint in the named Aequitas/Eunomia consumer scope. The source
-metric audit is otherwise closed; Eunomia complex values remain phasors or
-quadrature components under one observable physical unit, never an imaginary
-SI dimension.
+This reconciliation closes the named Aequitas/Eunomia consumer delivery
+watchpoints. The source metric audit is closed; Eunomia complex values remain
+phasors or quadrature components under one observable physical unit, never an
+imaginary SI dimension.
 
 ## Atlas conformance checkout — ATLAS-CI-SUBMODULE-01 (closed 2026-08-06)
 
