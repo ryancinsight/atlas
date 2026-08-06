@@ -339,7 +339,22 @@ warning-denied all-targets Clippy for both crates, and cfd-schematics doctests
 16/16. cfd-optim doctests pass 2 with 3 ignored. An earlier doctest attempt
 was transiently quarantined by Windows Defender; the clean rerun passed
 without an exclusion, test weakening, or source workaround. The route contract
-remains real-valued; no complex or imaginary SI quantity applies.
+remains real-valued; no complex or imaginary SI quantity applies. The next
+source closure is `cea897b8` for `CFDRS-AEQ-MET-51`: `CrossSectionSpec`
+circular diameters and rectangular widths/heights now carry Eunomia
+`Length<f64>` values, with typed `Length` hydraulic-diameter/dimension queries
+and typed `Area` derivation. Direct cfd-schematics, cfd-1d, cfd-2d,
+cfd-schematic-mesh, cfd-optim, cfd-validation, and cfd-3d callers are migrated
+without adapters; scalar extraction remains at formula, mesh, reporting, and
+serialization edges. The JSON value round-trip regression and the focused
+cross-fidelity suites pass. The source closure passes focused package checks,
+warning-denied Clippy for the affected packages, 1,657/1,657 focused package
+tests plus configured skips, and cfd-schematics doctests 16/16. The focused
+cfd-validation cross-fidelity suite passes 26/26 and the cfd-3d adversarial
+suite passes 19/19. Full cfd-validation Nextest remains a runtime residual:
+the configured 300-second collection window expired without a test failure.
+The cross-section contract is real-valued; no complex or imaginary SI quantity
+applies.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
