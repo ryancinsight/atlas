@@ -410,6 +410,22 @@ cfd-schematics 188/188 and cfd-optim 137/137. Doctests pass cfd-schematics
 packages. The envelope contract is real-valued; no complex or imaginary SI
 quantity applies. Shared-stack unused-patch/config warnings remain environment
 warnings, not metric defects.
+The source closure is extended by `5a79dd9e` and `f9be9325` for
+`CFDRS-AEQ-MET-56`: `Milestone12PrimitiveSelectiveSpec` and nested stage branch
+geometry now use Eunomia `Length<f64>` values in base metres for plate
+dimensions, channel widths and heights, branch/outlet lengths, and venturi
+throat dimensions. Dimensionless split fractions and enum controls remain
+unchanged. Topology, geometry, mesh, and cfd-optim consumers migrate without
+adapters; scalar extraction remains at layout, validation, and geometry
+boundaries. The typed request propagation regression passes. Affected
+all-target checks pass for cfd-schematics, cfd-optim, cfd-schematic-mesh,
+cfd-1d, and cfd-2d; warning-denied Clippy passes for the three directly
+changed packages. Nextest passes cfd-schematics 189/189, cfd-optim 137/137,
+and cfd-schematic-mesh 29/29. Doctests pass cfd-schematics 16/16 and
+cfd-optim 2/2 with 3 ignored; Rustdoc builds all three directly changed
+packages. The request geometry is real-valued; no complex or imaginary SI
+quantity applies. The separate generic `PrimitiveSelectiveTreeRequest` and
+`SelectiveTreeRequest` contracts remain distinct audit boundaries.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
