@@ -383,6 +383,20 @@ skips, and cfd-optim 137/137. Affected doctests pass. The serpentine contract
 is real-valued; no complex or imaginary SI quantity applies. The broad
 cfd-validation runtime residual and pre-existing cfd-3d test-only lint debt
 remain separate.
+The source closure is extended by `c2837677` and `12d6001a` for
+`CFDRS-AEQ-MET-54`: `SubBranchSpec.width_m` and `SubBranchSpec.height_m` now
+use Eunomia `Length<f64>` values. cfd-optim extracts base scalars only at the
+peripheral recovery flow-fraction and hydraulic-diameter formulas, without
+adapters or duplicate scalar fields. The JSON round-trip regression preserves
+value semantics. Affected all-target checks and warning-denied Clippy pass for
+cfd-schematics and cfd-optim. Nextest passes cfd-schematics 187/187 and
+cfd-optim 137/137; Rustdoc builds for both packages. The current
+cfd-schematics doctest command exceeded its 240-second collection allowance
+without a test failure summary; the prior adjacent revision passed all 16
+cfd-schematics doctests, so the timeout remains a verification residual rather
+than a source or metric defect. The recovery geometry contract is real-valued;
+no complex or imaginary SI quantity applies. `BlueprintTopologySpec` envelope
+dimensions remain a separate audit boundary.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
