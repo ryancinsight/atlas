@@ -31,7 +31,8 @@ Helios, and Kwavers.
 
 The Atlas gitlink is advanced to the merged Kwavers head by this delivery.
 No additional missing metric or delivery gap was identified in the named
-consumers during this pass.
+consumers during this pass. The recurring RecurseML status is external
+delivery telemetry, not an implementation or metric-contract gap.
 
 ## Atlas conformance checkout — ATLAS-CI-SUBMODULE-01 (closed 2026-08-06)
 
