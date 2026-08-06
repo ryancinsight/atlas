@@ -123,6 +123,7 @@ consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
 consus-onnx = { path = "repos/consus/crates/consus-onnx" }
+consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/consus.git"]
 consus-compression = { path = "repos/consus/crates/consus-compression" }
@@ -131,6 +132,7 @@ consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
 consus-onnx = { path = "repos/consus/crates/consus-onnx" }
+consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
 eunomia = { path = "repos/eunomia/crates/eunomia" }
@@ -210,6 +212,8 @@ mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
 [patch."https://github.com/ryancinsight/Moirai"]
 moirai-async = { path = "repos/moirai/moirai-async" }
+moirai-core = { path = "repos/moirai/moirai-core" }
+moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
@@ -217,6 +221,8 @@ moirai-sync = { path = "repos/moirai/moirai-sync" }
 
 [patch."https://github.com/ryancinsight/Moirai.git"]
 moirai-async = { path = "repos/moirai/moirai-async" }
+moirai-core = { path = "repos/moirai/moirai-core" }
+moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
