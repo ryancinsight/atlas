@@ -35,7 +35,9 @@ consumers during this pass. The recurring RecurseML status is external
 delivery telemetry, not an implementation or metric-contract gap. The Atlas
 CodeQL Actions/Python jobs also encountered hosted action-resolution outages
 and a queued-run cancellation before executing steps; no repository diagnostic
-was produced, and the Rust analysis plus debt-ratchet gates passed.
+was produced, and the Rust analysis plus debt-ratchet gates passed. The Atlas
+change itself is limited to audit documentation and the merged Kwavers gitlink;
+consumer source changes are carried by the merged child PRs above.
 
 ## Atlas conformance checkout — ATLAS-CI-SUBMODULE-01 (closed 2026-08-06)
 
