@@ -355,6 +355,20 @@ suite passes 19/19. Full cfd-validation Nextest remains a runtime residual:
 the configured 300-second collection window expired without a test failure.
 The cross-section contract is real-valued; no complex or imaginary SI quantity
 applies.
+The source closure is extended by `4fdd5610` and `1bc67430` for
+`CFDRS-AEQ-MET-52`: `ChannelSpec::length_m`,
+`NetworkBlueprint::total_length_m`, and `NetworkBlueprint::length_in_zone` now
+use Eunomia `Length<f64>` values in base metres. Direct schematic, cfd-1d,
+cfd-2d, cfd-schematic-mesh, cfd-optim, cfd-validation, and cfd-3d callers are
+migrated without adapters; scalar extraction remains at validation, solver,
+mesh, formula, and reporting edges. The JSON value round-trip and aggregate
+length regression pass. Affected package checks and warning-denied Clippy pass
+for all affected packages, with the pre-existing 47 cfd-3d test-only all-target
+lints retained; focused Nextest passes cfd-schematics 185/185, cfd-1d 736/736
+with 3 skips, cfd-2d 571/571 with 27 skips, cfd-schematic-mesh 29/29,
+cfd-optim 137/137, cfd-validation cross-fidelity 26/26, and cfd-3d adversarial
+19/19. Affected-package doctests pass. The channel-length contract is
+real-valued; no complex or imaginary SI quantity applies.
 Remaining CFDrs direct numeric-provider or solver convergence items are
 separate Eunomia/provider or numerical issues, not missing Aequitas dimensions. Real
 CFD/FEM values stay Eunomia real values; Fourier/phasor intermediates retain
