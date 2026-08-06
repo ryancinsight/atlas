@@ -1,5 +1,20 @@
 # atlas — cross-repository integration gap audit
 
+## CFDrs ChannelSpec hydraulic metrics — CFDRS-AEQ-MET-63 (closed 2026-08-06)
+
+CFDrs still exposed hydraulic resistance, quadratic loss, pump flow, pump
+pressure, and valve `Cv` metadata as raw `f64` values at the
+schematic-to-solver boundary. The CFDrs implementation now carries those
+values as Aequitas `HydraulicResistance`, `QuadraticHydraulicResistance`,
+`VolumetricFlowRate`, and `Pressure` values. Valve authoring materializes the
+provider-compatible exact `1/Cv²` quadratic loss coefficient, and cfd-1d
+consumes that typed loss directly. Scalar extraction remains at solver,
+validation, and reporting formula boundaries. The combined cfd-schematics and
+cfd-1d Nextest run passes 930/930 with 3 skips
+(`de05acf2-aedc-4d80-ac95-2dba555b669f`); the affected all-target compile
+passes across cfd-1d, cfd-2d, cfd-3d, and cfd-validation. This real hydraulic
+contract has no complex or imaginary SI quantity.
+
 ## Provider engineering audit — 2026-08-06
 
 Focused audit pass over the clean, unclaimed provider repos (melinoe, tyche,
