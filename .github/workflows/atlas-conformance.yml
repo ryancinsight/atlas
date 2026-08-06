@@ -46,8 +46,12 @@ jobs:
           # members contain private fixture gitlinks without nested
           # .gitmodules metadata; recursive checkout would fail before the
           # scan can run. Direct members are sufficient for this job.
-          submodules: true
+          submodules: false
           lfs: false
+
+      - name: Initialize direct Atlas members
+        shell: bash
+        run: git -c protocol.version=2 submodule update --init --force --depth=1
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5
