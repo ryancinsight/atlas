@@ -466,6 +466,22 @@ emitted metadata. The cfd-schematics all-target check, warning-denied Clippy,
 and Rustdoc pass. This real geometry contract has no complex or imaginary SI
 quantity.
 
+The CFDrs closure is extended by implementation commit `d23c403f` and claim
+`e7ea7fc6` for `CFDRS-AEQ-MET-60`: `GeometryConfig.wall_clearance`,
+`channel_width`, and `channel_height` now carry Eunomia `Length<f64>` values in
+base metres through geometry generation, optimization, validation, and direct
+examples. Explicit `*_mm` projections isolate the existing millimetre
+layout/formula boundaries. Schematic coordinate/path and junction-angle
+metadata remain intentional visualization/serialization boundaries. Affected
+all-target checks and warning-denied Clippy pass; cfd-schematics Nextest passes
+191/191 (`67570438-1010-4d82-9776-8b78f1f0fb1b`), cfd-1d 736/736 with 3
+skipped (`0b5162ea-10b3-4ca4-8443-2822f17c2b36`), cfd-schematic-mesh 29/29
+(`3fac81b0-e2f4-403b-833b-ce035adbae2f`), and focused validation 1/1
+(`fd6b8f06-7857-47e0-833f-91185ab4b7a0`). Doctests pass cfd-schematics
+16/16 and cfd-1d 8/8 with 3 ignored; Rustdoc completes with the existing
+cfd-1d link warnings. This real geometry contract has no complex or
+imaginary SI quantity.
+
 Kwavers' current Aequitas audit artifacts likewise close the focused-source,
 hemispherical, 2-D array, MEMS crosstalk, MEMS cell-output, acquisition, and
 thermal families. Flexible-array core ownership remains a separate audit item.
