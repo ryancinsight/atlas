@@ -8010,6 +8010,18 @@ Closure requires ALL of the following landed in future slices:
 
 ## ATLAS-VERSION-GUARD-001 — Manifest-version guard and stack coherence check [patch] — in-progress (sub-delivery 1 done)
 
+- **Sub-delivery 3 (coherence) peer-held 2026-08-07.** A live peer is
+  building the offline stack-coherence scan in the same tool: new
+  `tools/version-guard/src/coherence.rs` (`CoherenceFinding`,
+  `CoherenceReport`, `scan_atlas` reading `.gitmodules` + checked-in
+  manifests, no Cargo/registry), wired into `lib.rs`/`main.rs`/`error.rs`
+  as a `coherence --atlas-root` subcommand. Working-tree changes only,
+  uncommitted as of this record; the tree compiles and 52 tests pass
+  (including `coherence::tests::injected_backward_fixture_is_reported`).
+  Builds on the committed `a92a3c6` base. **Do not touch**
+  `tools/version-guard/src/coherence.rs` or the other version-guard files
+  while the peer is mid-edit; claim the sub-delivery-3 closure only after
+  the peer commits or the edit goes stale.
 - **Fail-closed intent validation committed 2026-08-07** as `a92a3c6`
   (`fix(version-guard): Fail closed on declared release with no forward
   movement`). The slice was previously recorded delivered but sat stranded
