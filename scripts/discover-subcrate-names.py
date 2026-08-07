@@ -1,7 +1,7 @@
 """Discover exact [package] name for every atlas subcrate.
 
 Outputs path -> name mapping for all sub-crates under each atlas workspace.
-Used to build correct [patch.Y.git] blocks for ATLAS-PATH-DEP-AUDIT-2 closure.
+Used to build correct [patch.Y.git] blocks for ATLAS-PATH-DEP-AUDIT-001 closure.
 """
 import os
 import re
