@@ -6714,12 +6714,20 @@ performed against each repo's `origin/main` HEAD.
 - Refs: backlog.md#CFDRS-PERF-SLOW-001 (Session 13 upstream-cause filing),
   backlog.md#ATLAS-LETO-OPS-SPARSE-LU-001 (this item), ATLAS-LETO-OPS-AMD-ORDERING-001 [patch] (new follow-up below).
 
-## ATLAS-LETO-OPS-AMD-ORDERING-001 — Implement AMD fill-reducing ordering for sparse LU [patch] — in-progress (claimed 2026-08-04 Session 32)
+## ATLAS-LETO-OPS-AMD-ORDERING-001 — Implement AMD fill-reducing ordering for sparse LU [patch] — done 2026-08-07
 
 Filed as follow-up per ADR 0031 Consequences (closed at Session 17). The
 [arch] Option A shipped natural column ordering for v0.40.0; AMD is the
 deferred performance increment.
 
+- **Closed 2026-08-07.** The strand was reclaimed by the current session:
+  commit `db9a63c` (`feat(leto-ops): Complete AMD fill-reducing ordering for
+  sparse LU`) sat pushed-but-unmerged on `codex/leto-sparse-lu-amd` while the
+  board still claimed the item in-progress since 2026-08-04. Verified at
+  merge time on a clean origin/main base: workspace `cargo check
+  --all-targets` rc=0, leto-ops nextest 516/516, doctests 20/20. Fast-
+  forwarded leto `main` to `db9a63c` and pushed (`912b991..db9a63c`). The
+  atlas gitlink already pinned `db9a63c`, so no parent advance was needed.
 - Owner: self (claimed 2026-08-04 against `repos/leto` gitlink `d1c3a1c`
   on origin/main; peer overlay dirt on `Cargo.lock`/`Cargo.toml` is
   excluded from this increment's staging).
@@ -8063,10 +8071,31 @@ Closure requires ALL of the following landed in future slices:
 - Sub-delivery 2 — CI wiring per member repo: **todo**. Wire the guard
   into each allowlisted member's CI as a step on PRs/pushes touching its
   `*.toml`; the guard runs once per repo against its own range.
-- Sub-delivery 3 — stack coherence check tool: **todo**. A meta-level sweep
-  (sibling to `gitlink-coherence` in `tools/`) verifying every first-party
-  requirement across allowlisted members resolves against the stack's
-  current workspace versions; run on any version-touching commit.
+- **Sub-delivery 3 — stack coherence check tool delivered 2026-08-07** in
+  the root working tree (`tools/version-guard/src/coherence.rs`, with the
+  `coherence --atlas-root <path> [--format human|json]` CLI subcommand).
+  The scanner is offline and read-only: `.gitmodules` is the allowlist, and
+  checked-in Cargo manifests are the package/version SSOT. It walks 235
+  manifests, resolves `version.workspace = true`, dotted/workspace dependency
+  inheritance, package aliases, multiline inline tables, and Cargo-style
+  caret/tilde/comparator/wildcard requirements. It checks only path/git
+  sources resolving to registered Atlas members, rejects missing member
+  manifests, ambiguous package versions, unsupported prerelease/hyphen ranges,
+  and malformed version components rather than reporting a false clean.
+  Human and JSON reports share the same defect predicate; missing
+  `--atlas-root` is an invocation error (exit 2).
+- Sub-delivery 3 acceptance evidence: current Atlas scan is clean at
+  **235 manifests / 215 packages / 898 first-party requirements / 0 defects**
+  (human and JSON modes, exit 0); an injected backward-version fixture is
+  detected; the missing-root CLI case exits 2. `cargo fmt --check`, strict
+  `cargo clippy --all-targets --offline -- -D warnings`, `cargo nextest run`
+  (59/59), `cargo test --doc --offline`, and `git diff --check` pass with
+  ambient `RUSTC`/`RUSTDOC` overrides removed. Resolver-generated
+  `Cargo.lock` patch churn was discarded; no lockfile or provider tree is
+  part of this root tooling slice.
+- Sub-delivery 2 — CI wiring per member repo: **todo**. Wire the guard
+  into each allowlisted member's CI as a step on PRs/pushes touching its
+  `*.toml`; the guard runs once per repo against its own range.
 
 Toolchain-template drift corrected 2026-08-03 (Session 33 closure): the
 peer's `1.95.0 -> 1.97.0` pin advance (ATLAS-TOOLCHAIN-COHERENCE-001
