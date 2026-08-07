@@ -10868,6 +10868,10 @@ attaches once the tensor fit lands.
   coarsening now uses deterministic NaN-safe ordering, with a value-semantic
   regression test. cfd-math Nextest passes 198/198; focused cfd-math library
   Clippy residue decreases from 51 to 48 diagnostics.
+- Follow-up CFDrs commit `f31176b1` is pushed: multigrid hierarchy and
+  interpolation state use invariant-checked expectations, while JFNK and
+  spectral kernels centralize C-contiguous storage assumptions. cfd-math
+  Nextest remains 198/198; focused library Clippy residue is 22 diagnostics.
 
 ## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
 
