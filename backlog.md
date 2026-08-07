@@ -170,6 +170,12 @@
   extraction on transformed point carriers. Focused `ritk-transform` example
   check/clippy, `nextest -p ritk-transform`, and `xtask dependency-alignment`
   pass.
+- **Helios examples sub-slice 2026-08-07 (this session):** added
+  `crates/helios-gpu/examples/book_gpu_placement_hint.rs` on
+  `codex/helios-radon-geometry-clean` (`3a11e56`) so Themis-backed GPU
+  placement is represented in the `book_*.rs` stream through the stable
+  `helios-gpu` API surface. Focused helios-gpu examples check/clippy,
+  `nextest -p helios-gpu` (10/10), and `xtask legacy-migration-audit` pass.
 - Re-open trigger (for the claiming session): the consumer tree is on a
   free `main`; the above source-reference count is confirmed non-zero only
   where adoption landed.

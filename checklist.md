@@ -43,6 +43,9 @@ stranded tool changes.
       `crates/ritk-transform/examples/book_affine_transform.rs` and
       synchronized `backlog.md` / `checklist.md` / `gap_audit.md`
       at `86e7eea7`.
+- [x] Helios examples-only slice delivered: added
+      `crates/helios-gpu/examples/book_gpu_placement_hint.rs` and synchronized
+      Helios `backlog.md` / `CHECKLIST.md` at `3a11e56`.
 - [ ] Close kwavers source-seam adoption and re-run the cross-repo closure pass
       for this axis.
 

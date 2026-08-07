@@ -55,7 +55,9 @@ reports "stack aligned" (the only unresolved entries are the
   `cfd-core/examples/book_compute_placement.rs` (`74159afa`) for the same
   `book_*.rs` continuity requirement. RITK now carries
   `ritk-transform/examples/book_affine_transform.rs` (`86e7eea7`) for
-  Coeus-backed transform-seam example continuity.
+  Coeus-backed transform-seam example continuity. Helios now carries
+  `helios-gpu/examples/book_gpu_placement_hint.rs` (`3a11e56`) for
+  placement-seam example continuity.
 - **melinoe**: zero source refs in the three integrators (feature plumbing
   only via moirai). Provider itself is clean on main, 122/122 nextest,
   strict clippy, and already carries the prior provenance + panic-recovery
