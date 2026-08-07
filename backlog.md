@@ -10820,6 +10820,14 @@ attaches once the tensor fit lands.
   `gap_audit.md` entries for CFDrs lint-floor closure; CFDrs-level
   per-crate `#![deny(missing_docs)]` promotion is deferred to a later
   per-crate slice (each crate's surface decides its own missing-docs tier).
+- Current CFDrs increment: commit `cd9580fc` on pushed branch
+  `feat/cfdrs-lint-floor` wires every workspace package and `xtask` to the
+  floor, removes the cfd-core plugin resolver unwrap, and records the local
+  PM state. Evidence: focused `xtask` and cfd-core library Clippy pass;
+  cfd-core Nextest 246/246; cfd-core doctests 3/3; explicit migration audit
+  reports zero legacy dependencies, zero legacy source tokens, and a clean
+  allowlist. Full workspace acceptance remains open on the recorded
+  cfd-math, cfd-schematics, cfd-core test/bench, and format debt.
 
 ## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
 
