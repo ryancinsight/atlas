@@ -10913,6 +10913,18 @@ attaches once the tensor fit lands.
   the slice now closes that residual. cfd-schematics distinct missing_docs
   sites in `analysis_impl.rs` fall from 14 to 0; crate-wide distinct
   sites fall from 468 to 454.
+- Follow-up CFDrs commit `357debf3` is pushed: the `NetworkBlueprint`
+  metadata impl (`crates/cfd-schematics/src/domain/model/blueprint/metadata_impl.rs`)
+  now carries inline Rustdoc for its 19 undocumented pub methods/associated
+  functions covering the deprecated default constructor, the
+  explicit-position constructor, render-hint and metadata builders/accessors,
+  topology and lineage attachments, JSON (de)serialization, and
+  node/channel addition methods. cfd-schematics library Nextest remains
+  164/164 and doctests 16/16. File-disjoint sibling of the just-merged
+  analysis_impl.rs closure in the same `domain/model/blueprint/` subtree,
+  owned by this session; no peer commits touched this file.
+  cfd-schematics distinct missing_docs sites in `metadata_impl.rs` fall
+  from 19 to 0; crate-wide distinct sites fall from 454 to 435.
 
 ## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
 
