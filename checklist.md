@@ -42,6 +42,9 @@ stranded tool changes.
 - [x] CFDrs examples-only slice delivered: added
       `crates/cfd-3d/examples/book_spectral_poisson_3d.rs` and synchronized
       `docs/{backlog,checklist,gap_audit}.md` at `8bbd92b7`.
+- [x] CFDrs examples-only slice delivered: added
+      `crates/cfd-2d/examples/book_venturi_flow_2d.rs` and synchronized
+      `docs/{backlog,checklist,gap_audit}.md` at `4c14c988`.
 - [x] RITK examples-only slice delivered: added
       `crates/ritk-transform/examples/book_affine_transform.rs` and
       synchronized `backlog.md` / `checklist.md` / `gap_audit.md`

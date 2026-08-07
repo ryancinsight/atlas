@@ -173,6 +173,13 @@
   the compute-placement stream. The example builds a compact spectral Poisson
   setup using existing APIs; focused `cfd-3d` example check/clippy, full
   `nextest -p cfd-3d` (399/399), and `xtask legacy-migration-audit` all pass.
+- **CFDrs examples sub-slice 2026-08-07 (this session):** added
+  `crates/cfd-2d/examples/book_venturi_flow_2d.rs` on CFDrs `main`
+  (`4c14c988`) so the 2D Venturi workflow is represented in the `book_*.rs`
+  stream. The example keeps the existing solver APIs and outputs under the
+  crate-local `outputs/` path; focused `cfd-2d` example check/clippy, full
+  `nextest -p cfd-2d` (571/571, 27 skipped), and
+  `xtask legacy-migration-audit` all pass.
 - **RITK examples sub-slice 2026-08-07 (this session):** added
   `crates/ritk-transform/examples/book_affine_transform.rs` on
   `ci/migrate-release-workflow-to-shared-caller` (`86e7eea7`) to keep the
