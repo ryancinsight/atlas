@@ -10880,6 +10880,10 @@ attaches once the tensor fit lands.
   `cfd-schematics::topology::model` contract now documents its types, fields,
   variants, aliases, and lookup methods. cfd-schematics library Nextest passes
   164/164 and doctests 16/16; package Clippy residue decreases 712 to 611.
+- Follow-up CFDrs commits `ddc04a32` and `8584dd26` are pushed: configuration
+  constants, public config manifests, and the route-spec contract now carry
+  API documentation. cfd-schematics library Nextest remains 164/164 and
+  doctests 16/16; package Clippy residue decreases 611 to 534.
 
 ## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
 
