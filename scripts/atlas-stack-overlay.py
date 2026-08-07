@@ -32,9 +32,11 @@ import sys
 import tomllib
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atlas_stack import registered_member_names  # noqa: E402
+
 ATLAS_ROOT = Path(__file__).resolve().parent.parent
 REPOS = ATLAS_ROOT / "repos"
-WORKTREES = ATLAS_ROOT / "worktrees"
 CONFIG = ATLAS_ROOT / ".cargo" / "config.toml"
 
 BEGIN = "# >>> atlas stack development overlay (generated) >>>"
@@ -65,12 +67,27 @@ HEADER = f"""{BEGIN}
 """
 
 
-def _skip(path: Path, *, include_worktrees: bool = False) -> bool:
+def _skip(path: Path) -> bool:
     parts = {p.lower() for p in path.parts}
-    excluded = {"target", ".git", "node_modules"}
-    if not include_worktrees:
-        excluded.add("worktrees")
-    return bool(parts & excluded)
+    return bool(parts & {"target", ".git", "node_modules"})
+
+
+def repo_manifests() -> list[Path]:
+    """Return manifests from the authoritative registered-repo namespace only.
+
+    ``worktrees/`` and other lane copies are intentionally excluded: the root
+    overlay is a development view of the canonical ``repos/`` checkouts, not a
+    package resolver for alternate working copies.
+    """
+    manifests: set[Path] = set()
+    for member in registered_member_names():
+        root = REPOS / member
+        if not root.is_dir():
+            continue
+        manifests.update(
+            manifest for manifest in root.glob("**/Cargo.toml") if not _skip(manifest)
+        )
+    return sorted(manifests)
 
 
 def load_packages() -> dict[str, tuple[Path, str | None]]:
@@ -78,17 +95,7 @@ def load_packages() -> dict[str, tuple[Path, str | None]]:
     packages: dict[str, tuple[Path, str | None]] = {}
     workspace_versions: dict[Path, str] = {}
 
-    manifests = [m for m in REPOS.glob("*/**/Cargo.toml") if not _skip(m)]
-    manifests += [m for m in REPOS.glob("*/Cargo.toml") if not _skip(m)]
-    if WORKTREES.exists():
-        manifests += [
-            m for m in WORKTREES.glob("*/**/Cargo.toml")
-            if not _skip(m, include_worktrees=True)
-        ]
-        manifests += [
-            m for m in WORKTREES.glob("*/Cargo.toml")
-            if not _skip(m, include_worktrees=True)
-        ]
+    manifests = repo_manifests()
 
     for manifest in sorted(set(manifests)):
         try:
@@ -111,27 +118,11 @@ def load_packages() -> dict[str, tuple[Path, str | None]]:
         if isinstance(version, dict) and version.get("workspace"):
             version = None
             for root, ver in workspace_versions.items():
-                if root in manifest.parents:
+                if root == manifest.parent or root in manifest.parents:
                     version = ver
         if not isinstance(version, str):
             version = None
         rel = manifest.parent.relative_to(ATLAS_ROOT)
-
-        # `repos/` is authoritative; a lane never becomes an overlay target.
-        # The overlay must point at the canonical main trees, so when the same
-        # package name appears under both, `repos/` wins regardless of iteration
-        # order. Letting a worktree win points the overlay at `worktrees/<repo>`
-        # while member manifests resolve siblings under `repos/<repo>`, and Cargo
-        # then refuses the build entirely:
-        #
-        #   error: package collision in the lockfile: packages aequitas v0.1.0
-        #   (repos/aequitas) and aequitas v0.1.0 (worktrees/aequitas) are
-        #   different, but only one can be written to lockfile unambiguously
-        #
-        # which presents as dependency breakage rather than an overlay defect.
-        previous = packages.get(pkg["name"])
-        if previous is not None and previous[0].parts[0] == "repos" and rel.parts[0] != "repos":
-            continue
 
         packages[pkg["name"]] = (rel, version)
     return packages
@@ -162,17 +153,7 @@ def collect_first_party_deps() -> list[tuple[str, str, str | None, Path]]:
     Returns (package name, git url, version requirement or None, manifest).
     """
     found: list[tuple[str, str, str | None, Path]] = []
-    manifests = [m for m in REPOS.glob("*/**/Cargo.toml") if not _skip(m)]
-    manifests += [m for m in REPOS.glob("*/Cargo.toml") if not _skip(m)]
-    if WORKTREES.exists():
-        manifests += [
-            m for m in WORKTREES.glob("*/**/Cargo.toml")
-            if not _skip(m, include_worktrees=True)
-        ]
-        manifests += [
-            m for m in WORKTREES.glob("*/Cargo.toml")
-            if not _skip(m, include_worktrees=True)
-        ]
+    manifests = repo_manifests()
 
     for manifest in sorted(set(manifests)):
         try:

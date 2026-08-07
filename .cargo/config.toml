@@ -75,12 +75,10 @@ aequitas = { path = "repos/aequitas" }
 [patch."https://github.com/ryancinsight/apollo"]
 apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
 apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
-apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
 
 [patch."https://github.com/ryancinsight/apollo.git"]
 apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
 apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
-apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
 
 [patch."https://github.com/ryancinsight/asclepius"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
@@ -101,7 +99,6 @@ athena-leto = { path = "repos/athena/crates/athena-leto" }
 [patch."https://github.com/ryancinsight/Coeus"]
 coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
 coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-leto = { path = "repos/coeus/crates/coeus-leto" }
 coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
 coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
 coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
@@ -110,7 +107,6 @@ coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
 [patch."https://github.com/ryancinsight/Coeus.git"]
 coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
 coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-leto = { path = "repos/coeus/crates/coeus-leto" }
 coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
 coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
 coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
@@ -122,7 +118,6 @@ consus-core = { path = "repos/consus/crates/consus-core" }
 consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
-consus-onnx = { path = "repos/consus/crates/consus-onnx" }
 consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/consus.git"]
@@ -131,7 +126,6 @@ consus-core = { path = "repos/consus/crates/consus-core" }
 consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
 consus-io = { path = "repos/consus/crates/consus-io" }
 consus-npy = { path = "repos/consus/crates/consus-npy" }
-consus-onnx = { path = "repos/consus/crates/consus-onnx" }
 consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
