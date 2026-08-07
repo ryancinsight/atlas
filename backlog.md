@@ -2224,6 +2224,23 @@
   targeted diff and nested-vector residue checks are clean. The ARCH-008 oracle
   remains deferred exactly as recorded above because its classifier/oracle files
   are owned untracked artifacts in the concurrent root stream.
+- **Site investigated and recorded correct-as-jagged 2026-08-07 — CFDrs
+  spectral-element global assembly.** Converted
+  `repos/CFDrs/crates/cfd-math/src/high_order/spectral/assembly.rs`
+  (`GlobalAssembly.element_dofs` + `SpectralMesh.element_connectivity`,
+  oracle sites `assembly.rs:14,25,140`) to CSR-shaped flat offset+index
+  storage with the input shape preserved, then measured it. The criterion
+  comparison (DOF-traversal read, 2 000×8 / 2 000×32 / 500×128 elements×DOFs)
+  showed the flat buffer is consistently **~1.2–1.6× slower** than the jagged
+  rows for the isolated read (CSR 3.5/7.2/6.2 µs vs jagged 2.1/6.0/5.5 µs):
+  the fixed-size spectral rows are small and cache-resident either way, and
+  the flat slice window pays two bounds checks the direct `Vec` row does not.
+  The whole-`add_element_matrix` variant was dominated by unbounded COO
+  accumulation (bench-design noise), not DOF access. The conversion was
+  **reverted** and the site is recorded as correct-as-jagged: no traversal
+  hotness, no criterion win — converting it would trade memory for a
+  measurable slowdown. No oracle change needed (the sites remain live
+  `Vec<Vec<` occurrences, correctly classified as production).
 
 ## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
 
