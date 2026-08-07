@@ -10897,6 +10897,11 @@ attaches once the tensor fit lands.
   remains 164/164 and doctests 16/16; this slice reduces its package Clippy
   residual from 508 to 506. The working tree reports 492 with peer-owned
   `analysis_impl.rs` documentation changes also present and uncommitted.
+- Follow-up CFDrs commit `f27f86dd` is pushed: selective-tree path, topology,
+  request, and generator contracts now carry API documentation. cfd-schematics
+  library Nextest remains 164/164 and doctests 16/16; this slice reduces the
+  package Clippy residual from 506 to 468. The working tree reports 454 with
+  the peer-owned `analysis_impl.rs` documentation changes still uncommitted.
 
 ## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
 
