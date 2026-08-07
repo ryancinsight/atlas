@@ -199,3 +199,41 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
         fetch,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn ambiguous_target_repo_is_reported_as_a_unique_selection_error() {
+        let root =
+            std::env::temp_dir().join(format!("gitlink-coherence-cli-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        fs::write(
+            root.join(".gitmodules"),
+            "[submodule \"repos/left/coeus\"]\n    path = repos/left/coeus\n    url = https://example/left\n\n[submodule \"repos/right/coeus\"]\n    path = repos/right/coeus\n    url = https://example/right\n",
+        )
+        .unwrap();
+
+        let result = run([
+            OsString::from("audit"),
+            OsString::from("--atlas-root"),
+            root.as_os_str().to_os_string(),
+            OsString::from("--target-repo"),
+            OsString::from("coeus"),
+        ]
+        .into_iter());
+
+        let error = result.expect_err("ambiguous target must fail closed");
+        assert!(matches!(&error, Error::UnknownTargetRepo(name) if name == "coeus"));
+        assert!(
+            error.to_string().contains("no unique"),
+            "diagnostic was: {error}"
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+}

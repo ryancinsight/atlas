@@ -35,7 +35,8 @@ pub enum Error {
         /// Captured stderr, if any.
         stderr: String,
     },
-    /// The supplied `--target-repo` value did not match any `.gitmodules` entry.
+    /// The supplied `--target-repo` value did not match exactly one
+    /// `.gitmodules` entry (including the ambiguous-bare-name case).
     UnknownTargetRepo(String),
 }
 
@@ -112,7 +113,7 @@ impl fmt::Display for Error {
             Self::UnknownTargetRepo(name) => {
                 write!(
                     f,
-                    "no `.gitmodules` submodule named `{name}` (use the bare name without the `repos/` prefix)"
+                    "no unique `.gitmodules` submodule named `{name}` (use a registered bare name, or the full `repos/...` path when names collide)"
                 )
             }
         }
