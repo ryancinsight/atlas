@@ -10876,6 +10876,10 @@ attaches once the tensor fit lands.
   output is structured tracing. cfd-math library Clippy and Nextest pass;
   workspace closure still has cfd-schematics, cfd-core test/bench, and format
   debt.
+- Follow-up CFDrs commit `c83affee` is pushed: the exported
+  `cfd-schematics::topology::model` contract now documents its types, fields,
+  variants, aliases, and lookup methods. cfd-schematics library Nextest passes
+  164/164 and doctests 16/16; package Clippy residue decreases 712 to 611.
 
 ## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
 
