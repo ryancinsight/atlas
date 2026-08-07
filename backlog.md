@@ -155,6 +155,13 @@
   `kwavers-core` examples + strict Clippy; `xtask legacy-migration-audit`
   remains clean. This is **examples-only** and does not close the remaining
   kwavers source-seam adoption work.
+- **CFDrs examples sub-slice 2026-08-07 (this session):** added
+  `crates/cfd-core/examples/book_compute_placement.rs` on CFDrs `main`
+  (`74159afa`) to keep compute-placement coverage present in the `book_*.rs`
+  stream. The example exercises `ComputeCapability::{detect,select_backend}`
+  and `placement_hint()` without changing solver/physics behavior. Focused
+  `cfd-core` example check/clippy, full `nextest -p cfd-core` (265/265), and
+  `xtask legacy-migration-audit` all pass.
 - Re-open trigger (for the claiming session): the consumer tree is on a
   free `main`; the above source-reference count is confirmed non-zero only
   where adoption landed.

@@ -36,6 +36,9 @@ stranded tool changes.
       `crates/kwavers-core/examples/book_numa_allocator_policy.rs` to keep
       the open placement axis represented in `book_*.rs` form with compiling
       example coverage.
+- [x] CFDrs examples-only slice delivered: added
+      `crates/cfd-core/examples/book_compute_placement.rs` and synchronized
+      `docs/{backlog,checklist,gap_audit}.md` at `74159afa`.
 - [ ] Close kwavers source-seam adoption and re-run the cross-repo closure pass
       for this axis.
 

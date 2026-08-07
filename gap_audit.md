@@ -51,7 +51,9 @@ reports "stack aligned" (the only unresolved entries are the
   **Examples continuity note (2026-08-07):** kwavers now carries
   `kwavers-core/examples/book_numa_allocator_policy.rs` so the open placement
   seam is represented in the mdBook-oriented example stream while source-seam
-  migration remains in progress.
+  migration remains in progress. CFDrs now carries
+  `cfd-core/examples/book_compute_placement.rs` (`74159afa`) for the same
+  `book_*.rs` continuity requirement.
 - **melinoe**: zero source refs in the three integrators (feature plumbing
   only via moirai). Provider itself is clean on main, 122/122 nextest,
   strict clippy, and already carries the prior provenance + panic-recovery
