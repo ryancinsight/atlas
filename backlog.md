@@ -10888,6 +10888,10 @@ attaches once the tensor fit lands.
   geometry-builder setters now carry API documentation. cfd-schematics library
   Nextest remains 164/164 and doctests 16/16; package Clippy residue decreases
   534 to 524.
+- Follow-up CFDrs commit `eae43768` is pushed: geometry-generator metadata,
+  entry points, and builder methods now carry API documentation. cfd-schematics
+  library Nextest remains 164/164 and doctests 16/16; package Clippy residue
+  decreases 524 to 508.
 
 ## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
 
