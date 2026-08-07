@@ -53,7 +53,9 @@ reports "stack aligned" (the only unresolved entries are the
   seam is represented in the mdBook-oriented example stream while source-seam
   migration remains in progress. CFDrs now carries
   `cfd-core/examples/book_compute_placement.rs` (`74159afa`) for the same
-  `book_*.rs` continuity requirement.
+  `book_*.rs` continuity requirement. RITK now carries
+  `ritk-transform/examples/book_affine_transform.rs` (`86e7eea7`) for
+  Coeus-backed transform-seam example continuity.
 - **melinoe**: zero source refs in the three integrators (feature plumbing
   only via moirai). Provider itself is clean on main, 122/122 nextest,
   strict clippy, and already carries the prior provenance + panic-recovery

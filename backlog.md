@@ -162,6 +162,14 @@
   and `placement_hint()` without changing solver/physics behavior. Focused
   `cfd-core` example check/clippy, full `nextest -p cfd-core` (265/265), and
   `xtask legacy-migration-audit` all pass.
+- **RITK examples sub-slice 2026-08-07 (this session):** added
+  `crates/ritk-transform/examples/book_affine_transform.rs` on
+  `ci/migrate-release-workflow-to-shared-caller` (`86e7eea7`) to keep the
+  Coeus-backed transform seam represented in the `book_*.rs` stream. The
+  example exercises `AtlasAffineTransform` over `MoiraiBackend` and host-slice
+  extraction on transformed point carriers. Focused `ritk-transform` example
+  check/clippy, `nextest -p ritk-transform`, and `xtask dependency-alignment`
+  pass.
 - Re-open trigger (for the claiming session): the consumer tree is on a
   free `main`; the above source-reference count is confirmed non-zero only
   where adoption landed.

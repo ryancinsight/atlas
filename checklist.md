@@ -39,6 +39,10 @@ stranded tool changes.
 - [x] CFDrs examples-only slice delivered: added
       `crates/cfd-core/examples/book_compute_placement.rs` and synchronized
       `docs/{backlog,checklist,gap_audit}.md` at `74159afa`.
+- [x] RITK examples-only slice delivered: added
+      `crates/ritk-transform/examples/book_affine_transform.rs` and
+      synchronized `backlog.md` / `checklist.md` / `gap_audit.md`
+      at `86e7eea7`.
 - [ ] Close kwavers source-seam adoption and re-run the cross-repo closure pass
       for this axis.
 
