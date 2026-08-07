@@ -10884,6 +10884,10 @@ attaches once the tensor fit lands.
   constants, public config manifests, and the route-spec contract now carry
   API documentation. cfd-schematics library Nextest remains 164/164 and
   doctests 16/16; package Clippy residue decreases 611 to 534.
+- Follow-up CFDrs commit `322787ae` is pushed: the public node and channel
+  geometry-builder setters now carry API documentation. cfd-schematics library
+  Nextest remains 164/164 and doctests 16/16; package Clippy residue decreases
+  534 to 524.
 
 ## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
 
