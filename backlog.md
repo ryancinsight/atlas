@@ -6470,12 +6470,14 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   tree and take the next real family-boundary increment, if a live leaf exceeds
   the hierarchy trigger without violating test cohesion.
 
-## ATLAS-BOOK-002 — Domain books teach the field; evict process content [patch] — todo
+## ATLAS-BOOK-002 — Domain books teach the field; evict process content [patch] — in progress
 
 - Policy: AGENTS.md documentation_discipline "Domain book" — books teach physics/math from the ground up (governing equations with resolved citations, numerical methods, theory-to-API worked examples with regenerated figures); migration and changelog content belongs to versioning/CHANGELOG, never the book.
 - Evidence 2026-07-23: three books carry internal-migration process parts — CFDrs `docs/book` Part VII "Atlas Stack Integration (Migration Reference)" (13 files incl. appendix_changelog.md, appendix_migration.md); helios Part VIII (13 files incl. appendix_changelog.md); kwavers Part VI (10 files incl. migration_quick_reference.md). All three repos peer-held at filing time — owners coordinate via board, disjoint from live scopes.
 - Scope per repo: (1) delete the Migration Reference part and changelog/migration appendices from SUMMARY.md and the tree, salvaging any genuine theory-to-API mapping into usage chapters first (information preserved, then deletion — no orphaned SUMMARY entries; book builds green after); (2) audit the remaining book against the Domain-book rule — fundamentals-first structure, tested samples, figures from committed plotting code — and file chapter-gap DoR items; (3) repos with domain scope but no book (e.g. ritk, coeus, gaia, apollo, hephaestus) get an outline-first book item each.
 - Acceptance: no migration/status/changelog chapters remain in any book; each touched book builds in CI with tested samples; gaps filed as DoR items per repo.
+- **CFDrs slice closed 2026-08-06** (commit `a5a86d64`): evicted `appendix_changelog.md` (project migration status), `BOOK_ORGANIZATION.md` (development roadmap), and `parity_archive.md` (CI evidence stub) from SUMMARY.md and the tree; fixed 3 dangling inbound links; mdbook build (HTML + linkcheck2) clean. CFDrs book now contains only domain physics and worked examples.
+- **Remaining**: kwavers (peer-held on `refactor/retire-kwavers-optics`) and helios (peer-held on `codex/helios-radon-geometry-clean`) evictions remain open. Both retain migration reference parts.
 
 ## ATLAS-MNEMOSYNE-001 — Allocator observability and adversarial-stress audit [patch] — done
 
