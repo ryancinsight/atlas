@@ -32,13 +32,17 @@ pub struct CheckoutSummary {
 
 /// Materializes every external sibling path dependency at its Atlas gitlink.
 ///
-/// Existing provider directories are reused only when they are clean and
-/// already at the exact recorded revision.
+/// The destination is canonicalized before provider materialization. Existing
+/// provider directories are reused only when they are real, clean directories
+/// already at the exact recorded revision; symlinked provider paths are
+/// rejected so an alternate checkout cannot impersonate the canonical
+/// destination.
 ///
 /// # Errors
 ///
 /// Returns [`CheckoutError`] for invalid inputs, manifest or graph errors,
-/// revision drift, dirty reuse, missing dependency manifests, or Git failures.
+/// revision drift, dirty or symlinked reuse, missing dependency manifests, or
+/// Git failures.
 ///
 /// # Examples
 ///
@@ -70,7 +74,7 @@ pub fn checkout(config: &CheckoutConfig) -> Result<CheckoutSummary, CheckoutErro
         let provider = graph
             .get(name)
             .ok_or_else(|| CheckoutError::UnknownProvider(name.clone()))?;
-        graph::materialize_provider(&config.destination.join(name), provider)?;
+        graph::materialize_provider(&requirements.destination.join(name), provider)?;
         for path in paths {
             verify_dependency_manifest(path)?;
             dependency_manifests += 1;

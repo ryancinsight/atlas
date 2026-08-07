@@ -41,6 +41,8 @@ pub enum CheckoutError {
     },
     /// A reusable checkout contains modified or untracked content.
     DirtyCheckout(PathBuf),
+    /// A provider path is a symlink rather than an owned checkout directory.
+    SymlinkedCheckout(PathBuf),
     /// A required dependency manifest is absent after checkout.
     MissingDependencyManifest(PathBuf),
     /// A filesystem operation failed.
@@ -124,6 +126,11 @@ impl Display for CheckoutError {
             Self::DirtyCheckout(path) => {
                 write!(formatter, "provider checkout is dirty: {}", path.display())
             }
+            Self::SymlinkedCheckout(path) => write!(
+                formatter,
+                "provider checkout path must not be a symlink: {}",
+                path.display()
+            ),
             Self::MissingDependencyManifest(path) => {
                 write!(
                     formatter,

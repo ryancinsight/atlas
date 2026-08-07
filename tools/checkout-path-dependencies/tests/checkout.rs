@@ -197,6 +197,51 @@ fn rejects_dirty_existing_provider() {
     assert!(matches!(error, CheckoutError::DirtyCheckout(_)));
 }
 
+#[cfg(unix)]
+#[test]
+fn rejects_symlinked_provider_destination() {
+    use std::os::unix::fs::symlink;
+
+    let fixture = Fixture::new();
+    let graph = fixture.graph();
+    let (workspace, config) = fixture.consumer(&graph, "../leto");
+    symlink(&graph.provider, workspace.join("leto")).unwrap();
+
+    let error = checkout(&config).unwrap_err();
+
+    assert!(matches!(
+        error,
+        CheckoutError::SymlinkedCheckout(path) if path == workspace.join("leto")
+    ));
+}
+
+#[cfg(unix)]
+#[test]
+fn materializes_under_canonical_destination_parent() {
+    use std::os::unix::fs::symlink;
+
+    let fixture = Fixture::new();
+    let graph = fixture.graph();
+    let (workspace, config) = fixture.consumer(&graph, "../leto");
+    let canonical_destination = fixture.path("canonical-destination");
+    fs::create_dir_all(&canonical_destination).unwrap();
+    symlink(&canonical_destination, workspace.join("destination-link")).unwrap();
+    write(
+        &workspace.join("consumer/Cargo.toml"),
+        "[workspace]\nmembers = []\n\n[workspace.dependencies]\n\
+         leto = { path = \"../../canonical-destination/leto\" }\n",
+    );
+    let config = CheckoutConfig {
+        destination: workspace.join("destination-link"),
+        ..config
+    };
+
+    let outcome = checkout(&config).unwrap();
+
+    assert_eq!(outcome.providers, vec!["leto"]);
+    assert!(canonical_destination.join("leto/Cargo.toml").is_file());
+}
+
 #[test]
 fn rejects_clean_existing_provider_at_wrong_revision() {
     let fixture = Fixture::new();
