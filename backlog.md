@@ -52,16 +52,28 @@
 - Not taken over (genuinely incomplete or peer-active): coeus CTC work is a
   peer's active branch (`codex/coeus-frobenius-provider`).
 
-## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — todo
+## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — in progress
 
-- Owner: unclaimed; last-update: 2026-08-05 (gap-replenishment filing by
-  current session). Scope per consumer: one repo per claim (kwavers, CFDrs,
-  helios), each a self-contained co-evolution unit against the local
-  provider tree. **All three consumer trees were peer-held at filing time**
-  (kwavers `refactor/retire-kwavers-optics` 402cfef48 15:46; CFDrs
-  `deps/eunomia-0.8` 77e8a77f; helios `codex/helios-radon-geometry-clean`
-  10:36) — claim only after the tree returns to a free main, per the
-  stale-claim rule.
+- Owner: current session — CFDrs slice **delivered 2026-08-06**
+  (CFDrs `1493eef3`); kwavers/helios slices remain
+  peer-held (kwavers `refactor/retire-kwavers-optics`, helios
+  `codex/helios-radon-geometry-clean`). Scope per consumer: one repo per
+  claim (kwavers, CFDrs, helios), each a self-contained co-evolution unit
+  against the local provider tree.
+- **CFDrs slice closed 2026-08-06.** Three commits on CFDrs `main`:
+  - `a444038d` — fix(cfd-core): correct moirai import path and MelinoeCell
+    slice cast in FlowOperations (broken `moirai::prelude::parallel::…`
+    path and DST `MelinoeCell::from_mut` mismatch resolved).
+  - `96823774` — chore(cfdrs): gitignore output/ for example run artifacts.
+  - `1493eef3` — feat(cfd-core): adopt themis placement + melinoe seam.
+    `ComputeCapability` carries `numa_node: NumaNodeId` (from
+    `themis::current_numa_node()` at detect time) and exposes
+    `placement_hint() -> PlacementHint::Numa(…)`. The `FlowOperations`
+    vorticity/divergence paths use `par_partition_for_each` over
+    `&mut [MelinoeCell<T>]` shards for compile-time disjoint write evidence.
+  Acceptance gates: cargo check --workspace --lib 0; clippy -p cfd-core
+  --lib -- -D warnings 0; nextest run -p cfd-core 246/246; legacy-migration-audit clean;
+  overlay check reports stack aligned.
 - Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §2
   (themis/melinoe consumed by the compute layer, not domain); the
   moirai-executor residual noted in ATLAS-THEMIS-TOPOLOGY-OPTION-1 remains
@@ -2894,6 +2906,16 @@ epospollo`, so both paths are the same tree. That is
   first real release either way. The migration is what made it visible.
 
 ## ATLAS-PUB-LOCK-1 — Overlay-stripped lockfiles get committed and break `--locked` [patch] — in-progress
+
+- **Canonical checkout-boundary hardening 2026-08-06 (root tool slice).**
+  `tools/checkout-path-dependencies` now rejects an existing symlink at
+  `destination/<provider>` before any Git probe or reuse. This keeps the
+  materialized provider directory tied to the authorized Atlas destination;
+  an alternate checkout cannot masquerade as the exact gitlink package and
+  contaminate subsequent Cargo path resolution. Added a Unix integration
+  regression and documented the invariant in the tool README/API docs.
+  Lockfile overlay-on/off semantics remain deliberately separate: this slice
+  does not rewrite or validate provider `Cargo.lock` files.
 
 - Owner: unclaimed; scope: the lock convention itself, `crates-publish.yml`,
   and every package's release. **Blocks the first real publish of any crate
@@ -7918,6 +7940,17 @@ Closure requires ALL of the following landed in future slices:
   backlog.md#ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1.
 
 ## ATLAS-VERSION-GUARD-001 — Manifest-version guard and stack coherence check [patch] — in-progress (sub-delivery 1 done)
+
+- **Fail-closed intent validation 2026-08-06 (root tool slice).**
+  `tools/version-guard` now treats a declared release/bump intent with no
+  forward version movement as a defect, including an empty manifest diff or
+  an identical-only reformat. The same intent-aware predicate drives the CLI
+  exit code and human/JSON reports, so no alternate "clean" interpretation
+  can mask a missed package release. Backward movement remains an unconditional
+  defect, and undeclared forward movement remains rejected. Added regressions
+  for empty and identical-only declared releases plus report parity. Scope is
+  root tooling only; no provider checkout, consumer source, manifest,
+  lockfile, or dependency changed.
 
 - Policy: AGENTS.md git_discipline (version-bearing red-flag hunks) + architecture_scoping pin discipline (version metadata is sweep-triggering state). Motivating incident: `87ab265` (hermes) — a sed dep-conversion silently reverted the workspace release `0.5.0 -> 0.4.1` and internal requirements to `0.4.0`, unmentioned in its message; origin lied about versions for ~10 hours while integrators failed resolution, and coeus stacked 18 commits on the undeliverable base.
 - Scope: (1) per-repo guard — CI step (and optional pre-commit hook) failing when a diff changes `version =` or first-party dependency version requirements without a declared release/bump intent (commit type `chore(release)`/`build(deps)` or an explicit footer); backward version movement always fails without the declaration; (2) stack coherence check — a meta-level check (home: tools/, sibling to criterion-regression) verifying every first-party requirement across allowlisted members resolves against the stack's current workspace versions, run in the integration sweep and on any version-touching commit; (3) wire both into member CI per repository convention.
