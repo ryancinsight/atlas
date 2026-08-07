@@ -147,6 +147,14 @@
   `[workspace.lints]` floor; the `xtask legacy-migration-audit` stays clean;
   the umbrella `.cargo/config.toml` overlay regenerated via
   `scripts/atlas-stack-overlay.py` and `check` reports aligned.
+- **Kwavers examples sub-slice 2026-08-07 (this session):** added
+  `crates/kwavers-core/examples/book_numa_allocator_policy.rs` on
+  `refactor/retire-kwavers-optics` to keep the mdBook-facing examples stream
+  aligned with the open compute-placement axis. The example demonstrates
+  `ArenaLayoutNumaPolicy::{FirstTouch, BindToNode}` and compiles clean under
+  `kwavers-core` examples + strict Clippy; `xtask legacy-migration-audit`
+  remains clean. This is **examples-only** and does not close the remaining
+  kwavers source-seam adoption work.
 - Re-open trigger (for the claiming session): the consumer tree is on a
   free `main`; the above source-reference count is confirmed non-zero only
   where adoption landed.

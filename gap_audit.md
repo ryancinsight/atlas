@@ -48,6 +48,10 @@ reports "stack aligned" (the only unresolved entries are the
   `PlacementHint::Tier(MemoryTier::Device)` in `attenuation.rs`,
   `projection.rs`, `transmission.rs`). kwavers remains open on the
   integrator adoption axis; ritk remains feature-plumbing only.
+  **Examples continuity note (2026-08-07):** kwavers now carries
+  `kwavers-core/examples/book_numa_allocator_policy.rs` so the open placement
+  seam is represented in the mdBook-oriented example stream while source-seam
+  migration remains in progress.
 - **melinoe**: zero source refs in the three integrators (feature plumbing
   only via moirai). Provider itself is clean on main, 122/122 nextest,
   strict clippy, and already carries the prior provenance + panic-recovery

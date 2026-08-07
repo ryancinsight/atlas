@@ -32,6 +32,10 @@ stranded tool changes.
       shard partitioning in `cfd-core`.
 - [x] Helios slice delivered (`234574c`): `helios-gpu` routes upload/allocation
       surfaces through `themis::PlacementHint::Tier(MemoryTier::Device)`.
+- [x] Kwavers examples-only slice delivered: added
+      `crates/kwavers-core/examples/book_numa_allocator_policy.rs` to keep
+      the open placement axis represented in `book_*.rs` form with compiling
+      example coverage.
 - [ ] Close kwavers source-seam adoption and re-run the cross-repo closure pass
       for this axis.
 
