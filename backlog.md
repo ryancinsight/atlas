@@ -38,13 +38,19 @@
   and book commits stranded on `fix/rkyv-0.8-migration`; main fast-forwarded.
 - Eunomia `main` 69ff96d: landed stranded ATLAS-PUB-005 book-examples and
   mdbook-test gate commits from `fix/rkyv-0.8-migration`; main fast-forwarded.
-- CFDrs `codex/takeover-csr-connectivity` cf32eab6: cherry-picked the stranded
-  CSR-connectivity commit `fb324697` (perf: flatten unstructured connectivity
-  to CSR-style storage) whose branch `deps/eunomia-0.8` was deleted from
-  origin. Branch pushed with PR link; not yet merged to main.
-- Not taken over (no matching delivered record, ambiguous ownership): leto
-  sparse-LU staged work (no backlog claim), moirai scheduler-diagnostics +
-  reactor-TLS uncommitted work, mnemosyne dependency-removal + test tweaks.
+- CFDrs `main` cf32eab6: cherry-picked the stranded CSR-connectivity commit
+  `fb324697` (perf: flatten unstructured connectivity to CSR-style storage)
+  whose branch `deps/eunomia-0.8` was deleted from origin; fast-forwarded
+  main to carry it (517 cfd-2d tests pass).
+- Round 2 (2026-08-06): completed and landed additional stranded WIP —
+  leto `codex/leto-sparse-lu-amd` db9a63c (AMD fill-reducing ordering for
+  sparse LU: repaired to compilable/tested state on a clean origin/main
+  base; 536 unit + 20 doctests pass); moirai `main` 308b2f1 (stranded
+  scheduler-diagnostics doc surface, CHECKLIST-recorded delivered); mnemosyne
+  `main` 9a143ca (stranded internal policy SSOT consolidation,
+  backlog-recorded delivered); CFDrs main merge of the CSR takeover.
+- Not taken over (genuinely incomplete or peer-active): coeus CTC work is a
+  peer's active branch (`codex/coeus-frobenius-provider`).
 
 ## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — todo
 
