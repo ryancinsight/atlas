@@ -1,5 +1,35 @@
 # atlas — cross-repository integration gap audit
 
+## Stranded tooling slices landed — 2026-08-07
+
+Six root-tool slices recorded as delivered in `backlog.md` were found
+stranded uncommitted at the atlas root (the prior session recorded the
+work but never committed it), plus one new tool. All are file-disjoint
+from every live peer stream. Commits:
+
+- `a92a3c6` — version-guard fail-closed intent (declared release with no
+  forward movement is a defect; empty/identical-only declared releases
+  now fail). 48 lib + 3 bin tests, clippy `-D warnings` clean.
+- `cbc664d` — gitlink-coherence ambiguous target-repo selectors fail
+  closed (unique exact match wins; ambiguous bare suffix rejected). 21/21.
+- `fb62549` — atlas-stack-overlay restricted to canonical `repos/`
+  namespace (worktrees excluded from package/dependency discovery);
+  regenerated overlay drops the stale `apollo-sht`, `coeus-leto`,
+  `consus-onnx` patch entries; `check` reports stack aligned.
+- `11a67dd` — checkout-path-dependencies rejects symlinked provider paths
+  and canonicalizes the destination. 11/11.
+- `17c3cc5` — physical rename of the active git+https sweep ledger to
+  `PATH_DEP_AUDIT_001_ENTRY.md` (99% similarity; ID substitution at lines
+  1 and 146), completing ATLAS-BOARD-HYGIENE-001's file-level rename.
+- `1b514db` — `scripts/atlas-board-sweep.py`, the stale-claim triage-input
+  choreography tool filed unclaimed under ATLAS-HYGIENE-BASELINE-001.
+  6/6 tests; live run over the root board: 244 items scanned, 27 in
+  progress, 3 blocked without a re-open trigger.
+
+The prior session's `.cargo/config.toml` tracked-deletion plus
+`.codex-serialized` backup was reconciled by regenerating the overlay
+(42 patch sections, `check` aligned) and removing the backup.
+
 ## Stack-wide audit pass — 2026-08-06 (provider utilization, hierarchy, build health)
 
 ### Overlay alignment fixed

@@ -23,7 +23,45 @@
   repository-wide root census has zero references to the old ledger filename;
   `git diff --check` exits 0; the normalized ledger content is identical
   apart from the active ID rename.
+- **Filesystem rename committed 2026-08-07** as `17c3cc5`
+  (`docs(path-dep): Rename active audit ledger to ATLAS-PATH-DEP-AUDIT-001`):
+  the ledger file now physically lives at `PATH_DEP_AUDIT_001_ENTRY.md`
+  (99% similarity rename, content identical apart from the ID substitution
+  at lines 1 and 146), the stale `PATH_DEP_AUDIT_2_ENTRY.md` copy is gone,
+  and `scripts/discover-subcrate-names.py` references the active ID. The
+  2026-08-06 record above described the ID-level rename; the physical file
+  rename was stranded uncommitted until this session.
 
+
+## ATLAS-TOOLS-STRANDED-001 — Land stranded atlas-meta tooling slices [chore] — done 2026-08-07
+
+- Owner: current session. Scope: six root-tool slices recorded as delivered
+  in this board but found stranded uncommitted at the atlas root on
+  2026-08-07, plus one new tool. All are file-disjoint from every live peer
+  stream (kwavers mid-rebase, CFDrs/helios/ritk dirty working trees).
+- `a92a3c6` — `fix(version-guard): Fail closed on declared release with no
+  forward movement` (ATLAS-VERSION-GUARD-001 fail-closed root slice; 48 lib
+  + 3 bin tests, clippy clean).
+- `cbc664d` — `fix(gitlink-coherence): Reject ambiguous target-repo
+  selectors` (ATLAS-GITLINK-TARGET-SSOT-001; nextest 21/21).
+- `fb62549` — `fix(overlay): Restrict overlay discovery to canonical repos`
+  (ATLAS-OVERLAY-SSOT-001; 4/4 Python regressions, `check` aligned) plus
+  the regenerated `.cargo/config.toml` dropping the three stale patch
+  entries (`apollo-sht`, `coeus-leto`, `consus-onnx`).
+- `11a67dd` — `fix(checkout-path-dependencies): Reject symlinked provider
+  paths` (ATLAS-WORKTREE-JUNCTION-1 defensive hardening; nextest 11/11).
+- `17c3cc5` — `docs(path-dep): Rename active audit ledger to
+  ATLAS-PATH-DEP-AUDIT-001` (physical ledger rename completing
+  ATLAS-BOARD-HYGIENE-001; 99% similarity rename).
+- `1b514db` — `feat(atlas): Add board-sweep tool for stale-claim triage
+  inputs` (the choreography tool filed unclaimed under
+  ATLAS-HYGIENE-BASELINE-001; 6/6 tests, live run 244 items scanned).
+- The `.cargo/config.toml` tracked deletion plus `.codex-serialized`
+  backup left by the prior session was reconciled: the overlay was
+  regenerated via `scripts/atlas-stack-overlay.py generate` (42 patch
+  sections, `check` aligned) and the redundant backup removed.
+- Acceptance: all gates above pass at commit time; the atlas root is clean
+  of stranded tool changes.
 
 ## ATLAS-TAKEOVER-001 — Land stranded delivered slices in tyche, hermes, eunomia, CFDrs [chore] — done 2026-08-06
 
@@ -1626,6 +1664,10 @@
   of this root-tool slice.
 - Re-open trigger: target selection again returns the first match for an
   ambiguous bare name, or selection consults a source outside `.gitmodules`.
+- **Committed 2026-08-07** as `cbc664d`
+  (`fix(gitlink-coherence): Reject ambiguous target-repo selectors`). The
+  slice was previously recorded done but sat stranded uncommitted at the
+  atlas root. Gates re-verified at commit time: `cargo nextest run` 21/21.
 
 ## ATLAS-OVERLAY-SSOT-001 — Restrict overlay discovery to canonical repos [patch] — done 2026-08-06
 
@@ -1645,6 +1687,14 @@
 - Re-open trigger: overlay generation reads any directory outside the
   authoritative `repos/` namespace, or a worktree package can replace a
   canonical package.
+- **Committed 2026-08-07** as `fb62549`
+  (`fix(overlay): Restrict overlay discovery to canonical repos`), plus the
+  regenerated `.cargo/config.toml` (3 stale patch entries dropped:
+  `apollo-sht`, `coeus-leto`, `consus-onnx`) and the new root regression
+  suite. The slice was previously recorded done but sat stranded
+  uncommitted at the atlas root. Gates re-verified at commit time: 4/4
+  Python regressions pass; `python scripts/atlas-stack-overlay.py check`
+  reports "stack aligned".
 
 ## ATLAS-OVERLAY-GEN-STALE-1 — Cross-repo path deps on member mainlines [arch] — todo (needs user decision)
 
@@ -7960,6 +8010,12 @@ Closure requires ALL of the following landed in future slices:
 
 ## ATLAS-VERSION-GUARD-001 — Manifest-version guard and stack coherence check [patch] — in-progress (sub-delivery 1 done)
 
+- **Fail-closed intent validation committed 2026-08-07** as `a92a3c6`
+  (`fix(version-guard): Fail closed on declared release with no forward
+  movement`). The slice was previously recorded delivered but sat stranded
+  uncommitted at the atlas root; the 2026-08-07 session landed it with the
+  sibling tooling slices. Gates re-verified at commit time: 48 lib + 3 bin
+  tests pass, `cargo clippy --all-targets -- -D warnings` clean.
 - **Fail-closed intent validation 2026-08-06 (root tool slice).**
   `tools/version-guard` now treats a declared release/bump intent with no
   forward version movement as a defect, including an empty manifest diff or
@@ -9342,7 +9398,19 @@ blocker on Athena.
 - Consolidation 2026-07-30: the scan-universe definition now has one owner — `scripts/atlas_stack.py` (registered members from `.gitmodules`, git helpers, ignore checks) imported by both the conformance scanner and the lane audit; the duplicated `registered_members()` pair and the scanner's twice-implemented root-sprawl/LF checks are collapsed (behavior-preservation proven by old-vs-new differential on stable members). Defect finding — **fixed 2026-08-02** (umbrella, this commit's parent): `atlas-toolchain-preflight.py` now imports `atlas_stack.registered_members()`; the glob-over-everything derivation is gone and the run resolves 25 member pins.
 - Preflight side-finding 2026-08-02: this agent's shell environment carries ambient `RUSTC`/`RUSTDOC` exports pointing at the rustup PROXIES (`~/.cargo/bin/*`), which the preflight rightly fails. Proxy targets honor the pins, so the session's builds were coherent (single compiler identity confirmed once the overrides are cleared), but the exports should be removed from whatever profile sets them — an override pointing anywhere non-proxy would silently poison the shared cache.
 - Lane-series clarification (re the 2026-07-30 sprawl evidence naming `hephaestus-j1e2`…`-j5`): those lanes were SERIAL, one claimed item each, each removed on its merge — the two-tree bound held at every instant (`git worktree list` never exceeded main + one lane) and the creation-rate spike measured throughput, not concurrent trees. Two removals hit Windows Permission-denied on first attempt and were pruned + rm-rf'd in the same cycle; if the audit counts orphan directories, that transient is the residue to look for.
-- Remaining agent-memory-only choreography, filed per operation "toil automation" (unclaimed): a board-sweep tool (`scripts/atlas-board-sweep.py`) mechanizing the stale-claim sweep inputs — parse `## <ID> — … — <status>` headers, surface in-progress items with owner/claim age and blocked items without a re-open trigger; claim-freshness thresholds stay judgment, the census becomes mechanical. DoR: lenient parser over the existing board format, report-only exit codes, run at orient and replenishment beside the lane audit.
+- **Board-sweep sub-slice delivered 2026-08-07.** `scripts/atlas-board-sweep.py`
+  parses the lenient level-two heading format, normalizes `in progress` /
+  `in-progress`, reports explicit owner and claim-date context, and identifies
+  blocked items lacking a `Re-open trigger` (including qualified forms such as
+  `Re-open trigger (for the claiming session):`). It is report-only: findings
+  never fail the command or mutate the board, while missing/unreadable input
+  returns 2. Focused unittest coverage is in
+  `scripts/tests/test_atlas_board_sweep.py` (6/6); `py_compile`, board lint,
+  and `git diff --check` pass. The live root report scans 244 items, finds 27
+  in-progress claims, and surfaces 3 blocked items without a re-open trigger:
+  `ATLAS-SUBSTRATE-002`, `ATLAS-LETO-PEER-WIP`, and
+  `ATLAS-CFDRS-TEST-BUDGET`. Claim freshness and remediation remain operator
+  decisions; this tool does not reclaim or edit claims.
 - Policy: AGENTS.md engineering_gates conformance scan (now enumerating all eleven debt classes), documentation_discipline "Root manifest", architecture_scoping "Member namespace hygiene".
 - Baseline 2026-07-25 (per-repo counts recorded; the ratchet gate holds these non-increasing): files >500 lines: 574 (CFDrs 137, kwavers 91, consus 89); implementation-bearing lib.rs/mod.rs: 402 (kwavers 145); production `unwrap()`: 5833 (kwavers 3119, ritk 719); `#[allow]`: 798 (kwavers 330); print/dbg in src: 1082 (CFDrs 428); existence-only assertions: 444 (coeus 104, leto 79); type-suffixed fns: 380 (apollo 111); junk-drawer modules: 66 (kwavers 28); crates missing deny(missing_docs): 107/208; unsanctioned root files: 120 (kwavers 40); markers: 18.
 - Scope: (1) extend the committed conformance scan script to all eleven classes and record this baseline as its first output; (2) burn-down items per repo by triage (kwavers is the epicenter: unwraps, fat manifests, junk modules, root clutter); (3) `repos/parity_artefacts` (untracked run-output dump in the member namespace — det_*.log, url/target lists) relocates to a gitignored verification output root or deletes at the parity stream's item completion (owner: parity stream; regenerable evidence, rescue-first if any file proves unique); (4) kwavers root files triage per the Root manifest rule.
