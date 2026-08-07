@@ -53,7 +53,10 @@ reports "stack aligned" (the only unresolved entries are the
   seam is represented in the mdBook-oriented example stream while source-seam
   migration remains in progress. CFDrs now carries
   `cfd-core/examples/book_compute_placement.rs` (`74159afa`) for the same
-  `book_*.rs` continuity requirement. RITK now carries
+  `book_*.rs` continuity requirement, and also carries
+  `cfd-3d/examples/book_spectral_poisson_3d.rs` (`8bbd92b7`) so the 3D
+  spectral Poisson workflow is represented in that stream.
+  RITK now carries
   `ritk-transform/examples/book_affine_transform.rs` (`86e7eea7`) for
   Coeus-backed transform-seam example continuity. Helios now carries
   `helios-gpu/examples/book_gpu_placement_hint.rs` (`3a11e56`) for
@@ -2192,6 +2195,22 @@ as feature plumbing, not source seams. Measured from committed state:
   sites.
 Filed as DoR-shaped claimable item `ATLAS-THEMIS-MELINOE-ADOPTION-001` (one
 repo per claim). All three consumer trees were peer-held at measurement time.
+
+### Kwavers source-seam closure — 2026-08-07
+
+Kwavers closes its remaining placement source seam in
+`repos/kwavers/crates/kwavers-core`: `ArenaLayoutNumaPolicy` now maps through
+Themis `PlacementHint`/`NumaNodeId` at the NUMA arena boundary. Mnemosyne
+continues to own allocation/deallocation and Moirai continues to own parallel
+first-touch execution. The checked `usize` → `u32` node conversion preserves
+the existing fallback for unrepresentable IDs; no direct Melinoe capability
+surface is added because Themis owns that optional integration.
+
+Evidence: kwavers-core check, strict Clippy, Nextest 70/70, doctests 3/3,
+formatting, diff checks, and `legacy-migration-audit` are clean. The closure
+introduces no alternative allocator, scheduler, or legacy package. The
+three-integrator placement adoption axis is complete: CFDrs `1493eef3`, Helios
+`234574c`, and Kwavers `KWAVERS-THEMIS-PLACEMENT-1`.
 
 ### Non-findings
 

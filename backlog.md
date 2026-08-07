@@ -90,12 +90,13 @@
 - Not taken over (genuinely incomplete or peer-active): coeus CTC work is a
   peer's active branch (`codex/coeus-frobenius-provider`).
 
-## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — in progress
+## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — done 2026-08-07
 
 - Owner: current session — CFDrs slice **delivered 2026-08-06**
   (CFDrs `1493eef3`); Helios source slice delivered on peer branch
   2026-08-07 (helios `234574c` on `codex/helios-radon-geometry-clean`);
-  kwavers slice remains peer-held (`refactor/retire-kwavers-optics`). Scope
+  Kwavers source seam delivered 2026-08-07 in `kwavers-core` on the
+  peer-held checkout (`refactor/retire-kwavers-optics`). Scope
   per consumer: one repo per claim (kwavers, CFDrs, helios), each a
   self-contained co-evolution unit against the local provider tree.
 - **CFDrs slice closed 2026-08-06.** Three commits on CFDrs `main`:
@@ -121,7 +122,8 @@
     CFDrs `1493eef3` binds `PlacementHint::Numa(…)` in `cfd-core`;
     helios `234574c` binds `PlacementHint::Tier(MemoryTier::Device)` in
     `crates/helios-gpu/src/{attenuation,projection,transmission}.rs`.
-    kwavers remains the open consumer on this axis.
+    kwavers' NUMA arena seam is now closed by the Themis placement-law
+    adapter recorded in `KWAVERS-THEMIS-PLACEMENT-1`.
   - **melinoe**: zero source references in any integrator crate. Reachable
     only as moirai feature plumbing (`moirai = { features = ["melinoe"] }`
     in CFDrs and ritk). kwavers and helios do not reach it at all.
@@ -132,12 +134,13 @@
     it only via moirai features; helios declares `mnemosyne-core` (line 113)
     with zero source sites.
 - Outcome: each integrator adopts the placement/memory-locality seam at a
-  genuine consumer-local site — e.g. kwavers NUMA-aware field arenas move to
-  themis `NumaNodePlacement`/`ConstNumaPinnedSlice` typed placement (the
-  residual recorded under ATLAS-KWAVERS-MNEMOSYNE-FIX-1 names the first-touch-
-  only weakness as the motivating defect), CFDrs/helios worker-pool or
-  mesh-buffer locality uses themis placement, and branded capability
-  evidence flows through melinoe where moirai routing already carries it.
+  genuine consumer-local site. Kwavers' NUMA-aware field arena maps its local
+  policy through Themis `PlacementHint`/`NumaNodeId`; Mnemosyne remains the
+  allocation owner and Moirai remains the first-touch executor. CFDrs/helios
+  bind their typed placement surfaces, and branded capability evidence flows
+  through Melinoe only where a consumer-local proof requires it. Kwavers'
+  `Interleaved` policy intentionally maps to Themis `Any` because Themis has no
+  single-node interleaving hint; the allocator retains its existing fallback.
   Consumer-local need precedes the dependency (priority-2 brief): no blanket
   imports.
 - Acceptance per repo: the workspace manifest declares `themis` (and
@@ -147,14 +150,16 @@
   `[workspace.lints]` floor; the `xtask legacy-migration-audit` stays clean;
   the umbrella `.cargo/config.toml` overlay regenerated via
   `scripts/atlas-stack-overlay.py` and `check` reports aligned.
-- **Kwavers examples sub-slice 2026-08-07 (this session):** added
-  `crates/kwavers-core/examples/book_numa_allocator_policy.rs` on
-  `refactor/retire-kwavers-optics` to keep the mdBook-facing examples stream
-  aligned with the open compute-placement axis. The example demonstrates
-  `ArenaLayoutNumaPolicy::{FirstTouch, BindToNode}` and compiles clean under
-  `kwavers-core` examples + strict Clippy; `xtask legacy-migration-audit`
-  remains clean. This is **examples-only** and does not close the remaining
-  kwavers source-seam adoption work.
+- **Kwavers source closure 2026-08-07:** `kwavers-core` adds the
+  `themis-topology` workspace edge and maps `ArenaLayoutNumaPolicy` through
+  Themis `PlacementHint`/`NumaNodeId` at the production NUMA arena seam.
+  Checked `usize` → `u32` conversion preserves fallback for unrepresentable
+  IDs. The existing `book_numa_allocator_policy.rs` example remains the
+  pedagogical surface; the implementation does not import Melinoe directly
+  because Themis owns that optional integration. `kwavers-core` passes check,
+  strict Clippy, Nextest 70/70, doctests 3/3, formatting, and diff checks;
+  overlay/conformance and the legacy audit are clean. `Interleaved -> Any` is
+  explicitly lossy and retains the allocator's existing fallback.
 - **CFDrs examples sub-slice 2026-08-07 (this session):** added
   `crates/cfd-core/examples/book_compute_placement.rs` on CFDrs `main`
   (`74159afa`) to keep compute-placement coverage present in the `book_*.rs`
@@ -162,6 +167,12 @@
   and `placement_hint()` without changing solver/physics behavior. Focused
   `cfd-core` example check/clippy, full `nextest -p cfd-core` (265/265), and
   `xtask legacy-migration-audit` all pass.
+- **CFDrs examples sub-slice 2026-08-07 (this session):** added
+  `crates/cfd-3d/examples/book_spectral_poisson_3d.rs` on CFDrs `main`
+  (`8bbd92b7`) so the 3D spectral workflow has `book_*.rs` coverage alongside
+  the compute-placement stream. The example builds a compact spectral Poisson
+  setup using existing APIs; focused `cfd-3d` example check/clippy, full
+  `nextest -p cfd-3d` (399/399), and `xtask legacy-migration-audit` all pass.
 - **RITK examples sub-slice 2026-08-07 (this session):** added
   `crates/ritk-transform/examples/book_affine_transform.rs` on
   `ci/migrate-release-workflow-to-shared-caller` (`86e7eea7`) to keep the

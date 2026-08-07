@@ -26,7 +26,7 @@
 Acceptance: all tool gates pass at commit time; the atlas root carries no
 stranded tool changes.
 
-## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption — in progress
+## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption — done 2026-08-07
 
 - [x] CFDrs slice delivered (`1493eef3`): typed NUMA placement hint + Melinoe
       shard partitioning in `cfd-core`.
@@ -39,6 +39,9 @@ stranded tool changes.
 - [x] CFDrs examples-only slice delivered: added
       `crates/cfd-core/examples/book_compute_placement.rs` and synchronized
       `docs/{backlog,checklist,gap_audit}.md` at `74159afa`.
+- [x] CFDrs examples-only slice delivered: added
+      `crates/cfd-3d/examples/book_spectral_poisson_3d.rs` and synchronized
+      `docs/{backlog,checklist,gap_audit}.md` at `8bbd92b7`.
 - [x] RITK examples-only slice delivered: added
       `crates/ritk-transform/examples/book_affine_transform.rs` and
       synchronized `backlog.md` / `checklist.md` / `gap_audit.md`
@@ -46,6 +49,17 @@ stranded tool changes.
 - [x] Helios examples-only slice delivered: added
       `crates/helios-gpu/examples/book_gpu_placement_hint.rs` and synchronized
       Helios `backlog.md` / `CHECKLIST.md` at `3a11e56`.
+- [x] Kwavers production source seam delivered: `kwavers-core` maps its NUMA
+      arena policy through Themis `PlacementHint`/`NumaNodeId`; Mnemosyne
+      remains the allocator owner and Moirai remains the first-touch executor.
+      The checked node boundary preserves fallback behavior, and no direct
+      Melinoe capability surface is introduced because Themis owns that
+      optional integration. `Interleaved -> Any` is intentionally lossy and
+      retains the allocator's existing fallback.
+- [x] Run the cross-repo overlay/conformance closure pass: overlay reports the
+      stack aligned, conformance reports no debt-baseline increases, and the
+      kwavers legacy audit remains at zero legacy manifests/source tokens.
+- [x] Close kwavers source-seam adoption for this axis.
 - [ ] Close kwavers source-seam adoption and re-run the cross-repo closure pass
       for this axis.
 
