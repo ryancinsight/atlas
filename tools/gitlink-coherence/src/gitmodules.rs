@@ -122,11 +122,28 @@ impl GitmodulesTable {
     /// submodule match.
     #[must_use]
     pub fn find_by_bare_name(&self, bare: &str) -> Option<&Submodule> {
-        // Atlas convention: the section name is the full path,
-        // so the bare name is the final path component.
-        self.submodules
+        // Prefer a fully-qualified name/path when one is supplied. This lets
+        // callers disambiguate repositories that share a final component.
+        let exact: Vec<&Submodule> = self
+            .submodules
             .iter()
-            .find(|s| s.name == bare || s.name.ends_with(&format!("/{bare}")) || s.path == bare)
+            .filter(|s| s.name == bare || s.path == bare)
+            .collect();
+        if exact.len() == 1 {
+            return exact.into_iter().next();
+        }
+        if !exact.is_empty() {
+            return None;
+        }
+
+        // Atlas convention: the section name is the full path, so a bare
+        // name matches only when exactly one registered path ends with it.
+        let suffix: Vec<&Submodule> = self
+            .submodules
+            .iter()
+            .filter(|s| s.name.ends_with(&format!("/{bare}")))
+            .collect();
+        (suffix.len() == 1).then(|| suffix[0])
     }
 }
 
@@ -287,11 +304,40 @@ mod tests {
     }
 
     #[test]
-    fn find_by_bare_name_matches_substring_suffix() {
+    fn find_by_bare_name_matches_unique_suffix() {
         let input = "[submodule \"repos/coeus\"]\n    path = repos/coeus\n    url = https://github.com/ryancinsight/coeus\n";
         let table: GitmodulesTable = input.parse().unwrap();
         let s = table.find_by_bare_name("coeus").expect("found");
         assert_eq!(s.path, "repos/coeus");
         assert!(table.find_by_bare_name("missing").is_none());
+    }
+
+    #[test]
+    fn find_by_bare_name_rejects_ambiguous_suffix() {
+        let input = "[submodule \"repos/left/coeus\"]\n    path = repos/left/coeus\n    url = https://example/left\n\n[submodule \"repos/right/coeus\"]\n    path = repos/right/coeus\n    url = https://example/right\n";
+        let table: GitmodulesTable = input.parse().unwrap();
+        assert!(table.find_by_bare_name("coeus").is_none());
+    }
+
+    #[test]
+    fn find_by_bare_name_prefers_unique_exact_path() {
+        let table = GitmodulesTable {
+            submodules: vec![
+                Submodule {
+                    name: "coeus".into(),
+                    path: "repos/coeus-alias".into(),
+                    url: "https://example/alias".into(),
+                },
+                Submodule {
+                    name: "repos/coeus".into(),
+                    path: "repos/coeus".into(),
+                    url: "https://example/coeus".into(),
+                },
+            ],
+        };
+        let selected = table
+            .find_by_bare_name("repos/coeus")
+            .expect("exact path match");
+        assert_eq!(selected.path, "repos/coeus");
     }
 }

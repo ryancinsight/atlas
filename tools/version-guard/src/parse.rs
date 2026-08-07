@@ -151,11 +151,9 @@ pub fn parse_diff_line(line: &str, path: &str, line_no: u32) -> Option<VersionLi
     // header and not version-bearing.
     let (side, rest) = if let Some(tail) = line.strip_prefix('+') {
         (DiffSide::Added, tail)
-    } else if let Some(tail) = line.strip_prefix('-') {
-        (DiffSide::Removed, tail)
     } else {
-        // Context line or hunk header — not a version-bearing +/- line.
-        return None;
+        let tail = line.strip_prefix('-')?;
+        (DiffSide::Removed, tail)
     };
     // Skip the optional leading space introduced by the diff marker, and
     // any further indentation that lives in the file. Trim the trailing

@@ -10,6 +10,7 @@
 //! findings serialize as a typed object so a future CI consumer can consume
 //! the report programmatically.
 
+use crate::classify::IntentDeclaration;
 use crate::scan::{Finding, has_defect};
 use serde::Serialize;
 
@@ -49,13 +50,14 @@ struct FindingView<'a> {
 #[derive(Debug)]
 pub struct Report<'a> {
     findings: &'a [Finding],
+    intent: IntentDeclaration,
 }
 
 impl<'a> Report<'a> {
     /// Construct a report view over a borrowed findings slice.
     #[must_use]
-    pub const fn new(findings: &'a [Finding]) -> Self {
-        Self { findings }
+    pub const fn new(findings: &'a [Finding], intent: IntentDeclaration) -> Self {
+        Self { findings, intent }
     }
 
     /// Render the report in the given format.
@@ -68,15 +70,16 @@ impl<'a> Report<'a> {
     }
 
     fn render_human(&self) -> String {
-        if self.findings.is_empty() {
-            return String::from("version-guard: no version-bearing lines touched\n");
-        }
         let mut out = String::new();
-        for f in self.findings {
-            out.push_str(&f.message);
-            out.push('\n');
+        if self.findings.is_empty() {
+            out.push_str("version-guard: no version-bearing lines touched\n");
+        } else {
+            for f in self.findings {
+                out.push_str(&f.message);
+                out.push('\n');
+            }
         }
-        if has_defect(self.findings) {
+        if has_defect(self.findings, self.intent) {
             out.push_str("version-guard: DEFECT\n");
         } else {
             out.push_str("version-guard: clean\n");
@@ -105,14 +108,22 @@ impl<'a> Report<'a> {
                 message: &f.message,
             })
             .collect();
-        let defect_count = self
+        let finding_defects = self
             .findings
             .iter()
-            .filter(|f| match f.direction {
-                crate::classify::Direction::Identical => false,
-                crate::classify::Direction::Forward | crate::classify::Direction::Backward => true,
+            .filter(|finding| {
+                matches!(
+                    finding.direction,
+                    crate::classify::Direction::Backward | crate::classify::Direction::Forward
+                ) && (finding.direction == crate::classify::Direction::Backward
+                    || self.intent == IntentDeclaration::Undeclared)
             })
             .count();
+        let defect_count = if has_defect(self.findings, self.intent) {
+            finding_defects.max(1)
+        } else {
+            0
+        };
         let view = ReportView {
             defect_count,
             findings: views,
@@ -125,8 +136,8 @@ impl<'a> Report<'a> {
 /// Render the report in the given format. Library entry point for callers
 /// that hold a findings slice directly (no `Report` indirection).
 #[must_use]
-pub fn render(findings: &[Finding], format: Format) -> String {
-    Report::new(findings).render(format)
+pub fn render(findings: &[Finding], intent: IntentDeclaration, format: Format) -> String {
+    Report::new(findings, intent).render(format)
 }
 
 fn direction_str(direction: crate::classify::Direction) -> &'static str {
@@ -172,15 +183,22 @@ mod tests {
     }
 
     #[test]
-    fn empty_findings_human_format_reports_clean() {
-        let r = render(&[], Format::Human);
+    fn empty_findings_human_format_reports_clean_without_intent() {
+        let r = render(&[], IntentDeclaration::Undeclared, Format::Human);
         assert!(r.contains("no version-bearing lines"));
+    }
+
+    #[test]
+    fn declared_intent_empty_findings_human_format_reports_defect() {
+        let r = render(&[], IntentDeclaration::Declared, Format::Human);
+        assert!(r.contains("no version-bearing lines"));
+        assert!(r.contains("DEFECT"));
     }
 
     #[test]
     fn backward_finding_human_format_reports_defect() {
         let f = sample_finding(Direction::Backward, IntentDeclaration::Undeclared);
-        let r = render(&[f], Format::Human);
+        let r = render(&[f], IntentDeclaration::Undeclared, Format::Human);
         assert!(r.contains("BACKWARD"));
         assert!(r.contains("DEFECT"));
     }
@@ -188,7 +206,7 @@ mod tests {
     #[test]
     fn identical_finding_human_format_reports_clean() {
         let f = sample_finding(Direction::Identical, IntentDeclaration::Undeclared);
-        let r = render(&[f], Format::Human);
+        let r = render(&[f], IntentDeclaration::Undeclared, Format::Human);
         assert!(r.contains("identical"));
         assert!(r.contains("clean"));
         assert!(!r.contains("DEFECT"));
@@ -197,10 +215,18 @@ mod tests {
     #[test]
     fn json_format_emits_valid_json() {
         let f = sample_finding(Direction::Backward, IntentDeclaration::Undeclared);
-        let r = render(&[f], Format::Json);
+        let r = render(&[f], IntentDeclaration::Undeclared, Format::Json);
         let parsed: serde_json::Value = serde_json::from_str(&r).expect("valid JSON");
         assert_eq!(parsed["defect_count"], 1);
         assert_eq!(parsed["findings"][0]["direction"], "backward");
+    }
+
+    #[test]
+    fn json_format_reports_missing_declared_movement() {
+        let r = render(&[], IntentDeclaration::Declared, Format::Json);
+        let parsed: serde_json::Value = serde_json::from_str(&r).expect("valid JSON");
+        assert_eq!(parsed["defect_count"], 1);
+        assert!(parsed["findings"].as_array().is_some_and(Vec::is_empty));
     }
 
     #[test]

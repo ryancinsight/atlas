@@ -256,13 +256,29 @@ fn parse_hunk_post_start(line: &str) -> Option<u32> {
     c_str.parse::<u32>().ok()
 }
 
-/// True when any finding in the list is a defect: a backward movement, or a
-/// forward movement with undeclared intent.
+/// True when the scan violates the version-intent invariant.
+///
+/// A backward movement is always a defect. A forward movement requires
+/// declared intent. Conversely, a commit that declares release/bump intent
+/// must contain at least one forward version movement; an empty or
+/// identical-only manifest diff fails closed instead of silently accepting a
+/// release that changed no package version.
 #[must_use]
-pub fn has_defect(findings: &[Finding]) -> bool {
+pub fn has_defect(findings: &[Finding], intent: IntentDeclaration) -> bool {
+    if findings.iter().any(|finding| finding.intent != intent) {
+        return true;
+    }
+    if intent == IntentDeclaration::Declared
+        && !findings
+            .iter()
+            .any(|finding| finding.direction == Direction::Forward)
+    {
+        return true;
+    }
+
     findings.iter().any(|f| match f.direction {
         Direction::Backward => true,
-        Direction::Forward => f.intent == IntentDeclaration::Undeclared,
+        Direction::Forward => intent == IntentDeclaration::Undeclared,
         Direction::Identical => false,
     })
 }
@@ -286,7 +302,7 @@ mod tests {
                 .all(|f| f.direction == Direction::Forward
                     && f.intent == IntentDeclaration::Declared)
         );
-        assert!(!has_defect(&findings));
+        assert!(!has_defect(&findings, IntentDeclaration::Declared));
     }
 
     #[test]
@@ -295,7 +311,7 @@ mod tests {
         let findings = scan_diff(&diff, "chore(release): Bump workspace");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].direction, Direction::Backward);
-        assert!(has_defect(&findings));
+        assert!(has_defect(&findings, IntentDeclaration::Declared));
     }
 
     #[test]
@@ -305,7 +321,7 @@ mod tests {
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].direction, Direction::Forward);
         assert_eq!(findings[0].intent, IntentDeclaration::Undeclared);
-        assert!(has_defect(&findings));
+        assert!(has_defect(&findings, IntentDeclaration::Undeclared));
     }
 
     #[test]
@@ -314,7 +330,7 @@ mod tests {
         let findings = scan_diff(&diff, "style: Reformat Cargo.toml");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].direction, Direction::Identical);
-        assert!(!has_defect(&findings));
+        assert!(!has_defect(&findings, IntentDeclaration::Undeclared));
     }
 
     #[test]
@@ -344,14 +360,32 @@ diff --git a/crates/hermes-simd-types/Cargo.toml b/crates/hermes-simd-types/Carg
         for f in &findings {
             assert_eq!(f.direction, Direction::Backward, "{f:?}");
         }
-        assert!(has_defect(&findings));
+        assert!(has_defect(&findings, IntentDeclaration::Undeclared));
     }
 
     #[test]
-    fn non_version_diff_is_empty() {
+    fn declared_intent_with_no_version_changes_is_defect() {
+        let diff = make_diff("@@ -3,1 +3,1 @@\n-name = \"foo\"\n+name = \"bar\"\n");
+        let findings = scan_diff(&diff, "chore(release): Bump workspace");
+        assert!(findings.is_empty());
+        assert!(has_defect(&findings, IntentDeclaration::Declared));
+    }
+
+    #[test]
+    fn declared_intent_with_only_identical_versions_is_defect() {
+        let diff = make_diff("@@ -3,1 +4,1 @@\n-version = \"0.5.0\"\n+version = \"0.5.0\"\n");
+        let findings = scan_diff(&diff, "chore(release): Bump workspace");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].direction, Direction::Identical);
+        assert!(has_defect(&findings, IntentDeclaration::Declared));
+    }
+
+    #[test]
+    fn non_version_diff_is_empty_without_declared_intent() {
         let diff = make_diff("@@ -3,1 +4,1 @@\n-name = \"foo\"\n+name = \"bar\"\n");
         let findings = scan_diff(&diff, "refactor: Rename package");
         assert!(findings.is_empty());
+        assert!(!has_defect(&findings, IntentDeclaration::Undeclared));
     }
 
     #[test]
@@ -360,7 +394,7 @@ diff --git a/crates/hermes-simd-types/Cargo.toml b/crates/hermes-simd-types/Carg
         let findings = scan_diff(&diff, "chore(release): Initial release");
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].direction, Direction::Forward);
-        assert!(findings[0].intent == IntentDeclaration::Declared);
-        assert!(!has_defect(&findings));
+        assert_eq!(findings[0].intent, IntentDeclaration::Declared);
+        assert!(!has_defect(&findings, IntentDeclaration::Declared));
     }
 }

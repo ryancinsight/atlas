@@ -6,6 +6,26 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-TOOLS-STRANDED-001 — Land stranded atlas-meta tooling slices — done 2026-08-07
+
+- [x] Verify each stranded tool slice at the atlas root builds and passes
+      its gates before committing (version-guard 48+3 tests + clippy,
+      gitlink-coherence 21/21, checkout-path-dependencies 11/11, overlay
+      4/4 Python regressions, board-sweep 6/6).
+- [x] Commit `a92a3c6` version-guard fail-closed intent slice.
+- [x] Commit `cbc664d` gitlink-coherence ambiguous-selector slice.
+- [x] Commit `fb62549` overlay canonical-repos slice + regenerated
+      `.cargo/config.toml` (drops apollo-sht/coeus-leto/consus-onnx).
+- [x] Commit `11a67dd` checkout-path-dependencies symlink-rejection slice.
+- [x] Commit `17c3cc5` path-dep ledger physical rename + ID reference.
+- [x] Commit `1b514db` atlas-board-sweep triage tool + tests.
+- [x] Reconcile the `.cargo/config.toml` deletion and `.codex-serialized`
+      backup by regenerating the overlay (42 sections, check aligned).
+- [x] Sync backlog.md / gap_audit.md with the landed commits.
+
+Acceptance: all tool gates pass at commit time; the atlas root carries no
+stranded tool changes.
+
 ## ATLAS-AEQUITAS-CONSUMERS-008 — Kwavers transducer design and propagation metrics — done
 
 - [x] Audit transducer design and focused propagation contracts for raw
@@ -256,6 +276,26 @@ ATLAS-AEQUITAS-CONSUMERS-004.
       (`mnemosyne-heap`, no compiler diagnostic).
 - [x] Confirm no remaining Aequitas metric gap in the named CFDrs, Helios,
       and Kwavers audit scope.
+
+## ATLAS-HYGIENE-BASELINE-001 — Board-sweep triage instrument — done 2026-08-07
+
+- [x] Add the report-only `scripts/atlas-board-sweep.py` parser for root and
+      provider backlog heading variants.
+- [x] Report in-progress owner/date context and blocked items without a
+      qualified `Re-open trigger`, without inferring stale status or mutating
+      claims.
+- [x] Add focused unittest coverage for status normalization, owner/date
+      extraction, missing-trigger reporting, qualified triggers, missing files,
+      empty boards, and unrelated title dates.
+- [x] Verify `py_compile`, focused unittest 6/6, board lint, and `git diff
+      --check`; record the full scripts-suite environment blocker separately
+      (pytest is unavailable and unrelated existing tests have an import-path
+      failure under direct unittest discovery).
+
+Evidence: the live sweep is report-only and scans 244 root items, finding 27
+in-progress claims and 3 blocked items without a re-open trigger. This closes
+the mechanical census sub-slice only; stale-claim thresholds, rescue, and
+reclamation remain human/operator decisions.
 
 ## ATLAS-SUBSTRATE-001..004 — Compute-substrate consolidation [arch]
 
@@ -4140,7 +4180,7 @@ Next actionable (awaiting user or peer):
 
 ### Standing-continuation open items (not Session 17 closure scope; harvest for next session):
 
-- ATLAS-BOOK-001 book process-content eviction (kwavers book drift).
+- ATLAS-BOOK-002 book process-content eviction (kwavers book drift).
 - CFDRS-CFD1D-LINT-001 residual 8 warnings (peer-architectural; skip).
 - Helios book — user's session prompt requests similar multichapter
   book from examples for helios and CFDrs per kwavers template. Per

@@ -22,6 +22,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
+use atlas_version_guard::classify::classify_intent;
 use atlas_version_guard::error::Error;
 use atlas_version_guard::report::{Format, Report};
 use atlas_version_guard::scan::{has_defect, scan_diff};
@@ -35,15 +36,14 @@ Reads the diff over `<range>` (default HEAD~1..HEAD) of `*.toml` files in
 `<repo>` and classifies every touched `version =` line as Identical,
 Forward, or Backward. A Forward bump without a declared release intent
 (`chore(release)`, `build(deps)`, `Bump:` trailer, or `BREAKING CHANGE:`
-footer) is a defect; a Backward movement is always a defect. Empty findings
-exit 0.
+footer) is a defect; a Backward movement is always a defect. A declared release/bump with no forward version movement is a defect, including an empty or identical-only diff.
 
 The --commit-msg path is optional; if omitted, the message body for the head
 of the range is read via `git log -1 --format=%B`.
 
 Exit codes:
-  0  no defects (clean: no version lines touched, or all forward-with-intent
-     or identical)
+  0  no defects (no declared release without a forward version movement, and
+     every touched line is identical or forward-with-intent)
   1  defect detected (at least one backward movement, or one forward movement
      without declared intent)
   2  invocation error (bad CLI, git plumbing failure, missing file)
@@ -76,9 +76,10 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
         None => git_commit_message(&repo, &range)?,
     };
     let findings = scan_diff(&diff_text, &commit_msg);
-    let report = Report::new(&findings);
+    let intent = classify_intent(&commit_msg);
+    let report = Report::new(&findings, intent);
     print!("{}", report.render(format));
-    if has_defect(&findings) {
+    if has_defect(&findings, intent) {
         Ok(ExitCode::from(1))
     } else {
         Ok(ExitCode::SUCCESS)

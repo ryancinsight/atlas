@@ -1,4 +1,4 @@
-## ATLAS-PATH-DEP-AUDIT-2 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — in-progress
+## ATLAS-PATH-DEP-AUDIT-001 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — in-progress
 
 - Owner: Codex `/root`; last-update: 2026-07-24;
   scope: `D:/atlas/repos/*/Cargo.lock` audit for
@@ -143,7 +143,7 @@ Closure requires ALL of the following landed in future slices:
   verification slice landing the lock-drift resolution across
   apollo / asclepius / athena / hephaestus / CFDrs / coeus / mnemosyne
   consumers;
-- a final ATLAS-PATH-DEP-AUDIT-2 sweep-completion marker entry
+- a final ATLAS-PATH-DEP-AUDIT-001 sweep-completion marker entry
   indicating zero remaining `source = "git+https://github.com/
   ryancinsight` hits across all `/d/atlas/repos/*/Cargo.lock`
   files (excluding the 7 NVlabs external hits).

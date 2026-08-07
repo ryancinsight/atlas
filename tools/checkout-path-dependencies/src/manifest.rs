@@ -7,6 +7,7 @@ use toml::Value;
 use crate::CheckoutError;
 
 pub(super) struct ProviderRequirements {
+    pub(super) destination: PathBuf,
     pub(super) providers: BTreeMap<String, BTreeSet<PathBuf>>,
 }
 
@@ -57,7 +58,10 @@ pub(super) fn discover(
             .insert(dependency);
     }
 
-    Ok(ProviderRequirements { providers })
+    Ok(ProviderRequirements {
+        destination,
+        providers,
+    })
 }
 
 fn canonical_file(path: &Path) -> Result<PathBuf, CheckoutError> {

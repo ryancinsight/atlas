@@ -37,10 +37,12 @@
 //!
 //! # Exit codes
 //!
-//! - `0` — clean: every version-bearing diff line is either identical or a
+//! - `0` — clean: no declared release/bump is missing a forward version
+//!   movement, and every version-bearing diff line is either identical or a
 //!   forward bump with declared intent.
-//! - `1` — defect detected: at least one backward movement, or a forward
-//!   movement without declared intent, or a parse/invariant violation.
+//! - `1` — defect detected: a declared release/bump has no forward movement,
+//!   at least one backward movement, a forward movement without declared
+//!   intent, or a parse/invariant violation.
 //! - `2` — invocation error (bad CLI, missing diff, git plumbing failure).
 //!
 //! # Library / binary split

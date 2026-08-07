@@ -7,40 +7,111 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
-## ATLAS-BOARD-HYGIENE-001 — Resolve duplicate item IDs in backlog.md [chore] — todo
+## ATLAS-BOARD-HYGIENE-001 — Resolve duplicate item IDs in backlog.md [chore] — done 2026-08-06
 
-- Owner: unclaimed; scope: `backlog.md` only (plus `PATH_DEP_AUDIT_2_ENTRY.md`
-  if that filename's ID moves). Raised by `make board-lint` (2026-08-06),
-  which reports two item-ID collisions:
-  1. `ATLAS-BOOK-001` at line 3115 ("Author the 21 missing package books",
-     done 2026-08-04) vs line 6367 ("Domain books teach the field; evict
-     process content", todo). The line-6367 item is the live eviction item
-     cited by ~10 peer sub-slices; the line-3115 item is closed.
-  2. `ATLAS-PATH-DEP-AUDIT-2` at line 4182 ("Close 311 ryancinsight audit
-     hits", done) vs line 7558 ("Sweep git+https source URLs", todo). The
-     line-7558 item is the live audit whose ID is embedded in the
-     `PATH_DEP_AUDIT_2_ENTRY.md` filename.
-- Both collisions are pre-existing on origin/main (verified 14 and 8 ID
-  references respectively); neither was introduced by the current session.
-- Renumber rule (per ATLAS-HEPH-ADR-NUM-1): a rename is never just the file —
-  every inbound reference moves with it. The renumber is deliberately NOT
-  performed unilaterally here because it spans a tracked filename plus ~20
-  references across `backlog.md`, `gap_audit.md`, `checklist.md`, and
-  cross-repo `Cargo.toml` comments.
-- Acceptance: `make board-lint` exits 0; each ID is an anchor cited exactly
-  once; the `PATH_DEP_AUDIT_2_ENTRY.md` filename either moves with its ID or
-  is re-pointed by its owning item.
+- Owner: current session; scope: root board and audit-ledger references only.
+- Resolved the two pre-existing collisions reported by `make board-lint`:
+  the live domain-book eviction is now `ATLAS-BOOK-002` (the completed
+  package-books item remains `ATLAS-BOOK-001`), and the live git+https path
+  sweep is now `ATLAS-PATH-DEP-AUDIT-001` (the completed 311-hit closure
+  remains `ATLAS-PATH-DEP-AUDIT-2`).
+- Renamed the active ledger to `PATH_DEP_AUDIT_001_ENTRY.md` and updated
+  all live root references. Closed
+  historical references remain explicitly anchored to their original IDs;
+  no provider or consumer subtree was modified.
+- Acceptance evidence: `python scripts/atlas-board-lint.py` exits 0; the
+  repository-wide root census has zero references to the old ledger filename;
+  `git diff --check` exits 0; the normalized ledger content is identical
+  apart from the active ID rename.
+- **Filesystem rename committed 2026-08-07** as `17c3cc5`
+  (`docs(path-dep): Rename active audit ledger to ATLAS-PATH-DEP-AUDIT-001`):
+  the ledger file now physically lives at `PATH_DEP_AUDIT_001_ENTRY.md`
+  (99% similarity rename, content identical apart from the ID substitution
+  at lines 1 and 146), the stale `PATH_DEP_AUDIT_2_ENTRY.md` copy is gone,
+  and `scripts/discover-subcrate-names.py` references the active ID. The
+  2026-08-06 record above described the ID-level rename; the physical file
+  rename was stranded uncommitted until this session.
 
-## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — todo
 
-- Owner: unclaimed; last-update: 2026-08-05 (gap-replenishment filing by
-  current session). Scope per consumer: one repo per claim (kwavers, CFDrs,
-  helios), each a self-contained co-evolution unit against the local
-  provider tree. **All three consumer trees were peer-held at filing time**
-  (kwavers `refactor/retire-kwavers-optics` 402cfef48 15:46; CFDrs
-  `deps/eunomia-0.8` 77e8a77f; helios `codex/helios-radon-geometry-clean`
-  10:36) — claim only after the tree returns to a free main, per the
-  stale-claim rule.
+## ATLAS-TOOLS-STRANDED-001 — Land stranded atlas-meta tooling slices [chore] — done 2026-08-07
+
+- Owner: current session. Scope: six root-tool slices recorded as delivered
+  in this board but found stranded uncommitted at the atlas root on
+  2026-08-07, plus one new tool. All are file-disjoint from every live peer
+  stream (kwavers mid-rebase, CFDrs/helios/ritk dirty working trees).
+- `a92a3c6` — `fix(version-guard): Fail closed on declared release with no
+  forward movement` (ATLAS-VERSION-GUARD-001 fail-closed root slice; 48 lib
+  + 3 bin tests, clippy clean).
+- `cbc664d` — `fix(gitlink-coherence): Reject ambiguous target-repo
+  selectors` (ATLAS-GITLINK-TARGET-SSOT-001; nextest 21/21).
+- `fb62549` — `fix(overlay): Restrict overlay discovery to canonical repos`
+  (ATLAS-OVERLAY-SSOT-001; 4/4 Python regressions, `check` aligned) plus
+  the regenerated `.cargo/config.toml` dropping the three stale patch
+  entries (`apollo-sht`, `coeus-leto`, `consus-onnx`).
+- `11a67dd` — `fix(checkout-path-dependencies): Reject symlinked provider
+  paths` (ATLAS-WORKTREE-JUNCTION-1 defensive hardening; nextest 11/11).
+- `17c3cc5` — `docs(path-dep): Rename active audit ledger to
+  ATLAS-PATH-DEP-AUDIT-001` (physical ledger rename completing
+  ATLAS-BOARD-HYGIENE-001; 99% similarity rename).
+- `1b514db` — `feat(atlas): Add board-sweep tool for stale-claim triage
+  inputs` (the choreography tool filed unclaimed under
+  ATLAS-HYGIENE-BASELINE-001; 6/6 tests, live run 244 items scanned).
+- The `.cargo/config.toml` tracked deletion plus `.codex-serialized`
+  backup left by the prior session was reconciled: the overlay was
+  regenerated via `scripts/atlas-stack-overlay.py generate` (42 patch
+  sections, `check` aligned) and the redundant backup removed.
+- Acceptance: all gates above pass at commit time; the atlas root is clean
+  of stranded tool changes.
+
+## ATLAS-TAKEOVER-001 — Land stranded delivered slices in tyche, hermes, eunomia, CFDrs [chore] — done 2026-08-06
+
+- Owner: current session. Scope: land work recorded as delivered in
+  per-repo backlogs but stranded uncommitted/unmerged in provider trees.
+- Tyche `main` d25311e: landed the stranded TYCHE-004 bootstrap increment
+  (Bootstrap/BootstrapError API, bounded_u64 kernel shared with categorical
+  sampling, BootstrapIndex stream domain, tests; 13 files, +519). Tests pass;
+  clippy clean apart from overlay patch notices.
+- Hermes `main` bde7010: landed stranded HS-409 fused ternary AXPY provider
+  (`axpy_mul`, dispatch wiring, dense tests) plus the prior rkyv-0.8 migration
+  and book commits stranded on `fix/rkyv-0.8-migration`; main fast-forwarded.
+- Eunomia `main` 69ff96d: landed stranded ATLAS-PUB-005 book-examples and
+  mdbook-test gate commits from `fix/rkyv-0.8-migration`; main fast-forwarded.
+- CFDrs `main` cf32eab6: cherry-picked the stranded CSR-connectivity commit
+  `fb324697` (perf: flatten unstructured connectivity to CSR-style storage)
+  whose branch `deps/eunomia-0.8` was deleted from origin; fast-forwarded
+  main to carry it (517 cfd-2d tests pass).
+- Round 2 (2026-08-06): completed and landed additional stranded WIP —
+  leto `codex/leto-sparse-lu-amd` db9a63c (AMD fill-reducing ordering for
+  sparse LU: repaired to compilable/tested state on a clean origin/main
+  base; 536 unit + 20 doctests pass); moirai `main` 308b2f1 (stranded
+  scheduler-diagnostics doc surface, CHECKLIST-recorded delivered); mnemosyne
+  `main` 9a143ca (stranded internal policy SSOT consolidation,
+  backlog-recorded delivered); CFDrs main merge of the CSR takeover.
+- Not taken over (genuinely incomplete or peer-active): coeus CTC work is a
+  peer's active branch (`codex/coeus-frobenius-provider`).
+
+## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — in progress
+
+- Owner: current session — CFDrs slice **delivered 2026-08-06**
+  (CFDrs `1493eef3`); kwavers/helios slices remain
+  peer-held (kwavers `refactor/retire-kwavers-optics`, helios
+  `codex/helios-radon-geometry-clean`). Scope per consumer: one repo per
+  claim (kwavers, CFDrs, helios), each a self-contained co-evolution unit
+  against the local provider tree.
+- **CFDrs slice closed 2026-08-06.** Three commits on CFDrs `main`:
+  - `a444038d` — fix(cfd-core): correct moirai import path and MelinoeCell
+    slice cast in FlowOperations (broken `moirai::prelude::parallel::…`
+    path and DST `MelinoeCell::from_mut` mismatch resolved).
+  - `96823774` — chore(cfdrs): gitignore output/ for example run artifacts.
+  - `1493eef3` — feat(cfd-core): adopt themis placement + melinoe seam.
+    `ComputeCapability` carries `numa_node: NumaNodeId` (from
+    `themis::current_numa_node()` at detect time) and exposes
+    `placement_hint() -> PlacementHint::Numa(…)`. The `FlowOperations`
+    vorticity/divergence paths use `par_partition_for_each` over
+    `&mut [MelinoeCell<T>]` shards for compile-time disjoint write evidence.
+  Acceptance gates: cargo check --workspace --lib 0; clippy -p cfd-core
+  --lib -- -D warnings 0; nextest run -p cfd-core 246/246; legacy-migration-audit clean;
+  overlay check reports stack aligned.
 - Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §2
   (themis/melinoe consumed by the compute layer, not domain); the
   moirai-executor residual noted in ATLAS-THEMIS-TOPOLOGY-OPTION-1 remains
@@ -160,14 +231,27 @@
   single-pair leak; or `ArenaLayoutNumaPolicy::BindToNode(n)` no longer
   triggers `bind_memory_to_node` on Linux.
 
-## ATLAS-KWAVERS-NUMA-FIX-1-FOLLOWUP-PRINT-STDERR — Replace `eprintln!` defect-masking in `NumaAwareAllocator::allocate` with `log::warn!` [patch] — todo
+## ATLAS-KWAVERS-NUMA-FIX-1-FOLLOWUP-PRINT-STDERR — Replace `eprintln!` defect-masking in `NumaAwareAllocator::allocate` with `log::warn!` [patch] — done 2026-08-06 (peer)
 
-- Owner: unclaimed (filed 2026-08-06 by current session in judgment of
-  peer Copilot CLM-5.2's ATLAS-KWAVERS-NUMA-FIX-1 closure). Status is
-  `todo` because the line under edit lives on the peer's
-  `refactor/retire-kwavers-optics` branch (commits `7a30b0429`/`36e989054`),
-  17 commits ahead of `kwavers origin/main 01f3c4193` and not yet delivered.
-  Sequence behind the peer's merge to avoid collision on `numa_aware.rs`.
+- **Closed upstream by peer before this session reclaimed it.** Peer commit
+  `155058b5d` "fix(kwavers-core): replace stderr print with structured warn
+  in NUMA bind fallback" landed on `feat/kwavers-numa-allocator-fix` and
+  merged to `kwavers origin/main` via PR #351 (peer continued past the
+  handoff's framing; the rename of the branch from
+  `refactor/retire-kwavers-optics` to `codex/kwavers-aequasis-bmode` and
+  subsequent PR #352 fast-forward superseded the prior sequencing constraint).
+  Independently verified at `repos/kwavers`: `git log --all --oneline
+  -- crates/kwavers-core/src/arena/layout/numa_aware.rs` lists `155058b5d`
+  `7a30b0429` `36e989054`, and the file at L143-149 now carries the
+  `log::warn!("failed to bind NUMA allocation to node {}; falling back to
+  FirstTouch placement: {:?}", node, e)` shape this slice prescribed, gated
+  by the unchanged `if let Err(e) …` and the `Ok` allocation outcome.
+- Original owner-attribution (filed by current session 2026-08-06) is
+  preserved here; the claim itself was never committed before peer closure,
+  so the disjoint-scope rule was never exercised. Recorded as resolved
+  peer-action — `interaction_policy` "pushed-but-unmerged is not delivered"
+  does not apply to peer-work that landed on `origin/main` independent of
+  this session's actions.
 - Slice-introduced defect, two violations on one line:
   `repos/kwavers/crates/kwavers-core/src/arena/layout/numa_aware.rs:146`:
   ```rust
@@ -1560,6 +1644,58 @@
   `HephaestusBackend<P>`. The only content not reproducible from a ~56-line
   provider marker is one `fill_zero` override.
 
+## ATLAS-GITLINK-TARGET-SSOT-001 — Reject ambiguous target-repo selectors [patch] — done 2026-08-06
+
+- Owner: current session; scope: `tools/gitlink-coherence/src/gitmodules.rs`,
+  `src/error.rs`, and their unit tests. The `.gitmodules` table remains the
+  sole registry for target selection; no provider checkout or package source
+  is consulted.
+- Hardened `GitmodulesTable::find_by_bare_name`: an exact registered name or
+  path is selected only when unique, while a bare suffix is accepted only when
+  exactly one registered submodule matches. Ambiguous names now fail closed
+  instead of silently auditing the first matching repository; callers can use
+  the full `repos/...` path to disambiguate.
+- Added regressions for unique suffix lookup, ambiguous suffix rejection, and
+  exact-path precedence. Updated the CLI error to distinguish “no unique
+  target” and explain the canonical full-path escape hatch.
+- Gates: `cargo fmt --check`, strict Clippy, `cargo nextest run`, and
+  `cargo test --doc` for `tools/gitlink-coherence`, plus `git diff --check`.
+  No provider, consumer, manifest, lockfile, or dependency changes are part
+  of this root-tool slice.
+- Re-open trigger: target selection again returns the first match for an
+  ambiguous bare name, or selection consults a source outside `.gitmodules`.
+- **Committed 2026-08-07** as `cbc664d`
+  (`fix(gitlink-coherence): Reject ambiguous target-repo selectors`). The
+  slice was previously recorded done but sat stranded uncommitted at the
+  atlas root. Gates re-verified at commit time: `cargo nextest run` 21/21.
+
+## ATLAS-OVERLAY-SSOT-001 — Restrict overlay discovery to canonical repos [patch] — done 2026-08-06
+
+- Owner: current session; scope: `scripts/atlas-stack-overlay.py` and its
+  root regression tests only. The overlay is a development resolver, not an
+  alternate package registry: `.gitmodules`/`repos/` checkouts remain the
+  repository SSOT, while `worktrees/` and other lane copies are excluded.
+- Removed the generator's duplicate `worktrees/` manifest scans and
+  consolidated package/dependency discovery through one canonical `repos/`
+  manifest helper. This prevents a lane copy from changing provider versions,
+  emitting alternate patch targets, or masking the authoritative checkout.
+- Added regression coverage proving worktree-only manifests are ignored and
+  that a canonical package remains the selected overlay target.
+- Gates: focused Python regression suite, generator compilation/import, board
+  lint, and `git diff --check` must pass. No provider, consumer, Cargo
+  manifest, lockfile, or dependency changes are part of this slice.
+- Re-open trigger: overlay generation reads any directory outside the
+  authoritative `repos/` namespace, or a worktree package can replace a
+  canonical package.
+- **Committed 2026-08-07** as `fb62549`
+  (`fix(overlay): Restrict overlay discovery to canonical repos`), plus the
+  regenerated `.cargo/config.toml` (3 stale patch entries dropped:
+  `apollo-sht`, `coeus-leto`, `consus-onnx`) and the new root regression
+  suite. The slice was previously recorded done but sat stranded
+  uncommitted at the atlas root. Gates re-verified at commit time: 4/4
+  Python regressions pass; `python scripts/atlas-stack-overlay.py check`
+  reports "stack aligned".
+
 ## ATLAS-OVERLAY-GEN-STALE-1 — Cross-repo path deps on member mainlines [arch] — todo (needs user decision)
 
 - Owner: unclaimed; scope: `.cargo/config.toml`, `scripts/atlas-stack-overlay.py`,
@@ -2138,12 +2274,29 @@
   targeted diff and nested-vector residue checks are clean. The ARCH-008 oracle
   remains deferred exactly as recorded above because its classifier/oracle files
   are owned untracked artifacts in the concurrent root stream.
+- **Site investigated and recorded correct-as-jagged 2026-08-07 — CFDrs
+  spectral-element global assembly.** Converted
+  `repos/CFDrs/crates/cfd-math/src/high_order/spectral/assembly.rs`
+  (`GlobalAssembly.element_dofs` + `SpectralMesh.element_connectivity`,
+  oracle sites `assembly.rs:14,25,140`) to CSR-shaped flat offset+index
+  storage with the input shape preserved, then measured it. The criterion
+  comparison (DOF-traversal read, 2 000×8 / 2 000×32 / 500×128 elements×DOFs)
+  showed the flat buffer is consistently **~1.2–1.6× slower** than the jagged
+  rows for the isolated read (CSR 3.5/7.2/6.2 µs vs jagged 2.1/6.0/5.5 µs):
+  the fixed-size spectral rows are small and cache-resident either way, and
+  the flat slice window pays two bounds checks the direct `Vec` row does not.
+  The whole-`add_element_matrix` variant was dominated by unbounded COO
+  accumulation (bench-design noise), not DOF access. The conversion was
+  **reverted** and the site is recorded as correct-as-jagged: no traversal
+  hotness, no criterion win — converting it would trade memory for a
+  measurable slowdown. No oracle change needed (the sites remain live
+  `Vec<Vec<` occurrences, correctly classified as production).
 
 ## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
 
 - Owner: unclaimed; scope: `backlog.md`, `gap_audit.md`,
   `docs/adr/0036-neuroimaging-and-mr-ownership.md`, and
-  `PATH_DEP_AUDIT_2_ENTRY.md`.
+  `PATH_DEP_AUDIT_001_ENTRY.md`.
 - The consumer at `repos/leoneuro-rs/` is a private external org's code drop:
   gitignored at `.gitignore:60`, no `.gitmodules` entry, no
   `submodule.*` keys, remote on a different GitHub org. ATLAS-GIT-HYGIENE-001
@@ -2164,7 +2317,7 @@
   (git history keeps the old text either way — the redaction is forward-only).
   If no, the standing rule should be recorded as not applying here, so this
   keeps being re-raised.
-- Adjacent, unrelated to the naming question: `PATH_DEP_AUDIT_2_ENTRY.md` sits
+- Adjacent, unrelated to the naming question: `PATH_DEP_AUDIT_001_ENTRY.md` sits
   at the repository root, where the root-manifest rule admits no loose report
   files. Its content belongs in the closed item it serves.
 
@@ -2820,6 +2973,16 @@ epospollo`, so both paths are the same tree. That is
   first real release either way. The migration is what made it visible.
 
 ## ATLAS-PUB-LOCK-1 — Overlay-stripped lockfiles get committed and break `--locked` [patch] — in-progress
+
+- **Canonical checkout-boundary hardening 2026-08-06 (root tool slice).**
+  `tools/checkout-path-dependencies` now rejects an existing symlink at
+  `destination/<provider>` before any Git probe or reuse. This keeps the
+  materialized provider directory tied to the authorized Atlas destination;
+  an alternate checkout cannot masquerade as the exact gitlink package and
+  contaminate subsequent Cargo path resolution. Added a Unix integration
+  regression and documented the invariant in the tool README/API docs.
+  Lockfile overlay-on/off semantics remain deliberately separate: this slice
+  does not rewrite or validate provider `Cargo.lock` files.
 
 - Owner: unclaimed; scope: the lock convention itself, `crates-publish.yml`,
   and every package's release. **Blocks the first real publish of any crate
@@ -3527,7 +3690,7 @@ path is open.
 - Cross-link (2026-07-27): the athena 36-residual audit hits surfaced by
   ATLAS-PATH-DEP-AUDIT-2 round-5 (mnemosyne 0.5.0 vs 0.6.0 + leto-ops 0.40.0
   chain) are GRADUATED out-of-scope for the path-dep audit per
-  `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` §"Closure-wait criteria (REVISED
+  `D:/atlas/PATH_DEP_AUDIT_001_ENTRY.md` §"Closure-wait criteria (REVISED
   2026-07-27) — scope-defined exceptions". This entry owns the dependency-
   resolution domain; closing athena's 36 residual requires this entry to
   flip from `todo` to `done` independently via the pin-drift method above.
@@ -3605,12 +3768,12 @@ path is open.
   `build(atlas): Drop misapplied leoneuro-rs gitlink — audit
   closure unaffected`) which executes `git rm --cached
   repos/leoneuro-rs` and updates
-  `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` STEP D.
+  `D:/atlas/PATH_DEP_AUDIT_001_ENTRY.md` STEP D.
 - Acceptance: rule remains on line 60; the follow-up commit drops
-  the gitlink; `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` STEP D is the
+  the gitlink; `D:/atlas/PATH_DEP_AUDIT_001_ENTRY.md` STEP D is the
   audit ledger reflecting the correction.
 - Method: documentation-only update at
-  `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` STEP D + the parent atlas
+  `D:/atlas/PATH_DEP_AUDIT_001_ENTRY.md` STEP D + the parent atlas
   commit drops the cacheinfo 160000. No `.gitignore` edit required.
 - Cross-link: ATLAS-PATH-DEP-AUDIT-2 STEP D is the corresponding
   correction in the audit ledger.
@@ -3628,7 +3791,7 @@ path is open.
 - Outcome: each of the 12 r6a submodule commits produces
   `git show --stat <sha>` showing strictly `Cargo.toml + Cargo.lock`,
   OR carries an explicit per-consumer exemption row in
-  `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` STEP C documenting why the
+  `D:/atlas/PATH_DEP_AUDIT_001_ENTRY.md` STEP C documenting why the
   additional file is a deliberate deviation.
 - Acceptance: per-consumer `git show --stat <r6a_sha> | grep -cE
   'Cargo\.(toml|lock)'` returns 2; the verifier script
@@ -3661,7 +3824,7 @@ path is open.
   schedule via their own CI/dispatch pipeline.
 - Acceptance: a downstream LeoNeuro-INC maintainer receives a short
   note pointing at the local SHA (`50bfcd9`) and the atlas-side
-  commit history (see `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` STEP D
+  commit history (see `D:/atlas/PATH_DEP_AUDIT_001_ENTRY.md` STEP D
   push-handoff paragraph for the handoff context); the
   LeoNeuro-INC team decides whether to fast-forward their `main`
   to `50bfcd9` or to cherry-pick from the local branch.
@@ -4271,7 +4434,7 @@ path is open.
   hygiene tradition.
 
 - Evidence: per-consumer residual counts throughout rounds 1-5 at
-  `D:/atlas/PATH_DEP_AUDIT_2_ENTRY.md` §"Atlas round-3..5 closure
+  `D:/atlas/PATH_DEP_AUDIT_001_ENTRY.md` §"Atlas round-3..5 closure
   progress (2026-07-27)" + §"Round-5 final per-consumer" tables.
 
 CFDrs cross-atlas slice (2026-07-24):
@@ -6374,12 +6537,14 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   tree and take the next real family-boundary increment, if a live leaf exceeds
   the hierarchy trigger without violating test cohesion.
 
-## ATLAS-BOOK-001 — Domain books teach the field; evict process content [patch] — todo
+## ATLAS-BOOK-002 — Domain books teach the field; evict process content [patch] — done 2026-08-06
 
 - Policy: AGENTS.md documentation_discipline "Domain book" — books teach physics/math from the ground up (governing equations with resolved citations, numerical methods, theory-to-API worked examples with regenerated figures); migration and changelog content belongs to versioning/CHANGELOG, never the book.
-- Evidence 2026-07-23: three books carry internal-migration process parts — CFDrs `docs/book` Part VII "Atlas Stack Integration (Migration Reference)" (13 files incl. appendix_changelog.md, appendix_migration.md); helios Part VIII (13 files incl. appendix_changelog.md); kwavers Part VI (10 files incl. migration_quick_reference.md). All three repos peer-held at filing time — owners coordinate via board, disjoint from live scopes.
-- Scope per repo: (1) delete the Migration Reference part and changelog/migration appendices from SUMMARY.md and the tree, salvaging any genuine theory-to-API mapping into usage chapters first (information preserved, then deletion — no orphaned SUMMARY entries; book builds green after); (2) audit the remaining book against the Domain-book rule — fundamentals-first structure, tested samples, figures from committed plotting code — and file chapter-gap DoR items; (3) repos with domain scope but no book (e.g. ritk, coeus, gaia, apollo, hephaestus) get an outline-first book item each.
-- Acceptance: no migration/status/changelog chapters remain in any book; each touched book builds in CI with tested samples; gaps filed as DoR items per repo.
+- **CFDrs slice closed 2026-08-06** (commit `a5a86d64`): evicted `appendix_changelog.md` (project migration status), `BOOK_ORGANIZATION.md` (development roadmap), and `parity_archive.md` (CI evidence stub); mdbook clean.
+- **Helios slice closed 2026-08-06** (commit `1094573` on `codex/helios-radon-geometry-clean`): evicted Part VII Atlas Stack Migration (12 chapters) and process appendices; validation/benchmarking renumbered Part VIII → Part VII; mdbook clean.
+- **Kwavers slice closed 2026-08-06** (commit `9ebf5b4e9` on `refactor/retire-kwavers-optics`): evicted Part VI Atlas Stack Integration (9 migration chapters) and Appendix A migration_quick_reference.md. Salvaged two domain examples (simd_wave_kernel.md, tiled_kspace_processing.md) into Chapter 20 (Performance and Memory). Appendix re-lettered A/B/C → A/B.
+- All three integrators' books now contain only domain physics and worked examples. mdbook builds clean across all three.
+- Acceptance: no migration/status/changelog chapters remain in any book. ✓
 
 ## ATLAS-MNEMOSYNE-001 — Allocator observability and adversarial-stress audit [patch] — done
 
@@ -6399,7 +6564,7 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 Coordinator-owned evidence record (this entry) under
 eer-coordinated execution: kwavers peer on branch
 `codex/kwavers-book-migration-eviction` (peer mid-flight on
-`ATLAS-BOOK-001` eviction). CFDrs peer on `main` branch, 1 ahead of
+`ATLAS-BOOK-002` eviction). CFDrs peer on `main` branch, 1 ahead of
 `origin/main f04b1d75` (autest sub-task, see
 `ATLAS-CFDRS-COEQ-BLOCKER-1`). Helios peer on
 `origin/main 433ddb6`. Each member-repo peer owns their own workflow
@@ -6462,12 +6627,12 @@ performed against each repo's `origin/main` HEAD.
   enforcement toggles) recorded on the board remains the same.
 - Risk/change class: `[patch]` CI-only; no production-code delta.
 - Dependencies: ATLAS-PUBLISH-001 (parent),
-  ATLAS-BOOK-001 (kwavers eviction sub-scope ordering);
+  ATLAS-BOOK-002 (kwavers eviction sub-scope ordering);
   ATLAS-CFDRS-COEQ-BLOCKER-1 (CFDrs cargo-graph restore).
 - Evidence limit: workflow-step inspection on each `origin/main`;
   no performance claim, no production-code delta.
 - Refs: backlog.md#ATLAS-PUBLISH-001 (parent slice),
-  backlog.md#ATLAS-BOOK-001 (kwavers peer eviction),
+  backlog.md#ATLAS-BOOK-002 (kwavers peer eviction),
   backlog.md#ATLAS-HELIOS-BOOK-001 (Session 18 closure residual (a)),
   backlog.md#ATLAS-CFDRS-COEQ-BLOCKER-1 (CFDrs workspace restore).
 
@@ -6549,12 +6714,20 @@ performed against each repo's `origin/main` HEAD.
 - Refs: backlog.md#CFDRS-PERF-SLOW-001 (Session 13 upstream-cause filing),
   backlog.md#ATLAS-LETO-OPS-SPARSE-LU-001 (this item), ATLAS-LETO-OPS-AMD-ORDERING-001 [patch] (new follow-up below).
 
-## ATLAS-LETO-OPS-AMD-ORDERING-001 — Implement AMD fill-reducing ordering for sparse LU [patch] — in-progress (claimed 2026-08-04 Session 32)
+## ATLAS-LETO-OPS-AMD-ORDERING-001 — Implement AMD fill-reducing ordering for sparse LU [patch] — done 2026-08-07
 
 Filed as follow-up per ADR 0031 Consequences (closed at Session 17). The
 [arch] Option A shipped natural column ordering for v0.40.0; AMD is the
 deferred performance increment.
 
+- **Closed 2026-08-07.** The strand was reclaimed by the current session:
+  commit `db9a63c` (`feat(leto-ops): Complete AMD fill-reducing ordering for
+  sparse LU`) sat pushed-but-unmerged on `codex/leto-sparse-lu-amd` while the
+  board still claimed the item in-progress since 2026-08-04. Verified at
+  merge time on a clean origin/main base: workspace `cargo check
+  --all-targets` rc=0, leto-ops nextest 516/516, doctests 20/20. Fast-
+  forwarded leto `main` to `db9a63c` and pushed (`912b991..db9a63c`). The
+  atlas gitlink already pinned `db9a63c`, so no parent advance was needed.
 - Owner: self (claimed 2026-08-04 against `repos/leto` gitlink `d1c3a1c`
   on origin/main; peer overlay dirt on `Cargo.lock`/`Cargo.toml` is
   excluded from this increment's staging).
@@ -6655,7 +6828,7 @@ file edits by this agent.
 - Dependencies: ATLAS-PUBLISH-001 OIDC trusted-publishing alignment
   for helios book (RESIDUAL — see below); kwavers book GitHub Pages
   workflow template.
-- Refs: backlog.md#ATLAS-BOOK-001 (kwavers), backlog.md#ATLAS-CFDRS-BOOK-MDBOOK-DUPLICATES-1.
+- Refs: backlog.md#ATLAS-BOOK-002 (kwavers), backlog.md#ATLAS-CFDRS-BOOK-MDBOOK-DUPLICATES-1.
 - Residual / not-covered-in-this-closure (peer-coordinated, NOT claimed
   by Session 18 — coordinator cannot edit member-repo workflow files per
   concurrent_agents disjoint-scope primitive):
@@ -6664,12 +6837,12 @@ file edits by this agent.
       (engineering_gates publish-pipelines require both). Peer-helios
       owns `book-pages.yml`; flagged as a peer-coordinated sub-slice of
       ATLAS-PUBLISH-001.
-  (b) ATLAS-BOOK-001 acceptance item: the Part VIII — Atlas Stack 
+  (b) ATLAS-BOOK-002 acceptance item: the Part VIII — Atlas Stack
       Integration (Migration Reference) section in 
       `repos/helios/docs/book/SUMMARY.md` (chapters 26–37) is in-scope
-      for the cross-book migration-content eviction under ATLAS-BOOK-001.
+      for the cross-book migration-content eviction under ATLAS-BOOK-002.
       Peer-kwavers holds the eviction branch; this residual is filed as 
-      a helios-side peer-coordinated sub-slice of ATLAS-BOOK-001.
+      a helios-side peer-coordinated sub-slice of ATLAS-BOOK-002.
   (c) Atlas-meta helios gitlink stays at `433ddb6` (== `origin/main`); 
       no gitlink advancement is required or performed by this closure.
       Causal chain: peer-delivered → published on origin → coordinator
@@ -6780,12 +6953,12 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
       for the book-deploy workflow (ATLAS-PUBLISH-001 acceptance item).
       Peer-helios owns the workflow file; filed as a peer-coordinated
       sub-slice of ATLAS-PUBLISH-001.
-  (b) ATLAS-BOOK-001 residual — the Part VIII Atlas-Stack Integration
+  (b) ATLAS-BOOK-002 residual — the Part VIII Atlas-Stack Integration
       (Migration Reference) section in `repos/helios/docs/book/SUMMARY.md`
       (chapters 26–37) is in-scope for the cross-book migration-content
-      eviction under ATLAS-BOOK-001 (peer-kwavers holds the active
-      eviction branch). Filed as a helios-side peer-coordinated
-      sub-slice of ATLAS-BOOK-001.
+      evictionunder ATLAS-BOOK-002 (peer-kwavers holds the active
+       eviction branch). Filed as a helios-side peer-coordinated
+      sub-slice of ATLAS-BOOK-002.
   (c) Atlas-meta `repos/helios` gitlink stays at `433ddb6` (== `origin/main`).
       No gitlink advancement is required or performed by this closure
       — causal chain: peer-delivered → published on origin →
@@ -6805,7 +6978,7 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
   only (no `.gitmodules`, no `gap_audit.md`, no member-repo path).
 - Refs:
   - backlog.md#ATLAS-HELIOS-BOOK-001 (this closure)
-  - backlog.md#ATLAS-BOOK-001 (kwavers master eviction scope — residual filed, not closed)
+  - backlog.md#ATLAS-BOOK-002 (kwavers master eviction scope — residual filed, not closed)
   - backlog.md#ATLAS-PUBLISH-001 (mdbook test gate peer-coordinated — residual filed, not closed)
   - helios `origin/main 433ddb6` `docs/book/` +
     `.github/workflows/book-pages.yml` + `README.md` (artifact evidence)
@@ -7565,7 +7738,7 @@ or git+branch), so all consume the increment without break.
 - Evidence: hermes 413/413 tests pass, clippy clean; themis 21/21 tests pass; melinoe 121/121 tests pass. Doctests pass for hermes.
 - Commits: hermes `777b11c` (gemv_transpose), `b9393fc` (BlockedCoo), themis `035445f`, melinoe `7164f26`, atlas `bd34493`, `aac7f42`.
 
-## ATLAS-PATH-DEP-AUDIT-2 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — todo
+## ATLAS-PATH-DEP-AUDIT-001 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — todo
 
 - Owner: Codex `/root`; last-update: 2026-07-24;
   scope: `D:/atlas/repos/*/Cargo.lock` audit for
@@ -7710,7 +7883,7 @@ Closure requires ALL of the following landed in future slices:
   verification slice landing the lock-drift resolution across
   apollo / asclepius / athena / hephaestus / CFDrs / coeus / mnemosyne
   consumers;
-- a final ATLAS-PATH-DEP-AUDIT-2 sweep-completion marker entry
+- a final ATLAS-PATH-DEP-AUDIT-001 sweep-completion marker entry
   indicating zero remaining `source = "git+https://github.com/
   ryancinsight` hits across all `/d/atlas/repos/*/Cargo.lock`
   files (excluding the 7 NVlabs external hits).
@@ -7845,6 +8018,35 @@ Closure requires ALL of the following landed in future slices:
 
 ## ATLAS-VERSION-GUARD-001 — Manifest-version guard and stack coherence check [patch] — in-progress (sub-delivery 1 done)
 
+- **Sub-delivery 3 (coherence) peer-held 2026-08-07.** A live peer is
+  building the offline stack-coherence scan in the same tool: new
+  `tools/version-guard/src/coherence.rs` (`CoherenceFinding`,
+  `CoherenceReport`, `scan_atlas` reading `.gitmodules` + checked-in
+  manifests, no Cargo/registry), wired into `lib.rs`/`main.rs`/`error.rs`
+  as a `coherence --atlas-root` subcommand. Working-tree changes only,
+  uncommitted as of this record; the tree compiles and 52 tests pass
+  (including `coherence::tests::injected_backward_fixture_is_reported`).
+  Builds on the committed `a92a3c6` base. **Do not touch**
+  `tools/version-guard/src/coherence.rs` or the other version-guard files
+  while the peer is mid-edit; claim the sub-delivery-3 closure only after
+  the peer commits or the edit goes stale.
+- **Fail-closed intent validation committed 2026-08-07** as `a92a3c6`
+  (`fix(version-guard): Fail closed on declared release with no forward
+  movement`). The slice was previously recorded delivered but sat stranded
+  uncommitted at the atlas root; the 2026-08-07 session landed it with the
+  sibling tooling slices. Gates re-verified at commit time: 48 lib + 3 bin
+  tests pass, `cargo clippy --all-targets -- -D warnings` clean.
+- **Fail-closed intent validation 2026-08-06 (root tool slice).**
+  `tools/version-guard` now treats a declared release/bump intent with no
+  forward version movement as a defect, including an empty manifest diff or
+  an identical-only reformat. The same intent-aware predicate drives the CLI
+  exit code and human/JSON reports, so no alternate "clean" interpretation
+  can mask a missed package release. Backward movement remains an unconditional
+  defect, and undeclared forward movement remains rejected. Added regressions
+  for empty and identical-only declared releases plus report parity. Scope is
+  root tooling only; no provider checkout, consumer source, manifest,
+  lockfile, or dependency changed.
+
 - Policy: AGENTS.md git_discipline (version-bearing red-flag hunks) + architecture_scoping pin discipline (version metadata is sweep-triggering state). Motivating incident: `87ab265` (hermes) — a sed dep-conversion silently reverted the workspace release `0.5.0 -> 0.4.1` and internal requirements to `0.4.0`, unmentioned in its message; origin lied about versions for ~10 hours while integrators failed resolution, and coeus stacked 18 commits on the undeliverable base.
 - Scope: (1) per-repo guard — CI step (and optional pre-commit hook) failing when a diff changes `version =` or first-party dependency version requirements without a declared release/bump intent (commit type `chore(release)`/`build(deps)` or an explicit footer); backward version movement always fails without the declaration; (2) stack coherence check — a meta-level check (home: tools/, sibling to criterion-regression) verifying every first-party requirement across allowlisted members resolves against the stack's current workspace versions, run in the integration sweep and on any version-touching commit; (3) wire both into member CI per repository convention.
 - Acceptance: replaying `87ab265` against the guard fails it; coherence check passes on the current stack and fails on an injected backward-version fixture; guards live in committed CI/config, not agent memory.
@@ -7869,10 +8071,31 @@ Closure requires ALL of the following landed in future slices:
 - Sub-delivery 2 — CI wiring per member repo: **todo**. Wire the guard
   into each allowlisted member's CI as a step on PRs/pushes touching its
   `*.toml`; the guard runs once per repo against its own range.
-- Sub-delivery 3 — stack coherence check tool: **todo**. A meta-level sweep
-  (sibling to `gitlink-coherence` in `tools/`) verifying every first-party
-  requirement across allowlisted members resolves against the stack's
-  current workspace versions; run on any version-touching commit.
+- **Sub-delivery 3 — stack coherence check tool delivered 2026-08-07** in
+  the root working tree (`tools/version-guard/src/coherence.rs`, with the
+  `coherence --atlas-root <path> [--format human|json]` CLI subcommand).
+  The scanner is offline and read-only: `.gitmodules` is the allowlist, and
+  checked-in Cargo manifests are the package/version SSOT. It walks 235
+  manifests, resolves `version.workspace = true`, dotted/workspace dependency
+  inheritance, package aliases, multiline inline tables, and Cargo-style
+  caret/tilde/comparator/wildcard requirements. It checks only path/git
+  sources resolving to registered Atlas members, rejects missing member
+  manifests, ambiguous package versions, unsupported prerelease/hyphen ranges,
+  and malformed version components rather than reporting a false clean.
+  Human and JSON reports share the same defect predicate; missing
+  `--atlas-root` is an invocation error (exit 2).
+- Sub-delivery 3 acceptance evidence: current Atlas scan is clean at
+  **235 manifests / 215 packages / 898 first-party requirements / 0 defects**
+  (human and JSON modes, exit 0); an injected backward-version fixture is
+  detected; the missing-root CLI case exits 2. `cargo fmt --check`, strict
+  `cargo clippy --all-targets --offline -- -D warnings`, `cargo nextest run`
+  (59/59), `cargo test --doc --offline`, and `git diff --check` pass with
+  ambient `RUSTC`/`RUSTDOC` overrides removed. Resolver-generated
+  `Cargo.lock` patch churn was discarded; no lockfile or provider tree is
+  part of this root tooling slice.
+- Sub-delivery 2 — CI wiring per member repo: **todo**. Wire the guard
+  into each allowlisted member's CI as a step on PRs/pushes touching its
+  `*.toml`; the guard runs once per repo against its own range.
 
 Toolchain-template drift corrected 2026-08-03 (Session 33 closure): the
 peer's `1.95.0 -> 1.97.0` pin advance (ATLAS-TOOLCHAIN-COHERENCE-001
@@ -8716,7 +8939,7 @@ this session).
 | `a454976` | Record `ATLAS-MODALITY-002` 2b progress + the unified heat-source field defect |
 | `12d3fdf` | Reserve `ATLAS-DOWNSTREAM-COORDINATION-001` ticket for LeoNeuro-INC `50bfcd9` hand-off |
 | `051d1af` | Reaffirm Athena as the Krylov owner (ADR 0033, `Accepted`, `[major] [arch]`) |
-| `b23271b` / `eb3cdb9` | Refine STEP D axes table + alternatives-rejected grounds (PATH_DEP_AUDIT_2_ENTRY.md) |
+| `b23271b` / `eb3cdb9` | Refine STEP D axes table + alternatives-rejected grounds (PATH_DEP_AUDIT_001_ENTRY.md) |
 | `1fd57ae` | Clarify STEP D orthogonal axes + alternatives rejected + push-handoff |
 
 ADR 0033 supersedes the iterative-solver lane of my Session 26
@@ -9216,7 +9439,19 @@ blocker on Athena.
 - Consolidation 2026-07-30: the scan-universe definition now has one owner — `scripts/atlas_stack.py` (registered members from `.gitmodules`, git helpers, ignore checks) imported by both the conformance scanner and the lane audit; the duplicated `registered_members()` pair and the scanner's twice-implemented root-sprawl/LF checks are collapsed (behavior-preservation proven by old-vs-new differential on stable members). Defect finding — **fixed 2026-08-02** (umbrella, this commit's parent): `atlas-toolchain-preflight.py` now imports `atlas_stack.registered_members()`; the glob-over-everything derivation is gone and the run resolves 25 member pins.
 - Preflight side-finding 2026-08-02: this agent's shell environment carries ambient `RUSTC`/`RUSTDOC` exports pointing at the rustup PROXIES (`~/.cargo/bin/*`), which the preflight rightly fails. Proxy targets honor the pins, so the session's builds were coherent (single compiler identity confirmed once the overrides are cleared), but the exports should be removed from whatever profile sets them — an override pointing anywhere non-proxy would silently poison the shared cache.
 - Lane-series clarification (re the 2026-07-30 sprawl evidence naming `hephaestus-j1e2`…`-j5`): those lanes were SERIAL, one claimed item each, each removed on its merge — the two-tree bound held at every instant (`git worktree list` never exceeded main + one lane) and the creation-rate spike measured throughput, not concurrent trees. Two removals hit Windows Permission-denied on first attempt and were pruned + rm-rf'd in the same cycle; if the audit counts orphan directories, that transient is the residue to look for.
-- Remaining agent-memory-only choreography, filed per operation "toil automation" (unclaimed): a board-sweep tool (`scripts/atlas-board-sweep.py`) mechanizing the stale-claim sweep inputs — parse `## <ID> — … — <status>` headers, surface in-progress items with owner/claim age and blocked items without a re-open trigger; claim-freshness thresholds stay judgment, the census becomes mechanical. DoR: lenient parser over the existing board format, report-only exit codes, run at orient and replenishment beside the lane audit.
+- **Board-sweep sub-slice delivered 2026-08-07.** `scripts/atlas-board-sweep.py`
+  parses the lenient level-two heading format, normalizes `in progress` /
+  `in-progress`, reports explicit owner and claim-date context, and identifies
+  blocked items lacking a `Re-open trigger` (including qualified forms such as
+  `Re-open trigger (for the claiming session):`). It is report-only: findings
+  never fail the command or mutate the board, while missing/unreadable input
+  returns 2. Focused unittest coverage is in
+  `scripts/tests/test_atlas_board_sweep.py` (6/6); `py_compile`, board lint,
+  and `git diff --check` pass. The live root report scans 244 items, finds 27
+  in-progress claims, and surfaces 3 blocked items without a re-open trigger:
+  `ATLAS-SUBSTRATE-002`, `ATLAS-LETO-PEER-WIP`, and
+  `ATLAS-CFDRS-TEST-BUDGET`. Claim freshness and remediation remain operator
+  decisions; this tool does not reclaim or edit claims.
 - Policy: AGENTS.md engineering_gates conformance scan (now enumerating all eleven debt classes), documentation_discipline "Root manifest", architecture_scoping "Member namespace hygiene".
 - Baseline 2026-07-25 (per-repo counts recorded; the ratchet gate holds these non-increasing): files >500 lines: 574 (CFDrs 137, kwavers 91, consus 89); implementation-bearing lib.rs/mod.rs: 402 (kwavers 145); production `unwrap()`: 5833 (kwavers 3119, ritk 719); `#[allow]`: 798 (kwavers 330); print/dbg in src: 1082 (CFDrs 428); existence-only assertions: 444 (coeus 104, leto 79); type-suffixed fns: 380 (apollo 111); junk-drawer modules: 66 (kwavers 28); crates missing deny(missing_docs): 107/208; unsanctioned root files: 120 (kwavers 40); markers: 18.
 - Scope: (1) extend the committed conformance scan script to all eleven classes and record this baseline as its first output; (2) burn-down items per repo by triage (kwavers is the epicenter: unwraps, fat manifests, junk modules, root clutter); (3) `repos/parity_artefacts` (untracked run-output dump in the member namespace — det_*.log, url/target lists) relocates to a gitignored verification output root or deletes at the parity stream's item completion (owner: parity stream; regenerable evidence, rescue-first if any file proves unique); (4) kwavers root files triage per the Root manifest rule.
@@ -10685,3 +10920,155 @@ attaches once the tensor fit lands.
   Atlas tree so the root `.cargo/config.toml` does not apply. That reproduces
   the runner's and the consumer's view. Until that passes for all four, this
   is verified only in the one environment that cannot fail.
+
+## ATLAS-CFDRS-LINT-FLOOR-001 — Adopt canonical Atlas lint floor in CFDrs workspace [patch] — in-progress
+
+- Owner: current session; scope: `repos/CFDrs/Cargo.toml` top-level
+  `[workspace.lints]` block and per-site `#[expect]` ratchet insertions
+  across `crates/cfd-*/src/**` and `xtask/src/**`.  Claimed 2026-08-06.
+- Outcome: CFDrs `Cargo.toml` carries the canonical Atlas `[workspace.lints]`
+  floor matching `repos/apollo/Cargo.toml` L88-L107 (template SSOT):
+  `[workspace.lints.rust] missing_docs = "warn"` (warn floor; `#![deny(missing_docs)]`
+  is the per-crate strict escalation choice, not set workspace-wide so existing
+  crates without missing-docs discipline stay warning-only until per-crate
+  promotion). `[workspace.lints.clippy]` adopts apollo's `all = warn, prio -1` +
+  `pedantic = warn, prio -1` and the same `allow` set (`module_name_repetitions`,
+  `must_use_candidate`, `similar_names`, `too_many_lines`,
+  `default_constructed_unit_structs`, `doc_lazy_continuation`,
+  `needless_range_loop`, `too_many_arguments`, `manual_is_multiple_of`,
+  `manual_div_ceil`, `manual_slice_size_calculation`, `len_zero`,
+  `cast_possible_truncation`, `cast_precision_loss`, `cast_sign_loss`,
+  `cast_possible_wrap`, `items_after_statements`, `range_minus_one`,
+  `default_trait_access`, `useless_conversion`). Adds the Atlas-canonical library
+  hygiene `deny` tier (`unwrap_used`, `print_stderr`, `print_stdout`,
+  `dbg_macro`) so consumer-tree library and CLI crates enforce the same floor
+  kwavers/helios/apollo already carry — `#[expect]` permitting pre-existing
+  sites to remain on a non-increasing ratchet baseline, not silent `allow`.
+- Scope: idempotent bulk `#[expect(lint, reason="ratchet cfd-<crate>-<count>")]`
+  insertion per violation emitted by `cargo clippy --all-targets
+  --workspace --json -- -D warnings -W clippy::pedantic
+  -W clippy::unwrap_used -W clippy::print_stderr -W clippy::print_stdout
+  -W clippy::dbg_macro`. **Mechanical transform only** per `git_discipline`:
+  no logic edits, no refactor, no removed `println!` from `xtask` at large —
+  per-site `#[expect]` carries the ratchet signal for future root-cause work.
+- Non-goals: no public-API rewrites, no `print!` removal from `xtask` source
+  (xtask is a build tool, not a library; per-site `#[expect]` preserves the
+  ratchet signal per `engineering_gates` brownfield rule), no logic fixes for
+  surfaced `unwrap_used` (the ratchet baseline only decreases — a future
+  root-cause slice removes the offending `unwrap` and its `#[expect]` together).
+- Disjoint from peer's `ATLAS-CFDRS-ATHENA-MIGRATION-001` chain.rs scope:
+  peer's last chain.rs touch was 2026-07-30 (`63e49604`); 7+ days stale,
+  reclaimable takeover material. Converge-friendly by construction — `#[expect]`
+  is semantics-preserving against any in-flight peer chain.rs work; if peer
+  pushes new chain.rs commits during this slice, fall through `concurrent_agents`
+  Detect-and-reconcile (compose around peer's diff).
+- Lane: reclaimed per-repo 2-tree cap slot by removing the post-merge
+  `codex/cfdrs-audit-refresh` worktree lane (peer's PR #327 fully merged at
+  `50fa243b`, lane = `D:/atlas/worktrees/CFDrs-audit-refresh` exactly at peer's
+  merged tip, tree clean) and adding `feat/cfdrs-lint-floor` lane off
+  `origin/main 50fa243b`.
+- Acceptance: `cargo clippy --all-targets --workspace -- -D warnings
+  -W clippy::pedantic -W clippy::unwrap_used -W clippy::print_stderr
+  -W clippy::print_stdout -W clippy::dbg_macro` rc=0; `cargo nextest run
+  --workspace` rc=0 (or reduced focused subset if workspace test suite
+  budget blocked per `engineering_gates` runtime budgets — root-cause
+  any hang, never bypass); `cargo test --doc --workspace` rc=0; `cargo fmt
+  --all --check` rc=0.
+- Re-open trigger: a new lint violation reaches `repos/CFDrs/origin/main`
+  past the floor without an accompanying `#[expect]` carrying its ratchet
+  rationale; or the floor is removed/relaxed in `Cargo.toml`.
+- Residual recorded, NOT closed in this slice: per-repo `backlog.md` and
+  `gap_audit.md` entries for CFDrs lint-floor closure; CFDrs-level
+  per-crate `#![deny(missing_docs)]` promotion is deferred to a later
+  per-crate slice (each crate's surface decides its own missing-docs tier).
+- Current CFDrs increment: commit `cd9580fc` on pushed branch
+  `feat/cfdrs-lint-floor` wires every workspace package and `xtask` to the
+  floor, removes the cfd-core plugin resolver unwrap, and records the local
+  PM state. Evidence: focused `xtask` and cfd-core library Clippy pass;
+  cfd-core Nextest 246/246; cfd-core doctests 3/3; explicit migration audit
+  reports zero legacy dependencies, zero legacy source tokens, and a clean
+  allowlist. Full workspace acceptance remains open on the recorded
+  cfd-math, cfd-schematics, cfd-core test/bench, and format debt.
+- Follow-up CFDrs commit `e3e88a60` is pushed on the same branch: multigrid
+  coarsening now uses deterministic NaN-safe ordering, with a value-semantic
+  regression test. cfd-math Nextest passes 198/198; focused cfd-math library
+  Clippy residue decreases from 51 to 48 diagnostics.
+- Follow-up CFDrs commit `f31176b1` is pushed: multigrid hierarchy and
+  interpolation state use invariant-checked expectations, while JFNK and
+  spectral kernels centralize C-contiguous storage assumptions. cfd-math
+  Nextest remains 198/198; focused library Clippy residue is 22 diagnostics.
+- Follow-up CFDrs commit `9e52454a` is pushed: performance-monitor mutex and
+  calibration output now use invariant diagnostics and tracing, and DG progress
+  output is structured tracing. cfd-math library Clippy and Nextest pass;
+  workspace closure still has cfd-schematics, cfd-core test/bench, and format
+  debt.
+- Follow-up CFDrs commit `c83affee` is pushed: the exported
+  `cfd-schematics::topology::model` contract now documents its types, fields,
+  variants, aliases, and lookup methods. cfd-schematics library Nextest passes
+  164/164 and doctests 16/16; package Clippy residue decreases 712 to 611.
+- Follow-up CFDrs commits `ddc04a32` and `8584dd26` are pushed: configuration
+  constants, public config manifests, and the route-spec contract now carry
+  API documentation. cfd-schematics library Nextest remains 164/164 and
+  doctests 16/16; package Clippy residue decreases 611 to 534.
+- Follow-up CFDrs commit `322787ae` is pushed: the public node and channel
+  geometry-builder setters now carry API documentation. cfd-schematics library
+  Nextest remains 164/164 and doctests 16/16; package Clippy residue decreases
+  534 to 524.
+- Follow-up CFDrs commit `eae43768` is pushed: geometry-generator metadata,
+  entry points, and builder methods now carry API documentation. cfd-schematics
+  library Nextest remains 164/164 and doctests 16/16; package Clippy residue
+  decreases 524 to 508.
+- Follow-up CFDrs commit `c0d53bd5` is pushed: series and parallel geometry
+  generators now carry API documentation. cfd-schematics library Nextest
+  remains 164/164 and doctests 16/16; this slice reduces its package Clippy
+  residual from 508 to 506. The working tree reports 492 with peer-owned
+  `analysis_impl.rs` documentation changes also present and uncommitted.
+- Follow-up CFDrs commit `f27f86dd` is pushed: selective-tree path, topology,
+  request, and generator contracts now carry API documentation. cfd-schematics
+  library Nextest remains 164/164 and doctests 16/16; this slice reduces the
+  package Clippy residual from 506 to 468. The working tree reports 454 with
+  the peer-owned `analysis_impl.rs` documentation changes still uncommitted.
+- Follow-up CFDrs commit `468cc617` is pushed: the `NetworkBlueprint` analysis
+  impl (`crates/cfd-schematics/src/domain/model/blueprint/analysis_impl.rs`)
+  now carries inline Rustdoc for its 14 undocumented pub methods (node/pipe
+  counters, length aggregates, Venturi lookup, overlap analysis/resolution,
+  validate, describe). cfd-schematics library Nextest remains 164/164 and
+  doctests 16/16. File-disjoint from peer commits on the same branch per
+  `concurrent_agents` disjoint-scope rule; peer's prior bullet had already
+  flagged this `analysis_impl.rs` work as the uncommitted peer residual, and
+  the slice now closes that residual. cfd-schematics distinct missing_docs
+  sites in `analysis_impl.rs` fall from 14 to 0; crate-wide distinct
+  sites fall from 468 to 454.
+- Follow-up CFDrs commit `357debf3` is pushed: the `NetworkBlueprint`
+  metadata impl (`crates/cfd-schematics/src/domain/model/blueprint/metadata_impl.rs`)
+  now carries inline Rustdoc for its 19 undocumented pub methods/associated
+  functions covering the deprecated default constructor, the
+  explicit-position constructor, render-hint and metadata builders/accessors,
+  topology and lineage attachments, JSON (de)serialization, and
+  node/channel addition methods. cfd-schematics library Nextest remains
+  164/164 and doctests 16/16. File-disjoint sibling of the just-merged
+  analysis_impl.rs closure in the same `domain/model/blueprint/` subtree,
+  owned by this session; no peer commits touched this file.
+  cfd-schematics distinct missing_docs sites in `metadata_impl.rs` fall
+  from 19 to 0; crate-wide distinct sites fall from 454 to 435.
+
+## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
+
+- Owner: unclaimed (filed 2026-08-06 by current session). Pairs with
+  ATLAS-CFDRS-LINT-FLOOR-001 to make the floor mechanically enforced.
+- Outcome: CFDrs `.github/workflows/ci.yml` carries a `rust-workspace` job
+  that runs `cargo check --workspace --all-targets`, `cargo nextest run
+  --workspace` (or `cargo test --workspace --no-fail-fast` fallback gated
+  on `nextest` install via `taiki-e/install-action`), `cargo clippy
+  --all-targets -- -D warnings`, `cargo fmt --all --check`, `cargo test
+  --doc --workspace`. Mirrors `.github/workflows/ci.yml` patterns in
+  `repos/apollo`, `repos/hephaestus`, `repos/helios`, and `repos/kwavers`.
+- Scope: `.github/workflows/ci.yml` only; disjoint from peer's helios/ritk
+  release-workflow consolidation `ci/migrate-release-workflow-to-shared-caller`.
+- Acceptance: the new job runs in CI on the next PR; `cargo check --workspace
+  --all-targets` and `cargo clippy` fail on a regression injected locally.
+- Re-open trigger: the rust-workspace job is removed or its gate commands
+  are weakened below the canonical Atlas floor.
+- Dependency: ATLAS-CFDRS-LINT-FLOOR-001 must land first (or in the same
+  PR) so `cargo clippy -- -D warnings` does not fail at the ~160 pre-existing
+  baseline. Sequence behind it.

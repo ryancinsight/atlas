@@ -101,6 +101,7 @@ pub(super) fn load(
 }
 
 pub(super) fn materialize_provider(path: &Path, provider: &Provider) -> Result<(), CheckoutError> {
+    reject_symlink(path)?;
     if path.exists() {
         let current = git::output(
             path,
@@ -161,6 +162,24 @@ fn checkout_fetch_head(path: &Path, operation: &'static str) -> Result<(), Check
         operation,
         git::arguments(["checkout", "--detach", "--quiet", "FETCH_HEAD"]),
     )
+}
+
+fn reject_symlink(path: &Path) -> Result<(), CheckoutError> {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(CheckoutError::Io {
+                path: path.to_path_buf(),
+                source,
+            });
+        }
+    };
+    if metadata.file_type().is_symlink() {
+        Err(CheckoutError::SymlinkedCheckout(path.to_path_buf()))
+    } else {
+        Ok(())
+    }
 }
 
 fn ensure_clean(path: &Path) -> Result<(), CheckoutError> {
