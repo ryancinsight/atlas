@@ -193,14 +193,10 @@ melinoe = { path = "repos/melinoe" }
 melinoe = { path = "repos/melinoe" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne"]
-mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
-mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne.git"]
-mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
-mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
@@ -209,6 +205,7 @@ moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
+moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
@@ -218,6 +215,7 @@ moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
+moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
