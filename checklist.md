@@ -26,6 +26,19 @@
 Acceptance: all tool gates pass at commit time; the atlas root carries no
 stranded tool changes.
 
+## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption — in progress
+
+- [x] CFDrs slice delivered (`1493eef3`): typed NUMA placement hint + Melinoe
+      shard partitioning in `cfd-core`.
+- [x] Helios slice delivered (`234574c`): `helios-gpu` routes upload/allocation
+      surfaces through `themis::PlacementHint::Tier(MemoryTier::Device)`.
+- [ ] Close kwavers source-seam adoption and re-run the cross-repo closure pass
+      for this axis.
+
+Acceptance: each integrator carries at least one production source seam for the
+claimed provider surface (feature plumbing alone is insufficient), and the
+targeted consumer gates plus `xtask legacy-migration-audit` remain clean.
+
 ## ATLAS-AEQUITAS-CONSUMERS-008 — Kwavers transducer design and propagation metrics — done
 
 - [x] Audit transducer design and focused propagation contracts for raw

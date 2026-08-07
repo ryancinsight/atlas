@@ -93,11 +93,11 @@
 ## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption in the three integrators [arch] [minor] — in progress
 
 - Owner: current session — CFDrs slice **delivered 2026-08-06**
-  (CFDrs `1493eef3`); kwavers/helios slices remain
-  peer-held (kwavers `refactor/retire-kwavers-optics`, helios
-  `codex/helios-radon-geometry-clean`). Scope per consumer: one repo per
-  claim (kwavers, CFDrs, helios), each a self-contained co-evolution unit
-  against the local provider tree.
+  (CFDrs `1493eef3`); Helios source slice delivered on peer branch
+  2026-08-07 (helios `234574c` on `codex/helios-radon-geometry-clean`);
+  kwavers slice remains peer-held (`refactor/retire-kwavers-optics`). Scope
+  per consumer: one repo per claim (kwavers, CFDrs, helios), each a
+  self-contained co-evolution unit against the local provider tree.
 - **CFDrs slice closed 2026-08-06.** Three commits on CFDrs `main`:
   - `a444038d` — fix(cfd-core): correct moirai import path and MelinoeCell
     slice cast in FlowOperations (broken `moirai::prelude::parallel::…`
@@ -116,11 +116,12 @@
   (themis/melinoe consumed by the compute layer, not domain); the
   moirai-executor residual noted in ATLAS-THEMIS-TOPOLOGY-OPTION-1 remains
   separate.
-- Evidence (2026-08-05 gap-analysis, measured from committed state):
-  - **themis**: zero source references (`themis`/`themis::`) in any crate
-    of kwavers, CFDrs, or helios. Declared only in helios `Cargo.toml:114`
-    and unused. The stack abstraction audit already flags themis as the
-    zero-adoption outlier (`gap_audit.md` §I, line 1542).
+- Evidence (updated 2026-08-07 after Helios H-100 commit `234574c`):
+  - **themis**: source seams are now present in CFDrs and helios.
+    CFDrs `1493eef3` binds `PlacementHint::Numa(…)` in `cfd-core`;
+    helios `234574c` binds `PlacementHint::Tier(MemoryTier::Device)` in
+    `crates/helios-gpu/src/{attenuation,projection,transmission}.rs`.
+    kwavers remains the open consumer on this axis.
   - **melinoe**: zero source references in any integrator crate. Reachable
     only as moirai feature plumbing (`moirai = { features = ["melinoe"] }`
     in CFDrs and ritk). kwavers and helios do not reach it at all.
@@ -154,8 +155,9 @@
   `SafePlacement::cell_index` path was removed by the branded-placement rehome,
   and the current feature-enabled branded suite passes **15/15** with no stale
   implementation tokens. `repos/themis/gap_audit.md` records the exact source
-  audit and verification. This does **not** claim integrator adoption: Kwavers,
-  CFDrs, and Helios remain peer-held, so the cross-repo item stays todo.
+  audit and verification. This does **not** close the cross-repo axis yet:
+  kwavers adoption and explicit melinoe source seams in all three integrators
+  remain open.
 
 ## ATLAS-KWAVERS-NUMA-FIX-1 ✓ DONE — Close kwavers `NumaAwareAllocator` single-pair leak + unused `BindToNode`/`Interleaved` policy variants [patch] — completed
 

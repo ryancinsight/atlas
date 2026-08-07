@@ -43,14 +43,11 @@ reports "stack aligned" (the only unresolved entries are the
 
 ### Provider utilization audit
 
-- **themis**: zero source refs in kwavers/CFDrs/ritk; real consumer is
-  `helios-gpu` (3 files: `attenuation.rs`, `projection.rs`,
-  `transmission.rs` using `PlacementHint::Tier(MemoryTier::Device)` for GPU
-  uploads). The `ATLAS-THEMIS-MELINOE-ADOPTION-001` cross-repo item stays
-  `todo` because all three integrators remain peer-held (kwavers
-  `refactor/retire-kwavers-optics`, CFDrs `deps/eunomia-0.8` [remote gone],
-  helios `codex/helios-radon-geometry-clean`, ritk
-  `ci/migrate-release-workflow-to-shared-caller`).
+- **themis**: source seams are present in CFDrs (`1493eef3`,
+  `PlacementHint::Numa(…)`) and helios-gpu (`234574c`,
+  `PlacementHint::Tier(MemoryTier::Device)` in `attenuation.rs`,
+  `projection.rs`, `transmission.rs`). kwavers remains open on the
+  integrator adoption axis; ritk remains feature-plumbing only.
 - **melinoe**: zero source refs in the three integrators (feature plumbing
   only via moirai). Provider itself is clean on main, 122/122 nextest,
   strict clippy, and already carries the prior provenance + panic-recovery
@@ -7710,4 +7707,3 @@ separate GPU substrate). Recording those as future audit items, NOT
 actioning them here, matches the canonical-component-homes rule: a
 cross-repo consolidation audit names the locus, peer-leto and
 peer-physics-crate own the execution.
-
