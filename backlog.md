@@ -10861,6 +10861,10 @@ attaches once the tensor fit lands.
   reports zero legacy dependencies, zero legacy source tokens, and a clean
   allowlist. Full workspace acceptance remains open on the recorded
   cfd-math, cfd-schematics, cfd-core test/bench, and format debt.
+- Follow-up CFDrs commit `e3e88a60` is pushed on the same branch: multigrid
+  coarsening now uses deterministic NaN-safe ordering, with a value-semantic
+  regression test. cfd-math Nextest passes 198/198; focused cfd-math library
+  Clippy residue decreases from 51 to 48 diagnostics.
 
 ## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
 
