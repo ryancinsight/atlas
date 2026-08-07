@@ -6477,7 +6477,8 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Scope per repo: (1) delete the Migration Reference part and changelog/migration appendices from SUMMARY.md and the tree, salvaging any genuine theory-to-API mapping into usage chapters first (information preserved, then deletion — no orphaned SUMMARY entries; book builds green after); (2) audit the remaining book against the Domain-book rule — fundamentals-first structure, tested samples, figures from committed plotting code — and file chapter-gap DoR items; (3) repos with domain scope but no book (e.g. ritk, coeus, gaia, apollo, hephaestus) get an outline-first book item each.
 - Acceptance: no migration/status/changelog chapters remain in any book; each touched book builds in CI with tested samples; gaps filed as DoR items per repo.
 - **CFDrs slice closed 2026-08-06** (commit `a5a86d64`): evicted `appendix_changelog.md` (project migration status), `BOOK_ORGANIZATION.md` (development roadmap), and `parity_archive.md` (CI evidence stub) from SUMMARY.md and the tree; fixed 3 dangling inbound links; mdbook build (HTML + linkcheck2) clean. CFDrs book now contains only domain physics and worked examples.
-- **Remaining**: kwavers (peer-held on `refactor/retire-kwavers-optics`) and helios (peer-held on `codex/helios-radon-geometry-clean`) evictions remain open. Both retain migration reference parts.
+- **Remaining**: kwavers (peer-held on `refactor/retire-kwavers-optics`) eviction remains open. Helios and CFDrs slices are complete.
+- **Helios slice closed 2026-08-06** (commit `1094573` on `codex/helios-radon-geometry-clean`): evicted Part VII Atlas Stack Migration (12 chapters: migration_overview.md through migration_validation.md), appendix_changelog.md, and BOOK_ORGANIZATION.md; validation/benchmarking renumbered from Part VIII to Part VII; mdbook build clean.
 
 ## ATLAS-MNEMOSYNE-001 — Allocator observability and adversarial-stress audit [patch] — done
 
