@@ -2419,6 +2419,38 @@
   ATLAS-MATH-SSOT-CONSOLIDATION-1 Lane B residual table records; see Lane
   B residual (5)). Not converted in this slice: out of the leto-local
   file-disjoint scope, peer-active territory.
+- **Sixth conversion 2026-08-08 — consus-zarr chunk selection indices.**
+  `repos/consus` `consus-zarr/src/chunk/ops.rs` `selection_indices`
+  (`Vec<Vec<u64>>`, one allocation per selection dimension) is replaced by a
+  CSR-shaped `SelectionIndices` (`flat: Vec<u64>` contiguous buffer +
+  `offsets: Vec<usize>` offset table) built once per read/write call; both
+  copy helpers (`copy_chunk_selection_to_output`, `copy_selection_input_to_chunk`)
+  hoist `dims: Vec<&[u64]>` per call so the traversal hot loop does one
+  indirection (`dims[dim][selection_position[dim]]`) instead of two, and all
+  three call sites (`read_array`, `write_array_selection`, `read_array_sharded`)
+  use the same `SelectionIndices::build`. Criterion
+  (`crates/consus-zarr/benches/zarr_selection_copy.rs`, `harness = false`,
+  faithful jagged replica of the non-sharded `read_array` kept inline as a
+  baseline; byte-parity assertion pins the replica to production output
+  before timing; 2d 256×256 / 2d 512×512 / 3d 64³ strided×2 selections on a
+  populated `InMemoryStore`): CSR is a win on every case — **−4.7% /
+  −6.5% / −10.9% time vs jagged** (criterion `change`, p < 0.05; within-run
+  medians 6.50/25.75/33.8 ms vs 6.96/26.40/36.6 ms). Gate: `cargo clippy -p
+  consus-zarr --all-features --all-targets -- -D warnings` clean, nextest
+  `303/303`, doctests clean, fmt clean; CI `--all-features` clippy+check
+  green on PR #13. **Oracle refreshed to 243 production / 80 test-bench /
+  323 total**: the consus-zarr `ops.rs` production site is gone; coeus
+  `ctc.rs` 408-410 → 353-355 (line shift from a peer PR, same sites); leto
+  `lbfgs.rs:79,80` added (genuine `Vec<Vec<f64>>` in `LbfgsMemory`,
+  hand-verified; the conversion's ring buffers are flat so the site moved,
+  it did not stay). `--verify-oracle` exit 0 on the refreshed oracle.
+  Delivery: consus PR #13, branch `refactor/consus-zarr-csr-selection-indices`
+  (commits `3ce79b0` conversion + `d3d5b19` mechanical rustfmt of two
+  pre-existing-dirty consus-core book examples that had kept the
+  workspace-wide Format CI job red at HEAD, blocking the Check job for every
+  PR). Residual: pre-existing untracked meta-repo scratch (`.commandcode/`,
+  `libtest_*.rlib`) and peer-held `version-guard`/`gitlink-coherence` changes
+  are untouched.
 
 ## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
 

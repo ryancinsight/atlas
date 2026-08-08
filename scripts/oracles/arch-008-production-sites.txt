@@ -43,9 +43,9 @@ repos/apollo/crates/apollo-wavelet/src/domain/spectrum/coefficients.rs:17:77  # 
 repos/coeus/crates/coeus-autograd/src/ops/nn/loss/ctc.rs:40:20  # coeus
 repos/coeus/crates/coeus-autograd/src/ops/nn/loss/ctc.rs:42:19  # coeus
 repos/coeus/crates/coeus-autograd/src/ops/nn/loss/ctc.rs:44:22  # coeus
-repos/coeus/crates/coeus-autograd/src/ops/nn/loss/ctc.rs:408:25  # coeus
-repos/coeus/crates/coeus-autograd/src/ops/nn/loss/ctc.rs:409:24  # coeus
-repos/coeus/crates/coeus-autograd/src/ops/nn/loss/ctc.rs:410:30  # coeus
+repos/coeus/crates/coeus-autograd/src/ops/nn/loss/ctc.rs:353:25  # coeus
+repos/coeus/crates/coeus-autograd/src/ops/nn/loss/ctc.rs:354:24  # coeus
+repos/coeus/crates/coeus-autograd/src/ops/nn/loss/ctc.rs:355:30  # coeus
 repos/coeus/crates/coeus-dist/src/local.rs:122:10  # coeus
 repos/coeus/crates/coeus-dist/src/local.rs:469:28  # coeus
 repos/coeus/crates/coeus-leto/src/dispatch/structural.rs:148:13  # coeus
@@ -65,7 +65,6 @@ repos/consus/crates/consus-parquet/src/encoding/plain.rs:214:13  # consus
 repos/consus/crates/consus-parquet/src/writer/encode.rs:804:34  # consus
 repos/consus/crates/consus-python/src/parquet.rs:52:14  # consus
 repos/consus/crates/consus-python/src/parquet.rs:304:27  # consus
-repos/consus/crates/consus-zarr/src/chunk/ops.rs:123:50  # consus
 repos/consus/crates/consus/src/sync/mod.rs:289:65  # consus
 repos/consus/crates/consus/src/sync/mod.rs:326:73  # consus
 repos/consus/crates/consus/src/sync/mod.rs:332:18  # consus
@@ -167,6 +166,8 @@ repos/kwavers/crates/kwavers-solver/src/utilities/interpolation/conservative/int
 repos/kwavers/crates/kwavers-therapy/src/therapy/theranostic_guidance/nonlinear3d/forward/source/plan.rs:13:33  # kwavers
 repos/kwavers/crates/kwavers-therapy/src/therapy/theranostic_guidance/waveform/emission.rs:105:20  # kwavers
 repos/kwavers/crates/kwavers/src/theranostic/pulsing.rs:67:72  # kwavers
+repos/leto/crates/leto-ops/src/application/optimization/lbfgs.rs:79:13  # leto
+repos/leto/crates/leto-ops/src/application/optimization/lbfgs.rs:80:13  # leto
 repos/leto/crates/leto-ops/src/application/sparse/amd.rs:115:18  # leto
 repos/moirai/moirai-iter/src/channel_fusion.rs:129:26  # moirai
 repos/moirai/moirai-iter/src/execution/hybrid.rs:241:61  # moirai
