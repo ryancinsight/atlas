@@ -180,6 +180,13 @@
   crate-local `outputs/` path; focused `cfd-2d` example check/clippy, full
   `nextest -p cfd-2d` (571/571, 27 skipped), and
   `xtask legacy-migration-audit` all pass.
+- **CFDrs examples sub-slice 2026-08-07 (this session):** added
+  `crates/cfd-1d/examples/book_venturi_screening_1d.rs` on CFDrs `main`
+  (`46aecb56`) so the 1D Venturi screening workflow is represented in the
+  `book_*.rs` stream. The example uses existing public screening APIs and
+  writes outputs under the crate-local `outputs/` path; focused `cfd-1d`
+  example check/clippy, full `nextest -p cfd-1d` (736/736, 3 skipped), and
+  `xtask legacy-migration-audit` all pass.
 - **RITK examples sub-slice 2026-08-07 (this session):** added
   `crates/ritk-transform/examples/book_affine_transform.rs` on
   `ci/migrate-release-workflow-to-shared-caller` (`86e7eea7`) to keep the

@@ -57,7 +57,9 @@ reports "stack aligned" (the only unresolved entries are the
   `cfd-3d/examples/book_spectral_poisson_3d.rs` (`8bbd92b7`) so the 3D
   spectral Poisson workflow is represented in that stream. CFDrs also carries
   `cfd-2d/examples/book_venturi_flow_2d.rs` (`4c14c988`) so the 2D Venturi
-  workflow is represented in that same `book_*.rs` stream.
+  workflow is represented in that same `book_*.rs` stream, and carries
+  `cfd-1d/examples/book_venturi_screening_1d.rs` (`46aecb56`) for 1D Venturi
+  screening coverage in the same stream.
   RITK now carries
   `ritk-transform/examples/book_affine_transform.rs` (`86e7eea7`) for
   Coeus-backed transform-seam example continuity. Helios now carries
