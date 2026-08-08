@@ -2340,6 +2340,78 @@
   hotness, no criterion win — converting it would trade memory for a
   measurable slowdown. No oracle change needed (the sites remain live
   `Vec<Vec<` occurrences, correctly classified as production).
+- **Fifth conversion 2026-08-07 — Leto L-BFGS ring buffer.**
+  `repos/leto/crates/leto-ops/src/application/optimization/lbfgs.rs`
+  `LbfgsMemory` now keeps correction pairs in two CSR-shaped flat ring
+  buffers `s_buf`/`y_buf` (capacity `memory * n`) plus a scalar
+  `rho_buf` (capacity `memory`) addressed by a single `head` index
+  modulo `memory`, replacing the previous `Vec<Vec<f64>>` history
+  with `Vec::remove(0)` eviction. The public API
+  (`new`/`len`/`is_empty`/`direction`/`push`) is preserved; downstream
+  `kwavers-solver` FWI callers (`elastic_fwi/inversion.rs`,
+  `time_domain/quasi_newton.rs`) recompile against the new API without
+  changes. The two-loop recursion in `direction` was re-derived against
+  Nocedal & Wright Alg. 7.5: under the ring's logical-index convention
+  (`pair_slot(0)` = newest, `pair_slot(k-1)` = oldest), the first pass
+  walks `0..k` (newest→oldest) and the second pass `(0..k).rev()`
+  (oldest→newest); a self-authored regression test
+  (`direction_preserves_two_loop_after_wrap`) verifies value-semantic
+  agreement with an independent jagged-reference implementation after a
+  full ring wrap, and a saturation test verifies oldest-pair eviction.
+  Criterion baseline comparison over the acceptance-oracle grid
+  `{8,32}×{100,1000}` (median [lo hi], µs):
+
+  | config | ring (new) | jagged (baseline) |
+  |---|---|---|
+  | m8_n100   | 1.71 [1.65 1.79]  | 1.78 [1.71 1.88] |
+  | m32_n100  | 6.68 [6.31 7.04]  | 7.48 [7.14 7.79] |
+  | m8_n1000  | 15.42 [14.61 16.24] | 16.36 [15.79 16.87] |
+  | m32_n1000 | 75.00 [71.45 79.08] | 66.19 [63.35 70.11] |
+
+  The flat ring wins at small dim (≤+13% over jagged, fewer allocations),
+  is parity at `m8_n1000` (memory traffic dominates over allocation
+  savings), and is **~13% slower** at `m32_n1000`: the large memory plus
+  large dim regime has the ring doing `% memory` slot resolution per
+  two-loop step against two big contiguous buffers while jagged has
+  `memory` individual `Vec` allocations with one prefetcher-tight inner
+  scan per row. The conversion's primary win is allocation/eviction
+  elimination (no `Vec::remove(0)`, one allocation at construction
+  instead of per-`push`), not raw throughput at high `m × n` — that is
+  the honest baseline and is recorded here per the performance gate.
+  Evidence: `cargo nextest run -p leto-ops --lib` **178/178** (176
+  baseline + 2 new regression tests), `cargo test --doc -p leto-ops`
+  20/20 + 1 ignored, `cargo clippy -p leto-ops --lib -- -D warnings`
+  clean, `cargo fmt -p leto-ops -- --check` clean,
+  `cargo check -p kwavers-solver --no-default-features` clean. The
+  criterion bench `crates/leto-ops/benches/lbfgs.rs` is registered with
+  `harness = false` and smoke-runs in single-iteration mode (`-- --test`)
+  within the test budget; full timing runs fit the 300s/binary budget.
+- **Delivery**: leto PR #96 (`fix/leto-ops-lbfgs-ring-buffer`), commit
+  `1ed166a`, branch pushed to origin. **Not merged — blocked on a leto CI
+  infrastructure defect at `db9a63c` (origin/main HEAD)**: Codex's Aug-7
+  commit replaced the `git = "..."` workspace declarations for `mnemosyne`/
+  `moirai`/`hermes-simd`/`eunomia`/`aequitas`/`themis` with `path =
+  "../..."` for local meta-repo convenience, which resolves locally (meta-
+  repo `.cargo/config.toml` `[patch]` overlay redirects the URL sources to
+  local paths either way) but is unresolvable in leto's standalone CI
+  checkout (`cargo metadata` fails to read `../aequitas/Cargo.toml`).
+  Pre-existing in main, unrelated to this PR — leto's prior main CI run was
+  already red for the same reason. Codex's `LETO-INTO-ITERATOR-1` dirty
+  state is present in the leto working tree iterating on `leto/array.rs`,
+  `leto/src/application/iter/*`, `leto/src/lib.rs`, `leto/tests/core/
+  iteration.rs`, plus unrelated `leto-ops/{lu_symbolic.rs, sparse/mod.rs,
+  parallel.rs, lib.rs}` files — the workspace `Cargo.toml` is theirs by
+  precedent and outside the file-disjoint scope of this lbfgs slice.
+  Per `concurrent_agents: Contention response order`, PR #96 stays open
+  with the peer's landing as its re-open trigger. **Re-open trigger**:
+  leto CI on main turns green (Codex lands the CI fix forward), OR a
+  future disjoint slice puts me in a position where
+  `repos/leto/Cargo.toml` workspace section falls under my scope.
+- **Out-of-scope finding recorded** (kwavers-math `optimization/lbfgs.rs`
+  is a full duplicate `LbfgsMemory` implementation, not the re-export the
+  ATLAS-MATH-SSOT-CONSOLIDATION-1 Lane B residual table records; see Lane
+  B residual (5)). Not converted in this slice: out of the leto-local
+  file-disjoint scope, peer-active territory.
 
 ## ATLAS-PRIVACY-NAMING-1 — Private consumer named throughout stack artifacts [chore] — todo (needs user decision)
 
@@ -8517,7 +8589,20 @@ consumer crate, in dependency-ordered increments:
   the kwavers Array3 boundary; treat that case as a partial-deletion:
   re-route operations.rs through hermes-simd kernels, then delete the
   hand-rolled ISA files. (4) Review the GMRES row under
-  `ATLAS-GMRES-SSOT-001` (peer already owns).
+  `ATLAS-GMRES-SSOT-001` (peer already owns). (5) **kwavers-math
+  `optimization/lbfgs.rs` is a full duplicate `LbfgsMemory` implementation**
+  (own `s_hist: Vec<Vec<f64>>`, own two-loop recursion, own `minimize`)
+  despite this audit's table (L8526) recording it as `WRAP`. The
+  canonical home is `leto-ops/src/application/optimization/lbfgs.rs`
+  (just converted to a CSR-shaped flat ring in ATLAS-ARCH-008 sub-slice
+  5); the kwavers-math copy is unused `DUP` residue and should become a
+  pure re-export of `leto_ops::{LbfgsConfig, LbfgsMemory, LbfgsResult,
+  minimize}` to match the audit table. Not converted in this slice —
+  kwavers-math is peer-active territory (`refactor/retire-kwavers-optics`
+  branch) outside the leto-local disjoint scope; recorded here for the
+  next claimer. The duplicate is also an ARCH-008 candidate site that's
+  not in the canonical oracle (the classifier missed it on a first
+  pass).
 - `cfd-math`: (1) ~~close the gap that `integration/quadrature*.rs` does
    NOT yet delegate~~ — `integration/` deleted at cf `8aee5e59`; cf now
    re-exports `quadrature_rules` from leto-ops. Closed. (2) Review
