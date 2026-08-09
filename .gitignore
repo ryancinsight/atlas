@@ -70,6 +70,10 @@ package-lock.json
 # Run outputs: experiment/probe artifacts are derived state, never committed
 # (run-output segregation: results live outside git).
 output/
+outputs/
+helios_workflow_output/
+*.rlib
+.commandcode/
 
 # Static symbol and API indexes: derived state, revision-keyed under the
 # generator contract (scripts/search-ladder-index.py, scripts/rustdoc-oracle.py).

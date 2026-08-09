@@ -18,6 +18,13 @@ pub enum Error {
         /// The captured stderr from the failed command.
         stderr: String,
     },
+    /// A checked-in manifest or directory could not be read while scanning.
+    Manifest {
+        /// The path that failed to read or parse.
+        path: String,
+        /// The failure detail.
+        message: String,
+    },
     /// A `--commit-msg <path>` argument could not be read.
     Io(io::Error),
     /// The `--format` argument did not name a recognised output format.
@@ -38,6 +45,9 @@ impl fmt::Display for Error {
                     write!(f, "git command failed: `{command}`: {stderr_trim}")
                 }
             }
+            Self::Manifest { path, message } => {
+                write!(f, "manifest scan failed at `{path}`: {message}")
+            }
             Self::Io(source) => write!(f, "I/O error reading --commit-msg path: {source}"),
             Self::Format { value } => {
                 write!(
@@ -53,7 +63,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Io(source) => Some(source),
-            Self::Git { .. } | Self::Format { .. } => None,
+            Self::Git { .. } | Self::Manifest { .. } | Self::Format { .. } => None,
         }
     }
 }

@@ -58,6 +58,8 @@
 
 /// Classification of a single version-bearing diff line.
 pub mod classify;
+/// Stack-wide first-party dependency/version coherence checking.
+pub mod coherence;
 /// Typed errors for the guard.
 pub mod error;
 /// Parsing of `*.toml` and unified diff inputs.
@@ -68,6 +70,7 @@ pub mod report;
 pub mod scan;
 
 pub use classify::{Direction, IntentDeclaration, classify_pair};
+pub use coherence::{CoherenceFinding, CoherenceReport, scan_atlas};
 pub use error::Error;
 pub use parse::{VersionLine, parse_diff_line};
 pub use report::{Format, Report, render};

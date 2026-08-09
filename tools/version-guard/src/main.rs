@@ -6,16 +6,18 @@
 //! # Synopsis
 //!
 //! ```text
+//! version-guard coherence --atlas-root <path> [--format human|json]
 //! version-guard scan --repo <path> [--range <git-rev-spec>] \
-//!                   [--format human|json] \
-//!                   [--commit-msg <path>]
+//!                   [--format human|json] [--commit-msg <path>]
 //! ```
 //!
-//! The guard never mutates the repository under audit. It invokes
+//! The guard never mutates the repository under audit. `scan` invokes
 //! `git diff <range> -- '*.toml'` (read-only) and parses the resulting diff
-//! text. If `--commit-msg <path>` is supplied, the message body is read from
-//! that path; otherwise the guard reads `git log -1 --format=%B <range>` to
-//! fetch the commit message of the head of the range.
+//! text. `coherence` scans checked-in manifests under the Atlas root and
+//! reports first-party requirement/version mismatches. If `--commit-msg
+//! <path>` is supplied, the message body is read from that path; otherwise
+//! `scan` reads `git log -1 --format=%B <range>` to fetch the commit message
+//! of the head of the range.
 
 use std::env;
 use std::ffi::OsString;
@@ -23,20 +25,26 @@ use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
 use atlas_version_guard::classify::classify_intent;
+use atlas_version_guard::coherence::scan_atlas;
 use atlas_version_guard::error::Error;
 use atlas_version_guard::report::{Format, Report};
 use atlas_version_guard::scan::{has_defect, scan_diff};
 
 const USAGE: &str = "\
 usage:
+  version-guard coherence --atlas-root <path> [--format human|json]
   version-guard scan --repo <path> [--range <git-rev-spec>] \
                      [--format human|json] [--commit-msg <path>]
 
-Reads the diff over `<range>` (default HEAD~1..HEAD) of `*.toml` files in
-`<repo>` and classifies every touched `version =` line as Identical,
-Forward, or Backward. A Forward bump without a declared release intent
+`coherence` scans checked-in manifests under the Atlas root and reports
+first-party requirement/version mismatches. `scan` reads the diff over
+`<range>` (default HEAD~1..HEAD) of `*.toml` files in `<repo>` and
+classifies every touched `version =` line as Identical, Forward, or
+Backward. A Forward bump without a declared release intent
 (`chore(release)`, `build(deps)`, `Bump:` trailer, or `BREAKING CHANGE:`
-footer) is a defect; a Backward movement is always a defect. A declared release/bump with no forward version movement is a defect, including an empty or identical-only diff.
+footer) is a defect; a Backward movement is always a defect. A declared
+release/bump with no forward version movement is a defect, including an
+empty or identical-only diff.
 
 The --commit-msg path is optional; if omitted, the message body for the head
 of the range is read via `git log -1 --format=%B`.
@@ -64,30 +72,61 @@ pub fn main() -> ExitCode {
 fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
     let parsed = parse_arguments(arguments)?;
     let Parsed {
+        subcommand,
         repo,
+        atlas_root,
         range,
         format,
         commit_msg_path,
     } = parsed;
-    let range = range.unwrap_or_else(|| "HEAD~1..HEAD".to_string());
-    let diff_text = git_diff_toml(&repo, &range)?;
-    let commit_msg = match commit_msg_path {
-        Some(path) => std::fs::read_to_string(&path)?,
-        None => git_commit_message(&repo, &range)?,
-    };
-    let findings = scan_diff(&diff_text, &commit_msg);
-    let intent = classify_intent(&commit_msg);
-    let report = Report::new(&findings, intent);
-    print!("{}", report.render(format));
-    if has_defect(&findings, intent) {
-        Ok(ExitCode::from(1))
-    } else {
-        Ok(ExitCode::SUCCESS)
+    match subcommand {
+        Subcommand::Scan => {
+            let repo = repo.ok_or_else(|| Error::Git {
+                command: "argv".to_string(),
+                stderr: "missing required --repo <path>".to_string(),
+            })?;
+            let range = range.unwrap_or_else(|| "HEAD~1..HEAD".to_string());
+            let diff_text = git_diff_toml(&repo, &range)?;
+            let commit_msg = match commit_msg_path {
+                Some(path) => std::fs::read_to_string(&path)?,
+                None => git_commit_message(&repo, &range)?,
+            };
+            let findings = scan_diff(&diff_text, &commit_msg);
+            let intent = classify_intent(&commit_msg);
+            let report = Report::new(&findings, intent);
+            print!("{}", report.render(format));
+            if has_defect(&findings, intent) {
+                Ok(ExitCode::from(1))
+            } else {
+                Ok(ExitCode::SUCCESS)
+            }
+        }
+        Subcommand::Coherence => {
+            let atlas_root = atlas_root.ok_or_else(|| Error::Manifest {
+                path: String::from("argv"),
+                message: String::from("missing required --atlas-root <path>"),
+            })?;
+            let report = scan_atlas(&atlas_root)?;
+            print!("{}", report.render(format));
+            if report.has_defect() {
+                Ok(ExitCode::from(1))
+            } else {
+                Ok(ExitCode::SUCCESS)
+            }
+        }
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Subcommand {
+    Scan,
+    Coherence,
+}
+
 struct Parsed {
-    repo: PathBuf,
+    subcommand: Subcommand,
+    repo: Option<PathBuf>,
+    atlas_root: Option<PathBuf>,
     range: Option<String>,
     format: Format,
     commit_msg_path: Option<PathBuf>,
@@ -96,10 +135,11 @@ struct Parsed {
 fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, Error> {
     let args: Vec<OsString> = arguments.collect();
     let mut repo: Option<PathBuf> = None;
+    let mut atlas_root: Option<PathBuf> = None;
     let mut range: Option<String> = None;
     let mut format: Format = Format::Human;
     let mut commit_msg_path: Option<PathBuf> = None;
-    let mut subcommand: Option<&'static str> = None;
+    let mut subcommand: Option<Subcommand> = None;
     let mut idx = 0;
     while idx < args.len() {
         let raw = &args[idx];
@@ -109,43 +149,25 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
                 print!("{USAGE}");
                 std::process::exit(0);
             }
-            "--repo" => {
-                idx += 1;
-                let v = args.get(idx).ok_or_else(|| Error::Git {
-                    command: "argv".to_string(),
-                    stderr: "--repo requires a path argument".to_string(),
-                })?;
-                repo = Some(PathBuf::from(v));
-            }
+            "--repo" => repo = Some(PathBuf::from(git_flag_value(&args, &mut idx, "--repo")?)),
+            "--atlas-root" => atlas_root = Some(PathBuf::from(atlas_root_value(&args, &mut idx)?)),
             "--range" => {
-                idx += 1;
-                let v = args.get(idx).ok_or_else(|| Error::Git {
-                    command: "argv".to_string(),
-                    stderr: "--range requires a value".to_string(),
-                })?;
-                range = Some(v.to_string_lossy().into_owned());
+                let value = git_flag_value(&args, &mut idx, "--range")?;
+                range = Some(value.to_string_lossy().into_owned());
             }
             "--format" => {
-                idx += 1;
-                let v = args.get(idx).ok_or_else(|| Error::Git {
-                    command: "argv".to_string(),
-                    stderr: "--format requires a value".to_string(),
-                })?;
-                let v_owned = v.to_string_lossy().into_owned();
+                let v_owned = git_flag_value(&args, &mut idx, "--format")?
+                    .to_string_lossy()
+                    .into_owned();
                 format =
                     Format::from_str_value(&v_owned).ok_or(Error::Format { value: v_owned })?;
             }
             "--commit-msg" => {
-                idx += 1;
-                let v = args.get(idx).ok_or_else(|| Error::Git {
-                    command: "argv".to_string(),
-                    stderr: "--commit-msg requires a path argument".to_string(),
-                })?;
-                commit_msg_path = Some(PathBuf::from(v));
+                let value = git_flag_value(&args, &mut idx, "--commit-msg")?;
+                commit_msg_path = Some(PathBuf::from(value));
             }
-            "scan" if subcommand.is_none() => {
-                subcommand = Some("scan");
-            }
+            "scan" => subcommand = Some(choose_subcommand(subcommand, Subcommand::Scan)?),
+            "coherence" => subcommand = Some(choose_subcommand(subcommand, Subcommand::Coherence)?),
             other => {
                 if other.is_empty() {
                     idx += 1;
@@ -159,16 +181,58 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
         }
         idx += 1;
     }
-    let repo = repo.ok_or_else(|| Error::Git {
-        command: "argv".to_string(),
-        stderr: "missing required --repo <path>".to_string(),
-    })?;
+    let subcommand = subcommand.unwrap_or(Subcommand::Scan);
+    if matches!(subcommand, Subcommand::Scan) && repo.is_none() {
+        return Err(Error::Git {
+            command: "argv".to_string(),
+            stderr: "missing required --repo <path>".to_string(),
+        });
+    }
+    if matches!(subcommand, Subcommand::Coherence) && atlas_root.is_none() {
+        return Err(Error::Manifest {
+            path: String::from("argv"),
+            message: String::from("missing required --atlas-root <path>"),
+        });
+    }
     Ok(Parsed {
+        subcommand,
         repo,
+        atlas_root,
         range,
         format,
         commit_msg_path,
     })
+}
+
+/// Read the argument following `flag` at `index`, advancing `index`.
+fn git_flag_value(args: &[OsString], index: &mut usize, flag: &str) -> Result<OsString, Error> {
+    *index += 1;
+    args.get(*index).cloned().ok_or_else(|| Error::Git {
+        command: "argv".to_string(),
+        stderr: format!("{flag} requires a value argument"),
+    })
+}
+
+/// Read the argument following `--atlas-root` at `index`, advancing `index`.
+fn atlas_root_value(args: &[OsString], index: &mut usize) -> Result<OsString, Error> {
+    *index += 1;
+    args.get(*index).cloned().ok_or_else(|| Error::Manifest {
+        path: String::from("argv"),
+        message: String::from("--atlas-root requires a path argument"),
+    })
+}
+
+/// Reject a second subcommand that disagrees with the first one seen.
+fn choose_subcommand(current: Option<Subcommand>, next: Subcommand) -> Result<Subcommand, Error> {
+    if let Some(existing) = current
+        && existing != next
+    {
+        return Err(Error::Git {
+            command: "argv".to_string(),
+            stderr: "conflicting subcommands `scan` and `coherence`".to_string(),
+        });
+    }
+    Ok(next)
 }
 
 /// Invoke `git diff <range> -- '*.toml'` in `repo` and return the stdout
@@ -246,10 +310,27 @@ mod tests {
     fn parse_accepts_minimal_scan() {
         let parsed =
             parse_arguments(["scan".into(), "--repo".into(), "/tmp/x".into()].into_iter()).unwrap();
-        assert_eq!(parsed.repo, PathBuf::from("/tmp/x"));
+        assert_eq!(parsed.subcommand, Subcommand::Scan);
+        assert_eq!(parsed.repo, Some(PathBuf::from("/tmp/x")));
         assert_eq!(parsed.range, None);
         assert_eq!(parsed.format, Format::Human);
         assert!(parsed.commit_msg_path.is_none());
+    }
+
+    #[test]
+    fn parse_accepts_minimal_coherence() {
+        let parsed = parse_arguments(
+            [
+                "coherence".into(),
+                "--atlas-root".into(),
+                "/tmp/atlas".into(),
+            ]
+            .into_iter(),
+        )
+        .unwrap();
+        assert_eq!(parsed.subcommand, Subcommand::Coherence);
+        assert_eq!(parsed.atlas_root, Some(PathBuf::from("/tmp/atlas")));
+        assert!(parsed.repo.is_none());
     }
 
     #[test]
