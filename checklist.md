@@ -6,6 +6,26 @@
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
 
+## ATLAS-VERSION-GUARD-002 — Stack-wide first-party coherence subcommand + CI sweep — done 2026-08-08
+
+- [x] Implement `version-guard coherence` (offline `.gitmodules` + manifest
+      scan, workspace/`package =` index, caret/comparator/wildcard matcher,
+      fail-closed on prerelease/hyphen forms; human + JSON reports).
+- [x] Split the coherence module into `manifest`/`member`/`requirement`/`toml`
+      leaf families under the 500-line target.
+- [x] Add `scripts/atlas-version-guard-sweep.py` + unit test (1/1) and the
+      `.github/workflows/version-guard.yml` gate; pin both actions by full
+      commit SHAs so the conformance `tag_pinned_actions` ratchet is unchanged.
+- [x] Clean the checked-in `Cargo.lock` of overlay `[[patch.unused]]` noise
+      (regenerated outside the overlay; never commit the churn).
+- [x] Verify: nextest 59/59, doctests clean, clippy `--all-targets -- -D
+      warnings` clean, fmt clean; live run clean (235/215/1019); injected
+      backward fixture fails; `git diff --check` clean.
+- [x] Commit `43f8aa2` and sync `backlog.md` with the real SHA.
+
+Acceptance: the stack CI gate reports coherence clean at HEAD; the ratchet
+stays non-increasing for the meta scope.
+
 ## ATLAS-TOOLS-STRANDED-001 — Land stranded atlas-meta tooling slices — done 2026-08-07
 
 - [x] Verify each stranded tool slice at the atlas root builds and passes

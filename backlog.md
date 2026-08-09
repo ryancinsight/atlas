@@ -7,6 +7,35 @@
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
 
+## ATLAS-VERSION-GUARD-002 — Stack-wide first-party coherence subcommand + CI sweep [minor] — done 2026-08-08
+
+- Owner: current session. Scope: `tools/version-guard` (new `coherence`
+  module, `coherence` subcommand, `Error::Manifest`),
+  `scripts/atlas-version-guard-sweep.py` + unit test,
+  `.github/workflows/version-guard.yml`. Non-goals: per-member diff scanning
+  wiring (that surface belongs in each member repo's own CI), the overlay
+  `[[patch.unused]]` lockfile churn (policy: never commit it).
+- Adds `version-guard coherence --atlas-root <path> [--format human|json]`:
+  an offline, read-only scan of every checked-in Cargo manifest under
+  registered Atlas members (allowlist from `.gitmodules`). Indexes first-party
+  package versions (workspace + explicit `package =` aliases), resolves
+  inherited workspace dependencies, and flags any requirement that does not
+  accept the current package version (caret/comparator/wildcard subset,
+  fail-closed on prerelease/hyphen forms). Exit 1 on findings.
+- Committed as `43f8aa2` (`feat(version-guard): Add coherence subcommand`). No
+  version bump / CHANGELOG entry: `publish = false` coordinator tool, matches
+  the tool's history.
+- Acceptance evidence: nextest 59/59 (48+3 baseline + 8 coherence), `cargo
+  test --doc` pass, clippy `--all-targets -- -D warnings` clean, `cargo fmt
+  --check` clean; live run on the Atlas root clean (235 manifests, 215
+  packages, 1019 first-party requirements); injected backward fixture →
+  finding + exit 1; JSON format valid. Sweep unit test 1/1. Lockfile cleaned
+  of overlay patch-noise churn (per `.cargo/config.toml` policy: never commit
+  it; CI verifies from a clean checkout). Coherence module split into leaf
+  families (`manifest`, `member`, `requirement`, `toml`) under the 500-line
+  target; CI actions pinned by full commit SHAs so the conformance
+  `tag_pinned_actions` ratchet is unchanged.
+
 ## ATLAS-BOARD-HYGIENE-001 — Resolve duplicate item IDs in backlog.md [chore] — done 2026-08-06
 
 - Owner: current session; scope: root board and audit-ledger references only.
