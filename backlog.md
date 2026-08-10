@@ -1,5 +1,219 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — Audit Horae/Hyperion/Themis/Aequitas/Asclepius/Eunomia/Proteus/Tyche/Moirai/Consus/Mnemosyne/Hermes/Iris [patch] — in-progress
+
+- Owner: current session; audit date 2026-08-09, expanded 2026-08-09 (Mnemosyne/Hermes) and 2026-08-09 (Consus). Scope is provider-side
+  integration identity, public SSOT seams, examples/contracts, locked metadata,
+  overlay convergence, and completion-state accuracy. This entry does not
+  duplicate provider-local mathematical backlogs.
+- **Horae** owns typed time, explicit tableaus, adaptive control, event
+  clipping, and subcycling over Aequitas/Eunomia. Its locked metadata and
+  book/example tree resolve; no missing provider seam was found.
+- **Hyperion** owns typed photon coefficients, chromophore spectra,
+  Beer–Lambert transport, deposition, diffusion, and NIST references over
+  Aequitas/Eunomia/Proteus. Locked metadata resolves. Baseline formatting drift
+  was corrected in its chromophore example/source/test files; existing dirty PM
+  edits were preserved.
+- **Themis** uses package identity `themis-topology` and library identity
+  `themis`; it owns topology, placement hints, memory tiers, and branded
+  Melinoe seams. Its `testing` feature exposes integration-test constructors,
+  and locked metadata resolves the local Melinoe provider. Baseline GPU-example
+  formatting drift was corrected; existing manifest/README/audit edits were
+  preserved.
+- **Aequitas** owns dimensional quantities and unit laws over Eunomia's
+  `UnitScalar`; dimensional, layout, generic-scalar, conversion, and
+  differential tests are present. No duplicate scalar vocabulary or missing
+  integration seam was found.
+- **Asclepius** owns validated biological response values, while
+  `asclepius-coeus` owns autodiff gEUD. Helios/Kwavers migration is recorded as
+  complete and locked workspace metadata resolves. Both book examples had
+  baseline formatting drift and were corrected.
+- **Eunomia** owns scalar, complex, reduced-precision, and byte-layout
+  vocabulary. Hermes and Leto consume native `F16`/`Bf16`; `half` remains a
+  dev-only oracle. Its provider checklist/backlog target was corrected from
+  stale 0.6.0 to the live workspace 0.8.0; historical 0.6.0 release evidence
+  remains unchanged.
+- **Proteus** (`repos/proteus` HEAD `2918e5a`) owns validated material
+  properties and typed constitutive laws over Aequitas/Eunomia. Hyperion
+  consumes `proteus::MassDensity` in `src/coefficient/mass.rs` and its
+  transport contracts; Helios consumes Proteus density in
+  `crates/helios-solver/src/attenuation_map.rs` and
+  `crates/helios-physics/examples/photon_attenuation.rs`; CFDrs routes
+  thermophysical validation/diffusivity through
+  `crates/cfd-core/src/physics/fluid/thermophysical.rs`; Kwavers consumes
+  `ThermophysicalProperties` in `crates/kwavers-medium/src/properties/thermal.rs`
+  and its temperature-dependent counterpart. Provider tests cover properties,
+  composition, temperature laws, theorems, layout, and codegen equivalence.
+  No duplicate material-property implementation was found. Proteus has no
+  local backlog/checklist file; its ADRs, examples, tests, and changelog are
+  the provider-local SSOT. Its three book chapters remain prose-deferred and
+  are not claimed complete.
+- **Tyche** (`repos/tyche` HEAD `d25311e`) owns reproducible study identity,
+  deterministic streams, LHS/Sobol, bootstrap index generation, moments,
+  correlation screening, conformal calibration, and Moirai/Consus adapters.
+  Helios consumes `tyche_core::StandardNormal` in
+  `crates/helios-imaging/src/noise.rs`; CFDrs consumes `Design`/
+  `LatinHypercube` in `crates/cfd-optim/src/design/space/sampling/mod.rs`;
+  Kwavers consumes `ConformalCalibrator`, `Moments`, `Design`, LHS, and Sobol
+  across its analysis/grid/solver crates. Its elastography percentile
+  bootstrap now delegates index generation to `Bootstrap::<SplitMix64>` in
+  `crates/kwavers-analysis/src/signal_processing/estimation_bounds.rs`, while
+  percentile interpolation remains consumer-owned. Tyche adapter coverage is
+  in `crates/tyche-moirai/tests/dispatch_contract.rs` and
+  `crates/tyche-consus/tests/archive_roundtrip.rs`; consumer evidence includes
+  Helios 27/27, CFDrs 128/128, Kwavers Analysis 764/764 and solver 1,251/1,251
+  local suites as recorded by the provider audit.  Genuine remaining work is
+  provider/consumer scope: add Morris and Saltelli estimators, complete the
+  versioned Consus study schema, address the score-only ensemble model before
+  routing it through provider resampling, and finish crates.io release
+  automation. Tyche's `backlog.md` and `gap_audit.md` were already dirty peer-
+  owned files; no Tyche files were changed by this continuation, and this audit
+  edits only the Atlas root SSOT.
+  The current `tyche-consus::ConsusArchive` is intentionally only
+  a borrowed, validated-key raw-byte adapter with exact round-trip coverage;
+  it does not invent a second persistence policy or claim durability. The
+  schema and manifest-last logical-completeness work remain open; transactional
+  durability is separately blocked on a Consus transaction contract. These are
+  not silently closed by this audit.
+
+- **Consus** owns format-neutral persistence contracts and the format
+  providers (including Zarr stores) used by Tyche and scientific consumers.
+  The Consus-inclusive audit found and closed a filesystem-store boundary
+  defect: `consus-zarr::FsStore` now rejects unsafe path components,
+  traversal components, and OS-level roots before joining a caller key to the
+  store root. Regression coverage verifies lexical escape attempts are rejected
+  and ordinary nested Zarr round trips are preserved. Symlink-safe,
+  race-resistant filesystem operations remain a separate hardening item; this
+  slice does not claim to close that OS/filesystem capability.  Consus remains the persistence SSOT; Tyche's versioned study schema and
+  manifest semantics remain Tyche-owned and open, while transactional durability
+  still requires a future Consus transaction contract. The checked-out Consus
+  tree contains continuation-owned FsStore source work plus its associated
+  Cargo.lock resolution; both remain uncommitted and are explicitly delivery-
+  pending, not discarded as stale.
+- **Moirai** owns execution, iterator, async, transport, and
+  Melinoe/Mnemosyne integration. The current continuation-owned Rust CI
+  workflow and PM-record edits remain uncommitted and delivery-pending; they
+  were not reset or discarded. The bounded-admission benchmark and source
+  contracts are retained. Rust publication and PyPI trusted-publisher
+  registration remain external release blockers, not code gaps.
+- **Mnemosyne** (`repos/mnemosyne` HEAD `9a143ca`) is the allocation SSOT and
+  consumes Themis topology, Eunomia numeric scratch types, and Melinoe brand
+  machinery. The backend `page_reset` and `make_guard` seams are wired through
+  the arena: `crates/mnemosyne-arena/src/segment/alloc.rs` resets retained
+  segment user pages and installs opt-in header/tail guards; exact placement
+  tests live in `crates/mnemosyne-arena/src/segment/tests.rs`, with backend
+  contracts in `crates/mnemosyne-backend/{guard,reset}.rs`. The prior gap-audit
+  wording that called these arena follow-ons open was stale and is corrected;
+  external Eunomia/Melinoe/Themis publication remains blocked separately.
+- **Hermes** (`repos/hermes` HEAD `bde7010`) is the SIMD SSOT and consumes
+  Eunomia `F16`/`Bf16`, Mnemosyne aligned allocation, and Themis topology
+  queries. Native AVX-512 BF16 tile dispatch is source-supported through the
+  `avx512bf16` capability path with an AVX-512F/BW/VL fallback; Hermes tests
+  cover scalar/native differential behavior and BF16 value semantics. Native
+  SVE remains an emulated `SveArch` backend because the pinned stable Rust
+  toolchain does not expose stable scalable SVE vector types; AVX-512/AMX/BF16
+  runtime validation remains hardware-gated. No Hermes peer-dirty SIMD files
+  were modified in this audit.
+- **Iris** owns domain-neutral borrowed views, normalized color models,
+  colormaps, lookup tables, and render-backend contracts. It intentionally has
+  no Atlas runtime dependency; RITK/CFDrs/Kwavers consume the provider surface.
+  Current color-law/release edits remain untouched. Crates.io publication and
+  trusted-publisher configuration remain external release work.
+- Cross-repository evidence: Atlas overlay check is aligned; locked
+  no-dependency metadata was also verified for Consus and Tyche in this
+  continuation. Consus metadata passed after the FsStore change; its focused
+  Nextest reached the environment blocker described below.
+  no-dependency metadata was inspected for all thirteen requested provider
+  repositories, and focused Mnemosyne/Hermes metadata resolves in this
+  continuation; the audited provider manifests do not introduce Rayon/Tokio/num-traits/num-complex/
+  nalgebra/ndarray/burn as runtime alternatives, except Moirai's explicitly
+  isolated dev/benchmark/compatibility comparison edges (and its benchmark
+  workspace's direct comparison dependencies). Target trees contain
+  pre-existing peer edits; this slice does not reset, stage, commit, or advance
+  their gitlinks.
+- **Compile/test gates unblocked 2026-08-10 (environment root cause fixed).**
+  The long-standing `could not execute process ' -vV'` blocker was a
+  set-but-empty `RUSTC`/`RUSTDOC` environment pair: pinning them to the real
+  toolchain binaries (`RUSTC="$(command -v rustc)"`) restores every cargo
+  invocation. A second environment defect — C build-scripts failing on
+  `gcc.exe -E` compiler-family detection (`alloca`, `zstd-sys`, `ring`,
+  `libmimalloc-sys`, `rpmalloc-sys`, `snmalloc-sys`) — is fixed by putting the
+  working MinGW toolchain first (`PATH="/ucrt64/bin:$PATH"`). Both are
+  environment-level fixes (documented, no repo config committed); they were
+  the sole blockers for the previously stalled gate matrix.
+- **Full thirteen-provider validation matrix (2026-08-10, corrected
+  environment):** strict `cargo check --all-targets` with `RUSTFLAGS="-D
+  warnings"` passes for all thirteen providers; full Nextest suites pass:
+  horae 15/15, hyperion 22/22, themis 21/21 (+36/36 with `testing`),
+  aequitas 54/54, asclepius 18/18, eunomia 109/109, proteus 18/18, tyche
+  44/44, moirai 784/784, consus 2478/2478, mnemosyne 302/302, hermes 438/438,
+  iris 15/15. Themis strict `--no-default-features` checks pass in both
+  `testing` modes. All `book_*.rs` examples compile across the providers that
+  carry them.
+- **Completion slices landed this continuation (2026-08-10):**
+  - Themis lint-floor: removed the dead no-`std` `detect_cache_levels`
+    fallback in `src/topology/cpu/cache.rs` and cfg-gated its re-export and
+    import in `mod.rs` (2 warnings under `--no-default-features` resolved;
+    all Themis gates green).
+  - Moirai bench compile: added the missing `channel::spsc` import in
+    `benchmarks/benches/thread_schedule_comparison.rs` (E0425 in the
+    `moirai-benchmarks` bench target resolved).
+  - Moirai contract test: `runtime_contracts.rs` asserted a stale single-line
+    `assert_eq!(scheduler.pending_tasks(), …)` fragment against the formatted
+    multi-line source plus a variable renamed to `fixture.scheduler`; the
+    fragment is corrected and matching is whitespace-normalized (pre-existing
+    failure, now 784/784).
+  Generated `Cargo.lock` overlay churn from these builds was reverted in
+  aequitas and moirai (overlay policy: never commit it); themis's lock stayed
+  clean.
+- **Remaining work**: finish external crates.io/PyPI publication/account
+  steps; validate native SIMD/GPU paths on matching hardware. These are not
+  represented as completed by this audit.- **Worktree reconciliation (2026-08-09, refreshed after Atlas `1a7cdca`):**
+  the root `.cargo/config.toml` content-preserving rename is resolved at the
+  Git-normalized level: `git diff` and overlay checks are clean, while the
+  checkout may materialize different LF/CRLF bytes under `.gitattributes`; no
+  `.cargo/config.toml.off` artifact remains. Provider dirt is classified rather
+  than discarded: continuation-owned, delivery-pending scopes are Moirai
+  (Rust CI workflow and PM records) and Consus (FsStore source plus lockfile).
+  Active peer scopes are Tyche (`Cargo.lock`, bootstrap test, backlog, gap audit),
+  Mnemosyne (PM records), and Hermes (SIMD source/tests plus PM records and
+  lockfile). Proteus carries a lockfile-only edit pending owner review, while
+  Iris carries a lockfile-only edit on its delivery branch. Horae, Hyperion,
+  Themis, Aequitas, Asclepius, and Eunomia have clean checked-out worktrees;
+  Hyperion's earlier lockfile-only dirt is no longer present.
+- **Gitlink delivery drift (not worktree dirt; refreshed after `1a7cdca`):**
+  Horae, Hyperion, Asclepius, Eunomia, Proteus, and Iris have checked-out commits
+  that differ from Atlas's recorded gitlinks because their branches/heads are
+  ahead, divergent, or otherwise selected for provider delivery. Themis,
+  Aequitas, Tyche, Moirai, Consus, Mnemosyne, and Hermes are currently aligned.
+  No gitlink is advanced by this audit without an exact-head owner decision and
+  provider gate evidence.
+- **Exact remaining delivery ledger (live snapshot refreshed 2026-08-10T04:02:58Z; Atlas HEAD `37cd4f6`, `main` in sync with `origin/main`):**
+  - Horae: `08cf2925` → `88773885`; clean provider checkout whose HEAD is an
+    ancestor of the Atlas-recorded descendant gitlink, owner delivery decision
+    pending.
+  - Hyperion: `9a8b7d88` → `f84e27a`; clean branch, non-linear history relative to
+    the recorded link, owner decision and provenance review pending.
+  - Asclepius: `530115a7` → `2e4b4102`; clean branch, non-linear history relative
+    to the recorded link, owner delivery decision pending.
+  - Eunomia: `184ba926` → `b9801fcf`; clean branch with non-linear history
+    relative to the recorded link, owner delivery/provenance decision pending.
+  - Proteus: `3d6021e7` → `2918e5a3`; non-linear history plus dirty `Cargo.lock`,
+    so delivery is blocked pending lockfile ownership/review.
+  - Iris: `ab3eea28` → `95287488`; non-linear history plus dirty `Cargo.lock` on
+    an ahead branch, so delivery is blocked pending lockfile ownership/review.
+  The aligned providers are Themis `038457df`, Aequitas `681042b4`, Tyche
+  `d25311ed`, Moirai `3d6b0b2a`, Consus `fe5a7680`, Mnemosyne `9a143ca6`, and
+  Hermes `bde7010f`; alignment does not imply their active dirty files are
+  resolved. The Atlas superproject itself remains modified in the three audit
+  documents and multiple submodule/gitlink entries; provider-checkout
+  cleanliness must not be read as root-tree cleanliness.
+- Re-open trigger: locked metadata/overlay regression, a consumer importing a
+  duplicated provider law, disappearance of a provider-local source seam, or a
+  provider owner explicitly requesting delivery of one of the recorded gitlink
+  heads.
+
+
 > Cross-repo migration board. **Per-repo** PM artifacts remain SSOT for repo-local concerns (e.g. `repos/kwavers/backlog.md`, `repos/CFDrs/docs/backlog.md`, `repos/ritk/backlog.md`); this artifact owns only the migration scope that crosses repo boundaries (provider-side obstacles, dep-velocity closure, and shared definition-of-ready gates).
 >
 > Active tactic: `checklist.md`. Full migration inventory: `gap_audit.md`. PM artifact freshness/SSOT rules per atlas `AGENTS.md` `documentation_discipline`.
@@ -11254,9 +11468,9 @@ attaches once the tensor fit lands.
   cfd-schematics distinct missing_docs sites in `metadata_impl.rs` fall
   from 19 to 0; crate-wide distinct sites fall from 454 to 435.
 
-## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — todo
+## ATLAS-CFDRS-CI-WORKSPACE-RUST-001 — Add Rust workspace CI gate to CFDrs [patch] — in-progress
 
-- Owner: unclaimed (filed 2026-08-06 by current session). Pairs with
+- Owner: current session (claimed 2026-08-10). Pairs with
   ATLAS-CFDRS-LINT-FLOOR-001 to make the floor mechanically enforced.
 - Outcome: CFDrs `.github/workflows/ci.yml` carries a `rust-workspace` job
   that runs `cargo check --workspace --all-targets`, `cargo nextest run
