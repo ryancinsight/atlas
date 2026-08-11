@@ -120,6 +120,132 @@ class ExtractLinksTestCase(unittest.TestCase):
         self.assertEqual(list(cml.extract_links(text)), [])
 
 
+class HeadingSlugTestCase(unittest.TestCase):
+    """mdBook v0.5.4 heading-id parity (ATLAS-BOOK-ANCHOR-PARITY-001).
+
+    Every case in the table was verified against the mdBook v0.5.4 binary:
+    the expected id is the `id="..."` the renderer emits for that heading
+    text.  This locks the non-collapsing rule (each whitespace char → its
+    own hyphen, em/en-dashes dropped but their surrounding spaces still
+    produce hyphens, `-`/`_`/Unicode-alnum kept, no trimming).
+    """
+
+    MDBOOK_CASES = [
+        # em-dash / en-dash / smart punctuation (the divergence class)
+        ("CSD — Constrained Spherical Deconvolution", "csd--constrained-spherical-deconvolution"),
+        ("A — B", "a--b"),
+        ("A -- B", "a--b"),
+        ("A --- B", "a--b"),
+        ("A —B", "a-b"),
+        ("A--B", "ab"),
+        ("--foo", "foo"),
+        ("foo--bar", "foobar"),
+        ("em—dash", "emdash"),
+        ("en–dash", "endash"),
+        # whitespace: every char becomes its own hyphen, runs not collapsed
+        ("A  B", "a--b"),
+        ("two   spaces", "two---spaces"),
+        ("x.  y", "x--y"),
+        ("A B C", "a-b-c"),
+        ("x - y", "x---y"),
+        ("C - D", "c---d"),
+        ("A -", "a--"),
+        ("- B", "--b"),
+        ("tab1\tbetween", "tab1-between"),
+        # hyphen/underscore kept; intraword underscore survives
+        ("foo_bar", "foo_bar"),
+        ("foo_bar_baz", "foo_bar_baz"),
+        ("A_B_C", "a_b_c"),
+        ("1-2-3", "1-2-3"),
+        ("hyphen-word", "hyphen-word"),
+        ("hyphen_word_underscore", "hyphen_word_underscore"),
+        ("a_b c", "a_b-c"),
+        # emphasis/formatting stripped by the renderer, content survives
+        ("_em_ tail", "em-tail"),
+        ("__bold__ tail", "bold-tail"),
+        ("**bold** text", "bold-text"),
+        ("a *em* b", "a-em-b"),
+        ("`code span` here", "code-span-here"),
+        ("[link](http://x) tail", "link-tail"),
+        ("foo~bar~", "foobar"),
+        # no trimming of leading/trailing hyphens
+        ("- leading hyphen", "--leading-hyphen"),
+        ("trailing hyphen -", "trailing-hyphen--"),
+        # punctuation dropped, no merging of the spaces around it
+        ("A,B; C", "ab-c"),
+        ("F(m)", "fm"),
+        ("Title: subtitle", "title-subtitle"),
+        ("a/b", "ab"),
+        ("2×3", "23"),
+        ("A.s", "as"),
+        ("NAV{1}", "nav"),
+        ("NAV{2} tail", "nav2-tail"),
+        ("foo{bar}baz", "foobarbaz"),
+        ("a {b} c", "a-b-c"),
+        ("head {#b} more", "head-b-more"),
+        ("{1} NAV", "1-nav"),
+        ("#hashtag", "hashtag"),
+        # HTML entities decode then drop
+        ("x &amp; y", "x--y"),
+        ("C&#39;est", "cest"),
+        # Unicode alphanumerics kept, lowercased
+        ("Ünïcödé", "ünïcödé"),
+        ("ÜBER", "über"),
+        ("straße", "straße"),
+        ("0.5 µm", "05-µm"),
+    ]
+
+    def test_heading_slug_matches_mdbook_binary(self) -> None:
+        for title, expected in self.MDBOOK_CASES:
+            with self.subTest(title=title):
+                self.assertEqual(cml.heading_slug(title), expected)
+
+    def test_slugify_keeps_hyphens_for_link_anchors(self) -> None:
+        # Link fragments are already ids: `--` must survive as literal
+        # hyphens, unlike in heading text where `--` is smart-punctuated.
+        self.assertEqual(cml.slugify("csd--constrained-spherical-deconvolution"),
+                         "csd--constrained-spherical-deconvolution")
+        self.assertEqual(cml.slugify("Intro"), "intro")
+        self.assertEqual(cml.slugify("foo-bar-1"), "foo-bar-1")
+
+    def test_heading_ids_dedup_auto_slugs(self) -> None:
+        content = (
+            "# T\n"
+            "## A — B\n"
+            "## A -- B\n"
+            "## A  B\n"
+            "## Dup\n"
+            "## Dup\n"
+            "## Dup\n"
+        )
+        self.assertEqual(
+            cml.heading_ids(content),
+            ["t", "a--b", "a--b-1", "a--b-2", "dup", "dup-1", "dup-2"],
+        )
+
+    def test_heading_ids_explicit_anchor_verbatim_and_exempt_from_dedup(self) -> None:
+        content = (
+            "# T\n"
+            "## a1 {#CamelCase-Anchor}\n"
+            "## a2 {#same-anchor}\n"
+            "## a3 {#same-anchor}\n"
+        )
+        self.assertEqual(
+            cml.heading_ids(content),
+            ["t", "CamelCase-Anchor", "same-anchor", "same-anchor"],
+        )
+
+    def test_heading_ids_masks_fenced_code_but_keeps_inline_code(self) -> None:
+        content = (
+            "# T\n"
+            "```rust\n"
+            "# Ok::<(), E>(())\n"
+            "```\n"
+            "## The `AllocPolicy` trait\n"
+        )
+        self.assertEqual(cml.heading_ids(content), ["t", "the-allocpolicy-trait"])
+
+
 class CheckBookTestCase(unittest.TestCase):
     """Contract of `check_book`.
 
@@ -176,6 +302,21 @@ class CheckBookTestCase(unittest.TestCase):
             (book / "chapter.md").write_text("See [section](README.md#intro).\n", encoding="utf-8")
             (book / "README.md").write_text("# Intro\n", encoding="utf-8")
             self.assertEqual(self._report(book)["file_missing"], [])
+
+    def test_case_mixed_explicit_anchor_link_resolves(self) -> None:
+        # The parity list stores `{#CamelCase-Anchor}` verbatim; a link that
+        # exactly matches the mdBook-emitted id must resolve through the
+        # anchor set (which also carries the lowercased variant), not be
+        # flagged as ANCHOR_MISSING by the link-side `slugify` lowercase.
+        with tempfile.TemporaryDirectory(prefix="mdbook-") as book:
+            book = Path(book)
+            (book / "chapter.md").write_text(
+                "See [section](README.md#CamelCase-Anchor).\n", encoding="utf-8"
+            )
+            (book / "README.md").write_text(
+                "# Intro\n\n## Topic {#CamelCase-Anchor}\n", encoding="utf-8"
+            )
+            self.assertEqual(self._report(book)["anchor_missing"], [])
 
     def test_root_absolute_link_resolves_against_the_book_root(self) -> None:
         # mdBook semantics: a leading `/` is book-root-relative. Guards

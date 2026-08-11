@@ -129,15 +129,12 @@ FENCE_OPEN_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})\s*(?P<info>[^`]*)$")
 INLINE_CODE_RE = re.compile(r"`+[^`\n]*`+")
 
 
-def mask_code(content: str) -> str:
-    """Blank out code regions so link syntax inside them is not checked.
+def _mask_fenced(content: str) -> str:
+    """Blank out FENCED code regions only, preserving line structure.
 
-    mdBook does not resolve links inside code, and book prose routinely
-    shows markdown, shell, or TOML snippets containing bracket-paren
-    text that is not a link (``[dependencies]``, ``[foo](bar)`` in a
-    markdown example). Fenced blocks and inline spans are replaced with
-    blanks. Line structure is preserved so the masked text stays
-    positionally aligned with the original.
+    Used where code-block content must not be seen but inline code spans
+    must survive (heading extraction: mdBook keeps inline-code content in
+    heading text, so ``The `AllocPolicy` trait`` → `the-allocpolicy-trait`).
     """
     out: list[str] = []
     fence: tuple[str, int] | None = None
@@ -156,7 +153,20 @@ def mask_code(content: str) -> str:
         if closing and set(closing) == {char} and len(closing) >= length:
             fence = None
         out.append("")
-    return INLINE_CODE_RE.sub(" ", "\n".join(out))
+    return "\n".join(out)
+
+
+def mask_code(content: str) -> str:
+    """Blank out code regions so link syntax inside them is not checked.
+
+    mdBook does not resolve links inside code, and book prose routinely
+    shows markdown, shell, or TOML snippets containing bracket-paren
+    text that is not a link (``[dependencies]``, ``[foo](bar)`` in a
+    markdown example). Fenced blocks and inline spans are replaced with
+    blanks. Line structure is preserved so the masked text stays
+    positionally aligned with the original.
+    """
+    return INLINE_CODE_RE.sub(" ", _mask_fenced(content))
 
 
 def extract_links(content: str):
@@ -191,17 +201,165 @@ def extract_links(content: str):
     # also primarily covers inline form. Document if needed.
 
 
-def slugify(heading: str) -> str:
-    """Replicate mdbook's heading slug rule."""
-    s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", heading)
-    s = re.sub(r"[`*_~]", "", s)
-    s = s.lower()
-    # mdbook keeps Unicode word chars and replaces non-word, non-em-dash, non-space, non-hyphen
-    # NOTE: em-dash (U+2014) is intentionally NOT in the keep-set; mdbook strips it.
-    # Anything outside [a-zA-Z0-9_\s-] is dropped to match mdbook's slug rule.
-    s = re.sub(r"[^\w\s-]", "", s, flags=re.UNICODE)
-    s = re.sub(r"[\s_]+", "-", s).strip("-")
-    return s
+# HTML entity references that can appear in heading text.  mdBook's parser
+# decodes these to their literal character (which the char-loop below then
+# drops, or turns into a hyphen for &nbsp;).  Mirroring the decode matters:
+# e.g. `x &amp; y` renders as `x & y` in mdBook → id `x--y`; without the
+# decode the raw letters `amp` would wrongly survive into the slug.
+HTML_ENTITY_RE = re.compile(r"&(?:#(\d+)|#x([0-9a-fA-F]+)|(amp|lt|gt|quot|apos|nbsp));")
+HTML_ENTITY_NAMED = {
+    "amp": "&",
+    "lt": "<",
+    "gt": ">",
+    "quot": "\"",
+    "apos": "'",
+    "nbsp": " ",
+}
+
+# Trailing heading-attribute group consumed by pulldown-cmark's heading-
+# attributes parser (mdBook enables it): `NAV{1}` → text `NAV` (id `nav`),
+# `NAV {#x}` → text `NAV` + explicit id `x`.  The group must be the LAST
+# thing on the heading line (optional preceding whitespace); mid-heading
+# braces like `a {b} c` are literal text (braces dropped, content kept).
+HEADING_ATTR_RE = re.compile(r"\s*\{[^}]*\}\s*$")
+
+
+def _decode_entities(s: str) -> str:
+    def _sub(m):
+        dec, hexd, named = m.group(1), m.group(2), m.group(3)
+        if dec:
+            try:
+                return chr(int(dec))
+            except ValueError:
+                return m.group(0)
+        if hexd:
+            try:
+                return chr(int(hexd, 16))
+            except ValueError:
+                return m.group(0)
+        return HTML_ENTITY_NAMED[named]
+
+    return HTML_ENTITY_RE.sub(_sub, s)
+
+
+def _render_heading_text(title: str) -> str:
+    """Approximate pulldown-cmark's rendered Text for an ATX heading line.
+
+    Empirical parity against the mdBook v0.5.4 binary (see the battery of
+    probes in the ATLAS-BOOK-ANCHOR-PARITY-001 record):
+      - `[text](url)` → `text` (link text survives, url does not)
+      - inline code `` `x` `` → `x` (content survives, backticks don't)
+      - `*em*` / `**bold**` / `~strike~` → text; underscore emphasis
+        `_em_` / `__bold__` strips the delimiters, but INTRaword underscores
+        (`foo_bar`, `a_b c`) are literal and must survive into the id
+      - smart punctuation `---` → em-dash, `--` → en-dash (dropped later)
+      - a TRAILING `{...}` group is a heading attribute: stripped entirely
+        (its `{#id}` becomes the explicit id — handled by heading_ids)
+      - HTML entities decode to their literal character
+    """
+    s = title
+    # Order matters: replace `---` before `--` so `A --- B` becomes the
+    # em-dash form (→ `a--b`), not an en-dash plus a stray hyphen.
+    s = s.replace("---", "\u2014").replace("--", "\u2013")
+    s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)
+    # Inline code span: keep the content, drop the backticks.
+    s = re.sub(r"`+([^`\n]*)`+", r"\1", s)
+    # Underscore emphasis: `__bold__` then non-intraword `_em_`; the
+    # lookarounds keep intraword underscores (foo_bar) as literal text.
+    s = re.sub(r"__([^_\s]+)__", r"\1", s)
+    s = re.sub(r"(?<!\w)_([^_\s]+)_(?!\w)", r"\1", s)
+    # Star emphasis / strikethrough markers (dropped by the char loop anyway;
+    # stripping them here mirrors pulldown rendering `*em*` → `em`).
+    s = re.sub(r"[*~]+", "", s)
+    # Trailing heading attribute group (non-id): `NAV{1}` → `NAV`.
+    s = HEADING_ATTR_RE.sub("", s)
+    return _decode_entities(s)
+
+
+def heading_slug(title: str) -> str:
+    """mdBook v0.5.4 heading-id rule, applied to RAW markdown title text.
+
+    Mirrors the pipeline mdBook applies to the RENDERED heading text before
+    slugging (empirically verified against the v0.5.4 binary):
+
+      1. `_render_heading_text` approximates pulldown-cmark's Text events:
+         link text, inline-code content, emphasis markers, smart
+         punctuation (`--`/`---` → en/em-dash), trailing attribute groups,
+         and HTML entities are all resolved.
+      2. char loop (mdBook `normalize_id`): EACH whitespace char → `-`
+         (runs are NOT collapsed — `A  B` → `a--b`); Unicode alphanumeric →
+         lowercased; `-` and `_` are KEPT as-is; every other character
+         (em/en-dash, punctuation, …) is dropped.  No leading/trailing
+         trimming: `- leading hyphen` → `--leading-hyphen`.  This is why
+         `CSD — Constrained ...` → `csd--constrained-...`: the em-dash
+         vanishes but each surrounding space still yields its own hyphen.
+    """
+    out = []
+    for ch in _render_heading_text(title):
+        if ch.isspace():
+            out.append("-")
+        elif ch.isalnum():
+            out.append(ch.lower())
+        elif ch in "-_":
+            out.append(ch)
+        # else: dropped (em-dash, en-dash, punctuation, …)
+    return "".join(out)
+
+
+def slugify(anchor: str) -> str:
+    """Normalize a LINK anchor for set membership.
+
+    This is the pure char loop of `heading_slug` WITHOUT the markdown/
+    smart-punctuation pre-steps: a link fragment is already the author's
+    intended id (e.g. `#csd--constrained-...`), so `--` must survive as
+    two literal hyphens.  Lowercasing keeps the historical leniency
+    (`#Intro` matches heading `Intro`).
+    """
+    out = []
+    for ch in anchor:
+        if ch.isspace():
+            out.append("-")
+        elif ch.isalnum():
+            out.append(ch.lower())
+        elif ch in "-_":
+            out.append(ch)
+    return "".join(out)
+
+
+def heading_ids(content: str) -> list[str]:
+    """All heading anchor ids mdBook would emit for a file, in document order.
+
+    Auto-generated slugs collide → mdBook appends `-1`, `-2`, … suffixes in
+    order of appearance (verified: three `a--b`-producing headings yield
+    `a--b`, `a--b-1`, `a--b-2`).  A TRAILING `{#id}` attribute overrides the
+    slug verbatim, case-preserved, and is exempt from the dedup counter
+    (verified: two `{#same-anchor}` headings both emit `same-anchor`;
+    `{#CamelCase-Anchor}` keeps its case).
+
+    Fenced code blocks are masked first: `#`-prefixed lines inside a fence
+    (e.g. rustdoc/doctest markers like `# Ok::<()>(())` inside a ```rust
+    block) are code, not headings — mdBook emits no heading id for them.
+    Inline code spans are intentionally NOT masked: mdBook keeps inline-code
+    content in the rendered heading text (`The `AllocPolicy` trait` →
+    `the-allocpolicy-trait`).
+    """
+    content = _mask_fenced(content)
+    ids: list[str] = []
+    auto_seen: dict[str, int] = {}
+    for _h, title in re.findall(r"^(#{1,6})\s+(.*?)\s*$", content, re.MULTILINE):
+        am = re.search(r"\{#([\w-]+)\}\s*$", title)
+        if am is not None:
+            ids.append(am.group(1))
+            continue
+        base = heading_slug(title)
+        n = auto_seen.get(base, 0)
+        if n == 0:
+            ids.append(base)
+            auto_seen[base] = 1
+        else:
+            ids.append(f"{base}-{n}")
+            auto_seen[base] = n + 1
+    return ids
 
 
 def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
@@ -223,14 +381,16 @@ def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
             read_fail.append((md.relative_to(root).as_posix(), str(e)))
             continue
         origin = md.relative_to(root).as_posix()
-        # Pre-compute heading slugs of this file once for anchor checks
+        # Pre-compute heading anchor ids of this file once for anchor checks.
+        # Explicit `{#id}` ids are case-preserved in the parity list, but the
+        # link side compares through `slugify` (which lowercases); adding the
+        # lowercased variant here keeps both an exact-case link
+        # (`#CamelCase-Anchor`) and the historical lowercase-lenient form
+        # resolving, without disturbing the byte-for-byte parity list.
         local_anchor_set = set()
-        for _h, title in re.findall(r"^(#{1,6})\s+(.*?)\s*$", content, re.MULTILINE):
-            slug = slugify(title)
-            local_anchor_set.add(slug)
-            # explicit {#id} attr
-            for am in re.finditer(r"\{#([\w-]+)\}", title):
-                local_anchor_set.add(am.group(1).lower())
+        for hid in heading_ids(content):
+            local_anchor_set.add(hid)
+            local_anchor_set.add(hid.lower())
 
         for href in extract_links(content):
             # Anchor-only links are NOT skipped; they fall through and are validated
@@ -280,12 +440,9 @@ def check_book(book_root: str, name: str, allowlist: frozenset = frozenset()):
                     read_fail.append((origin, href, str(e)))
                     continue
                 t_anchors = set()
-                for _h, title in re.findall(
-                    r"^(#{1,6})\s+(.*?)\s*$", tc, re.MULTILINE
-                ):
-                    t_anchors.add(slugify(title))
-                    for am in re.finditer(r"\{#([\w-]+)\}", title):
-                        t_anchors.add(am.group(1).lower())
+                for hid in heading_ids(tc):
+                    t_anchors.add(hid)
+                    t_anchors.add(hid.lower())
                 if slugify(anchor) not in t_anchors:
                     anchor_missing.append((origin, href, anchor))
 

@@ -669,6 +669,7 @@ atlas/
 │   └── CFDrs/     helios/   kwavers/                      # Integrator
 ├── scripts/
 │   ├── atlas-stack-overlay.py       # generates the [patch] overlay from cargo metadata
+│   ├── atlas-toolchain-bootstrap.*  # clear Rust overrides; prioritize MSYS2 ucrt64
 │   ├── build-all.ps1 / build-all.sh # run one Cargo command across every recorded package
 │   ├── check_mdbook_links.py        # portable book dead-link detector
 │   └── publish-order.py             # derives the crates.io publish wave order
@@ -705,6 +706,46 @@ git submodule update --init --recursive
 ```
 
 ## Work with packages
+
+### Toolchain bootstrap (Windows/MSYS2)
+
+Before any Cargo command, prepare the shell with the repository-owned
+bootstrap. It removes stale or empty `RUSTC`/`RUSTDOC` overrides so Cargo can
+use the rustup proxy and each provider's committed `rust-toolchain.toml`, and
+puts the working MSYS2 `ucrt64` compiler tools first so C build scripts do not
+select an unrelated `gcc.exe`:
+
+```sh
+# Git Bash / MSYS2
+source scripts/atlas-toolchain-bootstrap.sh
+python scripts/atlas-toolchain-preflight.py
+
+# Or run one command without changing the parent shell
+bash scripts/atlas-toolchain-bootstrap.sh cargo nextest run
+```
+
+```powershell
+# PowerShell (native PowerShell; dot-source is required to retain the environment)
+. .\scripts\atlas-toolchain-bootstrap.ps1
+python scripts/atlas-toolchain-preflight.py
+```
+
+The preflight intentionally rejects rustup directory overrides because they
+bypass committed provider pins. If it reports one, inspect it and remove it
+only with the owning provider's approval, for example:
+
+```sh
+rustup override list
+rustup override unset repos/hephaestus
+```
+
+Do not remove an owner-controlled override merely to make the Atlas root look
+clean. Keep `RUSTC` and `RUSTDOC` unset after bootstrapping. Do not hard-code a
+compiler binary globally: provider-local rustup pins must remain authoritative.
+The bootstrap is intentionally environment-only and does not modify manifests,
+lockfiles, the shared Cargo configuration, rustup overrides, or provider
+worktrees. The PowerShell companion discovers native Windows MSYS2 locations;
+Git Bash/MSYS2 users should use the Bash companion.
 
 Build or test one package from its repository:
 
@@ -762,6 +803,33 @@ Advancing package pins is a reviewed provider-graph change. Fetch and verify
 the package's remote default branch, update its gitlink, run the affected
 provider and consumer gates, and commit the parent pointer only after the child
 revision is published.
+
+### Remaining-repository sweep evidence
+
+After bootstrapping and explicitly unsetting the stale Rust overrides, the
+2026-08-10 strict `RUSTFLAGS='-D warnings' cargo check --all-targets --offline`
+plus full `cargo nextest run --offline` sweep confirmed:
+
+| Repository | Strict check | Nextest |
+| --- | ---: | ---: |
+| `helios` | pass | 267/267 |
+| `gaia` | pass | 966 passed, 1 skipped |
+| `harmonia` | pass | 15/15 |
+| `athena` | pass | 52/52 |
+| `horae` | pass | 15/15 |
+| `apollo` | pass | 1000/1000 |
+| `leto` | pass | 827/827 |
+| `hephaestus` | pass | 576/576 |
+
+The following are not green claims: CFDrs reached 528/529 with the
+near-inviscid-resistance assertion failing; Kwavers's strict check failed at
+the `seismic_imaging_demo` link step; Coeus strict checking failed on an
+unused `device` warning in `hephaestus-cuda`, and its nextest reached 1013/1014
+with a headless WGPU adapter-unavailable failure; RITK did not complete within
+the bounded run window. These are source/platform-gated follow-ups, not the
+former empty-`RUSTC` `-vV` environment blocker. Cargo-generated lockfile and
+untracked build artifacts in provider worktrees were preserved for owner
+reconciliation; no cleanup/reset was performed by the bootstrap slice.
 
 ### Build cache and debug budget
 
