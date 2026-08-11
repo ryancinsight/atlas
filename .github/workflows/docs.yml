@@ -1,44 +1,56 @@
-# Atlas Physics Docs Invariant Gate (§7 #4 of MDBOOK_DETECTOR_PARITY.md)
+# Atlas Docs Invariant Gate (§7 #4 of MDBOOK_DETECTOR_PARITY.md)
 #
-# Runs the portion of the portable detector plus an mdbook v0.5.4 build
-# across all five atlas physics books (CFDrs, helios, kwavers, ritk, and
-# the eunomia datatype-law book added 2026-08-03).  See
-# MDBOOK_DETECTOR_PARITY.md §6 for the wiring rationale and §7 #5 for the
-# strict-mode flip (drop `--advisory` from the detector step).
+# Runs the portable detector plus an mdbook v0.5.4 build across all provider
+# books (every `repos/*/docs/book` directory — 24 books as of 2026-08-11;
+# ATLAS-BOOK-LINK-CI-001 extended the gate from the original five physics
+# books to the whole stack).  See MDBOOK_DETECTOR_PARITY.md §6 for the wiring
+# rationale and §7 #5 for the strict-mode flip (drop `--advisory` from the
+# detector step).
 
 name: docs-invariant
 
 on:
   pull_request:
     paths:
-      - 'repos/**/docs/book/**.md'
-      - 'repos/**/docs/book/book.toml'
-      - 'repos/**/docs/book/SUMMARY.md'
+      - 'repos/**/docs/book/**'
       - 'scripts/check_mdbook_links.py'
       - '.github/workflows/docs.yml'
+      - '.githooks/pre-commit'
       - 'parity_artefacts/smoke_test_filters/**'
       - 'MDBOOK_DETECTOR_PARITY_KWAVERS.md'
   push:
     branches: [main]
     paths:
-      - 'repos/**/docs/book/**.md'
-      - 'repos/**/docs/book/book.toml'
-      - 'repos/**/docs/book/SUMMARY.md'
+      - 'repos/**/docs/book/**'
       - 'scripts/check_mdbook_links.py'
       - '.github/workflows/docs.yml'
+      - '.githooks/pre-commit'
       - 'parity_artefacts/smoke_test_filters/**'
       - 'MDBOOK_DETECTOR_PARITY_KWAVERS.md'
+
+# NOTE (reviewer follow-up, ATLAS-BOOK-LINK-CI-001): `repos/**/docs/book/**`
+# intentionally covers non-`.md` assets too (images, embedded files), so an
+# mdBook build or `{{#include}}` breakage from an asset change re-triggers the
+# gate.  Provider-side book edits committed INSIDE a submodule surface to root
+# CI as a `repos/<name>` gitlink change, which no `paths:` pattern matches;
+# the gate is therefore enforced at the root-commit boundary (the documented
+# Atlas delivery model — provider work is merged in the provider, then the
+# gitlink is advanced from Atlas).
 
 # Cancel in-flight runs of the same branch + workflow when a new commit lands.
 concurrency:
   group: docs-invariant-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  RUST_TOOLCHAIN: 1.97.0
+  MDBOOK_LINKCHECK2_VERSION: 0.12.2
+
 jobs:
   docs-link-check:
     name: Dead-link + mdbook build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +63,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install Rust for mdBook linkcheck2
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Install mdBook linkcheck2 backend
+        run: cargo install mdbook-linkcheck2 --version "${MDBOOK_LINKCHECK2_VERSION}" --locked
+
       - name: Install mdbook v0.5.4 (binary release)
         run: |
           mkdir -p /tmp/mdbook-install
@@ -60,34 +80,29 @@ jobs:
           sudo install -m 0755 /tmp/mdbook-install/mdbook /usr/local/bin/mdbook
           mdbook --version
 
-      - name: Detector (STRICT mode — §7 #5 flipped) — 5 atlas physics books
+      - name: Detector (STRICT mode — §7 #5 flipped) — all provider books
         run: |
-          python3 scripts/check_mdbook_links.py \
-            repos/CFDrs/docs/book \
-            repos/helios/docs/book \
-            repos/kwavers/docs/book \
-            repos/ritk/docs/book \
-            repos/eunomia/docs/book \
+          python3 scripts/check_mdbook_links.py repos/*/docs/book \
             | tee detector.log
         # VARIANT 2 applied (post-§7-#5, see §7 #5 of the parity report):
         # `--advisory` removed; the detector's exit-1 on FILE_MISSING > 0
-        # IS the strict gate — no other script changes required.  All 5
-        # atlases must reach `FILE_MISSING : 0` for CI to pass.
+        # IS the strict gate — this step is exit-code-based.  A future
+        # detector return-code refactor must not weaken it.  Every
+        # `repos/*/docs/book` must reach `FILE_MISSING : 0` for CI to pass;
+        # the glob means newly added provider books are gated automatically.
 
-      - name: mdbook build — repos/CFDrs/docs/book
-        run: mdbook build repos/CFDrs/docs/book
-
-      - name: mdbook build — repos/helios/docs/book
-        run: mdbook build repos/helios/docs/book
-
-      - name: mdbook build — repos/kwavers/docs/book (control)
-        run: mdbook build repos/kwavers/docs/book
-
-      - name: mdbook build — repos/ritk/docs/book
-        run: mdbook build repos/ritk/docs/book
-
-      - name: mdbook build — repos/eunomia/docs/book
-        run: mdbook build repos/eunomia/docs/book
+      - name: mdbook build — all provider books
+        shell: bash
+        run: |
+          set -euo pipefail
+          for book in repos/*/docs/book; do
+            echo "== Building $book =="
+            if ! output=$(mdbook build "$book" 2>&1); then
+              echo "$output" | tail -20
+              echo "::error::mdbook build FAILED for $book"
+              exit 1
+            fi
+          done
 
       - name: Upload detector log artefact
         if: always()
@@ -101,7 +116,7 @@ jobs:
   # filters in scripts/check_mdbook_links.py:
   #   - SINGLE_CHAR_HREF_RE  (FDTD recurrence: p[n+1](x))
   #     see MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2 Issue B
-  #   - LATEX_HREF_RE        (LaTeX-cmd math: [F(m)](\mathbf{r}_s, t))
+  #   - LATEX_HREF_RE        (LaTeX-cmd math: [F(m)](\\mathbf{r}_s, t))
   #     see MDBOOK_DETECTOR_PARITY_KWAVERS.md §3 Issue A
   # Catches future detector refactors that re-enable either class.
   # Runs the portable detector over the consolidated fixture at

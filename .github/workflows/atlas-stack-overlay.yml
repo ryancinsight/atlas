@@ -63,9 +63,12 @@ jobs:
 
       - name: Overlay check (must exit 0)
         run: |
+          set +e
           output=$(python3 scripts/atlas-stack-overlay.py check 2>&1)
+          status=$?
+          set -e
           echo "$output" | tee overlay-check.log
-          if ! echo "$output" | grep -qE '^stack aligned:'; then
+          if [ "$status" -ne 0 ] || ! echo "$output" | grep -qE '^stack aligned:'; then
             echo "::error::Atlas stack overlay drift detected. The first-party Cargo.locks across the allowlisted members no longer resolve against the current local provider heads. Run \`python scripts/atlas-stack-overlay.py check\` locally for per-crate detail; satisfy the lag either by advancing consumer requirements to the provider's published version, or by advancing the provider workspace version forward. Do NOT silence this gate -- it is the structural guard against the ATLAS-VERSION-GUARD-001 motivating incident (\`87ab265\` on hermes: a sed dep-conversion silently reverted the workspace release 0.5.0 -> 0.4.1 and internal requirements to 0.4.0; origin lied about versions for ~10 hours; coeus stacked 18 commits on the undeliverable base)."
             exit 1
           fi

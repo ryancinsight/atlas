@@ -208,24 +208,27 @@ once §7 #5 is flipped — concrete flip instructions are in §7 #5.
 # (post-§7-#5 LANDED; §7 #4's advisory VARIANT 1 was the only variant
 # before §7 #5 and is now obsolete).  Detector's exit-1 on
 # FILE_MISSING > 0 IS the strict gate; --advisory no longer needed.
-python3 scripts/check_mdbook_links.py \
-  repos/CFDrs/docs/book repos/helios/docs/book repos/kwavers/docs/book
-mdbook build repos/CFDrs/docs/book
-mdbook build repos/helios/docs/book
-mdbook build repos/kwavers/docs/book
+#
+# Since ATLAS-BOOK-LINK-CI-001 (2026-08-11) the gate covers every provider
+# book via the `repos/*/docs/book` glob, so newly added books are gated
+# automatically by both the hook and the workflow.  The workflow trigger
+# paths use `repos/**/docs/book/**` so non-`.md` assets (images, embedded
+# files) also re-trigger the gate.  Boundary note: provider-side book edits
+# committed INSIDE a submodule surface to root CI as a `repos/<name>`
+# gitlink change, which matches no `paths:` pattern; the gate is enforced at
+# the root-commit boundary (provider work merges in the provider, then Atlas
+# advances the gitlink) — the pre-commit hook remains the local tripwire for
+# in-checkout book edits.
+python3 scripts/check_mdbook_links.py repos/*/docs/book
+for book in repos/*/docs/book; do mdbook build "$book"; done
 ```
 
-**HISTORY**: this sketch originally showed two side-by-side variants —
-VARIANT 1 (advisory, §7 #4) and VARIANT 2 (strict, §7 #5).  After
-§7 #5 LANDED, VARIANT 1 is obsolete and was removed; VARIANT 2 IS the
-production state at `.github/workflows/docs.yml` and
-`.git/hooks/pre-commit`.
+**HISTORY**: this sketch originally showed two side-by-side variants — VARIANT 1 (advisory, §7 #4) and VARIANT 2 (strict, §7 #5). After §7 #5 LANDED, VARIANT 1 is obsolete and was removed; VARIANT 2 IS the production state at `.github/workflows/docs.yml` and `.git/hooks/pre-commit`. The original three-book sketch (CFDrs + helios + kwavers) was widened to the full stack by ATLAS-BOOK-LINK-CI-001, which also added the mdBook build loop.
 
 ### Caveats
 
-- The detector currently targets **CFDrs + helios + kwavers** (all 3
-  atlas physics books).  kwavers parity re-validated via
-  [`MDBOOK_DETECTOR_PARITY_KWAVERS.md`](MDBOOK_DETECTOR_PARITY_KWAVERS.md).
+- The detector now targets **every provider book** (`repos/*/docs/book` — 24 books as of 2026-08-11), not just the original CFDrs + helios + kwavers physics trio; kwavers parity re-validated via [`MDBOOK_DETECTOR_PARITY_KWAVERS.md`](MDBOOK_DETECTOR_PARITY_KWAVERS.md). ATLAS-BOOK-LINK-SWEEP-001 fixed the last outstanding rows (six stale ADR hrefs and the em-dash CSD anchor in ritk), so the full-stack strict gate is green.
+- **Heading-id parity is now exact** (ATLAS-BOOK-ANCHOR-PARITY-001, 2026-08-11): `heading_slug`/`heading_ids` mirror mdBook v0.5.4's `normalize_id` and were cross-validated against the built HTML of every chapter in all 24 books — 346/346 pages reproduce mdBook's heading ids byte-for-byte. The former em-dash divergence class is eliminated at the root (see §8), so the ritk `{#csd-constrained-spherical-deconvolution}`-style explicit anchors from SWEEP-001 are no longer *required* for parity — they remain valid and stable, and are kept as intentional stable ids.
 - All 13 originally-known FILE_MISSING (12 CFDrs+helios Patterns C/D/E/F
   + 1 kwavers FDTD-recurrence false positive) are now resolved
   (12 by §7 #2 chapter/source fix, 1 by Issue B detector filter).  The
@@ -370,6 +373,72 @@ production state at `.github/workflows/docs.yml` and
      root + the 3 per-book `book/` HTML directories).  The on-disk
      `repos/parity_artefacts/` archive preserves the detector↔mdbook
      parity evidence chain for local reproductions.
+
+---
+
+## 8. Heading-ID Parity — exact match (ATLAS-BOOK-ANCHOR-PARITY-001)
+
+**Claim:** the detector's heading-id generator now reproduces mdBook v0.5.4's
+heading ids **byte-for-byte** — verified by cross-validating every chapter of
+all 24 provider books against the actually-built HTML: **346/346 pages match**.
+
+### 8.1 The old rule and its divergence class
+
+The pre-ATLAS-BOOK-ANCHOR-PARITY-001 `slugify` collapsed all punctuation and
+whitespace runs into a single hyphen and trimmed leading/trailing hyphens:
+
+```
+CSD — Constrained Spherical Deconvolution  →  csd-constrained-...   (old)
+                                         mdBook →  csd--constrained-...
+```
+
+The **em-dash divergence class**: mdBook drops the em/en-dash but keeps one
+hyphen per surrounding space, so `— ` leaves TWO hyphens; the old rule
+merged them into one. SWEEP-001 band-aided this with explicit `{#id}`
+anchors on the affected ritk headings. ANCHOR-PARITY-001 eliminates the
+class at the root by mirroring mdBook's actual algorithm.
+
+### 8.2 mdBook v0.5.4's real rule (empirically verified)
+
+mdBook slugs the **rendered** heading text, not the raw markdown:
+
+1. pulldown-cmark renders the heading: link text survives (`[x](u)` → `x`),
+   inline-code content survives (`` `AllocPolicy` `` → `AllocPolicy`),
+   `*em*`/`**bold**`/`_em_`/`__bold__`/`~strike~` delimiters are dropped,
+   smart punctuation converts `---` → em-dash and `--` → en-dash, a
+   trailing `{...}` group is consumed as a heading attribute (`{#id}` →
+   the explicit id, verbatim; any other `{...}` → stripped), and HTML
+   entities decode to their literal character.
+2. `normalize_id` char loop: **each** whitespace char → `-` (runs are NOT
+   collapsed: `A  B` → `a--b`); Unicode alphanumeric → lowercased;
+   `-` and `_` kept as-is; every other character (em/en-dash, punctuation,
+   `+`, `#`, …) dropped. No trimming: `- leading` → `--leading`.
+3. Auto-slug collisions dedup with `-1`, `-2`, … suffixes in document
+   order (`a--b`, `a--b-1`, `a--b-2`). Explicit `{#id}` anchors are exempt
+   from dedup and keep their case (`{#CamelCase-Anchor}`).
+4. Fenced code blocks are not headings: `#`-prefixed lines inside a fence
+   (rustdoc/doctest markers) emit no id.
+
+### 8.3 Verification
+
+- Empirical battery: 58 heading texts run through both the v0.5.4 binary and
+  `heading_slug` — 58/58 identical (see `HeadingSlugTestCase` in
+  `scripts/tests/test_check_mdbook_links.py`).
+- Full-book cross-validation: every chapter of all 24 books rebuilt with
+  mdBook v0.5.4 and compared per page — **346/346 pages reproduce the built
+  heading ids exactly**.
+- The detector gate stays green: `FILE_MISSING : 0 / ANCHOR_MISSING : 0`
+  across all 24 books after the change.
+
+### 8.4 Source fixes that surfaced
+
+- **kwavers `transcranial_ust_brain_imaging.md`** (2 edits): display-math
+  blocks containing a bare `=` line (e.g. `A_{srfhx}\n=`) were parsed by
+  CommonMark as *setext headings*, so mdBook emitted garbage ids like
+  `-a_` and rendered the equation split. The `=` was joined onto the
+  preceding line (`A_{srfhx} =`), restoring proper display math.
+- No book link required updating: every anchor in the 24 books was already
+  mdBook-correct, or pointed at an explicit `{#id}`.
 
 ---
 

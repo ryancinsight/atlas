@@ -117,31 +117,36 @@ jobs:
         run: |
           set -euo pipefail
           cargo build -p "${{ inputs.cargo-package }}"
-          # Find the compiled rlib and set RUSTDOCFLAGS so mdbook test
-          # can resolve the crate in fenced code blocks.
-          pkg="${{ inputs.cargo-package }}"
           # Package name uses hyphens; crate name uses underscores.
+          pkg="${{ inputs.cargo-package }}"
           crate="${pkg//-/_}"
-          lib_dir="$(cargo metadata --no-deps --format-version 1 | python3 -c "
-          import json, sys
-          meta = json.load(sys.stdin)
-          for pkg in meta['packages']:
-              if pkg['name'] == '${{ inputs.cargo-package }}':
-                  print(pkg.get('targets', [{}])[0].get('name', '').replace('-', '_'))
-                  break
-          " 2>/dev/null || echo "$crate")"
           target_dir="$(cargo metadata --no-deps --format-version 1 | python3 -c "import json,sys; print(json.load(sys.stdin)['target_directory'])")"
           deps_dir="$target_dir/debug/deps"
           rlib=$(ls "$deps_dir/lib${crate}-"*.rlib 2>/dev/null | head -n1 || true)
           if [[ -n "$rlib" ]]; then
-            export RUSTDOCFLAGS="-L $deps_dir --extern ${crate}=${rlib}"
-            echo "RUSTDOCFLAGS=${RUSTDOCFLAGS}" >> "$GITHUB_ENV"
+            # mdbook 0.5.4 does not forward RUSTDOCFLAGS: it spawns rustdoc with
+            # a fixed argument list, so `--extern` cannot be injected. The deps
+            # dir itself cannot be given as a library path either — it holds many
+            # hash-suffixed candidates and `extern crate` then fails with E0464
+            # (multiple candidates). Stage one plain-named rlib in a fresh
+            # directory and point `mdbook test --library-path` at it; fenced
+            # blocks must declare the crate with `extern crate <name>;`.
+            stage_dir="$target_dir/mdbook-test-libs"
+            mkdir -p "$stage_dir"
+            cp "$rlib" "$stage_dir/lib${crate}.rlib"
+            echo "MDBOOK_TEST_LIB_DIR=${stage_dir}" >> "$GITHUB_ENV"
           fi
 
       - name: Test book code samples
         if: inputs.mdbook-test
         shell: bash
-        run: mdbook test "${{ inputs.book-path }}"
+        run: |
+          set -euo pipefail
+          if [[ -n "${MDBOOK_TEST_LIB_DIR:-}" ]]; then
+            mdbook test "${{ inputs.book-path }}" --library-path "$MDBOOK_TEST_LIB_DIR"
+          else
+            mdbook test "${{ inputs.book-path }}"
+          fi
 
       - name: Build book
         shell: bash

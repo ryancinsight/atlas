@@ -49,6 +49,7 @@
 [submodule "repos/hyperion"]
 	path = repos/hyperion
 	url = https://github.com/ryancinsight/hyperion.git
+	active = true
 [submodule "repos/iris"]
 	path = repos/iris
 	url = https://github.com/ryancinsight/iris
@@ -87,9 +88,12 @@
 [submodule "repos/proteus"]
 	path = repos/proteus
 	url = https://github.com/ryancinsight/proteus
+	active = true
 [submodule "repos/tyche"]
 	path = repos/tyche
 	url = https://github.com/ryancinsight/tyche
+	active = true
 [submodule "repos/asclepius"]
 	path = repos/asclepius
 	url = https://github.com/ryancinsight/asclepius.git
+	active = true

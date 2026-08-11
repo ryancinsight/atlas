@@ -2,7 +2,9 @@
 #
 # Atlas docs dead-link check (STRICT mode, §7 #5 LANDED).
 #
-# Scans repos/{CFDrs,helios,kwavers,ritk}/docs/book/ for broken inline links via
+# Scans every repos/*/docs/book/ directory (all provider books — 24 as of
+# 2026-08-11; ATLAS-BOOK-LINK-CI-001 extended the gate from the original
+# four physics books to the whole stack) for broken inline links via
 # scripts/check_mdbook_links.py.  Exits non-zero on any FILE_MISSING —
 # BLOCKS commits that introduce new broken links.  See
 # MDBOOK_DETECTOR_PARITY.md §7 #5 for the flip rationale.
@@ -29,7 +31,7 @@ cd "$ROOT"
 # Fast-path: only run the detector when docs-relevant files are staged.
 # Avoids paying the cost on every commit (e.g. pure Rust edits).
 changed=$(git diff --cached --name-only 2>/dev/null \
-  | grep -E '^repos/(CFDrs|helios|kwavers|ritk)/docs/book/|^scripts/check_mdbook_links\.py|^\.github/workflows/docs\.yml$|^\.githooks/pre-commit$' \
+  | grep -E '^repos/[^/]+/docs/book/|^scripts/check_mdbook_links\.py|^\.github/workflows/docs\.yml$|^\.githooks/pre-commit$' \
   || true)
 if [ -z "$changed" ]; then
   exit 0
@@ -38,16 +40,13 @@ fi
 echo "[pre-commit] Atlas docs dead-link check (§7 #5, STRICT mode — blocks commits with FILE_MISSING > 0)…"
 
 # §7 #5 LANDED: --advisory removed.  The detector's exit-1 on
-# FILE_MISSING > 0 IS the strict gate; all 4 books must reach
+# FILE_MISSING > 0 IS the strict gate; every provider book must reach
 # `FILE_MISSING : 0` for this hook to pass.  See
 # MDBOOK_DETECTOR_PARITY.md §7 #5 for the flip rationale.
 #
-# Book list mirrors .github/workflows/docs.yml — keep the two in step. A book
-# added to one and not the other is a silently ungated book.
-python3 scripts/check_mdbook_links.py \
-  repos/CFDrs/docs/book \
-  repos/helios/docs/book \
-  repos/kwavers/docs/book \
-  repos/ritk/docs/book
+# The glob mirrors .github/workflows/docs.yml — keep the two in step. A book
+# added to one and not the other is a silently ungated book; the glob means
+# new provider books are gated by both automatically.
+python3 scripts/check_mdbook_links.py repos/*/docs/book
 
 exit 0
