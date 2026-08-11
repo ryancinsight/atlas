@@ -316,8 +316,15 @@ dependency-ordered provider delivery stay tracked as external follow-up gates.
       child worktrees remain dirty and are preserved.
 - [x] Classify each provider's dirty scope as a dependency-ordered
       provider-delivery follow-up tracked in provider/consumer boards; this
-      audit closes Atlas integration identity and evidence boundaries without
-      claiming child gitlink delivery completion.
+      audit closes Atlas integration identity and evidence boundaries, while
+      child delivery advances through exact-merged-head increments below.
+- [x] Deliver the two final pending requested integrator gitlinks after exact
+      hosted closure: Helios PR #44 merged at `342bbbc83d95b33060cc8fc52587f98e9ea5d166`
+      with hosted run `31470908686` green, including the four-pair benchmark
+      regression gate; RITK PR #121 merged at `82307a77a009fe0c155aacf1dd4456f9480438f`
+      with hosted core run `31468941904` and Python matrix run `31468942935`
+      green. The parent pointers are advanced without modifying peer-dirty
+      child files.
 
 ## ATLAS-AEQUITAS-PROVIDER-DOCS-001 — Complete Aequitas book closure — done 2026-08-10
 
