@@ -252,6 +252,96 @@ this provider-local closure. The `Cargo.lock` overlay churn (229 lines of
 `[[patch.unused]]`) was restored to the committed blob and is not delivered.
 Root gitlink stays at merged `184ba92` until owner PR merge.
 
+## ATLAS-IRIS-CLOSURE-001 — Iris IRIS-003 release-readiness record — 2026-08-11
+
+Delivered the provider-local IRIS-003 release-readiness record as `e179781`
+on `codex/iris-closure-record` (based directly on `origin/main` `ab3eea2`),
+pushed 2026-08-11. The two PM files (backlog/checklist) record the IRIS-003
+state: the `iris` 0.1.0 name is unregistered on crates.io, the exact-identity
+validation + OIDC publishing automation are merged (PR #6), and the local
+repository gates pass. The recorded local gates were re-verified in this
+delivery (fmt, all-feature checks, warning-denied Clippy, 16/16 Nextest with
+`--all-features`, 2/2 doctests). `cargo package --locked` stays blocked only in
+the Atlas overlay because Cargo rewrites `Cargo.lock` under the ambient
+path-patch graph; hosted CI/publish and trusted-publisher steps remain
+external release gates. The 188-line `Cargo.lock` diff was ambient-overlay
+re-resolution (eunomia/horae/moirai → mnemosyne/hyperion/themis/consus patch
+set swap plus a `syn` 3.0.2→3.0.3 transitive re-resolution) and was restored
+to the committed blob, not delivered. Root gitlink stays at merged `ab3eea2`
+until owner PR merge.
+
+## ATLAS-ASCLEPIUS-BOOK-001 — Complete Asclepius book closure — 2026-08-11
+
+Replaced all four `Chapter prose deferred` book placeholders in asclepius with
+API-accurate chapters and delivered them as `220d713` on
+`codex/asclepius-book-closure` (based directly on `origin/main` `530115a`),
+pushed 2026-08-11. The chapters cover validated response values (Probability
+`[0,1]`, `VolumeEffect` finite non-zero, `ResponseSlope` finite positive,
+`CompensationFactor` `(0,1]`, `DamageIntegral`/`EquivalentExposure`
+non-negative), gEUD/power-mean bounds and positive homogeneity, Niemierko
+logistic TCP and Lyman NTCP with their midpoint theorems, and the Atlas
+ownership boundary with the static `BiologicalResponse<T>` GAT contract. The
+docs-only slice touches no `Cargo.toml`; mdBook build + portable link detector
+clean (0/0/0). 2026-08-11 re-verification of the three compiled examples
+under the overlay (`treatment_response` gEUD=50.662 Gy/TCP=0.52629/
+CEM43=3.000 min, `book_geud` uniform-mean-max anchor assertions,
+`book_biological_values` full validation surface) passes rc=0; overlay
+`Cargo.lock` churn restored after the runs. This closes the former
+"Asclepius has four deferred book chapters" gap-audit residual; crates.io
+publish + trusted-publisher configuration remain external release gates.
+Root gitlink stays at merged `530115a` until owner PR merge.
+
+## ATLAS-VERSION-GUARD-SCAN-MATRIX-001 — per-commit scan matrix — 2026-08-11
+
+Fresh re-run of the per-commit `version-guard scan` subcommand for all ten
+delivery branches (2026-08-11). Each range contains exactly the single
+delivery commit; every worktree is checked out exactly at its delivery head.
+All ten report 0 version-bearing lines touched, rc=0, and
+`{"defect_count":0,"findings":[]}` — no release-intent declaration is
+required and no Forward/Backward movement defect exists for any delivery.
+The themis commit is the only one touching `Cargo.toml`, and only as feature
+wiring (`melinoe/alloc` activation, no `version =` line change); the coeus
+commit is the only source delivery and its `Cargo.lock` change is the
+ambient patch-set re-resolution signature (no version movement). Combined
+with the stack-wide `coherence` gate (0 defects across 235 manifests / 215
+packages / 1048 first-party requirements), all ten deliveries are fully
+version-guard green at both layers. Coeus's `feat/mlm-provider` branch is
+based on `4491bf19` (pre-PR #312 main) and was pushed 2026-08-11 at
+`1ac8118c`; the root gitlink already records this head. All ten branches are
+now pushed and await owner PR merge.
+
+| Provider | Branch | Range | Verdict | JSON | rc |
+| --- | --- | --- | --- | --- | ---: |
+| aequitas | `codex/aequitas-book-prose` | `681042b..11565d9` | clean (docs-only) | `{"defect_count":0,"findings":[]}` | 0 |
+| proteus | `codex/proteus-book-prose` | `3d6021e..30e25f8` | clean (docs-only) | `{"defect_count":0,"findings":[]}` | 0 |
+| horae | `codex/horae-book-prose` | `08cf292..03ad868` | clean (docs-only) | `{"defect_count":0,"findings":[]}` | 0 |
+| themis | `codex/themis-melinoe-adoption` | `038457d..cad222b` | clean (`melinoe/alloc` feature line) | `{"defect_count":0,"findings":[]}` | 0 |
+| hyperion | `codex/hyperion-book-examples` | `9a8b7d8..b8a1124` | clean (book-example/docs/CI) | `{"defect_count":0,"findings":[]}` | 0 |
+| eunomia | `codex/eunomia-closure-record` | `184ba92..0c14c2e` | clean (PM docs only) | `{"defect_count":0,"findings":[]}` | 0 |
+| hephaestus | `codex/hephaestus-closure-record` | `d4d5906..407938b` | clean (PM docs only) | `{"defect_count":0,"findings":[]}` | 0 |
+| iris | `codex/iris-closure-record` | `ab3eea2..e179781` | clean (PM docs only) | `{"defect_count":0,"findings":[]}` | 0 |
+| asclepius | `codex/asclepius-book-closure` | `530115a..220d713` | clean (docs-only) | `{"defect_count":0,"findings":[]}` | 0 |
+| coeus | `feat/mlm-provider` | `4491bf19..1ac8118c` | clean (source delivery; lock patch-set re-resolution) | `{"defect_count":0,"findings":[]}` | 0 |
+
+## ATLAS-COEUS-MLM-PROVIDER-001 — Coeus multi_label_margin_loss provider delivery — 2026-08-11
+
+Pushed the coeus `feat/mlm-provider` delivery branch at `1ac8118c`
+2026-08-11 (branch push only; the commit was authored by the provider owner
+and the root gitlink already records this head). The commit migrates
+`multi_label_margin_loss` to provider ownership — pairwise [N,C,C] active
+tensor via broadcast, per-row target scores gathered with `index_select` on a
+safe (-1→0) flattened target index, `m = 1 - x[target] + x[j]` masked by the
+valid-position flag, a `j != target` one-hot exclusion, and the positive
+hinge; backward scatters each active pair's `-scale` into target columns and
+`+scale` into sibling columns; 4 value-semantic tests. This closes the last
+non-sequential host-staged loss family; CTC remains the sole sequential-DP
+exception per the umbrella's upstream-capability path. `version-guard scan`
+on `4491bf19..1ac8118c` is clean (0 defects, rc=0); the in-range
+`Cargo.lock` change is the ambient patch-set re-resolution signature (no
+version movement); stack-wide coherence clean (0 defects). The matrix row in
+`ATLAS-VERSION-GUARD-SCAN-MATRIX-001` records this as the tenth delivery.
+Root gitlink stays at `1ac8118c` until owner PR merge.
+
 ## ATLAS-HORAE-PROVIDER-DOCS-001 — Horae book closure — 2026-08-10
 
 Horae's six former `Chapter prose deferred` placeholders are closed at the
@@ -369,11 +459,11 @@ overlay bypassed. The test and broad generated lockfile diff remain
 uncommitted in the peer worktree; no provider worktree or Atlas gitlink was
 reset, cleaned, committed, or advanced.
 
-## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — nineteen-provider integration audit
+## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — nineteen-provider integration audit (Atlas integration scope closed 2026-08-11)
 
 ### Live closure snapshot — 2026-08-11
 
-The requested scope is Horae, Hyperion, Themis, Tyche, Proteus, Mnemosyne,
+The requested scope is Horae, Hyperion, Themis, Tyche (aka Tychee), Proteus, Mnemosyne,
 Consus, Helios, Aequitas, Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto,
 Hephaestus, Coeus, Apollo, and Iris. Atlas `b72d9f1` equals `origin/main`; the
 root gitlink remains the delivery SSOT. Fourteen requested child checkouts
@@ -390,6 +480,13 @@ workspace CI gate (branch `codex/fix-atlas-sha`, PR #118, hosted checks
 pending). Neither root gitlink advances until the exact merged hosted head is
 green.
 
+Closure classification: Atlas integration scope for Horae, Hyperion, Themis,
+Tyche, Proteus, Mnemosyne, Consus, Helios, Aequitas, Asclepius, Eunomia,
+Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, and Iris is complete.
+Remaining gates are release/publication, hardware validation, and
+dependency-ordered provider gitlink delivery, and remain explicitly external to
+this audit closure.
+
 Remaining material findings are classified rather than collapsed into a green
 claim: Horae has a standalone lock-graph residual and publication is disabled;
 Hyperion and Proteus retain occupied-name `publish = false` decisions; Tyche's
@@ -397,12 +494,15 @@ versioned Consus study schema and transaction seam remain open; Mnemosyne's
 immutable WGPU callback/device-buffer path remains provider-lifetime blocked;
 Helios retains external DICOM/Gaia/RITK/Windows integration gates; Aequitas,
 Melinoe, and the provider documentation branches await owner PR merge and
-gitlink delivery; Asclepius has four deferred book chapters and ABI/release
-work; Eunomia has the E-027 ABI/publication gap; RITK retains the raw-WGPU
+gitlink delivery; Asclepius book closure is delivered as `220d713` and only
+its crates.io publish/ABI release work remains external (see
+`ATLAS-ASCLEPIUS-BOOK-001`); Eunomia has the E-027 ABI/publication gap; RITK retains the raw-WGPU
 `ritk-snap` residual and stale Rayon documentation; Leto is blocked by
 toolchain/lock coherence; Hephaestus has hosted cross-entropy coverage open;
 Coeus retains host-staged autograd families; Apollo retains raw-WGPU ownership
-in `apollo-gft`; and Iris retains lock/release work. These are exact follow-up
+in `apollo-gft`; and Iris's IRIS-003 record is delivered as `e179781`
+(see `ATLAS-IRIS-CLOSURE-001`), leaving only its external hosted
+CI/publish/trusted-publisher release gate. These are exact follow-up
 items in the provider and consumer boards, not silent completion claims.
 
 ### Environment residual — active rustup overrides
