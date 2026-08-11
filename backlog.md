@@ -11249,20 +11249,20 @@ ATLAS-DMRI-SCHEME-003 actually needs — which carries the gradient scheme
 alongside the volumes and is where the per-voxel-across-volumes access pattern
 will be known. A contiguous layout stays open behind that type.
 
-Remaining sub-increments: `ritk-nrrd` (still rejects `dimension != 2 | 3`, and
-its writer hardcodes `dimension: 3`), `ritk-mgh` series read (currently fails
-loudly per ATLAS-DMRI-MGH-FRAMES-002, so this is an extension not a fix),
-`ritk-dicom` multi-frame/series assembly, and the `ritk-io` dispatch tail.
+Remaining sub-increments: `ritk-mgh` series read (currently fails loudly per
+ATLAS-DMRI-MGH-FRAMES-002, so this is an extension not a fix), `ritk-dicom`
+multi-frame/series assembly, and the `ritk-io` dispatch tail. The NRRD
+increment is closed by `d3d3d811` on the merged RITK head.
 
 ## ATLAS-DMRI-IO-001 original specification
 
 - **Outcome**: `ritk-nifti`, `ritk-nrrd`, and `ritk-dicom` read and write a
   series carrying an acquisition axis, and `ritk-io` dispatches it.
-- **Evidence of gap**: `ritk-nifti/src/header/validate.rs:74` bails on
-  `dim[0] != 3`; `ritk-nrrd/src/reader/mod.rs:137` bails on
-  `dimension != 2 && dimension != 3` and `writer.rs:129` emits a hardcoded
-  `dimension: 3` with `kinds: domain domain domain`;
-  `ritk-io/src/lib.rs:164` fixes `NativeImage = Image<f32, NativeBackend, 3>`.
+- **Evidence of gap at item creation**: `ritk-nifti/src/header/validate.rs:74`
+  bailed on `dim[0] != 3`; `ritk-nrrd` rejected acquisition-series headers;
+  and `ritk-io/src/lib.rs:164` fixed `NativeImage = Image<f32, NativeBackend,
+  3>`. The NRRD rejection was closed by `d3d3d811`; MGH, DICOM, and dispatch
+  remain the live gaps.
 - **Non-goals**: no change to `Image<T, B, D>`, which is already rank-generic;
   no arbitrary-rank generalization beyond one acquisition axis.
 - **Design note**: a DWI series is 3 spatial axes plus 1 acquisition axis, not a
@@ -11275,11 +11275,11 @@ loudly per ATLAS-DMRI-MGH-FRAMES-002, so this is an extension not a fix),
   keep their signatures and tests.
 - **Class**: `[minor]` — additive public surface.
 - **Sequencing note (2026-07-31)**: no longer split — the `ritk-io` block
-  cleared when ATLAS-RITK-MODULE-FORWARD-000 resolved. `ritk-nifti` is still the
-  first increment (it carries the hard `dim[0] != 3` reject), then `ritk-nrrd`,
-  then the `ritk-io` dispatch tail. `ritk-mgh` already fails loudly on a
-  multi-frame file per ATLAS-DMRI-MGH-FRAMES-002, so its series read is an
-  extension rather than a defect fix.
+  cleared when ATLAS-RITK-MODULE-FORWARD-000 resolved. The `ritk-nifti` and
+  `ritk-nrrd` increments are now closed on `origin/main`. The next increments
+  are the `ritk-io` dispatch tail and the `ritk-mgh` series extension; MGH
+  already fails loudly on a multi-frame file per ATLAS-DMRI-MGH-FRAMES-002, so
+  its series read is an extension rather than a defect fix.
 
 ## ATLAS-DMRI-MGH-FRAMES-002 — MGH silently discards frames past the first [patch] — done
 
