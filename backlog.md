@@ -11203,6 +11203,13 @@ does not re-diagnose it, and does not do what this session started doing.
 
 ## ATLAS-DMRI-IO-001 — Rank-generic acquisition-series I/O [minor] — in-progress
 
+**Claim 2026-08-11 — Codex current session:** own the next vertical
+`ritk-nrrd` increment on branch `codex/ritk-nrrd-series` in the reclaimed
+`worktrees/ritk-book-wf` lane. Claimed files are the NRRD reader/writer,
+their co-located tests, and the package-local documentation needed for rank-4
+acquisition-series round trips. Non-goals are MGH, DICOM, `ritk-io` dispatch,
+and the peer-dirty ADR index in the primary RITK checkout.
+
 **`ritk-nifti` increment delivered** at `ritk` `2a4b1f62`, pushed to
 `codex/perf-ritk-mgh-stream-book` (PR #78, a peer's branch — the scopes are
 disjoint, `ritk-nifti` vs the peer's `ritk-mgh` streaming slice, so the increment
