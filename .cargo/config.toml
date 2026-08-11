@@ -179,10 +179,10 @@ hyperion = { path = "repos/hyperion" }
 hyperion = { path = "repos/hyperion" }
 
 [patch."https://github.com/ryancinsight/iris"]
-iris = { path = "repos/iris" }
+iris-viz = { path = "repos/iris" }
 
 [patch."https://github.com/ryancinsight/iris.git"]
-iris = { path = "repos/iris" }
+iris-viz = { path = "repos/iris" }
 
 [patch."https://github.com/ryancinsight/leto"]
 leto = { path = "repos/leto/crates/leto" }
