@@ -11203,6 +11203,25 @@ does not re-diagnose it, and does not do what this session started doing.
 
 ## ATLAS-DMRI-IO-001 — Rank-generic acquisition-series I/O [minor] — in-progress
 
+**Claim 2026-08-11 — Codex current session:** own the next vertical
+`ritk-nrrd` increment on branch `codex/ritk-nrrd-series` in the reclaimed
+`worktrees/ritk-book-wf` lane. Claimed files are the NRRD reader/writer,
+their co-located tests, and the package-local documentation needed for rank-4
+acquisition-series round trips. Non-goals are MGH, DICOM, `ritk-io` dispatch,
+and the peer-dirty ADR index in the primary RITK checkout.
+
+**Re-audit closure 2026-08-11:** no NRRD implementation was added because
+`origin/main` already carries the complete `d3d3d811` series implementation:
+leading and trailing acquisition-axis decoding, rank-4 writing, shared-grid
+validation, and value-semantic tests. RITK PR #119 merged at
+`0a1a4dc98ec541ea2caa952dd2385c9ebfac583b` with its hosted Rust, Python,
+workspace-alignment, and platform test jobs green. The local `--locked` gate
+was blocked before compilation by the separately tracked provider drift
+(`hermes-simd` 0.5.0 and `moirai-runtime` 0.4.0 locks versus current provider
+heads); RITK PR #118 owns the overlay-free release-lock repair. The NRRD
+sub-scope therefore closes as an evidence-backed stale-gap correction, while
+MGH, DICOM, and `ritk-io` dispatch remain open sub-increments of this item.
+
 **`ritk-nifti` increment delivered** at `ritk` `2a4b1f62`, pushed to
 `codex/perf-ritk-mgh-stream-book` (PR #78, a peer's branch — the scopes are
 disjoint, `ritk-nifti` vs the peer's `ritk-mgh` streaming slice, so the increment
