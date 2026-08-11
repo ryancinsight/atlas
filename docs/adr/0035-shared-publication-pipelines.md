@@ -247,6 +247,7 @@ book build has succeeded through the shared pipeline.
 | `leto` | migrate (1.95.0) | absent | shared |
 | `moirai` | migrate (1.95.0) | absent | shared |
 | `ritk` | migrate (from `release.yml`) | migrate (`target/book/ritk`) + join `docs.yml` | shared |
+| `melinoe` | when first published | adopted (`target/book/melinoe`); `mdbook-test` flipped | when a binding crate exists |
 | remaining 15 packages | when first published | author book | when a binding crate exists |
 
 ## Alternatives rejected
