@@ -167,6 +167,21 @@
       chromophore spectra, and local transport laws; Proteus owns material
       identity and mass density; Helios/Kwavers/CFDrs own equations, meshes,
       solvers, and workflow.
+- [x] Deliver the compiled-example slice: committed `b8a1124` on
+      `codex/hyperion-book-examples` (based directly on `origin/main`
+      `9a8b7d8`), pushed 2026-08-11; both examples compile and pass their
+      assertions, mdBook build + portable link detector clean, `git diff
+      --check` clean, no Cargo.lock churn. The root gitlink remains at the
+      merged `9a8b7d8` pending owner PR merge of the delivery branch.
+- [x] Complete the per-commit `version-guard scan` on `b8a1124`
+      (`9a8b7d8..b8a1124`, 2026-08-11): 0 version-bearing lines touched,
+      `{"defect_count":0,"findings":[]}`, rc=0 — the book-example/docs/CI
+      delivery carries no version movement.
+- [x] Complete Atlas-wide Hyperion pin-coherence verification against the
+      delivery head `b8a1124` (2026-08-11): `version-guard coherence` scans
+      235 manifests / 215 packages / 1048 first-party requirements with 0
+      defects; the delivery commit touches no `Cargo.toml`, so the version
+      graph is unchanged and the gate stays green post-merge.
 - [ ] Complete the separate Atlas facade/publication sequence and exact-head
       gitlink delivery. `hyperion` remains intentionally `publish = false`
       (occupied registry name) and the Git-first provider decision is unchanged.
@@ -340,6 +355,49 @@ classified provider dirt/undelivered gitlinks.
 > **Integration base**: fetched `origin/main`; Git owns the exact revision.
 > **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
 > **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
+
+## ATLAS-HEPHAESTUS-CLOSURE-001 — Hephaestus expression-parity closure record — done 2026-08-11
+
+- [x] Deliver the provider-local GELU/LGAMMA/error-function parity closure PM
+      record as `407938b` on `codex/hephaestus-closure-record` (based directly
+      on `origin/master` `d4d5906`), pushed 2026-08-11. Per the provider-
+      stamped closure record (not re-validated in this delivery): CHANGELOG.md
+      and gap_audit.md record the resolved parity with hosted-run evidence
+      (WGPU, CUDA, ROCm, Metal job ids; Coeus PR #228 `aca9a5a8` and PR #231
+      `971fab96`; required-device runs skipped, no physical-device claim).
+- [x] Exclude the `Cargo.lock` overlay churn (consus→ritk patch swap,
+      `[[patch.unused]]`) from the delivery; restored to the committed blob.
+- [x] Complete Atlas-wide Hephaestus pin-coherence verification against the
+      delivery head `407938b` (2026-08-11): `version-guard coherence` scans 235
+      manifests / 215 packages / 1048 first-party requirements with 0 defects;
+      the delivery touches no `Cargo.toml`, so the version graph is unchanged.
+- [ ] Owner PR merge of `codex/hephaestus-closure-record`; the root gitlink
+      stays at merged `d4d5906` pending that merge.
+
+## ATLAS-EUNOMIA-CLOSURE-001 — Eunomia 0.8.0 closure record — done 2026-08-11
+
+- [x] Deliver the provider-local 0.8.0 closure PM record as `0c14c2e` on
+      `codex/eunomia-closure-record` (based directly on `origin/main`
+      `184ba92`), pushed 2026-08-11. Per the provider-stamped 0.8.0 closure
+      record (not re-validated in this delivery): `eunomia = "0.8.0"` indexed
+      on crates.io and clean-clone gates pass (metadata, fmt, six feature
+      checks, strict Clippy, 116/116 Nextest, 9/9 doctests, Rustdoc, locked
+      package listing).
+- [x] Classify the offline `cargo publish --dry-run` failure as an
+      offline-registry artifact (not a release failure); the online exact-revision
+      dry run stays under E-REL-001. E-024 (OCP-MXFP consumer gate) and E-027
+      (consumer-owned bytemuck GPU-ABI co-evolution) remain correctly open.
+- [x] Complete Atlas-wide Eunomia pin-coherence verification against the
+      delivery head `0c14c2e` (2026-08-11): `version-guard coherence` scans 235
+      manifests / 215 packages / 1048 first-party requirements with 0 defects;
+      the delivery touches no `Cargo.toml`, so the version graph is unchanged.
+- [x] Complete the per-commit `version-guard scan` on `0c14c2e`
+      (`184ba92..0c14c2e`, 2026-08-11): 0 version-bearing lines touched,
+      `{"defect_count":0,"findings":[]}`, rc=0 — the PM-only delivery
+      carries no version movement.
+- [ ] Owner PR merge of `codex/eunomia-closure-record` and the Atlas parent
+      gitlink/convergence refresh remain owner-authorized delivery gates; the
+      root gitlink stays at merged `184ba92`.
 
 ## ATLAS-VERSION-GUARD-002 — Stack-wide first-party coherence subcommand + CI sweep — done 2026-08-08
 

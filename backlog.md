@@ -120,6 +120,11 @@
   `docs/book/examples/diffusion_deposition.md` page and CI run step; the
   provider now has four compiled book examples covering all executable
   documentation seams.
+- Delivery (2026-08-11): the compiled-example slice landed as `b8a1124` on
+  `codex/hyperion-book-examples` (based directly on `origin/main` `9a8b7d8`)
+  and was pushed; both new examples compile and assert green, mdBook build +
+  portable link detector clean, no lock churn. Root gitlink stays at merged
+  `9a8b7d8` until owner PR merge.
 - Explicit residual: `hyperion` remains `publish = false` (occupied registry
   name); registry release and exact-head gitlink delivery remain separate
   dependency-ordered work and are not reopened Phase 0 tasks.
@@ -547,6 +552,34 @@ excluded from this migration; no other peer-owned consumer files were modified.
 >
 > **Integration base**: fetched `origin/main`. Git owns the exact revision;
 > this board does not duplicate a commit that becomes stale after each merge.
+
+## ATLAS-HEPHAESTUS-CLOSURE-001 — Hephaestus expression-parity closure record — done 2026-08-11
+
+- Owner: Hephaestus provider PM; no source, manifest, consumer, or release
+  files are in scope.
+- Delivery: committed `407938b` on `codex/hephaestus-closure-record` (based
+  directly on `origin/master` `d4d5906`) and pushed 2026-08-11. Scope:
+  CHANGELOG.md + gap_audit.md recording the GELU/LGAMMA/error-function parity
+  resolution with hosted evidence (provider docs head `df8a896` WGPU/CUDA/
+  ROCm/Metal jobs; Coeus PR #228 `aca9a5a8` and PR #231 `971fab96` merged;
+  required-device runs skipped).
+- Evidence: `version-guard coherence` clean (0 defects), no `Cargo.toml`
+  change, `Cargo.lock` overlay churn restored to the committed blob (not
+  delivered). Root gitlink stays at merged `d4d5906` until owner PR merge.
+
+## ATLAS-EUNOMIA-CLOSURE-001 — Eunomia 0.8.0 provider closure record — done 2026-08-11
+
+- Owner: Eunomia provider PM; no source, manifest, consumer, or release files
+  are in scope.
+- Delivery: committed `0c14c2e` on `codex/eunomia-closure-record` (based
+  directly on `origin/main` `184ba92`) and pushed 2026-08-11. Scope: the 0.8.0
+  closure refresh in backlog/checklist/gap_audit (crates.io indexing confirmed;
+  clean-clone package gates green; offline dry-run classified as an
+  offline-registry artifact; E-024/E-027 remain consumer-gated).
+- Evidence: `version-guard coherence` clean (0 defects), no `Cargo.toml`
+  change, `Cargo.lock` overlay churn restored to the committed blob (not
+  delivered). Root gitlink stays at merged `184ba92` until owner PR merge;
+  parent gitlink/convergence refresh remains an owner-authorized gate.
 
 ## ATLAS-VERSION-GUARD-002 — Stack-wide first-party coherence subcommand + CI sweep [minor] — done 2026-08-08
 

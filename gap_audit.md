@@ -142,7 +142,13 @@ transport mean free path, effective attenuation, transport albedo), and
 evaluates both local deposition laws (`absorbed_power_density` =
 `mu_a phi`, `absorbed_energy_density` = `mu_a Phi`), asserting the fixtures
 (`mu_s' = 15 m^-1`, `mu_t = 17 m^-1`, `D = 1/51 m`, `mu_eff^2 = 102`, albedo
-`15/17`, `Q = 1000 W/m^3`, `q = 10 J/m^3`). Its
+`15/17`, `Q = 1000 W/m^3`, `q = 10 J/m^3`).
+
+Delivery (2026-08-11): both follow-up slices landed together as `b8a1124` on
+`codex/hyperion-book-examples` (based directly on `origin/main` `9a8b7d8`),
+pushed; both examples compile and assert green under the overlay, mdBook
+build + portable link detector clean, no lock churn. Root gitlink stays at
+merged `9a8b7d8` until owner PR merge. The
 `docs/book/examples/diffusion_deposition.md` page and CI run step complete the
 wiring; the four compiled examples now cover every executable documentation
 seam of the Beer-Lambert chapter.
@@ -211,6 +217,40 @@ churn. Compile ran under the Atlas overlay (local melinoe checkout); the
 pinned-rev API surface is source-verified, so committed `--locked` validation
 stays a lock-graph residual. Root gitlink stays at merged `038457d` until
 owner PR merge.
+
+## ATLAS-HEPHAESTUS-CLOSURE-001 — Hephaestus expression-parity closure record — 2026-08-11
+
+Delivered the provider-local GELU/LGAMMA/error-function parity closure record
+as `407938b` on `codex/hephaestus-closure-record` (based directly on
+`origin/master` `d4d5906`), pushed 2026-08-11. The two PM files
+(CHANGELOG.md, gap_audit.md) update the parity records to resolved with
+hosted-run evidence: provider docs head `df8a896` passed WGPU
+`90028947591` / CUDA `90028946846` / ROCm `90028946770` / Metal
+`90028947450`; Coeus PR #228 merged at `aca9a5a8` (final docs head `08614299`,
+run `30283857017`) and PR #231 merged at `971fab96` (consumer jobs WGPU
+`90088836682` / CUDA `90088836688` / ROCm `90088836731` / Metal
+`90088836675`); required-device ROCm job `90088837591` was skipped, so no
+physical-device execution claim is made. The `Cargo.lock` overlay churn
+(consus→ritk patch swap) was restored to the committed blob and is not
+delivered. `version-guard coherence` clean (0 defects); no `Cargo.toml`
+change. Root gitlink stays at merged `d4d5906` until owner PR merge.
+
+## ATLAS-EUNOMIA-CLOSURE-001 — Eunomia 0.8.0 provider closure record — 2026-08-11
+
+Delivered the provider-local 0.8.0 closure record as `0c14c2e` on
+`codex/eunomia-closure-record` (based directly on `origin/main` `184ba92`),
+pushed 2026-08-11. The three PM files (backlog/checklist/gap_audit) record:
+`eunomia = "0.8.0"` resolves and is indexed on crates.io; a clean exact-head
+clone passes locked metadata, formatting, all six CI feature checks,
+warning-denied all-target Clippy, 116/116 Nextest, 9/9 doctests, Rustdoc, and
+locked package listing. The offline `cargo publish --dry-run` failure is
+classified as an offline-registry artifact, not a release failure; the online
+exact-revision dry run remains under E-REL-001. E-024 stays gated on a driving
+OCP-MXFP quantization consumer; E-027 stays consumer-owned bytemuck GPU-ABI
+co-evolution in Hephaestus/Coeus. The Atlas parent gitlink is not claimed by
+this provider-local closure. The `Cargo.lock` overlay churn (229 lines of
+`[[patch.unused]]`) was restored to the committed blob and is not delivered.
+Root gitlink stays at merged `184ba92` until owner PR merge.
 
 ## ATLAS-HORAE-PROVIDER-DOCS-001 — Horae book closure — 2026-08-10
 
