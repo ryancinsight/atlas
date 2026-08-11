@@ -42,6 +42,10 @@ concurrency:
   group: docs-invariant-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  RUST_TOOLCHAIN: 1.97.0
+  MDBOOK_LINKCHECK2_VERSION: 0.12.2
+
 jobs:
   docs-link-check:
     name: Dead-link + mdbook build
@@ -58,6 +62,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
+      - name: Install Rust for mdBook linkcheck2
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+
+      - name: Install mdBook linkcheck2 backend
+        run: cargo install mdbook-linkcheck2 --version "${MDBOOK_LINKCHECK2_VERSION}" --locked
 
       - name: Install mdbook v0.5.4 (binary release)
         run: |
