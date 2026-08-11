@@ -4153,13 +4153,16 @@ epospollo`, so both paths are the same tree. That is
 - Outcome: every published book runs `mdbook test` in CI so chapters cannot rot.
   No book runs it today; the shared workflow defaults `mdbook-test` to `false` as
   a staging mechanism, not an accepted end state.
-- Claim status (flipped 2026-08-11):
-  - **melinoe** — all fenced samples compilable; blocks referencing the crate
-    carry `extern crate melinoe;` and link through a staged plain-named rlib
-    (`mdbook test --library-path`), signature illustrations `ignore`d, the
+- Claim status (flipped 2026-08-11; melinoe delivered 2026-08-11):
+  - **melinoe** — DONE: all fenced samples compilable; blocks referencing the
+    crate carry `extern crate melinoe;` and link through a staged plain-named
+    rlib (`mdbook test --library-path`), signature illustrations `ignore`d, the
     cross-brand rejection sample `compile_fail`; caller passes `mdbook-test:
     true` + `cargo-package: melinoe`; the shared workflow's broken
     `RUSTDOCFLAGS` mechanism replaced with the staging + `--library-path` path.
+    Merged via melinoe PR #11; main CI green (all 11 chapters tested), Pages
+    deploy green; workflow fix on atlas main (`70c6c6b`, PR #100) makes the
+    caller's full-SHA pin durable.
 - Acceptance per book: samples compile against the package; the caller passes
   `mdbook-test: true` and, where samples need providers, `atlas-ref`; the flip
   commit demonstrates the gate failing on a deliberately broken sample before
