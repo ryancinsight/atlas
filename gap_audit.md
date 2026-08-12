@@ -2,12 +2,14 @@
 
 ## ATLAS-PROVIDER-AUDIT-2026-08-12C — Twenty-provider audit and cleanup — 2026-08-12
 
-The live Atlas tree contains all 20 requested provider submodules. The fetched
-provider default heads now contain the Consus and Coeus book closures, zero
-mutable workflow action references, and reusable-workflow references to Atlas
-main `ceafa3d951f7db9ffcd93a79e5efbbdd09e199de`. The root structural/coherence
-audit passes and the regression guard pins the inventory at 20 providers,
-including Hermes.
+The live Atlas tree contains all 20 requested provider submodules. Atlas
+`6852b08` (PR #129) records exact fetched-default gitlinks for 20/20 providers.
+Each current default head has completed successful hosted workflows; the final
+Coeus WGPU and RITK Windows/macOS/Ubuntu gates are green. The fetched provider
+heads contain the Consus and Coeus book closures, zero mutable workflow action
+references, and immutable reusable-workflow references to the merged Atlas
+ancestor `ceafa3d951f7db9ffcd93a79e5efbbdd09e199de`. The root
+structural/coherence audit and regression guard pass with Hermes included.
 
 Consus book closure merged as PR #19 (`ca334ee`); Coeus book/provider closure
 merged as PR #321 (`a83def3`); Coeus reusable-workflow refresh merged as PR #322
@@ -16,10 +18,12 @@ Asclepius, Consus, Hermes, Hyperion, Tyche, Helios, and Apollo. The remaining
 eight reusable-workflow refreshes merged for Themis, Mnemosyne, Eunomia,
 Moirai, Melinoe, Leto, and Iris; Hephaestus refresh merged as PR #202.
 
-The final root gitlink refresh is the remaining Atlas delivery increment. The
-non-linked `worktrees/gaia-aequitas-verify` directory was removed after an
-exact empty-target check. Peer-owned dirty provider checkouts and shared
-overlay-generated Cargo.lock changes remain preserved.
+The non-linked `worktrees/gaia-aequitas-verify` directory was removed after an
+exact empty-target check. The lane audit is clean and all temporary audit lanes
+were removed. Peer-owned dirty provider checkouts and shared overlay-generated
+Cargo.lock changes remain preserved. The standalone toolchain preflight still
+reports directory rustup overrides at `D:\\atlas`, `repos/hephaestus`, and
+`repos/ritk`; this is an environment residual, not a repository change.
 
 ## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion — 2026-08-12
 

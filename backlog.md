@@ -9,11 +9,11 @@
   reports 20 providers; provider book placeholders are absent from delivered
   heads; substantive hosted gates pass; mutable action refs and non-linked
   worktree directories are either fixed or recorded with an owner and trigger.
-- Status: in progress. Consus book closure merged as PR #19; Coeus book and
-  reusable-workflow closures merged as PRs #321 and #322. Provider workflow
-  action pinning and all stale Atlas reusable-workflow references are merged.
-  The exact post-merge provider runs are green; root gitlink refresh and final
-  lane cleanup remain open until the post-merge audit is committed.
+- Status: complete at Atlas `6852b08` (PR #129). Consus book closure merged as
+  PR #19; Coeus book and reusable-workflow closures merged as PRs #321 and
+  #322. Provider workflow action pinning and reusable-workflow refreshes are
+  merged. Exact gitlinks, hosted gates, workflow scans, book scan, and lane
+  audit are green.
 
 ## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion (aequitas / eunomia / proteus / themis) [chore] — done 2026-08-12
 
