@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload detector log artefact
         if: always()
-        uses: actions/upload-artifact@ea165f8d6b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: detector-log
           path: detector.log
@@ -159,7 +159,7 @@ jobs:
 
       - name: Upload smoke-test-filters log artefact
         if: always()
-        uses: actions/upload-artifact@ea165f8d6b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: smoke-test-filters-log
           path: smoke-test-filters.log
