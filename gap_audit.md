@@ -1,5 +1,21 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion — 2026-08-12
+
+Reviewed and completed the planning/backlog trail for aequitas, eunomia,
+proteus, and themis; all four providers are source-complete and gate-green.
+
+| Provider | Version | Planning trail | Open items |
+|----------|---------|----------------|------------|
+| aequitas | 0.2.0 | backlog/checklist/gap_audit **created** (was absent) | deferred-boundary only (affine kinds, integer storage, formatting breadth) |
+| proteus | 0.1.0 | backlog/checklist/gap_audit **created** (was absent) | `publish = false` release gate (owner), mechanical/electrical laws (consumer-gated) |
+| eunomia | 0.8.0 | backlog/checklist/gap_audit updated with 2026-08-12 re-verification | external/owner-gated only (E-REL-001 dry-run, 0.8.0 merge+gitlink, E-024, E-027) |
+| themis | 0.10.1 | backlog updated with Melinoe adoption; gap_audit already resolved | owner PR merge of `codex/themis-melinoe-adoption` (root-gated) |
+
+Gate matrix (2026-08-12): aequitas 59/59 + 13 doctests; proteus 18/18 + 1
+doctest; eunomia 117/117 + 9 doctests; themis 21/21 + 38/38 `testing`. No
+`TODO`/`FIXME`/`unimplemented!` markers remain in any provider `src/` tree.
+Cross-link: root checklist and backlog entries of the same ID.
 
 ## ATLAS-PROVIDER-AUDIT-2026-08-12B — Second audit pass, book-closure merges, CI fixes — 2026-08-12
 

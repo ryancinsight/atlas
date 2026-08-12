@@ -1,6 +1,57 @@
 # atlas — cross-repository integration checklist
 
-## ATLAS-BOOK-CLOSURE-002 — Eight-provider book closure — done 2026-08-12
+## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion — done 2026-08-12
+
+- [x] Author `repos/aequitas/backlog.md`, `checklist.md`, `gap_audit.md` from
+      the verified delivery record (15 ADRs, quantity vocabulary, UnitDisplay,
+      0.2.0 publication, book closure).
+- [x] Author `repos/proteus/backlog.md`, `checklist.md`, `gap_audit.md` from
+      the verified delivery record (2 ADRs, validated properties,
+      temperature-response laws, GAT constitutive seam, book closure).
+- [x] Re-verify eunomia gates at the worktree head: Nextest 117/117
+      (all features), 9/9 doctests, no-default check, warning-denied Clippy,
+      strict all-target check. External/owner gates (E-REL-001 online
+      dry-run, 0.8.0 remote merge + gitlink, E-024 consumer-gated,
+      E-027 consumer-owned) remain correctly classified open.
+- [x] Record the Themis Melinoe branded-collection adoption in the local
+      backlog; confirm all themis backlog sections checked and gates green
+      (21/21 default, 38/38 all-features, 38/38 testing).
+- [x] Provider gate matrix 2026-08-12: aequitas 59/59 + 13 doctests;
+      proteus 18/18 + 1 doctest; eunomia 117/117 + 9 doctests; themis 21/21
+      + 38/38 testing. No `TODO`/`FIXME`/`unimplemented!` in any provider
+      `src/` tree.
+
+## ATLAS-PROVIDER-INTEGRATION-003 — Nineteen-provider second-pass audit — done 2026-08-12
+
+- [x] Audited all 19 providers for source gaps, open checklist items, gitlink
+      drift vs origin/main, and actionable source work.
+- [x] Confirmed burn→Coeus migration (MIG-433/437/439) fully complete in RITK:
+      no burn imports or dependencies remain.
+- [x] Confirmed color-volume Coeus variants (MIG-456-04) fully complete:
+      `ColorVolume<T,B,C>` using native Coeus types already implemented.
+- [x] Confirmed RITK SEC-461-04 orphaned-module sweep done at source level.
+- [x] Confirmed RITK PERF-432-01 B-spline hot path slice done at source level.
+- [x] Confirmed Hephaestus CPU attention already dispatches to Leto; Coeus
+      `coeus-hephaestus` bridge already wired (HEPH-ATTENTION-PROVIDER-1).
+- [x] Wired `ritk-snap::ui::coordinate_system` module into `ui/mod.rs` (BACKLOG):
+      `pub mod coordinate_system`, `AnatomicalFrame`, `PatientPosition`,
+      `format_point_mm`, `lps_to_ras`, `ras_to_lps` re-exported; 4/4 tests pass;
+      strict Clippy clean. Branch: `codex/ritk-coordinate-system-wire` (`df899cb1`).
+- [x] Marked Moirai ISSUE-224 done in checklist (CI gate already added in
+      `f3c0463`). Branch: `codex/moirai-book-closure` (`d8cd00c`).
+- [x] Recorded fresh Apollo benchmark rows for closures XCVIII, XCVII, LXXXIX:
+      N=16/32/64/128/32768 radix-composite and Rader-vs-Winograd (N=19,31,53)
+      and fused composite (N=192=208ns). Branch: `codex/apollo-book-closure`
+      (`acd67a83`).
+- [x] Eunomia fix/readme-packaging already merged to origin/main (PR #58);
+      Atlas gitlink updated to `085f217f`.
+- [x] Detected and restored CFDrs working-tree drift (accidentally on
+      `codex/crates-release-workflow` instead of committed gitlink `c68013a4`).
+- [x] Version-guard coherence: clean (235 manifests / 215 packages / 1037
+      requirements, 0 defects) after restore.
+- [ ] Owner PR merges: `codex/ritk-coordinate-system-wire`, updated
+      `codex/moirai-book-closure`, updated `codex/apollo-book-closure`, and
+      all book closure branches remain pending owner-authorized merge.
 
 - [x] Replace all placeholder book chapters across eight providers with
       API-accurate prose: Themis (8 chapters), Mnemosyne (10 chapters),
