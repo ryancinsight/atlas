@@ -1,5 +1,74 @@
 # atlas — cross-repository integration gap audit
 
+
+## ATLAS-PROVIDER-AUDIT-2026-08-12B — Second audit pass, book-closure merges, CI fixes — 2026-08-12
+
+### PRs merged (2026-08-12)
+
+Six book-closure PRs were merged after CI verification (only recurseml/analysis
+failed, which is a non-blocking third-party service):
+
+| Provider | PR | Result |
+|----------|------|--------|
+| themis | #15 | MERGED (squash) |
+| mnemosyne | #38 | MERGED (squash) |
+| moirai | #123 | MERGED (squash) |
+| hephaestus | #201 | MERGED (squash) |
+| apollo | #85 | MERGED (squash) |
+| iris | #10 | MERGED (squash) |
+
+ritk PR#125 (coordinate_system wire) was merged after rustfmt fix
+(BOM character removed, brace placement corrected, assert_eq wrapped):
+- ritk | #125 | MERGED (squash) — all 20+ CI checks pass
+
+coeus PR#305 (batched norms on provider) merged — all GPU backends pass.
+
+### Atlas gitlink advances (2026-08-12 second pass)
+
+Pushed on uild/atlas-eunomia-moirai-gitlinks, PR#124:
+
+| Repo | From | To | Reason |
+|------|------|-----|--------|
+| repos/themis | 7a6744b6 | 731292d1 | Post-squash-merge main head |
+| repos/mnemosyne | fdd8bd6e | 74f843e9 | Post-squash-merge main head |
+| repos/moirai | d8cd00c7 | 24bd0eea | Post-squash-merge main head |
+| repos/hephaestus | ae657fc2 | 695507d6 | Post-squash-merge master head |
+| repos/apollo | acd67a83 | 4dbb70c2 | Post-squash-merge main head |
+| repos/iris | 23354641 | ccb0c18a | Post-squash-merge main head |
+| repos/ritk | c2877887 | a79b5931 | Post-squash-merge main head |
+| repos/helios | 5c4a8491 | 81876652 | tyche-core 0.2.0 + pages fix merged |
+| repos/horae | a9186f37 | f4d197ee | book-complete + aequitas 0.2.0 (PR#7 open) |
+
+### CI fixes (2026-08-12 second pass)
+
+- **ritk PR#125** rustfmt: removed BOM, fixed } placement, wrapped
+  long assert_eq! calls; push force-updated the branch; CI passed 20/20.
+- **helios PR#38** → closed; new **PR#48** opened with Atlas workflow pin
+  advanced from 9772542c (Jul 27) to a23197b2 (Aug 12 current main).
+- **ritk PR#116/#117** rebased onto origin/main (apollo-fft 0.25→0.26);
+  new CI runs in progress (31633266245/31633266248).
+- **apollo PR#81** closed (superseded by PR#83).
+- **ritk PR#55** closed (commits already incorporated into main).
+- **apollo ARCH-006** refactor (junk-drawer rename) preserved as
+  codex/apollo-arch-006-junk-drawer-rename → PR#86.
+- **horae aequitas** 0.1.0→0.2.0 bumped in book-complete branch (PR#7).
+
+### Remaining open gates
+
+- **horae PR#7** — book-complete + aequitas 0.2.0; CI pending first run.
+- **helios PR#48** — Atlas workflow pin update; CI pending.
+- **ritk PR#117/#116** — docs + NIfTI example; CI in progress on rebased branches.
+- **leto PR#96** — L-BFGS ring fix; CI rerun pending (format passes locally).
+- **leto PR#103** / **apollo PR#83** — hermes-simd 0.6.0; blocked by mnemosyne-memory 0.7.0 crates.io publication.
+- **hephaestus PR#113** — product-axis reduction parity; GPU CI required.
+- **apollo PR#86** — ARCH-006 junk-drawer rename; new PR.
+
+### Final state
+
+- provider-integration-audit.py: **OK** (19 providers, coherence clean)
+- ersion-guard coherence: **clean** (235/215/1038, 0 defects)
+- Provider alignment: 18/19 ALIGNED, 1 AHEAD (horae PR#7 pending)
+
 ## ATLAS-PROVIDER-AUDIT-2026-08-12 — Nineteen-provider audit, book-closure PRs, and tyche 0.2.0 cascade — 2026-08-12
 
 ### Scope
