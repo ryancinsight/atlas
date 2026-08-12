@@ -1,5 +1,18 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-PROVIDER-INTEGRATION-004 — Twenty-provider audit and cleanup [major]
+
+- Owner: Atlas integration plus provider-owned cleanup follow-ups.
+- Outcome: keep all 20 requested provider gitlinks, hosted evidence, audit
+  inventory, book content, workflow security, and worktree topology coherent.
+- Acceptance: exact gitlinks match fetched default heads; the committed audit
+  reports 20 providers; provider book placeholders are absent from delivered
+  heads; substantive hosted gates pass; mutable action refs and non-linked
+  worktree directories are either fixed or recorded with an owner and trigger.
+- Status: in progress. Consus book closure merged as PR #19. Coeus PR #321 is
+  in hosted verification. Provider workflow action pinning and the
+  `worktrees/gaia-aequitas-verify` lane violation remain open sub-items.
+
 ## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion (aequitas / eunomia / proteus / themis) [chore] — done 2026-08-12
 
 - Owner: planning-article completion for the four foundation providers; no

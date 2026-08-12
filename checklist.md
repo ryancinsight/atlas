@@ -1,5 +1,24 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-PROVIDER-INTEGRATION-004 — Twenty-provider audit and cleanup — in progress 2026-08-12
+
+- [x] Re-fetch all requested provider remotes and verify every Atlas gitlink
+      equals the fetched default head for Horae, Hyperion, Themis, Tyche,
+      Proteus, Mnemosyne, Consus, Helios, Aequitas, Asclepius, Eunomia,
+      Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris.
+- [x] Verify exact-head hosted success is present for all 20 providers.
+- [x] Restore Hermes to the committed provider-audit inventory and add a
+      regression assertion requiring exactly 20 requested providers.
+- [x] Complete and merge Consus book chapters (PR #19); root gitlink refresh
+      remains part of this item.
+- [x] Open Coeus book/provider-bridge delivery PR #321; provider contract
+      matrix remains in progress before merge and root gitlink refresh.
+- [ ] Remove the remaining provider workflow action-pin residuals (109
+      mutable refs) through provider-owned PRs.
+- [ ] Resolve the discovered non-linked `worktrees/gaia-aequitas-verify`
+      directory under the worktree-lane cleanup item without deleting unique
+      peer work.
+
 ## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion — done 2026-08-12
 
 - [x] Author `repos/aequitas/backlog.md`, `checklist.md`, `gap_audit.md` from

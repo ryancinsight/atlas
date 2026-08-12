@@ -1,5 +1,24 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-PROVIDER-AUDIT-2026-08-12C — Twenty-provider audit and cleanup — 2026-08-12
+
+The live Atlas tree contains all 20 requested provider submodules. After
+fetching each provider remote, every root gitlink equals its fetched default
+head, and each exact head has at least one completed hosted-success workflow.
+The root structural/coherence audit passes and the regression guard now pins
+the inventory at 20 providers, including Hermes.
+
+Consus book closure merged as PR #19 (`ca334ee`) and passes its full package,
+MSRV, platform, S3, and book checks. Coeus PR #321 carries the provider-bridge
+changes plus the remaining ten book chapters; its book build, Metal, and ROCm
+checks pass while CUDA and WGPU remain in progress.
+
+Open cleanup residuals are provider-owned workflow action pinning (109 mutable
+references across the requested provider workflows) and the non-linked
+`worktrees/gaia-aequitas-verify` directory found by the lane audit. Peer-owned
+dirty provider checkouts and the shared overlay-generated Cargo.lock changes
+remain preserved.
+
 ## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion — 2026-08-12
 
 Reviewed and completed the planning/backlog trail for aequitas, eunomia,
