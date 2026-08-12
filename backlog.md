@@ -1,5 +1,47 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-PROVIDER-INTEGRATION-004 — Twenty-provider audit and cleanup [major]
+
+- Owner: Atlas integration plus provider-owned cleanup follow-ups.
+- Outcome: keep all 20 requested provider gitlinks, hosted evidence, audit
+  inventory, book content, workflow security, and worktree topology coherent.
+- Acceptance: exact gitlinks match fetched default heads; the committed audit
+  reports 20 providers; provider book placeholders are absent from delivered
+  heads; substantive hosted gates pass; mutable action refs and non-linked
+  worktree directories are either fixed or recorded with an owner and trigger.
+- Status: in progress. Consus book closure merged as PR #19. Coeus PR #321 is
+  in hosted verification. Provider workflow action pinning and the
+  `worktrees/gaia-aequitas-verify` lane violation remain open sub-items.
+
+## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion (aequitas / eunomia / proteus / themis) [chore] — done 2026-08-12
+
+- Owner: planning-article completion for the four foundation providers; no
+  source, manifest, or lockfile changes in any provider.
+- **aequitas** and **proteus** previously had no local
+  `backlog.md`/`checklist.md`/`gap_audit.md`. Both now carry the full trail
+  reconstructed from the verified delivery record (ADRs, CHANGELOG, book
+  closures, git history): aequitas (15 ADRs, quantity vocabulary, UnitDisplay,
+  0.2.0 publication, book closure), proteus (2 ADRs, validated properties,
+  temperature-response laws, GAT constitutive seam, book closure).
+- **eunomia** re-verified 2026-08-12: Nextest 117/117 (all features), 9/9
+  doctests, no-default check, warning-denied all-target/all-feature Clippy,
+  and strict all-target check pass. Remaining open items are external or
+  owner-gated only: the online `cargo publish --dry-run` (E-REL-001), the
+  0.8.0 remote-default merge + Atlas gitlink refresh, E-024 (driving
+  OCP-MXFP consumer), and E-027 (consumer-owned GPU-ABI co-evolution).
+- **themis** backlog now records the Melinoe branded-collection adoption
+  (`cad222b`, ATLAS-THEMIS-MELINOE-ADOPTION-002) as a delivered item; all
+  backlog sections were already checked. Gates re-verified 2026-08-12:
+  Nextest 21/21 default, 38/38 all-features, 38/38 `testing`, 21/21
+  `--no-default-features`, warning-denied Clippy, doctests.
+- Provider gate matrix (2026-08-12): aequitas 59/59 + 13 doctests; proteus
+  18/18 + 1 doctest; eunomia 117/117 + 9 doctests; themis 21/21 + 38/38
+  testing. No `TODO`/`FIXME`/`unimplemented!` markers remain in any of the
+  four provider `src/` trees.
+- Delivery: provider-local planning commits (aequitas, proteus, eunomia,
+  themis) plus this root record; pushes follow the standard push-authorization
+  gate.
+
 ## ATLAS-BOOK-CLOSURE-002 — Eight-provider book closure [patch] — done 2026-08-12
 
 - Owner: book documentation only across eight provider repos; no source,
@@ -808,6 +850,184 @@ excluded from this migration; no other peer-owned consumer files were modified.
   (`b426f2cd`), pushed fast-forward, temp worktree removed; the peer branch
   keeps `1931da70` on top of `eae6b706` untouched (owner may drop it when
   merging the hermes 0.6.0 release).
+
+## ATLAS-APOLLO-CI-INDEPENDENCE-001 — Apollo whole-workspace clean-gitlink proof (hermes + hephaestus) [patch] — done 2026-08-12
+
+- Owner: current session; scope is verification only (no source, manifest,
+  or gitlink changes). Extends the coeus clean-gitlink CI-independence proof
+  to a second overlay-peered provider: the full apollo workspace (23 member
+  crates) built, tested, and linted against clean temporary clones of BOTH
+  overlay peers at their committed gitlinks.
+- Peer resolution: apollo requires `hermes-simd` 0.6.0 (workspace pin) and
+  `hephaestus-core` 0.19.0 plus optional `hephaestus-wgpu` (transform/GPU
+  crates). The hephaestus worktree had advanced past its gitlink (`ae657fc`
+  vs committed `3be20f43`), so the plain overlay would build the advanced
+  provider — the temp-clone override is decisive for the committed graph.
+- Verification (2026-08-12): `target/hermes-gitlink` at hermes `03e5e175`
+  and `target/hephaestus-gitlink` at hephaestus `3be20f43` (both dirty 0),
+  with both `[patch]` sections redirected via `cargo --config`.
+  `cargo metadata` confirmed `hermes-simd`, `hephaestus-core`, and
+  `hephaestus-wgpu` all resolve exclusively from the temp clone manifest
+  paths. Gates against the clean checkouts: `cargo check --workspace
+  --all-targets` rc=0 with 0 errors and 0 real warnings; `cargo test
+  --workspace --no-fail-fast` rc=0 — all 50 test binaries green, ~1003
+  tests passed, 0 failed, 0 ignored-required, no `AdapterUnavailable`
+  (the wgpu-backed suites gate clean without a GPU because apollo's device
+  tests are feature-gated); strict `cargo clippy --workspace --all-targets
+  --no-deps -- -D warnings` rc=0 with 0 real warnings.
+- Housekeeping: temp clones removed, overlay byte-identical, `Cargo.lock`
+  churn restored (the pre-existing untracked `Cargo.lock.old` owner dirt was
+  left untouched), peer hermes/hephaestus/helios worktrees untouched,
+  `git diff --check` clean. The apollo workspace is proven to build, test,
+  and lint identically in a clean CI clone regardless of peer worktree
+  state.
+- Post-gate coherence re-run (2026-08-12): `version-guard coherence`
+  reports 235 manifests / 215 packages / 1037 first-party requirements —
+  identical counts to the recorded baseline — with 1 defect
+  (`repos/CFDrs/crates/cfd-optim/Cargo.toml`: tyche-core requires 0.2.0,
+  actual 0.1.0). Root-cause: the owner advanced the tyche gitlink to
+  `63d06940` (commit `6eeb169`, 2026-08-12 11:56, carrying the tyche 0.2.0
+  re-release `45354e6`) while the tyche worktree remains checked out at
+  `e245cf8` (12 commits behind, still 0.1.0) and the overlay patches to the
+  worktree. This is pre-existing owner worktree skew — the coeus/apollo
+  gate runs never touched tyche or CFDrs (mtime and git evidence), so the
+  workspace-level gate runs left the version graph unchanged. Resolves when
+  the owner advances the tyche  worktree to the gitlink head.
+
+## ATLAS-HELIOS-CI-INDEPENDENCE-001 — Helios whole-workspace clean-gitlink proof (hermes + hephaestus + leto) [patch] — done 2026-08-12
+
+- Owner: current session; scope is verification only (no source, manifest,
+  or gitlink changes). Extends the coeus and apollo clean-gitlink
+  CI-independence proofs to a third overlay-peered consumer: the full helios
+  workspace built, tested, and linted against clean temporary clones of its
+  overlay peers at their committed gitlinks.
+- Peer resolution at helios head `5c4a8491` (main, == root gitlink, clean):
+  `hermes-simd` (unversioned git dep, patched to the local hermes worktree),
+  `hephaestus-core`/`hephaestus-wgpu` 0.19.0, and `leto` (unversioned git
+  dep, patched to the local leto worktree). At run time the hermes worktree
+  is aligned at its gitlink `03e5e175` (hermes-simd 0.6.0, only peer
+  `Cargo.lock` dirt) and hephaestus is aligned at `ae657fc` (the owner
+  merged the book-closure, so gitlink == worktree). leto, however, is
+  DIVERGED: the worktree is checked out on the stale 0.40.0 line
+  (`e0d867ec`) while the committed gitlink is `50da39db` (0.42.0), so the
+  plain overlay resolves BOTH `leto 0.40.0` (worktree patch) and `leto
+  0.42.0` (git checkout at the gitlink) into one graph.
+- Finding: the two-leto collision is a real pre-existing blocker — the plain
+  overlay fails `helios-math`/`helios-domain` with E0308 `Point<_, 3>` vs
+  `Point<f64, 3>` type collisions (5 errors, rc=101), reproduced before any
+  clean-clone redirect. It is leto worktree skew, not a hermes/hephaestus
+  artifact, and it exists only because the leto worktree drifted from its
+  gitlink; CI builds the committed graph and does not see it.
+- Verification (2026-08-12): temp clones `target/hermes-gitlink` at hermes
+  `03e5e175`, `target/hephaestus-gitlink` at hephaestus `ae657fc`, and
+  `target/leto-gitlink` at leto `50da39db` (all dirty 0), with the hermes,
+  hephaestus (all five crates), and leto `[patch]` sections redirected via
+  `cargo --config`. `cargo metadata` confirmed `hermes-simd` 0.6.0,
+  `hephaestus-core`/`hephaestus-wgpu` 0.19.0, and a SINGLE `leto` 0.42.0
+  all resolve exclusively from the temp clone manifest paths. Gates against
+  the clean checkouts: `cargo check --workspace --all-targets` rc=0 with 0
+  errors and 0 real code warnings (20 environmental unused-patch notices
+  only); `cargo test --workspace --no-fail-fast` rc=0 — 267 passed / 0
+  failed across 23 binaries, 0 errors; strict `cargo clippy --workspace
+  --all-targets --no-deps -- -D warnings` rc=0 with 0 real warnings. The
+  helios workspace is proven to build, test, and lint identically in a
+  clean CI clone regardless of peer worktree state.
+- Housekeeping: temp clones removed, overlay byte-identical, helios
+  `Cargo.lock` churn restored, peer hermes/hephaestus/leto worktrees
+  untouched (hermes keeps its pre-existing peer `Cargo.lock` dirt),
+  `git diff --check` clean. The leto worktree skew (`e0d867ec` 0.40.0 vs
+  gitlink `50da39db` 0.42.0) is recorded for the owner: advancing the leto
+  worktree to the gitlink head also clears the local plain-overlay
+  collision.
+
+## ATLAS-COEUS-DIST-BYTE-IDENTITY-001 — Scripted coeus-dist TCP binary byte-identity harness — done 2026-08-12
+
+- Owner: current session; adds a reproducible, CI-able harness
+  (`scripts/atlas-coeus-dist-byte-identity.py`) that re-verifies the
+  ATLAS-SUBSTRATE-002 claim that the coeus-dist TCP collectives test
+  binaries (`dist_ops-*.exe`, `coeus_dist-*.exe`) are byte-identical
+  whether the hephaestus `[patch]` resolves from the local worktree (plain
+  overlay) or from a clean temporary clone at the committed gitlink.
+- Why normalization is required: raw SHA-256 equality is not a valid
+  criterion on Windows — the MSVC/LLVM linker embeds a PE `TimeDateStamp`
+  and a `CheckSum` computed over it, so consecutive identical builds differ
+  in those 8 bytes. The harness zeroes `TimeDateStamp` (PE signature + 8)
+  and `CheckSum` (optional header + 0x40) after validating the `PE\0\0`
+  signature and the PE32/PE32+ magic, then compares normalized hashes,
+  artifact sizes, and cargo metadata-hash filename suffixes.
+- Flow: recreate `target/hephaestus-gitlink` at the committed gitlink
+  (dirty 0) → `cargo test -p coeus-dist --no-run` under the plain overlay →
+  rm the artifacts (forcing a genuine rebuild) → rebuild with the ten
+  hephaestus `--config patch.*` overrides redirected at the clone → compare
+  → cleanup (temp clone removed, coeus `Cargo.lock` churn restored). Exit
+  status is nonzero on any failure so CI can gate on it.
+- Verification (2026-08-12): end-to-end runs rc=0, VERDICT BYTE-IDENTICAL —
+  `dist_ops` normalized `8369e7a2…` and `coeus_dist` normalized
+  `b02a0f02…` match exactly across overlays despite differing raw hashes,
+  with equal sizes (12931610B / 7385207B) and equal metadata suffixes; a
+  second consecutive run reproduced identical normalized hashes (runs 1 and
+  2 both `8369e7a2…`/`b02a0f02…`). Eight unit tests in
+  `scripts/tests/test_atlas_coeus_dist_byte_identity.py` cover the PE
+  offsets, both zeroing paths, byte-preservation, and the new
+  signature/magic rejections plus PE32 acceptance (8/8 pass via
+  `python3 -m unittest`). Windows robustness: read-only git object files are
+  cleared before deletion, retries cover transient handle locks, and the
+  hephaestus worktree is never modified (the temp clone is the only copy
+  checked out at the gitlink).
+- Housekeeping: temp clone absent after runs, coeus `Cargo.lock` clean,
+  py_compile clean, `git diff --check` clean.
+- **Extended 2026-08-12 to the pycoeus and wgpu target sets** requested for
+  transitive-hephaestus coverage: `coeus-python`'s `binding_ops` and
+  `coeus-wgpu`'s `wgpu_ops` were added to `TARGET_SETS`. Running the proof
+  established two hard facts that reshaped the harness:
+  * Cross-path byte identity is structurally impossible for hephaestus-linking
+    binaries. rustc embeds the dependency's absolute checkout path (168
+    occurrences in `wgpu_ops-*.exe`), and cargo derives the metadata-hash
+    disambiguator from the path-dependency package ID — which includes the
+    checkout path. That disambiguator is mangled into every hephaestus symbol
+    name, which shifts the linker's deterministic layout (`.text` jump
+    offsets, COFF symbol table, data-directory RVAs) pervasively. CI builds at
+    one fixed path and never sees this.
+  * The harness now passes the SAME canonical `--remap-path-prefix` pair
+    (worktree→canonical + clone→canonical) to BOTH builds so cargo metadata
+    hashes stay comparable for path-invariant graphs and the embedded-path
+    string class disappears; binaries are paired by test-target stem (the
+    suffix legitimately differs across checkout paths); a per-crate source
+    gate compares the worktree against the gitlink clone for exactly the
+    consumed crates, reading file bytes because `git status` masks divergence
+    via assume-unchanged/skip-worktree; verdicts are PASS (byte-identical
+    after PE normalization) / EQUIVALENT (source-aligned; residual confined
+    to the metadata-disambiguator/linker-layout class) / SKEWED (gate fails) /
+    FAIL. The apollo peer is redirected to a clean gitlink clone in BOTH
+    builds because its worktree is frequently mid-merge with conflict markers.
+- **Run results (2026-08-12; hephaestus gitlink `695507d6`, apollo gitlink
+  `4dbb70c2`):**
+  * `dist` — PASS: `coeus_dist`/`dist_ops` byte-identical after PE
+    normalization (the graph has zero hephaestus references, so the redirect
+    is vacuous for it).
+  * `python` — PASS: `binding_ops` byte-identical (its test-target graph is
+    also hephaestus-free; the "resolves hephaestus transitively" premise does
+    not hold for this binary).
+  * `wgpu` — SKEWED: `wgpu_ops` genuinely links hephaestus-wgpu/core, and the
+    hephaestus WORKTREE diverges from its committed gitlink (content diff:
+    hephaestus-core 11, cuda 25, rocm 28, wgpu 35 files — attention-kernel
+    work ahead of the gitlink, invisible to `git status`). The source gate
+    caught exactly this; identity cannot be attested until the owner aligns or
+    commits. With the worktree aligned (verified earlier at `ae657fc`), the
+    expected wgpu verdict is EQUIVALENT.
+- **Peer findings for the owner:** the hephaestus gitlink advanced `ae657fc`
+  → `695507d6` during the session (the worktree is still ahead of it); the
+  apollo worktree was mid-merge with conflict markers in `apollo-fft`
+  (`avx2/{mod,radix2,radix3}.rs`) that broke every coeus build — the owner
+  resolved it during the session (apollo gitlink `a3390e78` → `4dbb70c2`,
+  worktree now clean). Harness robustness: `try/finally` always restores the
+  coeus `Cargo.lock` and removes both temp clones even when a build fails
+  mid-run.
+- Validation: 22/22 unit tests (`scripts/tests/test_atlas_coeus_dist_byte_identity.py`)
+  cover PE offsets/validation, canonical-remap construction, per-crate source
+  alignment, residual classification, and the section-size/clone-string
+  guards; py_compile clean; `git diff --check` clean; temp clones removed and
+  coeus `Cargo.lock` clean after every run.
 
 ## ATLAS-GAIA-PERMISSIONED-ARENA-001 — Gaia Melinoe-branded permissioned arena delivery [patch] — done 2026-08-11
 
@@ -1712,6 +1932,107 @@ excluded from this migration; no other peer-owned consumer files were modified.
   peer `Cargo.lock` dirt). Temp clone removed, overlay byte-identical,
   lock churn restored; the entire workspace builds identically in a clean
   CI clone.
+  Runtime-level extension (2026-08-11): the full workspace test suite
+  (`cargo test --workspace`) ran against the same clean `3be20f436aa2`
+  checkout (all hephaestus `[patch]` crates redirected; metadata proof
+  unchanged) after `cargo clean` freed a full D: drive (100% → 53% used).
+  All CPU/non-device suites pass green — coeus-autograd, coeus-core,
+  coeus-nn, coeus-ops, coeus-optim, coeus-sparse, coeus-leto, coeus-fft,
+  coeus-hephaestus bridge, coeus-metal/rocm/cuda unit surfaces, and
+  coeus-tensor 55/56. The only failures are pre-existing environmental
+  gates, each proven independent of the clean clone: (1) `coeus-dist` TCP
+  collectives hang/fail on sandbox loopback TCP — at the then-current wgpu
+  codex head the crate had ZERO hephaestus crates in its resolved graph; at
+  the later origin/main head it resolves hephaestus via
+  `coeus-autograd → apollo-fft → hephaestus-{core,cuda,wgpu}` (see the
+  2026-08-12 byte-identity extension below for the corrected claim and the
+  empirical proof); (2) `pycoeus` 7/76 — the same TCP blocker
+  (`test_pycoeus_tcp_all_reduce` recv timeout) poisons the shared Python
+  test lock and cascades to all binding tests; (3) `coeus-tensor`
+  `test_mnemosyne_huge_pool` — a test-order/cache-state interaction in the
+  mnemosyne huge-pool `map_calls` assertion that reproduces identically
+  under the PLAIN overlay (baseline 55 passed/1 failed, verified);
+  (4) `coeus-wgpu` lib + ops — all `AdapterUnavailable` (113 occurrences),
+  the known no-GPU-on-host device gate. No runtime failure is attributable
+  to the clean clone; the worktree hephaestus is byte-identical to the
+  gitlink, so CI and local runtime behavior match by construction.
+  Re-run 2026-08-11 at the owner-advanced coeus head `d4503e8` (origin/main
+  incl. PR #319; metal/rocm merged, cuda/wgpu still on codex branches):
+  `cargo test --workspace --exclude coeus-dist --no-fail-fast` against a
+  fresh clean clone of hephaestus at the committed gitlink `3be20f436aa2`
+  reproduced the identical classification — all CPU/non-device suites green;
+  pycoeus 5/76 (TCP root `recv from peer 0 timed out` → 70 lock-poisoned
+  cascade), coeus-tensor 55/56 (`test_mnemosyne_huge_pool`, same
+  pre-existing cache-state interaction), coeus-wgpu lib 31/36 + ops 8/116
+  (all `AdapterUnavailable` device gate). Notably the hephaestus worktree
+  had since advanced past the gitlink to `ae657fc` (clean), which makes the
+  temp-clone proof decisive: the plain overlay would now build the advanced
+  provider, while the committed-gitlink clone builds identically in CI.
+  Overlay byte-identical, lock churn restored, temp clone removed; coeus
+  worktree left at the owner's `d4503e8` checkout.
+  Re-run 2026-08-11 (third): `cargo test --workspace --exclude coeus-dist
+  --no-fail-fast` at the same coeus head `d4503e8` against a fresh clean
+  hephaestus clone at the unchanged committed gitlink `3be20f436aa2` (dirty 0)
+  reproduced the identical classification again: metadata proof confirms all
+  five hephaestus crates resolve exclusively from the temp clone; all
+  CPU/non-device suites green (~990 tests across 48 ok binaries); pycoeus
+  9/76 (TCP root `recv from peer 0 timed out` → 66 lock-poisoned cascade),
+  coeus-tensor 55/56 (`test_mnemosyne_huge_pool`, same pre-existing
+  cache-state interaction), coeus-wgpu lib 31/36 + ops 8/116 (all
+  `AdapterUnavailable`, 113 occurrences, no-GPU device gate). hephaestus
+  worktree still 1 commit ahead of the gitlink (`ae657fc`, clean), keeping
+  the committed-gitlink proof decisive. Overlay byte-identical, lock churn
+  restored, temp clone removed, coeus/hephaestus worktrees untouched.
+  `test_mnemosyne_huge_pool` fixed 2026-08-12 (test-only): the failure was
+  a test-assertion race, not a Mnemosyne cache defect. `map_calls` is a
+  process-global OS counter (`MAP_CALLS` atomic in mnemosyne-backend); the
+  test sampled it before/after its 10 alloc/drop cycles and asserted
+  `diff <= 1`, but sibling tests in the same binary run in parallel and
+  their own OS maps land inside the window (observed `map_diff` 6–9 under
+  parallel, ≤ 1 under `--test-threads=1` and in isolation). A probe with
+  five parallel copies confirmed the huge-pool cache itself is correct in
+  BOTH modes: serial runs showed map=1 then 0 per copy while
+  `retained_huge_blocks` stayed retained; parallel showed map=5 per copy
+  (the other copies' first maps) while `retained_huge_blocks` correctly
+  grew 0→5. The assertion now checks the deterministic parallel-safe
+  contract — the freed 256 KiB block is RETAINED in the huge cache
+  (`retained_huge_blocks >= 1`, `retained_huge_bytes >= payload`) — and
+  keeps the `map_calls` delta as a diagnostic print only. Validation:
+  focused 1/1, serial full suite 56/56, parallel full suite 56/56,
+  three repeat parallel runs all green, full coeus-tensor crate suite
+  66/66 (5+56+5), rustfmt clean, strict clippy `-D warnings` clean (the 27
+  matches are environmental unused-patch notices). Only the one test file
+  changed; lock churn restored, probe files removed, coeus worktree at
+  `d4503e8`.
+  Byte-identity extension (2026-08-12) — corrects the earlier "ZERO
+  hephaestus crates in coeus-dist's graph" claim: at the current coeus head
+  `d4503e8` (origin/main incl. PR #319) the coeus-dist test graph DOES
+  resolve hephaestus, via `coeus-dist → coeus-autograd → apollo-fft →
+  hephaestus-{core,cuda,wgpu}` (normal deps; `hephaestus-conformance`
+  dev-only via hephaestus-cuda/wgpu). The old claim was true only for the
+  pre-merge wgpu codex head. The TCP binary byte-identity was then proven
+  empirically instead of by graph argument. Method: build the `dist_ops`
+  (`tests/distributed/tcp`, contains `test_tcp_reduce`) and `coeus_dist`
+  lib test binaries under BOTH overlays — plain (hephaestus worktree
+  `ae657fc`) and clean-gitlink (`3be20f436aa2`, dirty 0, all five
+  hephaestus crates resolved exclusively from the temp clone per metadata)
+  — deleting the artifacts between builds to force genuine recompiles; then
+  compare SHA-256 after normalizing the two Windows PE linker
+  nondeterministic fields (TimeDateStamp at e_lfanew+8 and the CheckSum
+  computed over it at the optional-header +0x40). Raw hashes differ between
+  ANY two rebuilds (linker stamps), so raw equality is not a valid
+  criterion; normalized content is. Result: `dist_ops` (12,931,610 B) and
+  `coeus_dist` (7,385,207 B) are each byte-identical across overlays after
+  normalization (1 raw diff byte = the CheckSum; 0 after zeroing both
+  fields), with identical cargo metadata-hash filename suffixes
+  (`dist_ops-806d20cdd95174be`, `coeus_dist-04a26866ca9a4da5`). The
+  hephaestus worktree's 1-commit drift is docs-only (`ae657fc`,
+  `docs/book/*.md`), so compiled hephaestus code is identical in both
+  builds; the binaries prove it. Same filename suffix under both overlays
+  also demonstrates the hephaestus source path does not flow into the
+  coeus-dist unit identity. Temp clone removed, lock churn restored,
+  comparison artifacts deleted, coeus/hephaestus worktrees untouched,
+  `git diff --check` clean.
 - Decision: [ADR 0039](docs/adr/0039-compute-substrate-topology.md) §1-§2.
 - Blocker: ATLAS-SUBSTRATE-001 for the families being collapsed. Reversing the
   order would make Coeus define a second abstraction over Hephaestus, which then
