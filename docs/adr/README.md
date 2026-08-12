@@ -44,7 +44,7 @@
 | [0036](0036-neuroimaging-and-mr-ownership.md) | Neuroimaging, diffusion MRI, and MR physics ownership | Proposed |
 | [0037](0037-facade-crates-and-registry-naming.md) | Workspace facade crates and crates.io registry naming | Proposed |
 | [0038](0038-compute-backend-conformance-crate.md) | One generic conformance suite owns the ComputeBackend contract | Proposed |
-| [0039](0039-compute-substrate-topology.md) | Compute-substrate topology across Apollo, Leto, Hephaestus, and Coeus | Proposed |
+| [0039](0039-compute-substrate-topology.md) | Compute-substrate topology across Apollo, Leto, Hephaestus, and Coeus | Accepted |
 | [0040](0040-first-party-zero-copy-archives.md) | Zero-copy archival is first-party, and Consus owns it | Proposed |
 | [0041](0041-closed-set-enum-dispatch.md) | Closed-set per-timestep `dyn` dispatch converts to exhaustive enum dispatch | Proposed |
 | [—](INDEX.md) | Atlas-meta ADR Index — doctrine navigation SSOT | — |
