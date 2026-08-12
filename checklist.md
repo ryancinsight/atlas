@@ -1,6 +1,6 @@
 # atlas — cross-repository integration checklist
 
-## ATLAS-PROVIDER-INTEGRATION-004 — Twenty-provider audit and cleanup — in progress 2026-08-12
+## ATLAS-PROVIDER-INTEGRATION-004 — Twenty-provider audit and cleanup — complete 2026-08-12
 
 - [x] Re-fetch all requested provider remotes and verify every Atlas gitlink
       equals the fetched default head for Horae, Hyperion, Themis, Tyche,
@@ -17,11 +17,19 @@
       provider-owned PRs; the fetched default-head scan reports 0 residuals.
 - [x] Refresh all stale Atlas reusable-workflow references to
       `ceafa3d951f7db9ffcd93a79e5efbbdd09e199de` through merged provider PRs.
-- [ ] Commit and verify the final 20-provider root gitlink refresh after the
-      green post-merge hosted runs; remove the temporary audit lanes.
-- [ ] Resolve the discovered non-linked `worktrees/gaia-aequitas-verify`
-      directory under the worktree-lane cleanup item without deleting unique
-      peer work.
+- [x] Commit and verify the final 20-provider root gitlink refresh after the
+      green post-merge hosted runs (Atlas `6852b08`, PR #129); remove the
+      temporary audit lanes.
+- [x] Resolve the discovered non-linked `worktrees/gaia-aequitas-verify`
+      directory after an exact empty-target check; no unique peer work was
+      deleted.
+- [x] Re-run the post-merge structural audit: 20/20 exact gitlinks, 20/20
+      providers with completed successful hosted workflows, zero mutable
+      workflow action references, zero unfinished book chapters, and zero
+      lane-audit defects.
+- [x] Record the environment-only toolchain residual: directory rustup
+      overrides at `D:\\atlas`, `repos/hephaestus`, and `repos/ritk` cause the
+      standalone preflight to fail; no repository file was changed to mask it.
 
 ## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion — done 2026-08-12
 
