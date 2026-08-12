@@ -9,12 +9,16 @@
 - [x] Verify exact-head hosted success is present for all 20 providers.
 - [x] Restore Hermes to the committed provider-audit inventory and add a
       regression assertion requiring exactly 20 requested providers.
-- [x] Complete and merge Consus book chapters (PR #19); root gitlink refresh
-      remains part of this item.
-- [x] Open Coeus book/provider-bridge delivery PR #321; provider contract
-      matrix remains in progress before merge and root gitlink refresh.
-- [ ] Remove the remaining provider workflow action-pin residuals (109
-      mutable refs) through provider-owned PRs.
+- [x] Complete and merge Consus book chapters (PR #19) and refresh its exact
+      root gitlink.
+- [x] Complete and merge Coeus book/provider-bridge closure (PR #321) and
+      reusable-workflow refresh (PR #322).
+- [x] Remove all mutable provider workflow action references through merged
+      provider-owned PRs; the fetched default-head scan reports 0 residuals.
+- [x] Refresh all stale Atlas reusable-workflow references to
+      `ceafa3d951f7db9ffcd93a79e5efbbdd09e199de` through merged provider PRs.
+- [ ] Commit and verify the final 20-provider root gitlink refresh after the
+      green post-merge hosted runs; remove the temporary audit lanes.
 - [ ] Resolve the discovered non-linked `worktrees/gaia-aequitas-verify`
       directory under the worktree-lane cleanup item without deleting unique
       peer work.
