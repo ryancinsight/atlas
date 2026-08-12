@@ -1,8 +1,11 @@
 # ADR 0039: Compute-substrate topology across Apollo, Leto, Hephaestus, and Coeus
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-07-28
 - Class: `[arch]`
+- Revision: 2026-08-12 — the Hephaestus axis-reduction seam and the Coeus
+  Metal/ROCm provider collapse are implemented. The remaining CUDA/WGPU
+  duplication and the Apollo/Leto follow-up remain open.
 - Relates to: [ADR 0001](0001-gpu-accelerator-substrate.md),
   [ADR 0004](0004-hephaestus-kernel-seam.md),
   [ADR 0034](0034-athena-single-accelerator-backend.md),
@@ -20,7 +23,7 @@ This ADR records where the boundaries are, which duplication is real, and the
 sequence that removes it. It exists because three of the four carry structural
 repetition that is invisible from inside any one repository.
 
-### Source audit (2026-07-28)
+### Historical source audit (2026-07-28)
 
 **Coeus re-forks the vendor dimension — but not by choice.** `coeus-rocm` and
 `coeus-metal` have identical file trees and identical per-file line counts. After
@@ -38,6 +41,21 @@ twice**; only 62 lines genuinely differ:
 
 `coeus-wgpu` (15 696 lines) and `coeus-cuda` (17 047 lines) carry the same shape
 at larger scale.
+
+### Implementation update (2026-08-12)
+
+Hephaestus PR #199 merged as `1d70d3db`. Its `AxisReductionOps` seam now
+provides the provider-owned `min_axis_into` and `max_axis_into` defaults used by
+consumer bridges. Coeus PR #318 carries the deletion of the duplicated Metal
+and ROCm operation modules, the generic `HephaestusBackend<P>` bridge, and the
+provider-leaf split in `coeus-hephaestus`; its lockfile pins all Hephaestus
+packages to `1d70d3db`.
+
+The historical Metal/ROCm duplication findings above are therefore closed.
+CUDA and WGPU still contain provider-specific operation routing and remain the
+next bounded migration slices. The Leto–Hephaestus decomposition role and the
+Apollo transform-scaffold consolidation are also open as separately sequenced
+work.
 
 The cause is not a design failure in Coeus. `coeus-hephaestus` already owns the
 generic half correctly — its own crate documentation states it "owns storage,
