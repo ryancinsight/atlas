@@ -1,5 +1,19 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence (2026-08-12)
+
+The fetched provider remotes advanced after the prior integration closure:
+Mnemosyne moved from `93dbc563` to `32524e37` for its reclamation-safety fix,
+and RITK moved from `e70f597` to `53bb0131` for the trusted 0.2.1 release.
+Mnemosyne's exact-head hosted CI and Pages runs are successful
+(`31656036812`, `31656036244`); RITK's CI, Python, and crates.io release runs
+are successful (`31654697918`, `31654697898`, `31654707025`). The root
+gitlinks and the audit guard were advanced in Atlas `062afef`. The new
+`--exact-heads` mode follows `origin/HEAD` and falls back to both `origin/main`
+and `origin/master`, so Hephaestus's non-`main` default is covered. The
+focused regression suite passes 8/8. RITK's checked-out peer branch and dirty
+lockfile are intentionally preserved and are not part of the root refresh.
+
 ## ATLAS-PROVIDER-AUDIT-2026-08-12C — Twenty-provider audit and cleanup — 2026-08-12
 
 The live Atlas tree contains all 20 requested provider submodules. Atlas

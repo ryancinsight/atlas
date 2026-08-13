@@ -196,6 +196,61 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("requested-provider coherence skipped", output.getvalue())
 
+    def test_exact_head_mode_reports_drift(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
+            root = Path(temp)
+            (root / ".gitmodules").write_text(
+                "\n".join(
+                    f'[submodule "repos/{name}"]\n\tpath = repos/{name}\n\tactive = true\n'
+                    for name in audit.REQUIRED_PROVIDERS
+                ),
+                encoding="utf-8",
+            )
+            for filename in ("checklist.md", "backlog.md", "gap_audit.md"):
+                _seed_record(root / filename)
+
+            with patch.object(audit, "ROOT", root), patch.object(
+                audit, "GITMODULES", root / ".gitmodules"
+            ), patch.object(
+                audit,
+                "RECORD_FILES",
+                (root / "checklist.md", root / "backlog.md", root / "gap_audit.md"),
+            ), patch.object(
+                audit, "_coherence_scope_issues", return_value=([], 0)
+            ), patch.object(
+                audit,
+                "_exact_head_issues",
+                return_value=["repos/mnemosyne: gitlink old != origin/main new"],
+            ):
+                output = io.StringIO()
+                with redirect_stdout(output):
+                    code = audit.main(["--exact-heads"])
+
+        self.assertEqual(code, 1)
+        self.assertIn("repos/mnemosyne: gitlink old", output.getvalue())
+
+    def test_provider_remote_head_accepts_master_default(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
+            root = Path(temp)
+            provider_path = root / "repos" / "hephaestus"
+            provider_path.mkdir(parents=True)
+            with patch.object(audit, "ROOT", root):
+                with patch.object(
+                    audit.subprocess,
+                    "run",
+                    side_effect=(
+                        subprocess.CompletedProcess(
+                            args=["git"], returncode=0, stdout="origin/master\n", stderr=""
+                        ),
+                        subprocess.CompletedProcess(
+                            args=["git"], returncode=0, stdout="abc123\n", stderr=""
+                        ),
+                    ),
+                ):
+                    ref, commit, error = audit._provider_remote_head("hephaestus")
+
+        self.assertEqual((ref, commit, error), ("origin/master", "abc123", None))
+
 
 if __name__ == "__main__":
     unittest.main()

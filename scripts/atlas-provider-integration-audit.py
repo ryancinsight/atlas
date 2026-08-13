@@ -76,6 +76,75 @@ def _provider_activation_issues(gitmodules_text: str) -> list[str]:
     return issues
 
 
+def _git_output(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
+    """Run a bounded Git query and return its exit status and text streams."""
+    proc = subprocess.run(
+        ["git", *args],
+        cwd=ROOT if cwd is None else cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
+
+
+def _gitlink_commit(provider: str) -> str | None:
+    """Return the committed root gitlink for one requested provider."""
+    returncode, stdout, _ = _git_output(
+        "ls-tree", "HEAD", "--", f"repos/{provider}"
+    )
+    if returncode != 0:
+        return None
+    fields = stdout.split()
+    if len(fields) < 3 or fields[1] != "commit":
+        return None
+    return fields[2]
+
+
+def _provider_remote_head(provider: str) -> tuple[str | None, str | None, str | None]:
+    """Return a provider's fetched default ref and commit, if available."""
+    provider_path = ROOT / "repos" / provider
+    if not provider_path.is_dir():
+        return None, None, f"repos/{provider} is not initialized"
+
+    returncode, symbolic_ref, _ = _git_output(
+        "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD",
+        cwd=provider_path,
+    )
+    candidates = [symbolic_ref] if returncode == 0 and symbolic_ref else []
+    candidates.extend(("origin/main", "origin/master"))
+    seen: set[str] = set()
+    for ref in candidates:
+        if not ref or ref in seen:
+            continue
+        seen.add(ref)
+        returncode, commit, _ = _git_output(
+            "rev-parse", "--verify", ref, cwd=provider_path
+        )
+        if returncode == 0 and commit:
+            return ref, commit, None
+    return None, None, f"repos/{provider} has no fetched origin default head"
+
+
+def _exact_head_issues() -> list[str]:
+    """Return root-gitlink drift against each fetched provider default head."""
+    issues: list[str] = []
+    for provider in REQUIRED_PROVIDERS:
+        gitlink = _gitlink_commit(provider)
+        ref, remote_head, error = _provider_remote_head(provider)
+        if error:
+            issues.append(f"repos/{provider}: {error}")
+            continue
+        if gitlink is None:
+            issues.append(f"repos/{provider}: committed gitlink is unavailable")
+            continue
+        if gitlink != remote_head:
+            issues.append(
+                f"repos/{provider}: gitlink {gitlink} != {ref} {remote_head}"
+            )
+    return issues
+
+
 def _clean_rust_env() -> dict[str, str]:
     env = os.environ.copy()
     for var in ("RUSTC", "RUSTDOC"):
@@ -162,6 +231,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="skip requested-provider coherence and run only structural checks",
     )
+    parser.add_argument(
+        "--exact-heads",
+        action="store_true",
+        help="verify committed provider gitlinks against fetched origin defaults",
+    )
     return parser.parse_args(argv)
 
 
@@ -178,6 +252,8 @@ def main(argv: list[str] | None = None) -> int:
             issues.append(f"missing required record file: {path.name}")
     if not issues:
         issues.extend(_record_issues())
+        if args.exact_heads:
+            issues.extend(_exact_head_issues())
         if args.structural_only:
             out_of_scope = 0
         else:
@@ -198,6 +274,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"- {AUDIT_ID} closed across root records")
     print(f"- naming normalization retained: {NAME_NORMALIZATION}")
+    if args.exact_heads:
+        print("- committed provider gitlinks match fetched origin defaults")
     if args.structural_only:
         print("- requested-provider coherence skipped (--structural-only)")
     elif out_of_scope:
