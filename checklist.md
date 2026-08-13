@@ -1714,10 +1714,15 @@ list, and the scaffold count. The deletion ledger for SUBSTRATE-002 is roughly
       filed as ATLAS-PUB-004).
 - [x] Add `ritk` to the Atlas `docs.yml` cross-book gate (all four books now
       build under the strict detector).
-- [x] Migrate one crate-release caller and prove it with a `workflow_dispatch`
-      validation run before migrating the rest. hephaestus 38f36bc, kwavers
-      c47270f4, leto (prior session), moirai (prior session), consus 5c2e393,
-      apollo 8f8fa332, coeus 40a9ba9d merged; ritk PR #108 pending.
+- [x] Migrate all eight crate-release callers and verify the fetched default
+      workflows are 39-line Atlas callers with the old publish body deleted:
+      apollo, coeus, consus, hephaestus (`origin/master`), kwavers, leto,
+      moirai, and ritk. Hosted validation evidence is recorded in
+      `backlog.md#atlas-pub-001`; current source topology is closed.
+- [ ] Run a fresh Kwavers `workflow_dispatch` validation on the current default
+      after the git-source lock repair; the two latest dispatch failures are
+      pre-repair runs. Treat Coeus publish-stage registry failure as the
+      separate ATLAS-PUB-003 external gate.
 - [x] Migrate the four book callers. CFDrs PR #324, helios PR #38, ritk PR #109 open; kwavers already done.
 - [x] Delete each duplicated workflow body in the same change that adds its
       caller — never keep both.

@@ -4007,6 +4007,19 @@ reproduces that local failure; those files are deliberately not folded into
 the Atlas pointer. The shared workflow remains `--locked`, preserving package
 reproducibility.
 
+### Crate caller recheck — source closure, hosted residual open 2026-08-13
+
+The eight crate workflows on fetched defaults are all 39-line callers of the
+Atlas reusable workflow, with no local `cargo publish` implementation. The
+crate caller is `rust-release.yml` in RITK; its `release.yml` is the separate
+wheel pipeline. Repository-owned validation passes at Apollo
+`31534217702`, Coeus `31551729552`, Consus dispatch `29976636343`, Hephaestus
+`31532975062`, Leto `31531560175`, Moirai `31530550433`, and RITK
+`31654707025`. Kwavers dispatch runs `31316302910` and `31290138802` fail at
+the old overlay-stripped lock state; a current-default post-repair validation
+is still required. Coeus' publish-stage registry failure is external
+ATLAS-PUB-003 state, not a reusable-caller defect.
+
 ### Non-findings
 
 - Wheel publication is already consolidated: Atlas owns `python-wheels.yml` as a

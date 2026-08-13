@@ -4900,8 +4900,10 @@ epospollo`, so both paths are the same tree. That is
 ## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — in-progress
 
 - Owner: current session (Atlas coordination); scope: root publication records and
-  exact default-branch evidence for `repos/{apollo,coeus,consus,hephaestus,kwavers,leto,moirai}/.github/workflows/rust-release.yml`
-  and `repos/ritk/.github/workflows/release.yml`. One package per claim — the
+  exact default-branch evidence for
+  `repos/{apollo,coeus,consus,hephaestus,kwavers,leto,moirai,ritk}/.github/workflows/rust-release.yml`.
+  The separate `repos/ritk/.github/workflows/release.yml` is the wheel publisher,
+  not the crate caller. One package per claim — the
   scopes are disjoint by repository.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §1-§3.
 - Outcome: each package's crate-release workflow becomes a thin caller of
@@ -4960,6 +4962,21 @@ epospollo`, so both paths are the same tree. That is
 - **3 of 8 done** (hephaestus, leto, moirai). The five left — apollo, coeus,
   consus, kwavers, ritk — are all currently on live peer branches, so their
   slices wait for those branches rather than for anything in this item.
+- **Default-branch recheck 2026-08-13.** All eight fetched crate defaults now
+  carry the 39-line Atlas caller with no local `cargo publish` body: Apollo,
+  Coeus, Consus, Hephaestus (`origin/master`), Kwavers, Leto, Moirai, and RITK.
+  The source migration is therefore complete; the old `3 of 8` count is
+  historical.
+- Hosted validation evidence is mixed and remains open for the release gate:
+  Apollo release validation `31534217702`, Coeus release validation
+  `31551729552`, Hephaestus release validation `31532975062`, Leto release
+  validation `31531560175`, Moirai release validation `31530550433`, and RITK
+  release validation `31654707025` pass. Consus dispatch validation
+  `29976636343` passes on its recorded head. Kwavers dispatch validations
+  `31316302910` and `31290138802` fail at the pre-repair lock state; no fresh
+  validation exists yet for the current default after the git-source lock
+  repair. Coeus publish-stage failure is the external registry gate owned by
+  ATLAS-PUB-003, not a caller-validation failure.
 - Practical note for the remaining slices: pass `version` from the workspace
   table, not a grep of the member manifest. Members use
   `version.workspace = true`, so a naive extraction sends the literal string
