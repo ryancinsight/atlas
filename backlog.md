@@ -5647,12 +5647,11 @@ removed from the squash. Merging or cherry-picking from this branch would
 reintroduce exactly that defect. Recorded because the commit count invites a
 rescue attempt that would be wrong.
 
-**Found while delivering, not yet fixed**: `SUMMARY.md` lists `diffusion_mri.md`
-as "Diffusion MRI Physics and the Signal Equation" while the chapter's own H1 is
-"Diffusion MRI Acquisition and Q-ball ODFs" — the sidebar and the page disagree,
-and the H1 is the accurate one (the chapter has no signal-equation section and
-does have a Q-ball one). One-line fix in SUMMARY.md; kept out of PR #137 so that
-PR stays what its description says.
+**TOC/heading mismatch fixed in the same PR**: `SUMMARY.md` listed
+`diffusion_mri.md` as "Diffusion MRI Physics and the Signal Equation" while the
+chapter's H1 is "Diffusion MRI Acquisition and Q-ball ODFs". The heading is
+accurate — the chapter has no signal-equation section and does have a Q-ball
+one — so the TOC entry was corrected to match.
 
 - **CLI**: `ritk` currently exposes `convert`, `filter`, `register`, `segment`,
   and `stats` (`ritk-cli/src/commands/`). The program adds `dwi` and `tract`
