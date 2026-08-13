@@ -1743,10 +1743,10 @@ list, and the scaffold count. The deletion ledger for SUBSTRATE-002 is roughly
       separate ATLAS-PUB-003 external gate.
 - [x] Migrate the four book callers. Fetched defaults are current Atlas callers;
       CFDrs is the only caller requiring the optional `linkcheck2` input.
-- [ ] Complete the CFDrs linkcheck2 residual exposed by hosted run
-      `31716368183`: land the shared-workflow installer with its pinned Rust
-      prerequisite, advance the CFDrs caller pin, pass version `0.12.2`, and
-      rerun the Pages workflow.
+- [x] Land the shared-workflow linkcheck2 installer and its pinned Rust
+      prerequisite after hosted run `31716368183` exposed the missing backend.
+- [ ] Advance the CFDrs caller pin, pass version `0.12.2`, and rerun its Pages
+      workflow.
 - [ ] Collect the queued deployment states for Helios `31716457700`, Kwavers
       `31716399219`, and RITK `31716974169`; build success is not deployment
       success.

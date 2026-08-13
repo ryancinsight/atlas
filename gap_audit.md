@@ -4046,10 +4046,11 @@ The four fetched book defaults are Atlas callers with the expected output
 paths. CFDrs run `31716368183` failed at the shared `mdbook build`: its
 `book.toml` declares a non-optional `[output.linkcheck2]` renderer, while the
 Atlas workflow pinned by that caller at `d875348` did not install the backend.
-The current uncommitted shared-workflow diff adds an input and cargo installer,
-but it still requires a pinned Rust-toolchain prerequisite before it is valid
-hosted evidence. After that peer-owned change lands, CFDrs must advance its
-caller pin and pass `mdbook-linkcheck2-version: 0.12.2`.
+Root commit `042e448` adds the opt-in input and cargo installer, and the
+follow-up root change pins the stable Rust toolchain before that install. The
+CFDrs caller must still advance its pin and pass
+`mdbook-linkcheck2-version: 0.12.2` before a hosted rerun can validate the
+repair.
 
 Helios run `31716457700` and Kwavers run `31716399219` completed their build
 jobs successfully but their Pages deploy jobs remain queued. RITK run

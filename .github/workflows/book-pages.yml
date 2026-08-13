@@ -106,6 +106,12 @@ jobs:
           export PATH="$PWD:$PATH"
           mdbook --version
 
+      - name: Install the pinned Rust toolchain for linkcheck2
+        if: inputs.mdbook-linkcheck2-version != ''
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
+        with:
+          toolchain: stable
+
       - name: Install mdbook-linkcheck2
         if: inputs.mdbook-linkcheck2-version != ''
         shell: bash

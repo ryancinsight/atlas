@@ -5156,11 +5156,10 @@ epospollo`, so both paths are the same tree. That is
   shared workflow.
 - **Hosted residual 2026-08-13:** CFDrs run `31716368183` failed during the
   shared build because `book.toml` declares a non-optional `[output.linkcheck2]`
-  renderer and the pinned Atlas workflow `d875348` did not install it. An
-  uncommitted peer change currently adds the reusable-workflow input and cargo
-  installer; it is not deployed evidence and still needs a pinned Rust-toolchain
-  prerequisite before publication. The CFDrs caller must then advance its Atlas
-  pin and pass `mdbook-linkcheck2-version: 0.12.2`.
+  renderer and the pinned Atlas workflow `d875348` did not install it. Root
+  commit `042e448` adds the opt-in installer; the follow-up root change pins
+  the stable Rust toolchain before `cargo install`. The CFDrs caller must still
+  advance its Atlas pin and pass `mdbook-linkcheck2-version: 0.12.2`.
 - Helios `31716457700` and Kwavers `31716399219` completed their build jobs but
   their Pages deploy jobs remain queued; RITK `31716974169` remains queued at
   its build job. These runs do not close the item until deployment completes.
