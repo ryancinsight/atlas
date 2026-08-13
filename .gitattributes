@@ -3,3 +3,4 @@
 # so text=auto's content heuristic cannot skip normalization and turn an
 # edit into a whole-file line-ending diff.
 *.md text eol=lf
+*.sh text eol=lf
