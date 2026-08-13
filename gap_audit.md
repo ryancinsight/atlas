@@ -73,12 +73,13 @@ claim is made.
 The twenty requested providers are present at current fetched default heads.
 The current root reusable workflow is
 `4c31dd753f06dd93b4c04798cf781df253e3e532` after the linkcheck2 backend and
-pinned-toolchain fixes. A static audit of those fetched defaults finds 18
-providers on the current SHA and only two stale requested-provider defaults:
+pinned-toolchain fixes. A static audit of those fetched defaults finds 19
+providers on the current SHA and only one stale requested-provider default:
 Consus still has stale `book-pages.yml`, `python-release.yml`, and
-`rust-release.yml` callers; Helios still has a stale `book-pages.yml` caller.
-The open caller PRs are the provider-owned changes that will remove those four
-stale references;
+`rust-release.yml` callers. The external Kwavers default still carries its
+stale caller SHA under open PR #363; it is not part of the twenty-provider
+count. The open caller PRs are the provider-owned changes that will remove
+those four stale references;
 repository presence and current gitlinks do not prove this workflow
 integration.
 
@@ -114,13 +115,13 @@ overrides. Both wrappers now remove either form, with regression coverage in
 the provider-integration and version-guard test modules. Exact-head, overlay,
 and Python regression checks pass after the fix.
 
-The latest hosted poll keeps Consus #27 and Helios #53 open: Consus
-has repository-owned checks queued or in progress with no failure conclusion,
-and Helios has its benchmark regression check in progress. RITK #131 merged at
-`9ae68b45` after its repository workflows completed, but its source findings
-remain open. Stacked RITK #132 is open against `main` with no required workflow
-result and the external `recurseml/analysis` error. These are not completion
-evidence for the phased-array contract.
+The latest hosted poll keeps Consus #27 open with repository-owned checks
+queued or in progress and no failure conclusion. Helios #53 merged at
+`1e165406`; RITK #131 merged at `9ae68b45` after its repository workflows
+completed, but its source findings remain open. Stacked RITK #132 is open
+against `main` with no required workflow result and the external
+`recurseml/analysis` error. These are not completion evidence for the
+phased-array contract.
 
 CFDrs #338 is closed as a superseded PR; its fetched default is current and
 passes the book output-path contract through merged #339/#340. Kwavers #363
@@ -180,6 +181,60 @@ not advertise an unavailable capability. Acceptance is a clean Consus package,
 documentation, and integration gate with no `AsyncFacadeUnavailable` marker or
 deferred-module claim. The active Consus checkout is peer-owned and dirty, so
 Atlas records the residual without editing provider source.
+
+## ATLAS-US-A3-FAN-028 — ritk's curvilinear fan cannot express kwavers' asymmetric fan (open 2026-08-13)
+
+Found starting US-023-A3, by reading both inverse maps rather than assuming
+they agree. They agree on everything except the beam index.
+
+kwavers (`b_mode/scan_conversion.rs::convert`):
+
+```text
+r      = hypot(z, x)
+theta  = atan2(x, z)
+line   = (theta - angle_min) / angle_step
+sample = (r - radius_offset) / range_step
+```
+
+ritk (`CurvilinearArray::index_from_cartesian`):
+
+```text
+radius = hypot(lateral, axial)
+angle  = atan(lateral / axial)
+sample = (radius - first_sample_distance) / radius_sample_size
+beam   = angle / lateral_angular_separation + (lateral_count - 1) / 2
+```
+
+Radius and sample are the same formula under renaming. `atan2(x, z)` versus
+`atan(x/z)` is not a real difference: they agree for `z > 0`, and kwavers maps
+`z <= 0` to an out-of-range line that its bilinear sampler drops, where ritk
+rejects the point outright — same outcome, ritk stricter.
+
+The beam index **is** a real difference. kwavers takes an explicit
+`angle_min`, so its fan may start at any angle. ritk inherits ITK's convention,
+which centres the fan on boresight — `(b - (n-1)/2)·Δ` — and so can only express
+a fan symmetric about the axial axis. The two coincide exactly when
+`angle_min == -(n-1)/2 · angle_step`.
+
+Migrating kwavers onto the current seam would therefore silently change results
+for any asymmetric acquisition and would remove a capability kwavers has today.
+A3 must not proceed as filed.
+
+**Recommendation.** Parameterize the real variation dimension: give
+`CurvilinearArray` an explicit `first_lateral_angle` instead of implying the
+centring. ITK's convention is then the special case
+`first_lateral_angle = -(lateral_count - 1)/2 · lateral_angular_separation`, so
+nothing is lost, and kwavers' asymmetric fan becomes expressible. This also
+removes the `lateral_count` argument that `polar_from_index` and
+`index_from_cartesian` currently require — the count is only needed to recover
+the implied centring — which drops the geometry's coupling to image shape and
+simplifies both call sites. `PhasedArray3D` carries the same implied centring in
+two angles and should be reviewed for the same change, though no consumer needs
+an asymmetric steer yet.
+
+Filed as US-023-A7, which now gates A3. Not implemented yet: PR #132 (the
+`ritk-spatial` move) is still open, and stacking a third dependent branch on
+unmerged work would compound integration risk rather than reduce it.
 
 ## ATLAS-KW-FWI-STRANDED-027 — FWI-024-A is delivered but not on kwavers main (open 2026-08-13)
 

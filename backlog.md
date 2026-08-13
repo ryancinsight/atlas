@@ -53,6 +53,9 @@
   tracks that exact fetched default head. Its phased-array source still carries
   the recorded transform-surface, metadata, and native-precision residuals;
   merge status is not treated as capability closure. PR #132 remains open.
+- Post-sweep reconciliation: Helios PR #53 merged at `1e165406`; Atlas now
+  tracks its exact fetched default head and the last requested-provider caller
+  delta is reduced to Consus.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
 
@@ -65,10 +68,10 @@
 - Audit result at sweep start: all twenty requested `book-pages.yml` callers
   pinned the stale Atlas commit `d875348197be12ad593f993a6f1b8a62d3b8b195`;
   the current root is `4c31dd753f06dd93b4c04798cf781df253e3e532`. The current
-  fetched defaults now contain that SHA for 18 providers. Consus retains stale
-  book, Python-release, and Rust-release callers; Helios retains a stale book
-  caller; RITK's book and Rust-release callers are current after PR #130
-  merged.
+  fetched defaults now contain that SHA for 19 providers. Consus retains stale
+  book, Python-release, and Rust-release callers; RITK's book and Rust-release
+  callers are current after PR #130 merged. The external Kwavers caller is
+  tracked separately.
 - Acceptance: the fetched default of every requested provider contains no
   stale `d875348` Atlas workflow pin; CFDrs passes
   `mdbook-linkcheck2-version: 0.12.2`; each changed caller has a hosted
@@ -86,14 +89,14 @@
 - Merged after hosted checks passed: Themis #18, Proteus #8, Hyperion #8,
   Tyche #21, Mnemosyne #48, Aequitas #24, Asclepius #15, Eunomia #62, Leto
   #111, Horae #10, Moirai #127, Hephaestus #207, Melinoe #15, Apollo #90, and
-  Iris #13, Hermes #39, and Coeus #327. Atlas reconciled their default heads
-  in the current gitlink integration commits; Consus #27 and Helios #53 remain
-  open pending their own required checks.
+  Iris #13, Hermes #39, Coeus #327, and Helios #53. Atlas reconciled their
+  default heads in the current gitlink integration commits; Consus #27 remains
+  open pending its own required checks.
 - Latest hosted poll: Consus #27 has repository-owned checks queued or in
-  progress with no failure conclusion; Helios #53 has its benchmark regression
-  check in progress; RITK #131 merged at `9ae68b45` after its repository
-  workflows completed, but its source residuals remain open. Stacked #132 is
-  open against `main` with no required workflow result and the external
+  progress with no failure conclusion; Helios #53 merged at `1e165406`; RITK
+  #131 merged at `9ae68b45` after its repository workflows completed, but its
+  source residuals remain open. Stacked #132 is open against `main` with no
+  required workflow result and the external
   `recurseml/analysis` error. CFDrs `origin/main` now passes the book
   output-path contract through merged PRs #339/#340; the original #338 is
   closed as superseded. Kwavers #363 remains open while its default still
@@ -195,7 +198,8 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
 | US-023-A2 | `PhasedArray3D` variant on the ADR 0042 seam. | [minor] | **open** 2026-08-13 — PR #131 merged at `9ae68b45`; P1 source findings remain | Claude | Geometry-level and native identity-case tests pass, but completion requires all public transform surfaces to dispatch the map, origin/direction composition or explicit rejection, and native-precision arithmetic. Merge did not establish this acceptance. |
 | US-023-A4 | `SliceSeries` variant on the ADR 0042 seam. **Split out of A2**: unlike the closed-form curvilinear and phased-array maps, ITK's `SliceSeriesSpecialCoordinatesImage` composes a 2-D slice image's own transform with a per-slice 3-D `Transform` object, interpolating between the `floor`/`ceil` slice transforms and handling out-of-range slices. That needs a per-slice transform list and a decision about how it interacts with ritk's `Transform` stack — ADR 0042's recorded open question — which is a different design conversation from a closed-form geometry. | [arch] | todo | — | ADR 0042 open question resolved (inline vs referenced transform list, sized from a realistic wobbler sweep); round-trip against a synthesized sweep; behaviour at and beyond the slice range specified rather than inherited |
 | US-023-A5 | Move `CoordinateMap`/`CurvilinearArray`/`PhasedArray3D` from `ritk-image` to `ritk-spatial` (pure `f64` geometry, no tensor coupling); `ritk-image` re-exports and keeps using them. Puts the geometry at the deepest common ancestor of its consumers and makes it reachable from `kwavers-analysis` without dragging coeus autograd/nn/wgpu into a DSP crate. | [minor] | in review 2026-08-13 — ritk PR #132, `e8e7ed6f` | Claude | Static review found no new P0/P1 in the move; merge remains dependent on A2 and hosted gates. `ritk-spatial` gains no new dependency; the lane is clean. |
-| US-023-A3 | kwavers `ScanConverter` delegates its polar math to the `ritk-spatial` geometry SSOT, keeping Leto storage and Aequitas typed geometry; the duplicated formulas in `b_mode/scan_conversion.rs` are deleted. | [minor] | blocked: depends on US-023-A5 | — | Differential against current `ScanConverter` output is bit-identical or within a derived bound; no duplicated polar formula remains |
+| US-023-A7 | Give `CurvilinearArray` an explicit `first_lateral_angle` instead of ITK's implied centre-on-boresight, so an asymmetric fan is expressible; ITK's convention becomes the `-(n-1)/2·Δ` special case. Drops the `lateral_count` argument from both geometry methods, removing the seam's coupling to image shape. Review `PhasedArray3D` for the same implied centring. | [major] | todo — gates A3; blocked until PR #132 merges | — | kwavers' `angle_min` geometry round-trips exactly through the seam; an ITK-centred fan reproduces its current beam indices; no method takes `lateral_count` |
+| US-023-A3 | kwavers `ScanConverter` delegates its polar math to the `ritk-spatial` geometry SSOT, keeping Leto storage and Aequitas typed geometry; the duplicated formulas in `b_mode/scan_conversion.rs` are deleted. | [minor] | blocked: depends on US-023-A5 **and** US-023-A7 — the current seam cannot express kwavers' asymmetric fan (`gap_audit.md#atlas-us-a3-fan-028`) | — | Differential against current `ScanConverter` output is bit-identical or within a derived bound; no duplicated polar formula remains |
 | US-023-A6 | Decide whether B-mode moves behind the `kwavers` ritk bridge so scan conversion becomes a true `resample` through the seam and the converter is deleted outright. Splits the B-mode pipeline across crates, so it is a recorded decision, not an incidental one. | [arch] | todo | — | ADR with a recommended option; supersedes ADR 0042's consequence bullet, which assumed kwavers could reach the seam directly | — | Differential against the current `ScanConverter` within bilinear interpolation error, then that converter and its callers are gone |
 | US-023-B | QUS spectral tissue characterization: windowed 1-D power spectra with a support-window seam, reference-phantom normalization/averaging, backscatter parameters (midband fit, spectral slope, spectral intercept), and spectral-difference attenuation estimation. | [minor] | todo | — | Recovers known slope/intercept/attenuation from a synthesized RF phantom with an analytically derived tolerance; differential check against the forward scattering/attenuation physics kwavers already models |
 | US-023-C | SRAD (Yu & Acton) speckle-reducing anisotropic diffusion in `ritk-filter/src/diffusion/`, reusing `smoothing/box_sigma` for the instantaneous coefficient of variation. | [minor] | todo | — | Value-semantic parity against the published formulation on a speckled phantom; edge-preservation asserted against Perona–Malik on the same input |
