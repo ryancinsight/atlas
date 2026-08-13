@@ -72,6 +72,14 @@
   Iris #13, Hermes #39, and Coeus #327. Atlas reconciled their default heads
   in the current gitlink integration commits; Consus #27, Helios #53, and
   RITK #130 remain open pending their own required checks.
+- Latest hosted poll: Consus #27 has repository-owned checks queued or in
+  progress with no failure conclusion; Helios #53 has its benchmark regression
+  check in progress; RITK #130 has Python and test jobs active or queued. RITK
+  #131 remains open with active or queued provider jobs plus the external
+  `recurseml/analysis` error; stacked #132 has no required workflow result and
+  the same external status error. CFDrs #338 remains red on `book / Build
+  book` because its caller output path does not include the declared
+  linkcheck2 HTML subdirectory.
 - Integration correction: root commit `06339c8` briefly staged the peer
   checkout HEADs for Hyperion and Tyche instead of their fetched defaults;
   forward fix `878b7c1` restored `5758df93` and `5febead4`, and the exact-head

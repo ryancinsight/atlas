@@ -105,6 +105,14 @@ overrides. Both wrappers now remove either form, with regression coverage in
 the provider-integration and version-guard test modules. Exact-head, overlay,
 and Python regression checks pass after the fix.
 
+The latest hosted poll keeps Consus #27, Helios #53, and RITK #130 open: Consus
+has repository-owned checks queued or in progress with no failure conclusion,
+Helios has its benchmark regression check in progress, and RITK #130 has
+Python and test jobs active or queued. RITK #131 remains open with its Python,
+clippy, alignment, and wheel jobs active or queued plus the external
+`recurseml/analysis` error; stacked RITK #132 has no required workflow result
+and the same external status error. These are not merge evidence.
+
 CFDrs #338 is blocked by a caller/output contract mismatch, not a source
 failure. Its book declares a non-optional linkcheck2 renderer, so the shared
 workflow emits HTML at `target/book/cfdrs/html`; the caller currently passes
