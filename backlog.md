@@ -28,6 +28,9 @@
 - Post-sweep reconciliation: Mnemosyne PR #47 merged the segment-header race
   fix as `6d3618d0`; the exact-head audit caught the drift and Atlas advanced
   the gitlink in the follow-up integration commit.
+- Post-sweep reconciliation: Hermes PR #39 merged at `683e2ab5`; its delta is
+  limited to `.github/workflows/book-pages.yml`, and Atlas now tracks the
+  exact fetched `origin/main` head.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
 
@@ -59,9 +62,9 @@
 - Merged after hosted checks passed: Themis #18, Proteus #8, Hyperion #8,
   Tyche #21, Mnemosyne #48, Aequitas #24, Asclepius #15, Eunomia #62, Leto
   #111, Horae #10, Moirai #127, Hephaestus #207, Melinoe #15, Apollo #90, and
-  Iris #13. Atlas reconciled their default heads in the current gitlink
-  integration commits; the remaining caller PRs stay open pending their own
-  required checks.
+  Iris #13, and Hermes #39. Atlas reconciled their default heads in the
+  current gitlink integration commits; Consus #27, Helios #53, RITK #130, and
+  Coeus #327 remain open pending their own required checks.
 - Integration correction: root commit `06339c8` briefly staged the peer
   checkout HEADs for Hyperion and Tyche instead of their fetched defaults;
   forward fix `878b7c1` restored `5758df93` and `5febead4`, and the exact-head

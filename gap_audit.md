@@ -31,10 +31,14 @@ provider-source merge is separate from the workflow-only caller PR #48.
 
 Themis #18, Proteus #8, Hyperion #8, Tyche #21, Mnemosyne #48, Aequitas #24,
 Asclepius #15, Eunomia #62, Leto #111, Horae #10, Moirai #127, Hephaestus
-#207, Melinoe #15, Apollo #90, and Iris #13 then passed their hosted checks and
-merged. Their default-head deltas are limited to the intended workflow pin
-changes, and Atlas now tracks the merged heads. The remaining caller PRs are
-still open with active or queued checks.
+#207, Melinoe #15, Apollo #90, Iris #13, and Hermes #39 then passed their hosted
+checks and merged. Their default-head deltas are limited to the intended
+workflow pin changes, and Atlas now tracks the merged heads. Consus #27,
+Helios #53, RITK #130, and Coeus #327 remain open with active or queued checks.
+
+Hermes #39 merged at `683e2ab5`; the exact-head audit verified that the only
+post-sweep default delta was `.github/workflows/book-pages.yml` before the
+Atlas gitlink advanced.
 
 During that reconciliation, `06339c8` briefly recorded peer checkout HEADs
 for Hyperion and Tyche because staging a submodule path re-read the dirty

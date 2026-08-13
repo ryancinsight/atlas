@@ -42,7 +42,8 @@
 - [x] Merge the hosted-green caller PRs for Themis #18, Proteus #8, Hyperion
       #8, Tyche #21, Mnemosyne #48, Aequitas #24, Asclepius #15, Eunomia #62,
       Leto #111, Horae #10, Moirai #127, Hephaestus #207, Melinoe #15, Apollo
-      #90, and Iris #13; advance Atlas gitlinks to their exact default heads.
+      #90, Iris #13, and Hermes #39; advance Atlas gitlinks to their exact
+      default heads.
 - [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
       Atlas gitlinks to their exact merged provider defaults.
 - [ ] Run exact-head hosted validation for every changed caller and re-audit
