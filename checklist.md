@@ -1,5 +1,14 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-APOLLO-ARCH-021 — Retire superseded junk-drawer rename — complete 2026-08-13
+
+- [x] Rebase Apollo PR #86 onto current default and verify the two rename
+      commits are already represented by `49632c6c` / ADR 0039 s5.
+- [x] Confirm current Apollo default has no affected `helpers.rs` modules and
+      passes post-merge CI `31708720285`.
+- [x] Close the empty, superseded PR with the evidence and delete its remote
+      branch; do not reintroduce older names or duplicate leaves.
+
 ## ATLAS-APOLLO-VALIDATION-020 — Converge shared WGPU validation and Mnemosyne boundary — complete 2026-08-13
 
 - [x] Rebase Apollo PR #83 onto current default, remove the already-upstream

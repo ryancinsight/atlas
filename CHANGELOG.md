@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Close Apollo PR #86 as superseded by the broader current-default cleanup
+  `49632c6c` (ADR 0039 s5); the affected `helpers.rs` modules are already
+  dissolved into concern-specific leaves. No duplicate rename is integrated.
+
 - Advance Apollo to merged default `fc564896` after PR #83 converged the
   shared WGPU validation surface and real Mnemosyne branded-slice integration
   test. Duplicate GFT validators were removed; the `mnemosyne-memory` lock

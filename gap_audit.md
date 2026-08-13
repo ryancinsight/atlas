@@ -1,5 +1,15 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-APOLLO-ARCH-021 — Superseded junk-drawer rename audit (closed 2026-08-13)
+
+Apollo PR #86 was not merged because current Apollo default already contains
+the broader cleanup commit `49632c6c` (ADR 0039 s5). Rebasing the PR onto
+current default produced no remaining diff after recognizing that its two
+rename commits were represented by current concern-specific leaves. The
+affected provider tree contains no `helpers.rs` modules. The stale PR was
+closed with this evidence and its branch deleted; current default
+`fc5648964c8194447ef5deea43a8aa9c0dae7c63` passes post-merge CI `31708720285`.
+
 ## ATLAS-APOLLO-VALIDATION-020 — Shared WGPU validation and Mnemosyne boundary (closed 2026-08-13)
 
 Apollo PR #83 source `a725fe81027f54ee83e56fa72d731b8e2e3f97f1` merged as
