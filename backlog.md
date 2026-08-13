@@ -12,7 +12,8 @@
 - Acceptance: both gitlinks equal their fetched default heads (`32524e3` and
   `53bb013`), exact-head mode detects mismatch and supports non-`main`
   defaults, focused script tests pass, and the item records hosted evidence.
-- Status: in-progress; claimed 2026-08-12.
+- Status: complete at Atlas `062afef` (branch `codex/atlas-provider-drift-005`).
+  Exact-head structural mode and the focused eight-test regression suite pass.
 
 ## ATLAS-PROVIDER-INTEGRATION-004 — Twenty-provider audit and cleanup [major]
 
