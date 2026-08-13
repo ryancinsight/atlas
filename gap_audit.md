@@ -34,6 +34,11 @@ their hosted checks and merged. Their default-head deltas are limited to the
 intended workflow pin changes, and Atlas now tracks the merged heads. The
 remaining caller PRs are still open with active or queued checks.
 
+During that reconciliation, `06339c8` briefly recorded peer checkout HEADs
+for Hyperion and Tyche because staging a submodule path re-read the dirty
+checkout. Forward fix `878b7c1` restored the fetched default heads; the exact
+head gate passed before the integration continued.
+
 ## ATLAS-LIVE-CALLER-PINS-027 — Requested-provider caller pins (open 2026-08-13)
 
 The twenty requested providers are present at current fetched default heads,

@@ -60,6 +60,10 @@
   Tyche #21, and Mnemosyne #48. Atlas reconciled their default heads in the
   current gitlink integration commits; the remaining caller PRs stay open
   pending their own required checks.
+- Integration correction: root commit `06339c8` briefly staged the peer
+  checkout HEADs for Hyperion and Tyche instead of their fetched defaults;
+  forward fix `878b7c1` restored `5758df93` and `5febead4`, and the exact-head
+  gate passed before delivery continued.
 - Hosted checks are queued. The external `recurseml/analysis` status reports
   error on these workflow-only PRs; required repository CI remains the merge
   gate and is not being represented as green before completion.
