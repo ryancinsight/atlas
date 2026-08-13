@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Advance Leto to provider default `a722fbc8`. Close the generic convolution
+  provider PM record after exact-head provider runs `31690152639` and
+  `31690301356`, with Coeus direct-consumer evidence in `31672329963`.
+
 - Advance Helios to provider default `f108dc9b`. The stale H-098 provider PM
   record is closed; exact-head hosted run `31686100896` passes Rust, Python,
   and the phase-reversed benchmark regression gate.

@@ -180,6 +180,19 @@ provider Rust verification passed. The provider default advanced from
 local Leto checkout remains peer-owned and dirty, so this increment updates
 only the root gitlink and current Atlas evidence.
 
+## ATLAS-LETO-CONVOLUTION-012 — Close provider convolution contract (2026-08-13)
+
+Leto PR #108 closed the stale convolution-provider PM record. Source
+`7172b338463c72faa2a561a3c84bda26d827351a` merged as default
+`a722fbc81cd1d82df74ef9e5acc1d9997d340d9d`. Exact provider run `31690152639`
+and post-merge default run `31690301356` pass the provider's formatting,
+minimal-feature, warning-denied Clippy, Nextest, doctest, and documentation
+jobs. Coeus default `aabdec67a0f5baa415c4abb6dded69db41b2f2d6` consumes the CPU
+contract directly and deletes its former host loops; run `31672329963` passes
+at that exact consumer head. The remaining 33 Rustdoc link warnings predate
+the convolution family; no convolution-specific warning, fallback, or adapter
+remains.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default (2026-08-13)
 
 Moirai PR #125 merged as `ae9a5dfb7a56c64b471338d9f9d859db7b52d9fe`. Its

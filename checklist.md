@@ -158,6 +158,17 @@
 - [x] Advance the root Leto gitlink to `e525d8dd` and rerun the exact-head
       audit without staging peer-owned submodule changes.
 
+## ATLAS-LETO-CONVOLUTION-012 — Close provider convolution contract — complete 2026-08-13
+
+- [x] Confirm Leto PR #108 source `7172b338` merged as default `a722fbc8`.
+- [x] Confirm exact provider run `31690152639` and post-merge default run
+      `31690301356` pass formatting, minimal-feature compilation, strict
+      Clippy, configured Nextest, doctests, and documentation.
+- [x] Record Coeus direct CPU dispatch and host-loop deletion at default
+      `aabdec67`, hosted run `31672329963`.
+- [x] Advance the root Leto gitlink without staging the peer-owned checkout;
+      retain the 33 pre-existing Rustdoc link warnings as explicit residuals.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default — complete 2026-08-13
 
 - [x] Confirm Moirai PM closeout PR #125 merged as `ae9a5dfb` after all

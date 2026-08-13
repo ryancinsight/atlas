@@ -195,6 +195,19 @@
 - Status: complete; Leto PR #107 merged as `e525d8d`, the root gitlink now
   records the exact default, and the pointer evidence is synchronized.
 
+## ATLAS-LETO-CONVOLUTION-012 — Close provider convolution contract [major] [arch]
+
+- Owner: Atlas integration.
+- Outcome: close the stale Leto convolution-provider record after the generic
+  CPU contract and Coeus direct consumer integration are both merged and
+  exact-head verified.
+- Status: complete; Leto PR #108 source `7172b338463c72faa2a561a3c84bda26d827351a`
+  merged as default `a722fbc81cd1d82df74ef9e5acc1d9997d340d9d`. PR #108's
+  exact provider run `31690152639` and post-merge default run `31690301356`
+  pass. The root pointer is advanced without staging peer-owned Leto dirt.
+- Residual: 33 pre-existing Leto Rustdoc broken/private-link warnings; no
+  convolution-specific diagnostic. Hephaestus owns accelerator execution.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default [patch]
 
 - Owner: Atlas integration.
