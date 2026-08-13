@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Merge Consus PR #23 (`b3ca01c2`) to close the FITS, HDF5, and NWB
+  no-default storage boundaries. Alloc-backed modules, re-exports, tests, and
+  benchmark surfaces are gated consistently; the exact-head hosted matrix
+  `31681611017` passes.
+
 - Merge Consus PR #22 (`37f835d1`) to close the `consus-arrow` and
   `consus-parquet` no-default cfg boundaries. Alloc-backed bridges, wire paths,
   tests, and benches are gated consistently while descriptor-only no-alloc APIs

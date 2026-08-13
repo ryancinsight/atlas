@@ -1,11 +1,31 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003 — Close Consus no-default storage boundaries [patch] — complete 2026-08-13
+
+- Owner: Atlas integration. Consus PR #23 merged at
+  `b3ca01c21b2e9bad4c7b7dc23c47083ca79a3307` from exact head
+  `bf46b7cf00ec7a86b51decf31be4eb30b367c397`; the root gitlink now records
+  the merged default commit.
+- Outcome: FITS retains descriptor-only no-default APIs; HDF5 gates
+  alloc-backed modules, B-tree exports, tests, and its benchmark; NWB gates
+  alloc-backed modules, re-exports, version paths, and integration tests. The
+  shared `consus-core::Error::invalid_format` constructor preserves detailed
+  alloc messages and a no-alloc error category under workspace feature
+  unification.
+- Evidence: local FITS no-default/default Nextest 16/16 and 170/170; NWB
+  default 278/278; HDF5 default 405/405; workspace no-default check/strict
+  Clippy; touched-package all-features check/Clippy; warning-denied Rustdoc in
+  default and no-default modes; formatting. Hosted run `31681611017` is green
+  at the exact PR head across the full 70-job matrix. The recurring external
+  `recurseml/analysis` report is not a repository-owned gate.
+
 ## ATLAS-CONSUS-NODEF-ARROW-PARQUET-002 — Close Arrow/Parquet no-default cfg boundaries [patch] — complete 2026-08-13
 
 - Owner: Atlas integration. Consus PR #22 merged at `37f835d1b87af426001df25d343ac1e12b86a55b` from exact head `731a3ca394876a7329becee83a197e5d01e49773`.
 - Outcome: `consus-arrow` and `consus-parquet` expose descriptor-only no-default APIs, gate alloc-backed bridges, conversions, wire paths, tests, and benches consistently, and retain value-semantic no-alloc smoke coverage. The invalid rustdoc links and warnings in the touched provider scope are corrected.
 - Evidence: no-default, default, and all-features package checks/Clippy/Nextest pass; Nextest counts are Arrow 2/2, 79/79, 81/81 and Parquet 10/10, 215/215, 239/239 respectively. Doctests, warning-denied rustdoc, formatting, and locked package checks pass. Exact-head hosted run `31678705050` passes Format, MSRV, Linux/macOS/Windows package tests, feature matrix, checks, MinIO, and CodeRabbit.
-- Residual: `CONSUS-NODEF-GATE-001` remains open for `consus-fits`, `consus-nwb`, and downstream cfg edges; `CONSUS-TEST-API-001` and Tyche's versioned study-schema seam remain separate provider work.
+- Residual: `CONSUS-TEST-API-001` and Tyche's versioned study-schema seam
+  remain separate provider work.
 
 ## ATLAS-LIVE-HEAD-SWEEP-015 — Reconcile merged provider defaults [patch] — done 2026-08-13
 

@@ -12,11 +12,26 @@ doctests, warning-denied rustdoc, formatting, and locked checks also pass.
 Hosted run `31678705050` passes Format, MSRV, Linux/macOS/Windows package tests,
 feature matrix, package checks, MinIO, and CodeRabbit at that exact head.
 
-The workspace no-default gate now reaches the next real boundary: roughly 50
-`consus-fits` errors remain across unconditional alloc imports/re-exports,
-header/HDU/file/image/table modules, missing `alloc` plumbing, and alloc-shaped
-error/type variants. `consus-nwb` and downstream cfg edges remain open under
-`CONSUS-NODEF-GATE-001`; `CONSUS-TEST-API-001` is independent.
+The FITS, NWB, HDF5, and downstream workspace cfg boundaries were subsequently
+closed by ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003. `CONSUS-TEST-API-001` is
+independent.
+
+## ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003 — FITS, HDF5, and NWB no-default cfg closure (closed 2026-08-13)
+
+Consus PR #23 merged at `b3ca01c21b2e9bad4c7b7dc23c47083ca79a3307` from exact
+head `bf46b7cf00ec7a86b51decf31be4eb30b367c397`. FITS gates alloc-only parsing,
+HDU, image, table, file, validation, and datatype-construction surfaces while
+retaining descriptor APIs. HDF5 gates alloc-backed modules, B-tree re-exports,
+tests, and its benchmark; NWB gates alloc-backed modules, re-exports, version
+paths, and integration tests. `consus-core::Error::invalid_format` centralizes
+feature-unified error construction without a no-alloc heap payload.
+
+Local evidence includes FITS Nextest 16/16 and 170/170, NWB 278/278, HDF5
+405/405, workspace no-default check and strict Clippy, touched-package
+all-features check/Clippy, warning-denied Rustdoc in both feature modes, and
+formatting. Hosted run `31681611017` is green at the exact head across the
+repository's 70-job matrix. The recurring external `recurseml/analysis` failure
+is recorded as analyzer noise, not a repository-owned correctness failure.
 
 ## ATLAS-LIVE-HEAD-SWEEP-015 — Merged provider defaults (2026-08-13)
 

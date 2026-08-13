@@ -1,5 +1,18 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003 — Close Consus no-default storage boundaries — complete 2026-08-13
+
+- [x] Land Consus PR #23 at merged default
+      `b3ca01c21b2e9bad4c7b7dc23c47083ca79a3307` from exact head
+      `bf46b7cf00ec7a86b51decf31be4eb30b367c397` and advance only the indexed
+      `repos/consus` gitlink.
+- [x] Gate alloc-backed FITS, HDF5, and NWB modules, re-exports, tests, and
+      benchmark surfaces; preserve descriptor-only no-default APIs.
+- [x] Pass local feature-mode checks, strict Clippy, Nextest, Rustdoc, and
+      formatting gates; record the exact hosted run `31681611017` as green.
+- [x] Preserve peer-owned provider checkout dirt and rerun the twenty-provider
+      exact-head/structural audit after integration.
+
 ## ATLAS-CONSUS-NODEF-ARROW-PARQUET-002 — Close Arrow/Parquet no-default cfg boundaries — complete 2026-08-13
 
 - [x] Land Consus PR #22 at merged default `37f835d1`; its exact source head is
@@ -12,8 +25,9 @@
 - [x] Confirm hosted run `31678705050` passes the repository-owned Format,
       MSRV, platform, feature-matrix, package-check, MinIO, and CodeRabbit
       gates at the exact head.
-- [ ] Continue `CONSUS-NODEF-GATE-001` through `consus-fits`, `consus-nwb`,
-      and downstream no-default edges; keep `CONSUS-TEST-API-001` separate.
+- [x] Continue `CONSUS-NODEF-GATE-001` through FITS, NWB, HDF5, and the
+      downstream no-default workspace edges; keep `CONSUS-TEST-API-001`
+      separate.
 
 ## ATLAS-LIVE-HEAD-SWEEP-015 — Reconcile merged provider defaults — complete 2026-08-13
 
