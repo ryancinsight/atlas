@@ -1,5 +1,21 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-COEUS-NORM-019 — Keep batched Frobenius norms provider-owned [patch] — complete 2026-08-13
+
+- Coeus PR #320 source `96d8166c3d683eaaf67e45b8bad0c34e33d8b405` merged as
+  default `72372c918d8d6fcbcc006585736126a480a4f5c2`; the Atlas gitlink is
+  advanced to that fetched default head without switching the peer-owned
+  Coeus checkout.
+- `frobenius_norm_batched` now keeps square, last-two-axis reductions, square
+  root, and batch reshape on the provider; rank-two inputs reuse the canonical
+  norm path and non-contiguous inputs use provider-owned materialization. The
+  previous host fold is deleted; no adapter or fallback path remains.
+- Exact PR run `31701736189` passed WGPU, CUDA, ROCm, and Metal provider
+  contracts. Exact post-merge Backend parity run `31704377695` passed all four
+  provider jobs; Pages run `31704377431` passed build and deployment. The
+  required-device CUDA and ROCm jobs were skipped, so no physical-device claim
+  is made.
+
 ## ATLAS-HELIOS-BOOK-WORKFLOW-018 — Converge Helios on the shared Pages workflow [patch] — complete 2026-08-13
 
 - Helios PR #48 source `116228c031a10d9e5176d7209c54172973001ddd` merged as

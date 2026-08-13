@@ -1,5 +1,22 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-COEUS-NORM-019 — Keep batched Frobenius norms provider-owned — complete 2026-08-13
+
+- [x] Rebase Coeus PR #320 onto current default, retain the provider-owned
+      implementation and tests, and merge source
+      `96d8166c3d683eaaf67e45b8bad0c34e33d8b405` as default
+      `72372c918d8d6fcbcc006585736126a480a4f5c2`.
+- [x] Confirm the implementation removes the host fold: provider square,
+      last-two-axis reduction, square root, and batch reshape remain in the
+      provider graph; rank-two and non-contiguous paths retain their explicit
+      contracts.
+- [x] Verify exact PR run `31701736189` and exact post-merge Backend parity
+      run `31704377695`: WGPU, CUDA, ROCm, and Metal pass. Pages run
+      `31704377431` passes build and deployment; required-device CUDA/ROCm
+      jobs are skipped and remain unclaimed.
+- [x] Advance the Atlas Coeus gitlink to the fetched merged default without
+      staging peer-owned child-repository changes.
+
 ## ATLAS-HELIOS-BOOK-WORKFLOW-018 — Converge Helios on the shared Pages workflow — complete 2026-08-13
 
 - [x] Rebase the stale Helios PR #48 workflow change onto current main and

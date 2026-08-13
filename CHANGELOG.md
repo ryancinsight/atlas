@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Advance Coeus to merged default `72372c91` after PR #320 removed the
+  host-side batched Frobenius-norm fold. Provider square, last-two-axis
+  reduction, square root, and batch reshape now remain in the provider graph;
+  rank-two and non-contiguous paths retain their value-semantic contracts.
+  Exact PR run `31701736189`, post-merge Backend parity run `31704377695`, and
+  Pages run `31704377431` pass the applicable gates. Required-device CUDA and
+  ROCm jobs remain unverified.
+
 - Advance Helios to merged default `546c199f` after PR #48 converged its Pages
   caller on the Atlas shared workflow. The caller passes the actual rendered
   output `target/book/helios/html`; PR Rust, Python, book, and 45-minute

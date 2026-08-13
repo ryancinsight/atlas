@@ -1,5 +1,21 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-COEUS-NORM-019 — Provider-owned batched Frobenius norm closure (closed 2026-08-13)
+
+Coeus PR #320 source `96d8166c3d683eaaf67e45b8bad0c34e33d8b405` merged as
+default `72372c918d8d6fcbcc006585736126a480a4f5c2`. The implementation keeps
+the batched Frobenius graph provider-owned: non-contiguous materialization,
+square, last-two-axis reduction, square root, and batch reshape are provider
+operations; rank-two inputs use the canonical norm path. The host-side fold
+and any compatibility adapter were removed.
+
+Exact PR provider run `31701736189` passed WGPU, CUDA, ROCm, and Metal. Exact
+post-merge Backend parity run `31704377695` passed all four provider jobs;
+Pages run `31704377431` passed build and deployment. Required-device CUDA and
+ROCm jobs were skipped by the workflow, so hardware execution remains
+unverified and no physical-device performance claim is made. The Atlas
+Coeus gitlink records the fetched merged default.
+
 ## ATLAS-HELIOS-BOOK-WORKFLOW-018 — Shared Pages workflow closure (closed 2026-08-13)
 
 Helios PR #48 source `116228c031a10d9e5176d7209c54172973001ddd` replaced the
