@@ -5,9 +5,9 @@
 Hephaestus PR #203 merged the provider-side cross-entropy PM closeout. The
 default branch advanced from `bc6dfcf` to `9385686e`; post-merge WGPU, CUDA,
 ROCm, and Metal runs `31660774170`, `31660774171`, `31660774190`, and
-`31660774178` are in progress. The Atlas pointer refresh is held until those
-exact-head provider gates complete. The provider checkout's dirty lockfile is
-peer-owned and remains outside this root slice.
+`31660774178` all pass. Atlas now records the exact `9385686e` gitlink; the
+provider checkout's dirty lockfile is peer-owned and remains outside this root
+slice.
 
 ## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence (2026-08-12)
 

@@ -10,7 +10,8 @@
 - Acceptance: fetched `origin/master` hosted WGPU, CUDA, ROCm, and Metal runs
   pass at the merged provider head; the root gitlink equals that head; the
   provider PM closure and exact-head root checks are recorded.
-- Status: in-progress; claimed 2026-08-12.
+- Status: complete at provider head `9385686`; the Atlas pointer and evidence
+  are delivered in this integration increment.
 
 ## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence [patch]
 
