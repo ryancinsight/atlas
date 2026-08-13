@@ -4899,7 +4899,8 @@ epospollo`, so both paths are the same tree. That is
 
 ## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — in-progress
 
-- Owner: unclaimed; scope: `repos/{apollo,coeus,consus,hephaestus,kwavers,leto,moirai}/.github/workflows/rust-release.yml`
+- Owner: current session (Atlas coordination); scope: root publication records and
+  exact default-branch evidence for `repos/{apollo,coeus,consus,hephaestus,kwavers,leto,moirai}/.github/workflows/rust-release.yml`
   and `repos/ritk/.github/workflows/release.yml`. One package per claim — the
   scopes are disjoint by repository.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §1-§3.
