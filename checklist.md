@@ -101,6 +101,29 @@
       + 38/38 testing. No `TODO`/`FIXME`/`unimplemented!` in any provider
       `src/` tree.
 
+## ATLAS-FOUNDATION-PLANNING-002 — Next-tier planning completion — done 2026-08-12
+
+- [x] Author `repos/horae/backlog.md`, `checklist.md`, `gap_audit.md` from the
+      verified record (ADR 0001, RK4/adaptive/events/subcycling surface, book
+      closure ATLAS-HORAE-PROVIDER-DOCS-001, PR #7 f32 adaptive-policy
+      contract).
+- [x] Author `repos/hyperion/gap_audit.md` (only missing file; HYPERION-001
+      record + book closure + first-wave consumer migrations).
+- [x] Author `repos/tyche/checklist.md` (only missing file; TYCHE-001..008
+      record + 2026-08-12 gate evidence).
+- [x] Reconcile `repos/consus` gap_audit/backlog with the 2026-08-12 gate
+      findings; record CONSUS-NODEF-GATE-001 and CONSUS-TEST-API-001.
+- [x] Deliver bounded consus gate fixes: `consus-arrow` no-default cfg
+      gating (re-exports, bridge/schema/conversion), Clippy lint fixes
+      (`consus-nwb` report.rs, `consus-hdmf` tests), and `consus-hdf5` root
+      re-exports for `Hdf5File`/`Hdf5FileBuilder`.
+- [x] Complete the `mnemosyne-local` WIP's two `unused_mut` sites in
+      `routing.rs` (left uncommitted; `mnemosyne-decay` workspace-local skew
+      is pre-existing and documented).
+- [x] Gate matrix 2026-08-12: hyperion 22/22 + doctest; horae 16/16 +
+      doctest; tyche 50/50 + 17 doctests; consus lib + doctests green with
+      two tracked open test-surface items.
+
 ## ATLAS-PROVIDER-INTEGRATION-003 — Nineteen-provider second-pass audit — done 2026-08-12
 
 - [x] Audited all 19 providers for source gaps, open checklist items, gitlink

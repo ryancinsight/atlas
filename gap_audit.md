@@ -101,6 +101,29 @@ doctest; eunomia 117/117 + 9 doctests; themis 21/21 + 38/38 `testing`. No
 `TODO`/`FIXME`/`unimplemented!` markers remain in any provider `src/` tree.
 Cross-link: root checklist and backlog entries of the same ID.
 
+## ATLAS-FOUNDATION-PLANNING-002 — Next-tier planning completion — 2026-08-12
+
+Reviewed and completed the planning/backlog trail for hyperion, horae,
+consus, and tyche.
+
+| Provider | Version | Planning trail | Gate status (2026-08-12) |
+|----------|---------|----------------|--------------------------|
+| hyperion | 0.1.0 | `gap_audit.md` **created** (only missing file) | green: 22/22 Nextest + doctest, Clippy, no-default |
+| horae | 0.1.0 | backlog/checklist/gap_audit **created** (was absent) | green: 16/16 Nextest + doctest, Clippy, no-default |
+| tyche | 0.2.0 | `checklist.md` **created** (only missing file) | green: 50/50 Nextest + 17 doctests, Clippy, no-default |
+| consus | 0.1.0 | gap_audit/backlog updated with gate findings + bounded fixes | lib + doctests green; CONSUS-NODEF-GATE-001 + CONSUS-TEST-API-001 tracked open |
+
+Bounded consus fixes delivered in this slice: `consus-arrow` no-default cfg
+gating, Clippy lint fixes (`consus-nwb` report.rs, `consus-hdmf` tests), and
+`consus-hdf5` root re-exports (`Hdf5File`/`Hdf5FileBuilder`).
+
+Also recorded: the `repos/mnemosyne` checkout carries a pre-existing
+uncommitted raw-pointer refactor WIP (this audit completed its two
+`unused_mut` sites in `routing.rs`) plus a pre-existing workspace-local
+`mnemosyne-decay` skew; consus/tyche consumers build green against a
+non-broken mnemosyne source. Open mnemosyne-provider item for its own slice.
+Cross-link: root checklist and backlog entries of the same ID.
+
 ## ATLAS-PROVIDER-AUDIT-2026-08-12B — Second audit pass, book-closure merges, CI fixes — 2026-08-12
 
 ### PRs merged (2026-08-12)
