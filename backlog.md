@@ -1,5 +1,49 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LIVE-HEAD-SWEEP-015 — Reconcile merged provider defaults [patch] — done 2026-08-13
+
+- Mnemosyne PR #45 merged at `18550d932902662c1ce196f779ee041bd0c29cd4`;
+  Rust verification, Loom, and Miri passed.
+- Aequitas PR #22 merged at `19c205d4fca964ac4907eaeb0587fe18745efe89`;
+  verify and supply-chain passed. Its prior Atlas pointer was the merged PR
+  head, not an unmerged provider branch.
+- Hermes PR #36 merged at `beed6dad8f6998b81a4e2918c151989d272e7a19`;
+  x86 verification, Miri, AVX-512/SDE, and aarch64/NEON checks passed.
+- Root gitlinks advance only to these merged default commits. The exact-head
+  audit, structural regression suite, and lane audit are rerun after commit.
+
+## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam [minor] — in-progress
+
+- Owner: current session; provider scope: `repos/hephaestus` core typed CUDA
+  comparison contract and CUDA conformance tests. Consumer scope is deferred
+  until the provider contract is merged: `repos/coeus` must then restore its
+  `ElementwiseProvider<f64>` declaration through the existing Hephaestus seam.
+- Acceptance: implement all six `Eq`/`Ne`/`Lt`/`Gt`/`Le`/`Ge` typed CUDA
+  expressions for `f64` in the provider-owned generic operation contract;
+  compile and value-test the provider and document the exact hosted matrix.
+  No host fallback, NVRTC compatibility path, or consumer-local expression is
+  permitted.
+- Verification: provider warning-denied check, Nextest, doctests, rustdoc, and
+  exact WGPU/CUDA/ROCm/Metal hosted gates; physical-device execution is
+  reported separately from adapterless compilation.
+
+## ATLAS-EUNOMIA-FLOAT-CBRT-014 — Land sign-preserving FloatElement::cbrt SSOT [feat]
+
+- Owner: Atlas integration.
+- Outcome: close the ATLAS-AEQUITAS-ROOT-OPS-012 SSOT follow-up. Eunomia now
+  owns `FloatElement::cbrt` — `libm::cbrtf` default (correct reduced-precision
+  path for `F16`/`Bf16`) with native `libm::cbrt` overrides for primitive
+  `f64` and the `F64` wrapper — on `codex/eunomia-float-cbrt` (`bba10b6`).
+  Aequitas' `Quantity::cbrt` switched off its `powf(1/3)` workaround onto the
+  new SSOT seam (`cbrt(-8 m³) == -2 m`, no longer NaN) on
+  `codex/aequitas-root-ops-closure` (`071538c`); the NaN-domain test is now a
+  sign-preservation test. Both provider gate sets green: eunomia fmt, `-D
+  warnings` all-targets, clippy, nextest 109/109, doctests; aequitas fmt,
+  `-D warnings` all-targets, clippy, nextest 85/85, doctests, no-default.
+- Status: delivered; both branches pushed. The final ATLAS-AEQUITAS-ROOT-OPS-012
+  follow-up — semantics-marked dimension tuples (`ReciprocalVolume`,
+  `Angle`) — is now closed too (see ATLAS-AEQUITAS-ROOT-OPS-012, `3ce7b03`).
+
 ## ATLAS-MNEMOSYNE-CONSUS-REFRESH-013 — Reconcile merged provider PM closeouts [patch]
 
 - Owner: Atlas integration.
@@ -35,12 +79,16 @@
 - Status: delivered; aequitas branch pushed. Cargo.lock tooling residue
   (config-level `[patch]` overlay drift) left as pre-existing dirt.
 - Tracked follow-ups (outside this increment): (1) SSOT — eunomia
-  `FloatElement` should gain a libm-backed sign-preserving `cbrt`
-  (`libm::cbrtf`/`libm::cbrt`) so aequitas can drop the `powf(1/3)` path
-  and its NaN-for-negatives caveat; (2) semantics-marked dimensions
-  (`ReciprocalVolume`, `Angle`) currently lack sqrt/cbrt impls because the
-  tuples target `BaseSemantics`; (3) a sign-preserving cbrt in aequitas
-  for negative operands if a consumer needs it.
+  `FloatElement` gained a libm-backed sign-preserving `cbrt`
+  (`libm::cbrtf`/`libm::cbrt`) and aequitas dropped the `powf(1/3)` path
+  (ATLAS-EUNOMIA-FLOAT-CBRT-014: `bba10b6` + `071538c`). (2) semantics-marked
+  dimensions (`ReciprocalVolume`, `Angle`) now have sqrt/cbrt impls — the
+  tuple macros accept an input semantics type and normalize the output to
+  `BaseSemantics` (`Angle::sqrt` → dimensionless, `ReciprocalVolume::cbrt` →
+  reciprocal length), landed `3ce7b03` on
+  `codex/aequitas-root-ops-closure` with 2 value-semantic tests. (3) a
+  sign-preserving cbrt for negative operands is resolved by (1). All three
+  follow-ups closed.
 
 ## ATLAS-TYCHE-REFRESH-011 — Reconcile merged Tyche PM closeout [patch]
 
@@ -2002,7 +2050,7 @@ excluded from this migration; no other peer-owned consumer files were modified.
   contract in terms of the seam without naming a vendor crate.
 - Blocks: ATLAS-SUBSTRATE-002.
 
-## ATLAS-SUBSTRATE-002 — Collapse Coeus's cloned per-vendor provider impls [arch] [minor] — in-progress
+## ATLAS-SUBSTRATE-002 — Collapse Coeus's cloned per-vendor provider impls [arch] [minor] — done with external hardware residual
 
 - Owner: codex-2026-08-11; scope: `repos/coeus/crates/coeus-hephaestus` (one generic
   impl) and `coeus-{rocm,metal,wgpu,cuda}` (deletion). Provider half landed
@@ -12188,9 +12236,14 @@ Design notes worth keeping, so a takeover does not re-derive them:
   runaway guard reported as a *non-converged* `Termination::IterationLimit`,
   never as success.
 
-Remaining after the blocker clears: batching over a leading problem axis, which
-is what per-voxel fitting needs and what the board item's original acceptance
-names. The single-problem solver is the first vertical increment.
+The original remaining batching requirement is complete in Coeus PR #323,
+merged as `d591220053586247ed3e9b344133281617055a2e`: `BatchedLeastSquaresProblem`
+and `batched_levenberg_marquardt` delegate each leading-axis problem to the
+canonical solver, preserve row order, and return indexed parameter/solver
+errors. f32/f64 recovery and malformed flattened-parameter tests pass; the
+provider's exact post-merge Backend parity run `31666097106` passed CUDA,
+Metal, ROCm, and WGPU lanes. Required-device CUDA/ROCm jobs were explicitly
+skipped by workflow policy, so physical-device execution remains external.
 
 ## ATLAS-COEUS-NLLS-004 original specification
 

@@ -1,5 +1,44 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-LIVE-HEAD-SWEEP-015 — Merged provider defaults (2026-08-13)
+
+The three exact-head residuals were verified against merged provider PRs and
+closed by advancing the root gitlinks: Mnemosyne PR #45 →
+`18550d932902662c1ce196f779ee041bd0c29cd4`, Aequitas PR #22 →
+`19c205d4fca964ac4907eaeb0587fe18745efe89`, and Hermes PR #36 →
+`beed6dad8f6998b81a4e2918c151989d272e7a19`. Mnemosyne passed Rust
+verification, Loom, and Miri; Aequitas passed verify and supply-chain; Hermes
+passed x86 verification, Miri, AVX-512/SDE, and aarch64/NEON. No peer-owned
+submodule checkout dirt was staged.
+
+## ATLAS-COEUS-HEPHAESTUS-F64-015 — CUDA f64 comparison seam (open)
+
+At the fetched Hephaestus default, the provider-owned typed CUDA operation
+contract implements the six comparison expressions for `f32`, `u32`, and
+`i32`, but not `f64`. Coeus therefore cannot truthfully advertise
+`ElementwiseProvider<f64>` through the existing bridge; the old NVRTC path's
+support is not a valid replacement for the provider-owned typed seam. The
+next vertical increment is provider-owned `f64` expression and conformance
+coverage, followed by a Coeus consumer refresh after the provider merges.
+Physical-device execution remains a separate hosted hardware gate.
+
+## ATLAS-COEUS-CLOSURE-014 — Coeus provider and optimizer closure (2026-08-13)
+
+Coeus PR #323 merged at `d591220053586247ed3e9b344133281617055a2e`.
+`coeus-optim` now owns the generic batched least-squares entry point and
+delegates each leading-axis problem to the canonical Levenberg–Marquardt
+solver. f32/f64 recovery and malformed flattened-parameter tests pass. The
+exact post-merge Backend parity run `31666097106` passed CUDA, Metal, ROCm,
+and WGPU; required-device CUDA/ROCm jobs were explicitly skipped by workflow
+policy. Physical-device execution is therefore an external hardware residual,
+not a source-integration claim.
+
+The Coeus vendor-deletion ledger is closed: vendor crates retain device
+acquisition and provider declarations while shared operation logic lives in
+the Hephaestus-backed generic provider. The remaining provider-owned f64
+elementwise comparison gap and downstream hardware execution are tracked
+separately.
+
 ## ATLAS-MNEMOSYNE-CONSUS-REFRESH-013 — Merged provider PM closeouts (2026-08-13)
 
 Mnemosyne PR #44 merged as `e57e2d6` after Rust verification and the Miri

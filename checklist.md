@@ -1,5 +1,37 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-LIVE-HEAD-SWEEP-015 — Reconcile merged provider defaults — complete 2026-08-13
+
+- [x] Refresh the provider remotes and confirm Mnemosyne PR #45 merged at
+      `18550d9`; Rust verification, Loom, and Miri passed.
+- [x] Confirm Aequitas PR #22 merged at `19c205d4`; verify and supply-chain
+      passed, and the prior Atlas pointer is now a merged provider commit.
+- [x] Confirm Hermes PR #36 merged at `beed6da`; x86 verification, Miri,
+      AVX-512/SDE, and aarch64/NEON checks passed.
+- [x] Advance only these three root gitlinks, then rerun exact-head,
+      structural, and lane audits without staging peer-owned checkout dirt.
+
+## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam — in progress
+
+- [ ] Open a clean Hephaestus lane from fetched `origin/master`; preserve the
+      peer-owned detached checkout and its dirty `Cargo.lock`.
+- [ ] Add provider-owned `TypedBinaryExpr<CudaC, f64>` coverage for all six
+      comparisons and focused value-semantic tests.
+- [ ] Run the provider local gates, merge the provider PR, and record the
+      exact hosted matrix before touching the Coeus consumer declaration.
+
+## ATLAS-COEUS-CLOSURE-014 — Provider deduplication and batched NLLS — complete 2026-08-13
+
+- [x] Confirm Coeus PR #323 merged at `d5912200`; the provider-owned batched
+      least-squares slice adds `BatchedLeastSquaresProblem` and
+      `batched_levenberg_marquardt` over the canonical solver, with f32/f64
+      recovery and malformed-parameter regression coverage.
+- [x] Confirm exact post-merge Backend parity run `31666097106` passed CUDA,
+      Metal, ROCm, and WGPU; required-device CUDA/ROCm jobs were explicitly
+      skipped by workflow policy and remain an external hardware gate.
+- [x] Record the vendor-deletion ledger as closed; keep the physical-device
+      contract-test residual separate from the completed source integration.
+
 ## ATLAS-MNEMOSYNE-CONSUS-REFRESH-013 — Reconcile merged provider PM closeouts — complete 2026-08-13
 
 - [x] Confirm Mnemosyne PR #44 merged at `e57e2d6`; Rust verification and Miri
@@ -1388,7 +1420,7 @@ Hephaestus that then has to be deleted (ADR 0039, alternatives).
       `Cargo.toml`/`Cargo.lock` (restoring `edition.workspace` inheritance),
       verified 2026-08-11 — clippy and wgpu contract-test gates rerun clean
       with no `--config` patch.
-- [ ] **SUBSTRATE-002** Write one generic provider impl in `coeus-hephaestus`;
+- [x] **SUBSTRATE-002** Write one generic provider impl in `coeus-hephaestus`;
       delete the cloned `backend/{elementwise,reduction,runtime}.rs` and their
       cloned tests from each vendor crate; keep only device acquisition.
       Provider half landed and verified 2026-08-11. Metal/rocm deletion slice
@@ -1416,9 +1448,13 @@ Hephaestus that then has to be deleted (ADR 0039, alternatives).
       Gates: check rc=0 (all targets), provider tests 6+1, metal/rocm test
       binaries compile on this host (device/linux-gated at runtime),
       strict clippy rc=0, fmt + diff-check clean, version-guard scan 0
-      defects, stack coherence stays clean. Remaining ledger: cuda
-      elementwise 58/reduction 290, wgpu reduction 301 — the deletion ledger
-      and per-hardware suite stay open.
+      defects, stack coherence stays clean. The vendor deletion ledger is
+      closed; only the per-hardware suite remains open as an external gate.
+      Coeus PR #323 completes the remaining
+      batched least-squares provider slice; exact post-merge Backend parity run
+      `31666097106` passed CUDA, Metal, ROCm, and WGPU. Required-device CUDA and
+      ROCm jobs were explicitly skipped by workflow policy, so physical-device
+      execution remains an external hardware gate.
 - [ ] **SUBSTRATE-003** One role trait for the 14 shared decompositions; fold the
       per-operation `matches_leto_reference` tests into one parameterized
       differential clause with derived tolerances.
