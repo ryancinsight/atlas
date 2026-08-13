@@ -31,6 +31,10 @@
 - Post-sweep reconciliation: Hermes PR #39 merged at `683e2ab5`; its delta is
   limited to `.github/workflows/book-pages.yml`, and Atlas now tracks the
   exact fetched `origin/main` head.
+- Integration correction: `8743288` briefly recorded the Hermes peer checkout
+  `d1627cd2` after a submodule-path `git add`; forward fix `efde7a6` restored
+  fetched default `683e2ab5` via explicit cacheinfo. Exact-head, overlay, and
+  lane audits pass after the correction.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
 

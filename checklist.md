@@ -36,6 +36,10 @@
       commits using full Atlas SHA
       `4c31dd753f06dd93b4c04798cf781df253e3e532`; the short-SHA workflow-file
       failures are superseded and not merge evidence.
+- [x] Correct the Hermes pointer staging error: `8743288` briefly captured the
+      peer checkout head; `efde7a6` restores the fetched `origin/main` head
+      `683e2ab5` via explicit gitlink cacheinfo, and exact-head/overlay/lane
+      audits pass.
 - [x] Harden the root audit wrappers so non-empty `RUSTC`/`RUSTDOC` overrides
       cannot leak into compiler or coherence checks; both sanitizer paths have
       regression coverage.

@@ -40,6 +40,12 @@ Hermes #39 merged at `683e2ab5`; the exact-head audit verified that the only
 post-sweep default delta was `.github/workflows/book-pages.yml` before the
 Atlas gitlink advanced.
 
+The first Hermes pointer commit (`8743288`) staged the peer checkout head
+`d1627cd2` because a submodule path was passed to `git add`. This was corrected
+forward in `efde7a6` with explicit `git update-index --cacheinfo` to the fetched
+default `683e2ab5`; the exact-head, overlay, and lane audits pass on the
+corrected state.
+
 During that reconciliation, `06339c8` briefly recorded peer checkout HEADs
 for Hyperion and Tyche because staging a submodule path re-read the dirty
 checkout. Forward fix `878b7c1` restored the fetched default heads; the exact
