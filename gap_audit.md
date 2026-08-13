@@ -92,6 +92,12 @@ overrides. Both wrappers now remove either form, with regression coverage in
 the provider-integration and version-guard test modules. Exact-head, overlay,
 and Python regression checks pass after the fix.
 
+CFDrs #338 is blocked by a caller/output contract mismatch, not a source
+failure. Its book declares a non-optional linkcheck2 renderer, so the shared
+workflow emits HTML at `target/book/cfdrs/html`; the caller currently passes
+`target/book/cfdrs` and the shared post-build check therefore fails. The exact
+caller correction was posted on the PR; the CFDrs checkout remains peer-owned.
+
 ## ATLAS-US-A3-BLOCKER-026 — Scan-conversion migration is an [arch] change, not a [minor] one (open 2026-08-13)
 
 Recorded while starting US-023-A3. Three findings, the first two decisive.

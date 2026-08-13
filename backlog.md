@@ -71,6 +71,10 @@
   derived checkout state. The result is not a clean committed-head gate and
   the baseline is intentionally unchanged; rerun from a clean exact-head
   checkout before treating any provider debt count as a merge decision.
+- External integrator residual: CFDrs #338 has one failed hosted check. The
+  caller passes `target/book/cfdrs`, but its non-optional linkcheck2 renderer
+  writes HTML under `target/book/cfdrs/html`; the exact correction is posted
+  on the PR. The CFDrs checkout is peer-owned, so Atlas does not edit it here.
 - Root test-harness cleanup: repository-wide `unittest` discovery exposed an
   incorrect top-level import in the scattered-container classifier test; the
   test now imports the checked-in `scripts` module by package path. Discovery
