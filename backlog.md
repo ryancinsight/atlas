@@ -47,11 +47,13 @@
   actions are excluded from any immediate root edit.
 - Outcome: each requested provider caller pins the current Atlas reusable
   workflow commit; CFDrs additionally passes the required `linkcheck2` version.
-- Audit result: all twenty requested `book-pages.yml` callers pin the stale
-  Atlas commit `d875348197be12ad593f993a6f1b8a62d3b8b195`; the current root is
-  `4c31dd753f06dd93b4c04798cf781df253e3e532`. Requested release callers in Consus, Moirai, RITK, Leto,
-  Hephaestus, Coeus, and Apollo also pin `d875348`; their Python callers in
-  Consus, Moirai, Leto, Hephaestus, Coeus, and Apollo do the same.
+- Audit result at sweep start: all twenty requested `book-pages.yml` callers
+  pinned the stale Atlas commit `d875348197be12ad593f993a6f1b8a62d3b8b195`;
+  the current root is `4c31dd753f06dd93b4c04798cf781df253e3e532`. The current
+  fetched defaults now contain that SHA for 17 providers. Consus retains stale
+  book, Python-release, and Rust-release callers; Helios retains a stale book
+  caller; and RITK retains stale book and Rust-release callers pending their
+  open PRs.
 - Acceptance: the fetched default of every requested provider contains no
   stale `d875348` Atlas workflow pin; CFDrs passes
   `mdbook-linkcheck2-version: 0.12.2`; each changed caller has a hosted
@@ -98,14 +100,15 @@
   test now imports the checked-in `scripts` module by package path. Discovery
   then reaches 116 tests, with only the three pytest-based modules blocked by
   the host's missing `pytest` package.
-- Hosted checks are queued. The external `recurseml/analysis` status reports
-  error on these workflow-only PRs; required repository CI remains the merge
-  gate and is not being represented as green before completion.
+- Hosted checks remain the merge gate. The external `recurseml/analysis` status
+  reports error on RITK #131 and #132; required repository CI is not represented
+  as green before completion.
 - Correction: the first PR commits used the short `@4c31dd7` reference, which
   caused hosted reusable-workflow runs to fail before job creation. Forward
   commits now replace it with the full root SHA
-  `4c31dd753f06dd93b4c04798cf781df253e3e532`; all 22 PR heads have fresh
-  queued/running checks and no current failure conclusion.
+  `4c31dd753f06dd93b4c04798cf781df253e3e532`; merged defaults and current open
+  PR heads carry the full SHA. CFDrs #338 remains red on its book output-path
+  contract.
 - Audit-tool hardening: the provider and version-guard environment sanitizers
   now remove non-empty `RUSTC`/`RUSTDOC` overrides as well as empty values; new
   regressions cover both paths. The exact-head, overlay, and 12-test Python
