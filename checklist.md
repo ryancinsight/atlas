@@ -60,7 +60,8 @@
       progress, RITK #130 has active/queued Python and test jobs, RITK #131 has
       active/queued jobs plus an external analysis error, and stacked #132 has
       no required workflow result plus that external error. CFDrs #338 is
-      superseded by merged #339/#340 on its default; Kwavers #363 remains open.
+      closed as superseded by merged #339/#340 on its default; Kwavers #363
+      remains open.
 - [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
       Atlas gitlinks to their exact merged provider defaults.
 - [ ] Run exact-head hosted validation for every changed caller and re-audit

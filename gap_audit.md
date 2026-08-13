@@ -85,7 +85,7 @@ integration.
 CFDrs is an external integrator outside the twenty-provider list. Its fetched
 `origin/main` `905648a5` now carries the current Atlas SHA, the pinned
 linkcheck2 toolchain, and `target/book/cfdrs/html` through merged PRs #339 and
-#340; the older #338 remains open but is superseded. Kwavers `origin/main`
+#340; the older #338 is closed as superseded. Kwavers `origin/main`
 `7fee848d` still carries the stale SHA, so its open #363 remains an integration
 residual even though the Atlas gitlink now matches that fetched default.
 
@@ -96,10 +96,10 @@ leto #111, hephaestus #207, coeus #327, apollo #90, hermes #39, iris #13,
 CFDrs #338, and kwavers #363. A file audit found only `.github/workflows/**`
 changes in all 22 PRs. Seventeen merged after hosted checks and their fetched
 defaults now carry the current SHA. The remaining workflow-only PRs are Consus
-#27, Helios #53, RITK #130, the superseded CFDrs #338, and Kwavers #363. Consus,
-Helios, RITK, and Kwavers still require provider-owned completion; CFDrs is
-complete on its default through #339/#340. The external `recurseml/analysis`
-status remains a separate hosting status rather than code evidence.
+#27, Helios #53, RITK #130, and Kwavers #363. Consus, Helios, RITK, and Kwavers
+still require provider-owned completion; CFDrs is complete on its default
+through #339/#340. The external `recurseml/analysis` status remains a separate
+hosting status rather than code evidence.
 
 The initial PR commits used the short `@4c31dd7` reference and all 22 reusable
 workflow runs failed before job creation with a workflow-file error. Forward
@@ -122,8 +122,8 @@ clippy, alignment, and wheel jobs active or queued plus the external
 `recurseml/analysis` error; stacked RITK #132 has no required workflow result
 and the same external status error. These are not merge evidence.
 
-CFDrs #338 remains open as a superseded PR, but its fetched default is current
-and passes the book output-path contract through merged #339/#340. Kwavers #363
+CFDrs #338 is closed as a superseded PR; its fetched default is current and
+passes the book output-path contract through merged #339/#340. Kwavers #363
 remains open against a default that still carries the stale workflow SHA.
 
 The superseded CFDrs #338 failure was a caller/output contract mismatch, not a

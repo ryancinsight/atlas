@@ -88,8 +88,8 @@
   #131 remains open with active or queued provider jobs plus the external
   `recurseml/analysis` error; stacked #132 has no required workflow result and
   the same external status error. CFDrs `origin/main` now passes the book
-  output-path contract through merged PRs #339/#340; the original #338 remains
-  open but is superseded. Kwavers #363 remains open while its default still
+  output-path contract through merged PRs #339/#340; the original #338 is
+  closed as superseded. Kwavers #363 remains open while its default still
   carries the stale workflow SHA.
 - Integration correction: root commit `06339c8` briefly staged the peer
   checkout HEADs for Hyperion and Tyche instead of their fetched defaults;
@@ -100,10 +100,9 @@
   derived checkout state. The result is not a clean committed-head gate and
   the baseline is intentionally unchanged; rerun from a clean exact-head
   checkout before treating any provider debt count as a merge decision.
-- External integrator residual: CFDrs #338 has one failed hosted check. The
-  caller passes `target/book/cfdrs`, but its non-optional linkcheck2 renderer
-  writes HTML under `target/book/cfdrs/html`; the exact correction is posted
-  on the PR. The CFDrs checkout is peer-owned, so Atlas does not edit it here.
+- External integrator residual: CFDrs #338's failed hosted check is closed as
+  superseded. Merged #339/#340 corrected the full pin, linkcheck2 installer,
+  and `target/book/cfdrs/html` output path on CFDrs `origin/main`.
 - Root test-harness cleanup: repository-wide `unittest` discovery exposed an
   incorrect top-level import in the scattered-container classifier test; the
   test now imports the checked-in `scripts` module by package path. Discovery
@@ -5272,13 +5271,13 @@ epospollo`, so both paths are the same tree. That is
   (`target/book/cfdrs`, `target/book/helios`, `target/book`,
   `target/book/ritk`); each package's Pages deployment succeeds once through the
   shared workflow.
-- **Hosted residual 2026-08-13:** CFDrs run `31716368183` failed during the
-  shared build because `book.toml` declares a non-optional `[output.linkcheck2]`
-  renderer and the pinned Atlas workflow `d875348` did not install it. Root
-  commits `042e448` and `4c31dd7` add the opt-in installer and pin the stable
-  Rust toolchain before `cargo install`. CFDrs PR #338 carries the corrected
-  full root pin and `mdbook-linkcheck2-version: 0.12.2`; its current hosted
-  runs remain active, so the repair is not yet green evidence.
+- **Hosted residual 2026-08-13, closed:** CFDrs run `31716368183` failed during
+  the shared build because `book.toml` declares a non-optional
+  `[output.linkcheck2]` renderer and the pinned Atlas workflow `d875348` did
+  not install it. Root commits `042e448` and `4c31dd7` added the opt-in
+  installer and pinned the stable Rust toolchain before `cargo install`. CFDrs
+  PRs #339/#340 merged the full root pin, `mdbook-linkcheck2-version: 0.12.2`,
+  and `target/book/cfdrs/html`; obsolete PR #338 was closed after verification.
 - Helios `31716457700` and Kwavers `31716399219` now have successful Deploy
   mdBook conclusions at their recorded provider heads. RITK `31716974169`
   remains queued at the historical head `f98a9191`, so RITK still requires a
