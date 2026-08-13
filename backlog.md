@@ -60,7 +60,8 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | ATLAS-COEUS-BACKEND-045 | `HephaestusBackend<P>` never implements `MatmulOps`/`PoolOps`/`UnfoldFoldOps`, so Metal and ROCm are partial backends — and that gap is why CUDA (7 390 lines) and WGPU (8 897) forked into hand-written per-op shims while Metal and ROCm need only 122 and 126 lines. `ComputeBackend` is also sealed via a `pub` `private::Sealed` module, so the seal is both prohibited and cosmetic. | [arch] | `HephaestusBackend<MetalProvider>: BackendOps<f32>` compiles; cuda and wgpu `src` each drop below 1 000 lines; parity suites unchanged |
 | ATLAS-CFDRS-SCALAR-046 | Eight parallel `*Scalar` seam traits for one role (`Cfd1dScalar`, `Cfd2dScalar`, `Cfd3dScalar`, `ValidationScalar`, `VofScalar`, `LevelSetScalar`, `NetworkSolveScalar`, `ResistanceScalar`) — `VofScalar` and `LevelSetScalar` have character-identical bound lists inside one crate — plus 7 duplicated `scalar.rs` helper modules and **23 private copies of `from_f64`**, each the identical one-line delegation. This is the root of the fake generic at `cfd-3d/src/spectral/diagnostics.rs:352`. | [minor] | `rg 'trait \w*Scalar' crates/` → 1; `rg -c 'fn from_f64' crates/` ≤ 1; `rg 'fn to_f64' crates/` → 0 |
 | ATLAS-RITK-VIEWS-047 | `Image` has **no view, region, window, chunk or iterator API**, and ritk contains zero GATs across 1771 files. The only routes to pixel data are a fallible whole-buffer `data_slice()` or a whole-volume copy, so every filter takes the entire flat buffer or clones. Downstream: 7 parallel data accessors, 3 parallel coordinate-transform families, and three heap allocations **per output voxel** in `interpolation/.../linear/mod.rs:124-126`. | [arch] [major] | A lending seam with `type Item<'a>`; ≤2 data accessors on `Image`; one coordinate-transform family; a rewritten filter shows no whole-volume copy under dhat |
-| ATLAS-LETO-TILES-048 | `Tiles` (`iter/lending.rs:157-186`) is the only `LendingIterator` in leto, but it holds `&'a [T]` and a `Copy` `Layout<N>` and builds its item exactly as `ExactChunks` (`chunks.rs:100-112`) does from a plain `Iterator`. Narrowing the item to `'this` buys nothing and **costs `IntoIterator`, `.zip`, `.enumerate`, `.rev` and any Moirai bridge** — the composition tiled kernels in kwavers and CFDrs need. | [minor] | `Tiles` is a plain `Iterator<Item = ArrayView<'a, T, N>>`; a test zips, enumerates and par-bridges it; the gratuitous `T: Copy` bound is gone |
+| ATLAS-LETO-TILES-048a | `Tiles` (`crates/leto/src/application/iter/lending.rs`) is the only `LendingIterator` in leto, but it holds `&'a [T]` and a `Copy` `Layout<N>` and builds its item exactly as `ExactChunks` (`chunks.rs:100-112`) does from a plain `Iterator` — the item borrows from the same `'a` slice the iterator does, so narrowing to `'this` buys nothing while **costing `IntoIterator`, `.zip`, `.enumerate`, `.rev`, `ExactSizeIterator` and any Moirai bridge**. Upstream `508962d` added `TaskPartitionsMut` as a second in-repo precedent for the target shape. | [minor] | `Tiles` is a plain `Iterator<Item = ArrayView<'a, T, N>>` with justified `ExactSizeIterator`/`DoubleEndedIterator`; a test zips, enumerates and collects it and asserts values on a ragged edge; `T: Copy` gone |
+| ATLAS-LETO-TILES-048b | **Split out because deleting `LendingIterator` is a cross-repo break, not the bundled cleanup first assumed.** The trait is publicly exported and consumed outside leto: `kwavers/crates/kwavers/examples/tiled_kspace_processing.rs:52` imports it and calls `count_remaining()`, which has **no `Iterator` equivalent** — consumers migrate to `.count()`/`ExactSizeIterator::len()`. CFDrs book docs also name it. Sequence upstream-first per the co-evolution protocol: migrate kwavers, then delete. | [major] | `rg 'LendingIterator' repos/` returns nothing outside leto's own history; the kwavers example builds and its `#[test]` passes; `cargo-semver-checks` classifies the removal | ATLAS-LETO-TILES-048a |
 | ATLAS-LETO-SVD-049 | Two SVD paths whose distinguishing justification has evaporated: ADR 0005 chose Jacobi for rank revelation *versus the Gram path*, and the Gram path was deleted, while `svd/bidiagonal_qr.rs:394` already states the surviving path handles rank deficiency. leto is the stack's declared linalg SSOT. | [major] | `svd/jacobi.rs` deleted, `pinv` on the bidiagonal path, existing oracle suite green unchanged, ADR 0005 rewritten with a dated revision note, net line delta negative |
 | ATLAS-APOLLO-API-050 | `apollo-fft/src/api` carries 140 public fns of which **68 are exact concrete/`_typed` twin pairs**, and `stockham/avx/` forks the scalar dimension as a *directory pair* (`precise/` Complex64 vs `reduced/` Complex32, ~2300 lines) using quality labels the naming prohibition bans. Root cause: no single scalar seam — `eunomia::RealField` appears twice in 834 files while 10+ parallel scalar-role traits exist. | [major] | ADR selects one scalar seam; `rg 'pub fn \w*_typed' crates/apollo-fft/src/api` → 0; no `precise`/`reduced` directories |
 | ATLAS-MOIRAI-BOUNDED-051 | `Moirai::channel()` (`moirai/src/runtime.rs:342`) — the discoverable, un-suffixed API — returns an **unbounded** channel; the bounded form carries the longer name. Preallocation is inverted (`mpmc/channel.rs:25-29`: the bounded path uses `VecDeque::new()`, the unbounded one `with_capacity(16)`). Untimed `Condvar::wait` at `scheduler/core.rs:225,233` and `mpmc/channel.rs:133,188`. | [minor] | `rg 'channel::unbounded' moirai/src/` → 0; a test asserts a full channel blocks or errors rather than growing |
@@ -146,6 +147,31 @@ ownership, rescue any unique commits or dirty state into `repos/ritk`, then
 **Acceptance oracle:** `git -C repos/ritk worktree list` shows at most two
 entries, no entry is under `repos/`, and no unique commit is lost (verified by
 `git log --oneline` on the reclaimed branch before removal).
+
+## ATLAS-CONFORMANCE-WORKTREE-080 — The ratchet scans the working tree, not a revision [patch] — open 2026-08-13
+
+`scripts/atlas-conformance.py` walks the filesystem, so its counts include
+**uncommitted work in progress** — a peer's or an agent's. That makes the
+number non-reproducible from a revision and the gate noisy on a shared tree.
+
+Observed directly during the 2026-08-13 sweep: immediately after the hermes
+docs commit the ratchet reported `hermes/missing_deny_docs: 1 -> 5`. The commit
+touched no `src/lib.rs` at all; a peer was concurrently editing four `lib.rs`
+files to drop `#![deny(missing_docs)]`, uncommitted. HEAD had the attribute,
+the worktree did not, and the scan reported the worktree. Four of the seven
+regressions in that run were the same class — in-flight peer or agent work,
+plus two from newly-synced upstream code (athena gained a workflow without
+`timeout-minutes`; leto gained files past the 500-line target).
+
+Consequence: a local `check` cannot distinguish committed debt from someone
+else's half-finished edit, so a red result is not actionable without manual
+triage — exactly what a mechanical gate exists to avoid. CI is unaffected
+because it scans a clean checkout, which is also why this went unnoticed.
+
+**Acceptance oracle:** the scan takes an explicit revision (default `HEAD`) and
+reads blobs through `git`, or it refuses to run against a dirty tree unless
+`--worktree` is passed; running `check` twice with an unrelated uncommitted
+edit present yields identical counts.
 
 ## Deferred with a recorded reason
 
