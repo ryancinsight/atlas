@@ -4210,9 +4210,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-LETO-CONVOLUTION-012** Close provider convolution contract (2026-08-13) — `7172b338`, `a722fbc8`, `aabdec67`, `a4063be1`
 - **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
 - **ATLAS-PROVIDER-INTEGRATION-006** Twenty-provider exact-head re-audit
-  (2026-08-13) — in progress; Horae is integrated at `c42d1b4`, and the
-  remaining exact-head residual is Leto's local ahead-of-origin work under
-  `ATLAS-LETO-PEER-WIP`.
+  (2026-08-13) — in progress; Horae is integrated at `c42d1b4`. Themis,
+  Mnemosyne, and Consus are under hosted provider review, while Leto remains
+  peer-owned local ahead-of-origin work under `ATLAS-LETO-PEER-WIP`.
 - **ATLAS-LIVE-HEAD-SWEEP-008** Reconcile moving provider defaults (2026-08-12) — `1ad581971d2528e12c0c815fe30e87ce6c121d80`, `578514314bec51815e763f5a8103500bb9498c32`
 - **ATLAS-HEPHAESTUS-REFRESH-007** Integrate cross-entropy PM closeout (2026-08-12) — `9385686ec29fc5a2d168d967df3fae254760aa4b`
 - **ATLAS-PROVIDER-DRIFT-005** Post-merge exact-head convergence (2026-08-12) — `93dbc563`, `32524e37b7697dd37f3cb3b28ee570aa4d0df199`, `e70f597`, `53bb01312222745325f20d36db95aab780ce39b3`
@@ -4229,7 +4229,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-HORAE-PROVIDER-DOCS-001** Complete Horae book closure (2026-08-11) — `03ad868`, `08cf292`
 - **ATLAS-HYPERION-PROVIDER-DOCS-001** Complete Hyperion book closure (2026-08-11) — `b8a1124`, `9a8b7d8`
 - **ATLAS-PROTEUS-PROVIDER-DOCS-001** Complete Proteus book closure (2026-08-11) — `30e25f8`, `3d6021e`, `2918e5a`
-- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** nineteen-provider integration audit (2026-08-11) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`
+- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** nineteen-provider integration audit (closed 2026-08-11; Tyche (aka Tychee)) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`
 - **ATLAS-AEQUITAS-PROVIDER-DOCS-001** Complete Aequitas book closure (2026-08-11) — `681042b`, `11565d9`
 - **ATLAS-HEPHAESTUS-CLOSURE-001** Hephaestus expression-parity closure record (2026-08-11) — `407938b`, `d4d5906`, `aca9a5a8`, `971fab96`
 - **ATLAS-EUNOMIA-CLOSURE-001** Eunomia 0.8.0 closure record (2026-08-11) — `0c14c2e`, `184ba92`

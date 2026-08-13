@@ -5871,7 +5871,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-PROTEUS-PROVIDER-DOCS-001** Complete Proteus book closure [patch] (2026-08-10)
 - **ATLAS-HORAE-PROVIDER-DOCS-001** Complete Horae book closure [patch] (2026-08-11) — `03ad868`, `08cf292`
 - **ATLAS-AEQUITAS-PROVIDER-DOCS-001** Complete Aequitas book closure (2026-08-11) — `11565d9`, `681042b`
-- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** Audit nineteen Atlas providers [patch] (2026-08-11) — `b72d9f1`, `47863b1`, `47863b12aa0cd4e65cb9556b2c9bbf1353a5ee26`, `d272934`
+- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** Audit nineteen Atlas providers [patch] (closed 2026-08-11; Tyche (aka Tychee)) — `b72d9f1`, `47863b1`, `47863b12aa0cd4e65cb9556b2c9bbf1353a5ee26`, `d272934`
 - **ATLAS-HEPHAESTUS-CLOSURE-001** Hephaestus expression-parity closure record (2026-08-11) — `407938b`, `d4d5906`, `df8a896`, `aca9a5a8`
 - **ATLAS-EUNOMIA-CLOSURE-001** Eunomia 0.8.0 provider closure record (2026-08-11) — `0c14c2e`, `184ba92`
 - **ATLAS-IRIS-CLOSURE-001** Iris IRIS-003 release-readiness record [chore] (2026-08-11) — `ab3eea2`
@@ -6069,4 +6069,3 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-RITK-TRACTOGRAPHY-011** ritk-tractography crate [minor] (2026-08-05)
 - **ATLAS-RITK-CONNECTOME-012** ritk-connectome crate [minor] (2026-08-05)
 - **ATLAS-MIGRATION-PATHDEP-001** Migrate kwavers, CFDrs, helios, ritk to local path deps [patch] (2026-08-03) — `b2ee610`, `c7c3678`
-
