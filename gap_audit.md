@@ -487,18 +487,25 @@ task-partition API was deliberately excluded after its branch conflicted with
 newer iterator APIs and remains a separate residual. PR #103 is closed as
 superseded because Hermes 0.6 is already in merged Leto default `a722fbc8`.
 
-## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions (2026-08-13)
+## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions — complete (2026-08-13)
 
-The merged Leto default exposes safe mutable element iterators but no
-provider-owned partition token for moving disjoint logical ranges to Moirai.
-The earlier candidate implementation also bundled unrelated iterator changes
-and conflicted with current default APIs, so it was not integrated. This item
-re-specifies only the missing vertical seam. The proof must validate storage
-bounds and logical-offset injectivity once, preserve negative and strided
-layouts, and prevent zero-stride aliasing before any mutable reference escapes.
-The adapter must consume each partition exactly once and surface executor
-errors; it must not recreate layout arithmetic or silently fall back to a host
-loop.
+Leto PR #109 (`508962df`) merged as default `39683975ff02d68abac8546b0bf945f4d70fc870`.
+The provider now validates storage reachability and logical-offset injectivity
+once, then yields allocation-free move-only const-rank partition tokens. The
+partition ranges preserve negative and strided logical order, reject zero-size
+chunks and broadcast aliasing before mutable references escape, and cover empty
+domains. The `leto-ops` adapter consumes each token exactly once through the
+existing Moirai runtime or the sequential policy and propagates executor
+errors; no consumer-owned layout arithmetic, host fallback, or compatibility
+adapter was added.
+
+Evidence: exact PR Rust verification `31714562863`, CodeRabbit review, and
+post-merge Rust CI `31715060346` plus Pages deployment `31715059328` pass at
+the final default head. Local Leto Nextest passed 286/286, Leto-ops
+all-features Nextest passed 527/527, strict Clippy, doctests, no-default
+all-target checking, formatting, and docs passed. Miri was unavailable for
+the pinned Windows GNU toolchain. Existing Leto-ops rustdoc-link warnings and
+the external recurseml analyzer error remain report-only residuals.
 
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default (2026-08-13)
 

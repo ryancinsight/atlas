@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Advance Leto to merged default `39683975` after PR #109 added provider-owned
+  disjoint mutable task partitions and the Moirai scheduler boundary. Exact
+  PR Rust verification `31714562863`, post-merge Rust CI `31715060346`, and
+  Pages deployment `31715059328` pass. Local Leto and Leto-ops Nextest passed
+  286/286 and 527/527; the external recurseml analyzer remains report-only.
+
 - Advance Leto to merged default `6e4a1627` after PR #96 replaced the
   production L-BFGS jagged history with a flat CSR-shaped ring and head
   eviction. Exact PR Rust run `31710403431`, post-merge Rust run

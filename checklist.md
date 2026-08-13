@@ -228,16 +228,23 @@
 - [ ] Residual: re-specify and deliver the task-partition API as a separate
       provider-owned increment; it was not included in this ring-buffer slice.
 
-## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions — in-progress 2026-08-13
+## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions — complete 2026-08-13
 
 - [x] Claim a canonical Leto lane from fetched default `6e4a1627`; preserve
       the peer-owned dirty main checkout.
-- [ ] Add the const-rank mutable partition proof and public re-exports.
-- [ ] Add sequential, strided, alias-rejection, empty, and boundary tests.
-- [ ] Add the Moirai adapter only against the provider-owned partition API;
+- [x] Add the const-rank mutable partition proof and public re-exports.
+- [x] Add sequential, strided, alias-rejection, empty, and boundary tests.
+- [x] Add the Moirai adapter only against the provider-owned partition API;
       retain explicit executor errors and no host fallback.
-- [ ] Run the provider's configured gates and exact-head hosted verification,
+- [x] Run the provider's configured gates and exact-head hosted verification,
       then advance the Atlas gitlink and synchronize this item.
+- [x] Merge Leto PR #109 (`508962df` → `39683975`); exact PR Rust
+      `31714562863`, post-merge Rust `31715060346`, and Pages
+      `31715059328` pass. External recurseml analysis remains report-only.
+- [x] Advance the root `repos/leto` gitlink to `39683975` without staging
+      peer-owned child checkout dirt. Miri remains unavailable on the pinned
+      Windows GNU toolchain; the residual provider rustdoc warnings predate
+      this slice.
 
 ## ATLAS-TYCHE-MULTIOUTPUT-017 — Generalize sensitivity estimators — complete 2026-08-13
 

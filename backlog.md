@@ -334,7 +334,7 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
   item; Leto PR #103 was independently closed as superseded because Hermes
   0.6 is already present in merged default `a722fbc8`.
 
-## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions [minor] — in-progress 2026-08-13
+## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions [minor] — complete 2026-08-13
 
 - Owner: Atlas integration.
 - Scope: `leto` const-rank mutable views and `leto-ops` scheduler boundary;
@@ -347,9 +347,19 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
   sequential and parallel policy paths update every element exactly once;
   strict format/check/Clippy/Nextest/doctest/docs gates pass at the merged
   provider head; no host fallback or adapter-owned layout proof remains.
-- Claim: Leto lane `D:\\atlas\\worktrees\\leto-task-partitions`; root PM
-  artifacts are the coordination surface. Child `repos/leto` main remains
-  peer-owned and dirty.
+- Evidence: Leto PR #109 source `508962df` merged as default
+  `39683975ff02d68abac8546b0bf945f4d70fc870`. The exact PR Rust verification
+  `31714562863` passed; CodeRabbit passed and the external recurseml analyzer
+  errored without affecting the required gate. Post-merge Rust CI
+  `31715060346` and Pages deployment `31715059328` passed at the merge head.
+- Local provider evidence: Leto Nextest 286/286 and Leto-ops all-features
+  Nextest 527/527 passed; strict Clippy, doctests, no-default-features
+  all-target checking, formatting, and documentation completed. Miri was
+  unavailable for the pinned Windows GNU toolchain; hosted CI supplied the
+  merge gate. Existing 39 Leto-ops rustdoc-link warnings remain outside this
+  slice.
+- Integration: root gitlink advanced to `39683975`; peer-owned `repos/leto`
+  working-tree dirt was not staged.
 
 ## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout [patch]
 
