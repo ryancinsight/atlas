@@ -1,5 +1,18 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LIVE-HEAD-SWEEP-026 — Reconcile twenty provider CI-pin defaults [patch] — in-progress
+
+- Owner: current session; scope: root `repos/*` gitlinks plus synchronized Atlas
+  PM evidence. Provider source, workflow, lock, and peer-owned working-tree
+  files are excluded.
+- Outcome: advance all twenty requested provider pointers to their fetched
+  default heads after the CI-only Atlas workflow-pin merges.
+- Acceptance: every candidate head is an ancestor extension of the committed
+  pointer; the delta contains only `.github/workflows/**` files; the exact-head,
+  requested-provider coherence, and lane audits pass after the root commit.
+  Hosted pin-advance runs remain evidence for the provider-owned CI, not a
+  reason to stage peer checkout dirt.
+
 ## ATLAS-USCT-FWI-024 — Transmission-USCT FWI parity [minor] — open 2026-08-13
 
 Audit and evidence: `gap_audit.md#atlas-usct-fwi-024`. kwavers leads the
@@ -4897,7 +4910,7 @@ epospollo`, so both paths are the same tree. That is
   vocabulary point — admitting a width is one `impl` line and every generic test
   inherits it.
 
-## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — in-progress
+## ATLAS-PUB-001 — Migrate 8 crate-release workflows to the Atlas-shared caller [patch] — blocked: fresh Kwavers current-default validation
 
 - Owner: current session (Atlas coordination); scope: root publication records and
   exact default-branch evidence for
@@ -4977,6 +4990,8 @@ epospollo`, so both paths are the same tree. That is
   validation exists yet for the current default after the git-source lock
   repair. Coeus publish-stage failure is the external registry gate owned by
   ATLAS-PUB-003, not a caller-validation failure.
+- Re-open trigger: fresh Kwavers `workflow_dispatch` validation run
+  `31717782458` completes successfully at current default `7fee848d`.
 - Practical note for the remaining slices: pass `version` from the workspace
   table, not a grep of the member manifest. Members use
   `version.workspace = true`, so a naive extraction sends the literal string
