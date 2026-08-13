@@ -111,6 +111,28 @@ workflow emits HTML at `target/book/cfdrs/html`; the caller currently passes
 `target/book/cfdrs` and the shared post-build check therefore fails. The exact
 caller correction was posted on the PR; the CFDrs checkout remains peer-owned.
 
+## ATLAS-KW-FWI-STRANDED-027 — FWI-024-A is delivered but not on kwavers main (open 2026-08-13)
+
+The kwavers shared tree moved to `codex/kwavers-floatelement-roots`, so the
+frequency-domain FWI files there no longer show the curvature-scaled step
+(`model_minimizer_step` absent, `hessian_vector` back in `gauss_newton.rs`).
+That reads as a revert and is not one: commit `912fe1983` is intact on
+`origin/cascade/provider-042` — both halves verified present on that branch tip
+— and a peer's `git switch` moves the shared tree's branch for everyone.
+
+The issue is delivery, not loss. `cascade/provider-042` is unmerged, has
+advanced under other work since, and FWI-024-A reaches kwavers `main` only when
+that branch merges. Not merged here: it is a peer's branch carrying their work
+alongside one commit of mine, and carrying my commit is not sufficient reason to
+integrate theirs. Recorded as integration debt, with that branch's merge as the
+re-open trigger.
+
+Two process notes from the same session. The recorded shared-tree branch-switch
+memory held — the surprise was diagnosed from it rather than mistaken for peer
+data loss. And verification for coeus-dependent crates was blocked twice by one
+peer's uncommitted mnemosyne refactor, which stalls every gate downstream of
+coeus in the stack; worth raising with that owner if it recurs.
+
 ## ATLAS-US-A3-BLOCKER-026 — Scan-conversion migration is an [arch] change, not a [minor] one (open 2026-08-13)
 
 Recorded while starting US-023-A3. Three findings, the first two decisive.
