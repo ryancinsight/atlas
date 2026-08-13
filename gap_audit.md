@@ -205,6 +205,37 @@ documentation, and integration gate with no `AsyncFacadeUnavailable` marker or
 deferred-module claim. The active Consus checkout is peer-owned and dirty, so
 Atlas records the residual without editing provider source.
 
+## ATLAS-US-A3-OVERLAY-029 — A3 is blocked by the shared ritk tree's branch (open 2026-08-13)
+
+US-023-A5 and A7 are merged to ritk `main` (PRs #132, #133), so the geometry
+seam kwavers needs now exists. A3 still cannot be implemented, for a structural
+reason rather than a design one.
+
+The Atlas development overlay patches every first-party ritk crate — including
+`ritk-spatial` — to the canonical tree at `repos/ritk`:
+
+```toml
+[patch."https://github.com/ryancinsight/ritk"]
+ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
+```
+
+That tree is currently checked out on `codex/ritk-floatelement-roots`, which does
+not contain `origin/main` — `crates/ritk-spatial/src/coordinate_map.rs` is absent
+from it entirely. So anything in kwavers that depends on `ritk_spatial::CurvilinearArray`
+resolves against a tree where the type does not exist, and A3 can be neither
+compiled nor verified.
+
+Not resolved here. The tree is shared: `git switch` moves the branch for every
+agent using it (this session already saw that happen twice, on both kwavers and
+ritk), so re-pointing it is a coordination action, not a unilateral one. The
+overlay itself must target canonical main trees and never a lane, so pointing it
+at this session's ritk worktree is also not an option.
+
+Unblocks when `repos/ritk` is on a branch containing `origin/main` — either the
+peer's branch merges/rebases forward, or the tree returns to `main`. A3 is
+otherwise ready: the design question it was blocked on (A7) is settled and
+merged, and the remaining work is small.
+
 ## ATLAS-US-A3-FAN-028 — ritk's curvilinear fan cannot express kwavers' asymmetric fan (open 2026-08-13)
 
 Found starting US-023-A3, by reading both inverse maps rather than assuming
