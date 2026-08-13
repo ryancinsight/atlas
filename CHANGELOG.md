@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Advance Apollo to merged default `fc564896` after PR #83 converged the
+  shared WGPU validation surface and real Mnemosyne branded-slice integration
+  test. Duplicate GFT validators were removed; the `mnemosyne-memory` lock
+  edge and benchmark candidate-manifest synchronization were completed.
+  Exact PR Rust/Python run `31708004091`, benchmark run `31708004087`,
+  post-merge CI `31708720285`, and Pages deployment `31708718632` pass.
+
 - Advance Coeus to merged default `72372c91` after PR #320 removed the
   host-side batched Frobenius-norm fold. Provider square, last-two-axis
   reduction, square root, and batch reshape now remain in the provider graph;

@@ -1,5 +1,24 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-APOLLO-VALIDATION-020 — Shared WGPU validation and Mnemosyne boundary (closed 2026-08-13)
+
+Apollo PR #83 source `a725fe81027f54ee83e56fa72d731b8e2e3f97f1` merged as
+default `fc5648964c8194447ef5deea43a8aa9c0dae7c63`. The shared transform
+validation contract now owns non-empty plan, operand length, and typed storage
+profile checks; Apollo GFT calls that provider-owned surface and its duplicate
+validators are deleted. Apollo validation also executes a real Mnemosyne
+branded-slice boundary and asserts the resulting values.
+
+The lockfile includes the new `mnemosyne-memory` dev-dependency edge. The
+benchmark workflow copies the candidate `apollo-validation/Cargo.toml` when it
+copies the candidate lockfile, preventing baseline-manifest/lock mismatch.
+Exact PR Rust/Python run `31708004091` and benchmark run `31708004087` pass;
+post-merge CI `31708720285` and Pages deployment `31708718632` pass. The
+Atlas Apollo gitlink records the fetched merged default. Local `--locked`
+verification in the lane was limited by the intentional ancestor Atlas
+development overlay; hosted clean-checkout gates are authoritative for that
+claim.
+
 ## ATLAS-COEUS-NORM-019 — Provider-owned batched Frobenius norm closure (closed 2026-08-13)
 
 Coeus PR #320 source `96d8166c3d683eaaf67e45b8bad0c34e33d8b405` merged as

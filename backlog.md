@@ -1,5 +1,23 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-APOLLO-VALIDATION-020 — Converge shared WGPU validation and Mnemosyne boundary [patch] — complete 2026-08-13
+
+- Apollo PR #83 source `a725fe81027f54ee83e56fa72d731b8e2e3f97f1` merged as
+  default `fc5648964c8194447ef5deea43a8aa9c0dae7c63`; the Atlas gitlink is
+  advanced to that fetched default head without switching the peer-owned
+  Apollo checkout.
+- Shared WGPU plan, length, and storage-profile validation is now provider-
+  owned by `apollo-fft` and consumed by `apollo-gft`; duplicated local
+  validators were removed. The validation suite now exercises a real
+  Mnemosyne branded-slice boundary with value-semantic assertions.
+- The affected Cargo lock edge and benchmark instrument were completed: the
+  benchmark baseline receives the candidate validation manifest before using
+  the candidate lockfile, so both revisions satisfy `--locked` resolution.
+- Exact PR runs `31708004091` (Rust and Python) and `31708004087` (benchmark)
+  passed. Exact post-merge CI `31708720285` and Pages deployment
+  `31708718632` passed. CodeRabbit passed; no hardware or performance claim
+  beyond the repository-owned benchmark gate is made.
+
 ## ATLAS-COEUS-NORM-019 — Keep batched Frobenius norms provider-owned [patch] — complete 2026-08-13
 
 - Coeus PR #320 source `96d8166c3d683eaaf67e45b8bad0c34e33d8b405` merged as

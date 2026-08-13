@@ -1,5 +1,23 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-APOLLO-VALIDATION-020 — Converge shared WGPU validation and Mnemosyne boundary — complete 2026-08-13
+
+- [x] Rebase Apollo PR #83 onto current default, remove the already-upstream
+      Hermes dependency-only commit, and merge source `a725fe81` as default
+      `fc5648964c8194447ef5deea43a8aa9c0dae7c63`.
+- [x] Replace the Apollo GFT-local plan, length, output, and precision checks
+      with the shared Apollo FFT provider-owned validation surface; retain
+      typed value assertions for empty plans, length mismatches, and storage
+      profiles.
+- [x] Add the real Mnemosyne branded-slice integration boundary with value
+      assertions, add the missing `mnemosyne-memory` lock edge, and repair the
+      benchmark instrument to copy the affected candidate validation manifest.
+- [x] Verify exact PR runs `31708004091` (Rust/Python) and `31708004087`
+      (benchmark), plus exact post-merge CI `31708720285` and Pages
+      deployment `31708718632`; all pass.
+- [x] Advance the Atlas Apollo gitlink to the fetched merged default without
+      staging peer-owned child-repository changes.
+
 ## ATLAS-COEUS-NORM-019 — Keep batched Frobenius norms provider-owned — complete 2026-08-13
 
 - [x] Rebase Coeus PR #320 onto current default, retain the provider-owned
