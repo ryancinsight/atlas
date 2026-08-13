@@ -1,5 +1,32 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-AEQUITAS-ROOT-OPS-012 — Land aequitas rational-power sqrt/cbrt increment [feat]
+
+- Owner: Atlas integration.
+- Outcome: the pre-existing scalar-operator WIP (MulAssign/DivAssign, scalar
+  * quantity) was already merged upstream via PR #21 (commit `dd0b8e1`,
+  merge `0052b80`) with 9 value-semantic tests — verified complete in the
+  current aequitas default; no further action needed for that axis. The
+  remaining in-flight worktree WIP — type-level `SqrtDimension`/
+  `CbrtDimension` plus `Quantity::sqrt`/`cbrt` through the `FloatElement`
+  power surface — was reconciled with concurrent peer edits and landed as a
+  completed, tested increment on `codex/aequitas-root-ops-closure`
+  (`72ef8b4`): concrete exponent-tuple impls (8 sqrt shapes, 3 cbrt
+  shapes), module wiring, 12 value-semantic tests, CHANGELOG, and review
+  corrections (number-density tuple accuracy, `Div`-projection doc,
+  `float_cmp` lint). All canonical gates green: fmt, `-D warnings`
+  all-targets check, clippy `-D warnings` all-targets/`--all-features`,
+  nextest 80/80, doctests 13/13, `--no-default-features` check.
+- Status: delivered; aequitas branch pushed. Cargo.lock tooling residue
+  (config-level `[patch]` overlay drift) left as pre-existing dirt.
+- Tracked follow-ups (outside this increment): (1) SSOT — eunomia
+  `FloatElement` should gain a libm-backed sign-preserving `cbrt`
+  (`libm::cbrtf`/`libm::cbrt`) so aequitas can drop the `powf(1/3)` path
+  and its NaN-for-negatives caveat; (2) semantics-marked dimensions
+  (`ReciprocalVolume`, `Angle`) currently lack sqrt/cbrt impls because the
+  tuples target `BaseSemantics`; (3) a sign-preserving cbrt in aequitas
+  for negative operands if a consumer needs it.
+
 ## ATLAS-TYCHE-REFRESH-011 — Reconcile merged Tyche PM closeout [patch]
 
 - Owner: Atlas integration.
