@@ -53,6 +53,15 @@ on:
         required: false
         default: ""
         type: string
+      mdbook-linkcheck2-version:
+        description: >-
+          Exact `mdbook-linkcheck2` version to install. Set this when the
+          book's `book.toml` declares an `[output.linkcheck2]` backend: mdbook
+          fails the render outright when a declared backend is missing, so the
+          binary has to be present rather than optional.
+        required: false
+        default: ""
+        type: string
       atlas-ref:
         description: >-
           Exact Atlas commit owning the provider gitlink graph. Set only when
@@ -96,6 +105,16 @@ jobs:
           echo "$PWD" >> "$GITHUB_PATH"
           export PATH="$PWD:$PATH"
           mdbook --version
+
+      - name: Install mdbook-linkcheck2
+        if: inputs.mdbook-linkcheck2-version != ''
+        shell: bash
+        env:
+          LINKCHECK2_VERSION: ${{ inputs.mdbook-linkcheck2-version }}
+        run: |
+          set -euo pipefail
+          cargo install mdbook-linkcheck2 --version "$LINKCHECK2_VERSION" --locked
+          mdbook-linkcheck2 --version
 
       - name: Check out exact Atlas path dependencies
         if: inputs.mdbook-test && inputs.atlas-ref != ''
