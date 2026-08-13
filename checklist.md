@@ -1,5 +1,20 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis over scattered directions — complete 2026-08-13
+
+- [x] Confirm Apollo PR #69 source `33a40bcee4532c9c1a03fee7cef2d852b3419090`
+      merged as `db2186650f2e0889555120e6a1491ad93897409e` and the
+      Laplace--Beltrami follow-up remains in the provider default.
+- [x] Verify current Apollo default `36f2f3645610e7c1a681e15f709f70f7e14c1f27`
+      through exact hosted run `31684967756`: Rust workspace and Python
+      binding jobs pass at PM source `be4408d188313e9072e180ae1d214f3aca458997`.
+- [x] Verify RITK source `53bb01312222745325f20d36db95aab780ce39b3` consumes
+      the real basis and pins implementation provider commit
+      `f1e21c524f8d1834bcd03c0adb5dbe9486a615d3`; the current Apollo change is
+      PM-only, so no consumer code or lock change is required.
+- [x] Preserve the earlier SemVer limitation: dependency rustdoc failed before
+      API comparison; no unsupported compatibility claim is made.
+
 ## ATLAS-CONSUS-TEST-API-001 — Make cross-format integration tests consume real Consus APIs — complete 2026-08-13
 
 - [x] Create one bounded Consus lane from exact `origin/main`; preserve the

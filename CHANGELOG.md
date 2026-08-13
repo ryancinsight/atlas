@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Advance Apollo to provider default `36f2f364`. The real symmetric spherical-
+  harmonic basis and scattered-direction design matrix are now recorded as
+  integrated with RITK's diffusion and tractography consumers; the exact
+  current-default hosted Rust/Python verification is `31684967756`.
+
 - Merge Consus cross-format test closure PRs #24 and #25. Cross-format
   integration tests now call provider-owned HDF5, Zarr, NetCDF, and in-memory
   contracts directly with deterministic value-semantic fixtures; hosted run

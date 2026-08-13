@@ -1,5 +1,21 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis closure (closed 2026-08-13)
+
+Apollo PR #69 delivered the real even-order orthonormal spherical-harmonic
+basis and scattered-direction design matrix; its source
+`33a40bcee4532c9c1a03fee7cef2d852b3419090` merged as
+`db2186650f2e0889555120e6a1491ad93897409e`. The Laplace--Beltrami follow-up
+is also present in the provider default. Exact current-default PM verification
+source `be4408d188313e9072e180ae1d214f3aca458997` passed Apollo's Rust
+workspace and Python binding jobs in hosted run `31684967756`; provider default
+is `36f2f3645610e7c1a681e15f709f70f7e14c1f27`. RITK source
+`53bb01312222745325f20d36db95aab780ce39b3` uses the real basis in diffusion
+and tractography and pins implementation commit `f1e21c524f8d1834bcd03c0adb5dbe9486a615d3`.
+The current Apollo delta is PM-only, so no RITK lock refresh is needed. SemVer
+remains an unavailable evidence tier because dependency rustdoc failed before
+API comparison; registry publication remains outside this implementation item.
+
 ## ATLAS-CONSUS-TEST-API-001 — Cross-format test API closure (closed 2026-08-13)
 
 The stale cross-format tests were migrated directly to the provider-owned HDF5

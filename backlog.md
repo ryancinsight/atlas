@@ -12343,7 +12343,7 @@ skipped by workflow policy, so physical-device execution remains external.
   iteration count.
 - **Class**: `[minor]`, repository `repos/coeus`.
 
-## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis over scattered directions [minor] — review
+## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis over scattered directions [minor] — complete 2026-08-13
 
 **Delivered in two parts, by different agents.** A peer landed the basis,
 `evaluate`/`evaluate_at_direction`, and the scattered-direction `design_matrix`
@@ -12360,7 +12360,17 @@ with entries `l²(l+1)²`. Degree zero carries zero penalty, leaving the isotrop
 component unshrunk. Formulation per Descoteaux et al., *MRM* 58(3), 2007, §2.3.
 
 Verified at `112d378`: 42/42 `apollo-sht` tests, `RUSTDOCFLAGS=-D warnings cargo
-doc` clean, clippy clean in the changed files.
+doc` clean, clippy clean in the changed files. Apollo source
+`33a40bcee4532c9c1a03fee7cef2d852b3419090` merged through PR #69 as
+`db2186650f2e0889555120e6a1491ad93897409e`; the Laplace--Beltrami follow-up
+is present in the later provider default. Exact current-default hosted run
+`31684967756` for PM closure `be4408d188313e9072e180ae1d214f3aca458997`
+passed the Rust workspace and Python binding jobs; provider default is
+`36f2f3645610e7c1a681e15f709f70f7e14c1f27`. RITK source
+`53bb01312222745325f20d36db95aab780ce39b3` consumes the API and pins the
+implementation provider commit `f1e21c524f8d1834bcd03c0adb5dbe9486a615d3`.
+The RITK pin needs no API re-resolution because the current Apollo delta is
+provider PM-only.
 
 **Watchpoint, not owned here**: `cargo clippy -p apollo-sht --all-targets -D
 warnings` fails on two pre-existing `clippy::missing_const_for_thread_local`
