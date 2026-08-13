@@ -88,6 +88,10 @@
 - [x] Helios PR #50 merged at `f118214e`; Rust workspace, Python bindings, and
       the four-replication benchmark regression gate pass at exact head
       `04fcf46`.
+- [x] Close the stale provider backlog state through Helios PR #51: PM source
+      `f7ca5dad16bb7c36781bcefe4c90c21377f06110` merged as default
+      `f108dc9b3cf7cc94212fa574219594eab2a0bc4f`; exact-head hosted run
+      `31686100896` passes Rust, Python, and the phase-reversed benchmark gate.
 - [x] Reconcile H-020b in `CHECKLIST.md` with the delivered
       `LeafOpenTimeSinogram`/`MlcModel`; remove stale deferred/todo claims for
       H-020b, H-020h, H-004b, H-010, and H-011c.

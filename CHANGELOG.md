@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Advance Helios to provider default `f108dc9b`. The stale H-098 provider PM
+  record is closed; exact-head hosted run `31686100896` passes Rust, Python,
+  and the phase-reversed benchmark regression gate.
+
 - Advance Apollo to provider default `36f2f364`. The real symmetric spherical-
   harmonic basis and scattered-direction design matrix are now recorded as
   integrated with RITK's diffusion and tractography consumers; the exact

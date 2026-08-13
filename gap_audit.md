@@ -106,6 +106,13 @@ was the root cause of the prior benchmark-gate failure. Helios remains open on
 H-004d (external RITK orientation tag), H-011d (exact Siddon/oriented
 projection), and H-012 (GPU projector).
 
+The stale provider backlog row was closed by Helios PR #51. Its PM source
+`f7ca5dad16bb7c36781bcefe4c90c21377f06110` merged as default
+`f108dc9b3cf7cc94212fa574219594eab2a0bc4f`; hosted run `31686100896` passed
+the Rust workspace, Python bindings, and phase-reversed benchmark regression
+gate at the exact source head. The recurring `recurseml/analysis` failure is
+external analyzer noise and is not counted as a repository-owned gate.
+
 ## ATLAS-COEUS-CLOSURE-014 — Coeus provider and optimizer closure (2026-08-13)
 
 Coeus PR #323 merged at `d591220053586247ed3e9b344133281617055a2e`.

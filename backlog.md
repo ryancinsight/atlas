@@ -83,6 +83,10 @@
 - Owner: Atlas integration. Helios PR #50 merged at
   `f118214e5f3da231b8b48ef8e2ea15450544f1de` after exact-head hosted Rust,
   Python, and benchmark-regression checks passed.
+- Provider PM closure: Helios PR #51 source
+  `f7ca5dad16bb7c36781bcefe4c90c21377f06110` merged as default
+  `f108dc9b3cf7cc94212fa574219594eab2a0bc4f`; hosted run `31686100896`
+  passes the exact-head Rust, Python, and phase-reversed benchmark gates.
 - Outcome: `CHECKLIST.md` now records delivered H-020b
   `LeafOpenTimeSinogram`/`MlcModel` as resolved and retains only H-004d, H-011d,
   and H-012 in that open-scope section. The workflow accepts the valid
