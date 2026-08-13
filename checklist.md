@@ -1,5 +1,17 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence — in progress
+
+- [ ] Refresh the Mnemosyne gitlink from `93dbc563` to fetched `origin/main`
+      `32524e37b7697dd37f3cb3b28ee570aa4d0df199`.
+- [ ] Refresh the RITK gitlink from `e70f597` to fetched `origin/main`
+      `53bb01312222745325f20d36db95aab780ce39b3`; preserve the peer checkout
+      on `ritk-blocker-rebase` and its dirty `Cargo.lock`.
+- [ ] Add exact-head audit mode with `origin/master` support and regression
+      coverage; run the structural and exact-head checks after the refresh.
+- [ ] Record hosted success for Mnemosyne run `31656036812` and RITK runs
+      `31654697918`, `31654697898`, and `31654707025`.
+
 ## ATLAS-PROVIDER-INTEGRATION-004 — Twenty-provider audit and cleanup — complete 2026-08-12
 
 - [x] Re-fetch all requested provider remotes and verify every Atlas gitlink
