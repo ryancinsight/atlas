@@ -13,7 +13,7 @@
 - Result: all twenty candidates were ancestor extensions and every delta was
   limited to CI workflow pin files. Root pointers now resolve to the fetched
   defaults: horae `72505426`, hyperion `3fb9e785`, themis `abc94782`, tyche
-  `fd41d8ed`, proteus `08a42744`, mnemosyne `f9596eb5`, consus `8cf015a9`,
+  `fd41d8ed`, proteus `08a42744`, mnemosyne `6d3618d0`, consus `8cf015a9`,
   helios `54000a65`, aequitas `7ff87e62`, asclepius `a798e4f8`, eunomia
   `6c02d10d`, moirai `e3056e12`, ritk `c608f758`, melinoe `2d9696e9`, leto
   `f208dbaa`, hephaestus `6724547b`, coeus `d5f044dd`, apollo `3ea6292d`,
@@ -25,6 +25,9 @@
 - Post-sweep reconciliation: ritk PR #128 subsequently merged as `c608f758`
   and the Atlas gitlink was advanced in `0a8b9cf`; this was a merged feature
   integration, not part of the CI-only sweep above.
+- Post-sweep reconciliation: Mnemosyne PR #47 merged the segment-header race
+  fix as `6d3618d0`; the exact-head audit caught the drift and Atlas advanced
+  the gitlink in the follow-up integration commit.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
 

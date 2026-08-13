@@ -9,7 +9,7 @@ changes (no source, manifest, or lock changes). Atlas advanced the twenty
 gitlinks without staging peer-owned checkout dirt:
 
 `horae=72505426`, `hyperion=3fb9e785`, `themis=abc94782`, `tyche=fd41d8ed`,
-`proteus=08a42744`, `mnemosyne=f9596eb5`, `consus=8cf015a9`, `helios=54000a65`,
+`proteus=08a42744`, `mnemosyne=6d3618d0`, `consus=8cf015a9`, `helios=54000a65`,
 `aequitas=7ff87e62`, `asclepius=a798e4f8`, `eunomia=6c02d10d`,
 `moirai=e3056e12`, `ritk=c608f758`, `melinoe=2d9696e9`, `leto=f208dbaa`,
 `hephaestus=6724547b`, `coeus=d5f044dd`, `apollo=3ea6292d`,
@@ -23,6 +23,11 @@ queued/open where not yet complete.
 RITK PR #128 then merged as `c608f758`; Atlas reconciled that post-sweep
 feature merge in root commit `0a8b9cf`. The phased-array follow-on is tracked
 separately under US-023-A2 and is not included in this closed CI-only sweep.
+
+Mnemosyne PR #47 subsequently merged the segment-header race fix as
+`6d3618d0`. The exact-head audit detected the new default before closeout, and
+Atlas is advancing the gitlink in the current reconciliation commit; this
+provider-source merge is separate from the workflow-only caller PR #48.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Requested-provider caller pins (open 2026-08-13)
 
