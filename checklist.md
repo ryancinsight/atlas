@@ -58,9 +58,9 @@
 - [x] Review the remaining workflow-only diffs; no new P0/P1 finding is present
       in Consus #27, Helios #53, RITK #130, or CFDrs #338.
 - [x] Record the current hosted state: Consus #27 has queued/in-progress jobs
-      without a failure conclusion, Helios #53 has its benchmark job in
-      progress, RITK #131 merged at `9ae68b45`, and stacked #132 is open against
-      `main` with no required workflow result plus the external analysis error.
+      without a failure conclusion, Helios #53 merged at `1e165406`, RITK #131
+      merged at `9ae68b45`, and stacked #132 is open against `main` with no
+      required workflow result plus the external analysis error.
       CFDrs #338 is
       closed as superseded by merged #339/#340 on its default; Kwavers #363
       remains open.
