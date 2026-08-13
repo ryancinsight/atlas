@@ -5062,6 +5062,23 @@ time, so it is recorded as its own item rather than re-diagnosed each session.
   Option (b) is the recommendation: an uncommitted edit is not a published
   state, and the overlay currently makes it one for the whole stack.
 - **Class**: `[arch]` if (b) is taken, since it revises the development overlay.
+- **Fourth occurrence 2026-08-13 falsifies option (c).** Verifying one RITK
+  branch, four consecutive attempts minutes apart each failed in a *different*
+  upstream repo: `eunomia` (duplicate `PartialEq` — macro added before the
+  manual impls were removed), `apollo-fft` (`BLUESTEIN_NATIVE_PHASE_TRIG` used
+  in impls before the trait declared it), `eunomia` again (`FloatElement`
+  gaining an `Accumulator` associated type, trait ahead of impls), and
+  `consus-hdf5` (arity mismatch mid-signature-change). Every one is a normal
+  half-finished edit; none is a defect.
+  Option (c) assumed churn localizes to the repos an agent is near, so a
+  narrowed overlay would dodge it. It does not: the churn was spread across
+  four repos the RITK branch never touched, and narrowing enough to avoid them
+  would exclude most of the stack, which defeats the overlay. That leaves (a)
+  and (b), and (b) remains the recommendation.
+  Retrying is also not free-but-harmless: because the failing crate *moves*,
+  a green run is a peer-quiet window rather than evidence, so a consumer needs
+  a retry loop that distinguishes upstream churn from its own redness before
+  any result means anything.
 
 ## Wave -1 — peer contention, not RITK work (recorded 2026-07-30)
 
