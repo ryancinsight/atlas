@@ -5639,14 +5639,40 @@ assumed. Verified: clippy `--all-targets -D warnings` clean, 106/106 unit and
 phantom tests, 11/11 real-data tests, figure reproduces byte-for-byte from the
 committed source, `mdbook build` clean and the figure reaches the built output.
 
-**CLAIMED 2026-08-13, owner=claude-dmri-cli**: `ritk dwi tensor` as the first
-CLI vertical slice. Scope: `crates/ritk-cli/src/commands/dwi/` plus the
-`Commands` enum in `crates/ritk-cli/src/main.rs` and `ritk-cli/Cargo.toml` — no
-other file. Acceptance: `ritk dwi tensor --dwi <nii> --bval <f> --bvec <f>
---fa <out>` writes an FA map whose values match `estimate_dti` computed
-directly, asserted on a synthetic volume with a known tensor; `--md` and
-`--pev` likewise; malformed inputs return typed errors, not panics. `tract`
-and the Python surface stay unclaimed.
+**Claim released 2026-08-13 after scoping — the CLI is blocked on a missing
+library API, not on CLI work.** `ritk dwi tensor` cannot be written against
+`estimate_dti` alone. Producing a usable scalar map needs three things the
+example `book_brain_tractography.rs` already implements and the library does
+not expose: a background mask from the b = 0 volume's upper percentile
+(without it a tensor fitted to air produces a bright noise rim that dominates
+the FA range), degenerate-fit rejection on physical diffusivity bounds
+(a rank-one fit is positive-definite, passes a sign check, and drives FA to 1),
+and the per-voxel fit loop itself. Writing the command directly would copy
+~40 lines of that logic into `ritk-cli`, which is the duplication defect —
+the example would then be the second implementation of a library concern.
+
+**Therefore the next increment is a library one, not a CLI one:**
+
+`ATLAS-DMRI-CLI-018` — Scalar-map API in `ritk-diffusion` [minor], todo, DoR
+complete:
+- **Outcome**: `ritk_diffusion::maps` fits a tensor field over a whole volume
+  and derives the standard DTI scalar maps (FA, MD, AD, RD) plus the principal
+  eigenvector field, with the mask and rejection policy as configuration rather
+  than caller-copied constants.
+- **Acceptance**: on a synthetic volume with a known tensor, each map matches
+  the value computed from `estimate_dti` directly; a voxel below the mask floor
+  and a voxel with a rank-one fit are both excluded; `book_brain_tractography.rs`
+  is rewired onto the API and its published figure still reproduces
+  byte-for-byte, which is the regression oracle.
+- **Non-goals**: the CLI command, vector-image output, `tract`.
+- **Then** `ATLAS-DMRI-CLI-019` — `ritk dwi tensor` becomes a thin argument
+  parser over that API, and its scalar outputs are `Image<f32, _, 3>` values
+  `write_image_inferred` already handles.
+
+**Note for whoever takes 018**: the principal-eigenvector field is vector-valued
+and `ritk-cli`'s `write_image_inferred` takes `Image<f32, _, 3>`, so exposing
+PEV through the CLI needs 4-D or multi-file output. That is a separate item —
+the scalar maps do not depend on it.
 
 **CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
 groups and `ritk-python` exposes no diffusion surface. They are independent
