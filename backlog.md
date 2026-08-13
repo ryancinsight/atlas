@@ -112,6 +112,12 @@ trigonometry there, and narrows back to `T`. These are merge-blocking findings;
 the Atlas ritk gitlink remains at the last merged default until PR #131 is
 fixed and its hosted gate completes.
 
+US-023-A3 audit note: the current kwavers `ScanConverter` accepts an arbitrary
+`angle_min`, while the RITK curvilinear map centers the fan from the image beam
+count. The cutover must either preserve that acquisition convention through a
+validated map parameter or reject non-centred geometry before deleting the
+converter; the existing bilinear differential remains the acceptance oracle.
+
 ## ATLAS-HEPHAESTUS-REDUCTION-022 — Retire superseded product-axis parity PR [patch] — complete 2026-08-13
 
 - Hephaestus PR #113 was rebased onto current `master`; its product-axis

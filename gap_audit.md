@@ -212,7 +212,9 @@ is in PR #131 at `9c29e9ff` and remains blocked in review. The review found that
 legacy scalar/batch transform surfaces still bypass the map, non-Cartesian
 branches ignore image origin/direction metadata, and generic scalar arithmetic
 widens to `f64` before narrowing. Slice-series remains absent, and kwavers' leaf
-scan converter still awaits migration and deletion. Owner: ritk (it owns
+scan converter still awaits migration and deletion; its current `angle_min`
+parameter is more general than the centered-fan convention in the RITK map and
+must be reconciled before deletion. Owner: ritk (it owns
 `Image` and the spatial transform stack); kwavers consumes it.
 
 **G3 — Speckle-reducing anisotropic diffusion (SRAD).** Absent.
