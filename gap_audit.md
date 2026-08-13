@@ -4040,6 +4040,22 @@ the old overlay-stripped lock state; a current-default post-repair validation
 is still required. Coeus' publish-stage registry failure is external
 ATLAS-PUB-003 state, not a reusable-caller defect.
 
+### Book caller recheck — shared-backend residual open 2026-08-13
+
+The four fetched book defaults are Atlas callers with the expected output
+paths. CFDrs run `31716368183` failed at the shared `mdbook build`: its
+`book.toml` declares a non-optional `[output.linkcheck2]` renderer, while the
+Atlas workflow pinned by that caller at `d875348` did not install the backend.
+The current uncommitted shared-workflow diff adds an input and cargo installer,
+but it still requires a pinned Rust-toolchain prerequisite before it is valid
+hosted evidence. After that peer-owned change lands, CFDrs must advance its
+caller pin and pass `mdbook-linkcheck2-version: 0.12.2`.
+
+Helios run `31716457700` and Kwavers run `31716399219` completed their build
+jobs successfully but their Pages deploy jobs remain queued. RITK run
+`31716974169` remains queued at its build job. None is a green deployment
+claim.
+
 ### Non-findings
 
 - Wheel publication is already consolidated: Atlas owns `python-wheels.yml` as a
