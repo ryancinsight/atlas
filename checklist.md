@@ -1,5 +1,35 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default — complete 2026-08-13
+
+- [x] Confirm Moirai PM closeout PR #125 merged as `ae9a5dfb` after all
+      repository-owned checks passed; the recurring `recurseml/analysis`
+      status remains an external analyzer error seen on prior merged PRs.
+- [x] Advance the root Moirai gitlink to `ae9a5dfb` and rerun the exact-head
+      and coherence audits without staging peer-owned submodule changes.
+- [x] Confirm the current inventory contains all twenty requested providers,
+      including Hermes and the normalized Tyche (aka Tychee) name.
+
+## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults — complete 2026-08-12
+
+- [x] Verify Mnemosyne exact-head CI at `1ad581971d2528e12c0c815fe30e87ce6c121d80`.
+      CI `31660997275` and Pages `31660996629` pass.
+- [x] Verify Hermes exact-head CI at `578514314bec51815e763f5a8103500bb9498c32`.
+      CI `31661101443` and Pages `31661100631` pass; benchmark smoke passes
+      within its committed budget.
+- [x] Refresh both root gitlinks without staging peer-owned provider changes.
+- [x] Run exact-head, coherence, and lane audits after the refresh.
+
+## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout — complete 2026-08-12
+
+- [x] Verify exact-head hosted WGPU, CUDA, ROCm, and Metal success at the
+      merged Hephaestus default head `9385686ec29fc5a2d168d967df3fae254760aa4b`.
+- [x] Advance the Atlas `repos/hephaestus` gitlink without staging its
+      peer-owned dirty `Cargo.lock`.
+- [x] Run the exact-head root audit and record the merged provider PM closure.
+      Provider runs: WGPU `31660774170`, CUDA `31660774171`, ROCm
+      `31660774190`, and Metal `31660774178`.
+
 ## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence — complete 2026-08-12
 
 - [x] Refresh the Mnemosyne gitlink from `93dbc563` to fetched `origin/main`

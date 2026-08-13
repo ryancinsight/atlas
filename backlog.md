@@ -1,5 +1,42 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default [patch]
+
+- Owner: Atlas integration.
+- Outcome: advance the Moirai gitlink to the merged PM-closeout head and
+  synchronize the exact-head evidence for the full twenty-provider inventory.
+- Scope: root `repos/moirai` gitlink plus current Atlas checklist/backlog/gap
+  audit records; peer-owned Moirai checkout edits remain untouched.
+- Status: complete; Moirai PR #125 merged as `ae9a5df`, the root gitlink now
+  records that exact default, and the twenty-provider exact-head audit passes.
+
+## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults [patch]
+
+- Owner: Atlas integration.
+- Outcome: refresh the root gitlinks for provider defaults that advanced after
+  the preceding exact-head check and preserve current hosted evidence.
+- Scope: root `repos/mnemosyne` and `repos/hermes` gitlinks plus synchronized
+  Atlas PM records; provider source, locks, and peer-owned checkouts are
+  excluded.
+- Acceptance: Mnemosyne `1ad5819` and Hermes `5785143` exact-head hosted CI
+  passes; both committed gitlinks match fetched defaults; the root exact-head,
+  coherence, and lane audits pass.
+- Status: complete after exact-head CI; the pointer and evidence commit are
+  delivered in this integration increment.
+
+## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout [patch]
+
+- Owner: Atlas integration.
+- Outcome: advance the Hephaestus root gitlink and root evidence after the
+  provider merged its cross-entropy PM closeout.
+- Scope: root `repos/hephaestus` gitlink and synchronized Atlas PM records;
+  preserve the provider checkout's peer-owned dirty `Cargo.lock`.
+- Acceptance: fetched `origin/master` hosted WGPU, CUDA, ROCm, and Metal runs
+  pass at the merged provider head; the root gitlink equals that head; the
+  provider PM closure and exact-head root checks are recorded.
+- Status: complete at provider head `9385686`; the Atlas pointer and evidence
+  are delivered in this integration increment.
+
 ## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence [patch]
 
 - Owner: Atlas integration.

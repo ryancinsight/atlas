@@ -1,5 +1,42 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default (2026-08-13)
+
+Moirai PR #125 merged as `ae9a5dfb7a56c64b471338d9f9d859db7b52d9fe`. Its
+repository-owned checks passed, including the Rust binding checks and Linux,
+macOS, and Windows wheel smoke tests; the recurring `recurseml/analysis`
+status errored as on earlier merged Moirai PRs. The fetched Moirai default is
+now recorded by the Atlas gitlink. The local Moirai checkout's dirty
+`Cargo.lock` and reactor source remain peer-owned and are not part of this
+increment.
+
+The final exact-head audit covers Horae, Hyperion, Themis, Tyche (aka Tychee),
+Proteus, Mnemosyne, Consus, Helios, Aequitas, Asclepius, Eunomia, Moirai, RITK,
+Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. All twenty
+providers are active in `.gitmodules`, the committed gitlinks match their
+fetched default heads, and the requested-scope coherence audit is clean.
+
+## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults (2026-08-12)
+
+The root exact-head audit found two provider defaults moving during the
+Hephaestus integration: Mnemosyne advanced to `1ad581971d2528e12c0c815fe30e87ce6c121d80`
+for its occupancy-provenance safety fix, and Hermes advanced to
+`578514314bec51815e763f5a8103500bb9498c32` after the benchmark push-gate
+merge. Their CI runs `31660997275` and `31661101443` pass; Pages runs
+`31660996629` and `31661100631` pass. Root gitlinks now match both exact
+heads. Hermes's merged benchmark smoke also passed within its committed
+budget; its push path now executes the smoke tier while retaining full
+measurements for pull requests and manual runs.
+
+## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout (2026-08-12)
+
+Hephaestus PR #203 merged the provider-side cross-entropy PM closeout. The
+default branch advanced from `bc6dfcf` to `9385686e`; post-merge WGPU, CUDA,
+ROCm, and Metal runs `31660774170`, `31660774171`, `31660774190`, and
+`31660774178` all pass. Atlas now records the exact `9385686e` gitlink; the
+provider checkout's dirty lockfile is peer-owned and remains outside this root
+slice.
+
 ## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence (2026-08-12)
 
 The fetched provider remotes advanced after the prior integration closure:
