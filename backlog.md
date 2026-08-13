@@ -26,6 +26,16 @@ the test-region classes where they belong (`existence_only_assertions`
 598 → 807, `sleep_synced_tests` 117 → 132). **Every burn-down target recorded
 before this fix was aimed by a broken instrument and must be re-derived.**
 
+## Landed from this sweep (2026-08-13)
+
+| ID | Commit | Note |
+| --- | --- | --- |
+| ATLAS-APOLLO-FAKEGEN-036 | apollo `5749d104` | **Premise corrected.** The item claimed downstream f32 tolerances were derived against an f64-accumulated reference. False: every `dft_inverse` call site passes `Complex64`, where f64 accumulation *is* native precision, so no shipped result was wrong and no tolerance changed. The defect was latent — a trap for the first `Complex32` caller — and is closed with a derived-bound test plus a bitwise test, the latter being what actually discriminates a widened accumulator. Reclassified `[patch]` → **`[major]`**: closing it deleted `precise_re`/`precise_im` and `BLUESTEIN_NATIVE_PHASE_TRIG` from the public `KernelScalar`. |
+| ATLAS-EUNOMIA-F64-SPECIALS-062 | eunomia `329fe85` | Confirmed as filed. Measured pre-fix error: `log10(2.0)` 1.43e-8, `lgamma(5.0)` 2.56e-8. |
+| ATLAS-EUNOMIA-SUBBYTE-ORD-063 | eunomia `329fe85` | **Worse than filed.** With `Bf8::MIN_VALUE = 0xFC`, `max_scalar(MIN_VALUE, x)` returned `-Inf` for every finite `x` — a Max reduction over `Bf8` returned its own seed for all input. The fix also consolidated the hand-written `F16`/`Bf16` impls into one macro instead of adding four more copies. |
+| ATLAS-EUNOMIA-ACCUMULATOR-064 | eunomia `329fe85` | Landed as `[minor]`, not breaking: `FloatElement` is sealed by a `pub(crate)` supertrait, so no out-of-crate implementor can exist. |
+| ATLAS-LETO-TILES-048a | leto `7f80044` | `ExactSizeIterator` **did not hold as written** — `next` used `offset_of(...).ok()?`, which terminates early and would make `len()` lie. Fixed at the root with a constructor validation carrying its proof, rather than by declining the trait. |
+
 ## Tier 0 — unsoundness and wrong numbers shipping
 
 | ID | Outcome | Class | Acceptance oracle |
@@ -5626,6 +5636,16 @@ committed source, `mdbook build` clean and the figure reaches the built output.
 **CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
 groups and `ritk-python` exposes no diffusion surface. They are independent
 vertical increments and should be claimed separately.
+
+**`codex/ritk-model-coeus-publishability` is fully superseded — do not rescue
+it.** The branch still exists locally with 32 commits absent from `origin/main`,
+which reads like stranded work. It is not: its content landed as squash
+`5bb1fc3a`, and the only files unique to it are
+`test_data/diffusion/ds002087_repo` and `ds004666_repo` — undeclared submodule
+gitlinks (mode 160000 with no `.gitmodules` entry) that were deliberately
+removed from the squash. Merging or cherry-picking from this branch would
+reintroduce exactly that defect. Recorded because the commit count invites a
+rescue attempt that would be wrong.
 
 **Found while delivering, not yet fixed**: `SUMMARY.md` lists `diffusion_mri.md`
 as "Diffusion MRI Physics and the Signal Equation" while the chapter's own H1 is
