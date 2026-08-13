@@ -5205,12 +5205,15 @@ epospollo`, so both paths are the same tree. That is
 - **Hosted residual 2026-08-13:** CFDrs run `31716368183` failed during the
   shared build because `book.toml` declares a non-optional `[output.linkcheck2]`
   renderer and the pinned Atlas workflow `d875348` did not install it. Root
-  commit `042e448` adds the opt-in installer; the follow-up root change pins
-  the stable Rust toolchain before `cargo install`. The CFDrs caller must still
-  advance its Atlas pin and pass `mdbook-linkcheck2-version: 0.12.2`.
-- Helios `31716457700` and Kwavers `31716399219` completed their build jobs but
-  their Pages deploy jobs remain queued; RITK `31716974169` remains queued at
-  its build job. These runs do not close the item until deployment completes.
+  commits `042e448` and `4c31dd7` add the opt-in installer and pin the stable
+  Rust toolchain before `cargo install`. CFDrs PR #338 carries the corrected
+  full root pin and `mdbook-linkcheck2-version: 0.12.2`; its current hosted
+  runs remain active, so the repair is not yet green evidence.
+- Helios `31716457700` and Kwavers `31716399219` now have successful Deploy
+  mdBook conclusions at their recorded provider heads. RITK `31716974169`
+  remains queued at the historical head `f98a9191`, so RITK still requires a
+  current-pin run after its caller PR merges. The four current caller PRs must
+  still merge and produce fresh deployment evidence before this item closes.
 
 ## ATLAS-PUB-003 — Register trusted publishers and remove the unused PyPI token [chore] — todo
 

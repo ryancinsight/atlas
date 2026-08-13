@@ -1780,11 +1780,14 @@ list, and the scaffold count. The deletion ledger for SUBSTRATE-002 is roughly
       CFDrs is the only caller requiring the optional `linkcheck2` input.
 - [x] Land the shared-workflow linkcheck2 installer and its pinned Rust
       prerequisite after hosted run `31716368183` exposed the missing backend.
-- [ ] Advance the CFDrs caller pin, pass version `0.12.2`, and rerun its Pages
-      workflow.
-- [ ] Collect the queued deployment states for Helios `31716457700`, Kwavers
-      `31716399219`, and RITK `31716974169`; build success is not deployment
-      success.
+- [ ] Merge CFDrs PR #338 at its corrected full-SHA head, passing
+      `mdbook-linkcheck2-version: 0.12.2`, and rerun its Pages workflow.
+- [x] Collect Helios `31716457700` and Kwavers `31716399219`: both Deploy
+      mdBook runs completed successfully at their recorded provider heads.
+- [ ] Re-run the RITK Pages workflow after its caller pin merges; the historical
+      run `31716974169` remains queued and is not current-head evidence.
+- [ ] Collect the current-pin hosted runs for the four book callers after the
+      workflow-only PRs merge; active/queued checks are not green evidence.
 - [x] Delete each duplicated workflow body in the same change that adds its
       caller — never keep both.
 
