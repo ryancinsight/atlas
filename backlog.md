@@ -1,5 +1,19 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-US-CAPABILITY-023 — ITKUltrasound capability parity [arch] — open 2026-08-13
+
+Audit and evidence: `gap_audit.md#atlas-us-capability-023`. Items are
+DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
+
+| ID | Outcome | Class | Status | Owner | Acceptance oracle |
+|----|---------|-------|--------|-------|-------------------|
+| US-023-A | ADR: non-Cartesian acquisition images as a coordinate seam in ritk (curvilinear, 3-D phased array, slice series) — index→physical map carried by the image type so existing resamplers/filters apply unchanged; decide ritk-vs-kwavers ownership for G2 and G4. | [arch] | todo | — | ADR accepted with a recommended option, blast radius over `ritk-image`/`ritk-spatial` enumerated, and the kwavers scan-conversion migration path stated |
+| US-023-B | QUS spectral tissue characterization: windowed 1-D power spectra with a support-window seam, reference-phantom normalization/averaging, backscatter parameters (midband fit, spectral slope, spectral intercept), and spectral-difference attenuation estimation. | [minor] | todo | — | Recovers known slope/intercept/attenuation from a synthesized RF phantom with an analytically derived tolerance; differential check against the forward scattering/attenuation physics kwavers already models |
+| US-023-C | SRAD (Yu & Acton) speckle-reducing anisotropic diffusion in `ritk-filter/src/diffusion/`, reusing `smoothing/box_sigma` for the instantaneous coefficient of variation. | [minor] | todo | — | Value-semantic parity against the published formulation on a speckled phantom; edge-preservation asserted against Perona–Malik on the same input |
+| US-023-D | Block-matching elastography framework: metric-image seam (direct/FFT NCC), displacement-calculator seam (max-pixel, parabolic, cosine, optimizing, Bayesian-regularized, strain-window), multi-resolution search-region sources and block-radius calculators, end-to-end displacement pipeline. Consolidate the existing kwavers NCC + parabolic kernel into it — no second copy. | [arch] [minor] | blocked: depends on US-023-A ownership decision | — | Recovers a known applied displacement/strain field on a simulated compression sequence within a derived bound; existing `thermal_strain/tracking.rs` callers migrated, old path deleted |
+| US-023-E | Directional 1-D FFT frequency-domain filter over N-D images with a pluggable frequency-response function seam (Butterworth bandpass as first implementation). | [minor] | todo | — | Round-trip and analytical passband/stopband response asserted per axis; existing `FrequencyFilter` 1-D path consolidated onto it |
+| US-023-F | Ultrasound IO: HDF5 ultrasound layout and a special-coordinates-aware reader. | [minor] | blocked: depends on US-023-A image types | — | Round-trips an acquisition with its non-Cartesian geometry preserved |
+
 ## ATLAS-HEPHAESTUS-REDUCTION-022 — Retire superseded product-axis parity PR [patch] — complete 2026-08-13
 
 - Hephaestus PR #113 was rebased onto current `master`; its product-axis

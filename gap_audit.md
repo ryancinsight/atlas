@@ -1,5 +1,99 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-US-CAPABILITY-023 — kwavers/ritk capability audit vs ITKUltrasound (open 2026-08-13)
+
+Reference: `KitwareMedical/ITKUltrasound` at `master`, enumerated from its own
+tree (63 public headers under `include/`, plus the 1D FFT filters it upstreamed
+into ITK proper). Method: header enumeration via the GitHub tree API, then
+per-capability verification by reading the corresponding kwavers/ritk sources —
+keyword census alone was treated as a locator, not as evidence, per the
+recorded name-collision pattern in `repos/kwavers/gap_audit.md`.
+
+Scope note. ITKUltrasound is an **image formation and analysis** module: it
+starts from acquired RF and ends at displayed/quantified images. kwavers is a
+**simulation** stack that also owns the RF back-end; ritk is the **image
+processing/registration** stack. Several ITKUltrasound classes are therefore
+correctly absent from kwavers (they are ritk-shaped) and vice versa. The
+verdicts below record the *stack* gap, and name the owning repo.
+
+### Present — no gap
+
+| ITKUltrasound | Our implementation |
+|---|---|
+| `AnalyticSignalImageFilter` | `kwavers-signal/src/analytic.rs::hilbert_transform` (single SSOT, Apollo-backed) |
+| `BModeImageFilter` | `kwavers-analysis/.../b_mode/detection.rs::{envelope, log_compress}` |
+| `TimeGainCompensationImageFilter` | `kwavers-analysis/.../b_mode/tgc.rs::TgcConfig` |
+| `BoxSigmaSqrtNMinusOneImageFilter` | `ritk-filter/src/smoothing/box_sigma.rs` (+ `local_noise.rs`) |
+| `LinearLeastSquaresGradientImageFilter` | `kwavers-physics/.../elastography/thermal_strain/strain.rs::least_squares_strain` (axial/1D) |
+| `BlockMatchingParabolicInterpolationDisplacementCalculator` | `.../thermal_strain/tracking.rs::parabolic_subsample` |
+| `SpecialCoordinatesImageToVTKStructuredGridFilter` (VTK sink half) | `ritk-vtk/src/domain/vtk_data_object/structured_grid.rs` |
+| clFFT/FFTW 1D FFT backends | Apollo/`kwavers-gpu` FFT providers (different provider, same role) |
+
+### Partial
+
+| ITKUltrasound | State | Missing part |
+|---|---|---|
+| `CurvilinearArraySpecialCoordinatesImage` | `kwavers-analysis/.../b_mode/scan_conversion.rs` converts sector **and** convex fans (typed `ScanGeometry.radius_offset`), 2-D, bilinear | It is a standalone resampling function, not a coordinate-system-carrying image type; 2-D only; no inverse (Cartesian→polar) direction |
+| `FrequencyDomain1DImageFilter` + `ButterworthBandpass1DFilterFunction` | `kwavers-analysis/.../filtering::FrequencyFilter` does FFT band/low/high-pass on 1-D lines; Butterworth exists as an IIR wall/clutter filter | No directional 1-D FFT filter over an N-D image, and no pluggable frequency-response function seam |
+| `HDF5UltrasoundImageIO`, `UltrasoundImageFileReader` | kwavers reads HDF5 only for the breast-UST phantom; ritk's HDF5 is MINC-specific | No ultrasound HDF5 layout, and no special-coordinates-aware reader |
+| BlockMatching displacement estimation | kwavers has NCC speckle tracking with parabolic sub-sample peak refinement (`thermal_strain/tracking.rs`, `elastography/displacement.rs`); ritk has an autodiff NCC **scalar** registration metric | See the block-matching gap below |
+
+### Gaps
+
+**G1 — Quantitative ultrasound (QUS) spectral tissue characterization.**
+Absent from both repos. ITKUltrasound provides
+`Spectra1DImageFilter`, `Spectra1DSupportWindowImageFilter`,
+`Spectra1DSupportWindowToMaskImageFilter`, `Spectra1DAveragingImageFilter`,
+`Spectra1DNormalizeImageFilter` (reference-phantom normalization),
+`BackscatterImageFilter` (midband fit, spectral slope, spectral intercept) and
+`AttenuationImageFilter` (spectral-difference local attenuation estimation).
+Verified absent: kwavers' `signal_processing/spectroscopy` is **photoacoustic
+spectral unmixing**; its `doppler/spectral.rs` PSD is Doppler, not RF windowed
+spectra; its `backscatter` hits are cavitation/scattering *forward* physics; its
+`attenuation` is a medium property **consumed** by the solver, never estimated
+from RF. This is the single largest coherent gap — an entire analysis pipeline,
+and the natural inverse of physics kwavers already models forward.
+
+**G2 — Non-Cartesian image types as a coordinate seam.** ITK models curvilinear,
+3-D phased-array and slice-series acquisitions as *image types* whose
+index→physical map is non-Cartesian, so every existing resampler, filter and
+registration method works on them unchanged. We have no such seam: scan
+conversion is a leaf function. Missing types:
+`PhasedArray3DSpecialCoordinatesImage` (+ its inverse scan conversion),
+`SliceSeriesSpecialCoordinatesImage` (wobbler/3-D-from-2-D-series), and the
+curvilinear type itself. Owner: ritk (it owns `Image` and the spatial
+transform stack); kwavers consumes it.
+
+**G3 — Speckle-reducing anisotropic diffusion (SRAD).** Absent.
+`ritk-filter/src/diffusion/` has Perona–Malik, curvature flow, min-max
+curvature flow; `ritk-filter/src/noise/speckle.rs` **adds** multiplicative
+speckle (ITK parity for `sitk.SpeckleNoise`) — the opposite direction. SRAD
+(Yu & Acton) needs the instantaneous coefficient of variation, for which
+`box_sigma` already supplies the local-sigma half. Owner: ritk.
+
+**G4 — Block-matching elastography framework.** ITKUltrasound's largest
+subsystem (34 headers) is a multi-resolution block-matching registration
+framework: metric *image* filters (direct NCC, FFT NCC, neighborhood-iterator
+NCC, generic image-to-image metric), a displacement-calculator seam
+(maximum-pixel, parabolic, cosine, optimizing-interpolation, Bayesian
+regularization, strain-window), multi-resolution search-region image sources
+(fixed, min-max, similarity-function, threshold-bounding-box), block-radius
+calculators, and an end-to-end `DisplacementPipeline`. We have the *kernel*
+(NCC + parabolic refinement) but none of the framework: no metric-image
+abstraction, no multi-resolution search-region strategy, no regularized or
+strain-windowed displacement calculators. Owner: split — the seam and
+registration machinery are ritk-shaped, the ultrasound-specific calculators
+kwavers-shaped; the placement decision is itself an ADR.
+
+**G5 — Ultrasound IO.** No ultrasound HDF5 IO, no special-coordinates-aware
+reader, no NRRD-sequence→video-stream path (`ritk-nrrd` exists but is
+volumetric). Owner: ritk.
+
+Residual risk: G1 and G4 are multi-item efforts; G2 is an `[arch]` decision
+that gates the clean form of G1/G4 (windowed spectra and block matching both
+want to run in acquisition coordinates). Board items are filed in
+`backlog.md`; no implementation has begun.
+
 ## ATLAS-HEPHAESTUS-REDUCTION-022 — Superseded product-axis parity audit (closed 2026-08-13)
 
 Hephaestus PR #113 was an older replay of product-axis parity already present
