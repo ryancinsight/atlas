@@ -94,16 +94,20 @@
 ## ATLAS-TYCHE-MULTIOUTPUT-017 — Generalize sensitivity estimators [minor] — complete 2026-08-13
 
 - Owner: Atlas integration.
-- Outcome: Tyche PR #18 merged at `4a6f8cd495c78beaaa6e4081705b33ed0da8be9e`.
+- Outcome: Tyche PR #18 source `dc96f5ecd6af643e34f2146b9f3dbb49ba85dbae`
+  merged at `4a6f8cd495c78beaaa6e4081705b33ed0da8be9e`; provider PM closure PR
+  #19 source `2d12dc5e2803a8208877026badfbb24578129da8` merged as current
+  default `af30ad23dc468349511dff9d1d34ab9b5ab58334`.
   `tyche-core` now parameterizes correlation, Morris, and Saltelli accumulation
   and reports by `OUTPUTS`, with the default `OUTPUTS = 1` specialization
   preserving existing scalar call sites.
 - Evidence: local format, warning-denied Clippy, Tyche core Nextest 48/48,
   doctests 17/17, warning-denied Rustdoc, and locked workspace all-target
   checking passed. The exact-head hosted `verify`, `supply-chain`, and mdBook
-  build checks passed; Pages deployment was skipped on the feature branch and
-  the recurring `recurseml/analysis` result remained an external analyzer
-  failure.
+  build checks passed; PM closure hosted `verify` and `supply-chain` run
+  `31685716202` passed at the exact PM source. Pages deployment was skipped on
+  the feature branch and the recurring `recurseml/analysis` result remained an
+  external analyzer failure.
 - Residuals: Tyche's versioned Consus study schema, trainable-model seam for
   ensemble bagging, and crates.io publication remain provider-owned or external
   release work and are not closed by this increment.

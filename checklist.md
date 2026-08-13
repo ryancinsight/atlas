@@ -128,7 +128,7 @@
 
 ## ATLAS-TYCHE-MULTIOUTPUT-017 — Generalize sensitivity estimators — complete 2026-08-13
 
-- [x] Confirm Tyche PR #18 merged at `4a6f8cd4`; provider `verify`,
+- [x] Confirm Tyche PR #18 source `dc96f5ec` merged at `4a6f8cd4`; provider `verify`,
       `supply-chain`, and mdBook build checks passed at the exact head. The
       Pages deployment was correctly skipped on the feature branch and the
       recurring `recurseml/analysis` result remains external.
@@ -138,9 +138,11 @@
 - [x] Confirm the two-output analytical and seeded laws, local 48/48 Nextest,
       17/17 doctests, strict Clippy, warning-denied Rustdoc, and locked
       workspace all-target check pass.
-- [x] Advance the root Tyche gitlink to the merged default and rerun the
-      exact-head, structural, and lane audits without staging peer-owned Tyche
-      checkout changes.
+- [x] Advance the root Tyche gitlink to merged default
+      `af30ad23dc468349511dff9d1d34ab9b5ab58334` (PM closure PR #19) and rerun
+      the exact-head, structural, and lane audits without staging peer-owned
+      Tyche checkout changes. PR #19 hosted `verify` and `supply-chain` pass at
+      source `2d12dc5e`; the external RecurseML analyzer remains report-only.
 - [ ] Keep the Tyche-owned versioned Consus study schema and trainable-model
       seam for ensemble bagging open; crates.io publication remains an external
       release gate.
