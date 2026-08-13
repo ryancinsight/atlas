@@ -69,6 +69,17 @@
 - [ ] Run exact-head hosted validation for every changed caller and re-audit
       the fetched defaults for stale pins.
 
+## ATLAS-KWAVERS-REAL-COMPUTE-028 — Kwavers identity-path audit
+
+- [x] Search the exact fetched Kwavers default for placeholder markers and
+      input-insensitive identity results.
+- [x] Confirm the realtime scan-conversion identity path and file it as
+      `KW-GPU-SCANCONV`.
+- [x] Confirm mixed-domain time/nonlinear identity paths, KZK retarded-time
+      identity, and PINN domain-adapter identity; record exact acceptance tests.
+- [ ] Implement and verify the provider-owned numerical replacements; do not
+      merge the workflow-only Kwavers #363 PR as if it resolved source defects.
+
 ## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift — open 2026-08-13
 
 - [x] Fix the Atlas generator classification: navigation `INDEX.md` and

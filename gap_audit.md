@@ -132,6 +132,38 @@ shared workflow emitted HTML at `target/book/cfdrs/html` while the old caller
 passed `target/book/cfdrs`. Merged PRs #339/#340 corrected the pin, installer,
 and output path on the default; the peer checkout remains preserved.
 
+## ATLAS-KWAVERS-REAL-COMPUTE-028 — Kwavers production identity paths (open)
+
+The exact fetched Kwavers default `origin/main` contains five production paths
+whose public operation names promise computation but return an unchanged input:
+
+- `crates/kwavers-gpu/src/gpu/pipeline/realtime.rs:242-243` —
+  `scan_conversion` returns `compressed.clone()`; the realtime pipeline reports
+  a scan-converted frame without applying a geometry transform. This is the
+  previously filed `KW-GPU-SCANCONV` finding.
+- `crates/kwavers-solver/src/forward/hybrid/mixed_domain.rs:158-169` — the
+  selected time-domain branch ignores grid, medium, and timestep and returns
+  `field.clone()`.
+- `crates/kwavers-solver/src/forward/hybrid/mixed_domain.rs:214-231` — the
+  nonlinear correction returns `field.clone()` while the source explicitly
+  defers the β/(2ρc³) operation to a future medium-interface change. The hybrid
+  path therefore produces only its linear result.
+- `crates/kwavers-solver/src/forward/nonlinear/kzk_solver_plugin/solver.rs:301-309`
+  — `apply_retarded_time` stores a time shift but returns the unshifted field;
+  no retarded-time resampling or phase operation occurs.
+- `crates/kwavers-solver/src/inverse/pinn/ml/transfer_learning/mod.rs:144-167`
+  — `DomainAdapter::new` creates no layers and `adapt` returns the input clone;
+  the source comments identify the domain-adaptation network as future work.
+
+These are correctness residuals, not optimization opportunities. The provider
+owner must implement the actual operations or narrow/remove the public seams,
+then add value-semantic tests: scan-conversion geometry against the existing
+CPU `ScanConverter`, mixed-domain manufactured propagation and nonlinear
+parameter sensitivity, retarded-time shift of a localized pulse, and transfer
+adaptation output dependence on adapter parameters. The active Kwavers checkout
+is peer-owned and dirty, so Atlas records the findings without editing those
+source files. Kwavers PR #363 is workflow-only and does not resolve this item.
+
 ## ATLAS-KW-FWI-STRANDED-027 — FWI-024-A is delivered but not on kwavers main (open 2026-08-13)
 
 The kwavers shared tree moved to `codex/kwavers-floatelement-roots`, so the
