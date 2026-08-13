@@ -1,5 +1,19 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence [patch]
+
+- Owner: Atlas integration.
+- Outcome: advance the two provider gitlinks that moved after the prior
+  integration closure and make the committed audit guard verify fetched
+  default heads when requested.
+- Scope: root `repos/mnemosyne` and `repos/ritk` gitlinks, the provider
+  integration audit script and its tests, and synchronized root PM records.
+  Provider source, locks, and peer-owned working-tree changes are excluded.
+- Acceptance: both gitlinks equal their fetched default heads (`32524e3` and
+  `53bb013`), exact-head mode detects mismatch and supports non-`main`
+  defaults, focused script tests pass, and the item records hosted evidence.
+- Status: in-progress; claimed 2026-08-12.
+
 ## ATLAS-PROVIDER-INTEGRATION-004 — Twenty-provider audit and cleanup [major]
 
 - Owner: Atlas integration plus provider-owned cleanup follow-ups.
