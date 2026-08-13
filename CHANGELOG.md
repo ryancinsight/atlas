@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Merge Consus cross-format test closure PRs #24 and #25. Cross-format
+  integration tests now call provider-owned HDF5, Zarr, NetCDF, and in-memory
+  contracts directly with deterministic value-semantic fixtures; hosted run
+  `31684429085` passes all 68 repository-owned jobs at the exact source head.
+
 - Merge Consus PR #23 (`b3ca01c2`) to close the FITS, HDF5, and NWB
   no-default storage boundaries. Alloc-backed modules, re-exports, tests, and
   benchmark surfaces are gated consistently; the exact-head hosted matrix

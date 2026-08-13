@@ -1,14 +1,18 @@
 # atlas — cross-repository integration gap audit
 
-## ATLAS-CONSUS-TEST-API-001 — Cross-format test API residual (in progress 2026-08-13)
+## ATLAS-CONSUS-TEST-API-001 — Cross-format test API closure (closed 2026-08-13)
 
-The residual remains real at Consus `origin/main` `b3ca01c21b2e9bad4c7b7dc23c47083ca79a3307`.
-`tests/cross_format_interop.rs` still calls `MemCursor::new(buffer)`,
-`Hdf5FileBuilder::new().build_writer(...)`, native `ZarrArray`/
-`ArrayMetadataV3` facades, and `NcFile::open`. These symbols or signatures do
-not match the provider-owned source contracts found by the API search. The
-closure is claimed as a provider test-scope migration in a fresh lane; the
-peer checkout's branch and dirty `Cargo.lock` remain outside the claim.
+The stale cross-format tests were migrated directly to the provider-owned HDF5
+builder/list/dataset APIs, canonical Zarr metadata/chunk operations, and the
+NetCDF writer/model boundary over deterministic in-memory HDF5 fixtures. The
+absent-file skip paths were removed; value-semantic assertions remain active.
+Provider source `a5b9cfdde4c789c237652e0d62c42ce8372005f5` merged as default
+`720233ab6e7fedb82399d28540f903a6b1e9a191`. Focused all-format Nextest 8/8,
+compression-inclusive 9/9, integration package all-features 42/42,
+warning-denied Clippy, no-default check, warning-denied Rustdoc, formatting,
+and diff checks passed locally. Hosted run `31684429085` passed all 68
+repository-owned jobs at the exact source head; the recurring external
+`recurseml/analysis` report remains analyzer noise.
 
 ## ATLAS-CONSUS-NODEF-ARROW-PARQUET-002 — Arrow/Parquet no-default cfg closure (closed 2026-08-13)
 

@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-CONSUS-TEST-API-001 — Make cross-format integration tests consume real Consus APIs [patch] — in progress 2026-08-13
+## ATLAS-CONSUS-TEST-API-001 — Make cross-format integration tests consume real Consus APIs [patch] — complete 2026-08-13
 
 - Owner: Atlas integration; provider scope is `repos/consus/tests/cross_format_interop.rs`
   plus the provider's directly affected PM artifacts. Do not edit the peer-owned
@@ -13,9 +13,14 @@
   value-semantic assertions under the repository's committed runner; touched
   Consus checks/docs are green; the merged exact provider head and hosted gate
   are recorded before the Atlas gitlink advances.
-- Verification: API/source inspection, focused package check and Nextest,
-  provider full configured gate, exact hosted PR-head verification, root
-  provider audit, and indexed-gitlink coherence.
+- Verification: direct provider API/source inspection; focused all-format
+  Nextest 8/8, compression-inclusive 9/9, integration package all-features
+  42/42; warning-denied Clippy, workspace no-default check, workspace
+  warning-denied Rustdoc, formatting, and diff checks. Provider source head
+  `a5b9cfdde4c789c237652e0d62c42ce8372005f5` merged as default
+  `720233ab6e7fedb82399d28540f903a6b1e9a191`; hosted run `31684429085`
+  passed all 68 repository-owned jobs at the exact source head. Root audit and
+  indexed-gitlink coherence pass after integration.
 
 ## ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003 — Close Consus no-default storage boundaries [patch] — complete 2026-08-13
 
