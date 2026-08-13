@@ -1,5 +1,99 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-USCT-FWI-024 — kwavers audit vs FullWaveformInversionUSCT (open 2026-08-13)
+
+Reference: `rehmanali1994/FullWaveformInversionUSCT` at `master` — a compact
+single-method implementation (117-line `Functions.py`, 163-line
+`BreastTomography.py`, MATLAB twin). Method read in full, not summarized from
+its README. Citation: Ali, R., "Open-Source Full-Waveform Ultrasound Computed
+Tomography Based on the Angular Spectrum Method Using Linear Arrays", SPIE
+Medical Imaging 2022, Vol. 12038.
+
+Reference method: frequency-domain transmission-USCT FWI. Two opposed linear
+arrays rotate around the object (360° in 2° steps). Forward operator is the
+**angular spectrum method with split-step (phase-screen) correction**, downward
+continuation from Tx to Rx; the adjoint is upward continuation of the data
+residual. Per view the slowness model is interpolated from a fixed
+reconstruction grid onto a view-aligned simulation grid, and the resulting
+gradient image is interpolated back. Optimizer is **NLCG with the Gilbert–Nocedal
+hybrid** `β = min(max(β_PR, 0), β_FR)` and a **linearized exact line search**
+`α = −⟨g,d⟩ / ⟨Jd, Jd⟩`, where `Jd` is obtained by one extra forward projection
+of the search direction. A per-view per-frequency complex source scaling is
+estimated by projection before the residual is formed. Frequency bins are
+decimated 10:1; a lateral anti-aliasing window is applied.
+
+Verdict: **kwavers is ahead of this reference on forward-model rigor and
+optimizer machinery, and behind it on three specific points.** kwavers already
+has, verified in source:
+
+| Reference feature | kwavers |
+|---|---|
+| Frequency-domain FWI with adjoint gradient | `kwavers-solver/src/inverse/fwi/frequency_domain/{gradient,inversion,operator}.rs` |
+| Forward operator seam | `HelmholtzForwardOperator` with single-scatter Born **and** convergent Born series (`frequency_domain/cbs/`) — strictly stronger than split-step ASM, which is a one-way non-reflecting approximation |
+| NLCG with Polak–Ribière | `frequency_domain/inversion.rs:37` — `β_PR` with `max(β,0)` restart and a descent-direction safeguard |
+| Per-view/frequency source scaling | `FrequencyDomainConfig::with_source_scaling`; tests `source_scaled_gradient_is_descent_direction`, `inversion_with_source_scaling_converges_for_consistent_model`; identifiability DOF accounting in `breast_ust_fwi/diagnostics/identifiability.rs` (`BreastUstSourceScalingPolicy::{Fixed, Estimated}`) — **exceeds** the reference, which scales inline with no identifiability accounting |
+| Beyond the reference | truncated Newton-CG/Gauss-Newton with Levenberg–Marquardt damping (`gauss_newton.rs`), L-BFGS time-domain FWI, adjoint-state, frequency continuation, breast-UST phantom IO |
+
+### Gaps
+
+**F1 — Linearized exact line search.** The reference computes a scale-free step
+`α = −⟨g,d⟩/⟨Jd,Jd⟩` from one extra forward projection. kwavers backtracks from
+a fixed `config.initial_step_s_per_m` scaled by `max|d|`, halving up to 8 times
+(`inversion.rs:53-60`). kwavers' own `gauss_newton.rs:3-9` documents that this
+backtracking **fails near the solution** — "the trial steps fall below the
+objective's numerical-decrease threshold, and no step is accepted (a
+*differential* monitor starting from a known background recovers nothing)" —
+and a whole truncated-Newton solver was added to work around it. The reference's
+α is scale-free and would address that failure at the cost of one forward
+projection per iteration, far below a Newton solve. This is the highest-value
+finding in this audit: a documented, worked-around defect with a cheaper fix.
+
+**F2 — NLCG β lacks the Fletcher–Reeves cap.** kwavers implements `β_PR⁺`;
+the reference implements `min(max(β_PR,0), β_FR)`. The FR cap is what gives
+the Gilbert–Nocedal global convergence guarantee under an inexact line search.
+Small, well-defined, and directly compounding with F1.
+
+**F3 — Transmission USCT with rotated opposed linear arrays.** Absent. kwavers'
+breast UST acquisition is ring/bowl. There is no rotation-view acquisition
+geometry and no per-view interpolation between a fixed reconstruction grid and
+a view-aligned simulation grid (verified: `rotAngle|rotation_angle|view_angle`
+match only unrelated driver/floorplan code). This is the reference's actual
+subject — linear arrays are the cheap, clinically available hardware — and it
+is a distinct acquisition class from ring transducers, not a reparameterization.
+
+**F4 — Angular spectrum as an FWI forward operator.** kwavers has a hybrid
+angular-spectrum *forward solver*
+(`kwavers-solver/src/forward/nonlinear/hybrid_angular_spectrum/`) and split-step
+phase-screen code in the skull-aberration path, but neither is wired to
+`HelmholtzForwardOperator`. Adding an ASM implementation of that existing seam
+gives a cheap one-way operator for survey-scale transmission problems where CBS
+is unnecessarily expensive. Contained: the seam already exists.
+
+Residual risk: F1/F2 are small and independently verifiable against the
+reference's own convergence behavior. F3 is the largest item and is
+acquisition-geometry work, not solver work. F4 is bounded by the existing seam.
+No implementation has begun.
+
+## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift (open 2026-08-13)
+
+Running `scripts/adr-index.py generate` for ADR 0042 revealed that the
+generator sweeps `repos/*/docs/adr` as well as the meta-repo, and that four
+member indexes are stale against their own ADR files:
+
+- `tyche`, `apollo` — every row's status renders `—` (the generator's casing
+  warnings on `accepted` vs `Accepted` are the cause; ADR governance fixes the
+  canonical casing, not the generator).
+- `ritk` — index is missing the generated-file header block entirely.
+- `coeus` — **duplicate ADR number 0060**: `0060-provider-owned-batched-frobenius-norm.md`
+  and `0060-provider-owned-metal-rocm-bridge.md`. A number collision from
+  concurrent claims; one must renumber.
+
+The generated collateral was restored in all four trees rather than committed —
+they sit on peer-owned branches with unrelated dirty state, and the drift is
+not part of the ADR 0042 change. Filed as items rather than fixed in place.
+The coeus duplicate is the material one: it breaks the number→decision
+mapping that ADR cross-references depend on.
+
 ## ATLAS-US-CAPABILITY-023 — kwavers/ritk capability audit vs ITKUltrasound (open 2026-08-13)
 
 Reference: `KitwareMedical/ITKUltrasound` at `master`, enumerated from its own

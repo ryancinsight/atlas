@@ -1,5 +1,28 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-USCT-FWI-024 — Transmission-USCT FWI parity [minor] — open 2026-08-13
+
+Audit and evidence: `gap_audit.md#atlas-usct-fwi-024`. kwavers leads the
+reference on forward-model and optimizer machinery; these close the deltas.
+
+| ID | Outcome | Class | Status | Owner | Acceptance oracle |
+|----|---------|-------|--------|-------|-------------------|
+| FWI-024-A | Replace fixed-step backtracking in `frequency_domain/inversion.rs` with the linearized exact line search `α = −⟨g,d⟩/⟨Jd,Jd⟩`, computing `Jd` by one forward projection of the search direction. | [minor] | todo | — | The differential-monitor case that `gauss_newton.rs:3-9` documents as recovering nothing now converges under plain NLCG; step size scale-free across slowness magnitudes; existing FD-gradient and inversion tests stay green |
+| FWI-024-B | Cap the NLCG β with Fletcher–Reeves: `β = min(max(β_PR,0), β_FR)` (Gilbert–Nocedal). | [patch] | todo | — | Convergence on the existing inversion tests is monotone and no worse than `β_PR⁺`; a case where unbounded `β_PR` overshoots is added as a regression test |
+| FWI-024-C | Angular-spectrum split-step implementation of the existing `HelmholtzForwardOperator` seam, reusing the phase-screen code rather than a second copy. | [minor] | todo | — | Differential against CBS on a weak-contrast phantom within a derived bound; documented divergence where reflections matter (ASM is one-way) |
+| FWI-024-D | Transmission-USCT acquisition: two opposed linear arrays on a rotation stage, per-view interpolation between a fixed reconstruction grid and view-aligned simulation grids, gradient accumulation across views. | [minor] | todo | — | Recovers the sound-speed phantom from a simulated 360°/2° sweep within a derived tolerance; per-view rotation round-trips to identity |
+
+## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift [patch] — open 2026-08-13
+
+Evidence: `gap_audit.md#atlas-pm-adr-index-025`. Each item is per-repo and must
+land on that repo's own branch; all four trees are currently peer-held.
+
+| ID | Outcome | Class | Status | Owner | Acceptance oracle |
+|----|---------|-------|--------|-------|-------------------|
+| ADR-025-A | coeus: renumber one of the two ADR `0060` files and fix every cross-reference to it. | [patch] | todo | — | `scripts/adr-index.py check` clean for coeus; no two ADRs share a number; citing items/CHANGELOG updated |
+| ADR-025-B | tyche, apollo: normalize ADR status casing to the canonical `Proposed`/`Accepted`/`Rejected` so indexes render a status. | [patch] | todo | — | `adr-index.py check` emits no casing warnings; indexes show real statuses |
+| ADR-025-C | ritk: regenerate the ADR index with the generated-file header block. | [patch] | todo | — | `adr-index.py check` clean for ritk |
+
 ## ATLAS-US-CAPABILITY-023 — ITKUltrasound capability parity [arch] — open 2026-08-13
 
 Audit and evidence: `gap_audit.md#atlas-us-capability-023`. Items are
