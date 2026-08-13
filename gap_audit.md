@@ -1,5 +1,20 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-HELIOS-BOOK-WORKFLOW-018 — Shared Pages workflow closure (closed 2026-08-13)
+
+Helios PR #48 source `116228c031a10d9e5176d7209c54172973001ddd` replaced the
+stale local Pages workflow with the Atlas-owned reusable workflow pinned to
+`578150340157c6da25f4ee2b37d6b4639d787c1a`. The caller passes the configured
+Helios rendered output `target/book/helios/html`; local mdBook verification
+produced `index.html` at that path. The stale branch was rebased onto current
+Helios main before merge, avoiding an incorrect artifact-root assumption.
+PR checks passed Rust workspace, Python bindings, shared book build, and the
+45-minute counterbalanced benchmark regression gate. The merge default is
+`546c199fdd46b8eb8c4176a4250ac261962a45d0`. Post-merge run `31700981248`
+passed Rust and Python verification with the benchmark job correctly skipped on
+push; Pages run `31700981609` passed build and deployment. The Atlas Helios
+gitlink now records the merged default.
+
 ## ATLAS-HERMES-PERMUTE-017 — Native NEON permute measurement and cleanup (closed 2026-08-13)
 
 Hermes PR #37 delivered the bounded native aarch64 A/B gate and merged source

@@ -1,5 +1,20 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HELIOS-BOOK-WORKFLOW-018 — Converge Helios on the shared Pages workflow [patch] — complete 2026-08-13
+
+- Helios PR #48 source `116228c031a10d9e5176d7209c54172973001ddd` merged as
+  default `546c199fdd46b8eb8c4176a4250ac261962a45d0`; the stale branch was
+  rebased onto current Helios main before merge.
+- The local 68-line Pages implementation is replaced by the Atlas shared
+  workflow pinned to `578150340157c6da25f4ee2b37d6b4639d787c1a`, with the
+  configured Helios output `target/book/helios/html` passed explicitly. The
+  existing `linkcheck2` optional setting remains provider-owned; no duplicate
+  configuration was introduced.
+- Exact PR gates passed: Rust workspace, Python bindings, the shared book
+  build, and the 45-minute counterbalanced benchmark regression job. Exact
+  post-merge runs `31700981248` and `31700981609` passed default verification
+  and Pages build/deployment; push correctly skipped the benchmark job.
+
 ## ATLAS-HERMES-PERMUTE-017 — Measure and prune cross-lane NEON overrides [perf] — complete 2026-08-13
 
 - Hermes PR #37 source `79d7297` merged as default

@@ -1,5 +1,18 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-HELIOS-BOOK-WORKFLOW-018 — Converge Helios on the shared Pages workflow — complete 2026-08-13
+
+- [x] Rebase the stale Helios PR #48 workflow change onto current main and
+      remove the obsolete local implementation. Source `116228c` merged as
+      default `546c199fdd46b8eb8c4176a4250ac261962a45d0`.
+- [x] Pass the current Atlas workflow pin and the actual Helios rendered output
+      path `target/book/helios/html`; local mdBook build produced the expected
+      `index.html`.
+- [x] Verify PR gates: Rust workspace, Python bindings, shared book build, and
+      the 45-minute counterbalanced benchmark regression run. Post-merge runs
+      `31700981248` and `31700981609` pass default verification and Pages
+      deployment; push correctly skips the benchmark regression job.
+
 ## ATLAS-HERMES-PERMUTE-017 — Measure and prune cross-lane NEON overrides — complete 2026-08-13
 
 - [x] Verify Hermes PR #37 source `79d7297` merged as default

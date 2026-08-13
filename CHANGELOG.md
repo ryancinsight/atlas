@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Advance Helios to merged default `546c199f` after PR #48 converged its Pages
+  caller on the Atlas shared workflow. The caller passes the actual rendered
+  output `target/book/helios/html`; PR Rust, Python, book, and 45-minute
+  benchmark gates passed. Post-merge Rust/Python and Pages deployment runs
+  `31700981248` and `31700981609` passed.
+
 - Advance Hermes to merged default `d1627cd2` after PR #37's native aarch64
   permute A/B gate. Neutral NEON reverse overrides were removed; large f32
   interleave and deinterleave wins of 1.27% and 1.40% remain. PR run
