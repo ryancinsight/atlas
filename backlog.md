@@ -140,6 +140,20 @@
 - Re-open trigger: a clean committed Kwavers source increment lands on
   `origin/main` or a peer claim becomes stale under the one-hour sweep.
 
+## ATLAS-CONSUS-ASYNC-FACADE-029 — Remove the Consus async placeholder [major] — open
+
+- Owner: Consus provider owner; Atlas scope is the audit record and integration
+  gate. The active Consus checkout is peer-owned.
+- Finding: `crates/consus/src/async/mod.rs` exports only the
+  `AsyncFacadeUnavailable` marker and explicitly documents the async facade as
+  deferred. Exact evidence: `gap_audit.md#atlas-consus-async-facade-029`.
+- Acceptance: implement the backend-neutral async contract with bounded,
+  cancellation-safe operations and value-semantic tests, or remove the public
+  placeholder module and update its callers; package, docs, and Atlas gates
+  pass with no deferred async marker.
+- Re-open trigger: a clean committed Consus source increment lands on
+  `origin/main` or the peer claim becomes stale under the one-hour sweep.
+
 ## ATLAS-USCT-FWI-024 — Transmission-USCT FWI parity [minor] — open 2026-08-13
 
 Audit and evidence: `gap_audit.md#atlas-usct-fwi-024`. kwavers leads the

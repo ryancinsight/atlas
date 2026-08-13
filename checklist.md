@@ -80,6 +80,14 @@
 - [ ] Implement and verify the provider-owned numerical replacements; do not
       merge the workflow-only Kwavers #363 PR as if it resolved source defects.
 
+## ATLAS-CONSUS-ASYNC-FACADE-029 — Consus async boundary audit
+
+- [x] Inspect the exact fetched Consus default and confirm the public
+      `AsyncFacadeUnavailable` marker is the entire async module.
+- [x] Record the provider-owned implementation-or-removal acceptance contract.
+- [ ] Implement or remove the deferred async public surface and verify package,
+      docs, cancellation, and bounded-resource behavior.
+
 ## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift — open 2026-08-13
 
 - [x] Fix the Atlas generator classification: navigation `INDEX.md` and

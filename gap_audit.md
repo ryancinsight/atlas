@@ -73,12 +73,12 @@ claim is made.
 The twenty requested providers are present at current fetched default heads.
 The current root reusable workflow is
 `4c31dd753f06dd93b4c04798cf781df253e3e532` after the linkcheck2 backend and
-pinned-toolchain fixes. A static audit of those fetched defaults finds 17
-providers on the current SHA and only three stale provider defaults: Consus
-still has stale `book-pages.yml`, `python-release.yml`, and `rust-release.yml`
-callers; Helios still has a stale `book-pages.yml` caller; and RITK still has
-stale `book-pages.yml` and `rust-release.yml` callers. The open caller PRs are
-the provider-owned changes that will remove those four stale references;
+pinned-toolchain fixes. A static audit of those fetched defaults finds 18
+providers on the current SHA and only two stale requested-provider defaults:
+Consus still has stale `book-pages.yml`, `python-release.yml`, and
+`rust-release.yml` callers; Helios still has a stale `book-pages.yml` caller.
+The open caller PRs are the provider-owned changes that will remove those four
+stale references;
 repository presence and current gitlinks do not prove this workflow
 integration.
 
@@ -163,6 +163,23 @@ parameter sensitivity, retarded-time shift of a localized pulse, and transfer
 adaptation output dependence on adapter parameters. The active Kwavers checkout
 is peer-owned and dirty, so Atlas records the findings without editing those
 source files. Kwavers PR #363 is workflow-only and does not resolve this item.
+
+## ATLAS-CONSUS-ASYNC-FACADE-029 — Consus async namespace is a public placeholder (open)
+
+The exact fetched Consus default exposes `crates/consus/src/async/mod.rs` as a
+public module containing only `AsyncFacadeUnavailable`. Its module docs call it
+an "Asynchronous facade placeholder" and state that the backend-neutral async
+boundary is intentionally deferred; `message()` returns a fixed unavailable
+diagnostic. This is an explicit incomplete public surface, not an unsupported
+format error or an identity fast path.
+
+The provider owner must either implement the required backend-neutral async
+operations with bounded cancellation/backpressure and value-semantic tests, or
+remove the placeholder module and migrate any callers so the public API does
+not advertise an unavailable capability. Acceptance is a clean Consus package,
+documentation, and integration gate with no `AsyncFacadeUnavailable` marker or
+deferred-module claim. The active Consus checkout is peer-owned and dirty, so
+Atlas records the residual without editing provider source.
 
 ## ATLAS-KW-FWI-STRANDED-027 — FWI-024-A is delivered but not on kwavers main (open 2026-08-13)
 
