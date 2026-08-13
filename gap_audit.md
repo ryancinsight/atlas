@@ -925,7 +925,7 @@ fetched default heads, and the requested-scope coherence audit is clean.
 
 The current Atlas `HEAD` is `e15290a`, with Horae integrated at merged upstream
 head `c42d1b4`. The root integration pointer sweep advances Mnemosyne to
-`b911ae1`, RITK to `41a2ee4`, and Hermes to `76c05b6`; the other requested
+`b911ae1`, RITK to `41a2ee4`, and Hermes to `81502c5`; the other requested
 providers remain at their previously verified heads. The stack overlay check
 passes: requirements are satisfiable and locks match the local trees.
 
