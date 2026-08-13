@@ -11429,6 +11429,9 @@ blocker on Athena.
   - `bessel_k0` test tolerance fix (1e-7 → 1e-6, already applied)
 - Evidence: 425 leto-ops tests pass.
 - Blocker: peer-owned; not committed by this session per concurrent_agents policy.
+- Re-open trigger: the peer lands the branch or the one-hour stale-claim sweep
+  finds no board/commit update; then reclaim the scope and complete the
+  integration from the committed branch state.
 
 ## ATLAS-OVERLAY-COHERENCE-001 — The stack overlay resolves worktree copies, not the authoritative repos [major] — done (by peer)
 
@@ -11508,6 +11511,10 @@ blocker on Athena.
   state across the three microventuri cases, tighter rheology-update scheme.
 - Note: workload/assertion reduction is explicitly NOT an acceptance path
   per `CFDRS-RUNTIME-001`.
+- Re-open trigger: the stack overlay resolves only authoritative `repos/*`
+  trees and the Hephaestus conflict markers are removed from the fetched
+  default; then profile the named cases and implement the first measured
+  production optimization within the committed runtime budget.
 
 ## ATLAS-VECTOR-SEAM-PREPARED-CONTRACT-001 — Reconcile lending vs retained prepared reductions [major] [arch] — done
 
