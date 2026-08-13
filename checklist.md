@@ -1,5 +1,92 @@
 # atlas — cross-repository integration checklist
 
+> Execution steps only. Priority, scope and acceptance oracles live in
+> `backlog.md`; this file carries owner-local tactics and never restates them.
+
+# Sweep 2026-08-13 — execution order
+
+## Sequencing constraints (read before claiming)
+
+Three ordering facts came out of the audit and are not obvious from the board:
+
+1. **The instrument fix lands before any burn-down target is set.** Done this
+   session (`scripts/atlas-conformance.py`, baseline regenerated, ratchet green
+   at 0/0). Any target quoted from a pre-fix number is void.
+2. **ATLAS-COEUS-GRADCHECK-041 lands before any autograd rewrite.** It is the
+   only net that would catch a regression in a tape rewrite, and ~89% of
+   backward paths currently have no independent oracle.
+3. **ATLAS-HEPH-SEAM-043 lands before ATLAS-HEPH-ACCEL-044.** The sealed
+   `KernelDialect` makes the generic accelerator layer uncompilable from a
+   sibling crate, so unsealing is a precondition, not a parallel task.
+
+## Tier 0 tactics
+
+### ATLAS-THEMIS-TOKEN-032 — token duplication
+- Reproduce first: write the two-`&mut` sequence from the audit as a test and
+  watch it compile *today*. That failing-to-fail test is the acceptance oracle.
+- Two candidate fixes; the ADR picks one. Either make `split`/`split_static`
+  `unsafe` with the disjointness obligation stated, or bind the placement proof
+  into the `*Ref` constructors so a cell carries its node tag from a validated
+  path instead of a caller argument. The second is the stronger design because
+  it closes the dynamic hole (`NumaPinnedCellRef::new` taking an unvalidated
+  `node_id`) at the same time.
+- 8 of themis's 18 unsafe sites lack `// SAFETY:` and all 8 are in this exact
+  file (`branded/region/mod.rs:91,108,118,124,153,190,231,261`). Write them as
+  part of the fix — they are the invariants under discussion.
+- themis has no CI and no miri; ATLAS-GAIA-GATE-042's workflow is the template.
+
+### ATLAS-LETO-LAYOUT-034 — sealing `Layout`
+- Blast radius before editing: `Layout` is consumed by 84 unsafe blocks in leto
+  and by array code in five downstream repos. Enumerate with
+  `cargo tree --invert` per consumer before touching the struct.
+- `validate_storage_len` already exists and is called at `chunks.rs:191` — the
+  work is making it construction-enforced, not writing new validation.
+- Land the ADR first; this is a `[major]` on the stack's most-consumed type.
+
+### ATLAS-KWAVERS-REAL-COMPUTE-028 — identity paths
+- The demonstration matters as much as the fix: for each of the five sites,
+  show the new test failing against the reverted clone body. A test that passes
+  both before and after has not established anything.
+- `interpolation_ops.rs:129-141` is the cheapest and should go first — the
+  scalar implementation it forwards to is correct, so the work is writing the
+  AVX2 body plus a differential against the scalar path.
+
+### ATLAS-CONSUS-PARSE-LIMITS-035 — parser hardening
+- Generalize, do not invent: `ParseLimits` (`consus-onnx/src/parse.rs:13-45`)
+  and `MAX_CHUNK_BYTES` (`object_header/v2.rs:105,250`) are the in-tree patterns
+  to lift into `consus-core`.
+- Pair with the fuzz wiring in the same increment. The three existing targets
+  (hdf5, parquet, mat) are `[workspace]`-excluded (`fuzz/Cargo.toml:26-28`) and
+  referenced by no workflow, so they may already be rotted — build them before
+  trusting them.
+- Depth bounding must reach every arm of the recursion cycle, not just
+  `parse_compound`: `parse_enum:505`, `parse_variable_length:609,630`,
+  `parse_array:717` all re-enter `parse_datatype_inner`.
+
+## Mechanical sweeps (cheap, high count, low risk)
+
+### ATLAS-CACHE-FORK-055
+- Verify no member is mid-build before deleting; then remove the 25
+  `repos/*/target` trees and re-run the conformance report to confirm
+  `target_forks = 0`. Recovers 58.9 GB.
+- Check afterwards *why* they exist — if a script or CI step passes
+  `--target-dir` or sets `CARGO_TARGET_DIR`, deleting the trees without removing
+  the override just regrows them.
+
+### ATLAS-GITLINK-DRIFT-056
+- Do not blanket-advance. Per member decide: the working head is verified and
+  the gitlink advances, or the tree returns to the pin. Eleven members sit on
+  `codex/*` branches whose work may be unmerged — CFDrs is 3 ahead / 8 behind
+  with a *verifiably complete* subject (zero ndarray/nalgebra/num_traits/approx
+  tokens remain), so that one merges rather than reverts.
+
+### ATLAS-LINT-FLOOR-054
+- CFDrs is the instructive case: the floor is already correctly declared and
+  inherited, then nullified by 288 crate-level `#![allow]`. Deleting the blanket
+  allows is the whole change — the deny lines are already there.
+- Record the ratchet baseline in the same commit as the floor, per the
+  generator contract, or the first CI run fails on pre-existing debt.
+
 ## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — in-progress 2026-08-13
 
 - [x] Confirm the provider source and docs disagree: the core/autograd path
@@ -13,85 +100,6 @@
 - [ ] Merge the provider change, advance the Atlas Coeus gitlink, and rerun
       exact-head/coherence/overlay/lane gates.
 
-
-## ATLAS-LIVE-HEAD-SWEEP-026 — Reconcile twenty provider CI-pin defaults — complete 2026-08-13
-
-- [x] Fetch every requested provider default and verify its candidate head is
-      an ancestor extension of the committed Atlas pointer.
-- [x] Confirm every provider delta contains only `.github/workflows/**` CI pin
-      files; preserve all peer-owned child checkout changes.
-- [x] Advance all twenty Atlas gitlinks through the index only: horae
-      `72505426`, hyperion `5758df93`, themis `93e83899`, tyche `5febead4`,
-      proteus `5969f1e3`, mnemosyne `5824d2af`, consus `1be7768d`, helios
-      `54000a65`, aequitas `3afc165c`, asclepius `8d7d7ec2`, eunomia `1a52590c`,
-      moirai `6e9d1f22`, ritk `c608f758`, melinoe `d0f6cb6e`, leto `7f2cfbae`,
-      hephaestus `93e1fdf5`, coeus `d5f044dd`, apollo `4043a547`, hermes
-      `b1a8b25c`, iris `13989ad5`.
-- [x] Pass exact-head/coherence, provider-audit regression, stack-overlay,
-      overlay regression, and lane audits.
-- [ ] Provider-hosted queued runs remain external follow-up; no queued run is
-      reported as green by this root integration item.
-
-## ATLAS-POSTMERGE-HEAD-RECONCILIATION-030 — Reconcile merged caller defaults — complete 2026-08-13
-
-- [x] Fetch the merged Consus #27, Eunomia #63, and Kwavers #363 defaults and
-      verify each merge advanced only the provider-owned workflow pin surface.
-- [x] Advance the Atlas Consus and Eunomia gitlinks to `1be7768d` and
-      `1a52590c`; advance the external Kwavers integration pointer to
-      `462cf444` without staging peer checkout changes.
-- [x] Re-run exact-head, stack-overlay, lane, and provider-audit regression
-      gates against the reconciled root index.
-- [ ] Keep the open RITK #132 source integration behind its hosted gates; the
-      merged workflow-only callers are not evidence that source residuals are
-      closed.
-
-## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins — complete 2026-08-13
-
-- [x] Enumerate default-branch Atlas workflow call sites across the twenty
-      requested providers.
-- [x] At sweep start, confirm all twenty book callers and the requested
-      release/Python callers pin `d875348197be12ad593f993a6f1b8a62d3b8b195`,
-      while the current root workflow is
-      `4c31dd753f06dd93b4c04798cf781df253e3e532`.
-- [x] Open workflow-only provider/integrator PRs from exact fetched defaults:
-      horae #10, hyperion #8, themis #18, tyche #21, proteus #8, mnemosyne
-      #48, consus #27, helios #53, aequitas #24, asclepius #15, eunomia #62,
-      moirai #127, ritk #130, melinoe #15, leto #111, hephaestus #207, coeus
-      #327, apollo #90, hermes #39, iris #13, CFDrs #338, and kwavers #363.
-- [x] Verify every PR changes workflow files only; CFDrs passes
-      `mdbook-linkcheck2-version: 0.12.2`.
-- [x] Correct the initial short-SHA caller commits with forward workflow-only
-      commits using full Atlas SHA
-      `4c31dd753f06dd93b4c04798cf781df253e3e532`; the short-SHA workflow-file
-      failures are superseded and not merge evidence.
-- [x] Correct the Hermes pointer staging error: `8743288` briefly captured the
-      peer checkout head; `efde7a6` restores the fetched `origin/main` head
-      `683e2ab5` via explicit gitlink cacheinfo, and exact-head/overlay/lane
-      audits pass.
-- [x] Harden the root audit wrappers so non-empty `RUSTC`/`RUSTDOC` overrides
-      cannot leak into compiler or coherence checks; both sanitizer paths have
-      regression coverage.
-- [x] Merge the hosted-green caller PRs for Themis #18, Proteus #8, Hyperion
-      #8, Tyche #21, Mnemosyne #48, Aequitas #24, Asclepius #15, Eunomia #62,
-      Leto #111, Horae #10, Moirai #127, Hephaestus #207, Melinoe #15, Apollo
-      #90, Iris #13, Hermes #39, and Coeus #327; advance Atlas gitlinks to
-      their exact default heads.
-- [x] Advance the CFDrs and Kwavers gitlinks to fetched exact defaults without
-      staging peer checkout dirt. CFDrs `origin/main` is `905648a5` with the
-      linkcheck2/full-SHA and HTML output fixes; Kwavers `origin/main` is now
-      `462cf444` after merged PR #363.
-- [x] Merge RITK #130 at `d4383637` after its required hosted checks passed and
-      advance the Atlas RITK gitlink to that exact default head.
-- [x] Review the remaining workflow-only diffs; no new P0/P1 finding is present
-      in Consus #27, Helios #53, RITK #130, or CFDrs #338.
-- [x] Record the current hosted state: Consus #27 merged at `1be7768d`, Helios
-      #53 merged at `1e165406`, RITK #131 merged at `9ae68b45`, and Kwavers #363
-      merged at `462cf444`. Stacked RITK #132 remains open against `main` with
-      hosted gates running. CFDrs #338 is closed as superseded by merged
-      #339/#340 on its default.
-- [x] Run exact-head validation for every changed caller and re-audit the
-      fetched defaults for stale pins; queued hosted runs remain external
-      evidence and are not relabeled green here.
 
 ## ATLAS-KWAVERS-REAL-COMPUTE-028 — Kwavers identity-path audit
 
@@ -149,1524 +157,6 @@
       resolving patches to `D:\atlas\repos\ritk` instead of the lane tree.
 - [ ] Fix the phased-array contract findings, then merge #132 after its hosted
       gates pass and advance the Atlas gitlink to the exact merged head.
-
-## ATLAS-HEPHAESTUS-REDUCTION-022 — Retire superseded product-axis parity PR — complete 2026-08-13
-
-- [x] Rebase Hephaestus PR #113 onto current `master` and verify product-axis
-      parity is already represented by `8bc589a`.
-- [x] Confirm current default retains `ProdOp`, `is_empty`, transposed and
-      empty-axis value tests, and all four backend contract surfaces; reject
-      the obsolete round-6a path-lock rewrite.
-- [x] Confirm current default `c373de19` through exact runs
-      `31691399110`, `31691399171`, `31691399196`, and `31691399214`.
-- [x] Close the empty superseded PR with the evidence and delete its branch.
-
-## ATLAS-APOLLO-ARCH-021 — Retire superseded junk-drawer rename — complete 2026-08-13
-
-- [x] Rebase Apollo PR #86 onto current default and verify the two rename
-      commits are already represented by `49632c6c` / ADR 0039 s5.
-- [x] Confirm current Apollo default has no affected `helpers.rs` modules and
-      passes post-merge CI `31708720285`.
-- [x] Close the empty, superseded PR with the evidence and delete its remote
-      branch; do not reintroduce older names or duplicate leaves.
-
-## ATLAS-APOLLO-VALIDATION-020 — Converge shared WGPU validation and Mnemosyne boundary — complete 2026-08-13
-
-- [x] Rebase Apollo PR #83 onto current default, remove the already-upstream
-      Hermes dependency-only commit, and merge source `a725fe81` as default
-      `fc5648964c8194447ef5deea43a8aa9c0dae7c63`.
-- [x] Replace the Apollo GFT-local plan, length, output, and precision checks
-      with the shared Apollo FFT provider-owned validation surface; retain
-      typed value assertions for empty plans, length mismatches, and storage
-      profiles.
-- [x] Add the real Mnemosyne branded-slice integration boundary with value
-      assertions, add the missing `mnemosyne-memory` lock edge, and repair the
-      benchmark instrument to copy the affected candidate validation manifest.
-- [x] Verify exact PR runs `31708004091` (Rust/Python) and `31708004087`
-      (benchmark), plus exact post-merge CI `31708720285` and Pages
-      deployment `31708718632`; all pass.
-- [x] Advance the Atlas Apollo gitlink to the fetched merged default without
-      staging peer-owned child-repository changes.
-
-## ATLAS-COEUS-NORM-019 — Keep batched Frobenius norms provider-owned — complete 2026-08-13
-
-- [x] Rebase Coeus PR #320 onto current default, retain the provider-owned
-      implementation and tests, and merge source
-      `96d8166c3d683eaaf67e45b8bad0c34e33d8b405` as default
-      `72372c918d8d6fcbcc006585736126a480a4f5c2`.
-- [x] Confirm the implementation removes the host fold: provider square,
-      last-two-axis reduction, square root, and batch reshape remain in the
-      provider graph; rank-two and non-contiguous paths retain their explicit
-      contracts.
-- [x] Verify exact PR run `31701736189` and exact post-merge Backend parity
-      run `31704377695`: WGPU, CUDA, ROCm, and Metal pass. Pages run
-      `31704377431` passes build and deployment; required-device CUDA/ROCm
-      jobs are skipped and remain unclaimed.
-- [x] Advance the Atlas Coeus gitlink to the fetched merged default without
-      staging peer-owned child-repository changes.
-
-## ATLAS-HELIOS-BOOK-WORKFLOW-018 — Converge Helios on the shared Pages workflow — complete 2026-08-13
-
-- [x] Rebase the stale Helios PR #48 workflow change onto current main and
-      remove the obsolete local implementation. Source `116228c` merged as
-      default `546c199fdd46b8eb8c4176a4250ac261962a45d0`.
-- [x] Pass the current Atlas workflow pin and the actual Helios rendered output
-      path `target/book/helios/html`; local mdBook build produced the expected
-      `index.html`.
-- [x] Verify PR gates: Rust workspace, Python bindings, shared book build, and
-      the 45-minute counterbalanced benchmark regression run. Post-merge runs
-      `31700981248` and `31700981609` pass default verification and Pages
-      deployment; push correctly skips the benchmark regression job.
-
-## ATLAS-HERMES-PERMUTE-017 — Measure and prune cross-lane NEON overrides — complete 2026-08-13
-
-- [x] Verify Hermes PR #37 source `79d7297` merged as default
-      `d1627cd23179595b751c237a67f86cdeafb01310` and advance only the Hermes
-      gitlink.
-- [x] Review the native aarch64 A/B output from PR run `31695534571`: remove
-      neutral `reverse_f32`/`reverse_f64`; retain large-row
-      `interleave_f32`/`deinterleave_f32` wins of 1.27%/1.40%; classify small
-      rows as noise-threshold results.
-- [x] Confirm post-merge default run `31696261625` passes x86, aarch64, SDE,
-      Miri, cross-compile, cargo-deny, and benchmark compile/smoke gates.
-- [ ] External residual: Hermes HS-429 still needs real AVX-512 silicon for
-      timing evidence; SDE cannot establish that performance claim.
-
-## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis over scattered directions — complete 2026-08-13
-
-- [x] Confirm Apollo PR #69 source `33a40bcee4532c9c1a03fee7cef2d852b3419090`
-      merged as `db2186650f2e0889555120e6a1491ad93897409e` and the
-      Laplace--Beltrami follow-up remains in the provider default.
-- [x] Verify current Apollo default `36f2f3645610e7c1a681e15f709f70f7e14c1f27`
-      through exact hosted run `31684967756`: Rust workspace and Python
-      binding jobs pass at PM source `be4408d188313e9072e180ae1d214f3aca458997`.
-- [x] Verify RITK source `53bb01312222745325f20d36db95aab780ce39b3` consumes
-      the real basis and pins implementation provider commit
-      `f1e21c524f8d1834bcd03c0adb5dbe9486a615d3`; the current Apollo change is
-      PM-only, so no consumer code or lock change is required.
-- [x] Preserve the earlier SemVer limitation: dependency rustdoc failed before
-      API comparison; no unsupported compatibility claim is made.
-
-## ATLAS-CONSUS-TEST-API-001 — Make cross-format integration tests consume real Consus APIs — complete 2026-08-13
-
-- [x] Create one bounded Consus lane from exact `origin/main`; preserve the
-      dirty peer checkout and claim only the cross-format test/PM scope.
-- [x] Inspect the actual HDF5, Zarr, NetCDF, and in-memory I/O contracts and
-      replace aspirational calls in `tests/cross_format_interop.rs` directly.
-- [x] Keep every scenario input-sensitive with value-semantic assertions; delete
-      unsupported scenarios rather than adding local facades or fallback paths.
-- [x] Run focused and full provider gates, hosted CI at the exact PR head, merge
-      the provider, advance the indexed Atlas gitlink, and rerun the twenty-
-      provider structural/exact-head audit. Provider source `a5b9cfd` merged
-      through PR #24 at `33c2df0`; PM correction `eebe7c0` merged through PR #25
-      at default `720233a`. Hosted run `31684429085` passed all 68
-      repository-owned jobs.
-
-## ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003 — Close Consus no-default storage boundaries — complete 2026-08-13
-
-- [x] Land Consus PR #23 at merged default
-      `b3ca01c21b2e9bad4c7b7dc23c47083ca79a3307` from exact head
-      `bf46b7cf00ec7a86b51decf31be4eb30b367c397` and advance only the indexed
-      `repos/consus` gitlink.
-- [x] Gate alloc-backed FITS, HDF5, and NWB modules, re-exports, tests, and
-      benchmark surfaces; preserve descriptor-only no-default APIs.
-- [x] Pass local feature-mode checks, strict Clippy, Nextest, Rustdoc, and
-      formatting gates; record the exact hosted run `31681611017` as green.
-- [x] Preserve peer-owned provider checkout dirt and rerun the twenty-provider
-      exact-head/structural audit after integration.
-
-## ATLAS-CONSUS-NODEF-ARROW-PARQUET-002 — Close Arrow/Parquet no-default cfg boundaries — complete 2026-08-13
-
-- [x] Land Consus PR #22 at merged default `37f835d1`; its exact source head is
-      `731a3ca4`.
-- [x] Gate alloc-backed Arrow/Parquet modules, re-exports, tests, and benches;
-      retain descriptor-only no-alloc APIs and value-semantic smoke coverage.
-- [x] Verify no-default, default, and all-features package Nextest, Clippy,
-      doctests, rustdoc, formatting, and locked checks. Arrow passes 2/2,
-      79/79, and 81/81; Parquet passes 10/10, 215/215, and 239/239.
-- [x] Confirm hosted run `31678705050` passes the repository-owned Format,
-      MSRV, platform, feature-matrix, package-check, MinIO, and CodeRabbit
-      gates at the exact head.
-- [x] Continue `CONSUS-NODEF-GATE-001` through FITS, NWB, HDF5, and the
-      downstream no-default workspace edges; keep `CONSUS-TEST-API-001`
-      separate.
-
-## ATLAS-LIVE-HEAD-SWEEP-015 — Reconcile merged provider defaults — complete 2026-08-13
-
-- [x] Refresh the provider remotes and confirm Mnemosyne PR #45 merged at
-      `18550d9`; Rust verification, Loom, and Miri passed.
-- [x] Confirm Aequitas PR #22 merged at `19c205d4`; verify and supply-chain
-      passed, and the prior Atlas pointer is now a merged provider commit.
-- [x] Confirm Hermes PR #36 merged at `beed6da`; x86 verification, Miri,
-      AVX-512/SDE, and aarch64/NEON checks passed.
-- [x] Advance only these three root gitlinks, then rerun exact-head,
-      structural, and lane audits without staging peer-owned checkout dirt.
-
-## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam — complete
-
-- [x] Hephaestus provider PR #204 merged at `b34b507`; PM-only closeout PR #205
-      merged the synchronized provider default at `c373de1`.
-- [x] Coeus PR #324 merged at `aabdec6`; PM-only closeout PR #325 merged the
-      synchronized consumer default at `a4063be1`.
-- [x] Local Coeus fmt, strict check/clippy, focused and full CUDA Nextest,
-      doctest, rustdoc, no-default, and locked workspace gates pass.
-- [x] Exact Coeus default run `31672329963` passes CUDA, WGPU, ROCm, and Metal
-      software providers. Exact Hephaestus closeout-default runs pass WGPU
-      `31691399110`, CUDA `31691399171`, Metal `31691399196`, and ROCm
-      `31691399214`. Required-device jobs are explicitly skipped;
-      physical-device execution remains unverified. The recurring external
-      analyzer failure is not a provider or consumer gate.
-
-## ATLAS-HELIOS-CHECKLIST-016 — Reconcile binary-MLC roadmap and benchmark gate — complete
-
-- [x] Helios PR #50 merged at `f118214e`; Rust workspace, Python bindings, and
-      the four-replication benchmark regression gate pass at exact head
-      `04fcf46`.
-- [x] Close the stale provider backlog state through Helios PR #51: PM source
-      `f7ca5dad16bb7c36781bcefe4c90c21377f06110` merged as default
-      `f108dc9b3cf7cc94212fa574219594eab2a0bc4f`; exact-head hosted run
-      `31686100896` passes Rust, Python, and the phase-reversed benchmark gate.
-- [x] Reconcile H-020b in `CHECKLIST.md` with the delivered
-      `LeafOpenTimeSinogram`/`MlcModel`; remove stale deferred/todo claims for
-      H-020b, H-020h, H-004b, H-010, and H-011c.
-- [x] Repair historical-Gaia baseline normalization for the valid
-      `gaia-mesh` package-identity plus version shape. Keep H-004d, H-011d, and
-      H-012 as the current Helios open scope.
-
-## ATLAS-COEUS-CLOSURE-014 — Provider deduplication and batched NLLS — complete 2026-08-13
-
-- [x] Confirm Coeus PR #323 merged at `d5912200`; the provider-owned batched
-      least-squares slice adds `BatchedLeastSquaresProblem` and
-      `batched_levenberg_marquardt` over the canonical solver, with f32/f64
-      recovery and malformed-parameter regression coverage.
-- [x] Confirm exact post-merge Backend parity run `31666097106` passed CUDA,
-      Metal, ROCm, and WGPU; required-device CUDA/ROCm jobs were explicitly
-      skipped by workflow policy and remain an external hardware gate.
-- [x] Record the vendor-deletion ledger as closed; keep the physical-device
-      contract-test residual separate from the completed source integration.
-
-## ATLAS-MNEMOSYNE-CONSUS-REFRESH-013 — Reconcile merged provider PM closeouts — complete 2026-08-13
-
-- [x] Confirm Mnemosyne PR #44 merged at `e57e2d6`; Rust verification and Miri
-      arena, Stacked Borrows, and Tree Borrows passed at `e7fccf7` before the
-      merge. Pages was already green at provider head `6b0ca43`.
-- [x] Confirm Consus PR #21 merged at `5163eb1`; all repository-owned package,
-      MSRV, Linux/macOS/Windows, MinIO, feature-matrix, and CodeRabbit checks
-      passed. The recurring `recurseml/analysis` result remains external.
-- [x] Advance both root gitlinks without staging the peer-owned Consus and
-      Mnemosyne checkout dirt; rerun exact-head, structural, and lane audits.
-
-## ATLAS-TYCHE-REFRESH-011 — Reconcile merged Tyche PM closeout — complete 2026-08-13
-
-- [x] Confirm Tyche PR #17 merged as `5efaee7a`; provider `verify` and
-      `supply-chain` checks passed, and CodeRabbit passed. The recurring
-      `recurseml/analysis` status remains external.
-- [x] Advance the root Tyche gitlink to `5efaee7a` and rerun the exact-head
-      audit without staging peer-owned submodule changes.
-
-## ATLAS-LETO-LBFGS-023 — Replace L-BFGS jagged history with a flat ring — complete 2026-08-13
-
-- [x] Rebase Leto PR #96 onto current default and retain only the
-      provider-owned flat L-BFGS history-ring change.
-- [x] Confirm PR source `e4d5dfc7` merged as default
-      `6e4a1627aa739d37c5f40ab1ab9e41948352cc54`; exact PR Rust run
-      `31710403431`, post-merge Rust run `31710771815`, and Pages deployment
-      `31710771170` pass.
-- [x] Advance the root Leto gitlink without staging peer-owned checkout dirt.
-- [x] Close superseded dependency-only PR #103; Hermes 0.6 is already in
-      Leto default `a722fbc8`.
-- [ ] Residual: re-specify and deliver the task-partition API as a separate
-      provider-owned increment; it was not included in this ring-buffer slice.
-
-## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions — complete 2026-08-13
-
-- [x] Claim a canonical Leto lane from fetched default `6e4a1627`; preserve
-      the peer-owned dirty main checkout.
-- [x] Add the const-rank mutable partition proof and public re-exports.
-- [x] Add sequential, strided, alias-rejection, empty, and boundary tests.
-- [x] Add the Moirai adapter only against the provider-owned partition API;
-      retain explicit executor errors and no host fallback.
-- [x] Run the provider's configured gates and exact-head hosted verification,
-      then advance the Atlas gitlink and synchronize this item.
-- [x] Merge Leto PR #109 (`508962df` → `39683975`); exact PR Rust
-      `31714562863`, post-merge Rust `31715060346`, and Pages
-      `31715059328` pass. External recurseml analysis remains report-only.
-- [x] Advance the root `repos/leto` gitlink to `39683975` without staging
-      peer-owned child checkout dirt. Miri remains unavailable on the pinned
-      Windows GNU toolchain; the residual provider rustdoc warnings predate
-      this slice.
-
-## ATLAS-TYCHE-MULTIOUTPUT-017 — Generalize sensitivity estimators — complete 2026-08-13
-
-- [x] Confirm Tyche PR #18 source `dc96f5ec` merged at `4a6f8cd4`; provider `verify`,
-      `supply-chain`, and mdBook build checks passed at the exact head. The
-      Pages deployment was correctly skipped on the feature branch and the
-      recurring `recurseml/analysis` result remains external.
-- [x] Confirm `tyche-core` correlation, Morris, and Saltelli estimators and
-      reports are parameterized by `OUTPUTS`, preserve the default scalar API,
-      and retain fixed-size allocation-free observation updates.
-- [x] Confirm the two-output analytical and seeded laws, local 48/48 Nextest,
-      17/17 doctests, strict Clippy, warning-denied Rustdoc, and locked
-      workspace all-target check pass.
-- [x] Advance the root Tyche gitlink to merged default
-      `af30ad23dc468349511dff9d1d34ab9b5ab58334` (PM closure PR #19) and rerun
-      the exact-head, structural, and lane audits without staging peer-owned
-      Tyche checkout changes. PR #19 hosted `verify` and `supply-chain` pass at
-      source `2d12dc5e`; the external RecurseML analyzer remains report-only.
-- [ ] Keep the Tyche-owned versioned Consus study schema and trainable-model
-      seam for ensemble bagging open; crates.io publication remains an external
-      release gate.
-
-## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout — complete 2026-08-13
-
-- [x] Confirm Leto PR #107 merged as `e525d8dd` after its Rust verification
-      passed; the recurring `recurseml/analysis` status remains external.
-- [x] Advance the root Leto gitlink to `e525d8dd` and rerun the exact-head
-      audit without staging peer-owned submodule changes.
-
-## ATLAS-LETO-CONVOLUTION-012 — Close provider convolution contract — complete 2026-08-13
-
-- [x] Confirm Leto PR #108 source `7172b338` merged as default `a722fbc8`.
-- [x] Confirm exact provider run `31690152639` and post-merge default run
-      `31690301356` pass formatting, minimal-feature compilation, strict
-      Clippy, configured Nextest, doctests, and documentation.
-- [x] Record Coeus direct CPU dispatch and host-loop deletion at implementation
-      head `aabdec67`; PM-only consumer closeout advances its default to
-      `a4063be1`, with hosted run `31672329963`.
-- [x] Advance the root Leto gitlink without staging the peer-owned checkout;
-      retain the 33 pre-existing Rustdoc link warnings as explicit residuals.
-
-## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default — complete 2026-08-13
-
-- [x] Confirm Moirai PM closeout PR #125 merged as `ae9a5dfb` after all
-      repository-owned checks passed; the recurring `recurseml/analysis`
-      status remains an external analyzer error seen on prior merged PRs.
-- [x] Advance the root Moirai gitlink to `ae9a5dfb` and rerun the exact-head
-      and coherence audits without staging peer-owned submodule changes.
-- [x] Confirm the current inventory contains all twenty requested providers,
-      including Hermes and the normalized Tyche (aka Tychee) name.
-
-## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults — complete 2026-08-12
-
-- [x] Verify Mnemosyne exact-head CI at `1ad581971d2528e12c0c815fe30e87ce6c121d80`.
-      CI `31660997275` and Pages `31660996629` pass.
-- [x] Verify Hermes exact-head CI at `578514314bec51815e763f5a8103500bb9498c32`.
-      CI `31661101443` and Pages `31661100631` pass; benchmark smoke passes
-      within its committed budget.
-- [x] Refresh both root gitlinks without staging peer-owned provider changes.
-- [x] Run exact-head, coherence, and lane audits after the refresh.
-
-## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout — complete 2026-08-12
-
-- [x] Verify exact-head hosted WGPU, CUDA, ROCm, and Metal success at the
-      merged Hephaestus default head `9385686ec29fc5a2d168d967df3fae254760aa4b`.
-- [x] Advance the Atlas `repos/hephaestus` gitlink without staging its
-      peer-owned dirty `Cargo.lock`.
-- [x] Run the exact-head root audit and record the merged provider PM closure.
-      Provider runs: WGPU `31660774170`, CUDA `31660774171`, ROCm
-      `31660774190`, and Metal `31660774178`.
-
-## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence — complete 2026-08-12
-
-- [x] Refresh the Mnemosyne gitlink from `93dbc563` to fetched `origin/main`
-      `32524e37b7697dd37f3cb3b28ee570aa4d0df199`.
-- [x] Refresh the RITK gitlink from `e70f597` to fetched `origin/main`
-      `53bb01312222745325f20d36db95aab780ce39b3`; preserve the peer checkout
-      on `ritk-blocker-rebase` and its dirty `Cargo.lock`.
-- [x] Add exact-head audit mode with `origin/master` support and regression
-      coverage; run the structural and exact-head checks after the refresh.
-- [x] Record hosted success for Mnemosyne run `31656036812` and RITK runs
-      `31654697918`, `31654697898`, and `31654707025`.
-
-## ATLAS-PROVIDER-INTEGRATION-004 — Twenty-provider audit and cleanup — complete 2026-08-12
-
-- [x] Re-fetch all requested provider remotes and verify every Atlas gitlink
-      equals the fetched default head for Horae, Hyperion, Themis, Tyche,
-      Proteus, Mnemosyne, Consus, Helios, Aequitas, Asclepius, Eunomia,
-      Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris.
-- [x] Verify exact-head hosted success is present for all 20 providers.
-- [x] Restore Hermes to the committed provider-audit inventory and add a
-      regression assertion requiring exactly 20 requested providers.
-- [x] Complete and merge Consus book chapters (PR #19) and refresh its exact
-      root gitlink.
-- [x] Complete and merge Coeus book/provider-bridge closure (PR #321) and
-      reusable-workflow refresh (PR #322).
-- [x] Remove all mutable provider workflow action references through merged
-      provider-owned PRs; the fetched default-head scan reports 0 residuals.
-- [x] Refresh all stale Atlas reusable-workflow references to
-      `ceafa3d951f7db9ffcd93a79e5efbbdd09e199de` through merged provider PRs.
-- [x] Commit and verify the final 20-provider root gitlink refresh after the
-      green post-merge hosted runs (Atlas `6852b08`, PR #129); remove the
-      temporary audit lanes.
-- [x] Resolve the discovered non-linked `worktrees/gaia-aequitas-verify`
-      directory after an exact empty-target check; no unique peer work was
-      deleted.
-- [x] Re-run the post-merge structural audit: 20/20 exact gitlinks, 20/20
-      providers with completed successful hosted workflows, zero mutable
-      workflow action references, zero unfinished book chapters, and zero
-      lane-audit defects.
-- [x] Record the environment-only toolchain residual: directory rustup
-      overrides at `D:\\atlas`, `repos/hephaestus`, and `repos/ritk` cause the
-      standalone preflight to fail; no repository file was changed to mask it.
-
-## ATLAS-FOUNDATION-PLANNING-001 — Foundation planning completion — done 2026-08-12
-
-- [x] Author `repos/aequitas/backlog.md`, `checklist.md`, `gap_audit.md` from
-      the verified delivery record (15 ADRs, quantity vocabulary, UnitDisplay,
-      0.2.0 publication, book closure).
-- [x] Author `repos/proteus/backlog.md`, `checklist.md`, `gap_audit.md` from
-      the verified delivery record (2 ADRs, validated properties,
-      temperature-response laws, GAT constitutive seam, book closure).
-- [x] Re-verify eunomia gates at the worktree head: Nextest 117/117
-      (all features), 9/9 doctests, no-default check, warning-denied Clippy,
-      strict all-target check. External/owner gates (E-REL-001 online
-      dry-run, 0.8.0 remote merge + gitlink, E-024 consumer-gated,
-      E-027 consumer-owned) remain correctly classified open.
-- [x] Record the Themis Melinoe branded-collection adoption in the local
-      backlog; confirm all themis backlog sections checked and gates green
-      (21/21 default, 38/38 all-features, 38/38 testing).
-- [x] Provider gate matrix 2026-08-12: aequitas 59/59 + 13 doctests;
-      proteus 18/18 + 1 doctest; eunomia 117/117 + 9 doctests; themis 21/21
-      + 38/38 testing. No `TODO`/`FIXME`/`unimplemented!` in any provider
-      `src/` tree.
-
-## ATLAS-FOUNDATION-PLANNING-002 — Next-tier planning completion — done 2026-08-12
-
-- [x] Author `repos/horae/backlog.md`, `checklist.md`, `gap_audit.md` from the
-      verified record (ADR 0001, RK4/adaptive/events/subcycling surface, book
-      closure ATLAS-HORAE-PROVIDER-DOCS-001, PR #7 f32 adaptive-policy
-      contract).
-- [x] Author `repos/hyperion/gap_audit.md` (only missing file; HYPERION-001
-      record + book closure + first-wave consumer migrations).
-- [x] Author `repos/tyche/checklist.md` (only missing file; TYCHE-001..008
-      record + 2026-08-12 gate evidence).
-- [x] Reconcile `repos/consus` gap_audit/backlog with the 2026-08-12 gate
-      findings; record CONSUS-NODEF-GATE-001 and CONSUS-TEST-API-001.
-- [x] Deliver bounded consus gate fixes: `consus-arrow` no-default cfg
-      gating (re-exports, bridge/schema/conversion), Clippy lint fixes
-      (`consus-nwb` report.rs, `consus-hdmf` tests), and `consus-hdf5` root
-      re-exports for `Hdf5File`/`Hdf5FileBuilder`.
-- [x] Complete the `mnemosyne-local` WIP's two `unused_mut` sites in
-      `routing.rs` (left uncommitted; `mnemosyne-decay` workspace-local skew
-      is pre-existing and documented).
-- [x] Gate matrix 2026-08-12: hyperion 22/22 + doctest; horae 16/16 +
-      doctest; tyche 50/50 + 17 doctests; consus lib + doctests green with
-      two tracked open test-surface items.
-
-## ATLAS-PROVIDER-INTEGRATION-003 — Nineteen-provider second-pass audit — done 2026-08-12
-
-- [x] Audited all 19 providers for source gaps, open checklist items, gitlink
-      drift vs origin/main, and actionable source work.
-- [x] Confirmed burn→Coeus migration (MIG-433/437/439) fully complete in RITK:
-      no burn imports or dependencies remain.
-- [x] Confirmed color-volume Coeus variants (MIG-456-04) fully complete:
-      `ColorVolume<T,B,C>` using native Coeus types already implemented.
-- [x] Confirmed RITK SEC-461-04 orphaned-module sweep done at source level.
-- [x] Confirmed RITK PERF-432-01 B-spline hot path slice done at source level.
-- [x] Confirmed Hephaestus CPU attention already dispatches to Leto; Coeus
-      `coeus-hephaestus` bridge already wired (HEPH-ATTENTION-PROVIDER-1).
-- [x] Wired `ritk-snap::ui::coordinate_system` module into `ui/mod.rs` (BACKLOG):
-      `pub mod coordinate_system`, `AnatomicalFrame`, `PatientPosition`,
-      `format_point_mm`, `lps_to_ras`, `ras_to_lps` re-exported; 4/4 tests pass;
-      strict Clippy clean. Branch: `codex/ritk-coordinate-system-wire` (`df899cb1`).
-- [x] Marked Moirai ISSUE-224 done in checklist (CI gate already added in
-      `f3c0463`). Branch: `codex/moirai-book-closure` (`d8cd00c`).
-- [x] Recorded fresh Apollo benchmark rows for closures XCVIII, XCVII, LXXXIX:
-      N=16/32/64/128/32768 radix-composite and Rader-vs-Winograd (N=19,31,53)
-      and fused composite (N=192=208ns). Branch: `codex/apollo-book-closure`
-      (`acd67a83`).
-- [x] Eunomia fix/readme-packaging already merged to origin/main (PR #58);
-      Atlas gitlink updated to `085f217f`.
-- [x] Detected and restored CFDrs working-tree drift (accidentally on
-      `codex/crates-release-workflow` instead of committed gitlink `c68013a4`).
-- [x] Version-guard coherence: clean (235 manifests / 215 packages / 1037
-      requirements, 0 defects) after restore.
-- [ ] Owner PR merges: `codex/ritk-coordinate-system-wire`, updated
-      `codex/moirai-book-closure`, updated `codex/apollo-book-closure`, and
-      all book closure branches remain pending owner-authorized merge.
-
-- [x] Replace all placeholder book chapters across eight providers with
-      API-accurate prose: Themis (8 chapters), Mnemosyne (10 chapters),
-      Consus (4 chapters), Moirai (10 chapters), Hephaestus (10 chapters),
-      Coeus (10 chapters), Apollo (10 chapters), Iris (2 chapters).
-- [x] All 64 chapters replaced; no "Chapter prose deferred" markers remain
-      in any of the 19 requested provider books.
-- [x] Link detector clean: 0 FILE_MISSING / 0 ANCHOR_MISSING / 0 READ_FAIL
-      for all 8 updated books.
-- [x] mdBook builds pass for all 8 updated books.
-- [x] Per-commit version-guard scan: all 8 delivery commits touch 0
-      version-bearing lines; docs-only deliveries.
-- [x] Stack-wide coherence: `version-guard coherence` reports clean
-      (235 manifests / 215 packages / 1037 first-party requirements, 0 defects).
-- [x] Provider integration audit: `atlas-provider-integration-audit.py`
-      reports OK; all 19 providers present, scope clean.
-- [x] Branches pushed to origin:
-
-  | Provider | Branch | Commit |
-  |----------|--------|--------|
-  | themis | `codex/themis-book-closure` | `7a6744b` |
-  | mnemosyne | `codex/mnemosyne-book-closure-2` | `fdd8bd6` |
-  | consus | `codex/consus-book-closure` | `a21228a` |
-  | moirai | `codex/moirai-book-closure` | `31816dc` |
-  | hephaestus | `codex/hephaestus-book-closure` | `ae657fc` |
-  | coeus | `codex/coeus-book-closure` | `915f5ea0` |
-  | apollo | `codex/apollo-book-closure` | `3fd88f5e` |
-  | iris | `codex/iris-book-closure` | `2335464` |
-
-- [ ] Owner PR merge of each book-closure branch and Atlas root gitlink refresh.
-
-## ATLAS-CASCADE-ALIGNMENT-001 — Consumer alignment for the 0.42/0.5/0.26/0.19 provider cascade — done 2026-08-11
-
-- [x] Audit the peer cascade drift (previously 202 coherence defect lines):
-      the leto 0.42.0 / moirai 0.5.0 / apollo-fft 0.26.0 / hephaestus-wgpu
-      0.19.0 re-releases landed as provider worktrees with gitlinks matching
-      heads (`leto` `d9e674f`, `moirai` `f68045d`, `apollo` `3373362`,
-      `hephaestus` `a68e91f`), collapsing the drift to 3 consumer-side pins.
-- [x] Confirm the helios consumer side is peer-in-flight, not ours: the
-      live peer staged moirai 0.4.0→0.5.0 + hephaestus version pins + gaia
-      package rename on `cascade/provider-042` (helios `Cargo.toml` staged,
-      uncommitted) — helios defects dropped from the live gate and the branch
-      is left untouched.
-- [x] Deliver the last remaining drift line: `mnemosyne/fuzz/Cargo.toml`
-      pinned `mnemosyne-c-shim` 0.2.0 while the crate is 0.3.0. Bumped to
-      0.3.0 on `codex/mnemosyne-fuzz-cascade` `0568325` (pushed 2026-08-11);
-      `mnemosyne-core` 0.2.0 pin remains correct. Fuzz target only calls
-      `mnemosyne_fuzz::c_shim_api::run`, so this is manifest-version-only.
-- [x] Verify the closure gate: `version-guard coherence` clean — 235
-      manifests / 215 packages / 1036 first-party requirements, 0 defects,
-      rc=0; fuzz manifest re-parses with `^0.3.0` path dep.
-
-## ATLAS-BOOK-ANCHOR-PARITY-001 — Heading-id parity with mdBook v0.5.4 — done 2026-08-11
-
-- [x] Root-fix the em-dash divergence class in `scripts/check_mdbook_links.py`:
-      `heading_slug`/`heading_ids` now mirror mdBook v0.5.4's actual
-      normalize_id — rendered-text pipeline (smart punctuation `--`/`---` →
-      en/em-dash, link text, inline-code content, emphasis stripping,
-      trailing heading attributes, entity decode) plus the char loop
-      (each whitespace char → its own hyphen, `-`/`_`/Unicode-alnum kept,
-      no trimming) plus per-file `-1`/`-2` dedup of auto-slugs.
-- [x] Mask fenced code blocks (not inline code) when collecting headings, so
-      rustdoc/doctest `#`-marker lines inside fences emit no heading id;
-      inline-code content survives into the id (`The `AllocPolicy` trait` →
-      `the-allocpolicy-trait`).
-- [x] Fix the kwavers setext-heading defect surfaced by parity validation:
-      two `$$` display-math blocks in `transcranial_ust_brain_imaging.md`
-      had a bare `=` line (CommonMark setext heading → mdBook emitted
-      garbage ids like `-a_` and split the equation); joined `=` onto the
-      preceding line.
-- [x] Prove parity: 58-case empirical battery (58/58 vs the v0.5.4 binary)
-      plus full cross-validation — 346/346 chapter pages across all 24 books
-      reproduce the built heading ids exactly; detector gate stays green
-      (0/0/0) with no book link changes required.
-- [x] Keep explicit `{#id}` case-lenient on the link side: the anchor set
-      carries both the verbatim id and its lowercase form, so an exact-case
-      link (`#CamelCase-Anchor`) and the historical lowercase form both
-      resolve; 43/43 detector unit tests pass.
-
-## ATLAS-BOOK-LINK-CI-001 — All-provider book link CI gate — done 2026-08-11
-
-- [x] Extend `.github/workflows/docs.yml` to gate every provider book: the strict
-      `scripts/check_mdbook_links.py` detector plus `mdbook build` now run across
-      all `repos/*/docs/book` trees (24 books, discovered by glob so future
-      books are covered automatically), replacing the former 5-book list.
-- [x] Trigger paths widened to `repos/**/docs/book/**` so non-`.md` assets
-      (images, embedded files) re-trigger the gate; the mdbook-build loop
-      names and surfaces the failing book; the detector gate is documented
-      as exit-code-based so a future return-code refactor cannot weaken it.
-- [x] Extend `.githooks/pre-commit` to fast-path-scan all provider books and run
-      the same detector on commit, keeping the local gate aligned with CI.
-- [x] Update the `MDBOOK_DETECTOR_PARITY.md` wiring sections to document the
-      full-stack gate and its root-commit-boundary enforcement (submodule
-      gitlink changes do not match `paths:`); all 24 books build and link-clean.
-
-## ATLAS-BOOK-LINK-SWEEP-001 — All-provider book link sweep — done 2026-08-10
-
-- [x] Run `scripts/check_mdbook_links.py` across every `repos/*/docs/book`
-      (all 24 provider books). 23 books were already clean; `ritk` had 6
-      `FILE_MISSING` and 1 `ANCHOR_MISSING`.
-- [x] Fix the six broken `../../docs/adr/0036-neuroimaging-and-mr-ownership.md`
-      links in `apollo_sht.md`, `coeus_optim.md`, `connectome.md`,
-      `gaia_polyline.md` (×2), and `ritk_diffusion.md`: the ADR lives at the
-      Atlas root, not in the ritk checkout, and `brain_tractography.md`
-      already cites it by its GitHub URL — all six now use that canonical URL.
-- [x] Fix the stale CSD anchor in `leto_linalg.md`: the checker's slug for the
-      em-dash heading `## CSD — Constrained Spherical Deconvolution` is
-      `csd-constrained-spherical-deconvolution`, while mdBook's auto-slug
-      emits `csd--constrained-spherical-deconvolution`. Added an explicit
-      `{#csd-constrained-spherical-deconvolution}` heading attribute so both
-      tools agree, and pointed the link at the explicit anchor.
-- [x] Harden the four other em-dash model headings in `ritk_diffusion.md`
-      (`DTI`, `DKI`, `ODF`, `NODDI`) with the same explicit `{#id}` pattern so
-      future anchor links cannot hit the same detector/mdBook slug divergence.
-- [x] Re-run the sweep: all 24 books report `FILE_MISSING: 0`,
-      `ANCHOR_MISSING: 0`, `READ_FAIL: 0`; `mdbook build` passes for ritk and
-      the built anchor is the explicit `id="csd-constrained-spherical-deconvolution"`.
-
-## ATLAS-TYCHE-PROVIDER-ESTIMATORS-001 — Tyche sensitivity estimators and book closure — done 2026-08-10
-
-- [x] Implement genuine Morris elementary-effect screening in tyche-core:
-      `ElementaryEffects::from_steps` validates the trajectory contract (every
-      parameter perturbed exactly once, strictly positive step) and
-      `MorrisScreening` accumulates effect vectors into a `MorrisReport` with
-      per-parameter `mu`, `mu_star`, and `sigma`; two effects per parameter
-      are required so `sigma` is defined.
-- [x] Implement the Saltelli A/B/A_i^B first- and total-order Sobol' index
-      estimator (`SobolIndices`/`SobolReport`): `S_i = sum(f(B)(f(A_i^B) -
-      f(A)))/(N V)` and `S_Ti = sum((f(A) - f(A_i^B))^2)/(2 N V)` with `V` the
-      `f(A)` sample variance, unit-interval clamping, and a two-row minimum.
-- [x] Cover both estimators in `crates/tyche-core/tests/statistics_laws.rs`:
-      two-pass oracle equivalence, trajectory-contract error cases, an exact
-      linear-model Morris report, and a 16,384-row Monte Carlo Saltelli design
-      over two independent `UserDomain`-tagged `Counter`/`SplitMix64` streams
-      that recovers S_i = S_Ti = 0.5 for `f = x0 + x1`.
-- [x] Close all five Tyche `Chapter prose deferred` book chapters (`moments`,
-      `parameter_spaces`, `sobol`, `sensitivity`, `stack_position`) with
-      API-accurate prose; `mdbook build` passes.
-- [ ] Versioned Consus study schema (TYCHE-005), the score-only ensemble
-      model, and the crates.io publication sequence remain Tyche-owned open
-      items; `tyche-core` is already `publish = true` and its tag-gated
-      crates.io publication is the open external release gate, while the
-      workspace facade and adapter crates stay `publish = false`.
-
-## ATLAS-MNEMOSYNE-BOOK-001 — Complete Mnemosyne book closure — done 2026-08-10
-
-- [x] Replace all ten Mnemosyne `Chapter prose deferred — DoR item` book
-      placeholders with API-accurate prose: the size-class table, allocation
-      policies, the global allocator, scratch pools, the segment lifecycle,
-      decay/purge/reset, NUMA-aware allocation, hardened/secure policies,
-      profiling and leak detection, and the Atlas stack position.
-- [x] Keep the two existing compiled example pages (`alloc_policies`,
-      `scratch_pool`) and their CI runs as the executable documentation
-      surface; the new chapters cross-reference them rather than duplicating
-      runnable code.
-- [x] `mdbook build` and the Atlas link checker pass with zero broken links;
-      `git diff --check` is clean in both the provider and the Atlas root.
-- [x] Deliver the closure prose: committed `c4516df` on
-      `codex/mnemosyne-book-closure` (based directly on `origin/main`
-      `7541069`, two eunomia-0.8 re-release commits ahead of the gitlink
-      `9a143ca`), pushed 2026-08-11; mdBook build and the portable link
-      detector stay clean (0/0/0), `git diff --check` passes, no source or
-      manifest change (the `Cargo.lock` overlay churn was excluded from the
-      commit). The root gitlink remains at the merged `9a143ca` pending owner
-      PR merge.
-- [x] Complete the per-commit `version-guard scan` on `c4516df`
-      (`7541069..c4516df`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — the docs-only delivery
-      carries no version movement.
-
-## ATLAS-HORAE-PROVIDER-DOCS-001 — Complete Horae book closure — done 2026-08-10
-
-- [x] Replace all six Horae `Chapter prose deferred` book placeholders with
-      API-accurate explanations of explicit systems, RK tableaus, adaptive
-      control, event clipping, subcycle plans, and Atlas ownership boundaries.
-- [x] Keep inline teaching snippets marked `rust,ignore` because mdBook's
-      standalone harness does not provide the Horae dependency graph; the
-      compiled `examples/ordered_decay.rs` remains the executable documentation
-      surface used by CI. `mdbook build` passes; the existing included example
-      remains a known `mdbook test` dependency-harness limitation.
-- [x] Preserve provider boundaries: Horae owns typed time, explicit stepping,
-      adaptive decisions, event boundaries, and subcycle ratios; consumers own
-      equations, storage, coupling, synchronization, and release sequencing.
-- [x] Deliver the closure prose: committed `03ad868` on
-      `codex/horae-book-prose` (based directly on `origin/main` `08cf292`),
-      pushed 2026-08-11; mdBook build and the portable link detector stay
-      clean, `git diff --check` passes. The root gitlink remains at the merged
-      `08cf292` pending owner PR merge of the delivery branch.
-- [x] Complete Atlas-wide Horae pin-coherence verification against the
-      delivery head `03ad868` (2026-08-11): `version-guard coherence` at the
-      Atlas root scans 235 manifests / 215 packages / 1048 first-party
-      requirements with 0 defects; the horae worktree is checked out exactly at
-      `03ad868`, and the delivery commit touches no `Cargo.toml` (docs-only,
-      manifest byte-identical to `origin/main` `08cf292` at version `0.1.0`),
-      so the version graph is unchanged and the gate stays green post-merge.
-- [ ] Complete the separate Atlas facade/publication sequence and exact-head
-      gitlink delivery. `horae` remains intentionally `publish = false` until
-      dependency-ordered registry publication is authorized. Temporary-clone
-      nonlocked provider validation is green; committed locked validation is
-      retained as an explicit lock-graph residual rather than claimed green.
-
-## ATLAS-HYPERION-PROVIDER-DOCS-001 — Complete Hyperion book closure — done 2026-08-10
-
-- [x] Replace all three Hyperion `Chapter prose deferred` book placeholders
-      with API-accurate explanations of chromophore spectra, Beer-Lambert and
-      diffusion transport laws, and the Atlas ownership boundaries.
-- [x] Keep inline teaching snippets marked `rust,ignore` because mdBook's
-      standalone harness does not provide the Hyperion dependency graph; the
-      compiled `examples/photon_transport.rs`,
-      `examples/chromophore_spectrum.rs`, and
-      `examples/book_mass_attenuation.rs` remain the executable documentation
-      surface used by CI. `mdbook build` passes; the existing included example
-      pages remain a known `mdbook test` dependency-harness limitation.
-- [x] Add a compiled `book_mass_attenuation` example that walks the
-      `MassAttenuation::to_linear` seam with a `proteus::MassDensity` (linear
-      attenuation and half-value layer asserted), wire its
-      `docs/book/examples/mass_attenuation.md` page into the Beer-Lambert
-      chapter, and add the CI run step.
-- [x] Add a compiled `book_diffusion_deposition` example that derives reduced
-      scattering (`mu_s' = mu_s (1 - g)`), walks every `DiffusionCoefficients`
-      law (transport coefficient, `D = 1/(3 mu_t)`, transport mean free path,
-      effective attenuation, transport albedo), and evaluates both deposition
-      laws (`Q = mu_a phi`, `q = mu_a Phi`) with self-checking asserts; wire
-      its `docs/book/examples/diffusion_deposition.md` page and CI run step.
-      The four compiled examples (`photon_transport`, `chromophore_spectrum`,
-      `book_mass_attenuation`, `book_diffusion_deposition`) now cover every
-      executable documentation seam.
-- [x] Preserve provider boundaries: Hyperion owns photon/optical coefficients,
-      chromophore spectra, and local transport laws; Proteus owns material
-      identity and mass density; Helios/Kwavers/CFDrs own equations, meshes,
-      solvers, and workflow.
-- [x] Deliver the compiled-example slice: committed `b8a1124` on
-      `codex/hyperion-book-examples` (based directly on `origin/main`
-      `9a8b7d8`), pushed 2026-08-11; both examples compile and pass their
-      assertions, mdBook build + portable link detector clean, `git diff
-      --check` clean, no Cargo.lock churn. The root gitlink remains at the
-      merged `9a8b7d8` pending owner PR merge of the delivery branch.
-- [x] Complete the per-commit `version-guard scan` on `b8a1124`
-      (`9a8b7d8..b8a1124`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — the book-example/docs/CI
-      delivery carries no version movement.
-- [x] Complete Atlas-wide Hyperion pin-coherence verification against the
-      delivery head `b8a1124` (2026-08-11): `version-guard coherence` scans
-      235 manifests / 215 packages / 1048 first-party requirements with 0
-      defects; the delivery commit touches no `Cargo.toml`, so the version
-      graph is unchanged and the gate stays green post-merge.
-- [ ] Complete the separate Atlas facade/publication sequence and exact-head
-      gitlink delivery. `hyperion` remains intentionally `publish = false`
-      (occupied registry name) and the Git-first provider decision is unchanged.
-- [ ] Note: the provider checkout's pre-existing unstaged `Cargo.lock` edit
-      was restored to the committed HEAD blob and is not delivered; the owner
-      should re-apply any intentional lock change from the branch.
-
-## ATLAS-PROTEUS-PROVIDER-DOCS-001 — Complete Proteus book closure — done 2026-08-10
-
-- [x] Replace all three Proteus `Chapter prose deferred` book placeholders
-      with API-accurate explanations of validated properties, constitutive
-      laws, and the Atlas ownership boundaries.
-- [x] Keep inline teaching snippets marked `rust,ignore` because mdBook's
-      standalone harness does not provide the Proteus dependency graph; the
-      compiled `examples/constant_material.rs` and
-      `examples/temperature_material.rs` remain the executable documentation
-      surface used by CI. `mdbook build` passes; the existing included example
-      pages remain a known `mdbook test` dependency-harness limitation.
-- [x] Preserve provider boundaries: Proteus owns material properties, material
-      identity, and constitutive-law evaluation; Aequitas owns units, Eunomia
-      owns scalars, and Hyperion/Helios/CFDrs/Kwavers own their domain laws.
-- [x] Deliver the closure prose: committed `30e25f8` on
-      `codex/proteus-book-prose` (based directly on `origin/main` `3d6021e`,
-      which already merges `2918e5a`), pushed 2026-08-11; mdBook build and the
-      portable link detector stay clean, `git diff --check` passes. The root
-      gitlink remains at the merged `3d6021e` pending owner PR merge of the
-      delivery branch.
-- [x] Complete Atlas-wide Proteus pin-coherence verification against the
-      delivery head `30e25f8` (2026-08-11): `version-guard coherence` at the
-      Atlas root scans 235 manifests / 215 packages / 1048 first-party
-      requirements with 0 defects; the proteus worktree is checked out exactly
-      at `30e25f8`, and the delivery commit touches no `Cargo.toml` (docs-only,
-      manifest byte-identical to `origin/main` `3d6021e` at version `0.1.0`),
-      so the version graph is unchanged and the gate stays green post-merge.
-- [ ] Complete the separate Atlas facade/publication sequence and exact-head
-      gitlink delivery. `proteus` remains intentionally `publish = false`
-      (occupied registry name) and the Git-first provider decision is unchanged.
-- [ ] Note: the provider checkout's pre-existing owner-review `Cargo.lock`
-      edit was preserved untouched; validation ran in a temporary clone only.
-      The delivery commit deliberately excludes that lockfile edit.
-
-## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — nineteen-provider integration audit — done 2026-08-11
-
-- [x] Audit Horae, Hyperion, Themis, Tyche (aka Tychee), Proteus, Mnemosyne, Consus, Helios,
-      Aequitas, Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus,
-      Coeus, Apollo, and Iris manifests, public SSOT seams, examples/contracts,
-      consumer integrations, and provider boundaries.
-- [x] Verify locked no-dependency metadata for all nineteen requested
-      repositories and the Atlas overlay/conformance relationship.
-- [x] Close the Consus Zarr filesystem-store path boundary: reject traversal,
-      unsafe path components, and OS-level roots before joining keys to the
-      store root; add regression coverage for lexical escape rejection and
-      retain ordinary nested-key round trips. Track symlink-safe,
-      race-resistant operations as a separate filesystem-hardening item.
-- [x] Correct verified local drift: baseline formatting in Hyperion, Themis,
-      and Asclepius book/source examples, plus Eunomia's stale 0.6.0 target
-      label to the live 0.8.0 workspace target.
-- [x] Confirm Proteus (`2918e5a`) is consumed as the material-property SSOT by
-      Hyperion (`src/coefficient/mass.rs`), Helios
-      (`crates/helios-solver/src/attenuation_map.rs`), CFDrs
-      (`crates/cfd-core/src/physics/fluid/thermophysical.rs`), and Kwavers
-      (`crates/kwavers-medium/src/properties/thermal.rs`) without a duplicate
-      material-law implementation; Proteus book-prose deferrals are closed by
-      ATLAS-PROTEUS-PROVIDER-DOCS-001.
-- [x] Confirm Tyche (`d25311e`) sampling/uncertainty surfaces are consumed by
-      Helios (`crates/helios-imaging/src/noise.rs`), CFDrs
-      (`crates/cfd-optim/src/design/space/sampling/mod.rs`), and Kwavers.
-- [x] Route Kwavers' elastography percentile-bootstrap index generation through
-      Tyche `Bootstrap::<SplitMix64>` at
-      `crates/kwavers-analysis/src/signal_processing/estimation_bounds.rs`;
-      retain percentile interpolation in Kwavers and keep score-only ensemble
-      bagging separate. Morris and Saltelli estimators are delivered by
-      `ATLAS-TYCHE-PROVIDER-ESTIMATORS-001`; the versioned Consus study
-      schema and release sequence remain explicitly open.
-- [x] Preserve Moirai's Rayon/Tokio comparison-only dev/benchmark edges rather
-      than treating them as runtime-provider duplication.
-- [x] Run the configured provider-package Nextest and strict Clippy gates at
-      clean exact heads. The long-standing blocker was an environment defect,
-      not a source one:
-      `RUSTC`/`RUSTDOC` were set-but-empty, so Cargo spawned ` -vV` and failed;
-      pinning them to the real toolchain binaries plus putting the working
-      MinGW toolchain first on PATH (`/ucrt64/bin`) also unblocked the C
-      build-scripts (`alloca`, `zstd-sys`, `ring`, mimalloc/rpmalloc/
-      snmalloc-sys). 2026-08-10 evidence: strict `RUSTFLAGS="-D warnings"`
-      all-targets checks pass for the thirteen foundation/runtime packages
-      covered by this gate; Nextest passes horae 15/15, hyperion 22/22, themis
-      21/21 (+36/36 testing), aequitas 54/54, asclepius 18/18, eunomia 109/109,
-      proteus 18/18, tyche 44/44, moirai 784/784, consus 2478/2478, mnemosyne
-      302/302, hermes 438/438, and iris 15/15. The remaining integrator
-      findings are recorded below with their own provider/consumer gates and
-      blockers; this evidence is not a claim that all nineteen worktrees are
-      clean or delivery-ready.
-      Themis strict `--no-default-features` (both testing modes) and all
-      `book_*.rs` examples compile. Doctest/Rustdoc/coherence remain for the
-      release-slice pass.
-- [x] Classify Tyche TYCHE-005's versioned Consus study schema and
-      manifest-last logical-completeness contract as a Tyche/Consus
-      release-scope follow-up; transactional durability remains explicitly
-      blocked on a future Consus transaction seam and is not an Atlas
-      integration-scope blocker.
-- [x] Classify crates.io/PyPI trusted-publisher and publication steps plus
-      native SIMD/GPU hardware validation as external release/hardware gates,
-      not Atlas integration-scope completion criteria.
-
-- [x] Complete Themis lint-floor under `--no-default-features`: the dead no-`std`
-      `detect_cache_levels` fallback and its unconditional re-export/import were
-      removed or cfg-gated (`src/topology/cpu/{cache,mod}.rs`); strict checks in
-      default, `testing`, and no-default modes are green.
-- [x] Fix Moirai bench/contract completeness: add the missing `channel::spsc`
-      import in `benchmarks/benches/thread_schedule_comparison.rs` (E0425) and
-      correct the stale single-line contract fragment (renamed
-      `fixture.scheduler` plus formatting-agnostic whitespace normalization) in
-      `benchmarks/tests/benchmark_contracts/runtime_contracts.rs`; moirai
-      Nextest is 784/784.
-
-Acceptance: the compile/test gates are now independently satisfied (2026-08-10
-environment unblock plus the green matrix above). Atlas integration-scope
-audit closure is complete; remaining release/hardware evidence and
-dependency-ordered provider delivery stay tracked as external follow-up gates.
-
-- [x] Reconcile the root Cargo configuration encoding without deleting active
-      build policy: the working UTF-8 `.cargo/config.toml` parses and is
-      semantically identical to the committed UTF-16 configuration; the overlay
-      is aligned and no `.off` backup remains. The intentional normalization is
-      still dirty pending the root commit.
-- [x] Refresh the requested nineteen-provider inventory after `git fetch --prune`
-      on 2026-08-11: record the Atlas gitlink as the delivery SSOT, distinguish
-      stale or branch child checkouts from delivered revisions, and count dirty
-      scopes without mutating them. Fourteen requested child checkouts differ
-      from their root gitlinks; five requested checkouts are aligned. Hermes is
-      the sixth aligned checkout in the wider 25-member stack. All requested
-      child worktrees remain dirty and are preserved.
-- [x] Classify each provider's dirty scope as a dependency-ordered
-      provider-delivery follow-up tracked in provider/consumer boards; this
-      audit closes Atlas integration identity and evidence boundaries, while
-      child delivery advances through exact-merged-head increments below.
-- [x] Deliver the two final pending requested integrator gitlinks after exact
-      hosted closure: Helios PR #44 merged at `342bbbc83d95b33060cc8fc52587f98e9ea5d166`
-      with hosted run `31470908686` green, including the four-pair benchmark
-      regression gate; RITK PR #121 merged at `82307a77a009fe0c155aacf1dd4456f9480438f`
-      with hosted core run `31468941904` and Python matrix run `31468942935`
-      green. The parent pointers are advanced without modifying peer-dirty
-      child files.
-- [x] Land Atlas-root enforcement for the closure state: add
-      `scripts/atlas-provider-integration-audit.py` and
-      `scripts/tests/test_atlas_provider_integration_audit.py`, wire the guard
-      into `.github/workflows/version-guard.yml` through
-      `scripts/atlas-version-guard-sweep.py`, and add pre-commit
-      `--structural-only` enforcement on integration-relevant staged files.
-- [x] Extend `atlas-provider-integration-audit.py` beyond marker checks to
-      include requested-provider scoped coherence validation (global coherence
-      findings outside the requested nineteen remain informational, not
-      blockers for this item's scope).
-- [x] Re-run the live scoped-coherence snapshot after tooling hardening
-      (2026-08-11 local tree): `version-guard coherence --format json` now
-      reports 0 global defects, and `atlas-provider-integration-audit.py`
-      reports the requested-provider scope clean. No in-scope version-skew
-      findings remain in the current local integration state.
-
-## ATLAS-AEQUITAS-PROVIDER-DOCS-001 — Complete Aequitas book closure — done 2026-08-10
-
-- [x] Replace all eight Aequitas `Chapter prose deferred — DoR item` book
-      placeholders with API-accurate explanations of quantity storage,
-      dimensions, units, scaling, additive/derived arithmetic, and stack
-      ownership boundaries.
-- [x] Mark the two included runnable example listings as documentation-only
-      snippets for mdBook's standalone doctest harness; the compiled Rust
-      examples remain covered by the provider Cargo gates.
-- [x] Verify the clean Aequitas provider at `681042b`: locked metadata,
-      formatting, the CI no-default-feature check, warning-denied all-target/
-      all-feature Clippy, 54/54 Nextest, 13 doctests (including the compile-fail
-      contract), warning-denied Rustdoc, `cargo deny check`, and locked package
-      listing.
-- [x] Verify `mdbook test docs/book`, `mdbook build docs/book`, no remaining
-      placeholder markers, and `git diff --check`.
-- [x] Deliver the closure prose: committed `11565d9` on
-      `codex/aequitas-book-prose` (from `681042b`), pushed 2026-08-11; mdBook
-      build and the portable link detector stay clean, `git diff --check`
-      passes. The root gitlink remains at the merged `681042b` pending owner PR
-      merge of the delivery branch.
-- [x] Complete Atlas-wide Aequitas pin-coherence verification against the
-      delivery head `11565d9` (2026-08-11): `version-guard coherence` at the
-      Atlas root scans 235 manifests / 215 packages / 1048 first-party
-      requirements with 0 defects; the aequitas worktree is checked out exactly
-      at `11565d9`, and the delivery commit touches no `Cargo.toml` (docs-only,
-      manifest byte-identical to `origin/main` `681042b` at version `0.2.0`),
-      so the version graph is unchanged and the gate stays green post-merge.
-- [ ] Complete the dependency-ordered facade/publish sequence; that remains a
-      consumer/release gate and is not silently closed by provider
-      documentation.
-
-> Tactical decomposition aligned to `backlog.md`. Each step is atomic, evidence-tied, and self-verify-able. Per `engineering_gates`, only `cargo nextest run` and `cargo test --doc` are sanctioned test runners; changelog version bump and CHANGELOG sync travel with each [minor]/[major]/[arch] commit.
->
-> **Integration base**: fetched `origin/main`; Git owns the exact revision.
-> **Phase**: Foundation → Execution (batches 1, 2, 3 sequencing determined by Definition-of-Ready below).
-> **WIP limit**: one merge-affecting backlog item active at a time (per `context_and_memory WIP limit`).
-
-## ATLAS-HEPHAESTUS-CLOSURE-001 — Hephaestus expression-parity closure record — done 2026-08-11
-
-- [x] Deliver the provider-local GELU/LGAMMA/error-function parity closure PM
-      record as `407938b` on `codex/hephaestus-closure-record` (based directly
-      on `origin/master` `d4d5906`), pushed 2026-08-11. Per the provider-
-      stamped closure record (not re-validated in this delivery): CHANGELOG.md
-      and gap_audit.md record the resolved parity with hosted-run evidence
-      (WGPU, CUDA, ROCm, Metal job ids; Coeus PR #228 `aca9a5a8` and PR #231
-      `971fab96`; required-device runs skipped, no physical-device claim).
-- [x] Exclude the `Cargo.lock` overlay churn (consus→ritk patch swap,
-      `[[patch.unused]]`) from the delivery; restored to the committed blob.
-- [x] Complete Atlas-wide Hephaestus pin-coherence verification against the
-      delivery head `407938b` (2026-08-11): `version-guard coherence` scans 235
-      manifests / 215 packages / 1048 first-party requirements with 0 defects;
-      the delivery touches no `Cargo.toml`, so the version graph is unchanged.
-- [ ] Owner PR merge of `codex/hephaestus-closure-record`; the root gitlink
-      stays at merged `d4d5906` pending that merge.
-
-## ATLAS-EUNOMIA-CLOSURE-001 — Eunomia 0.8.0 closure record — done 2026-08-11
-
-- [x] Deliver the provider-local 0.8.0 closure PM record as `0c14c2e` on
-      `codex/eunomia-closure-record` (based directly on `origin/main`
-      `184ba92`), pushed 2026-08-11. Per the provider-stamped 0.8.0 closure
-      record (not re-validated in this delivery): `eunomia = "0.8.0"` indexed
-      on crates.io and clean-clone gates pass (metadata, fmt, six feature
-      checks, strict Clippy, 116/116 Nextest, 9/9 doctests, Rustdoc, locked
-      package listing).
-- [x] Classify the offline `cargo publish --dry-run` failure as an
-      offline-registry artifact (not a release failure); the online exact-revision
-      dry run stays under E-REL-001. E-024 (OCP-MXFP consumer gate) and E-027
-      (consumer-owned bytemuck GPU-ABI co-evolution) remain correctly open.
-- [x] Complete Atlas-wide Eunomia pin-coherence verification against the
-      delivery head `0c14c2e` (2026-08-11): `version-guard coherence` scans 235
-      manifests / 215 packages / 1048 first-party requirements with 0 defects;
-      the delivery touches no `Cargo.toml`, so the version graph is unchanged.
-- [x] Complete the per-commit `version-guard scan` on `0c14c2e`
-      (`184ba92..0c14c2e`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — the PM-only delivery
-      carries no version movement.
-- [ ] Owner PR merge of `codex/eunomia-closure-record` and the Atlas parent
-      gitlink/convergence refresh remain owner-authorized delivery gates; the
-      root gitlink stays at merged `184ba92`.
-
-## ATLAS-IRIS-CLOSURE-001 — Iris IRIS-003 release-readiness record — done 2026-08-11
-
-- [x] Deliver the provider-local IRIS-003 release-readiness record as `e179781`
-      on `codex/iris-closure-record` (based directly on `origin/main`
-      `ab3eea2`), pushed 2026-08-11. The two PM files (backlog/checklist)
-      record the IRIS-003 state: the `iris` 0.1.0 name is unregistered, the
-      exact-identity validation + OIDC publishing automation are merged (PR
-      #6), and the local repository gates pass.
-- [x] Re-verify the recorded iris local gates in this delivery (2026-08-11):
-      `cargo fmt --check`, `cargo check --all-features` and
-      `--no-default-features`, warning-denied Clippy, 16/16 Nextest
-      (`--all-features`; 15/15 default), 2/2 doctests all pass. `cargo package
-      --locked` stays blocked only in the Atlas overlay because Cargo rewrites
-      `Cargo.lock` under the ambient path-patch graph; hosted CI/publish and
-      trusted-publisher steps remain external release gates.
-- [x] Complete the per-commit `version-guard scan` on `e179781`
-      (`ab3eea2..e179781`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — the PM-only delivery
-      carries no version movement; stack-wide coherence clean (0 defects).
-- [ ] Owner PR merge of `codex/iris-closure-record` and the crates.io 0.1.0
-      publish + trusted-publisher configuration remain owner-authorized
-      external gates; the root gitlink stays at merged `ab3eea2`.
-
-## ATLAS-ASCLEPIUS-BOOK-001 — Complete Asclepius book closure — done 2026-08-11
-
-- [x] Replace all four Asclepius `Chapter prose deferred` book placeholders
-      (`response_values.md`, `geud.md`, `tcp_ntcp.md`, `stack_position.md`)
-      with API-accurate explanations of validated response values,
-      gEUD/power-mean bounds and homogeneity, Niemierko logistic TCP and
-      Lyman NTCP, and the Atlas ownership boundary.
-- [x] Deliver the book-closure slice: committed `220d713` on
-      `codex/asclepius-book-closure` (based directly on `origin/main`
-      `530115a`), pushed 2026-08-11; mdBook build + portable link detector
-      clean (0/0/0), `git diff --check` clean, no source or lockfile change.
-- [x] Complete the per-commit `version-guard scan` on `220d713`
-      (`530115a..220d713`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — the docs-only delivery
-      carries no version movement; stack-wide coherence clean (0 defects).
-- [x] Re-verify the three compiled asclepius examples under the Atlas overlay
-      (2026-08-11): `treatment_response` (gEUD=50.662 Gy, TCP=0.52629,
-      CEM43=3.000 min), `book_geud` (uniform 2.0 Gy for all exponents, mean
-      2.5 at a=1, 3.7327 at a=20 → 4.0), and `book_biological_values` (all
-      value-validation assertions pass) compile and run with rc=0; overlay
-      `Cargo.lock` churn restored after the runs, worktree clean.
-- [ ] Owner PR merge of `codex/asclepius-book-closure` and the crates.io
-      publish + trusted-publisher configuration remain owner-authorized
-      external gates; the root gitlink stays at merged `530115a`.
-
-## ATLAS-COEUS-MLM-PROVIDER-001 — Coeus multi_label_margin_loss provider delivery — done 2026-08-11
-
-- [x] Deliver the coeus `feat/mlm-provider` source slice (`1ac8118c`,
-      multi_label_margin_loss provider ownership migration) by pushing the
-      branch 2026-08-11; the root gitlink already records `1ac8118c`. The
-      delivery is the sole remaining non-sequential host-staged loss family:
-      pairwise [N,C,C] active tensor via broadcast, target gather with safe
-      flattened indexing, masked positive hinge, target/sibling scatter
-      backward, 4 value-semantic tests. CTC stays the sole sequential-DP
-      exception.
-- [x] Complete the per-commit `version-guard scan` on `1ac8118c`
-      (`4491bf19..1ac8118c`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — the `Cargo.lock` change in
-      range is the ambient patch-set re-resolution signature (no version
-      movement); stack-wide coherence clean at scan time (the live rerun
-      reports 24 hermes-drift defects — see ATLAS-CGROUP-CLOSURES-001).
-- [x] Re-verify the migration compiles and its 4 value-semantic tests pass
-      under the Atlas overlay (2026-08-11): `cargo build -p coeus-autograd
-      --all-targets` rc=0; `cargo test -p coeus-autograd multi_label_margin`
-      → 4 passed, 0 failed (forward-matches-reference,
-      backward-matches-analytic, two-valid-targets, and the
-      target-length-mismatch should-panic reject); overlay `Cargo.lock` churn
-      restored after the runs, worktree clean at `1ac8118c`, remote
-      `feat/mlm-provider` head intact.
-- [x] Extend the gate to the full crate suites and strict clippy under the
-      overlay (2026-08-11): `cargo test -p coeus-nn` → 322 passed, 2 ignored,
-      0 failed; `cargo test -p coeus-autograd` → 178 passed (77+85+16), 0
-      failed; `cargo clippy -p coeus-nn --all-targets -- -D warnings` and
-      `cargo clippy -p coeus-autograd --all-targets -- -D warnings` both
-      clean (rc=0). Resolution required bypassing the overlay's
-      `hermes-simd` patch (the local hermes worktree's eunomia-0.8
-      re-release provides 0.6.0 while coeus requires `^0.5.0`): the gate ran
-      with a temporary hermes checkout at the gitlink `bde7010f`
-      (hermes-simd 0.5.0) under `target/hermes-gitlink`, overriding the
-      patch via `cargo --config`; no peer-owned hermes worktree dirt was
-      touched, the temp checkout was removed, and the coeus `Cargo.lock`
-      churn was restored — worktree clean at `1ac8118c`.
-- [x] Re-verify the version graph after the gate runs (2026-08-11): the coeus
-      `Cargo.lock` is byte-identical to the committed blob; the per-commit
-      `version-guard scan` on `4491bf19..1ac8118c` still reports 0 defects
-      (`{"defect_count":0,"findings":[]}`, rc=0); stack-wide coherence
-      unchanged (235/215/1048, 24 hermes-drift defects with the same
-      composition — none introduced by the gate runs).
-- [ ] Owner PR merge of `feat/mlm-provider` and the Atlas parent
-      gitlink/convergence refresh remain owner-authorized delivery gates.
-
-## ATLAS-HELIOS-DICOM-ORIENTATION-001 — Helios DICOM oriented-grid boundary delivery — done 2026-08-11
-
-- [x] Deliver the previously worktree-only Helios DICOM orientation work as
-      `6858282` on `codex/helios-dicom-orientation` (based directly on
-      `origin/main` `342bbbc83` = the root gitlink), pushed 2026-08-11. The
-      commit makes `load_ct_slice` / `load_ct_series` enforce
-      `ImageOrientationPatient` as an oriented-grid boundary: voxel grids are
-      built with `VoxelGrid::oriented`, series stacking is sorted by
-      slice-normal projection instead of raw z (dot/cross/normalize helpers
-      with an orientation tolerance), and synthetic-provider tests validate
-      non-identity orientation pose preservation through `ritk-dicom`;
-      CHANGELOG synced.
-- [x] Gates (2026-08-11, under the Atlas overlay): `cargo check -p
-      helios-domain --features dicom --all-targets` rc=0; `cargo test -p
-      helios-domain --features dicom` 44/44; strict `cargo clippy -p
-      helios-domain --features dicom --all-targets -- -D warnings` clean
-      (rc=0); fmt and `git diff --check` clean. No hermes-simd resolution
-      blocker (helios does not depend on it). Overlay `Cargo.lock` churn
-      restored.
-- [x] Complete the per-commit `version-guard scan` on `6858282`
-      (`342bbbc83..6858282`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — no `Cargo.toml` in range;
-      stack-wide coherence unchanged (helios contributes no defects).
-- [x] Extend the gate to the full workspace (2026-08-11, pre-owner-PR
-      re-verification): `cargo check --workspace --all-targets` compiles all
-      11 crates clean (rc=0, `Finished dev profile in 52.41s`, zero errors).
-      Unlike `helios-domain` alone, the full workspace does transitively hit
-      the known hermes-simd resolution blocker: `helios-gpu →
-      hephaestus-wgpu → leto-ops v0.41.0` requires `hermes-simd ^0.5.0`
-      while the overlay patches hermes-simd to the local hermes worktree
-      (advanced past its gitlink to `77716bb`, providing 0.6.0). Same
-      temp-gitlink bypass as the coeus gate: a temporary hermes checkout at
-      the gitlink `bde7010f` (hermes-simd 0.5.0) under `target/hermes-gitlink`,
-      overriding the overlay patch via `cargo --config`; no peer-owned hermes
-      dirt touched, temp checkout removed, overlay `Cargo.lock` churn
-      restored, worktree clean at `6858282`.
-- [ ] Owner PR merge of `codex/helios-dicom-orientation`; the root gitlink
-      stays at merged `342bbbc83` pending that merge. The stale local
-      `codex/helios-lock-fix` branch (its 3 commits are already merged into
-      main) and the peer ADR-index `docs/adr/README.md` edit remain
-      untouched.
-
-## ATLAS-LETO-HERMES-REDUCED-PRECISION-001 — Leto F16/Bf16 Hermes provider delivery — done 2026-08-11
-
-- [x] Deliver the previously worktree-only Leto reduced-precision provider
-      work as `606e5b5` on `codex/leto-hermes-reduced-precision` (based
-      directly on `origin/main` `d9e674fc`, which already carries the
-      eunomia-0.8 cascade re-release incl. leto 0.41.0 and `hermes-simd`
-      0.6.0), pushed 2026-08-11. The commit routes `leto-ops::SimdStrategy`
-      F16/Bf16 elementwise, reduction, AXPY, GEMV, and GEMM operations
-      through the same capability-checked Hermes provider as `f32`/`f64`,
-      replacing the scalar unsupported stubs; adds F16 elementwise/sum/dot
-      provider tests and the AXPY-accumulation test; syncs CHANGELOG and the
-      three PM files.
-- [x] Gates (2026-08-11, under the Atlas overlay): `cargo check -p leto-ops
-      --all-targets` rc=0; `cargo test -p leto-ops` 544 passed / 1 ignored /
-      0 failed (incl. `reduced_precision_provider_covers_elementwise_and_`
-      `reductions`, `reduced_precision_provider_preserves_axpy_accumulation`,
-      and `norms_run_at_reduced_precision`); strict `cargo clippy -p leto-ops
-      --all-targets -- -D warnings` clean (rc=0); fmt and `git diff --check`
-      clean. No hermes-simd resolution blocker (leto and the hermes worktree
-      both at 0.6.0). Overlay `Cargo.lock` churn restored.
-- [x] Complete the per-commit `version-guard scan` on `606e5b5`
-      (`d9e674fc..606e5b5`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — no `Cargo.toml` in range
-      (the 0.41.0/0.6.0 versions come from the base).
-- [x] Restore the leto worktree to the root gitlink `ca93b63c` after the
-      push (per the gaia/mnemosyne pattern): the origin-main-based checkout
-      transiently reported 122 coherence defects (leto 0.41.0 vs consumers
-      still requiring 0.40.0); the restore dropped the live gate to 1
-      residual line (`leto-ops`@gitlink requiring `hermes-simd` 0.5.0 vs the
-      hermes worktree's 0.6.0 — resolves when leto's re-release lands).
-- [ ] Owner PR merge of `codex/leto-hermes-reduced-precision`; the root
-      gitlink stays at merged `ca93b63c` pending that merge. The stale
-      `codex/leto-git-lock` branch (with the redundant `hermes-simd` 0.6.0
-      bump commit `d68095b`) and the tool-generated ADR-index
-      `docs/adr/README.md` edit remain untouched.
-
-## ATLAS-APOLLO-SHARED-VALIDATION-001 — Apollo shared WGPU transform validation delivery — done 2026-08-11
-
-- [x] Deliver the previously worktree-only Apollo D8-shared-validation
-      extraction as `b426f2cd` on `codex/apollo-shared-validation` (based
-      directly on `origin/main` `0e38d1cc` = the root gitlink), pushed
-      2026-08-11. `WgpuTransformBackend` now exposes the canonical
-      non-empty-plan (`validate_plan`), operand-length (`require_len`), and
-      typed-storage-profile (`validate_storage_profile`) validators to
-      extension surfaces; `apollo-gft` consumes those helpers and retains
-      only its graph-basis shape validation (`validate_basis_len`), removing
-      the duplicated generic error-validation home; direct unit tests pin the
-      shared invalid-plan, length-mismatch, profile-match, and
-      profile-mismatch behavior; the validation suite gains a mnemosyne
-      branded-slice boundary integration test (new `apollo-validation`
-      dev-dependency on the workspace `mnemosyne`); CHANGELOG/backlog/gap_audit
-      synced. No transform arithmetic, provider acquisition, capability
-      probe, or fallback path changed.
-- [x] Gates (2026-08-11, under the Atlas overlay): `cargo check --workspace
-      --all-targets` rc=0 (all 20 crates); `cargo test -p apollo-fft shared_
-      --features wgpu` 3/3; `cargo test -p apollo-gft basis` 2/2; `cargo test
-      -p apollo-validation mnemosyne_branded` 1/1; strict `cargo clippy -p
-      apollo-fft --features wgpu --all-targets -- -D warnings`, `-p
-      apollo-gft`, and `-p apollo-validation` all clean (rc=0); fmt and `git
-      diff --check` clean. Resolution required the temp-gitlink hermes bypass
-      (the origin/main base requires `hermes-simd` 0.5.0 while the overlay
-      patches it to the local hermes worktree's 0.6.0): gates ran with a
-      temporary hermes checkout at the gitlink `bde7010f` (hermes-simd 0.5.0)
-      under `target/hermes-gitlink`, overriding the patch via `cargo
-      --config`; temp removed, no peer hermes dirt touched, overlay
-      `Cargo.lock` churn restored.
-- [x] Complete the per-commit `version-guard scan` on `b426f2cd`
-      (`0e38d1cc..b426f2cd`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — the only `Cargo.toml` in
-      range is the additive `apollo-validation` dev-dependency (no version
-      movement); stack-wide coherence unchanged (apollo contributes 0
-      defects).
-- [x] Delivery collision note: the owner's live automation advanced
-      `build/hermes-simd-0.6` (`eae6b706`, hermes-simd 0.6.0) in this same
-      worktree between branch creation and commit, so the first commit
-      `1931da70` (identical content) landed on that peer branch and the
-      initial push carried only the base. The canonical delivery was rebuilt
-      by cherry-picking onto the gitlink base in a temporary worktree
-      (`b426f2cd`), pushed fast-forward, and the temp worktree removed; the
-      peer `build/hermes-simd-0.6` branch retains `1931da70` on top of
-      `eae6b706` and was left untouched (owner may drop it when merging the
-      hermes 0.6.0 release).
-- [ ] Owner PR merge of `codex/apollo-shared-validation`; the root gitlink
-      stays at merged `0e38d1cc` pending that merge.
-
-## ATLAS-GAIA-PERMISSIONED-ARENA-001 — Gaia Melinoe-branded permissioned arena delivery — done 2026-08-11
-
-- [x] Deliver the previously worktree-only Gaia permissioned-arena adoption
-      (`PermissionedArena` storage → `melinoe::collections::BrandedVec`,
-      zero-copy token-gated `as_slice`/`as_mut_slice` views, fresh-brand
-      `permission::with_generated` scoped construction, `MelinoeRef` access
-      through the existing `GhostToken` facade, and the new
-      `tests/permission_arena.rs` with 3 integration tests) as `b5e62c5` on
-      `codex/gaia-permissioned-arena` (based directly on `origin/main`
-      `5ea09cbc`), pushed 2026-08-11.
-- [x] Verify the migration under the Atlas overlay (2026-08-11):
-      `cargo check --all-targets` rc=0 and the three `permission_arena`
-      integration tests pass 3/3 (token-gated collection access with
-      `with_generated`, scoped mutation/growth, existing `GhostToken`
-      facade compatibility); overlay `Cargo.lock` churn restored, worktree
-      clean.
-- [x] Complete the per-commit `version-guard scan` on `b5e62c5`
-      (`5ea09cbc..b5e62c5`, 2026-08-11): 0 version-bearing lines touched,
-      `{"defect_count":0,"findings":[]}`, rc=0 — the source-only delivery
-      touches no `Cargo.toml` (the `melinoe = "0.9.0"` dependency is already
-      committed at the base).
-- [ ] Owner PR merge of `codex/gaia-permissioned-arena`; the root gitlink
-      stays at merged `a5b0fe72` pending that merge.
-
-## ATLAS-CGROUP-CLOSURES-001 — C-group closure sweep (melinoe/moirai/proteus/consus) — done 2026-08-11
-
-- [x] melinoe — already closed by the owner: the book closure (chapters +
-      book.toml edition fix) landed via merged PRs #10 (`eab19a6`) and #11
-      (`c8e8889`); main `6d80c33` carries the prose, worktree clean.
-- [x] moirai — already closed by the owner: the concurrency-regression
-      hardening (event-gated scheduling, value-checked joins) plus
-      CHANGELOG/CHECKLIST records merged via PR #118 at the root gitlink
-      `57c4ec4` (commit `2bf516b`); worktree clean.
-- [x] proteus — clean at the gitlink (`0003266` = origin/main); the former
-      `Cargo.lock` overlay churn is gone. No work remaining.
-- [x] consus — restored the comment-only `Cargo.toml` reword (plus CRLF
-      normalization) and the `Cargo.lock` overlay churn to the committed
-      blob; the worktree is clean at `8b77949` (an ancestor of origin/main,
-      byte-identical on Cargo files). No substantive change was lost.
-- [ ] Note: after restoring the gaia/mnemosyne worktrees to their
-      gitlink-aligned heads (1048 first-party requirements, matching the
-      recorded matrix), the stack-wide `version-guard coherence` reports 24
-      requirement defects that arose independently of this closure: the
-      hermes worktree advanced past its gitlink with the eunomia-0.8
-      re-release (`hermes-simd` 0.6.0 / `mnemosyne-memory` 0.7.0) while
-      apollo (×18), kwavers (×2), and CFDrs/coeus/hermes/leto (×1 each) still
-      require the older versions. That drift is outside the C-group scope and
-      resolves with the hermes D-group delivery.
-
-## ATLAS-VERSION-GUARD-SCAN-MATRIX-001 — per-commit scan matrix — done 2026-08-11
-
-- [x] Record the consolidated per-commit `version-guard scan` matrix for all
-      ten delivery branches (2026-08-11); mirror of `gap_audit.md`. Each range
-      contains exactly the single delivery commit, every worktree is at its
-      delivery head, and all ten report 0 version-bearing lines touched, rc=0,
-      `{"defect_count":0,"findings":[]}`. The themis commit is the only
-      `Cargo.toml`-touching one (`melinoe/alloc` feature wiring, no version
-      movement); coeus is the only source delivery (lock patch-set
-      re-resolution in range). All ten branches are pushed and await owner PR
-      merge.
-- [x] Record the live stack-wide companion rerun (2026-08-11):
-      `version-guard coherence` scans 235 manifests / 215 packages / 1048
-      first-party requirements and currently reports `DEFECT` — 24
-      requirement defects from the hermes worktree's eunomia-0.8 re-release
-      (23× consumers require `hermes-simd` 0.5.0 vs actual 0.6.0 across
-      apollo/CFDrs/coeus/kwavers/leto; 1× `hermes-simd-core` requires
-      `mnemosyne-memory` 0.7.0 vs the gitlink-aligned 0.6.0),
-      `{"defect_count":24,...}`. The original 0-defect companion predates the
-      hermes worktree advancing past its gitlink; the per-commit rows above
-      remain 0-defect and the drift closes with the hermes D-group delivery
-      (ATLAS-CGROUP-CLOSURES-001).
-
-  | Provider | Branch | Range | Verdict | rc |
-  | --- | --- | --- | --- | ---: |
-  | aequitas | `codex/aequitas-book-prose` | `681042b..11565d9` | clean (docs-only) | 0 |
-  | proteus | `codex/proteus-book-prose` | `3d6021e..30e25f8` | clean (docs-only) | 0 |
-  | horae | `codex/horae-book-prose` | `08cf292..03ad868` | clean (docs-only) | 0 |
-  | themis | `codex/themis-melinoe-adoption` | `038457d..cad222b` | clean (`melinoe/alloc` feature line) | 0 |
-  | hyperion | `codex/hyperion-book-examples` | `9a8b7d8..b8a1124` | clean (book-example/docs/CI) | 0 |
-  | eunomia | `codex/eunomia-closure-record` | `184ba92..0c14c2e` | clean (PM docs only) | 0 |
-  | hephaestus | `codex/hephaestus-closure-record` | `d4d5906..407938b` | clean (PM docs only) | 0 |
-  | iris | `codex/iris-closure-record` | `ab3eea2..e179781` | clean (PM docs only) | 0 |
-  | asclepius | `codex/asclepius-book-closure` | `530115a..220d713` | clean (docs-only) | 0 |
-  | coeus | `feat/mlm-provider` | `4491bf19..1ac8118c` | clean (source delivery; lock patch-set re-resolution) | 0 |
-
-## ATLAS-VERSION-GUARD-002 — Stack-wide first-party coherence subcommand + CI sweep — done 2026-08-08
-
-- [x] Implement `version-guard coherence` (offline `.gitmodules` + manifest
-      scan, workspace/`package =` index, caret/comparator/wildcard matcher,
-      fail-closed on prerelease/hyphen forms; human + JSON reports).
-- [x] Split the coherence module into `manifest`/`member`/`requirement`/`toml`
-      leaf families under the 500-line target.
-- [x] Add `scripts/atlas-version-guard-sweep.py` + unit test (1/1) and the
-      `.github/workflows/version-guard.yml` gate; pin both actions by full
-      commit SHAs so the conformance `tag_pinned_actions` ratchet is unchanged.
-- [x] Clean the checked-in `Cargo.lock` of overlay `[[patch.unused]]` noise
-      (regenerated outside the overlay; never commit the churn).
-- [x] Verify: nextest 59/59, doctests clean, clippy `--all-targets -- -D
-      warnings` clean, fmt clean; live run clean (235/215/1019); injected
-      backward fixture fails; `git diff --check` clean.
-- [x] Commit `43f8aa2` and sync `backlog.md` with the real SHA.
-
-Acceptance: the stack CI gate reports coherence clean at HEAD; the ratchet
-stays non-increasing for the meta scope.
-
-## ATLAS-TOOLS-STRANDED-001 — Land stranded atlas-meta tooling slices — done 2026-08-07
-
-- [x] Verify each stranded tool slice at the atlas root builds and passes
-      its gates before committing (version-guard 48+3 tests + clippy,
-      gitlink-coherence 21/21, checkout-path-dependencies 11/11, overlay
-      4/4 Python regressions, board-sweep 6/6).
-- [x] Commit `a92a3c6` version-guard fail-closed intent slice.
-- [x] Commit `cbc664d` gitlink-coherence ambiguous-selector slice.
-- [x] Commit `fb62549` overlay canonical-repos slice + regenerated
-      `.cargo/config.toml` (drops apollo-sht/coeus-leto/consus-onnx).
-- [x] Commit `11a67dd` checkout-path-dependencies symlink-rejection slice.
-- [x] Commit `17c3cc5` path-dep ledger physical rename + ID reference.
-- [x] Commit `1b514db` atlas-board-sweep triage tool + tests.
-- [x] Reconcile the `.cargo/config.toml` deletion and `.codex-serialized`
-      backup by regenerating the overlay (42 sections, check aligned).
-- [x] Sync backlog.md / gap_audit.md with the landed commits.
-
-Acceptance: all tool gates pass at commit time; the atlas root carries no
-stranded tool changes.
-
-## ATLAS-THEMIS-MELINOE-ADOPTION-002 — Deliver Themis Melinoe branded-collection adoption — done 2026-08-11
-
-- [x] Commit the previously worktree-only Melinoe branded-collection adoption
-      (BrandedVec construction for `NumaPinnedSlice`/`ConstNumaPinnedSlice`,
-      `from_fn` constructors, `partition_for_each_mut_with` parallel placement
-      driver on both dynamic and const permits, no-`std` `alloc` fix in
-      `src/branded/region/mod.rs`, dead no-`std` `detect_cache_levels` fallback
-      removal, `melinoe/alloc` feature wiring, and the two new branded tests)
-      as `cad222b` on `codex/themis-melinoe-adoption` (based directly on
-      `origin/main` `038457d`), pushed 2026-08-11.
-- [x] Verify against the pinned melinoe rev (`47863b1`, ancestor of
-      `origin/main`): all consumed APIs (`BrandedVec::from_fn`,
-      `into_boxed_cells`, `FromIterator`, `sync::partition_for_each_with`,
-      `PartitionPlan::parts`, `alloc` feature) exist at the pinned rev.
-- [x] Complete Atlas-wide Themis pin-coherence verification against the
-      delivery head `cad222b` (2026-08-11): `version-guard coherence` at the
-      Atlas root scans 235 manifests / 215 packages / 1048 first-party
-      requirements with 0 defects; the themis worktree is checked out exactly
-      at `cad222b`, and the only manifest edit in the delivery is the
-      `melinoe/alloc` feature line (no `version =` and no requirement change,
-      package stays `0.10.1`), so the version graph is unchanged and the gate
-      stays green post-merge.
-- [x] Gates: strict `RUSTFLAGS=-D warnings` clippy `--all-targets` pass,
-      Nextest 21/21 default and 38/38 with `testing`, 21/21
-      `--no-default-features`, mdBook build + link detector clean, `git diff
-      --check` clean, no Cargo.lock churn. Compile ran under the Atlas
-      overlay (local melinoe checkout); the pinned-rev API surface is
-      source-verified, so committed `--locked` validation stays a lock-graph
-      residual like the horae record.
-- [ ] Owner PR merge of `codex/themis-melinoe-adoption`; root gitlink stays at
-      merged `038457d` pending that merge.
-
-## ATLAS-THEMIS-MELINOE-ADOPTION-001 — Themis/Melinoe source-seam adoption — done 2026-08-07
-
-- [x] CFDrs slice delivered (`1493eef3`): typed NUMA placement hint + Melinoe
-      shard partitioning in `cfd-core`.
-- [x] Helios slice delivered (`234574c`): `helios-gpu` routes upload/allocation
-      surfaces through `themis::PlacementHint::Tier(MemoryTier::Device)`.
-- [x] Kwavers examples-only slice delivered: added
-      `crates/kwavers-core/examples/book_numa_allocator_policy.rs` to keep
-      the open placement axis represented in `book_*.rs` form with compiling
-      example coverage.
-- [x] CFDrs examples-only slice delivered: added
-      `crates/cfd-core/examples/book_compute_placement.rs` and synchronized
-      `docs/{backlog,checklist,gap_audit}.md` at `74159afa`.
-- [x] CFDrs examples-only slice delivered: added
-      `crates/cfd-3d/examples/book_spectral_poisson_3d.rs` and synchronized
-      `docs/{backlog,checklist,gap_audit}.md` at `8bbd92b7`.
-- [x] CFDrs examples-only slice delivered: added
-      `crates/cfd-2d/examples/book_venturi_flow_2d.rs` and synchronized
-      `docs/{backlog,checklist,gap_audit}.md` at `4c14c988`.
-- [x] CFDrs examples-only slice delivered: added
-      `crates/cfd-1d/examples/book_venturi_screening_1d.rs` and synchronized
-      `docs/{backlog,checklist,gap_audit}.md` at `46aecb56`.
-- [x] RITK examples-only slice delivered: added
-      `crates/ritk-transform/examples/book_affine_transform.rs` and
-      synchronized `backlog.md` / `checklist.md` / `gap_audit.md`
-      at `86e7eea7`.
-- [x] Helios examples-only slice delivered: added
-      `crates/helios-gpu/examples/book_gpu_placement_hint.rs` and synchronized
-      Helios `backlog.md` / `CHECKLIST.md` at `3a11e56`.
-- [x] Kwavers production source seam delivered: `kwavers-core` maps its NUMA
-      arena policy through Themis `PlacementHint`/`NumaNodeId`; Mnemosyne
-      remains the allocator owner and Moirai remains the first-touch executor.
-      The checked node boundary preserves fallback behavior, and no direct
-      Melinoe capability surface is introduced because Themis owns that
-      optional integration. `Interleaved -> Any` is intentionally lossy and
-      retains the allocator's existing fallback.
-- [x] Run the cross-repo overlay/conformance closure pass: overlay reports the
-      stack aligned, conformance reports no debt-baseline increases, and the
-      kwavers legacy audit remains at zero legacy manifests/source tokens.
-- [x] Close kwavers source-seam adoption and re-run the cross-repo closure pass
-      for this axis.
-
-Acceptance: each integrator carries at least one production source seam for the
-claimed provider surface (feature plumbing alone is insufficient), and the
-targeted consumer gates plus `xtask legacy-migration-audit` remain clean.
-
-## ATLAS-AEQUITAS-CONSUMERS-008 — Kwavers transducer design and propagation metrics — done
-
-- [x] Audit transducer design and focused propagation contracts for raw
-      geometry, frequency, velocity, calibration, impedance, pressure, and
-      intensity metrics.
-- [x] Type the contracts through Aequitas and migrate the direct Kwavers driver
-      callers without compatibility wrappers; keep scalar extraction at
-      validation, formula, mesh, and legacy report boundaries.
-- [x] Add Kwavers ADR 099, synchronized child PM artifacts, analytical focal
-      pressure/intensity regressions, and the Eunomia real-plus-quadrature rule
-      with no imaginary SI unit.
-- [x] Collect local evidence: transducer Nextest 226/226 with one skip, driver
-      Nextest 489/489, warning-denied Clippy, formatting, diff, and residue
-      scans.
-- [x] Collect the exact hosted locked matrix and merge Kwavers PRs #338 and
-      #339 at their final green heads; child merge `3f96514d` and hosted Code
-      Coverage `91794809116` plus Test Suite Coverage `91794808091` pass. The
-      external RecurseML analysis remains report-only and failed.
-- [x] Close the acquisition-geometry follow-up in Kwavers PR #340 at source
-      head `a6cd74547` and merge commit `9a6aac1c`; hosted Code Coverage
-      `91827476450` and Test Suite Coverage `91827477067` plus the complete
-      repository-owned matrix pass.
-
-Acceptance: no raw physical scalar remains in the bounded transducer
-design/propagation public contracts; focused real/quadrature values retain one
-observable pressure signal unit; hosted repository-owned gates pass.
-
-## ATLAS-AEQUITAS-CONSUMERS-009 — Kwavers 2-D array metric audit — done 2026-08-03
-
-Owner: `codex/kwavers-aequitas-2d-array`  
-Claimed scope: `crates/kwavers-transducer/src/array_2d/`, its direct callers,
-and the corresponding Kwavers PM artifacts.
-
-- [x] Enumerate the 2-D array configuration, element, and source contracts;
-      classify raw dimensions, curvature, positions, delays, frequencies,
-      and angles, including the flat-array representation.
-- [x] Decide the typed representation for finite curvature versus a flat
-      array before editing callers; preserve the distinction without encoding
-      infinity as a physical `Length`.
-- [x] Type the public contract and migrate every direct caller without
-      compatibility wrappers; extract scalars only at numerical and mesh
-      boundaries.
-- [x] Add analytical geometry and boundary regressions, synchronize Kwavers
-      PM artifacts, and collect local plus hosted evidence.
-- [x] Merge Kwavers PR #341 at source head `3e053bd56` as merge commit
-      `e3389e798`; all repository-owned CI gates (Build & Test stable/beta/nightly,
-      Code Coverage `91842334110`, Test Suite Coverage `91842333977`, Feature
-      Combinations, CUDA, wheels, benchmark, documentation, architecture,
-      security, Miri, solver, and audit gates) pass. RecurseML remains
-      report-only and failed with its known analyzer error.
-
-Acceptance: the 2-D array public contracts have no unclassified raw physical
-metrics, flat and finite curvature are represented distinctly, direct callers
-are migrated, and Eunomia uses no imaginary SI unit.
-
-## ATLAS-AEQUITAS-CONSUMERS-010 — Kwavers focused-source metric audit — done 2026-08-04
-
-Owner: `codex/kwavers-aequitas-focused`  
-Claimed scope: `crates/kwavers-transducer/src/transducers/focused/`, its direct
-Rust/Python callers, and the corresponding Kwavers PM artifacts.
-
-- [x] Enumerate focused bowl, arc, spherical-cap, and multi-bowl physical
-      contracts and their direct callers; classify geometry, timing, frequency,
-      pressure, area, and dimensionless metrics.
-- [x] Select the Aequitas representation for real geometry and optional focus
-      state; preserve scalar extraction only at formula, mesh, and explicit
-      serialization boundaries.
-- [x] Type the public contracts and migrate every direct caller without
-      compatibility wrappers; preserve Eunomia's one-observable-unit rule for
-      coherent real/quadrature signals.
-- [x] Add analytical geometry/source regressions, ADR, and synchronized child
-      PM artifacts; collect local and hosted evidence.
-- [x] Merge Kwavers PR #346 at source head `7ae4080b4` as merge commit
-      `1217058ebadc2c6be862e31b205898aec93508ac`; local focused transducer
-      Nextest is 233/233 with strict Clippy, package checks, doctests,
-      formatting, diff, and typed/complex residue scans passing. Hosted run
-      `30869833772` passes the complete repository-owned matrix, including
-      benchmark smoke and coverage.
-
-Acceptance: no unclassified raw physical metric remains in the focused-source
-scope; geometry, source timing, and pressure values retain analytical semantics;
-direct callers compile against typed APIs; no imaginary physical unit is
-introduced.
-
-## ATLAS-AEQUITAS-CONSUMERS-007 — Kwavers PAM/neural metric closure — done
-
-- [x] Audit PAM delay-and-sum, PAM configuration, neural sensor geometry, and
-      traditional DAS boundaries; record the uncalibrated threshold/intensity
-      exception and Eunomia real-plus-quadrature rule.
-- [x] Type positions, pitch, focal points, spatial resolution, sound speed,
-      sampling/band/peak frequencies, event/integration times, steering angles,
-      and coherence through Aequitas; migrate all direct callers without
-      compatibility wrappers.
-- [x] Add analytical delay/geometry and invalid-input regressions; repair the
-      hosted canonical Aequitas test imports without weakening coverage.
-- [x] Merge Kwavers PR #337 at final head `6456c43a1` as
-      `d5d2d9642ca594100a391a6472c71ddd7b2835a8`.
-- [x] Record final hosted evidence: Test Suite Coverage `91762818479`, Code
-      Coverage `91762819466`, Architecture Validation `91762818609`, and the
-      complete repository-owned matrix pass.
-
-Acceptance: no raw physical scalar remains in the bounded PAM/neural public
-contracts; uncalibrated representation fields remain explicitly untyped;
-Eunomia complex signal data retains one observable unit with no imaginary SI
-unit. Residual Helios benchmark work remains a separate performance item.
-
-## ATLAS-AEQUITAS-CONSUMERS-005 — Kwavers ultrafast geometry metric extensions — done
-
-- [x] Audit the adjacent Kwavers plane-wave and diverging-wave public
-      contracts and identify raw geometry, timing, angle, frequency,
-      dimensionless, and image-coordinate metrics.
-- [x] Type the contracts through Aequitas; keep scalar extraction at formula
-      and explicit Leto dense-storage boundaries; remove `angles_degrees`.
-- [x] Add Kwavers ADR 094, synchronized child PM artifacts, and the Eunomia
-      shared-unit/real-observable rule with no imaginary SI unit.
-- [x] Collect local locked check, Nextest 219/219, Clippy, doctest, Rustdoc,
-      Rustfmt, diff, and typed/complex residue evidence.
-- [x] Collect the hosted repository-owned matrix and merge Kwavers PR #333 at
-      head `8ffb198bc`; merge commit `b2c437bab011d99d6403e23b4a373905f7905cde`.
-
-Acceptance: no missing metric remains in the bounded plane/diverging-wave
-scope, local and hosted repository-owned gates pass, and no imaginary-unit
-physical contract is introduced.
-
-Current residual: local simulation doctest and FNM smoke collection exceed the
-300-second shared-target bound without a diagnostic; hosted equivalents pass.
-
-## ATLAS-AEQUITAS-CONSUMERS-006 — Kwavers beamforming and design metric extensions — done 2026-08-05
-
-- [x] Audit beamforming configuration and aperture/design propagation fields;
-      identify every raw physical metric and its formula/storage boundary.
-- [x] Type the shared beamforming configuration through Aequitas and migrate
-      all current callers without compatibility wrappers; remove the obsolete
-      public alias.
-- [x] Add child ADR/PM evidence, analytical regression coverage, and the
-      Eunomia shared-unit/real-observable rule for `KWAVERS-AEQ-MET-57`.
-- [x] Collect local and hosted gates; merge Kwavers PR #334 at head
-      `63cd488ec17279be6d4a459f2785784f816b1c14` as
-      `dc8e5b58b9816bf3a57f2bc47750257d65cd3609`.
-- [x] Type the sensor-beamformer processing metrics through Aequitas,
-      migrate direct callers, and record the Eunomia complex-observable
-      boundary for `KWAVERS-AEQ-MET-58`.
-- [x] Type the PAM/neural sensor metrics through Aequitas, migrate direct
-      callers, and close `KWAVERS-AEQ-MET-59` through merged Kwavers PR #337.
-- [x] Resolve the Code Coverage budget breach for Kwavers PR #335 without
-      weakening coverage, rerun the exact tested head, and merge the green
-      PR. The corrected workflow shards the complete plotting-compatible
-      LLVM-instrumented target set and the long `session2_source_injection_test`
-      binary into concurrent reports; feature-only targets remain in their
-      dedicated matrix jobs, and no workload or finite timeout was removed or
-      raised. Code Coverage job `91693171499` passes in 27m7s; Test Suite
-      Coverage job `91693169453` passes in 37m56s; all other repository-owned
-      checks pass. PR #335 merges as `c3e0ca39da0c928c83125ca27f9689de49b389f4`.
-- [x] Type the MEMS cell and flexible-array metric contracts through Aequitas,
-      migrate callers, and merge Kwavers PR #345 at source head
-      `31482cbadaafda9703fc1f00e9d84e35e4398606` as
-      `80555fa69c95008cbfbd49059a235e3aaaf8e3e7`; all repository-owned gates
-      pass, including the corrected formatting gate.
-- [x] `KWAVERS-AEQ-MET-66`: thermal-diffusion contracts are implemented and
-      the historical Eunomia 0.7/rkyv 0.7.46 security residual is closed by
-      Ritk PR #110 (`cfeebc7`) and the Kwavers clean-lock refresh.
-- [x] `KWAVERS-AEQ-MET-67`: thermal-acoustic coupling contracts and the
-      provider-owned `W/m⁴` nonlinear gradient are implemented and merged in
-      Kwavers PR #350 as merge commit `5044c0c13`; Aequitas PR #13 is merged at
-      `3c51a27`.
-      Clean locked checking/Clippy pass; focused clean physics tests pass
-      1,706/1,706 with one configured skip. The clean top-level Kwavers
-      Nextest build remains blocked by `ld.lld` missing `libLIBCMT.a` and
-      `libOLDNAMES.a`; the hosted PR #350 matrix passes the repository-owned
-      gates, including benchmark smoke and coverage.
-
-Definition of ready: child raw-field inventory, ownership boundary, exact
-acceptance oracle, and dependency closure are recorded in the child backlog.
 
 ## ATLAS-AEQUITAS-CONSUMERS-004 — Geometry and scheduling metric extensions
 
@@ -1744,26 +234,6 @@ ATLAS-AEQUITAS-CONSUMERS-004.
       (`mnemosyne-heap`, no compiler diagnostic).
 - [x] Confirm no remaining Aequitas metric gap in the named CFDrs, Helios,
       and Kwavers audit scope.
-
-## ATLAS-HYGIENE-BASELINE-001 — Board-sweep triage instrument — done 2026-08-07
-
-- [x] Add the report-only `scripts/atlas-board-sweep.py` parser for root and
-      provider backlog heading variants.
-- [x] Report in-progress owner/date context and blocked items without a
-      qualified `Re-open trigger`, without inferring stale status or mutating
-      claims.
-- [x] Add focused unittest coverage for status normalization, owner/date
-      extraction, missing-trigger reporting, qualified triggers, missing files,
-      empty boards, and unrelated title dates.
-- [x] Verify `py_compile`, focused unittest 6/6, board lint, and `git diff
-      --check`; record the full scripts-suite environment blocker separately
-      (pytest is unavailable and unrelated existing tests have an import-path
-      failure under direct unittest discovery).
-
-Evidence: the live sweep is report-only and scans 244 root items, finding 27
-in-progress claims and 3 blocked items without a re-open trigger. This closes
-the mechanical census sub-slice only; stale-claim thresholds, rescue, and
-reclamation remain human/operator decisions.
 
 ## ATLAS-SUBSTRATE-001..004 — Compute-substrate consolidation [arch]
 
@@ -1892,19 +362,6 @@ Evidence: ADR 0035 records the audit, the caller contract, the tokenless
 authentication decision, and the per-package adoption ledger. The `atlas-ref`
 caller pin reuses ADR 0027's gitlink contract. Registry registration is
 user-gated and tracked as ATLAS-PUB-003.
-
-## ATLAS-PUB-LOCK-1 — Publication lock-form audit — done 2026-08-13
-
-- [x] Re-audit the exact Atlas kwavers and CFDrs gitlinks rather than their
-      peer-owned working-tree branches.
-- [x] Confirm the active first-party dependency closure has matching Git
-      `source` entries in both committed locks: kwavers 33/33 and CFDrs 22/22;
-      both missing-source and wrong-source sets are empty.
-- [x] Run the overlay checker and its four regression tests; retain the
-      outside-overlay locked-check failure from the peer's uncommitted stripped
-      lock as peer-local evidence, not an Atlas gitlink defect.
-- [x] Keep the shared crates.io workflow's `--locked` validation and record
-      that no release reproducibility downgrade is required.
 
 ## ATLAS-PUB-006/007 — Facade crates and registry names [arch] [minor]
 
@@ -3203,24 +1660,6 @@ in Coeus MS-442.
 **Residual:** none for the RITK provider-alignment increment; the external
 analyzer error is non-required infrastructure noise.
 
-## ATLAS-INTEGRATION-015 — Merged default refresh [patch]
-
-- [x] Verify CFDrs PR #297 and Leto PR #40 merge, then fetch every affected
-      child remote default.
-- [x] Advance CFDrs to `a833b7fe`, Eunomia to `a2e4f390`, Helios to
-      `972fb53e`, Leto to `3ac0d203`, and RITK to `aededa6b`.
-- [x] Keep Apollo at merged `c8742814`, Hephaestus at `93bc38e6`, and Kwavers
-      at merged `9eabc4e2`; do not stage Apollo's active lock refresh,
-      Kwavers' active GPU peak-pressure branch, or RITK's active Apollo 0.25
-      alignment branch.
-- [x] Synchronize the graph theorem, board, gap audit, and changelog; verify
-      the staged gitlinks against fetched remote defaults.
-
-**Evidence:** structural Git equality for all recorded default commits;
-CFDrs value-semantic Nextest 4/4 plus its 1/1 direct-after-GMRES consumer
-regression and warning-denied Clippy; RITK PR #40's complete hosted
-cross-platform, Python, wheel, lint, dependency, and migration matrices.
-
 ## ATLAS-INTEGRATION-012 — Apollo policy-wrapper removal [major]
 
 - [x] Verify Apollo PR #49 merges the obsolete radix execution-policy wrapper
@@ -3386,16 +1825,6 @@ CUDA initialization defect was investigated.
 - [x] Confirm every conflicted provider gitlink is reachable from its current
   remote default branch.
 
-## ATLAS-INTEGRATION-002 — merged-provider pin reconciliation [patch]
-
-- [x] Confirm Apollo PR #44 is merged to `main` at `f26369eb`.
-- [x] Confirm Helios PR #5 is merged to `main` at `04e496b7`.
-- [x] Confirm RITK PR #37 is merged to `main` at `ec7cb832` after all
-      Ubuntu/macOS/Windows Nextest, Python, wheel, lint, and audit checks pass.
-- [x] Advance the three gitlinks and merge Atlas PR #9 at `e3380b6`.
-      Evidence: every recorded gitlink is an ancestor of its corresponding
-      remote default branch.
-
 ## ATLAS-INTEGRATION-005 — RITK lock-integrity pin [patch]
 
 - [x] Confirm RITK PR #38 is merged to `main` at `0dd71e52` after Linux,
@@ -3420,25 +1849,6 @@ Evidence: 62/62 default local nextest, 3/3 feature-gated probe nextest,
 warning-denied Clippy, doctests, rustdoc, formatting, and matched Criterion.
 The provider PR's `recurseml/analysis` status failed at the service layer;
 CodeRabbit was rate-limited without actionable findings.
-
-## ATLAS-MOIRAI-016 — Cancellation-safe async wait queues [patch] — ✅ done
-
-- [x] Audit the merged `moirai-async` synchronization surface for contention,
-  cancellation, and memory-retention defects. Completion condition: exact
-  source locations, interleaving, ownership impact, and current test evidence
-  are recorded in `gap_audit.md` and `backlog.md`.
-- [x] Implement the provider-owned state-machine fix. Completion condition:
-  condition-variable registration is atomic with mutex release, cancelled
-  mpsc/oneshot waiters release their wakers, and deterministic value-semantic
-  regressions cover lost notification and cancellation.
-- [x] Run provider closure gates. Completion condition: warnings-denied
-  Clippy, `cargo nextest run` under the committed timeout, and docs are clean;
-  no test exceeds the slow threshold.
-
-Verification: `cargo check -p moirai-async` clean; `cargo nextest run -p moirai-async`
-82/82 passes (80 existing + 2 new cancellation regressions), no slow tests.
-Fixes applied: `condvar.rs` (NoopWaker pre-registration), `mpsc.rs` (ID-based waiter
-tracking + Drop cleanup), `oneshot.rs` (Drop clears rx_waker).
 
 ## ATLAS-RITK-654 — RITK native migration reconciliation [patch]
 
@@ -3534,45 +1944,6 @@ tracking + Drop cleanup), `oneshot.rs` (Drop clears rx_waker).
   `apollo-fft` minor-release API checks.
 - Superseded: the WGPU 30 provider migration and archived `paste` cleanup are
   closed by the release increment above.
-
-## TREE-DUP-002 — Moirai dual channel consolidation (ADR-0019) [major] — ✅ done
-
-- [x] Extend `Channel<T>` trait with `send_batch`/`recv_batch`/`close`/`is_closed`/`len`/`stats` (default impls).
-- [x] Add `InvalidConfig` variant to `ChannelError`.
-- [x] Move `UnifiedChannel` into `channel::unified` implementing `Channel<T>`.
-- [x] Move `ChannelConfig` → `channel/config.rs`, `ChannelStatistics` → `channel/stats.rs`.
-- [x] Update `channel/mod.rs` submodule declarations and re-exports.
-- [x] Remove `pub mod unified_channel` from `lib.rs`; consolidate re-exports through `channel`.
-- [x] Migrate `moirai-iter` imports from `unified_channel` to `channel::unified`.
-- [x] Delete `unified_channel/` directory.
-- [x] Verify: `cargo check` pass on moirai-core, moirai-iter, moirai, moirai-transport.
-- [x] Verify: `cargo clippy --all-targets -- -D warnings` on moirai-core, moirai-iter.
-- [x] Verify: `cargo nextest run -p moirai-core -p moirai-iter` 255/255 passed.
-- [x] Verify: `cargo doc -p moirai-core --no-deps` warning-clean.
-- [x] ADR-0019 written and indexed in `docs/adr/INDEX.md`.
-- [x] PM artifacts synced (backlog, CHANGELOG, checklist).
-
-> **Current execution order (2026-07-12 evening session, kwavers Batch #1 + #4 closed)**:
-> 1. ✅ CR-2 (`cfd-core` + `moirai` + `ritk-core`) — **fully closed 2026-07-18**. Zero `#[global_allocator]` in all three library crates.
-> 2. ✅ Kwavers Stage-B (math + facade tests/examples/benches) + Stage-C (ky-python PyO3 boundary via complex_compat bridge) — `c5b1333b7` + `fa9abb664` + `ddf216ec0` + `01643ed9b` landed on `codex/kwavers-core-moirai-parallel`; cargo check --workspace --exclude kwavers-python green; cargo check -p kwavers-python --{no-default-features, gpu, plotting} all green; cargo check --tests --benches --examples --workspace --exclude kwavers-driver green (469/469 libTests, 38 doctests).
-> 3. ✅ CFDrs all-features build — green with cfd-io → ritk-vtk → ritk-core → coeus-core fixed up.
-> 4. ✅ RITK coeus-core pinning fix — `4d52ff8b` build(ritk): Pin coeus workspace path-deps at 0.7.0 (track coeus/main HEAD); CFDrs cfd-suite now builds green.
-> 5. ✅ Kwavers Batch #1 (kwavers-solver/{solver,physics}/Rayon→Moirai `par_for_each`) — **CLOSED 2026-07-12**. Peer commit `5913f2946` "perf(kwavers-solver): Migrate solver tree to moirai parallel iterators" drives source-site count to zero: `par_for_each`=0, `burn::`=0, `nalgebra`=0, `use ndarray`=0, `kwavers-solver/Cargo.toml` clean of `ndarray`/`rayon`/`burn`. `cargo nextest run --workspace --exclude kwavers-driver --no-fail-fast --lib`: 5117/5119 pass, 2 timeouts (KW-WATCH-002 abdominal-preprocessing perf tests on 90s `elastic-fwi` profile override), 7 skipped — peer-stream perf, NOT a Batch #1 correctness regression. Atlas-meta `repos/kwavers` gitlink advanced `01643ed9 → 5913f2946`.
-> 6. ✅ Kwavers Batch #4 (kwavers-solver PINN Burn → Coeus) — **CLOSED** at the new HEAD `5913f2946`. `cargo check -p kwavers-solver --features pinn` PASSES (53 warnings, 0 errors); sole residual is `kwavers-solver/Cargo.toml`'s `ndarray` `rayon` feature gate (separate item flagged in the peer commit body). Co-verified with Batch #1.
-> 7. ✅ RITK Burn cleanup — **FULLY CLOSED 2026-07-18** by PR #42, with
-> PR #43 closing the ledger. The prior peer-active queue is historical.
-> 8. ✅ **Batch #8 (provider extension) — Leto**: `FixedMatrix<T,4,4>` determinant/try_inverse/row-major constructors + generic operators (Add/Sub/Neg/Mul<T>/Div<T>/SubAssign/MulAssign/DivAssign); `Quaternion<T>` Add/Sub/Neg/Mul<T>/Div<T> + `try_inverse`/`to_rotation_matrix`/`UnitQuaternion::{slerp,to_rotation_matrix}`. Themis 0.10 cache-level fixtures now carry the provider's optional line-size field and the lock graph has one Themis package. **PR #32 merged as `8d39f58`** after the complete local gate: fmt, warning-denied workspace Clippy, 568/568 locked nextest cases, doctests, and rustdoc.
-> 9. ✅ **Batch #8 (provider extension) — Hephaestus**: `f64` DialectScalar impls for Wgsl (`"f64"`) and CudaC (`"double"`) + GPU vector type DialectScalar impls for `[f32;{2,3,4}]`, `[f64;{2,3,4}]`, `[i32;{2,3,4}]`, `[u32;{2,3,4}]` across both dialects (24 impls via macro). Themis patch added to `hephaestus/Cargo.toml`. **Verified**: `cargo clippy -p hephaestus-core --all-targets -- -D warnings` clean, `cargo nextest run -p hephaestus-core` 47/47 green.
-> 10. ✅ **Batch #8 — moirai-async new crate**: `mpsc::channel`, `oneshot::channel`, `Condvar`, `Mutex`, `#[moirai::main]` proc-macro. **Verified**: 79/80 tests pass (only pre-existing flaky timer: `cancelled_timers_are_compacted_before_their_deadline` 101 vs 100), clippy `-D warnings` clean, proc-macro crate compiles.
-> 11. ✅ **Batch #8 — RITK sub-batch #3.g (python/cli/snap)**: consumed by
-> RITK PR #42; no deferred port remains.
-> 12. ✅ **Batch #8 (provider extension) — Apollo**: RustFFT dependency removed from Apollo workspace. Pure O(N²) DFT reference oracle replaces rustfft-backed validation. Removed workspace rustfft pin, external-references feature gate, rustfft dev-dependency, vs_rustfft benchmark, and xtask benchmark runner. `cargo check -p apollo-validation` 10/10 nextest green, `cargo check -p xtask` green. Committed `b291003` on `codex/remove-rustfft`, pushed.
-> 13. ✅ **Batch #8 (provider extension) — Eunomia**: eunomia-gpu crate deleted (E-019), folded into hephaestus::DialectScalar. README has no aspirational claims about eunomia-gpu — clean.
-> 14. ✅ **Batch #8 (provider extension) — Coeus**: `scatter_add` exists at Tensor/Var/Python level; all 6 comparison ops (eq/ne/lt/gt/le/ge) exist. `Dataset`/`DataLoader` deferred per backlog condition ("if PINN dataset paths require") — no PINN path in scope requires them.
-> 15. ✅ **Batch #8 (provider extension) — Leto-ops**: `CscMatrix<T>`, `CooMatrix<T>`, `lu_batch`, `ExecutionStrategy` trait all verified present.
-> 16. ✅ **Batch #8 — All provider extension items complete.**
-
----
 
 ## CR-4 — `[major]` Rebase `coeus-core::Scalar` + `leto-ops::Scalar` over `eunomia::NumericElement` (universal SSOT)
 
@@ -5808,3 +4179,79 @@ Coordinator (Session 17 follow-up) landed the ATLAS-CFDRS-LETO-SPARSE-MIGRATION-
 ### Standing continuation (not this slice scope; next phase planning)
 
 Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001 implementation branches), measurement-driven (ARCH-008 profiling phase), or policy-gated (privacy naming, path deps). No blocker-class defects remain on the solo-actionable board.
+
+## Archive — closed checklists
+
+Closed items, one line each. Full prose is in git history; commit SHAs below are the entry points.
+
+- **ATLAS-LIVE-HEAD-SWEEP-026** Reconcile twenty provider CI-pin defaults (2026-08-13) — `5758df93`, `93e83899`, `5febead4`, `5969f1e3`
+- **ATLAS-POSTMERGE-HEAD-RECONCILIATION-030** Reconcile merged caller defaults (2026-08-13) — `1be7768d`, `1a52590c`, `462cf444`
+- **ATLAS-LIVE-CALLER-PINS-027** Refresh requested-provider Atlas workflow pins (2026-08-13) — `d875348197be12ad593f993a6f1b8a62d3b8b195`, `4c31dd753f06dd93b4c04798cf781df253e3e532`, `efde7a6`, `683e2ab5`
+- **ATLAS-HEPHAESTUS-REDUCTION-022** Retire superseded product-axis parity PR (2026-08-13) — `8bc589a`, `c373de19`
+- **ATLAS-APOLLO-ARCH-021** Retire superseded junk-drawer rename (2026-08-13) — `49632c6c`
+- **ATLAS-APOLLO-VALIDATION-020** Converge shared WGPU validation and Mnemosyne boundary (2026-08-13) — `a725fe81`, `fc5648964c8194447ef5deea43a8aa9c0dae7c63`
+- **ATLAS-COEUS-NORM-019** Keep batched Frobenius norms provider-owned (2026-08-13) — `96d8166c3d683eaaf67e45b8bad0c34e33d8b405`, `72372c918d8d6fcbcc006585736126a480a4f5c2`
+- **ATLAS-HELIOS-BOOK-WORKFLOW-018** Converge Helios on the shared Pages workflow (2026-08-13) — `116228c`, `546c199fdd46b8eb8c4176a4250ac261962a45d0`
+- **ATLAS-HERMES-PERMUTE-017** Measure and prune cross-lane NEON overrides (2026-08-13) — `79d7297`, `d1627cd23179595b751c237a67f86cdeafb01310`
+- **ATLAS-APOLLO-REALSH-005** Real symmetric SH basis over scattered directions (2026-08-13) — `33a40bcee4532c9c1a03fee7cef2d852b3419090`, `db2186650f2e0889555120e6a1491ad93897409e`, `36f2f3645610e7c1a681e15f709f70f7e14c1f27`, `be4408d188313e9072e180ae1d214f3aca458997`
+- **ATLAS-CONSUS-TEST-API-001** Make cross-format integration tests consume real Consus APIs (2026-08-13) — `a5b9cfd`, `33c2df0`, `eebe7c0`, `720233a`
+- **ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003** Close Consus no-default storage boundaries (2026-08-13) — `b3ca01c21b2e9bad4c7b7dc23c47083ca79a3307`, `bf46b7cf00ec7a86b51decf31be4eb30b367c397`
+- **ATLAS-CONSUS-NODEF-ARROW-PARQUET-002** Close Arrow/Parquet no-default cfg boundaries (2026-08-13) — `37f835d1`, `731a3ca4`
+- **ATLAS-LIVE-HEAD-SWEEP-015** Reconcile merged provider defaults (2026-08-13) — `18550d9`, `19c205d4`, `beed6da`
+- **ATLAS-COEUS-HEPHAESTUS-F64-015** Restore CUDA f64 comparison seam — `b34b507`, `c373de1`, `aabdec6`, `a4063be1`
+- **ATLAS-HELIOS-CHECKLIST-016** Reconcile binary-MLC roadmap and benchmark gate — `f118214e`, `04fcf46`, `f7ca5dad16bb7c36781bcefe4c90c21377f06110`, `f108dc9b3cf7cc94212fa574219594eab2a0bc4f`
+- **ATLAS-COEUS-CLOSURE-014** Provider deduplication and batched NLLS (2026-08-13) — `d5912200`
+- **ATLAS-MNEMOSYNE-CONSUS-REFRESH-013** Reconcile merged provider PM closeouts (2026-08-13) — `e57e2d6`, `e7fccf7`, `6b0ca43`, `5163eb1`
+- **ATLAS-TYCHE-REFRESH-011** Reconcile merged Tyche PM closeout (2026-08-13) — `5efaee7a`
+- **ATLAS-LETO-LBFGS-023** Replace L-BFGS jagged history with a flat ring (2026-08-13) — `e4d5dfc7`, `6e4a1627aa739d37c5f40ab1ab9e41948352cc54`, `a722fbc8`
+- **ATLAS-LETO-TASK-PARTITIONS-024** Provider-owned disjoint task partitions (2026-08-13) — `6e4a1627`, `508962df`
+- **ATLAS-TYCHE-MULTIOUTPUT-017** Generalize sensitivity estimators (2026-08-13) — `dc96f5ec`, `4a6f8cd4`, `af30ad23dc468349511dff9d1d34ab9b5ab58334`, `2d12dc5e`
+- **ATLAS-LETO-PM-REFRESH-010** Reconcile merged Leto PM closeout (2026-08-13) — `e525d8dd`
+- **ATLAS-LETO-CONVOLUTION-012** Close provider convolution contract (2026-08-13) — `7172b338`, `a722fbc8`, `aabdec67`, `a4063be1`
+- **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
+- **ATLAS-LIVE-HEAD-SWEEP-008** Reconcile moving provider defaults (2026-08-12) — `1ad581971d2528e12c0c815fe30e87ce6c121d80`, `578514314bec51815e763f5a8103500bb9498c32`
+- **ATLAS-HEPHAESTUS-REFRESH-007** Integrate cross-entropy PM closeout (2026-08-12) — `9385686ec29fc5a2d168d967df3fae254760aa4b`
+- **ATLAS-PROVIDER-DRIFT-005** Post-merge exact-head convergence (2026-08-12) — `93dbc563`, `32524e37b7697dd37f3cb3b28ee570aa4d0df199`, `e70f597`, `53bb01312222745325f20d36db95aab780ce39b3`
+- **ATLAS-PROVIDER-INTEGRATION-004** Twenty-provider audit and cleanup (2026-08-12) — `ceafa3d951f7db9ffcd93a79e5efbbdd09e199de`, `6852b08`
+- **ATLAS-FOUNDATION-PLANNING-001** Foundation planning completion (2026-08-12)
+- **ATLAS-FOUNDATION-PLANNING-002** Next-tier planning completion (2026-08-12)
+- **ATLAS-PROVIDER-INTEGRATION-003** Nineteen-provider second-pass audit (2026-08-12) — `df899cb1`, `f3c0463`, `d8cd00c`, `acd67a83`
+- **ATLAS-CASCADE-ALIGNMENT-001** Consumer alignment for the 0.42/0.5/0.26/0.19 provider cascade (2026-08-11) — `d9e674f`, `f68045d`, `a68e91f`
+- **ATLAS-BOOK-ANCHOR-PARITY-001** Heading-id parity with mdBook v0.5.4 (2026-08-11)
+- **ATLAS-BOOK-LINK-CI-001** All-provider book link CI gate (2026-08-11)
+- **ATLAS-BOOK-LINK-SWEEP-001** All-provider book link sweep (2026-08-10)
+- **ATLAS-TYCHE-PROVIDER-ESTIMATORS-001** Tyche sensitivity estimators and book closure (2026-08-10)
+- **ATLAS-MNEMOSYNE-BOOK-001** Complete Mnemosyne book closure (2026-08-11) — `c4516df`, `9a143ca`
+- **ATLAS-HORAE-PROVIDER-DOCS-001** Complete Horae book closure (2026-08-11) — `03ad868`, `08cf292`
+- **ATLAS-HYPERION-PROVIDER-DOCS-001** Complete Hyperion book closure (2026-08-11) — `b8a1124`, `9a8b7d8`
+- **ATLAS-PROTEUS-PROVIDER-DOCS-001** Complete Proteus book closure (2026-08-11) — `30e25f8`, `3d6021e`, `2918e5a`
+- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** nineteen-provider integration audit (2026-08-11) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`
+- **ATLAS-AEQUITAS-PROVIDER-DOCS-001** Complete Aequitas book closure (2026-08-11) — `681042b`, `11565d9`
+- **ATLAS-HEPHAESTUS-CLOSURE-001** Hephaestus expression-parity closure record (2026-08-11) — `407938b`, `d4d5906`, `aca9a5a8`, `971fab96`
+- **ATLAS-EUNOMIA-CLOSURE-001** Eunomia 0.8.0 closure record (2026-08-11) — `0c14c2e`, `184ba92`
+- **ATLAS-IRIS-CLOSURE-001** Iris IRIS-003 release-readiness record (2026-08-11) — `e179781`, `ab3eea2`
+- **ATLAS-ASCLEPIUS-BOOK-001** Complete Asclepius book closure (2026-08-11) — `220d713`, `530115a`
+- **ATLAS-COEUS-MLM-PROVIDER-001** Coeus multi_label_margin_loss provider delivery (2026-08-11) — `1ac8118c`, `4491bf19`, `bde7010f`
+- **ATLAS-HELIOS-DICOM-ORIENTATION-001** Helios DICOM oriented-grid boundary delivery (2026-08-11) — `342bbbc83`, `77716bb`, `bde7010f`
+- **ATLAS-LETO-HERMES-REDUCED-PRECISION-001** Leto F16/Bf16 Hermes provider delivery (2026-08-11) — `606e5b5`, `d9e674fc`, `ca93b63c`, `d68095b`
+- **ATLAS-APOLLO-SHARED-VALIDATION-001** Apollo shared WGPU transform validation delivery (2026-08-11) — `b426f2cd`, `0e38d1cc`, `bde7010f`, `eae6b706`
+- **ATLAS-GAIA-PERMISSIONED-ARENA-001** Gaia Melinoe-branded permissioned arena delivery (2026-08-11) — `b5e62c5`, `5ea09cbc`, `a5b0fe72`
+- **ATLAS-CGROUP-CLOSURES-001** C-group closure sweep (melinoe/moirai/proteus/consus) (2026-08-11) — `eab19a6`, `c8e8889`, `6d80c33`, `57c4ec4`
+- **ATLAS-VERSION-GUARD-SCAN-MATRIX-001** per-commit scan matrix (2026-08-11) — `681042b`, `11565d9`, `3d6021e`, `30e25f8`
+- **ATLAS-VERSION-GUARD-002** Stack-wide first-party coherence subcommand + CI sweep (2026-08-08) — `43f8aa2`
+- **ATLAS-TOOLS-STRANDED-001** Land stranded atlas-meta tooling slices (2026-08-07) — `a92a3c6`, `cbc664d`, `fb62549`, `11a67dd`
+- **ATLAS-THEMIS-MELINOE-ADOPTION-002** Deliver Themis Melinoe branded-collection adoption (2026-08-11) — `cad222b`, `038457d`, `47863b1`
+- **ATLAS-THEMIS-MELINOE-ADOPTION-001** Themis/Melinoe source-seam adoption (2026-08-07) — `1493eef3`, `234574c`, `74159afa`, `8bbd92b7`
+- **ATLAS-AEQUITAS-CONSUMERS-008** Kwavers transducer design and propagation metrics — `3f96514d`, `a6cd74547`, `9a6aac1c`
+- **ATLAS-AEQUITAS-CONSUMERS-009** Kwavers 2-D array metric audit (2026-08-03) — `3e053bd56`, `e3389e798`
+- **ATLAS-AEQUITAS-CONSUMERS-010** Kwavers focused-source metric audit (2026-08-04) — `7ae4080b4`, `1217058ebadc2c6be862e31b205898aec93508ac`
+- **ATLAS-AEQUITAS-CONSUMERS-007** Kwavers PAM/neural metric closure — `6456c43a1`, `d5d2d9642ca594100a391a6472c71ddd7b2835a8`
+- **ATLAS-AEQUITAS-CONSUMERS-005** Kwavers ultrafast geometry metric extensions — `8ffb198bc`, `b2c437bab011d99d6403e23b4a373905f7905cde`
+- **ATLAS-AEQUITAS-CONSUMERS-006** Kwavers beamforming and design metric extensions (2026-08-05) — `63cd488ec17279be6d4a459f2785784f816b1c14`, `dc8e5b58b9816bf3a57f2bc47750257d65cd3609`, `c3e0ca39da0c928c83125ca27f9689de49b389f4`, `31482cbadaafda9703fc1f00e9d84e35e4398606`
+- **ATLAS-HYGIENE-BASELINE-001** Board-sweep triage instrument (2026-08-07)
+- **ATLAS-PUB-LOCK-1** Publication lock-form audit (2026-08-13)
+- **ATLAS-INTEGRATION-015** Merged default refresh [patch] — `a833b7fe`, `a2e4f390`, `972fb53e`, `3ac0d203`
+- **ATLAS-INTEGRATION-002** merged-provider pin reconciliation [patch] — `f26369eb`, `04e496b7`, `ec7cb832`, `e3380b6`
+- **ATLAS-MOIRAI-016** Cancellation-safe async wait queues [patch]
+- **TREE-DUP-002** Moirai dual channel consolidation (ADR-0019) [major] (2026-07-18) — `c5b1333b7`, `fa9abb664`, `ddf216ec0`, `01643ed9b`
+

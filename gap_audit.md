@@ -1238,7 +1238,7 @@ edits committed inside a submodule surface at root CI as a `repos/<name>`
 gitlink change matching no `paths:` pattern, so enforcement happens at the
 root-commit boundary — documented in the parity doc, with the pre-commit hook
 as the in-checkout tripwire. The pre-commit hook scans the same universe
-locally, and `MDBOOK_DETECTOR_PARITY.md` documents the wiring. No open gap:
+locally, and `docs/mdbook/detector-parity.md` documents the wiring. No open gap:
 every provider book was link-clean at wiring time (Sweep-001 fixed the sole
 ritk defects), so this gate is an enforcement seam rather than a remediation
 item.
@@ -4969,7 +4969,7 @@ compatibility shim.
 
 ## Math/Linalg SSOT ADRs accepted (2026-07-27)
 
-The first three math/linalg SSOT moves from `math_ssot_ledger.md` are now
+The first three math/linalg SSOT moves from `docs/audit/math-ssot-ledger.md` are now
 accepted as ADRs in `repos/leto/docs/adr/`:
 
 - **ADR 0031** — CFDrs `cfd-math` finite-difference/iterative wrapper deletion sweep.
@@ -5023,7 +5023,7 @@ respective implementation commits.
   resolution; config `include` is nightly-only. The primary-root policy is
   terminal; ATLAS-TARGET-001's routing item closes with this justification.
 - Finding (peer parity stream owns disposition): `scripts/fix_link_depth.py`
-  is untracked but referenced by tracked `MDBOOK_DETECTOR_PARITY.md`;
+  is untracked but referenced by tracked `docs/mdbook/detector-parity.md`;
   `repos/parity_artefacts/` is untracked but referenced as the on-disk
   archive by that report and by the CFDrs, Helios, and Kwavers book
   `SUMMARY.md` files for in-context builds. Either track the referenced

@@ -73,12 +73,79 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | --- | --- | --- | --- |
 | ATLAS-LINT-FLOOR-054 | **17 of 25 members have no `[workspace.lints]`.** Where a floor is declared it is then nullified: CFDrs correctly inherits `unwrap_used`/`print_stdout`/`print_stderr`/`dbg_macro` at deny in all 12 manifests, against **288 crate-level `#![allow]` and 5 `#[expect]` repo-wide, none with a ratchet reason** — which is why 402 library print sites survive a deny. coeus has 117 allow lines with **zero** `reason=`. | [patch] | Every member declares the pedantic floor once via `[workspace.lints]` with members inheriting; crate-level blanket `#![allow]` → 0; every surviving suppression is `#[expect(lint, reason = "ratchet <id>")]`; conformance baseline non-increasing |
 | ATLAS-CACHE-FORK-055 | The stack policy is one build cache (`.cargo/config.toml:18-19`), yet **25 populated `repos/*/target` trees hold 58.9 GB** beside the 224.2 GB shared root — ritk 21.6 GB, CFDrs 16.8 GB, helios 5.2 GB, kwavers 3.5 GB, apollo 3.2 GB. Each holds real `debug/`, `doc/` and `book/` content, so these are live forks, not stubs. Disposable derived state, not user data. | [patch] | `python scripts/atlas-conformance.py report` shows `target_forks = 0`; `D:\atlas\target` remains the only cache; a documented eviction cadence exists for the shared root |
-| ATLAS-GITLINK-DRIFT-056 | **24 of 25 submodules are checked out off the commit atlas records** (only gaia matches), and 11 sit on `codex/*` or feature branches. leto is 17 commits behind both `origin/main` and its recorded gitlink. Every local verification run is therefore testing a revision the meta-repo does not point at — including this sweep. | [patch] | For each member, either the gitlink advances to the verified working head or the tree returns to the pin; a committed check fails when HEAD ≠ gitlink without a recorded reason |
+| ATLAS-GITLINK-DRIFT-056 | **24 of 25 submodules are checked out off the commit atlas records** (only gaia matches), and 11 sit on `codex/*` or feature branches. **The drift direction is uniform: the recorded gitlinks are AHEAD of the working trees** — athena's gitlink is 3 commits ahead of HEAD, harmonia's 2, horae's 6, hyperion's 5, and leto's tree is 17 behind both `origin/main` and its pin. These are members behind atlas, not atlas behind members, so every local verification run tests superseded state. Two sub-cases need opposite handling: athena and harmonia sit on branches with **zero** unique commits (exhausted, deletable — re-point to `main`), while horae and hyperion each carry small real deltas that are green and mergeable now, hyperion's including an actual parallel-test-race fix (`35006fd`). | [patch] | Per member: exhausted branches deleted and re-pointed to `main`; real deltas merged and the gitlink advanced; a committed check fails when HEAD ≠ gitlink without a recorded reason |
 | ATLAS-ROOT-SPRAWL-057 | Meta-root holds 7 unfiled report-genre files. **Not all are deletable** — `scripts/check_mdbook_links.py:15,53,66,99,181,194,565` and `fix_link_depth.py:2` cite `MDBOOK_*.md` as the normative Pattern A–F taxonomy, `scripts/tests/test_smoke_fixture.py:34,46` reads `parity_artefacts/smoke_test_filters` as a live fixture, and `.github/workflows/docs.yml:19,20` path-filters both. `PATH_DEP_AUDIT_001_ENTRY.md` is a duplicate of the board entry at `backlog.md` with 367 unique lines that must merge first. | [patch] | Root holds only the sanctioned set; the mdBook pattern taxonomy lives in one `docs/` document with all citations re-pointed; the smoke fixture moves under `scripts/tests/fixtures/` with the workflow filter updated; `test_smoke_fixture.py` and the docs workflow still pass |
 | ATLAS-ADR-GOV-058 | Status format drift across the meta index and members: `- Status: Accepted` (15), `- Status: Proposed` (7), `- Status: **Accepted**` (3), `**Status:** Accepted` (2), and ~17 of 44 meta ADRs carry no parseable status. leto has a **duplicate ADR 0011** (two different decisions) and one record carrying two conflicting Status lines; its index renders `—` for 17 of 25 rows. hephaestus leaves ADR 0028 unindexed. Canonical statuses are Proposed/Accepted/Rejected. | [patch] | A committed index generator run twice is a no-op; zero unparseable or `—` status rows; no ADR number appears twice in any member |
 | ATLAS-KS9-SUPERSEDED-059 | `backlog.md` `[KS-9]` stands **done** asserting the decision to *retain* `hephaestus-metal`, superseded by Accepted ADR 0047 which retires it — the board asserts both positions. Its recorded rationale ("would be a breaking public-surface change") is also a prohibited tiebreaker. Separately: ATLAS-ARCH-011 needs **nothing from hephaestus** — removal was executed and verified green, then reverted solely for `repos/coeus`; it unblocks via ATLAS-SUBSTRATE-002. | [patch] | KS-9 carries a dated revision note pointing at ADR 0047; ATLAS-ARCH-011's blocker reads `coeus-metal`, not hephaestus |
 | ATLAS-HEPH-DEADBUILD-060 | `repos/hephaestus/build.rs` is **dead code**: the root manifest is virtual with no `[package]`, no crate declares `build =`, and cargo runs build scripts per package — so the 69-line CUDA-toolkit path resolver added in `116373d` has never executed once. | [patch] | Either the resolver moves into the crate that needs it and is proven to run, or the file is deleted; CUDA builds unchanged either way |
 | ATLAS-HELIOS-STRAY-PNG-061 | `helios_workflow_output/{ct,dose,mu,recon}.png` are tracked at the meta root **against `.gitignore:74`**, which names that exact path as run output. Producer is `tomotherapy_workflow.rs:102-104,209-212`; referenced by no test, xtask, workflow, Makefile or script; helios itself tracks zero PNGs, so no fresh clone has them. | [patch] | `git rm` at the meta root, plain delete under `repos/helios`; `xtask check-figures` and the docs workflow still green |
+
+## Tier 2b — small domain repos (athena, harmonia, horae, hyperion)
+
+These four are the cleanest in the stack on every mechanical axis — zero `dyn`
+in any `src/`, zero fake-generic casts, zero `todo!()`, zero non-test `unwrap`,
+`unsafe_code = "forbid"` and `missing_docs = "deny"` throughout, and both
+LICENSE texts present and matching the manifest in all four. The findings are
+about documentation truth and numerical evidence, not debt.
+
+| ID | Outcome | Class | Acceptance oracle |
+| --- | --- | --- | --- |
+| ATLAS-ATHENA-UNDOC-066 | **athena ships two undocumented solver families.** BiCGStab (575 lines) and LSQR (487) are implemented and publicly re-exported from `athena-core/src/lib.rs`, yet appear **zero times** in the README, whose headline (`:5`) calls PCG and GMRES "its complete vertical contracts". Compounding it, the architecture tree names a crate that does not exist (`:62` `athena-wgpu` vs the real `athena-hephaestus`), a feature that does not exist (`:71` `wgpu` vs the real `accelerator`), and asserts a 500-line ceiling (`:69`) that BiCGStab breaks. | [patch] | `rg 'athena-wgpu' README.md` → 0; README documents BiCGStab and LSQR; the line-count claim is removed or true per `wc -l` |
+| ATLAS-BOOK-PLACEHOLDER-067 | **Placeholder chapters are shipped as books.** athena has 6 chapters and harmonia 3 — every one is the 3-line string `*Chapter prose deferred.*`. A placeholder chapter is documentation's mock: a chapter exists when its teaching content does. Separately and stack-wide, all four repos call the atlas reusable Pages workflow without `mdbook-test`, which defaults `false` (`.github/workflows/book-pages.yml:34-41`), so even horae's genuinely good 794-line book and hyperion's real chapters have samples that can rot. | [patch] | No `Chapter prose deferred` anywhere; horae and hyperion pass `mdbook-test: true` now, athena and harmonia once content lands (relates to ATLAS-PUB-005) |
+| ATLAS-HYPERION-INTERP-068 | **Interpolation error is unbounded and its accuracy test is self-referential.** The log-log linear scheme (`nist.rs:90-105`) has no derived error bound tied to knot spacing and curvature, and the test checks that log-linear at a geometric midpoint reproduces the geometric mean of its own knots — an algebraic identity of the scheme, not accuracy versus NIST. The 28 knots are asserted to avoid absorption edges (`nist.rs:19-20`) with no evidence, and provenance is bare per-material URLs with no retrieval date or table version (cortical bone cites only "ICRU-44", no report table). | [minor] | `nist.rs` states a derived bound; an off-knot test compares against independently held NIST values within it; every `// Source:` line carries a date and table version |
+| ATLAS-HORAE-EXACTNESS-069 | Two exactness claims are stronger than their argument. `events/schedule.rs:61` promises the clipped endpoint "equals the next crossed event exactly", but `clip_step` returns `event.duration_since(start)` (`:86`) — that holds by Sterbenz only within a factor of two, and the property test (`tests/properties.rs:61-82`) samples only `start ∈ ±1e3, offset ∈ [1e-6,1]`, never the cancellation regime. And `subcycling/plan.rs:47` uses reciprocal-multiply, so for `RATIO = 3` child steps do not sum bit-exactly to the parent, contradicting the alignment claim. | [patch] | The Sterbenz precondition is stated and `clip.event()` documented as the required consumption route; a property case at `start ≈ 1e8, offset ≈ 1e-6` passes or the claim is weakened; the `RATIO=3` reconstruction is tested within a stated bound |
+| ATLAS-ATHENA-KRYLOV-070 | `gmres/workspace.rs:15-16` holds the Arnoldi basis as `Vec<B::Vector>` — on Leto that is `2·RESTART+1` scattered allocations, while every scalar array in the same struct is already flat (`hessenberg` is one `Vec<Scalar>` with an index fn). The only pointer-scattering instance found across these four repos. Allocated once at construction and natural per-buffer on WGPU, so this is a CPU-side layout defect, not a hot-loop allocation. Also: non-convergence returns `Ok(SolveReport)` with `Termination::MaxIterations` rather than a typed error, `SolveError` carries no residual history, and stagnation/divergence detection is absent entirely. | [minor] | `Vec<B::Vector>` gone from `gmres/workspace.rs` behind the existing `KrylovBackend` seam; the existing allocation-stability and f32/f64 contract tests unchanged and green; a stalling operator yields a `Termination::Stagnated`-class value with non-empty history |
+
+## Tier 2c — small domain repos (iris, proteus, asclepius, tyche)
+
+Two premises this sweep started with turned out to be **false and are recorded
+as cleared, not as work**: asclepius's Coeus adapter is genuinely one-way
+(verified in the manifests, in the imports, and in the reverse direction — no
+`[arch]` defect), and tyche's reported "23 production unwraps" are every one of
+them inside `///` doc examples, under a workspace-wide `unwrap_used = "deny"`
+that makes a production unwrap uncompilable. The second was an instrument
+defect and is now fixed (see the doc-comment correction below).
+
+| ID | Outcome | Class | Acceptance oracle |
+| --- | --- | --- | --- |
+| ATLAS-LICENSE-STUB-071 | **Three repos ship a stub where the Apache-2.0 text belongs**, while their manifests declare `MIT OR Apache-2.0`: iris and asclepius carry a 13-line short-form notice, proteus a 17-line header-plus-notice. Only tyche has the real 199-line text. iris and asclepius are `publish = true`, so two crates ship to crates.io under a license whose terms they do not include. Related, found separately: `kwavers-gpu` declares `MIT OR Apache-2.0` while the repo ships only an MIT `LICENSE` and every sibling crate is MIT — a per-crate override that is either a mistake or needs the second text; and gaia's MIT file is named `LICENSE` rather than `LICENSE-MIT`, so the pair is asymmetric. This is a legal defect, not a style one. | [patch] | Each `LICENSE-APACHE` contains `END OF TERMS AND CONDITIONS`; every crate's declared `license` matches the texts its package ships; `cargo package --list` includes them |
+| ATLAS-REGISTRY-INVALID-078 | **Two kwavers manifests carried metadata crates.io would reject**: `kwavers` declared 6 keywords against the 5 cap, and both `kwavers` and `kwavers-python` used `"medical"`, which is not a registered category slug. `cargo publish` fails on either. Fixed in passing for kwavers via a new shared `[workspace.package]`; the class needs a stack-wide check, because nothing currently validates registry metadata before a publish attempt. | [patch] | A committed check validates keyword count and category slugs against the crates.io registered list for every publishable crate; `cargo publish --dry-run` clean stack-wide |
+| ATLAS-IRIS-COLORSPACE-072 | **iris declares no color-space convention anywhere** — zero hits for `srgb`/`linear-light`/`gamma`/`transfer function` across `src`, `docs` and `README.md`, in a crate whose entire product is normalized color. `to_rgba8` quantizes `round(255v)` with no transfer function (`color/model.rs:46-52`) and colormap control points interpolate in an unnamed space (`color/map/interpolation.rs:15`). A consumer feeding these into a linear-light GPU pipeline gets silently wrong output with nothing in the contract to warn them — the convention-pinning failure `numerical_discipline` names. | [patch] | `rg -i 'srgb\|linear-light'` hits `color/model.rs` and every `ColorMap` impl doc; a doctest asserts the documented `to_rgba8` round-trip |
+| ATLAS-PROTEUS-DOMAIN-073 | **Silent extrapolation outside the calibration range.** `TemperatureLaw::properties` validates only that the evaluation temperature is finite and `> 0` (`constitutive/temperature/law.rs:162,179-189`); no calibration range is modeled anywhere (`rg 'validity domain\|calibrat\|extrapolat\|min_temp'` over `src` → nothing). A first-order response fitted near 300 K evaluates at 1500 K and returns a physically meaningless but positive result with no error. `README.md:13` claims "material-property validity boundaries", true only of sign bounds. | [minor] | A law valid on `[273, 373] K` returns `Err(OutsideValidityDomain)` at 1500 K and `Ok` at 350 K; each response's Rustdoc states its domain |
+| ATLAS-ASCLEPIUS-PARAM-074 | γ50 (`logistic_control.rs:24`) and Lyman `m` (`normal_complication.rs:24`) share one `ResponseSlope` type despite being distinct parameters — silently swappable at every call site. `Cem43::canonical()` (`thermal/cem.rs:61-67`) applies the 43 °C convention at any temperature though `README.md:160-161` cites Pearce's 43–50 °C limits. `pub(crate) const fn from_validated` (`value/parameter.rs:70`) bypasses validation. Note the adapter is f64-pinned while `README.md:114` claims monomorphization over `T: RealField`. | [minor] | Passing a γ50 where Lyman `m` is expected fails to compile (`compile_fail` doctest); CEM43 returns a typed error outside its cited bounds; the README claim is scoped to the law core or the adapter is made generic |
+| ATLAS-TYCHE-README-075 | The dependency line is underivable and one command names a package that does not exist. The registry name is `tyche-uncertainty` while `README.md:31` shows `use tyche::…`; `README.md:159` runs `cargo run -p tyche --example …` where CI uses `-p tyche-uncertainty`. `README.md:24-25` says the adapter and facade "remain private", contradicted by `publish.workspace = true` on all three; `:175` lists Morris and Sobol as future work though both ship. `tyche-moirai` and `tyche-consus` publish with `readme`/`keywords`/`categories` missing. **ATLAS-TYCHE-MULTIOUTPUT-017 did land — on `main`, not in the checked-out worktree**, which is 5 commits behind; on `main` `sensitivity.rs` is 672 lines, past the target. | [patch] | Every command in the README verification block appears verbatim in `ci.yml`; `rg '\-p tyche ' README.md` → 0; both manifests carry complete metadata |
+| ATLAS-CONSUS-ADR015-076 | **ADR-015 is cited eight times and does not exist.** `consus-io/src/lib.rs:75`, `consus-io/Cargo.toml:22`, `consus-io/src/io/async_io/s3_moirai/mod.rs:1`, `consus-io/tests/s3_rusoto_moirai_differential.rs:1`, `consus-zarr/Cargo.toml:18`, `consus-zarr/src/store/s3_moirai.rs:1`, and `consus-zarr/src/store/s3.rs:135,488`. There is no `docs/adr/` in consus, and the meta-repo's `0015` is an unrelated kwavers record. Per ADR governance the fix is a retroactive Accepted record grounded strictly in the code as built — never an invented rationale. | [patch] | `docs/adr/0015-*.md` exists, marked retroactive, indexed; all eight citations resolve |
+| ATLAS-LOCK-CONVENTION-079 | **The committed lockfile convention is not uniform, and the overlay silently rewrites 12 working copies.** Counting `source = "git+"` lines, committed vs working: 14 repos committed the git+ form (kwavers 87, CFDrs 62, helios 59, ritk 51, coeus 48, apollo 36, hephaestus 33, leto 30, consus 24, gaia 22, tyche 20, hermes 11, mnemosyne 3, hyperion 3) while **11 committed the stripped form** (aequitas, asclepius, athena, eunomia, harmonia, horae, iris, melinoe, moirai, proteus, themis — all 0). Of the git+ group, **12 now have a stripped working copy** because a build ran under the stack overlay; only gaia and hermes still match. coeus is half-stripped (48 committed vs 7 working). A stripped lock cannot resolve a git dependency standalone, so committing that form breaks reproducible CI resolution — yet a third of the stack has it committed. Every "Cargo.lock modified" line in this sweep is this artifact, not anyone's edit. | [patch] | One documented convention; every member's committed lock matches it; a committed check fails when a lock is committed in the wrong form; the overlay's rewrite is either excluded from the working tree or documented as expected churn |
+| ATLAS-MSRV-UNVERIFIED-077 | Declared MSRVs are never built. mnemosyne declares `rust-version = "1.95"` while `rust-toolchain.toml` pins 1.97.0 and no CI job builds at the floor; eunomia and melinoe are the same shape (melinoe's `1.65` is contradicted by its own manifest using the `[lints]` table, which needs Cargo 1.74). An untested MSRV claim rots. | [patch] | Either a CI job builds at the declared floor, or the floor is raised to what the code actually requires |
+
+## ATLAS-RITK-LANE-SPRAWL-065 — Reconcile three ritk working trees [patch] — open 2026-08-13
+
+`git -C repos/ritk worktree list` reports **three** trees against a bound of two
+(main plus one lane):
+
+```
+D:/atlas/.git/modules/repos/ritk              c3df4068 [main]
+D:/atlas/repos/ritk-floatelement-wt           1aefcb37 [codex/ritk-floatelement-roots]  prunable
+D:/atlas/worktrees/ritk-image-coordinate-map  e88910d0 [feat/ritk-spatial-explicit-fan-origin]
+```
+
+`repos/ritk-floatelement-wt` violates two rules at once: it is a lane outside
+the canonical `worktrees/` root, and it sits inside the `repos/` member
+namespace, which holds registered members only. It carries no `.git` file, so
+git marks it prunable while the directory still holds recently-written files.
+
+Also note `repos/ritk` itself moved from `codex/ritk-floatelement-roots` to
+`main` during this session, which is the shared-tree branch-switch hazard — a
+`git switch` in a shared tree moves the branch for every agent using it.
+
+Not actioned in this sweep: the directory was written to minutes before
+discovery, so it may hold live in-flight work. Reconcile rescue-first — confirm
+ownership, rescue any unique commits or dirty state into `repos/ritk`, then
+`git worktree remove`/`prune` and delete the directory.
+
+**Acceptance oracle:** `git -C repos/ritk worktree list` shows at most two
+entries, no entry is under `repos/`, and no unique commit is lost (verified by
+`git log --oneline` on the reclaimed branch before removal).
 
 ## Deferred with a recorded reason
 
@@ -2952,6 +3019,11 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
 
 ## ATLAS-PATH-DEP-AUDIT-001 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — todo
 
+> Merged from the root-level `PATH_DEP_AUDIT_001_ENTRY.md` on 2026-08-13.
+> That file was a second copy of this item living outside the board — the
+> board is the single owner of item status and scope, so the fuller body
+> was folded in here and the root file deleted (ATLAS-ROOT-SPRAWL-057).
+
 - Owner: Codex `/root`; last-update: 2026-07-24;
   scope: `D:/atlas/repos/*/Cargo.lock` audit for
   pending `source = "git+https://github.com/ryancinsight/<sibling>"`
@@ -3099,6 +3171,450 @@ Closure requires ALL of the following landed in future slices:
   indicating zero remaining `source = "git+https://github.com/
   ryancinsight` hits across all `/d/atlas/repos/*/Cargo.lock`
   files (excluding the 7 NVlabs external hits).
+
+### Closure-wait criteria (REVISED 2026-07-27) — scope-defined exceptions
+
+The strict zero-hits criterion above is too brittle when the
+underlying residual reflects a root cause in a domain that is
+NOT path-dep translation:
+
+  - dependency-version skew between local `[dependencies]` /
+    `[workspace.dependencies]` and the locked `Cargo.lock`
+    pinning (manifest-level concern, e.g. ATLAS-OVERLAY-002
+    pin-drift track);
+  - OS-path-encoding tooling differences (`os error 3` on
+    Windows path resolution) that block `cargo update` from
+    rewriting the lock even after `[patch]` is correctly
+    emitted (toolchain-level concern);
+  - silent cargo-lock-fixation when `[patch]` blocks ARE
+    stripped in error (script-level regression, e.g. R5
+    over-strip bug; cargo does not re-resolve on `[patch]`
+    removal so the lock source remains `git+https` indefinitely).
+
+The revised criterion reads:
+
+  - **Zero-hits** baseline: zero remaining
+    `source = "git+https://github.com/ryancinsight/` lines
+    across all `D:/atlas/repos/*/Cargo.lock` (excluding the 7
+    NVlabs external hits in apollo);
+  - **Minus** documented scope-defined exceptions, each of which:
+    (a) is recorded with name + per-consumer audit hit count in
+    the table below,
+    (b) cross-links to the sibling backlog entry owning the
+    exception domain (dependency-pin, OS-tooling, cargo-lock-
+    fixation),
+    (c) carries a forward-path resolution strategy distinct
+    from the path-dep audit mechanism,
+    (d) is acknowledged as **NOT in path-dep audit scope**;
+    closing the exception requires the sibling entry to flip
+    from `todo`/`in-progress` to `done` independently.
+
+No active scope-defined exceptions as of 2026-07-27 (cycle closed).
+
+Historical scope-exception framework (closure note): the two consumer
+exceptions tracked at r5/r6b (`athena`, `hephaestus`) were both rooted
+in round-5-over-strip silent-fixation — round-6a atlas-root corrective
+re-emit resolved both. No external-domain (version-skew, OS-tooling,
+cargo-lock-fixation) exceptions required domain-spanning closure.
+
+### CYCLE CLOSED 2026-07-27 (two-step handoff → 0 residual)
+
+#### STEP A — leoneuro-rs str_replace (manual coeus path fix)
+
+Hand-applied before round-6a as a separate manifest-level fix:
+
+- `repos/leoneuro-rs/Cargo.toml `[workspace.dependencies]` carried 3 stale
+  paths to coeus subcrates pre-migration `coeus/<sub>` layout, missing
+  the `/crates/` segment:
+    - `coeus-core = { path = "../coeus/coeus-core" }` → `../coeus/crates/coeus-core`
+    - `coeus-autograd = { path = "../coeus/coeus-autograd" }` → `../coeus/crates/coeus-autograd`
+    - `coeus-nn = { path = "../coeus/coeus-nn" }` → `../coeus/crates/coeus-nn`
+- After the str_replace, `cargo update --workspace --offline` succeeded
+  with rc=0 on leoneuro-rs; atlas-wide residual dropped from ~91 to 70.
+
+#### STEP B — round-6a atlas-root corrective re-emit
+
+`scripts/atlas-path-dep-audit2-closure-r6a.py` delivered the user-specified
+path-verify primitive per the cycle closure mandate:
+
+    Path('D:/atlas/repos/' + consumer) / path_str / 'Cargo.toml'
+                                         .resolve().exists()
+
+…which honours cargo-canonical semantics for `[patch]` paths (round-5's
+over-strip bug was the consumer-relative mis-implementation of this same
+predicate). Per-consumer per-iteration outcome:
+
+- hephaestus: iter 1 [pairs=34 added=34 cargo=0] residual 34 → 0 ✓ STABLE
+- athena    : iter 1 [pairs=36 added=36 cargo=0] residual 36 → 0 ✓ STABLE
+- All 11 other consumers had stabilized at 0 during r1-r5 (apollo,
+  asclepius, CFDrs, coeus, gaia, helios, kwavers, hermes, ritk;
+  mnemosyne/moirai never carried audit-format hits).
+
+#### STEP C — leoneuro-rs parent-gitlink follow-up (2026-07-27)
+
+The closure commit 565022e advanced 11 of 12 submodule gitlinks but
+skipped leoneuro-rs because `/d/atlas/.gitignore` line 60 contains
+`repos/leoneuro-rs/` at the time of commit. Closed via a separate
+parent-side follow-up delivery unit (so as not to interleave path-dep
+gitlink-advance work with the per-submodule r6a commits themselves).
+
+Hand-applied AFTER round-6a as an index-only force-add:
+
+- `git -C /d/atlas update-index --add --cacheinfo 160000,50bfcd9bcc66e23f27807973323ddb060035d60a,repos/leoneuro-rs`
+- Subsequent atlas-side follow-up commit (`build(atlas): Advance leoneuro-rs gitlink — round-6a closure completion (12/12)`) advances `repos/leoneuro-rs` to 50bfcd9 in the parent record; the `.gitignore` rule at line 60 (placed there earlier to keep leoneuro-rs out of `git status` noise during prior unrelated work) remains in place pending `backlog.md` `## ATLAS-GIT-HYGIENE-001` (chore: atlas `.gitignore` line-60 rule removal). The 1-non-cargo-file anomaly surfacing in all 12 r6a submodule commits is parked separately at `## ATLAS-R6A-FILELIST-001` (patch: per-submodule commit-hygiene remediation).
+
+After this delivery: all 12 audited consumers have a parent-atlas
+gitlink entry pointing at the r6a-commit SHA, tracking the 12th
+submodule gitlink that the original parent commit 565022e skipped
+because the `.gitignore` line-60 ignore rule blocked `git add
+repos/leoneuro-rs`. The cycle is across TWO commits (11/12 in
+565022e + 12/12 here),advertised as **completion** rather than **atomicity** to avoid overstating single-commit-trackability.
+
+#### STEP D — Architectural correction to STEP C (2026-07-27)
+
+Verification surfaced that the cacheinfo-built gitlink in STEP C
+(`fef2c63`) is **architecturally malformed**. The 160000 mode entry
+in atlas HEAD's `repos/leoneuro-rs` slot has no matching
+`[submodule "leoneuro-rs"]` declaration in `/d/atlas/.gitmodules`,
+and the remote URL is a private `LeoNeuro-INC` org, not `ryancinsight`.
+The `repos/leoneuro-rs/` `.gitignore` rule at line 60 is the
+intentional treatment of `leoneuro-rs` as a **co-located external
+code-drop**, not an atlas submodule. `git status` not nagging about
+it is the design, not a defect.
+
+| Datum                                       | Value                                                                       |
+|---------------------------------------------|-----------------------------------------------------------------------------|
+| leoneuro-rs remote URL                      | `https://github.com/LeoNeuro-INC/leoneuro-rs.git` (private LeoNeuro-INC org, **not** ryancinsight) |
+| leoneuro-rs submodule registration          | absent — no `[submodule "leoneuro-rs"]` in `/d/atlas/.gitmodules`; no `submodule.leoneuro-rs.*` keys in atlas `.git/config` |
+| leoneuro-rs at the r2 baseline             | 11 `git+https://github.com/ryancinsight/` source lines                       |
+| leoneuro-rs at the r6a post                | **0** such lines (resolved via `[patch]` + `cargo update --workspace --offline` in `50bfcd9`) |
+| leoneuro-rs workspace members               | 5 (`leoneuro-{core,array,field,neuromod,io}`)                                |
+| r6a SHA on `codex/sim-ct-medium`            | `50bfcd9`                                                                   |
+
+**Audit-domain surviving**: the 12/12 closure tally is **honest**.
+`leoneuro-rs` had 11 ryancinsight URLs at the r2 baseline and was
+resolved to 0 by its own r6a commit (`50bfcd9` via `[patch]`
+entries + `cargo update --workspace --offline`). "completion
+(12/12)" means "12 submodules audited, all closed to 0 residual
+ryancinsight URLs", **NOT** "12 submodules atlas-side
+gitlink-tracked".
+
+**Distinct axes (orthogonal concerns)**. The audit closure tally
+and the atlas-side tracking count are **two separate dimensions**;
+this entry uses both. Renamed for axis-clarity:
+
+| Axis                          | Count | Members                                                                                |
+|-------------------------------|------:|----------------------------------------------------------------------------------------|
+| Audit-eligible (had r2 hits)  |   12  | apollo, asclepius, CFDrs, coeus, gaia, helios, hephaestus, hermes, kwavers, leoneuro-rs, ritk, athena |
+| ryancinsight-remote-URL       |   11  | same list minus `leoneuro-rs` (whose remote is `https://github.com/LeoNeuro-INC/leoneuro-rs.git` — not `ryancinsight`) |
+| Atlas-160000-tracked          |   11  | same list minus `leoneuro-rs` (no `.gitmodules` declaration; the `.gitignore` line-60 rule is intentional) |
+
+The previous row labels (`Audit-domain candidates` /
+`ryancinsight-resolvable` / `Atlas-side tracked`) conflated axis
+meanings: "ryancinsight-resolvable" conflated URL ownership with
+overall repo authority, while "Atlas-side tracked" mixed the
+*intent* of tracking with the *mechanism* (160000 gitlink). The
+refined labels are mechanism-specific so a future reader can answer
+"why 11 not 12" without re-running verification.
+
+**Per-member asymmetry (leoneuro-rs only)**. Of the 12 audit-eligible
+submodules, only `leoneuro-rs` has a non-uniform tri-axis state:
+
+| Axis                       | leoneuro-rs                                                 |
+|----------------------------|-------------------------------------------------------------|
+| Audit-eligible             | yes                                                         |
+| ryancinsight-remote-URL    | NO (LeoNeuro-INC origin)                                    |
+| Atlas-160000-tracked       | NO (intentional; cleared by this entry's cleanup commit)    |
+
+The 11-row intersection (apollo + asclepius + CFDrs + coeus + gaia +
+helios + hephaestus + hermes + kwavers + ritk + athena) is the set
+with all three axes = yes. Their origin URLs are
+`https://github.com/ryancinsight/<sibling>.git` and they carry
+parent-side 160000 gitlinks pointing at r6a-class SHAs. `leoneuro-rs`
+appears in the audit-eligible axis but not the others because its
+origin URL points to `https://github.com/LeoNeuro-INC/leoneuro-rs.git`
+rather than to `https://github.com/ryancinsight/<sibling>.git`.
+
+**Alternatives considered and rejected** (so a future reviewer
+does not propose them):
+
+- *`.gitmodules` registration with `https://github.com/LeoNeuro-INC/leoneuro-rs.git`
+  as the URL*: surfaces the private-org identity into atlas'
+  public tree. **Concrete leak**: a downstream `git clone` of atlas
+  would carry `https://github.com/LeoNeuro-INC/leoneuro-rs.git` to
+  clone logs as a discoverable string in any `git submodule update
+  --init` attempt that traverses atlas (e.g., CI bots scanning
+  submodules); this defeats the user's "private and in leoneuro-inc"
+  framing. Repository identifiers (org layout, naming) are
+  sensitive even when the URL string itself doesn't carry auth
+  tokens.
+- *`git alternates` / `git worktree add` / `git sparse-checkout`
+  as alternatives for external co-location*: each fails for a
+  *different* specific reason — none provide an external-reference
+  primitive that bypasses the `.gitmodules` discovery seam:
+
+  - `git alternates` (in `core.alternates`/`<repo>/info/alternates`):
+    local-only; the alternates file is NOT propagated via clone, so
+    a downstream atlas cloner would not inherit the LeoNeuro-INC
+    URL without manual alternates-file authoring. Doesn't scale.
+  - `git worktree add <path> <commitish>`: clones from a *local*
+    source meaning (existing repo); doesn't introduce an upstream
+    declaration. Cannot substitute for a missing `.gitmodules`
+    upstream entry.
+  - `git sparse-checkout`: subset filter for files within a *single*
+    clone; not a substitute for cross-repo external reference.
+    Operates on a checked-out tree rather than introducing a new
+    external origin.
+
+  Bottom line: `.gitmodules` is the only mechanism git honours for
+  a 160000 entry + upstream URL pairing; no DRY worktree-integration
+  primitive provides the equivalent.
+
+- *Leaving the bogus 160000 entry with a clarifying commit
+  message in `fef2c63`*: doesn't fix the architectural problem.
+  **Concrete artifact counter**: documentation alone leaves a
+  160000 entry in atlas HEAD's tree, so a downstream atlas cloner
+  gets an empty `repos/leoneuro-rs/` directory plus a SHA they
+  cannot resolve without manually `git clone`-ing the private org.
+  The misleading-state problem (160000 → empty directory +
+  unverifiable SHA on clone) is not improved by comment only.
+
+**Push-sequence handoff** (for the eventual closure-cycle push,
+when authorized via the standard push-authorization gate per agent
+guidelines on high-effect operations):
+
+- **11 ryancinsight submodules + the parent atlas** push proceed per
+  the closure sequence with `git push --force-with-lease origin
+  <branch>`. **`--force-with-lease` is the safer primitive** over
+  bare `--force` because the closure cycle amended HEAD 3 times;
+  bare `--force` would clobber any concurrent upstream updates
+  that landed during the cycle (e.g., the atlas-side doc commits
+  like `5566bfc` `docs(atlas): Record modality transport boundaries`).
+  The lease verifies the upstream matches expectation before
+  allowing the local rewrite, so concurrent upstream activity
+  aborts cleanly instead of clobbering.
+- **`https://github.com/LeoNeuro-INC/leoneuro-rs.git` upstream is
+  intentionally skipped** from any atlas-side `git push`. Reason:
+  leoneuro-rs is owned by a different GitHub org (LeoNeuro-INC);
+  atlas has no authority to push to its `main` or `codex/*`
+  branches.
+- **LeoNeuro-INC maintainer coordination is out-of-band**: the
+  `50bfcd9` commit lives locally at `repos/leoneuro-rs/` and is
+  available for the LeoNeuro-INC team to land on their own org via
+  their own CI/dispatch pipeline. Atlas does not gate leoneuro-rs's
+  downstream pipeline.
+- **`repos/leoneuro-rs/` working tree remains** in place for local
+  development; the `.gitignore` line-60 rule hides it from atlas'
+  `git status` so it shows up only when an operator `cd`s into it.
+
+Predecessor commit reference: the cleanup undoes the cacheinfo
+gitlink established by `fef2c63`:
+
+  git show fef2c63bcc66e23f27807973323ddb060035d60a --stat
+
+(`fef2c63` itself carries the index-only `update-index
+--cacheinfo` line; grep the body of that commit for the rationale
+that STEP C recorded before the architectural correction surfaced.)
+
+Cleanup commit (subject `build(atlas): Drop misapplied leoneuro-rs
+gitlink — audit closure unaffected`) removes the cacheinfo-built
+160000 entry via `git rm --cached repos/leoneuro-rs`. After the
+cleanup:
+
+- `repos/leoneuro-rs` is **not** in atlas HEAD's tree (verified
+  post-commit via `git ls-tree HEAD repos/leoneuro-rs` → empty).
+- `leoneuro-rs`'s local `50bfcd9` is unowned by atlas; the
+  LeoNeuro-INC maintainers can land it on their own schedule.
+- Push sequence for the closure cycle excludes the
+  `https://github.com/LeoNeuro-INC/leoneuro-rs.git` upstream; only
+  11 ryancinsight submodules + the parent atlas push to ryancinsight.
+
+#### Audited-consumer table (12 candidates, all closed to 0 ryancinsight hits)
+
+| #  | Submodule   | r2 baseline | r6a post | r6a SHA  | Origin       | Atlas-tracked? |
+|----|-------------|------------:|---------:|----------|--------------|----------------|
+| 1  | apollo      | ~28         | 0        | b7bb4bc  | ryancinsight | yes (160000)   |
+| 2  | asclepius   | 42          | 0        | 5414f80  | ryancinsight | yes (160000)   |
+| 3  | CFDrs       | 12          | 0        | ec4e147  | ryancinsight | yes (160000)   |
+| 4  | coeus       | 12          | 0        | cdaf769  | ryancinsight | yes (160000)   |
+| 5  | gaia        |  3          | 0        | 42ef63a  | ryancinsight | yes (160000)   |
+| 6  | helios      |  2          | 0        | dca9e80  | ryancinsight | yes (160000)   |
+| 7  | hephaestus  | 12          | 0        | 47ca84a  | ryancinsight | yes (160000)   |
+| 8  | hermes      |  2          | 0        | 50b4959  | ryancinsight | yes (160000)   |
+| 9  | kwavers     | 14          | 0        | 799aa1c  | ryancinsight | yes (160000)   |
+| 10 | leoneuro-rs | 11          | 0        | 50bfcd9  | LeoNeuro-INC | **NO** (drops gitlink) |
+| 11 | ritk        |  6          | 0        | 6503590  | ryancinsight | yes (160000)   |
+| 12 | athena      | 27          | 0        | a5fd806  | ryancinsight | yes (160000)   |
+
+`GRAND_TOTAL_ryancinsight = 0` across 12 audited candidates;
+apollo NVlabs sentinel = 7 (preserved).
+
+### Final closure state
+
+GRAND_TOTAL_ryancinsight = 0; apollo NVlabs sentinel = 7 (preserved
+correctly across rounds r1-r6a). Reduction arc:
+
+| Round | Reduction step                               | Residual | Delta |
+|------:|----------------------------------------------|---------:|------:|
+|       | baseline (post-cutover audit baseline)       |      311 | open  |
+|  r1   | round-1 unified `[patch]` overlay (additive) |      222 |  -89  |
+|  r2   | round-2 self-patch strip + cargo workspace   |      222 |    0  |
+|  r3   | round-3 precision catalog aggregator         |      181 |  -41  |
+|  r4   | round-4 TOML strip-and-rewrite aggregator    |       99 |  -82  |
+|  r5   | round-5 stale-strip-first (over-strip + avg.) |       57 |  -42  |
+|  r6a-A| leoneuro-rs str_replace coeus path fix       |       70 |  +13 (per-cargo-update side effect, others locked re-resolved) |
+|  r6a-B| r6a atlas-root corrective re-emit           |        0 |  -70  |
+
+Net reduction across 6 cycles: 311 → 0 (NVlabs sentinel=7 preserved,
+not counted as path-dep candidate per the audit's external-source rule).us-auto-
+grad`, `coeus-nn`) and the hermes per-pair `cargo update -p
+<pkg> --offline` per-package invocation that re-resolved the
+remaining 9 of 10 packages (mnemosyne-heap failed rc=101 due to
+local-vs-remote version-skew distinct from path-dep audit
+scope).
+
+**Atlas-wide residual after r6b**: 70 ryancinsight audit hits
+across 2 consumers (athena=36, hephaestus=34); minus the
+documented scope exceptions = 0 in path-dep audit scope.
+
+### Partial closure progress (2026-07-27)
+
+Cycle state after the unified `[patch]` overlay + dual-pass
+`cargo update --workspace --offline` round:
+
+- `scripts/atlas-path-dep-audit2-closure.py` created (235 lines,
+  additive-only; one-shot tool — not idempotent, hardcoded
+  `D:\atlas` path; cargo errors on the asclepius self-patch because
+  `repos/asclepius/Cargo.toml` is a virtual workspace manifest).
+- Unified `[patch]` block appended to all 13 NEEDS consumers'
+  `Cargo.toml` files (each +5301 bytes; then ~80 bytes stripped
+  for asclepius self-patch removal).
+- Self-patch blocks stripped from 9 consumers whose Cargo.toml URL
+  key matched their own repo name (athena, consus, hermes, horae,
+  leto, mnemosyne, moirai, themis, aequitas) — cargo refuses
+  self-patches.
+- Round-1 `cargo update --workspace --offline`: 11/13 succeeded
+  (athena failed rc=101 due to self-patch; apollo reported rc=0
+  but no lockfile change). Reduction: 311 → 218 hits.
+- Round-2 `cargo update --workspace --offline` post-self-patch
+  strip: 11/13 succeeded (apollo + athena still failed rc=101).
+  Final reduction: 311 → 222 hits.
+
+Per-consumer residual `^source = "git\+https://github.com/
+ryancinsight/` after round-2:
+
+```
+CFDrs=25  apollo=37  asclepius=42  athena=36  coeus=1
+gaia=4    helios=2   hephaestus=34 hermes=10  kwavers=14
+leoneuro-rs=11  ritk=6
+GRAND_TOTAL=222 (baseline=311)
+apollo NVlabs sentinel=7 (preserved)
+```
+
+### Residual-closure root cause
+
+`cargo update --workspace --offline` does NOT trigger
+re-resolution of already-locked entries whose source URL has
+been redirected by `[patch]`. The `[patch]` redirect only fires
+at resolve-time; once a package is locked with
+`source = "git+https://..."`, workspace-update preserves that
+source unless per-package `cargo update -p <pkg> --offline`
+forces re-resolution.
+
+READINESS impact: the 8 READY consumers (CFDrs, asclepius, coeus,
+helios, hephaestus, kwavers, leoneuro-rs, ritk) account for
+~135 of the 222 residual hits. Their `[patch]` overlays are
+structurally correct (verified per CFDrs precedent) but
+re-resolution was not triggered.
+
+apollo/athena failures are independent: post-self-patch-strip,
+`cargo update --workspace --offline` still returns rc=101 for
+apollo (likely hephaestus 0.18.0 vs locked 0.15+ version-skew)
+and athena (rc=101 root cause not yet diagnosed — likely
+unrelated to self-patch, possibly a workspace-member resolver
+conflict).
+
+### Follow-up scope (NOT closed in this cycle)
+
+- Per-package `cargo update -p <pkg> --offline` for every
+  ryancinsight package in every consumer's lockfile (both READY
+  and NEEDS-side residual). Approximate pair count: 222 hits
+  across 12 consumers; per-pair invocation forces re-resolution
+  and triggers the `[patch]` redirects.
+- Investigate apollo/athena rc=101 root causes (likely version
+  skew or workspace-member resolver conflict; the `[patch]`
+  blocks were correct post-self-patch-strip).
+- Once residual reaches 0: submodule-by-submodule commit
+  (Cargo.toml + Cargo.lock co-staged) followed by parent atlas
+  gitlink advance.
+
+## Atlas round-3..5 closure progress (2026-07-27)
+
+- **Round-3** (precision catalog aggregator): `scripts/atlas-path-dep-audit2-closure-r3.py` — extracted per-consumer
+  (package_name, source_url) pairs and emitted per-pair subkeys. 311 → 181 baseline reduction;
+  cargo update issues: rc=101 for self-patch consumers (one stale path entry each).
+- **Round-4** (`scripts/atlas-path-dep-audit2-closure-r4.py`): precision aggregator with TOML strip-and-rewrite.
+  222 → 99 (55%); rc=101 for asclepius (apollo/crates/apollo), leoneuro-rs (coeus-autograd missing /crates/),
+  athena (mnemosyne 0.5.0 vs 0.6.0 version skew), hermes (unclassified).
+- **Round-5** (`scripts/atlas-path-dep-audit2-closure-r5.py`): stale-strip-first pass + multi-line tolerant regex +
+  filesystem path-existence check. 222 → 57 (74% total reduction). Per-consumer r5 stripping stats:
+
+  | Consumer | Stale subkeys stripped | Live subkeys kept |
+  |----------|-----------------------:|------------------:|
+  | CFDrs    | 73 | 0 |
+  | athena   | 73 | 0 |
+  | gaia     | 71 | 0 |
+  | asclepius| 70 | 0 |
+  | kwavers  | 65 | 0 |
+  | hermes   | 57 | 0 |
+  | leoneuro-rs | 56 | 0 |
+  | helios   | 47 | 0 |
+  | hephaestus | 44 | 0 |
+  | ritk     | 43 | 0 |
+  | apollo   | 36 | 0 |
+  | coeus    | 34 | 0 |
+  | **Total** | **669** | **0** |
+
+  Note: The round-5 strip pass over-stripped because `path_resolves_to_crate` interpreted
+  `../<sibling>/crates/<sub>` paths relative to the CONSUMER (under `repos/<consumer>/<sibling>/...`)
+  rather than the atlas root (`repos/<sibling>/...`). Round-6 will need path resolution
+  anchored at `D:/atlas/repos/` for `../<sibling>/...` style paths, recovering ~500 of the
+  over-stripped subkeys. Round-5 cargo update post-strip still landed 99 → 57 because the
+  consumer-side path resolution co-incidentally matched the workspace-relative case and
+  cargo update rejected the broken block independently.
+
+Final state per round-5:
+
+```
+athena=36   leoneuro-rs=11   hermes=10
+GRAND_TOTAL=57  (baseline=222, target=0)
+apollo NVlabs sentinel=7 (preserved)
+```
+
+### Closure scope discipline
+
+Closure requires zero `source = "git\+https://github\.com/ryancinsight/` lines across
+all `/d/atlas/repos/*/Cargo.lock`. Current state is **PARTIAL** — 57 residual hits in
+3 consumers. Each remaining consumer has a different root cause requiring a different
+resolution strategy:
+
+| Consumer | Residual | Root cause | Resolution path |
+|----------|---------:|------------|------------------|
+| athena   | 36 | mnemosyne 0.5.0 vs 0.6.0 (also leto-ops locked 0.40.0) | Manifest-level version bump OR drop `--offline` for network resolution |
+| leoneuro-rs | 11 | `Windows path encoding` (os error 3) for coeus dependency | Force forward-slash path normalization in [patch] |
+| hermes   | 10 | Unclassified (likely stale path Refs from round-1 cycle) | Targeted Cargo.toml path_str re-resolution |
+
+Round-6 closure would target these three consumers individually with consumer-specific
+resolution strategies. The other 9 consumers' residual is **zero** post-round-5.
+
+### Follow-up scope (NOT closed in this cycle)
+
+- Per-consumer round-6 cycle for athena, leoneuro-rs, hermes with consumer-specific
+  resolution strategies.
+- Round-6 should also re-emit the round-5 over-stripped subkeys (~500 valid [patch]
+  refs that were dropped due to the path-resolution bug).
+- Once residual reaches 0: submodule-by-submodule commit (Cargo.toml + Cargo.lock
+  co-staged) followed by parent atlas gitlink advance.
 
 ## Session 23 closure (2026-07-24) — ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1 → ✅ closed
 
@@ -3950,7 +4466,7 @@ Re-oriented against `origin/main` at session open; HEAD had moved from `d2e0ac9`
 ### Tracked (peer-authored artifacts staged for review)
 
 - `docs/pr/0008-math-ssot-adr-0031-0033-review-checklist.md` (138 lines, peer-drafted PR description for the math-SSOT consolidation; covers ADRs 0031/0032/0033 closure into leto-ops SSOT; cross-repo consumers `cfd-math`, `kwavers-math`, `kwavers-solver`; reserved tag `atlas/math-ssot-adr-0031-0033-closure`; per-ADR sign-off checklist spanning CFDrs / Kwavers / leto-ops module owners). Stage-only; substantive source changes in `repos/CFDrs/crates/cfd-math/...` and `repos/kwavers/crates/kwavers-{math,solver}/...` are peer-owned and out of coordinator scope.
-- `math_ssot_ledger.md` (753 lines, peer-authored audit ledger documenting the leto SSOT surface and per-consumer redundancy inventory; provider-side already landed in leto-ops `StaggeredForward`/`StaggeredBackward`, `complex_solve`/`complex_inv`, `FiniteDifference3D`). Stage-only.
+- `docs/audit/math-ssot-ledger.md` (753 lines, peer-authored audit ledger documenting the leto SSOT surface and per-consumer redundancy inventory; provider-side already landed in leto-ops `StaggeredForward`/`StaggeredBackward`, `complex_solve`/`complex_inv`, `FiniteDifference3D`). Stage-only.
 
 ### Next-session handoff
 
@@ -3962,7 +4478,7 @@ Re-oriented against `origin/main` at session open; HEAD had moved from `d2e0ac9`
 
 Between my `599ddca` and the close of this session, peer landed a chain that absorbed the Session 30 closure intent and advanced the persistent defect set further:
 
-- `9f92d94 docs(atlas): Refresh Aequitas gap audit` — peer-committed `math_ssot_ledger.md` and `docs/pr/0008-math-ssot-adr-0031-0033-review-checklist.md` under their subject. Content identical to what this session would have committed. Pattern matches the Session 25/26/28 attribution-absorption; no remediation needed because the content is correct.
+- `9f92d94 docs(atlas): Refresh Aequitas gap audit` — peer-committed `docs/audit/math-ssot-ledger.md` and `docs/pr/0008-math-ssot-adr-0031-0033-review-checklist.md` under their subject. Content identical to what this session would have committed. Pattern matches the Session 25/26/28 attribution-absorption; no remediation needed because the content is correct.
 - `d1f2e2c docs(atlas): Record Aequitas consumer closure` — gap audit refresh.
 - `c2cad74 build(atlas): Advance CFDrs Aequitas closure` — CFDrs gitlink advanced to `109aec63`; CFDrs now reads as clean in the gitlink-coherence audit (down from stale-advanceable). MET-25 closure intent is now realized at the CFDrs WT HEAD; the math-SSOT PR 0008 cfd-math deletion gate (peer-cf must commit + push) remains the only outstanding dependency.
 - `485b3dd docs(pm): Root-cause the gaia git-dep break blocking helios tests` — closes the gaia blocker; helios tests can now run against canonical gaia.

@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+- Correct the conformance instrument and regenerate its baseline in the same
+  change. `scripts/atlas-conformance.py` classified a file as test code only
+  when a path *part* matched `tests`/`benches`/`examples`/`fuzz`, but
+  `Path.parts` yields `tests.rs` as a filename and never `tests`, and
+  `split_test_region` splits only on an *in-file* `#[cfg(test)]` — so every
+  co-located `src/**/tests.rs` sidecar was scanned as production code. Four
+  independent repo audits reached that conclusion separately. Matching now
+  covers directory parts only, plus a new `declared_cfg_test` check that reads
+  the parent module's `#[cfg(test)] mod <stem>;` declaration. Stack
+  `unwrap_production` moves 4713 → 1460 (kwavers 2630 → 259, consus 709 → 334)
+  with the counts landing in the test-region classes where they belong
+  (`existence_only_assertions` 598 → 807, `sleep_synced_tests` 117 → 132). The
+  ratchet returns to 0 regressions / 0 tightenings. Every burn-down target
+  recorded before this fix was aimed by a broken instrument.
+
+- Second conformance correction: `.unwrap()` inside `///` and `//!` doc-comment
+  bodies is doctest code, not production. Counting it reported 23 "production
+  unwraps" for tyche, whose workspace denies `unwrap_used` outright — every one
+  was a doc example, and tyche now correctly reports 0. Stack
+  `unwrap_production` 1460 → 1242. Also added `.git` to the sanctioned root set,
+  since a submodule's `.git` is a gitlink *file* and was counted as unfiled
+  sprawl in every member.
+
+- Add `scripts/atlas-board-compact.py` and apply it. `backlog.md` 13,399 →
+  5,369 lines and `checklist.md` 5,810 → 4,170, collapsing 299 closed items to
+  one-line archive entries carrying their commit SHAs. Verified no item ID was
+  lost in either file. The collapse is mechanical so it is reproducible rather
+  than a one-off hand edit; it anchors the closed-status marker to the final
+  em-dash segment of a heading, because matching anywhere after an em-dash
+  archives live items whose *title* contains a status word.
+
+- File the 2026-08-13 full-stack audit on the board: fourteen read-only audits
+  covering all 25 registered members plus the meta-repo, opening 33 DoR-shaped
+  items across four tiers. Tier 0 carries two safe-code paths to undefined
+  behaviour (`themis` duplicating a melinoe capability token; a `mnemosyne`
+  scratch-pool aliasing hole), an unvalidated public `Layout` under 84 leto
+  unsafe blocks, unbounded parser allocation and recursion in consus, and two
+  precision-contract violations in eunomia — one silently computing five `F64`
+  transcendentals in `f32`, one ordering sub-byte floats by raw bit pattern so
+  every min/max reduction over them is sign-inverted.
+
+- Remove `helios_workflow_output/{ct,dose,mu,recon}.png` from tracking. They
+  are run output of `tomotherapy_workflow.rs:102-104,209-212`, referenced by no
+  test, xtask, workflow, Makefile or script, and `.gitignore:74` already names
+  that exact path as derived state. helios itself tracks zero PNGs, so no fresh
+  clone ever had them.
+
+- Remove nine unfiled work products from `tools/` (~1.5 MB of `_probe_meta*`
+  JSON, `cfdrs-lint*.stderr` dumps, one-shot `_fix_apostrophe.py` and
+  `_insert_meta_docs.py`) and the Windows reserved-name `nul` artifact at the
+  repository root.
+
 - Advance all twenty requested provider gitlinks to their fetched default
   heads after CI-only Atlas workflow-pin merges. Exact-head, provider
   coherence, stack-overlay, and lane audits pass; peer-owned child checkout
