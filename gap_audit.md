@@ -923,29 +923,35 @@ fetched default heads, and the requested-scope coherence audit is clean.
 
 ## ATLAS-PROVIDER-INTEGRATION-006 — twenty-provider exact-head re-audit — 2026-08-13
 
-The current Atlas integration pointer commit is `cae93ad`, with Horae
+The current Atlas integration pointer commit is `c77ee82`, with Horae
 integrated at merged upstream head `c42d1b4`. The root pointer sweep records
-the merged Themis, Mnemosyne, and Consus heads `f7face3`, `8dacc48`, and
-`1e061b0`; RITK remains at `bde77e0`, and Hermes at `81502c5`. The stack
-overlay check passes: requirements are satisfiable and locks match the local
-trees.
+the merged Themis, Mnemosyne, Consus, and Moirai heads `24c1090`, `16cd806`,
+`1e061b0`, and `61140fb`; RITK remains at `bde77e0`, and Hermes at
+`81502c5`. The stack overlay check passes: requirements are satisfiable and
+locks match the local trees.
 
 The exact-head audit matches 19 of 20 requested providers against their fetched
 default refs. Leto is the sole residual: Atlas records local commit `cf9e0b5`,
-while `origin/main` is `7f2cfba`; the local checkout is two commits ahead and
-contains peer-owned WIP, so the pointer is preserved rather than rewound or
-silently published. The exact-head gate therefore remains intentionally red
-until that peer branch is merged.
+while `origin/main` is `7f80044`; the local checkout contains peer-owned WIP,
+so the pointer is preserved rather than rewound or silently published. The
+exact-head gate therefore remains intentionally red until that peer branch is
+merged.
 
-Provider-boundary follow-ups remain separately tracked. Themis fix `8930489`,
-Consus parser fix `03bb65e`, and Mnemosyne's scratch-pool repair `4c22fba` are
-merged into the provider defaults; their post-merge repository workflows were
-still pending when this snapshot was recorded. The recurring external
-`recurseml/analysis` errors are report-only and are not treated as provider
-verification. Kwavers' five input-insensitive production sites,
-Apollo's generic inverse-DFT accumulator, Hyperion interpolation provenance,
-Asclepius response-slope semantics, Eunomia reduced-precision special-function
-and ordering gaps, and the Leto layout validation gap remain open findings.
+Provider-boundary follow-ups remain separately tracked. Themis's reproducible
+lock fix is merged at `24c1090`, with Windows/Linux verification, compile-fail,
+Miri, and CodeRabbit green; Consus's parser fix is merged at `1e061b0`. The
+Mnemosyne scratch-pool repair and formatting fix are merged at `16cd806`; the
+provider-owned Rust verification, Loom, Miri, and CodeRabbit checks are green.
+Asclepius's typed radiation-parameter fix is merged at `5d528d2`; its book,
+verification, supply-chain, and CodeRabbit checks are green. Helios's consumer
+cutover is PR #54 and awaits its post-format workspace and benchmark jobs. The
+recurring external `recurseml/analysis` errors are report-only and are not
+treated as provider
+verification. Kwavers' five input-insensitive production sites, Apollo's
+generic inverse-DFT accumulator, Hyperion interpolation provenance, Eunomia
+reduced-precision special-function and ordering gaps, and the Leto layout
+validation gap remain open findings; the Asclepius response-slope finding is
+closed by `5d528d2`, with Helios's consumer cutover pending in PR #54.
 
 ## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults (2026-08-12)
 
