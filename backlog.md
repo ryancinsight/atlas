@@ -1,5 +1,21 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-EUNOMIA-FLOAT-CBRT-014 — Land sign-preserving FloatElement::cbrt SSOT [feat]
+
+- Owner: Atlas integration.
+- Outcome: close the ATLAS-AEQUITAS-ROOT-OPS-012 SSOT follow-up. Eunomia now
+  owns `FloatElement::cbrt` — `libm::cbrtf` default (correct reduced-precision
+  path for `F16`/`Bf16`) with native `libm::cbrt` overrides for primitive
+  `f64` and the `F64` wrapper — on `codex/eunomia-float-cbrt` (`bba10b6`).
+  Aequitas' `Quantity::cbrt` switched off its `powf(1/3)` workaround onto the
+  new SSOT seam (`cbrt(-8 m³) == -2 m`, no longer NaN) on
+  `codex/aequitas-root-ops-closure` (`071538c`); the NaN-domain test is now a
+  sign-preservation test. Both provider gate sets green: eunomia fmt, `-D
+  warnings` all-targets, clippy, nextest 109/109, doctests; aequitas fmt,
+  `-D warnings` all-targets, clippy, nextest 85/85, doctests, no-default.
+- Status: delivered; both branches pushed. Remaining ATLAS-AEQUITAS-ROOT-OPS-012
+  follow-up: semantics-marked dimension tuples (`ReciprocalVolume`, `Angle`).
+
 ## ATLAS-MNEMOSYNE-CONSUS-REFRESH-013 — Reconcile merged provider PM closeouts [patch]
 
 - Owner: Atlas integration.
