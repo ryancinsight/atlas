@@ -18,12 +18,16 @@ contract, AGENTS.md architecture_scoping).
 
 Modes:
     report      per-repo x per-class table (default)
-    generate    write scripts/conformance-baseline.json from the live tree
+    generate    write scripts/conformance-baseline.json from the clean HEAD
+                revision (or the live tree with --worktree)
     check       re-scan and fail (exit 1) on any per-repo class increase
                 over the committed baseline; decreases print as tightening
                 candidates for a baseline update in the same change
 
 Run from anywhere: paths are anchored to this file's parent repository.
+The default scan requires a clean checkout whose provider gitlinks match the
+requested root revision. Use --worktree only for an intentional dirty-tree
+audit; such a result is not a reproducible gate input.
 """
 
 from __future__ import annotations
@@ -31,11 +35,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from atlas_stack import MEMBER_ROOT, ROOT, is_git_ignored, registered_member_names
+from atlas_stack import ROOT, is_git_ignored
 
 BASELINE = ROOT / "scripts" / "conformance-baseline.json"
 
@@ -144,6 +149,77 @@ def declared_cfg_test(entry: Path) -> bool:
     return False
 
 
+def git_output(*args: str, cwd: Path = ROOT) -> str:
+    """Run a read-only Git query and return its output or a useful error."""
+    proc = subprocess.run(
+        ["git", "-C", str(cwd), *args],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if proc.returncode:
+        detail = proc.stderr.strip() or "git command failed"
+        raise RuntimeError(detail)
+    return proc.stdout
+
+
+def registered_member_names_at(root: Path) -> set[str]:
+    """Read the stack universe from the `.gitmodules` in a scan root."""
+    gm = root / ".gitmodules"
+    if not gm.is_file():
+        return set()
+    return {
+        m.group(1)
+        for m in re.finditer(
+            r"path\s*=\s*repos/([^\s/]+)",
+            gm.read_text(encoding="utf-8", errors="replace"),
+        )
+    }
+
+
+def gitlink_revision(root_revision: str, path: str) -> str:
+    """Return the gitlink commit recorded at *path* in a root revision."""
+    fields = git_output("ls-tree", root_revision, "--", path).strip().split(maxsplit=3)
+    if len(fields) != 4 or fields[0] != "160000" or fields[1] != "commit":
+        raise RuntimeError(f"{root_revision}:{path} is not a gitlink")
+    return fields[2]
+
+
+def check_clean_revision(revision: str) -> None:
+    """Require the live checkout to represent the requested revision exactly.
+
+    A clean checkout is already a materialized revision snapshot. Refusing a
+    dirty or mismatched tree keeps the normal gate reproducible without
+    creating twenty temporary provider checkouts; `--worktree` is the explicit
+    escape hatch for an intentional live-tree audit.
+    """
+    root_revision = git_output(
+        "rev-parse", "--verify", f"{revision}^{{commit}}"
+    ).strip()
+    current_revision = git_output("rev-parse", "HEAD").strip()
+    if root_revision != current_revision:
+        raise RuntimeError(
+            f"root checkout is {current_revision[:12]}, not requested {root_revision[:12]}"
+        )
+    root_status = git_output("status", "--porcelain").strip()
+    if root_status:
+        raise RuntimeError("root worktree is dirty; rerun with --worktree for live state")
+    for name in sorted(registered_member_names_at(ROOT)):
+        provider = ROOT / "repos" / name
+        if not provider.is_dir():
+            raise RuntimeError(f"provider checkout missing for {name}; initialize submodules")
+        expected = gitlink_revision(root_revision, f"repos/{name}")
+        actual = git_output("rev-parse", "HEAD", cwd=provider).strip()
+        if actual != expected:
+            raise RuntimeError(
+                f"repos/{name} is {actual[:12]}, not recorded gitlink {expected[:12]}"
+            )
+        if git_output("status", "--porcelain", cwd=provider).strip():
+            raise RuntimeError(
+                f"repos/{name} worktree is dirty; rerun with --worktree for live state"
+            )
+
+
 def rust_files(repo: Path):
     """Yield (path, is_testish) for every .rs file, pruning caches and lanes."""
     stack = [repo]
@@ -240,17 +316,18 @@ def scan_repo(repo: Path) -> dict[str, int]:
     return c
 
 
-def scan_stack() -> dict[str, dict[str, int]]:
+def scan_stack(stack_root: Path = ROOT) -> dict[str, dict[str, int]]:
     out = {}
-    members = registered_member_names()
+    member_root = stack_root / "repos"
+    members = registered_member_names_at(stack_root)
     meta = dict.fromkeys(CLASSES, 0)
-    if MEMBER_ROOT.is_dir():
-        for repo in sorted(MEMBER_ROOT.iterdir()):
+    if member_root.is_dir():
+        for repo in sorted(member_root.iterdir()):
             if not repo.is_dir() or repo.name.startswith("."):
                 continue
             if repo.name in members:
                 out[repo.name] = scan_repo(repo)
-            elif not is_git_ignored(repo):
+            elif stack_root == ROOT and not is_git_ignored(repo):
                 meta["member_namespace_pollution"] += 1
     meta["root_sprawl"] = count_root_sprawl(ROOT)
     meta["gitattributes_missing"] = lf_policy_missing(ROOT)
@@ -279,8 +356,27 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?", default="report",
                         choices=["report", "generate", "check"])
-    mode = parser.parse_args().mode
-    results = scan_stack()
+    parser.add_argument(
+        "--revision",
+        default="HEAD",
+        metavar="REV",
+        help="scan this root Git revision and its recorded provider gitlinks",
+    )
+    parser.add_argument(
+        "--worktree",
+        action="store_true",
+        help="explicitly scan the live worktree, including uncommitted changes",
+    )
+    args = parser.parse_args()
+    mode = args.mode
+    try:
+        if not args.worktree:
+            check_clean_revision(args.revision)
+        results = scan_stack(ROOT)
+    except RuntimeError as exc:
+        print(f"conformance scan unavailable: {exc}", file=sys.stderr)
+        print("use --worktree only when a live dirty-tree scan is intentional", file=sys.stderr)
+        return 2
 
     if mode == "report":
         report(results)
