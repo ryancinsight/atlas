@@ -18,6 +18,18 @@
 - [ ] Provider-hosted queued runs remain external follow-up; no queued run is
       reported as green by this root integration item.
 
+## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins — open 2026-08-13
+
+- [x] Enumerate default-branch Atlas workflow call sites across the twenty
+      requested providers.
+- [x] Confirm all twenty book callers and the requested release/Python callers
+      still pin `d875348197be12ad593f993a6f1b8a62d3b8b195`, while the current
+      root workflow is `4c31dd7`.
+- [ ] Update each provider caller on its owning branch; pass
+      `mdbook-linkcheck2-version: 0.12.2` in CFDrs.
+- [ ] Run exact-head hosted validation for every changed caller and re-audit
+      the fetched defaults for stale pins.
+
 ## ATLAS-HEPHAESTUS-REDUCTION-022 — Retire superseded product-axis parity PR — complete 2026-08-13
 
 - [x] Rebase Hephaestus PR #113 onto current `master` and verify product-axis

@@ -20,6 +20,19 @@ regressions, stack-overlay check and regressions, and lane audit pass. Hosted
 pin-advance and Pages runs are separate provider-side evidence and remain
 queued/open where not yet complete.
 
+## ATLAS-LIVE-CALLER-PINS-027 — Requested-provider caller pins (open 2026-08-13)
+
+The twenty requested providers are present at current fetched default heads,
+but their default-branch Atlas workflow call sites are stale. Every requested
+`book-pages.yml` caller pins `d875348197be12ad593f993a6f1b8a62d3b8b195`, while
+the current root reusable workflow is `4c31dd7` after the linkcheck2 backend and
+pinned-toolchain fixes. Requested Consus, Moirai, RITK, Leto, Hephaestus, Coeus,
+and Apollo release callers also use `d875348`; their Consus, Moirai, Leto,
+Hephaestus, Coeus, and Apollo Python callers do as well. CFDrs additionally
+needs `mdbook-linkcheck2-version: 0.12.2` because its book declares a
+non-optional renderer. These are provider-owned caller changes; repository
+presence and current gitlinks do not prove this workflow integration.
+
 ## ATLAS-USCT-FWI-024 — kwavers audit vs FullWaveformInversionUSCT (open 2026-08-13)
 
 Reference: `rehmanali1994/FullWaveformInversionUSCT` at `master` — a compact

@@ -23,6 +23,25 @@
   lane audit pass. Provider-hosted pin-advance and Pages runs remain queued or
   provider-side evidence and are not represented as green here.
 
+## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
+
+- Owner: current session (Atlas coordination); scope: default-branch workflow
+  call sites in the twenty requested providers plus root audit evidence.
+  Provider source, peer-owned working-tree files, and unrelated consumer CI
+  actions are excluded from any immediate root edit.
+- Outcome: each requested provider caller pins the current Atlas reusable
+  workflow commit; CFDrs additionally passes the required `linkcheck2` version.
+- Audit result: all twenty requested `book-pages.yml` callers pin the stale
+  Atlas commit `d875348197be12ad593f993a6f1b8a62d3b8b195`; the current root is
+  `4c31dd7`. Requested release callers in Consus, Moirai, RITK, Leto,
+  Hephaestus, Coeus, and Apollo also pin `d875348`; their Python callers in
+  Consus, Moirai, Leto, Hephaestus, Coeus, and Apollo do the same.
+- Acceptance: the fetched default of every requested provider contains no
+  stale `d875348` Atlas workflow pin; CFDrs passes
+  `mdbook-linkcheck2-version: 0.12.2`; each changed caller has a hosted
+  validation run at the exact new root commit. Helios's separate CI action pin
+  is tracked independently because it is not a reusable workflow caller.
+
 ## ATLAS-USCT-FWI-024 — Transmission-USCT FWI parity [minor] — open 2026-08-13
 
 Audit and evidence: `gap_audit.md#atlas-usct-fwi-024`. kwavers leads the
