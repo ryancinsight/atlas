@@ -15,13 +15,16 @@
   defaults: horae `72505426`, hyperion `3fb9e785`, themis `abc94782`, tyche
   `fd41d8ed`, proteus `08a42744`, mnemosyne `f9596eb5`, consus `8cf015a9`,
   helios `54000a65`, aequitas `7ff87e62`, asclepius `a798e4f8`, eunomia
-  `6c02d10d`, moirai `e3056e12`, ritk `f98a9191`, melinoe `2d9696e9`, leto
+  `6c02d10d`, moirai `e3056e12`, ritk `c608f758`, melinoe `2d9696e9`, leto
   `f208dbaa`, hephaestus `6724547b`, coeus `d5f044dd`, apollo `3ea6292d`,
   hermes `b1a8b25c`, and iris `2fbf881b`.
 - Evidence: `atlas-provider-integration-audit.py --exact-heads`, nine provider
   integration regressions, stack-overlay check plus four regressions, and the
   lane audit pass. Provider-hosted pin-advance and Pages runs remain queued or
   provider-side evidence and are not represented as green here.
+- Post-sweep reconciliation: ritk PR #128 subsequently merged as `c608f758`
+  and the Atlas gitlink was advanced in `0a8b9cf`; this was a merged feature
+  integration, not part of the CI-only sweep above.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
 

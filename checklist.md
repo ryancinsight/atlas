@@ -10,7 +10,7 @@
       `72505426`, hyperion `3fb9e785`, themis `abc94782`, tyche `fd41d8ed`,
       proteus `08a42744`, mnemosyne `f9596eb5`, consus `8cf015a9`, helios
       `54000a65`, aequitas `7ff87e62`, asclepius `a798e4f8`, eunomia `6c02d10d`,
-      moirai `e3056e12`, ritk `f98a9191`, melinoe `2d9696e9`, leto `f208dbaa`,
+      moirai `e3056e12`, ritk `c608f758`, melinoe `2d9696e9`, leto `f208dbaa`,
       hephaestus `6724547b`, coeus `d5f044dd`, apollo `3ea6292d`, hermes
       `b1a8b25c`, iris `2fbf881b`.
 - [x] Pass exact-head/coherence, provider-audit regression, stack-overlay,
