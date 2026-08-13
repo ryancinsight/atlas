@@ -1,5 +1,13 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-TYCHE-REFRESH-011 — Reconcile merged Tyche PM closeout [patch]
+
+- Owner: Atlas integration.
+- Outcome: advance the Tyche gitlink to merged PM-closeout head `5efaee7` and
+  record exact-head evidence for the completed consumer documentation slice.
+- Status: complete; the root pointer now records `5efaee7`, and the exact-head
+  audit scope is ready for final verification.
+
 ## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout [patch]
 
 - Owner: Atlas integration.

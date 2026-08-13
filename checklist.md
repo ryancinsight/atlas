@@ -1,5 +1,13 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-TYCHE-REFRESH-011 — Reconcile merged Tyche PM closeout — complete 2026-08-13
+
+- [x] Confirm Tyche PR #17 merged as `5efaee7a`; provider `verify` and
+      `supply-chain` checks passed, and CodeRabbit passed. The recurring
+      `recurseml/analysis` status remains external.
+- [x] Advance the root Tyche gitlink to `5efaee7a` and rerun the exact-head
+      audit without staging peer-owned submodule changes.
+
 ## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout — complete 2026-08-13
 
 - [x] Confirm Leto PR #107 merged as `e525d8dd` after its Rust verification
