@@ -1,5 +1,13 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout [patch]
+
+- Owner: Atlas integration.
+- Outcome: advance the Leto gitlink to the merged PM-closeout head and retain
+  exact provider-head evidence without staging peer-owned Leto changes.
+- Status: complete; Leto PR #107 merged as `e525d8d`, the root gitlink now
+  records the exact default, and the pointer evidence is synchronized.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default [patch]
 
 - Owner: Atlas integration.
@@ -95,6 +103,52 @@
 - Delivery: provider-local planning commits (aequitas, proteus, eunomia,
   themis) plus this root record; pushes follow the standard push-authorization
   gate.
+
+## ATLAS-FOUNDATION-PLANNING-002 — Next-tier planning completion (hyperion / horae / consus / tyche) [chore] — done 2026-08-12
+
+- Owner: planning-article completion and gate verification for the next
+  provider tier; bounded gate fixes delivered where they were small and
+  correct.
+- Planning trail: **horae** had no local planning files at all —
+  `backlog.md`/`checklist.md`/`gap_audit.md` authored from the verified record
+  (ADR 0001, RK4/adaptive/events/subcycling surface, book closure
+  ATLAS-HORAE-PROVIDER-DOCS-001, PR #7 f32 adaptive-policy contract).
+  **hyperion** was missing only `gap_audit.md` (authored; HYPERION-001
+  record + book closure + first-wave consumer migrations). **tyche** was
+  missing only `checklist.md` (authored against TYCHE-001..008). **consus**
+  carried a full trail; its `gap_audit.md`/`backlog.md` now record the
+  2026-08-12 gate findings.
+- Gate matrix (2026-08-12, canonical gates: no-default check, Clippy `-D
+  warnings` all-targets/all-features, Nextest all-features, doctests):
+
+  | Provider | No-default | Clippy | Nextest | Doctests |
+  |---|---|---|---|---|
+  | hyperion 0.1.0 | pass | pass | 22/22 | pass |
+  | horae 0.1.0 | pass | pass | 16/16 | pass |
+  | tyche 0.2.0 | pass | pass | 50/50 | pass (17/17) |
+  | consus 0.1.0 | fail (tracked) | fail on 4 test targets (tracked) | fail on 4 test targets (tracked) | pass |
+
+- **consus** verification detail: lib + doctests are green. Two tracked open
+  items remain: CONSUS-NODEF-GATE-001 (systematic alloc/feature-gating debt
+  across `--no-default-features` builds of consus-arrow/parquet/fits/nwb) and
+  CONSUS-TEST-API-001 (four test targets using an aspirational I/O API:
+  `MemCursor::new(buffer)`, arg-less `Hdf5FileBuilder::new()`, `build_writer`,
+  and absent `ZarrArray`/`ArrayMetadataV3`/`NcFile` facades). Bounded fixes
+  delivered in this slice: `consus-arrow` no-default cfg gating (re-exports,
+  bridge/schema/conversion), Clippy lint fixes (`consus-nwb` report.rs,
+  `consus-hdmf` tests), and `consus-hdf5` root re-exports for
+  `Hdf5File`/`Hdf5FileBuilder`.
+- **mnemosyne** (dependency of consus/tyche): the checkout carries a
+  pre-existing uncommitted raw-pointer refactor of `mnemosyne-local`
+  (routing.rs/allocation.rs/Cargo.lock); the audit completed its two remaining
+  `unused_mut` sites in `routing.rs` (leaving the WIP warning-free for
+  consumer `-D warnings` builds) and left the WIP uncommitted because the
+  workspace also has pre-existing local-vs-remote skew (`mnemosyne-decay`
+  fails standalone; consumers resolve a non-broken source and build green).
+  Recorded as an open mnemosyne-provider item for its own slice.
+- Delivery: provider-local planning commits (horae, hyperion, tyche) and a
+  consus gate-fix + record commit, plus this root record; pushes follow the
+  standard push-authorization gate.
 
 ## ATLAS-BOOK-CLOSURE-002 — Eight-provider book closure [patch] — done 2026-08-12
 

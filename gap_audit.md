@@ -1,5 +1,13 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout (2026-08-13)
+
+Leto PR #107 merged as `e525d8dd5ee52d12de0bf61987e8af6bf896700f` after the
+provider Rust verification passed. The provider default advanced from
+`8c4e609` to `e525d8d`; the root gitlink now records the exact default. The
+local Leto checkout remains peer-owned and dirty, so this increment updates
+only the root gitlink and current Atlas evidence.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default (2026-08-13)
 
 Moirai PR #125 merged as `ae9a5dfb7a56c64b471338d9f9d859db7b52d9fe`. Its
@@ -91,6 +99,29 @@ proteus, and themis; all four providers are source-complete and gate-green.
 Gate matrix (2026-08-12): aequitas 59/59 + 13 doctests; proteus 18/18 + 1
 doctest; eunomia 117/117 + 9 doctests; themis 21/21 + 38/38 `testing`. No
 `TODO`/`FIXME`/`unimplemented!` markers remain in any provider `src/` tree.
+Cross-link: root checklist and backlog entries of the same ID.
+
+## ATLAS-FOUNDATION-PLANNING-002 — Next-tier planning completion — 2026-08-12
+
+Reviewed and completed the planning/backlog trail for hyperion, horae,
+consus, and tyche.
+
+| Provider | Version | Planning trail | Gate status (2026-08-12) |
+|----------|---------|----------------|--------------------------|
+| hyperion | 0.1.0 | `gap_audit.md` **created** (only missing file) | green: 22/22 Nextest + doctest, Clippy, no-default |
+| horae | 0.1.0 | backlog/checklist/gap_audit **created** (was absent) | green: 16/16 Nextest + doctest, Clippy, no-default |
+| tyche | 0.2.0 | `checklist.md` **created** (only missing file) | green: 50/50 Nextest + 17 doctests, Clippy, no-default |
+| consus | 0.1.0 | gap_audit/backlog updated with gate findings + bounded fixes | lib + doctests green; CONSUS-NODEF-GATE-001 + CONSUS-TEST-API-001 tracked open |
+
+Bounded consus fixes delivered in this slice: `consus-arrow` no-default cfg
+gating, Clippy lint fixes (`consus-nwb` report.rs, `consus-hdmf` tests), and
+`consus-hdf5` root re-exports (`Hdf5File`/`Hdf5FileBuilder`).
+
+Also recorded: the `repos/mnemosyne` checkout carries a pre-existing
+uncommitted raw-pointer refactor WIP (this audit completed its two
+`unused_mut` sites in `routing.rs`) plus a pre-existing workspace-local
+`mnemosyne-decay` skew; consus/tyche consumers build green against a
+non-broken mnemosyne source. Open mnemosyne-provider item for its own slice.
 Cross-link: root checklist and backlog entries of the same ID.
 
 ## ATLAS-PROVIDER-AUDIT-2026-08-12B — Second audit pass, book-closure merges, CI fixes — 2026-08-12
