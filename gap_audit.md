@@ -70,34 +70,36 @@ claim is made.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Requested-provider caller pins (open 2026-08-13)
 
-The twenty requested providers are present at current fetched default heads,
-but their default-branch Atlas workflow call sites are stale. Every requested
-`book-pages.yml` caller pins `d875348197be12ad593f993a6f1b8a62d3b8b195`, while
-the current root reusable workflow is
+The twenty requested providers are present at current fetched default heads.
+The current root reusable workflow is
 `4c31dd753f06dd93b4c04798cf781df253e3e532` after the linkcheck2 backend and
-pinned-toolchain fixes. Requested Consus, Moirai, RITK, Leto, Hephaestus, Coeus,
-and Apollo release callers also use `d875348`; their Consus, Moirai, Leto,
-Hephaestus, Coeus, and Apollo Python callers do as well. CFDrs additionally
-needs `mdbook-linkcheck2-version: 0.12.2` because its book declares a
-non-optional renderer. These are provider-owned caller changes; repository
-presence and current gitlinks do not prove this workflow integration.
+pinned-toolchain fixes. A static audit of those fetched defaults finds 17
+providers on the current SHA and only three stale provider defaults: Consus
+still has stale `book-pages.yml`, `python-release.yml`, and `rust-release.yml`
+callers; Helios still has a stale `book-pages.yml` caller; and RITK still has
+stale `book-pages.yml` and `rust-release.yml` callers. The open caller PRs are
+the provider-owned changes that will remove those six stale references;
+repository presence and current gitlinks do not prove this workflow
+integration.
 
-Workflow-only PRs are open from the fetched defaults: horae #10, hyperion #8,
+Workflow-only PRs were opened from the fetched defaults: horae #10, hyperion #8,
 themis #18, tyche #21, proteus #8, mnemosyne #48, consus #27, helios #53,
 aequitas #24, asclepius #15, eunomia #62, moirai #127, ritk #130, melinoe #15,
 leto #111, hephaestus #207, coeus #327, apollo #90, hermes #39, iris #13,
 CFDrs #338, and kwavers #363. A file audit found only `.github/workflows/**`
-changes in all 22 PRs. Their required checks are queued; the external
-`recurseml/analysis` status is error across the workflow-only PRs and remains a
-separate hosting status rather than code evidence. Merge and exact gitlink
-advances remain open until required checks complete.
+changes in all 22 PRs. Seventeen merged after hosted checks and their fetched
+defaults now carry the current SHA. The remaining workflow-only PRs are Consus
+#27, Helios #53, RITK #130, CFDrs #338, and kwavers #363; their merge and exact
+gitlink advances remain open until the provider-owned gates complete. The
+external `recurseml/analysis` status remains a separate hosting status rather
+than code evidence.
 
 The initial PR commits used the short `@4c31dd7` reference and all 22 reusable
 workflow runs failed before job creation with a workflow-file error. Forward
 workflow-only commits corrected every caller to the full Atlas SHA
-`4c31dd753f06dd93b4c04798cf781df253e3e532`; fresh checks are now queued or
-running with no current failure conclusion. The initial failures are retained
-as diagnostic evidence and are not treated as provider-code failures.
+`4c31dd753f06dd93b4c04798cf781df253e3e532`; the merged defaults and current
+open PR heads carry that full SHA. The initial failures are retained as
+diagnostic evidence and are not treated as provider-code failures.
 
 The root audit wrappers had a separate environment-sanitization defect: they
 removed only empty `RUSTC`/`RUSTDOC` values and preserved non-empty compiler
