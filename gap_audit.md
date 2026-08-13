@@ -8,8 +8,8 @@ pointer, and an independent path audit found only `.github/workflows/**` CI pin
 changes (no source, manifest, or lock changes). Atlas advanced the twenty
 gitlinks without staging peer-owned checkout dirt:
 
-`horae=72505426`, `hyperion=3fb9e785`, `themis=abc94782`, `tyche=fd41d8ed`,
-`proteus=08a42744`, `mnemosyne=6d3618d0`, `consus=8cf015a9`, `helios=54000a65`,
+`horae=72505426`, `hyperion=5758df93`, `themis=93e83899`, `tyche=5febead4`,
+`proteus=5969f1e3`, `mnemosyne=6d3618d0`, `consus=8cf015a9`, `helios=54000a65`,
 `aequitas=7ff87e62`, `asclepius=a798e4f8`, `eunomia=6c02d10d`,
 `moirai=e3056e12`, `ritk=c608f758`, `melinoe=2d9696e9`, `leto=f208dbaa`,
 `hephaestus=6724547b`, `coeus=d5f044dd`, `apollo=3ea6292d`,
@@ -28,6 +28,11 @@ Mnemosyne PR #47 subsequently merged the segment-header race fix as
 `6d3618d0`. The exact-head audit detected the new default before closeout, and
 Atlas is advancing the gitlink in the current reconciliation commit; this
 provider-source merge is separate from the workflow-only caller PR #48.
+
+Themis #18, Proteus #8, Hyperion #8, and Tyche #21 then passed their hosted
+checks and merged. Their default-head deltas are limited to the intended
+`book-pages.yml` workflow pin, and Atlas now tracks the merged heads. The
+remaining caller PRs are still open with active or queued checks.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Requested-provider caller pins (open 2026-08-13)
 

@@ -12,8 +12,8 @@
   requested-provider coherence, and lane audits pass after the root commit.
 - Result: all twenty candidates were ancestor extensions and every delta was
   limited to CI workflow pin files. Root pointers now resolve to the fetched
-  defaults: horae `72505426`, hyperion `3fb9e785`, themis `abc94782`, tyche
-  `fd41d8ed`, proteus `08a42744`, mnemosyne `6d3618d0`, consus `8cf015a9`,
+  defaults: horae `72505426`, hyperion `5758df93`, themis `93e83899`, tyche
+  `5febead4`, proteus `5969f1e3`, mnemosyne `6d3618d0`, consus `8cf015a9`,
   helios `54000a65`, aequitas `7ff87e62`, asclepius `a798e4f8`, eunomia
   `6c02d10d`, moirai `e3056e12`, ritk `c608f758`, melinoe `2d9696e9`, leto
   `f208dbaa`, hephaestus `6724547b`, coeus `d5f044dd`, apollo `3ea6292d`,
@@ -47,7 +47,7 @@
   `mdbook-linkcheck2-version: 0.12.2`; each changed caller has a hosted
   validation run at the exact new root commit. Helios's separate CI action pin
   is tracked independently because it is not a reusable workflow caller.
-- Delivery: workflow-only PRs are open from exact fetched defaults — horae #10
+- Delivery: workflow-only PRs were opened from exact fetched defaults — horae #10
   (`964d81db`), hyperion #8 (`c56260a0`), themis #18 (`ffa326b1`), tyche #21
   (`55595b15`), proteus #8 (`b490d473`), mnemosyne #48 (`326106af`), consus
   #27 (`c58b25b0`), helios #53 (`dcb127e0`), aequitas #24 (`c3f12ab1`),
@@ -56,6 +56,10 @@
   (`cd501261`), hephaestus #207 (`95fffdb3`), coeus #327 (`9047a8d7`), apollo
   #90 (`517a498a`), hermes #39 (`2e370d2f`), iris #13 (`a5526e5b`), CFDrs #338
   (`77a4f9cc`), and kwavers #363 (`9f1b6acf`).
+- Merged after hosted checks passed: Themis #18, Proteus #8, Hyperion #8, and
+  Tyche #21. Atlas reconciled their default heads in the current gitlink
+  integration commits; the remaining caller PRs stay open pending their own
+  required checks.
 - Hosted checks are queued. The external `recurseml/analysis` status reports
   error on these workflow-only PRs; required repository CI remains the merge
   gate and is not being represented as green before completion.
