@@ -42,10 +42,9 @@
   workflow pin and the `html/` output-path correction. Fetched CFDrs
   `origin/main` is `905648a5`; its delta from the prior Atlas pointer is only
   `.github/workflows/book-pages.yml`, and Atlas now tracks that exact head.
-- Post-sweep reconciliation: fetched Kwavers `origin/main` is `7fee848d` and
-  its delta from the prior Atlas pointer is limited to the three workflow
-  callers. Its default still carries the stale `d875348` SHA; PR #363 remains
-  open for the full-SHA cutover, and Atlas now tracks the exact fetched head.
+- Post-sweep reconciliation: Kwavers PR #363 merged at `462cf444`; its
+  workflow-only delta now carries the full Atlas SHA, and Atlas tracks that
+  exact fetched head.
 - Post-sweep reconciliation: RITK PR #130 merged at `d4383637`; its two-file
   delta is limited to the book and Rust-release workflow callers, and Atlas now
   tracks the exact fetched `origin/main` head.
@@ -55,9 +54,24 @@
   merge status is not treated as capability closure. PR #132 remains open.
 - Post-sweep reconciliation: Helios PR #53 merged at `1e165406`; Atlas now
   tracks its exact fetched default head and the last requested-provider caller
-  delta is reduced to Consus.
+  delta is reduced to the already-merged Consus default.
 
-## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
+## ATLAS-POSTMERGE-HEAD-RECONCILIATION-030 — Reconcile merged caller defaults [patch] — complete 2026-08-13
+
+- Owner: current session; scope: root Consus, Eunomia, and Kwavers gitlinks plus
+  synchronized Atlas PM evidence. Provider source and peer-owned checkout
+  files are excluded.
+- Outcome: consume the merged workflow-only defaults without staging child
+  checkout dirt. Consus #27 is `1be7768d`, Eunomia #63 is `1a52590c`, and the
+  external Kwavers #363 is `462cf444`.
+- Acceptance: each fetched merge changes only `.github/workflows/**`; exact
+  heads, stack overlay, lane, and provider-audit regression gates pass; RITK
+  #132 remains separately gated as source integration.
+- Evidence: Consus, Eunomia, and Kwavers default fetches verify the stated
+  heads; queued provider checks remain external evidence and are not relabeled
+  green by Atlas.
+
+## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — complete 2026-08-13
 
 - Owner: current session (Atlas coordination); scope: default-branch workflow
   call sites in the twenty requested providers plus root audit evidence.
@@ -90,17 +104,14 @@
   Tyche #21, Mnemosyne #48, Aequitas #24, Asclepius #15, Eunomia #62, Leto
   #111, Horae #10, Moirai #127, Hephaestus #207, Melinoe #15, Apollo #90, and
   Iris #13, Hermes #39, Coeus #327, and Helios #53. Atlas reconciled their
-  default heads in the current gitlink integration commits; Consus #27 remains
-  open pending its own required checks.
-- Latest hosted poll: Consus #27 has repository-owned checks queued or in
-  progress with no failure conclusion; Helios #53 merged at `1e165406`; RITK
-  #131 merged at `9ae68b45` after its repository workflows completed, but its
-  source residuals remain open. Stacked #132 is open against `main` with no
-  required workflow result and the external
-  `recurseml/analysis` error. CFDrs `origin/main` now passes the book
+  default heads in the current gitlink integration commits; Consus #27 and
+  Kwavers #363 subsequently merged and were reconciled in item 030.
+- Latest hosted poll: Consus #27 merged at `1be7768d`; Helios #53 merged at
+  `1e165406`; RITK #131 merged at `9ae68b45` after its repository workflows
+  completed, but its source residuals remain open. Stacked #132 is open against
+  `main` with hosted gates running. CFDrs `origin/main` now passes the book
   output-path contract through merged PRs #339/#340; the original #338 is
-  closed as superseded. Kwavers #363 remains open while its default still
-  carries the stale workflow SHA.
+  closed as superseded. Kwavers #363 merged at `462cf444`.
 - Integration correction: root commit `06339c8` briefly staged the peer
   checkout HEADs for Hyperion and Tyche instead of their fetched defaults;
   forward fix `878b7c1` restored `5758df93` and `5febead4`, and the exact-head

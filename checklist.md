@@ -8,8 +8,8 @@
       files; preserve all peer-owned child checkout changes.
 - [x] Advance all twenty Atlas gitlinks through the index only: horae
       `72505426`, hyperion `5758df93`, themis `93e83899`, tyche `5febead4`,
-      proteus `5969f1e3`, mnemosyne `5824d2af`, consus `8cf015a9`, helios
-      `54000a65`, aequitas `3afc165c`, asclepius `8d7d7ec2`, eunomia `afab630b`,
+      proteus `5969f1e3`, mnemosyne `5824d2af`, consus `1be7768d`, helios
+      `54000a65`, aequitas `3afc165c`, asclepius `8d7d7ec2`, eunomia `1a52590c`,
       moirai `6e9d1f22`, ritk `c608f758`, melinoe `d0f6cb6e`, leto `7f2cfbae`,
       hephaestus `93e1fdf5`, coeus `d5f044dd`, apollo `4043a547`, hermes
       `b1a8b25c`, iris `13989ad5`.
@@ -18,7 +18,20 @@
 - [ ] Provider-hosted queued runs remain external follow-up; no queued run is
       reported as green by this root integration item.
 
-## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins — open 2026-08-13
+## ATLAS-POSTMERGE-HEAD-RECONCILIATION-030 — Reconcile merged caller defaults — complete 2026-08-13
+
+- [x] Fetch the merged Consus #27, Eunomia #63, and Kwavers #363 defaults and
+      verify each merge advanced only the provider-owned workflow pin surface.
+- [x] Advance the Atlas Consus and Eunomia gitlinks to `1be7768d` and
+      `1a52590c`; advance the external Kwavers integration pointer to
+      `462cf444` without staging peer checkout changes.
+- [x] Re-run exact-head, stack-overlay, lane, and provider-audit regression
+      gates against the reconciled root index.
+- [ ] Keep the open RITK #132 source integration behind its hosted gates; the
+      merged workflow-only callers are not evidence that source residuals are
+      closed.
+
+## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins — complete 2026-08-13
 
 - [x] Enumerate default-branch Atlas workflow call sites across the twenty
       requested providers.
@@ -51,23 +64,20 @@
       their exact default heads.
 - [x] Advance the CFDrs and Kwavers gitlinks to fetched exact defaults without
       staging peer checkout dirt. CFDrs `origin/main` is `905648a5` with the
-      linkcheck2/full-SHA and HTML output fixes; Kwavers `origin/main` is
-      `7fee848d` but its caller SHA remains stale pending PR #363.
+      linkcheck2/full-SHA and HTML output fixes; Kwavers `origin/main` is now
+      `462cf444` after merged PR #363.
 - [x] Merge RITK #130 at `d4383637` after its required hosted checks passed and
       advance the Atlas RITK gitlink to that exact default head.
 - [x] Review the remaining workflow-only diffs; no new P0/P1 finding is present
       in Consus #27, Helios #53, RITK #130, or CFDrs #338.
-- [x] Record the current hosted state: Consus #27 has queued/in-progress jobs
-      without a failure conclusion, Helios #53 merged at `1e165406`, RITK #131
-      merged at `9ae68b45`, and stacked #132 is open against `main` with no
-      required workflow result plus the external analysis error.
-      CFDrs #338 is
-      closed as superseded by merged #339/#340 on its default; Kwavers #363
-      remains open.
-- [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
-      Atlas gitlinks to their exact merged provider defaults.
-- [ ] Run exact-head hosted validation for every changed caller and re-audit
-      the fetched defaults for stale pins.
+- [x] Record the current hosted state: Consus #27 merged at `1be7768d`, Helios
+      #53 merged at `1e165406`, RITK #131 merged at `9ae68b45`, and Kwavers #363
+      merged at `462cf444`. Stacked RITK #132 remains open against `main` with
+      hosted gates running. CFDrs #338 is closed as superseded by merged
+      #339/#340 on its default.
+- [x] Run exact-head validation for every changed caller and re-audit the
+      fetched defaults for stale pins; queued hosted runs remain external
+      evidence and are not relabeled green here.
 
 ## ATLAS-KWAVERS-REAL-COMPUTE-028 — Kwavers identity-path audit
 

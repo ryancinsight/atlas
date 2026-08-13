@@ -9,8 +9,8 @@ changes (no source, manifest, or lock changes). Atlas advanced the twenty
 gitlinks without staging peer-owned checkout dirt:
 
 `horae=72505426`, `hyperion=5758df93`, `themis=93e83899`, `tyche=5febead4`,
-`proteus=5969f1e3`, `mnemosyne=5824d2af`, `consus=8cf015a9`, `helios=54000a65`,
-`aequitas=3afc165c`, `asclepius=8d7d7ec2`, `eunomia=afab630b`,
+`proteus=5969f1e3`, `mnemosyne=5824d2af`, `consus=1be7768d`, `helios=54000a65`,
+`aequitas=3afc165c`, `asclepius=8d7d7ec2`, `eunomia=1a52590c`,
 `moirai=6e9d1f22`, `ritk=c608f758`, `melinoe=d0f6cb6e`, `leto=7f2cfbae`,
 `hephaestus=93e1fdf5`, `coeus=d5f044dd`, `apollo=4043a547`,
 `hermes=b1a8b25c`, `iris=13989ad5`.
@@ -68,18 +68,15 @@ environmental: `test_book_build.py` and the two figure-generator modules
 require `pytest`, which is not installed on this host. No full-suite green
 claim is made.
 
-## ATLAS-LIVE-CALLER-PINS-027 — Requested-provider caller pins (open 2026-08-13)
+## ATLAS-LIVE-CALLER-PINS-027 — Requested-provider caller pins (closed 2026-08-13)
 
 The twenty requested providers are present at current fetched default heads.
 The current root reusable workflow is
 `4c31dd753f06dd93b4c04798cf781df253e3e532` after the linkcheck2 backend and
-pinned-toolchain fixes. A static audit of those fetched defaults finds 19
-providers on the current SHA and only one stale requested-provider default:
-Consus still has stale `book-pages.yml`, `python-release.yml`, and
-`rust-release.yml` callers. The external Kwavers default still carries its
-stale caller SHA under open PR #363; it is not part of the twenty-provider
-count. The open caller PRs are the provider-owned changes that will remove
-those four stale references;
+pinned-toolchain fixes. A static audit of those fetched defaults finds all 20
+providers on the current SHA. The merged Consus #27 default removed its three
+stale callers, and merged Kwavers #363 removed the external integrator's stale
+caller. Kwavers remains outside the twenty-provider count;
 repository presence and current gitlinks do not prove this workflow
 integration.
 
@@ -87,20 +84,31 @@ CFDrs is an external integrator outside the twenty-provider list. Its fetched
 `origin/main` `905648a5` now carries the current Atlas SHA, the pinned
 linkcheck2 toolchain, and `target/book/cfdrs/html` through merged PRs #339 and
 #340; the older #338 is closed as superseded. Kwavers `origin/main`
-`7fee848d` still carries the stale SHA, so its open #363 remains an integration
-residual even though the Atlas gitlink now matches that fetched default.
+`462cf444` carries the current SHA after merged #363.
 
 Workflow-only PRs were opened from the fetched defaults: horae #10, hyperion #8,
 themis #18, tyche #21, proteus #8, mnemosyne #48, consus #27, helios #53,
 aequitas #24, asclepius #15, eunomia #62, moirai #127, ritk #130, melinoe #15,
 leto #111, hephaestus #207, coeus #327, apollo #90, hermes #39, iris #13,
 CFDrs #338, and kwavers #363. A file audit found only `.github/workflows/**`
-changes in all 22 PRs. Eighteen requested-provider caller changes are now
-merged or present on current defaults; the remaining requested-provider PRs
-are Consus #27, Helios #53, and Kwavers #363. Consus, Helios, and Kwavers still
-require provider-owned completion; CFDrs is complete on its default through
-#339/#340. The external `recurseml/analysis` status remains a separate hosting
-status rather than code evidence.
+changes in all 22 PRs. Consus #27 and Kwavers #363 then merged, and Helios #53
+also merged at `1e165406`. RITK #132 is the remaining open source integration.
+CFDrs is complete on its default through #339/#340. The external
+`recurseml/analysis` status remains a separate hosting status rather than code
+evidence.
+
+## ATLAS-POSTMERGE-HEAD-RECONCILIATION-030 — Merged caller defaults
+
+Consus #27, Eunomia #63, and Kwavers #363 were fetched after merge. Their
+default heads are `1be7768d`, `1a52590c`, and `462cf444` respectively. The
+provider deltas remain workflow-only; Atlas advances the Consus, Eunomia, and
+Kwavers gitlinks through explicit index cacheinfo updates, preserving dirty
+peer checkouts. The exact-head, stack-overlay, lane, and provider-audit
+regression gates are rerun against the reconciled root index.
+
+RITK #132 remains open and is not covered by this reconciliation: its source
+change requires its own hosted gate result and its default gitlink stays at
+the merged #131 head until that source integration merges.
 
 The initial PR commits used the short `@4c31dd7` reference and all 22 reusable
 workflow runs failed before job creation with a workflow-file error. Forward
