@@ -39,6 +39,13 @@ for Hyperion and Tyche because staging a submodule path re-read the dirty
 checkout. Forward fix `878b7c1` restored the fetched default heads; the exact
 head gate passed before the integration continued.
 
+The committed conformance instrument is live-tree based. Its current local
+`check` reports 88 regressions and 43 tightenings, including source-heavy
+changes in active RITK, Kwavers, Consus, and Moirai branches plus derived
+checkout state. This is not clean committed-head evidence; the baseline is
+unchanged and the ratchet must be rerun from a clean exact-head checkout before
+it can drive provider cleanup or merge decisions.
+
 ## ATLAS-LIVE-CALLER-PINS-027 — Requested-provider caller pins (open 2026-08-13)
 
 The twenty requested providers are present at current fetched default heads,

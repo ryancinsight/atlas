@@ -64,6 +64,11 @@
   checkout HEADs for Hyperion and Tyche instead of their fetched defaults;
   forward fix `878b7c1` restored `5758df93` and `5febead4`, and the exact-head
   gate passed before delivery continued.
+- Verification residual: the live-tree conformance ratchet currently reports
+  88 regressions and 43 tightenings because it scans active peer branches and
+  derived checkout state. The result is not a clean committed-head gate and
+  the baseline is intentionally unchanged; rerun from a clean exact-head
+  checkout before treating any provider debt count as a merge decision.
 - Hosted checks are queued. The external `recurseml/analysis` status reports
   error on these workflow-only PRs; required repository CI remains the merge
   gate and is not being represented as green before completion.
