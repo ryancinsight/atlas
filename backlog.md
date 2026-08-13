@@ -38,6 +38,14 @@
 - Post-sweep reconciliation: Coeus PR #327 merged at `f9240fbc`; its three-file
   delta is limited to the book, Python-release, and Rust-release workflow
   callers, and Atlas tracks the fetched `origin/main` head.
+- Post-sweep reconciliation: CFDrs PRs #339 and #340 merged the full-SHA
+  workflow pin and the `html/` output-path correction. Fetched CFDrs
+  `origin/main` is `905648a5`; its delta from the prior Atlas pointer is only
+  `.github/workflows/book-pages.yml`, and Atlas now tracks that exact head.
+- Post-sweep reconciliation: fetched Kwavers `origin/main` is `7fee848d` and
+  its delta from the prior Atlas pointer is limited to the three workflow
+  callers. Its default still carries the stale `d875348` SHA; PR #363 remains
+  open for the full-SHA cutover, and Atlas now tracks the exact fetched head.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
 
@@ -79,9 +87,10 @@
   check in progress; RITK #130 has Python and test jobs active or queued. RITK
   #131 remains open with active or queued provider jobs plus the external
   `recurseml/analysis` error; stacked #132 has no required workflow result and
-  the same external status error. CFDrs #338 remains red on `book / Build
-  book` because its caller output path does not include the declared
-  linkcheck2 HTML subdirectory.
+  the same external status error. CFDrs `origin/main` now passes the book
+  output-path contract through merged PRs #339/#340; the original #338 remains
+  open but is superseded. Kwavers #363 remains open while its default still
+  carries the stale workflow SHA.
 - Integration correction: root commit `06339c8` briefly staged the peer
   checkout HEADs for Hyperion and Tyche instead of their fetched defaults;
   forward fix `878b7c1` restored `5758df93` and `5febead4`, and the exact-head

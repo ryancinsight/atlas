@@ -82,6 +82,13 @@ the provider-owned changes that will remove those six stale references;
 repository presence and current gitlinks do not prove this workflow
 integration.
 
+CFDrs is an external integrator outside the twenty-provider list. Its fetched
+`origin/main` `905648a5` now carries the current Atlas SHA, the pinned
+linkcheck2 toolchain, and `target/book/cfdrs/html` through merged PRs #339 and
+#340; the older #338 remains open but is superseded. Kwavers `origin/main`
+`7fee848d` still carries the stale SHA, so its open #363 remains an integration
+residual even though the Atlas gitlink now matches that fetched default.
+
 Workflow-only PRs were opened from the fetched defaults: horae #10, hyperion #8,
 themis #18, tyche #21, proteus #8, mnemosyne #48, consus #27, helios #53,
 aequitas #24, asclepius #15, eunomia #62, moirai #127, ritk #130, melinoe #15,
@@ -89,10 +96,10 @@ leto #111, hephaestus #207, coeus #327, apollo #90, hermes #39, iris #13,
 CFDrs #338, and kwavers #363. A file audit found only `.github/workflows/**`
 changes in all 22 PRs. Seventeen merged after hosted checks and their fetched
 defaults now carry the current SHA. The remaining workflow-only PRs are Consus
-#27, Helios #53, RITK #130, CFDrs #338, and kwavers #363; their merge and exact
-gitlink advances remain open until the provider-owned gates complete. The
-external `recurseml/analysis` status remains a separate hosting status rather
-than code evidence.
+#27, Helios #53, RITK #130, the superseded CFDrs #338, and Kwavers #363. Consus,
+Helios, RITK, and Kwavers still require provider-owned completion; CFDrs is
+complete on its default through #339/#340. The external `recurseml/analysis`
+status remains a separate hosting status rather than code evidence.
 
 The initial PR commits used the short `@4c31dd7` reference and all 22 reusable
 workflow runs failed before job creation with a workflow-file error. Forward
@@ -115,11 +122,15 @@ clippy, alignment, and wheel jobs active or queued plus the external
 `recurseml/analysis` error; stacked RITK #132 has no required workflow result
 and the same external status error. These are not merge evidence.
 
-CFDrs #338 is blocked by a caller/output contract mismatch, not a source
-failure. Its book declares a non-optional linkcheck2 renderer, so the shared
-workflow emits HTML at `target/book/cfdrs/html`; the caller currently passes
-`target/book/cfdrs` and the shared post-build check therefore fails. The exact
-caller correction was posted on the PR; the CFDrs checkout remains peer-owned.
+CFDrs #338 remains open as a superseded PR, but its fetched default is current
+and passes the book output-path contract through merged #339/#340. Kwavers #363
+remains open against a default that still carries the stale workflow SHA.
+
+The superseded CFDrs #338 failure was a caller/output contract mismatch, not a
+source failure. Its book declares a non-optional linkcheck2 renderer, so the
+shared workflow emitted HTML at `target/book/cfdrs/html` while the old caller
+passed `target/book/cfdrs`. Merged PRs #339/#340 corrected the pin, installer,
+and output path on the default; the peer checkout remains preserved.
 
 ## ATLAS-KW-FWI-STRANDED-027 — FWI-024-A is delivered but not on kwavers main (open 2026-08-13)
 

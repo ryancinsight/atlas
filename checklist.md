@@ -49,14 +49,18 @@
       Leto #111, Horae #10, Moirai #127, Hephaestus #207, Melinoe #15, Apollo
       #90, Iris #13, Hermes #39, and Coeus #327; advance Atlas gitlinks to
       their exact default heads.
+- [x] Advance the CFDrs and Kwavers gitlinks to fetched exact defaults without
+      staging peer checkout dirt. CFDrs `origin/main` is `905648a5` with the
+      linkcheck2/full-SHA and HTML output fixes; Kwavers `origin/main` is
+      `7fee848d` but its caller SHA remains stale pending PR #363.
 - [x] Review the remaining workflow-only diffs; no new P0/P1 finding is present
       in Consus #27, Helios #53, RITK #130, or CFDrs #338.
 - [x] Record the current hosted state: Consus #27 has queued/in-progress jobs
       without a failure conclusion, Helios #53 has its benchmark job in
       progress, RITK #130 has active/queued Python and test jobs, RITK #131 has
       active/queued jobs plus an external analysis error, and stacked #132 has
-      no required workflow result plus that external error. CFDrs #338 remains
-      red on its book output-path contract.
+      no required workflow result plus that external error. CFDrs #338 is
+      superseded by merged #339/#340 on its default; Kwavers #363 remains open.
 - [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
       Atlas gitlinks to their exact merged provider defaults.
 - [ ] Run exact-head hosted validation for every changed caller and re-audit
