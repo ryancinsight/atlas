@@ -47,5 +47,5 @@
 | [0039](0039-compute-substrate-topology.md) | Compute-substrate topology across Apollo, Leto, Hephaestus, and Coeus | Accepted |
 | [0040](0040-first-party-zero-copy-archives.md) | Zero-copy archival is first-party, and Consus owns it | Proposed |
 | [0041](0041-closed-set-enum-dispatch.md) | Closed-set per-timestep `dyn` dispatch converts to exhaustive enum dispatch | Proposed |
-| [0042](0042-acquisition-coordinate-map-seam.md) | Non-Cartesian acquisition geometry as an enum-dispatched coordinate map on `ritk_image::Image` | Proposed |
+| [0042](0042-acquisition-coordinate-map-seam.md) | Non-Cartesian acquisition geometry as an enum-dispatched coordinate map on `ritk_image::Image` | Accepted |
 | [—](INDEX.md) | Atlas-meta ADR Index — doctrine navigation SSOT | — |

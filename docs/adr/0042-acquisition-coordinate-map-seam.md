@@ -1,6 +1,6 @@
 # ADR 0042: Non-Cartesian acquisition geometry as an enum-dispatched coordinate map on `ritk_image::Image`
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-13
 - Class: `[arch]`
 - Refs: atlas `backlog.md#atlas-us-capability-023` item US-023-A (the mandating
@@ -52,7 +52,7 @@ closed-form inverse map (`atan2`/`asin` plus a radial term), which is what makes
    The blast radius is the whole of ritk plus kwavers for a seam whose
    implementor set is closed.
 
-2. **Enum-dispatched coordinate map field** *(recommended)* —
+2. **Enum-dispatched coordinate map field** *(selected)* —
    `Image` carries `map: CoordinateMap<D>`, an exhaustively matched enum whose
    variants carry exactly their geometry parameters. No new type parameter, so
    existing `Image<T, B, D>` signatures are untouched and `CoordinateMap::Cartesian`
@@ -67,7 +67,7 @@ closed-form inverse map (`atan2`/`asin` plus a radial term), which is what makes
 
 4. **Status quo (leaf functions)** — rejected; it is the gap.
 
-## Decision (recommended)
+## Decision
 
 Adopt option 2. `ritk-image` owns a `CoordinateMap<const D: usize>` enum with
 variants `Cartesian`, `CurvilinearArray`, `PhasedArray3D` and `SliceSeries`,
