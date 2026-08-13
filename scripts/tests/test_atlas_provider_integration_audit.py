@@ -229,6 +229,14 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("repos/mnemosyne: gitlink old", output.getvalue())
 
+    def test_gitlink_reads_index_instead_of_child_checkout_head(self) -> None:
+        with patch.object(
+            audit,
+            "_git_output",
+            return_value=(0, "160000 staged-head 0\trepos/tyche", ""),
+        ):
+            self.assertEqual(audit._gitlink_commit("tyche"), "staged-head")
+
     def test_provider_remote_head_accepts_master_default(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
             root = Path(temp)

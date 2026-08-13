@@ -67,6 +67,25 @@
 - [x] Advance the root Tyche gitlink to `5efaee7a` and rerun the exact-head
       audit without staging peer-owned submodule changes.
 
+## ATLAS-TYCHE-MULTIOUTPUT-017 — Generalize sensitivity estimators — complete 2026-08-13
+
+- [x] Confirm Tyche PR #18 merged at `4a6f8cd4`; provider `verify`,
+      `supply-chain`, and mdBook build checks passed at the exact head. The
+      Pages deployment was correctly skipped on the feature branch and the
+      recurring `recurseml/analysis` result remains external.
+- [x] Confirm `tyche-core` correlation, Morris, and Saltelli estimators and
+      reports are parameterized by `OUTPUTS`, preserve the default scalar API,
+      and retain fixed-size allocation-free observation updates.
+- [x] Confirm the two-output analytical and seeded laws, local 48/48 Nextest,
+      17/17 doctests, strict Clippy, warning-denied Rustdoc, and locked
+      workspace all-target check pass.
+- [x] Advance the root Tyche gitlink to the merged default and rerun the
+      exact-head, structural, and lane audits without staging peer-owned Tyche
+      checkout changes.
+- [ ] Keep the Tyche-owned versioned Consus study schema and trainable-model
+      seam for ensemble bagging open; crates.io publication remains an external
+      release gate.
+
 ## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout — complete 2026-08-13
 
 - [x] Confirm Leto PR #107 merged as `e525d8dd` after its Rust verification

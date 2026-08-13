@@ -54,6 +54,10 @@
 
 ### Added
 
+- Generalize Tyche correlation, Morris, and Saltelli sensitivity estimators
+  and reports over a const-generic output dimension while preserving the
+  single-output API. Add analytical and seeded two-output law coverage.
+
 - File ADR 0030 to promote published Hyperion as the bounded photon/optical
   transport owner. The decision records the Aequitas → Proteus/Hyperion →
   integrator hierarchy, per-consumer deletion ledger, measurable consolidation

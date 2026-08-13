@@ -42,6 +42,23 @@
 - Residuals remain explicit in Helios' authoritative backlog: external DICOM
   encoding maintenance, exact Siddon/oriented projection, and the GPU projector.
 
+## ATLAS-TYCHE-MULTIOUTPUT-017 — Generalize sensitivity estimators [minor] — complete 2026-08-13
+
+- Owner: Atlas integration.
+- Outcome: Tyche PR #18 merged at `4a6f8cd495c78beaaa6e4081705b33ed0da8be9e`.
+  `tyche-core` now parameterizes correlation, Morris, and Saltelli accumulation
+  and reports by `OUTPUTS`, with the default `OUTPUTS = 1` specialization
+  preserving existing scalar call sites.
+- Evidence: local format, warning-denied Clippy, Tyche core Nextest 48/48,
+  doctests 17/17, warning-denied Rustdoc, and locked workspace all-target
+  checking passed. The exact-head hosted `verify`, `supply-chain`, and mdBook
+  build checks passed; Pages deployment was skipped on the feature branch and
+  the recurring `recurseml/analysis` result remained an external analyzer
+  failure.
+- Residuals: Tyche's versioned Consus study schema, trainable-model seam for
+  ensemble bagging, and crates.io publication remain provider-owned or external
+  release work and are not closed by this increment.
+
 ## ATLAS-EUNOMIA-FLOAT-CBRT-014 — Land sign-preserving FloatElement::cbrt SSOT [feat]
 
 - Owner: Atlas integration.

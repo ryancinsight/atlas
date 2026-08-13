@@ -89,16 +89,21 @@ def _git_output(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
 
 
 def _gitlink_commit(provider: str) -> str | None:
-    """Return the committed root gitlink for one requested provider."""
+    """Return the indexed root gitlink for one requested provider.
+
+    The index is the delivery source of truth while an integration commit is
+    being assembled. Reading a child checkout's `HEAD` would misclassify a
+    deliberately preserved peer-dirty checkout as Atlas drift.
+    """
     returncode, stdout, _ = _git_output(
-        "ls-tree", "HEAD", "--", f"repos/{provider}"
+        "ls-files", "--stage", "--", f"repos/{provider}"
     )
     if returncode != 0:
         return None
     fields = stdout.split()
-    if len(fields) < 3 or fields[1] != "commit":
+    if len(fields) < 3 or fields[0] != "160000":
         return None
-    return fields[2]
+    return fields[1]
 
 
 def _provider_remote_head(provider: str) -> tuple[str | None, str | None, str | None]:

@@ -79,6 +79,24 @@ provider `verify`, `supply-chain`, and CodeRabbit checks passed. The recurring
 Tyche default is now recorded by the root gitlink; the local Tyche checkout
 remains peer-owned and is not modified by this integration increment.
 
+## ATLAS-TYCHE-MULTIOUTPUT-017 — Generalize sensitivity estimators (2026-08-13)
+
+Tyche PR #18 merged at
+`4a6f8cd495c78beaaa6e4081705b33ed0da8be9e`. `tyche-core` now parameterizes
+correlation, Morris, and Saltelli estimators and reports by `OUTPUTS`, while
+the default `OUTPUTS = 1` specialization preserves existing scalar calls.
+The `update_outputs` APIs retain fixed-size arrays and allocation-free
+observation updates. A two-output test covers analytical correlation and
+Morris laws plus seeded Saltelli indices for independent outputs. Local format,
+strict Clippy, Nextest 48/48, doctests 17/17, warning-denied Rustdoc, and the
+locked workspace all-target check pass. Hosted `verify`, `supply-chain`, and
+mdBook build checks pass at the exact head; Pages deployment is skipped on the
+feature branch and `recurseml/analysis` remains an external analyzer failure.
+
+The Tyche-owned versioned Consus study schema and trainable-model seam for
+ensemble bagging remain open, and crates.io publication remains an external
+release gate. This increment does not claim those capabilities.
+
 ## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout (2026-08-13)
 
 Leto PR #107 merged as `e525d8dd5ee52d12de0bf61987e8af6bf896700f` after the
