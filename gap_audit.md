@@ -5,8 +5,8 @@
 Tyche PR #17 merged as `5efaee7aa1ea79f36d8914b36cb989e1211ade9b` after the
 provider `verify`, `supply-chain`, and CodeRabbit checks passed. The recurring
 `recurseml/analysis` status errored as on earlier provider PRs. The fetched
-Tyche default is ahead of the root gitlink; the local Tyche checkout remains
-peer-owned and is not modified by this integration increment.
+Tyche default is now recorded by the root gitlink; the local Tyche checkout
+remains peer-owned and is not modified by this integration increment.
 
 ## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout (2026-08-13)
 
