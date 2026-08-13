@@ -1,5 +1,17 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LIVE-HEAD-SWEEP-015 — Reconcile merged provider defaults [patch] — done 2026-08-13
+
+- Mnemosyne PR #45 merged at `18550d932902662c1ce196f779ee041bd0c29cd4`;
+  Rust verification, Loom, and Miri passed.
+- Aequitas PR #22 merged at `19c205d4fca964ac4907eaeb0587fe18745efe89`;
+  verify and supply-chain passed. Its prior Atlas pointer was the merged PR
+  head, not an unmerged provider branch.
+- Hermes PR #36 merged at `beed6dad8f6998b81a4e2918c151989d272e7a19`;
+  x86 verification, Miri, AVX-512/SDE, and aarch64/NEON checks passed.
+- Root gitlinks advance only to these merged default commits. The exact-head
+  audit, structural regression suite, and lane audit are rerun after commit.
+
 ## ATLAS-EUNOMIA-FLOAT-CBRT-014 — Land sign-preserving FloatElement::cbrt SSOT [feat]
 
 - Owner: Atlas integration.
@@ -2023,7 +2035,7 @@ excluded from this migration; no other peer-owned consumer files were modified.
   contract in terms of the seam without naming a vendor crate.
 - Blocks: ATLAS-SUBSTRATE-002.
 
-## ATLAS-SUBSTRATE-002 — Collapse Coeus's cloned per-vendor provider impls [arch] [minor] — in-progress
+## ATLAS-SUBSTRATE-002 — Collapse Coeus's cloned per-vendor provider impls [arch] [minor] — done with external hardware residual
 
 - Owner: codex-2026-08-11; scope: `repos/coeus/crates/coeus-hephaestus` (one generic
   impl) and `coeus-{rocm,metal,wgpu,cuda}` (deletion). Provider half landed
@@ -12209,9 +12221,14 @@ Design notes worth keeping, so a takeover does not re-derive them:
   runaway guard reported as a *non-converged* `Termination::IterationLimit`,
   never as success.
 
-Remaining after the blocker clears: batching over a leading problem axis, which
-is what per-voxel fitting needs and what the board item's original acceptance
-names. The single-problem solver is the first vertical increment.
+The original remaining batching requirement is complete in Coeus PR #323,
+merged as `d591220053586247ed3e9b344133281617055a2e`: `BatchedLeastSquaresProblem`
+and `batched_levenberg_marquardt` delegate each leading-axis problem to the
+canonical solver, preserve row order, and return indexed parameter/solver
+errors. f32/f64 recovery and malformed flattened-parameter tests pass; the
+provider's exact post-merge Backend parity run `31666097106` passed CUDA,
+Metal, ROCm, and WGPU lanes. Required-device CUDA/ROCm jobs were explicitly
+skipped by workflow policy, so physical-device execution remains external.
 
 ## ATLAS-COEUS-NLLS-004 original specification
 
