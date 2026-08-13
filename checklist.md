@@ -48,6 +48,18 @@
 - [ ] Run exact-head hosted validation for every changed caller and re-audit
       the fetched defaults for stale pins.
 
+## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift — open 2026-08-13
+
+- [x] Fix the Atlas generator classification: navigation `INDEX.md` and
+      generated `README.md` files are not ADR inputs; normalize root ADR 0006
+      from non-canonical `Approved` to `Accepted` and regenerate the root
+      index.
+- [x] Add a regression test proving navigation files do not become index rows;
+      the focused ADR/provider/overlay/version-guard test set passes 17/17.
+- [ ] Complete the peer-owned member repairs in backlog items ADR-025-A through
+      ADR-025-C, then run the full stack ADR index gate from clean exact-head
+      checkouts.
+
 ## ATLAS-US-CAPABILITY-023 — RITK phased-array review residuals
 
 - [x] Review ritk PR #131 at `9c29e9ff` against ADR 0042 and the full Image

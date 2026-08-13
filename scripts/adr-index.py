@@ -48,6 +48,8 @@ HEADER = """# ADR index
 | --- | ----- | ------ |
 """
 
+NON_ADR_MARKDOWN = frozenset({"readme.md", "index.md"})
+
 
 def adr_dirs() -> list[Path]:
     dirs = []
@@ -97,7 +99,7 @@ def build_index(directory: Path) -> tuple[str, list[str]]:
     anomalies: list[str] = []
     seen: dict[str, str] = {}
     files = sorted(
-        f for f in directory.glob("*.md") if f.name.lower() != "readme.md"
+        f for f in directory.glob("*.md") if f.name.lower() not in NON_ADR_MARKDOWN
     )
     for f in files:
         number, title, status = parse_adr(f)

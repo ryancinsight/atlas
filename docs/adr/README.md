@@ -11,7 +11,7 @@
 | [0003](0003-secure-accelerator-parallelization.md) | Secure parallelization of accelerator device access | Proposed |
 | [0004](0004-hephaestus-kernel-seam.md) | Hephaestus custom-kernel seam (consumer-authored kernels over wgpu + CUDA) | Accepted |
 | [0005](0005-eunomia-scalar-ssot.md) | `eunomia::NumericElement` as the single scalar-vocabulary SSOT (CR-4) | Accepted |
-| [0006](0006-eunomia-complex-csr-ssot.md) | `eunomia::ComplexField` as the kwavers-math `CsrScalar` SSOT (CR-EUNOMIA-COMPLEX) | Approved |
+| [0006](0006-eunomia-complex-csr-ssot.md) | `eunomia::ComplexField` as the kwavers-math `CsrScalar` SSOT (CR-EUNOMIA-COMPLEX) | Accepted |
 | [0007](0007-eunomia-solver-csr-ssot.md) | `eunomia::Complex<T>` as the kwavers-solver / `kwavers-{physics,transducer,diagnostics,analysis}` `num_complex::Complex<T>` SSOT (CR-EUNOMIA-COMPLEX §3 follow-up) | Proposed |
 | [0008](0008-kwavers-math-csrscalar-migration.md) | kwavers-math CsrScalar migration push (per-subcrate [minor] — adopts ADR 0006 ComplexField doctrine + ADR 0007 per-subcrate `[patch]` sweep + ADR 0010 Per-batch tag convention) | Proposed |
 | [0009](0009-kwavers-batch1-rayon-to-moirai-cte.md) | Cadence-Tactic-Exercise (CTE) on Batch #1 (kwavers-solver / kwavers-physics Rayon → Moirai) as a `[patch]` roll-forward decision | Proposed |
@@ -48,4 +48,3 @@
 | [0040](0040-first-party-zero-copy-archives.md) | Zero-copy archival is first-party, and Consus owns it | Proposed |
 | [0041](0041-closed-set-enum-dispatch.md) | Closed-set per-timestep `dyn` dispatch converts to exhaustive enum dispatch | Proposed |
 | [0042](0042-acquisition-coordinate-map-seam.md) | Non-Cartesian acquisition geometry as an enum-dispatched coordinate map on `ritk_image::Image` | Accepted |
-| [—](INDEX.md) | Atlas-meta ADR Index — doctrine navigation SSOT | — |

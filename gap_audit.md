@@ -227,6 +227,12 @@ No implementation has begun.
 
 ## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift (open 2026-08-13)
 
+The Atlas-side portion is closed as ADR-025-D. The generator now excludes
+navigation `README.md` and `INDEX.md` files from the ADR corpus, root ADR 0006
+uses the canonical `Accepted` status, and `scripts/tests/test_adr_index.py`
+guards the navigation-file classification. The root generated index no longer
+contains a false `INDEX.md` ADR row.
+
 Running `scripts/adr-index.py generate` for ADR 0042 revealed that the
 generator sweeps `repos/*/docs/adr` as well as the meta-repo, and that four
 member indexes are stale against their own ADR files:
@@ -239,9 +245,13 @@ member indexes are stale against their own ADR files:
   and `0060-provider-owned-metal-rocm-bridge.md`. A number collision from
   concurrent claims; one must renumber.
 
-The generated collateral was restored in all four trees rather than committed —
-they sit on peer-owned branches with unrelated dirty state, and the drift is
-not part of the ADR 0042 change. Filed as items rather than fixed in place.
+The generated collateral was restored in the affected child trees rather than
+committed — they sit on peer-owned branches with unrelated dirty state, and
+the drift is not part of this Atlas-meta documentation slice. The full stack
+check remains nonzero on those child indexes and additional member status or
+duplicate-number anomalies; it is not presented as a green stack gate. The
+focused Atlas test set passes 17/17. Child repairs remain filed as items rather
+than fixed across peer claim boundaries.
 The coeus duplicate is the material one: it breaks the number→decision
 mapping that ADR cross-references depend on.
 

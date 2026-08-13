@@ -115,6 +115,7 @@ land on that repo's own branch; all four trees are currently peer-held.
 | ADR-025-A | coeus: renumber one of the two ADR `0060` files and fix every cross-reference to it. | [patch] | todo | — | `scripts/adr-index.py check` clean for coeus; no two ADRs share a number; citing items/CHANGELOG updated |
 | ADR-025-B | tyche, apollo: normalize ADR status casing to the canonical `Proposed`/`Accepted`/`Rejected` so indexes render a status. | [patch] | todo | — | `adr-index.py check` emits no casing warnings; indexes show real statuses |
 | ADR-025-C | ritk: regenerate the ADR index with the generated-file header block. | [patch] | todo | — | `adr-index.py check` clean for ritk |
+| ADR-025-D | atlas-meta: exclude navigation `README.md`/`INDEX.md` files from the generated ADR corpus and normalize ADR 0006 to the canonical `Accepted` status. | [patch] | done 2026-08-13 — root docs/script/test slice | current session | root `build_index` regression passes; generated root index has no navigation row; child worktrees remain unmodified |
 
 ## ATLAS-US-CAPABILITY-023 — ITKUltrasound capability parity [arch] — open 2026-08-13
 

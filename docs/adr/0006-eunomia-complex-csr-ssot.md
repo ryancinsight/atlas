@@ -1,8 +1,8 @@
 # ADR 0006 — `eunomia::ComplexField` as the kwavers-math `CsrScalar` SSOT (CR-EUNOMIA-COMPLEX)
 
-- Status: **Approved** (signed off 2026-07-05).
+- Status: **Accepted** (signed off 2026-07-05).
 - Date: 2026-07-05.
-- Approved by: codex (Codebuff CLI agent acting on user sign-off).
+- Accepted by: codex (Codebuff CLI agent acting on user sign-off).
 - Driver: kwavers-math Phase-1A pilot (post-port residual); the csr.rs `num_traits::Zero` dependency blocks the Phase-1B manifest cleanup that drops `num-traits = "0.2"` from `crates/kwavers-math/Cargo.toml`. The broader Atlas migration Batch #3 (kwavers-solver/physics/transducer/diagnostics `num_complex::Complex<T>` use, ~200+ sites) is explicitly out of scope of this ADR — it is the next frontier unit, not this one.
 - Relates to: ADR 0005 (`eunomia::NumericElement` SSOT, CR-4); ADR 0004 (hephaestus kernel seam); ADR 0001 (hephaestus GPU substrate).
 - Affected crates: `eunomia` (additive SSOT extension), `kwavers-math` (CsrScalar rewire), `kwavers-boundary` (FEM/BEM `num_complex::Complex64` → `eunomia::Complex64` migration).
