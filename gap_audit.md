@@ -71,6 +71,59 @@ overrides. Both wrappers now remove either form, with regression coverage in
 the provider-integration and version-guard test modules. Exact-head, overlay,
 and Python regression checks pass after the fix.
 
+## ATLAS-US-A3-BLOCKER-026 — Scan-conversion migration is an [arch] change, not a [minor] one (open 2026-08-13)
+
+Recorded while starting US-023-A3. Three findings, the first two decisive.
+
+**The seam works as ADR 0042 promised.** `ritk-filter`'s
+`sample_moving_at_world` (`crates/ritk-filter/src/resample/native.rs:51`)
+already calls `moving.world_to_index_native(&world)`. Since that now dispatches
+on `CoordinateMap`, resampling a beam-space image onto Cartesian world points
+*is* scan conversion, with no change to the resampler. That half of the ADR is
+confirmed in the existing code, not just in principle.
+
+**But kwavers cannot reach it from where the converter lives.**
+`kwavers-analysis` has no ritk dependency at all — the `ritk-*` edges exist only
+in the top-level `kwavers` crate, behind the documented
+`domain::imaging::medical::ritk_bridge` boundary. Worse, `ritk-image` pulls
+`coeus-core`, `coeus-tensor`, `coeus-ops`, `coeus-autograd`, `coeus-nn`,
+`coeus-optim` and `ritk-wgpu-compat`; `kwavers-analysis` resolves **zero** coeus
+today. Adding it would drag an autograd/neural-network/wgpu stack into a
+signal-processing crate to obtain polar geometry — the domain-to-infrastructure
+coupling the standards prohibit. US-023-A3's "migrate and delete the converter"
+was filed assuming a mechanical migration; that premise is false.
+
+**Corrected plan.** `CoordinateMap`, `CurvilinearArray` and `PhasedArray3D` are
+pure `f64` geometry — `coordinate_map.rs` imports nothing but `anyhow` and never
+touches a tensor. Their canonical home is `ritk-spatial`, which already owns
+`Point`/`Spacing`/`Direction`/rotation and depends only on `leto`, `serde` and
+`thiserror` — and `kwavers-analysis` already depends on `leto`. Moving them
+there (with `ritk-image` re-exporting and continuing to use them) puts the
+geometry at the deepest common ancestor of its consumers per
+architecture_scoping, and makes the kwavers side a cheap `ritk-spatial`
+dependency instead of an impossible one. That move is US-023-A5 and gates A3.
+
+Once it lands, A3 splits honestly: kwavers' `ScanConverter` delegates its polar
+math to the one SSOT while keeping its Leto storage and Aequitas typed geometry
+(a differential test against current output is the oracle), and the fuller
+"delete the converter, resample through ritk" version stays a separate [arch]
+question about whether B-mode moves behind the ritk bridge — which would split
+the B-mode pipeline across crates and should not be decided incidentally.
+
+**Incidental defect found.** `kwavers-gpu/src/gpu/pipeline/realtime.rs:242`:
+
+```rust
+fn scan_conversion(&self, compressed: &LetoArray3<f32>) -> KwaversResult<LetoArray3<f32>> {
+    Ok(compressed.clone())
+}
+```
+
+A function named for a geometric transform that returns its input unchanged, on
+the realtime GPU pipeline's output path. This is a mock in delivered code per
+the integrity rules — the pipeline reports a scan-converted frame it never
+converted. Filed as KW-GPU-SCANCONV; not fixed here because it is outside the
+authorized scope and belongs to the GPU pipeline owner.
+
 ## ATLAS-USCT-FWI-024 — kwavers audit vs FullWaveformInversionUSCT (open 2026-08-13)
 
 Reference: `rehmanali1994/FullWaveformInversionUSCT` at `master` — a compact
