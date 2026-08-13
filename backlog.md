@@ -1,5 +1,18 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults [patch]
+
+- Owner: Atlas integration.
+- Outcome: refresh the root gitlinks for provider defaults that advanced after
+  the preceding exact-head check and preserve current hosted evidence.
+- Scope: root `repos/mnemosyne` and `repos/hermes` gitlinks plus synchronized
+  Atlas PM records; provider source, locks, and peer-owned checkouts are
+  excluded.
+- Acceptance: Mnemosyne `1ad5819` and Hermes `5785143` exact-head hosted CI
+  passes; both committed gitlinks match fetched defaults; the root exact-head,
+  coherence, and lane audits pass.
+- Status: in-progress; claimed 2026-08-12.
+
 ## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout [patch]
 
 - Owner: Atlas integration.
