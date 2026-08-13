@@ -35,6 +35,9 @@
   `d1627cd2` after a submodule-path `git add`; forward fix `efde7a6` restored
   fetched default `683e2ab5` via explicit cacheinfo. Exact-head, overlay, and
   lane audits pass after the correction.
+- Post-sweep reconciliation: Coeus PR #327 merged at `f9240fbc`; its three-file
+  delta is limited to the book, Python-release, and Rust-release workflow
+  callers, and Atlas tracks the fetched `origin/main` head.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
 
@@ -66,9 +69,9 @@
 - Merged after hosted checks passed: Themis #18, Proteus #8, Hyperion #8,
   Tyche #21, Mnemosyne #48, Aequitas #24, Asclepius #15, Eunomia #62, Leto
   #111, Horae #10, Moirai #127, Hephaestus #207, Melinoe #15, Apollo #90, and
-  Iris #13, and Hermes #39. Atlas reconciled their default heads in the
-  current gitlink integration commits; Consus #27, Helios #53, RITK #130, and
-  Coeus #327 remain open pending their own required checks.
+  Iris #13, Hermes #39, and Coeus #327. Atlas reconciled their default heads
+  in the current gitlink integration commits; Consus #27, Helios #53, and
+  RITK #130 remain open pending their own required checks.
 - Integration correction: root commit `06339c8` briefly staged the peer
   checkout HEADs for Hyperion and Tyche instead of their fetched defaults;
   forward fix `878b7c1` restored `5758df93` and `5febead4`, and the exact-head

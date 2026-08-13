@@ -34,11 +34,14 @@ Asclepius #15, Eunomia #62, Leto #111, Horae #10, Moirai #127, Hephaestus
 #207, Melinoe #15, Apollo #90, Iris #13, and Hermes #39 then passed their hosted
 checks and merged. Their default-head deltas are limited to the intended
 workflow pin changes, and Atlas now tracks the merged heads. Consus #27,
-Helios #53, RITK #130, and Coeus #327 remain open with active or queued checks.
+Helios #53, and RITK #130 remain open with active or queued checks.
 
 Hermes #39 merged at `683e2ab5`; the exact-head audit verified that the only
 post-sweep default delta was `.github/workflows/book-pages.yml` before the
 Atlas gitlink advanced.
+
+Coeus #327 merged at `f9240fbc`; the exact-head audit verified the three
+workflow-only caller changes before the Atlas gitlink advanced.
 
 The first Hermes pointer commit (`8743288`) staged the peer checkout head
 `d1627cd2` because a submodule path was passed to `git add`. This was corrected
