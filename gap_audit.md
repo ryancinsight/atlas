@@ -11,6 +11,17 @@ verification, Loom, and Miri; Aequitas passed verify and supply-chain; Hermes
 passed x86 verification, Miri, AVX-512/SDE, and aarch64/NEON. No peer-owned
 submodule checkout dirt was staged.
 
+## ATLAS-COEUS-HEPHAESTUS-F64-015 — CUDA f64 comparison seam (open)
+
+At the fetched Hephaestus default, the provider-owned typed CUDA operation
+contract implements the six comparison expressions for `f32`, `u32`, and
+`i32`, but not `f64`. Coeus therefore cannot truthfully advertise
+`ElementwiseProvider<f64>` through the existing bridge; the old NVRTC path's
+support is not a valid replacement for the provider-owned typed seam. The
+next vertical increment is provider-owned `f64` expression and conformance
+coverage, followed by a Coeus consumer refresh after the provider merges.
+Physical-device execution remains a separate hosted hardware gate.
+
 ## ATLAS-COEUS-CLOSURE-014 — Coeus provider and optimizer closure (2026-08-13)
 
 Coeus PR #323 merged at `d591220053586247ed3e9b344133281617055a2e`.

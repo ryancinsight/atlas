@@ -12,6 +12,21 @@
 - Root gitlinks advance only to these merged default commits. The exact-head
   audit, structural regression suite, and lane audit are rerun after commit.
 
+## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam [minor] — in-progress
+
+- Owner: current session; provider scope: `repos/hephaestus` core typed CUDA
+  comparison contract and CUDA conformance tests. Consumer scope is deferred
+  until the provider contract is merged: `repos/coeus` must then restore its
+  `ElementwiseProvider<f64>` declaration through the existing Hephaestus seam.
+- Acceptance: implement all six `Eq`/`Ne`/`Lt`/`Gt`/`Le`/`Ge` typed CUDA
+  expressions for `f64` in the provider-owned generic operation contract;
+  compile and value-test the provider and document the exact hosted matrix.
+  No host fallback, NVRTC compatibility path, or consumer-local expression is
+  permitted.
+- Verification: provider warning-denied check, Nextest, doctests, rustdoc, and
+  exact WGPU/CUDA/ROCm/Metal hosted gates; physical-device execution is
+  reported separately from adapterless compilation.
+
 ## ATLAS-EUNOMIA-FLOAT-CBRT-014 — Land sign-preserving FloatElement::cbrt SSOT [feat]
 
 - Owner: Atlas integration.

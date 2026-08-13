@@ -11,6 +11,15 @@
 - [x] Advance only these three root gitlinks, then rerun exact-head,
       structural, and lane audits without staging peer-owned checkout dirt.
 
+## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam — in progress
+
+- [ ] Open a clean Hephaestus lane from fetched `origin/master`; preserve the
+      peer-owned detached checkout and its dirty `Cargo.lock`.
+- [ ] Add provider-owned `TypedBinaryExpr<CudaC, f64>` coverage for all six
+      comparisons and focused value-semantic tests.
+- [ ] Run the provider local gates, merge the provider PR, and record the
+      exact hosted matrix before touching the Coeus consumer declaration.
+
 ## ATLAS-COEUS-CLOSURE-014 — Provider deduplication and batched NLLS — complete 2026-08-13
 
 - [x] Confirm Coeus PR #323 merged at `d5912200`; the provider-owned batched
