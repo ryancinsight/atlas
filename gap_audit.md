@@ -46,6 +46,13 @@ checkout state. This is not clean committed-head evidence; the baseline is
 unchanged and the ratchet must be rerun from a clean exact-head checkout before
 it can drive provider cleanup or merge decisions.
 
+The root Python discovery pass also exposed and fixed a test import defect:
+`test_atlas_scattered_containers_classify.py` now imports the checked-in
+classifier through `scripts`. The remaining discovery limitation is
+environmental: `test_book_build.py` and the two figure-generator modules
+require `pytest`, which is not installed on this host. No full-suite green
+claim is made.
+
 ## ATLAS-LIVE-CALLER-PINS-027 — Requested-provider caller pins (open 2026-08-13)
 
 The twenty requested providers are present at current fetched default heads,

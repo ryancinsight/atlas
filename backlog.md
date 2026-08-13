@@ -69,6 +69,11 @@
   derived checkout state. The result is not a clean committed-head gate and
   the baseline is intentionally unchanged; rerun from a clean exact-head
   checkout before treating any provider debt count as a merge decision.
+- Root test-harness cleanup: repository-wide `unittest` discovery exposed an
+  incorrect top-level import in the scattered-container classifier test; the
+  test now imports the checked-in `scripts` module by package path. Discovery
+  then reaches 116 tests, with only the three pytest-based modules blocked by
+  the host's missing `pytest` package.
 - Hosted checks are queued. The external `recurseml/analysis` status reports
   error on these workflow-only PRs; required repository CI remains the merge
   gate and is not being represented as green before completion.

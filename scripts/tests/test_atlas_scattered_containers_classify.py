@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from atlas_scattered_containers_classify import (
+from scripts.atlas_scattered_containers_classify import (
     Occurrence,
     VEC_VEC,
     _gated_attribute_block,
