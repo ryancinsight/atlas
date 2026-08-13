@@ -1,5 +1,18 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HEPHAESTUS-REDUCTION-022 — Retire superseded product-axis parity PR [patch] — complete 2026-08-13
+
+- Hephaestus PR #113 was rebased onto current `master`; its product-axis
+  parity commit is already present as `8bc589a`, including `ProdOp`,
+  `Laplacian2DParams::is_empty`, and WGPU/CUDA/ROCm/Metal value-semantic
+  coverage. The older round-6a path-resolution commit was also superseded by
+  the current git+version workspace source model.
+- The rebased branch had no remaining diff after dropping those superseded
+  commits. The stale PR was closed with the evidence and its remote branch was
+  deleted. Current default `c373de1945bb9ce7b9fd804a80415218d975f2865`
+  passed exact post-merge provider runs `31691399110`, `31691399171`,
+  `31691399196`, and `31691399214`.
+
 ## ATLAS-APOLLO-ARCH-021 — Retire superseded junk-drawer rename [patch] — complete 2026-08-13
 
 - Apollo PR #86 was rebased against current default and both rename commits

@@ -1,5 +1,16 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-HEPHAESTUS-REDUCTION-022 — Retire superseded product-axis parity PR — complete 2026-08-13
+
+- [x] Rebase Hephaestus PR #113 onto current `master` and verify product-axis
+      parity is already represented by `8bc589a`.
+- [x] Confirm current default retains `ProdOp`, `is_empty`, transposed and
+      empty-axis value tests, and all four backend contract surfaces; reject
+      the obsolete round-6a path-lock rewrite.
+- [x] Confirm current default `c373de19` through exact runs
+      `31691399110`, `31691399171`, `31691399196`, and `31691399214`.
+- [x] Close the empty superseded PR with the evidence and delete its branch.
+
 ## ATLAS-APOLLO-ARCH-021 — Retire superseded junk-drawer rename — complete 2026-08-13
 
 - [x] Rebase Apollo PR #86 onto current default and verify the two rename

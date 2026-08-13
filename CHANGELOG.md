@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Close Hephaestus PR #113 as superseded: product-axis parity already exists
+  in current history as `8bc589a`, while its obsolete round-6a path-lock
+  rewrite is not compatible with the current git+version source model. The
+  current default provider runs `31691399110`, `31691399171`, `31691399196`,
+  and `31691399214` pass.
+
 - Close Apollo PR #86 as superseded by the broader current-default cleanup
   `49632c6c` (ADR 0039 s5); the affected `helpers.rs` modules are already
   dissolved into concern-specific leaves. No duplicate rename is integrated.

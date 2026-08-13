@@ -1,5 +1,16 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-HEPHAESTUS-REDUCTION-022 — Superseded product-axis parity audit (closed 2026-08-13)
+
+Hephaestus PR #113 was an older replay of product-axis parity already present
+in current history as `8bc589a`: `ProdOp`, `Laplacian2DParams::is_empty`, and
+WGPU/CUDA/ROCm/Metal value-semantic tests are in the provider default. Its
+round-6a path-resolution commit was not retained because current master uses
+the correct git+version source model. Rebasing produced no remaining diff;
+the stale PR and branch were closed/deleted with the exact evidence. Current
+default `c373de1945bb9ce7b9fd804a80415218d975f2865` passed runs
+`31691399110`, `31691399171`, `31691399196`, and `31691399214`.
+
 ## ATLAS-APOLLO-ARCH-021 — Superseded junk-drawer rename audit (closed 2026-08-13)
 
 Apollo PR #86 was not merged because current Apollo default already contains
