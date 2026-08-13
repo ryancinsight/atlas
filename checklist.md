@@ -228,6 +228,17 @@
 - [ ] Residual: re-specify and deliver the task-partition API as a separate
       provider-owned increment; it was not included in this ring-buffer slice.
 
+## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions — in-progress 2026-08-13
+
+- [x] Claim a canonical Leto lane from fetched default `6e4a1627`; preserve
+      the peer-owned dirty main checkout.
+- [ ] Add the const-rank mutable partition proof and public re-exports.
+- [ ] Add sequential, strided, alias-rejection, empty, and boundary tests.
+- [ ] Add the Moirai adapter only against the provider-owned partition API;
+      retain explicit executor errors and no host fallback.
+- [ ] Run the provider's configured gates and exact-head hosted verification,
+      then advance the Atlas gitlink and synchronize this item.
+
 ## ATLAS-TYCHE-MULTIOUTPUT-017 — Generalize sensitivity estimators — complete 2026-08-13
 
 - [x] Confirm Tyche PR #18 source `dc96f5ec` merged at `4a6f8cd4`; provider `verify`,

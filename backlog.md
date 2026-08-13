@@ -334,6 +334,23 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
   item; Leto PR #103 was independently closed as superseded because Hermes
   0.6 is already present in merged default `a722fbc8`.
 
+## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions [minor] — in-progress 2026-08-13
+
+- Owner: Atlas integration.
+- Scope: `leto` const-rank mutable views and `leto-ops` scheduler boundary;
+  no consumer migration or compatibility surface.
+- Outcome: expose an allocation-free, layout-validated iterator of disjoint
+  logical row-major mutable partitions, then consume it through the existing
+  Moirai provider without duplicating layout arithmetic.
+- Acceptance: zero chunk size, empty views, negative/strided injective views,
+  broadcast aliasing, and out-of-bounds layouts have value-semantic tests;
+  sequential and parallel policy paths update every element exactly once;
+  strict format/check/Clippy/Nextest/doctest/docs gates pass at the merged
+  provider head; no host fallback or adapter-owned layout proof remains.
+- Claim: Leto lane `D:\\atlas\\worktrees\\leto-task-partitions`; root PM
+  artifacts are the coordination surface. Child `repos/leto` main remains
+  peer-owned and dirty.
+
 ## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout [patch]
 
 - Owner: Atlas integration.

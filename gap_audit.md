@@ -487,6 +487,19 @@ task-partition API was deliberately excluded after its branch conflicted with
 newer iterator APIs and remains a separate residual. PR #103 is closed as
 superseded because Hermes 0.6 is already in merged Leto default `a722fbc8`.
 
+## ATLAS-LETO-TASK-PARTITIONS-024 — Provider-owned disjoint task partitions (2026-08-13)
+
+The merged Leto default exposes safe mutable element iterators but no
+provider-owned partition token for moving disjoint logical ranges to Moirai.
+The earlier candidate implementation also bundled unrelated iterator changes
+and conflicted with current default APIs, so it was not integrated. This item
+re-specifies only the missing vertical seam. The proof must validate storage
+bounds and logical-offset injectivity once, preserve negative and strided
+layouts, and prevent zero-stride aliasing before any mutable reference escapes.
+The adapter must consume each partition exactly once and surface executor
+errors; it must not recreate layout arithmetic or silently fall back to a host
+loop.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default (2026-08-13)
 
 Moirai PR #125 merged as `ae9a5dfb7a56c64b471338d9f9d859db7b52d9fe`. Its
