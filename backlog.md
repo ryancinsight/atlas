@@ -5639,6 +5639,15 @@ assumed. Verified: clippy `--all-targets -D warnings` clean, 106/106 unit and
 phantom tests, 11/11 real-data tests, figure reproduces byte-for-byte from the
 committed source, `mdbook build` clean and the figure reaches the built output.
 
+**CLAIMED 2026-08-13, owner=claude-dmri-cli**: `ritk dwi tensor` as the first
+CLI vertical slice. Scope: `crates/ritk-cli/src/commands/dwi/` plus the
+`Commands` enum in `crates/ritk-cli/src/main.rs` and `ritk-cli/Cargo.toml` — no
+other file. Acceptance: `ritk dwi tensor --dwi <nii> --bval <f> --bvec <f>
+--fa <out>` writes an FA map whose values match `estimate_dti` computed
+directly, asserted on a synthetic volume with a known tensor; `--md` and
+`--pev` likewise; malformed inputs return typed errors, not panics. `tract`
+and the Python surface stay unclaimed.
+
 **CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
 groups and `ritk-python` exposes no diffusion surface. They are independent
 vertical increments and should be claimed separately.
