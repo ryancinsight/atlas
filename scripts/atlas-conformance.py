@@ -49,9 +49,18 @@ SANCTIONED_ROOT = {
     "backlog.md", "checklist.md", "gap_audit.md",
     "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "rustfmt.toml",
     "clippy.toml", "deny.toml", "book.toml", "pyproject.toml",
-    ".gitignore", ".gitattributes", ".gitmodules", ".envrc",
-    "Makefile", "justfile",
+    ".gitignore", ".gitattributes", ".gitmodules", ".envrc", ".git",
+    "Makefile", "justfile", "pytest.ini", ".check_mdbook_links_allowlist",
 }
+
+# A submodule's `.git` is a gitlink *file*, not a directory, so it would
+# otherwise be counted as unfiled root sprawl in every member repository.
+
+CFG_TEST_MOD = (
+    r"#\[cfg\(\s*(?:all\(\s*)?test\b[^\]]*\]\s*"   # #[cfg(test)] / #[cfg(all(test, ...))]
+    r"(?:#\[[^\]]*\]\s*)*"                          # any further attributes
+    r"(?:pub(?:\([^)]*\))?\s+)?mod\s+{stem}\s*;"    # [pub] mod <stem>;
+)
 
 TYPE_NAME = re.compile(r"(?:^|_)(?:f16|bf16|f32|f64|u8|u16|u32|u64|i8|i16|i32|i64)(?:_|$)")
 FN_DEF = re.compile(r"\bfn\s+(\w+)")
@@ -116,6 +125,25 @@ def lf_policy_missing(repo: Path) -> int:
     return 0 if ga.is_file() and "text=auto" in ga.read_text(errors="replace") else 1
 
 
+def declared_cfg_test(entry: Path) -> bool:
+    """True when the parent module declares this file under `#[cfg(test)]`.
+
+    The co-located sidecar convention (`src/foo/tests.rs` declared by
+    `src/foo/mod.rs` as `#[cfg(test)] mod tests;`) puts the gate in the
+    *parent*, so neither a path-part match nor an in-file `#[cfg(test)]`
+    sees it. Without this check such files scan as production code.
+    """
+    pat = re.compile(CFG_TEST_MOD.format(stem=re.escape(entry.stem)), re.MULTILINE)
+    parent = entry.parent
+    for cand in (parent / "mod.rs", parent / "lib.rs", parent / "main.rs",
+                 parent.with_suffix(".rs")):
+        if cand == entry or not cand.is_file():
+            continue
+        if pat.search(cand.read_text(encoding="utf-8", errors="replace")):
+            return True
+    return False
+
+
 def rust_files(repo: Path):
     """Yield (path, is_testish) for every .rs file, pruning caches and lanes."""
     stack = [repo]
@@ -128,7 +156,11 @@ def rust_files(repo: Path):
                     continue
                 stack.append(entry)
             elif name.endswith(".rs"):
-                testish = bool(TEST_PATH_PARTS.intersection(entry.parts))
+                # Match directory parts only: `entry.parts` includes the file
+                # name, so a file literally named `tests.rs` never matched the
+                # `tests` part and was scanned as production.
+                testish = bool(TEST_PATH_PARTS.intersection(entry.parent.parts)) or \
+                    declared_cfg_test(entry)
                 yield entry, testish
 
 
@@ -136,6 +168,14 @@ def split_test_region(text: str) -> tuple[str, str]:
     """Split a source file at its inline test module, if any."""
     idx = text.find("#[cfg(test)]")
     return (text, "") if idx < 0 else (text[:idx], text[idx:])
+
+
+def strip_doc_comments(text: str) -> str:
+    """Drop `///` and `//!` lines: their code fences are doctests, not production."""
+    return "\n".join(
+        ln for ln in text.splitlines()
+        if not ln.lstrip().startswith(("///", "//!"))
+    )
 
 
 def scan_repo(repo: Path) -> dict[str, int]:
@@ -164,7 +204,10 @@ def scan_repo(repo: Path) -> dict[str, int]:
 
         prod, test = ("", text) if testish else split_test_region(text)
         is_bin = path.name == "main.rs" or "bin" in path.parts
-        c["unwrap_production"] += prod.count(".unwrap()")
+        # Doc-comment bodies are doctests, i.e. test code. Counting `.unwrap()`
+        # inside `///` lines reported 23 "production unwraps" for a repo whose
+        # workspace denies `unwrap_used` outright — every one was a doc example.
+        c["unwrap_production"] += strip_doc_comments(prod).count(".unwrap()")
         c["allow_sites"] += prod.count("#[allow(")
         c["markers"] += len(MARKER.findall(prod))
         c["reexport_shims"] += len(REEXPORT_SHIM.findall(prod))
