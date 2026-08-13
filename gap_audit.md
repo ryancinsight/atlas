@@ -137,6 +137,24 @@ math to the one SSOT while keeping its Leto storage and Aequitas typed geometry
 question about whether B-mode moves behind the ritk bridge — which would split
 the B-mode pipeline across crates and should not be decided incidentally.
 
+### US-023-A5 — `ritk-spatial` move is implemented, merge-gated
+
+RITK PR #132 (`e8e7ed6f`) is a clean, stacked refactor from PR #131. It moves
+the coordinate-map implementation into `ritk-spatial`, keeps the public
+`ritk_image::{CoordinateMap, CurvilinearArray, PhasedArray3D}` re-exports, and
+adds no dependency to `ritk-spatial`. Static review found no new P0/P1 in the
+move. The parent phased-array PR #131 still carries the three recorded P1s:
+public-surface dispatch, origin/direction composition, and native-precision
+geometry arithmetic.
+
+The local `cargo nextest run --locked -p ritk-spatial -p ritk-image` attempt did
+not reach compilation: the lane's stack overlay points RITK patches at
+`D:\atlas\repos\ritk` rather than the lane tree, so Cargo would rewrite the
+lockfile and `--locked` rejected it. This is lane infrastructure evidence, not
+a source failure. PR #132 has no required hosted workflow result yet; the
+external `recurseml/analysis` status is `ERROR`, so no hosted-green claim is
+made.
+
 **Incidental defect found.** `kwavers-gpu/src/gpu/pipeline/realtime.rs:242`:
 
 ```rust

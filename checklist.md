@@ -72,6 +72,17 @@
 - [ ] Advance the ritk gitlink only to the exact merged PR #131 head, then
       rerun the Atlas exact-head and dependency-overlay audits.
 
+## ATLAS-US-023-A5 — Move coordinate geometry to ritk-spatial — in review
+
+- [x] Review the peer-owned PR #132 at `e8e7ed6f`: the pure geometry rename
+      preserves the `ritk_image` type re-exports and adds no `ritk-spatial`
+      dependency.
+- [x] Confirm the lane is clean and the move introduces no new P0/P1 finding;
+      the local locked nextest gate is blocked by the lane's stack overlay
+      resolving patches to `D:\atlas\repos\ritk` instead of the lane tree.
+- [ ] Merge after PR #131's phased-array contract findings are fixed, collect
+      hosted gates, then advance the Atlas gitlink to the exact merged head.
+
 ## ATLAS-HEPHAESTUS-REDUCTION-022 — Retire superseded product-axis parity PR — complete 2026-08-13
 
 - [x] Rebase Hephaestus PR #113 onto current `master` and verify product-axis
