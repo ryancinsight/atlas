@@ -5,8 +5,8 @@
 - Owner: Atlas integration.
 - Outcome: advance the Leto gitlink to the merged PM-closeout head and retain
   exact provider-head evidence without staging peer-owned Leto changes.
-- Status: in progress; Leto PR #107 merged as `e525d8d` and the fetched default
-  is ahead of the committed root pointer.
+- Status: complete; Leto PR #107 merged as `e525d8d`, the root gitlink now
+  records the exact default, and the pointer evidence is synchronized.
 
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default [patch]
 
