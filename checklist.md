@@ -1,5 +1,13 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout — in progress
+
+- [ ] Verify exact-head hosted WGPU, CUDA, ROCm, and Metal success at the
+      merged Hephaestus default head `9385686ec29fc5a2d168d967df3fae254760aa4b`.
+- [ ] Advance the Atlas `repos/hephaestus` gitlink without staging its
+      peer-owned dirty `Cargo.lock`.
+- [ ] Run the exact-head root audit and record the merged provider PM closure.
+
 ## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence — complete 2026-08-12
 
 - [x] Refresh the Mnemosyne gitlink from `93dbc563` to fetched `origin/main`

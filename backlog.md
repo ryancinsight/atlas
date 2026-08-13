@@ -1,5 +1,17 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout [patch]
+
+- Owner: Atlas integration.
+- Outcome: advance the Hephaestus root gitlink and root evidence after the
+  provider merged its cross-entropy PM closeout.
+- Scope: root `repos/hephaestus` gitlink and synchronized Atlas PM records;
+  preserve the provider checkout's peer-owned dirty `Cargo.lock`.
+- Acceptance: fetched `origin/master` hosted WGPU, CUDA, ROCm, and Metal runs
+  pass at the merged provider head; the root gitlink equals that head; the
+  provider PM closure and exact-head root checks are recorded.
+- Status: in-progress; claimed 2026-08-12.
+
 ## ATLAS-PROVIDER-DRIFT-005 — Post-merge exact-head convergence [patch]
 
 - Owner: Atlas integration.
