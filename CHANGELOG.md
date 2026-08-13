@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Close the publication-lock residual at the Atlas boundary. Exact committed
+  kwavers and CFDrs gitlinks have complete first-party Git lock sources (33/33
+  and 22/22); peer-owned overlay lock churn remains uncommitted and excluded.
+  The shared crates.io workflow retains `--locked` validation.
+
 - Advance Leto to merged default `39683975` after PR #109 added provider-owned
   disjoint mutable task partitions and the Moirai scheduler boundary. Exact
   PR Rust verification `31714562863`, post-merge Rust CI `31715060346`, and

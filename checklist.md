@@ -1727,6 +1727,19 @@ authentication decision, and the per-package adoption ledger. The `atlas-ref`
 caller pin reuses ADR 0027's gitlink contract. Registry registration is
 user-gated and tracked as ATLAS-PUB-003.
 
+## ATLAS-PUB-LOCK-1 — Publication lock-form audit — done 2026-08-13
+
+- [x] Re-audit the exact Atlas kwavers and CFDrs gitlinks rather than their
+      peer-owned working-tree branches.
+- [x] Confirm the active first-party dependency closure has matching Git
+      `source` entries in both committed locks: kwavers 33/33 and CFDrs 22/22;
+      both missing-source and wrong-source sets are empty.
+- [x] Run the overlay checker and its four regression tests; retain the
+      outside-overlay locked-check failure from the peer's uncommitted stripped
+      lock as peer-local evidence, not an Atlas gitlink defect.
+- [x] Keep the shared crates.io workflow's `--locked` validation and record
+      that no release reproducibility downgrade is required.
+
 ## ATLAS-PUB-006/007 — Facade crates and registry names [arch] [minor]
 
 - [x] Survey facade practice in comparable projects: `burn` 0.21.0 (lockstep

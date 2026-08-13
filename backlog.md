@@ -4971,7 +4971,7 @@ epospollo`, so both paths are the same tree. That is
   invocations, so this failure predates the migration and would have hit the
   first real release either way. The migration is what made it visible.
 
-## ATLAS-PUB-LOCK-1 — Overlay-stripped lockfiles get committed and break `--locked` [patch] — in-progress
+## ATLAS-PUB-LOCK-1 — Overlay-stripped lockfiles get committed and break `--locked` [patch] — done 2026-08-13
 
 - **Canonical checkout-boundary hardening 2026-08-06 (root tool slice).**
   `tools/checkout-path-dependencies` now rejects an existing symlink at
@@ -5057,6 +5057,20 @@ epospollo`, so both paths are the same tree. That is
   Regenerating resolved both forward; no intentional pin was lost, since the
   manifest carries none. Verified with `cargo check --locked
   --no-default-features` from outside the tree.
+
+- **Closure 2026-08-13.** The earlier kwavers/CFDrs residual is stale at the
+  Atlas integration boundary. The exact root gitlinks are kwavers
+  `4a983ab177c84ef69ff7702629b82e41ad16993b` and CFDrs
+  `11fe470e26f4f41e40e5e8baace4b4d265d3f9b9`. A static active-dependency
+  audit of those committed manifests and locks finds 33/33 and 22/22
+  first-party Git dependencies with a matching `source` entry; missing-source
+  and wrong-source sets are both empty. `python scripts/atlas-stack-overlay.py
+  check`, its four regression tests, and the root exact-head provider audit
+  pass. The live peer checkouts retain uncommitted overlay lock churn; an
+  outside-overlay `cargo check --locked` reproduces that peer-local failure,
+  so those files remain untouched and are not attributed to the committed
+  Atlas gitlinks. The shared publish workflow keeps `--locked`; no
+  reproducibility weakening is required.
 - Generalization: a manifest edit that changes a **source** (adding or removing
   a `rev`, moving a branch, changing a version requirement) invalidates the
   lock, and nothing local catches it — under the overlay the lock resolves

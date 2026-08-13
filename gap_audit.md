@@ -3995,6 +3995,18 @@ repository; diff the release workflows against each other. Decisions recorded in
 | 6 | An unused PyPI API token sits in the `pypi` environment | Both registries already authenticate by OIDC trusted publishing (`rust-lang/crates-io-auth-action`, `pypa/gh-action-pypi-publish` under `id-token: write`). No workflow reads a registry token. A long-lived credential that no pipeline uses is exposure without function. | ATLAS-PUB-003 |
 | 7 | Three Pages actions are tag-pinned, not digest-pinned | `configure-pages`, `upload-pages-artifact`, `deploy-pages` carry major-version tags in the new Atlas workflow, matching the four existing package copies. Digests were not resolvable when the workflow was authored, and an unresolved digest is fabricated evidence. | ATLAS-PUB-004 |
 
+### Lock-form recheck — closed 2026-08-13
+
+The historical `ATLAS-PUB-LOCK-1` kwavers/CFDrs finding no longer reproduces
+against the committed Atlas gitlinks. The active first-party dependency audit
+reports matching Git `source` entries for all 33 kwavers and 22 CFDrs edges;
+both missing-source and wrong-source sets are empty. The overlay checker and
+its four tests pass. The peer-owned working trees still carry uncommitted
+overlay-stripped lock churn, and a locked check from outside the overlay
+reproduces that local failure; those files are deliberately not folded into
+the Atlas pointer. The shared workflow remains `--locked`, preserving package
+reproducibility.
+
 ### Non-findings
 
 - Wheel publication is already consolidated: Atlas owns `python-wheels.yml` as a
