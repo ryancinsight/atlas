@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Advance all twenty requested provider gitlinks to their fetched default
+  heads after CI-only Atlas workflow-pin merges. Exact-head, provider
+  coherence, stack-overlay, and lane audits pass; peer-owned child checkout
+  dirt remains excluded from the root change.
+
 - Close the publication-lock residual at the Atlas boundary. Exact committed
   kwavers and CFDrs gitlinks have complete first-party Git lock sources (33/33
   and 22/22); peer-owned overlay lock churn remains uncommitted and excluded.

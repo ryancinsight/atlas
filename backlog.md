@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-LIVE-HEAD-SWEEP-026 — Reconcile twenty provider CI-pin defaults [patch] — in-progress
+## ATLAS-LIVE-HEAD-SWEEP-026 — Reconcile twenty provider CI-pin defaults [patch] — complete 2026-08-13
 
 - Owner: current session; scope: root `repos/*` gitlinks plus synchronized Atlas
   PM evidence. Provider source, workflow, lock, and peer-owned working-tree
@@ -10,8 +10,18 @@
 - Acceptance: every candidate head is an ancestor extension of the committed
   pointer; the delta contains only `.github/workflows/**` files; the exact-head,
   requested-provider coherence, and lane audits pass after the root commit.
-  Hosted pin-advance runs remain evidence for the provider-owned CI, not a
-  reason to stage peer checkout dirt.
+- Result: all twenty candidates were ancestor extensions and every delta was
+  limited to CI workflow pin files. Root pointers now resolve to the fetched
+  defaults: horae `72505426`, hyperion `3fb9e785`, themis `abc94782`, tyche
+  `fd41d8ed`, proteus `08a42744`, mnemosyne `f9596eb5`, consus `8cf015a9`,
+  helios `54000a65`, aequitas `7ff87e62`, asclepius `a798e4f8`, eunomia
+  `6c02d10d`, moirai `e3056e12`, ritk `f98a9191`, melinoe `2d9696e9`, leto
+  `f208dbaa`, hephaestus `6724547b`, coeus `d5f044dd`, apollo `3ea6292d`,
+  hermes `b1a8b25c`, and iris `2fbf881b`.
+- Evidence: `atlas-provider-integration-audit.py --exact-heads`, nine provider
+  integration regressions, stack-overlay check plus four regressions, and the
+  lane audit pass. Provider-hosted pin-advance and Pages runs remain queued or
+  provider-side evidence and are not represented as green here.
 
 ## ATLAS-USCT-FWI-024 — Transmission-USCT FWI parity [minor] — open 2026-08-13
 

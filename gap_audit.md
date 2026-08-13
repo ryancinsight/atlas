@@ -1,5 +1,25 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-LIVE-HEAD-SWEEP-026 — Provider default-head convergence (closed 2026-08-13)
+
+The fetched default of every requested provider advanced after Atlas's prior
+pointer sweep. Each candidate was an ancestor extension of the committed
+pointer, and an independent path audit found only `.github/workflows/**` CI pin
+changes (no source, manifest, or lock changes). Atlas advanced the twenty
+gitlinks without staging peer-owned checkout dirt:
+
+`horae=72505426`, `hyperion=3fb9e785`, `themis=abc94782`, `tyche=fd41d8ed`,
+`proteus=08a42744`, `mnemosyne=f9596eb5`, `consus=8cf015a9`, `helios=54000a65`,
+`aequitas=7ff87e62`, `asclepius=a798e4f8`, `eunomia=6c02d10d`,
+`moirai=e3056e12`, `ritk=f98a9191`, `melinoe=2d9696e9`, `leto=f208dbaa`,
+`hephaestus=6724547b`, `coeus=d5f044dd`, `apollo=3ea6292d`,
+`hermes=b1a8b25c`, `iris=2fbf881b`.
+
+The exact-head provider audit, requested-provider coherence, provider-audit
+regressions, stack-overlay check and regressions, and lane audit pass. Hosted
+pin-advance and Pages runs are separate provider-side evidence and remain
+queued/open where not yet complete.
+
 ## ATLAS-USCT-FWI-024 — kwavers audit vs FullWaveformInversionUSCT (open 2026-08-13)
 
 Reference: `rehmanali1994/FullWaveformInversionUSCT` at `master` — a compact
