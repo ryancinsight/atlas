@@ -24,7 +24,7 @@
       requested providers.
 - [x] Confirm all twenty book callers and the requested release/Python callers
       still pin `d875348197be12ad593f993a6f1b8a62d3b8b195`, while the current
-      root workflow is `4c31dd7`.
+      root workflow is `4c31dd753f06dd93b4c04798cf781df253e3e532`.
 - [x] Open workflow-only provider/integrator PRs from exact fetched defaults:
       horae #10, hyperion #8, themis #18, tyche #21, proteus #8, mnemosyne
       #48, consus #27, helios #53, aequitas #24, asclepius #15, eunomia #62,

@@ -29,7 +29,8 @@ separately under US-023-A2 and is not included in this closed CI-only sweep.
 The twenty requested providers are present at current fetched default heads,
 but their default-branch Atlas workflow call sites are stale. Every requested
 `book-pages.yml` caller pins `d875348197be12ad593f993a6f1b8a62d3b8b195`, while
-the current root reusable workflow is `4c31dd7` after the linkcheck2 backend and
+the current root reusable workflow is
+`4c31dd753f06dd93b4c04798cf781df253e3e532` after the linkcheck2 backend and
 pinned-toolchain fixes. Requested Consus, Moirai, RITK, Leto, Hephaestus, Coeus,
 and Apollo release callers also use `d875348`; their Consus, Moirai, Leto,
 Hephaestus, Coeus, and Apollo Python callers do as well. CFDrs additionally

@@ -36,7 +36,7 @@
   workflow commit; CFDrs additionally passes the required `linkcheck2` version.
 - Audit result: all twenty requested `book-pages.yml` callers pin the stale
   Atlas commit `d875348197be12ad593f993a6f1b8a62d3b8b195`; the current root is
-  `4c31dd7`. Requested release callers in Consus, Moirai, RITK, Leto,
+  `4c31dd753f06dd93b4c04798cf781df253e3e532`. Requested release callers in Consus, Moirai, RITK, Leto,
   Hephaestus, Coeus, and Apollo also pin `d875348`; their Python callers in
   Consus, Moirai, Leto, Hephaestus, Coeus, and Apollo do the same.
 - Acceptance: the fetched default of every requested provider contains no
