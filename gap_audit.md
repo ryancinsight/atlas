@@ -1,5 +1,13 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-TYCHE-REFRESH-011 — Reconcile merged Tyche PM closeout (2026-08-13)
+
+Tyche PR #17 merged as `5efaee7aa1ea79f36d8914b36cb989e1211ade9b` after the
+provider `verify`, `supply-chain`, and CodeRabbit checks passed. The recurring
+`recurseml/analysis` status errored as on earlier provider PRs. The fetched
+Tyche default is ahead of the root gitlink; the local Tyche checkout remains
+peer-owned and is not modified by this integration increment.
+
 ## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout (2026-08-13)
 
 Leto PR #107 merged as `e525d8dd5ee52d12de0bf61987e8af6bf896700f` after the
