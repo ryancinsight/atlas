@@ -7,8 +7,8 @@
   synchronize the exact-head evidence for the full twenty-provider inventory.
 - Scope: root `repos/moirai` gitlink plus current Atlas checklist/backlog/gap
   audit records; peer-owned Moirai checkout edits remain untouched.
-- Status: in progress; Moirai PR #125 merged as `ae9a5df` and the fetched
-  default is ahead of the committed root pointer.
+- Status: complete; Moirai PR #125 merged as `ae9a5df`, the root gitlink now
+  records that exact default, and the twenty-provider exact-head audit passes.
 
 ## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults [patch]
 

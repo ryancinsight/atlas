@@ -1,12 +1,14 @@
 # atlas — cross-repository integration checklist
 
-## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default — in progress
+## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default — complete 2026-08-13
 
 - [x] Confirm Moirai PM closeout PR #125 merged as `ae9a5dfb` after all
       repository-owned checks passed; the recurring `recurseml/analysis`
       status remains an external analyzer error seen on prior merged PRs.
-- [ ] Advance the root Moirai gitlink and rerun the exact-head and coherence
-      audits without staging peer-owned submodule changes.
+- [x] Advance the root Moirai gitlink to `ae9a5dfb` and rerun the exact-head
+      and coherence audits without staging peer-owned submodule changes.
+- [x] Confirm the current inventory contains all twenty requested providers,
+      including Hermes and the normalized Tyche (aka Tychee) name.
 
 ## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults — complete 2026-08-12
 

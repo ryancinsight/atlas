@@ -6,8 +6,15 @@ Moirai PR #125 merged as `ae9a5dfb7a56c64b471338d9f9d859db7b52d9fe`. Its
 repository-owned checks passed, including the Rust binding checks and Linux,
 macOS, and Windows wheel smoke tests; the recurring `recurseml/analysis`
 status errored as on earlier merged Moirai PRs. The fetched Moirai default is
-now ahead of the Atlas gitlink. The local Moirai checkout's dirty `Cargo.lock`
-and reactor source remain peer-owned and are not part of this increment.
+now recorded by the Atlas gitlink. The local Moirai checkout's dirty
+`Cargo.lock` and reactor source remain peer-owned and are not part of this
+increment.
+
+The final exact-head audit covers Horae, Hyperion, Themis, Tyche (aka Tychee),
+Proteus, Mnemosyne, Consus, Helios, Aequitas, Asclepius, Eunomia, Moirai, RITK,
+Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. All twenty
+providers are active in `.gitmodules`, the committed gitlinks match their
+fetched default heads, and the requested-scope coherence audit is clean.
 
 ## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults (2026-08-12)
 
