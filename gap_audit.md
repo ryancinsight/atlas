@@ -1,5 +1,16 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-MNEMOSYNE-CONSUS-REFRESH-013 — Merged provider PM closeouts (2026-08-13)
+
+Mnemosyne PR #44 merged as `e57e2d6` after Rust verification and the Miri
+arena, Stacked Borrows, and Tree Borrows jobs passed at `e7fccf7`. Consus PR
+#21 merged as `5163eb1` after its repository-owned package, MSRV,
+Linux/macOS/Windows, MinIO, feature-matrix, and CodeRabbit checks passed. The
+recurring `recurseml/analysis` status remains an external analyzer failure and
+is not a provider correctness result. The root integration increment advances
+only the two gitlinks and keeps the peer-owned provider checkout changes out
+of the root commit.
+
 ## ATLAS-TYCHE-REFRESH-011 — Reconcile merged Tyche PM closeout (2026-08-13)
 
 Tyche PR #17 merged as `5efaee7aa1ea79f36d8914b36cb989e1211ade9b` after the

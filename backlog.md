@@ -1,5 +1,20 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-MNEMOSYNE-CONSUS-REFRESH-013 — Reconcile merged provider PM closeouts [patch]
+
+- Owner: Atlas integration.
+- Outcome: advance the Mnemosyne and Consus gitlinks to their merged default
+  heads and synchronize the root evidence for the stale provider PM items.
+- Acceptance: Mnemosyne `e57e2d6` and Consus `5163eb1` are recorded exactly;
+  provider-owned Rust, Miri, package, platform, and documentation evidence is
+  cited; exact-head, structural integration, and lane audits pass without
+  staging peer-owned provider checkout changes.
+- Status: complete in this root increment. Mnemosyne PR #44 merged after Rust
+  verification plus Miri arena, Stacked Borrows, and Tree Borrows passed;
+  Consus PR #21 merged with all repository-owned package, MSRV, platform,
+  MinIO, and feature-matrix checks passing. The recurring `recurseml/analysis`
+  result remains an external analyzer integration failure.
+
 ## ATLAS-AEQUITAS-ROOT-OPS-012 — Land aequitas rational-power sqrt/cbrt increment [feat]
 
 - Owner: Atlas integration.
