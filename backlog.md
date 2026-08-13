@@ -41,6 +41,18 @@
   `mdbook-linkcheck2-version: 0.12.2`; each changed caller has a hosted
   validation run at the exact new root commit. Helios's separate CI action pin
   is tracked independently because it is not a reusable workflow caller.
+- Delivery: workflow-only PRs are open from exact fetched defaults — horae #10
+  (`c5008238`), hyperion #8 (`fdaee5b5`), themis #18 (`8f7c0046`), tyche #21
+  (`65fa543f`), proteus #8 (`b60d4db3`), mnemosyne #48 (`a5e9d385`), consus
+  #27 (`5eb61d57`), helios #53 (`1f9a1db4`), aequitas #24 (`f03c32c8`),
+  asclepius #15 (`784c7f35`), eunomia #62 (`1501556a`), moirai #127
+  (`8e0fa8c9`), ritk #130 (`1e33927f`), melinoe #15 (`555b63ec`), leto #111
+  (`78f5d210`), hephaestus #207 (`21e1b907`), coeus #327 (`8cb34392`), apollo
+  #90 (`08fb2a81`), hermes #39 (`65ca2866`), iris #13 (`83bb2234`), CFDrs #338
+  (`122aacb9`), and kwavers #363 (`0da9f09d`).
+- Hosted checks are queued. The external `recurseml/analysis` status reports
+  error on these workflow-only PRs; required repository CI remains the merge
+  gate and is not being represented as green before completion.
 
 ## ATLAS-USCT-FWI-024 — Transmission-USCT FWI parity [minor] — open 2026-08-13
 

@@ -25,8 +25,15 @@
 - [x] Confirm all twenty book callers and the requested release/Python callers
       still pin `d875348197be12ad593f993a6f1b8a62d3b8b195`, while the current
       root workflow is `4c31dd7`.
-- [ ] Update each provider caller on its owning branch; pass
-      `mdbook-linkcheck2-version: 0.12.2` in CFDrs.
+- [x] Open workflow-only provider/integrator PRs from exact fetched defaults:
+      horae #10, hyperion #8, themis #18, tyche #21, proteus #8, mnemosyne
+      #48, consus #27, helios #53, aequitas #24, asclepius #15, eunomia #62,
+      moirai #127, ritk #130, melinoe #15, leto #111, hephaestus #207, coeus
+      #327, apollo #90, hermes #39, iris #13, CFDrs #338, and kwavers #363.
+- [x] Verify every PR changes workflow files only; CFDrs passes
+      `mdbook-linkcheck2-version: 0.12.2`.
+- [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
+      Atlas gitlinks to their exact merged provider defaults.
 - [ ] Run exact-head hosted validation for every changed caller and re-audit
       the fetched defaults for stale pins.
 

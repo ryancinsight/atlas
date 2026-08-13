@@ -33,6 +33,16 @@ needs `mdbook-linkcheck2-version: 0.12.2` because its book declares a
 non-optional renderer. These are provider-owned caller changes; repository
 presence and current gitlinks do not prove this workflow integration.
 
+Workflow-only PRs are open from the fetched defaults: horae #10, hyperion #8,
+themis #18, tyche #21, proteus #8, mnemosyne #48, consus #27, helios #53,
+aequitas #24, asclepius #15, eunomia #62, moirai #127, ritk #130, melinoe #15,
+leto #111, hephaestus #207, coeus #327, apollo #90, hermes #39, iris #13,
+CFDrs #338, and kwavers #363. A file audit found only `.github/workflows/**`
+changes in all 22 PRs. Their required checks are queued; the external
+`recurseml/analysis` status is error across the workflow-only PRs and remains a
+separate hosting status rather than code evidence. Merge and exact gitlink
+advances remain open until required checks complete.
+
 ## ATLAS-USCT-FWI-024 — kwavers audit vs FullWaveformInversionUSCT (open 2026-08-13)
 
 Reference: `rehmanali1994/FullWaveformInversionUSCT` at `master` — a compact
