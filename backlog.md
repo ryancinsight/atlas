@@ -174,7 +174,11 @@ ownership, rescue any unique commits or dirty state into `repos/ritk`, then
 entries, no entry is under `repos/`, and no unique commit is lost (verified by
 `git log --oneline` on the reclaimed branch before removal).
 
-## ATLAS-CONFORMANCE-WORKTREE-080 — The ratchet scans the working tree, not a revision [patch] — open 2026-08-13
+## ATLAS-CONFORMANCE-WORKTREE-080 — The ratchet scans the working tree, not a revision [patch] — in-progress 2026-08-13
+
+- Owner: current session; scope: `scripts/atlas-conformance.py`, its
+  conformance evidence, and this item only. Provider source and peer checkout
+  changes are non-goals.
 
 `scripts/atlas-conformance.py` walks the filesystem, so its counts include
 **uncommitted work in progress** — a peer's or an agent's. That makes the
