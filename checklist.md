@@ -59,9 +59,9 @@
       in Consus #27, Helios #53, RITK #130, or CFDrs #338.
 - [x] Record the current hosted state: Consus #27 has queued/in-progress jobs
       without a failure conclusion, Helios #53 has its benchmark job in
-      progress, RITK #130 merged at `d4383637`, and RITK #131 has
-      active/queued jobs plus an external analysis error, and stacked #132 has
-      no required workflow result plus that external error. CFDrs #338 is
+      progress, RITK #131 merged at `9ae68b45`, and stacked #132 is open against
+      `main` with no required workflow result plus the external analysis error.
+      CFDrs #338 is
       closed as superseded by merged #339/#340 on its default; Kwavers #363
       remains open.
 - [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
@@ -103,14 +103,17 @@
 ## ATLAS-US-CAPABILITY-023 — RITK phased-array review residuals
 
 - [x] Review ritk PR #131 at `9c29e9ff` against ADR 0042 and the full Image
-      transform surface.
+      transform surface; PR #131 merged at `9ae68b45` without resolving the
+      recorded source findings.
 - [x] Record P1 findings: Cartesian-only legacy transform APIs, missing
       origin/direction composition, and `f64` widen-compute-narrow arithmetic.
 - [ ] Fix the findings on the ritk phased-array branch, add non-identity
       metadata and cross-API differential tests, and pass the hosted image,
       filter, clippy, rustdoc, and formatting gates.
-- [ ] Advance the ritk gitlink only to the exact merged PR #131 head, then
-      rerun the Atlas exact-head and dependency-overlay audits.
+- [x] Advance the ritk gitlink to the exact merged PR #131 head
+      `9ae68b45` and rerun the Atlas exact-head and dependency-overlay audits.
+- [ ] Fix the remaining phased-array transform, metadata, and native-precision
+      findings on a subsequent provider increment.
 
 ## ATLAS-US-023-A5 — Move coordinate geometry to ritk-spatial — in review
 
@@ -120,8 +123,8 @@
 - [x] Confirm the lane is clean and the move introduces no new P0/P1 finding;
       the local locked nextest gate is blocked by the lane's stack overlay
       resolving patches to `D:\atlas\repos\ritk` instead of the lane tree.
-- [ ] Merge after PR #131's phased-array contract findings are fixed, collect
-      hosted gates, then advance the Atlas gitlink to the exact merged head.
+- [ ] Fix the phased-array contract findings, then merge #132 after its hosted
+      gates pass and advance the Atlas gitlink to the exact merged head.
 
 ## ATLAS-HEPHAESTUS-REDUCTION-022 — Retire superseded product-axis parity PR — complete 2026-08-13
 

@@ -116,11 +116,11 @@ and Python regression checks pass after the fix.
 
 The latest hosted poll keeps Consus #27 and Helios #53 open: Consus
 has repository-owned checks queued or in progress with no failure conclusion,
-Helios has its benchmark regression check in progress. RITK #130 merged at
-`d4383637` after its required hosted checks passed. RITK #131 remains open with its Python,
-clippy, alignment, and wheel jobs active or queued plus the external
-`recurseml/analysis` error; stacked RITK #132 has no required workflow result
-and the same external status error. These are not merge evidence.
+and Helios has its benchmark regression check in progress. RITK #131 merged at
+`9ae68b45` after its repository workflows completed, but its source findings
+remain open. Stacked RITK #132 is open against `main` with no required workflow
+result and the external `recurseml/analysis` error. These are not completion
+evidence for the phased-array contract.
 
 CFDrs #338 is closed as a superseded PR; its fetched default is current and
 passes the book output-path contract through merged #339/#340. Kwavers #363
@@ -437,7 +437,8 @@ and the natural inverse of physics kwavers already models forward.
 index→physical map is non-Cartesian, so every existing resampler, filter and
 registration method works on them unchanged. RITK now carries the merged
 curvilinear seam (`ritk` PR #128, merge `c608f758`); the phased-array extension
-is in PR #131 at `9c29e9ff` and remains blocked in review. The review found that
+merged in PR #131 at `9ae68b45` from head `9c29e9ff`, but remains an open source
+residual. The review found that
 legacy scalar/batch transform surfaces still bypass the map, non-Cartesian
 branches ignore image origin/direction metadata, and generic scalar arithmetic
 widens to `f64` before narrowing. Slice-series remains absent, and kwavers' leaf

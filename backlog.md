@@ -49,6 +49,10 @@
 - Post-sweep reconciliation: RITK PR #130 merged at `d4383637`; its two-file
   delta is limited to the book and Rust-release workflow callers, and Atlas now
   tracks the exact fetched `origin/main` head.
+- Post-sweep reconciliation: RITK PR #131 merged at `9ae68b45`; Atlas now
+  tracks that exact fetched default head. Its phased-array source still carries
+  the recorded transform-surface, metadata, and native-precision residuals;
+  merge status is not treated as capability closure. PR #132 remains open.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
 
@@ -87,10 +91,10 @@
   open pending their own required checks.
 - Latest hosted poll: Consus #27 has repository-owned checks queued or in
   progress with no failure conclusion; Helios #53 has its benchmark regression
-  check in progress; RITK #130 merged at `d4383637`. RITK #131 remains open with
-  active or queued provider jobs plus the external
-  `recurseml/analysis` error; stacked #132 has no required workflow result and
-  the same external status error. CFDrs `origin/main` now passes the book
+  check in progress; RITK #131 merged at `9ae68b45` after its repository
+  workflows completed, but its source residuals remain open. Stacked #132 is
+  open against `main` with no required workflow result and the external
+  `recurseml/analysis` error. CFDrs `origin/main` now passes the book
   output-path contract through merged PRs #339/#340; the original #338 is
   closed as superseded. Kwavers #363 remains open while its default still
   carries the stale workflow SHA.
@@ -112,8 +116,9 @@
   then reaches 116 tests, with only the three pytest-based modules blocked by
   the host's missing `pytest` package.
 - Hosted checks remain the merge gate. The external `recurseml/analysis` status
-  reports error on RITK #131 and #132; required repository CI is not represented
-  as green before completion.
+  reports error on RITK #132; its required repository CI is not represented as
+  green before completion. RITK #131's required repository workflows passed
+  before merge, but that does not close its source-level findings.
 - Correction: the first PR commits used the short `@4c31dd7` reference, which
   caused hosted reusable-workflow runs to fail before job creation. Forward
   commits now replace it with the full root SHA
@@ -187,7 +192,7 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
 |----|---------|-------|--------|-------|-------------------|
 | US-023-A | ADR: non-Cartesian acquisition images as a coordinate seam in ritk (curvilinear, 3-D phased array, slice series) — index→physical map carried by the image type so existing resamplers/filters apply unchanged; decide ritk-vs-kwavers ownership for G2 and G4. | [arch] | done 2026-08-13 — ADR 0042 Accepted | Claude | Met. Enum-dispatched `CoordinateMap` selected over a fourth type parameter; G2 and G4 both owned by ritk |
 | US-023-A1 | Implement the ADR 0042 seam in `ritk-image`: `CoordinateMap` with `Cartesian` + `CurvilinearArray`, carried on `Image`, dispatched by both batch and both single-point transforms. | [major] | done 2026-08-13 — ritk PR #128 merged as `c608f758` | Claude | Met. Cartesian path bit-identical (pinned by test); curvilinear round-trip, fan symmetry/curvature, out-of-fan NaN, dimensionality rejection all covered. 1173 tests, clippy `-D warnings`, rustdoc, fmt clean. |
-| US-023-A2 | `PhasedArray3D` variant on the ADR 0042 seam. | [minor] | **blocked** 2026-08-13 — ritk PR #131, commit `9c29e9ff`; P1 review findings | Claude | Geometry-level and native identity-case tests pass, but merge requires all public transform surfaces to dispatch the map, origin/direction composition or explicit rejection, and native-precision arithmetic. Hosted checks are still queued. |
+| US-023-A2 | `PhasedArray3D` variant on the ADR 0042 seam. | [minor] | **open** 2026-08-13 — PR #131 merged at `9ae68b45`; P1 source findings remain | Claude | Geometry-level and native identity-case tests pass, but completion requires all public transform surfaces to dispatch the map, origin/direction composition or explicit rejection, and native-precision arithmetic. Merge did not establish this acceptance. |
 | US-023-A4 | `SliceSeries` variant on the ADR 0042 seam. **Split out of A2**: unlike the closed-form curvilinear and phased-array maps, ITK's `SliceSeriesSpecialCoordinatesImage` composes a 2-D slice image's own transform with a per-slice 3-D `Transform` object, interpolating between the `floor`/`ceil` slice transforms and handling out-of-range slices. That needs a per-slice transform list and a decision about how it interacts with ritk's `Transform` stack — ADR 0042's recorded open question — which is a different design conversation from a closed-form geometry. | [arch] | todo | — | ADR 0042 open question resolved (inline vs referenced transform list, sized from a realistic wobbler sweep); round-trip against a synthesized sweep; behaviour at and beyond the slice range specified rather than inherited |
 | US-023-A5 | Move `CoordinateMap`/`CurvilinearArray`/`PhasedArray3D` from `ritk-image` to `ritk-spatial` (pure `f64` geometry, no tensor coupling); `ritk-image` re-exports and keeps using them. Puts the geometry at the deepest common ancestor of its consumers and makes it reachable from `kwavers-analysis` without dragging coeus autograd/nn/wgpu into a DSP crate. | [minor] | in review 2026-08-13 — ritk PR #132, `e8e7ed6f` | Claude | Static review found no new P0/P1 in the move; merge remains dependent on A2 and hosted gates. `ritk-spatial` gains no new dependency; the lane is clean. |
 | US-023-A3 | kwavers `ScanConverter` delegates its polar math to the `ritk-spatial` geometry SSOT, keeping Leto storage and Aequitas typed geometry; the duplicated formulas in `b_mode/scan_conversion.rs` are deleted. | [minor] | blocked: depends on US-023-A5 | — | Differential against current `ScanConverter` output is bit-identical or within a derived bound; no duplicated polar formula remains |
@@ -203,9 +208,9 @@ with zero origin and identity direction. `Image::transform_*` and
 `physical_points_to_continuous_indices` remain Cartesian-only, while the new
 native and scalar phased branches ignore `Image` origin/direction metadata.
 The geometry also converts generic scalar indices to `f64`, performs the
-trigonometry there, and narrows back to `T`. These are merge-blocking findings;
-the Atlas ritk gitlink remains at the last merged default until PR #131 is
-fixed and its hosted gate completes.
+trigonometry there, and narrows back to `T`. PR #131 merged at `9ae68b45`, but
+these source-level findings remain open against that default; the Atlas gitlink
+tracks the merged head without treating merge as capability closure.
 
 US-023-A3 audit note: the current kwavers `ScanConverter` accepts an arbitrary
 `angle_min`, while the RITK curvilinear map centers the fan from the image beam
