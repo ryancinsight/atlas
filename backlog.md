@@ -5607,7 +5607,32 @@ attaches once the tensor fit lands.
   generalizes beyond this artifact.
 - **Class**: `[arch]`, no public-surface break — `[patch]` on the SemVer axis.
 
-## ATLAS-DMRI-DELIVERY-015 — CLI, Python, and book surface [minor] — todo
+## ATLAS-DMRI-DELIVERY-015 — CLI, Python, and book surface [minor] — in-progress
+
+**Book surface delivered 2026-08-13** (ritk PR #137, branch
+`feat/dmri-downloadable-data`). The naming collision below is resolved: Part III
+is titled "Diffusion MRI and Tractography" and holds `diffusion_scheme.md`,
+`ritk_diffusion.md`, `diffusion_mri.md`, and `tractography.md`, while
+`diffusion_filters.md` stays in the image-processing part, so the two subjects
+no longer read as variants of one chapter.
+
+The example chapter `examples/brain_tractography.md` now renders from real
+scanner data a reader can fetch (OpenNeuro ds002087), directionally encoded with
+the channel mapping derived from the volume's own direction cosines rather than
+assumed. Verified: clippy `--all-targets -D warnings` clean, 106/106 unit and
+phantom tests, 11/11 real-data tests, figure reproduces byte-for-byte from the
+committed source, `mdbook build` clean and the figure reaches the built output.
+
+**CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
+groups and `ritk-python` exposes no diffusion surface. They are independent
+vertical increments and should be claimed separately.
+
+**Found while delivering, not yet fixed**: `SUMMARY.md` lists `diffusion_mri.md`
+as "Diffusion MRI Physics and the Signal Equation" while the chapter's own H1 is
+"Diffusion MRI Acquisition and Q-ball ODFs" — the sidebar and the page disagree,
+and the H1 is the accurate one (the chapter has no signal-equation section and
+does have a Q-ball one). One-line fix in SUMMARY.md; kept out of PR #137 so that
+PR stays what its description says.
 
 - **CLI**: `ritk` currently exposes `convert`, `filter`, `register`, `segment`,
   and `stats` (`ritk-cli/src/commands/`). The program adds `dwi` and `tract`
