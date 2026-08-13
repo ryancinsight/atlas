@@ -40,6 +40,16 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | ATLAS-MNEMOSYNE-ALIAS-033 | mnemosyne `4c22fba` | **Premise disproved.** The reported sequence passes miri under both Stacked and Tree Borrows on the unfixed code. A control — the same aliasing with the exclusive reference *used* afterwards — is flagged immediately, so the method had detection power and the invalidation is real; the UB is not. `with_scratch` never touches `vec` after the closure, and the slice points into the heap buffer, a different allocation from the struct inside the `UnsafeCell`. Soundness held by accident of dead-code timing, so it was fixed anyway and `capacity()` is now safe code. **Reclassify: fragility, not UB.** The two secondary fixes were confirmed, and the leak-on-unwind had a *third* site (`Heap::free`) the item did not name. |
 | ATLAS-CACHE-FORK-055 (partial) | — | **33.8 GB reclaimed** by deleting 22 stale `repos/*/target` forks. 25.1 GB remains in ritk, kwavers and mnemosyne, deferred because each showed activity within hours. The forks regrow unless whatever creates them is found, so the item stays open until the cause is identified. |
 
+Completed provider slices from this sweep are recorded here so the residual
+rows below retain their original audit scope:
+
+| ID | Commit | Closed scope |
+| --- | --- | --- |
+| ATLAS-COEUS-LAYERNORM-SHAPE-031 | coeus `a2638c03` | Multi-dimensional trailing-shape LayerNorm across Rust core, autograd, GPU provider contracts, and thin Python bindings; provider workflows and book passed. |
+| ATLAS-IRIS-COLORSPACE-072 | iris `eec98186` | Explicit sRGB encoded/linear-light RGB and opacity-alpha contract with byte round-trip coverage. |
+| ATLAS-PROTEUS-DOMAIN-073 | proteus `6b9bd0b` | Temperature validity-domain newtype, finite-positive validation, typed errors, and boundary tests. |
+| ATLAS-ASCLEPIUS-PARAM-074 (typed-parameter slice) | asclepius `5d528d2` | Distinct `Gamma50` and `LymanSlope` types with compile-fail coverage; CEM43 validity remains open. |
+
 **A finding worth keeping from the themis work:** stable `rustdoc` **silently ignores the `E0xxx` annotation** on a `compile_fail` doctest — verified by feeding it a deliberately wrong code and watching it pass. Nightly enforces it. Any `compile_fail` proof gated only on stable therefore degrades to "fails for some reason", which is not the claim it appears to make. themis now runs a nightly `--doc` job for exactly this; the rest of the stack does not, and should.
 
 ## Tier 0 — unsoundness and wrong numbers shipping
@@ -203,11 +213,10 @@ edit present yields identical counts.
   audited estimate near 34, so a second refinement pass is warranted before that
   number drives any burn-down.
 
-## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract [minor] — in-progress 2026-08-13
+## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract [minor] — done 2026-08-13
 
 - Owner: current session; scope: Coeus LayerNorm core/autograd/PyO3 modules,
-  their focused tests and provider PM records; Atlas root gitlink advances only
-  after the provider change is merged.
+  their focused tests and provider PM records; delivered in Coeus `a2638c03`.
 - Finding: `coeus-nn::LayerNorm` and its autograd node model only one final
   feature dimension, while `coeus-python::PyLayerNorm` rejects sequence-shaped
   `normalized_shape`; the Coeus book/checklist claim PyTorch-style last-D
@@ -221,8 +230,8 @@ edit present yields identical counts.
   provider docs and remove the deferred placeholder.
 - Non-goals: RMSNorm multi-dimensional parity, GPU-specific kernels, unrelated
   Coeus performance work, and changes to the peer-owned checkout branch.
-- Verification: focused Coeus nextest, Python binding parity when the provider
-  environment is available, doctests, fmt, Clippy, and hosted CI at the merged
+- Verification: focused Coeus nextest, Python binding parity, doctests, fmt,
+  Clippy, and hosted WGPU/CUDA/ROCm/Metal/book checks pass at the merged
   provider head.
 
 ## ATLAS-KWAVERS-REAL-COMPUTE-028 — Remove Kwavers production identity paths [major] [arch] — open
