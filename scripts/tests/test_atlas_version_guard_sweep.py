@@ -21,6 +21,17 @@ _SPEC.loader.exec_module(_sweep)
 
 
 class VersionGuardSweepTestCase(unittest.TestCase):
+    def test_clean_rust_env_removes_compiler_overrides(self) -> None:
+        with patch.dict(
+            os.environ,
+            {"RUSTC": "foreign-rustc", "RUSTDOC": "foreign-rustdoc"},
+            clear=False,
+        ):
+            env = _sweep.clean_rust_env()
+
+        self.assertNotIn("RUSTC", env)
+        self.assertNotIn("RUSTDOC", env)
+
     def test_main_runs_preflight_then_coherence(self) -> None:
         calls: list[tuple[list[str], dict[str, str] | None]] = []
 

@@ -153,8 +153,7 @@ def _exact_head_issues() -> list[str]:
 def _clean_rust_env() -> dict[str, str]:
     env = os.environ.copy()
     for var in ("RUSTC", "RUSTDOC"):
-        if not env.get(var):
-            env.pop(var, None)
+        env.pop(var, None)
     return env
 
 

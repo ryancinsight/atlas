@@ -36,6 +36,9 @@
       commits using full Atlas SHA
       `4c31dd753f06dd93b4c04798cf781df253e3e532`; the short-SHA workflow-file
       failures are superseded and not merge evidence.
+- [x] Harden the root audit wrappers so non-empty `RUSTC`/`RUSTDOC` overrides
+      cannot leak into compiler or coherence checks; both sanitizer paths have
+      regression coverage.
 - [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
       Atlas gitlinks to their exact merged provider defaults.
 - [ ] Run exact-head hosted validation for every changed caller and re-audit

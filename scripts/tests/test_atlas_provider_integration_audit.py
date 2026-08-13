@@ -36,6 +36,17 @@ def _seed_record(path: Path) -> None:
 
 
 class ProviderIntegrationAuditTestCase(unittest.TestCase):
+    def test_clean_rust_env_removes_compiler_overrides(self) -> None:
+        with patch.dict(
+            audit.os.environ,
+            {"RUSTC": "foreign-rustc", "RUSTDOC": "foreign-rustdoc"},
+            clear=False,
+        ):
+            env = audit._clean_rust_env()
+
+        self.assertNotIn("RUSTC", env)
+        self.assertNotIn("RUSTDOC", env)
+
     def test_requested_provider_inventory_is_complete(self) -> None:
         self.assertEqual(len(audit.REQUIRED_PROVIDERS), 20)
         self.assertIn("hermes", audit.REQUIRED_PROVIDERS)

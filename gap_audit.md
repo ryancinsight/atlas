@@ -55,6 +55,12 @@ workflow-only commits corrected every caller to the full Atlas SHA
 running with no current failure conclusion. The initial failures are retained
 as diagnostic evidence and are not treated as provider-code failures.
 
+The root audit wrappers had a separate environment-sanitization defect: they
+removed only empty `RUSTC`/`RUSTDOC` values and preserved non-empty compiler
+overrides. Both wrappers now remove either form, with regression coverage in
+the provider-integration and version-guard test modules. Exact-head, overlay,
+and Python regression checks pass after the fix.
+
 ## ATLAS-USCT-FWI-024 — kwavers audit vs FullWaveformInversionUSCT (open 2026-08-13)
 
 Reference: `rehmanali1994/FullWaveformInversionUSCT` at `master` — a compact

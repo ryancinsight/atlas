@@ -61,6 +61,10 @@
   commits now replace it with the full root SHA
   `4c31dd753f06dd93b4c04798cf781df253e3e532`; all 22 PR heads have fresh
   queued/running checks and no current failure conclusion.
+- Audit-tool hardening: the provider and version-guard environment sanitizers
+  now remove non-empty `RUSTC`/`RUSTDOC` overrides as well as empty values; new
+  regressions cover both paths. The exact-head, overlay, and 12-test Python
+  regression gates pass after this fix.
 
 ## ATLAS-USCT-FWI-024 — Transmission-USCT FWI parity [minor] — open 2026-08-13
 
