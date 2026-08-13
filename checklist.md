@@ -11,14 +11,18 @@
 - [x] Advance only these three root gitlinks, then rerun exact-head,
       structural, and lane audits without staging peer-owned checkout dirt.
 
-## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam — in progress
+## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam — complete
 
-- [ ] Open a clean Hephaestus lane from fetched `origin/master`; preserve the
-      peer-owned detached checkout and its dirty `Cargo.lock`.
-- [ ] Add provider-owned `TypedBinaryExpr<CudaC, f64>` coverage for all six
-      comparisons and focused value-semantic tests.
-- [ ] Run the provider local gates, merge the provider PR, and record the
-      exact hosted matrix before touching the Coeus consumer declaration.
+- [x] Hephaestus provider PR #204 merged at `b34b507`; the typed CUDA contract
+      owns all six f64 comparison expressions.
+- [x] Coeus PR #324 merged at `aabdec6`; `ElementwiseProvider<f64>` consumes the
+      provider seam and the transposed rank-two differential test passes.
+- [x] Local Coeus fmt, strict check/clippy, focused and full CUDA Nextest,
+      doctest, rustdoc, no-default, and locked workspace gates pass.
+- [x] Hosted run `31670564660` passes CUDA, WGPU, ROCm, and Metal software
+      providers. Required-device jobs are explicitly skipped; physical-device
+      execution remains unverified. The recurring external analyzer failure is
+      not a provider or consumer gate.
 
 ## ATLAS-COEUS-CLOSURE-014 — Provider deduplication and batched NLLS — complete 2026-08-13
 

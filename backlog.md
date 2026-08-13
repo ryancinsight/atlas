@@ -12,20 +12,22 @@
 - Root gitlinks advance only to these merged default commits. The exact-head
   audit, structural regression suite, and lane audit are rerun after commit.
 
-## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam [minor] — in-progress
+## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam [minor] — complete 2026-08-13
 
-- Owner: current session; provider scope: `repos/hephaestus` core typed CUDA
-  comparison contract and CUDA conformance tests. Consumer scope is deferred
-  until the provider contract is merged: `repos/coeus` must then restore its
-  `ElementwiseProvider<f64>` declaration through the existing Hephaestus seam.
-- Acceptance: implement all six `Eq`/`Ne`/`Lt`/`Gt`/`Le`/`Ge` typed CUDA
-  expressions for `f64` in the provider-owned generic operation contract;
-  compile and value-test the provider and document the exact hosted matrix.
-  No host fallback, NVRTC compatibility path, or consumer-local expression is
-  permitted.
-- Verification: provider warning-denied check, Nextest, doctests, rustdoc, and
-  exact WGPU/CUDA/ROCm/Metal hosted gates; physical-device execution is
-  reported separately from adapterless compilation.
+- Owner: Atlas integration. Hephaestus provider PR #204 merged at
+  `b34b50787df636891d281b5011c6a17dd46edcb0`; Coeus consumer PR #324 merged at
+  `aabdec67a0f5baa415c4abb6dded69db41b2f2d6`.
+- Outcome: the provider-owned typed CUDA operation contract implements all six
+  `Eq`/`Ne`/`Lt`/`Gt`/`Le`/`Ge` expressions for `f64`; Coeus restores
+  `ElementwiseProvider<f64>` through that seam and differentially tests a
+  transposed rank-two tensor. No host fallback, NVRTC compatibility path, or
+  consumer-local expression remains.
+- Verification: Coeus local CUDA package Nextest 125/125, focused f64 test,
+  doctests 2/2, warning-denied rustdoc, no-default gates, and locked workspace
+  check passed. Hosted run `31670564660` passed CUDA, WGPU, ROCm, and Metal
+  software-provider contracts; required-device jobs were skipped because no
+  physical device was available. The recurring `recurseml/analysis` result is
+  an external analyzer failure.
 
 ## ATLAS-EUNOMIA-FLOAT-CBRT-014 — Land sign-preserving FloatElement::cbrt SSOT [feat]
 
