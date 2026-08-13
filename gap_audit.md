@@ -43,6 +43,13 @@ changes in all 22 PRs. Their required checks are queued; the external
 separate hosting status rather than code evidence. Merge and exact gitlink
 advances remain open until required checks complete.
 
+The initial PR commits used the short `@4c31dd7` reference and all 22 reusable
+workflow runs failed before job creation with a workflow-file error. Forward
+workflow-only commits corrected every caller to the full Atlas SHA
+`4c31dd753f06dd93b4c04798cf781df253e3e532`; fresh checks are now queued or
+running with no current failure conclusion. The initial failures are retained
+as diagnostic evidence and are not treated as provider-code failures.
+
 ## ATLAS-USCT-FWI-024 — kwavers audit vs FullWaveformInversionUSCT (open 2026-08-13)
 
 Reference: `rehmanali1994/FullWaveformInversionUSCT` at `master` — a compact

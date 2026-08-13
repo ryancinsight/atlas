@@ -53,6 +53,11 @@
 - Hosted checks are queued. The external `recurseml/analysis` status reports
   error on these workflow-only PRs; required repository CI remains the merge
   gate and is not being represented as green before completion.
+- Correction: the first PR commits used the short `@4c31dd7` reference, which
+  caused hosted reusable-workflow runs to fail before job creation. Forward
+  commits now replace it with the full root SHA
+  `4c31dd753f06dd93b4c04798cf781df253e3e532`; all 22 PR heads have fresh
+  queued/running checks and no current failure conclusion.
 
 ## ATLAS-USCT-FWI-024 — Transmission-USCT FWI parity [minor] — open 2026-08-13
 

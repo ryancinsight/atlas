@@ -7,6 +7,11 @@
   coherence, stack-overlay, and lane audits pass; peer-owned child checkout
   dirt remains excluded from the root change.
 
+- Pin the shared Pages linkcheck2 installer to the stable Rust toolchain before
+  `cargo install`; hosted caller validation exposed that the reusable workflow
+  must not rely on the runner's ambient Cargo selection. Caller repinning and
+  hosted reruns remain open.
+
 - Close the publication-lock residual at the Atlas boundary. Exact committed
   kwavers and CFDrs gitlinks have complete first-party Git lock sources (33/33
   and 22/22); peer-owned overlay lock churn remains uncommitted and excluded.

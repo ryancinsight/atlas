@@ -32,6 +32,10 @@
       #327, apollo #90, hermes #39, iris #13, CFDrs #338, and kwavers #363.
 - [x] Verify every PR changes workflow files only; CFDrs passes
       `mdbook-linkcheck2-version: 0.12.2`.
+- [x] Correct the initial short-SHA caller commits with forward workflow-only
+      commits using full Atlas SHA
+      `4c31dd753f06dd93b4c04798cf781df253e3e532`; the short-SHA workflow-file
+      failures are superseded and not merge evidence.
 - [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
       Atlas gitlinks to their exact merged provider defaults.
 - [ ] Run exact-head hosted validation for every changed caller and re-audit
