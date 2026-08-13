@@ -15,9 +15,9 @@
   defaults: horae `72505426`, hyperion `5758df93`, themis `93e83899`, tyche
   `5febead4`, proteus `5969f1e3`, mnemosyne `5824d2af`, consus `8cf015a9`,
   helios `54000a65`, aequitas `3afc165c`, asclepius `8d7d7ec2`, eunomia
-  `afab630b`, moirai `6e9d1f22`, ritk `c608f758`, melinoe `2d9696e9`, leto
-  `7f2cfbae`, hephaestus `93e1fdf5`, coeus `d5f044dd`, apollo `3ea6292d`,
-  hermes `b1a8b25c`, and iris `2fbf881b`.
+  `afab630b`, moirai `6e9d1f22`, ritk `c608f758`, melinoe `d0f6cb6e`, leto
+  `7f2cfbae`, hephaestus `93e1fdf5`, coeus `d5f044dd`, apollo `4043a547`,
+  hermes `b1a8b25c`, and iris `13989ad5`.
 - Evidence: `atlas-provider-integration-audit.py --exact-heads`, nine provider
   integration regressions, stack-overlay check plus four regressions, and the
   lane audit pass. Provider-hosted pin-advance and Pages runs remain queued or
@@ -58,9 +58,10 @@
   (`77a4f9cc`), and kwavers #363 (`9f1b6acf`).
 - Merged after hosted checks passed: Themis #18, Proteus #8, Hyperion #8,
   Tyche #21, Mnemosyne #48, Aequitas #24, Asclepius #15, Eunomia #62, Leto
-  #111, Horae #10, Moirai #127, and Hephaestus #207. Atlas reconciled their
-  default heads in the current gitlink integration commits; the remaining
-  caller PRs stay open pending their own required checks.
+  #111, Horae #10, Moirai #127, Hephaestus #207, Melinoe #15, Apollo #90, and
+  Iris #13. Atlas reconciled their default heads in the current gitlink
+  integration commits; the remaining caller PRs stay open pending their own
+  required checks.
 - Integration correction: root commit `06339c8` briefly staged the peer
   checkout HEADs for Hyperion and Tyche instead of their fetched defaults;
   forward fix `878b7c1` restored `5758df93` and `5febead4`, and the exact-head
