@@ -72,16 +72,18 @@
 
 ## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam — complete
 
-- [x] Hephaestus provider PR #204 merged at `b34b507`; the typed CUDA contract
-      owns all six f64 comparison expressions.
-- [x] Coeus PR #324 merged at `aabdec6`; `ElementwiseProvider<f64>` consumes the
-      provider seam and the transposed rank-two differential test passes.
+- [x] Hephaestus provider PR #204 merged at `b34b507`; PM-only closeout PR #205
+      merged the synchronized provider default at `c373de1`.
+- [x] Coeus PR #324 merged at `aabdec6`; PM-only closeout PR #325 merged the
+      synchronized consumer default at `a4063be1`.
 - [x] Local Coeus fmt, strict check/clippy, focused and full CUDA Nextest,
       doctest, rustdoc, no-default, and locked workspace gates pass.
-- [x] Hosted run `31670564660` passes CUDA, WGPU, ROCm, and Metal software
-      providers. Required-device jobs are explicitly skipped; physical-device
-      execution remains unverified. The recurring external analyzer failure is
-      not a provider or consumer gate.
+- [x] Exact Coeus default run `31672329963` passes CUDA, WGPU, ROCm, and Metal
+      software providers. Exact Hephaestus closeout-default runs pass WGPU
+      `31691399110`, CUDA `31691399171`, Metal `31691399196`, and ROCm
+      `31691399214`. Required-device jobs are explicitly skipped;
+      physical-device execution remains unverified. The recurring external
+      analyzer failure is not a provider or consumer gate.
 
 ## ATLAS-HELIOS-CHECKLIST-016 — Reconcile binary-MLC roadmap and benchmark gate — complete
 
@@ -164,8 +166,9 @@
 - [x] Confirm exact provider run `31690152639` and post-merge default run
       `31690301356` pass formatting, minimal-feature compilation, strict
       Clippy, configured Nextest, doctests, and documentation.
-- [x] Record Coeus direct CPU dispatch and host-loop deletion at default
-      `aabdec67`, hosted run `31672329963`.
+- [x] Record Coeus direct CPU dispatch and host-loop deletion at implementation
+      head `aabdec67`; PM-only consumer closeout advances its default to
+      `a4063be1`, with hosted run `31672329963`.
 - [x] Advance the root Leto gitlink without staging the peer-owned checkout;
       retain the 33 pre-existing Rustdoc link warnings as explicit residuals.
 

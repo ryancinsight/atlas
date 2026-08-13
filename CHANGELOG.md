@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Advance Hephaestus to PM-closeout default `c373de19` and Coeus to
+  PM-closeout default `a4063be1` for the CUDA `f64` comparison seam. Exact
+  Hephaestus default runs `31691399110`, `31691399171`, `31691399196`, and
+  `31691399214`, plus Coeus default run `31672329963`, pass their software
+  provider contracts; required-device jobs remain unverified.
+
 - Advance Leto to provider default `a722fbc8`. Close the generic convolution
   provider PM record after exact-head provider runs `31690152639` and
   `31690301356`, with Coeus direct-consumer evidence in `31672329963`.

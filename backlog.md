@@ -64,8 +64,11 @@
 ## ATLAS-COEUS-HEPHAESTUS-F64-015 — Restore CUDA f64 comparison seam [minor] — complete 2026-08-13
 
 - Owner: Atlas integration. Hephaestus provider PR #204 merged at
-  `b34b50787df636891d281b5011c6a17dd46edcb0`; Coeus consumer PR #324 merged at
-  `aabdec67a0f5baa415c4abb6dded69db41b2f2d6`.
+  `b34b50787df636891d281b5011c6a17dd46edcb0`; PM-only closeout PR #205
+  merged as default `c373de1945bb9ce7b9fd804a80415218d975f286`. Coeus
+  consumer PR #324 merged at `aabdec67a0f5baa415c4abb6dded69db41b2f2d6`;
+  PM-only closeout PR #325 merged as default
+  `a4063be118978c8ecc4c745a8ef0b004c1beb45b`.
 - Outcome: the provider-owned typed CUDA operation contract implements all six
   `Eq`/`Ne`/`Lt`/`Gt`/`Le`/`Ge` expressions for `f64`; Coeus restores
   `ElementwiseProvider<f64>` through that seam and differentially tests a
@@ -73,10 +76,12 @@
   consumer-local expression remains.
 - Verification: Coeus local CUDA package Nextest 125/125, focused f64 test,
   doctests 2/2, warning-denied rustdoc, no-default gates, and locked workspace
-  check passed. Hosted run `31670564660` passed CUDA, WGPU, ROCm, and Metal
-  software-provider contracts; required-device jobs were skipped because no
-  physical device was available. The recurring `recurseml/analysis` result is
-  an external analyzer failure.
+  check passed. Exact Coeus default run `31672329963` passes CUDA, WGPU, ROCm,
+  and Metal software-provider contracts; required-device jobs were skipped
+  because no physical device was available. Exact Hephaestus closeout-default
+  runs `31691399110` (WGPU), `31691399171` (CUDA), `31691399196` (Metal), and
+  `31691399214` (ROCm) pass. The recurring `recurseml/analysis` result is an
+  external analyzer failure.
 
 ## ATLAS-HELIOS-CHECKLIST-016 — Reconcile binary-MLC roadmap and benchmark gate [patch] — complete 2026-08-13
 
@@ -204,7 +209,9 @@
 - Status: complete; Leto PR #108 source `7172b338463c72faa2a561a3c84bda26d827351a`
   merged as default `a722fbc81cd1d82df74ef9e5acc1d9997d340d9d`. PR #108's
   exact provider run `31690152639` and post-merge default run `31690301356`
-  pass. The root pointer is advanced without staging peer-owned Leto dirt.
+  pass. Coeus default `a4063be1` retains the direct consumer contract after
+  PM-only PR #325; the root pointer is advanced without staging peer-owned
+  checkout dirt.
 - Residual: 33 pre-existing Leto Rustdoc broken/private-link warnings; no
   convolution-specific diagnostic. Hephaestus owns accelerator execution.
 

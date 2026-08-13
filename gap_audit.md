@@ -77,17 +77,22 @@ submodule checkout dirt was staged.
 ## ATLAS-COEUS-HEPHAESTUS-F64-015 — CUDA f64 comparison seam (closed 2026-08-13)
 
 Hephaestus PR #204 merged at `b34b50787df636891d281b5011c6a17dd46edcb0` and
-now owns all six typed CUDA comparison expressions for `f64`. Coeus PR #324
-merged at `aabdec67a0f5baa415c4abb6dded69db41b2f2d6`; its
+PM-only PR #205 merged its synchronized default at
+`c373de1945bb9ce7b9fd804a80415218d975f286`. Hephaestus owns all six typed CUDA
+comparison expressions for `f64`. Coeus PR #324 merged at
+`aabdec67a0f5baa415c4abb6dded69db41b2f2d6`; PM-only PR #325 merged its
+synchronized default at `a4063be118978c8ecc4c745a8ef0b004c1beb45b`. Its
 `ElementwiseProvider<f64>` declaration and transposed rank-two differential
 test consume that provider seam directly. The old NVRTC path is not retained,
 and no host fallback or consumer-local expression was added.
 
 Local Coeus verification passed the full CUDA package (125/125 Nextest), the
 focused f64 comparison test, doctests, warning-denied rustdoc, no-default gates,
-and a locked workspace check. Hosted run `31670564660` passed CUDA, WGPU, ROCm,
-and Metal software-provider contracts; required-device jobs were skipped because
-no physical device was available. The recurring `recurseml/analysis` result is
+and a locked workspace check. Exact Coeus default run `31672329963` passed CUDA,
+WGPU, ROCm, and Metal software-provider contracts; required-device jobs were
+skipped because no physical device was available. Exact Hephaestus closeout
+default runs `31691399110` (WGPU), `31691399171` (CUDA), `31691399196` (Metal),
+and `31691399214` (ROCm) passed. The recurring `recurseml/analysis` result is
 an external analyzer failure, not a provider or consumer gate.
 
 ## ATLAS-HELIOS-CHECKLIST-016 — Binary-MLC roadmap and benchmark gate (closed 2026-08-13)
@@ -187,9 +192,10 @@ Leto PR #108 closed the stale convolution-provider PM record. Source
 `a722fbc81cd1d82df74ef9e5acc1d9997d340d9d`. Exact provider run `31690152639`
 and post-merge default run `31690301356` pass the provider's formatting,
 minimal-feature, warning-denied Clippy, Nextest, doctest, and documentation
-jobs. Coeus default `aabdec67a0f5baa415c4abb6dded69db41b2f2d6` consumes the CPU
-contract directly and deletes its former host loops; run `31672329963` passes
-at that exact consumer head. The remaining 33 Rustdoc link warnings predate
+jobs. Coeus implementation default `aabdec67a0f5baa415c4abb6dded69db41b2f2d6`
+consumes the CPU contract directly and deletes its former host loops; PM-only
+closeout default `a4063be118978c8ecc4c745a8ef0b004c1beb45b` preserves that
+implementation, and run `31672329963` passes at its implementation head. The remaining 33 Rustdoc link warnings predate
 the convolution family; no convolution-specific warning, fallback, or adapter
 remains.
 
