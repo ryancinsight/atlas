@@ -1,5 +1,17 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-CONSUS-TEST-API-001 — Make cross-format integration tests consume real Consus APIs — in progress 2026-08-13
+
+- [ ] Create one bounded Consus lane from exact `origin/main`; preserve the
+      dirty peer checkout and claim only the cross-format test/PM scope.
+- [ ] Inspect the actual HDF5, Zarr, NetCDF, and in-memory I/O contracts and
+      replace aspirational calls in `tests/cross_format_interop.rs` directly.
+- [ ] Keep every scenario input-sensitive with value-semantic assertions; delete
+      unsupported scenarios rather than adding local facades or fallback paths.
+- [ ] Run focused and full provider gates, hosted CI at the exact PR head, merge
+      the provider, advance the indexed Atlas gitlink, and rerun the twenty-
+      provider structural/exact-head audit.
+
 ## ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003 — Close Consus no-default storage boundaries — complete 2026-08-13
 
 - [x] Land Consus PR #23 at merged default

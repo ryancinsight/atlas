@@ -1,5 +1,15 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-CONSUS-TEST-API-001 — Cross-format test API residual (in progress 2026-08-13)
+
+The residual remains real at Consus `origin/main` `b3ca01c21b2e9bad4c7b7dc23c47083ca79a3307`.
+`tests/cross_format_interop.rs` still calls `MemCursor::new(buffer)`,
+`Hdf5FileBuilder::new().build_writer(...)`, native `ZarrArray`/
+`ArrayMetadataV3` facades, and `NcFile::open`. These symbols or signatures do
+not match the provider-owned source contracts found by the API search. The
+closure is claimed as a provider test-scope migration in a fresh lane; the
+peer checkout's branch and dirty `Cargo.lock` remain outside the claim.
+
 ## ATLAS-CONSUS-NODEF-ARROW-PARQUET-002 — Arrow/Parquet no-default cfg closure (closed 2026-08-13)
 
 Consus PR #22 merged at `37f835d1b87af426001df25d343ac1e12b86a55b` from exact

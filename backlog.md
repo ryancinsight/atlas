@@ -1,5 +1,22 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-CONSUS-TEST-API-001 — Make cross-format integration tests consume real Consus APIs [patch] — in progress 2026-08-13
+
+- Owner: Atlas integration; provider scope is `repos/consus/tests/cross_format_interop.rs`
+  plus the provider's directly affected PM artifacts. Do not edit the peer-owned
+  `repos/consus` checkout; use a fresh lane from `origin/main`.
+- Outcome: replace aspirational `MemCursor`, HDF5 builder, Zarr, and NetCDF
+  calls with the existing provider-owned contracts, or remove only a test whose
+  claimed cross-format capability is not implemented. No compatibility wrappers,
+  consumer-local facades, or weakened assertions are permitted.
+- Acceptance: the focused cross-format test target compiles and passes with
+  value-semantic assertions under the repository's committed runner; touched
+  Consus checks/docs are green; the merged exact provider head and hosted gate
+  are recorded before the Atlas gitlink advances.
+- Verification: API/source inspection, focused package check and Nextest,
+  provider full configured gate, exact hosted PR-head verification, root
+  provider audit, and indexed-gitlink coherence.
+
 ## ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003 — Close Consus no-default storage boundaries [patch] — complete 2026-08-13
 
 - Owner: Atlas integration. Consus PR #23 merged at
