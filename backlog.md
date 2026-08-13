@@ -11,7 +11,8 @@
 - Acceptance: Mnemosyne `1ad5819` and Hermes `5785143` exact-head hosted CI
   passes; both committed gitlinks match fetched defaults; the root exact-head,
   coherence, and lane audits pass.
-- Status: in-progress; claimed 2026-08-12.
+- Status: complete after exact-head CI; the pointer and evidence commit are
+  delivered in this integration increment.
 
 ## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout [patch]
 

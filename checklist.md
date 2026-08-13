@@ -1,11 +1,14 @@
 # atlas — cross-repository integration checklist
 
-## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults — in progress
+## ATLAS-LIVE-HEAD-SWEEP-008 — Reconcile moving provider defaults — complete 2026-08-12
 
-- [ ] Verify Mnemosyne exact-head CI at `1ad581971d2528e12c0c815fe30e87ce6c121d80`.
-- [ ] Verify Hermes exact-head CI at `578514314bec51815e763f5a8103500bb9498c32`.
-- [ ] Refresh both root gitlinks without staging peer-owned provider changes.
-- [ ] Run exact-head, coherence, and lane audits after the refresh.
+- [x] Verify Mnemosyne exact-head CI at `1ad581971d2528e12c0c815fe30e87ce6c121d80`.
+      CI `31660997275` and Pages `31660996629` pass.
+- [x] Verify Hermes exact-head CI at `578514314bec51815e763f5a8103500bb9498c32`.
+      CI `31661101443` and Pages `31661100631` pass; benchmark smoke passes
+      within its committed budget.
+- [x] Refresh both root gitlinks without staging peer-owned provider changes.
+- [x] Run exact-head, coherence, and lane audits after the refresh.
 
 ## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout — complete 2026-08-12
 

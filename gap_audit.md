@@ -6,9 +6,11 @@ The root exact-head audit found two provider defaults moving during the
 Hephaestus integration: Mnemosyne advanced to `1ad581971d2528e12c0c815fe30e87ce6c121d80`
 for its occupancy-provenance safety fix, and Hermes advanced to
 `578514314bec51815e763f5a8103500bb9498c32` after the benchmark push-gate
-merge. Their CI runs `31660997275` and `31661101443` are in progress; Pages
-runs `31660996629` and `31661100631` pass. Root pointer refresh waits for the
-exact-head CI results.
+merge. Their CI runs `31660997275` and `31661101443` pass; Pages runs
+`31660996629` and `31661100631` pass. Root gitlinks now match both exact
+heads. Hermes's merged benchmark smoke also passed within its committed
+budget; its push path now executes the smoke tier while retaining full
+measurements for pull requests and manual runs.
 
 ## ATLAS-HEPHAESTUS-REFRESH-007 — Integrate cross-entropy PM closeout (2026-08-12)
 
