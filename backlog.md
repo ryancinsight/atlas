@@ -1,5 +1,12 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-CONSUS-NODEF-ARROW-PARQUET-002 — Close Arrow/Parquet no-default cfg boundaries [patch] — complete 2026-08-13
+
+- Owner: Atlas integration. Consus PR #22 merged at `37f835d1b87af426001df25d343ac1e12b86a55b` from exact head `731a3ca394876a7329becee83a197e5d01e49773`.
+- Outcome: `consus-arrow` and `consus-parquet` expose descriptor-only no-default APIs, gate alloc-backed bridges, conversions, wire paths, tests, and benches consistently, and retain value-semantic no-alloc smoke coverage. The invalid rustdoc links and warnings in the touched provider scope are corrected.
+- Evidence: no-default, default, and all-features package checks/Clippy/Nextest pass; Nextest counts are Arrow 2/2, 79/79, 81/81 and Parquet 10/10, 215/215, 239/239 respectively. Doctests, warning-denied rustdoc, formatting, and locked package checks pass. Exact-head hosted run `31678705050` passes Format, MSRV, Linux/macOS/Windows package tests, feature matrix, checks, MinIO, and CodeRabbit.
+- Residual: `CONSUS-NODEF-GATE-001` remains open for `consus-fits`, `consus-nwb`, and downstream cfg edges; `CONSUS-TEST-API-001` and Tyche's versioned study-schema seam remain separate provider work.
+
 ## ATLAS-LIVE-HEAD-SWEEP-015 — Reconcile merged provider defaults [patch] — done 2026-08-13
 
 - Mnemosyne PR #45 merged at `18550d932902662c1ce196f779ee041bd0c29cd4`;

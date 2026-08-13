@@ -1,5 +1,23 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-CONSUS-NODEF-ARROW-PARQUET-002 — Arrow/Parquet no-default cfg closure (closed 2026-08-13)
+
+Consus PR #22 merged at `37f835d1b87af426001df25d343ac1e12b86a55b` from exact
+head `731a3ca394876a7329becee83a197e5d01e49773`. The provider slice gates
+alloc-backed Arrow and Parquet bridges, conversions, wire modules, tests, and
+benches while retaining descriptor-only no-alloc APIs and value-semantic smoke
+coverage. No-default, default, and all-features package gates pass: Arrow
+Nextest 2/2, 79/79, 81/81 and Parquet 10/10, 215/215, 239/239; strict Clippy,
+doctests, warning-denied rustdoc, formatting, and locked checks also pass.
+Hosted run `31678705050` passes Format, MSRV, Linux/macOS/Windows package tests,
+feature matrix, package checks, MinIO, and CodeRabbit at that exact head.
+
+The workspace no-default gate now reaches the next real boundary: roughly 50
+`consus-fits` errors remain across unconditional alloc imports/re-exports,
+header/HDU/file/image/table modules, missing `alloc` plumbing, and alloc-shaped
+error/type variants. `consus-nwb` and downstream cfg edges remain open under
+`CONSUS-NODEF-GATE-001`; `CONSUS-TEST-API-001` is independent.
+
 ## ATLAS-LIVE-HEAD-SWEEP-015 — Merged provider defaults (2026-08-13)
 
 The three exact-head residuals were verified against merged provider PRs and

@@ -1,5 +1,20 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-CONSUS-NODEF-ARROW-PARQUET-002 — Close Arrow/Parquet no-default cfg boundaries — complete 2026-08-13
+
+- [x] Land Consus PR #22 at merged default `37f835d1`; its exact source head is
+      `731a3ca4`.
+- [x] Gate alloc-backed Arrow/Parquet modules, re-exports, tests, and benches;
+      retain descriptor-only no-alloc APIs and value-semantic smoke coverage.
+- [x] Verify no-default, default, and all-features package Nextest, Clippy,
+      doctests, rustdoc, formatting, and locked checks. Arrow passes 2/2,
+      79/79, and 81/81; Parquet passes 10/10, 215/215, and 239/239.
+- [x] Confirm hosted run `31678705050` passes the repository-owned Format,
+      MSRV, platform, feature-matrix, package-check, MinIO, and CodeRabbit
+      gates at the exact head.
+- [ ] Continue `CONSUS-NODEF-GATE-001` through `consus-fits`, `consus-nwb`,
+      and downstream no-default edges; keep `CONSUS-TEST-API-001` separate.
+
 ## ATLAS-LIVE-HEAD-SWEEP-015 — Reconcile merged provider defaults — complete 2026-08-13
 
 - [x] Refresh the provider remotes and confirm Mnemosyne PR #45 merged at

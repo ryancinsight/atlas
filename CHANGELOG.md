@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Merge Consus PR #22 (`37f835d1`) to close the `consus-arrow` and
+  `consus-parquet` no-default cfg boundaries. Alloc-backed bridges, wire paths,
+  tests, and benches are gated consistently while descriptor-only no-alloc APIs
+  retain value-semantic coverage; the exact-head hosted matrix passes.
+
 - Pin shell scripts to LF so the Bash toolchain bootstrap remains executable
   after Windows checkouts.
 
