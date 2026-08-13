@@ -923,11 +923,12 @@ fetched default heads, and the requested-scope coherence audit is clean.
 
 ## ATLAS-PROVIDER-INTEGRATION-006 — twenty-provider exact-head re-audit — 2026-08-13
 
-The current Atlas `HEAD` is `e15290a`, with Horae integrated at merged upstream
-head `c42d1b4`. The root integration pointer sweep advances Mnemosyne to
-`b911ae1`, RITK to `41a2ee4`, and Hermes to `81502c5`; the other requested
-providers remain at their previously verified heads. The stack overlay check
-passes: requirements are satisfiable and locks match the local trees.
+The current Atlas integration pointer commit is `cae93ad`, with Horae
+integrated at merged upstream head `c42d1b4`. The root pointer sweep records
+the merged Themis, Mnemosyne, and Consus heads `f7face3`, `8dacc48`, and
+`1e061b0`; RITK remains at `bde77e0`, and Hermes at `81502c5`. The stack
+overlay check passes: requirements are satisfiable and locks match the local
+trees.
 
 The exact-head audit matches 19 of 20 requested providers against their fetched
 default refs. Leto is the sole residual: Atlas records local commit `cf9e0b5`,
@@ -936,10 +937,12 @@ contains peer-owned WIP, so the pointer is preserved rather than rewound or
 silently published. The exact-head gate therefore remains intentionally red
 until that peer branch is merged.
 
-Provider-boundary follow-ups remain separately tracked. Themis fix `8930489`
-and Consus parser fix `03bb65e` are clean peer branches now under hosted review;
-Mnemosyne's scratch-pool aliasing repair remains uncommitted peer work pending
-Tree Borrows evidence. Kwavers' five input-insensitive production sites,
+Provider-boundary follow-ups remain separately tracked. Themis fix `8930489`,
+Consus parser fix `03bb65e`, and Mnemosyne's scratch-pool repair `4c22fba` are
+merged into the provider defaults; their post-merge repository workflows were
+still pending when this snapshot was recorded. The recurring external
+`recurseml/analysis` errors are report-only and are not treated as provider
+verification. Kwavers' five input-insensitive production sites,
 Apollo's generic inverse-DFT accumulator, Hyperion interpolation provenance,
 Asclepius response-slope semantics, Eunomia reduced-precision special-function
 and ordering gaps, and the Leto layout validation gap remain open findings.

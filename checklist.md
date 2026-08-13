@@ -4210,9 +4210,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-LETO-CONVOLUTION-012** Close provider convolution contract (2026-08-13) — `7172b338`, `a722fbc8`, `aabdec67`, `a4063be1`
 - **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
 - **ATLAS-PROVIDER-INTEGRATION-006** Twenty-provider exact-head re-audit
-  (2026-08-13) — in progress; Horae is integrated at `c42d1b4`. Themis,
-  Mnemosyne, and Consus are under hosted provider review, while Leto remains
-  peer-owned local ahead-of-origin work under `ATLAS-LETO-PEER-WIP`.
+  (2026-08-13) — in progress; Horae is integrated at `c42d1b4`, and the
+  merged Themis, Mnemosyne, and Consus heads are recorded at `f7face3`,
+  `8dacc48`, and `1e061b0`. Their post-merge provider workflows remain in
+  collection; Leto remains peer-owned local ahead-of-origin work under
+  `ATLAS-LETO-PEER-WIP`.
 - **ATLAS-LIVE-HEAD-SWEEP-008** Reconcile moving provider defaults (2026-08-12) — `1ad581971d2528e12c0c815fe30e87ce6c121d80`, `578514314bec51815e763f5a8103500bb9498c32`
 - **ATLAS-HEPHAESTUS-REFRESH-007** Integrate cross-entropy PM closeout (2026-08-12) — `9385686ec29fc5a2d168d967df3fae254760aa4b`
 - **ATLAS-PROVIDER-DRIFT-005** Post-merge exact-head convergence (2026-08-12) — `93dbc563`, `32524e37b7697dd37f3cb3b28ee570aa4d0df199`, `e70f597`, `53bb01312222745325f20d36db95aab780ce39b3`
