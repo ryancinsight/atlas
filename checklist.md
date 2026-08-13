@@ -1,5 +1,16 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-MNEMOSYNE-CONSUS-REFRESH-013 — Reconcile merged provider PM closeouts — complete 2026-08-13
+
+- [x] Confirm Mnemosyne PR #44 merged at `e57e2d6`; Rust verification and Miri
+      arena, Stacked Borrows, and Tree Borrows passed at `e7fccf7` before the
+      merge. Pages was already green at provider head `6b0ca43`.
+- [x] Confirm Consus PR #21 merged at `5163eb1`; all repository-owned package,
+      MSRV, Linux/macOS/Windows, MinIO, feature-matrix, and CodeRabbit checks
+      passed. The recurring `recurseml/analysis` result remains external.
+- [x] Advance both root gitlinks without staging the peer-owned Consus and
+      Mnemosyne checkout dirt; rerun exact-head, structural, and lane audits.
+
 ## ATLAS-TYCHE-REFRESH-011 — Reconcile merged Tyche PM closeout — complete 2026-08-13
 
 - [x] Confirm Tyche PR #17 merged as `5efaee7a`; provider `verify` and
