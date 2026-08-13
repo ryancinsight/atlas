@@ -78,7 +78,7 @@ providers on the current SHA and only three stale provider defaults: Consus
 still has stale `book-pages.yml`, `python-release.yml`, and `rust-release.yml`
 callers; Helios still has a stale `book-pages.yml` caller; and RITK still has
 stale `book-pages.yml` and `rust-release.yml` callers. The open caller PRs are
-the provider-owned changes that will remove those six stale references;
+the provider-owned changes that will remove those four stale references;
 repository presence and current gitlinks do not prove this workflow
 integration.
 
@@ -94,12 +94,12 @@ themis #18, tyche #21, proteus #8, mnemosyne #48, consus #27, helios #53,
 aequitas #24, asclepius #15, eunomia #62, moirai #127, ritk #130, melinoe #15,
 leto #111, hephaestus #207, coeus #327, apollo #90, hermes #39, iris #13,
 CFDrs #338, and kwavers #363. A file audit found only `.github/workflows/**`
-changes in all 22 PRs. Seventeen merged after hosted checks and their fetched
-defaults now carry the current SHA. The remaining workflow-only PRs are Consus
-#27, Helios #53, RITK #130, and Kwavers #363. Consus, Helios, RITK, and Kwavers
-still require provider-owned completion; CFDrs is complete on its default
-through #339/#340. The external `recurseml/analysis` status remains a separate
-hosting status rather than code evidence.
+changes in all 22 PRs. Eighteen requested-provider caller changes are now
+merged or present on current defaults; the remaining requested-provider PRs
+are Consus #27, Helios #53, and Kwavers #363. Consus, Helios, and Kwavers still
+require provider-owned completion; CFDrs is complete on its default through
+#339/#340. The external `recurseml/analysis` status remains a separate hosting
+status rather than code evidence.
 
 The initial PR commits used the short `@4c31dd7` reference and all 22 reusable
 workflow runs failed before job creation with a workflow-file error. Forward
@@ -114,10 +114,10 @@ overrides. Both wrappers now remove either form, with regression coverage in
 the provider-integration and version-guard test modules. Exact-head, overlay,
 and Python regression checks pass after the fix.
 
-The latest hosted poll keeps Consus #27, Helios #53, and RITK #130 open: Consus
+The latest hosted poll keeps Consus #27 and Helios #53 open: Consus
 has repository-owned checks queued or in progress with no failure conclusion,
-Helios has its benchmark regression check in progress, and RITK #130 has
-Python and test jobs active or queued. RITK #131 remains open with its Python,
+Helios has its benchmark regression check in progress. RITK #130 merged at
+`d4383637` after its required hosted checks passed. RITK #131 remains open with its Python,
 clippy, alignment, and wheel jobs active or queued plus the external
 `recurseml/analysis` error; stacked RITK #132 has no required workflow result
 and the same external status error. These are not merge evidence.

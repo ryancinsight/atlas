@@ -46,6 +46,9 @@
   its delta from the prior Atlas pointer is limited to the three workflow
   callers. Its default still carries the stale `d875348` SHA; PR #363 remains
   open for the full-SHA cutover, and Atlas now tracks the exact fetched head.
+- Post-sweep reconciliation: RITK PR #130 merged at `d4383637`; its two-file
+  delta is limited to the book and Rust-release workflow callers, and Atlas now
+  tracks the exact fetched `origin/main` head.
 
 ## ATLAS-LIVE-CALLER-PINS-027 — Refresh requested-provider Atlas workflow pins [patch] — open 2026-08-13
 
@@ -58,10 +61,10 @@
 - Audit result at sweep start: all twenty requested `book-pages.yml` callers
   pinned the stale Atlas commit `d875348197be12ad593f993a6f1b8a62d3b8b195`;
   the current root is `4c31dd753f06dd93b4c04798cf781df253e3e532`. The current
-  fetched defaults now contain that SHA for 17 providers. Consus retains stale
+  fetched defaults now contain that SHA for 18 providers. Consus retains stale
   book, Python-release, and Rust-release callers; Helios retains a stale book
-  caller; and RITK retains stale book and Rust-release callers pending their
-  open PRs.
+  caller; RITK's book and Rust-release callers are current after PR #130
+  merged.
 - Acceptance: the fetched default of every requested provider contains no
   stale `d875348` Atlas workflow pin; CFDrs passes
   `mdbook-linkcheck2-version: 0.12.2`; each changed caller has a hosted
@@ -80,12 +83,12 @@
   Tyche #21, Mnemosyne #48, Aequitas #24, Asclepius #15, Eunomia #62, Leto
   #111, Horae #10, Moirai #127, Hephaestus #207, Melinoe #15, Apollo #90, and
   Iris #13, Hermes #39, and Coeus #327. Atlas reconciled their default heads
-  in the current gitlink integration commits; Consus #27, Helios #53, and
-  RITK #130 remain open pending their own required checks.
+  in the current gitlink integration commits; Consus #27 and Helios #53 remain
+  open pending their own required checks.
 - Latest hosted poll: Consus #27 has repository-owned checks queued or in
   progress with no failure conclusion; Helios #53 has its benchmark regression
-  check in progress; RITK #130 has Python and test jobs active or queued. RITK
-  #131 remains open with active or queued provider jobs plus the external
+  check in progress; RITK #130 merged at `d4383637`. RITK #131 remains open with
+  active or queued provider jobs plus the external
   `recurseml/analysis` error; stacked #132 has no required workflow result and
   the same external status error. CFDrs `origin/main` now passes the book
   output-path contract through merged PRs #339/#340; the original #338 is

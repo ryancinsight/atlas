@@ -53,11 +53,13 @@
       staging peer checkout dirt. CFDrs `origin/main` is `905648a5` with the
       linkcheck2/full-SHA and HTML output fixes; Kwavers `origin/main` is
       `7fee848d` but its caller SHA remains stale pending PR #363.
+- [x] Merge RITK #130 at `d4383637` after its required hosted checks passed and
+      advance the Atlas RITK gitlink to that exact default head.
 - [x] Review the remaining workflow-only diffs; no new P0/P1 finding is present
       in Consus #27, Helios #53, RITK #130, or CFDrs #338.
 - [x] Record the current hosted state: Consus #27 has queued/in-progress jobs
       without a failure conclusion, Helios #53 has its benchmark job in
-      progress, RITK #130 has active/queued Python and test jobs, RITK #131 has
+      progress, RITK #130 merged at `d4383637`, and RITK #131 has
       active/queued jobs plus an external analysis error, and stacked #132 has
       no required workflow result plus that external error. CFDrs #338 is
       closed as superseded by merged #339/#340 on its default; Kwavers #363
