@@ -55,7 +55,8 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
 |----|---------|-------|--------|-------|-------------------|
 | US-023-A | ADR: non-Cartesian acquisition images as a coordinate seam in ritk (curvilinear, 3-D phased array, slice series) — index→physical map carried by the image type so existing resamplers/filters apply unchanged; decide ritk-vs-kwavers ownership for G2 and G4. | [arch] | done 2026-08-13 — ADR 0042 Accepted | Claude | Met. Enum-dispatched `CoordinateMap` selected over a fourth type parameter; G2 and G4 both owned by ritk |
 | US-023-A1 | Implement the ADR 0042 seam in `ritk-image`: `CoordinateMap` with `Cartesian` + `CurvilinearArray`, carried on `Image`, dispatched by both batch and both single-point transforms. | [major] | **review** 2026-08-13 — ritk PR #128, commit `0ec93d42`, merge held | Claude | Met. Cartesian path bit-identical (pinned by test); curvilinear round-trip, fan symmetry/curvature, out-of-fan NaN, dimensionality rejection all covered. 1173 tests, clippy `-D warnings`, rustdoc, fmt clean. Merge held per the `[major]` review rule — `Image::into_parts` is a breaking signature change |
-| US-023-A2 | `PhasedArray3D` and `SliceSeries` variants on the ADR 0042 seam. | [minor] | todo | — | Round-trip within a conditioning-derived tolerance; validated against ITKUltrasound's published test geometry parameters |
+| US-023-A2 | `PhasedArray3D` variant on the ADR 0042 seam. | [minor] | done 2026-08-13 — ritk `9d2de159`, PR pending #128 merge | Claude | Met. Boresight, per-angle independent steering, round-trip, out-of-volume NaN, degenerate-steering rejection, and `D == 3` enforcement all covered. 1185 tests, clippy `-D warnings`, rustdoc, fmt clean |
+| US-023-A4 | `SliceSeries` variant on the ADR 0042 seam. **Split out of A2**: unlike the closed-form curvilinear and phased-array maps, ITK's `SliceSeriesSpecialCoordinatesImage` composes a 2-D slice image's own transform with a per-slice 3-D `Transform` object, interpolating between the `floor`/`ceil` slice transforms and handling out-of-range slices. That needs a per-slice transform list and a decision about how it interacts with ritk's `Transform` stack — ADR 0042's recorded open question — which is a different design conversation from a closed-form geometry. | [arch] | todo | — | ADR 0042 open question resolved (inline vs referenced transform list, sized from a realistic wobbler sweep); round-trip against a synthesized sweep; behaviour at and beyond the slice range specified rather than inherited |
 | US-023-A3 | Migrate kwavers `b_mode/scan_conversion.rs` onto the seam as an ordinary resample and **delete** the standalone converter; inverse scan conversion falls out as the opposite direction. | [minor] | blocked: depends on US-023-A1 landing | — | Differential against the current `ScanConverter` within bilinear interpolation error, then that converter and its callers are gone |
 | US-023-B | QUS spectral tissue characterization: windowed 1-D power spectra with a support-window seam, reference-phantom normalization/averaging, backscatter parameters (midband fit, spectral slope, spectral intercept), and spectral-difference attenuation estimation. | [minor] | todo | — | Recovers known slope/intercept/attenuation from a synthesized RF phantom with an analytically derived tolerance; differential check against the forward scattering/attenuation physics kwavers already models |
 | US-023-C | SRAD (Yu & Acton) speckle-reducing anisotropic diffusion in `ritk-filter/src/diffusion/`, reusing `smoothing/box_sigma` for the instantaneous coefficient of variation. | [minor] | todo | — | Value-semantic parity against the published formulation on a speckled phantom; edge-preservation asserted against Perona–Malik on the same input |
@@ -5134,8 +5135,9 @@ epospollo`, so both paths are the same tree. That is
 
 ## ATLAS-PUB-002 — Migrate 4 book workflows to the Atlas-shared caller and close the docs.yml gap [patch] — in-progress
 
-- Owner: unclaimed; scope: `repos/{CFDrs,helios,kwavers,ritk}/.github/workflows/book-pages.yml`
-  plus `.github/workflows/docs.yml` in Atlas.
+- Owner: current session (Atlas coordination); scope: reusable-workflow
+  evidence and the CFDrs caller's backend input. Other provider caller files
+  and peer-owned working-tree changes are excluded.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §1-§3, §5.
 - Outcome: each book workflow becomes a caller of
   `ryancinsight/atlas/.github/workflows/book-pages.yml@<atlas-sha>` passing only
@@ -5152,6 +5154,16 @@ epospollo`, so both paths are the same tree. That is
   (`target/book/cfdrs`, `target/book/helios`, `target/book`,
   `target/book/ritk`); each package's Pages deployment succeeds once through the
   shared workflow.
+- **Hosted residual 2026-08-13:** CFDrs run `31716368183` failed during the
+  shared build because `book.toml` declares a non-optional `[output.linkcheck2]`
+  renderer and the pinned Atlas workflow `d875348` did not install it. An
+  uncommitted peer change currently adds the reusable-workflow input and cargo
+  installer; it is not deployed evidence and still needs a pinned Rust-toolchain
+  prerequisite before publication. The CFDrs caller must then advance its Atlas
+  pin and pass `mdbook-linkcheck2-version: 0.12.2`.
+- Helios `31716457700` and Kwavers `31716399219` completed their build jobs but
+  their Pages deploy jobs remain queued; RITK `31716974169` remains queued at
+  its build job. These runs do not close the item until deployment completes.
 
 ## ATLAS-PUB-003 — Register trusted publishers and remove the unused PyPI token [chore] — todo
 
