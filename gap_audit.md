@@ -1,5 +1,20 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Multi-dimensional LayerNorm residual (open 2026-08-13)
+
+The Coeus default exposes a documented PyTorch-style LayerNorm surface but
+implements only a single normalized dimension. `coeus-nn` stores `[D]` affine
+parameters and its `forward_nd` flattens only leading dimensions; the
+autograd node reduces fixed axis 1 and derives gradients in `[D]`. The PyO3
+constructor explicitly returns `PyNotImplementedError` for sequence-shaped
+`normalized_shape`, while the book says “Normalize over last D dimensions”.
+
+This residual is provider-owned. The complete fix must preserve the existing
+one-dimensional contract, validate the configured trailing shape, flatten only
+the normalized suffix for the canonical kernel, restore the input shape, and
+reshape affine gradients back to their parameter shape. Python remains a thin
+constructor/dispatch layer. RMSNorm remains a separate residual.
+
 ## ATLAS-LIVE-HEAD-SWEEP-026 — Provider default-head convergence (closed 2026-08-13)
 
 The fetched default of every requested provider advanced after Atlas's prior

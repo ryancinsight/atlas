@@ -1,5 +1,19 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — in-progress 2026-08-13
+
+- [x] Confirm the provider source and docs disagree: the core/autograd path
+      assumes `[N, D]`, `forward_nd` only flattens leading dimensions, and the
+      PyO3 constructor rejects `normalized_shape` sequences longer than one.
+- [x] Claim the disjoint Coeus lane from fetched `origin/main`; preserve the
+      peer-owned performance branch and its dirty lockfile.
+- [ ] Implement provider-owned shape validation, flattening, native backward
+      reductions, thin Python sequence support, focused value-semantic tests,
+      and synchronized Coeus docs.
+- [ ] Merge the provider change, advance the Atlas Coeus gitlink, and rerun
+      exact-head/coherence/overlay/lane gates.
+
+
 ## ATLAS-LIVE-HEAD-SWEEP-026 — Reconcile twenty provider CI-pin defaults — complete 2026-08-13
 
 - [x] Fetch every requested provider default and verify its candidate head is

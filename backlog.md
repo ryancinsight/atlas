@@ -1,5 +1,27 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract [minor] — in-progress 2026-08-13
+
+- Owner: current session; scope: Coeus LayerNorm core/autograd/PyO3 modules,
+  their focused tests and provider PM records; Atlas root gitlink advances only
+  after the provider change is merged.
+- Finding: `coeus-nn::LayerNorm` and its autograd node model only one final
+  feature dimension, while `coeus-python::PyLayerNorm` rejects sequence-shaped
+  `normalized_shape`; the Coeus book/checklist claim PyTorch-style last-D
+  semantics. This is a source/documentation contract mismatch, not a hosted
+  workflow issue.
+- Acceptance: accept a non-empty normalized-shape sequence in the Rust core and
+  thin Python binding; validate it against the input's trailing dimensions;
+  normalize their flattened product with native scalar arithmetic; preserve
+  parameter shapes and tracked forward/backward gradients; cover one- and
+  multi-dimensional positive, mismatch, and boundary cases; synchronize the
+  provider docs and remove the deferred placeholder.
+- Non-goals: RMSNorm multi-dimensional parity, GPU-specific kernels, unrelated
+  Coeus performance work, and changes to the peer-owned checkout branch.
+- Verification: focused Coeus nextest, Python binding parity when the provider
+  environment is available, doctests, fmt, Clippy, and hosted CI at the merged
+  provider head.
+
 ## ATLAS-LIVE-HEAD-SWEEP-026 — Reconcile twenty provider CI-pin defaults [patch] — complete 2026-08-13
 
 - Owner: current session; scope: root `repos/*` gitlinks plus synchronized Atlas
