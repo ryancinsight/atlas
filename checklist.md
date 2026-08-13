@@ -1,5 +1,19 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-HERMES-PERMUTE-017 — Measure and prune cross-lane NEON overrides — complete 2026-08-13
+
+- [x] Verify Hermes PR #37 source `79d7297` merged as default
+      `d1627cd23179595b751c237a67f86cdeafb01310` and advance only the Hermes
+      gitlink.
+- [x] Review the native aarch64 A/B output from PR run `31695534571`: remove
+      neutral `reverse_f32`/`reverse_f64`; retain large-row
+      `interleave_f32`/`deinterleave_f32` wins of 1.27%/1.40%; classify small
+      rows as noise-threshold results.
+- [x] Confirm post-merge default run `31696261625` passes x86, aarch64, SDE,
+      Miri, cross-compile, cargo-deny, and benchmark compile/smoke gates.
+- [ ] External residual: Hermes HS-429 still needs real AVX-512 silicon for
+      timing evidence; SDE cannot establish that performance claim.
+
 ## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis over scattered directions — complete 2026-08-13
 
 - [x] Confirm Apollo PR #69 source `33a40bcee4532c9c1a03fee7cef2d852b3419090`

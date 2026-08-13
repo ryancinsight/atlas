@@ -1,5 +1,24 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HERMES-PERMUTE-017 — Measure and prune cross-lane NEON overrides [perf] — complete 2026-08-13
+
+- Hermes PR #37 source `79d7297` merged as default
+  `d1627cd23179595b751c237a67f86cdeafb01310`; the Atlas gitlink advances to
+  that merged head only.
+- The native aarch64 A/B gate saved the `neon-native` Criterion baseline and
+  compared the identical rows with the NEON overrides disabled. `reverse_f32`
+  and `reverse_f64` were statistically unchanged, so both overrides were
+  deleted. Large `interleave_f32` and `deinterleave_f32` improved 1.27% and
+  1.40%; those overrides remain. Small rows were within Criterion's noise
+  threshold.
+- PR run `31695534571` passed repository-owned x86, aarch64, SDE, Miri,
+  cross-compile, cargo-deny, and benchmark-budget gates. Post-merge default
+  run `31696261625` passed all default jobs; its canonical 300-second benchmark
+  step is correctly skipped on push events.
+- Residual: AVX-512 performance remains open under Hermes HS-429 because Intel
+  SDE provides semantic, not timing, evidence; real-silicon infrastructure is
+  an external cost decision.
+
 ## ATLAS-CONSUS-TEST-API-001 — Make cross-format integration tests consume real Consus APIs [patch] — complete 2026-08-13
 
 - Owner: Atlas integration; provider scope is `repos/consus/tests/cross_format_interop.rs`

@@ -1,5 +1,23 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-HERMES-PERMUTE-017 — Native NEON permute measurement and cleanup (closed 2026-08-13)
+
+Hermes PR #37 delivered the bounded native aarch64 A/B gate and merged source
+`79d7297` as default `d1627cd23179595b751c237a67f86cdeafb01310`. The gate saved
+the existing `permute` Criterion rows with native NEON, rebuilt with the three
+NEON cross-lane overrides disabled, and compared the same inputs and groups.
+`reverse_f32` and `reverse_f64` were statistically unchanged and their native
+overrides were removed. Large `interleave_f32` and `deinterleave_f32` improved
+1.27% and 1.40%, so those overrides remain; the small rows were within the
+noise threshold. PR run `31695534571` passed the repository-owned verification
+matrix, including aarch64 runtime validation and benchmark budgets. The
+post-merge default run `31696261625` passed x86, aarch64, SDE, Miri,
+cross-compile, cargo-deny, and benchmark compile/smoke gates; the canonical
+benchmark step is intentionally pull-request/manual-only. The root Hermes
+gitlink now records the merged default. AVX-512 timing remains an external
+HS-429 residual because SDE validates semantics but cannot provide timing
+evidence.
+
 ## ATLAS-APOLLO-REALSH-005 — Real symmetric SH basis closure (closed 2026-08-13)
 
 Apollo PR #69 delivered the real even-order orthonormal spherical-harmonic

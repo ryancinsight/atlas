@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Advance Hermes to merged default `d1627cd2` after PR #37's native aarch64
+  permute A/B gate. Neutral NEON reverse overrides were removed; large f32
+  interleave and deinterleave wins of 1.27% and 1.40% remain. PR run
+  `31695534571` and post-merge default run `31696261625` pass the applicable
+  provider-owned gates. AVX-512 timing remains open under HS-429 real-silicon
+  infrastructure.
+
 - Advance Hephaestus to PM-closeout default `c373de19` and Coeus to
   PM-closeout default `a4063be1` for the CUDA `f64` comparison seam. Exact
   Hephaestus default runs `31691399110`, `31691399171`, `31691399196`, and
