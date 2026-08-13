@@ -4983,7 +4983,7 @@ epospollo`, so both paths are the same tree. That is
   Lockfile overlay-on/off semantics remain deliberately separate: this slice
   does not rewrite or validate provider `Cargo.lock` files.
 
-- Owner: unclaimed; scope: the lock convention itself, `crates-publish.yml`,
+- Owner: current session; scope: the lock convention itself, `crates-publish.yml`,
   and every package's release. **Blocks the first real publish of any crate
   that has a first-party dependency.**
 - Symptom: `cargo publish --locked` / `cargo metadata --locked` fails on the
