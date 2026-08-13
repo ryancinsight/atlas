@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Advance Leto to merged default `6e4a1627` after PR #96 replaced the
+  production L-BFGS jagged history with a flat CSR-shaped ring and head
+  eviction. Exact PR Rust run `31710403431`, post-merge Rust run
+  `31710771815`, and Pages deployment `31710771170` pass. The task-partition
+  API remains a separate provider-owned residual; superseded PR #103 is
+  closed because Hermes 0.6 is already present in default `a722fbc8`.
+
 - Close Hephaestus PR #113 as superseded: product-axis parity already exists
   in current history as `8bc589a`, while its obsolete round-6a path-lock
   rewrite is not compatible with the current git+version source model. The

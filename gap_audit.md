@@ -476,6 +476,17 @@ implementation, and run `31672329963` passes at its implementation head. The rem
 the convolution family; no convolution-specific warning, fallback, or adapter
 remains.
 
+## ATLAS-LETO-LBFGS-023 — Flat L-BFGS history ring closure (2026-08-13)
+
+PR #96 source `e4d5dfc7aa81507518c83396091f11b60f1ed96` merged as default
+`6e4a1627aa739d37c5f40ab1ab9e41948352cc54`. The provider-owned history uses a
+flat CSR-shaped ring and head eviction; the production jagged `Vec<Vec<_>>`
+and front-removal path are gone. Exact PR Rust run `31710403431`, post-merge
+Rust run `31710771815`, and Pages deployment `31710771170` pass. The
+task-partition API was deliberately excluded after its branch conflicted with
+newer iterator APIs and remains a separate residual. PR #103 is closed as
+superseded because Hermes 0.6 is already in merged Leto default `a722fbc8`.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default (2026-08-13)
 
 Moirai PR #125 merged as `ae9a5dfb7a56c64b471338d9f9d859db7b52d9fe`. Its

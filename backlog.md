@@ -320,6 +320,20 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
 - Status: complete; the root pointer now records `5efaee7`, and the exact-head
   audit scope is ready for final verification.
 
+## ATLAS-LETO-LBFGS-023 — Replace L-BFGS jagged history with a flat ring [perf] — complete 2026-08-13
+
+- Owner: Atlas integration.
+- Outcome: advance Leto to the merged provider-owned L-BFGS history-ring
+  closure and preserve the exact hosted evidence.
+- Status: complete; PR #96 source `e4d5dfc7aa81507518c83396091f11b60f1ed96`
+  merged as default `6e4a1627aa739d37c5f40ab1ab9e41948352cc54`. The history
+  now uses a flat CSR-shaped ring with head eviction; the production
+  `Vec<Vec<_>>` and `remove(0)` path is deleted. Exact PR Rust run
+  `31710403431`, post-merge Rust run `31710771815`, and Pages deployment
+  `31710771170` pass. The skipped task-partition API is a separate provider
+  item; Leto PR #103 was independently closed as superseded because Hermes
+  0.6 is already present in merged default `a722fbc8`.
+
 ## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout [patch]
 
 - Owner: Atlas integration.

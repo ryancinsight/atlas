@@ -214,6 +214,20 @@
 - [x] Advance the root Tyche gitlink to `5efaee7a` and rerun the exact-head
       audit without staging peer-owned submodule changes.
 
+## ATLAS-LETO-LBFGS-023 — Replace L-BFGS jagged history with a flat ring — complete 2026-08-13
+
+- [x] Rebase Leto PR #96 onto current default and retain only the
+      provider-owned flat L-BFGS history-ring change.
+- [x] Confirm PR source `e4d5dfc7` merged as default
+      `6e4a1627aa739d37c5f40ab1ab9e41948352cc54`; exact PR Rust run
+      `31710403431`, post-merge Rust run `31710771815`, and Pages deployment
+      `31710771170` pass.
+- [x] Advance the root Leto gitlink without staging peer-owned checkout dirt.
+- [x] Close superseded dependency-only PR #103; Hermes 0.6 is already in
+      Leto default `a722fbc8`.
+- [ ] Residual: re-specify and deliver the task-partition API as a separate
+      provider-owned increment; it was not included in this ring-buffer slice.
+
 ## ATLAS-TYCHE-MULTIOUTPUT-017 — Generalize sensitivity estimators — complete 2026-08-13
 
 - [x] Confirm Tyche PR #18 source `dc96f5ec` merged at `4a6f8cd4`; provider `verify`,
