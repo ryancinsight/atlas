@@ -13,8 +13,9 @@
   sign-preservation test. Both provider gate sets green: eunomia fmt, `-D
   warnings` all-targets, clippy, nextest 109/109, doctests; aequitas fmt,
   `-D warnings` all-targets, clippy, nextest 85/85, doctests, no-default.
-- Status: delivered; both branches pushed. Remaining ATLAS-AEQUITAS-ROOT-OPS-012
-  follow-up: semantics-marked dimension tuples (`ReciprocalVolume`, `Angle`).
+- Status: delivered; both branches pushed. The final ATLAS-AEQUITAS-ROOT-OPS-012
+  follow-up — semantics-marked dimension tuples (`ReciprocalVolume`,
+  `Angle`) — is now closed too (see ATLAS-AEQUITAS-ROOT-OPS-012, `3ce7b03`).
 
 ## ATLAS-MNEMOSYNE-CONSUS-REFRESH-013 — Reconcile merged provider PM closeouts [patch]
 
@@ -51,12 +52,16 @@
 - Status: delivered; aequitas branch pushed. Cargo.lock tooling residue
   (config-level `[patch]` overlay drift) left as pre-existing dirt.
 - Tracked follow-ups (outside this increment): (1) SSOT — eunomia
-  `FloatElement` should gain a libm-backed sign-preserving `cbrt`
-  (`libm::cbrtf`/`libm::cbrt`) so aequitas can drop the `powf(1/3)` path
-  and its NaN-for-negatives caveat; (2) semantics-marked dimensions
-  (`ReciprocalVolume`, `Angle`) currently lack sqrt/cbrt impls because the
-  tuples target `BaseSemantics`; (3) a sign-preserving cbrt in aequitas
-  for negative operands if a consumer needs it.
+  `FloatElement` gained a libm-backed sign-preserving `cbrt`
+  (`libm::cbrtf`/`libm::cbrt`) and aequitas dropped the `powf(1/3)` path
+  (ATLAS-EUNOMIA-FLOAT-CBRT-014: `bba10b6` + `071538c`). (2) semantics-marked
+  dimensions (`ReciprocalVolume`, `Angle`) now have sqrt/cbrt impls — the
+  tuple macros accept an input semantics type and normalize the output to
+  `BaseSemantics` (`Angle::sqrt` → dimensionless, `ReciprocalVolume::cbrt` →
+  reciprocal length), landed `3ce7b03` on
+  `codex/aequitas-root-ops-closure` with 2 value-semantic tests. (3) a
+  sign-preserving cbrt for negative operands is resolved by (1). All three
+  follow-ups closed.
 
 ## ATLAS-TYCHE-REFRESH-011 — Reconcile merged Tyche PM closeout [patch]
 
