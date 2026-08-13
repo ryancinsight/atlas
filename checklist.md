@@ -10,8 +10,8 @@
       `72505426`, hyperion `5758df93`, themis `93e83899`, tyche `5febead4`,
       proteus `5969f1e3`, mnemosyne `5824d2af`, consus `8cf015a9`, helios
       `54000a65`, aequitas `3afc165c`, asclepius `8d7d7ec2`, eunomia `afab630b`,
-      moirai `e3056e12`, ritk `c608f758`, melinoe `2d9696e9`, leto `7f2cfbae`,
-      hephaestus `6724547b`, coeus `d5f044dd`, apollo `3ea6292d`, hermes
+      moirai `6e9d1f22`, ritk `c608f758`, melinoe `2d9696e9`, leto `7f2cfbae`,
+      hephaestus `93e1fdf5`, coeus `d5f044dd`, apollo `3ea6292d`, hermes
       `b1a8b25c`, iris `2fbf881b`.
 - [x] Pass exact-head/coherence, provider-audit regression, stack-overlay,
       overlay regression, and lane audits.
@@ -41,7 +41,8 @@
       regression coverage.
 - [x] Merge the hosted-green caller PRs for Themis #18, Proteus #8, Hyperion
       #8, Tyche #21, Mnemosyne #48, Aequitas #24, Asclepius #15, Eunomia #62,
-      and Leto #111; advance Atlas gitlinks to their exact default heads.
+      Leto #111, Horae #10, Moirai #127, and Hephaestus #207; advance Atlas
+      gitlinks to their exact default heads.
 - [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
       Atlas gitlinks to their exact merged provider defaults.
 - [ ] Run exact-head hosted validation for every changed caller and re-audit
