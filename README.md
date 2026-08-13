@@ -657,8 +657,9 @@ atlas/
 │       └── python-wheels.yml             # reusable: maturin wheel matrix + release assets
 ├── docs/
 │   ├── adr/                         # stack-wide architectural decisions + INDEX.md
-│   ├── audit/                       # dated provider audits
+│   ├── audit/                       # dated provider audits + the math/linalg SSOT ledger
 │   ├── coordination/                # cross-repo hand-off records
+│   ├── mdbook/                      # link-detector pattern taxonomy the book gate cites
 │   └── pr/                          # review checklists for in-flight deliveries
 ├── repos/                           # one submodule per package (see .gitmodules)
 │   ├── aequitas/  eunomia/  melinoe/  themis/            # Foundation
@@ -668,6 +669,8 @@ atlas/
 │   │   proteus/   ritk/     tyche/
 │   └── CFDrs/     helios/   kwavers/                      # Integrator
 ├── scripts/
+│   ├── atlas-board-compact.py       # collapses closed board items to a one-line archive
+│   ├── atlas-conformance.py         # per-repo debt scan + non-increasing ratchet
 │   ├── atlas-stack-overlay.py       # generates the [patch] overlay from cargo metadata
 │   ├── atlas-toolchain-bootstrap.*  # clear Rust overrides; prioritize MSYS2 ucrt64
 │   ├── build-all.ps1 / build-all.sh # run one Cargo command across every recorded package

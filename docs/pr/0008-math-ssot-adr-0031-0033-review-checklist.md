@@ -1,6 +1,6 @@
 # PR 0008 — Math/Linalg SSOT ADRs 0031-0033 Review & Merge Checklist
 
-- **Atlas-parent change**: Yes — this PR advances `repos/leto`, `repos/CFDrs`, and `repos/kwavers` gitlinks and updates Atlas-parent PM artifacts (`gap_audit.md`, `math_ssot_ledger.md`, ADR status lines).
+- **Atlas-parent change**: Yes — this PR advances `repos/leto`, `repos/CFDrs`, and `repos/kwavers` gitlinks and updates Atlas-parent PM artifacts (`gap_audit.md`, `docs/audit/math-ssot-ledger.md`, ADR status lines).
 - **Sprint class**: `[arch]` (SSOT boundary + cross-repo consumer migration).
 - **Depends on**: ADR 0031, ADR 0032, ADR 0033 already accepted/implemented.
 - **Cross-repo consumers**: `cfd-math` (CFDrs), `kwavers-math`, `kwavers-solver` (Kwavers).
@@ -26,7 +26,7 @@ This checklist is the PR description. Reviewers from CFDrs and Kwavers should si
 | `repos/leto/docs/adr/0031-cfdrs-cfd-math-fd-iterative-ssot-consolidation.md` | Status bump | `Status: Accepted / Implemented` |
 | `repos/leto/docs/adr/0032-kwavers-linear-algebra-wrapper-closure.md` | Status bump | `Status: Accepted / Implemented` |
 | `repos/leto/docs/adr/0033-kwavers-3d-finite-difference-staggered-completion.md` | Status bump | `Status: Accepted / Implemented` |
-| `math_ssot_ledger.md` | Status bump | ADR 0031-0033 status lines `Drafted` → `Accepted` |
+| `docs/audit/math-ssot-ledger.md` | Status bump | ADR 0031-0033 status lines `Drafted` → `Accepted` |
 | `gap_audit.md` | Audit section | New “Math/Linalg SSOT ADRs accepted (2026-07-27)” section |
 | `repos/CFDrs/crates/cfd-math/src/lib.rs` | Source | Removed `differentiation` module; added `fd_extensions` re-export; updated prelude |
 | `repos/CFDrs/crates/cfd-math/src/differentiation/*` | Deletion | Legacy wrapper directory removed |
@@ -81,7 +81,7 @@ This checklist is the PR description. Reviewers from CFDrs and Kwavers should si
 
 ## Cross-cutting review checklist
 
-- [ ] `math_ssot_ledger.md` status lines for ADR 0031/0032/0033 read `Status: Accepted`.
+- [ ] `docs/audit/math-ssot-ledger.md` status lines for ADR 0031/0032/0033 read `Status: Accepted`.
 - [ ] `gap_audit.md` contains the “Math/Linalg SSOT ADRs accepted (2026-07-27)” section with correct ADR titles.
 - [ ] All three ADR files in `repos/leto/docs/adr/` have consistent status wording (`Accepted / Implemented`).
 - [ ] No stale `Proposed`, `Drafted`, or `Closed` references for these ADRs.
@@ -105,7 +105,7 @@ This checklist is the PR description. Reviewers from CFDrs and Kwavers should si
 
 # Cross-cutting stale-reference scan
 rg -g '*.rs' 'StaggeredGridOperator|LinearAlgebraExt|ComplexLinearAlgebra' repos/kwavers repos/CFDrs
-rg -g '*.md' 'Status:\s*(Proposed|Drafted)' repos/leto/docs/adr math_ssot_ledger.md
+rg -g '*.md' 'Status:\s*(Proposed|Drafted)' repos/leto/docs/adr docs/audit/math-ssot-ledger.md
 ```
 
 ## Sign-off
@@ -123,7 +123,7 @@ rg -g '*.md' 'Status:\s*(Proposed|Drafted)' repos/leto/docs/adr math_ssot_ledger
 1. Confirm all sign-offs above are checked.
 2. Run the verification commands; all must pass.
 3. Advance `repos/leto`, `repos/CFDrs`, and `repos/kwavers` gitlinks to the implementation merge commits.
-4. Commit Atlas-parent PM artifact updates (`gap_audit.md`, `math_ssot_ledger.md`, ADR status lines).
+4. Commit Atlas-parent PM artifact updates (`gap_audit.md`, `docs/audit/math-ssot-ledger.md`, ADR status lines).
 5. Annotated tag: `atlas/math-ssot-adr-0031-0033-closure` on the Atlas-parent merge commit.
 6. Push the tag and merge commit.
 
@@ -132,7 +132,7 @@ rg -g '*.md' 'Status:\s*(Proposed|Drafted)' repos/leto/docs/adr math_ssot_ledger
 - [ADR 0031](../../repos/leto/docs/adr/0031-cfdrs-cfd-math-fd-iterative-ssot-consolidation.md)
 - [ADR 0032](../../repos/leto/docs/adr/0032-kwavers-linear-algebra-wrapper-closure.md)
 - [ADR 0033](../../repos/leto/docs/adr/0033-kwavers-3d-finite-difference-staggered-completion.md)
-- `math_ssot_ledger.md` §7.1-7.3
+- `docs/audit/math-ssot-ledger.md` §7.1-7.3
 - `gap_audit.md` §“Math/Linalg SSOT ADRs accepted (2026-07-27)”
 - ADR 0010 — Atlas-parent pointer advance + tag ritual
 - ADR 0011 — Atlas-root working-tree hygiene ritual

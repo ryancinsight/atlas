@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bulk fix for Patterns A + B from `MDBOOK_LINK_WARNINGS.md`.
+"""Bulk fix for Patterns A + B from `docs/mdbook/link-warnings.md`.
 
 Prepends one extra `../` to every link of shape `[](../../(examples|crates)/...)`
 inside the `examples/` directory of each book. The off-by-one path-depth

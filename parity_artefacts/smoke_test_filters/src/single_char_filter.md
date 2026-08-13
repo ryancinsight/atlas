@@ -24,7 +24,7 @@ applied inside ``extract_links()`` to drop single-character hrefs that
 overwhelmingly come from math recurrence / indexed-call notation
 rather than real markdown links.
 
-Historical context: see `MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2
+Historical context: see `docs/mdbook/detector-parity-kwavers.md §3.2
 Issue B`.  The filter landed as part of the §7 #5 strict-mode gate
 flip; this chapter is its permanent regression guard.
 
@@ -48,8 +48,8 @@ These are real markdown links that the detector must still scan and
 validate.  They all resolve to existing files at atlas root or within
 the fixture tree:
 
-- See the [parent parity report](../../../MDBOOK_DETECTOR_PARITY.md).
-- See the [kwavers parity report](../../../MDBOOK_DETECTOR_PARITY_KWAVERS.md).
+- See the [parent parity report](../../../docs/mdbook/detector-parity.md).
+- See the [kwavers parity report](../../../docs/mdbook/detector-parity-kwavers.md).
 - See the [allow-list](../../../.check_mdbook_links_allowlist).
 - See the [detector source](../../../scripts/check_mdbook_links.py).
 - See the [sibling chapter](latex_filter.md) (the LATEX_HREF_RE regression test).

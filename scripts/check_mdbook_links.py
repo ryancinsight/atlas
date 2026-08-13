@@ -12,7 +12,7 @@ Exit codes:
   1   FILE_MISSING > 0 (default gate; relaxed by --advisory, tightened by --strict-placeholder)
   2   invocation error (no books supplied)
 
-Pattern classification (Patterns C / D / E / F from MDBOOK_LINK_WARNINGS.md)
+Pattern classification (Patterns C / D / E / F from docs/mdbook/link-warnings.md)
 is appended to each FILE_MISSING row to aid triage.  --strict-placeholder
 elevates Pattern D / F rows so an explicit allow-list can be maintained
 per-target once the responsible chapters materialise.
@@ -50,7 +50,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 
-# Patterns C / D / E / F — see MDBOOK_LINK_WARNINGS.md.  Order matters in
+# Patterns C / D / E / F — see docs/mdbook/link-warnings.md.  Order matters in
 # classify_pattern(): trailing-slash (D) → src/*.rs (F) → cross-book (C)
 # → depth-3 README (E).  First match wins so labels don't collide.
 PATTERN_F_RE = re.compile(r"^(?:\.\./)+crates/[^/]+/src/[^/]+(?:/[^/]+)*\.rs$")
@@ -63,7 +63,7 @@ LATEX_HREF_RE = re.compile(r"^\\[A-Za-z]+")
 # repo root (JSON, schema documented in that file).  The detector loads this
 # file once at startup; matching FILE_MISSING rows are silently skipped
 # (with an `allowlist:` prefix in the per-link section).  See
-# `MDBOOK_DETECTOR_PARITY_KWAVERS.md` §3 Issue B for the historical pattern
+# `docs/mdbook/detector-parity-kwavers.md` §3 Issue B for the historical pattern
 # (FDTD-recurrence `[n+1](x)`) that the SINGLE_CHAR_HREF_RE filter already
 # handles detector-wide — entries in `.check_mdbook_links_allowlist` are
 # for true per-row exceptions only.
@@ -96,7 +96,7 @@ def load_allowlist(path: Path = ALLOWLIST_PATH) -> set:
 # hrefs are always named (multi-char, contain `/` or `.md`); a single
 # alphanumeric href is almost always math notation.  Mirrors the
 # LATEX_HREF_RE precedent (Pattern G reclassified; see
-# MDBOOK_DETECTOR_PARITY_KWAVERS.md §3 Issue B).
+# docs/mdbook/detector-parity-kwavers.md §3 Issue B).
 SINGLE_CHAR_HREF_RE = re.compile(r"^[a-zA-Z]$")
 
 
@@ -178,7 +178,7 @@ def extract_links(content: str):
     # restricts the href to a single line; combined with the LaTeX-
     # noise filter (LATEX_HREF_RE, module-level) below, it silences
     # kwavers-style single-line `[F(m)](\mathbf{r}_s, t)` math noise.
-    # See MDBOOK_DETECTOR_PARITY_KWAVERS.md § Issue A.
+    # See docs/mdbook/detector-parity-kwavers.md § Issue A.
     for m in re.finditer(r"\[[^\]]*\]\(([^)\n]+)\)", content):
         href = m.group(1).strip()
         # Skip hrefs whose content starts with a LaTeX command — e.g.
@@ -191,7 +191,7 @@ def extract_links(content: str):
         # Pattern G filter (mirror of LATEX_HREF_RE above): skip single-
         # character hrefs, which overwhelmingly come from finite-
         # difference recurrence notation `f[n+1](x)` rather than real
-        # markdown links.  See MDBOOK_DETECTOR_PARITY_KWAVERS.md §3
+        # markdown links.  See docs/mdbook/detector-parity-kwavers.md §3
         # Issue B for the kwavers `[n+1](x)` false positive.
         if SINGLE_CHAR_HREF_RE.match(href):
             continue
@@ -562,7 +562,7 @@ def main(argv=None):
     if args.advisory:
         # Print-only: warnings printed above, exit 0 unconditionally so
         # the run doesn't block commits while the 12 known misses are
-        # still being triaged (§7 #5 in MDBOOK_DETECTOR_PARITY.md).
+        # still being triaged (§7 #5 in docs/mdbook/detector-parity.md).
         return 0
     # Strip allow-listed rows from the gate decision — they're documented
     # exceptions, not real bugs.  total_allowlisted was accumulated during

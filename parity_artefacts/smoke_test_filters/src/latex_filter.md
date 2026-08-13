@@ -26,7 +26,7 @@ LaTeX command (``\alpha``, ``\mathbf``, ``\nabla``, ``\partial``,
 ``\mathcal``, ``\hat``, etc.) — they are math notation, not real
 markdown links.  Real chapter hrefs almost never start with a backslash.
 
-Historical context: see `MDBOOK_DETECTOR_PARITY_KWAVERS.md §3 Issue A`.
+Historical context: see `docs/mdbook/detector-parity-kwavers.md §3 Issue A`.
 The filter landed as part of the §7 #1 detector-side fix; this chapter
 is its permanent regression guard.
 
@@ -52,8 +52,8 @@ These are real markdown links that the detector must still scan and
 validate.  They all resolve to existing files at atlas root or within
 the fixture tree:
 
-- See the [parent parity report](../../../MDBOOK_DETECTOR_PARITY.md).
-- See the [kwavers parity report](../../../MDBOOK_DETECTOR_PARITY_KWAVERS.md).
+- See the [parent parity report](../../../docs/mdbook/detector-parity.md).
+- See the [kwavers parity report](../../../docs/mdbook/detector-parity-kwavers.md).
 - See the [sibling chapter](single_char_filter.md) (the SINGLE_CHAR_HREF_RE regression test).
 
 ## Expected detector output (consolidated fixture)

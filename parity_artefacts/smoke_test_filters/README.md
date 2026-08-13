@@ -31,8 +31,8 @@ Both filters are applied inside ``extract_links()`` *before* the
 filter correctly drops contributes zero to ``FILE_MISSING``.
 
 Historical context:
-- `MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2 Issue B` — kwavers `[n+1](x)` FDTD recurrence
-- `MDBOOK_DETECTOR_PARITY_KWAVERS.md §3 Issue A`    — kwavers `[F(m)](\mathbf{r}_s, t)` LaTeX-cmd math bracket
+- `docs/mdbook/detector-parity-kwavers.md §3.2 Issue B` — kwavers `[n+1](x)` FDTD recurrence
+- `docs/mdbook/detector-parity-kwavers.md §3 Issue A`    — kwavers `[F(m)](\mathbf{r}_s, t)` LaTeX-cmd math bracket
 
 Both filters landed as part of §7 #1 / §7 #5 detector-side fixes; this
 fixture is the consolidated permanent regression guard.
@@ -69,7 +69,7 @@ any of the following change:
 - `scripts/check_mdbook_links.py` (detector edit)
 - `parity_artefacts/smoke_test_filters/**` (fixture edit)
 - `.github/workflows/docs.yml` (workflow edit)
-- `MDBOOK_DETECTOR_PARITY_KWAVERS.md` (historical-context edit)
+- `docs/mdbook/detector-parity-kwavers.md` (historical-context edit)
 
 Replaces the earlier per-filter jobs (`docs-link-smoke-test` for
 `SINGLE_CHAR_HREF_RE` + `docs-link-smoke-test-latex` for
