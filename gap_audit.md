@@ -27,6 +27,22 @@ and Metal software-provider contracts; required-device jobs were skipped because
 no physical device was available. The recurring `recurseml/analysis` result is
 an external analyzer failure, not a provider or consumer gate.
 
+## ATLAS-HELIOS-CHECKLIST-016 — Binary-MLC roadmap and benchmark gate (closed 2026-08-13)
+
+Helios PR #50 merged at `f118214e5f3da231b8b48ef8e2ea15450544f1de` from exact
+head `04fcf46100efe444b28a90234839abe73dbf0291`. Its Rust workspace, Python
+bindings, and benchmark-regression checks passed. The benchmark job completed
+the smoke suite and four phase-reversed baseline/candidate replications after
+the workflow fix.
+
+The checklist now records delivered H-020b `LeafOpenTimeSinogram`/`MlcModel` as
+resolved and removes stale todo/deferred claims for H-020b, H-020h, H-004b,
+H-010, and H-011c. The CI normalization step now accepts the historical
+baseline's valid `gaia-mesh` package identity plus version requirement; this
+was the root cause of the prior benchmark-gate failure. Helios remains open on
+H-004d (external RITK orientation tag), H-011d (exact Siddon/oriented
+projection), and H-012 (GPU projector).
+
 ## ATLAS-COEUS-CLOSURE-014 — Coeus provider and optimizer closure (2026-08-13)
 
 Coeus PR #323 merged at `d591220053586247ed3e9b344133281617055a2e`.

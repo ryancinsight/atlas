@@ -29,6 +29,19 @@
   physical device was available. The recurring `recurseml/analysis` result is
   an external analyzer failure.
 
+## ATLAS-HELIOS-CHECKLIST-016 — Reconcile binary-MLC roadmap and benchmark gate [patch] — complete 2026-08-13
+
+- Owner: Atlas integration. Helios PR #50 merged at
+  `f118214e5f3da231b8b48ef8e2ea15450544f1de` after exact-head hosted Rust,
+  Python, and benchmark-regression checks passed.
+- Outcome: `CHECKLIST.md` now records delivered H-020b
+  `LeafOpenTimeSinogram`/`MlcModel` as resolved and retains only H-004d, H-011d,
+  and H-012 in that open-scope section. The workflow accepts the valid
+  historical Gaia manifest shape containing `gaia-mesh` package identity and a
+  version requirement, fixing the observed benchmark-gate normalization defect.
+- Residuals remain explicit in Helios' authoritative backlog: external DICOM
+  encoding maintenance, exact Siddon/oriented projection, and the GPU projector.
+
 ## ATLAS-EUNOMIA-FLOAT-CBRT-014 — Land sign-preserving FloatElement::cbrt SSOT [feat]
 
 - Owner: Atlas integration.

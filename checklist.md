@@ -24,6 +24,18 @@
       execution remains unverified. The recurring external analyzer failure is
       not a provider or consumer gate.
 
+## ATLAS-HELIOS-CHECKLIST-016 — Reconcile binary-MLC roadmap and benchmark gate — complete
+
+- [x] Helios PR #50 merged at `f118214e`; Rust workspace, Python bindings, and
+      the four-replication benchmark regression gate pass at exact head
+      `04fcf46`.
+- [x] Reconcile H-020b in `CHECKLIST.md` with the delivered
+      `LeafOpenTimeSinogram`/`MlcModel`; remove stale deferred/todo claims for
+      H-020b, H-020h, H-004b, H-010, and H-011c.
+- [x] Repair historical-Gaia baseline normalization for the valid
+      `gaia-mesh` package-identity plus version shape. Keep H-004d, H-011d, and
+      H-012 as the current Helios open scope.
+
 ## ATLAS-COEUS-CLOSURE-014 — Provider deduplication and batched NLLS — complete 2026-08-13
 
 - [x] Confirm Coeus PR #323 merged at `d5912200`; the provider-owned batched
