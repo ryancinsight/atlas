@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Pin shell scripts to LF so the Bash toolchain bootstrap remains executable
+  after Windows checkouts.
+
 - Merge Kwavers PR #341 (`e3389e79`) for typed two-dimensional transducer-array
   geometry, curvature, focus, frequency, velocity, steering, and delay
   contracts through Aequitas. Center-to-center pitch generation is corrected;
