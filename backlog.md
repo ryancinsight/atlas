@@ -1,5 +1,13 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout [patch]
+
+- Owner: Atlas integration.
+- Outcome: advance the Leto gitlink to the merged PM-closeout head and retain
+  exact provider-head evidence without staging peer-owned Leto changes.
+- Status: in progress; Leto PR #107 merged as `e525d8d` and the fetched default
+  is ahead of the committed root pointer.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default [patch]
 
 - Owner: Atlas integration.

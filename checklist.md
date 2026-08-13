@@ -1,5 +1,12 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout — in progress
+
+- [x] Confirm Leto PR #107 merged as `e525d8dd` after its Rust verification
+      passed; the recurring `recurseml/analysis` status remains external.
+- [ ] Advance the root Leto gitlink and rerun the exact-head audit without
+      staging peer-owned submodule changes.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default — complete 2026-08-13
 
 - [x] Confirm Moirai PM closeout PR #125 merged as `ae9a5dfb` after all

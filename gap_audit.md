@@ -1,5 +1,12 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-LETO-PM-REFRESH-010 — Reconcile merged Leto PM closeout (2026-08-13)
+
+Leto PR #107 merged as `e525d8dd5ee52d12de0bf61987e8af6bf896700f` after the
+provider Rust verification passed. The provider default advanced from
+`8c4e609` to `e525d8d`; the local Leto checkout remains peer-owned and dirty,
+so this increment updates only the root gitlink and current Atlas evidence.
+
 ## ATLAS-MOIRAI-PM-REFRESH-009 — Reconcile merged Moirai default (2026-08-13)
 
 Moirai PR #125 merged as `ae9a5dfb7a56c64b471338d9f9d859db7b52d9fe`. Its
