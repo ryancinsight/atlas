@@ -201,12 +201,14 @@ and the natural inverse of physics kwavers already models forward.
 **G2 — Non-Cartesian image types as a coordinate seam.** ITK models curvilinear,
 3-D phased-array and slice-series acquisitions as *image types* whose
 index→physical map is non-Cartesian, so every existing resampler, filter and
-registration method works on them unchanged. We have no such seam: scan
-conversion is a leaf function. Missing types:
-`PhasedArray3DSpecialCoordinatesImage` (+ its inverse scan conversion),
-`SliceSeriesSpecialCoordinatesImage` (wobbler/3-D-from-2-D-series), and the
-curvilinear type itself. Owner: ritk (it owns `Image` and the spatial
-transform stack); kwavers consumes it.
+registration method works on them unchanged. RITK now carries the merged
+curvilinear seam (`ritk` PR #128, merge `c608f758`); the phased-array extension
+is in PR #131 at `9c29e9ff` and remains blocked in review. The review found that
+legacy scalar/batch transform surfaces still bypass the map, non-Cartesian
+branches ignore image origin/direction metadata, and generic scalar arithmetic
+widens to `f64` before narrowing. Slice-series remains absent, and kwavers' leaf
+scan converter still awaits migration and deletion. Owner: ritk (it owns
+`Image` and the spatial transform stack); kwavers consumes it.
 
 **G3 — Speckle-reducing anisotropic diffusion (SRAD).** Absent.
 `ritk-filter/src/diffusion/` has Perona–Malik, curvature flow, min-max

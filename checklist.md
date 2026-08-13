@@ -41,6 +41,18 @@
 - [ ] Run exact-head hosted validation for every changed caller and re-audit
       the fetched defaults for stale pins.
 
+## ATLAS-US-CAPABILITY-023 — RITK phased-array review residuals
+
+- [x] Review ritk PR #131 at `9c29e9ff` against ADR 0042 and the full Image
+      transform surface.
+- [x] Record P1 findings: Cartesian-only legacy transform APIs, missing
+      origin/direction composition, and `f64` widen-compute-narrow arithmetic.
+- [ ] Fix the findings on the ritk phased-array branch, add non-identity
+      metadata and cross-API differential tests, and pass the hosted image,
+      filter, clippy, rustdoc, and formatting gates.
+- [ ] Advance the ritk gitlink only to the exact merged PR #131 head, then
+      rerun the Atlas exact-head and dependency-overlay audits.
+
 ## ATLAS-HEPHAESTUS-REDUCTION-022 — Retire superseded product-axis parity PR — complete 2026-08-13
 
 - [x] Rebase Hephaestus PR #113 onto current `master` and verify product-axis
