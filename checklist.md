@@ -8,7 +8,7 @@
       files; preserve all peer-owned child checkout changes.
 - [x] Advance all twenty Atlas gitlinks through the index only: horae
       `72505426`, hyperion `5758df93`, themis `93e83899`, tyche `5febead4`,
-      proteus `5969f1e3`, mnemosyne `6d3618d0`, consus `8cf015a9`, helios
+      proteus `5969f1e3`, mnemosyne `5824d2af`, consus `8cf015a9`, helios
       `54000a65`, aequitas `7ff87e62`, asclepius `a798e4f8`, eunomia `6c02d10d`,
       moirai `e3056e12`, ritk `c608f758`, melinoe `2d9696e9`, leto `f208dbaa`,
       hephaestus `6724547b`, coeus `d5f044dd`, apollo `3ea6292d`, hermes
@@ -40,7 +40,8 @@
       cannot leak into compiler or coherence checks; both sanitizer paths have
       regression coverage.
 - [x] Merge the hosted-green caller PRs for Themis #18, Proteus #8, Hyperion
-      #8, and Tyche #21; advance Atlas gitlinks to their exact default heads.
+      #8, Tyche #21, and Mnemosyne #48; advance Atlas gitlinks to their exact
+      default heads.
 - [ ] Collect required hosted CI for each PR, merge green PRs, and advance the
       Atlas gitlinks to their exact merged provider defaults.
 - [ ] Run exact-head hosted validation for every changed caller and re-audit
