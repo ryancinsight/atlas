@@ -4249,6 +4249,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-HYPERION-INTERP-068** Hyperion NIST interpolation closure (2026-08-14) — provider PR #9, merged default `41ef18e`; CI `31794767546` verify and supply-chain green; recurseml analysis report-only
 - **ATLAS-HEPH-SEAM-043 / ATLAS-HEPH-ACCEL-044 / ATLAS-HEPH-DEADBUILD-060** Hephaestus seam, shared scan, and dead-build closure (2026-08-14) — PR #208, merged default `ff2ab47`; CUDA `31793963123`, ROCm `31793963119`, WGPU `31793963054`, Metal `31793963181` green; independent architectural review approved
 - **ATLAS-LICENSE-FILES-039** License-file audit re-probe (2026-08-14) — premise stale; Moirai, Leto, Gaia, and Helios default heads all contain `LICENSE-APACHE` and `LICENSE-MIT` matching `MIT OR Apache-2.0`
+- **ATLAS-ADR-GOV-058-HYPERION** Hyperion ADR-index slice (2026-08-14) — provider PR #10, merged default `d17e863`; exact-head `31795703287` verify and supply-chain green; recurseml analysis report-only
 - **ATLAS-HYPERION-PROVIDER-DOCS-001** Complete Hyperion book closure (2026-08-11) — `b8a1124`, `9a8b7d8`
 - **ATLAS-PROTEUS-PROVIDER-DOCS-001** Complete Proteus book closure (2026-08-11) — `30e25f8`, `3d6021e`, `2918e5a`
 - **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** nineteen-provider integration audit (closed 2026-08-11; Tyche (aka Tychee)) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`
