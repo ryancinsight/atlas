@@ -4218,6 +4218,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-LETO-PM-REFRESH-010** Reconcile merged Leto PM closeout (2026-08-13) — `e525d8dd`
 - **ATLAS-LETO-CONVOLUTION-012** Close provider convolution contract (2026-08-13) — `7172b338`, `a722fbc8`, `aabdec67`, `a4063be1`
 - **ATLAS-MOIRAI-NUMA-095** Wire the NUMA policy through the runtime (2026-08-14) — provider `181f87d`, PM closeout `6d42bd3`, default `e972174`; hosted Rust Workspace `31787962637` and Python Bindings `31787962649` pass
+- **ATLAS-MSRV-UNVERIFIED-077 (Eunomia slice)** Verify Eunomia Rust 1.95 MSRV and package gate (2026-08-14) — provider PRs #65/#66, default `84c82fe`; hosted MSRV `31789001841`, Rust verification/supply-chain `31789001920`, exact online dry-run pass
 - **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
 - **ATLAS-PROVIDER-INTEGRATION-006** Twenty-provider exact-head re-audit
   (2026-08-14) — closed in root commit `364cdac`; structural, exact-head, and

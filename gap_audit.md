@@ -1,5 +1,22 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-MSRV-UNVERIFIED-077 — Eunomia floor closure (closed portion 2026-08-14)
+
+Eunomia's declared `rust-version = "1.95"` now has a provider-owned workflow
+using Rust 1.95.0, `cargo check --locked --workspace --all-targets
+--all-features`, pinned action SHAs, a 30-minute timeout, and path-scoped
+triggers. PR #65 merged as `d252f968`; the hosted MSRV run `31789001841`, Rust
+verification run `31789001920`, and supply-chain run `31789001920` pass at the
+implementation head `b6c3d9a`. Provider PM reconciliation PR #66 merged as
+`84c82fe`, and the Atlas gitlink now records that exact default head.
+
+The exact online `cargo publish --locked --package eunomia --dry-run` at
+`84c82fe` packages 73 files (385.3 KiB, 86.0 KiB compressed), verifies the
+crate, and stops at the expected dry-run upload boundary. Local Rust 1.95.0
+all-target/all-feature checking passes. `recurseml/analysis` is an external
+report-only failure; CodeRabbit was rate-limited on the PM-only PR. Mnemosyne
+remains the only open provider portion of ATLAS-MSRV-UNVERIFIED-077.
+
 ## ATLAS-TYCHE-DOCS-001 — Merge Tyche PR #22 (2026-08-14)
 
 Tyche PR #22 merged as `b1c5cc9f673ea7651672be608542afa5acb8cc6c` after the
