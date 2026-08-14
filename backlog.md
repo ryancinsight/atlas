@@ -51,6 +51,7 @@ rows below retain their original audit scope:
 | ATLAS-ASCLEPIUS-PARAM-074 (typed-parameter slice) | asclepius `5d528d2` | Distinct `Gamma50` and `LymanSlope` types with compile-fail coverage; CEM43 validity remains open. |
 | ATLAS-THEMIS-CONFORMANCE-083 | themis `b1b671c`; Atlas `0922c58` | Replaced Themis's duplicate thread cache with Melinoe's `thread_cached!` provider, split the oversized static-cell leaf, and closed the value-semantic assertion and safety-comment findings. Hosted Ubuntu/Windows, Miri, compile-fail, documentation, and CodeRabbit checks pass. |
 | ATLAS-POSTMERGE-HEAD-084 | Atlas `73974ee` | Advanced the Ritk and Eunomia gitlinks to fetched defaults `3f30cddf` and `2e0d724c` while preserving dirty provider worktrees. Ritk hosted CI is green; Eunomia's Rust and supply-chain checks are green and its external `recurseml/analysis` status remains report-only. |
+| ATLAS-HELIOS-BENCHMARK-085 | Helios `152a66c` | Helios PR #54's benchmark regression job completed successfully; the merged default head is fully green across book, Rust, Python, and benchmark checks. The Atlas gitlink remains peer-owned at its staged integration head. |
 
 **Current exact-head residual (2026-08-14):** requested-provider coherence is
 clean; the structural exact-head audit leaves only four staged peer-owned
