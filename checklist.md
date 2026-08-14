@@ -4246,6 +4246,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-MNEMOSYNE-BOOK-001** Complete Mnemosyne book closure (2026-08-11) — `c4516df`, `9a143ca`
 - **ATLAS-HORAE-PROVIDER-DOCS-001** Complete Horae book closure (2026-08-11) — `03ad868`, `08cf292`
 - **ATLAS-HORAE-EXACTNESS-069** Horae event and subcycle exactness closure (2026-08-14) — provider PR #12, merged default `41dcf00`; CI `31792859575`, book `31792859919`
+- **ATLAS-HYPERION-INTERP-068** Hyperion NIST interpolation closure (2026-08-14) — provider PR #9, merged default `41ef18e`; CI `31794767546` verify and supply-chain green; recurseml analysis report-only
 - **ATLAS-HYPERION-PROVIDER-DOCS-001** Complete Hyperion book closure (2026-08-11) — `b8a1124`, `9a8b7d8`
 - **ATLAS-PROTEUS-PROVIDER-DOCS-001** Complete Proteus book closure (2026-08-11) — `30e25f8`, `3d6021e`, `2918e5a`
 - **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** nineteen-provider integration audit (closed 2026-08-11; Tyche (aka Tychee)) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`

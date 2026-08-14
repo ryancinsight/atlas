@@ -42,6 +42,7 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | ATLAS-CACHE-FORK-055 (partial) | — | **33.8 GB reclaimed** by deleting 22 stale `repos/*/target` forks. 25.1 GB remains in ritk, kwavers and mnemosyne, deferred because each showed activity within hours. The forks regrow unless whatever creates them is found, so the item stays open until the cause is identified. |
 | ATLAS-HELIOS-STRAY-PNG-061 | Atlas `0023164` | **Premise stale.** The tracked `helios_workflow_output/{ct,dose,mu,recon}.png` files were already removed when the root was cleared to the sanctioned set; the current tree has no directory or tracked PNGs. No provider edit was required. |
 | ATLAS-HORAE-EXACTNESS-069 | Horae PR #12 merged at default `41dcf00`; provider CI `31792859575` (verify and supply-chain) and book build `31792859919` are green. Event clipping now states the Sterbenz precondition and preserves the event endpoint as authoritative; ratio-three subcycling carries a derived floating-point reconstruction bound with value-semantic tests. |
+| ATLAS-HYPERION-INTERP-068 | Hyperion PR #9 merged at default `41ef18e`; provider `verify` and `supply-chain` run `31794767546` are green. NIST reference intervals now use a native-`T` natural cubic spline in log-energy/log-coefficient space, with ten independently queried XCOM off-knot values as a method-regression oracle. XCOM's fourth displayed digit is documented as an interpolation aid rather than an accuracy guarantee; no unsupported global error bound is claimed. |
 
 Completed provider slices from this sweep are recorded here so the residual
 rows below retain their original audit scope:
@@ -91,6 +92,9 @@ and PM closeout PR #129 are merged at default `e972174`; exact default-head Rust
 Workspace run `31787962637` and Python Bindings run `31787962649` pass.
 Horae PR #12 is merged at default `41dcf00`; exact-head CI run `31792859575`
 passes verify and supply-chain, and the book build `31792859919` is green.
+Hyperion PR #9 is merged at default `41ef18e`; exact-head CI run `31794767546`
+passes verify and supply-chain. Its external `recurseml/analysis` status is
+report-only and failed without affecting the provider-owned gates.
 
 ## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — done 2026-08-14
 

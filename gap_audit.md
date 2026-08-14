@@ -15,6 +15,27 @@ merged head; book build `31792859919` passed. The provider's standalone
 unrelated non-hermetic book snippets; `cargo test --doc` and `cargo doc`
 remain green. Root gitlink now records the merged default head.
 
+## ATLAS-HYPERION-INTERP-068 — Hyperion NIST interpolation closure (closed 2026-08-14)
+
+Hyperion PR #9 merged at default `41ef18e`. The NIST reference table now uses
+a native-`T` natural cubic spline in log-energy/log-coefficient space, matching
+the interpolation family described by [NIST XCOM §3](https://physics.nist.gov/PhysRefData/Xcom/Text/chap3.html).
+The endpoint second-derivative condition is documented as an explicit local
+choice because the embedded table does not publish endpoint slopes.
+
+The provider records retrieval dates and material-table provenance. Ten
+liquid-water off-knot values queried from XCOM 1.5 on 2026-08-14 are committed
+as an independent method-regression fixture for f32 and f64; the spline's
+maximum relative residual is below the former log-linear method's residual
+over that fixture set. [NIST's version history](https://physics.nist.gov/PhysRefData/Xcom/Text/version.shtml)
+states that the fourth displayed digit aids interpolation and is not an
+accuracy claim, so the sparse 28-knot provider makes no global error claim.
+
+Provider evidence: exact-head run `31794767546` passed `verify` and
+`supply-chain`. The external `recurseml/analysis` status is report-only and
+failed without affecting the provider-owned gates. Root gitlink now records
+the merged default head.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
