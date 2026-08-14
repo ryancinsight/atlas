@@ -184,6 +184,20 @@ default head `17d3647`.
   comparison table says 0.2 scope; focused diff checks and the exact hosted
   default-head CI pass; no domain source behavior changes.
 
+## ATLAS-PROTEUS-CI-094 — Bound and lock provider verification [patch] — in progress 2026-08-14
+
+- Owner: current session. Scope is limited to Proteus's verification workflow,
+  its provider PM record, and the exact hosted default-head gate. Proteus is
+  clean on `main` at `c7cf800` apart from the peer-owned overlay lockfile.
+- Finding: the verify job has no timeout and its Cargo checks, tests,
+  doctests, documentation, and runnable example omit `--locked`; the
+  supply-chain job also has no timeout. This leaves the provider outside the
+  bounded, reproducible CI contract even though its committed lockfile and
+  nextest budget exist.
+- Acceptance: both jobs carry finite timeouts; every lock-sensitive Cargo
+  command uses `--locked`; provider PM records the change; exact hosted CI is
+  green at the merged default head; no domain source behavior changes.
+
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
 peer work. The lane audit reports two violations: three Ritk trees and the
