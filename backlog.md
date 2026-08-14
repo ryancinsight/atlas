@@ -5865,7 +5865,33 @@ was not done.
 
 **Spun out, unclaimed:**
 
-`ATLAS-DMRI-TRACT-023` — Interpolated direction field [minor], todo. Nearest
+`ATLAS-DMRI-TRACT-023` — Interpolated direction field [minor], **in-progress
+2026-08-14, owner=claude-dmri-cli**, implementation written and compiling,
+verification blocked on a peer's in-flight `ritk-image` edit (a new `view.rs`
+calling `try_as_slice` on a generic `DeviceBuffer` without the trait bound;
+`coeus-core` has the method, so this is a missing bound, not a missing API).
+`ritk-image` is a dev-dependency of `ritk-diffusion`, so the library builds and
+only the test binary is blocked. A retry loop is queued against the peer landing.
+
+Approach chosen: **dyadic (outer-product) interpolation**, not sign-aligned
+vector averaging. Accumulate `Σ wᵢ vᵢvᵢᵀ` trilinearly and take the principal
+eigenvector of the sum. Sign-invariance is then structural — `(−v)(−v)ᵀ = v vᵀ`
+— rather than a heuristic alignment pass that can pick the wrong reference in a
+crossing. Interpolation smooths the orientation only; whether a streamline may
+continue stays decided by the voxel it is in, so switching modes cannot silently
+move where tracking stops.
+
+Required a split in `dti.rs`: `decompose_3x3_symmetric` refused non-positive
+eigenvalues, which is a *diffusion tensor* validity contract and not a property
+of symmetric matrices. A dyadic sum is positive **semi**-definite by
+construction — one contributor gives `(w, 0, 0)` — so the pure decomposition is
+now `decompose_3x3_symmetric_unchecked` and the checked wrapper applies the
+domain rule. Both original rules were preserved, including the stricter
+positivity the isotropic branch applied.
+
+Original scope follows.
+
+`ATLAS-DMRI-TRACT-023` (original) — Interpolated direction field [minor]. Nearest
 neighbour makes orientation constant within a voxel and discontinuous at each
 boundary, so smooth bundles can exceed the turn limit. This is *not* simply
 trilinear averaging of the eigenvectors: an eigenvector has no sign, so ±v
