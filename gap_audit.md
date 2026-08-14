@@ -1,5 +1,21 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-AUDIT-STALE-TIER2-101 — Leto SVD closure already landed (closed 2026-08-14)
+
+The active `ATLAS-LETO-SVD-049` row duplicated provider work already present at
+Leto default `143696d`. Provider commit `58b6eb3` deletes
+`crates/leto-ops/src/application/linalg/svd/jacobi.rs`, leaves
+`bidiagonal_qr.rs` as the sole decomposition path, moves pseudoinverse
+construction onto that path, removes the obsolete full-rank rejection, and
+rewrites ADR 0005 with a dated decision re-derivation. The implementation diff
+is net negative (251 insertions, 407 deletions), and the current focused gate
+`cargo nextest run --offline -p leto-ops svd` passes 23/23 tests, including
+rank-deficient tall, wide, square, f32, pseudoinverse, reconstruction, and
+orthonormality cases. No provider source change was required in this
+reconciliation. The remaining values-only dqds performance item is separate
+provider backlog work, not evidence that this duplicate-path finding remains
+open.
+
 ## ATLAS-AUDIT-STALE-TIER2-100 — Leto Tiles closure already landed (closed 2026-08-14)
 
 The active `ATLAS-LETO-TILES-048a` row duplicated landed provider commit

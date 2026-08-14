@@ -4218,6 +4218,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-AUDIT-STALE-TIER1-2C-098** Remove four closed active rows (2026-08-14) — Gaia `18349bc`, Iris `899d622`, Proteus `671c9fa`, Asclepius `5d528d2`, landed evidence reconciled
 - **ATLAS-AUDIT-STALE-TIER2-099** Reclassify the Moirai cache-line premise (2026-08-14) — provider `2ea17bb`, merged default `e972174`, focused nextest cache-separation tests pass
 - **ATLAS-AUDIT-STALE-TIER2-100** Reconcile the landed Leto Tiles iterator (2026-08-14) — provider `7f80044`, merged default `143696d`, iterator and ragged-edge evidence pass; `048b` remains open for consumers
+- **ATLAS-AUDIT-STALE-TIER2-101** Reconcile the landed Leto SVD collapse (2026-08-14) — provider `58b6eb3`, merged default `143696d`, focused SVD nextest 23/23; remaining dqds performance work is separate
 - **ATLAS-COEUS-LAYERNORM-SHAPE-031** Close the multi-dimensional LayerNorm contract (2026-08-14) — merged default `a2638c03`, Rust/PyO3 shape and gradient coverage plus hosted backend/book gates pass
 - **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
 - **ATLAS-PROVIDER-INTEGRATION-006** Twenty-provider exact-head re-audit
