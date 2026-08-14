@@ -1,5 +1,20 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-HORAE-EXACTNESS-069 — Horae boundary exactness closure (closed 2026-08-14)
+
+Horae PR #12 merged at default `41dcf00`. The event-clipping contract now
+states the Sterbenz factor-of-two precondition and makes `EventClip::event()`
+the authoritative endpoint; `step()` remains the rounded duration. The
+subcycle contract replaces the false ratio-three bit-identity claim with a
+derived `gamma_4` reconstruction bound and value-semantic f64 and generic
+scalar tests, including the large-origin/small-offset cancellation case.
+
+Provider evidence: CI run `31792859575` passed verify and supply-chain at the
+merged head; book build `31792859919` passed. The provider's standalone
+`mdbook test docs/book` remains an explicit pre-existing H-004 residual for
+unrelated non-hermetic book snippets; `cargo test --doc` and `cargo doc`
+remain green. Root gitlink now records the merged default head.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit

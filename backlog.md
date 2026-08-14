@@ -41,6 +41,7 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | ATLAS-MNEMOSYNE-ALIAS-033 | mnemosyne `4c22fba` | **Premise disproved.** The reported sequence passes miri under both Stacked and Tree Borrows on the unfixed code. A control — the same aliasing with the exclusive reference *used* afterwards — is flagged immediately, so the method had detection power and the invalidation is real; the UB is not. `with_scratch` never touches `vec` after the closure, and the slice points into the heap buffer, a different allocation from the struct inside the `UnsafeCell`. Soundness held by accident of dead-code timing, so it was fixed anyway and `capacity()` is now safe code. **Reclassify: fragility, not UB.** The two secondary fixes were confirmed, and the leak-on-unwind had a *third* site (`Heap::free`) the item did not name. |
 | ATLAS-CACHE-FORK-055 (partial) | — | **33.8 GB reclaimed** by deleting 22 stale `repos/*/target` forks. 25.1 GB remains in ritk, kwavers and mnemosyne, deferred because each showed activity within hours. The forks regrow unless whatever creates them is found, so the item stays open until the cause is identified. |
 | ATLAS-HELIOS-STRAY-PNG-061 | Atlas `0023164` | **Premise stale.** The tracked `helios_workflow_output/{ct,dose,mu,recon}.png` files were already removed when the root was cleared to the sanctioned set; the current tree has no directory or tracked PNGs. No provider edit was required. |
+| ATLAS-HORAE-EXACTNESS-069 | Horae PR #12 merged at default `41dcf00`; provider CI `31792859575` (verify and supply-chain) and book build `31792859919` are green. Event clipping now states the Sterbenz precondition and preserves the event endpoint as authoritative; ratio-three subcycling carries a derived floating-point reconstruction bound with value-semantic tests. |
 
 Completed provider slices from this sweep are recorded here so the residual
 rows below retain their original audit scope:
@@ -88,6 +89,8 @@ Proteus's bounded locked-gate PR #10 default is `671c9fa`; exact default-head
 CI run `31786562412` passes verify and supply-chain. Moirai's NUMA policy PR #128
 and PM closeout PR #129 are merged at default `e972174`; exact default-head Rust
 Workspace run `31787962637` and Python Bindings run `31787962649` pass.
+Horae PR #12 is merged at default `41dcf00`; exact-head CI run `31792859575`
+passes verify and supply-chain, and the book build `31792859919` is green.
 
 ## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — done 2026-08-14
 
@@ -357,26 +360,10 @@ in any `src/`, zero fake-generic casts, zero `todo!()`, zero non-test `unwrap`,
 LICENSE texts present and matching the manifest in all four. The findings are
 about documentation truth and numerical evidence, not debt.
 
-> **Claimed 2026-08-14 by the current session.** Complete
-> `ATLAS-HORAE-EXACTNESS-069` on the Horae provider branch
-> `codex/horae-planning-closure`. The claimed scope is the event-clipping and
-> subcycle exactness contracts, their value-semantic tests and book/ADR text,
-> plus the provider PM records. Consumer migrations and unrelated Horae
-> features are non-goals.
-
-> **Claimed 2026-08-14 by the current session.** Complete
-> `ATLAS-HYPERION-INTERP-068` on the Hyperion provider branch
-> `codex/hyperion-planning-closure`. The claimed scope is the NIST
-> interpolation error contract, independent off-knot evidence/provenance, and
-> provider PM records. Consumer physics changes and unrelated Hyperion
-> coefficients are non-goals.
-
 | ID | Outcome | Class | Acceptance oracle |
 | --- | --- | --- | --- |
 | ATLAS-ATHENA-UNDOC-066 | **athena ships two undocumented solver families.** BiCGStab (575 lines) and LSQR (487) are implemented and publicly re-exported from `athena-core/src/lib.rs`, yet appear **zero times** in the README, whose headline (`:5`) calls PCG and GMRES "its complete vertical contracts". Compounding it, the architecture tree names a crate that does not exist (`:62` `athena-wgpu` vs the real `athena-hephaestus`), a feature that does not exist (`:71` `wgpu` vs the real `accelerator`), and asserts a 500-line ceiling (`:69`) that BiCGStab breaks. | [patch] | `rg 'athena-wgpu' README.md` → 0; README documents BiCGStab and LSQR; the line-count claim is removed or true per `wc -l` |
 | ATLAS-BOOK-PLACEHOLDER-067 | **Placeholder chapters are shipped as books.** athena has 6 chapters and harmonia 3 — every one is the 3-line string `*Chapter prose deferred.*`. A placeholder chapter is documentation's mock: a chapter exists when its teaching content does. Separately and stack-wide, all four repos call the atlas reusable Pages workflow without `mdbook-test`, which defaults `false` (`.github/workflows/book-pages.yml:34-41`), so even horae's genuinely good 794-line book and hyperion's real chapters have samples that can rot. | [patch] | No `Chapter prose deferred` anywhere; horae and hyperion pass `mdbook-test: true` now, athena and harmonia once content lands (relates to ATLAS-PUB-005) |
-| ATLAS-HYPERION-INTERP-068 | **Interpolation error is unbounded and its accuracy test is self-referential.** The log-log linear scheme (`nist.rs:90-105`) has no derived error bound tied to knot spacing and curvature, and the test checks that log-linear at a geometric midpoint reproduces the geometric mean of its own knots — an algebraic identity of the scheme, not accuracy versus NIST. The 28 knots are asserted to avoid absorption edges (`nist.rs:19-20`) with no evidence, and provenance is bare per-material URLs with no retrieval date or table version (cortical bone cites only "ICRU-44", no report table). | [minor] | `nist.rs` states a derived bound; an off-knot test compares against independently held NIST values within it; every `// Source:` line carries a date and table version |
-| ATLAS-HORAE-EXACTNESS-069 | Two exactness claims are stronger than their argument. `events/schedule.rs:61` promises the clipped endpoint "equals the next crossed event exactly", but `clip_step` returns `event.duration_since(start)` (`:86`) — that holds by Sterbenz only within a factor of two, and the property test (`tests/properties.rs:61-82`) samples only `start ∈ ±1e3, offset ∈ [1e-6,1]`, never the cancellation regime. And `subcycling/plan.rs:47` uses reciprocal-multiply, so for `RATIO = 3` child steps do not sum bit-exactly to the parent, contradicting the alignment claim. | [patch] | The Sterbenz precondition is stated and `clip.event()` documented as the required consumption route; a property case at `start ≈ 1e8, offset ≈ 1e-6` passes or the claim is weakened; the `RATIO=3` reconstruction is tested within a stated bound |
 | ATLAS-ATHENA-KRYLOV-070 | `gmres/workspace.rs:15-16` holds the Arnoldi basis as `Vec<B::Vector>` — on Leto that is `2·RESTART+1` scattered allocations, while every scalar array in the same struct is already flat (`hessenberg` is one `Vec<Scalar>` with an index fn). The only pointer-scattering instance found across these four repos. Allocated once at construction and natural per-buffer on WGPU, so this is a CPU-side layout defect, not a hot-loop allocation. Also: non-convergence returns `Ok(SolveReport)` with `Termination::MaxIterations` rather than a typed error, `SolveError` carries no residual history, and stagnation/divergence detection is absent entirely. | [minor] | `Vec<B::Vector>` gone from `gmres/workspace.rs` behind the existing `KrylovBackend` seam; the existing allocation-stability and f32/f64 contract tests unchanged and green; a stalling operator yields a `Termination::Stagnated`-class value with non-empty history |
 
 ## Tier 2c — small domain repos (iris, proteus, asclepius, tyche)
