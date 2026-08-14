@@ -6352,7 +6352,7 @@ Scoping found `TractographyResult` already has `to_trk_header`, `to_tck` and
 extension, not new format code. It also means `tract dti`'s hand-rolled
 `write_tck` (added in 022) duplicates `to_tck()` and is deleted here.
 
-**Library half delivered** (ritk PR #149, commit `df7b40bd`):
+**Library half merged** (ritk PR #149, `ab46f9f1` on main):
 `TractographyResult::map_points`. The export methods assume physical
 millimetres while `tract dti` tracks in voxel indices, and the result's fields
 are `pub(crate)`, so the CLI had no way to produce a converted result and built
@@ -6398,7 +6398,8 @@ offers. `NoddiVolume`/`FodVolume` accept physical points and therefore order
 everything x,y,z; `DtiVolume` accepts voxel indices and therefore orders
 everything `[depth, row, column]` like `Image::shape()`.
 
-**Delivered 2026-08-14** (ritk PR #149, commit `6d5b6063`): the order is
+**Merged 2026-08-14** (ritk PR #149, `ab46f9f1` on main; atlas gitlink
+`96a0b6f`): the order is
 documented explicitly on all three types
 with the reason and a cross-reference, and pinned by a test per type so a
 refactor cannot silently flip it. The residual trap — passing `image.shape()`
