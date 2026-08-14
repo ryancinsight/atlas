@@ -41,7 +41,7 @@ fixture is the consolidated permanent regression guard.
 
 ```bash
 # Positive test (both filters ON): must report FILE_MISSING : 0 and exit 0
-python3 scripts/check_mdbook_links.py parity_artefacts/smoke_test_filters
+python3 scripts/check_mdbook_links.py scripts/tests/fixtures/smoke_test_filters
 
 # Negative test (both filters OFF): must report FILE_MISSING > 0 and exit 1
 PYTHONPATH=scripts python3 -c "
@@ -49,7 +49,7 @@ import re
 import check_mdbook_links as m
 m.SINGLE_CHAR_HREF_RE = re.compile(r'(?!)')   # never match
 m.LATEX_HREF_RE       = re.compile(r'(?!)')   # never match
-raise SystemExit(m.main(['parity_artefacts/smoke_test_filters']))
+raise SystemExit(m.main(['scripts/tests/fixtures/smoke_test_filters']))
 "
 ```
 
@@ -67,7 +67,7 @@ fixture and fails CI if ``FILE_MISSING > 0``.  The job triggers when
 any of the following change:
 
 - `scripts/check_mdbook_links.py` (detector edit)
-- `parity_artefacts/smoke_test_filters/**` (fixture edit)
+- `scripts/tests/fixtures/smoke_test_filters/**` (fixture edit)
 - `.github/workflows/docs.yml` (workflow edit)
 - `docs/mdbook/detector-parity-kwavers.md` (historical-context edit)
 
