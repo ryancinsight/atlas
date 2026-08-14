@@ -52,6 +52,7 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | ATLAS-ADR-GOV-058-HORAE | Horae PR #13 merged at default `1b35d3f`; its ADR 0001 index now records the existing canonical `Status: Accepted` header. Provider checklist and gap audit are synchronized; exact-head `verify` and `supply-chain` run `31797039383` pass, while recurseml analysis reports an analyzer error and remains report-only. |
 | ATLAS-ADR-GOV-058-EUNOMIA | Eunomia PR #67 merged at default `9c2d972`; its four-ADR generated index now records canonical `Accepted` statuses with no anomalies. Exact-head `Rust verification` and `Supply chain` run `31797566750` pass; recurseml analysis reports an analyzer error and remains report-only. |
 | ATLAS-ADR-GOV-058-THEMIS | Themis PR #25 merged at default `8d6e83e`; its two-ADR generated index now records canonical `Accepted` statuses with no anomalies. Exact-head compile-fail, Ubuntu, Windows, and Miri checks pass in run `31797905436`; recurseml analysis reports an analyzer error and remains report-only. |
+| ATLAS-MOIRAI-ORDERING-052-SPSC | Re-audit found the MPMC waiter loom model already landed in Moirai `2ea17bb`; this claim covers the missing SPSC ring loom model, its bounded interleaving contract, and synchronized provider/root evidence. |
 
 Completed provider slices from this sweep are recorded here so the residual
 rows below retain their original audit scope:
