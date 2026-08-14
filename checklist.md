@@ -100,6 +100,16 @@ Three ordering facts came out of the audit and are not obvious from the board:
 - [x] Re-run `git -C repos/ritk worktree list`: only `main` and `ritk-fix`
       remain; `e88910d0` remains preserved by its local and remote branch refs.
 
+### ATLAS-ADR-GOV-058-LETO — active claim
+
+- Inspect the current Leto ADR corpus and preserve the technical decision in
+  each canonical status: superseded operator decision, measured-regression
+  blocked bidiagonalization, deferred dqds follow-up, and provider MSRV.
+- Renumber only the later duplicate ADR 0011, update the one code-doc link, and
+  regenerate the derived index.
+- Run the provider-owned format, locked metadata, and configured verification
+  gates before the Atlas pointer/PM closure.
+
 ## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — complete 2026-08-14
 
 - [x] Confirm the provider source and docs disagree: the core/autograd path
