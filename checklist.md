@@ -4253,6 +4253,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-ADR-GOV-058-IRIS** Iris ADR-index slice (2026-08-14) — provider PR #15, merged default `3c9dc85`; exact-head `31796011010` verify and supply-chain green; recurseml analysis report-only
 - **ATLAS-ADR-GOV-058-PROTEUS** Proteus ADR-index slice (2026-08-14) — provider PR #11, merged default `3c64c8e`; exact-head `31796273743` verify and supply-chain green; recurseml analysis report-only
 - **ATLAS-ADR-GOV-058-AEQUITAS** Aequitas ADR-index slice (2026-08-14) — provider PR #30, merged default `f7c9cf2`; exact-head `31796547009` verify and supply-chain green; recurseml analysis report-only
+- **ATLAS-ADR-GOV-058-HORAE** Horae ADR-index slice (2026-08-14) — provider PR #13, merged default `1b35d3f`; exact-head `31797039383` verify and supply-chain green; recurseml analysis analyzer error remains report-only
 - **ATLAS-HYPERION-PROVIDER-DOCS-001** Complete Hyperion book closure (2026-08-11) — `b8a1124`, `9a8b7d8`
 - **ATLAS-PROTEUS-PROVIDER-DOCS-001** Complete Proteus book closure (2026-08-11) — `30e25f8`, `3d6021e`, `2918e5a`
 - **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** nineteen-provider integration audit (closed 2026-08-11; Tyche (aka Tychee)) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`
