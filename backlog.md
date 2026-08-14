@@ -57,10 +57,11 @@ rows below retain their original audit scope:
 | ATLAS-THEMIS-GITATTRIBUTES-092 | Themis PR #24; merged default `17d3647` | Reconciled the stale provider PM claim: the tracked `.gitattributes` already contains `* text=auto`; no source or tree-wide renormalization was required. |
 | ATLAS-AEQUITAS-CI-093 | Aequitas PRs #27–#29; merged default `770a369` | Replaced unlocked lock normalization with locked metadata verification, refreshed the standalone lock to Eunomia `b6f001a`, removed overlay-only patch entries, and reconciled the delivered 0.2.0 comparison label. Default-head CI `31786185235` is green. |
 | ATLAS-PROTEUS-CI-094 | Proteus PR #10; merged default `671c9fa` | Added finite CI timeouts and concurrency, converted all lock-sensitive verification commands to `--locked`, synchronized the README, and refreshed the standalone lock to Aequitas `770a369` plus Eunomia `b6f001a`. Default-head CI `31786562412` is green. |
+| ATLAS-MOIRAI-NUMA-095 | Moirai PR #128 plus PM closeout PR #129; merged default `e972174` | Forwarded `MoiraiBuilder::numa_aware` through the existing core/executor feature seams and one scheduler construction path. Default topology-aware behavior remains; explicit disablement skips worker NUMA assignment construction. Default-head Rust Workspace `31787962637` and Python Bindings `31787962649` are green. |
 | ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 merged at `b95d19d` (head `5a8d718`) | Corrected the AMX irregular-width configuration and repacked row-major GEMM right-hand panels into the VNNI layouts required by the dot-product instructions: `K/4 × 4N` for INT8 and `K/2 × 2N` BF16 elements. The provider-owned packer covers fixed-tile and blocked-GEMM paths with independent value-semantic four-byte and two-element grouping tests. Follow-up cleanup closes Hermes `must_use_candidate` 162→0, `elidable_lifetime_names` 131→0, `missing_errors_doc` 83→0, `missing_safety_doc` 8→0, `semicolon_if_nothing_returned` 92→0, and `unreadable_literal` 180→0 with a documented generated-table exception, splits the SIMD view-cast and `SimdOps` blanket-implementation leaves, scopes the macro's unreachable-code expectation to Neon with a regression test, rejects zero NTT moduli with a typed error, validates bitboard squares before shift arithmetic, removes the conformance ratchet regressions introduced by the lint cleanup, and canonicalizes NTT residues before subtraction. The current local Hermes workspace all-target Clippy gate is clean, nextest is 454/454, the Hermes/core doctest gate is 18/18 with 7 ignored, and the benchmark-target smoke gate passes. Hosted run 31779776851 is green across all seven jobs. |
 
 **Current exact-head status (2026-08-14):** the structural and exact-head
-provider audits are clean. Moirai is advanced to hosted-green `e546092d`, and
+provider audits are clean. Moirai is advanced to hosted-green `e972174`, and
 Leto is advanced to hosted-green `143696d`. Aequitas, Proteus, Helios,
 Iris, Ritk, Eunomia, Gaia, Melinoe, Tyche, and Hermes now match
 their fetched default heads. Helios PR #54 is merged at `152a66c` and its
@@ -82,7 +83,9 @@ Themis's stable-proof source remains at `fa8dc29`; its PM closeout is merged at
 default head `17d3647`. Aequitas's lock-gate PR #29 default is `770a369`; its
 exact default-head CI run `31786185235` passes verify and supply-chain.
 Proteus's bounded locked-gate PR #10 default is `671c9fa`; exact default-head
-CI run `31786562412` passes verify and supply-chain.
+CI run `31786562412` passes verify and supply-chain. Moirai's NUMA policy PR #128
+and PM closeout PR #129 are merged at default `e972174`; exact default-head Rust
+Workspace run `31787962637` and Python Bindings run `31787962649` pass.
 
 ## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — done 2026-08-14
 
@@ -208,12 +211,12 @@ CI run `31786562412` passes verify and supply-chain.
   The standalone lock records Aequitas `770a369` and Eunomia `b6f001a`, and
   overlay-only patch entries are absent. No domain source behavior changed.
 
-## ATLAS-MOIRAI-NUMA-095 — Wire the NUMA policy through the runtime [minor] [arch] — in progress 2026-08-14
+## ATLAS-MOIRAI-NUMA-095 — Wire the NUMA policy through the runtime [minor] [arch] — done 2026-08-14
 
-- Owner: current session. Scope is limited to Moirai's facade/core/executor
+- Owner: current session. Scope was limited to Moirai's facade/core/executor
   NUMA feature closure, scheduler construction seam, value-semantic tests,
   provider PM records, and hosted verification. Moirai is clean on `main` at
-  `e546092d`.
+  `e972174`.
 - Finding: `moirai/src/builder.rs::numa_aware` accepts a boolean, discards it,
   and returns the unchanged builder. The scheduler independently detects
   topology, so the public policy cannot disable or explicitly enable the
@@ -223,6 +226,14 @@ CI run `31786562412` passes verify and supply-chain.
   the policy exactly once, and a regression proves enabled/disabled config
   values. Existing default behavior remains NUMA-aware; no raw-pointer or
   fallback path is introduced.
+- Resolution: provider commit `181f87d` forwards the policy and adds facade and
+  scheduler regressions; PM evidence closes in provider commit `6d42bd3`,
+  merged through PRs #128 and #129. The provider default is `e972174`.
+- Evidence: local formatting, standalone locked metadata, warning-denied
+  Clippy, configured Nextest `118/118` with two configured skips, seven
+  doctests, and warning-denied rustdoc pass. Default-head Rust Workspace run
+  `31787962637` and Python Bindings run `31787962649` pass at `38e936a`, with
+  the PM-only closeout subsequently merged at `e972174`.
 
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
