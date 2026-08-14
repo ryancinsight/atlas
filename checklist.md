@@ -122,14 +122,16 @@ Three ordering facts came out of the audit and are not obvious from the board:
       `31805214716` checks pass. The external recurseml analyzer remains
       report-only.
 
-### ATLAS-ADR-GOV-058-APOLLO — in progress 2026-08-14
+### ATLAS-ADR-GOV-058-APOLLO — closed 2026-08-14
 
-- [ ] Normalize Apollo's non-canonical ADR statuses while preserving the
+- [x] Normalize Apollo's non-canonical ADR statuses while preserving the
       technical status and supersession facts in dated revisions.
-- [ ] Regenerate the Apollo ADR index from the Atlas generator and verify no
-      anomalies, duplicate numbers, or index drift remain.
-- [ ] Run Apollo's exact-head provider gates in the isolated lane, merge the
-      provider PR, advance only the Apollo gitlink, and synchronize root PM.
+- [x] Regenerate the Apollo ADR index from the Atlas generator; the 39-record
+      corpus has no anomalies, duplicate numbers, or index drift.
+- [x] Merge PR #93 at provider default `fca501f`, advance only the Apollo
+      gitlink, and synchronize root PM. Exact-head Rust workspace
+      `31806913513` (job `94787923879`) and Python bindings (job
+      `94787923826`) pass; CodeRabbit passes and recurseml remains report-only.
 
 ### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — closed 2026-08-14
 

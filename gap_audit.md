@@ -202,6 +202,20 @@ closes the Hephaestus ADR-index slice; the broader member governance burn-down
 remains open with 10 stale or missing member indexes reported by the
 authoritative root generator.
 
+## ATLAS-ADR-GOV-058-APOLLO — Apollo ADR-index slice (closed 2026-08-14)
+
+Apollo PR #93 merged at provider default `fca501f`. ADR 0001 now records
+canonical `Rejected` status while preserving the Hephaestus 0.13 supersession;
+ADR 0011 now records canonical `Accepted` status while preserving its dated
+benchmark decision. The 39-record generated `docs/adr/README.md` has zero
+anomalies and zero drift.
+
+Exact-head Rust workspace run `31806913513` passes (job `94787923879`), and
+Python bindings pass (job `94787923826`). CodeRabbit passes; the external
+`recurseml/analysis` status remains report-only. Atlas records the merged
+default gitlink. The peer-owned performance branch and dirty lockfile were
+left untouched.
+
 ## ATLAS-MOIRAI-ORDERING-052-SPSC — Moirai SPSC ordering slice (closed 2026-08-14)
 
 Moirai PR #130 merged at default `ac111b3`. The new `moirai-core` Loom model
