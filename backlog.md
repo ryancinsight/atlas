@@ -5873,13 +5873,36 @@ was not done.
 
 **Spun out, unclaimed:**
 
-`ATLAS-DMRI-TRACT-023` — Interpolated direction field [minor], **in-progress
-2026-08-14, owner=claude-dmri-cli**, implementation written and compiling,
-verification blocked on a peer's in-flight `ritk-image` edit (a new `view.rs`
-calling `try_as_slice` on a generic `DeviceBuffer` without the trait bound;
-`coeus-core` has the method, so this is a missing bound, not a missing API).
-`ritk-image` is a dev-dependency of `ritk-diffusion`, so the library builds and
-only the test binary is blocked. A retry loop is queued against the peer landing.
+`ATLAS-DMRI-TRACT-023` — Interpolated direction field [minor], **delivered
+2026-08-14** (ritk PR #144).
+
+**Measured, on real tissue.** Turn-limit terminations fall from 36.4% to 13.0%
+on a mid-brain slab (committed test) and from 1571 to 646 across the whole
+volume; the median streamline runs 16.0 mm to 24.0 mm and p90 45 to 65 mm.
+Field-boundary terminations rise 2379 → 3304, which is the same effect from the
+other side: tracks formerly cut short by a turn now run until they leave the
+mask. That directly retires the limitation recorded under 022.
+
+**Two process notes worth keeping.**
+
+*A peer committed onto this branch.* Working in the same shared tree, a peer's
+`git commit` swept this branch's staged acceptance test and the
+`DirectionInterpolation` export into their commit `735a30c9`, whose message
+describes the leto SVD migration. Content correct and intact; the message is
+theirs, so it was left rather than rewritten over their work, and the
+composition is recorded in the following commit and the PR. This is the second
+occurrence of the shared-index hazard in two days — the first was a staged
+`backlog.md` plus nine gitlinks. Staging by explicit path is not sufficient
+protection; the index itself is shared.
+
+*Verification was blocked three times in one increment* — `ritk-image`
+(`try_as_slice` without a trait bound), `leto-ops` (SVD entry points removed
+mid-refactor), `hermes-simd-intrinsics` (macro syntax mid-edit) — which is more
+`ATLAS-STACK-LETO-CHURN-017` evidence. Notable this time: the library half was
+independently verifiable throughout because the blockage was in
+dev-dependencies, so it was committed while the CLI half waited. Splitting a
+commit along the verifiable boundary is the practical mitigation while (b)
+remains undecided.
 
 Approach chosen: **dyadic (outer-product) interpolation**, not sign-aligned
 vector averaging. Accumulate `Σ wᵢ vᵢvᵢᵀ` trilinearly and take the principal
