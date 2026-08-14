@@ -104,6 +104,18 @@ affecting the provider-owned gates. This closes only the Proteus slice; the
 broader member ADR-governance burn-down remains open with 17 stale or missing
 member indexes reported by the authoritative root generator.
 
+## ATLAS-ADR-GOV-058-AEQUITAS — Aequitas ADR-index slice (closed 2026-08-14)
+
+Aequitas PR #30 merged at default `f7c9cf2`. The generated
+`docs/adr/README.md` index now matches all fifteen canonical ADR headers and
+records `Accepted` for every entry, with no generator anomalies.
+
+Exact-head provider run `31796547009` passes `verify` and `supply-chain`.
+The external `recurseml/analysis` status is report-only and failed without
+affecting the provider-owned gates. This closes only the Aequitas slice; the
+broader member ADR-governance burn-down remains open with 16 stale or missing
+member indexes reported by the authoritative root generator.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
