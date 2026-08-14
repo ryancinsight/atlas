@@ -169,6 +169,23 @@ all three platform test suites, and the Python wheel smoke test. Final Python CI
 slice; the broader member ADR-governance burn-down remains open with 12 stale or
 missing member indexes reported by the authoritative root generator.
 
+## ATLAS-ADR-GOV-058-LETO — Leto ADR-index slice (closed 2026-08-14)
+
+Leto PR #112 merged at provider default `2821a4b`. ADR 0001 now records
+canonical `Rejected` status because ADR 0004 shipped the replacement operator
+decision; ADR 0011 records the measured full-block regression without claiming
+that path shipped; ADR 0012 is `Proposed`; and ADR 0013 is canonical `Accepted`.
+The later duplicate ADR 0011 (the num-complex removal decision) is now ADR 0024,
+with the public code-doc link updated. The generated `docs/adr/README.md` index
+matches the corpus with no anomalies or drift.
+
+Final exact-head CI `31804526486` passes formatting, minimal features, Clippy,
+native tests, doctests, and documentation. Pages deployment `31804524894`
+passes. The external `recurseml/analysis` status remains report-only. This
+closes only the Leto slice; the broader member ADR-governance burn-down remains
+open with 11 stale or missing member indexes reported by the authoritative root
+generator.
+
 ## ATLAS-MOIRAI-ORDERING-052-SPSC — Moirai SPSC ordering slice (closed 2026-08-14)
 
 Moirai PR #130 merged at default `ac111b3`. The new `moirai-core` Loom model
