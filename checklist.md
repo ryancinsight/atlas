@@ -122,6 +122,15 @@ Three ordering facts came out of the audit and are not obvious from the board:
       `31805214716` checks pass. The external recurseml analyzer remains
       report-only.
 
+### ATLAS-ADR-GOV-058-APOLLO — in progress 2026-08-14
+
+- [ ] Normalize Apollo's non-canonical ADR statuses while preserving the
+      technical status and supersession facts in dated revisions.
+- [ ] Regenerate the Apollo ADR index from the Atlas generator and verify no
+      anomalies, duplicate numbers, or index drift remain.
+- [ ] Run Apollo's exact-head provider gates in the isolated lane, merge the
+      provider PR, advance only the Apollo gitlink, and synchronize root PM.
+
 ### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — closed 2026-08-14
 
 - [x] Mark the merged SPSC, async wake-dedup, PAL reactor, and reservation
