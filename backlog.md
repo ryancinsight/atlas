@@ -57,8 +57,9 @@ rows below retain their original audit scope:
 | ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 merged at `b95d19d` (head `5a8d718`) | Corrected the AMX irregular-width configuration and repacked row-major GEMM right-hand panels into the VNNI layouts required by the dot-product instructions: `K/4 × 4N` for INT8 and `K/2 × 2N` BF16 elements. The provider-owned packer covers fixed-tile and blocked-GEMM paths with independent value-semantic four-byte and two-element grouping tests. Follow-up cleanup closes Hermes `must_use_candidate` 162→0, `elidable_lifetime_names` 131→0, `missing_errors_doc` 83→0, `missing_safety_doc` 8→0, `semicolon_if_nothing_returned` 92→0, and `unreadable_literal` 180→0 with a documented generated-table exception, splits the SIMD view-cast and `SimdOps` blanket-implementation leaves, scopes the macro's unreachable-code expectation to Neon with a regression test, rejects zero NTT moduli with a typed error, validates bitboard squares before shift arithmetic, removes the conformance ratchet regressions introduced by the lint cleanup, and canonicalizes NTT residues before subtraction. The current local Hermes workspace all-target Clippy gate is clean, nextest is 454/454, the Hermes/core doctest gate is 18/18 with 7 ignored, and the benchmark-target smoke gate passes. Hosted run 31779776851 is green across all seven jobs. |
 
 **Current exact-head residual (2026-08-14):** the structural provider audit is
-clean, but the exact-head audit leaves two staged peer-owned paths: Moirai
-(`61140fb` vs `2ea17bb`) and Leto (`7f80044` vs `f3756b5`). Proteus, Helios,
+clean, but the exact-head audit leaves one staged peer-owned path: Leto
+(`7f80044` vs `f3756b5`). Moirai is now advanced to hosted-green
+`e546092d`. Proteus, Helios,
 Iris, Ritk, Eunomia, Gaia, Tyche, and Hermes now match
 their fetched default heads. Helios PR #54 is merged at `152a66c` and its
 benchmark regression job is green. Themis's stable-proof PR #23 is merged at
@@ -66,13 +67,11 @@ benchmark regression job is green. Themis's stable-proof PR #23 is merged at
 lint/docs/structure cleanup, merged at `b95d19d`; local contract gates and all
 seven hosted checks are green at head `5a8d718`. Proteus and Iris default-head
 checks are green across build, verification, deployment, and supply-chain
-jobs. Moirai default-head checks fail its Rust binding, workspace, and wheel
-jobs because `moirai-tls/Cargo.toml` is malformed and prevents `cargo
-metadata` from loading the workspace; the same manifest parse failure is
-reported by the wheel smoke jobs. Leto default-head Rust verification fails
-before the test phase because `cargo` cannot update `Cargo.lock` under the
-workflow's `--locked` invocation. Their two pointers remain peer-owned and
-are not advanced while their default-head gates are red. The
+jobs. Moirai default-head Rust Workspace and Python Bindings runs
+`31782344026` and `31782344151` are green. Leto default-head Rust
+verification fails before the test phase because `cargo` cannot update
+`Cargo.lock` under the workflow's `--locked` invocation. The Leto pointer
+remains peer-owned and is not advanced while its default-head gate is red. The
 prior benchmark and Intel SDE AMX differential checks are green.
 
 ## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — done 2026-08-14
@@ -102,6 +101,23 @@ prior benchmark and Intel SDE AMX differential checks are green.
 - Non-goals: no deletion or rewriting of the rescued crypto/TLS work, no
   changes to unrelated Moirai modules, and no Leto pointer advance while its
   locked graph remains red.
+
+## ATLAS-LETO-EXACT-HEAD-090 — Rescue the default-head locked graph [patch] — in progress 2026-08-14
+
+- Owner: current session, stale-claim takeover. Leto source is clean at
+  `f3756b5` except for `Cargo.lock`; the lockfile was last modified at
+  01:22 EDT and has no newer provider commit or board update within the
+  one-hour liveness window. Scope is limited to the existing lockfile dirt,
+  its exact-head verification, and this Atlas record.
+- Finding: hosted Leto Rust verification fails before tests because the
+  committed lockfile is not valid for the declared git dependency graph under
+  `--locked`; the Atlas gitlink still records `7f80044`.
+- Acceptance: regenerate the lockfile from the standalone provider manifests
+  without overlay-only patch entries, prove `cargo metadata --locked`, pass
+  the provider hosted default-head gate, then advance the Atlas gitlink only
+  to that exact green head.
+- Non-goals: no source changes, no deletion or rewriting of peer-owned Leto
+  work, and no changes to unrelated providers.
 
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
