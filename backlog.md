@@ -198,6 +198,20 @@ else's half-finished edit, so a red result is not actionable without manual
 triage — exactly what a mechanical gate exists to avoid. CI is unaffected
 because it scans a clean checkout, which is also why this went unnoticed.
 
+**Verification note (independent, 2026-08-13, not the owner):** the implemented
+`--revision` / `--worktree` split behaves correctly and the guard fires as
+designed. One property worth recording for whoever closes this: `--revision`
+requires the checkout to *be* at the requested revision **and** clean, and on a
+25-submodule meta-repo "clean" includes every gitlink. With agents editing
+member trees, submodule pointers differ, so `--revision` is in practice a
+CI-only mode and `--worktree` is the only local one. That is a sound split
+rather than a defect — but it means the reproducible mode cannot be used to
+adjudicate a red ratchet *during* concurrent work, which is exactly when the
+question arises. A per-member `--revision` scan, or treating gitlink drift as
+clean, would close that gap. Evidence: `check --worktree` reported 10
+regressions / 27 tightenings while `check --revision HEAD` refused with
+`root worktree is dirty`, with only submodule pointers differing.
+
 **Acceptance oracle:** the scan takes an explicit revision (default `HEAD`) and
 reads blobs through `git`, or it refuses to run against a dirty tree unless
 `--worktree` is passed; running `check` twice with an unrelated uncommitted
