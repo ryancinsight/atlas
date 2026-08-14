@@ -6352,12 +6352,17 @@ Scoping found `TractographyResult` already has `to_trk_header`, `to_tck` and
 extension, not new format code. It also means `tract dti`'s hand-rolled
 `write_tck` (added in 022) duplicates `to_tck()` and is deleted here.
 
-One blocker to solve first: the export methods document that points are already
-in physical millimetres, but `tract dti` tracks in voxel indices and converts at
-the write boundary, and `TractographyResult`'s fields are `pub(crate)` so a
-converted result cannot be constructed. Adding `map_points` to
-`ritk-tractography` is the fix — generally useful for any spatial transform of a
-tractogram, and it removes the CLI's reason to build tractograms by hand.
+**Library half delivered** (ritk PR #149, commit `df7b40bd`):
+`TractographyResult::map_points`. The export methods assume physical
+millimetres while `tract dti` tracks in voxel indices, and the result's fields
+are `pub(crate)`, so the CLI had no way to produce a converted result and built
+its `.tck` tractogram by hand, duplicating `to_tck()`.
+
+**CLI half written but not committed**: `ritk-cli` does not build locally
+because `ritk-segmentation` imports `leto_ops::svd_rank_revealing_with_tolerance`
+and the local leto tree removed it mid-refactor — the same blocker behind ritk
+PR #144. Holding it rather than pushing unverified. Re-open trigger: `ritk-cli`
+builds, i.e. either #144 merges or the leto change is published.
 
 `.trk` additionally needs `dim`, `voxel_size` and a **RAS** `vox_to_ras`, while
 RITK geometry is LPS, so the affine needs its first two rows negated. Writing an
@@ -6393,7 +6398,8 @@ offers. `NoddiVolume`/`FodVolume` accept physical points and therefore order
 everything x,y,z; `DtiVolume` accepts voxel indices and therefore orders
 everything `[depth, row, column]` like `Image::shape()`.
 
-**Delivered instead**: the order is documented explicitly on all three types
+**Delivered 2026-08-14** (ritk PR #149, commit `6d5b6063`): the order is
+documented explicitly on all three types
 with the reason and a cross-reference, and pinned by a test per type so a
 refactor cannot silently flip it. The residual trap — passing `image.shape()`
 straight to `NoddiVolume::new`, which compiles and silently transposes — is
