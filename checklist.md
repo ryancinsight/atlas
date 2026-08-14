@@ -30,19 +30,13 @@ Three ordering facts came out of the audit and are not obvious from the board:
 
 ## Tier 0 tactics
 
-### ATLAS-THEMIS-TOKEN-032 — token duplication
-- Reproduce first: write the two-`&mut` sequence from the audit as a test and
-  watch it compile *today*. That failing-to-fail test is the acceptance oracle.
-- Two candidate fixes; the ADR picks one. Either make `split`/`split_static`
-  `unsafe` with the disjointness obligation stated, or bind the placement proof
-  into the `*Ref` constructors so a cell carries its node tag from a validated
-  path instead of a caller argument. The second is the stronger design because
-  it closes the dynamic hole (`NumaPinnedCellRef::new` taking an unvalidated
-  `node_id`) at the same time.
-- 8 of themis's 18 unsafe sites lack `// SAFETY:` and all 8 are in this exact
-  file (`branded/region/mod.rs:91,108,118,124,153,190,231,261`). Write them as
-  part of the fix — they are the invariants under discussion.
-- themis has no CI and no miri; ATLAS-GAIA-GATE-042's workflow is the template.
+### ATLAS-THEMIS-TOKEN-032 — closed 2026-08-14
+- [x] Replace caller-chosen placement tags with ownership-derived or
+      `from_unique(&mut _)` construction; make `project_static` safe.
+- [x] Verify the invalid construction and overlapping borrow with stable
+      trybuild E0599/E0499 fixtures, nightly compile-fail doctests, branded
+      Miri, value-semantic Nextest, and warning-denied Clippy at provider
+      default `17d3647`.
 
 ### ATLAS-LETO-LAYOUT-034 — sealing `Layout`
 - Blast radius before editing: `Layout` is consumed by 84 unsafe blocks in leto
@@ -4219,6 +4213,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-LETO-CONVOLUTION-012** Close provider convolution contract (2026-08-13) — `7172b338`, `a722fbc8`, `aabdec67`, `a4063be1`
 - **ATLAS-MOIRAI-NUMA-095** Wire the NUMA policy through the runtime (2026-08-14) — provider `181f87d`, PM closeout `6d42bd3`, default `e972174`; hosted Rust Workspace `31787962637` and Python Bindings `31787962649` pass
 - **ATLAS-MSRV-UNVERIFIED-077 (Eunomia slice)** Verify Eunomia Rust 1.95 MSRV and package gate (2026-08-14) — provider PRs #65/#66, default `84c82fe`; hosted MSRV `31789001841`, Rust verification/supply-chain `31789001920`, exact online dry-run pass
+- **ATLAS-AUDIT-STALE-TIER0-096** Remove closed findings from active Tier 0 (2026-08-14) — Themis `17d3647`, Eunomia `84c82fe`, root PM cleanup
 - **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
 - **ATLAS-PROVIDER-INTEGRATION-006** Twenty-provider exact-head re-audit
   (2026-08-14) — closed in root commit `364cdac`; structural, exact-head, and

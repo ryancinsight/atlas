@@ -17,6 +17,18 @@ all-target/all-feature checking passes. `recurseml/analysis` is an external
 report-only failure; CodeRabbit was rate-limited on the PM-only PR. Mnemosyne
 remains the only open provider portion of ATLAS-MSRV-UNVERIFIED-077.
 
+## ATLAS-AUDIT-STALE-TIER0-096 — Remove closed findings from active Tier 0 (closed 2026-08-14)
+
+The active Tier 0 table had retained six findings whose closure evidence was
+already recorded in the landed sweep: Themis token duplication, Mnemosyne
+scratch aliasing, Apollo inverse-DFT accumulator widening, and Eunomia F64
+special functions, sub-byte ordering, and accumulator coverage. Source
+verification at Themis `17d3647` and Eunomia `84c82fe`, plus their provider
+compile-fail/value-semantic gates, confirms these are not live defects. The
+rows are removed from the active table; the landed table remains the compact
+historical record. The remaining Tier 0 rows are still open and were not
+reclassified by this cleanup.
+
 ## ATLAS-TYCHE-DOCS-001 — Merge Tyche PR #22 (2026-08-14)
 
 Tyche PR #22 merged as `b1c5cc9f673ea7651672be608542afa5acb8cc6c` after the
