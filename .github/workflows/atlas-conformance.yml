@@ -15,14 +15,18 @@ on:
   pull_request:
     paths:
       - 'repos/**'
+      - 'docs/adr/**'
       - 'scripts/atlas-conformance.py'
+      - 'scripts/adr-index.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
   push:
     branches: [main]
     paths:
       - 'repos/**'
+      - 'docs/adr/**'
       - 'scripts/atlas-conformance.py'
+      - 'scripts/adr-index.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
 
@@ -59,12 +63,53 @@ jobs:
           python-version: '3.11'
 
       - name: Conformance check (ratchet must hold)
+        shell: bash
         run: |
-          python3 scripts/atlas-conformance.py check | tee conformance-check.log
+          set +e
+          python3 scripts/atlas-conformance.py check > conformance-check.log 2>&1
+          status=$?
+          set -e
+          cat conformance-check.log
+          exit "$status"
+        # `shell: bash` is load-bearing. GitHub's default `run` shell is
+        # `bash -e {0}` WITHOUT pipefail, so the previous
+        # `python3 … | tee conformance-check.log` reported tee's exit code and
+        # this gate could not fail at all — the ratchet was decorative for as
+        # long as that pipeline stood. Redirect-then-cat keeps the log artefact
+        # without putting the script's status behind a pipe.
+        #
         # The script exits 1 on any RATCHET VIOLATION line; tightenings print
         # as baseline-update candidates and pass. Fix new debt at the source —
         # never by editing the baseline upward (that edit is the gamed ratchet
         # the gate exists to catch in review).
+
+      - name: ADR index freshness + governance anomalies
+        shell: bash
+        run: |
+          set +e
+          output=$(python3 scripts/adr-index.py check 2>&1)
+          status=$?
+          set -e
+          echo "$output" | tee adr-index-check.log
+          # `check` exits nonzero only for a missing or stale index; duplicate
+          # numbers and non-canonical statuses are reported on stdout at exit
+          # 0. Gate on both, so the governance anomalies the board burns down
+          # cannot silently reaccumulate.
+          if [ "$status" -ne 0 ] || [ -n "$output" ]; then
+            echo "::error::ADR governance drift. Reproduce locally with \
+          'python scripts/adr-index.py check'; regenerate indexes with \
+          'python scripts/adr-index.py generate'. Canonical statuses are \
+          Proposed, Accepted, Rejected; ADR numbers are unique per repository."
+            exit 1
+          fi
+
+      - name: Upload ADR index log artefact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: adr-index-check-log
+          path: adr-index-check.log
+          if-no-files-found: ignore
 
       - name: Upload conformance log artefact
         if: always()
