@@ -4215,6 +4215,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   gitlink now records merged default `7f80044`; peer checkout and overlay
   lockfile dirt remain preserved. Helios typed DVH work remains external to
   this root closure until PR #54 head `8b5c29d` completes its benchmark gate.
+  The explicit dirty-tree conformance scan remains a separate cleanup baseline:
+  601 oversized files, 701 implementation-bearing manifests, 1,242 production
+  unwrap sites, 743 allow sites, and 809 existence-only assertions.
 - **ATLAS-LIVE-HEAD-SWEEP-008** Reconcile moving provider defaults (2026-08-12) — `1ad581971d2528e12c0c815fe30e87ce6c121d80`, `578514314bec51815e763f5a8103500bb9498c32`
 - **ATLAS-HEPHAESTUS-REFRESH-007** Integrate cross-entropy PM closeout (2026-08-12) — `9385686ec29fc5a2d168d967df3fae254760aa4b`
 - **ATLAS-PROVIDER-DRIFT-005** Post-merge exact-head convergence (2026-08-12) — `93dbc563`, `32524e37b7697dd37f3cb3b28ee570aa4d0df199`, `e70f597`, `53bb01312222745325f20d36db95aab780ce39b3`

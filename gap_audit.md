@@ -1907,6 +1907,15 @@ provider scope clean, including version coherence. Global findings outside
 the requested provider scope remain governed by the wider version-guard
 report and are not collapsed into this closure claim.
 
+The explicit dirty-tree cleanup scan remains non-green by design while peer
+work is preserved. `atlas-conformance.py report --worktree` reports 601
+oversized files, 701 implementation-bearing manifests, 1,242 production
+`unwrap` sites, 743 `allow` sites, 632 print/dbg sites, 809 existence-only
+assertions, 498 type-suffixed functions, three target-cache forks, and 89
+unpinned workflow actions. Nextest-budget coverage is complete (zero missing
+budgets); these counts are the active ratchet baseline, not evidence against
+the provider gitlink/coherence closure above.
+
 Remaining material findings are classified rather than collapsed into a green
 claim: Horae has a standalone lock-graph residual and publication is disabled;
 Hyperion and Proteus retain occupied-name `publish = false` decisions; Tyche's
