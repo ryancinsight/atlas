@@ -90,15 +90,15 @@ Three ordering facts came out of the audit and are not obvious from the board:
 - Record the ratchet baseline in the same commit as the floor, per the
   generator contract, or the first CI run fails on pre-existing debt.
 
-### ATLAS-RITK-LANE-SPRAWL-065 — active claim
+### ATLAS-RITK-LANE-SPRAWL-065 — closed 2026-08-14
 
-- Verify both linked lanes are clean and their branch refs/unique commits are
-  reachable before changing any checkout record.
-- Retain `ritk-fix`, remove only the stale clean
-  `ritk-image-coordinate-map` checkout, and prune the linked-worktree record;
-  do not delete either feature branch.
-- Re-run `git -C repos/ritk worktree list` and record at most two trees plus
-  the preserved branch refs in the closure entry.
+- [x] Verify both linked lanes are clean and their branch refs/unique commits
+      remain reachable before changing any checkout record.
+- [x] Retain `ritk-fix`, remove only the stale clean
+      `ritk-image-coordinate-map` checkout, and prune the linked-worktree
+      record without deleting either feature branch.
+- [x] Re-run `git -C repos/ritk worktree list`: only `main` and `ritk-fix`
+      remain; `e88910d0` remains preserved by its local and remote branch refs.
 
 ## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — complete 2026-08-14
 

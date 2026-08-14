@@ -414,7 +414,7 @@ cannot serve as the MSRV oracle because peer-edited manifests in other
 providers are newer than the historical compiler. Mnemosyne and Eunomia
 remain separate provider scopes.
 
-## ATLAS-RITK-LANE-SPRAWL-065 — Reconcile three ritk working trees [patch] — in-progress 2026-08-14
+## ATLAS-RITK-LANE-SPRAWL-065 — Reconcile three ritk working trees [patch] — closed 2026-08-14
 
 Owner: Codex. Claimed scope: the Ritk linked worktree records and this board
 entry; preserve the two feature branches and remove only a stale clean checkout.
@@ -439,9 +439,13 @@ Also note `repos/ritk` itself moved from `codex/ritk-floatelement-roots` to
 `main` during this session, which is the shared-tree branch-switch hazard — a
 `git switch` in a shared tree moves the branch for every agent using it.
 
-Rescue checks precede removal: verify both lane worktrees are clean, verify each
-branch ref and unique commit remains reachable, then remove only
-`worktrees/ritk-image-coordinate-map` and prune the worktree record.
+Closure: both lane worktrees were clean; `bcaefa3a` and `e88910d0` remained
+reachable through their local and remote branch refs. The stale clean
+`worktrees/ritk-image-coordinate-map` checkout was removed and the worktree
+record pruned. `worktrees/ritk-fix` remains available for its branch owner.
+
+The post-cleanup `git -C repos/ritk worktree list` contains only `main` and
+`worktrees/ritk-fix`; no branch or commit was deleted.
 
 **Acceptance oracle:** `git -C repos/ritk worktree list` shows at most two
 entries, no entry is under `repos/`, and no unique commit is lost (verified by
