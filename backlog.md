@@ -259,6 +259,11 @@ Their current provider source and evidence are not active Tier 0 work.
 
 ## Tier 1 — evidence that does not support its claim
 
+**Active claim (2026-08-14):** reconcile the four active rows whose landed
+provider evidence is already recorded: Gaia verification, Iris color-space
+contract, Proteus temperature validity, and Asclepius typed parameters. Scope
+is root PM artifacts only; provider source and peer worktrees are non-goals.
+
 > **Claimed 2026-08-13 by the sweep session.** In progress on disjoint scopes:
 > helios (`-037` gamma tautology, plus the analytical dose oracle and the
 > vacuously-passing GPU tests), coeus (`-041` gradcheck harness), gaia (`-042`
