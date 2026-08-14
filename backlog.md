@@ -277,6 +277,12 @@ Their current provider source and evidence are not active Tier 0 work.
 
 ## Tier 2 — architecture: SSOT, DRY, and the zero-cost seams
 
+**Active claim (2026-08-14):** `ATLAS-MOIRAI-CACHELINE-053` — verify the
+provider's current cache-granularity contract and focused tests, then
+reconcile the residual if the landed source disproves its one-constant
+acceptance target. Scope is root PM artifacts only; no provider source change
+is planned.
+
 > **Claimed 2026-08-13 by the sweep session.** In progress on disjoint scopes:
 > hephaestus (`-043` unseal `KernelDialect`, then `-044` hoist scan to one
 > generic layer — sequenced, because the seal makes the generic layer
