@@ -5820,8 +5820,8 @@ rather than widening its scope. Decide whether the omission is deliberate — th
 writer takes an explicit backend, which the dispatch layer may not want — and
 either re-export it or record why not. It is also the blocker under 020.
 
-`ATLAS-DMRI-CLI-022` — `tract` command group [minor], **delivered 2026-08-13**
-(ritk PR #142). Scope: `ritk_diffusion::maps::DtiVolume`,
+`ATLAS-DMRI-CLI-022` — `tract` command group [minor], **merged 2026-08-13**
+(ritk PR #142, `5ee518e3` on main; atlas gitlink `c85197a`). Scope: `ritk_diffusion::maps::DtiVolume`,
 `ritk_tractography::dti_volume_direction_field`, and
 `crates/ritk-cli/src/commands/tract*`.
 
