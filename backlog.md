@@ -101,6 +101,17 @@ rewritten by this audit.
 
 ## Tier 2 — architecture: SSOT, DRY, and the zero-cost seams
 
+> **Claimed 2026-08-13 by the sweep session.** In progress on disjoint scopes:
+> hephaestus (`-043` unseal `KernelDialect`, then `-044` hoist scan to one
+> generic layer — sequenced, because the seal makes the generic layer
+> uncompilable from a sibling crate), moirai (`-051` bounded default channel,
+> `-053` cache-line SSOT, and two `SeqCst` clusters of `-052`), CFDrs (`-046`
+> collapse eight `*Scalar` traits), leto (`-049` collapse the duplicate SVD),
+> athena (`-066` document the two undocumented solver families, `-070` flatten
+> the Arnoldi basis), and ritk (`-047` ADR plus one vertical increment).
+> `-048a` landed earlier; `-048b` stays blocked on a kwavers migration.
+> Peers: take another scope, not these.
+
 | ID | Outcome | Class | Acceptance oracle |
 | --- | --- | --- | --- |
 | ATLAS-HEPH-SEAM-043 | `KernelDialect` (`hephaestus-core/src/domain/dialect.rs:18-27`) is sealed *and* is a mandatory associated type of the device seam (`stream.rs:37`). `impl KernelDialect` outside core: **zero**. Adding ROCm therefore required adding `HipC` upstream to core (`ac9fa80`) — the foreclosure is demonstrated, not hypothetical. The standard names shader dialect as a device-API seam component that must stay open. | [minor] | `mod sealed` gone; a crate outside `hephaestus-core` defines its own dialect and compiles; the three existing dialects unchanged |
