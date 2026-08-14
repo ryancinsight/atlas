@@ -111,15 +111,16 @@ Three ordering facts came out of the audit and are not obvious from the board:
 - [x] Provider CI `31804526486` and Pages deployment `31804524894` pass at
       final provider head `2821a4b`.
 
-### ATLAS-ADR-GOV-058-HEPHAESTUS — in progress 2026-08-14
+### ATLAS-ADR-GOV-058-HEPHAESTUS — closed 2026-08-14
 
-- [ ] Normalize every non-canonical Hephaestus ADR status without changing
+- [x] Normalize every non-canonical Hephaestus ADR status without changing
       the technical decision or falsely closing in-progress work.
-- [ ] Regenerate `docs/adr/README.md` from the provider corpus and verify the
+- [x] Regenerate `docs/adr/README.md` from the provider corpus and verify the
       generator is idempotent with no duplicate or missing ADR numbers.
-- [ ] Run the provider's focused documentation and workspace gates at the
-      exact final head, then integrate that gitlink and synchronized PM state
-      into Atlas.
+- [x] Provider PR #209 merges at default `be7389e`; exact-head CUDA
+      `31805214715`, ROCm `31805214723`, WGPU `31805214652`, and Metal
+      `31805214716` checks pass. The external recurseml analyzer remains
+      report-only.
 
 ### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — in progress 2026-08-14
 

@@ -186,6 +186,22 @@ closes only the Leto slice; the broader member ADR-governance burn-down remains
 open with 11 stale or missing member indexes reported by the authoritative root
 generator.
 
+## ATLAS-ADR-GOV-058-HEPHAESTUS — Hephaestus ADR-index slice (closed 2026-08-14)
+
+Hephaestus PR #209 merged at provider default `be7389e`. The 52-record ADR
+corpus now uses canonical `Proposed`, `Accepted`, or `Rejected` statuses, and
+the generated `docs/adr/README.md` has zero anomalies and zero drift. ADR 0003
+preserves the accepted decomposition architecture while recording QR work as
+pending; ADR 0004 preserves its implementation amendment; and ADR 0005
+records its supersession as historical `Rejected` status.
+
+Exact-head CUDA `31805214715`, ROCm `31805214723`, WGPU `31805214652`, and
+Metal `31805214716` checks pass. The external `recurseml/analysis` status
+remains report-only. Atlas now records the merged provider gitlink. This
+closes the Hephaestus ADR-index slice; the broader member governance burn-down
+remains open with 10 stale or missing member indexes reported by the
+authoritative root generator.
+
 ## ATLAS-MOIRAI-ORDERING-052-SPSC — Moirai SPSC ordering slice (closed 2026-08-14)
 
 Moirai PR #130 merged at default `ac111b3`. The new `moirai-core` Loom model
