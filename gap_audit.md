@@ -2309,15 +2309,17 @@ overlay bypassed. The test and broad generated lockfile diff remain
 uncommitted in the peer worktree; no provider worktree or Atlas gitlink was
 reset, cleaned, committed, or advanced.
 
-## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — twenty-provider integration audit (Atlas integration scope refreshed 2026-08-14)
+## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — twenty-one-provider integration audit (Atlas integration scope refreshed 2026-08-14)
 
 ### Live closure snapshot — 2026-08-14
 
 The requested scope is Horae, Hyperion, Themis, Tyche (aka Tychee), Proteus, Mnemosyne,
 Consus, Helios, Aequitas, Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto,
-Hephaestus, Coeus, Apollo, Hermes, and Iris. Atlas root commit `364cdac`
-equals `origin/main`; the root gitlink remains the delivery SSOT. The
-structural and exact-head audit reports all 20 providers present and active,
+Hephaestus, Coeus, Apollo, Gaia, Hermes, and Iris. Atlas root commit `48a257d`
+is pushed to `origin/main`; the root gitlink remains the delivery SSOT. Horae
+records verified default `f5cd364`, and Hermes records merged closeout
+`947283d`. The
+structural and exact-head audit reports all 21 providers present and active,
 with every committed gitlink equal to its fetched provider default. The full
 requested-provider coherence scope also passes. Peer source changes and
 overlay lockfiles remain dirty in child checkouts; this audit preserved them
@@ -2337,7 +2339,7 @@ local pre-commit structural gating on integration-relevant staged files.
 
 The guard now includes requested-provider scoped coherence validation by reading
 `version-guard coherence --format json` and filtering findings to manifest paths
-under the twenty requested providers. Out-of-scope findings remain
+under the twenty-one requested providers. Out-of-scope findings remain
 informational in this guard; only in-scope defects block.
 
 Live scoped-coherence snapshot (2026-08-14):
