@@ -48,3 +48,4 @@
 | [0040](0040-first-party-zero-copy-archives.md) | Zero-copy archival is first-party, and Consus owns it | Proposed |
 | [0041](0041-closed-set-enum-dispatch.md) | Closed-set per-timestep `dyn` dispatch converts to exhaustive enum dispatch | Proposed |
 | [0042](0042-acquisition-coordinate-map-seam.md) | Non-Cartesian acquisition geometry as an enum-dispatched coordinate map on `ritk_image::Image` | Accepted |
+| [0043](0043-toolchain-host-triple-pin.md) | Pin the toolchain host triple, not just the version | Proposed |
