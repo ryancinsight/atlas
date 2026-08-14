@@ -68,6 +68,14 @@ rows below retain their original audit scope:
 
 ## Tier 1 — evidence that does not support its claim
 
+> **Claimed 2026-08-13 by the sweep session.** In progress on disjoint scopes:
+> helios (`-037` gamma tautology, plus the analytical dose oracle and the
+> vacuously-passing GPU tests), coeus (`-041` gradcheck harness), gaia (`-042`
+> verification gate), hermes (`-040` AMX probe), and iris/proteus/asclepius
+> (`-071` license texts, `-072` colour-space convention, `-073`/`-074` validity
+> domains). `-038` README truth and the moirai/leto/gaia/coeus half of `-039`
+> landed earlier in the sweep. Peers: take another scope, not these.
+
 | ID | Outcome | Class | Acceptance oracle |
 | --- | --- | --- | --- |
 | ATLAS-HELIOS-GAMMA-037 | The advertised 3%/2 mm gamma pass is tautological: `end_to_end.rs:171,278` and `examples/tomotherapy_workflow.rs:196-206` call `gamma_index_3d(&dose, &dose, …)` — dose against itself — and `backlog.md:158` reports the result as achieved. `attenuation_map.rs:172` likewise re-inlines the function it claims to check. No golden images exist (`git ls-files "*.png"` → 0). | [minor] | `rg 'gamma_index_3d\(&\s*(\w+),\s*&\s*\1'` → 0; a negative control with a deliberately shifted field asserts a sub-100% pass rate |
