@@ -5781,10 +5781,36 @@ rather than widening its scope. Decide whether the omission is deliberate — th
 writer takes an explicit backend, which the dispatch layer may not want — and
 either re-export it or record why not. It is also the blocker under 020.
 
-`ATLAS-DMRI-CLI-022` — `tract` command group [minor], todo. Streamline
-tractography from a fitted field, writing `.trk`/`.tck`/`.trx`. Depends on
-nothing above: `ritk-tractography` and the track writers already exist, and the
-direction field now comes from `DiffusionMaps::principal_eigenvector`.
+`ATLAS-DMRI-CLI-022` — `tract` command group [minor], **in-progress
+2026-08-13, owner=claude-dmri-cli**. Scope: `ritk_diffusion::maps::DtiVolume`,
+`ritk_tractography::dti_volume_direction_field`, and
+`crates/ritk-cli/src/commands/tract*`.
+
+Scoping found the same shape as 018/019: `ritk-tractography` already has
+`fod_volume_direction_field` and `noddi_direction_field` for whole-brain
+tracking, but its only DTI entry point, `dti_pev_direction_field`, takes a
+*single* tensor and returns one constant direction everywhere — a single-voxel
+bootstrap, documented as such. The whole-brain DTI equivalent exists only inside
+the book example, as a hand-rolled sampling closure. So the CLI needs a library
+lookup first, exactly as 019 needed 018.
+
+The established pattern puts the spatial lookup in the model crate
+(`NoddiVolume::direction_at`) with a thin adapter in `ritk-tractography`, so
+`DtiVolume` lands in `ritk-diffusion` beside `DiffusionMaps`.
+
+**Frame decision**: `DtiVolume` works in voxel-index space, ordered
+`[depth, row, column]` to match `Image::shape()` and the layout `DiffusionMaps`
+was fitted from. It therefore carries no origin or spacing. Physical
+coordinates are applied at the IO boundary through
+`Image::continuous_index_to_physical_point` (ADR 0018), which is where geometry
+belongs. Note that `NoddiVolume` instead stores `[nx, ny, nz]` with `point[0]`
+as the *fastest* axis — the opposite order — and does its own physical
+conversion internally. That divergence is pre-existing and is recorded here
+rather than silently matched or unilaterally changed.
+
+**This increment writes `.tck` only.** `TckTractogram` takes
+`Vec<gaia::Polyline<f64>>` directly, which `Streamline::geometry()` already
+yields. `.trk` and `.trx` are separate output-path items.
 
 **CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
 groups and `ritk-python` exposes no diffusion surface. They are independent
