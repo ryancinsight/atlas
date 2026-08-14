@@ -54,7 +54,7 @@ rows below retain their original audit scope:
 | ATLAS-HELIOS-BENCHMARK-085 | Helios `152a66c` | Helios PR #54's benchmark regression job completed successfully; the merged default head is fully green across book, Rust, Python, and benchmark checks. The Atlas gitlink remains peer-owned at its staged integration head. |
 | ATLAS-THEMIS-STD-FEATURE-086 | Themis PR #22; merged default `f879e71` | Fixed the optional-dependency feature closure: `themis/std` now activates Melinoe before referring to its `std` feature. Ubuntu, Windows, compile-fail, branded Miri, and local strict Clippy are green; `recurseml/analysis` is external/report-only. |
 | ATLAS-THEMIS-STABLE-PROOFS-088 | Themis PR #23; merged default `fa8dc29` | Added stable trybuild enforcement for invalid shared-cell construction (`E0599`) and overlapping mutable borrows (`E0499`) with committed stderr fixtures. Ubuntu, Windows, compile-fail nightly, and branded Miri are green; `recurseml/analysis` is external/report-only. |
-| ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 `dc65ca3` | Corrected the AMX irregular-width configuration and repacked row-major GEMM right-hand panels into the VNNI layouts required by the dot-product instructions: `K/4 × 4N` for INT8 and `K/2 × 2N` BF16 elements. The provider-owned packer covers fixed-tile and blocked-GEMM paths with independent value-semantic four-byte and two-element grouping tests. Follow-up cleanup closes Hermes `must_use_candidate` 162→0, `missing_errors_doc` 83→0, and `missing_safety_doc` 8→0, splits the SIMD view cast leaf to avoid a conformance regression, scopes the macro's unreachable-code expectation to Neon with a regression test, rejects zero NTT moduli with a typed error, and canonicalizes NTT residues before subtraction. Local Hermes/core nextest is 424/424, intrinsics nextest is 435/435 when run together, and the doctest gate passes. Hosted run 31776186164 for `dc65ca3` is queued; prior run 31775426266 passed benchmark, Intel SDE/AMX, Miri, cargo-deny, cross-compile, and AArch64 jobs but its x86 strict Clippy job remains red on the existing pedantic debt. |
+| ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 `1a8713c` | Corrected the AMX irregular-width configuration and repacked row-major GEMM right-hand panels into the VNNI layouts required by the dot-product instructions: `K/4 × 4N` for INT8 and `K/2 × 2N` BF16 elements. The provider-owned packer covers fixed-tile and blocked-GEMM paths with independent value-semantic four-byte and two-element grouping tests. Follow-up cleanup closes Hermes `must_use_candidate` 162→0, `missing_errors_doc` 83→0, and `missing_safety_doc` 8→0, splits the SIMD view-cast and `SimdOps` blanket-implementation leaves, scopes the macro's unreachable-code expectation to Neon with a regression test, rejects zero NTT moduli with a typed error, and canonicalizes NTT residues before subtraction. The current local `hermes-simd` nextest is 408/408, the doctest gate is 4/4, and the targeted `missing_errors_doc` audit is clean. Hosted run 31776762379 is running on `1a8713c`; its x86 strict Clippy job is red on the existing pedantic debt while the Intel SDE/AMX, benchmark, Miri, cross-compile, and AArch64 jobs are still running. |
 
 **Current exact-head residual (2026-08-14):** the structural provider audit is
 clean, but the exact-head audit leaves six staged peer-owned paths: Proteus
@@ -64,10 +64,11 @@ and Iris (`eec9818` vs `899d622`). Ritk, Eunomia, Gaia, and Tyche now match
 their fetched default heads. Helios PR #54 is merged at `152a66c` and its
 benchmark regression job is green. Themis's stable-proof PR #23 is merged at
 `fa8dc29`. Hermes PR #40 now carries the AMX VNNI packer and follow-up
-lint/docs cleanup at `dc65ca3`; local contract gates are green, and hosted run
-31776186164 is queued. The prior benchmark and Intel SDE AMX differential
-checks are green; hosted run 31775426266 remains red only at the x86 strict
-Clippy job because of the existing pedantic debt. The six
+lint/docs/structure cleanup at `1a8713c`; local contract gates are green, and
+hosted run 31776762379 is running against that exact head. Its x86 strict
+Clippy job is red on the existing pedantic debt; the remaining hosted jobs are
+still running. The prior benchmark and Intel SDE AMX differential checks are
+green. The six
 listed pointers remain peer-owned and are not rewritten by this audit.
 
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
