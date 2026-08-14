@@ -225,6 +225,27 @@ reads blobs through `git`, or it refuses to run against a dirty tree unless
 `--worktree` is passed; running `check` twice with an unrelated uncommitted
 edit present yields identical counts.
 
+## ATLAS-STD-AMX-DETECT-082 — `is_x86_feature_detected!("amx-tile")` is unsound [patch] — open 2026-08-13
+
+Found while delivering ATLAS-HERMES-AMX-040. The std macro checks CPUID and
+XCR0 only, with **no OS permission step**. On real AMX hardware that is not
+enough: Linux requires `arch_prctl(ARCH_REQ_XCOMP_PERM, XFEATURE_XTILEDATA)`
+before any tile instruction or the process takes SIGILL, and Windows has its
+own `EnableProcessOptionalXStateFeatures` opt-in. So the macro can report
+`true` on a machine where executing a tile instruction faults.
+
+hermes now has a correct probe and does not use the macro. The item exists so
+that no consumer in the stack reaches for the obvious-looking std detection
+once it stabilizes, and so the reason is recorded rather than rediscovered.
+
+Related, from the same work: a real-world case exists where CPUID advertises
+AMX **and** XCR0 bits 17|18 are set, yet `TILEZERO` still raises `#UD` because
+`CPUID.1D` returns zeros — a hypervisor bug seen on Emerald Rapids CI runners.
+A palette-count check belongs in any probe that must survive virtualised hosts.
+
+**Acceptance oracle:** `rg 'is_x86_feature_detected!\("amx' repos/` returns
+nothing outside a comment explaining why it is unusable.
+
 ## ATLAS-GAIA-ORPHAN-081 — Delete an uncompiled 5 KB source file [patch] — open 2026-08-13
 
 `repos/gaia/src/application/csg/boolean/union_strategy.rs` is 5,218 bytes
