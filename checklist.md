@@ -111,6 +111,16 @@ Three ordering facts came out of the audit and are not obvious from the board:
 - [x] Provider CI `31804526486` and Pages deployment `31804524894` pass at
       final provider head `2821a4b`.
 
+### ATLAS-ADR-GOV-058-HEPHAESTUS — in progress 2026-08-14
+
+- [ ] Normalize every non-canonical Hephaestus ADR status without changing
+      the technical decision or falsely closing in-progress work.
+- [ ] Regenerate `docs/adr/README.md` from the provider corpus and verify the
+      generator is idempotent with no duplicate or missing ADR numbers.
+- [ ] Run the provider's focused documentation and workspace gates at the
+      exact final head, then integrate that gitlink and synchronized PM state
+      into Atlas.
+
 ## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — complete 2026-08-14
 
 - [x] Confirm the provider source and docs disagree: the core/autograd path
