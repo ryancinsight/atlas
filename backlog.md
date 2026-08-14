@@ -437,6 +437,11 @@ documentation describing the unsafe standard probe.
 
 ## ATLAS-GAIA-ORPHAN-081 — Delete an uncompiled 5 KB source file [patch] — open 2026-08-13
 
+- Owner: current session; claimed 2026-08-14. Scope is limited to Gaia’s
+  `src/application/csg/boolean/union_strategy.rs`, its reachability check,
+  focused verification, and this record. Gaia’s only existing worktree dirt
+  is the peer-owned `Cargo.lock` overlay rewrite.
+
 `repos/gaia/src/application/csg/boolean/union_strategy.rs` is 5,218 bytes
 declared in **no `mod` statement**, so nothing compiles it and no test covers
 it. Found while auditing gaia's unwrap count, which it inflated: the reported
