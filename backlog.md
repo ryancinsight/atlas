@@ -149,6 +149,19 @@ adds documentation to the test crate outside the book workflow's source paths.
 - Non-goals: no provider source rewrite, no deletion of peer-owned work, and
   no change to unrelated Atlas members.
 
+## ATLAS-THEMIS-GITATTRIBUTES-092 — Reconcile stale provider PM claim [patch] — in progress 2026-08-14
+
+- Owner: current session. Scope is limited to Themis's stale `.gitattributes`
+  checklist entry, its provider PM record, and the corresponding Atlas
+  evidence. Themis is clean on `main` at exact default head `fa8dc29`; no
+  source or workflow change is authorized by this item.
+- Finding: Themis's backlog still says that `.gitattributes` is absent, while
+  the tracked file already contains `* text=auto`. The stale claim makes the
+  provider's own completion state and Atlas conformance evidence disagree.
+- Acceptance: the provider record marks the existing file complete with its
+  exact content and head; no source behavior changes; the root audit remains
+  exact-head clean.
+
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
 peer work. The lane audit reports two violations: three Ritk trees and the
