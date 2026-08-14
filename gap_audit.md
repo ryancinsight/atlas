@@ -2318,7 +2318,7 @@ Consus, Helios, Aequitas, Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto,
 Hephaestus, Coeus, Apollo, Gaia, Hermes, and Iris. Atlas root commit `48a257d`
 is pushed to `origin/main`; the root gitlink remains the delivery SSOT. Horae
 records verified default `f5cd364`, and Hermes records merged closeout
-`947283d`. The
+`463c6e4` (docs-only default advance after `947283d`). The
 structural and exact-head audit reports all 21 providers present and active,
 with every committed gitlink equal to its fetched provider default. The full
 requested-provider coherence scope also passes. Peer source changes and

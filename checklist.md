@@ -4302,7 +4302,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   (2026-08-14) — closed in root commit `48a257d`; structural, exact-head, and
       requested-provider coherence checks pass for all 21 providers. Horae now
       records verified default `f5cd364`, and Hermes records merged closeout
-      `947283d`. The Leto
+      `463c6e4` (docs-only default advance after `947283d`). The Leto
   gitlink now records merged default `7f80044`; peer checkout and overlay
   lockfile dirt remain preserved. Helios typed DVH work remains external to
   this root closure until PR #54 head `8b5c29d` completes its benchmark gate.
