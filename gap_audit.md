@@ -1,5 +1,14 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
+
+The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
+`0023164` already cleared the root to the sanctioned file set, including the
+tracked `helios_workflow_output/{ct,dose,mu,recon}.png` artifacts. The current
+tree has no `helios_workflow_output` directory and `git ls-files` returns no
+tracked PNG under that path or under `repos/helios`. No provider source change
+was required; the cleanup is recorded as landed root state.
+
 ## ATLAS-AUDIT-STALE-TIER2-101 — Leto SVD closure already landed (closed 2026-08-14)
 
 The active `ATLAS-LETO-SVD-049` row duplicated provider work already present at
