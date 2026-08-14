@@ -152,6 +152,23 @@ error and remains report-only. This closes only the Themis slice; the broader
 member ADR-governance burn-down remains open with 13 stale or missing member
 indexes reported by the authoritative root generator.
 
+## ATLAS-ADR-GOV-058-RITK — Ritk ADR-index slice (closed 2026-08-14)
+
+Ritk PR #147 merged at provider default `d1087139`. ADR 0002 now records
+canonical `Accepted` status while explicitly preserving the live-tree fact that
+the Burn consumer path remains; ADR 0007 and ADR 0008 status headings are also
+canonical. The generated `docs/adr/README.md` index matches all Ritk ADR
+headers with no anomalies. Follow-up PM-sync PR #148 merged at `37e46ef` to
+remove the contradictory claim that retiring the audit tooling proved the
+consumer cutover complete.
+
+Final exact-head CI `31802349902` passes Rustfmt, Clippy, dependency alignment,
+all three platform test suites, and the Python wheel smoke test. Final Python CI
+`31802349905` passes all 13 version/platform jobs. The external
+`recurseml/analysis` status remains report-only. This closes only the Ritk
+slice; the broader member ADR-governance burn-down remains open with 12 stale or
+missing member indexes reported by the authoritative root generator.
+
 ## ATLAS-MOIRAI-ORDERING-052-SPSC — Moirai SPSC ordering slice (closed 2026-08-14)
 
 Moirai PR #130 merged at default `ac111b3`. The new `moirai-core` Loom model
