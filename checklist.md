@@ -121,6 +121,16 @@ Three ordering facts came out of the audit and are not obvious from the board:
       exact final head, then integrate that gitlink and synchronized PM state
       into Atlas.
 
+### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — in progress 2026-08-14
+
+- [ ] Mark the merged SPSC, async wake-dedup, PAL reactor, and reservation
+      ordering phases complete in the provider checklist.
+- [ ] Record the exact provider default `f766c6d` and hosted runs
+      `31798789797`, `31800148163`, `31800148178`, `31800607186`,
+      `31800607152`, `31801180700`, and `31801180691`.
+- [ ] Run provider documentation/format checks and confirm no production
+      source or peer-owned files are changed.
+
 ## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — complete 2026-08-14
 
 - [x] Confirm the provider source and docs disagree: the core/autograd path
