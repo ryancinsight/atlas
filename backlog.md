@@ -266,6 +266,38 @@ the same exit 1 and byte-identical 11-regression/32-tightening report. The
 scanner therefore has an explicit refusal boundary; remaining live-tree
 regressions are provider work or baseline debt, not scanner nondeterminism.
 
+## ATLAS-CFDRS-GPU-DEFAULT-084 — Bare path deps re-enable a feature the workspace disables [patch] — open 2026-08-14
+
+`cfd-1d`, `cfd-python` and `cfd-schematics` depend on `cfd-core` by bare path,
+which enables its **default** `gpu` feature, while the workspace dependency
+table sets `default-features = false`. Cargo unifies features across the graph,
+so the bare-path edge wins and `hephaestus-wgpu` becomes unavoidable for the
+whole workspace — including consumers that asked for a CPU-only build.
+
+Found during the scalar-seam consolidation, not caused by it. This is the
+feature-unification hazard `engineering_gates` names: a build that cannot be
+made GPU-free even though every declared requirement says it should be.
+
+**Acceptance oracle:** `cargo tree -e normal --no-default-features` shows no
+`hephaestus-wgpu`; every intra-workspace path dependency carries the same
+`default-features` setting as the workspace table.
+
+## ATLAS-CFDRS-CRLF-085 — CFDrs commits CRLF with no `.gitattributes` [patch] — open 2026-08-14
+
+The repository stores CRLF line endings and has no `.gitattributes`, so any
+tool that writes LF — rustfmt, a Python edit, most editors on non-Windows —
+reflows whole files. During the scalar consolidation this turned a real 10k-line
+diff into 128k lines until the endings were restored file by file, which is
+both unreviewable and a merge-conflict generator for every concurrent agent.
+
+`engineering_gates` requires `* text=auto` so every host hashes identical blobs;
+the conformance scan already counts this as `gitattributes_missing`. CFDrs is
+the case where the cost is now measured rather than theoretical.
+
+**Acceptance oracle:** `.gitattributes` normalizes source to LF, the tree is
+renormalized in one dedicated commit, and `gitattributes_missing` is 0 for
+CFDrs.
+
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
 
 Every member pins `channel = "1.97.0"`. That is a **version** pin. `rustup`
