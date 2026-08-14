@@ -36,6 +36,28 @@ Provider evidence: exact-head run `31794767546` passed `verify` and
 failed without affecting the provider-owned gates. Root gitlink now records
 the merged default head.
 
+## ATLAS-HEPH-SEAM-043 / ATLAS-HEPH-ACCEL-044 / ATLAS-HEPH-DEADBUILD-060 — Hephaestus seam and cleanup closure (closed 2026-08-14)
+
+Hephaestus PR #208 merged at default `ff2ab47`. The final provider diff opens
+the `KernelDialect` seam, moves scan orchestration into one generic
+`DeviceApi`-owned layer, deletes the CUDA and ROCm scan copies, removes the
+unused virtual-workspace `build.rs`, and refreshes the required Leto SVD lock
+and call sites to the current `svd_decompose` contract. A real external
+`KernelDialect` implementation and an external CUDA `DeviceApi` implementation
+compile in provider tests; these are compile-contract tests, not existence-only
+assertions.
+
+Exact-head hosted evidence is green for CUDA `31793963123`, ROCm
+`31793963119`, WGPU `31793963054`, and Metal `31793963181`. NVIDIA and AMD
+hardware jobs were skipped by the workflow because no hardware runner was
+available; no hardware runtime claim is made. Local formatting and the focused
+external `DeviceApi` contract pass. The independent architectural review
+approved the final head after the earlier review findings were addressed.
+
+Root gitlink now records the merged default head. The remaining Hephaestus
+provider residuals are separate Coeus backend parity and accelerator-family
+coverage items; this closure does not claim those broader rows.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
