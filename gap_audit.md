@@ -185,6 +185,21 @@ the final head passed. The external `recurseml/analysis` status remains
 report-only. This closes only the async wake-dedup sub-slice; the broader
 ordering justification and `SeqCst` ratchet remains open.
 
+## ATLAS-MOIRAI-ORDERING-052-REACTOR — Moirai PAL reactor ordering slice (closed 2026-08-14)
+
+Moirai PR #132 merged at default `8830f1b` from change head `098e266`. The
+three `IoReactor::running` accesses in `moirai-pal/src/reactor/core.rs` now
+use Relaxed ordering. The flag carries only loop-control state; `stop()` keeps
+the independent platform wake that releases a blocked poll, and no reactor
+payload is published or consumed through the flag.
+
+Exact-head workflow `31800607186` passes Loom and the complete workspace gate,
+including format, warning-denied Clippy, nextest, doctests, and rustdoc.
+Workflow `31800607152` passes Rust bindings and macOS, Ubuntu, and Windows
+wheel smoke tests. The external `recurseml/analysis` status remains
+report-only. This closes only the reactor stop-flag sub-slice; the broader
+ordering justification and `SeqCst` ratchet remains open.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
