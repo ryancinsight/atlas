@@ -414,31 +414,34 @@ cannot serve as the MSRV oracle because peer-edited manifests in other
 providers are newer than the historical compiler. Mnemosyne and Eunomia
 remain separate provider scopes.
 
-## ATLAS-RITK-LANE-SPRAWL-065 — Reconcile three ritk working trees [patch] — open 2026-08-14
+## ATLAS-RITK-LANE-SPRAWL-065 — Reconcile three ritk working trees [patch] — in-progress 2026-08-14
 
-The 2026-08-14 probe still reports **three** trees against a bound of two
-(main plus one lane):
+Owner: Codex. Claimed scope: the Ritk linked worktree records and this board
+entry; preserve the two feature branches and remove only a stale clean checkout.
+
+The current probe reports **three** trees against a bound of two (main plus one
+lane):
 
 ```
-D:/atlas/.git/modules/repos/ritk              f345a00e [main]
-D:/atlas/worktrees/ritk-fix                    3cdaf360 [refactor/image-operation-modules] dirty
+D:/atlas/.git/modules/repos/ritk              37e46ef7 [main]
+D:/atlas/worktrees/ritk-fix                    bcaefa3a [chore/file-leto-svd-finding]
 D:/atlas/worktrees/ritk-image-coordinate-map   e88910d0 [feat/ritk-spatial-explicit-fan-origin]
 ```
 
 The previously reported `repos/ritk-floatelement-wt` directory is absent. Both
-remaining lanes are under the canonical `worktrees/` root, but
-`worktrees/ritk-fix` carries uncommitted source and manifest work while the
-coordinate-map lane is a separate live feature branch. Neither lane is safe to
-remove or repoint without rescuing peer-owned work.
+remaining lanes are under the canonical `worktrees/` root and both are clean;
+their branch refs and unique commits remain preserved in the repository. The
+`ritk-fix` lane has the newer commit and is retained. The coordinate-map lane's
+last commit is from 2026-08-13 and has no dirty state; its checkout is the
+stale surplus selected for removal, while its branch remains available.
 
 Also note `repos/ritk` itself moved from `codex/ritk-floatelement-roots` to
 `main` during this session, which is the shared-tree branch-switch hazard — a
 `git switch` in a shared tree moves the branch for every agent using it.
 
-No destructive action is taken in this sweep. Reconcile rescue-first after the
-dirty lane's owner lands or explicitly releases its work: verify unique commits
-and dirty files, rescue any unique state into `repos/ritk`, then
-`git worktree remove`/`prune` the surplus lane.
+Rescue checks precede removal: verify both lane worktrees are clean, verify each
+branch ref and unique commit remains reachable, then remove only
+`worktrees/ritk-image-coordinate-map` and prune the worktree record.
 
 **Acceptance oracle:** `git -C repos/ritk worktree list` shows at most two
 entries, no entry is under `repos/`, and no unique commit is lost (verified by
