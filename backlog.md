@@ -6310,15 +6310,27 @@ construct shapes consistent with the internal convention. The trap is the first
 production caller: passing `image.shape()` to either type silently transposes
 the volume, and no type error catches it since both are `[usize; 3]`.
 
-**Decision: storage order wins** — shape order equals storage order equals
-`Image::shape()`, so `offset = i0·d1·d2 + i1·d2 + i2` reads directly and no call
-site needs a reversal. `NoddiVolume` and `FodVolume` migrate.
+**Decision reversed after reading the index arithmetic — do not migrate them.**
+The first plan was "storage order wins, `NoddiVolume` and `FodVolume` migrate".
+That was wrong. Both are *fully coherent in physical x,y,z order*: shape
+`[nx,ny,nz]`, spacing `[sx,sy,sz]`, origin `[ox,oy,oz]`, and a query point
+`(px,py,pz)`, with storage z-slowest so `nx` is correctly the innermost stride.
+Changing only `shape` to slowest-first would leave shape and spacing in
+*different* orders inside one struct — strictly worse than the split it was
+meant to fix. Changing all of them means changing the query frame from physical
+to index, which is a large change with no present need.
 
-**Risk to state plainly**: this changes the *meaning* of a parameter without
-changing its type, so an external caller would keep compiling and silently
-transpose. In-repo migration is complete (tests only), the crates are 0.1.0, and
-the change is recorded in the CHANGELOG — but it is a silent break, not a
-compile break, which is the worse kind.
+The two conventions are not arbitrary: they follow the query frame each type
+offers. `NoddiVolume`/`FodVolume` accept physical points and therefore order
+everything x,y,z; `DtiVolume` accepts voxel indices and therefore orders
+everything `[depth, row, column]` like `Image::shape()`.
+
+**Delivered instead**: the order is documented explicitly on all three types
+with the reason and a cross-reference, and pinned by a test per type so a
+refactor cannot silently flip it. The residual trap — passing `image.shape()`
+straight to `NoddiVolume::new`, which compiles and silently transposes — is
+named at the constructor. A conversion helper is deliberately not added: there
+is no production caller yet, and building one now would be speculative.
 
 **CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
 groups and `ritk-python` exposes no diffusion surface. They are independent
