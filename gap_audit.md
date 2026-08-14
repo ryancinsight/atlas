@@ -58,6 +58,15 @@ Root gitlink now records the merged default head. The remaining Hephaestus
 provider residuals are separate Coeus backend parity and accelerator-family
 coverage items; this closure does not claim those broader rows.
 
+## ATLAS-LICENSE-FILES-039 — License-file audit re-probe (closed 2026-08-14)
+
+The original absence finding is stale. Current provider default heads Moirai
+`e972174`, Leto `143696d`, Gaia `18349bc`, and Helios `152a66c` each contain
+both `LICENSE-APACHE` and `LICENSE-MIT` while declaring `MIT OR Apache-2.0` in
+their workspace metadata. The README license links resolve to those files.
+No provider edit was required; the active row is closed as a corrected audit
+premise rather than by adding duplicate license artifacts.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
