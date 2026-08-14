@@ -286,6 +286,8 @@ Their current provider source and evidence are not active Tier 0 work.
 > athena (`-066` document the two undocumented solver families, `-070` flatten
 > the Arnoldi basis), and ritk (`-047` ADR plus one vertical increment).
 > `-048a` landed earlier; `-048b` stays blocked on a kwavers migration.
+> The current session is now auditing `-049` against Leto default `143696d`;
+> the provider source and ADR are read-only inputs to this root PM closure.
 > Peers: take another scope, not these.
 
 | ID | Outcome | Class | Acceptance oracle |
