@@ -57,17 +57,19 @@ rows below retain their original audit scope:
 | ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 merged at `b95d19d` (head `5a8d718`) | Corrected the AMX irregular-width configuration and repacked row-major GEMM right-hand panels into the VNNI layouts required by the dot-product instructions: `K/4 × 4N` for INT8 and `K/2 × 2N` BF16 elements. The provider-owned packer covers fixed-tile and blocked-GEMM paths with independent value-semantic four-byte and two-element grouping tests. Follow-up cleanup closes Hermes `must_use_candidate` 162→0, `elidable_lifetime_names` 131→0, `missing_errors_doc` 83→0, `missing_safety_doc` 8→0, `semicolon_if_nothing_returned` 92→0, and `unreadable_literal` 180→0 with a documented generated-table exception, splits the SIMD view-cast and `SimdOps` blanket-implementation leaves, scopes the macro's unreachable-code expectation to Neon with a regression test, rejects zero NTT moduli with a typed error, validates bitboard squares before shift arithmetic, removes the conformance ratchet regressions introduced by the lint cleanup, and canonicalizes NTT residues before subtraction. The current local Hermes workspace all-target Clippy gate is clean, nextest is 454/454, the Hermes/core doctest gate is 18/18 with 7 ignored, and the benchmark-target smoke gate passes. Hosted run 31779776851 is green across all seven jobs. |
 
 **Current exact-head residual (2026-08-14):** the structural provider audit is
-clean, but the exact-head audit leaves five staged peer-owned paths: Proteus
-(`6b9bd0b` vs `c7cf800`), Helios (`1e16540` vs `152a66c`), Moirai (`61140fb`
-vs `2ea17bb`), Leto (`7f80044` vs `f3756b5`), and Iris (`eec9818` vs
-`899d622`). Ritk, Eunomia, Gaia, Tyche, and Hermes now match
+clean, but the exact-head audit leaves two staged peer-owned paths: Moirai
+(`61140fb` vs `2ea17bb`) and Leto (`7f80044` vs `f3756b5`). Proteus, Helios,
+Iris, Ritk, Eunomia, Gaia, Tyche, and Hermes now match
 their fetched default heads. Helios PR #54 is merged at `152a66c` and its
 benchmark regression job is green. Themis's stable-proof PR #23 is merged at
 `fa8dc29`. Hermes PR #40 carries the AMX VNNI packer and follow-up
 lint/docs/structure cleanup, merged at `b95d19d`; local contract gates and all
-seven hosted checks are green at head `5a8d718`. The prior benchmark and
-Intel SDE AMX differential checks are green. The five
-listed pointers remain peer-owned and are not rewritten by this audit.
+seven hosted checks are green at head `5a8d718`. Proteus and Iris default-head
+checks are green across build, verification, deployment, and supply-chain
+jobs. Moirai default-head checks fail its Rust binding, workspace, and wheel
+jobs; Leto default-head Rust verification fails. Their two pointers remain
+peer-owned and are not advanced while their default-head gates are red. The
+prior benchmark and Intel SDE AMX differential checks are green.
 
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
