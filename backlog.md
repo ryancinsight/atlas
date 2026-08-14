@@ -69,7 +69,10 @@ checks are green across build, verification, deployment, and supply-chain
 jobs. Moirai default-head Rust Workspace and Python Bindings runs
 `31782344026` and `31782344151` are green. Leto default-head Rust verification
 run `31782827546` and Pages deployment run `31782826144` are green. The prior
-benchmark and Intel SDE AMX differential checks are green.
+benchmark and Intel SDE AMX differential checks are green. Gaia's exact
+default-head CI run `31784028179` is green at `18349bc`; the book run
+`31783965823` is green at source head `c06504c`, and the replacement head only
+adds documentation to the test crate outside the book workflow's source paths.
 
 ## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — done 2026-08-14
 
@@ -183,7 +186,7 @@ residuals, not cleaned by deleting peer state.
 | ATLAS-LICENSE-FILES-039 | Declared licenses have no files. moirai declares `MIT OR Apache-2.0` (`Cargo.toml:30`) with no LICENSE and a README claiming MIT; helios declares dual and ships neither text; gaia declares dual and ships MIT only; leto declares dual with no LICENSE. | [patch] | Every repo declaring `MIT OR Apache-2.0` carries both texts; `cargo package --list` includes them |
 | ATLAS-HERMES-AMX-040 | `amx_runtime_supported()` (`crates/.../amx/mod.rs:12-22`) returns a hardcoded `false` on every non-miri target, so ~230 lines of inline asm, 14 unsafe fns and a public RAII session are unreachable — while `README.md:26,156-157,188` advertises AMX dispatch and differential verification, and the SDE CI job is named for a branch it cannot execute. The quarantine is legitimately recorded; the advertising is not. | [minor] | A real CPUID + XCR0 + `ARCH_REQ_XCOMP_PERM` probe replaces the literal; the SDE job adds `amx` to `HERMES_EXPECTED_TARGETS` and runs the AMX-vs-scalar differential |
 | ATLAS-COEUS-GRADCHECK-041 | Autodiff has finite-difference coverage on ~9 of ~80 backward paths (~11%), with no shared `gradcheck` helper. Uncovered: matmul, every convolution, softmax, all normalizations, attention, all ~17 loss nodes. `softmax.rs:180` is an existence-only assertion that passes if `backward` writes zeros; `norm.rs:359` is *named* `..._matches_numeric_gradient` and contains no finite differences. coeus is ritk's differentiation substrate. | [minor] | One `gradcheck` helper with an eps-derived step and cited derivation; FD-covered paths ≥ 40 of 80; `rg 'is_some\(\), "' crates/coeus-autograd/src` → 0 |
-| ATLAS-GAIA-GATE-042 | gaia has **no verification CI at all** (only `book-pages.yml` and `rust-release.yml`), **no `.config/nextest.toml`** (the one member outside the stack's 30 s/60 s budget, so a hang cannot be caught), and a warn-only lint floor never run under `-D warnings` — against 58 production `unwrap()`, 42 files over 500 lines and a 2286-line CSG core. | [patch] | A `ci.yml` runs fmt → clippy `-D warnings` → nextest → doctests → `cargo doc`; committed nextest budget mirrors helios; package `[lints]` with pedantic + `unwrap_used`; ratchet baseline recorded |
+| ATLAS-GAIA-GATE-042 | **Closed 2026-08-14.** Gaia now has verification CI, a committed nextest budget, and a package lint floor. Hosted default-head run `31784028179` passes the complete gate at `18349bc`; the prior source-head book run `31783965823` also passed. | [patch] | `ci.yml` runs fmt → clippy `-D warnings` → nextest → doctests → `cargo doc`; `.config/nextest.toml` enforces bounded execution; package `[lints]` includes pedantic + `unwrap_used`; ratchet baseline remains recorded |
 
 ## Tier 2 — architecture: SSOT, DRY, and the zero-cost seams
 
@@ -435,29 +438,37 @@ matches. Hermes routes AMX capability checks through
 process-permission checks; the remaining `amx-tile` references are comments or
 documentation describing the unsafe standard probe.
 
-## ATLAS-GAIA-ORPHAN-081 — Delete an uncompiled 5 KB source file [patch] — open 2026-08-13
+## ATLAS-GAIA-ORPHAN-081 — Delete uncompiled source artifacts [patch] — done 2026-08-14
 
-- Owner: current session; claimed 2026-08-14. Scope is limited to Gaia’s
-  `src/application/csg/boolean/union_strategy.rs`, its reachability check,
-  focused verification, and this record. Gaia’s only existing worktree dirt
-  is the peer-owned `Cargo.lock` overlay rewrite.
+- Owner: current session; claimed 2026-08-14. Scope was limited to Gaia’s
+  unreachable source artifacts, their reachability check, focused verification,
+  and this record. Gaia’s remaining worktree dirt is the peer-owned `Cargo.lock`
+  overlay rewrite.
 
-`repos/gaia/src/application/csg/boolean/union_strategy.rs` is 5,218 bytes
-declared in **no `mod` statement**, so nothing compiles it and no test covers
-it. Found while auditing gaia's unwrap count, which it inflated: the reported
-"58 production unwraps" was really **4**, with the rest coming from doctest
-lines and this dead file.
+`repos/gaia/src/application/csg/boolean/union_strategy.rs` is 5,218 bytes and
+`repos/gaia/src/infrastructure/storage/cell_store.rs` is 3,384 bytes; neither
+is declared in a **`mod` statement**, so nothing compiles either file and no
+test covers them. Found while auditing gaia's unwrap count, which the first
+file inflated: the reported "58 production unwraps" was really **4**, with
+the rest coming from doctest lines and dead source.
 
 That is the second-order cost worth naming — an orphan file is invisible to the
 compiler but fully visible to every text-based scan, so it silently skews
 exactly the metrics used to aim remediation.
 
-Delete it, or wire it in if it is unfinished work someone still wants. Check
-`git log --follow` first to see whether it was ever reachable.
+`git log --follow` confirmed historical provenance but no current reachability;
+the two artifacts were deleted in provider commit `c06504c`. The committed
+`tests/module_reachability.rs` regression enumerates library, binary, and
+`#[path]` module roots and reports every source orphan. Gaia's follow-up
+provider commit `18349bc` documents the integration-test crate after hosted
+Clippy found that missing documentation.
 
 **Acceptance oracle:** every `.rs` under `src/` is reachable from `lib.rs`
 through `mod` declarations; a committed check enumerates orphans so a new one
-cannot land silently.
+cannot land silently. The local structural probe and formatting check passed;
+hosted Gaia CI run `31784028179` passed at `18349bc`. Hosted book run
+`31783965823` passed at source head `c06504c`; the documentation-only follow-up
+does not affect that workflow's inputs.
 
 ## Deferred with a recorded reason
 
