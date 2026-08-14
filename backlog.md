@@ -56,8 +56,8 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | ATLAS-ADR-GOV-058-LETO | Leto PR #112 merged at provider default `2821a4b`; ADR 0001 is canonical `Rejected` after ADR 0004 shipped its replacement, ADR 0011 records the measured full-block regression without claiming that path shipped, ADR 0012 is `Proposed`, and ADR 0013 is canonical `Accepted`. The later duplicate ADR 0011 was renumbered to ADR 0024 and its code-doc link updated. The generated index has no anomalies or drift. Exact-head CI `31804526486` and Pages deployment `31804524894` pass; recurseml analysis remains report-only. | [patch] | ATLAS-ADR-GOV-058 |
 | ATLAS-ADR-GOV-058-HEPHAESTUS | Hephaestus PR #209 merged at provider default `be7389e`; 52 ADR records now use canonical statuses and the generated index has zero anomalies or drift. ADR 0003 retains the accepted architecture while explicitly recording QR work as pending; ADR 0004 retains its amendment; ADR 0005 records its supersession as historical `Rejected` status. Exact-head CUDA `31805214715`, ROCm `31805214723`, WGPU `31805214652`, and Metal `31805214716` checks pass; recurseml remains report-only. Atlas points to the merged default head. | [patch] | ATLAS-ADR-GOV-058 |
 | ATLAS-ADR-GOV-058-APOLLO | Apollo PR #93 merged at provider default `fca501f`; ADR 0001 is canonical `Rejected` while preserving its Hephaestus supersession, and ADR 0011 is canonical `Accepted` while preserving its dated benchmark decision. The 39-record generated index has zero anomalies and zero drift. Exact-head Rust workspace `31806913513` (job `94787923879`) and Python bindings (job `94787923826`) pass; CodeRabbit passes and recurseml remains report-only. Atlas records the merged default; the peer-owned performance branch and dirty lockfile remain outside scope. | [patch] | ATLAS-ADR-GOV-058 |
-| ATLAS-RITK-DICOM-ORIENTATION-070 | **Provider half merged; Helios consumer pending lockfile composition.** RITK owns `ImageOrientationPatient` (0020,0037) and its six-value decimal fixture; PR #149 merged at provider `origin/main` `170ed1c7` with all repo-owned hosted checks green. Helios consumes `ritk_dicom::tags::IMAGE_ORIENTATION_PATIENT` locally and its focused DICOM suite passes 44/44, but PR #55’s committed lock still resolves RITK at pre-merge `f018ff...`; the shared Helios checkout has peer-owned typed-slope lockfile dirt, so the lock refresh and exact consumer hosted gate remain sequenced behind that composition. Atlas must advance both gitlinks only after the consumer lock and hosted gates pass. | [minor] | ATLAS-RITK-DICOM-ORIENTATION-070 |
-| ATLAS-HERMES-AMX-DOWNGRADE-096 | **In progress — provider branch `fix/hermes-amx-downgrade-event`.** Replace Hermes’s release-silent AMX→AVX-512 NUMA downgrade stderr diagnostic with one subscriber-owned structured event, preserve the no-std facade, and remove the unsound no-std global `Cell` substitute for AMX session state. Provider ADR 012, changelog, backlog, checklist, and gap audit are synchronized. Local format and focused library Clippy pass; package Nextest remains uncollected because the shared target lock exceeded the bounded local run. Acceptance: Hermes hosted repository-owned gates pass at the final head, the event test asserts routing fields, no stderr path remains, and the merged provider head is integrated into Atlas. | [patch] | ATLAS-HERMES-AMX-DOWNGRADE-096 |
+| ATLAS-RITK-DICOM-ORIENTATION-070 | **Closed at Atlas integration scope.** RITK owns `ImageOrientationPatient` (0020,0037) and Atlas now records merged defaults for both sides of the seam (`ritk` `d09b7928`, `helios` `152a66cd`). `python scripts/atlas-provider-integration-audit.py --exact-heads` passes and confirms requested-provider exact-head/coherence closure with both gitlinks aligned to fetched defaults. | [minor] | ATLAS-RITK-DICOM-ORIENTATION-070 |
+| ATLAS-HERMES-AMX-DOWNGRADE-096 | **Closed at Atlas integration scope.** The Hermes AMX downgrade slice is integrated at merged default `463c6e47`, and `python scripts/atlas-provider-integration-audit.py --exact-heads` passes with requested-provider exact-head/coherence closure. Atlas now records the merged Hermes default gitlink and no further root-owned integration action remains for this item. | [patch] | ATLAS-HERMES-AMX-DOWNGRADE-096 |
 | ATLAS-MOIRAI-ORDERING-052-PM-SYNC | Moirai PR #134 merged at provider default `9125837`; `CHECKLIST.md` now closes the SPSC, async wake-dedup, PAL reactor, and connection-pool reservation slices with their exact merged heads and hosted evidence. The provider remains clean and no production source changed. | [patch] | ATLAS-MOIRAI-ORDERING-052 |
 | ATLAS-MOIRAI-ORDERING-052-SPSC | Moirai PR #130 merged at default `ac111b3`; the SPSC ring model uses a capacity-two wrap-around, three FIFO values, and preemption bound four. Hosted `Loom channel models` passes in run `31798789797`; the external recurseml analyzer error remains report-only. |
 | ATLAS-MOIRAI-ORDERING-052-WAKER | Moirai PR #131 merged at default `fd517fe`; async `is_queued` clear/swap now use Relaxed ordering, with a Loom dequeue/clear versus wake/swap model. Exact-head workflow `31800148163` passes Loom and workspace gates; `31800148178` passes bindings and all wheel smoke tests; recurseml analysis remains report-only. The first model revision failed on a non-contractual cross-atomic observer assertion and was corrected before the passing head. | [patch] | ATLAS-MOIRAI-ORDERING-052 |
@@ -6360,8 +6360,39 @@ millimetres while `tract dti` tracks in voxel indices, and the result's fields
 are `pub(crate)`, so the CLI had no way to produce a converted result and built
 its `.tck` tractogram by hand, duplicating `to_tck()`.
 
-**CLI half written but not committed**: `ritk-cli` does not build locally.
-Holding it rather than pushing unverified. Re-open trigger: `ritk-cli` builds.
+**CLI half complete and pushed** (ritk PR #154, `4b04d39c`), verified on
+OpenNeuro ds002087 sub-01: the emitted `.trk` `vox_to_ras` reproduces the source
+NIfTI's own sform rows exactly — an independent oracle for the LPS→RAS
+reconstruction — `dim` matches the image, applying the affine to the stored
+points recovers the `.tck` world coordinates to 8e-6 mm, and `.tck`/`.trx` agree
+exactly. 227/227 `ritk-cli`, clippy clean.
+
+**Two defects found by that verification, both invisible to a "files were
+written" check.** The first `.trk` emitted RITK's `[depth, row, column]` order
+where the format wants voxel `(i, j, k)`, declaring a 72×104×104 volume for a
+104×104×72 image. It round-tripped perfectly — the writer inverts whatever
+affine it is given — so only a viewer overlaying the tracks would have
+disagreed. This is exactly the trap documented under
+ATLAS-RITK-TRACT-AXIS-025, walked into within the hour of documenting it:
+writing the hazard down does not prevent falling into it.
+
+**Landing is blocked on branch contention, not on the work.** PR #154 also
+carries the leto migration (`6ac3fb5e`, `86bd9fba`) plus the lock bump
+(`eeca5dfa`), which must move together — the migration alone fails CI at the old
+pin, the bump alone breaks `main`'s consumers. A peer is now landing a
+400-file pedantic-floor ratchet on the same branch, so it conflicts with `main`
+and cannot be merged or rebased without disturbing ~400 dirty files of their
+in-flight work. Extracting only my commits would produce a red PR because of the
+coupling above. Re-open trigger: the branch settles and merges cleanly.
+
+**A third shared-tree hazard variant, not covered by the existing rule.** My
+commit of `ritk-cli/Cargo.toml` published a peer's uncommitted
+`[lints] workspace = true` while the matching root `[workspace.lints]` stayed
+uncommitted — half a change, which broke manifest parsing for every workspace
+member and failed 18 CI checks. Committing path-limited protects *file*
+granularity and offers nothing at *line* granularity when the foreign edit sits
+inside a file legitimately being edited. It passed locally only because the
+other half was in the working tree.
 
 **Root cause traced 2026-08-14 — a stale lock pin, and the fix needs two halves
 at once.** `ritk` `Cargo.lock` pins `leto.git#8c4e6093` (2026-08-12); leto has
