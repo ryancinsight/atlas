@@ -5,16 +5,6 @@
 
 # Sweep 2026-08-13 — execution order
 
-## ATLAS-OVERLAY-LAG-097 — lag-aware dev overlay patch emission
-
-- [x] Make `generate` skip any `[patch]` edge whose local version violates a
-      declared requirement (per-package, all declarations must pass); leave
-      the edge on git so the member still builds.
-- [x] Report lag-skipped edges in `generate` output; keep `check` as the
-      version-lag gate (rc=1 until the consumer advances its pin).
-- [x] Add regression coverage (5 tests), verify idempotent regeneration and
-      `check` rc=0 in the aligned state; land as Atlas `4f8b897`.
-
 ## ATLAS-TYCHE-DOCS-001 — merged provider documentation correction
 
 - [x] Merge Tyche PR #22 after repository-owned `verify`, `supply-chain`, and

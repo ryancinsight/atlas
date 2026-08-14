@@ -48,8 +48,9 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
         self.assertNotIn("RUSTDOC", env)
 
     def test_requested_provider_inventory_is_complete(self) -> None:
-        self.assertEqual(len(audit.REQUIRED_PROVIDERS), 20)
+        self.assertEqual(len(audit.REQUIRED_PROVIDERS), 21)
         self.assertIn("hermes", audit.REQUIRED_PROVIDERS)
+        self.assertIn("gaia", audit.REQUIRED_PROVIDERS)
 
     def test_main_succeeds_with_complete_inputs(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:

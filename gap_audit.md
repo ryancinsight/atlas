@@ -1,20 +1,5 @@
 # atlas — cross-repository integration gap audit
 
-## ATLAS-OVERLAY-LAG-097 — dev overlay patched git deps conflicting with member pins (closed 2026-08-14)
-
-The dev overlay (`scripts/atlas-stack-overlay.py generate`) unconditionally
-redirected every first-party git dependency to its local working tree. When a
-local version violated a member's manifest pin (kwavers `ritk-image ^0.3.0`
-vs local 0.4.0), Cargo refused the patch with the misleading "candidate
-versions found which didn't match" error and every build under the overlay
-failed even though the member resolved standalone. The gap is closed: patch
-edges are emitted only when the local version satisfies every declared
-requirement, lagging edges resolve from git, and `generate` names the lag
-while `check` gates it (Atlas commit `4f8b897`). Reproduced end-to-end with
-the exact historical kwavers/ritk-image state before and after; the fix is
-behavior-preserving in the aligned state (42 sections, byte-identical patch
-block, `check` rc=0).
-
 ## ATLAS-RITK-DICOM-ORIENTATION-070 — provider merged; Helios lock composition pending
 
 RITK now owns `ImageOrientationPatient` `(0020,0037)` in its canonical DICOM

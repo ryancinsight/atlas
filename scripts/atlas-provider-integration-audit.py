@@ -46,6 +46,7 @@ REQUIRED_PROVIDERS = (
     "hephaestus",
     "coeus",
     "apollo",
+    "gaia",
     "hermes",
     "iris",
 )

@@ -340,7 +340,7 @@ for book in repos/*/docs/book; do mdbook build "$book"; done
      CFDrs/helios/kwavers is multi-char (contain `/` or `.md` or are
      depth-prefixed).  Verified by enumerating all `classify_pattern`
      matches post-filter (zero false positives remaining).
-   - **Regression smoke-test fixture** (consolidated): `scripts/tests/fixtures/smoke_test_filters/`
+   - **Regression smoke-test fixture** (consolidated): `parity_artefacts/smoke_test_filters/`
      — single CI job `docs-link-smoke-test-filters` exercises both
      `SINGLE_CHAR_HREF_RE` (6 FDTD-recurrence patterns in
      `src/single_char_filter.md`) + `LATEX_HREF_RE` (7 categories /
@@ -349,7 +349,7 @@ for book in repos/*/docs/book; do mdbook build "$book"; done
      regression guard for future detector refactors that accidentally
      re-enable either filter class.  Manual reproduction commands
      (positive + negative test, both filters disabled together) are
-     in `scripts/tests/fixtures/smoke_test_filters/README.md`.
+     in `parity_artefacts/smoke_test_filters/README.md`.
 6. ✅ **Parity-artefacts archive** — LANDED:
    - 43 files (~33.8 KB) copied from `parity_artefacts/` to
      `repos/parity_artefacts/` (full evidence chain: detector logs,

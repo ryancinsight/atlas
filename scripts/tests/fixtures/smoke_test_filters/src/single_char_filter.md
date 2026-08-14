@@ -48,10 +48,10 @@ These are real markdown links that the detector must still scan and
 validate.  They all resolve to existing files at atlas root or within
 the fixture tree:
 
-- See the [parent parity report](../../../../../docs/mdbook/detector-parity.md).
-- See the [kwavers parity report](../../../../../docs/mdbook/detector-parity-kwavers.md).
-- See the [allow-list](../../../../../.check_mdbook_links_allowlist).
-- See the [detector source](../../../../../scripts/check_mdbook_links.py).
+- See the [parent parity report](../../../docs/mdbook/detector-parity.md).
+- See the [kwavers parity report](../../../docs/mdbook/detector-parity-kwavers.md).
+- See the [allow-list](../../../.check_mdbook_links_allowlist).
+- See the [detector source](../../../scripts/check_mdbook_links.py).
 - See the [sibling chapter](latex_filter.md) (the LATEX_HREF_RE regression test).
 - See the [fixture README](../README.md).
 
@@ -59,7 +59,7 @@ the fixture tree:
 
 When the ``SINGLE_CHAR_HREF_RE`` filter is functioning correctly, the
 detector must report ``FILE_MISSING : 0`` across the whole
-`scripts/tests/fixtures/smoke_test_filters/` fixture (this chapter +
+`parity_artefacts/smoke_test_filters/` fixture (this chapter +
 `latex_filter.md` + SUMMARY.md + README.md).  If ``FILE_MISSING`` is
 non-zero, the filter has regressed — investigate ``extract_links()``
 in ``scripts/check_mdbook_links.py`` immediately.  Do NOT silence the
