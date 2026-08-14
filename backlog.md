@@ -169,6 +169,21 @@ default head `17d3647`.
   workflow state are unchanged from the hosted-green stable-proof head
   `fa8dc29`; no tree-wide renormalization was required.
 
+## ATLAS-AEQUITAS-CI-093 — Preserve the locked provider graph [patch] — in progress 2026-08-14
+
+- Owner: current session. Scope is limited to Aequitas's CI metadata step,
+  the stale `uom` comparison label in its gap audit, provider PM records, and
+  the hosted default-head gate. Aequitas is clean on `main` at `632e8f8`.
+- Finding: `.github/workflows/ci.yml` runs an unlocked `cargo metadata` command
+  named “Normalize lock onto current provider heads” immediately before the
+  locked checks. That mutates or re-resolves the graph instead of proving the
+  committed lock, so the hosted gate does not establish standalone
+  reproducibility. `gap_audit.md` also still calls the delivered 0.2.0 scope
+  “Aequitas 0.1 scope.”
+- Acceptance: metadata verification itself is locked and non-mutating; the
+  comparison table says 0.2 scope; focused diff checks and the exact hosted
+  default-head CI pass; no domain source behavior changes.
+
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
 peer work. The lane audit reports two violations: three Ritk trees and the
