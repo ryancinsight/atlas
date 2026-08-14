@@ -5803,8 +5803,8 @@ rather than widening its scope. Decide whether the omission is deliberate — th
 writer takes an explicit backend, which the dispatch layer may not want — and
 either re-export it or record why not. It is also the blocker under 020.
 
-`ATLAS-DMRI-CLI-022` — `tract` command group [minor], **in-progress
-2026-08-13, owner=claude-dmri-cli**. Scope: `ritk_diffusion::maps::DtiVolume`,
+`ATLAS-DMRI-CLI-022` — `tract` command group [minor], **delivered 2026-08-13**
+(ritk PR #142). Scope: `ritk_diffusion::maps::DtiVolume`,
 `ritk_tractography::dti_volume_direction_field`, and
 `crates/ritk-cli/src/commands/tract*`.
 
@@ -5830,9 +5830,42 @@ as the *fastest* axis — the opposite order — and does its own physical
 conversion internally. That divergence is pre-existing and is recorded here
 rather than silently matched or unilaterally changed.
 
-**This increment writes `.tck` only.** `TckTractogram` takes
-`Vec<gaia::Polyline<f64>>` directly, which `Streamline::geometry()` already
-yields. `.trk` and `.trx` are separate output-path items.
+**Delivered.** `DtiVolume` + `dti_volume_direction_field` + `ritk tract dti`,
+writing `.tck` only — `TckTractogram` takes `gaia::Polyline<f64>` directly,
+which `Streamline::geometry()` already yields. Verified on OpenNeuro ds002087
+sub-01: 1975 streamlines, arc lengths 2–112 mm, coordinates spanning a
+head-sized box in physical space, which is what confirms the index-to-physical
+transform rather than the file merely parsing. 8 new library tests, 5 new CLI
+tests, clippy clean across all three crates.
+
+**Honest limitation, recorded rather than tuned away**: median track length is
+about 16 mm against an anatomical 30–150 mm. Measured termination split on this
+subject is 2379 at a field boundary against 1571 on the turn limit — so both the
+data (single-shell b = 700 resolves one tensor per voxel; ~26% of voxels survive
+masking) and the nearest-neighbour lookup contribute. Loosening
+`--track-anisotropy` would lengthen tracks without making them more true, so it
+was not done.
+
+**Spun out, unclaimed:**
+
+`ATLAS-DMRI-TRACT-023` — Interpolated direction field [minor], todo. Nearest
+neighbour makes orientation constant within a voxel and discontinuous at each
+boundary, so smooth bundles can exceed the turn limit. This is *not* simply
+trilinear averaging of the eigenvectors: an eigenvector has no sign, so ±v
+describe the same fibre and naive averaging cancels. Either interpolate the
+tensor and re-decompose, or sign-align neighbours to a reference before
+combining. Acceptance: the turn-limit share of terminations falls on the same
+subject, with the sign-ambiguity handling covered by a test that would fail
+under naive averaging.
+
+`ATLAS-DMRI-TRACT-024` — `.trk` and `.trx` output [patch], todo. `ritk-trk` and
+`ritk-trx` exist; this is an output-format item on `tract dti`.
+
+`ATLAS-RITK-TRACT-AXIS-025` — Settle the volume axis convention [patch], todo.
+`DtiVolume` orders queries `[depth, row, column]` to match `Image::shape()`;
+`NoddiVolume` orders them `[nx, ny, nz]` with the first component fastest, and
+converts from physical space internally. Two conventions in one crate is a
+terminology-SSOT defect. Decide which is canonical and migrate the other.
 
 **CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
 groups and `ritk-python` exposes no diffusion surface. They are independent
