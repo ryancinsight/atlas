@@ -278,11 +278,6 @@ Their current provider source and evidence are not active Tier 0 work.
 
 ## Tier 2 — architecture: SSOT, DRY, and the zero-cost seams
 
-**Active claim (2026-08-14):** `ATLAS-MOIRAI-BOUNDED-051` — verify the
-provider's current bounded-default implementation and value-semantic test,
-then reconcile the Atlas record if the source-backed closure is already
-landed. Scope is root PM artifacts only; no provider source change is planned.
-
 > **Claimed 2026-08-13 by the sweep session.** In progress on disjoint scopes:
 > hephaestus (`-043` unseal `KernelDialect`, then `-044` hoist scan to one
 > generic layer — sequenced, because the seal makes the generic layer
@@ -305,9 +300,18 @@ landed. Scope is root PM artifacts only; no provider source change is planned.
 | ATLAS-LETO-TILES-048b | **Split out because deleting `LendingIterator` is a cross-repo break, not the bundled cleanup first assumed.** The trait is publicly exported and consumed outside leto: `kwavers/crates/kwavers/examples/tiled_kspace_processing.rs:52` imports it and calls `count_remaining()`, which has **no `Iterator` equivalent** — consumers migrate to `.count()`/`ExactSizeIterator::len()`. CFDrs book docs also name it. Sequence upstream-first per the co-evolution protocol: migrate kwavers, then delete. | [major] | `rg 'LendingIterator' repos/` returns nothing outside leto's own history; the kwavers example builds and its `#[test]` passes; `cargo-semver-checks` classifies the removal | ATLAS-LETO-TILES-048a |
 | ATLAS-LETO-SVD-049 | Two SVD paths whose distinguishing justification has evaporated: ADR 0005 chose Jacobi for rank revelation *versus the Gram path*, and the Gram path was deleted, while `svd/bidiagonal_qr.rs:394` already states the surviving path handles rank deficiency. leto is the stack's declared linalg SSOT. | [major] | `svd/jacobi.rs` deleted, `pinv` on the bidiagonal path, existing oracle suite green unchanged, ADR 0005 rewritten with a dated revision note, net line delta negative |
 | ATLAS-APOLLO-API-050 | `apollo-fft/src/api` carries 140 public fns of which **68 are exact concrete/`_typed` twin pairs**, and `stockham/avx/` forks the scalar dimension as a *directory pair* (`precise/` Complex64 vs `reduced/` Complex32, ~2300 lines) using quality labels the naming prohibition bans. Root cause: no single scalar seam — `eunomia::RealField` appears twice in 834 files while 10+ parallel scalar-role traits exist. | [major] | ADR selects one scalar seam; `rg 'pub fn \w*_typed' crates/apollo-fft/src/api` → 0; no `precise`/`reduced` directories |
-| ATLAS-MOIRAI-BOUNDED-051 | `Moirai::channel()` (`moirai/src/runtime.rs:342`) — the discoverable, un-suffixed API — returns an **unbounded** channel; the bounded form carries the longer name. Preallocation is inverted (`mpmc/channel.rs:25-29`: the bounded path uses `VecDeque::new()`, the unbounded one `with_capacity(16)`). Untimed `Condvar::wait` at `scheduler/core.rs:225,233` and `mpmc/channel.rs:133,188`. | [minor] | `rg 'channel::unbounded' moirai/src/` → 0; a test asserts a full channel blocks or errors rather than growing |
 | ATLAS-MOIRAI-ORDERING-052 | 624 production atomic sites, **10.1% carrying an ordering justification**; AcqRel 1 of 23, Release 6 of 117. Unjustified `SeqCst` clusters at `moirai-async/src/executor/core.rs:92-212` and `mpmc/channel.rs:88-344` (11 RMWs on a shared line under a Mutex that already orders). No documented global lock order. Six loom suites exist and are ahead of the stack; the MPMC waiter protocol and SPSC ring — the two primitives every crate depends on — are not among them. | [patch] | Justification coverage ≥ 90%; production `SeqCst` ≤ 20; new loom suites for the MPMC waiter protocol and SPSC ring pass with stated bounds |
 | ATLAS-MOIRAI-CACHELINE-053 | `CACHE_LINE_SIZE = 64` is defined **six times** across moirai-core/utils/iter, and every padding site uses 64 where the standard requires 128 on x86-64 and modern aarch64 (adjacent-line prefetch pulls line pairs). The duplication makes the correction a six-site edit. | [patch] | One definition in `moirai-utils` at 128; `rg 'repr\(align\(64\)\)' --glob '*/src/*'` → 0; criterion baselines on the MPMC and deque benches show no regression |
+
+`ATLAS-MOIRAI-BOUNDED-051` is closed in provider commit `2ea17bb`, carried
+by default `e972174`. The facade's discoverable `Moirai::channel()` now calls
+the bounded constructor at `DEFAULT_CHANNEL_CAPACITY`; the explicit
+`moirai_core::channel::unbounded` escape remains documented because it is a
+deliberate, bounded-use-case exception. The provider's
+`bounded_channel_refuses_to_grow_and_blocks_the_producer` and
+`default_channel_capacity_bounds_the_queue` tests pass under nextest. The
+original grep oracle was corrected: the explicit unbounded path is named in
+documentation, while the default source path is bounded.
 
 ## Tier 3 — mechanical floor and stack hygiene
 

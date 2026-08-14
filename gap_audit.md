@@ -1,5 +1,18 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-AUDIT-STALE-TIER2-097 — Moirai bounded default already landed (closed 2026-08-14)
+
+The active residual described `Moirai::channel()` as unbounded. Provider
+commit `2ea17bb`, present in merged default `e972174`, changes that facade to
+call `moirai_core::channel::mpmc(DEFAULT_CHANNEL_CAPACITY)`. The provider
+value-semantic tests `bounded_channel_refuses_to_grow_and_blocks_the_producer`
+and `default_channel_capacity_bounds_the_queue` pass under `cargo nextest`.
+The low-level `moirai_core::channel::unbounded` constructor remains an
+explicit, documented escape for cases where blocking would deadlock; it is
+not the facade default. The original `rg` oracle was stale because the
+documentation intentionally names that escape path. No provider source change
+was required in this reconciliation.
+
 ## ATLAS-MSRV-UNVERIFIED-077 — Eunomia floor closure (closed portion 2026-08-14)
 
 Eunomia's declared `rust-version = "1.95"` now has a provider-owned workflow

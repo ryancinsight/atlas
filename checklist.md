@@ -4214,6 +4214,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-MOIRAI-NUMA-095** Wire the NUMA policy through the runtime (2026-08-14) — provider `181f87d`, PM closeout `6d42bd3`, default `e972174`; hosted Rust Workspace `31787962637` and Python Bindings `31787962649` pass
 - **ATLAS-MSRV-UNVERIFIED-077 (Eunomia slice)** Verify Eunomia Rust 1.95 MSRV and package gate (2026-08-14) — provider PRs #65/#66, default `84c82fe`; hosted MSRV `31789001841`, Rust verification/supply-chain `31789001920`, exact online dry-run pass
 - **ATLAS-AUDIT-STALE-TIER0-096** Remove closed findings from active Tier 0 (2026-08-14) — Themis `17d3647`, Eunomia `84c82fe`, root PM cleanup
+- **ATLAS-AUDIT-STALE-TIER2-097** Reconcile the landed Moirai bounded default (2026-08-14) — provider `2ea17bb`, merged default `e972174`, focused nextest value-semantic tests pass
 - **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
 - **ATLAS-PROVIDER-INTEGRATION-006** Twenty-provider exact-head re-audit
   (2026-08-14) — closed in root commit `364cdac`; structural, exact-head, and
