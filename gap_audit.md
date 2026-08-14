@@ -152,6 +152,20 @@ error and remains report-only. This closes only the Themis slice; the broader
 member ADR-governance burn-down remains open with 13 stale or missing member
 indexes reported by the authoritative root generator.
 
+## ATLAS-MOIRAI-ORDERING-052-SPSC — Moirai SPSC ordering slice (closed 2026-08-14)
+
+Moirai PR #130 merged at default `ac111b3`. The new `moirai-core` Loom model
+tracks the production SPSC ring's release/acquire `head` and `tail` edges with
+a capacity-two wrap-around, three messages, FIFO value assertions, and a
+preemption bound of four. The workflow now runs this model together with the
+existing MPMC waiter model under a locked clean-checkout job.
+
+Hosted `Loom channel models` run `31798789797` passes, as do the workspace,
+bindings, and platform wheel checks. The external `recurseml/analysis` status
+reports an analyzer error and remains report-only. This closes only the
+model-coverage sub-slice; the broader ordering justification and `SeqCst`
+ratchet remains open.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
