@@ -16,7 +16,7 @@
   "print_dbg": 0,
   "pull_request_target_use": 0,
   "reexport_shims": 0,
-  "root_sprawl": 1,
+  "root_sprawl": 0,
   "sleep_synced_tests": 0,
   "tag_pinned_actions": 0,
   "target_forks": 0,

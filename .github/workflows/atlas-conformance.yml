@@ -62,10 +62,10 @@ jobs:
         shell: bash
         run: |
           set +e
-          python3 scripts/atlas-conformance.py check > conformance-check.log 2>&1
+          python3 scripts/atlas-conformance.py check > "$RUNNER_TEMP/conformance-check.log" 2>&1
           status=$?
           set -e
-          cat conformance-check.log
+          cat "$RUNNER_TEMP/conformance-check.log"
           exit "$status"
         # `shell: bash` is load-bearing: GitHub's default `bash -e {0}` run
         # shell has no pipefail, so the previous
@@ -82,5 +82,5 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: conformance-check-log
-          path: conformance-check.log
+          path: ${{ runner.temp }}/conformance-check.log
           if-no-files-found: ignore
