@@ -57,13 +57,19 @@ rows below retain their original audit scope:
 | ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 `90ea3ef` | Fixed the AMX irregular-width defect: B/C configuration now clamps to the kernel's 16-column microtile, keeping the 1024-byte tile budget. Local `hermes-simd-intrinsics` nextest is 28/28, core nextest is 16/16, source `allow_attributes` fell 26 -> 0, and Atlas conformance reports Hermes `allow_sites` 30 -> 0. Follow-up `90ea3ef` scopes the two architecture-specific dispatch expectations and removes the macro wildcard/ref-option/line-count lint failures; hosted first-party checks are pending. The remaining HS-435 classes remain an independent provider blocker. |
 
 **Current exact-head residual (2026-08-14):** requested-provider coherence is
-clean; the structural exact-head audit leaves only four staged peer-owned
-paths: Proteus (`6b9bd0b` vs `c7cf800`), Helios (`1e16540` vs `152a66c`),
-Hermes (`81502c5` vs `9fdbd16`), and Iris (`eec9818` vs `899d622`). Helios PR
-#54 is merged at `152a66c` and its benchmark regression job is green. The
-Themis feature correction is merged at `f879e71`; Hermes's AMX correction is
-pending PR #40. The four listed pointers remain peer-owned and are not
-rewritten by this audit.
+clean at Atlas `bb39e24`; the structural exact-head audit leaves only four
+staged peer-owned paths: Proteus (`6b9bd0b` vs `c7cf800`), Helios (`1e16540` vs
+`152a66c`), Hermes (`81502c5` vs `9fdbd16`), and Iris (`eec9818` vs
+`899d622`). Helios PR #54 is merged at `152a66c` and its benchmark regression
+job is green. Themis's stable-proof PR #23 is merged at `fa8dc29`, while
+Hermes's AMX correction remains open in PR #40 at `90ea3ef`. The four listed
+pointers remain peer-owned and are not rewritten by this audit.
+
+The 2026-08-14 worktree conformance scan reports 14 ratchet regressions and
+38 tightenings; the baseline is unchanged because the scan includes active
+peer work. The lane audit reports four violations: three Ritk trees, plus
+three Kwavers trees including a detached temporary lane outside the canonical
+lane root. These are recorded residuals, not cleaned by deleting peer state.
 
 **A finding worth keeping from the themis work:** stable `rustdoc` **silently ignores the `E0xxx` annotation** on a `compile_fail` doctest — verified by feeding it a deliberately wrong code and watching it pass. Nightly enforces it. Any `compile_fail` proof gated only on stable therefore degrades to "fails for some reason", which is not the claim it appears to make. themis now runs a nightly `--doc` job for exactly this; the rest of the stack does not, and should.
 
@@ -4718,6 +4724,7 @@ hephaestus workspace gates once that settles.
 - Audit 2026-07-26 of `D:\atlas\worktrees` (26 entries): 4 compliant live lanes (coeus-backend-parity, hephaestus-mixed-reduction-batch, kwavers-aequitas-vessel-metrics, ritk-ebcot-magnitude-view); 13 gitdir-mirror checkouts on main (the improvised-provider species); 7 standalone clones; 3 bare directories; 1 broken meta lane. Legacy root `D:\worktrees` now empty — its lanes completed and dissolved per ATLAS-WORKTREE-001.
 - Done: `report` re-mint deleted (SVG already rescued to repos/report/figures); broken `atlas-final-integration` meta lane deleted + `worktree prune` (meta lanes prohibited); 5 stale clones rescue-fetched into their authoritative repos under `refs/rescue-worktrees/<name>/*` then deleted (leto incl. codex/leto-real-sparse-lu); 13 gitdir-mirrors deleted — and regenerated within seconds: a live process on pre-fix instructions re-mints the mirror farm (signature: `.git` file -> `../../.git/modules/repos/<r>`, checkout on main). Self-resolves as sessions roll onto current instructions; re-audit the root then and delete survivors.
 - Residuals: (1) `hephaestus-unary-math-parity` — git-less source snapshot with real unique deltas (6/12 sampled files differ from authoritative): reconcile into a branch of repos/hephaestus (diff, salvage, commit under the unary-math-parity item), then delete the snapshot; (2) `ritk-book-complete` — near-duplicate snapshot (11/12 identical): verify the delta, salvage if real, delete; (3) stale lanes `coeus` (codex/coeus-error-function-parity, 30h) and `mnemosyne` (codex/mnemosyne-tier-selection, 33h) — takeover material: complete their items or confirm branches landed, then remove the lanes; (4) fresh clones `aequitas`/`eunomia` left in place (regenerator-owned) — delete at re-audit.
+- Re-audit 2026-08-14: the current probe reports four violations: Ritk still has three trees, and Kwavers has three trees with one detached temporary lane outside the canonical lane root. No lane is removed while peer-owned work or unique state remains unrescued.
 
 ## Session 28 closure (2026-07-28) — ADR 0033 stage A complete
 
