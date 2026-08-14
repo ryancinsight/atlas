@@ -1,5 +1,17 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-AUDIT-STALE-TIER2-100 — Leto Tiles closure already landed (closed 2026-08-14)
+
+The active `ATLAS-LETO-TILES-048a` row duplicated landed provider commit
+`7f80044`, present in default `143696d`. `Tiles` now returns parent-borrowed
+`ArrayView` values through standard `Iterator`, `DoubleEndedIterator`, and
+`ExactSizeIterator` implementations. Constructor layout validation carries the
+proof that iteration cannot terminate early, and the provider's ragged tile
+tests assert clipped shapes and values. The public `LendingIterator` removal
+is intentionally separate under `ATLAS-LETO-TILES-048b`, which remains open
+until kwavers and CFDrs consumers migrate. No provider source change was
+required in this reconciliation.
+
 ## ATLAS-AUDIT-STALE-TIER2-099 — Moirai cache-line premise corrected (closed 2026-08-14)
 
 The active cache-line residual required one 128-byte constant, but provider

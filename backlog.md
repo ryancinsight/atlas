@@ -277,11 +277,6 @@ Their current provider source and evidence are not active Tier 0 work.
 
 ## Tier 2 — architecture: SSOT, DRY, and the zero-cost seams
 
-**Active claim (2026-08-14):** reconcile the landed Leto `Tiles` iterator
-closure `ATLAS-LETO-TILES-048a` against the stale active row. Scope is root PM
-artifacts only; the dependent cross-repo `048b` migration remains open and
-peer-owned.
-
 > **Claimed 2026-08-13 by the sweep session.** In progress on disjoint scopes:
 > hephaestus (`-043` unseal `KernelDialect`, then `-044` hoist scan to one
 > generic layer — sequenced, because the seal makes the generic layer
@@ -300,7 +295,6 @@ peer-owned.
 | ATLAS-COEUS-BACKEND-045 | `HephaestusBackend<P>` never implements `MatmulOps`/`PoolOps`/`UnfoldFoldOps`, so Metal and ROCm are partial backends — and that gap is why CUDA (7 390 lines) and WGPU (8 897) forked into hand-written per-op shims while Metal and ROCm need only 122 and 126 lines. `ComputeBackend` is also sealed via a `pub` `private::Sealed` module, so the seal is both prohibited and cosmetic. | [arch] | `HephaestusBackend<MetalProvider>: BackendOps<f32>` compiles; cuda and wgpu `src` each drop below 1 000 lines; parity suites unchanged |
 | ATLAS-CFDRS-SCALAR-046 | Eight parallel `*Scalar` seam traits for one role (`Cfd1dScalar`, `Cfd2dScalar`, `Cfd3dScalar`, `ValidationScalar`, `VofScalar`, `LevelSetScalar`, `NetworkSolveScalar`, `ResistanceScalar`) — `VofScalar` and `LevelSetScalar` have character-identical bound lists inside one crate — plus 7 duplicated `scalar.rs` helper modules and **23 private copies of `from_f64`**, each the identical one-line delegation. This is the root of the fake generic at `cfd-3d/src/spectral/diagnostics.rs:352`. | [minor] | `rg 'trait \w*Scalar' crates/` → 1; `rg -c 'fn from_f64' crates/` ≤ 1; `rg 'fn to_f64' crates/` → 0 |
 | ATLAS-RITK-VIEWS-047 | `Image` has **no view, region, window, chunk or iterator API**, and ritk contains zero GATs across 1771 files. The only routes to pixel data are a fallible whole-buffer `data_slice()` or a whole-volume copy, so every filter takes the entire flat buffer or clones. Downstream: 7 parallel data accessors, 3 parallel coordinate-transform families, and three heap allocations **per output voxel** in `interpolation/.../linear/mod.rs:124-126`. | [arch] [major] | A lending seam with `type Item<'a>`; ≤2 data accessors on `Image`; one coordinate-transform family; a rewritten filter shows no whole-volume copy under dhat |
-| ATLAS-LETO-TILES-048a | `Tiles` (`crates/leto/src/application/iter/lending.rs`) is the only `LendingIterator` in leto, but it holds `&'a [T]` and a `Copy` `Layout<N>` and builds its item exactly as `ExactChunks` (`chunks.rs:100-112`) does from a plain `Iterator` — the item borrows from the same `'a` slice the iterator does, so narrowing to `'this` buys nothing while **costing `IntoIterator`, `.zip`, `.enumerate`, `.rev`, `ExactSizeIterator` and any Moirai bridge**. Upstream `508962d` added `TaskPartitionsMut` as a second in-repo precedent for the target shape. | [minor] | `Tiles` is a plain `Iterator<Item = ArrayView<'a, T, N>>` with justified `ExactSizeIterator`/`DoubleEndedIterator`; a test zips, enumerates and collects it and asserts values on a ragged edge; `T: Copy` gone |
 | ATLAS-LETO-TILES-048b | **Split out because deleting `LendingIterator` is a cross-repo break, not the bundled cleanup first assumed.** The trait is publicly exported and consumed outside leto: `kwavers/crates/kwavers/examples/tiled_kspace_processing.rs:52` imports it and calls `count_remaining()`, which has **no `Iterator` equivalent** — consumers migrate to `.count()`/`ExactSizeIterator::len()`. CFDrs book docs also name it. Sequence upstream-first per the co-evolution protocol: migrate kwavers, then delete. | [major] | `rg 'LendingIterator' repos/` returns nothing outside leto's own history; the kwavers example builds and its `#[test]` passes; `cargo-semver-checks` classifies the removal | ATLAS-LETO-TILES-048a |
 | ATLAS-LETO-SVD-049 | Two SVD paths whose distinguishing justification has evaporated: ADR 0005 chose Jacobi for rank revelation *versus the Gram path*, and the Gram path was deleted, while `svd/bidiagonal_qr.rs:394` already states the surviving path handles rank deficiency. leto is the stack's declared linalg SSOT. | [major] | `svd/jacobi.rs` deleted, `pinv` on the bidiagonal path, existing oracle suite green unchanged, ADR 0005 rewritten with a dated revision note, net line delta negative |
 | ATLAS-APOLLO-API-050 | `apollo-fft/src/api` carries 140 public fns of which **68 are exact concrete/`_typed` twin pairs**, and `stockham/avx/` forks the scalar dimension as a *directory pair* (`precise/` Complex64 vs `reduced/` Complex32, ~2300 lines) using quality labels the naming prohibition bans. Root cause: no single scalar seam — `eunomia::RealField` appears twice in 834 files while 10+ parallel scalar-role traits exist. | [major] | ADR selects one scalar seam; `rg 'pub fn \w*_typed' crates/apollo-fft/src/api` → 0; no `precise`/`reduced` directories |
@@ -326,6 +320,14 @@ and the target's 64/128 distinction pass under nextest. The acceptance target
 of one constant at 128 would have broken prefetch strides and chunk widths, so
 the residual is reclassified as closed design correction rather than a live
 defect.
+
+`ATLAS-LETO-TILES-048a` is closed in provider commit `7f80044`, carried by
+default `143696d`. `Tiles` now yields parent-borrowed `ArrayView` items through
+the standard `Iterator`, `DoubleEndedIterator`, and `ExactSizeIterator` seams;
+constructor validation proves every tile origin is addressable, and the
+ragged 3x5-to-2x2 test covers clipped shapes and values. `048b` remains open
+because deleting the public `LendingIterator` seam still requires the
+kwavers/CFDrs consumer migration.
 
 ## Tier 3 — mechanical floor and stack hygiene
 
