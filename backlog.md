@@ -52,13 +52,17 @@ rows below retain their original audit scope:
 | ATLAS-THEMIS-CONFORMANCE-083 | themis `b1b671c`; Atlas `0922c58` | Replaced Themis's duplicate thread cache with Melinoe's `thread_cached!` provider, split the oversized static-cell leaf, and closed the value-semantic assertion and safety-comment findings. Hosted Ubuntu/Windows, Miri, compile-fail, documentation, and CodeRabbit checks pass. |
 | ATLAS-POSTMERGE-HEAD-084 | Atlas `73974ee` | Advanced the Ritk and Eunomia gitlinks to fetched defaults `3f30cddf` and `2e0d724c` while preserving dirty provider worktrees. Ritk hosted CI is green; Eunomia's Rust and supply-chain checks are green and its external `recurseml/analysis` status remains report-only. |
 | ATLAS-HELIOS-BENCHMARK-085 | Helios `152a66c` | Helios PR #54's benchmark regression job completed successfully; the merged default head is fully green across book, Rust, Python, and benchmark checks. The Atlas gitlink remains peer-owned at its staged integration head. |
+| ATLAS-THEMIS-STD-FEATURE-086 | Themis PR #22 `915828a` | Fixed the optional-dependency feature closure: `themis/std` now activates Melinoe before referring to its `std` feature. Ubuntu, Windows, compile-fail, and local strict Clippy are green; branded Miri is still running. `recurseml/analysis` is external/report-only. |
+| ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 `dad3cf6` | Fixed the AMX irregular-width defect: B/C configuration now clamps to the kernel's 16-column microtile, keeping the 1024-byte tile budget. Local `hermes-simd-intrinsics` nextest is 28/28, including the regression tests. Hosted first-party checks are still running; HS-435 pedantic debt remains an independent default-head blocker. |
 
 **Current exact-head residual (2026-08-14):** requested-provider coherence is
 clean; the structural exact-head audit leaves only four staged peer-owned
 paths: Proteus (`6b9bd0b` vs `c7cf800`), Helios (`1e16540` vs `152a66c`),
 Hermes (`81502c5` vs `9fdbd16`), and Iris (`eec9818` vs `899d622`). Helios PR
-#54 is merged at `152a66c`, but its benchmark regression job remains in
-progress; no all-gates-green claim is made until that job completes.
+#54 is merged at `152a66c` and its benchmark regression job is green. The
+Themis feature correction is pending PR #22; Hermes's AMX correction is
+pending PR #40. The four pointers remain peer-owned and are not rewritten by
+this audit.
 
 **A finding worth keeping from the themis work:** stable `rustdoc` **silently ignores the `E0xxx` annotation** on a `compile_fail` doctest — verified by feeding it a deliberately wrong code and watching it pass. Nightly enforces it. Any `compile_fail` proof gated only on stable therefore degrades to "fails for some reason", which is not the claim it appears to make. themis now runs a nightly `--doc` job for exactly this; the rest of the stack does not, and should.
 
