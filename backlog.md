@@ -49,6 +49,15 @@ rows below retain their original audit scope:
 | ATLAS-IRIS-COLORSPACE-072 | iris `eec98186` | Explicit sRGB encoded/linear-light RGB and opacity-alpha contract with byte round-trip coverage. |
 | ATLAS-PROTEUS-DOMAIN-073 | proteus `6b9bd0b` | Temperature validity-domain newtype, finite-positive validation, typed errors, and boundary tests. |
 | ATLAS-ASCLEPIUS-PARAM-074 (typed-parameter slice) | asclepius `5d528d2` | Distinct `Gamma50` and `LymanSlope` types with compile-fail coverage; CEM43 validity remains open. |
+| ATLAS-THEMIS-CONFORMANCE-083 | themis `b1b671c`; Atlas `0922c58` | Replaced Themis's duplicate thread cache with Melinoe's `thread_cached!` provider, split the oversized static-cell leaf, and closed the value-semantic assertion and safety-comment findings. Hosted Ubuntu/Windows, Miri, compile-fail, documentation, and CodeRabbit checks pass. |
+| ATLAS-POSTMERGE-HEAD-084 | Atlas `73974ee` | Advanced the Ritk and Eunomia gitlinks to fetched defaults `3f30cddf` and `2e0d724c` while preserving dirty provider worktrees. Ritk hosted CI is green; Eunomia's Rust and supply-chain checks are green and its external `recurseml/analysis` status remains report-only. |
+
+**Current exact-head residual (2026-08-14):** requested-provider coherence is
+clean; the structural exact-head audit leaves only four staged peer-owned
+paths: Proteus (`6b9bd0b` vs `c7cf800`), Helios (`1e16540` vs `152a66c`),
+Hermes (`81502c5` vs `9fdbd16`), and Iris (`eec9818` vs `899d622`). Helios PR
+#54 is merged at `152a66c`, but its benchmark regression job remains in
+progress; no all-gates-green claim is made until that job completes.
 
 **A finding worth keeping from the themis work:** stable `rustdoc` **silently ignores the `E0xxx` annotation** on a `compile_fail` doctest — verified by feeding it a deliberately wrong code and watching it pass. Nightly enforces it. Any `compile_fail` proof gated only on stable therefore degrades to "fails for some reason", which is not the claim it appears to make. themis now runs a nightly `--doc` job for exactly this; the rest of the stack does not, and should.
 
