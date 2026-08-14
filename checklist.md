@@ -133,15 +133,26 @@ Three ordering facts came out of the audit and are not obvious from the board:
       `31806913513` (job `94787923879`) and Python bindings (job
       `94787923826`) pass; CodeRabbit passes and recurseml remains report-only.
 
-### ATLAS-RITK-DICOM-ORIENTATION-070 — in progress 2026-08-14
+### ATLAS-RITK-DICOM-ORIENTATION-070 — provider merged; consumer lock pending 2026-08-14
 
-- [ ] Add RITK’s provider-owned `IMAGE_ORIENTATION_PATIENT` tag constant and
+- [x] Add RITK’s provider-owned `IMAGE_ORIENTATION_PATIENT` tag constant and
       value-semantic attribute coverage without changing the DICOM boundary.
-- [ ] Replace Helios’s local `(0020,0037)` constant with the RITK provider
+- [x] Replace Helios’s local `(0020,0037)` constant with the RITK provider
       constant and retain orientation normalization/grid tests.
-- [ ] Run focused provider/consumer gates, merge both exact heads, and advance
-      the Atlas gitlinks only after the co-evolution checks pass. Preserve the
-      Helios typed-slope lockfile and RITK `ritk-fix` lane.
+- [x] Run the provider and consumer focused gates. RITK PR #149 is merged at
+      `170ed1c7`; the Helios DICOM feature suite passes 44/44.
+- [ ] Refresh Helios’s peer-owned dirty lockfile to the merged RITK head, pass
+      the exact consumer hosted gate, and advance both Atlas gitlinks. Preserve
+      the typed-slope lockfile work and the RITK `ritk-fix` lane.
+
+### ATLAS-HERMES-AMX-DOWNGRADE-096 — in progress 2026-08-14
+
+- [x] Replace the release-silent stderr diagnostic with a structured,
+      subscriber-owned release event and cover its routing fields.
+- [x] Remove the unsound no-std AMX global state substitute; no-std sessions
+      reject safely and the provider ADR/PM artifacts are synchronized.
+- [ ] Complete the hosted Hermes package matrix, merge the provider branch, and
+      advance the Atlas gitlink at the exact merged head.
 
 ### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — closed 2026-08-14
 

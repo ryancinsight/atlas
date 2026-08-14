@@ -1,5 +1,30 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-RITK-DICOM-ORIENTATION-070 — provider merged; Helios lock composition pending
+
+RITK now owns `ImageOrientationPatient` `(0020,0037)` in its canonical DICOM
+tag vocabulary and covers the six-value decimal read with a value-semantic
+fixture. PR #149 merged at provider `origin/main` `170ed1c7`; all repo-owned
+hosted checks passed. Helios consumes the provider tag directly and its focused
+DICOM suite passes 44/44. The remaining integration gate is Helios’s
+peer-owned dirty `Cargo.lock`: the committed PR still resolves RITK at the
+pre-merge `f018ff...` head, while the shared checkout contains unrelated
+typed-slope lock changes. Do not overwrite that lockfile; refresh it after
+peer composition, then rerun the exact hosted consumer gate before advancing
+the two Atlas gitlinks.
+
+## ATLAS-HERMES-AMX-DOWNGRADE-096 — provider slice in progress
+
+Hermes replaces the release-silent AMX-to-AVX-512 NUMA downgrade stderr path
+with one subscriber-owned structured warning carrying the NUMA node, source
+backend, destination backend, and trigger reason. The same provider slice
+removes the unsound no-std global `Cell`/`Sync` substitute; no-std AMX sessions
+reject safely. Hermes ADR 012 and its provider PM artifacts are synchronized.
+Local format and focused library Clippy pass; package Nextest has not been
+collected because the shared target lock exceeded the bounded local run. The
+remaining evidence is the hosted package matrix, merge, and exact-head Atlas
+gitlink integration.
+
 ## ATLAS-HORAE-EXACTNESS-069 — Horae boundary exactness closure (closed 2026-08-14)
 
 Horae PR #12 merged at default `41dcf00`. The event-clipping contract now
