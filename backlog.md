@@ -5728,8 +5728,8 @@ the example would then be the second implementation of a library concern.
 
 **Therefore the next increment is a library one, not a CLI one:**
 
-`ATLAS-DMRI-CLI-018` — Scalar-map API in `ritk-diffusion` [minor], **delivered
-2026-08-13** (ritk PR #141), alongside `ATLAS-DMRI-CLI-019` (`ritk dwi tensor`).
+`ATLAS-DMRI-CLI-018` — Scalar-map API in `ritk-diffusion` [minor], **merged
+2026-08-13** (ritk PR #141, `f345a00e` on main; atlas gitlink `532e1ea`), alongside `ATLAS-DMRI-CLI-019` (`ritk dwi tensor`).
 Original DoR:
 - **Outcome**: `ritk_diffusion::maps` fits a tensor field over a whole volume
   and derives the standard DTI scalar maps (FA, MD, AD, RD) plus the principal
