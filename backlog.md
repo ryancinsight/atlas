@@ -50,6 +50,7 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | ATLAS-ADR-GOV-058-PROTEUS | Proteus PR #11 merged at default `3c64c8e`; both ADR status headers are canonical `Accepted` and the generated index matches them. Exact-head `verify` and `supply-chain` run `31796273743` pass; recurseml analysis remains report-only. The broader ADR-governance item remains open for other members. |
 | ATLAS-ADR-GOV-058-AEQUITAS | Aequitas PR #30 merged at default `f7c9cf2`; its fifteen-ADR generated index now records canonical `Accepted` statuses with no anomalies. Exact-head `verify` and `supply-chain` run `31796547009` pass; recurseml analysis remains report-only. The broader ADR-governance item remains open for other members. |
 | ATLAS-ADR-GOV-058-HORAE | Horae PR #13 merged at default `1b35d3f`; its ADR 0001 index now records the existing canonical `Status: Accepted` header. Provider checklist and gap audit are synchronized; exact-head `verify` and `supply-chain` run `31797039383` pass, while recurseml analysis reports an analyzer error and remains report-only. |
+| ATLAS-ADR-GOV-058-EUNOMIA | Eunomia ADR index refresh is claimed for its current clean merged default; all four ADR headers are canonical and only generated-index drift plus provider PM synchronization are in scope. |
 
 Completed provider slices from this sweep are recorded here so the residual
 rows below retain their original audit scope:
