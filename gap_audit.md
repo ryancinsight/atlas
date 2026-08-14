@@ -2320,7 +2320,9 @@ is pushed to `origin/main`; the root gitlink remains the delivery SSOT. Horae
 records verified default `f5cd364`, and Hermes records merged closeout
 `463c6e4` (docs-only default advance after `947283d`). The
 structural and exact-head audit reports all 21 providers present and active,
-with every committed gitlink equal to its fetched provider default. The full
+with every committed gitlink equal to its fetched provider default. RITK's
+default advanced to `8586727` through merged PR #151; exact-head CI
+`31825980021` and Python CI `31825980135` pass. The full
 requested-provider coherence scope also passes. Peer source changes and
 overlay lockfiles remain dirty in child checkouts; this audit preserved them
 and made no checkout reset, stash, or cleanup.
