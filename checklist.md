@@ -122,15 +122,17 @@ Three ordering facts came out of the audit and are not obvious from the board:
       `31805214716` checks pass. The external recurseml analyzer remains
       report-only.
 
-### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — in progress 2026-08-14
+### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — closed 2026-08-14
 
-- [ ] Mark the merged SPSC, async wake-dedup, PAL reactor, and reservation
+- [x] Mark the merged SPSC, async wake-dedup, PAL reactor, and reservation
       ordering phases complete in the provider checklist.
-- [ ] Record the exact provider default `f766c6d` and hosted runs
+- [x] Record the exact provider default `9125837` and hosted runs
       `31798789797`, `31800148163`, `31800148178`, `31800607186`,
       `31800607152`, `31801180700`, and `31801180691`.
-- [ ] Run provider documentation/format checks and confirm no production
-      source or peer-owned files are changed.
+- [x] Provider PR #134 merges at default `9125837`; its documentation-only
+      head passes provider binding and macOS, Ubuntu, and Windows wheel checks.
+      No production source or peer-owned files changed; recurseml remains
+      report-only.
 
 ## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — complete 2026-08-14
 

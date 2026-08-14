@@ -269,6 +269,21 @@ and macOS, Ubuntu, and Windows wheel smoke tests. The external
 reservation-accounting sub-slice; the broader ordering justification and
 `SeqCst` ratchet remains open.
 
+## ATLAS-MOIRAI-ORDERING-052-PM-SYNC — Moirai ordering PM synchronization (closed 2026-08-14)
+
+Moirai PR #134 merged at provider default `9125837`. The provider
+`CHECKLIST.md` now records the four merged ordering slices: SPSC publication,
+async wake deduplication, PAL reactor stop control, and connection-pool
+reservation accounting. It records their exact merged heads and hosted
+workspace/Loom and binding/wheel evidence from runs `31798789797`,
+`31800148163`, `31800148178`, `31800607186`, `31800607152`, `31801180700`,
+and `31801180691`.
+
+This was a documentation-only provider change; local format, metadata, and
+diff checks pass, no production source changed, and the external
+`recurseml/analysis` status remains report-only. The broader ordering
+justification and production `SeqCst` ratchet remain open.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
