@@ -1870,33 +1870,26 @@ overlay bypassed. The test and broad generated lockfile diff remain
 uncommitted in the peer worktree; no provider worktree or Atlas gitlink was
 reset, cleaned, committed, or advanced.
 
-## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — nineteen-provider integration audit (Atlas integration scope closed 2026-08-11)
+## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — twenty-provider integration audit (Atlas integration scope refreshed 2026-08-14)
 
-### Live closure snapshot — 2026-08-11
+### Live closure snapshot — 2026-08-14
 
 The requested scope is Horae, Hyperion, Themis, Tyche (aka Tychee), Proteus, Mnemosyne,
 Consus, Helios, Aequitas, Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto,
-Hephaestus, Coeus, Apollo, and Iris. Atlas `b72d9f1` equals `origin/main`; the
-root gitlink remains the delivery SSOT. Fourteen requested child checkouts
-differ from their recorded root gitlinks, five requested checkouts are
-aligned, and Hermes is the sixth aligned checkout in the wider 25-member
-stack. All nineteen requested child worktrees are dirty; no child worktree was
-reset, stashed, cleaned, or advanced by this audit.
+Hephaestus, Coeus, Apollo, Hermes, and Iris. Atlas root commit `364cdac`
+equals `origin/main`; the root gitlink remains the delivery SSOT. The
+structural and exact-head audit reports all 20 providers present and active,
+with every committed gitlink equal to its fetched provider default. The full
+requested-provider coherence scope also passes. Peer source changes and
+overlay lockfiles remain dirty in child checkouts; this audit preserved them
+and made no checkout reset, stash, or cleanup.
 
-The completed local integration increments are Consus's Themis CPU-topology
-default and no-default-feature closure (branch `codex/fix-atlas-sha`, PR #16,
-hosted checks pending) and Moirai's Themis-owned worker/chunk sizing, Melinoe
-partition-order regression, benchmark-contract correction, and bounded Rust
-workspace CI gate (branch `codex/fix-atlas-sha`, PR #118, hosted checks
-pending). Neither root gitlink advances until the exact merged hosted head is
-green.
-
-Closure classification: Atlas integration scope for Horae, Hyperion, Themis,
-Tyche, Proteus, Mnemosyne, Consus, Helios, Aequitas, Asclepius, Eunomia,
-Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, and Iris is complete.
-Remaining gates are release/publication, hardware validation, and
-dependency-ordered provider gitlink delivery, and remain explicitly external to
-this audit closure.
+The root integration closure is complete for merged provider heads. Helios
+typed DVH radiation parameters are pushed at PR #54 head `8b5c29d`; its Rust,
+Python, documentation, and supply-chain jobs pass, while the controlled
+benchmark regression job remains in progress. The Helios gitlink therefore
+intentionally remains at its current merged default until that hosted gate
+completes.
 
 Closure hardening (2026-08-11): root enforcement is now automated. Added
 `scripts/atlas-provider-integration-audit.py` + tests, wired through
@@ -1905,14 +1898,14 @@ local pre-commit structural gating on integration-relevant staged files.
 
 The guard now includes requested-provider scoped coherence validation by reading
 `version-guard coherence --format json` and filtering findings to manifest paths
-under the nineteen requested providers. Out-of-scope findings remain
+under the twenty requested providers. Out-of-scope findings remain
 informational in this guard; only in-scope defects block.
 
-Live scoped-coherence snapshot (2026-08-11 local tree, refreshed):
-`version-guard coherence --format json` now reports 0 global defects and
-`atlas-provider-integration-audit.py` reports the requested-provider scope
-clean. No in-scope version-skew findings remain in the current local
-integration state.
+Live scoped-coherence snapshot (2026-08-14):
+`atlas-provider-integration-audit.py --exact-heads` reports the requested
+provider scope clean, including version coherence. Global findings outside
+the requested provider scope remain governed by the wider version-guard
+report and are not collapsed into this closure claim.
 
 Remaining material findings are classified rather than collapsed into a green
 claim: Horae has a standalone lock-graph residual and publication is disabled;
