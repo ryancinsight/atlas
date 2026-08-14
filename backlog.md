@@ -5887,15 +5887,31 @@ mask. That directly retires the limitation recorded under 022.
 
 **Two process notes worth keeping.**
 
-*A peer committed onto this branch.* Working in the same shared tree, a peer's
-`git commit` swept this branch's staged acceptance test and the
-`DirectionInterpolation` export into their commit `735a30c9`, whose message
-describes the leto SVD migration. Content correct and intact; the message is
-theirs, so it was left rather than rewritten over their work, and the
-composition is recorded in the following commit and the PR. This is the second
-occurrence of the shared-index hazard in two days — the first was a staged
-`backlog.md` plus nine gitlinks. Staging by explicit path is not sufficient
-protection; the index itself is shared.
+*A peer committed onto this branch, and their work turned it red.* Working in
+the same shared tree, a peer's `git commit` swept this branch's staged
+acceptance test and the `DirectionInterpolation` export into their commit
+`735a30c9` (message: the leto SVD migration). Second occurrence of the
+shared-index hazard in two days, in the opposite direction from the first —
+staging by explicit path does not protect staged work from a *peer's* commit,
+because the index itself is shared. The practical rule is to stage and commit in
+one call, never leaving files staged across steps.
+
+Their migration then failed CI for an upstream-first ordering reason worth
+recording as its own pattern: `735a30c9` moves `ritk-registration` and
+`ritk-segmentation` onto `leto_ops::svd_decompose`, but the **published** leto
+that CI resolves rejects rank-deficient input, so
+`test_rigid_landmark_known_rotation` fails — a Kabsch cross-covariance matrix is
+legitimately rank-deficient for planar landmarks. Their *local* leto is
+mid-refactor to accept rank deficiency as data, which is the fix. **The overlay
+hides this class of error entirely**: a consumer migrated onto an unpublished
+upstream contract passes locally and can only fail in CI. That is a second,
+sharper argument for overlay option (b) than the churn one — it is not just lost
+time, it is a defect the local environment cannot detect.
+
+Resolution: the interpolation work was re-opened as ritk PR #146 from a clean
+branch off `origin/main`, containing only itself. PR #144 stays open carrying
+the peer's two commits rather than being closed under another owner's name,
+with the diagnosis recorded there.
 
 *Verification was blocked three times in one increment* — `ritk-image`
 (`try_as_slice` without a trait bound), `leto-ops` (SVD entry points removed
