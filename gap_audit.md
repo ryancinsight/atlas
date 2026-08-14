@@ -200,6 +200,25 @@ wheel smoke tests. The external `recurseml/analysis` status remains
 report-only. This closes only the reactor stop-flag sub-slice; the broader
 ordering justification and `SeqCst` ratchet remains open.
 
+## ATLAS-MOIRAI-ORDERING-052-POOL — Moirai connection-pool ordering slice (closed 2026-08-14)
+
+Moirai PR #133 merged at default `f766c6d` from change head `04dc26e`.
+`ConnectionPool::reserved_connections` admission, cancellation, and successful
+commit updates in `moirai-async/src/net/types.rs` now use Relaxed ordering. The
+counter carries no payload; admission increments are serialized by the
+`active_connections` mutex, and release paths only decrement a paired
+reservation. A concurrent release can make a snapshot conservatively larger,
+not over-admit a connection.
+
+`moirai-async/tests/loom_connection_pool.rs` exhaustively models two
+mutex-serialized admission attempts racing one paired cancellation, asserting
+no capacity overrun or release underflow. Exact-head workflow `31801180700`
+passes Loom and the complete workspace gate; `31801180691` passes Rust bindings
+and macOS, Ubuntu, and Windows wheel smoke tests. The external
+`recurseml/analysis` status remains report-only. This closes only the
+reservation-accounting sub-slice; the broader ordering justification and
+`SeqCst` ratchet remains open.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
