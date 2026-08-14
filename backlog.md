@@ -277,6 +277,11 @@ Their current provider source and evidence are not active Tier 0 work.
 
 ## Tier 2 — architecture: SSOT, DRY, and the zero-cost seams
 
+**Active claim (2026-08-14):** reconcile the landed Leto `Tiles` iterator
+closure `ATLAS-LETO-TILES-048a` against the stale active row. Scope is root PM
+artifacts only; the dependent cross-repo `048b` migration remains open and
+peer-owned.
+
 > **Claimed 2026-08-13 by the sweep session.** In progress on disjoint scopes:
 > hephaestus (`-043` unseal `KernelDialect`, then `-044` hoist scan to one
 > generic layer — sequenced, because the seal makes the generic layer
