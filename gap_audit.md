@@ -80,6 +80,18 @@ affecting the provider-owned gates. This closes only the Hyperion slice; the
 broader member ADR-governance burn-down remains open with 19 stale or missing
 member indexes reported by the authoritative root generator.
 
+## ATLAS-ADR-GOV-058-IRIS — Iris ADR-index slice (closed 2026-08-14)
+
+Iris PR #15 merged at default `3c9dc85`. ADR 0001 and ADR 0002 already carried
+canonical `Status: Accepted` headers; the generated `docs/adr/README.md` index
+now matches them and excludes the non-ADR `docs/adr/INDEX.md` overview.
+
+Exact-head provider run `31796011010` passes `verify` and `supply-chain`.
+The external `recurseml/analysis` status is report-only and failed without
+affecting the provider-owned gates. This closes only the Iris slice; the
+broader member ADR-governance burn-down remains open with 18 stale or missing
+member indexes reported by the authoritative root generator.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
