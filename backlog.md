@@ -208,6 +208,22 @@ CI run `31786562412` passes verify and supply-chain.
   The standalone lock records Aequitas `770a369` and Eunomia `b6f001a`, and
   overlay-only patch entries are absent. No domain source behavior changed.
 
+## ATLAS-MOIRAI-NUMA-095 — Wire the NUMA policy through the runtime [minor] [arch] — in progress 2026-08-14
+
+- Owner: current session. Scope is limited to Moirai's facade/core/executor
+  NUMA feature closure, scheduler construction seam, value-semantic tests,
+  provider PM records, and hosted verification. Moirai is clean on `main` at
+  `e546092d`.
+- Finding: `moirai/src/builder.rs::numa_aware` accepts a boolean, discards it,
+  and returns the unchanged builder. The scheduler independently detects
+  topology, so the public policy cannot disable or explicitly enable the
+  behavior it advertises.
+- Acceptance: the facade's setting reaches `ExecutorConfig`, the `numa`
+  feature enables the core and executor seams, scheduler construction receives
+  the policy exactly once, and a regression proves enabled/disabled config
+  values. Existing default behavior remains NUMA-aware; no raw-pointer or
+  fallback path is introduced.
+
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
 peer work. The lane audit reports two violations: three Ritk trees and the
