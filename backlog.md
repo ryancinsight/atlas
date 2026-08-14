@@ -334,6 +334,11 @@ kwavers/CFDrs consumer migration.
 
 ## Tier 3 — mechanical floor and stack hygiene
 
+> **Claimed 2026-08-14 by the current session.** Complete
+> `ATLAS-HEPH-DEADBUILD-060` by deleting the unused virtual-workspace
+> `repos/hephaestus/build.rs`; no consumer build script or CUDA resolver move
+> is in scope.
+
 | ID | Outcome | Class | Acceptance oracle |
 | --- | --- | --- | --- |
 | ATLAS-LINT-FLOOR-054 | **17 of 25 members have no `[workspace.lints]`.** Where a floor is declared it is then nullified: CFDrs correctly inherits `unwrap_used`/`print_stdout`/`print_stderr`/`dbg_macro` at deny in all 12 manifests, against **288 crate-level `#![allow]` and 5 `#[expect]` repo-wide, none with a ratchet reason** — which is why 402 library print sites survive a deny. coeus has 117 allow lines with **zero** `reason=`. | [patch] | Every member declares the pedantic floor once via `[workspace.lints]` with members inheriting; crate-level blanket `#![allow]` → 0; every surviving suppression is `#[expect(lint, reason = "ratchet <id>")]`; conformance baseline non-increasing |
