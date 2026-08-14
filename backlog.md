@@ -265,6 +265,39 @@ the same exit 1 and byte-identical 11-regression/32-tightening report. The
 scanner therefore has an explicit refusal boundary; remaining live-tree
 regressions are provider work or baseline debt, not scanner nondeterminism.
 
+## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
+
+Every member pins `channel = "1.97.0"`. That is a **version** pin. `rustup`
+resolves it against whatever host toolchain is default in the invoking shell,
+so an msvc shell and a gnu shell both satisfy the pin and both write into the
+one shared `D:tlas	arget`.
+
+They are doing exactly that right now. Sampling recent `.rmeta` in the shared
+cache finds **96 tagged `pc-windows-msvc` and 140 tagged `pc-windows-gnu`**. The
+consequence is `E0461` - "couldn't find crate X with expected target triple" -
+surfacing on dependencies nobody touched (`der`, `lazy_static`, `digest`,
+`pem`, `time`), which reads as dependency breakage and recurs after any clean.
+It blocked a full-workspace clippy run during the Tier 2 sweep and cost real
+diagnosis time before being traced to the cache rather than the code.
+
+The pin's own comment anticipates the neighbouring failure and stops one step
+short: it explains that rustc rejects artifacts from a different compiler
+*version* (E0514), which a version pin does prevent. Host-triple drift produces
+E0461 instead, and a version pin cannot prevent it.
+
+Fix by pinning the full triple in every `rust-toolchain.toml`
+(`1.97.0-x86_64-pc-windows-msvc`, or gnu - the stack must choose one), since
+`engineering_gates` requires pins uniform across a stack sharing one cache. The
+existing mixed artifacts are poisoned derived state: delete the generation
+rather than debug it.
+
+Choosing the triple is a real decision, not a formality - the gnu toolchain is
+what makes hermes' Linux-branch cross-checks possible, while msvc is the
+platform default and what the CUDA toolkit expects.
+
+**Acceptance oracle:** every `rust-toolchain.toml` names a full triple; a
+committed check fails when two host triples appear in the shared cache.
+
 ## ATLAS-STD-AMX-DETECT-082 — `is_x86_feature_detected!("amx-tile")` is unsound [patch] — done 2026-08-14
 
 Found while delivering ATLAS-HERMES-AMX-040. The std macro checks CPUID and
