@@ -56,11 +56,12 @@ rows below retain their original audit scope:
 | ATLAS-THEMIS-STABLE-PROOFS-088 | Themis PR #23; merged default `fa8dc29` | Added stable trybuild enforcement for invalid shared-cell construction (`E0599`) and overlapping mutable borrows (`E0499`) with committed stderr fixtures. Ubuntu, Windows, compile-fail nightly, and branded Miri are green; `recurseml/analysis` is external/report-only. |
 | ATLAS-THEMIS-GITATTRIBUTES-092 | Themis PR #24; merged default `17d3647` | Reconciled the stale provider PM claim: the tracked `.gitattributes` already contains `* text=auto`; no source or tree-wide renormalization was required. |
 | ATLAS-AEQUITAS-CI-093 | Aequitas PRs #27–#29; merged default `770a369` | Replaced unlocked lock normalization with locked metadata verification, refreshed the standalone lock to Eunomia `b6f001a`, removed overlay-only patch entries, and reconciled the delivered 0.2.0 comparison label. Default-head CI `31786185235` is green. |
+| ATLAS-PROTEUS-CI-094 | Proteus PR #10; merged default `671c9fa` | Added finite CI timeouts and concurrency, converted all lock-sensitive verification commands to `--locked`, synchronized the README, and refreshed the standalone lock to Aequitas `770a369` plus Eunomia `b6f001a`. Default-head CI `31786562412` is green. |
 | ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 merged at `b95d19d` (head `5a8d718`) | Corrected the AMX irregular-width configuration and repacked row-major GEMM right-hand panels into the VNNI layouts required by the dot-product instructions: `K/4 × 4N` for INT8 and `K/2 × 2N` BF16 elements. The provider-owned packer covers fixed-tile and blocked-GEMM paths with independent value-semantic four-byte and two-element grouping tests. Follow-up cleanup closes Hermes `must_use_candidate` 162→0, `elidable_lifetime_names` 131→0, `missing_errors_doc` 83→0, `missing_safety_doc` 8→0, `semicolon_if_nothing_returned` 92→0, and `unreadable_literal` 180→0 with a documented generated-table exception, splits the SIMD view-cast and `SimdOps` blanket-implementation leaves, scopes the macro's unreachable-code expectation to Neon with a regression test, rejects zero NTT moduli with a typed error, validates bitboard squares before shift arithmetic, removes the conformance ratchet regressions introduced by the lint cleanup, and canonicalizes NTT residues before subtraction. The current local Hermes workspace all-target Clippy gate is clean, nextest is 454/454, the Hermes/core doctest gate is 18/18 with 7 ignored, and the benchmark-target smoke gate passes. Hosted run 31779776851 is green across all seven jobs. |
 
 **Current exact-head status (2026-08-14):** the structural and exact-head
 provider audits are clean. Moirai is advanced to hosted-green `e546092d`, and
-Leto is advanced to hosted-green `143696d`. Proteus, Helios,
+Leto is advanced to hosted-green `143696d`. Aequitas, Proteus, Helios,
 Iris, Ritk, Eunomia, Gaia, Melinoe, Tyche, and Hermes now match
 their fetched default heads. Helios PR #54 is merged at `152a66c` and its
 benchmark regression job is green. Themis's stable-proof PR #23 is merged at
@@ -80,6 +81,8 @@ adds documentation to the test crate outside the book workflow's source paths.
 Themis's stable-proof source remains at `fa8dc29`; its PM closeout is merged at
 default head `17d3647`. Aequitas's lock-gate PR #29 default is `770a369`; its
 exact default-head CI run `31786185235` passes verify and supply-chain.
+Proteus's bounded locked-gate PR #10 default is `671c9fa`; exact default-head
+CI run `31786562412` passes verify and supply-chain.
 
 ## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — done 2026-08-14
 
@@ -191,19 +194,19 @@ exact default-head CI run `31786185235` passes verify and supply-chain.
   merged default is `770a369`. Exact default-head run `31786185235` passes
   verify and supply-chain. No domain source behavior changed.
 
-## ATLAS-PROTEUS-CI-094 — Bound and lock provider verification [patch] — in progress 2026-08-14
+## ATLAS-PROTEUS-CI-094 — Bound and lock provider verification [patch] — done 2026-08-14
 
-- Owner: current session. Scope is limited to Proteus's verification workflow,
-  its provider PM record, and the exact hosted default-head gate. Proteus is
-  clean on `main` at `c7cf800` apart from the peer-owned overlay lockfile.
-- Finding: the verify job has no timeout and its Cargo checks, tests,
-  doctests, documentation, and runnable example omit `--locked`; the
-  supply-chain job also has no timeout. This leaves the provider outside the
-  bounded, reproducible CI contract even though its committed lockfile and
-  nextest budget exist.
-- Acceptance: both jobs carry finite timeouts; every lock-sensitive Cargo
-  command uses `--locked`; provider PM records the change; exact hosted CI is
-  green at the merged default head; no domain source behavior changes.
+- Owner: current session. Scope was limited to Proteus's verification workflow,
+  README verification commands, standalone lock refresh, and this record.
+  Proteus's prior peer-owned overlay lock dirt was preserved.
+- Finding: the verify job had no timeout and its Cargo checks, tests, doctests,
+  documentation, and runnable example omitted `--locked`; the supply-chain job
+  also had no timeout. The committed lock also lacked current Aequitas and
+  Eunomia source revisions because the Atlas overlay had rewritten it.
+- Evidence: Proteus PR #10 merged at `671c9fa`. Hosted PR run `31786449737`
+  and exact default-head run `31786562412` pass verify and supply-chain.
+  The standalone lock records Aequitas `770a369` and Eunomia `b6f001a`, and
+  overlay-only patch entries are absent. No domain source behavior changed.
 
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
