@@ -1,5 +1,19 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-AUDIT-STALE-TIER2-099 — Moirai cache-line premise corrected (closed 2026-08-14)
+
+The active cache-line residual required one 128-byte constant, but provider
+commit `2ea17bb`, present in merged default `e972174`, established two distinct
+cache contracts in `moirai-utils`: `CACHE_LINE_SIZE` for transfer and prefetch
+granularity, and `DESTRUCTIVE_INTERFERENCE_SIZE` for false-sharing separation.
+The module owns both definitions, padding uses the latter, and compile-time
+assertions pin their target relationship. The focused nextest tests
+`cache_aligned_separates_neighbours_by_the_interference_size` and
+`line_and_interference_sizes_differ_on_this_target` pass. Raising transfer
+granularity to 128 would have changed chunk and prefetch behavior, so the
+original acceptance oracle was technically incorrect. No provider source
+change was required in this reconciliation.
+
 ## ATLAS-AUDIT-STALE-TIER1-2C-098 — Remove four closed active rows (closed 2026-08-14)
 
 Four active rows duplicated closures already recorded in the landed table.

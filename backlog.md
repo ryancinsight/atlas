@@ -277,12 +277,6 @@ Their current provider source and evidence are not active Tier 0 work.
 
 ## Tier 2 — architecture: SSOT, DRY, and the zero-cost seams
 
-**Active claim (2026-08-14):** `ATLAS-MOIRAI-CACHELINE-053` — verify the
-provider's current cache-granularity contract and focused tests, then
-reconcile the residual if the landed source disproves its one-constant
-acceptance target. Scope is root PM artifacts only; no provider source change
-is planned.
-
 > **Claimed 2026-08-13 by the sweep session.** In progress on disjoint scopes:
 > hephaestus (`-043` unseal `KernelDialect`, then `-044` hoist scan to one
 > generic layer — sequenced, because the seal makes the generic layer
@@ -306,7 +300,6 @@ is planned.
 | ATLAS-LETO-SVD-049 | Two SVD paths whose distinguishing justification has evaporated: ADR 0005 chose Jacobi for rank revelation *versus the Gram path*, and the Gram path was deleted, while `svd/bidiagonal_qr.rs:394` already states the surviving path handles rank deficiency. leto is the stack's declared linalg SSOT. | [major] | `svd/jacobi.rs` deleted, `pinv` on the bidiagonal path, existing oracle suite green unchanged, ADR 0005 rewritten with a dated revision note, net line delta negative |
 | ATLAS-APOLLO-API-050 | `apollo-fft/src/api` carries 140 public fns of which **68 are exact concrete/`_typed` twin pairs**, and `stockham/avx/` forks the scalar dimension as a *directory pair* (`precise/` Complex64 vs `reduced/` Complex32, ~2300 lines) using quality labels the naming prohibition bans. Root cause: no single scalar seam — `eunomia::RealField` appears twice in 834 files while 10+ parallel scalar-role traits exist. | [major] | ADR selects one scalar seam; `rg 'pub fn \w*_typed' crates/apollo-fft/src/api` → 0; no `precise`/`reduced` directories |
 | ATLAS-MOIRAI-ORDERING-052 | 624 production atomic sites, **10.1% carrying an ordering justification**; AcqRel 1 of 23, Release 6 of 117. Unjustified `SeqCst` clusters at `moirai-async/src/executor/core.rs:92-212` and `mpmc/channel.rs:88-344` (11 RMWs on a shared line under a Mutex that already orders). No documented global lock order. Six loom suites exist and are ahead of the stack; the MPMC waiter protocol and SPSC ring — the two primitives every crate depends on — are not among them. | [patch] | Justification coverage ≥ 90%; production `SeqCst` ≤ 20; new loom suites for the MPMC waiter protocol and SPSC ring pass with stated bounds |
-| ATLAS-MOIRAI-CACHELINE-053 | `CACHE_LINE_SIZE = 64` is defined **six times** across moirai-core/utils/iter, and every padding site uses 64 where the standard requires 128 on x86-64 and modern aarch64 (adjacent-line prefetch pulls line pairs). The duplication makes the correction a six-site edit. | [patch] | One definition in `moirai-utils` at 128; `rg 'repr\(align\(64\)\)' --glob '*/src/*'` → 0; criterion baselines on the MPMC and deque benches show no regression |
 
 `ATLAS-MOIRAI-BOUNDED-051` is closed in provider commit `2ea17bb`, carried
 by default `e972174`. The facade's discoverable `Moirai::channel()` now calls
@@ -317,6 +310,17 @@ deliberate, bounded-use-case exception. The provider's
 `default_channel_capacity_bounds_the_queue` tests pass under nextest. The
 original grep oracle was corrected: the explicit unbounded path is named in
 documentation, while the default source path is bounded.
+
+`ATLAS-MOIRAI-CACHELINE-053` is also closed in provider commit `2ea17bb`,
+carried by default `e972174`. The duplicate six-definition premise was partly
+wrong: transfer/cache-line granularity and destructive-interference padding
+are distinct contracts. `moirai-utils` now owns both values, derives all
+padding from `DESTRUCTIVE_INTERFERENCE_SIZE`, and pins the relationship with
+compile-time assertions. The focused provider tests for neighbour separation
+and the target's 64/128 distinction pass under nextest. The acceptance target
+of one constant at 128 would have broken prefetch strides and chunk widths, so
+the residual is reclassified as closed design correction rather than a live
+defect.
 
 ## Tier 3 — mechanical floor and stack hygiene
 
