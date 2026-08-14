@@ -6376,7 +6376,15 @@ disagreed. This is exactly the trap documented under
 ATLAS-RITK-TRACT-AXIS-025, walked into within the hour of documenting it:
 writing the hazard down does not prevent falling into it.
 
-**Landing is blocked on branch contention, not on the work.** PR #154 also
+**Merged 2026-08-14** (ritk PR #157, `e230f520` on main; atlas gitlink
+`15f4944`). Landed on a clean branch built with git plumbing straight against
+`origin/main` — no checkout — because the shared tree was at the two-tree
+worktree bound and carried ~400 dirty files. CI then caught a
+`needless_range_loop` in the affine construction that the local run had missed
+against the older base; fixed and re-verified by compiling the branch's file in
+the main tree, then restoring it.
+
+**Superseded contention (kept for the pattern).** PR #154 also
 carries the leto migration (`6ac3fb5e`, `86bd9fba`) plus the lock bump
 (`eeca5dfa`), which must move together — the migration alone fails CI at the old
 pin, the bump alone breaks `main`'s consumers. A peer is now landing a
