@@ -162,30 +162,31 @@ defect and is now fixed (see the doc-comment correction below).
 | ATLAS-LOCK-CONVENTION-079 | **The committed lockfile convention is not uniform, and the overlay silently rewrites 12 working copies.** Counting `source = "git+"` lines, committed vs working: 14 repos committed the git+ form (kwavers 87, CFDrs 62, helios 59, ritk 51, coeus 48, apollo 36, hephaestus 33, leto 30, consus 24, gaia 22, tyche 20, hermes 11, mnemosyne 3, hyperion 3) while **11 committed the stripped form** (aequitas, asclepius, athena, eunomia, harmonia, horae, iris, melinoe, moirai, proteus, themis — all 0). Of the git+ group, **12 now have a stripped working copy** because a build ran under the stack overlay; only gaia and hermes still match. coeus is half-stripped (48 committed vs 7 working). A stripped lock cannot resolve a git dependency standalone, so committing that form breaks reproducible CI resolution — yet a third of the stack has it committed. Every "Cargo.lock modified" line in this sweep is this artifact, not anyone's edit. | [patch] | One documented convention; every member's committed lock matches it; a committed check fails when a lock is committed in the wrong form; the overlay's rewrite is either excluded from the working tree or documented as expected churn |
 | ATLAS-MSRV-UNVERIFIED-077 | Declared MSRVs are never built. mnemosyne declares `rust-version = "1.95"` while `rust-toolchain.toml` pins 1.97.0 and no CI job builds at the floor; eunomia and melinoe are the same shape (melinoe's `1.65` is contradicted by its own manifest using the `[lints]` table, which needs Cargo 1.74). An untested MSRV claim rots. | [patch] | Either a CI job builds at the declared floor, or the floor is raised to what the code actually requires |
 
-## ATLAS-RITK-LANE-SPRAWL-065 — Reconcile three ritk working trees [patch] — open 2026-08-13
+## ATLAS-RITK-LANE-SPRAWL-065 — Reconcile three ritk working trees [patch] — open 2026-08-14
 
-`git -C repos/ritk worktree list` reports **three** trees against a bound of two
+The 2026-08-14 probe still reports **three** trees against a bound of two
 (main plus one lane):
 
 ```
-D:/atlas/.git/modules/repos/ritk              c3df4068 [main]
-D:/atlas/repos/ritk-floatelement-wt           1aefcb37 [codex/ritk-floatelement-roots]  prunable
-D:/atlas/worktrees/ritk-image-coordinate-map  e88910d0 [feat/ritk-spatial-explicit-fan-origin]
+D:/atlas/.git/modules/repos/ritk              f345a00e [main]
+D:/atlas/worktrees/ritk-fix                    3cdaf360 [refactor/image-operation-modules] dirty
+D:/atlas/worktrees/ritk-image-coordinate-map   e88910d0 [feat/ritk-spatial-explicit-fan-origin]
 ```
 
-`repos/ritk-floatelement-wt` violates two rules at once: it is a lane outside
-the canonical `worktrees/` root, and it sits inside the `repos/` member
-namespace, which holds registered members only. It carries no `.git` file, so
-git marks it prunable while the directory still holds recently-written files.
+The previously reported `repos/ritk-floatelement-wt` directory is absent. Both
+remaining lanes are under the canonical `worktrees/` root, but
+`worktrees/ritk-fix` carries uncommitted source and manifest work while the
+coordinate-map lane is a separate live feature branch. Neither lane is safe to
+remove or repoint without rescuing peer-owned work.
 
 Also note `repos/ritk` itself moved from `codex/ritk-floatelement-roots` to
 `main` during this session, which is the shared-tree branch-switch hazard — a
 `git switch` in a shared tree moves the branch for every agent using it.
 
-Not actioned in this sweep: the directory was written to minutes before
-discovery, so it may hold live in-flight work. Reconcile rescue-first — confirm
-ownership, rescue any unique commits or dirty state into `repos/ritk`, then
-`git worktree remove`/`prune` and delete the directory.
+No destructive action is taken in this sweep. Reconcile rescue-first after the
+dirty lane's owner lands or explicitly releases its work: verify unique commits
+and dirty files, rescue any unique state into `repos/ritk`, then
+`git worktree remove`/`prune` the surplus lane.
 
 **Acceptance oracle:** `git -C repos/ritk worktree list` shows at most two
 entries, no entry is under `repos/`, and no unique commit is lost (verified by
