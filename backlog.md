@@ -75,22 +75,30 @@ workflow's `--locked` invocation. Their two pointers remain peer-owned and
 are not advanced while their default-head gates are red. The
 prior benchmark and Intel SDE AMX differential checks are green.
 
-## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — in progress 2026-08-14
+## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — done 2026-08-14
 
 - Owner: current session, stale-claim takeover. The Moirai source dirt has no
   commit or board update within the one-hour liveness window; its newest source
   timestamps are 2026-08-13 11:03 EDT. Rescue-first scope is limited to the
   existing `moirai-crypto` and `moirai-tls` changes, their tests, the committed
   lockfile, and this Atlas record.
-- Finding: default head `2ea17bb` fails hosted workspace, binding, and wheel
-  jobs because the workspace metadata contract is incomplete and the TLS test
-  dependency is absent. The working tree contains the provider-native repair;
-  it must be verified before it can become an exact-head candidate.
+- Finding: default head `2ea17bb` failed hosted workspace, binding, and wheel
+  jobs because the workspace metadata contract was incomplete and the TLS test
+  dependency was absent. The provider-native repair landed as `032c9de`, and
+  the hosted locked graph correction landed as `e546092d`.
 - Acceptance: the repaired Moirai workspace parses and builds under the
   committed locked graph; crypto/TLS tests assert value-semantic handshake and
   signing behavior; focused nextest, doctests, Clippy, and formatting pass; the
   provider head is pushed and Atlas advances its gitlink only after hosted
   default-head checks are green.
+- Evidence: local focused check, nextest (4/4), Clippy, doctests, full
+  workspace Clippy, nextest (793 passed, 6 skipped), doctests, Rustdoc,
+  package-list, formatting, and diff checks passed. Hosted Rust Workspace run
+  `31782344026` passed formatting, Clippy, workspace tests, doctests, and
+  Rustdoc. Hosted Python Bindings run `31782344151` passed binding Clippy,
+  native tests, shared-memory invariants, binding docs, and Linux, Windows,
+  and macOS wheel smoke tests. Atlas gitlink advanced to `e546092d` in
+  `cc80ed4`.
 - Non-goals: no deletion or rewriting of the rescued crypto/TLS work, no
   changes to unrelated Moirai modules, and no Leto pointer advance while its
   locked graph remains red.
