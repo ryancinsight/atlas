@@ -48,6 +48,7 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | ATLAS-ADR-GOV-058-HYPERION | Hyperion PR #10 merged at default `d17e863`; its ADR 0001 index now records the existing canonical `Status: Accepted` header. Provider checklist and gap audit are synchronized; exact-head `verify` and `supply-chain` run `31795703287` pass, while recurseml analysis remains report-only. The broader ADR-governance item remains open for other members. |
 | ATLAS-ADR-GOV-058-IRIS | Iris PR #15 merged at default `3c9dc85`; its generated ADR index now lists ADR 0001 and 0002 as `Accepted` and excludes the non-ADR `INDEX.md` overview. Exact-head `verify` and `supply-chain` run `31796011010` pass; recurseml analysis remains report-only. The broader ADR-governance item remains open for other members. |
 | ATLAS-ADR-GOV-058-PROTEUS | Proteus PR #11 merged at default `3c64c8e`; both ADR status headers are canonical `Accepted` and the generated index matches them. Exact-head `verify` and `supply-chain` run `31796273743` pass; recurseml analysis remains report-only. The broader ADR-governance item remains open for other members. |
+| ATLAS-ADR-GOV-058-AEQUITAS | Aequitas ADR index refresh is scoped for the current clean default; its ADR headers are already canonical and only generated-index drift is in scope. |
 
 Completed provider slices from this sweep are recorded here so the residual
 rows below retain their original audit scope:
