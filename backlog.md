@@ -6358,11 +6358,31 @@ millimetres while `tract dti` tracks in voxel indices, and the result's fields
 are `pub(crate)`, so the CLI had no way to produce a converted result and built
 its `.tck` tractogram by hand, duplicating `to_tck()`.
 
-**CLI half written but not committed**: `ritk-cli` does not build locally
-because `ritk-segmentation` imports `leto_ops::svd_rank_revealing_with_tolerance`
-and the local leto tree removed it mid-refactor — the same blocker behind ritk
-PR #144. Holding it rather than pushing unverified. Re-open trigger: `ritk-cli`
-builds, i.e. either #144 merges or the leto change is published.
+**CLI half written but not committed**: `ritk-cli` does not build locally.
+Holding it rather than pushing unverified. Re-open trigger: `ritk-cli` builds.
+
+**Root cause traced 2026-08-14 — a stale lock pin, and the fix needs two halves
+at once.** `ritk` `Cargo.lock` pins `leto.git#8c4e6093` (2026-08-12); leto has
+advanced 24 commits to `293beec`. At the locked rev
+`svd_rank_revealing_with_tolerance` still exists and `svd_decompose` *rejects*
+rank-deficient input; at published head the old name is gone and
+`svd_decompose` accepts rank deficiency as data.
+
+That single table explains all four observations: `main` compiles in CI (locked
+rev has the old name) but not locally (overlay resolves the working tree, which
+does not); and ritk PR #144's migration compiles in CI but fails
+`test_rigid_landmark_known_rotation`, because a Kabsch cross-covariance matrix
+is legitimately rank-deficient for planar landmarks and the locked
+`svd_decompose` errors on it. Migration and `cargo update -p leto -p leto-ops`
+must land together — either alone breaks the other direction. Posted on #144.
+
+**This sharpens the overlay argument again** (see ATLAS-STACK-LETO-CHURN-017):
+the overlay always resolves first-party deps to the working tree, so a consumer
+migrated onto an *unpublished* contract passes locally and fails only in CI,
+while a consumer left on a *retired* contract fails locally while CI stays
+green. Both were true of ritk simultaneously, and neither is visible from one
+environment alone. Option (b) — resolve to committed revisions — collapses both
+failure modes into one that CI and local agree on.
 
 `.trk` additionally needs `dim`, `voxel_size` and a **RAS** `vox_to_ras`, while
 RITK geometry is LPS, so the affine needs its first two rows negated. Writing an
