@@ -364,6 +364,13 @@ about documentation truth and numerical evidence, not debt.
 > plus the provider PM records. Consumer migrations and unrelated Horae
 > features are non-goals.
 
+> **Claimed 2026-08-14 by the current session.** Complete
+> `ATLAS-HYPERION-INTERP-068` on the Hyperion provider branch
+> `codex/hyperion-planning-closure`. The claimed scope is the NIST
+> interpolation error contract, independent off-knot evidence/provenance, and
+> provider PM records. Consumer physics changes and unrelated Hyperion
+> coefficients are non-goals.
+
 | ID | Outcome | Class | Acceptance oracle |
 | --- | --- | --- | --- |
 | ATLAS-ATHENA-UNDOC-066 | **athena ships two undocumented solver families.** BiCGStab (575 lines) and LSQR (487) are implemented and publicly re-exported from `athena-core/src/lib.rs`, yet appear **zero times** in the README, whose headline (`:5`) calls PCG and GMRES "its complete vertical contracts". Compounding it, the architecture tree names a crate that does not exist (`:62` `athena-wgpu` vs the real `athena-hephaestus`), a feature that does not exist (`:71` `wgpu` vs the real `accelerator`), and asserts a 500-line ceiling (`:69`) that BiCGStab breaks. | [patch] | `rg 'athena-wgpu' README.md` → 0; README documents BiCGStab and LSQR; the line-count claim is removed or true per `wc -l` |
