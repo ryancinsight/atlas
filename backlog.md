@@ -6276,14 +6276,49 @@ combining. Acceptance: the turn-limit share of terminations falls on the same
 subject, with the sign-ambiguity handling covered by a test that would fail
 under naive averaging.
 
-`ATLAS-DMRI-TRACT-024` — `.trk` and `.trx` output [patch], todo. `ritk-trk` and
-`ritk-trx` exist; this is an output-format item on `tract dti`.
+`ATLAS-DMRI-TRACT-024` — `.trk` and `.trx` output [patch], **in-progress
+2026-08-14, owner=claude-dmri-cli**.
 
-`ATLAS-RITK-TRACT-AXIS-025` — Settle the volume axis convention [patch], todo.
-`DtiVolume` orders queries `[depth, row, column]` to match `Image::shape()`;
-`NoddiVolume` orders them `[nx, ny, nz]` with the first component fastest, and
-converts from physical space internally. Two conventions in one crate is a
-terminology-SSOT defect. Decide which is canonical and migrate the other.
+Scoping found `TractographyResult` already has `to_trk_header`, `to_tck` and
+`to_trx` in `ritk-tractography/src/export.rs`, so this is dispatch on the output
+extension, not new format code. It also means `tract dti`'s hand-rolled
+`write_tck` (added in 022) duplicates `to_tck()` and is deleted here.
+
+One blocker to solve first: the export methods document that points are already
+in physical millimetres, but `tract dti` tracks in voxel indices and converts at
+the write boundary, and `TractographyResult`'s fields are `pub(crate)` so a
+converted result cannot be constructed. Adding `map_points` to
+`ritk-tractography` is the fix — generally useful for any spatial transform of a
+tractogram, and it removes the CLI's reason to build tractograms by hand.
+
+`.trk` additionally needs `dim`, `voxel_size` and a **RAS** `vox_to_ras`, while
+RITK geometry is LPS, so the affine needs its first two rows negated. Writing an
+identity affine instead would produce a file that loads but does not overlay.
+
+`ATLAS-RITK-TRACT-AXIS-025` — Settle the volume axis convention [patch],
+**in-progress 2026-08-14, owner=claude-dmri-cli**.
+
+**Investigated: no live defect, but the losing convention is internally
+inconsistent.** `NoddiVolume` and `FodVolume` both store `[z][y][x]` — z
+slowest — while declaring `shape: [nx, ny, nz]`, fastest first. The shape array
+is therefore *reversed* relative to the storage it describes, which is why their
+index arithmetic reads `iz*ny*nx + iy*nx + ix`. `DtiVolume` declares
+`[depth, row, column]`, matching both its storage and `Image::shape()`.
+
+Nothing is broken today because the only call sites are their own tests, which
+construct shapes consistent with the internal convention. The trap is the first
+production caller: passing `image.shape()` to either type silently transposes
+the volume, and no type error catches it since both are `[usize; 3]`.
+
+**Decision: storage order wins** — shape order equals storage order equals
+`Image::shape()`, so `offset = i0·d1·d2 + i1·d2 + i2` reads directly and no call
+site needs a reversal. `NoddiVolume` and `FodVolume` migrate.
+
+**Risk to state plainly**: this changes the *meaning* of a parameter without
+changing its type, so an external caller would keep compiling and silently
+transpose. In-repo migration is complete (tests only), the crates are 0.1.0, and
+the change is recorded in the CHANGELOG — but it is a silent break, not a
+compile break, which is the worse kind.
 
 **CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
 groups and `ritk-python` exposes no diffusion surface. They are independent
