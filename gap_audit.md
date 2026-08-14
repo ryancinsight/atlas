@@ -1,5 +1,20 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-AUDIT-STALE-TIER1-2C-098 — Remove four closed active rows (closed 2026-08-14)
+
+Four active rows duplicated closures already recorded in the landed table.
+Gaia's verification gate is hosted-green at default `18349bc` (run
+`31784028179`). Iris's current default `899d622` retains the merged color-space
+contract from `eec9818`: RGB is normalized sRGB-encoded display data, alpha is
+linear opacity, interpolation stays in encoded space, and byte conversion is
+direct quantization. Proteus default `671c9fa` contains the landed
+`TemperatureValidity::bounded` and typed `OutsideValidityDomain` path from
+`6b9bd0b`. Asclepius default `5d528d2` contains distinct `Gamma50` and
+`LymanSlope` newtypes with compile-fail swap coverage; the proposed CEM43
+restriction was correctly withdrawn because sub-43 C behavior is part of the
+CEM43 contract. The four active rows are removed from the board; no provider
+source change is required.
+
 ## ATLAS-AUDIT-STALE-TIER2-097 — Moirai bounded default already landed (closed 2026-08-14)
 
 The active residual described `Moirai::channel()` as unbounded. Provider
