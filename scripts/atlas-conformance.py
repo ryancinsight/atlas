@@ -92,8 +92,13 @@ CLASSES = [
     "nextest_budget_missing", "workspace_lints_missing",
     "member_namespace_pollution", "tag_pinned_actions",
     "workflow_missing_timeout", "workflow_missing_permissions",
-    "pull_request_target_use", "missing_cargo_lock",
+    "pull_request_target_use", "missing_cargo_lock", "orphan_modules",
 ]
+
+MOD_DECL = re.compile(r"\bmod\s+([A-Za-z_][A-Za-z0-9_]*)\s*[;{]")
+PATH_ATTR = re.compile(
+    r"#\[\s*path\s*=\s*\"([^\"]+)\"\s*\]\s*(?:pub(?:\([^)]*\))?\s*)?$"
+)
 
 SHA_PIN = re.compile(r"^\s*(?:-\s+)?uses:\s*[^\s@#]+@([A-Za-z0-9._/-]+)", re.MULTILINE)
 
@@ -128,6 +133,66 @@ def count_root_sprawl(repo: Path) -> int:
 def lf_policy_missing(repo: Path) -> int:
     ga = repo / ".gitattributes"
     return 0 if ga.is_file() and "text=auto" in ga.read_text(errors="replace") else 1
+
+
+def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path]:
+    """Files a `mod` declaration in `owner` can resolve to."""
+    if explicit:
+        # A `#[path]` on a non-inline `mod` resolves against the directory
+        # holding the *declaring file*, never against that file's module
+        # directory — `#[path = "x.rs"] mod x;` inside `a/b.rs` is `a/x.rs`.
+        return [owner.parent / explicit]
+    base = owner.parent if owner.name in ("lib.rs", "main.rs", "mod.rs") \
+        else owner.with_suffix("")
+    return [base / f"{name}.rs", base / name / "mod.rs"]
+
+
+def _walk_mods(root: Path, seen: set[Path]) -> None:
+    """Depth-first close the `mod` graph reachable from one crate root."""
+    root = root.resolve()
+    if root in seen or not root.is_file():
+        return
+    seen.add(root)
+    text = root.read_text(encoding="utf-8", errors="replace")
+    for m in MOD_DECL.finditer(text):
+        attr = PATH_ATTR.search(text[:m.start()].rstrip())
+        for cand in _child_candidates(root, m.group(1), attr.group(1) if attr else None):
+            if cand.is_file():
+                _walk_mods(cand, seen)
+                break
+
+
+def count_orphan_modules(repo: Path) -> int:
+    """`.rs` files under a crate `src/` that no `mod` declaration reaches.
+
+    Cargo compiles only what the module graph names, so an undeclared file is
+    invisible to rustc, clippy, and the test runner while every text-based
+    scan (including this one's other classes) still counts it — dead weight
+    that inflates debt figures and silently rots. Crate roots are the targets
+    Cargo builds: `src/lib.rs`, `src/main.rs`, `src/bin/*.rs`, and
+    `src/bin/<name>/main.rs`.
+    """
+    sources: set[Path] = set()
+    roots: list[Path] = []
+    for manifest in repo.rglob("Cargo.toml"):
+        if PRUNE_DIRS.intersection(manifest.parts) or \
+                any(p.startswith("target") for p in manifest.parts):
+            continue
+        src = manifest.parent / "src"
+        if not src.is_dir():
+            continue
+        sources.update(p.resolve() for p in src.rglob("*.rs"))
+        roots.extend(src / stem for stem in ("lib.rs", "main.rs")
+                     if (src / stem).is_file())
+        bins = src / "bin"
+        if bins.is_dir():
+            roots.extend(bins.glob("*.rs"))
+            roots.extend(d / "main.rs" for d in bins.iterdir()
+                         if (d / "main.rs").is_file())
+    seen: set[Path] = set()
+    for r in roots:
+        _walk_mods(r, seen)
+    return len(sources - seen)
 
 
 def declared_cfg_test(entry: Path) -> bool:
@@ -303,6 +368,7 @@ def scan_repo(repo: Path) -> dict[str, int]:
         1 for e in repo.iterdir() if e.is_dir() and e.name.startswith("target")
     )
     c["gitattributes_missing"] = lf_policy_missing(repo)
+    c["orphan_modules"] = count_orphan_modules(repo)
     if has_cargo:
         nx = repo / ".config" / "nextest.toml"
         if not (nx.is_file() and "slow-timeout" in nx.read_text(errors="replace")):

@@ -521,7 +521,20 @@ made GPU-free even though every declared requirement says it should be.
 `hephaestus-wgpu`; every intra-workspace path dependency carries the same
 `default-features` setting as the workspace table.
 
-## ATLAS-CFDRS-CRLF-085 — CFDrs commits CRLF with no `.gitattributes` [patch] — open 2026-08-14
+**Premise narrowed; fix staged, uncommitted 2026-08-14.** The blast radius was
+smaller than filed: `cfd-2d`, `cfd-3d`, `cfd-math` and `cfd-validation` already
+route through the workspace table and `cfd-optim` sets `default-features =
+false` explicitly, so the leak came from exactly the three named crates, none
+of which references the `gpu` feature or `hephaestus-wgpu` at all. All three now
+read `cfd-core.workspace = true`, matching the sibling style. Oracle measured
+per crate: `hephaestus-wgpu` occurrences under `cargo tree -e normal -p <crate>
+--no-default-features` went 1 → 0 for `cfd-1d`, `cfd-python` and
+`cfd-schematics`. Staged on the peer branch `codex/cfdrs-legacy-approx-cleanup`
+as three one-line hunks; `Cargo.lock` is deliberately **not** staged — feature
+selection is not recorded in the lock, and that file already carried a peer's
+overlay-stripped rewrite.
+
+## ATLAS-CFDRS-CRLF-085 — CFDrs commits CRLF with no `.gitattributes` [patch] — blocked 2026-08-14
 
 The repository stores CRLF line endings and has no `.gitattributes`, so any
 tool that writes LF — rustfmt, a Python edit, most editors on non-Windows —
@@ -536,6 +549,61 @@ the case where the cost is now measured rather than theoretical.
 **Acceptance oracle:** `.gitattributes` normalizes source to LF, the tree is
 renormalized in one dedicated commit, and `gitattributes_missing` is 0 for
 CFDrs.
+
+**Status → blocked 2026-08-14; re-open trigger: the CFDrs working branch is
+merged to `main` and no second lane is live.** Confirmed and worse than filed.
+`core.autocrlf=true` is set globally while committed blobs are *inconsistent*:
+`crates/cfd-1d/Cargo.toml` is stored LF, `crates/cfd-python/Cargo.toml` and
+`crates/cfd-schematics/Cargo.toml` are stored CRLF, in one directory. With
+autocrlf on, `git add` LF-normalizes unconditionally, so a one-line edit to
+either CRLF-stored file stages as a whole-file rewrite — measured while landing
+ATLAS-CFDRS-GPU-DEFAULT-084, where a three-line change first staged as 238
+changed lines. The workaround used there (`git hash-object --no-filters` plus
+`git update-index --cacheinfo` to stage a CRLF-preserving blob) restores a
+reviewable diff but is not a policy.
+
+The renormalization itself is **not** safe to run now, for reasons the filing
+did not anticipate. 1,702 of 2,411 tracked files are CRLF in the working tree,
+so the sweep touches ~70% of the repository — and the checkout sits on the peer
+branch `codex/cfdrs-legacy-approx-cleanup`, which is 2 commits ahead of and
+**11 commits behind** `origin/main`, with a second live lane at
+`worktrees/cfdrs-ci-workspace-rust` on `feat/cfdrs-ci-workspace-rust`.
+Renormalizing there would conflict with both the unmerged `main` commits and
+the sibling lane across every touched file. Creating `.gitattributes` alone is
+also rejected as a half-measure: git reads it from the working tree whether or
+not it is tracked, so it would start LF-normalizing files one at a time on
+every subsequent `add`, producing the same churn as drip rather than as one
+reviewable commit.
+
+**Required sequence when unblocked:** land on `main`, not a feature branch —
+add `.gitattributes` (`* text=auto`) and `git add --renormalize .` as a single
+commit containing nothing else, with every lane closed or rebased across it.
+
+## ATLAS-ORPHAN-MODULES-096 — Uncompiled source files across eight repos [patch] — open 2026-08-14
+
+ATLAS-GAIA-ORPHAN-081 fixed gaia and left it a repo-local guard
+(`gaia/tests/module_reachability.rs`). The class is not gaia's. Promoting that
+check into the stack instrument — a new `orphan_modules` class in
+`scripts/atlas-conformance.py`, closing the `mod` graph from every Cargo target
+root (`src/lib.rs`, `src/main.rs`, `src/bin/*.rs`, `src/bin/<name>/main.rs`) and
+honouring `#[path]` — finds **55 orphans in 8 repos**: kwavers 22, CFDrs 14,
+consus 7, ritk 6, apollo 3, coeus 1, hermes 1, leto 1. gaia, hephaestus and
+eunomia are clean, which is the detector's negative control.
+
+Each orphan is invisible to rustc, clippy and nextest yet fully visible to every
+text-based scan, so it skews the very counts used to aim remediation — the
+second-order cost 081 named, still unpaid outside gaia. Spot-verified as
+genuine, not detector noise: `leto/crates/leto/src/application/transform.rs`,
+`hermes/crates/hermes-simd-core/src/tensor/mut_view.rs` and CFDrs's
+`cfd-math/src/linear_solver/preconditioners/{ssor,schwarz}.rs` have no `mod`
+declaration anywhere in their repository.
+
+`scripts/conformance-baseline.json` records the counts per repo so the ratchet
+holds them non-increasing from now on; burn-down is per repo, each orphan either
+deleted or wired in with a stated reason.
+
+**Acceptance oracle:** `orphan_modules` is 0 for every member and the baseline
+entries are removed as each repo clears.
 
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
 
