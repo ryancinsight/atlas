@@ -133,6 +133,16 @@ Three ordering facts came out of the audit and are not obvious from the board:
       `31806913513` (job `94787923879`) and Python bindings (job
       `94787923826`) pass; CodeRabbit passes and recurseml remains report-only.
 
+### ATLAS-RITK-DICOM-ORIENTATION-070 — in progress 2026-08-14
+
+- [ ] Add RITK’s provider-owned `IMAGE_ORIENTATION_PATIENT` tag constant and
+      value-semantic attribute coverage without changing the DICOM boundary.
+- [ ] Replace Helios’s local `(0020,0037)` constant with the RITK provider
+      constant and retain orientation normalization/grid tests.
+- [ ] Run focused provider/consumer gates, merge both exact heads, and advance
+      the Atlas gitlinks only after the co-evolution checks pass. Preserve the
+      Helios typed-slope lockfile and RITK `ritk-fix` lane.
+
 ### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — closed 2026-08-14
 
 - [x] Mark the merged SPSC, async wake-dedup, PAL reactor, and reservation
