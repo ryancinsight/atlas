@@ -5940,8 +5940,8 @@ was not done.
 
 **Spun out, unclaimed:**
 
-`ATLAS-DMRI-TRACT-023` — Interpolated direction field [minor], **delivered
-2026-08-14** (ritk PR #144).
+`ATLAS-DMRI-TRACT-023` — Interpolated direction field [minor], **merged
+2026-08-14** (ritk PR #146, `a8d8b3d7` on main; atlas gitlink `3f318f8`).
 
 **Measured, on real tissue.** Turn-limit terminations fall from 36.4% to 13.0%
 on a mid-brain slab (committed test) and from 1571 to 646 across the whole
