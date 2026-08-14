@@ -53,6 +53,7 @@ before this fix was aimed by a broken instrument and must be re-derived.**
 | ATLAS-ADR-GOV-058-EUNOMIA | Eunomia PR #67 merged at default `9c2d972`; its four-ADR generated index now records canonical `Accepted` statuses with no anomalies. Exact-head `Rust verification` and `Supply chain` run `31797566750` pass; recurseml analysis reports an analyzer error and remains report-only. |
 | ATLAS-ADR-GOV-058-THEMIS | Themis PR #25 merged at default `8d6e83e`; its two-ADR generated index now records canonical `Accepted` statuses with no anomalies. Exact-head compile-fail, Ubuntu, Windows, and Miri checks pass in run `31797905436`; recurseml analysis reports an analyzer error and remains report-only. |
 | ATLAS-MOIRAI-ORDERING-052-SPSC | Moirai PR #130 merged at default `ac111b3`; the SPSC ring model uses a capacity-two wrap-around, three FIFO values, and preemption bound four. Hosted `Loom channel models` passes in run `31798789797`; the external recurseml analyzer error remains report-only. |
+| ATLAS-MOIRAI-ORDERING-052-WAKER | Bound the async executor's `is_queued` wake-deduplication flag to Relaxed atomics. Acceptance: a Loom model exhausts the dequeue/clear versus wake/swap interleavings without duplicate or lost queue entries; the completion guard remains Acquire/Release and existing executor tests pass. Scope: `moirai-async` waker protocol only. | [patch] | ATLAS-MOIRAI-ORDERING-052 |
 
 Completed provider slices from this sweep are recorded here so the residual
 rows below retain their original audit scope:
