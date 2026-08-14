@@ -57,14 +57,15 @@ rows below retain their original audit scope:
 | ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 `a437e71` | Corrected the AMX irregular-width configuration and repacked row-major GEMM right-hand panels into the VNNI layouts required by the dot-product instructions: `K/4 × 4N` for INT8 and `K/2 × 2N` BF16 elements. The provider-owned packer covers fixed-tile and blocked-GEMM paths with independent value-semantic four-byte and two-element grouping tests. Local intrinsics nextest is 30/30 and high-level capability nextest is 12/12; hosted Miri, AArch64, cross-compile, supply-chain, benchmark, and Intel SDE AMX differential checks pass. The hosted x86 job reaches Clippy and remains blocked by the unchanged 345-error HS-435 core debt. |
 
 **Current exact-head residual (2026-08-14):** the structural provider audit is
-clean, but the exact-head audit leaves six staged peer-owned paths: Proteus
-(`6b9bd0b` vs `c7cf800`), Helios (`1e16540` vs `152a66c`), Ritk (`5ee518e` vs
-`1f209c3`), Leto (`7f80044` vs `58b6eb3`), Hermes (`81502c5` vs `9fdbd16`),
-and Iris (`eec9818` vs `899d622`). Helios PR #54 is merged at `152a66c` and
-its benchmark regression job is green. Themis's stable-proof PR #23 is merged
-at `fa8dc29`. Hermes PR #40 now carries the AMX VNNI packer at `a437e71`; its
-benchmark is green, while its hosted SDE and x86 gates remain open. The six
-listed pointers remain peer-owned and are not rewritten by this audit.
+clean, but the exact-head audit leaves seven staged peer-owned paths: Proteus
+(`6b9bd0b` vs `c7cf800`), Helios (`1e16540` vs `152a66c`), Moirai (`61140fb`
+vs `2ea17bb`), Ritk (`5ee518e` vs `1f209c3`), Leto (`7f80044` vs `f3756b5`),
+Hermes (`81502c5` vs `9fdbd16`), and Iris (`eec9818` vs `899d622`). Helios PR
+#54 is merged at `152a66c` and its benchmark regression job is green. Themis's
+stable-proof PR #23 is merged at `fa8dc29`. Hermes PR #40 now carries the AMX
+VNNI packer at `a437e71`; benchmark and Intel SDE AMX differential checks are
+green, while x86 stops at the unchanged 345-error HS-435 core Clippy debt. The
+seven listed pointers remain peer-owned and are not rewritten by this audit.
 
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
