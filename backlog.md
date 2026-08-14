@@ -123,6 +123,22 @@ benchmark and Intel SDE AMX differential checks are green.
 - Non-goals: no deletion or rewriting of peer-owned Leto work, and no changes
   to unrelated providers.
 
+## ATLAS-EUNOMIA-EXACT-HEAD-091 — Integrate the merged float-law head [patch] — in-progress
+
+- Owner: current session, stale-claim takeover. Eunomia’s
+  `codex/eunomia-float-roots` checkout was clean at `108e860`, with no board
+  update for more than the one-hour liveness window; GitHub has since merged
+  it into the default branch as `b6f001a`.
+- Scope: reconcile the provider checkout with `origin/main`, verify the
+  merged default-head workflow, advance only `repos/eunomia`, and synchronize
+  this record. No source rewrite or deletion of unrelated Eunomia work.
+- Acceptance: the provider default head is the exact hosted-green commit;
+  the Atlas gitlink and exact-head audit agree; no peer-owned files are
+  changed.
+- Verification plan: inspect the merge ancestry and diff, query the exact
+  default-head workflow, update the root gitlink, then rerun the structural
+  and exact-head integration audits.
+
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
 peer work. The lane audit reports two violations: three Ritk trees and the
