@@ -1,5 +1,17 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-TYCHE-DOCS-001 — Merge Tyche PR #22 (2026-08-14)
+
+Tyche PR #22 merged as `b1c5cc9f673ea7651672be608542afa5acb8cc6c` after the
+repository-owned `verify` and `supply-chain` jobs passed, with CodeRabbit also
+successful. The change corrects the package-distribution statement and points
+the reproducible-study verification command at the package that owns the
+example. The external `recurseml/analysis` status remained errored and is
+recorded as report-only. Atlas advanced the Tyche gitlink to this merged
+default together with the Mnemosyne PR #51 merge; the staged root index passes
+`python scripts/atlas-provider-integration-audit.py --exact-heads`, including
+requested-provider coherence.
+
 ## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Multi-dimensional LayerNorm residual (open 2026-08-13)
 
 The Coeus default exposes a documented PyTorch-style LayerNorm surface but

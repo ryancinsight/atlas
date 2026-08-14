@@ -5,6 +5,15 @@
 
 # Sweep 2026-08-13 — execution order
 
+## ATLAS-TYCHE-DOCS-001 — merged provider documentation correction
+
+- [x] Merge Tyche PR #22 after repository-owned `verify`, `supply-chain`, and
+      CodeRabbit checks pass; record the external `recurseml/analysis` error as
+      report-only.
+- [x] Advance the Atlas Tyche gitlink to merged default `b1c5cc9f` and rerun
+      exact-head/coherence gates; the staged root index passes the exact-head
+      audit with all 20 requested providers coherent.
+
 ## Sequencing constraints (read before claiming)
 
 Three ordering facts came out of the audit and are not obvious from the board:

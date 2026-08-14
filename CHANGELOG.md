@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Advance the Tyche provider gitlink to merged PR #22 `b1c5cc9f`; the provider
+  correction aligns package-distribution and reproducible-study verification
+  claims. Advance Mnemosyne to merged PR #51 `997ec088` with event-driven
+  decay-test synchronization. The staged root exact-head/coherence audit
+  passes for all 20 requested providers.
+
 - Correct the conformance instrument and regenerate its baseline in the same
   change. `scripts/atlas-conformance.py` classified a file as test code only
   when a path *part* matched `tests`/`benches`/`examples`/`fuzz`, but
