@@ -54,6 +54,7 @@ rows below retain their original audit scope:
 | ATLAS-HELIOS-BENCHMARK-085 | Helios `152a66c` | Helios PR #54's benchmark regression job completed successfully; the merged default head is fully green across book, Rust, Python, and benchmark checks. The Atlas gitlink remains peer-owned at its staged integration head. |
 | ATLAS-THEMIS-STD-FEATURE-086 | Themis PR #22; merged default `f879e71` | Fixed the optional-dependency feature closure: `themis/std` now activates Melinoe before referring to its `std` feature. Ubuntu, Windows, compile-fail, branded Miri, and local strict Clippy are green; `recurseml/analysis` is external/report-only. |
 | ATLAS-THEMIS-STABLE-PROOFS-088 | Themis PR #23; merged default `fa8dc29` | Added stable trybuild enforcement for invalid shared-cell construction (`E0599`) and overlapping mutable borrows (`E0499`) with committed stderr fixtures. Ubuntu, Windows, compile-fail nightly, and branded Miri are green; `recurseml/analysis` is external/report-only. |
+| ATLAS-THEMIS-GITATTRIBUTES-092 | Themis PR #24; merged default `17d3647` | Reconciled the stale provider PM claim: the tracked `.gitattributes` already contains `* text=auto`; no source or tree-wide renormalization was required. |
 | ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 merged at `b95d19d` (head `5a8d718`) | Corrected the AMX irregular-width configuration and repacked row-major GEMM right-hand panels into the VNNI layouts required by the dot-product instructions: `K/4 × 4N` for INT8 and `K/2 × 2N` BF16 elements. The provider-owned packer covers fixed-tile and blocked-GEMM paths with independent value-semantic four-byte and two-element grouping tests. Follow-up cleanup closes Hermes `must_use_candidate` 162→0, `elidable_lifetime_names` 131→0, `missing_errors_doc` 83→0, `missing_safety_doc` 8→0, `semicolon_if_nothing_returned` 92→0, and `unreadable_literal` 180→0 with a documented generated-table exception, splits the SIMD view-cast and `SimdOps` blanket-implementation leaves, scopes the macro's unreachable-code expectation to Neon with a regression test, rejects zero NTT moduli with a typed error, validates bitboard squares before shift arithmetic, removes the conformance ratchet regressions introduced by the lint cleanup, and canonicalizes NTT residues before subtraction. The current local Hermes workspace all-target Clippy gate is clean, nextest is 454/454, the Hermes/core doctest gate is 18/18 with 7 ignored, and the benchmark-target smoke gate passes. Hosted run 31779776851 is green across all seven jobs. |
 
 **Current exact-head status (2026-08-14):** the structural and exact-head
@@ -75,6 +76,8 @@ head `0bc287a` carries the hosted MSRV run `31785253730` green at source head
 `6e6a181`; the book run
 `31783965823` is green at source head `c06504c`, and the replacement head only
 adds documentation to the test crate outside the book workflow's source paths.
+Themis's stable-proof source remains at `fa8dc29`; its PM closeout is merged at
+default head `17d3647`.
 
 ## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — done 2026-08-14
 
@@ -149,9 +152,9 @@ adds documentation to the test crate outside the book workflow's source paths.
 - Non-goals: no provider source rewrite, no deletion of peer-owned work, and
   no change to unrelated Atlas members.
 
-## ATLAS-THEMIS-GITATTRIBUTES-092 — Reconcile stale provider PM claim [patch] — in progress 2026-08-14
+## ATLAS-THEMIS-GITATTRIBUTES-092 — Reconcile stale provider PM claim [patch] — done 2026-08-14
 
-- Owner: current session. Scope is limited to Themis's stale `.gitattributes`
+- Owner: current session. Scope was limited to Themis's stale `.gitattributes`
   checklist entry, its provider PM record, and the corresponding Atlas
   evidence. Themis is clean on `main` at exact default head `fa8dc29`; no
   source or workflow change is authorized by this item.
@@ -161,6 +164,10 @@ adds documentation to the test crate outside the book workflow's source paths.
 - Acceptance: the provider record marks the existing file complete with its
   exact content and head; no source behavior changes; the root audit remains
   exact-head clean.
+- Evidence: Themis PR #24 merged at default `17d3647`; the provider record now
+  states that `.gitattributes` contains `* text=auto`. The provider source and
+  workflow state are unchanged from the hosted-green stable-proof head
+  `fa8dc29`; no tree-wide renormalization was required.
 
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
 39 tightenings; the baseline is unchanged because the scan includes active
