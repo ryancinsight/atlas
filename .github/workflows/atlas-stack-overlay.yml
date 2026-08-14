@@ -17,12 +17,20 @@
 # `.cargo/config.toml` from `cargo metadata` closure; this gate verifies the
 # generated overlay would still satisfy every consumer lock against the local
 # tree.
+#
+# Members are checked out at their default-branch heads (`--remote`), not at
+# the recorded gitlinks: the gate measures coherence at the current provider
+# heads the overlay is generated against. Gitlink-based (recursive) checkout
+# failed CI whenever a recorded gitlink went stale (e.g. horae `572c0919`
+# "not our ref", the ATLAS-GITLINK-DRIFT-056 class); a stale gitlink must not
+# silence this gate.
 
 name: atlas-stack-overlay
 
 on:
   pull_request:
     paths:
+      - 'repos/**'
       - '.cargo/config.toml'
       - 'scripts/atlas-stack-overlay.py'
       - 'repos/**/Cargo.toml'
@@ -32,6 +40,7 @@ on:
   push:
     branches: [main]
     paths:
+      - 'repos/**'
       - '.cargo/config.toml'
       - 'scripts/atlas-stack-overlay.py'
       - 'repos/**/Cargo.toml'
@@ -53,8 +62,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          submodules: recursive
+          # The gate measures member manifests/locks against current provider
+          # heads, and recursive checkout fails whenever a recorded gitlink
+          # goes stale (a recorded condition, ATLAS-GITLINK-DRIFT-056). Direct
+          # members at their default heads are exactly what `check` scans.
+          submodules: false
           lfs: false
+
+      - name: Initialize direct Atlas members at default heads
+        shell: bash
+        run: git -c protocol.version=2 submodule update --init --force --depth=1 --remote
 
       - name: Setup Python 3.11
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
