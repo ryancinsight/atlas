@@ -166,6 +166,25 @@ reports an analyzer error and remains report-only. This closes only the
 model-coverage sub-slice; the broader ordering justification and `SeqCst`
 ratchet remains open.
 
+## ATLAS-MOIRAI-ORDERING-052-WAKER — Moirai async wake-dedup ordering slice (closed 2026-08-14)
+
+Moirai PR #131 merged at default `fd517fe`. The async executor's `is_queued`
+clear in `moirai-async/src/executor/core.rs` and wake-side swap in
+`moirai-async/src/executor/waker.rs` now use Relaxed ordering. The flag only
+linearizes enqueue deduplication; the lock-free queue's per-slot
+Release/Acquire sequence publishes task ownership. The completion guard and
+scheduler/MPMC ordering protocols were not changed.
+
+`moirai-async/tests/loom_wake_dedup.rs` exhaustively models the dequeue/clear
+versus wake/swap interleaving and asserts the atomic wake claim maps to at most
+one replacement entry. Exact-head workflow `31800148163` passes Loom and the
+workspace gate; `31800148178` passes Rust bindings and all macOS, Ubuntu, and
+Windows wheel smoke tests. The first model revision failed on a
+non-contractual cross-atomic observer assertion; the model was corrected and
+the final head passed. The external `recurseml/analysis` status remains
+report-only. This closes only the async wake-dedup sub-slice; the broader
+ordering justification and `SeqCst` ratchet remains open.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
