@@ -67,8 +67,12 @@ lint/docs/structure cleanup, merged at `b95d19d`; local contract gates and all
 seven hosted checks are green at head `5a8d718`. Proteus and Iris default-head
 checks are green across build, verification, deployment, and supply-chain
 jobs. Moirai default-head checks fail its Rust binding, workspace, and wheel
-jobs; Leto default-head Rust verification fails. Their two pointers remain
-peer-owned and are not advanced while their default-head gates are red. The
+jobs because `moirai-tls/Cargo.toml` is malformed and prevents `cargo
+metadata` from loading the workspace; the same manifest parse failure is
+reported by the wheel smoke jobs. Leto default-head Rust verification fails
+before the test phase because `cargo` cannot update `Cargo.lock` under the
+workflow's `--locked` invocation. Their two pointers remain peer-owned and
+are not advanced while their default-head gates are red. The
 prior benchmark and Intel SDE AMX differential checks are green.
 
 The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
