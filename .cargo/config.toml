@@ -58,6 +58,12 @@ debug = false
 # block is inert for every downstream consumer while making the member
 # unconsumable as a clean git dependency.
 #
+# An edge is emitted only when the local tree version satisfies every declared
+# requirement for that package. A lagging edge (local version vs a member's
+# `version` pin) is left on git so the member still builds -- patching it would
+# make Cargo refuse with a misleading resolver error. `check` reports such lag
+# for the consumer to advance its pin.
+#
 # Local builds rewrite member `Cargo.lock` files (the `source` line is dropped
 # and `[[patch.unused]]` entries appear). That churn is a development artifact:
 # never commit it. Release and CI resolution is verified with `--locked` from a

@@ -16,6 +16,112 @@ _overlay = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_overlay)
 
 
+class LagAwarePatchEmissionTestCase(unittest.TestCase):
+    """generate must not patch a git dep to a local version that conflicts
+    with a member's manifest pin; lagging edges resolve from git instead."""
+
+    def test_generate_skips_edge_that_violates_a_member_pin(self) -> None:
+        packages = {"ritk-image": (Path("repos/ritk/crates/ritk-image"), "0.4.0")}
+        deps = [
+            (
+                "ritk-image",
+                "https://github.com/ryancinsight/ritk",
+                "^0.3.0",
+                Path("repos/kwavers/Cargo.toml"),
+            )
+        ]
+        with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
+            block, missing, lag = _overlay.build_overlay(packages)
+        self.assertEqual(block, "\n")
+        self.assertEqual(missing, [])
+        self.assertEqual(len(lag), 1)
+        self.assertIn("ritk-image", lag[0])
+        self.assertIn("^0.3.0", lag[0])
+        self.assertIn("0.4.0", lag[0])
+
+    def test_generate_patches_edge_satisfied_by_local_version(self) -> None:
+        packages = {"ritk-image": (Path("repos/ritk/crates/ritk-image"), "0.4.0")}
+        deps = [
+            (
+                "ritk-image",
+                "https://github.com/ryancinsight/ritk",
+                "^0.4.0",
+                Path("repos/kwavers/Cargo.toml"),
+            )
+        ]
+        with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
+            block, missing, lag = _overlay.build_overlay(packages)
+        self.assertEqual(lag, [])
+        self.assertEqual(missing, [])
+        self.assertIn('[patch."https://github.com/ryancinsight/ritk"]', block)
+        self.assertIn('[patch."https://github.com/ryancinsight/ritk.git"]', block)
+        self.assertIn(
+            'ritk-image = { path = "repos/ritk/crates/ritk-image" }', block
+        )
+
+    def test_generate_blocks_patch_when_any_declaration_is_unsatisfied(self) -> None:
+        packages = {"ritk-image": (Path("repos/ritk/crates/ritk-image"), "0.4.0")}
+        deps = [
+            (
+                "ritk-image",
+                "https://github.com/ryancinsight/ritk",
+                "^0.4.0",
+                Path("repos/helios/Cargo.toml"),
+            ),
+            (
+                "ritk-image",
+                "https://github.com/ryancinsight/ritk",
+                "^0.3.0",
+                Path("repos/kwavers/Cargo.toml"),
+            ),
+        ]
+        with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
+            block, missing, lag = _overlay.build_overlay(packages)
+        self.assertEqual(block, "\n")
+        self.assertEqual(len(lag), 1)
+
+    def test_generate_keeps_satisfying_siblings_when_one_edge_lags(self) -> None:
+        packages = {
+            "ritk-core": (Path("repos/ritk/crates/ritk-core"), "0.4.0"),
+            "ritk-image": (Path("repos/ritk/crates/ritk-image"), "0.4.0"),
+        }
+        deps = [
+            (
+                "ritk-core",
+                "https://github.com/ryancinsight/ritk",
+                "^0.4.0",
+                Path("repos/helios/Cargo.toml"),
+            ),
+            (
+                "ritk-image",
+                "https://github.com/ryancinsight/ritk",
+                "^0.3.0",
+                Path("repos/kwavers/Cargo.toml"),
+            ),
+        ]
+        with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
+            block, missing, lag = _overlay.build_overlay(packages)
+        self.assertEqual(len(lag), 1)
+        self.assertIn("ritk-core", block)
+        self.assertNotIn("ritk-image", block)
+
+    def test_generate_missing_package_still_reported(self) -> None:
+        packages: dict[str, tuple[Path, str | None]] = {}
+        deps = [
+            (
+                "ritk-image",
+                "https://github.com/ryancinsight/ritk",
+                "^0.4.0",
+                Path("repos/helios/Cargo.toml"),
+            )
+        ]
+        with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
+            block, missing, lag = _overlay.build_overlay(packages)
+        self.assertEqual(block, "\n")
+        self.assertEqual(len(missing), 1)
+        self.assertEqual(lag, [])
+
+
 class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
     def test_repo_manifests_excludes_worktrees(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
