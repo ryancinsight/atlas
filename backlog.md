@@ -231,7 +231,7 @@ the same exit 1 and byte-identical 11-regression/32-tightening report. The
 scanner therefore has an explicit refusal boundary; remaining live-tree
 regressions are provider work or baseline debt, not scanner nondeterminism.
 
-## ATLAS-STD-AMX-DETECT-082 — `is_x86_feature_detected!("amx-tile")` is unsound [patch] — open 2026-08-13
+## ATLAS-STD-AMX-DETECT-082 — `is_x86_feature_detected!("amx-tile")` is unsound [patch] — done 2026-08-14
 
 Found while delivering ATLAS-HERMES-AMX-040. The std macro checks CPUID and
 XCR0 only, with **no OS permission step**. On real AMX hardware that is not
@@ -251,6 +251,12 @@ A palette-count check belongs in any probe that must survive virtualised hosts.
 
 **Acceptance oracle:** `rg 'is_x86_feature_detected!\("amx' repos/` returns
 nothing outside a comment explaining why it is unusable.
+
+**Closure evidence (2026-08-14):** the non-comment Rust scan returned zero
+matches. Hermes routes AMX capability checks through
+`hermes_simd_intrinsics::x86_64::amx::probe`, which owns CPUID, XCR0, and
+process-permission checks; the remaining `amx-tile` references are comments or
+documentation describing the unsafe standard probe.
 
 ## ATLAS-GAIA-ORPHAN-081 — Delete an uncompiled 5 KB source file [patch] — open 2026-08-13
 
