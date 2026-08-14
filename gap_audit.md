@@ -128,6 +128,18 @@ report-only. This closes only the Horae slice; the broader member
 ADR-governance burn-down remains open with 15 stale or missing member indexes
 reported by the authoritative root generator.
 
+## ATLAS-ADR-GOV-058-EUNOMIA — Eunomia ADR-index slice (closed 2026-08-14)
+
+Eunomia PR #67 merged at default `9c2d972`. ADR 0001–0004 already carried
+canonical `Status: Accepted` headers; the generated `docs/adr/README.md` index
+now records `Accepted` for all four entries with no generator anomalies.
+
+Exact-head provider run `31797566750` passes `Rust verification` and `Supply
+chain`. The external `recurseml/analysis` status reports an analyzer error and
+remains report-only. This closes only the Eunomia slice; the broader member
+ADR-governance burn-down remains open with 14 stale or missing member indexes
+reported by the authoritative root generator.
+
 ## ATLAS-AUDIT-STALE-TIER3-102 — Helios workflow artifacts already removed (closed 2026-08-14)
 
 The active `ATLAS-HELIOS-STRAY-PNG-061` row was stale. Atlas commit
