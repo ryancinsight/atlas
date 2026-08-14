@@ -54,22 +54,24 @@ rows below retain their original audit scope:
 | ATLAS-HELIOS-BENCHMARK-085 | Helios `152a66c` | Helios PR #54's benchmark regression job completed successfully; the merged default head is fully green across book, Rust, Python, and benchmark checks. The Atlas gitlink remains peer-owned at its staged integration head. |
 | ATLAS-THEMIS-STD-FEATURE-086 | Themis PR #22; merged default `f879e71` | Fixed the optional-dependency feature closure: `themis/std` now activates Melinoe before referring to its `std` feature. Ubuntu, Windows, compile-fail, branded Miri, and local strict Clippy are green; `recurseml/analysis` is external/report-only. |
 | ATLAS-THEMIS-STABLE-PROOFS-088 | Themis PR #23; merged default `fa8dc29` | Added stable trybuild enforcement for invalid shared-cell construction (`E0599`) and overlapping mutable borrows (`E0499`) with committed stderr fixtures. Ubuntu, Windows, compile-fail nightly, and branded Miri are green; `recurseml/analysis` is external/report-only. |
-| ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 `89bf685` | Fixed the AMX irregular-width defect and corrected the dynamic B-tile shape: AMX's right-hand operand is configured as an N-row, K-byte tile, so the prior 64-row int8 shape triggered SDE `#GP out of range tile dimensions` for irregular GEMM. Local `hermes-simd-intrinsics` nextest is 28/28, core nextest is 16/16, source `allow_attributes` fell 26 -> 0, and Atlas conformance reports Hermes `allow_sites` 30 -> 0. Follow-up `90ea3ef` scopes the two architecture-specific dispatch expectations and removes the macro wildcard/ref-option/line-count lint failures; hosted SDE is pending at `89bf685`, while x86 remains blocked by 345 HS-435 core Clippy errors. |
+| ATLAS-HERMES-AMX-CONFIG-087 | Hermes PR #40 `e1aa94e` | Corrected the AMX irregular-width configuration and repacked row-major right-hand GEMM panels into the N-row, K-byte tile layout required by the dot-product instructions. The provider-owned packer covers INT8 and BF16 fixed-tile and blocked-GEMM paths with a value-semantic transpose regression. Local intrinsics nextest is 29/29 and high-level capability nextest is 12/12; hosted Miri, AArch64, cross-compile, and supply-chain checks pass. Hosted SDE still fails after the exception is removed, and x86 remains blocked by the 345-error HS-435 core Clippy debt; benchmark budgets are still running. |
 
 **Current exact-head residual (2026-08-14):** requested-provider coherence is
-clean at Atlas `bb39e24`; the structural exact-head audit leaves only four
+clean at Atlas `232b026`; the structural exact-head audit leaves only four
 staged peer-owned paths: Proteus (`6b9bd0b` vs `c7cf800`), Helios (`1e16540` vs
 `152a66c`), Hermes (`81502c5` vs `9fdbd16`), and Iris (`eec9818` vs
 `899d622`). Helios PR #54 is merged at `152a66c` and its benchmark regression
 job is green. Themis's stable-proof PR #23 is merged at `fa8dc29`, while
 Hermes's AMX correction remains open in PR #40 at `90ea3ef`. The four listed
-pointers remain peer-owned and are not rewritten by this audit.
+pointers remain peer-owned and are not rewritten by this audit. Hermes PR #40
+now carries the provider fix at `e1aa94e`, but its hosted SDE and x86 gates are
+not green.
 
-The 2026-08-14 worktree conformance scan reports 14 ratchet regressions and
-38 tightenings; the baseline is unchanged because the scan includes active
-peer work. The lane audit reports four violations: three Ritk trees, plus
-three Kwavers trees including a detached temporary lane outside the canonical
-lane root. These are recorded residuals, not cleaned by deleting peer state.
+The 2026-08-14 worktree conformance scan reports 15 ratchet regressions and
+39 tightenings; the baseline is unchanged because the scan includes active
+peer work. The lane audit reports two violations: three Ritk trees and the
+unlinked `worktrees/kwavers-cascade-provider-042` path. These are recorded
+residuals, not cleaned by deleting peer state.
 
 **A finding worth keeping from the themis work:** stable `rustdoc` **silently ignores the `E0xxx` annotation** on a `compile_fail` doctest — verified by feeding it a deliberately wrong code and watching it pass. Nightly enforces it. Any `compile_fail` proof gated only on stable therefore degrades to "fails for some reason", which is not the claim it appears to make. themis now runs a nightly `--doc` job for exactly this; the rest of the stack does not, and should.
 
