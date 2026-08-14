@@ -182,7 +182,7 @@ ownership, rescue any unique commits or dirty state into `repos/ritk`, then
 entries, no entry is under `repos/`, and no unique commit is lost (verified by
 `git log --oneline` on the reclaimed branch before removal).
 
-## ATLAS-CONFORMANCE-WORKTREE-080 — The ratchet scans the working tree, not a revision [patch] — in-progress 2026-08-13
+## ATLAS-CONFORMANCE-WORKTREE-080 — The ratchet scans the working tree, not a revision [patch] — done 2026-08-14
 
 - Owner: current session; scope: `scripts/atlas-conformance.py`, its
   conformance evidence, and this item only. Provider source and peer checkout
@@ -224,6 +224,12 @@ regressions / 27 tightenings while `check --revision HEAD` refused with
 reads blobs through `git`, or it refuses to run against a dirty tree unless
 `--worktree` is passed; running `check` twice with an unrelated uncommitted
 edit present yields identical counts.
+
+**Closure evidence (2026-08-14):** default `check` refused with exit 2 and the
+explicit dirty-tree diagnostic. Two sequential `check --worktree` runs returned
+the same exit 1 and byte-identical 11-regression/32-tightening report. The
+scanner therefore has an explicit refusal boundary; remaining live-tree
+regressions are provider work or baseline debt, not scanner nondeterminism.
 
 ## ATLAS-STD-AMX-DETECT-082 — `is_x86_feature_detected!("amx-tile")` is unsound [patch] — open 2026-08-13
 
