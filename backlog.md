@@ -609,11 +609,6 @@ does not affect that workflow's inputs.
   audited estimate near 34, so a second refinement pass is warranted before that
   number drives any burn-down.
 
-**Active claim (2026-08-14):** reconcile the stale Coeus LayerNorm
-`gap_audit.md` and `checklist.md` records against merged provider default
-`a2638c03`. Scope is root PM artifacts only; the peer-held Coeus checkout is
-not part of this claim.
-
 ## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract [minor] — done 2026-08-13
 
 - Owner: current session; scope: Coeus LayerNorm core/autograd/PyO3 modules,

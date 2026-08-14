@@ -83,20 +83,16 @@ default together with the Mnemosyne PR #51 merge; the staged root index passes
 `python scripts/atlas-provider-integration-audit.py --exact-heads`, including
 requested-provider coherence.
 
-## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Multi-dimensional LayerNorm residual (open 2026-08-13)
+## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Multi-dimensional LayerNorm closure (closed 2026-08-14)
 
-The Coeus default exposes a documented PyTorch-style LayerNorm surface but
-implements only a single normalized dimension. `coeus-nn` stores `[D]` affine
-parameters and its `forward_nd` flattens only leading dimensions; the
-autograd node reduces fixed axis 1 and derives gradients in `[D]`. The PyO3
-constructor explicitly returns `PyNotImplementedError` for sequence-shaped
-`normalized_shape`, while the book says “Normalize over last D dimensions”.
-
-This residual is provider-owned. The complete fix must preserve the existing
-one-dimensional contract, validate the configured trailing shape, flatten only
-the normalized suffix for the canonical kernel, restore the input shape, and
-reshape affine gradients back to their parameter shape. Python remains a thin
-constructor/dispatch layer. RMSNorm remains a separate residual.
+The residual closed in merged Coeus default `a2638c03`. `coeus-nn` now owns a
+validated `NormalizedShape`, accepts one or more trailing dimensions, flattens
+only the normalized suffix for the canonical kernel, restores the input shape,
+and preserves affine parameter and gradient shapes. The PyO3 constructor
+accepts an integer or a sequence and remains a thin parse-and-dispatch layer.
+Positive, mismatch, boundary, backward, Python parity, documentation, and
+hosted WGPU/CUDA/ROCm/Metal/book gates are recorded in the provider PM and the
+Atlas landed table. RMSNorm remains a separate residual as scoped.
 
 ## ATLAS-LIVE-HEAD-SWEEP-026 — Provider default-head convergence (closed 2026-08-13)
 

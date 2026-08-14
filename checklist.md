@@ -90,17 +90,17 @@ Three ordering facts came out of the audit and are not obvious from the board:
 - Record the ratchet baseline in the same commit as the floor, per the
   generator contract, or the first CI run fails on pre-existing debt.
 
-## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — in-progress 2026-08-13
+## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — complete 2026-08-14
 
 - [x] Confirm the provider source and docs disagree: the core/autograd path
-      assumes `[N, D]`, `forward_nd` only flattens leading dimensions, and the
-      PyO3 constructor rejects `normalized_shape` sequences longer than one.
+      assumed `[N, D]`, `forward_nd` only flattened leading dimensions, and the
+      PyO3 constructor rejected `normalized_shape` sequences longer than one.
 - [x] Claim the disjoint Coeus lane from fetched `origin/main`; preserve the
       peer-owned performance branch and its dirty lockfile.
-- [ ] Implement provider-owned shape validation, flattening, native backward
+- [x] Implement provider-owned shape validation, flattening, native backward
       reductions, thin Python sequence support, focused value-semantic tests,
       and synchronized Coeus docs.
-- [ ] Merge the provider change, advance the Atlas Coeus gitlink, and rerun
+- [x] Merge the provider change, advance the Atlas Coeus gitlink, and rerun
       exact-head/coherence/overlay/lane gates.
 
 
@@ -4217,6 +4217,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-AUDIT-STALE-TIER2-097** Reconcile the landed Moirai bounded default (2026-08-14) — provider `2ea17bb`, merged default `e972174`, focused nextest value-semantic tests pass
 - **ATLAS-AUDIT-STALE-TIER1-2C-098** Remove four closed active rows (2026-08-14) — Gaia `18349bc`, Iris `899d622`, Proteus `671c9fa`, Asclepius `5d528d2`, landed evidence reconciled
 - **ATLAS-AUDIT-STALE-TIER2-099** Reclassify the Moirai cache-line premise (2026-08-14) — provider `2ea17bb`, merged default `e972174`, focused nextest cache-separation tests pass
+- **ATLAS-COEUS-LAYERNORM-SHAPE-031** Close the multi-dimensional LayerNorm contract (2026-08-14) — merged default `a2638c03`, Rust/PyO3 shape and gradient coverage plus hosted backend/book gates pass
 - **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
 - **ATLAS-PROVIDER-INTEGRATION-006** Twenty-provider exact-head re-audit
   (2026-08-14) — closed in root commit `364cdac`; structural, exact-head, and
