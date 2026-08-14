@@ -116,6 +116,34 @@ Hyperion PR #9 is merged at default `41ef18e`; exact-head CI run `31794767546`
 passes verify and supply-chain. Its external `recurseml/analysis` status is
 report-only and failed without affecting the provider-owned gates.
 
+## ATLAS-OVERLAY-LAG-097 — Lag-aware patch emission in the dev overlay [patch] — done 2026-08-14
+
+- Owner: current session. Scope: `scripts/atlas-stack-overlay.py` (generate
+  path), the regenerated `[patch]` block in `.cargo/config.toml`, and
+  `scripts/tests/test_atlas_stack_overlay.py` regression coverage.
+- Finding: `generate` redirected every first-party git dependency to its local
+  working tree, even when the local version violated a member's manifest pin.
+  A lagging edge (local ritk-image 0.4.0 vs a consumer's `^0.3.0` pin) made
+  Cargo refuse the patch with the misleading "candidate versions found which
+  didn't match" resolver error on every build under the overlay, while
+  `check` only *reported* the lag. The failure attributed to the overlay was
+  actually pin drift the consumer had to advance.
+- Acceptance: a `[patch]` edge is emitted only when the local tree version
+  satisfies every declared requirement for that package; a lagging edge is
+  left to resolve from git so the member still builds; `generate` prints
+  `skipped (version lag - consumer must advance)`; `check` stays the gate.
+- Resolution: Atlas commit `4f8b897`. `build_overlay` now aggregates every
+  declaring requirement per package and emits the edge only when all are
+  satisfiable (the patch applies stack-wide, so one unsatisfied consumer
+  blocks the edge). Reproduced end-to-end with kwavers pinned to
+  `ritk-image ^0.3.0` against a local 0.4.0 tree: the pre-fix overlay failed
+  re-resolution with the misleading message; the fixed overlay resolved the
+  historical lag state (ritk-image 0.3.0 from git for kwavers, 0.4.0 local
+  for the patched ritk-* crates) and a forced `cargo update` failed only
+  against the git repository, identical to standalone semantics.
+- Evidence: `python -m unittest scripts/tests/test_atlas_stack_overlay.py`
+  9/9 (5 new gating tests), regenerate idempotent, `check` rc=0 aligned.
+
 ## ATLAS-MOIRAI-EXACT-HEAD-089 — Rescue the default-head gate repair [patch] — done 2026-08-14
 
 - Owner: current session, stale-claim takeover. The Moirai source dirt has no
