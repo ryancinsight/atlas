@@ -59,7 +59,7 @@ rows below retain their original audit scope:
 **Current exact-head status (2026-08-14):** the structural and exact-head
 provider audits are clean. Moirai is advanced to hosted-green `e546092d`, and
 Leto is advanced to hosted-green `143696d`. Proteus, Helios,
-Iris, Ritk, Eunomia, Gaia, Tyche, and Hermes now match
+Iris, Ritk, Eunomia, Gaia, Melinoe, Tyche, and Hermes now match
 their fetched default heads. Helios PR #54 is merged at `152a66c` and its
 benchmark regression job is green. Themis's stable-proof PR #23 is merged at
 `fa8dc29`. Hermes PR #40 carries the AMX VNNI packer and follow-up
@@ -70,7 +70,9 @@ jobs. Moirai default-head Rust Workspace and Python Bindings runs
 `31782344026` and `31782344151` are green. Leto default-head Rust verification
 run `31782827546` and Pages deployment run `31782826144` are green. The prior
 benchmark and Intel SDE AMX differential checks are green. Gaia's exact
-default-head CI run `31784028179` is green at `18349bc`; the book run
+default-head CI run `31784028179` is green at `18349bc`; Melinoe's default
+head `0bc287a` carries the hosted MSRV run `31785253730` green at source head
+`6e6a181`; the book run
 `31783965823` is green at source head `c06504c`, and the replacement head only
 adds documentation to the test crate outside the book workflow's source paths.
 
@@ -265,15 +267,16 @@ defect and is now fixed (see the doc-comment correction below).
 | ATLAS-TYCHE-README-075 | The dependency line is underivable and one command names a package that does not exist. The registry name is `tyche-uncertainty` while `README.md:31` shows `use tyche::…`; `README.md:159` runs `cargo run -p tyche --example …` where CI uses `-p tyche-uncertainty`. `README.md:24-25` says the adapter and facade "remain private", contradicted by `publish.workspace = true` on all three; `:175` lists Morris and Sobol as future work though both ship. `tyche-moirai` and `tyche-consus` publish with `readme`/`keywords`/`categories` missing. **ATLAS-TYCHE-MULTIOUTPUT-017 did land — on `main`, not in the checked-out worktree**, which is 5 commits behind; on `main` `sensitivity.rs` is 672 lines, past the target. | [patch] | Every command in the README verification block appears verbatim in `ci.yml`; `rg '\-p tyche ' README.md` → 0; both manifests carry complete metadata |
 | ATLAS-CONSUS-ADR015-076 | **ADR-015 is cited eight times and does not exist.** `consus-io/src/lib.rs:75`, `consus-io/Cargo.toml:22`, `consus-io/src/io/async_io/s3_moirai/mod.rs:1`, `consus-io/tests/s3_rusoto_moirai_differential.rs:1`, `consus-zarr/Cargo.toml:18`, `consus-zarr/src/store/s3_moirai.rs:1`, and `consus-zarr/src/store/s3.rs:135,488`. There is no `docs/adr/` in consus, and the meta-repo's `0015` is an unrelated kwavers record. Per ADR governance the fix is a retroactive Accepted record grounded strictly in the code as built — never an invented rationale. | [patch] | `docs/adr/0015-*.md` exists, marked retroactive, indexed; all eight citations resolve |
 | ATLAS-LOCK-CONVENTION-079 | **The committed lockfile convention is not uniform, and the overlay silently rewrites 12 working copies.** Counting `source = "git+"` lines, committed vs working: 14 repos committed the git+ form (kwavers 87, CFDrs 62, helios 59, ritk 51, coeus 48, apollo 36, hephaestus 33, leto 30, consus 24, gaia 22, tyche 20, hermes 11, mnemosyne 3, hyperion 3) while **11 committed the stripped form** (aequitas, asclepius, athena, eunomia, harmonia, horae, iris, melinoe, moirai, proteus, themis — all 0). Of the git+ group, **12 now have a stripped working copy** because a build ran under the stack overlay; only gaia and hermes still match. coeus is half-stripped (48 committed vs 7 working). A stripped lock cannot resolve a git dependency standalone, so committing that form breaks reproducible CI resolution — yet a third of the stack has it committed. Every "Cargo.lock modified" line in this sweep is this artifact, not anyone's edit. | [patch] | One documented convention; every member's committed lock matches it; a committed check fails when a lock is committed in the wrong form; the overlay's rewrite is either excluded from the working tree or documented as expected churn |
-| ATLAS-MSRV-UNVERIFIED-077 | Declared MSRVs are never built. mnemosyne declares `rust-version = "1.95"` while `rust-toolchain.toml` pins 1.97.0 and no CI job builds at the floor; eunomia and melinoe are the same shape (melinoe's `1.65` is contradicted by its own manifest using the `[lints]` table, which needs Cargo 1.74). An untested MSRV claim rots. | [patch] | Either a CI job builds at the declared floor, or the floor is raised to what the code actually requires |
+| ATLAS-MSRV-UNVERIFIED-077 | **Melinoe slice closed 2026-08-14.** Melinoe now tracks a standalone lockfile and runs all-target `cargo check --locked --all-features` at declared Rust 1.65.0; hosted run `31785253730` passes at source head `6e6a181`. Mnemosyne and Eunomia remain open portions of this stack-wide item. | [patch] | Each declared floor has a hosted build, or the floor is raised to what the code requires |
 
-**Current slice claim (2026-08-14):** the current session owns the Melinoe
-portion only: `.github/workflows/msrv.yml`, its provider PM records, and the
-declared `1.65` floor's locked `cargo check --all-features` gate. Mnemosyne and
-Eunomia remain separate provider scopes. The shared Atlas overlay cannot serve
-as the MSRV oracle because peer-edited manifests in other providers are newer
-than the historical compiler; the workflow must run from Melinoe's standalone
-checkout.
+**Melinoe closure (2026-08-14):** the current session owned the Melinoe
+portion only: `.github/workflows/msrv.yml`, the tracked standalone
+`Cargo.lock`, its provider PM records, and the declared `1.65` floor's locked
+all-target gate. Hosted run `31785253730` passed at source head `6e6a181`; the
+provider default advanced through PR #17 to `0bc287a`. The shared Atlas overlay
+cannot serve as the MSRV oracle because peer-edited manifests in other
+providers are newer than the historical compiler. Mnemosyne and Eunomia
+remain separate provider scopes.
 
 ## ATLAS-RITK-LANE-SPRAWL-065 — Reconcile three ritk working trees [patch] — open 2026-08-14
 
