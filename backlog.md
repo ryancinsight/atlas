@@ -267,6 +267,14 @@ defect and is now fixed (see the doc-comment correction below).
 | ATLAS-LOCK-CONVENTION-079 | **The committed lockfile convention is not uniform, and the overlay silently rewrites 12 working copies.** Counting `source = "git+"` lines, committed vs working: 14 repos committed the git+ form (kwavers 87, CFDrs 62, helios 59, ritk 51, coeus 48, apollo 36, hephaestus 33, leto 30, consus 24, gaia 22, tyche 20, hermes 11, mnemosyne 3, hyperion 3) while **11 committed the stripped form** (aequitas, asclepius, athena, eunomia, harmonia, horae, iris, melinoe, moirai, proteus, themis — all 0). Of the git+ group, **12 now have a stripped working copy** because a build ran under the stack overlay; only gaia and hermes still match. coeus is half-stripped (48 committed vs 7 working). A stripped lock cannot resolve a git dependency standalone, so committing that form breaks reproducible CI resolution — yet a third of the stack has it committed. Every "Cargo.lock modified" line in this sweep is this artifact, not anyone's edit. | [patch] | One documented convention; every member's committed lock matches it; a committed check fails when a lock is committed in the wrong form; the overlay's rewrite is either excluded from the working tree or documented as expected churn |
 | ATLAS-MSRV-UNVERIFIED-077 | Declared MSRVs are never built. mnemosyne declares `rust-version = "1.95"` while `rust-toolchain.toml` pins 1.97.0 and no CI job builds at the floor; eunomia and melinoe are the same shape (melinoe's `1.65` is contradicted by its own manifest using the `[lints]` table, which needs Cargo 1.74). An untested MSRV claim rots. | [patch] | Either a CI job builds at the declared floor, or the floor is raised to what the code actually requires |
 
+**Current slice claim (2026-08-14):** the current session owns the Melinoe
+portion only: `.github/workflows/msrv.yml`, its provider PM records, and the
+declared `1.65` floor's locked `cargo check --all-features` gate. Mnemosyne and
+Eunomia remain separate provider scopes. The shared Atlas overlay cannot serve
+as the MSRV oracle because peer-edited manifests in other providers are newer
+than the historical compiler; the workflow must run from Melinoe's standalone
+checkout.
+
 ## ATLAS-RITK-LANE-SPRAWL-065 — Reconcile three ritk working trees [patch] — open 2026-08-14
 
 The 2026-08-14 probe still reports **three** trees against a bound of two
