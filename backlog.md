@@ -5688,8 +5688,9 @@ the example would then be the second implementation of a library concern.
 
 **Therefore the next increment is a library one, not a CLI one:**
 
-`ATLAS-DMRI-CLI-018` — Scalar-map API in `ritk-diffusion` [minor], todo, DoR
-complete:
+`ATLAS-DMRI-CLI-018` — Scalar-map API in `ritk-diffusion` [minor], **delivered
+2026-08-13** (ritk PR #141), alongside `ATLAS-DMRI-CLI-019` (`ritk dwi tensor`).
+Original DoR:
 - **Outcome**: `ritk_diffusion::maps` fits a tensor field over a whole volume
   and derives the standard DTI scalar maps (FA, MD, AD, RD) plus the principal
   eigenvector field, with the mask and rejection policy as configuration rather
@@ -5704,10 +5705,46 @@ complete:
   parser over that API, and its scalar outputs are `Image<f32, _, 3>` values
   `write_image_inferred` already handles.
 
-**Note for whoever takes 018**: the principal-eigenvector field is vector-valued
-and `ritk-cli`'s `write_image_inferred` takes `Image<f32, _, 3>`, so exposing
-PEV through the CLI needs 4-D or multi-file output. That is a separate item —
-the scalar maps do not depend on it.
+**Delivered.** `ritk_diffusion::maps::fit_diffusion_maps` owns the mask, the
+degenerate-fit rejection, and the fit loop, with the physical bounds as
+documented configuration. `ritk dwi tensor` is a thin parser over it. Verified
+on OpenNeuro ds002087 sub-01: 205176 of 778752 voxels fitted, median MD in
+white matter (FA > 0.4) of 6.06e-4 mm²/s against a literature ~7e-4, and
+`MD == (AD + 2·RD)/3` holding across the volume — which cross-checks that all
+three diffusivity maps come from one decomposition. 14 new library tests,
+6 new CLI tests, clippy clean on both crates.
+
+Two decisions worth knowing:
+
+- `DiffusionMaps` retains the eigen-decomposition, not the six tensor elements.
+  Every standard scalar map derives from the eigenvalues alone, so this answers
+  all four without a second decomposition, at 49 bytes per voxel against
+  roughly 144. A caller needing tensor elements calls `estimate_dti` per voxel.
+- The mask averages every b = 0 volume rather than reading the first, because it
+  is applied per voxel and one noisy reference speckles the mask along tissue
+  boundaries. This dataset has five references, so the book figure changed by
+  28 voxels and 127 streamline segments; peak FA, seed count, and the
+  directional-colour anatomy are unchanged.
+
+**Spun out of the work, all unclaimed:**
+
+`ATLAS-DMRI-CLI-020` — Vector-field output for the principal eigenvector
+[minor], todo. `write_image_inferred` takes `Image<f32, _, 3>`, so PEV needs
+4-D or multi-file output before the CLI can expose it. `DiffusionMaps` already
+computes and returns it, so this is an output-path item, not an estimator one.
+
+`ATLAS-RITK-IO-SERIES-WRITE-021` — `ritk-io` re-export asymmetry [patch], todo.
+`ritk_io` re-exports `read_nifti_series` but not `write_nifti_series`, so a
+caller that can read a 4-D series cannot write one through the same module.
+PR #141 worked around it with a `ritk-nifti` dev-dependency in `ritk-cli`
+rather than widening its scope. Decide whether the omission is deliberate — the
+writer takes an explicit backend, which the dispatch layer may not want — and
+either re-export it or record why not. It is also the blocker under 020.
+
+`ATLAS-DMRI-CLI-022` — `tract` command group [minor], todo. Streamline
+tractography from a fitted field, writing `.trk`/`.tck`/`.trx`. Depends on
+nothing above: `ritk-tractography` and the track writers already exist, and the
+direction field now comes from `DiffusionMaps::principal_eigenvector`.
 
 **CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
 groups and `ritk-python` exposes no diffusion surface. They are independent
