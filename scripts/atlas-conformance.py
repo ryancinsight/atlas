@@ -124,27 +124,6 @@ def scan_workflows(repo: Path, c: dict[str, int]) -> None:
             c["pull_request_target_use"] += 1
 
 
-def is_cargo_target_dir(entry: Path) -> bool:
-    """True only for a real cargo build cache, not any dir named `target*`.
-
-    The stack shares one `CARGO_TARGET_DIR`, so a repo-local cargo cache is a
-    fork worth failing on. But a name test alone also flags directories that
-    merely happen to be called `target` — athena's Pages workflow renders its
-    mdBook to `target/book/athena`, which materializes `repos/athena/target`
-    holding nothing but HTML. Counting that as a build-cache fork is a false
-    positive that would push a repo over its ratchet for output it is
-    supposed to produce.
-
-    Cargo stamps every target directory it owns, so the marker is exact
-    rather than heuristic: `.rustc_info.json` (and `CACHEDIR.TAG`, which
-    cargo also writes) appear only in a cache cargo created.
-    """
-    if not entry.is_dir() or not entry.name.startswith("target"):
-        return False
-    markers = (".rustc_info.json", "CACHEDIR.TAG", "debug", "release")
-    return any((entry / marker).exists() for marker in markers)
-
-
 def count_root_sprawl(repo: Path) -> int:
     return sum(
         1 for e in repo.iterdir() if e.is_file() and e.name not in SANCTIONED_ROOT
@@ -385,7 +364,9 @@ def scan_repo(repo: Path) -> dict[str, int]:
         c["sleep_synced_tests"] += len(SLEEP.findall(test))
 
     c["root_sprawl"] = count_root_sprawl(repo)
-    c["target_forks"] = sum(1 for e in repo.iterdir() if is_cargo_target_dir(e))
+    c["target_forks"] = sum(
+        1 for e in repo.iterdir() if e.is_dir() and e.name.startswith("target")
+    )
     c["gitattributes_missing"] = lf_policy_missing(repo)
     c["orphan_modules"] = count_orphan_modules(repo)
     if has_cargo:
