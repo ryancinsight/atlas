@@ -6144,7 +6144,7 @@ attaches once the tensor fit lands.
   generalizes beyond this artifact.
 - **Class**: `[arch]`, no public-surface break — `[patch]` on the SemVer axis.
 
-## ATLAS-DMRI-DELIVERY-015 — CLI, Python, and book surface [minor] — in-progress
+## ATLAS-DMRI-DELIVERY-015 — CLI, Python, and book surface [minor] — done
 
 **Book surface delivered 2026-08-13** (ritk PR #137, branch
 `feat/dmri-downloadable-data`). The naming collision below is resolved: Part III
@@ -6484,9 +6484,19 @@ straight to `NoddiVolume::new`, which compiles and silently transposes — is
 named at the constructor. A conversion helper is deliberately not added: there
 is no production caller yet, and building one now would be speculative.
 
-**CLI and Python surfaces remain open** — `ritk` has no `dwi`/`tract` command
-groups and `ritk-python` exposes no diffusion surface. They are independent
-vertical increments and should be claimed separately.
+**All three surfaces delivered.** Book (ritk PR #137), CLI (`dwi tensor`
+PR #141, `tract dti` PR #142, multi-format output PR #157) and Python
+(`ritk.diffusion`, PR #160, `bd43dbb3` on main; atlas gitlink `f1cee0e`).
+
+The Python binding is verified against the CLI on OpenNeuro ds002087 sub-01:
+both fit 205176 of 778752 voxels and the fractional-anisotropy maps are
+identical at every voxel, max absolute difference 0.000e+00. Bitwise equality
+is the property a thin binding has to demonstrate; matching shapes and dtypes
+would not have shown it.
+
+Its tests were also absent from the Python CI job's explicit file list, so the
+binding would have shipped with them never running in CI. Added in the same
+change.
 
 **`codex/ritk-model-coeus-publishability` is fully superseded — do not rescue
 it.** The branch still exists locally with 32 commits absent from `origin/main`,
