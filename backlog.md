@@ -6214,14 +6214,16 @@ Two decisions worth knowing:
 **Spun out of the work, all unclaimed:**
 
 `ATLAS-DMRI-CLI-020` — Vector-field output for the principal eigenvector
-[minor], **in-progress 2026-08-14, owner=claude-dmri-cli**, sequenced behind
-021. `DiffusionMaps` already computes and returns the field, so this is an
+[minor], **merged 2026-08-15** (ritk PR #158). `--pev` writes the field as a 3-volume
+series; every one of the 205176 fitted voxels carries a unit vector to six
+decimal places, which is what identifies them as orientations rather than
+arbitrary values. `DiffusionMaps` already computes and returns the field, so this is an
 output-path item: `--pev` writes the three components as a 3-volume series
 through the dispatch 021 adds, carrying the input's geometry like the scalar
 maps do.
 
 `ATLAS-RITK-IO-SERIES-WRITE-021` — `ritk-io` re-export asymmetry [patch],
-**in-progress 2026-08-14, owner=claude-dmri-cli**.
+**merged 2026-08-15** (ritk PR #158, `0ce77ae2` on main; atlas gitlink `e512ca2`).
 
 **Investigated: the omission is not deliberate and not structural.** The
 hypothesis on file was that the explicit `backend` argument made series writers
