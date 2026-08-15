@@ -6214,17 +6214,30 @@ Two decisions worth knowing:
 **Spun out of the work, all unclaimed:**
 
 `ATLAS-DMRI-CLI-020` — Vector-field output for the principal eigenvector
-[minor], todo. `write_image_inferred` takes `Image<f32, _, 3>`, so PEV needs
-4-D or multi-file output before the CLI can expose it. `DiffusionMaps` already
-computes and returns it, so this is an output-path item, not an estimator one.
+[minor], **in-progress 2026-08-14, owner=claude-dmri-cli**, sequenced behind
+021. `DiffusionMaps` already computes and returns the field, so this is an
+output-path item: `--pev` writes the three components as a 3-volume series
+through the dispatch 021 adds, carrying the input's geometry like the scalar
+maps do.
 
-`ATLAS-RITK-IO-SERIES-WRITE-021` — `ritk-io` re-export asymmetry [patch], todo.
-`ritk_io` re-exports `read_nifti_series` but not `write_nifti_series`, so a
-caller that can read a 4-D series cannot write one through the same module.
-PR #141 worked around it with a `ritk-nifti` dev-dependency in `ritk-cli`
-rather than widening its scope. Decide whether the omission is deliberate — the
-writer takes an explicit backend, which the dispatch layer may not want — and
-either re-export it or record why not. It is also the blocker under 020.
+`ATLAS-RITK-IO-SERIES-WRITE-021` — `ritk-io` re-export asymmetry [patch],
+**in-progress 2026-08-14, owner=claude-dmri-cli**.
+
+**Investigated: the omission is not deliberate and not structural.** The
+hypothesis on file was that the explicit `backend` argument made series writers
+awkward for the dispatch layer. That is false — `write_nifti_series`,
+`write_nrrd_series` and `write_mgh_series` have *identical* signatures
+(`(path, &[Image<f32, B, 3>], &B)`), and `read_image_series_native` already
+dispatches over exactly those three formats. `ritk-io` re-exports all three
+series *readers* and none of the three writers, so the surface is simply
+half-finished.
+
+Scope: mirror `read_image_series_native` with
+`write_image_series_native`, and re-export the three format-specific series
+writers alongside the readers they pair with. Acceptance: a series written
+through the dispatch reads back through `read_image_series_native` with matching
+volume count, shape and voxel values, per format; an unsupported format is
+rejected with the same message shape the reader already uses.
 
 `ATLAS-DMRI-CLI-022` — `tract` command group [minor], **merged 2026-08-13**
 (ritk PR #142, `5ee518e3` on main; atlas gitlink `c85197a`). Scope: `ritk_diffusion::maps::DtiVolume`,
