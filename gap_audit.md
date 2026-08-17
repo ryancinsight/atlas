@@ -71,18 +71,19 @@ the regression suite covers both forms. The clean Apollo lane at
 The remaining root working-tree orphan count is not used as exact evidence
 because the primary Apollo checkout is peer-dirty on a divergent branch.
 
-## ATLAS-ORPHAN-MODULES-096-CFDRS — cleanup slice (in progress)
+## ATLAS-ORPHAN-MODULES-096-CFDRS — cleanup slice (closed)
 
-The clean CFDrs provider head `38bdbeb9` reports 13 orphan modules. The exact
-audit classifies `cfd-1d/src/physics/resistance/models/tests.rs` as valid
-uncompiled test coverage to wire, while
-`cfd-1d/src/solver/core/newton_fallback.rs` is the implementation for the
-still-open provider item `OPEN-033` and must remain until its JFNK routing work
-is completed. The other 11 paths are superseded historical preconditioners,
-error/I/O stubs, duplicate iterator/diagnostics implementations, and the
-explicitly historical `cfd-schematics` blueprint file. The cleanup acceptance
-is an exact CFDrs count of 1, with the OPEN-033 residual documented, plus
-provider and hosted verification at the final merged head.
+Provider PR #346 (`b455a416` source, merged `54dcea3c`) landed at final
+default `5b95fe3a`. `cfd-1d/src/physics/resistance/models/tests.rs` is wired
+under `#[cfg(test)] mod tests;` and
+`cfd-1d/src/solver/core/newton_fallback.rs` is retained as the recorded
+`OPEN-033` JFNK numerical-feature residual. The other 11 paths — superseded
+historical preconditioners, error/I/O stubs, duplicate iterator/diagnostics
+implementations, and the historical `cfd-schematics` blueprint file — are
+deleted. The exact scan now reports one CFDrs orphan (`newton_fallback.rs`);
+provider Nextest `738/738` (`3` skipped) and hosted CI `32033808279` pass, and
+the Atlas pointer advances to `5b95fe3a` with the conformance baseline
+re-anchored.
 
 ## ATLAS-RITK-CONFORMANCE-101 — diffusion binding structure ratchet closure (closed 2026-08-17)
 

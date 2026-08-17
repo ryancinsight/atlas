@@ -838,19 +838,19 @@ entry is tightened from 3 to 0. No Apollo source change is required. The
 peer-dirty primary checkout, its Cargo.lock, and all other provider files are
 excluded.
 
-### ATLAS-ORPHAN-MODULES-096-CFDRS — in progress 2026-08-17 [patch]
+### ATLAS-ORPHAN-MODULES-096-CFDRS — closed 2026-08-17 [patch]
 
-Atlas session owns the CFDrs orphan sub-scope at clean provider main
-`38bdbeb9`. The exact scan reports 13 files. `cfd-1d`'s resistance-model
-`tests.rs` is retained and wired as a test sidecar. The `OPEN-033`
-`newton_fallback.rs` source is retained because its provider gap audit records
-the JFNK routing work as an open numerical feature. The remaining 11 files are
-superseded historical preconditioners, error/I/O stubs, duplicate iterator and
-diagnostics code, and an explicitly historical blueprint artefact; they are
-deleted in the provider cleanup. Acceptance is the clean exact scan reducing
-CFDrs `orphan_modules` from 13 to 1 with the residual OPEN-033 file recorded,
-provider gates green, and the Atlas pointer advanced only to the merged PM
-closure.
+Provider PR #346 (`b455a416` source, merged `54dcea3c`) landed at final
+default `5b95fe3a`. `cfd-1d`'s resistance-model `tests.rs` is wired under
+`#[cfg(test)] mod tests;`; the `OPEN-033` `newton_fallback.rs` source is
+retained as the recorded JFNK numerical-feature residual; the other 11 files
+(superseded preconditioners, error/I/O stubs, duplicate iterator/diagnostics
+code, and the historical `cfd-schematics` blueprint) are deleted (2550 lines).
+Provider Nextest passes `738/738` (`3` skipped) and hosted CI `32033808279`
+passes. The exact scan drops `orphan_modules` 14 -> 1 and the Atlas pointer
+advances to `5b95fe3a`; the conformance baseline re-anchors CFDrs (print_dbg
+295 -> 260, type_suffixed_fns 50 -> 47, unwrap_production 85 -> 78,
+oversized_files 135 -> 133, tag_pinned_actions 3 -> 0).
 
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
 
