@@ -38,6 +38,10 @@
       `ATLAS-KWAVERS-HEPHAESTUS-VIS-104`,
       `ATLAS-CFDRS-FOURIER-NATIVE-105`, and
       `ATLAS-CFDRS-SSOR-OWNERSHIP-106`.
+      The SSOR ownership increment is pushed at CFDrs `245706fe`: the
+      consumer wrapper is deleted, direct `leto_ops::SSORPreconditioner`
+      coverage is live, and the focused nextest gate passes 3/3. Hosted
+      collection remains coupled to the pending Fourier/Apollo increment.
 - [ ] Collect Helios draft PR #57 at exact head
       `67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; local `helios-domain` DICOM
       gates pass 45/45 nextest, doctests, and warning-denied Clippy. Hosted run

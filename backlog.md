@@ -157,7 +157,10 @@ legacy re-export, and focused value-semantic solver coverage without an
 adapter layer.
 Claimed with the Fourier slice on `feat/cfdrs-provider-native-fourier-ssor`;
 the SSOR wrapper, re-export, and its focused tests are the bounded ownership
-scope.
+scope. The wrapper deletion and direct provider tests are pushed at
+`245706fe`; `cargo check -p cfd-math --all-targets` and the focused nextest
+filter pass 3/3. Hosted collection remains pending with the native Fourier
+consumer slice.
 
 ## Landed from this sweep (2026-08-13)
 

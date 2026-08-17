@@ -2134,6 +2134,21 @@ re-export are deleted. See
 `backlog.md#ATLAS-CFDRS-FOURIER-NATIVE-105`, and
 `backlog.md#ATLAS-CFDRS-SSOR-OWNERSHIP-106`.
 
+## ATLAS-CFDRS-SSOR-OWNERSHIP-106 — provider wrapper deletion — 2026-08-17
+
+The CFDrs branch `feat/cfdrs-provider-native-fourier-ssor` now removes the
+consumer-owned `crates/cfd-math/src/linear_solver/preconditioners/ssor.rs`
+wrapper at `245706fe`. No production caller used the wrapper; the active
+consumer surface already re-exported `leto_ops::SSORPreconditioner`, so the
+correct closure is deletion rather than another forwarding path. A dedicated
+`ssor_tests` module now exercises Leto directly with zero-input preservation,
+input-sensitive output, relaxation-parameter sensitivity, and the provider's
+typed dimension error. `cargo check -p cfd-math --all-targets` passes and the
+focused `cargo nextest run -p cfd-math --lib -E 'test(/ssor_tests/)'`
+passes 3/3. Hosted collection remains coupled to the pending Apollo public
+`PlanScratch` bound and CFDrs Fourier increment; no merge or Atlas pointer
+advance is claimed for this partial branch.
+
 ## ATLAS-HELIOS-DICOM-ORIENTATION-001 — Helios DICOM oriented-grid boundary delivery — 2026-08-11
 
 Pushed the previously worktree-only Helios DICOM orientation work as
