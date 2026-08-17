@@ -2056,15 +2056,21 @@ runs). Root gitlink stays at `1ac8118c` until owner PR merge.
 
 CFDrs PR #344 was rebased onto the newer default branch after GitHub marked
 the previous exact head dirty. The current PR head is
-`f106558253570e9514f3a92625ccabf42616c9d2`; the rebased branch passes
+`644b9ff35e79b96178cbea8aeffd55715cd10cfd`; the rebased branch passes
 formatting and diff checks. The forward test change retains every fidelity
 case and assertion, splitting the remaining Venturi 1D↔2D and 1D↔3D
 comparisons without changing the 30-second/60-second budgets or workloads.
-Hosted run `31993943827` is queued at that exact head. The local locked gate
+The workflow now regenerates its ephemeral lock after Atlas path-dependency
+materialization; the figure gate passed in `31994364332`, and workspace run
+`31994843367` is in progress after the ownership fix. The local locked gate
 is independently blocked by peer-dirty Mnemosyne
 `crates/mnemosyne-core/src/memory_diagnostics.rs:96`, which calls a non-const
 `Default::default` from a `const fn`; that source is outside this lane and was
-not modified.
+not modified. The stale clean `mnemosyne-scratch-repair` lane was removed
+after preserving its local branch; the lane audit now has one remaining
+harness-managed `mnemosyne-const-fix` checkout outside the canonical
+`worktrees/` root. Its branch is clean and is retained until the owning agent
+releases it; no source or branch data was deleted.
 
 ## ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults — 2026-08-16
 
