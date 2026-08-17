@@ -27,11 +27,14 @@
       `ed6d6905afda394a9e12570543159ab1b262589e`; the peer-dirty Apollo
       checkout remains untouched while the public plan-scratch merge is
       integrated at the root.
+- [x] Advance the Atlas Leto gitlink to the pushed metadata-reconciliation
+      default `e802ce9fb233f10231704704790f096f269b5498`; the Leto checkout
+      remains clean and the release-tracking blocker is recorded upstream.
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
-      ratchet result. The structural and exact-head provider audits now pass
-      for all 21 providers at Atlas root `d066649`; the generated overlay still
+      ratchet result. The exact-head provider audit passes for all 21 providers
+      with the staged Leto pointer at `e802ce9`; the generated overlay still
       reports peer-owned Athena lock drift and the conformance report remains
       uncollected on the dirty shared tree.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
