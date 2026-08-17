@@ -1,29 +1,24 @@
 # atlas — cross-repository integration gap audit
 
-## ATLAS-RITK-DICOM-ORIENTATION-070 — provider merged; Helios lock composition pending
+## ATLAS-RITK-DICOM-ORIENTATION-070 — closed at Atlas integration scope 2026-08-14
 
-RITK now owns `ImageOrientationPatient` `(0020,0037)` in its canonical DICOM
-tag vocabulary and covers the six-value decimal read with a value-semantic
-fixture. PR #149 merged at provider `origin/main` `170ed1c7`; all repo-owned
-hosted checks passed. Helios consumes the provider tag directly and its focused
-DICOM suite passes 44/44. The remaining integration gate is Helios’s
-peer-owned dirty `Cargo.lock`: the committed PR still resolves RITK at the
-pre-merge `f018ff...` head, while the shared checkout contains unrelated
-typed-slope lock changes. Do not overwrite that lockfile; refresh it after
-peer composition, then rerun the exact hosted consumer gate before advancing
-the two Atlas gitlinks.
+RITK owns `ImageOrientationPatient` `(0020,0037)` in its canonical DICOM tag
+vocabulary, and Atlas now records merged defaults for both linked providers:
+`ritk` `bd43dbb3` and `helios` `152a66cd`. Root integration evidence is now
+green: `python scripts/atlas-provider-integration-audit.py --exact-heads`
+passes with requested-provider exact-head/coherence closure and no gitlink
+drift in scope.
 
-## ATLAS-HERMES-AMX-DOWNGRADE-096 — provider slice in progress
+## ATLAS-HERMES-AMX-DOWNGRADE-096 — closed at Atlas integration scope 2026-08-14
 
 Hermes replaces the release-silent AMX-to-AVX-512 NUMA downgrade stderr path
 with one subscriber-owned structured warning carrying the NUMA node, source
 backend, destination backend, and trigger reason. The same provider slice
 removes the unsound no-std global `Cell`/`Sync` substitute; no-std AMX sessions
-reject safely. Hermes ADR 012 and its provider PM artifacts are synchronized.
-Local format and focused library Clippy pass; package Nextest has not been
-collected because the shared target lock exceeded the bounded local run. The
-remaining evidence is the hosted package matrix, merge, and exact-head Atlas
-gitlink integration.
+reject safely. Atlas now records merged Hermes default `fb36e0fe`; root
+integration closure is confirmed by
+`python scripts/atlas-provider-integration-audit.py --exact-heads`, which
+passes exact-head and requested-provider coherence checks.
 
 ## ATLAS-HORAE-EXACTNESS-069 — Horae boundary exactness closure (closed 2026-08-14)
 
@@ -2310,6 +2305,19 @@ uncommitted in the peer worktree; no provider worktree or Atlas gitlink was
 reset, cleaned, committed, or advanced.
 
 ## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — twenty-one-provider integration audit (Atlas integration scope refreshed 2026-08-14)
+
+### Live closure snapshot — 2026-08-16 (requested twenty-provider scope)
+
+The requested scope is Horae, Hyperion, Themis, Tyche (aka Tychee), Proteus,
+Mnemosyne, Consus, Helios, Hermes, Aequitas, Asclepius, Eunomia, Moirai, RITK,
+Melinoe, Leto, Hephaestus, Coeus, Apollo, and Iris. Running
+`python scripts/atlas-provider-integration-audit.py --provider-set requested-2026-08-14 --exact-heads`
+identified three root-gitlink drifts against fetched provider defaults:
+Consus (`1f2aabf3` -> `182083f1`), Hermes (`fb36e0fe` -> `cbfff61e`), and Leto
+(`580c859a` -> `2beb4f17`). After staging those three gitlink advances at the
+Atlas root, the exact-head audit reports all 20 providers present and active,
+audit marker closure intact across root records, Tyche/Tychee normalization
+retained, and requested-provider coherence scope clean.
 
 ### Live closure snapshot — 2026-08-14
 
@@ -4833,6 +4841,31 @@ formatting, diff checks, and `legacy-migration-audit` are clean. The closure
 introduces no alternative allocator, scheduler, or legacy package. The
 three-integrator placement adoption axis is complete: CFDrs `1493eef3`, Helios
 `234574c`, and Kwavers `KWAVERS-THEMIS-PLACEMENT-1`.
+
+### Kwavers → mnemosyne allocation-locality axis closure — 2026-08-16
+
+The *execution* half of the placement seam is now folded onto mnemosyne-heap,
+closing the kwavers → mnemosyne allocation-locality axis
+(`first_touch_memory`/`bind_memory_to_node` → mnemosyne-heap). Kwavers commit
+`152c4a7d1` (branch `codex/kwavers-mnemosyne-numa`, head `08df5730f`) deletes
+the hand-rolled `bind_memory_to_node` / `allocate_interleaved_memory` /
+`first_touch_memory` primitives in `crates/kwavers-core/src/arena/numa/memory.rs`
+(net −235 lines) and re-points `NumaAwareAllocator` (`layout/numa_aware.rs`),
+`SoAFieldBuffer` (`batch/soa_buffer.rs`), and the parallel first-touch fan-out
+at `mnemosyne_heap::numa::{bind_to_node, first_touch}`. `first_touch_memory_parallel`
+stays consumer-local because mnemosyne sits below moirai and cannot depend on
+an executor; `MAX_NUMA_NODES` (kwavers 256) is deleted — the nodemask bound is
+mnemosyne's (1024). Mnemosyne `5ca0461` adds `mnemosyne-heap::numa` and routes
+`PlacementHint::Numa(node)` through `bind_to_node` inside `TieredHeap::alloc`,
+so the axis splits cleanly: Themis owns the placement vocabulary, mnemosyne
+owns the kernel memory-policy execution, Moirai owns the parallel fan-out.
+
+Atlas records the kwavers fold-branch head `08df5730f` (gitlink-only advance
+via `update-index --cacheinfo`); the kwavers working tree is peer-dirty on
+`codex/kwavers-floatelement-roots` (~850 files) and left untouched per the
+concurrent-agents disjoint-scope rule. mnemosyne already records `5ca0461`.
+The fold branch is not yet merged to kwavers main; the gitlink tracks the
+branch head pending the peer's merge.
 
 ### Non-findings
 

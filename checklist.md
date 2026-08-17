@@ -133,7 +133,7 @@ Three ordering facts came out of the audit and are not obvious from the board:
       `31806913513` (job `94787923879`) and Python bindings (job
       `94787923826`) pass; CodeRabbit passes and recurseml remains report-only.
 
-### ATLAS-RITK-DICOM-ORIENTATION-070 — provider merged; consumer lock pending 2026-08-14
+### ATLAS-RITK-DICOM-ORIENTATION-070 — closed at Atlas exact-head scope 2026-08-14
 
 - [x] Add RITK’s provider-owned `IMAGE_ORIENTATION_PATIENT` tag constant and
       value-semantic attribute coverage without changing the DICOM boundary.
@@ -141,18 +141,40 @@ Three ordering facts came out of the audit and are not obvious from the board:
       constant and retain orientation normalization/grid tests.
 - [x] Run the provider and consumer focused gates. RITK PR #149 is merged at
       `170ed1c7`; the Helios DICOM feature suite passes 44/44.
-- [ ] Refresh Helios’s peer-owned dirty lockfile to the merged RITK head, pass
-      the exact consumer hosted gate, and advance both Atlas gitlinks. Preserve
-      the typed-slope lockfile work and the RITK `ritk-fix` lane.
+- [x] Integrate merged defaults at Atlas scope: RITK now records
+      `bd43dbb3` and Helios records `152a66cd` in root gitlinks, and
+      `python scripts/atlas-provider-integration-audit.py --exact-heads`
+      reports requested-provider exact-head and coherence closure.
 
-### ATLAS-HERMES-AMX-DOWNGRADE-096 — in progress 2026-08-14
+### ATLAS-HERMES-AMX-DOWNGRADE-096 — closed at Atlas exact-head scope 2026-08-14
 
 - [x] Replace the release-silent stderr diagnostic with a structured,
       subscriber-owned release event and cover its routing fields.
 - [x] Remove the unsound no-std AMX global state substitute; no-std sessions
       reject safely and the provider ADR/PM artifacts are synchronized.
-- [ ] Complete the hosted Hermes package matrix, merge the provider branch, and
-      advance the Atlas gitlink at the exact merged head.
+- [x] Integrate the merged provider default at Atlas scope: Hermes now records
+      `fb36e0fe` in the root gitlink, and
+      `python scripts/atlas-provider-integration-audit.py --exact-heads`
+      reports requested-provider exact-head and coherence closure.
+
+### ATLAS-KWAVERS-MNEMOSYNE-LOCALITY-001 — closed at Atlas gitlink scope 2026-08-16
+
+- [x] Fold kwavers' hand-rolled NUMA memory-policy execution
+      (`bind_memory_to_node` / `allocate_interleaved_memory` /
+      `first_touch_memory` in `arena/numa/memory.rs`) onto
+      `mnemosyne_heap::numa::{bind_to_node, first_touch}`; keep
+      `first_touch_memory_parallel` consumer-local (mnemosyne sits below
+      moirai and cannot depend on an executor).
+- [x] Mnemosyne `5ca0461` owns the execution (`mnemosyne-heap::numa` +
+      `TieredHeap::alloc` routing `PlacementHint::Numa` through
+      `bind_to_node`); Themis owns the vocabulary; Moirai owns the parallel
+      fan-out. The axis is closed.
+- [x] Advance the Atlas kwavers gitlink to the fold-branch head `08df5730f`
+      (gitlink-only via `update-index --cacheinfo`; the peer-dirty
+      `codex/kwavers-floatelement-roots` working tree is left untouched).
+      mnemosyne already records `5ca0461`.
+- [x] Note: the fold branch is not yet merged to kwavers main; the gitlink
+      tracks the branch head pending the peer's merge.
 
 ### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — closed 2026-08-14
 
@@ -4341,7 +4363,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-MOIRAI-ORDERING-052-POOL** Moirai connection-pool reservation ordering slice (2026-08-14) — provider PR #133, merged default `f766c6d`; exact-head `31801180700` Loom and workspace gates pass, `31801180691` bindings and all wheel smoke tests pass; recurseml analysis remains report-only.
 - **ATLAS-HYPERION-PROVIDER-DOCS-001** Complete Hyperion book closure (2026-08-11) — `b8a1124`, `9a8b7d8`
 - **ATLAS-PROTEUS-PROVIDER-DOCS-001** Complete Proteus book closure (2026-08-11) — `30e25f8`, `3d6021e`, `2918e5a`
-- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** nineteen-provider integration audit (closed 2026-08-11; Tyche (aka Tychee)) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`
+- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** twenty-provider integration audit (closed 2026-08-16; Tyche (aka Tychee)) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`, `182083f1aa95ad30565910e432a878c749d06f03`, `cbfff61e392b77232f99a4a4a64fd69002402dcc`, `2beb4f17c35c88c0eade4bd337f161c0cc2cf48f`
 - **ATLAS-AEQUITAS-PROVIDER-DOCS-001** Complete Aequitas book closure (2026-08-11) — `681042b`, `11565d9`
 - **ATLAS-HEPHAESTUS-CLOSURE-001** Hephaestus expression-parity closure record (2026-08-11) — `407938b`, `d4d5906`, `aca9a5a8`, `971fab96`
 - **ATLAS-EUNOMIA-CLOSURE-001** Eunomia 0.8.0 closure record (2026-08-11) — `0c14c2e`, `184ba92`
@@ -4370,4 +4392,3 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-INTEGRATION-002** merged-provider pin reconciliation [patch] — `f26369eb`, `04e496b7`, `ec7cb832`, `e3380b6`
 - **ATLAS-MOIRAI-016** Cancellation-safe async wait queues [patch]
 - **TREE-DUP-002** Moirai dual channel consolidation (ADR-0019) [major] (2026-07-18) — `c5b1333b7`, `fa9abb664`, `ddf216ec0`, `01643ed9b`
-
