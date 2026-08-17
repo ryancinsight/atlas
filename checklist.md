@@ -12,9 +12,13 @@
 - [x] Collect and merge Hermes PR #52 (`dd4cb129`) and Mnemosyne PR #59
       (`d1144f74`); their external `recurseml/analysis` analyzer errors remain
       report-only.
-- [ ] Collect and merge RITK PR #165 after its corrected hosted gates pass;
-      the external analyzer error remains report-only unless a repository gate
-      treats it as required.
+- [x] Collect and merge RITK PR #165 at default `ae23d4b2`; hosted native CI
+      `32063759899` and Python matrix `32063759848` pass at the final source
+      head.
+- [x] Collect and merge Kwavers PR #401 at default `6075940c`; required
+      native, feature, coverage, nightly, Miri, security, benchmark, and
+      documentation gates pass. RecurseML remains report-only and CodeRabbit
+      was rate-limited.
 - [ ] Advance the resulting Atlas gitlinks and rerun the exact-head,
       requested-provider coherence, and root conformance gates.
 
