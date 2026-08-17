@@ -100,7 +100,7 @@ CLASSES = [
     "pull_request_target_use", "missing_cargo_lock", "orphan_modules",
 ]
 
-MOD_DECL = re.compile(r"\bmod\s+([A-Za-z_][A-Za-z0-9_]*)\s*[;{]")
+MOD_DECL = re.compile(r"\bmod\s+(r#[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)\s*[;{]")
 PATH_ATTR = re.compile(
     r"#\[\s*path\s*=\s*\"([^\"]+)\"\s*\]"
     r"(?:\s*(?:\#\[[^\]]*\]|//[^\n]*))*"
@@ -177,7 +177,8 @@ def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path
         return [owner.parent / explicit]
     base = owner.parent if owner.name in ("lib.rs", "main.rs", "mod.rs") \
         else owner.with_suffix("")
-    return [base / f"{name}.rs", base / name / "mod.rs"]
+    file_name = name[2:] if name.startswith("r#") else name
+    return [base / f"{file_name}.rs", base / file_name / "mod.rs"]
 
 
 def cargo_manifests(repo: Path):
