@@ -220,6 +220,9 @@ Three ordering facts came out of the audit and are not obvious from the board:
   the override just regrows them.
 
 ### ATLAS-COEUS-LINT-RATCHET-097 — active provider cleanup
+- Takeover owner: Atlas session; lane `D:/atlas/worktrees/coeus-layernorm-shape`.
+  The prior lane claim is stale: its last commit is `66bf4897` at
+  2026-08-16 22:11 -0400 and no newer board update exists.
 - Claim one clean Coeus lane from fetched `origin/main`; do not touch the
   peer-dirty `repos/coeus` checkout or its Cargo.lock.
 - Enumerate the 95 `#[allow(...)]` sites at the recorded default, separate

@@ -102,6 +102,11 @@ Dependencies: `ATLAS-COEUS-LINT-RATCHET-097`,
 `ATLAS-OVERLAY-005`. This item is the parent audit; its vertical slices close
 independently with their own evidence.
 
+**ATLAS-COEUS-LINT-RATCHET-097 takeover:** Atlas session owns the clean lane
+`D:/atlas/worktrees/coeus-layernorm-shape`. The prior lane claim is stale: its
+last commit is `66bf4897` at 2026-08-16 22:11 -0400 and no newer board update
+exists; the peer-dirty primary Coeus checkout remains excluded.
+
 ### Current residuals from the 2026-08-16 provider-consumer audit
 
 #### ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention [patch] — closed
