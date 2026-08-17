@@ -2,7 +2,7 @@
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios source closure audit (2026-08-17)
 
-The audit was run against CFDrs provider branch `57722595`, Helios merged
+The audit was run against CFDrs provider branch `8f08112b`, Helios merged
 default `679402ae`, and Kwavers merged default `90dde196`; peer-dirty nested
 checkouts were not used as integration evidence.
 
@@ -18,13 +18,15 @@ for `cfd-1d`, `cfd-python`, or `cfd-schematics`. The pressure-cache slice is
 real production reuse, and commit `90798ca7` also surfaces invalid
 hemolysis-model errors instead of silently mapping them to zero; the existing
 negative-input and reference-value tests remain in place. The hosted
-exact-head gate is now pending at CFDrs PR #347 head `57722595`. The preceding
+exact-head gate is now pending at CFDrs PR #347 head `8f08112b`. The preceding
 Rust run `32043533301`, job `95426903063`, failed before checkout while
 downloading the Atlas reusable action (GitHub 503/429), and Pages run
 `32043533628`, job `95426905897`, reached the package build before exposing the
 missing `fontconfig.pc` dependency. Atlas shared workflow commit `bb505e5`
 adds `libfontconfig1-dev`; CFDrs pins it in `57722595`. New exact-head CI and
-Pages runs `32044071453` and `32044071732` are in progress.
+Pages runs `32044071453` and `32044071732` were infrastructure-red. The
+PM-only head `8f08112b` has new exact-head runs `32044417360` and
+`32044417578` queued.
 
 Helios' merged default has no direct `ndarray`, `nalgebra`, `rayon`, or
 `pollster` source matches in production crates. Its manifest edges route
@@ -155,7 +157,7 @@ unchanged tests completing within the committed budget with their existing
 value-semantic assertions.
 
 The first bounded production slice is now on CFDrs branch
-`codex/cfdrs-runtime-budget`, commit `57722595`, PR #347. It removes the
+`codex/cfdrs-runtime-budget`, commit `8f08112b`, PR #347. It removes the
 per-correction clone of the immutable cfd-2d pressure CSR matrix. The exact
 35 µm and trifurcation cases pass locally in 16.785 s and 16.903 s under
 locked Nextest, runs `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c` and
