@@ -87,6 +87,15 @@ Three ordering facts came out of the audit and are not obvious from the board:
   format/check/nextest and exact-head provider gates before advancing Atlas'
   gitlink and baseline.
 
+### ATLAS-APOLLO-PRINT-098 — active provider cleanup
+- Claim a clean Apollo lane from fetched `origin/main`; preserve the peer-dirty
+  main checkout and its Cargo.lock.
+- Delete the unused `BenchmarkSuite::emit` library method; retain
+  `BenchmarkSuite::report` as the value-semantic report contract and keep all
+  output in the existing `apollo-bench-compare` binary layer.
+- Run Apollo format/check/test and semver gates, merge the provider PR, then
+  advance Atlas only to the merged default and rerun the conformance gate.
+
 ### ATLAS-GITLINK-DRIFT-056
 - Do not blanket-advance. Per member decide: the working head is verified and
   the gitlink advances, or the tree returns to the pin. Eleven members sit on
