@@ -15,6 +15,16 @@ Leto source commit `6463f4a` replaces the shutdown `is_err()` assertion with
 locked Nextest pass 550/550, and hosted exact-source-head CI `32021076930` and
 Pages `32021074899` pass. Provider PM closure is `e04fdc7`.
 
+CFDrs source `e9c84bf6` closes the current conformance ratchet regressions:
+the provider scan returns baseline `existence_only_assertions=137` and
+`tag_pinned_actions=0`, the generated lock matches the `cfd-python` manifest
+version, and the focused locked package check, Nextest 166/166, and doctests
+pass. Hosted exact-source-head CI `32022469516` passes both Rust workspace and
+book-figure jobs. Provider PM closure is `38bdbeb9`; Atlas advances the
+gitlink to that documentation closure. Provider-wide all-target strict Clippy
+remains pre-existing documentation/output/test/bench debt and is not claimed
+as green.
+
 The Atlas root classifier's feature-qualified test-region limitation remains
 peer-owned; these provider changes do not alter the root baseline or classifier.
 

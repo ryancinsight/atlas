@@ -89,11 +89,18 @@ explicit board item with its exact blocker and re-open trigger.
   the provider scan returns `existence_only_assertions=9` without a baseline
   edit. Focused locked Nextest passes 550/550; hosted CI `32021076930` and
   Pages `32021074899` pass at the exact source head.
+- `ATLAS-CFDRS-CONFORMANCE-101`: CFDrs source `e9c84bf6` and PM closure
+  `38bdbeb9`; the provider scan returns baseline
+  `existence_only_assertions=137` and `tag_pinned_actions=0`. Locked package
+  check, focused locked Nextest 166/166, doctests, and hosted CI
+  `32022469516` pass at the exact source head. The Atlas gitlink is advanced
+  to the PM closure commit; provider-wide strict Clippy debt remains explicitly
+  recorded in the provider PM artifacts.
 
 Dependencies: `ATLAS-COEUS-LINT-RATCHET-097`,
 `ATLAS-CONFORMANCE-BENCH-099`, `ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001`,
-`ATLAS-OVERLAY-005`, and the current CFDrs integration PR. This item is the
-parent audit; its vertical slices close independently with their own evidence.
+`ATLAS-OVERLAY-005`. This item is the parent audit; its vertical slices close
+independently with their own evidence.
 
 ### Current residuals from the 2026-08-16 provider-consumer audit
 

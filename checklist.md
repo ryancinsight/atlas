@@ -53,6 +53,11 @@
       and doctests pass, and hosted CI `32020339446`, Documentation
       `32020339452`, and Pages `32020338335` pass at the exact source head.
       Provider PM closure is `087f810`.
+- [x] Close CFDrs `ATLAS-CFDRS-CONFORMANCE-101`: provider source `e9c84bf6`
+      returns baseline `existence_only_assertions=137` and
+      `tag_pinned_actions=0`; locked package check, focused locked Nextest
+      166/166, and doctests pass; hosted CI `32022469516` passes Rust and
+      book-figure jobs. Advance the Atlas gitlink to PM closure `38bdbeb9`.
 - [x] Re-run the exact-head and lane audits at root `d56eaa0`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
