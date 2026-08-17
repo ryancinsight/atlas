@@ -40,13 +40,14 @@
       advances to lock-aligned orphan-cleanup head `6c266c3`; the
       provider-local record reports six unreachable files removed,
       `orphan_modules=0`, and default/no-default locked gates green.
-- [x] Re-run the exact-head and lane audits at root `3aa7e44`: both the
+- [x] Re-run the exact-head and lane audits at root `e46cc0a`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
       reports only peer-owned Athena lock drift, and the conformance report
       was collected with `--worktree` at exit 0; it reports 47 remaining
-      orphan modules: Kwavers 22, CFDrs 14, RITK 6, Apollo 3, Coeus 1, and
-      Hermes 1. The live scan is evidence only, not a reproducible clean-tree
+      orphan modules: Kwavers 22, CFDrs 14, RITK 6, Apollo 3, and Coeus 1.
+      Hermes is now clean after its pushed orphan cleanup. The live scan is
+      evidence only, not a reproducible clean-tree
       gate. The generated overlay check remains red only for peer-owned
       Athena's five Hermes SIMD lock entries (0 lagging requirements).
 - [ ] Re-run the generated overlay, provider-consumer, and
@@ -62,6 +63,12 @@
       result `leto_orphan_modules=0`. Standalone format, locked check,
       warning-denied Clippy, Nextest `314/314`, doctests, and rustdoc pass
       outside the overlay; no lockfile churn is committed.
+- [x] Close Hermes's `ATLAS-ORPHAN-MODULES-096-HERMES` slice: delete the
+      unreachable `crates/hermes-simd-core/src/tensor/mut_view.rs` at provider
+      commit `1fe438c`; the direct detector returns `hermes_orphan_modules=0`.
+      The provider gate remains explicitly blocked by peer-owned formatting
+      edits and a stale peer-owned Cargo.lock; the Atlas gitlink advances only
+      to the pushed provider head and preserves that dirty checkout.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native

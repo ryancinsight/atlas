@@ -734,19 +734,20 @@ check into the stack instrument — a new `orphan_modules` class in
 `scripts/atlas-conformance.py`, closing the `mod` graph from every Cargo target
 root (`src/lib.rs`, `src/main.rs`, `src/bin/*.rs`, `src/bin/<name>/main.rs`) and
 honouring `#[path]` — found **55 orphans in 8 repos**. Leto's sole orphan was
-deleted in provider commit `99dea18`, and Consus's six unreachable source
-modules were deleted in `403387b`; at root commit `3aa7e44`, the live dirty-tree
-scan is **47 orphans in 6 repos**: kwavers 22, CFDrs 14, ritk 6, apollo 3,
-coeus 1, hermes 1. gaia, hephaestus, eunomia, leto and consus are clean,
-which are detector negative controls.
+deleted in provider commit `99dea18`, Consus's six unreachable source modules
+were deleted in `403387b`, and Hermes's orphan was deleted in `1fe438c`; at
+root commit `e46cc0a`, the live dirty-tree scan is **46 orphans in 5 repos**:
+kwavers 22, CFDrs 14, ritk 6, apollo 3, and coeus 1. gaia, hephaestus,
+eunomia, leto, consus, and hermes are clean, which are detector negative
+controls.
 
 Each orphan is invisible to rustc, clippy and nextest yet fully visible to every
 text-based scan, so it skews the very counts used to aim remediation — the
 second-order cost 081 named, still unpaid outside gaia. Spot-verified as
-genuine, not detector noise: `leto/crates/leto/src/application/transform.rs`,
-`hermes/crates/hermes-simd-core/src/tensor/mut_view.rs` and CFDrs's
+genuine, not detector noise: CFDrs's
 `cfd-math/src/linear_solver/preconditioners/{ssor,schwarz}.rs` have no `mod`
-declaration anywhere in their repository.
+declaration anywhere in their repository. The Leto and Hermes examples were
+deleted in provider commits `99dea18` and `1fe438c`, respectively.
 
 `scripts/conformance-baseline.json` records the counts per repo so the ratchet
 holds them non-increasing from now on; burn-down is per repo, each orphan either
