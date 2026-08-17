@@ -61,6 +61,12 @@
       Clippy errors in `helios-planning/src/autodiff.rs`. Re-open after the
       provider pin and source fixes land; do not alter that active branch from
       the Atlas integration tree.
+- [ ] Keep the remaining peer PR blockers explicit: CFDrs #333 is
+      `CONFLICTING` at `3b2fffaa` with only its Hermes revision pin verified;
+      RITK #144 has one macOS Kabsch/SVD rank-deficiency test failure at
+      `cc857634`; RITK #154 is a 405-file conflicting change with no hosted
+      checks; and Kwavers #388 remains in its full hosted matrix at
+      `da7f276a`. These are not merge or source-closure evidence for Atlas.
 - [ ] Collect Helios PR #58 at exact head `7482b04`; the caller now triggers
       Pages on source/example/manifest/lockfile changes and installs pinned
       `mdbook-linkcheck2`, and CI now runs pinned `mdbook test`. Its fresh
