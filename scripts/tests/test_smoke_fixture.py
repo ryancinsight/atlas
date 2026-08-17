@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regression tests for the detector smoke-test fixture.
 
-The fixture in parity_artefacts/smoke_test_filters is designed to exercise
+The fixture in scripts/tests/fixtures/smoke_test_filters is designed to exercise
 both false-positive filters (single-char href and LaTeX math href).  Running
 the link checker over it must produce no bad links.
 """
@@ -31,7 +31,7 @@ class SmokeFixtureTestCase(unittest.TestCase):
 
     def test_smoke_test_filters_has_no_broken_links(self) -> None:
         """The consolidated smoke-test fixture must report zero bad links."""
-        fixture_dir = REPO_ROOT / "parity_artefacts" / "smoke_test_filters"
+        fixture_dir = REPO_ROOT / "scripts" / "tests" / "fixtures" / "smoke_test_filters"
         self.assertEqual(self._missing(fixture_dir), [])
 
     def test_smoke_fixture_produces_bad_links_when_filters_disabled(self) -> None:
@@ -43,7 +43,7 @@ class SmokeFixtureTestCase(unittest.TestCase):
         otherwise this test would pass for the wrong reason and stop
         proving the href filters carry any weight.
         """
-        fixture_dir = REPO_ROOT / "parity_artefacts" / "smoke_test_filters"
+        fixture_dir = REPO_ROOT / "scripts" / "tests" / "fixtures" / "smoke_test_filters"
         never_match = re.compile(r"^$")  # matches only empty strings → never matches fixture hrefs
         with (
             patch.object(cml, "SINGLE_CHAR_HREF_RE", never_match),

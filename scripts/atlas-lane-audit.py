@@ -99,7 +99,14 @@ def audit_lane_root(violations: list[str]) -> None:
                     f"({gitdir or 'unreadable'}) -- shares an index it must not share"
                 )
         else:
-            violations.append(f"worktrees/{child.name}: not a linked worktree")
+            # Empty placeholders can remain after interrupted cleanup; they are
+            # inert and do not share repository state.
+            try:
+                has_entries = any(child.iterdir())
+            except OSError:
+                has_entries = True
+            if has_entries:
+                violations.append(f"worktrees/{child.name}: not a linked worktree")
 
 
 def main() -> int:

@@ -320,6 +320,11 @@ def _record_issues() -> list[str]:
     return issues
 
 
+def _structural_provider_count(providers: tuple[str, ...]) -> int:
+    """Return the provider count for the requested structural audit scope."""
+    return len(providers)
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     def _positive_int(value: str) -> int:
         parsed = int(value)
@@ -509,7 +514,7 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "status": "fail" if issues else "ok",
                     "provider_set": list(providers),
-                    "provider_count": len(providers),
+                    "provider_count": _structural_provider_count(providers),
                     "exact_heads": bool(args.exact_heads),
                     "structural_only": bool(args.structural_only),
                     "out_of_scope_coherence": out_of_scope,
@@ -527,7 +532,9 @@ def main(argv: list[str] | None = None) -> int:
 
     print("provider-integration-audit: OK")
     print(f"- provider set: {', '.join(providers)}")
-    print(f"- {len(providers)} providers present and active in .gitmodules")
+    print(
+        f"- {_structural_provider_count(providers)} providers present and active in .gitmodules"
+    )
     print(f"- {AUDIT_ID} closed across root records")
     print(f"- naming normalization retained: {NAME_NORMALIZATION}")
     if args.exact_heads:

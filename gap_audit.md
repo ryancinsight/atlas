@@ -23,8 +23,11 @@ value-semantic regressions. The hosted exact-head gate completed at CFDrs PR
 `84499e957d3d0c8ce50b9573185a1f55885f38e2`. Exact-head Rust run
 `32046526277` passes format, check, ordinary tests, numerical fidelity 14/14
 (3036 skipped, 8 slow; 247.309 s), and doctests; figure job `95435610232` and
-PR book build `95435671291` pass. Post-merge Rust run `32047446607` and Pages
-run `32047447199` remain the default confirmation gates. The preceding
+PR book build `95435671291` pass. Post-merge Pages run `32047447199` passes
+build and deployment. Post-merge Rust run `32047446607` passes format, check,
+and ordinary tests but numerical fidelity reports 12/14 passed, with
+`microventuri_35um_case_produces_converged_informative_2d_result` and
+`cross_fidelity_trifurcation_dominance` timing out at 30.006 s. The preceding
 Rust run `32043533301`, job `95426903063`, failed before checkout while
 downloading the Atlas reusable action (GitHub 503/429), and Pages run
 `32043533628`, job `95426905897`, reached the package build before exposing the

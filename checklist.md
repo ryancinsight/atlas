@@ -225,13 +225,18 @@
       source-correctness heads were superseded by `f7bc7411`. Exact-head Rust
       run `32046526277` passes format, check, ordinary tests, numerical fidelity
       14/14 (3036 skipped, 8 slow; 247.309 s), and doctests; figure job
-      `95435610232` and PR book build `95435671291` pass. Post-merge Rust run
-      `32047446607` and Pages run `32047447199` remain in progress. Rust job
+      `95435610232` and PR book build `95435671291` pass. Post-merge Pages run
+      `32047447199` passes build and deployment. Post-merge Rust run
+      `32047446607` passes format, check, and ordinary tests but numerical
+      fidelity reports 12/14 passed, with the unchanged 30-second budget
+      exceeded by `microventuri_35um_case_produces_converged_informative_2d_result`
+      and `cross_fidelity_trifurcation_dominance`. Rust job
       `95430179027` and Pages job `95430210781` in runs `32044765872` and
       `32044766414` failed before checkout on codeload 503/429; figure job
       `95430179037` passed. Pages retry `95430855675` passed at the same exact
       head; CodeRabbit and all required PR checks are successful and the PR is
-      merged. The broader solver-budget residual remains open.
+      merged. The two named solver-budget residuals remain open for the next
+      provider-owned production optimization slice.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify
       the same-revision Pages artifact and live HTTP deployment.

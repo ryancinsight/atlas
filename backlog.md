@@ -48,8 +48,11 @@ source implementation and provider-local tests.
   default as `84499e957d3d0c8ce50b9573185a1f55885f38e2`. Exact-head Rust run
   `32046526277` passes format, check, ordinary tests, numerical fidelity (14/14,
   3036 skipped, 8 slow; 247.309 s), and doctests; figure job `95435610232` and
-  book build `95435671291` pass. Post-merge Rust run `32047446607` and Pages run
-  `32047447199` remain in progress. The preceding Rust run failed before checkout on a
+  book build `95435671291` pass. Post-merge Pages run `32047447199` passes build
+  and deployment. Post-merge Rust run `32047446607` passes format, check, and
+  ordinary tests but fails numerical fidelity with 12/14 passed and timeouts in
+  `microventuri_35um_case_produces_converged_informative_2d_result` and
+  `cross_fidelity_trifurcation_dominance` at 30.006 s. The preceding Rust run failed before checkout on a
   GitHub 503/429 action-download response (`32043533301`, job `95426903063`).
   The preceding Pages run (`32043533628`, job `95426905897`) reached the
   package build and exposed the missing `fontconfig.pc` system dependency.
@@ -5334,8 +5337,8 @@ blocker on Athena.
   unchanged. Hosted exact-head confirmation is green: Rust run `32046526277`
   reports 14/14 numerical-fidelity tests passed (3036 skipped, 8 slow) and
   doctests pass; figure job `95435610232` and book build `95435671291` pass.
-  Post-merge Rust run `32047446607` and Pages run `32047447199` remain the
-  default-branch confirmation gates. Rust
+  Post-merge Rust run `32047446607` now isolates the two named solver-budget
+  timeouts; Pages run `32047447199` passes build and deployment. Rust
   job `95426903063` failed before checkout on action-download 503/429; the
   previous Pages job `95426905897` exposed the missing fontconfig headers.
   The caller now pins Atlas `bb505e5`; `32044071453` and `32044071732` were

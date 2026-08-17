@@ -16,7 +16,7 @@ on:
       - 'scripts/check_mdbook_links.py'
       - '.github/workflows/docs.yml'
       - '.githooks/pre-commit'
-      - 'parity_artefacts/smoke_test_filters/**'
+      - 'scripts/tests/fixtures/smoke_test_filters/**'
       - 'docs/mdbook/detector-parity-kwavers.md'
   push:
     branches: [main]
@@ -25,7 +25,7 @@ on:
       - 'scripts/check_mdbook_links.py'
       - '.github/workflows/docs.yml'
       - '.githooks/pre-commit'
-      - 'parity_artefacts/smoke_test_filters/**'
+      - 'scripts/tests/fixtures/smoke_test_filters/**'
       - 'docs/mdbook/detector-parity-kwavers.md'
 
 # NOTE (reviewer follow-up, ATLAS-BOOK-LINK-CI-001): `repos/**/docs/book/**`
@@ -120,7 +120,7 @@ jobs:
   #     see docs/mdbook/detector-parity-kwavers.md §3 Issue A
   # Catches future detector refactors that re-enable either class.
   # Runs the portable detector over the consolidated fixture at
-  # `parity_artefacts/smoke_test_filters/` (which exercises both
+  # `scripts/tests/fixtures/smoke_test_filters/` (which exercises both
   # filters in one book walk) and fails CI if FILE_MISSING > 0.
   docs-link-smoke-test-filters:
     name: Detector filter regression (single-char + LaTeX)
@@ -140,7 +140,7 @@ jobs:
 
       - name: "Detector — consolidated filter smoke-test fixture (both filters ON, must report FILE_MISSING : 0)"
         run: |
-          output=$(python3 scripts/check_mdbook_links.py parity_artefacts/smoke_test_filters 2>&1)
+          output=$(python3 scripts/check_mdbook_links.py scripts/tests/fixtures/smoke_test_filters 2>&1)
           echo "$output" | tee smoke-test-filters.log
           if ! echo "$output" | grep -qE '^  FILE_MISSING  : 0$'; then
             echo "::error::Detector filter regression -- FILE_MISSING > 0 on the consolidated smoke-test fixture. One of SINGLE_CHAR_HREF_RE / LATEX_HREF_RE (or a future filter) has regressed. Investigate \`extract_links()\` in scripts/check_mdbook_links.py before merging this change. Do NOT silence the regression with an allow-list entry; the filters are supposed to drop these patterns detector-wide."

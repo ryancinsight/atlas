@@ -2,8 +2,8 @@
 
 This directory archives the **detector ↔ mdbook parity evidence chain**
 that supports the strict-mode CI gate introduced in
-[`MDBOOK_DETECTOR_PARITY.md`](../../MDBOOK_DETECTOR_PARITY.md) §7 #5 +
-[`MDBOOK_DETECTOR_PARITY_KWAVERS.md`](../../MDBOOK_DETECTOR_PARITY_KWAVERS.md)
+[`docs/mdbook/detector-parity.md`](../../docs/mdbook/detector-parity.md) §7 #5 +
+[`docs/mdbook/detector-parity-kwavers.md`](../../docs/mdbook/detector-parity-kwavers.md)
 §3 Issue B.
 
 The atlas physics books (CFDrs, helios, kwavers) each link to this
@@ -79,7 +79,7 @@ evidence chain.
    `det_<book>_final.log`; if a row appears with a similar shape to a
    `[X](<single-char>)` recurrence, mirror the
    `SINGLE_CHAR_HREF_RE` precedent (see
-   `MDBOOK_DETECTOR_PARITY_KWAVERS.md` §3 Issue B).
+   `docs/mdbook/detector-parity-kwavers.md` §3 Issue B).
 
 ## CI gate pipeline summary
 
@@ -109,10 +109,10 @@ The two evidence channels (this archive vs. CI-side artefacts) are
 
 ## Cross-references
 
-- [`MDBOOK_DETECTOR_PARITY.md`](../../MDBOOK_DETECTOR_PARITY.md) — parent
+- [`docs/mdbook/detector-parity.md`](../../docs/mdbook/detector-parity.md) — parent
   parity report (CFDrs + helios).  Headline: **Detector ⊇ mdbook
   HOLDS** post-§7-#5.
-- [`MDBOOK_DETECTOR_PARITY_KWAVERS.md`](../../MDBOOK_DETECTOR_PARITY_KWAVERS.md)
+- [`docs/mdbook/detector-parity-kwavers.md`](../../docs/mdbook/detector-parity-kwavers.md)
   — kwavers-specific report.  Headline: same property after Issue B
   filter (FDTD-recurrence `[n+1](x)` false positive).
 - [`scripts/check_mdbook_links.py`](../../scripts/check_mdbook_links.py)
