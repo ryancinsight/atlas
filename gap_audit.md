@@ -7320,7 +7320,7 @@ Verified at kwavers inner HEAD `7c70d1b1d` (`codex/kwavers-core-moirai-parallel`
 |---|---|---|---|
 | **GPU provider abstraction** | kwavers-gpu kernel-buffer | `[arch]` | gap_audit provider register |
 | **eunomia Complex64 SSOT** | csr.rs numeric trait | `[arch]` | Verify if Complex→eunomia migration resolved |
-| **CLD-2** | Wire kzk_solver_plugin→HIFU | `[minor]` | CHECKLIST.md:5727 |
+| **CLD-2** | ~~Wire kzk_solver_plugin→HIFU~~ **Resolved 2026-08-17** — plugin retired; KZK now wired via `KzkPlugin` adapter onto correct `kzk/` module (`5c553d36b`) | `[patch]` | Closed with ATLAS-KWAVERS-KZK-LINEAR-080 |
 | **SOL-10/11** | Rustdoc sweep; CI k-wave validators | `[patch]` | CHECKLIST.md:5726 |
 | **Phase 1 Foundation** | 100% audit | `[foundation]` | CHECKLIST.md:5730 |
 | **BOOK-CH24/CH26** | PyO3 import contract | `[patch]` | gap_audit.md:4317 — partial |
