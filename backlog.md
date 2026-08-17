@@ -38,6 +38,11 @@ Gaia `origin/main` is `9595668`. Atlas repairs the root pointer only. The
 nested Gaia checkout is clean but behind its fetched default, so it remains
 provider-owned state rather than an Atlas source edit.
 
+**Third checkout repair (2026-08-17):** recursive checkout then reached
+Harmonia and found root gitlink `a8ce2fc3` absent from the provider remote;
+Harmonia `origin/main` is `10e15ae`. Atlas repairs the root pointer only. The
+nested Harmonia checkout remains provider-owned state.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the

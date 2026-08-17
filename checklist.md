@@ -101,6 +101,9 @@
       The nested Athena checkout remains untouched.
 - [x] Repair the next unreachable root gitlink, Gaia `fa35887e`, to fetched
       default `9595668`; the nested Gaia checkout remains untouched.
+- [x] Repair the next unreachable root gitlink, Harmonia `a8ce2fc3`, to
+      fetched default `10e15ae`; the nested Harmonia checkout remains
+      untouched.
 - [ ] Collect CFDrs PR #348 at source commit `e6633964` on
       `codex/cfdrs-runtime-residual`; the final exact local filter passes both
       value-semantic cases under locked Nextest. Hosted Rust and Pages gates
