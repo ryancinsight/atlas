@@ -28,6 +28,14 @@ as green.
 The Atlas root classifier's feature-qualified test-region limitation remains
 peer-owned; these provider changes do not alter the root baseline or classifier.
 
+## ATLAS-COEUS-LINT-RATCHET-097 — stale finding closed 2026-08-17
+
+The claimed Coeus lint floor work was already merged by PR #334 at provider
+default `a8ea12eb`. The production scan at the lint-ratchet head reports
+`allow_sites=0`; exact-head hosted Backend parity run `31989331059` passes; and
+the Atlas gitlink already records `a8ea12eb`. The dedicated lane claim was
+stale and is released without duplicate source edits.
+
 ## ATLAS-POSTMERGE-HELIOS-CFDRS-001 — Consumer closure at merged defaults (closed 2026-08-17)
 
 Helios PR #57 merged as `7fddf789`. Its DICOM boundary now rejects missing

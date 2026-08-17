@@ -219,10 +219,14 @@ Three ordering facts came out of the audit and are not obvious from the board:
   `--target-dir` or sets `CARGO_TARGET_DIR`, deleting the trees without removing
   the override just regrows them.
 
-### ATLAS-COEUS-LINT-RATCHET-097 — active provider cleanup
+### ATLAS-COEUS-LINT-RATCHET-097 — closed 2026-08-17; already merged
 - Takeover owner: Atlas session; lane `D:/atlas/worktrees/coeus-layernorm-shape`.
   The prior lane claim is stale: its last commit is `66bf4897` at
   2026-08-16 22:11 -0400 and no newer board update exists.
+- Closure: Coeus PR #334 is merged at `a8ea12eb`; the production scan reports
+  `allow_sites=0`, hosted Backend parity run `31989331059` passes, and the
+  Atlas gitlink already records the exact provider default. Release the lane;
+  no duplicate source work is required.
 - Claim one clean Coeus lane from fetched `origin/main`; do not touch the
   peer-dirty `repos/coeus` checkout or its Cargo.lock.
 - Enumerate the 95 `#[allow(...)]` sites at the recorded default, separate
