@@ -42,7 +42,7 @@
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
       ratchet result. The exact-head provider audit passes for all 21 providers
-      at root `a8f132a`; the generated overlay still reports peer-owned Athena
+      at root `a840bcc`; the generated overlay still reports peer-owned Athena
       lock drift and the conformance report remains uncollected on the dirty
       shared tree.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
