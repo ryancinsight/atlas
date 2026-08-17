@@ -762,7 +762,7 @@ the same exit 1 and byte-identical 11-regression/32-tightening report. The
 scanner therefore has an explicit refusal boundary; remaining live-tree
 regressions are provider work or baseline debt, not scanner nondeterminism.
 
-## ATLAS-CFDRS-GPU-DEFAULT-084 — Bare path deps re-enable a feature the workspace disables [patch] — open 2026-08-14
+## ATLAS-CFDRS-GPU-DEFAULT-084 — Bare path deps re-enable a feature the workspace disables [patch] — closed 2026-08-17
 
 `cfd-1d`, `cfd-python` and `cfd-schematics` depend on `cfd-core` by bare path,
 which enables its **default** `gpu` feature, while the workspace dependency
@@ -778,18 +778,13 @@ made GPU-free even though every declared requirement says it should be.
 `hephaestus-wgpu`; every intra-workspace path dependency carries the same
 `default-features` setting as the workspace table.
 
-**Premise narrowed; fix staged, uncommitted 2026-08-14.** The blast radius was
-smaller than filed: `cfd-2d`, `cfd-3d`, `cfd-math` and `cfd-validation` already
-route through the workspace table and `cfd-optim` sets `default-features =
-false` explicitly, so the leak came from exactly the three named crates, none
-of which references the `gpu` feature or `hephaestus-wgpu` at all. All three now
-read `cfd-core.workspace = true`, matching the sibling style. Oracle measured
-per crate: `hephaestus-wgpu` occurrences under `cargo tree -e normal -p <crate>
---no-default-features` went 1 → 0 for `cfd-1d`, `cfd-python` and
-`cfd-schematics`. Staged on the peer branch `codex/cfdrs-legacy-approx-cleanup`
-as three one-line hunks; `Cargo.lock` is deliberately **not** staged — feature
-selection is not recorded in the lock, and that file already carried a peer's
-overlay-stripped rewrite.
+**Closure:** CFDrs commit `e16b82c9`, an ancestor of merged default
+`a3c53da2`, routes `cfd-1d`, `cfd-python`, and `cfd-schematics` through the
+workspace dependency table. A standalone locked `cargo tree -e normal
+--no-default-features` run reports no `hephaestus-wgpu` for each of those three
+packages. The lockfile is unchanged because feature selection is not recorded
+there. This closes the feature-unification defect; the separate current
+CFDrs branch remains subject to its own hosted gate.
 
 ## ATLAS-CFDRS-CRLF-085 — CFDrs commits CRLF with no `.gitattributes` [patch] — blocked 2026-08-14
 

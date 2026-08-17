@@ -11,7 +11,11 @@ CFDrs routes GPU ownership through `hephaestus-wgpu` in
 and Leto/Eunomia own the touched array/scalar seams. The remaining `wgpu`
 matches in the production scan are provider vocabulary, manifests, or
 documentation; no direct `pollster` or Rayon source edge remains in the
-scanned crate set. The pressure-cache slice is real production reuse, but its
+scanned crate set. The earlier CFDrs feature-unification defect is also closed:
+`e16b82c9` routes the three bare `cfd-core` edges through the workspace table,
+and standalone locked no-default `cargo tree` runs show no `hephaestus-wgpu`
+for `cfd-1d`, `cfd-python`, or `cfd-schematics`. The pressure-cache slice is
+real production reuse, but its
 hosted exact-head gate is still pending at CFDrs PR #347 head `521d9f76`. The
 Rust job failed before checkout on the pinned toolchain action download
 (GitHub 503/429, run `32043011439`, job `95425551229`); this supplies no source
