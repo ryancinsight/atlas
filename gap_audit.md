@@ -27,8 +27,10 @@ missing `fontconfig.pc` dependency. Atlas shared workflow commit `bb505e5`
 adds `libfontconfig1-dev`; CFDrs pins it in `57722595`. New exact-head CI and
 Pages runs `32044071453` and `32044071732` were infrastructure-red. The
 PM-only/source-correctness heads `8f08112b`, `6ede137a`, and `e5d4ac74` were
-superseded by final source head `02c2ae80`; new exact-head runs `32044765872`
-and `32044766414` are active.
+superseded by final source head `02c2ae80`. Rust job `95430179027` in run
+`32044765872` and Pages job `95430210781` in run `32044766414` failed before
+checkout on codeload 503/429 responses; figure job `95430179037` remains
+active. No source or book execution is established by these failures.
 
 Helios' merged default has no direct `ndarray`, `nalgebra`, `rayon`, or
 `pollster` source matches in production crates. Its manifest edges route

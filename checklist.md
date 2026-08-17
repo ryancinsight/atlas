@@ -220,9 +220,11 @@
       dependency. Atlas shared workflow `bb505e5` adds the required headers;
       this branch pins that fix. New exact-head CI and Pages runs
       `32044071453` and `32044071732` were infrastructure-red; PM-only and
-      source-correctness heads were superseded by `02c2ae80`. New exact-head
-      CI and Pages runs `32044765872` and `32044766414` are active. The source
-      gate remains open.
+      source-correctness heads were superseded by `02c2ae80`. Rust job
+      `95430179027` and Pages job `95430210781` in runs `32044765872` and
+      `32044766414` again failed before checkout on codeload 503/429; figure
+      job `95430179037` remains active. No source or book execution is
+      established; the source gate remains open.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify
       the same-revision Pages artifact and live HTTP deployment.

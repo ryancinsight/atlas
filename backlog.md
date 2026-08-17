@@ -51,8 +51,10 @@ source implementation and provider-local tests.
   Atlas shared workflow `bb505e5` now installs the required headers and the
   CFDrs caller pins that commit. New exact-head CI and Pages runs
   `32044071453` and `32044071732` were infrastructure-red. PM-only and
-  source-correctness heads were superseded by `02c2ae80`; new exact-head CI
-  and Pages runs `32044765872` and `32044766414` are active.
+  source-correctness heads were superseded by `02c2ae80`; Rust job
+  `95430179027` and Pages job `95430210781` in runs `32044765872` and
+  `32044766414` again failed before checkout on codeload 503/429. Figure job
+  `95430179037` remains active, and no source or book execution is established.
   The Atlas gitlink sweep below is complete for moving Mnemosyne,
   Aequitas, and Leto defaults; CFDrs remains unadvanced until PR #347 closes,
   while Helios is already at merged default `679402ae`. Kwavers PR #386 carries the multi-field
@@ -5324,7 +5326,8 @@ blocker on Athena.
   previous Pages job `95426905897` exposed the missing fontconfig headers.
   The caller now pins Atlas `bb505e5`; `32044071453` and `32044071732` were
   infrastructure-red. PM-only and source-correctness heads were superseded by
-  `02c2ae80`; exact-head runs `32044765872` and `32044766414` are active.
+  `02c2ae80`; exact-head Rust and Pages jobs failed before checkout on
+  codeload 503/429, while figure job `95430179037` remains active.
 - Re-open trigger after closure: either named test exceeds the budget again or
   a new solver-heavy fidelity case crosses the slow threshold.
 
