@@ -27,9 +27,9 @@
       `ed6d6905afda394a9e12570543159ab1b262589e`; the peer-dirty Apollo
       checkout remains untouched while the public plan-scratch merge is
       integrated at the root.
-- [x] Advance the Atlas Leto gitlink to the pushed metadata-reconciliation
-      default `e802ce9fb233f10231704704790f096f269b5498`; the Leto checkout
-      remains clean and the release-tracking blocker is recorded upstream.
+- [x] Advance the Atlas Leto gitlink to the pushed orphan-module cleanup
+      default `99dea18`; the Leto checkout is clean and the overlay lockfile
+      limitation is recorded in the provider PM artifacts.
 - [x] Collect Kwavers PR #386 after its full hosted matrix passed, mark it
       ready, merge it as `0e9fb8dab29f2ceef505f685211e84aa3a321645`, and
       advance the Atlas gitlink without touching the peer's untracked
@@ -38,14 +38,21 @@
       the former peer-dirty blocker is retired, the Atlas-overlay lock rewrite
       is recorded as the current external gate condition, and the root pointer
       advances to merged documentation head `d7a9fff5fc42ccb009dd76346dc873f288978f4a`.
-- [ ] Re-run the generated overlay, exact-head, provider-consumer, and
+- [x] Re-run the exact-head and lane audits at root `8fa1c8e`: both the
+      requested 20-provider and Atlas 21-provider sets pass exact-head
+      equality, and the lane audit is clean. The generated overlay still
+      reports only peer-owned Athena lock drift, and the conformance report
+      remains uncollected because the shared root tree is dirty.
+- [ ] Re-run the generated overlay, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
-      ratchet result. Exact-head provider audits pass for both the requested
-      20-provider set and the Atlas 21-provider set at root `4faa366`. The
-      generated overlay still reports only peer-owned Athena lock drift, and
-      the conformance report remains uncollected because the shared root tree
-      is dirty.
+      ratchet result.
+- [x] Close Leto's `ATLAS-ORPHAN-MODULES-096-LETO` slice: delete the
+      unreachable `crates/leto/src/application/transform.rs`, preserve the
+      canonical `application/array.rs` methods, and record direct detector
+      result `leto_orphan_modules=0`. Local `--locked` Cargo gates remain
+      blocked before compilation by the inherited Atlas overlay lock rewrite;
+      no lockfile churn is committed.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native
