@@ -136,6 +136,14 @@ jobs:
         with:
           toolchain: ${{ inputs.rust-toolchain }}
 
+      - name: Install native fontconfig headers
+        if: inputs.mdbook-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes libfontconfig1-dev
+
       - name: Build package for book code sample testing
         if: inputs.mdbook-test && inputs.cargo-package != ''
         shell: bash
