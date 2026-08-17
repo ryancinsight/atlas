@@ -317,16 +317,16 @@ not completion. No f64-only adapter or CPU fallback may be added to close it.
 Owner: Atlas session; provider branch `codex/cfdrs-backward-step-108`.
 The provider claim and acceptance contract are recorded in its `backlog.md`.
 
-`crates/cfd-validation/src/benchmarks/step.rs:34-39` accepts the computed
-velocity field as `_u_field` but ignores it and always returns
-`6 * step_height`. The current integration test only checks result structure
-and whether validation returns a boolean, so it does not detect this
-input-insensitive benchmark result. Completion requires a real backward-facing
-step flow solution with explicit wall/step boundary behavior and a
-reattachment measurement derived from the wall-shear sign change in the
-computed field, with value-semantic positive, negative, boundary, and
-reference regressions. No hardcoded correlation, tolerance reduction, or
-benchmark-workload change is an acceptable substitute.
+The original consumer-local `6 * step_height` result and duplicate
+streamfunction solver are removed. `cfd-2d` now owns the masked
+backward-facing-step geometry, SIMPLE execution, explicit step/no-slip/
+parabolic-inlet/fixed-pressure-outlet contract, signed downstream lower-wall
+shear samples, and interpolated negative-to-nonnegative crossing.
+`cfd-validation` maps `BenchmarkConfig` to that provider and keeps
+value-semantic integration assertions. Provider PR #349 is at source head
+`f65197b0`; hosted Rust and book verification are pending. No consumer
+solver, hardcoded runtime correlation, tolerance reduction, or benchmark
+workload change closes this item.
 
 #### ATLAS-CFDRS-FOURIER-NATIVE-105 — native scalar contract [major] — closed 2026-08-17
 
