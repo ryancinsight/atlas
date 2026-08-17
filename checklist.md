@@ -30,6 +30,10 @@
 - [x] Advance the Atlas Leto gitlink to the pushed metadata-reconciliation
       default `e802ce9fb233f10231704704790f096f269b5498`; the Leto checkout
       remains clean and the release-tracking blocker is recorded upstream.
+- [x] Collect Kwavers PR #386 after its full hosted matrix passed, mark it
+      ready, merge it as `0e9fb8dab29f2ceef505f685211e84aa3a321645`, and
+      advance the Atlas gitlink without touching the peer's untracked
+      transducer constructors.
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
@@ -42,8 +46,8 @@
       boundaries, and real analytical or differential scenarios. CFDrs native
       Fourier and SSOR ownership are closed; Helios DICOM required-geometry
       handling is closed at merged default `7fddf789`. Kwavers PR #386 carries
-      the bounded multi-field visualization fix at exact head `0e068997` and
-      remains draft while its hosted matrix drains. The remaining Helios
+      the bounded multi-field visualization fix at merged default
+      `0e9fb8dab29f2ceef505f685211e84aa3a321645`. The remaining Helios
       documentation residual is H-103: `mdbook test` fails current
       illustrative snippets and must not be enabled until those samples are
       made executable or explicitly marked non-code.
