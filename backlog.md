@@ -2082,9 +2082,15 @@ converter; the existing bilinear differential remains the acceptance oracle.
 - ✅ Cleared and pushed: proteus `9a8655d` (also restored its manifest from a
   local path-dep leak to git+version), asclepius `ccffb6b`, tyche `996b649`,
   kwavers `df9008d93`.
-- **Remaining**: helios (5 pins) and ritk (6 pins) are depinned in the working
-  tree but uncommitted — neither has been build-verified yet. `openjp2` in ritk
-  keeps its pin; it is third-party, where a rev is legitimate.
+- **Current residual**: `python scripts/atlas-stack-overlay.py check` now
+  reports only two coherence defects. The peer-dirty CFDrs primary checkout
+  still declares `hermes-simd = "0.6.0"` while the active CFDrs lane and
+  provider closure use `0.7.0`; PR #344 carries the corrected manifest and is
+  waiting on its exact-head hosted gate. Athena's peer-dirty checkout is three
+  commits behind `origin/main` and its lock still pins the five-package Hermes
+  `0.6.0` closure; Athena is outside this named provider set and is not edited
+  through the Atlas integration slice. Re-run the check after CFDrs merges and
+  when Athena's own work is reconciled.
 - **Mechanism worth mechanizing**: depinning alone is insufficient. Every lock
   move needs `python scripts/atlas-stack-overlay.py generate` to re-derive the
   patch block, otherwise the graph keeps a local-vs-git split. This is the
@@ -2092,7 +2098,8 @@ converter; the existing bilinear differential remains the acceptance oracle.
   on this board. `atlas-stack-overlay.py check` already exits nonzero on lag, so
   wiring it into CI would catch the class at the source.
 - Evidence: `cargo tree -d` in kwavers reports no duplicate first-party crates;
-  `atlas-stack-overlay.py check` reports the stack aligned.
+  the current overlay check provides the two residuals above rather than an
+  aligned result.
 
 ## ATLAS-OVERLAY-004 — Worktree sprawl breaks stack dependency resolution [patch] — in-progress
 
