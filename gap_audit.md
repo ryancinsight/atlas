@@ -19,7 +19,7 @@ real production reuse, and commit `90798ca7` also surfaces invalid
 hemolysis-model errors instead of silently mapping them to zero; the current
 head explicitly propagates NaN and canonicalizes signed zero, with
 value-semantic regressions. The hosted
-exact-head gate is now pending at CFDrs PR #347 head `8f08112b`. The preceding
+exact-head gate is pending at CFDrs PR #347 head `02c2ae80`. The preceding
 Rust run `32043533301`, job `95426903063`, failed before checkout while
 downloading the Atlas reusable action (GitHub 503/429), and Pages run
 `32043533628`, job `95426905897`, reached the package build before exposing the
@@ -29,8 +29,9 @@ Pages runs `32044071453` and `32044071732` were infrastructure-red. The
 PM-only/source-correctness heads `8f08112b`, `6ede137a`, and `e5d4ac74` were
 superseded by final source head `02c2ae80`. Rust job `95430179027` in run
 `32044765872` and Pages job `95430210781` in run `32044766414` failed before
-checkout on codeload 503/429 responses; figure job `95430179037` remains
-active. No source or book execution is established by these failures.
+checkout on codeload 503/429 responses; figure job `95430179037` passed. Pages
+retry `95430855675` passed at the exact head; Rust retry `95430950307` remains
+in progress and CodeRabbit is successful, so the Rust source gate remains open.
 
 Helios' merged default has no direct `ndarray`, `nalgebra`, `rayon`, or
 `pollster` source matches in production crates. Its manifest edges route

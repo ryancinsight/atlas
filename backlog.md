@@ -53,8 +53,10 @@ source implementation and provider-local tests.
   `32044071453` and `32044071732` were infrastructure-red. PM-only and
   source-correctness heads were superseded by `02c2ae80`; Rust job
   `95430179027` and Pages job `95430210781` in runs `32044765872` and
-  `32044766414` again failed before checkout on codeload 503/429. Figure job
-  `95430179037` remains active, and no source or book execution is established.
+  `32044766414` failed before checkout on codeload 503/429. The figure job
+  `95430179037` passed; the Pages retry `95430855675` passed the same exact
+  head, while Rust retry `95430950307` remains in progress. CodeRabbit is
+  successful; the Rust source gate remains open.
   The Atlas gitlink sweep below is complete for moving Mnemosyne,
   Aequitas, and Leto defaults; CFDrs remains unadvanced until PR #347 closes,
   while Helios is already at merged default `679402ae`. Kwavers PR #386 carries the multi-field
@@ -67,8 +69,8 @@ source implementation and provider-local tests.
 Mnemosyne to `924cdcce`, Aequitas to `b24bd8c9`, and Leto to `d966e32c`. Their
 primary checkouts are at those exact heads but retain peer-owned dirty
 lockfiles or artifacts; only the root gitlinks are advanced here. The
-requested 20-provider and Atlas 21-provider audits must be rerun after this
-pointer sweep.
+the exact requested 20-provider audit, lane audit, and nine conformance tests
+pass after this pointer sweep.
 - **Provider-adoption slice:** audit every integrator edge for direct use of
   the owning provider API, deletion of superseded local wrappers, and no
   silent CPU/GPU, storage, or scheduler fallback. File provider capability
