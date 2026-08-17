@@ -30,7 +30,9 @@
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
-      ratchet result.
+      ratchet result. The live `atlas-conformance.py report --worktree` attempt
+      on this tree exceeded 120 seconds without producing a report, so no
+      conformance result is claimed.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. Any provider
