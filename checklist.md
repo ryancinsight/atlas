@@ -52,7 +52,10 @@
 - [ ] Re-run the generated overlay, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
-      ratchet result.
+      ratchet result. Read-only validation of the active root instruments
+      passes `unittest` 31/31 across the conformance, lane, and provider-audit
+      suites; the classifier and workflow edits remain peer-owned and
+      uncommitted, so the item stays open until their gate state is landed.
 - [x] Close Leto's `ATLAS-ORPHAN-MODULES-096-LETO` slice: delete the
       unreachable `crates/leto/src/application/transform.rs`, preserve the
       canonical `application/array.rs` methods, and record direct detector
