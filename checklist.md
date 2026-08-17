@@ -48,14 +48,14 @@
       handling is closed at merged default `7fddf789`. Kwavers PR #386 carries
       the bounded multi-field visualization fix at merged default
       `0e9fb8dab29f2ceef505f685211e84aa3a321645`. The remaining Helios
-      documentation residual is H-103: `mdbook test` fails current
-      illustrative snippets and must not be enabled until those samples are
-      made executable or explicitly marked non-code.
-- [ ] Collect Helios PR #58 at exact head `9831f2e`; the caller now triggers
+      documentation residual H-103 is closed locally: non-standalone book
+      fragments are explicitly marked as text, executable sources remain
+      Cargo-linked, and local `mdbook test`/build/linkcheck2 pass.
+- [ ] Collect Helios PR #58 at exact head `7482b04`; the caller now triggers
       Pages on source/example/manifest/lockfile changes and installs pinned
-      `mdbook-linkcheck2`, but its fresh Rust, Python, benchmark, and book
-      checks are still queued. Do not advance the Atlas Helios gitlink until
-      this exact head is hosted-green.
+      `mdbook-linkcheck2`, and CI now runs pinned `mdbook test`. Its fresh
+      Rust, Python, benchmark, and book checks are queued. Do not advance the
+      Atlas Helios gitlink until this exact head is hosted-green.
 - [ ] Add or repair bounded performance and memory evidence for the suite:
       controlled criterion baselines, allocation/buffer-reuse measurements,
       shared-cache checks, and zero-copy boundary verification. Do not change
