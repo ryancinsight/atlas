@@ -44,16 +44,20 @@ provider-owned state rather than an Atlas source edit.
   provider-owned cleanup slices required by the Atlas conformance gate.
 - **Merged slices:** CFDrs PR #348 at default `f95209da`, Apollo PR #105 at
   default `df8999f`, and Tyche PR #24 at default `5eeaba9`.
+- **Additional merged slices:** Hermes PR #52 at default `dd4cb129` and
+  Mnemosyne PR #59 at default `d1144f74`; their architecture-specific native
+  gates, Miri/Loom, benchmark, and supply-chain checks completed successfully.
 - **Hosted verification:** CFDrs Rust workspace and book-figure gates pass;
   Apollo benchmark, Rust workspace, and Python gates pass; Tyche verify and
   supply-chain gates pass. The third-party `recurseml/analysis` status is an
   analyzer error on each cleanup PR and is report-only in the provider
   workflows.
-- **Pending provider slices:** Hermes PR #52, Mnemosyne PR #59, and RITK PR
-  #165 remain in hosted verification. Local evidence is recorded in their
-  provider checklists and PR descriptions.
-- **Acceptance:** advance only the three merged Atlas gitlinks now; after the
-  pending defaults land, advance their gitlinks, run the exact-head audit and
+- **Pending provider slice:** RITK PR #165 remains in hosted verification
+  after the hosted Clippy follow-up; local all-target Clippy, workspace check,
+  and focused nextest are green. Local evidence is recorded in the provider
+  checklist and PR description.
+- **Acceptance:** advance the five merged Atlas gitlinks now; after the
+  pending RITK default lands, advance its gitlink, run the exact-head audit and
   root conformance gate, and close this item with exact heads, hosted run IDs,
   and residual external-status evidence.
 

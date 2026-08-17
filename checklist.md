@@ -9,9 +9,12 @@
       and hosted-gate boundary.
 - [x] Merge CFDrs PR #348 (`f95209da`), Apollo PR #105 (`df8999f`), and Tyche
       PR #24 (`5eeaba9`); preserve peer-dirty nested checkouts.
-- [ ] Collect and merge Hermes PR #52, Mnemosyne PR #59, and RITK PR #165
-      after their hosted gates pass; the external `recurseml/analysis` analyzer
-      error remains report-only unless a repository gate treats it as required.
+- [x] Collect and merge Hermes PR #52 (`dd4cb129`) and Mnemosyne PR #59
+      (`d1144f74`); their external `recurseml/analysis` analyzer errors remain
+      report-only.
+- [ ] Collect and merge RITK PR #165 after its corrected hosted gates pass;
+      the external analyzer error remains report-only unless a repository gate
+      treats it as required.
 - [ ] Advance the resulting Atlas gitlinks and rerun the exact-head,
       requested-provider coherence, and root conformance gates.
 
