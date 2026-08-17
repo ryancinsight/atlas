@@ -102,11 +102,12 @@
       The provider gate remains explicitly blocked by peer-owned formatting
       edits and a stale peer-owned Cargo.lock; the Atlas gitlink advances only
       to the pushed provider head and preserves that dirty checkout.
-- [ ] Complete the Apollo orphan-module sub-scope in the clean lane
-      `D:/atlas/worktrees/apollo-orphan-096`: classify the three exact orphan
-      paths, then wire or delete each according to source ownership. Preserve
-      the peer-dirty Apollo checkout and leave the root baseline unchanged
-      until the provider head and hosted gate are merged.
+- [x] Complete the Apollo orphan-module sub-scope in clean lane
+      `D:/atlas/worktrees/apollo-orphan-096` at provider default `ed6d6905`.
+      The detector now follows both `mod` and `include!` edges; the two
+      deliberate included sources are no longer false orphans and the exact
+      scan returns `apollo/orphan_modules=0`. Baseline `3 -> 0`; the provider
+      source and peer-dirty primary checkout remain untouched.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native

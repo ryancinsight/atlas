@@ -99,6 +99,11 @@ MOD_DECL = re.compile(r"\bmod\s+([A-Za-z_][A-Za-z0-9_]*)\s*[;{]")
 PATH_ATTR = re.compile(
     r"#\[\s*path\s*=\s*\"([^\"]+)\"\s*\]\s*(?:pub(?:\([^)]*\))?\s*)?$"
 )
+INCLUDE_PATH = re.compile(
+    r"include!\s*\(\s*(?:concat!\s*\(.*?['\"](?P<concat>[^'\"]+\.rs)['\"]|"
+    r"['\"](?P<relative>[^'\"]+\.rs)['\"])",
+    re.DOTALL,
+)
 
 SHA_PIN = re.compile(r"^\s*(?:-\s+)?uses:\s*[^\s@#]+@([A-Za-z0-9._/-]+)", re.MULTILINE)
 
@@ -169,7 +174,7 @@ def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path
 
 
 def _walk_mods(root: Path, seen: set[Path]) -> None:
-    """Depth-first close the `mod` graph reachable from one crate root."""
+    """Depth-first close the module and include graphs from one crate root."""
     root = root.resolve()
     if root in seen or not root.is_file():
         return
@@ -181,12 +186,25 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
             if cand.is_file():
                 _walk_mods(cand, seen)
                 break
+    crate_root = next(
+        (parent for parent in (root.parent, *root.parents)
+         if (parent / "Cargo.toml").is_file()),
+        root.parent,
+    )
+    for match in INCLUDE_PATH.finditer(text):
+        relative = match.group("relative")
+        included = match.group("concat") or relative
+        owner = crate_root if match.group("concat") else root.parent
+        candidate = owner / included.lstrip("/\\")
+        if candidate.is_file():
+            _walk_mods(candidate, seen)
 
 
 def count_orphan_modules(repo: Path) -> int:
-    """`.rs` files under a crate `src/` that no `mod` declaration reaches.
+    """`.rs` files under a crate `src/` that no source edge reaches.
 
-    Cargo compiles only what the module graph names, so an undeclared file is
+    Cargo compiles only what the module or include graph names, so an undeclared
+    file is
     invisible to rustc, clippy, and the test runner while every text-based
     scan (including this one's other classes) still counts it — dead weight
     that inflates debt figures and silently rots. Crate roots are the targets

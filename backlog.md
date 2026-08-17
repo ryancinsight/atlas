@@ -813,13 +813,14 @@ deleted or wired in with a stated reason.
 **Acceptance oracle:** `orphan_modules` is 0 for every member and the baseline
 entries are removed as each repo clears.
 
-**Apollo sub-scope claim (2026-08-17):** Atlas session owns the clean lane
-`D:/atlas/worktrees/apollo-orphan-096`, branch
-`codex/apollo-orphan-096`, and only the three Apollo orphan paths identified by
-the exact detector: `apollo-fft/.../winograd/composite/large.rs`,
-`apollo-fft/.../numeric/integer_math.rs`, and
-`apollo-fft-macros/src/shared_primitives.rs`. The peer-dirty primary checkout,
-its Cargo.lock, and all other provider files are excluded.
+**Apollo sub-scope closure (2026-08-17):** the clean lane
+`D:/atlas/worktrees/apollo-orphan-096` at provider default `ed6d6905` initially
+reported three paths. `integer_math.rs` and `shared_primitives.rs` are
+deliberate `include!` sources, so the detector now closes `mod` and `include!`
+edges. The clean exact scan returns `apollo/orphan_modules=0`; the baseline
+entry is tightened from 3 to 0. No Apollo source change is required. The
+peer-dirty primary checkout, its Cargo.lock, and all other provider files are
+excluded.
 
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
 

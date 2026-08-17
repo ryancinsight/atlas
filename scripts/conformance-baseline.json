@@ -92,7 +92,7 @@
   "missing_cargo_lock": 0,
   "missing_deny_docs": 22,
   "nextest_budget_missing": 0,
-  "orphan_modules": 3,
+  "orphan_modules": 0,
   "oversized_files": 35,
   "print_dbg": 6,
   "pull_request_target_use": 0,

@@ -60,6 +60,28 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["print_dbg"], 0)
 
+    def test_include_sources_are_not_orphans(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                'include!("included.rs");\ninclude!("concat_root.rs");\n',
+            )
+            _write(root, "src/included.rs", "pub const VALUE: usize = 1;\n")
+            _write(root, "src/concat.rs", "pub const OTHER: usize = 2;\n")
+            _write(
+                root,
+                "src/concat_root.rs",
+                'include!(concat!(\n'
+                '    env!("CARGO_MANIFEST_DIR"),\n'
+                '    "/src/concat.rs"\n'
+                '));\n',
+            )
+
+            self.assertEqual(conformance.count_orphan_modules(root), 0)
+
     def test_pages_target_output_is_not_a_cargo_fork(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)

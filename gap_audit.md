@@ -59,6 +59,18 @@ and Metal `32027773250`. The Atlas gitlink advances to the PM closure. This
 closes the structure ratchet only; direct Coeus CPU/accelerator attention
 cutover remains open and no runtime or memory gain is claimed.
 
+## ATLAS-ORPHAN-MODULES-096-APOLLO — include-edge detector correction
+
+The initial Apollo result reported three orphan files. Two were false
+positives: `apollo-fft/src/application/numeric/integer_math.rs` and
+`apollo-fft-macros/src/shared_primitives.rs` are loaded by `include!`, including
+the multiline `concat!(env!("CARGO_MANIFEST_DIR"), "/src/...")` form. The
+conformance graph now follows literal and manifest-rooted `include!` edges;
+the regression suite covers both forms. The clean Apollo lane at
+`ed6d6905` returns `orphan_modules=0`, and the baseline tightens from 3 to 0.
+The remaining root working-tree orphan count is not used as exact evidence
+because the primary Apollo checkout is peer-dirty on a divergent branch.
+
 ## ATLAS-CONFORMANCE-BENCH-099 — benchmark classifier takeover (in progress)
 
 The dirty root classifier diff is stale and unclaimed. It already contains the
