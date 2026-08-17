@@ -85,14 +85,17 @@ parent audit; its vertical slices close independently with their own evidence.
 
 #### ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention [patch] — in progress
 
-CFDrs PR #344 is at exact head `f46d0b46922cceb288b1a97404ae1f7a077e0310`.
-The six heavy cross-fidelity cases pass when serialized through the committed
-`numerical-fidelity` nextest group (`6 passed`, `102.989 s`, run locally with
-the existing 30-second slow and 60-second termination budgets). Hosted CI run
-`31989294124` is still in progress. Merge and the Atlas gitlink advance remain
-gated on that exact-head result.
+CFDrs PR #344 is at exact head
+`47ee7e7710ed29d6f6530b580603e7e42b459a9e`. The six initial heavy
+cross-fidelity cases pass when serialized through the committed
+`numerical-fidelity` nextest group (`6 passed`, `102.989 s`); the four
+additional cases that timed out only under hosted concurrency each pass in
+isolation (`11.616 s`, `14.927 s`, `15.564 s`, and `13.349 s`). The group now
+covers all ten measured cases without changing the existing 30-second slow or
+60-second termination budgets. Hosted CI run `31990510630` is in progress;
+merge and the Atlas gitlink advance remain gated on that exact-head result.
 
-#### ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults [major] — todo
+#### ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults [major] — in progress
 
 `repos/helios/crates/helios-domain/src/dicom.rs:121-132` substitutes unit
 spacing and zero origin when `PixelSpacing` or `ImagePositionPatient` is
@@ -101,9 +104,11 @@ those attributes as required-error inputs while documenting the defaults.
 `ImageOrientationPatient` follows the same identity-default contract. The
 acceptance oracle is a typed error for each missing or malformed required
 geometry attribute plus negative fixture coverage through Helios' DICOM gate;
-RITK remains the sole DICOM parser/decoder owner. The current Helios checkout
-is peer-dirty and behind its fetched default, so the item reopens when a clean
-provider head is available.
+RITK remains the sole DICOM parser/decoder owner. A clean integration lane
+implements the typed rejection and negative fixtures at Helios commit
+`67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; draft PR #57 is open and hosted
+run `31990847118` is queued. The peer-dirty primary checkout remains
+untouched.
 
 #### ATLAS-KWAVERS-HEPHAESTUS-VIS-104 — GPU ownership closure [arch] — todo
 

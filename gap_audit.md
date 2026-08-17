@@ -2065,9 +2065,12 @@ safe recovery path for medical-image geometry.
 
 **Required closure:** return the typed DICOM error for each missing or
 malformed required geometry attribute, add negative fixture coverage, and
-rerun the Helios DICOM gate with RITK retaining parser/decoder ownership. The
-current Helios checkout is peer-dirty and behind its fetched default; re-open
-the source item when a clean provider head is available. See
+rerun the Helios DICOM gate with RITK retaining parser/decoder ownership. A
+clean integration lane now implements the typed rejection at
+`67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; local `helios-domain` DICOM
+nextest passes 45/45, doctests pass, and warning-denied Clippy passes. Draft PR
+#57 is open with hosted run `31990847118` queued. The peer-dirty primary
+checkout remains untouched. See
 `backlog.md#ATLAS-HELIOS-DICOM-GEOMETRY-103`.
 
 ## ATLAS-HEPHAESTUS-CONSUMER-CLOSURE-104 — Kwavers GPU ownership and CFDrs native scalar residuals — 2026-08-16

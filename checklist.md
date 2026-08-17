@@ -13,12 +13,14 @@
 - [x] Run the structural 22-provider registration audit and preserve the
       Tyche/Tychee naming normalization.
 - [ ] Collect CFDrs PR #344 at exact head
-      `f46d0b46922cceb288b1a97404ae1f7a077e0310`; its six heavy numerical
-      cases now pass through the serialized `numerical-fidelity` group
-      (`6/6`, `102.989 s`) without changing the 30-second/60-second budgets.
-      Hosted run `31989294124` is still in progress; merge only after its
-      exact-head format, locked workspace, nextest, doctest, and figure gates
-      pass. Record the legacy-Clippy residual separately.
+      `47ee7e7710ed29d6f6530b580603e7e42b459a9e`; six cases pass through the
+      serialized `numerical-fidelity` group (`6/6`, `102.989 s`) and four
+      additional hosted-timeout cases pass in isolation (`11.616 s` to
+      `15.564 s`). The group now covers all ten measured cases without changing
+      the 30-second/60-second budgets. Hosted run `31990510630` is in progress;
+      merge only after its exact-head format, locked workspace, nextest,
+      doctest, and figure gates pass. Record the legacy-Clippy residual
+      separately.
 - [x] Collect Coeus PR #334; provider-contract jobs pass at merged default
       `a8ea12eb23477ff017e38479ae792094ccb85382`, and the Atlas gitlink now
       points to that exact default without modifying the peer-dirty checkout.
@@ -36,6 +38,12 @@
       `ATLAS-KWAVERS-HEPHAESTUS-VIS-104`,
       `ATLAS-CFDRS-FOURIER-NATIVE-105`, and
       `ATLAS-CFDRS-SSOR-OWNERSHIP-106`.
+- [ ] Collect Helios draft PR #57 at exact head
+      `67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; local `helios-domain` DICOM
+      gates pass 45/45 nextest, doctests, and warning-denied Clippy. Hosted run
+      `31990847118` is queued; merge only after the provider-owned CI gate is
+      green, then advance the Atlas gitlink without touching the peer-dirty
+      primary checkout.
 - [ ] Add or repair bounded performance and memory evidence for the suite:
       controlled criterion baselines, allocation/buffer-reuse measurements,
       shared-cache checks, and zero-copy boundary verification. Do not change
