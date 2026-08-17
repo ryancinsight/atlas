@@ -5230,11 +5230,17 @@ blocker on Athena.
   finds no board/commit update; then reclaim the scope and complete the
   integration from the committed branch state.
 
-## ATLAS-CFDRS-TEST-BUDGET — 8 integration tests exceed 30s nextest budget [patch] — blocked
+## ATLAS-CFDRS-TEST-BUDGET — 8 integration tests exceed 30s nextest budget [patch] — in progress
 
-- Owner: unclaimed; scope: `repos/CFDrs/crates/cfd-validation/`,
-  `repos/CFDrs/crates/cfd-3d/`.
-- Status: blocked by infrastructure issues that prevent test execution.
+- Owner: Atlas coordinator (current session); scope:
+  `repos/CFDrs/crates/cfd-validation/`, `repos/CFDrs/crates/cfd-3d/`.
+- Reopened 2026-08-17 after exact provider-head execution became available.
+  Final PM-head run `32037758079` at `174e332ce816dd6dfe98b125669a292126ebd51f`
+  reaches the numerical-fidelity suite and fails only its committed 30-second
+  test budget on `microventuri_35um_case_produces_converged_informative_2d_result`
+  and `cross_fidelity_trifurcation_dominance`. The failure is inherited from
+  the untouched runtime path; no workload, assertion, or budget change is
+  authorized.
 - Blocker 1 — lockfile collision: CFDrs root `Cargo.toml` uses path deps
   (`path = "../<repo>"`), but the stack overlay `.cargo/config.toml` patches
   git sources to `worktrees/*`. Transitive git deps resolve to a second copy
@@ -5261,10 +5267,12 @@ blocker on Athena.
   state across the three microventuri cases, tighter rheology-update scheme.
 - Note: workload/assertion reduction is explicitly NOT an acceptance path
   per `CFDRS-RUNTIME-001`.
-- Re-open trigger: the stack overlay resolves only authoritative `repos/*`
-  trees and the Hephaestus conflict markers are removed from the fetched
-  default; then profile the named cases and implement the first measured
-  production optimization within the committed runtime budget.
+- Immediate slice: profile the two exact failing production paths, implement
+  the first measured solver optimization, and prove the unchanged tests fit
+  the committed budget. The existing optimization outlook remains the
+  candidate set; selection is evidence-driven.
+- Re-open trigger after closure: either named test exceeds the budget again or
+  a new solver-heavy fidelity case crosses the slow threshold.
 
 ## ATLAS-HYGIENE-BASELINE-001 — Eleven-class conformance baseline and namespace hygiene [patch] — in-progress
 

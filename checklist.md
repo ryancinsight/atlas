@@ -186,6 +186,11 @@
       controlled criterion baselines, allocation/buffer-reuse measurements,
       shared-cache checks, and zero-copy boundary verification. Do not change
       workload sizes or budgets to make a gate pass.
+- [ ] Execute `ATLAS-CFDRS-TEST-BUDGET` on a clean CFDrs lane: profile the
+      exact hosted timeout cases, optimize the production solver path, and
+      rerun the unchanged numerical-fidelity tests within the committed
+      budget. Preserve the inherited timeout evidence until the exact final
+      provider head is green.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify
       the same-revision Pages artifact and live HTTP deployment.

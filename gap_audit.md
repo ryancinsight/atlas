@@ -85,6 +85,21 @@ provider Nextest `738/738` (`3` skipped) and hosted CI `32033808279` pass, and
 the Atlas pointer advances to `5b95fe3a` with the conformance baseline
 re-anchored.
 
+## ATLAS-CFDRS-TEST-BUDGET — exact provider-head runtime residual (reopened 2026-08-17)
+
+The final CFDrs PM head is `174e332ce816dd6dfe98b125669a292126ebd51f`.
+Hosted run `32037758079` reaches the numerical-fidelity suite but fails the
+unchanged 30-second nextest budget in
+`cfd-validation::numerical::venturi_cross_fidelity::tests::microventuri_35um_case_produces_converged_informative_2d_result`
+and
+`cfd-validation::cross_fidelity_trifurcation::cross_fidelity_trifurcation_dominance`.
+The book-figure job passes. The timeout is inherited from the production solver
+path, not from the orphan cleanup or PM documentation, and no workload,
+assertion, or budget reduction is acceptable. The next bounded increment is a
+profile-first production optimization of the two paths; acceptance is the
+unchanged tests completing within the committed budget with their existing
+value-semantic assertions.
+
 ## ATLAS-ORPHAN-MODULES-096-COEUS — detector false positive (closed)
 
 Coeus's sole reported orphan, `crates/coeus-cuda/src/driver_stub.rs`, is the
