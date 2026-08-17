@@ -27,9 +27,9 @@
       `ed6d6905afda394a9e12570543159ab1b262589e`; the peer-dirty Apollo
       checkout remains untouched while the public plan-scratch merge is
       integrated at the root.
-- [x] Advance the Atlas Leto gitlink to the pushed orphan-module cleanup
-      default `99dea18`; the Leto checkout is clean and the overlay lockfile
-      limitation is recorded in the provider PM artifacts.
+- [x] Advance the Atlas Leto gitlink to the pushed orphan-module cleanup and
+      gate-evidence default `0977fd8`; the Leto checkout is clean and the
+      overlay lockfile limitation is recorded in the provider PM artifacts.
 - [x] Collect Kwavers PR #386 after its full hosted matrix passed, mark it
       ready, merge it as `0e9fb8dab29f2ceef505f685211e84aa3a321645`, and
       advance the Atlas gitlink without touching the peer's untracked
@@ -42,7 +42,9 @@
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
       reports only peer-owned Athena lock drift, and the conformance report
-      remains uncollected because the shared root tree is dirty.
+      was collected with `--worktree` at exit 0; it reports 53 remaining
+      orphan modules, limited to Kwavers 22, CFDrs 14, and Consus 6. The
+      live scan is evidence only, not a reproducible clean-tree gate.
 - [ ] Re-run the generated overlay, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
@@ -50,9 +52,9 @@
 - [x] Close Leto's `ATLAS-ORPHAN-MODULES-096-LETO` slice: delete the
       unreachable `crates/leto/src/application/transform.rs`, preserve the
       canonical `application/array.rs` methods, and record direct detector
-      result `leto_orphan_modules=0`. Local `--locked` Cargo gates remain
-      blocked before compilation by the inherited Atlas overlay lock rewrite;
-      no lockfile churn is committed.
+      result `leto_orphan_modules=0`. Standalone format, locked check,
+      warning-denied Clippy, Nextest `314/314`, doctests, and rustdoc pass
+      outside the overlay; no lockfile churn is committed.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native
