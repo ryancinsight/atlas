@@ -326,6 +326,24 @@ def rust_files(repo: Path):
                 yield entry, testish
 
 
+def executable_source_dirs(repo: Path) -> set[Path]:
+    """Return source roots whose package entry point is a binary.
+
+    Binary support modules are executable surfaces even when their own file
+    is not named `main.rs`; counting their stdout/stderr as library output
+    produces false positives for task runners such as `xtask`.
+    """
+    roots: set[Path] = set()
+    for manifest in repo.rglob("Cargo.toml"):
+        if PRUNE_DIRS.intersection(manifest.parts) or \
+                any(p.startswith("target") for p in manifest.parts):
+            continue
+        source = manifest.parent / "src"
+        if (source / "main.rs").is_file():
+            roots.add(source)
+    return roots
+
+
 def split_test_region(text: str) -> tuple[str, str]:
     """Split a source file at its inline test module, if any."""
     idx = text.find("#[cfg(test)]")
@@ -343,6 +361,7 @@ def strip_doc_comments(text: str) -> str:
 def scan_repo(repo: Path) -> dict[str, int]:
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
+    executable_dirs = executable_source_dirs(repo)
 
     for path, testish in rust_files(repo):
         try:
@@ -365,7 +384,10 @@ def scan_repo(repo: Path) -> dict[str, int]:
             c["junk_drawer_modules"] += 1
 
         prod, test = ("", text) if testish else split_test_region(text)
-        is_bin = path.name == "main.rs" or "bin" in path.parts or "benches" in path.parts
+        is_bin = path.name == "main.rs" or "bin" in path.parts or \
+            "benches" in path.parts or any(
+                source in path.parents for source in executable_dirs
+            )
         # Doc-comment bodies are doctests, i.e. test code. Counting `.unwrap()`
         # inside `///` lines reported 23 "production unwraps" for a repo whose
         # workspace denies `unwrap_used` outright — every one was a doc example.

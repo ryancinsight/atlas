@@ -44,6 +44,22 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["print_dbg"], 1)
 
+    def test_binary_support_modules_are_executable_for_print_scan(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "task/Cargo.toml", "[package]\nname = 'task'\n")
+            _write(root, "task/src/main.rs", "mod report;\n")
+            _write(
+                root,
+                "task/src/report.rs",
+                "pub fn emit() { println!(\"task output\"); }\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["print_dbg"], 0)
+
     def test_pages_target_output_is_not_a_cargo_fork(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
