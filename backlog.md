@@ -38,7 +38,7 @@ Gaia `origin/main` is `9595668`. Atlas repairs the root pointer only. The
 nested Gaia checkout is clean but behind its fetched default, so it remains
 provider-owned state rather than an Atlas source edit.
 
-## ATLAS-PROVIDER-INTEGRATION-2026-08-17 — close the requested provider sweep [patch] — in-progress
+## ATLAS-PROVIDER-INTEGRATION-2026-08-17 — close the requested provider sweep [patch] — completed
 
 - **Scope:** exact-head coherence for the twenty requested providers, plus
   provider-owned cleanup slices required by the Atlas conformance gate.
@@ -68,9 +68,22 @@ provider-owned state rather than an Atlas source edit.
   rate-limited and is non-blocking. Asclepius and Coeus hosted verification
   passed; Consus PR #44 completed its full format, MSRV, platform-test, check,
   and fuzz-target build matrix.
-- **Pending integration:** advance the Asclepius, Coeus, Consus, and Helios
-  Atlas gitlinks; RITK and Kwavers already point at their hosted-green defaults.
-  Then rerun the exact-head audit and collect a fresh root conformance result.
+- **Final integration:** Atlas commit `944f6e1` advances Asclepius to
+  `5de8a48c`, Coeus to `b14777d`, Consus to `2dcf05a`, and Helios to
+  `39a2499`; RITK and Kwavers were already advanced to their hosted-green
+  defaults in the preceding root commit. The structural exact-head audit
+  reports all twenty requested providers present, active, and aligned with
+  fetched origin defaults.
+- **Final root gates:** `atlas-stack-overlay` run `32072555152`,
+  `atlas-conformance` run `32072555155`, and push analysis run `32072554308`
+  pass at `944f6e1`. The hosted gates initialize direct members from the
+  committed gitlinks, so their coherence and ADR checks use the delivered
+  provider heads.
+- **Local checkout note:** the shared root retains peer-owned nested dirt,
+  including a stale Asclepius working checkout and its modified ADR index.
+  The local full coherence scan therefore reports that stale working-tree
+  content even though the committed gitlink and hosted direct-member gates
+  pass; the peer files were not overwritten or staged.
 - **Acceptance:** close this item only after the requested-provider exact-head
   audit and root conformance gate pass at the final Atlas commit, with exact
   heads, hosted run IDs, and residual external-status evidence recorded here.

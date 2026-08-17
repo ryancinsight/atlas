@@ -26,8 +26,13 @@
       MSRV, platform-test, check, and fuzz-target build matrix is green.
 - [x] Collect and merge Helios PR #62 at default `39a24992`; hosted Rust,
       Python, and phase-reversed benchmark gates pass in run `32068165866`.
-- [ ] Advance the resulting Atlas gitlinks and rerun the exact-head,
-      requested-provider coherence, and root conformance gates.
+- [x] Advance the four repaired provider gitlinks in Atlas commit `944f6e1`;
+      the structural exact-head audit reports all twenty requested providers
+      aligned with fetched origin defaults.
+- [x] Collect final root gates at `944f6e1`: overlay `32072555152`,
+      conformance `32072555155`, and push analysis `32072554308` pass. The
+      local full coherence scan remains limited by peer-owned stale nested
+      Asclepius working-tree content; no peer dirt was overwritten or staged.
 
 # Sweep 2026-08-13 — execution order
 
