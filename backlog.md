@@ -133,8 +133,11 @@ source implementation and provider-local tests.
   head. CodeRabbit and all required PR checks are successful; the PR is merged.
   The Atlas gitlink sweep below is complete for moving Mnemosyne,
   Aequitas, Leto, and CFDrs defaults;
-  while Helios is already at merged default `679402ae`. Kwavers PR #386 carries the multi-field
-  visualization correctness closure and remains in the hosted matrix. The
+  while Helios is already at merged default `679402ae`. Kwavers PR #402 carries
+  the current uninitialized-GPU-resource correction at source head
+  `b275b7115`; its hosted matrix is pending. PR #386 remains historical
+  evidence for the earlier multi-field field-preservation closure, not current
+  exact-head proof. The
   existing CFDrs decision to remove its newly introduced legacy-Clippy step is
   a documented gate-boundary decision, not a lint-debt closure; the remaining
   lint floor stays in the Atlas conformance ratchet.
@@ -275,30 +278,31 @@ default gitlink. The peer-dirty primary checkout remains untouched.
 Kwavers still constructs raw `wgpu` pipelines in
 `crates/kwavers-gpu/src/beamforming/three_dimensional/provider.rs` and keeps
 raw-WGPU visualization state in `crates/kwavers-analysis/src/visualization`.
-The bounded visualization subfinding is corrected in Kwavers commit
-`40dac165e` and draft PR #386: field counts are validated, GPU compositing
-receives every field, CPU diagnostics process every field, and multi-field
-rendering without transparency is rejected. Feature-enabled Nextest passes
-758/758, doctests pass, package-local Clippy passes, and package docs build.
-The acceptance oracle still requires a complete provider-owned execution path
-with explicit failure for unavailable capability and no consumer-owned
-raw-WGPU kernel ownership. The hosted Kwavers matrix remains pending with
-`Validate Clean Architecture` and `Code Quality` already red on repository
-baseline findings; the exact failure logs are the next integration gate.
+The earlier bounded visualization subfinding is recorded at Kwavers commit
+`40dac165e` and PR #386: field counts are validated, GPU compositing receives
+every field, CPU diagnostics process every field, and multi-field rendering
+without transparency is rejected. The current fetched default `6075940ce`
+still has a separate initialization defect: PR #402 at source head
+`b275b7115` now returns `SystemError::FeatureNotAvailable` when the renderer
+and data pipeline are absent. The feature-enabled hosted matrix is pending;
+the shared Atlas overlay prevents local compilation before the package gate
+because its peer Asclepius checkout still requires `aequitas ^0.1.0` while the
+current provider graph is `0.2.0`. The acceptance oracle still requires a
+complete provider-owned execution path with explicit failure for unavailable
+capability and no consumer-owned raw-WGPU kernel ownership.
 
-The exact default-head audit at Kwavers `90dde196` found two additional
+The exact fetched-head audit at Kwavers `6075940ce` found two additional
 consumer-contract residuals. `kwavers-gpu/src/validation/gpu_cpu_equivalence/
 runner/mod.rs:100-110` returns a typed `FeatureNotAvailable` because the GPU
 runner still has no provider-generic Leto/Hephaestus FDTD implementation; its
 CPU-vs-CPU comparison is correctly rejected rather than reported as parity.
-`kwavers-analysis/src/visualization/engine/mod.rs:181-217` has no error or
-fallback arm when the `gpu-visualization` feature is enabled but the renderer
-and pipeline were not initialized, so `render_multi_field` can return `Ok(())`
-without rendering. This is a correctness defect, not a performance or
-availability classification. The source fix remains queued behind the
-peer-owned Kwavers worktree and its live `refactor/drop-dead-boundary-parameters`
-lane at `932b9f42`; the re-open trigger is lane release or a peer landing that
-touches the same visualization module.
+`kwavers-analysis/src/visualization/engine/mod.rs:181-217` had no error or
+fallback arm when the `gpu-visualization` feature was enabled but the renderer
+and pipeline were not initialized, so `render_multi_field` could return
+`Ok(())` without rendering. This correctness defect is addressed by PR #402;
+its required hosted feature gate is the re-open/close decision. The FDTD item
+remains provider capability work and must not be replaced by an f64 adapter or
+CPU-vs-CPU comparison.
 
 #### ATLAS-KWAVERS-FDTD-107 — provider-generic FDTD equivalence [major]
 

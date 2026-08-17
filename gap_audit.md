@@ -97,17 +97,20 @@ also owns the `pollster` boundary. This is an open ownership migration, not a
 token-count cleanup: the provider boundary is real, but the consumer boundary
 must move to Hephaestus before the acceptance oracle is met.
 
-Two correctness residuals are exact at Kwavers `90dde196`. First,
+Two correctness residuals are exact at fetched Kwavers `6075940ce`. First,
 `crates/kwavers-gpu/src/validation/gpu_cpu_equivalence/runner/mod.rs:100-110`
 returns `SystemError::FeatureNotAvailable` because no provider-generic
 Leto/Hephaestus FDTD implementation is wired; the explicit error is correct
 negative behavior, while GPU/CPU equivalence remains undeveloped. Second,
-`crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217` has no arm
+`crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217` had no arm
 for an enabled but uninitialized GPU renderer in `render_multi_field`, so it
-can return success without rendering. This is a correctness defect. The fix is
-queued behind the live peer-owned `refactor/drop-dead-boundary-parameters`
-lane at `932b9f42`; the FDTD item remains provider capability work and must not
-be replaced by an f64 adapter or CPU-vs-CPU comparison.
+could return success without rendering. PR #402 at exact source head
+`b275b7115` returns the typed `SystemError::FeatureNotAvailable` instead; its
+feature-enabled hosted matrix is the acceptance gate. The FDTD item remains
+provider capability work and must not be replaced by an f64 adapter or
+CPU-vs-CPU comparison. Local feature compilation is blocked before the
+package gate by the shared Atlas overlay's stale peer Asclepius checkout
+requiring `aequitas ^0.1.0` while the current graph is `0.2.0`.
 
 ## ATLAS-CONSUS-UNWRAP-099 / ATLAS-LETO-CONTRACT-100 — provider ratchet closures (closed 2026-08-17)
 

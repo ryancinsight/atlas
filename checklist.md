@@ -195,9 +195,11 @@
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native
       Fourier and SSOR ownership are closed; Helios DICOM required-geometry
-      handling is closed at merged default `c9817cc8`. Kwavers PR #386 carries
-      the bounded multi-field visualization fix at merged default
-      `0e9fb8dab29f2ceef505f685211e84aa3a321645`. The remaining Helios
+      handling is closed at merged default `c9817cc8`. Historical Kwavers PR
+      #386 carries the earlier field-preservation closure; current fetched
+      default `6075940ce` retains the uninitialized-GPU-resource residual,
+      which is addressed by PR #402 at source head `b275b7115` and remains in
+      the hosted matrix. The remaining Helios
       documentation residual H-103 is closed locally: non-standalone book
       fragments are explicitly marked as text, executable sources remain
       Cargo-linked, and local `mdbook test`/build/linkcheck2 pass. The exact
@@ -207,14 +209,13 @@
       `0e9fb8da`. The Kwavers source audit classifies those hits as the live
       WGPU-specialized provider boundary and its contract tests; KW-GPU-060
       already removed the duplicate backend buffer/pipeline ownership. The
-      exact default-head audit at `90dde196` additionally finds that the FDTD
+      exact fetched-head audit at `6075940ce` additionally finds that the FDTD
       GPU equivalence runner is explicitly unavailable until a real
       Leto/Hephaestus provider implementation lands, and that the feature-
-      enabled `render_multi_field` path can return `Ok(())` when GPU resources
-      are uninitialized (`crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217`).
-      The latter is a correctness defect queued behind the peer-owned Kwavers
-      lane; neither residual is hidden by a CPU-vs-CPU comparison or a silent
-      no-op claim.
+      enabled `render_multi_field` path could return `Ok(())` when GPU resources
+      were uninitialized (`crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217`);
+      The latter is a correctness defect addressed by PR #402; neither residual
+      is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
       shared Pages caller enables `mdbook-test`, local book gates pass, and
       PR #59 merges at default `679402ae`. Hosted Rust, Python, benchmark, and
