@@ -813,6 +813,14 @@ deleted or wired in with a stated reason.
 **Acceptance oracle:** `orphan_modules` is 0 for every member and the baseline
 entries are removed as each repo clears.
 
+**Apollo sub-scope claim (2026-08-17):** Atlas session owns the clean lane
+`D:/atlas/worktrees/apollo-orphan-096`, branch
+`codex/apollo-orphan-096`, and only the three Apollo orphan paths identified by
+the exact detector: `apollo-fft/.../winograd/composite/large.rs`,
+`apollo-fft/.../numeric/integer_math.rs`, and
+`apollo-fft-macros/src/shared_primitives.rs`. The peer-dirty primary checkout,
+its Cargo.lock, and all other provider files are excluded.
+
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
 
 Every member pins `channel = "1.97.0"`. That is a **version** pin. `rustup`
