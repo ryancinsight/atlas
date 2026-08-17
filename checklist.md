@@ -39,13 +39,14 @@
       is recorded as the current external gate condition, and the root pointer
       advances to orphan-cleanup head `403387b5`; the provider-local record
       reports six unreachable files removed and `orphan_modules=0`.
-- [x] Re-run the exact-head and lane audits at root `cac6cce`: both the
+- [x] Re-run the exact-head and lane audits at root `5fca096`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
       reports only peer-owned Athena lock drift, and the conformance report
-      was collected with `--worktree` at exit 0; it reports 53 remaining
-      orphan modules, limited to Kwavers 22, CFDrs 14, and Consus 6. The
-      live scan is evidence only, not a reproducible clean-tree gate.
+      was collected with `--worktree` at exit 0; it reports 47 remaining
+      orphan modules: Kwavers 22, CFDrs 14, RITK 6, Apollo 3, Coeus 1, and
+      Hermes 1. The live scan is evidence only, not a reproducible clean-tree
+      gate.
 - [ ] Re-run the generated overlay, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
