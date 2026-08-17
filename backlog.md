@@ -40,9 +40,9 @@ source implementation and provider-local tests.
 
 - **Current slice:** Helios PR #59 carries the caller-side `mdbook test`
   enablement, CFDrs PR #347 carries the pressure-cache and book-fence slices,
-  and Apollo remote head `81583aab` carries the provider-owned public
-  `PlanScratch` bound required by CFDrs. Helios PR #59 still has a failed
-  Python-bindings setup job and an in-progress benchmark job; CFDrs PR #347 is
+  and Apollo merged default `ed6d6905` carries the provider-owned public
+  `PlanScratch` bound required by CFDrs. Helios PR #59 is merged at default
+  `679402ae` with Rust, Python, benchmark, and book gates passing; CFDrs PR #347 is
   at exact head `41db036a` with hosted book, Rust, and figure gates in
   progress. The Atlas gitlink sweep below is complete for moving Mnemosyne,
   Aequitas, and Leto defaults; CFDrs and Helios remain unadvanced until their
@@ -3251,15 +3251,15 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Scope: (1) crates.io — add tag-triggered, environment-gated trusted-publishing workflows (`rust-lang/crates-io-auth-action`, `id-token: write`) to publishable stack crates, dependency-ordered with `cargo package` dry-run and semver gates; record per-crate "enforce trusted publishing" as a user checklist once each pipeline is green (disables token publishing registry-side). (2) PyPI — for the Python-binding crates, maturin-action matrix (manylinux2014 floor, `--compatibility pypi`, abi3 where the surface permits, sdist) with install/import/pytest wheel smoke before upload via the PyPI trusted-publisher flow. (3) Books — align CFDrs/kwavers/helios book workflows to the artifact flow (build + `mdbook test` → upload-pages-artifact → deploy-pages) if any still push a gh-pages branch or skip the test gate; new books inherit the same workflow.
 - Acceptance: no long-lived registry token referenced in any CI secret; each wired pipeline dry-run green; book deployments artifact-based with the test gate; user-action list (registry enforcement toggles) recorded on the board.
 
-### ATLAS-HELIOS-BOOK-TEST-002 — Enable Helios `mdbook test` in the shared Pages caller [patch] — in progress
+### ATLAS-HELIOS-BOOK-TEST-002 — Enable Helios `mdbook test` in the shared Pages caller [patch] — done 2026-08-17
 
 - Owner: Atlas coordinator; scope is the clean Helios workflow caller only.
-- Evidence: Helios merged default `c9817cc8439bcf82e7b19f851a05fa7e86e2fa0d`
-  delegates to the shared Atlas Pages workflow but does not set its
-  `mdbook-test` input, whose default is `false`.
-- Acceptance: the caller enables `mdbook-test`; the exact clean Helios book
-  passes local `mdbook test`, `mdbook build`, and link checking; the provider
-  PR and post-merge Pages gates pass at the exact Helios head.
+- Evidence: clean-lane source `30a842cd7d7dee5ca9bda3e04e97fad966cebeee`
+  enables the shared caller's `mdbook-test` input and merges at Helios default
+  `679402ae166ce2b227d8d629bab877f1dcc45131`.
+- Acceptance: met. The exact clean Helios book and hosted Pages build pass;
+  hosted Rust, Python, and benchmark checks also pass. The external
+  `recurseml/analysis` error remains report-only.
 - Non-goals: peer-owned Helios source edits, book prose, generated figures,
   and the Kwavers/CFDrs caller sub-scopes.
 - Re-open trigger: a book sample failure, shared workflow contract change, or

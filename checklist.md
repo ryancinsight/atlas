@@ -91,7 +91,7 @@
 - [x] Re-run the requested 20-provider and Atlas 21-provider exact-head audits
       after the pointer commit; both pass and the lane audit is clean. CFDrs
       PR #347 remains at `41db036a` with hosted gates in progress, and Helios
-      PR #59 remains under CI rerun. The stack-overlay check is still red only
+      PR #59 is merged at `679402ae`. The stack-overlay check is still red only
       for peer-owned Athena lock drift (`hermes-simd` 0.6.0 versus local 0.7.0);
       no consumer lockfile is changed in this sweep.
 - [x] Close `ATLAS-CONFORMANCE-BENCH-099`: preserve the target-fork
@@ -158,10 +158,11 @@
       already removed the duplicate backend buffer/pipeline ownership. The
       remaining Kwavers work is tracked by its provider-local items, not by a
       false raw-token count.
-- [ ] Claim `ATLAS-HELIOS-BOOK-TEST-002` on a clean Helios lane: enable the
-      shared Pages caller's `mdbook-test` input, run the exact local book
-      gates, and hold the provider PR until its exact-head hosted book gate
-      passes. Keep the peer-dirty Helios checkout and source branch untouched.
+- [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
+      shared Pages caller enables `mdbook-test`, local book gates pass, and
+      PR #59 merges at default `679402ae`. Hosted Rust, Python, benchmark, and
+      book gates pass; `recurseml/analysis` remains report-only. The peer-dirty
+      Helios source checkout and branch remain untouched.
 - [ ] Keep Helios PR #55 peer-owned and blocked: hosted Rust failed at exact
       head `83f5ccea` because its RITK checkout lacks
       `IMAGE_ORIENTATION_PATIENT`, and the same job reports two independent

@@ -178,6 +178,15 @@ integration closure is confirmed by
 `python scripts/atlas-provider-integration-audit.py --exact-heads`, which
 passes exact-head and requested-provider coherence checks.
 
+## ATLAS-HELIOS-BOOK-TEST-002 — Helios caller gate closure (closed 2026-08-17)
+
+Helios clean-lane commit `30a842cd7d7dee5ca9bda3e04e97fad966cebeee` enables
+the shared Pages caller's `mdbook-test` input. PR #59 merges at default
+`679402ae166ce2b227d8d629bab877f1dcc45131`; hosted Rust, Python, benchmark,
+and book gates pass. The recurring `recurseml/analysis` error remains
+report-only. Atlas advances the Helios gitlink to that merged default while
+preserving the peer-dirty source checkout.
+
 ## ATLAS-HORAE-EXACTNESS-069 — Horae boundary exactness closure (closed 2026-08-14)
 
 Horae PR #12 merged at default `41dcf00`. The event-clipping contract now
