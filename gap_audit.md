@@ -83,13 +83,16 @@ Nextest, Python 3.9–3.13, and wheel smoke gates are green in
 check, `recurseml/analysis`, is external/report-only. The Atlas gitlink now
 points at the PM merge; the peer-dirty primary checkout was not modified.
 
-## ATLAS-CONFORMANCE-BENCH-099 — benchmark classifier takeover (in progress)
+## ATLAS-CONFORMANCE-BENCH-099 — benchmark classifier correction (closed 2026-08-17)
 
-The dirty root classifier diff is stale and unclaimed. It already contains the
-required `benches/` executable-target correction and the target-fork marker
-correction. The takeover retains that work, proves both behaviors with focused
-scanner tests, and gates baseline regeneration and hosted ratchet verification
-on the corrected instrument.
+The classifier now recognizes `benches/` executable targets, executable support
+modules, exact test regions, target-cache markers, and literal or
+manifest-rooted `include!` edges. The focused scanner suite passes 37 tests and
+the baseline records Apollo `orphan_modules=0` after the false-positive
+included sources were removed from the count. Hosted root conformance run
+`32031997052` at `f84beec` reports 0 regressions and 23 tightening candidates;
+the latter are valid follow-up ratchet reductions and do not invalidate the
+instrument correction.
 
 ## ATLAS-POSTMERGE-HELIOS-CFDRS-001 — Consumer closure at merged defaults (closed 2026-08-17)
 

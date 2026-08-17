@@ -84,12 +84,13 @@
       Athena's five Hermes SIMD lock entries (0 lagging requirements). The
       same scan reports 48 workflow-timeout residuals after the Consus jobs
       were bounded; the remaining classes are unchanged.
-- [ ] Take over and complete the benchmark-target classifier through
-      `ATLAS-CONFORMANCE-BENCH-099`: preserve the existing target-fork
-      correction, prove `benches/` executable classification with scanner tests,
-      regenerate the baseline only after the classification is proven, and
-      verify the exact-head hosted ratchet. The prior dirty diff is stale and
-      has no current board owner.
+- [x] Close `ATLAS-CONFORMANCE-BENCH-099`: preserve the target-fork
+      correction, prove `benches/` executable classification, executable
+      support modules, exact test regions, and literal/manifest-rooted
+      `include!` edges with the focused 37-test scanner suite. The baseline
+      records Apollo `orphan_modules=0`; hosted root run `32031997052` at
+      `f84beec` reports 0 regressions and 23 non-regressing tightening
+      candidates.
 - [x] Close Leto's `ATLAS-ORPHAN-MODULES-096-LETO` slice: delete the
       unreachable `crates/leto/src/application/transform.rs`, preserve the
       canonical `application/array.rs` methods, and record direct detector

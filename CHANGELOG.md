@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Close the conformance classifier correction with 37 focused scanner tests,
+  Apollo's clean orphan baseline at 0, and hosted root run `32031997052`
+  reporting zero ratchet regressions at `f84beec`.
+
 - Advance RITK to PM closure `f23a6acd` after splitting the diffusion Python
   binding leaves. The exact provider `manifest_implementation` count reduces
   from 112 to 111; provider-owned Rust, Nextest, Python matrix, and wheel
