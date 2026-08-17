@@ -116,6 +116,12 @@
       superseded historical/stub/duplicate modules. Provider Nextest `738/738`
       (`3` skipped) and hosted CI `32033808279` pass; the exact scan drops
       `orphan_modules` 14 -> 1 and the Atlas pointer advances to `5b95fe3a`.
+- [x] Close the Coeus orphan sub-scope: `crates/coeus-cuda/src/driver_stub.rs`
+      is a feature-gated CUDA stub wired through `#[path = "driver_stub.rs"]`,
+      not dead code. Fix `PATH_ATTR` to follow `#[path]` across intervening doc
+      comments/attributes, add the regression test, and tighten coeus
+      `orphan_modules` 1 -> 0 after confirming it is the sole changed
+      resolution across every recorded gitlink head.
 - [x] Close RITK's `ATLAS-RITK-CONFORMANCE-101` structure slice. Source
       `81f510f6` splits the diffusion Python binding leaves; the exact clean
       provider count is `manifest_implementation=111` versus 112 before the

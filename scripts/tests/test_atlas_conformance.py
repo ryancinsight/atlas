@@ -82,6 +82,27 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
             self.assertEqual(conformance.count_orphan_modules(root), 0)
 
+    def test_path_attr_with_intervening_doc_comment_is_not_orphan(self) -> None:
+        # Coeus wires its feature-gated CUDA driver stub as
+        # `#[path = "driver_stub.rs"]` followed by a doc comment before
+        # `pub mod driver;`. The `#[path]` attribute still applies across the
+        # doc comment, so the stub is compiled (not an orphan); PATH_ATTR must
+        # not require `#[path]` to sit immediately before the `mod`.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                '#[cfg(not(feature = "cuda"))]\n'
+                '#[path = "driver_stub.rs"]\n'
+                "/// Stub CUDA driver surface used when the `cuda` feature is disabled.\n"
+                "pub mod driver;\n",
+            )
+            _write(root, "src/driver_stub.rs", "pub const STUB: usize = 1;\n")
+
+            self.assertEqual(conformance.count_orphan_modules(root), 0)
+
     def test_pages_target_output_is_not_a_cargo_fork(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)

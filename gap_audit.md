@@ -85,6 +85,17 @@ provider Nextest `738/738` (`3` skipped) and hosted CI `32033808279` pass, and
 the Atlas pointer advances to `5b95fe3a` with the conformance baseline
 re-anchored.
 
+## ATLAS-ORPHAN-MODULES-096-COEUS — detector false positive (closed)
+
+Coeus's sole reported orphan, `crates/coeus-cuda/src/driver_stub.rs`, is the
+feature-gated CUDA driver stub reached through `#[path = "driver_stub.rs"]`
+under `#[cfg(not(feature = "cuda"))]`. A doc comment between the `#[path]`
+attribute and `pub mod driver;` broke the scanner's end-anchored `PATH_ATTR`
+match, so the wired stub read as dead code. `PATH_ATTR` now accepts intervening
+attributes and `//`/doc comments, and a regression test pins the behaviour. A
+rescan of every recorded gitlink head shows this is the only resolution the
+fix changes; coeus `orphan_modules` tightens 1 -> 0.
+
 ## ATLAS-RITK-CONFORMANCE-101 — diffusion binding structure ratchet closure (closed 2026-08-17)
 
 Source `81f510f6` split the diffusion Python binding manifest from its

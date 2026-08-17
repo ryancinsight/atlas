@@ -852,6 +852,18 @@ advances to `5b95fe3a`; the conformance baseline re-anchors CFDrs (print_dbg
 295 -> 260, type_suffixed_fns 50 -> 47, unwrap_production 85 -> 78,
 oversized_files 135 -> 133, tag_pinned_actions 3 -> 0).
 
+### ATLAS-ORPHAN-MODULES-096-COEUS — closed 2026-08-17 [patch]
+
+Coeus's single reported orphan is a detector false positive, not dead code:
+`crates/coeus-cuda/src/driver_stub.rs` is the feature-gated CUDA stub wired
+through `#[path = "driver_stub.rs"]` under `#[cfg(not(feature = "cuda"))]`, but
+a doc comment between the `#[path]` attribute and `pub mod driver;` defeated
+the scanner's end-anchored `PATH_ATTR` match. `PATH_ATTR` now tolerates
+intervening `#[…]` attributes and `//`/doc comments, with a regression test
+(`test_path_attr_with_intervening_doc_comment_is_not_orphan`). A stack-wide
+rescan of every recorded gitlink head confirms this is the only changed
+resolution; the baseline tightens coeus `orphan_modules` 1 -> 0.
+
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
 
 Every member pins `channel = "1.97.0"`. That is a **version** pin. `rustup`

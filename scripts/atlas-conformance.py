@@ -97,7 +97,9 @@ CLASSES = [
 
 MOD_DECL = re.compile(r"\bmod\s+([A-Za-z_][A-Za-z0-9_]*)\s*[;{]")
 PATH_ATTR = re.compile(
-    r"#\[\s*path\s*=\s*\"([^\"]+)\"\s*\]\s*(?:pub(?:\([^)]*\))?\s*)?$"
+    r"#\[\s*path\s*=\s*\"([^\"]+)\"\s*\]"
+    r"(?:\s*(?:\#\[[^\]]*\]|//[^\n]*))*"
+    r"\s*(?:pub(?:\([^)]*\))?\s*)?$"
 )
 INCLUDE_PATH = re.compile(
     r"include!\s*\(\s*(?:concat!\s*\(.*?['\"](?P<concat>[^'\"]+\.rs)['\"]|"
