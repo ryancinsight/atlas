@@ -19,6 +19,13 @@
       native, feature, coverage, nightly, Miri, security, benchmark, and
       documentation gates pass. RecurseML remains report-only and CodeRabbit
       was rate-limited.
+- [x] Collect and merge Asclepius PR #17 at default `5de8a48c` and Coeus PR
+      #336 at default `b14777d`; provider ADR indexes pass the canonical
+      generator check and hosted verification is green.
+- [x] Collect and merge Consus PR #44 at default `2dcf05a`; its full format,
+      MSRV, platform-test, check, and fuzz-target build matrix is green.
+- [x] Collect and merge Helios PR #62 at default `39a24992`; hosted Rust,
+      Python, and phase-reversed benchmark gates pass in run `32068165866`.
 - [ ] Advance the resulting Atlas gitlinks and rerun the exact-head,
       requested-provider coherence, and root conformance gates.
 

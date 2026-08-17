@@ -49,6 +49,14 @@ provider-owned state rather than an Atlas source edit.
   `ae23d4b2`, and Kwavers PR #401 at default `6075940c`; their
   architecture-specific native gates, Miri/Loom, benchmark, coverage, and
   supply-chain checks completed successfully.
+- **Provider ADR-governance repair:** the root conformance run
+  `32066288100` exposed stale/noncanonical ADR indexes and status headers in
+  Asclepius, Coeus, Consus, and Helios. Asclepius PR #17 merged at default
+  `5de8a48c`, Coeus PR #336 merged at `b14777d`, and Consus PR #44 merged at
+  `2dcf05a`; their provider-local indexes now pass the canonical generator
+  check. Helios PR #62 carries the equivalent repair plus pre-existing
+  formatting correction at hosted head `124510ed`; its Rust, Python, and
+  benchmark jobs pass and it merged at default `39a24992`.
 - **Hosted verification:** CFDrs Rust workspace and book-figure gates pass;
   Apollo benchmark, Rust workspace, and Python gates pass; Tyche verify and
   supply-chain gates pass; RITK native CI `32063759899` and Python matrix
@@ -57,10 +65,12 @@ provider-owned state rather than an Atlas source edit.
   `32062703061`, `32062703096`, `32062703064`, and `32062702998`. The
   third-party `recurseml/analysis` status is an analyzer error on the Kwavers
   cleanup PR and remains report-only in the provider workflow; CodeRabbit was
-  rate-limited and is non-blocking.
-- **Pending integration:** both provider defaults are merged; advance the
-  RITK and Kwavers Atlas gitlinks, rerun the exact-head audit, and collect a
-  fresh root conformance result.
+  rate-limited and is non-blocking. Asclepius and Coeus hosted verification
+  passed; Consus PR #44 completed its full format, MSRV, platform-test, check,
+  and fuzz-target build matrix.
+- **Pending integration:** advance the Asclepius, Coeus, Consus, and Helios
+  Atlas gitlinks; RITK and Kwavers already point at their hosted-green defaults.
+  Then rerun the exact-head audit and collect a fresh root conformance result.
 - **Acceptance:** close this item only after the requested-provider exact-head
   audit and root conformance gate pass at the final Atlas commit, with exact
   heads, hosted run IDs, and residual external-status evidence recorded here.
