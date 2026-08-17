@@ -99,10 +99,12 @@
       default `bd9346f6`; root workflows `32050420294`, `32050420287`,
       `32050420276`, and `32050420274` all failed during recursive checkout.
       The nested Athena checkout remains untouched.
-- [ ] Collect the CFDrs follow-up branch `codex/cfdrs-runtime-residual` at
-      source commit `2acf49e7`; local locked evidence passes cfd-2d 521/521,
-      the 35 µm case, and the trifurcation case. PR creation is blocked by
-      three GitHub API HTTP 503 responses; re-open when the API is available.
+- [x] Repair the next unreachable root gitlink, Gaia `fa35887e`, to fetched
+      default `9595668`; the nested Gaia checkout remains untouched.
+- [ ] Collect CFDrs PR #348 at source commit `e6633964` on
+      `codex/cfdrs-runtime-residual`; the final exact local filter passes both
+      value-semantic cases under locked Nextest. Hosted Rust and Pages gates
+      remain pending at the exact final source head.
 - [x] Re-run the requested 20-provider and Atlas 21-provider exact-head audits
       after the pointer commit; both pass and the lane audit is clean. CFDrs
       PR #347 remains at `41db036a` with hosted gates in progress, and Helios

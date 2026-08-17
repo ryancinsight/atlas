@@ -32,6 +32,12 @@ their gates because the Athena gitlink named an unreachable provider commit
 `bd9346f6`. The nested Athena checkout remains peer-owned and untouched. The
 failure class is submodule reachability, not provider implementation evidence.
 
+**Second checkout repair (2026-08-17):** the same recursive checkout audit
+reached Gaia and found root gitlink `fa35887e` absent from the provider remote;
+Gaia `origin/main` is `9595668`. Atlas repairs the root pointer only. The
+nested Gaia checkout is clean but behind its fetched default, so it remains
+provider-owned state rather than an Atlas source edit.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
@@ -85,10 +91,10 @@ Helios `679402ae`, Hermes `1fe438ce`, Aequitas `b24bd8c9`, Asclepius
 `5d528d2f`, Moirai `3d5d4c66`, RITK `f23a6acd`, Coeus `a8ea12eb`, Apollo
 `ed6d6905`, and Iris `da210d2f`. This pointer evidence is separate from
 provider hosted-gate evidence. The nested primary checkouts remain peer-owned.
-The CFDrs follow-up is pushed at `2acf49e7` on
-`codex/cfdrs-runtime-residual`; its local value-semantic gates pass, but three
-GitHub PR-creation attempts returned HTTP 503. Re-open the hosted delivery
-step when the PR API is available.
+The CFDrs follow-up is pushed at `e6633964` on
+`codex/cfdrs-runtime-residual` and is carried by PR #348. Its final local
+value-semantic gates pass; the exact-head hosted Rust and Pages gates remain
+the delivery gate.
 
 **Live exact-head sweep (2026-08-17):** fetched provider defaults advanced
 Mnemosyne to `924cdcce`, Aequitas to `b24bd8c9`, and Leto to `d966e32c`. Their
