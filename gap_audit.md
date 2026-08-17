@@ -1,5 +1,15 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-ROOT-SUBMODULE-REACHABILITY-2026-08-17 — Athena gitlink repair
+
+The root workflow failures `32050420294`, `32050420287`, `32050420276`, and
+`32050420274` all stopped during recursive checkout because the Athena gitlink
+`638ca74f904ba417df40bff0cc4f6864cf55fc30` was not present on the provider's
+remote. Atlas now points at the fetched Athena default head
+`bd9346f6c34384b15f89dc9bcc571872799fbf98`; the nested Athena checkout remains
+untouched. The repair restores a reachable submodule graph. It does not claim
+new Athena provider-gate evidence.
+
 ## ATLAS-EXACT-HEAD-SWEEP-2026-08-17 — fetched default reconciliation
 
 The refreshed provider audit found fourteen Atlas gitlinks behind their

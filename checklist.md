@@ -95,6 +95,10 @@
       RITK `f23a6acd`, Coeus `a8ea12eb`, Apollo `ed6d6905`, and Iris
       `da210d2f` now match fetched `origin/main` in the staged root index.
       Hosted-gate status is not inferred from this pointer operation.
+- [x] Repair the unreachable Athena root gitlink from `638ca74f` to fetched
+      default `bd9346f6`; root workflows `32050420294`, `32050420287`,
+      `32050420276`, and `32050420274` all failed during recursive checkout.
+      The nested Athena checkout remains untouched.
 - [ ] Collect the CFDrs follow-up branch `codex/cfdrs-runtime-residual` at
       source commit `2acf49e7`; local locked evidence passes cfd-2d 521/521,
       the 35 µm case, and the trifurcation case. PR creation is blocked by

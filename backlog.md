@@ -26,6 +26,12 @@ the test-region classes where they belong (`existence_only_assertions`
 598 → 807, `sleep_synced_tests` 117 → 132). **Every burn-down target recorded
 before this fix was aimed by a broken instrument and must be re-derived.**
 
+**Root checkout repair (2026-08-17):** four Atlas workflows failed before
+their gates because the Athena gitlink named an unreachable provider commit
+`638ca74f`; the root pointer is repaired to fetched Athena `origin/main`
+`bd9346f6`. The nested Athena checkout remains peer-owned and untouched. The
+failure class is submodule reachability, not provider implementation evidence.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the

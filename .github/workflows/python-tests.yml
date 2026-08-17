@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'scripts/tests/**'
+      - 'scripts/.benchmarks/**'
       - 'scripts/generate_book_figures/**'
       - 'scripts/requirements-test.txt'
       - '.github/workflows/python-tests.yml'
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/tests/**'
+      - 'scripts/.benchmarks/**'
       - 'scripts/generate_book_figures/**'
       - 'scripts/requirements-test.txt'
       - '.github/workflows/python-tests.yml'
