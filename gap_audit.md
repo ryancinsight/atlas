@@ -1,5 +1,20 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-POSTMERGE-HELIOS-CFDRS-001 — Consumer closure at merged defaults (closed 2026-08-17)
+
+Helios PR #57 merged as `7fddf789`. Its DICOM boundary now rejects missing
+or malformed `PixelSpacing`, `ImagePositionPatient`, and
+`ImageOrientationPatient` values instead of silently supplying unit, zero, or
+identity defaults. Exact-head hosted run `31990847118` passed the Rust
+workspace, Python bindings, and replicated benchmark regression gate.
+
+CFDrs PR #345 merged as `a3c53da2`. The Fourier consumer now executes Apollo's
+typed native-precision plan APIs directly for generic scalar `T`, and the
+consumer-owned SSOR compatibility wrapper is deleted in favor of Leto's
+provider API. Exact-head hosted run `31997714748` passed the Rust workspace
+and book-figure gates. Atlas records both merged default heads in the current
+gitlink reconciliation; peer-dirty nested checkouts remain untouched.
+
 ## ATLAS-RITK-DICOM-ORIENTATION-070 — closed at Atlas integration scope 2026-08-14
 
 RITK owns `ImageOrientationPatient` `(0020,0037)` in its canonical DICOM tag

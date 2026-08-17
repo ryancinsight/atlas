@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Advance the Helios and CFDrs integrator gitlinks to merged PR #57
+  `7fddf789` and PR #345 `a3c53da2`. Helios now rejects incomplete required
+  DICOM geometry; CFDrs uses Apollo's native-precision Fourier API and Leto's
+  SSOR provider directly. Exact-head hosted gates pass for both consumers.
+
 - Advance the Tyche provider gitlink to merged PR #22 `b1c5cc9f`; the provider
   correction aligns package-distribution and reproducible-study verification
   claims. Advance Mnemosyne to merged PR #51 `997ec088` with event-driven
