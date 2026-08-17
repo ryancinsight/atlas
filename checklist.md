@@ -44,7 +44,7 @@
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
       reports only peer-owned Athena lock drift, and the conformance report
-      was collected with `--worktree` at exit 0; it reports 47 remaining
+      was collected with `--worktree` at exit 0; it reports 46 remaining
       orphan modules: Kwavers 22, CFDrs 14, RITK 6, Apollo 3, and Coeus 1.
       Hermes is now clean after its pushed orphan cleanup. The live scan is
       evidence only, not a reproducible clean-tree
