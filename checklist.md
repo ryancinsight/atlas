@@ -142,6 +142,10 @@
       already removed the duplicate backend buffer/pipeline ownership. The
       remaining Kwavers work is tracked by its provider-local items, not by a
       false raw-token count.
+- [ ] Claim `ATLAS-HELIOS-BOOK-TEST-002` on a clean Helios lane: enable the
+      shared Pages caller's `mdbook-test` input, run the exact local book
+      gates, and hold the provider PR until its exact-head hosted book gate
+      passes. Keep the peer-dirty Helios checkout and source branch untouched.
 - [ ] Keep Helios PR #55 peer-owned and blocked: hosted Rust failed at exact
       head `83f5ccea` because its RITK checkout lacks
       `IMAGE_ORIENTATION_PATIENT`, and the same job reports two independent

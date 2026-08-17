@@ -3226,6 +3226,20 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Scope: (1) crates.io — add tag-triggered, environment-gated trusted-publishing workflows (`rust-lang/crates-io-auth-action`, `id-token: write`) to publishable stack crates, dependency-ordered with `cargo package` dry-run and semver gates; record per-crate "enforce trusted publishing" as a user checklist once each pipeline is green (disables token publishing registry-side). (2) PyPI — for the Python-binding crates, maturin-action matrix (manylinux2014 floor, `--compatibility pypi`, abi3 where the surface permits, sdist) with install/import/pytest wheel smoke before upload via the PyPI trusted-publisher flow. (3) Books — align CFDrs/kwavers/helios book workflows to the artifact flow (build + `mdbook test` → upload-pages-artifact → deploy-pages) if any still push a gh-pages branch or skip the test gate; new books inherit the same workflow.
 - Acceptance: no long-lived registry token referenced in any CI secret; each wired pipeline dry-run green; book deployments artifact-based with the test gate; user-action list (registry enforcement toggles) recorded on the board.
 
+### ATLAS-HELIOS-BOOK-TEST-002 — Enable Helios `mdbook test` in the shared Pages caller [patch] — in progress
+
+- Owner: Atlas coordinator; scope is the clean Helios workflow caller only.
+- Evidence: Helios merged default `c9817cc8439bcf82e7b19f851a05fa7e86e2fa0d`
+  delegates to the shared Atlas Pages workflow but does not set its
+  `mdbook-test` input, whose default is `false`.
+- Acceptance: the caller enables `mdbook-test`; the exact clean Helios book
+  passes local `mdbook test`, `mdbook build`, and link checking; the provider
+  PR and post-merge Pages gates pass at the exact Helios head.
+- Non-goals: peer-owned Helios source edits, book prose, generated figures,
+  and the Kwavers/CFDrs caller sub-scopes.
+- Re-open trigger: a book sample failure, shared workflow contract change, or
+  provider caller that disables the test input.
+
 ## ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001 — Cross-book `mdbook test` gate alignment [patch] — peer-coordinated (filed by Session 18)
 
 Coordinator-owned evidence record (this entry) under
