@@ -37,7 +37,8 @@
 - [x] Reconcile Consus `CONSUS-NODEF-GATE-001` against clean `origin/main`:
       the former peer-dirty blocker is retired, the Atlas-overlay lock rewrite
       is recorded as the current external gate condition, and the root pointer
-      advances to merged documentation head `d7a9fff5fc42ccb009dd76346dc873f288978f4a`.
+      advances to orphan-cleanup head `403387b5`; the provider-local record
+      reports six unreachable files removed and `orphan_modules=0`.
 - [x] Re-run the exact-head and lane audits at root `cac6cce`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
