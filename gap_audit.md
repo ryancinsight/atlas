@@ -105,25 +105,33 @@ negative behavior, while GPU/CPU equivalence remains undeveloped. Second,
 `crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217` had no arm
 for an enabled but uninitialized GPU renderer in `render_multi_field`, so it
 could return success without rendering. PR #402 at exact source head
-`b275b7115` returns the typed `SystemError::FeatureNotAvailable` instead; its
+`f7ebc26db` carries that fix plus the synchronized PM evidence; its
 feature-enabled hosted matrix is the acceptance gate. The FDTD item remains
 provider capability work and must not be replaced by an f64 adapter or
 CPU-vs-CPU comparison. Local feature compilation is blocked before the
 package gate by the shared Atlas overlay's stale peer Asclepius checkout
 requiring `aequitas ^0.1.0` while the current graph is `0.2.0`.
 
+The exact FDTD ownership audit also finds a second residual: Kwavers still
+contains consumer-owned raw-WGPU FDTD code at
+`crates/kwavers-gpu/src/gpu/fdtd.rs`, while Hephaestus currently exposes only
+the 2D `StencilOps` contract and no FDTD operation. The complete slice must
+place the provider-neutral 3D contract and WGPU kernel ownership in Hephaestus,
+then wire Kwavers' CPU reference and unavailable-device/equivalence tests to
+that provider without retaining the consumer seam.
+
 ## ATLAS-CFDRS-BACKWARD-STEP-108 — provider-owned geometry and wall shear
 
 The original input-insensitive `6 * step_height` result and its consumer-local
 streamfunction solver are removed. The provider branch now places the
-backward-facing-step geometry mask, SIMPLE solve, explicit step/no-slip/
-parabolic-inlet/fixed-pressure-outlet contract, signed downstream lower-wall
-shear samples, and interpolated negative-to-nonnegative crossing in
+backward-facing-step geometry mask, SIMPLE solve, fluid-cell-only normalized
+parabolic inlet, explicit step/no-slip/fixed-pressure-outlet contract, signed
+downstream lower-wall shear samples, and interpolated negative-to-nonnegative crossing in
 `cfd-2d/src/solvers/ns_fvm/backward_step.rs`. `cfd-validation` maps its common
 benchmark configuration to that provider and asserts a finite positive
 field-derived result plus residual value semantics.
 
-Provider PR #349 source head `f65197b0` is open. Hosted Rust and book checks
+Provider PR #349 source head `9d2086b6` is open. Hosted Rust and book checks
 are running; local locked compilation remains blocked before package
 diagnostics by the shared Atlas overlay's dirty Asclepius checkout requiring
 `aequitas ^0.1.0` while the current graph is `0.2.0`. The final exact-head

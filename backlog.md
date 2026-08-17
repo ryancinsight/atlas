@@ -310,7 +310,12 @@ The acceptance oracle is a real Leto/Hephaestus FDTD execution path selected
 through the provider seam, a CPU differential comparison with a derived
 reduction tolerance, and negative coverage for unavailable hardware. The
 current explicit-unavailable result is honest evidence of a missing capability,
-not completion. No f64-only adapter or CPU fallback may be added to close it.
+not completion. The fetched Kwavers default at `6075940c` still has
+consumer-owned raw-WGPU FDTD code at `crates/kwavers-gpu/src/gpu/fdtd.rs`,
+while Hephaestus has no FDTD contract beyond its 2D stencil seam. No f64-only
+adapter, CPU fallback, or CPU-vs-CPU comparison may be added to close it; the
+provider contract and kernel must land upstream before Kwavers equivalence can
+close.
 
 #### ATLAS-CFDRS-BACKWARD-STEP-108 — input-sensitive reattachment measurement [major] — in progress 2026-08-17
 
@@ -323,10 +328,11 @@ backward-facing-step geometry, SIMPLE execution, explicit step/no-slip/
 parabolic-inlet/fixed-pressure-outlet contract, signed downstream lower-wall
 shear samples, and interpolated negative-to-nonnegative crossing.
 `cfd-validation` maps `BenchmarkConfig` to that provider and keeps
-value-semantic integration assertions. Provider PR #349 is at source head
-`f65197b0`; hosted Rust and book verification are pending. No consumer
-solver, hardcoded runtime correlation, tolerance reduction, or benchmark
-workload change closes this item.
+value-semantic integration assertions. The provider reapplies a normalized
+parabolic inlet only on fluid cells, leaving solid inlet cells at zero.
+Provider PR #349 is at source head `9d2086b6`; hosted Rust and book
+verification are pending. No consumer solver, hardcoded runtime correlation,
+tolerance reduction, or benchmark workload change closes this item.
 
 #### ATLAS-CFDRS-FOURIER-NATIVE-105 — native scalar contract [major] — closed 2026-08-17
 
