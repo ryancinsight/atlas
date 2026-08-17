@@ -209,14 +209,14 @@
       budget. Preserve the inherited timeout evidence until the exact final
       provider head is green.
       First bounded slice is implemented on provider branch
-      `codex/cfdrs-runtime-budget` at `521d9f76` (PR #347): cached pressure
-      CSR reuse. The exact 35 µm and trifurcation cases pass locally in
-      16.785 s and 16.903 s under locked Nextest; the Pages caller now builds
-      `cfd-validation` and runs the shared `mdbook test` gate. Hosted Rust
-      job `95425551229` failed before checkout on action-download 503/429
-      responses. Pages job `95425552255` independently failed before checkout
-      on `actions/configure-pages` 429/502; both failed jobs were rerun and
-      the exact source gate remains open.
+      `codex/cfdrs-runtime-budget` at `90798ca7` (PR #347): cached pressure
+      CSR reuse, plus explicit propagation of invalid hemolysis-model input.
+      The exact 35 µm and trifurcation cases pass locally in 16.785 s and
+      16.903 s under locked Nextest; the Pages caller now builds
+      `cfd-validation` and runs the shared `mdbook test` gate. Exact-head Rust
+      job `95426903063` in run `32043533301` failed before checkout on Atlas
+      action-download 503/429 responses. Exact-head Pages run `32043533628`
+      was still in progress at the audit point; the source gate remains open.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify
       the same-revision Pages artifact and live HTTP deployment.

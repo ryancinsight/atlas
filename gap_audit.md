@@ -2,7 +2,7 @@
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios source closure audit (2026-08-17)
 
-The audit was run against CFDrs provider branch `d3e095af`, Helios merged
+The audit was run against CFDrs provider branch `90798ca7`, Helios merged
 default `679402ae`, and Kwavers merged default `90dde196`; peer-dirty nested
 checkouts were not used as integration evidence.
 
@@ -15,13 +15,14 @@ scanned crate set. The earlier CFDrs feature-unification defect is also closed:
 `e16b82c9` routes the three bare `cfd-core` edges through the workspace table,
 and standalone locked no-default `cargo tree` runs show no `hephaestus-wgpu`
 for `cfd-1d`, `cfd-python`, or `cfd-schematics`. The pressure-cache slice is
-real production reuse, but its
-hosted exact-head gate is still pending at CFDrs PR #347 head `521d9f76`. The
-Rust job failed before checkout on the pinned toolchain action download
-(GitHub 503/429, run `32043011439`, job `95425551229`); this supplies no source
-failure evidence. The Pages job in run `32043011748` independently failed
-before checkout while downloading `actions/configure-pages` (429/502, job
-`95425552255`). Both failed jobs were rerun asynchronously.
+real production reuse, and commit `90798ca7` also surfaces invalid
+hemolysis-model errors instead of silently mapping them to zero; the existing
+negative-input and reference-value tests remain in place. The hosted
+exact-head gate is still pending at CFDrs PR #347 head `90798ca7`. Rust run
+`32043533301`, job `95426903063`, failed before checkout while downloading the
+Atlas reusable action (GitHub 503/429); this supplies no source failure
+evidence. Pages run `32043533628` was still in progress at this audit point,
+with book job `95426905897` and figure job `95426903174`.
 
 Helios' merged default has no direct `ndarray`, `nalgebra`, `rayon`, or
 `pollster` source matches in production crates. Its manifest edges route
@@ -152,13 +153,15 @@ unchanged tests completing within the committed budget with their existing
 value-semantic assertions.
 
 The first bounded production slice is now on CFDrs branch
-`codex/cfdrs-runtime-budget`, commit `52c17753`, PR #347. It removes the
+`codex/cfdrs-runtime-budget`, commit `90798ca7`, PR #347. It removes the
 per-correction clone of the immutable cfd-2d pressure CSR matrix. The exact
 35 µm and trifurcation cases pass locally in 16.785 s and 16.903 s under
 locked Nextest, runs `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c` and
 `913a79da-d89d-4440-a12e-52c575483be6`. This is local value/runtime evidence,
-not a cross-machine speedup claim; provider hosted verification at the exact
-post-change head remains the closure gate.
+not a cross-machine speedup claim. The same commit removes the silent
+`unwrap_or(0.0)` hemolysis-model error path; existing negative-input and
+reference-value tests cover the changed contract. Provider hosted verification
+at the exact post-change head remains the closure gate.
 
 ## ATLAS-ORPHAN-MODULES-096-COEUS — detector false positive (closed)
 

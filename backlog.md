@@ -39,14 +39,14 @@ cross-repository gates, and integration documentation; each member owns its
 source implementation and provider-local tests.
 
 - **Current slice:** Helios PR #59 carries the caller-side `mdbook test`
-  enablement, CFDrs PR #347 carries the pressure-cache and book-fence slices,
+  enablement, CFDrs PR #347 carries the pressure-cache, hemolysis-error, and
+  book-fence slices,
   and Apollo merged default `ed6d6905` carries the provider-owned public
   `PlanScratch` bound required by CFDrs. Helios PR #59 is merged at default
   `679402ae` with Rust, Python, benchmark, and book gates passing; CFDrs PR #347 is
-  at exact head `521d9f76`; Rust failed before checkout on a GitHub 503/429
-  action-download response (`32043011439`, job `95425551229`) and Pages failed
-  before checkout on `actions/configure-pages` 429/502
-  (`32043011748`, job `95425552255`). Both were rerun; no source failure is
+  at exact head `90798ca7`; Rust failed before checkout on a GitHub 503/429
+  action-download response (`32043533301`, job `95426903063`). Pages run
+  `32043533628` was still in progress at the audit point; no source failure is
   established.
   The Atlas gitlink sweep below is complete for moving Mnemosyne,
   Aequitas, and Leto defaults; CFDrs remains unadvanced until PR #347 closes,
@@ -5306,13 +5306,17 @@ blocker on Athena.
   the committed budget. The existing optimization outlook remains the
   candidate set; selection is evidence-driven.
 - First bounded slice delivered locally on provider branch
-  `codex/cfdrs-runtime-budget` at source commit `52c17753` (PR #347): cfd-2d
+  `codex/cfdrs-runtime-budget` at source commit `90798ca7` (PR #347): cfd-2d
   now borrows the immutable cached pressure CSR matrix instead of cloning it
   for every SIMPLE correction. Exact local Nextest passes the 35 µm case in
   16.785 s (run `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c`) and the trifurcation
   case in 16.903 s (run `913a79da-d89d-4440-a12e-52c575483be6`). The
-  workload, assertions, and 30-second budget are unchanged. Hosted
-  exact-head confirmation remains the closure gate.
+  workload, assertions, and 30-second budget are unchanged. The same commit
+  makes hemolysis model conversion failures explicit instead of silently
+  returning zero; existing negative-input and reference-value tests remain
+  unchanged. Hosted exact-head confirmation remains the closure gate; Rust
+  job `95426903063` failed before checkout on action-download 503/429 and
+  Pages run `32043533628` was still in progress at the audit point.
 - Re-open trigger after closure: either named test exceeds the budget again or
   a new solver-heavy fidelity case crosses the slow threshold.
 
