@@ -78,6 +78,18 @@ claims; and the provider/integrator books build, test, deploy, and resolve
 their live Pages URLs. Residual external or peer-owned work remains an
 explicit board item with its exact blocker and re-open trigger.
 
+### Provider ratchet closures completed in this increment
+
+- `ATLAS-CONSUS-UNWRAP-099`: Consus source `a9a56ad` and PM closure
+  `087f810`; the provider scan returns `unwrap_production=383` without a
+  baseline edit. Default/no-default locked Nextest passes 2553/2553 and
+  2031/2031; hosted CI `32020339446`, Documentation `32020339452`, and Pages
+  `32020338335` pass at the exact source head.
+- `ATLAS-LETO-CONTRACT-100`: Leto source `6463f4a` and PM closure `e04fdc7`;
+  the provider scan returns `existence_only_assertions=9` without a baseline
+  edit. Focused locked Nextest passes 550/550; hosted CI `32021076930` and
+  Pages `32021074899` pass at the exact source head.
+
 Dependencies: `ATLAS-COEUS-LINT-RATCHET-097`,
 `ATLAS-CONFORMANCE-BENCH-099`, `ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001`,
 `ATLAS-OVERLAY-005`, and the current CFDrs integration PR. This item is the

@@ -1,5 +1,23 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-CONSUS-UNWRAP-099 / ATLAS-LETO-CONTRACT-100 — provider ratchet closures (closed 2026-08-17)
+
+Consus source commit `a9a56ad` removes the three unwrap ratchet delta sites;
+its provider scan returns `unwrap_production=383` without a baseline edit.
+Default and no-default locked Nextest pass 2553/2553 and 2031/2031, strict
+Clippy and doctests pass, and hosted exact-source-head CI `32020339446`,
+Documentation `32020339452`, and Pages `32020338335` pass. Provider PM closure
+is `087f810`.
+
+Leto source commit `6463f4a` replaces the shutdown `is_err()` assertion with
+`Err(moirai::ExecutorError::ShuttingDown)`; its provider scan returns
+`existence_only_assertions=9` without a baseline edit. Strict Clippy and focused
+locked Nextest pass 550/550, and hosted exact-source-head CI `32021076930` and
+Pages `32021074899` pass. Provider PM closure is `e04fdc7`.
+
+The Atlas root classifier's feature-qualified test-region limitation remains
+peer-owned; these provider changes do not alter the root baseline or classifier.
+
 ## ATLAS-POSTMERGE-HELIOS-CFDRS-001 — Consumer closure at merged defaults (closed 2026-08-17)
 
 Helios PR #57 merged as `7fddf789`. Its DICOM boundary now rejects missing

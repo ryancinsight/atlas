@@ -30,6 +30,12 @@
 - [x] Advance the Atlas Leto gitlink to the pushed orphan-module cleanup and
       gate-evidence default `0977fd8`; the Leto checkout is clean and the
       overlay lockfile limitation is recorded in the provider PM artifacts.
+- [x] Close Leto `ATLAS-LETO-CONTRACT-100`: provider `6463f4a` replaces the
+      shutdown `is_err()` assertion with
+      `Err(moirai::ExecutorError::ShuttingDown)`; the scan returns 9, strict
+      Clippy passes, focused Nextest passes 550/550, and hosted CI
+      `32021076930` plus Pages `32021074899` pass at the exact source head.
+      Provider PM closure is `e04fdc7`.
 - [x] Collect Kwavers PR #386 after its full hosted matrix passed, mark it
       ready, merge it as `0e9fb8dab29f2ceef505f685211e84aa3a321645`, and
       advance the Atlas gitlink without touching the peer's untracked
@@ -41,6 +47,12 @@
       jobs), Documentation `32018422679`, and Pages `32018420714`.
       The root pointer now advances to that exact hosted-green head; the
       Atlas-overlay lock rewrite remains a separate environment note.
+- [x] Close Consus `ATLAS-CONSUS-UNWRAP-099`: provider `a9a56ad` removes the
+      three unwrap ratchet delta without a baseline edit; the scan returns 383,
+      default/no-default Nextest passes 2553/2553 and 2031/2031, strict Clippy
+      and doctests pass, and hosted CI `32020339446`, Documentation
+      `32020339452`, and Pages `32020338335` pass at the exact source head.
+      Provider PM closure is `087f810`.
 - [x] Re-run the exact-head and lane audits at root `d56eaa0`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
