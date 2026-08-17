@@ -42,9 +42,9 @@
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
       ratchet result. The exact-head provider audit passes for all 21 providers
-      at root `6eb9b4a`; the generated overlay still
-      reports peer-owned Athena lock drift and the conformance report remains
-      uncollected on the dirty shared tree.
+      at root `cc02594`; the generated overlay still reports peer-owned Athena
+      lock drift and the conformance report remains uncollected on the dirty
+      shared tree.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native
@@ -55,6 +55,12 @@
       documentation residual H-103 is closed locally: non-standalone book
       fragments are explicitly marked as text, executable sources remain
       Cargo-linked, and local `mdbook test`/build/linkcheck2 pass.
+- [ ] Keep Helios PR #55 peer-owned and blocked: hosted Rust failed at exact
+      head `83f5ccea` because its RITK checkout lacks
+      `IMAGE_ORIENTATION_PATIENT`, and the same job reports two independent
+      Clippy errors in `helios-planning/src/autodiff.rs`. Re-open after the
+      provider pin and source fixes land; do not alter that active branch from
+      the Atlas integration tree.
 - [ ] Collect Helios PR #58 at exact head `7482b04`; the caller now triggers
       Pages on source/example/manifest/lockfile changes and installs pinned
       `mdbook-linkcheck2`, and CI now runs pinned `mdbook test`. Its fresh
