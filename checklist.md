@@ -169,12 +169,14 @@ Three ordering facts came out of the audit and are not obvious from the board:
       `TieredHeap::alloc` routing `PlacementHint::Numa` through
       `bind_to_node`); Themis owns the vocabulary; Moirai owns the parallel
       fan-out. The axis is closed.
-- [x] Advance the Atlas kwavers gitlink to the fold-branch head `08df5730f`
-      (gitlink-only via `update-index --cacheinfo`; the peer-dirty
+- [x] Advance the Atlas kwavers gitlink to merged default `1d7c6899`
+      (PR #382 NUMA fold plus PR #383 ADR normalization; gitlink-only via
+      `update-index --cacheinfo`; the peer-dirty
       `codex/kwavers-floatelement-roots` working tree is left untouched).
       mnemosyne already records `5ca0461`.
-- [x] Note: the fold branch is not yet merged to kwavers main; the gitlink
-      tracks the branch head pending the peer's merge.
+- [x] Collect the merged Kwavers provider evidence: PR #382 and PR #383
+      are merged, all required provider checks pass, and the stale clean
+      `kwavers-mnemosyne-numa` lane is removed.
 
 ### ATLAS-MOIRAI-ORDERING-052-PM-SYNC — closed 2026-08-14
 
