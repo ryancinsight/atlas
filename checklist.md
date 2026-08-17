@@ -58,6 +58,11 @@
       `tag_pinned_actions=0`; locked package check, focused locked Nextest
       166/166, and doctests pass; hosted CI `32022469516` passes Rust and
       book-figure jobs. Advance the Atlas gitlink to PM closure `38bdbeb9`.
+- [ ] Take ownership of `ATLAS-MNEMOSYNE-CONFORMANCE-101` on a clean
+      Mnemosyne lane from fetched `origin/main` at `5ca0461`; do not touch the
+      peer-dirty primary checkout. Locate the exact existence-only assertion,
+      replace it with a value-semantic contract, run focused gates and hosted
+      exact-head CI, then synchronize provider PM and the Atlas gitlink.
 - [x] Re-run the exact-head and lane audits at root `d56eaa0`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still

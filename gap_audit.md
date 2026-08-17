@@ -36,6 +36,15 @@ default `a8ea12eb`. The production scan at the lint-ratchet head reports
 the Atlas gitlink already records `a8ea12eb`. The dedicated lane claim was
 stale and is released without duplicate source edits.
 
+## ATLAS-MNEMOSYNE-CONFORMANCE-101 — exact-head assertion ratchet (in progress)
+
+The committed Mnemosyne default `5ca0461` is one
+`existence_only_assertions` above the Atlas baseline. The correction is scoped
+to a clean lane from fetched `origin/main`; the peer-dirty primary checkout is
+excluded. The acceptance oracle is a value-semantic assertion, no baseline
+increase, focused provider gates, exact-head hosted CI, synchronized provider
+PM, and an Atlas gitlink advance only after hosted closure.
+
 ## ATLAS-POSTMERGE-HELIOS-CFDRS-001 — Consumer closure at merged defaults (closed 2026-08-17)
 
 Helios PR #57 merged as `7fddf789`. Its DICOM boundary now rejects missing

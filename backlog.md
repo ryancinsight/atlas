@@ -114,6 +114,16 @@ edits.
 
 ### Current residuals from the 2026-08-16 provider-consumer audit
 
+#### ATLAS-MNEMOSYNE-CONFORMANCE-101 — Close exact-head assertion ratchet [patch, in progress]
+
+The committed Mnemosyne default `5ca0461` is one `existence_only_assertions`
+above the Atlas baseline. This item owns a clean lane from fetched
+`origin/main`; the peer-dirty primary checkout and its allocator work remain
+outside scope. Acceptance is a value-semantic test assertion, no baseline
+increase, focused provider gates, exact-head hosted CI, synchronized provider
+PM, and an Atlas gitlink advance only after the final provider head is hosted
+green.
+
 #### ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention [patch] — closed
 
 CFDrs PR #344 was rebased onto the newer default branch after GitHub reported
