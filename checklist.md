@@ -357,10 +357,13 @@ Three ordering facts came out of the audit and are not obvious from the board:
 ## ATLAS-CONSUS-ASYNC-FACADE-029 — Consus async boundary audit
 
 - [x] Inspect the exact fetched Consus default and confirm the public
-      `AsyncFacadeUnavailable` marker is the entire async module.
+      `AsyncFacadeUnavailable` marker was the entire async module.
 - [x] Record the provider-owned implementation-or-removal acceptance contract.
-- [ ] Implement or remove the deferred async public surface and verify package,
-      docs, cancellation, and bounded-resource behavior.
+- [x] Confirm provider commit `9e11ba7` removed the deferred async surface;
+      current root head `6c266c3` contains no `crates/consus/src/async/mod.rs`.
+      Default and no-default workspace gates pass with Nextest `2553/2553` and
+      `2031/2031`, respectively, with checks, warning-denied Clippy, and
+      doctests green in both configurations.
 
 ## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift — open 2026-08-13
 
