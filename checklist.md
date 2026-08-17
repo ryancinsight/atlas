@@ -3,6 +3,18 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-PROVIDER-INTEGRATION-2026-08-17
+
+- [x] Audit the requested twenty-provider registration, ownership, exact-head,
+      and hosted-gate boundary.
+- [x] Merge CFDrs PR #348 (`f95209da`), Apollo PR #105 (`df8999f`), and Tyche
+      PR #24 (`5eeaba9`); preserve peer-dirty nested checkouts.
+- [ ] Collect and merge Hermes PR #52, Mnemosyne PR #59, and RITK PR #165
+      after their hosted gates pass; the external `recurseml/analysis` analyzer
+      error remains report-only unless a repository gate treats it as required.
+- [ ] Advance the resulting Atlas gitlinks and rerun the exact-head,
+      requested-provider coherence, and root conformance gates.
+
 # Sweep 2026-08-13 — execution order
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — current execution order

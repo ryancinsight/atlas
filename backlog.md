@@ -38,6 +38,25 @@ Gaia `origin/main` is `9595668`. Atlas repairs the root pointer only. The
 nested Gaia checkout is clean but behind its fetched default, so it remains
 provider-owned state rather than an Atlas source edit.
 
+## ATLAS-PROVIDER-INTEGRATION-2026-08-17 — close the requested provider sweep [patch] — in-progress
+
+- **Scope:** exact-head coherence for the twenty requested providers, plus
+  provider-owned cleanup slices required by the Atlas conformance gate.
+- **Merged slices:** CFDrs PR #348 at default `f95209da`, Apollo PR #105 at
+  default `df8999f`, and Tyche PR #24 at default `5eeaba9`.
+- **Hosted verification:** CFDrs Rust workspace and book-figure gates pass;
+  Apollo benchmark, Rust workspace, and Python gates pass; Tyche verify and
+  supply-chain gates pass. The third-party `recurseml/analysis` status is an
+  analyzer error on each cleanup PR and is report-only in the provider
+  workflows.
+- **Pending provider slices:** Hermes PR #52, Mnemosyne PR #59, and RITK PR
+  #165 remain in hosted verification. Local evidence is recorded in their
+  provider checklists and PR descriptions.
+- **Acceptance:** advance only the three merged Atlas gitlinks now; after the
+  pending defaults land, advance their gitlinks, run the exact-head audit and
+  root conformance gate, and close this item with exact heads, hosted run IDs,
+  and residual external-status evidence.
+
 **Third checkout repair (2026-08-17):** recursive checkout then reached
 Harmonia and found root gitlink `a8ce2fc3` absent from the provider remote;
 Harmonia `origin/main` is `10e15ae`. Atlas repairs the root pointer only. The
@@ -943,6 +962,45 @@ intervening `#[…]` attributes and `//`/doc comments, with a regression test
 (`test_path_attr_with_intervening_doc_comment_is_not_orphan`). A stack-wide
 rescan of every recorded gitlink head confirms this is the only changed
 resolution; the baseline tightens coeus `orphan_modules` 1 -> 0.
+
+**Detector fix — raw identifier support (2026-08-17):** `MOD_DECL` did not
+match `pub mod r#loop;` or `pub mod r#type;` because the pattern required an
+identifier starting with a letter, not the `r#` raw-identifier prefix. Three
+kwavers orphans (`physics/emi/loop.rs`, `kwavers-field/src/type.rs`,
+`kwavers-solver/.../training/loop.rs`) were detector false positives: all three
+are fully declared in their parent modules. `MOD_DECL` is extended to match
+`r#<ident>` and `_child_candidates` strips the `r#` prefix when deriving the
+file path. `scripts/tests/test_atlas_conformance.py` (215 tests) passes. The
+live dirty-tree scan now reports kwavers **16** true orphans (down from 19).
+
+### ATLAS-ORPHAN-MODULES-096-RITK — in progress 2026-08-17
+
+Provider PR #166 (`525cc04a`) carries the ritk slice at default `b2da60c7`:
+`ritk-connectome` gains `pub mod freesurfer;` (FreeSurfer annotation reader,
+224 lines, with `#[cfg(test)] mod tests;` already declared inside the file);
+`ritk-interpolation/kernel` gains `#[cfg(test)] mod tests_sinc;` in
+`kernel/mod.rs` (the file is a sibling of `sinc.rs`, not a sub-directory);
+`ritk-interpolation/kernel/linear` gains `#[cfg(test)] mod tests_linear;` plus
+12 E0716 lifetime fixes so the tests compile and pass. Deleted:
+`kernel/macros.rs` (empty file) and `tests/fused.rs` (references
+`is_identity_direction` which is not exported from `fused.rs`). Local nextest
+passes 5283/5283. Re-open trigger: PR merges and Atlas pointer advances.
+
+### ATLAS-ORPHAN-MODULES-096-KWAVERS — in progress 2026-08-17
+
+Provider PR #400 (`f1fa78d1`) carries the kwavers slice at default
+`c4a41f289`: `kwavers-solver/validation` gains `pub mod bioheat;` (bioheat/
+mod.rs already declares `cem43_reference`); `kwavers-solver/forward/pstd` gains
+`pub mod cache;` (k-space operator cache; fix `shape()` comparison from
+`&[32, 32, 32]` to `[32usize, 32, 32]` to match return type);
+`kwavers-driver/io` gains `#[cfg(test)] mod tests;` (250-line consolidated io
+test surface). Deleted: `steering.rs` (reserved-for-future stub, no callers),
+`nufft.rs` (re-exports Apollo NUFFT symbols not in current apollo), `adaptive/`
+(4 files — calls `.std()`/`.var()` on types that don't implement those traits),
+6 stale `fixed_acquisition/tests/` files (reference `ShiftPrior`, `ShiftSampling`,
+`SoundSpeedShiftPlanWorkspace`, and methods removed from current
+`SoundSpeedShiftPlan` API). Local nextest passes 6223/6223 (17 slow). Re-open
+trigger: PR merges and Atlas pointer advances.
 
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
 
