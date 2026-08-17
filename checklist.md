@@ -108,6 +108,14 @@
       deliberate included sources are no longer false orphans and the exact
       scan returns `apollo/orphan_modules=0`. Baseline `3 -> 0`; the provider
       source and peer-dirty primary checkout remain untouched.
+- [x] Close RITK's `ATLAS-RITK-CONFORMANCE-101` structure slice. Source
+      `81f510f6` splits the diffusion Python binding leaves; the exact clean
+      provider count is `manifest_implementation=111` versus 112 before the
+      change. Source default `7ae4b69b`, PM closure `62efbd79`, and PM merge
+      `f23a6acd` are hosted-green: provider-owned checks 21/21 pass across
+      Rust, Nextest on three hosts, Python 3.9–3.13, and wheel smoke. The
+      external `recurseml/analysis` result is report-only. Atlas advances the
+      gitlink without touching the peer-dirty primary checkout.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Advance RITK to PM closure `f23a6acd` after splitting the diffusion Python
+  binding leaves. The exact provider `manifest_implementation` count reduces
+  from 112 to 111; provider-owned Rust, Nextest, Python matrix, and wheel
+  smoke gates pass.
+
 - Advance Hephaestus to PM closure `300b9e9` after the attention structure
   ratchet cleanup and exact-head CUDA/ROCm/WGPU/Metal gates. The provider
   `oversized_files` count is 38; direct Coeus attention cutover remains open.

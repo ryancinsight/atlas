@@ -554,6 +554,18 @@ Metal `32027773250` pass. The direct Coeus attention cutover remains open under
 the provider's `HEPH-ATTENTION-PROVIDER-1` item. Atlas advances the gitlink to
 the PM closure without touching the peer-dirty primary checkout.
 
+## ATLAS-RITK-CONFORMANCE-101 — diffusion binding structure ratchet closure [patch, closed 2026-08-17]
+
+RITK source `81f510f6` split the diffusion Python binding manifest from its
+`PyDiffusionMaps` and fitting implementation leaves, reducing the exact clean
+provider `manifest_implementation` count from 112 to 111. The source merged at
+provider default `7ae4b69b`; PM closure `62efbd79` merged at `f23a6acd`. The
+provider-owned Rust, formatting, clippy, dependency-alignment, three-platform
+Nextest, Python 3.9–3.13, and wheel smoke gates are green in
+`32026464996`, `32026464796`, and PM run `32028306807`/`32028306813`.
+The external `recurseml/analysis` result is report-only. Atlas advances the
+gitlink to the PM closure without touching the peer-dirty primary checkout.
+
 ### ATLAS-CONFORMANCE-BENCH-099 — in progress 2026-08-17 takeover [patch]
 
 Correct `scripts/atlas-conformance.py` so Rust files under `benches/` are

@@ -71,6 +71,18 @@ the regression suite covers both forms. The clean Apollo lane at
 The remaining root working-tree orphan count is not used as exact evidence
 because the primary Apollo checkout is peer-dirty on a divergent branch.
 
+## ATLAS-RITK-CONFORMANCE-101 — diffusion binding structure ratchet closure (closed 2026-08-17)
+
+Source `81f510f6` split the diffusion Python binding manifest from its
+`PyDiffusionMaps` and fitting implementation leaves. The exact clean provider
+scan reduced `manifest_implementation` from 112 to 111. Source default
+`7ae4b69b`, PM commit `62efbd79`, and PM merge `f23a6acd` are recorded; the
+provider-owned Rust, formatting, clippy, dependency-alignment, three-platform
+Nextest, Python 3.9–3.13, and wheel smoke gates are green in
+`32026464996`, `32026464796`, `32028306807`, and `32028306813`. The sole failed
+check, `recurseml/analysis`, is external/report-only. The Atlas gitlink now
+points at the PM merge; the peer-dirty primary checkout was not modified.
+
 ## ATLAS-CONFORMANCE-BENCH-099 — benchmark classifier takeover (in progress)
 
 The dirty root classifier diff is stale and unclaimed. It already contains the
