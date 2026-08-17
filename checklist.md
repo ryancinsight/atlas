@@ -13,15 +13,14 @@
 - [x] Run the structural 22-provider registration audit and preserve the
       Tyche/Tychee naming normalization.
 - [ ] Collect CFDrs PR #344 at exact head
-      `6b072ebd05c8de6626d700e66601bc43d4c95f9e`; run `31991407706` passed
-      the full non-fidelity suite, but the isolated fidelity invocation timed
-      out the four-case aggregate after `9/10` selected tests passed. The
-      forward fix keeps all four cases and assertions while giving each case
-      its own nextest budget; the focused local gate passes `4/4` in
-      `22.479 s`. The 30-second/60-second budgets remain unchanged. A new
-      exact-head hosted run is pending; merge only after its exact-head
-      format, locked workspace, nextest, doctest, and figure gates pass.
-      Record the legacy-Clippy residual separately.
+      `f106558253570e9514f3a92625ccabf42616c9d2`, rebased onto default
+      `2a4e4b492d67a1c9abd46e68de9ff1967d6d2627` after the PR became dirty.
+      Formatting and diff checks pass; hosted run `31993943827` is queued.
+      The fidelity split retains all cases/assertions and the 30-second/60-
+      second budgets. Merge only after the exact-head format, locked
+      workspace, nextest, doctest, and figure gates pass. Record the
+      legacy-Clippy residual separately. The local locked gate remains
+      blocked by peer-dirty Mnemosyne `memory_diagnostics.rs:96`.
 - [x] Collect Coeus PR #334; provider-contract jobs pass at merged default
       `a8ea12eb23477ff017e38479ae792094ccb85382`, and the Atlas gitlink now
       points to that exact default without modifying the peer-dirty checkout.
@@ -44,9 +43,13 @@
 - [ ] Collect Helios draft PR #57 at exact head
       `67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; local `helios-domain` DICOM
       gates pass 45/45 nextest, doctests, and warning-denied Clippy. Hosted run
-      `31990847118` is queued; merge only after the provider-owned CI gate is
-      green, then advance the Atlas gitlink without touching the peer-dirty
-      primary checkout.
+      `31990847118` passed Rust/Python but failed replicated benchmark
+      classification for DVH and CPU forward projection in both replications.
+      The only PR source change is DICOM-gated and the benchmark dependency
+      tree does not enable that feature, so this is an unresolved benchmark
+      provenance/runner blocker rather than evidence against the DICOM fix.
+      Keep PR #57 draft and do not advance the Atlas gitlink until a corrected
+      fresh exact-head benchmark run is green.
 - [ ] Add or repair bounded performance and memory evidence for the suite:
       controlled criterion baselines, allocation/buffer-reuse measurements,
       shared-cache checks, and zero-copy boundary verification. Do not change

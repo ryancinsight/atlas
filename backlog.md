@@ -85,14 +85,17 @@ parent audit; its vertical slices close independently with their own evidence.
 
 #### ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention [patch] — in progress
 
-CFDrs PR #344 is at exact head
-`6b072ebd05c8de6626d700e66601bc43d4c95f9e`. Run `31991407706` passed the
-full non-fidelity suite, but its isolated fidelity invocation still timed out
-the four-case aggregate after `9/10` selected tests passed. The forward fix
-keeps all four cases and assertions but gives each case its own nextest budget;
-the focused local gate passes `4/4` in `22.479 s`. No workload or
-30-second/60-second budget changes. A new exact-head hosted run is pending;
-merge and the Atlas gitlink advance remain gated on its result.
+CFDrs PR #344 is now at exact head
+`f106558253570e9514f3a92625ccabf42616c9d2`, rebased onto the newer default
+branch `2a4e4b492d67a1c9abd46e68de9ff1967d6d2627` after GitHub reported the
+previous branch as dirty. The forward fix retains every fidelity case and
+assertion while splitting the remaining Venturi 1D↔2D and 1D↔3D contracts;
+the 30-second/60-second budgets and workloads are unchanged. Formatting and
+diff checks pass on the rebased lane. Hosted run `31993943827` is queued at
+the exact head; merge and the Atlas gitlink advance remain gated on its full
+format, locked workspace, nextest, doctest, and figure result. The local
+locked gate remains blocked by the peer-dirty Mnemosyne compile error at
+`crates/mnemosyne-core/src/memory_diagnostics.rs:96`, not by this CFDrs diff.
 
 #### ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults [major] — in progress
 
@@ -105,9 +108,18 @@ acceptance oracle is a typed error for each missing or malformed required
 geometry attribute plus negative fixture coverage through Helios' DICOM gate;
 RITK remains the sole DICOM parser/decoder owner. A clean integration lane
 implements the typed rejection and negative fixtures at Helios commit
-`67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; draft PR #57 is open and hosted
-run `31990847118` is queued. The peer-dirty primary checkout remains
-untouched.
+`67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; local DICOM nextest passes 45/45,
+doctests pass, and warning-denied Clippy passes. Hosted run `31990847118`
+passed the Rust and Python jobs but failed its replicated benchmark gate:
+`dvh_volume_fraction_at_dose/production/1024` and
+`forward_projection_sinogram/cpu/360x256` were classified in both
+counterbalanced replications. The PR changes only the DICOM-gated source; the
+benchmark source archive is unchanged and the benchmark dependency tree does
+not enable `ritk-dicom`. The current evidence therefore identifies benchmark
+provenance or runner contamination, not a DICOM code-path regression, but the
+provider-owned gate is still red. PR #57 remains draft; do not merge or
+advance the Atlas gitlink until the benchmark gate is corrected and a fresh
+exact-head run is green. The peer-dirty primary checkout remains untouched.
 
 #### ATLAS-KWAVERS-HEPHAESTUS-VIS-104 — GPU ownership closure [arch] — todo
 

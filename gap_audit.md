@@ -2052,6 +2052,20 @@ the committed blob; the per-commit `version-guard scan` on
 with the same 24 hermes-drift defect lines — none introduced by the gate
 runs). Root gitlink stays at `1ac8118c` until owner PR merge.
 
+## ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention — 2026-08-17
+
+CFDrs PR #344 was rebased onto the newer default branch after GitHub marked
+the previous exact head dirty. The current PR head is
+`f106558253570e9514f3a92625ccabf42616c9d2`; the rebased branch passes
+formatting and diff checks. The forward test change retains every fidelity
+case and assertion, splitting the remaining Venturi 1D↔2D and 1D↔3D
+comparisons without changing the 30-second/60-second budgets or workloads.
+Hosted run `31993943827` is queued at that exact head. The local locked gate
+is independently blocked by peer-dirty Mnemosyne
+`crates/mnemosyne-core/src/memory_diagnostics.rs:96`, which calls a non-const
+`Default::default` from a `const fn`; that source is outside this lane and was
+not modified.
+
 ## ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults — 2026-08-16
 
 The provider-consumer audit found a contract contradiction in the current
@@ -2068,9 +2082,16 @@ malformed required geometry attribute, add negative fixture coverage, and
 rerun the Helios DICOM gate with RITK retaining parser/decoder ownership. A
 clean integration lane now implements the typed rejection at
 `67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; local `helios-domain` DICOM
-nextest passes 45/45, doctests pass, and warning-denied Clippy passes. Draft PR
-#57 is open with hosted run `31990847118` queued. The peer-dirty primary
-checkout remains untouched. See
+nextest passes 45/45, doctests pass, and warning-denied Clippy passes. Hosted
+run `31990847118` passed Rust/Python but failed replicated benchmark
+classification for `dvh_volume_fraction_at_dose/production/1024` and
+`forward_projection_sinogram/cpu/360x256` in both replications. The PR changes
+only the DICOM-gated source; the candidate benchmark archive is unchanged and
+the `helios-analysis` dependency tree does not enable `ritk-dicom`, so the
+measured regressions are not reachable through the submitted code path. This
+is evidence of a benchmark provenance/runner blocker, not permission to
+weaken the gate. PR #57 remains draft; re-open on a corrected fresh exact-head
+benchmark run. The peer-dirty primary checkout remains untouched. See
 `backlog.md#ATLAS-HELIOS-DICOM-GEOMETRY-103`.
 
 ## ATLAS-HEPHAESTUS-CONSUMER-CLOSURE-104 — Kwavers GPU ownership and CFDrs native scalar residuals — 2026-08-16
