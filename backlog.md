@@ -312,6 +312,19 @@ reduction tolerance, and negative coverage for unavailable hardware. The
 current explicit-unavailable result is honest evidence of a missing capability,
 not completion. No f64-only adapter or CPU fallback may be added to close it.
 
+#### ATLAS-CFDRS-BACKWARD-STEP-108 — input-sensitive reattachment measurement [major]
+
+`crates/cfd-validation/src/benchmarks/step.rs:34-39` accepts the computed
+velocity field as `_u_field` but ignores it and always returns
+`6 * step_height`. The current integration test only checks result structure
+and whether validation returns a boolean, so it does not detect this
+input-insensitive benchmark result. Completion requires a real backward-facing
+step flow solution with explicit wall/step boundary behavior and a
+reattachment measurement derived from the wall-shear sign change in the
+computed field, with value-semantic positive, negative, boundary, and
+reference regressions. No hardcoded correlation, tolerance reduction, or
+benchmark-workload change is an acceptable substitute.
+
 #### ATLAS-CFDRS-FOURIER-NATIVE-105 — native scalar contract [major] — closed 2026-08-17
 
 The consumer-side `f64`/`Complex64` widen-narrow path and obsolete inverse

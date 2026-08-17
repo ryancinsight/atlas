@@ -112,6 +112,28 @@ CPU-vs-CPU comparison. Local feature compilation is blocked before the
 package gate by the shared Atlas overlay's stale peer Asclepius checkout
 requiring `aequitas ^0.1.0` while the current graph is `0.2.0`.
 
+## ATLAS-CFDRS-BACKWARD-STEP-108 — benchmark result is input-insensitive
+
+The CFDrs backward-facing-step benchmark's
+`crates/cfd-validation/src/benchmarks/step.rs:34-39`
+`calculate_reattachment_length` method names its velocity-field input
+`_u_field` and returns the constant `6 * step_height`. This is not a runtime
+approximation: it is a correctness defect because distinct computed fields
+cannot change the reported reattachment length. The surrounding solver also
+initializes pressure to zeros and does not expose an explicit reattachment
+wall-shear boundary contract, so replacing the constant with a superficial
+sign scan would not complete the benchmark.
+
+The acceptance oracle is a real input-sensitive backward-facing-step solution
+with explicit step/no-slip/outflow boundary semantics, a reattachment length
+computed from the wall-shear sign change in the solved field, and analytical
+or published-reference tests that assert value semantics across positive,
+negative, boundary, and reference cases. The existing `test_benchmark_run_integration`
+structure-only assertions are insufficient. This residual is separate from
+`ATLAS-CFDRS-TEST-BUDGET`: runtime optimization must not be used to hide the
+hardcoded result, and no hardcoded correlation or weakened assertion is
+acceptable.
+
 ## ATLAS-CONSUS-UNWRAP-099 / ATLAS-LETO-CONTRACT-100 — provider ratchet closures (closed 2026-08-17)
 
 Consus source commit `a9a56ad` removes the three unwrap ratchet delta sites;

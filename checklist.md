@@ -216,6 +216,12 @@
       were uninitialized (`crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217`);
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
+- [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: replace the
+      input-insensitive `6 * step_height` reattachment result with a real
+      field-derived wall-shear sign-change measurement and explicit boundary
+      semantics. Keep this separate from the CFDrs timeout optimization item;
+      no hardcoded correlation, weakened assertion, or reduced workload closes
+      the benchmark contract.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
       shared Pages caller enables `mdbook-test`, local book gates pass, and
       PR #59 merges at default `679402ae`. Hosted Rust, Python, benchmark, and
