@@ -66,12 +66,17 @@
       Clippy errors in `helios-planning/src/autodiff.rs`. Re-open after the
       provider pin and source fixes land; do not alter that active branch from
       the Atlas integration tree.
+- [x] Collect Kwavers PR #388 at exact head `da7f276a`, merged as default
+      `7a109e927cd943e99d6e5240c756b8c341301267` after all 25 hosted checks
+      passed, including the full test-suite and code-coverage gates. The
+      Atlas Kwavers gitlink advances to that merged default; the primary
+      checkout's peer-owned visualization branch and untracked transducer
+      constructors remain untouched.
 - [ ] Keep the remaining peer PR blockers explicit: CFDrs #333 is
       `CONFLICTING` at `3b2fffaa` with only its Hermes revision pin verified;
       RITK #144 has one macOS Kabsch/SVD rank-deficiency test failure at
-      `cc857634`; RITK #154 is a 405-file conflicting change with no hosted
-      checks; and Kwavers #388 remains in its full hosted matrix at
-      `da7f276a`. These are not merge or source-closure evidence for Atlas.
+      `cc857634`; and RITK #154 is a 405-file conflicting change with no
+      hosted checks. These are not merge or source-closure evidence for Atlas.
 - [x] Collect Helios PR #58 at exact head `7482b04`, merged as default
       `c9817cc8439bcf82e7b19f851a05fa7e86e2fa0d`. Hosted run `32004527001`
       passes Rust, Python, and the four-pair benchmark regression gate;
