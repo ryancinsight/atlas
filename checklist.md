@@ -34,6 +34,10 @@
       ready, merge it as `0e9fb8dab29f2ceef505f685211e84aa3a321645`, and
       advance the Atlas gitlink without touching the peer's untracked
       transducer constructors.
+- [x] Reconcile Consus `CONSUS-NODEF-GATE-001` against clean `origin/main`:
+      the former peer-dirty blocker is retired, the Atlas-overlay lock rewrite
+      is recorded as the current external gate condition, and the root pointer
+      advances to merged documentation head `d7a9fff5fc42ccb009dd76346dc873f288978f4a`.
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
