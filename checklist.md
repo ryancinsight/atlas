@@ -75,13 +75,12 @@
       Athena's five Hermes SIMD lock entries (0 lagging requirements). The
       same scan reports 48 workflow-timeout residuals after the Consus jobs
       were bounded; the remaining classes are unchanged.
-- [ ] Repair the benchmark-target classifier through
-      `ATLAS-CONFORMANCE-BENCH-099` before accepting any ratchet result. The
-      generated overlay, provider-consumer audits, and live conformance scan
-      have been re-run at `d56eaa0`; read-only validation of the active root
-      instruments passes `unittest` 31/31. The classifier and workflow edits
-      remain peer-owned and uncommitted, so the cleanup item stays open until
-      their gate state is landed.
+- [ ] Take over and complete the benchmark-target classifier through
+      `ATLAS-CONFORMANCE-BENCH-099`: preserve the existing target-fork
+      correction, prove `benches/` executable classification with scanner tests,
+      regenerate the baseline only after the classification is proven, and
+      verify the exact-head hosted ratchet. The prior dirty diff is stale and
+      has no current board owner.
 - [x] Close Leto's `ATLAS-ORPHAN-MODULES-096-LETO` slice: delete the
       unreachable `crates/leto/src/application/transform.rs`, preserve the
       canonical `application/array.rs` methods, and record direct detector

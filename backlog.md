@@ -542,13 +542,17 @@ real benchmark artifacts. The Atlas scanner classifies only `main.rs` and
 production library output. No Apollo source change is authorized by this
 finding; the instrument correction is tracked separately.
 
-### ATLAS-CONFORMANCE-BENCH-099 — ready [patch]
+### ATLAS-CONFORMANCE-BENCH-099 — in progress 2026-08-17 takeover [patch]
 
 Correct `scripts/atlas-conformance.py` so Rust files under `benches/` are
 classified as executable targets for `print_dbg` and related production-only
 classes. Re-run the scanner unit tests, regenerate the baseline only after the
 classification is proven, and verify the exact-head hosted ratchet. The item
 must compose with the peer's current target-fork change in that script.
+
+Takeover owner: Atlas session. The existing dirty classifier/test diff was last
+written 2026-08-16 21:52–21:37 -0400 with no newer board claim or commit; its
+target-fork correction is retained and reviewed as part of this item.
 
 ## Tier 2b — small domain repos (athena, harmonia, horae, hyperion)
 

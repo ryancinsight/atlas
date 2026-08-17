@@ -45,6 +45,14 @@ excluded. The acceptance oracle is a value-semantic assertion, no baseline
 increase, focused provider gates, exact-head hosted CI, synchronized provider
 PM, and an Atlas gitlink advance only after hosted closure.
 
+## ATLAS-CONFORMANCE-BENCH-099 — benchmark classifier takeover (in progress)
+
+The dirty root classifier diff is stale and unclaimed. It already contains the
+required `benches/` executable-target correction and the target-fork marker
+correction. The takeover retains that work, proves both behaviors with focused
+scanner tests, and gates baseline regeneration and hosted ratchet verification
+on the corrected instrument.
+
 ## ATLAS-POSTMERGE-HELIOS-CFDRS-001 — Consumer closure at merged defaults (closed 2026-08-17)
 
 Helios PR #57 merged as `7fddf789`. Its DICOM boundary now rejects missing
