@@ -40,14 +40,15 @@
       advances to lock-aligned orphan-cleanup head `6c266c3`; the
       provider-local record reports six unreachable files removed,
       `orphan_modules=0`, and default/no-default locked gates green.
-- [x] Re-run the exact-head and lane audits at root `5fca096`: both the
+- [x] Re-run the exact-head and lane audits at root `3aa7e44`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
       reports only peer-owned Athena lock drift, and the conformance report
       was collected with `--worktree` at exit 0; it reports 47 remaining
       orphan modules: Kwavers 22, CFDrs 14, RITK 6, Apollo 3, Coeus 1, and
       Hermes 1. The live scan is evidence only, not a reproducible clean-tree
-      gate.
+      gate. The generated overlay check remains red only for peer-owned
+      Athena's five Hermes SIMD lock entries (0 lagging requirements).
 - [ ] Re-run the generated overlay, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any

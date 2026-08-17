@@ -726,16 +726,19 @@ reviewable commit.
 add `.gitattributes` (`* text=auto`) and `git add --renormalize .` as a single
 commit containing nothing else, with every lane closed or rebased across it.
 
-## ATLAS-ORPHAN-MODULES-096 — Uncompiled source files across eight repos [patch] — open 2026-08-14
+## ATLAS-ORPHAN-MODULES-096 — Uncompiled source files across eight repos [patch] — in progress 2026-08-17
 
 ATLAS-GAIA-ORPHAN-081 fixed gaia and left it a repo-local guard
 (`gaia/tests/module_reachability.rs`). The class is not gaia's. Promoting that
 check into the stack instrument — a new `orphan_modules` class in
 `scripts/atlas-conformance.py`, closing the `mod` graph from every Cargo target
 root (`src/lib.rs`, `src/main.rs`, `src/bin/*.rs`, `src/bin/<name>/main.rs`) and
-honouring `#[path]` — finds **55 orphans in 8 repos**: kwavers 22, CFDrs 14,
-consus 7, ritk 6, apollo 3, coeus 1, hermes 1, leto 1. gaia, hephaestus and
-eunomia are clean, which is the detector's negative control.
+honouring `#[path]` — found **55 orphans in 8 repos**. Leto's sole orphan was
+deleted in provider commit `99dea18`, and Consus's six unreachable source
+modules were deleted in `403387b`; at root commit `3aa7e44`, the live dirty-tree
+scan is **47 orphans in 6 repos**: kwavers 22, CFDrs 14, ritk 6, apollo 3,
+coeus 1, hermes 1. gaia, hephaestus, eunomia, leto and consus are clean,
+which are detector negative controls.
 
 Each orphan is invisible to rustc, clippy and nextest yet fully visible to every
 text-based scan, so it skews the very counts used to aim remediation — the
@@ -894,19 +897,18 @@ does not affect that workflow's inputs.
 - Re-open trigger: a clean committed Kwavers source increment lands on
   `origin/main` or a peer claim becomes stale under the one-hour sweep.
 
-## ATLAS-CONSUS-ASYNC-FACADE-029 — Remove the Consus async placeholder [major] — open
+## ATLAS-CONSUS-ASYNC-FACADE-029 — Remove the Consus async placeholder [major] — done 2026-08-17
 
-- Owner: Consus provider owner; Atlas scope is the audit record and integration
-  gate. The active Consus checkout is peer-owned.
-- Finding: `crates/consus/src/async/mod.rs` exports only the
-  `AsyncFacadeUnavailable` marker and explicitly documents the async facade as
-  deferred. Exact evidence: `gap_audit.md#atlas-consus-async-facade-029`.
-- Acceptance: implement the backend-neutral async contract with bounded,
-  cancellation-safe operations and value-semantic tests, or remove the public
-  placeholder module and update its callers; package, docs, and Atlas gates
-  pass with no deferred async marker.
-- Re-open trigger: a clean committed Consus source increment lands on
-  `origin/main` or the peer claim becomes stale under the one-hour sweep.
+- Owner: Consus provider owner; Atlas scope was the audit record and integration
+  gate.
+- Finding: provider commit `9e11ba7` removed the deferred async facade and its
+  `AsyncFacadeUnavailable` marker. The current root provider head is `6c266c3`;
+  the source tree contains no `crates/consus/src/async/mod.rs`.
+- Evidence: Consus default gates pass with 2,553/2,553 nextest tests and
+  no-default gates pass with 2,031/2,031 nextest tests; workspace checks,
+  warning-denied Clippy, and doctests pass in both configurations.
+- Re-open trigger: a new provider commit introduces an async placeholder or
+  changes the backend-neutral async contract.
 
 ## ATLAS-USCT-FWI-024 — Transmission-USCT FWI parity [minor] — open 2026-08-13
 
