@@ -85,13 +85,13 @@
       same scan reports 48 workflow-timeout residuals after the Consus jobs
       were bounded; the remaining classes are unchanged.
 - [x] Reconcile the 2026-08-17 moving defaults before the next exact-head
-      closeout: Mnemosyne `924cdcce`, Aequitas `b24bd8c9`, and Leto `d966e32c`
+      closeout: Mnemosyne `924cdcce`, Aequitas `c74b662c`, and Leto `d966e32c`
       are the fetched `origin/main` heads. Advance only those three root
       gitlinks; preserve their peer-owned dirty nested files.
 - [x] Reconcile the subsequent fetched-default movement without staging
       nested peer dirt: Themis `f61173bc`, Tyche `bcfcf79c`, Proteus `cb70021b`,
       Mnemosyne `924cdcce`, Consus `30c660e4`, Helios `679402ae`, Hermes
-      `1fe438ce`, Aequitas `b24bd8c9`, Asclepius `5d528d2f`, Moirai `3d5d4c66`,
+      `1fe438ce`, Aequitas `c74b662c`, Asclepius `5d528d2f`, Moirai `3d5d4c66`,
       RITK `f23a6acd`, Coeus `a8ea12eb`, Apollo `ed6d6905`, and Iris
       `da210d2f` now match fetched `origin/main` in the staged root index.
       Hosted-gate status is not inferred from this pointer operation.

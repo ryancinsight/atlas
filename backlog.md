@@ -92,7 +92,7 @@ source implementation and provider-local tests.
 **Moving-default reconciliation (2026-08-17):** Atlas is advancing fourteen
 fetched provider defaults in the current root commit: Themis `f61173bc`, Tyche
 `bcfcf79c`, Proteus `cb70021b`, Mnemosyne `924cdcce`, Consus `30c660e4`,
-Helios `679402ae`, Hermes `1fe438ce`, Aequitas `b24bd8c9`, Asclepius
+Helios `679402ae`, Hermes `1fe438ce`, Aequitas `c74b662c`, Asclepius
 `5d528d2f`, Moirai `3d5d4c66`, RITK `f23a6acd`, Coeus `a8ea12eb`, Apollo
 `ed6d6905`, and Iris `da210d2f`. This pointer evidence is separate from
 provider hosted-gate evidence. The nested primary checkouts remain peer-owned.
@@ -102,9 +102,10 @@ value-semantic gates pass; the exact-head hosted Rust and Pages gates remain
 the delivery gate.
 
 **Live exact-head sweep (2026-08-17):** fetched provider defaults advanced
-Mnemosyne to `924cdcce`, Aequitas to `b24bd8c9`, and Leto to `d966e32c`. Their
-primary checkouts are at those exact heads but retain peer-owned dirty
-lockfiles or artifacts; only the root gitlinks are advanced here. The
+Mnemosyne to `924cdcce`, Aequitas to `c74b662c`, and Leto to `d966e32c`. Their
+root gitlinks are advanced to those fetched default heads; the primary
+checkouts remain peer-owned and may be on separate branches with dirty
+lockfiles or artifacts. Only the root gitlinks are advanced here. The
 the exact requested 20-provider audit, lane audit, and nine conformance tests
 pass after this pointer sweep.
 - **Provider-adoption slice:** audit every integrator edge for direct use of
