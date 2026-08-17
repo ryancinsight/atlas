@@ -114,15 +114,16 @@ edits.
 
 ### Current residuals from the 2026-08-16 provider-consumer audit
 
-#### ATLAS-MNEMOSYNE-CONFORMANCE-101 — Close exact-head assertion ratchet [patch, in progress]
+#### ATLAS-MNEMOSYNE-CONFORMANCE-101 — Close exact-head assertion ratchet [patch, closed 2026-08-17]
 
-The committed Mnemosyne default `5ca0461` is one `existence_only_assertions`
-above the Atlas baseline. This item owns a clean lane from fetched
-`origin/main`; the peer-dirty primary checkout and its allocator work remain
-outside scope. Acceptance is a value-semantic test assertion, no baseline
-increase, focused provider gates, exact-head hosted CI, synchronized provider
-PM, and an Atlas gitlink advance only after the final provider head is hosted
-green.
+The NUMA binding test's fifth `is_ok()` assertion was replaced with an exact
+`Ok(())` assertion in provider commit `30126aa`, merged at default
+`39d76d2`. Hosted Rust verification, Loom, and Miri (Stacked and Tree Borrows)
+passed in run `32024295467`. Provider PM closure `f06c8f9` merged at
+`26ea626`; the Atlas gitlink advances to that PM closure. The provider scan
+baseline is now four existence-only assertions. The local locked check was
+blocked by the shared Atlas overlay resolving patches to the peer-dirty
+primary checkout; hosted verification is the compilation and behavior gate.
 
 #### ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention [patch] — closed
 

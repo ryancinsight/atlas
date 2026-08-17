@@ -36,14 +36,16 @@ default `a8ea12eb`. The production scan at the lint-ratchet head reports
 the Atlas gitlink already records `a8ea12eb`. The dedicated lane claim was
 stale and is released without duplicate source edits.
 
-## ATLAS-MNEMOSYNE-CONFORMANCE-101 — exact-head assertion ratchet (in progress)
+## ATLAS-MNEMOSYNE-CONFORMANCE-101 — exact-head assertion ratchet (closed 2026-08-17)
 
-The committed Mnemosyne default `5ca0461` is one
-`existence_only_assertions` above the Atlas baseline. The correction is scoped
-to a clean lane from fetched `origin/main`; the peer-dirty primary checkout is
-excluded. The acceptance oracle is a value-semantic assertion, no baseline
-increase, focused provider gates, exact-head hosted CI, synchronized provider
-PM, and an Atlas gitlink advance only after hosted closure.
+The NUMA binding test now asserts exact `Ok(())` rather than only `is_ok()` at
+source commit `30126aa`, merged provider head `39d76d2`. Hosted Rust
+verification, Loom, and Miri under both Stacked and Tree Borrows pass in run
+`32024295467`. Provider PM closure `f06c8f9` merged at `26ea626`; the Atlas
+gitlink advances to that PM closure. The provider scan leaves four
+existence-only assertions. The local locked check was blocked by the shared
+Atlas overlay resolving patches to the peer-dirty primary checkout; hosted
+verification is the authoritative compile and behavior evidence.
 
 ## ATLAS-CONFORMANCE-BENCH-099 — benchmark classifier takeover (in progress)
 
