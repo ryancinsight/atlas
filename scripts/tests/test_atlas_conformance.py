@@ -124,6 +124,56 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["target_forks"], 2)
 
+    def test_repeated_scan_is_stable(self) -> None:
+        # The per-scan read caches must not leak state between scans.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "crates/a/Cargo.toml", "[package]\nname = 'a'\n")
+            _write(root, "crates/a/src/lib.rs", "pub fn f() { println!(\"x\"); }\n")
+            _write(root, "crates/a/src/extra.rs", "pub const X: usize = 1;\n")
+
+            first = conformance.scan_repo(root)
+            second = conformance.scan_repo(root)
+
+        self.assertEqual(first, second)
+
+    def test_cargo_manifests_prune_caches(self) -> None:
+        # rglob would crawl target/ and book/; the pruned walker must skip them.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                "target/debug/decoy/Cargo.toml",
+                "[package]\nname = 'decoy'\n",
+            )
+            _write(
+                root,
+                "book/custom/Cargo.toml",
+                "[package]\nname = 'bookdecoy'\n",
+            )
+
+            manifests = sorted(
+                p.relative_to(root).as_posix()
+                for p in conformance.cargo_manifests(root)
+            )
+
+        self.assertEqual(manifests, ["Cargo.toml"])
+
+    def test_executable_source_dirs_prune_target(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "crates/cli/Cargo.toml", "[package]\nname = 'cli'\n")
+            _write(root, "crates/cli/src/main.rs", "fn main() {}\n")
+            _write(root, "target/decoy/Cargo.toml", "[package]\nname = 'decoy'\n")
+            _write(root, "target/decoy/src/main.rs", "fn main() {}\n")
+
+            dirs = conformance.executable_source_dirs(root)
+
+        self.assertEqual(len(dirs), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

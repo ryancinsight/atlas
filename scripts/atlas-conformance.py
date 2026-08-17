@@ -66,6 +66,11 @@ CFG_TEST_MOD = (
     r"(?:#\[[^\]]*\]\s*)*"                          # any further attributes
     r"(?:pub(?:\([^)]*\))?\s+)?mod\s+{stem}\s*;"    # [pub] mod <stem>;
 )
+CFG_TEST_MOD_ALL = re.compile(
+    r"#\[cfg\(\s*(?:all\(\s*)?test\b[^\]]*\]\s*"
+    r"(?:#\[[^\]]*\]\s*)*"
+    r"(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;"
+)
 
 TYPE_NAME = re.compile(r"(?:^|_)(?:f16|bf16|f32|f64|u8|u16|u32|u64|i8|i16|i32|i64)(?:_|$)")
 FN_DEF = re.compile(r"\bfn\s+(\w+)")
@@ -175,13 +180,78 @@ def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path
     return [base / f"{name}.rs", base / name / "mod.rs"]
 
 
+def cargo_manifests(repo: Path):
+    """Yield Cargo.toml paths under a repo, pruning caches and lanes.
+
+    Mirrors the `rust_files` walker: `target*`, `.git`, mdBook `book`
+    output, and lane roots hold no manifests belonging to the scanned tree,
+    and crawling them (as `rglob` would) dominates scan time on repos with
+    materialized build caches.
+    """
+    stack = [repo]
+    while stack:
+        d = stack.pop()
+        for entry in d.iterdir():
+            name = entry.name
+            if entry.is_dir():
+                if name in PRUNE_DIRS or name.startswith("target"):
+                    continue
+                stack.append(entry)
+            elif name == "Cargo.toml":
+                yield entry
+
+
+_file_text_cache: dict[Path, str | None] = {}
+_cfg_test_sidecar_cache: dict[Path, frozenset[str]] = {}
+
+
+def _clear_scan_caches() -> None:
+    """Drop per-scan read caches so repeated scans see fresh content."""
+    _file_text_cache.clear()
+    _cfg_test_sidecar_cache.clear()
+
+
+def _cfg_test_sidecars(cand: Path) -> frozenset[str]:
+    """Module stems a candidate parent declares under `#[cfg(test)]`.
+
+    One regex pass over each parent file replaces the previous per-file
+    re-scan of the same parent text (`src/foo/tests.rs` vs `src/foo/mod.rs`
+    is O(n) per directory, not O(n^2)).
+    """
+    names = _cfg_test_sidecar_cache.get(cand)
+    if names is None:
+        text = _cached_text(cand)
+        names = frozenset(CFG_TEST_MOD_ALL.findall(text)) if text else frozenset()
+        _cfg_test_sidecar_cache[cand] = names
+    return names
+
+
+def _cached_text(path: Path) -> str | None:
+    """Read a file at most once per scan; `None` when unreadable.
+
+    `scan_repo` touches the same sources in up to three passes (the class
+    scan, `declared_cfg_test`'s parent lookups, and the module-graph walk),
+    so a shared canonical-path cache turns cold scans' repeated disk I/O and
+    transient allocations into one read per file.
+    """
+    key = path.resolve()
+    if key not in _file_text_cache:
+        try:
+            _file_text_cache[key] = key.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            _file_text_cache[key] = None
+    return _file_text_cache[key]
+
+
 def _walk_mods(root: Path, seen: set[Path]) -> None:
     """Depth-first close the module and include graphs from one crate root."""
     root = root.resolve()
     if root in seen or not root.is_file():
         return
     seen.add(root)
-    text = root.read_text(encoding="utf-8", errors="replace")
+    text = _cached_text(root)
+    if text is None:
+        return
     for m in MOD_DECL.finditer(text):
         attr = PATH_ATTR.search(text[:m.start()].rstrip())
         for cand in _child_candidates(root, m.group(1), attr.group(1) if attr else None):
@@ -215,10 +285,7 @@ def count_orphan_modules(repo: Path) -> int:
     """
     sources: set[Path] = set()
     roots: list[Path] = []
-    for manifest in repo.rglob("Cargo.toml"):
-        if PRUNE_DIRS.intersection(manifest.parts) or \
-                any(p.startswith("target") for p in manifest.parts):
-            continue
+    for manifest in cargo_manifests(repo):
         src = manifest.parent / "src"
         if not src.is_dir():
             continue
@@ -244,13 +311,12 @@ def declared_cfg_test(entry: Path) -> bool:
     *parent*, so neither a path-part match nor an in-file `#[cfg(test)]`
     sees it. Without this check such files scan as production code.
     """
-    pat = re.compile(CFG_TEST_MOD.format(stem=re.escape(entry.stem)), re.MULTILINE)
     parent = entry.parent
     for cand in (parent / "mod.rs", parent / "lib.rs", parent / "main.rs",
                  parent.with_suffix(".rs")):
-        if cand == entry or not cand.is_file():
+        if cand == entry:
             continue
-        if pat.search(cand.read_text(encoding="utf-8", errors="replace")):
+        if entry.stem in _cfg_test_sidecars(cand):
             return True
     return False
 
@@ -354,10 +420,7 @@ def executable_source_dirs(repo: Path) -> set[Path]:
     produces false positives for task runners such as `xtask`.
     """
     roots: set[Path] = set()
-    for manifest in repo.rglob("Cargo.toml"):
-        if PRUNE_DIRS.intersection(manifest.parts) or \
-                any(p.startswith("target") for p in manifest.parts):
-            continue
+    for manifest in cargo_manifests(repo):
         source = manifest.parent / "src"
         if (source / "main.rs").is_file():
             roots.add(source)
@@ -379,14 +442,14 @@ def strip_doc_comments(text: str) -> str:
 
 
 def scan_repo(repo: Path) -> dict[str, int]:
+    _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
     executable_dirs = executable_source_dirs(repo)
 
     for path, testish in rust_files(repo):
-        try:
-            text = path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
+        text = _cached_text(path)
+        if text is None:
             continue
         lines = text.count("\n") + 1
         if lines > 500:
@@ -494,26 +557,53 @@ def main() -> int:
         action="store_true",
         help="explicitly scan the live worktree, including uncommitted changes",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON instead of the summary table",
+    )
+    parser.add_argument(
+        "--repo",
+        metavar="NAME",
+        help="scan only this provider repo (live tree, bypasses the clean-stack gate)",
+    )
     args = parser.parse_args()
     mode = args.mode
+    if mode == "generate" and args.repo:
+        print("refusing to generate a baseline from a single repo; omit --repo",
+              file=sys.stderr)
+        return 2
     try:
-        if not args.worktree:
-            check_clean_revision(args.revision)
-        results = scan_stack(ROOT)
+        if args.repo:
+            member = ROOT / "repos" / args.repo
+            if not member.is_dir():
+                print(f"no such provider repo: {args.repo}", file=sys.stderr)
+                return 2
+            results = {args.repo: scan_repo(member)}
+        else:
+            if not args.worktree:
+                check_clean_revision(args.revision)
+            results = scan_stack(ROOT)
     except RuntimeError as exc:
         print(f"conformance scan unavailable: {exc}", file=sys.stderr)
         print("use --worktree only when a live dirty-tree scan is intentional", file=sys.stderr)
         return 2
 
     if mode == "report":
-        report(results)
+        if args.json:
+            print(json.dumps(results, indent=1, sort_keys=True))
+        else:
+            report(results)
         return 0
     if mode == "generate":
         BASELINE.write_text(
             json.dumps(results, indent=1, sort_keys=True) + "\n", newline="\n"
         )
         print(f"baseline written: {BASELINE.relative_to(ROOT)}")
-        report(results)
+        if args.json:
+            print(json.dumps(results, indent=1, sort_keys=True))
+        else:
+            report(results)
         return 0
 
     if not BASELINE.is_file():
