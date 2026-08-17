@@ -838,6 +838,20 @@ entry is tightened from 3 to 0. No Apollo source change is required. The
 peer-dirty primary checkout, its Cargo.lock, and all other provider files are
 excluded.
 
+### ATLAS-ORPHAN-MODULES-096-CFDRS — in progress 2026-08-17 [patch]
+
+Atlas session owns the CFDrs orphan sub-scope at clean provider main
+`38bdbeb9`. The exact scan reports 13 files. `cfd-1d`'s resistance-model
+`tests.rs` is retained and wired as a test sidecar. The `OPEN-033`
+`newton_fallback.rs` source is retained because its provider gap audit records
+the JFNK routing work as an open numerical feature. The remaining 11 files are
+superseded historical preconditioners, error/I/O stubs, duplicate iterator and
+diagnostics code, and an explicitly historical blueprint artefact; they are
+deleted in the provider cleanup. Acceptance is the clean exact scan reducing
+CFDrs `orphan_modules` from 13 to 1 with the residual OPEN-033 file recorded,
+provider gates green, and the Atlas pointer advanced only to the merged PM
+closure.
+
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
 
 Every member pins `channel = "1.97.0"`. That is a **version** pin. `rustup`

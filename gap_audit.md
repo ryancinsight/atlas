@@ -71,6 +71,19 @@ the regression suite covers both forms. The clean Apollo lane at
 The remaining root working-tree orphan count is not used as exact evidence
 because the primary Apollo checkout is peer-dirty on a divergent branch.
 
+## ATLAS-ORPHAN-MODULES-096-CFDRS — cleanup slice (in progress)
+
+The clean CFDrs provider head `38bdbeb9` reports 13 orphan modules. The exact
+audit classifies `cfd-1d/src/physics/resistance/models/tests.rs` as valid
+uncompiled test coverage to wire, while
+`cfd-1d/src/solver/core/newton_fallback.rs` is the implementation for the
+still-open provider item `OPEN-033` and must remain until its JFNK routing work
+is completed. The other 11 paths are superseded historical preconditioners,
+error/I/O stubs, duplicate iterator/diagnostics implementations, and the
+explicitly historical `cfd-schematics` blueprint file. The cleanup acceptance
+is an exact CFDrs count of 1, with the OPEN-033 residual documented, plus
+provider and hosted verification at the final merged head.
+
 ## ATLAS-RITK-CONFORMANCE-101 — diffusion binding structure ratchet closure (closed 2026-08-17)
 
 Source `81f510f6` split the diffusion Python binding manifest from its

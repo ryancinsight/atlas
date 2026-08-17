@@ -109,6 +109,12 @@
       deliberate included sources are no longer false orphans and the exact
       scan returns `apollo/orphan_modules=0`. Baseline `3 -> 0`; the provider
       source and peer-dirty primary checkout remain untouched.
+- [ ] Close the CFDrs orphan sub-scope from clean provider main `38bdbeb9`.
+      Wire `cfd-1d` resistance-model `tests.rs` under `#[cfg(test)]`; preserve
+      the open `OPEN-033` JFNK fallback as a recorded residual; delete the 11
+      superseded historical/stub/duplicate modules identified by the exact
+      audit. Run provider format, locked check, nextest, doctests, and hosted
+      exact-head gates before advancing the Atlas pointer.
 - [x] Close RITK's `ATLAS-RITK-CONFORMANCE-101` structure slice. Source
       `81f510f6` splits the diffusion Python binding leaves; the exact clean
       provider count is `manifest_implementation=111` versus 112 before the
