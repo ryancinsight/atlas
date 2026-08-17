@@ -156,8 +156,14 @@
       `0e9fb8da`. The Kwavers source audit classifies those hits as the live
       WGPU-specialized provider boundary and its contract tests; KW-GPU-060
       already removed the duplicate backend buffer/pipeline ownership. The
-      remaining Kwavers work is tracked by its provider-local items, not by a
-      false raw-token count.
+      exact default-head audit at `90dde196` additionally finds that the FDTD
+      GPU equivalence runner is explicitly unavailable until a real
+      Leto/Hephaestus provider implementation lands, and that the feature-
+      enabled `render_multi_field` path can return `Ok(())` when GPU resources
+      are uninitialized (`crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217`).
+      The latter is a correctness defect queued behind the peer-owned Kwavers
+      lane; neither residual is hidden by a CPU-vs-CPU comparison or a silent
+      no-op claim.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
       shared Pages caller enables `mdbook-test`, local book gates pass, and
       PR #59 merges at default `679402ae`. Hosted Rust, Python, benchmark, and
@@ -203,10 +209,11 @@
       budget. Preserve the inherited timeout evidence until the exact final
       provider head is green.
       First bounded slice is implemented on provider branch
-      `codex/cfdrs-runtime-budget` at `52c17753` (PR #347): cached pressure
+      `codex/cfdrs-runtime-budget` at `d3e095af` (PR #347): cached pressure
       CSR reuse. The exact 35 µm and trifurcation cases pass locally in
       16.785 s and 16.903 s under locked Nextest; hosted exact-head collection
-      remains pending.
+      is queued, with the Pages caller now building `cfd-validation` and
+      running the shared `mdbook test` gate.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify
       the same-revision Pages artifact and live HTTP deployment.

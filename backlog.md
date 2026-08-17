@@ -43,10 +43,10 @@ source implementation and provider-local tests.
   and Apollo merged default `ed6d6905` carries the provider-owned public
   `PlanScratch` bound required by CFDrs. Helios PR #59 is merged at default
   `679402ae` with Rust, Python, benchmark, and book gates passing; CFDrs PR #347 is
-  at exact head `41db036a` with hosted book, Rust, and figure gates in
-  progress. The Atlas gitlink sweep below is complete for moving Mnemosyne,
-  Aequitas, and Leto defaults; CFDrs and Helios remain unadvanced until their
-  respective provider PRs close. Kwavers PR #386 carries the multi-field
+  at exact head `d3e095af` with hosted book, Rust, and figure gates queued.
+  The Atlas gitlink sweep below is complete for moving Mnemosyne,
+  Aequitas, and Leto defaults; CFDrs remains unadvanced until PR #347 closes,
+  while Helios is already at merged default `679402ae`. Kwavers PR #386 carries the multi-field
   visualization correctness closure and remains in the hosted matrix. The
   existing CFDrs decision to remove its newly introduced legacy-Clippy step is
   a documented gate-boundary decision, not a lint-debt closure; the remaining
@@ -185,6 +185,28 @@ with explicit failure for unavailable capability and no consumer-owned
 raw-WGPU kernel ownership. The hosted Kwavers matrix remains pending with
 `Validate Clean Architecture` and `Code Quality` already red on repository
 baseline findings; the exact failure logs are the next integration gate.
+
+The exact default-head audit at Kwavers `90dde196` found two additional
+consumer-contract residuals. `kwavers-gpu/src/validation/gpu_cpu_equivalence/
+runner/mod.rs:100-110` returns a typed `FeatureNotAvailable` because the GPU
+runner still has no provider-generic Leto/Hephaestus FDTD implementation; its
+CPU-vs-CPU comparison is correctly rejected rather than reported as parity.
+`kwavers-analysis/src/visualization/engine/mod.rs:181-217` has no error or
+fallback arm when the `gpu-visualization` feature is enabled but the renderer
+and pipeline were not initialized, so `render_multi_field` can return `Ok(())`
+without rendering. This is a correctness defect, not a performance or
+availability classification. The source fix remains queued behind the
+peer-owned Kwavers worktree and its live `refactor/drop-dead-boundary-parameters`
+lane at `932b9f42`; the re-open trigger is lane release or a peer landing that
+touches the same visualization module.
+
+#### ATLAS-KWAVERS-FDTD-107 — provider-generic FDTD equivalence [major]
+
+The acceptance oracle is a real Leto/Hephaestus FDTD execution path selected
+through the provider seam, a CPU differential comparison with a derived
+reduction tolerance, and negative coverage for unavailable hardware. The
+current explicit-unavailable result is honest evidence of a missing capability,
+not completion. No f64-only adapter or CPU fallback may be added to close it.
 
 #### ATLAS-CFDRS-FOURIER-NATIVE-105 — native scalar contract [major] — closed 2026-08-17
 

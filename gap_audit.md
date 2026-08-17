@@ -1,5 +1,47 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios source closure audit (2026-08-17)
+
+The audit was run against CFDrs provider branch `d3e095af`, Helios merged
+default `679402ae`, and Kwavers merged default `90dde196`; peer-dirty nested
+checkouts were not used as integration evidence.
+
+CFDrs routes GPU ownership through `hephaestus-wgpu` in
+`crates/cfd-core/src/compute/gpu/**`, Apollo remains the transform provider,
+and Leto/Eunomia own the touched array/scalar seams. The remaining `wgpu`
+matches in the production scan are provider vocabulary, manifests, or
+documentation; no direct `pollster` or Rayon source edge remains in the
+scanned crate set. The pressure-cache slice is real production reuse, but its
+hosted exact-head gate is still pending at CFDrs PR #347 head `d3e095af`.
+
+Helios' merged default has no direct `ndarray`, `nalgebra`, `rayon`, or
+`pollster` source matches in production crates. Its manifest edges route
+quantities/scalars through Aequitas/Eunomia, time through Horae, GPU buffers
+through Hephaestus, and imaging/physics through Hyperion, Proteus, Tyche, and
+RITK DICOM. The hosted Rust, Python, benchmark, and book gates for PR #59
+passed before its default-head merge at `679402ae`; no Helios source cleanup is
+claimed from the peer-dirty `codex/helios-typed-slopes` checkout.
+
+Kwavers' default has an active provider-owned WGPU beamforming boundary at
+`crates/kwavers-gpu/src/beamforming/three_dimensional/provider.rs:6-111` and
+consumer-owned raw-WGPU visualization state at
+`crates/kwavers-analysis/src/visualization/renderer/gpu.rs:5-86`. The latter
+also owns the `pollster` boundary. This is an open ownership migration, not a
+token-count cleanup: the provider boundary is real, but the consumer boundary
+must move to Hephaestus before the acceptance oracle is met.
+
+Two correctness residuals are exact at Kwavers `90dde196`. First,
+`crates/kwavers-gpu/src/validation/gpu_cpu_equivalence/runner/mod.rs:100-110`
+returns `SystemError::FeatureNotAvailable` because no provider-generic
+Leto/Hephaestus FDTD implementation is wired; the explicit error is correct
+negative behavior, while GPU/CPU equivalence remains undeveloped. Second,
+`crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217` has no arm
+for an enabled but uninitialized GPU renderer in `render_multi_field`, so it
+can return success without rendering. This is a correctness defect. The fix is
+queued behind the live peer-owned `refactor/drop-dead-boundary-parameters`
+lane at `932b9f42`; the FDTD item remains provider capability work and must not
+be replaced by an f64 adapter or CPU-vs-CPU comparison.
+
 ## ATLAS-CONSUS-UNWRAP-099 / ATLAS-LETO-CONTRACT-100 — provider ratchet closures (closed 2026-08-17)
 
 Consus source commit `a9a56ad` removes the three unwrap ratchet delta sites;
