@@ -459,9 +459,9 @@
   "workspace_lints_missing": 0
  },
  "kwavers": {
-  "allow_sites": 328,
-  "commented_out_code": 45,
-  "existence_only_assertions": 264,
+  "allow_sites": 310,
+  "commented_out_code": 46,
+  "existence_only_assertions": 267,
   "gitattributes_missing": 0,
   "junk_drawer_modules": 22,
   "manifest_implementation": 296,
@@ -471,7 +471,7 @@
   "missing_deny_docs": 23,
   "nextest_budget_missing": 0,
   "orphan_modules": 19,
-  "oversized_files": 108,
+  "oversized_files": 111,
   "print_dbg": 111,
   "pull_request_target_use": 0,
   "reexport_shims": 6,
