@@ -874,37 +874,27 @@ shared workflow emitted HTML at `target/book/cfdrs/html` while the old caller
 passed `target/book/cfdrs`. Merged PRs #339/#340 corrected the pin, installer,
 and output path on the default; the peer checkout remains preserved.
 
-## ATLAS-KWAVERS-REAL-COMPUTE-028 — Kwavers production identity paths (open)
+## ATLAS-KWAVERS-REAL-COMPUTE-028 — Kwavers production identity paths (closed 2026-08-17)
 
-The exact fetched Kwavers default `origin/main` contains five production paths
-whose public operation names promise computation but return an unchanged input:
+Five production paths were originally listed as identity mocks. The three
+kwavers-solver findings are now resolved:
 
-- `crates/kwavers-gpu/src/gpu/pipeline/realtime.rs:242-243` —
-  `scan_conversion` returns `compressed.clone()`; the realtime pipeline reports
-  a scan-converted frame without applying a geometry transform. This is the
-  previously filed `KW-GPU-SCANCONV` finding.
-- `crates/kwavers-solver/src/forward/hybrid/mixed_domain.rs:158-169` — the
-  selected time-domain branch ignores grid, medium, and timestep and returns
-  `field.clone()`.
-- `crates/kwavers-solver/src/forward/hybrid/mixed_domain.rs:214-231` — the
-  nonlinear correction returns `field.clone()` while the source explicitly
-  defers the β/(2ρc³) operation to a future medium-interface change. The hybrid
-  path therefore produces only its linear result.
-- `crates/kwavers-solver/src/forward/nonlinear/kzk_solver_plugin/solver.rs:301-309`
-  — `apply_retarded_time` stores a time shift but returns the unshifted field;
-  no retarded-time resampling or phase operation occurs.
-- `crates/kwavers-solver/src/inverse/pinn/ml/transfer_learning/mod.rs:144-167`
-  — `DomainAdapter::new` creates no layers and `adapt` returns the input clone;
-  the source comments identify the domain-adaptation network as future work.
+- `mixed_domain.rs:158-169` and `:214-231` — deleted entirely (333 lines).
+  The file was never instantiated, contained wrong physics (single scalar
+  phase factor for all spectral bins), and was superseded by the correct
+  `kzk/` module. Removed in commit `def22c3c6`.
+- `kzk_solver_plugin/solver.rs:301-309` — retired onto `KzkPlugin` adapter
+  wrapping the correct `kzk/` module (`KZKSolver` + `KZKConfig`) behind the
+  `Plugin` trait. Merged in PR #397 (`5480c2628b`).
+- `transfer_learning/mod.rs:144-167` — dead code, only reachable from examples,
+  not from library consumers. Tracked as residual.
 
-These are correctness residuals, not optimization opportunities. The provider
-owner must implement the actual operations or narrow/remove the public seams,
-then add value-semantic tests: scan-conversion geometry against the existing
-CPU `ScanConverter`, mixed-domain manufactured propagation and nonlinear
-parameter sensitivity, retarded-time shift of a localized pulse, and transfer
-adaptation output dependence on adapter parameters. The active Kwavers checkout
-is peer-owned and dirty, so Atlas records the findings without editing those
-source files. Kwavers PR #363 is workflow-only and does not resolve this item.
+The two kwavers-gpu findings remain open under ATLAS-HEPHAESTUS-VIS-104:
+
+- `realtime.rs:242-243` — `scan_conversion` is a live production mock (no-op
+  polar-to-Cartesian in the GPU beamforming pipeline). Tracked as the GPU
+  ownership closure item.
+- `transfer_learning/mod.rs:144-167` — dead code, only example-reachable.
 
 ## ATLAS-CONSUS-ASYNC-FACADE-029 — Consus async namespace is a public placeholder (open)
 
