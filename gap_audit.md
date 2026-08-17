@@ -896,22 +896,20 @@ The two kwavers-gpu findings remain open under ATLAS-HEPHAESTUS-VIS-104:
   ownership closure item.
 - `transfer_learning/mod.rs:144-167` — dead code, only example-reachable.
 
-## ATLAS-CONSUS-ASYNC-FACADE-029 — Consus async namespace is a public placeholder (open)
+## ATLAS-CONSUS-ASYNC-FACADE-029 — Consus async namespace placeholder (closed 2026-08-17)
 
-The exact fetched Consus default exposes `crates/consus/src/async/mod.rs` as a
-public module containing only `AsyncFacadeUnavailable`. Its module docs call it
-an "Asynchronous facade placeholder" and state that the backend-neutral async
-boundary is intentionally deferred; `message()` returns a fixed unavailable
-diagnostic. This is an explicit incomplete public surface, not an unsupported
-format error or an identity fast path.
+The provider-owned fix landed in commit `9e11ba7`: the empty
+`crates/consus/src/async/mod.rs` and its `AsyncFacadeUnavailable` marker were
+removed because no consumer referenced the marker and real async behavior is
+owned by `consus-io` and the format backends. The current Atlas provider head
+is `2dcf05a`; the marker and deferred-module claim remain absent.
 
-The provider owner must either implement the required backend-neutral async
-operations with bounded cancellation/backpressure and value-semantic tests, or
-remove the placeholder module and migrate any callers so the public API does
-not advertise an unavailable capability. Acceptance is a clean Consus package,
-documentation, and integration gate with no `AsyncFacadeUnavailable` marker or
-deferred-module claim. The active Consus checkout is peer-owned and dirty, so
-Atlas records the residual without editing provider source.
+Evidence: the earlier exact provider gates passed default/no-default Nextest
+`2553/2553` and `2031/2031`, strict Clippy, doctests, and workspace checks;
+Consus PR #44 then passed the full format, MSRV, platform-test, check, and
+fuzz-target build matrix in hosted run `32067580093` before merging the ADR
+index repair. No compatibility shim was added. Re-open if a later provider
+commit advertises an unavailable backend-neutral async capability.
 
 ## ATLAS-US-A3-OVERLAY-029 — A3 is blocked by the shared ritk tree's branch (open 2026-08-13)
 

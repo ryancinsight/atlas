@@ -544,11 +544,14 @@ Three ordering facts came out of the audit and are not obvious from the board:
       `AsyncFacadeUnavailable` marker was the entire async module.
 - [x] Record the provider-owned implementation-or-removal acceptance contract.
 - [x] Confirm provider commit `9e11ba7` removed the deferred async surface;
-      current root head `d95ba00` contains no `crates/consus/src/async/mod.rs`.
+      current Atlas provider head `2dcf05a` contains no
+      `crates/consus/src/async/mod.rs`.
       Default and no-default workspace gates pass with Nextest `2553/2553` and
       `2031/2031`, respectively, with checks, warning-denied Clippy, and
       doctests green in both configurations. Final hosted CI
-      `32018422744` passes all 80 jobs at that head.
+      `32018422744` passed all 80 jobs at the prior exact source head;
+      Consus PR #44 run `32067580093` passed the current full matrix before
+      merging the ADR-index repair.
 
 ## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift — open 2026-08-13
 

@@ -1180,13 +1180,17 @@ does not affect that workflow's inputs.
 - Owner: Consus provider owner; Atlas scope was the audit record and integration
   gate.
 - Finding: provider commit `9e11ba7` removed the deferred async facade and its
-  `AsyncFacadeUnavailable` marker. The current root provider head is `d95ba00`;
-  the source tree contains no `crates/consus/src/async/mod.rs`.
+  `AsyncFacadeUnavailable` marker. The current Atlas provider head is
+  `2dcf05a`; the source tree contains no `crates/consus/src/async/mod.rs`.
 - Evidence: Consus default gates pass with 2,553/2,553 nextest tests and
   no-default gates pass with 2,031/2,031 nextest tests; workspace checks,
   warning-denied Clippy, doctests, and warning-denied workspace Rustdoc pass in
   both configurations. Hosted CI `32018422744` passes all 80 jobs at the exact
   provider head; Documentation `32018422679` and Pages `32018420714` also pass.
+- Current-head evidence: Consus PR #44 hosted its complete format, MSRV,
+  platform-test, check, and fuzz-target build matrix in run `32067580093` and
+  merged at `2dcf05a`; the ADR-index repair did not reintroduce the removed
+  marker.
 - Re-open trigger: a new provider commit introduces an async placeholder or
   changes the backend-neutral async contract.
 
