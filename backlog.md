@@ -543,6 +543,17 @@ real benchmark artifacts. The Atlas scanner classifies only `main.rs` and
 production library output. No Apollo source change is authorized by this
 finding; the instrument correction is tracked separately.
 
+## ATLAS-HEPHAESTUS-CONFORMANCE-101 — attention structure ratchet closure [patch, closed 2026-08-17]
+
+Hephaestus source `702eba8` split the provider attention contract's shared
+download assertion into `src/attention/assertions.rs`, reducing the exact
+provider conformance scan's `oversized_files` count from 39 to 38. The source
+merged at provider default `4714b8c`; the PM closure merged at `300b9e9`.
+Exact-head CUDA `32027773223`, ROCm `32027773309`, WGPU `32027773340`, and
+Metal `32027773250` pass. The direct Coeus attention cutover remains open under
+the provider's `HEPH-ATTENTION-PROVIDER-1` item. Atlas advances the gitlink to
+the PM closure without touching the peer-dirty primary checkout.
+
 ### ATLAS-CONFORMANCE-BENCH-099 — in progress 2026-08-17 takeover [patch]
 
 Correct `scripts/atlas-conformance.py` so Rust files under `benches/` are

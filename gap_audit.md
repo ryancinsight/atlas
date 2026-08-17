@@ -47,6 +47,18 @@ existence-only assertions. The local locked check was blocked by the shared
 Atlas overlay resolving patches to the peer-dirty primary checkout; hosted
 verification is the authoritative compile and behavior evidence.
 
+## ATLAS-HEPHAESTUS-CONFORMANCE-101 — attention structure ratchet closure
+
+The merged attention contract added one 503-line implementation file, raising
+the provider `oversized_files` count from 38 to 39. Source `702eba8` moves the
+shared download assertion into
+`crates/hephaestus-conformance/src/attention/assertions.rs`; the exact provider
+scan returns 38. Source default `4714b8c` and PM closure `300b9e9` are
+hosted-green for CUDA `32027773223`, ROCm `32027773309`, WGPU `32027773340`,
+and Metal `32027773250`. The Atlas gitlink advances to the PM closure. This
+closes the structure ratchet only; direct Coeus CPU/accelerator attention
+cutover remains open and no runtime or memory gain is claimed.
+
 ## ATLAS-CONFORMANCE-BENCH-099 — benchmark classifier takeover (in progress)
 
 The dirty root classifier diff is stale and unclaimed. It already contains the

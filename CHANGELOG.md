@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Advance Hephaestus to PM closure `300b9e9` after the attention structure
+  ratchet cleanup and exact-head CUDA/ROCm/WGPU/Metal gates. The provider
+  `oversized_files` count is 38; direct Coeus attention cutover remains open.
+
 - Advance the Helios and CFDrs integrator gitlinks to merged PR #57
   `7fddf789` and PR #345 `a3c53da2`. Helios now rejects incomplete required
   DICOM geometry; CFDrs uses Apollo's native-precision Fourier API and Leto's

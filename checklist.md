@@ -65,6 +65,13 @@
       Provider PM closure `f06c8f9` merges at `26ea626`; advance the Atlas
       gitlink to that PM closure. The provider baseline is four
       existence-only assertions; the local locked check is overlay-blocked.
+- [x] Close the Hephaestus attention structure ratchet. Source `702eba8`
+      moves the shared download assertion into `src/attention/assertions.rs`,
+      reducing `oversized_files` from 39 to 38; provider default `4714b8c`
+      and PM closure `300b9e9` are hosted-green across CUDA
+      `32027773223`, ROCm `32027773309`, WGPU `32027773340`, and Metal
+      `32027773250`. Advance the Atlas gitlink to `300b9e9`; the direct Coeus
+      attention cutover remains a provider-owned dependent item.
 - [x] Re-run the exact-head and lane audits at root `d56eaa0`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
