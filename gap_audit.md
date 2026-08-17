@@ -2364,6 +2364,17 @@ Atlas root, the exact-head audit reports all 20 providers present and active,
 audit marker closure intact across root records, Tyche/Tychee normalization
 retained, and requested-provider coherence scope clean.
 
+CFDrs hermes-simd coherence closure (2026-08-16): the last out-of-scope
+global coherence finding — CFDrs `hermes-simd 0.6.0` vs the atlas hermes
+default `0.7.0` — is closed at the tracked state. CFDrs `build/hermes-simd-0.7`
+(`62ea85d9`, manifest + lockfile bump to `0.7.0` at hermes rev `08ac3d91`)
+was pushed and fast-forwarded to CFDrs `origin/main`; the atlas CFDrs gitlink
+now records `62ea85d9`. The conformance baseline was re-anchored to kwavers
+`1d7c689` (`95eca81`; CFDrs scans +0 across all counters, so no CFDrs entry
+change). Tracked-state cross-repo coherence is clean; the only remaining
+finding is the on-disk CFDrs working-tree artifact (peer checkout still on
+`codex/cfdrs-legacy-approx-cleanup` at 0.6.0), which clears on tree move.
+
 ### Live closure snapshot — 2026-08-14
 
 The requested scope is Horae, Hyperion, Themis, Tyche (aka Tychee), Proteus, Mnemosyne,
