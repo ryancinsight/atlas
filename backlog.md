@@ -5284,6 +5284,12 @@ hephaestus workspace gates once that settles.
   peer-owned work or unique state was removed; re-open deletion after the
   temporary owner releases or rescues its changes and the handle closes.
 
+- Re-audit 2026-08-17: the live Kwavers tree is now the main checkout plus
+  `worktrees/kwavers-doc557` at detached commit `df818b9a1`. The lane is clean
+  but detached, so `python scripts/atlas-lane-audit.py` reports one violation.
+  It remains peer coordination state; no branch switch or lane deletion is
+  authorized until its owner reconciles the documentation run.
+
 ## Session 28 closure (2026-07-28) — ADR 0033 stage A complete
 
 LSQR landed in athena `24b5c56`. Athena now carries every Krylov capability
