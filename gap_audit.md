@@ -15,7 +15,9 @@ scanned crate set. The pressure-cache slice is real production reuse, but its
 hosted exact-head gate is still pending at CFDrs PR #347 head `521d9f76`. The
 Rust job failed before checkout on the pinned toolchain action download
 (GitHub 503/429, run `32043011439`, job `95425551229`); this supplies no source
-failure evidence.
+failure evidence. The Pages job in run `32043011748` independently failed
+before checkout while downloading `actions/configure-pages` (429/502, job
+`95425552255`). Both failed jobs were rerun asynchronously.
 
 Helios' merged default has no direct `ndarray`, `nalgebra`, `rayon`, or
 `pollster` source matches in production crates. Its manifest edges route

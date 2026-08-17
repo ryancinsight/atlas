@@ -214,7 +214,9 @@
       16.785 s and 16.903 s under locked Nextest; the Pages caller now builds
       `cfd-validation` and runs the shared `mdbook test` gate. Hosted Rust
       job `95425551229` failed before checkout on action-download 503/429
-      responses; the exact source gate remains open.
+      responses. Pages job `95425552255` independently failed before checkout
+      on `actions/configure-pages` 429/502; both failed jobs were rerun and
+      the exact source gate remains open.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify
       the same-revision Pages artifact and live HTTP deployment.
