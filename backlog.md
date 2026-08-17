@@ -522,7 +522,7 @@ about documentation truth and numerical evidence, not debt.
 | ID | Outcome | Class | Acceptance oracle |
 | --- | --- | --- | --- |
 | ATLAS-ATHENA-UNDOC-066 — **closed 2026-08-14** | **athena ships two undocumented solver families.** BiCGStab (575 lines) and LSQR (487) are implemented and publicly re-exported from `athena-core/src/lib.rs`, yet appear **zero times** in the README, whose headline (`:5`) calls PCG and GMRES "its complete vertical contracts". Compounding it, the architecture tree names a crate that does not exist (`:62` `athena-wgpu` vs the real `athena-hephaestus`), a feature that does not exist (`:71` `wgpu` vs the real `accelerator`), and asserts a 500-line ceiling (`:69`) that BiCGStab breaks. | [patch] | `rg 'athena-wgpu' README.md` → 0; README documents BiCGStab and LSQR; the line-count claim is removed or true per `wc -l` Verified 2026-08-14 at athena HEAD: `rg 'athena-wgpu' README.md` = 0, BiCGStab and LSQR both documented, and the line-count claim now names `bicgstab/algorithm.rs` (575 lines) as the sole stated exception. |
-| ATLAS-BOOK-PLACEHOLDER-067 — **closed 2026-08-14** | **Placeholder chapters are shipped as books.** athena has 6 chapters and harmonia 3 — every one is the 3-line string `*Chapter prose deferred.*`. A placeholder chapter is documentation's mock: a chapter exists when its teaching content does. Separately and stack-wide, all four repos call the atlas reusable Pages workflow without `mdbook-test`, which defaults `false` (`.github/workflows/book-pages.yml:34-41`), so even horae's genuinely good 794-line book and hyperion's real chapters have samples that can rot. | [patch] | No `Chapter prose deferred` anywhere; horae and hyperion pass `mdbook-test: true` now, athena and harmonia once content lands (relates to ATLAS-PUB-005) Both halves done: athena's six stubs plus a seventh LSQR chapter in `39b6f0b`, harmonia's three plus its two-line introduction in `10e15ae`. `rg 'Chapter prose deferred'` across the stack = 0. **`mdbook-test` is deliberately NOT enabled on either**, and the blocker is the same in both and was verified locally rather than assumed: their pre-existing example chapters `{{#include}}` a full example source verbatim, which under `mdbook test` becomes a doctest failing on unresolved crates, and the reusable workflow's rlib staging cannot fix it because it requires fenced blocks to declare `extern crate`. Every new chapter adds zero code blocks and tests clean; flipping the flag would red Pages on content neither agent wrote. Enabling it is a separate item that must first rework how examples are included. horae and hyperion, the other two named in this row, were already real. |
+| ATLAS-BOOK-PLACEHOLDER-067 — **closed 2026-08-14** | **Placeholder chapters are shipped as books.** athena has 6 chapters and harmonia 3 — every one is the 3-line string `*Chapter prose deferred.*`. A placeholder chapter is documentation's mock: a chapter exists when its teaching content does. Separately, the shared Pages callers default `mdbook-test` to `false`, so books without a compiled-sample gate can rot. | [patch] | No `Chapter prose deferred` anywhere; athena and harmonia now contain source-grounded prose. The placeholder half is closed: athena's six stubs plus a seventh LSQR chapter landed in `39b6f0b`, harmonia's three plus its two-line introduction in `10e15ae`, and the stack scan is zero. Sample-gate work remains tracked independently in ATLAS-PUB-005; callers are not represented as tested unless they pass `mdbook-test: true`. |
 | ATLAS-ATHENA-KRYLOV-070 — **closed 2026-08-14** | `gmres/workspace.rs:15-16` holds the Arnoldi basis as `Vec<B::Vector>` — on Leto that is `2·RESTART+1` scattered allocations, while every scalar array in the same struct is already flat (`hessenberg` is one `Vec<Scalar>` with an index fn). The only pointer-scattering instance found across these four repos. Allocated once at construction and natural per-buffer on WGPU, so this is a CPU-side layout defect, not a hot-loop allocation. Also: non-convergence returns `Ok(SolveReport)` with `Termination::MaxIterations` rather than a typed error, `SolveError` carries no residual history, and stagnation/divergence detection is absent entirely. | [minor] | `Vec<B::Vector>` gone from `gmres/workspace.rs` behind the existing `KrylovBackend` seam; the existing allocation-stability and f32/f64 contract tests unchanged and green; a stalling operator yields a `Termination::Stagnated`-class value with non-empty history Closed 2026-08-14. The layout half landed earlier in `d3a4afe` behind `KrylovBackend::VectorBlock`; the only remaining `Vec<B::Vector>` in `gmres/workspace.rs` is a doc comment explaining the type is no longer that. The correctness half landed in `39b6f0b`: `Termination::Stagnated`/`Diverged` detected per restart cycle against a derived floor `sqrt(n)*eps*||b||`, with the two rejected sub-requests argued in ADR 0004. |
 
 ## Tier 2c — small domain repos (iris, proteus, asclepius, tyche)
@@ -2034,9 +2034,10 @@ converter; the existing bilinear differential remains the acceptance oracle.
 - Owner: unclaimed; scope: one book per claim, in the owning repository.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §6.
 - Outcome: every published book runs `mdbook test` in CI so chapters cannot rot.
-  No book runs it today; the shared workflow defaults `mdbook-test` to `false` as
-  a staging mechanism, not an accepted end state.
-- Claim status (flipped 2026-08-11; melinoe delivered 2026-08-11):
+  The shared workflow defaults `mdbook-test` to `false` as a staging mechanism,
+  not an accepted end state. `eunomia` and `melinoe` have flipped the gate;
+  other callers remain untested until their samples compile.
+- Claim status (updated 2026-08-17):
   - **melinoe** — DONE: all fenced samples compilable; blocks referencing the
     crate carry `extern crate melinoe;` and link through a staged plain-named
     rlib (`mdbook test --library-path`), signature illustrations `ignore`d, the
@@ -2046,6 +2047,13 @@ converter; the existing bilinear differential remains the acceptance oracle.
     Merged via melinoe PR #11; main CI green (all 11 chapters tested), Pages
     deploy green; workflow fix on atlas main (`70c6c6b`, PR #100) makes the
     caller's full-SHA pin durable.
+  - **eunomia** — DONE: caller passes `mdbook-test: true` and its hosted book
+    gate is part of the provider's merged workflow.
+  - **helios** — OPEN: H-103. The current book contains illustrative Rust
+    fragments that fail direct `mdbook test docs/book` because they omit setup,
+    use unresolved provider imports, or fence diagrams/commands as Rust. H-102
+    repaired source-change triggers and enabled linkcheck2; H-103 must convert
+    the snippets before the caller can pass `mdbook-test: true`.
 - Acceptance per book: samples compile against the package; the caller passes
   `mdbook-test: true` and, where samples need providers, `atlas-ref`; the flip
   commit demonstrates the gate failing on a deliberately broken sample before
