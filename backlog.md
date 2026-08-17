@@ -736,10 +736,12 @@ root (`src/lib.rs`, `src/main.rs`, `src/bin/*.rs`, `src/bin/<name>/main.rs`) and
 honouring `#[path]` — found **55 orphans in 8 repos**. Leto's sole orphan was
 deleted in provider commit `99dea18`, Consus's six unreachable source modules
 were deleted in `403387b`, and Hermes's orphan was deleted in `1fe438c`; at
-root commit `e46cc0a`, the live dirty-tree scan is **46 orphans in 5 repos**:
+root commit `d56eaa0`, the live dirty-tree scan is **46 orphans in 5 repos**:
 kwavers 22, CFDrs 14, ritk 6, apollo 3, and coeus 1. gaia, hephaestus,
 eunomia, leto, consus, and hermes are clean, which are detector negative
-controls.
+controls. The same scan reports 48 workflow-timeout residuals after the
+Consus provider jobs were bounded; the remaining workflow findings are
+peer-owned or outside this slice.
 
 Each orphan is invisible to rustc, clippy and nextest yet fully visible to every
 text-based scan, so it skews the very counts used to aim remediation — the

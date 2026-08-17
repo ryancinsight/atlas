@@ -41,7 +41,7 @@
       jobs), Documentation `32018422679`, and Pages `32018420714`.
       The root pointer now advances to that exact hosted-green head; the
       Atlas-overlay lock rewrite remains a separate environment note.
-- [x] Re-run the exact-head and lane audits at root `e46cc0a`: both the
+- [x] Re-run the exact-head and lane audits at root `d56eaa0`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
       reports only peer-owned Athena lock drift, and the conformance report
@@ -50,14 +50,16 @@
       Hermes is now clean after its pushed orphan cleanup. The live scan is
       evidence only, not a reproducible clean-tree
       gate. The generated overlay check remains red only for peer-owned
-      Athena's five Hermes SIMD lock entries (0 lagging requirements).
-- [ ] Re-run the generated overlay, provider-consumer, and
-      conformance gates at the new root revision; repair the benchmark-target
-      classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
-      ratchet result. Read-only validation of the active root instruments
-      passes `unittest` 31/31 across the conformance, lane, and provider-audit
-      suites; the classifier and workflow edits remain peer-owned and
-      uncommitted, so the item stays open until their gate state is landed.
+      Athena's five Hermes SIMD lock entries (0 lagging requirements). The
+      same scan reports 48 workflow-timeout residuals after the Consus jobs
+      were bounded; the remaining classes are unchanged.
+- [ ] Repair the benchmark-target classifier through
+      `ATLAS-CONFORMANCE-BENCH-099` before accepting any ratchet result. The
+      generated overlay, provider-consumer audits, and live conformance scan
+      have been re-run at `d56eaa0`; read-only validation of the active root
+      instruments passes `unittest` 31/31. The classifier and workflow edits
+      remain peer-owned and uncommitted, so the cleanup item stays open until
+      their gate state is landed.
 - [x] Close Leto's `ATLAS-ORPHAN-MODULES-096-LETO` slice: delete the
       unreachable `crates/leto/src/application/transform.rs`, preserve the
       canonical `application/array.rs` methods, and record direct detector
