@@ -42,7 +42,7 @@
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
       ratchet result. The exact-head provider audit passes for all 21 providers
-      at root `cc02594`; the generated overlay still reports peer-owned Athena
+      at root `a8f132a`; the generated overlay still reports peer-owned Athena
       lock drift and the conformance report remains uncollected on the dirty
       shared tree.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
@@ -54,7 +54,12 @@
       `0e9fb8dab29f2ceef505f685211e84aa3a321645`. The remaining Helios
       documentation residual H-103 is closed locally: non-standalone book
       fragments are explicitly marked as text, executable sources remain
-      Cargo-linked, and local `mdbook test`/build/linkcheck2 pass.
+      Cargo-linked, and local `mdbook test`/build/linkcheck2 pass. The exact
+      source scan finds no production `wgpu` ownership in CFDrs at
+      `a3c53da2`, no raw `wgpu`, `ndarray`, `nalgebra`, or `rayon` hits in
+      Helios at `c9817cc8`, and 44 `wgpu`-bearing Kwavers source/test files at
+      `0e9fb8da`; the remaining Kwavers provider migration is not closed by
+      PR #386.
 - [ ] Keep Helios PR #55 peer-owned and blocked: hosted Rust failed at exact
       head `83f5ccea` because its RITK checkout lacks
       `IMAGE_ORIENTATION_PATIENT`, and the same job reports two independent
@@ -72,8 +77,9 @@
       passes Rust, Python, and the four-pair benchmark regression gate;
       `32004527388` passes the book build. The pull-request Pages deployment
       is correctly skipped. The Atlas Helios gitlink is advanced to the
-      merged default; post-merge Pages deployment and live HTTP verification
-      remain open.
+      merged default. Post-merge Pages run `32007839263` passes its build and
+      deployment jobs; `https://ryancinsight.github.io/helios/` returns HTTP
+      200 with the expected guide title.
 - [ ] Add or repair bounded performance and memory evidence for the suite:
       controlled criterion baselines, allocation/buffer-reuse measurements,
       shared-cache checks, and zero-copy boundary verification. Do not change
