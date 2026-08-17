@@ -191,6 +191,11 @@
       rerun the unchanged numerical-fidelity tests within the committed
       budget. Preserve the inherited timeout evidence until the exact final
       provider head is green.
+      First bounded slice is implemented on provider branch
+      `codex/cfdrs-runtime-budget` at `52c17753` (PR #347): cached pressure
+      CSR reuse. The exact 35 µm and trifurcation cases pass locally in
+      16.785 s and 16.903 s under locked Nextest; hosted exact-head collection
+      remains pending.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify
       the same-revision Pages artifact and live HTTP deployment.

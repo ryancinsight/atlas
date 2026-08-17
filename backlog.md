@@ -5271,6 +5271,14 @@ blocker on Athena.
   the first measured solver optimization, and prove the unchanged tests fit
   the committed budget. The existing optimization outlook remains the
   candidate set; selection is evidence-driven.
+- First bounded slice delivered locally on provider branch
+  `codex/cfdrs-runtime-budget` at source commit `52c17753` (PR #347): cfd-2d
+  now borrows the immutable cached pressure CSR matrix instead of cloning it
+  for every SIMPLE correction. Exact local Nextest passes the 35 µm case in
+  16.785 s (run `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c`) and the trifurcation
+  case in 16.903 s (run `913a79da-d89d-4440-a12e-52c575483be6`). The
+  workload, assertions, and 30-second budget are unchanged. Hosted
+  exact-head confirmation remains the closure gate.
 - Re-open trigger after closure: either named test exceeds the budget again or
   a new solver-heavy fidelity case crosses the slow threshold.
 

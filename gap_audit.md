@@ -100,6 +100,15 @@ profile-first production optimization of the two paths; acceptance is the
 unchanged tests completing within the committed budget with their existing
 value-semantic assertions.
 
+The first bounded production slice is now on CFDrs branch
+`codex/cfdrs-runtime-budget`, commit `52c17753`, PR #347. It removes the
+per-correction clone of the immutable cfd-2d pressure CSR matrix. The exact
+35 µm and trifurcation cases pass locally in 16.785 s and 16.903 s under
+locked Nextest, runs `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c` and
+`913a79da-d89d-4440-a12e-52c575483be6`. This is local value/runtime evidence,
+not a cross-machine speedup claim; provider hosted verification at the exact
+post-change head remains the closure gate.
+
 ## ATLAS-ORPHAN-MODULES-096-COEUS — detector false positive (closed)
 
 Coeus's sole reported orphan, `crates/coeus-cuda/src/driver_stub.rs`, is the
