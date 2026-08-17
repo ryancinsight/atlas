@@ -43,22 +43,26 @@ source implementation and provider-local tests.
   book-fence slices,
   and Apollo merged default `ed6d6905` carries the provider-owned public
   `PlanScratch` bound required by CFDrs. Helios PR #59 is merged at default
-  `679402ae` with Rust, Python, benchmark, and book gates passing; CFDrs PR #347 is
-  at exact head `02c2ae80`; the preceding Rust run failed before checkout on a
+  `679402ae` with Rust, Python, benchmark, and book gates passing; CFDrs PR #347
+  merged provider source head `f7bc741184a000338a5f4d4edf261a6dcfa266c8` into
+  default as `84499e957d3d0c8ce50b9573185a1f55885f38e2`. Exact-head Rust run
+  `32046526277` passes format, check, ordinary tests, numerical fidelity (14/14,
+  3036 skipped, 8 slow; 247.309 s), and doctests; figure job `95435610232` and
+  book build `95435671291` pass. Post-merge Rust run `32047446607` and Pages run
+  `32047447199` remain in progress. The preceding Rust run failed before checkout on a
   GitHub 503/429 action-download response (`32043533301`, job `95426903063`).
   The preceding Pages run (`32043533628`, job `95426905897`) reached the
   package build and exposed the missing `fontconfig.pc` system dependency.
   Atlas shared workflow `bb505e5` now installs the required headers and the
   CFDrs caller pins that commit. New exact-head CI and Pages runs
   `32044071453` and `32044071732` were infrastructure-red. PM-only and
-  source-correctness heads were superseded by `02c2ae80`; Rust job
+  source-correctness heads were superseded by `f7bc7411`; Rust job
   `95430179027` and Pages job `95430210781` in runs `32044765872` and
   `32044766414` failed before checkout on codeload 503/429. The figure job
-  `95430179037` passed; the Pages retry `95430855675` passed the same exact
-  head, while Rust retry `95430950307` remains in progress. CodeRabbit is
-  successful; the Rust source gate remains open.
+  `95430179037` passed; the Pages retry `95430855675` passed the prior exact
+  head. CodeRabbit and all required PR checks are successful; the PR is merged.
   The Atlas gitlink sweep below is complete for moving Mnemosyne,
-  Aequitas, and Leto defaults; CFDrs remains unadvanced until PR #347 closes,
+  Aequitas, Leto, and CFDrs defaults;
   while Helios is already at merged default `679402ae`. Kwavers PR #386 carries the multi-field
   visualization correctness closure and remains in the hosted matrix. The
   existing CFDrs decision to remove its newly introduced legacy-Clippy step is
@@ -5314,22 +5318,32 @@ blocker on Athena.
   the first measured solver optimization, and prove the unchanged tests fit
   the committed budget. The existing optimization outlook remains the
   candidate set; selection is evidence-driven.
-- First bounded slice delivered locally on provider branch
-  `codex/cfdrs-runtime-budget` at source commit `02c2ae80` (PR #347): cfd-2d
+- First bounded slice delivered through provider PR #347 at source head
+  `f7bc741184a000338a5f4d4edf261a6dcfa266c8`, merged into CFDrs default as
+  `84499e957d3d0c8ce50b9573185a1f55885f38e2`: cfd-2d
   now borrows the immutable cached pressure CSR matrix instead of cloning it
   for every SIMPLE correction. Exact local Nextest passes the 35 µm case in
   16.785 s (run `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c`) and the trifurcation
   case in 16.903 s (run `913a79da-d89d-4440-a12e-52c575483be6`). The
-  workload, assertions, and 30-second budget are unchanged. The same commit
+  workload, assertions, and 30-second budget are unchanged. Commit `c86dc33f`
+  additionally flattens the Leto-backed backward-facing-step stencil, hoists
+  invariant coefficients, and adds the contiguous-storage accessors. The same
+  provider slice
   makes hemolysis model conversion failures explicit instead of silently
   returning zero; existing negative-input and reference-value tests remain
-  unchanged. Hosted exact-head confirmation remains the closure gate; Rust
+  unchanged. Hosted exact-head confirmation is green: Rust run `32046526277`
+  reports 14/14 numerical-fidelity tests passed (3036 skipped, 8 slow) and
+  doctests pass; figure job `95435610232` and book build `95435671291` pass.
+  Post-merge Rust run `32047446607` and Pages run `32047447199` remain the
+  default-branch confirmation gates. Rust
   job `95426903063` failed before checkout on action-download 503/429; the
   previous Pages job `95426905897` exposed the missing fontconfig headers.
   The caller now pins Atlas `bb505e5`; `32044071453` and `32044071732` were
   infrastructure-red. PM-only and source-correctness heads were superseded by
-  `02c2ae80`; exact-head Rust and Pages jobs failed before checkout on
-  codeload 503/429, while figure job `95430179037` remains active.
+  `f7bc7411`; earlier exact-head Rust and Pages jobs failed before checkout on
+  codeload 503/429, while figure job `95430179037` passed. The broader
+  solver-budget residual remains open; this slice closes the hosted
+  benchmark-validation timeout without changing its workload or budget.
 - Re-open trigger after closure: either named test exceeds the budget again or
   a new solver-heavy fidelity case crosses the slow threshold.
 

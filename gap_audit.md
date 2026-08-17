@@ -2,7 +2,7 @@
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios source closure audit (2026-08-17)
 
-The audit was run against CFDrs provider branch `02c2ae80`, Helios merged
+The audit was run against CFDrs merged default `84499e957d3d0c8ce50b9573185a1f55885f38e2`, Helios merged
 default `679402ae`, and Kwavers merged default `90dde196`; peer-dirty nested
 checkouts were not used as integration evidence.
 
@@ -18,8 +18,13 @@ for `cfd-1d`, `cfd-python`, or `cfd-schematics`. The pressure-cache slice is
 real production reuse, and commit `90798ca7` also surfaces invalid
 hemolysis-model errors instead of silently mapping them to zero; the current
 head explicitly propagates NaN and canonicalizes signed zero, with
-value-semantic regressions. The hosted
-exact-head gate is pending at CFDrs PR #347 head `02c2ae80`. The preceding
+value-semantic regressions. The hosted exact-head gate completed at CFDrs PR
+#347 head `f7bc741184a000338a5f4d4edf261a6dcfa266c8`, merged as
+`84499e957d3d0c8ce50b9573185a1f55885f38e2`. Exact-head Rust run
+`32046526277` passes format, check, ordinary tests, numerical fidelity 14/14
+(3036 skipped, 8 slow; 247.309 s), and doctests; figure job `95435610232` and
+PR book build `95435671291` pass. Post-merge Rust run `32047446607` and Pages
+run `32047447199` remain the default confirmation gates. The preceding
 Rust run `32043533301`, job `95426903063`, failed before checkout while
 downloading the Atlas reusable action (GitHub 503/429), and Pages run
 `32043533628`, job `95426905897`, reached the package build before exposing the
@@ -27,11 +32,11 @@ missing `fontconfig.pc` dependency. Atlas shared workflow commit `bb505e5`
 adds `libfontconfig1-dev`; CFDrs pins it in `57722595`. New exact-head CI and
 Pages runs `32044071453` and `32044071732` were infrastructure-red. The
 PM-only/source-correctness heads `8f08112b`, `6ede137a`, and `e5d4ac74` were
-superseded by final source head `02c2ae80`. Rust job `95430179027` in run
+superseded by final source head `f7bc7411`. Rust job `95430179027` in run
 `32044765872` and Pages job `95430210781` in run `32044766414` failed before
 checkout on codeload 503/429 responses; figure job `95430179037` passed. Pages
-retry `95430855675` passed at the exact head; Rust retry `95430950307` remains
-in progress and CodeRabbit is successful, so the Rust source gate remains open.
+retry `95430855675` passed at the prior exact head; CodeRabbit and all required
+PR checks are successful and the PR is merged.
 
 Helios' merged default has no direct `ndarray`, `nalgebra`, `rayon`, or
 `pollster` source matches in production crates. Its manifest edges route
@@ -161,18 +166,22 @@ profile-first production optimization of the two paths; acceptance is the
 unchanged tests completing within the committed budget with their existing
 value-semantic assertions.
 
-The first bounded production slice is now on CFDrs branch
-`codex/cfdrs-runtime-budget`, commit `02c2ae80`, PR #347. It removes the
+The first bounded production slice landed through CFDrs PR #347. Source head
+`f7bc741184a000338a5f4d4edf261a6dcfa266c8` merges as
+`84499e957d3d0c8ce50b9573185a1f55885f38e2`. It removes the
 per-correction clone of the immutable cfd-2d pressure CSR matrix. The exact
 35 µm and trifurcation cases pass locally in 16.785 s and 16.903 s under
 locked Nextest, runs `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c` and
 `913a79da-d89d-4440-a12e-52c575483be6`. This is local value/runtime evidence,
 not a cross-machine speedup claim. The same commit removes the silent
 `unwrap_or(0.0)` hemolysis-model error path; existing negative-input and
-reference-value tests cover the changed contract. The caller also pins Atlas
-shared workflow `bb505e5`, which installs the fontconfig headers required by
-the Plotters `ttf` feature. Provider hosted verification at the exact
-post-change head remains the closure gate.
+reference-value tests cover the changed contract. Commit `c86dc33f` additionally
+flattens the Leto-backed backward-facing-step stencil and hoists invariant
+coefficients. The caller also pins Atlas shared workflow `bb505e5`, which
+installs the fontconfig headers required by the Plotters `ttf` feature. The
+provider PR gate is green with the unchanged workload and 30-second budget;
+the broader solver-budget residual remains open and is not represented as
+closed by this bounded slice.
 
 ## ATLAS-ORPHAN-MODULES-096-COEUS — detector false positive (closed)
 

@@ -208,9 +208,11 @@
       rerun the unchanged numerical-fidelity tests within the committed
       budget. Preserve the inherited timeout evidence until the exact final
       provider head is green.
-      First bounded slice is implemented on provider branch
-      `codex/cfdrs-runtime-budget` at `02c2ae80` (PR #347): cached pressure
-      CSR reuse, plus explicit propagation of invalid hemolysis-model input.
+      First bounded slice is merged through CFDrs PR #347: provider source head
+      `f7bc741184a000338a5f4d4edf261a6dcfa266c8`, default merge
+      `84499e957d3d0c8ce50b9573185a1f55885f38e2`. It includes cached pressure
+      CSR reuse, explicit propagation of invalid hemolysis-model input, and the
+      flat Leto-backed backward-facing-step stencil.
       The exact 35 µm and trifurcation cases pass locally in 16.785 s and
       16.903 s under locked Nextest; the Pages caller now builds
       `cfd-validation` and runs the shared `mdbook test` gate. Exact-head Rust
@@ -220,12 +222,16 @@
       dependency. Atlas shared workflow `bb505e5` adds the required headers;
       this branch pins that fix. New exact-head CI and Pages runs
       `32044071453` and `32044071732` were infrastructure-red; PM-only and
-      source-correctness heads were superseded by `02c2ae80`. Rust job
+      source-correctness heads were superseded by `f7bc7411`. Exact-head Rust
+      run `32046526277` passes format, check, ordinary tests, numerical fidelity
+      14/14 (3036 skipped, 8 slow; 247.309 s), and doctests; figure job
+      `95435610232` and PR book build `95435671291` pass. Post-merge Rust run
+      `32047446607` and Pages run `32047447199` remain in progress. Rust job
       `95430179027` and Pages job `95430210781` in runs `32044765872` and
       `32044766414` failed before checkout on codeload 503/429; figure job
       `95430179037` passed. Pages retry `95430855675` passed at the same exact
-      head; Rust retry `95430950307` remains in progress and CodeRabbit is
-      successful, so the source gate remains open.
+      head; CodeRabbit and all required PR checks are successful and the PR is
+      merged. The broader solver-budget residual remains open.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify
       the same-revision Pages artifact and live HTTP deployment.
