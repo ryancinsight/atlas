@@ -76,6 +76,11 @@
       Atlas Kwavers gitlink advances to that merged default; the primary
       checkout's peer-owned visualization branch and untracked transducer
       constructors remain untouched.
+- [x] Collect Kwavers PR #389 at exact head `ba1db65c`, merged as default
+      `90dde196ba7d946e86b31a533fd9dde2ebb1867b`. The docs-only correction
+      reduces the vacuous GPU-FFT audit finding from four tests to the two
+      AVX-512 tests fixed by PR #388; the two WGPU tests already reject only
+      genuine adapter absence and surface other acquisition failures.
 - [ ] Keep the remaining peer PR blockers explicit: CFDrs #333 is
       `CONFLICTING` at `3b2fffaa` with only its Hermes revision pin verified;
       RITK #144 has one macOS Kabsch/SVD rank-deficiency test failure at
