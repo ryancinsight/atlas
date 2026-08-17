@@ -87,14 +87,20 @@ Three ordering facts came out of the audit and are not obvious from the board:
   format/check/nextest and exact-head provider gates before advancing Atlas'
   gitlink and baseline.
 
-### ATLAS-APOLLO-PRINT-098 — active provider cleanup
-- Claim a clean Apollo lane from fetched `origin/main`; preserve the peer-dirty
-  main checkout and its Cargo.lock.
-- Delete the unused `BenchmarkSuite::emit` library method; retain
-  `BenchmarkSuite::report` as the value-semantic report contract and keep all
-  output in the existing `apollo-bench-compare` binary layer.
-- Run Apollo format/check/test and semver gates, merge the provider PR, then
-  advance Atlas only to the merged default and rerun the conformance gate.
+### ATLAS-APOLLO-PRINT-098 — closed; premise false
+- [x] Inspect all eight `BenchmarkSuite::emit` callers. They are benchmark
+      executables, so the shared emitter is a valid application output seam.
+- [x] Preserve the Apollo provider unchanged and remove the empty lane.
+- [x] File `ATLAS-CONFORMANCE-BENCH-099` for the root scanner's missing
+      `benches/` executable classification; do not game the provider code to
+      satisfy the false positive.
+
+### ATLAS-CONFORMANCE-BENCH-099 — instrument correction
+- Classify `benches/` Rust targets as executable in
+  `scripts/atlas-conformance.py` without overwriting the peer's target-fork
+  change.
+- Add a fixture proving benchmark `print!` is excluded while `src/` library
+  output remains counted; run the script tests and exact-head ratchet.
 
 ### ATLAS-GITLINK-DRIFT-056
 - Do not blanket-advance. Per member decide: the working head is verified and
