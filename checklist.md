@@ -84,6 +84,15 @@
       Athena's five Hermes SIMD lock entries (0 lagging requirements). The
       same scan reports 48 workflow-timeout residuals after the Consus jobs
       were bounded; the remaining classes are unchanged.
+- [x] Reconcile the 2026-08-17 moving defaults before the next exact-head
+      closeout: Mnemosyne `924cdcce`, Aequitas `b24bd8c9`, and Leto `d966e32c`
+      are the fetched `origin/main` heads. Advance only those three root
+      gitlinks; preserve their peer-owned dirty nested files.
+- [ ] Re-run the exact-head audits after the pointer commit. CFDrs PR #347 is
+      at `41db036a` with hosted gates in progress, Helios PR #59 has a failed
+      Python-bindings setup job and a pending benchmark job, and CFDrs's Cargo
+      example gate is blocked on Apollo's unmerged public `PlanScratch` head
+      `81583aab`.
 - [x] Close `ATLAS-CONFORMANCE-BENCH-099`: preserve the target-fork
       correction, prove `benches/` executable classification, executable
       support modules, exact test regions, and literal/manifest-rooted

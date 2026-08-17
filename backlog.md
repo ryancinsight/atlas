@@ -38,13 +38,26 @@ alias in audit text. Atlas owns the provider graph, exact gitlinks, overlay,
 cross-repository gates, and integration documentation; each member owns its
 source implementation and provider-local tests.
 
-- **Current slice:** Helios PR #57, CFDrs PR #345, Apollo PR #102, and the
-  Coeus closure are merged and their Atlas/provider pointers track exact
-  default heads. Kwavers PR #386 carries the multi-field visualization
-  correctness closure and remains in the hosted matrix. The existing CFDrs
-  decision to remove its newly introduced legacy-Clippy step is a documented
-  gate-boundary decision, not a lint-debt closure; the remaining lint floor
-  stays in the Atlas conformance ratchet.
+- **Current slice:** Helios PR #59 carries the caller-side `mdbook test`
+  enablement, CFDrs PR #347 carries the pressure-cache and book-fence slices,
+  and Apollo remote head `81583aab` carries the provider-owned public
+  `PlanScratch` bound required by CFDrs. Helios PR #59 still has a failed
+  Python-bindings setup job and an in-progress benchmark job; CFDrs PR #347 is
+  at exact head `41db036a` with hosted book, Rust, and figure gates in
+  progress. The Atlas gitlink sweep below is complete for moving Mnemosyne,
+  Aequitas, and Leto defaults; CFDrs and Helios remain unadvanced until their
+  respective provider PRs close. Kwavers PR #386 carries the multi-field
+  visualization correctness closure and remains in the hosted matrix. The
+  existing CFDrs decision to remove its newly introduced legacy-Clippy step is
+  a documented gate-boundary decision, not a lint-debt closure; the remaining
+  lint floor stays in the Atlas conformance ratchet.
+
+**Live exact-head sweep (2026-08-17):** fetched provider defaults advanced
+Mnemosyne to `924cdcce`, Aequitas to `b24bd8c9`, and Leto to `d966e32c`. Their
+primary checkouts are at those exact heads but retain peer-owned dirty
+lockfiles or artifacts; only the root gitlinks are advanced here. The
+requested 20-provider and Atlas 21-provider audits must be rerun after this
+pointer sweep.
 - **Provider-adoption slice:** audit every integrator edge for direct use of
   the owning provider API, deletion of superseded local wrappers, and no
   silent CPU/GPU, storage, or scheduler fallback. File provider capability

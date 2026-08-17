@@ -1513,6 +1513,17 @@ Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. All twenty
 providers are active in `.gitmodules`, the committed gitlinks match their
 fetched default heads, and the requested-scope coherence audit is clean.
 
+### Moving-default reconciliation — 2026-08-17
+
+That earlier clean result decayed when three provider defaults advanced after
+the recorded pointer commit. The fetched and checked-out heads are now
+Mnemosyne `924cdcceea3bce4a2139e2b787d2b519d29f7097`, Aequitas
+`b24bd8c9b8add22cdc896424e6b236edf0725fd9`, and Leto
+`d966e32ce86c0fd230053977ffba5480125ab1d6`. Their nested lockfiles and
+untracked reports remain peer-owned; the root sweep advances only the three
+gitlinks, then reruns the requested 20-provider and Atlas 21-provider exact
+head audits.
+
 ## ATLAS-PROVIDER-INTEGRATION-006 — twenty-provider exact-head re-audit — 2026-08-13
 
 The current Atlas integration pointer commit is `c77ee82`, with Horae
