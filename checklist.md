@@ -5,6 +5,40 @@
 
 # Sweep 2026-08-13 — execution order
 
+## ATLAS-MULTIPHYSICS-ADOPTION-100 — current execution order
+
+- [x] Record the suite boundary: CFDrs, Kwavers, and Helios are integrators;
+      provider ownership remains with the named Atlas packages and is not
+      inferred from repository presence alone.
+- [x] Run the structural 22-provider registration audit and preserve the
+      Tyche/Tychee naming normalization.
+- [ ] Collect CFDrs PR #344 at exact head `742456ec`; merge only after format,
+      locked workspace check, nextest, doctests, and figure gates pass. Record
+      the legacy-Clippy residual separately from the integration gate.
+- [ ] Collect Coeus PR #334 at exact head `2b919f80`; merge only after all
+      provider-contract jobs pass, then record the production allow-site
+      ratchet at the merged default.
+- [ ] Advance the Atlas CFDrs and Coeus gitlinks to their fetched merged
+      defaults without modifying peer-dirty nested checkouts.
+- [ ] Re-run the generated overlay, exact-head, provider-consumer, and
+      conformance gates at the new root revision; repair the benchmark-target
+      classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
+      ratchet result.
+- [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
+      superseded local wrappers, fallback branches, typed time/quantity/unit
+      boundaries, and real analytical or differential scenarios. Any provider
+      gap lands upstream before consumer edits.
+- [ ] Add or repair bounded performance and memory evidence for the suite:
+      controlled criterion baselines, allocation/buffer-reuse measurements,
+      shared-cache checks, and zero-copy boundary verification. Do not change
+      workload sizes or budgets to make a gate pass.
+- [ ] Verify each affected book's chapter map, code samples, figures, and
+      cross-links; run `mdbook test` where samples are compilable, then verify
+      the same-revision Pages artifact and live HTTP deployment.
+- [ ] Close the parent item only after residuals are either fixed or recorded
+      with exact files, heads, hosted run IDs, evidence limits, and re-open
+      triggers.
+
 ## ATLAS-TYCHE-DOCS-001 — merged provider documentation correction
 
 - [x] Merge Tyche PR #22 after repository-owned `verify`, `supply-chain`, and

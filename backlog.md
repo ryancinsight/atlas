@@ -26,6 +26,61 @@ the test-region classes where they belong (`existence_only_assertions`
 598 → 807, `sleep_synced_tests` 117 → 132). **Every burn-down target recorded
 before this fix was aimed by a broken instrument and must be re-derived.**
 
+## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
+
+The active product boundary is a multiphysics simulation suite built from the
+CFDrs, Kwavers, and Helios integrators. The provider set is `horae`,
+`hyperion`, `harmonia`, `themis`, `tyche`, `proteus`, `mnemosyne`, `consus`,
+`helios`, `aequitas`, `asclepius`, `eunomia`, `moirai`, `ritk`, `melinoe`,
+`leto`, `hephaestus`, `coeus`, `apollo`, `gaia`, `hermes`, and `iris`.
+`tyche` is the canonical spelling; `tychee` is retained only as a historical
+alias in audit text. Atlas owns the provider graph, exact gitlinks, overlay,
+cross-repository gates, and integration documentation; each member owns its
+source implementation and provider-local tests.
+
+- **Current slice:** finish the exact-head hosted closure for CFDrs PR #344
+  and Coeus PR #334, then advance only their merged default gitlinks. The
+  existing CFDrs decision to remove its newly introduced legacy-Clippy step is
+  a documented gate-boundary decision, not a lint-debt closure; the remaining
+  lint floor stays in the Atlas conformance ratchet.
+- **Provider-adoption slice:** audit every integrator edge for direct use of
+  the owning provider API, deletion of superseded local wrappers, and no
+  silent CPU/GPU, storage, or scheduler fallback. File provider capability
+  gaps upstream before changing a consumer.
+- **Physics-contract slice:** exercise typed time (`horae`), quantities
+  (`aequitas`/`eunomia`), material and optical laws (`proteus`/`hyperion`),
+  coupling (`harmonia`), storage (`consus`), geometry (`gaia`), imaging
+  (`ritk`), biological response (`asclepius`), and execution/accelerator
+  paths (`mnemosyne`/`moirai`/`themis`/`melinoe`/`hermes`/`leto`/`hephaestus`/
+  `apollo`/`coeus`/`iris`) through value-semantic scenarios in the three
+  integrators. A green build without an analytical or differential oracle is
+  insufficient.
+- **Performance and memory slice:** establish controlled baselines before
+  claiming speed, allocation, or memory improvements; inspect allocation
+  counts, shared-cache growth, buffer reuse, zero-copy boundaries, and
+  criterion confidence intervals. Optimize production paths only; preserve
+  workload sizes and test budgets.
+- **Documentation slice:** keep each domain book's chapter map, examples,
+  figures, and provider links synchronized. Enable or repair `mdbook test`
+  only where the committed samples compile, and verify the final Pages
+  artifact and live deployment at the same revision as the source.
+
+**Acceptance oracle:** the structural provider audit reports all 22 named
+providers present and active; the exact-head audit passes on a clean checkout;
+the generated overlay and locked dependency graph pass; CFDrs, Kwavers, and
+Helios provider-consumer gates pass at their merged default heads; conformance
+ratchets do not regress (including the corrected benchmark-target classifier);
+the focused multiphysics scenarios pass analytical/differential checks; the
+applicable performance and memory evidence is recorded without unsupported
+claims; and the provider/integrator books build, test, deploy, and resolve
+their live Pages URLs. Residual external or peer-owned work remains an
+explicit board item with its exact blocker and re-open trigger.
+
+Dependencies: `ATLAS-COEUS-LINT-RATCHET-097`,
+`ATLAS-CONFORMANCE-BENCH-099`, `ATLAS-PUBLISH-001-BOOK-MDBOOK-TEST-001`,
+`ATLAS-OVERLAY-005`, and the current CFDrs integration PR. This item is the
+parent audit; its vertical slices close independently with their own evidence.
+
 ## Landed from this sweep (2026-08-13)
 
 | ID | Commit | Note |
