@@ -12,14 +12,18 @@
       inferred from repository presence alone.
 - [x] Run the structural 22-provider registration audit and preserve the
       Tyche/Tychee naming normalization.
-- [ ] Collect CFDrs PR #344 at exact head `742456ec`; merge only after format,
-      locked workspace check, nextest, doctests, and figure gates pass. Record
-      the legacy-Clippy residual separately from the integration gate.
-- [ ] Collect Coeus PR #334 at exact head `2b919f80`; merge only after all
-      provider-contract jobs pass, then record the production allow-site
-      ratchet at the merged default.
-- [ ] Advance the Atlas CFDrs and Coeus gitlinks to their fetched merged
-      defaults without modifying peer-dirty nested checkouts.
+- [ ] Collect CFDrs PR #344 at exact head
+      `f46d0b46922cceb288b1a97404ae1f7a077e0310`; its six heavy numerical
+      cases now pass through the serialized `numerical-fidelity` group
+      (`6/6`, `102.989 s`) without changing the 30-second/60-second budgets.
+      Hosted run `31989294124` is still in progress; merge only after its
+      exact-head format, locked workspace, nextest, doctest, and figure gates
+      pass. Record the legacy-Clippy residual separately.
+- [x] Collect Coeus PR #334; provider-contract jobs pass at merged default
+      `a8ea12eb23477ff017e38479ae792094ccb85382`, and the Atlas gitlink now
+      points to that exact default without modifying the peer-dirty checkout.
+- [ ] Advance the Atlas CFDrs gitlink only after PR #344 merges; preserve the
+      peer-dirty nested checkout and update the overlay from the merged head.
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
@@ -27,7 +31,11 @@
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. Any provider
-      gap lands upstream before consumer edits.
+      gap lands upstream before consumer edits. Current exact residuals are
+      `ATLAS-HELIOS-DICOM-GEOMETRY-103`,
+      `ATLAS-KWAVERS-HEPHAESTUS-VIS-104`,
+      `ATLAS-CFDRS-FOURIER-NATIVE-105`, and
+      `ATLAS-CFDRS-SSOR-OWNERSHIP-106`.
 - [ ] Add or repair bounded performance and memory evidence for the suite:
       controlled criterion baselines, allocation/buffer-reuse measurements,
       shared-cache checks, and zero-copy boundary verification. Do not change

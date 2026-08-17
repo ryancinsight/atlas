@@ -81,6 +81,61 @@ Dependencies: `ATLAS-COEUS-LINT-RATCHET-097`,
 `ATLAS-OVERLAY-005`, and the current CFDrs integration PR. This item is the
 parent audit; its vertical slices close independently with their own evidence.
 
+### Current residuals from the 2026-08-16 provider-consumer audit
+
+#### ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention [patch] — in progress
+
+CFDrs PR #344 is at exact head `f46d0b46922cceb288b1a97404ae1f7a077e0310`.
+The six heavy cross-fidelity cases pass when serialized through the committed
+`numerical-fidelity` nextest group (`6 passed`, `102.989 s`, run locally with
+the existing 30-second slow and 60-second termination budgets). Hosted CI run
+`31989294124` is still in progress. Merge and the Atlas gitlink advance remain
+gated on that exact-head result.
+
+#### ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults [major] — todo
+
+`repos/helios/crates/helios-domain/src/dicom.rs:121-132` substitutes unit
+spacing and zero origin when `PixelSpacing` or `ImagePositionPatient` is
+missing. The loader documentation at `:275-280` simultaneously describes
+those attributes as required-error inputs while documenting the defaults.
+`ImageOrientationPatient` follows the same identity-default contract. The
+acceptance oracle is a typed error for each missing or malformed required
+geometry attribute plus negative fixture coverage through Helios' DICOM gate;
+RITK remains the sole DICOM parser/decoder owner. The current Helios checkout
+is peer-dirty and behind its fetched default, so the item reopens when a clean
+provider head is available.
+
+#### ATLAS-KWAVERS-HEPHAESTUS-VIS-104 — GPU ownership closure [arch] — todo
+
+Kwavers still constructs raw `wgpu` pipelines in
+`crates/kwavers-gpu/src/beamforming/three_dimensional/provider.rs` and keeps
+raw-WGPU visualization state in `crates/kwavers-analysis/src/visualization`.
+The audited visualization path also accepts an empty field list or selects a
+single field, so its current tests do not establish multi-field value
+semantics. The acceptance oracle is a complete provider-owned execution path
+with explicit failure for unavailable capability, no consumer-owned raw-WGPU
+kernel ownership, and value-semantic multi-field tests. Source changes are
+peer-owned; re-open after the current Kwavers lane releases those files.
+
+#### ATLAS-CFDRS-FOURIER-NATIVE-105 — native scalar contract [major] — todo
+
+`repos/CFDrs/crates/cfd-3d/src/spectral/fourier.rs:33-45,102-112` converts
+generic Fourier inputs through `f64`; `crates/cfd-3d/src/atlas_array.rs:46-59`
+exposes only `f64`/`Complex64` array helpers. The consumer must use Apollo's
+native-precision transform contract or land the missing capability upstream,
+then delete the consumer-side widen/narrow path. The acceptance oracle is a
+generic value-semantic differential suite across shipped scalar types with no
+precision-changing compatibility path.
+
+#### ATLAS-CFDRS-SSOR-OWNERSHIP-106 — provider wrapper deletion [arch] — todo
+
+`repos/CFDrs/crates/cfd-math/src/linear_solver/preconditioners/ssor.rs:3-35`
+is explicitly a compatibility wrapper around `leto_ops::SSORPreconditioner`,
+and `linear_solver/mod.rs` re-exports the consumer-owned name. The acceptance
+oracle is direct Leto provider use at all callers, deletion of the wrapper and
+legacy re-export, and focused value-semantic solver coverage without an
+adapter layer.
+
 ## Landed from this sweep (2026-08-13)
 
 | ID | Commit | Note |

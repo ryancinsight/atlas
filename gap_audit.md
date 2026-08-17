@@ -2052,6 +2052,51 @@ the committed blob; the per-commit `version-guard scan` on
 with the same 24 hermes-drift defect lines — none introduced by the gate
 runs). Root gitlink stays at `1ac8118c` until owner PR merge.
 
+## ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults — 2026-08-16
+
+The provider-consumer audit found a contract contradiction in the current
+Helios checkout. `crates/helios-domain/src/dicom.rs:121-132` uses
+`unwrap_or_default()` and element defaults to manufacture unit spacing and a
+zero origin when `PixelSpacing` or `ImagePositionPatient` is absent. The
+loader documentation at `:275-280` says the same attributes are required
+geometry inputs while also documenting the defaults; orientation has the
+corresponding identity default. This is not an integration proof and is not a
+safe recovery path for medical-image geometry.
+
+**Required closure:** return the typed DICOM error for each missing or
+malformed required geometry attribute, add negative fixture coverage, and
+rerun the Helios DICOM gate with RITK retaining parser/decoder ownership. The
+current Helios checkout is peer-dirty and behind its fetched default; re-open
+the source item when a clean provider head is available. See
+`backlog.md#ATLAS-HELIOS-DICOM-GEOMETRY-103`.
+
+## ATLAS-HEPHAESTUS-CONSUMER-CLOSURE-104 — Kwavers GPU ownership and CFDrs native scalar residuals — 2026-08-16
+
+The cross-integrator audit confirms real provider adoption but not complete
+ownership closure. Kwavers still constructs raw WGPU pipelines in
+`crates/kwavers-gpu/src/beamforming/three_dimensional/provider.rs` and keeps
+raw-WGPU visualization state under `crates/kwavers-analysis/src/visualization`.
+The audited visualization path permits an empty field list or single-field
+selection, and its current tests do not assert multi-field values. The
+provider-owned closure requires explicit unavailable-capability errors, no
+consumer-owned raw-WGPU kernel ownership, and value-semantic multi-field
+coverage; the source scope is peer-owned until the active Kwavers lane is
+released.
+
+CFDrs also has two consumer-boundary residuals. Its generic Fourier surface
+converts through `f64` (`crates/cfd-3d/src/spectral/fourier.rs:33-45,102-112`)
+and its array helpers expose `f64`/`Complex64` only
+(`crates/cfd-3d/src/atlas_array.rs:46-59`). The migration must land the
+native-precision transform capability in Apollo if absent, then delete the
+consumer-side widen/narrow path. Separately,
+`crates/cfd-math/src/linear_solver/preconditioners/ssor.rs:3-35` is an
+explicit compatibility wrapper around `leto_ops::SSORPreconditioner`; all
+callers must move to the provider-owned API before the wrapper and legacy
+re-export are deleted. See
+`backlog.md#ATLAS-KWAVERS-HEPHAESTUS-VIS-104`,
+`backlog.md#ATLAS-CFDRS-FOURIER-NATIVE-105`, and
+`backlog.md#ATLAS-CFDRS-SSOR-OWNERSHIP-106`.
+
 ## ATLAS-HELIOS-DICOM-ORIENTATION-001 — Helios DICOM oriented-grid boundary delivery — 2026-08-11
 
 Pushed the previously worktree-only Helios DICOM orientation work as
