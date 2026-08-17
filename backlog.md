@@ -38,12 +38,13 @@ alias in audit text. Atlas owns the provider graph, exact gitlinks, overlay,
 cross-repository gates, and integration documentation; each member owns its
 source implementation and provider-local tests.
 
-- **Current slice:** finish the exact-head hosted closure for Helios PR #57
-  and advance only its merged default gitlink. CFDrs PR #344 and Coeus PR #334
-  are merged and their Atlas pointers now track exact default heads. The
-  existing CFDrs decision to remove its newly introduced legacy-Clippy step is
-  a documented gate-boundary decision, not a lint-debt closure; the remaining
-  lint floor stays in the Atlas conformance ratchet.
+- **Current slice:** Helios PR #57, CFDrs PR #345, Apollo PR #102, and the
+  Coeus closure are merged and their Atlas/provider pointers track exact
+  default heads. Kwavers PR #386 carries the multi-field visualization
+  correctness closure and remains in the hosted matrix. The existing CFDrs
+  decision to remove its newly introduced legacy-Clippy step is a documented
+  gate-boundary decision, not a lint-debt closure; the remaining lint floor
+  stays in the Atlas conformance ratchet.
 - **Provider-adoption slice:** audit every integrator edge for direct use of
   the owning provider API, deletion of superseded local wrappers, and no
   silent CPU/GPU, storage, or scheduler fallback. File provider capability
@@ -99,7 +100,7 @@ blocked by the peer-dirty Mnemosyne compile error at
 `crates/mnemosyne-core/src/memory_diagnostics.rs:96`, not by the merged CFDrs
 change.
 
-#### ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults [major] — in progress
+#### ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults [major] — closed 2026-08-17
 
 `repos/helios/crates/helios-domain/src/dicom.rs:121-132` substitutes unit
 spacing and zero origin when `PixelSpacing` or `ImagePositionPatient` is
@@ -108,59 +109,47 @@ those attributes as required-error inputs while documenting the defaults.
 `ImageOrientationPatient` follows the same identity-default contract. The
 acceptance oracle is a typed error for each missing or malformed required
 geometry attribute plus negative fixture coverage through Helios' DICOM gate;
-RITK remains the sole DICOM parser/decoder owner. A clean integration lane
-implements the typed rejection and negative fixtures at Helios commit
+RITK remains the sole DICOM parser/decoder owner. The clean integration lane
+implements the typed rejection at Helios commit
 `67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; local DICOM nextest passes 45/45,
-doctests pass, and warning-denied Clippy passes. Hosted run `31990847118`
-passed the Rust and Python jobs but failed its replicated benchmark gate:
-`dvh_volume_fraction_at_dose/production/1024` and
-`forward_projection_sinogram/cpu/360x256` were classified in both
-counterbalanced replications. The PR changes only the DICOM-gated source; the
-benchmark source archive is unchanged and the benchmark dependency tree does
-not enable `ritk-dicom`. The current evidence therefore identifies benchmark
-provenance or runner contamination, not a DICOM code-path regression, but the
-provider-owned gate is still red. PR #57 remains draft; do not merge or
-advance the Atlas gitlink until the benchmark gate is corrected and a fresh
-exact-head run is green. The peer-dirty primary checkout remains untouched.
+doctests pass, and warning-denied Clippy passes. The counterbalanced benchmark
+rerun in exact-head hosted run `31990847118` passed, as did the Rust workspace
+and Python bindings. PR #57 merged as `7fddf789`; Atlas advances that merged
+default gitlink. The peer-dirty primary checkout remains untouched.
 
-#### ATLAS-KWAVERS-HEPHAESTUS-VIS-104 — GPU ownership closure [arch] — todo
+#### ATLAS-KWAVERS-HEPHAESTUS-VIS-104 — GPU ownership closure [arch] — in progress
 
 Kwavers still constructs raw `wgpu` pipelines in
 `crates/kwavers-gpu/src/beamforming/three_dimensional/provider.rs` and keeps
 raw-WGPU visualization state in `crates/kwavers-analysis/src/visualization`.
-The audited visualization path also accepts an empty field list or selects a
-single field, so its current tests do not establish multi-field value
-semantics. The acceptance oracle is a complete provider-owned execution path
-with explicit failure for unavailable capability, no consumer-owned raw-WGPU
-kernel ownership, and value-semantic multi-field tests. Source changes are
-peer-owned; re-open after the current Kwavers lane releases those files.
+The bounded visualization subfinding is corrected in Kwavers commit
+`40dac165e` and draft PR #386: field counts are validated, GPU compositing
+receives every field, CPU diagnostics process every field, and multi-field
+rendering without transparency is rejected. Feature-enabled Nextest passes
+758/758, doctests pass, package-local Clippy passes, and package docs build.
+The acceptance oracle still requires a complete provider-owned execution path
+with explicit failure for unavailable capability and no consumer-owned
+raw-WGPU kernel ownership. The hosted Kwavers matrix remains pending with
+`Validate Clean Architecture` and `Code Quality` already red on repository
+baseline findings; the exact failure logs are the next integration gate.
 
-#### ATLAS-CFDRS-FOURIER-NATIVE-105 — native scalar contract [major] — in progress
+#### ATLAS-CFDRS-FOURIER-NATIVE-105 — native scalar contract [major] — closed 2026-08-17
 
-`repos/CFDrs/crates/cfd-3d/src/spectral/fourier.rs:33-45,102-112` converts
-generic Fourier inputs through `f64`; `crates/cfd-3d/src/atlas_array.rs:46-59`
-exposes only `f64`/`Complex64` array helpers. The consumer must use Apollo's
-native-precision transform contract or land the missing capability upstream,
-then delete the consumer-side widen/narrow path. The acceptance oracle is a
-generic value-semantic differential suite across shipped scalar types with no
-precision-changing compatibility path.
-Claimed on `feat/cfdrs-provider-native-fourier-ssor`; source scope is the
-CFDrs Fourier implementation, its Apollo contract, and focused tests.
+The consumer-side `f64`/`Complex64` widen-narrow path and obsolete inverse
+helper are deleted. CFDrs now calls Apollo's typed native-precision transform
+contract directly, with an f32 round-trip regression. Focused Nextest passes
+13/13, doctests pass, and package-local Clippy passes. The change merged in
+CFDrs PR #345 at `a3c53da2`; exact-head hosted run `31997714748` passes the
+Rust workspace and book-figure gates. No compatibility adapter remains.
 
-#### ATLAS-CFDRS-SSOR-OWNERSHIP-106 — provider wrapper deletion [arch] — in progress
+#### ATLAS-CFDRS-SSOR-OWNERSHIP-106 — provider wrapper deletion [arch] — closed 2026-08-17
 
-`repos/CFDrs/crates/cfd-math/src/linear_solver/preconditioners/ssor.rs:3-35`
-is explicitly a compatibility wrapper around `leto_ops::SSORPreconditioner`,
-and `linear_solver/mod.rs` re-exports the consumer-owned name. The acceptance
-oracle is direct Leto provider use at all callers, deletion of the wrapper and
-legacy re-export, and focused value-semantic solver coverage without an
-adapter layer.
-Claimed with the Fourier slice on `feat/cfdrs-provider-native-fourier-ssor`;
-the SSOR wrapper, re-export, and its focused tests are the bounded ownership
-scope. The wrapper deletion and direct provider tests are pushed at
-`245706fe`; `cargo check -p cfd-math --all-targets` and the focused nextest
-filter pass 3/3. Hosted collection remains pending with the native Fourier
-consumer slice.
+The consumer-owned SSOR wrapper and legacy re-export are deleted. Direct
+Leto provider tests cover zero preservation, input sensitivity, mismatch
+errors, and relaxation-parameter response; the focused filter passes 3/3.
+The deletion merged with the Fourier slice in CFDrs PR #345 at `a3c53da2`;
+exact-head hosted run `31997714748` passes the Rust workspace and book-figure
+gates.
 
 ## Landed from this sweep (2026-08-13)
 
