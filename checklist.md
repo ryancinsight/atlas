@@ -209,7 +209,7 @@
       budget. Preserve the inherited timeout evidence until the exact final
       provider head is green.
       First bounded slice is implemented on provider branch
-      `codex/cfdrs-runtime-budget` at `e5d4ac74` (PR #347): cached pressure
+      `codex/cfdrs-runtime-budget` at `02c2ae80` (PR #347): cached pressure
       CSR reuse, plus explicit propagation of invalid hemolysis-model input.
       The exact 35 µm and trifurcation cases pass locally in 16.785 s and
       16.903 s under locked Nextest; the Pages caller now builds
@@ -220,8 +220,8 @@
       dependency. Atlas shared workflow `bb505e5` adds the required headers;
       this branch pins that fix. New exact-head CI and Pages runs
       `32044071453` and `32044071732` were infrastructure-red; PM-only and
-      source-correctness heads were superseded by `e5d4ac74`. New exact-head
-      CI and Pages runs `32044669677` and `32044669877` are queued. The source
+      source-correctness heads were superseded by `02c2ae80`. New exact-head
+      CI and Pages runs `32044765872` and `32044766414` are active. The source
       gate remains open.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify

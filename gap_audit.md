@@ -2,7 +2,7 @@
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios source closure audit (2026-08-17)
 
-The audit was run against CFDrs provider branch `e5d4ac74`, Helios merged
+The audit was run against CFDrs provider branch `02c2ae80`, Helios merged
 default `679402ae`, and Kwavers merged default `90dde196`; peer-dirty nested
 checkouts were not used as integration evidence.
 
@@ -16,8 +16,9 @@ scanned crate set. The earlier CFDrs feature-unification defect is also closed:
 and standalone locked no-default `cargo tree` runs show no `hephaestus-wgpu`
 for `cfd-1d`, `cfd-python`, or `cfd-schematics`. The pressure-cache slice is
 real production reuse, and commit `90798ca7` also surfaces invalid
-hemolysis-model errors instead of silently mapping them to zero; the existing
-negative-input and reference-value tests remain in place. The hosted
+hemolysis-model errors instead of silently mapping them to zero; the current
+head explicitly propagates NaN and canonicalizes signed zero, with
+value-semantic regressions. The hosted
 exact-head gate is now pending at CFDrs PR #347 head `8f08112b`. The preceding
 Rust run `32043533301`, job `95426903063`, failed before checkout while
 downloading the Atlas reusable action (GitHub 503/429), and Pages run
@@ -25,9 +26,9 @@ downloading the Atlas reusable action (GitHub 503/429), and Pages run
 missing `fontconfig.pc` dependency. Atlas shared workflow commit `bb505e5`
 adds `libfontconfig1-dev`; CFDrs pins it in `57722595`. New exact-head CI and
 Pages runs `32044071453` and `32044071732` were infrastructure-red. The
-PM-only/source-correctness heads `8f08112b` and `6ede137a` were superseded by
-the final PM head `e5d4ac74`; new exact-head runs `32044669677` and
-`32044669877` are queued.
+PM-only/source-correctness heads `8f08112b`, `6ede137a`, and `e5d4ac74` were
+superseded by final source head `02c2ae80`; new exact-head runs `32044765872`
+and `32044766414` are active.
 
 Helios' merged default has no direct `ndarray`, `nalgebra`, `rayon`, or
 `pollster` source matches in production crates. Its manifest edges route
@@ -158,7 +159,7 @@ unchanged tests completing within the committed budget with their existing
 value-semantic assertions.
 
 The first bounded production slice is now on CFDrs branch
-`codex/cfdrs-runtime-budget`, commit `e5d4ac74`, PR #347. It removes the
+`codex/cfdrs-runtime-budget`, commit `02c2ae80`, PR #347. It removes the
 per-correction clone of the immutable cfd-2d pressure CSR matrix. The exact
 35 µm and trifurcation cases pass locally in 16.785 s and 16.903 s under
 locked Nextest, runs `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c` and
