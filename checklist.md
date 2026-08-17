@@ -49,7 +49,7 @@
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native
       Fourier and SSOR ownership are closed; Helios DICOM required-geometry
-      handling is closed at merged default `7fddf789`. Kwavers PR #386 carries
+      handling is closed at merged default `c9817cc8`. Kwavers PR #386 carries
       the bounded multi-field visualization fix at merged default
       `0e9fb8dab29f2ceef505f685211e84aa3a321645`. The remaining Helios
       documentation residual H-103 is closed locally: non-standalone book
@@ -67,11 +67,13 @@
       `cc857634`; RITK #154 is a 405-file conflicting change with no hosted
       checks; and Kwavers #388 remains in its full hosted matrix at
       `da7f276a`. These are not merge or source-closure evidence for Atlas.
-- [ ] Collect Helios PR #58 at exact head `7482b04`; the caller now triggers
-      Pages on source/example/manifest/lockfile changes and installs pinned
-      `mdbook-linkcheck2`, and CI now runs pinned `mdbook test`. Its fresh
-      Rust, Python, benchmark, and book checks are queued. Do not advance the
-      Atlas Helios gitlink until this exact head is hosted-green.
+- [x] Collect Helios PR #58 at exact head `7482b04`, merged as default
+      `c9817cc8439bcf82e7b19f851a05fa7e86e2fa0d`. Hosted run `32004527001`
+      passes Rust, Python, and the four-pair benchmark regression gate;
+      `32004527388` passes the book build. The pull-request Pages deployment
+      is correctly skipped. The Atlas Helios gitlink is advanced to the
+      merged default; post-merge Pages deployment and live HTTP verification
+      remain open.
 - [ ] Add or repair bounded performance and memory evidence for the suite:
       controlled criterion baselines, allocation/buffer-reuse measurements,
       shared-cache checks, and zero-copy boundary verification. Do not change
