@@ -12,7 +12,10 @@ and Leto/Eunomia own the touched array/scalar seams. The remaining `wgpu`
 matches in the production scan are provider vocabulary, manifests, or
 documentation; no direct `pollster` or Rayon source edge remains in the
 scanned crate set. The pressure-cache slice is real production reuse, but its
-hosted exact-head gate is still pending at CFDrs PR #347 head `d3e095af`.
+hosted exact-head gate is still pending at CFDrs PR #347 head `521d9f76`. The
+Rust job failed before checkout on the pinned toolchain action download
+(GitHub 503/429, run `32043011439`, job `95425551229`); this supplies no source
+failure evidence.
 
 Helios' merged default has no direct `ndarray`, `nalgebra`, `rayon`, or
 `pollster` source matches in production crates. Its manifest edges route

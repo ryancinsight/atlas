@@ -43,7 +43,9 @@ source implementation and provider-local tests.
   and Apollo merged default `ed6d6905` carries the provider-owned public
   `PlanScratch` bound required by CFDrs. Helios PR #59 is merged at default
   `679402ae` with Rust, Python, benchmark, and book gates passing; CFDrs PR #347 is
-  at exact head `d3e095af` with hosted book, Rust, and figure gates queued.
+  at exact head `521d9f76` with hosted book and figure gates running; the Rust
+  job failed before checkout on a GitHub 503/429 action-download response
+  (`32043011439`, job `95425551229`), so no source failure is established.
   The Atlas gitlink sweep below is complete for moving Mnemosyne,
   Aequitas, and Leto defaults; CFDrs remains unadvanced until PR #347 closes,
   while Helios is already at merged default `679402ae`. Kwavers PR #386 carries the multi-field
