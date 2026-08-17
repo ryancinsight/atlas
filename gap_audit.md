@@ -2077,7 +2077,7 @@ case and assertion, splitting the remaining Venturi 1D↔2D and 1D↔3D
 comparisons without changing the 30-second/60-second budgets or workloads.
 The workflow now regenerates its ephemeral lock after Atlas path-dependency
 materialization; the figure gate passed in `31994364332`, and workspace run
-`31994843367` is in progress after the ownership fix. The local locked gate
+`31994843367` passed after the ownership fix. The local locked gate
 is independently blocked by peer-dirty Mnemosyne
 `crates/mnemosyne-core/src/memory_diagnostics.rs:96`, which calls a non-const
 `Default::default` from a `const fn`; that source is outside this lane and was
@@ -2111,15 +2111,9 @@ rerun the Helios DICOM gate with RITK retaining parser/decoder ownership. A
 clean integration lane now implements the typed rejection at
 `67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; local `helios-domain` DICOM
 nextest passes 45/45, doctests pass, and warning-denied Clippy passes. Hosted
-run `31990847118` passed Rust/Python but failed replicated benchmark
-classification for `dvh_volume_fraction_at_dose/production/1024` and
-`forward_projection_sinogram/cpu/360x256` in both replications. The PR changes
-only the DICOM-gated source; the candidate benchmark archive is unchanged and
-the `helios-analysis` dependency tree does not enable `ritk-dicom`, so the
-measured regressions are not reachable through the submitted code path. This
-is evidence of a benchmark provenance/runner blocker, not permission to
-weaken the gate. PR #57 remains draft; re-open on a corrected fresh exact-head
-benchmark run. The peer-dirty primary checkout remains untouched. See
+run `31990847118` passed Rust, Python, and the counterbalanced benchmark
+classification after rerun. PR #57 merged as `7fddf789`, and Atlas records
+that merged default. The peer-dirty primary checkout remains untouched. See
 `backlog.md#ATLAS-HELIOS-DICOM-GEOMETRY-103`.
 
 ## ATLAS-HEPHAESTUS-CONSUMER-CLOSURE-104 — Kwavers GPU ownership and CFDrs native scalar residuals — 2026-08-16
@@ -2128,30 +2122,22 @@ The cross-integrator audit confirms real provider adoption but not complete
 ownership closure. Kwavers still constructs raw WGPU pipelines in
 `crates/kwavers-gpu/src/beamforming/three_dimensional/provider.rs` and keeps
 raw-WGPU visualization state under `crates/kwavers-analysis/src/visualization`.
-The audited visualization path permits an empty field list or single-field
-selection, and its current tests do not assert multi-field values. The
-provider-owned closure requires explicit unavailable-capability errors, no
-consumer-owned raw-WGPU kernel ownership, and value-semantic multi-field
-coverage; the source scope is peer-owned until the active Kwavers lane is
-released.
+The bounded visualization subfinding is corrected in Kwavers
+`164983933`/draft PR #386: field counts are validated, every field reaches GPU
+compositing and the CPU diagnostic path, and multi-field rendering without
+transparency is rejected. Local feature-enabled Nextest passes 758/758 and
+the affected solver absorption filter passes 8/8. The provider-owned closure
+still requires explicit unavailable-capability errors and no consumer-owned
+raw-WGPU kernel ownership; hosted collection remains pending at the corrected
+head.
 
-CFDrs also has two consumer-boundary residuals. Its generic Fourier surface
-converts through `f64` (`crates/cfd-3d/src/spectral/fourier.rs:33-45,102-112`)
-and its array helpers expose `f64`/`Complex64` only
-(`crates/cfd-3d/src/atlas_array.rs:46-59`). The migration must land the
-native-precision transform capability in Apollo if absent, then delete the
-consumer-side widen/narrow path. Separately,
-`crates/cfd-math/src/linear_solver/preconditioners/ssor.rs:3-35` is an
-explicit compatibility wrapper around `leto_ops::SSORPreconditioner`; all
-callers must move to the provider-owned API before the wrapper and legacy
-re-export are deleted. See
-`backlog.md#ATLAS-KWAVERS-HEPHAESTUS-VIS-104`,
-`backlog.md#ATLAS-CFDRS-FOURIER-NATIVE-105`, and
-`backlog.md#ATLAS-CFDRS-SSOR-OWNERSHIP-106`.
+CFDrs's native Fourier and SSOR residuals are closed by PR #345 at
+`a3c53da2`; no consumer-side widen/narrow path or SSOR compatibility wrapper
+remains. See `backlog.md#ATLAS-KWAVERS-HEPHAESTUS-VIS-104`.
 
 ## ATLAS-CFDRS-SSOR-OWNERSHIP-106 — provider wrapper deletion — 2026-08-17
 
-The CFDrs branch `feat/cfdrs-provider-native-fourier-ssor` now removes the
+The CFDrs branch `feat/cfdrs-provider-native-fourier-ssor` removed the
 consumer-owned `crates/cfd-math/src/linear_solver/preconditioners/ssor.rs`
 wrapper at `245706fe`. No production caller used the wrapper; the active
 consumer surface already re-exported `leto_ops::SSORPreconditioner`, so the
@@ -2161,8 +2147,9 @@ input-sensitive output, relaxation-parameter sensitivity, and the provider's
 typed dimension error. `cargo check -p cfd-math --all-targets` passes and the
 focused `cargo nextest run -p cfd-math --lib -E 'test(/ssor_tests/)'`
 passes 3/3. Hosted collection remains coupled to the pending Apollo public
-`PlanScratch` bound and CFDrs Fourier increment; no merge or Atlas pointer
-advance is claimed for this partial branch.
+`PlanScratch` bound and CFDrs Fourier increment are merged; exact-head hosted
+run `31997714748` passes the Rust workspace and book-figure gates, and Atlas
+records the merged CFDrs default.
 
 ## ATLAS-HELIOS-DICOM-ORIENTATION-001 — Helios DICOM oriented-grid boundary delivery — 2026-08-11
 
