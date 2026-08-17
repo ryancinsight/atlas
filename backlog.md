@@ -5289,6 +5289,9 @@ hephaestus workspace gates once that settles.
   but detached, so `python scripts/atlas-lane-audit.py` reports one violation.
   It remains peer coordination state; no branch switch or lane deletion is
   authorized until its owner reconciles the documentation run.
+- The completed CFDrs Fourier/SSOR lane and Apollo public-plan lane were removed
+  after their PRs merged; their local feature branches were deleted. The current
+  audit therefore reports only the detached Kwavers documentation lane above.
 
 ## Session 28 closure (2026-07-28) — ADR 0033 stage A complete
 
