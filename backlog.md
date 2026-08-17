@@ -1179,16 +1179,21 @@ reference on forward-model and optimizer machinery; these close the deltas.
 | FWI-024-C | Angular-spectrum split-step implementation of the existing `HelmholtzForwardOperator` seam, reusing the phase-screen code rather than a second copy. | [minor] | todo | — | Differential against CBS on a weak-contrast phantom within a derived bound; documented divergence where reflections matter (ASM is one-way) |
 | FWI-024-D | Transmission-USCT acquisition: two opposed linear arrays on a rotation stage, per-view interpolation between a fixed reconstruction grid and view-aligned simulation grids, gradient accumulation across views. | [minor] | todo | — | Recovers the sound-speed phantom from a simulated 360°/2° sweep within a derived tolerance; per-view rotation round-trips to identity |
 
-## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift [patch] — open 2026-08-13
+## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift [patch] — in progress 2026-08-17
 
 Evidence: `gap_audit.md#atlas-pm-adr-index-025`. Each item is per-repo and must
 land on that repo's own branch; all four trees are currently peer-held.
 
+**Atlas CI failure root cause (2026-08-17):** The `atlas-conformance` CI gate
+was failing because `adr-index.py check` produced stdout for asclepius, coeus,
+consus, and helios. The stdout gate captures both drift and casing anomalies.
+Provider PRs opened for all four repos to resolve the CI gate.
+
 | ID | Outcome | Class | Status | Owner | Acceptance oracle |
 |----|---------|-------|--------|-------|-------------------|
-| ADR-025-A | coeus: renumber one of the two ADR `0060` files and fix every cross-reference to it. | [patch] | todo | — | `scripts/adr-index.py check` clean for coeus; no two ADRs share a number; citing items/CHANGELOG updated |
-| ADR-025-B | tyche, apollo: normalize ADR status casing to the canonical `Proposed`/`Accepted`/`Rejected` so indexes render a status. | [patch] | todo | — | `adr-index.py check` emits no casing warnings; indexes show real statuses |
-| ADR-025-C | ritk: regenerate the ADR index with the generated-file header block. | [patch] | todo | — | `adr-index.py check` clean for ritk |
+| ADR-025-A | coeus: renumber duplicate ADR numbers (0021×3, 0025×2, 0026×2, 0060×2) and canonicalize status casing. | [patch] | **in progress 2026-08-17 — coeus PR #337** | Atlas coordinator | `scripts/adr-index.py check` clean for coeus; no two ADRs share a number |
+| ADR-025-B | helios, asclepius, consus, tyche, apollo: normalize ADR status casing. | [patch] | **in progress 2026-08-17 — helios PR #62, asclepius PR #18, consus PR #45** | Atlas coordinator | `adr-index.py check` emits no stdout; indexes show canonical statuses |
+| ADR-025-C | ritk: regenerate the ADR index with the generated-file header block. | [patch] | **done 2026-08-17 — ritk at `ae23d4b2` already clean** | — | `adr-index.py check` clean for ritk |
 | ADR-025-D | atlas-meta: exclude navigation `README.md`/`INDEX.md` files from the generated ADR corpus and normalize ADR 0006 to the canonical `Accepted` status. | [patch] | done 2026-08-13 — root docs/script/test slice | current session | root `build_index` regression passes; generated root index has no navigation row; child worktrees remain unmodified |
 
 ## ATLAS-US-CAPABILITY-023 — ITKUltrasound capability parity [arch] — open 2026-08-13
