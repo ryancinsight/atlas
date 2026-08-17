@@ -35,11 +35,12 @@
       advance the Atlas gitlink without touching the peer's untracked
       transducer constructors.
 - [x] Reconcile Consus `CONSUS-NODEF-GATE-001` against clean `origin/main`:
-      the former peer-dirty blocker is retired, the Atlas-overlay lock rewrite
-      is recorded as the current external gate condition, and the root pointer
-      advances to lock-aligned orphan-cleanup head `6c266c3`; the
-      provider-local record reports six unreachable files removed,
-      `orphan_modules=0`, and default/no-default locked gates green.
+      the provider-local record reports six unreachable files removed,
+      `orphan_modules=0`, default/no-default locked gates green, and the
+      exact final provider head `d95ba00` passes hosted CI `32018422744` (80
+      jobs), Documentation `32018422679`, and Pages `32018420714`.
+      The root pointer now advances to that exact hosted-green head; the
+      Atlas-overlay lock rewrite remains a separate environment note.
 - [x] Re-run the exact-head and lane audits at root `e46cc0a`: both the
       requested 20-provider and Atlas 21-provider sets pass exact-head
       equality, and the lane audit is clean. The generated overlay still
@@ -370,10 +371,11 @@ Three ordering facts came out of the audit and are not obvious from the board:
       `AsyncFacadeUnavailable` marker was the entire async module.
 - [x] Record the provider-owned implementation-or-removal acceptance contract.
 - [x] Confirm provider commit `9e11ba7` removed the deferred async surface;
-      current root head `6c266c3` contains no `crates/consus/src/async/mod.rs`.
+      current root head `d95ba00` contains no `crates/consus/src/async/mod.rs`.
       Default and no-default workspace gates pass with Nextest `2553/2553` and
       `2031/2031`, respectively, with checks, warning-denied Clippy, and
-      doctests green in both configurations.
+      doctests green in both configurations. Final hosted CI
+      `32018422744` passes all 80 jobs at that head.
 
 ## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift — open 2026-08-13
 

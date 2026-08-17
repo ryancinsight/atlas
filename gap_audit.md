@@ -1489,7 +1489,7 @@ consus, and tyche.
 | hyperion | 0.1.0 | `gap_audit.md` **created** (only missing file) | green: 22/22 Nextest + doctest, Clippy, no-default |
 | horae | 0.1.0 | backlog/checklist/gap_audit **created** (was absent) | green: 16/16 Nextest + doctest, Clippy, no-default |
 | tyche | 0.2.0 | `checklist.md` **created** (only missing file) | green: 50/50 Nextest + 17 doctests, Clippy, no-default |
-| consus | 0.1.0 | gap_audit/backlog updated with gate findings + bounded fixes | lib + doctests green; CONSUS-NODEF-GATE-001 + CONSUS-TEST-API-001 tracked open |
+| consus | 0.1.0 | gap_audit/backlog updated with gate findings + bounded fixes | `CONSUS-NODEF-GATE-001` closed at exact hosted-green `d95ba00`; `CONSUS-TEST-API-001` remains independently tracked open |
 
 Bounded consus fixes delivered in this slice: `consus-arrow` no-default cfg
 gating, Clippy lint fixes (`consus-nwb` report.rs, `consus-hdmf` tests), and
