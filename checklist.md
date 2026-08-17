@@ -23,6 +23,10 @@
 - [x] Advance the Atlas CFDrs gitlink to merged default
       `a3c53da2571ffc28532bd65e13975b4ee92a73d6`; the peer-dirty nested
       checkout was preserved.
+- [x] Advance the Atlas Apollo gitlink to merged default
+      `ed6d6905afda394a9e12570543159ab1b262589e`; the peer-dirty Apollo
+      checkout remains untouched while the public plan-scratch merge is
+      integrated at the root.
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
