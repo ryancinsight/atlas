@@ -86,14 +86,13 @@ parent audit; its vertical slices close independently with their own evidence.
 #### ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention [patch] — in progress
 
 CFDrs PR #344 is at exact head
-`47ee7e7710ed29d6f6530b580603e7e42b459a9e`. The six initial heavy
-cross-fidelity cases pass when serialized through the committed
-`numerical-fidelity` nextest group (`6 passed`, `102.989 s`); the four
-additional cases that timed out only under hosted concurrency each pass in
-isolation (`11.616 s`, `14.927 s`, `15.564 s`, and `13.349 s`). The group now
-covers all ten measured cases without changing the existing 30-second slow or
-60-second termination budgets. Hosted CI run `31990510630` is in progress;
-merge and the Atlas gitlink advance remain gated on that exact-head result.
+`42fa4f391274cfcbfcab4a089fa46211fb90abb8`. The prior hosted run
+`31990510630` passed 2,999/3,005 tests but six measured fidelity cases still
+timed out under full-workspace CPU contention; its figure gate passed. The
+forward fix runs the non-fidelity suite and the ten-case fidelity set as two
+complete nextest invocations, with the fidelity invocation single-threaded.
+No test or 30-second/60-second budget changes. A new exact-head hosted run is
+pending; merge and the Atlas gitlink advance remain gated on its result.
 
 #### ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults [major] — in progress
 

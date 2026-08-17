@@ -13,14 +13,15 @@
 - [x] Run the structural 22-provider registration audit and preserve the
       Tyche/Tychee naming normalization.
 - [ ] Collect CFDrs PR #344 at exact head
-      `47ee7e7710ed29d6f6530b580603e7e42b459a9e`; six cases pass through the
-      serialized `numerical-fidelity` group (`6/6`, `102.989 s`) and four
-      additional hosted-timeout cases pass in isolation (`11.616 s` to
-      `15.564 s`). The group now covers all ten measured cases without changing
-      the 30-second/60-second budgets. Hosted run `31990510630` is in progress;
-      merge only after its exact-head format, locked workspace, nextest,
-      doctest, and figure gates pass. Record the legacy-Clippy residual
-      separately.
+      `42fa4f391274cfcbfcab4a089fa46211fb90abb8`; prior hosted run
+      `31990510630` passed 2,999/3,005 tests but six fidelity cases timed out
+      under full-suite CPU contention. The forward workflow fix runs the
+      non-fidelity suite and all ten fidelity cases as separate complete
+      nextest invocations, with the fidelity invocation single-threaded and
+      the existing 30-second/60-second budgets unchanged. A new exact-head
+      hosted run is pending; merge only after its exact-head format, locked
+      workspace, nextest, doctest, and figure gates pass. Record the
+      legacy-Clippy residual separately.
 - [x] Collect Coeus PR #334; provider-contract jobs pass at merged default
       `a8ea12eb23477ff017e38479ae792094ccb85382`, and the Atlas gitlink now
       points to that exact default without modifying the peer-dirty checkout.
