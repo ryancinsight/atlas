@@ -44,10 +44,13 @@ source implementation and provider-local tests.
   and Apollo merged default `ed6d6905` carries the provider-owned public
   `PlanScratch` bound required by CFDrs. Helios PR #59 is merged at default
   `679402ae` with Rust, Python, benchmark, and book gates passing; CFDrs PR #347 is
-  at exact head `90798ca7`; Rust failed before checkout on a GitHub 503/429
-  action-download response (`32043533301`, job `95426903063`). Pages run
-  `32043533628` was still in progress at the audit point; no source failure is
-  established.
+  at exact head `57722595`; the preceding Rust run failed before checkout on a
+  GitHub 503/429 action-download response (`32043533301`, job `95426903063`).
+  The preceding Pages run (`32043533628`, job `95426905897`) reached the
+  package build and exposed the missing `fontconfig.pc` system dependency.
+  Atlas shared workflow `bb505e5` now installs the required headers and the
+  CFDrs caller pins that commit. New exact-head CI and Pages runs
+  `32044071453` and `32044071732` are in progress.
   The Atlas gitlink sweep below is complete for moving Mnemosyne,
   Aequitas, and Leto defaults; CFDrs remains unadvanced until PR #347 closes,
   while Helios is already at merged default `679402ae`. Kwavers PR #386 carries the multi-field
@@ -5306,7 +5309,7 @@ blocker on Athena.
   the committed budget. The existing optimization outlook remains the
   candidate set; selection is evidence-driven.
 - First bounded slice delivered locally on provider branch
-  `codex/cfdrs-runtime-budget` at source commit `90798ca7` (PR #347): cfd-2d
+  `codex/cfdrs-runtime-budget` at source commit `57722595` (PR #347): cfd-2d
   now borrows the immutable cached pressure CSR matrix instead of cloning it
   for every SIMPLE correction. Exact local Nextest passes the 35 µm case in
   16.785 s (run `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c`) and the trifurcation
@@ -5315,8 +5318,10 @@ blocker on Athena.
   makes hemolysis model conversion failures explicit instead of silently
   returning zero; existing negative-input and reference-value tests remain
   unchanged. Hosted exact-head confirmation remains the closure gate; Rust
-  job `95426903063` failed before checkout on action-download 503/429 and
-  Pages run `32043533628` was still in progress at the audit point.
+  job `95426903063` failed before checkout on action-download 503/429; the
+  previous Pages job `95426905897` exposed the missing fontconfig headers.
+  The caller now pins Atlas `bb505e5`, and exact-head runs `32044071453` and
+  `32044071732` are in progress.
 - Re-open trigger after closure: either named test exceeds the budget again or
   a new solver-heavy fidelity case crosses the slow threshold.
 

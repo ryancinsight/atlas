@@ -209,14 +209,18 @@
       budget. Preserve the inherited timeout evidence until the exact final
       provider head is green.
       First bounded slice is implemented on provider branch
-      `codex/cfdrs-runtime-budget` at `90798ca7` (PR #347): cached pressure
+      `codex/cfdrs-runtime-budget` at `57722595` (PR #347): cached pressure
       CSR reuse, plus explicit propagation of invalid hemolysis-model input.
       The exact 35 µm and trifurcation cases pass locally in 16.785 s and
       16.903 s under locked Nextest; the Pages caller now builds
       `cfd-validation` and runs the shared `mdbook test` gate. Exact-head Rust
       job `95426903063` in run `32043533301` failed before checkout on Atlas
-      action-download 503/429 responses. Exact-head Pages run `32043533628`
-      was still in progress at the audit point; the source gate remains open.
+      action-download 503/429 responses, and Pages run `32043533628` reached
+      the package build before exposing the missing `fontconfig.pc` system
+      dependency. Atlas shared workflow `bb505e5` adds the required headers;
+      this branch pins that fix. New exact-head CI and Pages runs
+      `32044071453` and `32044071732` are in progress; the source gate remains
+      open.
 - [ ] Verify each affected book's chapter map, code samples, figures, and
       cross-links; run `mdbook test` where samples are compilable, then verify
       the same-revision Pages artifact and live HTTP deployment.
