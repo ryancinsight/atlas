@@ -41,10 +41,11 @@
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
-      ratchet result. The exact-head provider audit passes for all 21 providers
-      at root `a840bcc`; the generated overlay still reports peer-owned Athena
-      lock drift and the conformance report remains uncollected on the dirty
-      shared tree.
+      ratchet result. Exact-head provider audits pass for both the requested
+      20-provider set and the Atlas 21-provider set at root `4faa366`. The
+      generated overlay still reports only peer-owned Athena lock drift, and
+      the conformance report remains uncollected because the shared root tree
+      is dirty.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native
@@ -58,8 +59,11 @@
       source scan finds no production `wgpu` ownership in CFDrs at
       `a3c53da2`, no raw `wgpu`, `ndarray`, `nalgebra`, or `rayon` hits in
       Helios at `c9817cc8`, and 44 `wgpu`-bearing Kwavers source/test files at
-      `0e9fb8da`; the remaining Kwavers provider migration is not closed by
-      PR #386.
+      `0e9fb8da`. The Kwavers source audit classifies those hits as the live
+      WGPU-specialized provider boundary and its contract tests; KW-GPU-060
+      already removed the duplicate backend buffer/pipeline ownership. The
+      remaining Kwavers work is tracked by its provider-local items, not by a
+      false raw-token count.
 - [ ] Keep Helios PR #55 peer-owned and blocked: hosted Rust failed at exact
       head `83f5ccea` because its RITK checkout lacks
       `IMAGE_ORIENTATION_PATIENT`, and the same job reports two independent
