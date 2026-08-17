@@ -312,7 +312,10 @@ reduction tolerance, and negative coverage for unavailable hardware. The
 current explicit-unavailable result is honest evidence of a missing capability,
 not completion. No f64-only adapter or CPU fallback may be added to close it.
 
-#### ATLAS-CFDRS-BACKWARD-STEP-108 — input-sensitive reattachment measurement [major]
+#### ATLAS-CFDRS-BACKWARD-STEP-108 — input-sensitive reattachment measurement [major] — in progress 2026-08-17
+
+Owner: Atlas session; provider branch `codex/cfdrs-backward-step-108`.
+The provider claim and acceptance contract are recorded in its `backlog.md`.
 
 `crates/cfd-validation/src/benchmarks/step.rs:34-39` accepts the computed
 velocity field as `_u_field` but ignores it and always returns
