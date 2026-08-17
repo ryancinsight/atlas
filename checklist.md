@@ -12,46 +12,38 @@
       inferred from repository presence alone.
 - [x] Run the structural 22-provider registration audit and preserve the
       Tyche/Tychee naming normalization.
-- [x] Collect and merge CFDrs PR #344 at exact head
-      `644b9ff35e79b96178cbea8aeffd55715cd10cfd`; the exact-head hosted run
-      `31994843367` passed format, locked workspace, nextest, numerical
-      fidelity, doctests, and book figures. The PR merged to CFDrs default at
-      `2d9e505a2bb753925f1b3900795e16ac3247a6b2`.
+- [x] Collect and merge the CFDrs numerical-fidelity slice and the follow-up
+      Fourier/SSOR ownership slice. CFDrs PR #345 merged at exact default
+      `a3c53da2571ffc28532bd65e13975b4ee92a73d6`; hosted run `31997714748`
+      passed the Rust workspace and book-figure gates, and the focused native
+      Fourier/SSOR gates pass locally.
 - [x] Collect Coeus PR #334; provider-contract jobs pass at merged default
       `a8ea12eb23477ff017e38479ae792094ccb85382`, and the Atlas gitlink now
       points to that exact default without modifying the peer-dirty checkout.
 - [x] Advance the Atlas CFDrs gitlink to merged default
-      `2d9e505a2bb753925f1b3900795e16ac3247a6b2`; the peer-dirty nested
-      checkout was preserved and the requested 20-provider exact-head audit
-      is green.
+      `a3c53da2571ffc28532bd65e13975b4ee92a73d6`; the peer-dirty nested
+      checkout was preserved.
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
-      ratchet result. The live `atlas-conformance.py report --worktree` attempt
-      on this tree exceeded 120 seconds without producing a report, so no
-      conformance result is claimed.
+      ratchet result. The structural provider audit is green for all 20
+      requested providers; the current exact-head re-audit timed out under
+      concurrent stack activity, so no current exact-head result is claimed.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
-      boundaries, and real analytical or differential scenarios. Any provider
-      gap lands upstream before consumer edits. Current exact residuals are
-      `ATLAS-HELIOS-DICOM-GEOMETRY-103`,
-      `ATLAS-KWAVERS-HEPHAESTUS-VIS-104`,
-      `ATLAS-CFDRS-FOURIER-NATIVE-105`, and
-      `ATLAS-CFDRS-SSOR-OWNERSHIP-106`.
-      The SSOR ownership increment is pushed at CFDrs `245706fe`: the
-      consumer wrapper is deleted, direct `leto_ops::SSORPreconditioner`
-      coverage is live, and the focused nextest gate passes 3/3. Hosted
-      collection remains coupled to the pending Fourier/Apollo increment.
-- [ ] Collect Helios draft PR #57 at exact head
-      `67f0d60f2ec543dc630ce94d2a1698ddd9e66f54`; local `helios-domain` DICOM
-      gates pass 45/45 nextest, doctests, and warning-denied Clippy. Hosted run
-      `31990847118` passed Rust/Python but failed replicated benchmark
-      classification for DVH and CPU forward projection in both replications.
-      The only PR source change is DICOM-gated and the benchmark dependency
-      tree does not enable that feature, so this is an unresolved benchmark
-      provenance/runner blocker rather than evidence against the DICOM fix.
-      Keep PR #57 draft and do not advance the Atlas gitlink until a corrected
-      fresh exact-head benchmark run is green.
+      boundaries, and real analytical or differential scenarios. CFDrs native
+      Fourier and SSOR ownership are closed; Helios DICOM required-geometry
+      handling is closed at merged default `7fddf789`. Kwavers PR #386 carries
+      the bounded multi-field visualization fix at exact head `0e068997` and
+      remains draft while its hosted matrix drains. The remaining Helios
+      documentation residual is H-103: `mdbook test` fails current
+      illustrative snippets and must not be enabled until those samples are
+      made executable or explicitly marked non-code.
+- [ ] Collect Helios PR #58 at exact head `9831f2e`; the caller now triggers
+      Pages on source/example/manifest/lockfile changes and installs pinned
+      `mdbook-linkcheck2`, but its fresh Rust, Python, benchmark, and book
+      checks are still queued. Do not advance the Atlas Helios gitlink until
+      this exact head is hosted-green.
 - [ ] Add or repair bounded performance and memory evidence for the suite:
       controlled criterion baselines, allocation/buffer-reuse measurements,
       shared-cache checks, and zero-copy boundary verification. Do not change
