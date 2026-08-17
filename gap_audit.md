@@ -1,5 +1,35 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-EXACT-HEAD-SWEEP-2026-08-17 — fetched default reconciliation
+
+The refreshed provider audit found fourteen Atlas gitlinks behind their
+fetched `origin/main` heads. Atlas advances only those index entries, leaving
+all nested peer-dirty files untouched. The exact fetched heads are: Themis
+`f61173bc8c3ecd28fcdea7b35a0b1aed841f79a0`, Tyche
+`bcfcf79c64edf94c7409f2af0c60b4eadfa63942`, Proteus
+`cb70021b104743010492c6ec76858eef6177c083`, Mnemosyne
+`924cdcceea3bce4a2139e2b787d2b519d29f7097`, Consus
+`30c660e43f078af5dc37e832bb65cf7cf0b99c2c`, Helios
+`679402ae166ce2b227d8d629bab877f1dcc45131`, Hermes
+`1fe438cebf89e96ab4abace801a222740d03cd14`, Aequitas
+`b24bd8c9b8add22cdc896424e6b236edf0725fd9`, Asclepius
+`5d528d2f98c1677fdc9dab41ead23fad92ea2130`, Moirai
+`3d5d4c661552ca206c454704f1d5f3ed147d2adc`, RITK
+`f23a6acdb87cf711de4cb9b9f293e47f1dc6e6ce`, Coeus
+`a8ea12eb23477ff017e38479ae792094ccb85382`, Apollo
+`ed6d6905afda394a9e12570543159ab1b262589e`, and Iris
+`da210d2f80e486dbad351dc17d7c60478193f020`. This is fetched-head evidence,
+not a claim that a new provider hosted gate was rerun for every moving head.
+
+The next CFDrs provider slice is pushed at branch
+`codex/cfdrs-runtime-residual`, commit `2acf49e7`. It reuses the SIMPLEC
+pressure-solid validity bitmap and update buffer while preserving layer-wise
+pressure semantics. Clean locked local evidence is cfd-2d Nextest 521/521
+with one skip, the 35 µm regression in 17.225 s, and the trifurcation
+regression in 15.791 s. Three attempts to create the provider PR returned
+GitHub API HTTP 503, so no hosted gate or merge exists yet; the branch remains
+an external delivery blocker with re-open trigger "GitHub PR API available".
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios source closure audit (2026-08-17)
 
 The audit was run against CFDrs merged default `84499e957d3d0c8ce50b9573185a1f55885f38e2`, Helios merged

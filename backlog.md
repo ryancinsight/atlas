@@ -72,6 +72,18 @@ source implementation and provider-local tests.
   a documented gate-boundary decision, not a lint-debt closure; the remaining
   lint floor stays in the Atlas conformance ratchet.
 
+**Moving-default reconciliation (2026-08-17):** Atlas is advancing fourteen
+fetched provider defaults in the current root commit: Themis `f61173bc`, Tyche
+`bcfcf79c`, Proteus `cb70021b`, Mnemosyne `924cdcce`, Consus `30c660e4`,
+Helios `679402ae`, Hermes `1fe438ce`, Aequitas `b24bd8c9`, Asclepius
+`5d528d2f`, Moirai `3d5d4c66`, RITK `f23a6acd`, Coeus `a8ea12eb`, Apollo
+`ed6d6905`, and Iris `da210d2f`. This pointer evidence is separate from
+provider hosted-gate evidence. The nested primary checkouts remain peer-owned.
+The CFDrs follow-up is pushed at `2acf49e7` on
+`codex/cfdrs-runtime-residual`; its local value-semantic gates pass, but three
+GitHub PR-creation attempts returned HTTP 503. Re-open the hosted delivery
+step when the PR API is available.
+
 **Live exact-head sweep (2026-08-17):** fetched provider defaults advanced
 Mnemosyne to `924cdcce`, Aequitas to `b24bd8c9`, and Leto to `d966e32c`. Their
 primary checkouts are at those exact heads but retain peer-owned dirty

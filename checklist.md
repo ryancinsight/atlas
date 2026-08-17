@@ -88,6 +88,17 @@
       closeout: Mnemosyne `924cdcce`, Aequitas `b24bd8c9`, and Leto `d966e32c`
       are the fetched `origin/main` heads. Advance only those three root
       gitlinks; preserve their peer-owned dirty nested files.
+- [x] Reconcile the subsequent fetched-default movement without staging
+      nested peer dirt: Themis `f61173bc`, Tyche `bcfcf79c`, Proteus `cb70021b`,
+      Mnemosyne `924cdcce`, Consus `30c660e4`, Helios `679402ae`, Hermes
+      `1fe438ce`, Aequitas `b24bd8c9`, Asclepius `5d528d2f`, Moirai `3d5d4c66`,
+      RITK `f23a6acd`, Coeus `a8ea12eb`, Apollo `ed6d6905`, and Iris
+      `da210d2f` now match fetched `origin/main` in the staged root index.
+      Hosted-gate status is not inferred from this pointer operation.
+- [ ] Collect the CFDrs follow-up branch `codex/cfdrs-runtime-residual` at
+      source commit `2acf49e7`; local locked evidence passes cfd-2d 521/521,
+      the 35 µm case, and the trifurcation case. PR creation is blocked by
+      three GitHub API HTTP 503 responses; re-open when the API is available.
 - [x] Re-run the requested 20-provider and Atlas 21-provider exact-head audits
       after the pointer commit; both pass and the lane audit is clean. CFDrs
       PR #347 remains at `41db036a` with hosted gates in progress, and Helios
