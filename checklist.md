@@ -10,7 +10,7 @@
 - [x] Record the suite boundary: CFDrs, Kwavers, and Helios are integrators;
       provider ownership remains with the named Atlas packages and is not
       inferred from repository presence alone.
-- [x] Run the structural 22-provider registration audit and preserve the
+- [x] Run the structural 21-provider registration audit and preserve the
       Tyche/Tychee naming normalization.
 - [x] Collect and merge the CFDrs numerical-fidelity slice and the follow-up
       Fourier/SSOR ownership slice. CFDrs PR #345 merged at exact default
@@ -30,9 +30,10 @@
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any
-      ratchet result. The structural provider audit is green for all 20
-      requested providers; the current exact-head re-audit timed out under
-      concurrent stack activity, so no current exact-head result is claimed.
+      ratchet result. The structural and exact-head provider audits now pass
+      for all 21 providers at Atlas root `d066649`; the generated overlay still
+      reports peer-owned Athena lock drift and the conformance report remains
+      uncollected on the dirty shared tree.
 - [ ] Audit the CFDrs/Kwavers/Helios source closures for direct provider APIs,
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native
