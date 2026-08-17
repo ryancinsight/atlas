@@ -4860,12 +4860,14 @@ mnemosyne's (1024). Mnemosyne `5ca0461` adds `mnemosyne-heap::numa` and routes
 so the axis splits cleanly: Themis owns the placement vocabulary, mnemosyne
 owns the kernel memory-policy execution, Moirai owns the parallel fan-out.
 
-Atlas records the kwavers fold-branch head `08df5730f` (gitlink-only advance
-via `update-index --cacheinfo`); the kwavers working tree is peer-dirty on
-`codex/kwavers-floatelement-roots` (~850 files) and left untouched per the
-concurrent-agents disjoint-scope rule. mnemosyne already records `5ca0461`.
-The fold branch is not yet merged to kwavers main; the gitlink tracks the
-branch head pending the peer's merge.
+The fold branch was merged to kwavers main: PR #382 (merge `b74aa7ab3`)
+landed `codex/kwavers-mnemosyne-numa` and PR #383 normalized the ADR
+statuses. Atlas records the merged default `1d7c6899` (gitlink-only advance
+via `update-index --cacheinfo`; the kwavers working tree is peer-dirty on
+`codex/kwavers-floatelement-roots` and left untouched per the
+concurrent-agents disjoint-scope rule). mnemosyne already records `5ca0461`.
+The recorded gitlink is now the merged main head, so the exact-head audit's
+kwavers gitlink-drift finding is cleared.
 
 ### Non-findings
 
