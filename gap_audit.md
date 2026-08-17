@@ -2072,6 +2072,13 @@ harness-managed `mnemosyne-const-fix` checkout outside the canonical
 `worktrees/` root. Its branch is clean and is retained until the owning agent
 releases it; no source or branch data was deleted.
 
+Closure: exact-head run `31994843367` passed format, locked workspace,
+nextest, numerical fidelity, doctests, and book figures. CFDrs PR #344 merged
+to default at `2d9e505a2bb753925f1b3900795e16ac3247a6b2`; Atlas commit
+`03de90a` advances `repos/CFDrs` to that merged head. The requested
+20-provider exact-head audit is green. The peer-dirty Mnemosyne compile
+failure remains an independent local-overlay blocker and was not changed.
+
 ## ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults — 2026-08-16
 
 The provider-consumer audit found a contract contradiction in the current

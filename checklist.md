@@ -12,22 +12,18 @@
       inferred from repository presence alone.
 - [x] Run the structural 22-provider registration audit and preserve the
       Tyche/Tychee naming normalization.
-- [ ] Collect CFDrs PR #344 at exact head
-      `644b9ff35e79b96178cbea8aeffd55715cd10cfd`, rebased onto default
-      `2a4e4b492d67a1c9abd46e68de9ff1967d6d2627` after the PR became dirty.
-      Formatting and diff checks pass; the lock-normalization fix made the
-      hosted figure gate green in `31994364332`. Workspace run `31994843367`
-      is in progress after the ownership fix. The fidelity split retains all
-      cases/assertions and the 30-second/60-second budgets. Merge only after
-      the exact-head format, locked workspace, nextest, doctest, and figure
-      gates pass. Record the legacy-Clippy residual separately. The local
-      locked gate remains blocked by peer-dirty Mnemosyne
-      `memory_diagnostics.rs:96`.
+- [x] Collect and merge CFDrs PR #344 at exact head
+      `644b9ff35e79b96178cbea8aeffd55715cd10cfd`; the exact-head hosted run
+      `31994843367` passed format, locked workspace, nextest, numerical
+      fidelity, doctests, and book figures. The PR merged to CFDrs default at
+      `2d9e505a2bb753925f1b3900795e16ac3247a6b2`.
 - [x] Collect Coeus PR #334; provider-contract jobs pass at merged default
       `a8ea12eb23477ff017e38479ae792094ccb85382`, and the Atlas gitlink now
       points to that exact default without modifying the peer-dirty checkout.
-- [ ] Advance the Atlas CFDrs gitlink only after PR #344 merges; preserve the
-      peer-dirty nested checkout and update the overlay from the merged head.
+- [x] Advance the Atlas CFDrs gitlink to merged default
+      `2d9e505a2bb753925f1b3900795e16ac3247a6b2`; the peer-dirty nested
+      checkout was preserved and the requested 20-provider exact-head audit
+      is green.
 - [ ] Re-run the generated overlay, exact-head, provider-consumer, and
       conformance gates at the new root revision; repair the benchmark-target
       classifier through `ATLAS-CONFORMANCE-BENCH-099` before accepting any

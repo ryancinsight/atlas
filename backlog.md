@@ -38,8 +38,9 @@ alias in audit text. Atlas owns the provider graph, exact gitlinks, overlay,
 cross-repository gates, and integration documentation; each member owns its
 source implementation and provider-local tests.
 
-- **Current slice:** finish the exact-head hosted closure for CFDrs PR #344
-  and Coeus PR #334, then advance only their merged default gitlinks. The
+- **Current slice:** finish the exact-head hosted closure for Helios PR #57
+  and advance only its merged default gitlink. CFDrs PR #344 and Coeus PR #334
+  are merged and their Atlas pointers now track exact default heads. The
   existing CFDrs decision to remove its newly introduced legacy-Clippy step is
   a documented gate-boundary decision, not a lint-debt closure; the remaining
   lint floor stays in the Atlas conformance ratchet.
@@ -83,22 +84,20 @@ parent audit; its vertical slices close independently with their own evidence.
 
 ### Current residuals from the 2026-08-16 provider-consumer audit
 
-#### ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention [patch] — in progress
+#### ATLAS-CFDRS-NUMERICAL-FIDELITY-101 — hosted resource contention [patch] — closed
 
-CFDrs PR #344 is now at exact head
-`644b9ff35e79b96178cbea8aeffd55715cd10cfd`, rebased onto the newer default
-branch `2a4e4b492d67a1c9abd46e68de9ff1967d6d2627` after GitHub reported the
-previous branch as dirty. The forward fix retains every fidelity case and
-assertion while splitting the remaining Venturi 1D↔2D and 1D↔3D contracts;
-the 30-second/60-second budgets and workloads are unchanged. The workflow now
-normalizes the ephemeral lock after Atlas path-dependency materialization;
-the figure gate passed in run `31994364332`, and its workspace check reached
-the test compilation before finding and receiving the ownership fix in this
-head. Hosted run `31994843367` is in progress at the exact head; merge and the
-Atlas gitlink advance remain gated on its full format, locked workspace,
-nextest, doctest, and figure result. The local locked gate remains blocked by
-the peer-dirty Mnemosyne compile error at
-`crates/mnemosyne-core/src/memory_diagnostics.rs:96`, not by this CFDrs diff.
+CFDrs PR #344 was rebased onto the newer default branch after GitHub reported
+the previous branch as dirty. The forward fix retained every fidelity case
+and assertion while splitting the remaining Venturi 1D↔2D and 1D↔3D
+contracts; the 30-second/60-second budgets and workloads were unchanged. The
+workflow lock-normalization fix made the materialized path-dependency graph
+reproducible. Exact-head run `31994843367` passed format, locked workspace,
+nextest, numerical fidelity, doctests, and book figures. The PR merged at
+`2d9e505a2bb753925f1b3900795e16ac3247a6b2`, and Atlas commit `03de90a`
+advances `repos/CFDrs` to that default head. The local locked gate remains
+blocked by the peer-dirty Mnemosyne compile error at
+`crates/mnemosyne-core/src/memory_diagnostics.rs:96`, not by the merged CFDrs
+change.
 
 #### ATLAS-HELIOS-DICOM-GEOMETRY-103 — required geometry defaults [major] — in progress
 
@@ -136,7 +135,7 @@ with explicit failure for unavailable capability, no consumer-owned raw-WGPU
 kernel ownership, and value-semantic multi-field tests. Source changes are
 peer-owned; re-open after the current Kwavers lane releases those files.
 
-#### ATLAS-CFDRS-FOURIER-NATIVE-105 — native scalar contract [major] — todo
+#### ATLAS-CFDRS-FOURIER-NATIVE-105 — native scalar contract [major] — in progress
 
 `repos/CFDrs/crates/cfd-3d/src/spectral/fourier.rs:33-45,102-112` converts
 generic Fourier inputs through `f64`; `crates/cfd-3d/src/atlas_array.rs:46-59`
@@ -145,8 +144,10 @@ native-precision transform contract or land the missing capability upstream,
 then delete the consumer-side widen/narrow path. The acceptance oracle is a
 generic value-semantic differential suite across shipped scalar types with no
 precision-changing compatibility path.
+Claimed on `feat/cfdrs-provider-native-fourier-ssor`; source scope is the
+CFDrs Fourier implementation, its Apollo contract, and focused tests.
 
-#### ATLAS-CFDRS-SSOR-OWNERSHIP-106 — provider wrapper deletion [arch] — todo
+#### ATLAS-CFDRS-SSOR-OWNERSHIP-106 — provider wrapper deletion [arch] — in progress
 
 `repos/CFDrs/crates/cfd-math/src/linear_solver/preconditioners/ssor.rs:3-35`
 is explicitly a compatibility wrapper around `leto_ops::SSORPreconditioner`,
@@ -154,6 +155,9 @@ and `linear_solver/mod.rs` re-exports the consumer-owned name. The acceptance
 oracle is direct Leto provider use at all callers, deletion of the wrapper and
 legacy re-export, and focused value-semantic solver coverage without an
 adapter layer.
+Claimed with the Fourier slice on `feat/cfdrs-provider-native-fourier-ssor`;
+the SSOR wrapper, re-export, and its focused tests are the bounded ownership
+scope.
 
 ## Landed from this sweep (2026-08-13)
 
