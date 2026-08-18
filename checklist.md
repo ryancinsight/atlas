@@ -5,7 +5,7 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 
-- [x] Re-run the live structural provider audit at root `203d562`. All 22
+- [x] Re-run the live structural provider audit at root `1f76e95`. All 22
       provider gitlinks now match their fetched `origin/main` defaults,
       including Consus `ef439b2f`, Mnemosyne `638ddab8`, and RITK `0f0b5c56`.
 - [x] Re-run the full requested-provider coherence audit with the same exact

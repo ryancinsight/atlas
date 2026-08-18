@@ -3,7 +3,7 @@
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at
-Atlas root `203d562` pass for the 22 registered providers and report all
+Atlas root `1f76e95` pass for the 22 registered providers and report all
 committed gitlinks equal to fetched `origin/main` defaults. The stack overlay
 checker also reports aligned requirements and locks. These are
 metadata/resolution checks; they do not establish clean nested checkouts or
