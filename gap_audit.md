@@ -11293,6 +11293,31 @@ unmergeable; no Atlas gitlink was advanced from these results.
   Atlas retains the existing Helios gitlink until the hosted acceptance gate
   is terminal and green.
 
+## Finding 2026-08-18: Exact-head provider recheck after source closures
+
+The Atlas structural audit remains green for all 22 active providers. The
+focused audit regression suites pass: 27 provider-audit tests and 3 benchmark
+tests. Exact provider-consumer coherence remains red only for the known Apollo
+version sweep: `repos/coeus/crates/coeus-autograd/Cargo.toml`,
+`repos/coeus/crates/coeus-fft/Cargo.toml`, and
+`repos/ritk/crates/ritk-filter/Cargo.toml` require `apollo-fft` 0.26.0 while
+the provider package is 0.27.0. Those consumer files are peer-owned and
+dirty; no edits or lockfile regeneration were performed.
+
+CFDrs PR #349 is at exact source head `19f06e466e1d1efd91552f2343b667da9633fc24`.
+The cfd-2d cleanup closes the all-target lint residuals without changing
+numerical workloads. Local `cargo clippy -p cfd-2d --all-targets --no-deps
+-- -D warnings` passes and `cargo nextest run -p cfd-2d --tests --no-fail-fast`
+passes 582/582 with 27 committed skips. GitHub has not created a check run for
+this exact head; the previous hosted result at `bd333308` is stale and cannot
+close the hosted acceptance item.
+
+Apollo PR #104 is at exact source head `48c14edf9123efc8e36e1bf1a833a9b6c8e5262a`.
+The f64 length-127 FullCyclic routing experiment passes local Apollo check and
+395/395 library tests. Hosted CI run `32134682876` and benchmark run
+`32134682734` are in progress; the benchmark is the acceptance oracle for the
+remaining performance claim.
+
 ## Finding 2026-08-18: Live conformance scan is not a clean-revision gate
 
 `python scripts/atlas-conformance.py check` correctly refuses the current
