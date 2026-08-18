@@ -5,12 +5,15 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 
-- [x] Re-run the live structural provider audit at root `524db6c`. All 22
+- [x] Re-run the live structural provider audit at root `04be0d6`. All 22
       provider gitlinks now match their fetched `origin/main` defaults,
-      including Consus `ef439b2f`, Mnemosyne `638ddab8`, and RITK `0f0b5c56`.
+      including Consus `ef439b2f`, Mnemosyne `5fd08df6`, and RITK `f9d04a79`.
 - [x] Re-run the full requested-provider coherence audit with the same exact
       heads. The provider set is clean; this is separate from hosted gates and
       nested-checkout cleanliness.
+- [x] Reconcile the fetched Mnemosyne default movement from `638ddab8` to
+      `5fd08df6` in Atlas commit `04be0d6`. The nested provider checkout was
+      already at that fetched head; no provider working-tree files were staged.
 - [x] Re-run the committed lock-form gate: all 27 committed standalone locks
       resolve; `melinoe/contracts/atlas-device/Cargo.lock` remains the single
       declared in-tree fixture exemption.

@@ -3,11 +3,16 @@
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at
-Atlas root `524db6c` pass for the 22 registered providers and report all
+Atlas root `04be0d6` pass for the 22 registered providers and report all
 committed gitlinks equal to fetched `origin/main` defaults. The stack overlay
 checker also reports aligned requirements and locks. These are
 metadata/resolution checks; they do not establish clean nested checkouts or
 hosted behavior.
+
+The intervening Mnemosyne default movement was reconciled by the root-only
+gitlink commit `04be0d6`, advancing `638ddab8` to `5fd08df6`. The provider
+checkout was already at the fetched commit, and no provider working-tree files
+were staged. The post-reconciliation exact-head audit is clean.
 
 The lane audit still reports five violations: Coeus has three working trees,
 Consus has three plus one lane outside the canonical lane root, Kwavers has
