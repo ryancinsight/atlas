@@ -78,7 +78,7 @@ published and the consumer matrix is rerun.
 
 ## ATLAS-CFDRS-BACKWARD-STEP-108 — default-branch Clippy blocker (2026-08-18)
 
-CFDrs PR #349 source head `06d237c5` passes the focused local value-semantic
+CFDrs PR #349 source head `7a7b4289` passes the focused local value-semantic
 regressions for negative branch-flow metadata and Dean cross-fidelity. Hosted
 book figures pass, but Rust workspace gate run `32087680839`, job
 `95563482011`, stops in Clippy before tests with 153 errors: test
@@ -88,10 +88,12 @@ reported `cfd-core`/`cfd-io` files. Default CFDrs `main` run `32086797481`
 fails the same command, so this is pre-existing default-branch debt rather
 than a regression in the solver slice. No blanket suppression or unrelated
 lint rewrite is added to this PR. Commits `22d74042`, `c70d44e3`, and
-`06d237c5` own the `cfd-core` state/field-operation/GPU-kernel test unwraps
-and GPU-test print classes without touching the peer Cargo.lock. Local
-formatting and touched-source residue scans pass; the locked package compile
-is blocked before compilation by the shared Atlas overlay/peer lock state.
+`06d237c5`, `463b4d68`, and `7a7b4289` own the `cfd-core`
+state/field-operation/GPU-kernel/validation test unwraps and GPU-test print
+classes, plus the `cfd-io` checkpoint roundtrip diagnostics, without touching
+the peer Cargo.lock. Local formatting and touched-source residue scans pass;
+the locked package compile is blocked before compilation by the shared Atlas
+overlay/peer lock state.
 Hosted Clippy must re-establish the remaining count before this cleanup is
 complete. Re-open when the default-branch Clippy debt is repaired or the exact
 hosted transcript exposes the next owned source slice.
