@@ -297,6 +297,18 @@ local locked check, warning-denied Clippy, Nextest, doctest, Rustdoc, book
 build, and hosted verification at the exact provider head; no fallback,
 adapter, or workload relaxation is permitted.
 
+**Provider implementation (2026-08-18):** Harmonia commit `584e961` is pushed
+as PR #6 at exact head `584e961244f593f2d86963f09df74e754e17e0d0`. The source
+slice adds `AitkenRelaxation<T>` with native `RealField` arithmetic,
+transactional pair updates, typed configuration/value errors, reusable state,
+ADR 0003, and synchronized book/README claims. Local locked all-target check,
+warning-denied Clippy, full Nextest 24/24, focused Aitken 7/7, doctest 1/1,
+Rustdoc, runnable example, and mdBook build pass. Local `mdbook test` cannot
+resolve the four staged dependency rlibs; the provider workflow supplies those
+paths explicitly, so this is an environment limitation rather than a changed
+gate. Hosted verify, supply-chain, and book checks are in progress at the exact
+head; RecurseML is an analyzer error and remains report-only.
+
 **Latest hosted-state recheck (2026-08-18):** Apollo PR #104 is merged at
 default `d585e0f5` with Rust/Python checks green and benchmark run `32140805200`
 failed; Helios PR #65 is merged at default `aa7a4fa` with Rust/Python/book

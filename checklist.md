@@ -4886,8 +4886,11 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       differential, transactional, generic-scalar, and documentation gates in
       the disjoint Harmonia scope before editing CFDrs. The provider slice
       owns `src/relaxation/aitken.rs`, its tests, ADR 0003/index, and the
-      relaxation book chapter; the CFDrs wrapper stays untouched until this
-      item is merged and integrated.
+      relaxation book chapter; implementation commit `584e961` is PR #6 at
+      exact head `584e961244f593f2d86963f09df74e754e17e0d0`. Local locked
+      static/value gates pass; hosted verify, supply-chain, and book checks
+      remain in progress. The CFDrs wrapper stays untouched until this item is
+      merged and integrated.
 
 ### Delivery rule
 
