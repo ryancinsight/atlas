@@ -22,11 +22,12 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   `7e55ff8f`. Nextest 51/51, doctests 18/18, warning-denied Clippy, rustdoc,
   and the conformance report all pass; every tracked conformance class is
   zero.
-- **Atlas evidence:** the root pointer increment stages RITK at fetched default
-  `9fa4981e`, a docs-only merge on top of the audited `f9d04a79`. The overlay,
-  lock-form (27 standalone locks), and conformance (12/12) checks pass; exact
-  hosted verification for the new RITK default is still uncollected. The
-  peer-owned local checkout retains dirty Apollo/Hermes migration state.
+- **Atlas evidence:** the root pointer now matches fetched RITK default
+  `9fa4981e`, a docs-only merge on top of the audited `f9d04a79`. Lock-form
+  passes for 27 standalone locks and conformance passes 12/12. Exact-head and
+  overlay checks fail only on the peer-owned local RITK checkout, whose dirty
+  manifest and lock still require/lock Apollo 0.26 and Hermes 0.6; exact hosted
+  verification for the new docs-only default is still uncollected.
 - **Hephaestus evidence:** its default branch is `master`; head `607ce3f`
   passes CUDA `32083561386`, WGPU `32083561356`, ROCm `32083561357`, and Metal
   `32083561389`. The prior absence-of-run classification is superseded.
@@ -1880,6 +1881,26 @@ rustfmt-whitespace and documentation edits.
 removals are the complete break set, the 28 deleted `?` sites were genuinely
 unreachable, and the two extracted cores are equivalent. Then merge and
 advance the gitlink.
+
+## RITK-SHARED-TREE-STALE-BASIS-213 — ritk's shared tree is checked out 58 commits behind origin [patch] — open 2026-08-18
+
+- Mid-session a peer switched `repos/ritk` off `refactor/ritk-two-accessors-047`
+  onto a local `main` sitting **58 behind `origin/main` and 2 ahead**. In a
+  shared tree a branch switch moves the branch for everyone, so this landed
+  under an in-flight verification without warning.
+- **This is the mechanism behind the stale-basis reverts seen repeatedly this
+  sweep.** Any commit authored from this checkout is built on a 58-commit-old
+  base; a whole-file write or artefact regeneration from it silently reverts
+  everything landed since, passes the author's own gates, and surfaces later
+  as unrelated deletions. Filing rather than fixing: the two local commits are
+  safe (both mine, 4 days old, preserved on
+  `origin/feat/tract-output-formats`), so nothing is stranded, but moving a
+  branch a peer just checked out is not mine to do while they may be mid-work.
+- It also produced two false readings in this session, both corrected below
+  under `-210`.
+- Acceptance: the tree is on a branch at or ahead of `origin/main`, and the
+  2 local commits are confirmed merged or dropped. Re-open trigger: any
+  commit lands in ritk from a base more than one sweep behind origin.
 
 ## RITK-DOC-GATE-210 — `cargo doc` is red on ritk's default branch [patch] — open 2026-08-18
 

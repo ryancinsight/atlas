@@ -6,8 +6,9 @@
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Re-run stack-overlay, lock-form, and conformance checks after the
-      Aequitas integration: overlay is aligned, lock-form passes for 27
-      standalone locks, and the conformance regression suite passes 12/12.
+      Aequitas integration: lock-form passes for 27 standalone locks and the
+      conformance regression suite passes 12/12. The overlay still fails only
+      on the preserved dirty RITK manifest/lock edge.
 - [x] Identify the fetched RITK default movement to docs-only `9fa4981e` and
       stage the Atlas gitlink forward from `f9d04a79`; the peer-owned checkout
       remains untouched. Exact-head verification after this staged pointer and
