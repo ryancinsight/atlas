@@ -21,10 +21,11 @@ python scripts/tests/test_provider_integration_audit_benchmark.py  # 3/3
 Full requested-provider coherence remains intentionally red at the exact
 consumer files: Coeus `coeus-autograd` and `coeus-fft`, plus RITK `ritk-filter`,
 require `apollo-fft 0.26.0` while the live Apollo provider is `0.27.0`. Apollo
-PR #106 merged into PR #104 as `4e727570`; PR #104's Rust and Python checks
-pass and its benchmark regression check is pending. No Coeus, RITK, or Kwavers
-consumer pointer advances until Apollo's default/API sweep and lock closure
-land and the affected hosted matrices rerun.
+PR #106 merged into PR #104 as `4e727570`; PR #104's current head
+`797cc4ad` passes Rust and Python checks but its exact-head benchmark run
+remains red. No Coeus, RITK, or Kwavers consumer pointer advances until
+Apollo's default/API sweep and lock closure land and the affected hosted
+matrices rerun.
 
 ## ATLAS-ORPHAN-MODULES-096-KWAVERS — hosted integration boundary (2026-08-18)
 
@@ -11341,6 +11342,40 @@ default 64x192 masked SIMPLE workload is allowed to run, and returns
 reattachment approximately `2.04` against the adapter's fixed `6.0` reference;
 this is a correctness residual, not a valid reason to reduce the workload or
 weaken the assertion. The peer-owned CFDrs Cargo.lock remains unstaged.
+
+## Finding 2026-08-18: Exact-head hosted reruns after provider corrections
+
+The structural Atlas audit remains green for all 22 active providers, with
+fetched-default gitlinks matching the committed pointers. Full exact coherence
+still reports only the three peer-owned Apollo requirement mismatches in Coeus
+and RITK: `coeus-autograd`, `coeus-fft`, and `ritk-filter` require
+`apollo-fft 0.26.0` while the provider package is `0.27.0`.
+
+CFDrs PR #349 is at exact source head `b5943e1b`. The provider correction adds
+an explicit masked-face boundary policy, selects the primary negative-shear
+excursion for reattachment, and aligns the Re_h=100 reference with the
+published benchmark. Local cfd-2d Clippy and 585/585 tests with 27 skips pass;
+the focused benchmark integration passes in 28.663 seconds. Hosted run
+`32140314701` passes format, check, ordinary tests, and book-figure SSOT, but
+`cfd-validation::benchmark_validation::test_benchmark_run_integration` still
+hits the committed 30-second nextest timeout. PR #349 is merge-conflicting
+against its current CFDrs base, so no integration claim is made.
+
+Apollo PR #104 is at exact source head `797cc4ad`. Local `apollo-fft` check and
+394/394 library tests pass; hosted Rust and Python checks pass in run
+`32140805196`. The source-attributed dynamic-Rader boundary correction remains
+benchmark-red in run `32140805200`, with regressions in the Rader
+`auto_f64/67`, `bluestein_f32/521`, `full_cyclic_f32/67`, `half_cyclic_f32/67`,
+`half_cyclic_f32/257`, `half_cyclic_f64/67` cases and the kernel-strategy
+`generic_prime_inplace/31` and `/127` cases. The Apollo default and Atlas
+gitlink remain at `df8999f9`; no consumer requirement or lock advance is
+authorized until a green source-attributed benchmark result exists.
+
+Kwavers PR #402 remains exact-head `69478221f` with benchmark smoke/regression
+passing but architecture, legacy-migration, feature, quality, security,
+coverage, solver, CUDA, and wheel checks failing or cancelled. Helios PR #64
+remains draft at `9a590ff`; its Rust, Python, book, and benchmark checks pass,
+but Pages deployment is skipped and `recurseml/analysis` is `ERROR`.
 
 ## Finding 2026-08-18: Live conformance scan is not a clean-revision gate
 

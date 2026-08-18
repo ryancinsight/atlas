@@ -57,18 +57,18 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
-- [ ] Collect Apollo PR #104 at exact head `74772c2f`; local `apollo-fft`
-      check and 394/394 library tests pass. Hosted CI run `32135982784` is
-      green, but benchmark run `32135982769` remains red on
-      `half_cyclic_f32/1031`, `full_cyclic_f32/1031`, and
-      `mixed_precision_f16_auto/96`; the targeted length-127 regression is
-      absent. The preceding FullCyclic length-127 experiment at `48c14edf`
-      was falsified by its hosted benchmark and has been removed. No Apollo
-      default, consumer requirement, lock, or Atlas gitlink advances until a
-      source-attributed benchmark correction is green. Atlas now points to
-      Apollo's fetched default `df899f9a`; the unmerged PR #104 benchmark head
-      is not integrated. The Atlas coherence gate remains blocked until the
-      default-version/API sweep is reflected in Coeus and RITK.
+- [ ] Collect Apollo PR #104 at exact head `797cc4ad`; local `apollo-fft`
+      check and 394/394 library tests pass, and hosted Rust/Python checks pass
+      in run `32140805196`. The source-attributed dynamic-Rader boundary
+      experiment is still benchmark-red in run `32140805200`: regressions
+      remain in `auto_f64/67`, `bluestein_f32/521`, `full_cyclic_f32/67`,
+      `half_cyclic_f32/67`, `half_cyclic_f32/257`, `half_cyclic_f64/67`, and
+      `generic_prime_inplace/{31,127}`. No Apollo default, consumer
+      requirement, lock, or Atlas gitlink advances until a source-attributed
+      benchmark correction is green. Atlas points to fetched Apollo default
+      `df8999f9`; the unmerged PR #104 head is not integrated. The Atlas
+      coherence gate remains blocked until the default-version/API sweep is
+      reflected in Coeus and RITK.
 - [x] Complete the Apollo benchmark-instrument lock closure on clean lane
       `D:/atlas/worktrees/apollo-root-cleanup`, branch
       `codex/apollo-benchmark-lock-104`, commit `7d56dc2b`, and dependent PR
@@ -337,7 +337,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `8d95eeae`.
+      integrate provider PR #349 at current exact source head `b5943e1b`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -359,15 +359,17 @@
       comparison, and missing crate docs. Commits `bcfc283c` and `1d6ba045`
       fix those diagnostics while preserving the test workload and original
       line-ending pattern. The cfd-2d all-target gate is now green locally:
-      Clippy with `-D warnings` passes and native Nextest reports 582/582
+      Clippy with `-D warnings` passes and native Nextest reports 585/585
       passed with 27 committed skips. Manual workflow dispatch run
-      `32135266216` is the exact-head hosted acceptance run. Book figures pass,
-      but the Rust numerical-fidelity job fails at the committed 30-second
-      budget in `cfd-validation::benchmark_validation::test_benchmark_run_integration`.
-      Local reproduction also returns reattachment approximately `2.04` against
-      the adapter's fixed `6.0` reference when allowed to complete, so the
-      residual is both a timeout and a provider-backed correctness failure; no
-      workload reduction or assertion weakening is authorized.
+      `32140314701` is the exact-head hosted acceptance run. Book figures,
+      format, check, and ordinary tests pass, but the Rust numerical-fidelity
+      job still times out at the committed 30-second budget in
+      `cfd-validation::benchmark_validation::test_benchmark_run_integration`.
+      Local exact-scope verification passes the focused integration in 28.663
+      seconds after the provider correction to the masked-face policy, primary
+      shear excursion, and published Re_h=100 reference. PR #349 is currently
+      merge-conflicting against CFDrs main; no workload reduction or assertion
+      weakening is authorized.
 - [x] Push the bounded CFDrs lint cleanup through `b39a00b4`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
