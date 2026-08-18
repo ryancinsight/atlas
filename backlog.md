@@ -182,6 +182,32 @@ checkouts remain peer-owned and may be on separate branches with dirty
 lockfiles or artifacts. Only the root gitlinks are advanced here. The
 the exact requested 20-provider audit, lane audit, and nine conformance tests
 pass after this pointer sweep.
+
+**Expanded audit refresh (2026-08-18):** the active product scope is the
+22-provider set named above, not the earlier twenty-provider snapshot. The
+Atlas structural audit now includes Harmonia and the corrected Tyche spelling
+and checks active registration, fetched-default gitlinks, and exact-head
+workers. Apollo PR #104 has merged into provider default `d585e0f5`; the
+provider package is now `apollo-fft 0.27.0`. Atlas records that merged provider
+head as the next gitlink increment without changing peer-owned Coeus or RITK
+manifests. The full consumer-coherence audit therefore has three exact
+failures: `coeus-autograd`, `coeus-fft`, and `ritk-filter` still require
+`apollo-fft 0.26.0`. Their dirty working trees and locks remain untouched; the
+re-open trigger is a consumer-side version/lock sweep followed by the hosted
+Coeus and RITK matrices.
+
+The CFDrs backward-step slice is at provider head `7b9673ef`. Local focused
+and full `cfd-2d` gates pass, including 585/585 tests. Hosted run `32143999878`
+passes the book-figure job but its numerical-fidelity job times out in
+`test_benchmark_run_integration` and `cross_fidelity_trifurcation_dominance`
+at the committed 30-second slow bound. The workloads and budgets remain
+unchanged; the next CFDrs increment is a production-path root-cause slice,
+not a test or timeout relaxation.
+
+The release, PyO3/PyPI, crates.io, mdBook/Pages, comparative-test, and
+provider-adoption audits are dispatched as independent read-only work. Their
+returned file-level findings become separate vertical items before any
+consumer implementation changes are made.
 - **Provider-adoption slice:** audit every integrator edge for direct use of
   the owning provider API, deletion of superseded local wrappers, and no
   silent CPU/GPU, storage, or scheduler fallback. File provider capability

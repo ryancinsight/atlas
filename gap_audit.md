@@ -2,7 +2,7 @@
 
 ## ATLAS-PROVIDER-EXACT-HEAD-022 — current provider integration audit (2026-08-18)
 
-The current Atlas audit passes the complete 22-provider set: Horae, Hyperion,
+The current Atlas audit covers the complete 22-provider set: Horae, Hyperion,
 Themis, Tyche, Proteus, Mnemosyne, Consus, Helios, Harmonia, Aequitas,
 Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo,
 Gaia, Hermes, and Iris. All are active in `.gitmodules`, fetched-default
@@ -18,14 +18,14 @@ python scripts/tests/test_atlas_provider_integration_audit.py  # 27/27
 python scripts/tests/test_provider_integration_audit_benchmark.py  # 3/3
 ```
 
-Full requested-provider coherence remains intentionally red at the exact
-consumer files: Coeus `coeus-autograd` and `coeus-fft`, plus RITK `ritk-filter`,
-require `apollo-fft 0.26.0` while the live Apollo provider is `0.27.0`. Apollo
-PR #106 merged into PR #104 as `4e727570`; PR #104's current head
-`797cc4ad` passes Rust and Python checks but its exact-head benchmark run
-remains red. No Coeus, RITK, or Kwavers consumer pointer advances until
-Apollo's default/API sweep and lock closure land and the affected hosted
-matrices rerun.
+The structural audit is green at the recorded 22-provider graph. Apollo PR
+#104 has since merged into provider default `d585e0f5`, and `apollo-fft` is
+now `0.27.0`. The local full-coherence scan is intentionally red at the exact
+consumer files: Coeus `coeus-autograd` and `coeus-fft`, plus RITK
+`ritk-filter`, still require `apollo-fft 0.26.0`. Those manifests and locks
+are peer-owned dirty state and remain untouched. Consumer updates require one
+dependency-ordered version/lock sweep followed by hosted Coeus and RITK
+verification; no compatibility path is permitted.
 
 ## ATLAS-ORPHAN-MODULES-096-KWAVERS — hosted integration boundary (2026-08-18)
 

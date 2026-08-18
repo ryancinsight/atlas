@@ -4829,6 +4829,42 @@ Coordinator (Session 17 follow-up) landed the ATLAS-CFDRS-LETO-SPARSE-MIGRATION-
 
 Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001 implementation branches), measurement-driven (ARCH-008 profiling phase), or policy-gated (privacy naming, path deps). No blocker-class defects remain on the solo-actionable board.
 
+## Session 19 — 2026-08-18 — expanded 22-provider multiphysics audit
+
+### Active audit and integration state
+
+- [x] Confirmed the active product boundary: CFDrs, Kwavers, and Helios form
+  the Rust multiphysics integrator layer; Python remains a thin PyO3 boundary.
+- [x] Confirmed the expanded provider set: Horae, Hyperion, Harmonia, Themis,
+  Tyche, Proteus, Mnemosyne, Consus, Helios, Aequitas, Asclepius, Eunomia,
+  Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Gaia, Hermes, and
+  Iris. `Tyche` is canonical; `Tychee` is an audit normalization alias.
+- [x] Structural exact-head audit passes for all 22 active providers after
+  fetched-default reconciliation; regression suites pass 27/27 and 3/3.
+- [ ] Full consumer coherence remains open at three exact peer-owned files:
+  `repos/coeus/crates/coeus-autograd/Cargo.toml`,
+  `repos/coeus/crates/coeus-fft/Cargo.toml`, and
+  `repos/ritk/crates/ritk-filter/Cargo.toml` require Apollo `0.26.0` while
+  merged Apollo default `d585e0f5` provides `0.27.0`. Re-open after the
+  consumer version/lock sweep and hosted matrices.
+- [x] Advanced the Atlas Apollo gitlink to merged provider default
+  `d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab` without changing the dirty nested
+  Apollo checkout.
+- [ ] CFDrs backward-step source head `7b9673ef` passes local focused and full
+  `cfd-2d` gates (585/585). Hosted run `32143999878` still has two numerical
+  fidelity timeouts at the 30-second slow bound; preserve workload and budget.
+- [ ] Release/PyO3/PyPI, crates.io, mdBook/Pages, comparative-package, and
+  provider-adoption audits are pending returned file-level findings from the
+  dispatched read-only audit agents.
+
+### Delivery rule
+
+No consumer manifest or lockfile is edited across a peer-owned dirty scope.
+No hosted timeout is hidden by changing budgets, reducing workloads, or
+weakening assertions. The next implementation slice is selected from the
+returned audit findings and must include value-semantic tests, documentation,
+and the applicable hosted gate.
+
 ## Archive — closed checklists
 
 Closed items, one line each. Full prose is in git history; commit SHAs below are the entry points.
