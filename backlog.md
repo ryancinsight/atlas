@@ -32,6 +32,18 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   reconcile the RITK checkout through its owner, then re-run exact-head and
   overlay checks. Preserve peer-owned checkout and lane state.
 
+## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
+
+- **Status:** in progress; provider-owned scope claimed in `repos/mnemosyne`.
+- **Scope:** `crates/mnemosyne-arena/src/segment/pool/numa_bucket.rs` and its
+  two callers; no allocator algorithm or public API change.
+- **Acceptance:** replace the two type-suffixed production bucket helpers with
+  one domain-named conversion, preserve NUMA bucket behavior through focused
+  value-semantic tests, and reduce Mnemosyne's conformance
+  `type_suffixed_fns` count from 2 to 0 without increasing any debt class.
+- **Verification:** format, locked package check/Clippy, sanctioned nextest,
+  doctests, rustdoc, and the provider conformance report at the exact commit.
+
 **Instrument correction, applied before anything else was measured.**
 `scripts/atlas-conformance.py:131` classified a file as test code only when a
 *path part* matched `tests`/`benches`/`examples`/`fuzz`. `Path.parts` yields

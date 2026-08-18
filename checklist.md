@@ -23,6 +23,14 @@
       queued status remains distinct from hosted closure. Preserve all
       peer-owned nested checkout and lane dirt.
 
+## ATLAS-MNEMOSYNE-CONFORMANCE-001 — current provider slice
+
+- [ ] Consolidate `bucket_from_u32` and `bucket_from_usize` into one
+      domain-named NUMA bucket conversion, preserving the existing bucket
+      mapping and caller behavior.
+- [ ] Run the provider package gates and confirm the conformance report has
+      `type_suffixed_fns=0` with no new debt.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 
 > Historical baseline superseded by the current recheck above; its queued and
