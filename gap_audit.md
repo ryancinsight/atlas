@@ -1,5 +1,27 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-18: current root state after CFDrs PyPI slice
+
+The exact-head structural audit at Atlas root `203d562` passes for the 22
+registered providers and reports all committed gitlinks equal to fetched
+`origin/main` defaults. The stack overlay checker also reports aligned
+requirements and locks. These are metadata/resolution checks; they do not
+establish clean nested checkouts or hosted behavior.
+
+The lane audit still reports five violations: Coeus has three working trees,
+Consus has three plus one lane outside the canonical lane root, Kwavers has
+four, and RITK has three. The clean-checkout audit continues to report
+peer-owned dirty or moving nested trees. No peer checkout, lane, or dirty file
+was removed or rewritten.
+
+CFDrs draft PR #355 now contains provider commits `7be6727b` and `2721539e`.
+Its Rust and book checks are queued and CodeRabbit is successful. The local
+provider `cargo check --locked -p cfd-python` still stops before compilation:
+the shared overlay reports unused first-party patches and Cargo refuses the
+lockfile update under `--locked`. This is a resolver/overlay blocker, not a
+source diagnostic. Kwavers `mdbook test` remains red on the previously listed
+snippet and setup defects; CFDrs and Helios book tests remain green.
+
 ## ATLAS-PUBLISH-001-CFDRS-PYPI — exact-head release slice
 
 The shared Atlas Python release workflow changed at `5936303` to build and

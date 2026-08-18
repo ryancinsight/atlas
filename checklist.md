@@ -5,7 +5,7 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 
-- [x] Re-run the live structural provider audit at root `87ad6bf`. All 22
+- [x] Re-run the live structural provider audit at root `203d562`. All 22
       provider gitlinks now match their fetched `origin/main` defaults,
       including Consus `ef439b2f`, Mnemosyne `638ddab8`, and RITK `0f0b5c56`.
 - [x] Re-run the committed lock-form gate: all 27 committed standalone locks
@@ -24,9 +24,9 @@
       scopes or preserved dirty lanes.
 - [ ] Collect the exact-head hosted results for the moving provider defaults
       and root integration. Local exact-head, lock-form, and overlay gates do
-      not substitute for hosted provider verification; the prior recorded
-      Mnemosyne, Consus, RITK, and Kwavers run IDs remain collection points,
-      and their status was not reasserted in this pass.
+      not substitute for hosted provider verification; the current structural
+      audit passes, but hosted provider status remains uncollected in this
+      pass.
 - [ ] Reconcile the remaining peer-owned checkout and lane residuals through
       their owning provider branches. Do not clean, reset, or delete dirty
       checkouts or open provider lanes from this root audit.
