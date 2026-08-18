@@ -4939,6 +4939,13 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       Atlas RITK pointer remains `dd577946`. The version-guard preflight is
       blocked by existing rustup directory overrides; no hosted run is claimed
       for `4e88995`.
+- [x] Close **ATLAS-GAIA-CONFORMANCE-001:** Gaia commit `3cb6c82` adds only
+      `.gitattributes` and merges via PR #31 at provider default `4980732c`.
+      The clean-lane conformance scan is zero for all measured classes; local
+      `cargo fmt --check` and locked metadata pass. Hosted CI run
+      `32165632713` / job `95804433635` passes format, denied Clippy, Nextest,
+      doctests, and Rustdoc. RecurseML is report-only; Atlas advances only the
+      Gaia gitlink.
 
 ### Delivery rule
 

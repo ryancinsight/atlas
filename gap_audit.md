@@ -109,6 +109,16 @@ to fetched `origin/main` `098bc8e`. The root pointer is advanced to that exact
 default commit while the nested checkout's peer-owned dirty Cargo, manifest,
 workflow, and source files remain untouched.
 
+## ATLAS-GAIA-CONFORMANCE-001 — provider LF-policy closure (2026-08-18)
+
+Gaia commit `3cb6c82` adds only `.gitattributes` and merges through PR #31 at
+provider default `4980732cce0f5a022a67e2c5bdaf2efb894bbf42`. The clean-lane
+conformance scan reports zero across all measured classes; local
+`cargo fmt --check` and locked metadata pass. Hosted CI run `32165632713`,
+job `95804433635`, passes format, denied Clippy, Nextest, doctests, and
+Rustdoc. RecurseML is an external report-only error. Atlas advances only the
+Gaia gitlink; no geometry, manifest, lockfile, or consumer change is made.
+
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
 The latest external state is separated from the green root metadata audit:
