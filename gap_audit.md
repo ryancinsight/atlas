@@ -117,7 +117,9 @@ conformance scan reports zero across all measured classes; local
 `cargo fmt --check` and locked metadata pass. Hosted CI run `32165632713`,
 job `95804433635`, passes format, denied Clippy, Nextest, doctests, and
 Rustdoc. RecurseML is an external report-only error. Atlas advances only the
-Gaia gitlink; no geometry, manifest, lockfile, or consumer change is made.
+Gaia gitlink; no geometry, manifest, lockfile, or consumer change is made. The
+primary Gaia checkout remains a clean peer-owned interactive rebase at the
+pre-merge commit and was not switched or rewritten.
 
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
