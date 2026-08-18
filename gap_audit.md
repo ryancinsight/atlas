@@ -29,6 +29,14 @@ or lockfile is edited across that dirty scope. The prior Helios lock residual
 is closed by merged Helios PR #65 and
 the Atlas gitlink advance to `aa7a4fa`, which pins Apollo `0.27.0`.
 
+Post-merge Harmonia recheck at Atlas root `6668437` passes the structural
+exact-head audit with the merged Harmonia gitlink `b98d3f4`. The full exact-head
+audit and standalone version guard each report exactly one residual:
+peer-owned `repos/ritk/crates/ritk-filter/Cargo.toml` requires `apollo-fft
+0.26.0` while the current provider package is `0.27.0`. This is the RITK
+consumer migration boundary; editing its dirty manifest or lockfile here would
+cross ownership and mask the real dependency update.
+
 Harmonia PR #6 merged at provider default `b98d3f4` from source commit
 `584e961`. Verify, supply-chain, and book-build checks passed; RecurseML
 remained report-only and the Pages deploy was correctly skipped for the pull

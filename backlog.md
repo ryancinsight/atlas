@@ -310,6 +310,14 @@ gate. Hosted verify, supply-chain, and book checks pass at the exact head;
 RecurseML is an analyzer error and remains report-only. Atlas advances the
 Harmonia gitlink to merged default `b98d3f4`.
 
+**Post-merge exact-head recheck (2026-08-18):** Atlas root `6668437` passes
+the 22-provider structural exact-head audit with Harmonia at merged default
+`b98d3f4`. The full exact-head audit and standalone version guard each report
+exactly one peer-owned residual: RITK's dirty
+`crates/ritk-filter/Cargo.toml` requires `apollo-fft 0.26.0`, while the current
+provider package is `0.27.0`. The RITK consumer migration remains outside this
+slice; no dirty manifest or lockfile is altered here.
+
 **Latest hosted-state recheck (2026-08-18):** Apollo PR #104 is merged at
 default `d585e0f5` with Rust/Python checks green and benchmark run `32140805200`
 failed; Helios PR #65 is merged at default `aa7a4fa` with Rust/Python/book
