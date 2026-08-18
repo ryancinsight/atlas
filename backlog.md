@@ -77,11 +77,15 @@ provider-owned state rather than an Atlas source edit.
 - **Moving-default reconciliation (2026-08-18):** the fetched provider
   defaults moved after the preceding sweep. Atlas advances Aequitas from
   `4240ae31` to `c74b662c`, Hermes from `dd4cb129` to `c6265cb4`, and
-  Mnemosyne from `d1144f74` to `bfe76db0`; the nested Aequitas checkout is
-  detached, while the Hermes and Mnemosyne checkouts retain peer-owned dirt.
-  These are gitlink-only changes. The full requested-provider audit passes at
-  the resulting state, and hosted `atlas-conformance` run `32089162666` plus
-  `atlas-stack-overlay` run `32089162680` pass for the Mnemosyne advance.
+  Mnemosyne from `d1144f74` through `bfe76db0` to current `d48f4842`; the
+  nested Aequitas checkout is detached, while the Hermes and Mnemosyne
+  checkouts retain peer-owned dirt. These are gitlink-only changes. The
+  structural requested-provider audit passes at the resulting state. The full
+  audit reaches the requested scope but reports only the peer-owned dirty
+  Apollo checkout's in-flight `0.27.0` manifest against Coeus and RITK
+  `0.26.0` requirements; committed Apollo `origin/main` remains `0.26.0` and
+  matches those consumers. Root hosted gates are re-collected after this
+  pointer advance once the moving provider work is stable.
 - **Final root gates:** `atlas-stack-overlay` run `32072555152`,
   `atlas-conformance` run `32072555155`, and push analysis run `32072554308`
   pass at `944f6e1`. The hosted gates initialize direct members from the

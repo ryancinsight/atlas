@@ -18,12 +18,21 @@ is repaired or a dedicated lint-cleanup item owns the files.
 
 The fetched defaults moved during the hosted verification window. Atlas now
 tracks Aequitas `c74b662c9204d7ea18c1f56829f77ded753803ca`, Hermes
-`c6265cb4660f358b34224b1159f36e31b5704cb1`, and Mnemosyne
-`bfe76db0d54f6185b5630e2c8b55760835d2a833`. The structural and full
-requested-provider audits pass for all 20 named providers. Root hosted
-`atlas-conformance` `32089162666` and `atlas-stack-overlay` `32089162680`
-also pass. Nested provider checkout dirt remains excluded from the committed
-gitlinks.
+`c6265cb4660f358b34224b1159f36e31b5704cb1`, and current Mnemosyne
+`d48f4842da1ea059f45a0c3e0f96c7e97893254c` (through the previously recorded
+`bfe76db0d54f6185b5630e2c8b55760835d2a833`). The structural
+requested-provider audit passes for all 20 named providers. Full coherence
+reaches the requested scope but reports only the peer-owned dirty Apollo
+checkout's in-flight `0.27.0` manifest against Coeus and RITK `0.26.0`
+requirements; committed Apollo `origin/main` remains `0.26.0` and matches
+those consumers. Root hosted gates are re-collected for this pointer advance
+once the moving provider work is stable. Nested provider checkout dirt remains
+excluded from the committed gitlinks.
+
+Do not update Coeus or RITK manifests against an unmerged provider worktree.
+Re-open this item when Apollo's version/API increment lands on its default
+branch, then update the consumer locks and run their hosted gates as one
+co-evolution sweep.
 
 ## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — exact-head hosted rerun pending (2026-08-18)
 

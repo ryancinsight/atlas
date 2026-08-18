@@ -4,10 +4,14 @@
 
 - Reconcile moving provider defaults by advancing the Atlas Aequitas gitlink
   to `c74b662c`, Hermes gitlink to `c6265cb4`, and Mnemosyne gitlink to
-  `bfe76db0`. The changes touch only committed submodule pointers; nested
-  provider checkout dirt remains peer-owned and excluded. Hosted
-  `atlas-conformance` run `32089162666` and `atlas-stack-overlay` run
-  `32089162680` pass for the resulting exact-head state.
+  current `d48f4842` through the previously recorded `bfe76db0`. The changes
+  touch only committed submodule pointers; nested provider checkout dirt
+  remains peer-owned and excluded. The structural exact-head audit passes.
+  Full coherence reaches the requested scope but reports only the peer-owned
+  Apollo checkout's in-flight `0.27.0` manifest against committed Coeus and
+  RITK `0.26.0` requirements; Apollo `origin/main` remains `0.26.0`. Root
+  hosted gates are re-collected for this pointer advance once the moving
+  provider work is stable.
 
 - Merge Hephaestus PR #213 at default `607ce3f`, adding the provider-owned
   typed f32 FDTD contract, WGPU velocity/pressure kernels, and sequential
