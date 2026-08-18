@@ -11388,21 +11388,31 @@ Hosted run `32121851451` at `2127f3e7` passed format and check, then found one
 input-dependent `ChannelPath::new(points).expect(...)` in the blueprint bridge.
 Commit `8e8cd9bf` removes that panic and the equivalent JSON and polyline path
 expects, returns typed `MeshError::ChannelError` values, and rejects malformed
-JSON point coordinates and platform-overflowing segment counts. Formatting and
-diff checks pass. Hosted exact-head run `32122408402` is pending; the lane
+JSON point coordinates and platform-overflowing segment counts. Hosted exact-
+head run `32122408402` reached Clippy and found only the test-target
+`map_unwrap_or` form and missing crate docs in
+`crates/cfd-schematics/tests/preset_autolayout.rs`. Commits `f693a114` and
+`8ff26dae` fix those diagnostics and normalize the test file's line endings.
+Run `32123300861` then exposed the next test target,
+`crates/cfd-schematics/tests/blueprint_render_parity.rs`: a single-variant
+wildcard, an exact float comparison, and missing crate docs. Commits `bcfc283c`
+and `1d6ba045` fix those diagnostics without changing the workload; the latter
+restores the file's original mixed line-ending pattern so the cumulative source
+diff is semantic-only. Hosted exact-head run `32123805673` is pending. The lane
 `Cargo.lock` remains peer-owned dirty state and is unstaged.
 
-## Finding 2026-08-18: Apollo benchmark isolation remains instrument-blocked
+## Finding 2026-08-18: Apollo benchmark cleanup residuals are source-attributed
 
-Apollo PR #104 is at exact head `4906cd28`; Rust and Python checks pass, while
-release-profile benchmark run `32118791194` fails five all-four cases: the
-length-67 half/full-cyclic Rader rows and generic prime-inplace lengths 31 and
-127. Isolation run `32120125181` used the stale workflow and failed resolving
-`apollo-czt` at `^0.26.0`; run `32121911653` used the manifest-copy workflow but
-failed because the copied candidate lock did not match the transformed baseline
-workspace. Neither run is performance evidence. Same-version isolation run
-`32122062890` compares cleanup baseline `7d56dc2b` with candidate `4906cd28` and
-is the current source-attribution oracle. The temporary isolation branch was
-deleted after collection. Coeus `coeus-autograd`, Coeus `coeus-fft`, and RITK
-`ritk-filter` still require Apollo `0.26.0` against provider `0.27.0`; their
-peer-dirty nested trees remain untouched.
+Apollo PR #104 was at exact head `4906cd28`; Rust and Python checks passed, while
+release-profile benchmark run `32118791194` failed five all-four cases. The
+same-version isolation run `32122062890` completed its compile, smoke, and
+counterbalanced measurement phases, then reproduced four regressions against
+cleanup baseline `7d56dc2b`: auto-f64 half-cyclic Rader length 67, generic
+prime-inplace length 31, and Rader f64 lengths 31 and 53. The report provides
+source attribution to the codelet cleanup; it is not an instrument failure.
+The prior runs `32120125181` and `32121911653` remain instrument failures
+(resolver/manifest lock mismatch). Commit `e00116f7` now forces generated
+static Rader kernels to inline; benchmark run `32123469970` is the bounded
+acceptance test for that correction. Coeus `coeus-autograd`, Coeus `coeus-fft`,
+and RITK `ritk-filter` still require Apollo `0.26.0` against provider `0.27.0`;
+their peer-dirty nested trees remain untouched.
