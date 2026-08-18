@@ -78,7 +78,7 @@ published and the consumer matrix is rerun.
 
 ## ATLAS-CFDRS-BACKWARD-STEP-108 — default-branch Clippy blocker (2026-08-18)
 
-CFDrs PR #349 source head `e57696e6` carries the bounded `cfd-core`/`cfd-math`
+CFDrs PR #349 source head `e0e3e123` carries the bounded `cfd-core`/`cfd-math`
 lint cleanup and the hosted book-figure gate passes. Rust workspace run
 `32111217293` reached compilation and failed on four ambiguous floating-literal
 types introduced by the epsilon assertions at `4ea465a6`; commits `2ebd686d`
@@ -100,7 +100,9 @@ singular-system assertion to match `Error::Solver`. The next source slice
 `Error::InvalidConfiguration` for empty levels. Commit `e57696e6` closes the
 20-error time-stepping family across adaptive, exponential, IMEX, RKC, RK,
 and stability-analysis tests, replacing unwraps with invariant-bearing
-expectations and routing convergence diagnostics through tracing. Earlier
+expectations and routing convergence diagnostics through tracing. Commit
+`e0e3e123` closes the 14-error multigrid coarsening family with the same
+contract-bearing expectations. Earlier
 source cleanup
 commits removed the reported default-branch test `unwrap_used`, `doc_markdown`,
 and diagnostic classes without blanket suppressions or unrelated solver
@@ -108,7 +110,8 @@ changes. Commits `22d74042`, `c70d44e3`, and
 `06d237c5`, `463b4d68`, `7a7b4289`, `3c163895`, `9b2ab34d`, `1389ce05`,
 `1d1e14c8`, `6b22c4bd`, `3cd393b6`, `ccf889c2`, `33cb9af4`, `3f8fe517`,
 `bebe2d55`, `ee274df5`, `4ea465a6`, `2ebd686d`, `261b3b99`, `8f3770c0`,
-`3fbffc6a`, `7af3f9e7`, `3ebb5f77`, `8db668eb`, `5fe6e307`, and `e57696e6` own the
+`3fbffc6a`, `7af3f9e7`, `3ebb5f77`, `8db668eb`, `5fe6e307`, `e57696e6`, and
+`e0e3e123` own the
 `cfd-core`/`cfd-math`
 state/field-operation/GPU-kernel/validation/compute-dispatch/GPU-integration/
 conversion/boundary/time-controller/error-context/blood-model/plugin/
