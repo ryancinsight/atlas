@@ -55,13 +55,14 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
-- [ ] Collect Apollo PR #104 at exact head `38192bed`; its last hosted Rust
-      and benchmark runs failed on the stale lock/manifest graph. Dependent PR
-      #106 (`7d56dc2b`) now updates the PR-head lock entry to `apollo-fft`
-      `0.27.0` and synchronizes every direct `apollo-fft` consumer manifest in
-      the benchmark instrument. Re-run both hosted gates after #106 merges into
-      the #104 source branch; do not advance Apollo's default or consumers
-      until the default-version/API sweep and lockfile are coherent.
+- [ ] Collect Apollo PR #104 at exact head `4e727570`; its hosted Rust and
+      Python checks pass, while the benchmark regression check is pending after
+      stacked PR #106 merged as `4e727570`. PR #106 updated the PR-head lock
+      entry to `apollo-fft 0.27.0` and synchronized every direct consumer
+      manifest in the benchmark instrument. Collect the benchmark result, then
+      merge #104 before advancing Apollo's default or its consumers; the Atlas
+      coherence gate remains blocked until that default-version/API sweep is
+      reflected in Coeus, RITK, and Kwavers.
 - [x] Complete the Apollo benchmark-instrument lock closure on clean lane
       `D:/atlas/worktrees/apollo-root-cleanup`, branch
       `codex/apollo-benchmark-lock-104`, commit `7d56dc2b`, and dependent PR
