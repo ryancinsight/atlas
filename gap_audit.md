@@ -1369,6 +1369,58 @@ fuzz-target build matrix in hosted run `32067580093` before merging the ADR
 index repair. No compatibility shim was added. Re-open if a later provider
 commit advertises an unavailable backend-neutral async capability.
 
+## ATLAS-FLEET-STATE-031 — Fleet churn blocks new feature work; apollo 0.27 needs a lock regeneration (open)
+
+Recorded while picking the next development phase. Nothing here is a code
+defect; it is the state of the shared trees.
+
+**Delivered and closable.** All four kwavers deliverables are confirmed on
+`origin/main` by content, not by branch name: FWI-024-A (`model_minimizer_step`
+plus the relocated `hessian_vector`), US-023-A3 (`index_from_cartesian` in the
+scan converter) and US-023-B increment 1 (`gated_spectrum`). The
+`cascade/provider-042` strand that FWI-024-A sat on has since merged, so that
+integration debt is closed.
+
+**No clean tree to work in.** Both member main trees are on detached HEADs with
+peer dirt (`repos/ritk` at a commit not on `main`, with `.cargo/config.toml`,
+`CHANGELOG.md` and `Cargo.lock` modified; `repos/kwavers` detached at an
+ancestor of `main`). Lane counts exceed the two-tree bound in both repos —
+kwavers has three lanes plus the main tree, ritk two plus the main tree — and
+the session's own ritk lane was removed by someone else mid-session. Starting a
+new feature here would mean either committing on a detached HEAD or adding a
+fourth tree.
+
+**A toolchain/target migration is in flight.** The Atlas root config pins
+`[build] target = "x86_64-pc-windows-gnu"`, while ritk's rustup override is
+MSVC; building ritk under the root pin fails with `E0463 can't find crate for
+core`. A peer has an uncommitted per-repo fix in `repos/ritk/.cargo/config.toml`
+pinning `x86_64-pc-windows-msvc`, with a comment recording that GNU and MSVC
+artifacts had been mixing in the shared target directory. That fix has not
+reached the lanes, so lane builds need an explicit `--target
+x86_64-pc-windows-msvc` until it lands.
+
+**apollo-fft 0.27 (ritk) is complete but unmergeable as-is.**
+`fix/apollo-fft-0.27-migration` is three commits ahead of `main`, one behind,
+pushed, and its tree was ~3 hours stale — reclaimable under the stale-claim
+sweep. Taken over and verified: `cargo check -p ritk-filter --target
+x86_64-pc-windows-msvc` is clean, so the migration itself is done. Rebasing onto
+`main` conflicts on `Cargo.lock` alone. That file is derived state and the
+correct resolution is regeneration, not a hand merge — but regenerating under
+the development overlay strips git sources from the lock (51 `-source =` lines
+observed), which is the same non-reproducible-lock hazard already recorded for
+US-023-A3's `ritk-spatial` edge. The rebase was aborted and the branch left
+exactly as pushed rather than committing a fabricated merge of a generated file.
+
+Unblocks when a lock regeneration is performed outside the overlay. That is now
+a shared prerequisite for at least two items (this migration and A3's lock
+edge), so it is worth doing once, deliberately, rather than per-item.
+
+**Clock discrepancy.** GitHub reports PR #133 merged at
+`2026-08-13T19:55:21Z`; the local clock reads `2026-08-18T17:45:56Z`. Dates in
+these artifacts follow GitHub, which matches the git history they cite. The
+staleness sweep above compared local timestamps on both sides, so it is
+unaffected by the offset.
+
 ## ATLAS-PEER-WIP-030 — Uncommitted peer refactors stalled verification five times (open 2026-08-13)
 
 Recorded as process debt, not as a defect in any one change. In a single

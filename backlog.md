@@ -224,6 +224,21 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no color-space, numerical, consumer, lockfile, or primary
   checkout changes.
 
+## ATLAS-HELIOS-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+
+- **Owner:** Atlas coordinator; clean Helios primary checkout on a disjoint
+  branch. The active Helios lock lane remains peer-owned and untouched.
+- **Claimed scope:** Helios `.gitattributes` only, plus provider-local format,
+  metadata, and hosted verification.
+- **Finding:** the fetched Helios default `aa7a4fa` reports
+  `gitattributes_missing=1`; the provider has no repository-wide line-ending
+  policy.
+- **Acceptance:** a clean provider branch reports `gitattributes_missing=0`
+  with no increase in other measured classes; hosted provider checks pass at
+  the merged head; Atlas advances only the resulting Helios gitlink.
+- **Non-goals:** no solver, numerical, consumer, lockfile, or peer lock-lane
+  changes.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
@@ -1073,9 +1088,16 @@ is now implemented in the existing Criterion-enabled `consus-zarr` benchmark
 surface. It measures identical ranged reads through `S3MoiraiReader` and the
 legacy `S3Reader` against the same live endpoint/object/range, uploads a
 deterministic 1 MiB object outside the measured region, and publishes the
-Criterion report as a CI artifact from the MinIO job. Formatting passes; the
-hosted comparative result remains pending. P5 is not claimed until that
-artifact is collected and the default-backend contract is respecified.
+Criterion report as a CI artifact from the MinIO job. The mixed Consus lock
+was repaired in standalone form with `RUSTC=rustc RUSTDOC=rustdoc python
+scripts/atlas-lock-form.py regenerate consus`; lock status is now `HEAD ok /
+worktree ok`, isolated locked benchmark compilation passes outside the Atlas
+overlay, and the in-process differential passes 2/2. The hosted comparative
+result remains pending. P5 is now explicitly staged: MinIO qualification first,
+then a next-breaking-release native default only if every benchmark cell reaches
+at least 90% of legacy median throughput with correctness intact, followed by a
+one-release legacy compatibility window before Tokio/Rusoto retirement. No
+performance result or default flip is claimed until the MinIO artifact exists.
 
 | ATLAS-LOCK-CONVENTION-079 — **closed 2026-08-18** | **`scripts/atlas-lock-form.py check` now exits 0 across all 27 committed locks**, from 33 violations in 10 members; nine repaired and pinned. Convention recorded as ADR 0044 (standalone form: a `source = "git+…"` for every git dependency the lock resolves, no `[[patch.unused]]`), argued from the lock's purpose and **falsified rather than asserted** — `cargo metadata --locked` on a stripped hermes from outside the tree exits 101, which is every CI job, clean checkout and publish sandbox. **This row's instrument was wrong:** counting `git+` lines misses eunomia, iris and the melinoe fixture (residue with zero git sources) and falsely flags members with no git deps; the check instead quantifies over the git dependencies a lock actually resolves, so zero-git-dep members pass and idle `[workspace.dependencies]` rows that never reach the lock are ignored. 22 tests including an end-to-end pair that **exits 1 on a stripped lock and 0 on a standalone one**; writing them found two real bugs in the tool (`restore` would have reverted a *repair*, and its eligibility set missed transitive stripping under a patched parent). Churn is **prevented**, not documented: `restore` reverts only overlay rewrites and correctly held back apollo and kwavers, which carried a real re-resolve; a pre-commit hook blocks the offending `git add`, written and tested but deliberately **not installed**, since that mutates per-clone git config in trees five peers are using. CI step added to `atlas-conformance.yml`. Two findings: hermes, mnemosyne and tyche **regressed during this sweep**, two via commits titled "Remove stray root automation artifacts" — the lock rode along in an unrelated change, exactly the failure mode — and mnemosyne needed a second repair because a peer re-stripped it minutes after the first. **Original text:** The committed lockfile convention is not uniform, and the overlay silently rewrites 12 working copies. Counting `source = "git+"` lines, committed vs working: 14 repos committed the git+ form (kwavers 87, CFDrs 62, helios 59, ritk 51, coeus 48, apollo 36, hephaestus 33, leto 30, consus 24, gaia 22, tyche 20, hermes 11, mnemosyne 3, hyperion 3) while **11 committed the stripped form** (aequitas, asclepius, athena, eunomia, harmonia, horae, iris, melinoe, moirai, proteus, themis — all 0). Of the git+ group, **12 now have a stripped working copy** because a build ran under the stack overlay; only gaia and hermes still match. coeus is half-stripped (48 committed vs 7 working). A stripped lock cannot resolve a git dependency standalone, so committing that form breaks reproducible CI resolution — yet a third of the stack has it committed. Every "Cargo.lock modified" line in this sweep is this artifact, not anyone's edit. | [patch] | One documented convention; every member's committed lock matches it; a committed check fails when a lock is committed in the wrong form; the overlay's rewrite is either excluded from the working tree or documented as expected churn |
 | ATLAS-MSRV-UNVERIFIED-077 — **melinoe slice REOPENED 2026-08-15** | **The melinoe closure is no longer true, and the lint-floor work is what broke it.** At `6e6a181` — the exact revision this row cites for the passing hosted Rust 1.65.0 run `31785253730` — `src/cell/reference.rs` contained **zero** `#[expect(` attributes, so that run was honest when it ran. `81d4f3d` ("Deny the pedantic floor and unwrap_used") then introduced them, and `#[expect(..., reason = …)]` requires **Rust 1.81** (`lint_reasons`), against a declared `rust-version = "1.65"`. An independent overlay-free check at a real 1.65.0 toolchain fails the *library* with 14 × `E0658: lint reasons are experimental`, in files the checker never touched; resolution also cannot complete, because the committed lock pulls edition-2024 dev-deps. **themis has the same shape** — `rust-version = "1.75.0"` with `#[expect]` in `src/topology/cpu/detect/*` — but no MSRV job, so nothing goes red and the false declaration is simply unobserved. The ratchet form is right and should not be reverted: `#[expect]` is what makes a suppression self-expire. The declarations are what is wrong, and this row's own oracle already allows the fix — "**or the floor is raised to what the code requires**". Determine the true floor per crate rather than assuming 1.81 is the only constraint. **Original text:** Melinoe and Eunomia slices closed 2026-08-14. Melinoe tracks a standalone lockfile and hosted Rust 1.65.0 all-target check (`31785253730` at `6e6a181`). Eunomia now has a hosted Rust 1.95.0 all-target/all-feature gate (`31789001841` at `b6c3d9a`), an exact online package dry-run at default `84c82fe`, and Atlas pointer integration at the current provider default. Mnemosyne remains the only open portion. | [patch] | Each declared floor has a hosted build, or the floor is raised to what the code requires |
@@ -1559,7 +1581,7 @@ reference on forward-model and optimizer machinery; these close the deltas.
 
 | ID | Outcome | Class | Status | Owner | Acceptance oracle |
 |----|---------|-------|--------|-------|-------------------|
-| FWI-024-A | Replace fixed-step backtracking in `frequency_domain/inversion.rs` with the linearized exact line search `α = −⟨g,d⟩/⟨d,Hd⟩`, reusing the matrix-free Hessian action for the curvature. | [minor] | done 2026-08-13 — kwavers `912fe1983`, `backlog.md#kw-fwi-083` | Claude | Met. `⟨d,Hd⟩` reuses the existing `hessian_vector` (moved to `gradient.rs`, one implementation for both consumers) rather than adding a second forward-projection path. New test recovers a weak anomaly with the seed set 200× too large; falsified by forcing the old behaviour (fails with a one-entry objective history). 44/44 frequency-domain tests, clippy/doc/fmt clean in scope |
+| FWI-024-A | Replace fixed-step backtracking in `frequency_domain/inversion.rs` with the linearized exact line search `α = −⟨g,d⟩/⟨d,Hd⟩`, reusing the matrix-free Hessian action for the curvature. | [minor] | done — kwavers `912fe1983`, merged to main via cascade/provider-042; content verified on origin/main | Claude | Met. `⟨d,Hd⟩` reuses the existing `hessian_vector` (moved to `gradient.rs`, one implementation for both consumers) rather than adding a second forward-projection path. New test recovers a weak anomaly with the seed set 200× too large; falsified by forcing the old behaviour (fails with a one-entry objective history). 44/44 frequency-domain tests, clippy/doc/fmt clean in scope |
 | FWI-024-B | Cap the NLCG β with Fletcher–Reeves: `β = min(max(β_PR,0), β_FR)` (Gilbert–Nocedal). | [patch] | todo | — | Convergence on the existing inversion tests is monotone and no worse than `β_PR⁺`; a case where unbounded `β_PR` overshoots is added as a regression test |
 | FWI-024-C | Angular-spectrum split-step implementation of the existing `HelmholtzForwardOperator` seam, reusing the phase-screen code rather than a second copy. | [minor] | todo | — | Differential against CBS on a weak-contrast phantom within a derived bound; documented divergence where reflections matter (ASM is one-way) |
 | FWI-024-D | Transmission-USCT acquisition: two opposed linear arrays on a rotation stage, per-view interpolation between a fixed reconstruction grid and view-aligned simulation grids, gradient accumulation across views. | [minor] | todo | — | Recovers the sound-speed phantom from a simulated 360°/2° sweep within a derived tolerance; per-view rotation round-trips to identity |
