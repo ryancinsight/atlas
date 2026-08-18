@@ -109,26 +109,22 @@
       pass locally. PR #106 and PR #104 are merged; the latest PR #104
       benchmark regression remains failed, so Apollo is not performance-
       qualified despite green Rust/Python/Pages evidence.
-- [ ] Collect Kwavers PR #402 exact-head matrix at `69478221f`; benchmark smoke
-      and regression pass, but the full hosted matrix has terminal failures in
-      architecture, validation, security, coverage, documentation, feature,
-      CUDA, and wheel jobs plus cancelled jobs. Its Atlas gitlink remains
-      unchanged.
-- [ ] Continue `ATLAS-ORPHAN-MODULES-096-KWAVERS` on the clean lane
-      `D:/atlas/worktrees/kwavers-orphan-096`. PR #400 is at exact head
-      `eb3b93b97b883b722e5e97122822cbc13e27a42b`; its source closure is real
-      (six stale fixed-acquisition test leaves, `steering.rs`, `nufft.rs`, and
-      the unused adaptive subtree are deleted, while validation, PSTD cache,
-      field-coupling, and driver-test modules are wired). Hosted Code Quality
-      `95565138022` and Architecture `95565137812` fail only because the
-      merge base contains an unformatted `tiled_kspace_processing.rs` line;
-      the clean PR #400 branch passes local `cargo fmt -- --check`. The
-      benchmark regression run `32088252405` is not a production regression:
-      its smoke prerequisite is cancelled and the dependent job reports no
-      measurements. PR #403 owns the one-file format correction at exact head
-      `0e02ffa8a61871b8b96da3da702372af37503aef`; do not duplicate that edit.
-      Re-open this item after the format correction is on the base or PR #400
-      is rebased, then rerun the complete exact-head matrix.
+- [ ] Reconcile the Kwavers moving default before advancing its Atlas gitlink.
+      The prior PR #402 head `69478221f` is stale: the open visualization/FDTD
+      branch is now `d8886b032c50c7ebbcc2f12ebaceacabe95e19f1` and is
+      `CONFLICTING` against `main`. The provider default is
+      `f05d207d7b6b41f239bc63ffeb4b9df337a8a71a`; Architecture Validation
+      `32182442591` and CI/CD Pipeline `32182442617` are still queued, while
+      Legacy Migration Audit `32182442605` passes. Keep the committed Atlas
+      pointer at merged PR #400 `23f53284` until the current default-head
+      matrix completes; do not rebase or modify the peer-owned PR #402 lane.
+- [x] Close `ATLAS-ORPHAN-MODULES-096-KWAVERS`: PR #400 merged at
+      `23f53284d789ba9b15788b51b3e83e40d301caf3` after the formatting repair
+      PR #403 merged at `15c12732f5841125a5d65b6c3da2adc0f7c0793a`. The
+      source closure is now in the fetched default history. The clean lane
+      `D:/atlas/worktrees/kwavers-orphan-096` was removed after an empty
+      status check; its branch ref remains available and no peer dirty state
+      was removed. The separate moving-default recheck remains open above.
 - [x] Bound every network, package-manager, compiler, mdBook test, and mdBook
       build command in the shared Pages workflow at root commit `6ed29a9`.
       The workflow now uses `--locked` for the package build and metadata

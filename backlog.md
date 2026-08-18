@@ -7986,8 +7986,8 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-18 — exact residuals
 
-- The pushed Atlas root passes the committed lock-form audit: 27 locks resolve
-  standalone, with only the sanctioned Melinoe in-tree fixture exempted.
+- The pushed Atlas root passes the committed lock-form audit: 26 locks resolve
+  standalone; the Consus and Melinoe in-tree fixtures are exempted.
 - The exact-head structural audit for the requested provider set has one
   residual: Consus gitlink `34b2507` versus provider `origin/main` `aafb320`;
   this is the open shuffle PR #46 head and is not silently advanced.
@@ -7995,7 +7995,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   checkouts, including Themis, Tyche, Proteus, Consus, Helios, Harmonia,
   Eunomia, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris.
   The lane audit records six live peer violations across CFDrs, Coeus, Consus,
-  Kwavers, and RITK; no peer lane or dirty checkout was removed.
+  Kwavers, and RITK; one clean, merged Kwavers orphan lane was removed after
+  verifying its empty status, while peer dirty checkouts and live lanes were
+  preserved.
 
 ## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — correct nested workspace-lint detection
 
@@ -8007,3 +8009,21 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   recorded provider objects; only Coeus and RITK retain this class.
 - The regression test covers a nested table and the conformance unit suite
   passes 12/12. Provider source, locks, and peer checkouts were not changed.
+
+## ATLAS-KWAVERS-DEFAULT-RECHECK-2026-08-18 — moving default remains open
+
+- Kwavers PR #400's orphan-module cleanup is merged at
+  `23f53284d789ba9b15788b51b3e83e40d301caf3`; its formatting prerequisite PR
+  #403 is merged at `15c12732f5841125a5d65b6c3da2adc0f7c0793a`. The clean
+  `kwavers-orphan-096` lane had no uncommitted state and was removed; its
+  branch ref remains recoverable.
+- The fetched provider default is now `f05d207d7b6b41f239bc63ffeb4b9df337a8a71a`.
+  Default-branch Architecture Validation `32182442591` and CI/CD Pipeline
+  `32182442617` are queued; Legacy Migration Audit `32182442605` passes. The
+  Atlas gitlink remains at merged `23f53284` until the current default-head
+  matrix is complete.
+- PR #402 is not the current default proof: it is open at
+  `d8886b032c50c7ebbcc2f12ebaceacabe95e19f1` with `mergeStateStatus=CONFLICTING`.
+  Its earlier `69478221f` evidence is stale. Re-open the consumer integration
+  and pointer advance only after the peer-owned branch is reconciled or the
+  provider default independently satisfies the hosted matrix.

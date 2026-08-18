@@ -11954,8 +11954,8 @@ report-only. The primary peer-dirty Mnemosyne checkout was not modified.
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-18 — exact residuals
 
 The pushed Atlas root has no root-file dirt. `scripts/atlas-lock-form.py check`
-passes for 27 committed locks, with only the sanctioned Melinoe in-tree
-fixture exempted, and the conformance unit suite passes 12/12.
+passes for 26 committed locks; the Consus and sanctioned Melinoe in-tree
+fixtures are exempted, and the conformance unit suite passes 12/12.
 
 The exact-head structural audit for the requested provider set has one
 residual: Consus gitlink `34b25075f1dfb89052bf08017fd7d85b8acacec4` versus
@@ -11966,7 +11966,8 @@ trees in Themis, Tyche, Proteus, Consus, Helios, Harmonia, Eunomia, RITK,
 Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. The lane audit
 reports six live violations across CFDrs, Coeus, Consus, Kwavers, and RITK,
 including the Consus ADR-0045 lane outside the canonical lane root. These
-checkouts and lanes were not removed or rewritten.
+checkouts and live peer lanes were not removed or rewritten; one clean merged
+Kwavers orphan lane was removed after its empty status was verified.
 
 ## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — instrument correction
 
@@ -11977,3 +11978,19 @@ parent `[workspace.lints]` header. A regression test covers the nested form,
 the conformance unit suite passes 12/12, and the derived baseline now records
 only Coeus and RITK for this class at the recorded provider objects. Their
 other ratchet regressions are peer-dirty residuals and were not absorbed.
+
+## Finding 2026-08-18: Kwavers default-head and lane recheck
+
+The previous Kwavers PR #402 evidence at `69478221f` is stale. The open branch
+is now `d8886b032c50c7ebbcc2f12ebaceacabe95e19f1` and GitHub reports it as
+`CONFLICTING` against `main`. The fetched provider default is
+`f05d207d7b6b41f239bc63ffeb4b9df337a8a71a`; its default-branch Architecture
+Validation run `32182442591` and CI/CD Pipeline run `32182442617` remain queued,
+while Legacy Migration Audit `32182442605` passes. This is insufficient
+hosted evidence for an Atlas pointer advance.
+
+The orphan-module source closure is no longer open: PR #400 merged at
+`23f53284d789ba9b15788b51b3e83e40d301caf3`, after PR #403 merged at
+`15c12732f5841125a5d65b6c3da2adc0f7c0793a`. The clean merged lane was removed
+after an empty status check; the branch ref remains available. The separate
+open visualization/FDTD branch and dirty peer lanes were preserved.
