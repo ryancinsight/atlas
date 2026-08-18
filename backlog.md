@@ -7999,17 +7999,19 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - The pushed Atlas root passes the committed lock-form audit: 27 locks resolve
   standalone, with only the sanctioned Melinoe in-tree fixture exempted.
 - The exact-head structural audit for the requested provider set has two
-  residuals: Consus gitlink `34b2507` versus provider `origin/main` `aafb320`
-  (the open shuffle PR #46 head), and Mnemosyne gitlink `1c38a1a` versus
-  provider `origin/main` `638ddab`. The Mnemosyne default CI run
-  `32183974171` is queued. Neither pointer is silently advanced.
+  residuals: Consus gitlink `34b2507` versus provider `origin/main` `ef439b2`
+  (the merged shuffle correction's unverified default), and Mnemosyne gitlink
+  `1c38a1a` versus provider `origin/main` `638ddab`. Consus default CI,
+  Documentation, and Pages runs `32184845212`, `32184845179`, and
+  `32184843457`, and Mnemosyne CI `32183974171`, are queued. Neither pointer
+  is silently advanced.
 - The clean-checkout audit remains red only on peer-owned moving or dirty
   checkouts, including Themis, Tyche, Proteus, Consus, Helios, Harmonia,
   Eunomia, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris.
   The lane audit records six live peer violations across CFDrs, Coeus, Consus,
-  Kwavers, and RITK; one clean, merged Kwavers orphan lane was removed after
-  verifying its empty status, while peer dirty checkouts and live lanes were
-  preserved.
+  Kwavers, and RITK; one clean, merged Kwavers orphan lane and one clean,
+  merged CFDrs lane were removed after verifying empty status, while peer
+  dirty checkouts and live lanes were preserved.
 
 ## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — correct nested workspace-lint detection
 
@@ -8049,3 +8051,21 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - Default CI run `32183974171` is queued and no open PR covers the commit.
   Do not advance the pointer until that exact default-head run completes; the
   peer-dirty primary checkout remains untouched.
+
+## ATLAS-LIVE-HEAD-SWEEP-2026-08-18-2055 — exact-head residual refresh
+
+- Consus `origin/main` advanced to
+  `ef439b2f5668b90fdbbed7097c3c6a44143c6ce4`, which contains the shuffle
+  correction. Its CI, Documentation, and Pages runs `32184845212`,
+  `32184845179`, and `32184843457` are queued. Atlas remains at the previously
+  verified `34b25075` until those exact default-head gates complete; PR #46 is
+  still open and conflicting against its former base.
+- Mnemosyne remains a moving default residual at `638ddab` with CI
+  `32183974171` queued; Atlas remains at `1c38a1a`.
+- RITK PR #173 and CI-skip PR #172 are merged into provider default
+  `0f0b5c5689a58a35fde30f07c62b7d94f5495004`, and Atlas now records that
+  pointer. Its CI and Python CI runs `32184697093` and `32184697087` are
+  queued, so hosted verification is pending even though exact-head equality
+  holds.
+- The clean merged CFDrs `cfd2d-fix` lane was removed after an empty status
+  check; the dirty runtime-budget lane and unmerged/peer lanes remain.

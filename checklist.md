@@ -167,10 +167,17 @@
       Post-merge Pages run `32103884853` and live
       `https://ryancinsight.github.io/hyperion/` return the expected book title
       with HTTP 200.
-- [ ] Re-open Consus workflow cleanup after its peer-owned interactive rebase
-      `codex/consus-parse-limits-035` completes: the clean origin head has one
-      real local publish-job timeout residual, while reusable callers inherit
-      bounds. Do not touch the rebase or its staged provider work.
+- [ ] Reconcile the current Consus default before advancing the Atlas gitlink.
+      Provider `origin/main` is now `ef439b2f5668b90fdbbed7097c3c6a44143c6ce4`,
+      which contains the shuffle correction, but its CI, Documentation, and
+      Pages runs `32184845212`, `32184845179`, and `32184843457` are queued.
+      PR #46 remains open and conflicting against its former base; do not
+      touch the peer-owned rebase or advance the root pointer until the exact
+      current default-head gates complete.
+- [ ] Collect the merged RITK PR #173 default-head gates after the peer root
+      pointer advance to `0f0b5c5689a58a35fde30f07c62b7d94f5495004`. Its CI
+      and Python CI runs `32184697093` and `32184697087` are queued; the
+      pointer is exact, but hosted verification is not yet established.
 - [ ] Re-open Gaia line-ending cleanup after its peer-owned interactive rebase
       `cascade/provider-042` completes: the clean origin head lacks only the
       `.gitattributes` policy in the safe hygiene slice; source ratchet debt is

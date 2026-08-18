@@ -11959,18 +11959,19 @@ fixture exempted, and the conformance unit suite passes 12/12.
 
 The exact-head structural audit for the requested provider set has two
 residuals: Consus gitlink `34b25075f1dfb89052bf08017fd7d85b8acacec4` versus
-provider `origin/main` `aafb320627d15b5c30612e2d159bc1d9e519c692`, and
+provider `origin/main` `ef439b2f5668b90fdbbed7097c3c6a44143c6ce4`, and
 Mnemosyne gitlink `1c38a1a65d519ebc04ed5f9da2baa31d16b83705` versus provider
-`origin/main` `638ddab831404a8d89c653c061415e4e23fa203d`. Consus PR #46 owns
-the shuffle correction and remains unmerged while its hosted matrix is
-red/queued; Mnemosyne default CI run `32183974171` is queued. The clean-checkout
-audit reports peer-owned dirty or moving
+`origin/main` `638ddab831404a8d89c653c061415e4e23fa203d`. Consus default CI,
+Documentation, and Pages runs `32184845212`, `32184845179`, and `32184843457`,
+and Mnemosyne default CI `32183974171`, are queued. The clean-checkout audit
+reports peer-owned dirty or moving
 trees in Themis, Tyche, Proteus, Consus, Helios, Harmonia, Eunomia, RITK,
 Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. The lane audit
 reports six live violations across CFDrs, Coeus, Consus, Kwavers, and RITK,
 including the Consus ADR-0045 lane outside the canonical lane root. These
 checkouts and live peer lanes were not removed or rewritten; one clean merged
-Kwavers orphan lane was removed after its empty status was verified.
+Kwavers orphan lane and one clean merged CFDrs lane were removed after their
+empty status was verified.
 
 ## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — instrument correction
 
@@ -12007,3 +12008,19 @@ the commit, so the Atlas pointer remains at the previously verified
 `1c38a1a65d519ebc04ed5f9da2baa31d16b83705`. This is a pointer-coherence
 residual, not evidence of a provider source failure; the peer-dirty primary
 checkout remains untouched.
+
+## Finding 2026-08-18: current Consus and RITK default-head evidence
+
+Consus `origin/main` advanced to
+`ef439b2f5668b90fdbbed7097c3c6a44143c6ce4`, containing the shuffle correction
+from the still-open conflicting PR #46 lineage. CI, Documentation, and Pages
+runs `32184845212`, `32184845179`, and `32184843457` are queued, so the Atlas
+gitlink remains at `34b25075` pending exact default-head gates. RITK PR #173
+and CI-skip PR #172 are merged at provider default
+`0f0b5c5689a58a35fde30f07c62b7d94f5495004`; Atlas records that exact pointer,
+but CI and Python CI runs `32184697093` and `32184697087` are queued. Hosted
+verification is therefore pending for both moving defaults.
+
+The clean merged CFDrs `cfd2d-fix` lane was removed after an empty status
+check. The CFDrs runtime-budget lane is dirty, and the remaining unmerged or
+peer-owned lanes were preserved.
