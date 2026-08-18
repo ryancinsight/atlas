@@ -188,13 +188,13 @@ pass after this pointer sweep.
 Atlas structural audit now includes Harmonia and the corrected Tyche spelling
 and checks active registration, fetched-default gitlinks, and exact-head
 workers. Apollo PR #104 has merged into provider default `d585e0f5`; the
-provider package is now `apollo-fft 0.27.0`. Atlas records that merged provider
-head as the next gitlink increment without changing peer-owned Coeus or RITK
-manifests. The full consumer-coherence audit therefore has three exact
-failures: `coeus-autograd`, `coeus-fft`, and `ritk-filter` still require
-`apollo-fft 0.26.0`. Their dirty working trees and locks remain untouched; the
-re-open trigger is a consumer-side version/lock sweep followed by the hosted
-Coeus and RITK matrices.
+provider package is now `apollo-fft 0.27.0`. The later Coeus default advance is
+recorded at `79f05dfd`; the previous Coeus/RITK manifest-lag finding is retained
+as historical evidence, not a current clean-tree claim. A live version-guard
+scan at the current nested checkouts reports zero manifest defects, while the
+Atlas overlay still reports one committed-lock residual: Helios' peer-owned
+`Cargo.lock` selects Apollo `0.26.0`. The lock re-open trigger remains a
+consumer-side update followed by the affected hosted matrix.
 
 The CFDrs backward-step slice is at provider head `7b9673ef`. Local focused
 and full `cfd-2d` gates pass, including 585/585 tests. Hosted run `32143999878`
@@ -203,6 +203,13 @@ passes the book-figure job but its numerical-fidelity job times out in
 at the committed 30-second slow bound. The workloads and budgets remain
 unchanged; the next CFDrs increment is a production-path root-cause slice,
 not a test or timeout relaxation.
+
+**Post-gate recheck (2026-08-18):** at root commit `3669fff`, the full
+`atlas-provider-integration-audit.py --exact-heads --provider-set atlas-22`
+passes structural registration, fetched-default gitlinks, exact-head workers,
+and its live requested-provider coherence scope. The standalone version guard
+also reports `defect_count: 0`. This does not close the separate Helios lock
+drift from the overlay check, nor any hosted provider release or Pages gate.
 
 The release, PyO3/PyPI, crates.io, mdBook/Pages, comparative-test, and
 provider-adoption audits are dispatched as independent read-only work. Their

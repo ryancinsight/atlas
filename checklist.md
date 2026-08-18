@@ -47,9 +47,10 @@
       overlay run `32101202278` records Kwavers `0.27.0` versus indexed Apollo
       `0.26.0`, and conformance run `32101488985` at `d496297` isolates the
       RITK `oversized_files` regression `43 -> 44`.
-- [ ] Complete the Apollo `0.27.0` default-version/API sweep, then update
-      Coeus, RITK, and Kwavers requirements/locks in dependency order and
-      rerun their hosted gates; do not lower consumers or add a shim.
+- [ ] Complete the remaining Apollo `0.27.0` consumer lock sweep for Kwavers,
+      then rerun affected hosted gates. Coeus and RITK default pointers now
+      carry their provider-side 0.27 migration heads; do not lower consumers or
+      add a shim. Helios' committed lock still needs the same sweep.
 - [ ] Split the committed RITK `region.rs` 540-line implementation without
       overwriting the peer-owned in-flight region edits, then rerun the root
       conformance gate at the exact provider head.
@@ -57,18 +58,12 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
-- [ ] Collect Apollo PR #104 at exact head `797cc4ad`; local `apollo-fft`
-      check and 394/394 library tests pass, and hosted Rust/Python checks pass
-      in run `32140805196`. The source-attributed dynamic-Rader boundary
-      experiment is still benchmark-red in run `32140805200`: regressions
-      remain in `auto_f64/67`, `bluestein_f32/521`, `full_cyclic_f32/67`,
-      `half_cyclic_f32/67`, `half_cyclic_f32/257`, `half_cyclic_f64/67`, and
-      `generic_prime_inplace/{31,127}`. No Apollo default, consumer
-      requirement, lock, or Atlas gitlink advances until a source-attributed
-      benchmark correction is green. Atlas points to fetched Apollo default
-      `df8999f9`; the unmerged PR #104 head is not integrated. The Atlas
-      coherence gate remains blocked until the default-version/API sweep is
-      reflected in Coeus and RITK.
+- [x] Collect Apollo PR #104 at merged default `d585e0f5`. Post-merge Rust,
+      Python, and Pages checks pass in runs `32145206051` and `32145204622`.
+      The latest benchmark remains the failed pre-merge run `32140820453` at
+      `797cc4ad`, so Apollo is hosted-green for build/docs but not fully
+      benchmark-qualified; keep that evidence as a performance residual rather
+      than blocking the exact provider gitlink.
 - [x] Complete the Apollo benchmark-instrument lock closure on clean lane
       `D:/atlas/worktrees/apollo-root-cleanup`, branch
       `codex/apollo-benchmark-lock-104`, commit `7d56dc2b`, and dependent PR
@@ -4841,12 +4836,11 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
   Iris. `Tyche` is canonical; `Tychee` is an audit normalization alias.
 - [x] Structural exact-head audit passes for all 22 active providers after
   fetched-default reconciliation; regression suites pass 27/27 and 3/3.
-- [ ] Full consumer coherence remains open at three exact peer-owned files:
-  `repos/coeus/crates/coeus-autograd/Cargo.toml`,
-  `repos/coeus/crates/coeus-fft/Cargo.toml`, and
-  `repos/ritk/crates/ritk-filter/Cargo.toml` require Apollo `0.26.0` while
-  merged Apollo default `d585e0f5` provides `0.27.0`. Re-open after the
-  consumer version/lock sweep and hosted matrices.
+- [x] Rechecked live consumer coherence after the Coeus provider advance: the
+      exact-head audit and standalone version guard report zero requested-scope
+      manifest defects. The committed overlay still reports Helios
+      `Cargo.lock` selecting Apollo `0.26.0`; re-open after the peer-owned lock
+      sweep and hosted matrix.
 - [x] Advanced the Atlas Apollo gitlink to merged provider default
   `d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab` without changing the dirty nested
   Apollo checkout.
