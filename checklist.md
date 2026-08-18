@@ -4889,12 +4889,16 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       provider default `b98d3f4`; local locked static/value gates and hosted
       verify, supply-chain, and book-build checks pass. The CFDrs wrapper stays
       untouched until the consumer integration item is claimed.
-- [ ] **ATLAS-HARMONIA-CONFORMANCE-001:** claim a clean Harmonia provider lane
-      for `.gitattributes` and `.github/workflows/ci.yml`. Resolve the live
-      scan's missing LF policy, six mutable action references, and missing CI
-      timeout; verify the scan and hosted provider checks at the final merged
-      head, then advance only the Atlas Harmonia gitlink. Preserve the dirty
-      primary provider checkout and do not edit the reusable Pages caller.
+- [x] **ATLAS-HARMONIA-CONFORMANCE-001:** claim a clean Harmonia provider lane
+      for `.gitattributes` and `.github/workflows/ci.yml`. Provider commit
+      `d01cacf` adds the LF policy, pins all six mutable action references, and
+      bounds both CI jobs; PR #7 merges at provider default
+      `3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb`. The clean-lane conformance
+      scan reports zero across all 27 classes; local gates pass; hosted run
+      `32159533930` passes verify `95784806220` and supply-chain `95784806422`.
+      Atlas gitlink commit `c049d26` advances only Harmonia. The dirty primary
+      checkout and reusable Pages caller remain untouched; RecurseML is
+      report-only.
 
 ### Delivery rule
 

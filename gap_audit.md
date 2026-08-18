@@ -29,9 +29,10 @@ or lockfile is edited across that dirty scope. The prior Helios lock residual
 is closed by merged Helios PR #65 and
 the Atlas gitlink advance to `aa7a4fa`, which pins Apollo `0.27.0`.
 
-Post-merge Harmonia recheck at Atlas root `6668437` passes the structural
-exact-head audit with the merged Harmonia gitlink `b98d3f4`. The full exact-head
-audit and standalone version guard each report exactly one residual:
+Post-merge Harmonia recheck at Atlas root `c049d26` passes the structural
+exact-head audit with the merged Harmonia gitlink
+`3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb`. The full exact-head audit and
+standalone version guard each report exactly one residual:
 peer-owned `repos/ritk/crates/ritk-filter/Cargo.toml` requires `apollo-fft
 0.26.0` while the current provider package is `0.27.0`. This is the RITK
 consumer migration boundary; editing its dirty manifest or lockfile here would
@@ -49,6 +50,17 @@ Rustdoc, runnable example, and mdBook build pass. Atlas advances the root
 gitlink from `365f0bb` to `b98d3f4`; direct CFDrs adoption and deletion of its
 superseded wrapper remain the next provider-consumer slice. The primary nested
 checkout retains peer-owned workflow/book/example/lockfile dirt.
+
+Harmonia conformance cleanup PR #7 merged at provider default
+`3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb` and Atlas advanced the root gitlink
+in `c049d26`. The clean provider-lane conformance scan reports zero for all 27
+measured classes, including the missing LF policy, six mutable action
+references, and missing CI timeout. Local locked format, all-target check,
+warning-denied Clippy, Nextest 24/24, doctest 1/1, Rustdoc, runnable example,
+and cargo-deny pass. Hosted run `32159533930` passes `verify` job
+`95784806220` and `supply-chain` job `95784806422`; RecurseML remains an
+external report-only analyzer error. The dirty primary Harmonia checkout was
+not modified, and its Cargo.lock/book/example/workflow dirt remains peer-owned.
 
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 

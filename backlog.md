@@ -114,7 +114,7 @@ Harmonia and found root gitlink `a8ce2fc3` absent from the provider remote;
 Harmonia `origin/main` is `10e15ae`. Atlas repairs the root pointer only. The
 nested Harmonia checkout remains provider-owned state.
 
-## ATLAS-HARMONIA-CONFORMANCE-001 — close provider repository conformance debt [patch] — in progress
+## ATLAS-HARMONIA-CONFORMANCE-001 — close provider repository conformance debt [patch] — completed
 
 - **Owner:** Atlas coordinator; clean provider lane only.
 - **Claimed scope:** Harmonia `.gitattributes` and
@@ -133,6 +133,11 @@ nested Harmonia checkout remains provider-owned state.
   records the exact evidence.
 - **Non-goals:** no consumer migration, no CFDrs edits, no primary checkout
   cleanup, no Pages caller rewrite, and no change to test budgets or workload.
+- **Closure:** provider commit `d01cacf` merged through PR #7 at
+  `3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb`; Atlas gitlink commit `c049d26`;
+  local provider gates and the clean-lane 27-class scan pass; hosted verify
+  and supply-chain run `32159533930` pass. RecurseML is report-only. The
+  primary nested checkout remains untouched by design.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
@@ -296,8 +301,17 @@ provider default `b98d3f4` and now provides the mutable pair-level
 `Relaxation<T>` seam, atomic fixed/full policies, provider-owned
 `AitkenRelaxation<T>`, ADR 0002/0003, analytical and transactional coverage,
 and hosted verify, supply-chain, and book-build evidence; RecurseML remains
-report-only. Atlas advances the root gitlink to `b98d3f4`. Adding a consumer
+report-only. Atlas advanced the root gitlink to `b98d3f4`. Adding a consumer
 adapter or fixed-relaxation fallback would violate provider-first ownership.
+
+**Harmonia conformance closure (2026-08-18):**
+`ATLAS-HARMONIA-CONFORMANCE-001` is complete. PR #7 merged at provider
+default `3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb` and Atlas root commit
+`c049d26` advances the gitlink without touching the dirty primary checkout.
+The clean provider-lane conformance scan reports zero across all 27 classes.
+Hosted run `32159533930` passes verify `95784806220` and supply-chain
+`95784806422`; RecurseML remains report-only. The direct CFDrs consumer
+migration remains the next provider-first slice.
 The next slice is direct CFDrs integration and deletion of the superseded
 local wrapper. The primary Harmonia checkout retains peer-owned
 workflow/book/example/lockfile dirt.
