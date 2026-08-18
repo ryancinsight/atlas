@@ -11074,18 +11074,21 @@ updates Horae's baseline from 1 to 0. The focused scanner suite passes 11/11.
 See [GitHub's reusable-workflow job-key contract](https://docs.github.com/en/enterprise-cloud@latest/actions/reference/workflows-and-actions/reusing-workflow-configurations)
 for the supported caller keys.
 
-The clean provider follow-up is now explicit: Horae PR #18 (`cded674`) enables
-the shared executable-sample gate and Helios PR #64 (`9a590ff`) adopts the same
-workflow revision. Both root gitlinks remain at their fetched default heads
-until exact-head hosted gates pass; local Horae Cargo verification is blocked
-by the Windows shared-cache host-triple/overlay condition described above.
+The clean provider follow-up is now split by hosted evidence. Horae PR #18
+(`cded674`) merged as `0631da0` after its exact-head Rust, supply-chain, and
+Pages book-build gates passed; the Atlas Horae gitlink now records that merged
+default. Helios PR #64 (`9a590ff`) adopts the same workflow revision but remains
+open because its benchmark regression gate is still pending. Local Horae Cargo
+verification was blocked by the Windows shared-cache host-triple/overlay
+condition described above; hosted verification is the acceptance evidence.
 
-Hyperion PR #14 (`b8d4fb8`) closes its live conformance findings: `.gitattributes`
-is present, both CI jobs have 30-minute bounds, and the Pages caller adopts the
-shared workflow with `mdbook-test` and package `hyperion`. The post-change live
-scan reports zero measured residuals; hosted verification remains the acceptance
-oracle because the local Windows overlay does not materialize a standalone
-Hyperion artifact in the shared target.
+Hyperion PR #14 (`b8d4fb8`) closed its live conformance findings and merged as
+`fd752c7` after exact-head `verify`, `supply-chain`, and Pages book-build gates
+passed. `.gitattributes` is present, both CI jobs have 30-minute bounds, and the
+Pages caller adopts the shared workflow with `mdbook-test` and package
+`hyperion`. The post-change live scan reports zero measured residuals; hosted
+verification was the acceptance oracle because the local Windows overlay does
+not materialize a standalone Hyperion artifact in the shared target.
 
 Two clean provider candidates are currently non-claimable because their nested
 repositories are in peer-owned interactive rebases with clean working trees:

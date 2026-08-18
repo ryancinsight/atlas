@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Merge Horae PR #18 at source `cded674` as `0631da0` and Hyperion PR #14 at
+  source `b8d4fb8` as `fd752c7`. Their exact-head hosted `verify`,
+  `supply-chain`, and shared Pages book-build gates pass; the Atlas gitlinks
+  now point to the merged default heads. Horae enables executable mdBook
+  samples and Hyperion completes its CI-bound and line-ending cleanup. The
+  Horae RecurseML analyzer error remains report-only. Helios PR #64 remains
+  open pending its benchmark regression gate.
+
 - Correct the conformance scanner at root commit `78c7880` so pure reusable
   workflow callers are evaluated through the called workflow's bounded jobs;
   GitHub disallows `timeout-minutes` on the caller job. Mixed workflows retain

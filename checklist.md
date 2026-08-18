@@ -61,9 +61,9 @@
       query, and retains the 20-minute job bound with per-command termination.
       The local link-contract suite passes 43/43; YAML/actionlint executables
       are unavailable in this Windows environment. Helios default
-      `408a31b0` already enables `mdbook-test` but still calls the prior shared
-      workflow revision; Kwavers and CFDrs likewise retain peer-owned caller
-      pins (`4c31dd7` and `bb505e5`). Caller repinning remains separate work.
+      `408a31b0` still calls the prior shared workflow revision; Kwavers and
+      CFDrs likewise retain peer-owned caller pins (`4c31dd7` and `bb505e5`).
+      Horae and Hyperion have completed their caller repinning slices below.
 - [x] Correct the conformance workflow classifier at root commit `78c7880`:
       pure reusable-workflow callers inherit timeout bounds from their called
       jobs, while mixed workflows still require a local timeout. The focused
@@ -71,18 +71,19 @@
       `workflow_missing_timeout` from 1 to 0, and the committed baseline records
       that correction. The commit also contains pre-staged peer root updates;
       no peer source files were edited by this slice.
-- [ ] Collect Horae PR #18 at source `cded674` after its hosted Rust and Pages
-      gates pass. It repins the caller to Atlas workflow `6ed29a9`, enables
-      `mdbook-test`, and builds package `horae`; the Atlas Horae gitlink remains
-      unchanged until the exact source head is hosted-green.
+- [x] Collect and merge Horae PR #18 at source `cded674`; merge commit
+      `0631da0` is the Atlas Horae gitlink. Hosted `verify`, `supply-chain`,
+      and `deploy / Build book` pass at the exact source head; the external
+      RecurseML analyzer remains report-only. The caller repins to Atlas
+      workflow `6ed29a9`, enables `mdbook-test`, and builds package `horae`.
 - [ ] Collect Helios PR #64 at source `9a590ff` after its hosted Rust, Python,
       benchmark, and Pages gates pass. It repins the caller to Atlas workflow
       `6ed29a9`; the Atlas Helios gitlink remains unchanged until hosted proof.
-- [ ] Collect Hyperion PR #14 at source `b8d4fb8` after its hosted Rust,
-      supply-chain, and Pages gates pass. It adds the missing line-ending
-      policy, bounds both CI jobs, and enables the four executable book samples
-      through the shared `mdbook-test` gate; the Atlas Hyperion gitlink remains
-      unchanged until exact-head hosted proof.
+- [x] Collect and merge Hyperion PR #14 at source `b8d4fb8`; merge commit
+      `fd752c7` is the Atlas Hyperion gitlink. Hosted `verify`,
+      `supply-chain`, and `deploy / Build book` pass at the exact source head.
+      The change adds the line-ending policy, bounds both CI jobs, and enables
+      the four executable book samples through the shared `mdbook-test` gate.
 - [ ] Re-open Consus workflow cleanup after its peer-owned interactive rebase
       `codex/consus-parse-limits-035` completes: the clean origin head has one
       real local publish-job timeout residual, while reusable callers inherit
