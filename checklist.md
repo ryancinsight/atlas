@@ -33,6 +33,15 @@
       not substitute for hosted provider verification; the current structural
       audit passes, but hosted provider status remains uncollected in this
       pass.
+-      Read-only hosted sweep evidence now includes Mnemosyne CI
+      `32192895997` queued at `5fd08df6` and RITK CI/Python CI
+      `32192759850`/`32192759832` queued at `f9d04a79`. Consus Documentation
+      `32184845179` fails at `ef439b2f` because the `consus-zarr` manifest
+      names a missing `benches/s3_rusoto_moirai.rs`; Coeus Backend parity
+      `32147262055` fails at `79f05dfd` because the locked Apollo Git revision
+      exposes `apollo-fft 0.26.0` while the consumer requires `^0.27.0`.
+      Hephaestus has no default-branch Actions run in this sweep. These are
+      provider/consumer gate findings, not local source-success claims.
 - [ ] Reconcile the remaining peer-owned checkout and lane residuals through
       their owning provider branches. Do not clean, reset, or delete dirty
       checkouts or open provider lanes from this root audit.

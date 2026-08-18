@@ -56,6 +56,22 @@ is unchanged. The remaining ASC-REL-008 work is registry publication,
 trusted-publisher enforcement, and GitHub Release creation, which require the
 release-authority transition and are not inferred from local package evidence.
 
+## Finding 2026-08-18: hosted provider sweep after Mnemosyne reconciliation
+
+A read-only GitHub Actions sweep against the current provider defaults found
+the following exact evidence. Mnemosyne CI `32192895997` is queued at
+`5fd08df6`; RITK CI and Python CI `32192759850` and `32192759832` are queued
+at `f9d04a79`. Consus Documentation `32184845179` fails at `ef439b2f` during
+`cargo doc --workspace --no-deps --document-private-items`: Cargo cannot find
+the declared `benches/s3_rusoto_moirai.rs` target in `consus-zarr`. Consus CI
+`32184845212` is still queued while its Pages run `32184843457` succeeds, so
+the documentation failure is not a Pages success. Coeus Backend parity
+`32147262055` fails at `79f05dfd` across the device jobs before testing because
+the lock requires `apollo-fft ^0.27.0` while Apollo Git revision `9727219e`
+offers package version `0.26.0`. Hephaestus has no default-branch Actions run
+in this sweep. The missing bench target and Apollo requirement/lock closure
+are provider-owned fixes; no peer checkout was edited.
+
 ## ATLAS-PUBLISH-001-CFDRS-PYPI — exact-head release slice
 
 The shared Atlas Python release workflow changed at `5936303` to build and
