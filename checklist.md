@@ -72,8 +72,9 @@
       `Cargo.lock`. The workflow inherits every candidate transform manifest
       that directly requires `apollo-fft`; Bash block parsing, locked workspace
       check, 494/494 focused nextest tests, formatting, and workspace doctests
-      pass locally. Hosted acceptance remains pending on PR #106 and its
-      subsequent #104 rerun.
+      pass locally. PR #106 and PR #104 are merged; the latest PR #104
+      benchmark regression remains failed, so Apollo is not performance-
+      qualified despite green Rust/Python/Pages evidence.
 - [ ] Collect Kwavers PR #402 exact-head matrix at `69478221f`; benchmark smoke
       and regression pass, but the full hosted matrix has terminal failures in
       architecture, validation, security, coverage, documentation, feature,
@@ -117,11 +118,9 @@
       workflow `6ed29a9`, enables `mdbook-test`, and builds package `horae`.
       Post-merge Pages run `32103884266` and live `https://ryancinsight.github.io/horae/`
       return the expected book title with HTTP 200.
-- [ ] Collect Helios PR #64 at source `9a590ff` after its benchmark regression
-      gate completes and its draft status is cleared. Rust and Python pass,
-      Pages build passes but deployment is skipped, and the external RecurseML
-      analyzer reports an error. It repins the caller to Atlas workflow
-      `6ed29a9`; the Atlas Helios gitlink remains unchanged until hosted proof.
+- [x] Collect Helios PR #65 at merged provider default `aa7a4fa`. Rust, Python,
+      and book-build checks pass; the PR benchmark regression check remains in
+      progress, so no performance or Pages-deployment claim is inferred.
 - [x] Collect and merge Hyperion PR #14 at source `b8d4fb8`; merge commit
       `fd752c7` is the Atlas Hyperion gitlink. Hosted `verify`,
       `supply-chain`, and `deploy / Build book` pass at the exact source head.
@@ -246,16 +245,13 @@
 - [x] Repair the next unreachable root gitlink, Harmonia `a8ce2fc3`, to
       fetched default `10e15ae`; the nested Harmonia checkout remains
       untouched.
-- [ ] Collect CFDrs PR #348 at source commit `e6633964` on
-      `codex/cfdrs-runtime-residual`; the final exact local filter passes both
-      value-semantic cases under locked Nextest. Hosted Rust and Pages gates
-      remain pending at the exact final source head.
-- [x] Re-run the requested 20-provider and Atlas 21-provider exact-head audits
-      after the pointer commit; both pass and the lane audit is clean. CFDrs
-      PR #347 remains at `41db036a` with hosted gates in progress, and Helios
-      PR #59 is merged at `679402ae`. The stack-overlay check is still red only
-      for peer-owned Athena lock drift (`hermes-simd` 0.6.0 versus local 0.7.0);
-      no consumer lockfile is changed in this sweep.
+- [x] Supersede CFDrs PR #348's source slice with the current PR #349 stream;
+      its historical local value-semantic evidence remains recorded below.
+      Current hosted acceptance is tracked at PR #349 source `3a03a222`.
+- [x] Re-run the requested 20-provider and Atlas 22-provider exact-head audits
+      after the pointer commits; both pass for their committed scopes. The
+      clean-checkout gate remains red on peer-owned dirt and checkout-head
+      drift; no peer source, manifest, or lockfile is changed in this sweep.
 - [x] Close `ATLAS-CONFORMANCE-BENCH-099`: preserve the target-fork
       correction, prove `benches/` executable classification, executable
       support modules, exact test regions, and literal/manifest-rooted
@@ -4853,9 +4849,10 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
 - [x] Reconciled shared root commit `f5cdeef4` after it captured dirty nested
   Apollo, Helios, and RITK heads instead of their fetched defaults; only the
   parent gitlinks are corrected.
-- [ ] CFDrs backward-step source head `7b9673ef` passes local focused and full
-  `cfd-2d` gates (585/585). Hosted run `32143999878` still has two numerical
-  fidelity timeouts at the 30-second slow bound; preserve workload and budget.
+- [ ] CFDrs PR #349 current source head `3a03a222` is awaiting the queued hosted
+  Rust and book jobs in run `32152884477`; preserve workload and budget. The
+  prior exact-head `7b9673ef` result remains historical evidence with two
+  numerical-fidelity timeouts at the committed 30-second slow bound.
 - [ ] Release/PyO3/PyPI, crates.io, mdBook/Pages, comparative-package, and
   provider-adoption audits are pending returned file-level findings from the
   dispatched read-only audit agents.

@@ -284,6 +284,16 @@ slice is direct CFDrs integration and deletion of the superseded local
 wrapper. Harmonia's source is clean in the nested checkout; its peer-owned
 workflow/book/example/lockfile dirt is preserved.
 
+**Latest hosted-state recheck (2026-08-18):** Apollo PR #104 is merged at
+default `d585e0f5` with Rust/Python checks green and benchmark run `32140805200`
+failed; Helios PR #65 is merged at default `aa7a4fa` with Rust/Python/book
+checks green and its benchmark check still in progress; CFDrs PR #349 is open
+at `3a03a222` with hosted run `32152884477` queued; and Kwavers PR #402 remains
+open with its complete matrix failed or cancelled despite passing benchmark
+smoke. The Atlas root exact-head audit is green, but clean-checkout and
+overlay gates still report peer-owned checkout state. These are delivery
+residuals, not reasons to alter workloads, budgets, or consumer contracts.
+
 **Acceptance oracle:** the structural provider audit reports all 22 named
 providers present and active; the exact-head audit passes on a clean checkout;
 the generated overlay and locked dependency graph pass; CFDrs, Kwavers, and

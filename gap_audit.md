@@ -22,9 +22,11 @@ The structural audit is green at the recorded 22-provider graph. Apollo PR
 #104 has merged into provider default `d585e0f5`, and `apollo-fft` is now
 `0.27.0`. The standalone version guard reports zero manifest requirement
 defects (`236` manifests/packages, `1,060` requirements). The remaining local
-overlay residual is one peer-owned Helios lock pin: `repos/helios/Cargo.lock`
-still locks `apollo-fft 0.26.0` while the local provider is `0.27.0`; no
-consumer lockfile is edited across that dirty scope.
+overlay check is not green in the shared tree because the peer-owned RITK
+checkout currently requires `apollo-fft 0.26.0` while its local provider tree
+is `0.27.0`; no consumer manifest or lockfile is edited across that dirty
+scope. The prior Helios lock residual is closed by merged Helios PR #65 and
+the Atlas gitlink advance to `aa7a4fa`, which pins Apollo `0.27.0`.
 
 Harmonia provider PR #5 merged at `365f0bb` from source commit `685f47d`.
 Verify, supply-chain, and book checks passed; RecurseML remained report-only.
@@ -33,6 +35,25 @@ built-in policies, with local 17/17 nextest, locked all-targets check, Clippy,
 doctest, documentation, and book-build evidence. Atlas advances the root
 gitlink from `02ffd14` to `365f0bb` in this increment; direct CFDrs adoption
 remains the next provider-consumer slice.
+
+## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
+
+The latest external state is separated from the green root metadata audit:
+
+- Apollo PR #104 is merged at provider default `d585e0f5`. Rust and Python
+  checks pass, but benchmark regression run `32140805200` fails; Apollo is
+  build/docs integrated, not performance-qualified.
+- Helios PR #65 is merged at provider default `aa7a4fa`. Rust, Python, and
+  book-build checks pass; the benchmark regression check is still in progress
+  and no Pages deployment result is claimed from the PR run.
+- CFDrs PR #349 is open at source `3a03a222`. Its latest hosted Rust and book
+  jobs are queued in run `32152884477`; no hosted acceptance result is claimed.
+- Kwavers PR #402 remains open at `69478221f`; benchmark smoke passes, while
+  the architecture, migration, quality, security, coverage, documentation,
+  feature, CUDA, and wheel checks are failed or cancelled.
+
+The clean-checkout audit remains red only on peer-owned state: dirty or
+off-gitlink checkouts are reported by the gate, but no peer work is discarded.
 
 ## ATLAS-PROVIDER-POINTER-CORRECTION-2026-08-18 — peer staging reconciliation
 
