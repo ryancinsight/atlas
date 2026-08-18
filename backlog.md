@@ -282,6 +282,22 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no workspace lint-floor migration, source implementation,
   numerical behavior, consumer migration, or lockfile rewrite.
 
+## ATLAS-EUNOMIA-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+
+- **Owner:** Atlas coordinator; clean Eunomia provider lane from fetched
+  `origin/main` `bab4f9f`.
+- **Claimed scope:** Eunomia `.gitattributes` only, plus provider-local format,
+  metadata, and hosted verification. The primary checkout's peer-owned staged
+  and unstaged `Cargo.lock` changes remain untouched.
+- **Finding:** the live conformance scan reports `gitattributes_missing=1`;
+  type-suffixed functions, manifest implementation, and test assertion counts
+  are existing provider baselines outside this mechanical slice.
+- **Acceptance:** the clean lane reports `gitattributes_missing=0` with no
+  increase in any other measured class, locked metadata and formatting pass,
+  and hosted provider gates pass at the merged head.
+- **Non-goals:** no source rename or refactor, lint-floor migration, test
+  rewrite, dependency change, lockfile rewrite, or primary-checkout cleanup.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
