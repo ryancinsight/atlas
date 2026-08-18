@@ -15,6 +15,11 @@ PR #26 merged at provider default `7e55ff8f`. Provider evidence is nextest
 51/51, doctests 18/18, warning-denied Clippy, rustdoc, and a zero-count report
 across all tracked conformance classes.
 
+Coeus PR #339 merged its Apollo FFT 0.27 lock resolution at provider default
+`5adc2d1649bfd2bf68c529b011308e150375810d`. Atlas advances the gitlink from
+`79f05dfd` without editing the dirty primary checkout; the earlier Backend
+parity failure at `32147262055` is superseded by this merged provider closure.
+
 Hephaestus hosted verification is complete on its actual default branch
 `master`, head `607ce3f`: CUDA `32083561386`, WGPU `32083561356`, ROCm
 `32083561357`, and Metal `32083561389` pass. This supersedes the earlier

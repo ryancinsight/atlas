@@ -19,6 +19,10 @@
       `master`, not `main`; default head `607ce3f` has passing CUDA
       `32083561386`, WGPU `32083561356`, ROCm `32083561357`, and Metal
       `32083561389` workflows.
+- [x] Reconcile Coeus PR #339, merged at provider default
+      `5adc2d1649bfd2bf68c529b011308e150375810d`, and stage the Atlas gitlink
+      advance without modifying the dirty primary checkout. The old backend
+      parity failure is superseded by the merged Apollo 0.27 lock closure.
 - [ ] Collect the queued Themis post-merge and current Mnemosyne/RITK runs;
       queued status remains distinct from hosted closure. Preserve all
       peer-owned nested checkout and lane dirt.

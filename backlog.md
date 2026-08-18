@@ -29,6 +29,10 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 - **Hephaestus evidence:** its default branch is `master`; head `607ce3f`
   passes CUDA `32083561386`, WGPU `32083561356`, ROCm `32083561357`, and Metal
   `32083561389`. The prior absence-of-run classification is superseded.
+- **Coeus evidence:** PR #339 merged its Apollo FFT 0.27 lock resolution at
+  default `5adc2d1649bfd2bf68c529b011308e150375810d`; Atlas stages that exact
+  gitlink without touching the dirty primary checkout. The former backend
+  parity failure at `79f05dfd` is superseded by the merged provider closure.
 - **Acceptance:** collect queued Themis post-merge and Mnemosyne/RITK runs,
   reconcile the RITK checkout through its owner, then re-run exact-head and
   overlay checks. Preserve peer-owned checkout and lane state.
