@@ -337,7 +337,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `b5943e1b`.
+      integrate provider PR #349 at current exact source head `7b9673ef`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -361,15 +361,16 @@
       line-ending pattern. The cfd-2d all-target gate is now green locally:
       Clippy with `-D warnings` passes and native Nextest reports 585/585
       passed with 27 committed skips. Manual workflow dispatch run
-      `32140314701` is the exact-head hosted acceptance run. Book figures,
-      format, check, and ordinary tests pass, but the Rust numerical-fidelity
-      job still times out at the committed 30-second budget in
-      `cfd-validation::benchmark_validation::test_benchmark_run_integration`.
-      Local exact-scope verification passes the focused integration in 28.663
-      seconds after the provider correction to the masked-face policy, primary
-      shear excursion, and published Re_h=100 reference. PR #349 is currently
-      merge-conflicting against CFDrs main; no workload reduction or assertion
-      weakening is authorized.
+      `32140314701` is superseded by exact-head run `32143999878` at
+      `7b9673ef`; its book-figure gate passes while the Rust workspace gate is
+      still running. The provider correction to the masked-face policy,
+      primary shear excursion, and published Re_h=100 reference remains
+      value-verified. A production-path cleanup removes two per-iteration
+      inlet allocations; the original implementation timed out at 30.031
+      seconds locally, while the allocation-free implementation passed the
+      focused gate at 28.901 seconds. PR #349 is currently merge-conflicting
+      against CFDrs main; no workload reduction or assertion weakening is
+      authorized.
 - [x] Push the bounded CFDrs lint cleanup through `b39a00b4`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,

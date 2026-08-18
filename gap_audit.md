@@ -11351,15 +11351,18 @@ still reports only the three peer-owned Apollo requirement mismatches in Coeus
 and RITK: `coeus-autograd`, `coeus-fft`, and `ritk-filter` require
 `apollo-fft 0.26.0` while the provider package is `0.27.0`.
 
-CFDrs PR #349 is at exact source head `b5943e1b`. The provider correction adds
+CFDrs PR #349 is at exact source head `7b9673ef`. The provider correction adds
 an explicit masked-face boundary policy, selects the primary negative-shear
 excursion for reattachment, and aligns the Re_h=100 reference with the
-published benchmark. Local cfd-2d Clippy and 585/585 tests with 27 skips pass;
-the focused benchmark integration passes in 28.663 seconds. Hosted run
-`32140314701` passes format, check, ordinary tests, and book-figure SSOT, but
-`cfd-validation::benchmark_validation::test_benchmark_run_integration` still
-hits the committed 30-second nextest timeout. PR #349 is merge-conflicting
-against its current CFDrs base, so no integration claim is made.
+published benchmark. A production-path cleanup removes the two temporary
+inlet vectors rebuilt on every SIMPLE iteration. The original implementation
+timed out at 30.031 seconds in a controlled local A/B; the allocation-free
+implementation passes the focused gate at 28.901 seconds. Local cfd-2d
+Clippy and 585/585 tests with 27 skips pass. Superseding hosted run
+`32143999878` is on the exact head; its book-figure gate passes while the Rust
+workspace gate is still running. PR #349 is merge-conflicting against its
+current CFDrs base, so no integration claim is made until the hosted result
+and base reconciliation are complete.
 
 Apollo PR #104 is at exact source head `797cc4ad`. Local `apollo-fft` check and
 394/394 library tests pass; hosted Rust and Python checks pass in run
