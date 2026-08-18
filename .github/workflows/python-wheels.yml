@@ -211,7 +211,7 @@ jobs:
 
   release-assets:
     if: ${{ always() && !failure() && !cancelled() }}
-    name: Validate and attach release wheels
+    name: Validate and attach release distributions
     needs: [build-abi3, build-cpython]
     runs-on: ubuntu-latest
     timeout-minutes: 30
