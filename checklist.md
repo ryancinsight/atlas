@@ -3,6 +3,36 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
+
+- [x] Re-run the live structural provider audit at root `4a46a4c`. The
+      twenty-two-provider set has one exact-head residual: Consus gitlink
+      `34b25075` versus fetched `origin/main` `ef439b2f`. Mnemosyne now points
+      at fetched default `638ddab8` through the peer's root increment.
+- [x] Re-run the committed lock-form gate: all 27 committed standalone locks
+      resolve; `melinoe/contracts/atlas-device/Cargo.lock` remains the single
+      declared in-tree fixture exemption.
+- [x] Re-run the conformance regression suite: `scripts/tests/test_atlas_conformance.py`
+      passes 12/12.
+- [x] Re-run the clean-checkout audit. It reports only peer-owned dirty or
+      moving nested checkouts: Themis, Tyche, Proteus, Consus, Helios,
+      Harmonia, Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus,
+      Apollo, Hermes, and Iris. No peer dirt was overwritten or staged.
+- [x] Re-run the lane audit. CFDrs is within the two-tree bound after clean
+      merged-lane reclamation. Four violations remain: Coeus has three trees,
+      Consus has three trees plus one lane outside the canonical root, and
+      Kwavers has four trees. These are active peer scopes or preserved dirty
+      lanes.
+- [ ] Collect the exact-head hosted results before advancing Consus from
+      `34b25075` to `ef439b2f`; the local structural and lock gates do not
+      substitute for hosted provider verification. The prior recorded
+      Mnemosyne, Consus, RITK, and Kwavers run IDs remain collection points;
+      their status was not reasserted when the GitHub CLI query returned no
+      records in this pass.
+- [ ] Reconcile the remaining peer-owned checkout and lane residuals through
+      their owning provider branches. Do not clean, reset, or delete dirty
+      checkouts or open provider lanes from this root audit.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-17
 
 - [x] Audit the current 22-provider registration, ownership, exact-head, and

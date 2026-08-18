@@ -1,5 +1,33 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-PROVIDER-EXACT-HEAD-022 — live recheck at root `4a46a4c` (2026-08-18)
+
+The structural twenty-two-provider audit was re-run against the current root.
+It reports one residual: the committed Consus gitlink is `34b25075`, while
+fetched Consus `origin/main` is `ef439b2f`. Mnemosyne is now aligned to its
+fetched default `638ddab8` through the concurrent root increment. No provider
+source or peer-owned checkout was changed by this recheck.
+
+The independent local gates pass:
+
+```text
+python scripts/atlas-lock-form.py check  # 27 committed locks; one declared fixture exemption
+python scripts/tests/test_atlas_conformance.py  # 12/12
+```
+
+The `--require-clean-checkouts` audit remains red only for peer-owned nested
+state: dirty or moving checkouts in Themis, Tyche, Proteus, Consus, Helios,
+Harmonia, Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo,
+Hermes, and Iris. The lane audit reports four topology violations: Coeus has
+three trees; Consus has three trees and one lane outside the canonical root;
+Kwavers has four trees. CFDrs is now within the two-tree bound.
+
+Hosted verification is still a separate acceptance condition for any pointer
+advance. The last recorded Mnemosyne, Consus, RITK, and Kwavers run IDs remain
+collection points, but their status was not reasserted in this pass because the
+GitHub CLI query returned no records. The Consus pointer therefore remains a
+hosted-gate residual, not a local-test failure.
+
 ## ATLAS-PROVIDER-EXACT-HEAD-022 — current provider integration audit (2026-08-18)
 
 The current Atlas audit covers the complete 22-provider set: Horae, Hyperion,
