@@ -61,6 +61,35 @@ short: it explains that rustc rejects artifacts from a different compiler
 *version* (E0514), which a version pin does prevent. Host-triple drift produces
 E0461 instead, and no version pin can prevent it.
 
+**A different fix is in flight, uncommitted, 2026-08-18.** A peer has added
+`[build] target = "x86_64-pc-windows-gnu"` to the shared `.cargo/config.toml`
+(working tree only; not in HEAD). That routes every build into
+`target/<triple>/debug` instead of the plain host directory, so the two host
+toolchains segregate their artifacts and **cannot contaminate each other even
+if both run** — which addresses the same failure from the opposite direction to
+this ADR. It is arguably the better fix: it does not force the stack to give up
+either toolchain, and it removes the coupling between "which rustup default an
+agent happens to have" and "whose artifacts get clobbered".
+
+Two consequences to settle before this ADR is applied, because the two
+approaches interact badly if landed blind:
+
+1. With an explicit `[build] target`, the correct local invocation becomes the
+   toolchain **matching that triple** — running msvc against a gnu-targeted
+   config now fails with `E0463 … the x86_64-pc-windows-gnu target may not be
+   installed`, which is a *new* confusing symptom, not the old one. Verified
+   directly: mnemosyne's suite fails that way under msvc and passes 290/290
+   under `RUSTUP_TOOLCHAIN=1.97.0-x86_64-pc-windows-gnu`.
+2. `RUSTC`/`RUSTDOC` are exported by the shell profile and **come back in every
+   new process**, so clearing them in one command does not persist to the next.
+   Any recipe here must set the environment in the same invocation as the cargo
+   call, or it silently measures the wrong compiler.
+
+If the peer's segregation lands, this ADR should be re-decided rather than
+applied on top of it: pinning the triple *and* segregating by triple is
+redundant, and the pin's real remaining value would be uniformity for CI and
+fresh clones rather than cache protection.
+
 ## Decision
 
 Pin the full triple — `1.97.0-x86_64-pc-windows-msvc` — in every member's
