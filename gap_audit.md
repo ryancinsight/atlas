@@ -11180,8 +11180,14 @@ unmergeable; no Atlas gitlink was advanced from these results.
   local evidence is `cargo check --locked --workspace --all-targets`,
   494/494 focused `nextest` tests, clean formatting, and passing workspace
   doctests; hosted acceptance remains pending on #106 and the subsequent #104
-  rerun. The provider default/version/API sweep and lockfile regeneration must
-  land before consumer requirements move.
+  rerun. At the current live provider state, PR #106 is mergeable with Rust and
+  benchmark checks in progress, Python bindings green, CodeRabbit green, and
+  the external RecurseML status `ERROR`. The full Atlas coherence audit also
+  reports exactly three consumer-lag findings: Coeus `coeus-autograd`,
+  Coeus `coeus-fft`, and RITK `ritk-filter` still require `apollo-fft`
+  `0.26.0` while the live Apollo provider is `0.27.0`. The provider
+  default/version/API sweep and lockfile regeneration must land before those
+  consumer requirements move.
 - [Kwavers PR #402](https://github.com/ryancinsight/kwavers/pull/402) remains
   open at exact head `69478221f0f8d601614323b0e12f175971e7fdba` and reports
   `UNSTABLE`. Benchmark smoke and regression pass in run
