@@ -304,7 +304,7 @@ its required hosted feature gate is the re-open/close decision. The FDTD item
 remains provider capability work and must not be replaced by an f64 adapter or
 CPU-vs-CPU comparison.
 
-#### ATLAS-KWAVERS-FDTD-107 — provider-generic FDTD equivalence [major]
+#### ATLAS-KWAVERS-FDTD-107 — provider-generic FDTD equivalence [major] — submitted; hosted verification pending
 
 The acceptance oracle is a real Leto/Hephaestus FDTD execution path selected
 through the provider seam, a CPU differential comparison with a derived
@@ -316,6 +316,16 @@ while Hephaestus has no FDTD contract beyond its 2D stencil seam. No f64-only
 adapter, CPU fallback, or CPU-vs-CPU comparison may be added to close it; the
 provider contract and kernel must land upstream before Kwavers equivalence can
 close.
+
+Implementation is now submitted in Hephaestus PR #213 at exact head
+`7bc9944852a6ba92d4ff265b9fff9bc8c81e3567` and Kwavers PR #402 at exact head
+`17a70288bfb6e03aab5016218ccb0921d24278a1`. The provider branch owns the
+typed f32 contract, WGPU kernels, and sequential two-step contract coverage;
+the consumer branch deletes the collocated raw-WGPU path and wires the
+independent native-f32 CPU differential runner without a fallback. Local
+feature-enabled check/Clippy, 22/22 focused equivalence tests, 2/2 affected
+allocation tests, and provider contract coverage pass. Hosted exact-head gates
+and merge-to-default gitlink advancement remain open.
 
 #### ATLAS-CFDRS-BACKWARD-STEP-108 — input-sensitive reattachment measurement [major] — in progress 2026-08-17
 
