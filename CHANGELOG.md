@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Reconcile moving provider defaults by advancing the Atlas Aequitas gitlink
+  to `c74b662c` and Hermes gitlink to `c6265cb4`. The changes touch only
+  committed submodule pointers; nested provider checkout dirt remains
+  peer-owned and excluded.
+
 - Merge Hephaestus PR #213 at default `607ce3f`, adding the provider-owned
   typed f32 FDTD contract, WGPU velocity/pressure kernels, and sequential
   contract coverage. Kwavers PR #402 carries the consumer cutover and remains

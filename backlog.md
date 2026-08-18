@@ -74,6 +74,13 @@ provider-owned state rather than an Atlas source edit.
   defaults in the preceding root commit. The structural exact-head audit
   reports all twenty requested providers present, active, and aligned with
   fetched origin defaults.
+- **Moving-default reconciliation (2026-08-18):** the fetched provider
+  defaults moved after the preceding sweep. Atlas advances Aequitas from
+  `4240ae31` to `c74b662c` and Hermes from `dd4cb129` to `c6265cb4`; the
+  nested Aequitas checkout is detached and the Hermes checkout retains only
+  peer-owned lockfile dirt. These are gitlink-only changes. The exact-head
+  audit must pass again at the resulting Atlas commit before this sweep is
+  treated as current.
 - **Final root gates:** `atlas-stack-overlay` run `32072555152`,
   `atlas-conformance` run `32072555155`, and push analysis run `32072554308`
   pass at `944f6e1`. The hosted gates initialize direct members from the
