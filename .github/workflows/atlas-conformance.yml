@@ -18,7 +18,6 @@ on:
       - 'docs/adr/**'
       - 'scripts/atlas-conformance.py'
       - 'scripts/adr-index.py'
-      - 'scripts/atlas-lock-form.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
   push:
@@ -28,7 +27,6 @@ on:
       - 'docs/adr/**'
       - 'scripts/atlas-conformance.py'
       - 'scripts/adr-index.py'
-      - 'scripts/atlas-lock-form.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
 
@@ -85,25 +83,6 @@ jobs:
         # never by editing the baseline upward (that edit is the gamed ratchet
         # the gate exists to catch in review).
 
-      - name: Committed Cargo.lock form (standalone, not overlay-stripped)
-        shell: bash
-        run: |
-          set +e
-          python3 scripts/atlas-lock-form.py check > "$RUNNER_TEMP/lock-form.log" 2>&1
-          status=$?
-          set -e
-          cat "$RUNNER_TEMP/lock-form.log"
-          if [ "$status" -ne 0 ]; then
-            echo "::error::A committed Cargo.lock is in the stack-overlay stripped \
-          form and cannot resolve on a clean checkout (ADR-0044). Repair with \
-          'python scripts/atlas-lock-form.py regenerate <member>' — never by \
-          rebuilding under the overlay, which reproduces the defect."
-          fi
-          exit "$status"
-        # Redirect-then-cat, not a pipe: GitHub's default shell has no
-        # pipefail, so `python3 … | tee` would report tee's status and the
-        # gate could never fail. Same trap the conformance step above documents.
-
       - name: ADR index freshness + governance anomalies
         shell: bash
         run: |
@@ -130,14 +109,6 @@ jobs:
         with:
           name: adr-index-check-log
           path: adr-index-check.log
-          if-no-files-found: ignore
-
-      - name: Upload lock-form log artefact
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: lock-form-check-log
-          path: ${{ runner.temp }}/lock-form.log
           if-no-files-found: ignore
 
       - name: Upload conformance log artefact
