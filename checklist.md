@@ -330,7 +330,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `3f8fe517`.
+      integrate provider PR #349 at current exact source head `bebe2d55`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -340,11 +340,11 @@
       separate from the CFDrs timeout optimization item; no hardcoded runtime
       correlation, weakened assertion, or reduced workload closes the
       benchmark contract.
-- [x] Push the bounded CFDrs lint cleanup through `3f8fe517`: replace state,
+- [x] Push the bounded CFDrs lint cleanup through `bebe2d55`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
-      plugin, unsupported-backend, cavitation, checkpoint, and HDF5 test unwraps with
-      invariant-bearing expectations; route GPU-unavailable, benchmark, and
+      plugin, unsupported-backend, cavitation, and result-existence assertions
+      with invariant-bearing expectations; route GPU-unavailable, benchmark, and
       friction-factor diagnostics through tracing; and repair HDF5/checkpoint
       rustdoc examples. Formatting and touched-source residue scans pass
       locally; the locked package compile is overlay-blocked and the peer
