@@ -181,7 +181,7 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no source or numerical changes, no consumer migration, no
   lockfile rewrite, and no primary-checkout cleanup.
 
-## ATLAS-GAIA-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+## ATLAS-GAIA-CONFORMANCE-001 — add provider LF policy [patch] — completed
 
 - **Owner:** Atlas coordinator; clean Gaia provider lane. Gaia's primary
   checkout is a clean peer-owned interactive rebase and remains untouched.
@@ -195,6 +195,11 @@ nested Harmonia checkout remains provider-owned state.
 - **Acceptance:** a clean provider lane reports zero across all measured
   conformance classes; hosted provider checks pass at the merged head; Atlas
   advances only the resulting Gaia gitlink and synchronizes this record.
+- **Closure:** provider commit `3cb6c82` merged through PR #31 at default
+  `4980732cce0f5a022a67e2c5bdaf2efb894bbf42`; hosted CI run `32165632713`
+  (job `95804433635`) passes. Atlas pointer commit `efb0d15` advances only the
+  Gaia gitlink. The primary checkout remains a clean peer-owned interactive
+  rebase at the pre-merge commit and was not switched or rewritten.
 - **Non-goals:** no geometry, numerical, consumer, manifest, or lockfile
   changes; no primary-checkout cleanup.
 
