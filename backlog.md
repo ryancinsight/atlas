@@ -66,6 +66,10 @@ provider-owned state rather than an Atlas source edit.
   its Ubuntu/Windows CI, MSRV, nightly compile-fail, Miri, and CodeRabbit
   checks all passed. Atlas stages only this gitlink advance; the dirty primary
   checkout remains at the prior head and is untouched.
+- **Post-merge gate:** Themis default-branch MSRV `32194584736`, CI
+  `32194584768`, and Pages `32194583598` are queued at `0484a333`. The green
+  PR checks establish source/merge evidence; these default runs remain the
+  hosted closure gate and are not awaited by this pass.
 - **RITK:** current default `f9d04a79` CI `32192759850` and Python CI
   `32192759832` remain queued. The preceding Python run `32184697093` passed
   its Rust, Clippy, Rustfmt, and platform test jobs but failed three

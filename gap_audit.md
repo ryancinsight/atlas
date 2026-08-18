@@ -87,6 +87,11 @@ compile-fail, Miri, and CodeRabbit checks. Atlas stages only the gitlink
 advance from `d0fcce7a`; the primary nested checkout remains dirty at its old
 head and was not switched or rewritten.
 
+The merge triggered fresh Themis default-branch MSRV `32194584736`, CI
+`32194584768`, and Pages `32194583598` runs at `0484a333`; all are queued at
+the time of this audit. The merged PR checks provide completed evidence, while
+the post-merge runs remain the hosted closure gate.
+
 Before that merge, Themis default `d0fcce7a` had successful MSRV, Windows CI,
 and Pages jobs, but
 Ubuntu CI fails in the warning-denied build at `src/query/platform.rs:55` for

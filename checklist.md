@@ -75,6 +75,8 @@
 - [x] Merge Themis PR #26 after its provider CI, MSRV, nightly compile-fail,
       Miri, and CodeRabbit checks pass; stage Atlas gitlink `d0fcce7a` →
       `0484a333` without changing the dirty primary checkout.
+- [ ] Collect Themis post-merge default runs `32194584736`, `32194584768`,
+      and `32194583598` at `0484a333`; queued status is not hosted closure.
 - [x] Record the RITK transition: current CI/Python runs
       `32192759850`/`32192759832` remain queued at `f9d04a79`; prior Python
       run `32184697093` failed only the three inverse-displacement parity
