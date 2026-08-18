@@ -5100,3 +5100,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-INTEGRATION-002** merged-provider pin reconciliation [patch] — `f26369eb`, `04e496b7`, `ec7cb832`, `e3380b6`
 - **ATLAS-MOIRAI-016** Cancellation-safe async wait queues [patch]
 - **TREE-DUP-002** Moirai dual channel consolidation (ADR-0019) [major] (2026-07-18) — `c5b1333b7`, `fa9abb664`, `ddf216ec0`, `01643ed9b`
+- **ATLAS-MOIRAI-DEFAULT-REFRESH-2026-08-18** — advance `repos/moirai` to
+  fetched default `6a98f3f7bd834f46c8120c291362eb260f6cf875` after hosted Rust
+  Workspace `32175287434` and Python Bindings `32175287255` passed; preserve
+  the peer-dirty primary checkout and leave the broader SeqCst audit open.

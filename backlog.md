@@ -7956,3 +7956,13 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-RITK-TRACTOGRAPHY-011** ritk-tractography crate [minor] (2026-08-05)
 - **ATLAS-RITK-CONNECTOME-012** ritk-connectome crate [minor] (2026-08-05)
 - **ATLAS-MIGRATION-PATHDEP-001** Migrate kwavers, CFDrs, helios, ritk to local path deps [patch] (2026-08-03) — `b2ee610`, `c7c3678`
+
+## ATLAS-MOIRAI-DEFAULT-REFRESH-2026-08-18 — reconcile fetched provider default
+
+- Status: complete. Moirai hosted Rust Workspace run `32175287434` and Python
+  Bindings run `32175287255` both completed successfully at provider default
+  `6a98f3f7bd834f46c8120c291362eb260f6cf875`.
+- The Atlas `repos/moirai` gitlink advances to that exact fetched `origin/main`
+  commit. The primary Moirai checkout remains peer-dirty and is not modified.
+- This is a pointer/PM reconciliation only; it does not claim that the live
+  Moirai SeqCst audit or peer-owned source work is complete.

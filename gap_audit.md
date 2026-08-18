@@ -11892,3 +11892,15 @@ The clean Leto lane added a finite 30-minute bound to the local Python release
 `32174610008` passes. Leto's Rust CI already had a 45-minute bound and its
 reusable release caller was correctly exempt. The primary peer-dirty checkout
 was not modified.
+
+## ATLAS-MOIRAI-DEFAULT-REFRESH-2026-08-18 — provider default reconciliation
+
+Moirai hosted Rust Workspace run `32175287434` and Python Bindings run
+`32175287255` completed successfully. The provider default is
+`6a98f3f7bd834f46c8120c291362eb260f6cf875` (`docs(moirai): Split the ADR
+monolith into per-decision records`), and Atlas advances its gitlink to that
+exact fetched head without touching the peer-dirty primary checkout.
+
+This closes only the pointer reconciliation. The broader Moirai ordering and
+SeqCst ratchet remains an active audit residual, and the Consus/Moirai exact-
+head audit must be rerun after the pointer commit.
