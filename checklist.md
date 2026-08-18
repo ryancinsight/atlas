@@ -4889,6 +4889,12 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       provider default `b98d3f4`; local locked static/value gates and hosted
       verify, supply-chain, and book-build checks pass. The CFDrs wrapper stays
       untouched until the consumer integration item is claimed.
+- [ ] **ATLAS-HARMONIA-CONFORMANCE-001:** claim a clean Harmonia provider lane
+      for `.gitattributes` and `.github/workflows/ci.yml`. Resolve the live
+      scan's missing LF policy, six mutable action references, and missing CI
+      timeout; verify the scan and hosted provider checks at the final merged
+      head, then advance only the Atlas Harmonia gitlink. Preserve the dirty
+      primary provider checkout and do not edit the reusable Pages caller.
 
 ### Delivery rule
 

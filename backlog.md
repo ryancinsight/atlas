@@ -114,6 +114,26 @@ Harmonia and found root gitlink `a8ce2fc3` absent from the provider remote;
 Harmonia `origin/main` is `10e15ae`. Atlas repairs the root pointer only. The
 nested Harmonia checkout remains provider-owned state.
 
+## ATLAS-HARMONIA-CONFORMANCE-001 — close provider repository conformance debt [patch] — in progress
+
+- **Owner:** Atlas coordinator; clean provider lane only.
+- **Claimed scope:** Harmonia `.gitattributes` and
+  `.github/workflows/ci.yml`; the dirty primary Harmonia checkout and its
+  `book-pages.yml`, `Cargo.lock`, book, and example files remain peer-owned.
+- **Observed defects:** the live provider scan at the current fetched
+  `origin/main` reports `gitattributes_missing=1`, six mutable action
+  references, and `workflow_missing_timeout=1`. The reusable Pages caller is
+  exempt because GitHub assigns its effective timeout to the called workflow.
+  The primary checkout's ignored `target/` is derived local output, not a
+  source defect in the clean lane.
+- **Acceptance:** the provider scan reports zero for these claimed classes;
+  every action reference resolves to a verified full commit SHA; each local CI
+  job has a finite timeout; format/diff checks pass; hosted provider checks
+  pass at the merged head; Atlas then reconciles only the Harmonia gitlink and
+  records the exact evidence.
+- **Non-goals:** no consumer migration, no CFDrs edits, no primary checkout
+  cleanup, no Pages caller rewrite, and no change to test budgets or workload.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
