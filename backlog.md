@@ -203,6 +203,22 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no geometry, numerical, consumer, manifest, or lockfile
   changes; no primary-checkout cleanup.
 
+## ATLAS-IRIS-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+
+- **Owner:** Atlas coordinator; clean Iris provider lane. The primary Iris
+  checkout is peer-owned and remains untouched.
+- **Claimed scope:** Iris `.gitattributes` only, plus provider-local format,
+  metadata, and hosted verification. Existing Iris conformance classes are
+  baseline evidence and are not widened into this item.
+- **Finding:** the live Iris scan reports `gitattributes_missing=1`; the
+  provider default does not declare a line-ending policy for mixed-platform
+  checkouts.
+- **Acceptance:** a clean lane reports `gitattributes_missing=0` with no
+  increase in any other measured class; hosted provider checks pass at the
+  merged head; Atlas advances only the resulting Iris gitlink.
+- **Non-goals:** no color-space, numerical, consumer, lockfile, or primary
+  checkout changes.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
