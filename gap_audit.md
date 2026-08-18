@@ -29,13 +29,18 @@ or lockfile is edited across that dirty scope. The prior Helios lock residual
 is closed by merged Helios PR #65 and
 the Atlas gitlink advance to `aa7a4fa`, which pins Apollo `0.27.0`.
 
-Harmonia provider PR #5 merged at `365f0bb` from source commit `685f47d`.
-Verify, supply-chain, and book checks passed; RecurseML remained report-only.
-Its source increment adds a mutable pair-level relaxation seam and atomic
-built-in policies, with local 17/17 nextest, locked all-targets check, Clippy,
-doctest, documentation, and book-build evidence. Atlas advances the root
-gitlink from `02ffd14` to `365f0bb` in this increment; direct CFDrs adoption
-remains the next provider-consumer slice.
+Harmonia PR #6 merged at provider default `b98d3f4` from source commit
+`584e961`. Verify, supply-chain, and book-build checks passed; RecurseML
+remained report-only and the Pages deploy was correctly skipped for the pull
+request. The source increment adds provider-owned `AitkenRelaxation<T>` with
+native `RealField` arithmetic, transactional pair updates, typed configuration
+and value errors, analytical/differential/transactional/generic-scalar tests,
+ADR 0003, and synchronized book/README claims. Local locked all-target check,
+warning-denied Clippy, full Nextest 24/24, focused Aitken 7/7, doctest 1/1,
+Rustdoc, runnable example, and mdBook build pass. Atlas advances the root
+gitlink from `365f0bb` to `b98d3f4`; direct CFDrs adoption and deletion of its
+superseded wrapper remain the next provider-consumer slice. The primary nested
+checkout retains peer-owned workflow/book/example/lockfile dirt.
 
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
@@ -11610,12 +11615,12 @@ package metadata; and make all figure manifests recursive and complete.
   the reusable workflow still includes Python 3.9; this is workflow
   infrastructure, not provider publication evidence.
 - **Capability finding:** CFDrs `cfd-2d` currently owns a stateful
-  Anderson/Aitken resistance mixer. Harmonia PR #5 at `685f47d` now provides
-  the mutable pair-level `Relaxation<T>` seam with atomic fixed/full policies;
-  local provider evidence is 17/17 nextest plus locked check, Clippy,
-  doctest, docs, and book build, and hosted verify, supply-chain, and book
-  checks passed. The Anderson/Aitken algorithm remains in its existing
-  provider and is not duplicated. Atlas now points to the merged Harmonia
+  Anderson/Aitken resistance mixer. Harmonia PR #6 merged at `b98d3f4` now
+  provides the mutable pair-level `Relaxation<T>` seam with atomic fixed/full
+  policies and provider-owned `AitkenRelaxation<T>`. Local provider evidence
+  is 24/24 Nextest, 7/7 focused Aitken tests, locked check, Clippy, doctest,
+  documentation, runnable example, and book build; hosted verify,
+  supply-chain, and book checks passed. Atlas points to the merged Harmonia
   default; CFDrs must call the seam directly and delete its superseded wrapper
   with differential parity evidence.
 

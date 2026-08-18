@@ -271,21 +271,19 @@ same-head run passes.
 
 **Harmonia capability boundary (2026-08-18):** direct CFDrs adoption remains
 open because `repos/CFDrs/crates/cfd-2d/src/network/coupled.rs` preserves a
-stateful Anderson/Aitken resistance-mixing contract. Harmonia commit `685f47d`
-now provides the required mutable pair-level `Relaxation<T>` seam, atomic
-fixed/full policies, ADR 0002, and 17/17 local nextest coverage; it does not
-duplicate the Anderson/Aitken algorithm. Harmonia PR #5 merged at provider
-default `365f0bb` from that commit with verify, supply-chain, and book checks
-green; RecurseML remains report-only. Atlas advances the root gitlink to
-`365f0bb` in this increment. Adding a dependency without the provider
-algorithm would change the numerical contract; adding a consumer adapter or
-fixed-relaxation fallback would violate provider-first ownership. The next
-slice is direct CFDrs integration and deletion of the superseded local
-wrapper. Harmonia's source is clean in the nested checkout; its peer-owned
-workflow/book/example/lockfile dirt is preserved.
+stateful Anderson/Aitken resistance-mixing contract. Harmonia PR #6 merged at
+provider default `b98d3f4` and now provides the mutable pair-level
+`Relaxation<T>` seam, atomic fixed/full policies, provider-owned
+`AitkenRelaxation<T>`, ADR 0002/0003, analytical and transactional coverage,
+and hosted verify, supply-chain, and book-build evidence; RecurseML remains
+report-only. Atlas advances the root gitlink to `b98d3f4`. Adding a consumer
+adapter or fixed-relaxation fallback would violate provider-first ownership.
+The next slice is direct CFDrs integration and deletion of the superseded
+local wrapper. The primary Harmonia checkout retains peer-owned
+workflow/book/example/lockfile dirt.
 
 **ATLAS-HARMONIA-AITKEN-001 — provider-owned stateful relaxation [minor] [arch]**
-**Status:** in-progress; **owner:** atlas coordinator; **claimed scope:**
+**Status:** complete; **owner:** atlas coordinator; **claimed scope:**
 `repos/harmonia/src/relaxation/aitken.rs`, the Harmonia relaxation tests and
 ADR index/record, and the relaxation book chapter. The provider must own the
 input-sensitive Aitken policy used by the CFDrs pair contract, preserve native
@@ -295,10 +293,12 @@ of scope for this claim and is deleted only in the following consumer slice
 after the provider contract is merged and integrated. Acceptance is provider
 local locked check, warning-denied Clippy, Nextest, doctest, Rustdoc, book
 build, and hosted verification at the exact provider head; no fallback,
-adapter, or workload relaxation is permitted.
+adapter, or workload relaxation is permitted. The provider contract is now
+delivered at merged default `b98d3f4`; the following CFDrs consumer item owns
+the remaining wrapper deletion.
 
-**Provider implementation (2026-08-18):** Harmonia commit `584e961` is pushed
-as PR #6 at exact head `584e961244f593f2d86963f09df74e754e17e0d0`. The source
+**Provider implementation (2026-08-18):** Harmonia commit `584e961` merged via
+PR #6 at provider default `b98d3f41d640b3a79df125ef1b3ff786156c5dd3`. The source
 slice adds `AitkenRelaxation<T>` with native `RealField` arithmetic,
 transactional pair updates, typed configuration/value errors, reusable state,
 ADR 0003, and synchronized book/README claims. Local locked all-target check,
@@ -306,8 +306,9 @@ warning-denied Clippy, full Nextest 24/24, focused Aitken 7/7, doctest 1/1,
 Rustdoc, runnable example, and mdBook build pass. Local `mdbook test` cannot
 resolve the four staged dependency rlibs; the provider workflow supplies those
 paths explicitly, so this is an environment limitation rather than a changed
-gate. Hosted verify, supply-chain, and book checks are in progress at the exact
-head; RecurseML is an analyzer error and remains report-only.
+gate. Hosted verify, supply-chain, and book checks pass at the exact head;
+RecurseML is an analyzer error and remains report-only. Atlas advances the
+Harmonia gitlink to merged default `b98d3f4`.
 
 **Latest hosted-state recheck (2026-08-18):** Apollo PR #104 is merged at
 default `d585e0f5` with Rust/Python checks green and benchmark run `32140805200`
