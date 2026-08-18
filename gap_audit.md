@@ -11565,3 +11565,21 @@ The dependency-ordered follow-ups are: repair overlay/lock coherence; close
 Helios book snippets; add CFDrs and Helios wheel/PyPI gates; restore a
 reproducible Kwavers comparator with value-semantic tests; align ABI3 and
 package metadata; and make all figure manifests recursive and complete.
+
+## Finding 2026-08-18: shared wheel behavior gate and Harmonia capability boundary
+
+- **Atlas-owned correction:** `.github/workflows/python-wheels.yml` now accepts
+  an optional provider-owned pytest path. The gate installs the exact workflow
+  pin, runs from the workspace root with `--import-mode=importlib`, and prefixes
+  the caller-relative path with `source/`, so the test imports the installed
+  wheel rather than checkout modules. The default pin is pytest `8.4.2` because
+  the reusable workflow still includes Python 3.9; this is workflow
+  infrastructure, not provider publication evidence.
+- **Capability finding:** CFDrs `cfd-2d` currently owns a stateful
+  Anderson/Aitken resistance mixer, but Harmonia's `PartitionedPair` exposes
+  only stateless fixed/full relaxation. A dependency-only consumer edit would
+  either change the coupling contract or require a prohibited adapter/fallback.
+  The provider-owned next step is a stateful acceleration seam with analytical
+  and differential coverage; CFDrs then calls that seam directly and deletes
+  its superseded wrapper. No Harmonia integration claim is made until that
+  provider capability exists.

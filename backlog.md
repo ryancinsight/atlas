@@ -242,6 +242,28 @@ not claim registry, wheel, or live Pages evidence from a read-only audit.
   only where the committed samples compile, and verify the final Pages
   artifact and live deployment at the same revision as the source.
 
+**Atlas-owned delivery increment (2026-08-18):** the reusable
+`.github/workflows/python-wheels.yml` workflow now accepts an explicit
+provider-owned pytest path and runs that suite after wheel installation in
+importlib mode. The default pytest pin is `8.4.2`, which supports the
+workflow's Python 3.9 floor; providers must still opt in with a bounded,
+value-semantic test path. This adds the shared gate only; it does not claim a
+provider's PyPI publisher or hosted result until its caller is updated and a
+same-head run passes.
+
+**Harmonia capability boundary (2026-08-18):** direct CFDrs adoption remains
+open because `repos/CFDrs/crates/cfd-2d/src/network/coupled.rs` preserves a
+stateful Anderson/Aitken resistance-mixing contract, while Harmonia currently
+provides only stateless fixed/full relaxation in
+`repos/harmonia/src/coupling/pair/algorithm.rs`. Adding a dependency without
+the stateful provider capability would change the numerical contract; adding
+a consumer adapter or fixed-relaxation fallback would violate provider-first
+ownership. The next slice is a Harmonia-owned stateful acceleration contract
+with analytical/differential tests, followed by direct CFDrs integration and
+deletion of the superseded local wrapper. Harmonia source is clean in the
+current nested checkout; its peer-owned workflow/book/example/lockfile dirt is
+preserved.
+
 **Acceptance oracle:** the structural provider audit reports all 22 named
 providers present and active; the exact-head audit passes on a clean checkout;
 the generated overlay and locked dependency graph pass; CFDrs, Kwavers, and

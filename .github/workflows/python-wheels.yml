@@ -39,6 +39,19 @@ on:
         required: false
         default: '["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]'
         type: string
+      python-test-path:
+        description: >-
+          Optional provider-owned pytest path run after wheel installation.
+          The path is relative to the checked-out caller at source/ and must
+          contain bounded value-semantic binding tests.
+        required: false
+        default: ""
+        type: string
+      pytest-version:
+        description: Exact pytest version used by the optional binding gate
+        required: false
+        default: "8.4.2"
+        type: string
 
 permissions:
   contents: read
@@ -104,6 +117,17 @@ jobs:
           python -m pip install --disable-pip-version-check --force-reinstall dist/*.whl
           python -c "import importlib; importlib.import_module('${{ inputs.import-name }}')"
 
+      - name: Run provider binding behavior tests
+        if: inputs.python-test-path != ''
+        shell: bash
+        env:
+          PYTEST_VERSION: ${{ inputs.pytest-version }}
+          PYTHON_TEST_PATH: source/${{ inputs.python-test-path }}
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "pytest==${PYTEST_VERSION}"
+          python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "${PYTHON_TEST_PATH}"
+
       - name: Upload wheel
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -163,6 +187,17 @@ jobs:
           python -m pip install --disable-pip-version-check numpy
           python -m pip install --disable-pip-version-check --force-reinstall dist/*.whl
           python -c "import importlib; importlib.import_module('${{ inputs.import-name }}')"
+
+      - name: Run provider binding behavior tests
+        if: inputs.python-test-path != ''
+        shell: bash
+        env:
+          PYTEST_VERSION: ${{ inputs.pytest-version }}
+          PYTHON_TEST_PATH: source/${{ inputs.python-test-path }}
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "pytest==${PYTEST_VERSION}"
+          python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "${PYTHON_TEST_PATH}"
 
       - name: Upload wheel
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

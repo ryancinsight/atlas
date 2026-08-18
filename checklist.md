@@ -4868,6 +4868,16 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
   coherence, repair Helios `mdbook test`, add CFDrs/Helios wheel behavior and
   trusted-publishing gates, then repair Kwavers comparator/metadata and the
   recursive figure SSOT checks.
+- [x] Extend the Atlas reusable wheel workflow with an optional provider-owned
+      pytest behavior gate. It runs after wheel installation from the workspace
+      root with `--import-mode=importlib`, and pins pytest `8.4.2` so the
+      default Python 3.9 matrix remains valid. Provider callers still need an
+      explicit test-path update and same-head hosted evidence.
+- [ ] Add Harmonia's provider-owned stateful Anderson/Aitken relaxation contract
+      before changing CFDrs `cfd-2d` coupling. Harmonia's current fixed/full
+      relaxation is stateless; no consumer adapter, fallback, or numerical
+      contract change is permitted. Re-open CFDrs direct adoption after the
+      provider conformance and differential tests land.
 
 ### Delivery rule
 
