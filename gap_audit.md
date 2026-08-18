@@ -56,6 +56,23 @@ is unchanged. The remaining ASC-REL-008 work is registry publication,
 trusted-publisher enforcement, and GitHub Release creation, which require the
 release-authority transition and are not inferred from local package evidence.
 
+## Finding 2026-08-18: RITK Apollo forward-sweep residual
+
+The fresh `atlas-provider-integration-audit.py --exact-heads` and
+`atlas-stack-overlay.py check` runs fail only on the RITK consumer edge. Atlas
+records RITK gitlink `f9d04a79`, but its initialized nested checkout is a clean
+local `main` at `86bd9fba`, with two local commits and 56 commits behind the
+fetched `origin/main`. That stale checkout still declares `apollo-fft` 0.26.0
+through the workspace dependency used by `crates/ritk-filter`, while the
+current Apollo package is 0.27.0. The overlay reports the associated six
+RITK lock pins on the older Apollo/Hermes graph. Root lock-form remains clean
+(27 standalone locks plus the declared Melinoe fixture exemption), and the
+12/12 root conformance regression suite remains green. This is a
+provider-owned checkout/consumer migration residual; switching, resetting, or
+rewriting the clean stale checkout would hide its two local commits and was
+not performed. Re-open after coordinated RITK reconciliation and a locked
+focused gate on the regenerated 0.27 lock.
+
 ## Finding 2026-08-18: hosted provider sweep after Mnemosyne reconciliation
 
 A read-only GitHub Actions sweep against the current provider defaults found

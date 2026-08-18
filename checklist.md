@@ -60,6 +60,20 @@
       `--locked` refuses the required lockfile update; this is an integration
       resolver defect, not evidence that the solver tests pass.
 
+## ATLAS-RITK-APOLLO-027-RECONCILIATION-2026-08-18 — current residual
+
+- [x] Reproduce the current exact-head and overlay failure. Both report
+      `repos/ritk/crates/ritk-filter/Cargo.toml` requiring `apollo-fft 0.26.0`
+      while the local provider tree is `0.27.0`; the overlay additionally
+      reports six RITK lock pins on the older Apollo/Hermes graph.
+- [x] Confirm ownership before editing. Atlas records RITK gitlink `f9d04a79`;
+      the nested checkout is clean but remains local `main` at `86bd9fba`
+      (two local commits, 56 commits behind fetched `origin/main`). No branch
+      switch, reset, lockfile rewrite, or peer file modification was performed.
+- [ ] Reconcile the stale checkout through the RITK owner, complete the
+      `apollo-fft` 0.27 requirement and lock forward sweep, run the focused
+      locked RITK gates, and re-collect Atlas exact-head/overlay evidence.
+
 ## ATLAS-AEQUITAS-STRUCTURE-001 — current provider slice
 
 - [x] Split Aequitas' oversized private derived-unit and dimension-law test
