@@ -64,6 +64,13 @@
       `408a31b0` already enables `mdbook-test` but still calls the prior shared
       workflow revision; Kwavers and CFDrs likewise retain peer-owned caller
       pins (`4c31dd7` and `bb505e5`). Caller repinning remains separate work.
+- [x] Correct the conformance workflow classifier at root commit `78c7880`:
+      pure reusable-workflow callers inherit timeout bounds from their called
+      jobs, while mixed workflows still require a local timeout. The focused
+      scanner suite passes 11/11, the Horae live scan tightens
+      `workflow_missing_timeout` from 1 to 0, and the committed baseline records
+      that correction. The commit also contains pre-staged peer root updates;
+      no peer source files were edited by this slice.
 
 # Sweep 2026-08-13 — execution order
 

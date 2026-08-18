@@ -401,7 +401,7 @@
     "type_suffixed_fns": 0,
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 1,
+    "workflow_missing_timeout": 0,
     "workspace_lints_missing": 0
   },
   "hyperion": {

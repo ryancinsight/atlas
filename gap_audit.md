@@ -11062,3 +11062,14 @@ The change is not yet adopted by every caller. Helios default `408a31b0` has
 `mdbook-test: true` but pins the prior shared workflow; Kwavers pins the same
 prior revision, and CFDrs pins `bb505e5`. Those caller changes are separate
 provider-repository integration items and are not claimed by this root slice.
+
+## Finding 2026-08-18: reusable-workflow timeout classifier
+
+The conformance scan previously reported one missing timeout for Horae's pure
+reusable-workflow caller. GitHub's reusable-workflow contract does not permit
+`timeout-minutes` on a caller job; the called workflow owns its effective job
+bounds. Root commit `78c7880` adds `is_reusable_workflow_caller`, keeps mixed
+workflows subject to the local timeout rule, adds both regression cases, and
+updates Horae's baseline from 1 to 0. The focused scanner suite passes 11/11.
+See [GitHub's reusable-workflow job-key contract](https://docs.github.com/en/enterprise-cloud@latest/actions/reference/workflows-and-actions/reusing-workflow-configurations)
+for the supported caller keys.

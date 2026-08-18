@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Correct the conformance scanner at root commit `78c7880` so pure reusable
+  workflow callers are evaluated through the called workflow's bounded jobs;
+  GitHub disallows `timeout-minutes` on the caller job. Mixed workflows retain
+  the local timeout requirement. The focused scanner suite passes 11/11 and
+  Horae's false `workflow_missing_timeout` baseline entry is removed.
+
 - Bound the shared Pages workflow at root commit `6ed29a9`: network downloads,
   package installation, package builds, metadata resolution, mdBook tests, and
   mdBook rendering now have explicit termination bounds; the package build and
