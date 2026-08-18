@@ -321,13 +321,14 @@ downstream lower-wall shear samples, and interpolated negative-to-nonnegative cr
 benchmark configuration to that provider and asserts a finite positive
 field-derived result plus residual value semantics.
 
-Provider PR #349 source head `9d2086b6` is open. Hosted Rust and book checks
-are running; local locked compilation remains blocked before package
-diagnostics by the shared Atlas overlay's dirty Asclepius checkout requiring
-`aequitas ^0.1.0` while the current graph is `0.2.0`. The final exact-head
-hosted result and merge-to-default gitlink sweep remain open. No consumer
-solver, hardcoded runtime correlation, weakened assertion, or reduced
-benchmark workload is an acceptable substitute.
+Provider PR #349 source head `95801b48` is open. Hosted book figures pass, but
+Rust workspace run `32087680839`, job `95563482011`, stops in Clippy before
+tests with 153 errors. Default CFDrs `main` run `32086797481` fails the same
+command, and the reported `cfd-core`/`cfd-io` files are outside the PR diff;
+this is pre-existing default-branch debt rather than a backward-step
+regression. The final exact-head hosted result and merge-to-default gitlink
+sweep remain open. No consumer solver, hardcoded runtime correlation,
+weakened assertion, or benchmark workload is an acceptable substitute.
 
 ## ATLAS-CONSUS-UNWRAP-099 / ATLAS-LETO-CONTRACT-100 — provider ratchet closures (closed 2026-08-17)
 
