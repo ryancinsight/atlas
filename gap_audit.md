@@ -129,6 +129,19 @@ head. Atlas advances only the Hermes gitlink. The nested checkout is already
 at `ef40f43` and retains peer-owned `Cargo.lock` changes; those changes are not
 part of the Atlas integration commit.
 
+## ATLAS-IRIS-CONFORMANCE-2026-08-18 — provider LF-policy closure
+
+The clean Iris lane added only `.gitattributes` at provider commit `3d36a9d`.
+Its post-change conformance scan reports `gitattributes_missing=0` and leaves
+the baseline `type_suffixed_fns=1` unchanged; `git diff --check`, formatting,
+and locked metadata pass. PR #16 merged at provider default
+`f8630a1367f0a72a282b25ed1f73092c17f85ba9`. Hosted verify and supply-chain
+jobs pass in run `32167630353`; RecurseML is report-only. The shared Atlas
+overlay blocked a local locked build because it patched `iris-viz` to the
+primary checkout, so no local check, Clippy, Nextest, doctest, or Rustdoc
+result is claimed. The primary Iris checkout remains peer-owned at `c10b328`
+with Cargo.lock changes untouched.
+
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
 The latest external state is separated from the green root metadata audit:

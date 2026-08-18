@@ -203,7 +203,7 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no geometry, numerical, consumer, manifest, or lockfile
   changes; no primary-checkout cleanup.
 
-## ATLAS-IRIS-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+## ATLAS-IRIS-CONFORMANCE-001 — add provider LF policy [patch] — completed
 
 - **Owner:** Atlas coordinator; clean Iris provider lane. The primary Iris
   checkout is peer-owned and remains untouched.
@@ -216,6 +216,11 @@ nested Harmonia checkout remains provider-owned state.
 - **Acceptance:** a clean lane reports `gitattributes_missing=0` with no
   increase in any other measured class; hosted provider checks pass at the
   merged head; Atlas advances only the resulting Iris gitlink.
+- **Closure:** provider commit `3d36a9d` merged through PR #16 at default
+  `f8630a1367f0a72a282b25ed1f73092c17f85ba9`; hosted verify and supply-chain
+  jobs pass in run `32167630353`. RecurseML is report-only. Atlas advances only
+  the Iris gitlink; the primary checkout remains at peer-owned `c10b328` with
+  its Cargo.lock changes untouched.
 - **Non-goals:** no color-space, numerical, consumer, lockfile, or primary
   checkout changes.
 

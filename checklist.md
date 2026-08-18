@@ -22,6 +22,10 @@
 - [x] Reconcile the subsequent Hermes default movement to `ef40f43`; hosted CI
       run `32165594249` and Pages run `32165592665` pass at that exact provider
       head. The nested checkout retains peer-owned `Cargo.lock` dirt.
+- [x] Close Iris LF-policy cleanup: provider commit `3d36a9d` merged through
+      PR #16 at default `f8630a13`; hosted verify and supply-chain jobs pass in
+      run `32167630353`. The clean lane retains only the baseline
+      `type_suffixed_fns=1` class; the primary checkout remains untouched.
 - [x] Collect and merge RITK PR #165 at default `ae23d4b2`; hosted native CI
       `32063759899` and Python matrix `32063759848` pass at the final source
       head.
