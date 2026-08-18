@@ -57,16 +57,17 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
-- [ ] Collect Apollo PR #104 at current exact head `3892eaa4`; the first
-      benchmark run at `4e727570` reported reproducible slowdowns in nine
-      counterbalanced cases, and the first cleanup head `0bdabd0c` failed
-      compilation because four retained composite `ShortDft` bounds were
-      restored in `3892eaa4`. The cleanup removes the unverified large-codelet
-      expansion from `f78709f4` and restores the existing hinted medium path;
-      collect the new Rust, Python, and benchmark results before merging #104
-      or advancing Apollo's default or its consumers. The Atlas coherence gate
-      remains blocked until that default-version/API sweep is reflected in
-      Coeus, RITK, and Kwavers.
+- [ ] Collect Apollo PR #104 at current exact head `3892eaa4`; Rust and Python
+      pass in run `32116351214`, but the counterbalanced benchmark run
+      `32116351386` fails in twelve cases, including Rader 67/257, Winograd
+      pair 31/53, and composite clone paths 6/36/38/62/63/64. The cleanup
+      removes the unverified large-codelet expansion from `f78709f4` and
+      restores the existing hinted medium path; the remaining benchmark
+      regression is not accepted as noise or an instrument relaxation. No
+      Apollo default, consumer requirement, lock, or Atlas gitlink advances
+      until the production cause is fixed and the exact-head gates are green.
+      The Atlas coherence gate remains blocked until that default-version/API
+      sweep is reflected in Coeus, RITK, and Kwavers.
 - [x] Complete the Apollo benchmark-instrument lock closure on clean lane
       `D:/atlas/worktrees/apollo-root-cleanup`, branch
       `codex/apollo-benchmark-lock-104`, commit `7d56dc2b`, and dependent PR
@@ -335,7 +336,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `b39a00b4`.
+      integrate provider PR #349 at current exact source head `cb2a6fba`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -388,8 +389,11 @@
       exposed one semicolon-if-nothing-returned finding in
       `algebraic_distance_bench` and one in `rk4_bench`; `05328639` fixes both.
       Hosted run `32117031666` then exposed one Markdown acronym diagnostic in
-      `amg_integration_test`; `b39a00b4` fixes it. Locally; the exact
-      `b39a00b4` locked package compile is overlay-blocked and the peer
+      `amg_integration_test`; `b39a00b4` fixes it. Hosted run `32117428513`
+      then exposed two additional Clippy families in `dg_benchmarks.rs` and
+      `core_solver_tests.rs`; `1bf5b344` and `cb2a6fba` fix them. The exact
+      `cb2a6fba` hosted run is `32118252029`; its terminal result is pending.
+      Locally; the locked package compile is overlay-blocked and the peer
       Cargo.lock remains unstaged. Re-open after the exact hosted Clippy
       transcript establishes the remaining count.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
