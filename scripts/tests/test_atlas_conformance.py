@@ -138,6 +138,44 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(first, second)
 
+    def test_reusable_workflow_caller_inherits_called_job_timeout(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".github/workflows/book-pages.yml",
+                "jobs:\n"
+                "  book:\n"
+                "    uses: example/atlas/.github/workflows/book-pages.yml@"
+                "0123456789012345678901234567890123456789\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["workflow_missing_timeout"], 0)
+
+    def test_mixed_reusable_workflow_keeps_local_timeout_requirement(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".github/workflows/mixed.yml",
+                "jobs:\n"
+                "  book:\n"
+                "    uses: example/atlas/.github/workflows/book-pages.yml@"
+                "0123456789012345678901234567890123456789\n"
+                "  local:\n"
+                "    runs-on: ubuntu-latest\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["workflow_missing_timeout"], 1)
+
     def test_cargo_manifests_prune_caches(self) -> None:
         # rglob would crawl target/ and book/; the pruned walker must skip them.
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:

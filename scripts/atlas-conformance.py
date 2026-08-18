@@ -115,6 +115,22 @@ INCLUDE_PATH = re.compile(
 SHA_PIN = re.compile(r"^\s*(?:-\s+)?uses:\s*[^\s@#]+@([A-Za-z0-9._/-]+)", re.MULTILINE)
 
 
+def is_reusable_workflow_caller(text: str) -> bool:
+    """Return whether a workflow delegates all jobs to reusable workflows.
+
+    GitHub does not allow ``timeout-minutes`` on a job that uses a reusable
+    workflow. The called workflow owns the effective job bounds, so treating a
+    pure caller as an unbounded local job creates a false conformance defect.
+    Mixed workflows remain subject to the local timeout check.
+    """
+    return (
+        bool(re.search(r"(?m)^jobs:\s*$", text))
+        and bool(re.search(r"(?m)^\s+uses:\s+\S+/.github/workflows/\S+@\S+", text))
+        and not re.search(r"(?m)^\s+runs-on:\s*", text)
+        and not re.search(r"(?m)^\s+steps:\s*", text)
+    )
+
+
 def scan_workflows(repo: Path, c: dict[str, int]) -> None:
     """Workflow-hygiene classes (engineering_gates): SHA pins, bounds, tokens."""
     wf_dir = repo / ".github" / "workflows"
@@ -128,7 +144,7 @@ def scan_workflows(repo: Path, c: dict[str, int]) -> None:
             1 for m in SHA_PIN.finditer(text)
             if not re.fullmatch(r"[0-9a-f]{40}", m.group(1))
         )
-        if "timeout-minutes" not in text:
+        if "timeout-minutes" not in text and not is_reusable_workflow_caller(text):
             c["workflow_missing_timeout"] += 1
         if "permissions:" not in text:
             c["workflow_missing_permissions"] += 1
