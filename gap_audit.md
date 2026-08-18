@@ -14,18 +14,24 @@ The structural command and its regression suites pass:
 ```text
 python scripts/atlas-provider-integration-audit.py --exact-heads \
   --exact-head-workers 2 --provider-set atlas-22 --structural-only --format text
-python scripts/tests/test_atlas_provider_integration_audit.py  # 27/27
+python scripts/tests/test_atlas_provider_integration_audit.py  # 29/29
 python scripts/tests/test_provider_integration_audit_benchmark.py  # 3/3
 ```
 
 The structural audit is green at the recorded 22-provider graph. Apollo PR
-#104 has since merged into provider default `d585e0f5`, and `apollo-fft` is
-now `0.27.0`. The local full-coherence scan is intentionally red at the exact
-consumer files: Coeus `coeus-autograd` and `coeus-fft`, plus RITK
-`ritk-filter`, still require `apollo-fft 0.26.0`. Those manifests and locks
-are peer-owned dirty state and remain untouched. Consumer updates require one
-dependency-ordered version/lock sweep followed by hosted Coeus and RITK
-verification; no compatibility path is permitted.
+#104 has merged into provider default `d585e0f5`, and `apollo-fft` is now
+`0.27.0`. The standalone version guard reports zero manifest requirement
+defects (`236` manifests/packages, `1,060` requirements). The remaining local
+overlay residual is one peer-owned Helios lock pin: `repos/helios/Cargo.lock`
+still locks `apollo-fft 0.26.0` while the local provider is `0.27.0`; no
+consumer lockfile is edited across that dirty scope.
+
+Harmonia's root pointer remains `02ffd14` while provider PR #5 carries
+`685f47d`. Its source increment adds a mutable pair-level relaxation seam and
+atomic built-in policies, with local 17/17 nextest, locked all-targets check,
+Clippy, doctest, documentation, and book-build evidence. The provider hosted
+CI and Pages checks are queued; the root pointer advances only after their
+exact-head result is collected.
 
 ## ATLAS-PROVIDER-POINTER-CORRECTION-2026-08-18 — peer staging reconciliation
 
@@ -37,6 +43,11 @@ fetched provider defaults are Apollo `d585e0f5`, Helios `408a31b0`, and RITK
 provider work is invalid. Atlas corrects only the parent gitlinks and leaves
 all nested source, manifest, lockfile, and branch state untouched. The exact
 head audit is the acceptance check for this correction.
+
+Follow-up root commits `beb5e02`, `806c1a6`, and `4b5ad52` advance the fetched
+RITK default to `dd577946` and keep the complete 22-provider structural audit
+green. The nested RITK checkout remains dirty and is not treated as clean
+checkout evidence.
 
 ## ATLAS-ORPHAN-MODULES-096-KWAVERS — hosted integration boundary (2026-08-18)
 
@@ -11576,13 +11587,14 @@ package metadata; and make all figure manifests recursive and complete.
   the reusable workflow still includes Python 3.9; this is workflow
   infrastructure, not provider publication evidence.
 - **Capability finding:** CFDrs `cfd-2d` currently owns a stateful
-  Anderson/Aitken resistance mixer, but Harmonia's `PartitionedPair` exposes
-  only stateless fixed/full relaxation. A dependency-only consumer edit would
-  either change the coupling contract or require a prohibited adapter/fallback.
-  The provider-owned next step is a stateful acceleration seam with analytical
-  and differential coverage; CFDrs then calls that seam directly and deletes
-  its superseded wrapper. No Harmonia integration claim is made until that
-  provider capability exists.
+  Anderson/Aitken resistance mixer. Harmonia PR #5 at `685f47d` now provides
+  the mutable pair-level `Relaxation<T>` seam with atomic fixed/full policies;
+  local provider evidence is 17/17 nextest plus locked check, Clippy,
+  doctest, docs, and book build. The Anderson/Aitken algorithm remains in its
+  existing provider and is not duplicated. Hosted CI and Pages are queued, so
+  the root gitlink remains `02ffd14`; after merge, CFDrs must call the provider
+  seam directly and delete its superseded wrapper. No direct CFDrs adoption
+  claim is made before that hosted merge and differential parity evidence.
 
 ## Finding 2026-08-18: exact-head audit did not prove clean nested checkouts
 

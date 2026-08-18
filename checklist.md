@@ -4835,7 +4835,7 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
   Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Gaia, Hermes, and
   Iris. `Tyche` is canonical; `Tychee` is an audit normalization alias.
 - [x] Structural exact-head audit passes for all 22 active providers after
-  fetched-default reconciliation; regression suites pass 27/27 and 3/3.
+      fetched-default reconciliation; regression suites pass 29/29 and 3/3.
 - [x] Rechecked live consumer coherence after the Coeus provider advance: the
       exact-head audit and standalone version guard report zero requested-scope
       manifest defects. The committed overlay still reports Helios
@@ -4873,11 +4873,16 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       root with `--import-mode=importlib`, and pins pytest `8.4.2` so the
       default Python 3.9 matrix remains valid. Provider callers still need an
       explicit test-path update and same-head hosted evidence.
-- [ ] Add Harmonia's provider-owned stateful Anderson/Aitken relaxation contract
-      before changing CFDrs `cfd-2d` coupling. Harmonia's current fixed/full
-      relaxation is stateless; no consumer adapter, fallback, or numerical
-      contract change is permitted. Re-open CFDrs direct adoption after the
-      provider conformance and differential tests land.
+- [x] Add Harmonia's provider-owned mutable pair-level relaxation seam before
+      changing CFDrs `cfd-2d` coupling. Harmonia commit `685f47d` adds the
+      `update_pair`/`relaxation_mut` contract, atomic fixed/full validation, ADR
+      0002, and local 17/17 nextest coverage. The Anderson/Aitken algorithm is
+      intentionally not duplicated in Harmonia; PR #5 hosted CI and Pages
+      checks remain queued.
+- [ ] Merge Harmonia PR #5, advance the Atlas gitlink from `02ffd14`, then
+      replace the CFDrs local Anderson/Aitken wrapper with a direct provider
+      implementation and analytical/differential parity evidence. No consumer
+      adapter, fallback, or numerical-contract change is permitted.
 
 ### Delivery rule
 
