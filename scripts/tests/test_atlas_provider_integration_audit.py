@@ -64,15 +64,18 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
     def test_clean_checkout_issues_report_head_drift_and_dirty_state(self) -> None:
         provider = "horae"
         expected = "a" * 40
-        with patch.object(audit, "_gitlink_commits", return_value={provider: expected}), patch.object(
-            audit,
-            "_git_output",
-            side_effect=[
-                (0, expected, ""),
-                (0, " M src/lib.rs\n?? scratch.txt", ""),
-            ],
-        ), patch.object(audit, "ROOT", Path("D:/atlas")):
-            issues = audit._clean_checkout_issues((provider,))
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            (root / "repos" / provider).mkdir(parents=True)
+            with patch.object(audit, "_gitlink_commits", return_value={provider: expected}), patch.object(
+                audit,
+                "_git_output",
+                side_effect=[
+                    (0, expected, ""),
+                    (0, " M src/lib.rs\n?? scratch.txt", ""),
+                ],
+            ), patch.object(audit, "ROOT", root):
+                issues = audit._clean_checkout_issues((provider,))
 
         self.assertEqual(issues, ["repos/horae: checkout is dirty (2 changed entries)"])
 
