@@ -11309,3 +11309,21 @@ update or suppression is authorized from this live result.
 Re-open trigger: reconcile the peer worktrees, materialize the recorded
 gitlinks, and rerun `check` against that clean revision. The existing hosted
 conformance evidence remains the merge-gate evidence until then.
+
+## Finding 2026-08-18: CFDrs SIMD test lint residual closed at exact head
+
+CFDrs PR #349 advanced from `bc39d336` to `c5563b9e` after hosted Rust run
+`32114902789` isolated three `cfd-math/tests/simd_tests.rs` diagnostics:
+captured-format-argument style, an exact floating-point comparison, and
+rustdoc Markdown formatting. The source fix uses a captured format argument,
+the derived `f32::EPSILON` bound for the exact zero-plus-one case, and explicit
+code spans for `SIMD`/`CFD` terminology. `cargo fmt --all -- --check` and the
+full `cfd-math` residue scan pass; the scan retains only the intentional
+production `binary_search(...).is_err()` control-flow branch. The next hosted
+PR run is `32115481118`, pending for both the Rust workspace and book-figure
+jobs at the time of this record.
+
+The local locked package gate remains blocked before compilation because the
+shared Atlas overlay attempts to rewrite the peer-owned lane `Cargo.lock`
+under `--locked`. That lock remains unstaged. The hosted run at the exact
+source head is the acceptance oracle for this increment.

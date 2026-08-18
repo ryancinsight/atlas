@@ -333,7 +333,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `bc39d336`.
+      integrate provider PR #349 at current exact source head `c5563b9e`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -343,7 +343,7 @@
       separate from the CFDrs timeout optimization item; no hardcoded runtime
       correlation, weakened assertion, or reduced workload closes the
       benchmark contract.
-- [x] Push the bounded CFDrs lint cleanup through `bc39d336`: replace state,
+- [x] Push the bounded CFDrs lint cleanup through `c5563b9e`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
       plugin, unsupported-backend, cavitation, backend-validation, and
@@ -374,10 +374,13 @@
       cfd-math benchmark and integration-test results. The source scan now has no
       remaining unwrap, existence-only result assertion, print, or debug macro in
       `cfd-math`; close hosted Clippy’s ordering, iterator, cast, `let-else`,
-      and empty ignored AMG placeholder findings. Locally; the exact `bc39d336`
-      locked package compile is overlay-blocked and the peer
-      Cargo.lock remains unstaged. Re-open after the exact hosted Clippy
-      transcript establishes the remaining count.
+      and empty ignored AMG placeholder findings. The final SIMD-test lint
+      residuals at hosted run `32114902789` are corrected in `c5563b9e`:
+      captured format arguments, machine-epsilon value comparison, and
+      rustdoc Markdown spans. Formatting and the touched-source residue scan
+      pass. Locally; the exact `c5563b9e` locked package compile is
+      overlay-blocked and the peer Cargo.lock remains unstaged. Re-open after
+      the exact hosted Clippy transcript establishes the remaining count.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
       shared Pages caller enables `mdbook-test`, local book gates pass, and
       PR #59 merges at default `679402ae`. Hosted Rust, Python, benchmark, and
