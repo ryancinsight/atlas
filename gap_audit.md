@@ -11309,14 +11309,38 @@ The cfd-2d cleanup closes the all-target lint residuals without changing
 numerical workloads. Local `cargo clippy -p cfd-2d --all-targets --no-deps
 -- -D warnings` passes and `cargo nextest run -p cfd-2d --tests --no-fail-fast`
 passes 582/582 with 27 committed skips. Manual workflow dispatch run
-`32135266216` is the exact-head hosted acceptance run and is in progress for
-the Rust workspace and book-figure jobs.
+`32135266216` is the exact-head hosted acceptance run. Book figures pass, but
+the Rust numerical-fidelity job fails when
+`cfd-validation::benchmark_validation::test_benchmark_run_integration`
+terminates at the committed 30-second budget. Local reproduction also returns
+reattachment approximately `2.04` against the adapter's fixed `6.0` reference
+when allowed to complete; this is a provider-backed correctness residual, not
+a reason to reduce the workload or weaken the assertion.
 
-Apollo PR #104 is at exact source head `48c14edf9123efc8e36e1bf1a833a9b6c8e5262a`.
-The f64 length-127 FullCyclic routing experiment passes local Apollo check and
-395/395 library tests. Hosted CI run `32134682876` and benchmark run
-`32134682734` are in progress; the benchmark is the acceptance oracle for the
-remaining performance claim.
+Apollo PR #104 is at exact source head `74772c2f8e84ae9cb205995a013949e4b5d8b303`.
+Local `apollo-fft` check and 394/394 library tests pass. Hosted CI run
+`32135982784` is green, while benchmark run `32135982769` fails four-way on
+`half_cyclic_rader/full_cyclic_f32/1031`,
+`half_cyclic_rader/half_cyclic_f32/1031`, and
+`kernel_strategy/mixed_precision_f16_auto/96`; the targeted length-127 case
+is absent from the failure set. The prior FullCyclic length-127 experiment at
+`48c14edf` was falsified by its hosted benchmark and was removed; the current
+head only removes that exception and the `inline(never)` dynamic-Rader
+boundary. Atlas now points to fetched Apollo default `df899f9a`; the unmerged
+PR #104 benchmark head is not integrated. No PR #104 consumer, lock, or
+experimental gitlink advance is authorized until a source-attributed
+benchmark correction is green.
+
+CFDrs PR #349 exact head `8d95eeaed3916fa2e9987b14a42f9d1ab0b31f56` passes the
+local cfd-2d all-target Clippy gate and 582/582 cfd-2d tests with 27 skips.
+Hosted run `32135266216` passes book-figure validation but fails the numerical-
+fidelity invocation when `cfd-validation::benchmark_validation::test_benchmark_run_integration`
+terminates at the committed 30-second budget. Local reproduction with the
+same provider-backed adapter also completes only after the budget when the
+default 64x192 masked SIMPLE workload is allowed to run, and returns
+reattachment approximately `2.04` against the adapter's fixed `6.0` reference;
+this is a correctness residual, not a valid reason to reduce the workload or
+weaken the assertion. The peer-owned CFDrs Cargo.lock remains unstaged.
 
 ## Finding 2026-08-18: Live conformance scan is not a clean-revision gate
 

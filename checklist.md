@@ -57,15 +57,18 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
-- [ ] Collect Apollo PR #104 at current exact head `48c14edf`; Rust and
-      Python checks passed locally at the exact source, with 395/395 Apollo
-      library tests passing. Hosted CI and benchmark run `32134682734` are in
-      progress. The bounded correction adds a scalar-policy exception routing
-      f64 Rader length 127 through FullCyclic; the direct policy test passes.
-      No Apollo default, consumer requirement, lock, or Atlas gitlink advances
-      until the hosted release-profile benchmark is green. The Atlas
-      coherence gate remains blocked until the default-version/API sweep is
-      reflected in Coeus and RITK.
+- [ ] Collect Apollo PR #104 at exact head `74772c2f`; local `apollo-fft`
+      check and 394/394 library tests pass. Hosted CI run `32135982784` is
+      green, but benchmark run `32135982769` remains red on
+      `half_cyclic_f32/1031`, `full_cyclic_f32/1031`, and
+      `mixed_precision_f16_auto/96`; the targeted length-127 regression is
+      absent. The preceding FullCyclic length-127 experiment at `48c14edf`
+      was falsified by its hosted benchmark and has been removed. No Apollo
+      default, consumer requirement, lock, or Atlas gitlink advances until a
+      source-attributed benchmark correction is green. Atlas now points to
+      Apollo's fetched default `df899f9a`; the unmerged PR #104 benchmark head
+      is not integrated. The Atlas coherence gate remains blocked until the
+      default-version/API sweep is reflected in Coeus and RITK.
 - [x] Complete the Apollo benchmark-instrument lock closure on clean lane
       `D:/atlas/worktrees/apollo-root-cleanup`, branch
       `codex/apollo-benchmark-lock-104`, commit `7d56dc2b`, and dependent PR
@@ -358,8 +361,13 @@
       line-ending pattern. The cfd-2d all-target gate is now green locally:
       Clippy with `-D warnings` passes and native Nextest reports 582/582
       passed with 27 committed skips. Manual workflow dispatch run
-      `32135266216` is now the exact-head hosted acceptance run; Rust and
-      book-figure jobs are in progress.
+      `32135266216` is the exact-head hosted acceptance run. Book figures pass,
+      but the Rust numerical-fidelity job fails at the committed 30-second
+      budget in `cfd-validation::benchmark_validation::test_benchmark_run_integration`.
+      Local reproduction also returns reattachment approximately `2.04` against
+      the adapter's fixed `6.0` reference when allowed to complete, so the
+      residual is both a timeout and a provider-backed correctness failure; no
+      workload reduction or assertion weakening is authorized.
 - [x] Push the bounded CFDrs lint cleanup through `b39a00b4`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
