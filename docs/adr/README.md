@@ -51,3 +51,5 @@
 | [0043](0043-toolchain-host-triple-pin.md) | Pin the toolchain host triple, not just the version | Proposed |
 | [0044](0044-committed-cargo-lock-form.md) | Committed Cargo.lock is the standalone form | Accepted |
 | [0045](0045-native-http-s3-transport-stack.md) | Native HTTP/S3 transport stack (moirai transport, consus S3) | Accepted |
+| [0046](0046-hdf5-ultrasound-format-dependency.md) | Decline the HDF5 ultrasound format; keep NRRD as the acquisition-geometry carrier | Accepted |
+| [0047](0047-slice-series-coordinate-map.md) | `SliceSeries` carries an owned per-slice rigid transform list | Accepted |
