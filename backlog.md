@@ -2114,7 +2114,26 @@ real-word false positives guarded (`..._matches_direct_reduced_precision` uses
   `TwiddleStore`, `NormalizeSlice`, `ScratchDispatch`.
 - Independent of 050A: type-level and crate-wide versus x86 leaf codegen.
 
-## ATLAS-CONSUS-ZARR-BYTES-ENDIAN-206 — `bytes` codec ignores its `endian` config [major] — open 2026-08-18
+## ATLAS-CONSUS-ZARR-CODEC-FOLLOWUPS-214 — Two pieces deliberately left out of `-206`/`-207` [minor] — open 2026-08-18
+
+- **Element width for the `bytes` codec.** The swap itself is trivial; what is
+  missing is the dtype. `CodecPipeline::{compress,decompress}` take
+  `(codec, &[u8])`, so no arm can know whether to swap in 2-, 4-, or 8-byte
+  groups. Threading the element width through the pipeline is the real
+  closure, after which the `UnsupportedFeature` arm becomes a swap.
+- **A `crc32c` implementation.** `consus-compression` has `Crc32`, but it is
+  CRC-32/IEEE. Zarr v3 mandates Castagnoli. Implementing `crc32c` alongside it
+  (not replacing — IEEE has its own users) plus the ±4-byte length plumbing
+  closes `-207` properly.
+- **`endian = "native"` is not a legal Zarr v3 value.** The spec admits only
+  `little` and `big`, and this crate writes `"native"` from its own pipeline
+  constructors (`codec/mod.rs:464,479`, `metadata/codec.rs:122`) and tests for
+  it in an identity check (`metadata/codec.rs:108`). Left out of the fix
+  because changing it changes **serialized on-disk metadata**, a wider blast
+  radius than the codec arms and one needing a round-trip fixture; the codec
+  accepts `"native"` as host-order in the meantime, documented at the site.
+
+## ATLAS-CONSUS-ZARR-BYTES-ENDIAN-206 — `bytes` codec ignores its `endian` config [major] — closed 2026-08-18
 
 - Found while fixing `-038`; the same identity-arm shape, two files over.
 - Evidence: `crates/consus-zarr/src/codec/mod.rs:170` (compress) and `:218`
@@ -2137,7 +2156,34 @@ real-word false positives guarded (`..._matches_direct_reduced_precision` uses
   a big-endian fixture decodes to exact expected values and fails under the
   current identity body; round-trip property tests over ≥2 multi-byte dtypes.
 
-## ATLAS-CONSUS-ZARR-CRC32-207 — `crc32` checksum is neither written nor verified [major] — open 2026-08-18
+**Closed in consus `2488bbe`** (branch `fix/consus-zarr-codec-identity-206`,
+pushed, not merged — consus's shared tree is on detached HEAD with a live
+peer's 22 dirty files and a populated index, so the fix was committed through
+a private index touching only `codec/mod.rs`, and the worktree was restored to
+the peer's exact state afterwards).
+
+`bytes` is now identity **exactly when** the stored order matches the host,
+and `UnsupportedFeature` otherwise. It does not swap, because it cannot: see
+`-214`. The accepted-path fix still matters — the previous arm returned `Ok`
+for *every* endianness, so the foreign-order case was silent corruption.
+
+**A larger finding came out of `-207` while fixing it, and changed the
+answer.** The acceptance criteria offered "verify, or refuse with a typed
+error"; refusal turned out to be the only correct option, not the lazy one.
+`consus-compression::Crc32` is CRC-32/**IEEE** (reflected `0xEDB88320`), while
+Zarr v3's checksum codec is **crc32c** (Castagnoli, reflected `0x82F63B78`).
+Wiring the available implementation in would have emitted checksums no
+conformant reader accepts — converting a silent *read* defect into a silent
+*write* defect. Refused in both directions with the reason recorded at the
+site.
+
+Gates on consus-zarr: nextest **307 passed** including three new tests, clippy
+`-D warnings` 0, fmt 0. The two rejection tests assert
+`Err(UnsupportedFeature)`, which the previous `Ok(data.to_vec())` bodies
+cannot satisfy — falsification here is by assertion shape, not by a reverted
+run.
+
+## ATLAS-CONSUS-ZARR-CRC32-207 — `crc32` checksum is neither written nor verified [major] — closed 2026-08-18 (with `-206`, same commit)
 
 - Evidence: `crates/consus-zarr/src/codec/mod.rs:173` (compress) and `:221`
   (decompress) both return `Ok(data.to_vec())`. The comments are
