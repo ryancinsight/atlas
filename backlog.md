@@ -1110,6 +1110,24 @@ platform default and what the CUDA toolkit expects.
 **Acceptance oracle:** every `rust-toolchain.toml` names a full triple; a
 committed check fails when two host triples appear in the shared cache.
 
+**Second occurrence, 2026-08-15 — the cost is recurring, not one-off.** A
+hermes workspace clippy run failed with `E0461` on `mnemosyne_core`,
+`backtrace` and `serde`, all reading "expected target triple
+`x86_64-pc-windows-msvc`". `cargo clean -p` across those packages removed 8228
+files / 1.8 GiB and simply exposed the next layer — `mnemosyne_build_util`,
+`rustc_demangle`, `bitflags` — which is exactly the predicted whack-a-mole:
+the poisoned generation has to be deleted wholesale, and per-package cleaning
+cannot converge. The blocked run was verifying a one-line README change, so
+the entire diagnosis cost was overhead.
+
+Two mechanics worth knowing before applying this. `cargo clean -p a -p b`
+aborts on the first invalid package ID rather than cleaning the valid ones, so
+a single typo cleans nothing while looking like it ran. And in PowerShell,
+`cargo … | Select-String …; $LASTEXITCODE` reports `Select-String`'s status,
+exactly as `| tail` does in bash — the same exit-code masking that left the
+conformance ratchet undetectably inert until `977e009`, now found in a second
+shell.
+
 ## ATLAS-STD-AMX-DETECT-082 — `is_x86_feature_detected!("amx-tile")` is unsound [patch] — done 2026-08-14
 
 Found while delivering ATLAS-HERMES-AMX-040. The std macro checks CPUID and
