@@ -78,7 +78,7 @@
 - [ ] Collect Helios PR #64 at source `9a590ff` after its hosted Rust, Python,
       benchmark, and Pages gates pass. It repins the caller to Atlas workflow
       `6ed29a9`; the Atlas Helios gitlink remains unchanged until hosted proof.
-- [ ] Collect Hyperion PR #14 at source `ace8b12` after its hosted Rust,
+- [ ] Collect Hyperion PR #14 at source `b8d4fb8` after its hosted Rust,
       supply-chain, and Pages gates pass. It adds the missing line-ending
       policy, bounds both CI jobs, and enables the four executable book samples
       through the shared `mdbook-test` gate; the Atlas Hyperion gitlink remains
