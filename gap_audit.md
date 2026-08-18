@@ -11350,12 +11350,13 @@ consume the new codelets.
 Apollo head `0bdabd0c` removed that expansion but hosted compilation exposed
 four retained `ShortDft` implementations that the cleanup patch had to retain;
 `3892eaa4` restores `222`, `246`, `259`, and `296`. Hosted Rust and Python pass
-in `32116351214`, but benchmark run `32116351386` fails twelve cases, including
-Rader 67/257, Winograd pair 31/53, and composite clone paths 6/36/38/62/63/64.
-The result is a production performance residual from the exact candidate, not
-permission to weaken the counterbalanced gate. No Apollo default, consumer
-requirement, lock, or Atlas gitlink advances until the cause is fixed and the
-exact-head gates are green.
+at `4906cd28`. The prior counterbalanced run `32116351386` at `3892eaa4` failed
+twelve cases, including Rader 67/257, Winograd pair 31/53, and composite clone
+paths 6/36/38/62/63/64. Commit `4906cd28` changes only the benchmark build to
+Apollo's production single-codegen-unit release profile; the workload and
+comparison logic are unchanged. Its exact benchmark run is `32118791194` and
+is still compiling. No Apollo default, consumer requirement, lock, or Atlas
+gitlink advances until the release-profile gate is green.
 
 ## Finding 2026-08-18: CFDrs Clippy residuals after AMG cleanup
 
@@ -11365,7 +11366,9 @@ arguments in `crates/cfd-math/benches/dg_benchmarks.rs`, then five ambiguous
 single-letter bindings and two Markdown spellings in
 `crates/cfd-math/tests/core_solver_tests.rs`. Commits `1bf5b344` and
 `cb2a6fba` fix those diagnostics without changing solver behavior or benchmark
-workloads. The exact next hosted run is `32118252029` at `cb2a6fba`; its
-terminal result is pending. The local locked package gate remains blocked
-before compilation by the shared Atlas overlay attempting to rewrite the
-peer-owned lane `Cargo.lock`, which remains unstaged.
+workloads. Hosted run `32118252029` then exposed one explicit-iterator
+diagnostic in `crates/cfd-math/benches/cg_bench.rs`; `ea1426ac` fixes it. The
+exact next hosted run is `32119001889` at `ea1426ac`; its terminal result is
+pending. The local locked package gate remains blocked before compilation by
+the shared Atlas overlay attempting to rewrite the peer-owned lane
+`Cargo.lock`, which remains unstaged.
