@@ -4909,6 +4909,12 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       LF-policy finding but an active peer lane. All other nonzero classes map
       to peer-owned provider trees or active lanes; no peer source, manifest,
       lockfile, checkout, or lane was changed.
+- [ ] **ATLAS-PROTEUS-CONFORMANCE-001:** reclaim the stale merged temperature-
+      validity lane, create a clean Proteus lane from provider `origin/main`
+      `996b822`, add only `.gitattributes`, and run the provider conformance
+      and locked CI gates. Preserve the primary peer-owned `Cargo.lock`; merge
+      the provider cleanup and advance only its Atlas gitlink after hosted
+      verification.
 
 ### Delivery rule
 

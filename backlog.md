@@ -158,6 +158,23 @@ nested Harmonia checkout remains provider-owned state.
   is separately merged and verified. Further cleanup is claimable only in a
   disjoint scope with an available lane or explicit periphery ownership.
 
+## ATLAS-PROTEUS-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+
+- **Owner:** Atlas coordinator; reclaimed stale merged lane, then clean
+  Proteus provider lane.
+- **Claimed scope:** Proteus `.gitattributes` only, plus its provider-local CI
+  verification. The primary checkout's peer-owned `Cargo.lock` and the merged
+  temperature-validity source remain untouched.
+- **Finding:** the all-22 live conformance scan reports only
+  `gitattributes_missing=1` for Proteus. Its prior temperature-validity lane
+  is merged at provider default `996b822` and is stale/reclaimable.
+- **Acceptance:** the clean provider lane reports zero for all measured
+  conformance classes; local locked format/check/lint/test/doc/example and
+  supply-chain gates pass; hosted provider checks pass at the merged head; Atlas
+  advances only the resulting Proteus gitlink and synchronizes this record.
+- **Non-goals:** no source or numerical changes, no consumer migration, no
+  lockfile rewrite, and no primary-checkout cleanup.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
