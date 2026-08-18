@@ -330,7 +330,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `5265128c`.
+      integrate provider PR #349 at current exact source head `d1f16880`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -340,7 +340,7 @@
       separate from the CFDrs timeout optimization item; no hardcoded runtime
       correlation, weakened assertion, or reduced workload closes the
       benchmark contract.
-- [x] Push the bounded CFDrs lint cleanup through `5265128c`: replace state,
+- [x] Push the bounded CFDrs lint cleanup through `d1f16880`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
       plugin, unsupported-backend, cavitation, backend-validation, and
@@ -363,7 +363,9 @@
       families and route convergence diagnostics through tracing; harden the
       multigrid coarsening, DG limiter, GMG, SIMD, DG operator, spectral,
       restriction, smoother, sparse, direct-solver, ILU, DG solver, LGL, and
-      spectral-operator test families.
+      spectral-operator, DG documentation, iterator, interpolation, JFNK, and
+      SIMD test families. The source scan now has no remaining unwrap,
+      existence-only result assertion, print, or debug macro in `cfd-math`.
       locally; the locked package compile is overlay-blocked and the peer
       Cargo.lock remains unstaged. Re-open after the exact hosted Clippy
       transcript establishes the remaining count.
