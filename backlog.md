@@ -1409,7 +1409,19 @@ renormalized in one dedicated commit, and `gitattributes_missing` is 0 for
 CFDrs.
 
 **Status → blocked 2026-08-14; re-open trigger: the CFDrs working branch is
-merged to `main` and no second lane is live.** Confirmed and worse than filed.
+merged to `main` and no second lane is live.**
+
+**Blocker re-verified 2026-08-18 and it still holds** — the trigger has not
+fired. `worktrees/CFDrs-runtime-budget` is live on
+`codex/cfdrs-backward-step-108`, and `origin` carries ten-plus branches
+unmerged into `main`. Renormalizing the tree now would conflict with every one
+of them, which is precisely the cost the item describes. Its scale is filed
+separately as `-208`. The underlying defect was re-confirmed unchanged today:
+`.gitattributes` still absent, `core.autocrlf=true`, and the same directory
+still mixes stored endings — `crates/cfd-1d/Cargo.toml` LF against
+`crates/cfd-python/Cargo.toml` and `crates/cfd-schematics/Cargo.toml` CRLF.
+
+Confirmed and worse than filed.
 `core.autocrlf=true` is set globally while committed blobs are *inconsistent*:
 `crates/cfd-1d/Cargo.toml` is stored LF, `crates/cfd-python/Cargo.toml` and
 `crates/cfd-schematics/Cargo.toml` are stored CRLF, in one directory. With
@@ -1697,6 +1709,77 @@ does not affect that workflow's inputs.
 - Verification: focused Coeus nextest, Python binding parity, doctests, fmt,
   Clippy, and hosted WGPU/CUDA/ROCm/Metal/book checks pass at the merged
   provider head.
+
+## ATLAS-KWAVERS-GATE-REDS-209 — Four gate reds escaped from kwavers `23f53284d` [patch] — done 2026-08-18
+
+Landed in peer commit `f05d207d7` (converged with a live peer rather than
+duplicating; nothing committed separately). All four held on inspection — none
+was a false positive.
+
+1. **Unused import**, `cache/mod.rs:38`: `SOUND_SPEED_WATER_SIM` was used only
+   from the `#[cfg(test)]` module, so the non-test lib build warned. Moved into
+   the test module.
+2. **`too_many_arguments`** on `OperatorKey::new` (8 params) — **fixed with a
+   struct, not a suppression.** `nx,ny,nz,dx,dy,dz,c_ref,dt` always travel
+   together and fully determine the k-space operator set, so they became
+   `OperatorParams { shape, spacing, c_ref, dt }`. This removes a real
+   positional-ambiguity hazard between the three spacings that a suppression
+   would have preserved.
+3. **Broken doctest**, `cem43_reference.rs:59`: called
+   `analytical_cem43_constant` with no import, so it never compiled as an
+   external-crate doctest. Repaired to the current API and its comment
+   "Returns 120.0" upgraded to a real assertion — value-semantic, not
+   `no_run`/`ignore`.
+4. **`missing_const_for_thread_local`** at two sites. Found mid-oscillation: an
+   `#[allow]` placed *outside* the `thread_local!` invocation produced **two**
+   errors, since built-in attributes are ignored on a macro invocation —
+   `unused attribute 'allow'` plus the lint itself. Fixed with the gated
+   `#[cfg_attr(all(windows, target_env = "gnu"), expect(..., reason = "..."))]`
+   form inside the macro, matching apollo/hermes/ritk/coeus/kwavers-gpu. No
+   `#[allow(unfulfilled_lint_expectations)]` anywhere.
+
+The oscillation had a cause worth recording: the prior comments asserted the
+variance was **per Clippy build**, which is what justified an `allow` and made
+the site flip three times (a peer reverted `cache/mod.rs` to `#[allow]` mid-
+session, leaving the repo self-inconsistent and its "same treatment as
+`OPEN_WINDOWS`" comment factually false). The comments now state it is
+**host-triple dependent**, which is the measured behaviour and the thing that
+makes gating correct.
+
+**Gates** (`1.97.0-x86_64-pc-windows-gnu`, `RUSTC`/`RUSTDOC` cleared per
+invocation, exit codes read from files rather than through a pipe):
+`cargo fmt --check` 0 · `cargo clippy --workspace --all-targets -- -D warnings`
+**0** across 22 crates with no `--allow`/`--cap-lints` neutralisation ·
+`cargo nextest run --workspace` **0, 6230/6230 passed**, 14 skipped, 738s —
+exactly baseline · `cargo test --doc --workspace` 0.
+
+One earlier nextest run exited 100 on nextest's own 15-minute `global-timeout`
+at 3919/6230 with **0 failed** — host contention from concurrent peer builds,
+not a budget defect. The budget was not touched; a re-run on a quieter host
+completed all 6230. Same quiet-host precondition as the benchmark gate.
+
+## ATLAS-CFDRS-LANE-DIVERGED-208 — CFDrs lane holds 99 unpushed commits and is 18 behind its own remote [patch] — open 2026-08-18
+
+- Found while re-verifying `-085`'s blocker. `worktrees/CFDrs-runtime-budget`
+  sits on `codex/cfdrs-backward-step-108` at `7b9673ef` (8 hours stale, so
+  reclaimable under the one-hour sweep), **99 commits ahead of `origin/main`
+  and 99 ahead of its own remote branch, while 18 behind it** — the local lane
+  and its pushed ref have diverged, not merely drifted.
+- Rescued non-destructively: `7b9673ef` pushed to
+  `origin/ci/cfdrs-lane-rescue-208`. No force-push over
+  `origin/codex/cfdrs-backward-step-108`, so the peer's 18 remote-only commits
+  are untouched. The 99 commits are now fleet-visible rather than living only
+  in one working tree.
+- The 99 are substantive, not churn: lint-residual closures across cfd-1d and
+  cfd-2d, a masked-step metric fix, a parabolic-inlet allocation reuse, and a
+  manual workspace gate.
+- Acceptance: the two heads are reconciled into one branch (the 18 remote-only
+  commits merged in, not dropped), gates green, merged to `main`, both the lane
+  branch and the rescue ref deleted. Until then the rescue ref is quarantine,
+  not a second home — it carries no independent development.
+- Note this is why `-085` stays blocked: its re-open trigger requires no second
+  lane live, and this lane is both live and the largest single body of
+  unmerged CFDrs work.
 
 ## ATLAS-APOLLO-AVX-SEAM-050A — Merge the AVX precise/reduced leaves [major] — rejected 2026-08-18
 
