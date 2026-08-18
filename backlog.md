@@ -44,6 +44,11 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   reconcile the RITK checkout through its owner, then re-run exact-head and
   overlay checks. Preserve peer-owned checkout and lane state.
 
+**Current lane residual:** `python scripts/atlas-lane-audit.py` reports five
+violations: Consus has four trees plus a lane outside the canonical root,
+Kwavers has four trees with a detached lane, and RITK has three trees. These
+are peer coordination state; no lane or checkout was changed by this pass.
+
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 
 - **Status:** provider implementation complete at `0022926`; draft PR #62 is

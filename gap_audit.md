@@ -62,6 +62,13 @@ four, and RITK has three. The clean-checkout audit continues to report
 peer-owned dirty or moving nested trees. No peer checkout, lane, or dirty file
 was removed or rewritten.
 
+The live lane recheck after the latest provider pushes now reports five
+violations with a changed topology: Consus has four working trees and one lane
+outside the canonical root, Kwavers has four trees with a detached lane, and
+RITK has three trees. The prior Coeus violation is no longer present in this
+probe. The counts are local peer-coordination state, not provider integration
+evidence; no lane or checkout was modified.
+
 CFDrs draft PR #355 now contains provider commits `7be6727b`, `2721539e`, and
 the timeout fix `1bebb5e1`. Its Rust and book checks are queued in run
 `32197696210` and CodeRabbit is successful. The previous Rust-gate failure was

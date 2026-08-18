@@ -33,6 +33,10 @@
 - [ ] Collect CFDrs exact-head run `32197696210` at `1bebb5e`, then merge PR
       #355 only after the Rust and book gates pass. The earlier timeout is
       superseded only when the unchanged numerical-fidelity filter is green.
+- [x] Re-run the live lane audit after the provider pushes. It reports five
+      topology violations: Consus has four trees and one lane outside the
+      canonical root, Kwavers has four trees with a detached lane, and RITK has
+      three trees. These remain peer coordination state and were not modified.
 - [ ] Collect the queued Themis post-merge and current Mnemosyne/RITK runs;
       queued status remains distinct from hosted closure. Preserve all
       peer-owned nested checkout and lane dirt.
