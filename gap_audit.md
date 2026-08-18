@@ -11312,16 +11312,19 @@ conformance evidence remains the merge-gate evidence until then.
 
 ## Finding 2026-08-18: CFDrs benchmark lint residuals at exact head
 
-CFDrs PR #349 advanced from `bc39d336` through `c5563b9e` to `fe98c280`.
+CFDrs PR #349 advanced from `bc39d336` through `c5563b9e` and `fe98c280` to
+`404594b0`.
 Hosted Rust run `32114902789` isolated three `simd_tests.rs` diagnostics;
 `c5563b9e` fixed them with a captured format argument, the derived
 `f32::EPSILON` bound for the exact zero-plus-one case, and explicit `SIMD`/`CFD`
 code spans. Hosted run `32115481118` then reached the previously untouched
 benchmark file and exposed eight diagnostics: three acronym Markdown spans and
 five explicit unit closure patterns. `fe98c280` fixes those diagnostics.
-Formatting and the full `cfd-math` residue scan pass; the scan retains only the
-intentional production `binary_search(...).is_err()` control-flow branch. The
-next hosted PR run is `32116257992`, pending for Rust and book-figure jobs.
+Hosted run `32116257992` then exposed two semicolon-if-nothing-returned
+findings in `swar_ops_bench`; `404594b0` fixes them. Formatting and the full
+`cfd-math` residue scan pass; the scan retains only the intentional production
+`binary_search(...).is_err()` control-flow branch. The next hosted PR run is
+`32116643827`, with book figures in progress and Rust queued.
 
 The local locked package gate remains blocked before compilation because the
 shared Atlas overlay attempts to rewrite the peer-owned lane `Cargo.lock`
