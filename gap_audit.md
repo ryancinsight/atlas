@@ -42,6 +42,12 @@ assertions. Exact-head hosted run `32197696210` is queued for Rust and book
 verification; the shared Atlas overlay still blocks a local locked compile
 before source diagnostics.
 
+Aequitas PR #35 merged at provider default `260ad10dd5480eef8c82958d1d148199656db59e`
+after the provider verify and supply-chain checks passed at source `5428584`.
+Atlas stages that exact merged gitlink while preserving the provider checkout;
+post-merge runs `32198085105` and `32198084983` are queued and remain separate
+from the pre-merge source evidence.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at

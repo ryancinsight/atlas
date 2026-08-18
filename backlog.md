@@ -40,6 +40,12 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   the normalized profile once per solve and preserves the unchanged workload,
   assertions, and 30-second budget. Exact-head hosted run `32197696210` is
   queued; merge remains gated on its Rust and book jobs.
+- **Aequitas evidence:** PR #35 merged the provider structure cleanup at
+  default `260ad10dd5480eef8c82958d1d148199656db59e`; its verify and
+  supply-chain checks passed at source `5428584`, with RecurseML report-only.
+  Atlas advances the Aequitas gitlink to the exact merge commit without
+  modifying the provider checkout. Post-merge runs `32198085105` and
+  `32198084983` are queued and remain uncollected hosted evidence.
 - **Acceptance:** collect queued Themis post-merge and Mnemosyne/RITK runs,
   reconcile the RITK checkout through its owner, then re-run exact-head and
   overlay checks. Preserve peer-owned checkout and lane state.

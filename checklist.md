@@ -170,9 +170,13 @@
 - [x] Verify formatting, offline all-feature Clippy, offline Nextest 125/125,
       offline doctests 26/26, offline rustdoc, and zero touched Rust files over
       500 lines. The committed provider lock is unchanged.
-- [ ] Collect hosted checks and merge Aequitas PR #35 before advancing the
-      Atlas gitlink; the local locked gate remains blocked by the shared Atlas
-      overlay lock mismatch.
+- [x] Collect Aequitas PR #35 and merge the provider cleanup at default
+      `260ad10dd5480eef8c82958d1d148199656db59e`; verify and supply-chain were
+      green at source `5428584`, with RecurseML report-only.
+- [x] Stage the Atlas Aequitas gitlink to the exact merged default without
+      switching or modifying the provider checkout. Post-merge runs
+      `32198085105` and `32198084983` are queued; collect them before treating
+      hosted closure as complete.
 
 - [x] Audit the clean Gaia provider checkout without editing it. The current
       conformance report records 44 oversized Rust files, seven implementation-
