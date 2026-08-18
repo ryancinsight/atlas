@@ -54,7 +54,7 @@
       profiler packages, warning-denied Clippy, doctest compilation,
       warning-free rustdoc, and conformance `type_suffixed_fns=0` with no
       increased debt class.
-- [ ] Collect Miri for draft PR #62, then mark ready and merge the provider
+- [ ] Collect Miri and CodeRabbit for ready PR #62, then merge the provider
       cleanup before advancing the Atlas gitlink. Rust verification
       `32196541600`, MSRV `32196541558`, Loom, aarch64, and ThreadSanitizer
       pass; Miri is in progress. CodeRabbit passes and `recurseml/analysis`

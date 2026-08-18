@@ -64,8 +64,8 @@ are peer coordination state; no lane or checkout was changed by this pass.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 
-- **Status:** provider implementation complete at `0022926`; draft PR #62 is
-  open and hosted verification/merge remain.
+- **Status:** provider implementation complete at `0022926`; PR #62 is ready
+  for review, with Miri and CodeRabbit still in progress and merge open.
 - **Scope:** `crates/mnemosyne-arena/src/segment/pool/numa_bucket.rs` and its
   two callers; no allocator algorithm or public API change.
 - **Acceptance:** replace the two type-suffixed production bucket helpers with

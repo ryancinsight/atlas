@@ -30,7 +30,7 @@ Hephaestus hosted verification is complete on its actual default branch
 absence-of-default-run classification; it does not close the independent RITK,
 Consus, Coeus, or queued Themis/Mnemosyne residuals.
 
-Mnemosyne PR #62 is open at provider head `0022926`. Its local allocator and
+Mnemosyne PR #62 is ready for review at provider head `0022926`. Its local allocator and
 profiler gates pass 65/65, warning-denied Clippy, doctest compilation,
 warning-free rustdoc, and `type_suffixed_fns=0`. Hosted Rust verification
 `32196541600`, MSRV `32196541558`, Loom, aarch64, and ThreadSanitizer pass;
