@@ -330,7 +330,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `22e227eb`.
+      integrate provider PR #349 at current exact source head `f5b44939`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -340,7 +340,7 @@
       separate from the CFDrs timeout optimization item; no hardcoded runtime
       correlation, weakened assertion, or reduced workload closes the
       benchmark contract.
-- [x] Push the bounded CFDrs lint cleanup through `22e227eb`: replace state,
+- [x] Push the bounded CFDrs lint cleanup through `f5b44939`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
       plugin, unsupported-backend, cavitation, backend-validation, and
@@ -366,9 +366,11 @@
       spectral-operator, DG documentation, iterator, interpolation, JFNK, and
       SIMD test families. Hosted compilation found that the ILU error type is
       intentionally not `Debug`; commit `22e227eb` uses an explicit match while
-      retaining the typed `InvalidInput` assertion. The source scan now has no remaining unwrap,
-      existence-only result assertion, print, or debug macro in `cfd-math`.
-      locally; the exact `22e227eb` locked package compile is overlay-blocked and the peer
+      retaining the typed `InvalidInput` assertion; fix the interpolation fixture
+      return; scope benchmark generated-doc expectations; and harden all remaining
+      cfd-math benchmark and integration-test results. The source scan now has no
+      remaining unwrap, existence-only result assertion, print, or debug macro in
+      `cfd-math`. Locally; the exact `f5b44939` locked package compile is overlay-blocked and the peer
       Cargo.lock remains unstaged. Re-open after the exact hosted Clippy
       transcript establishes the remaining count.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
