@@ -111,6 +111,11 @@
       `cascade/provider-042` completes: the clean origin head lacks only the
       `.gitattributes` policy in the safe hygiene slice; source ratchet debt is
       separate and remains unclaimed.
+- [ ] Re-run the Atlas conformance ratchet on a clean materialized revision
+      after peer dirt is reconciled. The intentional live-tree scan reports
+      seven regressions in Coeus, Helios, RITK, and root sprawl; it is not a
+      reproducible merge gate while those peer changes and untracked artifacts
+      remain present.
 
 # Sweep 2026-08-13 — execution order
 

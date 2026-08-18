@@ -11164,3 +11164,20 @@ unmergeable; no Atlas gitlink was advanced from these results.
   still in progress, and the external RecurseML analyzer reports `ERROR`.
   Atlas retains the existing Helios gitlink until the hosted acceptance gate
   is terminal and green.
+
+## Finding 2026-08-18: Live conformance scan is not a clean-revision gate
+
+`python scripts/atlas-conformance.py check` correctly refuses the current
+root because peer-owned nested worktrees and root artifacts make it dirty. The
+intentional `--worktree` scan reports 24 tightening candidates but seven
+ratchet regressions: Coeus `oversized_files` `16 -> 18`,
+`existence_only_assertions` `13 -> 14`, and `commented_out_code` `7 -> 8`;
+Helios `target_forks` `0 -> 1`; RITK `oversized_files` `43 -> 44` and
+`print_dbg` `12 -> 17`; and root `root_sprawl` `0 -> 1`. The scan does not
+identify these as Atlas-owned fixes: the affected nested trees are peer-dirty,
+and the root-sprawl increase is from untracked peer artifacts. No baseline
+update or suppression is authorized from this live result.
+
+Re-open trigger: reconcile the peer worktrees, materialize the recorded
+gitlinks, and rerun `check` against that clean revision. The existing hosted
+conformance evidence remains the merge-gate evidence until then.
