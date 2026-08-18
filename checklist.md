@@ -4928,6 +4928,10 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       local branches. The lane audit still reports only active peer scopes:
       CFDrs 5 trees, Coeus 3, Kwavers 4, and RITK 3; those lanes remain
       untouched.
+- [x] Reconciled the Mnemosyne root gitlink from `ea0839b` to fetched provider
+      default `098bc8e`. The nested checkout has peer-owned dirty files, so
+      only the gitlink is staged; no Mnemosyne source, manifest, lockfile, or
+      workflow file is included.
 
 ### Delivery rule
 

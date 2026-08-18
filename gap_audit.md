@@ -97,6 +97,13 @@ The committed lane audit still reports four violations: CFDrs has five trees,
 Coeus three, Kwavers four, and RITK three. Those are active peer scopes or
 dirty lanes and remain an explicit reclamation residual.
 
+## ATLAS-MNEMOSYNE-POINTER-2026-08-18 — fetched-default reconciliation
+
+The Mnemosyne primary checkout moved from the Atlas-recorded commit `ea0839b`
+to fetched `origin/main` `098bc8e`. The root pointer is advanced to that exact
+default commit while the nested checkout's peer-owned dirty Cargo, manifest,
+workflow, and source files remain untouched.
+
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
 The latest external state is separated from the green root metadata audit:
