@@ -1,5 +1,31 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-PROVIDER-EXACT-HEAD-022 — current provider integration audit (2026-08-18)
+
+The current Atlas audit passes the complete 22-provider set: Horae, Hyperion,
+Themis, Tyche, Proteus, Mnemosyne, Consus, Helios, Harmonia, Aequitas,
+Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo,
+Gaia, Hermes, and Iris. All are active in `.gitmodules`, fetched-default
+gitlinks match the committed Atlas pointers, and the canonical `Tyche` name is
+retained with `Tychee` accepted only as the normalization alias.
+
+The structural command and its regression suites pass:
+
+```text
+python scripts/atlas-provider-integration-audit.py --exact-heads \
+  --exact-head-workers 2 --provider-set atlas-22 --structural-only --format text
+python scripts/tests/test_atlas_provider_integration_audit.py  # 27/27
+python scripts/tests/test_provider_integration_audit_benchmark.py  # 3/3
+```
+
+Full requested-provider coherence remains intentionally red at the exact
+consumer files: Coeus `coeus-autograd` and `coeus-fft`, plus RITK `ritk-filter`,
+require `apollo-fft 0.26.0` while the live Apollo provider is `0.27.0`. Apollo
+PR #106 merged into PR #104 as `4e727570`; PR #104's Rust and Python checks
+pass and its benchmark regression check is pending. No Coeus, RITK, or Kwavers
+consumer pointer advances until Apollo's default/API sweep and lock closure
+land and the affected hosted matrices rerun.
+
 ## ATLAS-ORPHAN-MODULES-096-KWAVERS — hosted integration boundary (2026-08-18)
 
 Kwavers PR #400 is open at exact source head

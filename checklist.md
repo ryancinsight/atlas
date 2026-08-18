@@ -5,8 +5,10 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-17
 
-- [x] Audit the requested twenty-provider registration, ownership, exact-head,
-      and hosted-gate boundary.
+- [x] Audit the current 22-provider registration, ownership, exact-head, and
+      hosted-gate boundary. Structural exact-head audit and its 27-test
+      regression suite pass; the full coherence blocker is the exact Apollo
+      0.26.0/0.27.0 consumer lag recorded below.
 - [x] Activate Harmonia as an Atlas submodule and reconcile its parent gitlink
       to fetched `origin/main` `02ffd14`; the nested checkout retains its
       peer-owned book, workflow, example, and lockfile dirt.
