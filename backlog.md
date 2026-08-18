@@ -213,13 +213,14 @@ pass after this pointer sweep.
 Atlas structural audit now includes Harmonia and the corrected Tyche spelling
 and checks active registration, fetched-default gitlinks, and exact-head
 workers. Apollo PR #104 has merged into provider default `d585e0f5`; the
-provider package is now `apollo-fft 0.27.0`. The later Coeus default advance is
-recorded at `79f05dfd`; the previous Coeus/RITK manifest-lag finding is retained
-as historical evidence, not a current clean-tree claim. A live version-guard
-scan at the current nested checkouts reports zero manifest defects, while the
-Atlas overlay still reports one committed-lock residual: Helios' peer-owned
-`Cargo.lock` selects Apollo `0.26.0`. The lock re-open trigger remains a
-consumer-side update followed by the affected hosted matrix.
+provider package is now `apollo-fft 0.27.0`. The latest root source head
+`c049d26` passes hosted Atlas conformance run `32159744862`, while hosted
+overlay run `32159744891` reports the peer-owned consumer boundary: CFDrs
+requires and locks Apollo `0.26.0`, and Kwavers locks `0.26.0`, against the
+committed provider `0.27.0`. The standalone exact-head/version guard reports
+one corresponding RITK manifest residual. The re-open trigger is the
+consumer-side Apollo requirement/lock sweep followed by its affected hosted
+matrix; no compatibility path is permitted.
 
 The CFDrs backward-step slice is at provider head `7b9673ef`. Local focused
 and full `cfd-2d` gates pass, including 585/585 tests. Hosted run `32143999878`

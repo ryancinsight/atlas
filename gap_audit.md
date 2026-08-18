@@ -38,6 +38,15 @@ peer-owned `repos/ritk/crates/ritk-filter/Cargo.toml` requires `apollo-fft
 consumer migration boundary; editing its dirty manifest or lockfile here would
 cross ownership and mask the real dependency update.
 
+The post-gitlink root hosted gates separate the same residuals. Atlas
+conformance run `32159744862` passes at `c049d26`; overlay run `32159744891`
+fails because `repos/CFDrs/Cargo.toml` requires `apollo-fft 0.26.0`,
+`repos/CFDrs/Cargo.lock` pins `0.26.0`, and `repos/kwavers/Cargo.lock` pins
+`0.26.0` while the committed Apollo provider tree is `0.27.0`. The overlay
+reports one lagging requirement and two pin drifts. These consumer manifests
+and locks remain peer-owned integration work; no compatibility path or local
+edit is introduced here.
+
 Harmonia PR #6 merged at provider default `b98d3f4` from source commit
 `584e961`. Verify, supply-chain, and book-build checks passed; RecurseML
 remained report-only and the Pages deploy was correctly skipped for the pull
