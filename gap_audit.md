@@ -102,6 +102,13 @@ Python run `32184697093` passed Rustfmt, Clippy, and platform suites but failed
 three SimpleITK inverse-displacement parity assertions with maxima of 2.2324,
 0.08210, and 0.17079; tolerance widening is not an accepted remedy.
 
+The source-side Apollo forward sweep is already merged in RITK PR #167 at
+default `f9d04a79`; its dependency-alignment, Rustfmt, Clippy, Python wheel,
+and Ubuntu/macOS/Windows suites are green. The exact/overlay failure in this
+checkout therefore belongs to local checkout reconciliation: the initialized
+tree remains at `86bd9fba` with the older 0.26 lock. It is not evidence of an
+unmerged RITK implementation defect.
+
 Consus Documentation `32184845179` still fails before rustdoc because the
 `consus-zarr` manifest names a missing `s3_rusoto_moirai` benchmark target;
 Pages success and the queued CI run do not close that failure. Coeus Backend

@@ -81,6 +81,10 @@
       `32192759850`/`32192759832` remain queued at `f9d04a79`; prior Python
       run `32184697093` failed only the three inverse-displacement parity
       assertions after Rust, Clippy, Rustfmt, and platform jobs passed.
+- [x] Confirm the source-side Apollo sweep is already merged as RITK PR #167
+      at `f9d04a79`, with dependency alignment, Clippy, Python wheel, Rustfmt,
+      and Ubuntu/macOS/Windows suites green. Keep the stale local checkout and
+      its lock as the remaining reconciliation residual.
 - [x] Preserve the separate Consus Documentation failure
       `32184845179`, Coeus Backend parity failure `32147262055`, and the
       absence of a Hephaestus default-branch run. Pages success and queued

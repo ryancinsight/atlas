@@ -75,6 +75,11 @@ provider-owned state rather than an Atlas source edit.
   its Rust, Clippy, Rustfmt, and platform test jobs but failed three
   SimpleITK inverse-displacement parity assertions; this is behavioral
   evidence, not a reason to widen tolerances.
+- **RITK source resolution:** the Apollo 0.27 consumer sweep itself is already
+  merged as PR #167 at default `f9d04a79`; its Rustfmt, dependency-alignment,
+  Clippy, Python wheel, and platform checks all passed. The remaining local
+  exact/overlay failure is the stale initialized checkout at `86bd9fba` and
+  its old lock, not an unmerged RITK source change.
 - **Consus:** Documentation `32184845179` still fails before rustdoc because
   `consus-zarr` declares a missing `s3_rusoto_moirai` benchmark target; the
   current CI run remains queued and Pages success does not close it.
