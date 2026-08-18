@@ -657,7 +657,7 @@ Their current provider source and evidence are not active Tier 0 work.
 | ATLAS-HELIOS-GAMMA-037 — **closed 2026-08-15** | **Stale — already fixed before sweep.** The claimed self-comparisons in `end_to_end.rs` and `tomotherapy_workflow.rs` now compare dose against scaled copies (2%/6% offsets), not self-comparison. `attenuation_map.rs` does not exist. Self-comparisons in `gamma.rs` are valid identity tests (γ(f,f)=0). | [patch] | Closed — oracle not met on current tree |
 | ATLAS-README-TRUTH-038 — **closed 2026-08-15** | Last remnant fixed: hermes' README claimed 0.6.0 against a 0.7.0 workspace (`9a678f5`). **Mostly stale.** moirai "Zero External Dependencies" claim removed; LICENSE/CONTRIBUTING exist; badges correct. CFDrs "Complete MPI Infrastructure" now explicitly disclaimed. ritk "Burn-backed" and nalgebra credit gone. gaia correctly warns about third-party crate. hermes version still mismatched (workspace 0.7.0, README says 0.6.0). **kwavers Quick Start fixed** — updated to use `kwavers-grid`/`kwavers-medium` individual crate imports per ADR 011. | [patch] | Per repo: every headline claim resolves to code, every linked file exists, the quick-start line names the real registry package and version, and the example compiles as a doctest |
 | ATLAS-HERMES-AMX-040 — **closed 2026-08-15** | **Stale — real probe landed.** Re-verified: `probe.rs` carries 17 CPUID/XCR0/`arch_prctl` call sites. ** `amx_runtime_supported()` now performs CPUID leaf 7 + XCR0 + `arch_prctl` permission request in `hermes-simd-intrinsics/src/x86_64/amx/probe.rs` (commit `9fdbd16`, 6 hours after filing). The README already documents the three-condition probe chain. Remaining gap is hardware availability — no CI runner has Sapphire Rapids+ silicon, so the AMX-vs-scalar differential cannot execute in CI. | [minor] | Closed — oracle met on current tree |
-| ATLAS-COEUS-GRADCHECK-041 | **Infrastructure complete; coverage gap remains.** A production-quality `gradcheck()` helper already exists in `src/gradcheck.rs` with eps-derived step size and zero-gradient guard. 3 existence-only assertions were previously fixed (softmin, norm_p, multi_margin). Coverage: ~13/115 ops have FD tests (~11%). Highest-risk uncovered: 14 loss ops, normalization (rmsnorm/batchnorm), attention (sdp_attention). Helper is public and re-exported; barrier is writing test closures, not infrastructure. | [minor] | One `gradcheck` helper with an eps-derived step and cited derivation (DONE); FD-covered paths ≥ 40 of 80; `rg 'is_some\(\), "' crates/coeus-autograd/src` → 0 (DONE) |
+| ATLAS-COEUS-GRADCHECK-041 — **closed 2026-08-15** | **The coverage found two real bugs, which is the point of asking for the evidence.** `multi_margin` and `multi_label_margin_loss` were silently wrong for **every batch size but one**: both did a per-row target lookup with `index_select`, which applies one column set to *every* row, so an `[N, C]` input produced `[N, N]`/`[N, N*C]` and the following `reshape` panicked; `multi_margin` had a second instance broadcasting `[N,1] - [N]` to `[N, N]`. All three sites are shape-correct at exactly `N == 1`, and **every pre-existing test of both ops used `N == 1`** — a suite that could not fail on the defect it covered. Both doc comments claimed the scores "are gathered", which the code did not do. Fixed with `coeus_ops::gather` plus hand-computed `N = 2` forward regressions, since gradcheck alone cannot catch a wrong-but-self-consistent forward (coeus `59a6a95c`). **Coverage 10 → 102 of 137**, past the bar. The denominator needed correcting: 93 bespoke `BackwardNode` types plus 44 `Unary`/`BinaryAutogradOp` formulas is 137, while this row's "80" was the raw `impl BackwardNode<` block count (79 at HEAD) — two granularities of one thing; and the "~13 (~11%)" was optimistic, only 7 ops had real FD tests. 118 tests added at the helper's derived `eps^(2/3)` tolerance with **nothing widened**, using a golden-ratio irrational rotation so samples provably never land on a kink — no seeded RNG, so no flake surface. Uncovered remainder, highest-value first: the conv/pool families, `ctc_loss`, batchnorm2d/3d, `cross_entropy_loss`. **Original text:** Infrastructure complete; coverage gap remains. A production-quality `gradcheck()` helper already exists in `src/gradcheck.rs` with eps-derived step size and zero-gradient guard. 3 existence-only assertions were previously fixed (softmin, norm_p, multi_margin). Coverage: ~13/115 ops have FD tests (~11%). Highest-risk uncovered: 14 loss ops, normalization (rmsnorm/batchnorm), attention (sdp_attention). Helper is public and re-exported; barrier is writing test closures, not infrastructure. | [minor] | One `gradcheck` helper with an eps-derived step and cited derivation (DONE); FD-covered paths ≥ 40 of 80; `rg 'is_some\(\), "' crates/coeus-autograd/src` → 0 (DONE) |
 
 ## Tier 2 — architecture: SSOT, DRY, and the zero-cost seams
 
@@ -1058,19 +1058,15 @@ are fully declared in their parent modules. `MOD_DECL` is extended to match
 file path. `scripts/tests/test_atlas_conformance.py` (215 tests) passes. The
 live dirty-tree scan now reports kwavers **16** true orphans (down from 19).
 
-### ATLAS-ORPHAN-MODULES-096-RITK — in progress 2026-08-17
+### ATLAS-ORPHAN-MODULES-096-RITK — closed 2026-08-17
 
-Provider PR #166 (`9509473e`, rebased onto `ae23d4b2`) carries the ritk slice:
-`ritk-connectome` gains `pub mod freesurfer;` (FreeSurfer annotation reader,
-224 lines, with `#[cfg(test)] mod tests;` already declared inside the file);
-`ritk-interpolation/kernel` gains `#[cfg(test)] mod tests_sinc;` in
-`kernel/mod.rs` (the file is a sibling of `sinc.rs`, not a sub-directory);
-`ritk-interpolation/kernel/linear` gains `#[cfg(test)] mod tests_linear;` plus
-12 E0716 lifetime fixes, format normalization, and Clippy suggestion
-(`!(0..=1_000_000).contains()`). Deleted: `kernel/macros.rs` (empty file) and
-`tests/fused.rs` (references `is_identity_direction` which is not exported from
-`fused.rs`). Python CI passes 5283/5283. Native CI in progress. Re-open
-trigger: PR merges and Atlas pointer advances.
+Provider PR #166 (`1c4b53e0`, squash-merged at default `73441d93`) closes the
+ritk slice. `ritk-connectome` gains `pub mod freesurfer;`; `ritk-interpolation`
+gains `#[cfg(test)] mod tests_sinc;` and `#[cfg(test)] mod tests_linear;`;
+12 E0716 temporary lifetime errors fixed; Clippy range-check suggestion applied.
+Deleted: empty `macros.rs` and broken `tests/fused.rs`. Hosted Clippy, Rustfmt,
+Python matrix, and Test Suite all pass. Atlas advances ritk to `73441d93`;
+conformance baseline tightens `orphan_modules` 6 → 0.
 
 ### ATLAS-ORPHAN-MODULES-096-KWAVERS — in progress 2026-08-17
 
