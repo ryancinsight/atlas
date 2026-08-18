@@ -4905,10 +4905,10 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
 - [x] **ATLAS-PROVIDER-LIVE-CONFORMANCE-001:** run the committed conformance
       detector across all 22 live provider checkouts. Horae and Hyperion report
       zero measured classes; Harmonia is zero on its clean merged lane while
-      the dirty primary checkout remains peer evidence; Proteus has only the
-      LF-policy finding but an active peer lane. All other nonzero classes map
-      to peer-owned provider trees or active lanes; no peer source, manifest,
-      lockfile, checkout, or lane was changed.
+      the dirty primary checkout remains peer evidence; Proteus is zero on its
+      clean merged lane while the dirty primary remains peer evidence. All
+      other nonzero classes map to peer-owned provider trees or active lanes;
+      no peer source, manifest, lockfile, checkout, or lane was changed.
 - [x] **ATLAS-PROTEUS-CONFORMANCE-001:** reclaimed the stale merged
       temperature-validity lane, created a clean Proteus lane from provider
       `origin/main` `996b822`, and added only `.gitattributes`. Provider commit
@@ -4922,6 +4922,12 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       full local batch timed out after 600 seconds under shared-target
       contention before producing stage results, so no local check, Clippy,
       Nextest, doctest, Rustdoc, example, or deny result is claimed.
+- [x] **ATLAS-WORKTREE-001 lane reclamation:** removed seven verified merged
+      clean linked lanes (Asclepius ADR, Consus ADR, Iris color-space, two
+      Mnemosyne audit lanes, and two Tyche cleanup lanes) and deleted their
+      local branches. The lane audit still reports only active peer scopes:
+      CFDrs 5 trees, Coeus 3, Kwavers 4, and RITK 3; those lanes remain
+      untouched.
 
 ### Delivery rule
 

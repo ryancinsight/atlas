@@ -83,6 +83,20 @@ output because unrelated shared-target builds held the resource; this is an
 environment limitation and not a source-gate result. No local check, Clippy,
 Nextest, doctest, Rustdoc, example, or deny pass is claimed.
 
+## ATLAS-WORKTREE-001 — verified merged-lane reclamation (2026-08-18)
+
+Seven clean linked lanes were revalidated and removed: Asclepius ADR,
+Consus ADR, Iris color-space, both Mnemosyne audit lanes, and both Tyche
+cleanup lanes. Each target was inside `D:\\atlas\\worktrees`, had zero dirty
+paths, and its tip was an ancestor of the provider default before removal;
+the corresponding local branches were deleted after the worktrees were
+removed. No active lane, peer WIP, provider source, manifest, lockfile, or
+Atlas gitlink was changed.
+
+The committed lane audit still reports four violations: CFDrs has five trees,
+Coeus three, Kwavers four, and RITK three. Those are active peer scopes or
+dirty lanes and remain an explicit reclamation residual.
+
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
 The latest external state is separated from the green root metadata audit:
