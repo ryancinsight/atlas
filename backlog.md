@@ -1698,6 +1698,79 @@ does not affect that workflow's inputs.
   Clippy, and hosted WGPU/CUDA/ROCm/Metal/book checks pass at the merged
   provider head.
 
+## ATLAS-APOLLO-AVX-SEAM-050A — Merge the AVX precise/reduced leaves [major] — rejected 2026-08-18
+
+Two independent agents reached the same refusal; recording it so a third does
+not re-open it. **The seam the item asked for already exists.**
+`stockham/avx/backend.rs` declares `StockhamAvxBackend` — `type Vector`,
+`const COMPLEX_PER_VECTOR`, load/store, `add`/`sub`/`mul`/`fmaddsub`,
+`permute_complex_swap`, provided `cmul` — with four impls (`f64`, `f32`,
+`Avx512BackendPrecise`, `Avx512BackendReduced`), and `stockham/avx/generic/` is
+already **2905 lines generic over it**, larger than the 2941 lines of both leaf
+directories combined. The merge has largely happened.
+
+What remains in `precise/` + `reduced/` is the `groups == 1` / `groups == 2`
+corners, and there the **length of the shuffle network is a function of the
+pack count, not a parameter to it**: `groups == 2` is 4 loads + 4
+`permute2f128` at 2 complex/vector versus 4 loads + 4 `unpacklo/hi_pd` + 4
+`permute2f128` at 4. Hoisting that behind a `transpose_block` method relocates
+both bodies into the two impls and shares only the ~30-line arithmetic DAG that
+follows — re-emission behind a trait with no reduction.
+
+Upstream closure was checked and is **not** available: hermes' `SimdPermute` is
+specified on the *flat* lane sequence and its own docs record that
+`_mm256_unpacklo_ps` "and friends" cannot implement it, because they act within
+128-bit halves — hermes deliberately abstracts away the sub-lane structure the
+f32/f64 difference lives in. `interleave`/`deinterleave` are scalar
+store/load emulation on every backend, `SimdKernel` is sealed so apollo cannot
+add a backend, and hermes ADR 006 (Accepted) declines an SSE backend, leaving
+apollo's 128-bit f32 leaf with no type-parameter representation.
+
+**The `precise`/`reduced` rename is separately not executable as specified**,
+for two reasons: each directory contains *both* an AVX2 and an AVX-512 backend
+(pack counts 2 and 4 under `precise/`, 4 and 8 under `reduced/`), so the
+distinguishing property is the scalar type — whose name the naming prohibition
+bans — and a geometry name like `pack2`/`pack4` would be factually false. And
+it is not a two-directory rename: `precise`/`reduced` is a crate-wide euphemism
+for `f64`/`f32` across **827 sites / ~120 identifiers**, only 396 of them
+inside `stockham`, reaching `twiddle.rs`, `cache_macros.rs`,
+`bluestein_cache.rs`, `transpose.rs`, `pointwise.rs`, `small_pot.rs`,
+`dft_prime.rs`. It must land atomically as its own crate-wide `[patch]`, with
+real-word false positives guarded (`..._matches_direct_reduced_precision` uses
+"reduced precision" in its genuine numerical sense).
+
+**Residual worth doing, carried forward as 050C below.**
+
+## ATLAS-APOLLO-STOCKHAM-POLICY-050C — Parameterize the dispatch-policy matrix [minor] — open 2026-08-18
+
+- Three parallel type families cover the same (scalar × ISA) axis inside
+  `stockham`: `StockhamAvxBackend` (4 impls), `StockhamPrecision` (6
+  hand-written ZST markers = {Precise,Reduced} × {scalar, AvxFma, Avx512},
+  the 1240 lines of `precision/{precise,reduced}.rs`), and `StockhamKernel`
+  (2 impls, on the *scalar* axis — the 050B census mis-filed this one).
+- `StockhamPrecision` is a dispatch-policy matrix written per cell; it can be
+  parameterized over `B: StockhamAvxBackend`. Type-level, no numerics risk,
+  real reduction — unlike 050A.
+- Also here: `StockhamAvxBackend` gives three methods provided bodies that are
+  `unreachable!("Not implemented for this precision")`. A panicking default is
+  a mock-shaped seam — the differing fused-stage sets belong in a capability
+  const or a split trait.
+- Acceptance: `precision/{precise,reduced}.rs` line count materially reduced
+  with the ZST marker set derived rather than enumerated; zero
+  `unreachable!` provided bodies on the backend trait; bit-identical FFT
+  outputs against the pre-change build on the existing differential suite.
+
+## ATLAS-APOLLO-COMPLEX-SEAM-050B — Element-parameterize the complex seams [minor] — open 2026-08-18
+
+- Census corrected on re-run; the original count of eight was wrong.
+  `FftPrecision` and `TwiddleOutput` already carry **three** impls including
+  `Complex<f16>` — a seam admitting three element types is element-parameterized
+  already, not a `Complex64`/`Complex32` fork. `StockhamKernel` is on the scalar
+  axis and belongs to 050C.
+- Genuine two-impl complex pairs: **five** — `KernelScalar`, `PlanScratch`,
+  `TwiddleStore`, `NormalizeSlice`, `ScratchDispatch`.
+- Independent of 050A: type-level and crate-wide versus x86 leaf codegen.
+
 ## ATLAS-CONSUS-ZARR-BYTES-ENDIAN-206 — `bytes` codec ignores its `endian` config [major] — open 2026-08-18
 
 - Found while fixing `-038`; the same identity-arm shape, two files over.
