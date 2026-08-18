@@ -21,7 +21,7 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   `7e55ff8f`. Nextest 51/51, doctests 18/18, warning-denied Clippy, rustdoc,
   and the conformance report all pass; every tracked conformance class is
   zero.
-- **Atlas evidence:** root `c2b7b54` passes lock-form (27 standalone locks)
+- **Atlas evidence:** root `a5dfe9d` passes lock-form (27 standalone locks)
   and conformance (12/12). Exact-head and overlay checks fail only because the
   stale local RITK checkout still declares Apollo FFT 0.26.0 and carries the
   older lock graph; the fetched RITK default already contains the merged 0.27

@@ -6,7 +6,7 @@
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Re-run exact-head, stack-overlay, lock-form, and conformance checks at
-      Atlas root `c2b7b54`. Lock-form passes for 27 standalone locks and the
+      Atlas root `a5dfe9d`. Lock-form passes for 27 standalone locks and the
       conformance regression suite passes 12/12. Exact-head and overlay checks
       fail only on the stale local RITK Apollo 0.26 requirement/lock edge; no
       provider gitlink mismatch is present.

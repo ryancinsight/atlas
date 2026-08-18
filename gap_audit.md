@@ -2,7 +2,7 @@
 
 ## Finding 2026-08-18: current provider recheck and Tyche completion
 
-At root `c2b7b54`, lock-form passes for 27 standalone locks and the Atlas
+At root `a5dfe9d`, lock-form passes for 27 standalone locks and the Atlas
 conformance regression suite passes 12/12. The exact-head and development
 overlay checks fail only on the stale local RITK checkout: its Apollo FFT
 requirement and lock remain at 0.26.0 while the fetched RITK default and Apollo
