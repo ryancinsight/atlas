@@ -1127,6 +1127,20 @@ the poisoned generation has to be deleted wholesale, and per-package cleaning
 cannot converge. The blocked run was verifying a one-line README change, so
 the entire diagnosis cost was overhead.
 
+**Root cause identified 2026-08-15 — it is not "two shells", and the fix in the
+outcome above is necessary but not sufficient.** Measured: `RUSTC` and
+`RUSTDOC` are exported pointing at the **msvc** 1.97.0 toolchain, while
+rustup's default host is **gnu** and `rust-toolchain.toml` resolves to gnu. One
+environment therefore emits both — cargo obeys `RUSTC` and produces msvc rlibs,
+while `mdbook test` and clippy (whose distinct fingerprint re-drives dependency
+builds) spawn rustc/rustdoc through rustup and produce gnu. Pinning the triple
+will not stop this on its own: the env overrides and the rustup default host
+must agree with whichever triple is chosen. `RUSTUP_TOOLCHAIN=1.97.0-x86_64-pc-windows-msvc`
+clears it per command. ADR 0043's Context and Verification sections carry the
+full measurement (`81a0e2f`). The likely origin is the documented Windows trick
+for type-checking `cfg(unix)` code by pointing `RUSTC` at a toolchain proxy —
+correct scoped to one command, harmful exported into every build.
+
 Two mechanics worth knowing before applying this. `cargo clean -p a -p b`
 aborts on the first invalid package ID rather than cleaning the valid ones, so
 a single typo cleans nothing while looking like it ran. And in PowerShell,
