@@ -297,7 +297,7 @@
       #386 carries the earlier field-preservation closure; current fetched
       default `6075940ce` retains the uninitialized-GPU-resource residual,
       which is addressed by PR #402 at exact source head
-      `e1648019f24e71598d0421dbd11e4f011b75878a`. Hephaestus PR #213 is merged
+      `69478221f0f8d601614323b0e12f175971e7fdba`. Hephaestus PR #213 is merged
       at default `607ce3feb2e0ed1d907d3e0172e23377851e71d8`; Kwavers hosted
       verification remains open after Documentation Build and Validate Clean
       Architecture failures, with the workflow still running. The remaining

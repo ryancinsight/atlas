@@ -127,13 +127,14 @@ coherence remains limited by the separately recorded peer-owned dirty Apollo
 the committed Coeus/RITK requirements. Root hosted gates remain pending at the
 resulting root head.
 
-## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — final exact-head hosted matrix pending (2026-08-18)
+## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — current hosted matrix blocker (2026-08-18)
 
-Kwavers PR #402 is now at final exact head `5155f32e8`, retaining the provider-
-owned FDTD cutover and the bounded package-manager retry and HTTP timeout
-repair. Final benchmark-regression run `32095365142` has passed its smoke
-execution and is awaiting its dependent terminal check; final CI, architecture,
-and wheel workflows are queued. Atlas does not advance the Kwavers gitlink
+Kwavers PR #402 is at current exact head `69478221f0f8d601614323b0e12f175971e7fdba`.
+Its exact hosted matrix run `32099808162` is not merge-green: dependency
+resolution failures leave architecture, validation, security, coverage,
+documentation, feature, CUDA, and wheel jobs failed or cancelled. Benchmark
+smoke and regression checks pass, but those partial results do not satisfy the
+provider-consumer acceptance gate. Atlas does not advance the Kwavers gitlink
 until the complete matrix is terminal green.
 
 ## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — provider merged; consumer hosted verification pending 2026-08-17
@@ -143,25 +144,21 @@ The FDTD gap identified at merged Kwavers `6075940ce` and Hephaestus
 #213 at exact head `7bc9944852a6ba92d4ff265b9fff9bc8c81e3567` merged as
 `607ce3feb2e0ed1d907d3e0172e23377851e71d8` and owns the typed
 provider-neutral f32 `Fdtd3dOps` contract, WGPU velocity/pressure kernels, and
-two-step independent contract coverage. Kwavers PR #402 at exact head
+two-step independent contract coverage. An earlier Kwavers PR #402 snapshot at
 `e1648019f24e71598d0421dbd11e4f011b75878a` deletes the consumer-owned
 collocated raw-WGPU FDTD files, wires GPU/CPU equivalence through the provider,
 keeps the CPU oracle native-f32, and reports provider failures without CPU
 fallback. Local feature-enabled gates pass: strict Clippy, 22/22 focused
 equivalence tests, 2/2 affected allocation tests, and GPU-enabled doctests.
 
+The PR is now at `69478221f`; its current hosted matrix remains the acceptance
+gate and is recorded above. The earlier local evidence does not establish
+current-head hosted closure.
+
 Hephaestus hosted WGPU, CUDA, ROCm, and Metal checks pass and Atlas now points
-at its merged default. Kwavers Code Quality, Miri, security, migration,
-documentation, architecture, feature-full, benchmark-runtime, and all three
-wheel jobs that have completed pass. The benchmark-regression workflow's
-`complete benchmark smoke` job reaches its 30-minute timeout at this head;
-its dependent regression job remains queued, so no terminal benchmark verdict
-exists. The branch changes no benchmark source relative to `e1648019`; the
-prior exact run `32084391722` passed its benchmark smoke in 13m13s. Atlas does
-not advance the Kwavers gitlink or mark this integration closed until the
-benchmark workflow and remaining native/feature/coverage gates are terminal
-green. The separate pressure-only dispatcher and disconnected f64 solver
-accelerator remain explicit residuals outside this collocated contract.
+at its merged default. The current Kwavers matrix is not terminal-green as
+recorded above. The separate pressure-only dispatcher and disconnected f64
+solver accelerator remain explicit residuals outside this collocated contract.
 
 ## ATLAS-EXACT-HEAD-SWEEP-2026-08-17 — follow-up fetched-default reconciliation
 
@@ -294,9 +291,10 @@ Leto/Hephaestus FDTD implementation is wired; the explicit error is correct
 negative behavior, while GPU/CPU equivalence remains undeveloped. Second,
 `crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217` had no arm
 for an enabled but uninitialized GPU renderer in `render_multi_field`, so it
-could return success without rendering. PR #402 at exact source head
-`f7ebc26db` carries that fix plus the synchronized PM evidence; its
-feature-enabled hosted matrix is the acceptance gate. The FDTD item remains
+could return success without rendering. Current PR #402 at exact source head
+`69478221f` carries the renderer fix plus the synchronized PM evidence; its
+feature-enabled hosted matrix remains the acceptance gate and is not green.
+The FDTD item remains
 provider capability work and must not be replaced by an f64 adapter or
 CPU-vs-CPU comparison. Local feature compilation is blocked before the
 package gate by the shared Atlas overlay's stale peer Asclepius checkout
