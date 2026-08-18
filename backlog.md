@@ -752,7 +752,7 @@ Validate Clean Architecture failures while the remaining matrix is still
 running; no consumer gitlink advance is authorized until the exact head is
 green and merged.
 
-#### ATLAS-CFDRS-BACKWARD-STEP-108 — input-sensitive reattachment measurement [major] — in progress 2026-08-17
+#### ATLAS-CFDRS-BACKWARD-STEP-108 — input-sensitive reattachment measurement [major] — closed 2026-08-18
 
 Owner: Atlas session; provider branch `codex/cfdrs-backward-step-108`.
 The provider claim and acceptance contract are recorded in its `backlog.md`.
