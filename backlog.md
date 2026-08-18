@@ -7983,3 +7983,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   commit. The primary Moirai checkout remains peer-dirty and is not modified.
 - This is a pointer/PM reconciliation only; it does not claim that the live
   Moirai SeqCst audit or peer-owned source work is complete.
+
+## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — correct nested workspace-lint detection
+
+- Status: complete in root commit `eaa32fd`.
+- The conformance detector now recognizes valid nested
+  `[workspace.lints.rust]` and `[workspace.lints.clippy]` tables; it no longer
+  reports Aequitas or Apollo as missing workspace lint inheritance. The
+  committed baseline was regenerated for this detector change from the
+  recorded provider objects; only Coeus and RITK retain this class.
+- The regression test covers a nested table and the conformance unit suite
+  passes 12/12. Provider source, locks, and peer checkouts were not changed.

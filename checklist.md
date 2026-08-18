@@ -5109,3 +5109,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   `32178377690` and post-merge default CI `32180326066` pass Loom, Rust
   verification, and Miri. Atlas advances only the gitlink; peer Cargo.lock
   dirt remains untouched.
+- **ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18** — root commit `eaa32fd` fixes
+  nested `[workspace.lints.*]` recognition, updates the derived baseline, and
+  passes `scripts/tests/test_atlas_conformance.py` 12/12; Coeus/RITK remain
+  the only recorded misses for this class.

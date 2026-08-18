@@ -11950,3 +11950,13 @@ Provider commit `cb86bfe` merged through PR #60 as default
 post-merge default CI `32180326066` pass Loom, Rust verification, and Miri;
 the Miri job reports 83 tests passed and 10 skipped. RecurseML remains
 report-only. The primary peer-dirty Mnemosyne checkout was not modified.
+
+## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — instrument correction
+
+Root commit `eaa32fd` corrects `scripts/atlas-conformance.py` so a valid
+nested `[workspace.lints.rust]` or `[workspace.lints.clippy]` table satisfies
+the workspace-lint inheritance detector; TOML does not require a redundant
+parent `[workspace.lints]` header. A regression test covers the nested form,
+the conformance unit suite passes 12/12, and the derived baseline now records
+only Coeus and RITK for this class at the recorded provider objects. Their
+other ratchet regressions are peer-dirty residuals and were not absorbed.
