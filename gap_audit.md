@@ -30,10 +30,10 @@ evidence.
 ## ATLAS-PROVIDER-EXACT-HEAD-022 — live recheck at root `e9b7924` (2026-08-18)
 
 The structural twenty-two-provider audit was re-run against the current root.
-It reports one residual: the committed Consus gitlink is `34b25075`, while
-fetched Consus `origin/main` is `ef439b2f`. Mnemosyne is now aligned to its
-fetched default `638ddab8` through the concurrent root increment. No provider
-source or peer-owned checkout was changed by this recheck.
+All 22 committed provider gitlinks match their fetched `origin/main` defaults,
+including Consus `ef439b2f`, Mnemosyne `638ddab8`, and RITK `0f0b5c56`. The
+stack overlay check also passes with aligned requirements and locks. No
+provider source or peer-owned checkout was changed by this recheck.
 
 The independent local gates pass:
 
@@ -45,15 +45,16 @@ python scripts/tests/test_atlas_conformance.py  # 12/12
 The `--require-clean-checkouts` audit remains red only for peer-owned nested
 state: dirty or moving checkouts in Themis, Tyche, Proteus, Consus, Helios,
 Harmonia, Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo,
-Hermes, and Iris. The lane audit reports four topology violations: Coeus has
+Hermes, and Iris. The lane audit reports five topology violations: Coeus has
 three trees; Consus has three trees and one lane outside the canonical root;
-Kwavers has four trees. CFDrs is now within the two-tree bound.
+Kwavers has four trees; and RITK has three trees. CFDrs remains within the
+two-tree bound.
 
-Hosted verification is still a separate acceptance condition for any pointer
-advance. The last recorded Mnemosyne, Consus, RITK, and Kwavers run IDs remain
-collection points, but their status was not reasserted in this pass because the
-GitHub CLI query returned no records. The Consus pointer therefore remains a
-hosted-gate residual, not a local-test failure.
+Hosted verification is still a separate acceptance condition for closure. The
+last recorded Mnemosyne, Consus, RITK, and Kwavers run IDs remain collection
+points, but their status was not reasserted in this pass because the GitHub CLI
+query returned no records. The local exact-head and overlay results therefore
+do not constitute hosted-gate proof.
 
 ## ATLAS-PROVIDER-EXACT-HEAD-022 — historical snapshot at root `4e88995` (2026-08-18)
 
