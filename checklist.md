@@ -32,6 +32,20 @@
 - [ ] Reconcile the remaining peer-owned checkout and lane residuals through
       their owning provider branches. Do not clean, reset, or delete dirty
       checkouts or open provider lanes from this root audit.
+- [x] Audit the current multiphysics books locally. `mdbook test docs/book`
+      passes for CFDrs and Helios; `scripts/check_mdbook_links.py` reports
+      zero missing files and anchors for CFDrs (88 files, 353 links), Helios
+      (48 files, 190 links), and Kwavers (106 files, 463 links).
+- [ ] Repair Kwavers' compilable book examples before treating its shared
+      Pages caller as a complete teaching gate. The current `mdbook test`
+      fails on an undefined `DENSITY_WATER_NOMINAL`, output/diagram text in
+      Rust fences, unresolved provider imports, incomplete setup, and
+      pseudocode memory-model snippets. Link integrity alone is insufficient.
+- [ ] Keep the CFDrs locked Rust gate separate from the book result. The
+      focused `cargo nextest` invocation is currently blocked before compile
+      because the shared Atlas overlay has unused provider patches and
+      `--locked` refuses the required lockfile update; this is an integration
+      resolver defect, not evidence that the solver tests pass.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-17
 

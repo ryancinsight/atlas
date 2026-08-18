@@ -1,5 +1,32 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-MULTIPHYSICS-BOOK-GATES-2026-08-18 — current local book recheck
+
+The three multiphysics books were executed from their current provider
+checkouts, not inferred from workflow declarations. CFDrs and Helios
+`mdbook test docs/book` pass. The link checker also passes for all three:
+
+```text
+CFDrs   88 files / 353 links  FILE_MISSING=0  ANCHOR_MISSING=0
+Helios  48 files / 190 links  FILE_MISSING=0  ANCHOR_MISSING=0
+Kwavers 106 files / 463 links FILE_MISSING=0  ANCHOR_MISSING=0
+```
+
+Kwavers `mdbook test docs/book` fails, so its book is not a verified teaching
+artifact despite clean link topology. The failures include an undefined
+`DENSITY_WATER_NOMINAL` constant, expected-output and diagram prose compiled
+as Rust, unresolved `kwavers_*`/`leto`/`rayon`/`wgpu` imports, incomplete
+snippet setup, and memory-model pseudocode that names undeclared types. The
+provider-owned docs remain in peer-dirty/moving checkouts; no source or book
+file was edited in this audit.
+
+The CFDrs focused locked nextest attempt is a separate integration failure:
+Cargo aborts before compilation because the Atlas overlay reports unused
+provider patches and `--locked` refuses to update `repos/CFDrs/Cargo.lock`.
+This result proves neither solver correctness nor a test regression. The
+overlay/lock closure must be repaired before using local CFDrs test results as
+evidence.
+
 ## ATLAS-PROVIDER-EXACT-HEAD-022 — live recheck at root `4a46a4c` (2026-08-18)
 
 The structural twenty-two-provider audit was re-run against the current root.
