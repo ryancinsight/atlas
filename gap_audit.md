@@ -1,5 +1,19 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-CFDRS-BACKWARD-STEP-108 — default-branch Clippy blocker (2026-08-18)
+
+CFDrs PR #349 source head `95801b48` passes the focused local value-semantic
+regressions for negative branch-flow metadata and Dean cross-fidelity. Hosted
+book figures pass, but Rust workspace gate run `32087680839`, job
+`95563482011`, stops in Clippy before tests with 153 errors: test
+`unwrap_used`, `doc_markdown`, and a production `println!` among the reported
+classes. The current PR diff touches `cfd-2d` and `cfd-validation`, not the
+reported `cfd-core`/`cfd-io` files. Default CFDrs `main` run `32086797481`
+fails the same command, so this is pre-existing default-branch debt rather
+than a regression in the solver slice. No blanket suppression or unrelated
+lint rewrite is added to this PR. Re-open when the default-branch Clippy debt
+is repaired or a dedicated lint-cleanup item owns the files.
+
 ## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — provider merged; consumer hosted verification pending 2026-08-17
 
 The FDTD gap identified at merged Kwavers `6075940ce` and Hephaestus
@@ -15,12 +29,17 @@ fallback. Local feature-enabled gates pass: strict Clippy, 22/22 focused
 equivalence tests, 2/2 affected allocation tests, and GPU-enabled doctests.
 
 Hephaestus hosted WGPU, CUDA, ROCm, and Metal checks pass and Atlas now points
-at its merged default. Kwavers hosted checks remain in progress after
-Documentation Build and Validate Clean Architecture reported failures; their
-logs are not available until the workflow completes. Atlas does not advance
-the Kwavers gitlink or mark this integration closed. The separate pressure-only
-dispatcher and disconnected f64 solver accelerator remain explicit residuals
-outside this collocated contract.
+at its merged default. Kwavers Code Quality, Miri, security, migration,
+documentation, architecture, feature-full, benchmark-runtime, and all three
+wheel jobs that have completed pass. The benchmark-regression workflow's
+`complete benchmark smoke` job reaches its 30-minute timeout at this head;
+its dependent regression job remains queued, so no terminal benchmark verdict
+exists. The branch changes no benchmark source relative to `e1648019`; the
+prior exact run `32084391722` passed its benchmark smoke in 13m13s. Atlas does
+not advance the Kwavers gitlink or mark this integration closed until the
+benchmark workflow and remaining native/feature/coverage gates are terminal
+green. The separate pressure-only dispatcher and disconnected f64 solver
+accelerator remain explicit residuals outside this collocated contract.
 
 ## ATLAS-EXACT-HEAD-SWEEP-2026-08-17 — follow-up fetched-default reconciliation
 
