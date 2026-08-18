@@ -158,7 +158,7 @@ nested Harmonia checkout remains provider-owned state.
   is separately merged and verified. Further cleanup is claimable only in a
   disjoint scope with an available lane or explicit periphery ownership.
 
-## ATLAS-PROTEUS-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+## ATLAS-PROTEUS-CONFORMANCE-001 — add provider LF policy [patch] — completed
 
 - **Owner:** Atlas coordinator; reclaimed stale merged lane, then clean
   Proteus provider lane.

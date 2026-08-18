@@ -71,6 +71,18 @@ and cargo-deny pass. Hosted run `32159533930` passes `verify` job
 external report-only analyzer error. The dirty primary Harmonia checkout was
 not modified, and its Cargo.lock/book/example/workflow dirt remains peer-owned.
 
+Proteus conformance cleanup PR #13 merged at provider default
+`f612c9981547d56021db3a1be7f75631fd78ff4c` from provider commit `50e77f4`.
+The clean provider lane added only `.gitattributes`; its conformance scan is
+zero across all 27 measured classes. Atlas commit `1ce4bfa` advances the
+Proteus gitlink and leaves the primary peer-owned `Cargo.lock` untouched.
+Hosted run `32162450077` passes verify `95794242120` and supply-chain
+`95794242217`; RecurseML is report-only. Local format and locked metadata
+checks pass. A full local batch timed out after 600 seconds before stage
+output because unrelated shared-target builds held the resource; this is an
+environment limitation and not a source-gate result. No local check, Clippy,
+Nextest, doctest, Rustdoc, example, or deny pass is claimed.
+
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
 The latest external state is separated from the green root metadata audit:

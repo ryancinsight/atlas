@@ -4909,12 +4909,19 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       LF-policy finding but an active peer lane. All other nonzero classes map
       to peer-owned provider trees or active lanes; no peer source, manifest,
       lockfile, checkout, or lane was changed.
-- [ ] **ATLAS-PROTEUS-CONFORMANCE-001:** reclaim the stale merged temperature-
-      validity lane, create a clean Proteus lane from provider `origin/main`
-      `996b822`, add only `.gitattributes`, and run the provider conformance
-      and locked CI gates. Preserve the primary peer-owned `Cargo.lock`; merge
-      the provider cleanup and advance only its Atlas gitlink after hosted
-      verification.
+- [x] **ATLAS-PROTEUS-CONFORMANCE-001:** reclaimed the stale merged
+      temperature-validity lane, created a clean Proteus lane from provider
+      `origin/main` `996b822`, and added only `.gitattributes`. Provider commit
+      `50e77f4` merged through PR #13 at default
+      `f612c9981547d56021db3a1be7f75631fd78ff4c`; the clean-lane conformance
+      scan reports zero across all 27 measured classes. Atlas commit `1ce4bfa`
+      advances only the Proteus gitlink; the primary peer-owned `Cargo.lock`
+      remains untouched. Hosted run `32162450077` passes verify
+      `95794242120` and supply-chain `95794242217`; RecurseML remains
+      report-only. Local `cargo fmt --check` and locked metadata pass. The
+      full local batch timed out after 600 seconds under shared-target
+      contention before producing stage results, so no local check, Clippy,
+      Nextest, doctest, Rustdoc, example, or deny result is claimed.
 
 ### Delivery rule
 
