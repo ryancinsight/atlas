@@ -84,6 +84,7 @@
       `supply-chain`, and `deploy / Build book` pass at the exact source head.
       The change adds the line-ending policy, bounds both CI jobs, and enables
       the four executable book samples through the shared `mdbook-test` gate.
+      The conformance baseline now records its measured zero residuals.
 - [ ] Re-open Consus workflow cleanup after its peer-owned interactive rebase
       `codex/consus-parse-limits-035` completes: the clean origin head has one
       real local publish-job timeout residual, while reusable callers inherit

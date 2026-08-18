@@ -408,7 +408,7 @@
     "allow_sites": 0,
     "commented_out_code": 0,
     "existence_only_assertions": 0,
-    "gitattributes_missing": 1,
+    "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
     "manifest_implementation": 0,
     "markers": 0,
@@ -428,7 +428,7 @@
     "type_suffixed_fns": 0,
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 2,
+    "workflow_missing_timeout": 0,
     "workspace_lints_missing": 0
   },
   "iris": {

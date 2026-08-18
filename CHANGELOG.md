@@ -7,6 +7,7 @@
   `supply-chain`, and shared Pages book-build gates pass; the Atlas gitlinks
   now point to the merged default heads. Horae enables executable mdBook
   samples and Hyperion completes its CI-bound and line-ending cleanup. The
+  root conformance baseline records Hyperion's zero measured residuals. The
   Horae RecurseML analyzer error remains report-only. Helios PR #64 remains
   open pending its benchmark regression gate.
 
