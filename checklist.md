@@ -4881,6 +4881,13 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       advances the Harmonia gitlink from `02ffd14` to `365f0bb` in this
       increment. No consumer adapter, fallback, or numerical-contract change
       is permitted.
+- [ ] **ATLAS-HARMONIA-AITKEN-001 (claimed by atlas coordinator):** add the
+      provider-owned, input-sensitive Aitken policy and its analytical,
+      differential, transactional, generic-scalar, and documentation gates in
+      the disjoint Harmonia scope before editing CFDrs. The provider slice
+      owns `src/relaxation/aitken.rs`, its tests, ADR 0003/index, and the
+      relaxation book chapter; the CFDrs wrapper stays untouched until this
+      item is merged and integrated.
 
 ### Delivery rule
 

@@ -284,6 +284,19 @@ slice is direct CFDrs integration and deletion of the superseded local
 wrapper. Harmonia's source is clean in the nested checkout; its peer-owned
 workflow/book/example/lockfile dirt is preserved.
 
+**ATLAS-HARMONIA-AITKEN-001 — provider-owned stateful relaxation [minor] [arch]**
+**Status:** in-progress; **owner:** atlas coordinator; **claimed scope:**
+`repos/harmonia/src/relaxation/aitken.rs`, the Harmonia relaxation tests and
+ADR index/record, and the relaxation book chapter. The provider must own the
+input-sensitive Aitken policy used by the CFDrs pair contract, preserve native
+scalar precision, validate dimensions and finite state transactionally, and
+provide analytical and differential evidence. The CFDrs wrapper remains out
+of scope for this claim and is deleted only in the following consumer slice
+after the provider contract is merged and integrated. Acceptance is provider
+local locked check, warning-denied Clippy, Nextest, doctest, Rustdoc, book
+build, and hosted verification at the exact provider head; no fallback,
+adapter, or workload relaxation is permitted.
+
 **Latest hosted-state recheck (2026-08-18):** Apollo PR #104 is merged at
 default `d585e0f5` with Rust/Python checks green and benchmark run `32140805200`
 failed; Helios PR #65 is merged at default `aa7a4fa` with Rust/Python/book
