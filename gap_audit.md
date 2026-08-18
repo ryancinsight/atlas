@@ -78,7 +78,7 @@ published and the consumer matrix is rerun.
 
 ## ATLAS-CFDRS-BACKWARD-STEP-108 — default-branch Clippy blocker (2026-08-18)
 
-CFDrs PR #349 source head `d1f16880` carries the bounded `cfd-core`/`cfd-math`
+CFDrs PR #349 source head `22e227eb` carries the bounded `cfd-core`/`cfd-math`
 lint cleanup and the hosted book-figure gate passes. Rust workspace run
 `32111217293` reached compilation and failed on four ambiguous floating-literal
 types introduced by the epsilon assertions at `4ea465a6`; commits `2ebd686d`
@@ -111,8 +111,11 @@ solver, LGL, and spectral-operator test families with typed errors and
 invariant-bearing expectations. Commit `d1f16880` closes the remaining DG
 documentation and test, iterator, interpolation, JFNK, and SIMD residues;
 the `cfd-math` source scan now has no remaining unwrap, existence-only result
-assertion, print, or debug macro. The `binary_search(...).is_err()` branch in
-interpolation is production control flow and is retained.
+assertion, print, or debug macro. Hosted run `32113652198` found that
+`expect_err` required `IncompleteLU` to implement `Debug`; commit `22e227eb`
+replaces that assertion with an explicit match and retains the typed
+`InvalidInput` check. The `binary_search(...).is_err()` branch in interpolation
+is production control flow and is retained.
 Earlier
 source cleanup
 commits removed the reported default-branch test `unwrap_used`, `doc_markdown`,
@@ -122,7 +125,7 @@ changes. Commits `22d74042`, `c70d44e3`, and
 `1d1e14c8`, `6b22c4bd`, `3cd393b6`, `ccf889c2`, `33cb9af4`, `3f8fe517`,
 `bebe2d55`, `ee274df5`, `4ea465a6`, `2ebd686d`, `261b3b99`, `8f3770c0`,
 `3fbffc6a`, `7af3f9e7`, `3ebb5f77`, `8db668eb`, `5fe6e307`, `e57696e6`, and
-`e0e3e123`, `bd2dec30`, `003eae73`, `5265128c`, and `d1f16880` own the
+`e0e3e123`, `bd2dec30`, `003eae73`, `5265128c`, `d1f16880`, and `22e227eb` own the
 `cfd-core`/`cfd-math`
 state/field-operation/GPU-kernel/validation/compute-dispatch/GPU-integration/
 conversion/boundary/time-controller/error-context/blood-model/plugin/
