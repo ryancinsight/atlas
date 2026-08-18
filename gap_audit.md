@@ -11119,3 +11119,15 @@ Atlas integration. The remote is now available and its fetched default is
 previous Atlas pin `10e15ae427a21b38cc8dde1f2e922904658d8370`. Atlas activates
 the entry and advances only the parent gitlink; the nested Harmonia checkout
 retains peer-owned workflow, book, example, and lockfile changes.
+
+## Finding 2026-08-18: Default provider audit scope covers Harmonia
+
+The structural provider gate previously named its complete scope `atlas-21`,
+so activating Harmonia did not automatically expand the default audit even
+though a custom 22-provider invocation passed. The gate now names the default
+scope `atlas-22`, includes Harmonia in `REQUIRED_PROVIDERS`, and its focused
+tests assert the 22-provider inventory and output. The requested historical
+20-provider set remains available under `requested-2026-08-14` for traceability.
+
+Verification: the focused Python audit tests and the exact-head structural
+audit pass for all 22 providers at the delivered root revision.

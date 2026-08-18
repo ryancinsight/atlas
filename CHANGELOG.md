@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Extend the default provider-integration audit to all 22 active Atlas domain
+  providers, including Harmonia; update its focused inventory and output tests.
+
 - Activate Harmonia in `.gitmodules` and advance its Atlas gitlink to fetched
   default `02ffd14`, preserving the nested peer-owned worktree changes.
 

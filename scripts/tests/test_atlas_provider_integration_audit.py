@@ -62,10 +62,11 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
         self.assertNotIn("RUSTDOC", env)
 
     def test_requested_provider_inventory_is_complete(self) -> None:
-        self.assertEqual(len(audit.REQUIRED_PROVIDERS), 21)
+        self.assertEqual(len(audit.REQUIRED_PROVIDERS), 22)
         self.assertEqual(len(audit.REQUESTED_PROVIDERS_20260814), 20)
         self.assertIn("hermes", audit.REQUIRED_PROVIDERS)
         self.assertIn("gaia", audit.REQUIRED_PROVIDERS)
+        self.assertIn("harmonia", audit.REQUIRED_PROVIDERS)
         self.assertNotIn("gaia", audit.REQUESTED_PROVIDERS_20260814)
 
     def test_main_succeeds_with_complete_inputs(self) -> None:
@@ -97,7 +98,7 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("provider-integration-audit: OK", output.getvalue())
         self.assertIn(
-            "- 21 providers present and active in .gitmodules", output.getvalue()
+            "- 22 providers present and active in .gitmodules", output.getvalue()
         )
 
     def test_main_fails_when_provider_inactive(self) -> None:
@@ -513,6 +514,9 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                     side_effect=(
                         subprocess.CompletedProcess(
                             args=["git"], returncode=0, stdout="origin/master\n", stderr=""
+                        ),
+                        subprocess.CompletedProcess(
+                            args=["git"], returncode=1, stdout="", stderr=""
                         ),
                         subprocess.CompletedProcess(
                             args=["git"], returncode=0, stdout="abc123\n", stderr=""

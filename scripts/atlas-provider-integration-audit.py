@@ -37,6 +37,7 @@ REQUIRED_PROVIDERS = (
     "mnemosyne",
     "consus",
     "helios",
+    "harmonia",
     "aequitas",
     "asclepius",
     "eunomia",
@@ -74,7 +75,7 @@ REQUESTED_PROVIDERS_20260814 = (
     "iris",
 )
 PROVIDER_SETS: dict[str, tuple[str, ...]] = {
-    "atlas-21": REQUIRED_PROVIDERS,
+    "atlas-22": REQUIRED_PROVIDERS,
     "requested-2026-08-14": REQUESTED_PROVIDERS_20260814,
 }
 PROVIDER_ALIASES = {
@@ -361,9 +362,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--provider-set",
         choices=tuple(PROVIDER_SETS.keys()),
-        default="atlas-21",
+        default="atlas-22",
         help=(
-            "named provider scope to audit (default: atlas-21; "
+            "named provider scope to audit (default: atlas-22; "
             "requested-2026-08-14 matches the user-requested twenty-provider set)"
         ),
     )
