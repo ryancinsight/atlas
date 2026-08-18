@@ -11310,20 +11310,39 @@ Re-open trigger: reconcile the peer worktrees, materialize the recorded
 gitlinks, and rerun `check` against that clean revision. The existing hosted
 conformance evidence remains the merge-gate evidence until then.
 
-## Finding 2026-08-18: CFDrs SIMD test lint residual closed at exact head
+## Finding 2026-08-18: CFDrs benchmark lint residuals at exact head
 
-CFDrs PR #349 advanced from `bc39d336` to `c5563b9e` after hosted Rust run
-`32114902789` isolated three `cfd-math/tests/simd_tests.rs` diagnostics:
-captured-format-argument style, an exact floating-point comparison, and
-rustdoc Markdown formatting. The source fix uses a captured format argument,
-the derived `f32::EPSILON` bound for the exact zero-plus-one case, and explicit
-code spans for `SIMD`/`CFD` terminology. `cargo fmt --all -- --check` and the
-full `cfd-math` residue scan pass; the scan retains only the intentional
-production `binary_search(...).is_err()` control-flow branch. The next hosted
-PR run is `32115481118`, pending for both the Rust workspace and book-figure
-jobs at the time of this record.
+CFDrs PR #349 advanced from `bc39d336` through `c5563b9e` to `fe98c280`.
+Hosted Rust run `32114902789` isolated three `simd_tests.rs` diagnostics;
+`c5563b9e` fixed them with a captured format argument, the derived
+`f32::EPSILON` bound for the exact zero-plus-one case, and explicit `SIMD`/`CFD`
+code spans. Hosted run `32115481118` then reached the previously untouched
+benchmark file and exposed eight diagnostics: three acronym Markdown spans and
+five explicit unit closure patterns. `fe98c280` fixes those diagnostics.
+Formatting and the full `cfd-math` residue scan pass; the scan retains only the
+intentional production `binary_search(...).is_err()` control-flow branch. The
+next hosted PR run is `32116257992`, pending for Rust and book-figure jobs.
 
 The local locked package gate remains blocked before compilation because the
 shared Atlas overlay attempts to rewrite the peer-owned lane `Cargo.lock`
 under `--locked`. That lock remains unstaged. The hosted run at the exact
 source head is the acceptance oracle for this increment.
+
+## Finding 2026-08-18: Apollo large-codelet expansion failed benchmark gate
+
+Apollo PR #104 advanced to `4e727570` after stacked PR #106 merged. Its
+counterbalanced benchmark run `32114209336` failed with nine reproducible
+slowdowns, including half-cyclic Rader 257, generic selector 64, Rader and
+Winograd-pair 53, and composite lengths 6, 15, and 106. Source tracing isolated
+commit `f78709f4`: it added 23 large Winograd codelets, changed existing
+72–180 codelets from optimizer hints to `#[inline(never)]`, and exposed those
+unverified codelets through the short-DFT dispatch catalog. This expansion was
+not required by the accepted scalar-seam ADR and regressed paths that do not
+consume the new codelets.
+
+Apollo head `0bdabd0c` removed that expansion but hosted compilation exposed
+four retained `ShortDft` implementations that the cleanup patch had to retain;
+`3892eaa4` restores `222`, `246`, `259`, and `296`. The new hosted Rust,
+Python, and benchmark runs at `3892eaa4` are pending. No Apollo default,
+consumer requirement, lock, or Atlas gitlink advances until those exact-head
+gates are green.

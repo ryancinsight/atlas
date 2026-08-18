@@ -57,14 +57,16 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
-- [ ] Collect Apollo PR #104 at exact head `4e727570`; its hosted Rust and
-      Python checks pass, while the benchmark regression check is pending after
-      stacked PR #106 merged as `4e727570`. PR #106 updated the PR-head lock
-      entry to `apollo-fft 0.27.0` and synchronized every direct consumer
-      manifest in the benchmark instrument. Collect the benchmark result, then
-      merge #104 before advancing Apollo's default or its consumers; the Atlas
-      coherence gate remains blocked until that default-version/API sweep is
-      reflected in Coeus, RITK, and Kwavers.
+- [ ] Collect Apollo PR #104 at current exact head `3892eaa4`; the first
+      benchmark run at `4e727570` reported reproducible slowdowns in nine
+      counterbalanced cases, and the first cleanup head `0bdabd0c` failed
+      compilation because four retained composite `ShortDft` bounds were
+      restored in `3892eaa4`. The cleanup removes the unverified large-codelet
+      expansion from `f78709f4` and restores the existing hinted medium path;
+      collect the new Rust, Python, and benchmark results before merging #104
+      or advancing Apollo's default or its consumers. The Atlas coherence gate
+      remains blocked until that default-version/API sweep is reflected in
+      Coeus, RITK, and Kwavers.
 - [x] Complete the Apollo benchmark-instrument lock closure on clean lane
       `D:/atlas/worktrees/apollo-root-cleanup`, branch
       `codex/apollo-benchmark-lock-104`, commit `7d56dc2b`, and dependent PR
@@ -333,7 +335,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `c5563b9e`.
+      integrate provider PR #349 at current exact source head `fe98c280`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -343,7 +345,7 @@
       separate from the CFDrs timeout optimization item; no hardcoded runtime
       correlation, weakened assertion, or reduced workload closes the
       benchmark contract.
-- [x] Push the bounded CFDrs lint cleanup through `c5563b9e`: replace state,
+- [x] Push the bounded CFDrs lint cleanup through `fe98c280`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
       plugin, unsupported-backend, cavitation, backend-validation, and
@@ -378,9 +380,12 @@
       residuals at hosted run `32114902789` are corrected in `c5563b9e`:
       captured format arguments, machine-epsilon value comparison, and
       rustdoc Markdown spans. Formatting and the touched-source residue scan
-      pass. Locally; the exact `c5563b9e` locked package compile is
-      overlay-blocked and the peer Cargo.lock remains unstaged. Re-open after
-      the exact hosted Clippy transcript establishes the remaining count.
+      pass. Hosted run `32115481118` then exposed eight benchmark-file
+      diagnostics: three acronym Markdown spans and five explicit unit closure
+      patterns; `fe98c280` fixes those diagnostics. Locally; the exact
+      `fe98c280` locked package compile is overlay-blocked and the peer
+      Cargo.lock remains unstaged. Re-open after the exact hosted Clippy
+      transcript establishes the remaining count.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
       shared Pages caller enables `mdbook-test`, local book gates pass, and
       PR #59 merges at default `679402ae`. Hosted Rust, Python, benchmark, and
