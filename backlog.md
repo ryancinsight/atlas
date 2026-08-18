@@ -1730,7 +1730,7 @@ reference on forward-model and optimizer machinery; these close the deltas.
 | FWI-024-C | Angular-spectrum split-step implementation of the existing `HelmholtzForwardOperator` seam, reusing the phase-screen code rather than a second copy. | [minor] | todo | — | Differential against CBS on a weak-contrast phantom within a derived bound; documented divergence where reflections matter (ASM is one-way) |
 | FWI-024-D | Transmission-USCT acquisition: two opposed linear arrays on a rotation stage, per-view interpolation between a fixed reconstruction grid and view-aligned simulation grids, gradient accumulation across views. | [minor] | todo | — | Recovers the sound-speed phantom from a simulated 360°/2° sweep within a derived tolerance; per-view rotation round-trips to identity |
 
-## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift [patch] — in progress 2026-08-17
+## ATLAS-PM-ADR-INDEX-025 — Member-repo ADR index drift [patch] — closed 2026-08-18
 
 Evidence: `gap_audit.md#atlas-pm-adr-index-025`. Each item is per-repo and must
 land on that repo's own branch; all four trees are currently peer-held.
