@@ -61,6 +61,12 @@ CFDrs run `32197696210` and both Aequitas post-merge runs remain queued. No
 hosted run is attached to the docs-only RITK default `9fa4981e`, so the prior
 RITK runs do not establish that head.
 
+The stack-wide book-link detector passes across all 23 registered provider
+books: every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
+The detector fixture suite passes 43/43 with its intentional missing-link case
+covered. This proves link and anchor integrity only; it does not establish
+mdBook build or Pages deployment success.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at

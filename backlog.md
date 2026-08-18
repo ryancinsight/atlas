@@ -65,6 +65,10 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   Aequitas post-merge, and CFDrs exact-head runs; explicitly classify the
   absent RITK default run; then re-run exact-head and overlay checks. Preserve
   peer-owned checkout and lane state.
+- **Documentation evidence:** the stack-wide link detector passes for all 23
+  registered provider books with zero missing files, missing anchors, or read
+  failures. Its fixture regression suite passes 43/43 with the intentional
+  missing-link case covered.
 
 **Current lane residual:** `python scripts/atlas-lane-audit.py` reports five
 violations: Consus has four trees plus a lane outside the canonical root,

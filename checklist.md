@@ -48,6 +48,10 @@
       run for RITK default `9fa4981e`. Queued or in-progress status remains
       distinct from hosted closure. Preserve all peer-owned nested checkout
       and lane dirt.
+- [x] Run the stack-wide book-link detector across all 23 registered books:
+      every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
+      Run its fixture regression suite with `PYTHONPATH=scripts`; 43/43 tests
+      pass, including the intentional missing-link fixture.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — current provider slice
 
