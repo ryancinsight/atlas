@@ -5,7 +5,7 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 
-- [x] Re-run the live structural provider audit at root `1f76e95`. All 22
+- [x] Re-run the live structural provider audit at root `524db6c`. All 22
       provider gitlinks now match their fetched `origin/main` defaults,
       including Consus `ef439b2f`, Mnemosyne `638ddab8`, and RITK `0f0b5c56`.
 - [x] Re-run the full requested-provider coherence audit with the same exact
@@ -67,6 +67,20 @@
       `missing_docs` deny, two root-sprawl entries, and two allow sites. This
       is a provider-owned cleanup scope, not an Atlas pointer or integration
       proof.
+
+## ATLAS-ASCLEPIUS-RELEASE-008 — current package validation
+
+- [x] Validate the current public Asclepius source with offline diagnostics:
+      `cargo check --offline --workspace --all-targets --all-features`,
+      Nextest 18/18, doctests 6/6, Clippy with `-D warnings`, rustdoc, and
+      `cargo package --offline --package asclepius --allow-dirty` all pass.
+      The generated lock changes from the Atlas overlay were discarded; the
+      committed provider lock remains unchanged.
+- [ ] Complete the registry transition: run the locked standalone gate without
+      the Atlas development overlay, publish `asclepius` through the protected
+      crates.io environment, enable trusted-publishing-only mode, and create
+      the matching GitHub Release. These are release-authority actions, not
+      local source evidence.
 
 ## ATLAS-PUBLISH-001-CFDRS-PYPI — current provider slice
 

@@ -3,7 +3,7 @@
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at
-Atlas root `1f76e95` pass for the 22 registered providers and report all
+Atlas root `524db6c` pass for the 22 registered providers and report all
 committed gitlinks equal to fetched `origin/main` defaults. The stack overlay
 checker also reports aligned requirements and locks. These are
 metadata/resolution checks; they do not establish clean nested checkouts or
@@ -40,6 +40,16 @@ type-suffixed functions, seven commented-code sites, one missing
 provider checklist still has standalone release and provider-refresh work
 open; this residual requires a Gaia-owned cleanup slice and is not evidence of
 an Atlas gitlink failure.
+
+Asclepius release preparation was revalidated from its current public default.
+The offline workspace check, all-feature Nextest (18/18), doctests (6/6),
+warning-denied Clippy, rustdoc, and `cargo package --package asclepius` all
+pass. The locked form cannot be collected inside the Atlas checkout because
+the shared development overlay requests a lockfile rewrite for local provider
+patches; the generated diagnostic lock was discarded and the committed lock
+is unchanged. The remaining ASC-REL-008 work is registry publication,
+trusted-publisher enforcement, and GitHub Release creation, which require the
+release-authority transition and are not inferred from local package evidence.
 
 ## ATLAS-PUBLISH-001-CFDRS-PYPI — exact-head release slice
 
