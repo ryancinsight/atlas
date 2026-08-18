@@ -58,16 +58,16 @@
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
 - [ ] Collect Apollo PR #104 at current exact head `4906cd28`; Rust and Python
-      pass in the rerun, but the release-profile counterbalanced benchmark is
-      still running. The previous run `32116351386` at `3892eaa4` failed in
-      twelve cases, including Rader 67/257, Winograd pair 31/53, and composite
-      clone paths 6/36/38/62/63/64. Commit `4906cd28` makes the gate compile
-      Apollo's production single-codegen-unit release profile instead of the
-      eight-unit bench profile; it leaves the workload and comparison logic
-      unchanged. No Apollo default, consumer requirement, lock, or Atlas
-      gitlink advances until the exact release-profile gate is green. The
-      Atlas coherence gate remains blocked until that default-version/API
-      sweep is reflected in Coeus, RITK, and Kwavers.
+      pass, but release-profile benchmark run `32118791194` fails five all-four
+      cases: half/full-cyclic Rader at length 67 and generic prime-inplace at
+      lengths 31 and 127. Same-version cleanup isolation run `32122062890`
+      compares `7d56dc2b` with `4906cd28`; its terminal result is required to
+      separate the codelet cleanup from the scalar-seam refactor. Earlier
+      isolation runs `32120125181` and `32121911653` are instrument failures
+      (lock/manifest mismatch), not performance evidence. No Apollo default,
+      consumer requirement, lock, or Atlas gitlink advances until the exact
+      release-profile gate is green. The Atlas coherence gate remains blocked
+      until the default-version/API sweep is reflected in Coeus and RITK.
 - [x] Complete the Apollo benchmark-instrument lock closure on clean lane
       `D:/atlas/worktrees/apollo-root-cleanup`, branch
       `codex/apollo-benchmark-lock-104`, commit `7d56dc2b`, and dependent PR
@@ -336,7 +336,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `7a18b9d8`.
+      integrate provider PR #349 at current exact source head `8e8cd9bf`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -345,7 +345,11 @@
       consumer solver or benchmark relaxation is acceptable. Keep this
       separate from the CFDrs timeout optimization item; no hardcoded runtime
       correlation, weakened assertion, or reduced workload closes the
-      benchmark contract.
+      benchmark contract. Hosted run `32121851451` at `2127f3e7` reduced the
+      gate to one input-dependent `ChannelPath::new(...).expect(...)` in
+      `scheme_io::from_blueprint`; `8e8cd9bf` converts blueprint, JSON, and
+      polyline path construction to typed `MeshError` returns and hardens JSON
+      point/segment parsing. Exact-head run `32122408402` is pending.
 - [x] Push the bounded CFDrs lint cleanup through `b39a00b4`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,

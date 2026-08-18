@@ -11379,3 +11379,30 @@ observed numerical-flux result. Exact-head hosted run `32119762411` is now
 the acceptance run. The peer-owned lane `Cargo.lock` remains dirty and
 unstaged; the local locked gate is therefore still overlay-blocked before
 compilation.
+
+## Finding 2026-08-18: CFDrs input-path panic residual corrected
+
+Hosted run `32121851451` at `2127f3e7` passed format and check, then found one
+`clippy::missing_panics_doc` diagnostic at
+`crates/cfd-schematic-mesh/src/scheme_io.rs:191`. The diagnostic identified an
+input-dependent `ChannelPath::new(points).expect(...)` in the blueprint bridge.
+Commit `8e8cd9bf` removes that panic and the equivalent JSON and polyline path
+expects, returns typed `MeshError::ChannelError` values, and rejects malformed
+JSON point coordinates and platform-overflowing segment counts. Formatting and
+diff checks pass. Hosted exact-head run `32122408402` is pending; the lane
+`Cargo.lock` remains peer-owned dirty state and is unstaged.
+
+## Finding 2026-08-18: Apollo benchmark isolation remains instrument-blocked
+
+Apollo PR #104 is at exact head `4906cd28`; Rust and Python checks pass, while
+release-profile benchmark run `32118791194` fails five all-four cases: the
+length-67 half/full-cyclic Rader rows and generic prime-inplace lengths 31 and
+127. Isolation run `32120125181` used the stale workflow and failed resolving
+`apollo-czt` at `^0.26.0`; run `32121911653` used the manifest-copy workflow but
+failed because the copied candidate lock did not match the transformed baseline
+workspace. Neither run is performance evidence. Same-version isolation run
+`32122062890` compares cleanup baseline `7d56dc2b` with candidate `4906cd28` and
+is the current source-attribution oracle. The temporary isolation branch was
+deleted after collection. Coeus `coeus-autograd`, Coeus `coeus-fft`, and RITK
+`ritk-filter` still require Apollo `0.26.0` against provider `0.27.0`; their
+peer-dirty nested trees remain untouched.
