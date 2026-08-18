@@ -1079,7 +1079,7 @@ Cargo.lock updated (mnemosyne `5ca0461a` → `d1144f74`). CI/CD Pipeline and
 Architecture Validation in progress. Re-open trigger: PR merges and Atlas
 pointer advances.
 
-## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
+## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — closed 2026-08-17
 
 Every member pins `channel = "1.97.0"`. That is a **version** pin. `rustup`
 resolves it against whatever host toolchain is default in the invoking shell,

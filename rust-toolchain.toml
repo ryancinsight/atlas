@@ -1,0 +1,19 @@
+[toolchain]
+# Pin the full host triple so that every cargo invocation from the Atlas root
+# or any of its worktrees writes to the same compiler-versioned cache bucket.
+# Without the triple, the channel resolves to whatever host toolchain rustup
+# defaults to (gnu on a gnu-default shell, msvc on an msvc-default shell),
+# which produces mixed-triple .rmeta / .rlib artefacts and E0461 failures.
+#
+# Rationale: ATLAS-TOOLCHAIN-TRIPLE-083.  The Atlas shared target directory at
+# D:/atlas/target is written by every member and worktree; all writers must
+# produce artefacts tagged with the same triple or cargo refuses to link them.
+# The msvc triple is chosen because (a) it is the Windows platform default,
+# (b) the CUDA toolkit requires it, and (c) the existing rustup directory
+# override at D:\atlas already pins msvc.
+#
+# Provider repos keep their own `rust-toolchain.toml` files with only a
+# version channel (`channel = "1.97.0"`) so their CI — which runs on Ubuntu —
+# resolves the platform-native GNU triple and is unaffected by this file.
+channel = "1.97.0-x86_64-pc-windows-msvc"
+components = ["rustfmt", "clippy"]
