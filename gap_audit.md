@@ -142,6 +142,15 @@ primary checkout, so no local check, Clippy, Nextest, doctest, or Rustdoc
 result is claimed. The primary Iris checkout remains peer-owned at `c10b328`
 with Cargo.lock changes untouched.
 
+## ATLAS-AEQUITAS-CI-TIMEOUT-2026-08-18 — workflow-bound closure
+
+The clean Aequitas branch added finite 30-minute bounds to both `verify` and
+`supply-chain`, reducing `workflow_missing_timeout` to zero without changing
+source, locks, or dependencies. Provider commit `5ef6e23` merged through PR
+#34 at default `3168a41df9771741eb598f9d7dc95daf8cec1253`. Hosted verify and
+supply-chain jobs pass in run `32170094595`; RecurseML is report-only. Atlas
+advances only the Aequitas gitlink.
+
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
 The latest external state is separated from the green root metadata audit:

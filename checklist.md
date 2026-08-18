@@ -26,6 +26,10 @@
       PR #16 at default `f8630a13`; hosted verify and supply-chain jobs pass in
       run `32167630353`. The clean lane retains only the baseline
       `type_suffixed_fns=1` class; the primary checkout remains untouched.
+- [x] Close Aequitas CI timeout cleanup: provider commit `5ef6e23` merged
+      through PR #34 at default `3168a41d`; hosted verify and supply-chain jobs
+      pass in run `32170094595`. The change is limited to finite 30-minute job
+      bounds; RecurseML remains report-only.
 - [x] Collect and merge RITK PR #165 at default `ae23d4b2`; hosted native CI
       `32063759899` and Python matrix `32063759848` pass at the final source
       head.

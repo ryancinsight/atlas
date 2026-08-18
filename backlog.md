@@ -239,7 +239,7 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no solver, numerical, consumer, lockfile, or peer lock-lane
   changes.
 
-## ATLAS-AEQUITAS-CI-TIMEOUT-001 — bound provider CI jobs [patch] — in progress
+## ATLAS-AEQUITAS-CI-TIMEOUT-001 — bound provider CI jobs [patch] — completed
 
 - **Owner:** Atlas coordinator; clean Aequitas primary checkout on a disjoint
   branch. The active Helios benchmark verification is unrelated and remains
@@ -252,6 +252,10 @@ nested Harmonia checkout remains provider-owned state.
 - **Acceptance:** every Aequitas CI job has an explicit finite timeout; the
   workflow diff passes structural checks and hosted provider gates pass at the
   merged head. No source, lockfile, or dependency changes.
+- **Closure:** provider commit `5ef6e23` merged through PR #34 at default
+  `3168a41df9771741eb598f9d7dc95daf8cec1253`; hosted verify and supply-chain
+  jobs pass in run `32170094595`. RecurseML is report-only. Atlas advances only
+  the Aequitas gitlink.
 - **Non-goals:** no lint-floor, numerical, consumer, or Helios changes.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
