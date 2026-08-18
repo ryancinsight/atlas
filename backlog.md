@@ -317,6 +317,24 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no source rename/refactor, lint-floor migration, planning
   branch cleanup, dependency or lockfile change, or consumer edit.
 
+## ATLAS-LETO-CONFORMANCE-001 — bound Python release publication [patch] — in progress
+
+- **Owner:** Atlas coordinator; clean Leto provider lane from fetched
+  `origin/main` `1402668`.
+- **Claimed scope:** Leto `.github/workflows/python-release.yml` `publish` job
+  timeout only, plus provider-local workflow, formatting, metadata, and hosted
+  verification. The primary checkout's peer-owned source, ADR, changelog, and
+  lockfile changes remain untouched.
+- **Finding:** the live conformance scan reports
+  `workflow_missing_timeout=1`. The missing bound is the local PyPI `publish`
+  job; Leto's `ci.yml` already has a 45-minute bound and `rust-release.yml` is
+  a pure reusable-workflow caller, which the detector correctly exempts.
+- **Acceptance:** the Python release `publish` job carries a finite 30-minute
+  deadline; the clean lane adds no other changes, workflow structure and
+  locked metadata pass, and hosted provider gates pass at the merged head.
+- **Non-goals:** no reusable-workflow change, release-token change, source or
+  dependency edit, lockfile rewrite, or primary-checkout cleanup.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
