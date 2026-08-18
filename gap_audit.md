@@ -78,7 +78,7 @@ published and the consumer matrix is rerun.
 
 ## ATLAS-CFDRS-BACKWARD-STEP-108 — default-branch Clippy blocker (2026-08-18)
 
-CFDrs PR #349 source head `c70d44e3` passes the focused local value-semantic
+CFDrs PR #349 source head `06d237c5` passes the focused local value-semantic
 regressions for negative branch-flow metadata and Dean cross-fidelity. Hosted
 book figures pass, but Rust workspace gate run `32087680839`, job
 `95563482011`, stops in Clippy before tests with 153 errors: test
@@ -87,14 +87,14 @@ classes. The current PR diff touches `cfd-2d` and `cfd-validation`, not the
 reported `cfd-core`/`cfd-io` files. Default CFDrs `main` run `32086797481`
 fails the same command, so this is pre-existing default-branch debt rather
 than a regression in the solver slice. No blanket suppression or unrelated
-lint rewrite is added to this PR. Commits `22d74042` and `c70d44e3` own the
-`cfd-core` state/field-operation test unwraps and GPU-test print classes
-without touching the peer Cargo.lock. Local formatting and touched-source
-residue scans pass; the locked package compile is blocked before compilation
-by the shared Atlas overlay/peer lock state. Hosted Clippy must re-establish
-the remaining count before this cleanup is complete. Re-open when the
-default-branch Clippy debt is repaired or the exact hosted transcript exposes
-the next owned source slice.
+lint rewrite is added to this PR. Commits `22d74042`, `c70d44e3`, and
+`06d237c5` own the `cfd-core` state/field-operation/GPU-kernel test unwraps
+and GPU-test print classes without touching the peer Cargo.lock. Local
+formatting and touched-source residue scans pass; the locked package compile
+is blocked before compilation by the shared Atlas overlay/peer lock state.
+Hosted Clippy must re-establish the remaining count before this cleanup is
+complete. Re-open when the default-branch Clippy debt is repaired or the exact
+hosted transcript exposes the next owned source slice.
 
 ## ATLAS-EXACT-HEAD-SWEEP-2026-08-18 — moving-default closure
 
@@ -325,13 +325,14 @@ downstream lower-wall shear samples, and interpolated negative-to-nonnegative cr
 benchmark configuration to that provider and asserts a finite positive
 field-derived result plus residual value semantics.
 
-Provider PR #349 source head `c70d44e3` is open. Hosted book figures pass, but
+Provider PR #349 source head `06d237c5` is open. Hosted book figures pass, but
 Rust workspace run `32087680839`, job `95563482011`, stops in Clippy before
 tests with the prior 153-error transcript. Default CFDrs `main` run
 `32086797481` fails the same command, and the original `cfd-core`/`cfd-io`
 files are outside the backward-step diff; this is pre-existing default-branch
-debt rather than a solver regression. Commits `22d74042` and `c70d44e3` own
-two reported classes without touching the lockfile. The exact-head hosted rerun must
+debt rather than a solver regression. Commits `22d74042`, `c70d44e3`, and
+`06d237c5` own three reported classes without touching the lockfile. The
+exact-head hosted rerun must
 establish the residual before further cleanup or merge-to-default gitlink
 sweep. No consumer solver, hardcoded runtime correlation, weakened assertion,
 or benchmark workload is an acceptable substitute.
