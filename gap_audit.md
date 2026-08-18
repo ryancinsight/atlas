@@ -1,5 +1,33 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-ORPHAN-MODULES-096-KWAVERS — hosted integration boundary (2026-08-18)
+
+Kwavers PR #400 is open at exact source head
+`eb3b93b97b883b722e5e97122822cbc13e27a42b`. The implementation is not a
+placeholder: it wires the orphan `kwavers-driver` test module, PSTD cache,
+validation/bioheat, and field-coupling tests, and deletes six stale
+fixed-acquisition test leaves plus the unreachable steering, NUFFT, and
+adaptive modules. Its clean branch passes local `cargo fmt -- --check`.
+
+The hosted `Code Quality` job
+[`95565138022`](https://github.com/ryancinsight/kwavers/actions/runs/32088252485/job/95565138022)
+and `Validate Clean Architecture` job
+[`95565137812`](https://github.com/ryancinsight/kwavers/actions/runs/32088252422/job/95565137812)
+both stop at the same merge-base formatting difference in
+`crates/kwavers/examples/tiled_kspace_processing.rs`; neither reports a
+source-quality or architecture defect in PR #400. Its benchmark regression
+run [`32088252405`](https://github.com/ryancinsight/kwavers/actions/runs/32088252405)
+has a cancelled `complete benchmark smoke` prerequisite, so the dependent
+job's missing measurements are infrastructure evidence, not a performance
+regression.
+
+Kwavers PR #403 owns the one-file format correction at exact head
+`0e02ffa8a61871b8b96da3da702372af37503aef`. That PR is not terminal-green
+(`Code Coverage` is cancelled, `Build & Test (stable)` is pending, and the
+external RecurseML analyzer is `ERROR`), so the correction is not duplicated
+into PR #400. The re-open trigger is the correction landing on the base or a
+PR #400 rebase, followed by the complete hosted matrix at the final head.
+
 ## ATLAS-EXACT-HEAD-SWEEP-2026-08-18 — audit-tool and hosted-gate closure boundary
 
 Atlas commit `d496297` is pushed with the provider-head audit correction,

@@ -66,6 +66,21 @@
       architecture, validation, security, coverage, documentation, feature,
       CUDA, and wheel jobs plus cancelled jobs. Its Atlas gitlink remains
       unchanged.
+- [ ] Continue `ATLAS-ORPHAN-MODULES-096-KWAVERS` on the clean lane
+      `D:/atlas/worktrees/kwavers-orphan-096`. PR #400 is at exact head
+      `eb3b93b97b883b722e5e97122822cbc13e27a42b`; its source closure is real
+      (six stale fixed-acquisition test leaves, `steering.rs`, `nufft.rs`, and
+      the unused adaptive subtree are deleted, while validation, PSTD cache,
+      field-coupling, and driver-test modules are wired). Hosted Code Quality
+      `95565138022` and Architecture `95565137812` fail only because the
+      merge base contains an unformatted `tiled_kspace_processing.rs` line;
+      the clean PR #400 branch passes local `cargo fmt -- --check`. The
+      benchmark regression run `32088252405` is not a production regression:
+      its smoke prerequisite is cancelled and the dependent job reports no
+      measurements. PR #403 owns the one-file format correction at exact head
+      `0e02ffa8a61871b8b96da3da702372af37503aef`; do not duplicate that edit.
+      Re-open this item after the format correction is on the base or PR #400
+      is rebased, then rerun the complete exact-head matrix.
 - [x] Bound every network, package-manager, compiler, mdBook test, and mdBook
       build command in the shared Pages workflow at root commit `6ed29a9`.
       The workflow now uses `--locked` for the package build and metadata
