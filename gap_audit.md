@@ -81,7 +81,14 @@ Proteus, Helios, Harmonia, Aequitas, Asclepius, Eunomia, Moirai, Leto, Gaia,
 Hermes, and Iris. This hosted evidence does not establish clean local
 checkouts or close provider release actions.
 
-Themis default `d0fcce7a` has successful MSRV, Windows CI, and Pages jobs, but
+Themis PR #26 resolved the observed Clippy failure: provider default
+`0484a333` is merged after successful Ubuntu/Windows CI, MSRV, nightly
+compile-fail, Miri, and CodeRabbit checks. Atlas stages only the gitlink
+advance from `d0fcce7a`; the primary nested checkout remains dirty at its old
+head and was not switched or rewritten.
+
+Before that merge, Themis default `d0fcce7a` had successful MSRV, Windows CI,
+and Pages jobs, but
 Ubuntu CI fails in the warning-denied build at `src/query/platform.rs:55` for
 Clippy's `borrow_as_ptr` pedantic lint. The Themis checkout has peer-owned
 staged and unstaged changes, so Atlas did not patch it. RITK current CI and

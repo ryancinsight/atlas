@@ -62,6 +62,10 @@ provider-owned state rather than an Atlas source edit.
   `borrow_as_ptr` pedantic lint. The provider-owned fix is to use the explicit
   raw-pointer form required by the current lint floor; no local checkout edit
   was made because Themis contains peer-owned staged and unstaged work.
+- **Themis resolution:** PR #26 merged at provider default `0484a333` after
+  its Ubuntu/Windows CI, MSRV, nightly compile-fail, Miri, and CodeRabbit
+  checks all passed. Atlas stages only this gitlink advance; the dirty primary
+  checkout remains at the prior head and is untouched.
 - **RITK:** current default `f9d04a79` CI `32192759850` and Python CI
   `32192759832` remain queued. The preceding Python run `32184697093` passed
   its Rust, Clippy, Rustfmt, and platform test jobs but failed three
