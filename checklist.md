@@ -330,7 +330,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `7a7b4289`.
+      integrate provider PR #349 at current exact source head `3c163895`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -340,14 +340,14 @@
       separate from the CFDrs timeout optimization item; no hardcoded runtime
       correlation, weakened assertion, or reduced workload closes the
       benchmark contract.
-- [x] Push the bounded CFDrs lint cleanup at `22d74042`, `c70d44e3`,
-      `06d237c5`, `463b4d68`, and `7a7b4289`: replace state,
-      field-operation, GPU-kernel, and checkpoint roundtrip test unwraps with
-      invariant-bearing expectations; route GPU-unavailable diagnostics
-      through tracing; and repair the checkpoint rustdoc link. Formatting and
-      touched-source residue scans pass locally; the locked package compile is
-      overlay-blocked and the peer Cargo.lock remains unstaged. Re-open after
-      the exact hosted Clippy transcript establishes the remaining count.
+- [x] Push the bounded CFDrs lint cleanup through `3c163895`: replace state,
+      field-operation, GPU-kernel, compute-dispatch, GPU-integration, and
+      checkpoint roundtrip test unwraps with invariant-bearing expectations;
+      route GPU-unavailable diagnostics through tracing; and repair the
+      checkpoint rustdoc link. Formatting and touched-source residue scans
+      pass locally; the locked package compile is overlay-blocked and the peer
+      Cargo.lock remains unstaged. Re-open after the exact hosted Clippy
+      transcript establishes the remaining count.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
       shared Pages caller enables `mdbook-test`, local book gates pass, and
       PR #59 merges at default `679402ae`. Hosted Rust, Python, benchmark, and
