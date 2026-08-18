@@ -39,6 +39,10 @@
 - [ ] Re-collect root hosted gates for `a49afd3` and close the full coherence
       scan after the peer Apollo worktree leaves its uncommitted `0.27.0`
       version bump; committed Apollo remains `0.26.0`.
+- [x] Reconcile the second fetched-default movement: Themis `a609cd70`, Proteus
+      `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
+      Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
+      nested peer-owned dirt and re-run the structural exact-head audit.
 - [ ] Collect Kwavers PR #402 exact-head matrix at `090183327`; rerun the
       cancelled 30-minute CI benchmark lane before advancing its Atlas gitlink.
 

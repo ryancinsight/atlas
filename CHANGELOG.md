@@ -13,6 +13,14 @@
   hosted gates are re-collected for this pointer advance once the moving
   provider work is stable.
 
+- Reconcile the second moving-default sweep by advancing the Atlas Themis,
+  Proteus, Mnemosyne, Hermes, Asclepius, Eunomia, RITK, and Iris gitlinks to
+  their fetched default heads. The structural requested-provider audit passes;
+  the full coherence limitation is the separately recorded peer-owned Apollo
+  `0.27.0` worktree against committed consumer `0.26.0` requirements. Nested
+  checkout dirt remains excluded and root hosted gates are pending for the
+  resulting root head.
+
 - Merge Hephaestus PR #213 at default `607ce3f`, adding the provider-owned
   typed f32 FDTD contract, WGPU velocity/pressure kernels, and sequential
   contract coverage. Kwavers PR #402 carries the consumer cutover and remains

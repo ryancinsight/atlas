@@ -86,6 +86,15 @@ provider-owned state rather than an Atlas source edit.
   `0.26.0` requirements; committed Apollo `origin/main` remains `0.26.0` and
   matches those consumers. Root hosted gates are re-collected after this
   pointer advance once the moving provider work is stable.
+- **Second moving-default reconciliation (2026-08-18):** the fetched defaults
+  advanced again. Atlas now tracks Themis `a609cd70`, Proteus `996b8227`,
+  Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`, Eunomia
+  `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; only indexed gitlinks move,
+  and nested provider checkout dirt remains peer-owned. The structural
+  requested-provider audit passes. Full coherence remains limited to the
+  separately recorded dirty Apollo `0.27.0` worktree versus committed consumer
+  `0.26.0` requirements; root hosted gates remain to be collected at the
+  resulting root head.
 - **Final root gates:** `atlas-stack-overlay` run `32072555152`,
   `atlas-conformance` run `32072555155`, and push analysis run `32072554308`
   pass at `944f6e1`. The hosted gates initialize direct members from the

@@ -34,6 +34,23 @@ Re-open this item when Apollo's version/API increment lands on its default
 branch, then update the consumer locks and run their hosted gates as one
 co-evolution sweep.
 
+### Second moving-default sweep — 2026-08-18
+
+The fetched provider defaults advanced again. Atlas reconciled Themis
+`a609cd703fb9cadd2079596a9cc370f4f09517c6`, Proteus
+`996b82279261a6a968420d68c74fb184b1337665`, Mnemosyne
+`77e6e3e3ecfc4229782a64238806fc056895fce9`, Hermes
+`35d4c437cc217f283a2c6d5dcf305e79a8b8e7a8`, Asclepius
+`804007602ffae4360e4cb54593ab041cb6edd846`, Eunomia
+`bab4f9f87cd19291dbfbf0645449a7177c2762ea`, RITK
+`b91bcee6f4058f69298ef6b330c36094ba1eb929`, and Iris
+`c10b328dbaa87099c57a6475076eee85f9c0bb20` as gitlink-only changes. The
+structural requested-provider audit passes for all 20 providers. Full
+coherence remains limited by the separately recorded peer-owned dirty Apollo
+`0.27.0` worktree; committed Apollo `origin/main` remains `0.26.0` and matches
+the committed Coeus/RITK requirements. Root hosted gates remain pending at the
+resulting root head.
+
 ## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — exact-head hosted rerun pending (2026-08-18)
 
 Kwavers PR #402 is now at exact head `090183327`, which retains the provider-
