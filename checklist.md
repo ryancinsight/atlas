@@ -4902,6 +4902,13 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       Atlas gitlink commit `c049d26` advances only Harmonia. The dirty primary
       checkout and reusable Pages caller remain untouched; RecurseML is
       report-only.
+- [x] **ATLAS-PROVIDER-LIVE-CONFORMANCE-001:** run the committed conformance
+      detector across all 22 live provider checkouts. Horae and Hyperion report
+      zero measured classes; Harmonia is zero on its clean merged lane while
+      the dirty primary checkout remains peer evidence; Proteus has only the
+      LF-policy finding but an active peer lane. All other nonzero classes map
+      to peer-owned provider trees or active lanes; no peer source, manifest,
+      lockfile, checkout, or lane was changed.
 
 ### Delivery rule
 

@@ -139,6 +139,25 @@ nested Harmonia checkout remains provider-owned state.
   and supply-chain run `32159533930` pass. RecurseML is report-only. The
   primary nested checkout remains untouched by design.
 
+## ATLAS-PROVIDER-LIVE-CONFORMANCE-001 — audit all live provider checkouts [patch] — completed
+
+- **Method:** invoke the committed `atlas-conformance.py` `scan_repo` detector
+  against all 22 active provider checkouts, then classify each nonzero class
+  against the current gitlink, worktree, and peer claims. This is live-tree
+  evidence, not a clean-delivered-revision gate.
+- **Result:** Horae and Hyperion report zero measured debt classes. Harmonia's
+  clean provider lane reports zero after PR #7; its primary checkout still
+  reports the pre-merge workflow findings because it remains peer-dirty.
+  Proteus reports only the missing LF policy, but its primary checkout carries
+  peer-owned `Cargo.lock` dirt and its temperature-validity lane is active.
+  The remaining nonzero classes occur in active peer-owned Apollo, Asclepius,
+  Aequitas, Coeus, Consus, Eunomia, Gaia, Helios, Hephaestus, Hermes, Iris,
+  Leto, Melinoe, Mnemosyne, Moirai, RITK, Themis, and Tyche trees.
+- **Acceptance:** all 22 providers were scanned; no peer checkout, source,
+  manifest, lockfile, or lane was modified; Harmonia's provider-owned cleanup
+  is separately merged and verified. Further cleanup is claimable only in a
+  disjoint scope with an available lane or explicit periphery ownership.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
