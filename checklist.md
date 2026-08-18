@@ -335,7 +335,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `404594b0`.
+      integrate provider PR #349 at current exact source head `05328639`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -345,7 +345,7 @@
       separate from the CFDrs timeout optimization item; no hardcoded runtime
       correlation, weakened assertion, or reduced workload closes the
       benchmark contract.
-- [x] Push the bounded CFDrs lint cleanup through `404594b0`: replace state,
+- [x] Push the bounded CFDrs lint cleanup through `05328639`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
       plugin, unsupported-backend, cavitation, backend-validation, and
@@ -384,10 +384,12 @@
       diagnostics: three acronym Markdown spans and five explicit unit closure
       patterns; `fe98c280` fixes those diagnostics. Hosted run
       `32116257992` then exposed two semicolon-if-nothing-returned findings in
-      `swar_ops_bench`; `404594b0` fixes them. Locally; the exact `404594b0`
-      locked package compile is overlay-blocked and the peer Cargo.lock
-      remains unstaged. Re-open after the exact hosted Clippy transcript
-      establishes the remaining count.
+      `swar_ops_bench`; `404594b0` fixes them. Hosted run `32116643827` then
+      exposed one semicolon-if-nothing-returned finding in
+      `algebraic_distance_bench` and one in `rk4_bench`; `05328639` fixes both.
+      Locally; the exact `05328639` locked package compile is overlay-blocked
+      and the peer Cargo.lock remains unstaged. Re-open after the exact hosted
+      Clippy transcript establishes the remaining count.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the
       shared Pages caller enables `mdbook-test`, local book gates pass, and
       PR #59 merges at default `679402ae`. Hosted Rust, Python, benchmark, and
