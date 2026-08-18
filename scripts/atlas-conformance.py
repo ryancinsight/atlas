@@ -98,7 +98,17 @@ CLASSES = [
     "member_namespace_pollution", "tag_pinned_actions",
     "workflow_missing_timeout", "workflow_missing_permissions",
     "pull_request_target_use", "missing_cargo_lock", "orphan_modules",
+    "seqcst_production",
 ]
+
+# `SeqCst` in shipped code. The ordering rule is that each atomic access
+# names the happens-before edge it needs and uses the weakest ordering that
+# supplies it. `SeqCst` is the strongest and costliest on every target and is
+# rarely the edge actually required, so it is not banned but should be a
+# recorded decision rather than a default -- which a ratchet at the current
+# count enforces. Test code is excluded: `SeqCst` on a drop counter costs
+# nothing and proves nothing.
+SEQCST = re.compile("SeqCst")
 
 MOD_DECL = re.compile(r"\bmod\s+(r#[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)\s*[;{]")
 PATH_ATTR = re.compile(
@@ -505,6 +515,7 @@ def scan_repo(repo: Path) -> dict[str, int]:
         # workspace denies `unwrap_used` outright — every one was a doc example.
         c["unwrap_production"] += strip_doc_comments(prod).count(".unwrap()")
         c["allow_sites"] += prod.count("#[allow(")
+        c["seqcst_production"] += len(SEQCST.findall(prod))
         c["markers"] += len(MARKER.findall(prod))
         c["reexport_shims"] += len(REEXPORT_SHIM.findall(prod))
         c["type_suffixed_fns"] += sum(
