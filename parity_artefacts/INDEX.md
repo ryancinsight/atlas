@@ -2,8 +2,8 @@
 
 This directory archives the **detector ↔ mdbook parity evidence chain**
 that supports the strict-mode CI gate introduced in
-[`docs/mdbook/detector-parity.md`](../../docs/mdbook/detector-parity.md) §7 #5 +
-[`docs/mdbook/detector-parity-kwavers.md`](../../docs/mdbook/detector-parity-kwavers.md)
+[`docs/mdbook/detector-parity.md`](../docs/mdbook/detector-parity.md) §7 #5 +
+[`docs/mdbook/detector-parity-kwavers.md`](../docs/mdbook/detector-parity-kwavers.md)
 §3 Issue B.
 
 The atlas physics books (CFDrs, helios, kwavers) each link to this
@@ -31,11 +31,11 @@ evidence chain.
 - **CFDrs** -- seven deterministic figures under
   `repos/CFDrs/docs/book/figures/`, regenerated into `MANIFEST.json`
   by `cargo run -p xtask -- prebook`; full list in
-  [`repos/CFDrs/docs/book/README.md`](../CFDrs/docs/book/README.md).
+  [`repos/CFDrs/docs/book/README.md`](../repos/CFDrs/docs/book/README.md).
 - **helios** -- seven deterministic figures under
   `repos/helios/docs/book/figures/`, regenerated into
   `MANIFEST.json` by `cargo run -p xtask -- prebook`; full list in
-  [`repos/helios/docs/book/README.md`](../helios/docs/book/README.md).
+  [`repos/helios/docs/book/README.md`](../repos/helios/docs/book/README.md).
 - **kwavers** -- figure set under `repos/kwavers/docs/book/figures/`.
 
 ## What this archive contains
@@ -102,24 +102,32 @@ The two evidence channels (this archive vs. CI-side artefacts) are
 - **CI-side artefacts** (`.github/workflows/docs.yml`): `detector.log`
   at workspace root + 3 per-book `book/` HTML directories.  These are
   uploaded per-run for the specific PR/commit under review.
-- **On-disk archive** (`repos/parity_artefacts/`): persistent snapshot
-  of all detector + mdbook runs across the §7 #1 → §7 #6 sequence.
-  Survives repo re-clones + provides reproducible baseline for local
-  audits.
+- **On-disk archive** (`parity_artefacts/`): snapshot of all detector +
+  mdbook runs across the §7 #1 → §7 #6 sequence, providing a reproducible
+  baseline for local audits.
+
+  **It does not survive a re-clone**, contrary to what this section
+  previously claimed. Of the 43 files inventoried above, only the nine
+  `*.txt` enumerations are tracked; every `*.log` is matched by `.gitignore`'s
+  `*.log` rule and exists on the authoring host alone. That is the correct
+  outcome under run-output segregation — committing 33 log files would put
+  run output into git — but it means the log-bearing rows of the table above
+  describe local state, and a fresh clone reproduces them by re-running the
+  detector rather than by reading them.
 
 ## Cross-references
 
-- [`docs/mdbook/detector-parity.md`](../../docs/mdbook/detector-parity.md) — parent
+- [`docs/mdbook/detector-parity.md`](../docs/mdbook/detector-parity.md) — parent
   parity report (CFDrs + helios).  Headline: **Detector ⊇ mdbook
   HOLDS** post-§7-#5.
-- [`docs/mdbook/detector-parity-kwavers.md`](../../docs/mdbook/detector-parity-kwavers.md)
+- [`docs/mdbook/detector-parity-kwavers.md`](../docs/mdbook/detector-parity-kwavers.md)
   — kwavers-specific report.  Headline: same property after Issue B
   filter (FDTD-recurrence `[n+1](x)` false positive).
-- [`scripts/check_mdbook_links.py`](../../scripts/check_mdbook_links.py)
+- [`scripts/check_mdbook_links.py`](../scripts/check_mdbook_links.py)
   — the portable detector itself (anchored in the repo root).
-- [`.github/workflows/docs.yml`](../../.github/workflows/docs.yml)
+- [`.github/workflows/docs.yml`](../.github/workflows/docs.yml)
   — the CI gate wiring.
-- [`.git/hooks/pre-commit`](../../.git/hooks/pre-commit)
+- [`.git/hooks/pre-commit`](../.git/hooks/pre-commit)
   — the local-developer mirror of the gate.
 
 ## Maintenance

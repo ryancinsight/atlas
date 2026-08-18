@@ -6626,11 +6626,23 @@ respective implementation commits.
   terminal; ATLAS-TARGET-001's routing item closes with this justification.
 - Finding (peer parity stream owns disposition): `scripts/fix_link_depth.py`
   is untracked but referenced by tracked `docs/mdbook/detector-parity.md`;
-  `repos/parity_artefacts/` is untracked but referenced as the on-disk
-  archive by that report and by the CFDrs, Helios, and Kwavers book
-  `SUMMARY.md` files for in-context builds. Either track the referenced
-  artifacts or qualify the references; a tracked reference to an untracked
-  file fails a fresh clone. `helios_workflow_output/` is an untracked
+  the parity archive is referenced as on-disk by that report and by the
+  CFDrs, Helios, and Kwavers book `SUMMARY.md` files for in-context builds.
+  Either track the referenced artifacts or qualify the references; a
+  tracked reference to an untracked file fails a fresh clone.
+  **Partially resolved 2026-08-18, and the premise was wrong in both
+  directions.** It was not simply untracked: commit `5956d02` — a gitlink
+  advance whose message describes a ritk `region.rs` split — swept in
+  **two** copies of the archive as scope creep, `parity_artefacts/` and a
+  partial duplicate `repos/parity_artefacts/`, 899 lines across 18 files.
+  The pairs were byte-identical apart from line endings, so the second copy
+  carried no unique content while placing an artefact dump in the member
+  namespace. The duplicate is removed and the root copy is canonical.
+  The residual is the half the finding got right: the `*.log` files remain
+  gitignored, so the references to log-bearing rows still do not resolve in
+  a fresh clone. That is now *qualified* rather than tracked —
+  `parity_artefacts/INDEX.md` states it, since committing 33 log files
+  would put run output into git. `helios_workflow_output/` is an untracked
   run-output directory and belongs under the ignore policy per run-output
   segregation.
 - ATLAS-TARGET-001 profile item re-verified blocked: CFDrs, Gaia, Helios,

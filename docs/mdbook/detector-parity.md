@@ -351,13 +351,19 @@ for book in repos/*/docs/book; do mdbook build "$book"; done
      (positive + negative test, both filters disabled together) are
      in `scripts/tests/fixtures/smoke_test_filters/README.md`.
 6. ✅ **Parity-artefacts archive** — LANDED:
-   - 43 files (~33.8 KB) copied from `parity_artefacts/` to
-     `repos/parity_artefacts/` (full evidence chain: detector logs,
-     mdbook build logs, post-fix/pre-fix target enumerations,
-     detector↔mdbook parity diffs across all 3 atlases).
+   - 43 files (~33.8 KB) under `parity_artefacts/` at the meta-repo root
+     (full evidence chain: detector logs, mdbook build logs,
+     post-fix/pre-fix target enumerations, detector↔mdbook parity diffs
+     across all 3 atlases). Only the nine `*.txt` enumerations are tracked;
+     the `*.log` files are gitignored local run output, as
+     `parity_artefacts/INDEX.md` now records.
+   - This step previously produced a **second** partial copy under
+     `repos/parity_artefacts/`, which put an artefact dump in the member
+     namespace and duplicated every tracked file. Removed 2026-08-18; the
+     root copy is the single archive.
    - One-line SUMMARY.md link added to each of the 3 atlases'
      `docs/book/SUMMARY.md`, pointing at the new
-     `repos/parity_artefacts/INDEX.md` (a real chapter file —
+     `parity_artefacts/INDEX.md` (a real chapter file —
      mdbook v0.5.4's `SUMMARY.md [Title](path)` convention requires a
      file target; bare-directory links fail `mdbook build` with
      `Access is denied. (os error 5)`):
@@ -367,11 +373,15 @@ for book in repos/*/docs/book; do mdbook build "$book"; done
      - kwavers `Appendix D` → same label / path (kwavers' appendix
        runs A–C, so the archive lands at D)
    - Path resolves correctly from each book's `docs/book/SUMMARY.md`
-     (3 `../` levels reach `repos/`).
+     **only in an in-context build** where the book is checked out beneath
+     the meta-repo (3 `../` levels reach `repos/`, and the archive is now
+     one level further up). It does not resolve in a standalone CI checkout
+     that ships the member tree alone — the observed
+     `failed to read chapter '../../../parity_artefacts/INDEX.md'`.
    - The 4 `upload-artifact@v4` steps in `.github/workflows/docs.yml`
      independently upload CI-side evidence (`detector.log` at workspace
      root + the 3 per-book `book/` HTML directories).  The on-disk
-     `repos/parity_artefacts/` archive preserves the detector↔mdbook
+     `parity_artefacts/` archive preserves the detector↔mdbook
      parity evidence chain for local reproductions.
 
 ---
