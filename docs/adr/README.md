@@ -50,3 +50,4 @@
 | [0042](0042-acquisition-coordinate-map-seam.md) | Non-Cartesian acquisition geometry as an enum-dispatched coordinate map on `ritk_image::Image` | Accepted |
 | [0043](0043-toolchain-host-triple-pin.md) | Pin the toolchain host triple, not just the version | Proposed |
 | [0044](0044-committed-cargo-lock-form.md) | Committed Cargo.lock is the standalone form | Accepted |
+| [0045](0045-native-http-s3-transport-stack.md) | Native HTTP/S3 transport stack (moirai transport, consus S3) | Accepted |
