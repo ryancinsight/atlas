@@ -11079,3 +11079,10 @@ the shared executable-sample gate and Helios PR #64 (`9a590ff`) adopts the same
 workflow revision. Both root gitlinks remain at their fetched default heads
 until exact-head hosted gates pass; local Horae Cargo verification is blocked
 by the Windows shared-cache host-triple/overlay condition described above.
+
+Hyperion PR #14 (`9c3da46`) closes its live conformance findings: `.gitattributes`
+is present, both CI jobs have 30-minute bounds, and the Pages caller adopts the
+shared workflow with `mdbook-test` and package `hyperion`. The post-change live
+scan reports zero measured residuals; hosted verification remains the acceptance
+oracle because the local Windows overlay does not materialize a standalone
+Hyperion artifact in the shared target.
