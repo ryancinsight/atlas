@@ -168,10 +168,16 @@ nested Harmonia checkout remains provider-owned state.
 - **Finding:** the all-22 live conformance scan reports only
   `gitattributes_missing=1` for Proteus. Its prior temperature-validity lane
   is merged at provider default `996b822` and is stale/reclaimable.
-- **Acceptance:** the clean provider lane reports zero for all measured
-  conformance classes; local locked format/check/lint/test/doc/example and
-  supply-chain gates pass; hosted provider checks pass at the merged head; Atlas
-  advances only the resulting Proteus gitlink and synchronizes this record.
+- **Result:** provider commit `50e77f4` adds only `.gitattributes` and merges
+  through PR #13 at default `f612c9981547d56021db3a1be7f75631fd78ff4c`. The
+  clean provider lane reports zero across all 27 measured conformance classes.
+  Atlas commit `1ce4bfa` advances only the Proteus gitlink, and the primary
+  peer-owned `Cargo.lock` remains untouched. Hosted run `32162450077` passes
+  verify `95794242120` and supply-chain `95794242217`; RecurseML is
+  report-only. Local `cargo fmt --check` and locked metadata pass. The full
+  local batch timed out after 600 seconds under shared-target contention before
+  stage output, so no local check, Clippy, Nextest, doctest, Rustdoc, example,
+  or deny result is claimed.
 - **Non-goals:** no source or numerical changes, no consumer migration, no
   lockfile rewrite, and no primary-checkout cleanup.
 
@@ -3463,8 +3469,17 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   The only remaining lanes are the active Atlas RITK graph lane and Kwavers
   portability lane under the canonical `D:\atlas\worktrees/` root. Each repo
   remains within the main-tree-plus-one-lane bound.
-- Residual: merge Atlas PR #86 after RITK PR #49 and merge Kwavers PR #312
-  after PR #313, then remove both completed lanes and their branches.
+- Done 2026-08-18: revalidated seven clean linked lanes against their provider
+  defaults and removed them with `git worktree remove`: Asclepius ADR,
+  Consus ADR, Iris color-space, both Mnemosyne audit lanes, and both Tyche
+  cleanup lanes. Each lane had zero dirty paths and its tip was an ancestor of
+  the provider default; its local branch was then deleted. No active lane or
+  peer WIP was touched.
+- Residual: `scripts/atlas-lane-audit.py` still reports four provider
+  violations: CFDrs (5 trees), Coeus (3), Kwavers (4), and RITK (3). Their
+  extra lanes are active peer scopes or carry dirty state and require the
+  owning streams to complete before further reclamation. The clean-lane
+  cleanup increment is complete; no source or provider pointer changed.
 
 ## ATLAS-TARGET-001 — One build cache, one debug budget [patch] — in-progress (residual)
 
