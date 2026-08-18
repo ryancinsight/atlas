@@ -357,6 +357,22 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no reusable-workflow change, release-token change, source or
   dependency edit, lockfile rewrite, or primary-checkout cleanup.
 
+## ATLAS-MNEMOSYNE-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+
+- **Owner:** Atlas coordinator; clean Mnemosyne provider lane from fetched
+  `origin/main` `7967315f`.
+- **Claimed scope:** Mnemosyne `.gitattributes` only, plus provider-local
+  formatting, locked metadata, conformance, and hosted verification. The
+  primary checkout's peer-owned `Cargo.lock` remains untouched.
+- **Finding:** the live provider scan reports only
+  `gitattributes_missing=1` for this mechanical slice; allocator source,
+  test-assertion, module-size, and output findings remain separate debt.
+- **Acceptance:** the clean lane reports `gitattributes_missing=0` with no
+  increase in any measured class, formatting and locked metadata pass, and
+  hosted provider gates pass at the merged head.
+- **Non-goals:** no source implementation, lint-floor, lockfile, dependency,
+  consumer, or primary-checkout change.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
