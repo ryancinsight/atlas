@@ -2,11 +2,14 @@
 
 ## Finding 2026-08-18: current provider recheck and Tyche completion
 
-At root `a5dfe9d`, lock-form passes for 27 standalone locks and the Atlas
-conformance regression suite passes 12/12. The exact-head and development
-overlay checks fail only on the stale local RITK checkout: its Apollo FFT
-requirement and lock remain at 0.26.0 while the fetched RITK default and Apollo
-provider are on the merged 0.27 graph. No provider gitlink mismatch is present.
+At the current staged root increment, the RITK gitlink advances from `f9d04a79`
+to fetched default `9fa4981e`. The provider commit is a docs-only merge of PR
+#176 (`backlog.md` correction), so no source or lock behavior changed. The
+overlay is aligned, lock-form passes for 27 standalone locks, and the Atlas
+conformance regression suite passes 12/12. Exact-head verification after the
+staged pointer and hosted verification for `9fa4981e` remain collection steps.
+The peer-owned RITK checkout still carries the local Apollo/Hermes migration
+state and is not modified by this pointer advance.
 
 Tyche cleanup commit `de925e6` consolidates the checked index conversions shared
 by Latin-hypercube and Sobol designs, renames the bounded counter helper to its

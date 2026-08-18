@@ -13,19 +13,20 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck [patch]
 
-- **Status:** Tyche cleanup is provider-complete for this increment; the
-  remaining Atlas coherence residual is the stale local RITK checkout.
+- **Status:** Tyche cleanup and Aequitas integration are complete for this
+  increment; the remaining RITK residual is the peer-owned local checkout and
+  uncollected hosted state for its latest docs-only default.
 - **Tyche evidence:** provider commit `de925e6` consolidates the shared
   Latin-hypercube/Sobol checked index conversions, removes five production
   type-suffixed helper names, and merged through PR #26 at default
   `7e55ff8f`. Nextest 51/51, doctests 18/18, warning-denied Clippy, rustdoc,
   and the conformance report all pass; every tracked conformance class is
   zero.
-- **Atlas evidence:** root `a5dfe9d` passes lock-form (27 standalone locks)
-  and conformance (12/12). Exact-head and overlay checks fail only because the
-  stale local RITK checkout still declares Apollo FFT 0.26.0 and carries the
-  older lock graph; the fetched RITK default already contains the merged 0.27
-  consumer sweep.
+- **Atlas evidence:** the root pointer increment stages RITK at fetched default
+  `9fa4981e`, a docs-only merge on top of the audited `f9d04a79`. The overlay,
+  lock-form (27 standalone locks), and conformance (12/12) checks pass; exact
+  hosted verification for the new RITK default is still uncollected. The
+  peer-owned local checkout retains dirty Apollo/Hermes migration state.
 - **Hephaestus evidence:** its default branch is `master`; head `607ce3f`
   passes CUDA `32083561386`, WGPU `32083561356`, ROCm `32083561357`, and Metal
   `32083561389`. The prior absence-of-run classification is superseded.
@@ -46,9 +47,14 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   Atlas advances the Aequitas gitlink to the exact merge commit without
   modifying the provider checkout. Post-merge runs `32198085105` and
   `32198084983` are queued and remain uncollected hosted evidence.
-- **Acceptance:** collect queued Themis post-merge and Mnemosyne/RITK runs,
-  reconcile the RITK checkout through its owner, then re-run exact-head and
-  overlay checks. Preserve peer-owned checkout and lane state.
+- **RITK evidence:** fetched default `9fa4981e` is the docs-only merge of PR
+  #176 (`backlog.md` correction). The Atlas gitlink is staged to that exact
+  commit; the previously collected CI/Python runs remain attached to `f9d04a79`
+  and do not establish the new default head.
+- **Acceptance:** collect queued Themis post-merge, Mnemosyne, Aequitas, and
+  CFDrs runs; collect or explicitly classify the new RITK default state; then
+  re-run exact-head and overlay checks. Preserve peer-owned checkout and lane
+  state.
 
 **Current lane residual:** `python scripts/atlas-lane-audit.py` reports five
 violations: Consus has four trees plus a lane outside the canonical root,

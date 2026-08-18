@@ -5,11 +5,13 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
-- [x] Re-run exact-head, stack-overlay, lock-form, and conformance checks at
-      Atlas root `a5dfe9d`. Lock-form passes for 27 standalone locks and the
-      conformance regression suite passes 12/12. Exact-head and overlay checks
-      fail only on the stale local RITK Apollo 0.26 requirement/lock edge; no
-      provider gitlink mismatch is present.
+- [x] Re-run stack-overlay, lock-form, and conformance checks after the
+      Aequitas integration: overlay is aligned, lock-form passes for 27
+      standalone locks, and the conformance regression suite passes 12/12.
+- [x] Identify the fetched RITK default movement to docs-only `9fa4981e` and
+      stage the Atlas gitlink forward from `f9d04a79`; the peer-owned checkout
+      remains untouched. Exact-head verification after this staged pointer and
+      hosted verification for `9fa4981e` remain collection steps.
 - [x] Complete and merge the Tyche provider cleanup at commit `de925e6`
       through PR #26 at default `7e55ff8f`: consolidate Latin-hypercube/Sobol
       index conversions and remove five production type-suffixed helper names.
