@@ -11,6 +11,27 @@ Fourteen read-only audits covering every registered member plus the meta-repo.
 Every claim below is grounded at `file:line` in the audited tree. Items are
 ordered by tier, and tier is set by *what breaks*, not by effort.
 
+## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck [patch]
+
+- **Status:** Tyche cleanup is provider-complete for this increment; the
+  remaining Atlas coherence residual is the stale local RITK checkout.
+- **Tyche evidence:** provider commit `de925e6` consolidates the shared
+  Latin-hypercube/Sobol checked index conversions, removes five production
+  type-suffixed helper names, and is published as draft PR #26. Nextest 51/51,
+  doctests 18/18, warning-denied Clippy, rustdoc, and the conformance report
+  all pass; every tracked conformance class is zero.
+- **Atlas evidence:** root `c2b7b54` passes lock-form (27 standalone locks)
+  and conformance (12/12). Exact-head and overlay checks fail only because the
+  stale local RITK checkout still declares Apollo FFT 0.26.0 and carries the
+  older lock graph; the fetched RITK default already contains the merged 0.27
+  consumer sweep.
+- **Hephaestus evidence:** its default branch is `master`; head `607ce3f`
+  passes CUDA `32083561386`, WGPU `32083561356`, ROCm `32083561357`, and Metal
+  `32083561389`. The prior absence-of-run classification is superseded.
+- **Acceptance:** collect queued Themis post-merge and Mnemosyne/RITK runs,
+  reconcile the RITK checkout through its owner, then re-run exact-head and
+  overlay checks. Preserve peer-owned checkout and lane state.
+
 **Instrument correction, applied before anything else was measured.**
 `scripts/atlas-conformance.py:131` classified a file as test code only when a
 *path part* matched `tests`/`benches`/`examples`/`fuzz`. `Path.parts` yields

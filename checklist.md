@@ -3,7 +3,30 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
+
+- [x] Re-run exact-head, stack-overlay, lock-form, and conformance checks at
+      Atlas root `c2b7b54`. Lock-form passes for 27 standalone locks and the
+      conformance regression suite passes 12/12. Exact-head and overlay checks
+      fail only on the stale local RITK Apollo 0.26 requirement/lock edge; no
+      provider gitlink mismatch is present.
+- [x] Complete the Tyche provider cleanup at commit `de925e6`: consolidate
+      Latin-hypercube/Sobol index conversions, remove five production
+      type-suffixed helper names, and publish draft PR #26. Provider gates
+      pass: nextest 51/51, doctests 18/18, warning-denied Clippy, rustdoc, and
+      conformance zero across all tracked debt classes.
+- [x] Correct the Hephaestus hosted-state record. Its default branch is
+      `master`, not `main`; default head `607ce3f` has passing CUDA
+      `32083561386`, WGPU `32083561356`, ROCm `32083561357`, and Metal
+      `32083561389` workflows.
+- [ ] Collect the queued Themis post-merge and current Mnemosyne/RITK runs;
+      queued status remains distinct from hosted closure. Preserve all
+      peer-owned nested checkout and lane dirt.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
+
+> Historical baseline superseded by the current recheck above; its queued and
+> failure classifications remain evidence for the earlier provider heads.
 
 - [x] Re-run the live structural provider audit at root `04be0d6`. All 22
       provider gitlinks now match their fetched `origin/main` defaults,
@@ -40,8 +63,9 @@
       names a missing `benches/s3_rusoto_moirai.rs`; Coeus Backend parity
       `32147262055` fails at `79f05dfd` because the locked Apollo Git revision
       exposes `apollo-fft 0.26.0` while the consumer requires `^0.27.0`.
-      Hephaestus has no default-branch Actions run in this sweep. These are
-      provider/consumer gate findings, not local source-success claims.
+      Hephaestus is green on its `master` default at `607ce3f` across CUDA,
+      WGPU, ROCm, and Metal. These are provider/consumer gate findings, not
+      local source-success claims.
 - [ ] Reconcile the remaining peer-owned checkout and lane residuals through
       their owning provider branches. Do not clean, reset, or delete dirty
       checkouts or open provider lanes from this root audit.
@@ -86,9 +110,10 @@
       and Ubuntu/macOS/Windows suites green. Keep the stale local checkout and
       its lock as the remaining reconciliation residual.
 - [x] Preserve the separate Consus Documentation failure
-      `32184845179`, Coeus Backend parity failure `32147262055`, and the
-      absence of a Hephaestus default-branch run. Pages success and queued
-      jobs are not substituted for the failed or missing gates.
+      `32184845179` and Coeus Backend parity failure `32147262055`. Hephaestus
+      default `master` head `607ce3f` is hosted-green across CUDA, WGPU, ROCm,
+      and Metal; Pages success and queued jobs are not substituted for failed
+      gates.
 
 ## ATLAS-RITK-APOLLO-027-RECONCILIATION-2026-08-18 — current residual
 

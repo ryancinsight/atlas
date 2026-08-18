@@ -1,5 +1,26 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-18: current provider recheck and Tyche completion
+
+At root `c2b7b54`, lock-form passes for 27 standalone locks and the Atlas
+conformance regression suite passes 12/12. The exact-head and development
+overlay checks fail only on the stale local RITK checkout: its Apollo FFT
+requirement and lock remain at 0.26.0 while the fetched RITK default and Apollo
+provider are on the merged 0.27 graph. No provider gitlink mismatch is present.
+
+Tyche cleanup commit `de925e6` consolidates the checked index conversions shared
+by Latin-hypercube and Sobol designs, renames the bounded counter helper to its
+domain contract, and removes all five production type-suffixed helper names.
+Draft PR #26 is open. Provider evidence is nextest 51/51, doctests 18/18,
+warning-denied Clippy, rustdoc, and a zero-count report across all tracked
+conformance classes.
+
+Hephaestus hosted verification is complete on its actual default branch
+`master`, head `607ce3f`: CUDA `32083561386`, WGPU `32083561356`, ROCm
+`32083561357`, and Metal `32083561389` pass. This supersedes the earlier
+absence-of-default-run classification; it does not close the independent RITK,
+Consus, Coeus, or queued Themis/Mnemosyne residuals.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at
