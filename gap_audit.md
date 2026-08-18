@@ -11367,8 +11367,11 @@ single-letter bindings and two Markdown spellings in
 `crates/cfd-math/tests/core_solver_tests.rs`. Commits `1bf5b344` and
 `cb2a6fba` fix those diagnostics without changing solver behavior or benchmark
 workloads. Hosted run `32118252029` then exposed one explicit-iterator
-diagnostic in `crates/cfd-math/benches/cg_bench.rs`; `ea1426ac` fixes it. The
-exact next hosted run is `32119001889` at `ea1426ac`; its terminal result is
-pending. The local locked package gate remains blocked before compilation by
-the shared Atlas overlay attempting to rewrite the peer-owned lane
-`Cargo.lock`, which remains unstaged.
+diagnostic in `crates/cfd-math/benches/cg_bench.rs`; `ea1426ac` fixes it. Hosted
+run `32119001889` then exposed three benchmark diagnostics in
+`crates/cfd-math/benches/spmv_bench.rs`; `eb3aaf76` fixes them while retaining
+the real SpMV operation and output observation. The exact next hosted run is
+`32119392426` at `eb3aaf76`; its terminal result is pending. The local locked
+package gate remains blocked before compilation by the shared Atlas overlay
+attempting to rewrite the peer-owned lane `Cargo.lock`, which remains
+unstaged.
