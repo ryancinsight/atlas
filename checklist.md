@@ -60,6 +60,14 @@
       Atlas gitlink; the local locked gate remains blocked by the shared Atlas
       overlay lock mismatch.
 
+- [x] Audit the clean Gaia provider checkout without editing it. The current
+      conformance report records 44 oversized Rust files, seven implementation-
+      bearing manifests, 36 production unwraps, 33 existence-only assertions,
+      nine type-suffixed functions, seven commented-code sites, one missing
+      `missing_docs` deny, two root-sprawl entries, and two allow sites. This
+      is a provider-owned cleanup scope, not an Atlas pointer or integration
+      proof.
+
 ## ATLAS-PUBLISH-001-CFDRS-PYPI — current provider slice
 
 - [x] Add the shared release-distribution contract at Atlas `5936303`, with

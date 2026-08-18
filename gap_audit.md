@@ -32,6 +32,15 @@ provider locked gate is independently blocked before compilation by the same
 Atlas overlay lock mismatch, so the offline results are diagnostic source
 evidence rather than locked-delivery evidence.
 
+Gaia's clean provider checkout was audited without modification. Its current
+conformance report has 44 oversized Rust files, seven implementation-bearing
+manifests, 36 production unwraps, 33 existence-only assertions, nine
+type-suffixed functions, seven commented-code sites, one missing
+`missing_docs` deny, two root-sprawl entries, and two allow sites. Gaia's
+provider checklist still has standalone release and provider-refresh work
+open; this residual requires a Gaia-owned cleanup slice and is not evidence of
+an Atlas gitlink failure.
+
 ## ATLAS-PUBLISH-001-CFDRS-PYPI — exact-head release slice
 
 The shared Atlas Python release workflow changed at `5936303` to build and
