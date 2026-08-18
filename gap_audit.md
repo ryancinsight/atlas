@@ -73,6 +73,31 @@ rewriting the clean stale checkout would hide its two local commits and was
 not performed. Re-open after coordinated RITK reconciliation and a locked
 focused gate on the regenerated 0.27 lock.
 
+## Finding 2026-08-18: hosted exact-head recheck at 22:30 UTC
+
+The read-only Actions sweep covers all 22 registered providers. Current
+successful default workflow sets were observed for Horae, Hyperion, Tyche,
+Proteus, Helios, Harmonia, Aequitas, Asclepius, Eunomia, Moirai, Leto, Gaia,
+Hermes, and Iris. This hosted evidence does not establish clean local
+checkouts or close provider release actions.
+
+Themis default `d0fcce7a` has successful MSRV, Windows CI, and Pages jobs, but
+Ubuntu CI fails in the warning-denied build at `src/query/platform.rs:55` for
+Clippy's `borrow_as_ptr` pedantic lint. The Themis checkout has peer-owned
+staged and unstaged changes, so Atlas did not patch it. RITK current CI and
+Python CI (`32192759850`, `32192759832`) remain queued at `f9d04a79`. Its prior
+Python run `32184697093` passed Rustfmt, Clippy, and platform suites but failed
+three SimpleITK inverse-displacement parity assertions with maxima of 2.2324,
+0.08210, and 0.17079; tolerance widening is not an accepted remedy.
+
+Consus Documentation `32184845179` still fails before rustdoc because the
+`consus-zarr` manifest names a missing `s3_rusoto_moirai` benchmark target;
+Pages success and the queued CI run do not close that failure. Coeus Backend
+parity `32147262055` still fails every provider-contract job before tests due
+to the Apollo FFT 0.27 requirement versus the locked Apollo 0.26 revision.
+Hephaestus has no default-branch Actions run in this sweep. These are exact
+hosted evidence boundaries and remain separate from local source gates.
+
 ## Finding 2026-08-18: hosted provider sweep after Mnemosyne reconciliation
 
 A read-only GitHub Actions sweep against the current provider defaults found

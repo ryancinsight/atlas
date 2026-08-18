@@ -60,6 +60,27 @@
       `--locked` refuses the required lockfile update; this is an integration
       resolver defect, not evidence that the solver tests pass.
 
+## ATLAS-HOSTED-STATE-2026-08-18-2230 — exact-head recheck
+
+- [x] Re-collect current default-branch Actions state for all 22 registered
+      providers. Horae, Hyperion, Tyche, Proteus, Helios, Harmonia, Aequitas,
+      Asclepius, Eunomia, Moirai, Leto, Gaia, Hermes, and Iris have current
+      successful default checks in the collected workflow set. This is hosted
+      evidence for those heads, not proof that their local peer checkouts are
+      clean.
+- [x] Record Themis default `d0fcce7a`: MSRV, Windows CI, and Pages pass;
+      Ubuntu CI fails at `src/query/platform.rs:55` with Clippy's
+      `borrow_as_ptr` under the pedantic floor. Themis source is peer-owned and
+      was not edited.
+- [x] Record the RITK transition: current CI/Python runs
+      `32192759850`/`32192759832` remain queued at `f9d04a79`; prior Python
+      run `32184697093` failed only the three inverse-displacement parity
+      assertions after Rust, Clippy, Rustfmt, and platform jobs passed.
+- [x] Preserve the separate Consus Documentation failure
+      `32184845179`, Coeus Backend parity failure `32147262055`, and the
+      absence of a Hephaestus default-branch run. Pages success and queued
+      jobs are not substituted for the failed or missing gates.
+
 ## ATLAS-RITK-APOLLO-027-RECONCILIATION-2026-08-18 — current residual
 
 - [x] Reproduce the current exact-head and overlay failure. Both report
