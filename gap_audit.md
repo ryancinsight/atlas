@@ -11131,3 +11131,36 @@ tests assert the 22-provider inventory and output. The requested historical
 
 Verification: the focused Python audit tests and the exact-head structural
 audit pass for all 22 providers at the delivered root revision.
+
+## Finding 2026-08-18: Provider PR hosted closure remains open
+
+The refreshed hosted audit leaves three active provider-consumer closures
+unmergeable; no Atlas gitlink was advanced from these results.
+
+- [Apollo PR #104](https://github.com/ryancinsight/apollo/pull/104) is open at
+  exact head `38192bed48032c3cce0222f95551f1ef3b1328b6` and reports
+  `UNSTABLE`. Rust workspace run
+  [`32096086258`](https://github.com/ryancinsight/apollo/actions/runs/32096086258)
+  fails before compilation because `--locked` attempts to update the lockfile;
+  benchmark run
+  [`32096086273`](https://github.com/ryancinsight/apollo/actions/runs/32096086273)
+  fails resolving fixed benchmark executables because `apollo-fft ^0.26.0`
+  has only a `0.27.0` candidate in the graph. Python bindings and CodeRabbit
+  pass. The provider default/version/API sweep and lockfile regeneration must
+  land before consumer requirements move.
+- [Kwavers PR #402](https://github.com/ryancinsight/kwavers/pull/402) remains
+  open at exact head `69478221f0f8d601614323b0e12f175971e7fdba` and reports
+  `UNSTABLE`. Benchmark smoke and regression pass in run
+  `32099808182`, but the exact matrix run `32099808162` has terminal failures
+  across architecture, validation, security, coverage, documentation,
+  feature, CUDA, and wheel jobs, with additional cancelled jobs. The
+  consumer gitlink stays at its committed Atlas pin until a complete hosted
+  matrix is green.
+- [Helios PR #64](https://github.com/ryancinsight/helios/pull/64) remains draft
+  at exact head `9a590ffaa65b3afc61b36f0aec2239014b6d17ae` and reports
+  `UNSTABLE`. Rust and Python pass in run
+  [`32102725325`](https://github.com/ryancinsight/helios/actions/runs/32102725325),
+  the book build passes while deployment is skipped, benchmark regression is
+  still in progress, and the external RecurseML analyzer reports `ERROR`.
+  Atlas retains the existing Helios gitlink until the hosted acceptance gate
+  is terminal and green.

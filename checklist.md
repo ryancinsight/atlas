@@ -55,11 +55,17 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
-- [ ] Collect Kwavers PR #402 exact-head matrix at `69478221f`; run
-      `32099808162` is terminal but fails dependency resolution because the
-      public Apollo default is `0.26.0` while Kwavers requires `^0.27.0`.
-      Miri and benchmark smoke/regression pass, but the full matrix is not
-      green and its Atlas gitlink remains unchanged.
+- [ ] Collect Apollo PR #104 at exact head `38192bed`; its Rust workspace gate
+      fails before compilation while `--locked` attempts a lockfile update,
+      and its benchmark gate fails resolving the fixed `apollo-fft ^0.26.0`
+      benchmark dependency against the available `0.27.0` candidate. Do not
+      advance Apollo or its consumers until the default-version/API sweep and
+      lockfile are coherent.
+- [ ] Collect Kwavers PR #402 exact-head matrix at `69478221f`; benchmark smoke
+      and regression pass, but the full hosted matrix has terminal failures in
+      architecture, validation, security, coverage, documentation, feature,
+      CUDA, and wheel jobs plus cancelled jobs. Its Atlas gitlink remains
+      unchanged.
 - [x] Bound every network, package-manager, compiler, mdBook test, and mdBook
       build command in the shared Pages workflow at root commit `6ed29a9`.
       The workflow now uses `--locked` for the package build and metadata
@@ -83,8 +89,10 @@
       workflow `6ed29a9`, enables `mdbook-test`, and builds package `horae`.
       Post-merge Pages run `32103884266` and live `https://ryancinsight.github.io/horae/`
       return the expected book title with HTTP 200.
-- [ ] Collect Helios PR #64 at source `9a590ff` after its hosted Rust, Python,
-      benchmark, and Pages gates pass. It repins the caller to Atlas workflow
+- [ ] Collect Helios PR #64 at source `9a590ff` after its benchmark regression
+      gate completes and its draft status is cleared. Rust and Python pass,
+      Pages build passes but deployment is skipped, and the external RecurseML
+      analyzer reports an error. It repins the caller to Atlas workflow
       `6ed29a9`; the Atlas Helios gitlink remains unchanged until hosted proof.
 - [x] Collect and merge Hyperion PR #14 at source `b8d4fb8`; merge commit
       `fd752c7` is the Atlas Hyperion gitlink. Hosted `verify`,
