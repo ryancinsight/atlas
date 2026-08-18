@@ -36,9 +36,16 @@
 - [x] Reconcile Mnemosyne to fetched `origin/main` `d48f4842` in Atlas
       commit `a49afd3`, preserving the nested peer checkout and synchronizing
       the moving-default evidence.
-- [ ] Re-collect root hosted gates for `ed092a5` and close the full coherence
-      scan after the peer Apollo worktree leaves its uncommitted `0.27.0`
-      version bump; committed Apollo remains `0.26.0`.
+- [x] Re-collect the root hosted gates after the provider-head correction:
+      overlay run `32101202278` records Kwavers `0.27.0` versus indexed Apollo
+      `0.26.0`, and conformance run `32101488985` at `d496297` isolates the
+      RITK `oversized_files` regression `43 -> 44`.
+- [ ] Complete the Apollo `0.27.0` default-version/API sweep, then update
+      Coeus, RITK, and Kwavers requirements/locks in dependency order and
+      rerun their hosted gates; do not lower consumers or add a shim.
+- [ ] Split the committed RITK `region.rs` 540-line implementation without
+      overwriting the peer-owned in-flight region edits, then rerun the root
+      conformance gate at the exact provider head.
 - [x] Reconcile the second fetched-default movement: Themis `a609cd70`, Proteus
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all

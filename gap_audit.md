@@ -1,5 +1,53 @@
 # atlas — cross-repository integration gap audit
 
+## ATLAS-EXACT-HEAD-SWEEP-2026-08-18 — audit-tool and hosted-gate closure boundary
+
+Atlas commit `d496297` is pushed with the provider-head audit correction,
+Apollo and Hermes default gitlink alignment, Mnemosyne default alignment, and
+the conformance baseline regenerated from the hosted instrument. The exact
+structural audit passes for all 20 requested providers:
+
+```text
+python scripts/atlas-provider-integration-audit.py --exact-heads \
+  --exact-head-workers 2 --provider-set requested-2026-08-14 \
+  --structural-only --format text
+```
+
+The audit retains the canonical `Tyche` name and the `Tychee` alias, and
+confirms active `.gitmodules` registration plus fetched-default gitlink
+coherence. Full local coherence is not green because the peer-dirty Apollo
+checkout is at workspace version `0.27.0`, while the indexed Apollo default is
+`0.26.0`; Coeus and RITK still require `0.26.0`, and Kwavers requires
+`0.27.0`. The exact coherence failure is:
+
+```text
+repos/coeus/crates/coeus-autograd/Cargo.toml: apollo-fft requires 0.26.0,
+  actual peer checkout version 0.27.0
+repos/coeus/crates/coeus-fft/Cargo.toml: apollo-fft requires 0.26.0,
+  actual peer checkout version 0.27.0
+repos/ritk/crates/ritk-filter/Cargo.toml: apollo-fft requires 0.26.0,
+  actual peer checkout version 0.27.0
+```
+
+Root overlay run `32101202278` at `a0ff0ab` independently reports the
+consumer-side lag: Kwavers requires `apollo-fft = 0.27.0`, while the indexed
+Apollo tree is `0.26.0`. This requires the Apollo default-version/API sweep;
+lowering Kwavers or retaining a compatibility path is not an acceptable fix.
+
+Root conformance run `32101488985` at `d496297` reports one remaining ratchet
+regression: `ritk/oversized_files: 43 -> 44`. The committed RITK head
+`b91bcee6` contains `crates/ritk-image/src/region.rs` at 540 lines. The nested
+RITK checkout has peer-owned edits to this same region and its test sidecars;
+those edits remain untouched. Re-open the ratchet item after that provider
+increment lands, then rerun the root gate at the resulting exact head.
+
+Kwavers PR #402 is at final source head `69478221f`. Its exact hosted matrix
+run `32099808162` fails during dependency resolution because Apollo's public
+default offers `0.26.0` for Kwavers' `^0.27.0` requirement; Miri passes and the
+benchmark smoke/regression jobs pass, but the matrix is not merge-green. Atlas
+does not advance the Kwavers gitlink until Apollo's `0.27.0` default is
+published and the consumer matrix is rerun.
+
 ## ATLAS-CFDRS-BACKWARD-STEP-108 — default-branch Clippy blocker (2026-08-18)
 
 CFDrs PR #349 source head `95801b48` passes the focused local value-semantic

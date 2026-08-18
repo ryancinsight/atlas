@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Push the Atlas exact-head audit correction at `d496297`. The structural
+  requested-provider audit passes for all 20 providers and preserves the
+  `Tyche`/`Tychee` normalization. Hosted conformance run `32101488985` now
+  reports only the genuine RITK `oversized_files` regression (`43 -> 44`) from
+  the committed 540-line `crates/ritk-image/src/region.rs`; the peer-owned
+  RITK checkout already has in-flight edits to that region and remains
+  untouched. Root overlay run `32101202278` records the separate Apollo
+  `0.26.0` versus Kwavers `0.27.0` requirement lag. Kwavers PR #402 remains
+  blocked at `69478221f` until Apollo's `0.27.0` default lands; no consumer
+  downgrade or compatibility path is added.
+
 - Reconcile moving provider defaults by advancing the Atlas Aequitas gitlink
   to `c74b662c`, Hermes gitlink to `c6265cb4`, and Mnemosyne gitlink to
   current `d48f4842` through the previously recorded `bfe76db0`. The changes
