@@ -11864,3 +11864,31 @@ package metadata; and make all figure manifests recursive and complete.
   Harmonia, Aequitas, Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto,
   Hephaestus, Coeus, Apollo, Hermes, and Iris. The audit changed no provider
   files; the re-open trigger is a coordinated clean checkout.
+
+## ATLAS-ASCLEPIUS-CONFORMANCE-2026-08-18 — provider workflow closure
+
+The clean Asclepius lane added the repository-wide `* text=auto` policy and
+finite 30-minute bounds to the `verify` and `supply-chain` jobs. Provider
+commit `b6257ae` merged through PR #20 at default
+`db33ccafefee8e81cc48cce594150d382ee3a6d8`. Hosted run `32173604736` passes
+both required jobs; RecurseML remains report-only. The independent
+`workspace_lints_missing=1` baseline remains outside this slice, and Atlas
+advances only the gitlink.
+
+## ATLAS-TYCHE-CONFORMANCE-2026-08-18 — provider workflow closure
+
+The clean Tyche lane added finite 30-minute bounds to `verify` and
+`supply-chain`. Provider commit `240b5fe` merged through PR #25 at default
+`e7f60504268e6c6c0c227210238b3a3eb9135200`; hosted run `32174221062` passes
+both required jobs. The five type-suffixed functions and workspace lint
+baseline remain separate provider debt, and the peer planning checkout was not
+modified.
+
+## ATLAS-LETO-CONFORMANCE-2026-08-18 — Python publication closure
+
+The clean Leto lane added a finite 30-minute bound to the local Python release
+`publish` job. Provider commit `1d7aada` merged through PR #117 at default
+`01474f2b4b34238ee7966ac650949cd3de1100e5`; hosted Rust verification run
+`32174610008` passes. Leto's Rust CI already had a 45-minute bound and its
+reusable release caller was correctly exempt. The primary peer-dirty checkout
+was not modified.

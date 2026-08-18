@@ -268,7 +268,7 @@ nested Harmonia checkout remains provider-owned state.
   the Aequitas gitlink.
 - **Non-goals:** no lint-floor, numerical, consumer, or Helios changes.
 
-## ATLAS-ASCLEPIUS-CONFORMANCE-001 — add provider checkout and CI bounds [patch] — in progress
+## ATLAS-ASCLEPIUS-CONFORMANCE-001 — add provider checkout and CI bounds [patch] — completed
 
 - **Owner:** Atlas coordinator; clean Asclepius provider checkout at fetched
   `origin/main` `ff2ffbf`.
@@ -284,6 +284,10 @@ nested Harmonia checkout remains provider-owned state.
   timeout closure; the post-change conformance scan introduces no new class,
   locked metadata and formatting pass, and hosted provider gates pass at the
   merged head.
+- **Closure:** provider commit `b6257ae` merged through PR #20 at default
+  `db33ccafefee8e81cc48cce594150d382ee3a6d8`. Hosted run `32173604736`
+  passes `verify` and `supply-chain`; RecurseML remains report-only. Atlas
+  advances only the provider gitlink.
 - **Non-goals:** no workspace lint-floor migration, source implementation,
   numerical behavior, consumer migration, or lockfile rewrite.
 
@@ -308,7 +312,7 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no source rename or refactor, lint-floor migration, test
   rewrite, dependency change, lockfile rewrite, or primary-checkout cleanup.
 
-## ATLAS-TYCHE-CONFORMANCE-001 — bound provider CI jobs [patch] — in progress
+## ATLAS-TYCHE-CONFORMANCE-001 — bound provider CI jobs [patch] — completed
 
 - **Owner:** Atlas coordinator; clean Tyche provider lane from fetched
   `origin/main` `5eeaba9`.
@@ -324,10 +328,14 @@ nested Harmonia checkout remains provider-owned state.
   the adjacent provider timeout closure; the clean lane reports no increase in
   any measured class, formatting and locked metadata pass, and hosted gates
   pass at the merged head.
+- **Closure:** provider commit `240b5fe` merged through PR #25 at default
+  `e7f60504268e6c6c0c227210238b3a3eb9135200`. Hosted run `32174221062`
+  passes `verify` and `supply-chain`; RecurseML remains report-only. The
+  primary planning checkout remains untouched.
 - **Non-goals:** no source rename/refactor, lint-floor migration, planning
   branch cleanup, dependency or lockfile change, or consumer edit.
 
-## ATLAS-LETO-CONFORMANCE-001 — bound Python release publication [patch] — in progress
+## ATLAS-LETO-CONFORMANCE-001 — bound Python release publication [patch] — completed
 
 - **Owner:** Atlas coordinator; clean Leto provider lane from fetched
   `origin/main` `1402668`.
@@ -342,6 +350,10 @@ nested Harmonia checkout remains provider-owned state.
 - **Acceptance:** the Python release `publish` job carries a finite 30-minute
   deadline; the clean lane adds no other changes, workflow structure and
   locked metadata pass, and hosted provider gates pass at the merged head.
+- **Closure:** provider commit `1d7aada` merged through PR #117 at default
+  `01474f2b4b34238ee7966ac650949cd3de1100e5`. Hosted Rust verification run
+  `32174610008` passes; RecurseML remains report-only. The primary checkout's
+  peer-owned source, ADR, changelog, and lockfile changes remain untouched.
 - **Non-goals:** no reusable-workflow change, release-token change, source or
   dependency edit, lockfile rewrite, or primary-checkout cleanup.
 

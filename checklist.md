@@ -39,6 +39,16 @@
       `95831119410` and supply-chain `95831119356` pass in run `32173862885`.
       The primary checkout's peer-owned staged and unstaged `Cargo.lock` stays
       untouched.
+- [x] Close Asclepius conformance cleanup: provider commit `b6257ae` merged
+      through PR #20 at default `db33ccaf`; hosted `verify` and `supply-chain`
+      pass in run `32173604736`; RecurseML remains report-only.
+- [x] Close Tyche conformance cleanup: provider commit `240b5fe` merged
+      through PR #25 at default `e7f60504`; hosted `verify` and `supply-chain`
+      pass in run `32174221062`; the peer planning checkout remains untouched.
+- [x] Close Leto release-workflow timeout cleanup: provider commit `1d7aada`
+      merged through PR #117 at default `01474f2b`; hosted Rust verification
+      run `32174610008` passes; the peer-dirty primary checkout remains
+      untouched.
 - [x] Collect and merge RITK PR #165 at default `ae23d4b2`; hosted native CI
       `32063759899` and Python matrix `32063759848` pass at the final source
       head.
