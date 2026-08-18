@@ -57,6 +57,8 @@
       `pytest.ini` `pythonpath = scripts` contract. The committed fast tier now
       passes 225 tests, deselects 17 slow tests, and passes 74 subtests in
       13.75 seconds.
+- [x] Run the committed slow Python/book tier: 17/17 tests pass in 1.62
+      seconds.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — current provider slice
 

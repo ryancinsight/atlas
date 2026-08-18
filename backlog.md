@@ -74,6 +74,8 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   `scripts.*` while `pytest.ini` exposes `scripts` as the module root. The
   import now matches the configured namespace; the fast tier passes 225 tests,
   17 deselected tests, and 74 subtests in 13.75 seconds.
+- The committed slow Python/book tier also passes 17/17 in 1.62 seconds;
+  documentation helper coverage is green at the delivered root revision.
 
 **Current lane residual:** `python scripts/atlas-lane-audit.py` reports five
 violations: Consus has four trees plus a lane outside the canonical root,
