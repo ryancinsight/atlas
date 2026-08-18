@@ -1046,32 +1046,29 @@ live dirty-tree scan now reports kwavers **16** true orphans (down from 19).
 
 ### ATLAS-ORPHAN-MODULES-096-RITK — in progress 2026-08-17
 
-Provider PR #166 (`525cc04a`) carries the ritk slice at default `b2da60c7`:
+Provider PR #166 (`9509473e`, rebased onto `ae23d4b2`) carries the ritk slice:
 `ritk-connectome` gains `pub mod freesurfer;` (FreeSurfer annotation reader,
 224 lines, with `#[cfg(test)] mod tests;` already declared inside the file);
 `ritk-interpolation/kernel` gains `#[cfg(test)] mod tests_sinc;` in
 `kernel/mod.rs` (the file is a sibling of `sinc.rs`, not a sub-directory);
 `ritk-interpolation/kernel/linear` gains `#[cfg(test)] mod tests_linear;` plus
-12 E0716 lifetime fixes so the tests compile and pass. Deleted:
-`kernel/macros.rs` (empty file) and `tests/fused.rs` (references
-`is_identity_direction` which is not exported from `fused.rs`). Local nextest
-passes 5283/5283. Re-open trigger: PR merges and Atlas pointer advances.
+12 E0716 lifetime fixes, format normalization, and Clippy suggestion
+(`!(0..=1_000_000).contains()`). Deleted: `kernel/macros.rs` (empty file) and
+`tests/fused.rs` (references `is_identity_direction` which is not exported from
+`fused.rs`). Python CI passes 5283/5283. Native CI in progress. Re-open
+trigger: PR merges and Atlas pointer advances.
 
 ### ATLAS-ORPHAN-MODULES-096-KWAVERS — in progress 2026-08-17
 
-Provider PR #400 (`f1fa78d1`) carries the kwavers slice at default
-`c4a41f289`: `kwavers-solver/validation` gains `pub mod bioheat;` (bioheat/
-mod.rs already declares `cem43_reference`); `kwavers-solver/forward/pstd` gains
-`pub mod cache;` (k-space operator cache; fix `shape()` comparison from
-`&[32, 32, 32]` to `[32usize, 32, 32]` to match return type);
-`kwavers-driver/io` gains `#[cfg(test)] mod tests;` (250-line consolidated io
-test surface). Deleted: `steering.rs` (reserved-for-future stub, no callers),
-`nufft.rs` (re-exports Apollo NUFFT symbols not in current apollo), `adaptive/`
-(4 files — calls `.std()`/`.var()` on types that don't implement those traits),
-6 stale `fixed_acquisition/tests/` files (reference `ShiftPrior`, `ShiftSampling`,
-`SoundSpeedShiftPlanWorkspace`, and methods removed from current
-`SoundSpeedShiftPlan` API). Local nextest passes 6223/6223 (17 slow). Re-open
-trigger: PR merges and Atlas pointer advances.
+Provider PR #400 (`680cc53c`, after format and Cargo.lock updates) carries the
+kwavers slice at default `c4a41f289`: `kwavers-solver/validation` gains
+`pub mod bioheat;`; `kwavers-solver/forward/pstd` gains `pub mod cache;` (fix
+`shape()` comparison from `&[32, 32, 32]` to `[32usize, 32, 32]`);
+`kwavers-driver/io` gains `#[cfg(test)] mod tests;`. Deleted: `steering.rs`,
+`nufft.rs`, `adaptive/` (4 files), 6 stale `fixed_acquisition/tests/` files.
+Cargo.lock updated (mnemosyne `5ca0461a` → `d1144f74`). CI/CD Pipeline and
+Architecture Validation in progress. Re-open trigger: PR merges and Atlas
+pointer advances.
 
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — open 2026-08-14
 
