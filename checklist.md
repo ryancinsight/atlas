@@ -120,10 +120,10 @@
       are the fetched `origin/main` heads. Advance only those three root
       gitlinks; preserve their peer-owned dirty nested files.
 - [x] Reconcile the subsequent fetched-default movement without staging
-      nested peer dirt: Themis `f61173bc`, Tyche `bcfcf79c`, Proteus `cb70021b`,
-      Mnemosyne `924cdcce`, Consus `30c660e4`, Helios `679402ae`, Hermes
-      `1fe438ce`, Aequitas `c74b662c`, Asclepius `5d528d2f`, Moirai `3d5d4c66`,
-      RITK `f23a6acd`, Coeus `a8ea12eb`, Apollo `ed6d6905`, and Iris
+      nested peer dirt: Themis `f61173bc`, Tyche `5eeaba95`, Proteus `cb70021b`,
+      Mnemosyne `d1144f74`, Consus `2dcf05a8`, Helios `39a24992`, Hermes
+      `dd4cb129`, Aequitas `c74b662c`, Asclepius `5de8a48c`, Moirai `3d5d4c66`,
+      RITK `ae23d4b2`, Coeus `b14777d8`, Apollo `df8999f9`, and Iris
       `da210d2f` now match fetched `origin/main` in the staged root index.
       Hosted-gate status is not inferred from this pointer operation.
 - [x] Repair the unreachable Athena root gitlink from `638ca74f` to fetched

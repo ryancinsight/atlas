@@ -134,8 +134,8 @@ source implementation and provider-local tests.
   The Atlas gitlink sweep below is complete for moving Mnemosyne,
   Aequitas, Leto, and CFDrs defaults;
   while Helios is already at merged default `679402ae`. Kwavers PR #402 carries
-  the current uninitialized-GPU-resource correction at source head
-  `b275b7115`; its hosted matrix is pending. PR #386 remains historical
+  the current provider FDTD and uninitialized-GPU-resource correction at exact
+  source head `e1648019`; its hosted matrix is pending. PR #386 remains historical
   evidence for the earlier multi-field field-preservation closure, not current
   exact-head proof. The
   existing CFDrs decision to remove its newly introduced legacy-Clippy step is
@@ -144,10 +144,10 @@ source implementation and provider-local tests.
 
 **Moving-default reconciliation (2026-08-17):** Atlas is advancing fourteen
 fetched provider defaults in the current root commit: Themis `f61173bc`, Tyche
-`bcfcf79c`, Proteus `cb70021b`, Mnemosyne `924cdcce`, Consus `30c660e4`,
-Helios `679402ae`, Hermes `1fe438ce`, Aequitas `c74b662c`, Asclepius
-`5d528d2f`, Moirai `3d5d4c66`, RITK `f23a6acd`, Coeus `a8ea12eb`, Apollo
-`ed6d6905`, and Iris `da210d2f`. This pointer evidence is separate from
+`5eeaba95`, Proteus `cb70021b`, Mnemosyne `d1144f74`, Consus `2dcf05a8`,
+Helios `39a24992`, Hermes `dd4cb129`, Aequitas `c74b662c`, Asclepius
+`5de8a48c`, Moirai `3d5d4c66`, RITK `ae23d4b2`, Coeus `b14777d8`, Apollo
+`df8999f9`, and Iris `da210d2f`. This pointer evidence is separate from
 provider hosted-gate evidence. The nested primary checkouts remain peer-owned.
 The CFDrs follow-up is pushed at `e6633964` on
 `codex/cfdrs-runtime-residual` and is carried by PR #348. Its final local

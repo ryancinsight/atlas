@@ -22,6 +22,33 @@ the Kwavers gitlink or mark this integration closed. The separate pressure-only
 dispatcher and disconnected f64 solver accelerator remain explicit residuals
 outside this collocated contract.
 
+## ATLAS-EXACT-HEAD-SWEEP-2026-08-17 — follow-up fetched-default reconciliation
+
+Peer merges moved fourteen requested-provider defaults after the preceding
+root sweep. Atlas advances only the indexed gitlinks and leaves nested
+peer-owned checkout dirt untouched: Themis
+`f61173bc8c3ecd28fcdea7b35a0b1aed841f79a0`, Tyche
+`5eeaba952ed8abd2b072cf87e7628b7415bea03b`, Proteus
+`cb70021b104743010492c6ec76858eef6177c083`, Mnemosyne
+`d1144f7434b1a72fffd2b817f2ac5de3468ba81f`, Consus
+`2dcf05a835fe232cd86a8f56463525fb55368808`, Helios
+`39a2499207ee1b5469cbd6e6408875df5f245d69`, Hermes
+`dd4cb129e93d17721bb5fdbd6ddfdfbc234b6355`, Aequitas
+`c74b662c9204d7ea18c1f56829f77ded753803ca`, Asclepius
+`5de8a48c9133cd4c0b02b991054e4068fca9fa95`, Moirai
+`3d5d4c661552ca206c454704f1d5f3ed147d2adc`, RITK
+`ae23d4b2c9de6d1f93cee4194ced76042dee422f`, Coeus
+`b14777d82866a87b8c103749b4f87240716382d9`, Apollo
+`df899f9a2c10b56552902e3f3d10987ac5af9e10`, and Iris
+`da210d2f80e486dbad351dc17d7c60478193f020`.
+
+The structural exact-head audit passes after this index update. Full coherence
+remains blocked by the locally materialized Asclepius checkout: its manifest
+still requires Aequitas `0.1.0` and Coeus `0.9.0`, while current provider
+defaults are `0.2.0` and `0.10.0`. The fetched Asclepius default is recorded
+above; the dirty peer checkout is not overwritten to manufacture a local
+coherence result.
+
 ## ATLAS-ROOT-SUBMODULE-REACHABILITY-2026-08-17 — Athena gitlink repair
 
 The root workflow failures `32050420294`, `32050420287`, `32050420276`, and

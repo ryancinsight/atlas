@@ -7,6 +7,11 @@
   contract coverage. Kwavers PR #402 carries the consumer cutover and remains
   gated on its exact-head hosted matrix before the Atlas gitlink advances.
 
+- Advance fourteen requested-provider gitlinks to their fetched defaults after
+  peer merges; the structural exact-head audit passes. Full coherence remains
+  blocked only by the locally materialized Asclepius manifest lag, which still
+  requires Aequitas `0.1.0` and Coeus `0.9.0`.
+
 - Close the conformance classifier correction with 37 focused scanner tests,
   Apollo's clean orphan baseline at 0, and hosted root run `32031997052`
   reporting zero ratchet regressions at `f84beec`.
