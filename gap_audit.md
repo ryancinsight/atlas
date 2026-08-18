@@ -8,7 +8,7 @@ The FDTD gap identified at merged Kwavers `6075940ce` and Hephaestus
 `607ce3feb2e0ed1d907d3e0172e23377851e71d8` and owns the typed
 provider-neutral f32 `Fdtd3dOps` contract, WGPU velocity/pressure kernels, and
 two-step independent contract coverage. Kwavers PR #402 at exact head
-`17a70288bfb6e03aab5016218ccb0921d24278a1` deletes the consumer-owned
+`e1648019f24e71598d0421dbd11e4f011b75878a` deletes the consumer-owned
 collocated raw-WGPU FDTD files, wires GPU/CPU equivalence through the provider,
 keeps the CPU oracle native-f32, and reports provider failures without CPU
 fallback. Local feature-enabled gates pass: strict Clippy, 22/22 focused

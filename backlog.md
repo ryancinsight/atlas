@@ -319,7 +319,7 @@ CPU-vs-CPU comparison may be added to close it.
 Implementation merged in Hephaestus PR #213 from exact head
 `7bc9944852a6ba92d4ff265b9fff9bc8c81e3567` as merge commit
 `607ce3feb2e0ed1d907d3e0172e23377851e71d8`. Kwavers PR #402 remains at exact
-head `17a70288bfb6e03aab5016218ccb0921d24278a1`. The provider branch owns the
+head `e1648019f24e71598d0421dbd11e4f011b75878a`. The provider branch owns the
 typed f32 contract, WGPU kernels, and sequential two-step contract coverage;
 the consumer branch deletes the collocated raw-WGPU path and wires the
 independent native-f32 CPU differential runner without a fallback. Local
