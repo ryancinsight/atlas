@@ -25,11 +25,15 @@
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — current provider slice
 
-- [ ] Consolidate `bucket_from_u32` and `bucket_from_usize` into one
+- [x] Consolidate `bucket_from_u32` and `bucket_from_usize` into one
       domain-named NUMA bucket conversion, preserving the existing bucket
-      mapping and caller behavior.
-- [ ] Run the provider package gates and confirm the conformance report has
-      `type_suffixed_fns=0` with no new debt.
+      mapping and caller behavior at provider commit `0022926`.
+- [x] Run the provider package gates: nextest 65/65 across the allocator and
+      profiler packages, warning-denied Clippy, doctest compilation,
+      warning-free rustdoc, and conformance `type_suffixed_fns=0` with no
+      increased debt class.
+- [ ] Collect hosted checks and merge draft PR #62, then advance the Atlas
+      gitlink only after the exact provider default head is known.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 

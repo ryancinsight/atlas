@@ -34,15 +34,18 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 
-- **Status:** in progress; provider-owned scope claimed in `repos/mnemosyne`.
+- **Status:** provider implementation complete at `0022926`; draft PR #62 is
+  open and hosted verification/merge remain.
 - **Scope:** `crates/mnemosyne-arena/src/segment/pool/numa_bucket.rs` and its
   two callers; no allocator algorithm or public API change.
 - **Acceptance:** replace the two type-suffixed production bucket helpers with
   one domain-named conversion, preserve NUMA bucket behavior through focused
   value-semantic tests, and reduce Mnemosyne's conformance
   `type_suffixed_fns` count from 2 to 0 without increasing any debt class.
-- **Verification:** format, locked package check/Clippy, sanctioned nextest,
-  doctests, rustdoc, and the provider conformance report at the exact commit.
+- **Verification:** local format, package Clippy, sanctioned nextest 65/65,
+  doctest compilation, warning-free rustdoc, and the provider conformance
+  report pass at the exact commit. Collect hosted checks before advancing the
+  Atlas gitlink.
 
 **Instrument correction, applied before anything else was measured.**
 `scripts/atlas-conformance.py:131` classified a file as test code only when a
