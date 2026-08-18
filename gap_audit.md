@@ -11045,3 +11045,20 @@ separate GPU substrate). Recording those as future audit items, NOT
 actioning them here, matches the canonical-component-homes rule: a
 cross-repo consolidation audit names the locus, peer-leto and
 peer-physics-crate own the execution.
+
+## Finding 2026-08-18: shared Pages command bounds
+
+Atlas root commit `6ed29a9` hardens `.github/workflows/book-pages.yml` with
+explicit `timeout` bounds for the mdBook download, linkcheck2 installation,
+native package installation, package compilation, metadata resolution,
+`mdbook test`, and `mdbook build`. The package build and metadata query use
+`--locked`, preserving the committed dependency graph. The root job retains a
+20-minute aggregate bound; the command bounds prevent a hung subprocess from
+consuming that entire budget. Local `scripts/tests/test_check_mdbook_links.py`
+passes 43/43. YAML parsing and actionlint are not available in the current
+Windows tool environment, so hosted workflow validation remains required.
+
+The change is not yet adopted by every caller. Helios default `408a31b0` has
+`mdbook-test: true` but pins the prior shared workflow; Kwavers pins the same
+prior revision, and CFDrs pins `bb505e5`. Those caller changes are separate
+provider-repository integration items and are not claimed by this root slice.

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Bound the shared Pages workflow at root commit `6ed29a9`: network downloads,
+  package installation, package builds, metadata resolution, mdBook tests, and
+  mdBook rendering now have explicit termination bounds; the package build and
+  metadata query use the committed lockfile. The local mdBook link-contract
+  suite passes 43/43. Helios already enables `mdbook-test`; its caller and the
+  Kwavers/CFDrs callers still pin earlier shared-workflow revisions and remain
+  separate peer-owned integration work.
+
 - Push the Atlas exact-head audit correction at `d496297`. The structural
   requested-provider audit passes for all 20 providers and preserves the
   `Tyche`/`Tychee` normalization. Hosted conformance run `32101488985` now

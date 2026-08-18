@@ -55,6 +55,15 @@
       public Apollo default is `0.26.0` while Kwavers requires `^0.27.0`.
       Miri and benchmark smoke/regression pass, but the full matrix is not
       green and its Atlas gitlink remains unchanged.
+- [x] Bound every network, package-manager, compiler, mdBook test, and mdBook
+      build command in the shared Pages workflow at root commit `6ed29a9`.
+      The workflow now uses `--locked` for the package build and metadata
+      query, and retains the 20-minute job bound with per-command termination.
+      The local link-contract suite passes 43/43; YAML/actionlint executables
+      are unavailable in this Windows environment. Helios default
+      `408a31b0` already enables `mdbook-test` but still calls the prior shared
+      workflow revision; Kwavers and CFDrs likewise retain peer-owned caller
+      pins (`4c31dd7` and `bb505e5`). Caller repinning remains separate work.
 
 # Sweep 2026-08-13 — execution order
 
