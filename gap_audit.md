@@ -78,7 +78,7 @@ published and the consumer matrix is rerun.
 
 ## ATLAS-CFDRS-BACKWARD-STEP-108 — default-branch Clippy blocker (2026-08-18)
 
-CFDrs PR #349 source head `3ebb5f77` carries the bounded `cfd-core`/`cfd-math`
+CFDrs PR #349 source head `8db668eb` carries the bounded `cfd-core`/`cfd-math`
 lint cleanup and the hosted book-figure gate passes. Rust workspace run
 `32111217293` reached compilation and failed on four ambiguous floating-literal
 types introduced by the epsilon assertions at `4ea465a6`; commits `2ebd686d`
@@ -92,14 +92,17 @@ Criterion group expectation at its macro site. The next transcript exposed
 `sparse/tests.rs` family with invariant-bearing expectations and no
 production-path change. Run `32112023385` then isolated the invalid
 macro-site `#[expect]` as the only failure; commit `3ebb5f77` moves that
-expectation to the benchmark crate scope. Earlier source cleanup
+expectation to the benchmark crate scope. The next transcript exposed
+The next transcript exposed the 25-error `linear_solver/direct_solver.rs`
+family; commit `8db668eb` replaces its test unwraps and strengthens the
+singular-system assertion to match `Error::Solver`. Earlier source cleanup
 commits removed the reported default-branch test `unwrap_used`, `doc_markdown`,
 and diagnostic classes without blanket suppressions or unrelated solver
 changes. Commits `22d74042`, `c70d44e3`, and
 `06d237c5`, `463b4d68`, `7a7b4289`, `3c163895`, `9b2ab34d`, `1389ce05`,
 `1d1e14c8`, `6b22c4bd`, `3cd393b6`, `ccf889c2`, `33cb9af4`, `3f8fe517`,
-`bebe2d55`, `ee274df5`, `4ea465a6`, `2ebd686d`, `261b3b99`, `8f3770c0`, and
-`3fbffc6a`, `7af3f9e7`, and `3ebb5f77` own the `cfd-core`/`cfd-math`
+`bebe2d55`, `ee274df5`, `4ea465a6`, `2ebd686d`, `261b3b99`, `8f3770c0`,
+`3fbffc6a`, `7af3f9e7`, `3ebb5f77`, and `8db668eb` own the `cfd-core`/`cfd-math`
 state/field-operation/GPU-kernel/validation/compute-dispatch/GPU-integration/
 conversion/boundary/time-controller/error-context/blood-model/plugin/
 unsupported-backend/cavitation/backend-validation/result-existence test

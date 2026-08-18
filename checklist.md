@@ -330,7 +330,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `3ebb5f77`.
+      integrate provider PR #349 at current exact source head `8db668eb`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -340,7 +340,7 @@
       separate from the CFDrs timeout optimization item; no hardcoded runtime
       correlation, weakened assertion, or reduced workload closes the
       benchmark contract.
-- [x] Push the bounded CFDrs lint cleanup through `3ebb5f77`: replace state,
+- [x] Push the bounded CFDrs lint cleanup through `8db668eb`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
       plugin, unsupported-backend, cavitation, backend-validation, and
@@ -356,7 +356,8 @@
       expectations and close the sparse-provider test family with the same
       contract-bearing diagnostics; scope the Criterion-generated benchmark
       lint expectation at crate level after hosted validation rejected the
-      macro-site attribute.
+      macro-site attribute; harden the direct-solver provider test family and
+      assert the typed singular-system error.
       locally; the locked package compile is overlay-blocked and the peer
       Cargo.lock remains unstaged. Re-open after the exact hosted Clippy
       transcript establishes the remaining count.
