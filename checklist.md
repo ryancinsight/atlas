@@ -4832,11 +4832,13 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
   Iris. `Tyche` is canonical; `Tychee` is an audit normalization alias.
 - [x] Structural exact-head audit passes for all 22 active providers after
       fetched-default reconciliation; regression suites pass 29/29 and 3/3.
-- [x] Rechecked live consumer coherence after the Coeus provider advance: the
-      exact-head audit and standalone version guard report zero requested-scope
-      manifest defects. The committed overlay still reports Helios
-      `Cargo.lock` selecting Apollo `0.26.0`; re-open after the peer-owned lock
-      sweep and hosted matrix.
+- [x] Rechecked live consumer coherence after the Harmonia/Apollo pointer
+      advances: the structural exact-head audit passes all 22 providers, while
+      full exact-head/version guard reports the peer-owned RITK requirement
+      `apollo-fft 0.26.0` against provider `0.27.0`. Hosted conformance
+      `32159744862` passes at root `c049d26`; overlay `32159744891` records the
+      same Apollo migration boundary in CFDrs and Kwavers locks. No peer
+      manifest or lockfile is edited here.
 - [x] Add and test the opt-in `--require-clean-checkouts` audit mode. It checks
       checkout HEAD versus the committed gitlink and reports tracked/untracked
       dirt without modifying peer state.
@@ -4878,7 +4880,8 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       default `365f0bb` with verify, supply-chain, and book checks green.
 - [ ] Replace the CFDrs local Anderson/Aitken wrapper with a direct provider
       implementation and analytical/differential parity evidence. Atlas now
-      points Harmonia at merged default `b98d3f4`; no consumer adapter,
+      points Harmonia at merged default
+      `3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb`; no consumer adapter,
       fallback, or numerical-contract change is permitted.
 - [x] **ATLAS-HARMONIA-AITKEN-001:** add the
       provider-owned, input-sensitive Aitken policy and its analytical,

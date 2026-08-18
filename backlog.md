@@ -328,9 +328,10 @@ of scope for this claim and is deleted only in the following consumer slice
 after the provider contract is merged and integrated. Acceptance is provider
 local locked check, warning-denied Clippy, Nextest, doctest, Rustdoc, book
 build, and hosted verification at the exact provider head; no fallback,
-adapter, or workload relaxation is permitted. The provider contract is now
-delivered at merged default `b98d3f4`; the following CFDrs consumer item owns
-the remaining wrapper deletion.
+adapter, or workload relaxation is permitted. The provider contract remains
+delivered at merged default `b98d3f4`; conformance cleanup is now merged at
+`3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb`, and the following CFDrs consumer
+item owns the remaining wrapper deletion.
 
 **Provider implementation (2026-08-18):** Harmonia commit `584e961` merged via
 PR #6 at provider default `b98d3f41d640b3a79df125ef1b3ff786156c5dd3`. The source
@@ -342,16 +343,19 @@ Rustdoc, runnable example, and mdBook build pass. Local `mdbook test` cannot
 resolve the four staged dependency rlibs; the provider workflow supplies those
 paths explicitly, so this is an environment limitation rather than a changed
 gate. Hosted verify, supply-chain, and book checks pass at the exact head;
-RecurseML is an analyzer error and remains report-only. Atlas advances the
-Harmonia gitlink to merged default `b98d3f4`.
+RecurseML is an analyzer error and remains report-only. Atlas first advanced
+the implementation gitlink to `b98d3f4`; the subsequent conformance cleanup
+merged at `3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb`.
 
-**Post-merge exact-head recheck (2026-08-18):** Atlas root `6668437` passes
+**Post-merge exact-head recheck (2026-08-18):** Atlas root `c049d26` passes
 the 22-provider structural exact-head audit with Harmonia at merged default
-`b98d3f4`. The full exact-head audit and standalone version guard each report
-exactly one peer-owned residual: RITK's dirty
+`3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb`. The full exact-head audit and
+standalone version guard each report exactly one peer-owned residual: RITK's dirty
 `crates/ritk-filter/Cargo.toml` requires `apollo-fft 0.26.0`, while the current
 provider package is `0.27.0`. The RITK consumer migration remains outside this
-slice; no dirty manifest or lockfile is altered here.
+slice; no dirty manifest or lockfile is altered here. Hosted Atlas conformance
+run `32159744862` passes; overlay run `32159744891` fails on the peer-owned
+CFDrs requirement and CFDrs/Kwavers `Cargo.lock` pins at `0.26.0`.
 
 **Latest hosted-state recheck (2026-08-18):** Apollo PR #104 is merged at
 default `d585e0f5` with Rust/Python checks green and benchmark run `32140805200`
@@ -360,10 +364,11 @@ checks green and its benchmark check still in progress; CFDrs PR #349 is open
 at `3a03a222` with hosted run `32152884477` queued; and Kwavers PR #402 remains
 open with its complete matrix failed or cancelled despite passing benchmark
 smoke. The Atlas structural exact-head audit is green, but full exact-head
-coherence, the version guard, clean-checkout, and overlay gates still report
-the peer-owned RITK `apollo-fft 0.26.0` requirement against local provider
-`0.27.0` plus checkout state. These are delivery residuals, not reasons to
-alter workloads, budgets, or consumer contracts.
+coherence and the version guard still report the peer-owned RITK
+`apollo-fft 0.26.0` requirement against provider `0.27.0`; the hosted overlay
+also reports CFDrs's `0.26.0` requirement and CFDrs/Kwavers `Cargo.lock` pins
+against that provider. These are delivery residuals, not reasons to alter
+workloads, budgets, or consumer contracts.
 
 **Acceptance oracle:** the structural provider audit reports all 22 named
 providers present and active; the exact-head audit passes on a clean checkout;
