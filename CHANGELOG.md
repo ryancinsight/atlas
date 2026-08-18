@@ -9,7 +9,9 @@
   samples and Hyperion completes its CI-bound and line-ending cleanup. The
   root conformance baseline records Hyperion's zero measured residuals. The
   Horae RecurseML analyzer error remains report-only. Helios PR #64 remains
-  open pending its benchmark regression gate.
+  open pending its benchmark regression gate. Post-merge Pages runs
+  `32103884266` and `32103884853` deploy both books successfully; live HTTP
+  checks return 200 with the expected titles.
 
 - Correct the conformance scanner at root commit `78c7880` so pure reusable
   workflow callers are evaluated through the called workflow's bounded jobs;

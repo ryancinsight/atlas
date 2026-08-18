@@ -76,6 +76,8 @@
       and `deploy / Build book` pass at the exact source head; the external
       RecurseML analyzer remains report-only. The caller repins to Atlas
       workflow `6ed29a9`, enables `mdbook-test`, and builds package `horae`.
+      Post-merge Pages run `32103884266` and live `https://ryancinsight.github.io/horae/`
+      return the expected book title with HTTP 200.
 - [ ] Collect Helios PR #64 at source `9a590ff` after its hosted Rust, Python,
       benchmark, and Pages gates pass. It repins the caller to Atlas workflow
       `6ed29a9`; the Atlas Helios gitlink remains unchanged until hosted proof.
@@ -85,6 +87,9 @@
       The change adds the line-ending policy, bounds both CI jobs, and enables
       the four executable book samples through the shared `mdbook-test` gate.
       The conformance baseline now records its measured zero residuals.
+      Post-merge Pages run `32103884853` and live
+      `https://ryancinsight.github.io/hyperion/` return the expected book title
+      with HTTP 200.
 - [ ] Re-open Consus workflow cleanup after its peer-owned interactive rebase
       `codex/consus-parse-limits-035` completes: the clean origin head has one
       real local publish-job timeout residual, while reusable callers inherit

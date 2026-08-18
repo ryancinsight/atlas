@@ -11088,7 +11088,12 @@ passed. `.gitattributes` is present, both CI jobs have 30-minute bounds, and the
 Pages caller adopts the shared workflow with `mdbook-test` and package
 `hyperion`. The post-change live scan reports zero measured residuals; hosted
 verification was the acceptance oracle because the local Windows overlay does
-not materialize a standalone Hyperion artifact in the shared target.
+not materialize a standalone Hyperion artifact in the shared target. Post-merge
+Pages run `32103884853` completed its book-sample test, artifact upload, and
+deployment jobs; `https://ryancinsight.github.io/hyperion/` returns HTTP 200 and
+the expected title. Horae's post-merge Pages run `32103884266` has the same
+book/deployment completion, and `https://ryancinsight.github.io/horae/` returns
+HTTP 200 with the expected title.
 
 Two clean provider candidates are currently non-claimable because their nested
 repositories are in peer-owned interactive rebases with clean working trees:
