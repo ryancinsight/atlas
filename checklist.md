@@ -34,6 +34,11 @@
       PR #66 at default `f8ebe42f`; hosted Rust, Python, and benchmark jobs
       pass in run `32168302314`. The primary checkout retains peer-owned Python
       manifest dirt; RecurseML remains report-only.
+- [x] Close Eunomia LF-policy cleanup: provider commit `c340d19` merged
+      through PR #69 at default `85e590b7`; hosted Rust verification
+      `95831119410` and supply-chain `95831119356` pass in run `32173862885`.
+      The primary checkout's peer-owned staged and unstaged `Cargo.lock` stays
+      untouched.
 - [x] Collect and merge RITK PR #165 at default `ae23d4b2`; hosted native CI
       `32063759899` and Python matrix `32063759848` pass at the final source
       head.

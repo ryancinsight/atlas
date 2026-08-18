@@ -164,6 +164,16 @@ peer-owned `crates/helios-python/Cargo.toml` change, which was not touched.
 The shared Atlas overlay blocked local locked Cargo compilation, so no local
 check, Clippy, Nextest, doctest, or Rustdoc result is claimed.
 
+## ATLAS-EUNOMIA-CONFORMANCE-2026-08-18 — provider LF-policy closure
+
+The clean Eunomia lane added only the repository-wide `* text=auto` policy in
+provider commit `c340d19`. Formatting and locked metadata passed, and no other
+measured conformance class increased. PR #69 merged at default
+`85e590b789505c66f5174043c2e7e851c20547`. Hosted run `32173862885` passed
+Rust verification job `95831119410` and supply-chain job `95831119356`.
+RecurseML remains report-only. The primary checkout retains peer-owned staged
+and unstaged `Cargo.lock` changes and was not modified.
+
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
 The latest external state is separated from the green root metadata audit:
