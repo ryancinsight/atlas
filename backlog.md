@@ -17,9 +17,10 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   remaining Atlas coherence residual is the stale local RITK checkout.
 - **Tyche evidence:** provider commit `de925e6` consolidates the shared
   Latin-hypercube/Sobol checked index conversions, removes five production
-  type-suffixed helper names, and is published as draft PR #26. Nextest 51/51,
-  doctests 18/18, warning-denied Clippy, rustdoc, and the conformance report
-  all pass; every tracked conformance class is zero.
+  type-suffixed helper names, and merged through PR #26 at default
+  `7e55ff8f`. Nextest 51/51, doctests 18/18, warning-denied Clippy, rustdoc,
+  and the conformance report all pass; every tracked conformance class is
+  zero.
 - **Atlas evidence:** root `c2b7b54` passes lock-form (27 standalone locks)
   and conformance (12/12). Exact-head and overlay checks fail only because the
   stale local RITK checkout still declares Apollo FFT 0.26.0 and carries the

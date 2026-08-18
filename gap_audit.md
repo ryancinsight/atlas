@@ -11,9 +11,9 @@ provider are on the merged 0.27 graph. No provider gitlink mismatch is present.
 Tyche cleanup commit `de925e6` consolidates the checked index conversions shared
 by Latin-hypercube and Sobol designs, renames the bounded counter helper to its
 domain contract, and removes all five production type-suffixed helper names.
-Draft PR #26 is open. Provider evidence is nextest 51/51, doctests 18/18,
-warning-denied Clippy, rustdoc, and a zero-count report across all tracked
-conformance classes.
+PR #26 merged at provider default `7e55ff8f`. Provider evidence is nextest
+51/51, doctests 18/18, warning-denied Clippy, rustdoc, and a zero-count report
+across all tracked conformance classes.
 
 Hephaestus hosted verification is complete on its actual default branch
 `master`, head `607ce3f`: CUDA `32083561386`, WGPU `32083561356`, ROCm

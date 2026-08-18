@@ -10,11 +10,11 @@
       conformance regression suite passes 12/12. Exact-head and overlay checks
       fail only on the stale local RITK Apollo 0.26 requirement/lock edge; no
       provider gitlink mismatch is present.
-- [x] Complete the Tyche provider cleanup at commit `de925e6`: consolidate
-      Latin-hypercube/Sobol index conversions, remove five production
-      type-suffixed helper names, and publish draft PR #26. Provider gates
-      pass: nextest 51/51, doctests 18/18, warning-denied Clippy, rustdoc, and
-      conformance zero across all tracked debt classes.
+- [x] Complete and merge the Tyche provider cleanup at commit `de925e6`
+      through PR #26 at default `7e55ff8f`: consolidate Latin-hypercube/Sobol
+      index conversions and remove five production type-suffixed helper names.
+      Provider gates pass: nextest 51/51, doctests 18/18, warning-denied
+      Clippy, rustdoc, and conformance zero across all tracked debt classes.
 - [x] Correct the Hephaestus hosted-state record. Its default branch is
       `master`, not `main`; default head `607ce3f` has passing CUDA
       `32083561386`, WGPU `32083561356`, ROCm `32083561357`, and Metal
