@@ -74,6 +74,9 @@ CFG_TEST_MOD_ALL = re.compile(
 
 TYPE_NAME = re.compile(r"(?:^|_)(?:f16|bf16|f32|f64|u8|u16|u32|u64|i8|i16|i32|i64)(?:_|$)")
 FN_DEF = re.compile(r"\bfn\s+(\w+)")
+WORKSPACE_LINTS_TABLE = re.compile(
+    r"(?m)^\s*\[workspace\.lints(?:\.[^\]]+)?\]\s*$"
+)
 EXISTENCE_ONLY = re.compile(r"assert!\s*\(\s*[^();]{0,120}\.is_(?:ok|err|some|none)\s*\(\s*\)\s*,?\s*[^();]*\)")
 PRINT_DBG = re.compile(r"\b(?:println!|eprintln!|print!|eprint!|dbg!)")
 SLEEP = re.compile(r"(?:thread|time)::sleep\b")
@@ -538,7 +541,7 @@ def scan_repo(repo: Path) -> dict[str, int]:
         if not (nx.is_file() and "slow-timeout" in nx.read_text(errors="replace")):
             c["nextest_budget_missing"] = 1
         manifest = (repo / "Cargo.toml").read_text(errors="replace")
-        if "[workspace]" in manifest and "[workspace.lints]" not in manifest:
+        if "[workspace]" in manifest and not WORKSPACE_LINTS_TABLE.search(manifest):
             c["workspace_lints_missing"] = 1
         if not (repo / "Cargo.lock").is_file():
             c["missing_cargo_lock"] = 1

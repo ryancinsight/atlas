@@ -53,7 +53,7 @@
     "unwrap_production": 78,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 1,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "aequitas": {
     "allow_sites": 0,
@@ -81,7 +81,7 @@
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 2,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "apollo": {
     "allow_sites": 31,
@@ -109,7 +109,7 @@
     "unwrap_production": 196,
     "workflow_missing_permissions": 1,
     "workflow_missing_timeout": 3,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "asclepius": {
     "allow_sites": 0,
@@ -137,7 +137,7 @@
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 2,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "athena": {
     "allow_sites": 0,
@@ -165,7 +165,7 @@
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 3,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "coeus": {
     "allow_sites": 0,
@@ -221,7 +221,7 @@
     "unwrap_production": 383,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 3,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "eunomia": {
     "allow_sites": 1,
@@ -249,7 +249,7 @@
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 1,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "gaia": {
     "allow_sites": 2,
@@ -333,7 +333,7 @@
     "unwrap_production": 0,
     "workflow_missing_permissions": 1,
     "workflow_missing_timeout": 1,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "hephaestus": {
     "allow_sites": 14,
@@ -361,7 +361,7 @@
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 3,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "hermes": {
     "allow_sites": 0,
@@ -389,7 +389,7 @@
     "unwrap_production": 4,
     "workflow_missing_permissions": 1,
     "workflow_missing_timeout": 1,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "horae": {
     "allow_sites": 0,
@@ -501,7 +501,7 @@
     "unwrap_production": 230,
     "workflow_missing_permissions": 1,
     "workflow_missing_timeout": 3,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "leto": {
     "allow_sites": 17,
@@ -529,7 +529,7 @@
     "unwrap_production": 83,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 2,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "melinoe": {
     "allow_sites": 1,
@@ -557,7 +557,7 @@
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 1,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "mnemosyne": {
     "allow_sites": 11,
@@ -613,7 +613,7 @@
     "unwrap_production": 123,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 4,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "proteus": {
     "allow_sites": 0,
@@ -697,7 +697,7 @@
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 1,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   },
   "tyche": {
     "allow_sites": 0,
@@ -725,6 +725,6 @@
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
     "workflow_missing_timeout": 2,
-    "workspace_lints_missing": 1
+    "workspace_lints_missing": 0
   }
 }

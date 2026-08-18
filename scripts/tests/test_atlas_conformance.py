@@ -138,6 +138,21 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(first, second)
 
+    def test_nested_workspace_lints_table_satisfies_inheritance(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(
+                root,
+                "Cargo.toml",
+                "[workspace]\n"
+                "[workspace.lints.rust]\n"
+                "missing_docs = \"deny\"\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["workspace_lints_missing"], 0)
+
     def test_reusable_workflow_caller_inherits_called_job_timeout(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
