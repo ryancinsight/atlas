@@ -151,6 +151,19 @@ source, locks, or dependencies. Provider commit `5ef6e23` merged through PR
 supply-chain jobs pass in run `32170094595`; RecurseML is report-only. Atlas
 advances only the Aequitas gitlink.
 
+## ATLAS-HELIOS-CONFORMANCE-2026-08-18 — provider LF-policy closure
+
+The clean Helios branch added the Atlas-wide `* text=auto` rule while
+preserving the existing figure-manifest LF rules. The provider conformance
+scan reports `gitattributes_missing=0` with all other measured classes
+unchanged; formatting and locked metadata pass. Provider commit `a6833b9`
+merged through PR #66 at default `f8ebe42f2a9c72f9da177cf5f96e15029b8a6d54`.
+Hosted Rust, Python, and the controlled benchmark regression all pass in run
+`32168302314`; RecurseML is report-only. The primary checkout now carries a
+peer-owned `crates/helios-python/Cargo.toml` change, which was not touched.
+The shared Atlas overlay blocked local locked Cargo compilation, so no local
+check, Clippy, Nextest, doctest, or Rustdoc result is claimed.
+
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
 The latest external state is separated from the green root metadata audit:

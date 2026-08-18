@@ -224,7 +224,7 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no color-space, numerical, consumer, lockfile, or primary
   checkout changes.
 
-## ATLAS-HELIOS-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+## ATLAS-HELIOS-CONFORMANCE-001 — add provider LF policy [patch] — completed
 
 - **Owner:** Atlas coordinator; clean Helios primary checkout on a disjoint
   branch. The active Helios lock lane remains peer-owned and untouched.
@@ -236,6 +236,11 @@ nested Harmonia checkout remains provider-owned state.
 - **Acceptance:** a clean provider branch reports `gitattributes_missing=0`
   with no increase in other measured classes; hosted provider checks pass at
   the merged head; Atlas advances only the resulting Helios gitlink.
+- **Closure:** provider commit `a6833b9` merged through PR #66 at default
+  `f8ebe42f2a9c72f9da177cf5f96e15029b8a6d54`; hosted Rust, Python, and the
+  controlled benchmark regression all pass in run `32168302314`. RecurseML is
+  report-only. Atlas advances only the Helios gitlink; the primary checkout's
+  peer-owned `crates/helios-python/Cargo.toml` change remains untouched.
 - **Non-goals:** no solver, numerical, consumer, lockfile, or peer lock-lane
   changes.
 

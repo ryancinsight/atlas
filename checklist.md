@@ -30,6 +30,10 @@
       through PR #34 at default `3168a41d`; hosted verify and supply-chain jobs
       pass in run `32170094595`. The change is limited to finite 30-minute job
       bounds; RecurseML remains report-only.
+- [x] Close Helios LF-policy cleanup: provider commit `a6833b9` merged through
+      PR #66 at default `f8ebe42f`; hosted Rust, Python, and benchmark jobs
+      pass in run `32168302314`. The primary checkout retains peer-owned Python
+      manifest dirt; RecurseML remains report-only.
 - [x] Collect and merge RITK PR #165 at default `ae23d4b2`; hosted native CI
       `32063759899` and Python matrix `32063759848` pass at the final source
       head.
