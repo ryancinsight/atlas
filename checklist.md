@@ -8,6 +8,9 @@
 - [x] Re-run the live structural provider audit at root `203d562`. All 22
       provider gitlinks now match their fetched `origin/main` defaults,
       including Consus `ef439b2f`, Mnemosyne `638ddab8`, and RITK `0f0b5c56`.
+- [x] Re-run the full requested-provider coherence audit with the same exact
+      heads. The provider set is clean; this is separate from hosted gates and
+      nested-checkout cleanliness.
 - [x] Re-run the committed lock-form gate: all 27 committed standalone locks
       resolve; `melinoe/contracts/atlas-device/Cargo.lock` remains the single
       declared in-tree fixture exemption.
