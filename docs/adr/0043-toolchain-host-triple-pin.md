@@ -61,6 +61,41 @@ short: it explains that rustc rejects artifacts from a different compiler
 *version* (E0514), which a version pin does prevent. Host-triple drift produces
 E0461 instead, and no version pin can prevent it.
 
+**A competing fix is in flight, uncommitted, 2026-08-18** (this note was added
+in `490a914` and lost to a peer's overwrite; restored). A peer has
+`[build] target = "x86_64-pc-windows-gnu"` in the shared `.cargo/config.toml`,
+working tree only. That routes every build into `target/<triple>/debug` rather
+than the plain host directory, so the two host toolchains segregate their
+artifacts and **cannot contaminate each other even if both run** — the same
+failure addressed from the opposite direction. It is arguably the better fix:
+it costs the stack neither toolchain, and it decouples "which rustup default an
+agent happens to have" from "whose artifacts get clobbered".
+
+Note this is the same shape as the "Separate `CARGO_TARGET_DIR` per host
+triple" alternative rejected below, but **not** the same cost: `[build] target`
+segregates *within* the one shared cache rather than forking it, so the 58.9 GB
+objection does not apply. That rejection should be revisited, not cited.
+
+Two consequences to settle before applying this ADR, because landing both blind
+interacts badly:
+
+1. With an explicit `[build] target`, the correct invocation becomes the
+   toolchain **matching that triple**. Running msvc against a gnu-targeted
+   config now fails `E0463 … the x86_64-pc-windows-gnu target may not be
+   installed` — a *new* confusing symptom, not the old one. Verified directly:
+   mnemosyne fails that way under msvc and passes 290/290 under gnu.
+2. `RUSTC`/`RUSTDOC` are exported by the shell profile and **return in every new
+   process**, so clearing them in one command does not carry to the next. Any
+   recipe must set the environment in the same invocation as the cargo call, or
+   it silently measures the wrong compiler. This produced several false
+   readings during the sweep, including a report that apollo's clippy was "red
+   regardless of any change" when apollo cannot compile under msvc at all.
+
+If the peer's segregation lands, re-decide this ADR rather than applying on top
+of it: pinning the triple *and* segregating by triple is redundant, and the
+pin's remaining value would be uniformity for CI and fresh clones, not cache
+protection.
+
 ## Decision
 
 Pin the full triple — `1.97.0-x86_64-pc-windows-msvc` — in every member's
