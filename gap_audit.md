@@ -11086,3 +11086,18 @@ shared workflow with `mdbook-test` and package `hyperion`. The post-change live
 scan reports zero measured residuals; hosted verification remains the acceptance
 oracle because the local Windows overlay does not materialize a standalone
 Hyperion artifact in the shared target.
+
+Two clean provider candidates are currently non-claimable because their nested
+repositories are in peer-owned interactive rebases with clean working trees:
+
+- Consus is rebasing `codex/consus-parse-limits-035` onto `007eadb`, with
+  `ebc4979` the final completed pick and no commands remaining. Its scan has
+  one real timeout residual in the local `publish` job; the reusable caller
+  jobs are covered by the called workflows.
+- Gaia is rebasing `cascade/provider-042` onto `34c071b`, with `f2daec0` the
+  final completed pick and no commands remaining. Its safe hygiene residual is
+  the missing `.gitattributes`; the larger source ratchet counts are outside
+  this narrow slice.
+
+No rebase state was altered. The re-open trigger for both items is completion
+of the peer rebase, after which each can be claimed on its own branch.

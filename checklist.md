@@ -83,6 +83,14 @@
       policy, bounds both CI jobs, and enables the four executable book samples
       through the shared `mdbook-test` gate; the Atlas Hyperion gitlink remains
       unchanged until exact-head hosted proof.
+- [ ] Re-open Consus workflow cleanup after its peer-owned interactive rebase
+      `codex/consus-parse-limits-035` completes: the clean origin head has one
+      real local publish-job timeout residual, while reusable callers inherit
+      bounds. Do not touch the rebase or its staged provider work.
+- [ ] Re-open Gaia line-ending cleanup after its peer-owned interactive rebase
+      `cascade/provider-042` completes: the clean origin head lacks only the
+      `.gitattributes` policy in the safe hygiene slice; source ratchet debt is
+      separate and remains unclaimed.
 
 # Sweep 2026-08-13 — execution order
 
