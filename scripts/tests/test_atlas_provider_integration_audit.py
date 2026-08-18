@@ -61,6 +61,25 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
         self.assertNotIn("RUSTC", env)
         self.assertNotIn("RUSTDOC", env)
 
+    def test_clean_checkout_issues_report_head_drift_and_dirty_state(self) -> None:
+        provider = "horae"
+        expected = "a" * 40
+        with patch.object(audit, "_gitlink_commits", return_value={provider: expected}), patch.object(
+            audit,
+            "_git_output",
+            side_effect=[
+                (0, expected, ""),
+                (0, " M src/lib.rs\n?? scratch.txt", ""),
+            ],
+        ), patch.object(audit, "ROOT", Path("D:/atlas")):
+            issues = audit._clean_checkout_issues((provider,))
+
+        self.assertEqual(issues, ["repos/horae: checkout is dirty (2 changed entries)"])
+
+    def test_parse_accepts_clean_checkout_gate(self) -> None:
+        parsed = audit.parse_args(["--require-clean-checkouts"])
+        self.assertTrue(parsed.require_clean_checkouts)
+
     def test_requested_provider_inventory_is_complete(self) -> None:
         self.assertEqual(len(audit.REQUIRED_PROVIDERS), 22)
         self.assertEqual(len(audit.REQUESTED_PROVIDERS_20260814), 20)

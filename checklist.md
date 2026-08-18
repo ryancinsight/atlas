@@ -4841,6 +4841,12 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       manifest defects. The committed overlay still reports Helios
       `Cargo.lock` selecting Apollo `0.26.0`; re-open after the peer-owned lock
       sweep and hosted matrix.
+- [x] Add and test the opt-in `--require-clean-checkouts` audit mode. It checks
+      checkout HEAD versus the committed gitlink and reports tracked/untracked
+      dirt without modifying peer state.
+- [ ] Re-run the clean-checkout audit from a coordinated clean stack. The
+      current shared tree fails on peer-owned checkout drift and dirty files;
+      no reset, stash, or deletion is authorized by this item.
 - [x] Advanced the Atlas Apollo gitlink to merged provider default
   `d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab` without changing the dirty nested
   Apollo checkout.

@@ -11583,3 +11583,22 @@ package metadata; and make all figure manifests recursive and complete.
   and differential coverage; CFDrs then calls that seam directly and deletes
   its superseded wrapper. No Harmonia integration claim is made until that
   provider capability exists.
+
+## Finding 2026-08-18: exact-head audit did not prove clean nested checkouts
+
+- **Finding:** the existing exact-head mode compared root gitlinks with fetched
+  provider defaults but did not compare each initialized checkout's `HEAD` with
+  its gitlink or inspect tracked/untracked dirt. A green result could therefore
+  describe root metadata while local provider commands ran against a different
+  or dirty tree.
+- **Correction:** `scripts/atlas-provider-integration-audit.py` now exposes
+  `--require-clean-checkouts`; it reports checkout-head drift and changed-entry
+  counts and has 29 focused regression tests. The default mode remains
+  metadata-compatible for shared development trees; the clean mode is the
+  reproducible exact-head gate.
+- **Current evidence:** clean mode fails in the shared tree. HEAD drift is
+  present in Tyche, Helios, Moirai, RITK, Hephaestus, Apollo, and Hermes. Dirty
+  checkout state is present in Themis, Tyche, Proteus, Mnemosyne, Helios,
+  Harmonia, Aequitas, Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto,
+  Hephaestus, Coeus, Apollo, Hermes, and Iris. The audit changed no provider
+  files; the re-open trigger is a coordinated clean checkout.

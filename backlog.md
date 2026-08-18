@@ -211,6 +211,17 @@ and its live requested-provider coherence scope. The standalone version guard
 also reports `defect_count: 0`. This does not close the separate Helios lock
 drift from the overlay check, nor any hosted provider release or Pages gate.
 
+**Clean-checkout proof (2026-08-18):** the provider audit now has an opt-in
+`--require-clean-checkouts` gate that compares each initialized checkout's HEAD
+to the committed gitlink and rejects tracked or untracked dirt. The gate is
+implemented and regression-tested, but the current shared tree fails it on
+peer-owned state: checkout-head drift is present in Tyche, Helios, Moirai,
+RITK, Hephaestus, Apollo, and Hermes; dirty checkouts include Themis, Tyche,
+Proteus, Mnemosyne, Helios, Harmonia, Aequitas, Asclepius, Eunomia, Moirai,
+RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. This is the
+clean-revision evidence boundary, not permission to discard peer work. The
+re-open trigger is a clean coordinated checkout followed by the same gate.
+
 The release, PyO3/PyPI, crates.io, mdBook/Pages, comparative-test, and
 provider-adoption audits are dispatched as independent read-only work. Their
 returned file-level findings become separate vertical items before any

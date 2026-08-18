@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Guard Atlas root integration closure for the named provider set.
 
-This is a structural gate for the atlas-meta records. It intentionally checks
-only root-owned integration facts:
+This is a structural gate for the atlas-meta records. It checks root-owned
+integration facts and can optionally require each initialized provider checkout
+to be clean and at its recorded gitlink:
 
 1. Requested providers are present and active in `.gitmodules`.
 2. The canonical root PM records carry the closed audit marker.
@@ -226,6 +227,42 @@ def _exact_head_issues(
     return issues
 
 
+def _clean_checkout_issues(providers: tuple[str, ...]) -> list[str]:
+    """Return provider checkout drift or dirty-state findings."""
+    gitlinks = _gitlink_commits(providers)
+    issues: list[str] = []
+    for provider in providers:
+        provider_path = ROOT / "repos" / provider
+        if not provider_path.is_dir():
+            issues.append(f"repos/{provider}: checkout is not initialized")
+            continue
+
+        returncode, checkout_head, stderr = _git_output(
+            "rev-parse", "--verify", "HEAD", cwd=provider_path
+        )
+        if returncode != 0 or not checkout_head:
+            detail = stderr or "HEAD is unavailable"
+            issues.append(f"repos/{provider}: cannot read checkout HEAD ({detail})")
+        elif gitlinks.get(provider) != checkout_head:
+            issues.append(
+                f"repos/{provider}: checkout HEAD {checkout_head} != committed gitlink "
+                f"{gitlinks.get(provider, '(missing)')}"
+            )
+
+        returncode, status, stderr = _git_output(
+            "status", "--porcelain=v1", "--untracked-files=all", cwd=provider_path
+        )
+        if returncode != 0:
+            detail = stderr or "status query failed"
+            issues.append(f"repos/{provider}: cannot read checkout status ({detail})")
+        elif status:
+            changed_entries = len(status.splitlines())
+            issues.append(
+                f"repos/{provider}: checkout is dirty ({changed_entries} changed entries)"
+            )
+    return issues
+
+
 def _clean_rust_env() -> dict[str, str]:
     env = os.environ.copy()
     for var in ("RUSTC", "RUSTDOC"):
@@ -360,6 +397,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="worker count for --exact-heads remote-head checks (default: 8)",
     )
     parser.add_argument(
+        "--require-clean-checkouts",
+        action="store_true",
+        help=(
+            "require initialized provider checkouts to match committed gitlinks "
+            "and have no tracked or untracked changes"
+        ),
+    )
+    parser.add_argument(
         "--provider-set",
         choices=tuple(PROVIDER_SETS.keys()),
         default="atlas-22",
@@ -452,6 +497,7 @@ def main(argv: list[str] | None = None) -> int:
                         "provider_set": [],
                         "provider_count": 0,
                         "exact_heads": bool(args.exact_heads),
+                        "require_clean_checkouts": bool(args.require_clean_checkouts),
                         "structural_only": bool(args.structural_only),
                         "out_of_scope_coherence": 0,
                         "issues": issues,
@@ -472,6 +518,7 @@ def main(argv: list[str] | None = None) -> int:
                         "provider_set": list(providers),
                         "provider_count": len(providers),
                         "exact_heads": bool(args.exact_heads),
+                        "require_clean_checkouts": bool(args.require_clean_checkouts),
                         "structural_only": bool(args.structural_only),
                         "out_of_scope_coherence": 0,
                         "issues": issues,
@@ -495,6 +542,8 @@ def main(argv: list[str] | None = None) -> int:
         issues.extend(_record_issues())
         if args.exact_heads:
             issues.extend(_exact_head_issues(providers, args.exact_head_workers))
+        if args.require_clean_checkouts:
+            issues.extend(_clean_checkout_issues(providers))
         if args.structural_only:
             out_of_scope = 0
         else:
@@ -522,6 +571,7 @@ def main(argv: list[str] | None = None) -> int:
                     "provider_set": list(providers),
                     "provider_count": _structural_provider_count(providers),
                     "exact_heads": bool(args.exact_heads),
+                    "require_clean_checkouts": bool(args.require_clean_checkouts),
                     "structural_only": bool(args.structural_only),
                     "out_of_scope_coherence": out_of_scope,
                     "issues": issues,
@@ -545,6 +595,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"- naming normalization retained: {NAME_NORMALIZATION}")
     if args.exact_heads:
         print("- committed provider gitlinks match fetched origin defaults")
+    if args.require_clean_checkouts:
+        print("- initialized provider checkouts match committed gitlinks and are clean")
     if args.structural_only:
         print("- requested-provider coherence skipped (--structural-only)")
     elif out_of_scope:
