@@ -11970,8 +11970,8 @@ Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. The lane audit
 reports six live violations across CFDrs, Coeus, Consus, Kwavers, and RITK,
 including the Consus ADR-0045 lane outside the canonical lane root. These
 checkouts and live peer lanes were not removed or rewritten; one clean merged
-Kwavers orphan lane and one clean merged CFDrs lane were removed after their
-empty status was verified.
+Kwavers orphan lane, one clean merged CFDrs lane, and two clean merged RITK
+lanes were removed after their empty status was verified.
 
 ## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — instrument correction
 
@@ -12023,4 +12023,6 @@ verification is therefore pending for both moving defaults.
 
 The clean merged CFDrs `cfd2d-fix` lane was removed after an empty status
 check. The CFDrs runtime-budget lane is dirty, and the remaining unmerged or
-peer-owned lanes were preserved.
+check. The clean merged RITK PR #173 and PR #168 lanes were also removed after
+empty status checks. The CFDrs runtime-budget lane is dirty, and the remaining
+unmerged or peer-owned lanes were preserved.

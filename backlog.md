@@ -8009,9 +8009,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   checkouts, including Themis, Tyche, Proteus, Consus, Helios, Harmonia,
   Eunomia, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris.
   The lane audit records six live peer violations across CFDrs, Coeus, Consus,
-  Kwavers, and RITK; one clean, merged Kwavers orphan lane and one clean,
-  merged CFDrs lane were removed after verifying empty status, while peer
-  dirty checkouts and live lanes were preserved.
+  Kwavers, and RITK; one clean, merged Kwavers orphan lane, one clean, merged
+  CFDrs lane, and two clean, merged RITK lanes were removed after verifying
+  empty status, while peer dirty checkouts and live lanes were preserved.
 
 ## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — correct nested workspace-lint detection
 
@@ -8067,5 +8067,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   pointer. Its CI and Python CI runs `32184697093` and `32184697087` are
   queued, so hosted verification is pending even though exact-head equality
   holds.
-- The clean merged CFDrs `cfd2d-fix` lane was removed after an empty status
-  check; the dirty runtime-budget lane and unmerged/peer lanes remain.
+- The clean merged CFDrs `cfd2d-fix` lane and clean merged RITK PR #173 and
+  PR #168 lanes were removed after empty status checks; their branch refs
+  remain available. Dirty runtime/lock lanes and open or peer-owned lanes
+  remain.

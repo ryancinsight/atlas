@@ -178,6 +178,9 @@
       pointer advance to `0f0b5c5689a58a35fde30f07c62b7d94f5495004`. Its CI
       and Python CI runs `32184697093` and `32184697087` are queued; the
       pointer is exact, but hosted verification is not yet established.
+- [x] Remove the clean merged RITK PR #173 and PR #168 lanes after empty
+      status checks. Their branch refs remain available; the dirty or open
+      provider lanes in the rest of the stack remain preserved.
 - [ ] Re-open Gaia line-ending cleanup after its peer-owned interactive rebase
       `cascade/provider-042` completes: the clean origin head lacks only the
       `.gitattributes` policy in the safe hygiene slice; source ratchet debt is
