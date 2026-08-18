@@ -64,11 +64,12 @@
 - [ ] Claim the Apollo benchmark-instrument lock closure on clean lane
       `D:/atlas/worktrees/apollo-root-cleanup`, branch
       `codex/apollo-benchmark-lock-104`. Scope is limited to
-      `.github/workflows/benchmark-regression.yml`: the candidate measurement
-      workspace must inherit every candidate transform manifest that directly
-      requires `apollo-fft`, so its copied lockfile remains valid at 0.27.0.
-      Validate the workflow syntax and the manifest-synchronization contract;
-      do not touch PR #104's source migration or consumer manifests.
+      `.github/workflows/benchmark-regression.yml` plus the PR-head
+      `Cargo.lock`: the candidate measurement workspace must inherit every
+      candidate transform manifest that directly requires `apollo-fft`, and
+      the committed lockfile must resolve the 0.27.0 package. Validate the
+      workflow syntax, manifest-synchronization contract, and locked graph; do
+      not touch PR #104's source migration or consumer manifests.
 - [ ] Collect Kwavers PR #402 exact-head matrix at `69478221f`; benchmark smoke
       and regression pass, but the full hosted matrix has terminal failures in
       architecture, validation, security, coverage, documentation, feature,
