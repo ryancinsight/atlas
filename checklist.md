@@ -368,7 +368,7 @@
       intentionally not `Debug`; commit `22e227eb` uses an explicit match while
       retaining the typed `InvalidInput` assertion. The source scan now has no remaining unwrap,
       existence-only result assertion, print, or debug macro in `cfd-math`.
-      locally; the locked package compile is overlay-blocked and the peer
+      locally; the exact `22e227eb` locked package compile is overlay-blocked and the peer
       Cargo.lock remains unstaged. Re-open after the exact hosted Clippy
       transcript establishes the remaining count.
 - [x] Complete `ATLAS-HELIOS-BOOK-TEST-002` on the clean Helios lane: the

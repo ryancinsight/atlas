@@ -79,7 +79,11 @@ published and the consumer matrix is rerun.
 ## ATLAS-CFDRS-BACKWARD-STEP-108 — default-branch Clippy blocker (2026-08-18)
 
 CFDrs PR #349 source head `22e227eb` carries the bounded `cfd-core`/`cfd-math`
-lint cleanup and the hosted book-figure gate passes. Rust workspace run
+lint cleanup and the hosted book-figure gate passes. At exact source
+`22e227eb`, the local `cargo clippy --locked -p cfd-math --all-targets --
+-D warnings` gate again stops before compilation because the shared Atlas patch
+overlay would update the peer-owned `Cargo.lock`; no source diagnostic is
+available locally. Rust workspace run
 `32111217293` reached compilation and failed on four ambiguous floating-literal
 types introduced by the epsilon assertions at `4ea465a6`; commits `2ebd686d`
 and `261b3b99` pin those fixtures to `f64` and normalize the file endings. The
