@@ -23,6 +23,15 @@ lockfile update under `--locked`. This is a resolver/overlay blocker, not a
 source diagnostic. Kwavers `mdbook test` remains red on the previously listed
 snippet and setup defects; CFDrs and Helios book tests remain green.
 
+The clean Aequitas provider branch contains PR #35 at source `5428584`. It
+splits two conformance-reported oversized leaves without changing public unit
+exports or the 38 dimension-law cases. Offline all-feature Clippy, Nextest
+125/125, doctests 26/26, and rustdoc pass; all touched Rust files are below
+500 lines. Hosted checks and Atlas gitlink advancement remain open. The
+provider locked gate is independently blocked before compilation by the same
+Atlas overlay lock mismatch, so the offline results are diagnostic source
+evidence rather than locked-delivery evidence.
+
 ## ATLAS-PUBLISH-001-CFDRS-PYPI — exact-head release slice
 
 The shared Atlas Python release workflow changed at `5936303` to build and

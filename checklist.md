@@ -48,6 +48,18 @@
       `--locked` refuses the required lockfile update; this is an integration
       resolver defect, not evidence that the solver tests pass.
 
+## ATLAS-AEQUITAS-STRUCTURE-001 — current provider slice
+
+- [x] Split Aequitas' oversized private derived-unit and dimension-law test
+      leaves at provider source `5428584`; public unit exports and all 38 law
+      cases remain unchanged.
+- [x] Verify formatting, offline all-feature Clippy, offline Nextest 125/125,
+      offline doctests 26/26, offline rustdoc, and zero touched Rust files over
+      500 lines. The committed provider lock is unchanged.
+- [ ] Collect hosted checks and merge Aequitas PR #35 before advancing the
+      Atlas gitlink; the local locked gate remains blocked by the shared Atlas
+      overlay lock mismatch.
+
 ## ATLAS-PUBLISH-001-CFDRS-PYPI — current provider slice
 
 - [x] Add the shared release-distribution contract at Atlas `5936303`, with

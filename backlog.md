@@ -4072,6 +4072,10 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 - Owner: Codex `/root`; last-update: 2026-07-23; completed vertical slice:
   `repos/coeus/coeus-ops/tests/**` only. Peer-owned member profiles and other
   repository test trees remain out of scope.
+- Aequitas vertical slice: provider PR #35 on source `5428584` splits the
+  private derived-unit and dimension-law test leaves, retaining all 38 law
+  tests. It is a provider branch awaiting hosted gates; Atlas does not advance
+  the Aequitas gitlink until the PR merges.
 - Claim: consolidate the 36 flat `coeus-ops` Rust integration-test binaries
   into one hierarchical `tests/ops.rs` harness with `tests/ops/*.rs` modules,
   preserving all 87 test functions and their value-semantic assertions. The
