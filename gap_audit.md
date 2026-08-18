@@ -1030,6 +1030,38 @@ fuzz-target build matrix in hosted run `32067580093` before merging the ADR
 index repair. No compatibility shim was added. Re-open if a later provider
 commit advertises an unavailable backend-neutral async capability.
 
+## ATLAS-PEER-WIP-030 — Uncommitted peer refactors stalled verification five times (open 2026-08-13)
+
+Recorded as process debt, not as a defect in any one change. In a single
+session, downstream verification was blocked five separate times by
+*uncommitted* work in the local trees the development overlay resolves to:
+
+- `repos/mnemosyne` — four occurrences. `crates/mnemosyne-local` left
+  uncompilable mid-refactor (`is_allocating` field removal, a
+  `record_defrag_operation` arity change, `with_allocator_unguarded` bindings).
+  Blocks everything downstream of coeus, which is most of ritk.
+- `repos/apollo` — one occurrence. `crates/apollo-fft/src/api/irfft.rs` changed
+  `ifft_3d_array_into` to take three arguments while the committed
+  `kwavers-math/src/fft/mod.rs` still calls the two-argument form. Blocks all of
+  kwavers.
+
+In each case the consuming crate was clean and correct; the break came from a
+neighbour's working tree. Because the overlay points every first-party
+dependency at these trees rather than at a git revision, an in-flight refactor
+in one repo makes its consumers uncompilable stack-wide, and there is no
+committed revision to fall back to locally — the hosted CI, which resolves from
+git, stayed unaffected throughout.
+
+This is inherent to the overlay's purpose (synchronized editing) and is not
+worth removing. What is worth having is a way to keep working: the practical
+mitigations are (a) landing refactors of a widely-consumed API as one
+compiling commit rather than leaving the tree broken between edits, and (b)
+treating hosted CI as authoritative when a local block is an overlay artifact,
+which is what this session did.
+
+No item filed against any peer. Recorded so the pattern is visible if it
+persists, since each occurrence costs a downstream agent a full gate cycle.
+
 ## ATLAS-US-A3-OVERLAY-029 — A3 is blocked by the shared ritk tree's branch (open 2026-08-13)
 
 US-023-A5 and A7 are merged to ritk `main` (PRs #132, #133), so the geometry
