@@ -1406,6 +1406,42 @@ fuzz-target build matrix in hosted run `32067580093` before merging the ADR
 index repair. No compatibility shim was added. Re-open if a later provider
 commit advertises an unavailable backend-neutral async capability.
 
+## ATLAS-RITK-CI-RED-033 — ritk main is red: SimpleITK displacement parity and a CI timeout (open)
+
+Found while gating PR #169 (SRAD). Two independent failures, both **pre-existing
+on `main`** and neither caused by that change — established by comparing run
+32173467183 (the PR) against 32169148435 (main), which carry byte-identical
+error magnitudes.
+
+**1. InverseDisplacementField parity is broken.** Three SimpleITK parity tests
+fail in `crates/ritk-python/tests/test_simpleitk_cmake_data.py`:
+
+| Test | Max deviation | Gate |
+| --- | --- | --- |
+| `test_cmake_inverse_displacement_field_2d` | 2.2323646545410156 | 1e-4 |
+| `test_cmake_inverse_displacement_field_3d` | 0.08209633827209473 | 1e-4 |
+| `test_cmake_iterative_inverse_displacement_field` | 0.17078542709350586 | 1e-4 |
+
+The 2-D case is off by four orders of magnitude against its gate, which is a
+behavioural break rather than a tolerance question. `main` recently rewrote
+exactly these paths — `crates/ritk-filter/src/inverse_displacement.rs` (≈320
+lines) and `iterative_inverse_displacement.rs` (≈77 lines), observed while
+diffing an unrelated branch — so that rewrite is the first place to look. Not
+investigated further here: it is outside the authorized scope and belongs to
+whoever landed it.
+
+**2. `Test Suite (ubuntu-latest)` times out.** The job hits the 30-minute cap
+during **"Install LLVM and Clang (Linux)"** — a setup step, before a single test
+runs. Tests are therefore unverified on Linux for every PR and for main. Under
+the CI runtime doctrine this is the investigation trigger, not a bound to raise:
+the LLVM install should be cached or the dependency removed, rather than the
+timeout extended to accommodate it.
+
+Consequence for review: ritk's merge gate currently cannot distinguish a real
+Linux regression from the standing red. PR #169 was merged on that basis, with
+its unrelatedness established by diff scope (four files, all under
+`ritk-filter/src/diffusion/`) and by the identical failure signature on main.
+
 ## ATLAS-LOCKS-RESOLVED-032 — Both lockfiles are already healthy; no regeneration needed (closed)
 
 Acted on the instruction to regenerate the locks with the overlay off. The
