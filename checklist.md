@@ -45,6 +45,24 @@
       `--locked` refuses the required lockfile update; this is an integration
       resolver defect, not evidence that the solver tests pass.
 
+## ATLAS-PUBLISH-001-CFDRS-PYPI — current provider slice
+
+- [x] Add the shared release-distribution contract at Atlas `26ad7f3e`, with
+      30-minute job bounds, exact provider-graph checkout, one validated sdist,
+      checksums, attestation, and the existing release artifact name retained
+      for current callers.
+- [x] Add CFDrs source commit `7be6727b` with the `cfd-python` abi3-py38
+      caller, exact Atlas workflow/graph pin, installed-wheel pytest contract,
+      and Cargo-derived `cfd_python.__version__`.
+- [x] Push the provider branch and open draft CFDrs PR #355. Hosted Rust and
+      book checks are queued; the external RecurseML status is report-only.
+- [x] Verify formatting, workflow YAML parsing, Python test syntax, and local
+      `maturin sdist`; it produced `cfd_python-0.3.0.tar.gz` in the shared
+      ignored target directory.
+- [ ] Collect the exact-head hosted gate and merge PR #355. Local locked Rust
+      compilation is blocked before compilation by the shared overlay/lock
+      mismatch; no local source diagnostic is claimed.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-17
 
 - [x] Audit the current 22-provider registration, ownership, exact-head, and
