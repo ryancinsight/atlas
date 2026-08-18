@@ -208,6 +208,18 @@ The release, PyO3/PyPI, crates.io, mdBook/Pages, comparative-test, and
 provider-adoption audits are dispatched as independent read-only work. Their
 returned file-level findings become separate vertical items before any
 consumer implementation changes are made.
+
+**Delivery-surface findings (2026-08-18):** the audit returned no P0 but
+identified P1 gaps that now have explicit owners and dependency order:
+Helios' enabled `mdbook test` contradicts its recorded failing snippets;
+CFDrs and Helios lack complete wheel/PyPI gates; Kwavers' k-wave comparator is
+not reproducible from the checkout; and locked `cargo tree` is blocked by the
+shared overlay attempting to rewrite peer-owned locks. P2 gaps include
+incomplete binding metadata, Kwavers ABI3/path drift, import-only wheel smoke,
+stale CFDrs/Kwavers Pages path filters, and incomplete recursive figure SSOT
+checks. The next slices repair these at their owning repositories; Atlas does
+not claim registry, wheel, or live Pages evidence from a read-only audit.
+
 - **Provider-adoption slice:** audit every integrator edge for direct use of
   the owning provider API, deletion of superseded local wrappers, and no
   silent CPU/GPU, storage, or scheduler fallback. File provider capability

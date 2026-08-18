@@ -27,6 +27,17 @@ are peer-owned dirty state and remain untouched. Consumer updates require one
 dependency-ordered version/lock sweep followed by hosted Coeus and RITK
 verification; no compatibility path is permitted.
 
+## ATLAS-PROVIDER-POINTER-CORRECTION-2026-08-18 — peer staging reconciliation
+
+Shared root commit `f5cdeef4` intended to advance Apollo to merged default
+`d585e0f5`, but its recorded gitlinks were captured from dirty nested
+checkouts: Apollo `38192bed`, Helios `9a590ffa`, and RITK `0559d6ad`. The
+fetched provider defaults are Apollo `d585e0f5`, Helios `408a31b0`, and RITK
+`b91bcee6`. This is a root-pointer staging defect, not evidence that the peer
+provider work is invalid. Atlas corrects only the parent gitlinks and leaves
+all nested source, manifest, lockfile, and branch state untouched. The exact
+head audit is the acceptance check for this correction.
+
 ## ATLAS-ORPHAN-MODULES-096-KWAVERS — hosted integration boundary (2026-08-18)
 
 Kwavers PR #400 is open at exact source head
@@ -11506,3 +11517,51 @@ static Rader kernels to inline; benchmark run `32123469970` is the bounded
 acceptance test for that correction. Coeus `coeus-autograd`, Coeus `coeus-fft`,
 and RITK `ritk-filter` still require Apollo `0.26.0` against provider `0.27.0`;
 their peer-dirty nested trees remain untouched.
+
+## Finding 2026-08-18: delivery-surface audit for CFDrs, Kwavers, and Helios
+
+Read-only delivery audit returned no P0 findings. It found these provider and
+Atlas integration gaps; no source files were changed.
+
+- **P1 Helios book gate contradiction:**
+  `repos/helios/.github/workflows/book-pages.yml:39-45` enables `mdbook test`,
+  while `repos/helios/gap_audit.md:269-280` and `repos/helios/backlog.md:54`
+  record known snippet failures. The gate must be repaired or explicitly
+  reclassified before Pages delivery is claimed.
+- **P1 missing wheel publication surfaces:** CFDrs has binding metadata but no
+  committed wheel/import/pytest job in `repos/CFDrs/.github/workflows/ci.yml`
+  and its release workflow is crates.io-only. Helios builds one local Ubuntu
+  wheel in CI but has no PyPI publisher or release wheel matrix.
+- **P1 Kwavers comparator is not checkout-reproducible:**
+  `repos/kwavers/README.md:361-372` cites absent `external/k-wave-julia` and
+  `external/k-wave` trees, while `kwavers-python/tests/test_kwave_comparison.py`
+  skips the comparison unless `KWAVERS_RUN_SLOW=1`. k-wave-python/MATLAB and
+  licensed reference data remain external dependencies.
+- **P1 locked tree gates are overlay-blocked:** locked `cargo metadata` works,
+  but locked `cargo tree` exits 101 in all three providers because the shared
+  Atlas overlay attempts to rewrite peer-owned lockfiles. This is resolver
+  evidence, not a provider implementation failure.
+- **P2 metadata and behavioral coverage:** Helios Python package metadata is
+  incomplete; Kwavers declares inconsistent ABI3 floors (`abi3-py39` workspace
+  versus `abi3-py38` binding/project) and stale `pykwavers` URLs; Kwavers wheel
+  smoke imports but does not run provider pytest behavior. The shared Atlas
+  wheel workflow has the same limitation.
+- **P2 figure SSOT gates are incomplete:** CFDrs compares referenced figures
+  against seven specs while the checkout contains 106 SVGs; Helios checks only
+  one directory while containing 66 SVGs versus seven declarations; Kwavers
+  documents a missing `figures/MANIFEST.json` and no corresponding CI gate.
+- **P2 Pages caller filters are stale:** CFDrs and Kwavers book workflows
+  trigger only on `docs/book/**`, allowing source or manifest changes to leave
+  a published book stale. Helios already has the corrected path filter.
+- **P3 comparative evidence limits:** CFDrs has analytical/MMS validation but
+  no k-wave-style comparator; Helios remains limited to analytical,
+  round-trip, synthetic-phantom, and real-DICOM evidence pending licensed
+  TomoTherapy/Monte-Carlo reference data.
+
+The audit agent attempted unlocked dependency-tree probes; Helios' lockfile
+was restored and CFDrs/Kwavers peer-dirty locks were preserved. No build,
+package, wheel, registry, or live Pages result is claimed from this audit.
+The dependency-ordered follow-ups are: repair overlay/lock coherence; close
+Helios book snippets; add CFDrs and Helios wheel/PyPI gates; restore a
+reproducible Kwavers comparator with value-semantic tests; align ABI3 and
+package metadata; and make all figure manifests recursive and complete.

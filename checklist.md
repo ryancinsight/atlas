@@ -4850,12 +4850,24 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
 - [x] Advanced the Atlas Apollo gitlink to merged provider default
   `d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab` without changing the dirty nested
   Apollo checkout.
+- [x] Reconciled shared root commit `f5cdeef4` after it captured dirty nested
+  Apollo, Helios, and RITK heads instead of their fetched defaults; only the
+  parent gitlinks are corrected.
 - [ ] CFDrs backward-step source head `7b9673ef` passes local focused and full
   `cfd-2d` gates (585/585). Hosted run `32143999878` still has two numerical
   fidelity timeouts at the 30-second slow bound; preserve workload and budget.
 - [ ] Release/PyO3/PyPI, crates.io, mdBook/Pages, comparative-package, and
   provider-adoption audits are pending returned file-level findings from the
   dispatched read-only audit agents.
+- [x] Delivery audit returned no P0 and recorded P1/P2 owners: Helios book
+  snippet contradiction and missing PyPI matrix; CFDrs wheel/PyPI and figure
+  SSOT gaps; Kwavers non-reproducible k-wave comparator, ABI3/path metadata
+  drift, import-only wheel smoke, stale Pages filters, and missing figure
+  manifest; all three locked tree gates are overlay/peer-lock blocked.
+- [ ] The next delivery slices remain dependency-ordered: restore lock/overlay
+  coherence, repair Helios `mdbook test`, add CFDrs/Helios wheel behavior and
+  trusted-publishing gates, then repair Kwavers comparator/metadata and the
+  recursive figure SSOT checks.
 
 ### Delivery rule
 
