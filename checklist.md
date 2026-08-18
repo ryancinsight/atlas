@@ -4877,12 +4877,13 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       changing CFDrs `cfd-2d` coupling. Harmonia commit `685f47d` adds the
       `update_pair`/`relaxation_mut` contract, atomic fixed/full validation, ADR
       0002, and local 17/17 nextest coverage. The Anderson/Aitken algorithm is
-      intentionally not duplicated in Harmonia; PR #5 hosted CI and Pages
-      checks remain queued.
-- [ ] Merge Harmonia PR #5, advance the Atlas gitlink from `02ffd14`, then
-      replace the CFDrs local Anderson/Aitken wrapper with a direct provider
-      implementation and analytical/differential parity evidence. No consumer
-      adapter, fallback, or numerical-contract change is permitted.
+      intentionally not duplicated in Harmonia; PR #5 merged at provider
+      default `365f0bb` with verify, supply-chain, and book checks green.
+- [ ] Replace the CFDrs local Anderson/Aitken wrapper with a direct provider
+      implementation and analytical/differential parity evidence. Atlas
+      advances the Harmonia gitlink from `02ffd14` to `365f0bb` in this
+      increment. No consumer adapter, fallback, or numerical-contract change
+      is permitted.
 
 ### Delivery rule
 

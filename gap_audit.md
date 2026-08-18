@@ -26,12 +26,13 @@ overlay residual is one peer-owned Helios lock pin: `repos/helios/Cargo.lock`
 still locks `apollo-fft 0.26.0` while the local provider is `0.27.0`; no
 consumer lockfile is edited across that dirty scope.
 
-Harmonia's root pointer remains `02ffd14` while provider PR #5 carries
-`685f47d`. Its source increment adds a mutable pair-level relaxation seam and
-atomic built-in policies, with local 17/17 nextest, locked all-targets check,
-Clippy, doctest, documentation, and book-build evidence. The provider hosted
-CI and Pages checks are queued; the root pointer advances only after their
-exact-head result is collected.
+Harmonia provider PR #5 merged at `365f0bb` from source commit `685f47d`.
+Verify, supply-chain, and book checks passed; RecurseML remained report-only.
+Its source increment adds a mutable pair-level relaxation seam and atomic
+built-in policies, with local 17/17 nextest, locked all-targets check, Clippy,
+doctest, documentation, and book-build evidence. Atlas advances the root
+gitlink from `02ffd14` to `365f0bb` in this increment; direct CFDrs adoption
+remains the next provider-consumer slice.
 
 ## ATLAS-PROVIDER-POINTER-CORRECTION-2026-08-18 — peer staging reconciliation
 
@@ -11590,11 +11591,11 @@ package metadata; and make all figure manifests recursive and complete.
   Anderson/Aitken resistance mixer. Harmonia PR #5 at `685f47d` now provides
   the mutable pair-level `Relaxation<T>` seam with atomic fixed/full policies;
   local provider evidence is 17/17 nextest plus locked check, Clippy,
-  doctest, docs, and book build. The Anderson/Aitken algorithm remains in its
-  existing provider and is not duplicated. Hosted CI and Pages are queued, so
-  the root gitlink remains `02ffd14`; after merge, CFDrs must call the provider
-  seam directly and delete its superseded wrapper. No direct CFDrs adoption
-  claim is made before that hosted merge and differential parity evidence.
+  doctest, docs, and book build, and hosted verify, supply-chain, and book
+  checks passed. The Anderson/Aitken algorithm remains in its existing
+  provider and is not duplicated. Atlas now points to the merged Harmonia
+  default; CFDrs must call the seam directly and delete its superseded wrapper
+  with differential parity evidence.
 
 ## Finding 2026-08-18: exact-head audit did not prove clean nested checkouts
 

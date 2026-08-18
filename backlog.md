@@ -274,14 +274,15 @@ open because `repos/CFDrs/crates/cfd-2d/src/network/coupled.rs` preserves a
 stateful Anderson/Aitken resistance-mixing contract. Harmonia commit `685f47d`
 now provides the required mutable pair-level `Relaxation<T>` seam, atomic
 fixed/full policies, ADR 0002, and 17/17 local nextest coverage; it does not
-duplicate the Anderson/Aitken algorithm. Harmonia PR #5 is pushed at that
-commit with hosted CI and Pages checks still queued, so Atlas keeps the root
-gitlink at `02ffd14` until the provider merge is verified. Adding a dependency
-without the provider algorithm would change the numerical contract; adding a
-consumer adapter or fixed-relaxation fallback would violate provider-first
-ownership. The next slice after PR #5 is direct CFDrs integration and deletion
-of the superseded local wrapper. Harmonia's source is clean in the nested
-checkout; its peer-owned workflow/book/example/lockfile dirt is preserved.
+duplicate the Anderson/Aitken algorithm. Harmonia PR #5 merged at provider
+default `365f0bb` from that commit with verify, supply-chain, and book checks
+green; RecurseML remains report-only. Atlas advances the root gitlink to
+`365f0bb` in this increment. Adding a dependency without the provider
+algorithm would change the numerical contract; adding a consumer adapter or
+fixed-relaxation fallback would violate provider-first ownership. The next
+slice is direct CFDrs integration and deletion of the superseded local
+wrapper. Harmonia's source is clean in the nested checkout; its peer-owned
+workflow/book/example/lockfile dirt is preserved.
 
 **Acceptance oracle:** the structural provider audit reports all 22 named
 providers present and active; the exact-head audit passes on a clean checkout;
