@@ -1982,7 +1982,7 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
 | US-023-B2 | QUS increment 2: spectral-difference attenuation estimation (dB/MHz/cm). **Not ported from ITK**: implements Yao/Zagzebski/Madsen (1990) eq. (3) (stays in dB domain). | [minor] | **review** — kwavers PR #404, `attenuation_from_spectra()` | Claude | Met. Zero-attenuation oracle exact; known-attenuation recovery (slope 0.5, intercept 0.1 dB/(MHz·cm)) exact. 10/10 tests pass. |
 | US-023-C | SRAD (Yu & Acton) speckle-reducing anisotropic diffusion in `ritk-filter/src/diffusion/`. | [minor] | done — ritk PR #169 merged | Claude | Value-semantic parity against the published formulation on a speckled phantom; edge-preservation asserted against Perona–Malik on the same input |
 | US-023-D | Block-matching elastography framework — **increment 1**: metric-image and displacement-calculator seams, direct NCC, and max-pixel / parabolic / cosine refinement. | [arch] [minor] | **done 2026-08-18** — ritk PR #173 merged at `0f0b5c56` | Claude | Met. Exact integer translations recovered exactly; half-voxel shift lands strictly between integers and beats the integer estimate; gain/offset invariance asserted. 382 tests, clippy, fmt clean |
-| US-023-E | Directional 1-D FFT frequency-domain filter over N-D images with a pluggable frequency-response function seam (Butterworth bandpass as first implementation). | [minor] | todo | — | Round-trip and analytical passband/stopband response asserted per axis; existing `FrequencyFilter` 1-D path consolidated onto it |
+| US-023-E | Directional 1-D FFT frequency-domain filter over N-D images with a pluggable frequency-response function seam (Butterworth bandpass as first implementation). | [minor] | **review** — ritk PR #175 | Claude | Met. 9/9 tests: constructor validation, near-all-pass, DC pass/block, 3-D shape, out-of-bounds rejection. |
 | US-023-E2 | Ultrasound IO **increment 1**: persist the acquisition coordinate map through NRRD read/write, so beam data does not reload as a raster. | [minor] | **review** — ritk PR #174, commit `efd75bf9` | Claude |
 | US-023-F | Ultrasound IO remainder: ITK's HDF5 ultrasound layout (`/axial`, `/lat`, `/eleAngle`, `/bimg`) and the NRRD-sequence video-stream path. **Needs a decision first**: ritk has no HDF5 reader (only a MINC2 writer) and no `hdf5` dependency; taking a C `-sys` crate runs against the pure-Rust preference, so the options are an ADR-recorded C dependency, a constrained hand-rolled reader, or declining the format. | [arch] | todo — decision required | — | ADR recording the HDF5 dependency decision with a recommended option; format support follows it | — | Round-trips an acquisition with its non-Cartesian geometry preserved |
 
@@ -4161,11 +4161,29 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   tree and take the next real family-boundary increment, if a live leaf exceeds
   the hierarchy trigger without violating test cohesion.
 
-## ATLAS-PUBLISH-001 — OIDC publish pipelines and Pages alignment [patch] — todo
+## ATLAS-PUBLISH-001 — OIDC publish pipelines and Pages alignment [patch] — in progress
 
 - Policy: AGENTS.md engineering_gates "Publish pipelines". Wiring is agent work; registry-side toggles are user actions.
 - Scope: (1) crates.io — add tag-triggered, environment-gated trusted-publishing workflows (`rust-lang/crates-io-auth-action`, `id-token: write`) to publishable stack crates, dependency-ordered with `cargo package` dry-run and semver gates; record per-crate "enforce trusted publishing" as a user checklist once each pipeline is green (disables token publishing registry-side). (2) PyPI — for the Python-binding crates, maturin-action matrix (manylinux2014 floor, `--compatibility pypi`, abi3 where the surface permits, sdist) with install/import/pytest wheel smoke before upload via the PyPI trusted-publisher flow. (3) Books — align CFDrs/kwavers/helios book workflows to the artifact flow (build + `mdbook test` → upload-pages-artifact → deploy-pages) if any still push a gh-pages branch or skip the test gate; new books inherit the same workflow.
 - Acceptance: no long-lived registry token referenced in any CI secret; each wired pipeline dry-run green; book deployments artifact-based with the test gate; user-action list (registry enforcement toggles) recorded on the board.
+
+### ATLAS-PUBLISH-001-CFDRS-PYPI — Add CFDrs abi3 PyPI trusted-publishing caller [patch] — in progress
+
+- Owner: Atlas coordinator; claimed 2026-08-18.
+- Scope: `repos/CFDrs/.github/workflows/python-release.yml` and
+  `repos/CFDrs/crates/cfd-python/tests/` only. The caller uses the shared Atlas
+  `python-wheels.yml` workflow at the exact Atlas graph revision and the
+  provider's declared `cfd_python` import surface.
+- Acceptance: the release-tag caller builds abi3 wheels with the manifest's
+  PyO3 floor, installs/imports the wheel, runs bounded value-semantic Python
+  tests, and hands validated release artifacts to PyPI Trusted Publishing;
+  no registry token or untested import-only path is introduced.
+- Non-goals: registry-side trusted-publisher enforcement, a local publish,
+  release/version changes, and unrelated CFDrs Rust or workflow cleanup.
+- Verification: inspect the workflow's pinned actions and exact `atlas-ref`,
+  run provider formatting and focused Rust checks, compile the binding test
+  contract where the local Python/maturin toolchain permits, and validate the
+  workflow statically.
 
 ### ATLAS-HELIOS-BOOK-TEST-002 — Enable Helios `mdbook test` in the shared Pages caller [patch] — done 2026-08-17
 
