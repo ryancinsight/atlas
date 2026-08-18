@@ -76,10 +76,11 @@ are peer coordination state; no lane or checkout was changed by this pass.
   doctest compilation, warning-free rustdoc, and the provider conformance
   report pass at the exact commit. Collect hosted checks before advancing the
   Atlas gitlink.
-- **Hosted state:** PR #62 head `0022926` has Rust verification `32196541600`
-  and MSRV `32196541558` queued, with Loom, Miri, aarch64, and ThreadSanitizer
-  jobs queued under the CI run. CodeRabbit passes; `recurseml/analysis` is
-  report-only. Queued hosted state is not merge closure.
+- **Hosted state:** PR #62 head `0022926` has Rust verification
+  `32196541600`, MSRV `32196541558`, Loom, aarch64, and ThreadSanitizer
+  passing; Miri remains in progress. CodeRabbit passes;
+  `recurseml/analysis` is report-only. Miri completion and the merge remain
+  open.
 
 **Instrument correction, applied before anything else was measured.**
 `scripts/atlas-conformance.py:131` classified a file as test code only when a

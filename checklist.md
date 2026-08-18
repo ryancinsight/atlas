@@ -40,8 +40,9 @@
       topology violations: Consus has four trees and one lane outside the
       canonical root, Kwavers has four trees with a detached lane, and RITK has
       three trees. These remain peer coordination state and were not modified.
-- [ ] Collect the queued Themis post-merge and current Mnemosyne/RITK runs;
-      queued status remains distinct from hosted closure. Preserve all
+- [ ] Collect the queued Themis post-merge, Mnemosyne Miri, Aequitas
+      post-merge, CFDrs exact-head, and RITK default-head runs; queued or
+      in-progress status remains distinct from hosted closure. Preserve all
       peer-owned nested checkout and lane dirt.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — current provider slice
@@ -53,11 +54,11 @@
       profiler packages, warning-denied Clippy, doctest compilation,
       warning-free rustdoc, and conformance `type_suffixed_fns=0` with no
       increased debt class.
-- [ ] Collect hosted checks and merge draft PR #62, then advance the Atlas
-      gitlink only after the exact provider default head is known.
--      PR #62 head `0022926` currently has Rust verification `32196541600` and
-      MSRV `32196541558` queued; Loom, Miri, aarch64, and ThreadSanitizer are
-      also queued. CodeRabbit passes and `recurseml/analysis` is report-only.
+- [ ] Collect Miri for draft PR #62, then mark ready and merge the provider
+      cleanup before advancing the Atlas gitlink. Rust verification
+      `32196541600`, MSRV `32196541558`, Loom, aarch64, and ThreadSanitizer
+      pass; Miri is in progress. CodeRabbit passes and `recurseml/analysis`
+      is report-only.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 

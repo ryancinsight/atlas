@@ -33,8 +33,9 @@ Consus, Coeus, or queued Themis/Mnemosyne residuals.
 Mnemosyne PR #62 is open at provider head `0022926`. Its local allocator and
 profiler gates pass 65/65, warning-denied Clippy, doctest compilation,
 warning-free rustdoc, and `type_suffixed_fns=0`. Hosted Rust verification
-`32196541600` and MSRV `32196541558` are queued, including Loom, Miri,
-aarch64, and ThreadSanitizer jobs; they remain the merge gate.
+`32196541600`, MSRV `32196541558`, Loom, aarch64, and ThreadSanitizer pass;
+Miri remains in progress and is the remaining merge gate. CodeRabbit passes
+and `recurseml/analysis` remains report-only.
 
 CFDrs PR #355 now carries the provider timeout fix at `1bebb5e1`. The failed
 Rust workspace run `32190491996` is classified as a pre-existing timeout also
