@@ -83,6 +83,12 @@ jobs:
     name: Build book
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Keep every network/compiler subprocess below the job bound. A hung
+      # package manager or documentation sample must terminate with a useful
+      # failure instead of consuming the runner until the job timeout.
+      BOOK_COMMAND_TIMEOUT: 8m
+      BOOK_NETWORK_TIMEOUT: 5m
     steps:
       - name: Check out the book source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -98,7 +104,9 @@ jobs:
           MDBOOK_VERSION: ${{ inputs.mdbook-version }}
         run: |
           set -euo pipefail
-          curl --fail --location --silent --show-error \
+          timeout --foreground --kill-after=30s "$BOOK_NETWORK_TIMEOUT" \
+            curl --fail --location --silent --show-error \
+            --connect-timeout 30 --max-time 300 \
             "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
             --output mdbook.tar.gz
           tar -xzf mdbook.tar.gz
@@ -119,7 +127,8 @@ jobs:
           LINKCHECK2_VERSION: ${{ inputs.mdbook-linkcheck2-version }}
         run: |
           set -euo pipefail
-          cargo install mdbook-linkcheck2 --version "$LINKCHECK2_VERSION" --locked
+          timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
+            cargo install mdbook-linkcheck2 --version "$LINKCHECK2_VERSION" --locked
           mdbook-linkcheck2 --version
 
       - name: Check out exact Atlas path dependencies
@@ -141,19 +150,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes libfontconfig1-dev
+          timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
+            sudo apt-get update
+          timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
+            sudo apt-get install --yes libfontconfig1-dev
 
       - name: Build package for book code sample testing
         if: inputs.mdbook-test && inputs.cargo-package != ''
         shell: bash
         run: |
           set -euo pipefail
-          cargo build -p "${{ inputs.cargo-package }}"
+          timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
+            cargo build --locked -p "${{ inputs.cargo-package }}"
           # Package name uses hyphens; crate name uses underscores.
           pkg="${{ inputs.cargo-package }}"
           crate="${pkg//-/_}"
-          target_dir="$(cargo metadata --no-deps --format-version 1 | python3 -c "import json,sys; print(json.load(sys.stdin)['target_directory'])")"
+          target_dir="$(timeout --foreground --kill-after=30s 2m \
+            cargo metadata --locked --no-deps --format-version 1 | \
+            python3 -c "import json,sys; print(json.load(sys.stdin)['target_directory'])")"
           deps_dir="$target_dir/debug/deps"
           rlib=$(ls "$deps_dir/lib${crate}-"*.rlib 2>/dev/null | head -n1 || true)
           if [[ -n "$rlib" ]]; then
@@ -198,9 +212,11 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -n "${MDBOOK_TEST_LIB_DIR:-}" ]]; then
-            mdbook test "${{ inputs.book-path }}" --library-path "$MDBOOK_TEST_LIB_DIR"
+            timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
+              mdbook test "${{ inputs.book-path }}" --library-path "$MDBOOK_TEST_LIB_DIR"
           else
-            mdbook test "${{ inputs.book-path }}"
+            timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
+              mdbook test "${{ inputs.book-path }}"
           fi
 
       - name: Build book
@@ -210,7 +226,8 @@ jobs:
           OUTPUT_PATH: ${{ inputs.output-path }}
         run: |
           set -euo pipefail
-          mdbook build "$BOOK_PATH"
+          timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
+            mdbook build "$BOOK_PATH"
           if [[ ! -f "$OUTPUT_PATH/index.html" ]]; then
             echo "mdbook produced no $OUTPUT_PATH/index.html; check the book's build-dir against the output-path input" >&2
             exit 1
