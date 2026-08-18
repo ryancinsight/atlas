@@ -1160,17 +1160,20 @@ Deleted: empty `macros.rs` and broken `tests/fused.rs`. Hosted Clippy, Rustfmt,
 Python matrix, and Test Suite all pass. Atlas advances ritk to `73441d93`;
 conformance baseline tightens `orphan_modules` 6 → 0.
 
-### ATLAS-ORPHAN-MODULES-096-KWAVERS — in progress 2026-08-17
+### ATLAS-ORPHAN-MODULES-096-KWAVERS — in progress 2026-08-18
 
-Provider PR #400 (`680cc53c`, after format and Cargo.lock updates) carries the
-kwavers slice at default `c4a41f289`: `kwavers-solver/validation` gains
-`pub mod bioheat;`; `kwavers-solver/forward/pstd` gains `pub mod cache;` (fix
-`shape()` comparison from `&[32, 32, 32]` to `[32usize, 32, 32]`);
+Provider PR #400 carries the kwavers slice: `kwavers-solver/validation` gains
+`pub mod bioheat;`; `kwavers-solver/forward/pstd` gains `pub mod cache;`;
 `kwavers-driver/io` gains `#[cfg(test)] mod tests;`. Deleted: `steering.rs`,
 `nufft.rs`, `adaptive/` (4 files), 6 stale `fixed_acquisition/tests/` files.
-Cargo.lock updated (mnemosyne `5ca0461a` → `d1144f74`). CI/CD Pipeline and
-Architecture Validation in progress. Re-open trigger: PR merges and Atlas
-pointer advances.
+
+**Cascade fix (2026-08-18):** Branch rebased onto kwavers `origin/main`
+(`15c12732f`), picking up the apollo-fft 0.27 migration (`59f44bf51`).
+Cargo.lock regenerated outside the Atlas overlay via `cargo update`;
+lock now pins apollo at `d585e0f5` and ritk at `dd577946`
+(post ritk PR #167 merge). CI running at `cdfadfd57`.
+
+Re-open trigger: PR merges and Atlas pointer advances.
 
 ## ATLAS-TOOLCHAIN-TRIPLE-083 — The toolchain pin guards version, not host triple [patch] — closed 2026-08-17
 
