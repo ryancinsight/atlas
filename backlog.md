@@ -263,6 +263,25 @@ nested Harmonia checkout remains provider-owned state.
   the Aequitas gitlink.
 - **Non-goals:** no lint-floor, numerical, consumer, or Helios changes.
 
+## ATLAS-ASCLEPIUS-CONFORMANCE-001 — add provider checkout and CI bounds [patch] — in progress
+
+- **Owner:** Atlas coordinator; clean Asclepius provider checkout at fetched
+  `origin/main` `ff2ffbf`.
+- **Claimed scope:** Asclepius `.gitattributes` and
+  `.github/workflows/ci.yml` only, plus provider-local format, metadata, and
+  hosted verification. No source, lockfile, dependency, or consumer files.
+- **Finding:** the live conformance scan reports
+  `gitattributes_missing=1` and `workflow_missing_timeout=1`; both `verify`
+  and `supply-chain` jobs lack an explicit finite timeout. The independent
+  `workspace_lints_missing=1` baseline is excluded from this mechanical slice.
+- **Acceptance:** the provider declares repository-wide LF normalization and
+  both CI jobs carry the finite 30-minute bound used by the adjacent provider
+  timeout closure; the post-change conformance scan introduces no new class,
+  locked metadata and formatting pass, and hosted provider gates pass at the
+  merged head.
+- **Non-goals:** no workspace lint-floor migration, source implementation,
+  numerical behavior, consumer migration, or lockfile rewrite.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
