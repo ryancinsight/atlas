@@ -11073,3 +11073,9 @@ workflows subject to the local timeout rule, adds both regression cases, and
 updates Horae's baseline from 1 to 0. The focused scanner suite passes 11/11.
 See [GitHub's reusable-workflow job-key contract](https://docs.github.com/en/enterprise-cloud@latest/actions/reference/workflows-and-actions/reusing-workflow-configurations)
 for the supported caller keys.
+
+The clean provider follow-up is now explicit: Horae PR #18 (`cded674`) enables
+the shared executable-sample gate and Helios PR #64 (`9a590ff`) adopts the same
+workflow revision. Both root gitlinks remain at their fetched default heads
+until exact-head hosted gates pass; local Horae Cargo verification is blocked
+by the Windows shared-cache host-triple/overlay condition described above.

@@ -71,6 +71,13 @@
       `workflow_missing_timeout` from 1 to 0, and the committed baseline records
       that correction. The commit also contains pre-staged peer root updates;
       no peer source files were edited by this slice.
+- [ ] Collect Horae PR #18 at source `cded674` after its hosted Rust and Pages
+      gates pass. It repins the caller to Atlas workflow `6ed29a9`, enables
+      `mdbook-test`, and builds package `horae`; the Atlas Horae gitlink remains
+      unchanged until the exact source head is hosted-green.
+- [ ] Collect Helios PR #64 at source `9a590ff` after its hosted Rust, Python,
+      benchmark, and Pages gates pass. It repins the caller to Atlas workflow
+      `6ed29a9`; the Atlas Helios gitlink remains unchanged until hosted proof.
 
 # Sweep 2026-08-13 — execution order
 
