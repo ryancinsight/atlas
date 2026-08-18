@@ -4170,14 +4170,16 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
 ### ATLAS-PUBLISH-001-CFDRS-PYPI — Add CFDrs abi3 PyPI trusted-publishing caller [patch] — in progress
 
 - Owner: Atlas coordinator; claimed 2026-08-18.
-- Scope: `repos/CFDrs/.github/workflows/python-release.yml` and
-  `repos/CFDrs/crates/cfd-python/tests/` only. The caller uses the shared Atlas
-  `python-wheels.yml` workflow at the exact Atlas graph revision and the
-  provider's declared `cfd_python` import surface.
+- Scope: `repos/CFDrs/.github/workflows/python-release.yml`,
+  `repos/CFDrs/crates/cfd-python/tests/`, the binding version surface, and the
+  shared root `.github/workflows/python-wheels.yml` release-distribution
+  contract. The caller uses the shared workflow at the exact Atlas graph
+  revision and the provider's declared `cfd_python` import surface.
 - Acceptance: the release-tag caller builds abi3 wheels with the manifest's
-  PyO3 floor, installs/imports the wheel, runs bounded value-semantic Python
-  tests, and hands validated release artifacts to PyPI Trusted Publishing;
-  no registry token or untested import-only path is introduced.
+  PyO3 floor plus one validated source distribution, installs/imports the
+  wheel, runs bounded value-semantic Python tests, and hands validated release
+  artifacts to PyPI Trusted Publishing; no registry token or untested
+  import-only path is introduced.
 - Non-goals: registry-side trusted-publisher enforcement, a local publish,
   release/version changes, and unrelated CFDrs Rust or workflow cleanup.
 - Verification: inspect the workflow's pinned actions and exact `atlas-ref`,

@@ -1,10 +1,10 @@
-name: Build Python release wheels
+name: Build Python release distributions
 
 on:
   workflow_call:
     inputs:
       distribution:
-        description: PyPI distribution name from wheel metadata
+        description: PyPI distribution name from release metadata
         required: true
         type: string
       import-name:
@@ -61,6 +61,7 @@ jobs:
     if: inputs.abi3
     name: ${{ matrix.os }} / abi3
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -140,6 +141,7 @@ jobs:
     if: ${{ !inputs.abi3 }}
     name: ${{ matrix.os }} / CPython ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -212,6 +214,7 @@ jobs:
     name: Validate and attach release wheels
     needs: [build-abi3, build-cpython]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       artifact-metadata: write
       attestations: write
@@ -219,6 +222,34 @@ jobs:
       id-token: write
 
     steps:
+      - name: Checkout release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          ref: ${{ github.event.release.tag_name || github.sha }}
+          persist-credentials: false
+
+      - name: Checkout exact Atlas provider graph
+        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@cd6a78e8c9a9816b0fa5ff22ad9166edbb713894
+        with:
+          manifest: source/Cargo.toml
+          destination: .
+          atlas_ref: ${{ inputs.atlas-ref }}
+
+      - name: Set up Python for source distribution
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Build source distribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "maturin==1.14.1"
+          maturin sdist \
+            --manifest-path "source/${{ inputs.manifest-path }}" \
+            --out dist
+
       - name: Download wheels
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -251,6 +282,11 @@ jobs:
             echo "expected $expected wheels, found ${#wheels[@]}" >&2
             exit 1
           fi
+          mapfile -t sdists < <(find dist -maxdepth 1 -type f -name '*.tar.gz' -print | sort)
+          if (( ${#sdists[@]} != 1 )); then
+            echo "expected one source distribution, found ${#sdists[@]}" >&2
+            exit 1
+          fi
 
           normalized_distribution=$(tr '[:upper:]' '[:lower:]' <<<"$DISTRIBUTION" | sed -E 's/[-_.]+/-/g' | tr -d '\r\n')
           for wheel in "${wheels[@]}"; do
@@ -267,13 +303,27 @@ jobs:
               exit 1
             fi
           done
-          sha256sum "${wheels[@]}" > dist/SHA256SUMS
+          sdist_metadata=$(tar -xOf "${sdists[0]}" '*/PKG-INFO')
+          sdist_name=$(sed -n 's/^Name: //p' <<<"$sdist_metadata" | head -n 1 | tr -d '\r')
+          sdist_version=$(sed -n 's/^Version: //p' <<<"$sdist_metadata" | head -n 1 | tr -d '\r')
+          normalized_sdist_name=$(tr '[:upper:]' '[:lower:]' <<<"$sdist_name" | sed -E 's/[-_.]+/-/g' | tr -d '\r\n')
+          if [[ "$normalized_sdist_name" != "$normalized_distribution" ]]; then
+            echo "${sdists[0]}: distribution $sdist_name does not match $DISTRIBUTION" >&2
+            exit 1
+          fi
+          if [[ "$sdist_version" != "$release_version" ]]; then
+            echo "${sdists[0]}: version $sdist_version does not match $RELEASE_TAG" >&2
+            exit 1
+          fi
+          sha256sum "${wheels[@]}" "${sdists[@]}" > dist/SHA256SUMS
 
-      - name: Upload consolidated wheel artifact
+      - name: Upload consolidated release distributions
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-wheels
-          path: dist/*.whl
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
           if-no-files-found: error
           retention-days: 30
 
