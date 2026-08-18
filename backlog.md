@@ -1921,6 +1921,30 @@ advance the gitlink.
   `-D warnings`, and a rustdoc step joins ritk's CI so it cannot go red
   unobserved again — the absence of that step is the actual defect here.
 
+**Progress 2026-08-18: seven links fixed, gate still unconfirmed.**
+`MAX_SEQUENCE_DEPTH` is delinked from `anonymize_object` in `4c55c57c`,
+landed onto the branch through a private index so the shared tree's
+checked-out branch was never touched. The two remaining references to that
+const (lines 338, 376) are on private items and resolve fine.
+
+The confirming run could not be made: partway through, `-213` moved the
+shared tree onto a 58-behind `main`, which reverted the working copies of
+the earlier fixes and the lockfile. **Two readings taken after that point
+were wrong and are corrected here rather than left in the record:**
+
+1. I reported ritk's `apollo-fft` requirement as still `^0.26` with my bump
+   "orphaned". False — `origin/main` and this branch both carry `^0.27.0`.
+   I was reading the peer's stale `main`. There is no requirement lag and
+   nothing to re-apply.
+2. I attributed the resulting `hermes-simd-core ^0.6` resolver failure to
+   that lag. It was entirely the stale checkout: the 58-behind base pins
+   `apollo-fft 0.26`, whose transitive `^0.6` cannot unify with the
+   overlay's local hermes 0.7.
+
+Both edits made under the mistaken reading were reverted; they were my own,
+no peer state was touched. The remaining work is one clean run of the gate
+from a current checkout, then the CI step.
+
 ## RITK-PEER-RATCHET-211 — Peer commits regressed three ratchet classes on ritk [patch] — open 2026-08-18
 
 - `print_dbg 12 → 17`, `oversized_files 43 → 44`,
