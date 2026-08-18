@@ -4932,6 +4932,13 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       default `098bc8e`. The nested checkout has peer-owned dirty files, so
       only the gitlink is staged; no Mnemosyne source, manifest, lockfile, or
       workflow file is included.
+- [x] Re-ran the delivered-root integration gates at `4e88995`: structural
+      exact-head and committed lock-form checks pass for all 22/27 providers;
+      live coherence and the local overlay are aligned only because peer RITK
+      worktree commit `36592d5` carries the Apollo `0.27.0` sweep while the
+      Atlas RITK pointer remains `dd577946`. The version-guard preflight is
+      blocked by existing rustup directory overrides; no hosted run is claimed
+      for `4e88995`.
 
 ### Delivery rule
 
