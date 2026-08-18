@@ -67,6 +67,12 @@ The detector fixture suite passes 43/43 with its intentional missing-link case
 covered. This proves link and anchor integrity only; it does not establish
 mdBook build or Pages deployment success.
 
+The committed fast Python tier initially failed during collection because
+`test_atlas_scattered_containers_classify.py` imported through `scripts.*`
+despite `pytest.ini` exposing `scripts` as the module root. The import was
+corrected in the root test scope; the exact fast tier now passes 225 tests,
+17 deselected tests, and 74 subtests in 13.75 seconds.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at

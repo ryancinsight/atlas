@@ -52,6 +52,11 @@
       every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
       Run its fixture regression suite with `PYTHONPATH=scripts`; 43/43 tests
       pass, including the intentional missing-link fixture.
+- [x] Repair the fast-tier collection import in
+      `scripts/tests/test_atlas_scattered_containers_classify.py` to match the
+      `pytest.ini` `pythonpath = scripts` contract. The committed fast tier now
+      passes 225 tests, deselects 17 slow tests, and passes 74 subtests in
+      13.75 seconds.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — current provider slice
 

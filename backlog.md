@@ -69,6 +69,11 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   registered provider books with zero missing files, missing anchors, or read
   failures. Its fixture regression suite passes 43/43 with the intentional
   missing-link case covered.
+- **Automation cleanup:** the committed fast Python tier had one collection
+  defect because `test_atlas_scattered_containers_classify.py` imported through
+  `scripts.*` while `pytest.ini` exposes `scripts` as the module root. The
+  import now matches the configured namespace; the fast tier passes 225 tests,
+  17 deselected tests, and 74 subtests in 13.75 seconds.
 
 **Current lane residual:** `python scripts/atlas-lane-audit.py` reports five
 violations: Consus has four trees plus a lane outside the canonical root,
