@@ -32,6 +32,16 @@ warning-free rustdoc, and `type_suffixed_fns=0`. Hosted Rust verification
 `32196541600` and MSRV `32196541558` are queued, including Loom, Miri,
 aarch64, and ThreadSanitizer jobs; they remain the merge gate.
 
+CFDrs PR #355 now carries the provider timeout fix at `1bebb5e1`. The failed
+Rust workspace run `32190491996` is classified as a pre-existing timeout also
+present at provider main `44ab23b`, specifically
+`test_benchmark_run_integration` at the committed 30-second Nextest budget.
+The fix prepares the normalized parabolic inlet profile once per backward-step
+solve and reapplies cached values, preserving the numerical workload and
+assertions. Exact-head hosted run `32197696210` is queued for Rust and book
+verification; the shared Atlas overlay still blocks a local locked compile
+before source diagnostics.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at
@@ -52,9 +62,15 @@ four, and RITK has three. The clean-checkout audit continues to report
 peer-owned dirty or moving nested trees. No peer checkout, lane, or dirty file
 was removed or rewritten.
 
-CFDrs draft PR #355 now contains provider commits `7be6727b` and `2721539e`.
-Its Rust and book checks are queued and CodeRabbit is successful. The local
-provider `cargo check --locked -p cfd-python` still stops before compilation:
+CFDrs draft PR #355 now contains provider commits `7be6727b`, `2721539e`, and
+the timeout fix `1bebb5e1`. Its Rust and book checks are queued in run
+`32197696210` and CodeRabbit is successful. The previous Rust-gate failure was
+the unchanged numerical-fidelity test
+`test_benchmark_run_integration`, which timed out at 30 seconds on provider
+main `44ab23b`; the fix caches the normalized parabolic inlet profile once per
+solve and removes repeated boundary-path allocation without shrinking the
+workload. The local provider `cargo check --locked -p cfd-python` still stops
+before compilation:
 the shared overlay reports unused first-party patches and Cargo refuses the
 lockfile update under `--locked`. This is a resolver/overlay blocker, not a
 source diagnostic. Kwavers `mdbook test` remains red on the previously listed

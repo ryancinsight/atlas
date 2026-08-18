@@ -33,6 +33,13 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   default `5adc2d1649bfd2bf68c529b011308e150375810d`; Atlas stages that exact
   gitlink without touching the dirty primary checkout. The former backend
   parity failure at `79f05dfd` is superseded by the merged provider closure.
+- **CFDrs evidence:** PR #355 now carries provider commit `1bebb5e1`. The
+  previous Rust-gate timeout is reproducible at provider main `44ab23b` in
+  `test_benchmark_run_integration`, where the backward-step provider rebuilt
+  normalized parabolic inlet vectors on every SIMPLE iteration. The fix caches
+  the normalized profile once per solve and preserves the unchanged workload,
+  assertions, and 30-second budget. Exact-head hosted run `32197696210` is
+  queued; merge remains gated on its Rust and book jobs.
 - **Acceptance:** collect queued Themis post-merge and Mnemosyne/RITK runs,
   reconcile the RITK checkout through its owner, then re-run exact-head and
   overlay checks. Preserve peer-owned checkout and lane state.

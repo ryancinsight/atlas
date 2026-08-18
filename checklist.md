@@ -23,6 +23,16 @@
       `5adc2d1649bfd2bf68c529b011308e150375810d`, and stage the Atlas gitlink
       advance without modifying the dirty primary checkout. The old backend
       parity failure is superseded by the merged Apollo 0.27 lock closure.
+- [x] Diagnose the CFDrs PR #355 Rust-gate timeout. The failure reproduces at
+      provider main `44ab23b` in
+      `cfd-validation::benchmark_validation::test_benchmark_run_integration`
+      at the unchanged 30-second budget; the backward-step provider was
+      rebuilding its normalized parabolic inlet vectors on every SIMPLE
+      iteration. Provider commit `1bebb5e` prepares the profile once and
+      reapplies cached values without changing the workload or assertions.
+- [ ] Collect CFDrs exact-head run `32197696210` at `1bebb5e`, then merge PR
+      #355 only after the Rust and book gates pass. The earlier timeout is
+      superseded only when the unchanged numerical-fidelity filter is green.
 - [ ] Collect the queued Themis post-merge and current Mnemosyne/RITK runs;
       queued status remains distinct from hosted closure. Preserve all
       peer-owned nested checkout and lane dirt.
@@ -193,14 +203,16 @@
       installed-wheel pytest contract, Cargo-derived `cfd_python.__version__`,
       and source-package exclusions for generated output and Python bytecode.
 - [x] Push the provider branch and open draft CFDrs PR #355. Hosted Rust and
-      book checks are queued; the external RecurseML status is report-only.
+      book checks are queued at `1bebb5e`; the external RecurseML status is
+      report-only.
 - [x] Verify formatting, workflow YAML parsing, Python test syntax, and local
       `maturin sdist`; it produced `cfd_python-0.3.0.tar.gz` at 68.61 MiB with
       zero `outputs/`, `output/`, `__pycache__/`, or `.pyc` members in the
       shared ignored target directory.
 - [ ] Collect the exact-head hosted gate and merge PR #355. Local locked Rust
       compilation is blocked before compilation by the shared overlay/lock
-      mismatch; no local source diagnostic is claimed.
+      mismatch; standalone locked metadata, format, and diff checks pass, and
+      no local runtime result is claimed.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-17
 
