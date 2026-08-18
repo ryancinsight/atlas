@@ -78,9 +78,9 @@ published and the consumer matrix is rerun.
 
 ## ATLAS-CFDRS-BACKWARD-STEP-108 — default-branch Clippy blocker (2026-08-18)
 
-CFDrs PR #349 source head `f5b44939` carries the bounded `cfd-core`/`cfd-math`
+CFDrs PR #349 source head `bc39d336` carries the bounded `cfd-core`/`cfd-math`
 lint cleanup and the hosted book-figure gate passes. At exact source
-`f5b44939`, the local `cargo clippy --locked -p cfd-math --all-targets --
+`bc39d336`, the local `cargo clippy --locked -p cfd-math --all-targets --
 -D warnings` gate again stops before compilation because the shared Atlas patch
 overlay would update the peer-owned `Cargo.lock`; no source diagnostic is
 available locally. Rust workspace run
@@ -117,7 +117,9 @@ documentation and test, iterator, interpolation, JFNK, and SIMD residues;
 the `cfd-math` source scan now has no remaining unwrap, existence-only result
 assertion, print, or debug macro. Commit `f5b44939` fixes the interpolation
 fixture return, scopes benchmark-generated missing-doc expectations, and
-hardens the remaining benchmark and integration-test results. Hosted run
+hardens the remaining benchmark and integration-test results. Commit
+`bc39d336` closes the hosted ordering, iterator, cast, and `let-else` findings
+and removes the empty ignored AMG placeholder test target. Hosted run
 `32113652198` found that
 `expect_err` required `IncompleteLU` to implement `Debug`; commit `22e227eb`
 replaces that assertion with an explicit match and retains the typed
@@ -132,8 +134,8 @@ changes. Commits `22d74042`, `c70d44e3`, and
 `1d1e14c8`, `6b22c4bd`, `3cd393b6`, `ccf889c2`, `33cb9af4`, `3f8fe517`,
 `bebe2d55`, `ee274df5`, `4ea465a6`, `2ebd686d`, `261b3b99`, `8f3770c0`,
 `3fbffc6a`, `7af3f9e7`, `3ebb5f77`, `8db668eb`, `5fe6e307`, `e57696e6`, and
-`e0e3e123`, `bd2dec30`, `003eae73`, `5265128c`, `d1f16880`, `22e227eb`, and
-`f5b44939` own the
+`e0e3e123`, `bd2dec30`, `003eae73`, `5265128c`, `d1f16880`, `22e227eb`,
+`f5b44939`, and `bc39d336` own the
 `cfd-core`/`cfd-math`
 state/field-operation/GPU-kernel/validation/compute-dispatch/GPU-integration/
 conversion/boundary/time-controller/error-context/blood-model/plugin/
