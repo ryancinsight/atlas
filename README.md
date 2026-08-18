@@ -817,7 +817,7 @@ plus full `cargo nextest run --offline` sweep confirmed:
 | --- | ---: | ---: |
 | `helios` | pass | 267/267 |
 | `gaia` | pass | 966 passed, 1 skipped |
-| `harmonia` | pass | 15/15 |
+| `harmonia` | pass | 17/17 |
 | `athena` | pass | 52/52 |
 | `horae` | pass | 15/15 |
 | `apollo` | pass | 1000/1000 |
