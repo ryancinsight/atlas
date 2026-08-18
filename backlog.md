@@ -1473,7 +1473,7 @@ Deleted: empty `macros.rs` and broken `tests/fused.rs`. Hosted Clippy, Rustfmt,
 Python matrix, and Test Suite all pass. Atlas advances ritk to `73441d93`;
 conformance baseline tightens `orphan_modules` 6 → 0.
 
-### ATLAS-ORPHAN-MODULES-096-KWAVERS — in progress 2026-08-18
+### ATLAS-ORPHAN-MODULES-096-KWAVERS — closed 2026-08-18
 
 Provider PR #400 carries the kwavers slice: `kwavers-solver/validation` gains
 `pub mod bioheat;`; `kwavers-solver/forward/pstd` gains `pub mod cache;`;
