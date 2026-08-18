@@ -121,6 +121,14 @@ Gaia gitlink; no geometry, manifest, lockfile, or consumer change is made. The
 primary Gaia checkout remains a clean peer-owned interactive rebase at the
 pre-merge commit and was not switched or rewritten.
 
+## ATLAS-HERMES-POINTER-2026-08-18 — fetched-default reconciliation
+
+Hermes default advanced from the Atlas-recorded `525f4a4` to `ef40f43`. Hosted
+CI run `32165594249` and Pages run `32165592665` both pass at the exact merged
+head. Atlas advances only the Hermes gitlink. The nested checkout is already
+at `ef40f43` and retains peer-owned `Cargo.lock` changes; those changes are not
+part of the Atlas integration commit.
+
 ## ATLAS-HOSTED-STATE-2026-08-18 — latest provider-consumer recheck
 
 The latest external state is separated from the green root metadata audit:

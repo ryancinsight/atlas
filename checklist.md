@@ -19,6 +19,9 @@
 - [x] Collect and merge Hermes PR #52 (`dd4cb129`) and Mnemosyne PR #59
       (`d1144f74`); their external `recurseml/analysis` analyzer errors remain
       report-only.
+- [x] Reconcile the subsequent Hermes default movement to `ef40f43`; hosted CI
+      run `32165594249` and Pages run `32165592665` pass at that exact provider
+      head. The nested checkout retains peer-owned `Cargo.lock` dirt.
 - [x] Collect and merge RITK PR #165 at default `ae23d4b2`; hosted native CI
       `32063759899` and Python matrix `32063759848` pass at the final source
       head.
