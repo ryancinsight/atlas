@@ -1391,6 +1391,39 @@ fuzz-target build matrix in hosted run `32067580093` before merging the ADR
 index repair. No compatibility shim was added. Re-open if a later provider
 commit advertises an unavailable backend-neutral async capability.
 
+## ATLAS-LOCKS-RESOLVED-032 — Both lockfiles are already healthy; no regeneration needed (closed)
+
+Acted on the instruction to regenerate the locks with the overlay off. The
+method that works without touching the shared config: add a linked worktree
+**outside** the Atlas tree (`git worktree add --detach D:/tmp/lockgen-<repo>`),
+where cargo cannot walk up to `D:/atlas/.cargo/config.toml`, and run
+`cargo generate-lockfile` there. ritk's own `.cargo/config.toml` carries no
+`[patch]` sections, so the overlay is genuinely off in that location. This is a
+clean, repeatable procedure and is worth reusing.
+
+The regeneration confirmed both locks need no change:
+
+- **ritk.** The regenerated lock restored 51 `source = "git+..."` entries and
+  pinned `apollo-fft 0.27.0` at rev `d585e0f5`. Comparing against `origin/main`
+  showed main's committed lock **already** carries that exact pin with real git
+  sources.
+- **kwavers.** `origin/main`'s lock has 87 git sources, lists `ritk-spatial`
+  under `kwavers-analysis`'s dependencies, and gives `ritk-spatial` a proper
+  `git+` source. The A3 lock edge was already landed correctly by a peer.
+
+So the hazard recorded in ATLAS-US-A3-OVERLAY-029 and ATLAS-FLEET-STATE-031 is
+not present in the committed state. The stripped locks only ever appear in
+working trees as a build artifact of the overlay, and restoring them with
+`git checkout -- Cargo.lock` is the correct response — as done repeatedly this
+session before each rebase.
+
+**`fix/apollo-fft-0.27-migration` is superseded, not mergeable.** Beyond the
+lock, `origin/main` already carries the `apollo-fft 0.27.0` manifest bump, and
+the branch is missing substantial main work (grid geometry, marching cubes, ADR
+0020 and more — 1114 lines). It should be closed and its branch deleted rather
+than merged. Its lane was removed; the remote branch is left for its owner to
+close.
+
 ## ATLAS-FLEET-STATE-031 — Fleet churn blocks new feature work; apollo 0.27 needs a lock regeneration (open)
 
 Recorded while picking the next development phase. Nothing here is a code
