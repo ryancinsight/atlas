@@ -357,7 +357,7 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no reusable-workflow change, release-token change, source or
   dependency edit, lockfile rewrite, or primary-checkout cleanup.
 
-## ATLAS-MNEMOSYNE-CONFORMANCE-001 — add provider LF policy [patch] — in progress
+## ATLAS-MNEMOSYNE-CONFORMANCE-001 — add provider LF policy [patch] — complete 2026-08-18
 
 - **Owner:** Atlas coordinator; clean Mnemosyne provider lane from fetched
   `origin/main` `7967315f`.
@@ -370,6 +370,12 @@ nested Harmonia checkout remains provider-owned state.
 - **Acceptance:** the clean lane reports `gitattributes_missing=0` with no
   increase in any measured class, formatting and locked metadata pass, and
   hosted provider gates pass at the merged head.
+- **Closure:** provider commit `cb86bfe` merged through PR #60 as default merge
+  `1c38a1a65d519ebc04ed5f9da2baa31d16b83705`. PR run `32178377690` passes Loom,
+  Rust verification, and Miri (83 passed, 10 skipped); post-merge default CI
+  `32180326066` passes the same three required jobs. RecurseML remains
+  report-only. Atlas advances only the gitlink; the primary peer-dirty
+  checkout remains untouched.
 - **Non-goals:** no source implementation, lint-floor, lockfile, dependency,
   consumer, or primary-checkout change.
 

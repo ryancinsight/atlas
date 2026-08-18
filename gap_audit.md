@@ -11940,3 +11940,13 @@ exact fetched head without touching the peer-dirty primary checkout.
 This closes only the pointer reconciliation. The broader Moirai ordering and
 SeqCst ratchet remains an active audit residual, and the Consus/Moirai exact-
 head audit must be rerun after the pointer commit.
+
+## ATLAS-MNEMOSYNE-CONFORMANCE-001 — provider LF-policy closure
+
+The clean Mnemosyne lane added only `.gitattributes`, reducing
+`gitattributes_missing` to zero with no increase in the measured baseline.
+Provider commit `cb86bfe` merged through PR #60 as default
+`1c38a1a65d519ebc04ed5f9da2baa31d16b83705`. PR run `32178377690` and
+post-merge default CI `32180326066` pass Loom, Rust verification, and Miri;
+the Miri job reports 83 tests passed and 10 skipped. RecurseML remains
+report-only. The primary peer-dirty Mnemosyne checkout was not modified.
