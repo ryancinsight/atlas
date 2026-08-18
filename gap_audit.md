@@ -11304,13 +11304,13 @@ version sweep: `repos/coeus/crates/coeus-autograd/Cargo.toml`,
 the provider package is 0.27.0. Those consumer files are peer-owned and
 dirty; no edits or lockfile regeneration were performed.
 
-CFDrs PR #349 is at exact source head `19f06e466e1d1efd91552f2343b667da9633fc24`.
+CFDrs PR #349 is at exact source head `8d95eeaed3916fa2e9987b14a42f9d1ab0b31f56`.
 The cfd-2d cleanup closes the all-target lint residuals without changing
 numerical workloads. Local `cargo clippy -p cfd-2d --all-targets --no-deps
 -- -D warnings` passes and `cargo nextest run -p cfd-2d --tests --no-fail-fast`
-passes 582/582 with 27 committed skips. GitHub has not created a check run for
-this exact head; the previous hosted result at `bd333308` is stale and cannot
-close the hosted acceptance item.
+passes 582/582 with 27 committed skips. Manual workflow dispatch run
+`32135266216` is the exact-head hosted acceptance run and is in progress for
+the Rust workspace and book-figure jobs.
 
 Apollo PR #104 is at exact source head `48c14edf9123efc8e36e1bf1a833a9b6c8e5262a`.
 The f64 length-127 FullCyclic routing experiment passes local Apollo check and

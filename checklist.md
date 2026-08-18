@@ -334,7 +334,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `19f06e46`.
+      integrate provider PR #349 at current exact source head `8d95eeae`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -357,9 +357,9 @@
       fix those diagnostics while preserving the test workload and original
       line-ending pattern. The cfd-2d all-target gate is now green locally:
       Clippy with `-D warnings` passes and native Nextest reports 582/582
-      passed with 27 committed skips. Hosted CI has not created a check run
-      for `19f06e46`; the prior hosted result at `bd333308` is stale and does
-      not close this exact-head acceptance item.
+      passed with 27 committed skips. Manual workflow dispatch run
+      `32135266216` is now the exact-head hosted acceptance run; Rust and
+      book-figure jobs are in progress.
 - [x] Push the bounded CFDrs lint cleanup through `b39a00b4`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,
