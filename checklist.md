@@ -33,6 +33,14 @@
       conformance `32072555155`, and push analysis `32072554308` pass. The
       local full coherence scan remains limited by peer-owned stale nested
       Asclepius working-tree content; no peer dirt was overwritten or staged.
+- [x] Reconcile Mnemosyne to fetched `origin/main` `d48f4842` in Atlas
+      commit `a49afd3`, preserving the nested peer checkout and synchronizing
+      the moving-default evidence.
+- [ ] Re-collect root hosted gates for `a49afd3` and close the full coherence
+      scan after the peer Apollo worktree leaves its uncommitted `0.27.0`
+      version bump; committed Apollo remains `0.26.0`.
+- [ ] Collect Kwavers PR #402 exact-head matrix at `090183327`; rerun the
+      cancelled 30-minute CI benchmark lane before advancing its Atlas gitlink.
 
 # Sweep 2026-08-13 — execution order
 
