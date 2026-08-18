@@ -298,6 +298,25 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no source rename or refactor, lint-floor migration, test
   rewrite, dependency change, lockfile rewrite, or primary-checkout cleanup.
 
+## ATLAS-TYCHE-CONFORMANCE-001 — bound provider CI jobs [patch] — in progress
+
+- **Owner:** Atlas coordinator; clean Tyche provider lane from fetched
+  `origin/main` `5eeaba9`.
+- **Claimed scope:** Tyche `.github/workflows/ci.yml` job timeouts only, plus
+  provider-local workflow, formatting, metadata, and hosted verification. The
+  primary checkout's peer-owned planning branch and staged/unstaged files
+  remain untouched.
+- **Finding:** the live conformance scan reports
+  `workflow_missing_timeout=1`; both `verify` and `supply-chain` jobs lack an
+  explicit finite timeout. The five type-suffixed functions and workspace lint
+  baseline are separate provider cleanup items.
+- **Acceptance:** both Tyche CI jobs carry the finite 30-minute bound used by
+  the adjacent provider timeout closure; the clean lane reports no increase in
+  any measured class, formatting and locked metadata pass, and hosted gates
+  pass at the merged head.
+- **Non-goals:** no source rename/refactor, lint-floor migration, planning
+  branch cleanup, dependency or lockfile change, or consumer edit.
+
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 The active product boundary is a multiphysics simulation suite built from the
