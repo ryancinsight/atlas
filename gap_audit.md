@@ -109,6 +109,11 @@ to fetched `origin/main` `098bc8e`. The root pointer is advanced to that exact
 default commit while the nested checkout's peer-owned dirty Cargo, manifest,
 workflow, and source files remain untouched.
 
+The fetched default then advanced to `7967315f3e36bc3c05a5cdacc0565a0c7179e00e`.
+Hosted run `32172944880` passes Rust verification, Miri, and Loom at that
+exact head. Atlas advances only the gitlink; the nested checkout's peer-owned
+`Cargo.lock` remains untouched.
+
 ## ATLAS-GAIA-CONFORMANCE-001 — provider LF-policy closure (2026-08-18)
 
 Gaia commit `3cb6c82` adds only `.gitattributes` and merges through PR #31 at

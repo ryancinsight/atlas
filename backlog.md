@@ -95,6 +95,11 @@ provider-owned state rather than an Atlas source edit.
   separately recorded dirty Apollo `0.27.0` worktree versus committed consumer
   `0.26.0` requirements; root hosted gates remain to be collected at the
   resulting root head.
+- **Third moving-default reconciliation (2026-08-18):** Mnemosyne advanced
+  again to hosted-green default `7967315f3e36bc3c05a5cdacc0565a0c7179e00e`.
+  Atlas advances only that gitlink; the nested checkout retains peer-owned
+  `Cargo.lock` dirt. The exact-head audit is re-collected after this pointer
+  update, with the root lock-form and peer-lane residuals kept separate.
 - **Final root gates:** `atlas-stack-overlay` run `32072555152`,
   `atlas-conformance` run `32072555155`, and push analysis run `32072554308`
   pass at `944f6e1`. The hosted gates initialize direct members from the

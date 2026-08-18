@@ -78,6 +78,10 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
+- [x] Reconcile Mnemosyne's next fetched-default movement to `7967315f` in
+      the Atlas pointer, preserving the primary checkout's peer-owned
+      `Cargo.lock`; hosted run `32172944880` passes Rust verification, Miri,
+      and Loom at the exact provider head.
 - [x] Collect Apollo PR #104 at merged default `d585e0f5`. Post-merge Rust,
       Python, and Pages checks pass in runs `32145206051` and `32145204622`.
       The latest benchmark remains the failed pre-merge run `32140820453` at
