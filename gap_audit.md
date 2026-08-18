@@ -53,6 +53,14 @@ Atlas stages that exact merged gitlink while preserving the provider checkout;
 post-merge runs `32198085105` and `32198084983` are queued and remain separate
 from the pre-merge source evidence.
 
+Themis post-merge CI `32194584768` and MSRV `32194584736` pass at default
+`0484a333`. Pages run `32194583598` has successful build and report jobs, but
+its deploy job remains queued. Mnemosyne CI `32196541600` is green for Rust
+verification, Loom, aarch64, and ThreadSanitizer with Miri still in progress;
+CFDrs run `32197696210` and both Aequitas post-merge runs remain queued. No
+hosted run is attached to the docs-only RITK default `9fa4981e`, so the prior
+RITK runs do not establish that head.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at
@@ -76,7 +84,7 @@ was removed or rewritten.
 The live lane recheck after the latest provider pushes now reports five
 violations with a changed topology: Consus has four working trees and one lane
 outside the canonical root, Kwavers has four trees with a detached lane, and
-RITK has three trees. The prior Coeus violation is no longer present in this
+RITK has four trees. The prior Coeus violation is no longer present in this
 probe. The counts are local peer-coordination state, not provider integration
 evidence; no lane or checkout was modified.
 

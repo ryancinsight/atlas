@@ -14,8 +14,10 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck [patch]
 
 - **Status:** Tyche cleanup and Aequitas integration are complete for this
-  increment; the remaining RITK residual is the peer-owned local checkout and
-  uncollected hosted state for its latest docs-only default.
+  increment. The current hosted residuals are Mnemosyne Miri, CFDrs exact-head
+  verification, Aequitas post-merge CI/Pages, and Themis Pages deployment; the
+  remaining integration residual is the peer-owned RITK local checkout and the
+  absence of a run for its latest docs-only default.
 - **Tyche evidence:** provider commit `de925e6` consolidates the shared
   Latin-hypercube/Sobol checked index conversions, removes five production
   type-suffixed helper names, and merged through PR #26 at default
@@ -51,15 +53,22 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 - **RITK evidence:** fetched default `9fa4981e` is the docs-only merge of PR
   #176 (`backlog.md` correction). The Atlas gitlink is staged to that exact
   commit; the previously collected CI/Python runs remain attached to `f9d04a79`
-  and do not establish the new default head.
-- **Acceptance:** collect queued Themis post-merge, Mnemosyne, Aequitas, and
-  CFDrs runs; collect or explicitly classify the new RITK default state; then
-  re-run exact-head and overlay checks. Preserve peer-owned checkout and lane
-  state.
+  and do not establish the new default head. No run is currently attached to
+  `9fa4981e`.
+- **Hosted recheck:** Mnemosyne CI `32196541600` is in progress only for Miri;
+  Rust verification, Loom, aarch64, and ThreadSanitizer pass. Aequitas CI
+  `32198085105` and Pages `32198084983`, and CFDrs CI `32197696210`, remain
+  queued at their exact heads. Themis CI `32194584768` and MSRV `32194584736`
+  pass at `0484a333`; Pages `32194583598` has build and report success but its
+  deploy job remains queued.
+- **Acceptance:** collect the remaining Themis Pages deploy, Mnemosyne Miri,
+  Aequitas post-merge, and CFDrs exact-head runs; explicitly classify the
+  absent RITK default run; then re-run exact-head and overlay checks. Preserve
+  peer-owned checkout and lane state.
 
 **Current lane residual:** `python scripts/atlas-lane-audit.py` reports five
 violations: Consus has four trees plus a lane outside the canonical root,
-Kwavers has four trees with a detached lane, and RITK has three trees. These
+Kwavers has four trees with a detached lane, and RITK has four trees. These
 are peer coordination state; no lane or checkout was changed by this pass.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]

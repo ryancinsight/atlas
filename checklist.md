@@ -39,11 +39,15 @@
 - [x] Re-run the live lane audit after the provider pushes. It reports five
       topology violations: Consus has four trees and one lane outside the
       canonical root, Kwavers has four trees with a detached lane, and RITK has
-      three trees. These remain peer coordination state and were not modified.
-- [ ] Collect the queued Themis post-merge, Mnemosyne Miri, Aequitas
-      post-merge, CFDrs exact-head, and RITK default-head runs; queued or
-      in-progress status remains distinct from hosted closure. Preserve all
-      peer-owned nested checkout and lane dirt.
+      four trees. These remain peer coordination state and were not modified.
+- [x] Collect the Themis post-merge CI/MSRV state: runs `32194584768` and
+      `32194584736` pass at `0484a333`. Pages run `32194583598` has build and
+      report success, but deployment remains queued.
+- [ ] Collect Mnemosyne Miri, Aequitas post-merge, CFDrs exact-head, and the
+      remaining Themis Pages deployment; explicitly classify the absence of a
+      run for RITK default `9fa4981e`. Queued or in-progress status remains
+      distinct from hosted closure. Preserve all peer-owned nested checkout
+      and lane dirt.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — current provider slice
 
@@ -136,8 +140,10 @@
 - [x] Merge Themis PR #26 after its provider CI, MSRV, nightly compile-fail,
       Miri, and CodeRabbit checks pass; stage Atlas gitlink `d0fcce7a` →
       `0484a333` without changing the dirty primary checkout.
-- [ ] Collect Themis post-merge default runs `32194584736`, `32194584768`,
-      and `32194583598` at `0484a333`; queued status is not hosted closure.
+- [x] Collect Themis post-merge CI/MSRV runs `32194584736` and `32194584768`
+      at `0484a333`; both pass.
+- [ ] Collect the remaining Pages deployment job in run `32194583598` at
+      `0484a333`; its build and report jobs pass but deploy remains queued.
 - [x] Record the RITK transition: current CI/Python runs
       `32192759850`/`32192759832` remain queued at `f9d04a79`; prior Python
       run `32184697093` failed only the three inverse-displacement parity
@@ -146,6 +152,9 @@
       at `f9d04a79`, with dependency alignment, Clippy, Python wheel, Rustfmt,
       and Ubuntu/macOS/Windows suites green. Keep the stale local checkout and
       its lock as the remaining reconciliation residual.
+- [x] Confirm no hosted run is attached to the new docs-only RITK default
+      `9fa4981e`; the earlier CI/Python runs remain bound to `f9d04a79` and do
+      not establish the new head.
 - [x] Preserve the separate Consus Documentation failure
       `32184845179` and Coeus Backend parity failure `32147262055`. Hephaestus
       default `master` head `607ce3f` is hosted-green across CUDA, WGPU, ROCm,
