@@ -349,31 +349,15 @@
       superseded local wrappers, fallback branches, typed time/quantity/unit
       boundaries, and real analytical or differential scenarios. CFDrs native
       Fourier and SSOR ownership are closed; Helios DICOM required-geometry
-      handling is closed at merged default `c9817cc8`. Historical Kwavers PR
-      #386 carries the earlier field-preservation closure; current fetched
-      default `6075940ce` retains the uninitialized-GPU-resource residual,
-      which is addressed by PR #402 at exact source head
-      `69478221f0f8d601614323b0e12f175971e7fdba`. Hephaestus PR #213 is merged
-      at default `607ce3feb2e0ed1d907d3e0172e23377851e71d8`; Kwavers hosted
-      verification remains open after Documentation Build and Validate Clean
-      Architecture failures, with the workflow still running. The remaining
-      Helios
-      documentation residual H-103 is closed locally: non-standalone book
-      fragments are explicitly marked as text, executable sources remain
-      Cargo-linked, and local `mdbook test`/build/linkcheck2 pass. The exact
-      source scan finds no production `wgpu` ownership in CFDrs at
-      `a3c53da2`, no raw `wgpu`, `ndarray`, `nalgebra`, or `rayon` hits in
-      Helios at `c9817cc8`, and 44 `wgpu`-bearing Kwavers source/test files at
-      `0e9fb8da`. The Kwavers source audit classifies those hits as the live
-      WGPU-specialized provider boundary and its contract tests; KW-GPU-060
-      already removed the duplicate backend buffer/pipeline ownership. The
-      exact fetched-head audit at `6075940ce` additionally found that the FDTD
-      GPU equivalence runner was explicitly unavailable until the real
-      Leto/Hephaestus provider implementation landed, and that the feature-
-      enabled `render_multi_field` path could return `Ok(())` when GPU resources
-      were uninitialized (`crates/kwavers-analysis/src/visualization/engine/mod.rs:181-217`);
-      The latter is a correctness defect addressed by PR #402; neither residual
-      is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
+      handling and H-103 book hygiene are historical closed slices. The current
+      Kwavers default is `f05d207d`; the open visualization/FDTD PR #402 is at
+      `d8886b032c50c7ebbcc2f12ebaceacabe95e19f1` and is conflicting, so its
+      previous `69478221f` hosted evidence is stale. The current default-head
+      Architecture Validation and CI/CD runs `32182442591` and `32182442617`
+      are queued. The source audit still requires explicit provider ownership,
+      no CPU fallback, and value-semantic differential scenarios before this
+      item can close; no pointer or consumer contract is advanced from the
+      conflicting branch.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
       integrate provider PR #349 at current exact source head `7b9673ef`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
