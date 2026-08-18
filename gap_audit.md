@@ -27,7 +27,7 @@ This result proves neither solver correctness nor a test regression. The
 overlay/lock closure must be repaired before using local CFDrs test results as
 evidence.
 
-## ATLAS-PROVIDER-EXACT-HEAD-022 — live recheck at root `4a46a4c` (2026-08-18)
+## ATLAS-PROVIDER-EXACT-HEAD-022 — live recheck at root `e9b7924` (2026-08-18)
 
 The structural twenty-two-provider audit was re-run against the current root.
 It reports one residual: the committed Consus gitlink is `34b25075`, while
@@ -55,9 +55,9 @@ collection points, but their status was not reasserted in this pass because the
 GitHub CLI query returned no records. The Consus pointer therefore remains a
 hosted-gate residual, not a local-test failure.
 
-## ATLAS-PROVIDER-EXACT-HEAD-022 — current provider integration audit (2026-08-18)
+## ATLAS-PROVIDER-EXACT-HEAD-022 — historical snapshot at root `4e88995` (2026-08-18)
 
-The current Atlas audit covers the complete 22-provider set: Horae, Hyperion,
+That earlier Atlas snapshot covered the complete 22-provider set: Horae, Hyperion,
 Themis, Tyche, Proteus, Mnemosyne, Consus, Helios, Harmonia, Aequitas,
 Asclepius, Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo,
 Gaia, Hermes, and Iris. All are active in `.gitmodules`, fetched-default

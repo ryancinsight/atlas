@@ -5,7 +5,7 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 
-- [x] Re-run the live structural provider audit at root `4a46a4c`. The
+- [x] Re-run the live structural provider audit at root `e9b7924`. The
       twenty-two-provider set has one exact-head residual: Consus gitlink
       `34b25075` versus fetched `origin/main` `ef439b2f`. Mnemosyne now points
       at fetched default `638ddab8` through the peer's root increment.
