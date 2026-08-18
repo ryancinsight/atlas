@@ -362,15 +362,18 @@
       Clippy with `-D warnings` passes and native Nextest reports 585/585
       passed with 27 committed skips. Manual workflow dispatch run
       `32140314701` is superseded by exact-head run `32143999878` at
-      `7b9673ef`; its book-figure gate passes while the Rust workspace gate is
-      still running. The provider correction to the masked-face policy,
-      primary shear excursion, and published Re_h=100 reference remains
-      value-verified. A production-path cleanup removes two per-iteration
-      inlet allocations; the original implementation timed out at 30.031
-      seconds locally, while the allocation-free implementation passed the
-      focused gate at 28.901 seconds. PR #349 is currently merge-conflicting
-      against CFDrs main; no workload reduction or assertion weakening is
-      authorized.
+      `7b9673ef`. Its book-figure gate passes; numerical fidelity reports
+      12/14 tests passed and two committed 30-second timeouts:
+      `test_benchmark_run_integration` at 30.003 seconds and
+      `cross_fidelity_trifurcation_dominance` at 30.008 seconds. The provider
+      correction to the masked-face policy, primary shear excursion, and
+      published Re_h=100 reference remains value-verified. A production-path
+      cleanup removes two per-iteration inlet allocations; the original
+      implementation timed out at 30.031 seconds locally, while the
+      allocation-free implementation passed the focused gate at 28.901
+      seconds. PR #349 is merge-conflicting against current `main`; resolve
+      that base and optimize both real solver paths before rerunning. No
+      workload reduction or assertion weakening is authorized.
 - [x] Push the bounded CFDrs lint cleanup through `b39a00b4`: replace state,
       field-operation, GPU-kernel, compute-dispatch, GPU-integration,
       conversion, boundary, time-controller, error-context, blood-model,

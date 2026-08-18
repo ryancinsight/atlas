@@ -11359,10 +11359,13 @@ inlet vectors rebuilt on every SIMPLE iteration. The original implementation
 timed out at 30.031 seconds in a controlled local A/B; the allocation-free
 implementation passes the focused gate at 28.901 seconds. Local cfd-2d
 Clippy and 585/585 tests with 27 skips pass. Superseding hosted run
-`32143999878` is on the exact head; its book-figure gate passes while the Rust
-workspace gate is still running. PR #349 is merge-conflicting against its
-current CFDrs base, so no integration claim is made until the hosted result
-and base reconciliation are complete.
+`32143999878` is on the exact head. Its book-figure gate passes; numerical
+fidelity reports 12/14 tests passed and two committed 30-second timeouts:
+`test_benchmark_run_integration` at 30.003 seconds and
+`cross_fidelity_trifurcation_dominance` at 30.008 seconds. The result is a
+hosted budget failure, not an assertion or panic. PR #349 is
+merge-conflicting against its current CFDrs base, so no integration claim is
+made until the base is reconciled and both solver paths meet the gate.
 
 Apollo PR #104 is at exact source head `797cc4ad`. Local `apollo-fft` check and
 394/394 library tests pass; hosted Rust and Python checks pass in run
