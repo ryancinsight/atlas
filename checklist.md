@@ -5113,3 +5113,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   nested `[workspace.lints.*]` recognition, updates the derived baseline, and
   passes `scripts/tests/test_atlas_conformance.py` 12/12; Coeus/RITK remain
   the only recorded misses for this class.
+- **ATLAS-FINAL-PROVIDER-AUDIT-2026-08-18** — lock form passes for 27 committed
+  locks; exact-head structural residual is Consus only (`34b2507` versus
+  `origin/main` `aafb320`); clean-checkout and six lane residuals are recorded
+  as peer-owned and untouched.

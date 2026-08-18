@@ -11938,8 +11938,8 @@ monolith into per-decision records`), and Atlas advances its gitlink to that
 exact fetched head without touching the peer-dirty primary checkout.
 
 This closes only the pointer reconciliation. The broader Moirai ordering and
-SeqCst ratchet remains an active audit residual, and the Consus/Moirai exact-
-head audit must be rerun after the pointer commit.
+SeqCst ratchet remains an active audit residual. The post-pointer exact-head
+audit now reports Consus as the only requested-set mismatch.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — provider LF-policy closure
 
@@ -11950,6 +11950,23 @@ Provider commit `cb86bfe` merged through PR #60 as default
 post-merge default CI `32180326066` pass Loom, Rust verification, and Miri;
 the Miri job reports 83 tests passed and 10 skipped. RecurseML remains
 report-only. The primary peer-dirty Mnemosyne checkout was not modified.
+
+## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-18 — exact residuals
+
+The pushed Atlas root has no root-file dirt. `scripts/atlas-lock-form.py check`
+passes for 27 committed locks, with only the sanctioned Melinoe in-tree
+fixture exempted, and the conformance unit suite passes 12/12.
+
+The exact-head structural audit for the requested provider set has one
+residual: Consus gitlink `34b25075f1dfb89052bf08017fd7d85b8acacec4` versus
+provider `origin/main` `aafb320627d15b5c30612e2d159bc1d9e519c692`. Consus PR
+#46 owns the shuffle correction and remains unmerged while its hosted matrix
+is red/queued. The clean-checkout audit reports peer-owned dirty or moving
+trees in Themis, Tyche, Proteus, Consus, Helios, Harmonia, Eunomia, RITK,
+Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. The lane audit
+reports six live violations across CFDrs, Coeus, Consus, Kwavers, and RITK,
+including the Consus ADR-0045 lane outside the canonical lane root. These
+checkouts and lanes were not removed or rewritten.
 
 ## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — instrument correction
 

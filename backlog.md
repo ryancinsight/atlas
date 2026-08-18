@@ -7984,6 +7984,19 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - This is a pointer/PM reconciliation only; it does not claim that the live
   Moirai SeqCst audit or peer-owned source work is complete.
 
+## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-18 — exact residuals
+
+- The pushed Atlas root passes the committed lock-form audit: 27 locks resolve
+  standalone, with only the sanctioned Melinoe in-tree fixture exempted.
+- The exact-head structural audit for the requested provider set has one
+  residual: Consus gitlink `34b2507` versus provider `origin/main` `aafb320`;
+  this is the open shuffle PR #46 head and is not silently advanced.
+- The clean-checkout audit remains red only on peer-owned moving or dirty
+  checkouts, including Themis, Tyche, Proteus, Consus, Helios, Harmonia,
+  Eunomia, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris.
+  The lane audit records six live peer violations across CFDrs, Coeus, Consus,
+  Kwavers, and RITK; no peer lane or dirty checkout was removed.
+
 ## ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18 — correct nested workspace-lint detection
 
 - Status: complete in root commit `eaa32fd`.
