@@ -55,21 +55,23 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
-- [ ] Collect Apollo PR #104 at exact head `38192bed`; its Rust workspace gate
-      fails before compilation while `--locked` attempts a lockfile update,
-      and its benchmark gate fails resolving the fixed `apollo-fft ^0.26.0`
-      benchmark dependency against the available `0.27.0` candidate. Do not
-      advance Apollo or its consumers until the default-version/API sweep and
-      lockfile are coherent.
-- [ ] Claim the Apollo benchmark-instrument lock closure on clean lane
+- [ ] Collect Apollo PR #104 at exact head `38192bed`; its last hosted Rust
+      and benchmark runs failed on the stale lock/manifest graph. Dependent PR
+      #106 (`7d56dc2b`) now updates the PR-head lock entry to `apollo-fft`
+      `0.27.0` and synchronizes every direct `apollo-fft` consumer manifest in
+      the benchmark instrument. Re-run both hosted gates after #106 merges into
+      the #104 source branch; do not advance Apollo's default or consumers
+      until the default-version/API sweep and lockfile are coherent.
+- [x] Complete the Apollo benchmark-instrument lock closure on clean lane
       `D:/atlas/worktrees/apollo-root-cleanup`, branch
-      `codex/apollo-benchmark-lock-104`. Scope is limited to
-      `.github/workflows/benchmark-regression.yml` plus the PR-head
-      `Cargo.lock`: the candidate measurement workspace must inherit every
-      candidate transform manifest that directly requires `apollo-fft`, and
-      the committed lockfile must resolve the 0.27.0 package. Validate the
-      workflow syntax, manifest-synchronization contract, and locked graph; do
-      not touch PR #104's source migration or consumer manifests.
+      `codex/apollo-benchmark-lock-104`, commit `7d56dc2b`, and dependent PR
+      [#106](https://github.com/ryancinsight/apollo/pull/106). Scope stayed
+      limited to `.github/workflows/benchmark-regression.yml` plus the PR-head
+      `Cargo.lock`. The workflow inherits every candidate transform manifest
+      that directly requires `apollo-fft`; Bash block parsing, locked workspace
+      check, 494/494 focused nextest tests, formatting, and workspace doctests
+      pass locally. Hosted acceptance remains pending on PR #106 and its
+      subsequent #104 rerun.
 - [ ] Collect Kwavers PR #402 exact-head matrix at `69478221f`; benchmark smoke
       and regression pass, but the full hosted matrix has terminal failures in
       architecture, validation, security, coverage, documentation, feature,

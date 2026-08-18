@@ -11173,7 +11173,14 @@ unmergeable; no Atlas gitlink was advanced from these results.
   [`32096086273`](https://github.com/ryancinsight/apollo/actions/runs/32096086273)
   fails resolving fixed benchmark executables because `apollo-fft ^0.26.0`
   has only a `0.27.0` candidate in the graph. Python bindings and CodeRabbit
-  pass. The provider default/version/API sweep and lockfile regeneration must
+  pass. Dependent [Apollo PR #106](https://github.com/ryancinsight/apollo/pull/106)
+  at commit `7d56dc2b` updates the PR-head lock entry to `0.27.0` and makes the
+  benchmark instrument copy every candidate manifest that directly requires
+  `apollo-fft`, including the previously failing transform consumers. Its
+  local evidence is `cargo check --locked --workspace --all-targets`,
+  494/494 focused `nextest` tests, clean formatting, and passing workspace
+  doctests; hosted acceptance remains pending on #106 and the subsequent #104
+  rerun. The provider default/version/API sweep and lockfile regeneration must
   land before consumer requirements move.
 - [Kwavers PR #402](https://github.com/ryancinsight/kwavers/pull/402) remains
   open at exact head `69478221f0f8d601614323b0e12f175971e7fdba` and reports
