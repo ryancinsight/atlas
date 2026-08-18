@@ -51,15 +51,14 @@ coherence remains limited by the separately recorded peer-owned dirty Apollo
 the committed Coeus/RITK requirements. Root hosted gates remain pending at the
 resulting root head.
 
-## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — exact-head hosted rerun pending (2026-08-18)
+## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — final exact-head hosted matrix pending (2026-08-18)
 
-Kwavers PR #402 is now at exact head `090183327`, which retains the provider-
-owned FDTD cutover and adds only bounded package-manager retry and HTTP
-timeouts to the benchmark workflow. The prior benchmark job never reached
-Cargo: `apt-get update` hung on an unreachable Azure mirror until the
-30-minute timeout. New exact-head feature, native, security, architecture,
-documentation, and benchmark checks are pending; Atlas does not advance the
-Kwavers gitlink until the complete matrix is terminal green.
+Kwavers PR #402 is now at final exact head `5155f32e8`, retaining the provider-
+owned FDTD cutover and the bounded package-manager retry and HTTP timeout
+repair. Final benchmark-regression run `32095365142` has passed its smoke
+execution and is awaiting its dependent terminal check; final CI, architecture,
+and wheel workflows are queued. Atlas does not advance the Kwavers gitlink
+until the complete matrix is terminal green.
 
 ## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — provider merged; consumer hosted verification pending 2026-08-17
 

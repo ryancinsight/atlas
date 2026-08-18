@@ -23,8 +23,10 @@
 
 - Merge Hephaestus PR #213 at default `607ce3f`, adding the provider-owned
   typed f32 FDTD contract, WGPU velocity/pressure kernels, and sequential
-  contract coverage. Kwavers PR #402 carries the consumer cutover and remains
-  gated on its exact-head hosted matrix before the Atlas gitlink advances.
+  contract coverage. Kwavers PR #402 carries the consumer cutover at final
+  head `5155f32e8`; its benchmark-regression run `32095365142` is executing,
+  and the remaining exact-head matrix is required before the Atlas gitlink
+  advances.
 
 - Advance fourteen requested-provider gitlinks to their fetched defaults after
   peer merges; the structural exact-head audit passes. Full coherence remains
