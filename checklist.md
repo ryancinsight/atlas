@@ -50,10 +50,11 @@
       `996b8227`, Mnemosyne `77e6e3e3`, Hermes `35d4c437`, Asclepius `80400760`,
       Eunomia `bab4f9f8`, RITK `b91bcee6`, and Iris `c10b328d`; preserve all
       nested peer-owned dirt and re-run the structural exact-head audit.
-- [ ] Collect Kwavers PR #402 exact-head matrix at `5155f32e8`; its final
-      benchmark-regression run `32095365142` is not yet terminal, and the CI,
-      architecture, and wheel workflows remain pending before advancing its
-      Atlas gitlink.
+- [ ] Collect Kwavers PR #402 exact-head matrix at `69478221f`; run
+      `32099808162` is terminal but fails dependency resolution because the
+      public Apollo default is `0.26.0` while Kwavers requires `^0.27.0`.
+      Miri and benchmark smoke/regression pass, but the full matrix is not
+      green and its Atlas gitlink remains unchanged.
 
 # Sweep 2026-08-13 — execution order
 
