@@ -118,6 +118,13 @@
       Legacy Migration Audit `32182442605` passes. Keep the committed Atlas
       pointer at merged PR #400 `23f53284` until the current default-head
       matrix completes; do not rebase or modify the peer-owned PR #402 lane.
+- [ ] Reconcile the Mnemosyne moving default before advancing its Atlas
+      gitlink. The provider default is now
+      `638ddab831404a8d89c653c061415e4e23fa203d` (`ci(mnemosyne): Add aarch64
+      and ThreadSanitizer jobs`), while the committed pointer remains the
+      previously verified `1c38a1a65`. Its default CI run `32183974171` is
+      queued; wait for the exact default-head result and preserve the
+      peer-dirty primary checkout.
 - [x] Close `ATLAS-ORPHAN-MODULES-096-KWAVERS`: PR #400 merged at
       `23f53284d789ba9b15788b51b3e83e40d301caf3` after the formatting repair
       PR #403 merged at `15c12732f5841125a5d65b6c3da2adc0f7c0793a`. The

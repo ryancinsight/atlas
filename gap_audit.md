@@ -11954,14 +11954,17 @@ report-only. The primary peer-dirty Mnemosyne checkout was not modified.
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-18 — exact residuals
 
 The pushed Atlas root has no root-file dirt. `scripts/atlas-lock-form.py check`
-passes for 26 committed locks; the Consus and sanctioned Melinoe in-tree
-fixtures are exempted, and the conformance unit suite passes 12/12.
+passes for 27 committed locks, with only the sanctioned Melinoe in-tree
+fixture exempted, and the conformance unit suite passes 12/12.
 
-The exact-head structural audit for the requested provider set has one
-residual: Consus gitlink `34b25075f1dfb89052bf08017fd7d85b8acacec4` versus
-provider `origin/main` `aafb320627d15b5c30612e2d159bc1d9e519c692`. Consus PR
-#46 owns the shuffle correction and remains unmerged while its hosted matrix
-is red/queued. The clean-checkout audit reports peer-owned dirty or moving
+The exact-head structural audit for the requested provider set has two
+residuals: Consus gitlink `34b25075f1dfb89052bf08017fd7d85b8acacec4` versus
+provider `origin/main` `aafb320627d15b5c30612e2d159bc1d9e519c692`, and
+Mnemosyne gitlink `1c38a1a65d519ebc04ed5f9da2baa31d16b83705` versus provider
+`origin/main` `638ddab831404a8d89c653c061415e4e23fa203d`. Consus PR #46 owns
+the shuffle correction and remains unmerged while its hosted matrix is
+red/queued; Mnemosyne default CI run `32183974171` is queued. The clean-checkout
+audit reports peer-owned dirty or moving
 trees in Themis, Tyche, Proteus, Consus, Helios, Harmonia, Eunomia, RITK,
 Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. The lane audit
 reports six live violations across CFDrs, Coeus, Consus, Kwavers, and RITK,
@@ -11994,3 +11997,13 @@ The orphan-module source closure is no longer open: PR #400 merged at
 `15c12732f5841125a5d65b6c3da2adc0f7c0793a`. The clean merged lane was removed
 after an empty status check; the branch ref remains available. The separate
 open visualization/FDTD branch and dirty peer lanes were preserved.
+
+## Finding 2026-08-18: Mnemosyne moving default
+
+Mnemosyne `origin/main` advanced to
+`638ddab831404a8d89c653c061415e4e23fa203d` with aarch64 and ThreadSanitizer
+jobs. The exact default CI run `32183974171` is queued and no open PR covers
+the commit, so the Atlas pointer remains at the previously verified
+`1c38a1a65d519ebc04ed5f9da2baa31d16b83705`. This is a pointer-coherence
+residual, not evidence of a provider source failure; the peer-dirty primary
+checkout remains untouched.

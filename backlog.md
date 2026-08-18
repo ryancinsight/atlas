@@ -1249,6 +1249,14 @@ MinIO benchmark lane; applications must own online-storage adapters outside
 Consus. The hosted result remains historical evidence, not authorization for a
 default flip or an in-package compatibility window.
 
+**Async ownership correction (2026-08-18):** the Consus release-preparation
+branch removes its `async-io`/`async-traits` feature and Tokio-backed async
+cursor/tests. Async HDF5 now consumes the Moirai-owned
+`moirai_async::io::{AsyncReadAt, AsyncLength}` contracts and Moirai executor;
+Consus retains only synchronous I/O abstractions. The positioned API is locally
+verified against the clean Moirai checkout, but the provider revision must be
+published before a hosted locked Consus gate can claim the migration.
+
 | ATLAS-LOCK-CONVENTION-079 — **closed 2026-08-18** | **`scripts/atlas-lock-form.py check` now exits 0 across all 27 committed locks**, from 33 violations in 10 members; nine repaired and pinned. Convention recorded as ADR 0044 (standalone form: a `source = "git+…"` for every git dependency the lock resolves, no `[[patch.unused]]`), argued from the lock's purpose and **falsified rather than asserted** — `cargo metadata --locked` on a stripped hermes from outside the tree exits 101, which is every CI job, clean checkout and publish sandbox. **This row's instrument was wrong:** counting `git+` lines misses eunomia, iris and the melinoe fixture (residue with zero git sources) and falsely flags members with no git deps; the check instead quantifies over the git dependencies a lock actually resolves, so zero-git-dep members pass and idle `[workspace.dependencies]` rows that never reach the lock are ignored. 22 tests including an end-to-end pair that **exits 1 on a stripped lock and 0 on a standalone one**; writing them found two real bugs in the tool (`restore` would have reverted a *repair*, and its eligibility set missed transitive stripping under a patched parent). Churn is **prevented**, not documented: `restore` reverts only overlay rewrites and correctly held back apollo and kwavers, which carried a real re-resolve; a pre-commit hook blocks the offending `git add`, written and tested but deliberately **not installed**, since that mutates per-clone git config in trees five peers are using. CI step added to `atlas-conformance.yml`. Two findings: hermes, mnemosyne and tyche **regressed during this sweep**, two via commits titled "Remove stray root automation artifacts" — the lock rode along in an unrelated change, exactly the failure mode — and mnemosyne needed a second repair because a peer re-stripped it minutes after the first. **Original text:** The committed lockfile convention is not uniform, and the overlay silently rewrites 12 working copies. Counting `source = "git+"` lines, committed vs working: 14 repos committed the git+ form (kwavers 87, CFDrs 62, helios 59, ritk 51, coeus 48, apollo 36, hephaestus 33, leto 30, consus 24, gaia 22, tyche 20, hermes 11, mnemosyne 3, hyperion 3) while **11 committed the stripped form** (aequitas, asclepius, athena, eunomia, harmonia, horae, iris, melinoe, moirai, proteus, themis — all 0). Of the git+ group, **12 now have a stripped working copy** because a build ran under the stack overlay; only gaia and hermes still match. coeus is half-stripped (48 committed vs 7 working). A stripped lock cannot resolve a git dependency standalone, so committing that form breaks reproducible CI resolution — yet a third of the stack has it committed. Every "Cargo.lock modified" line in this sweep is this artifact, not anyone's edit. | [patch] | One documented convention; every member's committed lock matches it; a committed check fails when a lock is committed in the wrong form; the overlay's rewrite is either excluded from the working tree or documented as expected churn |
 | ATLAS-MSRV-UNVERIFIED-077 — **closed 2026-08-18** | **All three open slices resolved.** Melinoe PR #18 merged at `689f562` raising rust-version 1.65 → 1.81; themis already declared 1.83.0 (exceeds requirement); mnemosyne at `098bc8e` hoisted to 1.95 with a gated MSRV CI job. **Prior description (melinoe REOPENED 2026-08-15):** The melinoe closure is no longer true, and the lint-floor work is what broke it. At `6e6a181` — the exact revision this row cites for the passing hosted Rust 1.65.0 run `31785253730` — `src/cell/reference.rs` contained **zero** `#[expect(` attributes, so that run was honest when it ran. `81d4f3d` ("Deny the pedantic floor and unwrap_used") then introduced them, and `#[expect(..., reason = …)]` requires **Rust 1.81** (`lint_reasons`), against a declared `rust-version = "1.65"`. An independent overlay-free check at a real 1.65.0 toolchain fails the *library* with 14 × `E0658: lint reasons are experimental`, in files the checker never touched; resolution also cannot complete, because the committed lock pulls edition-2024 dev-deps. **themis has the same shape** — `rust-version = "1.75.0"` with `#[expect]` in `src/topology/cpu/detect/*` — but no MSRV job, so nothing goes red and the false declaration is simply unobserved. The ratchet form is right and should not be reverted: `#[expect]` is what makes a suppression self-expire. The declarations are what is wrong, and this row's own oracle already allows the fix — "**or the floor is raised to what the code requires**". Determine the true floor per crate rather than assuming 1.81 is the only constraint. **Original text:** Melinoe and Eunomia slices closed 2026-08-14. Melinoe tracks a standalone lockfile and hosted Rust 1.65.0 all-target check (`31785253730` at `6e6a181`). Eunomia now has a hosted Rust 1.95.0 all-target/all-feature gate (`31789001841` at `b6c3d9a`), an exact online package dry-run at default `84c82fe`, and Atlas pointer integration at the current provider default. Mnemosyne remains the only open portion. | [patch] | Each declared floor has a hosted build, or the floor is raised to what the code requires |
 
@@ -7988,11 +7996,13 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-18 — exact residuals
 
-- The pushed Atlas root passes the committed lock-form audit: 26 locks resolve
-  standalone; the Consus and Melinoe in-tree fixtures are exempted.
-- The exact-head structural audit for the requested provider set has one
-  residual: Consus gitlink `34b2507` versus provider `origin/main` `aafb320`;
-  this is the open shuffle PR #46 head and is not silently advanced.
+- The pushed Atlas root passes the committed lock-form audit: 27 locks resolve
+  standalone, with only the sanctioned Melinoe in-tree fixture exempted.
+- The exact-head structural audit for the requested provider set has two
+  residuals: Consus gitlink `34b2507` versus provider `origin/main` `aafb320`
+  (the open shuffle PR #46 head), and Mnemosyne gitlink `1c38a1a` versus
+  provider `origin/main` `638ddab`. The Mnemosyne default CI run
+  `32183974171` is queued. Neither pointer is silently advanced.
 - The clean-checkout audit remains red only on peer-owned moving or dirty
   checkouts, including Themis, Tyche, Proteus, Consus, Helios, Harmonia,
   Eunomia, RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris.
@@ -8029,3 +8039,13 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   Its earlier `69478221f` evidence is stale. Re-open the consumer integration
   and pointer advance only after the peer-owned branch is reconciled or the
   provider default independently satisfies the hosted matrix.
+
+## ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-18 — moving default remains open
+
+- Mnemosyne `origin/main` advanced to
+  `638ddab831404a8d89c653c061415e4e23fa203d` with the aarch64 and
+  ThreadSanitizer CI additions. The Atlas gitlink remains at the previously
+  verified `1c38a1a65d519ebc04ed5f9da2baa31d16b83705`.
+- Default CI run `32183974171` is queued and no open PR covers the commit.
+  Do not advance the pointer until that exact default-head run completes; the
+  peer-dirty primary checkout remains untouched.
