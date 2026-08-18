@@ -336,7 +336,7 @@
       The latter is a correctness defect addressed by PR #402; neither residual
       is hidden by a CPU-vs-CPU comparison or a silent no-op claim.
 - [ ] Complete `ATLAS-CFDRS-BACKWARD-STEP-108`: finish hosted verification and
-      integrate provider PR #349 at current exact source head `eb3aaf76`.
+      integrate provider PR #349 at current exact source head `7a18b9d8`.
       `cfd-2d` now owns the masked step geometry, SIMPLE solve, fluid-cell-only
       parabolic inlet, explicit boundary contract, and field-derived signed
       wall-shear crossing; `cfd-validation` is a thin adapter. The hosted Rust
@@ -396,8 +396,10 @@
       diagnostic in `cg_bench.rs`; `ea1426ac` fixes it. Hosted run
       `32119001889` then exposed three benchmark diagnostics in
       `spmv_bench.rs`; `eb3aaf76` fixes them while retaining the real SpMV
-      operation and output observation. The exact hosted run is
-      `32119392426`; its terminal result is pending.
+      operation and output observation. Hosted run `32119392426` then exposed
+      one final semicolon diagnostic at `flux_alloc_bench.rs:20`; `7a18b9d8`
+      fixes it without changing the benchmark workload. The exact hosted run
+      is now `32119762411`; its terminal result is pending.
       Locally; the locked package compile is overlay-blocked and the peer
       Cargo.lock remains unstaged. Re-open after the exact hosted Clippy
       transcript establishes the remaining count.

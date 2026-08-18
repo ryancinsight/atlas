@@ -11371,7 +11371,11 @@ diagnostic in `crates/cfd-math/benches/cg_bench.rs`; `ea1426ac` fixes it. Hosted
 run `32119001889` then exposed three benchmark diagnostics in
 `crates/cfd-math/benches/spmv_bench.rs`; `eb3aaf76` fixes them while retaining
 the real SpMV operation and output observation. The exact next hosted run is
-`32119392426` at `eb3aaf76`; its terminal result is pending. The local locked
-package gate remains blocked before compilation by the shared Atlas overlay
-attempting to rewrite the peer-owned lane `Cargo.lock`, which remains
-unstaged.
+`32119392426` at `eb3aaf76` failed after reaching one remaining
+`semicolon_if_nothing_returned` diagnostic at
+`crates/cfd-math/benches/flux_alloc_bench.rs:20`. Commit `7a18b9d8` adds the
+required statement terminator without changing the benchmark workload or the
+observed numerical-flux result. Exact-head hosted run `32119762411` is now
+the acceptance run. The peer-owned lane `Cargo.lock` remains dirty and
+unstaged; the local locked gate is therefore still overlay-blocked before
+compilation.
