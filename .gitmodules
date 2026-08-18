@@ -85,6 +85,7 @@
 [submodule "repos/harmonia"]
 	path = repos/harmonia
 	url = https://github.com/ryancinsight/harmonia
+	active = true
 [submodule "repos/proteus"]
 	path = repos/proteus
 	url = https://github.com/ryancinsight/proteus

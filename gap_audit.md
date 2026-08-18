@@ -11109,3 +11109,13 @@ repositories are in peer-owned interactive rebases with clean working trees:
 
 No rebase state was altered. The re-open trigger for both items is completion
 of the peer rebase, after which each can be claimed on its own branch.
+
+## Finding 2026-08-18: Harmonia activation and moving default
+
+The 22-provider audit found that `repos/harmonia` was present in
+`.gitmodules` but lacked `active = true`, so registration did not prove active
+Atlas integration. The remote is now available and its fetched default is
+`02ffd14cefea206cb1621aa45a372cccdf6167e0`, a lockfile-form cleanup atop the
+previous Atlas pin `10e15ae427a21b38cc8dde1f2e922904658d8370`. Atlas activates
+the entry and advances only the parent gitlink; the nested Harmonia checkout
+retains peer-owned workflow, book, example, and lockfile changes.

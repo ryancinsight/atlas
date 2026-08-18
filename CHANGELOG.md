@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Activate Harmonia in `.gitmodules` and advance its Atlas gitlink to fetched
+  default `02ffd14`, preserving the nested peer-owned worktree changes.
+
 - Merge Horae PR #18 at source `cded674` as `0631da0` and Hyperion PR #14 at
   source `b8d4fb8` as `fd752c7`. Their exact-head hosted `verify`,
   `supply-chain`, and shared Pages book-build gates pass; the Atlas gitlinks
