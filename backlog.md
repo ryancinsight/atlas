@@ -290,9 +290,11 @@ failed; Helios PR #65 is merged at default `aa7a4fa` with Rust/Python/book
 checks green and its benchmark check still in progress; CFDrs PR #349 is open
 at `3a03a222` with hosted run `32152884477` queued; and Kwavers PR #402 remains
 open with its complete matrix failed or cancelled despite passing benchmark
-smoke. The Atlas root exact-head audit is green, but clean-checkout and
-overlay gates still report peer-owned checkout state. These are delivery
-residuals, not reasons to alter workloads, budgets, or consumer contracts.
+smoke. The Atlas structural exact-head audit is green, but full exact-head
+coherence, the version guard, clean-checkout, and overlay gates still report
+the peer-owned RITK `apollo-fft 0.26.0` requirement against local provider
+`0.27.0` plus checkout state. These are delivery residuals, not reasons to
+alter workloads, budgets, or consumer contracts.
 
 **Acceptance oracle:** the structural provider audit reports all 22 named
 providers present and active; the exact-head audit passes on a clean checkout;

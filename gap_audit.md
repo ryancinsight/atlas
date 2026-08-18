@@ -20,12 +20,13 @@ python scripts/tests/test_provider_integration_audit_benchmark.py  # 3/3
 
 The structural audit is green at the recorded 22-provider graph. Apollo PR
 #104 has merged into provider default `d585e0f5`, and `apollo-fft` is now
-`0.27.0`. The standalone version guard reports zero manifest requirement
-defects (`236` manifests/packages, `1,060` requirements). The remaining local
-overlay check is not green in the shared tree because the peer-owned RITK
-checkout currently requires `apollo-fft 0.26.0` while its local provider tree
-is `0.27.0`; no consumer manifest or lockfile is edited across that dirty
-scope. The prior Helios lock residual is closed by merged Helios PR #65 and
+`0.27.0`. The structural audit is green, but the full exact-head coherence
+and standalone version guard each report one live peer-owned finding:
+`repos/ritk/crates/ritk-filter/Cargo.toml` requires `apollo-fft 0.26.0` while
+the local provider tree is `0.27.0` (`236` manifests/packages, `1,060`
+requirements). The stack overlay reports the same lag; no consumer manifest
+or lockfile is edited across that dirty scope. The prior Helios lock residual
+is closed by merged Helios PR #65 and
 the Atlas gitlink advance to `aa7a4fa`, which pins Apollo `0.27.0`.
 
 Harmonia provider PR #5 merged at `365f0bb` from source commit `685f47d`.
