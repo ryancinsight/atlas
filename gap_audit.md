@@ -2,26 +2,28 @@
 
 ## ATLAS-PUBLISH-001-CFDRS-PYPI — exact-head release slice
 
-The shared Atlas Python release workflow changed at `26ad7f3e` to build and
+The shared Atlas Python release workflow changed at `5936303` to build and
 validate one source distribution alongside its wheel matrix, include both in
 checksums and release artifacts, attest the artifact set, and enforce a
 30-minute timeout on every job. Existing callers retain the `release-wheels`
 artifact name, so the new sdist is available to their existing PyPI publish
 step when they advance their shared-workflow pin.
 
-CFDrs source commit `7be6727b` adds the `cfd-python` abi3-py38 release caller,
-pins both the shared workflow and exact Atlas graph to `26ad7f3e`, derives the
-Python module version from `CARGO_PKG_VERSION`, and adds installed-wheel tests
-for the Casson constitutive equation, Womersley alpha, and analytical
-Poiseuille values. Draft PR #355 is open; hosted Rust and book jobs are
-queued, while the external RecurseML status is report-only.
+CFDrs source commits `7be6727b` and `2721539e` add the `cfd-python` abi3-py38
+release caller, pin both the shared workflow and exact Atlas graph to
+`5936303`, derive the Python module version from `CARGO_PKG_VERSION`, add
+installed-wheel tests for the Casson constitutive equation, Womersley alpha,
+and analytical Poiseuille values, and exclude generated simulation output and
+Python bytecode from the sdist. Draft PR #355 is open; hosted Rust and book
+jobs are queued, while the external RecurseML status is report-only.
 
 Local evidence: provider formatting, workflow YAML parsing, Python test syntax,
-and `maturin sdist` pass; the generated `cfd_python-0.3.0.tar.gz` is in the
-shared ignored target directory. `cargo check --locked -p cfd-python` stops
-before compilation because the shared Atlas overlay requests lockfile changes
-and `--locked` rejects them. This is a resolver/overlay blocker, not source
-correctness evidence. PR merge and exact-head hosted results remain open.
+and `maturin sdist` pass; the generated `cfd_python-0.3.0.tar.gz` is 68.61 MiB
+and contains zero forbidden output/cache members. `cargo check --locked
+-p cfd-python` stops before compilation because the shared Atlas overlay
+requests lockfile changes and `--locked` rejects them. This is a
+resolver/overlay blocker, not source correctness evidence. PR merge and
+exact-head hosted results remain open.
 
 ## ATLAS-MULTIPHYSICS-BOOK-GATES-2026-08-18 — current local book recheck
 
