@@ -46,6 +46,10 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   doctest compilation, warning-free rustdoc, and the provider conformance
   report pass at the exact commit. Collect hosted checks before advancing the
   Atlas gitlink.
+- **Hosted state:** PR #62 head `0022926` has Rust verification `32196541600`
+  and MSRV `32196541558` queued, with Loom, Miri, aarch64, and ThreadSanitizer
+  jobs queued under the CI run. CodeRabbit passes; `recurseml/analysis` is
+  report-only. Queued hosted state is not merge closure.
 
 **Instrument correction, applied before anything else was measured.**
 `scripts/atlas-conformance.py:131` classified a file as test code only when a

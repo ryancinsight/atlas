@@ -34,6 +34,9 @@
       increased debt class.
 - [ ] Collect hosted checks and merge draft PR #62, then advance the Atlas
       gitlink only after the exact provider default head is known.
+-      PR #62 head `0022926` currently has Rust verification `32196541600` and
+      MSRV `32196541558` queued; Loom, Miri, aarch64, and ThreadSanitizer are
+      also queued. CodeRabbit passes and `recurseml/analysis` is report-only.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 
