@@ -79,10 +79,9 @@ provider-owned state rather than an Atlas source edit.
   `4240ae31` to `c74b662c`, Hermes from `dd4cb129` to `c6265cb4`, and
   Mnemosyne from `d1144f74` to `bfe76db0`; the nested Aequitas checkout is
   detached, while the Hermes and Mnemosyne checkouts retain peer-owned dirt.
-  These are gitlink-only changes. The Aequitas/Hermes exact-head audit and
-  hosted `atlas-conformance` run `32088517377` plus `atlas-stack-overlay` run
-  `32088517394` pass at Atlas `10d9c16`; the Mnemosyne advance requires a new
-  exact-head/root-gate pass.
+  These are gitlink-only changes. The full requested-provider audit passes at
+  the resulting state, and hosted `atlas-conformance` run `32089162666` plus
+  `atlas-stack-overlay` run `32089162680` pass for the Mnemosyne advance.
 - **Final root gates:** `atlas-stack-overlay` run `32072555152`,
   `atlas-conformance` run `32072555155`, and push analysis run `32072554308`
   pass at `944f6e1`. The hosted gates initialize direct members from the

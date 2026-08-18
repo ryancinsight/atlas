@@ -5,10 +5,9 @@
 - Reconcile moving provider defaults by advancing the Atlas Aequitas gitlink
   to `c74b662c`, Hermes gitlink to `c6265cb4`, and Mnemosyne gitlink to
   `bfe76db0`. The changes touch only committed submodule pointers; nested
-  provider checkout dirt remains peer-owned and excluded. The Aequitas/Hermes
-  reconciliation is hosted-verified by `atlas-conformance` run `32088517377`
-  and `atlas-stack-overlay` run `32088517394`; the Mnemosyne advance is
-  pending its exact-head/root-gate rerun.
+  provider checkout dirt remains peer-owned and excluded. Hosted
+  `atlas-conformance` run `32089162666` and `atlas-stack-overlay` run
+  `32089162680` pass for the resulting exact-head state.
 
 - Merge Hephaestus PR #213 at default `607ce3f`, adding the provider-owned
   typed f32 FDTD contract, WGPU velocity/pressure kernels, and sequential

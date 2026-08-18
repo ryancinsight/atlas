@@ -14,6 +14,27 @@ than a regression in the solver slice. No blanket suppression or unrelated
 lint rewrite is added to this PR. Re-open when the default-branch Clippy debt
 is repaired or a dedicated lint-cleanup item owns the files.
 
+## ATLAS-EXACT-HEAD-SWEEP-2026-08-18 — moving-default closure
+
+The fetched defaults moved during the hosted verification window. Atlas now
+tracks Aequitas `c74b662c9204d7ea18c1f56829f77ded753803ca`, Hermes
+`c6265cb4660f358b34224b1159f36e31b5704cb1`, and Mnemosyne
+`bfe76db0d54f6185b5630e2c8b55760835d2a833`. The structural and full
+requested-provider audits pass for all 20 named providers. Root hosted
+`atlas-conformance` `32089162666` and `atlas-stack-overlay` `32089162680`
+also pass. Nested provider checkout dirt remains excluded from the committed
+gitlinks.
+
+## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — exact-head hosted rerun pending (2026-08-18)
+
+Kwavers PR #402 is now at exact head `090183327`, which retains the provider-
+owned FDTD cutover and adds only bounded package-manager retry and HTTP
+timeouts to the benchmark workflow. The prior benchmark job never reached
+Cargo: `apt-get update` hung on an unreachable Azure mirror until the
+30-minute timeout. New exact-head feature, native, security, architecture,
+documentation, and benchmark checks are pending; Atlas does not advance the
+Kwavers gitlink until the complete matrix is terminal green.
+
 ## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — provider merged; consumer hosted verification pending 2026-08-17
 
 The FDTD gap identified at merged Kwavers `6075940ce` and Hephaestus
