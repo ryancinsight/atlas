@@ -452,6 +452,11 @@ def scan_repo(repo: Path) -> dict[str, int]:
         text = _cached_text(path)
         if text is None:
             continue
+        # Test sidecars under `src/` are commonly named `tests_*.rs` (or
+        # `tests.rs`). Their parent manifest carries the cfg gate, so the
+        # filename convention is the only signal available without building a
+        # full module graph.
+        production_testish = testish or path.stem == "tests" or path.stem.startswith("tests_")
         lines = text.count("\n") + 1
         if lines > 500:
             c["oversized_files"] += 1
@@ -459,15 +464,22 @@ def scan_repo(repo: Path) -> dict[str, int]:
             body = sum(
                 1 for ln in text.splitlines() if not MANIFEST_PASSTHROUGH.match(ln)
             )
-            if body > 20:
+            if body > 20 and not production_testish:
                 c["manifest_implementation"] += 1
             if path.name == "lib.rs" and "deny(missing_docs" not in text \
-                    and "forbid(missing_docs" not in text and not testish:
+                    and "forbid(missing_docs" not in text and not production_testish:
                 c["missing_deny_docs"] += 1
         if path.stem in ("utils", "helpers", "misc", "common"):
             c["junk_drawer_modules"] += 1
 
-        prod, test = ("", text) if testish else split_test_region(text)
+        if production_testish and not testish:
+            # A sidecar's whole file is test-only for production-debt classes,
+            # but preserve the existing inline cfg split for test-debt counts
+            # so reclassifying the file does not manufacture new assertions.
+            _, test = split_test_region(text)
+            prod = ""
+        else:
+            prod, test = ("", text) if testish else split_test_region(text)
         is_bin = path.name == "main.rs" or "bin" in path.parts or \
             "benches" in path.parts or any(
                 source in path.parents for source in executable_dirs

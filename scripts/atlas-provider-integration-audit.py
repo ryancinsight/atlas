@@ -167,8 +167,13 @@ def _provider_remote_head(provider: str) -> tuple[str | None, str | None, str | 
         "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD",
         cwd=provider_path,
     )
-    candidates = [symbolic_ref] if returncode == 0 and symbolic_ref else []
-    candidates.extend(("origin/main", "origin/master"))
+    # A provider checkout may have `origin/HEAD` pointing at the currently
+    # checked-out feature branch. Atlas integration is against the provider's
+    # default branch, so explicit main/master refs take precedence over that
+    # symbolic convenience ref.
+    candidates = ["origin/main", "origin/master"]
+    if returncode == 0 and symbolic_ref:
+        candidates.append(symbolic_ref)
     seen: set[str] = set()
     for ref in candidates:
         if not ref or ref in seen:
