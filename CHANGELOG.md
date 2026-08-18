@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Merge Hephaestus PR #213 at default `607ce3f`, adding the provider-owned
+  typed f32 FDTD contract, WGPU velocity/pressure kernels, and sequential
+  contract coverage. Kwavers PR #402 carries the consumer cutover and remains
+  gated on its exact-head hosted matrix before the Atlas gitlink advances.
+
 - Close the conformance classifier correction with 37 focused scanner tests,
   Apollo's clean orphan baseline at 0, and hosted root run `32031997052`
   reporting zero ratchet regressions at `f84beec`.

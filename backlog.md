@@ -316,15 +316,20 @@ still has the pre-cutover consumer-owned raw-WGPU FDTD code at
 `crates/kwavers-gpu/src/gpu/fdtd.rs`. No f64-only adapter, CPU fallback, or
 CPU-vs-CPU comparison may be added to close it.
 
-Implementation is now submitted in Hephaestus PR #213 at exact head
-`7bc9944852a6ba92d4ff265b9fff9bc8c81e3567` and Kwavers PR #402 at exact head
-`17a70288bfb6e03aab5016218ccb0921d24278a1`. The provider branch owns the
+Implementation merged in Hephaestus PR #213 from exact head
+`7bc9944852a6ba92d4ff265b9fff9bc8c81e3567` as merge commit
+`607ce3feb2e0ed1d907d3e0172e23377851e71d8`. Kwavers PR #402 remains at exact
+head `17a70288bfb6e03aab5016218ccb0921d24278a1`. The provider branch owns the
 typed f32 contract, WGPU kernels, and sequential two-step contract coverage;
 the consumer branch deletes the collocated raw-WGPU path and wires the
 independent native-f32 CPU differential runner without a fallback. Local
 feature-enabled check/Clippy, 22/22 focused equivalence tests, 2/2 affected
 allocation tests, and provider contract coverage pass. Hosted exact-head gates
-and merge-to-default gitlink advancement remain open.
+for Hephaestus pass and its Atlas gitlink is advanced; Kwavers hosted gates
+remain open. The Kwavers workflow currently reports Documentation Build and
+Validate Clean Architecture failures while the remaining matrix is still
+running; no consumer gitlink advance is authorized until the exact head is
+green and merged.
 
 #### ATLAS-CFDRS-BACKWARD-STEP-108 — input-sensitive reattachment measurement [major] — in progress 2026-08-17
 

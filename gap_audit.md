@@ -1,10 +1,11 @@
 # atlas — cross-repository integration gap audit
 
-## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — submitted provider cutover — hosted verification pending 2026-08-17
+## ATLAS-KWAVERS-HEPHAESTUS-FDTD-107 — provider merged; consumer hosted verification pending 2026-08-17
 
 The FDTD gap identified at merged Kwavers `6075940ce` and Hephaestus
-`300b9e9ef` now has a provider-first implementation in flight. Hephaestus PR
-#213 at exact head `7bc9944852a6ba92d4ff265b9fff9bc8c81e3567` owns the typed
+`300b9e9ef` now has a merged provider-first implementation. Hephaestus PR
+#213 at exact head `7bc9944852a6ba92d4ff265b9fff9bc8c81e3567` merged as
+`607ce3feb2e0ed1d907d3e0172e23377851e71d8` and owns the typed
 provider-neutral f32 `Fdtd3dOps` contract, WGPU velocity/pressure kernels, and
 two-step independent contract coverage. Kwavers PR #402 at exact head
 `17a70288bfb6e03aab5016218ccb0921d24278a1` deletes the consumer-owned
@@ -13,10 +14,13 @@ keeps the CPU oracle native-f32, and reports provider failures without CPU
 fallback. Local feature-enabled gates pass: strict Clippy, 22/22 focused
 equivalence tests, 2/2 affected allocation tests, and GPU-enabled doctests.
 
-Hosted exact-head checks are pending for both PRs, so Atlas does not advance
-the Hephaestus or Kwavers gitlinks or mark this integration closed. The
-separate pressure-only dispatcher and disconnected f64 solver accelerator
-remain explicit residuals outside this collocated contract.
+Hephaestus hosted WGPU, CUDA, ROCm, and Metal checks pass and Atlas now points
+at its merged default. Kwavers hosted checks remain in progress after
+Documentation Build and Validate Clean Architecture reported failures; their
+logs are not available until the workflow completes. Atlas does not advance
+the Kwavers gitlink or mark this integration closed. The separate pressure-only
+dispatcher and disconnected f64 solver accelerator remain explicit residuals
+outside this collocated contract.
 
 ## ATLAS-ROOT-SUBMODULE-REACHABILITY-2026-08-17 — Athena gitlink repair
 
