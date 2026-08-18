@@ -12,6 +12,40 @@ default in the invoking shell, so an msvc shell and a gnu shell both satisfy the
 pin — and both write into the one shared `CARGO_TARGET_DIR` that
 `.cargo/config.toml` mandates for the whole stack.
 
+**Revision 2026-08-15 — the mechanism is narrower and more fixable than "two
+shells".** Measured on this host, a *single* environment produces both triples:
+
+```
+RUSTC   = …\.rustup\toolchains\1.97.0-x86_64-pc-windows-msvc\bin\rustc.exe
+RUSTDOC = …\.rustup\toolchains\1.97.0-x86_64-pc-windows-msvc\bin\rustdoc.exe
+rustup default host                      = x86_64-pc-windows-gnu
+rust-toolchain.toml resolves to          = 1.97.0-x86_64-pc-windows-gnu
+```
+
+Cargo comes from the **gnu** toolchain but is told by `RUSTC` to invoke the
+**msvc** compiler, so it emits msvc rlibs; anything that spawns `rustc`/`rustdoc`
+through rustup or PATH instead — `mdbook test`, and clippy, which has its own
+fingerprint and re-drives dependency builds — gets gnu. Both write into the one
+shared cache. That is exactly the environment-override case
+`engineering_gates`'s toolchain-coherence rule names: "an environment override
+(`RUSTC`/`RUSTDOC` pointing at a shim, a cargo and rustc from different
+distributions, a rustup default differing from the pin) silently substitutes
+another compiler."
+
+It reproduced twice on 2026-08-15 as `E0461` in `mnemosyne_core`, `backtrace`,
+`serde`, `futures-util` and others, and `RUSTUP_TOOLCHAIN=1.97.0-x86_64-pc-windows-msvc`
+cleared it in both cases. Per-package `cargo clean` does **not** converge: one
+pass removed 8228 files / 1.8 GiB and merely exposed the next layer.
+
+This matters for the decision below, because it means the triple pin is
+necessary but **not sufficient**. Whatever triple the stack chooses, the
+`RUSTC`/`RUSTDOC` overrides and the rustup default host must agree with it, or
+the same split recurs under a pin that looks correct. The likely origin of the
+override is the documented Windows-host trick for type-checking `cfg(unix)`
+code by pointing `RUSTC` at a specific toolchain proxy — a useful technique
+that must be scoped to the one command that needs it, never exported into the
+environment every build inherits.
+
 Both are doing so now. Sampling recent `.rmeta` in `D:\atlas\target` finds
 **96 tagged `pc-windows-msvc` against 140 tagged `pc-windows-gnu`**.
 
@@ -76,6 +110,10 @@ several agents in flight would strand each of them behind a full recompile.
 
 ## Verification
 
+- The environment agrees with the pin: `RUSTC`/`RUSTDOC` are unset (or point at
+  the pinned triple), and `rustup show` reports a default host matching it.
+  Verified per the 2026-08-15 revision — this is the condition a triple pin
+  alone does not establish, and the one that actually produced the split.
 - Every `rust-toolchain.toml` in the stack names a full triple.
 - A committed check fails when more than one host triple appears in the shared
   cache, so the condition cannot silently return.
