@@ -329,9 +329,15 @@ warning-denied Clippy, rustdoc, and `cargo package --package asclepius` all
 pass. The locked form cannot be collected inside the Atlas checkout because
 the shared development overlay requests a lockfile rewrite for local provider
 patches; the generated diagnostic lock was discarded and the committed lock
-is unchanged. The remaining ASC-REL-008 work is registry publication,
-trusted-publisher enforcement, and GitHub Release creation, which require the
-release-authority transition and are not inferred from local package evidence.
+is unchanged. An online `cargo search asclepius` resolves an existing
+`asclepius = 0.1.0`, so the provider's current `0.1.0` manifest cannot be
+treated as an unpublished first release. A no-overlay dry-run from `C:\` also
+fails before packaging because Cargo cannot create the provider's target
+directory (access denied); it does not establish standalone package success.
+The remaining ASC-REL-008 work is therefore a release-version/registry-state
+reconciliation, a clean standalone locked gate, trusted-publisher enforcement,
+and the matching GitHub Release. These require the release-authority transition
+and are not inferred from local package evidence.
 
 ## Finding 2026-08-18: RITK Apollo forward-sweep residual
 
