@@ -1,5 +1,12 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-19: Kwavers parity workflow dispatchability
+
+The wheel-smoke workflow was pull-request-only, so a direct provider-main
+integration could not collect its new comparator gate. Provider commit
+`a10183c80f7b537aca693154d79fac026b9f6d91` adds `workflow_dispatch`; the
+workflow YAML parses and retains its bounded job. Atlas records the exact head
+in `4073b1f`. The manual run and value assertions remain pending.
 ## Finding 2026-08-19: Kwavers hosted comparator gate added
 
 Provider commit `4e0135c76f4ecab911f8099a749544620d7655be` adds a bounded

@@ -31,6 +31,9 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   Ubuntu/Python 3.10 wheel job that installs the declared k-Wave Python range
   and executes the real comparison suite with slow tests enabled. Atlas records
   the provider head in `2e00759`; closure is pending its value-semantic result.
+- **Kwavers comparator dispatch:** provider commit `a10183c80` adds an explicit
+  manual trigger to the wheel-smoke workflow, and Atlas records the exact head
+  in `4073b1f`. The hosted parity run is still pending.
 - **CFDrs rerun:** PR #358 now points at `5e13018a` after a hosted Clippy
   failure found and the provider fixed `clippy::inconsistent_struct_constructor`
   in `newton_fallback.rs`. Rust and figure jobs are pending; the pointer stays

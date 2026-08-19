@@ -27,6 +27,10 @@
       `test_kwave_comparison.py` with `KWAVERS_RUN_SLOW=1`. Atlas pointer
       `2e00759` is pushed; do not close the comparator gap until the value
       assertions pass.
+- [x] Add `workflow_dispatch` to Kwavers' wheel-smoke workflow at provider
+      commit `a10183c80` so the heavy comparator can run against provider main;
+      YAML validation passes with the workflow trigger present. Atlas pointer
+      `4073b1f` is pushed. The dispatched run is still required for closure.
 - [ ] Collect CFDrs PR #358 rerun at corrected head `5e13018a`: the prior exact
       run reached Clippy and failed only on `clippy::inconsistent_struct_constructor`
       in `newton_fallback.rs`; the provider reordered the constructor fields and
