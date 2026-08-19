@@ -5479,3 +5479,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [x] Push provider PM synchronization as CFDrs commit `f601d827` on PR #357.
 - [ ] Collect the separate CFDrs Pages, PyPI release dry-run, and standalone
       locked package gates. Do not infer them from the Rust/figure result.
+
+## 2026-08-19 CFDrs JFNK residual
+
+- [x] Publish CFDrs PR #358 at source head `0a5076c6` with the reachable,
+      bounded Newton/JFNK recovery and typed checked-residual seam.
+- [ ] Collect hosted Rust and book-figure results for run `32225861309` before
+      advancing the Atlas CFDrs gitlink. The run is queued/in progress; this
+      task does not wait on it.

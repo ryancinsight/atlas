@@ -8884,3 +8884,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   checks are in progress; no result is claimed from that new docs-only head.
   Pages deployment, PyPI release dry-run, and standalone locked package
   evidence remain separate open gates.
+
+## ATLAS-CFDRS-JFNK-OPEN-033-2026-08-19 — provider source closure pending hosted evidence
+
+- CFDrs PR #358 carries provider commit `0a5076c6034d735dd23d63a91453fea7d63702d0`:
+  `cfd-1d` now reaches the retained Newton/JFNK fallback from the live solver
+  graph, derives the recovery budget from `SolverConfig.max_iterations`, and
+  propagates callback failures through checked JFNK evaluation.
+- Provider format and diff checks pass. PR #358 hosted run `32225861309` is
+  queued/in progress at the exact source head; no hosted result is claimed.
+  Atlas remains at CFDrs `931ee3a0` until the source PR is merged and its final
+  hosted gates are green.
