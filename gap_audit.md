@@ -12574,10 +12574,14 @@ package success. Provider PM synchronization is pushed as `f601d827` on PR
 CFDrs PR #358 (`0a5076c6034d735dd23d63a91453fea7d63702d0`) declares the
 retained `newton_fallback.rs` module, invokes one finite-budget recovery after
 bounded-amplitude stagnation, and moves the residual callback through a typed
-`JfnkSolver::solve_checked` seam. Provider format and diff checks pass. Hosted
-run `32225861309` is queued/in progress at the exact source head, so this is a
-source-delivery checkpoint rather than hosted closure. Atlas remains at
-`931ee3a0` until the PR merges with green exact-head gates.
+`JfnkSolver::solve_checked` seam. Hosted run `32226574871` at CFDrs
+`6f60dd4d` passed formatting and figure SSOT but failed the locked workspace
+check with E0525: the retained fallback's workspace-reusing residual closure is
+`FnMut`, while `JfnkSolver::solve_checked` required `Fn`. Provider commit
+`bc18b095` changes the JFNK operator and GMRES seams to reborrow a mutable
+callback and adds a value-semantic initial-root regression. Replacement run
+`32226998372` is pending; Atlas remains at `931ee3a0` until its hosted gates
+pass and the PR merges.
 
 ## Finding 2026-08-19: Helios H-103 premise is stale
 

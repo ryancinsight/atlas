@@ -8891,8 +8891,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   `cfd-1d` now reaches the retained Newton/JFNK fallback from the live solver
   graph, derives the recovery budget from `SolverConfig.max_iterations`, and
   propagates callback failures through checked JFNK evaluation.
-- Provider format and diff checks pass. PR #358 hosted run `32225861309` is
-  queued/in progress at the exact source head; no hosted result is claimed.
+- Hosted run `32225861309` reached the compiler and exposed the missing
+  `FnMut` bound for the workspace-reusing residual closure. Provider commit
+  `bc18b095` changes the checked JFNK seam to accept mutable callbacks and adds
+  a regression test; format and diff checks pass. Replacement hosted run
+  `32226998372` is pending at that corrected head; no hosted result is claimed.
   Atlas remains at CFDrs `931ee3a0` until the source PR is merged and its final
   hosted gates are green.
 

@@ -5502,3 +5502,10 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       green and `origin/main` remains `53b3f984`, already matching Atlas.
 - [ ] Preserve the primary checkout's two-commit lag and peer-owned untracked
       ADR until its owner reconciles it; no Kwavers file was changed.
+## 2026-08-19 CFDrs JFNK callback correction
+
+- [x] Diagnose hosted E0525 at `newton_fallback.rs:219`: the reused solver
+      workspace makes the residual callback `FnMut`, not `Fn`.
+- [x] Push provider fix `bc18b095` with the mutable JFNK seam and regression
+      coverage; local format and diff checks pass.
+- [ ] Collect replacement hosted run `32226998372` before advancing Atlas.
