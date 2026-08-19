@@ -867,7 +867,7 @@ rerun in exact-head hosted run `31990847118` passed, as did the Rust workspace
 and Python bindings. PR #57 merged as `7fddf789`; Atlas advances that merged
 default gitlink. The peer-dirty primary checkout remains untouched.
 
-#### ATLAS-KWAVERS-HEPHAESTUS-VIS-104 — GPU ownership closure [arch] — in progress
+#### ATLAS-KWAVERS-HEPHAESTUS-VIS-104 — GPU ownership closure [arch] — closed 2026-08-18
 
 Kwavers still constructs raw `wgpu` pipelines in
 `crates/kwavers-gpu/src/beamforming/three_dimensional/provider.rs` and keeps
@@ -898,7 +898,7 @@ its required hosted feature gate is the re-open/close decision. The FDTD item
 remains provider capability work and must not be replaced by an f64 adapter or
 CPU-vs-CPU comparison.
 
-#### ATLAS-KWAVERS-FDTD-107 — provider-generic FDTD equivalence [major] — provider merged; consumer hosted verification pending
+#### ATLAS-KWAVERS-FDTD-107 — provider-generic FDTD equivalence [major] — closed 2026-08-18
 
 The acceptance oracle is a real Leto/Hephaestus FDTD execution path selected
 through the provider seam, a CPU differential comparison with a derived
