@@ -9623,6 +9623,27 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   The current provider checkouts/lanes are peer-owned and dirty; re-open when
   those claims land or become stale and reclaimable.
 
+## ATLAS-BOARD-DELIVERY-AUDIT-101 — advisory sweep for undelivered done-claims [patch] — todo
+
+**Outcome.** A committed script that, for every done/merged row of this board,
+resolves each cited commit hash in the owning member and reports those that are
+not ancestors of that member's , with the branch and PR state that
+distinguishes "rebased on merge" from "never delivered".
+
+**Non-goal.** Not a CI gate. Measured on the current board (see
+ATLAS-RITK-D2-STRANDED-100): 67 cited hashes, 4 flags, 1 real. A rebase-merge
+re-authors the hash, so most flags are benign and a blocking check would be
+ignored within a week.
+
+**Why it earns its place anyway.** The one true positive was ~2800 lines of
+verified work that no gate, review, or CI run would ever have surfaced, because
+nothing was ever pushed. Read-only, runs in seconds, and its natural home is the
+replenishment audit, which already enumerates board state.
+
+**Acceptance.** Run against the current board reproduces the 4/1 result above;
+each flag carries enough context (remote branch present?, PR referencing the
+subject?, same-subject commit on main?) to triage without further commands.
+
 ## ATLAS-RITK-D2-STRANDED-100 — rescue the unpushed D2 follow-on commit [patch] — in progress 2026-08-19
 
 **Finding.** `US-023-D2` was recorded done on 2026-08-19 citing commit `c110664b`
@@ -9666,12 +9687,29 @@ prior) when the rescue lands.
 claim), 25+ existing tests plus its own suite green, hosted clippy `-D warnings`
 clean, no two public items sharing "strain window" naming.
 
-**Process defect, filed separately.** The done-claim cited a commit hash without
-checking reachability. A hash proves authorship, never delivery — a delivery
-claim must cite a merged PR or a `git merge-base --is-ancestor <rev> origin/main`
-result. Recorded in `gap_audit.md` as a slop pattern; the mechanizable form is a
-board-lint rule rejecting a done-row whose cited hash is not an ancestor of the
-member's `origin/main`.
+**Process defect.** The done-claim cited a commit hash without checking
+reachability. A hash proves authorship, never delivery.
+
+**Measured, and the obvious gate does not work.** Extracting every hash cited in
+a done/merged row of this board (67 of them) and testing
+`git merge-base --is-ancestor <hash> origin/main` in the owning member yields 4
+flags, of which only `c110664b` is genuinely undelivered:
+
+| cited | repo | verdict |
+|---|---|---|
+| `c110664b` | ritk | **lost** — never pushed, branch deleted, no PR opened |
+| `6731f8f32` | kwavers | delivered — landed as `b71abaf32`, same subject |
+| `f0cc9c9a8` | kwavers | delivered — landed via PR #383 as `ff0b715eb` |
+| `7d671c0e` | coeus | delivered — landed as `afed34f2` |
+
+A rebase-merge re-authors the hash, so a non-ancestor hash is the *normal* case
+for a delivered row. Restricting to rows citing no PR does not separate them
+either: three of the four cite no PR and all three are delivered. This check is
+therefore an **advisory sweep**, not a merge gate — at 3 false positives in 4 it
+would train reviewers to ignore it. Filed as ATLAS-BOARD-DELIVERY-AUDIT-101 to
+run during board replenishment, where a four-line report a human reads is the
+right cost. The durable rule for authors is unchanged and needs no tooling:
+a delivery claim cites the merge, not the authoring hash.
 
 ## ATLAS-HORAE-DORMAND-PRINCE-076 — embedded adaptive pair [minor] — closed
 
