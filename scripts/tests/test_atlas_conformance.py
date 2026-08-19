@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -115,6 +116,49 @@ class AtlasConformanceTestCase(unittest.TestCase):
             "regenerating the committed baseline changed its formatting; "
             "`generate` is no longer idempotent",
         )
+
+    def test_excess_worktrees_counts_registered_trees_over_the_bound(self) -> None:
+        """The two-tree bound is a precondition, so something must check it.
+
+        Nothing did, and one member reached five trees with 26 lane
+        directories stack-wide before anyone measured.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            main = root / "main"
+            main.mkdir()
+            _write(main, "a.txt", "seed\n")
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+            for argv in (
+                ["init", "-q", "-b", "main"],
+                [*ident, "add", "a.txt"],
+                [*ident, "commit", "-q", "-m", "seed"],
+            ):
+                subprocess.run(["git", "-C", str(main), *argv], check=True)
+
+            # Main tree alone is within the bound.
+            self.assertEqual(conformance.count_excess_worktrees(main), 0)
+
+            # A single lane is still within it.
+            subprocess.run(
+                ["git", "-C", str(main), "worktree", "add", "-q",
+                 str(root / "lane1"), "-b", "lane1"],
+                check=True,
+            )
+            self.assertEqual(conformance.count_excess_worktrees(main), 0)
+
+            # A second lane exceeds it.
+            subprocess.run(
+                ["git", "-C", str(main), "worktree", "add", "-q",
+                 str(root / "lane2"), "-b", "lane2"],
+                check=True,
+            )
+            self.assertEqual(conformance.count_excess_worktrees(main), 1)
+
+    def test_excess_worktrees_is_zero_outside_a_repository(self) -> None:
+        """A non-repository cannot substantiate a violation, so it reports none."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            self.assertEqual(conformance.count_excess_worktrees(Path(temp)), 0)
 
     def test_crate_level_allow_is_counted_separately(self) -> None:
         """The blanket form must be measured, and not by `allow_sites`.
