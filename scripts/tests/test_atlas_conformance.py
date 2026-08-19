@@ -227,6 +227,31 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(len(dirs), 1)
 
+    def test_generate_refuses_to_raise_a_count(self) -> None:
+        """`generate` must not launder a regression into the baseline.
+
+        A ratchet whose baseline can be rewritten upward is not a ratchet:
+        any failing `check` could be cleared by re-running `generate`, which
+        satisfies the gate's form while inverting its purpose. This happened
+        once in practice (atlas `e9c5821` lifted ritk/print_dbg 12 -> 17), so
+        the guard is pinned by a test rather than by convention.
+        """
+        previous = {"demo": {"print_dbg": 1}}
+        current = {"demo": {"print_dbg": 4}}
+        raises = conformance.baseline_raises(previous, current)
+        self.assertEqual(raises, [("demo", "print_dbg", 1, 4)])
+
+    def test_generate_allows_a_lowered_or_equal_count(self) -> None:
+        previous = {"demo": {"print_dbg": 4, "markers": 2}}
+        current = {"demo": {"print_dbg": 1, "markers": 2}}
+        self.assertEqual(conformance.baseline_raises(previous, current), [])
+
+    def test_a_newly_measured_repo_is_not_a_raise(self) -> None:
+        """A repo or class absent from the baseline has nothing to exceed."""
+        previous = {"demo": {"print_dbg": 1}}
+        current = {"demo": {"print_dbg": 1, "markers": 7}, "fresh": {"print_dbg": 9}}
+        self.assertEqual(conformance.baseline_raises(previous, current), [])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -585,6 +585,25 @@ def report(results: dict[str, dict[str, int]]) -> None:
         print(f"{k:<{width}}  {totals[k]:>5}  {offenders}")
 
 
+def baseline_raises(
+    previous: dict[str, dict[str, int]],
+    current: dict[str, dict[str, int]],
+) -> list[tuple[str, str, int, int]]:
+    """Every (repo, class, was, now) where `current` exceeds `previous`.
+
+    A repo or class absent from `previous` is not a raise: it has no recorded
+    value to exceed, so a newly measured repo or a newly added detector class
+    enters at whatever it measures.
+    """
+    raises = []
+    for repo, counts in sorted(current.items()):
+        for cls, value in sorted(counts.items()):
+            was = previous.get(repo, {}).get(cls)
+            if was is not None and value > was:
+                raises.append((repo, cls, was, value))
+    return raises
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?", default="report",
@@ -609,6 +628,14 @@ def main() -> int:
         "--repo",
         metavar="NAME",
         help="scan only this provider repo (live tree, bypasses the clean-stack gate)",
+    )
+    parser.add_argument(
+        "--accept-raises",
+        metavar="REASON",
+        help="permit `generate` to raise counts above the committed baseline, "
+             "recording REASON. Only a detector change legitimately raises a "
+             "count; absorbing a code regression is what the ratchet exists to "
+             "prevent, so this must never be used to clear a failing check",
     )
     args = parser.parse_args()
     mode = args.mode
@@ -639,6 +666,33 @@ def main() -> int:
             report(results)
         return 0
     if mode == "generate":
+        # A ratchet whose baseline can be rewritten upward is not a ratchet.
+        # `check` already refuses a raise; without the same rule here, any
+        # failing check can be cleared by running `generate`, which satisfies
+        # the gate's form while inverting its purpose. Observed once:
+        # e9c5821 lifted ritk/print_dbg 12 -> 17 under the description
+        # "update baseline after ... advances".
+        #
+        # A detector change is the one legitimate raise (generator contract:
+        # changing a detector regenerates the baseline in the same change),
+        # so the escape hatch exists -- but it is explicit, it names a reason,
+        # and it is loud.
+        raises = []
+        if BASELINE.is_file():
+            raises = baseline_raises(json.loads(BASELINE.read_text()), results)
+        if raises and not args.accept_raises:
+            print("refusing to raise the baseline; the ratchet only decreases:",
+                  file=sys.stderr)
+            for repo, cls, was, value in raises:
+                print(f"  RAISE {repo}/{cls}: {was} -> {value}", file=sys.stderr)
+            print("\nFix the debt, or -- if a detector changed and this is the "
+                  "generator contract, not a regression --\nre-run with "
+                  "--accept-raises 'why the detector changed'.", file=sys.stderr)
+            return 2
+        if raises:
+            print(f"baseline raised, reason: {args.accept_raises}")
+            for repo, cls, was, value in raises:
+                print(f"  RAISE {repo}/{cls}: {was} -> {value}")
         BASELINE.write_text(
             json.dumps(results, indent=1, sort_keys=True) + "\n", newline="\n"
         )
