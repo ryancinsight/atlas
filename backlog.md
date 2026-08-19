@@ -3091,7 +3091,7 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
 | US-023-A1 | Implement the ADR 0042 seam in `ritk-image`: `CoordinateMap` with `Cartesian` + `CurvilinearArray`, carried on `Image`, dispatched by both batch and both single-point transforms. | [major] | done 2026-08-13 — ritk PR #128 merged as `c608f758` | Claude | Met. Cartesian path bit-identical (pinned by test); curvilinear round-trip, fan symmetry/curvature, out-of-fan NaN, dimensionality rejection all covered. 1173 tests, clippy `-D warnings`, rustdoc, fmt clean. |
 | RITK-CI-1 | Restore SimpleITK parity for `InverseDisplacementField` 2-D/3-D and `IterativeInverseDisplacementField`. **Diagnosed** (`gap_audit.md#atlas-ritk-ci-diag-035`): introduced by `3aa73ba0` (ADR 0020); the 2-D case is ~27x worse than 3-D, and the new Gram-Schmidt in-plane basis path runs *only* for the 2-D-embedded shape. Under identity direction it must reduce to the world axes exactly — the parity break proves it does not. | [major] | todo — owner is 3aa73ba0's author; diagnosis recorded | — | The three `test_simpleitk_cmake_data.py` parity tests pass |
 | RITK-CI-2 | Test Suite (ubuntu-latest) exceeds the 30-minute job cap during 'Install LLVM and Clang'. | [patch] | **done 2026-08-19** — ritk PR #178 skips apt-get when clang already present | — | Ubuntu job completes inside budget |
-| US-023-D2 | Block-matching follow-ons: multi-resolution search-region sources and block-radius calculators, FFT-accelerated NCC, Bayesian-regularized and strain-window displacement calculators, and an end-to-end pipeline over a block grid. | [minor] | **partly delivered 2026-08-19** — ritk PR #187 merged at `40618f84` (volume pipeline) is on main; the follow-ons are **not**: `c110664b` was never pushed, its branch no longer exists on the remote, and no PR was opened. See ATLAS-RITK-D2-STRANDED-100. Landed separately: strain-window *rejection* filter (ritk PR #191). The stranded commit adds: `OwnedPyramid` (nearest/min-max), block-radius calculators, FFT-NCC via apollo-fft (`fft` feature), `BayesianDisplacementPrior`, `StrainWindowRegularizer`, `DisplacementPipeline` | Claude | track_volume recovers known shift; strain recovers 2% compression exactly; pipeline recovers known compression strain within derived bound; 46/46 tests, clippy `-D warnings`, fmt clean |
+| US-023-D2 | Block-matching follow-ons: multi-resolution search-region sources and block-radius calculators, FFT-accelerated NCC, Bayesian-regularized and strain-window displacement calculators, and an end-to-end pipeline over a block grid. | [minor] | **done 2026-08-19** — verified on ritk `origin/main` by content, not by claim: PR #187 (volume pipeline), PR #191 (strain-window rejection filter), PR #192 (the follow-ons, rescued per ATLAS-RITK-D2-STRANDED-100). Earlier history: — ritk PR #187 merged at `40618f84` (volume pipeline) is on main; the follow-ons are **not**: `c110664b` was never pushed, its branch no longer exists on the remote, and no PR was opened. See ATLAS-RITK-D2-STRANDED-100. Landed separately: strain-window *rejection* filter (ritk PR #191). The stranded commit adds: `OwnedPyramid` (nearest/min-max), block-radius calculators, FFT-NCC via apollo-fft (`fft` feature), `BayesianDisplacementPrior`, `StrainWindowRegularizer`, `DisplacementPipeline` | Claude | track_volume recovers known shift; strain recovers 2% compression exactly; pipeline recovers known compression strain within derived bound; 46/46 tests, clippy `-D warnings`, fmt clean |
 | US-023-D4 | Move `block_matching` into a dependency-light crate; parameterize its sample type; reuse one candidate buffer across the search. | [arch] | done — ritk PR #183 merged (21/21 green) | Claude | Met. `cargo tree` = one edge (`anyhow`); 9 tests incl. cross-precision and 1-D line; ritk-registration 375 green |
 | US-023-D3 | Consolidate kwavers' NCC + parabolic speckle-tracking kernel onto the block-matching seam and delete the duplicate. | [minor] | done — kwavers PR #409 merged (31/31 green) | Claude | Met. Both duplicates deleted, net -75 lines; 1551/1551 kwavers-physics tests pass through the seam; verified on origin/main by content |
 | KW-GPU-SCANCONV | Remove the no-op `scan_conversion` stage from the kwavers-gpu realtime pipeline, which reported a scan-converted frame it never converted. | [patch] | **done 2026-08-19** — kwavers PR #405 merged at `ba1803e9`; the no-op call and stub are deleted from `realtime.rs`, `process_frame` ends at `log_compression` | Claude | CI green; behaviour unchanged (the removed call was the identity); content confirmed present in `origin/main` |
@@ -9623,6 +9623,43 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   The current provider checkouts/lanes are peer-owned and dirty; re-open when
   those claims land or become stale and reclaimable.
 
+## ATLAS-RITK-D2-WIP-RESIDUAL-103 — rebuild or drop the WIP the NUL corruption orphaned [minor] — blocked (decision)
+
+**State.** The shared `repos/ritk` main tree is checked out on
+`feat/ritk-block-matching-d2-followons` carrying ~1150 uncommitted insertions
+across `lib.rs`, `tests_block_matching.rs`, `README.md` and `fft.rs`: pyramid
+diagnostics (`track_volume_pyramid_diagnostics`, `PyramidDisplacementField`
+with `validate`/`try_as_field`/`as_field`), `BlockGrid::try_dense`, and an FFT
+pyramid path (`match_pyramid_fft`, `track_volume_pyramid_fft`,
+`PipelineMetric::Fft`). Copies of all four survivors are in the session
+scratchpad; the tree itself is untouched.
+
+**Why it cannot simply be committed.** The implementations those call sites
+need lived in the `search.rs` and `regularization.rs` deltas that
+ATLAS-NUL-CORRUPTION-102 destroyed. No commit, stash or backup holds them. The
+tree therefore does not compile, and the WIP now also predates PR #192's
+`LeastSquaresDisplacementPrior` rename, so it will not apply mechanically to
+current main either.
+
+**Rebuild is feasible, and not small.** The surviving `tests_block_matching.rs`
+additions specify the intended behaviour precisely, and `lib.rs` fixes the
+signatures, so the destroyed implementations can be reconstructed against a
+real specification rather than guessed. That is a genuine implementation item —
+DoR-shaped, dependency-ordered behind nothing — not a recovery chore.
+
+**Decision required before scheduling** (why this is blocked rather than todo):
+rebuilding is only worth it if these seams are wanted. Pyramid *diagnostics*
+and an FFT *pyramid* path are both refinements of seams that already work on
+main. Dropping is legitimate and cheap; the surviving files record what was
+intended if it is wanted later.
+
+**Re-open trigger.** A decision on rebuild vs drop. On rebuild, the first
+increment is `BlockGrid::try_dense` plus the diagnostics types, each with the
+surviving tests as the acceptance oracle; the FFT pyramid path follows.
+
+**Not blocking anything.** Every merged D2 seam is on main and green. This is
+additive work whose absence costs nothing today.
+
 ## ATLAS-NUL-CORRUPTION-102 — files written as all-NUL by a host write failure [patch] — in progress 2026-08-19
 
 **Event.** Three tracked text files were found containing nothing but NUL bytes,
@@ -9697,7 +9734,7 @@ replenishment audit, which already enumerates board state.
 each flag carries enough context (remote branch present?, PR referencing the
 subject?, same-subject commit on main?) to triage without further commands.
 
-## ATLAS-RITK-D2-STRANDED-100 — rescue the unpushed D2 follow-on commit [patch] — in review 2026-08-19
+## ATLAS-RITK-D2-STRANDED-100 — rescue the unpushed D2 follow-on commit [patch] — done 2026-08-19
 
 **Finding.** `US-023-D2` was recorded done on 2026-08-19 citing commit `c110664b`
 ("complete US-023-D2 follow-ons", ~2800 lines: `search.rs`, `radius.rs`, `fft.rs`,
@@ -9744,8 +9781,14 @@ window" in one crate violates the terminology SSOT. #191 owns the ITK name;
 the least-squares prior is renamed for what it is (a least-squares displacement
 prior) when the rescue lands.
 
-**Status 2026-08-19.** Rescued as ritk PR #192 (`rescue/d2-rebase`), cherry-picked
-onto main with authorship and `Co-authored-by` preserved; awaiting hosted gates.
+**Done 2026-08-19.** ritk PR #192 merged; verified on `origin/main` by content —
+all six source files present, the rename landed, and the merged lock retains 51
+`git+` sources (the stripped lock never entered history). The `rescue/d2-followons`
+safety ref and the lane are retired. Residual WIP tracked as
+ATLAS-RITK-D2-WIP-RESIDUAL-103.
+
+Rescued as ritk PR #192 (`rescue/d2-rebase`), cherry-picked
+onto main with authorship and `Co-authored-by` preserved.
 Two defects found and fixed on the way in:
 
 1. The original commit carried an **overlay-stripped `Cargo.lock`** — 0 `git+`
