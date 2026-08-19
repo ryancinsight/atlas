@@ -5455,3 +5455,18 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   locks; exact-head structural residual is Consus only (`34b2507` versus
   `origin/main` `aafb320`); clean-checkout and six lane residuals are recorded
   as peer-owned and untouched.
+
+## 2026-08-19 evidence checkpoint
+
+- [x] Extend the exact-head audit to CFDrs, Kwavers, and Helios. Root commit
+      `bd79803`; live `atlas-22` exact-head audit passes for all 22 providers
+      and all three integrators.
+- [x] Re-run root evidence: 234 fast script tests and 74 subtests pass;
+      stack overlay alignment and 27 committed standalone lock forms pass.
+- [x] Record merged CFDrs default `931ee3a0130a5238461a1ee9547e12aef11e90bf`
+      after hosted run `32221669165` passed the Rust workspace and book-figure
+      gates. The local standalone locked package check remains an explicit
+      development-overlay blocker.
+- [ ] Resolve remaining provider-owned or externally gated residuals: Apollo
+      benchmark regression, Kwavers Python extension build, Helios H-103, and
+      peer-owned checkout/lane cleanup. No peer checkout or lane was changed.

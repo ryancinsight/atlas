@@ -8856,3 +8856,20 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   PR #168 lanes were removed after empty status checks; their branch refs
   remain available. Dirty runtime/lock lanes and open or peer-owned lanes
   remain.
+
+## ATLAS-INTEGRATOR-HEAD-2026-08-19 - exact integrator audit checkpoint
+
+- Root commit `bd79803` extends the exact-head and clean-checkout audit scope
+  to CFDrs, Kwavers, and Helios. The live `atlas-22` exact-head audit passes:
+  all 22 provider gitlinks and all three integrator gitlinks match fetched
+  default heads, and the requested-provider coherence scope is clean.
+- CFDrs is recorded at merged default `931ee3a0130a5238461a1ee9547e12aef11e90bf`.
+  Hosted run `32221669165` passes the Rust workspace gate and the book-figure
+  gate. A standalone `cargo package --locked` remains blocked before
+  packaging by the Atlas development-overlay lock mismatch; this is not
+  treated as package evidence.
+- Root fast scripts pass: 234 tests, 17 deselected, and 74 subtests. The
+  stack overlay and 27 committed standalone lock forms also pass. The clean
+  checkout audit and lane audit still report peer-owned checkout dirt and
+  excess lanes; those trees remain untouched. Apollo's benchmark regression,
+  Kwavers' missing local Python extension, and Helios H-103 remain open.

@@ -12529,3 +12529,24 @@ check. The CFDrs runtime-budget lane is dirty, and the remaining unmerged or
 check. The clean merged RITK PR #173 and PR #168 lanes were also removed after
 empty status checks. The CFDrs runtime-budget lane is dirty, and the remaining
 unmerged or peer-owned lanes were preserved.
+## Finding 2026-08-19: integrator exact-head coverage was missing from the audit
+
+The provider integration audit previously proved only the 22 provider
+gitlinks. Root commit `bd79803` adds the three Atlas integrators - CFDrs, Kwavers,
+and Helios - to the exact-head and clean-checkout scope without changing the
+structural provider count. The live `atlas-22` exact-head run passes: each
+integrator gitlink matches its fetched default head and the requested-provider
+coherence scope is clean.
+
+CFDrs is now recorded at merged default `931ee3a0130a5238461a1ee9547e12aef11e90bf`.
+Hosted run `32221669165` passes the Rust workspace and book-figure gates. A
+standalone `cargo package --locked` attempt stops before packaging because the
+development overlay's local patches are absent from the standalone lockfile;
+this remains an overlay/release-environment blocker, not evidence of a CFDrs
+source failure. Root fast scripts (234 tests, 74 subtests), overlay alignment,
+and 27 committed standalone lock forms pass.
+
+The clean-checkout audit still reports peer-owned dirt and the lane audit still
+reports excess peer lanes. Apollo's benchmark regression, Kwavers' missing
+local Python extension, and Helios H-103 remain open and are not masked by the
+passing exact-head structural audit.
