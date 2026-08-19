@@ -76,8 +76,17 @@ HEADER = f"""{BEGIN}
 
 
 def _skip(path: Path) -> bool:
+    """Whether a discovered manifest lies outside the canonical source view.
+
+    worktrees is filtered here, not merely by where the glob is rooted: a
+    lane opened *inside* a member repo (repos/<member>/worktrees/...) is
+    still under that repo and would otherwise be globbed. Being sorted after
+    crates/ it would then overwrite the canonical entry, pinning the whole
+    stack to one agent's lane -- and to a dangling path the moment that lane is
+    removed.
+    """
     parts = {p.lower() for p in path.parts}
-    return bool(parts & {"target", ".git", "node_modules"})
+    return bool(parts & {"target", ".git", "node_modules", "worktrees"})
 
 
 def repo_manifests() -> list[Path]:

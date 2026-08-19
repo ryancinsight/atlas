@@ -123,22 +123,22 @@ coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
 coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
 
 [patch."https://github.com/ryancinsight/consus"]
-consus-compression = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-compression" }
-consus-core = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-core" }
-consus-hdf5 = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-hdf5" }
-consus-io = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-io" }
-consus-npy = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-npy" }
-consus-onnx = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-onnx" }
-consus-zarr = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-zarr" }
+consus-compression = { path = "repos/consus/crates/consus-compression" }
+consus-core = { path = "repos/consus/crates/consus-core" }
+consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
+consus-io = { path = "repos/consus/crates/consus-io" }
+consus-npy = { path = "repos/consus/crates/consus-npy" }
+consus-onnx = { path = "repos/consus/crates/consus-onnx" }
+consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/consus.git"]
-consus-compression = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-compression" }
-consus-core = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-core" }
-consus-hdf5 = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-hdf5" }
-consus-io = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-io" }
-consus-npy = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-npy" }
-consus-onnx = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-onnx" }
-consus-zarr = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-zarr" }
+consus-compression = { path = "repos/consus/crates/consus-compression" }
+consus-core = { path = "repos/consus/crates/consus-core" }
+consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
+consus-io = { path = "repos/consus/crates/consus-io" }
+consus-npy = { path = "repos/consus/crates/consus-npy" }
+consus-onnx = { path = "repos/consus/crates/consus-onnx" }
+consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
 eunomia = { path = "repos/eunomia/crates/eunomia" }
