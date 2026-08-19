@@ -7,6 +7,27 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
+## ATLAS-HOSTED-RECHECK-2026-08-19-2 — current provider state [patch]
+
+- **Kwavers:** `origin/main` is `609ddb23f6cc361bcffde508d5454988d33a6421`.
+  Architecture Validation `32287002874`, CI/CD `32287002887`, Legacy
+  Migration Audit `32287002898`, and Deploy mdBook `32287003478` are queued.
+  Atlas retains verified gitlink `0a9842a672f5e0248f5826003c30c7a0c8d8c7a4`;
+  no exact-head closure is claimed.
+- **RITK:** `origin/main` is docs-only merge `52f9d3b008269017297c4679792391958a561f7f`
+  from PR #189; the Atlas pointer is reconciled. The queued CI/Python runs
+  target the preceding `01175d6` and do not prove the new default.
+- **Horae:** CI `32285903134`, Deploy mdBook `32285903939`, and Pages
+  `32285901542` remain queued at `0df563a69693418b267f337fa4bc9dfb7c1aeb1b`.
+- **Helios:** PyPI PR #67 remains open at `f31f2619`; Rust, Python, benchmark,
+  and book checks are queued. Its checkout retains peer-owned manifest dirt.
+- **Apollo:** PR #107 remains unmergeable; benchmark run `32217561595` fails
+  its counterbalanced performance cases. No pointer advance is made.
+- **Root worktree:** latest worktree conformance red is limited to the
+  peer-owned RITK FFT `clippy::too_many_arguments` expectation; generated
+  standalone package cache forks were removed. Overlay and registry metadata
+  remain green.
+
 ## ATLAS-RITK-DEFAULT-RECONCILIATION-2026-08-19 — docs-only merge [patch]
 
 - RITK default advanced from `01175d67874724eee72a88ba1ee9dd56a52d7c79`
