@@ -2143,7 +2143,51 @@ Both edits made under the mistaken reading were reverted; they were my own,
 no peer state was touched. The remaining work is one clean run of the gate
 from a current checkout, then the CI step.
 
-## ATLAS-CRATE-LEVEL-ALLOWS-217 — 502 blanket suppressions the ratchet never counted [major] — open 2026-08-18
+## ATLAS-CRATE-LEVEL-ALLOWS-217 — 502 blanket suppressions the ratchet never counted [major] — open 2026-08-18, specified 2026-08-19
+
+**Specified 2026-08-19, and the severity in the original filing was
+overstated.** Measured with the scanner's own classification rather than a
+grep: `missing_docs` (243 mentions) and `clippy::unwrap_used` (31) are
+**almost entirely test-scoped** — inner attributes inside
+`#[cfg(test)] mod tests`, which is the correct way to scope a test exemption,
+and which `split_test_region` already excludes from the count. The seven
+`unwrap_used` sites I first flagged as production are six `src/**/tests.rs`
+sidecars plus one correctly-scoped test module. **Zero production violations
+of the unwrap ban.** My grep counted test files; the committed detector does
+not, and the detector was right.
+
+What production actually holds, and it is **not** one pile of 502:
+
+**CFDrs carries 349 of the ~433 production sites, in 62 files, and its
+workspace already has a curated 53-entry `[workspace.lints]` table.** Against
+that table:
+
+| pile | mentions | disposition |
+|---|---|---|
+| already `allow` workspace-wide | **204** | pure redundancy — delete, zero behavioural change |
+| `clippy::print_stdout` | **42** | overrides a workspace **`deny`**, in library crates — the real violation |
+| everything else | ~105 | per-crate escalations needing individual judgement |
+
+So the bulk is not debt at all, it is duplication of a decision already
+recorded once at the workspace level — the same SSOT failure as any other
+copied constant. And the genuine finding is small and sharp: **42 blanket
+allows silently re-enabling `print_stdout` in library crates whose own
+workspace table denies it**, spread over cfd-validation (21), cfd-core (10),
+cfd-2d (10), cfd-3d (5), cfd-1d (4), cfd-schematics (1) — all libraries, so
+the CLI exemption does not apply.
+
+- Sequence: (1) delete the 204 redundant mentions, verified by compiling —
+  redundant only if no crate escalates the same lint, which the build proves;
+  (2) fix or justify the 42 `print_stdout` sites, since a per-crate allow
+  overriding a workspace deny is the strongest form of the pattern the floor
+  prohibits; (3) adjudicate the ~105 remainder, promoting recurring ones into
+  the workspace table with a comment and converting the rest to per-site
+  `#[expect(..., reason)]`.
+- Non-CFDrs remainder is small and can follow: moirai 39, coeus 17, apollo 8,
+  consus 6.
+- The lesson, again: an ad-hoc grep and the committed instrument disagreed by
+  nearly 2×, and the instrument was correct both times. Measure with the
+  scanner.
 
 Detector fixed in `d9c8c60`; the debt itself is the open work.
 
