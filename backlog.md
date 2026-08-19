@@ -2363,6 +2363,43 @@ file and fails if the format drifts.
   containing nothing else, and add the idempotence check to the script's
   tests.
 
+## ATLAS-MOLD-LINKER-226 — mold cannot link this stack; LLD is the only substitute [patch] — rejected 2026-08-19
+
+Requested and evaluated. **mold cannot be used on this host, and not for a
+configuration reason — it has no applicable target.**
+
+- mold 2.42.0 *is* installed (`/d/msys64/ucrt64/bin/mold`), which is why this
+  looks viable at first glance.
+- It is ELF-only. Handed a Windows object it reports `unknown file type`, and
+  it rejects `-m i386pep` — the PE/COFF emulation GNU ld uses for win64 — as
+  an unknown argument.
+- Every target in this stack is `x86_64-pc-windows-{msvc,gnu}`, i.e. PE/COFF.
+- The one target where mold would apply, `x86_64-unknown-linux-gnu`, is **not
+  installed** (`rustup target list --installed` shows only
+  `x86_64-pc-windows-msvc`) and no Linux cross-linker is present, so even
+  hermes' `cfg(unix)` cross-check could not exercise it — and `cargo check`
+  does not link in any case.
+
+**LLD is the substitute and it works.** `rust-lld.exe` ships inside the msvc
+toolchain and linked the target successfully via
+`-Clinker-flavor=lld-link -Clinker=<rust-lld>`.
+
+**No speed claim is made, because the measurement does not support one.** An
+isolated scratch crate (own `CARGO_TARGET_DIR`, quiet host, 1 concurrent
+cargo) gave default `link.exe` median **1.49 s** (1.32/1.49/1.71) against
+rust-lld median **2.25 s** (1.74/2.25/4.19). At that size the numbers are
+dominated by process startup rather than linking, and three runs on one tiny
+binary is not evidence that LLD is slower for real workloads — it is evidence
+that this experiment was too small to answer the question.
+
+**The reason not to flip it stack-wide anyway:** the linker is set through
+`RUSTFLAGS`/config, which is part of every crate's fingerprint. Changing it
+invalidates the entire shared `CARGO_TARGET_DIR` and forces a full rebuild
+for every agent on the stack, and doing that to peers mid-session on
+unproven evidence is the wrong trade. A real evaluation needs a link-heavy
+target measured on a quiet host, which is a scheduled experiment, not an
+inline one.
+
 ## ATLAS-LANE-SPRAWL-222 — 26 lane directories against a two-per-repo bound [patch] — open 2026-08-19
 
 Found while needing one lane for `-221`. `git_discipline: Worktrees` bounds a
@@ -3033,9 +3070,9 @@ Provider PRs opened for all four repos to resolve the CI gate.
 
 | ID | Outcome | Class | Status | Owner | Acceptance oracle |
 |----|---------|-------|--------|-------|-------------------|
-| ADR-025-A | coeus: renumber duplicate ADR numbers (0021×3, 0025×2, 0026×2, 0060×2) and canonicalize status casing. | [patch] | **in progress 2026-08-17 — coeus PR #337** | Atlas coordinator | `scripts/adr-index.py check` clean for coeus; no two ADRs share a number |
-| ADR-025-B | helios, asclepius, consus, tyche, apollo: normalize ADR status casing. | [patch] | **in progress 2026-08-17 — helios PR #62, asclepius PR #18, consus PR #45** | Atlas coordinator | `adr-index.py check` emits no stdout; indexes show canonical statuses |
-| ADR-025-C | ritk: regenerate the ADR index with the generated-file header block. | [patch] | **done 2026-08-17 — ritk at `ae23d4b2` already clean** | — | `adr-index.py check` clean for ritk |
+| ADR-025-A | coeus: renumber one of the two ADR `0060` files and fix cross-references. | [patch] | done — resolved by another agent; verified 2026-08-19 | — | Met: renumbered to `0065-provider-owned-metal-rocm-bridge.md`; zero duplicate numbers repo-wide; zero stale refs to the old path; index lists 0065 |
+| ADR-025-B | tyche, apollo: normalize ADR status casing so indexes render a status. | [patch] | done — resolved by another agent; verified 2026-08-19 | — | Met: `adr-index.py check` reports no casing warnings for either repo |
+| ADR-025-C | ritk: regenerate the ADR index with the generated-file header block. | [patch] | done — resolved by another agent; verified 2026-08-19 | — | Met: header block present in `repos/ritk/docs/adr/README.md` |
 | ADR-025-D | atlas-meta: exclude navigation `README.md`/`INDEX.md` files from the generated ADR corpus and normalize ADR 0006 to the canonical `Accepted` status. | [patch] | done 2026-08-13 — root docs/script/test slice | current session | root `build_index` regression passes; generated root index has no navigation row; child worktrees remain unmodified |
 
 ## ATLAS-US-CAPABILITY-023 — ITKUltrasound capability parity [arch] — open 2026-08-13
