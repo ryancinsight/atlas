@@ -99,7 +99,10 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   `0156f59f78aba1e3b06d4511ffb1ce30d5c0c6d4`. Local format and locked
   all-feature metadata pass. The root-overlay `cargo check --locked` rejection
   remains a pre-compilation development-overlay diagnostic, so Atlas advances
-  only to the verified provider merge commit.
+  only to the verified provider merge commit. Provider-local HYPERION-006
+  closeout is carried by PM-only PR #16 at head
+  `0768f357677843ec59c6cc9268fe035aa69d5966`; its hosted checks are queued,
+  so the root pointer remains at `0156f59` until that record merges.
 - **Clean-checkout evidence:** the fresh `--require-clean-checkouts` audit
   reports 22 findings across 17 provider checkouts. Checkout-head drift is
   present in Themis, Tyche, Mnemosyne, Aequitas, Moirai, Hephaestus, Coeus,
