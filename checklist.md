@@ -18,6 +18,11 @@
       `codex/cfdrs-pypi-001`; every listed chapter/example completes. The
       locked `xtask check-figures` command remains blocked by the Atlas
       overlay lock refresh and is not represented as a pass.
+- [ ] Collect the merged CFDrs default-head gate: PR #355 source `ed585d75`
+      corrects the prior Clippy failure, but default `efce3472` run
+      `32208170560` times out two numerical-fidelity tests at the 30-second
+      budget. Keep the pointer at the PR head until the workloads are
+      optimized and the default figure/release gates pass.
 - [x] Probe the Kwavers comparative Python test under Python 3.13.12; import
       fails because the compiled `pykwavers._pykwavers` extension is absent.
       Preserve the peer-owned checkout and leave the build/wheel repair to

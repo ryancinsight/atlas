@@ -51,7 +51,13 @@ blocked before the command runs because the Atlas overlay exposes unused local
 patches and the peer lock requires refresh; no figure result is claimed. The
 book proof is therefore positive for snippet compilation only, while the
 figure SSOT and hosted Pages closure remain pending on a clean lock-compatible
-provider integration state.
+provider integration state. PR #355's Clippy correction is merged at source
+`ed585d75`, but fetched CFDrs default `efce3472` fails default CI run
+`32208170560`: 12 selected numerical-fidelity tests pass and two exceed the
+30-second termination budget, `benchmark_validation::test_benchmark_run_integration`
+and `cross_fidelity_trifurcation::cross_fidelity_trifurcation_dominance`.
+Atlas keeps the pointer at the PR head and does not claim a green CFDrs
+default-head or release gate until those real workloads are root-caused.
 
 ## Finding 2026-08-19: Kwavers Python extension is absent locally
 

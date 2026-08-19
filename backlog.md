@@ -40,12 +40,15 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   default `5adc2d1649bfd2bf68c529b011308e150375810d`; Atlas stages that exact
   gitlink without touching the dirty primary checkout. The former backend
   parity failure at `79f05dfd` is superseded by the merged provider closure.
-- **CFDrs evidence:** PR #355 carries provider commit `1bebb5e1`. The
-  previous Rust-gate timeout is addressed by caching the normalized parabolic
-  inlet profile once per solve. Exact-head run `32197696210` now fails in the
-  hosted Clippy job at `cfd-2d/src/solvers/ns_fvm/solver/solve.rs:218` for
-  `clippy::if_not_else`; the book-figure job passes. The provider branch needs
-  that warning-denied correction before merge; no CFDrs checkout was changed.
+- **CFDrs evidence:** PR #355 source `1bebb5e1` addressed the earlier timeout by
+  caching the normalized parabolic inlet profile, and follow-up source
+  `ed585d75` corrected `clippy::if_not_else`; the PR is merged. Fetched default
+  `efce3472` run `32208170560` still fails two 30-second numerical-fidelity
+  timeouts: `benchmark_validation::test_benchmark_run_integration` and
+  `cross_fidelity_trifurcation::cross_fidelity_trifurcation_dominance`. The
+  book-figure job is not a substitute for the failed Rust gate; Atlas keeps the
+  pointer at the PR head pending root-cause optimization and fresh exact-head
+  figure/release evidence.
 - **Aequitas evidence:** PR #35 merged the provider structure cleanup at
   default `260ad10dd5480eef8c82958d1d148199656db59e`; its verify,
   supply-chain, post-merge CI `32198085105`, and Pages
