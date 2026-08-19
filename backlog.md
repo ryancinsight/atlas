@@ -8990,3 +8990,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   SSOT checks passed in run `32229463775`. The Atlas gitlink advances from
   `931ee3a0` to that fetched default head; the provider checkout remains on a
   peer branch and is not switched or cleaned.
+
+## ATLAS-CACHE-FORK-055 — Horae repo-local target cleanup complete
+
+- The conformance audit identified `repos/horae/target` as a derived cache fork
+  beside the shared `D:\\atlas\\target`. The exact directory contained the
+  Cargo `.rustc_info.json` marker and was removed after path verification.
+- Re-running the provider conformance scan for Horae reports `target_forks: 0`;
+  no source, lockfile, or provider checkout state changed.

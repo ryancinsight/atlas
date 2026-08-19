@@ -12703,3 +12703,11 @@ figure SSOT gates in run `32229463775`. The Atlas gitlink advances to that
 fetched default head. This closes the provider source and hosted integration
 slice; it does not claim separate Pages, PyPI, or standalone local locked-build
 evidence, and the provider checkout remains peer-owned on its existing branch.
+
+## Finding 2026-08-19: Horae repo-local cache fork removed
+
+The conformance audit identified `repos/horae/target` as a repo-local Cargo
+cache beside the configured `D:\\atlas\\target`. After verifying the exact
+directory and its `.rustc_info.json` derived-state marker, the fork was removed.
+The Horae provider scan now reports `target_forks: 0`; no source, lockfile, or
+checkout state changed.

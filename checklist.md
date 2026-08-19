@@ -5574,3 +5574,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       `32229463775`, and CFDrs PR #358 merges at `834340f7`.
 - [x] Advance the Atlas CFDrs gitlink to the fetched merged default. Preserve
       the provider's peer branch and unrelated checkout state.
+
+## 2026-08-19 Horae cache-fork cleanup
+
+- [x] Verify the exact repo-local `repos/horae/target` path and its Cargo
+      derived-state marker before removal.
+- [x] Remove the fork and re-run the Horae conformance scan; `target_forks: 0`.
