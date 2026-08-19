@@ -2057,6 +2057,67 @@ Both edits made under the mistaken reading were reverted; they were my own,
 no peer state was touched. The remaining work is one clean run of the gate
 from a current checkout, then the CI step.
 
+## ATLAS-CRATE-LEVEL-ALLOWS-217 — 502 blanket suppressions the ratchet never counted [major] — open 2026-08-18
+
+Detector fixed in `d9c8c60`; the debt itself is the open work.
+
+`allow_sites` counts the substring `#[allow(`, and `#![allow(` does not
+contain it — the `!` breaks the match. So the **blanket form was invisible**,
+which is precisely the form the lint floor singles out as never acceptable:
+"suppressions are per-site `#[expect(lint, reason = "...")]`, never blanket or
+crate-level". An inner attribute silences a lint across every item in its
+module or crate, *including code written after it*, so it cannot be reviewed
+where it takes effect — strictly worse than the per-item form the ratchet did
+count.
+
+Production-code counts now seeded into the baseline (502 total):
+
+| CFDrs | moirai | apollo | coeus | consus | kwavers | ritk | gaia | mnemosyne | hermes | leto |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 367 | 47 | 34 | 18 | 10 | 10 | 8 | 4 | 2 | 1 | 1 |
+
+Found while checking `e31065b`, which raised CFDrs `allow_sites` 88→90 to
+absorb a Clippy PR that added `#![allow(...)]` attributes — the ratchet
+recorded the two per-item allows and none of the crate-level ones. CFDrs'
+`crates/cfd-1d/src/lib.rs` alone opens with a run of ten, several carrying
+justifications that read as deferrals ("Error documentation deferred for
+internal APIs").
+
+- Acceptance: ratchet burn-down, CFDrs first. Each removal either fixes the
+  underlying lint or converts to a per-site `#[expect(lint, reason = "...")]`
+  that expires when the site is fixed. No `--accept-raises`.
+
+## ATLAS-BASELINE-DIFF-NOISE-218 — `generate` reformats all 1500 lines, hiding raises [patch] — open 2026-08-18
+
+- The committed `conformance-baseline.json` is indented with **2 spaces**;
+  `generate` writes `indent=1`. So the committed file is not what the
+  generator produces, and any run of `generate` emits a whole-file diff of
+  ~1500 changed lines.
+- **This is how a laundered raise survives review.** `e9c5821`'s single
+  `12 -> 17` was one line inside that noise. Seeding the new
+  `crate_level_allows` class by hand instead produced a 28-line diff in which
+  every changed line was inspectable — the contrast is the argument.
+- Violates the generator contract directly: regeneration must be idempotent,
+  and here running the generator twice against an unchanged tree still
+  rewrites the file.
+- Acceptance: `generate` against an unchanged tree produces a zero-line diff.
+  Fix the indent to match, land the one-time reformat as its own commit
+  containing nothing else, and add the idempotence check to the script's
+  tests.
+
+## ATLAS-ADR-GATE-WORKTREE-219 — The ADR index gate reads the worktree, not the tracked tree [patch] — open 2026-08-18
+
+- `docs/adr/README.md:53` has listed ADR 0045 throughout the period in which
+  the file was absent from `HEAD` — twice — and `adr-index.py check` reported
+  that index clean, because the file remained on disk untracked.
+- A fresh clone therefore gets a dead index link while the gate passes. The
+  gate measures the author's disk, not the repository.
+- Also currently reported by that gate and unaddressed: `repos/coeus/docs/adr`
+  and `repos/kwavers/docs/adr` indexes are DRIFTED from their ADR headers.
+- Acceptance: the gate resolves entries against tracked paths (`git ls-files`)
+  so an untracked file cannot satisfy an index entry; the coeus and kwavers
+  drifts are cleared.
+
 ## ATLAS-RATCHET-LAUNDERING-216 — `generate` could rewrite the baseline upward [patch] — fixed 2026-08-18
 
 **The ratchet had no floor.** `check` refused a raise, but `generate`
