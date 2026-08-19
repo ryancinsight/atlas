@@ -24,8 +24,13 @@ only those annotations and comments, with format, locked metadata, residual
 scan, and diff checks passing. Hosted PR #107 initially failed its Rust
 Clippy job on nine different unsuppressed `missing_const_for_thread_local`
 sites; provider follow-up commit `cd94c10d` wraps those initializers in
-`const { ... }` without changing transform behavior. The PR rerun's Rust,
-Python, and benchmark jobs are pending, while the local full Clippy gate is
+`const { ... }` without changing transform behavior. The PR rerun's Rust and
+Python jobs pass, but benchmark run `32209019518` fails twice: the second
+counterbalanced comparison still reports `mixed_precision_f16_auto/64` at
+550–614 ns versus 529–534 ns baseline and `mixed_precision_f16_auto/96` at
+833–935 ns versus 800–808 ns, slower in all four comparisons. The source delta
+is initialization-only, so this is an unresolved empirical performance gate,
+not a reason to relax the comparator. The local full Clippy gate remains
 blocked before compilation by the peer-owned Apollo `Cargo.lock` requiring
 refresh under the Atlas overlay. No peer lock or backlog changes were staged.
 
