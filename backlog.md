@@ -4331,11 +4331,12 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   cleanup lanes. Each lane had zero dirty paths and its tip was an ancestor of
   the provider default; its local branch was then deleted. No active lane or
   peer WIP was touched.
-- Residual: `scripts/atlas-lane-audit.py` still reports four provider
-  violations: CFDrs (5 trees), Coeus (3), Kwavers (4), and RITK (3). Their
-  extra lanes are active peer scopes or carry dirty state and require the
-  owning streams to complete before further reclamation. The clean-lane
-  cleanup increment is complete; no source or provider pointer changed.
+- Residual: the 2026-08-19 `scripts/atlas-lane-audit.py` probe reports four
+  topology violations: Consus has four trees and one lane outside the
+  canonical root, Kwavers has four trees, and RITK has four trees. Their extra
+  lanes are active peer scopes or carry dirty state and require the owning
+  streams to complete before further reclamation. The clean-lane cleanup
+  increment is complete; no source or provider pointer changed.
 
 ## ATLAS-TARGET-001 — One build cache, one debug budget [patch] — in-progress (residual)
 

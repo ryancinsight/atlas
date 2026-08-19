@@ -18,6 +18,16 @@ PR #32 is open at `3c2d655`; hosted CI and the mesh-book check are queued,
 still points to Gaia `4980732`; pointer advancement and exact-head closure
 remain pending the merged provider default.
 
+## Finding 2026-08-19: lane topology recheck
+
+The current `scripts/atlas-lane-audit.py` probe reports four violations:
+Consus has four working trees and one lane at
+`repos/consus/worktrees/consus-adr-0045-p4-benchmark` outside the canonical
+`D:\atlas\worktrees` root; Kwavers has four working trees; and RITK has four
+working trees. These are peer-owned dirty or active lanes. No lane was
+removed, moved, or switched; the clean-lane cleanup remains complete and the
+re-open trigger is completion of the owning streams followed by a fresh audit.
+
 ## Finding 2026-08-18: path-dependency audit superseded by standalone lock form
 
 The historical `ATLAS-PATH-DEP-AUDIT-001` zero-`git+` criterion is not valid
