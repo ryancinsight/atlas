@@ -22,7 +22,9 @@ Modes:
                 revision (or the live tree with --worktree)
     check       re-scan and fail (exit 1) on any per-repo class increase
                 over the committed baseline; decreases print as tightening
-                candidates for a baseline update in the same change
+                candidates for a baseline update in the same change. With
+                --json, emit an object containing the scan results,
+                regressions, and tightenings without human-readable lines.
 
 Run from anywhere: paths are anchored to this file's parent repository.
 The default scan requires a clean checkout whose provider gitlinks match the
@@ -620,6 +622,22 @@ def baseline_raises(
     return raises
 
 
+def ratchet_delta(
+    baseline: dict[str, dict[str, int]],
+    results: dict[str, dict[str, int]],
+) -> tuple[list[str], list[str]]:
+    """Return baseline regressions and tightening candidates."""
+    regressions, tightenings = [], []
+    for repo, counts in results.items():
+        for class_name, value in counts.items():
+            previous = baseline.get(repo, {}).get(class_name, 0)
+            if value > previous:
+                regressions.append(f"{repo}/{class_name}: {previous} -> {value}")
+            elif value < previous:
+                tightenings.append(f"{repo}/{class_name}: {previous} -> {value}")
+    return regressions, tightenings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", nargs="?", default="report",
@@ -723,14 +741,14 @@ def main() -> int:
         print("no committed baseline; run `generate` first", file=sys.stderr)
         return 1
     base = json.loads(BASELINE.read_text())
-    regressions, tightenings = [], []
-    for repo, counts in results.items():
-        for k, v in counts.items():
-            b = base.get(repo, {}).get(k, 0)
-            if v > b:
-                regressions.append(f"{repo}/{k}: {b} -> {v}")
-            elif v < b:
-                tightenings.append(f"{repo}/{k}: {b} -> {v}")
+    regressions, tightenings = ratchet_delta(base, results)
+    if args.json:
+        print(json.dumps({
+            "results": results,
+            "regressions": regressions,
+            "tightenings": tightenings,
+        }, indent=1, sort_keys=True))
+        return 1 if regressions else 0
     for t in tightenings:
         print(f"tightened (update baseline): {t}")
     for r in regressions:

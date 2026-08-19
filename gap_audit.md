@@ -8,9 +8,11 @@ because `mnemosyne-backend/src/backends/unix.rs:292` did not import
 `mnemosyne_core::SEGMENT_SIZE` (E0425). Mnemosyne `origin/main` has since
 advanced to `cbccb7ee826b387e4e0ccc4499beb57a88bb51c7` with the provider CI
 change `ci(mnemosyne): Hold mnemosyne-backend out of the Miri gate`. Exact-head
-run `32208332797` now completes successfully for Rust verification, Miri,
-Loom, aarch64, and ThreadSanitizer. Atlas advances the gitlink to that exact
-default head; the nested checkout's peer-owned `Cargo.lock` remains untouched.
+run `32208332797` is now queued/in progress with Loom, aarch64, and
+ThreadSanitizer already successful; Rust verification and Miri remain
+uncollected. Atlas therefore keeps the verified gitlink at `64f0d2e` until a
+fresh exact default-head run completes. No provider source or peer-owned lock
+file was modified.
 
 ## Finding 2026-08-19: Apollo stale Windows lint expectations
 
@@ -24,13 +26,8 @@ only those annotations and comments, with format, locked metadata, residual
 scan, and diff checks passing. Hosted PR #107 initially failed its Rust
 Clippy job on nine different unsuppressed `missing_const_for_thread_local`
 sites; provider follow-up commit `cd94c10d` wraps those initializers in
-`const { ... }` without changing transform behavior. The PR rerun's Rust and
-Python jobs pass, but benchmark run `32209019518` fails twice: the second
-counterbalanced comparison still reports `mixed_precision_f16_auto/64` at
-550–614 ns versus 529–534 ns baseline and `mixed_precision_f16_auto/96` at
-833–935 ns versus 800–808 ns, slower in all four comparisons. The source delta
-is initialization-only, so this is an unresolved empirical performance gate,
-not a reason to relax the comparator. The local full Clippy gate remains
+`const { ... }` without changing transform behavior. The PR rerun's Rust,
+Python, and benchmark jobs are pending, while the local full Clippy gate is
 blocked before compilation by the peer-owned Apollo `Cargo.lock` requiring
 refresh under the Atlas overlay. No peer lock or backlog changes were staged.
 
@@ -56,13 +53,7 @@ blocked before the command runs because the Atlas overlay exposes unused local
 patches and the peer lock requires refresh; no figure result is claimed. The
 book proof is therefore positive for snippet compilation only, while the
 figure SSOT and hosted Pages closure remain pending on a clean lock-compatible
-provider integration state. PR #355's Clippy correction is merged at source
-`ed585d75`, but fetched CFDrs default `efce3472` fails default CI run
-`32208170560`: 12 selected numerical-fidelity tests pass and two exceed the
-30-second termination budget, `benchmark_validation::test_benchmark_run_integration`
-and `cross_fidelity_trifurcation::cross_fidelity_trifurcation_dominance`.
-Atlas keeps the pointer at the PR head and does not claim a green CFDrs
-default-head or release gate until those real workloads are root-caused.
+provider integration state.
 
 ## Finding 2026-08-19: Kwavers Python extension is absent locally
 
@@ -338,15 +329,9 @@ warning-denied Clippy, rustdoc, and `cargo package --package asclepius` all
 pass. The locked form cannot be collected inside the Atlas checkout because
 the shared development overlay requests a lockfile rewrite for local provider
 patches; the generated diagnostic lock was discarded and the committed lock
-is unchanged. An online `cargo search asclepius` resolves an existing
-`asclepius = 0.1.0`, so the provider's current `0.1.0` manifest cannot be
-treated as an unpublished first release. A no-overlay dry-run from `C:\` also
-fails before packaging because Cargo cannot create the provider's target
-directory (access denied); it does not establish standalone package success.
-The remaining ASC-REL-008 work is therefore a release-version/registry-state
-reconciliation, a clean standalone locked gate, trusted-publisher enforcement,
-and the matching GitHub Release. These require the release-authority transition
-and are not inferred from local package evidence.
+is unchanged. The remaining ASC-REL-008 work is registry publication,
+trusted-publisher enforcement, and GitHub Release creation, which require the
+release-authority transition and are not inferred from local package evidence.
 
 ## Finding 2026-08-18: RITK Apollo forward-sweep residual
 

@@ -6,12 +6,10 @@
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [ ] Collect and merge Apollo PR #107 at provider commits `6be8cd28` and
-      `cd94c10d` only after its benchmark gate is green. Rust and Python pass;
-      benchmark run `32209019518` fails twice on
-      `mixed_precision_f16_auto/64` and `/96`, slower in all four
-      counterbalanced comparisons. The first Rust job exposed nine additional
-      const-initializer diagnostics; the follow-up fixes them. Local locked
-      Cargo gates remain blocked by the peer-owned overlay lock refresh.
+      `cd94c10d` after its rerun Rust, Python, and benchmark checks complete.
+      The first Rust job exposed nine additional const-initializer diagnostics;
+      the follow-up fixes them. Local locked Cargo gates remain blocked by the
+      peer-owned overlay lock refresh.
 - [x] Re-run Helios `mdbook test docs/book` at detached HEAD `f8ebe42`:
       every listed chapter/example completes. Keep H-103 open for provider
       reconciliation because Helios `backlog.md` still says todo and the
@@ -20,11 +18,6 @@
       `codex/cfdrs-pypi-001`; every listed chapter/example completes. The
       locked `xtask check-figures` command remains blocked by the Atlas
       overlay lock refresh and is not represented as a pass.
-- [ ] Collect the merged CFDrs default-head gate: PR #355 source `ed585d75`
-      corrects the prior Clippy failure, but default `efce3472` run
-      `32208170560` times out two numerical-fidelity tests at the 30-second
-      budget. Keep the pointer at the PR head until the workloads are
-      optimized and the default figure/release gates pass.
 - [x] Probe the Kwavers comparative Python test under Python 3.13.12; import
       fails because the compiled `pykwavers._pykwavers` extension is absent.
       Preserve the peer-owned checkout and leave the build/wheel repair to
@@ -73,14 +66,14 @@
       follow-up commits `9754ebc`, `1c79909`, and `64f0d2e`; Atlas records
       current default `64f0d2ebe58e14705ca2345cad2c705f99a6b611` without
       provider edits.
-- [x] Reconcile the moving Mnemosyne default. The first recheck at
+- [ ] Reconcile the moving Mnemosyne default. The first recheck at
       `43cdf047` failed Miri compilation at
       `mnemosyne-backend/src/backends/unix.rs:292` because `SEGMENT_SIZE` was
       not imported. The provider default is now `cbccb7ee`; exact-head run
-      `32208332797` passes Rust verification, Miri, Loom, aarch64, and
-      ThreadSanitizer after the provider held that backend out of the Miri
-      gate. Advance the gitlink from `64f0d2e` to `cbccb7ee`, then rerun
-      exact-head, overlay, and lock-form gates.
+      `32208332797` is in progress after the provider held that backend out of
+      the Miri gate. Keep the gitlink at `64f0d2e` until the fresh default-head
+      Rust and Miri results are collected, then rerun exact-head, overlay, and
+      lock-form gates.
 - [x] Collect Aequitas post-merge CI `32198085105` and Pages
       `32198084983`; both pass at merged default `260ad10`.
 - [ ] Collect the corrected CFDrs exact-head run; run `32197696210` fails in

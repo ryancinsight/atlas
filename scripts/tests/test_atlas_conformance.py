@@ -4,10 +4,14 @@
 from __future__ import annotations
 
 import importlib.util
+import io
+import json
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas-conformance.py"
@@ -25,6 +29,32 @@ def _write(root: Path, rel: str, content: str) -> None:
 
 
 class AtlasConformanceTestCase(unittest.TestCase):
+    def test_json_check_output_is_machine_readable(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            baseline_path = Path(temp) / "baseline.json"
+            baseline_path.write_text(
+                json.dumps({"demo": {"markers": 0, "print_dbg": 2}}),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+            with (
+                patch.object(conformance, "BASELINE", baseline_path),
+                patch.object(
+                    conformance,
+                    "scan_stack",
+                    return_value={"demo": {"markers": 1, "print_dbg": 1}},
+                ),
+                patch.object(sys, "argv", [str(SCRIPT), "check", "--worktree", "--json"]),
+                redirect_stdout(output),
+            ):
+                result = conformance.main()
+
+        self.assertEqual(result, 1)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["results"], {"demo": {"markers": 1, "print_dbg": 1}})
+        self.assertEqual(payload["regressions"], ["demo/markers: 0 -> 1"])
+        self.assertEqual(payload["tightenings"], ["demo/print_dbg: 2 -> 1"])
+
     def test_crate_level_allow_is_counted_separately(self) -> None:
         """The blanket form must be measured, and not by `allow_sites`.
 
