@@ -9644,7 +9644,7 @@ replenishment audit, which already enumerates board state.
 each flag carries enough context (remote branch present?, PR referencing the
 subject?, same-subject commit on main?) to triage without further commands.
 
-## ATLAS-RITK-D2-STRANDED-100 — rescue the unpushed D2 follow-on commit [patch] — in progress 2026-08-19
+## ATLAS-RITK-D2-STRANDED-100 — rescue the unpushed D2 follow-on commit [patch] — in review 2026-08-19
 
 **Finding.** `US-023-D2` was recorded done on 2026-08-19 citing commit `c110664b`
 ("complete US-023-D2 follow-ons", ~2800 lines: `search.rs`, `radius.rs`, `fft.rs`,
@@ -9690,6 +9690,23 @@ Both are wanted — one conditions, one rejects — but two things named "strain
 window" in one crate violates the terminology SSOT. #191 owns the ITK name;
 the least-squares prior is renamed for what it is (a least-squares displacement
 prior) when the rescue lands.
+
+**Status 2026-08-19.** Rescued as ritk PR #192 (`rescue/d2-rebase`), cherry-picked
+onto main with authorship and `Co-authored-by` preserved; awaiting hosted gates.
+Two defects found and fixed on the way in:
+
+1. The original commit carried an **overlay-stripped `Cargo.lock`** — 0 `git+`
+   sources against main’s 51. That is the development artifact the overlay
+   header warns never to commit, and it would have failed CI’s `--locked`
+   resolution outright. Rebuilt from main’s lock with only the two-line
+   `ritk-block-matching` dependency addition and verified with
+   `cargo metadata --locked` under `overlay off`, which is CI’s exact condition.
+2. The **naming collision** was resolved as planned:
+   `StrainWindowRegularizer` → `LeastSquaresDisplacementPrior`.
+
+Local gates: 54/54 default, 58/58 with `--features fft`, fmt and rustdoc
+(`-D warnings`) clean. `rescue/d2-followons` stays on the remote as the
+unrebased original until #192 merges.
 
 **Acceptance.** `c110664b`'s content is on `origin/main` (by content, not by
 claim), 25+ existing tests plus its own suite green, hosted clippy `-D warnings`
