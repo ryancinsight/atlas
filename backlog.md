@@ -7454,7 +7454,7 @@ Each of these lands in the provider that owns the bounded context. A RITK-local
 implementation of any of them is a boundary violation and fails ADR 0036
 verification condition 2.
 
-## ATLAS-COEUS-NLLS-004 — Gauss-Newton / Levenberg-Marquardt in coeus-optim [minor] — review
+## ATLAS-COEUS-NLLS-004 — Gauss-Newton / Levenberg-Marquardt in coeus-optim [minor] — completed
 
 **Delivered.** `crates/coeus-optim/src/least_squares/` holds the
 `LeastSquaresProblem` contract, the `LevenbergMarquardtConfig`/`Termination`
@@ -7465,7 +7465,11 @@ vocabulary, the damped Gauss-Newton solver, and a suite instantiated across
 Landed in two commits, the split being a peer takeover rather than a plan:
 `coeus` `53816ebf` (a peer picked up the uncommitted module and committed it)
 and `coeus` `4d634750` on `feat/coeus-optim-least-squares`, PR #258 (the clippy
-gate the first commit had not been run through).
+gate the first commit had not been run through). PR #258 is merged, and its
+head `d1b418c6` is an ancestor of the current Coeus default
+`5adc2d1649bfd2bf68c529b011308e150375810d`; the provider default exports the
+same least-squares module. This closes the source and provider integration
+state; the initialized Coeus checkout remains peer-owned and dirty.
 
 **The peer's commit fixed two real defects in this work**, both worth recording
 because neither is obvious from the code:
