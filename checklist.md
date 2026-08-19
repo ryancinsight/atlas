@@ -5636,3 +5636,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       the non-required `recurseml/analysis` status reports an analyzer error.
 - [x] Advance the Atlas Hyperion gitlink only after the merged default is
       fetched; rerun the exact-head and structural integration audits.
+
+## 2026-08-19 Hermes audit synchronization
+
+- [x] Reconcile Hermes `gap_audit.md`: HS-423 rounding and HS-425 SVE forced
+      dispatch were implemented but still listed as open. Provider PR #54
+      merges at default `da00fd6`; hosted Rust/docs, Miri, SDE, aarch64,
+      cargo-deny, and benchmark-budget gates pass. The non-required
+      `recurseml/analysis` status remains an analyzer error.
