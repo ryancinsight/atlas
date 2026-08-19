@@ -86,10 +86,13 @@ Themis, Proteus, Mnemosyne, Consus, Helios, Harmonia, Eunomia, Moirai, Melinoe,
 Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. These are peer-coordination
 residuals and were not modified.
 
-The clean Horae consumer-lock slice is pushed as provider commits `9cc9fd8`
-and `aefe641` on draft PR #19. Its standalone locked provider gates pass, but
-hosted `verify` and `supply-chain` are queued. Atlas keeps the Horae gitlink at
-`0631da0` until the exact provider head merges.
+The clean Horae consumer-lock slice is pushed as provider commits `9cc9fd8`,
+`aefe641`, and evidence-boundary correction `91a020c` on draft PR #19. Its
+local-graph provider gates pass, but the
+committed standalone lock is rejected before Nextest by the root overlay;
+hosted `verify` and `supply-chain` are the exact closure gate and remain
+queued. Atlas keeps the Horae gitlink at `0631da0` until the exact provider
+head merges.
 
 Hyperion remains a separate lock-coherence residual: its clean lock pins
 Aequitas `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`, and root-overlay

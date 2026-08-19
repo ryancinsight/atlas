@@ -81,10 +81,13 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   `repos/horae/Cargo.lock` and its provider-local `backlog.md`, `checklist.md`,
   and `gap_audit.md`; no Horae source or peer-owned checkout is in scope.
 - **Horae result:** provider lock commit `9cc9fd8` plus PM synchronization
-  `aefe641` are pushed on draft PR #19. Standalone format, locked metadata,
+  `aefe641` and evidence-boundary correction `91a020c` are pushed on draft PR
+  #19. Local-graph format, locked metadata,
   both feature configurations, Clippy, 20/20 Nextest, doctest, rustdoc, and
-  cargo-deny pass; hosted `verify` and `supply-chain` remain queued. The root
-  Horae gitlink remains at `0631da0` until the exact provider head merges.
+  cargo-deny pass; the committed standalone lock is rejected before Nextest by
+  the root overlay, so hosted `verify` and `supply-chain` are the exact closure
+  gate and remain queued. The root Horae gitlink remains at `0631da0` until the
+  exact provider head merges.
 - **Next lock residual:** Hyperion's clean standalone lock still pins Aequitas
   `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`. Its root-overlay
   `cargo check --locked --all-features` fails before compilation because the

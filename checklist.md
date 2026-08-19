@@ -61,9 +61,12 @@
 - [ ] Reconcile the claimed Horae lock slice outside the Atlas overlay, then
       run its locked package gates and synchronize the provider-local PM before
       advancing the root gitlink.
-- [x] Push Horae lock commit `9cc9fd8` and PM synchronization `aefe641` on
-      draft PR #19. Standalone provider gates pass; hosted `verify` and
-      `supply-chain` are queued, so leave the root gitlink at `0631da0`.
+- [x] Push Horae lock commit `9cc9fd8` and PM synchronization `aefe641` plus
+      evidence-boundary correction `91a020c` on draft PR #19. Local-graph
+      provider gates pass; exact standalone locked
+      closure is hosted-gated because the root overlay rejects the committed
+      lock before Nextest. Hosted `verify` and `supply-chain` are queued, so
+      leave the root gitlink at `0631da0`.
 - [ ] After Horae hosted closure, refresh Hyperion's standalone lock from
       Aequitas `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`; do not
       start a second merge-affecting provider slice while Horae is pending.
