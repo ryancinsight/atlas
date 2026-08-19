@@ -54,6 +54,11 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   commit; the previously collected CI/Python runs remain attached to `f9d04a79`
   and do not establish the new default head. No run is currently attached to
   `9fa4981e`.
+- **Gaia polyline evidence:** Atlas gitlink `4980732` contains the validated
+  `gaia::Polyline` contract, and RITK's TCK/TRX consumers import that type
+  directly. Gaia cleanup commit `f88ff17` is not an ancestor of its default
+  and has no remote branch; the nested checkout is detached in a peer rebase.
+  No Gaia or RITK files were changed by this audit.
 - **Mnemosyne evidence:** PR #62 source head `0022926` passed Rust
   verification, MSRV, Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit;
   `recurseml/analysis` is report-only. The provider PR merged at default

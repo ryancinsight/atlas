@@ -101,6 +101,14 @@ Aequitas `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`, and root-overlay
 local patches are absent from the committed lock. This is the next provider
 slice after Horae PR #19 reaches a hosted result; no Hyperion files were edited.
 
+Gaia's tractography boundary is present at Atlas gitlink `4980732`: the
+validated `gaia::Polyline` type is exported, and RITK's `ritk-tck` and
+`ritk-trx` crates consume it directly. The provider cleanup commit `f88ff17`
+is not an ancestor of Gaia default and has no remote branch. The nested Gaia
+checkout is detached during a peer rebase, so no provider or consumer files
+were changed; the remaining Gaia checklist entry is publication/cleanup state,
+not a missing Polyline implementation.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at

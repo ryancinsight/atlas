@@ -83,6 +83,10 @@
       17 provider checkouts: eight checkout-head drifts and fourteen dirty
       canonical checkouts. Preserve those peer-owned states; do not treat the
       cleanliness gate as provider source evidence.
+- [x] Audit Gaia's tractography boundary: the Atlas-pinned default `4980732`
+      exports the validated `Polyline`, and RITK TCK/TRX consume it directly.
+      Gaia cleanup commit `f88ff17` is local-only and the nested checkout is
+      detached in a peer rebase; no provider or consumer files were changed.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — current provider slice
 
