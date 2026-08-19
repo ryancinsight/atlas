@@ -5627,3 +5627,12 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       conformance-regression tests pass. Hosted overlay run `32252274386`
       passes. Hosted conformance `32252274384` still reports only the three
       pre-existing CFDrs/Coeus/Consus ratchet residuals.
+
+## 2026-08-19 Hyperion checklist cleanup
+
+- [x] Separate the fused `cargo-deny` and provider-registration checklist
+      entries in Hyperion commit `5e14b1b`; PR #17 merges at default
+      `a33c2f7`. Hosted `verify` and `supply-chain` pass in run `32252745134`;
+      the non-required `recurseml/analysis` status reports an analyzer error.
+- [x] Advance the Atlas Hyperion gitlink only after the merged default is
+      fetched; rerun the exact-head and structural integration audits.
