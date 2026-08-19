@@ -16,6 +16,7 @@ from atlas_scattered_containers_classify import (
     Occurrence,
     VEC_VEC,
     _gated_attribute_block,
+    iter_source_files,
     _path_decl_map,
     classify_file,
     compute_test_regions,
@@ -115,6 +116,23 @@ def test_path_under_tests_dir_is_test_local(tmp_path: Path) -> None:
     )
     assert len(occurrences) == 1
     assert occurrences[0].test_local is True
+
+
+def test_provider_worktree_lane_is_not_scanned(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "src/lib.rs",
+        "fn build() { let rows: Vec<Vec<f64>> = Vec::new(); rows }\n",
+    )
+    _write(
+        tmp_path,
+        "worktrees/peer/src/lib.rs",
+        "fn peer() { let rows: Vec<Vec<f64>> = Vec::new(); rows }\n",
+    )
+
+    files = iter_source_files(tmp_path)
+
+    assert files == [tmp_path / "src/lib.rs"]
 
 
 def test_benches_and_examples_are_bench_local(tmp_path: Path) -> None:

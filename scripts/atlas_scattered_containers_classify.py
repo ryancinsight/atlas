@@ -11,7 +11,9 @@ What it does
 ------------
 1. Scans ``*.rs`` sources under the ``.gitmodules``-registered Atlas members
    only (see ``atlas_stack.registered_members``) — never a bare directory
-   listing, so git-ignored private consumers never surface.
+   listing, so git-ignored private consumers never surface. Provider
+   ``worktrees/`` lanes are excluded because they are alternate checkouts,
+   not member source.
 2. Strips ``//`` line comments, ``/* */`` block comments, and string/char
    literals (including raw strings) before any analysis, so a
    ``feature = "test-utils"`` value or a ``"mod tests {"`` template string
@@ -73,7 +75,7 @@ TEST_FILE_RE = re.compile(
     r"^(?:test|tests|bench)\.rs$|.*_(?:test|tests|bench|benches)\.rs$"
 )
 
-SKIP_DIRS = {".git", "target", "node_modules"}
+SKIP_DIRS = {".git", "target", "node_modules", "worktrees"}
 SKIP_SUFFIXES = (".rs.bk",)
 
 
@@ -419,7 +421,7 @@ def classify_file(member: str, member_root: Path, abs_path: Path) -> list[Occurr
 
 
 def iter_source_files(member_root: Path) -> list[Path]:
-    """All `*.rs` files under a member, skipping build/vendor/target trees."""
+    """All member `*.rs` files, excluding derived and alternate-checkout trees."""
     files: list[Path] = []
     for path in member_root.rglob("*.rs"):
         if path.suffix in SKIP_SUFFIXES:

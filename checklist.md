@@ -70,6 +70,10 @@
       before the source patch could be committed. The checkout is dirty and
       the provider already exceeds its lane bound. Reopen only from a clean
       source checkout or existing bounded lane; preserve peer state.
+- [x] Fix the ARCH-008 classifier to exclude provider `worktrees/` lanes from
+      member source scans. Focused coverage is 44/44 and the live scan has zero
+      lane paths; defer oracle regeneration until peer provider edits stabilize
+      the exact site set.
 - [x] Run the stack-wide book-link detector across all 23 registered books:
       every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
       Run its fixture regression suite with `PYTHONPATH=scripts`; 43/43 tests

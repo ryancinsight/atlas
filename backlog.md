@@ -2808,6 +2808,12 @@ converter; the existing bilinear differential remains the acceptance oracle.
   The scanner currently traverses `repos/consus/worktrees/*`, so a peer lane is
   counted as a second provider source and makes the live site set depend on
   lane topology.
+- **Current increment evidence:** the focused classifier suite is 44/44 after
+  adding a lane-exclusion regression. The live scan is now 242 production and
+  98 test/bench sites with zero `worktrees/` paths. The committed oracle still
+  reports 35 additions and 36 removals because peer provider edits and line
+  shifts are present in the shared tree; it is not regenerated from that
+  unstable state.
 - Outcome: 318 `Vec<Vec<_>>` occurrences across package sources, led by
   `consus-compression/src/chunking/iterator.rs` (10),
   `gaia/src/domain/topology/adjacency.rs` (8), and
