@@ -55,11 +55,8 @@
       provider edits.
 - [ ] Reconcile the moving Mnemosyne default `43cdf047` after exact-head run
       `32206977029` completes. Rust verification, MSRV, Loom, aarch64, and
-      ThreadSanitizer pass, but Miri fails at
-      `mnemosyne-backend/src/backends/unix.rs:292` because `SEGMENT_SIZE` is
-      not imported. Keep the gitlink unchanged until the provider fix and a
-      fresh exact-head run pass; then rerun exact-head, overlay, and lock-form
-      gates.
+      ThreadSanitizer pass; Miri is still in progress. Advance only the
+      gitlink, then rerun exact-head, overlay, and lock-form gates.
 - [x] Collect Aequitas post-merge CI `32198085105` and Pages
       `32198084983`; both pass at merged default `260ad10`.
 - [ ] Collect the corrected CFDrs exact-head run; run `32197696210` fails in
