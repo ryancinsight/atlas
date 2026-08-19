@@ -12711,3 +12711,12 @@ cache beside the configured `D:\\atlas\\target`. After verifying the exact
 directory and its `.rustc_info.json` derived-state marker, the fork was removed.
 The Horae provider scan now reports `target_forks: 0`; no source, lockfile, or
 checkout state changed.
+
+## Finding 2026-08-19: RITK Apollo 0.27 reconciliation is closed
+
+The prior RITK consumer residual is stale. RITK `main`, `origin/main`, and the
+Atlas gitlink converge at `6b9092bf`; the workspace and `ritk-filter` require
+Apollo `0.27.0`, and `Cargo.lock` resolves the package at git revision
+`d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab`. The exact-head provider audit,
+stack overlay, and 27 standalone lock-form checks pass. Three unrelated RITK
+peer lanes remain preserved and are not evidence against this closure.

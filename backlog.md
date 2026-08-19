@@ -236,22 +236,18 @@ Gaia `origin/main` is `9595668`. Atlas repairs the root pointer only. The
 nested Gaia checkout is clean but behind its fetched default, so it remains
 provider-owned state rather than an Atlas source edit.
 
-## ATLAS-RITK-APOLLO-027-RECONCILIATION-2026-08-18 — consumer forward sweep [patch]
+## ATLAS-RITK-APOLLO-027-RECONCILIATION-2026-08-18 — consumer forward sweep [patch] — closed 2026-08-19
 
-- **Status:** peer-owned checkout reconciliation required; no source or lock
-  file was changed in this audit.
-- **Evidence:** Atlas records RITK gitlink `f9d04a79`, the fetched RITK
-  `origin/main` at the same head. The initialized nested checkout is instead
-  a clean local `main` at `86bd9fba`, two local commits ahead of its stale
-  base and 56 commits behind fetched `origin/main`. Its workspace requirement
-  remains `apollo-fft = 0.26.0`; the current Apollo provider package is
-  `0.27.0`.
-- **Acceptance:** reconcile the stale RITK checkout through its owning branch,
-  regenerate the standalone RITK lock on the 0.27 graph, run the focused
-  `ritk-filter` locked metadata/check/Clippy/Nextest gates, then re-run Atlas
-  exact-head and overlay checks. Preserve the two local RITK commits until
-  their owner integrates or explicitly supersedes them; no compatibility path
-  is permitted.
+- **Status:** closed after the RITK default and initialized primary checkout
+  converged; no compatibility path was added.
+- **Evidence:** RITK `main` and `origin/main` are both `6b9092bf`. The
+  workspace and `ritk-filter` require `apollo-fft = 0.27.0`, and the committed
+  RITK lock resolves Apollo `0.27.0` at git revision
+  `d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab`.
+- **Acceptance:** the Atlas exact-head audit reports no current RITK
+  requirement residual; stack overlay and all 27 standalone lock forms pass.
+  The three unrelated RITK peer lanes remain preserved and are not part of
+  this closure.
 
 ## ATLAS-HOSTED-STATE-2026-08-18-2230 — exact-head gate recheck [patch]
 

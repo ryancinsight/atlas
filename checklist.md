@@ -297,19 +297,14 @@
       and Metal; Pages success and queued jobs are not substituted for failed
       gates.
 
-## ATLAS-RITK-APOLLO-027-RECONCILIATION-2026-08-18 — current residual
+## ATLAS-RITK-APOLLO-027-RECONCILIATION-2026-08-18 — closed 2026-08-19
 
-- [x] Reproduce the current exact-head and overlay failure. Both report
-      `repos/ritk/crates/ritk-filter/Cargo.toml` requiring `apollo-fft 0.26.0`
-      while the local provider tree is `0.27.0`; the overlay additionally
-      reports six RITK lock pins on the older Apollo/Hermes graph.
-- [x] Confirm ownership before editing. Atlas records RITK gitlink `f9d04a79`;
-      the nested checkout is clean but remains local `main` at `86bd9fba`
-      (two local commits, 56 commits behind fetched `origin/main`). No branch
-      switch, reset, lockfile rewrite, or peer file modification was performed.
-- [ ] Reconcile the stale checkout through the RITK owner, complete the
-      `apollo-fft` 0.27 requirement and lock forward sweep, run the focused
-      locked RITK gates, and re-collect Atlas exact-head/overlay evidence.
+- [x] Confirm RITK `main`, `origin/main`, and the Atlas gitlink converge at
+      `6b9092bf`; the workspace and `ritk-filter` require Apollo `0.27.0`.
+- [x] Confirm the committed RITK lock resolves Apollo `0.27.0` at
+      `d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab`.
+- [x] Re-run the exact-head audit, stack overlay, and 27 standalone lock-form
+      checks. All pass; preserve the three unrelated RITK peer lanes.
 
 ## ATLAS-AEQUITAS-STRUCTURE-001 — current provider slice
 
