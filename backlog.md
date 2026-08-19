@@ -723,6 +723,15 @@ and its live requested-provider coherence scope. The standalone version guard
 also reports `defect_count: 0`. This does not close the separate Helios lock
 drift from the overlay check, nor any hosted provider release or Pages gate.
 
+**Gitlink reconciliation (2026-08-19):** root commit `95a3f77` advances the
+Mnemosyne gitlink to fetched `origin/main` `d00f139e` and the Consus gitlink to
+fetched `origin/main` `2e0df9f8`. The exact-head provider audit passes for all
+22 registered providers and the CFDrs/Kwavers/Helios integrator pointers;
+`atlas-stack-overlay.py check` and `atlas-lock-form.py check` also pass. The
+Mnemosyne and Consus primary checkouts retain peer-owned dirty work, so this
+pointer-only increment makes no provider-local source, lockfile, or hosted-gate
+claim.
+
 **Clean-checkout proof (2026-08-18):** the provider audit now has an opt-in
 `--require-clean-checkouts` gate that compares each initialized checkout's HEAD
 to the committed gitlink and rejects tracked or untracked dirt. The gate is
