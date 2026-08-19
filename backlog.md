@@ -2262,6 +2262,31 @@ wrong for exactly those crates, and the correct order is inverted: **remove
 the in-source `warn(all)`/`warn(pedantic)` first**, which makes the table
 authoritative, and only then are the per-crate allows genuinely deletable.
 
+**Second member done: apollo** (`style/apollo-butterfly-lint-consolidation-217`,
+pushed). Different shape, because apollo has **no** in-source escalation — its
+table was already authoritative, so the redundancy analysis held. Two
+butterfly modules each carried the same pair of blanket allows;
+`too_many_arguments` was already in the table (pure duplication) and
+`many_single_char_names` moved into it with its reason recorded once —
+butterfly kernels name radix inputs a, b, c, d after the signal-flow diagrams
+they implement. **Four blanket file allows → one reviewed table entry.**
+
+Verified with `clippy -p apollo-fft --all-targets -D warnings`: nine errors
+remain and **none** names either removed lint. All nine are
+`missing_const_for_thread_local` in cache/scratch/twiddle modules this change
+does not touch — the documented windows-gnu false positive, filed below.
+
+**Apollo residual, found in passing:** three `thread_local!` sites
+(`radix_composite/cache.rs:119`, `mixed_radix/caches/scratch.rs:10`,
+`mixed_radix/caches/twiddle.rs:16`) lack the `#[expect(clippy::missing_const_for_thread_local)]`
+that `adaptive.rs`, `winograd/traits.rs` and `orchestration/cache/plans.rs`
+already carry, so apollo's clippy is red on gnu independently of this item.
+Two of the three already use `const { … }` initializers, making the lint a
+false positive there; `twiddle.rs` allocates via
+`with_capacity_and_hasher`, so its case is a real design question rather than
+a suppression. Left alone deliberately: that is a kernel-cache decision on a
+peer's tree, not part of a lint-hygiene item.
+
 **First member done: moirai** (`0746861`, branch
 `style/moirai-workspace-lint-authority-217`, pushed). `crate_level_allows`
 **39 → 20**, clippy `--all-targets -D warnings` 0, nextest 104/104. The floor
@@ -2538,9 +2563,25 @@ touched before that by two more gitlink commits. Derived state has been
 riding along in commits whose messages do not mention it.
 
 - Acceptance: the 35 are converted or individually justified in the oracle;
-  `--verify-oracle` wired into `atlas-conformance.yml` so new instances fail
-  at the PR that introduces them; the oracle only ever regenerated in a
-  commit whose subject says so.
+  ~~`--verify-oracle` wired into `atlas-conformance.yml`~~ **done by a peer,
+  2026-08-19**; the oracle only ever regenerated in a commit whose subject
+  says so.
+
+**A peer wired the gate while this was being written, and did it the right
+way round.** `atlas-conformance.yml` now runs `--verify-oracle`, with the
+oracle path and the classifier added to the trigger list. Critically they
+**did not regenerate the oracle** to make the new gate pass — it is still 243
+lines and still reports the same 35 — so the gate goes red and forces the
+conversion instead of absorbing it. That is the opposite of the `e9c5821`
+baseline-raise, and the right call.
+
+Their step comment also corrects an assumption in my measurement: CI scans a
+**clean checkout** pinned to the root gitlinks, while my numbers came from
+live worktrees carrying peer WIP. I checked the 20 sampled drift sites and
+all are **tracked and clean** — real committed content, not WIP — so the
+drift is genuine, though the exact CI count may differ where a member's
+worktree and its recorded gitlink disagree. The next PR run is the
+authoritative number.
 
 ## ATLAS-UNWIRED-GATES-224 — Instruments that exist, pass, and are never run [patch] — partly fixed 2026-08-19
 

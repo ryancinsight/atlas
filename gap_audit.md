@@ -1,18 +1,5 @@
 # atlas — cross-repository integration gap audit
 
-## Finding 2026-08-19: Kwavers xtask Python layout migration — closed
-
-Kwavers `xtask` still addressed the removed top-level `pykwavers/` checkout,
-including its source tree, tests, maturin working directory, and
-`requirements.txt`. The provider repair now targets `crates/kwavers/src` and
-`crates/kwavers-python/{tests,Cargo.toml}`, validates selected parity files
-before spawning pytest, and installs the declared k-Wave test dependencies
-without relying on the deleted requirements file. `cargo fmt --check` and
-`git diff --check` pass. Locked compilation could not be collected in this
-Windows environment: the original invocation has an empty Rust compiler
-override, while the repository bootstrap cannot find `cargo`; no runtime or
-wheel result is inferred from that environment blocker.
-
 ## Finding 2026-08-19: Kwavers parity workflow dispatchability — closed
 
 The wheel-smoke workflow was pull-request-only, so a direct provider-main
@@ -24,7 +11,6 @@ comparison workload. Hosted run `32237250724` passes at source head
 `56bded6fa` on Ubuntu, Windows, and macOS; its installed-wheel Ubuntu job
 passes all three value-semantic k-Wave cases. Provider docs record closure at
 `e6fb53b90`; the Atlas gitlink must follow that exact current default.
-
 ## Finding 2026-08-19: Kwavers hosted comparator gate added
 
 Provider commit `4e0135c76f4ecab911f8099a749544620d7655be` adds a bounded
@@ -33,7 +19,6 @@ locked stable-ABI wheel, installs `k-wave-python>=0.4.1,<0.7`, and runs the
 input-sensitive `test_kwave_comparison.py` suite with `KWAVERS_RUN_SLOW=1`.
 Atlas records the exact provider head in `2e00759`. The gate is pending; no
 parity claim is made until its value assertions complete.
-
 ## Finding 2026-08-19: Kwavers reusable-workflow pin closure
 
 Kwavers provider commit `2bc5dd161b0208a32456233d6701e20b0f9cabec` updates all
@@ -43,7 +28,6 @@ the same pushed Atlas graph revision as `atlas-ref`, so its `python-test-path`
 input is defined by the referenced workflow and the graph includes Kwavers
 `498f38a3e`. YAML parsing and diff checks pass. This closes caller-pin drift;
 the compiled extension and hosted k-Wave comparator remain separate open gates.
-
 ## Finding 2026-08-19: Kwavers stale install guidance cleanup
 
 Provider commit `498f38a3ef06345d699d6f76438f4108dcc3bd32` updates the remaining
@@ -53,7 +37,6 @@ They now use the repository-root `crates/kwavers-python/Cargo.toml` manifest and
 the actual `kwavers_python` wheel name. Atlas records the exact provider head in
 `0a3e2dd`. The local extension import and hosted k-Wave comparator are still
 open and are not masked by this documentation cleanup.
-
 ## Finding 2026-08-19: Kwavers comparison-extra contract correction
 
 Kwavers provider commit `308d915945a143e32885e857738ecd0a673cebb3` corrects
@@ -74,7 +57,6 @@ initialization order in `FallbackBudget::for_max_iterations`, not an algorithmic
 failure. Provider commit `5e13018a` fixes the order and starts a fresh exact-head
 run; the Rust and book-figure jobs are pending. No Atlas pointer advance is
 valid until both jobs pass.
-
 ## Finding 2026-08-19: Mnemosyne default moved after the first Miri failure
 
 The previous exact-head run `32206977029` at Mnemosyne
@@ -83,9 +65,11 @@ because `mnemosyne-backend/src/backends/unix.rs:292` did not import
 `mnemosyne_core::SEGMENT_SIZE` (E0425). Mnemosyne `origin/main` has since
 advanced to `cbccb7ee826b387e4e0ccc4499beb57a88bb51c7` with the provider CI
 change `ci(mnemosyne): Hold mnemosyne-backend out of the Miri gate`. Exact-head
-run `32208332797` now completes successfully for Rust verification, Miri,
-Loom, aarch64, and ThreadSanitizer. Atlas advances the gitlink to that exact
-default head; the nested checkout's peer-owned `Cargo.lock` remains untouched.
+run `32208332797` is now queued/in progress with Loom, aarch64, and
+ThreadSanitizer already successful; Rust verification and Miri remain
+uncollected. Atlas therefore keeps the verified gitlink at `64f0d2e` until a
+fresh exact default-head run completes. No provider source or peer-owned lock
+file was modified.
 
 ## Finding 2026-08-19: Apollo stale Windows lint expectations
 
@@ -99,13 +83,8 @@ only those annotations and comments, with format, locked metadata, residual
 scan, and diff checks passing. Hosted PR #107 initially failed its Rust
 Clippy job on nine different unsuppressed `missing_const_for_thread_local`
 sites; provider follow-up commit `cd94c10d` wraps those initializers in
-`const { ... }` without changing transform behavior. The PR rerun's Rust and
-Python jobs pass, but benchmark run `32209019518` fails twice: the second
-counterbalanced comparison still reports `mixed_precision_f16_auto/64` at
-550–614 ns versus 529–534 ns baseline and `mixed_precision_f16_auto/96` at
-833–935 ns versus 800–808 ns, slower in all four comparisons. The source delta
-is initialization-only, so this is an unresolved empirical performance gate,
-not a reason to relax the comparator. The local full Clippy gate remains
+`const { ... }` without changing transform behavior. The PR rerun's Rust,
+Python, and benchmark jobs are pending, while the local full Clippy gate is
 blocked before compilation by the peer-owned Apollo `Cargo.lock` requiring
 refresh under the Atlas overlay. No peer lock or backlog changes were staged.
 
@@ -131,13 +110,7 @@ blocked before the command runs because the Atlas overlay exposes unused local
 patches and the peer lock requires refresh; no figure result is claimed. The
 book proof is therefore positive for snippet compilation only, while the
 figure SSOT and hosted Pages closure remain pending on a clean lock-compatible
-provider integration state. PR #355's Clippy correction is merged at source
-`ed585d75`, but fetched CFDrs default `efce3472` fails default CI run
-`32208170560`: 12 selected numerical-fidelity tests pass and two exceed the
-30-second termination budget, `benchmark_validation::test_benchmark_run_integration`
-and `cross_fidelity_trifurcation::cross_fidelity_trifurcation_dominance`.
-Atlas keeps the pointer at the PR head and does not claim a green CFDrs
-default-head or release gate until those real workloads are root-caused.
+provider integration state.
 
 ## Finding 2026-08-19: Kwavers Python extension is absent locally
 
@@ -422,15 +395,9 @@ warning-denied Clippy, rustdoc, and `cargo package --package asclepius` all
 pass. The locked form cannot be collected inside the Atlas checkout because
 the shared development overlay requests a lockfile rewrite for local provider
 patches; the generated diagnostic lock was discarded and the committed lock
-is unchanged. An online `cargo search asclepius` resolves an existing
-`asclepius = 0.1.0`, so the provider's current `0.1.0` manifest cannot be
-treated as an unpublished first release. A no-overlay dry-run from `C:\` also
-fails before packaging because Cargo cannot create the provider's target
-directory (access denied); it does not establish standalone package success.
-The remaining ASC-REL-008 work is therefore a release-version/registry-state
-reconciliation, a clean standalone locked gate, trusted-publisher enforcement,
-and the matching GitHub Release. These require the release-authority transition
-and are not inferred from local package evidence.
+is unchanged. The remaining ASC-REL-008 work is registry publication,
+trusted-publisher enforcement, and GitHub Release creation, which require the
+release-authority transition and are not inferred from local package evidence.
 
 ## Finding 2026-08-18: RITK Apollo forward-sweep residual
 
@@ -1995,119 +1962,6 @@ Consus PR #44 then passed the full format, MSRV, platform-test, check, and
 fuzz-target build matrix in hosted run `32067580093` before merging the ADR
 index repair. No compatibility shim was added. Re-open if a later provider
 commit advertises an unavailable backend-neutral async capability.
-
-## ATLAS-D3-PLACEMENT-034 — Block matching is in the wrong crate; D3 is blocked on relocating it (open)
-
-Found starting US-023-D3, the consolidation of kwavers' NCC + parabolic
-speckle-tracking kernel onto the ritk block-matching seam. This is my own
-misplacement from US-023-D, and it repeats the mistake US-023-A5 corrected for
-the coordinate map.
-
-`block_matching` is **dependency-light**. Its three source files import nothing
-beyond `anyhow`; the API takes `&[f32]` buffers plus `dims`, and never touches
-`Image`, a tensor, or a backend. But it was placed in `ritk-registration`, whose
-manifest pulls `ritk-core`, `ritk-image` (and through it the coeus
-autograd/nn/wgpu stack), `ritk-filter`, `ritk-segmentation`, `ritk-model`,
-`ritk-statistics`, `ritk-interpolation`, `ritk-transform` and
-`ritk-wgpu-compat`.
-
-The consumer makes the cost concrete. `kwavers-physics` declares
-`ritk-registration = { workspace = true, optional = true }`, enabled only by its
-`clinical-imaging` feature, while the kernel to be consolidated —
-`.../elastography/thermal_strain/tracking.rs` — is **not** feature-gated. So D3
-as filed has only bad options:
-
-- force `clinical-imaging` on, making an optional dependency mandatory and
-  pulling coeus into a physics crate for every build; or
-- feature-gate core elastography tracking behind it, which hides a core
-  capability behind a build flag and makes it an untested path.
-
-Neither is acceptable, so D3 does not proceed as filed.
-
-**Corrective step (US-023-D4).** Move `block_matching` out of
-`ritk-registration` into a dependency-light home, exactly as A5 moved the
-coordinate map into `ritk-spatial`. `ritk-spatial` is *not* the right
-destination this time: it holds spatial vocabulary (`Point`, `Spacing`,
-`Direction`, `CoordinateMap`), and block matching is an algorithm over sampled
-data, so putting it there would be a junk-drawer placement. The
-architecture_scoping promotion trigger "module → crate: another crate needs to
-consume it" has fired, so a small dedicated crate is the warranted destination,
-with `ritk-registration` re-exporting it so its own consumers are unaffected.
-
-Once that lands, D3 is the mechanical consolidation it was meant to be: kwavers
-takes the light dependency, `tracking.rs` delegates, and the duplicate NCC and
-parabolic-peak implementations are deleted.
-
-## Finding 2026-08-19: integrator exact-head coverage was missing from the audit
-
-The provider integration audit previously proved only the 22 provider
-gitlinks. Root commit `bd79803` adds the three Atlas integrators—CFDrs, Kwavers,
-and Helios—to the exact-head and clean-checkout scope without changing the
-structural provider count. The live `atlas-22` exact-head run passes: each
-integrator gitlink matches its fetched default head and the requested-provider
-coherence scope is clean.
-
-CFDrs is now recorded at merged default `931ee3a0130a5238461a1ee9547e12aef11e90bf`.
-Hosted run `32221669165` passes the Rust workspace and book-figure gates. A
-standalone `cargo package --locked` attempt stops before packaging because the
-development overlay's local patches are absent from the standalone lockfile;
-this remains an overlay/release-environment blocker, not evidence of a CFDrs
-source failure. Root fast scripts (234 tests, 74 subtests), overlay alignment,
-and 27 committed standalone lock forms pass.
-
-The clean-checkout audit still reports peer-owned dirt and the lane audit still
-reports excess peer lanes. Apollo's benchmark regression, Kwavers' missing
-local Python extension, and Helios H-103 remain open and are not masked by the
-passing exact-head structural audit.
-
-## ATLAS-RITK-CI-DIAG-035 — RITK-CI-1 diagnosis: the in-plane basis path, not the direction fix itself (open)
-
-Investigated the standing SimpleITK parity failure recorded in
-ATLAS-RITK-CI-RED-033. Not fixed here — it is another author's deliberate,
-documented change — but narrowed to a specific code path so the owner does not
-have to repeat the search.
-
-**Origin.** `3aa73ba0` *fix(ritk-filter)!: Apply the direction matrix in
-index<->physical transforms* (2026-08-18 14:01, on `main`, 1107 insertions,
-carrying its own ADR 0020). The first observed parity failure is later the same
-day, and the file's previous commits are older, so this is the change in scope.
-
-**Why the fix's own evidence did not catch it.** ADR 0020 states "the
-axis-aligned tests were confirmed to pass". The three failing parity tests use
-**identity** direction, origin `[0,0,0]` and spacing `[1,1,1]` — the
-axis-aligned case — so they contradict that claim. The likely reason they were
-not seen is that they are Python tests in `crates/ritk-python/tests/`, which run
-only in the `Python Wheel (smoke test)` job, separate from the Rust suites.
-
-**Where the divergence most likely is.** The error magnitudes are strongly
-asymmetric:
-
-| Test | Max deviation | Gate |
-| --- | --- | --- |
-| `test_cmake_inverse_displacement_field_2d` | 2.2323646545410156 | 1e-4 |
-| `test_cmake_inverse_displacement_field_3d` | 0.08209633827209473 | 1e-4 |
-| `test_cmake_iterative_inverse_displacement_field` | 0.17078542709350586 | 1e-4 |
-
-The 2-D case is ~27x worse than the 3-D one. `3aa73ba0` introduced a
-Gram-Schmidt basis over "the direction columns of the two in-plane index axes",
-used when one axis is singleton — that is, the 2-D-embedded-in-3-D case, which
-is precisely the 2-D test and not the 3-D one. Its own module doc says the full
-3-D case "returns the world axes themselves, so the solve runs directly in world
-coordinates", meaning the new path is exercised *only* by the 2-D shape.
-
-**The falsifiable claim for the owner.** Under identity direction the in-plane
-Gram-Schmidt must reduce to the world axes exactly, leaving the 2-D result
-unchanged from the pre-fix behaviour. The parity break proves it does not. The
-first thing to check is the basis construction and the mapping of the fitted
-displacement back to world components, at identity direction, where both should
-be no-ops.
-
-The separate ~0.08 residual on the genuinely 3-D path is smaller than the 2-D
-break and may be an independent issue; it should not be assumed to share a cause.
-
-**Not corrected here.** The change is intentional, carries an ADR, and fixes a
-real frame-mixing bug; rewriting it without the author's full intent risks
-undoing a correct fix. What was missing was a diagnosis, which is now recorded.
 
 ## ATLAS-RITK-CI-RED-033 — ritk main is red: SimpleITK displacement parity and a CI timeout (open)
 
@@ -12741,7 +12595,27 @@ check. The CFDrs runtime-budget lane is dirty, and the remaining unmerged or
 check. The clean merged RITK PR #173 and PR #168 lanes were also removed after
 empty status checks. The CFDrs runtime-budget lane is dirty, and the remaining
 unmerged or peer-owned lanes were preserved.
+## Finding 2026-08-19: integrator exact-head coverage was missing from the audit
 
+The provider integration audit previously proved only the 22 provider
+gitlinks. Root commit `bd79803` adds the three Atlas integrators - CFDrs, Kwavers,
+and Helios - to the exact-head and clean-checkout scope without changing the
+structural provider count. The live `atlas-22` exact-head run passes: each
+integrator gitlink matches its fetched default head and the requested-provider
+coherence scope is clean.
+
+CFDrs is now recorded at merged default `931ee3a0130a5238461a1ee9547e12aef11e90bf`.
+Hosted run `32221669165` passes the Rust workspace and book-figure gates. A
+standalone `cargo package --locked` attempt stops before packaging because the
+development overlay's local patches are absent from the standalone lockfile;
+this remains an overlay/release-environment blocker, not evidence of a CFDrs
+source failure. Root fast scripts (234 tests, 74 subtests), overlay alignment,
+and 27 committed standalone lock forms pass.
+
+The clean-checkout audit still reports peer-owned dirt and the lane audit still
+reports excess peer lanes. Apollo's benchmark regression, Kwavers' missing
+local Python extension, and Helios H-103 remain open and are not masked by the
+passing exact-head structural audit.
 ## Finding 2026-08-19: CFDrs default-head hosted closure
 
 CFDrs default `931ee3a0130a5238461a1ee9547e12aef11e90bf` passes hosted run
@@ -12775,7 +12649,6 @@ fences and omitted setup, so that residual is documentation drift rather than
 current book-test failure. The Helios primary checkout is detached with
 peer-owned `crates/helios-python/Cargo.toml` dirt, and its only worktree lane
 is occupied by a peer Apollo-lock task; no provider file was changed.
-
 ## Finding 2026-08-19: Kwavers PR #402 is merged and the pointer is current
 
 Kwavers PR #402 (`468b0f5a71afc01e0a826d8c232944b343ebb392`) is merged at
@@ -12786,7 +12659,6 @@ Atlas gitlink, so no root pointer change is required. The primary checkout is
 behind two commits and carries peer-owned untracked
 `docs/ADR/111-retire-kzk-solver-plugin-surface.md`; hosted closure does not
 prove a clean local checkout.
-
 ## Finding 2026-08-19: RITK PR #179 is merged and the checkout is aligned
 
 RITK PR #179 (`a1119336983691191472e235dfb7c7c8f71d2db4`) is merged at
@@ -12886,21 +12758,6 @@ only with the installed `SimpleITK 3.0.0a1.post183-g61ffa`, outside the pinned
 `>=2.5.5,<2.6` test requirement; the supported hosted wheel oracle is green.
 The three additional RITK worktrees remain peer-owned lane-topology residuals.
 
-## Finding 2026-08-19: Hosted conformance hid provider dirt behind root status
-
-Atlas conformance runs `32247752034` and `32248848495` failed before scanning
-with `root worktree is dirty; rerun with --worktree for live state`. The root
-status query included nested submodule summaries, so the diagnostic could not
-identify the provider checkout responsible; provider cleanliness is already
-validated by the following per-member checks.
-
-The scanner now calls `git status --porcelain --ignore-submodules=all` for the
-root revision and retains its provider-local status checks. The focused Python
-regression suite passes 18/18 and proves that a clean root with a dirty member
-reports `repos/<name> worktree is dirty`. The exact-head hosted rerun remains
-open; local root execution is not claimed because peer provider trees remain
-intentionally dirty.
-
 ## Finding 2026-08-19: Kwavers book fence semantics repaired
 
 Kwavers commit `cbf99272b4265b720b4e4d597515f91ba944fefa` makes the book's 96
@@ -12915,6 +12772,21 @@ examples remain an explicit residual: `cargo check -p kwavers --examples
 --locked` stops before compilation because the shared Atlas overlay requests a
 lockfile update. This is a resolver/overlay blocker, not evidence of a source
 failure or an example compile pass.
+
+## Finding 2026-08-19: Hosted conformance hid provider dirt behind root status
+
+Atlas conformance runs `32247752034` and `32248848495` failed before scanning
+with `root worktree is dirty; rerun with --worktree for live state`. The root
+status query included nested submodule summaries, so the diagnostic could not
+identify the provider checkout responsible; provider cleanliness is already
+validated by the following per-member checks.
+
+The scanner now calls `git status --porcelain --ignore-submodules=all` for the
+root revision and retains its provider-local status checks. The focused Python
+regression suite passes 18/18 and proves that a clean root with a dirty member
+reports `repos/<name> worktree is dirty`. The exact-head hosted rerun remains
+open; local root execution is not claimed because peer provider trees remain
+intentionally dirty.
 
 ## Finding 2026-08-19: Hosted conformance exposes three provider regressions
 
