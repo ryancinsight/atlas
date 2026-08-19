@@ -13,10 +13,11 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck [patch]
 
-- **Status:** Tyche cleanup and Aequitas integration are complete for this
-  increment. The current hosted residuals are Mnemosyne Miri, CFDrs exact-head
-  verification, Aequitas post-merge CI/Pages, Themis Pages deployment, and the
-  Horae lock PR; the root exact-head and overlay gates are now green.
+- **Status:** Tyche cleanup, Aequitas integration, and the Mnemosyne provider
+  cleanup are complete for this increment. The current hosted residuals are
+  CFDrs exact-head verification, Aequitas post-merge CI/Pages, Themis Pages
+  deployment, and the Horae lock PR; the root exact-head, overlay, lock-form,
+  and conformance gates are green after advancing the Mnemosyne pointer.
 - **Tyche evidence:** provider commit `de925e6` consolidates the shared
   Latin-hypercube/Sobol checked index conversions, removes five production
   type-suffixed helper names, and merged through PR #26 at default
@@ -54,14 +55,18 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   commit; the previously collected CI/Python runs remain attached to `f9d04a79`
   and do not establish the new default head. No run is currently attached to
   `9fa4981e`.
-- **Hosted recheck:** Mnemosyne CI `32196541600` is in progress only for Miri;
-  Rust verification, Loom, aarch64, and ThreadSanitizer pass. Aequitas CI
+- **Mnemosyne evidence:** PR #62 source head `0022926` passed Rust
+  verification, MSRV, Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit;
+  `recurseml/analysis` is report-only. The provider PR merged at default
+  `553499056ae37f3aa9f249cc507a0a09e55fd08d`, and Atlas stages that exact
+  merge commit without modifying the provider checkout.
+- **Hosted recheck:** Aequitas CI
   `32198085105` and Pages `32198084983`, and CFDrs CI `32197696210`, remain
   queued at their exact heads. Themis CI `32194584768` and MSRV `32194584736`
   pass at `0484a333`; Pages `32194583598` has build and report success but its
   deploy job remains queued.
-- **Acceptance:** collect the remaining Themis Pages deploy, Mnemosyne Miri,
-  Aequitas post-merge, and CFDrs exact-head runs; explicitly classify the
+- **Acceptance:** collect the remaining Themis Pages deploy, Aequitas
+  post-merge, and CFDrs exact-head runs; explicitly classify the
   absent RITK default run, and collect Horae PR #19's exact-head checks. The
   root exact-head and overlay gates now pass; preserve peer-owned checkout and
   lane state.
@@ -108,8 +113,9 @@ are peer coordination state; no lane or checkout was changed by this pass.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 
-- **Status:** provider implementation complete at `0022926`; PR #62 is ready
-  for review, with Miri and CodeRabbit still in progress and merge open.
+- **Status:** provider implementation complete at `0022926`; PR #62 merged at
+  default `553499056ae37f3aa9f249cc507a0a09e55fd08d`, and the Atlas gitlink is
+  advanced to that merge commit.
 - **Scope:** `crates/mnemosyne-arena/src/segment/pool/numa_bucket.rs` and its
   two callers; no allocator algorithm or public API change.
 - **Acceptance:** replace the two type-suffixed production bucket helpers with
@@ -118,13 +124,12 @@ are peer coordination state; no lane or checkout was changed by this pass.
   `type_suffixed_fns` count from 2 to 0 without increasing any debt class.
 - **Verification:** local format, package Clippy, sanctioned nextest 65/65,
   doctest compilation, warning-free rustdoc, and the provider conformance
-  report pass at the exact commit. Collect hosted checks before advancing the
-  Atlas gitlink.
+  report pass at the exact commit. Hosted checks passed before advancing the
+  Atlas gitlink to the provider merge commit.
 - **Hosted state:** PR #62 head `0022926` has Rust verification
-  `32196541600`, MSRV `32196541558`, Loom, aarch64, and ThreadSanitizer
-  passing; Miri remains in progress. CodeRabbit passes;
-  `recurseml/analysis` is report-only. Miri completion and the merge remain
-  open.
+  `32196541600`, MSRV `32196541558`, Loom, Miri, aarch64, ThreadSanitizer,
+  and CodeRabbit passing; `recurseml/analysis` is report-only. The provider
+  merge commit is `553499056ae37f3aa9f249cc507a0a09e55fd08d`.
 
 **Instrument correction, applied before anything else was measured.**
 `scripts/atlas-conformance.py:131` classified a file as test code only when a

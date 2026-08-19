@@ -28,14 +28,16 @@ Hephaestus hosted verification is complete on its actual default branch
 `master`, head `607ce3f`: CUDA `32083561386`, WGPU `32083561356`, ROCm
 `32083561357`, and Metal `32083561389` pass. This supersedes the earlier
 absence-of-default-run classification; it does not close the independent RITK,
-Consus, Coeus, or queued Themis/Mnemosyne residuals.
+Consus, Coeus, or queued Themis Pages residual.
 
-Mnemosyne PR #62 is ready for review at provider head `0022926`. Its local allocator and
-profiler gates pass 65/65, warning-denied Clippy, doctest compilation,
-warning-free rustdoc, and `type_suffixed_fns=0`. Hosted Rust verification
-`32196541600`, MSRV `32196541558`, Loom, aarch64, and ThreadSanitizer pass;
-Miri remains in progress and is the remaining merge gate. CodeRabbit passes
-and `recurseml/analysis` remains report-only.
+Mnemosyne PR #62 completed at provider source head `0022926`. Its local
+allocator and profiler gates pass 65/65, warning-denied Clippy, doctest
+compilation, warning-free rustdoc, and `type_suffixed_fns=0`. Hosted Rust
+verification `32196541600`, MSRV `32196541558`, Loom, Miri, aarch64,
+ThreadSanitizer, and CodeRabbit pass; `recurseml/analysis` remains
+report-only. The PR merged at default
+`553499056ae37f3aa9f249cc507a0a09e55fd08d`, and Atlas advances the gitlink to
+that exact merge commit without modifying the provider checkout.
 
 CFDrs PR #355 now carries the provider timeout fix at `1bebb5e1`. The failed
 Rust workspace run `32190491996` is classified as a pre-existing timeout also

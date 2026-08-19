@@ -42,8 +42,13 @@
 - [x] Collect the Themis post-merge CI/MSRV state: runs `32194584768` and
       `32194584736` pass at `0484a333`. Pages run `32194583598` has build and
       report success, but deployment remains queued.
-- [ ] Collect Mnemosyne Miri, Aequitas post-merge, CFDrs exact-head, and the
-      remaining Themis Pages deployment; explicitly classify the absence of a
+- [x] Collect Mnemosyne Miri and merge PR #62 at provider default
+      `553499056ae37f3aa9f249cc507a0a09e55fd08d`; Rust verification, MSRV,
+      Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit pass, while
+      `recurseml/analysis` remains report-only. Advance the Atlas gitlink
+      without modifying the provider checkout.
+- [ ] Collect Aequitas post-merge, CFDrs exact-head, and the remaining Themis
+      Pages deployment; explicitly classify the absence of a
       run for RITK default `9fa4981e`. Queued or in-progress status remains
       distinct from hosted closure. Preserve all peer-owned nested checkout
       and lane dirt.
@@ -84,11 +89,13 @@
       profiler packages, warning-denied Clippy, doctest compilation,
       warning-free rustdoc, and conformance `type_suffixed_fns=0` with no
       increased debt class.
-- [ ] Collect Miri and CodeRabbit for ready PR #62, then merge the provider
-      cleanup before advancing the Atlas gitlink. Rust verification
-      `32196541600`, MSRV `32196541558`, Loom, aarch64, and ThreadSanitizer
-      pass; Miri is in progress. CodeRabbit passes and `recurseml/analysis`
-      is report-only.
+- [x] Hosted checks passed before advancing the Atlas gitlink to the provider
+      merge commit; `recurseml/analysis` remains report-only.
+- [x] Collect hosted checks and merge PR #62 at provider default
+      `553499056ae37f3aa9f249cc507a0a09e55fd08d`; Rust verification
+      `32196541600`, MSRV `32196541558`, Loom, Miri, aarch64,
+      ThreadSanitizer, and CodeRabbit pass. `recurseml/analysis` is
+      report-only. Advance the Atlas gitlink without changing provider files.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-LIVE
 
