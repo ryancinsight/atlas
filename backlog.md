@@ -124,10 +124,12 @@ configured shared target is `D:\atlas\target`; the repo-local cache is derived
 state, not source. Its exact recursive deletion was refused by the shell safety
 policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
 
-## ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18 — NumPy spatial-axis contract [patch] — in progress
+## ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18 — NumPy spatial-axis contract [patch] — blocked
 
-- **Owner:** current session; RITK provider branch `fix/python-array-direction`;
-  Atlas scope is this item and the synchronized root PM records.
+- **Owner:** current session; provider source work is parked behind shared RITK
+  checkout contention. The prior `fix/python-array-direction` checkout was
+  switched away by a peer while its source patch was uncommitted; Atlas scope
+  is this item and the synchronized root PM records.
 - **Evidence:** merged RITK default `6bd4bc14` has queued default CI/Python CI
   runs `32203816886` and `32203816879`. The preceding exact-head PR workflow
   `32200267421` passes Rustfmt, Clippy, dependency alignment, and the platform
@@ -148,9 +150,17 @@ policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
   displacement value comparisons at the existing `1e-4` oracle; focused Rust,
   Python binding, format, Clippy, documentation, and hosted checks pass at one
   exact provider head; Atlas then advances only to that verified merged default.
-- **Residual:** the root exact-head audit currently passes at `6bd4bc14`; the
-  queued default runs are collection state, not closure evidence. The RITK
-  worktree topology and unrelated provider dirt remain peer coordination state.
+- **Verification before parking:** the ephemeral source patch passed
+  `cargo nextest run -p ritk-python --lib` (47/47) and
+  `cargo clippy -p ritk-python --all-targets -- -D warnings`; the release wheel
+  build hit the 120-second command ceiling and produced no artifact. These
+  results do not establish hosted wheel closure because the patch was not
+  committed.
+- **Blocker and reopen trigger:** the nested RITK checkout is now `main` at
+  `39442c72` after peer lock regeneration and carries lockfile dirt; its
+  provider worktrees already exceed the two-tree bound. Do not switch, reset,
+  stash, or create another lane. Reopen when a clean provider source checkout
+  or an existing bounded lane is available for the NumPy correction.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 

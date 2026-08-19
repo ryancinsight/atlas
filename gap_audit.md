@@ -15,6 +15,13 @@ tolerance. The source cause is the Python NumPy `[Z,Y,X]` constructor retaining
 an identity internal direction after the direction-aware filter migration;
 the provider fix is tracked under `ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18`.
 
+The source item is currently blocked by shared-checkout contention: the
+provider checkout was switched away while the patch was uncommitted, then
+lock-regenerated at `39442c72`; the checkout carries lockfile dirt and the
+provider already exceeds its two-tree bound. The ephemeral patch passed
+provider nextest 47/47 and warning-denied Clippy, but no committed source or
+wheel artifact exists.
+
 Tyche cleanup commit `de925e6` consolidates the checked index conversions shared
 by Latin-hypercube and Sobol designs, renames the bounded counter helper to its
 domain contract, and removes all five production type-suffixed helper names.

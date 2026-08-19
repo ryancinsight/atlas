@@ -64,10 +64,12 @@
       platform test suites pass. The provider fix is tracked in
       `ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18`; no tolerance widening is
       permitted.
-- [ ] Complete the RITK NumPy `[Z,Y,X]` internal-direction correction, run the
-      provider wheel smoke suite and focused Rust gates, then collect hosted
-      checks at the exact final provider head before advancing the Atlas
-      gitlink. Preserve unrelated peer lanes and checkout dirt.
+- [blocked] RITK NumPy `[Z,Y,X]` internal-direction correction: the ephemeral
+      patch passed provider nextest 47/47 and warning-denied Clippy, but the
+      shared checkout was switched away and lock-regenerated at `39442c72`
+      before the source patch could be committed. The checkout is dirty and
+      the provider already exceeds its lane bound. Reopen only from a clean
+      source checkout or existing bounded lane; preserve peer state.
 - [x] Run the stack-wide book-link detector across all 23 registered books:
       every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
       Run its fixture regression suite with `PYTHONPATH=scripts`; 43/43 tests
