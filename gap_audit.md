@@ -1,5 +1,19 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-19: Apollo stale Windows lint expectations
+
+The live Apollo source census found 42 host-specific
+`missing_const_for_thread_local` expectations across 28 files, not the 44
+sites in the provider backlog. They were all attached to `thread_local!`
+initializers already using `const` blocks; Apollo's pinned Clippy 1.97 no
+longer emits the diagnostic, so the expectations and the stale crate-level
+allow were mock-shaped suppression debt. Provider commit `6be8cd28` removes
+only those annotations and comments, with format, locked metadata, residual
+scan, and diff checks passing. PR #107 is open; hosted Rust, Python, and
+benchmark checks are pending, while the local full Clippy gate is blocked
+before compilation by the peer-owned Apollo `Cargo.lock` requiring refresh
+under the Atlas overlay. No peer lock or backlog changes were staged.
+
 ## Finding 2026-08-18: Gaia direction-set provider slice
 
 Gaia provider branch `feat/gaia-direction-set` commit `3c2d655` adds the

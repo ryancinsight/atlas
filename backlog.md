@@ -2303,10 +2303,10 @@ real-word false positives guarded (`..._matches_direct_reduced_precision` uses
 
 ## ATLAS-APOLLO-LINT-EXPECT-ROT-001 — Remove obsolete Windows Clippy expectations [patch] — in-progress
 
-- Owner: codex coordinator; scope: Apollo source files containing the 44
+- Owner: codex coordinator; scope: Apollo source files containing the 42
   `#[cfg_attr(windows, expect(clippy::missing_const_for_thread_local, ...))]`
-  sites. Non-goals: Apollo's peer-owned `Cargo.lock` and `backlog.md`, the
-  Stockham policy work, and unrelated provider consumers.
+  sites across 28 files. Non-goals: Apollo's peer-owned `Cargo.lock` and
+  `backlog.md`, the Stockham policy work, and unrelated provider consumers.
 - Acceptance: the expectations are removed or narrowed only if the pinned
   toolchain still emits the lint; Apollo's workspace Clippy gate passes with
   `-D warnings` and no `-A` override, with value-semantic tests unchanged.

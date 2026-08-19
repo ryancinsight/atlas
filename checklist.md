@@ -5,6 +5,10 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
+- [ ] Collect and merge Apollo PR #107 at provider commit `6be8cd28` after
+      its Rust, Python, and benchmark checks complete. The local source audit
+      removed 42 obsolete Windows expectations across 28 files; local locked
+      Cargo gates remain blocked by the peer-owned overlay lock refresh.
 - [x] Re-run stack-overlay, lock-form, and conformance checks after the
       Aequitas integration: lock-form passes for 27 standalone locks,
       conformance passes 12/12, and the latest overlay is aligned.
