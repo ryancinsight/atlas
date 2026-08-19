@@ -13,13 +13,14 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck [patch]
 
-- **Status:** Tyche cleanup, Aequitas integration, and the Aequitas/Themis
-  hosted closures are complete for this increment. The remaining integration
-  residuals are Apollo PR #107's rerun, Mnemosyne's moving default, CFDrs's
+- **Status:** Tyche cleanup, Aequitas integration, the Mnemosyne default-head
+  reconciliation, and the Aequitas/Themis hosted closures are complete for
+  this increment. The remaining integration residuals are Apollo PR #107's
+  rerun, CFDrs's
   figure/hosted closure, Kwavers's missing local Python extension, Helios's
   provider PM drift, and four peer-owned lane-topology violations. The
   structural provider audit, overlay, and standalone lock-form gates pass;
-  exact-head is blocked only by Mnemosyne's unadvanced default.
+  exact-head can be rechecked after the Mnemosyne pointer advance.
 - **Tyche evidence:** provider commit `de925e6` consolidates the shared
   Latin-hypercube/Sobol checked index conversions, removes five production
   type-suffixed helper names, and merged through PR #26 at default
@@ -71,20 +72,18 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   `43cdf047` to `cbccb7ee826b387e4e0ccc4499beb57a88bb51c7` after the first
   exact-head run `32206977029` failed Miri compilation on the missing
   `SEGMENT_SIZE` import. Exact-head run `32208332797` is now in progress for
-  the provider's corrected Miri-gate topology; Loom, aarch64, and
-  ThreadSanitizer are green while Rust verification and Miri remain
-  uncollected. Atlas remains at `64f0d2e` until that exact default-head run
-  completes.
+  the provider's corrected Miri-gate topology. Exact-head run `32208332797`
+  passes Rust verification, Miri, Loom, aarch64, and ThreadSanitizer. Atlas
+  advances the gitlink to `cbccb7ee` without modifying the peer-owned lock.
 - **Hosted recheck:** Aequitas CI `32198085105` and Pages `32198084983` pass
   at `260ad10`; Themis CI `32194584768`, MSRV `32194584736`, and Pages
   `32194583598` pass at `0484a333`. CFDrs run `32197696210` fails only in
   Clippy at the provider source location recorded above.
 - **Acceptance:** collect Apollo PR #107's rerun, the corrected CFDrs exact-head
-  run, the absent RITK default run classification, Horae PR #19's exact-head
-  checks, and Mnemosyne run `32208332797`; then reconcile only verified
-  provider heads. The overlay and standalone lock-form gates pass; the current
-  exact-head gate is blocked by the unadvanced Mnemosyne default. Preserve
-  peer-owned checkout and lane state.
+  run, the absent RITK default run classification, and Horae PR #19's exact-head
+  checks; then reconcile only verified provider heads. The overlay and
+  standalone lock-form gates pass; rerun exact-head after the verified
+  Mnemosyne pointer advance. Preserve peer-owned checkout and lane state.
 - **Documentation evidence:** the stack-wide link detector passes for all 23
   registered provider books with zero missing files, missing anchors, or read
   failures. Its fixture regression suite passes 43/43 with the intentional

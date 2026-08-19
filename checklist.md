@@ -66,14 +66,14 @@
       follow-up commits `9754ebc`, `1c79909`, and `64f0d2e`; Atlas records
       current default `64f0d2ebe58e14705ca2345cad2c705f99a6b611` without
       provider edits.
-- [ ] Reconcile the moving Mnemosyne default. The first recheck at
+- [x] Reconcile the moving Mnemosyne default. The first recheck at
       `43cdf047` failed Miri compilation at
       `mnemosyne-backend/src/backends/unix.rs:292` because `SEGMENT_SIZE` was
       not imported. The provider default is now `cbccb7ee`; exact-head run
-      `32208332797` is in progress after the provider held that backend out of
-      the Miri gate. Keep the gitlink at `64f0d2e` until the fresh default-head
-      Rust and Miri results are collected, then rerun exact-head, overlay, and
-      lock-form gates.
+      `32208332797` passes Rust verification, Miri, Loom, aarch64, and
+      ThreadSanitizer after the provider held that backend out of the Miri
+      gate. Advance the gitlink from `64f0d2e` to `cbccb7ee`, then rerun
+      exact-head, overlay, and lock-form gates.
 - [x] Collect Aequitas post-merge CI `32198085105` and Pages
       `32198084983`; both pass at merged default `260ad10`.
 - [ ] Collect the corrected CFDrs exact-head run; run `32197696210` fails in
