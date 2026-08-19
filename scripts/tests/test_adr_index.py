@@ -52,9 +52,14 @@ class AdrIndexTestCase(unittest.TestCase):
                     f"# ADR {name[:4]}: Example\n\nStatus: Accepted\n",
                     encoding="utf-8",
                 )
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
             for argv in (
                 ["init", "-q"],
-                ["-c", "user.email=t@t", "-c", "user.name=t", "add", "0001-tracked.md"],
+                [*ident, "add", "0001-tracked.md"],
+                # Committed, not merely staged: the check reads HEAD, because
+                # that is what a fresh clone receives. An entry present in the
+                # index but not in HEAD does not reach a reader.
+                [*ident, "commit", "-q", "-m", "tracked"],
             ):
                 subprocess.run(["git", "-C", str(directory), *argv], check=True)
 

@@ -105,13 +105,20 @@ def tracked_markdown(directory: Path) -> set[str] | None:
     on disk, and this gate reported the index clean both times, so a fresh
     clone had a dead link where CI was green.
 
+    Reads `HEAD`, not the index. The index is working state: a peer's staged
+    deletion, or a commit written through a private index, leaves an entry
+    absent from `git ls-files` while `HEAD` still carries it. Asking the index
+    produced three false "untracked" reports on first run -- coeus 0066,
+    hephaestus 0052 and leto 0026 were all present in `HEAD` and on disk. What
+    a fresh clone receives is `HEAD`, so that is the oracle.
+
     Returns `None` when Git cannot answer -- an unpacked tarball, say -- in
     which case the caller falls back to the on-disk view rather than
     reporting every ADR as untracked.
     """
     try:
         out = subprocess.run(
-            ["git", "-C", str(directory), "ls-files", "--", "*.md"],
+            ["git", "-C", str(directory), "ls-tree", "--name-only", "HEAD", "--", "."],
             capture_output=True, text=True, check=True,
         ).stdout
     except (OSError, subprocess.CalledProcessError):
