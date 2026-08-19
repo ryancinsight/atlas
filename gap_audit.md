@@ -12734,8 +12734,26 @@ color constructors. TPS and iterative displacement inversion pass physical
 components to their providers and map results back to NumPy order; the Chen
 implementation was already correct and remains unchanged.
 
-The exact provider gates pass locally: ritk-filter nextest 1073/1073,
-ritk-python nextest 47/47, targeted SimpleITK parity 3/3, release maturin
-build, warning-denied Clippy, format, and diff checks. Hosted CI runs
-`32242778793` and `32242778786` are still in progress at this exact head, so
-Atlas must not advance `repos/ritk` until both required workflows pass.
+At the prior source head, the exact provider gates passed locally:
+ritk-filter nextest 1073/1073, ritk-python nextest 47/47, targeted SimpleITK
+parity 3/3, release maturin build, warning-denied Clippy, format, and diff
+checks. Hosted CI runs `32242778793` and `32242778786` were still in progress
+at that head, so Atlas did not advance `repos/ritk` until the replacement
+provider head completed its required workflows.
+
+## Finding 2026-08-19: RITK NumPy axis parity hosted closure
+
+The RITK provider fix is complete at `ca25e22c09039bd24f4c56b0f1a6badcb4376ca4`.
+It establishes one anti-diagonal physical direction for NumPy scalar/color
+images and maps displacement and affine operations through physical `(X,Y,Z)`
+while preserving the public NumPy `(Z,Y,X)` layout. The provider's focused
+Rust and Python gates pass, and the exact default-head hosted workflows
+`32246000940` (Rustfmt, Clippy, dependency alignment, Linux/macOS/Windows
+nextest, and wheel smoke) and `32246000947` (Python 3.9–3.13 across Linux,
+macOS, and Windows) pass.
+
+The root pointer is advanced only to this hosted-verified provider head. The
+full local Python suite's single max-2-ULP patch-denoising difference occurs
+only with the installed `SimpleITK 3.0.0a1.post183-g61ffa`, outside the pinned
+`>=2.5.5,<2.6` test requirement; the supported hosted wheel oracle is green.
+The three additional RITK worktrees remain peer-owned lane-topology residuals.

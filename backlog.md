@@ -161,9 +161,9 @@ configured shared target is `D:\atlas\target`; the repo-local cache is derived
 state, not source. Its exact recursive deletion was refused by the shell safety
 policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
 
-## ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18 — NumPy spatial-axis contract [patch] — in progress
+## ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18 — NumPy spatial-axis contract [patch] — closed 2026-08-19
 
-- **Owner:** current session; source fix pushed to RITK `main` at `86ab2a43`; exact-head CI/Python CI are running.
+- **Owner:** current session; source fix is pushed to RITK `main` at `ca25e22c`; exact-head CI/Python CI pass.
 - **Root cause:** NumPy tensors use `[Z,Y,X]`, while SimpleITK exposes physical
   axes as `(X,Y,Z)`. RITK constructed NumPy images with identity direction and
   the TPS/line-search bindings passed displacement components in tensor order,
@@ -176,9 +176,16 @@ policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
 - **Local evidence:** `ritk-filter` nextest 1073/1073, `ritk-python` nextest
   47/47, targeted SimpleITK parity 3/3, release `maturin develop --locked`,
   warning-denied Clippy, format, and diff checks pass with the shared target.
-- **Hosted evidence:** exact-head CI run `32242778793` and Python CI run
-  `32242778786` are running at `86ab2a43`. The item closes only after both
-  required workflows pass; no tolerance widening or fallback is permitted.
+- **Hosted evidence:** exact-head CI run `32246000940` and Python CI run
+  `32246000947` pass at `ca25e22c`. The CI matrix includes Rustfmt, Clippy,
+  dependency alignment, Linux/macOS/Windows nextest, and wheel smoke; the
+  Python matrix covers 3.9–3.13 on Linux, macOS, and Windows. No tolerance
+  widening or fallback was added.
+- **Local residual:** the full local Python suite under
+  `SimpleITK 3.0.0a1.post183-g61ffa`, outside the pinned
+  `>=2.5.5,<2.6` requirement, retains one max-2-ULP patch-denoising
+  difference. The supported hosted wheel oracle is green, so this is an
+  environment residual rather than a supported parity failure.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 
