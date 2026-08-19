@@ -9623,6 +9623,59 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   The current provider checkouts/lanes are peer-owned and dirty; re-open when
   those claims land or become stale and reclaimable.
 
+## ATLAS-NUL-CORRUPTION-102 — files written as all-NUL by a host write failure [patch] — in progress 2026-08-19
+
+**Event.** Three tracked text files were found containing nothing but NUL bytes,
+100% of their length — not truncated, not partially written, entirely zeroed:
+
+| file | size | state |
+|---|---|---|
+| `.cargo/config.toml` | 14178 B | restored from HEAD, then regenerated |
+| `repos/ritk/.../src/search.rs` | 44824 B | restored from HEAD (uncommitted delta lost) |
+| `repos/ritk/.../src/regularization.rs` | 18112 B | restored from HEAD (uncommitted delta lost) |
+
+**Single event, already over.** The two ritk files carry mtimes 16:43:26 and
+16:44:03; four sibling files written in the same burst (16:43:22, 16:43:49,
+16:43:53, and README at 16:43:53) survived intact. Nothing has touched that
+tree in the 92 minutes since. This was one failed write burst, not an ongoing
+process — the surviving-neighbour pattern rules out a targeted cause.
+
+**Blast radius, measured.** `git diff --numstat` across every member reports a
+binary diff (`-`/`-`) for a tracked text file in exactly one repo: the two ritk
+files above. Nothing else in the stack is affected. The overlay config was found
+separately, by a TOML parse error that failed every build in the stack.
+
+**Loss.** The uncommitted deltas to `search.rs` and `regularization.rs` are
+unrecoverable — no commit, stash, or backup holds them. Their committed baseline
+(`c110664b`) is safe: on the remote as `rescue/d2-followons` and landing via
+ritk PR #192. Four surviving WIP files were copied to the session scratchpad
+before anything touched the tree, and the two NUL files were restored from HEAD
+only after byte-level confirmation that they were 100% NUL, so nothing was
+discarded. Every surviving modification is still in place, unmodified.
+
+**Residual.** The surviving `lib.rs` and `tests_block_matching.rs` WIP (~1150
+insertions: pyramid diagnostics, `try_dense`, FFT pyramid path) references APIs
+that lived in the lost deltas, so that tree will not compile until those are
+rewritten. That is visible, honest breakage — strictly better than a NUL file
+that reads as binary to every tool. The owner is 92 min idle, past the
+stale-claim threshold.
+
+**Watchpoints.**
+- `repos/ritk` main tree is checked out on `feat/ritk-block-matching-d2-followons`
+  with the surviving WIP. Re-open once ritk PR #192 merges: the branch is then
+  delivered, and the residual WIP either gets rebuilt on main or is dropped
+  deliberately. Not switched here — it is a shared tree.
+- `repos/ritk` currently has three worktrees (main + connectome lane + the lane
+  used for #191/#192), over the two-tree bound. Closes when #192 merges.
+
+**Detector worth keeping.** `git diff --numstat | awk '$1=="-" && $2=="-"'` flags
+a tracked text file that has become binary, runs in seconds per repo, and caught
+this cleanly. Candidate for the replenishment sweep alongside
+ATLAS-BOARD-DELIVERY-AUDIT-101. Note it only sees *tracked* files with a
+committed baseline — the overlay config was caught by a build failure instead,
+so this is a complement to, not a replacement for, generated-artifact validation
+(now gated by `atlas-stack-overlay.py check`).
+
 ## ATLAS-BOARD-DELIVERY-AUDIT-101 — advisory sweep for undelivered done-claims [patch] — todo
 
 **Outcome.** A committed script that, for every done/merged row of this board,
