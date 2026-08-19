@@ -2126,6 +2126,45 @@ file and fails if the format drifts.
   containing nothing else, and add the idempotence check to the script's
   tests.
 
+## ATLAS-LANE-SPRAWL-222 — 26 lane directories against a two-per-repo bound [patch] — open 2026-08-19
+
+Found while needing one lane for `-221`. `git_discipline: Worktrees` bounds a
+repository to **two** working trees (main plus one lane), and the bound is a
+creation precondition, not an aspiration.
+
+| repo | trees | bound |
+|---|---|---|
+| ritk | 5 | 2 |
+| kwavers | 4 | 2 |
+| consus | 3 | 2 |
+
+`worktrees/` holds **26 directories**; 19 are registered lanes across all
+members. Also two structural violations: one consus lane lives at
+`repos/consus/worktrees/consus-adr-0045-p4-benchmark`, outside the single
+canonical lane root, and **eight `kwavers-*` directories are empty husks** —
+zero files, no `.git` — left behind when their worktrees were removed.
+
+The husks resist `rmdir` with *device or resource busy*: a live process still
+holds a working directory in each, so eight abandoned agent sessions are
+pinning empty directories. Not force-removed; they are harmless but they make
+the lane census lie.
+
+The rule already names the cause: "sprawl is friction's product", and the
+prescribed fix is a committed lane tool making create/re-point/close one
+command each, with the tree-count precondition enforced in `create`. Without
+it the compliant path is more work than the workaround, which is exactly the
+state here.
+
+- Acceptance: a committed lane tool enforcing the two-tree precondition, the
+  canonical root, and the naming convention; every member at or under two
+  trees; the misplaced consus lane consolidated (`git worktree move`); the
+  husks cleared once their holders exit. A conformance class counting trees
+  per member so the bound is measured rather than remembered.
+- **Not** a blocker for anything: at cap the existing lane is the next work,
+  which is how `-221` proceeded — the stale `consus-zarr-fix` lane held a
+  branch already merged as PR #47, so it was re-pointed rather than adding a
+  fourth tree.
+
 ## ATLAS-KWAVERS-ADR-CASING-220 — kwavers tracked `docs/ADR`, so its index was never gated [patch] — fixed 2026-08-18
 
 - kwavers was the sole member tracking **`docs/ADR/`**; every other member and
@@ -2401,7 +2440,50 @@ real-word false positives guarded (`..._matches_direct_reduced_precision` uses
   `TwiddleStore`, `NormalizeSlice`, `ScratchDispatch`.
 - Independent of 050A: type-level and crate-wide versus x86 leaf codegen.
 
-## ATLAS-CONSUS-ZARR-CODEC-FOLLOWUPS-214 — Two pieces deliberately left out of `-206`/`-207` [minor] — open 2026-08-18
+## ATLAS-CONSUS-ZARR-CODEC-FOLLOWUPS-214 — Two pieces deliberately left out of `-206`/`-207` [minor] — closed 2026-08-19
+
+**Both closed, plus three defects found in the intervening implementation.**
+Branch `fix/consus-zarr-endian-hardening-221`, consus `2b8d71a`, pushed.
+
+Between filing and now, a peer merged PR #47, which implemented the bytes
+codec by threading `element_size` through `CodecPipeline` — the element-width
+half of this item, done independently and well.
+
+**crc32c is implemented.** `consus-compression` gains `Crc32c` beside `Crc32`,
+with the shared table generator factored into a `reflected` module so the
+second CRC costs a polynomial constant rather than a copy of the algorithm.
+Verified against the RFC 3720 check value `0xE3069283`, with an explicit
+assertion that it does **not** equal IEEE's `0xCBF43926` — the two produce
+four bytes each, so nothing but a value check distinguishes a conformant
+writer from one whose output no other implementation accepts.
+
+**My stated reason for deferring was wrong.** I claimed the codec needed
+length plumbing that did not exist. The pipeline passes `Vec<u8>` between
+codecs, so a ±4-byte change was always expressible; the codec now appends on
+write and verifies-and-strips on read, returning `Corrupted` on mismatch.
+
+**Three silent paths in the merged implementation, all the same class as the
+original defect:** an unrecognised endian value returned "no swap", so a typo
+or a future spec value produced wrong bytes and success; a length that is not
+a whole number of elements left the trailing partial element unreversed,
+returning **mixed-endianness data as success**; and a missing endian key
+defaulted to `"little"`, which looks correct on a little-endian host and is
+wrong everywhere else. All three are now typed errors.
+
+**`read_inner_chunk_from_shard` built its pipeline without an element size**,
+so every sharded read ran at the 1-byte default and never swapped — the
+caller already had `element_size` in scope. The two `bytes` arms were
+byte-identical copies and now share one method, since byte-order conversion
+is its own inverse.
+
+Also fixed: `"native"` is accepted explicitly rather than falling into an
+unknown-value branch, which retires the third bullet below.
+
+Gates: nextest **643 passed**, clippy `-D warnings` 0, fmt 0, doctests 0.
+Clippy caught an MSRV violation on the way (`is_multiple_of` is 1.87, this
+workspace is 1.85).
+
+## ATLAS-CONSUS-ZARR-CODEC-FOLLOWUPS-214-ORIGINAL — filed scope, retained for the record [minor] — superseded
 
 - **Element width for the `bytes` codec.** The swap itself is trivial; what is
   missing is the dtype. `CodecPipeline::{compress,decompress}` take
