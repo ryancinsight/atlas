@@ -5591,3 +5591,13 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [ ] Run the linked real examples through `cargo check -p kwavers --examples
       --locked` after the shared Atlas overlay lock mismatch is repaired. The
       current attempt is blocked before compilation and is not source evidence.
+
+## 2026-08-19 Conformance submodule-status classification
+
+- [x] Reproduce the hosted pre-scan failure at runs `32247752034` and
+      `32248848495`: both stop at the generic root-dirty diagnostic before the
+      ratchet scan.
+- [x] Change the root status query to ignore submodule summaries while keeping
+      provider-local status validation; add the 18-case regression suite.
+- [ ] Collect the next exact-head hosted conformance run; local root execution
+      remains blocked by intentionally preserved peer-dirty provider trees.

@@ -29,6 +29,48 @@ def _write(root: Path, rel: str, content: str) -> None:
 
 
 class AtlasConformanceTestCase(unittest.TestCase):
+    def test_clean_revision_classifies_provider_dirt_after_clean_root(self) -> None:
+        root_revision = "a" * 40
+        provider_revision = "b" * 40
+        calls: list[tuple[tuple[str, ...], Path]] = []
+
+        def fake_git_output(*args: str, cwd: Path | None = None) -> str:
+            if cwd is None:
+                cwd = conformance.ROOT
+            calls.append((args, cwd))
+            if args == ("rev-parse", "--verify", "HEAD^{commit}"):
+                return root_revision
+            if args == ("rev-parse", "HEAD") and cwd == conformance.ROOT:
+                return root_revision
+            if args == ("status", "--porcelain", "--ignore-submodules=all"):
+                return ""
+            if args == ("rev-parse", "HEAD"):
+                return provider_revision
+            if args == ("status", "--porcelain"):
+                return "M src/lib.rs"
+            raise AssertionError(f"unexpected git query: {args!r} in {cwd}")
+
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            (root / "repos" / "demo").mkdir(parents=True)
+            with (
+                patch.object(conformance, "ROOT", root),
+                patch.object(conformance, "git_output", side_effect=fake_git_output),
+                patch.object(
+                    conformance,
+                    "registered_member_names_at",
+                    return_value={"demo"},
+                ),
+                patch.object(conformance, "gitlink_revision", return_value=provider_revision),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "repos/demo worktree is dirty"):
+                    conformance.check_clean_revision("HEAD")
+
+            self.assertIn(
+                (("status", "--porcelain", "--ignore-submodules=all"), root),
+                calls,
+            )
+
     def test_json_check_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             baseline_path = Path(temp) / "baseline.json"

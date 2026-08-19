@@ -420,7 +420,13 @@ def check_clean_revision(revision: str) -> None:
         raise RuntimeError(
             f"root checkout is {current_revision[:12]}, not requested {root_revision[:12]}"
         )
-    root_status = git_output("status", "--porcelain").strip()
+    # Submodule dirt is classified below per provider. Including it here
+    # collapses a provider checkout failure into the less actionable generic
+    # root-worktree error, and makes the clean-revision gate depend on Git's
+    # nested-submodule summary rather than the root revision itself.
+    root_status = git_output(
+        "status", "--porcelain", "--ignore-submodules=all"
+    ).strip()
     if root_status:
         raise RuntimeError("root worktree is dirty; rerun with --worktree for live state")
     for name in sorted(registered_member_names_at(ROOT)):

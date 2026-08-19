@@ -12772,3 +12772,18 @@ examples remain an explicit residual: `cargo check -p kwavers --examples
 --locked` stops before compilation because the shared Atlas overlay requests a
 lockfile update. This is a resolver/overlay blocker, not evidence of a source
 failure or an example compile pass.
+
+## Finding 2026-08-19: Hosted conformance hid provider dirt behind root status
+
+Atlas conformance runs `32247752034` and `32248848495` failed before scanning
+with `root worktree is dirty; rerun with --worktree for live state`. The root
+status query included nested submodule summaries, so the diagnostic could not
+identify the provider checkout responsible; provider cleanliness is already
+validated by the following per-member checks.
+
+The scanner now calls `git status --porcelain --ignore-submodules=all` for the
+root revision and retains its provider-local status checks. The focused Python
+regression suite passes 18/18 and proves that a clean root with a dirty member
+reports `repos/<name> worktree is dirty`. The exact-head hosted rerun remains
+open; local root execution is not claimed because peer provider trees remain
+intentionally dirty.
