@@ -74,8 +74,8 @@
       evidence-boundary correction `91a020c` on draft PR #19. Local-graph
       provider gates pass; exact standalone locked
       closure is hosted-gated because the root overlay rejects the committed
-      lock before Nextest. Hosted `verify` and `supply-chain` are queued, so
-      leave the root gitlink at `0631da0`.
+      lock before Nextest. Hosted run `32200646447` has `verify` and
+      `supply-chain` queued, so leave the root gitlink at `0631da0`.
 - [ ] After Horae hosted closure, refresh Hyperion's standalone lock from
       Aequitas `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`; do not
       start a second merge-affecting provider slice while Horae is pending.

@@ -93,9 +93,9 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   #19. Local-graph format, locked metadata,
   both feature configurations, Clippy, 20/20 Nextest, doctest, rustdoc, and
   cargo-deny pass; the committed standalone lock is rejected before Nextest by
-  the root overlay, so hosted `verify` and `supply-chain` are the exact closure
-  gate and remain queued. The root Horae gitlink remains at `0631da0` until the
-  exact provider head merges.
+  the root overlay, so hosted run `32200646447` (`verify` and `supply-chain`)
+  is the exact closure gate and remains queued. The root Horae gitlink remains
+  at `0631da0` until the exact provider head merges.
 - **Next lock residual:** Hyperion's clean standalone lock still pins Aequitas
   `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`. Its root-overlay
   `cargo check --locked --all-features` fails before compilation because the
