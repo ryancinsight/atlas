@@ -2801,12 +2801,13 @@ converter; the existing bilinear differential remains the acceptance oracle.
   performance-motivated claim and must carry performance evidence.
 - Non-goals: mass-converting all 1 368 sites. Hot paths first, evidence per family.
 
-## ATLAS-ARCH-008 — Replace pointer-scattered containers on traversal paths [patch] — todo
+## ATLAS-ARCH-008 — Replace pointer-scattered containers on traversal paths [patch] — in progress (2026-08-18)
 
-- Owner: current session (claimed 2026-08-05); scope: the traversal-hot sites
-  first, not all 318. Claimed deliverable: commit the classifier under
-  `scripts/` and refresh the production-only site list; the hotness-ranked
-  conversion remains the item's open work.
+- Owner: current session; scope for this increment is the root classifier and
+  its focused tests, not provider source or the hotness-ranked conversions.
+  The scanner currently traverses `repos/consus/worktrees/*`, so a peer lane is
+  counted as a second provider source and makes the live site set depend on
+  lane topology.
 - Outcome: 318 `Vec<Vec<_>>` occurrences across package sources, led by
   `consus-compression/src/chunking/iterator.rs` (10),
   `gaia/src/domain/topology/adjacency.rs` (8), and
