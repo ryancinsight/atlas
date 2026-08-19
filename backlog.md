@@ -2057,6 +2057,51 @@ Both edits made under the mistaken reading were reverted; they were my own,
 no peer state was touched. The remaining work is one clean run of the gate
 from a current checkout, then the CI step.
 
+## ATLAS-RATCHET-LAUNDERING-216 — `generate` could rewrite the baseline upward [patch] — fixed 2026-08-18
+
+**The ratchet had no floor.** `check` refused a raise, but `generate`
+overwrote the baseline unconditionally, so any failing check could be cleared
+by re-running `generate` — the gate's form satisfied, its purpose inverted.
+That is gaming in the `integrity` sense, and it is the mechanism, not a
+hypothetical: **`e9c5821` lifted `ritk/print_dbg` from 12 to 17**, described
+as "update baseline after coeus/moirai/ritk advances". A raise is the one
+move the ratchet exists to prevent.
+
+Fixed in `7d4562f`. `generate` now computes the raises against the committed
+baseline and refuses (exit 2) with a per-class listing. A detector change is
+the single legitimate raise — the generator contract requires regenerating in
+the same change — so `--accept-raises REASON` remains, but it is explicit,
+named, and prints every raise it performs.
+
+Evidence: against the current tree the guard catches the `12 -> 17` raise
+plus five others (`coeus/commented_out_code`, `coeus/existence_only_assertions`,
+`coeus/oversized_files`, `moirai/oversized_files`, `ritk/oversized_files`) that
+a `generate` run would have absorbed. Three tests pin it, calling the shipped
+`baseline_raises` rather than a copy — neutering the comparison fails them.
+
+**The laundered baseline is left in place, deliberately.** Reverting
+`ritk/print_dbg` to 12 would red the gate for the whole fleet on a premise I
+could not confirm: I could not reproduce the scanner's count of 17 with a hand
+probe (mine reports 143 over a different file scope), and none of the
+print-bearing files has changed recently, so the delta may be scan-scope
+rather than new debt. Resolving that is `-211`. What matters is that it can no
+longer happen unobserved.
+
+## ATLAS-RITK-SCRATCH-BINARY-215 — 1.3 MB executable committed to ritk [patch] — fixed 2026-08-18
+
+- `scratch/check_restart.exe` (1,305,872 bytes) and `scratch/check_restart.rs`
+  were tracked — the **only** tracked binary in the repository. They arrived
+  through a merge five weeks ago (`a5e375fe`).
+- `.gitignore` has covered `scratch/` since line 41, but ignore rules do not
+  apply to already-tracked paths, so these two survived while the other 48
+  files in that directory stayed correctly untracked. The intent was right and
+  the enforcement simply did not reach backwards.
+- Removed from the index only in ritk `4b345b2e`
+  (`chore/ritk-untrack-scratch-215`, pushed): working copies untouched, the
+  directory keeps working as scratch space.
+- Found incidentally while probing `-211`'s print counts, which is the
+  argument for the probe.
+
 ## RITK-PEER-RATCHET-211 — Peer commits regressed three ratchet classes on ritk [patch] — open 2026-08-18
 
 - `print_dbg 12 → 17`, `oversized_files 43 → 44`,
