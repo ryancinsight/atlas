@@ -123,22 +123,22 @@ coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
 coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
 
 [patch."https://github.com/ryancinsight/consus"]
-consus-compression = { path = "repos/consus/crates/consus-compression" }
-consus-core = { path = "repos/consus/crates/consus-core" }
-consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
-consus-io = { path = "repos/consus/crates/consus-io" }
-consus-npy = { path = "repos/consus/crates/consus-npy" }
-consus-onnx = { path = "repos/consus/crates/consus-onnx" }
-consus-zarr = { path = "repos/consus/crates/consus-zarr" }
+consus-compression = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-compression" }
+consus-core = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-core" }
+consus-hdf5 = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-hdf5" }
+consus-io = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-io" }
+consus-npy = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-npy" }
+consus-onnx = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-onnx" }
+consus-zarr = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/consus.git"]
-consus-compression = { path = "repos/consus/crates/consus-compression" }
-consus-core = { path = "repos/consus/crates/consus-core" }
-consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
-consus-io = { path = "repos/consus/crates/consus-io" }
-consus-npy = { path = "repos/consus/crates/consus-npy" }
-consus-onnx = { path = "repos/consus/crates/consus-onnx" }
-consus-zarr = { path = "repos/consus/crates/consus-zarr" }
+consus-compression = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-compression" }
+consus-core = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-core" }
+consus-hdf5 = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-hdf5" }
+consus-io = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-io" }
+consus-npy = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-npy" }
+consus-onnx = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-onnx" }
+consus-zarr = { path = "repos/consus/worktrees/consus-adr-0045-p4-benchmark/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
 eunomia = { path = "repos/eunomia/crates/eunomia" }
@@ -207,12 +207,14 @@ melinoe = { path = "repos/melinoe" }
 [patch."https://github.com/ryancinsight/Mnemosyne"]
 mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
 mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
+mnemosyne-heap = { path = "repos/mnemosyne/crates/mnemosyne-heap" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne.git"]
 mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
 mnemosyne-backend = { path = "repos/mnemosyne/crates/mnemosyne-backend" }
+mnemosyne-heap = { path = "repos/mnemosyne/crates/mnemosyne-heap" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
@@ -243,6 +245,7 @@ proteus = { path = "repos/proteus" }
 proteus = { path = "repos/proteus" }
 
 [patch."https://github.com/ryancinsight/ritk"]
+ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
 ritk-core = { path = "repos/ritk/crates/ritk-core" }
 ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
 ritk-image = { path = "repos/ritk/crates/ritk-image" }
@@ -252,6 +255,7 @@ ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
 ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
 
 [patch."https://github.com/ryancinsight/ritk.git"]
+ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
 ritk-core = { path = "repos/ritk/crates/ritk-core" }
 ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
 ritk-image = { path = "repos/ritk/crates/ritk-image" }
