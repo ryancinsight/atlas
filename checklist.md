@@ -5280,11 +5280,15 @@ Remaining actionable work is peer-coordinated (SUBSTRATE-001, ARCH-005, BOOK-001
       0002, and local 17/17 nextest coverage. The Anderson/Aitken algorithm is
       intentionally not duplicated in Harmonia; PR #5 merged at provider
       default `365f0bb` with verify, supply-chain, and book checks green.
-- [ ] Replace the CFDrs local Anderson/Aitken wrapper with a direct provider
-      implementation and analytical/differential parity evidence. Atlas now
-      points Harmonia at merged default
-      `3d6682fc1b43d283d5f97fd5d16ec5ce1fcdb7cb`; no consumer adapter,
-      fallback, or numerical-contract change is permitted.
+- [x] Replace the CFDrs local Anderson/Aitken wrapper with a direct Harmonia
+      implementation and analytical/differential parity evidence. CFDrs
+      commit `4931f85b` uses Harmonia's transactional `Relaxation<T>` seam,
+      deletes the consumer-owned Aitken state and recovery fallback, and adds
+      the componentwise secant regression. PR #359 merged at default
+      `9761d798`; Atlas records that exact CFDrs head in root commit
+      `993499a`. Locked `cargo check -p cfd-2d --lib`, target rustfmt, and
+      the focused nextest body pass. The hosted Rust/book run `32296720261`
+      is still in progress, so full hosted verification is not claimed.
 - [x] **ATLAS-HARMONIA-AITKEN-001:** add the
       provider-owned, input-sensitive Aitken policy and its analytical,
       differential, transactional, generic-scalar, and documentation gates in

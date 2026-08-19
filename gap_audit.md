@@ -12450,6 +12450,23 @@ package metadata; and make all figure manifests recursive and complete.
   supply-chain, and book checks passed. Atlas points to the merged Harmonia
   default; CFDrs must call the seam directly and delete its superseded wrapper
   with differential parity evidence.
+## Finding 2026-08-19: CFDrs direct Harmonia relaxation integration
+
+CFDrs commit `4931f85b` replaces the consumer-owned Aitken state in
+`crates/cfd-2d/src/network/coupled.rs` with Harmonia's transactional
+`Relaxation<T>` pair seam, retains Anderson as the outer mixer, removes the
+consumer recovery fallback, and adds an input-sensitive componentwise secant
+regression. The branch also carries the preceding named-constant cleanup.
+
+Local evidence: locked `cargo check -p cfd-2d --lib` passes; the locked tree
+resolves Harmonia at `3d6682fc`; target rustfmt and diff checks pass; the
+focused nextest body passes `provider_relaxation_matches_componentwise_secant_reference`.
+The focused cargo invocation exceeded the local command window after the
+nextest summary, so it is not reported as a clean suite pass. CFDrs PR #359
+merged at default `9761d798`, and Atlas records that head in root commit
+`993499a`. Hosted run `32296720261` is in progress; its Rust and book gates
+remain an open verification residual.
+
 
 ## Finding 2026-08-18: exact-head audit did not prove clean nested checkouts
 

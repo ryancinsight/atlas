@@ -3033,9 +3033,9 @@ Provider PRs opened for all four repos to resolve the CI gate.
 
 | ID | Outcome | Class | Status | Owner | Acceptance oracle |
 |----|---------|-------|--------|-------|-------------------|
-| ADR-025-A | coeus: renumber one of the two ADR `0060` files and fix cross-references. | [patch] | done — resolved by another agent; verified 2026-08-19 | — | Met: renumbered to `0065-provider-owned-metal-rocm-bridge.md`; zero duplicate numbers repo-wide; zero stale refs to the old path; index lists 0065 |
-| ADR-025-B | tyche, apollo: normalize ADR status casing so indexes render a status. | [patch] | done — resolved by another agent; verified 2026-08-19 | — | Met: `adr-index.py check` reports no casing warnings for either repo |
-| ADR-025-C | ritk: regenerate the ADR index with the generated-file header block. | [patch] | done — resolved by another agent; verified 2026-08-19 | — | Met: header block present in `repos/ritk/docs/adr/README.md` |
+| ADR-025-A | coeus: renumber duplicate ADR numbers (0021×3, 0025×2, 0026×2, 0060×2) and canonicalize status casing. | [patch] | **in progress 2026-08-17 — coeus PR #337** | Atlas coordinator | `scripts/adr-index.py check` clean for coeus; no two ADRs share a number |
+| ADR-025-B | helios, asclepius, consus, tyche, apollo: normalize ADR status casing. | [patch] | **in progress 2026-08-17 — helios PR #62, asclepius PR #18, consus PR #45** | Atlas coordinator | `adr-index.py check` emits no stdout; indexes show canonical statuses |
+| ADR-025-C | ritk: regenerate the ADR index with the generated-file header block. | [patch] | **done 2026-08-17 — ritk at `ae23d4b2` already clean** | — | `adr-index.py check` clean for ritk |
 | ADR-025-D | atlas-meta: exclude navigation `README.md`/`INDEX.md` files from the generated ADR corpus and normalize ADR 0006 to the canonical `Accepted` status. | [patch] | done 2026-08-13 — root docs/script/test slice | current session | root `build_index` regression passes; generated root index has no navigation row; child worktrees remain unmodified |
 
 ## ATLAS-US-CAPABILITY-023 — ITKUltrasound capability parity [arch] — open 2026-08-13
