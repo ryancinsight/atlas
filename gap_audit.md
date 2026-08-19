@@ -41,6 +41,19 @@ book proof is therefore positive for snippet compilation only, while the
 figure SSOT and hosted Pages closure remain pending on a clean lock-compatible
 provider integration state.
 
+## Finding 2026-08-19: Kwavers Python extension is absent locally
+
+The current Kwavers checkout has Python 3.13.12 and the PyO3/maturin project
+metadata, but the focused comparative test
+`crates/kwavers-python/tests/test_kwave_cache_manifest.py` cannot import
+`pykwavers`: `pykwavers._pykwavers` is missing. This is a build-artifact/wheel
+residual, not a Python assertion failure. The checkout has an untracked
+peer-owned ADR and the lane audit reports four Kwavers working trees, so no
+`maturin develop`, artifact replacement, or source cleanup was performed. The
+provider must build the locked `cp38-abi3` extension in a clean lane, run the
+value-semantic and k-Wave comparison tests, and publish the resulting hosted
+wheel evidence before KW-PYTHON-064 can close.
+
 ## Finding 2026-08-18: Gaia direction-set provider slice
 
 Gaia provider branch `feat/gaia-direction-set` commit `3c2d655` adds the

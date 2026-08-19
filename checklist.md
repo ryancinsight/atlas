@@ -18,6 +18,10 @@
       `codex/cfdrs-pypi-001`; every listed chapter/example completes. The
       locked `xtask check-figures` command remains blocked by the Atlas
       overlay lock refresh and is not represented as a pass.
+- [x] Probe the Kwavers comparative Python test under Python 3.13.12; import
+      fails because the compiled `pykwavers._pykwavers` extension is absent.
+      Preserve the peer-owned checkout and leave the build/wheel repair to
+      KW-PYTHON-064 and its clean-lane hosted gate.
 - [x] Re-run stack-overlay, lock-form, and conformance checks after the
       Aequitas integration: lock-form passes for 27 standalone locks,
       conformance passes 12/12, and the latest overlay is aligned.
