@@ -582,7 +582,7 @@ nested Harmonia checkout remains provider-owned state.
 - **Non-goals:** no reusable-workflow change, release-token change, source or
   dependency edit, lockfile rewrite, or primary-checkout cleanup.
 
-## ATLAS-MNEMOSYNE-CONFORMANCE-001 — add provider LF policy [patch] — complete 2026-08-18
+## ATLAS-MNEMOSYNE-CONFORMANCE-002 — add provider LF policy [patch] — complete 2026-08-18
 
 - **Owner:** Atlas coordinator; clean Mnemosyne provider lane from fetched
   `origin/main` `7967315f`.
@@ -5224,7 +5224,7 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
   `serde`/`serde_json` if a single-pass tool suffices, or
   re-include `serde` if JSON output is desired).
 
-## ATLAS-PATH-DEP-AUDIT-001 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — in progress (2026-08-18)
+## ATLAS-PATH-DEP-AUDIT-001 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — closed (superseded by ADR 0044, 2026-08-18)
 
 > Merged from the root-level `PATH_DEP_AUDIT_001_ENTRY.md` on 2026-08-13.
 > That file was a second copy of this item living outside the board — the
@@ -5236,6 +5236,24 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
   pending `source = "git+https://github.com/ryancinsight/<sibling>"`
   entries that should path-depify now that eunomia / themis / melinoe /
   coeus / apollo path-dep cutovers have landed on parent main.
+- **Disposition:** the requested zero-`git+` closure criterion conflicts with
+  accepted ADR 0044. A committed lock is required to remain in standalone
+  form, so first-party git-resolved packages must retain their `source` lines;
+  the Atlas development overlay supplies local working trees without changing
+  member manifests to cross-repository path dependencies.
+- **Current recheck:** the live scan covers 29 checked-out lock files outside
+  provider lanes and finds 466 first-party git-source package records. The
+  registered-member path scan finds 26 cross-repository path lines, all in the
+  explicitly exempt `melinoe/contracts/atlas-device` fixture; `gaia/fuzz`
+  resolves to the Gaia repository root and is not an external escape. No
+  provider mainline requires a path-dependency rewrite.
+- **Acceptance and evidence:** `atlas-stack-overlay.py check` passes,
+  `atlas-lock-form.py check` passes for 27 committed standalone locks with
+  the one Melinoe fixture exemption, and the exact-head provider audit passes.
+  No lock, manifest, provider checkout, or compatibility path was changed.
+
+### Historical pre-ADR-0044 audit record
+
 - Outcome: post-cutover sweep identifies the remaining sibling-pulls
   via `git+https` URL with the corresponding `../<sibling>` path
   targets. Audit only — NO Cargo.lock rewrites + NO Cargo.toml edits

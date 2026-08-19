@@ -1,5 +1,19 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-18: path-dependency audit superseded by standalone lock form
+
+The historical `ATLAS-PATH-DEP-AUDIT-001` zero-`git+` criterion is not valid
+under accepted [ADR 0044](docs/adr/0044-committed-cargo-lock-form.md). The
+committed lock is the standalone form, so first-party git-resolved packages
+must retain their `source = "git+…#<rev>"` records; the local overlay redirects
+those dependencies without introducing cross-repository path dependencies.
+The current live recheck found 466 first-party git-source package records in
+29 checked-out locks outside provider lanes. The 26 registered-member
+cross-repository path lines are all the explicitly exempt
+`melinoe/contracts/atlas-device` fixture; no provider mainline path escape
+requires translation. Overlay, standalone lock-form, and exact-head gates
+pass, so no lock or manifest rewrite is authorized by this audit.
+
 ## Finding 2026-08-18: current provider recheck and Tyche completion
 
 At the current root revision, the RITK gitlink records merged default
@@ -12320,7 +12334,7 @@ This closes only the pointer reconciliation. The broader Moirai ordering and
 SeqCst ratchet remains an active audit residual. The post-pointer exact-head
 audit now reports Consus as the only requested-set mismatch.
 
-## ATLAS-MNEMOSYNE-CONFORMANCE-001 — provider LF-policy closure
+## ATLAS-MNEMOSYNE-CONFORMANCE-002 — provider LF-policy closure
 
 The clean Mnemosyne lane added only `.gitattributes`, reducing
 `gitattributes_missing` to zero with no increase in the measured baseline.

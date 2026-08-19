@@ -74,6 +74,10 @@
       member source scans. Focused coverage is 44/44 and the live scan has zero
       lane paths; defer oracle regeneration until peer provider edits stabilize
       the exact site set.
+- [x] Reconcile the path-dependency audit against accepted ADR 0044: retained
+      `git+` sources are the required standalone lock form, while the only
+      registered cross-repository path lines are the exempt Melinoe contract
+      fixture. Overlay, lock-form, and exact-head gates pass.
 - [x] Run the stack-wide book-link detector across all 23 registered books:
       every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
       Run its fixture regression suite with `PYTHONPATH=scripts`; 43/43 tests
@@ -5402,7 +5406,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   fetched default `6a98f3f7bd834f46c8120c291362eb260f6cf875` after hosted Rust
   Workspace `32175287434` and Python Bindings `32175287255` passed; preserve
   the peer-dirty primary checkout and leave the broader SeqCst audit open.
-- **ATLAS-MNEMOSYNE-CONFORMANCE-001** — provider commit `cb86bfe` merged through
+- **ATLAS-MNEMOSYNE-CONFORMANCE-002** — provider commit `cb86bfe` merged through
   PR #60 as default `1c38a1a65d519ebc04ed5f9da2baa31d16b83705`; PR run
   `32178377690` and post-merge default CI `32180326066` pass Loom, Rust
   verification, and Miri. Atlas advances only the gitlink; peer Cargo.lock
