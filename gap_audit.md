@@ -110,7 +110,7 @@ overlay diagnostic because the parent local patches are absent from the
 standalone lock; hosted provider verification is the standalone locked closure
 gate. Atlas advances only to the verified provider merge commit.
 The provider-local HYPERION-006 closeout is a separate PM-only PR #16 at exact
-head `0768f357677843ec59c6cc9268fe035aa69d5966`; its hosted checks are queued,
+head `86486139120243e0b6cae84143d7a914eb51a8a3`; its hosted checks are queued,
 so the root pointer remains at `0156f59` until that record merges.
 
 Gaia's tractography boundary is present at Atlas gitlink `4980732`: the

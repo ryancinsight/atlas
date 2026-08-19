@@ -101,7 +101,7 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   remains a pre-compilation development-overlay diagnostic, so Atlas advances
   only to the verified provider merge commit. Provider-local HYPERION-006
   closeout is carried by PM-only PR #16 at head
-  `0768f357677843ec59c6cc9268fe035aa69d5966`; its hosted checks are queued,
+  `86486139120243e0b6cae84143d7a914eb51a8a3`; its hosted checks are queued,
   so the root pointer remains at `0156f59` until that record merges.
 - **Clean-checkout evidence:** the fresh `--require-clean-checkouts` audit
   reports 22 findings across 17 provider checkouts. Checkout-head drift is

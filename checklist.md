@@ -83,7 +83,7 @@
       `0156f59f78aba1e3b06d4511ffb1ce30d5c0c6d4`, and Atlas advances to that
       verified provider merge commit.
 - [ ] Collect Hyperion PM-only PR #16 at exact head
-      `0768f357677843ec59c6cc9268fe035aa69d5966`; advance the root pointer
+      `86486139120243e0b6cae84143d7a914eb51a8a3`; advance the root pointer
       only after its hosted checks and merge complete.
 - [x] Run the exact-head clean-checkout audit. It reports 22 findings across
       17 provider checkouts: eight checkout-head drifts and fourteen dirty
