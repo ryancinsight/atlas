@@ -2212,8 +2212,35 @@ workspace table denies it**, spread over cfd-validation (21), cfd-core (10),
 cfd-2d (10), cfd-3d (5), cfd-1d (4), cfd-schematics (1) — all libraries, so
 the CLI exemption does not apply.
 
-- Sequence: (1) delete the 204 redundant mentions, verified by compiling —
-  redundant only if no crate escalates the same lint, which the build proves;
+**Root cause found 2026-08-19, and it inverts the plan. The "redundant"
+mentions are not redundant — they are load-bearing, because the workspace
+table is inert.**
+
+moirai-core and moirai-gpu both carried `#![warn(clippy::all)]` and
+`#![warn(clippy::pedantic)]` **in source**. A source attribute outranks the
+manifest `[lints]` table, which cargo delivers as command-line flags, so the
+workspace allow-list had no effect on those crates despite
+`[lints] workspace = true` — and the per-crate `#![allow(...)]` lines were
+the only thing suppressing pedantic. Deleting them alone reddened clippy with
+**92 diagnostics**; that is how the premise was caught.
+
+The same in-source escalation is present in **nine CFDrs crates** (cfd-1d,
+-2d, -3d, -core, -io, -math, -optim, -python, -validation), which is where
+349 of the ~433 sites live. So the CFDrs "204 redundant" figure above is
+wrong for exactly those crates, and the correct order is inverted: **remove
+the in-source `warn(all)`/`warn(pedantic)` first**, which makes the table
+authoritative, and only then are the per-crate allows genuinely deletable.
+
+**First member done: moirai** (`0746861`, branch
+`style/moirai-workspace-lint-authority-217`, pushed). `crate_level_allows`
+**39 → 20**, clippy `--all-targets -D warnings` 0, nextest 104/104. The floor
+gets *stricter*, not laxer: the workspace table sets
+`pedantic = { level = "deny" }` where the source attribute said `warn`.
+
+- Revised sequence: (1) per member, drop the in-source `warn(all)` /
+  `warn(pedantic)` so `[workspace.lints]` governs, then delete the
+  now-genuinely-redundant allows — verified by clippy, which is what proves
+  redundancy;
   (2) fix or justify the 42 `print_stdout` sites, since a per-crate allow
   overriding a workspace deny is the strongest form of the pattern the floor
   prohibits; (3) adjudicate the ~105 remainder, promoting recurring ones into
