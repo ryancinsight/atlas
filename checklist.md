@@ -5470,3 +5470,12 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [ ] Resolve remaining provider-owned or externally gated residuals: Apollo
       benchmark regression, Kwavers Python extension build, Helios H-103, and
       peer-owned checkout/lane cleanup. No peer checkout or lane was changed.
+
+## 2026-08-19 CFDrs hosted evidence refresh
+
+- [x] Record exact default-head run `32222487306` at `931ee3a0`: Rust
+      workspace and figure SSOT gates pass, including numerical fidelity and
+      doctests.
+- [x] Push provider PM synchronization as CFDrs commit `f601d827` on PR #357.
+- [ ] Collect the separate CFDrs Pages, PyPI release dry-run, and standalone
+      locked package gates. Do not infer them from the Rust/figure result.
