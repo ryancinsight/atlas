@@ -2099,7 +2099,16 @@ internal APIs").
   underlying lint or converts to a per-site `#[expect(lint, reason = "...")]`
   that expires when the site is fixed. No `--accept-raises`.
 
-## ATLAS-BASELINE-DIFF-NOISE-218 — `generate` reformats all 1500 lines, hiding raises [patch] — open 2026-08-18
+## ATLAS-BASELINE-DIFF-NOISE-218 — `generate` reformats all 1500 lines, hiding raises [patch] — fixed 2026-08-18
+
+Fixed in `4d78c45`. The item assumed a one-time reformat had to land; it did
+not. `indent=2` reproduces the committed file **byte for byte**, so the
+committed artifact was already correct and only the generator was wrong — a
+one-character change, placed behind a named `render_baseline` so the format
+has a single owner instead of sitting as a literal in one of four
+`json.dumps` calls. Regeneration now moves 68 lines instead of 1484, and all
+68 are real count changes. A test pins the renderer against the committed
+file and fails if the format drifts.
 
 - The committed `conformance-baseline.json` is indented with **2 spaces**;
   `generate` writes `indent=1`. So the committed file is not what the
@@ -2117,7 +2126,43 @@ internal APIs").
   containing nothing else, and add the idempotence check to the script's
   tests.
 
-## ATLAS-ADR-GATE-WORKTREE-219 — The ADR index gate reads the worktree, not the tracked tree [patch] — open 2026-08-18
+## ATLAS-KWAVERS-ADR-CASING-220 — kwavers tracked `docs/ADR`, so its index was never gated [patch] — fixed 2026-08-18
+
+- kwavers was the sole member tracking **`docs/ADR/`**; every other member and
+  the Atlas index generator use `docs/adr`. On Windows the two resolve to one
+  directory, so this passed locally forever; on a case-sensitive filesystem
+  they are different paths and `adr_dirs()` simply never found it.
+- Fixed in kwavers `0a9842a67` (gitlink advanced), renamed through an
+  intermediate name because a case-only rename is a no-op on this host.
+- Landed **ADR 111** in the same change — a genuinely untracked record of
+  commit `950fbc588`, which retired the `KzkSolverPlugin` surface without one.
+  Confirmed absent from `HEAD~1`.
+
+## ATLAS-ADR-GATE-WORKTREE-219 — The ADR index gate reads the worktree, not the tracked tree [patch] — fixed 2026-08-18
+
+Fixed in `5d30801`, **corrected in `636eb10`**.
+
+The index is a set of links a reader follows after cloning, but it was built
+by globbing the directory, so an untracked file satisfied an index entry. ADR
+0045 was deleted from `HEAD` twice while staying on disk and this gate called
+that index clean both times.
+
+**The first fix used the wrong oracle and I reported its output as fact.**
+`git ls-files` asks the *index*, which is working state: a peer's staged
+deletion, or a commit written through a private index, leaves an entry absent
+from `ls-files` while `HEAD` still carries the file. So `5d30801`'s claim to
+have found four untracked ADRs was wrong — **three were false**. coeus 0066,
+hephaestus 0052 and leto 0026 are all in `HEAD` and on disk; only kwavers 111
+was real. `636eb10` switches to `ls-tree HEAD`, and the test now commits
+rather than staging, since an index-only entry never reaches a reader.
+
+Worth keeping as a pattern: a gate that reads mutable local state will
+manufacture findings on a shared tree, and they look exactly like real ones.
+
+**Residual:** `repos/coeus/docs/adr` still reports DRIFTED — a real
+pre-existing drift, unrelated to the oracle bug, and the one finding that
+survived. Left for the coeus owner rather than regenerated into a tree
+carrying 49 dirty files and a populated index.
 
 - `docs/adr/README.md:53` has listed ADR 0045 throughout the period in which
   the file was absent from `HEAD` — twice — and `adr-index.py check` reported
