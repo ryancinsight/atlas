@@ -21,6 +21,9 @@ on:
       - 'scripts/atlas-lock-form.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
+      - 'backlog.md'
+      - 'checklist.md'
+      - 'gap_audit.md'
   push:
     branches: [main]
     paths:
@@ -31,6 +34,9 @@ on:
       - 'scripts/atlas-lock-form.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
+      - 'backlog.md'
+      - 'checklist.md'
+      - 'gap_audit.md'
 
 concurrency:
   group: atlas-conformance-${{ github.ref }}
