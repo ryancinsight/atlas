@@ -5224,15 +5224,15 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
   `serde`/`serde_json` if a single-pass tool suffices, or
   re-include `serde` if JSON output is desired).
 
-## ATLAS-PATH-DEP-AUDIT-001 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — todo
+## ATLAS-PATH-DEP-AUDIT-001 — Sweep `git+https://github.com/ryancinsight/` source URLs across 13 submodule Cargo.lock files [patch] — in progress (2026-08-18)
 
 > Merged from the root-level `PATH_DEP_AUDIT_001_ENTRY.md` on 2026-08-13.
 > That file was a second copy of this item living outside the board — the
 > board is the single owner of item status and scope, so the fuller body
 > was folded in here and the root file deleted (ATLAS-ROOT-SPRAWL-057).
 
-- Owner: Codex `/root`; last-update: 2026-07-24;
-  scope: `D:/atlas/repos/*/Cargo.lock` audit for
+- Owner: current session; scope: the read-only
+  `D:/atlas/repos/*/Cargo.lock` audit for
   pending `source = "git+https://github.com/ryancinsight/<sibling>"`
   entries that should path-depify now that eunomia / themis / melinoe /
   coeus / apollo path-dep cutovers have landed on parent main.
