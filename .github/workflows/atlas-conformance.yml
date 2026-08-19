@@ -19,6 +19,7 @@ on:
       - 'scripts/atlas-conformance.py'
       - 'scripts/adr-index.py'
       - 'scripts/atlas-lock-form.py'
+      - 'scripts/atlas-registry-metadata.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
       - 'backlog.md'
@@ -32,6 +33,7 @@ on:
       - 'scripts/atlas-conformance.py'
       - 'scripts/adr-index.py'
       - 'scripts/atlas-lock-form.py'
+      - 'scripts/atlas-registry-metadata.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
       - 'backlog.md'
@@ -129,6 +131,33 @@ jobs:
           Proposed, Accepted, Rejected; ADR numbers are unique per repository."
             exit 1
           fi
+
+      - name: Registry metadata (crates.io rejects these at upload)
+        shell: bash
+        run: |
+          # crates.io enforces the keyword cap and the category taxonomy at
+          # upload — after the version number is spent, so a rejection is not
+          # retryable under that version. This check existed but was never
+          # wired, and on the day it was it found kwavers declaring six
+          # keywords and a category slug (`medical`) that does not exist.
+          #
+          # `shell: bash` is load-bearing: the default shell has no pipefail,
+          # so piping to tee would report tee's exit code and the gate could
+          # not fail.
+          set +e
+          python3 scripts/atlas-registry-metadata.py > registry-metadata-check.log 2>&1
+          status=$?
+          set -e
+          cat registry-metadata-check.log
+          exit "$status"
+
+      - name: Upload registry metadata log artefact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: registry-metadata-check-log
+          path: registry-metadata-check.log
+          if-no-files-found: ignore
 
       - name: Upload ADR index log artefact
         if: always()
