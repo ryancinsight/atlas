@@ -5601,3 +5601,16 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       provider-local status validation; add the 18-case regression suite.
 - [ ] Collect the next exact-head hosted conformance run; local root execution
       remains blocked by intentionally preserved peer-dirty provider trees.
+
+## 2026-08-19 Exact conformance ratchet attribution
+
+- [x] Collect hosted run `32250014209` at root head `a4f24ee`; it passes the
+      clean-checkout phase and fails only the three listed ratchet regressions.
+- [x] Attribute the regressions to CFDrs `network_solver.rs` (`500 -> 568`),
+      Consus `consus-zarr/src/codec/mod.rs` (`439 -> 643`), and Coeus
+      `coeus-autograd/src/lib.rs` (the counted crate-level allow).
+- [ ] Split the CFDrs and Consus oversized files and replace the Coeus
+      crate-level suppression with item-scoped expectations or code cleanup;
+      run provider gates, hosted conformance, then advance exact gitlinks.
+      This item is blocked by the current peer-owned provider checkouts/lanes;
+      the re-open trigger is a landed peer fix or a stale claim.

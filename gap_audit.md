@@ -12787,3 +12787,21 @@ regression suite passes 18/18 and proves that a clean root with a dirty member
 reports `repos/<name> worktree is dirty`. The exact-head hosted rerun remains
 open; local root execution is not claimed because peer provider trees remain
 intentionally dirty.
+
+## Finding 2026-08-19: Hosted conformance exposes three provider regressions
+
+Run `32250014209` scanned the exact root revision `a4f24ee` after the root
+status and PM line-ending failures were repaired. It reports:
+
+- CFDrs `834340f7`: `crates/cfd-1d/src/solver/core/network_solver.rs` crossed
+  the 500-line threshold (`500 -> 568`).
+- Consus `2e0df9f8`: `crates/consus-zarr/src/codec/mod.rs` crossed the threshold
+  (`439 -> 643`).
+- Coeus `5adc2d16`: `crates/coeus-autograd/src/lib.rs` adds the counted
+  crate-level `#![allow(...)]` surface (`18 -> 19`).
+
+The detector and baseline are not changed. The repairs are provider source
+work, followed by provider gates, hosted conformance, and exact-head gitlink
+integration. The relevant local provider checkouts and lanes are currently
+peer-owned/dirty, so the source edits remain blocked and are tracked in
+`backlog.md` under `ATLAS-CONFORMANCE-RATCHET-2026-08-19`.

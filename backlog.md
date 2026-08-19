@@ -9022,3 +9022,20 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   regression suite passes 18/18, including the provider-dirt classification.
 - The next exact-head hosted run must pass the scanner and lock-form gates;
   local execution remains intentionally blocked by peer-dirty provider trees.
+
+## ATLAS-CONFORMANCE-RATCHET-2026-08-19 — exact provider regressions [patch] — blocked
+
+- Hosted conformance run `32250014209` reached the exact root head `a4f24ee`
+  after the root line-ending and submodule-status fixes. It reports three
+  source regressions; the committed baseline remains unchanged.
+- Exact gitlink attribution is CFDrs `834340f7`:
+  `crates/cfd-1d/src/solver/core/network_solver.rs` crossed 500 lines
+  (`500 -> 568`); Consus `2e0df9f8`:
+  `crates/consus-zarr/src/codec/mod.rs` crossed 500 lines (`439 -> 643`);
+  and Coeus `5adc2d16`:
+  `crates/coeus-autograd/src/lib.rs` contributes the counted crate-level
+  `#![allow(...)]` surface (`18 -> 19`).
+- No baseline raise is authorized. The source repairs require provider-owned
+  edits, focused gates, hosted conformance, and an exact-head pointer sweep.
+  The current provider checkouts/lanes are peer-owned and dirty; re-open when
+  those claims land or become stale and reclaimable.
