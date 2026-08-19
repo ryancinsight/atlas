@@ -2292,7 +2292,37 @@ longer happen unobserved.
 - Acceptance: each class back at or below baseline, or the baseline
   regenerated with a recorded justification per the generator contract.
 
-## RITK-ACCESSOR-FOLLOWUPS-212 — Two consequences the accessor migration exposed [patch] — open 2026-08-18
+## RITK-ACCESSOR-FOLLOWUPS-212 — Two consequences the accessor migration exposed [patch] — open 2026-08-18, specified 2026-08-19
+
+**Sharpened: the `Result` is now provably uninhabited, and the sibling makes
+it explicit.** On `refactor/ritk-two-accessors-047`, `extract_vec`'s body is
+`image.data_cow_on(&B::default()).into_owned()` — infallible — while its
+signature is still `anyhow::Result<(Vec<f32>, [usize; D])>`. There is no
+longer any fallible operation inside the wrapper at all.
+
+Beside it sits `extract_vec_infallible`, which does the **identical** thing
+without the wrapper, and whose own Rustdoc states the truth: "canonical Coeus
+host extraction is infallible". So the codebase already contains the
+correction — added as an additive `_infallible`-suffixed sibling rather than
+applied to the original, which is the marker-naming and compatibility-soup
+pattern in one.
+
+The fix is one function, not two: `extract_vec` becomes infallible,
+`extract_vec_infallible` is deleted, callers drop their `?`.
+
+**Scoped as its own atomic `[patch]`, to land immediately after `-047`
+merges.** The two names carry **518 call sites** (183 + 335). Folding that
+into `-047` would triple a branch already held for review and is precisely
+the "branch grows past its item" pattern — the same call made for apollo's
+827-site `precise`/`reduced` rename. Sequenced after the merge because `-047`
+is what removes the last fallible operation; before it, the `Result` is
+merely near-dead rather than provably dead.
+
+- Second half unchanged: ~14 `.into_owned()` sites can drop the copy, since
+  `Cow` derefs. Same commit is fine — both are mechanical over the same
+  surface.
+- Acceptance: zero `_infallible`-suffixed siblings; `extract_vec` returns a
+  tuple; no call site carries `?` on it; workspace green.
 
 - `ritk_tensor_ops::extract_vec` now has a **visibly fake `Result`**. It is
   pre-existing, but was hidden one level down inside `try_data_vec`; removing
@@ -2669,7 +2699,7 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
 | US-023-D4 | Move `block_matching` into a dependency-light crate; parameterize its sample type; reuse one candidate buffer across the search. | [arch] | done — ritk PR #183 merged (21/21 green) | Claude | Met. `cargo tree` = one edge (`anyhow`); 9 tests incl. cross-precision and 1-D line; ritk-registration 375 green |
 | US-023-D3 | Consolidate kwavers' NCC + parabolic speckle-tracking kernel onto the seam and delete the duplicate. | [minor] | **review** — kwavers PR #409, commit `a73bbb305` | Claude | Met. Both duplicates deleted, net -75 lines; 1551/1551 kwavers-physics tests pass through the seam; clippy/fmt clean in scope |
 | KW-GPU-SCANCONV | Remove the no-op `scan_conversion` stage from the kwavers-gpu realtime pipeline, which reported a scan-converted frame it never converted. | [patch] | **review** — kwavers PR #405, commit `a72ba5e01`; **not compiled locally** — workspace resolution is blocked by the apollo 0.26/0.27 requirement lag against a 56-commit-stale `repos/ritk` | Claude | CI green; behaviour unchanged (the removed call was the identity) |
-| US-023-A2 | `PhasedArray3D` variant on the ADR 0042 seam. | [minor] | **open** 2026-08-13 — PR #131 merged at `9ae68b45`; P1 source findings remain | Claude | Geometry-level and native identity-case tests pass, but completion requires all public transform surfaces to dispatch the map, origin/direction composition or explicit rejection, and native-precision arithmetic. Merge did not establish this acceptance. |
+| US-023-A2 | `PhasedArray3D` variant on the ADR 0042 seam. | [minor] | **review** — ritk PR #188 `fix/phased-array-origin-direction`: batch and single-point transforms compose with image origin/direction | Claude | Non-zero origin correctly offsets world point; round-trip with origin; batch/single agree; 65/65 tests pass |
 | US-023-A4 | `SliceSeries` variant on the ADR 0042 seam. Design settled by **ADR 0047**: owned per-slice rigid transform list (memory budget is three orders below the image it describes), composition with `Direction`, forward clamp / inverse reject out of range. `CoordinateMap` stops being `Copy`, so it lands as a breaking change. | [arch] | **done 2026-08-19** — ritk PR #180 merged at `40618f84` | Claude | Met. Round-trip within 1e-9; pure-translation sweep reproduces Cartesian exactly; single-slice degenerate; forward clamp; inverse rejection; 6 new tests; 5351/5351 workspace tests pass |
 | US-023-A5 | Move `CoordinateMap`/`CurvilinearArray`/`PhasedArray3D` from `ritk-image` to `ritk-spatial` (pure `f64` geometry, no tensor coupling); `ritk-image` re-exports and keeps using them. | [minor] | **done 2026-08-13** — ritk PR #132 merged at `9ae68b45` | Claude | Met. Static review clean; no new P0/P1. `ritk-spatial` gains no new dependency. |
 | US-023-A7 | Give `CurvilinearArray` an explicit `first_lateral_angle` instead of ITK's implied centre-on-boresight. Implemented in `ritk-spatial` via `try_new(first_lateral_angle)` + `centred()` helper for ITK compat. Geometry methods do not take `lateral_count`. | [major] | **done 2026-08-13** — implemented in ritk-spatial when PR #132 merged | — | Met. `try_new()` takes explicit `first_lateral_angle`; `centred()` provides ITK `-(n-1)/2·Δ` convention; no geometry method takes `lateral_count`. |
