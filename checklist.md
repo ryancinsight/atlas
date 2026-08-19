@@ -76,12 +76,13 @@
       closure is hosted-gated because the root overlay rejects the committed
       lock before Nextest. Hosted run `32200646447` has `verify` and
       `supply-chain` queued, so leave the root gitlink at `0631da0`.
-- [x] Claim the independent Hyperion lock slice while Horae's hosted run is
-      queued. Scope is `repos/hyperion/Cargo.lock` plus provider-local PM;
-      preserve the clean provider checkout and leave the Atlas gitlink fixed.
-- [ ] Refresh Hyperion's standalone lock from Aequitas `260ad10`, Eunomia
-      `85e590b`, and Proteus `f612c99`; run the standalone locked metadata and
-      provider gates, then push the provider branch for hosted verification.
+- [x] Claim and implement the independent Hyperion lock slice while Horae's
+      hosted run is queued. Provider commit `880eb8c` refreshes Aequitas
+      `260ad10`, Eunomia `85e590b`, and Proteus `f612c99`; local format and
+      locked all-feature metadata pass.
+- [ ] Collect Hyperion PR #15 hosted `verify` and `supply-chain` at exact head
+      `880eb8cce28d1e887942fbeb185a1cf4173c776a`; keep the Atlas gitlink fixed
+      until the provider default merges.
 - [x] Run the exact-head clean-checkout audit. It reports 22 findings across
       17 provider checkouts: eight checkout-head drifts and fourteen dirty
       canonical checkouts. Preserve those peer-owned states; do not treat the

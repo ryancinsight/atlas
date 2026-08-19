@@ -96,17 +96,15 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   the root overlay, so hosted run `32200646447` (`verify` and `supply-chain`)
   is the exact closure gate and remains queued. The root Horae gitlink remains
   at `0631da0` until the exact provider head merges.
-- **Hyperion lock slice claim:** Hyperion's clean standalone lock still pins
-  Aequitas `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`. The slice is
-  claimed independently of Horae PR #19 because the hosted Horae run is queued
-  and does not consume the Hyperion provider scope. Claimed scope is
-  `repos/hyperion/Cargo.lock` plus provider-local PM synchronization; no
-  Hyperion source or peer-owned checkout is in scope.
-- **Hyperion resolver boundary:** root-overlay `cargo check --locked
-  --all-features` remains a development-overlay diagnostic and fails before
-  compilation when the committed standalone lock does not describe the local
-  provider patches. Hosted provider verification is the standalone locked
-  closure gate; the Atlas Hyperion gitlink remains unchanged until merge.
+- **Hyperion lock slice:** provider commit `880eb8c` on
+  `codex/hyperion-lockstep-076` refreshes the clean standalone lock to
+  Aequitas `260ad10`, Eunomia `85e590b`, and Proteus `f612c99`; PR #15 is open
+  as a draft with hosted `verify` and `supply-chain` queued at exact head
+  `880eb8cce28d1e887942fbeb185a1cf4173c776a`. Local format and locked
+  all-feature metadata pass. The root-overlay `cargo check --locked` rejection
+  remains a pre-compilation development-overlay diagnostic, so the hosted
+  provider run is the standalone closure gate and the Atlas gitlink remains
+  unchanged until merge.
 - **Clean-checkout evidence:** the fresh `--require-clean-checkouts` audit
   reports 22 findings across 17 provider checkouts. Checkout-head drift is
   present in Themis, Tyche, Mnemosyne, Aequitas, Moirai, Hephaestus, Coeus,

@@ -95,14 +95,16 @@ hosted run `32200646447` (`verify` and `supply-chain`) is the exact closure
 gate and remains queued. Atlas keeps the Horae gitlink at `0631da0` until the
 exact provider head merges.
 
-Hyperion is the independent lock-coherence slice: its clean lock pins
-Aequitas `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`, while current
-provider defaults are `260ad10`, `85e590b`, and `f612c99`. The slice is claimed
-while Horae PR #19's hosted run remains queued because it has a disjoint write
-scope. Root-overlay `cargo check --locked --all-features` is a development
-diagnostic and fails before compilation when those local patches are absent
-from the committed lock; hosted provider verification remains the standalone
-locked closure gate. No Hyperion source or Atlas gitlink was changed yet.
+Hyperion's independent lock-coherence slice is implemented in provider commit
+`880eb8c` on `codex/hyperion-lockstep-076`. Its clean lock now follows the
+current defaults Aequitas `260ad10`, Eunomia `85e590b`, and Proteus `f612c99`;
+the manifest and source are unchanged. PR #15 is open as a draft at exact head
+`880eb8cce28d1e887942fbeb185a1cf4173c776a`, with hosted `verify` and
+`supply-chain` queued. Local format and locked all-feature metadata pass. The
+root-overlay `cargo check --locked --all-features --all-targets` rejection is a
+pre-compilation development-overlay diagnostic because the parent local patches
+are absent from the standalone lock; hosted provider verification is the
+standalone locked closure gate. Atlas has not advanced the Hyperion gitlink.
 
 Gaia's tractography boundary is present at Atlas gitlink `4980732`: the
 validated `gaia::Polyline` type is exported, and RITK's `ritk-tck` and
