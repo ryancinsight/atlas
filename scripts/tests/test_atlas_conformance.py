@@ -97,6 +97,25 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(payload["regressions"], ["demo/markers: 0 -> 1"])
         self.assertEqual(payload["tightenings"], ["demo/print_dbg: 2 -> 1"])
 
+    def test_render_baseline_reproduces_the_committed_file(self) -> None:
+        """The generator must reproduce its own committed artifact byte for byte.
+
+        Otherwise `generate` rewrites all ~1500 lines on every run, and a
+        single laundered count is invisible in a diff that size -- which is
+        how `e9c5821`'s `ritk/print_dbg: 12 -> 17` passed review. Before this
+        was fixed the generator wrote `indent=1` against a file committed at
+        `indent=2`.
+        """
+        baseline = SCRIPT.parent / "conformance-baseline.json"
+        raw = baseline.read_text(encoding="utf-8")
+        rendered = conformance.render_baseline(json.loads(raw))
+        self.assertEqual(
+            rendered,
+            raw,
+            "regenerating the committed baseline changed its formatting; "
+            "`generate` is no longer idempotent",
+        )
+
     def test_crate_level_allow_is_counted_separately(self) -> None:
         """The blanket form must be measured, and not by `allow_sites`.
 

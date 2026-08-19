@@ -612,6 +612,20 @@ def report(results: dict[str, dict[str, int]]) -> None:
         print(f"{k:<{width}}  {totals[k]:>5}  {offenders}")
 
 
+def render_baseline(results: dict[str, dict[str, int]]) -> str:
+    """The exact on-disk form of the committed baseline.
+
+    Sole owner of the artifact's formatting, because a generator that does
+    not reproduce its own committed output is not idempotent: `generate`
+    wrote `indent=1` against a file committed at `indent=2`, so every
+    baseline change arrived as a ~1500-line whole-file diff. A single
+    laundered count is invisible in a diff that size -- which is how
+    `e9c5821`'s `ritk/print_dbg: 12 -> 17` passed review. Pinned by a test
+    against the committed file.
+    """
+    return json.dumps(results, indent=2, sort_keys=True) + "\n"
+
+
 def baseline_raises(
     previous: dict[str, dict[str, int]],
     current: dict[str, dict[str, int]],
@@ -736,12 +750,10 @@ def main() -> int:
             print(f"baseline raised, reason: {args.accept_raises}")
             for repo, cls, was, value in raises:
                 print(f"  RAISE {repo}/{cls}: {was} -> {value}")
-        BASELINE.write_text(
-            json.dumps(results, indent=1, sort_keys=True) + "\n", newline="\n"
-        )
+        BASELINE.write_text(render_baseline(results), newline="\n")
         print(f"baseline written: {BASELINE.relative_to(ROOT)}")
         if args.json:
-            print(json.dumps(results, indent=1, sort_keys=True))
+            print(render_baseline(results), end="")
         else:
             report(results)
         return 0
