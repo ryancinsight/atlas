@@ -7,7 +7,7 @@
     "junk_drawer_modules": 0,
     "manifest_implementation": 0,
     "markers": 0,
-    "member_namespace_pollution": 1,
+    "member_namespace_pollution": 0,
     "missing_cargo_lock": 0,
     "missing_deny_docs": 0,
     "nextest_budget_missing": 0,
@@ -24,7 +24,7 @@
     "type_suffixed_fns": 0,
     "unwrap_production": 0,
     "workflow_missing_permissions": 2,
-    "workflow_missing_timeout": 1,
+    "workflow_missing_timeout": 0,
     "workspace_lints_missing": 0
   },
   "CFDrs": {
@@ -61,7 +61,7 @@
     "existence_only_assertions": 0,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
-    "manifest_implementation": 0,
+    "manifest_implementation": 1,
     "markers": 0,
     "member_namespace_pollution": 0,
     "missing_cargo_lock": 0,
@@ -497,7 +497,7 @@
     "sleep_synced_tests": 12,
     "tag_pinned_actions": 62,
     "target_forks": 0,
-    "type_suffixed_fns": 5,
+    "type_suffixed_fns": 7,
     "unwrap_production": 230,
     "workflow_missing_permissions": 1,
     "workflow_missing_timeout": 3,
@@ -528,7 +528,7 @@
     "type_suffixed_fns": 8,
     "unwrap_production": 83,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 2,
+    "workflow_missing_timeout": 0,
     "workspace_lints_missing": 0
   },
   "melinoe": {
@@ -556,14 +556,14 @@
     "type_suffixed_fns": 0,
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 1,
+    "workflow_missing_timeout": 0,
     "workspace_lints_missing": 0
   },
   "mnemosyne": {
     "allow_sites": 11,
     "commented_out_code": 2,
     "existence_only_assertions": 5,
-    "gitattributes_missing": 1,
+    "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
     "manifest_implementation": 8,
     "markers": 0,
@@ -581,10 +581,10 @@
     "sleep_synced_tests": 0,
     "tag_pinned_actions": 0,
     "target_forks": 0,
-    "type_suffixed_fns": 2,
+    "type_suffixed_fns": 0,
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 1,
+    "workflow_missing_timeout": 0,
     "workspace_lints_missing": 0
   },
   "moirai": {
@@ -612,14 +612,14 @@
     "type_suffixed_fns": 6,
     "unwrap_production": 123,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 4,
+    "workflow_missing_timeout": 2,
     "workspace_lints_missing": 0
   },
   "proteus": {
     "allow_sites": 0,
     "commented_out_code": 0,
     "existence_only_assertions": 0,
-    "gitattributes_missing": 1,
+    "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
     "manifest_implementation": 0,
     "markers": 0,
@@ -640,7 +640,7 @@
     "type_suffixed_fns": 0,
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 1,
+    "workflow_missing_timeout": 0,
     "workspace_lints_missing": 0
   },
   "ritk": {
@@ -649,14 +649,14 @@
     "existence_only_assertions": 175,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 1,
-    "manifest_implementation": 104,
+    "manifest_implementation": 105,
     "markers": 0,
     "member_namespace_pollution": 0,
     "missing_cargo_lock": 0,
     "missing_deny_docs": 32,
     "nextest_budget_missing": 0,
     "orphan_modules": 0,
-    "oversized_files": 43,
+    "oversized_files": 44,
     "print_dbg": 12,
     "pull_request_target_use": 0,
     "reexport_shims": 3,
@@ -668,7 +668,7 @@
     "type_suffixed_fns": 59,
     "unwrap_production": 61,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 3,
+    "workflow_missing_timeout": 1,
     "workspace_lints_missing": 1
   },
   "themis": {
@@ -696,7 +696,7 @@
     "type_suffixed_fns": 0,
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 1,
+    "workflow_missing_timeout": 0,
     "workspace_lints_missing": 0
   },
   "tyche": {
@@ -721,10 +721,10 @@
     "sleep_synced_tests": 0,
     "tag_pinned_actions": 0,
     "target_forks": 0,
-    "type_suffixed_fns": 5,
+    "type_suffixed_fns": 0,
     "unwrap_production": 0,
     "workflow_missing_permissions": 0,
-    "workflow_missing_timeout": 2,
+    "workflow_missing_timeout": 0,
     "workspace_lints_missing": 0
   }
 }

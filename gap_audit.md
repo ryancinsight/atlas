@@ -83,12 +83,14 @@ corrected in the root test scope; the exact fast tier now passes 225 tests,
 17 deselected tests, and 74 subtests in 13.75 seconds.
 The committed slow Python/book tier passes 17/17 in 1.62 seconds.
 
-The fresh `--require-clean-checkouts` provider audit reports 22 findings
-across 17 checkouts. Head drift is present in Themis, Tyche, Mnemosyne,
-Aequitas, Moirai, Hephaestus, Coeus, and Apollo; dirty canonical checkouts are
-Themis, Proteus, Mnemosyne, Consus, Helios, Harmonia, Eunomia, Moirai, Melinoe,
-Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. These are peer-coordination
-residuals and were not modified.
+After fast-forwarding the owned Horae and Hyperion checkouts to their merged
+defaults, the fresh `--require-clean-checkouts` provider audit reports 23
+findings across 17 peer-owned checkouts. Head drift is present in Themis,
+Tyche, Aequitas, Moirai, RITK, Hephaestus, Coeus, and Apollo; dirty canonical
+checkouts are Themis, Proteus, Consus, Helios, Harmonia, Eunomia, Moirai,
+Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. RITK also has an
+`apollo-fft 0.26.0` requirement that does not accept the current 0.27.0
+package. These are peer-coordination residuals and were not modified.
 
 The clean Horae consumer-lock slice is pushed as provider commits `9cc9fd8`,
 `aefe641`, and evidence-boundary correction `91a020c`. Hosted run

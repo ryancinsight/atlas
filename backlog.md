@@ -103,12 +103,15 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   closeout passed hosted `verify` and `supply-chain` at exact head
   `86486139120243e0b6cae84143d7a914eb51a8a3`; PM-only PR #16 merged at
   default `93157c235d1bfabd88a4720b4a02370ff2a00cc2`.
-- **Clean-checkout evidence:** the fresh `--require-clean-checkouts` audit
-  reports 22 findings across 17 provider checkouts. Checkout-head drift is
-  present in Themis, Tyche, Mnemosyne, Aequitas, Moirai, Hephaestus, Coeus,
-  and Apollo; tracked or untracked dirt is present in Themis, Proteus,
-  Mnemosyne, Consus, Helios, Harmonia, Eunomia, Moirai, Melinoe, Leto,
-  Hephaestus, Coeus, Apollo, Hermes, and Iris. No peer checkout was changed.
+- **Clean-checkout evidence:** after fast-forwarding the owned Horae and
+  Hyperion checkouts to their merged defaults, the fresh
+  `--require-clean-checkouts` audit reports 23 findings across 17 peer-owned
+  provider checkouts. Head drift is present in Themis, Tyche, Aequitas,
+  Moirai, RITK, Hephaestus, Coeus, and Apollo; tracked or untracked dirt is
+  present in Themis, Proteus, Consus, Helios, Harmonia, Eunomia, Moirai,
+  Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. RITK also has
+  an `apollo-fft 0.26.0` requirement that does not accept the current 0.27.0
+  package. No peer checkout was changed.
 
 **Current lane residual:** `python scripts/atlas-lane-audit.py` reports five
 violations: Consus has four trees plus a lane outside the canonical root,
