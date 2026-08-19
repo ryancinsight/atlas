@@ -152,6 +152,12 @@ gaia-mesh = { path = "repos/gaia" }
 [patch."https://github.com/ryancinsight/gaia.git"]
 gaia-mesh = { path = "repos/gaia" }
 
+[patch."https://github.com/ryancinsight/harmonia"]
+harmonia = { path = "repos/harmonia" }
+
+[patch."https://github.com/ryancinsight/harmonia.git"]
+harmonia = { path = "repos/harmonia" }
+
 [patch."https://github.com/ryancinsight/hephaestus"]
 hephaestus-core = { path = "repos/hephaestus/crates/hephaestus-core" }
 hephaestus-cuda = { path = "repos/hephaestus/crates/hephaestus-cuda" }
@@ -245,7 +251,6 @@ proteus = { path = "repos/proteus" }
 proteus = { path = "repos/proteus" }
 
 [patch."https://github.com/ryancinsight/ritk"]
-ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
 ritk-core = { path = "repos/ritk/crates/ritk-core" }
 ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
 ritk-image = { path = "repos/ritk/crates/ritk-image" }
@@ -255,7 +260,6 @@ ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
 ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
 
 [patch."https://github.com/ryancinsight/ritk.git"]
-ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
 ritk-core = { path = "repos/ritk/crates/ritk-core" }
 ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
 ritk-image = { path = "repos/ritk/crates/ritk-image" }
