@@ -5534,3 +5534,10 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [ ] Restore a standalone locked provider build after the shared overlay
       lockfile contention is resolved; the current failure occurs before Rust
       compilation.
+
+## 2026-08-19 CFDrs hosted infrastructure retry
+
+- [x] Classify run `32226998372`'s first failure as runner-only: three bounded
+      `apt-get` attempts in native-fontconfig setup failed before Rust steps.
+- [ ] Collect the rerun at `bc18b095`; do not advance the Atlas CFDrs gitlink
+      from `931ee3a0` until hosted Rust and figure gates pass.

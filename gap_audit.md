@@ -12631,3 +12631,13 @@ documentation URL and makes Pages rebuild on `crates/**`, `Cargo.toml`, and
 Formatting and locked metadata inspection pass. A locked provider package check
 remains blocked before compilation by the shared Atlas overlay's unused local
 patches and lockfile rewrite request.
+
+## Finding 2026-08-19: CFDrs JFNK hosted retry is infrastructure-bound
+
+CFDrs replacement run `32226998372` first failed before compilation in the
+native-fontconfig setup: all three bounded `apt-get` attempts timed out against
+the runner's Ubuntu mirrors. The failure supplies no evidence about the JFNK
+source slice. GitHub reran the failed job at the unchanged provider head
+`bc18b095`; checkout, lock normalization, and nextest installation passed and
+fontconfig setup is currently in progress. Atlas remains at CFDrs default
+`931ee3a0` pending the rerun's Rust and figure results.
