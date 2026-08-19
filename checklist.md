@@ -5622,5 +5622,8 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       `c272c27`, `71e0b0a`, `eb2c8e6` is merged as default `58506a0`.
 - [x] Collect provider hosted `verify`, `supply-chain`, and Pages book build;
       all required checks pass in runs `32251895080` and `32251895767`.
-- [ ] Advance the Atlas Horae gitlink and collect the exact-head root audit;
-      this is the next integration action.
+- [x] Advance the Atlas Horae gitlink in root commit `5c8a828`; the exact-head
+      provider audit, overlay, 27 standalone lock forms, board lint, and 18
+      conformance-regression tests pass. Hosted overlay run `32252274386`
+      passes. Hosted conformance `32252274384` still reports only the three
+      pre-existing CFDrs/Coeus/Consus ratchet residuals.

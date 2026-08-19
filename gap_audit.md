@@ -12816,7 +12816,11 @@ and dimension-negative tests are committed; the provider `verify`,
 `supply-chain`, and Pages book-build workflows pass in runs `32251895080` and
 `32251895767`.
 
-The Atlas pointer advance is the remaining integration action. The local
-umbrella overlay still refuses locked Horae compilation before Cargo can
-resolve its generated local patches; hosted standalone gates are the
-authoritative compilation evidence for this provider increment.
+Root commit `5c8a828` advances the Atlas pointer to this hosted-verified head.
+The exact-head provider audit, stack overlay, 27 standalone lock forms, board
+lint, and 18 conformance-regression tests pass; hosted overlay run
+`32252274386` also passes. The local umbrella overlay still refuses locked
+Horae compilation before Cargo can resolve its generated local patches, so
+hosted standalone gates remain the authoritative compilation evidence for the
+provider increment. Hosted conformance `32252274384` repeats only the three
+unrelated CFDrs/Coeus/Consus ratchet residuals.
