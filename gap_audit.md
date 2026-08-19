@@ -1,5 +1,14 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-19: Kwavers stale install guidance cleanup
+
+Provider commit `498f38a3ef06345d699d6f76438f4108dcc3bd32` updates the remaining
+Kwavers Python test diagnostics and examples that still instructed users to
+enter the removed `pykwavers` subdirectory or install a `pykwavers-*.whl`.
+They now use the repository-root `crates/kwavers-python/Cargo.toml` manifest and
+the actual `kwavers_python` wheel name. Atlas records the exact provider head in
+`0a3e2dd`. The local extension import and hosted k-Wave comparator are still
+open and are not masked by this documentation cleanup.
 ## Finding 2026-08-19: Kwavers comparison-extra contract correction
 
 Kwavers provider commit `308d915945a143e32885e857738ecd0a673cebb3` corrects

@@ -11,6 +11,11 @@
       README uses the repository-root Cargo manifest. The provider commit and
       Atlas pointer `ad977c6` are pushed. The compiled-extension and hosted
       comparator residual remains open.
+- [x] Remove the remaining stale Kwavers Python install commands from two
+      diagnostics and two examples at provider commit `498f38a3e`; all now use
+      the repository-root `crates/kwavers-python/Cargo.toml` manifest and the
+      `kwavers_python` wheel name. Atlas pointer `0a3e2dd` is pushed. The
+      focused test remains blocked only by the absent local extension.
 - [ ] Collect CFDrs PR #358 rerun at corrected head `5e13018a`: the prior exact
       run reached Clippy and failed only on `clippy::inconsistent_struct_constructor`
       in `newton_fallback.rs`; the provider reordered the constructor fields and
