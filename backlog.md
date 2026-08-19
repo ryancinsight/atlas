@@ -54,6 +54,20 @@
   release-authority change and remains an explicit follow-up rather than an
   implicit compatibility rename.
 
+## ATLAS-HELIOS-PYPI-2026-08-19 — trusted wheel release [patch]
+
+- Helios provider branch `codex/helios-pypi-release` commit `0d64981` adds the
+  PyPI distribution metadata, package README, and a release workflow using the
+  Atlas reusable abi3 wheel workflow plus PyPI Trusted Publishing. Draft PR #67
+  is open.
+- The distribution is named `helios-python` because PyPI already owns
+  `helios` (`0.3.0`); the extension import remains `helios`, so the Python API
+  is not renamed. The package uses the dynamic Cargo version and a py39 stable
+  ABI floor.
+- Python `tomllib` metadata validation and API/import-name checks pass. Local
+  `maturin --release --locked` remains blocked before compilation by the shared
+  Atlas overlay lock mismatch; no wheel or Rust gate is claimed locally.
+
 Fourteen read-only audits covering every registered member plus the meta-repo.
 Every claim below is grounded at `file:line` in the audited tree. Items are
 ordered by tier, and tier is set by *what breaks*, not by effort.
