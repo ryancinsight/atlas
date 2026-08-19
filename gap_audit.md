@@ -1,5 +1,19 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-19: Mnemosyne default moved after the first Miri failure
+
+The previous exact-head run `32206977029` at Mnemosyne
+`43cdf04769d4ab8701dea657b282c4a189175d48` failed its Miri compilation gate
+because `mnemosyne-backend/src/backends/unix.rs:292` did not import
+`mnemosyne_core::SEGMENT_SIZE` (E0425). Mnemosyne `origin/main` has since
+advanced to `cbccb7ee826b387e4e0ccc4499beb57a88bb51c7` with the provider CI
+change `ci(mnemosyne): Hold mnemosyne-backend out of the Miri gate`. Exact-head
+run `32208332797` is now queued/in progress with Loom, aarch64, and
+ThreadSanitizer already successful; Rust verification and Miri remain
+uncollected. Atlas therefore keeps the verified gitlink at `64f0d2e` until a
+fresh exact default-head run completes. No provider source or peer-owned lock
+file was modified.
+
 ## Finding 2026-08-19: Apollo stale Windows lint expectations
 
 The live Apollo source census found 42 host-specific
