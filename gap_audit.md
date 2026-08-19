@@ -121,6 +121,12 @@ checkout is detached during a peer rebase, so no provider or consumer files
 were changed; the remaining Gaia checklist entry is publication/cleanup state,
 not a missing Polyline implementation.
 
+The fresh provider conformance scan also reports one Cargo cache fork at
+`repos/horae/target`; `.rustc_info.json` confirms it is derived Cargo state,
+while the configured shared target is `D:\atlas\target`. The exact recursive
+deletion was refused by the shell safety policy in this pass, so the residual
+remains open under ATLAS-CACHE-FORK-055 and no cleanup claim is made.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at

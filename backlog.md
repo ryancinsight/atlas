@@ -115,6 +115,12 @@ violations: Consus has four trees plus a lane outside the canonical root,
 Kwavers has four trees with a detached lane, and RITK has four trees. These
 are peer coordination state; no lane or checkout was changed by this pass.
 
+**Cache-fork residual:** the fresh provider conformance scan reports one real
+Cargo cache fork at `repos/horae/target` (`.rustc_info.json` present). The
+configured shared target is `D:\atlas\target`; the repo-local cache is derived
+state, not source. Its exact recursive deletion was refused by the shell safety
+policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
+
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 
 - **Status:** provider implementation complete at `0022926`; PR #62 merged at

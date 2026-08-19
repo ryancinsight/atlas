@@ -879,6 +879,10 @@ Three ordering facts came out of the audit and are not obvious from the board:
 - Verify no member is mid-build before deleting; then remove the 25
   `repos/*/target` trees and re-run the conformance report to confirm
   `target_forks = 0`. Recovers 58.9 GB.
+- [ ] Current residual: remove the validated derived cache at
+      `repos/horae/target`; the fresh scan reports `target_forks = 1`. The
+      exact recursive deletion was refused by the shell safety policy, so do
+      not claim this cleanup until a permitted deletion and rescan succeed.
 - Check afterwards *why* they exist — if a script or CI step passes
   `--target-dir` or sets `CARGO_TARGET_DIR`, deleting the trees without removing
   the override just regrows them.
