@@ -236,13 +236,13 @@ Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. RITK also has an
 package. These are peer-coordination residuals and were not modified.
 
 The clean Horae consumer-lock slice is pushed as provider commits `9cc9fd8`,
-`aefe641`, and evidence-boundary correction `91a020c`. Hosted run
-`32200646447` passes `verify` and `supply-chain` at exact head, and PR #19
-merged at default `1ed6a172aa1ef57765c4d07ae740e6c297913567`. Local-graph
-format, locked metadata, both feature configurations, Clippy, 20/20 Nextest,
-doctest, rustdoc, and cargo-deny pass. Atlas now records the merged Horae
-gitlink; the parent-overlay rejection remains a development diagnostic and is
-not used as standalone proof.
+`aefe641`, and evidence-boundary correction `91a020c`. Post-merge CI
+`32202560133` passes `verify` and `supply-chain`, and Pages deployment
+`32202559349` passes at exact default `1ed6a172aa1ef57765c4d07ae740e6c297913567`.
+Local-graph format, locked metadata, both feature configurations, Clippy, 20/20
+Nextest, doctest, rustdoc, and cargo-deny pass. Atlas now records the merged
+Horae gitlink; the parent-overlay rejection remains a development diagnostic
+and is not used as standalone proof.
 
 Hyperion's independent lock-coherence slice is implemented in provider commit
 `880eb8c`. Its clean lock now follows the current defaults Aequitas `260ad10`,

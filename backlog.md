@@ -99,13 +99,13 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 - The committed slow Python/book tier also passes 17/17 in 1.62 seconds;
   documentation helper coverage is green at the delivered root revision.
 - **Horae result:** provider lock commit `9cc9fd8` plus PM synchronization
-  `aefe641` and evidence-boundary correction `91a020c` pass hosted run
-  `32200646447` (`verify` and `supply-chain`) at exact head and merged through
-  PR #19 at default `1ed6a172aa1ef57765c4d07ae740e6c297913567`. Local-graph
-  format, locked metadata, both feature configurations, Clippy, 20/20
-  Nextest, doctest, rustdoc, and cargo-deny pass; the root gitlink now records
-  the merged default. The root-overlay rejection remains a development
-  diagnostic rather than standalone proof.
+  `aefe641` and evidence-boundary correction `91a020c` pass post-merge CI
+  `32202560133` (`verify` and `supply-chain`) and Pages deployment
+  `32202559349` at exact default `1ed6a172aa1ef57765c4d07ae740e6c297913567`.
+  Local-graph format, locked metadata, both feature configurations, Clippy,
+  20/20 Nextest, doctest, rustdoc, and cargo-deny pass; the root gitlink now
+  records the merged default. The root-overlay rejection remains a
+  development diagnostic rather than standalone proof.
 - **Hyperion lock slice:** provider commit `880eb8c` refreshes the clean
   standalone lock to Aequitas `260ad10`, Eunomia `85e590b`, and Proteus
   `f612c99`; hosted `verify` and `supply-chain` pass at exact head

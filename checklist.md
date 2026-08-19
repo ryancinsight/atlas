@@ -134,9 +134,10 @@
 - [x] Reconcile the claimed Horae lock slice outside the Atlas overlay, run its
       locked package gates, and synchronize the provider-local PM.
 - [x] Push Horae lock commit `9cc9fd8` and PM synchronization `aefe641` plus
-      evidence-boundary correction `91a020c` on PR #19. Hosted run
-      `32200646447` passes `verify` and `supply-chain`; PR #19 merged at
-      default `1ed6a172`. The root gitlink is advanced to that merged head.
+      evidence-boundary correction `91a020c` on PR #19. Post-merge CI run
+      `32202560133` passes `verify` and `supply-chain`, and Pages deployment
+      `32202559349` passes at default `1ed6a172`. The root gitlink is advanced
+      to that merged head.
 - [x] Claim and implement the independent Hyperion lock slice while Horae's
       hosted run is queued. Provider commit `880eb8c` refreshes Aequitas
       `260ad10`, Eunomia `85e590b`, and Proteus `f612c99`; local format and
