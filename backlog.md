@@ -76,6 +76,12 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   17 deselected tests, and 74 subtests in 13.75 seconds.
 - The committed slow Python/book tier also passes 17/17 in 1.62 seconds;
   documentation helper coverage is green at the delivered root revision.
+- **Clean-checkout evidence:** the fresh `--require-clean-checkouts` audit
+  reports 22 findings across 17 provider checkouts. Checkout-head drift is
+  present in Themis, Tyche, Mnemosyne, Aequitas, Moirai, Hephaestus, Coeus,
+  and Apollo; tracked or untracked dirt is present in Themis, Proteus,
+  Mnemosyne, Consus, Helios, Harmonia, Eunomia, Moirai, Melinoe, Leto,
+  Hephaestus, Coeus, Apollo, Hermes, and Iris. No peer checkout was changed.
 
 **Current lane residual:** `python scripts/atlas-lane-audit.py` reports five
 violations: Consus has four trees plus a lane outside the canonical root,

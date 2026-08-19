@@ -59,6 +59,10 @@
       13.75 seconds.
 - [x] Run the committed slow Python/book tier: 17/17 tests pass in 1.62
       seconds.
+- [x] Run the exact-head clean-checkout audit. It reports 22 findings across
+      17 provider checkouts: eight checkout-head drifts and fourteen dirty
+      canonical checkouts. Preserve those peer-owned states; do not treat the
+      cleanliness gate as provider source evidence.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — current provider slice
 

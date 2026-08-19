@@ -74,6 +74,13 @@ corrected in the root test scope; the exact fast tier now passes 225 tests,
 17 deselected tests, and 74 subtests in 13.75 seconds.
 The committed slow Python/book tier passes 17/17 in 1.62 seconds.
 
+The fresh `--require-clean-checkouts` provider audit reports 22 findings
+across 17 checkouts. Head drift is present in Themis, Tyche, Mnemosyne,
+Aequitas, Moirai, Hephaestus, Coeus, and Apollo; dirty canonical checkouts are
+Themis, Proteus, Mnemosyne, Consus, Helios, Harmonia, Eunomia, Moirai, Melinoe,
+Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. These are peer-coordination
+residuals and were not modified.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at
