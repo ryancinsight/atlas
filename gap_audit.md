@@ -12757,3 +12757,18 @@ full local Python suite's single max-2-ULP patch-denoising difference occurs
 only with the installed `SimpleITK 3.0.0a1.post183-g61ffa`, outside the pinned
 `>=2.5.5,<2.6` test requirement; the supported hosted wheel oracle is green.
 The three additional RITK worktrees remain peer-owned lane-topology residuals.
+
+## Finding 2026-08-19: Kwavers book fence semantics repaired
+
+Kwavers commit `cbf99272b4265b720b4e4d597515f91ba944fefa` makes the book's 96
+Rust fences truthful: equations, output, and diagrams use `text`, while
+workspace-dependent source excerpts use `rust,ignore`; the stale
+`DENSITY_WATER_NOMINAL` excerpt now names `DENSITY_WATER_37C`. The exact
+provider gates `mdbook test docs/book` and `mdbook build docs/book` pass.
+
+The root gitlink is advanced to this pushed provider head without staging the
+peer-owned `docs/ADR/111-retire-kzk-solver-plugin-surface.md`. The linked Cargo
+examples remain an explicit residual: `cargo check -p kwavers --examples
+--locked` stops before compilation because the shared Atlas overlay requests a
+lockfile update. This is a resolver/overlay blocker, not evidence of a source
+failure or an example compile pass.

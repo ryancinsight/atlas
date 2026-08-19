@@ -5579,3 +5579,15 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [x] Verify the exact repo-local `repos/horae/target` path and its Cargo
       derived-state marker before removal.
 - [x] Remove the fork and re-run the Horae conformance scan; `target_forks: 0`.
+
+## 2026-08-19 Kwavers book fence repair
+
+- [x] Normalize the 96 code fences that the shared mdBook gate previously
+      parsed incorrectly; equations/output/diagrams are `text`, and
+      workspace-dependent Rust excerpts are `rust,ignore`. Correct the stale
+      `DENSITY_WATER_NOMINAL` excerpt in provider commit `cbf99272b`.
+- [x] Run `mdbook test docs/book` and `mdbook build docs/book`; both pass at
+      the exact provider head.
+- [ ] Run the linked real examples through `cargo check -p kwavers --examples
+      --locked` after the shared Atlas overlay lock mismatch is repaired. The
+      current attempt is blocked before compilation and is not source evidence.
