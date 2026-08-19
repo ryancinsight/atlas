@@ -136,33 +136,19 @@ configured shared target is `D:\atlas\target`; the repo-local cache is derived
 state, not source. Its exact recursive deletion was refused by the shell safety
 policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
 
-## ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18 — NumPy spatial-axis contract [patch] — blocked
+## ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18 — NumPy spatial-axis contract [patch] — in progress
 
-- **Owner:** current session; provider source work is parked behind shared RITK
-  checkout contention. The prior `fix/python-array-direction` checkout was
-  switched away by a peer while its source patch was uncommitted; Atlas scope
-  is this item and the synchronized root PM records.
-- **Evidence:** merged RITK default `6bd4bc14` has queued default CI/Python CI
-  runs `32203816886` and `32203816879`. The preceding exact-head PR workflow
-  `32200267421` passes Rustfmt, Clippy, dependency alignment, and the platform
-  test suites, but its Python Wheel smoke job fails the 2-D and 3-D
-  `InverseDisplacementField` parity tests and the iterative inverse test. The
-  maximum observed errors are `2.2323646545`, `0.0820963383`, and
-  `0.1707854271` against the committed `1e-4` value oracle.
-- **Cause:** `ritk-python` builds NumPy `[Z,Y,X]` images with an identity
-  internal direction, while the direction-aware RITK filters consume tensor
-  axes and world components through the canonical axial mapping. The public
-  SimpleITK-order direction remains identity; only the native carrier's
-  internal direction is corrected.
-- **Scope:** `crates/ritk-python/src/image.rs` and the color-image constructor
-  that accepts the same NumPy storage convention, plus provider-local contract
-  documentation and focused gates. Non-goals are tolerance changes,
-  compatibility adapters, or edits to peer-owned RITK lanes.
-- **Acceptance:** the provider wheel smoke suite passes all three inverse
-  displacement value comparisons at the existing `1e-4` oracle; focused Rust,
-  Python binding, format, Clippy, documentation, and hosted checks pass at one
-  exact provider head; Atlas then advances only to that verified merged default.
-- **Verification before parking:** the ephemeral source patch passed
+- **Owner:** current session; fix pushed on `fix/python-array-direction`, PR #179 open, CI running.
+- **Root cause (identified 2026-08-19):** the three Python displacement-field inversion bindings
+  passed world-component arguments in the wrong order to the filters:
+  - `inverse_displacement_field` (TPS) and `iterative_inverse_displacement_field` (line search):
+    used `(col, row, depth)` but the filters expected `(depth, row, col)` in world-axis order.
+  - `invert_displacement_field` (Chen et al.): was already correct; an incorrect change was
+    reverted.
+- **Fix:** PR #179 commit `5fbc48e6` swaps the argument order for the TPS and line-search
+  variants; commit `a1119336` reverts the incorrect change to the Chen et al. variant.
+- **Status:** CI runs queued on `fix/python-array-direction`; 0 failures in the previous run
+  except for `test_cmake_invert_displacement_field` which was fixed in the revert commit.
   `cargo nextest run -p ritk-python --lib` (47/47) and
   `cargo clippy -p ritk-python --all-targets -- -D warnings`; the release wheel
   build hit the 120-second command ceiling and produced no artifact. These
