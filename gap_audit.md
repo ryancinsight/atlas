@@ -1,5 +1,18 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-19: Apollo PR #107 benchmark remains red
+
+Apollo PR #107 remains open at source head `d408c738`. Its hosted benchmark
+run `32217561595` fails 17 counterbalanced cases, not only the two
+`mixed_precision_f16_auto` cases recorded by the earlier audit. The failures
+include sizes 64 and 96, Rader `f32/31` and `f64/53`, and multiple composite
+prime cases; the comparison reports the candidate slower in all four ordering
+comparisons for each failure. The Rust job is cancelled and the Python job
+passes. This is an empirical performance residual, so no merge, tolerance
+change, workload reduction, or benchmark-instrument change is authorized by
+the audit. The Apollo checkout retains peer-owned `Cargo.lock` and
+`backlog.md` dirt; the next action is root-cause profiling on the active PR
+
 ## Finding 2026-08-19: Kwavers parity workflow dispatchability — closed
 
 The wheel-smoke workflow was pull-request-only, so a direct provider-main

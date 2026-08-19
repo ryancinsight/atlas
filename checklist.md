@@ -35,11 +35,12 @@
       `32229463775` passes the Rust workspace and figure SSOT gates, and PR #358
       merges at default `834340f7`. The Atlas gitlink records that exact default;
       the provider checkout remains on its peer branch.
-- [ ] Collect and merge Apollo PR #107 at provider commits `6be8cd28` and
-      `cd94c10d` after its rerun Rust, Python, and benchmark checks complete.
-      The first Rust job exposed nine additional const-initializer diagnostics;
-      the follow-up fixes them. Local locked Cargo gates remain blocked by the
-      peer-owned overlay lock refresh.
+- [ ] Collect and merge Apollo PR #107 only after its benchmark gate is green.
+      Rust is cancelled, Python passes, and benchmark run `32217561595` fails
+      17 counterbalanced cases, including
+      `mixed_precision_f16_auto/64` and `/96`, Rader `f32/31` and `f64/53`,
+      and composite-prime cases. The active branch is peer-owned and carries
+      dirty `Cargo.lock`/`backlog.md`; no Apollo source or lock was changed.
 - [x] Re-run Helios `mdbook test docs/book` at detached HEAD `f8ebe42`:
       every listed chapter/example completes. Keep H-103 open for provider
       reconciliation because Helios `backlog.md` still says todo and the
