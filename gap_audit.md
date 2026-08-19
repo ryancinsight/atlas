@@ -2,15 +2,18 @@
 
 ## Finding 2026-08-18: current provider recheck and Tyche completion
 
-At the current staged root increment, the RITK gitlink advances from `f9d04a79`
-to fetched default `9fa4981e`. The provider commit is a docs-only merge of PR
-#176 (`backlog.md` correction), so no source or lock behavior changed. The
-lock-form passes for 27 standalone locks, and the Atlas conformance regression
-suite passes 12/12. Exact-head and overlay checks now fail only because the
-preserved dirty RITK checkout still carries the local Apollo/Hermes migration
-state (`apollo-fft 0.26.0`, Hermes SIMD 0.6.0) while the provider graph is at
-0.27/0.7. Hosted verification for `9fa4981e` remains a separate collection
-step; the checkout is not modified by this pointer advance.
+At the current root revision, the RITK gitlink records merged default
+`6bd4bc14` from PR #178. Its default CI/Python CI runs `32203816886` and
+`32203816879` are queued. The preceding exact-head workflow
+`32200267421` passes the Rust, Clippy, dependency-alignment, Python-matrix,
+and platform-test jobs but its Python Wheel smoke job fails the committed
+SimpleITK value oracles for 2-D inverse displacement (`2.2323646545` max),
+3-D inverse displacement (`0.0820963383` max), and iterative inverse
+displacement (`0.1707854271` max) against `1e-4`. This is a provider behavior
+residual, not a hosted-infrastructure failure and not a reason to widen the
+tolerance. The source cause is the Python NumPy `[Z,Y,X]` constructor retaining
+an identity internal direction after the direction-aware filter migration;
+the provider fix is tracked under `ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18`.
 
 Tyche cleanup commit `de925e6` consolidates the checked index conversions shared
 by Latin-hypercube and Sobol designs, renames the bounded counter helper to its

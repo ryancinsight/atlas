@@ -8,10 +8,11 @@
 - [x] Re-run stack-overlay, lock-form, and conformance checks after the
       Aequitas integration: lock-form passes for 27 standalone locks,
       conformance passes 12/12, and the latest overlay is aligned.
-- [x] Identify the fetched RITK default movement to docs-only `9fa4981e` and
-      stage the Atlas gitlink forward from `f9d04a79`; the peer-owned checkout
-      remains untouched. Exact-head verification after this staged pointer and
-      hosted verification for `9fa4981e` remain collection steps.
+- [x] Reconcile the RITK default movement through PR #175 and PR #178. The
+      Atlas gitlink now records merged default `6bd4bc14` from PR #178; the
+      default CI/Python CI runs `32203816886` and `32203816879` are queued.
+      The earlier exact-head workflow `32200267421` is recorded as a real
+      Python-wheel parity failure, not as hosted closure.
 - [x] Complete and merge the Tyche provider cleanup at commit `de925e6`
       through PR #26 at default `7e55ff8f`: consolidate Latin-hypercube/Sobol
       index conversions and remove five production type-suffixed helper names.
@@ -54,10 +55,19 @@
       hosted Clippy at `cfd-2d/src/solvers/ns_fvm/solver/solve.rs:218` for
       `clippy::if_not_else`, while the book-figure check passes. Preserve the
       peer-owned CFDrs checkout and branch.
-- [ ] Explicitly classify the absence of a
-      run for RITK default `9fa4981e`. Queued or in-progress status remains
-      distinct from hosted closure. Preserve all peer-owned nested checkout
-      and lane dirt.
+- [x] Classify the RITK hosted residual at the exact failed job: the Python
+      Wheel smoke test fails
+      `test_cmake_inverse_displacement_field_2d` (max `2.2323646545`),
+      `test_cmake_inverse_displacement_field_3d` (max `0.0820963383`), and
+      `test_cmake_iterative_inverse_displacement_field` (max `0.1707854271`),
+      while Rustfmt, Clippy, dependency alignment, Python matrices, and the
+      platform test suites pass. The provider fix is tracked in
+      `ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18`; no tolerance widening is
+      permitted.
+- [ ] Complete the RITK NumPy `[Z,Y,X]` internal-direction correction, run the
+      provider wheel smoke suite and focused Rust gates, then collect hosted
+      checks at the exact final provider head before advancing the Atlas
+      gitlink. Preserve unrelated peer lanes and checkout dirt.
 - [x] Run the stack-wide book-link detector across all 23 registered books:
       every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
       Run its fixture regression suite with `PYTHONPATH=scripts`; 43/43 tests

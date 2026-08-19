@@ -124,6 +124,34 @@ configured shared target is `D:\atlas\target`; the repo-local cache is derived
 state, not source. Its exact recursive deletion was refused by the shell safety
 policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
 
+## ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18 — NumPy spatial-axis contract [patch] — in progress
+
+- **Owner:** current session; RITK provider branch `fix/python-array-direction`;
+  Atlas scope is this item and the synchronized root PM records.
+- **Evidence:** merged RITK default `6bd4bc14` has queued default CI/Python CI
+  runs `32203816886` and `32203816879`. The preceding exact-head PR workflow
+  `32200267421` passes Rustfmt, Clippy, dependency alignment, and the platform
+  test suites, but its Python Wheel smoke job fails the 2-D and 3-D
+  `InverseDisplacementField` parity tests and the iterative inverse test. The
+  maximum observed errors are `2.2323646545`, `0.0820963383`, and
+  `0.1707854271` against the committed `1e-4` value oracle.
+- **Cause:** `ritk-python` builds NumPy `[Z,Y,X]` images with an identity
+  internal direction, while the direction-aware RITK filters consume tensor
+  axes and world components through the canonical axial mapping. The public
+  SimpleITK-order direction remains identity; only the native carrier's
+  internal direction is corrected.
+- **Scope:** `crates/ritk-python/src/image.rs` and the color-image constructor
+  that accepts the same NumPy storage convention, plus provider-local contract
+  documentation and focused gates. Non-goals are tolerance changes,
+  compatibility adapters, or edits to peer-owned RITK lanes.
+- **Acceptance:** the provider wheel smoke suite passes all three inverse
+  displacement value comparisons at the existing `1e-4` oracle; focused Rust,
+  Python binding, format, Clippy, documentation, and hosted checks pass at one
+  exact provider head; Atlas then advances only to that verified merged default.
+- **Residual:** the root exact-head audit currently passes at `6bd4bc14`; the
+  queued default runs are collection state, not closure evidence. The RITK
+  worktree topology and unrelated provider dirt remain peer coordination state.
+
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 
 - **Status:** provider implementation complete at `0022926`; PR #62 merged at
