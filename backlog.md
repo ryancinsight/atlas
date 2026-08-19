@@ -9623,7 +9623,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   The current provider checkouts/lanes are peer-owned and dirty; re-open when
   those claims land or become stale and reclaimable.
 
-## ATLAS-RITK-D2-WIP-RESIDUAL-103 — rebuild or drop the WIP the NUL corruption orphaned [minor] — blocked (decision)
+## ATLAS-RITK-D2-WIP-RESIDUAL-103 — rebuild the WIP the NUL corruption orphaned [minor] — in review 2026-08-19
 
 **State.** The shared `repos/ritk` main tree is checked out on
 `feat/ritk-block-matching-d2-followons` carrying ~1150 uncommitted insertions
@@ -9647,7 +9647,31 @@ signatures, so the destroyed implementations can be reconstructed against a
 real specification rather than guessed. That is a genuine implementation item —
 DoR-shaped, dependency-ordered behind nothing — not a recovery chore.
 
-**Decision required before scheduling** (why this is blocked rather than todo):
+**Decided: rebuild.** ritk PR #193. The surviving tests turned out to specify
+the destroyed implementations precisely enough to rebuild against rather than
+guess at, and they pass unmodified. 66/66 default, 75/75 with `--features fft`,
+fmt and rustdoc (`-D warnings`) clean.
+
+Rebuilt: `PyramidDisplacementField` (validate/valid_mask/try_as_field/as_field),
+`track_volume_pyramid_diagnostics`, the three FFT pyramid entry points, and
+`validate`/`try_regularize` on both priors. The coarse-to-fine and volume walks
+are parameterized by the per-level match rather than cloned per metric.
+
+The rebuild surfaced two defects the original never recorded, both found by the
+surviving tests:
+
+1. `OwnedPyramid` rejected **2-D acquisitions** outright — `validate_scales`
+   required every axis to divide by the scale, so a singleton out-of-plane axis
+   failed on `1 % 2`. That is the dominant ultrasound geometry, and the same
+   case `BlockMatchingConfig::validate` already admits for a zero block radius.
+   Singleton axes now survive undivided; the relaxation is bounded by a test so
+   it cannot decay into accepting any extent.
+2. `OwnedPyramid` derived no `Debug` despite being public.
+
+The preserved WIP branch (`feat/ritk-block-matching-d2-followons`, `29b8d4e3`)
+stays on the remote until #193 merges.
+
+**Superseded — the decision this item was blocked on** (why this is blocked rather than todo):
 rebuilding is only worth it if these seams are wanted. Pyramid *diagnostics*
 and an FFT *pyramid* path are both refinements of seams that already work on
 main. Dropping is legitimate and cheap; the surviving files record what was
