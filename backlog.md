@@ -62,15 +62,15 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 - **Mnemosyne evidence:** PR #62 source head `0022926` passed Rust
   verification, MSRV, Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit;
   `recurseml/analysis` is report-only. The provider PR merged at default
-  `553499056ae37f3aa9f249cc507a0a09e55fd08d`, and Atlas stages that exact
-  merge commit without modifying the provider checkout.
+  `553499056ae37f3aa9f249cc507a0a09e55fd08d`; post-merge TSan follow-up
+  commits `9754ebc` and `1c79909` are now the fetched default, and Atlas stages
+  that current head without modifying provider source.
 - **Hosted recheck:** Aequitas CI `32198085105` and Pages `32198084983` pass
   at `260ad10`; Themis CI `32194584768`, MSRV `32194584736`, and Pages
   `32194583598` pass at `0484a333`. CFDrs run `32197696210` fails only in
   Clippy at the provider source location recorded above.
 - **Acceptance:** collect the CFDrs corrected exact-head run; explicitly classify
-  the
-  absent RITK default run, and collect Horae PR #19's exact-head checks. The
+  the absent RITK default run; and collect Horae PR #19's exact-head checks. The
   root exact-head and overlay gates now pass; preserve peer-owned checkout and
   lane state.
 - **Documentation evidence:** the stack-wide link detector passes for all 23
@@ -84,18 +84,14 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   17 deselected tests, and 74 subtests in 13.75 seconds.
 - The committed slow Python/book tier also passes 17/17 in 1.62 seconds;
   documentation helper coverage is green at the delivered root revision.
-- **Claimed next slice:** reconcile the clean Horae consumer lock to the
-  current Aequitas/Eunomia provider defaults. Claimed scope is
-  `repos/horae/Cargo.lock` and its provider-local `backlog.md`, `checklist.md`,
-  and `gap_audit.md`; no Horae source or peer-owned checkout is in scope.
 - **Horae result:** provider lock commit `9cc9fd8` plus PM synchronization
-  `aefe641` and evidence-boundary correction `91a020c` are pushed on draft PR
-  #19. Local-graph format, locked metadata,
-  both feature configurations, Clippy, 20/20 Nextest, doctest, rustdoc, and
-  cargo-deny pass; the committed standalone lock is rejected before Nextest by
-  the root overlay, so hosted run `32200646447` (`verify` and `supply-chain`)
-  is the exact closure gate and remains queued. The root Horae gitlink remains
-  at `0631da0` until the exact provider head merges.
+  `aefe641` and evidence-boundary correction `91a020c` pass hosted run
+  `32200646447` (`verify` and `supply-chain`) at exact head and merged through
+  PR #19 at default `1ed6a172aa1ef57765c4d07ae740e6c297913567`. Local-graph
+  format, locked metadata, both feature configurations, Clippy, 20/20
+  Nextest, doctest, rustdoc, and cargo-deny pass; the root gitlink now records
+  the merged default. The root-overlay rejection remains a development
+  diagnostic rather than standalone proof.
 - **Hyperion lock slice:** provider commit `880eb8c` on
   `codex/hyperion-lockstep-076` refreshes the clean standalone lock to
   Aequitas `260ad10`, Eunomia `85e590b`, and Proteus `f612c99`; PR #15 is open
@@ -120,8 +116,9 @@ are peer coordination state; no lane or checkout was changed by this pass.
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 
 - **Status:** provider implementation complete at `0022926`; PR #62 merged at
-  default `553499056ae37f3aa9f249cc507a0a09e55fd08d`, and the Atlas gitlink is
-  advanced to that merge commit.
+  default `553499056ae37f3aa9f249cc507a0a09e55fd08d`, followed by provider
+  TSan documentation commits `9754ebc` and `1c79909`. The Atlas gitlink is
+  advanced to current default `1c799092123b94de987b28595b3a9f6e9029fd01`.
 - **Scope:** `crates/mnemosyne-arena/src/segment/pool/numa_bucket.rs` and its
   two callers; no allocator algorithm or public API change.
 - **Acceptance:** replace the two type-suffixed production bucket helpers with
@@ -135,7 +132,9 @@ are peer coordination state; no lane or checkout was changed by this pass.
 - **Hosted state:** PR #62 head `0022926` has Rust verification
   `32196541600`, MSRV `32196541558`, Loom, Miri, aarch64, ThreadSanitizer,
   and CodeRabbit passing; `recurseml/analysis` is report-only. The provider
-  merge commit is `553499056ae37f3aa9f249cc507a0a09e55fd08d`.
+  merge commit is `553499056ae37f3aa9f249cc507a0a09e55fd08d`; the current
+  fetched default is `1c799092123b94de987b28595b3a9f6e9029fd01` after the TSan
+  follow-up documentation commits.
 
 **Instrument correction, applied before anything else was measured.**
 `scripts/atlas-conformance.py:131` classified a file as test code only when a

@@ -36,8 +36,10 @@ compilation, warning-free rustdoc, and `type_suffixed_fns=0`. Hosted Rust
 verification `32196541600`, MSRV `32196541558`, Loom, Miri, aarch64,
 ThreadSanitizer, and CodeRabbit pass; `recurseml/analysis` remains
 report-only. The PR merged at default
-`553499056ae37f3aa9f249cc507a0a09e55fd08d`, and Atlas advances the gitlink to
-that exact merge commit without modifying the provider checkout.
+`553499056ae37f3aa9f249cc507a0a09e55fd08d`; post-merge TSan follow-up commits
+`9754ebc` and `1c79909` are now the fetched default, and Atlas advances the
+gitlink to `1c799092123b94de987b28595b3a9f6e9029fd01` without modifying the
+provider checkout.
 
 CFDrs PR #355 carries the provider timeout fix at `1bebb5e1`. The failed Rust
 workspace run `32190491996` was a pre-existing timeout also present at provider
@@ -88,12 +90,13 @@ Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. These are peer-coordination
 residuals and were not modified.
 
 The clean Horae consumer-lock slice is pushed as provider commits `9cc9fd8`,
-`aefe641`, and evidence-boundary correction `91a020c` on draft PR #19. Its
-local-graph provider gates pass, but the
-committed standalone lock is rejected before Nextest by the root overlay;
-hosted run `32200646447` (`verify` and `supply-chain`) is the exact closure
-gate and remains queued. Atlas keeps the Horae gitlink at `0631da0` until the
-exact provider head merges.
+`aefe641`, and evidence-boundary correction `91a020c`. Hosted run
+`32200646447` passes `verify` and `supply-chain` at exact head, and PR #19
+merged at default `1ed6a172aa1ef57765c4d07ae740e6c297913567`. Local-graph
+format, locked metadata, both feature configurations, Clippy, 20/20 Nextest,
+doctest, rustdoc, and cargo-deny pass. Atlas now records the merged Horae
+gitlink; the parent-overlay rejection remains a development diagnostic and is
+not used as standalone proof.
 
 Hyperion's independent lock-coherence slice is implemented in provider commit
 `880eb8c` on `codex/hyperion-lockstep-076`. Its clean lock now follows the

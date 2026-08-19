@@ -44,8 +44,9 @@
 - [x] Collect Mnemosyne Miri and merge PR #62 at provider default
       `553499056ae37f3aa9f249cc507a0a09e55fd08d`; Rust verification, MSRV,
       Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit pass, while
-      `recurseml/analysis` remains report-only. Advance the Atlas gitlink
-      without modifying the provider checkout.
+      `recurseml/analysis` remains report-only. Reconcile post-merge TSan
+      follow-up commits `9754ebc` and `1c79909`; Atlas records current default
+      `1c799092123b94de987b28595b3a9f6e9029fd01` without provider edits.
 - [x] Collect Aequitas post-merge CI `32198085105` and Pages
       `32198084983`; both pass at merged default `260ad10`.
 - [ ] Collect the corrected CFDrs exact-head run; run `32197696210` fails in
@@ -67,15 +68,12 @@
       13.75 seconds.
 - [x] Run the committed slow Python/book tier: 17/17 tests pass in 1.62
       seconds.
-- [ ] Reconcile the claimed Horae lock slice outside the Atlas overlay, then
-      run its locked package gates and synchronize the provider-local PM before
-      advancing the root gitlink.
+- [x] Reconcile the claimed Horae lock slice outside the Atlas overlay, run its
+      locked package gates, and synchronize the provider-local PM.
 - [x] Push Horae lock commit `9cc9fd8` and PM synchronization `aefe641` plus
-      evidence-boundary correction `91a020c` on draft PR #19. Local-graph
-      provider gates pass; exact standalone locked
-      closure is hosted-gated because the root overlay rejects the committed
-      lock before Nextest. Hosted run `32200646447` has `verify` and
-      `supply-chain` queued, so leave the root gitlink at `0631da0`.
+      evidence-boundary correction `91a020c` on PR #19. Hosted run
+      `32200646447` passes `verify` and `supply-chain`; PR #19 merged at
+      default `1ed6a172`. The root gitlink is advanced to that merged head.
 - [x] Claim and implement the independent Hyperion lock slice while Horae's
       hosted run is queued. Provider commit `880eb8c` refreshes Aequitas
       `260ad10`, Eunomia `85e590b`, and Proteus `f612c99`; local format and
