@@ -19,6 +19,18 @@ PR #32 merged at provider default `dbed97a` after hosted CI
 gitlink to that merged default and re-runs exact-head, overlay, and lock-form
 gates as the integration closure.
 
+## Finding 2026-08-19: Mnemosyne moving default
+
+Mnemosyne `origin/main` advanced to
+`43cdf04769d4ab8701dea657b282c4a189175d48` after Atlas recorded
+`64f0d2ebe58e14705ca2345cad2c705f99a6b611`. Exact-head run `32206977029`
+passes Rust verification, Rust 1.95, Loom, aarch64, and ThreadSanitizer;
+Miri is still in progress. The root exact-head audit therefore reports only
+this unadvanced moving default; overlay and standalone lock-form checks pass.
+The pointer re-open trigger is Miri completion at this exact default head,
+followed by a gitlink-only advance and root gate recheck. The peer checkout
+and its dirty state remain untouched.
+
 ## Finding 2026-08-19: lane topology recheck
 
 The current `scripts/atlas-lane-audit.py` probe reports four violations:

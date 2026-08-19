@@ -67,15 +67,20 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   verification, MSRV, Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit;
   `recurseml/analysis` is report-only. The provider PR merged at default
   `553499056ae37f3aa9f249cc507a0a09e55fd08d`; post-merge TSan follow-up
-  commits `9754ebc`, `1c79909`, and `64f0d2e` are now the fetched default, and
-  Atlas stages that current head without modifying provider source.
+  commits `9754ebc`, `1c79909`, and `64f0d2e` were superseded by fetched
+  default `43cdf04769d4ab8701dea657b282c4a189175d48`. Its default run
+  `32206977029` has Rust verification, MSRV, Loom, aarch64, and ThreadSanitizer
+  green; Miri remains in progress. Atlas remains at `64f0d2e` until that exact
+  default-head run completes.
 - **Hosted recheck:** Aequitas CI `32198085105` and Pages `32198084983` pass
   at `260ad10`; Themis CI `32194584768`, MSRV `32194584736`, and Pages
   `32194583598` pass at `0484a333`. CFDrs run `32197696210` fails only in
   Clippy at the provider source location recorded above.
 - **Acceptance:** collect the CFDrs corrected exact-head run; explicitly classify
-  the absent RITK default run; and collect Horae PR #19's exact-head checks. The
-  root exact-head and overlay gates now pass; preserve peer-owned checkout and
+  the absent RITK default run; collect Horae PR #19's exact-head checks; and
+  reconcile Mnemosyne after run `32206977029` completes. The overlay and
+  standalone lock-form gates pass; the current exact-head gate is blocked only
+  by the unadvanced Mnemosyne moving default. Preserve peer-owned checkout and
   lane state.
 - **Documentation evidence:** the stack-wide link detector passes for all 23
   registered provider books with zero missing files, missing anchors, or read
@@ -8716,11 +8721,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 ## ATLAS-MNEMOSYNE-DEFAULT-RECHECK-2026-08-18 — moving default remains open
 
 - Mnemosyne `origin/main` advanced to
-  `638ddab831404a8d89c653c061415e4e23fa203d` with the aarch64 and
-  ThreadSanitizer CI additions. The Atlas gitlink remains at the previously
-  verified `1c38a1a65d519ebc04ed5f9da2baa31d16b83705`.
-- Default CI run `32183974171` is queued and no open PR covers the commit.
-  Do not advance the pointer until that exact default-head run completes; the
+  `43cdf04769d4ab8701dea657b282c4a189175d48`. The Atlas gitlink remains at
+  the previously verified `64f0d2ebe58e14705ca2345cad2c705f99a6b611`.
+- Default CI run `32206977029` has Rust verification, Rust 1.95, Loom,
+  aarch64, and ThreadSanitizer successful; Miri remains in progress. Do not
+  advance the pointer until that exact default-head run completes; the
   peer-dirty primary checkout remains untouched.
 
 ## ATLAS-LIVE-HEAD-SWEEP-2026-08-18-2055 — exact-head residual refresh
