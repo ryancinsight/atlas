@@ -39,6 +39,21 @@
 - **CFDrs:** default `834340f7` has completed CI `32230993545` successfully;
   the historical PR #355 failure is not treated as current default evidence.
 
+## ATLAS-PUBLISH-GRAPH-2026-08-19 — crates.io dependency closure
+
+- `scripts/publish-order.py --json` resolves 182 publishable packages across
+  34 dependency layers with zero unresolved edges and no contested names.
+- Thirteen publishable packages remain blocked by unpublishable foundations:
+  `hyperion` blocks CFDrs, Helios, and Kwavers consumers; `proteus` blocks
+  CFDrs, Helios, and Kwavers consumers; `horae` blocks `helios-domain`; and
+  `asclepius-coeus` blocks `helios-planning`. These are release-topology
+  blockers, not compilation evidence.
+- The provider manifests intentionally retain `publish = false`; Horae’s
+  board records its occupied registry name, while `hyperion` and `proteus`
+  have occupied crates.io names. Renaming/flipping them is a breaking,
+  release-authority change and remains an explicit follow-up rather than an
+  implicit compatibility rename.
+
 Fourteen read-only audits covering every registered member plus the meta-repo.
 Every claim below is grounded at `file:line` in the audited tree. Items are
 ordered by tier, and tier is set by *what breaks*, not by effort.
