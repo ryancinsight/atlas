@@ -10,6 +10,7 @@ prime cases; the comparison reports the candidate slower in all four ordering
 comparisons for each failure. The Rust job is cancelled and the Python job
 passes. This is an empirical performance residual, so no merge, tolerance
 change, workload reduction, or benchmark-instrument change is authorized by
+branch.
 the audit. The Apollo checkout retains peer-owned `Cargo.lock` and
 `backlog.md` dirt; the next action is root-cause profiling on the active PR
 
