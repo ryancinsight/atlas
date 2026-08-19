@@ -203,6 +203,151 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
             self.assertEqual(dependencies[0][0], "provider")
             self.assertEqual(dependencies[0][3], consumer)
 
+    def test_repo_manifests_excludes_a_lane_inside_a_member_repo(self) -> None:
+        """A lane under ``repos/<member>/worktrees`` is the case that broke.
+
+        The sibling-of-``repos/`` layout the other tests use cannot fail here:
+        ``repo_manifests`` globs from ``REPOS / member``, so such a lane is
+        already outside the search root. A lane opened *inside* the member is
+        under that root, and sorts after ``crates/`` — so before ``_skip``
+        filtered ``worktrees`` it overwrote the canonical entry, and the
+        committed overlay pinned the stack to a lane that later vanished.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
+            root = Path(root_text)
+            canonical = root / "repos" / "provider" / "crates" / "core" / "Cargo.toml"
+            lane = (
+                root
+                / "repos"
+                / "provider"
+                / "worktrees"
+                / "some-lane"
+                / "crates"
+                / "core"
+                / "Cargo.toml"
+            )
+            for manifest in (canonical, lane):
+                manifest.parent.mkdir(parents=True, exist_ok=True)
+                manifest.write_text(
+                    '[package]\nname = "core"\nversion = "1.0.0"\n', encoding="utf-8"
+                )
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "REPOS", root / "repos"
+            ), patch.object(
+                _overlay, "registered_member_names", return_value={"provider"}
+            ):
+                manifests = _overlay.repo_manifests()
+
+            self.assertEqual(manifests, [canonical])
+
+    def test_in_repo_lane_package_cannot_replace_canonical_package(self) -> None:
+        """The emitted path must be the canonical tree, not the lane copy."""
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
+            root = Path(root_text)
+            canonical = root / "repos" / "provider" / "Cargo.toml"
+            lane = root / "repos" / "provider" / "worktrees" / "lane" / "Cargo.toml"
+            for manifest in (canonical, lane):
+                manifest.parent.mkdir(parents=True, exist_ok=True)
+            canonical.write_text(
+                '[package]\nname = "provider"\nversion = "1.0.0"\n', encoding="utf-8"
+            )
+            lane.write_text(
+                '[package]\nname = "provider"\nversion = "9.0.0"\n', encoding="utf-8"
+            )
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "REPOS", root / "repos"
+            ), patch.object(
+                _overlay, "registered_member_names", return_value={"provider"}
+            ):
+                packages = _overlay.load_packages()
+
+            self.assertEqual(packages["provider"], (Path("repos/provider"), "1.0.0"))
+
+
+class OverlayFreshnessTestCase(unittest.TestCase):
+    """`check` must reject an overlay that no longer describes the layout.
+
+    Both failures break every build in the stack before a crate compiles, and
+    neither is visible to the lag and pin-drift checks that `check` ran before.
+    """
+
+    def _config(self, root: Path, block: str) -> Path:
+        config = root / "config.toml"
+        config.write_text(
+            f"{_overlay.HEADER}{block}{_overlay.END}\n", encoding="utf-8"
+        )
+        return config
+
+    def test_dangling_path_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
+            root = Path(root_text)
+            block = '\n[patch."https://example.invalid/p"]\np = { path = "repos/p" }\n'
+            config = self._config(root, block)
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "CONFIG", config
+            ), patch.object(_overlay, "build_overlay", return_value=(block, [], [])):
+                problems = _overlay.check_overlay_freshness({})
+
+            self.assertEqual(len(problems), 1, problems)
+            self.assertIn("dangling", problems[0])
+            self.assertIn("repos/p", problems[0])
+
+    def test_drift_from_a_fresh_generation_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
+            root = Path(root_text)
+            (root / "repos" / "p").mkdir(parents=True)
+            (root / "repos" / "p" / "Cargo.toml").write_text("", encoding="utf-8")
+            committed = '\n[patch."https://example.invalid/p"]\np = { path = "repos/p" }\n'
+            regenerated = committed.replace("example.invalid", "example.test")
+            config = self._config(root, committed)
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "CONFIG", config
+            ), patch.object(
+                _overlay, "build_overlay", return_value=(regenerated, [], [])
+            ):
+                problems = _overlay.check_overlay_freshness({})
+
+            self.assertEqual(len(problems), 1, problems)
+            self.assertIn("fresh generation", problems[0])
+
+    def test_current_overlay_is_reported_clean(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
+            root = Path(root_text)
+            (root / "repos" / "p").mkdir(parents=True)
+            (root / "repos" / "p" / "Cargo.toml").write_text("", encoding="utf-8")
+            block = '\n[patch."https://example.invalid/p"]\np = { path = "repos/p" }\n'
+            config = self._config(root, block)
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "CONFIG", config
+            ), patch.object(_overlay, "build_overlay", return_value=(block, [], [])):
+                problems = _overlay.check_overlay_freshness({})
+
+            self.assertEqual(problems, [])
+
+    def test_a_disabled_overlay_is_not_stale(self) -> None:
+        """`off` comments the block out; that is a state, not drift."""
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
+            root = Path(root_text)
+            (root / "repos" / "p").mkdir(parents=True)
+            (root / "repos" / "p" / "Cargo.toml").write_text("", encoding="utf-8")
+            enabled = '\n[patch."https://example.invalid/p"]\np = { path = "repos/p" }\n'
+            config = self._config(root, enabled)
+
+            with patch.object(_overlay, "CONFIG", config):
+                _overlay.set_enabled(False)
+            self.assertIn("#OFF#", config.read_text(encoding="utf-8"))
+
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "CONFIG", config
+            ), patch.object(_overlay, "build_overlay", return_value=(enabled, [], [])):
+                problems = _overlay.check_overlay_freshness({})
+
+            self.assertEqual(problems, [])
 
 if __name__ == "__main__":
     unittest.main()
