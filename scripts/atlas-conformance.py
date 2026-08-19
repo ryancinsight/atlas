@@ -103,8 +103,18 @@ CLASSES = [
     "member_namespace_pollution", "tag_pinned_actions",
     "workflow_missing_timeout", "workflow_missing_permissions",
     "pull_request_target_use", "missing_cargo_lock", "orphan_modules",
-    "seqcst_production", "crate_level_allows",
+    "seqcst_production", "crate_level_allows", "excess_worktrees",
 ]
+
+# Working trees beyond the two a repository may hold: its main tree plus one
+# linked lane (AGENTS.md `git_discipline: Worktrees`).
+#
+# The bound is a creation precondition, so it only holds if something checks
+# it. Nothing did, and the count reached five on one member and 26 lane
+# directories stack-wide before anyone measured. Counting it here makes the
+# audit mechanical: the ratchet then refuses a third tree the same way it
+# refuses any other debt increase.
+WORKTREE_BOUND = 2
 
 # Crate- and module-level `#![allow(...)]`, counted separately from the
 # per-item `#[allow(...)]` that `allow_sites` tracks.
@@ -207,6 +217,26 @@ def count_root_sprawl(repo: Path) -> int:
     return sum(
         1 for e in repo.iterdir() if e.is_file() and e.name not in SANCTIONED_ROOT
     )
+
+
+def count_excess_worktrees(repo: Path) -> int:
+    """Number of registered worktrees beyond the two-tree bound (main + one lane).
+
+    Reads the packed-refs mechanism: worktrees are listed under .git/worktrees/.
+    Returns max(0, n_worktrees - 2) so a lone primary checkout counts as 0.
+    """
+    git_dir = repo / ".git"
+    if not git_dir.is_dir():
+        # Submodule — .git is a file; read the actual gitdir
+        if git_dir.is_file():
+            gitdir_ref = git_dir.read_text(errors="replace").strip()
+            if gitdir_ref.startswith("gitdir:"):
+                git_dir = (repo / gitdir_ref[len("gitdir:"):].strip()).resolve()
+    wt_dir = git_dir / "worktrees"
+    if not wt_dir.is_dir():
+        return 0
+    n = sum(1 for _ in wt_dir.iterdir() if _.is_dir())
+    return max(0, n - 1)  # primary checkout is not listed in worktrees/; each entry is 1 extra
 
 
 def lf_policy_missing(repo: Path) -> int:
@@ -497,6 +527,29 @@ def strip_doc_comments(text: str) -> str:
     )
 
 
+def count_excess_worktrees(repo: Path) -> int:
+    """Working trees this repository holds beyond [`WORKTREE_BOUND`].
+
+    Counts what Git has registered, not what is on disk: a directory left
+    behind by a removed worktree is not a tree, and a tree whose directory
+    was deleted by hand still is one until `git worktree prune` runs. Both
+    were present when this was written, in opposite directions.
+
+    Zero for anything Git cannot answer for, so a non-repository or an
+    unpacked tarball contributes nothing rather than reporting a violation
+    it cannot substantiate.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(repo), "worktree", "list", "--porcelain"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return 0
+    trees = sum(1 for line in out.splitlines() if line.startswith("worktree "))
+    return max(0, trees - WORKTREE_BOUND)
+
+
 def scan_repo(repo: Path) -> dict[str, int]:
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
@@ -560,6 +613,7 @@ def scan_repo(repo: Path) -> dict[str, int]:
         c["sleep_synced_tests"] += len(SLEEP.findall(test))
 
     c["root_sprawl"] = count_root_sprawl(repo)
+    c["excess_worktrees"] = count_excess_worktrees(repo)
     c["target_forks"] = sum(1 for e in repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
     c["orphan_modules"] = count_orphan_modules(repo)
