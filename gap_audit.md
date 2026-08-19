@@ -99,15 +99,16 @@ gitlink; the parent-overlay rejection remains a development diagnostic and is
 not used as standalone proof.
 
 Hyperion's independent lock-coherence slice is implemented in provider commit
-`880eb8c` on `codex/hyperion-lockstep-076`. Its clean lock now follows the
-current defaults Aequitas `260ad10`, Eunomia `85e590b`, and Proteus `f612c99`;
-the manifest and source are unchanged. PR #15 is open as a draft at exact head
-`880eb8cce28d1e887942fbeb185a1cf4173c776a`, with hosted `verify` and
-`supply-chain` queued. Local format and locked all-feature metadata pass. The
-root-overlay `cargo check --locked --all-features --all-targets` rejection is a
-pre-compilation development-overlay diagnostic because the parent local patches
-are absent from the standalone lock; hosted provider verification is the
-standalone locked closure gate. Atlas has not advanced the Hyperion gitlink.
+`880eb8c`. Its clean lock now follows the current defaults Aequitas `260ad10`,
+Eunomia `85e590b`, and Proteus `f612c99`; the manifest and source are
+unchanged. Hosted `verify` and `supply-chain` pass at exact head
+`880eb8cce28d1e887942fbeb185a1cf4173c776a`, and PR #15 merged at default
+`0156f59f78aba1e3b06d4511ffb1ce30d5c0c6d4`. Local format and locked
+all-feature metadata pass. The root-overlay `cargo check --locked
+--all-features --all-targets` rejection is a pre-compilation development-
+overlay diagnostic because the parent local patches are absent from the
+standalone lock; hosted provider verification is the standalone locked closure
+gate. Atlas advances only to the verified provider merge commit.
 
 Gaia's tractography boundary is present at Atlas gitlink `4980732`: the
 validated `gaia::Polyline` type is exported, and RITK's `ritk-tck` and

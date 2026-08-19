@@ -92,15 +92,14 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   Nextest, doctest, rustdoc, and cargo-deny pass; the root gitlink now records
   the merged default. The root-overlay rejection remains a development
   diagnostic rather than standalone proof.
-- **Hyperion lock slice:** provider commit `880eb8c` on
-  `codex/hyperion-lockstep-076` refreshes the clean standalone lock to
-  Aequitas `260ad10`, Eunomia `85e590b`, and Proteus `f612c99`; PR #15 is open
-  as a draft with hosted `verify` and `supply-chain` queued at exact head
-  `880eb8cce28d1e887942fbeb185a1cf4173c776a`. Local format and locked
+- **Hyperion lock slice:** provider commit `880eb8c` refreshes the clean
+  standalone lock to Aequitas `260ad10`, Eunomia `85e590b`, and Proteus
+  `f612c99`; hosted `verify` and `supply-chain` pass at exact head
+  `880eb8cce28d1e887942fbeb185a1cf4173c776a`, and PR #15 merged at default
+  `0156f59f78aba1e3b06d4511ffb1ce30d5c0c6d4`. Local format and locked
   all-feature metadata pass. The root-overlay `cargo check --locked` rejection
-  remains a pre-compilation development-overlay diagnostic, so the hosted
-  provider run is the standalone closure gate and the Atlas gitlink remains
-  unchanged until merge.
+  remains a pre-compilation development-overlay diagnostic, so Atlas advances
+  only to the verified provider merge commit.
 - **Clean-checkout evidence:** the fresh `--require-clean-checkouts` audit
   reports 22 findings across 17 provider checkouts. Checkout-head drift is
   present in Themis, Tyche, Mnemosyne, Aequitas, Moirai, Hephaestus, Coeus,

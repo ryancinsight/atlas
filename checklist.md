@@ -78,9 +78,10 @@
       hosted run is queued. Provider commit `880eb8c` refreshes Aequitas
       `260ad10`, Eunomia `85e590b`, and Proteus `f612c99`; local format and
       locked all-feature metadata pass.
-- [ ] Collect Hyperion PR #15 hosted `verify` and `supply-chain` at exact head
-      `880eb8cce28d1e887942fbeb185a1cf4173c776a`; keep the Atlas gitlink fixed
-      until the provider default merges.
+- [x] Collect Hyperion PR #15 hosted `verify` and `supply-chain` at exact head
+      `880eb8cce28d1e887942fbeb185a1cf4173c776a`; PR #15 merged at default
+      `0156f59f78aba1e3b06d4511ffb1ce30d5c0c6d4`, and Atlas advances to that
+      verified provider merge commit.
 - [x] Run the exact-head clean-checkout audit. It reports 22 findings across
       17 provider checkouts: eight checkout-head drifts and fourteen dirty
       canonical checkouts. Preserve those peer-owned states; do not treat the
