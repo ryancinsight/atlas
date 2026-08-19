@@ -10,9 +10,24 @@ prime cases; the comparison reports the candidate slower in all four ordering
 comparisons for each failure. The Rust job is cancelled and the Python job
 passes. This is an empirical performance residual, so no merge, tolerance
 change, workload reduction, or benchmark-instrument change is authorized by
-branch.
 the audit. The Apollo checkout retains peer-owned `Cargo.lock` and
 `backlog.md` dirt; the next action is root-cause profiling on the active PR
+
+branch.
+
+## Finding 2026-08-19: clean-checkout exact-head gate remains peer-held
+
+The metadata exact-head audit and requested-provider coherence audit pass for
+all 22 providers plus the CFDrs, Kwavers, and Helios integrators. The
+`--require-clean-checkouts` mode still fails on peer state: checkout HEAD
+drift is present in Themis, Tyche, Consus, Helios, Aequitas, Moirai, RITK,
+Hephaestus, Coeus, Apollo, Gaia, CFDrs, and Kwavers; dirty entries are present
+in Themis, Proteus, Mnemosyne, Consus, Helios, Harmonia, Aequitas, Eunomia,
+RITK, Melinoe, Leto, Hephaestus, Coeus, Apollo, Hermes, Iris, CFDrs, and
+Kwavers. The exact run reports 13 drifted checkouts and 18 dirty checkouts.
+No reset, stash, deletion, or forced checkout is authorized; this gate
+reopens when peer owners converge their active trees to the committed
+gitlinks.
 
 ## Finding 2026-08-19: Kwavers parity workflow dispatchability — closed
 
