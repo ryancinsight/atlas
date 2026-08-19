@@ -8910,19 +8910,19 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   Pages deployment, PyPI release dry-run, and standalone locked package
   evidence remain separate open gates.
 
-## ATLAS-CFDRS-JFNK-OPEN-033-2026-08-19 — provider source closure pending hosted evidence
+## ATLAS-CFDRS-JFNK-OPEN-033-2026-08-19 — provider source closure complete
 
 - CFDrs PR #358 carries provider commit `0a5076c6034d735dd23d63a91453fea7d63702d0`:
   `cfd-1d` now reaches the retained Newton/JFNK fallback from the live solver
   graph, derives the recovery budget from `SolverConfig.max_iterations`, and
   propagates callback failures through checked JFNK evaluation.
 - Hosted run `32225861309` reached the compiler and exposed the missing
-  `FnMut` bound for the workspace-reusing residual closure. Provider commit
-  `bc18b095` changes the checked JFNK seam to accept mutable callbacks and adds
-  a regression test; format and diff checks pass. Replacement hosted run
-  `32226998372` is pending at that corrected head; no hosted result is claimed.
-  Atlas remains at CFDrs `931ee3a0` until the source PR is merged and its final
-  hosted gates are green.
+  `FnMut` bound for the workspace-reusing residual closure. Provider commits
+  `bc18b095` and `5e13018a` changed the checked JFNK seam to accept mutable
+  callbacks, corrected the constructor field order, and retained the value
+  regression. Replacement run `32229463775` passes the Rust workspace and
+  figure SSOT gates. PR #358 merged at provider default `834340f7`; Atlas now
+  tracks that exact merged head.
 
 ## ATLAS-HELIOS-H103-2026-08-19 — recheck stale documentation residual
 
@@ -8983,3 +8983,10 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   currently executing at the same provider head `bc18b095`.
 - Atlas remains at CFDrs default `931ee3a0`; no hosted source result is claimed
   until the rerun reaches the Rust and figure gates.
+
+## ATLAS-CFDRS-JFNK-MERGE-2026-08-19 — exact-head hosted closure
+
+- CFDrs PR #358 merged at `834340f7` after required Rust workspace and figure
+  SSOT checks passed in run `32229463775`. The Atlas gitlink advances from
+  `931ee3a0` to that fetched default head; the provider checkout remains on a
+  peer branch and is not switched or cleaned.

@@ -12694,3 +12694,12 @@ source slice. GitHub reran the failed job at the unchanged provider head
 `bc18b095`; checkout, lock normalization, and nextest installation passed and
 fontconfig setup is currently in progress. Atlas remains at CFDrs default
 `931ee3a0` pending the rerun's Rust and figure results.
+
+## Finding 2026-08-19: CFDrs JFNK hosted closure
+
+CFDrs PR #358 merged at provider default `834340f7` after the corrected JFNK
+callback seam and constructor-order fix passed the required Rust workspace and
+figure SSOT gates in run `32229463775`. The Atlas gitlink advances to that
+fetched default head. This closes the provider source and hosted integration
+slice; it does not claim separate Pages, PyPI, or standalone local locked-build
+evidence, and the provider checkout remains peer-owned on its existing branch.

@@ -5570,5 +5570,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 
 - [x] Classify run `32226998372`'s first failure as runner-only: three bounded
       `apt-get` attempts in native-fontconfig setup failed before Rust steps.
-- [ ] Collect the rerun at `bc18b095`; do not advance the Atlas CFDrs gitlink
-      from `931ee3a0` until hosted Rust and figure gates pass.
+- [x] Collect the rerun at `5e13018a`; hosted Rust and figure gates pass in
+      `32229463775`, and CFDrs PR #358 merges at `834340f7`.
+- [x] Advance the Atlas CFDrs gitlink to the fetched merged default. Preserve
+      the provider's peer branch and unrelated checkout state.
