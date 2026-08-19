@@ -56,10 +56,11 @@
 
 ## ATLAS-HELIOS-PYPI-2026-08-19 — trusted wheel release [patch]
 
-- Helios provider branch `codex/helios-pypi-release` commits `0d64981` and
-  `8d33395` add the PyPI distribution metadata, package README, changelog
-  entry, and a release workflow using the Atlas reusable abi3 wheel workflow
-  plus PyPI Trusted Publishing. Draft PR #67 is open.
+- Helios provider branch `codex/helios-pypi-release` commits `0d64981`,
+  `8d33395`, and `f31f261` add the PyPI distribution metadata, package README,
+  changelog/landing-page entries, and a release workflow using the Atlas
+  reusable abi3 wheel workflow plus PyPI Trusted Publishing. Draft PR #67 is
+  open.
 - The distribution is named `helios-python` because PyPI already owns
   `helios` (`0.3.0`); the extension import remains `helios`, so the Python API
   is not renamed. The package uses the dynamic Cargo version and a py39 stable
