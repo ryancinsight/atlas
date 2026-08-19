@@ -5509,3 +5509,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [x] Push provider fix `bc18b095` with the mutable JFNK seam and regression
       coverage; local format and diff checks pass.
 - [ ] Collect replacement hosted run `32226998372` before advancing Atlas.
+## 2026-08-19 RITK PR #179 recheck
+
+- [x] Confirm PR #179 merged at `6b9092bf`; Rustfmt, Clippy, and all Python
+      matrix checks pass. Fast-forward the clean primary checkout to the exact
+      Atlas gitlink.
+- [ ] Preserve the three peer-owned RITK lanes; no lane cleanup was performed.

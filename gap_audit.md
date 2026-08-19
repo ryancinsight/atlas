@@ -12602,3 +12602,11 @@ Atlas gitlink, so no root pointer change is required. The primary checkout is
 behind two commits and carries peer-owned untracked
 `docs/ADR/111-retire-kzk-solver-plugin-surface.md`; hosted closure does not
 prove a clean local checkout.
+## Finding 2026-08-19: RITK PR #179 is merged and the checkout is aligned
+
+RITK PR #179 (`a1119336983691191472e235dfb7c7c8f71d2db4`) is merged at
+`6b9092bf4b3d456190a0587d8b5d3d29a8f06246`. Rustfmt, Clippy, and the Python
+3.9–3.13 Linux, Windows, and macOS checks pass. The root gitlink and the clean
+primary checkout now match that exact default head after a fast-forward. Three
+other provider worktrees remain peer-owned and over the lane bound; they were
+preserved.

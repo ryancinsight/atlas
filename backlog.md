@@ -8919,3 +8919,10 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   peer-owned untracked `docs/ADR/111-retire-kzk-solver-plugin-surface.md`.
   Preserve that checkout and do not infer a clean local source gate from the
   merged hosted result.
+## ATLAS-RITK-179-2026-08-19 — merged NumPy axis recheck
+
+- RITK PR #179 is merged at provider default `6b9092bf`; its Rustfmt, Clippy,
+  and Python 3.9–3.13 Linux, Windows, and macOS checks pass. The Atlas gitlink
+  and the primary checkout now both match that exact default head.
+- The provider's other three worktrees remain peer-owned and exceed the lane
+  bound; no lane was removed or repurposed.
