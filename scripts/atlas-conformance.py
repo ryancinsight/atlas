@@ -220,10 +220,17 @@ def count_root_sprawl(repo: Path) -> int:
 
 
 def count_excess_worktrees(repo: Path) -> int:
-    """Number of registered worktrees beyond the two-tree bound (main + one lane).
+    """Registered working trees beyond [`WORKTREE_BOUND`] (main plus one lane).
 
-    Reads the packed-refs mechanism: worktrees are listed under .git/worktrees/.
-    Returns max(0, n_worktrees - 2) so a lone primary checkout counts as 0.
+    Reads the entries under `.git/worktrees/`, one per *linked* worktree; the
+    primary checkout has no entry, which is why the bound is reduced by one
+    before subtracting. Registration is the right thing to count: a directory
+    left behind by a removed worktree is not a tree, and a tree whose
+    directory was hand-deleted still is one until `git worktree prune` runs.
+    Both were present in the stack when this was written.
+
+    Zero when there is nothing to read, so a non-repository contributes no
+    violation it cannot substantiate.
     """
     git_dir = repo / ".git"
     if not git_dir.is_dir():
@@ -235,8 +242,8 @@ def count_excess_worktrees(repo: Path) -> int:
     wt_dir = git_dir / "worktrees"
     if not wt_dir.is_dir():
         return 0
-    n = sum(1 for _ in wt_dir.iterdir() if _.is_dir())
-    return max(0, n - 1)  # primary checkout is not listed in worktrees/; each entry is 1 extra
+    linked = sum(1 for entry in wt_dir.iterdir() if entry.is_dir())
+    return max(0, linked - (WORKTREE_BOUND - 1))
 
 
 def lf_policy_missing(repo: Path) -> int:
@@ -525,29 +532,6 @@ def strip_doc_comments(text: str) -> str:
         ln for ln in text.splitlines()
         if not ln.lstrip().startswith(("///", "//!"))
     )
-
-
-def count_excess_worktrees(repo: Path) -> int:
-    """Working trees this repository holds beyond [`WORKTREE_BOUND`].
-
-    Counts what Git has registered, not what is on disk: a directory left
-    behind by a removed worktree is not a tree, and a tree whose directory
-    was deleted by hand still is one until `git worktree prune` runs. Both
-    were present when this was written, in opposite directions.
-
-    Zero for anything Git cannot answer for, so a non-repository or an
-    unpacked tarball contributes nothing rather than reporting a violation
-    it cannot substantiate.
-    """
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(repo), "worktree", "list", "--porcelain"],
-            capture_output=True, text=True, check=True,
-        ).stdout
-    except (OSError, subprocess.CalledProcessError):
-        return 0
-    trees = sum(1 for line in out.splitlines() if line.startswith("worktree "))
-    return max(0, trees - WORKTREE_BOUND)
 
 
 def scan_repo(repo: Path) -> dict[str, int]:
