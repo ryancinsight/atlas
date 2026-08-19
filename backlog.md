@@ -19,6 +19,11 @@
   target the preceding `01175d6` and do not prove the new default.
 - **Horae:** CI `32285903134`, Deploy mdBook `32285903939`, and Pages
   `32285901542` remain queued at `0df563a69693418b267f337fa4bc9dfb7c1aeb1b`.
+  Standalone locked verification passes nextest 23/23, strict Clippy, and
+  crate doctests 1/1; `mdbook build docs/book` passes. A local `mdbook test`
+  attempt with the canonical shared target reaches rustdoc but is blocked by
+  multiple historical `horae`/`aequitas` artifacts (`E0464`), so no book
+  content failure is inferred; the clean hosted gate remains authoritative.
 - **Helios:** PyPI PR #67 remains open at `f31f2619`; Rust, Python, benchmark,
   and book checks are queued. Its checkout retains peer-owned manifest dirt.
 - **Apollo:** PR #107 remains unmergeable; benchmark run `32217561595` fails
