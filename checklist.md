@@ -62,6 +62,9 @@
 - [ ] Reconcile the claimed Horae lock slice outside the Atlas overlay, then
       run its locked package gates and synchronize the provider-local PM before
       advancing the root gitlink.
+- [x] Push Horae lock commit `9cc9fd8` and PM synchronization `aefe641` on
+      draft PR #19. Standalone provider gates pass; hosted `verify` and
+      `supply-chain` are queued, so leave the root gitlink at `0631da0`.
 - [x] Run the exact-head clean-checkout audit. It reports 22 findings across
       17 provider checkouts: eight checkout-head drifts and fourteen dirty
       canonical checkouts. Preserve those peer-owned states; do not treat the

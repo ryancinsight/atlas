@@ -81,6 +81,11 @@ Themis, Proteus, Mnemosyne, Consus, Helios, Harmonia, Eunomia, Moirai, Melinoe,
 Leto, Hephaestus, Coeus, Apollo, Hermes, and Iris. These are peer-coordination
 residuals and were not modified.
 
+The clean Horae consumer-lock slice is pushed as provider commits `9cc9fd8`
+and `aefe641` on draft PR #19. Its standalone locked provider gates pass, but
+hosted `verify` and `supply-chain` are queued. Atlas keeps the Horae gitlink at
+`0631da0` until the exact provider head merges.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at

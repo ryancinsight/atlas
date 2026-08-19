@@ -80,6 +80,11 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   current Aequitas/Eunomia provider defaults. Claimed scope is
   `repos/horae/Cargo.lock` and its provider-local `backlog.md`, `checklist.md`,
   and `gap_audit.md`; no Horae source or peer-owned checkout is in scope.
+- **Horae result:** provider lock commit `9cc9fd8` plus PM synchronization
+  `aefe641` are pushed on draft PR #19. Standalone format, locked metadata,
+  both feature configurations, Clippy, 20/20 Nextest, doctest, rustdoc, and
+  cargo-deny pass; hosted `verify` and `supply-chain` remain queued. The root
+  Horae gitlink remains at `0631da0` until the exact provider head merges.
 - **Clean-checkout evidence:** the fresh `--require-clean-checkouts` audit
   reports 22 findings across 17 provider checkouts. Checkout-head drift is
   present in Themis, Tyche, Mnemosyne, Aequitas, Moirai, Hephaestus, Coeus,
