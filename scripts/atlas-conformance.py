@@ -428,7 +428,10 @@ def check_clean_revision(revision: str) -> None:
         "status", "--porcelain", "--ignore-submodules=all"
     ).strip()
     if root_status:
-        raise RuntimeError("root worktree is dirty; rerun with --worktree for live state")
+        raise RuntimeError(
+            "root worktree is dirty; rerun with --worktree for live state: "
+            f"{root_status}"
+        )
     for name in sorted(registered_member_names_at(ROOT)):
         provider = ROOT / "repos" / name
         if not provider.is_dir():
