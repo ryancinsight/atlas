@@ -101,8 +101,23 @@ CLASSES = [
     "member_namespace_pollution", "tag_pinned_actions",
     "workflow_missing_timeout", "workflow_missing_permissions",
     "pull_request_target_use", "missing_cargo_lock", "orphan_modules",
-    "seqcst_production",
+    "seqcst_production", "crate_level_allows",
 ]
+
+# Crate- and module-level `#![allow(...)]`, counted separately from the
+# per-item `#[allow(...)]` that `allow_sites` tracks.
+#
+# These were invisible to the ratchet until 2026-08-18: `allow_sites` counts
+# the substring `#[allow(`, and `#![allow(` does not contain it -- the `!`
+# breaks the match. So the blanket form, which the lint floor singles out
+# ("suppressions are per-site `#[expect(lint, reason = ...)]`, never blanket
+# or crate-level"), was the one form nothing measured.
+#
+# It is its own class rather than folded into `allow_sites` because it is the
+# more severe form: an inner attribute silences a lint across every item in
+# the module or crate, including code written after it, so it cannot be
+# reviewed at the site it affects.
+CRATE_LEVEL_ALLOW = re.compile(r"^\s*#!\[allow\(", re.MULTILINE)
 
 # `SeqCst` in shipped code. The ordering rule is that each atomic access
 # names the happens-before edge it needs and uses the weakest ordering that
@@ -518,6 +533,7 @@ def scan_repo(repo: Path) -> dict[str, int]:
         # workspace denies `unwrap_used` outright — every one was a doc example.
         c["unwrap_production"] += strip_doc_comments(prod).count(".unwrap()")
         c["allow_sites"] += prod.count("#[allow(")
+        c["crate_level_allows"] += len(CRATE_LEVEL_ALLOW.findall(prod))
         c["seqcst_production"] += len(SEQCST.findall(prod))
         c["markers"] += len(MARKER.findall(prod))
         c["reexport_shims"] += len(REEXPORT_SHIM.findall(prod))

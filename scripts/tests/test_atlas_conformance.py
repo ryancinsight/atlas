@@ -25,6 +25,26 @@ def _write(root: Path, rel: str, content: str) -> None:
 
 
 class AtlasConformanceTestCase(unittest.TestCase):
+    def test_crate_level_allow_is_counted_separately(self) -> None:
+        """The blanket form must be measured, and not by `allow_sites`.
+
+        `allow_sites` counts the substring `#[allow(`, which `#![allow(`
+        does not contain -- the `!` breaks the match. Until this class
+        existed, the one suppression form the lint floor singles out as
+        never acceptable was the one form nothing counted.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "#![allow(clippy::pedantic)]\n#[allow(dead_code)]\npub fn f() {}\n",
+            )
+            counts = conformance.scan_repo(root)
+            self.assertEqual(counts["crate_level_allows"], 1)
+            self.assertEqual(counts["allow_sites"], 1)
+
     def test_benches_are_executable_for_print_scan(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)

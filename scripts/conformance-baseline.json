@@ -2,6 +2,7 @@
   "<meta>": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -30,6 +31,7 @@
   "CFDrs": {
     "allow_sites": 90,
     "commented_out_code": 8,
+    "crate_level_allows": 367,
     "existence_only_assertions": 137,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -58,6 +60,7 @@
   "aequitas": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -86,6 +89,7 @@
   "apollo": {
     "allow_sites": 31,
     "commented_out_code": 6,
+    "crate_level_allows": 34,
     "existence_only_assertions": 1,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 1,
@@ -114,6 +118,7 @@
   "asclepius": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -142,6 +147,7 @@
   "athena": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -170,6 +176,7 @@
   "coeus": {
     "allow_sites": 0,
     "commented_out_code": 8,
+    "crate_level_allows": 18,
     "existence_only_assertions": 14,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -198,6 +205,7 @@
   "consus": {
     "allow_sites": 16,
     "commented_out_code": 1,
+    "crate_level_allows": 10,
     "existence_only_assertions": 98,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -226,6 +234,7 @@
   "eunomia": {
     "allow_sites": 1,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 1,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -254,6 +263,7 @@
   "gaia": {
     "allow_sites": 2,
     "commented_out_code": 7,
+    "crate_level_allows": 4,
     "existence_only_assertions": 33,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -282,6 +292,7 @@
   "harmonia": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -310,6 +321,7 @@
   "helios": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 2,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -338,6 +350,7 @@
   "hephaestus": {
     "allow_sites": 14,
     "commented_out_code": 4,
+    "crate_level_allows": 0,
     "existence_only_assertions": 12,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -366,6 +379,7 @@
   "hermes": {
     "allow_sites": 0,
     "commented_out_code": 7,
+    "crate_level_allows": 1,
     "existence_only_assertions": 18,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -394,6 +408,7 @@
   "horae": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -422,6 +437,7 @@
   "hyperion": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -450,6 +466,7 @@
   "iris": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -478,6 +495,7 @@
   "kwavers": {
     "allow_sites": 310,
     "commented_out_code": 46,
+    "crate_level_allows": 10,
     "existence_only_assertions": 267,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 22,
@@ -506,6 +524,7 @@
   "leto": {
     "allow_sites": 17,
     "commented_out_code": 2,
+    "crate_level_allows": 1,
     "existence_only_assertions": 9,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -534,6 +553,7 @@
   "melinoe": {
     "allow_sites": 1,
     "commented_out_code": 3,
+    "crate_level_allows": 0,
     "existence_only_assertions": 2,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -562,6 +582,7 @@
   "mnemosyne": {
     "allow_sites": 11,
     "commented_out_code": 2,
+    "crate_level_allows": 2,
     "existence_only_assertions": 5,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -590,6 +611,7 @@
   "moirai": {
     "allow_sites": 32,
     "commented_out_code": 7,
+    "crate_level_allows": 47,
     "existence_only_assertions": 33,
     "gitattributes_missing": 1,
     "junk_drawer_modules": 0,
@@ -618,6 +640,7 @@
   "proteus": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -646,6 +669,7 @@
   "ritk": {
     "allow_sites": 0,
     "commented_out_code": 8,
+    "crate_level_allows": 8,
     "existence_only_assertions": 175,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 1,
@@ -674,6 +698,7 @@
   "themis": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
@@ -702,6 +727,7 @@
   "tyche": {
     "allow_sites": 0,
     "commented_out_code": 0,
+    "crate_level_allows": 0,
     "existence_only_assertions": 0,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
