@@ -9654,15 +9654,23 @@ never delivered:
 - `git branch -r --contains c110664b` → empty; the object is reachable only as a
   dangling commit in the local `repos/ritk` gitdir.
 - `git ls-remote origin 'refs/heads/*block-matching*'` does not list
-  `feat/ritk-block-matching-d2-followons`; the branch was deleted locally without
-  ever being pushed.
+  `feat/ritk-block-matching-d2-followons`: the branch was never pushed. It is
+  not deleted — it is the branch the shared `repos/ritk` main tree is currently
+  checked out on, so the commit was never at risk from gc. (An earlier note here
+  said "dangling" and "deleted"; that came from checking remote-tracking refs
+  only, and was wrong. The work was undelivered, not endangered.)
 - No PR was opened for it (`gh pr list --state all` shows #187 for the pipeline
   and nothing for the follow-ons).
 - `origin/main:crates/ritk-block-matching/src/` holds only `lib.rs`, `metric.rs`,
   `refine.rs`, `tests_block_matching.rs`.
 
-A local commit on a deleted local branch is one `git gc` away from
-unrecoverable. The board asserting delivery is what let it sit unnoticed.
+Freshness, measured 2026-08-19 21:54 UTC: tip commit 4 h old, newest working-tree
+touch ~71 min old — past the one-hour staleness threshold, so the scope is
+reclaimable. Takeover completes rather than restarts, and pushing work is
+non-destructive, so the action is the same either way. `rescue/d2-followons`
+now pins the commit on the remote regardless.
+
+The board asserting delivery is what let this sit unnoticed for four hours.
 
 **Recovery is clean.** `c110664b^` (`01175d67`) is an ancestor of `origin/main`,
 and `origin/main` has no commits touching `crates/ritk-block-matching/` since —
