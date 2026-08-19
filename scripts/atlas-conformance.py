@@ -42,7 +42,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from atlas_stack import ROOT, is_git_ignored
+from atlas_stack import ROOT, is_git_ignored, staleness_note
 
 BASELINE = ROOT / "scripts" / "conformance-baseline.json"
 
@@ -810,8 +810,23 @@ def main() -> int:
         return 1 if regressions else 0
     for t in tightenings:
         print(f"tightened (update baseline): {t}")
+    # A `--worktree` scan measures whatever is checked out, and members of
+    # this stack are routinely behind — eight of twenty-five were the day
+    # this was added. The default path is protected by
+    # `check_clean_revision`, but `--worktree` bypasses it and is the mode
+    # actually used while peers hold dirty trees, so every count it produces
+    # needs its provenance attached. Without this, upstream-fixed debt reads
+    # as a fresh regression.
+    stale = {}
+    if args.worktree:
+        for repo_name in {r.split("/", 1)[0] for r in regressions}:
+            member = ROOT / "repos" / repo_name
+            if member.is_dir():
+                note = staleness_note(member)
+                if note:
+                    stale[repo_name] = note
     for r in regressions:
-        print(f"RATCHET VIOLATION: {r}")
+        print(f"RATCHET VIOLATION: {r}{stale.get(r.split('/', 1)[0], '')}")
     print(f"{len(regressions)} regression(s), {len(tightenings)} tightening(s)")
     return 1 if regressions else 0
 
