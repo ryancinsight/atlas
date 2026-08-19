@@ -7,6 +7,21 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
+## ATLAS-RITK-REGISTRY-README-2026-08-19 — closed [patch]
+
+- **Outcome:** Add the missing `crates/ritk-block-matching/README.md` required
+  by its declared package metadata. The README documents the real NCC,
+  subpixel-refinement, row-major input, and Apollo FFT boundary; it is committed
+  and pushed at RITK `01175d67`, and Atlas records that exact gitlink at
+  `7e13796`.
+- **Evidence:** `atlas-registry-metadata.py --require-categories` passes with
+  252 manifests, 96 category slugs, zero violations, and zero unverified
+  manifests. The README diff is whitespace-clean.
+- **Residual:** `cargo package --locked` remains blocked before packaging by
+  active peer-owned RITK `Cargo.toml`/`Cargo.lock` changes that require lock
+  regeneration. No peer source, manifest, lockfile, or untracked implementation
+  file was changed by this item.
+
 Fourteen read-only audits covering every registered member plus the meta-repo.
 Every claim below is grounded at `file:line` in the audited tree. Items are
 ordered by tier, and tier is set by *what breaks*, not by effort.
