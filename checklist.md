@@ -31,11 +31,10 @@
       commit `a10183c80` so the heavy comparator can run against provider main;
       YAML validation passes with the workflow trigger present. Atlas pointer
       `4073b1f` is pushed. The dispatched run is still required for closure.
-- [ ] Collect CFDrs PR #358 rerun at corrected head `5e13018a`: the prior exact
-      run reached Clippy and failed only on `clippy::inconsistent_struct_constructor`
-      in `newton_fallback.rs`; the provider reordered the constructor fields and
-      pushed the fix. Rust and figure jobs are pending; do not advance the
-      Atlas pointer before both pass.
+- [x] Collect CFDrs PR #358 rerun at corrected head `5e13018a`: run
+      `32229463775` passes the Rust workspace and figure SSOT gates, and PR #358
+      merges at default `834340f7`. The Atlas gitlink records that exact default;
+      the provider checkout remains on its peer branch.
 - [ ] Collect and merge Apollo PR #107 at provider commits `6be8cd28` and
       `cd94c10d` after its rerun Rust, Python, and benchmark checks complete.
       The first Rust job exposed nine additional const-initializer diagnostics;
