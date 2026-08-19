@@ -27,6 +27,10 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   `2f17abc`; the Python `atlas-ref` now names the pushed provider graph. Atlas
   records the exact provider head in `55d8b8d`. YAML parsing passes; the local
   extension and hosted comparator remain open.
+- **Kwavers comparator gate:** provider commit `4e0135c76` adds a bounded
+  Ubuntu/Python 3.10 wheel job that installs the declared k-Wave Python range
+  and executes the real comparison suite with slow tests enabled. Atlas records
+  the provider head in `2e00759`; closure is pending its value-semantic result.
 - **CFDrs rerun:** PR #358 now points at `5e13018a` after a hosted Clippy
   failure found and the provider fixed `clippy::inconsistent_struct_constructor`
   in `newton_fallback.rs`. Rust and figure jobs are pending; the pointer stays

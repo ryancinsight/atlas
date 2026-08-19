@@ -1,5 +1,13 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-19: Kwavers hosted comparator gate added
+
+Provider commit `4e0135c76f4ecab911f8099a749544620d7655be` adds a bounded
+Ubuntu/Python 3.10 job to the existing wheel-smoke workflow. It builds the
+locked stable-ABI wheel, installs `k-wave-python>=0.4.1,<0.7`, and runs the
+input-sensitive `test_kwave_comparison.py` suite with `KWAVERS_RUN_SLOW=1`.
+Atlas records the exact provider head in `2e00759`. The gate is pending; no
+parity claim is made until its value assertions complete.
 ## Finding 2026-08-19: Kwavers reusable-workflow pin closure
 
 Kwavers provider commit `2bc5dd161b0208a32456233d6701e20b0f9cabec` updates all

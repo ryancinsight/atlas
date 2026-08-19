@@ -21,6 +21,12 @@
       resolves to the pushed graph containing Kwavers `498f38a3e`. Provider
       commit `2bc5dd161` and Atlas pointer `55d8b8d` are pushed; YAML parsing
       and diff checks pass.
+- [ ] Collect the new Kwavers hosted comparator job from provider commit
+      `4e0135c76`: it builds the locked stable-ABI wheel, installs
+      `k-wave-python>=0.4.1,<0.7` on Python 3.10, and runs
+      `test_kwave_comparison.py` with `KWAVERS_RUN_SLOW=1`. Atlas pointer
+      `2e00759` is pushed; do not close the comparator gap until the value
+      assertions pass.
 - [ ] Collect CFDrs PR #358 rerun at corrected head `5e13018a`: the prior exact
       run reached Clippy and failed only on `clippy::inconsistent_struct_constructor`
       in `newton_fallback.rs`; the provider reordered the constructor fields and
