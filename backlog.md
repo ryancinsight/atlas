@@ -8905,3 +8905,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - The Helios primary checkout remains detached with peer-owned
   `crates/helios-python/Cargo.toml` dirt, and its sole lane is occupied by a
   peer Apollo-lock task. Preserve both trees until the owning work completes.
+## ATLAS-KWAVERS-402-2026-08-19 — merged GPU-boundary recheck
+
+- Kwavers PR #402 is merged at provider commit `9a7fa7e50dd48ee83a2777ef59aa692c8fabc5d`.
+  Its architecture, feature, benchmark, test, documentation, Miri, CUDA, and
+  wheel checks are green. Current `origin/main` is `53b3f984`, which already
+  contains the merge and matches the Atlas gitlink; no pointer change is
+  required.
+- The primary Kwavers checkout remains two commits behind `origin/main` with
+  peer-owned untracked `docs/ADR/111-retire-kzk-solver-plugin-surface.md`.
+  Preserve that checkout and do not infer a clean local source gate from the
+  merged hosted result.

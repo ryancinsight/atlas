@@ -5496,3 +5496,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [ ] Reconcile the provider-owned H-103 board text when the detached,
       peer-dirty Helios checkout is available; no provider file was changed by
       this audit.
+## 2026-08-19 Kwavers PR #402 recheck
+
+- [x] Confirm PR #402 is merged at `9a7fa7e5`; all listed hosted checks are
+      green and `origin/main` remains `53b3f984`, already matching Atlas.
+- [ ] Preserve the primary checkout's two-commit lag and peer-owned untracked
+      ADR until its owner reconciles it; no Kwavers file was changed.

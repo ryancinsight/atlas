@@ -12588,3 +12588,13 @@ fences and omitted setup, so that residual is documentation drift rather than
 current book-test failure. The Helios primary checkout is detached with
 peer-owned `crates/helios-python/Cargo.toml` dirt, and its only worktree lane
 is occupied by a peer Apollo-lock task; no provider file was changed.
+## Finding 2026-08-19: Kwavers PR #402 is merged and the pointer is current
+
+Kwavers PR #402 (`468b0f5a71afc01e0a826d8c232944b343ebb392`) is merged at
+provider commit `9a7fa7e50dd48ee83a2777ef59aa692c8fabc5d`. Its architecture,
+feature, benchmark, test, documentation, Miri, CUDA, and wheel checks are green.
+Fetched `origin/main` is `53b3f98467db88224db15cad9b03eb6f21133b89`, already the
+Atlas gitlink, so no root pointer change is required. The primary checkout is
+behind two commits and carries peer-owned untracked
+`docs/ADR/111-retire-kzk-solver-plugin-surface.md`; hosted closure does not
+prove a clean local checkout.
