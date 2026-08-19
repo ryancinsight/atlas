@@ -360,6 +360,56 @@ def check_locks(packages: dict[str, tuple[Path, str | None]]) -> list[str]:
     return drift
 
 
+def _normalize(text: str) -> str:
+    """Line endings and trailing space removed, so only content is compared."""
+    return chr(10).join(line.rstrip() for line in text.replace(chr(13), "").split(chr(10))).strip()
+
+
+def check_overlay_freshness(packages: dict[str, tuple[Path, str | None]]) -> list[str]:
+    """Report a committed overlay that no longer matches the repository layout.
+
+    Two failures this catches, both of which break every build in the stack
+    before a single crate compiles:
+
+    * a **dangling path** -- an entry pointing at a tree that has since been
+      removed, which Cargo reports as an unreadable manifest rather than as a
+      stale overlay;
+    * **drift** from what the generator would emit now, which means the block
+      was hand-edited or predates a layout change.
+
+    Regenerate-and-diff is the generator contract; this is its executable form.
+    """
+    problems: list[str] = []
+    text = CONFIG.read_text(encoding="utf-8")
+    match = re.search(re.escape(BEGIN) + r"(.*?)" + re.escape(END), text, re.DOTALL)
+    if not match:
+        return ["no generated overlay block found; run `generate`"]
+
+    # The block may be commented out (`off` mode); compare its content, not its
+    # enabled state, so a deliberately disabled overlay is not reported as stale.
+    committed = "\n".join(
+        line.lstrip().removeprefix("#OFF#") if line.lstrip().startswith("#OFF#") else line
+        for line in match.group(1).split("\n")
+    )
+
+    for rel in re.findall(r'path = "([^"]+)"', committed):
+        if not (ATLAS_ROOT / rel / "Cargo.toml").is_file():
+            problems.append(f"dangling overlay path `{rel}` -- no manifest there")
+
+    # The config is checked out with platform line endings; the generator emits
+    # LF. Compare content, not the endings git already normalizes.
+    # `write_overlay` emits HEADER (which opens with BEGIN) followed by the
+    # patch block, so the captured region is the header tail plus the block.
+    expected, _missing, _lag = build_overlay(packages)
+    expected_body = (HEADER + expected).split(BEGIN, 1)[1]
+    if _normalize(committed) != _normalize(expected_body):
+        problems.append(
+            "overlay differs from a fresh generation -- run "
+            "`python scripts/atlas-stack-overlay.py generate` and commit the result"
+        )
+    return sorted(set(problems))
+
+
 def check(packages: dict[str, tuple[Path, str | None]]) -> int:
     lag: list[str] = []
     unresolved: list[str] = []
@@ -383,6 +433,10 @@ def check(packages: dict[str, tuple[Path, str | None]]) -> int:
     for line in sorted(set(lag)):
         print(f"REQUIREMENT LAG: {line}")
 
+    stale = check_overlay_freshness(packages)
+    for line in stale:
+        print(f"OVERLAY: {line}")
+
     drift = check_locks(packages)
     by_repo: dict[str, list[str]] = {}
     for line in sorted(set(drift)):
@@ -392,14 +446,16 @@ def check(packages: dict[str, tuple[Path, str | None]]) -> int:
         for entry in entries:
             print(f"  {entry}")
 
-    if lag or drift:
+    if lag or drift or stale:
         print(
             f"\n{len(set(lag))} lagging requirement(s), "
             f"{len(by_repo)} repo(s) with pin drift.\n"
             "Requirement lag: advance the consumer requirement to the provider's "
             "current workspace version.\n"
             "Pin drift: run `cargo update` in the repo to re-resolve onto the "
-            "current provider heads, then verify and commit the lock."
+            "current provider heads, then verify and commit the lock.\n"
+            "Overlay: regenerate and commit -- a stale or dangling entry fails "
+            "every build in the stack at resolution time."
         )
         return 1
     print("stack aligned: requirements satisfiable and locks match the local trees")
