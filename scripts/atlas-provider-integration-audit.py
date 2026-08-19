@@ -8,6 +8,11 @@ to be clean and at its recorded gitlink:
 1. Requested providers are present and active in `.gitmodules`.
 2. The canonical root PM records carry the closed audit marker.
 3. Naming normalization remains explicit (`Tyche (aka Tychee)`).
+
+When exact-head or clean-checkout verification is requested, the three Atlas
+integrators (CFDrs, Kwavers, and Helios) are checked as well. They are not
+members of the provider-count inventory, but their root gitlinks are part of
+the same integration contract.
 """
 
 from __future__ import annotations
@@ -53,6 +58,7 @@ REQUIRED_PROVIDERS = (
     "hermes",
     "iris",
 )
+INTEGRATOR_REPOS = ("CFDrs", "kwavers", "helios")
 REQUESTED_PROVIDERS_20260814 = (
     "horae",
     "hyperion",
@@ -463,6 +469,11 @@ def _normalized_deduped_providers(raw_names: list[str]) -> tuple[str, ...]:
     return tuple(selected)
 
 
+def _exact_scope(providers: tuple[str, ...]) -> tuple[str, ...]:
+    """Extend exact-head checks to the Atlas integrator gitlinks."""
+    return tuple(dict.fromkeys((*providers, *INTEGRATOR_REPOS)))
+
+
 def _providers_from_file(path_text: str) -> tuple[str, ...]:
     providers_path = Path(path_text)
     try:
@@ -540,10 +551,15 @@ def main(argv: list[str] | None = None) -> int:
             issues.append(f"missing required record file: {path.name}")
     if not issues:
         issues.extend(_record_issues())
+        exact_scope = (
+            _exact_scope(providers)
+            if (args.exact_heads or args.require_clean_checkouts)
+            else providers
+        )
         if args.exact_heads:
-            issues.extend(_exact_head_issues(providers, args.exact_head_workers))
+            issues.extend(_exact_head_issues(exact_scope, args.exact_head_workers))
         if args.require_clean_checkouts:
-            issues.extend(_clean_checkout_issues(providers))
+            issues.extend(_clean_checkout_issues(exact_scope))
         if args.structural_only:
             out_of_scope = 0
         else:
@@ -595,6 +611,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"- naming normalization retained: {NAME_NORMALIZATION}")
     if args.exact_heads:
         print("- committed provider gitlinks match fetched origin defaults")
+        print(
+            "- integrator gitlinks match fetched origin defaults: "
+            + ", ".join(INTEGRATOR_REPOS)
+        )
     if args.require_clean_checkouts:
         print("- initialized provider checkouts match committed gitlinks and are clean")
     if args.structural_only:

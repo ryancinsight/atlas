@@ -85,11 +85,18 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
 
     def test_requested_provider_inventory_is_complete(self) -> None:
         self.assertEqual(len(audit.REQUIRED_PROVIDERS), 22)
+        self.assertEqual(audit.INTEGRATOR_REPOS, ("CFDrs", "kwavers", "helios"))
         self.assertEqual(len(audit.REQUESTED_PROVIDERS_20260814), 20)
         self.assertIn("hermes", audit.REQUIRED_PROVIDERS)
         self.assertIn("gaia", audit.REQUIRED_PROVIDERS)
         self.assertIn("harmonia", audit.REQUIRED_PROVIDERS)
         self.assertNotIn("gaia", audit.REQUESTED_PROVIDERS_20260814)
+
+    def test_exact_scope_includes_integrators_once(self) -> None:
+        self.assertEqual(
+            audit._exact_scope(("horae", "helios")),
+            ("horae", "helios", "CFDrs", "kwavers"),
+        )
 
     def test_main_succeeds_with_complete_inputs(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
@@ -479,7 +486,9 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                     code = audit.main(["--exact-heads", "--exact-head-workers", "3"])
 
         self.assertEqual(code, 0)
-        exact_head_issues.assert_called_once_with(audit.REQUIRED_PROVIDERS, 3)
+        exact_head_issues.assert_called_once_with(
+            audit._exact_scope(audit.REQUIRED_PROVIDERS), 3
+        )
 
     def test_gitlink_reads_index_instead_of_child_checkout_head(self) -> None:
         with patch.object(
