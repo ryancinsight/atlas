@@ -264,6 +264,15 @@ while the configured shared target is `D:\atlas\target`. The exact recursive
 deletion was refused by the shell safety policy in this pass, so the residual
 remains open under ATLAS-CACHE-FORK-055 and no cleanup claim is made.
 
+## Finding 2026-08-19: Horae cache-fork residual is absent
+
+The current worktree conformance scan reports `horae/target_forks = 0` and
+`repos/horae/target` is absent. The configured shared target remains
+`D:\atlas\target`; no override or recursive deletion was introduced. The
+previous cache-fork residual is therefore closed for this revision; the
+conformance metric remains the recurrence control for standalone member
+builds.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at
