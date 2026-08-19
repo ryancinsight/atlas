@@ -78,10 +78,15 @@
       `git+` sources are the required standalone lock form, while the only
       registered cross-repository path lines are the exempt Melinoe contract
       fixture. Overlay, lock-form, and exact-head gates pass.
-- [ ] Complete Gaia's direction-set half of `ATLAS-GAIA-POLYLINE-006` by
-      exposing the existing geodesic tessellation as deterministic unit
-      directions. Keep the RITK consumers on Gaia's canonical types and add
-      value-semantic frequency/count/norm/order coverage.
+- [x] Implement Gaia's direction-set half of `ATLAS-GAIA-POLYLINE-006` in
+      provider commit `3c2d655`: `UnitSphereDirectionSet` reuses the existing
+      geodesic tessellation and Leto `UnitVector3`, while RITK remains on Gaia
+      canonical types. Local nextest 972/972, warning-denied Clippy, doctests
+      9/9, format, and Rustdoc pass.
+- [ ] Collect Gaia PR #32 hosted CI and book checks at `3c2d655`, merge the
+      provider default, then advance the Atlas gitlink and rerun exact-head,
+      overlay, and lock-form gates. `recurseml/analysis` is report-only error;
+      CodeRabbit is pending.
 - [x] Run the stack-wide book-link detector across all 23 registered books:
       every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
       Run its fixture regression suite with `PYTHONPATH=scripts`; 43/43 tests

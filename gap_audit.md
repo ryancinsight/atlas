@@ -1,5 +1,23 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-18: Gaia direction-set provider slice
+
+Gaia provider branch `feat/gaia-direction-set` commit `3c2d655` adds the
+validated `UnitSphereDirectionSet` API under
+`src/domain/geometry/direction_set.rs`. It delegates to the existing
+`GeodesicSphere` tessellation at unit radius and origin centre, stores Leto
+`UnitVector3` values, and preserves the primitive's deterministic welded
+vertex order and `10*f^2 + 2` cardinality. Provider value-semantic tests cover
+zero-frequency rejection, f=1/f=2 counts, unit norms, and reproducible order.
+The exact source gate is 972/972 nextest, warning-denied Clippy, format,
+doctests 9/9, and Rustdoc; no RITK-local direction type or second tessellation
+algorithm was added.
+
+PR #32 is open at `3c2d655`; hosted CI and the mesh-book check are queued,
+`recurseml/analysis` is report-only error, and CodeRabbit is pending. Atlas
+still points to Gaia `4980732`; pointer advancement and exact-head closure
+remain pending the merged provider default.
+
 ## Finding 2026-08-18: path-dependency audit superseded by standalone lock form
 
 The historical `ATLAS-PATH-DEP-AUDIT-001` zero-`git+` criterion is not valid

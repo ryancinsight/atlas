@@ -54,11 +54,14 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   commit; the previously collected CI/Python runs remain attached to `f9d04a79`
   and do not establish the new default head. No run is currently attached to
   `9fa4981e`.
-- **Gaia polyline evidence:** Atlas gitlink `4980732` contains the validated
-  `gaia::Polyline` contract, and RITK's TCK/TRX consumers import that type
-  directly. Gaia cleanup commit `f88ff17` is not an ancestor of its default
-  and has no remote branch; the nested checkout is detached in a peer rebase.
-  No Gaia or RITK files were changed by this audit.
+- **Gaia polyline/direction evidence:** Atlas gitlink `4980732` contains the
+  validated `gaia::Polyline` contract, and RITK's TCK/TRX consumers import
+  that type directly. Provider branch `feat/gaia-direction-set` commit
+  `3c2d655` adds `UnitSphereDirectionSet` backed by the existing
+  `GeodesicSphere` and Leto `UnitVector3`, with local nextest 972/972,
+  warning-denied Clippy, doctests 9/9, format, and Rustdoc gates passing. Gaia
+  PR #32 is open at that exact head; its hosted CI and book checks are queued,
+  so the Atlas gitlink remains at `4980732` until the provider default merges.
 - **Mnemosyne evidence:** PR #62 source head `0022926` passed Rust
   verification, MSRV, Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit;
   `recurseml/analysis` is report-only. The provider PR merged at default
@@ -7650,8 +7653,8 @@ skipped by workflow policy, so physical-device execution remains external.
   sphere-sampling algorithm or RITK-local direction type is in scope.
 - **Acceptance:** provider value-semantic tests cover invalid frequency, the
   frequency-one and frequency-two counts, unit norms, and deterministic
-  ordering for both supported mesh precisions where the existing primitive
-  supports them; Gaia focused gates and Atlas exact-head coherence pass.
+  ordering for the existing f64 geodesic primitive; Gaia focused gates pass,
+  then the merged provider default must restore Atlas exact-head coherence.
 - **Class:** `[minor]`, repository `repos/gaia`.
 
 ## Wave 2 — preprocessing (RITK, existing crate owners)
