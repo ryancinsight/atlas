@@ -8919,6 +8919,18 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   peer-owned untracked `docs/ADR/111-retire-kzk-solver-plugin-surface.md`.
   Preserve that checkout and do not infer a clean local source gate from the
   merged hosted result.
+
+## ATLAS-KWAVERS-DELIVERY-2026-08-19 — wheel and book gate closure
+
+- Kwavers commit `261fe8cf8` adds the existing
+  `crates/kwavers-python/tests` suite to the shared Python-wheel workflow and
+  enables `mdbook test` in the shared Pages workflow. The commit is pushed to
+  `origin/main`; Atlas tracks it at root commit `3ed3813`.
+- The exact-head provider audit, stack overlay, 27 standalone lock forms,
+  board lint, and 234 fast root script tests pass after the pointer advance.
+- The peer-owned untracked `docs/ADR/111-retire-kzk-solver-plugin-surface.md`
+  remains untouched; the comparative K-Wave validation gap remains separate.
+
 ## ATLAS-RITK-179-2026-08-19 — merged NumPy axis recheck
 
 - RITK PR #179 is merged at provider default `6b9092bf`; its Rustfmt, Clippy,

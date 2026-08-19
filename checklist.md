@@ -5515,3 +5515,13 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       matrix checks pass. Fast-forward the clean primary checkout to the exact
       Atlas gitlink.
 - [ ] Preserve the three peer-owned RITK lanes; no lane cleanup was performed.
+
+## 2026-08-19 Kwavers delivery gates
+
+- [x] Add `python-test-path: crates/kwavers-python/tests` to the shared wheel
+      caller and enable `mdbook-test: true` in the Pages caller; commit
+      `261fe8cf8` is pushed to Kwavers `origin/main`.
+- [x] Advance Atlas gitlink in root commit `3ed3813`; exact-head, overlay,
+      lock-form, board-lint, and fast-script gates pass.
+- [ ] Add an independent K-Wave comparative validation surface; this remains
+      a behavioral-validation item, not a release-workflow defect.

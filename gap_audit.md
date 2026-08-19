@@ -12610,3 +12610,13 @@ RITK PR #179 (`a1119336983691191472e235dfb7c7c8f71d2db4`) is merged at
 primary checkout now match that exact default head after a fast-forward. Three
 other provider worktrees remain peer-owned and over the lane bound; they were
 preserved.
+
+## Finding 2026-08-19: Kwavers delivery callers lacked shared gates
+
+Kwavers commit `261fe8cf86f3dcf2100862b97a66e20804f278c1` passes the existing
+`crates/kwavers-python/tests` suite to the shared Python-wheel workflow and
+enables `mdbook test` for the shared Pages workflow. The commit is pushed to
+provider `origin/main`; Atlas advances its gitlink in root commit `3ed3813`.
+The exact-head provider audit, stack overlay, 27 standalone lock forms, board
+lint, and 234 fast root script tests pass. The peer-owned untracked ADR and the
+separate K-Wave comparative oracle remain outside this slice.
