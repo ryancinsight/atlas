@@ -8895,3 +8895,13 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   queued/in progress at the exact source head; no hosted result is claimed.
   Atlas remains at CFDrs `931ee3a0` until the source PR is merged and its final
   hosted gates are green.
+
+## ATLAS-HELIOS-H103-2026-08-19 — recheck stale documentation residual
+
+- Helios merged checkout `f8ebe42f2a9c72f9da177cf5f96e15029b8a6d54` now passes
+  `mdbook test docs/book` across every listed chapter and example. The prior
+  H-103 failure description is stale at this head; no provider source change
+  is required from the Atlas audit.
+- The Helios primary checkout remains detached with peer-owned
+  `crates/helios-python/Cargo.toml` dirt, and its sole lane is occupied by a
+  peer Apollo-lock task. Preserve both trees until the owning work completes.

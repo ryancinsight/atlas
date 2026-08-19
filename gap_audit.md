@@ -12559,3 +12559,32 @@ The clean-checkout audit still reports peer-owned dirt and the lane audit still
 reports excess peer lanes. Apollo's benchmark regression, Kwavers' missing
 local Python extension, and Helios H-103 remain open and are not masked by the
 passing exact-head structural audit.
+## Finding 2026-08-19: CFDrs default-head hosted closure
+
+CFDrs default `931ee3a0130a5238461a1ee9547e12aef11e90bf` passes hosted run
+`32222487306`. The Rust workspace job completes format, check, Clippy, tests,
+the numerical-fidelity suite, doctests, and native fontconfig setup; the figure
+SSOT job also passes. This proves exact-head provider behavior and figure
+validation, but not Pages deployment, PyPI publication, or standalone locked
+package success. Provider PM synchronization is pushed as `f601d827` on PR
+#357; its new docs-only hosted checks are intentionally not collected here.
+
+## Finding 2026-08-19: CFDrs OPEN-033 JFNK source integration
+
+CFDrs PR #358 (`0a5076c6034d735dd23d63a91453fea7d63702d0`) declares the
+retained `newton_fallback.rs` module, invokes one finite-budget recovery after
+bounded-amplitude stagnation, and moves the residual callback through a typed
+`JfnkSolver::solve_checked` seam. Provider format and diff checks pass. Hosted
+run `32225861309` is queued/in progress at the exact source head, so this is a
+source-delivery checkpoint rather than hosted closure. Atlas remains at
+`931ee3a0` until the PR merges with green exact-head gates.
+
+## Finding 2026-08-19: Helios H-103 premise is stale
+
+Helios merged checkout `f8ebe42f2a9c72f9da177cf5f96e15029b8a6d54` passes
+`mdbook test docs/book` for every listed chapter and example. The provider
+board's H-103 description still records the older failure mode involving Rust
+fences and omitted setup, so that residual is documentation drift rather than
+current book-test failure. The Helios primary checkout is detached with
+peer-owned `crates/helios-python/Cargo.toml` dirt, and its only worktree lane
+is occupied by a peer Apollo-lock task; no provider file was changed.
