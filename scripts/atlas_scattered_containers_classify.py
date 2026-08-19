@@ -384,8 +384,13 @@ def compute_test_regions(clean_lines: list[str]) -> list[bool]:
     return in_test
 
 
-def classify_file(member: str, member_root: Path, abs_path: Path) -> list[Occurrence]:
-    """Find and classify every pattern occurrence in one source file."""
+def classify_file(
+    member: str,
+    member_root: Path,
+    abs_path: Path,
+    pattern: re.Pattern[str] = VEC_VEC,
+) -> list[Occurrence]:
+    """Find and classify every occurrence of ``pattern`` in one source file."""
     lines = abs_path.read_text(errors="replace").splitlines()
     state = LexState()
     clean_lines: list[str] = []
@@ -396,6 +401,14 @@ def classify_file(member: str, member_root: Path, abs_path: Path) -> list[Occurr
         mappings.append(mapping)
 
     test_regions = compute_test_regions(clean_lines)
+    matches = [
+        (idx, match)
+        for idx, clean in enumerate(clean_lines)
+        for match in pattern.finditer(clean)
+    ]
+    if not matches:
+        return []
+
     include_gated = _is_include_gated(abs_path)
     rel = abs_path.relative_to(member_root)
     path_test = _is_test_path(rel)
@@ -405,18 +418,21 @@ def classify_file(member: str, member_root: Path, abs_path: Path) -> list[Occurr
         root_rel = rel
 
     occurrences: list[Occurrence] = []
-    for idx, clean in enumerate(clean_lines):
-        for match in VEC_VEC.finditer(clean):
-            column = mappings[idx][match.start()] + 1 if match.start() < len(mappings[idx]) else match.start() + 1
-            occurrences.append(
-                Occurrence(
-                    member=member,
-                    path=str(root_rel).replace("\\", "/"),
-                    line=idx + 1,
-                    column=column,
-                    test_local=path_test or test_regions[idx] or include_gated,
-                )
+    for idx, match in matches:
+        column = (
+            mappings[idx][match.start()] + 1
+            if match.start() < len(mappings[idx])
+            else match.start() + 1
+        )
+        occurrences.append(
+            Occurrence(
+                member=member,
+                path=str(root_rel).replace("\\", "/"),
+                line=idx + 1,
+                column=column,
+                test_local=path_test or test_regions[idx] or include_gated,
             )
+        )
     return occurrences
 
 
@@ -438,7 +454,7 @@ def scan(pattern: re.Pattern[str]) -> list[Occurrence]:
     for member_root in registered_members():
         member = member_root.name
         for abs_path in iter_source_files(member_root):
-            occurrences.extend(classify_file(member, member_root, abs_path))
+            occurrences.extend(classify_file(member, member_root, abs_path, pattern))
     return sorted(
         occurrences,
         key=lambda o: (o.member, o.path, o.line, o.column),

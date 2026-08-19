@@ -327,6 +327,23 @@ def test_default_pattern_matches_vec_of_vec() -> None:
     assert re.fullmatch(VEC_VEC.pattern, "Vec<Vec<") is not None
 
 
+def test_scan_pattern_reaches_file_classifier(
+    tmp_path: Path, monkeypatch: object
+) -> None:
+    import atlas_scattered_containers_classify as clf
+
+    path = _write(
+        tmp_path,
+        "src/lib.rs",
+        "fn value() { let rows: Box<Box<f64>> = Box::new(Box::new(1.0)); rows }\n",
+    )
+    pattern = re.compile(r"\bBox\s*<\s*Box\s*<")
+    monkeypatch.setattr(clf, "registered_members", lambda: [tmp_path])
+    occurrences = clf.scan(pattern)
+
+    assert [occ.site() for occ in occurrences] == ["src/lib.rs:1:24"]
+
+
 def test_verify_oracle_matches() -> None:
     oracle = (
         "repos/x/src/lib.rs:3:5  # x\n"
