@@ -14,6 +14,18 @@ benchmark checks are pending, while the local full Clippy gate is blocked
 before compilation by the peer-owned Apollo `Cargo.lock` requiring refresh
 under the Atlas overlay. No peer lock or backlog changes were staged.
 
+## Finding 2026-08-19: Helios book sample status differs from provider PM
+
+On Helios detached HEAD `f8ebe42`, `mdbook test docs/book` completes for all
+listed chapters and runnable examples, including the physics, imaging, dose,
+planning, GPU, and validation examples. Helios `backlog.md` still marks H-103
+as todo and its `gap_audit.md` describes the sample gate as open. This is
+documentation/PM drift, not proof that the current Atlas gitlink is hosted
+green: the checkout has peer-owned `crates/helios-python/Cargo.toml` dirt and
+is detached. The provider owner must reconcile H-103 against a clean committed
+default and rerun the Pages caller before closing it; no Helios files were
+modified.
+
 ## Finding 2026-08-18: Gaia direction-set provider slice
 
 Gaia provider branch `feat/gaia-direction-set` commit `3c2d655` adds the
@@ -38,12 +50,13 @@ gates as the integration closure.
 Mnemosyne `origin/main` advanced to
 `43cdf04769d4ab8701dea657b282c4a189175d48` after Atlas recorded
 `64f0d2ebe58e14705ca2345cad2c705f99a6b611`. Exact-head run `32206977029`
-passes Rust verification, Rust 1.95, Loom, aarch64, and ThreadSanitizer;
-Miri is still in progress. The root exact-head audit therefore reports only
-this unadvanced moving default; overlay and standalone lock-form checks pass.
-The pointer re-open trigger is Miri completion at this exact default head,
-followed by a gitlink-only advance and root gate recheck. The peer checkout
-and its dirty state remain untouched.
+passes Rust verification, Rust 1.95, Loom, aarch64, and ThreadSanitizer, but
+its Miri job fails while compiling `mnemosyne-backend`:
+`backends/unix.rs:292` references `SEGMENT_SIZE` without importing
+`mnemosyne_core::SEGMENT_SIZE` (E0425). The default is therefore not hosted
+green and the root pointer remains unchanged. Overlay and standalone lock-form
+checks pass. The re-open trigger is a provider fix followed by a fresh exact
+default-head run; the peer checkout and its dirty state remain untouched.
 
 ## Finding 2026-08-19: lane topology recheck
 

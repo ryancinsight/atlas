@@ -9,6 +9,10 @@
       its Rust, Python, and benchmark checks complete. The local source audit
       removed 42 obsolete Windows expectations across 28 files; local locked
       Cargo gates remain blocked by the peer-owned overlay lock refresh.
+- [x] Re-run Helios `mdbook test docs/book` at detached HEAD `f8ebe42`:
+      every listed chapter/example completes. Keep H-103 open for provider
+      reconciliation because Helios `backlog.md` still says todo and the
+      checkout has peer-owned Python manifest dirt.
 - [x] Re-run stack-overlay, lock-form, and conformance checks after the
       Aequitas integration: lock-form passes for 27 standalone locks,
       conformance passes 12/12, and the latest overlay is aligned.
@@ -55,8 +59,11 @@
       provider edits.
 - [ ] Reconcile the moving Mnemosyne default `43cdf047` after exact-head run
       `32206977029` completes. Rust verification, MSRV, Loom, aarch64, and
-      ThreadSanitizer pass; Miri is still in progress. Advance only the
-      gitlink, then rerun exact-head, overlay, and lock-form gates.
+      ThreadSanitizer pass, but Miri fails at
+      `mnemosyne-backend/src/backends/unix.rs:292` because `SEGMENT_SIZE` is
+      not imported. Keep the gitlink unchanged until the provider fix and a
+      fresh exact-head run pass; then rerun exact-head, overlay, and lock-form
+      gates.
 - [x] Collect Aequitas post-merge CI `32198085105` and Pages
       `32198084983`; both pass at merged default `260ad10`.
 - [ ] Collect the corrected CFDrs exact-head run; run `32197696210` fails in
