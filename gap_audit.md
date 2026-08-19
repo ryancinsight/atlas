@@ -1,12 +1,16 @@
 # atlas — cross-repository integration gap audit
 
-## Finding 2026-08-19: Kwavers parity workflow dispatchability
+## Finding 2026-08-19: Kwavers parity workflow dispatchability — closed
 
 The wheel-smoke workflow was pull-request-only, so a direct provider-main
 integration could not collect its new comparator gate. Provider commit
 `a10183c80f7b537aca693154d79fac026b9f6d91` adds `workflow_dispatch`; the
-workflow YAML parses and retains its bounded job. Atlas records the exact head
-in `4073b1f`. The manual run and value assertions remain pending.
+subsequent provider fixes install the reachable Ubuntu mirror, both HDF5
+runtime SONAMEs, and the locked pytest benchmark plugin without changing the
+comparison workload. Hosted run `32237250724` passes at source head
+`56bded6fa` on Ubuntu, Windows, and macOS; its installed-wheel Ubuntu job
+passes all three value-semantic k-Wave cases. Provider docs record closure at
+`e6fb53b90`; the Atlas gitlink must follow that exact current default.
 ## Finding 2026-08-19: Kwavers hosted comparator gate added
 
 Provider commit `4e0135c76f4ecab911f8099a749544620d7655be` adds a bounded

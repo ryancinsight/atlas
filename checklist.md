@@ -21,12 +21,12 @@
       resolves to the pushed graph containing Kwavers `498f38a3e`. Provider
       commit `2bc5dd161` and Atlas pointer `55d8b8d` are pushed; YAML parsing
       and diff checks pass.
-- [ ] Collect the new Kwavers hosted comparator job from provider commit
-      `4e0135c76`: it builds the locked stable-ABI wheel, installs
-      `k-wave-python>=0.4.1,<0.7` on Python 3.10, and runs
-      `test_kwave_comparison.py` with `KWAVERS_RUN_SLOW=1`. Atlas pointer
-      `2e00759` is pushed; do not close the comparator gap until the value
-      assertions pass.
+- [x] Collect the Kwavers hosted comparator at provider head `56bded6fa`
+      through run `32237250724`: Ubuntu, Windows, and macOS wheel jobs pass;
+      the installed Ubuntu wheel runs all three value-semantic
+      `test_kwave_comparison.py` cases with `KWAVERS_RUN_SLOW=1`. Provider
+      documentation closure is `e6fb53b90`; advance the Atlas pointer to that
+      exact current default before the root sweep.
 - [x] Add `workflow_dispatch` to Kwavers' wheel-smoke workflow at provider
       commit `a10183c80` so the heavy comparator can run against provider main;
       YAML validation passes with the workflow trigger present. Atlas pointer
