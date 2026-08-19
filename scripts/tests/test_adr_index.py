@@ -37,6 +37,41 @@ class AdrIndexTestCase(unittest.TestCase):
         self.assertIn("0001-example.md", content)
         self.assertNotIn("INDEX.md", content)
 
+    def test_staleness_is_measured_from_a_detached_head(self) -> None:
+        """A detached checkout has no `@{upstream}`, so the fallback matters.
+
+        Detached checkouts are the stale ones in practice: coeus reported a
+        drifted ADR index that `origin/main` had already fixed six commits
+        earlier, and the note did not fire until `origin/main` was tried.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-adr-index-") as temp:
+            root = Path(temp)
+            origin, clone = root / "origin", root / "clone"
+            origin.mkdir()
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+            (origin / "a.md").write_text("seed\n", encoding="utf-8")
+            for argv in (
+                ["init", "-q", "-b", "main"],
+                [*ident, "add", "a.md"],
+                [*ident, "commit", "-q", "-m", "one"],
+            ):
+                subprocess.run(["git", "-C", str(origin), *argv], check=True)
+            subprocess.run(
+                ["git", "clone", "-q", str(origin), str(clone)], check=True
+            )
+            # One commit lands upstream that the clone has not fetched into HEAD.
+            (origin / "b.md").write_text("second\n", encoding="utf-8")
+            for argv in ([*ident, "add", "b.md"], [*ident, "commit", "-q", "-m", "two"]):
+                subprocess.run(["git", "-C", str(origin), *argv], check=True)
+            subprocess.run(["git", "-C", str(clone), "fetch", "-q"], check=True)
+            # Detach, so `@{upstream}` cannot resolve.
+            subprocess.run(
+                ["git", "-C", str(clone), "checkout", "-q", "--detach", "HEAD"],
+                check=True,
+            )
+
+            self.assertEqual(adr_index.commits_behind_upstream(clone), 1)
+
     def test_untracked_adr_is_flagged_and_kept_out_of_the_index(self) -> None:
         """An index entry must be satisfiable by a fresh clone, not by the
         author's disk.

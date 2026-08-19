@@ -126,6 +126,38 @@ def tracked_markdown(directory: Path) -> set[str] | None:
     return {Path(line).name for line in out.splitlines() if line.strip()}
 
 
+def commits_behind_upstream(directory: Path) -> int:
+    """How many commits this checkout is behind its tracked upstream.
+
+    Findings are reported against whatever revision happens to be checked
+    out, and members of this stack are routinely behind: eight of
+    twenty-five were, the day this was added. A stale checkout then
+    manufactures drift that upstream already fixed — coeus reported a
+    missing ADR 0066 index row that `origin/main` had carried for six
+    commits. Stating the distance turns that from a defect report into an
+    attributable one.
+
+    Falls back to `origin/main` when `@{upstream}` does not resolve, which
+    is the common case here rather than an edge one: a detached HEAD has no
+    upstream, and detached checkouts are exactly the stale ones this is
+    meant to catch — coeus was six behind on a detached HEAD.
+
+    Zero when neither resolves, so the note only appears when it means
+    something.
+    """
+    for rev in ("@{upstream}", "origin/main"):
+        try:
+            out = subprocess.run(
+                ["git", "-C", str(directory), "rev-list", "--count", f"HEAD..{rev}"],
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        if out.isdigit():
+            return int(out)
+    return 0
+
+
 def build_index(directory: Path) -> tuple[str, list[str]]:
     rows: list[str] = []
     anomalies: list[str] = []
@@ -162,6 +194,17 @@ def build_index(directory: Path) -> tuple[str, list[str]]:
     return HEADER + "\n".join(rows) + "\n", anomalies
 
 
+def _staleness_note(directory: Path) -> str:
+    """Suffix naming how far behind upstream the reporting checkout is."""
+    behind = commits_behind_upstream(directory)
+    if not behind:
+        return ""
+    return (
+        f" (checkout is {behind} commit(s) behind upstream; "
+        "confirm against the current revision before treating this as a defect)"
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=["generate", "check"])
@@ -181,10 +224,10 @@ def main() -> int:
                 print(f"{rel}: index written")
         else:
             if not index.exists():
-                print(f"{rel}: MISSING index")
+                print(f"{rel}: MISSING index{_staleness_note(directory)}")
                 drift += 1
             elif index.read_text(encoding="utf-8") != content:
-                print(f"{rel}: index DRIFTED from ADR headers")
+                print(f"{rel}: index DRIFTED from ADR headers{_staleness_note(directory)}")
                 drift += 1
     if mode == "check" and drift:
         print(f"{drift} index(es) missing or stale")
