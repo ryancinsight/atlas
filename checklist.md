@@ -5525,3 +5525,12 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       lock-form, board-lint, and fast-script gates pass.
 - [ ] Add an independent K-Wave comparative validation surface; this remains
       a behavioral-validation item, not a release-workflow defect.
+
+## 2026-08-19 Kwavers metadata closure
+
+- [x] Remove the unused workspace PyO3 ABI declaration, repair the Python
+      documentation URL, and broaden Pages source/manifest path filters in
+      provider commit `e62d529e6`; push and advance Atlas to `a2f46dc`.
+- [ ] Restore a standalone locked provider build after the shared overlay
+      lockfile contention is resolved; the current failure occurs before Rust
+      compilation.

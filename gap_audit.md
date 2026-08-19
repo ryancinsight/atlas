@@ -12620,3 +12620,14 @@ provider `origin/main`; Atlas advances its gitlink in root commit `3ed3813`.
 The exact-head provider audit, stack overlay, 27 standalone lock forms, board
 lint, and 234 fast root script tests pass. The peer-owned untracked ADR and the
 separate K-Wave comparative oracle remain outside this slice.
+
+## Finding 2026-08-19: Kwavers ABI3 and delivery metadata aligned
+
+Kwavers commit `e62d529e61a66470949e9e4d7c121bfc0366c029` removes the unused
+workspace PyO3 `abi3-py39` declaration, leaving the binding, project, and
+release workflow consistently at Python 3.8; it also repairs the Python
+documentation URL and makes Pages rebuild on `crates/**`, `Cargo.toml`, and
+`Cargo.lock` changes. Atlas tracks the provider at root commit `a2f46dc`.
+Formatting and locked metadata inspection pass. A locked provider package check
+remains blocked before compilation by the shared Atlas overlay's unused local
+patches and lockfile rewrite request.

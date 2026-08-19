@@ -8931,6 +8931,17 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - The peer-owned untracked `docs/ADR/111-retire-kzk-solver-plugin-surface.md`
   remains untouched; the comparative K-Wave validation gap remains separate.
 
+## ATLAS-KWAVERS-METADATA-2026-08-19 — Python surface consistency
+
+- Kwavers commit `e62d529e6` removes the unused workspace `pyo3` ABI3
+  declaration, keeps the binding and release floor consistently at Python 3.8,
+  repairs the Python documentation URL, and makes Pages rebuild on source and
+  manifest changes. Atlas tracks it at root commit `a2f46dc`.
+- `cargo fmt --all -- --check`, `git diff --check`, and locked metadata
+  inspection pass. The provider `cargo check -p kwavers-python --locked` is
+  blocked before compilation by the shared Atlas overlay requesting lockfile
+  updates for unused local patches; no source failure is inferred.
+
 ## ATLAS-RITK-179-2026-08-19 — merged NumPy axis recheck
 
 - RITK PR #179 is merged at provider default `6b9092bf`; its Rustfmt, Clippy,
