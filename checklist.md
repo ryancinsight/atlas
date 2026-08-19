@@ -39,16 +39,20 @@
       topology violations: Consus has four trees and one lane outside the
       canonical root, Kwavers has four trees with a detached lane, and RITK has
       four trees. These remain peer coordination state and were not modified.
-- [x] Collect the Themis post-merge CI/MSRV state: runs `32194584768` and
-      `32194584736` pass at `0484a333`. Pages run `32194583598` has build and
-      report success, but deployment remains queued.
+- [x] Collect the Themis post-merge CI/MSRV/Pages state: runs `32194584768`,
+      `32194584736`, and `32194583598` pass at `0484a333`.
 - [x] Collect Mnemosyne Miri and merge PR #62 at provider default
       `553499056ae37f3aa9f249cc507a0a09e55fd08d`; Rust verification, MSRV,
       Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit pass, while
       `recurseml/analysis` remains report-only. Advance the Atlas gitlink
       without modifying the provider checkout.
-- [ ] Collect Aequitas post-merge, CFDrs exact-head, and the remaining Themis
-      Pages deployment; explicitly classify the absence of a
+- [x] Collect Aequitas post-merge CI `32198085105` and Pages
+      `32198084983`; both pass at merged default `260ad10`.
+- [ ] Collect the corrected CFDrs exact-head run; run `32197696210` fails in
+      hosted Clippy at `cfd-2d/src/solvers/ns_fvm/solver/solve.rs:218` for
+      `clippy::if_not_else`, while the book-figure check passes. Preserve the
+      peer-owned CFDrs checkout and branch.
+- [ ] Explicitly classify the absence of a
       run for RITK default `9fa4981e`. Queued or in-progress status remains
       distinct from hosted closure. Preserve all peer-owned nested checkout
       and lane dirt.
@@ -173,10 +177,8 @@
 - [x] Merge Themis PR #26 after its provider CI, MSRV, nightly compile-fail,
       Miri, and CodeRabbit checks pass; stage Atlas gitlink `d0fcce7a` →
       `0484a333` without changing the dirty primary checkout.
-- [x] Collect Themis post-merge CI/MSRV runs `32194584736` and `32194584768`
-      at `0484a333`; both pass.
-- [ ] Collect the remaining Pages deployment job in run `32194583598` at
-      `0484a333`; its build and report jobs pass but deploy remains queued.
+- [x] Collect Themis post-merge CI/MSRV/Pages runs `32194584736`,
+      `32194584768`, and `32194583598` at `0484a333`; all pass.
 - [x] Record the RITK transition: current CI/Python runs
       `32192759850`/`32192759832` remain queued at `f9d04a79`; prior Python
       run `32184697093` failed only the three inverse-displacement parity
@@ -223,8 +225,8 @@
       green at source `5428584`, with RecurseML report-only.
 - [x] Stage the Atlas Aequitas gitlink to the exact merged default without
       switching or modifying the provider checkout. Post-merge runs
-      `32198085105` and `32198084983` are queued; collect them before treating
-      hosted closure as complete.
+      `32198085105` and `32198084983` pass at `260ad10`; hosted closure is
+      complete for this provider slice.
 
 - [x] Audit the clean Gaia provider checkout without editing it. The current
       conformance report records 44 oversized Rust files, seven implementation-

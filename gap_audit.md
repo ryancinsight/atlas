@@ -28,7 +28,7 @@ Hephaestus hosted verification is complete on its actual default branch
 `master`, head `607ce3f`: CUDA `32083561386`, WGPU `32083561356`, ROCm
 `32083561357`, and Metal `32083561389` pass. This supersedes the earlier
 absence-of-default-run classification; it does not close the independent RITK,
-Consus, Coeus, or queued Themis Pages residual.
+Consus, Coeus, CFDrs, or Horae residuals.
 
 Mnemosyne PR #62 completed at provider source head `0022926`. Its local
 allocator and profiler gates pass 65/65, warning-denied Clippy, doctest
@@ -39,29 +39,28 @@ report-only. The PR merged at default
 `553499056ae37f3aa9f249cc507a0a09e55fd08d`, and Atlas advances the gitlink to
 that exact merge commit without modifying the provider checkout.
 
-CFDrs PR #355 now carries the provider timeout fix at `1bebb5e1`. The failed
-Rust workspace run `32190491996` is classified as a pre-existing timeout also
-present at provider main `44ab23b`, specifically
-`test_benchmark_run_integration` at the committed 30-second Nextest budget.
-The fix prepares the normalized parabolic inlet profile once per backward-step
-solve and reapplies cached values, preserving the numerical workload and
-assertions. Exact-head hosted run `32197696210` is queued for Rust and book
-verification; the shared Atlas overlay still blocks a local locked compile
-before source diagnostics.
+CFDrs PR #355 carries the provider timeout fix at `1bebb5e1`. The failed Rust
+workspace run `32190491996` was a pre-existing timeout also present at provider
+main `44ab23b`, specifically `test_benchmark_run_integration` at the committed
+30-second Nextest budget. The fix prepares the normalized parabolic inlet
+profile once per backward-step solve and reapplies cached values, preserving
+the numerical workload and assertions. Exact-head run `32197696210` now fails
+in hosted Clippy at `cfd-2d/src/solvers/ns_fvm/solver/solve.rs:218` for
+`clippy::if_not_else`; the book-figure check passes. A provider-side warning
+correction is required before merge. The shared Atlas overlay still blocks a
+local locked compile before source diagnostics.
 
 Aequitas PR #35 merged at provider default `260ad10dd5480eef8c82958d1d148199656db59e`
 after the provider verify and supply-chain checks passed at source `5428584`.
 Atlas stages that exact merged gitlink while preserving the provider checkout;
-post-merge runs `32198085105` and `32198084983` are queued and remain separate
-from the pre-merge source evidence.
+post-merge CI `32198085105` and Pages `32198084983` also pass.
 
-Themis post-merge CI `32194584768` and MSRV `32194584736` pass at default
-`0484a333`. Pages run `32194583598` has successful build and report jobs, but
-its deploy job remains queued. Mnemosyne CI `32196541600` is green for Rust
-verification, Loom, aarch64, and ThreadSanitizer with Miri still in progress;
-CFDrs run `32197696210` and both Aequitas post-merge runs remain queued. No
-hosted run is attached to the docs-only RITK default `9fa4981e`, so the prior
-RITK runs do not establish that head.
+Themis post-merge CI `32194584768`, MSRV `32194584736`, and Pages
+`32194583598` pass at default `0484a333`. Mnemosyne CI `32196541600` is green
+for Rust verification, Loom, Miri, aarch64, and ThreadSanitizer; CFDrs run
+`32197696210` fails only at the Clippy location recorded above, while both
+Aequitas post-merge runs pass. No hosted run is attached to the docs-only RITK
+default `9fa4981e`, so the prior RITK runs do not establish that head.
 
 The latest root recheck reports exact-head `OK` for all 22 providers and an
 aligned stack overlay; the prior RITK Apollo/Hermes requirement and lock

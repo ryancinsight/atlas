@@ -13,11 +13,11 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck [patch]
 
-- **Status:** Tyche cleanup, Aequitas integration, and the Mnemosyne provider
-  cleanup are complete for this increment. The current hosted residuals are
-  CFDrs exact-head verification, Aequitas post-merge CI/Pages, Themis Pages
-  deployment, and the Horae lock PR; the root exact-head, overlay, lock-form,
-  and conformance gates are green after advancing the Mnemosyne pointer.
+- **Status:** Tyche cleanup, Aequitas integration, Mnemosyne cleanup, and the
+  Aequitas/Themis hosted closures are complete for this increment. The
+  remaining hosted residuals are the CFDrs exact-head correction and the Horae
+  lock PR; the root exact-head, overlay, lock-form, and conformance gates are
+  green after advancing the Mnemosyne pointer.
 - **Tyche evidence:** provider commit `de925e6` consolidates the shared
   Latin-hypercube/Sobol checked index conversions, removes five production
   type-suffixed helper names, and merged through PR #26 at default
@@ -37,19 +37,18 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   default `5adc2d1649bfd2bf68c529b011308e150375810d`; Atlas stages that exact
   gitlink without touching the dirty primary checkout. The former backend
   parity failure at `79f05dfd` is superseded by the merged provider closure.
-- **CFDrs evidence:** PR #355 now carries provider commit `1bebb5e1`. The
-  previous Rust-gate timeout is reproducible at provider main `44ab23b` in
-  `test_benchmark_run_integration`, where the backward-step provider rebuilt
-  normalized parabolic inlet vectors on every SIMPLE iteration. The fix caches
-  the normalized profile once per solve and preserves the unchanged workload,
-  assertions, and 30-second budget. Exact-head hosted run `32197696210` is
-  queued; merge remains gated on its Rust and book jobs.
+- **CFDrs evidence:** PR #355 carries provider commit `1bebb5e1`. The
+  previous Rust-gate timeout is addressed by caching the normalized parabolic
+  inlet profile once per solve. Exact-head run `32197696210` now fails in the
+  hosted Clippy job at `cfd-2d/src/solvers/ns_fvm/solver/solve.rs:218` for
+  `clippy::if_not_else`; the book-figure job passes. The provider branch needs
+  that warning-denied correction before merge; no CFDrs checkout was changed.
 - **Aequitas evidence:** PR #35 merged the provider structure cleanup at
-  default `260ad10dd5480eef8c82958d1d148199656db59e`; its verify and
-  supply-chain checks passed at source `5428584`, with RecurseML report-only.
-  Atlas advances the Aequitas gitlink to the exact merge commit without
-  modifying the provider checkout. Post-merge runs `32198085105` and
-  `32198084983` are queued and remain uncollected hosted evidence.
+  default `260ad10dd5480eef8c82958d1d148199656db59e`; its verify,
+  supply-chain, post-merge CI `32198085105`, and Pages
+  `32198084983` checks pass, with RecurseML report-only. Atlas advances the
+  Aequitas gitlink to the exact merge commit without modifying the provider
+  checkout.
 - **RITK evidence:** fetched default `9fa4981e` is the docs-only merge of PR
   #176 (`backlog.md` correction). The Atlas gitlink is staged to that exact
   commit; the previously collected CI/Python runs remain attached to `f9d04a79`
@@ -60,13 +59,12 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   `recurseml/analysis` is report-only. The provider PR merged at default
   `553499056ae37f3aa9f249cc507a0a09e55fd08d`, and Atlas stages that exact
   merge commit without modifying the provider checkout.
-- **Hosted recheck:** Aequitas CI
-  `32198085105` and Pages `32198084983`, and CFDrs CI `32197696210`, remain
-  queued at their exact heads. Themis CI `32194584768` and MSRV `32194584736`
-  pass at `0484a333`; Pages `32194583598` has build and report success but its
-  deploy job remains queued.
-- **Acceptance:** collect the remaining Themis Pages deploy, Aequitas
-  post-merge, and CFDrs exact-head runs; explicitly classify the
+- **Hosted recheck:** Aequitas CI `32198085105` and Pages `32198084983` pass
+  at `260ad10`; Themis CI `32194584768`, MSRV `32194584736`, and Pages
+  `32194583598` pass at `0484a333`. CFDrs run `32197696210` fails only in
+  Clippy at the provider source location recorded above.
+- **Acceptance:** collect the CFDrs corrected exact-head run; explicitly classify
+  the
   absent RITK default run, and collect Horae PR #19's exact-head checks. The
   root exact-head and overlay gates now pass; preserve peer-owned checkout and
   lane state.
@@ -187,9 +185,7 @@ provider-owned state rather than an Atlas source edit.
   checks all passed. Atlas stages only this gitlink advance; the dirty primary
   checkout remains at the prior head and is untouched.
 - **Post-merge gate:** Themis default-branch MSRV `32194584736`, CI
-  `32194584768`, and Pages `32194583598` are queued at `0484a333`. The green
-  PR checks establish source/merge evidence; these default runs remain the
-  hosted closure gate and are not awaited by this pass.
+  `32194584768`, and Pages `32194583598` pass at `0484a333`.
 - **RITK:** current default `f9d04a79` CI `32192759850` and Python CI
   `32192759832` remain queued. The preceding Python run `32184697093` passed
   its Rust, Clippy, Rustfmt, and platform test jobs but failed three
