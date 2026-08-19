@@ -3091,7 +3091,7 @@ DoR-shaped and dependency-ordered; US-023-A gates the clean form of B and D.
 | US-023-A1 | Implement the ADR 0042 seam in `ritk-image`: `CoordinateMap` with `Cartesian` + `CurvilinearArray`, carried on `Image`, dispatched by both batch and both single-point transforms. | [major] | done 2026-08-13 — ritk PR #128 merged as `c608f758` | Claude | Met. Cartesian path bit-identical (pinned by test); curvilinear round-trip, fan symmetry/curvature, out-of-fan NaN, dimensionality rejection all covered. 1173 tests, clippy `-D warnings`, rustdoc, fmt clean. |
 | RITK-CI-1 | Restore SimpleITK parity for `InverseDisplacementField` 2-D/3-D and `IterativeInverseDisplacementField`. **Diagnosed** (`gap_audit.md#atlas-ritk-ci-diag-035`): introduced by `3aa73ba0` (ADR 0020); the 2-D case is ~27x worse than 3-D, and the new Gram-Schmidt in-plane basis path runs *only* for the 2-D-embedded shape. Under identity direction it must reduce to the world axes exactly — the parity break proves it does not. | [major] | todo — owner is 3aa73ba0's author; diagnosis recorded | — | The three `test_simpleitk_cmake_data.py` parity tests pass |
 | RITK-CI-2 | Test Suite (ubuntu-latest) exceeds the 30-minute job cap during 'Install LLVM and Clang'. | [patch] | **done 2026-08-19** — ritk PR #178 skips apt-get when clang already present | — | Ubuntu job completes inside budget |
-| US-023-D2 | Block-matching follow-ons: multi-resolution search-region sources and block-radius calculators, FFT-accelerated NCC, Bayesian-regularized and strain-window displacement calculators, and an end-to-end pipeline over a block grid. | [minor] | **done 2026-08-19** — ritk PR #187 merged at `40618f84` (volume pipeline); follow-ons committed on `feat/ritk-block-matching-d2-followons` (`c110664b`): `OwnedPyramid` (nearest/min-max), block-radius calculators, FFT-NCC via apollo-fft (`fft` feature), `BayesianDisplacementPrior`, `StrainWindowRegularizer`, `DisplacementPipeline` | Claude | track_volume recovers known shift; strain recovers 2% compression exactly; pipeline recovers known compression strain within derived bound; 46/46 tests, clippy `-D warnings`, fmt clean |
+| US-023-D2 | Block-matching follow-ons: multi-resolution search-region sources and block-radius calculators, FFT-accelerated NCC, Bayesian-regularized and strain-window displacement calculators, and an end-to-end pipeline over a block grid. | [minor] | **partly delivered 2026-08-19** — ritk PR #187 merged at `40618f84` (volume pipeline) is on main; the follow-ons are **not**: `c110664b` was never pushed, its branch no longer exists on the remote, and no PR was opened. See ATLAS-RITK-D2-STRANDED-100. Landed separately: strain-window *rejection* filter (ritk PR #191). The stranded commit adds: `OwnedPyramid` (nearest/min-max), block-radius calculators, FFT-NCC via apollo-fft (`fft` feature), `BayesianDisplacementPrior`, `StrainWindowRegularizer`, `DisplacementPipeline` | Claude | track_volume recovers known shift; strain recovers 2% compression exactly; pipeline recovers known compression strain within derived bound; 46/46 tests, clippy `-D warnings`, fmt clean |
 | US-023-D4 | Move `block_matching` into a dependency-light crate; parameterize its sample type; reuse one candidate buffer across the search. | [arch] | done — ritk PR #183 merged (21/21 green) | Claude | Met. `cargo tree` = one edge (`anyhow`); 9 tests incl. cross-precision and 1-D line; ritk-registration 375 green |
 | US-023-D3 | Consolidate kwavers' NCC + parabolic speckle-tracking kernel onto the block-matching seam and delete the duplicate. | [minor] | done — kwavers PR #409 merged (31/31 green) | Claude | Met. Both duplicates deleted, net -75 lines; 1551/1551 kwavers-physics tests pass through the seam; verified on origin/main by content |
 | KW-GPU-SCANCONV | Remove the no-op `scan_conversion` stage from the kwavers-gpu realtime pipeline, which reported a scan-converted frame it never converted. | [patch] | **done 2026-08-19** — kwavers PR #405 merged at `ba1803e9`; the no-op call and stub are deleted from `realtime.rs`, `process_frame` ends at `log_compression` | Claude | CI green; behaviour unchanged (the removed call was the identity); content confirmed present in `origin/main` |
@@ -9622,6 +9622,56 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   edits, focused gates, hosted conformance, and an exact-head pointer sweep.
   The current provider checkouts/lanes are peer-owned and dirty; re-open when
   those claims land or become stale and reclaimable.
+
+## ATLAS-RITK-D2-STRANDED-100 — rescue the unpushed D2 follow-on commit [patch] — in progress 2026-08-19
+
+**Finding.** `US-023-D2` was recorded done on 2026-08-19 citing commit `c110664b`
+("complete US-023-D2 follow-ons", ~2800 lines: `search.rs`, `radius.rs`, `fft.rs`,
+`regularization.rs`, plus `lib.rs`/`metric.rs`/test additions). That commit was
+never delivered:
+
+- `git branch -r --contains c110664b` → empty; the object is reachable only as a
+  dangling commit in the local `repos/ritk` gitdir.
+- `git ls-remote origin 'refs/heads/*block-matching*'` does not list
+  `feat/ritk-block-matching-d2-followons`; the branch was deleted locally without
+  ever being pushed.
+- No PR was opened for it (`gh pr list --state all` shows #187 for the pipeline
+  and nothing for the follow-ons).
+- `origin/main:crates/ritk-block-matching/src/` holds only `lib.rs`, `metric.rs`,
+  `refine.rs`, `tests_block_matching.rs`.
+
+A local commit on a deleted local branch is one `git gc` away from
+unrecoverable. The board asserting delivery is what let it sit unnoticed.
+
+**Recovery is clean.** `c110664b^` (`01175d67`) is an ancestor of `origin/main`,
+and `origin/main` has no commits touching `crates/ritk-block-matching/` since —
+so the commit rebases onto main without content conflict, except against ritk
+PR #191 (below).
+
+**Scope.** Rebase `c110664b` onto current `origin/main`, verify green
+(`cargo nextest run -p ritk-block-matching`, fmt, hosted clippy), open a PR,
+merge. `Co-authored-by` preserved from the original commit.
+
+**Naming collision to resolve in the same change.** The stranded commit's
+`StrainWindowRegularizer` is a Kallel–Ophir least-squares *smoothing prior* that
+blends every block toward a fitted line. ritk PR #191's `strain_window_filter` is
+ITK's `StrainWindowDisplacementCalculator`: a hard plausibility bound that
+*rejects and replaces* implausible blocks and reports the unrecoverable ones.
+Both are wanted — one conditions, one rejects — but two things named "strain
+window" in one crate violates the terminology SSOT. #191 owns the ITK name;
+the least-squares prior is renamed for what it is (a least-squares displacement
+prior) when the rescue lands.
+
+**Acceptance.** `c110664b`'s content is on `origin/main` (by content, not by
+claim), 25+ existing tests plus its own suite green, hosted clippy `-D warnings`
+clean, no two public items sharing "strain window" naming.
+
+**Process defect, filed separately.** The done-claim cited a commit hash without
+checking reachability. A hash proves authorship, never delivery — a delivery
+claim must cite a merged PR or a `git merge-base --is-ancestor <rev> origin/main`
+result. Recorded in `gap_audit.md` as a slop pattern; the mechanizable form is a
+board-lint rule rejecting a done-row whose cited hash is not an ancestor of the
+member's `origin/main`.
 
 ## ATLAS-HORAE-DORMAND-PRINCE-076 — embedded adaptive pair [minor] — closed
 
