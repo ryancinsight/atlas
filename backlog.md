@@ -68,6 +68,9 @@
 - Python `tomllib` metadata validation and API/import-name checks pass. Local
   `maturin --release --locked` remains blocked before compilation by the shared
   Atlas overlay lock mismatch; no wheel or Rust gate is claimed locally.
+- Helios `mdbook test docs/book` passes for every listed chapter and example;
+  `mdbook build docs/book` also passes with the linkcheck2 renderer. This is
+  local book evidence only; PR #67 remains the hosted release/build oracle.
 
 Fourteen read-only audits covering every registered member plus the meta-repo.
 Every claim below is grounded at `file:line` in the audited tree. Items are
