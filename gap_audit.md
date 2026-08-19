@@ -13,10 +13,11 @@ The exact source gate is 972/972 nextest, warning-denied Clippy, format,
 doctests 9/9, and Rustdoc; no RITK-local direction type or second tessellation
 algorithm was added.
 
-PR #32 is open at `3c2d655`; hosted CI and the mesh-book check are queued,
-`recurseml/analysis` is report-only error, and CodeRabbit is pending. Atlas
-still points to Gaia `4980732`; pointer advancement and exact-head closure
-remain pending the merged provider default.
+PR #32 merged at provider default `dbed97a` after hosted CI
+`32206596573`, mesh-book verification `32206596795`, and CodeRabbit passed;
+`recurseml/analysis` remains report-only error. Atlas advances the Gaia
+gitlink to that merged default and re-runs exact-head, overlay, and lock-form
+gates as the integration closure.
 
 ## Finding 2026-08-19: lane topology recheck
 

@@ -83,10 +83,11 @@
       geodesic tessellation and Leto `UnitVector3`, while RITK remains on Gaia
       canonical types. Local nextest 972/972, warning-denied Clippy, doctests
       9/9, format, and Rustdoc pass.
-- [ ] Collect Gaia PR #32 hosted CI and book checks at `3c2d655`, merge the
-      provider default, then advance the Atlas gitlink and rerun exact-head,
-      overlay, and lock-form gates. `recurseml/analysis` is report-only error;
-      CodeRabbit is pending.
+- [x] Collect Gaia PR #32 hosted CI and book checks at `3c2d655`, merge the
+      provider default `dbed97a`, advance the Atlas gitlink, and rerun
+      exact-head, overlay, and lock-form gates. Hosted CI `32206596573` and
+      mesh-book `32206596795` pass; CodeRabbit passes and
+      `recurseml/analysis` is report-only error.
 - [x] Run the stack-wide book-link detector across all 23 registered books:
       every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
       Run its fixture regression suite with `PYTHONPATH=scripts`; 43/43 tests

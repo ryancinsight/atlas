@@ -54,14 +54,15 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   commit; the previously collected CI/Python runs remain attached to `f9d04a79`
   and do not establish the new default head. No run is currently attached to
   `9fa4981e`.
-- **Gaia polyline/direction evidence:** Atlas gitlink `4980732` contains the
-  validated `gaia::Polyline` contract, and RITK's TCK/TRX consumers import
-  that type directly. Provider branch `feat/gaia-direction-set` commit
-  `3c2d655` adds `UnitSphereDirectionSet` backed by the existing
-  `GeodesicSphere` and Leto `UnitVector3`, with local nextest 972/972,
-  warning-denied Clippy, doctests 9/9, format, and Rustdoc gates passing. Gaia
-  PR #32 is open at that exact head; its hosted CI and book checks are queued,
-  so the Atlas gitlink remains at `4980732` until the provider default merges.
+- **Gaia polyline/direction evidence:** Atlas now advances the gitlink to
+  merged provider default `dbed97a63434a21b1b9dcd01d634276aaec99e37`, which
+  contains the validated `gaia::Polyline` contract and the new
+  `UnitSphereDirectionSet` backed by the existing `GeodesicSphere` and Leto
+  `UnitVector3`; RITK's TCK/TRX consumers import Gaia's canonical type
+  directly. Provider local nextest 972/972, warning-denied Clippy, doctests
+  9/9, format, and Rustdoc pass. PR #32 hosted CI `32206596573` and mesh-book
+  verification `32206596795` pass; CodeRabbit passes and `recurseml/analysis`
+  remains report-only error.
 - **Mnemosyne evidence:** PR #62 source head `0022926` passed Rust
   verification, MSRV, Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit;
   `recurseml/analysis` is report-only. The provider PR merged at default
@@ -7641,9 +7642,9 @@ skipped by workflow policy, so physical-device execution remains external.
 - **Blocks**: every ODF/FOD model in `ritk-diffusion`.
 - **Class**: `[minor]`, repository `repos/apollo`.
 
-## ATLAS-GAIA-POLYLINE-006 — Polyline geometry and unit-sphere direction sets [minor] — in progress (2026-08-18)
+## ATLAS-GAIA-POLYLINE-006 — Polyline geometry and unit-sphere direction sets [minor] — complete 2026-08-19
 
-- **Owner:** current session; Gaia is clean at Atlas-pinned default `4980732`.
+- **Owner:** current session; Gaia provider default is integrated at `dbed97a`.
 - **Polyline closure:** `gaia::Polyline` is exported from
   `src/domain/geometry/polyline.rs`, validates at least two finite points, and
   is consumed directly by RITK TCK/TRK as `Vec<gaia::Polyline<f64>>`; this
@@ -7654,8 +7655,9 @@ skipped by workflow policy, so physical-device execution remains external.
   sphere-sampling algorithm or RITK-local direction type is in scope.
 - **Acceptance:** provider value-semantic tests cover invalid frequency, the
   frequency-one and frequency-two counts, unit norms, and deterministic
-  ordering for the existing f64 geodesic primitive; Gaia focused gates pass,
-  then the merged provider default must restore Atlas exact-head coherence.
+  ordering for the existing f64 geodesic primitive; local and hosted Gaia
+  gates pass, and the merged provider default restores Atlas exact-head
+  coherence.
 - **Class:** `[minor]`, repository `repos/gaia`.
 
 ## Wave 2 — preprocessing (RITK, existing crate owners)
