@@ -13,6 +13,15 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck [patch]
 
+- **Kwavers metadata correction:** provider commit `308d91594` separates the
+  MATLAB-free `k-wave-python` comparison extra from the MATLAB Engine extra,
+  repairs the repository-root `maturin` commands, and is recorded by Atlas
+  pointer commit `ad977c6`. The compiled extension and hosted comparator remain
+  open.
+- **CFDrs rerun:** PR #358 now points at `5e13018a` after a hosted Clippy
+  failure found and the provider fixed `clippy::inconsistent_struct_constructor`
+  in `newton_fallback.rs`. Rust and figure jobs are pending; the pointer stays
+  at the prior verified integration head until both pass.
 - **Status:** Tyche cleanup, Aequitas integration, and the Aequitas/Themis
   hosted closures are complete for this increment. The remaining integration
   residuals are Apollo PR #107's rerun, Mnemosyne's moving default, CFDrs's

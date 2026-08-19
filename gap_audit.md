@@ -1,5 +1,25 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-19: Kwavers comparison-extra contract correction
+
+Kwavers provider commit `308d915945a143e32885e857738ecd0a673cebb3` corrects
+the Python packaging contract: the `kwave` extra now declares the imported
+MATLAB-free `k-wave-python` bridge for Python 3.10+, while the new `matlab`
+extra owns `matlabengine`. The README now builds from the repository root with
+the actual `crates/kwavers-python/Cargo.toml` manifest. Atlas records the
+provider head in `ad977c6`. This removes metadata/path drift only; the local
+compiled extension is still absent and the hosted value-semantic comparator
+gate remains open.
+
+## Finding 2026-08-19: CFDrs PR #358 Clippy correction
+
+CFDrs exact-head run `32226998372` reached the Rust gate and failed on
+`clippy::inconsistent_struct_constructor` at
+`crates/cfd-1d/src/solver/core/newton_fallback.rs:128`. The defect was field
+initialization order in `FallbackBudget::for_max_iterations`, not an algorithmic
+failure. Provider commit `5e13018a` fixes the order and starts a fresh exact-head
+run; the Rust and book-figure jobs are pending. No Atlas pointer advance is
+valid until both jobs pass.
 ## Finding 2026-08-19: Mnemosyne default moved after the first Miri failure
 
 The previous exact-head run `32206977029` at Mnemosyne

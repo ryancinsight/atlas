@@ -5,6 +5,17 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
+- [x] Correct Kwavers' Python comparison extras and source-install commands at
+      provider commit `308d91594`: `kwave` now installs the MATLAB-free
+      `k-wave-python` bridge, `matlab` owns the MATLAB Engine bridge, and the
+      README uses the repository-root Cargo manifest. The provider commit and
+      Atlas pointer `ad977c6` are pushed. The compiled-extension and hosted
+      comparator residual remains open.
+- [ ] Collect CFDrs PR #358 rerun at corrected head `5e13018a`: the prior exact
+      run reached Clippy and failed only on `clippy::inconsistent_struct_constructor`
+      in `newton_fallback.rs`; the provider reordered the constructor fields and
+      pushed the fix. Rust and figure jobs are pending; do not advance the
+      Atlas pointer before both pass.
 - [ ] Collect and merge Apollo PR #107 at provider commits `6be8cd28` and
       `cd94c10d` after its rerun Rust, Python, and benchmark checks complete.
       The first Rust job exposed nine additional const-initializer diagnostics;
