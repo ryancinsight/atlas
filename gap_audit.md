@@ -29,6 +29,18 @@ is detached. The provider owner must reconcile H-103 against a clean committed
 default and rerun the Pages caller before closing it; no Helios files were
 modified.
 
+## Finding 2026-08-19: CFDrs book and figure-gate audit
+
+On clean CFDrs branch `codex/cfdrs-pypi-001`, `mdbook test docs/book` completes
+for all listed chapters and runnable examples, covering CFD demos, SIMPLEC /
+PIMPLE, turbulence, cavitation, blood rheology, vascular flows, GPU paths,
+and analytical validation. `cargo run --locked -p xtask -- check-figures` is
+blocked before the command runs because the Atlas overlay exposes unused local
+patches and the peer lock requires refresh; no figure result is claimed. The
+book proof is therefore positive for snippet compilation only, while the
+figure SSOT and hosted Pages closure remain pending on a clean lock-compatible
+provider integration state.
+
 ## Finding 2026-08-18: Gaia direction-set provider slice
 
 Gaia provider branch `feat/gaia-direction-set` commit `3c2d655` adds the

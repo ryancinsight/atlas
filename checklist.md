@@ -14,6 +14,10 @@
       every listed chapter/example completes. Keep H-103 open for provider
       reconciliation because Helios `backlog.md` still says todo and the
       checkout has peer-owned Python manifest dirt.
+- [x] Run CFDrs `mdbook test docs/book` on clean branch
+      `codex/cfdrs-pypi-001`; every listed chapter/example completes. The
+      locked `xtask check-figures` command remains blocked by the Atlas
+      overlay lock refresh and is not represented as a pass.
 - [x] Re-run stack-overlay, lock-form, and conformance checks after the
       Aequitas integration: lock-form passes for 27 standalone locks,
       conformance passes 12/12, and the latest overlay is aligned.
