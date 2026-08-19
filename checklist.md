@@ -45,8 +45,9 @@
       `553499056ae37f3aa9f249cc507a0a09e55fd08d`; Rust verification, MSRV,
       Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit pass, while
       `recurseml/analysis` remains report-only. Reconcile post-merge TSan
-      follow-up commits `9754ebc` and `1c79909`; Atlas records current default
-      `1c799092123b94de987b28595b3a9f6e9029fd01` without provider edits.
+      follow-up commits `9754ebc`, `1c79909`, and `64f0d2e`; Atlas records
+      current default `64f0d2ebe58e14705ca2345cad2c705f99a6b611` without
+      provider edits.
 - [x] Collect Aequitas post-merge CI `32198085105` and Pages
       `32198084983`; both pass at merged default `260ad10`.
 - [ ] Collect the corrected CFDrs exact-head run; run `32197696210` fails in
@@ -82,9 +83,10 @@
       `880eb8cce28d1e887942fbeb185a1cf4173c776a`; PR #15 merged at default
       `0156f59f78aba1e3b06d4511ffb1ce30d5c0c6d4`, and Atlas advances to that
       verified provider merge commit.
-- [ ] Collect Hyperion PM-only PR #16 at exact head
-      `86486139120243e0b6cae84143d7a914eb51a8a3`; advance the root pointer
-      only after its hosted checks and merge complete.
+- [x] Collect Hyperion PM-only PR #16 at exact head
+      `86486139120243e0b6cae84143d7a914eb51a8a3`; hosted `verify` and
+      `supply-chain` pass, and PR #16 merged at provider default
+      `93157c235d1bfabd88a4720b4a02370ff2a00cc2`.
 - [x] Run the exact-head clean-checkout audit. It reports 22 findings across
       17 provider checkouts: eight checkout-head drifts and fourteen dirty
       canonical checkouts. Preserve those peer-owned states; do not treat the

@@ -63,8 +63,8 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   verification, MSRV, Loom, Miri, aarch64, ThreadSanitizer, and CodeRabbit;
   `recurseml/analysis` is report-only. The provider PR merged at default
   `553499056ae37f3aa9f249cc507a0a09e55fd08d`; post-merge TSan follow-up
-  commits `9754ebc` and `1c79909` are now the fetched default, and Atlas stages
-  that current head without modifying provider source.
+  commits `9754ebc`, `1c79909`, and `64f0d2e` are now the fetched default, and
+  Atlas stages that current head without modifying provider source.
 - **Hosted recheck:** Aequitas CI `32198085105` and Pages `32198084983` pass
   at `260ad10`; Themis CI `32194584768`, MSRV `32194584736`, and Pages
   `32194583598` pass at `0484a333`. CFDrs run `32197696210` fails only in
@@ -100,9 +100,9 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   all-feature metadata pass. The root-overlay `cargo check --locked` rejection
   remains a pre-compilation development-overlay diagnostic, so Atlas advances
   only to the verified provider merge commit. Provider-local HYPERION-006
-  closeout is carried by PM-only PR #16 at head
-  `86486139120243e0b6cae84143d7a914eb51a8a3`; its hosted checks are queued,
-  so the root pointer remains at `0156f59` until that record merges.
+  closeout passed hosted `verify` and `supply-chain` at exact head
+  `86486139120243e0b6cae84143d7a914eb51a8a3`; PM-only PR #16 merged at
+  default `93157c235d1bfabd88a4720b4a02370ff2a00cc2`.
 - **Clean-checkout evidence:** the fresh `--require-clean-checkouts` audit
   reports 22 findings across 17 provider checkouts. Checkout-head drift is
   present in Themis, Tyche, Mnemosyne, Aequitas, Moirai, Hephaestus, Coeus,
@@ -125,8 +125,9 @@ policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
 
 - **Status:** provider implementation complete at `0022926`; PR #62 merged at
   default `553499056ae37f3aa9f249cc507a0a09e55fd08d`, followed by provider
-  TSan documentation commits `9754ebc` and `1c79909`. The Atlas gitlink is
-  advanced to current default `1c799092123b94de987b28595b3a9f6e9029fd01`.
+  TSan documentation commits `9754ebc`, `1c79909`, and `64f0d2e`. The Atlas
+  gitlink is advanced to current default
+  `64f0d2ebe58e14705ca2345cad2c705f99a6b611`.
 - **Scope:** `crates/mnemosyne-arena/src/segment/pool/numa_bucket.rs` and its
   two callers; no allocator algorithm or public API change.
 - **Acceptance:** replace the two type-suffixed production bucket helpers with
@@ -141,8 +142,8 @@ policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
   `32196541600`, MSRV `32196541558`, Loom, Miri, aarch64, ThreadSanitizer,
   and CodeRabbit passing; `recurseml/analysis` is report-only. The provider
   merge commit is `553499056ae37f3aa9f249cc507a0a09e55fd08d`; the current
-  fetched default is `1c799092123b94de987b28595b3a9f6e9029fd01` after the TSan
-  follow-up documentation commits.
+  fetched default is `64f0d2ebe58e14705ca2345cad2c705f99a6b611` after the TSan
+  and backlog closeout documentation commits.
 
 **Instrument correction, applied before anything else was measured.**
 `scripts/atlas-conformance.py:131` classified a file as test code only when a

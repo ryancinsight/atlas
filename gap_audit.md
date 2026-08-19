@@ -36,10 +36,11 @@ compilation, warning-free rustdoc, and `type_suffixed_fns=0`. Hosted Rust
 verification `32196541600`, MSRV `32196541558`, Loom, Miri, aarch64,
 ThreadSanitizer, and CodeRabbit pass; `recurseml/analysis` remains
 report-only. The PR merged at default
-`553499056ae37f3aa9f249cc507a0a09e55fd08d`; post-merge TSan follow-up commits
-`9754ebc` and `1c79909` are now the fetched default, and Atlas advances the
-gitlink to `1c799092123b94de987b28595b3a9f6e9029fd01` without modifying the
-provider checkout.
+`553499056ae37f3aa9f249cc507a0a09e55fd08d`; post-merge TSan and backlog
+closeout commits `9754ebc`, `1c79909`, and `64f0d2e` are now the fetched
+default, and Atlas advances the gitlink to
+`64f0d2ebe58e14705ca2345cad2c705f99a6b611` without modifying the provider
+checkout.
 
 CFDrs PR #355 carries the provider timeout fix at `1bebb5e1`. The failed Rust
 workspace run `32190491996` was a pre-existing timeout also present at provider
@@ -109,9 +110,9 @@ all-feature metadata pass. The root-overlay `cargo check --locked
 overlay diagnostic because the parent local patches are absent from the
 standalone lock; hosted provider verification is the standalone locked closure
 gate. Atlas advances only to the verified provider merge commit.
-The provider-local HYPERION-006 closeout is a separate PM-only PR #16 at exact
-head `86486139120243e0b6cae84143d7a914eb51a8a3`; its hosted checks are queued,
-so the root pointer remains at `0156f59` until that record merges.
+The provider-local HYPERION-006 closeout passed hosted `verify` and
+`supply-chain` at exact head `86486139120243e0b6cae84143d7a914eb51a8a3`; PM-
+only PR #16 merged at default `93157c235d1bfabd88a4720b4a02370ff2a00cc2`.
 
 Gaia's tractography boundary is present at Atlas gitlink `4980732`: the
 validated `gaia::Polyline` type is exported, and RITK's `ritk-tck` and
