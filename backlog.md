@@ -15,9 +15,8 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
 
 - **Status:** Tyche cleanup and Aequitas integration are complete for this
   increment. The current hosted residuals are Mnemosyne Miri, CFDrs exact-head
-  verification, Aequitas post-merge CI/Pages, and Themis Pages deployment; the
-  remaining integration residual is the peer-owned RITK local checkout and the
-  absence of a run for its latest docs-only default.
+  verification, Aequitas post-merge CI/Pages, Themis Pages deployment, and the
+  Horae lock PR; the root exact-head and overlay gates are now green.
 - **Tyche evidence:** provider commit `de925e6` consolidates the shared
   Latin-hypercube/Sobol checked index conversions, removes five production
   type-suffixed helper names, and merged through PR #26 at default
@@ -26,10 +25,10 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   zero.
 - **Atlas evidence:** the root pointer now matches fetched RITK default
   `9fa4981e`, a docs-only merge on top of the audited `f9d04a79`. Lock-form
-  passes for 27 standalone locks and conformance passes 12/12. Exact-head and
-  overlay checks fail only on the peer-owned local RITK checkout, whose dirty
-  manifest and lock still require/lock Apollo 0.26 and Hermes 0.6; exact hosted
-  verification for the new docs-only default is still uncollected.
+  passes for 27 standalone locks and conformance passes 12/12. The latest
+  exact-head audit is `OK` and the overlay reports aligned requirements and
+  locks; the earlier RITK Apollo/Hermes local residual is superseded by the
+  current peer checkout state.
 - **Hephaestus evidence:** its default branch is `master`; head `607ce3f`
   passes CUDA `32083561386`, WGPU `32083561356`, ROCm `32083561357`, and Metal
   `32083561389`. The prior absence-of-run classification is superseded.
@@ -63,8 +62,9 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   deploy job remains queued.
 - **Acceptance:** collect the remaining Themis Pages deploy, Mnemosyne Miri,
   Aequitas post-merge, and CFDrs exact-head runs; explicitly classify the
-  absent RITK default run; then re-run exact-head and overlay checks. Preserve
-  peer-owned checkout and lane state.
+  absent RITK default run, and collect Horae PR #19's exact-head checks. The
+  root exact-head and overlay gates now pass; preserve peer-owned checkout and
+  lane state.
 - **Documentation evidence:** the stack-wide link detector passes for all 23
   registered provider books with zero missing files, missing anchors, or read
   failures. Its fixture regression suite passes 43/43 with the intentional

@@ -6,9 +6,8 @@
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Re-run stack-overlay, lock-form, and conformance checks after the
-      Aequitas integration: lock-form passes for 27 standalone locks and the
-      conformance regression suite passes 12/12. The overlay still fails only
-      on the preserved dirty RITK manifest/lock edge.
+      Aequitas integration: lock-form passes for 27 standalone locks,
+      conformance passes 12/12, and the latest overlay is aligned.
 - [x] Identify the fetched RITK default movement to docs-only `9fa4981e` and
       stage the Atlas gitlink forward from `f9d04a79`; the peer-owned checkout
       remains untouched. Exact-head verification after this staged pointer and
@@ -176,6 +175,8 @@
 - [x] Confirm no hosted run is attached to the new docs-only RITK default
       `9fa4981e`; the earlier CI/Python runs remain bound to `f9d04a79` and do
       not establish the new head.
+- [x] Re-run the exact-head audit after the peer checkout movement: it reports
+      `OK` for all 22 providers, with no current RITK requirement residual.
 - [x] Preserve the separate Consus Documentation failure
       `32184845179` and Coeus Backend parity failure `32147262055`. Hephaestus
       default `master` head `607ce3f` is hosted-green across CUDA, WGPU, ROCm,

@@ -61,6 +61,11 @@ CFDrs run `32197696210` and both Aequitas post-merge runs remain queued. No
 hosted run is attached to the docs-only RITK default `9fa4981e`, so the prior
 RITK runs do not establish that head.
 
+The latest root recheck reports exact-head `OK` for all 22 providers and an
+aligned stack overlay; the prior RITK Apollo/Hermes requirement and lock
+residual is therefore superseded by the current peer checkout state. The
+remaining structural residual is the five-entry lane audit failure.
+
 The stack-wide book-link detector passes across all 23 registered provider
 books: every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
 The detector fixture suite passes 43/43 with its intentional missing-link case
