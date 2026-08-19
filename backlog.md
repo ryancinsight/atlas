@@ -9039,3 +9039,17 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   edits, focused gates, hosted conformance, and an exact-head pointer sweep.
   The current provider checkouts/lanes are peer-owned and dirty; re-open when
   those claims land or become stale and reclaimable.
+
+## ATLAS-HORAE-DORMAND-PRINCE-076 — embedded adaptive pair [minor] — closed
+
+- Horae provider PR #21 merged at default `58506a0` after hosted `verify`
+  `32251895080`, `supply-chain` `32251895080`, and book build
+  `32251895767` passed. The Atlas gitlink is ready to advance to that exact
+  head.
+- `DormandPrince` supplies the published seven-stage 5(4) coefficients;
+  `step_embedded_into` shares stage evaluation with the fixed-step recurrence
+  and writes a caller-owned local-error estimate without allocation.
+- The provider adds polynomial exactness, fifth-power estimator scaling,
+  dimension-negative coverage, a book chapter, and synchronized PM/changelog
+  evidence. Local root-overlay Cargo compilation remains a known locked-lock
+  limitation, not a provider source failure.

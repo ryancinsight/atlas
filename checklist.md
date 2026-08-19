@@ -5614,3 +5614,13 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       run provider gates, hosted conformance, then advance exact gitlinks.
       This item is blocked by the current peer-owned provider checkouts/lanes;
       the re-open trigger is a landed peer fix or a stale claim.
+
+## 2026-08-19 Horae Dormand--Prince integration
+
+- [x] Implement and document the seven-stage Dormand--Prince 5(4) embedded
+      tableau and shared allocation-free stepper; provider commit series
+      `c272c27`, `71e0b0a`, `eb2c8e6` is merged as default `58506a0`.
+- [x] Collect provider hosted `verify`, `supply-chain`, and Pages book build;
+      all required checks pass in runs `32251895080` and `32251895767`.
+- [ ] Advance the Atlas Horae gitlink and collect the exact-head root audit;
+      this is the next integration action.

@@ -12805,3 +12805,18 @@ work, followed by provider gates, hosted conformance, and exact-head gitlink
 integration. The relevant local provider checkouts and lanes are currently
 peer-owned/dirty, so the source edits remain blocked and are tracked in
 `backlog.md` under `ATLAS-CONFORMANCE-RATCHET-2026-08-19`.
+
+## Finding 2026-08-19: Horae embedded adaptive pair is hosted-verified
+
+Horae PR #21 merged at provider default `58506a0`. The increment adds the
+published Dormand--Prince seven-stage fifth/fourth-order pair, a typed
+caller-owned `EmbeddedOutputs` buffer, and one shared stage-evaluation path
+for fixed and embedded stepping. Polynomial exactness, embedded-error scaling,
+and dimension-negative tests are committed; the provider `verify`,
+`supply-chain`, and Pages book-build workflows pass in runs `32251895080` and
+`32251895767`.
+
+The Atlas pointer advance is the remaining integration action. The local
+umbrella overlay still refuses locked Horae compilation before Cargo can
+resolve its generated local patches; hosted standalone gates are the
+authoritative compilation evidence for this provider increment.
