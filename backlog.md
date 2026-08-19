@@ -76,6 +76,10 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   17 deselected tests, and 74 subtests in 13.75 seconds.
 - The committed slow Python/book tier also passes 17/17 in 1.62 seconds;
   documentation helper coverage is green at the delivered root revision.
+- **Claimed next slice:** reconcile the clean Horae consumer lock to the
+  current Aequitas/Eunomia provider defaults. Claimed scope is
+  `repos/horae/Cargo.lock` and its provider-local `backlog.md`, `checklist.md`,
+  and `gap_audit.md`; no Horae source or peer-owned checkout is in scope.
 - **Clean-checkout evidence:** the fresh `--require-clean-checkouts` audit
   reports 22 findings across 17 provider checkouts. Checkout-head drift is
   present in Themis, Tyche, Mnemosyne, Aequitas, Moirai, Hephaestus, Coeus,
