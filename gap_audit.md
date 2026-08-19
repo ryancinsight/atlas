@@ -1883,6 +1883,48 @@ fuzz-target build matrix in hosted run `32067580093` before merging the ADR
 index repair. No compatibility shim was added. Re-open if a later provider
 commit advertises an unavailable backend-neutral async capability.
 
+## ATLAS-D3-PLACEMENT-034 — Block matching is in the wrong crate; D3 is blocked on relocating it (open)
+
+Found starting US-023-D3, the consolidation of kwavers' NCC + parabolic
+speckle-tracking kernel onto the ritk block-matching seam. This is my own
+misplacement from US-023-D, and it repeats the mistake US-023-A5 corrected for
+the coordinate map.
+
+`block_matching` is **dependency-light**. Its three source files import nothing
+beyond `anyhow`; the API takes `&[f32]` buffers plus `dims`, and never touches
+`Image`, a tensor, or a backend. But it was placed in `ritk-registration`, whose
+manifest pulls `ritk-core`, `ritk-image` (and through it the coeus
+autograd/nn/wgpu stack), `ritk-filter`, `ritk-segmentation`, `ritk-model`,
+`ritk-statistics`, `ritk-interpolation`, `ritk-transform` and
+`ritk-wgpu-compat`.
+
+The consumer makes the cost concrete. `kwavers-physics` declares
+`ritk-registration = { workspace = true, optional = true }`, enabled only by its
+`clinical-imaging` feature, while the kernel to be consolidated —
+`.../elastography/thermal_strain/tracking.rs` — is **not** feature-gated. So D3
+as filed has only bad options:
+
+- force `clinical-imaging` on, making an optional dependency mandatory and
+  pulling coeus into a physics crate for every build; or
+- feature-gate core elastography tracking behind it, which hides a core
+  capability behind a build flag and makes it an untested path.
+
+Neither is acceptable, so D3 does not proceed as filed.
+
+**Corrective step (US-023-D4).** Move `block_matching` out of
+`ritk-registration` into a dependency-light home, exactly as A5 moved the
+coordinate map into `ritk-spatial`. `ritk-spatial` is *not* the right
+destination this time: it holds spatial vocabulary (`Point`, `Spacing`,
+`Direction`, `CoordinateMap`), and block matching is an algorithm over sampled
+data, so putting it there would be a junk-drawer placement. The
+architecture_scoping promotion trigger "module → crate: another crate needs to
+consume it" has fired, so a small dedicated crate is the warranted destination,
+with `ritk-registration` re-exporting it so its own consumers are unaffected.
+
+Once that lands, D3 is the mechanical consolidation it was meant to be: kwavers
+takes the light dependency, `tracking.rs` delegates, and the duplicate NCC and
+parabolic-peak implementations are deleted.
+
 ## ATLAS-RITK-CI-RED-033 — ritk main is red: SimpleITK displacement parity and a CI timeout (open)
 
 Found while gating PR #169 (SRAD). Two independent failures, both **pre-existing
