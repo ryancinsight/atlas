@@ -7637,18 +7637,22 @@ skipped by workflow policy, so physical-device execution remains external.
 - **Blocks**: every ODF/FOD model in `ritk-diffusion`.
 - **Class**: `[minor]`, repository `repos/apollo`.
 
-## ATLAS-GAIA-POLYLINE-006 — Polyline geometry and unit-sphere direction sets [minor] — todo
+## ATLAS-GAIA-POLYLINE-006 — Polyline geometry and unit-sphere direction sets [minor] — in progress (2026-08-18)
 
-- **Evidence of gap**: `repos/gaia/src/domain` holds `core`, `geometry`, `mesh`,
-  `topology`, and `grid.rs`; no open polyline or curve type exists.
-- **Why it blocks**: ADR 0036 verification condition 5 requires streamline output
-  in Gaia geometry types — a RITK-local polyline type is a boundary violation.
-  `ritk-tractography` cannot satisfy that condition until the type exists.
-- **Second scope**: unit-sphere tessellation and direction-set generation (the
-  DIPY `sphere` and MRtrix `dirs` role), currently unassigned. It is pure 3-D
-  geometry over the unit sphere; Gaia is the owner. Needed for ODF sampling and
-  peak extraction as well as tractography.
-- **Class**: `[minor]`, repository `repos/gaia`.
+- **Owner:** current session; Gaia is clean at Atlas-pinned default `4980732`.
+- **Polyline closure:** `gaia::Polyline` is exported from
+  `src/domain/geometry/polyline.rs`, validates at least two finite points, and
+  is consumed directly by RITK TCK/TRK as `Vec<gaia::Polyline<f64>>`; this
+  portion is complete and is not duplicated in RITK.
+- **Current scope:** expose a validated direction-set API backed by Gaia's
+  existing geodesic-sphere tessellation. The API must preserve unit length,
+  deterministic vertex order, and the geodesic count `10*f^2 + 2`; no second
+  sphere-sampling algorithm or RITK-local direction type is in scope.
+- **Acceptance:** provider value-semantic tests cover invalid frequency, the
+  frequency-one and frequency-two counts, unit norms, and deterministic
+  ordering for both supported mesh precisions where the existing primitive
+  supports them; Gaia focused gates and Atlas exact-head coherence pass.
+- **Class:** `[minor]`, repository `repos/gaia`.
 
 ## Wave 2 — preprocessing (RITK, existing crate owners)
 

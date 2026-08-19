@@ -78,6 +78,10 @@
       `git+` sources are the required standalone lock form, while the only
       registered cross-repository path lines are the exempt Melinoe contract
       fixture. Overlay, lock-form, and exact-head gates pass.
+- [ ] Complete Gaia's direction-set half of `ATLAS-GAIA-POLYLINE-006` by
+      exposing the existing geodesic tessellation as deterministic unit
+      directions. Keep the RITK consumers on Gaia's canonical types and add
+      value-semantic frequency/count/norm/order coverage.
 - [x] Run the stack-wide book-link detector across all 23 registered books:
       every `FILE_MISSING`, `ANCHOR_MISSING`, and `READ_FAIL` count is zero.
       Run its fixture regression suite with `PYTHONPATH=scripts`; 43/43 tests
