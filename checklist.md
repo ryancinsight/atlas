@@ -5,10 +5,11 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
-- [ ] Collect and merge Apollo PR #107 at provider commit `6be8cd28` after
-      its Rust, Python, and benchmark checks complete. The local source audit
-      removed 42 obsolete Windows expectations across 28 files; local locked
-      Cargo gates remain blocked by the peer-owned overlay lock refresh.
+- [ ] Collect and merge Apollo PR #107 at provider commits `6be8cd28` and
+      `cd94c10d` after its rerun Rust, Python, and benchmark checks complete.
+      The first Rust job exposed nine additional const-initializer diagnostics;
+      the follow-up fixes them. Local locked Cargo gates remain blocked by the
+      peer-owned overlay lock refresh.
 - [x] Re-run Helios `mdbook test docs/book` at detached HEAD `f8ebe42`:
       every listed chapter/example completes. Keep H-103 open for provider
       reconciliation because Helios `backlog.md` still says todo and the

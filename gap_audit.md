@@ -9,10 +9,13 @@ initializers already using `const` blocks; Apollo's pinned Clippy 1.97 no
 longer emits the diagnostic, so the expectations and the stale crate-level
 allow were mock-shaped suppression debt. Provider commit `6be8cd28` removes
 only those annotations and comments, with format, locked metadata, residual
-scan, and diff checks passing. PR #107 is open; hosted Rust, Python, and
-benchmark checks are pending, while the local full Clippy gate is blocked
-before compilation by the peer-owned Apollo `Cargo.lock` requiring refresh
-under the Atlas overlay. No peer lock or backlog changes were staged.
+scan, and diff checks passing. Hosted PR #107 initially failed its Rust
+Clippy job on nine different unsuppressed `missing_const_for_thread_local`
+sites; provider follow-up commit `cd94c10d` wraps those initializers in
+`const { ... }` without changing transform behavior. The PR rerun's Rust,
+Python, and benchmark jobs are pending, while the local full Clippy gate is
+blocked before compilation by the peer-owned Apollo `Cargo.lock` requiring
+refresh under the Atlas overlay. No peer lock or backlog changes were staged.
 
 ## Finding 2026-08-19: Helios book sample status differs from provider PM
 
