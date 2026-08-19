@@ -163,27 +163,22 @@ policy in this pass, so it remains open under ATLAS-CACHE-FORK-055.
 
 ## ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18 — NumPy spatial-axis contract [patch] — in progress
 
-- **Owner:** current session; fix pushed on `fix/python-array-direction`, PR #179 open, CI running.
-- **Root cause (identified 2026-08-19):** the three Python displacement-field inversion bindings
-  passed world-component arguments in the wrong order to the filters:
-  - `inverse_displacement_field` (TPS) and `iterative_inverse_displacement_field` (line search):
-    used `(col, row, depth)` but the filters expected `(depth, row, col)` in world-axis order.
-  - `invert_displacement_field` (Chen et al.): was already correct; an incorrect change was
-    reverted.
-- **Fix:** PR #179 commit `5fbc48e6` swaps the argument order for the TPS and line-search
-  variants; commit `a1119336` reverts the incorrect change to the Chen et al. variant.
-- **Status:** CI runs queued on `fix/python-array-direction`; 0 failures in the previous run
-  except for `test_cmake_invert_displacement_field` which was fixed in the revert commit.
-  `cargo nextest run -p ritk-python --lib` (47/47) and
-  `cargo clippy -p ritk-python --all-targets -- -D warnings`; the release wheel
-  build hit the 120-second command ceiling and produced no artifact. These
-  results do not establish hosted wheel closure because the patch was not
-  committed.
-- **Blocker and reopen trigger:** the nested RITK checkout is now `main` at
-  `39442c72` after peer lock regeneration and carries lockfile dirt; its
-  provider worktrees already exceed the two-tree bound. Do not switch, reset,
-  stash, or create another lane. Reopen when a clean provider source checkout
-  or an existing bounded lane is available for the NumPy correction.
+- **Owner:** current session; source fix pushed to RITK `main` at `86ab2a43`; exact-head CI/Python CI are running.
+- **Root cause:** NumPy tensors use `[Z,Y,X]`, while SimpleITK exposes physical
+  axes as `(X,Y,Z)`. RITK constructed NumPy images with identity direction and
+  the TPS/line-search bindings passed displacement components in tensor order,
+  so nontrivial fields were inverted against the wrong physical axes.
+- **Fix:** `86ab2a43` adds the canonical anti-diagonal native direction,
+  reuses it for scalar and color NumPy images, and maps the TPS and iterative
+  providers through physical `(X,Y,Z)` while returning NumPy `(Z,Y,X)`.
+  Chen’s already-correct mapping is retained. The provider regression covers
+  the axis mapping, and the focused Rust/Python gates pass locally.
+- **Local evidence:** `ritk-filter` nextest 1073/1073, `ritk-python` nextest
+  47/47, targeted SimpleITK parity 3/3, release `maturin develop --locked`,
+  warning-denied Clippy, format, and diff checks pass with the shared target.
+- **Hosted evidence:** exact-head CI run `32242778793` and Python CI run
+  `32242778786` are running at `86ab2a43`. The item closes only after both
+  required workflows pass; no tolerance widening or fallback is permitted.
 
 ## ATLAS-MNEMOSYNE-CONFORMANCE-001 — NUMA bucket helper consolidation [patch]
 

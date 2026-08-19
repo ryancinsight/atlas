@@ -119,12 +119,14 @@
       platform test suites pass. The provider fix is tracked in
       `ATLAS-RITK-PY-WHEEL-PARITY-2026-08-18`; no tolerance widening is
       permitted.
-- [blocked] RITK NumPy `[Z,Y,X]` internal-direction correction: the ephemeral
-      patch passed provider nextest 47/47 and warning-denied Clippy, but the
-      shared checkout was switched away and lock-regenerated at `39442c72`
-      before the source patch could be committed. The checkout is dirty and
-      the provider already exceeds its lane bound. Reopen only from a clean
-      source checkout or existing bounded lane; preserve peer state.
+- [x] Commit the RITK NumPy `[Z,Y,X]` internal-direction correction at provider
+      head `86ab2a43`: the canonical anti-diagonal direction is shared by scalar
+      and color NumPy images; TPS and iterative inversion map physical
+      `(X,Y,Z)` to NumPy `(Z,Y,X)` while Chen's existing mapping remains intact.
+      Local evidence is ritk-filter nextest 1073/1073, ritk-python nextest
+      47/47, targeted SimpleITK parity 3/3, release maturin build, Clippy,
+      format, and diff checks. Exact-head hosted CI/Python CI runs
+      `32242778793`/`32242778786` are the remaining closure gate.
 - [x] Fix the ARCH-008 classifier to exclude provider `worktrees/` lanes from
       member source scans. Focused coverage is 44/44 and the live scan has zero
       lane paths; defer oracle regeneration until peer provider edits stabilize

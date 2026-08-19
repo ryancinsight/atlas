@@ -12724,3 +12724,18 @@ Apollo `0.27.0`, and `Cargo.lock` resolves the package at git revision
 `d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab`. The exact-head provider audit,
 stack overlay, and 27 standalone lock-form checks pass. Three unrelated RITK
 peer lanes remain preserved and are not evidence against this closure.
+
+## Finding 2026-08-19: RITK NumPy spatial-axis correction is locally closed
+
+RITK commit `86ab2a43ddba2a7856189f21ee2791b6642b91e2` repairs the remaining
+SimpleITK parity defect without changing tolerances. NumPy images now carry the
+canonical `[Z,Y,X]` to physical `(X,Y,Z)` direction permutation for scalar and
+color constructors. TPS and iterative displacement inversion pass physical
+components to their providers and map results back to NumPy order; the Chen
+implementation was already correct and remains unchanged.
+
+The exact provider gates pass locally: ritk-filter nextest 1073/1073,
+ritk-python nextest 47/47, targeted SimpleITK parity 3/3, release maturin
+build, warning-denied Clippy, format, and diff checks. Hosted CI runs
+`32242778793` and `32242778786` are still in progress at this exact head, so
+Atlas must not advance `repos/ritk` until both required workflows pass.
