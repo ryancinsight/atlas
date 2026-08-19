@@ -22,6 +22,11 @@ ordered by tier, and tier is set by *what breaks*, not by effort.
   stale `cd pykwavers` and `pykwavers-*.whl` instructions from test diagnostics
   and examples; Atlas records the pointer in `0a3e2dd`. The compiled extension
   and hosted comparator remain open.
+- **Kwavers workflow closure:** provider commit `2bc5dd161` repins the book,
+  Python-wheel, and crates.io callers to Atlas reusable-workflow revision
+  `2f17abc`; the Python `atlas-ref` now names the pushed provider graph. Atlas
+  records the exact provider head in `55d8b8d`. YAML parsing passes; the local
+  extension and hosted comparator remain open.
 - **CFDrs rerun:** PR #358 now points at `5e13018a` after a hosted Clippy
   failure found and the provider fixed `clippy::inconsistent_struct_constructor`
   in `newton_fallback.rs`. Rust and figure jobs are pending; the pointer stays

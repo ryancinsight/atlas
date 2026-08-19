@@ -1,5 +1,14 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-19: Kwavers reusable-workflow pin closure
+
+Kwavers provider commit `2bc5dd161b0208a32456233d6701e20b0f9cabec` updates all
+three Atlas reusable-workflow callers to revision
+`2f17abc735160f03edef7ccfbc83ef9b1886714c`. The Python wheel caller now passes
+the same pushed Atlas graph revision as `atlas-ref`, so its `python-test-path`
+input is defined by the referenced workflow and the graph includes Kwavers
+`498f38a3e`. YAML parsing and diff checks pass. This closes caller-pin drift;
+the compiled extension and hosted k-Wave comparator remain separate open gates.
 ## Finding 2026-08-19: Kwavers stale install guidance cleanup
 
 Provider commit `498f38a3ef06345d699d6f76438f4108dcc3bd32` updates the remaining

@@ -16,6 +16,11 @@
       the repository-root `crates/kwavers-python/Cargo.toml` manifest and the
       `kwavers_python` wheel name. Atlas pointer `0a3e2dd` is pushed. The
       focused test remains blocked only by the absent local extension.
+- [x] Repin Kwavers' book, Python-wheel, and crates.io callers to Atlas
+      reusable-workflow revision `2f17abc`; the wheel caller's `atlas-ref` now
+      resolves to the pushed graph containing Kwavers `498f38a3e`. Provider
+      commit `2bc5dd161` and Atlas pointer `55d8b8d` are pushed; YAML parsing
+      and diff checks pass.
 - [ ] Collect CFDrs PR #358 rerun at corrected head `5e13018a`: the prior exact
       run reached Clippy and failed only on `clippy::inconsistent_struct_constructor`
       in `newton_fallback.rs`; the provider reordered the constructor fields and
