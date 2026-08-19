@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -94,13 +95,45 @@ def parse_adr(path: Path) -> tuple[str, str, str]:
     return number, title, status
 
 
+def tracked_markdown(directory: Path) -> set[str] | None:
+    """Names of the `.md` files Git actually tracks in `directory`.
+
+    The index is a set of links a reader follows after cloning, so it must be
+    built from the tracked tree rather than from the author's disk. Building
+    it from `glob` alone let an untracked file satisfy an index entry: ADR
+    0045 was deleted from `HEAD` twice by unrelated commits while remaining
+    on disk, and this gate reported the index clean both times, so a fresh
+    clone had a dead link where CI was green.
+
+    Returns `None` when Git cannot answer -- an unpacked tarball, say -- in
+    which case the caller falls back to the on-disk view rather than
+    reporting every ADR as untracked.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "-C", str(directory), "ls-files", "--", "*.md"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return {Path(line).name for line in out.splitlines() if line.strip()}
+
+
 def build_index(directory: Path) -> tuple[str, list[str]]:
     rows: list[str] = []
     anomalies: list[str] = []
     seen: dict[str, str] = {}
+    tracked = tracked_markdown(directory)
     files = sorted(
         f for f in directory.glob("*.md") if f.name.lower() not in NON_ADR_MARKDOWN
     )
+    if tracked is not None:
+        untracked = [f for f in files if f.name not in tracked]
+        for f in untracked:
+            anomalies.append(
+                f"untracked, so absent from a fresh clone: {f.name}"
+            )
+        files = [f for f in files if f.name in tracked]
     for f in files:
         number, title, status = parse_adr(f)
         base = status_base(status)
