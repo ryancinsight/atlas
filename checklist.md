@@ -64,6 +64,9 @@
 - [x] Push Horae lock commit `9cc9fd8` and PM synchronization `aefe641` on
       draft PR #19. Standalone provider gates pass; hosted `verify` and
       `supply-chain` are queued, so leave the root gitlink at `0631da0`.
+- [ ] After Horae hosted closure, refresh Hyperion's standalone lock from
+      Aequitas `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`; do not
+      start a second merge-affecting provider slice while Horae is pending.
 - [x] Run the exact-head clean-checkout audit. It reports 22 findings across
       17 provider checkouts: eight checkout-head drifts and fourteen dirty
       canonical checkouts. Preserve those peer-owned states; do not treat the

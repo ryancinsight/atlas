@@ -91,6 +91,12 @@ and `aefe641` on draft PR #19. Its standalone locked provider gates pass, but
 hosted `verify` and `supply-chain` are queued. Atlas keeps the Horae gitlink at
 `0631da0` until the exact provider head merges.
 
+Hyperion remains a separate lock-coherence residual: its clean lock pins
+Aequitas `5114cd1`, Eunomia `88c685f`, and Proteus `cb70021`, and root-overlay
+`cargo check --locked --all-features` fails before compilation because those
+local patches are absent from the committed lock. This is the next provider
+slice after Horae PR #19 reaches a hosted result; no Hyperion files were edited.
+
 ## Finding 2026-08-18: current root state after CFDrs PyPI slice
 
 The exact-head structural and full requested-provider coherence audits at
