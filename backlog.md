@@ -425,13 +425,14 @@ claim is inferred.
   `32413506489`/`32413507328` are queued.
 
 - **Live-tree conformance residual:** the local `python
-  scripts/atlas-conformance.py check --worktree` sweep at root `badb3b0` exits
-  1 with 16 regressions and 8 tightening classes against the committed
-  baseline. The regressions are CFDrs oversized files, existence-only
-  assertions, and one excess lane; stale Consus checkout classes (49 commits
-  behind origin); Moirai production `SeqCst`; Kwavers excess lanes; and stale
-  RITK classes plus one excess-lane tightening. The result includes live
-  peer/derived state; no baseline is raised and no peer dirt is discarded.
+  scripts/atlas-conformance.py check --worktree` sweep at the current Atlas
+  head `72cc6eb` plus live peer state exits 1 with 13 regressions and 27
+  tightening classes against the committed baseline. The regressions are
+  CFDrs oversized files and existence-only assertions; stale Consus classes
+  from a checkout 49 commits behind origin; Moirai production `SeqCst`; and
+  stale RITK implementation, type-suffixed, and commented-code classes from a
+  checkout five commits behind origin. The run raises no baseline and does
+  not discard peer or derived state.
 
 - **Kwavers moving default:** fetched `origin/main` is now
   `6f77bd4ecff623f3912b02aa34670126a3edb8b4`; docs-only merges after
