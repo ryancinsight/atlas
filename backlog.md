@@ -763,10 +763,15 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Active claim (atlas coordinator):** Aequitas dimensional-law test
-  consolidation; scope is `repos/aequitas/tests/dimension_laws.rs` and its
-  named domain modules, followed by the Atlas gitlink. No provider source or
-  peer checkout is in scope.
+- **Active claim (atlas coordinator):** RITK rustdoc gate closure
+  `RITK-DOC-GATE-210`; scope is the current provider rustdoc failures and the
+  RITK CI rustdoc step, followed by the Atlas gitlink. The provider checkout is
+  clean at exact default `ebf2f499`; no other RITK source or peer checkout is
+  in scope.
+- **Aequitas claim closeout:** dimensional-law tests were split into named
+  angle and complex-value modules in provider commit `c908af1`; the focused
+  nextest gate passes `40/40`, clippy passes with `-D warnings`, and Atlas
+  records the pointer in commit `84eb033`.
 - **RITK claim reconciliation:** `ATLAS-RITK-TRANSFORM-DIRECTION-081` was
   already fixed in provider commit `3aa73ba0`, an ancestor of RITK default
   `ebf2f499`. The focused `ritk-filter`/`ritk-diffusion` gate passes
