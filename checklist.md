@@ -26,6 +26,17 @@
 - [ ] Open the draft Iris PR; blocked by GitHub connector HTTP 403
       (`Resource not accessible by integration`).
 
+## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — current session
+
+- [ ] Claim the Asclepius Coeus gradient slice and create a clean lane from
+      fetched `origin/main`.
+- [ ] Add an independent central-difference value oracle for every dose
+      coordinate, with a documented numerical bound.
+- [ ] Run locked check, nextest, Clippy, doctests, and rustdoc on the exact
+      lane revision; exercise a gradient-path mutation.
+- [ ] Publish the provider branch and synchronize the exact head and evidence;
+      preserve the dirty primary checkout.
+
 ## ATLAS-BOOK-STAGING-2026-08-20 — current session
 
 - [x] Reproduce the RITK `E0460` failure mechanism: the shared workflow's

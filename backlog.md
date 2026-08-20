@@ -78,6 +78,31 @@ HTTP 403 `Resource not accessible by integration`. No PR or hosted result is
 claimed, and the dirty primary Iris gitlink is unchanged. Re-open the
 publication step when repository write authorization is available.
 
+## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — Add an independent Coeus gradient oracle [patch] — in progress
+
+The Asclepius Coeus adapter test currently compares its reverse-mode gradient
+with a second hand-coded power-mean derivative. That is a useful algebraic
+check but not an independent behavioral oracle: the same formula can be wrong
+in both places. The provider backlog already identifies a central-difference
+check for this seam as `ASC-VER-018`.
+
+**Scope:** Asclepius `crates/asclepius-coeus/tests/equivalent_uniform_dose.rs`
+on a clean lane based on fetched `origin/main`, plus root PM entries. Add a
+finite-difference value oracle for the existing dose fixture and derive its
+step/tolerance from floating-point scale and central-difference truncation.
+Do not alter the adapter implementation, peer-owned book/PM files, or the
+Atlas Iris lane.
+
+**Acceptance:** the test evaluates the adapter at independently perturbed dose
+vectors, compares central differences with the reverse-mode gradient under a
+documented bound, covers every dose coordinate, and fails under a mutation of
+the adapter's gradient path; focused/full provider gates pass and the exact
+branch is published for review.
+
+**Owner:** current Atlas session. **Claimed files:** Asclepius
+`crates/asclepius-coeus/tests/equivalent_uniform_dose.rs` in
+`worktrees/asclepius-geud-gradient`; root `backlog.md` and `checklist.md`.
+
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
 Re-measured 2026-08-20 against the trees rather than the board. ADR 0033's
