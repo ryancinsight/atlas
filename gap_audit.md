@@ -13142,6 +13142,12 @@ regressions and zero tightenings. No baseline was regenerated and no timeout
 was treated as a passing conformance result; the full dirty-stack scan remains
 an instrumentation-performance residual.
 
+The exact recursive deletion of the two verified derived Cargo target trees
+(`repos/aequitas/target` and `repos/asclepius/target`) was refused by the
+Windows shell safety policy. No source, lockfile, or peer lane was touched;
+their `target_forks` findings remain open until an approved cleanup mechanism
+can remove only those validated derived paths.
+
 ## Finding 2026-08-20: Hyperion shared-workflow pin merged
 
 Hyperion PR [#19](https://github.com/ryancinsight/hyperion/pull/19) merged
