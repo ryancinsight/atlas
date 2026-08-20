@@ -126,6 +126,22 @@ staging implementation `20c9398`; each provider's required hosted book gate
 is terminal green; then close the PRs and record the merged defaults before
 advancing any Atlas pointer. No source or book behavior changes are in scope.
 
+## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — blocked
+
+Consus's current default book caller has two real Rust examples but leaves the
+shared `mdbook-test` input disabled. The required change is to enable the gate
+with `cargo-package: consus-core`, `cargo-crate: consus_core`, and the exact
+shared workflow pin. A separate remote PR is required because the active
+Consus source PR has a different scope.
+
+The clean Consus lane is unavailable: the primary checkout and its single
+bounded lane are both dirty peer work, so the two-tree limit forbids a third
+checkout. The authenticated GitHub connector can read the file but rejects
+branch creation with HTTP 403, and the local GitHub CLI credential was removed
+from the environment during the earlier runtime incident. Re-open when either
+the bounded lane becomes clean or authenticated GitHub write access is
+restored; do not modify the peer-owned Consus trees in the interim.
+
 
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — in progress
 

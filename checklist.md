@@ -42,6 +42,9 @@
 - [ ] Collect terminal hosted results and merge the 16 PRs only at their
       exact heads; then rerun the caller audit and record any default-pointer
       changes without touching dirty nested checkouts.
+- [ ] Add the separate Consus executable book gate when a clean bounded lane
+      or authenticated GitHub write path is available; its current two Rust
+      examples are present but not yet executed by CI.
 
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
