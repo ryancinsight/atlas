@@ -187,18 +187,41 @@ Evidence: `gap_audit.md` Finding 2026-08-20 and each provider's own
 completeness 77.5%, LOC-weighted 69.6%; Foundation 82%, Compute 80%, Domain 79%,
 Integrator 62%.
 
-Fresh all-22 read-only recheck: all requested providers are registered; 20/22
+Fresh all-22 read-only recheck: all requested providers are registered; 18/22
 requested gitlinks match fetched `origin/main`. Hyperion is stale at `e2dbc9b`
-vs `4df62f63`, RITK at `d4a978f` vs `ad508525`, and Kwavers at `459f18e` vs
-`58b51ef`. The registry
+vs `4df62f63`, RITK at `d4a978f` vs `ad508525`, Hermes at `c5e4c2d` vs
+`05441dd`, and Kwavers at `459f18e` vs `0e786481`. The registry
 metadata scan is 253 manifests / 0 violations and committed-lock form is
-27/27 clean. The generated development overlay had zero lag/pin-drift findings
-and its freshness defect (the omitted `moirai-http` entry) is fixed by root
-commit `3d2f926`; the current overlay check passes. 21/22 requested checkouts
-are peer-dirty or head-mismatched, so checkout cleanliness is not provider
-evidence. No provider builds, tests, hosted CI, or release gates were claimed
-green by this recheck. The root README publish-order count was stale (`183` vs
-the script's `180`) and is corrected in root commit `0b24997`.
+27/27 clean. The requested-provider coherence scope and generated development
+overlay are aligned. Strict book links pass across all 25 current inventories.
+The book gate inventory is 19 shared callers plus Gaia's direct command and
+five missing executable gates: Apollo, Coeus, Consus, Hephaestus, and RITK. The
+Atlas Python suite passes 278 tests and 74 subtests. Peer checkout dirt and
+queued hosted checks remain outside local green evidence.
+
+**Independent audit findings (2026-08-20):**
+
+- **P0:** Kwavers `crates/kwavers-solver/src/forward/elastic/swe/gpu/solver.rs`
+  is a performance model, not a GPU solver: propagation ignores displacement
+  and push-time inputs, launches no kernel, and returns modelled timing. The
+  accepted fix is a real Hephaestus-backed dispatch with CPU differential tests,
+  or deletion of the production-named surface; the existing fake path is not
+  an acceptable fallback.
+- **P1:** Kwavers retains two f64-specific GMRES implementations while Athena
+  owns the stack Krylov seam. The migration requires a call-site closure audit,
+  provider-backed generic solvers, and residual/convergence tests before the
+  duplicate implementations are deleted.
+- **P1:** Helios GPU tests are ignored and its GPU book example converts device
+  acquisition failure into success. A hardware-labelled gate and an honest
+  example failure path are required; the CI file is currently peer-owned.
+- **P1:** Atlas figure generation contains hard-coded analytical, simulated, and
+  benchmark series. Validation figures need executable data provenance, input
+  manifests, independent oracles, derived tolerances, and inspection evidence;
+  the current reference/link checks do not establish numerical correctness.
+- **P1:** Kwavers comparative/PyO3 gates contain existence-only assertions,
+  optional reference skips, hard-coded tolerances, non-fatal figure failures,
+  and optional wheel tests. These are provider-owned correctness and release-
+  gate items, not closed by the current link or import checks.
 
 **Outcome:** close the four cross-cutting deficits the audit isolated, in the
 order below, so that a green gate means what it claims.
@@ -2145,11 +2168,12 @@ PyPI upload or post-publication install smoke is proven. These are provider-
 owned implementation items; no compatibility shim or registry claim is added.
 
 **Book/figure audit refresh (2026-08-20):** strict link validation scans all
-24 current books with zero missing files, anchors, or reads; `mdbook build`
-completes for all 24. The executable-gate inventory remains 17 shared callers,
-Gaia's one direct command, and six provider residuals (`apollo`, `coeus`,
-`consus`, `hephaestus`, `ritk`, and `themis`); Leto has no committed book or
-Pages caller. Direct local `mdbook test` on the un-staged repositories fails
+25 current books with zero missing files, anchors, or reads; `mdbook build`
+completes for all 25. The executable-gate inventory is 19 shared callers,
+Gaia's one direct command, and five provider residuals (`apollo`, `coeus`,
+`consus`, `hephaestus`, and `ritk`). Themis is already gated; Leto has a
+committed book and Pages caller. Direct local `mdbook test` on the un-staged
+repositories fails
 with missing `--extern` crates, so it is not treated as provider sample proof;
 the staged package workflow and hosted runs remain authoritative.
 
