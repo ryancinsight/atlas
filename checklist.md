@@ -66,6 +66,17 @@
 - [ ] Push and collect hosted exact-head book evidence, then merge, verify the
       post-merge default, and advance the Atlas gitlink.
 
+## ATLAS-COEUS-BOOK-TEST-2026-08-20 — current session
+
+- [ ] Create a clean `coeus-book-test` lane from provider `origin/main`; claim
+      only `.github/workflows/book-pages.yml` and preserve the detached
+      primary implementation, lockfile, and PM dirt.
+- [ ] Enable the shared executable book gate for the Tensor Basics and Matrix
+      Multiplication includes; run mdBook build, strict links, and
+      workflow-shape checks.
+- [ ] Push and collect hosted exact-head book evidence, then merge, verify the
+      post-merge default, and advance the Atlas gitlink.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Resolve and validate the Consus ADR-0045 P4 lane at local head

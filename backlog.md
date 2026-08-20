@@ -48,6 +48,14 @@
   the package gate. Push and hosted collection remain sequenced behind the
   active merged-default runs.
 
+- **Coeus executable book gate:** current Atlas session claims only
+  `coeus/.github/workflows/book-pages.yml` on a clean `coeus-book-test` lane
+  based on provider `origin/main`. The existing Tensor Basics and Matrix
+  Multiplication examples are real included programs; acceptance is the shared
+  `mdbook-test` caller for `coeus-ops`, exact hosted book evidence, and
+  post-merge default verification. The detached primary checkout's provider
+  implementation, lockfile, and PM dirt remain outside this item.
+
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
   `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.
