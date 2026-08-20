@@ -7,6 +7,10 @@
   and 11 remain tracked for executable sample coverage. Root docs build and
   strict link checks cover all 24 books.
 
+- Publish Proteus PR #14 to execute its two included material examples through
+  the shared package-staging book gate; local package and test evidence passes,
+  while hosted Linux Pages verification remains pending.
+
 - Integrate Helios PR #67 at provider default `423d6ec9`, including the
   `helios-python` abi3-py39 trusted-publishing workflow and package metadata;
   no PyPI release is performed.

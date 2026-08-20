@@ -59,6 +59,16 @@
   verify, supply-chain, and Pages build gates pass at the exact PR head.
 - **Non-goals:** no public API, dependency, lockfile, or peer-owned worktree
   changes; no conversion of the three focused non-standalone fragments.
+- **Landed source:** Proteus commits `61879d4b4a68e2d201460af0fe6f6a0e7fe9919f`
+  and `4d48270e3fa9d5641b8a63600fc76fe3a4d99c79` on
+  `ci/proteus-book-test`, PR
+  [#14](https://github.com/ryancinsight/proteus/pull/14); hosted gates are
+  pending at the latter exact head.
+- **Local evidence:** Rust 1.97.0 MSVC format, Clippy, package build,
+  20/20 nextest integration tests, 1/1 doctest, mdBook build, and strict link
+  scan pass. Local executable mdBook reaches both examples but is blocked by
+  the shared GNU/MSVC rustdoc cache mismatch; hosted Linux remains the
+  authoritative staging result.
 
 ## ATLAS-KWAVERS-DISTRIBUTED-QUEUE-2026-08-20 — close queue completion and deadline contracts [patch] — in progress
 
