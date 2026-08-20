@@ -937,9 +937,11 @@ change that creates it.
 ## Publication
 
 Where a package has an external audience it publishes a crate to crates.io, and
-a wheel to PyPI when it carries a PyO3 binding surface. Eleven packages have a
-binding crate today: `apollo`, `CFDrs`, `coeus`, `consus`, `eunomia`, `helios`,
-`hephaestus`, `kwavers`, `leto`, `moirai`, and `ritk`.
+a wheel to PyPI when it carries a PyO3 binding surface. Ten packages have a
+binding crate today: `apollo`, `CFDrs`, `coeus`, `consus`, `helios`,
+`hephaestus`, `kwavers`, `leto`, `moirai`, and `ritk`. Eunomia supplies the
+optional NumPy element boundary consumed by the Hephaestus and Kwavers binding
+crates; it does not publish a standalone Python package.
 
 Both registries authenticate through OIDC trusted publishing. The registry
 trusts the repository's workflow identity and mints a short-lived token for one
