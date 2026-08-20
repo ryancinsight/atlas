@@ -763,10 +763,10 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Active claim (atlas coordinator):** hosted/PM residual reconciliation after
-  the current exact-head integration pass; scope is Atlas-owned evidence and
-  root records. Peer-owned source, consumer, and lane checkouts remain out of
-  scope.
+- **Active claim (atlas coordinator):** RITK release-workflow integration and
+  hosted-gate collection; scope is provider PR #194 and the Atlas pointer only
+  after its default head advances. Peer-owned source, consumer, and lane
+  checkouts remain out of scope.
 - **RITK claim closeout:** `RITK-DOC-GATE-210` is fixed in provider commit
   `9e1c276a`, which adds a warning-denied rustdoc CI job and corrects five
   public-doc/private-link or broken-link defects. Exact workspace rustdoc
@@ -819,6 +819,14 @@ nested Harmonia checkout remains provider-owned state.
   matrix in runs `32316400677`, `32316400868`, `32316401011`, and
   `32316401183`, with Pages deployment skipped; PRs #420, #421, and #422 have
   pending matrices and are not completion evidence.
+- **RITK release-workflow slice:** provider commit `337f0dc5` on branch
+  `ci/ritk-release-timeout` adds `timeout-minutes: 30` to the wheel-build job
+  and `timeout-minutes: 10` to the trusted PyPI publish job. PR #194 is draft;
+  YAML parsing and the local conformance scan pass (`workflow_missing_timeout`
+  `1 -> 0`), while its Rust, Rustdoc, Python, wheel, and dependency-alignment
+  checks are pending. RecurseML reports an analyzer error only. Atlas remains
+  at RITK `9e1c276a` until the provider default advances; no hosted success is
+  inferred from pending checks.
 - **Aequitas claim closeout:** dimensional-law tests were split into named
   angle and complex-value modules in provider commit `c908af1`; the focused
   nextest gate passes `40/40`, clippy passes with `-D warnings`, and Atlas
