@@ -33,6 +33,11 @@
   coherence, not a reason to remove `proteus/std` from Hyperion; Hyperion and
   its downstream consumers remain release-blocked until Proteus is published
   with the matching feature surface.
+- **Asclepius package gate:** standalone `cargo package --workspace --locked`
+  passes for both `asclepius` and `asclepius-coeus`, including verification in
+  the unpacked registry. Its dependency graph resolves published Apollo FFT
+  `0.26.0`, providing a positive package result and independently confirming
+  that RITK's Apollo `0.27.0` requirement is the registry-order blocker.
 - **Horae:** the exact `--all-features` native gate passes `23/23`, and its CI
   and Pages callers enable the book test. The local Windows `mdbook test`
   invocation reaches rustdoc but fails with a GNU/MSVC artifact mismatch
