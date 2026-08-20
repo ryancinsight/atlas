@@ -30,7 +30,10 @@ from atlas_stack import ROOT, registered_member_names  # noqa: E402
 BOOK_MANIFEST = "docs/book/book.toml"
 BOOK_WORKFLOW = ".github/workflows/book-pages.yml"
 SHARED_INPUT_RE = re.compile(r"^\s*mdbook-test\s*:\s*true\s*(?:#.*)?$")
-DIRECT_COMMAND_RE = re.compile(r"(?<![A-Za-z0-9_-])mdbook\s+test(?:\s|$)")
+DIRECT_COMMAND_RE = re.compile(
+    r"(?:^|(?:&&|\|\||[;|])\s*|(?:if|then)\s+)"
+    r"(?:!\s*)?(?:command\s+)?mdbook\s+test(?:\s|$)"
+)
 RUN_RE = re.compile(r"^(?P<indent>\s*)(?:-\s+)?run:\s*(?P<body>.*)$")
 
 
@@ -73,7 +76,10 @@ def _at_gitlink(member: str, gitlink: str, path: str) -> str | None:
 
 
 def _is_direct_run(line: str) -> bool:
-    return not line.lstrip().startswith("#") and DIRECT_COMMAND_RE.search(line) is not None
+    command = line.strip()
+    if command.startswith("-"):
+        command = command[1:].lstrip()
+    return not command.startswith("#") and DIRECT_COMMAND_RE.search(command) is not None
 
 
 def _direct_command(workflow: str) -> bool:

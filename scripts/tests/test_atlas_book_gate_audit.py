@@ -59,6 +59,15 @@ class BookGateClassificationTestCase(unittest.TestCase):
         """
         self.assertEqual(audit.classify_workflow(workflow)[0], "none")
 
+    def test_echoed_command_text_does_not_count(self) -> None:
+        workflow = """
+        jobs:
+          build:
+            steps:
+              - run: echo "mdbook test docs/book"
+        """
+        self.assertEqual(audit.classify_workflow(workflow)[0], "none")
+
     def test_shared_input_takes_precedence_over_direct_command(self) -> None:
         workflow = """
         jobs:
