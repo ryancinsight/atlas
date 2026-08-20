@@ -7,6 +7,10 @@
   and 11 remain tracked for executable sample coverage. Root docs build and
   strict link checks cover all 24 books.
 
+- Merge Aequitas PR #37 at provider default `c0542bf8` after its executable
+  book examples and API snippets pass CI `32337268558` and the shared Pages
+  build `32337268946`; the pull-request deployment is skipped.
+
 - Merge Proteus PR #14 and its PM closure PR #15 after the executable book gate
   passes: CI run `32338237653` and Pages build `32338238163` validate both
   included material examples; the pull-request Pages deployment is skipped.

@@ -13036,3 +13036,18 @@ expects GNU-target artifacts while the staged crates are MSVC-target; the
 hosted Linux Pages job passed in run `32338238163` alongside CI run
 `32338237653`; its pull-request deployment job was correctly skipped. No
 Cargo.lock change was included; the Proteus peer-staged lock remains untouched.
+
+## Finding 2026-08-20: Aequitas executable book gate merged
+
+Aequitas PR [#37](https://github.com/ryancinsight/aequitas/pull/37) merged at
+provider default `c0542bf89da0f25656d5583bece1876c744a08f4` after exact source
+head `2308cc2f1308bb15d36ea641ecca9d1a39f41bc5`. The caller pins the shared
+Pages workflow at root commit `53eb15ae2fa7ee9192e5d006989a430269fdc881`,
+enables `mdbook-test`, selects Rust `1.97.0`, and stages package `aequitas`.
+Nine existing book fences are executable; the snippets retain their real
+provider and unit-system imports.
+
+Hosted CI run `32337268558` and Pages build `32337268946` pass at the exact
+PR head; the pull-request Pages deployment is correctly skipped. Local
+`mdbook build` and strict link scanning pass; local executable staging is
+limited by the shared Windows GNU/MSVC cache mismatch documented on the board.

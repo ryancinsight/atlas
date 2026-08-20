@@ -24,7 +24,7 @@
   peer-owned branch and is recorded separately; this root-only item does not
   edit that checkout.
 
-## ATLAS-AEQUITAS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
+## ATLAS-AEQUITAS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Aequitas exact-main checkout.
 - **Claimed scope:** `repos/aequitas/.github/workflows/book-pages.yml` and the
@@ -40,6 +40,14 @@
   local book-test pass was existence-only.
 - **Non-goals:** no registry release, dependency refresh, or edits to the dirty
   Aequitas degree lane.
+- **Landed source:** commits `fff8e6f750696001fd40fee95b142bad6cdd756f`,
+  `2f6370561338bfa157dbab1bc2a940d75bcebbf3`, and
+  `2308cc2f1308bb15d36ea641ecca9d1a39f41bc5` on
+  `ci/aequitas-book-test`; PR [#37](https://github.com/ryancinsight/aequitas/pull/37)
+  merged at provider default `c0542bf89da0f25656d5583bece1876c744a08f4`.
+- **Hosted evidence:** exact PR-head CI `32337268558` and shared Pages book
+  build `32337268946` pass; the pull-request Pages deployment is correctly
+  skipped. Definition of done is met.
 
 ## ATLAS-PROTEUS-BOOK-TEST-2026-08-20 — enable executable book examples [patch] — done 2026-08-20
 
