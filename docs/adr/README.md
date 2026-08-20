@@ -54,3 +54,4 @@
 | [0046](0046-hdf5-ultrasound-format-dependency.md) | Decline the HDF5 ultrasound format; keep NRRD as the acquisition-geometry carrier | Accepted |
 | [0047](0047-slice-series-coordinate-map.md) | `SliceSeries` carries an owned per-slice rigid transform list | Accepted |
 | [0048](0048-b-mode-scan-conversion-via-ritk-bridge.md) | B-mode scan conversion is a resample through the ritk CoordinateMap seam | Accepted |
+| [0049](0049-book-figure-provenance.md) | Metadata-only book figures are conceptual, not numerical evidence | Accepted |
