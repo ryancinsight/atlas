@@ -126,6 +126,10 @@
   shared multi-provider target because the staged Windows artifacts contain
   incompatible historical `libm` fingerprints; the exact clean Ubuntu hosted
   run is the acceptance oracle for this workflow change.
+- **Cleanup:** after the active Cargo processes stopped, the ignored
+  repository-local `repos/tyche/target` fork (831,834,891 bytes) was removed;
+  `atlas-conformance.py check` now reports `target_forks: 0` with no
+  regressions.
 
 ## ATLAS-AEQUITAS-DERIVED-UNITS-2026-08-20 — split derived-unit implementation leaf [patch] — done 2026-08-20
 
