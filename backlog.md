@@ -1,5 +1,42 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-TYCHE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — merged, post-merge verification pending
+
+- Owner: Atlas integration; provider scope is Tyche's Pages caller and PM/
+  changelog records. No implementation, release, or lockfile change.
+- Evidence: source `f98ecb14bc5527e3a774a5d4b2bbd109cf5d9157`, PR
+  [#28](https://github.com/ryancinsight/tyche/pull/28), merged default
+  `46f4829ef648cec2b9e44bad3a75aef8ef3c34af`; exact CI and Pages book-build
+  checks pass. Post-merge CI, Deploy mdBook, dynamic Pages, and live HTTP 200
+  evidence remain pending before the Atlas gitlink advances.
+
+## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — hosted verification pending
+
+- Owner: Atlas integration; provider scope is RITK's Pages caller and PM/
+  changelog records. No implementation, release, or lockfile change.
+- Acceptance: source `20544b405f68e542364da77492ee7a7ffcc44ae9`, PR
+  [#196](https://github.com/ryancinsight/ritk/pull/196), exact Rust, Python,
+  and Pages checks pass before merging and advancing the Atlas gitlink.
+
+## ATLAS-HERMES-BOOK-CLOSURE-2026-08-20 — Close executable book gate [patch] — source fix hosted verification pending
+
+- Owner: Atlas integration; scope is the Hermes closure branch plus the two
+  AVX-512 import lists that failed the generic-default benchmark build.
+- Evidence: hosted run `32342759068` isolated unused imports under
+  `hermes_benchmark_generic_default`; commit `3ae6e1982f54f6af191904e52ba0cce4c27ee9be`
+  gates those imports with the same configuration as their consumers. PR #57
+  has rerun `32343803367` in progress; its peer-owned dirty Cargo.lock remains
+  excluded.
+
+## ATLAS-MNEMOSYNE-BOOK-CLOSURE-2026-08-20 — Close executable book gate [patch] — Miri pending
+
+- Owner: Atlas integration; provider scope is the Mnemosyne PM/changelog
+  closure record. Source and lockfile remain unchanged.
+- Evidence: closure PR [#66](https://github.com/ryancinsight/Mnemosyne/pull/66)
+  is at exact head `10540fe801d414da5f038c8ca60abd919d408b09`; Rust, Loom,
+  TSan, and aarch64 checks pass, while exact Miri run `32342759552` remains in
+  progress before merge and gitlink advancement.
+
 ## ATLAS-HORAE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
 - Owner: current Atlas session; provider scope was the Horae Pages caller and

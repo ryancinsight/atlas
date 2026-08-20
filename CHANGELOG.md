@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- Merge Tyche PR #28 at default `46f4829ef648cec2b9e44bad3a75aef8ef3c34af`
+  after exact CI and Pages book-build checks pass; post-merge Pages evidence
+  remains pending before the Atlas gitlink advances.
+
+- Open RITK PR #196 at exact source `20544b405f68e542364da77492ee7a7ffcc44ae9`
+  to refresh its shared Pages workflow pin; the provider's exact Rust, Python,
+  and book gates remain in progress.
+
+- Repair Hermes AVX-512 generic-default compilation in PR #57 by gating the
+  three hardware permute imports per scalar backend with the same benchmark
+  configuration as their consumers. Hosted rerun `32343803367` is in progress.
+
+- Close Mnemosyne book-gate PR #66 after its exact Miri run `32342759552`
+  reaches a terminal result; its Rust, Loom, TSan, and aarch64 checks pass.
+
 - Reconcile the publication documentation with the live book inventory: all 24
   registered packages carry a book and Pages caller, 13 enable `mdbook test`,
   and 11 remain tracked for executable sample coverage. Root docs build and
