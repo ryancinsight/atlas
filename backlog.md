@@ -17,7 +17,8 @@ metadata scan is 253 manifests / 0 violations and committed-lock form is
 but is freshness-stale because it omits `moirai-http`; 21/22 requested
 checkouts are peer-dirty or head-mismatched, so checkout cleanliness is not
 provider evidence. No provider builds, tests, hosted CI, or release gates are
-claimed green by this recheck.
+claimed green by this recheck. The root README publish-order count was stale
+(`183` vs the script's `180`) and is corrected in root commit `0b24997`.
 
 **Outcome:** close the four cross-cutting deficits the audit isolated, in the
 order below, so that a green gate means what it claims.
