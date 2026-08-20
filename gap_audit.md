@@ -1,17 +1,27 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-20: Helios Apollo lock sweep exact-head verification
+
+Helios PR #68 exact head `25f04b6` is clean in the dedicated
+`C:\\tmp\\helios-lock-sweep` worktree. The lock-only change advances Apollo,
+Moirai, and Themis entries without Helios source or manifest edits. Using the
+explicit Rust 1.97.0 MSVC toolchain outside the Atlas overlay, format, locked
+metadata, full workspace check, warning-denied workspace Clippy, and locked
+workspace Nextest run `4bfa9901-c55a-4cc1-a23f-b90d8f1542f8` pass 262/262 tests
+with 9 configured skips. Required hosted PR #68 checks pass for the Rust
+workspace, Python bindings, book build, and benchmark regression check. The
+`recurseml/analysis` context remains a report-only analysis error. PR #68
+merged as `7ff72e37889594b6592e1f8b8b169834765f7851`, and Atlas advances its
+gitlink to that merged default.
+
 ## Finding 2026-08-20: active RITK/Tyche/Kwavers integration slices
 
-RITK PR #198 is open at source commits `14a9c619`, `7c4bc993`, and
-`38ab9f82`. It retains
-`GradientFrame` in `DiffusionMaps`, makes `DtiVolume` the validated ImageAxis
-to image-index boundary, rejects LPS maps without image geometry, deletes the
-book-example adapter, and records the public error-enum change as major.
-Hosted Rustfmt, Clippy, Rustdoc, dependency-alignment, book, and several
-Python checks pass; the remaining Python, wheel, and test jobs are still
-running. The local locked Nextest attempt is separately blocked before
-compilation by the Atlas overlay requesting a lockfile rewrite for unused
-local patches.
+RITK PR #198 and its PM closure are merged at defaults `2d159850` and
+`ee76393`, respectively. The DTI frame contract retains `GradientFrame` in
+`DiffusionMaps`, validates the `DtiVolume` image-axis boundary, rejects LPS
+maps without image geometry, deletes the book-example adapter, and records
+the public error-enum change as major. Post-merge Rust, Python, and Pages runs
+pass; the Atlas gitlink records `ee76393`.
 
 Tyche PR #30 merged at `bfe6ab72915ff1d29357dd6895c39a11baecfbc0` for the
 publication-boundary cleanup: only `tyche-core` is publishable, while the
@@ -23,17 +33,13 @@ tyche`. The Atlas gitlink is already advanced to the merged default.
 External registry/release configuration remains open; no publication is
 claimed.
 
-Kwavers PR #427 remains open at rebased head
-`34d09c06fc3685aee0c9c1e07e96e819077788cd`
-with `mergeStateStatus=UNSTABLE` and `mergeable=true`. The fetched provider default has advanced to
-`2a291a0644f07e00f45368dcef6d60b804e5cc08`; before the pointer update, the
-exact-head audit reported the Atlas gitlink `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`
-as behind. That default is the merged PR #429 head and its CI/CD,
-legacy-migration, architecture, and Pages runs are green, so Atlas advances
-the gitlink to `2a291a064` while preserving the separately dirty PR #427
-checkout and its uncommitted peer edits. PR #427 is now rebased at `34d09c06`
-and has fresh hosted gates queued; the 22-provider exact-head audit is now
-green while PR #427 remains an external integration requirement.
+Kwavers PR #427 merged at `33a980ac`; its distributed-queue CI closure is
+recorded in the Atlas backlog. PR #430 then merged the FWI checkpoint-storage
+feature gate at default `300f1425`. The exact-default Architecture Validation,
+CI/CD Pipeline, and Deploy mdBook runs remain queued; Legacy Migration Audit
+`32392016584` passes. Atlas retains the prior `33a980ac` gitlink until those
+three post-merge runs terminate successfully. The local checkout remains
+detached and dirty with peer-owned source and ADR edits.
 
 ## Finding 2026-08-20: final exact-head and conformance boundary
 
