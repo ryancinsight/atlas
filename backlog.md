@@ -146,7 +146,7 @@ actioned, since every one of those trees holds peer state.
   mdBook-build, and strict-link checks pass; locked Cargo gates stop before
   compilation at the shared overlay lock-form mismatch. PR
   [#21](https://github.com/ryancinsight/hyperion/pull/21) is published at
-  exact head `0213f948536bd0230d10ef8fa0d2fa7cbe2a6258`; hosted exact-head
+  exact head `0213f947fdfec294a803d3b222d0822bed0b7649`; hosted exact-head
   provider/book evidence and post-merge default verification remain open. No
   provider pointer advances until those gates pass.
 
