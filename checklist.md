@@ -56,6 +56,16 @@
       evidence, merge, verify the post-merge default, and advance the Atlas
       gitlink only after those gates pass.
 
+## ATLAS-HYPERION-CHROMOPHORE-2026-08-20 — current session
+
+- [x] Confirm the source and test files are clean at provider `origin/main`
+      `e2dbc9b`; provider PM files remain peer-owned dirty state.
+- [ ] Create the bounded `hyperion-chromophore-source` lane and claim only
+      the chromophore source/tests, documentation, and ADR index.
+- [ ] Add a resolvable Prahl/OMLC source locator, independent per-sample
+      source oracle, and accepted ownership ADR; run the provider gates and
+      publish the exact hosted result before advancing the Atlas gitlink.
+
 ## ATLAS-HEPHAESTUS-BOOK-TEST-2026-08-20 — current session
 
 - [x] Create a clean `hephaestus-book-test` lane from provider `master`; claim

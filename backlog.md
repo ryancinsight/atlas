@@ -130,6 +130,16 @@ actioned, since every one of those trees holds peer state.
   queued. The Atlas gitlink remains at `0c6ffb9` until terminal hosted evidence
   and post-merge default verification pass.
 
+- **Hyperion chromophore provenance:** the current provider source table is
+  value-semantic but its only regression oracle is the retired Kwavers table,
+  and `ADR 0032` references in the source resolve nowhere in Hyperion. The
+  bounded next slice claims only the chromophore source/tests, documentation,
+  and ADR index on a clean lane from provider `origin/main` `e2dbc9b`. It must
+  add the resolvable Prahl/OMLC source locator, independently stored source
+  values for the retained knots, the ×4 per-heme-to-tetramer normalization
+  statement, and an Accepted ownership ADR. No provider pointer advances until
+  the source, focused value-semantic tests, and hosted provider gates pass.
+
 - **Hephaestus executable book gate:** current Atlas session claims only
   `hephaestus/.github/workflows/book-pages.yml` on a clean
   `hephaestus-book-test` lane based on the provider's `master` default. The
