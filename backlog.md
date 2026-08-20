@@ -7,7 +7,7 @@
   book already has two included executable examples; acceptance is a provider
   PR adding the shared `mdbook-test` inputs, exact-head hosted book success,
   and post-merge default verification. PR [#27](https://github.com/ryancinsight/themis/pull/27)
-  is open at exact head `35f46b4f55d6d9c7772a4f79374b9e41adbb9c18`; hosted
+  is open at exact head `35f46b42ed27461b5f06e226e53d4ec53c4fdfe9`; hosted
   checks are queued after a source-to-book GPU type correction. Non-goals are
   peer-owned Themis source, lockfile, and MSRV work.
 
