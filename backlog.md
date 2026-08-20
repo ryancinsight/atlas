@@ -40,7 +40,13 @@
   existing HostDevice and capabilities examples are real included programs;
   acceptance is the shared `mdbook-test` caller for `hephaestus-host`, exact
   hosted book evidence, and post-merge default verification. Peer-owned
-  FDTD/docs/ADR work in the primary checkout remains outside this item.
+  FDTD/docs/ADR work in the primary checkout remains outside this item. Local
+  commit `12ac021156a95fe8c5c1d3c9347809245ddad0e2` passes diff-check, mdBook
+  build, strict links (14 files/13 links), and workflow-shape checks. The
+  locked package build is blocked before compilation by the shared Atlas
+  overlay resolving primary-tree patches from the clean lane; hosted Linux is
+  the package gate. Push and hosted collection remain sequenced behind the
+  active merged-default runs.
 
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI

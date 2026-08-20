@@ -55,11 +55,14 @@
 
 ## ATLAS-HEPHAESTUS-BOOK-TEST-2026-08-20 — current session
 
-- [ ] Create a clean `hephaestus-book-test` lane from provider `master`; claim
+- [x] Create a clean `hephaestus-book-test` lane from provider `master`; claim
       only `.github/workflows/book-pages.yml` and preserve the primary
       FDTD/docs/ADR dirt.
-- [ ] Enable the shared executable book gate for the HostDevice and capability
-      includes; run mdBook build, strict links, and workflow-shape checks.
+- [x] Enable the shared executable book gate for the HostDevice and capability
+      includes in lane commit `12ac021`; mdBook build, strict links (14 files,
+      13 links), and workflow-shape checks pass. The locked package build is
+      locally blocked before compilation by the shared overlay's primary-tree
+      patch paths.
 - [ ] Push and collect hosted exact-head book evidence, then merge, verify the
       post-merge default, and advance the Atlas gitlink.
 
