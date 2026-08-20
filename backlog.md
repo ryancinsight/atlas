@@ -99,8 +99,9 @@ those runs cannot authorize the stale Atlas pointer `459f18ce`.
 ## ATLAS-BOOK-CALLER-PINS-2026-08-20 — Repin provider mdBook callers [patch] — in progress
 
 The provider workflow audit found 20 current `main` callers still pinned to
-pre-fix revisions of the reusable Atlas book workflow. Apollo, Coeus,
-Hephaestus, and RITK already carry the repin in their active PRs. The
+pre-fix revisions of the reusable Atlas book workflow. Apollo and Coeus now
+carry the repin on their merged defaults; Hephaestus and RITK carry it in
+their active PRs. The
 remaining 16 provider-scoped workflow PRs are published from each current
 default without touching the dirty nested checkouts:
 
@@ -378,12 +379,11 @@ claim is inferred.
   and CHANGELOG work remain outside this item; the hosted gate is sequenced
   after the active RITK collection. Local commit `27f0c4c3` passes mdBook build,
   strict links across 14 Markdown files, and workflow-shape checks. PR
-  [#108](https://github.com/ryancinsight/apollo/pull/108) is now at exact head
-  `27f0c4c3`, which adds the required declarations to both included examples
-  and repins Atlas staging to `20c9398`. The exact-head Rust/Python,
-  benchmark, and book runs `32413508286`, `32413508303`, and `32413508691` are
-  pending. The Atlas gitlink remains at `0c6ffb9` until terminal hosted
-  evidence and post-merge default verification pass.
+  [#108](https://github.com/ryancinsight/apollo/pull/108) merged after its
+  exact-head Rust/Python, benchmark, and book runs passed. The provider default
+  is now `a0c3da9`; post-merge CI `32421484168`, mdBook `32421484508`, and
+  Pages `32421483175` are queued. The Atlas gitlink remains at `0c6ffb9` until
+  those merged-default workflows are terminal.
 
 - **Hyperion chromophore provenance:** the source audit disproved the
   unsupported ×4 premise: OMLC presents the retained hemoglobin values as
@@ -405,7 +405,7 @@ claim is inferred.
   acceptance is the shared `mdbook-test` caller for `hephaestus-host`, exact
   hosted book evidence, and post-merge default verification. Peer-owned
   FDTD/docs/ADR work in the primary checkout remains outside this item. Local
-  commit `e0abb039c62498fdcb1d5948e12fcb02f51065ce` passes diff-check, mdBook
+  commit `ae4fd6a1bcba69d7a2b195adafe9cb427f44e79b` passes diff-check, mdBook
   build, strict links (14 files/13 links), and workflow-shape checks. The
   locked package build is blocked before compilation by the shared Atlas
   overlay resolving primary-tree patches from the clean lane; hosted Linux is
@@ -415,9 +415,11 @@ claim is inferred.
   declarations in the included examples. The lane now adds those declarations,
   removes two unused imports, and repins Atlas staging to `20c9398`. PR
   [#214](https://github.com/ryancinsight/hephaestus/pull/214) is at
-  `e0abb039c62498fdcb1d5948e12fcb02f51065ce`; its provider and book runs
-  `32413789427`/`32413789452`/`32413789434`/`32413789435`/`32413790294` are
-  queued.
+  `ae4fd6a1bcba69d7a2b195adafe9cb427f44e79b`; its prior book run
+  `32413790294` failed because the included examples omitted their
+  `DeviceBuffer` and `ComputeDeviceCapabilities` imports. The fix is pushed;
+  rerun provider/book checks `32421412468`, `32421412481`, `32421412475`,
+  `32421412524`, and `32421413027` are pending.
 
 - **Coeus executable book gate:** current Atlas session claims only
   `coeus/.github/workflows/book-pages.yml` on a clean `coeus-book-test` lane
@@ -435,9 +437,11 @@ claim is inferred.
   The failed exact-head book job was caused by missing explicit crate
   declarations in the included examples. The lane now adds those declarations
   and repins Atlas staging to `20c9398`. PR
-  [#340](https://github.com/ryancinsight/Coeus/pull/340) is at
-  `fc05cb75453bbb36d0f5b59f73b40dea0c432f44`; provider-contract and book run
-  `32413506489`/`32413507328` are queued.
+  [#340](https://github.com/ryancinsight/Coeus/pull/340) merged after its
+  provider-contract and book runs passed. The provider default is now
+  `5108ed0082fc5c5ed02bc95c4bfa4ad9cdf8133b`; post-merge backend parity
+  `32421487491` and mdBook `32421487793` are queued. The Atlas gitlink remains
+  at `5adc2d1` until those merged-default workflows are terminal.
 
 - **Live-tree conformance residual:** the local `python
   scripts/atlas-conformance.py check --worktree` sweep at audit revision

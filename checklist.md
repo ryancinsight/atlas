@@ -30,8 +30,9 @@
 ## ATLAS-BOOK-CALLER-PINS-2026-08-20 — current session
 
 - [x] Audit all registered provider `book-pages.yml` callers against the
-      reusable workflow and classify the 20 pre-fix references; Apollo, Coeus,
-      Hephaestus, and RITK already carry the repin in active PRs.
+      reusable workflow and classify the 20 pre-fix references; Apollo and
+      Coeus now carry the repin on merged defaults, while Hephaestus and RITK
+      carry it in active PRs.
 - [x] Publish the remaining 16 workflow-only PRs from current provider
       defaults. The shared implementation pin is `20c9398`; provider hosted
       book gates are the acceptance oracle.
@@ -42,6 +43,12 @@
 - [ ] Collect terminal hosted results and merge the 16 PRs only at their
       exact heads; then rerun the caller audit and record any default-pointer
       changes without touching dirty nested checkouts.
+- [x] Merge Apollo #108 at `a0c3da9` and Coeus #340 at
+      `5108ed0082fc5c5ed02bc95c4bfa4ad9cdf8133b` after exact-head provider
+      and book checks passed; their merged-default CI/book runs remain queued.
+- [x] Repair Hephaestus #214 at exact head `ae4fd6a` after its book examples
+      failed to import the traits that provide the called methods; the rerun
+      provider and book checks are pending.
 - [x] Publish separate Consus book-gate PR [#53](https://github.com/ryancinsight/consus/pull/53)
       from current `main`; it enables `mdbook-test` for both existing Rust
       examples and stages `consus-core` without touching dirty peer trees.
