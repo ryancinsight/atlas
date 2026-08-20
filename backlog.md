@@ -412,6 +412,16 @@ GPU backends; and focused provider formatting, warning-denied checks, and
 nextest pass. The exact hosted provider gate remains required before the Atlas
 gitlink advances.
 
+Evidence: Hephaestus commit `d24513a` routes the nine Leto differential cases
+through `assert_leto_differential_contract`, corrects the host and ADR 0046
+count to fifteen, and preserves the shared host clause. Local checks pass:
+focused compile, host decomposition nextest (1/1), warning-denied Clippy,
+doctests, and direct rustfmt/diff checks. The exact commit is the head of draft
+Hephaestus PR [#215](https://github.com/ryancinsight/hephaestus/pull/215);
+CUDA, Metal, ROCm, and WGPU hosted checks are queued. The local locked check
+remains blocked by the Atlas overlay requesting a dirty provider lockfile
+rewrite.
+
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 
 - **Themis executable book gate:** current Atlas session claims the provider

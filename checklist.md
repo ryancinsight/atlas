@@ -85,14 +85,15 @@
 
 ## ATLAS-SUBSTRATE-003-2026-08-20 — current session
 
-- [ ] Consolidate the nine decomposition/Leto differential helpers into one
+- [x] Consolidate the nine decomposition/Leto differential helpers into one
       parameterized conformance clause and reconcile the current 15-method
-      seam count.
-- [ ] Add the exact host decomposition gate using the shared clause; update the
+      seam count. Provider commit: `d24513a`.
+- [x] Add the exact host decomposition gate using the shared clause; update the
       provider ADR/index if the contract decision changes; run focused format,
-      warning-denied checks, and nextest.
+      warning-denied checks, doctests, and nextest (1/1).
 - [ ] Record the exact provider commit and hosted gate before advancing the
-      Atlas Hephaestus gitlink.
+      Atlas Hephaestus gitlink. Draft PR #215 has the exact head; CUDA, Metal,
+      ROCm, and WGPU checks are queued.
 
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
