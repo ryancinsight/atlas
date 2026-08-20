@@ -62,9 +62,10 @@
       `e2dbc9b`; provider PM files remain peer-owned dirty state.
 - [ ] Create the bounded `hyperion-chromophore-source` lane and claim only
       the chromophore source/tests, documentation, and ADR index.
-- [ ] Add a resolvable Prahl/OMLC source locator, independent per-sample
-      source oracle, and accepted ownership ADR; run the provider gates and
-      publish the exact hosted result before advancing the Atlas gitlink.
+- [ ] Correct the unsupported ×4 normalization, add a resolvable Prahl/OMLC
+      source locator and independent per-sample source oracle, and add the
+      accepted ownership ADR; run the provider gates and publish the exact
+      hosted result before advancing the Atlas gitlink.
 
 ## ATLAS-HEPHAESTUS-BOOK-TEST-2026-08-20 — current session
 

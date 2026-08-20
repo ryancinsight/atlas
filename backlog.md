@@ -136,9 +136,12 @@ actioned, since every one of those trees holds peer state.
   bounded next slice claims only the chromophore source/tests, documentation,
   and ADR index on a clean lane from provider `origin/main` `e2dbc9b`. It must
   add the resolvable Prahl/OMLC source locator, independently stored source
-  values for the retained knots, the ×4 per-heme-to-tetramer normalization
-  statement, and an Accepted ownership ADR. No provider pointer advances until
-  the source, focused value-semantic tests, and hosted provider gates pass.
+  values for the retained knots, and an Accepted ownership ADR. The source
+  audit disproves the existing ×4 premise: OMLC presents the values as molar
+  extinction coefficients using 64,500 g/mol hemoglobin, so the provider must
+  use those molecular/tetramer values directly rather than multiplying them by
+  four. No provider pointer advances until the correction, focused
+  value-semantic tests, and hosted provider gates pass.
 
 - **Hephaestus executable book gate:** current Atlas session claims only
   `hephaestus/.github/workflows/book-pages.yml` on a clean
