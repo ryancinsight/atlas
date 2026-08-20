@@ -41,6 +41,25 @@
 - **Non-goals:** no registry release, dependency refresh, or edits to the dirty
   Aequitas degree lane.
 
+## ATLAS-KWAVERS-DISTRIBUTED-QUEUE-2026-08-20 — close queue completion and deadline contracts [patch] — in progress
+
+- **Owner:** current Atlas session; detached Kwavers checkout with a disjoint
+  distributed-scheduler scope while Aequitas hosted book gates run.
+- **Claimed scope:** `crates/kwavers-analysis/src/distributed/{queue,scheduler,task,mod}.rs`;
+  preserve the checkout's peer-owned medium, physics, and ADR changes.
+- **Baseline findings:** `wait_all` observes only queued work after workers
+  remove tasks, so it can return while the last task is executing; worker idle
+  handling polls with a fixed sleep; deadline construction wraps on
+  `u64::MAX` overflow.
+- **Acceptance:** queue completion waits for both queued and executing work;
+  workers block on scheduler state notification; overflowing deadlines return
+  the existing typed invalid-input error; deterministic value-semantic tests
+  cover active-task completion and the overflow boundary; focused locked
+  format, Clippy, nextest, doctest, and rustdoc evidence is collected or the
+  exact shared-cache blocker is recorded.
+- **Non-goals:** no changes to the existing peer-owned Kwavers medium,
+  physics, visualization, workflow, lockfile, or documentation edits.
+
 ## ATLAS-PUBLISH-GRAPH-DOCS-2026-08-20 — refresh release graph counts [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; root documentation only.
