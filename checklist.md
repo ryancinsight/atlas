@@ -72,11 +72,15 @@
 
 ## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — current session
 
-- [ ] Remove the unconditional `cfd-validation` global allocator without
+- [x] Remove the unconditional `cfd-validation` global allocator without
       weakening real allocation accounting; keep the tracking facility in an
-      explicit benchmark/test harness.
-- [ ] Add the provider ADR/PM update and downstream allocator-link regression
-      test; run format, locked workspace all-target checks, and focused tests.
+      explicit benchmark/test harness. Provider commit: `d1305ee2`.
+- [x] Add the provider ADR update and downstream allocator-link regression test;
+      direct rustfmt, focused clippy, diagnostic check, benchmark compilation,
+      focused nextest (1/1), and cfd-validation library nextest (187/187) pass.
+- [ ] Run the provider locked workspace all-target gate from a clean hosted
+      revision; local `--locked` is blocked by the shared overlay requesting a
+      dirty peer `Cargo.lock` rewrite.
 
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
