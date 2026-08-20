@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from atlas_stack import ROOT, git, registered_members
 
 LANE_ROOT = ROOT / "worktrees"
+ARCHIVE_ROOT_NAME = ".archive"
 
 
 def canonical_lane(path: Path) -> bool:
@@ -80,6 +81,10 @@ def audit_lane_root(violations: list[str]) -> None:
         return
     for child in sorted(LANE_ROOT.iterdir()):
         if not child.is_dir():
+            continue
+        if child.name == ARCHIVE_ROOT_NAME:
+            # Archived lane manifests are reconciliation records, not
+            # worktrees.  They deliberately have no .git marker.
             continue
         marker = child / ".git"
         if marker.is_dir():

@@ -20,6 +20,18 @@ SPEC.loader.exec_module(lane)
 
 
 class LaneRootAuditTestCase(unittest.TestCase):
+    def test_archive_directory_is_sanctioned_metadata(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-lane-") as temp:
+            root = Path(temp)
+            (root / lane.ARCHIVE_ROOT_NAME).mkdir()
+            (root / lane.ARCHIVE_ROOT_NAME / "MANIFEST.txt").write_text(
+                "archived lane\n", encoding="utf-8"
+            )
+            with patch.object(lane, "LANE_ROOT", root):
+                violations: list[str] = []
+                lane.audit_lane_root(violations)
+        self.assertEqual(violations, [])
+
     def test_empty_non_linked_directory_is_ignored(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-lane-") as temp:
             root = Path(temp)
