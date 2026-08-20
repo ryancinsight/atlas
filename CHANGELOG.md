@@ -28,15 +28,6 @@
   book examples and API snippets pass CI `32337268558` and the shared Pages
   build `32337268946`; the pull-request deployment is skipped.
 
-- Publish Mnemosyne PR #65 to execute both included allocator examples through
-  the shared package-staging book gate; local package and example evidence
-  passes, with hosted verification pending.
-
-- Open Hermes PR #56 at exact head `932468dac5ef4abadea4bdd12d62b420a4225ba7`
-  for the shared package-staged book gate; four included examples and the SIMD
-  architecture snippet pass direct local rustc/rustdoc checks, with hosted
-  verification pending.
-
 - Merge Horae PR #22 at source `aaed0cff8e777d62fcaff4f20b3347bb1eefa403`
   as provider default `c2e7766847e3ef28125b809d98fe07250acc6cec` after its
   shared-workflow pin checks and book build pass. Post-merge CI, book, and
