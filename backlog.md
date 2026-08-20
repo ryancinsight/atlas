@@ -9,6 +9,16 @@ Evidence: `gap_audit.md` Finding 2026-08-20 and each provider's own
 completeness 77.5%, LOC-weighted 69.6%; Foundation 82%, Compute 80%, Domain 79%,
 Integrator 62%.
 
+Fresh all-22 read-only recheck: all requested providers are registered; 21/22
+requested gitlinks match fetched `origin/main`, with RITK stale at `d4a978f` vs
+`ad508525`, and Kwavers also stale at `459f18e` vs `78af725`. The registry
+metadata scan is 253 manifests / 0 violations and committed-lock form is
+27/27 clean. The generated development overlay has zero lag/pin-drift findings
+but is freshness-stale because it omits `moirai-http`; 21/22 requested
+checkouts are peer-dirty or head-mismatched, so checkout cleanliness is not
+provider evidence. No provider builds, tests, hosted CI, or release gates are
+claimed green by this recheck.
+
 **Outcome:** close the four cross-cutting deficits the audit isolated, in the
 order below, so that a green gate means what it claims.
 
@@ -105,7 +115,11 @@ the provider's exact-head CI is terminal green, with no peer source or lockfile
 state included. This slice does not claim that other CFDrs gates or Pages are
 green.
 
-**Owner:** current Atlas session; lane claim pending creation.
+The current Atlas session owns the bounded lane
+`D:\\atlas\\worktrees\\CFDrs-format-gate`, commit `c9aff82e`, and PR
+[#361](https://github.com/ryancinsight/CFDrs/pull/361). The exact-head provider
+CI result remains pending; no broader CFDrs test, Pages, or allocator closure
+claim is inferred.
 
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 

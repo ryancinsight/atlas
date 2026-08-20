@@ -77,14 +77,14 @@
 
 ## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — current session
 
-- [ ] Create one clean `CFDrs-format-gate` lane from provider `origin/main`
+- [x] Create one clean `CFDrs-format-gate` lane from provider `origin/main`
       `aa54f5c`; claim only the three hosted-format failure files and preserve
       the canonical checkout's peer-owned dirt.
-- [ ] Apply `cargo fmt --all` only to the three reported files, verify the
-      staged diff contains no unrelated hunks, and run the focused provider
-      format gate.
-- [ ] Publish the exact-head provider CI result and close the slice only after
-      terminal success; do not infer Pages, tests, or broader CFDrs closure.
+- [x] Apply the formatter corrections, verify the semantic staged diff contains
+      no unrelated hunks, and pass `cargo fmt --all -- --check`.
+- [x] Publish PR [#361](https://github.com/ryancinsight/CFDrs/pull/361) at exact
+      head `c9aff82e`; collect terminal exact-head provider CI before closing
+      the slice. Do not infer Pages, tests, or broader CFDrs closure.
 
 ## ATLAS-HEPHAESTUS-BOOK-TEST-2026-08-20 — current session
 
