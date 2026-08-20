@@ -763,10 +763,10 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Active claim (atlas coordinator):** CFDrs post-merge pointer and exact
-  integration recheck; scope is the merged integrator default and Atlas-owned
-  evidence. Peer-owned source, consumer, and lane checkouts remain out of
-  scope.
+- **Active claim (atlas coordinator):** RITK release-workflow hosted-gate
+  collection; scope is provider PR #194 and the Atlas pointer only after its
+  default head advances. Peer-owned source, consumer, and lane checkouts remain
+  out of scope.
 - **RITK claim closeout:** `RITK-DOC-GATE-210` is fixed in provider commit
   `9e1c276a`, which adds a warning-denied rustdoc CI job and corrects five
   public-doc/private-link or broken-link defects. Exact workspace rustdoc
@@ -845,6 +845,11 @@ nested Harmonia checkout remains provider-owned state.
   explicitly open. The Atlas pointer advances to this merge commit in the
   integration increment below; the primary CFDrs checkout remains dirty on
   peer branch `codex/cfdrs-tvd-test-integration` and is not switched.
+- **CFDrs post-merge integration closeout:** Atlas root `c721c3e` advances the
+  CFDrs pointer to `aa54f5cd`; exact provider/integrator heads, the stack
+  overlay, registry metadata, and 27 standalone lock forms pass. The open
+  Pages/PyPI items remain provider-owned delivery work and are not inferred
+  from this documentation merge.
 - **Aequitas claim closeout:** dimensional-law tests were split into named
   angle and complex-value modules in provider commit `c908af1`; the focused
   nextest gate passes `40/40`, clippy passes with `-D warnings`, and Atlas
