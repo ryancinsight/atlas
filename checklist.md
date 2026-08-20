@@ -36,10 +36,11 @@
 - [x] Verify Themis post-merge CI `32402753573`, MSRV `32402753617`, and the
       `deploy / Build book` job `96534588862` in run `32402754181` at exact
       default `c76a55e5`.
-- [ ] Collect the terminal Pages deployment from run `32402752669` (currently
-      queued). The Atlas gitlink already equals merged default `c76a55e5`; do
-      not stage a pointer change unless a newer verified provider default
-      exists.
+- [x] Collect terminal Pages deployment from run `32402752669`: build,
+      deploy, and report-build-status jobs all pass at exact default
+      `c76a55e5`. The live page returns HTTP 200 with the expected Themis site
+      after deployment. The Atlas gitlink already equals the merged default;
+      no pointer change is required.
 
 ## ATLAS-EXACT-HEAD-COLLECTION-2026-08-20 — current session
 
