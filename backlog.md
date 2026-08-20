@@ -1617,6 +1617,27 @@ stale CFDrs/Kwavers Pages path filters, and incomplete recursive figure SSOT
 checks. The next slices repair these at their owning repositories; Atlas does
 not claim registry, wheel, or live Pages evidence from a read-only audit.
 
+**Provider/Python audit refresh (2026-08-20):** committed manifests show direct
+provider edges in CFDrs, Kwavers, and Helios, but adoption is not source-closed:
+Kwavers retains direct `wgpu` edges in `crates/kwavers-analysis` and
+`crates/kwavers-gpu`; RITK retains `crates/ritk-wgpu-compat`; and CFDrs still
+owns the stateful Anderson/Aitken wrapper in
+`crates/cfd-2d/src/network/coupled.rs`. The static PyO3 audit finds strong GIL
+release in RITK, Helios, Coeus, Apollo, Moirai, and Leto, but no release sites
+in CFDrs and only one in Consus, with incomplete Kwavers coverage. Coeus,
+Hephaestus, and Leto lack complete `pyproject.toml`/typing metadata, and no
+PyPI upload or post-publication install smoke is proven. These are provider-
+owned implementation items; no compatibility shim or registry claim is added.
+
+**Book/figure audit refresh (2026-08-20):** strict link validation scans all
+24 current books with zero missing files, anchors, or reads; `mdbook build`
+completes for all 24. The executable-gate inventory remains 17 shared callers,
+Gaia's one direct command, and six provider residuals (`apollo`, `coeus`,
+`consus`, `hephaestus`, `ritk`, and `themis`); Leto has no committed book or
+Pages caller. Direct local `mdbook test` on the un-staged repositories fails
+with missing `--extern` crates, so it is not treated as provider sample proof;
+the staged package workflow and hosted runs remain authoritative.
+
 - **Provider-adoption slice:** audit every integrator edge for direct use of
   the owning provider API, deletion of superseded local wrappers, and no
   silent CPU/GPU, storage, or scheduler fallback. File provider capability
