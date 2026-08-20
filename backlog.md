@@ -10894,6 +10894,8 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   stale `moirai-http` entries caused by dirty local Moirai state; root commit
   `f621c1d` removes them from the generated block. No baseline raise is
   authorized; the next hosted run must collect both fixes.
+Re-open trigger: CFDrs, Coeus, Moirai, or RITK lands the named source repair,
+or its provider claim becomes stale and is reclaimed for a focused repair.
 
 ## ATLAS-WORKTREE-TAKEOVER-107 — stale-lane sweep across the stack [patch] — in progress 2026-08-20
 
