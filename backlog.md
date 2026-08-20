@@ -296,11 +296,12 @@ claim is inferred.
   and CHANGELOG work remain outside this item; the hosted gate is sequenced
   after the active RITK collection. Local commit `28f6332` passes mdBook build,
   strict links across 14 Markdown files, and workflow-shape checks. PR
-  [#108](https://github.com/ryancinsight/apollo/pull/108) is published at that
-  exact head; Rust run `32406467465` remains pending and shared Pages/book run
-  `32406468053` failed at job `96546609469`. The Atlas gitlink remains at
-  `0c6ffb9` until the exact failure is fixed, terminal hosted evidence passes,
-  and post-merge default verification completes.
+  [#108](https://github.com/ryancinsight/apollo/pull/108) is now at exact head
+  `27f0c4c3`, which adds the required declarations to both included examples
+  and repins Atlas staging to `20c9398`. The exact-head Rust/Python,
+  benchmark, and book runs `32413508286`, `32413508303`, and `32413508691` are
+  pending. The Atlas gitlink remains at `0c6ffb9` until terminal hosted
+  evidence and post-merge default verification pass.
 
 - **Hyperion chromophore provenance:** the current provider source table is
   value-semantic but its only regression oracle is the retired Kwavers table,

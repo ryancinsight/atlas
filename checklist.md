@@ -103,13 +103,16 @@
 - [x] Enable the shared executable book gate for the existing FFT and Parseval
       includes. Local `mdbook build`, strict links (14 files, no broken
       relative links), and workflow-shape checks pass in commit `28f6332`.
-- [x] Push PR [#108](https://github.com/ryancinsight/apollo/pull/108) at exact
-      head `28f6332`; its CI and shared Pages/book runs
-      `32406467465`/`32406468053` are no longer queued: the Rust job remains
-      pending and `deploy / Build book` failed at job `96546609469`. Diagnose
-      and fix the exact failure before collecting terminal exact-head evidence;
-      merge, verify the post-merge default, and advance the Atlas gitlink only
-      after those gates pass.
+- [x] Diagnose the failed exact-head book job `96546609469`: package build
+      passed, while the two included examples lacked explicit `extern crate`
+      declarations for their staged Apollo, Eunomia, and Leto crates.
+- [x] Repair both included examples and repin the shared workflow to Atlas
+      staging revision `20c9398`; commit `27f0c4c3` is published on PR #108.
+      The exact-head rerun has Rust run `32413508286`, Python run
+      `32413508286`, benchmark run `32413508303`, and book run
+      `32413508691`, all pending at collection time.
+- [ ] Collect terminal exact-head evidence, merge, verify the post-merge
+      default, and advance the Atlas gitlink only after those gates pass.
 
 ## ATLAS-HYPERION-CHROMOPHORE-2026-08-20 — current session
 
@@ -151,11 +154,17 @@
       13 links), and workflow-shape checks pass. The locked package build is
       locally blocked before compilation by the shared overlay's primary-tree
       patch paths.
-- [ ] Push and collect hosted exact-head book evidence, then merge, verify the
-      post-merge default, and advance the Atlas gitlink. PR #214 is published
-      at exact head `12ac021`; provider-contract checks remain pending and
-      `deploy / Build book` failed at job `96544627958`. Diagnose and fix the
-      exact failure before collecting terminal evidence.
+- [x] Diagnose the failed book job `96544627958`: package build passed, while
+      the included HostDevice and capabilities examples lacked explicit
+      `extern crate` declarations for their staged Hephaestus and Themis
+      crates.
+- [x] Repair both examples and repin the shared workflow to Atlas staging
+      revision `20c9398`; commit `71c3fcb` is published on PR #214. The exact-
+      head provider jobs and book run `32413503430`/`32413503425`/`32413503451`/
+      `32413503492`/`32413504203` are pending at collection time; hardware
+      jobs are intentionally skipped.
+- [ ] Collect terminal exact-head evidence, merge, verify the post-merge
+      default, and advance the Atlas gitlink only after those gates pass.
 
 ## ATLAS-COEUS-BOOK-TEST-2026-08-20 — current session
 
@@ -167,11 +176,14 @@
       links (14 files, 13 links), and workflow-shape checks pass. The locked
       package build is locally blocked before compilation by the shared
       overlay's primary-tree patch paths.
-- [ ] Push and collect hosted exact-head book evidence, then merge, verify the
-      post-merge default, and advance the Atlas gitlink. PR #340 is published
-      at exact head `58122b9`; WGPU/provider-contract checks remain pending and
-      `deploy / Build book` failed at job `96544630144`. Diagnose and fix the
-      exact failure before collecting terminal evidence.
+- [x] Diagnose the failed book job `96544630144`: package build passed, while
+      the Tensor Basics and Matrix Multiplication examples lacked explicit
+      `extern crate` declarations for their staged Coeus crates.
+- [x] Repair both examples and repin the shared workflow to Atlas staging
+      revision `20c9398`; commit `fc05cb75` is published on PR #340. The exact-
+      head book run `32413507328` is pending at collection time.
+- [ ] Collect terminal exact-head evidence, merge, verify the post-merge
+      default, and advance the Atlas gitlink only after those gates pass.
 
 ## ATLAS-KWAVERS-DEFAULT-2026-08-20 — current session
 
