@@ -5880,3 +5880,56 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [ ] Leave every provider checkout, lane, and dirty file as found; the audit
       wrote only PM artifacts and documentation-drift corrections, and committed
       nothing in any submodule.
+
+## ATLAS-GAP-AUDIT-2026-08-20 P0 delivery (owner: atlas-gap-audit)
+
+All four P0 items from `backlog.md#atlas-gap-audit-2026-08-20` are delivered as
+pull requests. None merged; each waits on its own hosted gate.
+
+- [x] **P0-3/P0-4 Consus** — [consus#51](https://github.com/ryancinsight/consus/pull/51).
+      szip header sample count bounded twice before any reserve: the
+      `expected_size` contract moved onto the header, plus a payload-derived
+      bound (`read_unary` costs at least one bit per sample, so the count cannot
+      exceed eight times the post-header bytes). Reserve is `try_reserve_exact`.
+      `-C target-cpu=native` removed from the committed `.cargo/config.toml`.
+      Local: 26/26 szip tests. The regression test asserts on `can encode at
+      most`, a string only the new guard emits, so it cannot pass vacuously.
+- [x] **P0-1 Kwavers** — [kwavers#439](https://github.com/ryancinsight/kwavers/pull/439).
+      `swe/gpu/` deleted, net -903 lines. `kwavers-solver` declares no GPU
+      dependency at all, so the module could never have launched a kernel.
+      `AdaptiveResolution` was examined for rescue and also found fabricated
+      (`simulate_solve_quality` returns `0.7 + fudge`; `computation_time` is
+      `0.1 * 4^level`); its genuine grid pyramid and trilinear interpolation had
+      no consumer outside the module. Local: `cargo check -p kwavers-solver`
+      passes, `swe_3d_validation` 2 passed / 4 pre-existing skips.
+- [x] **P0-2 CFDrs** — [CFDrs#362](https://github.com/ryancinsight/CFDrs/pull/362).
+      The library `#[global_allocator]` and every API that reads it sit behind a
+      non-default `memory-profiling` feature; `MemoryStatsSnapshot` stays ungated
+      so `suite.rs` is unchanged and `None` means "not measured" rather than a
+      zeroed lie. Local: 433 tests feature-off, 435 feature-on, clippy
+      `-D warnings` clean both ways. Gate liveness proved by negative control, a
+      probe crate installing its own allocator: builds with the feature off,
+      fails `E0152` with it on, reproducing the pre-fix default.
+
+Two findings recorded rather than actioned, both outside the P0 scope:
+
+- [ ] Kwavers pins two incompatible wgpu majors in one workspace —
+      `kwavers-gpu` on `30.0.0`, `kwavers-analysis` on `26.0`. Filed upstream as
+      KW-GPU-202 with the wider `kwavers-gpu` to Hephaestus migration (662 raw
+      `wgpu::` sites, 18.4k LOC). This is the forked vendor dimension ADR 0039
+      exists to prevent.
+- [ ] `repos/CFDrs/docs/atlas-migration/moirai-ssot.md:63` claims `cfd-core`
+      holds the workspace `#[global_allocator]`, used to justify Moirai's
+      `no-global-alloc` posture. No allocator exists in `cfd-core`; the only one
+      was the `cfd-validation` static now gated. Noted in CFDrs#362, left
+      unedited to keep the defect diff clean.
+
+Correction to this board's own P3 framing: items 10 and 11 are not open
+decisions. ADR 0033 (Accepted 2026-07-27) already names Athena sole Krylov owner
+and calls the Leto iterative family a regression to unwind, with a four-stage
+plan; ADR 0039 already gives the vendor dimension to Hephaestus. Stage A of ADR
+0033 (Athena BiCGSTAB/LSQR plus the Jacobi/SOR/SSOR/ILU set over Leto) is
+largely delivered — the Athena audit located all of them. The live work is
+stages B, C and D, plus one real gap for backend-dependent solving: Athena's
+Hephaestus path carries no preconditioner, so accelerator PCG is currently
+unpreconditioned CG.
