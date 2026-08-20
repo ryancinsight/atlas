@@ -141,9 +141,6 @@
 - [ ] Collect replacement Rust/NumPy/supply-chain run `32423868719` and MSRV
       run `32423868861`, then synchronize the provider and Atlas PM records.
       `recurseml/analysis` is report-only.
-- [ ] Collect the exact-head hosted Eunomia gate and synchronize the provider
-      and Atlas PM records.
-
 ## ATLAS-LETO-BOOK-2026-08-20 — current session
 
 - [x] Diagnose Pages run `32396859195`: package staging passed; mdBook failed
