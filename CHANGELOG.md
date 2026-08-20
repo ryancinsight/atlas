@@ -15,6 +15,11 @@
   the shared package-staging book gate; local package and example evidence
   passes, with hosted verification pending.
 
+- Open Hermes PR #56 at exact head `932468dac5ef4abadea4bdd12d62b420a4225ba7`
+  for the shared package-staged book gate; four included examples and the SIMD
+  architecture snippet pass direct local rustc/rustdoc checks, with hosted
+  verification pending.
+
 - Merge Proteus PR #14 and its PM closure PR #15 after the executable book gate
   passes: CI run `32338237653` and Pages build `32338238163` validate both
   included material examples; the pull-request Pages deployment is skipped.

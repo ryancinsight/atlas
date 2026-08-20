@@ -13066,3 +13066,22 @@ Local package checks pass: format, example build, strict Clippy, nextest
 `25/25`, both runnable example outputs, Cargo doctests, mdBook build, and
 strict link scan. The original standalone mdBook failure was unresolved crate
 visibility; hosted Linux remains the acceptance evidence for package staging.
+
+## Finding 2026-08-20: Hermes executable book gate opened
+
+Hermes PR [#56](https://github.com/ryancinsight/hermes/pull/56) is open at exact
+source head `932468dac5ef4abadea4bdd12d62b420a4225ba7`. The caller pins the Atlas
+shared Pages workflow at root commit
+`1fcd17c6f7923cb1734756c15e0a5a39e333ee32`, enables `mdbook-test`, selects Rust
+`1.97.0`, and stages package `hermes-simd` under library target `hermes_simd`.
+The four included examples declare `extern crate hermes_simd`; the SIMD
+architecture snippet declares its direct `hermes_simd_core` and
+`hermes_simd_intrinsics` dependencies.
+
+Local Rust 1.97.0 formatting and diff checks pass. All four examples compile
+and run against staged provider artifacts with their value assertions passing;
+direct rustdoc executes the architecture snippet `1/1`. Normal locked Cargo
+gates stop before compilation because the Atlas development overlay requires a
+lockfile update; the Hermes peer-owned dirty `Cargo.lock` is excluded. Hosted
+source verification and the Pages build remain the acceptance evidence before
+the Atlas gitlink advances from `da00fd6`.

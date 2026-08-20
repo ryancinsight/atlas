@@ -1,5 +1,23 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — hosted verification pending
+
+- Owner: Atlas integration; provider scope is the Hermes Pages caller and the
+  five source files included by its book. The active orphan-module lane and
+  peer-owned `Cargo.lock` are excluded.
+- Acceptance: pin the current Atlas reusable Pages workflow, enable its
+  package-staging `mdbook test` gate, add the explicit crate declarations the
+  staged rustdoc contract requires, and prove the included examples plus the
+  architecture snippet compile with value-semantic assertions. Hosted CI and
+  Pages results must bind to the exact pushed head before the Atlas gitlink
+  advances.
+- Verification: provider fmt, locked package build/checks where available,
+  Nextest, doctests, `mdbook test`, book build, and strict link check; report
+  any Windows overlay limitation separately from provider-source evidence.
+- Delivery: Hermes PR #56 is open at exact head
+  `932468dac5ef4abadea4bdd12d62b420a4225ba7`. The Atlas gitlink remains at
+  `da00fd6` until hosted source verification and the Pages build pass.
+
 > Board layout: **Sweep 2026-08-13** below carries the items opened by the
 > full-stack audit of all 25 members. Older live items follow. Closed items are
 > one-line entries under [Archive — closed items](#archive--closed-items);
