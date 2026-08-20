@@ -7,6 +7,21 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
+## ATLAS-AEQUITAS-DERIVED-UNITS-2026-08-20 — split derived-unit implementation leaf [patch] — in progress
+
+- **Owner:** current Atlas session; clean Aequitas checkout only.
+- **Scope:** `repos/aequitas/src/systems/si/units/derived/mod.rs` and the
+  domain-named leaf modules required by its existing derived-unit definitions;
+  preserve `src/systems/si/units/mod.rs` re-exports and do not touch the dirty
+  `worktrees/aequitas-degree` lane.
+- **Acceptance:** `derived/mod.rs` is a manifest/re-export only, the public
+  unit surface is unchanged, the Aequitas conformance
+  `manifest_implementation` count falls from 1 to 0 with no other increase,
+  and focused value-semantic gates pass against the exact provider head.
+- **Evidence:** the clean-provider audit identified the sole residual at
+  `src/systems/si/units/derived/mod.rs:6`; current Aequitas CI run
+  `32321802445` reports 127 native tests and 26 passed/1 ignored doctests.
+
 ## ATLAS-CFDRS-HOSTED-FMT-2026-08-20 — repair required Rust format gate [patch] — in progress
 
 - **Owner:** current Atlas session; peer-assist claim on the clean files only.
