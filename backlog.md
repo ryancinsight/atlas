@@ -97,6 +97,33 @@ set targets the predecessor `b5b4fb0614ad3238ab95ff092cebd5977a201b22`, so
 those runs cannot authorize the stale Atlas pointer `459f18ce`.
 
 
+## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — in progress
+
+The Eunomia `numpy` feature is a real provider-consumer seam: it implements
+NumPy element conversions for `Complex32` and `Complex64`, and Hephaestus and
+Kwavers enable it from their Python binding crates. Eunomia's current CI
+explicitly excludes that feature because no Python runtime is provisioned.
+This is a verification gap, not a request for a standalone Eunomia wheel;
+the Atlas inventory now records the binding ownership in the consumer crates.
+
+**Scope:** Eunomia's provider CI workflow and its owner-local PM entry. Add a
+Python/NumPy-backed locked feature check and runtime dtype contract test for
+both complex element types. **Non-goals:** new Eunomia packaging, changes to
+the complex implementation, or changes to Hephaestus/Kwavers bindings.
+
+**Acceptance:** the provider CI provisions a pinned supported Python, installs
+the repository's declared NumPy test dependency through the existing project
+convention, runs the `numpy` feature's locked check/Clippy/nextest contract,
+and the hosted exact-head job passes. The feature remains optional and the
+consumer binding crates remain the only Python packages.
+
+**Owner:** current Atlas session. **Claimed files:** Eunomia
+`.github/workflows/ci.yml`, the existing Eunomia PM entry, and this root item.
+The clean provider lane must be based on Eunomia `origin/main`
+`85e590b789505c66f5174043c2e7e851c20547a5`; the dirty primary checkout is
+peer-owned and remains untouched.
+
+
 ## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — todo
 
 Evidence: `gap_audit.md` Finding 2026-08-20 and each provider's own

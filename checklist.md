@@ -54,6 +54,17 @@
       `78af725`, then advance the Atlas gitlink in a separate pointer-only
       integration commit.
 
+## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — current session
+
+- [x] Confirm the optional `numpy` feature is real Eunomia code consumed by
+      Hephaestus and Kwavers, while Eunomia has no standalone Python package.
+- [x] Correct the Atlas binding inventory to list ten binding crates and name
+      Eunomia as the NumPy element provider.
+- [ ] Add the isolated provider CI feature/runtime contract gate on a clean
+      Eunomia lane based at `85e590b7`; preserve the dirty primary checkout.
+- [ ] Collect the exact-head hosted Eunomia gate and synchronize the provider
+      and Atlas PM records.
+
 ## ATLAS-LETO-BOOK-2026-08-20 — current session
 
 - [x] Diagnose Pages run `32396859195`: package staging passed; mdBook failed
