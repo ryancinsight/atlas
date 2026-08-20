@@ -103,6 +103,23 @@ branch is published for review.
 `crates/asclepius-coeus/tests/equivalent_uniform_dose.rs` in
 `worktrees/asclepius-geud-gradient`; root `backlog.md` and `checklist.md`.
 
+**Implementation evidence (2026-08-20):** clean lane branch
+`fix/asclepius-geud-gradient` is based on `origin/main`
+`2f6959b52c36c91169e4f30ad4a7ce8e45d6e901` and publishes one commit,
+`390a3ff`. The test evaluates independently perturbed adapter values for every
+dose coordinate, uses central differences at two scales with Richardson
+extrapolation, and derives truncation plus roundoff bounds from the step and
+`f64::EPSILON`. Locked all-target check, full nextest (`20/20`), focused
+nextest (`6/6`), Clippy with `-D warnings`, doctests, and Rustdoc pass. A
+value-preserving mutation that detaches the adapter input gradient fails four
+gradient/value-contract tests, including both independent gradient tests.
+
+**Publication blocker:** GitHub compare confirms base `2f6959b` → head
+`390a3ff` is one commit ahead with one test file changed. Draft PR creation was
+rejected by the GitHub connector with HTTP 403 `Resource not accessible by
+integration`; no PR or hosted result is claimed. Re-open publication when
+repository write authorization is available.
+
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
 Re-measured 2026-08-20 against the trees rather than the board. ADR 0033's

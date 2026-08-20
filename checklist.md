@@ -6087,6 +6087,25 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [ ] Merge Tyche PR #27 and Asclepius PR #22 when CI passes; advance Atlas
       gitlinks.
 
+## 2026-08-20 Asclepius independent gradient oracle
+
+- [x] Claimed the disjoint Coeus test scope on clean lane
+      `worktrees/asclepius-geud-gradient`, based on fetched `origin/main`
+      `2f6959b`.
+- [x] Added central-difference value evaluation for every dose coordinate,
+      Richardson extrapolation, and a bound combining truncation and
+      floating-point roundoff.
+- [x] Verified the provider with locked all-target check, nextest `20/20`,
+      focused nextest `6/6`, `clippy -D warnings`, doctests, and Rustdoc.
+- [x] Ran a value-preserving detached-input mutation; both backends' gradient
+      contracts failed with finite-difference values versus zero gradients.
+- [x] Committed and published provider branch `fix/asclepius-geud-gradient`
+      at `390a3ff`; exact hosted compare against `2f6959b` reports one commit
+      and one test file.
+- [ ] Open the draft Asclepius PR; blocked by GitHub connector HTTP 403
+      `Resource not accessible by integration`. Do not advance the Atlas
+      gitlink or claim hosted verification until the PR exists and passes.
+
 ## ATLAS-GAP-AUDIT-2026-08-20 (owner: atlas-gap-audit)
 
 - [x] Dispatch one auditor per registered submodule against a single completeness
