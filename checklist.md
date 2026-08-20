@@ -2243,7 +2243,7 @@ one `coeus-ops` integration target, `nextest list` reports 87 harness tests,
 and the exact package run passes 196/196. Whole-workspace debug-tree sizing is
 explicitly outside this slice.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN integration harness consolidation [patch]
+## ATLAS-BUILD-STRUCTURE-006 — Coeus-NN integration harness consolidation [patch]
 
 - [x] Move the 33 flat `coeus-nn/tests/*.rs` leaf files under operation-family
       directories behind one `tests/nn_ops.rs` harness together with the
@@ -2261,7 +2261,7 @@ all operation-family test bodies remain unchanged. This is a test-topology and
 build-artifact change only; the broader stack-wide debug-tree measurement
 remains open.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN tensor parity-family split [patch]
+## ATLAS-BUILD-STRUCTURE-007 — Coeus-NN tensor parity-family split [patch]
 
 - [x] Split the 1,317-line `coeus-nn/tests/nn_ops/tensor/nn_parity.rs` leaf
       into a shared assertion manifest plus nested attention, convolution,
@@ -2279,7 +2279,7 @@ warning-denied Clippy, format, and diff checks pass. This is a test-topology and
 maintainability change only; the broader stack-wide debug-tree measurement
 remains open.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA parity-family split [patch]
+## ATLAS-BUILD-STRUCTURE-008 — Coeus-CUDA parity-family split [patch]
 
 - [x] Split the live 1,672-line `coeus-cuda/tests/cuda/parity.rs` leaf into
       seven operation-family modules under `tests/cuda/parity/`.
@@ -2298,7 +2298,7 @@ warning-denied Clippy pass; feature-enabled Nextest cannot link because
 is a test-topology and maintainability change only; production kernels are
 unchanged.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-Python operation binding-family split [patch]
+## ATLAS-BUILD-STRUCTURE-009 — Coeus-Python operation binding-family split [patch]
 
 - [x] Split the live 3,160-line
       `coeus-python/tests/binding_ops/operations/binding_tests_ops.rs` leaf
@@ -2319,7 +2319,7 @@ generated artifacts are unchanged. This is a test-topology and maintainability
 change only; no Python-wheel, production-kernel, memory, or runtime-performance
 delta is claimed.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-dist distributed-contract harness [patch]
+## ATLAS-BUILD-STRUCTURE-010 — Coeus-dist distributed-contract harness [patch]
 
 - [x] Replace the live 1,262-line `coeus-dist/tests/dist_tests.rs` leaf with
       one `dist_ops` manifest and local/TCP transport subtrees under
@@ -2340,7 +2340,7 @@ unchanged; active documentation references the `dist_ops` manifest. This is a
 test-topology and maintainability change only; no runtime or memory delta is
 claimed.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN loss-contract family split [patch]
+## ATLAS-BUILD-STRUCTURE-011 — Coeus-NN loss-contract family split [patch]
 
 - [x] Split the live 902-line `nn_ops/losses/nn_loss_tests.rs` leaf into
       nested binary, classification, distance, and distribution leaves under
@@ -2359,7 +2359,7 @@ pass. Production NN code, fixtures, tolerances, and sibling loss test files are
 unchanged. This is a test-topology and maintainability change only; no
 production kernel or runtime/memory delta is claimed.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-optim contract-family harness split [patch]
+## ATLAS-BUILD-STRUCTURE-012 — Coeus-optim contract-family harness split [patch]
 
 - [x] Split the live 676-line `coeus-optim/tests/optim_tests.rs` leaf into
       optimizer, scheduler, convergence, and gradient-clipping modules under
@@ -2379,7 +2379,7 @@ Production optimizer code and all test oracles are unchanged. This is a
 test-topology and maintainability change only; no production optimizer runtime
 or memory delta is claimed.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-NN extended activation contract split [patch]
+## ATLAS-BUILD-STRUCTURE-013 — Coeus-NN extended activation contract split [patch]
 
 - [x] Split the live 648-line `nn_ops/activations/act_extended_tests.rs` leaf
       into piecewise, parameterized, module-smoke, and smooth leaves under
@@ -2399,7 +2399,7 @@ diff checks pass. Production NN code, fixtures, formulas, and tolerances are
 unchanged. This is a test-topology and maintainability change only; no
 production activation runtime or memory delta is claimed.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto contract-family split [patch]
+## ATLAS-BUILD-STRUCTURE-014 — Coeus-Leto contract-family split [patch]
 
 - [x] Split the live 505-line `leto_ops/contract.rs` leaf into arithmetic,
       reductions, matmul, layout, and accumulation modules under
@@ -2421,7 +2421,7 @@ Next claimed slice: run a fresh structural audit of the remaining Coeus test
 tree and take the next real family-boundary increment, if a live leaf exceeds
 the hierarchy trigger without violating test cohesion.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-autograd integration harness consolidation [patch]
+## ATLAS-BUILD-STRUCTURE-015 — Coeus-autograd integration harness consolidation [patch]
 
 - [x] Move `grid_sample_3d.rs`, `linear_interpolation.rs`, and
       `selective_scan.rs` behind one `tests/autograd_ops.rs` harness together
@@ -2444,7 +2444,7 @@ Next claimed slice: Coeus `coeus-nn/tests` still has separate `nn_ops` and
 to the hierarchical `nn_ops` harness and remove the redundant target manifest
 while preserving all value-semantic tests.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-tensor integration harness consolidation [patch]
+## ATLAS-BUILD-STRUCTURE-016 — Coeus-tensor integration harness consolidation [patch]
 
 - [x] Move the 13 flat `coeus-tensor/tests/*.rs` files into operation-family
       directories behind one `tests/tensor_ops.rs` harness.
@@ -2460,7 +2460,7 @@ one `coeus-tensor` integration target (`tensor_ops`); the source census remains
 0 skipped, including five library unit tests. Whole-workspace debug-tree sizing
 is explicitly outside this slice.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-sparse integration harness consolidation [patch]
+## ATLAS-BUILD-STRUCTURE-017 — Coeus-sparse integration harness consolidation [patch]
 
 - [x] Move the three flat `coeus-sparse/tests/*.rs` files into operation-family
       directories behind one `tests/sparse_ops.rs` harness.
@@ -2474,7 +2474,7 @@ one `coeus-sparse` integration target (`sparse_ops`); exact package Nextest
 passes 19/19 with 0 skipped in 0.713 seconds. Whole-workspace debug-tree sizing
 is explicitly outside this slice.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-core integration harness consolidation [patch]
+## ATLAS-BUILD-STRUCTURE-018 — Coeus-core integration harness consolidation [patch]
 
 - [x] Move the four flat `coeus-core/tests/*.rs` files into storage,
       dependency-policy, and scalar directories behind one `tests/core_ops.rs`
@@ -2491,7 +2491,7 @@ one `coeus-core` integration target (`core_ops`); exact package Nextest passes
 library unit tests. Whole-workspace debug-tree sizing is explicitly outside
 this slice.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-CUDA integration harness consolidation [patch]
+## ATLAS-BUILD-STRUCTURE-019 — Coeus-CUDA integration harness consolidation [patch]
 
 - [x] Move the three flat `coeus-cuda/tests/*.rs` files into device and
       fallback directories behind one `tests/cuda_ops.rs` feature-aware harness.
@@ -2507,7 +2507,7 @@ one `coeus-cuda` integration target (`cuda_ops`); default package Nextest passes
 plus warning-denied Clippy pass. All-features executable coverage remains
 blocked by the host linker dependency above.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-Python integration harness consolidation [patch]
+## ATLAS-BUILD-STRUCTURE-020 — Coeus-Python integration harness consolidation [patch]
 
 - [x] Move the six flat `coeus-python/tests/*.rs` files into binding-family
       directories behind one `tests/binding_ops.rs` harness.
@@ -2521,7 +2521,7 @@ one `coeus-python` integration target (`binding_ops`); exact all-features
 Nextest passes 75/75 with 0 skipped in 6.585 seconds. Whole-workspace
 debug-tree sizing is explicitly outside this slice.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU integration harness consolidation [patch]
+## ATLAS-BUILD-STRUCTURE-021 — Coeus-WGPU integration harness consolidation [patch]
 
 - [x] Move the two flat `coeus-wgpu/tests/*.rs` targets into one hierarchical
       `tests/wgpu_ops.rs` harness with fused-operation and backend-operation
@@ -2538,7 +2538,7 @@ Package check, warning-denied Clippy, format, and diff checks pass. The moved
 source files are content-identical renames; this is a target-topology change,
 not a production GPU or whole-workspace debug-tree performance claim.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-WGPU parity-family split [patch]
+## ATLAS-BUILD-STRUCTURE-022 — Coeus-WGPU parity-family split [patch]
 
 - [x] Split `coeus-wgpu/tests/wgpu_ops/backend/wgpu/parity.rs` into cohesive
       operation-family modules under a `parity/` hierarchy, keeping the shared
@@ -2554,7 +2554,7 @@ passes 85/85 with 0 skipped in 80.113 seconds. The largest new parity leaf is
 `elementwise.rs` at 287 lines; all seven leaves are below 500 lines. Package
 check, warning-denied Clippy, format, and diff checks pass.
 
-## ATLAS-BUILD-STRUCTURE-001 — Coeus-Leto integration harness consolidation [patch]
+## ATLAS-BUILD-STRUCTURE-023 — Coeus-Leto integration harness consolidation [patch]
 
 - [x] Move the two flat `coeus-leto/tests/*.rs` targets into one hierarchical
       harness with contract and sparse-dispatch operation families.
