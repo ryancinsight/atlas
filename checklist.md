@@ -71,6 +71,16 @@
       pointer drifts are Hyperion `e2dbc9b` versus `4df62f63`, RITK `d4a978f`
       versus `ad508525`, and Kwavers `459f18c` versus `58b51ef`.
 
+## ATLAS-GAIA-BOOK-GATE-2026-08-20 — current session
+
+- [x] Confirm fetched Gaia default `dbed97a` invokes `mdbook test` but the
+      book has zero Rust fences; the mesh-gallery generator is not mdBook
+      contract coverage.
+- [ ] Create one value-semantic included Gaia example on the clean bounded
+      lane `worktrees/gaia-book-gate`; run `mdbook test`, `mdbook build`, and
+      strict links; publish and collect exact-head hosted evidence before
+      advancing the Atlas pointer.
+
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — current session
 
 - [x] Confirm the optional `numpy` feature is real Eunomia code consumed by

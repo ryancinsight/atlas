@@ -206,11 +206,13 @@ correctness, not new scope.
      claims withdrawn pending it. `[minor]`
 
 - **P2 retire vacuous gates** (cheap, high signal-to-noise):
-  8. `mdbook test` gates that compile nothing: Helios (0 `rust` fences of 73),
-     Hephaestus (17 of 17 `ignore`), Gaia (39 of 47 doctests `ignore`), Themis
-     (15 of 17), Eunomia (13 of 16), Asclepius (6 of 8). Acceptance: fences
-     de-ignored and compiling, or the gate removed so it stops reading as
-     evidence. Book chapters documenting non-existent APIs (Hephaestus,
+  8. `mdbook test` coverage is uneven. Gaia's direct gate is vacuous because
+     its book has zero Rust fences; Tyche, Proteus, Mnemosyne, Asclepius, and
+     Iris execute real samples but retain 37 ignored Rust fences across the
+     audited books. Acceptance: Gaia gains one value-semantic executable book
+     example, and ignored snippets are converted to `text` or real executable
+     examples where their chapter claims a workflow. The shared gate itself is
+     not removed. Book chapters documenting non-existent APIs (Hephaestus,
      Mnemosyne, Helios) were corrected in this sweep; re-verify at merge.
   9. Themis `tests/topology/cpu.rs` orphaned target (14 tests never compiled);
      CFDrs 54 files / 10,543 LOC under root `examples|benches|tests` in no cargo
@@ -218,21 +220,25 @@ correctness, not new scope.
      Acceptance: each either wired into a target and green, or deleted.
 
 - **P3 adjudicate the open decisions** (blocking, not mechanical):
-  10. Leto/Athena iterative-solver ownership: ADRs 0014/0015 extracted solvers to
-      Athena; `leto-ops/src/lib.rs:83` re-declares itself SSOT. Acceptance: one
-      ADR revised to the now-valid decision with a dated revision note, the loser
-      deleted, callers migrated in the same change. `[arch]`
-  11. 15 of 50 Atlas ADRs remain `Proposed`, seven of them July kwavers migration
-      records whose subjects have since landed or been superseded. Acceptance:
-      each is Accepted with an as-built rationale, Rejected, or deleted with its
-      reason in the commit. `[patch]`
-  12. `docs/adr/README.md` in 19 repositories prescribes `scripts/adr-index.py`,
-      which exists only at the Atlas root. Acceptance: the generator is vendored
-      or invoked from the root by a CI step per repository, or the header stops
-      claiming a contract nothing enforces. `[patch]`
-  13. 14 repositories declare `rust-version = "1.95"` against a 1.97.0 pin with
-      no job at the floor. Acceptance: an MSRV job per repository, or the
-      declared floor is corrected to what is actually built. `[patch]`
+  10. Leto/Athena solver ownership is decided: root ADR 0033 is Accepted and
+      names Athena as the Krylov owner. The remaining work is deletion of the
+      duplicate Leto implementation and caller migration, not a decision
+      question. Acceptance: revise the affected ADRs with the dated decision,
+      delete the loser, and migrate callers in one change. `[arch]`
+  11. The root corpus has 48 ADRs: 15 `Proposed`, 30 `Accepted`, and 3
+      `Rejected`; six Proposed records are Kwavers-related. Acceptance: each
+      Proposed record is Accepted with an as-built rationale, Rejected, or
+      deleted with its reason in the commit. `[patch]`
+  12. Centralized ADR indexing is closed as a blocker: the root generator scans
+      the Atlas root plus 23 provider ADR directories, and root conformance CI
+      runs the check. Provider index dirt remains a separate peer-owned
+      cleanup, not a missing generator. `[patch]`
+  13. Eighteen registered-provider root manifests (19 including the RITK member
+      manifest) declare `rust-version = "1.95"`; nine providers lack an
+      explicit 1.95 workflow pin: Aequitas, Apollo, Harmonia, Helios, Hermes,
+      Horae, Hyperion, Proteus, and RITK. Acceptance: add an MSRV job at the
+      declared floor or correct the declared floor to the toolchain actually
+      built. `[patch]`
 
 **Dependencies:** 6 and 7 depend on 5. 1 through 4 are independent. 10 gates any
 further Leto or Athena solver work.
@@ -248,6 +254,23 @@ per-repository gates run; this audit executed none.
 committed gitlink; kwavers (5), consus (3), and helios (3) exceed the two-tree
 lane bound; 8 empty `worktrees/kwavers-*` orphans remain. Filed here rather than
 actioned, since every one of those trees holds peer state.
+
+## ATLAS-GAIA-BOOK-GATE-2026-08-20 — Add value-semantic book execution [patch] — in progress
+
+The fetched Gaia default `dbed97a63434a21b1b9dcd01d634276aaec99e37` invokes
+`mdbook test docs/book`, but the book contains zero Rust fences. Its mesh-gallery
+generator is executable but does not provide mdBook contract coverage. This is
+a bounded documentation/test increment; it does not change mesh algorithms,
+figures, or the peer-owned Gaia README, CHECKLIST, or untracked backlog.
+
+**Owner:** current Atlas session. **Claimed lane:**
+`D:\\atlas\\worktrees\\gaia-book-gate`. **Claimed files:** one existing Gaia
+book chapter, one included example source if the book convention requires it,
+and Gaia's owner-local PM entry. **Acceptance:** one real input-sensitive Gaia
+API example is included by the book, `mdbook test docs/book` executes it with a
+value-semantic assertion, strict links and `mdbook build` pass, and the change
+is published and verified at its exact provider head. No `rust,ignore` or
+existence-only assertion satisfies the item.
 
 ## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — Restore exact-default formatting gate [patch] — in progress
 
