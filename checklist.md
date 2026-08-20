@@ -70,6 +70,11 @@
 - [x] Re-run the exact-head audit after Hyperion merged: the only current
       pointer drifts are Hyperion `e2dbc9b` versus `4df62f63`, RITK `d4a978f`
       versus `ad508525`, and Kwavers `459f18c` versus `58b51ef`.
+- [x] The same exact-head run reproduced those three pointer drifts and
+      separately timed out the nested version-coherence command after 120
+      seconds; the standalone overlay check remains green, so the timeout is
+      recorded as shared-build contention rather than folded into pointer
+      status.
 
 ## ATLAS-GAIA-BOOK-GATE-2026-08-20 — current session
 
