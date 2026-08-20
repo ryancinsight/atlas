@@ -133,10 +133,14 @@
       Eunomia as the NumPy element provider.
 - [x] Add the isolated provider CI feature/runtime contract gate on a clean
       Eunomia lane based at `85e590b7`; preserve the dirty primary checkout.
-- [x] Publish Eunomia PR [#70](https://github.com/ryancinsight/eunomia/pull/70)
-      at exact head `da355aa`; Rust run `32412277378`, NumPy job
-      `96565207307`, MSRV run `32412277137`, and supply-chain job
-      `96565207223` are queued. `recurseml/analysis` is report-only.
+- [x] Repair the first hosted failure: the NumPy job compiled and linted the
+      feature but lacked `cargo-nextest` (`32412277378`, job `96565207307`).
+      Add the pinned `nextest@0.9.140` install to the NumPy job and publish
+      Eunomia PR [#70](https://github.com/ryancinsight/eunomia/pull/70) at
+      exact head `cdc7e68`.
+- [ ] Collect replacement Rust/NumPy/supply-chain run `32423868719` and MSRV
+      run `32423868861`, then synchronize the provider and Atlas PM records.
+      `recurseml/analysis` is report-only.
 - [ ] Collect the exact-head hosted Eunomia gate and synchronize the provider
       and Atlas PM records.
 
