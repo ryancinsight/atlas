@@ -45,6 +45,9 @@
 - [x] Publish separate Consus book-gate PR [#53](https://github.com/ryancinsight/consus/pull/53)
       from current `main`; it enables `mdbook-test` for both existing Rust
       examples and stages `consus-core` without touching dirty peer trees.
+- [x] Reinspect PR #53 after publication and repair the generated workflow
+      revision; the branch now contains only the intended YAML, with the
+      exact shared pin, `mdbook-test: true`, and `consus-core` inputs.
 - [ ] Collect PR #53's terminal book gate, merge at its exact head, and rerun
       the 25-book inventory so Consus leaves the missing-gate set.
 
