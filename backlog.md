@@ -44,6 +44,24 @@
   downstream compatibility path is added; registry publication/version
   alignment is external release work.
 
+## ATLAS-HELIOS-PYPI-2026-08-20 — integrate trusted wheel release [patch] — done 2026-08-20
+
+- **Owner:** current Atlas session; Helios release-infrastructure scope only.
+- **Landed:** PR #67 was marked ready after its draft state was the only
+  remaining delivery condition, then merged at provider default `423d6ec9`.
+  The merge adds the `helios-python` abi3-py39 metadata, source-backed README,
+  and release-tag workflow using PyPI Trusted Publishing; no registry upload
+  or release was performed.
+- **Hosted evidence:** exact PR-head Rust, Python bindings, benchmark, and
+  book checks pass in runs `32284640806` and `32284641544`; the Pages deploy
+  is correctly skipped for the pull request. The merge is now the fetched
+  Helios `origin/main` default.
+- **Root integration:** the Atlas gitlink is advanced to `423d6ec9` without
+  switching or cleaning the detached peer checkout, which retains its
+  uncommitted `crates/helios-python/Cargo.toml` work.
+- **Residual:** a release-tag dry run and PyPI publication remain release-
+  authority work; this item does not publish or reserve another distribution.
+
 ## ATLAS-ASCLEPIUS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Asclepius exact-main checkout only.
@@ -373,13 +391,13 @@
   release-authority change and remains an explicit follow-up rather than an
   implicit compatibility rename.
 
-## ATLAS-HELIOS-PYPI-2026-08-19 — trusted wheel release [patch]
+## ATLAS-HELIOS-PYPI-2026-08-19 — trusted wheel release [patch] — superseded 2026-08-20
 
 - Helios provider branch `codex/helios-pypi-release` commits `0d64981`,
   `8d33395`, and `f31f261` add the PyPI distribution metadata, package README,
   changelog/landing-page entries, and a release workflow using the Atlas
-  reusable abi3 wheel workflow plus PyPI Trusted Publishing. Draft PR #67 is
-  open.
+  reusable abi3 wheel workflow plus PyPI Trusted Publishing. PR #67 merged at
+  provider default `423d6ec9`; see the current integration record above.
 - The distribution is named `helios-python` because PyPI already owns
   `helios` (`0.3.0`); the extension import remains `helios`, so the Python API
   is not renamed. The package uses the dynamic Cargo version and a py39 stable
@@ -388,8 +406,9 @@
   `maturin --release --locked` remains blocked before compilation by the shared
   Atlas overlay lock mismatch; no wheel or Rust gate is claimed locally.
 - Helios `mdbook test docs/book` passes for every listed chapter and example;
-  `mdbook build docs/book` also passes with the linkcheck2 renderer. This is
-  local book evidence only; PR #67 remains the hosted release/build oracle.
+  `mdbook build docs/book` also passes with the linkcheck2 renderer. The
+  hosted release/build oracle is now the merged provider default recorded
+  above; no release publication is claimed.
 
 Fourteen read-only audits covering every registered member plus the meta-repo.
 Every claim below is grounded at `file:line` in the audited tree. Items are

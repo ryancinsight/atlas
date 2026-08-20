@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Integrate Helios PR #67 at provider default `423d6ec9`, including the
+  `helios-python` abi3-py39 trusted-publishing workflow and package metadata;
+  no PyPI release is performed.
+
 - Make the ADR index check fail when an on-disk ADR is absent from `HEAD`,
   with a focused regression covering a matching generated index.
 
