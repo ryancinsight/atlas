@@ -7,6 +7,21 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
+## ATLAS-ASCLEPIUS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
+
+- **Owner:** current Atlas session; clean Asclepius exact-main checkout only.
+- **Scope:** `repos/asclepius/.github/workflows/book-pages.yml`; the included
+  example sources already carry the explicit staged-library declarations.
+  Preserve the pinned reusable workflow ref and do not touch the unrelated
+  Aequitas lane.
+- **Acceptance:** the caller enables `mdbook-test` with Rust `1.97.0` and
+  `cargo-package: asclepius`, the workflow diff remains limited to those
+  inputs, and local format/build/book checks pass.
+- **Evidence:** current Asclepius Pages run `32287111922` builds/deploys but
+  omits `mdbook test`; both included book examples import `asclepius`, and the
+  gEUD example imports Aequitas, so the shared package-staging path is the
+  intended integration gate.
+
 ## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
 
 - **Owner:** current Atlas session; clean Tyche checkout only.
