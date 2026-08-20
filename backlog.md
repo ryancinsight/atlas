@@ -136,9 +136,10 @@ Evidence: `gap_audit.md` Finding 2026-08-20 and each provider's own
 completeness 77.5%, LOC-weighted 69.6%; Foundation 82%, Compute 80%, Domain 79%,
 Integrator 62%.
 
-Fresh all-22 read-only recheck: all requested providers are registered; 21/22
-requested gitlinks match fetched `origin/main`, with RITK stale at `d4a978f` vs
-`ad508525`, and Kwavers also stale at `459f18e` vs `78af725`. The registry
+Fresh all-22 read-only recheck: all requested providers are registered; 20/22
+requested gitlinks match fetched `origin/main`. Hyperion is stale at `e2dbc9b`
+vs `4df62f63`, RITK at `d4a978f` vs `ad508525`, and Kwavers at `459f18e` vs
+`58b51ef`. The registry
 metadata scan is 253 manifests / 0 violations and committed-lock form is
 27/27 clean. The generated development overlay had zero lag/pin-drift findings
 and its freshness defect (the omitted `moirai-http` entry) is fixed by root
