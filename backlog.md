@@ -182,10 +182,21 @@ correctness, not new scope.
 
 - **P1 make the accelerator seam verifiable** (the audit's single largest
   evidence gap, four independent confirmations):
-  5. Hephaestus host/CPU reference device implements 1 of ~19 operation seams.
-     Acceptance: host impls for the seams consumers bind, and a shared
-     conformance suite running GPU-vs-CPU differential cases with tolerances
-     derived per `numerical_discipline`. `[minor]` — unblocks 6 and 7.
+  5. Hephaestus host/CPU reference device implements 1 of 18 operation seams:
+     `HostDecompositionOps` is the only arithmetic-family implementation.
+     The shared conformance crate exports 20 clauses, while the host invokes
+     only the decomposition and transfer assertions; no host conformance job
+     is present in the current backend workflows. Coeus binds ten operation
+     families, Athena binds dense/sparse vector families, and Kwavers binds
+     `Fdtd3dOps`, so the seam gap is consumer-reachable. Acceptance: host impls
+     for the seams consumers bind, and a shared conformance suite running
+     GPU-vs-CPU differential cases with tolerances derived per
+     `numerical_discipline`. `[minor]` — unblocks 6 and 7. The next bounded
+     slice is `SUBSTRATE-003`: consolidate the nine decomposition differential
+     helpers into one parameterized clause, reconcile the stale 14-versus-15
+     method count, and add an exact host gate for the complete decomposition
+     surface. Evidence: fetched Hephaestus `origin/master`
+     `607ce3f`; current hosted results were not queried.
   6. Apollo, Coeus, and Kwavers GPU suites report green having executed nothing.
      Acceptance: an executed-case counter that fails the job at zero, plus a
      software adapter (`lavapipe`/WARP) or an explicit recorded skip that is
