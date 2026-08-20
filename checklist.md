@@ -379,10 +379,10 @@
       `maturin sdist`; it produced `cfd_python-0.3.0.tar.gz` at 68.61 MiB with
       zero `outputs/`, `output/`, `__pycache__/`, or `.pyc` members in the
       shared ignored target directory.
-- [ ] Collect the exact-head hosted gate and merge PR #355. Local locked Rust
-      compilation is blocked before compilation by the shared overlay/lock
-      mismatch; standalone locked metadata, format, and diff checks pass, and
-      no local runtime result is claimed.
+- [x] Collect the exact-head hosted gate and merge PR #355. PR #355 merged
+      at provider default `aa54f5cdcdc4e406df0c60ea6c3cb507e968fc97`; Atlas
+      gitlink records that default. Local locked Rust remains blocked by the
+      overlay/lock mismatch, but hosted gate closed.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-17
 
