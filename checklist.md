@@ -17,6 +17,10 @@
 - [x] Publish RITK PR [#204](https://github.com/ryancinsight/ritk/pull/204) at
       exact head `9bc47d42`; CI `32410451435` and shared book run
       `32410452203` are queued. `recurseml/analysis` is report-only.
+- [x] Run the strict placeholder-aware link scan across all 25 registered
+      books; every target reports zero missing files, missing anchors, and read
+      failures. This is link evidence only; executable mdBook coverage remains
+      separately gated.
 - [ ] Rerun and collect RITK's exact merged-default book gate before closing
       the RITK provider item or advancing the Atlas gitlink.
 
