@@ -10528,12 +10528,30 @@ All four are now pushed; none merged, so nothing was decided on their behalf.
 | --- | --- | --- | --- |
 | consus | `fix/consus-zarr-endian-hardening-221` | 1 | crc32c codec, "close three silent-swap paths" — a correctness fix |
 | consus | `codex/adr-0045-p4-benchmark-parser` | 11 | breaking: remove package-owned S3, centralize async I/O in Moirai |
-| kwavers | `feat/qus-attenuation-b2` | 2 | US-023-B2 spectral-difference attenuation |
+| kwavers | `refactor/seismic-example-structure` | 13 | seismic DICOM/quality sharing, transcranial FWI partition (45 files) |
 | mnemosyne | `codex/mnemosyne-board-cleanup` | 1 | board closure docs |
 
-**Two lanes closed.** `coeus-layernorm-shape` and `apollo-root-cleanup` held
-only overlay lockfile churn on branches already merged to main. Removed, branches
-deleted; both repos back to one tree.
+**Correction: one entry in that table was wrong.** `feat/qus-attenuation-b2` was
+listed here as undelivered because its local branch was unpushed. The work had in
+fact landed — merged as `8003eeaa3` via PR #404 on 2026-08-19. A squash re-authors
+the hash, so the local branch still looked ahead of main. This is precisely the
+false positive ATLAS-BOARD-DELIVERY-AUDIT-101 measured at 3-in-4, and checking the
+PR rather than the hash is what catches it. Pushing it was harmless but redundant;
+the lane is now closed as delivered. `refactor/seismic-example-structure` replaces
+it in the table — 13 commits, 45 files, no PR, genuinely unpushed until this sweep.
+
+**Six lanes closed**, all verified delivered by PR and holding only overlay
+lockfile churn: `coeus-layernorm-shape`, `apollo-root-cleanup`,
+`CFDrs-runtime-budget`, `helios-lock-027`, `asclepius-lock-027`,
+`kwavers-qus-attenuation`. Four of those had **merged** PRs while their local
+branches still read as ahead of main — the same re-authoring effect. coeus,
+apollo, CFDrs, helios and asclepius are each back to a single tree.
+
+**One stalled PR unblocked.** hermes #55 ("Close orphan cleanup evidence") sat
+CONFLICTING and untouched for 29h. Its conflict was a PM-artifact collision:
+main had inserted a new board item directly above the one the commit flips from
+`in progress` to `done`. Resolved as a union — both items kept, the status change
+applied — rebased, force-pushed with lease; the PR is MERGEABLE again.
 
 **The find: a stranded upstream capability with a downstream consumer already
 built against it.**
