@@ -13184,3 +13184,13 @@ existing output path. Exact PR `verify`, `supply-chain`, and Pages book-build
 checks pass; post-merge CI `32341198738`, Deploy mdBook `32341199236`, and
 dynamic Pages `32341197889` pass. Live Pages returns HTTP 200 with the expected
 Hyperion title. Atlas records the merged default gitlink and the gate is closed.
+
+## Finding 2026-08-20: Tyche workflow-pin closure
+
+Tyche PR #28 merged at provider default `46f4829ef648cec2b9e44bad3a75aef8ef3c34af`
+after exact CI `32343473062` and Pages build `32343473408` passed. PM closure PR
+#29 merged at `a2d15f058a29142844396c934362d84ce207d32`; post-merge CI
+`32343825023`, Deploy mdBook `32343825746`, dynamic Pages `32343823918`, and
+live `https://ryancinsight.github.io/tyche/` HTTP 200 (`Tyche | tyche`) pass.
+The Atlas Tyche gitlink advances to the closure default, and the stale-caller
+inventory is reduced by one.

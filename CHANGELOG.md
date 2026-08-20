@@ -2,9 +2,11 @@
 
 ## Unreleased
 
-- Merge Tyche PR #28 at default `46f4829ef648cec2b9e44bad3a75aef8ef3c34af`
-  after exact CI and Pages book-build checks pass; post-merge Pages evidence
-  remains pending before the Atlas gitlink advances.
+- Merge Tyche PR #28 and PM closure PR #29 at defaults
+  `46f4829ef648cec2b9e44bad3a75aef8ef3c34af` and
+  `a2d15f058a29142844396c934362d84ce207d32f`. Exact CI/Pages, post-merge CI
+  `32343825023`, Deploy mdBook `32343825746`, dynamic Pages `32343823918`,
+  and live Pages HTTP 200 pass; Atlas records the closure gitlink.
 
 - Open RITK PR #196 at exact source `20544b405f68e542364da77492ee7a7ffcc44ae9`
   to refresh its shared Pages workflow pin; the provider's exact Rust, Python,

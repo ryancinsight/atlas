@@ -1,14 +1,18 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-TYCHE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — merged, post-merge verification pending
+## ATLAS-TYCHE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
 - Owner: Atlas integration; provider scope is Tyche's Pages caller and PM/
   changelog records. No implementation, release, or lockfile change.
 - Evidence: source `f98ecb14bc5527e3a774a5d4b2bbd109cf5d9157`, PR
   [#28](https://github.com/ryancinsight/tyche/pull/28), merged default
   `46f4829ef648cec2b9e44bad3a75aef8ef3c34af`; exact CI and Pages book-build
-  checks pass. Post-merge CI, Deploy mdBook, dynamic Pages, and live HTTP 200
-  evidence remain pending before the Atlas gitlink advances.
+  checks pass. Post-merge CI `32343825023`, Deploy mdBook `32343825746`,
+  dynamic Pages `32343823918`, and live Pages HTTP 200 with title `Tyche | tyche`
+  pass.
+- Delivery: PM closure PR [#29](https://github.com/ryancinsight/tyche/pull/29)
+  merged at default `a2d15f058a29142844396c934362d84ce207d32f`; Atlas records
+  that closure revision as the current Tyche gitlink.
 
 ## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — hosted verification pending
 
