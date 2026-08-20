@@ -7,7 +7,7 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
-## ATLAS-AEQUITAS-DERIVED-UNITS-2026-08-20 — split derived-unit implementation leaf [patch] — in progress
+## ATLAS-AEQUITAS-DERIVED-UNITS-2026-08-20 — split derived-unit implementation leaf [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Aequitas checkout only.
 - **Scope:** `repos/aequitas/src/systems/si/units/derived/mod.rs` and the
@@ -21,6 +21,19 @@
 - **Evidence:** the clean-provider audit identified the sole residual at
   `src/systems/si/units/derived/mod.rs:6`; current Aequitas CI run
   `32321802445` reports 127 native tests and 26 passed/1 ignored doctests.
+- **Reconciled:** the delegated finding was stale by the time of the live
+  checkout. Aequitas `origin/main` and `HEAD` are both `809fc973`; commit
+  `809fc97 refactor(units): Split derived unit leaves` already satisfies the
+  requested structure. Fresh conformance reports `manifest_implementation=0`
+  with no regressions.
+- **Exact-head gates:** `cargo fmt --all -- --check`, MSVC-pinned locked
+  all-target Clippy, rustdoc, and `cargo nextest` (`127/127`) pass; doctests
+  pass (`17` runtime, `9` compile-fail, `1` ignored).
+- **Release residual:** `cargo package --locked` fails during packed-crate
+  verification because the registry `eunomia 0.8.0` lacks the landed
+  `FloatElement::cbrt` API used by Aequitas, while the local Git Eunomia head
+  provides it. This is an upstream registry-publication blocker, not a reason
+  to add a downstream compatibility path; release remains outside this item.
 
 ## ATLAS-CFDRS-HOSTED-FMT-2026-08-20 — repair required Rust format gate [patch] — in progress
 
