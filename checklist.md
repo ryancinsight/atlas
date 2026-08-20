@@ -17,6 +17,15 @@
 - [ ] Collect PR #27's hosted Rust and mdBook gates; merge only at green exact
       head, then verify the post-merge default and advance the Atlas gitlink.
 
+## ATLAS-LETO-BOOK-2026-08-20 — current session
+
+- [x] Diagnose Pages run `32396859195`: package staging passed; mdBook failed
+      only because both included examples lacked `extern crate leto;`.
+- [x] Add the explicit crate linkage, format, run strict Clippy, and execute
+      both examples at provider head `b500baf`.
+- [ ] Collect the rerun PR CI and Pages book gate; merge only at green exact
+      head, then verify the post-merge default and advance the Atlas gitlink.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Resolve and validate the Consus ADR-0045 P4 lane at local head
