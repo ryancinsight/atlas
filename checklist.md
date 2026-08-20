@@ -3,6 +3,18 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
+
+- [x] Reuse the stale merged MSRV lane as `worktrees/themis-book-test`.
+- [x] Add the shared workflow's executable mdBook inputs and current Atlas
+      workflow pin.
+- [x] Repair the two non-Rust book blocks and add explicit `themis` linkage to
+      both included examples.
+- [x] Run locked MSVC check, nextest, doctests, strict Clippy, both examples,
+      mdBook build, and strict links locally.
+- [ ] Collect PR #27's hosted Rust and mdBook gates; merge only at green exact
+      head, then verify the post-merge default and advance the Atlas gitlink.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Resolve and validate the Consus ADR-0045 P4 lane at local head

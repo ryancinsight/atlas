@@ -6,8 +6,10 @@
   workflow caller only, on the reusable `themis-book-test` lane. The existing
   book already has two included executable examples; acceptance is a provider
   PR adding the shared `mdbook-test` inputs, exact-head hosted book success,
-  and post-merge default verification. Non-goals are peer-owned Themis source,
-  lockfile, and MSRV work.
+  and post-merge default verification. PR [#27](https://github.com/ryancinsight/themis/pull/27)
+  is open at exact head `54c96a8b91176a94942334ea71d185813deccd7a`; hosted
+  checks are queued. Non-goals are peer-owned Themis source, lockfile, and
+  MSRV work.
 
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
