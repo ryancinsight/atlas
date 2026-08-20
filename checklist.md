@@ -6029,3 +6029,64 @@ largely delivered — the Athena audit located all of them. The live work is
 stages B, C and D, plus one real gap for backend-dependent solving: Athena's
 Hephaestus path carries no preconditioner, so accelerator PCG is currently
 unpreconditioned CG.
+
+## ATLAS-GAP-AUDIT-2026-08-20 stage delivery (owner: atlas-gap-audit)
+
+- [x] **ADR 0033 stage B — CFDrs**: [CFDrs#363](https://github.com/ryancinsight/CFDrs/pull/363).
+      The `cfd_math::iterative` re-export of the Leto family is deleted, the
+      duplicate leto `Preconditioner` impls collapse onto the Athena seam, and
+      `IterativeSolverConfig` becomes a CFDrs-owned type at
+      `cfd-math/src/linear_solver/config.rs` keeping its public name and fields,
+      so none of its ~56 call sites churn. 1424 passed / 0 failed / 5 skipped;
+      clippy `-D warnings` and warning-denied rustdoc clean on cfd-math.
+      Verified three load-bearing claims rather than accepting them: the 99-line
+      `cfd-validation/Cargo.toml` diff is pure CRLF normalisation with a
+      one-line content delta; the dropped `use_preconditioner` field had zero
+      read sites; the four deleted root `benches/`/`examples/` orphans sit under
+      a manifest with no `[package]` section and so were compiled by nothing,
+      partially closing CFDRS-GA-002.
+      The rewritten SSOR test was the real risk and it holds: Leto's
+      `SSORPreconditioner` is a full symmetric sweep while Athena's
+      `SuccessiveOverRelaxation` is the forward sweep `(D/omega+L)^-1`, a
+      different operator, so the old goldens could not carry over. The new
+      values were re-derived by closed-form substitution and independently
+      re-checked here — forward substitution on `tridiag(-1, 2, -1)` with
+      `omega = 1` and `r = 1` gives 0.5, 0.75, 0.875, 0.9375. The assertion
+      moved from existence-only (`is_finite`, `any != 0`) to exact values, so
+      coverage tightened rather than loosened.
+
+- [x] **Athena accelerator preconditioner gap**: [athena#15](https://github.com/ryancinsight/athena/pull/15).
+      `athena_hephaestus::Jacobi<D, T>` closes the hole that made accelerator
+      PCG unpreconditioned CG. It applies the inverse diagonal through
+      `hephaestus_core::DenseVectorOps::multiply_into`, so `athena-core`'s
+      `KrylovBackend` seam is not widened and neither `athena-leto` nor
+      Hephaestus is touched. Generic over `D: ComputeDevice` and the ops seam,
+      naming no vendor. 20 passed / 0 failed / 0 skipped.
+      Scoped to Jacobi deliberately: the ILU/triangular/SOR family applies as a
+      sequential triangular solve, a poor accelerator fit, and the module
+      documents that absence rather than shipping a naive device port.
+
+### Reference pattern for the vacuous-GPU-suite defect
+
+athena#15 is the worked example for P1 item 6 of
+`backlog.md#atlas-gap-audit-2026-08-20`, where Apollo, Coeus and Kwavers GPU
+suites report green having executed nothing. Three properties make it work and
+should be copied:
+
+1. A missing adapter **fails** each device case by default, naming the case.
+   Accepting host-only coverage requires setting
+   `ATHENA_HEPHAESTUS_DEVICE_OPTIONAL=1`, so a green run with zero device cases
+   is unreachable without an explicit, greppable acknowledgement.
+2. Executed cases print `DEVICE CASE EXECUTED (<case>) on <backend>`, so the
+   count is visible in the log rather than inferred.
+3. Liveness is proven by mutation, not assumed: inverting the inverse-diagonal
+   computation fails five tests including all four device cases. The behavioural
+   assertion is an inequality — preconditioned iterations strictly fewer than
+   unpreconditioned — rather than a pinned iteration count, so it stays valid
+   across backends.
+
+Remaining in the ADR 0033 sequence: stage C (Kwavers, in flight on
+`refactor/kwavers-athena-krylov`), then stage D, which deletes
+`leto-ops/src/application/linalg/iterative/` once B and C have both merged.
+No repository other than CFDrs and Kwavers imports that family.
+
