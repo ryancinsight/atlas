@@ -297,9 +297,10 @@ claim is inferred.
   after the active RITK collection. Local commit `28f6332` passes mdBook build,
   strict links across 14 Markdown files, and workflow-shape checks. PR
   [#108](https://github.com/ryancinsight/apollo/pull/108) is published at that
-  exact head; CI and shared Pages/book runs `32406467465`/`32406468053` are
-  queued. The Atlas gitlink remains at `0c6ffb9` until terminal hosted evidence
-  and post-merge default verification pass.
+  exact head; Rust run `32406467465` remains pending and shared Pages/book run
+  `32406468053` failed at job `96546609469`. The Atlas gitlink remains at
+  `0c6ffb9` until the exact failure is fixed, terminal hosted evidence passes,
+  and post-merge default verification completes.
 
 - **Hyperion chromophore provenance:** the current provider source table is
   value-semantic but its only regression oracle is the retired Kwavers table,

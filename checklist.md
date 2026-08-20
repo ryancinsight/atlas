@@ -105,9 +105,11 @@
       relative links), and workflow-shape checks pass in commit `28f6332`.
 - [x] Push PR [#108](https://github.com/ryancinsight/apollo/pull/108) at exact
       head `28f6332`; its CI and shared Pages/book runs
-      `32406467465`/`32406468053` are queued. Collect terminal exact-head
-      evidence, merge, verify the post-merge default, and advance the Atlas
-      gitlink only after those gates pass.
+      `32406467465`/`32406468053` are no longer queued: the Rust job remains
+      pending and `deploy / Build book` failed at job `96546609469`. Diagnose
+      and fix the exact failure before collecting terminal exact-head evidence;
+      merge, verify the post-merge default, and advance the Atlas gitlink only
+      after those gates pass.
 
 ## ATLAS-HYPERION-CHROMOPHORE-2026-08-20 — current session
 
@@ -151,7 +153,9 @@
       patch paths.
 - [ ] Push and collect hosted exact-head book evidence, then merge, verify the
       post-merge default, and advance the Atlas gitlink. PR #214 is published
-      at exact head `12ac021`; provider-contract and book checks are queued.
+      at exact head `12ac021`; provider-contract checks remain pending and
+      `deploy / Build book` failed at job `96544627958`. Diagnose and fix the
+      exact failure before collecting terminal evidence.
 
 ## ATLAS-COEUS-BOOK-TEST-2026-08-20 — current session
 
@@ -165,7 +169,9 @@
       overlay's primary-tree patch paths.
 - [ ] Push and collect hosted exact-head book evidence, then merge, verify the
       post-merge default, and advance the Atlas gitlink. PR #340 is published
-      at exact head `58122b9`; provider-contract and book checks are queued.
+      at exact head `58122b9`; WGPU/provider-contract checks remain pending and
+      `deploy / Build book` failed at job `96544630144`. Diagnose and fix the
+      exact failure before collecting terminal evidence.
 
 ## ATLAS-KWAVERS-DEFAULT-2026-08-20 — current session
 
