@@ -24,6 +24,23 @@
   peer-owned branch and is recorded separately; this root-only item does not
   edit that checkout.
 
+## ATLAS-AEQUITAS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
+
+- **Owner:** current Atlas session; clean Aequitas exact-main checkout.
+- **Claimed scope:** `repos/aequitas/.github/workflows/book-pages.yml` and the
+  nine existing `docs/book/**/*.md` Rust fences; no source or lockfile change.
+- **Acceptance:** the two included example programs and seven API snippets
+  execute through the shared `mdbook-test` job with the pinned Rust 1.97.0
+  toolchain; local `mdbook test` and `mdbook build` pass; the provider caller is
+  pinned to the current Atlas workflow and hosted exact-head Pages/book gates
+  pass.
+- **Baseline:** Aequitas `HEAD` and `origin/main` are both
+  `809fc973f5df8c0bc0810161851466535efa74db`; its caller currently leaves
+  `mdbook-test` disabled and every Rust fence is `rust,ignore`, so the previous
+  local book-test pass was existence-only.
+- **Non-goals:** no registry release, dependency refresh, or edits to the dirty
+  Aequitas degree lane.
+
 ## ATLAS-PUBLISH-GRAPH-DOCS-2026-08-20 — refresh release graph counts [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; root documentation only.
