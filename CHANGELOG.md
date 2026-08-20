@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Reconcile the publication documentation with the live book inventory: all 24
+  registered packages carry a book and Pages caller, 13 enable `mdbook test`,
+  and 11 remain tracked for executable sample coverage. Root docs build and
+  strict link checks cover all 24 books.
+
 - Integrate Helios PR #67 at provider default `423d6ec9`, including the
   `helios-python` abi3-py39 trusted-publishing workflow and package metadata;
   no PyPI release is performed.

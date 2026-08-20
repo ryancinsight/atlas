@@ -2,6 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-07-28
+- Last audited: 2026-08-20
 - Class: `[arch]` `[patch]`
 - Relates to: [ADR 0027](0027-provider-checkout-ssot.md),
   [ADR 0024](0024-criterion-regression-gate.md),
@@ -32,11 +33,12 @@ Every other line — release-tag parsing, package-name validation, manifest-vers
 agreement, `publish = false` rejection, the `--dry-run` content gate, the OIDC
 token request, and the publish call — is identical logic duplicated eight times.
 
-**Book publishing.** Four packages carry `book-pages.yml`: `CFDrs`, `helios`,
-`kwavers`, `ritk`. Three are 70 lines and one is 86. The only substantive
-difference is the built output directory (`target/book/cfdrs`,
-`target/book/helios`, `target/book`, `target/book/ritk`). None of the four runs
-`mdbook test`, so no book's code samples are currently protected against rot.
+**Book publishing.** All 24 registered packages now carry `book-pages.yml` and
+`docs/book/book.toml`. Thirteen callers enable `mdbook-test`; eleven still use
+the shared workflow's default `false` and remain completion items. Atlas's
+cross-book workflow builds all 24 books through its repository glob. The
+remaining substantive adoption gap is executable sample coverage, not book
+presence or root-gate registration.
 
 **Wheel publishing.** Already consolidated: Atlas owns
 [`python-wheels.yml`](../../.github/workflows/python-wheels.yml) as a
@@ -51,7 +53,9 @@ environment gate. No workflow in the stack reads a registry token from a secret.
 A PyPI API token was nonetheless added to the `pypi` environment; it is unused by
 the current workflows.
 
-**Book coverage.** Four of 25 packages have a book. Twenty-one have none.
+**Book coverage.** Twenty-four of 24 registered packages have a book. The
+current audit found zero missing book directories and eleven callers without
+the executable `mdbook-test` gate.
 
 ## Decision
 
@@ -155,19 +159,17 @@ fragment one field's theory across 173 crates and force every shared derivation
 to be restated, which is the duplication this stack exists to avoid; the
 consolidation rule applies to prose exactly as it does to code.
 
-Twenty-one missing books are board work sequenced provider-first, so a domain
-chapter can cite the substrate chapter it depends on. A new book joins the Atlas
-cross-book dead-link and build gate
-([`docs.yml`](../../.github/workflows/docs.yml)) in the change that creates it.
-`ritk` has a book that is absent from that gate; adding it is part of this ADR's
-work.
+All 24 books are present and join the Atlas cross-book dead-link and build gate
+([`docs.yml`](../../.github/workflows/docs.yml)) through its repository glob.
+The remaining board work is to make the eleven non-executable callers pass
+`mdbook-test` with their pinned toolchains.
 
 ### 6. `mdbook test` is adopted per book, not flipped globally
 
-Book code samples must be tested so chapters cannot rot. No book currently runs
-`mdbook test`, and enabling it stack-wide in one change would fail every book
-whose samples are illustrative rather than compilable — a regression authored
-blind.
+Book code samples must be tested so chapters cannot rot. Thirteen callers now
+run `mdbook test`; eleven still omit it because their current samples are not
+yet proven compilable under the shared workflow. Enabling the remaining callers
+requires the same per-book evidence rather than a blind stack-wide flip.
 
 The shared workflow therefore exposes `mdbook-test`, defaulting to `false`. Each
 book flips it to `true` in the change that makes its samples compilable. The
@@ -204,8 +206,8 @@ ATLAS-PUB-002 proceed independently of ATLAS-PUB-006.
 
 The three first-party Pages actions (`configure-pages`, `upload-pages-artifact`,
 `deploy-pages`) are referenced by major-version tag in `book-pages.yml`, matching
-the four existing package workflows. Commit-pinning them requires resolving each
-digest against its upstream repository; a digest that has not been resolved is
+the 24 package callers. Commit-pinning them requires resolving each digest
+against its upstream repository; a digest that has not been resolved is
 fabricated evidence and must not be committed. The gap is tracked as
 `ATLAS-PUB-004`.
 
@@ -217,7 +219,7 @@ fabricated evidence and must not be committed. The gap is tracked as
   (`ATLAS-PUB-006`). Nothing else in this ADR waits on it.
 
 - Eight duplicated crate-release workflows collapse to eight thin callers plus
-  one Atlas workflow; four book workflows collapse to four callers plus one.
+  one Atlas workflow; the 24 book callers share one Atlas workflow.
 - A pipeline defect is fixed once. Adoption is explicit and auditable: each
   package's Atlas pin says which pipeline revision it runs.
 - Toolchain pins stay per package. The audit's 1.95.0/1.97.0/1.97.1 spread is
@@ -237,18 +239,30 @@ book build has succeeded through the shared pipeline.
 
 | Package | Crate publish | Book | Wheel |
 | --- | --- | --- | --- |
-| `apollo` | migrate (toolchain 1.97.0) | absent | shared |
-| `CFDrs` | absent | migrate (`target/book/cfdrs`) | no release workflow |
-| `coeus` | migrate (1.95.0) | absent | shared |
-| `consus` | migrate (1.97.1) | absent | shared |
-| `helios` | absent | migrate (`target/book/helios`) | no release workflow |
-| `hephaestus` | migrate (1.95.0) | absent | shared |
-| `kwavers` | migrate (1.97.1, `atlas-ref`) | migrate (`target/book`) | shared |
-| `leto` | migrate (1.95.0) | absent | shared |
-| `moirai` | migrate (1.95.0) | absent | shared |
-| `ritk` | migrate (from `release.yml`) | migrate (`target/book/ritk`) + join `docs.yml` | shared |
-| `melinoe` | when first published | adopted (`target/book/melinoe`); `mdbook-test` flipped | when a binding crate exists |
-| remaining 15 packages | when first published | author book | when a binding crate exists |
+| `aequitas` | when first published | present; test pending | no binding workflow |
+| `apollo` | migrate (toolchain 1.97.0) | present; test pending | shared |
+| `asclepius` | when first published | present; test enabled | no binding workflow |
+| `athena` | when first published | present; test enabled | no binding workflow |
+| `CFDrs` | absent | present; test enabled | shared |
+| `coeus` | migrate (1.95.0) | present; test pending | shared |
+| `consus` | migrate (1.97.1) | present; test pending | shared |
+| `eunomia` | when first published | present; test enabled | no release workflow |
+| `gaia` | when first published | present; test pending | no binding workflow |
+| `harmonia` | when first published | present; test enabled | no binding workflow |
+| `helios` | absent | present; test enabled | shared |
+| `hephaestus` | migrate (1.95.0) | present; test pending | shared |
+| `hermes` | when first published | present; test pending | no binding workflow |
+| `horae` | when first published | present; test enabled | no binding workflow |
+| `hyperion` | when first published | present; test enabled | no binding workflow |
+| `iris` | when first published | present; test enabled | no binding workflow |
+| `kwavers` | migrate (1.97.1, `atlas-ref`) | present; test enabled | shared |
+| `melinoe` | when first published | present; test enabled | no binding workflow |
+| `mnemosyne` | when first published | present; test pending | no binding workflow |
+| `moirai` | migrate (1.95.0) | present; test enabled | shared |
+| `proteus` | when first published | present; test pending | no binding workflow |
+| `ritk` | migrate (from `release.yml`) | present; test pending | standalone `release.yml` |
+| `themis` | when first published | present; test pending | no binding workflow |
+| `tyche` | when first published | present; test enabled | no binding workflow |
 
 ## Alternatives rejected
 

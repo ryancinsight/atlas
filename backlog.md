@@ -7,6 +7,23 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
+## ATLAS-DOCS-BOOK-RECONCILE-2026-08-20 — reconcile book inventory and rot gates [patch] — done 2026-08-20
+
+- **Owner:** current Atlas session; root documentation and publication ADR only.
+- **Scope:** `README.md` and `docs/adr/0035-shared-publication-pipelines.md`.
+- **Evidence:** a live filesystem scan finds 24 `repos/*/docs/book/book.toml`
+  files and 24 provider `book-pages.yml` callers. Thirteen callers pass
+  `mdbook-test: true`; eleven still omit the executable sample gate. The root
+  `docs.yml` glob builds all 24 books, and the strict link scan reports zero
+  missing files, anchors, or read failures.
+- **Landed:** README and ADR 0035 now state the current 24-book inventory,
+  root-gate coverage, and exact 13/11 `mdbook-test` split. The remaining eleven
+  sample gates stay provider-owned completion items; no illustrative sample was
+  marked executable without hosted evidence.
+- **Residual:** RITK's wheel release workflow remains standalone on its
+  peer-owned branch and is recorded separately; this root-only item does not
+  edit that checkout.
+
 ## ATLAS-PUBLISH-GRAPH-DOCS-2026-08-20 — refresh release graph counts [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; root documentation only.

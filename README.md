@@ -913,15 +913,19 @@ the package's own Actions run through
 dumps: migration guides belong to the package `CHANGELOG.md` and execution state
 belongs to the boards, never to a chapter.
 
-At this revision four packages publish a book — `CFDrs`, `helios`, `kwavers`,
-and `ritk`. The remaining 21 have none. That is tracked board work, not an
-accepted steady state, and it is sequenced provider-first so a domain chapter
-can cite the substrate chapter it depends on.
+At this revision all 24 registered packages carry a book and a Pages caller:
+`aequitas`, `apollo`, `asclepius`, `athena`, `CFDrs`, `coeus`, `consus`,
+`eunomia`, `gaia`, `harmonia`, `helios`, `hephaestus`, `hermes`, `horae`,
+`hyperion`, `iris`, `kwavers`, `melinoe`, `mnemosyne`, `moirai`, `proteus`,
+`ritk`, `themis`, and `tyche`. Thirteen callers enable `mdbook test`; the
+remaining eleven are tracked completion work until their samples are
+executable under the shared toolchain.
 
 Atlas owns the cross-book invariant gate in
 [`docs.yml`](.github/workflows/docs.yml), which runs the portable dead-link
-detector in strict mode and an `mdbook` build over all four registered books. A
-new book joins that gate in the same change that creates it.
+detector in strict mode and an `mdbook` build over all 24 registered books. A
+new book joins that gate automatically through the repository glob in the same
+change that creates it.
 
 ## Publication
 
