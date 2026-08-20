@@ -14,8 +14,10 @@
       inferred.
 - [ ] Collect hosted verification and publish/merge Consus P4 lane at
       `2f9067ecb6711a3ba86ce0ed2636f34365dab83c` through PR
-      [#50](https://github.com/ryancinsight/consus/pull/50); CI queued.
-      Do not touch the detached dirty Consus rebase or the peer-owned Zarr lane.
+      [#50](https://github.com/ryancinsight/consus/pull/50). PR is CONFLICTING:
+      the `breaking(consus): remove package-owned S3 integrations` commit has
+      modify/delete conflicts with post-branch zarr crc32c/bytes additions
+      (PRs #47–#49). Rebase and conflict resolution required before CI can run.
 - [x] Correct Kwavers' Python comparison extras and source-install commands at
       provider commit `308d91594`: `kwave` now installs the MATLAB-free
       `k-wave-python` bridge, `matlab` owns the MATLAB Engine bridge, and the

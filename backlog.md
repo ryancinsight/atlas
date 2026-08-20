@@ -23,12 +23,15 @@
   advances independently to the already merged and hosted-green default
   `2a291a064` from PR #429; the PR #427 branch remains unintegrated until its
   own gates are terminal-green.
-- **Consus ADR-0045 P4 benchmark gate:** clean branch
-  `codex/adr-0045-p4-benchmark-parser` at `2f9067ec` published as PR
-  [#50](https://github.com/ryancinsight/consus/pull/50). Centralizes async I/O
-  in Moirai, removes package-owned S3 integrations, and adds the hosted
-  benchmark threshold gate. CI queued; merge requires terminal-green hosted
-  evidence.
+- **Consus ADR-0045 P4 benchmark gate:** PR
+  [#50](https://github.com/ryancinsight/consus/pull/50) is CONFLICTING.
+  Branch `codex/adr-0045-p4-benchmark-parser` at `2f9067ec` diverges from
+  current default `0e95c8f2`; the `breaking(consus): remove package-owned S3
+  integrations` commit has modify/delete conflicts with post-branch zarr
+  crc32c/bytes-codec additions in PRs #47–#49. The P4 lane must be rebased
+  with conflict resolution: either extend the S3 removal to the new files or
+  retain them and surgically remove only the pre-existing rusoto integration.
+  No merge or CI before the rebase conflict is resolved.
 - **Helios Apollo lock sweep:** branch `codex/helios-apollo-lock-sweep` at
   `25f04b6` published as PR [#68](https://github.com/ryancinsight/helios/pull/68).
   Advances Apollo `d585e0f5`→`0c6ffb91`, Moirai `3d5d4c66`→`3b812865`, Themis
@@ -190,14 +193,16 @@
 - **Scope:** `README.md` and `docs/adr/0035-shared-publication-pipelines.md`.
 - **Evidence:** a committed-gitlink scan at the provider defaults finds 24
   `repos/*/docs/book/book.toml` files and 24 provider `book-pages.yml` callers.
-  Seventeen callers pass `mdbook-test: true`; seven still omit the executable
-  sample gate: `apollo`, `coeus`, `consus`, `gaia`, `hephaestus`, `ritk`, and
-  `themis`. The root `docs.yml` glob builds all 24 books, and the strict link
-  scan reports zero missing files, anchors, or read failures.
+  Seventeen callers pass `mdbook-test: true`; Gaia's custom Pages caller runs
+  `mdbook test docs/book` directly; six still omit any executable sample gate:
+  `apollo`, `coeus`, `consus`, `hephaestus`, `ritk`, and `themis`. The root
+  `docs.yml` glob builds all 24 books, and the strict link scan reports zero
+  missing files, anchors, or read failures.
 - **Landed:** README, ADR 0035, and CHANGELOG now state the current 24-book
-  inventory, root-gate coverage, and exact 17/7 `mdbook-test` split. The
-  remaining seven sample gates stay provider-owned completion items; no
-  illustrative sample was marked executable without hosted evidence.
+  inventory, root-gate coverage, and exact 18/6 executable-gate split (17
+  shared callers plus Gaia's direct command). The remaining six sample gates
+  stay provider-owned completion items; no illustrative sample was marked
+  executable without hosted evidence.
 - **Residual:** RITK's wheel release workflow remains standalone on its
   peer-owned branch and is recorded separately; this root-only item does not
   edit that checkout.
@@ -4888,8 +4893,8 @@ converter; the existing bilinear differential remains the acceptance oracle.
 - Outcome: every published book runs `mdbook test` in CI so chapters cannot rot.
   The shared workflow defaults `mdbook-test` to `false` as a staging mechanism,
   not an accepted end state. The committed provider defaults currently have
-  seventeen callers with the gate enabled; the seven named residual callers
-  remain untested until their samples compile.
+  seventeen shared callers plus Gaia's direct command gate; the six named
+  residual callers remain untested until their samples compile.
 - Claim status (updated 2026-08-20):
   - **melinoe** — DONE: all fenced samples compilable; blocks referencing the
     crate carry `extern crate melinoe;` and link through a staged plain-named
