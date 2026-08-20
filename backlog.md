@@ -46,6 +46,10 @@
   CFDrs, Kwavers, and Helios; all committed gitlinks match fetched defaults.
   Lock-form, ADR-index, registry metadata, strict book-link detection, and
   mdBook builds pass for all 24 books.
+- That exact-head result is revision-scoped to the recorded audit. Helios PR
+  #68 is now merged and its Atlas pointer is current at `7ff72e3`; Kwavers
+  default has since advanced through PR #430 to `300f1425`, while Atlas still
+  records `33a980ac` pending the three remaining post-merge hosted runs.
 - Closure evidence for Hermes, Mnemosyne, and RITK is recorded in the
   adjacent provider items and `gap_audit.md`. The clean-checkout variant is
   intentionally not green: the latest exact run reports 15 checkout-head
