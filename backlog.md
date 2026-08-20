@@ -1,5 +1,21 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
+
+- Exact provider/integrator audit passes for the 22 requested providers and
+  CFDrs, Kwavers, and Helios; all committed gitlinks match fetched defaults.
+  Lock-form, ADR-index, registry metadata, strict book-link detection, and
+  mdBook builds pass for all 24 books.
+- Closure evidence for Hermes, Mnemosyne, and RITK is recorded in the
+  adjacent provider items and `gap_audit.md`. The clean-checkout variant is
+  intentionally not green: 14 peer-owned checkout heads drift from committed
+  gitlinks and 15 peer-owned checkouts are dirty. Preserved peer state includes
+  active Apollo/Kwavers work and the Hermes lockfile.
+- Live conformance scans expose residual ratchet work only in Aequitas and
+  Asclepius target directories, Moirai production SeqCst sites, RITK
+  implementation/commented-code counts, and Kwavers oversized-file/excess-lane
+  counts. No source or peer-owned work was reset, stashed, or deleted.
+
 ## ATLAS-TYCHE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
 - Owner: Atlas integration; provider scope is Tyche's Pages caller and PM/

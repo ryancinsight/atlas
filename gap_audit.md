@@ -1,5 +1,33 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-20: final exact-head and conformance boundary
+
+The exact-head provider integration audit passes for all 22 requested
+providers, and requested-provider coherence plus the CFDrs/Kwavers/Helios
+integrator checks pass. The lock-form audit resolves 27 standalone committed
+locks with only the sanctioned Melinoe in-tree fixture exempted; ADR indexing,
+registry metadata (253 manifests, zero violations), strict book-link detection,
+and mdBook builds pass for all 24 books.
+
+The clean-checkout variant remains intentionally red after normalizing the
+owned Mnemosyne and RITK closure checkouts: 14 checkout heads drift from
+committed gitlinks (`themis`, `proteus`, `consus`, `helios`, `aequitas`,
+`asclepius`, `moirai`, `hephaestus`, `coeus`, `apollo`, `gaia`, `hermes`,
+`CFDrs`, `kwavers`) and 15 checkouts are dirty (`themis`, `proteus`, `consus`,
+`helios`, `harmonia`, `eunomia`, `melinoe`, `leto`, `hephaestus`, `coeus`,
+`apollo`, `hermes`, `iris`, `CFDrs`, `kwavers`).
+The peer-owned Hermes `Cargo.lock`, Apollo benchmark branch, Kwavers lanes,
+and other active edits remain preserved.
+
+Live per-provider conformance scans report no regression for CFDrs, Apollo,
+Coeus, or Consus. They retain these measured residuals: Aequitas and
+Asclepius each report one derived `target_forks` directory; Moirai reports
+`seqcst_production` 107 versus baseline 101; RITK reports
+`manifest_implementation` 106 versus 105 and `commented_out_code` 9 versus
+8; Kwavers reports `oversized_files` 112 versus 111 and `excess_worktrees` 3
+versus 2. These are peer/derived-state cleanup items, not exact-head or
+publication failures; no target tree or live lane was deleted.
+
 ## Finding 2026-08-20: Hermes, Mnemosyne, and RITK closure sweep
 
 Hermes PR #57 merged at provider default
