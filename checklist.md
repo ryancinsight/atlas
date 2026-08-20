@@ -40,6 +40,17 @@
 - [ ] Merge only at green exact head, verify the post-merge default, and
       advance the Atlas gitlink without staging peer-owned RITK work.
 
+## ATLAS-APOLLO-BOOK-TEST-2026-08-20 — current session
+
+- [ ] Create a clean `apollo-book-test` lane from current provider default and
+      claim only `.github/workflows/book-pages.yml`; preserve peer Cargo.lock
+      and PM files.
+- [ ] Enable the shared executable book gate for the existing FFT and Parseval
+      includes; run mdBook build, strict links, and workflow-shape checks.
+- [ ] Push and collect hosted exact-head book evidence only after the active
+      RITK hosted collection is terminal; merge, verify post-merge default, and
+      advance the Atlas gitlink.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Resolve and validate the Consus ADR-0045 P4 lane at local head

@@ -23,6 +23,15 @@
   exact-head hosted book success, merge, and post-merge default verification at
   RITK's current default `d4a978fce40f37b3668afa5d98783626aaf74cff`.
 
+- **Apollo executable book gate:** current Atlas session claims only
+  `apollo/.github/workflows/book-pages.yml` on a clean `apollo-book-test` lane.
+  The existing FFT round-trip and Parseval examples are included by the book
+  and already carry value-semantic assertions. Acceptance is the shared
+  `mdbook-test` caller against `apollo-fft`, exact hosted book evidence, and
+  post-merge default verification. Apollo's peer-owned Cargo.lock, backlog,
+  and CHANGELOG work remain outside this item; the hosted gate is sequenced
+  after the active RITK collection.
+
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
   `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.
