@@ -44,7 +44,7 @@
   downstream compatibility path is added; registry publication/version
   alignment is external release work.
 
-## ATLAS-ASCLEPIUS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
+## ATLAS-ASCLEPIUS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Asclepius exact-main checkout only.
 - **Scope:** `repos/asclepius/.github/workflows/book-pages.yml`; the included
@@ -58,19 +58,17 @@
   omits `mdbook test`; both included book examples import `asclepius`, and the
   gEUD example imports Aequitas, so the shared package-staging path is the
   intended integration gate.
-- **Landed by peer:** commit `b660646` on
-  `ci/asclepius-book-test` is already pushed to the provider origin. It adds
-  exactly `mdbook-test: true`, Rust `1.97.0`, and `cargo-package: asclepius`;
-  no source or lockfile files changed.
+- **Landed and merged:** commit `b660646` merged through PR #22 at provider
+  default `2f6959b`; it adds exactly `mdbook-test: true`, Rust `1.97.0`, and
+  `cargo-package: asclepius`; no source or lockfile files changed.
 - **Local verification:** exact-head format, MSVC-pinned locked all-target
   Clippy, package build, nextest (`18/18`), doctests, and `mdbook build` pass.
-- **Hosted exact-head state:** verify and supply-chain jobs in run
-  `32330531241` pass; Pages build run `32330531493` remains queued. The
-  recurring `recurseml/analysis` error is report-only.
-- **Landed:** Asclepius commit `b660646` on `ci/asclepius-book-test`, PR #22
-  open. Enables `mdbook-test: true`, `rust-toolchain: "1.97.0"`,
-  `cargo-package: asclepius`; no source or lockfile changes. Verify and
-  supply-chain pass; only the Pages build remains queued.
+- **Hosted exact-head state:** verify and supply-chain run `32330531241` pass;
+  Pages build run `32330531493` passes and its deploy job is correctly skipped
+  for the pull-request event. The recurring `recurseml/analysis` error is
+  report-only.
+- **Definition of done:** PR #22 is merged, and Atlas must point at provider
+  default `2f6959b` in the next root integration commit.
 
 ## ATLAS-MOIRAI-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
 
