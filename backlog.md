@@ -241,10 +241,20 @@
   Fetched branch `origin/codex/leto-book` at `6a8079a` adds a skeleton, but its
   chapters still contain placeholder prose such as `Chapter prose deferred` and
   it has no merged PR or hosted evidence.
+- **Implementation:** provider commit `aaa823895bfbb8121f1f435abfb7c6bf6a48245c`
+  on PR [#119](https://github.com/ryancinsight/leto/pull/119) replaces the
+  skeleton with nine source-grounded chapters, two executable examples, crate
+  README linkage, and the pinned package-staged Pages caller. Local mdBook
+  build and strict links pass; the locked `leto` package check, nextest
+  `312/312`, both example executions, and `clippy -D warnings` pass under the
+  pinned MSVC toolchain after removing the session `RUSTC` override.
 - **Acceptance:** source-grounded chapters, runnable examples, a pinned
   `book-pages.yml` caller, provider CI/Pages success at the same head, and a
   root gitlink advance followed by `atlas-book-gate-audit.py --check` reporting
   25 book-bearing members.
+- **Pending:** PR CI, Pages book test, merge, and post-merge default verification
+  must bind to `aaa8238` before the Atlas gitlink advances. The unrelated dirty
+  Leto main-tree edits remain excluded.
 - **Non-goal:** no placeholder chapter is counted as a completed book and no
   provider dirty worktree is overwritten while this item is active.
 
