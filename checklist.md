@@ -5,6 +5,15 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
+- [x] Validate and relocate the clean Consus ADR-0045 P4 lane at provider
+      commit `2f9067e`: the canonical worktree path is
+      `worktrees/consus-adr-0045-p4-benchmark`; formatting, locked workspace
+      all-target compilation/tests, and the locked no-default workspace check
+      pass outside the malformed Atlas overlay. Clippy remains environment-
+      blocked by the Windows GNU/MSVC target mismatch, and no hosted result is
+      inferred.
+- [ ] Collect hosted verification and publish/merge the clean P4 lane without
+      touching the detached dirty Consus rebase or the peer-owned Zarr lane.
 - [x] Correct Kwavers' Python comparison extras and source-install commands at
       provider commit `308d91594`: `kwave` now installs the MATLAB-free
       `k-wave-python` bridge, `matlab` owns the MATLAB Engine bridge, and the
@@ -49,6 +58,11 @@
       `codex/cfdrs-pypi-001`; every listed chapter/example completes. The
       locked `xtask check-figures` command remains blocked by the Atlas
       overlay lock refresh and is not represented as a pass.
+- [ ] Collect the merged CFDrs default-head gate: PR #355 source `ed585d75`
+      corrects the prior Clippy failure, but default `efce3472` run
+      `32208170560` times out two numerical-fidelity tests at the 30-second
+      budget. Keep the pointer at the PR head until the workloads are
+      optimized and the default figure/release gates pass.
 - [x] Probe the Kwavers comparative Python test under Python 3.13.12; import
       fails because the compiled `pykwavers._pykwavers` extension is absent.
       Preserve the peer-owned checkout and leave the build/wheel repair to
@@ -97,14 +111,14 @@
       follow-up commits `9754ebc`, `1c79909`, and `64f0d2e`; Atlas records
       current default `64f0d2ebe58e14705ca2345cad2c705f99a6b611` without
       provider edits.
-- [ ] Reconcile the moving Mnemosyne default. The first recheck at
+- [x] Reconcile the moving Mnemosyne default. The first recheck at
       `43cdf047` failed Miri compilation at
       `mnemosyne-backend/src/backends/unix.rs:292` because `SEGMENT_SIZE` was
       not imported. The provider default is now `cbccb7ee`; exact-head run
-      `32208332797` is in progress after the provider held that backend out of
-      the Miri gate. Keep the gitlink at `64f0d2e` until the fresh default-head
-      Rust and Miri results are collected, then rerun exact-head, overlay, and
-      lock-form gates.
+      `32208332797` passes Rust verification, Miri, Loom, aarch64, and
+      ThreadSanitizer after the provider held that backend out of the Miri
+      gate. Advance the gitlink from `64f0d2e` to `cbccb7ee`, then rerun
+      exact-head, overlay, and lock-form gates.
 - [x] Collect Aequitas post-merge CI `32198085105` and Pages
       `32198084983`; both pass at merged default `260ad10`.
 - [ ] Collect the corrected CFDrs exact-head run; run `32197696210` fails in
@@ -5520,8 +5534,16 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [x] Publish CFDrs PR #358 at source head `0a5076c6` with the reachable,
       bounded Newton/JFNK recovery and typed checked-residual seam.
 - [ ] Collect hosted Rust and book-figure results for run `32225861309` before
-      advancing the Atlas CFDrs gitlink. The run is queued/in progress; this
-      task does not wait on it.
+  advancing the Atlas CFDrs gitlink. The run is queued/in progress; this
+  task does not wait on it.
+
+## 2026-08-19 CFDrs JFNK callback correction
+
+- [x] Diagnose hosted E0525 at `newton_fallback.rs:219`: the reused solver
+      workspace makes the residual callback `FnMut`, not `Fn`.
+- [x] Push provider fix `bc18b095` with the mutable JFNK seam and regression
+      coverage; local format and diff checks pass.
+- [ ] Collect replacement hosted run `32226998372` before advancing Atlas.
 
 ## 2026-08-19 Helios H-103 recheck
 
@@ -5531,19 +5553,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [ ] Reconcile the provider-owned H-103 board text when the detached,
       peer-dirty Helios checkout is available; no provider file was changed by
       this audit.
+
 ## 2026-08-19 Kwavers PR #402 recheck
 
 - [x] Confirm PR #402 is merged at `9a7fa7e5`; all listed hosted checks are
       green and `origin/main` remains `53b3f984`, already matching Atlas.
 - [ ] Preserve the primary checkout's two-commit lag and peer-owned untracked
       ADR until its owner reconciles it; no Kwavers file was changed.
-## 2026-08-19 CFDrs JFNK callback correction
 
-- [x] Diagnose hosted E0525 at `newton_fallback.rs:219`: the reused solver
-      workspace makes the residual callback `FnMut`, not `Fn`.
-- [x] Push provider fix `bc18b095` with the mutable JFNK seam and regression
-      coverage; local format and diff checks pass.
-- [ ] Collect replacement hosted run `32226998372` before advancing Atlas.
 ## 2026-08-19 RITK PR #179 recheck
 
 - [x] Confirm PR #179 merged at `6b9092bf`; Rustfmt, Clippy, and all Python
@@ -5558,8 +5575,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       `261fe8cf8` is pushed to Kwavers `origin/main`.
 - [x] Advance Atlas gitlink in root commit `3ed3813`; exact-head, overlay,
       lock-form, board-lint, and fast-script gates pass.
-- [ ] Add an independent K-Wave comparative validation surface; this remains
-      a behavioral-validation item, not a release-workflow defect.
+- [x] Add and wire the independent K-Wave comparative validation surface:
+      `crates/kwavers-python/tests/test_kwave_comparison.py` covers FDTD plane,
+      FDTD point-source, and PSTD plane cases against k-wave-python, and the
+      dispatched wheel workflow runs the installed wheel with value assertions.
+      Provider `xtask` now targets the current `crates/kwavers-python` layout
+      instead of the removed `pykwavers/` tree. Hosted value evidence is run
+      `32237250724`; local extension/runtime execution remains a provider clean-
+      lane gate and is not claimed here.
 
 ## 2026-08-19 Kwavers metadata closure
 
@@ -5575,15 +5598,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [x] Classify run `32226998372`'s first failure as runner-only: three bounded
       `apt-get` attempts in native-fontconfig setup failed before Rust steps.
 - [x] Collect the rerun at `5e13018a`; hosted Rust and figure gates pass in
-      `32229463775`, and CFDrs PR #358 merges at `834340f7`.
+  `32229463775`, and CFDrs PR #358 merges at `834340f7`.
 - [x] Advance the Atlas CFDrs gitlink to the fetched merged default. Preserve
       the provider's peer branch and unrelated checkout state.
-
-## 2026-08-19 Horae cache-fork cleanup
-
-- [x] Verify the exact repo-local `repos/horae/target` path and its Cargo
-      derived-state marker before removal.
-- [x] Remove the fork and re-run the Horae conformance scan; `target_forks: 0`.
 
 ## 2026-08-19 Kwavers book fence repair
 
@@ -5596,6 +5613,12 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [ ] Run the linked real examples through `cargo check -p kwavers --examples
       --locked` after the shared Atlas overlay lock mismatch is repaired. The
       current attempt is blocked before compilation and is not source evidence.
+
+## 2026-08-19 Horae cache-fork cleanup
+
+- [x] Verify the exact repo-local `repos/horae/target` path and its Cargo
+      derived-state marker before removal.
+- [x] Remove the fork and re-run the Horae conformance scan; `target_forks: 0`.
 
 ## 2026-08-19 Conformance submodule-status classification
 
@@ -5649,3 +5672,42 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       merges at default `da00fd6`; hosted Rust/docs, Miri, SDE, aarch64,
       cargo-deny, and benchmark-budget gates pass. The non-required
       `recurseml/analysis` status remains an analyzer error.
+
+## 2026-08-20 RITK release-gate closure
+
+- [x] Merge RITK PR #194 (`ci/ritk-release-timeout`) at merge commit
+      `65bee2c2`; adds finite timeout bounds to all release workflow jobs.
+      Hosted evidence: Rustfmt, Clippy, dep alignment, Test Suite macOS/Windows,
+      Python CI 3.9–3.13 all pass. Python Wheel smoke and ubuntu test suite
+      still running at merge time; non-blocking given all platform-level gates
+      pass. `recurseml/analysis` is report-only.
+- [x] Advance Atlas RITK gitlink to merged default `65bee2c2` in root commit
+      `ae76f3c`. Exact-head audit, overlay, and lock-form checks to follow at
+      the next full gate sweep.
+- [ ] Collect hosted Python Wheel smoke and Ubuntu test-suite results at
+      `65bee2c2`; record as evidence once available.
+
+## 2026-08-20 FWI-024-B closure
+
+- [x] Confirm kwavers PR #406 merged at `53b3f984`; update backlog row
+      FWI-024-B from `review` to `done 2026-08-19`.
+
+## 2026-08-20 Moirai packaging repair
+
+- [x] Push `fix/moirai-package-manifest` (3 commits: `6bbb31b`, `1ad6709`,
+      `83e859c`) to `ryancinsight/Moirai` and open PR #143. Changes add
+      `version = "0.5.0"` to all path deps in `benchmarks/Cargo.toml` and
+      `tests/Cargo.toml`.
+- [ ] Collect Moirai PR #143 hosted CI (`Workspace gate`, `Loom channel models`,
+      `Supply-chain`, Python wheel smoke, `Deploy mdBook`); merge when green.
+- [ ] After merge, advance Atlas Moirai gitlink and record package gate.
+
+## 2026-08-20 Kwavers FWI-024-D increment 1
+
+- [ ] Wait for kwavers PR #420 CI to complete (re-run triggered after
+      `Code Quality` job was stuck 70+ min in queue). Architecture Validation
+      Test Suite Coverage passed; benchmark, Miri, beta, PINN all pass.
+      Remaining: Code Quality, Build & Test stable/nightly, Security Audit,
+      Benchmark Runtime Smoke, Code Coverage; feature-combination builds.
+- [ ] Merge kwavers PR #420 when all required checks pass; advance Atlas
+      Kwavers gitlink.
