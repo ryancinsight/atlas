@@ -42,11 +42,13 @@ now carries exact head `aaa823895bfbb8121f1f435abfb7c6bf6a48245c`: nine
 source-grounded chapters, two executable examples, crate README linkage, and
 the pinned shared Pages workflow with package-staged `mdbook test`.
 
-Local evidence is complete for the provider source: mdBook build and strict
-link scan pass; locked `leto` package check with examples passes; nextest is
-312/312; both examples assert and print the documented values; and Clippy
-with `-D warnings` passes under Rust 1.97 MSVC after removing the session
-`RUSTC` override. Hosted CI run `32396858702` and Deploy mdBook run
+Local evidence for the book scope passes on the preserved Leto checkout:
+mdBook build and strict link scan pass; locked `leto` package check with
+examples passes; nextest is 312/312; both examples assert and print the
+documented values; and Clippy with `-D warnings` passes under Rust 1.97 MSVC
+after removing the session `RUSTC` override. Those local commands include the
+checkout's five pre-existing peer edits and therefore do not substitute for
+exact-PR evidence. Hosted CI run `32396858702` and Deploy mdBook run
 `32396859195` are still queued; recurseml analysis is report-only and red.
 The Atlas pointer remains unchanged until PR merge and post-merge default
 verification.
