@@ -120,6 +120,31 @@ rejected by the GitHub connector with HTTP 403 `Resource not accessible by
 integration`; no PR or hosted result is claimed. Re-open publication when
 repository write authorization is available.
 
+## ATLAS-THEMIS-REGION-MODULE-2026-08-20 — Split branded region implementation [arch][patch] — in progress
+
+Themis `src/branded/region/mod.rs` is a 481-line implementation file. It
+contains the `SyncRegionPlacement` capability, its NUMA-tag proof helper, scope
+construction, and tests, so the module manifest is not a manifest and the
+conformance scan records one `manifest_implementation` violation.
+
+**Scope:** Themis `src/branded/region/` only, plus the provider ADR/index and
+owner-local PM records. Move the existing implementation into a focused leaf
+module, retain `region/mod.rs` as the module manifest, and preserve every
+public path and safety argument. Do not touch the peer-owned primary checkout
+or unrelated platform/book changes.
+
+**Acceptance:** public exports and behavior remain unchanged; the region
+module manifest contains only module declarations and curated re-exports; the
+provider ADR index is synchronized; format, locked all-target check, warning-
+denied Clippy, nextest, doctests, and Rustdoc pass; the conformance scan drops
+Themis `manifest_implementation` by one without raising any class.
+
+**Owner:** current Atlas session. **Claimed files:** Themis
+`src/branded/region/`, provider ADR/index, and root `backlog.md`/`checklist.md`.
+The clean lane must be based on fetched Themis `origin/main` after the primary
+checkout's five-commit lag is reconciled by using a new lane, not by editing
+the dirty primary.
+
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
 Re-measured 2026-08-20 against the trees rather than the board. ADR 0033's

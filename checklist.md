@@ -6106,6 +6106,20 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       `Resource not accessible by integration`. Do not advance the Atlas
       gitlink or claim hosted verification until the PR exists and passes.
 
+## 2026-08-20 Themis branded-region module boundary
+
+- [x] Claimed the provider-only `src/branded/region/` split and preserved the
+      dirty primary checkout as peer-owned.
+- [ ] Create a clean lane from fetched Themis `origin/main` and move the
+      `SyncRegionPlacement` implementation and tests into a leaf module.
+- [ ] Add and index the as-built architecture ADR; preserve public exports and
+      safety comments.
+- [ ] Run format, locked all-target check, Clippy, nextest, doctests, Rustdoc,
+      and the provider conformance scan; the manifest-implementation count must
+      decrease without any other class increasing.
+- [ ] Publish the exact provider branch for review; hosted verification and
+      Atlas gitlink advancement remain separate follow-up states.
+
 ## ATLAS-GAP-AUDIT-2026-08-20 (owner: atlas-gap-audit)
 
 - [x] Dispatch one auditor per registered submodule against a single completeness
