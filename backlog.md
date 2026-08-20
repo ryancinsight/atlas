@@ -763,10 +763,10 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Active claim (atlas coordinator):** RITK release-workflow integration and
-  hosted-gate collection; scope is provider PR #194 and the Atlas pointer only
-  after its default head advances. Peer-owned source, consumer, and lane
-  checkouts remain out of scope.
+- **Active claim (atlas coordinator):** Kwavers post-merge pointer, overlay,
+  and lock-form recheck; scope is the merged provider default and Atlas-owned
+  integration evidence. Peer-owned source, consumer, and lane checkouts remain
+  out of scope.
 - **RITK claim closeout:** `RITK-DOC-GATE-210` is fixed in provider commit
   `9e1c276a`, which adds a warning-denied rustdoc CI job and corrects five
   public-doc/private-link or broken-link defects. Exact workspace rustdoc
@@ -827,6 +827,13 @@ nested Harmonia checkout remains provider-owned state.
   checks are pending. RecurseML reports an analyzer error only. Atlas remains
   at RITK `9e1c276a` until the provider default advances; no hosted success is
   inferred from pending checks.
+- **Kwavers PR #417 closeout:** the typed `Degree` adoption merged at provider
+  default `b571927442b074fb0622beabdf3f2535dff1951a`. Its Rust, Python-wheel,
+  benchmark, feature, Miri, security, documentation, k-Wave, and architecture
+  checks passed; Pages deployment was skipped and RecurseML remained
+  report-only. The Atlas pointer advances to this merge commit in the
+  integration increment below; the primary Kwavers checkout remains dirty on
+  peer branch `feat/aperture-sir-seam` and is not switched.
 - **Aequitas claim closeout:** dimensional-law tests were split into named
   angle and complex-value modules in provider commit `c908af1`; the focused
   nextest gate passes `40/40`, clippy passes with `-D warnings`, and Atlas
