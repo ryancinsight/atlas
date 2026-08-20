@@ -17,6 +17,23 @@
   `c2e7766847e3ef28125b809d98fe07250acc6cec`; post-merge runs remain a
   verification residual.
 
+## ATLAS-HYPERION-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — merged, post-merge verification pending
+
+- Owner: current Atlas session; provider scope was the Hyperion Pages caller
+  and its PM/changelog artifacts. No implementation or lockfile change was
+  made.
+- Acceptance: update the caller to the current Atlas reusable workflow while
+  retaining `mdbook-test: true`, Rust 1.97.0, `cargo-package: hyperion`, and
+  the existing output path; pass exact hosted source checks, merge the
+  provider, and verify the merged default before advancing the Atlas gitlink.
+- Evidence: provider commit `5e8d47008e01f401c8d1b464c30e2909ff1a56c8`, PR
+  [#19](https://github.com/ryancinsight/hyperion/pull/19), merged default
+  `719d84e80163b958cc5500b5fa44a5b01095d6d1`; exact PR `verify`,
+  `supply-chain`, and Pages book-build checks pass. Post-merge CI, Deploy
+  mdBook, and dynamic Pages runs are still in progress.
+- Delivery: Atlas gitlink now points to merged default; post-merge runs remain
+  a verification residual.
+
 ## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — hosted verification pending
 
 - Owner: Atlas integration; provider scope is the Hermes Pages caller and the

@@ -13097,3 +13097,15 @@ existing output path. Exact PR `verify`, `supply-chain`, and Pages book-build
 checks pass; post-merge CI, book, and dynamic Pages runs are still in progress.
 Atlas now records the merged default gitlink; those post-merge runs remain a
 verification residual until they terminate successfully.
+
+## Finding 2026-08-20: Hyperion shared-workflow pin merged
+
+Hyperion PR [#19](https://github.com/ryancinsight/hyperion/pull/19) merged
+source commit `5e8d47008e01f401c8d1b464c30e2909ff1a56c8` as provider default
+`719d84e80163b958cc5500b5fa44a5b01095d6d1`. The caller now pins the current
+Atlas reusable Pages workflow `1fcd17c6f7923cb1734756c15e0a5a39e333ee32`
+while retaining `mdbook-test: true`, Rust `1.97.0`, package `hyperion`, and the
+existing output path. Exact PR `verify`, `supply-chain`, and Pages book-build
+checks pass; post-merge CI, book, and dynamic Pages runs are still in progress.
+Atlas now records the merged default gitlink; those post-merge runs remain a
+verification residual until they terminate successfully.

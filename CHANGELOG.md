@@ -26,6 +26,12 @@
   Pages deployment runs remain in progress; Atlas now records the merged
   default gitlink.
 
+- Merge Hyperion PR #19 at source `5e8d47008e01f401c8d1b464c30e2909ff1a56c8`
+  as provider default `719d84e80163b958cc5500b5fa44a5b01095d6d1` after its
+  shared-workflow pin checks and book build pass. Post-merge CI, book, and
+  Pages deployment runs remain in progress; Atlas now records the merged
+  default gitlink.
+
 - Merge Proteus PR #14 and its PM closure PR #15 after the executable book gate
   passes: CI run `32338237653` and Pages build `32338238163` validate both
   included material examples; the pull-request Pages deployment is skipped.
