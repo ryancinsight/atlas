@@ -73,7 +73,7 @@
 - **Root worktree:** exact provider/integrator heads, overlay, registry
   metadata (`252` manifests, `0` violations), and 27 standalone lock forms
   pass locally. The intentional dirty-tree conformance snapshot reports
-  `609` oversized files, `675` implementation-bearing manifests, `1,196`
+  `609` oversized files, `674` implementation-bearing manifests, `1,196`
   production unwraps, `518` allow sites, `803` existence-only assertions, and
   `4` excess-worktree sites; these remain peer-owned ratchet debt rather than
   reproducible clean-tree gate results.
