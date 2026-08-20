@@ -83,6 +83,21 @@
   deployment was correctly skipped for the pull request. Definition of done
   is met.
 
+## ATLAS-MNEMOSYNE-BOOK-TEST-2026-08-20 — enable executable book examples [patch] — in progress
+
+- **Owner:** current Atlas session; Mnemosyne source scope with the peer-staged
+  `Cargo.lock` preserved untouched.
+- **Claimed scope:** `repos/mnemosyne/.github/workflows/book-pages.yml`, the
+  two included allocator examples, and Mnemosyne PM/changelog artifacts.
+- **Baseline:** the two `rust` book inclusions are real Cargo examples, but
+  the caller invokes the shared Pages workflow without package staging, so
+  standalone `mdbook test` cannot resolve `mnemosyne`.
+- **Acceptance:** stage package `mnemosyne-memory` under library target
+  `mnemosyne`, execute both included examples through the shared Rust 1.97.0
+  Pages gate, and collect exact hosted CI/Pages evidence.
+- **Non-goals:** no allocator implementation, dependency, lockfile, or
+  peer-owned worktree changes.
+
 ## ATLAS-KWAVERS-DISTRIBUTED-QUEUE-2026-08-20 — close queue completion and deadline contracts [patch] — in progress
 
 - **Owner:** current Atlas session; detached Kwavers checkout with a disjoint
