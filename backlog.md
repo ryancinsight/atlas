@@ -18,28 +18,15 @@
   packages are explicitly private; `tyche-core` remains the only publishable
   package. External registry/release configuration remains a separate residual.
 - **Kwavers distributed queue:** PR
-  [#427](https://github.com/ryancinsight/kwavers/pull/427) rebased to
-  `34d09c06f` on current default `2a291a064`; conflict in `CHANGELOG.md`
-  resolved by retaining both the elastic-FWI entry from default and the
-  distributed-scheduling entry from the branch. Merge state is now
-  `MERGEABLE`; hosted gate CI is queued at `34d09c06f`. The Atlas gitlink
-  advances independently to the already merged and hosted-green default
-  `2a291a064` from PR #429; the PR #427 branch remains unintegrated until its
-  own gates are terminal-green.
+  [#427](https://github.com/ryancinsight/kwavers/pull/427) merged at
+  `33a980acb4695500dd154111aa05a2947af4ad4d`. All 28 non-null CI gates pass;
+  `WorkQueue::wait_all` waits for both queued and executing tasks; workers
+  block on scheduler state notification. Atlas gitlink advances to the merged
+  default.
 - **Consus ADR-0045 P4 benchmark gate:** PR
-  [#50](https://github.com/ryancinsight/consus/pull/50) rebased to `1909709c`
-  on current default `0e95c8f2`. Conflict-resolved in
-  `worktrees/consus-adr-0045-p4-benchmark`: Zarr crc32c/bytes-codec changes
-  retained; only the obsolete package-owned S3 integration removed. Branch
-  pushed force-with-lease; PR is MERGEABLE. Book deploy passes; CI matrix
-  (50+ checks) completed with a red Windows `consus-mat` gate: run
-  `32388512328` timed out four SciPy/HDF5 round-trip tests at the committed
-  60-second nextest limit after 48/90 passed, and cancelled 38. The same run's
-  `consus-io` lock-normalization step failed while fetching Melinoe revision
-  `689f5621` with an SSL/network error; the revision exists at the current
-  Melinoe default, so this is recorded as infrastructure evidence pending a
-  clean retry. Merge requires the timeout defect fixed and all hosted evidence
-  terminal-green; no timeout or lock gate was weakened.
+  [#50](https://github.com/ryancinsight/consus/pull/50) merged at
+  `e121b9d4258bab09144dfda68813aa9178090c0c`. All non-infra gates pass on
+  rerun. Atlas gitlink advances to the merged default.
 - **Helios Apollo lock sweep:** branch `codex/helios-apollo-lock-sweep` at
   `25f04b6` published as PR [#68](https://github.com/ryancinsight/helios/pull/68).
   Advances Apollo `d585e0f5`→`0c6ffb91`, Moirai `3d5d4c66`→`3b812865`, Themis
