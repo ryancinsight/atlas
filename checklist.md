@@ -56,6 +56,9 @@
 - [x] Enable the shared executable book gate, run the focused local checks and
       strict links; PR #202 merged as `ad508525` while hosted checks were
       queued.
+- [x] Fix the shared hashless dependency staging defect at Atlas `20c9398` and
+      publish RITK PR #204 at `9bc47d42`; CI `32410451435` and book
+      `32410452203` are queued for exact-head validation.
 - [ ] Collect the merged-default Rust, Python, and book runs
       `32404089256`/`32404089147`/`32404089897`; advance the Atlas gitlink only
       after terminal passing evidence, and fix forward any failure.

@@ -38,12 +38,13 @@ Fresh all-22 read-only recheck: all requested providers are registered; 21/22
 requested gitlinks match fetched `origin/main`, with RITK stale at `d4a978f` vs
 `ad508525`, and Kwavers also stale at `459f18e` vs `78af725`. The registry
 metadata scan is 253 manifests / 0 violations and committed-lock form is
-27/27 clean. The generated development overlay has zero lag/pin-drift findings
-but is freshness-stale because it omits `moirai-http`; 21/22 requested
-checkouts are peer-dirty or head-mismatched, so checkout cleanliness is not
-provider evidence. No provider builds, tests, hosted CI, or release gates are
-claimed green by this recheck. The root README publish-order count was stale
-(`183` vs the script's `180`) and is corrected in root commit `0b24997`.
+27/27 clean. The generated development overlay had zero lag/pin-drift findings
+and its freshness defect (the omitted `moirai-http` entry) is fixed by root
+commit `3d2f926`; the current overlay check passes. 21/22 requested checkouts
+are peer-dirty or head-mismatched, so checkout cleanliness is not provider
+evidence. No provider builds, tests, hosted CI, or release gates were claimed
+green by this recheck. The root README publish-order count was stale (`183` vs
+the script's `180`) and is corrected in root commit `0b24997`.
 
 **Outcome:** close the four cross-cutting deficits the audit isolated, in the
 order below, so that a green gate means what it claims.
@@ -170,7 +171,12 @@ claim is inferred.
   `32402257906`/`32402258085`/`32402259004` were still queued at merge. Default
   CI, Python, and book runs `32404089256`/`32404089147`/`32404089897` are now
   queued. Acceptance remains terminal passing evidence on the merged default;
-  Atlas does not advance the gitlink from `d4a978f` until then.
+  Atlas does not advance the gitlink from `d4a978f` until then. The book run
+  failed with `E0460` because the shared workflow selected a hashless
+  dependency artifact by directory order; root `20c9398` preserves Cargo
+  artifact hashes, and RITK PR [#204](https://github.com/ryancinsight/ritk/pull/204)
+  adopts it at `9bc47d42`. Its CI and book runs `32410451435`/`32410452203`
+  remain queued.
 
 - **Apollo executable book gate:** current Atlas session claims only
   `apollo/.github/workflows/book-pages.yml` on a clean `apollo-book-test` lane.
