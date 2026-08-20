@@ -16,6 +16,14 @@
   overlay check, registry metadata scan (`252` manifests, `0` violations,
   `0` unverified), and standalone lock-form check (`27` locks plus the
   documented in-tree Melinoe fixture exemption) pass against this state.
+- **Aequitas:** provider commit `809fc973f5df8c0bc0810161851466535efa74db`
+  splits the derived SI units into six domain-named leaves and leaves
+  `derived/mod.rs` as a manifest/re-export surface. The clean-provider
+  conformance residual `manifest_implementation=1` is now `0`, with every
+  other class unchanged at zero. Pinned-MSVC Clippy passes, Nextest passes
+  `127/127`, doctests pass `17 + 9` compile-fail cases with one ignored, and
+  rustdoc completes; the current Atlas pointer is advanced in this increment.
+  Hosted validation for the new provider commit remains required.
 - **RITK:** fetched `origin/main` is
   `9e1c276a3c56324a1e429f71fa2fb14e3883f5d1`, the warning-free rustdoc
   increment. PR #194 adds finite release-job bounds at `337f0dc5`; its hosted
