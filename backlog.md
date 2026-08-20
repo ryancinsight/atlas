@@ -1,5 +1,34 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-FIGURE-PROVENANCE-2026-08-20 — Remove fabricated quantitative book figures [arch] — in progress
+
+The root figure generator currently renders fixed numerical-looking benchmark,
+validation, and optimization series from chapter titles alone. Those figures
+have no input data, provenance manifest, analytical oracle, or derived error
+bound, so their labels can be read as measured evidence without evidence.
+
+**Scope:** `scripts/generate_book_figures/`, its focused tests, ADR 0049, and
+this item's PM entries. Remove the metadata-only quantitative templates and
+route those titles to the conceptual hub template. Preserve input-sensitive
+conceptual diagrams and the generator's fixed-point behavior.
+
+**Non-goals:** inventing a numerical-data schema without a current producer,
+regenerating provider book assets, or changing provider source code. A future
+data-backed figure producer must supply typed data, provenance, oracle, and
+tolerance metadata under a separate item.
+
+**Acceptance:** metadata-only generation cannot emit the removed analytical,
+simulated, benchmark, or Pareto series; routing tests cover the changed
+classification; focused Python tests and the full Atlas Python suite pass;
+ADR 0049 and the index are synchronized.
+
+**Owner:** current Atlas session. **Claimed files:**
+`scripts/generate_book_figures/routing.py`,
+`scripts/generate_book_figures/templates.py`,
+`scripts/tests/test_generate_book_figures_routing.py`,
+`docs/adr/0049-book-figure-provenance.md`, `docs/adr/README.md`,
+`backlog.md`, `checklist.md`.
+
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
 Re-measured 2026-08-20 against the trees rather than the board. ADR 0033's
