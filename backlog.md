@@ -7,9 +7,9 @@
   `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.
   Live Pages `https://ryancinsight.github.io/ritk/` returns HTTP 200 with title
   `Introduction - atlas/RITK: Medical Image Processing and Registration`.
-  PM closure PR [#199](https://github.com/ryancinsight/ritk/pull/199) opened
-  at `fc24a12d`; CI queued. Atlas gitlink advances to PM closure rev pending
-  terminal-green evidence.
+  PM closure PR [#199](https://github.com/ryancinsight/ritk/pull/199) merged at
+  `ee76393fff7aaeae1a0c9f2712bcf8b8062c5303`; its docs-only closure records
+  the same hosted evidence. Atlas advances its gitlink to the merged PM head.
 - **Tyche publication boundary:** PR
   [#30](https://github.com/ryancinsight/tyche/pull/30) merged at provider
   default `bfe6ab72915ff1d29357dd6895c39a11baecfbc0`. Post-merge CI
