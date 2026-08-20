@@ -24,14 +24,14 @@ claimed.
 Kwavers PR #427 remains open at rebased head
 `34d09c06fc3685aee0c9c1e07e96e819077788cd`
 with `mergeStateStatus=UNSTABLE` and `mergeable=true`. The fetched provider default has advanced to
-`2a291a0644f07e00f45368dcef6d60b804e5cc08`, so the exact-head audit now
-reports the Atlas gitlink `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a` as
-behind. That default is the merged PR #429 head and its CI/CD,
+`2a291a0644f07e00f45368dcef6d60b804e5cc08`; before the pointer update, the
+exact-head audit reported the Atlas gitlink `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`
+as behind. That default is the merged PR #429 head and its CI/CD,
 legacy-migration, architecture, and Pages runs are green, so Atlas advances
 the gitlink to `2a291a064` while preserving the separately dirty PR #427
 checkout and its uncommitted peer edits. PR #427 is now rebased at `34d09c06`
-and has fresh hosted gates queued; it remains an external integration
-requirement.
+and has fresh hosted gates queued; the 22-provider exact-head audit is now
+green while PR #427 remains an external integration requirement.
 
 ## Finding 2026-08-20: final exact-head and conformance boundary
 
