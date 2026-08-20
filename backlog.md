@@ -453,6 +453,13 @@ claim is inferred.
   checkout five commits behind origin. The run raises no baseline and does
   not discard peer or derived state.
 
+- **Stack formatting sweep:** `scripts/atlas-fmt-check.py` passes for 23 of 24
+  registered members. CFDrs reports 42 pre-existing unformatted files on the
+  peer-owned `codex/cfdrs-tvd-test-integration` branch; no formatting rewrite
+  was applied across that dirty claim. The corrected environment also passes
+  toolchain preflight, version coherence, standalone lock-form (27 locks),
+  registry metadata (253 manifests), board-ID lint, and strict book links.
+
 - **Kwavers moving default:** fetched `origin/main` is now
   `0e786481cbcf3adad41ccb1f3efa6c94f6dc3f53`, after merged PR #436. Earlier
   hosted runs at `58b51ef3` cannot authorize the stale Atlas pointer
