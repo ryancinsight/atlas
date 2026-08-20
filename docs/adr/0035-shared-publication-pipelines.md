@@ -34,9 +34,10 @@ agreement, `publish = false` rejection, the `--dry-run` content gate, the OIDC
 token request, and the publish call — is identical logic duplicated eight times.
 
 **Book publishing.** All 24 registered packages now carry `book-pages.yml` and
-`docs/book/book.toml`. Seventeen callers enable `mdbook-test`; seven still use
-the shared workflow's default `false` and remain completion items: `apollo`,
-`coeus`, `consus`, `gaia`, `hephaestus`, `ritk`, and `themis`. Atlas's
+`docs/book/book.toml`. Seventeen callers enable the shared `mdbook-test`
+input, and Gaia's custom caller runs `mdbook test` directly. Six callers still
+omit an executable sample gate: `apollo`, `coeus`, `consus`, `hephaestus`,
+`ritk`, and `themis`. Atlas's
 cross-book workflow builds all 24 books through its repository glob. The
 remaining substantive adoption gap is executable sample coverage, not book
 presence or root-gate registration.
@@ -55,8 +56,9 @@ A PyPI API token was nonetheless added to the `pypi` environment; it is unused b
 the current workflows.
 
 **Book coverage.** Twenty-four of 24 registered packages have a book. The
-2026-08-20 committed-gitlink audit found zero missing book directories and
-seven callers without the executable `mdbook-test` gate.
+2026-08-20 committed-gitlink audit found zero missing book directories and six
+callers without any executable sample gate. Gaia is counted separately because
+its custom workflow runs `mdbook test docs/book` instead of the shared input.
 
 ## Decision
 
@@ -162,15 +164,21 @@ consolidation rule applies to prose exactly as it does to code.
 
 All 24 books are present and join the Atlas cross-book dead-link and build gate
 ([`docs.yml`](../../.github/workflows/docs.yml)) through its repository glob.
-The remaining board work is to make the seven non-executable callers pass
+The remaining board work is to make the six non-executable callers pass
 `mdbook-test` with their pinned toolchains.
 
 ### 6. `mdbook test` is adopted per book, not flipped globally
 
-Book code samples must be tested so chapters cannot rot. Seventeen callers now
-run `mdbook test`; seven still omit it because their current samples are not
-yet proven compilable under the shared workflow. Enabling the remaining callers
+Book code samples must be tested so chapters cannot rot. Eighteen callers now
+run `mdbook test`: seventeen through the shared input and Gaia through its
+custom workflow. Six still omit it because their current samples are not yet
+proven compilable under the shared workflow. Enabling the remaining callers
 requires the same per-book evidence rather than a blind stack-wide flip.
+
+The committed-gitlink inventory is mechanically classified by
+`scripts/atlas-book-gate-audit.py --check`; `--require-gates` is the explicit
+closure check and remains red while the six tracked provider residuals are
+open.
 
 The shared workflow therefore exposes `mdbook-test`, defaulting to `false`. Each
 book flips it to `true` in the change that makes its samples compilable. The

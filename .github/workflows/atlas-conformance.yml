@@ -20,6 +20,8 @@ on:
       - 'scripts/adr-index.py'
       - 'scripts/atlas-lock-form.py'
       - 'scripts/atlas-registry-metadata.py'
+      - 'scripts/atlas-book-gate-audit.py'
+      - 'scripts/tests/test_atlas_book_gate_audit.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
       - 'backlog.md'
@@ -34,6 +36,8 @@ on:
       - 'scripts/adr-index.py'
       - 'scripts/atlas-lock-form.py'
       - 'scripts/atlas-registry-metadata.py'
+      - 'scripts/atlas-book-gate-audit.py'
+      - 'scripts/tests/test_atlas_book_gate_audit.py'
       - 'scripts/conformance-baseline.json'
       - '.github/workflows/atlas-conformance.yml'
       - 'backlog.md'
@@ -92,6 +96,14 @@ jobs:
         # as baseline-update candidates and pass. Fix new debt at the source —
         # never by editing the baseline upward (that edit is the gamed ratchet
         # the gate exists to catch in review).
+
+      - name: Book gate audit (committed provider revisions)
+        shell: bash
+        run: python3 scripts/atlas-book-gate-audit.py --check
+
+      - name: Book gate audit regression tests
+        shell: bash
+        run: python3 -m unittest scripts/tests/test_atlas_book_gate_audit.py
 
       - name: Committed Cargo.lock form (standalone, not overlay-stripped)
         shell: bash

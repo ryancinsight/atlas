@@ -34,7 +34,11 @@
   `25f04b6` published as PR [#68](https://github.com/ryancinsight/helios/pull/68).
   Advances Apollo `d585e0f5`→`0c6ffb91`, Moirai `3d5d4c66`→`3b812865`, Themis
   `d0fcce7a`→`0484a333` in `Cargo.lock`; no Helios source or manifest change.
-  CI queued; merge requires terminal-green hosted evidence.
+  Exact-head MSVC verification passes: format, locked metadata, full workspace
+  check, warning-denied workspace Clippy, and Nextest run
+  `4bfa9901-c55a-4cc1-a23f-b90d8f1542f8` with 262/262 tests and 9 skips.
+  Hosted PR #68 CI remains queued; merge requires terminal-green hosted
+  evidence.
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 
@@ -196,6 +200,11 @@
   `apollo`, `coeus`, `consus`, `hephaestus`, `ritk`, and `themis`. The root
   `docs.yml` glob builds all 24 books, and the strict link scan reports zero
   missing files, anchors, or read failures.
+- **Mechanized audit:** `python scripts/atlas-book-gate-audit.py --check` at
+  the committed root revision reports 24 inventory entries with 17 shared
+  gates, Gaia's direct command gate, and six explicit residuals. The strict
+  closure form is `--require-gates`; it is intentionally not a merge gate
+  until the six provider-owned sample items are complete.
 - **Landed:** README, ADR 0035, and CHANGELOG now state the current 24-book
   inventory, root-gate coverage, and exact 18/6 executable-gate split (17
   shared callers plus Gaia's direct command). The remaining six sample gates

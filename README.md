@@ -917,10 +917,15 @@ At this revision all 24 registered packages carry a book and a Pages caller:
 `aequitas`, `apollo`, `asclepius`, `athena`, `CFDrs`, `coeus`, `consus`,
 `eunomia`, `gaia`, `harmonia`, `helios`, `hephaestus`, `hermes`, `horae`,
 `hyperion`, `iris`, `kwavers`, `melinoe`, `mnemosyne`, `moirai`, `proteus`,
-`ritk`, `themis`, and `tyche`. Seventeen callers enable `mdbook test`; the
-remaining seven are tracked completion work until their samples are
-executable under the shared toolchain: `apollo`, `coeus`, `consus`, `gaia`,
+`ritk`, `themis`, and `tyche`. Seventeen callers enable the shared
+`mdbook-test` input, and Gaia's custom Pages workflow runs `mdbook test`
+directly. The six remaining callers are tracked completion work until their
+samples are executable under the shared toolchain: `apollo`, `coeus`, `consus`,
 `hephaestus`, `ritk`, and `themis`.
+
+The committed-gitlink inventory and executable-gate classification are checked
+by `python scripts/atlas-book-gate-audit.py --check`; use
+`--require-gates` when evaluating closure of the six provider residuals.
 
 Atlas owns the cross-book invariant gate in
 [`docs.yml`](.github/workflows/docs.yml), which runs the portable dead-link
