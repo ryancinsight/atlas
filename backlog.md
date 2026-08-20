@@ -12,9 +12,10 @@
 - **Kwavers:** fetched `origin/main` is
   `64b982bdbfc2b7e36f11971947f5bdd8ed59d1f1`, the merge of PR #418 after
   ADR 112 was committed with its required Aequitas `Degree` surface. Atlas
-  still points at the preceding `b5719274` head until this integration
-  increment updates the root gitlink; the exact-head, overlay, registry, and
-  lock-form gates will be rerun against the new pointer.
+  now points at this head in root commit `178e598`. The exact-head audit,
+  overlay check, registry metadata scan (`252` manifests, `0` violations,
+  `0` unverified), and standalone lock-form check (`27` locks plus the
+  documented in-tree Melinoe fixture exemption) pass against this state.
 - **RITK:** fetched `origin/main` is
   `9e1c276a3c56324a1e429f71fa2fb14e3883f5d1`, the warning-free rustdoc
   increment. PR #194 adds finite release-job bounds at `337f0dc5`; its hosted
