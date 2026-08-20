@@ -6117,8 +6117,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [ ] Run format, locked all-target check, Clippy, nextest, doctests, Rustdoc,
       and the provider conformance scan; the manifest-implementation count must
       decrease without any other class increasing.
-- [ ] Publish the exact provider branch for review; hosted verification and
-      Atlas gitlink advancement remain separate follow-up states.
+- [x] Publish the exact provider branch for review at `32c40a7`; hosted
+      verification and Atlas gitlink advancement remain separate follow-up
+      states.
+
+The provider branch is published at `32c40a7`; GitHub compare reports two
+commits ahead of `c76a55e`. Draft PR creation is blocked by connector HTTP 403
+`Resource not accessible by integration`, so no hosted evidence or gitlink
+advance is claimed.
 
 ## ATLAS-GAP-AUDIT-2026-08-20 (owner: atlas-gap-audit)
 

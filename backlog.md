@@ -145,6 +145,22 @@ The clean lane must be based on fetched Themis `origin/main` after the primary
 checkout's five-commit lag is reconciled by using a new lane, not by editing
 the dirty primary.
 
+**Implementation evidence (2026-08-20):** clean lane branch
+`fix/themis-region-module` is based on `origin/main`
+`c76a55e5eb9988b48bba69e67d6e07ce5fe55ea8` and publishes commits `7b30088`
+and `32c40a7`. `region/mod.rs` is now a manifest with curated re-exports and
+the implementation/tests are in `region/scope.rs`; ADR 0003 and the provider
+backlog/gap audit are synchronized. Locked all-target check, format,
+warning-denied Clippy, nextest (`25/25`), doctests (`5/5`), and Rustdoc pass.
+The lane conformance scan reports `manifest_implementation: 1` versus `2` on
+the fetched provider default, with every other Themis class unchanged.
+
+**Publication blocker:** GitHub compare confirms base `c76a55e` → head
+`32c40a7` is two commits ahead with the provider implementation and PM files.
+Draft PR creation was rejected by the GitHub connector with HTTP 403
+`Resource not accessible by integration`; no PR or hosted result is claimed.
+Re-open publication when repository write authorization is available.
+
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
 Re-measured 2026-08-20 against the trees rather than the board. ADR 0033's
