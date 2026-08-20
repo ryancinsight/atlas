@@ -267,8 +267,8 @@ claim is inferred.
   merged at default `c76a55e5eb9988b48bba69e67d6e07ce5fe55ea8` after exact
   PR CI `32399070177`, MSRV `32399070178`, and book build `32399070626`
   passed. Post-merge CI `32402753573`, MSRV `32402753617`, and Pages/book
-  runs `32402754181`/`32402752669` remain queued. The Atlas gitlink already
-  equals that merged default; only terminal default-head evidence remains.
+  run `32402752669` now pass, including deployment job `96545229314`; the
+  live page returns HTTP 200. The Atlas gitlink equals that merged default.
 
 - **RITK executable book gate:** current Atlas session claims the provider
   workflow caller and existing executable samples only, on the reusable
@@ -330,15 +330,19 @@ claim is inferred.
   acceptance is the shared `mdbook-test` caller for `hephaestus-host`, exact
   hosted book evidence, and post-merge default verification. Peer-owned
   FDTD/docs/ADR work in the primary checkout remains outside this item. Local
-  commit `12ac021156a95fe8c5c1d3c9347809245ddad0e2` passes diff-check, mdBook
+  commit `e0abb039c62498fdcb1d5948e12fcb02f51065ce` passes diff-check, mdBook
   build, strict links (14 files/13 links), and workflow-shape checks. The
   locked package build is blocked before compilation by the shared Atlas
   overlay resolving primary-tree patches from the clean lane; hosted Linux is
   the package gate. Push and hosted collection remain sequenced behind the
   active merged-default runs.
-  The exact lane head is now published as PR [#214](https://github.com/ryancinsight/hephaestus/pull/214)
-  at `12ac021156a95fe8c5c1d3c9347809245ddad0e2`; provider feature-contract
-  and book checks are queued.
+  The failed exact-head book job was caused by missing explicit crate
+  declarations in the included examples. The lane now adds those declarations,
+  removes two unused imports, and repins Atlas staging to `20c9398`. PR
+  [#214](https://github.com/ryancinsight/hephaestus/pull/214) is at
+  `e0abb039c62498fdcb1d5948e12fcb02f51065ce`; its provider and book runs
+  `32413789427`/`32413789452`/`32413789434`/`32413789435`/`32413790294` are
+  queued.
 
 - **Coeus executable book gate:** current Atlas session claims only
   `coeus/.github/workflows/book-pages.yml` on a clean `coeus-book-test` lane
@@ -347,36 +351,38 @@ claim is inferred.
   `mdbook-test` caller for `coeus-ops`, exact hosted book evidence, and
   post-merge default verification. The detached primary checkout's provider
   implementation, lockfile, and PM dirt remain outside this item. Local lane
-  commit `58122b9bdc26d402f7c3800e49aeff0dc44a130e` passes diff-check, mdBook
+  commit `fc05cb75453bbb36d0f5b59f73b40dea0c432f44` passes diff-check, mdBook
   build, strict links (14 files/13 links), and workflow-shape checks. The
   locked package build is blocked before compilation by the shared Atlas
   overlay resolving primary-tree patches from the clean lane; hosted Linux is
   the package gate. Push and hosted collection remain sequenced behind the
   active merged-default runs.
-  The exact lane head is now published as PR [#340](https://github.com/ryancinsight/Coeus/pull/340)
-  at `58122b9bdc26d402f7c3800e49aeff0dc44a130e`; provider-contract and book
-  checks are queued.
+  The failed exact-head book job was caused by missing explicit crate
+  declarations in the included examples. The lane now adds those declarations
+  and repins Atlas staging to `20c9398`. PR
+  [#340](https://github.com/ryancinsight/Coeus/pull/340) is at
+  `fc05cb75453bbb36d0f5b59f73b40dea0c432f44`; provider-contract and book run
+  `32413506489`/`32413507328` are queued.
 
 - **Live-tree conformance residual:** the local `python
-  scripts/atlas-conformance.py check --worktree --json` sweep at root
-  `9ca9a5b` exits 1 with 18 regressions against the committed baseline:
-  Aequitas and Asclepius target forks; CFDrs oversized files and
-  existence-only assertions; Consus oversized files, manifest implementation,
-  production unwraps, allows, existence-only assertions, type-suffixed
-  functions, workflow timeout, and orphan modules; Helios and Kwavers excess
-  lanes; Moirai production `SeqCst`; and RITK manifest implementation,
-  type-suffixed functions, and commented-out code. The result includes live
+  scripts/atlas-conformance.py check --worktree` sweep at root `badb3b0` exits
+  1 with 16 regressions and 8 tightening classes against the committed
+  baseline. The regressions are CFDrs oversized files, existence-only
+  assertions, and one excess lane; stale Consus checkout classes (49 commits
+  behind origin); Moirai production `SeqCst`; Kwavers excess lanes; and stale
+  RITK classes plus one excess-lane tightening. The result includes live
   peer/derived state; no baseline is raised and no peer dirt is discarded.
 
-- **Kwavers moving default:** fetched `origin/main` advanced to
-  `b5b4fb0614ad3238ab95ff092cebd5977a201b22` via merged PR #421 (aperture/SIR
-  seam). Default-head Architecture, migration, CI/CD, and Pages runs
-  `32404999498`/`32404999519`/`32404999529`/`32405000042` remain queued; Atlas
-  retains `459f18ce8248ea91ace62a2f8f89a02b861a56fe` until terminal hosted
-  evidence. The primary checkout is detached and peer-dirty, so no source or
-  lockfile cleanup is folded into this pointer reconciliation.
-  Full exact-head/coherence audit at root `604bdcd` reports only the three
-  gitlink drifts recorded here and no additional coherence issues.
+- **Kwavers moving default:** fetched `origin/main` is now
+  `78af725e749c8ec4fd756d55091d557ea635aac2`; the earlier hosted runs at
+  `b5b4fb0614ad3238ab95ff092cebd5977a201b22` cannot authorize the stale Atlas
+  pointer `459f18ce8248ea91ace62a2f8f89a02b861a56fe`. Current PR #439 is at
+  exact head `3297a946536cd54b87dc94d51f1a9cfa2f63b9f1`; its architecture,
+  migration, CI/CD, validation, and book gates remain pending. The primary
+  checkout is detached and peer-dirty, so no source or lockfile cleanup is
+  folded into this pointer reconciliation.
+  Full exact-head/coherence audit reports only the RITK and Kwavers gitlink
+  drifts recorded here and no additional coherence issues.
 
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
