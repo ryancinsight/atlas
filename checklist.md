@@ -5698,9 +5698,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       `83e859c`) to `ryancinsight/Moirai` and open PR #143. Changes add
       `version = "0.5.0"` to all path deps in `benchmarks/Cargo.toml` and
       `tests/Cargo.toml`.
-- [ ] Collect Moirai PR #143 hosted CI (`Workspace gate`, `Loom channel models`,
-      `Supply-chain`, Python wheel smoke, `Deploy mdBook`); merge when green.
-- [ ] After merge, advance Atlas Moirai gitlink and record package gate.
+- [x] Collect Moirai PR #143 hosted CI (`Workspace gate`, `Loom channel models`,
+      `Supply-chain`, Python wheel smoke, `Deploy mdBook`); all pass.
+      Merge at default `c651a466`; advance Atlas Moirai gitlink in `5f26b4b`.
 
 ## 2026-08-20 Kwavers FWI-024-D increment 1
 
@@ -5711,3 +5711,19 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       Benchmark Runtime Smoke, Code Coverage; feature-combination builds.
 - [ ] Merge kwavers PR #420 when all required checks pass; advance Atlas
       Kwavers gitlink.
+
+## 2026-08-20 Kwavers FWI-024-D increment 2
+
+- [x] Implement `RotatingOpposedLinearArray` in `kwavers-physics`:
+      two opposed linear arrays at `+/-standoff`, rotated through `view_count`
+      uniform angles. `transmission_count = n*views`, `receiver_count = 2*n`.
+      All positions pre-computed at construction. Round-trip, geometry,
+      separation, and count tests added.
+- [x] Add `RotatingAcquisition<'a>` wrapper in `kwavers-solver/acquisition.rs`
+      implementing `TransmissionAcquisition`; export via `frequency_domain/mod.rs`.
+- [x] Write ADR 116 (`116-fwi-rotating-acquisition-geometry.md`): settles
+      route (a) — per-view element rotation on fixed grid — over route (b) —
+      per-view model interpolation (rejected: puts interpolation error in gradient).
+- [x] Commit `c30dad6a8`, push `feat/kwavers-fwi-rotation-stage`, open PR #424.
+      fmt/clippy clean; 900/904 kwavers-solver tests pass.
+- [ ] After PR #420 merges, rebase PR #424 onto main and collect CI.
