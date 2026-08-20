@@ -827,6 +827,11 @@ nested Harmonia checkout remains provider-owned state.
   checks are pending. RecurseML reports an analyzer error only. Atlas remains
   at RITK `9e1c276a` until the provider default advances; no hosted success is
   inferred from pending checks.
+- **Kwavers PR #418 hold:** the ADR-only branch is mergeable but cannot merge
+  unchanged because ADR 112 says Aequitas has no `Degree` unit, contradicted by
+  the merged Kwavers PR #417/Aequitas provider surface. Its architecture record
+  must be rebased or corrected before merge; no stale documentation is
+  integrated into Atlas.
 - **Kwavers PR #417 closeout:** the typed `Degree` adoption merged at provider
   default `b571927442b074fb0622beabdf3f2535dff1951a`. Its Rust, Python-wheel,
   benchmark, feature, Miri, security, documentation, k-Wave, and architecture
