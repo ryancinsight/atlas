@@ -34,7 +34,7 @@
 - Delivery: Atlas gitlink now points to merged default; post-merge runs remain
   a verification residual.
 
-## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — merged, post-merge verification pending
+## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — done 2026-08-20
 
 - Owner: Atlas integration; provider scope is the Hermes Pages caller and the
   five source files included by its book. The active orphan-module lane and
@@ -52,8 +52,8 @@
   as provider default `3a39ef16d679dbac9c1a479b2b9c44135e262af3`. Exact PR
   CI `32340240365` and Pages build `32340240860` pass, including the 12-minute
   benchmark runtime gate. Post-merge CI `32341395485`, Deploy mdBook
-  `32341395955`, and dynamic Pages `32341394367` remain in progress; Atlas
-  records the merged default gitlink.
+  `32341395955`, and dynamic Pages `32341394367` pass; live Pages returns HTTP
+  200 with the expected Hermes title.
 
 > Board layout: **Sweep 2026-08-13** below carries the items opened by the
 > full-stack audit of all 25 members. Older live items follow. Closed items are

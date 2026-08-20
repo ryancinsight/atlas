@@ -13114,7 +13114,8 @@ Hermes PR #56 merged source `932468dac5ef4abadea4bdd12d62b420a4225ba7` as
 provider default `3a39ef16d679dbac9c1a479b2b9c44135e262af3`. Its exact PR CI
 `32340240365` and Pages build `32340240860` pass, including the benchmark
 runtime gate; post-merge CI `32341395485`, Deploy mdBook `32341395955`, and
-dynamic Pages `32341394367` are pending.
+dynamic Pages `32341394367` pass. Live Pages returns HTTP 200 with the expected
+Hermes title.
 
 Mnemosyne PR #65 merged source `a527380a15e8979c3b773a4e9891f1d53b0bc45c` as
 provider default `7003eb3d09a716a91b4560e1810d65970c874daa`. Its exact PR Rust,
