@@ -459,7 +459,10 @@ claim is inferred.
   was applied across that dirty claim. The corrected environment also passes
   toolchain preflight, version coherence, standalone lock-form (27 locks),
   registry metadata (253 manifests), board-ID lint, and strict book links.
-  The full Atlas script suite passes `277` tests and `74` subtests in `10.35s`.
+  The full Atlas script suite passes `278` tests and `74` subtests in `8.77s`.
+  The lane audit now ignores sanctioned `worktrees/.archive` metadata after
+  pruning the stale Helios reference; only Kwavers's three peer-held trees
+  remain reported.
 
 - **Kwavers moving default:** fetched `origin/main` is now
   `0e786481cbcf3adad41ccb1f3efa6c94f6dc3f53`, after merged PR #436. Earlier
