@@ -23,7 +23,7 @@ claimed.
 
 Kwavers PR #427 remains open at rebased head
 `34d09c06fc3685aee0c9c1e07e96e819077788cd`
-with `mergeStateStatus=DIRTY`. The fetched provider default has advanced to
+with `mergeStateStatus=UNSTABLE` and `mergeable=true`. The fetched provider default has advanced to
 `2a291a0644f07e00f45368dcef6d60b804e5cc08`, so the exact-head audit now
 reports the Atlas gitlink `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a` as
 behind. That default is the merged PR #429 head and its CI/CD,
