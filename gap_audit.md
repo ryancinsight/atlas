@@ -16,8 +16,8 @@ committed gitlinks (`themis`, `proteus`, `consus`, `helios`, `aequitas`,
 `CFDrs`, `kwavers`) and 15 checkouts are dirty (`themis`, `proteus`, `consus`,
 `helios`, `harmonia`, `eunomia`, `melinoe`, `leto`, `hephaestus`, `coeus`,
 `apollo`, `hermes`, `iris`, `CFDrs`, `kwavers`).
-The peer-owned Hermes `Cargo.lock`, Apollo benchmark branch, Kwavers lanes,
-and other active edits remain preserved.
+The peer-owned Hermes `Cargo.lock`, Apollo lock/PM dirt and separate cleanup
+lane, Kwavers lanes, and other active edits remain preserved.
 
 Live per-provider conformance scans report no regression for CFDrs, Apollo,
 Coeus, or Consus. They retain these measured residuals: Aequitas and
@@ -27,6 +27,19 @@ Asclepius each report one derived `target_forks` directory; Moirai reports
 8; Kwavers reports `oversized_files` 112 versus 111 and `excess_worktrees` 3
 versus 2. These are peer/derived-state cleanup items, not exact-head or
 publication failures; no target tree or live lane was deleted.
+
+## Finding 2026-08-20: Apollo PR #107 benchmark closure
+
+Apollo PR #107's source correction is merged at provider default
+`0c6ffb91ce5d1b68d8da50c6fd12726b7993b1b8`. The delivered change restores the
+lazy non-const pow2 twiddle-cache initialization that the counterbalanced
+benchmark identified as faster, and carries four narrow
+`#[expect(clippy::missing_const_for_thread_local)]` sites because Rust 1.97
+Clippy otherwise rejects the measured form. Exact CI `32347865828` and
+counterbalanced benchmark `32347865841` pass; post-merge CI `32348784876`,
+Pages `32348782338`, and live Pages HTTP 200 with title `Apollo Workspace |
+apollo` pass. The provider checkout's peer-owned `Cargo.lock` and `backlog.md`
+remain untouched, so they are not part of the Atlas gitlink update.
 
 ## Finding 2026-08-20: Hermes, Mnemosyne, and RITK closure sweep
 

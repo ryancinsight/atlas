@@ -10,11 +10,15 @@
   adjacent provider items and `gap_audit.md`. The clean-checkout variant is
   intentionally not green: 14 peer-owned checkout heads drift from committed
   gitlinks and 15 peer-owned checkouts are dirty. Preserved peer state includes
-  active Apollo/Kwavers work and the Hermes lockfile.
+  Apollo peer lock/PM dirt, active Kwavers work, and the Hermes lockfile.
 - Live conformance scans expose residual ratchet work only in Aequitas and
   Asclepius target directories, Moirai production SeqCst sites, RITK
   implementation/commented-code counts, and Kwavers oversized-file/excess-lane
   counts. No source or peer-owned work was reset, stashed, or deleted.
+- Apollo PR [#107](https://github.com/ryancinsight/apollo/pull/107) is now
+  merged at provider default `0c6ffb91ce5d1b68d8da50c6fd12726b7993b1b8`.
+  Exact CI `32347865828`, counterbalanced benchmark `32347865841`, post-merge
+  CI `32348784876`, Pages `32348782338`, and live Pages HTTP 200 pass.
 
 ## ATLAS-TYCHE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 

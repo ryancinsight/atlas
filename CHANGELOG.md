@@ -28,6 +28,14 @@
   `https://ryancinsight.github.io/Mnemosyne/` HTTP 200 check pass. Atlas records
   the closure gitlink.
 
+- Merge Apollo PR #107 at provider default
+  `0c6ffb91ce5d1b68d8da50c6fd12726b7993b1b8` after restoring the
+  benchmark-qualified lazy twiddle-cache initialization and documenting the
+  four per-site Clippy expectations. Exact CI `32347865828`, counterbalanced
+  benchmark `32347865841`, post-merge CI `32348784876`, Pages
+  `32348782338`, and live Pages HTTP 200 pass; Atlas records the default
+  gitlink.
+
 - Reconcile the publication documentation with the live book inventory: all 24
   registered packages carry a book and Pages caller, 13 enable `mdbook test`,
   and 11 remain tracked for executable sample coverage. Root docs build and
