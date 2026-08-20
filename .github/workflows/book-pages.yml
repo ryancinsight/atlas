@@ -184,12 +184,12 @@ jobs:
           rlib=$(ls "$deps_dir/lib${crate}-"*.rlib 2>/dev/null | head -n1 || true)
           if [[ -n "$rlib" ]]; then
             # mdbook 0.5.4 does not forward RUSTDOCFLAGS: it spawns rustdoc with
-            # a fixed argument list, so `--extern` cannot be injected. The deps
-            # dir itself cannot be given as a library path either — it holds many
-            # hash-suffixed candidates and `extern crate` then fails with E0464
-            # (multiple candidates). Stage one plain-named rlib per crate in a
-            # fresh directory and point `mdbook test --library-path` at it;
-            # fenced blocks must declare the crate with `extern crate <name>;`.
+            # a fixed argument list, so `--extern` cannot be injected. Point
+            # `mdbook test --library-path` at a fresh directory containing the
+            # Cargo artifacts with their metadata hashes intact; rustdoc uses
+            # those hashes to select the dependency version recorded by the
+            # package rlib. Fenced blocks must declare the crate with
+            # `extern crate <name>;`.
             #
             # Dependencies are staged alongside the package itself: a chapter
             # that demonstrates a real workflow routinely names a second crate
@@ -202,19 +202,20 @@ jobs:
             # Proc-macro crates build as dynamic libraries rather than rlibs, so
             # both extensions are staged: a derive macro reached through a
             # dependency (bytemuck_derive via bytemuck) fails E0463 otherwise.
+            # Do not strip the metadata hash or select by directory order: a
+            # locked graph may contain multiple versions of one crate, and a
+            # hashless first match can produce E0460 for the package itself.
+            staged=0
             for candidate in "$deps_dir"/lib*.rlib "$deps_dir"/lib*.so; do
               [[ -e "$candidate" ]] || continue
               base="$(basename "$candidate")"
-              ext="${base##*.}"
-              # lib<name>-<metadata-hash>.<ext> -> <name>
-              name="${base#lib}"
-              name="${name%.*}"
-              name="${name%-*}"
-              # First match wins; a duplicate is the same crate at another
-              # version or feature set, and either resolves an `extern crate`.
-              [[ -e "$stage_dir/lib${name}.${ext}" ]] || cp "$candidate" "$stage_dir/lib${name}.${ext}"
+              cp -f "$candidate" "$stage_dir/$base"
+              staged=$((staged + 1))
             done
-            cp -f "$rlib" "$stage_dir/lib${crate}.rlib"
+            if (( staged == 0 )); then
+              echo "cargo build produced no linkable artifacts in $deps_dir" >&2
+              exit 1
+            fi
             echo "MDBOOK_TEST_LIB_DIR=${stage_dir}" >> "$GITHUB_ENV"
           fi
 

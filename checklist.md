@@ -3,6 +3,20 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-BOOK-STAGING-2026-08-20 — current session
+
+- [x] Reproduce the RITK `E0460` failure mechanism: the shared workflow's
+      hashless first-match staging selects one of three `rand_core` versions.
+- [x] Validate a duplicate-preserving staging directory against the local RITK
+      book corpus; both the first-match probe and the hash-preserving probe use
+      real compiled artifacts, with the latter retaining all Cargo hashes.
+- [x] Patch the shared workflow and revise ADR 0035's staging invariant; the
+      extracted Bash block passes `bash -n`, `git diff --check` passes, and the
+      duplicate-preserving RITK probe passes. The local Python YAML parser is
+      unavailable on this host; hosted Actions validation remains required.
+- [ ] Rerun and collect RITK's exact merged-default book gate before closing
+      the RITK provider item or advancing the Atlas gitlink.
+
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
 - [x] Reuse the stale merged MSRV lane as `worktrees/themis-book-test`.

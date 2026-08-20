@@ -1,6 +1,28 @@
 # atlas — cross-repository integration backlog
 
 
+## ATLAS-BOOK-STAGING-2026-08-20 — Preserve Cargo artifact identity in mdBook gates [patch] — in progress
+
+The shared `book-pages.yml` workflow currently strips Cargo metadata hashes and
+keeps the first artifact for each crate name. RITK's exact default book run
+`32404089897` disproves that selection rule: its locked graph contains
+`rand_core` 0.6.4, 0.9.5, and 0.10.1, and the staged `rand_core` metadata does
+not match `ritk_statistics`, producing `E0460` before the book example runs.
+
+**Scope:** root `.github/workflows/book-pages.yml`, ADR 0035, and this item's
+owner-local checklist entry. No provider source, lockfile, or book content.
+
+**Acceptance:** the reusable workflow stages the exact hash-suffixed Cargo
+artifacts without collapsing duplicate crate versions; a local RITK mdBook
+probe with duplicate `rand_core` artifacts passes; YAML/whitespace checks pass;
+the changed workflow is adopted by a rerun of the RITK default book gate.
+
+**Owner:** current Atlas session. **Claimed files:**
+`.github/workflows/book-pages.yml`, `docs/adr/0035-shared-publication-pipelines.md`,
+`backlog.md`, `checklist.md`. The RITK gate remains open until a hosted rerun
+at the exact merged default is terminal green.
+
+
 ## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — todo
 
 Evidence: `gap_audit.md` Finding 2026-08-20 and each provider's own

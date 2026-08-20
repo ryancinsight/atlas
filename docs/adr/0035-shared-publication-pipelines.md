@@ -4,6 +4,9 @@
 - Date: 2026-07-28
 - Last audited: 2026-08-20
 - Class: `[arch]` `[patch]`
+- Revision 2026-08-20: the shared book gate must preserve Cargo artifact
+  metadata hashes; hashless first-match staging is invalid when the build graph
+  contains multiple versions of one crate (`ATLAS-BOOK-STAGING-2026-08-20`).
 - Relates to: [ADR 0027](0027-provider-checkout-ssot.md),
   [ADR 0024](0024-criterion-regression-gate.md),
   [ADR 0011](0011-atlas-root-hygiene-ritual.md)
@@ -185,6 +188,13 @@ The shared workflow therefore exposes `mdbook-test`, defaulting to `false`. Each
 book flips it to `true` in the change that makes its samples compilable. The
 default is a staging mechanism with a per-book completion item, not an accepted
 end state; a book left at `false` after its samples compile is a defect.
+
+The package build's dependency artifacts are staged with their Cargo metadata
+hashes intact. The directory may contain multiple versions of one crate, and
+rustdoc must resolve the version recorded in the package rlib's metadata. A
+hashless filename chosen by directory order is not a valid dependency selector;
+it can pair a package with a different `rand_core` version and fail with
+`E0460` before any book example executes.
 
 ### 7. Twelve crate names collide; the decision precedes the first publish
 
