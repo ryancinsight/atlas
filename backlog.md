@@ -800,6 +800,25 @@ nested Harmonia checkout remains provider-owned state.
 - **Checkout ownership boundary:** Gaia's apparently clean checkout is in an
   interactive rebase on `cascade/provider-042`; switching it to the recorded
   root gitlink was refused and no rebase state was touched.
+- **Hosted residual recheck (2026-08-20):** [CFDrs PR #357](https://github.com/ryancinsight/CFDrs/pull/357)
+  has passing Rust and figure jobs in run `32225060679`; only its RecurseML
+  analyzer reports an error. [Apollo PR #107](https://github.com/ryancinsight/apollo/pull/107)
+  remains red: benchmark run `32217561595` and Rust run `32217561627` fail;
+  the independent benchmark audit localizes the regression to the four
+  const twiddle-cache initializers in `twiddle.rs:26-29`, with the required
+  repair being a single-variable revert in
+  `crates/apollo-fft/src/application/execution/kernel/mixed_radix/caches/twiddle.rs:26-29`
+  with the benchmark instrument unchanged.
+- **Hosted completion boundaries:** [Helios PR #67](https://github.com/ryancinsight/helios/pull/67)
+  is draft but its Rust, Python, benchmark, and book-build jobs pass in runs
+  `32284640806` and `32284641544`; Pages deployment is skipped. [RITK PR #190](https://github.com/ryancinsight/ritk/pull/190)
+  is draft with Rust, Python, wheel, and book-build gates passing in runs
+  `32297172555` and `32297173130`; Pages deployment is skipped. Hermes PR #55
+  has green substantive gates in `32255618310` but remains draft; RecurseML
+  errors remain analyzer-only. Kwavers PR #417 has a fully green substantive
+  matrix in runs `32316400677`, `32316400868`, `32316401011`, and
+  `32316401183`, with Pages deployment skipped; PRs #420, #421, and #422 have
+  pending matrices and are not completion evidence.
 - **Aequitas claim closeout:** dimensional-law tests were split into named
   angle and complex-value modules in provider commit `c908af1`; the focused
   nextest gate passes `40/40`, clippy passes with `-D warnings`, and Atlas
