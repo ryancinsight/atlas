@@ -39,9 +39,10 @@
   mdBook builds pass for all 24 books.
 - Closure evidence for Hermes, Mnemosyne, and RITK is recorded in the
   adjacent provider items and `gap_audit.md`. The clean-checkout variant is
-  intentionally not green: 14 peer-owned checkout heads drift from committed
-  gitlinks and 15 peer-owned checkouts are dirty. Preserved peer state includes
-  Apollo peer lock/PM dirt, active Kwavers work, and the Hermes lockfile.
+  intentionally not green: the latest exact run reports 15 checkout-head
+  drifts and 16 dirty checkouts, including the active RITK and Kwavers PR
+  trees. Preserved peer state includes Apollo peer lock/PM dirt, active
+  Kwavers work, and the Hermes lockfile.
 - Live conformance scans expose residual ratchet work only in Aequitas and
   Asclepius target directories, Moirai production SeqCst sites, RITK
   implementation/commented-code counts, and Kwavers oversized-file/excess-lane

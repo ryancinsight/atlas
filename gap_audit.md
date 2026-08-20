@@ -2,12 +2,14 @@
 
 ## Finding 2026-08-20: active RITK/Tyche/Kwavers integration slices
 
-RITK PR #198 is open at source commits `14a9c619` and `7c4bc993`. It retains
+RITK PR #198 is open at source commits `14a9c619`, `7c4bc993`, and
+`38ab9f82`. It retains
 `GradientFrame` in `DiffusionMaps`, makes `DtiVolume` the validated ImageAxis
 to image-index boundary, rejects LPS maps without image geometry, deletes the
 book-example adapter, and records the public error-enum change as major.
-Hosted Rustfmt, Clippy, Rustdoc, dependency-alignment, Python, and book checks
-are running; the local locked Nextest attempt is separately blocked before
+Hosted Rustfmt, Clippy, Rustdoc, dependency-alignment, book, and several
+Python checks pass; the remaining Python, wheel, and test jobs are still
+running. The local locked Nextest attempt is separately blocked before
 compilation by the Atlas overlay requesting a lockfile rewrite for unused
 local patches.
 
@@ -41,6 +43,15 @@ integrator checks pass. The lock-form audit resolves 27 standalone committed
 locks with only the sanctioned Melinoe in-tree fixture exempted; ADR indexing,
 registry metadata (253 manifests, zero violations), strict book-link detection,
 and mdBook builds pass for all 24 books.
+
+The clean-checkout variant is not green because preserved peer and active-PR
+state remains: 15 checkout heads drift from committed gitlinks (`themis`,
+`proteus`, `consus`, `helios`, `aequitas`, `asclepius`, `moirai`, `ritk`,
+`hephaestus`, `coeus`, `apollo`, `gaia`, `hermes`, `CFDrs`, `kwavers`) and 16
+checkouts are dirty (`themis`, `proteus`, `consus`, `helios`, `harmonia`,
+`eunomia`, `ritk`, `melinoe`, `leto`, `hephaestus`, `coeus`, `apollo`,
+`hermes`, `iris`, `CFDrs`, `kwavers`). No peer checkout was reset, stashed,
+deleted, or normalized over unique work.
 
 The clean-checkout variant remains intentionally red after normalizing the
 owned Mnemosyne and RITK closure checkouts: 14 checkout heads drift from
