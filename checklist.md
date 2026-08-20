@@ -5704,13 +5704,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 
 ## 2026-08-20 Kwavers FWI-024-D increment 1
 
-- [ ] Wait for kwavers PR #420 CI to complete (re-run triggered after
-      `Code Quality` job was stuck 70+ min in queue). Architecture Validation
-      Test Suite Coverage passed; benchmark, Miri, beta, PINN all pass.
-      Remaining: Code Quality, Build & Test stable/nightly, Security Audit,
-      Benchmark Runtime Smoke, Code Coverage; feature-combination builds.
-- [ ] Merge kwavers PR #420 when all required checks pass; advance Atlas
-      Kwavers gitlink.
+- [x] Wait for kwavers PR #420 CI (re-run triggered); all 27 required checks
+      pass including Code Quality, Miri, Security, benchmark smoke, k-Wave
+      comparison, Architecture Validation.
+- [x] Kwavers PR #420 auto-merged at `b20eb48b`; Atlas gitlink advanced in
+      `fdf9981`.
 
 ## 2026-08-20 Kwavers FWI-024-D increment 2
 
@@ -5724,9 +5722,10 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [x] Write ADR 116 (`116-fwi-rotating-acquisition-geometry.md`): settles
       route (a) — per-view element rotation on fixed grid — over route (b) —
       per-view model interpolation (rejected: puts interpolation error in gradient).
-- [x] Commit `c30dad6a8`, push `feat/kwavers-fwi-rotation-stage`, open PR #424.
-      fmt/clippy clean; 900/904 kwavers-solver tests pass.
-- [ ] After PR #420 merges, rebase PR #424 onto main and collect CI.
+- [x] Rebase `feat/kwavers-fwi-rotation-stage` onto main after PR #420
+      merged; push to origin. PR #424 open, CI queued.
+- [ ] Collect CI for PR #424 (Architecture Validation, CI/CD Pipeline, etc.);
+      merge when all required checks pass; advance Atlas Kwavers gitlink.
 
 ## 2026-08-20 US-023-A6 closure
 
@@ -5736,3 +5735,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       kwavers-analysis. Adding `ritk-image`/`coeus-core` to the analysis layer
       violates the clean-architecture constraint. ADR 0048 intent is satisfied
       by the ritk-spatial path. Backlog US-023-A6 updated from review to done.
+
+## 2026-08-20 Tyche + Asclepius book-test enablement
+
+- [x] Open Tyche PR #27 (`codex/tyche-planning-closure` → main): enables
+      `mdbook-test: true`, pins Rust `1.97.0`, selects `tyche-core`, updates
+      two book examples with staged-library declarations. CI queued.
+- [x] Open Asclepius PR #22 (`ci/asclepius-book-test` → main): enables
+      `mdbook-test: true`, `rust-toolchain: "1.97.0"`, `cargo-package:
+      asclepius`; no source or lockfile changes. CI queued.
+- [ ] Merge Tyche PR #27 and Asclepius PR #22 when CI passes; advance Atlas
+      gitlinks.
