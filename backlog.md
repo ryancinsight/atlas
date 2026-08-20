@@ -49,10 +49,12 @@
   drifts and 16 dirty checkouts, including the active RITK and Kwavers PR
   trees. Preserved peer state includes Apollo peer lock/PM dirt, active
   Kwavers work, and the Hermes lockfile.
-- Live conformance scans expose residual ratchet work only in Aequitas and
-  Asclepius target directories, Moirai production SeqCst sites, RITK
-  implementation/commented-code counts, and Kwavers oversized-file/excess-lane
-  counts. No source or peer-owned work was reset, stashed, or deleted.
+- The hosted conformance ratchet remains blocked by five committed-provider
+  regressions: CFDrs oversized files, Coeus crate-level allows, Moirai
+  production SeqCst sites, and RITK implementation/commented-code counts.
+  Live-tree scans additionally expose derived Aequitas/Asclepius target forks
+  and peer-owned lane state. No source or peer-owned work was reset, stashed,
+  or deleted.
 - Apollo PR [#107](https://github.com/ryancinsight/apollo/pull/107) is now
   merged at provider default `0c6ffb91ce5d1b68d8da50c6fd12726b7993b1b8`.
   Exact CI `32347865828`, counterbalanced benchmark `32347865841`, post-merge
