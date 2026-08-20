@@ -763,10 +763,10 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Active claim (atlas coordinator):** Atlas exact-head, overlay, lock, and
-  conformance recheck after integrating the RITK rustdoc increment; scope is
-  the Atlas root pointer and read-only integration evidence. Peer-owned source
-  and consumer checkouts remain out of scope.
+- **Active claim (atlas coordinator):** hosted/PM residual reconciliation after
+  the current exact-head integration pass; scope is Atlas-owned evidence and
+  root records. Peer-owned source, consumer, and lane checkouts remain out of
+  scope.
 - **RITK claim closeout:** `RITK-DOC-GATE-210` is fixed in provider commit
   `9e1c276a`, which adds a warning-denied rustdoc CI job and corrects five
   public-doc/private-link or broken-link defects. Exact workspace rustdoc
@@ -785,6 +785,21 @@ nested Harmonia checkout remains provider-owned state.
   `aa9a62e45c1f6327161b4e12ba6b3b10e147475d`. This increment advances only
   the root gitlink to the fetched default; the peer-owned Kwavers checkout is
   dirty on `ff4dc868` and remains untouched.
+- **Integration recheck closeout:** root `a1fd1e4` passes the exact-head audit
+  for all 22 providers and CFDrs/Kwavers/Helios, the stack overlay check, the
+  registry metadata scan (`252` manifests, `0` violations), and the standalone
+  lock-form check (`27` locks, one documented in-tree Melinoe fixture
+  exemption). The lane audit remains red only for Consus (`3` worktrees) and
+  Kwavers (`5` worktrees); no lane was switched, deleted, or overwritten.
+- **Live conformance evidence:** the intentional `--worktree` scan remains a
+  dirty-tree snapshot, not a reproducible gate. It reports `609` oversized
+  files, `675` implementation-bearing manifests, `1,196` production unwraps,
+  `518` allow sites, `803` existence-only assertions, and `4` excess-worktree
+  sites; these counts are peer-owned ratchet debt and are not silently reset
+  by the Atlas coordinator.
+- **Checkout ownership boundary:** Gaia's apparently clean checkout is in an
+  interactive rebase on `cascade/provider-042`; switching it to the recorded
+  root gitlink was refused and no rebase state was touched.
 - **Aequitas claim closeout:** dimensional-law tests were split into named
   angle and complex-value modules in provider commit `c908af1`; the focused
   nextest gate passes `40/40`, clippy passes with `-D warnings`, and Atlas
