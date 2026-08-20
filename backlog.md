@@ -444,8 +444,11 @@ claim is inferred.
   provider source or dirty worktree was overwritten. Exact-head runs
   `32414757969` and `32414757998` are pending; no pointer advance is authorized
   until the full matrix and book gate reach terminal success.
-  Full exact-head/coherence audit reports only the RITK and Kwavers gitlink
-  drifts recorded here and no additional coherence issues.
+  Full exact-head/coherence audit now reports four pointer drifts: Hyperion
+  `e2dbc9b`→`4df62f63`, RITK `d4a978f`→`ad508525`, Hermes
+  `c5e4c2dc`→`05441dd1`, and Kwavers `459f18ce`→`58b51ef`. Hermes PR #55
+  merged at `05441dd1`; its post-merge CI `32418079699` and Pages
+  `32418078426` are queued, so the Atlas Hermes pointer remains unchanged.
 
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI

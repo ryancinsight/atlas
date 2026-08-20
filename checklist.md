@@ -83,9 +83,10 @@
       `32414757969`, `32414757998`, `32414758193`, `32414758829`, and
       benchmark `32414758022` are pending. Advance the Atlas gitlink only
       after terminal CI and book evidence for the current default relationship.
-- [x] Re-run the exact-head audit after Hyperion merged: the only current
-      pointer drifts are Hyperion `e2dbc9b` versus `4df62f63`, RITK `d4a978f`
-      versus `ad508525`, and Kwavers `459f18c` versus `58b51ef`.
+- [x] Re-run the exact-head audit after Hyperion and Hermes changed defaults:
+      the current pointer drifts are Hyperion `e2dbc9b` versus `4df62f63`,
+      RITK `d4a978f` versus `ad508525`, Hermes `c5e4c2d` versus `05441dd`,
+      and Kwavers `459f18c` versus `58b51ef`.
 - [x] The same exact-head run reproduced those three pointer drifts and
       separately timed out the nested version-coherence command after 120
       seconds; the standalone overlay check remains green, so the timeout is
