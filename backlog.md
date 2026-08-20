@@ -93,10 +93,11 @@
 - **Hosted state:** the first exact-head Pages run `32331958010` failed because
   the shared workflow derived `moirai_runtime` instead of the actual `moirai`
   library target; Rust Workspace run `32331957704` passed. Replacement runs at
-  `95891f6` are queued: `32332871749` (Rust Workspace), `32332871836` (Python
-  Bindings), and `32332872034` (Pages). The recurring `recurseml/analysis`
-  error is report-only; the hosted monitor owns collection without blocking
-  local continuation.
+  `95891f6` now pass Workspace, supply-chain, Loom, Pages, and all three wheel
+  smoke jobs: `32332871749`, `32332871836`, and `32332872034`. Only Rust binding
+  check job `96316730773` remains pending; CodeRabbit is green. The recurring
+  `recurseml/analysis` error is report-only, and merge remains held by the
+  pending binding check.
 
 ## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
@@ -4573,8 +4574,8 @@ converter; the existing bilinear differential remains the acceptance oracle.
     topology diagram is fenced as `text`. Local format, locked all-target
     check, Clippy, nextest (`17/17`), doctests (`3/3`), package verification,
     `mdbook build`, and `mdbook test` pass. Push-triggered hosted runs are
-    `32332640194` (CI), `32332640687` (Deploy mdBook), and `32332639091`
-    (Pages build/deployment), all queued at the time of recording. The prior
+    `32332860859` (CI), `32332861158` (Deploy mdBook), and `32332859993`
+    (Pages build/deployment) remain queued at the time of recording. The prior
     run at `8224dba` exposed the package/library-name mismatch and was replaced
     by this explicit-crate revision. Peer-owned Iris lockfile work remains
     untouched.
