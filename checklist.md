@@ -5946,6 +5946,9 @@ pull requests. None merged; each waits on its own hosted gate.
       `-C target-cpu=native` removed from the committed `.cargo/config.toml`.
       Local: 26/26 szip tests. The regression test asserts on `can encode at
       most`, a string only the new guard emits, so it cannot pass vacuously.
+      Exact PR head `2e24e6ad` remains hosted-pending in run `32408174545`;
+      `recurseml/analysis` is report-only. The dead `xtask` alias remains a
+      separate cleanup residual.
 - [x] **P0-1 Kwavers** — [kwavers#439](https://github.com/ryancinsight/kwavers/pull/439).
       `swe/gpu/` deleted, net -903 lines. `kwavers-solver` declares no GPU
       dependency at all, so the module could never have launched a kernel.

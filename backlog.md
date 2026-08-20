@@ -172,6 +172,13 @@ correctness, not new scope.
   4. Consus `-C target-cpu=native` in committed `.cargo/config.toml`. Acceptance:
      removed; runtime ISA detection is the dispatch mechanism. `[patch]`
 
+  Consus PR [#51](https://github.com/ryancinsight/consus/pull/51) is the
+  existing owner for P0-3/P0-4 at exact head
+  `2e24e6adda663db67b4bf1d4e1614e2c3b06fc19`; its repository matrix remains
+  queued in run `32408174545`. Do not start a competing patch. The dead
+  `.cargo/config.toml` `xtask` alias remains a separate cleanup residual after
+  this PR.
+
 - **P1 make the accelerator seam verifiable** (the audit's single largest
   evidence gap, four independent confirmations):
   5. Hephaestus host/CPU reference device implements 1 of ~19 operation seams.
