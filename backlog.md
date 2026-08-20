@@ -193,8 +193,9 @@
 
 - **Owner:** current Atlas session; root documentation and publication ADR only.
 - **Scope:** `README.md` and `docs/adr/0035-shared-publication-pipelines.md`.
-- **Evidence:** a committed-gitlink scan at the provider defaults finds 24
-  `repos/*/docs/book/book.toml` files and 24 provider `book-pages.yml` callers.
+- **Evidence:** the 25 active root gitlinks contain 24
+  `repos/*/docs/book/book.toml` files and 24 provider `book-pages.yml` callers;
+  Leto has neither artifact at its committed default.
   Seventeen callers pass `mdbook-test: true`; Gaia's custom Pages caller runs
   `mdbook test docs/book` directly; six still omit any executable sample gate:
   `apollo`, `coeus`, `consus`, `hephaestus`, `ritk`, and `themis`. The root
@@ -210,9 +211,30 @@
   shared callers plus Gaia's direct command). The remaining six sample gates
   stay provider-owned completion items; no illustrative sample was marked
   executable without hosted evidence.
+- **Leto residual:** Leto is tracked separately below; it is not represented
+  as a completed book merely because the other 24 members pass this inventory.
 - **Residual:** RITK's wheel release workflow remains standalone on its
   peer-owned branch and is recorded separately; this root-only item does not
   edit that checkout.
+
+## ATLAS-LETO-BOOK-2026-08-20 — complete the missing Leto domain book [minor] — in progress
+
+- **Owner:** Atlas coordinator; Leto provider scope is separately owned from
+  the root inventory audit.
+- **Scope:** Leto's provider-owned `docs/book/`, `book-pages.yml` caller, and
+  hosted book gate. No root inventory exception may be removed until the
+  caller and book are merged at a verified provider default.
+- **Baseline:** root gitlink `repos/leto` is `a2bc13fc3e6cd704ffcaaba7901c581d6a263796`;
+  that revision has neither `docs/book/` nor `.github/workflows/book-pages.yml`.
+  Fetched branch `origin/codex/leto-book` at `6a8079a` adds a skeleton, but its
+  chapters still contain placeholder prose such as `Chapter prose deferred` and
+  it has no merged PR or hosted evidence.
+- **Acceptance:** source-grounded chapters, runnable examples, a pinned
+  `book-pages.yml` caller, provider CI/Pages success at the same head, and a
+  root gitlink advance followed by `atlas-book-gate-audit.py --check` reporting
+  25 book-bearing members.
+- **Non-goal:** no placeholder chapter is counted as a completed book and no
+  provider dirty worktree is overwritten while this item is active.
 
 ## ATLAS-AEQUITAS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 

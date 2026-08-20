@@ -37,12 +37,13 @@
   gitlink.
 
 - Reconcile the publication documentation with the committed provider inventory:
-  all 24 registered packages carry a book and Pages caller, 17 use the shared
+  24 book-bearing registered members carry a book and Pages caller, 17 use the shared
   `mdbook-test` input, and Gaia's custom workflow runs `mdbook test` directly.
   Six remain tracked for executable sample coverage (`apollo`, `coeus`,
   `consus`, `hephaestus`, `ritk`, `themis`). Root docs build and strict link
   checks cover all 24 books; `scripts/atlas-book-gate-audit.py --check`
-  mechanically classifies the committed 24-member inventory.
+  mechanically classifies that inventory. Leto remains a separate unmerged
+  book-closure residual.
 
 - Merge Aequitas PR #37 at provider default `c0542bf8` after its executable
   book examples and API snippets pass CI `32337268558` and the shared Pages

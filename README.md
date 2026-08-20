@@ -913,7 +913,8 @@ the package's own Actions run through
 dumps: migration guides belong to the package `CHANGELOG.md` and execution state
 belongs to the boards, never to a chapter.
 
-At this revision all 24 registered packages carry a book and a Pages caller:
+At this revision 24 book-bearing registered members carry a book and a Pages
+caller:
 `aequitas`, `apollo`, `asclepius`, `athena`, `CFDrs`, `coeus`, `consus`,
 `eunomia`, `gaia`, `harmonia`, `helios`, `hephaestus`, `hermes`, `horae`,
 `hyperion`, `iris`, `kwavers`, `melinoe`, `mnemosyne`, `moirai`, `proteus`,
@@ -923,13 +924,17 @@ directly. The six remaining callers are tracked completion work until their
 samples are executable under the shared toolchain: `apollo`, `coeus`, `consus`,
 `hephaestus`, `ritk`, and `themis`.
 
+Leto is the 25th active stack member and currently has neither a committed
+`docs/book/` nor a `book-pages.yml` caller; its book closure is tracked
+separately and is not counted as completed here.
+
 The committed-gitlink inventory and executable-gate classification are checked
 by `python scripts/atlas-book-gate-audit.py --check`; use
 `--require-gates` when evaluating closure of the six provider residuals.
 
 Atlas owns the cross-book invariant gate in
 [`docs.yml`](.github/workflows/docs.yml), which runs the portable dead-link
-detector in strict mode and an `mdbook` build over all 24 registered books. A
+detector in strict mode and an `mdbook` build over all 24 book-bearing members. A
 new book joins that gate automatically through the repository glob in the same
 change that creates it.
 
