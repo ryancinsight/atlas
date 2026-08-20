@@ -9,20 +9,19 @@
   Hosted Rust/Python/book checks are running; merge and the Atlas gitlink
   update require terminal-green exact-head evidence.
 - **Tyche publication boundary:** PR
-  [#30](https://github.com/ryancinsight/tyche/pull/30) merged at
-  `bfe6ab72915ff1d29357dd6895c39a11baecfbc0`; required `verify` and
-  `supply-chain` runs pass, while report-only RecurseML analysis is red.
-  Post-merge CI `32386013998` and dynamic Pages run `32386011656` are queued.
-  The facade, Consus-adapter, and Moirai-adapter packages are explicitly
-  private; `tyche-core` remains the only publishable package. External
-  registry/release configuration remains a separate residual.
+  [#30](https://github.com/ryancinsight/tyche/pull/30) merged at provider
+  default `bfe6ab72915ff1d29357dd6895c39a11baecfbc0`. Post-merge CI
+  `32386013998` and dynamic Pages `32386011656` both pass. Atlas gitlink
+  advances to `bfe6ab72`. The facade, Consus-adapter, and Moirai-adapter
+  packages are explicitly private; `tyche-core` remains the only publishable
+  package. External registry/release configuration remains a separate residual.
 - **Kwavers distributed queue:** PR
-  [#427](https://github.com/ryancinsight/kwavers/pull/427) remains open at
-  `7245db7e`; its merge state is `DIRTY`. Fetched `origin/main` is now
-  `2a291a0644f07e00f45368dcef6d60b804e5cc08`, while the Atlas gitlink remains
-  the previously verified `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`.
-  Pointer advancement is deferred until the provider default and required
-  hosted gates converge.
+  [#427](https://github.com/ryancinsight/kwavers/pull/427) rebased to
+  `34d09c06f` on current default `2a291a064`; conflict in `CHANGELOG.md`
+  resolved by retaining both the elastic-FWI entry from default and the
+  distributed-scheduling entry from the branch. Merge state is now
+  `MERGEABLE`; hosted gate CI is queued at `34d09c06f`. Atlas gitlink
+  advancement deferred until provider gate is terminal-green.
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 
