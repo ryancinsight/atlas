@@ -10,7 +10,7 @@ workflow that invokes ``mdbook test`` directly (Gaia's current contract).
 Members with neither a book manifest nor a book workflow are outside the
 book-bearing inventory.  A member with only one side is reported as an
 incomplete inventory entry.  The current tree has 25 book-bearing members;
-six callers still require executable sample coverage.
+five callers still require executable sample coverage.
 """
 
 from __future__ import annotations
@@ -184,18 +184,20 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps([asdict(item) for item in results], indent=2, sort_keys=True))
     else:
         _print_text(results)
-    failures = [item for item in results if item.gate == "invalid"]
     if args.require_gates:
         failures = [item for item in results if item.gate in {"none", "invalid"}]
-    if args.check and failures:
-        print(
-            f"book-gate-audit: {len(failures)} invalid inventory entry(s)",
-            file=sys.stderr,
+        failure_message = (
+            f"book-gate-audit: {len(failures)} inventory entry(s) lack an executable gate"
         )
-        return 1
-    if args.require_gates and failures:
+    elif args.check:
+        failures = [item for item in results if item.gate == "invalid"]
+        failure_message = f"book-gate-audit: {len(failures)} invalid inventory entry(s)"
+    else:
+        failures = []
+        failure_message = ""
+    if failures:
         print(
-            f"book-gate-audit: {len(failures)} inventory entry(s) lack an executable gate",
+            failure_message,
             file=sys.stderr,
         )
         return 1

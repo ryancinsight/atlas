@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import io
 import importlib.util
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas-book-gate-audit.py"
@@ -80,6 +82,15 @@ class BookGateClassificationTestCase(unittest.TestCase):
               - run: mdbook test docs/book
         """
         self.assertEqual(audit.classify_workflow(workflow)[0], "shared-input")
+
+    def test_combined_check_reports_missing_gate(self) -> None:
+        result = audit.BookGate("apollo", "abc123", True, True, "none", "no gate")
+        stderr = io.StringIO()
+        with patch.object(audit, "audit", return_value=[result]), patch(
+            "sys.stderr", stderr
+        ):
+            self.assertEqual(audit.main(["--check", "--require-gates"]), 1)
+        self.assertIn("lack an executable gate", stderr.getvalue())
 
 
 if __name__ == "__main__":

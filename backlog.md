@@ -422,6 +422,19 @@ CUDA, Metal, ROCm, and WGPU hosted checks are queued. The local locked check
 remains blocked by the Atlas overlay requesting a dirty provider lockfile
 rewrite.
 
+## ATLAS-BOOK-GATE-AUDIT-2026-08-20 — Keep strict inventory diagnostics truthful [patch] — in progress
+
+The root book-gate audit already supports `--require-gates`, but its module
+inventory statement is stale and the combined `--check --require-gates` path
+reports a generic structural failure before the executable-gate failure. This
+session claims only `scripts/atlas-book-gate-audit.py`, its focused regression
+test, and the owner-local PM records.
+
+Acceptance: the inventory description matches the committed five missing gates;
+strict mode reports the executable-gate failure class when both switches are
+used; focused unit tests and the script check pass; no provider revision or
+gitlink changes are included.
+
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 
 - **Themis executable book gate:** current Atlas session claims the provider

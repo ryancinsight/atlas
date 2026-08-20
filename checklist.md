@@ -95,6 +95,13 @@
       Atlas Hephaestus gitlink. Draft PR #215 has the exact head; CUDA, Metal,
       ROCm, and WGPU checks are queued.
 
+## ATLAS-BOOK-GATE-AUDIT-2026-08-20 — current session
+
+- [ ] Correct strict book-gate audit diagnostics and synchronize its inventory
+      documentation; add focused regression coverage.
+- [ ] Run the Atlas Python test subset and script checks, then commit without
+      touching provider gitlinks.
+
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
 - [x] Reuse the stale merged MSRV lane as `worktrees/themis-book-test`.
