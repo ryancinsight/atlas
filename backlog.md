@@ -5,6 +5,8 @@
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
   `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.
+  Live Pages `https://ryancinsight.github.io/ritk/` returns HTTP 200 with title
+  `Introduction - atlas/RITK: Medical Image Processing and Registration`.
   PM closure PR [#199](https://github.com/ryancinsight/ritk/pull/199) opened
   at `fc24a12d`; CI queued. Atlas gitlink advances to PM closure rev pending
   terminal-green evidence.
