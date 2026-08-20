@@ -4534,9 +4534,10 @@ converter; the existing bilinear differential remains the acceptance oracle.
   publish, recorded in the release evidence. A collision discovered here is
   resolved by ADR 0037 §3's rule, not by an ad-hoc name.
 
-## ATLAS-PUB-005 — Flip `mdbook-test` per book as samples become compilable [patch] — todo
+## ATLAS-PUB-005 — Flip `mdbook-test` per book as samples become compilable [patch] — in progress
 
-- Owner: unclaimed; scope: one book per claim, in the owning repository.
+- Owner: current Atlas session; active claim: Iris; scope: one book per claim,
+  in the owning repository.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §6.
 - Outcome: every published book runs `mdbook test` in CI so chapters cannot rot.
   The shared workflow defaults `mdbook-test` to `false` as a staging mechanism,
@@ -4559,6 +4560,10 @@ converter; the existing bilinear differential remains the acceptance oracle.
     use unresolved provider imports, or fence diagrams/commands as Rust. H-102
     repaired source-change triggers and enabled linkcheck2; H-103 must convert
     the snippets before the caller can pass `mdbook-test: true`.
+  - **iris** — IN PROGRESS: the `colormap_lut` chapter includes one runnable
+    example, but the Pages caller does not yet enable the shared test gate.
+    The disjoint change scope is the Iris Pages caller and its included example;
+    peer-owned Iris lockfile work remains untouched.
 - Acceptance per book: samples compile against the package; the caller passes
   `mdbook-test: true` and, where samples need providers, `atlas-ref`; the flip
   commit demonstrates the gate failing on a deliberately broken sample before
