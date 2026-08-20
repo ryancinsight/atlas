@@ -4560,10 +4560,15 @@ converter; the existing bilinear differential remains the acceptance oracle.
     use unresolved provider imports, or fence diagrams/commands as Rust. H-102
     repaired source-change triggers and enabled linkcheck2; H-103 must convert
     the snippets before the caller can pass `mdbook-test: true`.
-  - **iris** — IN PROGRESS: the `colormap_lut` chapter includes one runnable
-    example, but the Pages caller does not yet enable the shared test gate.
-    The disjoint change scope is the Iris Pages caller and its included example;
-    peer-owned Iris lockfile work remains untouched.
+  - **iris** — LANDED at provider `8224dba`: the Pages caller enables
+    `mdbook-test: true`, Rust `1.97.0`, and `cargo-package: iris-viz`; the
+    included example declares `extern crate iris`, and the stack-position
+    topology diagram is fenced as `text`. Local format, locked all-target
+    check, Clippy, nextest (`17/17`), doctests (`3/3`), package verification,
+    `mdbook build`, and `mdbook test` pass. Push-triggered hosted runs are
+    `32332640194` (CI), `32332640687` (Deploy mdBook), and `32332639091`
+    (Pages build/deployment), all queued at the time of recording. Peer-owned
+    Iris lockfile work remains untouched.
 - Acceptance per book: samples compile against the package; the caller passes
   `mdbook-test: true` and, where samples need providers, `atlas-ref`; the flip
   commit demonstrates the gate failing on a deliberately broken sample before
