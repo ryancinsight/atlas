@@ -450,15 +450,16 @@ claim is inferred.
   not discard peer or derived state.
 
 - **Kwavers moving default:** fetched `origin/main` is now
-  `6f77bd4ecff623f3912b02aa34670126a3edb8b4`; docs-only merges after
-  `78af725e749c8ec4fd756d55091d557ea635aac2` make earlier hosted runs
-  ineligible to authorize the stale Atlas pointer
+  `0e786481cbcf3adad41ccb1f3efa6c94f6dc3f53`, after merged PR #436. Earlier
+  hosted runs at `58b51ef3` cannot authorize the stale Atlas pointer
   `459f18ce8248ea91ace62a2f8f89a02b861a56fe`. Current PR #439 remains at
   exact head `2fa5f4d8a88d2ff16df866f15c5a1c4dd5d58b44` and is now `CLEAN` after
   a merge commit that preserves KW-CI-115 beside KW-GPU-200/201/202. No
-  provider source or dirty worktree was overwritten. Exact-head runs
-  `32414757969` and `32414757998` are pending; no pointer advance is authorized
-  until the full matrix and book gate reach terminal success.
+  provider source or dirty worktree was overwritten. The merged-default
+  Pages run `32419107056` and CI/architecture runs `32419106514`,
+  `32419106520`, and `32419106681` are queued; no pointer advance is
+  authorized until the current default's full matrix and book gate reach
+  terminal success.
   Full exact-head/coherence audit now reports four pointer drifts: Hyperion
   `e2dbc9b`→`4df62f63`, RITK `d4a978f`→`ad508525`, Hermes
   `c5e4c2dc`→`05441dd1`, and Kwavers `459f18ce`→`58b51ef`. Hermes PR #55

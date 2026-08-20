@@ -81,20 +81,21 @@
       deployment `32394886461`; the Atlas gitlink is aligned.
 - [x] Merge Hyperion PR #21 at provider default `4df62f63`; its merged-default
       CI, mdBook, and Pages workflows are tracked separately below.
-- [x] Reconcile Kwavers `origin/main` to `58b51ef`; it contains the safety-
-      monitor merge after `6f77bd4`, so earlier hosted runs cannot authorize
-      the Atlas pointer `459f18c`.
+- [x] Reconcile Kwavers `origin/main` to `0e78648`; merged PR #436 advanced the
+      default after the safety-monitor merge, so earlier hosted runs cannot
+      authorize the Atlas pointer `459f18c`.
 - [x] Resolve the board-only conflict by preserving current KW-CI-115 and the
       PR's KW-GPU-200/201/202 records in merge commit `2fa5f4d8`; no dirty
       Kwavers worktree was touched.
-- [ ] Collect the full exact-head Kwavers matrix at PR head `2fa5f4d8`: runs
-      `32414757969`, `32414757998`, `32414758193`, `32414758829`, and
-      benchmark `32414758022` are pending. Advance the Atlas gitlink only
-      after terminal CI and book evidence for the current default relationship.
+- [ ] Collect terminal merged-default Kwavers evidence at `0e786481`: Pages
+      `32419107056`, CI `32419106520`, architecture `32419106681`, and legacy
+      audit `32419106514` are queued. PR #439's predecessor runs are
+      superseded; advance the Atlas gitlink only after the current default's
+      full matrix and book evidence are terminal green.
 - [x] Re-run the exact-head audit after Hyperion and Hermes changed defaults:
       the current pointer drifts are Hyperion `e2dbc9b` versus `4df62f63`,
       RITK `d4a978f` versus `ad508525`, Hermes `c5e4c2d` versus `05441dd`,
-      and Kwavers `459f18c` versus `58b51ef`.
+      and Kwavers `459f18c` versus `0e78648`.
 - [x] The same exact-head run reproduced those three pointer drifts and
       separately timed out the nested version-coherence command after 120
       seconds; the standalone overlay check remains green, so the timeout is
