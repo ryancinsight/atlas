@@ -6126,6 +6126,18 @@ commits ahead of `c76a55e`. Draft PR creation is blocked by connector HTTP 403
 `Resource not accessible by integration`, so no hosted evidence or gitlink
 advance is claimed.
 
+## 2026-08-20 Helios Radon assertion cleanup
+
+- [x] Claimed only `crates/helios-imaging/src/radon.rs` on a clean Helios lane;
+      preserve the dirty primary checkout and unrelated workflow/book files.
+- [ ] Replace the `is_ok()` assertion plus unwrap with a typed extraction and
+      retain the negative and value-semantic assertions.
+- [ ] Run provider format, locked all-target check, Clippy, nextest, doctest,
+      Rustdoc, and the conformance scan; only `existence_only_assertions`
+      should decrease.
+- [ ] Publish the exact provider branch and record hosted-PR authorization as a
+      separate follow-up; do not advance the Atlas gitlink before hosted gates.
+
 ## ATLAS-GAP-AUDIT-2026-08-20 (owner: atlas-gap-audit)
 
 - [x] Dispatch one auditor per registered submodule against a single completeness

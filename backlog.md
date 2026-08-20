@@ -161,6 +161,29 @@ Draft PR creation was rejected by the GitHub connector with HTTP 403
 `Resource not accessible by integration`; no PR or hosted result is claimed.
 Re-open publication when repository write authorization is available.
 
+## ATLAS-HELIOS-RADON-ORACLE-2026-08-20 — Remove existence-only sinogram assertion [patch] — in progress
+
+`helios-imaging/src/radon.rs` asserts only `Sinogram::from_readings(...).is_ok()`
+and then unwraps the same result. This is an existence-only assertion and does
+not verify the constructed value; the later mapped-reading assertions are the
+actual geometry/value oracle.
+
+**Scope:** Helios `crates/helios-imaging/src/radon.rs` and provider PM records
+on a clean lane based on fetched `origin/main`. Replace the vacuous assertion
+with an invariant-preserving typed extraction, retain the existing negative
+length case and value-semantic map/geometry assertions, and do not touch the
+peer-owned Helios primary checkout or unrelated Python/workflow/book files.
+
+**Acceptance:** the test contains no existence-only assertion for this path;
+the valid construction is consumed with a precise invariant message, the
+invalid length remains asserted as a typed failure, provider format/locked
+all-target check/Clippy/nextest/doctest/Rustdoc pass, and the conformance scan
+reduces `existence_only_assertions` by one without another class increasing.
+
+**Owner:** current Atlas session. **Claimed files:** Helios
+`crates/helios-imaging/src/radon.rs`, provider PM, and root PM. The branch is
+published separately from the provider's dirty primary checkout.
+
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
 Re-measured 2026-08-20 against the trees rather than the board. ADR 0033's
