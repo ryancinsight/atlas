@@ -13148,6 +13148,14 @@ Windows shell safety policy. No source, lockfile, or peer lane was touched;
 their `target_forks` findings remain open until an approved cleanup mechanism
 can remove only those validated derived paths.
 
+Targeted provider ratchet checks also report no regressions for the other
+providers; the remaining source/state raises are Aequitas and Asclepius
+`target_forks` (`0 -> 1`, derived trees), Moirai production `SeqCst`
+(`101 -> 107`), RITK manifest implementation (`105 -> 106`) and commented-out
+code (`8 -> 9`), and Kwavers oversized files (`111 -> 112`) and excess
+worktrees (`2 -> 3`). No baseline update or source suppression was applied;
+the Moirai, RITK, and Kwavers findings remain provider-owned cleanup work.
+
 Horae PM closure PR #23 merged at default
 `a05dbebbb947a627cbe69a9d839fb88cae46e459`, and Hyperion PM closure PR #20
 merged at default `e2dbc9bb28d7f9cbccf354d2a9b278c6231a85d1`. Their provider
