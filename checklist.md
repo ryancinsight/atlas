@@ -10,6 +10,8 @@
       workflow pin.
 - [x] Repair the two non-Rust book blocks and add explicit `themis` linkage to
       both included examples.
+- [x] Cross-check the GPU book contract against `src/topology/types/gpu.rs` and
+      correct the host-sized and required-tier field types.
 - [x] Run locked MSVC check, nextest, doctests, strict Clippy, both examples,
       mdBook build, and strict links locally.
 - [ ] Collect PR #27's hosted Rust and mdBook gates; merge only at green exact
