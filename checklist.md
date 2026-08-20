@@ -26,6 +26,16 @@
 - [ ] Collect the rerun PR CI and Pages book gate; merge only at green exact
       head, then verify the post-merge default and advance the Atlas gitlink.
 
+## ATLAS-RITK-BOOK-TEST-2026-08-20 — current session
+
+- [ ] Reuse the clean merged-lane checkout from current RITK default and
+      claim only `.github/workflows/book-pages.yml` plus existing included
+      executable samples; preserve PR #201 source, lockfile, and chapter dirt.
+- [ ] Enable the shared executable book gate, run the focused local checks and
+      strict links, then collect exact hosted CI/Pages evidence.
+- [ ] Merge only at green exact head, verify the post-merge default, and
+      advance the Atlas gitlink without staging peer-owned RITK work.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Resolve and validate the Consus ADR-0045 P4 lane at local head

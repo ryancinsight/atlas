@@ -11,6 +11,14 @@
   checks are queued after a source-to-book GPU type correction. Non-goals are
   peer-owned Themis source, lockfile, and MSRV work.
 
+- **RITK executable book gate:** current Atlas session claims the provider
+  workflow caller and existing executable samples only, on the reusable
+  `ritk-book-test` lane. Open PR #201 owns source, lockfile, and connectome
+  chapter changes; this item does not overlap those paths. Acceptance is a
+  provider PR enabling the shared `mdbook-test` inputs, exact-head hosted book
+  success, and post-merge default verification at RITK's current default
+  `d4a978fce40f37b3668afa5d98783626aaf74cff`.
+
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
   `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.
