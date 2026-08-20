@@ -33,15 +33,14 @@ Every other line — release-tag parsing, package-name validation, manifest-vers
 agreement, `publish = false` rejection, the `--dry-run` content gate, the OIDC
 token request, and the publish call — is identical logic duplicated eight times.
 
-**Book publishing.** Twenty-four book-bearing registered members carry
-`book-pages.yml` and `docs/book/book.toml`. Seventeen callers enable the shared `mdbook-test`
+**Book publishing.** Twenty-five book-bearing registered members carry
+`book-pages.yml` and `docs/book/book.toml`. Eighteen callers enable the shared `mdbook-test`
 input, and Gaia's custom caller runs `mdbook test` directly. Six callers still
 omit an executable sample gate: `apollo`, `coeus`, `consus`, `hephaestus`,
-`ritk`, and `themis`. Atlas's cross-book workflow builds all 24 books through
-its repository glob. Leto is the 25th active member and remains outside this
-book-bearing inventory until its provider-owned book closure lands; the
-remaining substantive gaps are that book and executable sample coverage, not
-root-gate registration for the existing books.
+`ritk`, and `themis`. Atlas's cross-book workflow builds all 25 books through
+its repository glob. The remaining substantive gaps are executable sample
+coverage in the six callers above, not root-gate registration for the existing
+books.
 
 **Wheel publishing.** Already consolidated: Atlas owns
 [`python-wheels.yml`](../../.github/workflows/python-wheels.yml) as a
@@ -56,7 +55,7 @@ environment gate. No workflow in the stack reads a registry token from a secret.
 A PyPI API token was nonetheless added to the `pypi` environment; it is unused by
 the current workflows.
 
-**Book coverage.** Twenty-four of 25 active registered members have a book. The
+**Book coverage.** All 25 active registered members have a book. The
 2026-08-20 committed-gitlink audit found zero missing book directories and six
 callers without any executable sample gate. Gaia is counted separately because
 its custom workflow runs `mdbook test docs/book` instead of the shared input.

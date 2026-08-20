@@ -7,17 +7,21 @@
   book already has two included executable examples; acceptance is a provider
   PR adding the shared `mdbook-test` inputs, exact-head hosted book success,
   and post-merge default verification. PR [#27](https://github.com/ryancinsight/themis/pull/27)
-  is open at exact head `35f46b42ed27461b5f06e226e53d4ec53c4fdfe9`; hosted
-  checks are queued after a source-to-book GPU type correction. Non-goals are
-  peer-owned Themis source, lockfile, and MSRV work.
+  merged at default `c76a55e5eb9988b48bba69e67d6e07ce5fe55ea8` after exact
+  PR CI `32399070177`, MSRV `32399070178`, and book build `32399070626`
+  passed. Post-merge CI `32402753573`, MSRV `32402753617`, and Pages/book
+  runs `32402754181`/`32402752669` remain queued; the Atlas gitlink is not
+  advanced until those default-head gates are terminal.
 
 - **RITK executable book gate:** current Atlas session claims the provider
   workflow caller and existing executable samples only, on the reusable
   `ritk-book-test` lane. Open PR #201 owns source, lockfile, and connectome
-  chapter changes; this item does not overlap those paths. Acceptance is a
-  provider PR enabling the shared `mdbook-test` inputs, exact-head hosted book
-  success, and post-merge default verification at RITK's current default
-  `d4a978fce40f37b3668afa5d98783626aaf74cff`.
+  chapter changes; this item does not overlap those paths. PR #202 is open at
+  exact head `dc9bf9cda2fd007597205312645038bc48727d0c`; local mdBook build and
+  strict links pass, while provider CI, Python, and book runs
+  `32402257906`/`32402258085`/`32402259004` remain queued. Acceptance is the
+  exact-head hosted book success, merge, and post-merge default verification at
+  RITK's current default `d4a978fce40f37b3668afa5d98783626aaf74cff`.
 
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
@@ -221,27 +225,29 @@
 ## ATLAS-DOCS-BOOK-RECONCILE-2026-08-20 — reconcile book inventory and rot gates [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; root documentation and publication ADR only.
-- **Scope:** `README.md` and `docs/adr/0035-shared-publication-pipelines.md`.
-- **Evidence:** the 25 active root gitlinks contain 24
-  `repos/*/docs/book/book.toml` files and 24 provider `book-pages.yml` callers;
-  Leto has neither artifact at its committed default.
-  Seventeen callers pass `mdbook-test: true`; Gaia's custom Pages caller runs
+- **Scope:** `README.md`, `docs/adr/0035-shared-publication-pipelines.md`,
+  `scripts/atlas-book-gate-audit.py`, and the root PM entries below.
+- **Evidence:** the 25 active root gitlinks contain 25
+  `repos/*/docs/book/book.toml` files and 25 provider `book-pages.yml` callers.
+  Eighteen callers pass `mdbook-test: true`; Gaia's custom Pages caller runs
   `mdbook test docs/book` directly; six still omit any executable sample gate:
   `apollo`, `coeus`, `consus`, `hephaestus`, `ritk`, and `themis`. The root
-  `docs.yml` glob builds all 24 books, and the strict link scan reports zero
+  `docs.yml` glob builds all 25 books, and the strict link scan reports zero
   missing files, anchors, or read failures.
 - **Mechanized audit:** `python scripts/atlas-book-gate-audit.py --check` at
-  the committed root revision reports 24 inventory entries with 17 shared
+  the committed root revision reports 25 inventory entries with 18 shared
   gates, Gaia's direct command gate, and six explicit residuals. The strict
   closure form is `--require-gates`; it is intentionally not a merge gate
   until the six provider-owned sample items are complete.
-- **Landed:** README, ADR 0035, and CHANGELOG now state the current 24-book
-  inventory, root-gate coverage, and exact 18/6 executable-gate split (17
-  shared callers plus Gaia's direct command). The remaining six sample gates
+- **Landed:** README and ADR 0035 now state the current 25-book inventory,
+  root-gate coverage, and exact 19/6 executable-gate split (18 shared callers
+  plus Gaia's direct command). The remaining six sample gates
   stay provider-owned completion items; no illustrative sample was marked
   executable without hosted evidence.
-- **Leto residual:** Leto is tracked separately below; it is not represented
-  as a completed book merely because the other 24 members pass this inventory.
+- **Leto:** the provider default now carries its source-grounded book and
+  shared executable caller at `c1c8ab234559a9f58a34d65c32f6096ee69fc012`;
+  post-merge CI `32400622132` and book build `32400623663` pass, while Pages
+  deployment `32400621014` remains queued.
 - **Residual:** RITK's wheel release workflow remains standalone on its
   peer-owned branch and is recorded separately; this root-only item does not
   edit that checkout.
@@ -251,13 +257,12 @@
 - **Owner:** Atlas coordinator; Leto provider scope is separately owned from
   the root inventory audit.
 - **Scope:** Leto's provider-owned `docs/book/`, `book-pages.yml` caller, and
-  hosted book gate. No root inventory exception may be removed until the
-  caller and book are merged at a verified provider default.
-- **Baseline:** root gitlink `repos/leto` is `a2bc13fc3e6cd704ffcaaba7901c581d6a263796`;
-  that revision has neither `docs/book/` nor `.github/workflows/book-pages.yml`.
-  Fetched branch `origin/codex/leto-book` at `6a8079a` adds a skeleton, but its
-  chapters still contain placeholder prose such as `Chapter prose deferred` and
-  it has no merged PR or hosted evidence.
+  hosted book gate. The root inventory now includes the committed provider
+  default; closure remains gated by terminal post-merge Pages evidence.
+- **Baseline:** root gitlink `repos/leto` is now
+  `c1c8ab234559a9f58a34d65c32f6096ee69fc012`; that committed provider revision
+  carries the source-grounded book, two executable examples, and the shared
+  caller.
 - **Implementation:** provider commit `b500baf1af4223f0a995821b6067622ed6caa535`
   on PR [#119](https://github.com/ryancinsight/leto/pull/119) replaces the
   skeleton with nine source-grounded chapters, two executable examples, crate
@@ -273,9 +278,8 @@
   `book-pages.yml` caller, provider CI/Pages success at the same head, and a
   root gitlink advance followed by `atlas-book-gate-audit.py --check` reporting
   25 book-bearing members.
-- **Pending:** PR CI, Pages book test, merge, and post-merge default verification
-  must bind to `b500baf`; the Atlas gitlink does not advance until those gates
-  pass. The unrelated dirty
+- **Pending:** post-merge Pages build/deployment `32400623663`/`32400621014`
+  must reach terminal success before this item closes. The unrelated dirty
   Leto main-tree edits remain excluded.
 - **Non-goal:** no placeholder chapter is counted as a completed book and no
   provider dirty worktree is overwritten while this item is active.

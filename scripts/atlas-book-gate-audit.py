@@ -9,8 +9,8 @@ workflow that invokes ``mdbook test`` directly (Gaia's current contract).
 
 Members with neither a book manifest nor a book workflow are outside the
 book-bearing inventory.  A member with only one side is reported as an
-incomplete inventory entry.  The current tree has 24 book-bearing members;
-Leto's separate book-authoring work remains provider-owned until it is merged.
+incomplete inventory entry.  The current tree has 25 book-bearing members;
+six callers still require executable sample coverage.
 """
 
 from __future__ import annotations

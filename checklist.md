@@ -14,8 +14,10 @@
       correct the host-sized and required-tier field types.
 - [x] Run locked MSVC check, nextest, doctests, strict Clippy, both examples,
       mdBook build, and strict links locally.
-- [ ] Collect PR #27's hosted Rust and mdBook gates; merge only at green exact
-      head, then verify the post-merge default and advance the Atlas gitlink.
+- [x] Collect PR #27's hosted Rust and mdBook gates and merge at green exact
+      head `35f46b4`; default is now `c76a55e5`.
+- [ ] Verify Themis post-merge CI, MSRV, and Pages/book runs, then advance the
+      Atlas gitlink without staging peer-owned source or lockfile work.
 
 ## ATLAS-LETO-BOOK-2026-08-20 — current session
 
@@ -23,16 +25,18 @@
       only because both included examples lacked `extern crate leto;`.
 - [x] Add the explicit crate linkage, format, run strict Clippy, and execute
       both examples at provider head `b500baf`.
-- [ ] Collect the rerun PR CI and Pages book gate; merge only at green exact
-      head, then verify the post-merge default and advance the Atlas gitlink.
+- [x] Collect the rerun PR CI and Pages book gate; merge at green exact head
+      `b500baf` and advance the Atlas gitlink to `c1c8ab2`.
+- [ ] Collect the post-merge Pages deployment run `32400623663`/`32400621014`
+      to terminal success before closing the provider item.
 
 ## ATLAS-RITK-BOOK-TEST-2026-08-20 — current session
 
-- [ ] Reuse the clean merged-lane checkout from current RITK default and
+- [x] Reuse the clean merged-lane checkout from current RITK default and
       claim only `.github/workflows/book-pages.yml` plus existing included
       executable samples; preserve PR #201 source, lockfile, and chapter dirt.
-- [ ] Enable the shared executable book gate, run the focused local checks and
-      strict links, then collect exact hosted CI/Pages evidence.
+- [x] Enable the shared executable book gate, run the focused local checks and
+      strict links; PR #202 is at exact head `dc9bf9c` with hosted runs queued.
 - [ ] Merge only at green exact head, verify the post-merge default, and
       advance the Atlas gitlink without staging peer-owned RITK work.
 
