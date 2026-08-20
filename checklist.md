@@ -58,6 +58,16 @@
 - [ ] Collect PR #53's terminal book gate, merge at its exact head, and rerun
       the 25-book inventory so Consus leaves the missing-gate set.
 
+## ATLAS-TYCHE-BOOK-PIN-2026-08-20 — current session
+
+- [ ] Refresh Tyche's caller-only Atlas workflow pin from `1fcd17c` to the
+      canonical staging implementation `20c9398`; preserve `mdbook-test: true`,
+      `tyche-core`, Rust 1.97.0, and the output path. Do not edit Tyche source,
+      lockfiles, or release configuration.
+- [ ] Run workflow-shape, strict-link, and mdBook build checks; publish the
+      caller PR and collect exact-head hosted book evidence before advancing
+      the Atlas gitlink.
+
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
 - [x] Reuse the stale merged MSRV lane as `worktrees/themis-book-test`.
