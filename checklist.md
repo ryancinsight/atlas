@@ -96,11 +96,12 @@
       the current pointer drifts are Hyperion `e2dbc9b` versus `4df62f63`,
       RITK `d4a978f` versus `ad508525`, Hermes `c5e4c2d` versus `05441dd`,
       and Kwavers `459f18c` versus `0e78648`.
-- [x] The same exact-head run reproduced those three pointer drifts and
-      separately timed out the nested version-coherence command after 120
-      seconds; the standalone overlay check remains green, so the timeout is
-      recorded as shared-build contention rather than folded into pointer
-      status.
+- [x] The prior exact-head run reproduced the then-current three pointer
+      drifts and separately timed out the nested version-coherence command
+      after 120 seconds; the standalone overlay check remained green, so the
+      timeout is recorded as shared-build contention rather than folded into
+      pointer status. A later run completed coherence and found the fourth
+      Hermes drift plus Kwavers's subsequent `0e786481` default.
 
 ## ATLAS-GAIA-BOOK-GATE-2026-08-20 — current session
 

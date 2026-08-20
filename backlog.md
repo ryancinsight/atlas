@@ -462,7 +462,7 @@ claim is inferred.
   terminal success.
   Full exact-head/coherence audit now reports four pointer drifts: Hyperion
   `e2dbc9b`→`4df62f63`, RITK `d4a978f`→`ad508525`, Hermes
-  `c5e4c2dc`→`05441dd1`, and Kwavers `459f18ce`→`58b51ef`. Hermes PR #55
+  `c5e4c2dc`→`05441dd1`, and Kwavers `459f18ce`→`0e786481`. Hermes PR #55
   merged at `05441dd1`; its post-merge CI `32418079699` and Pages
   `32418078426` are queued, so the Atlas Hermes pointer remains unchanged.
 
