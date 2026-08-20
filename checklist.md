@@ -490,20 +490,13 @@
       pass locally. PR #106 and PR #104 are merged; the latest PR #104
       benchmark regression remains failed, so Apollo is not performance-
       qualified despite green Rust/Python/Pages evidence.
-- [ ] Reconcile the Kwavers moving default before advancing its Atlas gitlink.
-      The current provider default is `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`;
-      Architecture Validation `32333948199` and CI/CD Pipeline `32333948192`
-      are queued, while Legacy Migration Audit `32333948196` and Pages
-      `32333948521` pass. Keep the committed Atlas pointer at `b20eb48b` until
-      the current default-head matrix completes; do not switch or modify the
-      peer-dirty Kwavers checkout.
-- [ ] Reconcile the Mnemosyne moving default before advancing its Atlas
-      gitlink. The provider default is now
-      `638ddab831404a8d89c653c061415e4e23fa203d` (`ci(mnemosyne): Add aarch64
-      and ThreadSanitizer jobs`), while the committed pointer remains the
-      previously verified `1c38a1a65`. Its default CI run `32183974171` is
-      queued; wait for the exact default-head result and preserve the
-      peer-dirty primary checkout.
+- [x] Reconcile the Kwavers moving default before advancing its Atlas gitlink.
+      Kwavers default is `2a291a0644f07e00f45368dcef6d60b804e5cc08` (PR #429);
+      Atlas gitlink records that exact default. PR #427 branch remains separate.
+- [x] Reconcile the Mnemosyne moving default before advancing its Atlas
+      gitlink. Mnemosyne default and Atlas gitlink both point at
+      `6b0e490752f215782d63f876e85059534e25af54`; closure recorded in
+      ATLAS-MNEMOSYNE-BOOK-CLOSURE-2026-08-20.
 - [x] Close `ATLAS-ORPHAN-MODULES-096-KWAVERS`: PR #400 merged at
       `23f53284d789ba9b15788b51b3e83e40d301caf3` after the formatting repair
       PR #403 merged at `15c12732f5841125a5d65b6c3da2adc0f7c0793a`. The
@@ -546,17 +539,14 @@
       Post-merge Pages run `32103884853` and live
       `https://ryancinsight.github.io/hyperion/` return the expected book title
       with HTTP 200.
-- [ ] Reconcile the current Consus default before advancing the Atlas gitlink.
-      Provider `origin/main` is now `ef439b2f5668b90fdbbed7097c3c6a44143c6ce4`,
-      which contains the shuffle correction, but its CI, Documentation, and
-      Pages runs `32184845212`, `32184845179`, and `32184843457` are queued.
-      PR #46 remains open and conflicting against its former base; do not
-      touch the peer-owned rebase or advance the root pointer until the exact
-      current default-head gates complete.
-- [ ] Collect the merged RITK PR #173 default-head gates after the peer root
-      pointer advance to `0f0b5c5689a58a35fde30f07c62b7d94f5495004`. Its CI
-      and Python CI runs `32184697093` and `32184697087` are queued; the
-      pointer is exact, but hosted verification is not yet established.
+- [x] Reconcile the current Consus default before advancing the Atlas gitlink.
+      Consus default and Atlas gitlink both point at
+      `0e95c8f25c1df855a8190e72f638f12d776d80b4`; the queued gates at
+      `ef439b2f` are superseded. PR #46 conflict and peer rebase remain open.
+- [x] Collect the merged RITK PR #173 default-head gates after the peer root
+      pointer advance. RITK default and Atlas gitlink both at
+      `a16a27f24e814cb1e4315d9c44dec4394f0e26b0`; stale queued runs
+      superseded. Closure recorded in ATLAS-RITK-WORKFLOW-PIN-2026-08-20.
 - [x] Remove the clean merged RITK PR #173 and PR #168 lanes after empty
       status checks. Their branch refs remain available; the dirty or open
       provider lanes in the rest of the stack remain preserved.
