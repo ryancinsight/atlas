@@ -41,6 +41,19 @@ Pages `32348782338`, and live Pages HTTP 200 with title `Apollo Workspace |
 apollo` pass. The provider checkout's peer-owned `Cargo.lock` and `backlog.md`
 remain untouched, so they are not part of the Atlas gitlink update.
 
+## Finding 2026-08-20: Kwavers distributed queue remains externally gated
+
+Kwavers PR #427 remains open at head `7245db7e44a7f461a34ff2d67e5b7f1a76bc69c1`
+with `mergeStateStatus=DIRTY`; its current status rollup has no required
+provider verification. The primary Kwavers checkout is detached at that head
+with nine peer-owned source/ADR edits. Four linked lanes remain present under
+`worktrees/kwavers-*`, including one whose remote branch is gone; the live
+conformance scan reports three excess lanes. The Atlas Kwavers gitlink already
+matches hosted-green default `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`.
+Rebasing, switching, removing lanes, or advancing the pointer would overwrite
+or bypass peer work, so PR #427 remains a separate external integration
+requirement.
+
 ## Finding 2026-08-20: Hermes, Mnemosyne, and RITK closure sweep
 
 Hermes PR #57 merged at provider default
