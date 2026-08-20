@@ -1,5 +1,26 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
+
+- **RITK DTI frame contract:** source commits `14a9c619` and `7c4bc993`, PR
+  [#198](https://github.com/ryancinsight/ritk/pull/198). The implementation
+  retains `GradientFrame`, centralizes ImageAxis placement in `DtiVolume`,
+  removes the example adapter, and records the major error-enum impact.
+  Hosted Rust/Python/book checks are running; merge and the Atlas gitlink
+  update require terminal-green exact-head evidence.
+- **Tyche publication boundary:** branch source is pushed as PR
+  [#30](https://github.com/ryancinsight/tyche/pull/30). The facade,
+  Consus-adapter, and Moirai-adapter packages are now explicitly private;
+  `tyche-core` remains the only publishable package. Hosted verification and
+  external registry/release configuration remain separate residuals.
+- **Kwavers distributed queue:** PR
+  [#427](https://github.com/ryancinsight/kwavers/pull/427) remains open at
+  `7245db7e`; its merge state is `DIRTY`. Fetched `origin/main` is now
+  `2a291a0644f07e00f45368dcef6d60b804e5cc08`, while the Atlas gitlink remains
+  the previously verified `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`.
+  Pointer advancement is deferred until the provider default and required
+  hosted gates converge.
+
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 
 - Exact provider/integrator audit passes for the 22 requested providers and

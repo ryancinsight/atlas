@@ -1,5 +1,28 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-20: active RITK/Tyche/Kwavers integration slices
+
+RITK PR #198 is open at source commits `14a9c619` and `7c4bc993`. It retains
+`GradientFrame` in `DiffusionMaps`, makes `DtiVolume` the validated ImageAxis
+to image-index boundary, rejects LPS maps without image geometry, deletes the
+book-example adapter, and records the public error-enum change as major.
+Hosted Rustfmt, Clippy, Rustdoc, dependency-alignment, Python, and book checks
+are running; the local locked Nextest attempt is separately blocked before
+compilation by the Atlas overlay requesting a lockfile rewrite for unused
+local patches.
+
+Tyche PR #30 is open for the publication-boundary cleanup: only `tyche-core`
+is publishable, while the facade and adapter packages are explicitly private.
+Hosted verification and the external registry/release configuration remain
+open; no publication is claimed.
+
+Kwavers PR #427 remains open at `7245db7e44a7f461a34ff2d67e5b7f1a76bc69c1`
+with `mergeStateStatus=DIRTY`. The fetched provider default has advanced to
+`2a291a0644f07e00f45368dcef6d60b804e5cc08`, so the exact-head audit now
+reports the Atlas gitlink `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a` as
+behind. The pointer remains unchanged until the open PR/default convergence
+and required hosted evidence are terminal-green.
+
 ## Finding 2026-08-20: final exact-head and conformance boundary
 
 The exact-head provider integration audit passes for all 22 requested
