@@ -60,8 +60,12 @@
       Hephaestus and Kwavers, while Eunomia has no standalone Python package.
 - [x] Correct the Atlas binding inventory to list ten binding crates and name
       Eunomia as the NumPy element provider.
-- [ ] Add the isolated provider CI feature/runtime contract gate on a clean
+- [x] Add the isolated provider CI feature/runtime contract gate on a clean
       Eunomia lane based at `85e590b7`; preserve the dirty primary checkout.
+- [x] Publish Eunomia PR [#70](https://github.com/ryancinsight/eunomia/pull/70)
+      at exact head `da355aa`; Rust run `32412277378`, NumPy job
+      `96565207307`, MSRV run `32412277137`, and supply-chain job
+      `96565207223` are queued. `recurseml/analysis` is report-only.
 - [ ] Collect the exact-head hosted Eunomia gate and synchronize the provider
       and Atlas PM records.
 

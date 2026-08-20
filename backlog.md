@@ -121,7 +121,11 @@ consumer binding crates remain the only Python packages.
 `.github/workflows/ci.yml`, the existing Eunomia PM entry, and this root item.
 The clean provider lane must be based on Eunomia `origin/main`
 `85e590b789505c66f5174043c2e7e851c20547a5`; the dirty primary checkout is
-peer-owned and remains untouched.
+peer-owned and remains untouched. The implementation is published as Eunomia
+PR [#70](https://github.com/ryancinsight/eunomia/pull/70) at exact head
+`da355aa082108ebd4ec854c034ea5c0b74cc9120`; Rust verification run
+`32412277378`, NumPy feature job `96565207307`, MSRV run `32412277137`, and
+supply-chain job `96565207223` are queued. `recurseml/analysis` is report-only.
 
 
 ## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — todo
