@@ -9623,7 +9623,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   The current provider checkouts/lanes are peer-owned and dirty; re-open when
   those claims land or become stale and reclaimable.
 
-## ATLAS-RITK-D2-WIP-RESIDUAL-103 — rebuild the WIP the NUL corruption orphaned [minor] — in review 2026-08-19
+## ATLAS-RITK-D2-WIP-RESIDUAL-103 — rebuild the WIP the NUL corruption orphaned [minor] — done 2026-08-19
 
 **State.** The shared `repos/ritk` main tree is checked out on
 `feat/ritk-block-matching-d2-followons` carrying ~1150 uncommitted insertions
@@ -9646,6 +9646,10 @@ additions specify the intended behaviour precisely, and `lib.rs` fixes the
 signatures, so the destroyed implementations can be reconstructed against a
 real specification rather than guessed. That is a genuine implementation item —
 DoR-shaped, dependency-ordered behind nothing — not a recovery chore.
+
+**Done 2026-08-19.** ritk PR #193 merged; verified on `origin/main` by content.
+The shared `repos/ritk` tree is back on `main` and clean, the preserved WIP
+branch is retired, and the repo is down to the two-worktree bound.
 
 **Decided: rebuild.** ritk PR #193. The surviving tests turned out to specify
 the destroyed implementations precisely enough to rebuild against rather than
@@ -9684,7 +9688,7 @@ surviving tests as the acceptance oracle; the FFT pyramid path follows.
 **Not blocking anything.** Every merged D2 seam is on main and green. This is
 additive work whose absence costs nothing today.
 
-## ATLAS-NUL-CORRUPTION-102 — files written as all-NUL by a host write failure [patch] — in progress 2026-08-19
+## ATLAS-NUL-CORRUPTION-102 — files written as all-NUL by a host write failure [patch] — done 2026-08-19 (root cause unexplained)
 
 **Event.** Three tracked text files were found containing nothing but NUL bytes,
 100% of their length — not truncated, not partially written, entirely zeroed:
