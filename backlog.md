@@ -2,6 +2,13 @@
 
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 
+- **Themis executable book gate:** current Atlas session claims the provider
+  workflow caller only, on the reusable `themis-book-test` lane. The existing
+  book already has two included executable examples; acceptance is a provider
+  PR adding the shared `mdbook-test` inputs, exact-head hosted book success,
+  and post-merge default verification. Non-goals are peer-owned Themis source,
+  lockfile, and MSRV work.
+
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
   `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.
