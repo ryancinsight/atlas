@@ -34,6 +34,14 @@
   and CHANGELOG work remain outside this item; the hosted gate is sequenced
   after the active RITK collection.
 
+- **Hephaestus executable book gate:** current Atlas session claims only
+  `hephaestus/.github/workflows/book-pages.yml` on a clean
+  `hephaestus-book-test` lane based on the provider's `master` default. The
+  existing HostDevice and capabilities examples are real included programs;
+  acceptance is the shared `mdbook-test` caller for `hephaestus-host`, exact
+  hosted book evidence, and post-merge default verification. Peer-owned
+  FDTD/docs/ADR work in the primary checkout remains outside this item.
+
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
   `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.

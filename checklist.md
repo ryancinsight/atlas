@@ -53,6 +53,16 @@
       RITK hosted collection is terminal; merge, verify post-merge default, and
       advance the Atlas gitlink.
 
+## ATLAS-HEPHAESTUS-BOOK-TEST-2026-08-20 — current session
+
+- [ ] Create a clean `hephaestus-book-test` lane from provider `master`; claim
+      only `.github/workflows/book-pages.yml` and preserve the primary
+      FDTD/docs/ADR dirt.
+- [ ] Enable the shared executable book gate for the HostDevice and capability
+      includes; run mdBook build, strict links, and workflow-shape checks.
+- [ ] Push and collect hosted exact-head book evidence, then merge, verify the
+      post-merge default, and advance the Atlas gitlink.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Resolve and validate the Consus ADR-0045 P4 lane at local head
