@@ -23,14 +23,12 @@
 - Merge Horae PR #22 at source `aaed0cff8e777d62fcaff4f20b3347bb1eefa403`
   as provider default `c2e7766847e3ef28125b809d98fe07250acc6cec` after its
   shared-workflow pin checks and book build pass. Post-merge CI, book, and
-  Pages deployment runs remain in progress; Atlas now records the merged
-  default gitlink.
+  Pages deployment runs pass; live Pages returns HTTP 200.
 
 - Merge Hyperion PR #19 at source `5e8d47008e01f401c8d1b464c30e2909ff1a56c8`
   as provider default `719d84e80163b958cc5500b5fa44a5b01095d6d1` after its
   shared-workflow pin checks and book build pass. Post-merge CI, book, and
-  Pages deployment runs remain in progress; Atlas now records the merged
-  default gitlink.
+  Pages deployment runs pass; live Pages returns HTTP 200.
 
 - Reconcile Kwavers to hosted-green default `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`;
   Architecture Validation `32333948199`, CI/CD `32333948192`, Legacy Migration

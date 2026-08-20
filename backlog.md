@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-HORAE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — merged, post-merge verification pending
+## ATLAS-HORAE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
 - Owner: current Atlas session; provider scope was the Horae Pages caller and
   its PM/changelog artifacts. No implementation or lockfile change was made.
@@ -11,13 +11,14 @@
 - Evidence: provider commit `aaed0cff8e777d62fcaff4f20b3347bb1eefa403`, PR
   [#22](https://github.com/ryancinsight/horae/pull/22), merged default
   `c2e7766847e3ef28125b809d98fe07250acc6cec`; exact PR `verify`,
-  `supply-chain`, and Pages book-build checks pass. Post-merge CI, Deploy
-  mdBook, and dynamic Pages runs are still in progress.
+  `supply-chain`, and Pages book-build checks pass. Post-merge CI
+  `32341053963`, Deploy mdBook `32341054529`, and dynamic Pages
+  `32341052968` pass; live Pages returns HTTP 200 with the expected Horae
+  title.
 - Delivery: Atlas gitlink now points to merged default
-  `c2e7766847e3ef28125b809d98fe07250acc6cec`; post-merge runs remain a
-  verification residual.
+  `c2e7766847e3ef28125b809d98fe07250acc6cec` and the book gate is closed.
 
-## ATLAS-HYPERION-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — merged, post-merge verification pending
+## ATLAS-HYPERION-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
 - Owner: current Atlas session; provider scope was the Hyperion Pages caller
   and its PM/changelog artifacts. No implementation or lockfile change was
@@ -29,10 +30,12 @@
 - Evidence: provider commit `5e8d47008e01f401c8d1b464c30e2909ff1a56c8`, PR
   [#19](https://github.com/ryancinsight/hyperion/pull/19), merged default
   `719d84e80163b958cc5500b5fa44a5b01095d6d1`; exact PR `verify`,
-  `supply-chain`, and Pages book-build checks pass. Post-merge CI, Deploy
-  mdBook, and dynamic Pages runs are still in progress.
-- Delivery: Atlas gitlink now points to merged default; post-merge runs remain
-  a verification residual.
+  `supply-chain`, and Pages book-build checks pass. Post-merge CI
+  `32341198738`, Deploy mdBook `32341199236`, and dynamic Pages
+  `32341197889` pass; live Pages returns HTTP 200 with the expected Hyperion
+  title.
+- Delivery: Atlas gitlink now points to merged default and the book gate is
+  closed.
 
 ## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — done 2026-08-20
 
