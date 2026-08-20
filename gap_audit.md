@@ -13018,8 +13018,11 @@ unrelated CFDrs/Coeus/Consus ratchet residuals.
 
 ## Finding 2026-08-20: Proteus executable book gate published
 
-Proteus PR [#14](https://github.com/ryancinsight/proteus/pull/14) is open at
-exact source head `4d48270e3fa9d5641b8a63600fc76fe3a4d99c79`. The caller now
+Proteus PR [#14](https://github.com/ryancinsight/proteus/pull/14) merged at
+provider default `1c73fdd17e45cb7d1feb63fcbea774c6bbb5a146` after exact source
+head `4d482709927aa464f9116b36dc016d516b01b8be`. Its PM closure PR [#15]
+(https://github.com/ryancinsight/proteus/pull/15) merged at
+`8b6321c9b02ff5114cee8ff01a0aee9d12076754`. The caller now
 pins the existing shared Pages workflow at root commit
 `53eb15ae2fa7ee9192e5d006989a430269fdc881`, enables `mdbook-test`, selects
 Rust `1.97.0`, and passes `cargo-package: proteus`. Both included examples
@@ -13030,5 +13033,6 @@ Local Rust format, Clippy, package build, nextest (20/20), doctest (1/1),
 mdBook build, and strict link scanning pass. Local executable mdBook reaches
 both examples but cannot run them because the shared Windows rustdoc process
 expects GNU-target artifacts while the staged crates are MSVC-target; the
-hosted Linux Pages job is the acceptance evidence. No Cargo.lock change was
-included; the Proteus peer-staged lock remains untouched.
+hosted Linux Pages job passed in run `32338238163` alongside CI run
+`32338237653`; its pull-request deployment job was correctly skipped. No
+Cargo.lock change was included; the Proteus peer-staged lock remains untouched.

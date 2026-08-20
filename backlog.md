@@ -41,7 +41,7 @@
 - **Non-goals:** no registry release, dependency refresh, or edits to the dirty
   Aequitas degree lane.
 
-## ATLAS-PROTEUS-BOOK-TEST-2026-08-20 — enable executable book examples [patch] — in progress
+## ATLAS-PROTEUS-BOOK-TEST-2026-08-20 — enable executable book examples [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Proteus source scope with a
   peer-staged `Cargo.lock` preserved untouched.
@@ -60,15 +60,20 @@
 - **Non-goals:** no public API, dependency, lockfile, or peer-owned worktree
   changes; no conversion of the three focused non-standalone fragments.
 - **Landed source:** Proteus commits `61879d4b4a68e2d201460af0fe6f6a0e7fe9919f`
-  and `4d48270e3fa9d5641b8a63600fc76fe3a4d99c79` on
+  and `4d482709927aa464f9116b36dc016d516b01b8be` on
   `ci/proteus-book-test`, PR
-  [#14](https://github.com/ryancinsight/proteus/pull/14); hosted gates are
-  pending at the latter exact head.
+  [#14](https://github.com/ryancinsight/proteus/pull/14); its closure PR
+  [#15](https://github.com/ryancinsight/proteus/pull/15) records the final
+  evidence. PR #14 merged at provider default `1c73fdd`; PR #15 merged at
+  `8b6321c9b02ff5114cee8ff01a0aee9d12076754`.
 - **Local evidence:** Rust 1.97.0 MSVC format, Clippy, package build,
   20/20 nextest integration tests, 1/1 doctest, mdBook build, and strict link
   scan pass. Local executable mdBook reaches both examples but is blocked by
-  the shared GNU/MSVC rustdoc cache mismatch; hosted Linux remains the
-  authoritative staging result.
+  the shared GNU/MSVC rustdoc cache mismatch.
+- **Hosted evidence:** exact PR #14 head passed CI verify/supply-chain in
+  `32338237653` and the shared Pages book build in `32338238163`; its Pages
+  deployment was correctly skipped for the pull request. Definition of done
+  is met.
 
 ## ATLAS-KWAVERS-DISTRIBUTED-QUEUE-2026-08-20 — close queue completion and deadline contracts [patch] — in progress
 
