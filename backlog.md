@@ -81,17 +81,18 @@
 - **Acceptance:** the caller enables `mdbook-test` with Rust `1.97.0` and
   `cargo-package: moirai-runtime`; both included examples compile through the
   staged library path; no provider lockfile or runtime implementation changes.
-- **Landed:** commit `4d9bfb0` is pushed to `codex/moirai-book-test`; draft PR
-  #144 is open. It adds the shared-workflow inputs and explicit
-  `extern crate moirai;` declarations required by mdBook rustdoc.
+- **Landed:** commits `4d9bfb0` and `2cca9cc` are pushed to
+  `codex/moirai-book-test`; draft PR #144 is open at exact head `2cca9cc`.
+  They add the shared-workflow inputs, explicit `extern crate moirai;`
+  declarations required by mdBook rustdoc, and the provider checklist entry.
 - **Local verification:** format, locked `moirai-runtime` example check,
   example Clippy with `-D warnings`, and `mdbook build` pass. The exact default
   `c651a46` also passes workspace packaging, Nextest `801/801` with six
   configured skips, workspace doctests, and workspace Clippy. Local mdBook
   execution reaches both examples but shared Windows artifacts produce rustdoc
   `E0460`; clean hosted execution is the acceptance oracle.
-- **Hosted state:** exact-head CI run `32331791168`, Python binding/wheel run
-  `32331791286`, and Pages run `32331791553` are queued. The recurring
+- **Hosted state:** exact-head Rust run `32331957704`, Python binding/wheel run
+  `32331957649`, and Pages run `32331958010` are queued. The recurring
   `recurseml/analysis` error is report-only; the hosted monitor owns collection
   without blocking local continuation.
 
