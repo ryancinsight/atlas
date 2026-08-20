@@ -9670,9 +9670,30 @@ from a fresh clone" and excluding the file from the generated index — correctl
 since the index records what a clone would have. That message was being printed
 and passed over.
 
-**Fix.** Commit 112 (attributing that it was found untracked), then regenerate
-the index so both it and 113 appear. Sweep the other members for the same
-condition in the same pass — the check is one command and already exists.
+**Swept 2026-08-19 — it is systematic, three members.**
+`git ls-files --others --exclude-standard docs/adr/` across every member:
+
+| member | untracked ADR | lines | status |
+| --- | --- | --- | --- |
+| kwavers | `112-convex-array-rasterizer-seam.md` | 110 | Accepted, item COV-3 done |
+| coeus | `0066-provider-owned-dense-product-bridge.md` | 108 | header carries no status line |
+| hephaestus | `0052-device-neutral-sliding-window-seam.md` | 216 | Proposed |
+
+All three are full records with six sections each, not scaffolding — 434 lines
+of decision rationale that no clone of these repositories contains. Both coeus
+and hephaestus also carry a dirty `docs/adr/README.md`, consistent with an index
+regenerated against a file that was then never committed.
+
+**Fix.** Per member: commit the ADR (noting it was found untracked), regenerate
+the index, push. Two need a header decision first — coeus 0066 has no `Status`
+line at all, and hephaestus 0052 is `Proposed`, so whether either is Accepted
+needs its author or its evidence, not my assumption.
+
+**Mechanization.** The detection already exists and already ran: `adr-index.py`
+prints "untracked, so absent from a fresh clone" and correctly excludes the
+file. It exits nonzero only for index drift, so an untracked ADR alone is a
+message nobody fails on. Making that condition part of the nonzero exit is a
+one-line change and turns a passed-over log line into a gate.
 
 ## ATLAS-RITK-D2-WIP-RESIDUAL-103 — rebuild the WIP the NUL corruption orphaned [minor] — done 2026-08-19
 
