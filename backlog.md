@@ -32,7 +32,14 @@
   `worktrees/consus-adr-0045-p4-benchmark`: Zarr crc32c/bytes-codec changes
   retained; only the obsolete package-owned S3 integration removed. Branch
   pushed force-with-lease; PR is MERGEABLE. Book deploy passes; CI matrix
-  (50+ checks) queued. Merge requires terminal-green hosted evidence.
+  (50+ checks) completed with a red Windows `consus-mat` gate: run
+  `32388512328` timed out four SciPy/HDF5 round-trip tests at the committed
+  60-second nextest limit after 48/90 passed, and cancelled 38. The same run's
+  `consus-io` lock-normalization step failed while fetching Melinoe revision
+  `689f5621` with an SSL/network error; the revision exists at the current
+  Melinoe default, so this is recorded as infrastructure evidence pending a
+  clean retry. Merge requires the timeout defect fixed and all hosted evidence
+  terminal-green; no timeout or lock gate was weakened.
 - **Helios Apollo lock sweep:** branch `codex/helios-apollo-lock-sweep` at
   `25f04b6` published as PR [#68](https://github.com/ryancinsight/helios/pull/68).
   Advances Apollo `d585e0f5`→`0c6ffb91`, Moirai `3d5d4c66`→`3b812865`, Themis
