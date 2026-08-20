@@ -19,6 +19,13 @@
   increment. PR #194 adds finite release-job bounds at `337f0dc5`; its hosted
   Rust, Rustdoc, Python, wheel, and dependency-alignment jobs are queued, so
   Atlas remains at the merged default until those checks complete.
+- **Standalone package gate:** running `cargo package --workspace --locked`
+  outside the Atlas overlay packages the preceding RITK crates, then stops at
+  `ritk-block-matching`: its `apollo-fft = ^0.27.0` requirement has no matching
+  crates.io candidate (`0.26.0` and `0.25.0` are the available versions).
+  This is a release-order blocker requiring Apollo 0.27 publication before the
+  RITK workspace can claim complete crates.io package evidence; the dependency
+  is not weakened and no release is performed without release authority.
 - **Horae:** the exact `--all-features` native gate passes `23/23`, and its CI
   and Pages callers enable the book test. The local Windows `mdbook test`
   invocation reaches rustdoc but fails with a GNU/MSVC artifact mismatch
