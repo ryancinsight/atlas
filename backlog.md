@@ -41,6 +41,25 @@
 - **Non-goals:** no registry release, dependency refresh, or edits to the dirty
   Aequitas degree lane.
 
+## ATLAS-PROTEUS-BOOK-TEST-2026-08-20 — enable executable book examples [patch] — in progress
+
+- **Owner:** current Atlas session; clean Proteus source scope with a
+  peer-staged `Cargo.lock` preserved untouched.
+- **Claimed scope:** `repos/proteus/.github/workflows/book-pages.yml`,
+  `repos/proteus/examples/{constant_material,temperature_material}.rs`, and
+  Proteus PM/changelog artifacts; three focused API fragments remain
+  intentionally non-standalone.
+- **Baseline:** the caller omits `mdbook-test`; local `mdbook test docs/book`
+  reaches both included examples and fails because `proteus` and `aequitas` are
+  not staged as external crates. The examples are real input-sensitive paths,
+  not placeholders.
+- **Acceptance:** both included examples compile and run through the shared
+  package-staging workflow under Rust 1.97.0; the caller pins the existing
+  Atlas workflow commit, local format/build/link/book checks pass, and hosted
+  verify, supply-chain, and Pages build gates pass at the exact PR head.
+- **Non-goals:** no public API, dependency, lockfile, or peer-owned worktree
+  changes; no conversion of the three focused non-standalone fragments.
+
 ## ATLAS-KWAVERS-DISTRIBUTED-QUEUE-2026-08-20 — close queue completion and deadline contracts [patch] — in progress
 
 - **Owner:** current Atlas session; detached Kwavers checkout with a disjoint
