@@ -10734,9 +10734,22 @@ test that drives `u64::MAX` through it. The cause was upstream:
   `AsyncLength`.
 - It is **not an ancestor of moirai `main`**. Pushed to
   `codex/moirai-positioned-io`, no PR ever opened, now 1 ahead / **14 behind**.
-- consus already imports those traits in five modules, so that branch cannot
-  compile at all — every failure is an unresolved import, which reads like a
-  consus defect and is not one.
+- consus `main` imports those traits in five modules and pins them **by
+  revision**: its committed lockfile carries
+  `git+https://github.com/ryancinsight/Moirai?rev=b548bc9`.
+
+**Correction.** I first recorded that consus "cannot compile at all". It
+compiles fine in CI — the rev pin resolves, because the commit is pushed. The
+build failures I hit came from the Atlas development overlay redirecting
+`moirai-*` to the local tree, which sits on a branch without these contracts.
+That was my local setup, not a consus defect, and the earlier note said
+otherwise.
+
+The real problem is narrower and still worth fixing: a `rev` pin onto an
+unmerged commit is quarantine, not a dependency. It freezes consus 14 commits
+behind moirai `main` and it cannot take any moirai change without moving to
+another unmerged rev. Landing the commit is what lets consus return to an
+ordinary version requirement.
 
 Landed as moirai PR #145: cherry-picked onto current `main`, applied cleanly
 across the 14 intervening commits, authorship preserved. 90/90 `moirai-async`
