@@ -15,16 +15,23 @@ Tyche PR #30 merged at `bfe6ab72915ff1d29357dd6895c39a11baecfbc0` for the
 publication-boundary cleanup: only `tyche-core` is publishable, while the
 facade and adapter packages are explicitly private. Required PR `verify` and
 `supply-chain` runs pass; report-only RecurseML analysis is red. Post-merge CI
-`32386013998` and dynamic Pages `32386011656` are queued, so the Atlas gitlink
-does not advance yet. External registry/release configuration remains open;
-no publication is claimed.
+`32386013998` and dynamic Pages `32386011656` pass; a fresh live request to
+`https://ryancinsight.github.io/tyche/` returns HTTP 200 with title `Tyche |
+tyche`. The Atlas gitlink is already advanced to the merged default.
+External registry/release configuration remains open; no publication is
+claimed.
 
-Kwavers PR #427 remains open at `7245db7e44a7f461a34ff2d67e5b7f1a76bc69c1`
+Kwavers PR #427 remains open at rebased head
+`34d09c06fc3685aee0c9c1e07e96e819077788cd`
 with `mergeStateStatus=DIRTY`. The fetched provider default has advanced to
 `2a291a0644f07e00f45368dcef6d60b804e5cc08`, so the exact-head audit now
 reports the Atlas gitlink `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a` as
-behind. The pointer remains unchanged until the open PR/default convergence
-and required hosted evidence are terminal-green.
+behind. That default is the merged PR #429 head and its CI/CD,
+legacy-migration, architecture, and Pages runs are green, so Atlas advances
+the gitlink to `2a291a064` while preserving the separately dirty PR #427
+checkout and its uncommitted peer edits. PR #427 is now rebased at `34d09c06`
+and has fresh hosted gates queued; it remains an external integration
+requirement.
 
 ## Finding 2026-08-20: final exact-head and conformance boundary
 

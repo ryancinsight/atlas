@@ -20,8 +20,10 @@
   `34d09c06f` on current default `2a291a064`; conflict in `CHANGELOG.md`
   resolved by retaining both the elastic-FWI entry from default and the
   distributed-scheduling entry from the branch. Merge state is now
-  `MERGEABLE`; hosted gate CI is queued at `34d09c06f`. Atlas gitlink
-  advancement deferred until provider gate is terminal-green.
+  `MERGEABLE`; hosted gate CI is queued at `34d09c06f`. The Atlas gitlink
+  advances independently to the already merged and hosted-green default
+  `2a291a064` from PR #429; the PR #427 branch remains unintegrated until its
+  own gates are terminal-green.
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 
