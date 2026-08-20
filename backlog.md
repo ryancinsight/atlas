@@ -7,6 +7,21 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
+## ATLAS-PUBLISH-GRAPH-DOCS-2026-08-20 — refresh release graph counts [patch] — in progress
+
+- **Owner:** current Atlas session; root documentation only.
+- **Scope:** the current publish-graph statements in `README.md` and the
+  `ATLAS-PUBLISH-GRAPH-2026-08-19` entry in this file. Historical ADRs and
+  superseded audit records remain unchanged.
+- **Acceptance:** claims match a fresh `py scripts/publish-order.py --json`
+  result: 182 publishable packages, 34 layers, 14 blocked package nodes, and
+  zero unresolved or contested names.
+- **Evidence:** the live script returns 218 manifests, 182 publishable, 36
+  unpublishable, 34 layers, 14 blocked, 0 contested, and 0 unresolved.
+- **Landed:** current statements are synchronized in `README.md` and the
+  active publish-graph record below; historical ADR counts remain intentionally
+  revision-scoped.
+
 ## ATLAS-ASCLEPIUS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
 
 - **Owner:** current Atlas session; clean Asclepius exact-main checkout only.
@@ -287,7 +302,7 @@
 
 - `scripts/publish-order.py --json` resolves 182 publishable packages across
   34 dependency layers with zero unresolved edges and no contested names.
-- Thirteen publishable packages remain blocked by unpublishable foundations:
+- Fourteen publishable packages remain blocked by unpublishable foundations:
   `hyperion` blocks CFDrs, Helios, and Kwavers consumers; `proteus` blocks
   CFDrs, Helios, and Kwavers consumers; `horae` blocks `helios-domain`; and
   `asclepius-coeus` blocks `helios-planning`. These are release-topology
