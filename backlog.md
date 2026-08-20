@@ -52,6 +52,14 @@
   packages and verifies `horae v0.1.0` successfully outside the Atlas overlay.
   The package result is valid crates.io content evidence; publication remains
   governed by the provider's occupied-name/release-authority constraints.
+- **Moirai package gate:** standalone `cargo package --workspace --locked`
+  reaches manifest verification and stops at `benchmarks/Cargo.toml`: its
+  path-only internal dependencies have no version requirements, which Cargo
+  rejects for packaging (`dependency moirai-runtime does not specify a
+  version`). The same manifest is present on fetched `origin/main`; this is a
+  provider packaging defect, not a reason to weaken the runtime dependency
+  graph. The benchmark README path and out-of-package example paths also emit
+  packaging warnings and require the same provider-owned cleanup.
 - **Horae:** the exact `--all-features` native gate passes `23/23`, and its CI
   and Pages callers enable the book test. The local Windows `mdbook test`
   invocation reaches rustdoc but fails with a GNU/MSVC artifact mismatch
