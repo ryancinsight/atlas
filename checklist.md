@@ -60,7 +60,7 @@
 
 ## ATLAS-TYCHE-BOOK-PIN-2026-08-20 — current session
 
-- [ ] Refresh Tyche's caller-only Atlas workflow pin from `1fcd17c` to the
+- [x] Refresh Tyche's caller-only Atlas workflow pin from `1fcd17c` to the
       canonical staging implementation `20c9398`; preserve `mdbook-test: true`,
       `tyche-core`, Rust 1.97.0, and the output path. Do not edit Tyche source,
       lockfiles, or release configuration.
@@ -69,6 +69,14 @@
       [#34](https://github.com/ryancinsight/tyche/pull/34).
 - [ ] Collect exact-head hosted book evidence before advancing the Atlas
       gitlink.
+
+## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — current session
+
+- [ ] Remove the unconditional `cfd-validation` global allocator without
+      weakening real allocation accounting; keep the tracking facility in an
+      explicit benchmark/test harness.
+- [ ] Add the provider ADR/PM update and downstream allocator-link regression
+      test; run format, locked workspace all-target checks, and focused tests.
 
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 

@@ -368,6 +368,21 @@ The current Atlas session owns the bounded lane
 CI result remains pending; no broader CFDrs test, Pages, or allocator closure
 claim is inferred.
 
+## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — Remove library global allocator [major][arch] — in progress
+
+The CFDrs provider audit confirms `cfd-validation` installs a process-wide
+`#[global_allocator]` from library code. This contaminates downstream
+allocation measurements and prevents consumers from declaring their own
+allocator. The current session claims only the cfd-validation memory profiling
+surface, its opt-in benchmark harness, its consumer-allocator regression test,
+and the provider ADR/PM records; unrelated CFDrs peer edits remain untouched.
+
+Acceptance: the library has no global allocator; the tracking allocator is
+constructed only by an explicit benchmark/test harness; a downstream-style
+integration test declares `System` as its allocator; and the provider's locked
+workspace all-target gate passes. This is a public breaking change and follows
+the provider's recorded allocator decision.
+
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 
 - **Themis executable book gate:** current Atlas session claims the provider
