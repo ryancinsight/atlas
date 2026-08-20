@@ -34,7 +34,7 @@
 - Delivery: Atlas gitlink now points to merged default; post-merge runs remain
   a verification residual.
 
-## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — hosted verification pending
+## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — merged, post-merge verification pending
 
 - Owner: Atlas integration; provider scope is the Hermes Pages caller and the
   five source files included by its book. The active orphan-module lane and
@@ -48,9 +48,12 @@
 - Verification: provider fmt, locked package build/checks where available,
   Nextest, doctests, `mdbook test`, book build, and strict link check; report
   any Windows overlay limitation separately from provider-source evidence.
-- Delivery: Hermes PR #56 is open at exact head
-  `932468dac5ef4abadea4bdd12d62b420a4225ba7`. The Atlas gitlink remains at
-  `da00fd6` until hosted source verification and the Pages build pass.
+- Delivery: Hermes PR #56 merged source `932468dac5ef4abadea4bdd12d62b420a4225ba7`
+  as provider default `3a39ef16d679dbac9c1a479b2b9c44135e262af3`. Exact PR
+  CI `32340240365` and Pages build `32340240860` pass, including the 12-minute
+  benchmark runtime gate. Post-merge CI `32341395485`, Deploy mdBook
+  `32341395955`, and dynamic Pages `32341394367` remain in progress; Atlas
+  records the merged default gitlink.
 
 > Board layout: **Sweep 2026-08-13** below carries the items opened by the
 > full-stack audit of all 25 members. Older live items follow. Closed items are
@@ -135,7 +138,7 @@
   deployment was correctly skipped for the pull request. Definition of done
   is met.
 
-## ATLAS-MNEMOSYNE-BOOK-TEST-2026-08-20 — enable executable book examples [patch] — in progress
+## ATLAS-MNEMOSYNE-BOOK-TEST-2026-08-20 — enable executable book examples [patch] — merged, post-merge verification pending
 
 - **Owner:** current Atlas session; Mnemosyne source scope with the peer-staged
   `Cargo.lock` preserved untouched.
@@ -152,8 +155,11 @@
 - **Landed source:** provider commit
   `a527380dce3c02d3596aec9ca65a5a05025625d9` on
   `ci/mnemosyne-book-test`, PR
-  [#65](https://github.com/ryancinsight/Mnemosyne/pull/65); hosted verification
-  is pending at this exact head.
+  [#65](https://github.com/ryancinsight/Mnemosyne/pull/65), merged as provider
+  default `7003eb3d09a716a91b4560e1810d65970c874daa`. Exact PR CI,
+  MSRV, Miri, and Pages checks pass; post-merge CI `32341399588`, MSRV
+  `32341399599`, and Deploy mdBook `32341400004` remain in progress. Atlas
+  records the merged default gitlink.
 - **Local evidence:** Rust 1.97.0 format, package example check, strict
   package Clippy, nextest `25/25`, Cargo doctests `0/0`, both runnable example
   outputs, mdBook build, and strict link scan pass. Standalone mdBook reaches

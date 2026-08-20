@@ -37,6 +37,16 @@
   Audit `32333948196`, and Pages `32333948521` pass. The open queue-contract
   PR #427 remains a separate branch residual.
 
+- Merge Hermes PR #56 at source `932468dac5ef4abadea4bdd12d62b420a4225ba7`
+  as provider default `3a39ef16d679dbac9c1a479b2b9c44135e262af3` after its
+  executable book examples, SIMD snippet, and benchmark runtime gate pass.
+  Post-merge CI, book, and Pages runs remain in progress.
+
+- Merge Mnemosyne PR #65 at source `a527380a15e8979c3b773a4e9891f1d53b0bc45c`
+  as provider default `7003eb3d09a716a91b4560e1810d65970c874daa` after its
+  executable allocator examples and Miri gate pass. Post-merge CI, MSRV, and
+  book runs remain in progress.
+
 - Merge Proteus PR #14 and its PM closure PR #15 after the executable book gate
   passes: CI run `32338237653` and Pages build `32338238163` validate both
   included material examples; the pull-request Pages deployment is skipped.
