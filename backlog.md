@@ -14,9 +14,9 @@
   `ATLAS-PUBLISH-GRAPH-2026-08-19` entry in this file. Historical ADRs and
   superseded audit records remain unchanged.
 - **Acceptance:** claims match a fresh `py scripts/publish-order.py --json`
-  result: 182 publishable packages, 34 layers, 14 blocked package nodes, and
+  result: 183 publishable packages, 34 layers, 14 blocked package nodes, and
   zero unresolved or contested names.
-- **Evidence:** the live script returns 218 manifests, 182 publishable, 36
+- **Evidence:** the live script returns 218 manifests, 183 publishable, 35
   unpublishable, 34 layers, 14 blocked, 0 contested, and 0 unresolved.
 - **Landed:** current statements are synchronized in `README.md` and the
   active publish-graph record below; historical ADR counts remain intentionally
