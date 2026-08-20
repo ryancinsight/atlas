@@ -9,28 +9,33 @@
 
 ## ATLAS-HOSTED-RECHECK-2026-08-19-2 — current provider state [patch]
 
-- **Kwavers:** `origin/main` is `aa9a62e45c1f6327161b4e12ba6b3b10e147475d2`.
-  The Atlas gitlink now matches that fetched default; the exact-head audit
-  passes locally. Hosted evidence remains a separate gate.
-- **RITK:** `origin/main` is `ebf2f49924c3c90d5b3c1fb0cca536bc4b6002c2`.
-  The Atlas pointer now matches the fetched default after the block-matching
-  diagnostics merge. Hosted evidence remains a separate gate.
-- **Horae:** CI `32285903134`, Deploy mdBook `32285903939`, and Pages
-  `32285901542` remain queued at `0df563a69693418b267f337fa4bc9dfb7c1aeb1b`.
-  Standalone locked verification passes nextest 23/23, strict Clippy, and
-  crate doctests 1/1; `mdbook build docs/book` passes. A local `mdbook test`
-  attempt with the canonical shared target reaches rustdoc but is blocked by
-  multiple historical `horae`/`aequitas` artifacts (`E0464`), so no book
-  content failure is inferred; the clean hosted gate remains authoritative.
-- **Helios:** PyPI PR #67 remains open at `f31f2619`; Rust, Python, benchmark,
-  and book checks are queued. Its checkout retains peer-owned manifest dirt.
-- **Apollo:** PR #107 remains unmergeable; benchmark run `32217561595` fails
-  its counterbalanced performance cases. No pointer advance is made.
-- **Root worktree:** latest worktree conformance red is limited to the
-  peer-owned RITK FFT `clippy::too_many_arguments` expectation; generated
-  standalone package cache forks were removed. Exact provider-head, overlay,
-  registry metadata, and lock-form checks pass locally; conformance remains
-  separately gated because the shared worktree is dirty.
+- **Kwavers:** fetched `origin/main` is
+  `b571927442b074fb0622beabdf3f2535dff1951a`, the merge of PR #417's typed
+  Aequitas `Degree` adoption. The Atlas gitlink matches it and the exact-head,
+  overlay, registry, and lock-form gates pass. PR #418 remains held because
+  ADR 112 still states that Aequitas has no `Degree` unit.
+- **RITK:** fetched `origin/main` is
+  `9e1c276a3c56324a1e429f71fa2fb14e3883f5d1`, the warning-free rustdoc
+  increment. PR #194 adds finite release-job bounds at `337f0dc5`; its hosted
+  Rust, Rustdoc, Python, wheel, and dependency-alignment jobs are queued, so
+  Atlas remains at the merged default until those checks complete.
+- **Horae:** the exact `--all-features` native gate passes `23/23`, and its CI
+  and Pages callers enable the book test. The local Windows `mdbook test`
+  invocation reaches rustdoc but fails with a GNU/MSVC artifact mismatch
+  (`E0461`); no chapter-content failure is inferred.
+- **Helios:** draft PyPI PR #67 remains open at `f31f2619`; its Rust, Python,
+  benchmark, and book-build checks pass while Pages deployment is skipped. The
+  checkout retains peer-owned manifest dirt.
+- **Apollo:** PR #107 remains open with Rust and benchmark failures. The
+  benchmark audit localizes the regression to the four const twiddle-cache
+  initializers in `crates/apollo-fft/src/application/execution/kernel/mixed_radix/caches/twiddle.rs:26-29`.
+- **Root worktree:** exact provider/integrator heads, overlay, registry
+  metadata (`252` manifests, `0` violations), and 27 standalone lock forms
+  pass locally. The intentional dirty-tree conformance snapshot reports
+  `609` oversized files, `675` implementation-bearing manifests, `1,196`
+  production unwraps, `518` allow sites, `803` existence-only assertions, and
+  `4` excess-worktree sites; these remain peer-owned ratchet debt rather than
+  reproducible clean-tree gate results.
 
 ## ATLAS-RITK-DEFAULT-RECONCILIATION-2026-08-19 — docs-only merge [patch]
 
