@@ -294,7 +294,7 @@ claim is inferred.
   `mdbook-test` caller against `apollo-fft`, exact hosted book evidence, and
   post-merge default verification. Apollo's peer-owned Cargo.lock, backlog,
   and CHANGELOG work remain outside this item; the hosted gate is sequenced
-  after the active RITK collection. Local commit `28f6332` passes mdBook build,
+  after the active RITK collection. Local commit `27f0c4c3` passes mdBook build,
   strict links across 14 Markdown files, and workflow-shape checks. PR
   [#108](https://github.com/ryancinsight/apollo/pull/108) is now at exact head
   `27f0c4c3`, which adds the required declarations to both included examples
