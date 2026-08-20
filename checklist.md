@@ -160,10 +160,12 @@
       `extern crate` declarations for their staged Hephaestus and Themis
       crates.
 - [x] Repair both examples and repin the shared workflow to Atlas staging
-      revision `20c9398`; commit `71c3fcb` is published on PR #214. The exact-
-      head provider jobs and book run `32413503430`/`32413503425`/`32413503451`/
-      `32413503492`/`32413504203` are pending at collection time; hardware
-      jobs are intentionally skipped.
+      revision `20c9398`; commit `71c3fcb` is published on PR #214. Remove the
+      two unused book-example imports in follow-up commit `e0abb03`; the new
+      exact-head runs are `32413790294` (book), `32413789427` (WGPU),
+      `32413789452` (CUDA), `32413789434` (ROCm), and `32413789435` (Metal),
+      queued at collection time. Hardware execution remains intentionally
+      skipped.
 - [ ] Collect terminal exact-head evidence, merge, verify the post-merge
       default, and advance the Atlas gitlink only after those gates pass.
 
