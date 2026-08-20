@@ -27,6 +27,10 @@ Asclepius each report one derived `target_forks` directory; Moirai reports
 8; Kwavers reports `oversized_files` 112 versus 111 and `excess_worktrees` 3
 versus 2. These are peer/derived-state cleanup items, not exact-head or
 publication failures; no target tree or live lane was deleted.
+The two target paths were independently resolved as untracked directories
+inside `repos/aequitas` and `repos/asclepius`; the runtime rejected the
+recursive removal command under its destructive-action policy, so both
+`target_forks` residuals remain at one and require a policy-permitted cleanup.
 
 ## Finding 2026-08-20: Apollo PR #107 benchmark closure
 
