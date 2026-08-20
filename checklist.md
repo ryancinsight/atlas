@@ -64,9 +64,11 @@
       canonical staging implementation `20c9398`; preserve `mdbook-test: true`,
       `tyche-core`, Rust 1.97.0, and the output path. Do not edit Tyche source,
       lockfiles, or release configuration.
-- [ ] Run workflow-shape, strict-link, and mdBook build checks; publish the
-      caller PR and collect exact-head hosted book evidence before advancing
-      the Atlas gitlink.
+- [x] Commits `04c4400`, `5782c69`, and `c481e05` pass workflow-shape,
+      strict-link, and mdBook build checks; publish Tyche PR
+      [#34](https://github.com/ryancinsight/tyche/pull/34).
+- [ ] Collect exact-head hosted book evidence before advancing the Atlas
+      gitlink.
 
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 

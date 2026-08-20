@@ -109,7 +109,9 @@ The clean Tyche default `10410f2de1ce1529ecbff50fa740b23a1c8f77b9` is a newly
 detected residual: its executable book gate still pins Atlas `1fcd17c`, not the
 canonical staging implementation `20c9398`. The current session claims only
 Tyche's Pages caller and provider-local PM record for a caller-only refresh;
-Tyche source, lockfiles, and release work remain out of scope.
+Tyche source, lockfiles, and release work remain out of scope. The update is
+published as Tyche PR [#34](https://github.com/ryancinsight/tyche/pull/34) at
+exact head `c481e05`.
 
 - Aequitas [#38](https://github.com/ryancinsight/aequitas/pull/38),
   Asclepius [#23](https://github.com/ryancinsight/asclepius/pull/23),
