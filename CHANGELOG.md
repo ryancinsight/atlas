@@ -45,6 +45,11 @@
   executable allocator examples and Miri gate pass. Post-merge CI, MSRV, and
   book runs pass; live Pages returns HTTP 200.
 
+- Merge the provider-owned PM closure PRs for Horae #23 and Hyperion #20 at
+  defaults `a05dbebbb947a627cbe69a9d839fb88cae46e459` and
+  `e2dbc9bb28d7f9cbccf354d2a9b278c6231a85d1`; Atlas records both closure
+  revisions after their exact documentation-only verification passes.
+
 - Merge Proteus PR #14 and its PM closure PR #15 after the executable book gate
   passes: CI run `32338237653` and Pages build `32338238163` validate both
   included material examples; the pull-request Pages deployment is skipped.

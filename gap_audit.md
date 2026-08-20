@@ -13148,6 +13148,12 @@ Windows shell safety policy. No source, lockfile, or peer lane was touched;
 their `target_forks` findings remain open until an approved cleanup mechanism
 can remove only those validated derived paths.
 
+Horae PM closure PR #23 merged at default
+`a05dbebbb947a627cbe69a9d839fb88cae46e459`, and Hyperion PM closure PR #20
+merged at default `e2dbc9bb28d7f9cbccf354d2a9b278c6231a85d1`. Their provider
+backlog and changelog records now carry the exact hosted evidence; Atlas
+advances both gitlinks to those closure revisions.
+
 ## Finding 2026-08-20: Hyperion shared-workflow pin merged
 
 Hyperion PR [#19](https://github.com/ryancinsight/hyperion/pull/19) merged

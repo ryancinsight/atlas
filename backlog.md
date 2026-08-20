@@ -17,6 +17,9 @@
   title.
 - Delivery: Atlas gitlink now points to merged default
   `c2e7766847e3ef28125b809d98fe07250acc6cec` and the book gate is closed.
+  Provider PM closure PR #23 merged at default
+  `a05dbebbb947a627cbe69a9d839fb88cae46e459`; Atlas records that closure
+  revision as the current gitlink.
 
 ## ATLAS-HYPERION-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
@@ -35,7 +38,9 @@
   `32341197889` pass; live Pages returns HTTP 200 with the expected Hyperion
   title.
 - Delivery: Atlas gitlink now points to merged default and the book gate is
-  closed.
+  closed. Provider PM closure PR #20 merged at default
+  `e2dbc9bb28d7f9cbccf354d2a9b278c6231a85d1`; Atlas records that closure
+  revision as the current gitlink.
 
 ## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — done 2026-08-20
 
