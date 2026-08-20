@@ -6,6 +6,10 @@
   `helios-python` abi3-py39 trusted-publishing workflow and package metadata;
   no PyPI release is performed.
 
+- Record the Kwavers moving-default boundary at `9cf62aa9`: its current
+  default-head Architecture and CI/CD gates remain queued, so Atlas retains
+  the last verified pointer `b20eb48b`.
+
 - Make the ADR index check fail when an on-disk ADR is absent from `HEAD`,
   with a focused regression covering a matching generated index.
 

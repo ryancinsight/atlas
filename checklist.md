@@ -492,14 +492,12 @@
       benchmark regression remains failed, so Apollo is not performance-
       qualified despite green Rust/Python/Pages evidence.
 - [ ] Reconcile the Kwavers moving default before advancing its Atlas gitlink.
-      The prior PR #402 head `69478221f` is stale: the open visualization/FDTD
-      branch is now `d8886b032c50c7ebbcc2f12ebaceacabe95e19f1` and is
-      `CONFLICTING` against `main`. The provider default is
-      `f05d207d7b6b41f239bc63ffeb4b9df337a8a71a`; Architecture Validation
-      `32182442591` and CI/CD Pipeline `32182442617` are still queued, while
-      Legacy Migration Audit `32182442605` passes. Keep the committed Atlas
-      pointer at merged PR #400 `23f53284` until the current default-head
-      matrix completes; do not rebase or modify the peer-owned PR #402 lane.
+      The current provider default is `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`;
+      Architecture Validation `32333948199` and CI/CD Pipeline `32333948192`
+      are queued, while Legacy Migration Audit `32333948196` and Pages
+      `32333948521` pass. Keep the committed Atlas pointer at `b20eb48b` until
+      the current default-head matrix completes; do not switch or modify the
+      peer-dirty Kwavers checkout.
 - [ ] Reconcile the Mnemosyne moving default before advancing its Atlas
       gitlink. The provider default is now
       `638ddab831404a8d89c653c061415e4e23fa203d` (`ci(mnemosyne): Add aarch64

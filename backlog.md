@@ -62,6 +62,16 @@
 - **Residual:** a release-tag dry run and PyPI publication remain release-
   authority work; this item does not publish or reserve another distribution.
 
+## ATLAS-KWAVERS-DEFAULT-RECHECK-2026-08-20 — current default pending hosted gates [patch]
+
+- Kwavers `origin/main` is now `9cf62aa9`; the Atlas gitlink remains at
+  `b20eb48b` while the exact default-head Architecture Validation
+  (`32333948199`) and CI/CD (`32333948192`) runs are queued. Legacy
+  Migration Audit `32333948196` and Pages `32333948521` pass.
+- The provider checkout is detached and peer-dirty, so it is preserved. The
+  exact-head integration audit reports this single expected pointer mismatch;
+  no pointer advance is claimed until the current default-head matrix passes.
+
 ## ATLAS-ASCLEPIUS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Asclepius exact-main checkout only.
