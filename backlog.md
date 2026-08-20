@@ -9945,6 +9945,57 @@ the board and to every peer, which is why the standing rule forbids creating
 them. Triage both in the same sweep: apply and commit, or confirm superseded and
 drop, recording which.
 
+## ATLAS-FWI-PSTD-BLI-106 — extend the PSTD projections to band-limited stencils [minor] — todo
+
+**Deferred by kwavers ADR 116 / PR #424**, which adopts per-view element rotation
+and excludes the PSTD paths from rotating acquisitions: they resolve elements to
+exact grid nodes, and a linear array rotated by other than a multiple of 90°
+lands off-node on essentially every element. Deferring is legitimate — the
+refusal is a typed error, not a silent mis-placement — but the deferred work is
+cheaper and lower-risk than "extend to BLI receivers" sounds, and that evidence
+should not be lost with it.
+
+**Scope is four projection sites, not one.** ADR 116 names `finite_window`. The
+constraint follows the discretization rather than the operator family, so the
+CBS `SpectralPstdPeriodic` variant has it too:
+
+| site | file |
+| --- | --- |
+| `source_spectrum_on_grid` | `finite_window.rs` |
+| `receiver_indices_on_grid` | `finite_window.rs` |
+| `sample_array_on_grid` | `cbs/projection.rs` |
+| its receiver adjoint | `cbs/projection.rs` |
+
+Single-scatter Born needs no grid projection at all, and the other CBS variants
+already project through BLI.
+
+**It cannot regress existing results.** `bli_weights` short-circuits on-node axes
+(`on_grid_axes`, threshold `spacing × 1e-3`) and its kernel is `sinc(π·Δ/h)`, so
+an on-node point yields exactly one contribution of weight `sinc(0) = 1`.
+Everything these paths accept today is on-node within `1e-9` — what
+`exact_axis_index` enforces — where the weight is `1 − (π·10⁻⁹)²/6 ≈ 1 − 1.6·10⁻¹⁸`,
+exactly `1.0` in `f64`. The change is strictly domain-widening; existing results
+must not move, and that is the oracle.
+
+**Adjoint consistency is already covered.** `sample_field_with_bli` and
+`receiver_adjoint_from_bli` share one `nonempty_bli_weights` call and differ only
+in gather versus scatter, so reusing it makes the adjoint the transpose by
+construction. `tests/gradient_fd.rs` already carries
+`pstd_spectral_cbs_adjoint_gradient_matches_finite_difference` and
+`pstd_finite_window_born_adjoint_gradient_matches_finite_difference` at 5·10⁻⁴
+relative — a stencil mismatch fails on exactly the two operators this touches,
+with no new test to design.
+
+**Re-open trigger.** A use case wanting a rotating acquisition through a PSTD
+operator, or any other off-node element geometry. Not urgent: Born and the
+non-PSTD CBS variants carry the rotating acquisition today.
+
+**Provenance.** Analysis from a withdrawn duplicate ADR (kwavers PR #425, closed
+in favour of #424). Two independent passes reached the same route (a)/(b)
+structure and the same `1e-9` finding, which is worth something on its own; the
+two facts above were the only non-overlapping part and are preserved here rather
+than in a closed PR.
+
 ## ATLAS-ADR-UNTRACKED-105 — completed ADRs left untracked [patch] — in progress 2026-08-19 (kwavers closed; coeus + hephaestus open)
 
 `kwavers/docs/adr/112-convex-array-rasterizer-seam.md` is complete (110 lines,
