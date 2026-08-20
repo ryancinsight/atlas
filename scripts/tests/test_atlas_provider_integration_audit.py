@@ -253,6 +253,29 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
         self.assertEqual(scoped, [])
         self.assertEqual(out_of_scope, 1)
 
+    def test_coherence_scope_reports_a_bounded_timeout(self) -> None:
+        with patch.object(
+            audit.subprocess,
+            "run",
+            side_effect=subprocess.TimeoutExpired(
+                cmd=["cargo"], timeout=audit.COHERENCE_TIMEOUT_SECONDS
+            ),
+        ) as run:
+            scoped, out_of_scope = audit._coherence_scope_issues(("themis",))
+
+        self.assertEqual(
+            scoped,
+            [
+                "coherence invocation timed out after "
+                f"{audit.COHERENCE_TIMEOUT_SECONDS} seconds"
+            ],
+        )
+        self.assertEqual(out_of_scope, 0)
+        run.assert_called_once()
+        self.assertEqual(
+            run.call_args.kwargs["timeout"], audit.COHERENCE_TIMEOUT_SECONDS
+        )
+
     def test_structural_only_skips_coherence(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
             root = Path(temp)

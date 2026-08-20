@@ -89,6 +89,10 @@ PROVIDER_ALIASES = {
     "tychee": "tyche",
 }
 
+# Keep the Cargo-backed coherence probe bounded below the root conformance job
+# budget while allowing a cold local version-guard build to finish.
+COHERENCE_TIMEOUT_SECONDS = 120
+
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
@@ -291,9 +295,24 @@ def _coherence_scope_issues(providers: tuple[str, ...]) -> tuple[list[str], int]
         "--format",
         "json",
     ]
-    proc = subprocess.run(
-        command, cwd=ROOT, capture_output=True, text=True, env=_clean_rust_env(), check=False
-    )
+    try:
+        proc = subprocess.run(
+            command,
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            env=_clean_rust_env(),
+            check=False,
+            timeout=COHERENCE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return (
+            [
+                "coherence invocation timed out after "
+                f"{COHERENCE_TIMEOUT_SECONDS} seconds"
+            ],
+            0,
+        )
     if proc.returncode not in (0, 1):
         stderr = proc.stderr.strip() or "(no stderr)"
         return ([f"coherence invocation failed (rc={proc.returncode}): {stderr}"], 0)
