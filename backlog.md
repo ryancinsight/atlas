@@ -22,6 +22,16 @@
   while Horae explicitly enables it. Current Tyche Pages run `32196689656`
   builds/deploys the book but does not execute `mdbook test`; its live page is
   therefore not evidence that fenced Rust samples compile.
+- **Landed:** Tyche commit `1752a0f` is pushed to
+  `codex/tyche-planning-closure`. It enables `mdbook-test`, pins Rust
+  `1.97.0`, selects `tyche-core`, and adds the explicit staged-library
+  declarations to both canonical book examples.
+- **Local verification:** provider format, locked all-target `tyche-core`
+  check, Clippy, nextest (`48/48`), and `mdbook build` pass. A direct local
+  `mdbook test` reaches the included examples but cannot complete against the
+  shared multi-provider target because the staged Windows artifacts contain
+  incompatible historical `libm` fingerprints; the exact clean Ubuntu hosted
+  run is the acceptance oracle for this workflow change.
 
 ## ATLAS-AEQUITAS-DERIVED-UNITS-2026-08-20 — split derived-unit implementation leaf [patch] — done 2026-08-20
 
