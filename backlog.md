@@ -64,11 +64,13 @@
   no source or lockfile files changed.
 - **Local verification:** exact-head format, MSVC-pinned locked all-target
   Clippy, package build, nextest (`18/18`), doctests, and `mdbook build` pass.
-  Hosted exact-head Pages confirmation remains pending; no hosted polling is
-  performed in the main task.
+- **Hosted exact-head state:** verify and supply-chain jobs in run
+  `32330531241` pass; Pages build run `32330531493` remains queued. The
+  recurring `recurseml/analysis` error is report-only.
 - **Landed:** Asclepius commit `b660646` on `ci/asclepius-book-test`, PR #22
   open. Enables `mdbook-test: true`, `rust-toolchain: "1.97.0"`,
-  `cargo-package: asclepius`; no source or lockfile changes. CI queued.
+  `cargo-package: asclepius`; no source or lockfile changes. Verify and
+  supply-chain pass; only the Pages build remains queued.
 
 ## ATLAS-MOIRAI-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
 
@@ -88,8 +90,10 @@
   configured skips, workspace doctests, and workspace Clippy. Local mdBook
   execution reaches both examples but shared Windows artifacts produce rustdoc
   `E0460`; clean hosted execution is the acceptance oracle.
-- **Hosted state:** exact-head CI and Pages results for PR #144 are pending;
-  the hosted monitor owns collection without blocking local continuation.
+- **Hosted state:** exact-head CI run `32331791168`, Python binding/wheel run
+  `32331791286`, and Pages run `32331791553` are queued. The recurring
+  `recurseml/analysis` error is report-only; the hosted monitor owns collection
+  without blocking local continuation.
 
 ## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
 
@@ -107,7 +111,9 @@
   builds/deploys the book but does not execute `mdbook test`; its live page is
   therefore not evidence that fenced Rust samples compile.
 - **Landed:** Tyche commit `1752a0f` is pushed to
-  `codex/tyche-planning-closure`; PR #27 open. CI queued.
+  `codex/tyche-planning-closure`; PR #27 open. Pages build run
+  `32330423380` and supply-chain run `32330423079` pass; verify in run
+  `32330423079` remains queued.
   It enables `mdbook-test`, pins Rust
   `1.97.0`, selects `tyche-core`, and adds the explicit staged-library
   declarations to both canonical book examples.
