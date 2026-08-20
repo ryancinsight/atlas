@@ -374,13 +374,16 @@ claim is inferred.
   peer/derived state; no baseline is raised and no peer dirt is discarded.
 
 - **Kwavers moving default:** fetched `origin/main` is now
-  `78af725e749c8ec4fd756d55091d557ea635aac2`; the earlier hosted runs at
-  `b5b4fb0614ad3238ab95ff092cebd5977a201b22` cannot authorize the stale Atlas
-  pointer `459f18ce8248ea91ace62a2f8f89a02b861a56fe`. Current PR #439 is at
-  exact head `3297a946536cd54b87dc94d51f1a9cfa2f63b9f1`; its architecture,
-  migration, CI/CD, validation, and book gates remain pending. The primary
-  checkout is detached and peer-dirty, so no source or lockfile cleanup is
-  folded into this pointer reconciliation.
+  `6f77bd4ecff623f3912b02aa34670126a3edb8b4`; docs-only merges after
+  `78af725e749c8ec4fd756d55091d557ea635aac2` make earlier hosted runs
+  ineligible to authorize the stale Atlas pointer
+  `459f18ce8248ea91ace62a2f8f89a02b861a56fe`. Current PR #439 remains at
+  exact head `3297a946536cd54b87dc94d51f1a9cfa2f63b9f1` but is `DIRTY` because
+  its `backlog.md` conflicts with the current default board. The conflict is
+  limited to preserving KW-CI-115 beside KW-GPU-200/201/202; no provider
+  source or dirty worktree was overwritten. No exact-head gate or pointer
+  advance is authorized until that conflict is resolved and the full matrix
+  reruns.
   Full exact-head/coherence audit reports only the RITK and Kwavers gitlink
   drifts recorded here and no additional coherence issues.
 

@@ -55,12 +55,15 @@
       deployment `32393593050`; the Atlas gitlink is aligned.
 - [x] Collect exact Tyche default `10410f2` CI `32394888136` and Pages
       deployment `32394886461`; the Atlas gitlink is aligned.
-- [x] Reconcile Kwavers `origin/main` to `78af725`; its latest hosted runs
-      target predecessor `b5b4fb0`, so the Atlas pointer `459f18c` remains
-      stale and cannot advance on predecessor evidence.
-- [ ] Obtain terminal hosted CI and book evidence for exact Kwavers
-      `78af725`, then advance the Atlas gitlink in a separate pointer-only
-      integration commit.
+- [x] Reconcile Kwavers `origin/main` to `6f77bd4`; it contains two docs-only
+      merges after `78af725`, so earlier hosted runs cannot authorize the Atlas
+      pointer `459f18c`.
+- [x] Attempt the server-side PR #439 branch refresh; GitHub reports a real
+      `backlog.md` conflict between current KW-CI-115 board records and the
+      PR's KW-GPU-200/201/202 records. No dirty Kwavers worktree was touched.
+- [ ] Resolve that board-only conflict while preserving both records, rerun
+      the full exact-head Kwavers matrix at the refreshed head, and advance the
+      Atlas gitlink only after terminal CI and book evidence.
 
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — current session
 
