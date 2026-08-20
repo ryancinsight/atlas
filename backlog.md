@@ -22,6 +22,28 @@
   active publish-graph record below; historical ADR counts remain intentionally
   revision-scoped.
 
+## ATLAS-HORAE-HYPERION-REVERIFY-2026-08-20 — close clean provider gates [patch] — done 2026-08-20
+
+- **Owner:** current Atlas session; clean Horae and Hyperion provider heads.
+- **Scope:** exact-main local verification and release-boundary audit for
+  `horae` `0df563a` and `hyperion` `af28f5a`; no source or peer-owned changes.
+- **Evidence:** Horae format, locked all-target check, warning-denied Clippy,
+  Nextest `23/23` (`b783a6c7-d61b-4399-89a7-63aec555e893`), doctest, rustdoc,
+  example, and package verification pass. Hyperion format, locked all-target
+  check, warning-denied Clippy, Nextest `23/23`
+  (`2ea2d8dc-0949-4a3f-8a4b-c3a4ff4182bc`), doctest, rustdoc, and all three
+  committed examples pass.
+- **Evidence boundary:** a local Horae `mdbook test` against the shared target
+  stops at rustdoc `E0464` because that target contains multiple historical
+  `horae`/`aequitas` artifacts; this is derived-cache contamination before
+  example execution. Prior clean hosted pinned-toolchain book evidence remains
+  the authoritative book result.
+- **Release residual:** Hyperion `cargo package --locked` reaches registry
+  resolution and fails because the selected registry Proteus version does not
+  expose the `std` feature required by Hyperion's Git dependency contract. No
+  downstream compatibility path is added; registry publication/version
+  alignment is external release work.
+
 ## ATLAS-ASCLEPIUS-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
 
 - **Owner:** current Atlas session; clean Asclepius exact-main checkout only.
