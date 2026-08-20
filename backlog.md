@@ -1,5 +1,96 @@
 # atlas — cross-repository integration backlog
 
+
+## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — todo
+
+Evidence: `gap_audit.md` Finding 2026-08-20 and each provider's own
+`gap_audit.md`/`backlog.md`, refreshed this cycle by one auditor per submodule.
+24 of 25 repositories reported; Tyche is outstanding. Unweighted mean
+completeness 77.5%, LOC-weighted 69.6%; Foundation 82%, Compute 80%, Domain 79%,
+Integrator 62%.
+
+**Outcome:** close the four cross-cutting deficits the audit isolated, in the
+order below, so that a green gate means what it claims.
+
+**Non-goals:** raising per-repository completeness scores as such; peer-owned
+in-flight PR work; any capability expansion. Every item is evidence or
+correctness, not new scope.
+
+- **P0 delivery-blocking correctness** (independent, dispatchable now):
+  1. Kwavers `swe/gpu/solver.rs:92` `propagate_waves_gpu` ignores its inputs,
+     launches no kernel, and returns hardcoded-constant timings. Acceptance:
+     either a real kernel dispatch with a CPU-differential oracle, or the
+     production-named surface is withdrawn and the performance model renamed and
+     moved out of the solver path. `[major]`
+  2. CFDrs `cfd-validation/src/benchmarking/memory.rs:93` ungated
+     `#[global_allocator]` in a library crate. Acceptance: allocator confined to
+     a bench/bin target or `cfg`-gated; a consumer crate declaring its own
+     allocator compiles. `[major]`
+  3. Consus `consus-compression/src/codec/szip.rs:226` reserves from an
+     unvalidated `u32` reachable via HDF5 filter id 4. Acceptance: length bounded
+     against remaining input, `try_reserve`, typed error, plus a fuzz target over
+     a malformed corpus. `[patch]`
+  4. Consus `-C target-cpu=native` in committed `.cargo/config.toml`. Acceptance:
+     removed; runtime ISA detection is the dispatch mechanism. `[patch]`
+
+- **P1 make the accelerator seam verifiable** (the audit's single largest
+  evidence gap, four independent confirmations):
+  5. Hephaestus host/CPU reference device implements 1 of ~19 operation seams.
+     Acceptance: host impls for the seams consumers bind, and a shared
+     conformance suite running GPU-vs-CPU differential cases with tolerances
+     derived per `numerical_discipline`. `[minor]` — unblocks 6 and 7.
+  6. Apollo, Coeus, and Kwavers GPU suites report green having executed nothing.
+     Acceptance: an executed-case counter that fails the job at zero, plus a
+     software adapter (`lavapipe`/WARP) or an explicit recorded skip that is
+     visible in the gate result rather than silent.
+  7. RITK `GpuFieldSmoother`/`CpuOrGpu` have no reachable GPU backend and carry
+     unbacked speedup claims. Acceptance: wired to the Hephaestus seam, or the
+     claims withdrawn pending it. `[minor]`
+
+- **P2 retire vacuous gates** (cheap, high signal-to-noise):
+  8. `mdbook test` gates that compile nothing: Helios (0 `rust` fences of 73),
+     Hephaestus (17 of 17 `ignore`), Gaia (39 of 47 doctests `ignore`), Themis
+     (15 of 17), Eunomia (13 of 16), Asclepius (6 of 8). Acceptance: fences
+     de-ignored and compiling, or the gate removed so it stops reading as
+     evidence. Book chapters documenting non-existent APIs (Hephaestus,
+     Mnemosyne, Helios) were corrected in this sweep; re-verify at merge.
+  9. Themis `tests/topology/cpu.rs` orphaned target (14 tests never compiled);
+     CFDrs 54 files / 10,543 LOC under root `examples|benches|tests` in no cargo
+     target; Hermes ADR-005 generator that deletes 14 shipped kernels when run.
+     Acceptance: each either wired into a target and green, or deleted.
+
+- **P3 adjudicate the open decisions** (blocking, not mechanical):
+  10. Leto/Athena iterative-solver ownership: ADRs 0014/0015 extracted solvers to
+      Athena; `leto-ops/src/lib.rs:83` re-declares itself SSOT. Acceptance: one
+      ADR revised to the now-valid decision with a dated revision note, the loser
+      deleted, callers migrated in the same change. `[arch]`
+  11. 15 of 50 Atlas ADRs remain `Proposed`, seven of them July kwavers migration
+      records whose subjects have since landed or been superseded. Acceptance:
+      each is Accepted with an as-built rationale, Rejected, or deleted with its
+      reason in the commit. `[patch]`
+  12. `docs/adr/README.md` in 19 repositories prescribes `scripts/adr-index.py`,
+      which exists only at the Atlas root. Acceptance: the generator is vendored
+      or invoked from the root by a CI step per repository, or the header stops
+      claiming a contract nothing enforces. `[patch]`
+  13. 14 repositories declare `rust-version = "1.95"` against a 1.97.0 pin with
+      no job at the floor. Acceptance: an MSRV job per repository, or the
+      declared floor is corrected to what is actually built. `[patch]`
+
+**Dependencies:** 6 and 7 depend on 5. 1 through 4 are independent. 10 gates any
+further Leto or Athena solver work.
+
+**Risk:** items 1, 2, and 10 are `[major]`; 1 and 10 need an ADR before
+implementation per `versioning`.
+
+**Verification plan:** each item's acceptance oracle above, run through the
+owning repository's committed gate. No stack-wide claim is made until the
+per-repository gates run; this audit executed none.
+
+**Meta-repository residual:** 16 of 25 submodule checkouts drift from their
+committed gitlink; kwavers (5), consus (3), and helios (3) exceed the two-tree
+lane bound; 8 empty `worktrees/kwavers-*` orphans remain. Filed here rather than
+actioned, since every one of those trees holds peer state.
+
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 
 - **Themis executable book gate:** current Atlas session claims the provider

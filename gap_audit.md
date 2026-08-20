@@ -1,5 +1,186 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-20: stack-wide scope-vs-delivery gap audit
+
+One subagent per registered submodule audited implemented-versus-declared scope
+against that repository's own README, Accepted ADRs, and book SUMMARY, refreshed
+its `backlog.md`/`checklist.md`/`gap_audit.md`, and corrected unambiguous
+documentation drift. No build, test, or lint ran in any repository: the shared
+`CARGO_TARGET_DIR` holds one lock, so every measurement below is static evidence
+and no gate result is claimed. 24 of 25 repositories reported; the Tyche audit is
+still running at this revision.
+
+Completeness scores the share of each repository's OWN declared scope that is
+implemented and verified, weighted 40% stub-free capability, 25% verification
+depth, 20% documentation, 15% conformance floor. The denominator is declared
+scope, never an imagined ideal, so these are not roadmap percentages.
+
+| Repository | Layer | Complete | Packages | src LOC | Test fns |
+| --- | --- | --- | --- | --- | --- |
+| kwavers | Integrator | 59% | 25 | 675697 | 7119 |
+| helios | Integrator | 60% | 12 | 14304 | 293 |
+| CFDrs | Integrator | 66% | 12 | 268175 | 3129 |
+| consus | Domain | 71% | 17 | 93294 | 2810 |
+| eunomia | Foundation | 73% | 1 | 8204 | 108 |
+| asclepius | Domain | 75% | 2 | 2603 | 18 |
+| apollo | Domain | 77% | 24 | 110640 | 1228 |
+| coeus | Domain | 77% | 16 | 97886 | 1441 |
+| hephaestus | Compute | 77% | 9 | 113934 | 658 |
+| ritk | Domain | 77% | 41 | 357903 | 5695 |
+| athena | Domain | 78% | 4 | 4938 | 63 |
+| moirai | Compute | 79% | 20 | 60461 | 823 |
+| gaia | Domain | 79% | 1 | 73214 | 978 |
+| hyperion | Domain | 80% | 1 | 2194 | 23 |
+| themis | Foundation | 80% | 1 | 3272 | 55 |
+| leto | Compute | 80% | 3 | 46095 | 891 |
+| hermes | Compute | 81% | 7 | 39789 | 473 |
+| iris | Domain | 82% | 1 | 1174 | 18 |
+| mnemosyne | Compute | 83% | 12 | 37906 | 369 |
+| proteus | Domain | 84% | 1 | 1121 | 20 |
+| horae | Domain | 84% | 1 | 1388 | 23 |
+| harmonia | Domain | 85% | 1 | 1647 | 25 |
+| aequitas | Foundation | 87% | 1 | 2553 | 127 |
+| melinoe | Foundation | 87% | 1 | 5681 | 127 |
+
+Unweighted mean 77.5%; LOC-weighted 69.6% over 2,024,073 source lines. By
+layer: Foundation 82%, Compute 80%, Domain 79%, Integrator 62%. The substrate is
+markedly more complete than the integrators that consume it, and the three
+integrators hold 47% of stack source.
+
+### Cross-cutting findings
+
+**Capability is not the shortfall.** Every audited repository reports zero
+`todo!()` and zero `unimplemented!()`. The deficit is concentrated in evidence:
+declared capabilities exist, but the proof that they are correct is missing,
+vacuous, or unenforced.
+
+**Accelerator correctness is largely unverified stack-wide.** Four independent
+confirmations: Hephaestus implements roughly nineteen operation seams across
+wgpu, CUDA, ROCm, and Metal, but its host/CPU reference device implements one of
+them, so no CPU oracle exists to differential-test the GPU kernels against;
+Apollo's GPU differential suites map adapter-unavailable to a skip and assert
+nothing on a CI runner with no adapter; Coeus' CUDA parity suite reports green
+having executed nothing on a device-less runner across 47 call sites; Kwavers
+disables 25 GPU-parity tests as unrunnable on headless CI.
+
+**Vacuous gates are systemic.** Book `mdbook test` gates pass while compiling
+nothing (Helios has zero `rust` fences across 73 blocks; Asclepius runs 2 of 8;
+Eunomia marks 13 of 16 `rust,ignore`; Gaia marks 39 of 47 public doctests
+`ignore`; Themis 15 of 17; Hephaestus all 17). A green gate that never executed
+its subject is the recurring defect class.
+
+**Documentation describes APIs that do not exist.** Hephaestus book chapters
+teach `Box<dyn DeviceBuffer<f32>>` and seven `DevicePreference` variants against
+a GAT seam with two; Mnemosyne chapters named a thread-local magazine protocol
+and const-generic NUMA types with zero matches in `crates/`; Helios chapters
+cited a mnemosyne arena in a crate with no mnemosyne dependency and framed TG-119
+and TRS-398 as compliance. Each was corrected in this sweep.
+
+**Two mocks in delivered code.** Kwavers `swe/gpu/solver.rs:92`
+`propagate_waves_gpu` ignores its `_initial_displacements` and `_push_times`
+inputs, launches no kernel, and returns timings derived from a hardcoded
+10 TFLOPS constant; the Rustdoc labels it a performance model, so it is honestly
+marked but production-named. Kwavers `energy_conservation_test.rs:111`
+`test_reciprocity_principle` compares a value to itself and invokes no solver.
+
+**One cross-repo ownership conflict.** Accepted ADRs 0014/0015 extracted
+iterative solvers from Leto to Athena, but `leto-ops/src/lib.rs:83` re-declares
+itself "Iterative solvers (SSOT)", rebuilt in three commits days after the
+removal with no ADR revision. Athena's own audit independently records its
+solver surface as incomplete. Two repositories claim one ownership; this needs
+adjudication, not a patch.
+
+**Uniform mechanical defects.** Nineteen repositories carry a
+`docs/adr/README.md` header prescribing `scripts/adr-index.py`, which exists only
+at the Atlas root, so the generator contract is unenforceable everywhere it is
+claimed. Fourteen declare `rust-version = "1.95"` while `rust-toolchain.toml`
+pins 1.97.0 with no job at the floor, so the MSRV claim is untested.
+
+### Highest-severity individual findings
+
+- CFDrs `cfd-validation/src/benchmarking/memory.rs:93` declares an ungated
+  `#[global_allocator]` inside a library crate, contaminating every benchmark in
+  its link graph and `E0152`-blocking any consumer with its own allocator.
+  Verified: the crate is a real `[package]`.
+- CFDrs root `Cargo.toml` has no `[package]` section, so 54 files and 10,543 LOC
+  under `examples/`, `benches/`, and `tests/` belong to no cargo target while the
+  README advertises `cargo build --examples` as their anti-rot gate. Verified.
+- Consus `consus-compression/src/codec/szip.rs:226` reserves a `Vec` from an
+  unvalidated `u32` header field reachable through HDF5 filter id 4, so a 7-byte
+  input can drive a 4 GiB allocation that aborts rather than returning a typed
+  error.
+- Consus commits `-C target-cpu=native` in `.cargo/config.toml` for linux-gnu and
+  windows-msvc, so every CI, MSRV, and release build codegens for the builder's
+  microarchitecture, contradicting the runtime ISA detection its codecs perform.
+- Kwavers' headline k-Wave parity claim (r >= 0.9999) is unreproducible: the
+  reference corpus is gitignored, no Rust test consumes stored k-Wave references,
+  and the Python comparison hard-sets `KWAVERS_SKIP_KWAVE=1`.
+- RITK retains a dual `X`/`X_native` public surface from the burn-to-coeus
+  migration: 129 `apply_native` methods in `ritk-filter` alone and 354 marked
+  identifiers, the exact pattern the integrity rules name as compatibility soup.
+- RITK exposes `GpuFieldSmoother<B: Backend>` and `CpuOrGpu` with no reachable
+  GPU backend: coeus-core has two `Backend` impls and both are CPU, and
+  `hephaestus` appears nowhere in the repository. Unbacked timing claims ride on
+  it.
+- Coeus lacks a finite-difference gradient oracle for 35 of 137 differentiable
+  paths; two real gradient defects (CTC, multi_margin) were previously found
+  inside that uncovered region.
+- Themis `tests/topology/cpu.rs` is an orphaned target: 14 tests and 379 LOC that
+  no `[[test]]` entry or `main.rs` ever compiles.
+- Hermes ADR-005's kernel generator no longer reproduces its own output; running
+  it deletes nine shipped AVX-512 and five AVX2 kernels, and no CI step runs it.
+
+### Meta-repository state
+
+Sixteen of 25 submodule checkouts sit at a head differing from the committed
+gitlink. Fifteen of 50 Atlas ADRs remain `Proposed`, seven of them July kwavers
+migration decisions. The lane bound of two trees per repository is exceeded by
+kwavers (5), consus (3), and helios (3); eight further `worktrees/kwavers-*`
+directories are empty orphans already pruned from git.
+
+The committed conformance baseline totals across the 25 repositories: 608
+oversized files, 675 implementation-bearing manifests, 1,196 production unwraps,
+803 existence-only assertions, 502 crate-level allows, 429 type-suffixed
+functions, 366 print/dbg sites, 118 crates without `deny(missing_docs)`.
+
+### Method limits
+
+No gate ran anywhere, so nothing here asserts any suite passes. Completeness
+percentages are weighted judgements over stated denominators, comparable across
+repositories because every auditor applied one rubric, but soft to roughly plus
+or minus five points. Per-repository evidence with file and line citations is in
+each repository's own `gap_audit.md` or `backlog.md`.
+
+## Finding 2026-08-20: Leto PR #119 book-gate source failure and recovery
+
+Leto PR [#119](https://github.com/ryancinsight/leto/pull/119) source head
+`aaa823895bfbb8121f1f435abfb7c6bf6a48245c` failed hosted Deploy mdBook run
+`32396859195` at step `Test book code samples` inside `deploy / Build book`;
+the companion hosted CI run `32396858702` was terminated as cancelled in
+favor of a higher-priority post-merge job. The mdBook book render itself
+was skipped; the failure was in the step that builds and runs the two
+executable book examples after the package has been staged. The synchronize
+commit `b500baf1 docs(leto): Link book examples` then adds `extern crate
+leto;` plus a leading blank line, reorders the imports alphabetically, and
+changes nothing else in the two files. Re-runs on `b500baf1` confirm the
+fix: CI `32399586317` succeeded at 7m 41s; Deploy mdBook `32399586801`
+succeeded at 10m 18s with the `Build book` step passing in 47s.
+
+PR #119 merged as `c1c8ab234559a9f58a34d65c32f6096ee69fc012`, and the
+post-merge CI `32400622132` succeeded at 6m 8s. The post-merge Deploy
+mdBook `32400623663` and `pages-build-deployment` `32400621014` remain
+queued on the merged default at audit time. Live
+`https://ryancinsight.github.io/leto/` returns HTTP 200 with
+`Last-Modified: Wed, 19 Aug 2026 05:08:07 GMT`, which predates PR #119;
+the merged book content is not yet published. The Atlas gitlink already
+records `c1c8ab2` per the initial diff; the local Leto checkout is detached
+at the pre-PR-119 tip `a2bc13f` and carries the preserved peer-owned edits
+to `CHANGELOG.md`, `README.md`, `backlog.md`, `checklist.md`, `gap_audit.md`,
+and the four staged/unstaged source files under `crates/leto/src/`. No
+peer checkout was reset, stashed, deleted, or force-checked-out over its
+work, and the post-merge Deploy mdBook and Pages publish remain the only
+remaining open gate items on this PR.
+
 ## Finding 2026-08-20: Helios Apollo lock sweep exact-head verification
 
 Helios PR #68 exact head `25f04b6` is clean in the dedicated
@@ -144,23 +325,23 @@ pass. RITK PM closure PR #197 merged at
 `a16a27f24e814cb1e4315d9c44dec4394f0e26b0`; it was docs-only and triggered no
 code workflow. Atlas now stages all three closure defaults as gitlinks.
 
-## Finding 2026-08-19: Consus ADR-0045 P4 lane validated and relocated
+## Finding 2026-08-20: Consus ADR-0045 P4 lane conflict resolved locally
 
-The clean Consus lane `codex/adr-0045-p4-benchmark-parser` at
-`2f9067ec` is one commit ahead of its tracked benchmark branch and now lives at
-the canonical `worktrees/consus-adr-0045-p4-benchmark` path. It remains clean
-and untouched after relocation. From outside the malformed Atlas overlay,
-`cargo fmt --all -- --check`, locked workspace/all-target compilation,
-locked workspace/all-target tests, and the locked `--no-default-features`
-workspace check all exit successfully. A warning-denied Clippy attempt is not
-source evidence: the Windows directory toolchain override and available cached
-target artifacts disagree (GNU/MSVC), and the run fails before Consus
-analysis. Hosted verification and branch publication remain open.
+The dedicated Consus lane `codex/adr-0045-p4-benchmark-parser` is clean at
+`1909709`, ahead 11 and behind 4 relative to its tracked remote. The merge
+resolution retains the newer Zarr crc32c/bytes-codec changes while removing
+only the obsolete package-owned S3 integration. From outside the Atlas
+overlay, `cargo fmt --all -- --check` passes and locked focused Nextest run
+`c3fcdabb-9493-46e3-865e-245e1e319a33` passes 492/492 tests across
+`consus-io` and `consus-zarr`. No lockfile or source changes remain unstaged in
+the dedicated lane.
 
-The detached root Consus checkout at `ef439b2` still carries the peer-owned
-parse-limits rebase plus staged/unstaged S3 and parser changes. The canonical
-Zarr lane remains dirty only in its peer-owned `Cargo.lock`. Neither state was
-reset, aborted, committed, or deleted.
+Provider delivery is closed: PR #50 merged at default
+`e121b9d4258bab09144dfda68813aa9178090c0c`; hosted CI
+`32388512328` and Pages build `32388513355` pass. The local lane is now stale
+branch residue (ahead 11/behind 4) and must not be mistaken for the merged
+default. The primary Consus checkout still carries peer-owned rebase and
+S3/parser changes and was not modified.
 
 ## Finding 2026-08-19: Apollo PR #107 benchmark remains red
 

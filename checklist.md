@@ -5825,3 +5825,24 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
       asclepius`; no source or lockfile changes. CI queued.
 - [ ] Merge Tyche PR #27 and Asclepius PR #22 when CI passes; advance Atlas
       gitlinks.
+
+## ATLAS-GAP-AUDIT-2026-08-20 (owner: atlas-gap-audit)
+
+- [x] Dispatch one auditor per registered submodule against a single completeness
+      rubric; 24 of 25 reported, Tyche outstanding.
+- [x] Source-verify the three highest-severity claims at their cited lines before
+      synthesis: kwavers GPU mock, CFDrs library `#[global_allocator]`, CFDrs
+      orphaned root targets. All three confirmed.
+- [x] Confirm no cross-repo contamination after the scratchpad filename collision
+      reported by the Helios auditor: every `Finding 2026-08-20` heading names its
+      own repository; the CFDrs strings in Helios artifacts predate this sweep.
+- [x] Record the aggregate finding in `gap_audit.md` and file
+      `ATLAS-GAP-AUDIT-2026-08-20` in `backlog.md`.
+- [ ] Collect the Tyche audit and update the finding table and both averages.
+- [ ] Dispatch P0 items 1-4 as independent provider items; they share no scope.
+- [ ] Open the ADR for item 10 (Leto/Athena solver ownership) before any
+      implementation; recommended option is Athena as owner per ADRs 0014/0015,
+      with the Leto surface deleted and callers migrated in one change.
+- [ ] Leave every provider checkout, lane, and dirty file as found; the audit
+      wrote only PM artifacts and documentation-drift corrections, and committed
+      nothing in any submodule.
