@@ -81,20 +81,24 @@
 - **Acceptance:** the caller enables `mdbook-test` with Rust `1.97.0` and
   `cargo-package: moirai-runtime`; both included examples compile through the
   staged library path; no provider lockfile or runtime implementation changes.
-- **Landed:** commits `4d9bfb0` and `2cca9cc` are pushed to
-  `codex/moirai-book-test`; draft PR #144 is open at exact head `2cca9cc`.
+- **Landed:** commits `4d9bfb0`, `2cca9cc`, and `95891f6` are pushed to
+  `codex/moirai-book-test`; draft PR #144 is open at exact head `95891f6`.
   They add the shared-workflow inputs, explicit `extern crate moirai;`
-  declarations required by mdBook rustdoc, and the provider checklist entry.
+  declarations required by mdBook rustdoc, the provider checklist entry, and
+  the explicit `cargo-crate: moirai` input with shared workflow pin `1fcd17c`.
 - **Local verification:** format, locked `moirai-runtime` example check,
   example Clippy with `-D warnings`, and `mdbook build` pass. The exact default
   `c651a46` also passes workspace packaging, Nextest `801/801` with six
   configured skips, workspace doctests, and workspace Clippy. Local mdBook
   execution reaches both examples but shared Windows artifacts produce rustdoc
   `E0460`; clean hosted execution is the acceptance oracle.
-- **Hosted state:** exact-head Rust run `32331957704`, Python binding/wheel run
-  `32331957649`, and Pages run `32331958010` are queued. The recurring
-  `recurseml/analysis` error is report-only; the hosted monitor owns collection
-  without blocking local continuation.
+- **Hosted state:** the first exact-head Pages run `32331958010` failed because
+  the shared workflow derived `moirai_runtime` instead of the actual `moirai`
+  library target; Rust Workspace run `32331957704` passed. Replacement runs at
+  `95891f6` are queued: `32332871749` (Rust Workspace), `32332871836` (Python
+  Bindings), and `32332872034` (Pages). The recurring `recurseml/analysis`
+  error is report-only; the hosted monitor owns collection without blocking
+  local continuation.
 
 ## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
@@ -4560,15 +4564,18 @@ converter; the existing bilinear differential remains the acceptance oracle.
     use unresolved provider imports, or fence diagrams/commands as Rust. H-102
     repaired source-change triggers and enabled linkcheck2; H-103 must convert
     the snippets before the caller can pass `mdbook-test: true`.
-  - **iris** — LANDED at provider `8224dba`: the Pages caller enables
-    `mdbook-test: true`, Rust `1.97.0`, and `cargo-package: iris-viz`; the
+  - **iris** — LANDED at provider `9672fc0`: the Pages caller pins the shared
+    workflow fix `1fcd17c` and enables `mdbook-test: true`, Rust `1.97.0`, and
+    `cargo-package: iris-viz`; the
     included example declares `extern crate iris`, and the stack-position
     topology diagram is fenced as `text`. Local format, locked all-target
     check, Clippy, nextest (`17/17`), doctests (`3/3`), package verification,
     `mdbook build`, and `mdbook test` pass. Push-triggered hosted runs are
     `32332640194` (CI), `32332640687` (Deploy mdBook), and `32332639091`
-    (Pages build/deployment), all queued at the time of recording. Peer-owned
-    Iris lockfile work remains untouched.
+    (Pages build/deployment), all queued at the time of recording. The prior
+    run at `8224dba` exposed the package/library-name mismatch and was replaced
+    by this explicit-crate revision. Peer-owned Iris lockfile work remains
+    untouched.
 - Acceptance per book: samples compile against the package; the caller passes
   `mdbook-test: true` and, where samples need providers, `atlas-ref`; the flip
   commit demonstrates the gate failing on a deliberately broken sample before
