@@ -13085,3 +13085,15 @@ gates stop before compilation because the Atlas development overlay requires a
 lockfile update; the Hermes peer-owned dirty `Cargo.lock` is excluded. Hosted
 source verification and the Pages build remain the acceptance evidence before
 the Atlas gitlink advances from `da00fd6`.
+
+## Finding 2026-08-20: Horae shared-workflow pin merged
+
+Horae PR [#22](https://github.com/ryancinsight/horae/pull/22) merged source
+commit `aaed0cff8e777d62fcaff4f20b3347bb1eefa403` as provider default
+`c2e7766847e3ef28125b809d98fe07250acc6cec`. The caller now pins the current
+Atlas reusable Pages workflow `1fcd17c6f7923cb1734756c15e0a5a39e333ee32`
+while retaining `mdbook-test: true`, Rust `1.97.0`, package `horae`, and the
+existing output path. Exact PR `verify`, `supply-chain`, and Pages book-build
+checks pass; post-merge CI, book, and dynamic Pages runs are still in progress.
+The Atlas gitlink remains at the prior verified revision until those runs
+terminate successfully.

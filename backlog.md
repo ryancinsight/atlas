@@ -1,5 +1,21 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HORAE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — merged, post-merge verification pending
+
+- Owner: current Atlas session; provider scope was the Horae Pages caller and
+  its PM/changelog artifacts. No implementation or lockfile change was made.
+- Acceptance: update the caller to the current Atlas reusable workflow while
+  retaining `mdbook-test: true`, Rust 1.97.0, `cargo-package: horae`, and the
+  existing output path; pass exact hosted source checks, merge the provider,
+  and verify the merged default before advancing the Atlas gitlink.
+- Evidence: provider commit `aaed0cff8e777d62fcaff4f20b3347bb1eefa403`, PR
+  [#22](https://github.com/ryancinsight/horae/pull/22), merged default
+  `c2e7766847e3ef28125b809d98fe07250acc6cec`; exact PR `verify`,
+  `supply-chain`, and Pages book-build checks pass. Post-merge CI, Deploy
+  mdBook, and dynamic Pages runs are still in progress.
+- Delivery: Atlas retains the prior Horae gitlink until the post-merge runs
+  terminate successfully.
+
 ## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — hosted verification pending
 
 - Owner: Atlas integration; provider scope is the Hermes Pages caller and the
