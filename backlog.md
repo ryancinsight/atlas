@@ -17,9 +17,15 @@
   `cargo package --workspace --locked` for every member with no warnings,
   `cargo nextest run --workspace --all-features --locked` 801/801 with 6
   configured skips, warning-denied workspace Clippy, doctests 19 passed/1
-  ignored, rustdoc, Loom 1/1, and deque-focused Miri 16/16. Full-crate Miri
-  reaches the Themis Windows NUMA FFI test, which is unsupported by Miri; no
-  deque failure remains. Existing PR #143 is open, mergeable, and hosted
+  ignored, rustdoc, Loom 1/1 (exact final-head run
+  `d6ff0225-9353-45ef-84cc-492d74eb39bf`), and deque-focused Miri 16/16.
+  The Loom invocation ran outside the Atlas development overlay while using
+  the shared `D:\atlas\target` cache because the overlay resolves Moirai
+  patches to the main checkout rather than this bounded lane; the standalone
+  package, workspace, and value gates remain locked evidence at the lane
+  head. Full-crate Miri reaches the Themis Windows NUMA FFI test, which is
+  unsupported by Miri; no deque failure remains. Existing PR #143 is open,
+  mergeable, and hosted
   workflows are queued/in progress at the final head; Atlas retains its
   default gitlink until hosted CI completes and the PR merges.
 - **Kwavers:** fetched `origin/main` is
