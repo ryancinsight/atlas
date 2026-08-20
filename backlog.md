@@ -392,6 +392,9 @@ non-locked diagnostic check, `cargo nextest run -p cfd-validation --lib`
 The required locked check is still open: the Atlas overlay makes Cargo request
 a provider `Cargo.lock` rewrite under `--locked`; that lockfile is peer-dirty
 and was not modified or staged by this session.
+The exact provider commit is now the head of open CFDrs PR
+[#360](https://github.com/ryancinsight/CFDrs/pull/360); Rust workspace and
+figure checks are queued there.
 
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 

@@ -80,7 +80,8 @@
       focused nextest (1/1), and cfd-validation library nextest (187/187) pass.
 - [ ] Run the provider locked workspace all-target gate from a clean hosted
       revision; local `--locked` is blocked by the shared overlay requesting a
-      dirty peer `Cargo.lock` rewrite.
+      dirty peer `Cargo.lock` rewrite. The exact commit is open as CFDrs PR
+      #360 with hosted Rust workspace and figure checks queued.
 
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
