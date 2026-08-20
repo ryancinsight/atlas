@@ -42,9 +42,9 @@
 - **Tyche checklist reconciliation:** docs-only PRs #31 and #32 close stale
   TYCHE-006 and TYCHE-004 checklist entries; the merged default is
   `10410f2de1ce1529ecbff50fa740b23a1c8f77b9`. Pages run `32394886461` passes;
-  current default CI `32394888136` remains queued. Atlas advances its gitlink
-  to the merged default while retaining the pending CI result as residual
-  evidence.
+  current default CI `32394888136` passes at the same exact head. Atlas advances
+  its gitlink to the merged default; no Tyche hosted verification residual
+  remains for this item.
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 
