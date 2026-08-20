@@ -39,6 +39,12 @@
   report-only and remains an analysis error. PR #68 merged as
   `7ff72e37889594b6592e1f8b8b169834765f7851`; Atlas advances its gitlink to
   that merged default.
+- **Tyche checklist reconciliation:** docs-only PRs #31 and #32 close stale
+  TYCHE-006 and TYCHE-004 checklist entries; the merged default is
+  `10410f2de1ce1529ecbff50fa740b23a1c8f77b9`. Pages run `32394886461` passes;
+  current default CI `32394888136` remains queued. Atlas advances its gitlink
+  to the merged default while retaining the pending CI result as residual
+  evidence.
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 
