@@ -13094,9 +13094,9 @@ commit `aaed0cff8e777d62fcaff4f20b3347bb1eefa403` as provider default
 Atlas reusable Pages workflow `1fcd17c6f7923cb1734756c15e0a5a39e333ee32`
 while retaining `mdbook-test: true`, Rust `1.97.0`, package `horae`, and the
 existing output path. Exact PR `verify`, `supply-chain`, and Pages book-build
-checks pass; post-merge CI, book, and dynamic Pages runs are still in progress.
-Atlas now records the merged default gitlink; those post-merge runs remain a
-verification residual until they terminate successfully.
+checks pass; post-merge CI `32341053963`, Deploy mdBook `32341054529`, and
+dynamic Pages `32341052968` pass. Live Pages returns HTTP 200 with the expected
+Horae title. Atlas records the merged default gitlink and the gate is closed.
 
 ## Finding 2026-08-20: Kwavers default reconciled after hosted gates
 
@@ -13135,6 +13135,13 @@ Kwavers. The audit did not reset, clean, switch, or overwrite any of those
 checkouts. This is a coordination residual, separate from committed Atlas
 gitlink coherence.
 
+The live-stack conformance ratchet scan was also attempted with
+`atlas-conformance.py check --worktree --json`; it exceeded the 120-second
+command bound before producing JSON. A targeted Horae scan completed with zero
+regressions and zero tightenings. No baseline was regenerated and no timeout
+was treated as a passing conformance result; the full dirty-stack scan remains
+an instrumentation-performance residual.
+
 ## Finding 2026-08-20: Hyperion shared-workflow pin merged
 
 Hyperion PR [#19](https://github.com/ryancinsight/hyperion/pull/19) merged
@@ -13143,6 +13150,6 @@ source commit `5e8d47008e01f401c8d1b464c30e2909ff1a56c8` as provider default
 Atlas reusable Pages workflow `1fcd17c6f7923cb1734756c15e0a5a39e333ee32`
 while retaining `mdbook-test: true`, Rust `1.97.0`, package `hyperion`, and the
 existing output path. Exact PR `verify`, `supply-chain`, and Pages book-build
-checks pass; post-merge CI, book, and dynamic Pages runs are still in progress.
-Atlas now records the merged default gitlink; those post-merge runs remain a
-verification residual until they terminate successfully.
+checks pass; post-merge CI `32341198738`, Deploy mdBook `32341199236`, and
+dynamic Pages `32341197889` pass. Live Pages returns HTTP 200 with the expected
+Hyperion title. Atlas records the merged default gitlink and the gate is closed.
