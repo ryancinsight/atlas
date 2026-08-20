@@ -23,7 +23,8 @@
 - Merge Horae PR #22 at source `aaed0cff8e777d62fcaff4f20b3347bb1eefa403`
   as provider default `c2e7766847e3ef28125b809d98fe07250acc6cec` after its
   shared-workflow pin checks and book build pass. Post-merge CI, book, and
-  Pages deployment runs remain in progress before the Atlas gitlink advances.
+  Pages deployment runs remain in progress; Atlas now records the merged
+  default gitlink.
 
 - Merge Proteus PR #14 and its PM closure PR #15 after the executable book gate
   passes: CI run `32338237653` and Pages build `32338238163` validate both

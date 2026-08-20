@@ -13095,5 +13095,5 @@ Atlas reusable Pages workflow `1fcd17c6f7923cb1734756c15e0a5a39e333ee32`
 while retaining `mdbook-test: true`, Rust `1.97.0`, package `horae`, and the
 existing output path. Exact PR `verify`, `supply-chain`, and Pages book-build
 checks pass; post-merge CI, book, and dynamic Pages runs are still in progress.
-The Atlas gitlink remains at the prior verified revision until those runs
-terminate successfully.
+Atlas now records the merged default gitlink; those post-merge runs remain a
+verification residual until they terminate successfully.

@@ -13,8 +13,9 @@
   `c2e7766847e3ef28125b809d98fe07250acc6cec`; exact PR `verify`,
   `supply-chain`, and Pages book-build checks pass. Post-merge CI, Deploy
   mdBook, and dynamic Pages runs are still in progress.
-- Delivery: Atlas retains the prior Horae gitlink until the post-merge runs
-  terminate successfully.
+- Delivery: Atlas gitlink now points to merged default
+  `c2e7766847e3ef28125b809d98fe07250acc6cec`; post-merge runs remain a
+  verification residual.
 
 ## ATLAS-HERMES-BOOK-TEST-2026-08-20 — Enable executable Hermes book samples [patch] — hosted verification pending
 
