@@ -34,8 +34,11 @@
   Exact-head MSVC verification passes: format, locked metadata, full workspace
   check, warning-denied workspace Clippy, and Nextest run
   `4bfa9901-c55a-4cc1-a23f-b90d8f1542f8` with 262/262 tests and 9 skips.
-  Hosted PR #68 CI remains queued; merge requires terminal-green hosted
-  evidence.
+  Hosted PR #68 required checks pass: Rust workspace, Python bindings, book
+  build, and benchmark regression check. The `recurseml/analysis` context is
+  report-only and remains an analysis error. PR #68 merged as
+  `7ff72e37889594b6592e1f8b8b169834765f7851`; Atlas advances its gitlink to
+  that merged default.
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 
