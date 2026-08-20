@@ -1,5 +1,21 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-20: Hermes, Mnemosyne, and RITK closure sweep
+
+Hermes PR #57 merged at provider default
+`c5e4c2dc005f215c403bd5b3c66db275bd040afb` after the generic-default AVX-512
+unused-import defect was fixed. Exact hosted rerun `32343803367`, post-merge
+CI `32344922231`, dynamic Pages `32344921591`, and live Pages HTTP 200 pass.
+Mnemosyne PM closure PR #66 merged at
+`6b0e490752f215782d63f876e85059534e25af54`; post-merge CI `32344048512`,
+existing book run `32341400004`, Pages status `built`, and live Pages at the
+case-sensitive `/Mnemosyne/` URL pass. RITK PR #196 merged at
+`aa48c471ac96eb81869437d84bab439e18d89038`; post-merge CI `32344964253`,
+Python CI `32344964345`, Deploy mdBook `32344964522`, and live Pages HTTP 200
+pass. RITK PM closure PR #197 merged at
+`a16a27f24e814cb1e4315d9c44dec4394f0e26b0`; it was docs-only and triggered no
+code workflow. Atlas now stages all three closure defaults as gitlinks.
+
 ## Finding 2026-08-19: Consus ADR-0045 P4 lane validated and relocated
 
 The clean Consus lane `codex/adr-0045-p4-benchmark-parser` at

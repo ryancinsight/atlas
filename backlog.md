@@ -14,32 +14,49 @@
   merged at default `a2d15f058a29142844396c934362d84ce207d32f`; Atlas records
   that closure revision as the current Tyche gitlink.
 
-## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — hosted verification pending
+## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
 - Owner: Atlas integration; provider scope is RITK's Pages caller and PM/
   changelog records. No implementation, release, or lockfile change.
 - Acceptance: source `20544b405f68e542364da77492ee7a7ffcc44ae9`, PR
   [#196](https://github.com/ryancinsight/ritk/pull/196), exact Rust, Python,
   and Pages checks pass before merging and advancing the Atlas gitlink.
+- Evidence: PR #196 merged at provider default `aa48c471ac96eb81869437d84bab439e18d89038`;
+  exact Rust, Python, and Pages checks pass. Post-merge CI `32344964253`,
+  Python CI `32344964345`, and Deploy mdBook `32344964522` pass. Live Pages
+  returns HTTP 200 with title `Introduction - atlas/RITK: Medical Image
+  Processing and Registration`.
+- Delivery: provider PM closure PR [#197](https://github.com/ryancinsight/ritk/pull/197)
+  merged at `a16a27f24e814cb1e4315d9c44dec4394f0e26b0`; its docs-only scope
+  triggered no code workflow, and the provider changed no implementation or
+  lockfile. Atlas records the closure revision as the current RITK gitlink.
 
-## ATLAS-HERMES-BOOK-CLOSURE-2026-08-20 — Close executable book gate [patch] — source fix hosted verification pending
+## ATLAS-HERMES-BOOK-CLOSURE-2026-08-20 — Close executable book gate [patch] — done 2026-08-20
 
 - Owner: Atlas integration; scope is the Hermes closure branch plus the two
   AVX-512 import lists that failed the generic-default benchmark build.
 - Evidence: hosted run `32342759068` isolated unused imports under
   `hermes_benchmark_generic_default`; commit `3ae6e1982f54f6af191904e52ba0cce4c27ee9be`
   gates those imports with the same configuration as their consumers. PR #57
-  has rerun `32343803367` in progress; its peer-owned dirty Cargo.lock remains
-  excluded.
+  rerun `32343803367` passed, including the benchmark, Miri, best-effort AVX,
+  Intel SDE, aarch64, cross-compile, and cargo-deny jobs. The merged default is
+  `c5e4c2dc005f215c403bd5b3c66db275bd040afb`; dynamic Pages run `32344921591`
+  passed and live Pages returns HTTP 200 with title `hermes-simd | hermes`.
+- Delivery: Atlas records the merged Hermes closure revision as the current
+  gitlink. The peer-owned dirty `Cargo.lock` remains excluded.
 
-## ATLAS-MNEMOSYNE-BOOK-CLOSURE-2026-08-20 — Close executable book gate [patch] — Miri pending
+## ATLAS-MNEMOSYNE-BOOK-CLOSURE-2026-08-20 — Close executable book gate [patch] — done 2026-08-20
 
 - Owner: Atlas integration; provider scope is the Mnemosyne PM/changelog
   closure record. Source and lockfile remain unchanged.
 - Evidence: closure PR [#66](https://github.com/ryancinsight/Mnemosyne/pull/66)
-  is at exact head `10540fe801d414da5f038c8ca60abd919d408b09`; Rust, Loom,
-  TSan, and aarch64 checks pass, while exact Miri run `32342759552` remains in
-  progress before merge and gitlink advancement.
+  merged at provider default `6b0e490752f215782d63f876e85059534e25af54`.
+  Post-merge CI `32344048512` passes Rust verification, Miri, Loom, TSan, and
+  aarch64. The existing book run `32341400004` passes, Pages reports `built`,
+  and live `https://ryancinsight.github.io/Mnemosyne/` returns HTTP 200 with
+  the expected title.
+- Delivery: Atlas records the merged Mnemosyne closure revision as the current
+  gitlink. No provider source or lockfile change was made in the closure.
 
 ## ATLAS-HORAE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 

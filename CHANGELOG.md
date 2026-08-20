@@ -8,16 +8,25 @@
   `32343825023`, Deploy mdBook `32343825746`, dynamic Pages `32343823918`,
   and live Pages HTTP 200 pass; Atlas records the closure gitlink.
 
-- Open RITK PR #196 at exact source `20544b405f68e542364da77492ee7a7ffcc44ae9`
-  to refresh its shared Pages workflow pin; the provider's exact Rust, Python,
-  and book gates remain in progress.
+- Merge RITK PR #196 at provider default
+  `aa48c471ac96eb81869437d84bab439e18d89038` after refreshing the shared Pages
+  workflow pin. Exact Rust, Python, and Pages checks pass; post-merge CI
+  `32344964253`, Python CI `32344964345`, Deploy mdBook `32344964522`, and live
+  Pages HTTP 200 pass. Provider PM closure PR #197 merged at
+  `a16a27f24e814cb1e4315d9c44dec4394f0e26b0`; Atlas records that closure
+  revision.
 
-- Repair Hermes AVX-512 generic-default compilation in PR #57 by gating the
-  three hardware permute imports per scalar backend with the same benchmark
-  configuration as their consumers. Hosted rerun `32343803367` is in progress.
+- Merge Hermes PR #57 at provider default
+  `c5e4c2dc005f215c403bd5b3c66db275bd040afb` after repairing AVX-512
+  generic-default compilation by gating the three hardware permute imports per
+  scalar backend. Exact rerun `32343803367`, post-merge CI `32344922231`,
+  dynamic Pages `32344921591`, and live Pages HTTP 200 pass.
 
-- Close Mnemosyne book-gate PR #66 after its exact Miri run `32342759552`
-  reaches a terminal result; its Rust, Loom, TSan, and aarch64 checks pass.
+- Merge Mnemosyne book-gate PR #66 at provider default
+  `6b0e490752f215782d63f876e85059534e25af54`. Post-merge CI `32344048512`
+  passes including Miri; the existing book run `32341400004` and live Pages
+  `https://ryancinsight.github.io/Mnemosyne/` HTTP 200 check pass. Atlas records
+  the closure gitlink.
 
 - Reconcile the publication documentation with the live book inventory: all 24
   registered packages carry a book and Pages caller, 13 enable `mdbook test`,
