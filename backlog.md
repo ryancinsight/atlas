@@ -7,6 +7,22 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
+## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
+
+- **Owner:** current Atlas session; clean Tyche checkout only.
+- **Scope:** `repos/tyche/.github/workflows/book-pages.yml` and the matching
+  Atlas PM entry. Preserve the pinned reusable workflow ref, output path,
+  permissions, and the provider's clean feature branch; do not touch the
+  active repository-local target fork while cargo processes are running.
+- **Acceptance:** the Tyche caller enables `mdbook-test` with the pinned
+  toolchain/package inputs required by the shared workflow, the workflow YAML
+  remains valid and formatter-clean, and no provider source or lockfile files
+  change.
+- **Evidence:** the shared Atlas workflow defaults `mdbook-test` to `false`,
+  while Horae explicitly enables it. Current Tyche Pages run `32196689656`
+  builds/deploys the book but does not execute `mdbook test`; its live page is
+  therefore not evidence that fenced Rust samples compile.
+
 ## ATLAS-AEQUITAS-DERIVED-UNITS-2026-08-20 — split derived-unit implementation leaf [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Aequitas checkout only.
