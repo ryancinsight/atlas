@@ -91,6 +91,22 @@ committed gitlink; kwavers (5), consus (3), and helios (3) exceed the two-tree
 lane bound; 8 empty `worktrees/kwavers-*` orphans remain. Filed here rather than
 actioned, since every one of those trees holds peer state.
 
+## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — Restore exact-default formatting gate [patch] — in progress
+
+The exact CFDrs default `aa54f5cdcdc4e406df0c60ea6c3cb507e968fc97` has a red
+hosted CI run `32323543129`; the failure is formatting-only in
+`crates/cfd-2d/src/solvers/cell_tracking/tracker.rs`,
+`crates/cfd-core/src/management/aggregates/parameters.rs`, and
+`crates/cfd-core/src/physics/cavitation/number.rs`. The canonical checkout is
+peer-owned and dirty, so the bounded lane owns only those three source files.
+
+**Acceptance:** the exact three-file format correction is committed and pushed;
+the provider's exact-head CI is terminal green, with no peer source or lockfile
+state included. This slice does not claim that other CFDrs gates or Pages are
+green.
+
+**Owner:** current Atlas session; lane claim pending creation.
+
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 
 - **Themis executable book gate:** current Atlas session claims the provider
