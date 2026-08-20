@@ -10433,11 +10433,39 @@ stale ones with `git worktree remove`, and keep at most one. Not a blind
 deletion — a lane holding unpushed commits or uncommitted work is rescued first
 (ATLAS-RITK-D2-STRANDED-100 is what that looks like when it is not).
 
-**Related.** Two stashes exist in this repo from earlier sessions
-(`stash@{0}`, `stash@{1}`, both "WIP on (no branch)"). Stashes are invisible to
-the board and to every peer, which is why the standing rule forbids creating
-them. Triage both in the same sweep: apply and commit, or confirm superseded and
-drop, recording which.
+**Stashes: eleven, not two, and now pinned (2026-08-20).** The earlier note said
+two; that came from a truncated listing. `git stash list` in `repos/kwavers`
+shows eleven entries, 2 to 11 days old:
+
+| stash | files | message |
+| --- | --- | --- |
+| 0 | 4 | README Quick Start + example off LendingIterator |
+| 1 | 40 | `kwavers-stranded-2` |
+| 2 | 7 | `pre-gitlink-advance-dirt` |
+| 3, 4 | 1 each | `main-cargolock`, `temp-cargolock` |
+| 5, 6 | 1 each | kwavers-optics branch preservation |
+| 7 | 1 | xtask NumPy facade audit |
+| 8 | 0 | empty |
+| 9 | 27 | atlas-migration-context |
+| 10 | 144 | atlas-migration-push-context |
+
+**Action taken — non-destructive.** Every non-empty stash is pinned to
+`refs/rescue/stash-<n>-<slug>` and pushed, so the content survives `git stash
+clear`, gc, or a tree reset, and is visible to peers instead of living in one
+machine's stash list. Nothing was dropped: dropping a stash is irreversible loss
+of uncommitted work, which is not mine to decide.
+
+**What the evidence does not show.** Comparing each stash's blobs against
+`origin/main` gives 8 of 10 "differs", but that is close to meaningless as a
+uniqueness signal — an 11-day-old stash differs because main moved on, not
+because its intent is undelivered. Classifying these needs per-stash judgment
+(is the change already landed under a different shape?), which the message
+alone cannot settle. Recorded so the next pass does not mistake drift for value.
+
+Four are almost certainly disposable by their own names — `main-cargolock`,
+`temp-cargolock`, `pre-gitlink-advance-dirt`, and the empty one — being lockfile
+and dirt parking rather than work. The three large ones (1, 9, 10) look like real
+migration work and want their author.
 
 ## ATLAS-FWI-PSTD-BLI-106 — extend the PSTD projections to band-limited stencils [minor] — todo
 
