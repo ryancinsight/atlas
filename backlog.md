@@ -303,25 +303,18 @@ claim is inferred.
   pending. The Atlas gitlink remains at `0c6ffb9` until terminal hosted
   evidence and post-merge default verification pass.
 
-- **Hyperion chromophore provenance:** the current provider source table is
-  value-semantic but its only regression oracle is the retired Kwavers table,
-  and `ADR 0032` references in the source resolve nowhere in Hyperion. The
-  bounded next slice claims only the chromophore source/tests, documentation,
-  and ADR index on a clean lane from provider `origin/main` `e2dbc9b`. It must
-  add the resolvable Prahl/OMLC source locator, independently stored source
-  values for the retained knots, and an Accepted ownership ADR. The source
-  audit disproves the existing ×4 premise: OMLC presents the values as molar
-  extinction coefficients using 64,500 g/mol hemoglobin, so the provider must
-  use those molecular/tetramer values directly rather than multiplying them by
-  four. The clean lane commit `0213f94` replaces the source tables and offset
-  knots, adds the independent OMLC source-knot oracle, revises the ownership
-  ADR, and synchronizes the provider docs. Local formatting, ADR-index,
-  mdBook-build, and strict-link checks pass; locked Cargo gates stop before
-  compilation at the shared overlay lock-form mismatch. PR
-  [#21](https://github.com/ryancinsight/hyperion/pull/21) is published at
-  exact head `0213f947fdfec294a803d3b222d0822bed0b7649`; hosted exact-head
-  provider/book evidence and post-merge default verification remain open. No
-  provider pointer advances until those gates pass.
+- **Hyperion chromophore provenance:** the source audit disproved the
+  unsupported ×4 premise: OMLC presents the retained hemoglobin values as
+  molar extinction coefficients using 64,500 g/mol hemoglobin, so the provider
+  uses those values directly. Commit `0213f947` adds the resolvable OMLC
+  locator, independent source-knot oracle, accepted ownership ADR, and
+  synchronized docs. Local formatting, ADR-index, mdBook-build, and strict-link
+  checks pass; locked Cargo gates stop before compilation at the shared overlay
+  lock-form mismatch. PR [#21](https://github.com/ryancinsight/hyperion/pull/21)
+  merged at provider default `4df62f63`. Post-merge CI run
+  `32415389400`, mdBook run `32415390244`, and Pages workflow
+  `32415388456` are queued. The Atlas pointer remains at `e2dbc9b` until the
+  merged-default gates are terminal and the deployed page is verified.
 
 - **Hephaestus executable book gate:** current Atlas session claims only
   `hephaestus/.github/workflows/book-pages.yml` on a clean

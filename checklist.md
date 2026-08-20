@@ -139,10 +139,15 @@
       `cargo fmt`, ADR index, mdBook build, and strict links pass; local locked
       Cargo gates stop before compilation at the shared overlay lock-form
       mismatch.
-- [ ] Collect hosted exact-head provider/book gates for PR
-      [#21](https://github.com/ryancinsight/hyperion/pull/21), merge only at
-      terminal success, verify the post-merge default, and then advance the
-      Atlas gitlink.
+- [x] Collect hosted exact-head provider/book gates for PR
+      [#21](https://github.com/ryancinsight/hyperion/pull/21): provider and book
+      checks passed; `recurseml/analysis` is report-only and the Pages deploy
+      job is intentionally skipped on a pull request.
+- [x] Merge PR #21 at exact head `0213f947`; provider default is now
+      `4df62f63`.
+- [ ] Collect post-merge CI `32415389400`, mdBook `32415390244`, and Pages
+      workflow `32415388456` to terminal success, verify the live page, and
+      advance the Atlas gitlink only after that evidence.
 
 ## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — current session
 
