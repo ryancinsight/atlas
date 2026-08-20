@@ -123,7 +123,12 @@ actioned, since every one of those trees holds peer state.
   `mdbook-test` caller against `apollo-fft`, exact hosted book evidence, and
   post-merge default verification. Apollo's peer-owned Cargo.lock, backlog,
   and CHANGELOG work remain outside this item; the hosted gate is sequenced
-  after the active RITK collection.
+  after the active RITK collection. Local commit `28f6332` passes mdBook build,
+  strict links across 14 Markdown files, and workflow-shape checks. PR
+  [#108](https://github.com/ryancinsight/apollo/pull/108) is published at that
+  exact head; CI and shared Pages/book runs `32406467465`/`32406468053` are
+  queued. The Atlas gitlink remains at `0c6ffb9` until terminal hosted evidence
+  and post-merge default verification pass.
 
 - **Hephaestus executable book gate:** current Atlas session claims only
   `hephaestus/.github/workflows/book-pages.yml` on a clean

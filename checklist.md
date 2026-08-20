@@ -44,14 +44,17 @@
 
 ## ATLAS-APOLLO-BOOK-TEST-2026-08-20 — current session
 
-- [ ] Create a clean `apollo-book-test` lane from current provider default and
-      claim only `.github/workflows/book-pages.yml`; preserve peer Cargo.lock
-      and PM files.
-- [ ] Enable the shared executable book gate for the existing FFT and Parseval
-      includes; run mdBook build, strict links, and workflow-shape checks.
-- [ ] Push and collect hosted exact-head book evidence only after the active
-      RITK hosted collection is terminal; merge, verify post-merge default, and
-      advance the Atlas gitlink.
+- [x] Reuse the clean `apollo-book-test` lane from current provider default and
+      claim only `.github/workflows/book-pages.yml`; preserve peer Cargo.lock,
+      backlog, CHANGELOG, and primary-checkout work.
+- [x] Enable the shared executable book gate for the existing FFT and Parseval
+      includes. Local `mdbook build`, strict links (14 files, no broken
+      relative links), and workflow-shape checks pass in commit `28f6332`.
+- [x] Push PR [#108](https://github.com/ryancinsight/apollo/pull/108) at exact
+      head `28f6332`; its CI and shared Pages/book runs
+      `32406467465`/`32406468053` are queued. Collect terminal exact-head
+      evidence, merge, verify the post-merge default, and advance the Atlas
+      gitlink only after those gates pass.
 
 ## ATLAS-HEPHAESTUS-BOOK-TEST-2026-08-20 — current session
 
