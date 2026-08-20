@@ -14,6 +14,9 @@
       extracted Bash block passes `bash -n`, `git diff --check` passes, and the
       duplicate-preserving RITK probe passes. The local Python YAML parser is
       unavailable on this host; hosted Actions validation remains required.
+- [x] Remove the remaining directory-order `ls | head` existence probe from
+      the staging block; the block now checks package-artifact presence with
+      `compgen` and preserves every staged artifact basename.
 - [x] Publish RITK PR [#204](https://github.com/ryancinsight/ritk/pull/204) at
       exact head `9bc47d42`; CI `32410451435` and shared book run
       `32410452203` are queued. `recurseml/analysis` is report-only.
