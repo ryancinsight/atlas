@@ -25,9 +25,9 @@
   package, workspace, and value gates remain locked evidence at the lane
   head. Full-crate Miri reaches the Themis Windows NUMA FFI test, which is
   unsupported by Miri; no deque failure remains. Existing PR #143 is open,
-  mergeable, and hosted
-  workflows are queued/in progress at the final head; Atlas retains its
-  default gitlink until hosted CI completes and the PR merges.
+  mergeable, and hosted Rust and book checks pass; the Ubuntu wheel smoke test
+  remains pending (`32328186717`), so Atlas retains its default gitlink until
+  the hosted matrix completes and the PR merges.
 - **Kwavers:** fetched `origin/main` is
   `64b982bdbfc2b7e36f11971947f5bdd8ed59d1f1`, the merge of PR #418 after
   ADR 112 was committed with its required Aequitas `Degree` surface. Atlas
@@ -42,12 +42,12 @@
   other class unchanged at zero. Pinned-MSVC Clippy passes, Nextest passes
   `127/127`, doctests pass `17 + 9` compile-fail cases with one ignored, and
   rustdoc completes; the current Atlas pointer is advanced in this increment.
-  Hosted validation for the new provider commit remains required.
-- **RITK:** fetched `origin/main` is
-  `9e1c276a3c56324a1e429f71fa2fb14e3883f5d1`, the warning-free rustdoc
-  increment. PR #194 adds finite release-job bounds at `337f0dc5`; its hosted
-  Rust, Rustdoc, Python, wheel, and dependency-alignment jobs are queued, so
-  Atlas remains at the merged default until those checks complete.
+  Hosted CI `32325130976` and Pages `32325130273` pass at this exact head.
+- **RITK:** PR #194 merged at `337f0dc5` after hosted CI
+  `32323289141` and Python CI `32323289137` completed successfully; the
+  report-only `recurseml/analysis` error does not block delivery. Fetched
+  `origin/main` and the Atlas gitlink already resolve to `65bee2c2`, so no
+  pointer mutation is required.
 - **Standalone package gate:** running `cargo package --workspace --locked`
   outside the Atlas overlay packages the preceding RITK crates, then stops at
   `ritk-block-matching`: its `apollo-fft = ^0.27.0` requirement has no matching
