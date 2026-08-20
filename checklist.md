@@ -41,6 +41,19 @@
       not stage a pointer change unless a newer verified provider default
       exists.
 
+## ATLAS-EXACT-HEAD-COLLECTION-2026-08-20 — current session
+
+- [x] Collect exact Helios default `7ff72e3` CI `32393592276` and mdBook
+      deployment `32393593050`; the Atlas gitlink is aligned.
+- [x] Collect exact Tyche default `10410f2` CI `32394888136` and Pages
+      deployment `32394886461`; the Atlas gitlink is aligned.
+- [x] Reconcile Kwavers `origin/main` to `78af725`; its latest hosted runs
+      target predecessor `b5b4fb0`, so the Atlas pointer `459f18c` remains
+      stale and cannot advance on predecessor evidence.
+- [ ] Obtain terminal hosted CI and book evidence for exact Kwavers
+      `78af725`, then advance the Atlas gitlink in a separate pointer-only
+      integration commit.
+
 ## ATLAS-LETO-BOOK-2026-08-20 — current session
 
 - [x] Diagnose Pages run `32396859195`: package staging passed; mdBook failed

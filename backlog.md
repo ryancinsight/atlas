@@ -32,6 +32,15 @@ default head `c76a55e5eb9988b48bba69e67d6e07ce5fe55ea8` has successful CI
 run `32402752669` (job `96545229314`); this is deployment-pending evidence,
 not a live Pages claim.
 
+The exact-head collection also confirms Helios default
+`7ff72e37889594b6592e1f8b8b169834765f7851` with successful CI
+`32393592276` and mdBook deployment `32393593050`, and Tyche default
+`10410f2de1ce1529ecbff50fa740b23a1c8f77b9` with successful CI
+`32394888136` and Pages deployment `32394886461`. Kwavers currently resolves
+to `78af725e749c8ec4fd756d55091d557ea635aac2`; its latest hosted workflow
+set targets the predecessor `b5b4fb0614ad3238ab95ff092cebd5977a201b22`, so
+those runs cannot authorize the stale Atlas pointer `459f18ce`.
+
 
 ## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — todo
 
