@@ -11184,6 +11184,31 @@ ATLAS-RITK-D2-STRANDED-100): 67 cited hashes, 4 flags, 1 real. A rebase-merge
 re-authors the hash, so most flags are benign and a blocking check would be
 ignored within a week.
 
+**Three false delivery signals, each hit and corrected on 2026-08-20.** The
+audit above measured the first; the takeover sweep produced the other two. All
+three look authoritative and none is sufficient alone.
+
+| signal | why it lies | measured |
+| --- | --- | --- |
+| `merge-base --is-ancestor <hash> origin/main` | a squash or rebase re-authors the hash, so delivered work still reads as "ahead" | 4 flags, 1 real (67 hashes) |
+| `gh pr list --head <branch>` state | matches by branch *name*; a reused branch reports MERGED while its tip has advanced | both consus lanes reported MERGED; one had a 42-file delta remaining |
+| a tool's exit output, counted | a cached run emits no diagnostics, and `grep -c` on empty output returns 0 — identical to clean | reported "0 clippy findings" on moirai PR #145; CI caught `len_without_is_empty` immediately |
+
+**What actually settles it.** Content, not metadata: is the branch's diff against
+`origin/main` empty, or does the tip's subject appear on main under a new hash?
+That is the check applied before closing each of the six lanes in
+ATLAS-WORKTREE-TAKEOVER-107, and it is what kept the two consus lanes open.
+
+For tool output, the rule is narrower: a count is only evidence when the run
+actually executed. Force recompilation (`touch` the file, or a clean target) or
+read the tool's own summary line rather than counting matches — an empty result
+must be distinguishable from an absent one.
+
+**Why this belongs here rather than in a lint.** None of these can be fixed by
+adding a check, because each *is* a check being read wrongly. The correction is
+that a delivery claim cites the merge and content, and a green claim cites a run
+that happened.
+
 **Why it earns its place anyway.** The one true positive was ~2800 lines of
 verified work that no gate, review, or CI run would ever have surfaced, because
 nothing was ever pushed. Read-only, runs in seconds, and its natural home is the
