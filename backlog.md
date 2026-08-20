@@ -30,7 +30,10 @@
   `Introduction - atlas/RITK: Medical Image Processing and Registration`.
   PM closure PR [#199](https://github.com/ryancinsight/ritk/pull/199) merged at
   `ee76393fff7aaeae1a0c9f2712bcf8b8062c5303`; its docs-only closure records
-  the same hosted evidence. Atlas advances its gitlink to the merged PM head.
+  the same hosted evidence. Follow-up safety PR [#200](https://github.com/ryancinsight/ritk/pull/200)
+  merged at `d4a978fce40f37b3668afa5d98783626aaf74cff`; post-merge Rust/Python
+  CI `32395213485`/`32395213488` pass. Atlas advances its gitlink to the
+  verified current default.
 - **Tyche publication boundary:** PR
   [#30](https://github.com/ryancinsight/tyche/pull/30) merged at provider
   default `bfe6ab72915ff1d29357dd6895c39a11baecfbc0`. Post-merge CI
