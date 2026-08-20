@@ -11,10 +11,13 @@ are running; the local locked Nextest attempt is separately blocked before
 compilation by the Atlas overlay requesting a lockfile rewrite for unused
 local patches.
 
-Tyche PR #30 is open for the publication-boundary cleanup: only `tyche-core`
-is publishable, while the facade and adapter packages are explicitly private.
-Hosted verification and the external registry/release configuration remain
-open; no publication is claimed.
+Tyche PR #30 merged at `bfe6ab72915ff1d29357dd6895c39a11baecfbc0` for the
+publication-boundary cleanup: only `tyche-core` is publishable, while the
+facade and adapter packages are explicitly private. Required PR `verify` and
+`supply-chain` runs pass; report-only RecurseML analysis is red. Post-merge CI
+`32386013998` and dynamic Pages `32386011656` are queued, so the Atlas gitlink
+does not advance yet. External registry/release configuration remains open;
+no publication is claimed.
 
 Kwavers PR #427 remains open at `7245db7e44a7f461a34ff2d67e5b7f1a76bc69c1`
 with `mergeStateStatus=DIRTY`. The fetched provider default has advanced to

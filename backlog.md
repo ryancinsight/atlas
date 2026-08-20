@@ -8,11 +8,14 @@
   removes the example adapter, and records the major error-enum impact.
   Hosted Rust/Python/book checks are running; merge and the Atlas gitlink
   update require terminal-green exact-head evidence.
-- **Tyche publication boundary:** branch source is pushed as PR
-  [#30](https://github.com/ryancinsight/tyche/pull/30). The facade,
-  Consus-adapter, and Moirai-adapter packages are now explicitly private;
-  `tyche-core` remains the only publishable package. Hosted verification and
-  external registry/release configuration remain separate residuals.
+- **Tyche publication boundary:** PR
+  [#30](https://github.com/ryancinsight/tyche/pull/30) merged at
+  `bfe6ab72915ff1d29357dd6895c39a11baecfbc0`; required `verify` and
+  `supply-chain` runs pass, while report-only RecurseML analysis is red.
+  Post-merge CI `32386013998` and dynamic Pages run `32386011656` are queued.
+  The facade, Consus-adapter, and Moirai-adapter packages are explicitly
+  private; `tyche-core` remains the only publishable package. External
+  registry/release configuration remains a separate residual.
 - **Kwavers distributed queue:** PR
   [#427](https://github.com/ryancinsight/kwavers/pull/427) remains open at
   `7245db7e`; its merge state is `DIRTY`. Fetched `origin/main` is now
