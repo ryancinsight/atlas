@@ -40,16 +40,15 @@ ROUTING_CASES: list[tuple[str, str]] = [
     ("Gamma Index Verification", "gamma"),
     # Clinical workflow.
     ("Tomotherapy Delivery Workflow", "workflow"),
-    # Benchmarks.
-    ("Canonical Incompressible Benchmarks", "benchmark"),
-    # Optimization.
-    ("Multi-Objective Optimization", "optimization"),
+    # Quantitative figures require a data-backed producer; metadata-only
+    # generation uses the conceptual hub instead of fabricating a series.
+    ("Canonical Incompressible Benchmarks", "hub"),
+    ("Multi-Objective Optimization", "hub"),
     # Pressure-velocity / solver.
     ("Pressure-Velocity Coupling and Time Integration", "solver"),
     # Migration.
     ("Atlas Migration Overview", "migration"),
-    # Validation.
-    ("Reference Phantoms and Ground Truth", "validation"),
+    ("Reference Phantoms and Ground Truth", "hub"),
     # Biomedical/microfluidics.
     ("Microfluidics and Millifluidic Networks", "vessel_flow"),
     # Schematic/mesh.
@@ -72,11 +71,8 @@ SVG_DOMAIN_TITLES: list[tuple[str, str]] = [
     ("mlc", "13. MLC Models and Leaf Sequencing"),
     ("gamma", "Gamma Index Verification"),
     ("workflow", "Tomotherapy Delivery Workflow"),
-    ("benchmark", "Canonical Incompressible Benchmarks"),
-    ("optimization", "Multi-Objective Optimization"),
     ("solver", "Pressure-Velocity Coupling and Time Integration"),
     ("migration", "Atlas Migration Overview"),
-    ("validation", "Reference Phantoms and Ground Truth"),
     ("vessel_flow", "Microfluidics and Millifluidic Networks"),
     ("domain_mesh", "2-D Flows and Schematic Integration"),
     ("physics_stack", "1. Physics Domain Types and Safety Boundaries"),
@@ -105,6 +101,27 @@ class RoutingSmokeTestCase(unittest.TestCase):
             expected_domains,
             "SVG_DOMAIN_TITLES must contain one case per routed domain plus hub",
         )
+
+    def test_metadata_only_quantitative_titles_use_conceptual_hub(self) -> None:
+        """Title-only generation never emits an unproven data series."""
+        for title in (
+            "Canonical Incompressible Benchmarks",
+            "Multi-Objective Optimization",
+            "Reference Phantoms and Ground Truth",
+        ):
+            with self.subTest(title=title):
+                svg = build_figure_svg(
+                    title=title,
+                    keywords=[],
+                    kind="chapter",
+                    caption="Smoke-test caption.",
+                )
+                self.assertNotIn("<polyline", svg)
+                self.assertNotIn("Lid-Driven Cavity", svg)
+                self.assertNotIn("Analytical", svg)
+                self.assertNotIn("Simulated", svg)
+                self.assertNotIn("Pareto front", svg)
+                self.assertNotIn("Dominated", svg)
 
 
 @pytest.mark.slow

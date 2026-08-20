@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-FIGURE-PROVENANCE-2026-08-20 — Remove fabricated quantitative book figures [arch] — in progress
+## ATLAS-FIGURE-PROVENANCE-2026-08-20 — Remove fabricated quantitative book figures [arch] — done 2026-08-20
 
 The root figure generator currently renders fixed numerical-looking benchmark,
 validation, and optimization series from chapter titles alone. Those figures
@@ -28,6 +28,19 @@ ADR 0049 and the index are synchronized.
 `scripts/tests/test_generate_book_figures_routing.py`,
 `docs/adr/0049-book-figure-provenance.md`, `docs/adr/README.md`,
 `backlog.md`, `checklist.md`.
+
+**Delivered:** removed the benchmark, validation, and optimization templates
+and their routing entries. Title-only generation now uses the conceptual hub
+for those topics; no hard-coded series, chart labels, or quantitative chart
+geometry remains in the metadata-only path. The provider books were not
+regenerated because no data-backed producer exists for these figures.
+
+**Verification:** focused routing/idempotence tests pass (18 tests, 23
+subtests); the full Atlas Python suite passes (277 tests, 77 subtests in
+10.28s); `python scripts/adr-index.py check`,
+`python scripts/atlas-book-gate-audit.py --check`, and `git diff --check` pass.
+The book audit still reports five provider entries without executable gates;
+that is tracked by the separate book-gate items.
 
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 

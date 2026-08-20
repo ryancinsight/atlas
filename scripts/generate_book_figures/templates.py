@@ -212,75 +212,6 @@ def build_gamma_svg(title: str, keywords: list[str], caption: str) -> str:
     return svg
 
 
-def build_benchmark_svg(title: str, keywords: list[str], caption: str) -> str:
-    """Benchmark comparison bars for reference vs computed results."""
-    svg_header, svg_footer = _svg_canvas(title)
-    svg = svg_header
-    svg += _render_title(title) + "\n"
-
-    # Axes
-    svg += '  <line x1="80" y1="250" x2="720" y2="250" stroke="#111827" stroke-width="2"/>\n'
-    svg += '  <line x1="80" y1="250" x2="80" y2="100" stroke="#111827" stroke-width="2"/>\n'
-
-    bar_w = 35
-    group_gap = 120
-    base_y = 250
-    data = [
-        ("Lid-Driven Cavity", 180, 175),
-        ("Pipe Flow", 220, 215),
-        ("Poiseuille", 150, 145),
-    ]
-    x = 120
-    for name, ref_h, comp_h in data:
-        svg += f'  <rect x="{x}" y="{base_y - ref_h}" width="{bar_w}" height="{ref_h}" fill="#2563eb" stroke="#1d4ed8" stroke-width="1"/>\n'
-        svg += f'  <rect x="{x + bar_w + 5}" y="{base_y - comp_h}" width="{bar_w}" height="{comp_h}" fill="#22c55e" stroke="#16a34a" stroke-width="1"/>\n'
-        svg += render_wrapped_text(x + bar_w, base_y + 25, [name], "middle", 11, "#374151") + "\n"
-        x += group_gap
-
-    # Legend
-    svg += '  <rect x="520" y="120" width="15" height="15" fill="#2563eb"/>\n'
-    svg += render_wrapped_text(600, 127, ["Reference"], "middle", 12, "#111827") + "\n"
-    svg += '  <rect x="520" y="145" width="15" height="15" fill="#22c55e"/>\n'
-    svg += render_wrapped_text(600, 152, ["Computed"], "middle", 12, "#111827") + "\n"
-
-    svg += _render_caption(caption) + "\n"
-    svg += svg_footer
-    return svg
-
-
-def build_optimization_svg(title: str, keywords: list[str], caption: str) -> str:
-    """Multi-objective optimization Pareto front."""
-    svg_header, svg_footer = _svg_canvas(title)
-    svg = svg_header
-    svg += _render_title(title) + "\n"
-
-    # Axes
-    svg += '  <line x1="80" y1="250" x2="720" y2="250" stroke="#111827" stroke-width="2"/>\n'
-    svg += '  <line x1="80" y1="250" x2="80" y2="100" stroke="#111827" stroke-width="2"/>\n'
-    # Axis labels
-    svg += render_wrapped_text(400, 285, ["Objective 1"], "middle", 12, "#374151") + "\n"
-    svg += render_wrapped_text(50, 170, ["Obj 2"], "middle", 12, "#374151") + "\n"
-
-    # Pareto front curve
-    svg += '  <path d="M 120,220 Q 250,200 400,150 T 680,110" fill="none" stroke="#7e22ce" stroke-width="3"/>\n'
-    # Pareto-optimal points
-    for x, y in [(150, 215), (300, 185), (480, 145), (650, 115)]:
-        svg += f'  <circle cx="{x}" cy="{y}" r="5" fill="#7e22ce"/>\n'
-    # Dominated points
-    for x, y in [(200, 225), (350, 205), (550, 165)]:
-        svg += f'  <circle cx="{x}" cy="{y}" r="4" fill="#64748b" opacity="0.6"/>\n'
-
-    # Legend
-    svg += '  <circle cx="540" cy="120" r="5" fill="#7e22ce"/>\n'
-    svg += render_wrapped_text(600, 120, ["Pareto front"], "middle", 12, "#111827") + "\n"
-    svg += '  <circle cx="540" cy="140" r="4" fill="#64748b" opacity="0.6"/>\n'
-    svg += render_wrapped_text(600, 140, ["Dominated"], "middle", 12, "#111827") + "\n"
-
-    svg += _render_caption(caption) + "\n"
-    svg += svg_footer
-    return svg
-
-
 def build_solver_svg(title: str, keywords: list[str], caption: str) -> str:
     """Pressure-velocity coupling loop (SIMPLE/PIMPLE)."""
     svg_header, svg_footer = _svg_canvas(title)
@@ -461,35 +392,6 @@ def build_vessel_flow_svg(title: str, keywords: list[str], caption: str) -> str:
 
     svg += _render_caption(caption) + "\n"
     svg += _arrow_marker()
-    svg += svg_footer
-    return svg
-
-
-def build_validation_svg(title: str, keywords: list[str], caption: str) -> str:
-    """Simple benchmark chart: analytical vs simulated."""
-    svg_header, svg_footer = _svg_canvas(title)
-    svg = svg_header
-    svg += _render_title(title) + "\n"
-
-    # Axes
-    svg += '  <line x1="80" y1="250" x2="720" y2="250" stroke="#111827" stroke-width="2"/>\n'
-    svg += '  <line x1="80" y1="250" x2="80" y2="100" stroke="#111827" stroke-width="2"/>\n'
-
-    # Analytical line
-    svg += '  <polyline points="120,200 250,180 400,160 550,140 680,120" fill="none" stroke="#2563eb" stroke-width="3"/>\n'
-
-    # Simulated scatter points
-    points = [(140, 205), (270, 185), (420, 155), (570, 145), (690, 118)]
-    for x, y in points:
-        svg += f'  <circle cx="{x}" cy="{y}" r="5" fill="#dc2626"/>\n'
-
-    # Legend
-    svg += '  <line x1="520" y1="90" x2="560" y2="90" stroke="#2563eb" stroke-width="3"/>\n'
-    svg += render_wrapped_text(600, 90, ["Analytical"], "middle", 12, "#111827") + "\n"
-    svg += '  <circle cx="540" cy="110" r="5" fill="#dc2626"/>\n'
-    svg += render_wrapped_text(600, 110, ["Simulated"], "middle", 12, "#111827") + "\n"
-
-    svg += _render_caption(caption) + "\n"
     svg += svg_footer
     return svg
 

@@ -5,12 +5,12 @@
 
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — current session
 
-- [ ] Record ADR 0049 and claim the root-owned figure-generator scope.
-- [ ] Remove metadata-only quantitative templates and their routing entries;
+- [x] Record ADR 0049 and claim the root-owned figure-generator scope.
+- [x] Remove metadata-only quantitative templates and their routing entries;
       keep conceptual diagrams input-sensitive to chapter metadata.
-- [ ] Add regression coverage proving benchmark, validation, and optimization
+- [x] Add regression coverage proving benchmark, validation, and optimization
       titles no longer emit fabricated data-series labels or geometry.
-- [ ] Run focused and full Python gates, regenerate the ADR index, synchronize
+- [x] Run focused and full Python gates, regenerate the ADR index, synchronize
       the PM entries, and commit the verified slice.
 
 ## ATLAS-BOOK-STAGING-2026-08-20 — current session

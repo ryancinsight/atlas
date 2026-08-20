@@ -3,7 +3,6 @@
 import re
 
 from generate_book_figures.templates import (
-    build_benchmark_svg,
     build_domain_mesh_svg,
     build_dose_svg,
     build_gamma_svg,
@@ -13,11 +12,9 @@ from generate_book_figures.templates import (
     build_memory_svg,
     build_migration_svg,
     build_mlc_svg,
-    build_optimization_svg,
     build_physics_stack_svg,
     build_pipeline_svg,
     build_solver_svg,
-    build_validation_svg,
     build_vessel_flow_svg,
     build_workflow_svg,
 )
@@ -44,11 +41,8 @@ DOMAIN_ROUTING: list[tuple[str, list[str]]] = [
     ("mlc", ["mlc", "leaf", "sequencing"]),
     ("gamma", ["gamma", "verification"]),
     ("workflow", ["workflow", "delivery", "tomo", "linac", "adaptive", "clinical workflow"]),
-    ("benchmark", ["benchmark", "canonical"]),
-    ("optimization", ["optimization", "objective", "pareto"]),
     ("solver", ["pressure", "velocity", "coupling", "time integration", "simple", "pimple", "krylov"]),
     ("migration", ["migration", "eunomia", "leto", "atlas", "hermes", "moirai", "apollo", "ritk"]),
-    ("validation", ["validation", "phantom", "phantoms", "regression", "clinical"]),
     ("vessel_flow", ["biomedical", "blood", "vascular", "microfluidic", "microfluidics", "cavitation", "turbulence"]),
     ("domain_mesh", ["geometry", "voxel", "meshing", "spatial", "grids", "schematic", "schematics", "csg"]),
     ("physics_stack", ["foundations", "governing", "equations", "numerics", "numeric", "solvers", "physics", "spectral"]),
@@ -119,8 +113,6 @@ def build_figure_svg(
         return build_gpu_svg(title, keywords, caption)
     if domain == "migration":
         return build_migration_svg(title, keywords, caption)
-    if domain == "validation":
-        return build_validation_svg(title, keywords, caption)
     if domain == "vessel_flow":
         return build_vessel_flow_svg(title, keywords, caption)
     if domain == "domain_mesh":
@@ -135,10 +127,6 @@ def build_figure_svg(
         return build_gamma_svg(title, keywords, caption)
     if domain == "workflow":
         return build_workflow_svg(title, keywords, caption)
-    if domain == "benchmark":
-        return build_benchmark_svg(title, keywords, caption)
-    if domain == "optimization":
-        return build_optimization_svg(title, keywords, caption)
     if domain == "solver":
         return build_solver_svg(title, keywords, caption)
     return build_hub_svg(title, keywords, kind, caption)
