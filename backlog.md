@@ -763,6 +763,11 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
+- **Active claim (atlas coordinator):** RITK oblique-direction correctness slice
+  `ATLAS-RITK-TRANSFORM-DIRECTION-081`; scope is the eight listed production
+  transform files, their regression tests, and the resulting Atlas gitlink.
+  No other RITK source or peer checkout is in scope.
+
 The active product boundary is a multiphysics simulation suite built from the
 CFDrs, Kwavers, and Helios integrators. The provider set is `horae`,
 `hyperion`, `harmonia`, `themis`, `tyche`, `proteus`, `mnemosyne`, `consus`,
