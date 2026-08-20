@@ -96,6 +96,36 @@ to `78af725e749c8ec4fd756d55091d557ea635aac2`; its latest hosted workflow
 set targets the predecessor `b5b4fb0614ad3238ab95ff092cebd5977a201b22`, so
 those runs cannot authorize the stale Atlas pointer `459f18ce`.
 
+## ATLAS-BOOK-CALLER-PINS-2026-08-20 — Repin provider mdBook callers [patch] — in progress
+
+The provider workflow audit found 20 current `main` callers still pinned to
+pre-fix revisions of the reusable Atlas book workflow. Apollo, Coeus,
+Hephaestus, and RITK already carry the repin in their active PRs. The
+remaining 16 provider-scoped workflow PRs are published from each current
+default without touching the dirty nested checkouts:
+
+- Aequitas [#38](https://github.com/ryancinsight/aequitas/pull/38),
+  Asclepius [#23](https://github.com/ryancinsight/asclepius/pull/23),
+  Athena [#16](https://github.com/ryancinsight/athena/pull/16),
+  Consus [#52](https://github.com/ryancinsight/consus/pull/52),
+  Eunomia [#71](https://github.com/ryancinsight/eunomia/pull/71),
+  Harmonia [#8](https://github.com/ryancinsight/harmonia/pull/8),
+  Hermes [#58](https://github.com/ryancinsight/hermes/pull/58),
+  Horae [#24](https://github.com/ryancinsight/horae/pull/24),
+  Hyperion [#22](https://github.com/ryancinsight/hyperion/pull/22),
+  Iris [#17](https://github.com/ryancinsight/iris/pull/17),
+  Melinoe [#19](https://github.com/ryancinsight/melinoe/pull/19),
+  Mnemosyne [#67](https://github.com/ryancinsight/Mnemosyne/pull/67),
+  Moirai [#146](https://github.com/ryancinsight/Moirai/pull/146),
+  Proteus [#16](https://github.com/ryancinsight/proteus/pull/16),
+  Themis [#28](https://github.com/ryancinsight/themis/pull/28), and
+  Tyche [#33](https://github.com/ryancinsight/tyche/pull/33).
+
+**Acceptance:** every registered provider workflow resolves the exact shared
+staging implementation `20c9398`; each provider's required hosted book gate
+is terminal green; then close the PRs and record the merged defaults before
+advancing any Atlas pointer. No source or book behavior changes are in scope.
+
 
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — in progress
 

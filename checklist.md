@@ -27,6 +27,18 @@
 - [ ] Rerun and collect RITK's exact merged-default book gate before closing
       the RITK provider item or advancing the Atlas gitlink.
 
+## ATLAS-BOOK-CALLER-PINS-2026-08-20 — current session
+
+- [x] Audit all registered provider `book-pages.yml` callers against the
+      reusable workflow and classify the 20 pre-fix references; Apollo, Coeus,
+      Hephaestus, and RITK already carry the repin in active PRs.
+- [x] Publish the remaining 16 workflow-only PRs from current provider
+      defaults. The shared implementation pin is `20c9398`; provider hosted
+      book gates are the acceptance oracle.
+- [ ] Collect terminal hosted results and merge the 16 PRs only at their
+      exact heads; then rerun the caller audit and record any default-pointer
+      changes without touching dirty nested checkouts.
+
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
 - [x] Reuse the stale merged MSRV lane as `worktrees/themis-book-test`.
