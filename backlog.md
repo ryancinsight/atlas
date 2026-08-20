@@ -9,14 +9,12 @@
 
 ## ATLAS-HOSTED-RECHECK-2026-08-19-2 — current provider state [patch]
 
-- **Kwavers:** `origin/main` is `609ddb23f6cc361bcffde508d5454988d33a6421`.
-  Architecture Validation `32287002874`, CI/CD `32287002887`, Legacy
-  Migration Audit `32287002898`, and Deploy mdBook `32287003478` are queued.
-  Atlas retains verified gitlink `0a9842a672f5e0248f5826003c30c7a0c8d8c7a4`;
-  no exact-head closure is claimed.
-- **RITK:** `origin/main` is docs-only merge `52f9d3b008269017297c4679792391958a561f7f`
-  from PR #189; the Atlas pointer is reconciled. The queued CI/Python runs
-  target the preceding `01175d6` and do not prove the new default.
+- **Kwavers:** `origin/main` is `aa9a62e45c1f6327161b4e12ba6b3b10e147475d2`.
+  The Atlas gitlink now matches that fetched default; the exact-head audit
+  passes locally. Hosted evidence remains a separate gate.
+- **RITK:** `origin/main` is `ebf2f49924c3c90d5b3c1fb0cca536bc4b6002c2`.
+  The Atlas pointer now matches the fetched default after the block-matching
+  diagnostics merge. Hosted evidence remains a separate gate.
 - **Horae:** CI `32285903134`, Deploy mdBook `32285903939`, and Pages
   `32285901542` remain queued at `0df563a69693418b267f337fa4bc9dfb7c1aeb1b`.
   Standalone locked verification passes nextest 23/23, strict Clippy, and
@@ -30,8 +28,9 @@
   its counterbalanced performance cases. No pointer advance is made.
 - **Root worktree:** latest worktree conformance red is limited to the
   peer-owned RITK FFT `clippy::too_many_arguments` expectation; generated
-  standalone package cache forks were removed. Overlay and registry metadata
-  remain green.
+  standalone package cache forks were removed. Exact provider-head, overlay,
+  registry metadata, and lock-form checks pass locally; conformance remains
+  separately gated because the shared worktree is dirty.
 
 ## ATLAS-RITK-DEFAULT-RECONCILIATION-2026-08-19 — docs-only merge [patch]
 
