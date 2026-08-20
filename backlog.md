@@ -26,6 +26,13 @@
   This is a release-order blocker requiring Apollo 0.27 publication before the
   RITK workspace can claim complete crates.io package evidence; the dependency
   is not weakened and no release is performed without release authority.
+- **Hyperion package gate:** the standalone locked package attempt fails while
+  resolving crates.io Proteus: available `proteus 0.1.x` versions do not expose
+  the `std` feature requested by Hyperion, although the current git provider
+  does (`proteus/Cargo.toml:23-25`). This is registry publication/version
+  coherence, not a reason to remove `proteus/std` from Hyperion; Hyperion and
+  its downstream consumers remain release-blocked until Proteus is published
+  with the matching feature surface.
 - **Horae:** the exact `--all-features` native gate passes `23/23`, and its CI
   and Pages callers enable the book test. The local Windows `mdbook test`
   invocation reaches rustdoc but fails with a GNU/MSVC artifact mismatch
