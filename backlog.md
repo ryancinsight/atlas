@@ -763,16 +763,17 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Claim closeout (atlas coordinator):** RITK oblique-direction correctness
-  `ATLAS-RITK-TRANSFORM-DIRECTION-081` was already fixed in provider commit
-  `3aa73ba0`, an ancestor of the current RITK default `ebf2f499`. The focused
-  `ritk-filter`/`ritk-diffusion` gate passes `1,284/1,284` tests (11 skipped)
-  and clippy with `-D warnings`; the oblique grid, inverse-displacement, and
-  marching-cubes regressions are present. `FodVolume` intentionally documents
-  an axis-aligned frame contract, so no source change or new gitlink was
-  warranted. The table row below is retained as historical audit context; its
-  original open characterization is stale and must not be treated as current
-  source debt.
+- **Active claim (atlas coordinator):** Aequitas dimensional-law test
+  consolidation; scope is `repos/aequitas/tests/dimension_laws.rs` and its
+  named domain modules, followed by the Atlas gitlink. No provider source or
+  peer checkout is in scope.
+- **RITK claim reconciliation:** `ATLAS-RITK-TRANSFORM-DIRECTION-081` was
+  already fixed in provider commit `3aa73ba0`, an ancestor of RITK default
+  `ebf2f499`. The focused `ritk-filter`/`ritk-diffusion` gate passes
+  `1,284/1,284` tests (11 skipped) and clippy with `-D warnings`; oblique grid,
+  inverse-displacement, and marching-cubes regressions are present.
+  `FodVolume` intentionally documents an axis-aligned frame contract, so no
+  RITK source change was warranted.
 
 The active product boundary is a multiphysics simulation suite built from the
 CFDrs, Kwavers, and Helios integrators. The provider set is `horae`,
