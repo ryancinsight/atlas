@@ -21,6 +21,9 @@
   omits `mdbook test`; both included book examples import `asclepius`, and the
   gEUD example imports Aequitas, so the shared package-staging path is the
   intended integration gate.
+- **Landed:** Asclepius commit `b660646` on `ci/asclepius-book-test`, PR #22
+  open. Enables `mdbook-test: true`, `rust-toolchain: "1.97.0"`,
+  `cargo-package: asclepius`; no source or lockfile changes. CI queued.
 
 ## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
 
@@ -38,7 +41,8 @@
   builds/deploys the book but does not execute `mdbook test`; its live page is
   therefore not evidence that fenced Rust samples compile.
 - **Landed:** Tyche commit `1752a0f` is pushed to
-  `codex/tyche-planning-closure`. It enables `mdbook-test`, pins Rust
+  `codex/tyche-planning-closure`; PR #27 open. CI queued.
+  It enables `mdbook-test`, pins Rust
   `1.97.0`, selects `tyche-core`, and adds the explicit staged-library
   declarations to both canonical book examples.
 - **Local verification:** provider format, locked all-target `tyche-core`
