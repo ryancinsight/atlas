@@ -13123,6 +13123,17 @@ MSRV, Loom, TSan, aarch64, Miri, and Pages checks pass; post-merge CI
 progress. Atlas records both merged defaults while these post-merge checks
 complete.
 
+## Finding 2026-08-20: exact-head clean-checkout residual recheck
+
+The structural exact-head audit passes all 22 providers and all three
+integrator pointers. The same command with `--require-clean-checkouts` reports
+30 intentional peer-state findings: checkout drift or dirt in Themis, Proteus,
+Mnemosyne, Consus, Helios, Harmonia, Aequitas, Asclepius, Eunomia, Moirai,
+Melinoe, Leto, Hephaestus, Coeus, Apollo, Gaia, Hermes, Iris, CFDrs, and
+Kwavers. The audit did not reset, clean, switch, or overwrite any of those
+checkouts. This is a coordination residual, separate from committed Atlas
+gitlink coherence.
+
 ## Finding 2026-08-20: Hyperion shared-workflow pin merged
 
 Hyperion PR [#19](https://github.com/ryancinsight/hyperion/pull/19) merged
