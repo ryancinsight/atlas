@@ -780,6 +780,11 @@ nested Harmonia checkout remains provider-owned state.
   with `E0461` because mdBook selects GNU rustdoc while the shared stack
   artifacts are MSVC; no Horae source or pointer change is warranted, and the
   hosted Linux book gate remains the configured cross-platform book evidence.
+- **Kwavers pointer reconciliation:** the fetched provider default is
+  `25bf5deca84293ff7eb98ef82b6844e98f3439b4`, while Atlas still pointed at
+  `aa9a62e45c1f6327161b4e12ba6b3b10e147475d`. This increment advances only
+  the root gitlink to the fetched default; the peer-owned Kwavers checkout is
+  dirty on `ff4dc868` and remains untouched.
 - **Aequitas claim closeout:** dimensional-law tests were split into named
   angle and complex-value modules in provider commit `c908af1`; the focused
   nextest gate passes `40/40`, clippy passes with `-D warnings`, and Atlas
