@@ -21,6 +21,14 @@
   omits `mdbook test`; both included book examples import `asclepius`, and the
   gEUD example imports Aequitas, so the shared package-staging path is the
   intended integration gate.
+- **Landed by peer:** commit `b660646` on
+  `ci/asclepius-book-test` is already pushed to the provider origin. It adds
+  exactly `mdbook-test: true`, Rust `1.97.0`, and `cargo-package: asclepius`;
+  no source or lockfile files changed.
+- **Local verification:** exact-head format, MSVC-pinned locked all-target
+  Clippy, package build, nextest (`18/18`), doctests, and `mdbook build` pass.
+  Hosted exact-head Pages confirmation remains pending; no hosted polling is
+  performed in the main task.
 - **Landed:** Asclepius commit `b660646` on `ci/asclepius-book-test`, PR #22
   open. Enables `mdbook-test: true`, `rust-toolchain: "1.97.0"`,
   `cargo-package: asclepius`; no source or lockfile changes. CI queued.
