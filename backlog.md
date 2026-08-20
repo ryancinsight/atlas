@@ -3,10 +3,11 @@
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
-  merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. All PR checks
-  pass (Rust CI, Clippy, Python CI 3.9–3.12, book, test suites). Post-merge CI
-  `32387951529`, Python CI `32387951635`, and Pages `32387952289` queued; Atlas
-  gitlink advances to the merged head pending terminal-green post-merge evidence.
+  merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
+  `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.
+  PM closure PR [#199](https://github.com/ryancinsight/ritk/pull/199) opened
+  at `fc24a12d`; CI queued. Atlas gitlink advances to PM closure rev pending
+  terminal-green evidence.
 - **Tyche publication boundary:** PR
   [#30](https://github.com/ryancinsight/tyche/pull/30) merged at provider
   default `bfe6ab72915ff1d29357dd6895c39a11baecfbc0`. Post-merge CI
@@ -10358,6 +10359,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   edits, focused gates, hosted conformance, and an exact-head pointer sweep.
   The current provider checkouts/lanes are peer-owned and dirty; re-open when
   those claims land or become stale and reclaimable.
+- Fresh clean-checkout run `32389729879` at root `dfc0184` confirms the same
+  defect class with six current regressions: `CFDrs/oversized_files` 134 ->
+  135, `coeus/crate_level_allows` 18 -> 19, `consus/oversized_files` 82 ->
+  83, `moirai/seqcst_production` 101 -> 107, `ritk/manifest_implementation`
+  105 -> 106, and `ritk/commented_out_code` 8 -> 9. The run also reports 15
+  tightenings; none authorizes a baseline increase. These counts bind to the
+  committed provider gitlinks and remain blocked on provider-owned source
+  repairs, not on the Atlas book-gate change.
 
 ## ATLAS-KWAVERS-LANE-SPRAWL-104 — five worktrees on one repo [patch] — todo
 
