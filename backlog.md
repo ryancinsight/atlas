@@ -10363,6 +10363,15 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   tightenings; none authorizes a baseline increase. These counts bind to the
   committed provider gitlinks and remain blocked on provider-owned source
   repairs, not on the Atlas book-gate change.
+- The next exact root run at `f621c1d` reduced the class to five regressions:
+  CFDrs `oversized_files` 134 -> 135, Coeus `crate_level_allows` 18 -> 19,
+  Moirai `seqcst_production` 101 -> 107, and RITK
+  `manifest_implementation` 105 -> 106 plus `commented_out_code` 8 -> 9.
+  Consus no longer regresses after Atlas corrected its gitlink to merged
+  default `e121b9d4`. The concurrent overlay run `32391551896` exposed two
+  stale `moirai-http` entries caused by dirty local Moirai state; root commit
+  `f621c1d` removes them from the generated block. No baseline raise is
+  authorized; the next hosted run must collect both fixes.
 
 ## ATLAS-KWAVERS-LANE-SPRAWL-104 — five worktrees on one repo [patch] — todo
 
