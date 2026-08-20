@@ -34,8 +34,9 @@ agreement, `publish = false` rejection, the `--dry-run` content gate, the OIDC
 token request, and the publish call — is identical logic duplicated eight times.
 
 **Book publishing.** All 24 registered packages now carry `book-pages.yml` and
-`docs/book/book.toml`. Thirteen callers enable `mdbook-test`; eleven still use
-the shared workflow's default `false` and remain completion items. Atlas's
+`docs/book/book.toml`. Seventeen callers enable `mdbook-test`; seven still use
+the shared workflow's default `false` and remain completion items: `apollo`,
+`coeus`, `consus`, `gaia`, `hephaestus`, `ritk`, and `themis`. Atlas's
 cross-book workflow builds all 24 books through its repository glob. The
 remaining substantive adoption gap is executable sample coverage, not book
 presence or root-gate registration.
@@ -54,8 +55,8 @@ A PyPI API token was nonetheless added to the `pypi` environment; it is unused b
 the current workflows.
 
 **Book coverage.** Twenty-four of 24 registered packages have a book. The
-current audit found zero missing book directories and eleven callers without
-the executable `mdbook-test` gate.
+2026-08-20 committed-gitlink audit found zero missing book directories and
+seven callers without the executable `mdbook-test` gate.
 
 ## Decision
 
@@ -161,13 +162,13 @@ consolidation rule applies to prose exactly as it does to code.
 
 All 24 books are present and join the Atlas cross-book dead-link and build gate
 ([`docs.yml`](../../.github/workflows/docs.yml)) through its repository glob.
-The remaining board work is to make the eleven non-executable callers pass
+The remaining board work is to make the seven non-executable callers pass
 `mdbook-test` with their pinned toolchains.
 
 ### 6. `mdbook test` is adopted per book, not flipped globally
 
-Book code samples must be tested so chapters cannot rot. Thirteen callers now
-run `mdbook test`; eleven still omit it because their current samples are not
+Book code samples must be tested so chapters cannot rot. Seventeen callers now
+run `mdbook test`; seven still omit it because their current samples are not
 yet proven compilable under the shared workflow. Enabling the remaining callers
 requires the same per-book evidence rather than a blind stack-wide flip.
 

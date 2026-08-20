@@ -2,12 +2,11 @@
 
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 
-- **RITK DTI frame contract:** source commits `14a9c619` and `7c4bc993`, PR
-  [#198](https://github.com/ryancinsight/ritk/pull/198). The implementation
-  retains `GradientFrame`, centralizes ImageAxis placement in `DtiVolume`,
-  removes the example adapter, and records the major error-enum impact.
-  Hosted Rust/Python/book checks are running; merge and the Atlas gitlink
-  update require terminal-green exact-head evidence.
+- **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
+  merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. All PR checks
+  pass (Rust CI, Clippy, Python CI 3.9–3.12, book, test suites). Post-merge CI
+  `32387951529`, Python CI `32387951635`, and Pages `32387952289` queued; Atlas
+  gitlink advances to the merged head pending terminal-green post-merge evidence.
 - **Tyche publication boundary:** PR
   [#30](https://github.com/ryancinsight/tyche/pull/30) merged at provider
   default `bfe6ab72915ff1d29357dd6895c39a11baecfbc0`. Post-merge CI
@@ -30,6 +29,11 @@
   in Moirai, removes package-owned S3 integrations, and adds the hosted
   benchmark threshold gate. CI queued; merge requires terminal-green hosted
   evidence.
+- **Helios Apollo lock sweep:** branch `codex/helios-apollo-lock-sweep` at
+  `25f04b6` published as PR [#68](https://github.com/ryancinsight/helios/pull/68).
+  Advances Apollo `d585e0f5`→`0c6ffb91`, Moirai `3d5d4c66`→`3b812865`, Themis
+  `d0fcce7a`→`0484a333` in `Cargo.lock`; no Helios source or manifest change.
+  CI queued; merge requires terminal-green hosted evidence.
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 
@@ -184,15 +188,16 @@
 
 - **Owner:** current Atlas session; root documentation and publication ADR only.
 - **Scope:** `README.md` and `docs/adr/0035-shared-publication-pipelines.md`.
-- **Evidence:** a live filesystem scan finds 24 `repos/*/docs/book/book.toml`
-  files and 24 provider `book-pages.yml` callers. Thirteen callers pass
-  `mdbook-test: true`; eleven still omit the executable sample gate. The root
-  `docs.yml` glob builds all 24 books, and the strict link scan reports zero
-  missing files, anchors, or read failures.
-- **Landed:** README and ADR 0035 now state the current 24-book inventory,
-  root-gate coverage, and exact 13/11 `mdbook-test` split. The remaining eleven
-  sample gates stay provider-owned completion items; no illustrative sample was
-  marked executable without hosted evidence.
+- **Evidence:** a committed-gitlink scan at the provider defaults finds 24
+  `repos/*/docs/book/book.toml` files and 24 provider `book-pages.yml` callers.
+  Seventeen callers pass `mdbook-test: true`; seven still omit the executable
+  sample gate: `apollo`, `coeus`, `consus`, `gaia`, `hephaestus`, `ritk`, and
+  `themis`. The root `docs.yml` glob builds all 24 books, and the strict link
+  scan reports zero missing files, anchors, or read failures.
+- **Landed:** README, ADR 0035, and CHANGELOG now state the current 24-book
+  inventory, root-gate coverage, and exact 17/7 `mdbook-test` split. The
+  remaining seven sample gates stay provider-owned completion items; no
+  illustrative sample was marked executable without hosted evidence.
 - **Residual:** RITK's wheel release workflow remains standalone on its
   peer-owned branch and is recorded separately; this root-only item does not
   edit that checkout.
@@ -4882,9 +4887,10 @@ converter; the existing bilinear differential remains the acceptance oracle.
 - Decision: [ADR 0035](docs/adr/0035-shared-publication-pipelines.md) §6.
 - Outcome: every published book runs `mdbook test` in CI so chapters cannot rot.
   The shared workflow defaults `mdbook-test` to `false` as a staging mechanism,
-  not an accepted end state. `eunomia` and `melinoe` have flipped the gate;
-  other callers remain untested until their samples compile.
-- Claim status (updated 2026-08-17):
+  not an accepted end state. The committed provider defaults currently have
+  seventeen callers with the gate enabled; the seven named residual callers
+  remain untested until their samples compile.
+- Claim status (updated 2026-08-20):
   - **melinoe** — DONE: all fenced samples compilable; blocks referencing the
     crate carry `extern crate melinoe;` and link through a staged plain-named
     rlib (`mdbook test --library-path`), signature illustrations `ignore`d, the

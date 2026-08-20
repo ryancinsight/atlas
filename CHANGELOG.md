@@ -36,10 +36,11 @@
   `32348782338`, and live Pages HTTP 200 pass; Atlas records the default
   gitlink.
 
-- Reconcile the publication documentation with the live book inventory: all 24
-  registered packages carry a book and Pages caller, 13 enable `mdbook test`,
-  and 11 remain tracked for executable sample coverage. Root docs build and
-  strict link checks cover all 24 books.
+- Reconcile the publication documentation with the committed provider inventory:
+  all 24 registered packages carry a book and Pages caller, 17 enable
+  `mdbook test`, and 7 remain tracked for executable sample coverage
+  (`apollo`, `coeus`, `consus`, `gaia`, `hephaestus`, `ritk`, `themis`). Root
+  docs build and strict link checks cover all 24 books.
 
 - Merge Aequitas PR #37 at provider default `c0542bf8` after its executable
   book examples and API snippets pass CI `32337268558` and the shared Pages
