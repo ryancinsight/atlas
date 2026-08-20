@@ -69,6 +69,30 @@ class AdrIndexTestCase(unittest.TestCase):
         self.assertNotIn("0002-untracked.md", content)
         self.assertIn("0001-tracked.md", content)
 
+    def test_check_fails_when_index_matches_but_adr_is_untracked(self) -> None:
+        """A clean index must not hide an ADR missing from ``HEAD``."""
+        with tempfile.TemporaryDirectory(prefix="atlas-adr-index-") as temp:
+            directory = Path(temp)
+            (directory / "0001-tracked.md").write_text(
+                "# ADR 0001: Example\n\nStatus: Accepted\n", encoding="utf-8"
+            )
+            (directory / "0002-untracked.md").write_text(
+                "# ADR 0002: Example\n\nStatus: Accepted\n", encoding="utf-8"
+            )
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+            for argv in (
+                ["init", "-q"],
+                [*ident, "add", "0001-tracked.md"],
+                [*ident, "commit", "-q", "-m", "tracked"],
+            ):
+                subprocess.run(["git", "-C", str(directory), *argv], check=True)
+            content, _ = adr_index.build_index(directory)
+            (directory / "README.md").write_text(content, encoding="utf-8")
+
+            result = adr_index.check_indexes([directory], "check")
+
+        self.assertEqual(result, 1)
+
     def test_a_non_git_directory_falls_back_to_the_on_disk_view(self) -> None:
         """Outside a repository — an unpacked tarball — every ADR would
         otherwise report as untracked, which is noise rather than a finding.

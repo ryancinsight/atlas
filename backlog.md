@@ -67,8 +67,9 @@
   Pages build run `32330531493` passes and its deploy job is correctly skipped
   for the pull-request event. The recurring `recurseml/analysis` error is
   report-only.
-- **Definition of done:** PR #22 is merged, and Atlas must point at provider
-  default `2f6959b` in the next root integration commit.
+- **Definition of done:** met. PR #22 is merged and the current Atlas
+  gitlink resolves to provider default `2f6959b`; the exact-head integration
+  audit passes.
 
 ## ATLAS-MOIRAI-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
@@ -94,12 +95,12 @@
   the shared workflow derived `moirai_runtime` instead of the actual `moirai`
   library target; Rust Workspace run `32331957704` passed. Replacement runs at
   `95891f6` now pass Workspace, supply-chain, Loom, Pages, and all three wheel
-  smoke jobs: `32332871749`, `32332871836`, and `32332872034`. Only Rust binding
-  check job `96316730773` remains pending; CodeRabbit is green. The recurring
-  `recurseml/analysis` error is report-only. All substantive hosted checks
-  pass at `95891f6`; the PR is merged.
-- **Definition of done:** Atlas must point at provider default `3b81286` in the
-  next root integration commit.
+  smoke jobs: `32332871749`, `32332871836`, and `32332872034`. Rust binding
+  check job `96316730773` subsequently passed; CodeRabbit is green. The
+  recurring `recurseml/analysis` error is report-only. All substantive hosted
+  checks pass at `95891f6`; the PR is merged.
+- **Definition of done:** met. The current Atlas gitlink resolves to provider
+  default `3b812865`; the exact-head integration audit passes.
 
 ## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
@@ -10080,10 +10081,11 @@ ship. It is worse in one way — an ADR *is* the deliverable, so an untracked AD
 means the decision has no durable existence at all, and a fresh clone shows a
 decision that was made and then lost.
 
-`scripts/adr-index.py` already detects this, reporting "untracked, so absent
-from a fresh clone" and excluding the file from the generated index — correctly,
-since the index records what a clone would have. That message was being printed
-and passed over.
+`scripts/adr-index.py` detects this, reports "untracked, so absent from a fresh
+clone", and excludes the file from the generated index — correctly, since the
+index records what a clone would have. The check now returns nonzero for that
+anomaly, so a matching generated index cannot pass while the ADR is absent from
+`HEAD`.
 
 **Swept 2026-08-19 — it is systematic, three members.**
 `git ls-files --others --exclude-standard docs/adr/` across every member:
@@ -10103,6 +10105,11 @@ regenerated against a file that was then never committed.
 the index, push. Two need a header decision first — coeus 0066 has no `Status`
 line at all, and hephaestus 0052 is `Proposed`, so whether either is Accepted
 needs its author or its evidence, not my assumption.
+
+**Mechanization landed 2026-08-20.** `check_indexes` treats every tracked-tree
+anomaly as a gate failure; the focused regression suite passes 4/4. The
+provider ADR commits and their regenerated indexes remain external to this
+root-only increment and stay open until their owning streams commit them.
 
 **It got worse before it got better.** While PR #418 was in review, peer PR #419
 "restored the missing 112 index row" — committing the row but not the file. For

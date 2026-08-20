@@ -12,7 +12,7 @@ Two modes:
 
     generate  rewrite every index from the ADR files on disk
     check     regenerate in memory and diff against disk; nonzero exit on
-              drift or a missing index
+              drift, a missing index, or an ADR that is absent from HEAD
 
 Anomalies (duplicate numbers, missing or non-canonical statuses) are reported
 on stdout in both modes; fixing them is board burn-down, not this script's
@@ -165,34 +165,43 @@ def build_index(directory: Path) -> tuple[str, list[str]]:
     return HEADER + "\n".join(rows) + "\n", anomalies
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["generate", "check"])
-    mode = parser.parse_args().mode
-
-    drift = 0
-    for directory in adr_dirs():
+def check_indexes(directories: list[Path], mode: str) -> int:
+    """Generate or check indexes and return a gate status for ``mode``."""
+    problems = 0
+    for directory in directories:
         content, anomalies = build_index(directory)
-        rel = directory.relative_to(ATLAS_ROOT)
+        try:
+            rel = directory.relative_to(ATLAS_ROOT)
+        except ValueError:
+            rel = directory
         index = directory / "README.md"
-        for a in anomalies:
-            print(f"{rel}: {a}")
+        for anomaly in anomalies:
+            print(f"{rel}: {anomaly}")
         if mode == "generate":
             existing = index.read_text(encoding="utf-8") if index.exists() else None
             if existing != content:
                 index.write_text(content, encoding="utf-8", newline="\n")
                 print(f"{rel}: index written")
         else:
+            problems += len(anomalies)
             if not index.exists():
                 print(f"{rel}: MISSING index{staleness_note(directory)}")
-                drift += 1
+                problems += 1
             elif index.read_text(encoding="utf-8") != content:
                 print(f"{rel}: index DRIFTED from ADR headers{staleness_note(directory)}")
-                drift += 1
-    if mode == "check" and drift:
-        print(f"{drift} index(es) missing or stale")
+                problems += 1
+    if mode == "check" and problems:
+        print(f"{problems} ADR index/governance problem(s)")
         return 1
     return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("mode", choices=["generate", "check"])
+    mode = parser.parse_args().mode
+
+    return check_indexes(adr_dirs(), mode)
 
 
 if __name__ == "__main__":

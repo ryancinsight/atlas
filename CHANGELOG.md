@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Make the ADR index check fail when an on-disk ADR is absent from `HEAD`,
+  with a focused regression covering a matching generated index.
+
 - Extend the default provider-integration audit to all 22 active Atlas domain
   providers, including Harmonia; update its focused inventory and output tests.
 
