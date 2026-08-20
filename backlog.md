@@ -229,17 +229,20 @@ Evidence: `gap_audit.md` Finding 2026-08-20 and each provider's own
 completeness 77.5%, LOC-weighted 69.6%; Foundation 82%, Compute 80%, Domain 79%,
 Integrator 62%.
 
-Fresh all-22 read-only recheck: all requested providers are registered; 18/22
-requested gitlinks match fetched `origin/main`. Hyperion is stale at `e2dbc9b`
-vs `4df62f63`, RITK at `d4a978f` vs `ad508525`, Hermes at `c5e4c2d` vs
-`05441dd`, and Kwavers at `459f18e` vs `0e786481`. The registry
+Fresh requested-provider recheck at root `2fb4409`: all 20 requested providers
+are registered; 14/20 gitlinks match fetched `origin/main`. The six current
+drifts are Hyperion `e2dbc9b` vs `4df62f63`, Hermes `c5e4c2d` vs `05441dd`,
+RITK `d4a978f` vs `ad508525`, Coeus `5adc2d1` vs `5108ed00`, Apollo `0c6ffb9`
+vs `a0c3da9`, and Kwavers `459f18e` vs `0e786481`. The registry
 metadata scan is 253 manifests / 0 violations and committed-lock form is
-27/27 clean. The requested-provider coherence scope and generated development
-overlay are aligned. Strict book links pass across all 25 current inventories.
-The book gate inventory is 19 shared callers plus Gaia's direct command and
-five missing executable gates: Apollo, Coeus, Consus, Hephaestus, and RITK. The
-Atlas Python suite passes 278 tests and 74 subtests. Peer checkout dirt and
-queued hosted checks remain outside local green evidence.
+27/27 clean. The requested-provider structural audit reports 20/20 registered
+providers with zero structural issues. The requested-provider coherence scope
+and generated development overlay are aligned. Strict book links pass across
+all 25 current inventories. The book gate inventory is 19 shared callers plus
+Gaia's direct command and five missing executable gates: Apollo, Coeus, Consus,
+Hephaestus, and RITK. The Atlas Python suite passes 277 tests and 77 subtests.
+Peer checkout dirt and queued hosted checks remain outside local green
+evidence.
 
 **Independent audit findings (2026-08-20):**
 
@@ -256,17 +259,18 @@ queued hosted checks remain outside local green evidence.
 - **P1:** Helios GPU tests are ignored and its GPU book example converts device
   acquisition failure into success. A hardware-labelled gate and an honest
   example failure path are required; the CI file is currently peer-owned.
-- **P1:** Atlas figure generation contains hard-coded analytical, simulated, and
-  benchmark series. Validation figures need executable data provenance, input
-  manifests, independent oracles, derived tolerances, and inspection evidence;
-  the current reference/link checks do not establish numerical correctness.
+- **Resolved root finding:** Atlas commit `2fb4409` and ADR 0049 delete the
+  title-only benchmark, validation, and optimization templates that embedded
+  analytical, simulated, and benchmark series. Those titles now use a
+  conceptual hub; a future data-backed figure producer still requires input
+  provenance, an independent oracle, and derived tolerances.
 - **P1:** Kwavers comparative/PyO3 gates contain existence-only assertions,
   optional reference skips, hard-coded tolerances, non-fatal figure failures,
   and optional wheel tests. These are provider-owned correctness and release-
   gate items, not closed by the current link or import checks.
 
-**Outcome:** close the four cross-cutting deficits the audit isolated, in the
-order below, so that a green gate means what it claims.
+**Outcome:** close the remaining cross-cutting correctness and evidence
+deficits in the order below, so that a green gate means what it claims.
 
 **Non-goals:** raising per-repository completeness scores as such; peer-owned
 in-flight PR work; any capability expansion. Every item is evidence or
@@ -670,6 +674,17 @@ book coverage remains a separate open integration item.
   current default CI `32394888136` passes at the same exact head. Atlas advances
   its gitlink to the merged default; no Tyche hosted verification residual
   remains for this item.
+- **Requested-provider structural recheck:** at root commit `2fb4409`,
+  `python scripts/atlas-provider-integration-audit.py --structural-only
+  --provider-set requested-2026-08-14 --format json` reports `status: ok`,
+  `provider_count: 20`, and `issues: []`. This validates registration and
+  integration markers only; exact remote heads, checkout cleanliness, and
+  hosted workflow terminality remain separate evidence classes.
+- **Requested-provider exact-head recheck:** the bounded remote run at the
+  same root revision exits non-zero with six pointer drifts: Hyperion, Hermes,
+  RITK, Coeus, Apollo, and Kwavers. No Atlas gitlink advances are authorized
+  from this run; each requires terminal hosted evidence at the fetched default
+  before pointer reconciliation.
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 
