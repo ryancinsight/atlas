@@ -140,8 +140,15 @@ actioned, since every one of those trees holds peer state.
   audit disproves the existing ×4 premise: OMLC presents the values as molar
   extinction coefficients using 64,500 g/mol hemoglobin, so the provider must
   use those molecular/tetramer values directly rather than multiplying them by
-  four. No provider pointer advances until the correction, focused
-  value-semantic tests, and hosted provider gates pass.
+  four. The clean lane commit `0213f94` replaces the source tables and offset
+  knots, adds the independent OMLC source-knot oracle, revises the ownership
+  ADR, and synchronizes the provider docs. Local formatting, ADR-index,
+  mdBook-build, and strict-link checks pass; locked Cargo gates stop before
+  compilation at the shared overlay lock-form mismatch. PR
+  [#21](https://github.com/ryancinsight/hyperion/pull/21) is published at
+  exact head `0213f948536bd0230d10ef8fa0d2fa7cbe2a6258`; hosted exact-head
+  provider/book evidence and post-merge default verification remain open. No
+  provider pointer advances until those gates pass.
 
 - **Hephaestus executable book gate:** current Atlas session claims only
   `hephaestus/.github/workflows/book-pages.yml` on a clean

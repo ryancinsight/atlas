@@ -60,12 +60,20 @@
 
 - [x] Confirm the source and test files are clean at provider `origin/main`
       `e2dbc9b`; provider PM files remain peer-owned dirty state.
-- [ ] Create the bounded `hyperion-chromophore-source` lane and claim only
-      the chromophore source/tests, documentation, and ADR index.
-- [ ] Correct the unsupported ×4 normalization, add a resolvable Prahl/OMLC
-      source locator and independent per-sample source oracle, and add the
-      accepted ownership ADR; run the provider gates and publish the exact
-      hosted result before advancing the Atlas gitlink.
+- [x] Create the bounded `hyperion-chromophore-source` lane and claim only
+      the chromophore source/tests, documentation, and ownership ADR. Commit
+      `0213f94` is the sole lane change.
+- [x] Correct the unsupported ×4 normalization: OMLC already reports
+      64,500-g/mol hemoglobin-molecule values, so no tetramer rescaling is
+      applied. Add the resolvable Prahl/OMLC locator, independent per-sample
+      source oracle, accepted ownership revision, and synchronized docs.
+      `cargo fmt`, ADR index, mdBook build, and strict links pass; local locked
+      Cargo gates stop before compilation at the shared overlay lock-form
+      mismatch.
+- [ ] Collect hosted exact-head provider/book gates for PR
+      [#21](https://github.com/ryancinsight/hyperion/pull/21), merge only at
+      terminal success, verify the post-merge default, and then advance the
+      Atlas gitlink.
 
 ## ATLAS-HEPHAESTUS-BOOK-TEST-2026-08-20 — current session
 
