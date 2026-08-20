@@ -5,19 +5,16 @@
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
-- [x] Validate and relocate the clean Consus ADR-0045 P4 lane at provider
-      commit `2f9067e`: the canonical worktree path is
-      `worktrees/consus-adr-0045-p4-benchmark`; formatting, locked workspace
-      all-target compilation/tests, and the locked no-default workspace check
-      pass outside the malformed Atlas overlay. Clippy remains environment-
-      blocked by the Windows GNU/MSVC target mismatch, and no hosted result is
-      inferred.
-- [ ] Collect hosted verification and publish/merge Consus P4 lane at
-      `2f9067ecb6711a3ba86ce0ed2636f34365dab83c` through PR
-      [#50](https://github.com/ryancinsight/consus/pull/50). PR is CONFLICTING:
-      the `breaking(consus): remove package-owned S3 integrations` commit has
-      modify/delete conflicts with post-branch zarr crc32c/bytes additions
-      (PRs #47–#49). Rebase and conflict resolution required before CI can run.
+- [x] Resolve and validate the Consus ADR-0045 P4 lane at local head
+      `1909709` in the canonical
+      `worktrees/consus-adr-0045-p4-benchmark` path. The lane retains the
+      newer Zarr crc32c/bytes-codec changes while removing only the obsolete
+      package-owned S3 integration; formatting and locked focused Nextest
+      `c3fcdabb-9493-46e3-865e-245e1e319a33` pass 492/492 tests across
+      `consus-io` and `consus-zarr`.
+- [x] Publish the local rebased branch through Consus PR #50. Branch pushed
+      force-with-lease to `1909709c`; PR is MERGEABLE. Book deploy passes; CI
+      matrix queued. Collect hosted verification before merging.
 - [x] Correct Kwavers' Python comparison extras and source-install commands at
       provider commit `308d91594`: `kwave` now installs the MATLAB-free
       `k-wave-python` bridge, `matlab` owns the MATLAB Engine bridge, and the

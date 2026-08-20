@@ -24,14 +24,12 @@
   `2a291a064` from PR #429; the PR #427 branch remains unintegrated until its
   own gates are terminal-green.
 - **Consus ADR-0045 P4 benchmark gate:** PR
-  [#50](https://github.com/ryancinsight/consus/pull/50) is CONFLICTING.
-  Branch `codex/adr-0045-p4-benchmark-parser` at `2f9067ec` diverges from
-  current default `0e95c8f2`; the `breaking(consus): remove package-owned S3
-  integrations` commit has modify/delete conflicts with post-branch zarr
-  crc32c/bytes-codec additions in PRs #47–#49. The P4 lane must be rebased
-  with conflict resolution: either extend the S3 removal to the new files or
-  retain them and surgically remove only the pre-existing rusoto integration.
-  No merge or CI before the rebase conflict is resolved.
+  [#50](https://github.com/ryancinsight/consus/pull/50) rebased to `1909709c`
+  on current default `0e95c8f2`. Conflict-resolved in
+  `worktrees/consus-adr-0045-p4-benchmark`: Zarr crc32c/bytes-codec changes
+  retained; only the obsolete package-owned S3 integration removed. Branch
+  pushed force-with-lease; PR is MERGEABLE. Book deploy passes; CI matrix
+  (50+ checks) queued. Merge requires terminal-green hosted evidence.
 - **Helios Apollo lock sweep:** branch `codex/helios-apollo-lock-sweep` at
   `25f04b6` published as PR [#68](https://github.com/ryancinsight/helios/pull/68).
   Advances Apollo `d585e0f5`→`0c6ffb91`, Moirai `3d5d4c66`→`3b812865`, Themis
