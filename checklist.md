@@ -64,7 +64,8 @@
       locally blocked before compilation by the shared overlay's primary-tree
       patch paths.
 - [ ] Push and collect hosted exact-head book evidence, then merge, verify the
-      post-merge default, and advance the Atlas gitlink.
+      post-merge default, and advance the Atlas gitlink. PR #214 is published
+      at exact head `12ac021`; provider-contract and book checks are queued.
 
 ## ATLAS-COEUS-BOOK-TEST-2026-08-20 — current session
 
@@ -77,7 +78,8 @@
       package build is locally blocked before compilation by the shared
       overlay's primary-tree patch paths.
 - [ ] Push and collect hosted exact-head book evidence, then merge, verify the
-      post-merge default, and advance the Atlas gitlink.
+      post-merge default, and advance the Atlas gitlink. PR #340 is published
+      at exact head `58122b9`; provider-contract and book checks are queued.
 
 ## ATLAS-KWAVERS-DEFAULT-2026-08-20 — current session
 

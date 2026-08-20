@@ -47,6 +47,9 @@
   overlay resolving primary-tree patches from the clean lane; hosted Linux is
   the package gate. Push and hosted collection remain sequenced behind the
   active merged-default runs.
+  The exact lane head is now published as PR [#214](https://github.com/ryancinsight/hephaestus/pull/214)
+  at `12ac021156a95fe8c5c1d3c9347809245ddad0e2`; provider feature-contract
+  and book checks are queued.
 
 - **Coeus executable book gate:** current Atlas session claims only
   `coeus/.github/workflows/book-pages.yml` on a clean `coeus-book-test` lane
@@ -61,6 +64,9 @@
   overlay resolving primary-tree patches from the clean lane; hosted Linux is
   the package gate. Push and hosted collection remain sequenced behind the
   active merged-default runs.
+  The exact lane head is now published as PR [#340](https://github.com/ryancinsight/Coeus/pull/340)
+  at `58122b9bdc26d402f7c3800e49aeff0dc44a130e`; provider-contract and book
+  checks are queued.
 
 - **Live-tree conformance residual:** the local `python
   scripts/atlas-conformance.py check --worktree --json` sweep at root
