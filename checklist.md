@@ -55,6 +55,8 @@
       deployment `32393593050`; the Atlas gitlink is aligned.
 - [x] Collect exact Tyche default `10410f2` CI `32394888136` and Pages
       deployment `32394886461`; the Atlas gitlink is aligned.
+- [x] Merge Hyperion PR #21 at provider default `4df62f63`; its merged-default
+      CI, mdBook, and Pages workflows are tracked separately below.
 - [x] Reconcile Kwavers `origin/main` to `6f77bd4`; it contains two docs-only
       merges after `78af725`, so earlier hosted runs cannot authorize the Atlas
       pointer `459f18c`.
@@ -64,6 +66,9 @@
 - [ ] Collect the full exact-head Kwavers matrix at `2fa5f4d8`: runs
       `32414757969` and `32414757998` are pending. Advance the Atlas gitlink
       only after terminal CI and book evidence.
+- [x] Re-run the exact-head audit after Hyperion merged: the only current
+      pointer drifts are Hyperion `e2dbc9b` versus `4df62f63`, RITK `d4a978f`
+      versus `ad508525`, and Kwavers `459f18c` versus `58b51ef`.
 
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — current session
 
