@@ -63,6 +63,21 @@ the exact provider head without advancing the dirty primary gitlink.
 `src/color/map/named.rs` and provider tests in the clean lane
 `worktrees/iris-named-map-all`; root `backlog.md` and `checklist.md`.
 
+**Implementation:** provider commit `0d18109` adds an exhaustive in-crate
+variant-index match and a value-semantic test that rejects omitted or
+duplicated `NamedColorMap::ALL` entries. The branch is published as
+`fix/iris-named-map-all` from base `9672fc0`.
+
+**Verification:** exact-lane locked all-target check, warning-denied Clippy,
+format, and rustdoc pass; nextest passes 18/18 and doctests pass 3/3. Mutation
+controls fail as required: removing `Turbo` fails the fixed array contract,
+and duplicating `Magma` fails with `NamedColorMap::ALL repeats Magma`.
+
+**Publication blocker:** the GitHub connector refused draft PR creation with
+HTTP 403 `Resource not accessible by integration`. No PR or hosted result is
+claimed, and the dirty primary Iris gitlink is unchanged. Re-open the
+publication step when repository write authorization is available.
+
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
 Re-measured 2026-08-20 against the trees rather than the board. ADR 0033's

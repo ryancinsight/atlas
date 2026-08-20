@@ -15,14 +15,16 @@
 
 ## ATLAS-IRIS-NAMED-MAP-2026-08-20 — current session
 
-- [ ] Claim the Iris source-only completeness slice and create its clean lane
+- [x] Claim the Iris source-only completeness slice and create its clean lane
       from fetched `origin/main`.
-- [ ] Add an exhaustive in-crate variant discriminant and a test that rejects
+- [x] Add an exhaustive in-crate variant discriminant and a test that rejects
       omitted or duplicated `NamedColorMap::ALL` entries.
-- [ ] Run focused Iris tests, warning-denied Clippy, doctests, and the provider
+- [x] Run focused Iris tests, warning-denied Clippy, doctests, and the provider
       gate on the exact lane revision.
-- [ ] Publish the provider branch, record the exact head and evidence, and
+- [x] Publish the provider branch, record the exact head and evidence, and
       leave the dirty primary gitlink untouched.
+- [ ] Open the draft Iris PR; blocked by GitHub connector HTTP 403
+      (`Resource not accessible by integration`).
 
 ## ATLAS-BOOK-STAGING-2026-08-20 — current session
 
