@@ -7,6 +7,20 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
+## ATLAS-CFDRS-HOSTED-FMT-2026-08-20 — repair required Rust format gate [patch] — in progress
+
+- **Owner:** current Atlas session; peer-assist claim on the clean files only.
+- **Scope:** `repos/CFDrs/crates/cfd-2d/src/solvers/cell_tracking/tracker.rs`,
+  `repos/CFDrs/crates/cfd-core/src/management/aggregates/parameters.rs`, and
+  `repos/CFDrs/crates/cfd-core/src/physics/cavitation/number.rs`.
+- **Acceptance:** the three files pass the repository formatter, the staged
+  diff contains only formatter output in those files, and the focused provider
+  check records the exact branch head. Unrelated peer-owned CFDrs dirt remains
+  outside this item.
+- **Evidence:** hosted CFDrs run `32323543129` reports the same three files as
+  the Rust workspace formatting failure. This item fixes that concrete gate
+  defect without changing tests, workloads, tolerances, or budgets.
+
 ## ATLAS-HOSTED-RECHECK-2026-08-19-2 — current provider state [patch]
 
 - **Moirai packaging and scheduler repair:** the provider branch
