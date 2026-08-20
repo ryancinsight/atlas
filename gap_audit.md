@@ -13154,6 +13154,17 @@ merged at default `e2dbc9bb28d7f9cbccf354d2a9b278c6231a85d1`. Their provider
 backlog and changelog records now carry the exact hosted evidence; Atlas
 advances both gitlinks to those closure revisions.
 
+## Finding 2026-08-20: shared book-workflow pin drift inventory
+
+The current Atlas reusable workflow is root commit
+`1fcd17c6f7923cb1734756c15e0a5a39e333ee32`. Of 23 registered Pages callers
+(Gaia has no caller), five already use that revision: Hermes, Horae, Hyperion,
+Iris, and Moirai. The remaining 18 callers retain older pins: Aequitas,
+Apollo, Asclepius, Athena, CFDrs, Coeus, Consus, Eunomia, Harmonia, Helios,
+Hephaestus, Kwavers, Melinoe, Mnemosyne, Proteus, RITK, Themis, and Tyche.
+This is a cleanup residual distinct from provider gitlink coherence; bulk
+refresh is not applied across peer-owned dirty checkouts in this pass.
+
 ## Finding 2026-08-20: Hyperion shared-workflow pin merged
 
 Hyperion PR [#19](https://github.com/ryancinsight/hyperion/pull/19) merged
