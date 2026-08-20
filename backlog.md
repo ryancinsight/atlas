@@ -9,12 +9,19 @@
 
 ## ATLAS-HOSTED-RECHECK-2026-08-19-2 — current provider state [patch]
 
-- **Moirai packaging repair:** claimed by the current session for the
-  provider-owned `benchmarks/Cargo.toml` and package metadata scope. The
-  acceptance oracle is a standalone `cargo package --workspace --locked`
-  followed by unpacked verification with no manifest-version failure or
-  packaging warnings introduced by the repair. Work is isolated in the
-  canonical Moirai lane; no peer checkout is modified.
+- **Moirai packaging and scheduler repair:** the provider branch
+  `fix/moirai-package-manifest` is pushed at `5ccd72944ab31adf55e020931e969cbecb3a6f4e`
+  and carries the standalone package cleanup, complete metadata/examples,
+  allocation-free Chase-Lev generation claims, strong arbitration CAS, and
+  Miri-valid SplitDeque provenance. Local evidence at that exact head is
+  `cargo package --workspace --locked` for every member with no warnings,
+  `cargo nextest run --workspace --all-features --locked` 801/801 with 6
+  configured skips, warning-denied workspace Clippy, doctests 19 passed/1
+  ignored, rustdoc, Loom 1/1, and deque-focused Miri 16/16. Full-crate Miri
+  reaches the Themis Windows NUMA FFI test, which is unsupported by Miri; no
+  deque failure remains. Existing PR #143 is open, mergeable, and hosted
+  workflows are queued/in progress at the final head; Atlas retains its
+  default gitlink until hosted CI completes and the PR merges.
 - **Kwavers:** fetched `origin/main` is
   `64b982bdbfc2b7e36f11971947f5bdd8ed59d1f1`, the merge of PR #418 after
   ADR 112 was committed with its required Aequitas `Degree` surface. Atlas
