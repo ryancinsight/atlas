@@ -396,6 +396,22 @@ The exact provider commit is now the head of open CFDrs PR
 [#360](https://github.com/ryancinsight/CFDrs/pull/360); Rust workspace and
 figure checks are queued there.
 
+## ATLAS-SUBSTRATE-003-2026-08-20 — Give the Leto/Hephaestus decomposition pair one seam and one oracle [minor][arch] — in progress
+
+The Hephaestus audit found nine duplicated Leto differential helpers in the
+decomposition conformance module, a stale 14-method count against the current
+15-method `DecompositionOps` seam, and no exact host gate for the complete
+surface. This session claims only the provider conformance module, its host
+decomposition test, the required provider ADR/index update, and these Atlas PM
+records. Other Hephaestus peer edits remain untouched.
+
+Acceptance: one parameterized differential clause covers all current
+decomposition methods with tolerances derived from the existing numerical
+contract; the stale count is corrected; the host runs the same clause as the
+GPU backends; and focused provider formatting, warning-denied checks, and
+nextest pass. The exact hosted provider gate remains required before the Atlas
+gitlink advances.
+
 ## ATLAS-PROVIDER-CLOSURE-2026-08-20 — Complete active provider slices [major][arch] — in progress
 
 - **Themis executable book gate:** current Atlas session claims the provider

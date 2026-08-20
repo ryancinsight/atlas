@@ -83,6 +83,17 @@
       dirty peer `Cargo.lock` rewrite. The exact commit is open as CFDrs PR
       #360 with hosted Rust workspace and figure checks queued.
 
+## ATLAS-SUBSTRATE-003-2026-08-20 — current session
+
+- [ ] Consolidate the nine decomposition/Leto differential helpers into one
+      parameterized conformance clause and reconcile the current 15-method
+      seam count.
+- [ ] Add the exact host decomposition gate using the shared clause; update the
+      provider ADR/index if the contract decision changes; run focused format,
+      warning-denied checks, and nextest.
+- [ ] Record the exact provider commit and hosted gate before advancing the
+      Atlas Hephaestus gitlink.
+
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
 - [x] Reuse the stale merged MSRV lane as `worktrees/themis-book-test`.
