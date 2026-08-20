@@ -57,15 +57,16 @@
       deployment `32394886461`; the Atlas gitlink is aligned.
 - [x] Merge Hyperion PR #21 at provider default `4df62f63`; its merged-default
       CI, mdBook, and Pages workflows are tracked separately below.
-- [x] Reconcile Kwavers `origin/main` to `6f77bd4`; it contains two docs-only
-      merges after `78af725`, so earlier hosted runs cannot authorize the Atlas
-      pointer `459f18c`.
+- [x] Reconcile Kwavers `origin/main` to `58b51ef`; it contains the safety-
+      monitor merge after `6f77bd4`, so earlier hosted runs cannot authorize
+      the Atlas pointer `459f18c`.
 - [x] Resolve the board-only conflict by preserving current KW-CI-115 and the
       PR's KW-GPU-200/201/202 records in merge commit `2fa5f4d8`; no dirty
       Kwavers worktree was touched.
-- [ ] Collect the full exact-head Kwavers matrix at `2fa5f4d8`: runs
-      `32414757969` and `32414757998` are pending. Advance the Atlas gitlink
-      only after terminal CI and book evidence.
+- [ ] Collect the full exact-head Kwavers matrix at PR head `2fa5f4d8`: runs
+      `32414757969`, `32414757998`, `32414758193`, `32414758829`, and
+      benchmark `32414758022` are pending. Advance the Atlas gitlink only
+      after terminal CI and book evidence for the current default relationship.
 - [x] Re-run the exact-head audit after Hyperion merged: the only current
       pointer drifts are Hyperion `e2dbc9b` versus `4df62f63`, RITK `d4a978f`
       versus `ad508525`, and Kwavers `459f18c` versus `58b51ef`.
@@ -6089,4 +6090,3 @@ Remaining in the ADR 0033 sequence: stage C (Kwavers, in flight on
 `refactor/kwavers-athena-krylov`), then stage D, which deletes
 `leto-ops/src/application/linalg/iterative/` once B and C have both merged.
 No repository other than CFDrs and Kwavers imports that family.
-
