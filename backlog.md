@@ -270,7 +270,9 @@ and Gaia's owner-local PM entry. **Acceptance:** one real input-sensitive Gaia
 API example is included by the book, `mdbook test docs/book` executes it with a
 value-semantic assertion, strict links and `mdbook build` pass, and the change
 is published and verified at its exact provider head. No `rust,ignore` or
-existence-only assertion satisfies the item.
+existence-only assertion satisfies the item. PR [#33](https://github.com/ryancinsight/gaia/pull/33)
+is published at exact head `7e3ddeff`; CI run `32417028093` and book run
+`32417028130` are queued. `recurseml/analysis` is report-only.
 
 ## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — Restore exact-default formatting gate [patch] — in progress
 

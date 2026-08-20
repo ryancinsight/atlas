@@ -76,10 +76,15 @@
 - [x] Confirm fetched Gaia default `dbed97a` invokes `mdbook test` but the
       book has zero Rust fences; the mesh-gallery generator is not mdBook
       contract coverage.
-- [ ] Create one value-semantic included Gaia example on the clean bounded
-      lane `worktrees/gaia-book-gate`; run `mdbook test`, `mdbook build`, and
-      strict links; publish and collect exact-head hosted evidence before
-      advancing the Atlas pointer.
+- [x] Create one value-semantic included Gaia example on the clean bounded
+      lane `worktrees/gaia-book-gate`; local `mdbook build`, formatting, and
+      strict links (9 files, 16 links, zero errors) pass. The local locked
+      build and mdBook test are blocked by the shared overlay lock-form and
+      multi-artifact/toolchain state; hosted CI is the clean-runner oracle.
+- [x] Publish PR [#33](https://github.com/ryancinsight/gaia/pull/33) at exact
+      head `7e3ddeff`; CI `32417028093` and book `32417028130` are queued.
+- [ ] Collect terminal exact-head CI/book evidence, merge, verify the
+      post-merge default and Pages deployment, then advance the Atlas pointer.
 
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — current session
 
