@@ -96,7 +96,7 @@
   `recurseml/analysis` error is report-only; the hosted monitor owns collection
   without blocking local continuation.
 
-## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
+## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Tyche checkout only.
 - **Scope:** `repos/tyche/.github/workflows/book-pages.yml` and the matching
@@ -111,10 +111,10 @@
   while Horae explicitly enables it. Current Tyche Pages run `32196689656`
   builds/deploys the book but does not execute `mdbook test`; its live page is
   therefore not evidence that fenced Rust samples compile.
-- **Landed:** Tyche commit `1752a0f` is pushed to
-  `codex/tyche-planning-closure`; PR #27 open. Pages build run
-  `32330423380` and supply-chain run `32330423079` pass; verify in run
-  `32330423079` remains queued.
+- **Landed:** Tyche commit `1752a0f` merged through PR #27 at provider default
+  `7b299c8`; its Atlas gitlink is synchronized in this commit. Pages build run
+  `32330423380`, supply-chain run `32330423079`, and verify run
+  `32330423079` pass. The recurring `recurseml/analysis` error is report-only.
   It enables `mdbook-test`, pins Rust
   `1.97.0`, selects `tyche-core`, and adds the explicit staged-library
   declarations to both canonical book examples.
