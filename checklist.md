@@ -68,12 +68,14 @@
 
 ## ATLAS-COEUS-BOOK-TEST-2026-08-20 — current session
 
-- [ ] Create a clean `coeus-book-test` lane from provider `origin/main`; claim
+- [x] Create a clean `coeus-book-test` lane from provider `origin/main`; claim
       only `.github/workflows/book-pages.yml` and preserve the detached
       primary implementation, lockfile, and PM dirt.
-- [ ] Enable the shared executable book gate for the Tensor Basics and Matrix
-      Multiplication includes; run mdBook build, strict links, and
-      workflow-shape checks.
+- [x] Enable the shared executable book gate for the Tensor Basics and Matrix
+      Multiplication includes in lane commit `58122b9`; mdBook build, strict
+      links (14 files, 13 links), and workflow-shape checks pass. The locked
+      package build is locally blocked before compilation by the shared
+      overlay's primary-tree patch paths.
 - [ ] Push and collect hosted exact-head book evidence, then merge, verify the
       post-merge default, and advance the Atlas gitlink.
 

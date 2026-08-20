@@ -54,7 +54,13 @@
   Multiplication examples are real included programs; acceptance is the shared
   `mdbook-test` caller for `coeus-ops`, exact hosted book evidence, and
   post-merge default verification. The detached primary checkout's provider
-  implementation, lockfile, and PM dirt remain outside this item.
+  implementation, lockfile, and PM dirt remain outside this item. Local lane
+  commit `58122b9bdc26d402f7c3800e49aeff0dc44a130e` passes diff-check, mdBook
+  build, strict links (14 files/13 links), and workflow-shape checks. The
+  locked package build is blocked before compilation by the shared Atlas
+  overlay resolving primary-tree patches from the clean lane; hosted Linux is
+  the package gate. Push and hosted collection remain sequenced behind the
+  active merged-default runs.
 
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
