@@ -42,6 +42,27 @@ subtests); the full Atlas Python suite passes (277 tests, 77 subtests in
 The book audit still reports five provider entries without executable gates;
 that is tracked by the separate book-gate items.
 
+## ATLAS-IRIS-NAMED-MAP-2026-08-20 — Prove the complete Iris map set [patch] — in progress
+
+Iris's `NamedColorMap::ALL` is a manually maintained 14-entry array, and its
+integration law tests iterate only that array. A newly added enum variant can
+therefore compile while remaining absent from the sampled set. The enum is
+`#[non_exhaustive]`, so the completeness match must be inside the Iris crate;
+an external integration test cannot legally be exhaustive.
+
+**Scope:** Iris `src/color/map/named.rs` and its provider test target, on a
+clean lane based on fetched `origin/main`. Do not touch the peer-owned Iris
+primary checkout's Cargo.lock, book, backlog, checklist, or audit files.
+
+**Acceptance:** an in-crate exhaustive match names every current variant;
+the test detects an omitted or duplicated `ALL` entry; the provider's focused
+and full gates pass; the provider change is published for review; Atlas records
+the exact provider head without advancing the dirty primary gitlink.
+
+**Owner:** current Atlas session. **Claimed files:** Iris
+`src/color/map/named.rs` and provider tests in the clean lane
+`worktrees/iris-named-map-all`; root `backlog.md` and `checklist.md`.
+
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
 Re-measured 2026-08-20 against the trees rather than the board. ADR 0033's

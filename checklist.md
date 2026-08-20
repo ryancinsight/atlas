@@ -13,6 +13,17 @@
 - [x] Run focused and full Python gates, regenerate the ADR index, synchronize
       the PM entries, and commit the verified slice.
 
+## ATLAS-IRIS-NAMED-MAP-2026-08-20 — current session
+
+- [ ] Claim the Iris source-only completeness slice and create its clean lane
+      from fetched `origin/main`.
+- [ ] Add an exhaustive in-crate variant discriminant and a test that rejects
+      omitted or duplicated `NamedColorMap::ALL` entries.
+- [ ] Run focused Iris tests, warning-denied Clippy, doctests, and the provider
+      gate on the exact lane revision.
+- [ ] Publish the provider branch, record the exact head and evidence, and
+      leave the dirty primary gitlink untouched.
+
 ## ATLAS-BOOK-STAGING-2026-08-20 — current session
 
 - [x] Reproduce the RITK `E0460` failure mechanism: the shared workflow's
