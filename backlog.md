@@ -763,11 +763,15 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Active claim (atlas coordinator):** RITK rustdoc gate closure
-  `RITK-DOC-GATE-210`; scope is the current provider rustdoc failures and the
-  RITK CI rustdoc step, followed by the Atlas gitlink. The provider checkout is
-  clean at exact default `ebf2f499`; no other RITK source or peer checkout is
-  in scope.
+- **Active claim (atlas coordinator):** Horae book and local verification
+  recheck; scope is the clean Horae default checkout, its committed book gate,
+  and the resulting Atlas gitlink/PM evidence. No Horae source or peer
+  checkout is in scope unless the recheck exposes a concrete defect.
+- **RITK claim closeout:** `RITK-DOC-GATE-210` is fixed in provider commit
+  `9e1c276a`, which adds a warning-denied rustdoc CI job and corrects five
+  public-doc/private-link or broken-link defects. Exact workspace rustdoc
+  generates 40 targets, focused nextest passes `817/817`, and focused clippy
+  passes with `-D warnings`.
 - **Aequitas claim closeout:** dimensional-law tests were split into named
   angle and complex-value modules in provider commit `c908af1`; the focused
   nextest gate passes `40/40`, clippy passes with `-D warnings`, and Atlas
