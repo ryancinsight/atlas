@@ -24,6 +24,12 @@
   advances independently to the already merged and hosted-green default
   `2a291a064` from PR #429; the PR #427 branch remains unintegrated until its
   own gates are terminal-green.
+- **Consus ADR-0045 P4 benchmark gate:** clean branch
+  `codex/adr-0045-p4-benchmark-parser` at `2f9067ec` published as PR
+  [#50](https://github.com/ryancinsight/consus/pull/50). Centralizes async I/O
+  in Moirai, removes package-owned S3 integrations, and adds the hosted
+  benchmark threshold gate. CI queued; merge requires terminal-green hosted
+  evidence.
 
 ## ATLAS-FINAL-PROVIDER-AUDIT-2026-08-20 — Exact-head and publication closure [patch] — done 2026-08-20
 

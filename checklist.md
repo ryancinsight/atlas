@@ -12,8 +12,10 @@
       pass outside the malformed Atlas overlay. Clippy remains environment-
       blocked by the Windows GNU/MSVC target mismatch, and no hosted result is
       inferred.
-- [ ] Collect hosted verification and publish/merge the clean P4 lane without
-      touching the detached dirty Consus rebase or the peer-owned Zarr lane.
+- [ ] Collect hosted verification and publish/merge Consus P4 lane at
+      `2f9067ecb6711a3ba86ce0ed2636f34365dab83c` through PR
+      [#50](https://github.com/ryancinsight/consus/pull/50); CI queued.
+      Do not touch the detached dirty Consus rebase or the peer-owned Zarr lane.
 - [x] Correct Kwavers' Python comparison extras and source-install commands at
       provider commit `308d91594`: `kwave` now installs the MATLAB-free
       `k-wave-python` bridge, `matlab` owns the MATLAB Engine bridge, and the
@@ -44,12 +46,11 @@
       `32229463775` passes the Rust workspace and figure SSOT gates, and PR #358
       merges at default `834340f7`. The Atlas gitlink records that exact default;
       the provider checkout remains on its peer branch.
-- [ ] Collect and merge Apollo PR #107 only after its benchmark gate is green.
-      Rust is cancelled, Python passes, and benchmark run `32217561595` fails
-      17 counterbalanced cases, including
-      `mixed_precision_f16_auto/64` and `/96`, Rader `f32/31` and `f64/53`,
-      and composite-prime cases. The active branch is peer-owned and carries
-      dirty `Cargo.lock`/`backlog.md`; no Apollo source or lock was changed.
+- [x] Collect and merge Apollo PR #107 only after its benchmark gate is green.
+      Benchmark run `32347865841` passes all counterbalanced cases; PR merges
+      at provider default `0c6ffb91ce5d1b68d8da50c6fd12726b7993b1b8`. Post-
+      merge CI `32348784876`, Pages `32348782338`, and live Pages HTTP 200
+      pass. Atlas gitlink records the merged default.
 - [x] Re-run Helios `mdbook test docs/book` at detached HEAD `f8ebe42`:
       every listed chapter/example completes. Keep H-103 open for provider
       reconciliation because Helios `backlog.md` still says todo and the
@@ -58,11 +59,9 @@
       `codex/cfdrs-pypi-001`; every listed chapter/example completes. The
       locked `xtask check-figures` command remains blocked by the Atlas
       overlay lock refresh and is not represented as a pass.
-- [ ] Collect the merged CFDrs default-head gate: PR #355 source `ed585d75`
-      corrects the prior Clippy failure, but default `efce3472` run
-      `32208170560` times out two numerical-fidelity tests at the 30-second
-      budget. Keep the pointer at the PR head until the workloads are
-      optimized and the default figure/release gates pass.
+- [x] Collect the merged CFDrs default-head gate: PR #355 (`ed585d75`) merged
+      at default `aa54f5cdcdc4e406df0c60ea6c3cb507e968fc97`; Atlas gitlink
+      records that exact default. Stale timeout at `efce3472` is superseded.
 - [x] Probe the Kwavers comparative Python test under Python 3.13.12; import
       fails because the compiled `pykwavers._pykwavers` extension is absent.
       Preserve the peer-owned checkout and leave the build/wheel repair to
@@ -95,9 +94,9 @@
       rebuilding its normalized parabolic inlet vectors on every SIMPLE
       iteration. Provider commit `1bebb5e` prepares the profile once and
       reapplies cached values without changing the workload or assertions.
-- [ ] Collect CFDrs exact-head run `32197696210` at `1bebb5e`, then merge PR
-      #355 only after the Rust and book gates pass. The earlier timeout is
-      superseded only when the unchanged numerical-fidelity filter is green.
+- [x] Collect CFDrs exact-head run `32197696210` at `1bebb5e`, then merge PR
+      #355 only after the Rust and book gates pass. PR #355 merged at default
+      `aa54f5cd`; Atlas gitlink advanced. Timeout at the prior head superseded.
 - [x] Re-run the live lane audit after the provider pushes. The 2026-08-19
       probe reports four topology violations: Consus has four trees and one
       lane outside the canonical root, Kwavers has four trees, and RITK has
