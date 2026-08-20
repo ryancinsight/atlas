@@ -5727,3 +5727,12 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [x] Commit `c30dad6a8`, push `feat/kwavers-fwi-rotation-stage`, open PR #424.
       fmt/clippy clean; 900/904 kwavers-solver tests pass.
 - [ ] After PR #420 merges, rebase PR #424 onto main and collect CI.
+
+## 2026-08-20 US-023-A6 closure
+
+- [x] Close kwavers PR #412 as superseded: current main (`b20eb48b`) already
+      routes `ScanConverter::convert` through `ritk_spatial::CurvilinearArray`
+      (the geometry SSOT per ADR 0042), with no bespoke polar arithmetic in
+      kwavers-analysis. Adding `ritk-image`/`coeus-core` to the analysis layer
+      violates the clean-architecture constraint. ADR 0048 intent is satisfied
+      by the ritk-spatial path. Backlog US-023-A6 updated from review to done.
