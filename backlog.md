@@ -57,6 +57,11 @@
   cover active-task completion and the overflow boundary; focused locked
   format, Clippy, nextest, doctest, and rustdoc evidence is collected or the
   exact shared-cache blocker is recorded.
+- **Landed provider increment:** Kwavers commits `073a5adbb` and `7245db7e4`
+  implement and document the slice. PR [#427](https://github.com/ryancinsight/kwavers/pull/427)
+  is open at exact head `7245db7e44a7f461a34ff2d67e5b7f1a76bc69c1`; local
+  focused evidence passes, while repository-hosted CI/Architecture runs have
+  not yet attached to the reopened PR event.
 - **Non-goals:** no changes to the existing peer-owned Kwavers medium,
   physics, visualization, workflow, lockfile, or documentation edits.
 
