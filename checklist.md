@@ -58,12 +58,12 @@
 - [x] Reconcile Kwavers `origin/main` to `6f77bd4`; it contains two docs-only
       merges after `78af725`, so earlier hosted runs cannot authorize the Atlas
       pointer `459f18c`.
-- [x] Attempt the server-side PR #439 branch refresh; GitHub reports a real
-      `backlog.md` conflict between current KW-CI-115 board records and the
-      PR's KW-GPU-200/201/202 records. No dirty Kwavers worktree was touched.
-- [ ] Resolve that board-only conflict while preserving both records, rerun
-      the full exact-head Kwavers matrix at the refreshed head, and advance the
-      Atlas gitlink only after terminal CI and book evidence.
+- [x] Resolve the board-only conflict by preserving current KW-CI-115 and the
+      PR's KW-GPU-200/201/202 records in merge commit `2fa5f4d8`; no dirty
+      Kwavers worktree was touched.
+- [ ] Collect the full exact-head Kwavers matrix at `2fa5f4d8`: runs
+      `32414757969` and `32414757998` are pending. Advance the Atlas gitlink
+      only after terminal CI and book evidence.
 
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — current session
 

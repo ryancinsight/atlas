@@ -378,12 +378,11 @@ claim is inferred.
   `78af725e749c8ec4fd756d55091d557ea635aac2` make earlier hosted runs
   ineligible to authorize the stale Atlas pointer
   `459f18ce8248ea91ace62a2f8f89a02b861a56fe`. Current PR #439 remains at
-  exact head `3297a946536cd54b87dc94d51f1a9cfa2f63b9f1` but is `DIRTY` because
-  its `backlog.md` conflicts with the current default board. The conflict is
-  limited to preserving KW-CI-115 beside KW-GPU-200/201/202; no provider
-  source or dirty worktree was overwritten. No exact-head gate or pointer
-  advance is authorized until that conflict is resolved and the full matrix
-  reruns.
+  exact head `2fa5f4d8a88d2ff16df866f15c5a1c4dd5d58b44` and is now `CLEAN` after
+  a merge commit that preserves KW-CI-115 beside KW-GPU-200/201/202. No
+  provider source or dirty worktree was overwritten. Exact-head runs
+  `32414757969` and `32414757998` are pending; no pointer advance is authorized
+  until the full matrix and book gate reach terminal success.
   Full exact-head/coherence audit reports only the RITK and Kwavers gitlink
   drifts recorded here and no additional coherence issues.
 
