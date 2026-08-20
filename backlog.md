@@ -70,6 +70,27 @@
   open. Enables `mdbook-test: true`, `rust-toolchain: "1.97.0"`,
   `cargo-package: asclepius`; no source or lockfile changes. CI queued.
 
+## ATLAS-MOIRAI-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
+
+- **Owner:** current Atlas session; clean Moirai provider branch only.
+- **Scope:** `repos/moirai/.github/workflows/book-pages.yml` and the two
+  included `moirai` example sources. Preserve the shared workflow pin and all
+  unrelated scheduler/runtime work.
+- **Acceptance:** the caller enables `mdbook-test` with Rust `1.97.0` and
+  `cargo-package: moirai-runtime`; both included examples compile through the
+  staged library path; no provider lockfile or runtime implementation changes.
+- **Landed:** commit `4d9bfb0` is pushed to `codex/moirai-book-test`; draft PR
+  #144 is open. It adds the shared-workflow inputs and explicit
+  `extern crate moirai;` declarations required by mdBook rustdoc.
+- **Local verification:** format, locked `moirai-runtime` example check,
+  example Clippy with `-D warnings`, and `mdbook build` pass. The exact default
+  `c651a46` also passes workspace packaging, Nextest `801/801` with six
+  configured skips, workspace doctests, and workspace Clippy. Local mdBook
+  execution reaches both examples but shared Windows artifacts produce rustdoc
+  `E0460`; clean hosted execution is the acceptance oracle.
+- **Hosted state:** exact-head CI and Pages results for PR #144 are pending;
+  the hosted monitor owns collection without blocking local continuation.
+
 ## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
 
 - **Owner:** current Atlas session; clean Tyche checkout only.
