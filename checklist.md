@@ -36,9 +36,11 @@
       claim only `.github/workflows/book-pages.yml` plus existing included
       executable samples; preserve PR #201 source, lockfile, and chapter dirt.
 - [x] Enable the shared executable book gate, run the focused local checks and
-      strict links; PR #202 is at exact head `dc9bf9c` with hosted runs queued.
-- [ ] Merge only at green exact head, verify the post-merge default, and
-      advance the Atlas gitlink without staging peer-owned RITK work.
+      strict links; PR #202 merged as `ad508525` while hosted checks were
+      queued.
+- [ ] Collect the merged-default Rust, Python, and book runs
+      `32404089256`/`32404089147`/`32404089897`; advance the Atlas gitlink only
+      after terminal passing evidence, and fix forward any failure.
 
 ## ATLAS-APOLLO-BOOK-TEST-2026-08-20 — current session
 

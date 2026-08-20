@@ -16,12 +16,14 @@
 - **RITK executable book gate:** current Atlas session claims the provider
   workflow caller and existing executable samples only, on the reusable
   `ritk-book-test` lane. Open PR #201 owns source, lockfile, and connectome
-  chapter changes; this item does not overlap those paths. PR #202 is open at
-  exact head `dc9bf9cda2fd007597205312645038bc48727d0c`; local mdBook build and
-  strict links pass, while provider CI, Python, and book runs
-  `32402257906`/`32402258085`/`32402259004` remain queued. Acceptance is the
-  exact-head hosted book success, merge, and post-merge default verification at
-  RITK's current default `d4a978fce40f37b3668afa5d98783626aaf74cff`.
+  chapter changes; this item does not overlap those paths. PR #202 merged at
+  default `ad5085257b6dee9110375bbca29e20d676c83f58` from exact head
+  `dc9bf9cda2fd007597205312645038bc48727d0c`; local mdBook build and strict
+  links pass, but the PR provider CI, Python, and book runs
+  `32402257906`/`32402258085`/`32402259004` were still queued at merge. Default
+  CI, Python, and book runs `32404089256`/`32404089147`/`32404089897` are now
+  queued. Acceptance remains terminal passing evidence on the merged default;
+  Atlas does not advance the gitlink from `d4a978f` until then.
 
 - **Apollo executable book gate:** current Atlas session claims only
   `apollo/.github/workflows/book-pages.yml` on a clean `apollo-book-test` lane.
