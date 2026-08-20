@@ -25,6 +25,13 @@ published as PR [#204](https://github.com/ryancinsight/ritk/pull/204) at exact
 head `9bc47d42f0d6050f4a68661c01d45806d41e583f`; CI run `32410451435` and
 shared book run `32410452203` are queued. `recurseml/analysis` is report-only.
 
+Themis's corresponding post-merge evidence is terminal for the build jobs:
+default head `c76a55e5eb9988b48bba69e67d6e07ce5fe55ea8` has successful CI
+`32402753573`, MSRV `32402753617`, and `deploy / Build book` job
+`96534588862` in run `32402754181`. The Pages deployment remains queued in
+run `32402752669` (job `96545229314`); this is deployment-pending evidence,
+not a live Pages claim.
+
 
 ## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — todo
 
