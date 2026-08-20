@@ -97,10 +97,10 @@
 
 ## ATLAS-BOOK-GATE-AUDIT-2026-08-20 — current session
 
-- [ ] Correct strict book-gate audit diagnostics and synchronize its inventory
-      documentation; add focused regression coverage.
-- [ ] Run the Atlas Python test subset and script checks, then commit without
-      touching provider gitlinks.
+- [x] Correct strict book-gate audit diagnostics and synchronize its inventory
+      documentation; add focused regression coverage. Commit: `429ada8`.
+- [x] Run the Atlas Python test subset and script checks, then commit without
+      touching provider gitlinks. Full suite: 279 tests, 74 subtests.
 
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
