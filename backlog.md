@@ -62,6 +62,17 @@
   the package gate. Push and hosted collection remain sequenced behind the
   active merged-default runs.
 
+- **Live-tree conformance residual:** the local `python
+  scripts/atlas-conformance.py check --worktree --json` sweep at root
+  `9ca9a5b` exits 1 with 18 regressions against the committed baseline:
+  Aequitas and Asclepius target forks; CFDrs oversized files and
+  existence-only assertions; Consus oversized files, manifest implementation,
+  production unwraps, allows, existence-only assertions, type-suffixed
+  functions, workflow timeout, and orphan modules; Helios and Kwavers excess
+  lanes; Moirai production `SeqCst`; and RITK manifest implementation,
+  type-suffixed functions, and commented-out code. The result includes live
+  peer/derived state; no baseline is raised and no peer dirt is discarded.
+
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
   `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.
