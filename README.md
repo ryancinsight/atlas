@@ -1006,7 +1006,7 @@ python3 scripts/publish-order.py --json    # machine-readable
 The script builds the first-party graph over normal and build dependencies,
 separates dev-dependency edges (which do not constrain order and legally form
 cycles), and fails when one registry name is claimed by more than one manifest.
-At this revision it reports 183 publishable crates across 34 waves with no
+At this revision it reports 180 publishable crates across 34 waves with no
 ordering cycle.
 
 For crates.io, under the crate's **Settings → Trusted Publishing**:
