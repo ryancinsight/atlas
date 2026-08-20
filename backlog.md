@@ -70,7 +70,7 @@
 - **Definition of done:** PR #22 is merged, and Atlas must point at provider
   default `2f6959b` in the next root integration commit.
 
-## ATLAS-MOIRAI-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — in progress
+## ATLAS-MOIRAI-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Moirai provider branch only.
 - **Scope:** `repos/moirai/.github/workflows/book-pages.yml` and the two
@@ -79,8 +79,8 @@
 - **Acceptance:** the caller enables `mdbook-test` with Rust `1.97.0` and
   `cargo-package: moirai-runtime`; both included examples compile through the
   staged library path; no provider lockfile or runtime implementation changes.
-- **Landed:** commits `4d9bfb0`, `2cca9cc`, and `95891f6` are pushed to
-  `codex/moirai-book-test`; draft PR #144 is open at exact head `95891f6`.
+- **Landed and merged:** commits `4d9bfb0`, `2cca9cc`, and `95891f6` are
+  merged through PR #144 at provider default `3b81286`.
   They add the shared-workflow inputs, explicit `extern crate moirai;`
   declarations required by mdBook rustdoc, the provider checklist entry, and
   the explicit `cargo-crate: moirai` input with shared workflow pin `1fcd17c`.
@@ -96,8 +96,10 @@
   `95891f6` now pass Workspace, supply-chain, Loom, Pages, and all three wheel
   smoke jobs: `32332871749`, `32332871836`, and `32332872034`. Only Rust binding
   check job `96316730773` remains pending; CodeRabbit is green. The recurring
-  `recurseml/analysis` error is report-only, and merge remains held by the
-  pending binding check.
+  `recurseml/analysis` error is report-only. All substantive hosted checks
+  pass at `95891f6`; the PR is merged.
+- **Definition of done:** Atlas must point at provider default `3b81286` in the
+  next root integration commit.
 
 ## ATLAS-TYCHE-BOOK-TEST-2026-08-20 — enable executable book samples [patch] — done 2026-08-20
 
