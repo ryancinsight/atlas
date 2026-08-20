@@ -460,8 +460,10 @@
       RITK `oversized_files` regression `43 -> 44`.
 - [ ] Complete the remaining Apollo `0.27.0` consumer lock sweep for Kwavers,
       then rerun affected hosted gates. Coeus and RITK default pointers now
-      carry their provider-side 0.27 migration heads; do not lower consumers or
-      add a shim. Helios' committed lock still needs the same sweep.
+      carry their provider-side 0.27 migration heads; do not lower consumers
+      or add a shim. Helios lock advance (Apollo `0c6ffb91`, Moirai `3b812865`,
+      Themis `0484a333`) is open as PR
+      [#68](https://github.com/ryancinsight/helios/pull/68); CI queued.
 - [ ] Split the committed RITK `region.rs` 540-line implementation without
       overwriting the peer-owned in-flight region edits, then rerun the root
       conformance gate at the exact provider head.
