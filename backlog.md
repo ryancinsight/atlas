@@ -763,15 +763,23 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Active claim (atlas coordinator):** Horae book and local verification
-  recheck; scope is the clean Horae default checkout, its committed book gate,
-  and the resulting Atlas gitlink/PM evidence. No Horae source or peer
-  checkout is in scope unless the recheck exposes a concrete defect.
+- **Active claim (atlas coordinator):** Atlas exact-head, overlay, lock, and
+  conformance recheck after integrating the RITK rustdoc increment; scope is
+  the Atlas root pointer and read-only integration evidence. Peer-owned source
+  and consumer checkouts remain out of scope.
 - **RITK claim closeout:** `RITK-DOC-GATE-210` is fixed in provider commit
   `9e1c276a`, which adds a warning-denied rustdoc CI job and corrects five
   public-doc/private-link or broken-link defects. Exact workspace rustdoc
   generates 40 targets, focused nextest passes `817/817`, and focused clippy
-  passes with `-D warnings`.
+  passes with `-D warnings`; this increment advances the Atlas `repos/ritk`
+  pointer to `9e1c276a`.
+- **Horae claim closeout:** clean default `0df563a69693418b267f337fa4bc9dfb7c1aeb1b`
+  passes the exact `--all-features` native gate `23/23`. Horae CI already runs
+  `mdbook test`, and its Pages workflow enables the shared `mdbook-test` gate.
+  The local Windows `mdbook test` invocation stops before chapter assertions
+  with `E0461` because mdBook selects GNU rustdoc while the shared stack
+  artifacts are MSVC; no Horae source or pointer change is warranted, and the
+  hosted Linux book gate remains the configured cross-platform book evidence.
 - **Aequitas claim closeout:** dimensional-law tests were split into named
   angle and complex-value modules in provider commit `c908af1`; the focused
   nextest gate passes `40/40`, clippy passes with `-D warnings`, and Atlas
