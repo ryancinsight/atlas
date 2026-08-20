@@ -35,6 +35,10 @@
 - [x] Publish the remaining 16 workflow-only PRs from current provider
       defaults. The shared implementation pin is `20c9398`; provider hosted
       book gates are the acceptance oracle.
+- [x] Correct the first remote revisions after their reusable-workflow runs
+      failed before job creation: the exact root pin is
+      `20c93980f7c98f2e23a89c4a0540f16c8f2d7239`, and all 16 PR branches now
+      carry that full commit rather than the invalid initial value.
 - [ ] Collect terminal hosted results and merge the 16 PRs only at their
       exact heads; then rerun the caller audit and record any default-pointer
       changes without touching dirty nested checkouts.
