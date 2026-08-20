@@ -181,7 +181,7 @@ jobs:
             cargo metadata --locked --no-deps --format-version 1 | \
             python3 -c "import json,sys; print(json.load(sys.stdin)['target_directory'])")"
           deps_dir="$target_dir/debug/deps"
-          if compgen -G "$deps_dir/lib${crate}-"*.rlib > /dev/null; then
+          if compgen -G "$deps_dir/lib${crate}-*.rlib" > /dev/null; then
             # mdbook 0.5.4 does not forward RUSTDOCFLAGS: it spawns rustdoc with
             # a fixed argument list, so `--extern` cannot be injected. Point
             # `mdbook test --library-path` at a fresh directory containing the
