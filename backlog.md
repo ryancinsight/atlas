@@ -38,6 +38,10 @@
   the unpacked registry. Its dependency graph resolves published Apollo FFT
   `0.26.0`, providing a positive package result and independently confirming
   that RITK's Apollo `0.27.0` requirement is the registry-order blocker.
+- **Horae package gate:** standalone `cargo package --workspace --locked`
+  packages and verifies `horae v0.1.0` successfully outside the Atlas overlay.
+  The package result is valid crates.io content evidence; publication remains
+  governed by the provider's occupied-name/release-authority constraints.
 - **Horae:** the exact `--all-features` native gate passes `23/23`, and its CI
   and Pages callers enable the book test. The local Windows `mdbook test`
   invocation reaches rustdoc but fails with a GNU/MSVC artifact mismatch
@@ -9780,7 +9784,7 @@ the board and to every peer, which is why the standing rule forbids creating
 them. Triage both in the same sweep: apply and commit, or confirm superseded and
 drop, recording which.
 
-## ATLAS-ADR-UNTRACKED-105 — completed ADRs left untracked [patch] — in progress 2026-08-19
+## ATLAS-ADR-UNTRACKED-105 — completed ADRs left untracked [patch] — in progress 2026-08-19 (kwavers closed; coeus + hephaestus open)
 
 `kwavers/docs/adr/112-convex-array-rasterizer-seam.md` is complete (110 lines,
 full context/decision/consequences, Status: Accepted) and its item **COV-3 is
@@ -9802,7 +9806,7 @@ and passed over.
 
 | member | untracked ADR | lines | status |
 | --- | --- | --- | --- |
-| kwavers | `112-convex-array-rasterizer-seam.md` | 110 | Accepted, item COV-3 done |
+| kwavers | `112-convex-array-rasterizer-seam.md` | 110 | **committed** via PR #418; index and corpus now agree on main |
 | coeus | `0066-provider-owned-dense-product-bridge.md` | 108 | header carries no status line |
 | hephaestus | `0052-device-neutral-sliding-window-seam.md` | 216 | Proposed |
 
@@ -9815,6 +9819,13 @@ regenerated against a file that was then never committed.
 the index, push. Two need a header decision first — coeus 0066 has no `Status`
 line at all, and hephaestus 0052 is `Proposed`, so whether either is Accepted
 needs its author or its evidence, not my assumption.
+
+**It got worse before it got better.** While PR #418 was in review, peer PR #419
+"restored the missing 112 index row" — committing the row but not the file. For
+a few hours `main` advertised 112 in its index while a fresh clone got a dead
+link, which is strictly worse than the file merely being absent: the index
+asserted a record that did not exist. PR #418 committed the file the row refers
+to; verified on `origin/main` by resolving every indexed link against the tree.
 
 **Mechanization.** The detection already exists and already ran: `adr-index.py`
 prints "untracked, so absent from a fresh clone" and correctly excludes the
