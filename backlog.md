@@ -73,6 +73,14 @@
   type-suffixed functions, and commented-out code. The result includes live
   peer/derived state; no baseline is raised and no peer dirt is discarded.
 
+- **Kwavers moving default:** fetched `origin/main` advanced to
+  `b5b4fb0614ad3238ab95ff092cebd5977a201b22` via merged PR #421 (aperture/SIR
+  seam). Default-head Architecture, migration, CI/CD, and Pages runs
+  `32404999498`/`32404999519`/`32404999529`/`32405000042` remain queued; Atlas
+  retains `459f18ce8248ea91ace62a2f8f89a02b861a56fe` until terminal hosted
+  evidence. The primary checkout is detached and peer-dirty, so no source or
+  lockfile cleanup is folded into this pointer reconciliation.
+
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
   `32387951529`, Python CI `32387951635`, and Pages `32387952289` all pass.

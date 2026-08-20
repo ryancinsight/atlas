@@ -79,6 +79,14 @@
 - [ ] Push and collect hosted exact-head book evidence, then merge, verify the
       post-merge default, and advance the Atlas gitlink.
 
+## ATLAS-KWAVERS-DEFAULT-2026-08-20 — current session
+
+- [x] Fetch the moving default and identify merged PR #421 at exact head
+      `b5b4fb0614ad3238ab95ff092cebd5977a201b22`.
+- [ ] Collect the terminal default Architecture, migration, CI/CD, and Pages
+      runs `32404999498`/`32404999519`/`32404999529`/`32405000042`; advance the
+      Atlas gitlink only after all required hosted evidence passes.
+
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 
 - [x] Resolve and validate the Consus ADR-0045 P4 lane at local head
