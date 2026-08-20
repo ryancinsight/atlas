@@ -86,6 +86,9 @@
 - [ ] Collect the terminal default Architecture, migration, CI/CD, and Pages
       runs `32404999498`/`32404999519`/`32404999529`/`32405000042`; advance the
       Atlas gitlink only after all required hosted evidence passes.
+- [x] Run the full exact-head/coherence audit at root `604bdcd`; it reports
+      only the Themis, RITK, and Kwavers gitlink drifts and no additional
+      coherence issues.
 
 ## ATLAS-PROVIDER-INTEGRATION-2026-08-18-CURRENT — superseding recheck
 

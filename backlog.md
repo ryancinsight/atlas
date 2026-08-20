@@ -80,6 +80,8 @@
   retains `459f18ce8248ea91ace62a2f8f89a02b861a56fe` until terminal hosted
   evidence. The primary checkout is detached and peer-dirty, so no source or
   lockfile cleanup is folded into this pointer reconciliation.
+  Full exact-head/coherence audit at root `604bdcd` reports only the three
+  gitlink drifts recorded here and no additional coherence issues.
 
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI
