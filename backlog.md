@@ -9623,6 +9623,57 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   The current provider checkouts/lanes are peer-owned and dirty; re-open when
   those claims land or become stale and reclaimable.
 
+## ATLAS-KWAVERS-LANE-SPRAWL-104 — five worktrees on one repo [patch] — todo
+
+`repos/kwavers` carries five working trees against the two-tree bound
+(main plus one lane):
+
+| tree | branch |
+| --- | --- |
+| `repos/kwavers` (main tree) | `build/adopt-aequitas-degree` |
+| `worktrees/kwavers-format` | `feat/kwavers-sonoluminescence` |
+| `worktrees/kwavers-fwi-asm-split-step` | `feat/kwavers-fwi-asm-split-step` |
+| `worktrees/kwavers-gpu-honest` | `feat/d3-consolidate-speckle-tracking` |
+| `worktrees/kwavers-qus-attenuation` | `feat/qus-attenuation-b2` |
+
+Two are named for work they no longer hold (`kwavers-format` holds
+sonoluminescence, `kwavers-gpu-honest` holds the D3 speckle-tracking seam that
+merged as PR #409), which is the tell that lanes are being re-pointed without
+being closed. Each lane is a full checkout of a large workspace.
+
+**Fix.** Sweep per the lane lifecycle: for each, determine whether its branch is
+merged, live, or stale (branch tip time plus board claim), close the merged and
+stale ones with `git worktree remove`, and keep at most one. Not a blind
+deletion — a lane holding unpushed commits or uncommitted work is rescued first
+(ATLAS-RITK-D2-STRANDED-100 is what that looks like when it is not).
+
+**Related.** Two stashes exist in this repo from earlier sessions
+(`stash@{0}`, `stash@{1}`, both "WIP on (no branch)"). Stashes are invisible to
+the board and to every peer, which is why the standing rule forbids creating
+them. Triage both in the same sweep: apply and commit, or confirm superseded and
+drop, recording which.
+
+## ATLAS-ADR-UNTRACKED-105 — completed ADRs left untracked [patch] — in progress 2026-08-19
+
+`kwavers/docs/adr/112-convex-array-rasterizer-seam.md` is complete (110 lines,
+full context/decision/consequences, Status: Accepted) and its item **COV-3 is
+recorded done** on the kwavers board — but the file was never `git add`ed. It
+exists only in the shared working tree.
+
+Same class as ATLAS-RITK-D2-STRANDED-100: the work happened, the record did not
+ship. It is worse in one way — an ADR *is* the deliverable, so an untracked ADR
+means the decision has no durable existence at all, and a fresh clone shows a
+decision that was made and then lost.
+
+`scripts/adr-index.py` already detects this, reporting "untracked, so absent
+from a fresh clone" and excluding the file from the generated index — correctly,
+since the index records what a clone would have. That message was being printed
+and passed over.
+
+**Fix.** Commit 112 (attributing that it was found untracked), then regenerate
+the index so both it and 113 appear. Sweep the other members for the same
+condition in the same pass — the check is one command and already exists.
+
 ## ATLAS-RITK-D2-WIP-RESIDUAL-103 — rebuild the WIP the NUL corruption orphaned [minor] — done 2026-08-19
 
 **State.** The shared `repos/ritk` main tree is checked out on
