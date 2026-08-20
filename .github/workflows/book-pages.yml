@@ -53,6 +53,14 @@ on:
         required: false
         default: ""
         type: string
+      cargo-crate:
+        description: >-
+          Rust library target name to stage for `mdbook test`. Set this when
+          the library target name differs from the Cargo package name; when
+          omitted, the workflow converts package hyphens to underscores.
+        required: false
+        default: ""
+        type: string
       mdbook-linkcheck2-version:
         description: >-
           Exact `mdbook-linkcheck2` version to install. Set this when the
@@ -162,9 +170,13 @@ jobs:
           set -euo pipefail
           timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
             cargo build --locked -p "${{ inputs.cargo-package }}"
-          # Package name uses hyphens; crate name uses underscores.
+          # Package and library target names usually differ only by hyphens,
+          # but a package may expose an explicit [lib] name.
           pkg="${{ inputs.cargo-package }}"
-          crate="${pkg//-/_}"
+          crate="${{ inputs.cargo-crate }}"
+          if [[ -z "$crate" ]]; then
+            crate="${pkg//-/_}"
+          fi
           target_dir="$(timeout --foreground --kill-after=30s 2m \
             cargo metadata --locked --no-deps --format-version 1 | \
             python3 -c "import json,sys; print(json.load(sys.stdin)['target_directory'])")"
