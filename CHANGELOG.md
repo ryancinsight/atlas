@@ -43,7 +43,7 @@
 - Merge Mnemosyne PR #65 at source `a527380a15e8979c3b773a4e9891f1d53b0bc45c`
   as provider default `7003eb3d09a716a91b4560e1810d65970c874daa` after its
   executable allocator examples and Miri gate pass. Post-merge CI, MSRV, and
-  book runs remain in progress.
+  book runs pass; live Pages returns HTTP 200.
 
 - Merge Proteus PR #14 and its PM closure PR #15 after the executable book gate
   passes: CI run `32338237653` and Pages build `32338238163` validate both

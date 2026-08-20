@@ -141,7 +141,7 @@
   deployment was correctly skipped for the pull request. Definition of done
   is met.
 
-## ATLAS-MNEMOSYNE-BOOK-TEST-2026-08-20 — enable executable book examples [patch] — merged, post-merge verification pending
+## ATLAS-MNEMOSYNE-BOOK-TEST-2026-08-20 — enable executable book examples [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; Mnemosyne source scope with the peer-staged
   `Cargo.lock` preserved untouched.
@@ -161,8 +161,9 @@
   [#65](https://github.com/ryancinsight/Mnemosyne/pull/65), merged as provider
   default `7003eb3d09a716a91b4560e1810d65970c874daa`. Exact PR CI,
   MSRV, Miri, and Pages checks pass; post-merge CI `32341399588`, MSRV
-  `32341399599`, and Deploy mdBook `32341400004` remain in progress. Atlas
-  records the merged default gitlink.
+  `32341399599`, and Deploy mdBook `32341400004` pass; live Pages returns
+  HTTP 200 with the expected Mnemosyne title. Atlas records the merged default
+  gitlink and the book gate is closed.
 - **Local evidence:** Rust 1.97.0 format, package example check, strict
   package Clippy, nextest `25/25`, Cargo doctests `0/0`, both runnable example
   outputs, mdBook build, and strict link scan pass. Standalone mdBook reaches
