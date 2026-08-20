@@ -42,9 +42,11 @@
 - [ ] Collect terminal hosted results and merge the 16 PRs only at their
       exact heads; then rerun the caller audit and record any default-pointer
       changes without touching dirty nested checkouts.
-- [ ] Add the separate Consus executable book gate when a clean bounded lane
-      or authenticated GitHub write path is available; its current two Rust
-      examples are present but not yet executed by CI.
+- [x] Publish separate Consus book-gate PR [#53](https://github.com/ryancinsight/consus/pull/53)
+      from current `main`; it enables `mdbook-test` for both existing Rust
+      examples and stages `consus-core` without touching dirty peer trees.
+- [ ] Collect PR #53's terminal book gate, merge at its exact head, and rerun
+      the 25-book inventory so Consus leaves the missing-gate set.
 
 ## ATLAS-THEMIS-BOOK-TEST-2026-08-20 — current session
 
