@@ -13098,6 +13098,16 @@ checks pass; post-merge CI, book, and dynamic Pages runs are still in progress.
 Atlas now records the merged default gitlink; those post-merge runs remain a
 verification residual until they terminate successfully.
 
+## Finding 2026-08-20: Kwavers default reconciled after hosted gates
+
+Kwavers `origin/main` is `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`. Its exact
+default-head Architecture Validation `32333948199`, CI/CD Pipeline
+`32333948192`, Legacy Migration Audit `32333948196`, and Pages `32333948521`
+all pass. Atlas advances the gitlink from `b20eb48b8d49b16e65fb2334237c1e9d5917749a`
+to that hosted-green default. The detached provider checkout retains peer-owned
+dirty files, and queue-contract PR #427 remains open as a separate branch
+residual; neither is included in this pointer reconciliation.
+
 ## Finding 2026-08-20: Hyperion shared-workflow pin merged
 
 Hyperion PR [#19](https://github.com/ryancinsight/hyperion/pull/19) merged

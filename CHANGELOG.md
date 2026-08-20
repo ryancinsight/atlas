@@ -32,6 +32,11 @@
   Pages deployment runs remain in progress; Atlas now records the merged
   default gitlink.
 
+- Reconcile Kwavers to hosted-green default `9cf62aa98364e8f00cba0ca4a5d431b90a0ab55a`;
+  Architecture Validation `32333948199`, CI/CD `32333948192`, Legacy Migration
+  Audit `32333948196`, and Pages `32333948521` pass. The open queue-contract
+  PR #427 remains a separate branch residual.
+
 - Merge Proteus PR #14 and its PM closure PR #15 after the executable book gate
   passes: CI run `32338237653` and Pages build `32338238163` validate both
   included material examples; the pull-request Pages deployment is skipped.
