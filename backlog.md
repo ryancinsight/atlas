@@ -105,14 +105,6 @@ their active PRs. The
 remaining 16 provider-scoped workflow PRs are published from each current
 default without touching the dirty nested checkouts:
 
-The clean Tyche default `10410f2de1ce1529ecbff50fa740b23a1c8f77b9` is a newly
-detected residual: its executable book gate still pins Atlas `1fcd17c`, not the
-canonical staging implementation `20c9398`. The current session claims only
-Tyche's Pages caller and provider-local PM record for a caller-only refresh;
-Tyche source, lockfiles, and release work remain out of scope. The update is
-published as Tyche PR [#34](https://github.com/ryancinsight/tyche/pull/34) at
-exact head `c481e05`.
-
 - Aequitas [#38](https://github.com/ryancinsight/aequitas/pull/38),
   Asclepius [#23](https://github.com/ryancinsight/asclepius/pull/23),
   Athena [#16](https://github.com/ryancinsight/athena/pull/16),
@@ -591,7 +583,7 @@ claim is inferred.
   Exact CI `32347865828`, counterbalanced benchmark `32347865841`, post-merge
   CI `32348784876`, Pages `32348782338`, and live Pages HTTP 200 pass.
 
-## ATLAS-TYCHE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
+## ATLAS-TYCHE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — in progress
 
 - Owner: Atlas integration; provider scope is Tyche's Pages caller and PM/
   changelog records. No implementation, release, or lockfile change.
@@ -601,9 +593,11 @@ claim is inferred.
   checks pass. Post-merge CI `32343825023`, Deploy mdBook `32343825746`,
   dynamic Pages `32343823918`, and live Pages HTTP 200 with title `Tyche | tyche`
   pass.
-- Delivery: PM closure PR [#29](https://github.com/ryancinsight/tyche/pull/29)
-  merged at default `a2d15f058a29142844396c934362d84ce207d32f`; Atlas records
-  that closure revision as the current Tyche gitlink.
+- Follow-up: the Atlas shared implementation advanced to the hash-preserving
+  staging revision `20c93980f7c98f2e23a89c4a0540f16c8f2d7239`, while clean Tyche
+  default `10410f2de1ce1529ecbff50fa740b23a1c8f77b9` still pins `1fcd17c`.
+  Caller-only PR [#34](https://github.com/ryancinsight/tyche/pull/34) is at exact
+  head `c481e05`; hosted checks and the Atlas pointer advance remain open.
 
 ## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
