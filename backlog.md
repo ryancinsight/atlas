@@ -132,8 +132,8 @@ claim is inferred.
   merged at default `c76a55e5eb9988b48bba69e67d6e07ce5fe55ea8` after exact
   PR CI `32399070177`, MSRV `32399070178`, and book build `32399070626`
   passed. Post-merge CI `32402753573`, MSRV `32402753617`, and Pages/book
-  runs `32402754181`/`32402752669` remain queued; the Atlas gitlink is not
-  advanced until those default-head gates are terminal.
+  runs `32402754181`/`32402752669` remain queued. The Atlas gitlink already
+  equals that merged default; only terminal default-head evidence remains.
 
 - **RITK executable book gate:** current Atlas session claims the provider
   workflow caller and existing executable samples only, on the reusable

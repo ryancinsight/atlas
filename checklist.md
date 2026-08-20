@@ -16,8 +16,9 @@
       mdBook build, and strict links locally.
 - [x] Collect PR #27's hosted Rust and mdBook gates and merge at green exact
       head `35f46b4`; default is now `c76a55e5`.
-- [ ] Verify Themis post-merge CI, MSRV, and Pages/book runs, then advance the
-      Atlas gitlink without staging peer-owned source or lockfile work.
+- [ ] Verify Themis post-merge CI, MSRV, and Pages/book runs. The Atlas gitlink
+      already equals merged default `c76a55e5`; do not stage a pointer change
+      unless a newer verified provider default exists.
 
 ## ATLAS-LETO-BOOK-2026-08-20 — current session
 
