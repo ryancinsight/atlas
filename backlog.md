@@ -20,7 +20,10 @@ the changed workflow is adopted by a rerun of the RITK default book gate.
 **Owner:** current Atlas session. **Claimed files:**
 `.github/workflows/book-pages.yml`, `docs/adr/0035-shared-publication-pipelines.md`,
 `backlog.md`, `checklist.md`. The RITK gate remains open until a hosted rerun
-at the exact merged default is terminal green.
+at the exact merged default is terminal green. The RITK adoption caller is
+published as PR [#204](https://github.com/ryancinsight/ritk/pull/204) at exact
+head `9bc47d42f0d6050f4a68661c01d45806d41e583f`; CI run `32410451435` and
+shared book run `32410452203` are queued. `recurseml/analysis` is report-only.
 
 
 ## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — todo
