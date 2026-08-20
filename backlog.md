@@ -440,8 +440,8 @@ claim is inferred.
   `32413506489`/`32413507328` are queued.
 
 - **Live-tree conformance residual:** the local `python
-  scripts/atlas-conformance.py check --worktree` sweep at the current Atlas
-  head `72cc6eb` plus live peer state exits 1 with 13 regressions and 27
+  scripts/atlas-conformance.py check --worktree` sweep at audit revision
+  `72cc6eb` plus live peer state exits 1 with 13 regressions and 27
   tightening classes against the committed baseline. The regressions are
   CFDrs oversized files and existence-only assertions; stale Consus classes
   from a checkout 49 commits behind origin; Moirai production `SeqCst`; and
