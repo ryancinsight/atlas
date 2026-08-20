@@ -10,10 +10,11 @@
 ## ATLAS-HOSTED-RECHECK-2026-08-19-2 — current provider state [patch]
 
 - **Kwavers:** fetched `origin/main` is
-  `b571927442b074fb0622beabdf3f2535dff1951a`, the merge of PR #417's typed
-  Aequitas `Degree` adoption. The Atlas gitlink matches it and the exact-head,
-  overlay, registry, and lock-form gates pass. PR #418 remains held because
-  ADR 112 still states that Aequitas has no `Degree` unit.
+  `64b982bdbfc2b7e36f11971947f5bdd8ed59d1f1`, the merge of PR #418 after
+  ADR 112 was committed with its required Aequitas `Degree` surface. Atlas
+  still points at the preceding `b5719274` head until this integration
+  increment updates the root gitlink; the exact-head, overlay, registry, and
+  lock-form gates will be rerun against the new pointer.
 - **RITK:** fetched `origin/main` is
   `9e1c276a3c56324a1e429f71fa2fb14e3883f5d1`, the warning-free rustdoc
   increment. PR #194 adds finite release-job bounds at `337f0dc5`; its hosted
@@ -809,8 +810,8 @@ nested Harmonia checkout remains provider-owned state.
   artifacts are MSVC; no Horae source or pointer change is warranted, and the
   hosted Linux book gate remains the configured cross-platform book evidence.
 - **Kwavers pointer reconciliation:** the fetched provider default is
-  `25bf5deca84293ff7eb98ef82b6844e98f3439b4`, while Atlas still pointed at
-  `aa9a62e45c1f6327161b4e12ba6b3b10e147475d`. This increment advances only
+  `64b982bdbfc2b7e36f11971947f5bdd8ed59d1f1`, while Atlas still points at
+  `b571927442b074fb0622beabdf3f2535dff1951a`. This increment advances only
   the root gitlink to the fetched default; the peer-owned Kwavers checkout is
   dirty on `ff4dc868` and remains untouched.
 - **Integration recheck closeout:** root `a1fd1e4` passes the exact-head audit
@@ -855,11 +856,12 @@ nested Harmonia checkout remains provider-owned state.
   checks are pending. RecurseML reports an analyzer error only. Atlas remains
   at RITK `9e1c276a` until the provider default advances; no hosted success is
   inferred from pending checks.
-- **Kwavers PR #418 hold:** the ADR-only branch is mergeable but cannot merge
-  unchanged because ADR 112 says Aequitas has no `Degree` unit, contradicted by
-  the merged Kwavers PR #417/Aequitas provider surface. Its architecture record
-  must be rebased or corrected before merge; no stale documentation is
-  integrated into Atlas.
+- **Kwavers PR #418 closeout:** the ADR and convex-array rasterizer seam merged
+  at provider default `64b982bdbfc2b7e36f11971947f5bdd8ed59d1f1`. The fresh
+  default contains ADR 112, its index row, and the Aequitas `Degree` surface;
+  no stale architecture record remains in the provider default. Atlas advances
+  its gitlink in this integration increment while the primary checkout remains
+  dirty on peer branch `feat/aperture-sir-seam` and is not switched.
 - **Kwavers PR #417 closeout:** the typed `Degree` adoption merged at provider
   default `b571927442b074fb0622beabdf3f2535dff1951a`. Its Rust, Python-wheel,
   benchmark, feature, Miri, security, documentation, k-Wave, and architecture
