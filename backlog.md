@@ -7,7 +7,7 @@
 
 # Sweep 2026-08-13 — full-stack audit
 
-## ATLAS-PUBLISH-GRAPH-DOCS-2026-08-20 — refresh release graph counts [patch] — in progress
+## ATLAS-PUBLISH-GRAPH-DOCS-2026-08-20 — refresh release graph counts [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; root documentation only.
 - **Scope:** the current publish-graph statements in `README.md` and the
