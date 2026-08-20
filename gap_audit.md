@@ -13051,3 +13051,18 @@ Hosted CI run `32337268558` and Pages build `32337268946` pass at the exact
 PR head; the pull-request Pages deployment is correctly skipped. Local
 `mdbook build` and strict link scanning pass; local executable staging is
 limited by the shared Windows GNU/MSVC cache mismatch documented on the board.
+
+## Finding 2026-08-20: Mnemosyne executable book gate published
+
+Mnemosyne PR [#65](https://github.com/ryancinsight/Mnemosyne/pull/65) is open
+at exact source head `a527380dce3c02d3596aec9ca65a5a05025625d9`. The caller
+pins the shared Pages workflow at root commit
+`53eb15ae2fa7ee9192e5d006989a430269fdc881`, enables `mdbook-test`, selects
+Rust `1.97.0`, and stages package `mnemosyne-memory` under library target
+`mnemosyne`. Both included examples declare `extern crate mnemosyne` so the
+staged library is visible to rustdoc.
+
+Local package checks pass: format, example build, strict Clippy, nextest
+`25/25`, both runnable example outputs, Cargo doctests, mdBook build, and
+strict link scan. The original standalone mdBook failure was unresolved crate
+visibility; hosted Linux remains the acceptance evidence for package staging.

@@ -97,6 +97,16 @@
   Pages gate, and collect exact hosted CI/Pages evidence.
 - **Non-goals:** no allocator implementation, dependency, lockfile, or
   peer-owned worktree changes.
+- **Landed source:** provider commit
+  `a527380dce3c02d3596aec9ca65a5a05025625d9` on
+  `ci/mnemosyne-book-test`, PR
+  [#65](https://github.com/ryancinsight/Mnemosyne/pull/65); hosted verification
+  is pending at this exact head.
+- **Local evidence:** Rust 1.97.0 format, package example check, strict
+  package Clippy, nextest `25/25`, Cargo doctests `0/0`, both runnable example
+  outputs, mdBook build, and strict link scan pass. Standalone mdBook reaches
+  both inclusions and fails only before execution because the library is not
+  staged; the hosted Linux package-staging gate is authoritative.
 
 ## ATLAS-KWAVERS-DISTRIBUTED-QUEUE-2026-08-20 — close queue completion and deadline contracts [patch] — in progress
 
