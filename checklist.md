@@ -97,8 +97,12 @@
       leave the dirty primary gitlink untouched.
 - [x] Open Iris PR [#18](https://github.com/ryancinsight/iris/pull/18) at exact
       head `0d18109d`, based on merged default `8700418a`.
-- [ ] Collect PR and post-merge default gates before advancing the Atlas
-      gitlink.
+- [x] Collect PR #18 exact-head gates (`verify` and `supply-chain` pass;
+      `recurseml/analysis` report-only) and merge at exact head `0d18109d`
+      with an expected-head guard. The merged default is `636a261`.
+- [x] Collect post-merge default CI: run `32442164809` passes at
+      `636a2613775f`; Pages build `32442164004` is queued. Live-page evidence
+      and the Atlas gitlink advance remain pending the Pages terminal result.
 
 ## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — current session
 
@@ -111,8 +115,12 @@
 - [x] Publish the provider branch and open Asclepius PR
       [#24](https://github.com/ryancinsight/asclepius/pull/24) at exact head
       `390a3ff6`, based on merged default `ce3fea35`.
-- [ ] Collect PR and post-merge default gates before advancing the Atlas
-      gitlink.
+- [x] Collect PR #24 exact-head gates (`verify` and `supply-chain` pass;
+      `recurseml/analysis` report-only) and merge at exact head `390a3ff6`
+      with an expected-head guard. The merged default is `a38b8b5`.
+- [x] Collect post-merge default CI: run `32441333616` passes at
+      `a38b8b50d1de`; Pages build `32441332866` is queued. Live-page evidence
+      and the Atlas gitlink advance remain pending the Pages terminal result.
 
 ## ATLAS-BOOK-STAGING-2026-08-20 — current session
 
@@ -6243,9 +6251,9 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - [x] Committed and published provider branch `fix/asclepius-geud-gradient`
       at `390a3ff`; exact hosted compare against `2f6959b` reports one commit
       and one test file.
-- [ ] Open the draft Asclepius PR; blocked by GitHub connector HTTP 403
-      `Resource not accessible by integration`. Do not advance the Atlas
-      gitlink or claim hosted verification until the PR exists and passes.
+- [x] Open and merge Asclepius PR #24 at `390a3ff`; exact PR CI passed and
+      post-merge default CI run `32441333616` passes at `a38b8b50d1de`.
+      Pages/live-page verification and the Atlas gitlink remain pending.
 
 ## 2026-08-20 Themis branded-region module boundary
 

@@ -274,8 +274,11 @@ and duplicating `Magma` fails with `NamedColorMap::ALL repeats Magma`.
 The implementation is published as PR
 [#18](https://github.com/ryancinsight/iris/pull/18) at exact head
 `0d18109d4975f4220068bc631c433958bcaa4ed6`, based on merged default
-`8700418ab91781523d5ed848db93271d24382ea7`. Hosted checks are pending; the
-dirty primary Iris gitlink remains unchanged.
+`8700418ab91781523d5ed848db93271d24382ea7`. PR CI passed at run
+`32436073388`; PR #18 is merged. Post-merge default CI passed at
+`636a261377ce6a54549ea4cea0520537f9646c71` in run `32442164809`; Pages build
+`32442164004` remains queued. The dirty primary Iris gitlink remains unchanged
+until Pages and live-page verification are terminal.
 
 ## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — Add an independent Coeus gradient oracle [patch] — in progress
 
@@ -316,8 +319,11 @@ gradient/value-contract tests, including both independent gradient tests.
 The implementation is published as PR
 [#24](https://github.com/ryancinsight/asclepius/pull/24) at exact head
 `390a3ff60344034a841b0735d9c059231e7f0a8a`, based on merged default
-`ce3fea355f0989dcc92a321a1f923f6f30749da4`. Hosted checks are pending; the
-dirty primary Asclepius checkout and Atlas gitlink remain unchanged.
+`ce3fea355f0989dcc92a321a1f923f6f30749da4`. PR CI passed at run
+`32436064353`; PR #24 is merged. Post-merge default CI passed at
+`a38b8b50d1de1d23c08478e4b60d9e7bbd8eacf4` in run `32441333616`; Pages build
+`32441332866` remains queued. The dirty primary Asclepius checkout and Atlas
+gitlink remain unchanged until Pages and live-page verification are terminal.
 
 ## ATLAS-THEMIS-REGION-MODULE-2026-08-20 — Split branded region implementation [arch][patch] — in progress
 
