@@ -21,6 +21,37 @@
   clean lanes from fetched defaults before any provider source edit. No dirty
   checkout, branch, lockfile, or Atlas gitlink is changed by this design step.
 
+## ATLAS-KWAVERS-ALLOC-PROBE-DENY-DOCS-2026-08-21 — Pilot deny(missing_docs) [patch] — in progress
+
+The `missing_deny_docs` assessment found 114 of 118 flagged crates have
+undocumented public items, so the directive cannot be safely added without
+per-crate provider work. This pilot picks the one crate that is trivially
+safe — `kwavers-alloc-probe` — a single-file crate (no submodules) with
+every public item already documented, to demonstrate the pattern and drop
+the count by one.
+
+**Scope:** `crates/kwavers-alloc-probe/src/lib.rs` on a clean lane based on
+fetched `origin/main` `377a98c8`, plus root PM records.
+
+**Acceptance:** `#![deny(missing_docs)]` compiles without missing-docs errors;
+format, check, warning-denied Clippy, nextest, doctests, and rustdoc pass;
+the branch is published for review.
+
+**Implementation evidence (2026-08-21):** clean lane branch
+`fix/kwavers-alloc-probe-deny-docs` is based on fetched `origin/main`
+`377a98c8670bb4c8c2750a032b1418ceeab60172` and publishes commit
+`aa5ab2bc` — one line added after the existing
+`#![doc = include_str!("../README.md")]` attribute. Format, check, clippy
+(`-D warnings`), nextest (0 tests — probe library), doctests (1 ignored),
+and rustdoc all pass on the clean lane.
+
+Published as PR
+[#598](https://github.com/ryancinsight/kwavers/pull/598) at exact head
+`aa5ab2bc94ba31dbd5f7438aaef41195e9bf5c8e`. Hosted checks are the
+acceptance oracle; merge only at the exact PR head after terminal required
+checks. The dirty primary Kwavers checkout and Atlas gitlink remain
+unchanged.
+
 ## ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21 — Add defaults and NumPy protocols [minor] — in progress
 
 - The generator now records PyO3 defaults and keyword-only markers, translates
@@ -262,6 +293,20 @@
   head `124ef839e27a` (`test_kwave_array_per_element_superposition_reduces_to_shared_signal`
   fails against the freshly built extension); the Rust binding needs its own
   defect increment. All prior hosted evidence is stale at the new head.
+- **Continuation refinements (uncommitted at `60e871bad`, part of this
+  increment):** the generated stubs now pass mypy `--strict` — array aliases
+  are `TypeAlias`-annotated, `__init__` returns `None` (PEP 484), and
+  `__eq__` takes `other: object` (Liskov); the facade stub splits the eight
+  `kwave_parity` helpers from the extension import and declares
+  `__author__`/`__version__`. CI wiring: a `python-surface` job in `ci.yml`
+  runs `tools/generate_surface.py --check` (regen-and-diff gate) plus the
+  generator/typed-consumer tests with mypy installed; the wheel-smoke
+  `kwave-comparison` job runs the runtime export-inventory oracle against the
+  installed wheel (`KWAVERS_PYTHON_PACKAGE=installed`). The tracked abi3
+  `.whl` build artifact is removed from git. Local gates: `--check` passes,
+  generator staleness / typed-consumer / runtime-inventory tests pass (21
+  passed, 3 skipped in source mode; runtime oracle 16/16 against the installed
+  wheel).
 
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 

@@ -26,6 +26,23 @@
       (`backlog.md 9772 lines, 219 items, 0 would archive`,
       `checklist.md 6535 lines, 218 items, 0 would archive`).
 
+## ATLAS-KWAVERS-ALLOC-PROBE-DENY-DOCS-2026-08-21 — current session
+
+- [x] Select `kwavers-alloc-probe` as the pilot crate: single-file crate
+      (no submodules) with every public item already documented.
+- [x] Create clean lane `worktrees/kwavers-deny-docs` from fetched
+      `origin/main` `377a98c8`.
+- [x] Add `#![deny(missing_docs)]` after the existing
+      `#![doc = include_str!("../README.md")]` attribute — one line, zero
+      source changes beyond the directive.
+- [x] Run provider gates: format, check, clippy (`-D warnings`), nextest
+      (0 tests), doctests (1 ignored), rustdoc — all pass on the clean lane.
+- [x] Publish branch `fix/kwavers-alloc-probe-deny-docs` and open PR
+      [#598](https://github.com/ryancinsight/kwavers/pull/598) at exact head
+      `aa5ab2bc`.
+- [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
+      the post-merge default, then advance the Atlas gitlink.
+
 ## ATLAS-HYGIENE-BASELINE-001 — current conformance increment
 
 - [x] Reproduce the live-scan abort in a provider-local `.pytest_cache` and
@@ -48,6 +65,12 @@
       rewrite each `@<ref>` to `@<sha> # <ref>` in 5 workflow files, and verify
       both repos report 0 with no other class increasing. All overlaid files
       parse cleanly under `yaml.safe_load`.
+- [x] Assess `print_dbg = 366`: 31 sites are `build.rs` Cargo-protocol
+      false positives (scanner should exempt `cargo:` writes), ~50 are
+      xtask/scratch tooling, and ~285 are genuine library production debt
+      requiring per-site provider-level migration to a logging facade. Not a
+      safe mechanical sweep; recommended scanner fix for the build.rs
+      false positives.
 - [ ] Re-run the clean-revision ratchet after the provider workflow changes
       land and their parent gitlinks advance; do not baseline the current
       peer-dirty worktree result.
@@ -85,6 +108,15 @@
       freshly built abi3 wheel installed. Pre-existing finding recorded:
       `get_array_weighted_mask` returns all zeros for annular elements at
       lane head `124ef839e27a`; needs its own Rust binding defect increment.
+- [x] Harden the generated stubs under strict mypy and wire the CI gates.
+      `TypeAlias`-annotated array aliases, `__init__ -> None` (PEP 484), and
+      `__eq__(self, other: object)` (Liskov) make the stub pass mypy
+      `--strict`; the facade stub splits the eight `kwave_parity` helpers from
+      the extension import and declares `__author__`/`__version__`. The
+      generator `--check` regen-and-diff gate runs in a new `python-surface`
+      CI job (with the typed-consumer + generator pytest), and the wheel-smoke
+      `kwave-comparison` job runs the runtime export-inventory oracle against
+      the installed wheel. The tracked abi3 wheel artifact is removed from git.
 - [ ] Detach one complete `Simulation::run` slice and prove concurrent Python
       progress plus returned-value correctness before widening the migration.
 - [ ] Land the provider-generic migration in a clean, non-overlapping Kwavers
