@@ -96,6 +96,7 @@ harmonia = "0.1"
     def test_profiles_cover_all_three_integrators(self) -> None:
         self.assertEqual({profile.name for profile in audit.PROFILES}, {"CFDrs", "helios", "kwavers"})
         self.assertIn("wgpu", audit.PROFILES[0].forbidden_dependencies)
+        self.assertTrue(all("tyche" in profile.required_dependencies for profile in audit.PROFILES))
 
     def test_require_attribution_rejects_dirty_or_drifted_checkout(self) -> None:
         report = {

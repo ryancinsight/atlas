@@ -50,6 +50,7 @@ PROFILES = (
             "moirai",
             "themis",
             "hephaestus",
+            "tyche",
         ),
     ),
     IntegratorProfile(
@@ -71,6 +72,7 @@ PROFILES = (
             "mnemosyne",
             "themis",
             "gaia",
+            "tyche",
         ),
     ),
     IntegratorProfile(
@@ -93,6 +95,7 @@ PROFILES = (
             "mnemosyne",
             "gaia",
             "consus",
+            "tyche",
         ),
     ),
 )
