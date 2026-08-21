@@ -100,14 +100,17 @@
 
 ## ATLAS-EXACT-HEAD-RECHECK-2026-08-21 — Reconcile fetched provider defaults [patch] — done 2026-08-21
 
-- **Evidence:** `python scripts/atlas-provider-integration-audit.py
-  --provider-set requested-2026-08-14 --exact-heads --exact-head-workers 8`
-  completed against the current root. Seven requested providers match their
-  fetched defaults; 13 remain behind: Horae, Hyperion, Themis, Tyche, Helios,
-  Asclepius, Eunomia, Moirai, Melinoe, Leto, Apollo, Iris, and Kwavers.
+- **Latest evidence:** at root `f3afc40`, `python scripts/
+  atlas-provider-integration-audit.py --provider-set requested-2026-08-14
+  --exact-heads --exact-head-workers 8` exits 1 with 13 release-boundary
+  mismatches. The fetched defaults are Horae `d1332267`, Hyperion `3bc0e43d`,
+  Themis `2c074987`, Tyche `7d636471`, Helios `e886754d`, Asclepius
+  `a38b8b50`, Eunomia `834bd3b4`, Moirai `ff56d602`, Melinoe `922bd3be`,
+  Leto `fc0648ee`, Apollo `fd9ecd02`, Iris `636a2613`, and Kwavers
+  `cd87aec5`; each differs from its committed Atlas gitlink.
 - **Interpretation:** the mismatches are release-boundary watchpoints, not
-  source defects. The fetched Kwavers default moved again during this audit to
-  `f0785879`; no pointer update is safe without terminal provider evidence.
+  source defects. Provider refs can advance between local and hosted
+  snapshots; no pointer update is safe without terminal provider evidence.
 - **Residual:** the hosted monitor remains the authority for merge readiness;
   current failed, stale-base, and queued PRs remain filed in the hosted
   recheck above.
