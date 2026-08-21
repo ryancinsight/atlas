@@ -10,8 +10,9 @@ workflow that invokes ``mdbook test`` directly (Gaia's current contract).
 Members with neither a book manifest nor a book workflow are outside the
 book-bearing inventory. A member with only one side is reported as an
 incomplete inventory entry. Workflow wiring is not sufficient evidence: a
-book with no executable Rust fence is reported as vacuous coverage. The
-inventory and residual counts are derived from the committed gitlinks.
+book with no executable Rust fence in its ``SUMMARY.md`` sources is reported
+ as vacuous coverage. The inventory and residual counts are derived from the
+ committed gitlinks.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict, dataclass
 import json
+import posixpath
 import re
 import subprocess
 import sys
@@ -29,6 +31,7 @@ from atlas_stack import ROOT, registered_member_names  # noqa: E402
 
 
 BOOK_MANIFEST = "docs/book/book.toml"
+BOOK_SUMMARY = "docs/book/SUMMARY.md"
 BOOK_WORKFLOW = ".github/workflows/book-pages.yml"
 SHARED_INPUT_RE = re.compile(r"^\s*mdbook-test\s*:\s*true\s*(?:#.*)?$")
 DIRECT_COMMAND_RE = re.compile(
@@ -36,6 +39,7 @@ DIRECT_COMMAND_RE = re.compile(
     r"(?:!\s*)?(?:command\s+)?mdbook\s+test(?:\s|$)"
 )
 RUST_FENCE_RE = re.compile(r"^\s*```(?:rust|rs)(?P<attributes>(?:,[^\s]+)*)\s*$")
+SUMMARY_LINK_RE = re.compile(r"\]\((?P<target>[^)#]+)(?:#[^)]*)?\)")
 RUN_RE = re.compile(r"^(?P<indent>\s*)(?:-\s+)?run:\s*(?P<body>.*)$")
 
 
@@ -139,14 +143,32 @@ def classify_coverage(
     return gate, reason
 
 
-def _book_fence_counts(member: str, gitlink: str) -> tuple[int, int]:
-    """Count Rust fences and executable Rust fences at a committed gitlink."""
+def _summary_sources(summary: str) -> tuple[str, ...]:
+    """Return Markdown sources rendered by a book's ``SUMMARY.md``."""
+    sources = {BOOK_SUMMARY}
+    for match in SUMMARY_LINK_RE.finditer(summary):
+        target = match.group("target").strip()
+        if not target or target.startswith(("#", "/")) or target.lower().startswith(
+            ("http://", "https://", "mailto:")
+        ):
+            continue
+        source = posixpath.normpath(posixpath.join("docs/book", target))
+        if source.startswith("docs/book/") and source.endswith(".md"):
+            sources.add(source)
+    return tuple(sorted(sources))
+
+
+def _book_fence_counts(member: str, gitlink: str, summary: str) -> tuple[int, int]:
+    """Count executable Rust fences in rendered book sources."""
+    sources = set(_summary_sources(summary))
+    if not sources:
+        return 0, 0
     code, output, _ = _git(
         "-C",
         str(ROOT / "repos" / member),
         "grep",
         "-I",
-        "-h",
+        "-n",
         "-E",
         r"^[[:space:]]*```(rust|rs)(,[^[:space:]]+)*[[:space:]]*$",
         gitlink,
@@ -159,7 +181,16 @@ def _book_fence_counts(member: str, gitlink: str) -> tuple[int, int]:
     rust_fences = 0
     executable = 0
     for line in output.splitlines():
-        match = RUST_FENCE_RE.match(line)
+        _, separator, record = line.partition(":")
+        if separator == "":
+            continue
+        path, separator, record = record.partition(":")
+        if separator == "" or path not in sources:
+            continue
+        _, separator, content = record.partition(":")
+        if separator == "":
+            continue
+        match = RUST_FENCE_RE.match(content)
         if match is None:
             continue
         rust_fences += 1
@@ -197,7 +228,10 @@ def audit() -> list[BookGate]:
                 )
             )
             continue
-        rust_fences, executable = _book_fence_counts(member, gitlink)
+        summary = _at_gitlink(member, gitlink, BOOK_SUMMARY)
+        rust_fences, executable = _book_fence_counts(
+            member, gitlink, summary or ""
+        )
         gate, reason = classify_coverage(
             *classify_workflow(workflow), executable
         )

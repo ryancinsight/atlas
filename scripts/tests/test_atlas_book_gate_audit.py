@@ -118,6 +118,21 @@ fn executes() {}
         )
         self.assertEqual(executable, 1)
 
+    def test_summary_sources_exclude_orphaned_and_external_documents(self) -> None:
+        summary = """
+# Summary
+- [Included](chapter.md)
+  - [Nested](examples/sample.md#result)
+- [External](https://example.com/chapter.md)
+- [Anchor](#local)
+- [Parent](../outside.md)
+"""
+        self.assertEqual(
+            audit._summary_sources(summary),
+            ("docs/book/SUMMARY.md", "docs/book/chapter.md",
+             "docs/book/examples/sample.md"),
+        )
+
     def test_combined_check_reports_missing_gate(self) -> None:
         result = audit.BookGate("apollo", "abc123", True, True, "none", "no gate")
         stderr = io.StringIO()

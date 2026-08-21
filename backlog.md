@@ -855,8 +855,13 @@ than workflow wiring alone. Its exact-root run reports 19 valid shared callers,
 three vacuous callers (Gaia's direct workflow, Helios, and Kwavers), and three
 callers with no gate (Consus, Hephaestus, and RITK); `--check` passes while
 `--check --require-gates` fails with those six residuals. The full root Python
-suite passes 216 tests in 6.31 seconds. This closes the audit-tool defect, not
+suite passes 217 tests in 6.45 seconds. This closes the audit-tool defect, not
 the provider-owned sample work.
+
+The checker also limits fence evidence to Markdown sources linked from each
+committed `SUMMARY.md`; orphaned files under `docs/book` cannot satisfy the
+gate. The focused book-audit tests and the full root Python suite remain green
+after this source-boundary correction.
 
 ## ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20 — Ship the typed Python surface [patch] — in progress
 
