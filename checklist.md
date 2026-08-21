@@ -192,6 +192,15 @@
 - [ ] Collect PR #53's rerun and terminal book gate, merge at its exact head,
       and rerun the 25-book inventory so Consus leaves the missing-gate set.
 
+## ATLAS-CONSUS-SZIP-BOUND-2026-08-20 — current session
+
+- [x] Review the untrusted SZIP header path and confirm the allocation risk
+      through the provider's hosted fuzz and package checks.
+- [x] Merge Consus PR [#51](https://github.com/ryancinsight/consus/pull/51)
+      from exact head `2e24e6ad` at default `1000699fa`.
+- [ ] Collect post-merge CI and Documentation runs `32436374114` and
+      `32436374130` before closing the security item.
+
 ## ATLAS-TYCHE-BOOK-PIN-2026-08-20 — current session
 
 - [x] Refresh Tyche's caller-only Atlas workflow pin from `1fcd17c` to the
