@@ -40,8 +40,17 @@
       `recurseml/analysis` report-only) and merge at exact head `0f7d5801`
       with an expected-head guard. The merged default is `d133226`.
 - [x] Collect post-merge CI run `32441333101`; it passes at `d133226`. Pages
-      run `32441332430` remains queued; live-page verification and the gitlink
-      advance remain pending.
+      run `32441332430` now passes at `d133226`; live Horae Pages returns HTTP
+      200 with title `Horae | horae`. The pointer remains unchanged until the
+      stage-time oracle increment below is delivered.
+- [x] Reproduce the merged PR #25 review finding that the autonomous fixture
+      ignores stage time; add the exact non-autonomous `y' = t + y`, `y(0) = 1`
+      oracle on the clean `fix/horae-stage-time-oracle` lane.
+- [x] Collect the stage-time lane's full provider gates: locked all-featured
+      Nextest 26/26, no-default-features check, warning-denied all-target
+      Clippy, doctests 1/1, and warning-denied Rustdoc.
+- [ ] Collect hosted terminal evidence for PR #26 and then advance the Atlas
+      gitlink from `a05dbeb` to the resulting merged default.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — current session
 

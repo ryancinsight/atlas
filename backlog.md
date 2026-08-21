@@ -162,8 +162,8 @@
   mode does not inspect nested worktree cleanliness, while each snapshot
   revision equals its committed gitlink. The default worktree mode remains a
   separate dirty-checkout diagnostic.
-- **Verification:** `python -m pytest scripts/tests -q` passes 309 tests and
-  77 subtests in 9.92 seconds. The audit output is static evidence; it does
+- **Verification:** `python -m pytest scripts/tests -q` passes 310 tests and
+  77 subtests in 9.67 seconds. The audit output is static evidence; it does
   not substitute for provider-native Rust/Python gates, hosted CI, wheel,
   Pages, or live-page verification.
 
@@ -179,8 +179,8 @@
   or Git-read evidence fails closed instead of becoming omission or vacuous
   coverage. Exact-head queries also verify nested `origin` against the committed
   `.gitmodules` URL before reading remote refs.
-- **Evidence:** focused provider, multiphysics, and book-audit tests pass 60/60;
-  the full `python -m pytest scripts/tests -q` suite passes 309 tests and 77
+- **Evidence:** focused provider, multiphysics, and book-audit tests pass 61/61;
+  the full `python -m pytest scripts/tests -q` suite passes 310 tests and 77
   subtests. The exact multiphysics audit still reports only the three known
   integrator/provider findings, while the book audit remains red only for the
   existing Consus, Gaia, Helios, and Kwavers coverage gaps.
