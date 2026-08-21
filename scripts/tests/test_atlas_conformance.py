@@ -361,6 +361,11 @@ class AtlasConformanceTestCase(unittest.TestCase):
                 "book/custom/Cargo.toml",
                 "[package]\nname = 'bookdecoy'\n",
             )
+            _write(
+                root,
+                ".pytest_cache/decoy/Cargo.toml",
+                "[package]\nname = 'pytestdecoy'\n",
+            )
 
             manifests = sorted(
                 p.relative_to(root).as_posix()

@@ -3,6 +3,18 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-HYGIENE-BASELINE-001 — current conformance increment
+
+- [x] Reproduce the live-scan abort in a provider-local `.pytest_cache` and
+      verify the directory is derived state, not a source root.
+- [x] Extend the shared scanner prune set for Python caches/environments and
+      add a decoy-manifest regression fixture; focused suite passes 21/21.
+- [x] Reconcile the stale Athena worktree inference against the detached,
+      gitlink-aligned checkout; preserve only verified facts in the audit.
+- [ ] Re-run the clean-revision ratchet after the provider workflow changes
+      land and their parent gitlinks advance; do not baseline the current
+      peer-dirty worktree result.
+
 ## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — current session
 
 - [x] Reproduce the remaining ownership split against fetched Kwavers default:

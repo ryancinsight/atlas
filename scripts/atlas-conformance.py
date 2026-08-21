@@ -46,7 +46,11 @@ from atlas_stack import ROOT, is_git_ignored, staleness_note
 
 BASELINE = ROOT / "scripts" / "conformance-baseline.json"
 
-PRUNE_DIRS = {".git", "worktrees", "__pycache__", "node_modules", ".claude", "book"}
+PRUNE_DIRS = {
+    ".git", "worktrees", "__pycache__", "node_modules", ".claude", "book",
+    ".pytest_cache", ".ruff_cache", ".mypy_cache", ".tox", ".nox", ".venv",
+    "venv",
+}
 TEST_PATH_PARTS = {"tests", "benches", "examples", "fuzz"}
 
 SANCTIONED_ROOT = {
@@ -233,6 +237,9 @@ def count_excess_worktrees(repo: Path) -> int:
     violation it cannot substantiate.
     """
     git_dir = repo / ".git"
+    # A checkout may expose a real `.git` directory (as athena currently
+    # does) instead of the gitdir file used by ordinary submodules. Keep
+    # the directory form observable rather than guessing its provenance.
     if not git_dir.is_dir():
         # Submodule — .git is a file; read the actual gitdir
         if git_dir.is_file():

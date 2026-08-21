@@ -8,6 +8,9 @@
 	active = true
 [submodule "repos/athena"]
 	path = repos/athena
+# The current checkout has a directory at `repos/athena/.git`, unlike the
+# other gitlinks. Preserve that local layout until a reproducible migration
+# decision is recorded; this comment does not assert why it exists.
 	url = https://github.com/ryancinsight/athena
 	active = true
 [submodule "repos/CFDrs"]
