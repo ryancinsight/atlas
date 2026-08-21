@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-REMOTE-HEAD-AUDIT-2026-08-21 — Verify provider defaults from remote refs [patch] — in progress
+## ATLAS-REMOTE-HEAD-AUDIT-2026-08-21 — Verify provider defaults from remote refs [patch] — done 2026-08-21
 
 - **Owner:** Atlas integration. **Claimed files:**
   `scripts/atlas-provider-integration-audit.py`, its focused test, and this
@@ -16,6 +16,11 @@
   the root gitlink comparison and worker behavior, and has a regression test
   proving the symbolic default branch and remote commit are selected. Output
   names the source as the remote default, not a fetched local ref.
+- **Evidence:** `31` focused provider-audit tests pass. The exact-head run
+  queries the current remote default for every selected provider and remains
+  red only for the 13 known gitlink drifts; the live Kwavers remote advanced
+  from `b7256314` during this recheck to `06ab560e`, demonstrating why local
+  remote-tracking refs are not a sufficient oracle.
 
 ## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — in progress
 
@@ -105,8 +110,10 @@
   package jobs remain pending; no named PR is merge-ready. Current provider
   defaults are Proteus `73c6c813`, Asclepius `a38b8b50`, Consus `1000699f`,
   Helios `e886754d`, Hephaestus `7e09efa`, Gaia `dbed97a`, and Iris `636a261`.
-  Kwavers `main` advanced to `ffdba11f`; its CI, architecture, legacy-audit,
-  and mdBook runs are queued.
+  Kwavers `main` was observed at `ffdba11f` by the hosted snapshot; a later
+  direct remote query observed `06ab560e`, so the hosted snapshot is not used
+  as the current head oracle. Its CI, architecture, legacy-audit, and mdBook
+  runs remain queued or superseded.
 - **Negative evidence:** Helios #55 and Kwavers #439/#440/#443/#444 have
   terminal validation failures; Kwavers #424 has terminal checks but a stale
   base. Consus #53 and Helios #69 also target stale bases, and no newly
@@ -117,17 +124,19 @@
 
 ## ATLAS-EXACT-HEAD-RECHECK-2026-08-21 — Reconcile fetched provider defaults [patch] — done 2026-08-21
 
-- **Latest evidence:** at root `f3afc40`, `python scripts/
+- **Latest evidence:** `python scripts/
   atlas-provider-integration-audit.py --provider-set requested-2026-08-14
-  --exact-heads --exact-head-workers 8` exits 1 with 13 release-boundary
-  mismatches. The fetched defaults are Horae `d1332267`, Hyperion `3bc0e43d`,
+  --exact-heads --exact-head-workers 8` now queries remote default branches
+  directly and exits 1 with 13 release-boundary
+  mismatches. The remote defaults observed are Horae `d1332267`, Hyperion `3bc0e43d`,
   Themis `2c074987`, Tyche `7d636471`, Helios `e886754d`, Asclepius
   `a38b8b50`, Eunomia `834bd3b4`, Moirai `ff56d602`, Melinoe `922bd3be`,
   Leto `fc0648ee`, Apollo `fd9ecd02`, Iris `636a2613`, and Kwavers
-  `cd87aec5`; each differs from its committed Atlas gitlink.
+  `06ab560e`; each differs from its committed Atlas gitlink at query time.
 - **Interpretation:** the mismatches are release-boundary watchpoints, not
-  source defects. Provider refs can advance between local and hosted
-  snapshots; no pointer update is safe without terminal provider evidence.
+  source defects. Provider refs can advance between local, hosted, and direct
+  remote snapshots; no pointer update is safe without terminal provider
+  evidence.
 - **Residual:** the hosted monitor remains the authority for merge readiness;
   current failed, stale-base, and queued PRs remain filed in the hosted
   recheck above.

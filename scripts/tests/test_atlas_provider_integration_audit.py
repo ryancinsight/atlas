@@ -567,19 +567,29 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                     "run",
                     side_effect=(
                         subprocess.CompletedProcess(
-                            args=["git"], returncode=0, stdout="origin/master\n", stderr=""
+                            args=["git"],
+                            returncode=0,
+                            stdout="ref: refs/heads/master\tHEAD\n"
+                            "abc123\tHEAD\n",
+                            stderr="",
                         ),
                         subprocess.CompletedProcess(
-                            args=["git"], returncode=1, stdout="", stderr=""
-                        ),
-                        subprocess.CompletedProcess(
-                            args=["git"], returncode=0, stdout="abc123\n", stderr=""
+                            args=["git"],
+                            returncode=0,
+                            stdout="abc123\trefs/heads/master\n",
+                            stderr="",
                         ),
                     ),
-                ):
+                ) as remote_run:
                     ref, commit, error = audit._provider_remote_head("hephaestus")
 
         self.assertEqual((ref, commit, error), ("origin/master", "abc123", None))
+        self.assertTrue(
+            all(
+                call.kwargs["timeout"] == audit.REMOTE_HEAD_TIMEOUT_SECONDS
+                for call in remote_run.call_args_list
+            )
+        )
 
     def test_requested_provider_set_uses_twenty_scope(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:

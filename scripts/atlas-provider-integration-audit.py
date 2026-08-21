@@ -92,6 +92,7 @@ PROVIDER_ALIASES = {
 # Keep the Cargo-backed coherence probe bounded below the root conformance job
 # budget while allowing a cold local version-guard build to finish.
 COHERENCE_TIMEOUT_SECONDS = 120
+REMOTE_HEAD_TIMEOUT_SECONDS = 30
 
 
 def _read(path: Path) -> str:
@@ -170,33 +171,64 @@ def _gitlink_commits(providers: tuple[str, ...]) -> dict[str, str]:
 
 
 def _provider_remote_head(provider: str) -> tuple[str | None, str | None, str | None]:
-    """Return a provider's fetched default ref and commit, if available."""
+    """Return a provider's authoritative remote default ref and commit."""
     provider_path = ROOT / "repos" / provider
     if not provider_path.is_dir():
         return None, None, f"repos/{provider} is not initialized"
 
-    returncode, symbolic_ref, _ = _git_output(
-        "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD",
-        cwd=provider_path,
+    def remote_query(*arguments: str) -> tuple[int, str, str]:
+        try:
+            process = subprocess.run(
+                ["git", *arguments],
+                cwd=provider_path,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=REMOTE_HEAD_TIMEOUT_SECONDS,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return (
+                124,
+                "",
+                f"git {' '.join(arguments)} timed out after "
+                f"{REMOTE_HEAD_TIMEOUT_SECONDS}s",
+            )
+        except OSError as exc:
+            return 127, "", str(exc)
+        return process.returncode, process.stdout.strip(), process.stderr.strip()
+
+    symbolic_code, symbolic_output, symbolic_error = remote_query(
+        "ls-remote", "--symref", "origin", "HEAD"
     )
-    # A provider checkout may have `origin/HEAD` pointing at the currently
-    # checked-out feature branch. Atlas integration is against the provider's
-    # default branch, so explicit main/master refs take precedence over that
-    # symbolic convenience ref.
-    candidates = ["origin/main", "origin/master"]
-    if returncode == 0 and symbolic_ref:
-        candidates.append(symbolic_ref)
-    seen: set[str] = set()
-    for ref in candidates:
-        if not ref or ref in seen:
-            continue
-        seen.add(ref)
-        returncode, commit, _ = _git_output(
-            "rev-parse", "--verify", ref, cwd=provider_path
+    branches: list[str] = []
+    if symbolic_code == 0:
+        for line in symbolic_output.splitlines():
+            fields = line.split()
+            if len(fields) >= 2 and fields[0] == "ref:" and fields[1].startswith(
+                "refs/heads/"
+            ):
+                branches.append(fields[1].removeprefix("refs/heads/"))
+                break
+    elif symbolic_error:
+        symbolic_error = f"remote default query failed: {symbolic_error}"
+
+    # Main/master are the supported Atlas provider default names. They remain
+    # fallbacks when a hosting service omits the symbolic HEAD response.
+    branches.extend(branch for branch in ("main", "master") if branch not in branches)
+    errors: list[str] = [symbolic_error] if symbolic_error else []
+    for branch in branches:
+        returncode, output, error = remote_query(
+            "ls-remote", "origin", f"refs/heads/{branch}"
         )
-        if returncode == 0 and commit:
-            return ref, commit, None
-    return None, None, f"repos/{provider} has no fetched origin default head"
+        fields = output.split()
+        if returncode == 0 and fields:
+            return f"origin/{branch}", fields[0], None
+        if error:
+            errors.append(f"origin/{branch}: {error}")
+    detail = "; ".join(errors) if errors else "no remote default branch found"
+    return None, None, f"repos/{provider} remote default unavailable ({detail})"
 
 
 def _exact_head_issues(
@@ -413,7 +445,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--exact-heads",
         action="store_true",
-        help="verify committed provider gitlinks against fetched origin defaults",
+        help="verify committed provider gitlinks against current remote defaults",
     )
     parser.add_argument(
         "--exact-head-workers",
@@ -629,9 +661,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"- {AUDIT_ID} closed across root records")
     print(f"- naming normalization retained: {NAME_NORMALIZATION}")
     if args.exact_heads:
-        print("- committed provider gitlinks match fetched origin defaults")
+        print("- committed provider gitlinks match current remote origin defaults")
         print(
-            "- integrator gitlinks match fetched origin defaults: "
+            "- integrator gitlinks match current remote origin defaults: "
             + ", ".join(INTEGRATOR_REPOS)
         )
     if args.require_clean_checkouts:
