@@ -99,18 +99,54 @@ def compact(path: Path, archive_heading: str) -> tuple[int, int, int]:
     before = len(lines)
     preamble, items = split_items(lines)
 
+    # If the file already carries the archive section, peel it off before
+    # classifying items so its body is preserved verbatim. A subsequent run
+    # would otherwise roll the existing one-line entries into a single
+    # `(unnumbered) Archive` line and lose the per-item navigability the
+    # AGENTS compaction rule is meant to preserve.
+    preserved_archive: list[str] = []
+    kept_items: list[tuple[str, list[str]]] = []
+    for heading, body in items:
+        if heading.startswith(archive_heading):
+            preserved_archive = body
+            # Strip the introductory paragraph (one or more blank-prefixed
+            # lines) so we don't double-print the heading's leading blurb.
+            while preserved_archive and not preserved_archive[0].startswith("- "):
+                preserved_archive.pop(0)
+            if preserved_archive and not preserved_archive[0]:
+                preserved_archive.pop(0)
+        else:
+            kept_items.append((heading, body))
+
     live: list[str] = []
     archived: list[str] = []
-    for heading, body in items:
+    for heading, body in kept_items:
         if is_closed(heading):
             archived.append(archive_line(heading, body))
         else:
             live.append(heading)
             live.extend(body)
 
+    # Drop any item IDs already covered by the preserved archive so the
+    # merged section stays deduplicated.
+    preserved_ids: set[str] = set()
+    for line in preserved_archive:
+        m = re.match(r"^\s*-\s+\*\*([^*]+)\*\*", line)
+        if m:
+            preserved_ids.add(m.group(1))
+    if preserved_ids:
+        archived = [
+            line for line in archived
+            if not (m := re.match(r"^\s*-\s+\*\*([^*]+)\*\*", line))
+            or m.group(1) not in preserved_ids
+        ]
+
     out = list(preamble)
     out.extend(live)
-    if archived:
+    if preserved_archive or archived:
+        # Trim trailing blanks so successive runs don't accumulate padding.
+        while out and not out[-1].strip():
+            out.pop()
         out.append("")
         out.append(archive_heading)
         out.append("")
@@ -119,11 +155,19 @@ def compact(path: Path, archive_heading: str) -> tuple[int, int, int]:
             "SHAs below are the entry points."
         )
         out.append("")
-        out.extend(archived)
-        out.append("")
+        out.extend(preserved_archive)
+        if archived:
+            if preserved_archive and preserved_archive[-1].strip():
+                out.append("")
+            out.extend(archived)
 
     path.write_text("\n".join(out) + "\n", encoding="utf-8")
-    return before, len(out), len(archived)
+    new_archived = len(archived)
+    return before, len(out), new_archived
+
+    path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    new_archived = len(archived)
+    return before, len(out), new_archived
 
 
 def main() -> int:
@@ -143,9 +187,13 @@ def main() -> int:
         if args.dry_run:
             lines = path.read_text(encoding="utf-8").splitlines()
             _, items = split_items(lines)
-            closed = sum(1 for h, _ in items if is_closed(h))
-            print(f"{path.name}: {len(lines)} lines, {len(items)} items, "
-                  f"{closed} would archive, {len(items) - closed} stay live")
+            kept = [
+                (h, b) for h, b in items
+                if not h.startswith(heading)
+            ]
+            closed = sum(1 for h, _ in kept if is_closed(h))
+            print(f"{path.name}: {len(lines)} lines, {len(kept)} items, "
+                  f"{closed} would archive, {len(kept) - closed} stay live")
             continue
         before, after, n = compact(path, heading)
         print(f"{path.name}: {before} -> {after} lines ({n} items archived)")
