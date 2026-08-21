@@ -712,6 +712,17 @@ Kwavers independently drifts `0e78648`→`85d00716`. These are not local
 implementation failures: the associated post-merge hosted runs are queued,
 and the Atlas pointers remain unchanged until terminal default evidence.
 
+**Hosted exact-head collection (2026-08-20):** the read-only audit matched all
+27 queried PR/default run sets to their recorded `head_sha`. The active source
+PRs Horae #25, Hyperion #23, Themis #29, Asclepius #24, Helios #69, Melinoe
+#20, Leto #120, Iris #18, and Consus #53 have only queued repository-owned
+checks at collection time. Merged-default runs for Helios, Mnemosyne,
+Hephaestus, Hermes, and Consus remain queued or in progress; the other listed
+merged defaults have terminal provider checks, but Pages evidence is not
+uniformly terminal and live-page verification is still outstanding. No
+repository-owned terminal failure was found. `recurseml/analysis` failures are
+report-only. No pointer advancement is authorized by this collection.
+
 **Independent audit findings (2026-08-20):**
 
 - **P0:** Kwavers `crates/kwavers-solver/src/forward/elastic/swe/gpu/solver.rs`
