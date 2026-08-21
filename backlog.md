@@ -12195,7 +12195,12 @@ committed baseline — the overlay config was caught by a build failure instead,
 so this is a complement to, not a replacement for, generated-artifact validation
 (now gated by `atlas-stack-overlay.py check`).
 
-## ATLAS-BOARD-DELIVERY-AUDIT-101 — advisory sweep for undelivered done-claims [patch] — todo
+## ATLAS-BOARD-DELIVERY-AUDIT-101 — advisory sweep for undelivered done-claims [patch] — in-progress
+
+- **Owner / claim:** Codex, `scripts/atlas-board-delivery-audit.py`, its focused
+  unittest module, and this board item; claimed 2026-08-21. Scope is report-only
+  audit tooling and evidence synchronization. No provider source, gitlink,
+  branch, PR, or merge action is changed.
 
 **Outcome.** A committed script that, for every done/merged row of this board,
 resolves each cited commit hash in the owning member and reports those that are
