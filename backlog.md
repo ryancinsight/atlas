@@ -160,7 +160,7 @@
   These are real provider/integrator gaps, not suppressed findings.
 - **Provider-side closures already in review:** CFDrs PR
   [#360](https://github.com/ryancinsight/CFDrs/pull/360) at
-  `e7a1c9e8` contains the GIL-detached binding paths, `cfd_python.pyi`, and
+  `a5a92bfc` contains the GIL-detached binding paths, `cfd_python.pyi`, and
   `py.typed`; Helios PR [#69](https://github.com/ryancinsight/helios/pull/69)
   at `7a973331` contains its typed metadata and executable Compton book
   oracle. Neither is root evidence until required hosted checks, merge, and
@@ -8016,8 +8016,9 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   ships the abi3 typed boundary and GIL-release changes. Provider-local
   evidence is a release wheel containing `cfd_python.pyi` and `py.typed`,
   installed-wheel pytest `4/4`, strict mypy consumer validation, and complete
-  runtime export coverage. Hosted exact-head verification and the trusted-
-  publishing caller remain open; the Atlas CFDrs gitlink is unchanged.
+  runtime export coverage. Follow-up commit `a5a92bfc` pins the caller's
+  `atlas-ref` to Atlas `ad22ec5e`. Hosted exact-head verification, merge, and
+  post-merge evidence remain open; the Atlas CFDrs gitlink is unchanged.
 
 ### ATLAS-HELIOS-BOOK-TEST-002 — Enable Helios `mdbook test` in the shared Pages caller [patch] — done 2026-08-17
 
