@@ -717,6 +717,17 @@ with expected titles for `https://ryancinsight.github.io/themis/`,
 `c441acff`, `1000699f`, and `22a02b18`. No nested checkout or provider source
 is changed. The remaining queued or 404 endpoints stay unadvanced.
 
+**Live URL correction (2026-08-21):** the prior lowercase probes for Mnemosyne
+and Moirai were not canonical GitHub Pages paths. Their repository names are
+case-sensitive in the deployed paths: `/Mnemosyne/` and `/Moirai/` return HTTP
+200 with the expected book titles. The earlier 404 observation is retained as
+the lowercase-probe result, not as a deployment failure.
+
+**Coordinator claim (2026-08-21, third slice):** Atlas-Codex owns the
+root-only pointer and evidence synchronization for Mnemosyne and Moirai.
+Claimed scope is their two root gitlinks plus this item in `backlog.md`; no
+provider source, nested checkout, or peer PM file is included.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
