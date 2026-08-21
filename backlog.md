@@ -834,11 +834,11 @@ violations: Kwavers has five working trees including detached `D:/tmp/kw-verify`
 outside the canonical lane root, and Leto has three trees. No lane was removed
 or switched.
 
-The exact-head provider audit matches only Apollo; the other 19 requested
-gitlinks are behind their fetched provider defaults and remain pointer-update
-watchpoints until the separate hosted monitor supplies terminal PR/default
-CI, Pages, and live-page evidence. Live conformance reports are diagnostic
-only on peer-dirty trees: CFDrs has 88 `allow` sites, 150 existence-only
+The earlier exact-head snapshot matched only Apollo; the current refresh below
+supersedes that count. The other findings remain pointer-update watchpoints
+until the separate hosted monitor supplies terminal PR/default CI, Pages, and
+live-page evidence. Live conformance reports are diagnostic only on peer-dirty
+trees: CFDrs has 88 `allow` sites, 150 existence-only
 assertions, and 139 oversized files; Kwavers has 309 `allow` sites, 265
 existence-only assertions, 229 production unwraps, 111 oversized files, and
 three excess worktrees; Helios has two existence-only assertions and seven
@@ -859,6 +859,16 @@ callers with no gate (Consus, Hephaestus, and RITK); `--check` passes while
 `--check --require-gates` fails with those six residuals. The full root Python
 suite passes 217 tests in 6.45 seconds. This closes the audit-tool defect, not
 the provider-owned sample work.
+
+The exact-head run at root `d043b3b` refreshed all fetched provider defaults
+with eight workers. Apollo and Coeus are the only requested-provider gitlinks
+at their fetched defaults. The other 18 requested providers—Horae, Hyperion, Themis,
+Tyche, Proteus, Mnemosyne, Consus, Helios, Hermes, Aequitas, Asclepius,
+Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus, and Iris remain behind their
+fetched defaults; the separately queried Kwavers integrator is also behind its
+default. The same run reports no requested-provider coherence issue; these
+pointer drifts are expected post-merge watchpoints and remain gated on terminal
+hosted evidence.
 
 Tyche's previously outstanding structural report is now closed by a targeted
 read-only run: `python scripts/atlas-provider-integration-audit.py
