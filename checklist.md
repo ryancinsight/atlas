@@ -196,6 +196,8 @@
       fences; exact PR head is now `0f4af6c`.
 - [ ] Collect PR #53's rerun and terminal book gate, merge at its exact head,
       and rerun the 25-book inventory so Consus leaves the missing-gate set.
+- [x] Close superseded Consus PR #52 after verifying that PR #53 contains its
+      caller change plus the executable examples and fence repairs.
 
 ## ATLAS-CONSUS-SZIP-BOUND-2026-08-20 — current session
 

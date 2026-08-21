@@ -609,6 +609,10 @@ boundary repairs at exact head
 `0f4af6cf64828063480f824f301e524a78b6745e`; the book rerun is queued. No
 Consus implementation, lockfile, or peer-owned checkout changed.
 
+Consus PR #52 was verified as a strict subset of #53 and used an intermediate
+workflow pin. It was closed as superseded and its branch deleted; #53 is the
+only active caller/book-gate change.
+
 ## ATLAS-CONSUS-SZIP-BOUND-2026-08-20 — Bound SZIP allocation [security][patch] — in progress
 
 The SZIP decoder previously trusted a four-byte sample count from a seven-byte
