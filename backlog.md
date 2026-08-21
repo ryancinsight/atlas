@@ -828,6 +828,15 @@ Aequitas as quantity SSOT, and the later CFDrs/Kwavers/Helios adapter path.
 **Owner:** current Atlas session. **Claimed files:** this root item and the
 Harmonia clean lane only. The Apollo hosted-gate monitor remains separate.
 
+**Current increment:** Harmonia commit `944eafebb5045a24b8353964d1a0700a2cb62098`
+implements the contract and is published as [PR #9](https://github.com/ryancinsight/harmonia/pull/9).
+The clean lane passed `cargo clippy --all-targets --all-features --locked -- -D warnings`,
+`cargo nextest run --locked` (29 passed, 0 skipped),
+`cargo test --doc --locked`, `cargo doc --no-deps --locked`, and
+`cargo check --release --locked`. The root ADR and generated index are in
+`c39f12a`; the root commit is pushed. Hosted PR checks are monitored separately
+and remain non-terminal until collected.
+
 **Outcome:** close the remaining cross-cutting correctness and evidence
 deficits in the order below, so that a green gate means what it claims.
 
