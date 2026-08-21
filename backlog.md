@@ -176,6 +176,51 @@ acceptance oracle; merge only at the exact PR head after terminal required
 checks. The dirty primary CFDrs checkout and Atlas gitlink remain
 unchanged.
 
+## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — Migrate turbulence validation println! to tracing [patch] — in progress
+
+The `cfd-2d` crate's turbulence validation modules have 60
+`println!`/`print!` calls in their `src/` tree — informational output,
+bench summaries, and warning/failure messages produced during turbulence
+model and constants validation. These direct stdout writes are `print_dbg`
+conformance debt. The crate already depends on `tracing` in its
+`Cargo.toml`.
+
+**Scope:** `crates/cfd-2d/src/physics/turbulence/validation/mod.rs`,
+`crates/cfd-2d/src/physics/turbulence/constants_validation/mod.rs`, and
+`crates/cfd-2d/src/physics/turbulence/constants_validation/sensitivity.rs`
+on a clean lane based on fetched `origin/main` `aa54f5cd`, plus root PM
+records. No new dependencies.
+
+**Acceptance:** all `println!`/`print!` in the three turbulence validation
+files (excluding test regions) are replaced with `tracing::info!`/
+`tracing::warn!`; the now-unused `#![allow(clippy::print_stdout)]` directives
+are removed; format, check, warning-denied Clippy, Nextest, doctests, and
+Rustdoc pass.
+
+**Implementation evidence (2026-08-21):** clean lane branch
+`fix/cfdrs-cfd2d-turbulence-tracing` is based on fetched `origin/main`
+`aa54f5cd` and publishes commit `66fb7566`. 3 files modified, 62 insertions,
+63 deletions. The mapping: `println!(...)` → `tracing::info!(...)`,
+`println!("⚠️ ...")` → `tracing::warn!(...)`, `println!()` (blank line) →
+`tracing::info!("")`. Three `#![allow(clippy::print_stdout)]` directives
+removed. Test-region code is untouched.
+
+Verified on the clean lane: `cargo fmt -p cfd-2d --check`, `cargo check
+-p cfd-2d`, `cargo clippy -p cfd-2d --all-targets --all-features -- -D
+warnings`, `cargo nextest run -p cfd-2d --all-features` (590/590 passed, 27
+skipped), `cargo test --doc -p cfd-2d --all-features` (2 passed, 2
+ignored), and `cargo doc -p cfd-2d --no-deps --all-features` (no new
+warnings from changed files; the pre-existing `NetworkBlueprint` link error
+in `network/mod.rs` is unchanged). The turbulence validation `print_dbg`
+count drops from 60 to 0 on the clean lane.
+
+Published as PR
+[#367](https://github.com/ryancinsight/CFDrs/pull/367) at exact head
+`66fb7566102e110a5ea651a467d4e4abd59723a5`. Hosted checks are the
+acceptance oracle; merge only at the exact PR head after terminal required
+checks. The dirty primary CFDrs checkout and Atlas gitlink remain
+unchanged.
+
 ## ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21 — Add defaults and NumPy protocols [minor] — in progress
 
 - The generator now records PyO3 defaults and keyword-only markers, translates
@@ -305,6 +350,22 @@ unchanged.
   migration remains implementation-pending until a clean, non-overlapping
   Kwavers lane is available; no provider source or Atlas gitlink is changed
   by this decision increment.
+- **Migration implemented (PR #602, lane `feat/provider-generic-vis` from
+  default `377a98c86`, lane commit `baa76ee7c`):** replacement per the ADR —
+  analysis keeps config, backend-neutral metadata, CPU preprocessing,
+  statistics, and the public contract behind the new provider-neutral
+  `VisualizationTransferProvider` seam; concrete device acquisition, typed
+  buffers, queue writes, and synchronization move to `kwavers-gpu` with
+  explicit Leto/Hephaestus backend selection. `DataPipeline` becomes the
+  provider-generic orchestrator over an injected provider;
+  `initialize_gpu` requires injection and fails typed without it.
+  `RendererGpuContext`/`VolumeUniforms` deleted (dead GPU work); the
+  analysis manifest drops wgpu/bytemuck/hephaestus-core/hephaestus-wgpu
+  edges. Static audit: no direct WGPU/raw-device/pollster ownership or
+  manifest edge remains under `kwavers-analysis`. Local gates green (fmt,
+  clippy for touched surface, analysis 776 tests, gpu 166 tests). Hosted
+  exact-head Rust/book/API/Pages gates still required before any Atlas
+  Kwavers gitlink advance.
 
 - **Outcome:** `kwavers-analysis` visualization owns no concrete WGPU device,
   queue, buffer, adapter, or `pollster` runtime. Visualization transfers and

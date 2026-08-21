@@ -156,6 +156,10 @@
       writes from `print_dbg`: add `CARGO_PROTOCOL_PRINT` regex, subtract
       cargo: hits when `path.name == "build.rs"`. Count drops 366→335 (−31).
       Focused suite 26/26 (2 new regression tests); full suite 328/77.
+- [x] Regenerate the conformance baseline after the scanner fix:
+      `generate --worktree` writes the new counts; `check --worktree`
+      confirms 0 regressions and 0 tightenings. Baseline `print_dbg` total
+      is now 335 (was 366), with coeus/melinoe/themis at 0.
 - [ ] Re-run the clean-revision ratchet after the provider workflow changes
       land and their parent gitlinks advance; do not baseline the current
       peer-dirty worktree result.
@@ -226,10 +230,29 @@
       at `simulation_py/mod.rs:791`). Returned-value correctness on the same
       slice: bit-identical sensor data for identical inputs, amplitude
       linearity ratio 2.0 within 1e-9.
-- [ ] Land the provider-generic migration in a clean, non-overlapping Kwavers
+- [x] Land the provider-generic migration in a clean, non-overlapping Kwavers
       lane; preserve all peer-owned checkout and branch state until then. All
       concrete GPU runtime code must be owned by Hephaestus; no WGPU implementation
       may be added to `kwavers-analysis` or a parallel provider crate.
+      Lane `feat/provider-generic-vis` from fetched default `377a98c86`, lane
+      commit `baa76ee7c`, PR #602. Replacement, not adapter:
+      `kwavers-analysis` keeps configuration, backend-neutral field metadata,
+      CPU preprocessing, statistics, and the public contract behind the new
+      provider-neutral `VisualizationTransferProvider` seam;
+      `DataPipeline` is now the provider-generic CPU orchestrator constructed
+      over an injected provider; `VisualizationEngine::initialize_gpu`
+      requires injection and returns typed `FeatureNotAvailable` otherwise
+      (never silently degrades to CPU); `RendererGpuContext` and
+      `VolumeUniforms` are deleted outright (dead GPU work). `kwavers-gpu`
+      owns device acquisition, typed buffers, queue writes, and
+      synchronization with explicit backend selection (Leto host provider or
+      Hephaestus-backed WGPU provider). The analysis manifest drops its wgpu,
+      bytemuck, hephaestus-core, hephaestus-wgpu edges (pollster to
+      dev-dependencies). Behavioral contract tested: single-field transfer,
+      multi-field field-identity preservation, distinct-input sensitivity,
+      typed unavailable-resource errors, device-backed transfer where an
+      adapter exists. Local gates green: fmt, clippy warning-free for the
+      touched surface, analysis 776 tests, gpu 166 tests.
 - [ ] Run the exact-head Rust, book, API, and live Pages gates before any Atlas
       Kwavers gitlink advance.
 
