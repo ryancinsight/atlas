@@ -1294,28 +1294,17 @@ book coverage remains a separate open integration item.
   `32415388456` are queued. The Atlas pointer remains at `e2dbc9b` until the
   merged-default gates are terminal and the deployed page is verified.
 
-- **Hephaestus executable book gate:** current Atlas session claims only
-  `hephaestus/.github/workflows/book-pages.yml` on a clean
-  `hephaestus-book-test` lane based on the provider's `master` default. The
-  existing HostDevice and capabilities examples are real included programs;
-  acceptance is the shared `mdbook-test` caller for `hephaestus-host`, exact
-  hosted book evidence, and post-merge default verification. Peer-owned
-  FDTD/docs/ADR work in the primary checkout remains outside this item. Local
-  commit `ae4fd6a1bcba69d7a2b195adafe9cb427f44e79b` passes diff-check, mdBook
-  build, strict links (14 files/13 links), and workflow-shape checks. The
-  locked package build is blocked before compilation by the shared Atlas
-  overlay resolving primary-tree patches from the clean lane; hosted Linux is
-  the package gate. Push and hosted collection remain sequenced behind the
-  active merged-default runs.
-  The failed exact-head book job was caused by missing explicit crate
-  declarations in the included examples. The lane now adds those declarations,
-  removes two unused imports, and repins Atlas staging to `20c9398`. PR
-  [#214](https://github.com/ryancinsight/hephaestus/pull/214) is at
-  `ae4fd6a1bcba69d7a2b195adafe9cb427f44e79b`; its prior book run
-  `32413790294` failed because the included examples omitted their
-  `DeviceBuffer` and `ComputeDeviceCapabilities` imports. The fix is pushed;
-  rerun provider/book checks `32421412468`, `32421412481`, `32421412475`,
-  `32421412524`, and `32421413027` are pending.
+- **Hephaestus executable book gate:** the current Atlas session owned only
+  `hephaestus/.github/workflows/book-pages.yml` and the included HostDevice
+  and capabilities examples. The exact-head fix added the missing explicit
+  crate declarations, removed two unused imports, and repinned Atlas staging
+  to `20c9398`; local diff-check, mdBook build, strict links (14 files/13
+  links), and workflow-shape checks passed. PR [#214](https://github.com/ryancinsight/hephaestus/pull/214)
+  merged at provider `master` `7e09efa`. Its clean lane was removed after
+  validating that `ae4fd6a` is an ancestor of the fetched default; no source
+  or Atlas gitlink changed. Post-merge provider/backend/book status remains
+  the acceptance watchpoint, and no pointer advance is inferred from this
+  local cleanup.
 
 - **Coeus executable book gate:** current Atlas session claims only
   `coeus/.github/workflows/book-pages.yml` on a clean `coeus-book-test` lane
