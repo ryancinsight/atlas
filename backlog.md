@@ -16,7 +16,7 @@
   the root gitlink comparison and worker behavior, and has a regression test
   proving the symbolic default branch and remote commit are selected. Output
   names the source as the remote default, not a fetched local ref.
-- **Evidence:** `31` focused provider-audit tests pass. The exact-head run
+- **Evidence:** `34` focused provider-audit tests pass. The exact-head run
   queries the current remote default for every selected provider and remains
   red only for the 13 known gitlink drifts; the live Kwavers remote advanced
   from `b7256314` during this recheck to `06ab560e`, demonstrating why local
@@ -126,13 +126,14 @@
 
 - **Latest evidence:** `python scripts/
   atlas-provider-integration-audit.py --provider-set requested-2026-08-14
-  --exact-heads --exact-head-workers 8` now queries remote default branches
-  directly and exits 1 with 13 release-boundary
-  mismatches. The remote defaults observed are Horae `d1332267`, Hyperion `3bc0e43d`,
-  Themis `2c074987`, Tyche `7d636471`, Helios `e886754d`, Asclepius
-  `a38b8b50`, Eunomia `834bd3b4`, Moirai `ff56d602`, Melinoe `922bd3be`,
-  Leto `fc0648ee`, Apollo `fd9ecd02`, Iris `636a2613`, and Kwavers
-  `06ab560e`; each differs from its committed Atlas gitlink at query time.
+  --exact-heads --exact-head-workers 8` queries remote default branches
+  directly, validates each nested `origin` URL against committed `.gitmodules`,
+  and exits 1 with 13 release-boundary mismatches. The current remote defaults
+  observed are Horae `d1332267`, Hyperion `3bc0e43d`, Themis `2c074987`, Tyche
+  `7d636471`, Helios `e886754d`, Asclepius `a38b8b50`, Eunomia `834bd3b4`,
+  Moirai `ff56d602`, Melinoe `922bd3be`, Leto `fc0648ee`, Apollo `fd9ecd02`,
+  Iris `636a2613`, and Kwavers `3b401139`; each differs from its committed
+  Atlas gitlink at query time.
 - **Interpretation:** the mismatches are release-boundary watchpoints, not
   source defects. Provider refs can advance between local, hosted, and direct
   remote snapshots; no pointer update is safe without terminal provider
