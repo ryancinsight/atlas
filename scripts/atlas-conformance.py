@@ -74,8 +74,8 @@ CFG_TEST_MOD = (
 )
 CFG_TEST_MOD_ALL = re.compile(
     r"#\[cfg\(\s*(?:all\(\s*)?test\b[^\]]*\]\s*"
-    r"(?:#\[[^\]]*\]\s*)*"
-    r"(?:pub(?:\([^)]*\))?\s+)?mod\s+([A-Za-z_][A-Za-z0-9_]*)\s*;"
+    r"(?P<attrs>(?:#\[[^\]]*\]\s*)*)"
+    r"(?:pub(?:\([^)]*\))?\s+)?mod\s+(?P<stem>[A-Za-z_][A-Za-z0-9_]*)\s*;"
 )
 
 TYPE_NAME = re.compile(r"(?:^|_)(?:f16|bf16|f32|f64|u8|u16|u32|u64|i8|i16|i32|i64)(?:_|$)")
@@ -293,28 +293,47 @@ def cargo_manifests(repo: Path):
 
 
 _file_text_cache: dict[Path, str | None] = {}
-_cfg_test_sidecar_cache: dict[Path, frozenset[str]] = {}
+_cfg_test_decl_cache: dict[Path, tuple[frozenset[str], frozenset[Path]]] = {}
 
 
 def _clear_scan_caches() -> None:
     """Drop per-scan read caches so repeated scans see fresh content."""
     _file_text_cache.clear()
-    _cfg_test_sidecar_cache.clear()
+    _cfg_test_decl_cache.clear()
+
+
+def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
+    """Stems and redirected files a candidate declares under `#[cfg(test)]`.
+
+    One regex pass over each parent file serves both matchers
+    (`src/foo/tests.rs` vs `src/foo/mod.rs` is O(n) per directory, not
+    O(n^2)). A declaration may redirect its file with `#[path]`, resolved
+    against the declaring file's directory like `_child_candidates`, so a
+    sidecar can live outside the declarer's own directory — moirai-iter
+    gates `#[path = "../async_iter_tests.rs"] mod async_iter_tests;` from
+    `src/async_iter/mod.rs`.
+    """
+    cached = _cfg_test_decl_cache.get(cand)
+    if cached is None:
+        text = _cached_text(cand)
+        if text:
+            stems: set[str] = set()
+            paths: set[Path] = set()
+            for match in CFG_TEST_MOD_ALL.finditer(text):
+                stems.add(match.group("stem"))
+                attr = PATH_ATTR.search(match.group("attrs").rstrip())
+                if attr:
+                    paths.add((cand.parent / attr.group(1)).resolve())
+            cached = (frozenset(stems), frozenset(paths))
+        else:
+            cached = (frozenset(), frozenset())
+        _cfg_test_decl_cache[cand] = cached
+    return cached
 
 
 def _cfg_test_sidecars(cand: Path) -> frozenset[str]:
-    """Module stems a candidate parent declares under `#[cfg(test)]`.
-
-    One regex pass over each parent file replaces the previous per-file
-    re-scan of the same parent text (`src/foo/tests.rs` vs `src/foo/mod.rs`
-    is O(n) per directory, not O(n^2)).
-    """
-    names = _cfg_test_sidecar_cache.get(cand)
-    if names is None:
-        text = _cached_text(cand)
-        names = frozenset(CFG_TEST_MOD_ALL.findall(text)) if text else frozenset()
-        _cfg_test_sidecar_cache[cand] = names
-    return names
+    """Module stems a candidate parent declares under `#[cfg(test)]`."""
+    return _cfg_test_decls(cand)[0]
 
 
 def _cached_text(path: Path) -> str | None:
@@ -401,19 +420,27 @@ def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int
 
 
 def declared_cfg_test(entry: Path) -> bool:
-    """True when the parent module declares this file under `#[cfg(test)]`.
+    """True when some module declares this file under `#[cfg(test)]`.
 
     The co-located sidecar convention (`src/foo/tests.rs` declared by
     `src/foo/mod.rs` as `#[cfg(test)] mod tests;`) puts the gate in the
     *parent*, so neither a path-part match nor an in-file `#[cfg(test)]`
-    sees it. Without this check such files scan as production code.
+    sees it. A `#[path]` attribute can place the sidecar anywhere relative
+    to its declarer, so sibling-directory `mod.rs` files are consulted too:
+    moirai-iter gates `../async_iter_tests.rs` from `src/async_iter/mod.rs`,
+    which no parent-of-entry lookup reaches. Without these checks such
+    files scan as production code.
     """
     parent = entry.parent
-    for cand in (parent / "mod.rs", parent / "lib.rs", parent / "main.rs",
-                 parent.with_suffix(".rs")):
+    resolved = entry.resolve()
+    candidates = [parent / "mod.rs", parent / "lib.rs", parent / "main.rs",
+                  parent.with_suffix(".rs")]
+    candidates.extend(parent.glob("*/mod.rs"))
+    for cand in candidates:
         if cand == entry:
             continue
-        if entry.stem in _cfg_test_sidecars(cand):
+        stems, paths = _cfg_test_decls(cand)
+        if entry.stem in stems or resolved in paths:
             return True
     return False
 

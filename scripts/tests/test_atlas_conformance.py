@@ -258,6 +258,80 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
             self.assertEqual(conformance.count_orphan_modules(root), 0)
 
+    def test_path_redirected_cfg_test_sidecar_is_not_production(self) -> None:
+        # moirai-iter declares its async-iter sidecar from a subdirectory:
+        # src/async_iter/mod.rs gates
+        # `#[path = "../async_iter_tests.rs"] mod async_iter_tests;`. The
+        # declaring module is not the sidecar's parent, so only a #[path]-
+        # aware lookup sees the gate; without it the sidecar's SeqCst uses
+        # counted as production debt.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(root, "src/lib.rs", "pub mod async_iter;\n")
+            _write(
+                root,
+                "src/async_iter/mod.rs",
+                "#[cfg(test)]\n"
+                "#[path = \"../async_iter_tests.rs\"]\n"
+                "mod async_iter_tests;\n",
+            )
+            _write(
+                root,
+                "src/async_iter_tests.rs",
+                "use std::sync::atomic::{AtomicUsize, Ordering};\n"
+                "static WAKES: AtomicUsize = AtomicUsize::new(0);\n"
+                "pub fn wakes() -> usize { WAKES.load(Ordering::SeqCst) }\n",
+            )
+            sidecar = root / "src" / "async_iter_tests.rs"
+
+            self.assertTrue(conformance.declared_cfg_test(sidecar))
+            self.assertEqual(conformance.scan_repo(root)["seqcst_production"], 0)
+
+    def test_ungated_redirect_keeps_sidecar_in_production(self) -> None:
+        # The redirect alone proves nothing about testness: drop the gate
+        # and the same file must count again.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(root, "src/lib.rs", "pub mod async_iter;\n")
+            _write(
+                root,
+                "src/async_iter/mod.rs",
+                "#[path = \"../async_iter_tests.rs\"]\nmod async_iter_tests;\n",
+            )
+            _write(
+                root,
+                "src/async_iter_tests.rs",
+                "use std::sync::atomic::{AtomicUsize, Ordering};\n"
+                "static WAKES: AtomicUsize = AtomicUsize::new(0);\n"
+                "pub fn wakes() -> usize { WAKES.load(Ordering::SeqCst) }\n",
+            )
+
+            self.assertFalse(
+                conformance.declared_cfg_test(root / "src" / "async_iter_tests.rs")
+            )
+            self.assertEqual(conformance.scan_repo(root)["seqcst_production"], 1)
+
+    def test_path_match_catches_stem_renamed_sidecar(self) -> None:
+        # A #[path] target whose stem differs from the declared module name
+        # matches by resolved path, not by stem.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(root, "src/lib.rs", "pub mod async_iter;\n")
+            _write(
+                root,
+                "src/async_iter/mod.rs",
+                "#[cfg(test)]\n#[path = \"../ai_wake_tests.rs\"]\n"
+                "mod async_iter_tests;\n",
+            )
+            _write(root, "src/ai_wake_tests.rs", "pub const N: usize = 1;\n")
+
+            self.assertTrue(
+                conformance.declared_cfg_test(root / "src" / "ai_wake_tests.rs")
+            )
+
     def test_pages_target_output_is_not_a_cargo_fork(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
