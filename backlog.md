@@ -3111,6 +3111,12 @@ gitlink-drifted provider checkouts; `--require-evidence` fails as intended.
 No provider pointer advances until fixes merge to default and exact-head
 hosted, book, wheel, and Pages evidence is terminal.
 
+The checker’s focused suite passes `7/7`; the complete root Python suite at
+Atlas `158aeca` passes `233/233` in `7.5 s`. The requested-provider structural
+audit remains `20/20` with zero issues, the development overlay reports
+aligned requirements and locks, and registry metadata reports `253` manifests,
+zero violations, and zero unverified entries.
+
 The intentional live conformance scan on the dirty shared tree reports 19
 ratchet increases and 25 decreases. The increases are confined to active
 peer-owned scopes: CFDrs (oversized files, allow sites, existence-only
