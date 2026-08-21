@@ -1095,12 +1095,17 @@ that GIL-release contract.
 **Owner:** current Atlas session. **Claimed files:** the clean Apollo book lane
 repointed from its merged branch, the root item, and this PM record.
 
-**Implementation:** Apollo commit `4e055407` is pushed on
+**Implementation:** Apollo commit `4e055407` was pushed on
 `fix/apollo-python-surface` as PR
-[#109](https://github.com/ryancinsight/apollo/pull/109). Local evidence includes
-the formatting, locked check, clippy, nextest, release `cp38-abi3` wheel build,
-and 35 installed-wheel pytest cases. Hosted checks remain pending; the PR head
-is the only eligible revision for collection.
+[#109](https://github.com/ryancinsight/apollo/pull/109) and merged with the
+expected-head guard at default commit
+`fd9ecd0206c2b4ee3993a42eec65a1703d592ac2`. Local evidence includes the
+formatting, locked check, clippy, nextest, release `cp38-abi3` wheel build,
+and 35 installed-wheel pytest cases. Hosted PR Rust and Python checks are
+terminal-successful; `recurseml/analysis` is the existing report-only error.
+Post-merge CI `32474434108` and Pages `32474432640` are queued. The dirty
+primary Apollo checkout and Atlas gitlink remain unchanged until those default
+runs and the live-page check are terminal.
 
 ## ATLAS-HARMONIA-FIELD-EXCHANGE-050-2026-08-21 — Add typed physical-field exchange [major] [arch] — in progress
 
