@@ -168,17 +168,25 @@
 - **First vertical slice:** isolated commit
   `db49f2f09cba6b24381156a8404cd08942a44f52` adds the typed package marker and
   stubs, releases the GIL around the core `Simulation.run` computation, and
-  adds value-sensitive Python binding/concurrency tests. Focused Rust,
+  adds value-sensitive Python binding/thread-pool tests. The test oracle does
+  not claim overlap or GIL proof; `py.detach` at the binding boundary is the
+  static GIL-release evidence. Focused Rust,
   Nextest (21/21), Python (4/4), abi3 wheel, install, and smoke checks pass.
-  PR [#590](https://github.com/ryancinsight/kwavers/pull/590) is open at that
-  exact head; strict mypy/Ruff/Black are unavailable and locked Cargo gates
-  are blocked by the inherited Atlas overlay re-resolving the lockfile.
-- **Hosted hold:** PR #590 is mergeable but `unstable`; CI/CD
+  PR [#590](https://github.com/ryancinsight/kwavers/pull/590) was opened at
+  that head; strict mypy/Ruff/Black are unavailable and locked Cargo gates are
+  blocked by the inherited Atlas overlay re-resolving the lockfile.
+- The test-oracle correction is commit
+  `124ef839e27aba71a8f3749c33acaf7d0ae1ee93`, now the PR head. Its focused
+  Rust and wheel-backed tests pass; the previously collected hosted run set
+  at `db49f2f09cba...` is stale and must not be attributed to the corrected
+  head.
+- **Hosted hold at the superseded head:** PR #590 was mergeable but `unstable`; CI/CD
   `32492642895`, legacy audit `32492642913`, Python wheel smoke
   `32492642908`, architecture validation `32492642942`, and Deploy mdBook
   `32492643372` remain queued. `recurseml/analysis` is errored and CodeRabbit
   is rate-limited. The live Pages site is reachable but older than the PR and
-  is not evidence for this head; no pointer advance or bypass is used.
+  is not evidence for either head; fresh checks for `124ef839e27a...` are
+  required. No pointer advance or bypass is used.
 
 ## ATLAS-HOSTED-RECHECK-2026-08-21 — Reconcile provider release evidence [patch] — done 2026-08-21
 
