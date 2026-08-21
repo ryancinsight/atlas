@@ -34,6 +34,39 @@
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.
 
+## ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21 — Complete typed and concurrent PyO3 surface [minor] — open
+
+- **Outcome:** the Kwavers Python wheel exposes every registered Rust class and
+  function through one generated, typed package surface; the wheel ships
+  `py.typed` and `.pyi` files; long-running binding calls release the GIL; and
+  the package facade exports exactly the registered public symbols.
+- **Audit evidence:** the current registration surface contains 25 classes and
+  384 top-level functions, while the facade reexports 400 extension symbols
+  but omits nine registered functions and four imported symbols from
+  `__all__`. No `py.typed` or `.pyi` files exist. Static inspection identifies
+  synchronous solver, thermal, GPU-session, bubble, cavitation-monitor, and
+  chirp/sweep paths that still hold the GIL. Evidence source: the independent
+  Kwavers binding audit at `crates/kwavers-python/src/lib.rs`,
+  `python/pykwavers/__init__.py`, and the affected binding modules.
+- **Acceptance:** a deterministic Rust registration-driven generator emits
+  real signatures, defaults, classes, properties, NumPy arrays, optionals,
+  tuples, mappings, and metadata without `Any`/ellipsis placeholders; CI
+  regenerates and diffs the stubs; the installed wheel contains the extension,
+  package facade, stubs, and marker; a strict typed consumer passes; an
+  independent Python-thread regression proves each migrated long-running call
+  releases the GIL while returned values remain correct; and the runtime
+  inventory has no missing or extra public exports. Run the affected locked
+  Rust gates, Python tests, doctests, Rustdoc, and wheel smoke at one exact
+  provider head.
+- **Sequencing:** first land the generator and exact registration inventory,
+  then migrate one complete `Simulation::run` slice with the concurrency
+  oracle, followed by thermal, GPU-session, bubble, monitor, and chirp families
+  as separate vertical increments. Do not hand-author a partial stub or claim
+  GIL coverage from static `.detach` counts alone.
+- **Non-goals:** no domain logic in Python, no runtime introspection as the
+  source of truth, no facade compatibility aliases, and no unrelated solver
+  redesign.
+
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence [verification][patch] — in progress
 
 Horae's tableaus declare formal orders, but its existing embedded-pair test

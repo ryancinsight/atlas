@@ -11,6 +11,13 @@
 - [x] Confirm the historical visualization closure does not cover the direct
       analysis runtime and record the finding in `backlog.md`.
 - [x] Draft and index ADR 0051 with the provider-first migration decision.
+- [x] Complete the independent Python-boundary inventory: 25 classes, 384
+      registered functions, missing typed artifacts, facade export drift, and
+      long-running GIL-held families.
+- [ ] Add the registration-driven stub generator and exact export inventory;
+      hand-written `Any`/ellipsis declarations are not acceptable.
+- [ ] Detach one complete `Simulation::run` slice and prove concurrent Python
+      progress plus returned-value correctness before widening the migration.
 - [ ] Land the provider-generic migration in a clean, non-overlapping Kwavers
       lane; preserve all peer-owned checkout and branch state until then.
 - [ ] Run the exact-head Rust, book, API, and live Pages gates before any Atlas
