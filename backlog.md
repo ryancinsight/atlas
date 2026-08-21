@@ -49,7 +49,7 @@
 
 - Provider commit `575375e85ef0e4344461e3eb2635d28d10ad5997` adds
   `Python::detach` around every remaining input-sensitive cfd-python solver
-  computation, keeps NumPy conversion under the GIL, and adds deterministic
+  computation, keeps NumPy conversion under the GIL, and adds bounded
   Python-thread regression coverage. Local formatting, locked check, warning
   denied Clippy, Rustdoc, abi3 wheel build, and the new concurrency test pass.
 - Full wheel tests pass `4`; one pre-existing dirty-main mismatch remains at
@@ -66,6 +66,10 @@
   package, so release identity remains unresolved. The stale `0.0035` versus
   `0.00345` test expectation and an unrelated existing Clippy blocker remain
   provider-side residuals.
+- **Verification residual:** the new Python-thread test detects progress with
+  bounded waits and a large deterministic workload, but does not yet meet the
+  repository's event/barrier-only synchronization preference. Re-open on a
+  clean CFDrs lane; do not displace PR #361's restored format lane.
 
 ## ATLAS-REMOTE-HEAD-AUDIT-2026-08-21 — Verify provider defaults from remote refs [patch] — done 2026-08-21
 
