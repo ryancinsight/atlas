@@ -699,6 +699,12 @@ Horae, Hyperion, Asclepius, Melinoe, Leto, and Iris still have queued deploy
 jobs, while Mnemosyne and Moirai returned 404 at their Pages endpoints. None
 of those pointers advances in this increment.
 
+**Coordinator claim (2026-08-21, second slice):** Atlas-Codex now owns the
+root-only pointer and evidence synchronization for Themis, Consus, and
+Eunomia. Claimed scope is their three root gitlinks plus this item in
+`backlog.md`; no provider source, nested checkout, or Consus peer checklist is
+included.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
