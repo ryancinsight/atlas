@@ -393,7 +393,8 @@ The implementation is published as PR
 Pages run `32441332513` passes at `922bd3bef2a6ed8db1f8074daa12c875e76d54c8`.
 The live Pages site returns HTTP 200 with the expected Melinoe title. Atlas
 advances its committed gitlink from `689f562` to `922bd3b` without switching
-or modifying the dirty detached primary checkout.
+or modifying the dirty detached primary checkout. The merged clean lane and
+its local branch were removed after verification.
 
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — in progress
 
@@ -1284,7 +1285,8 @@ and 35 installed-wheel pytest cases. Hosted PR Rust and Python checks are
 terminal-successful; `recurseml/analysis` is the existing report-only error.
 Post-merge CI `32474434108` and Pages `32474432640` are queued. The dirty
 primary Apollo checkout and Atlas gitlink remain unchanged until those default
-runs and the live-page check are terminal.
+runs and the live-page check are terminal. The merged clean lane and its local
+branch were removed after the PR merge.
 
 ## ATLAS-HARMONIA-FIELD-EXCHANGE-050-2026-08-21 — Add typed physical-field exchange [major] [arch] — in progress
 
@@ -1327,6 +1329,8 @@ exact shape/origin/direction compatibility failures. The clean lane passed
 `c39f12a`; the root commit is pushed. Post-merge CI `32474562236` and Pages
 `32474560873` are queued. No consumer adapter or Atlas pointer advance is
 authorized until those default runs and the live-page check are terminal.
+The merged clean provider lane and its local branch were removed after the PR
+merge; the dirty primary checkout remains untouched.
 An independent exact-head review found no implementation or ADR blocker. It
 also records a verification limit: the provider CI omits `--locked` and does
 not run MSRV, release, or SemVer checks; those limits are not replaced by the
@@ -1367,6 +1371,8 @@ skipped, clippy passed, format check passed, doctests passed, and rustdoc
 passed. `cargo-semver-checks` is unavailable in the environment. Post-merge
 Rust Workspace `32475134603` and Python Bindings `32475134582` are queued; no
 submodule-pointer advance is claimed until those default checks are terminal.
+The merged clean package lane and its local branch were removed after the PR
+merge; the dirty detached primary checkout remains untouched.
 
 Acceptance: accelerator identity survives route resolution; a present device
 executes a real kernel and returns its value-semantic result; a missing device
