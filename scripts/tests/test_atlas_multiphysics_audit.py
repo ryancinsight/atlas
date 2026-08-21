@@ -79,6 +79,7 @@ harmonia = "0.1"
 
     def test_profiles_cover_all_three_integrators(self) -> None:
         self.assertEqual({profile.name for profile in audit.PROFILES}, {"CFDrs", "helios", "kwavers"})
+        self.assertIn("wgpu", audit.PROFILES[0].forbidden_dependencies)
 
 
 if __name__ == "__main__":

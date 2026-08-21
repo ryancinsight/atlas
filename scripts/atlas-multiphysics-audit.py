@@ -28,7 +28,7 @@ class IntegratorProfile:
 
     name: str
     required_dependencies: tuple[str, ...]
-    forbidden_dependencies: tuple[str, ...] = ("rayon", "tokio")
+    forbidden_dependencies: tuple[str, ...] = ("rayon", "tokio", "wgpu")
 
 
 PROFILES = (
