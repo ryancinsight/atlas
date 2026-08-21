@@ -205,6 +205,14 @@
   at `7a973331` contains its typed metadata and executable Compton book
   oracle. Neither is root evidence until required hosted checks, merge, and
   post-merge default/Page verification complete.
+- **Helios local evidence:** on clean PR head `7a973331`, `cargo fmt --all
+  -- --check`, `cargo clippy --workspace --all-targets --all-features --
+  -D warnings`, `cargo nextest run --workspace --all-features --profile ci`
+  (284 passed, 9 skipped), `cargo test --doc --workspace --all-features`,
+  `mdbook test docs/book`, abi3 maturin wheel build/install, and Python tests
+  (13 passed) all pass. The commands resolve through the shared Atlas overlay;
+  Cargo reports unused local patches, which is environmental evidence and not
+  a hosted-gate substitute.
 - **Exact attribution:** `python scripts/atlas-multiphysics-audit.py
   --exact-gitlinks --require-evidence --format json` scans committed text
   snapshots only; all three reports have `checkout_dirty: null` because exact
