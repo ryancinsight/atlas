@@ -444,11 +444,16 @@ warning-denied Clippy, nextest (`25/25`), doctests (`5/5`), and Rustdoc pass.
 The lane conformance scan reports `manifest_implementation: 1` versus `2` on
 the fetched provider default, with every other Themis class unchanged.
 
-The implementation is published as PR
+The implementation was published as PR
 [#29](https://github.com/ryancinsight/themis/pull/29) at exact head
 `32c40a7b21fd9a6e81505e8741d54884ab1d2e59`, based on merged default
-`c441acffc71ebeb24b77dd2d23a90856352d2f48`. Hosted checks are pending; the
-dirty primary Themis checkout and Atlas gitlink remain unchanged.
+`c441acffc71ebeb24b77dd2d23a90856352d2f48`, and merged with the expected-head
+guard at default merge commit `2c0749873c4860257ba912ff8494937021a79aa1`.
+The PR's Ubuntu, Windows, MSRV, Miri, compile-fail, Clippy, Nextest, doctest,
+and Rustdoc checks are terminal-successful. Post-merge default runs are
+queued: MSRV `32473974344`, CI `32473974353`, and Pages
+`32473973059`. The dirty primary Themis checkout and Atlas gitlink remain
+unchanged until those runs and the live-page check are terminal.
 
 ## ATLAS-HELIOS-RADON-ORACLE-2026-08-20 — Remove existence-only sinogram assertion [patch] — in progress
 

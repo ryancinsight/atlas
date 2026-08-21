@@ -6306,21 +6306,21 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 
 - [x] Claimed the provider-only `src/branded/region/` split and preserved the
       dirty primary checkout as peer-owned.
-- [ ] Create a clean lane from fetched Themis `origin/main` and move the
+- [x] Create a clean lane from fetched Themis `origin/main` and move the
       `SyncRegionPlacement` implementation and tests into a leaf module.
-- [ ] Add and index the as-built architecture ADR; preserve public exports and
+- [x] Add and index the as-built architecture ADR; preserve public exports and
       safety comments.
-- [ ] Run format, locked all-target check, Clippy, nextest, doctests, Rustdoc,
+- [x] Run format, locked all-target check, Clippy, nextest, doctests, Rustdoc,
       and the provider conformance scan; the manifest-implementation count must
       decrease without any other class increasing.
 - [x] Publish the exact provider branch for review at `32c40a7`; hosted
       verification and Atlas gitlink advancement remain separate follow-up
       states.
 
-The provider branch is published at `32c40a7`; GitHub compare reports two
-commits ahead of `c76a55e`. Draft PR creation is blocked by connector HTTP 403
-`Resource not accessible by integration`, so no hosted evidence or gitlink
-advance is claimed.
+The provider branch merged at default commit `2c074987`; its required PR checks
+are terminal-successful. Post-merge MSRV `32473974344`, CI `32473974353`, and
+Pages `32473973059` are queued; collect those results and the live page before
+advancing the Atlas gitlink.
 
 ## 2026-08-20 Helios Radon assertion cleanup
 
