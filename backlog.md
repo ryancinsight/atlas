@@ -30,6 +30,12 @@
   environment-blocked in the isolated lane because the inherited Atlas
   development overlay re-resolves the provider under `--locked`; this is
   recorded as a verification limit, not treated as a provider failure.
+- **Eunomia hosted hold:** PR #73 is open at exact head
+  `01179a9d98e7d3ccbf118b38b65e5c1c675490b8`, based on `834bd3b443dd050e9a1ec0c5d837645db33ac787`.
+  It is `MERGEABLE` but `UNSTABLE`; figure, Rust, NumPy, supply-chain, and
+  related checks remain queued, while `recurseml/analysis` is terminal error.
+  Pages still serves the prior merged default `22a02b1`; no provider merge or
+  Atlas pointer advance is authorized.
 - **Hosted hold:** PR #36 remains open and mergeable at
   `4cd0899a301db4a934ae32bf40db00bb56836c64`; Deploy mdBook run
   `32492568641` and CI run `32492568124` are queued, with `recurseml/analysis`
