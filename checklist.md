@@ -372,8 +372,12 @@
       build and mdBook test are blocked by the shared overlay lock-form and
       multi-artifact/toolchain state; hosted CI is the clean-runner oracle.
 - [x] Publish PR [#33](https://github.com/ryancinsight/gaia/pull/33) at exact
-      head `7e3ddeff`; CI `32417028093` and book `32417028130` are terminal
-      failures and remain open for provider-side diagnosis.
+      head `39a4f7f`; the book workflow now stages only the current Cargo
+      compiler artifacts and asserts exactly one Gaia library. The earlier
+      `32417028130` failure was the pre-repair merge ref; the intermediate
+      broad-staging run `32459250549` is superseded after reproducing
+      cache-sensitive `E0464` locally. Replacement CI `32473606516` and book
+      `32473606617` are queued at the exact current head.
 - [ ] Collect terminal exact-head CI/book evidence, merge, verify the
       post-merge default and Pages deployment, then advance the Atlas pointer.
 
