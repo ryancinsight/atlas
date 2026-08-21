@@ -12,9 +12,11 @@
   canonical generator, committed at the provider source head, and covered by
   a deterministic existence check in the provider's book gate. No hand-made
   or placeholder assets are accepted.
-- **Execution:** the Tyche figure set and its gate are assigned to an isolated
-  coding sidecar; the remaining provider sets follow as disjoint increments
-  after their current source/hosted claims are reconciled.
+- **Execution:** Tyche's isolated sidecar completed provider commit `4cd0899`
+  and opened PR [#36](https://github.com/ryancinsight/tyche/pull/36) at that
+  exact head. The Atlas gitlink commit `4ee9128` is held until the provider PR
+  merges and its hosted checks complete; the remaining provider sets follow as
+  disjoint increments.
 
 ## ATLAS-HOSTED-POSTMERGE-CONSUS-2026-08-21 — Verify Consus book-gate merge [patch] — in progress
 
@@ -142,6 +144,14 @@
 - **Non-goals:** no domain logic in Python, no runtime introspection as the
   source of truth, no facade compatibility aliases, and no unrelated solver
   redesign.
+- **First vertical slice:** isolated commit
+  `db49f2f09cba6b24381156a8404cd08942a44f52` adds the typed package marker and
+  stubs, releases the GIL around the core `Simulation.run` computation, and
+  adds value-sensitive Python binding/concurrency tests. Focused Rust,
+  Nextest (21/21), Python (4/4), abi3 wheel, install, and smoke checks pass.
+  PR [#590](https://github.com/ryancinsight/kwavers/pull/590) is open at that
+  exact head; strict mypy/Ruff/Black are unavailable and locked Cargo gates
+  are blocked by the inherited Atlas overlay re-resolving the lockfile.
 
 ## ATLAS-HOSTED-RECHECK-2026-08-21 — Reconcile provider release evidence [patch] — done 2026-08-21
 
