@@ -6531,8 +6531,20 @@ No repository other than CFDrs and Kwavers imports that family.
       Verdict: every honest production site is a recorded KEEP decision;
       zero undocumented sites remain. Item closes at the instrument-fixed
       count 85 with no source change.
-- [x] Residual follow-up: ritk crates/ritk-vtk/src/domain/mtime.rs:46 monotonic
-      tick admits Relaxed (own repo, own claim - separate increment).
+- [x] Landed moirai LF policy from the lane (re-pointed to
+      chore/moirai-lf-policy off origin/main; PR #148 branch stays pushed and
+      open): commit f415006 adds .gitattributes (* text=auto eol=lf) and
+      renormalizes the single committed CRLF blob book-pages.yml, closing
+      conformance class gitattributes_missing for moirai. Pre-change audit:
+      1 i/crlf of 632 tracked files; repo is pure text (no binary guards needed).
+      Opened Moirai PR #149.
+- [~] Ritk mtime.rs:46 Relaxed tick DEFERRED: repos/ritk primary checkout is
+      held by a live peer session (detached HEAD b35c9331 with uncommitted PM
+      sync: backlog +217 incl. overlay-free Nextest 184/184 evidence, gap_audit
+      +302, checklist +140, README metric docs). Skip rung of the assist ladder;
+      re-open when their increment lands. One ambient artifact restored during
+      orientation: orphaned Cargo.lock overlay drift (producing [patch] config
+      absent; regenerates from config in seconds, nothing unique lost).
 - [x] Scratch triage: deleted 11 superseded seqcst/lane/overlay scripts plus
       conformance_full_tmp.json and step5 sha-pin applier (athena+kwavers already
       fully SHA-pinned upstream); removed 3 misdirected root strays (python-ci.yml,
