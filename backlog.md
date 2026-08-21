@@ -1196,15 +1196,16 @@ and CPU/WGPU execution remain a later Hephaestus/Themis slice after their bases
 are refreshed; this slice does not claim device execution.
 
 Current-slice outcome: Moirai commit `2355d42a39ff85fd3efb075075c9a916f52fc8be`
-(`feat(moirai): Retain accelerator identity`) is pushed on
-`fix/moirai-accelerator-route-identity` as PR
-https://github.com/ryancinsight/Moirai/pull/147. `RouteResolution` keeps the
-full `SchedulerRoute`, transport `Address`, and accelerator placement together;
-`RoutedArchivedSender::send_route` returns that resolution. Exact local
-verification: 807/807 nextest tests passed with 6 skipped, clippy passed,
-format check passed, doctests passed, and rustdoc passed. `cargo-semver-checks`
-is unavailable in the environment. Hosted PR checks remain non-terminal and
-are monitored separately; no merge or submodule-pointer advance is claimed.
+(`feat(moirai): Retain accelerator identity`) merged through PR
+https://github.com/ryancinsight/Moirai/pull/147 with the expected-head guard at
+default commit `ff56d60218b6f418d8db0e42c30da8185b90b6bd`. `RouteResolution`
+keeps the full `SchedulerRoute`, transport `Address`, and accelerator
+placement together; `RoutedArchivedSender::send_route` returns that
+resolution. Exact local verification: 807/807 nextest tests passed with 6
+skipped, clippy passed, format check passed, doctests passed, and rustdoc
+passed. `cargo-semver-checks` is unavailable in the environment. Post-merge
+Rust Workspace `32475134603` and Python Bindings `32475134582` are queued; no
+submodule-pointer advance is claimed until those default checks are terminal.
 
 Acceptance: accelerator identity survives route resolution; a present device
 executes a real kernel and returns its value-semantic result; a missing device
