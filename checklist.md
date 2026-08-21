@@ -103,6 +103,8 @@
 - [x] Collect post-merge default CI: run `32442164809` passes at
       `636a2613775f`; Pages build `32442164004` is queued. Live-page evidence
       and the Atlas gitlink advance remain pending the Pages terminal result.
+- [x] Remove the clean merged lane and remote branch after verifying the
+      provider commit is ancestral to `origin/main`.
 
 ## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — current session
 
@@ -121,6 +123,8 @@
 - [x] Collect post-merge default CI: run `32441333616` passes at
       `a38b8b50d1de`; Pages build `32441332866` is queued. Live-page evidence
       and the Atlas gitlink advance remain pending the Pages terminal result.
+- [x] Remove the clean merged lane and remote branch after verifying the
+      provider commit is ancestral to `origin/main`.
 
 ## ATLAS-BOOK-STAGING-2026-08-20 — current session
 

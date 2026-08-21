@@ -279,6 +279,7 @@ The implementation is published as PR
 `636a261377ce6a54549ea4cea0520537f9646c71` in run `32442164809`; Pages build
 `32442164004` remains queued. The dirty primary Iris gitlink remains unchanged
 until Pages and live-page verification are terminal.
+The merged lane and remote branch were removed after ancestry verification.
 
 ## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — Add an independent Coeus gradient oracle [patch] — in progress
 
@@ -324,6 +325,7 @@ The implementation is published as PR
 `a38b8b50d1de1d23c08478e4b60d9e7bbd8eacf4` in run `32441333616`; Pages build
 `32441332866` remains queued. The dirty primary Asclepius checkout and Atlas
 gitlink remain unchanged until Pages and live-page verification are terminal.
+The merged lane and remote branch were removed after ancestry verification.
 
 ## ATLAS-THEMIS-REGION-MODULE-2026-08-20 — Split branded region implementation [arch][patch] — in progress
 
