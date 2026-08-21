@@ -5,13 +5,15 @@
 
 ## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — current session
 
-- [ ] Create a clean Hyperion lane from fetched `origin/main`; preserve the
+- [x] Create a clean Hyperion lane from fetched `origin/main`; preserve the
       lagging dirty detached primary checkout.
-- [ ] Resolve the cited primary chromophore source and record URL, retrieval
-      date, locator, and normalization in provider docs/source.
-- [ ] Replace copied-table-only assertions with independent source-value
+- [x] Resolve the cited primary chromophore source and record URL, retrieval
+      date, locator, and normalization in provider docs/source. The audit
+      disproved the ×4 premise: OMLC values are per 64,500-g/mol hemoglobin
+      molecule, so the provider uses them directly.
+- [x] Replace copied-table-only assertions with independent source-value
       checks and a perturbation mutation control.
-- [ ] Run exact-lane format, locked checks, Nextest, Clippy, doctests, and
+- [x] Run exact-lane format, locked checks, Nextest, Clippy, doctests, and
       Rustdoc; publish the branch and synchronize Atlas evidence.
 
 ## ATLAS-MELINOE-PARTITION-PANIC-ORACLE-2026-08-20 — current session
@@ -321,9 +323,11 @@
       job is intentionally skipped on a pull request.
 - [x] Merge PR #21 at exact head `0213f947`; provider default is now
       `4df62f63`.
-- [ ] Collect post-merge CI `32415389400`, mdBook `32415390244`, and Pages
-      workflow `32415388456` to terminal success, verify the live page, and
-      advance the Atlas gitlink only after that evidence.
+- [x] Collect post-merge CI `32415389400`, mdBook `32415390244`, and Pages
+      workflow `32415388456` to terminal success: all three complete with
+      conclusion `success` at exact default `4df62f63`, and the live page
+      returns HTTP 200. The Atlas gitlink is advanced from `e2dbc9b` to
+      `4df62f63` without touching the dirty detached primary checkout.
 
 ## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — current session
 

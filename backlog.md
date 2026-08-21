@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — Anchor spectral samples [patch] — in progress
+## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — Anchor spectral samples [patch] — done 2026-08-20
 
 Hyperion's chromophore test oracle still uses a copied Kwavers table. The
 embedded extinction samples therefore remain coupled to the retired consumer
@@ -25,6 +25,24 @@ item is synchronized.
 **Owner:** current Atlas session. **Claimed files:** Hyperion chromophore
 source/tests/book on a new clean lane, provider PM records, and root
 `backlog.md`/`checklist.md`.
+
+**Implementation evidence (2026-08-20):** the bounded
+`hyperion-chromophore-source-oracle` lane based on fetched `origin/main`
+`e2dbc9b` publishes `0213f94`, which corrects the copied-Kwavers-table oracle
+and is merged at provider default `4df62f63`. The source audit **disproved the
+×4 premise**: OMLC already presents the retained hemoglobin values as molar
+extinction per 64,500-g/mol hemoglobin *molecule*, so the provider uses them
+directly with no tetramer rescaling — the module citation records the
+resolvable Prahl/OMLC locator, retrieval date (2026-08-20), and molecule basis.
+The independent source-knot oracle asserts all 24 tabulated wavelengths
+exactly against the source table and fails when a sample is perturbed.
+
+**Verification (2026-08-20):** post-merge hosted gates at the exact merged
+default `4df62f63` are terminal green — CI run `32415389400`, Deploy mdBook run
+`32415390244`, and Pages run `32415388456` all complete with conclusion
+`success`, and the live page returns HTTP 200. The Atlas gitlink is advanced
+from `e2dbc9b` to `4df62f63` without switching or modifying the dirty detached
+primary checkout.
 
 ## ATLAS-MELINOE-PARTITION-PANIC-ORACLE-2026-08-20 — Assert recovered panic values [patch] — in progress
 
