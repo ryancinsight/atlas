@@ -7,6 +7,7 @@ import sys
 import textwrap
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).parents[1] / "atlas-board-delivery-audit.py"
@@ -104,6 +105,16 @@ class BoardDeliveryAuditTests(unittest.TestCase):
             MODULE.classify(ancestor=None, rewritten=False, remote_branches=[]),
             "unverifiable",
         )
+
+    def test_default_ref_falls_back_to_master(self) -> None:
+        with patch.object(
+            MODULE,
+            "run_git",
+            side_effect=((1, ""), (1, ""), (0, "")),
+        ):
+            self.assertEqual(
+                MODULE.default_ref(Path("repos/hephaestus")), "origin/master"
+            )
 
 
 if __name__ == "__main__":

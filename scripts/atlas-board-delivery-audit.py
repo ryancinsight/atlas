@@ -370,10 +370,15 @@ def audit(root: Path, board: Path) -> dict[str, Any]:
         for record in records
         if record.get("ancestor_of_default") is False
     ]
+    unresolved_owner = [
+        record for record in records if record["verdict"] == "unresolved-owner"
+    ]
     return {
         "board": str(board),
         "completed_items": len(items),
         "cited_hashes": len(hash_items),
+        "auditable_hashes": len(records) - len(unresolved_owner),
+        "unresolved_owner_hashes": len(unresolved_owner),
         "non_ancestor_flags": len(non_ancestor),
         "genuine_undelivered": sum(record["verdict"] == "undelivered" for record in records),
         "records": records,
@@ -402,7 +407,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(
             "Delivery audit: "
-            f"{report['cited_hashes']} cited hashes, "
+            f"{report['cited_hashes']} cited hashes "
+            f"({report['auditable_hashes']} auditable), "
             f"{report['non_ancestor_flags']} non-ancestor flags, "
             f"{report['genuine_undelivered']} undelivered"
         )

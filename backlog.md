@@ -12212,10 +12212,11 @@ delivered". Registered members come from `.gitmodules`; providers using
 **Non-goal.** Not a CI gate. Measured on the current board (see
 ATLAS-RITK-D2-STRANDED-100). The historical 2026-08-20 snapshot was 67 cited
 hashes, 4 flags, 1 real. The current board is larger and the committed audit
-now reports 307 cited hashes, 12 non-ancestor records, 3 published-but-unmerged
-records, 3 genuinely undelivered records, and 173 unresolved-owner records from
-meta-audit prose. A rebase-merge re-authors the hash, so ancestry alone is not a
-delivery gate.
+now reports 307 cited hashes (134 provider-auditable and 173 unresolved-owner
+citations), 12 non-ancestor records, 6 published-but-unmerged records, and 3
+genuinely undelivered records. The unresolved citations come from meta-audit
+prose without a unique provider owner. A rebase-merge re-authors the hash, so
+ancestry alone is not a delivery gate.
 
 **Three false delivery signals, each hit and corrected on 2026-08-20.** The
 audit above measured the first; the takeover sweep produced the other two. All
