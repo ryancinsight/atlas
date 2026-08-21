@@ -14,8 +14,10 @@
       the oracle.
 - [x] Push the provider branch and synchronize provider/Atlas evidence; do not
       advance the gitlink without hosted terminal gates.
-- [ ] Open the draft PR and collect hosted gates; blocked by GitHub connector
-      HTTP 403 (`Resource not accessible by integration`).
+- [x] Open Horae PR [#25](https://github.com/ryancinsight/horae/pull/25) at
+      exact head `0f7d5801`, based on merged default `d014929f`.
+- [ ] Collect PR and post-merge default gates before advancing the Atlas
+      gitlink.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — current session
 
@@ -51,8 +53,10 @@
       Rustdoc; verify no conformance class increases.
 - [x] Publish the exact provider branch and synchronize Atlas evidence;
       preserve the primary gitlink.
-- [ ] Open the draft PR and collect hosted gates; blocked by connector HTTP
-      403 (`Resource not accessible by integration`).
+- [x] Open Melinoe PR [#20](https://github.com/ryancinsight/melinoe/pull/20)
+      at exact head `d137d3c1`, based on merged default `8a67d146`.
+- [ ] Collect PR and post-merge default gates before advancing the Atlas
+      gitlink.
 
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — current session
 
@@ -64,8 +68,10 @@
       Rustdoc; verify the conformance count decreases without collateral debt.
 - [x] Publish the exact provider branch and record the final compare result
       without advancing the dirty Atlas gitlink.
-- [ ] Open the draft PR and collect hosted gates; blocked by connector HTTP
-      403 (`Resource not accessible by integration`).
+- [x] Open Leto PR [#120](https://github.com/ryancinsight/leto/pull/120) at
+      exact head `e07ee641`, based on merged default `c1c8ab23`.
+- [ ] Collect PR and post-merge default gates before advancing the Atlas
+      gitlink.
 
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — current session
 
@@ -87,19 +93,24 @@
       gate on the exact lane revision.
 - [x] Publish the provider branch, record the exact head and evidence, and
       leave the dirty primary gitlink untouched.
-- [ ] Open the draft Iris PR; blocked by GitHub connector HTTP 403
-      (`Resource not accessible by integration`).
+- [x] Open Iris PR [#18](https://github.com/ryancinsight/iris/pull/18) at exact
+      head `0d18109d`, based on merged default `8700418a`.
+- [ ] Collect PR and post-merge default gates before advancing the Atlas
+      gitlink.
 
 ## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — current session
 
-- [ ] Claim the Asclepius Coeus gradient slice and create a clean lane from
+- [x] Claim the Asclepius Coeus gradient slice and create a clean lane from
       fetched `origin/main`.
-- [ ] Add an independent central-difference value oracle for every dose
+- [x] Add an independent central-difference value oracle for every dose
       coordinate, with a documented numerical bound.
-- [ ] Run locked check, nextest, Clippy, doctests, and rustdoc on the exact
+- [x] Run locked check, nextest, Clippy, doctests, and rustdoc on the exact
       lane revision; exercise a gradient-path mutation.
-- [ ] Publish the provider branch and synchronize the exact head and evidence;
-      preserve the dirty primary checkout.
+- [x] Publish the provider branch and open Asclepius PR
+      [#24](https://github.com/ryancinsight/asclepius/pull/24) at exact head
+      `390a3ff6`, based on merged default `ce3fea35`.
+- [ ] Collect PR and post-merge default gates before advancing the Atlas
+      gitlink.
 
 ## ATLAS-BOOK-STAGING-2026-08-20 — current session
 
@@ -115,15 +126,17 @@
 - [x] Remove the remaining directory-order `ls | head` existence probe from
       the staging block; the block now checks package-artifact presence with
       `compgen` and preserves every staged artifact basename.
-- [x] Publish RITK PR [#204](https://github.com/ryancinsight/ritk/pull/204) at
-      exact head `9bc47d42`; CI `32410451435` and shared book run
-      `32410452203` are queued. `recurseml/analysis` is report-only.
+- [x] Publish and merge RITK PR [#204](https://github.com/ryancinsight/ritk/pull/204)
+      from exact head `9bc47d42`; the merged default is `b35c9331`.
+      Replacement CI, Python, and shared-book runs `32435871304`,
+      `32435871403`, and `32435871619` are queued. `recurseml/analysis` is
+      report-only.
 - [x] Run the strict placeholder-aware link scan across all 25 registered
       books; every target reports zero missing files, missing anchors, and read
       failures. This is link evidence only; executable mdBook coverage remains
       separately gated.
-- [ ] Rerun and collect RITK's exact merged-default book gate before closing
-      the RITK provider item or advancing the Atlas gitlink.
+- [ ] Collect RITK's exact merged-default CI, Python, and book runs before
+      closing the RITK provider item or advancing the Atlas gitlink.
 
 ## ATLAS-BOOK-CALLER-PINS-2026-08-20 — current session
 

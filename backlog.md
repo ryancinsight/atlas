@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence [verification][patch] — blocked
+## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence [verification][patch] — in progress
 
 Horae's tableaus declare formal orders, but its existing embedded-pair test
 only verifies error-estimate scaling. That does not establish convergence of
@@ -41,11 +41,11 @@ no-default-features check, Clippy, Nextest 25/25, doctests 1/1, and Rustdoc
 also pass. The Atlas gitlink is not advanced: hosted terminal gates are still
 required.
 
-**Publication blocker:** the exact branch compare is base `a05dbeb`
-(`origin/main`) to head `0f7d58014ef9200e1a83febb13f7fc43a08edee3` on
-`fix/horae-order-oracle`, two commits ahead with four intended files. Draft
-PR creation was rejected by the GitHub connector with HTTP 403 `Resource not
-accessible by integration`; no hosted-gate, merge, or gitlink claim is made.
+The implementation is published as PR
+[#25](https://github.com/ryancinsight/horae/pull/25) at exact head
+`0f7d58014ef9200e1a83febb13f7fc43a08edee3`, based on merged default
+`d014929f0f2afe0284ac786bec43ecb880e1e7e5`. Hosted checks are pending; no
+merge or gitlink claim is made.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — blocked
 
@@ -152,12 +152,11 @@ passes `127/127` with all features and `52/52` without defaults; doctests pass
 other class unchanged. A temporary `take_panic_payload = None` mutation fails
 the focused recovery test.
 
-**Publication blocker:** GitHub compare confirms exact base `689f562` → head
-`d137d3c` is two commits ahead with four intended files. Draft PR creation was
-rejected by the connector with HTTP 403 `Resource not accessible by
-integration`; no hosted gate or merge is claimed. Re-open publication when
-repository write authorization is available. The dirty detached primary
-Melinoe checkout and Atlas gitlink are unchanged.
+The implementation is published as PR
+[#20](https://github.com/ryancinsight/melinoe/pull/20) at exact head
+`d137d3c17d56eb9586812e98ca2861016e711bbb`, based on merged default
+`8a67d1469ce2478fd0fdb333ec71d58779a107bc`. Hosted checks are pending; the
+dirty detached primary Melinoe checkout and Atlas gitlink remain unchanged.
 
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — in progress
 
@@ -191,12 +190,11 @@ reports `existence_only_assertions: 7` versus `9` on the fetched default, with
 every other class unchanged. A temporary valid-shape rejection mutation
 fails the focused test.
 
-**Publication blocker:** GitHub compare confirms exact base `c1c8ab2` → head
-`e07ee64` is two commits ahead with four intended files. Draft PR creation was
-rejected by the connector with HTTP 403 `Resource not accessible by
-integration`; no hosted gate or merge is claimed. Re-open publication when
-repository write authorization is available. The dirty primary Leto gitlink
-is unchanged.
+The implementation is published as PR
+[#120](https://github.com/ryancinsight/leto/pull/120) at exact head
+`e07ee6417372b368a30e5991f9fbe765ec2a41ef`, based on merged default
+`c1c8ab234559a9f58a34d65c32f6096ee69fc012`. Hosted checks are pending; the
+dirty primary Leto gitlink remains unchanged.
 
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — Remove fabricated quantitative book figures [arch] — done 2026-08-20
 
@@ -271,10 +269,11 @@ format, and rustdoc pass; nextest passes 18/18 and doctests pass 3/3. Mutation
 controls fail as required: removing `Turbo` fails the fixed array contract,
 and duplicating `Magma` fails with `NamedColorMap::ALL repeats Magma`.
 
-**Publication blocker:** the GitHub connector refused draft PR creation with
-HTTP 403 `Resource not accessible by integration`. No PR or hosted result is
-claimed, and the dirty primary Iris gitlink is unchanged. Re-open the
-publication step when repository write authorization is available.
+The implementation is published as PR
+[#18](https://github.com/ryancinsight/iris/pull/18) at exact head
+`0d18109d4975f4220068bc631c433958bcaa4ed6`, based on merged default
+`8700418ab91781523d5ed848db93271d24382ea7`. Hosted checks are pending; the
+dirty primary Iris gitlink remains unchanged.
 
 ## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — Add an independent Coeus gradient oracle [patch] — in progress
 
@@ -312,11 +311,11 @@ nextest (`6/6`), Clippy with `-D warnings`, doctests, and Rustdoc pass. A
 value-preserving mutation that detaches the adapter input gradient fails four
 gradient/value-contract tests, including both independent gradient tests.
 
-**Publication blocker:** GitHub compare confirms base `2f6959b` → head
-`390a3ff` is one commit ahead with one test file changed. Draft PR creation was
-rejected by the GitHub connector with HTTP 403 `Resource not accessible by
-integration`; no PR or hosted result is claimed. Re-open publication when
-repository write authorization is available.
+The implementation is published as PR
+[#24](https://github.com/ryancinsight/asclepius/pull/24) at exact head
+`390a3ff60344034a841b0735d9c059231e7f0a8a`, based on merged default
+`ce3fea355f0989dcc92a321a1f923f6f30749da4`. Hosted checks are pending; the
+dirty primary Asclepius checkout and Atlas gitlink remain unchanged.
 
 ## ATLAS-THEMIS-REGION-MODULE-2026-08-20 — Split branded region implementation [arch][patch] — in progress
 
@@ -353,11 +352,11 @@ warning-denied Clippy, nextest (`25/25`), doctests (`5/5`), and Rustdoc pass.
 The lane conformance scan reports `manifest_implementation: 1` versus `2` on
 the fetched provider default, with every other Themis class unchanged.
 
-**Publication blocker:** GitHub compare confirms base `c76a55e` → head
-`32c40a7` is two commits ahead with the provider implementation and PM files.
-Draft PR creation was rejected by the GitHub connector with HTTP 403
-`Resource not accessible by integration`; no PR or hosted result is claimed.
-Re-open publication when repository write authorization is available.
+The implementation is published as PR
+[#29](https://github.com/ryancinsight/themis/pull/29) at exact head
+`32c40a7b21fd9a6e81505e8741d54884ab1d2e59`, based on merged default
+`c441acffc71ebeb24b77dd2d23a90856352d2f48`. Hosted checks are pending; the
+dirty primary Themis checkout and Atlas gitlink remain unchanged.
 
 ## ATLAS-HELIOS-RADON-ORACLE-2026-08-20 — Remove existence-only sinogram assertion [patch] — in progress
 
@@ -392,11 +391,11 @@ versus `1` on the fetched provider default. Locked workspace all-target check,
 format, warning-denied Clippy, nextest (`262/262`, 9 skipped), doctests, and
 Rustdoc pass.
 
-**Publication blocker:** GitHub compare confirms base `7ff72e3` → head
-`fdfe61a` is one commit ahead with one test file changed. Draft PR creation was
-rejected by the GitHub connector with HTTP 403 `Resource not accessible by
-integration`; no PR or hosted result is claimed. Re-open publication when
-repository write authorization is available.
+The implementation is published as PR
+[#69](https://github.com/ryancinsight/helios/pull/69) at exact head
+`fdfe61aa61a92493e643b76033a7ba72e8fda68c`, based on merged default
+`7ff72e37889594b6592e1f8b8b169834765f7851`. Hosted checks are pending; the
+dirty detached primary Helios checkout and Atlas gitlink remain unchanged.
 
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
@@ -473,10 +472,12 @@ the changed workflow is adopted by a rerun of the RITK default book gate.
 **Owner:** current Atlas session. **Claimed files:**
 `.github/workflows/book-pages.yml`, `docs/adr/0035-shared-publication-pipelines.md`,
 `backlog.md`, `checklist.md`. The RITK gate remains open until a hosted rerun
-at the exact merged default is terminal green. The RITK adoption caller is
-published as PR [#204](https://github.com/ryancinsight/ritk/pull/204) at exact
-head `9bc47d42f0d6050f4a68661c01d45806d41e583f`; CI run `32410451435` and
-shared book run `32410452203` are queued. `recurseml/analysis` is report-only.
+at the exact merged default is terminal green. RITK PR
+[#204](https://github.com/ryancinsight/ritk/pull/204) merged from exact head
+`9bc47d42f0d6050f4a68661c01d45806d41e583f` at default
+`b35c93313c06ea55fffa680a430378dda1df8e41`; replacement CI, Python, and
+shared-book runs `32435871304`, `32435871403`, and `32435871619` are queued.
+`recurseml/analysis` is report-only.
 
 Themis's corresponding post-merge evidence is terminal for the build jobs:
 default head `c76a55e5eb9988b48bba69e67d6e07ce5fe55ea8` has successful CI
@@ -572,6 +573,10 @@ WGPU/Metal/ROCm/CUDA/Deploy `32435207406`/`32435207407`/`32435207414`/
 `32435213271`/`32435213613`/`32435212802`, and Melinoe Deploy/Pages
 `32435216434`/`32435215430`. Atlas pointers remain unchanged until those
 default-head gates are terminal and live pages are checked.
+
+RITK's stacked book adoption is now the same merged-default gate: the prior
+`8196809` snapshot was superseded by #204's `b35c9331`; its three post-merge
+runs above remain uncollected.
 
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
