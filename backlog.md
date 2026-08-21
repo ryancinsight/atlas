@@ -3106,10 +3106,10 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Active claim (atlas coordinator):** RITK release-workflow hosted-gate
-  collection; the provider PR and Atlas pointer reconciliation are now
-  complete. Peer-owned source, consumer, and lane checkouts remain out of
-  scope.
+- **Active claim (atlas coordinator):** exact committed-gitlink source mode for
+  `scripts/atlas-multiphysics-audit.py` and its tests; claimed files are that
+  script, `scripts/tests/test_atlas_multiphysics_audit.py`, and this item.
+  Peer-owned source, consumer, and lane checkouts remain out of scope.
 - **RITK release-workflow closeout (fresh recheck):** PR [#194](https://github.com/ryancinsight/ritk/pull/194)
   merged at `337f0dc5` with merge commit `65bee2c2`. The fetched RITK default
   is `b35c93313c06ea55fffa680a430378dda1df8e41`, exactly matching the Atlas
