@@ -2,6 +2,8 @@
 
 ## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — open
 
+- **Decision record:** `docs/adr/0051-kwavers-visualization-backend-ownership.md`
+
 - **Outcome:** `kwavers-analysis` visualization owns no concrete WGPU device,
   queue, buffer, adapter, or `pollster` runtime. Visualization transfers and
   renderer resources execute through one provider-owned backend seam, with a
