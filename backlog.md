@@ -3104,8 +3104,9 @@ The root `scripts/atlas-multiphysics-audit.py` records checkout revision,
 committed gitlink, dirty state, direct provider edges, PyO3/GIL evidence,
 `py.typed`/`.pyi` typing surfaces, book fences, analytical/differential
 markers, performance/memory markers, and unsafe-code policy. At Atlas
-`869ee5d`, it also requires and confirms the existing `tyche-core` edge in
-CFDrs, Helios, and Kwavers. It finds no CFDrs GIL-release site or source
+`474adbe`, it requires and confirms both the existing `tyche-core` edge and
+`tyche_core` source consumption in CFDrs, Helios, and Kwavers. It finds no
+CFDrs GIL-release site or source
 typing artifacts; no source typing artifacts in Helios or Kwavers; Kwavers's
 direct `wgpu` edge; and Helios/Kwavers runnable-book gaps. Blocking mode also
 rejects the dirty,
