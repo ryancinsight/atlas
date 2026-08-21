@@ -104,6 +104,24 @@
   current failed, stale-base, and queued PRs remain filed in the hosted
   recheck above.
 
+## ATLAS-INTEGRATOR-AUDIT-2026-08-21 — Recheck cross-provider contracts [patch] — done 2026-08-21
+
+- **Provider registration:** the structural audit passes for all 22 Atlas
+  providers, including Harmonia and Gaia, with Tyche naming normalization
+  preserved.
+- **Book inventory:** the committed-gitlink audit finds 25 book inventories:
+  21 executable shared gates, three vacuous gates (Gaia, Helios, Kwavers), and
+  one missing executable gate (Consus). `--check` passes; `--require-gates`
+  remains intentionally red until those provider-owned gaps close.
+- **Integrator findings:** CFDrs passes. Helios lacks a `py.typed` marker,
+  Python stubs, and an executable Rust book fence. Kwavers retains a direct
+  `wgpu` dependency and lacks the same typed Python and executable-book
+  surfaces. These are real provider/integrator gaps, not suppressed findings.
+- **Verification:** `python -m pytest scripts/tests -q` passes 298 tests and
+  77 subtests in 12.37 seconds. The audit output is static evidence; it does
+  not substitute for provider-native Rust/Python gates, hosted CI, wheel,
+  Pages, or live-page verification.
+
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
 Tyche PR #35 documents the completed release/package verification slice. The
