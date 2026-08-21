@@ -860,6 +860,15 @@ callers with no gate (Consus, Hephaestus, and RITK); `--check` passes while
 suite passes 217 tests in 6.45 seconds. This closes the audit-tool defect, not
 the provider-owned sample work.
 
+Tyche's previously outstanding structural report is now closed by a targeted
+read-only run: `python scripts/atlas-provider-integration-audit.py
+--providers tyche --structural-only --format json` returns `status: ok` with
+one active provider and zero issues. The Tyche checkout is clean at gitlink
+`10410f2`; its required README, CHANGELOG, backlog, checklist, and gap-audit
+records are present. The fetched `origin/main` is `89194f3`, so Tyche remains
+an ordinary post-merge pointer watchpoint; this structural result does not
+substitute for provider CI, Pages, or live-page evidence.
+
 The checker also limits fence evidence to Markdown sources linked from each
 committed `SUMMARY.md`; orphaned files under `docs/book` cannot satisfy the
 gate. The focused book-audit tests and the full root Python suite remain green
