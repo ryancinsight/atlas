@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -103,6 +104,7 @@ PROFILES = (
 DEPENDENCY_TABLES = {"dependencies", "dev-dependencies", "build-dependencies"}
 SOURCE_SUFFIXES = {".rs", ".py", ".pyi", ".toml", ".md"}
 DERIVED_PYTHON_DIRS = {"target", ".git", "dist", "build", ".venv"}
+DERIVED_SCAN_DIRS = frozenset(DERIVED_PYTHON_DIRS)
 RUST_FENCE = re.compile(
     r"^\s*```(?:rust|rs)(?P<attributes>(?:,[^\s]+)*)\s*$", re.MULTILINE
 )
@@ -152,14 +154,17 @@ def _committed_gitlink(name: str) -> str | None:
 
 
 def _source_files(provider: Path) -> list[Path]:
-    return [
-        path
-        for path in provider.rglob("*")
-        if path.is_file()
-        and path.suffix in SOURCE_SUFFIXES
-        and "target" not in path.parts
-        and ".git" not in path.parts
-    ]
+    paths: list[Path] = []
+    for directory, subdirectories, filenames in os.walk(provider):
+        subdirectories[:] = [
+            name for name in subdirectories if name not in DERIVED_SCAN_DIRS
+        ]
+        paths.extend(
+            Path(directory) / filename
+            for filename in filenames
+            if Path(filename).suffix in SOURCE_SUFFIXES or filename == "py.typed"
+        )
+    return paths
 
 
 def _dependency_names(manifest: Path) -> set[str]:
@@ -185,10 +190,22 @@ def _dependency_names(manifest: Path) -> set[str]:
 
 def _dependency_inventory(provider: Path) -> set[str]:
     names: set[str] = set()
-    for manifest in provider.rglob("Cargo.toml"):
-        if "target" not in manifest.parts and ".git" not in manifest.parts:
-            names.update(_dependency_names(manifest))
+    for manifest in _files_under(provider, {"Cargo.toml"}):
+        names.update(_dependency_names(manifest))
     return names
+
+
+def _files_under(provider: Path, names: set[str]) -> list[Path]:
+    """Enumerate named files while pruning derived directories at traversal time."""
+    paths: list[Path] = []
+    for directory, subdirectories, filenames in os.walk(provider):
+        subdirectories[:] = [
+            name for name in subdirectories if name not in DERIVED_SCAN_DIRS
+        ]
+        paths.extend(
+            Path(directory) / filename for filename in filenames if filename in names
+        )
+    return paths
 
 
 def _matches_dependency(names: set[str], provider: str) -> bool:
@@ -214,9 +231,7 @@ def _python_typing_evidence(provider: Path) -> tuple[bool, bool]:
     """Return source-package ``py.typed`` and stub presence."""
     marker = False
     stubs = False
-    for path in provider.rglob("*"):
-        if not path.is_file() or DERIVED_PYTHON_DIRS.intersection(path.parts):
-            continue
+    for path in _source_files(provider):
         if path.name == "py.typed":
             marker = True
         elif path.suffix == ".pyi":

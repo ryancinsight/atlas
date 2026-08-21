@@ -61,6 +61,18 @@ hyperion = "0.1"
             (provider / "package" / "api.pyi").write_text("", encoding="utf-8")
             self.assertEqual(audit._python_typing_evidence(provider), (True, True))
 
+    def test_source_scan_prunes_derived_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            provider = Path(temp)
+            (provider / "src").mkdir()
+            (provider / "src" / "lib.rs").write_text("", encoding="utf-8")
+            (provider / "target" / "debug").mkdir(parents=True)
+            (provider / "target" / "debug" / "generated.rs").write_text("", encoding="utf-8")
+            (provider / ".venv" / "lib").mkdir(parents=True)
+            (provider / ".venv" / "lib" / "generated.py").write_text("", encoding="utf-8")
+
+            self.assertEqual(audit._source_files(provider), [provider / "src" / "lib.rs"])
+
     def test_audit_reports_missing_gil_release_without_claiming_success(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
