@@ -1549,7 +1549,7 @@ book coverage remains a separate open integration item.
   Exact CI `32347865828`, counterbalanced benchmark `32347865841`, post-merge
   CI `32348784876`, Pages `32348782338`, and live Pages HTTP 200 pass.
 
-## ATLAS-TYCHE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — in progress
+## ATLAS-TYCHE-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-21
 
 - Owner: Atlas integration; provider scope is Tyche's Pages caller and PM/
   changelog records. No implementation, release, or lockfile change.
@@ -1565,9 +1565,10 @@ book coverage remains a separate open integration item.
   Caller-only PR [#34](https://github.com/ryancinsight/tyche/pull/34) is at exact
   head `c481e05`; CI `32425417532` and Deploy mdBook `32425418118` pass. It
   merged as `89194f3`; post-merge CI `32434861620`, Deploy mdBook
-  `32434862314`, and Pages `32434860567` are queued. The superseded Tyche PR
-  #33 is closed. The clean default and Atlas pointer remain unchanged until
-  post-merge verification is terminal.
+  `32434862314`, and Pages `32434860567` pass. Live Pages returns HTTP 200
+  with title `Introduction - tyche: Uncertainty Quantification for Atlas`.
+  The superseded Tyche PR #33 is closed, and the Atlas pointer advances to
+  the verified default in the integration commit.
 
 ## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 

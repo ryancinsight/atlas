@@ -272,9 +272,9 @@
       mdBook `32425418118` pass at `c481e05`.
 - [x] Merge PR #34 at expected head `c481e05` as `89194f3`; close the
       superseded duplicate PR #33.
-- [ ] Collect post-merge CI `32434861620`, Deploy mdBook `32434862314`, and
-      Pages `32434860567`, then advance the pointer only after terminal
-      success and live-page verification.
+- [x] Collect post-merge CI `32434861620`, Deploy mdBook `32434862314`, and
+      Pages `32434860567`; all pass and live Pages returns HTTP 200 with the
+      expected Tyche title. Advance the pointer in the integration commit.
 
 ## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — current session
 
