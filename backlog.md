@@ -90,6 +90,20 @@
   pointer advancement remain gated by exact-head terminal provider checks,
   book/Pages evidence, and live-page verification where applicable.
 
+## ATLAS-EXACT-HEAD-RECHECK-2026-08-21 — Reconcile fetched provider defaults [patch] — done 2026-08-21
+
+- **Evidence:** `python scripts/atlas-provider-integration-audit.py
+  --provider-set requested-2026-08-14 --exact-heads --exact-head-workers 8`
+  completed against the current root. Seven requested providers match their
+  fetched defaults; 13 remain behind: Horae, Hyperion, Themis, Tyche, Helios,
+  Asclepius, Eunomia, Moirai, Melinoe, Leto, Apollo, Iris, and Kwavers.
+- **Interpretation:** the mismatches are release-boundary watchpoints, not
+  source defects. The fetched Kwavers default moved again during this audit to
+  `f0785879`; no pointer update is safe without terminal provider evidence.
+- **Residual:** the hosted monitor remains the authority for merge readiness;
+  current failed, stale-base, and queued PRs remain filed in the hosted
+  recheck above.
+
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
 Tyche PR #35 documents the completed release/package verification slice. The
