@@ -6441,12 +6441,34 @@ No repository other than CFDrs and Kwavers imports that family.
       measured-fresh live-peer territory, watchpoint recorded.
 - [x] Open canonical lane worktrees/moirai-seqcst-relax from fetched
       origin/main; claim ATLAS-MOIRAI-ORDERING-052.
-- [ ] Land the archived Step-4 timeouts overlay as a proper provider commit
-      (defaults.run.timeout-minutes 30 on python-ci/python-release workflows).
+- [x] Land the archived Step-4 timeouts overlay as a proper provider commit:
+      lane commit 9904670 "ci(moirai): Default workflow steps to 30-minute timeouts"
+      on fix/moirai-seqcst-ordering-ratchet (python-ci.yml, python-release.yml;
+      YAML validated). Branch push + PR evidence pending collection.
 - [ ] Re-run the SeqCst inventory at ff56d60; select one coherent family;
       apply justified weakest-ordering relaxations naming each happens-before
       edge; verify focused nextest + clippy -D warnings + loom where present;
       push branch and record PR evidence. No Atlas pointer move.
+- [x] Re-ran inventory at ff56d60 and completed the Chase-Lev derivation: the
+      thief gate (load resizing -> fetch_add steal_accesses -> recheck) and the
+      resizer drain require one total order; a Relaxed increment has no SC-order
+      position, so the drain could miss an admitted thief. All chase_lev/idle/
+      blocking/worker/scheduler-core/async sites stay SeqCst as recorded decisions
+      (idle.rs module doc names the Dekker pairing that yesterday's 20-line-window
+      classifier missed for blocking.rs:67).
+- [x] Found and fixed the real lever instead of forcing relaxations: the scanner
+      counted committed test sidecars as production (async_iter_tests.rs held 16
+      SeqCst). Fix landed atlas-side at 9828ee8; honest moirai count is 85.
+- [x] Residuals recorded on backlog row -INSTRUMENT: mpmc/channel.rs:172,261
+      waiter-count adds (dedicated mpmc slice); ritk mtime.rs:46 Relaxed tick
+      (own repo, own claim).
+- [x] Scratch triage: deleted 11 superseded seqcst/lane/overlay scripts plus
+      conformance_full_tmp.json and step5 sha-pin applier (athena+kwavers already
+      fully SHA-pinned upstream); removed 3 misdirected root strays (python-ci.yml,
+      python-release.yml byte-identical to archive copies; orphan package-lock.json).
+      Preserved the peer's uncommitted gap_audit SHA-pin finding record.
+- [ ] Push fix/moirai-seqcst-ordering-ratchet, record PR evidence; collect
+      Tyche #36 / Eunomia #73 / Consus hosted states; CFDrs #365 conflict still open.
 
 ## Archive — closed checklists
 

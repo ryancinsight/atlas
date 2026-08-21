@@ -1,5 +1,126 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-21: conformance instrument counted path-redirected cfg(test) sidecars as production
+
+`declared_cfg_test` consulted only parent-of-entry declarers, so a `#[cfg(test)]`
+sidecar placed by `#[path]` from a sibling directory's `mod.rs` scanned as
+production code. Live instance: moirai-iter gates `../async_iter_tests.rs` from
+`src/async_iter/mod.rs`, inflating the stack `seqcst_production` ratchet by 16
+(101 recorded vs 85 honest).
+
+Fix (atlas `9828ee8`): `_cfg_test_decls` resolves each declaration's `#[path]`
+against the declaring file's directory (mirroring `_child_candidates`), and
+`declared_cfg_test` additionally consults sibling-directory `mod.rs` declarers,
+matching resolved paths as well as stems. Three regression tests cover the gated,
+ungated-negative-control, and stem-renamed cases; full scripts suite green
+(315 passed).
+
+Consequence for the ordering ratchet: moirai's remaining 85 production SeqCst
+sites are overwhelmingly documented decisions (Chase-Lev arbitration gate,
+Dekker idle/blocking pair, wake handshakes). Two mpmc waiter-count adds
+(`mpmc/channel.rs:172,261`) remain the only derivation-pending relaxation
+candidates; ritk `mtime.rs:46` is an independent Relaxed candidate.
+
+## Finding 2026-08-21: tag_pinned_actions — Step 5 SHA-pin overlay, ratchet 68→0
+
+The live conformance scan reported `tag_pinned_actions = 68` across two
+repos: athena (6) and kwavers (62). Every flagged site is a `uses:` line in
+a workflow file whose `@<ref>` is not a full 40-character commit SHA —
+tags (`@v7`, `@v4`, `@1.95.0`), version branches (`@v2`, `@v6`), and moving
+branch refs (`@stable`, `@master`, `@nightly`, `@nextest`).
+
+The applier (`scripts/atlas-step5-sha-pin-overlay.py`) resolves each of 13
+unique action+ref pairs to its 40-char SHA through `gh api`, then rewrites
+each `@<ref>` to `@<sha> # <ref>` — the same pattern moirai, themis, helios,
+and every other already-clean repo in the stack uses. Tag refs are immutable
+and resolve to a single commit; branch refs (`@stable`, `@master`, etc.) are
+moving targets pinned to their current HEAD SHA, matching the approach
+already established in the stack.
+
+Five files were overlaid (uncommitted, matching the Steps 1–4 overlay pattern):
+
+| repo | file | sites |
+|---|---|---:|
+| athena | `.github/workflows/ci.yml` | 6 |
+| kwavers | `.github/workflows/architecture-validation.yml` | 15 |
+| kwavers | `.github/workflows/benchmark-regression.yml` | 11 |
+| kwavers | `.github/workflows/ci.yml` | 28 |
+| kwavers | `.github/workflows/legacy-migration-audit.yml` | 8 |
+| | **total** | **68** |
+
+All five files parse cleanly under `yaml.safe_load`. Post-application
+per-repo scans report `tag_pinned_actions = 0` for both athena and kwavers;
+no other conformance class increased.
+
+### Cumulative audit-sweep ledger (updated)
+
+| step | class | before | after | delta |
+|---|---|---:|---:|---:|
+| 1 | `gitattributes_missing` | 5 | 0 | −5 |
+| 2 | `workflow_missing_permissions` | 6 | 0 | −6 |
+| 3 | `seqcst_production` | 132 | 132 | 0 (correctness-class, see Step 3) |
+| 4 | `workflow_missing_timeout` | 9 | 0 | −9 |
+| (4) | `excess_worktrees` (Phase 4) | 5 | 0 | −5 |
+| (4) | `target_forks` (durability) | 2 | 0 | −2 |
+| 5 | `tag_pinned_actions` | 68 | 0 | −68 |
+
+The destructive-class / sweep-class ratchets are now at **all 0s**:
+Steps 1, 2, 4, 5 plus the excess_worktrees Phase 4 closure and target_forks
+durability overlay combine to a stack drop of **95 → 0** (excluding
+`seqcst_production` which is a correctness-class, not enforcement).
+
+### Outstanding debt after Step 5
+
+- **`seqcst_production`** — correctness-class (currently 110 across
+  kwavers/moirai/melinoe/ritk after provider source changes), requires loom
+  re-verification per site. The Step 3 wider-classifier identified two
+  relaxation candidates but they were not applied.
+- **`missing_deny_docs = 118`** — assessed as a provider-level watchpoint
+  (see the 2026-08-21 assessment Finding above). Not a safe Atlas-side
+  editorial sweep; 114 of 118 crates have undocumented public items.
+
+## Finding 2026-08-21: workflow_missing_timeout regression — moirai overlay re-application
+
+The Step 4 closure (Finding 2026-08-20 below) recorded
+`workflow_missing_timeout = 0` after prepending the `defaults.run.timeout-minutes: 30`
+overlay to 9 workflow files. A subsequent live scan found the metric had
+regressed to **2** — both in moirai — because upstream workflow commits at
+moirai `113a7f9` (`ci: Pin full Atlas workflow SHA`) replaced the overlaid
+`python-ci.yml` and `python-release.yml` files, discarding the uncommitted
+overlay. The other 7 Step 4 sites retained their overlays.
+
+`scripts/atlas-step4-timeouts-overlay.py` is idempotent: it skipped the 7
+already-overlaid sites and re-applied the overlay to the 2 regressed moirai
+files. The post-application live scan reports `workflow_missing_timeout = 0`
+across the stack (`<meta>` and per-repo sum). Both moirai files parse cleanly
+under `yaml.safe_load` with the `defaults:` block at the top.
+
+This is the same uncommitted-overlay pattern as Steps 1, 2, and 4. The
+overlay is local-only; the moirai dst SHA is unchanged. A future upstream
+workflow refresh can re-drop the overlay; the applier remains the recovery
+tool.
+
+## Finding 2026-08-21: missing_deny_docs assessment — not a safe editorial sweep
+
+The Step 4 "Outstanding debt after this turn" section names
+`missing_deny_docs = 118` as the natural next Step 5 in the audit-sweep plan.
+A per-site assessment across the 118 counted `lib.rs` files (12 repos) found
+that **114 of 118** have undocumented public items in the `lib.rs` file alone.
+Adding `#![deny(missing_docs)]` to any such crate would break compilation,
+since the lint requires every public item in the entire crate (including
+submodules) to carry a doc comment.
+
+Only 5 crates have all `pub` items documented in `lib.rs` itself — but even
+those require submodule-level verification before the directive can be safely
+added, because `deny(missing_docs)` applies crate-wide, not just to `lib.rs`.
+
+**Classification:** unlike Steps 1–4 (structural overlays that don't change
+compilation behavior), `missing_deny_docs` requires per-crate source
+documentation work owned by each provider. It is not a safe Atlas-side
+editorial sweep. The 118-site count is a watchpoint for provider-level
+doc-discipline adoption, not a mechanical ratchet the Atlas audit-sweep can
+close.
+
 ## Finding 2026-08-21: conformance scan repeated manifest traversal
 
 The full `python scripts/atlas-conformance.py --worktree --json` scan measured
@@ -624,8 +745,11 @@ not enforcement).
 - **`seqcst_production = 132`** — correctness-class, requires loom
   re-verification per site (see Finding at the top of the previous
   Step 3 audit thread).
-- **`missing_deny_docs = 118`** — small-files editorial sweep; the
-  natural next Step 5 in the audit-sweep plan.
+- **`missing_deny_docs = 118`** — assessed as a provider-level
+  watchpoint, not a safe Atlas-side editorial sweep (see the 2026-08-21
+  assessment Finding above). 114 of 118 crates have undocumented public
+  items; adding the directive would break compilation. Requires per-crate
+  provider documentation work.
 
 ### Why uncommitted
 
