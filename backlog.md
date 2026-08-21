@@ -17,6 +17,11 @@
   exact head. The Atlas gitlink commit `4ee9128` is held until the provider PR
   merges and its hosted checks complete; the remaining provider sets follow as
   disjoint increments.
+- Eunomia is the next active disjoint slice in provider lane
+  `docs/eunomia-book-figures`; its in-progress diff contains the 17 expected
+  figure assets and their 17 book-page references. Commit and focused gate
+  evidence are still pending, and the peer-dirty Eunomia main checkout is
+  untouched.
 - **Hosted hold:** PR #36 remains open and mergeable at
   `4cd0899a301db4a934ae32bf40db00bb56836c64`; Deploy mdBook run
   `32492568641` and CI run `32492568124` are queued, with `recurseml/analysis`
