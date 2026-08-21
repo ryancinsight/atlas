@@ -81,6 +81,19 @@ harmonia = "0.1"
         self.assertEqual({profile.name for profile in audit.PROFILES}, {"CFDrs", "helios", "kwavers"})
         self.assertIn("wgpu", audit.PROFILES[0].forbidden_dependencies)
 
+    def test_require_attribution_rejects_dirty_or_drifted_checkout(self) -> None:
+        report = {
+            "provider": "CFDrs",
+            "status": "ok",
+            "findings": [],
+            "checkout_dirty": True,
+            "checkout_revision": "a" * 40,
+            "committed_gitlink": "b" * 40,
+        }
+        audit._require_attribution([report])
+        self.assertEqual(report["status"], "fail")
+        self.assertEqual(len(report["findings"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -326,6 +326,24 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _require_attribution(reports: list[dict[str, object]]) -> None:
+    """Add revision/cleanliness findings required by the blocking mode."""
+    for report in reports:
+        provider = report.get("provider", "")
+        if provider not in {profile.name for profile in PROFILES}:
+            continue
+        findings = report.setdefault("findings", [])
+        if report.get("checkout_dirty"):
+            findings.append("provider checkout is dirty; clean attribution is required")
+        checkout_revision = report.get("checkout_revision")
+        committed_gitlink = report.get("committed_gitlink")
+        if checkout_revision != committed_gitlink:
+            findings.append(
+                "checkout revision does not match the committed gitlink; exact attribution is required"
+            )
+        report["status"] = "fail" if findings else "ok"
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     selected = {name.strip() for name in args.integrators.split(",") if name.strip()}
@@ -344,6 +362,8 @@ def main(argv: list[str] | None = None) -> int:
         reports.append({"provider": "<selection>", "status": "fail", "findings": [
             "unknown integrators: " + ", ".join(sorted(unknown))
         ]})
+    if args.require_evidence:
+        _require_attribution(reports)
     failed = [report for report in reports if report.get("status") == "fail"]
     if args.format == "json":
         print(json.dumps({"status": "fail" if failed else "ok", "integrators": reports}, indent=2))
