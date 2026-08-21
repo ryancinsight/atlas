@@ -108,6 +108,7 @@ RUST_FENCE = re.compile(
 )
 PYTHON_SURFACE = re.compile(r"#\s*\[(?:pyclass|pyfunction|pymodule)\b")
 GIL_RELEASE = re.compile(r"\b(?:allow_threads|detach)\s*\(")
+TYCHE_SOURCE_REFERENCE = re.compile(r"\btyche_core\b")
 ANALYTICAL = re.compile(
     r"\b(?:analytical|manufactured|closed[- ]form|poiseuille|radon|sinogram|reference)\b",
     re.IGNORECASE,
@@ -280,6 +281,7 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
     pyo3 = _matches_dependency(manifests, "pyo3")
     python_surface = _count_matches(python_files, PYTHON_SURFACE)
     gil_release = _count_matches(python_files, GIL_RELEASE)
+    tyche_source_references = _count_matches(python_files, TYCHE_SOURCE_REFERENCE)
     py_typed, python_stubs = _python_typing_evidence(provider)
     if not pyo3:
         findings.append("no PyO3 dependency")
@@ -291,6 +293,8 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
         findings.append("no source py.typed marker discovered")
     if pyo3 and not python_stubs:
         findings.append("no Python typing stub discovered")
+    if tyche_source_references == 0:
+        findings.append("no Tyche source reference discovered")
 
     if not (book_root / "book.toml").is_file():
         findings.append("docs/book/book.toml is missing")
@@ -327,6 +331,7 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
         "gil_release_sites": gil_release,
         "py_typed_marker": py_typed,
         "python_typing_stubs": python_stubs,
+        "tyche_source_references": tyche_source_references,
         "book": book_root.is_dir() and (book_root / "book.toml").is_file(),
         "rust_fences": rust_fences,
         "runnable_rust_fences": runnable_rust_fences,

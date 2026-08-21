@@ -840,8 +840,8 @@ reconciliation; no cleanup/reset was performed by the bootstrap slice.
 The integrator boundary audit checks direct provider ownership, forbidden
 incumbent dependencies, PyO3 declarations and GIL release, `py.typed` and
 `.pyi` distribution surfaces, executable book samples, analytical and
-differential evidence markers, performance or allocation instrumentation, and
-crate-level unsafe-code policy:
+differential evidence markers, Tyche source consumption, performance or
+allocation instrumentation, and crate-level unsafe-code policy:
 
 ```sh
 python scripts/atlas-multiphysics-audit.py --format json

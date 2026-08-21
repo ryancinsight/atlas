@@ -92,6 +92,7 @@ harmonia = "0.1"
         self.assertIn("no explicit GIL-release site discovered", report["findings"])
         self.assertIn("no source py.typed marker discovered", report["findings"])
         self.assertIn("no Python typing stub discovered", report["findings"])
+        self.assertIn("no Tyche source reference discovered", report["findings"])
 
     def test_profiles_cover_all_three_integrators(self) -> None:
         self.assertEqual({profile.name for profile in audit.PROFILES}, {"CFDrs", "helios", "kwavers"})
