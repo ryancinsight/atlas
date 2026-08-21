@@ -1317,7 +1317,8 @@ gaia`; it does not evaluate the repair. Replacement CI run `32459250542` and
 book run `32459250549` are queued at the repaired exact head. A local run
 against the shared Atlas cache is not a valid oracle because that cache contains
 multiple Gaia artifact revisions and produces `E0464: multiple candidates`;
-the hosted clean-runner job remains the required staging evidence.
+the hosted clean-runner job remains the required staging evidence. Local
+`mdbook build docs/book` and link checking pass at the repaired lane head.
 `recurseml/analysis` is report-only.
 
 ## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — Restore exact-default formatting gate [patch] — in progress
