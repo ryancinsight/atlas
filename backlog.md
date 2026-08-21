@@ -661,6 +661,15 @@ provider PM/ADR artifacts. Dependencies: current Eunomia `origin/main`; no
 consumer dependency. Risk/change class: `[major] [arch]`. Last update:
 2026-08-21.
 
+Implementation is complete on Eunomia branch `fix/eunomia-nan-contract` at
+`ba51a16`, with provider evidence recorded at `f6eceb1`. The provider PR is
+[Eunomia #72](https://github.com/ryancinsight/eunomia/pull/72). Local exact-
+head evidence covers format, strict all-target/all-feature Clippy, Nextest
+138/138, doctests 9/9, Rustdoc, locked package listing, workflow-equivalent
+fresh-staged mdBook tests, and mdBook build. Hosted checks and merge remain
+pending; the Atlas `repos/eunomia` gitlink stays unchanged until the provider
+default branch has terminal evidence.
+
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — in progress
 
 The Eunomia `numpy` feature is a real provider-consumer seam: it implements
