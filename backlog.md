@@ -3120,6 +3120,11 @@ Tyche designs, seeds, moments, and conformal calibration in its analysis and
 geometry sampling modules. These references were checked in the live
 provider trees; they do not substitute for clean exact-head or hosted proof.
 
+The full Atlas-22 structural audit at this integration revision reports
+`22/22` active providers and zero issues, including Harmonia, Gaia, and the
+Tyche canonicalization. The stack overlay remains aligned after restoring
+only derived lockfile churn; no provider source or gitlink changed.
+
 The checker’s focused suite passes `7/7`; the complete root Python suite at
 Atlas `158aeca` passes `233/233` in `7.5 s`. The requested-provider structural
 audit remains `20/20` with zero issues, the development overlay reports
