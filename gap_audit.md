@@ -13581,3 +13581,34 @@ adding CFDrs/Kwavers/Helios adapters; then replace the identified simulated or
 silent backend paths with real dispatch or explicit failure and differential
 tests. Existing backlog items own those actions; this audit adds no duplicate
 implementation item.
+
+## Finding 2026-08-21: packaging and book-surface static audit
+
+A separate read-only audit of the committed provider origin revisions found no
+new P0 defect. All 22 named providers have a crate manifest, lockfile, README,
+book manifest and summary, and a Pages workflow. Publishable Rust providers
+use the reusable OIDC crates.io workflow; the seven providers with Python
+release callers use the shared wheel workflow with an explicit manifest path
+and `atlas-ref`.
+
+The audit found three P1 packaging gaps under `ATLAS-PUBLISH-001`: Coeus,
+Hephaestus, and Leto have PyO3 crates without complete maturin metadata; Coeus
+has a stub without `py.typed`, while Hephaestus and Leto lack stubs and the
+marker. Hephaestus also tracks committed `.pyd` binaries in
+`crates/hephaestus-python`, which requires a package-content cleanup and
+sdist/wheel exclusion check. Consus, Helios, and Moirai lack static typing
+markers/stubs. These findings are mapped to the existing publish parent and
+are not silently treated as runtime binding proof.
+
+The executable-book inventory's three missing gates remain Consus,
+Hephaestus, and RITK at the committed Atlas revisions. The static audit adds
+that Gaia has no Rust fences and Helios has no Rust fences despite a workflow
+flag, while RITK and Hephaestus contain mostly ignored or `no_run` fences;
+these are vacuous-coverage residuals under the existing book-gate items. Book
+caller workflow pins remain mixed and are tracked by
+`ATLAS-BOOK-CALLER-PINS-2026-08-20`.
+
+Evidence is static only: no provider build, nextest, doctest, mdBook test,
+figure render, wheel installation, registry query, hosted workflow, or Pages
+request was performed in this pass. The findings therefore establish surface
+gaps and board routing, not executable or deployment correctness.

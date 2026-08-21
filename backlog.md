@@ -842,6 +842,14 @@ existence-only assertions, 229 production unwraps, 111 oversized files, and
 three excess worktrees; Helios has two existence-only assertions and seven
 oversized files. No ratchet baseline was regenerated.
 
+The independent packaging/book audit found no new P0 defect. It routes the
+remaining P1 Python metadata gaps for Coeus, Hephaestus, and Leto, the tracked
+Hephaestus `.pyd` artifacts, and missing static typing surfaces for Consus,
+Helios, and Moirai to `ATLAS-PUBLISH-001`. It also confirms vacuous or absent
+Rust-fence coverage in Gaia, Helios, RITK, and Hephaestus; these remain under
+the existing book-gate items. Evidence is static and does not close any build,
+wheel, hosted, or Pages gate.
+
 ## ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20 — Ship the typed Python surface [patch] — in progress
 
 The Apollo Python package currently exposes its symbols through `__init__.py`
