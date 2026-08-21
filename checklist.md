@@ -143,10 +143,12 @@
       pass for each (`32418584339`/`32418584938`,
       `32418586348`/`32418586803`, `32418600576`/`32418601066`,
       `32418598026`/`32418598676`, and `32425417532`/`32425418118`).
-- [ ] Merge the exact-green PRs and rerun the caller audit; blocked because
-      the GitHub connector rejects merge calls with HTTP 403 (`Resource not
-      accessible by integration`). Do not advance nested gitlinks without
-      post-merge default verification.
+- [x] Merge the exact-green PRs with expected-head guards: Horae #24 →
+      `d014929`, Hyperion #22 → `91df53e`, Themis #28 → `c441acf`, Proteus #16
+      → `73c6c81`, and Tyche #34 → `89194f3`; close superseded Tyche #33.
+- [ ] Collect terminal post-merge CI, Deploy mdBook, and Pages results at the
+      five merge commits, verify deployed pages, rerun the caller audit, and
+      record default-pointer changes without touching dirty nested checkouts.
 - [x] Merge Apollo #108 at `a0c3da9` and Coeus #340 at
       `5108ed0082fc5c5ed02bc95c4bfa4ad9cdf8133b` after exact-head provider
       and book checks passed; their merged-default CI/book runs remain queued.
@@ -173,8 +175,11 @@
       [#34](https://github.com/ryancinsight/tyche/pull/34).
 - [x] Collect exact-head hosted book evidence: CI `32425417532` and Deploy
       mdBook `32425418118` pass at `c481e05`.
-- [ ] Merge PR #34 and collect post-merge default evidence; blocked by GitHub
-      connector HTTP 403 (`Resource not accessible by integration`).
+- [x] Merge PR #34 at expected head `c481e05` as `89194f3`; close the
+      superseded duplicate PR #33.
+- [ ] Collect post-merge CI `32434861620`, Deploy mdBook `32434862314`, and
+      Pages `32434860567`, then advance the pointer only after terminal
+      success and live-page verification.
 
 ## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — current session
 

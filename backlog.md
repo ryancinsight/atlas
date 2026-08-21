@@ -534,11 +534,19 @@ mdBook `32418598676` green; and Tyche #34 at `c481e05` has CI `32425417532`
 and Deploy mdBook `32425418118` green. These results are bound to the exact
 PR heads and do not authorize default-pointer updates.
 
-**Integration blocker:** merge attempts for all five exact-green PRs were
-rejected by the GitHub connector with HTTP 403 `Resource not accessible by
-integration`. Re-open merge and post-merge default verification when
-repository write authorization is available; no provider default or Atlas
-gitlink was changed by this collection.
+**Integration:** the authenticated GitHub CLI merged all five exact-green PRs
+with expected-head guards: Horae #24 → `d014929`, Hyperion #22 → `91df53e`,
+Themis #28 → `c441acf`, Proteus #16 → `73c6c81`, and Tyche #34 → `89194f3`.
+The connector's parallel merge calls returned HTTP 403, but no merge was
+claimed until the authenticated merge results were verified. Post-merge CI,
+Deploy mdBook, and Pages runs are queued at each exact merge commit:
+Horae `32434846095`/`32434846467`/`32434845162`, Hyperion
+`32434851255`/`32434851473`/`32434850406`, Themis
+`32434855247`/`32434855744`/`32434854004`, Proteus
+`32434859559`/`32434860258`/`32434857538`, and Tyche
+`32434861620`/`32434862314`/`32434860567`. No Atlas pointer is advanced until
+these post-merge runs are terminal and the deployed pages are verified.
+Tyche's superseded duplicate PR #33 was closed and its branch deleted.
 
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
@@ -1103,10 +1111,11 @@ book coverage remains a separate open integration item.
   staging revision `20c93980f7c98f2e23a89c4a0540f16c8f2d7239`, while clean Tyche
   default `10410f2de1ce1529ecbff50fa740b23a1c8f77b9` still pins `1fcd17c`.
   Caller-only PR [#34](https://github.com/ryancinsight/tyche/pull/34) is at exact
-  head `c481e05`; CI `32425417532` and Deploy mdBook `32425418118` pass.
-  The merge call returned connector HTTP 403 `Resource not accessible by
-  integration`, so post-merge verification and the Atlas pointer advance
-  remain open.
+  head `c481e05`; CI `32425417532` and Deploy mdBook `32425418118` pass. It
+  merged as `89194f3`; post-merge CI `32434861620`, Deploy mdBook
+  `32434862314`, and Pages `32434860567` are queued. The superseded Tyche PR
+  #33 is closed. The clean default and Atlas pointer remain unchanged until
+  post-merge verification is terminal.
 
 ## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
