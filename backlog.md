@@ -728,6 +728,15 @@ root-only pointer and evidence synchronization for Mnemosyne and Moirai.
 Claimed scope is their two root gitlinks plus this item in `backlog.md`; no
 provider source, nested checkout, or peer PM file is included.
 
+**Sixth integration batch (2026-08-21):** Mnemosyne's Rust verification run
+`32435012042` and book/Pages run `32435012409` completed all jobs
+successfully; Moirai's binding checks `32435032989` and book/Pages run
+`32435033356` also completed successfully. Canonical live Pages checks return
+HTTP 200 with the expected titles at
+`https://ryancinsight.github.io/Mnemosyne/` and
+`https://ryancinsight.github.io/Moirai/`. Atlas advances the two gitlinks to
+`9da9f92e3` and `7f75f5e6`. No provider source or nested checkout changes.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
