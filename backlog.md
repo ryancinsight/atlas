@@ -747,6 +747,31 @@ report-only. No pointer advancement is authorized by this collection.
   optional reference skips, hard-coded tolerances, non-fatal figure failures,
   and optional wheel tests. These are provider-owned correctness and release-
   gate items, not closed by the current link or import checks.
+- **P0 cross-integrator contract:** the claimed deposition pipeline has no
+  shared typed physical-field envelope. Harmonia validates slice dimensions and
+  time but not quantity, units, grid geometry, or orientation; CFDrs, Kwavers,
+  and Helios therefore exchange raw scalar arrays. The next contract slice is
+  an Aequitas quantity-backed `Intensity`/`VolumetricPowerDensity` envelope
+  with Harmonia transfer validation and a manufactured 1-D conservation case.
+- **P1 backend truthfulness:** CFDrs has a silent GPU-to-CPU fallback; Kwavers
+  CUDA is acquisition-only and the SWE GPU path is a timing model; Helios GPU
+  tests are ignored. Provider-owned fixes must surface unavailable hardware or
+  execute a real provider path; no fallback may turn an unexecuted case green.
+- **P1 binding and book gates:** Apollo, Coeus, Consus, Hephaestus, RITK, and
+  Themis have inconsistent executable book coverage; source-triggered examples
+  are not uniformly in workflow path filters. Helios, Apollo, Consus, and
+  Hephaestus binding paths also require a function-level GIL-release audit and
+  installed-wheel value tests. Static evidence only; runtime claims remain
+  open.
+- **P1 figure evidence:** Helios validation figures are conceptual assets, not
+  data-backed validation outputs. ADR 0049 remains the governing contract:
+  future figures require input provenance, an independent oracle, and derived
+  error bounds.
+- **Verification boundary:** locked metadata is currently blocked by dirty
+  Cargo.lock files in CFDrs, Kwavers, and Helios under peer-owned checkouts.
+  No gate result from those trees is attributable to a clean locked revision;
+  clean exact-head trees are a prerequisite for the next cross-integrator
+  implementation slice.
 
 **Outcome:** close the remaining cross-cutting correctness and evidence
 deficits in the order below, so that a green gate means what it claims.
