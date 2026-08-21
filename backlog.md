@@ -794,6 +794,13 @@ that GIL-release contract.
 **Owner:** current Atlas session. **Claimed files:** the clean Apollo book lane
 repointed from its merged branch, the root item, and this PM record.
 
+**Implementation:** Apollo commit `4e055407` is pushed on
+`fix/apollo-python-surface` as PR
+[#109](https://github.com/ryancinsight/apollo/pull/109). Local evidence includes
+the formatting, locked check, clippy, nextest, release `cp38-abi3` wheel build,
+and 35 installed-wheel pytest cases. Hosted checks remain pending; the PR head
+is the only eligible revision for collection.
+
 **Outcome:** close the remaining cross-cutting correctness and evidence
 deficits in the order below, so that a green gate means what it claims.
 
