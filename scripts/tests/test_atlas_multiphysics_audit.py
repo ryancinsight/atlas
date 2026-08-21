@@ -47,6 +47,20 @@ hyperion = "0.1"
         )
         self.assertEqual((total, runnable), (3, 1))
 
+    def test_python_typing_evidence_excludes_derived_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            provider = Path(temp)
+            (provider / "dist").mkdir()
+            (provider / "dist" / "py.typed").write_text("", encoding="utf-8")
+            (provider / "target").mkdir()
+            (provider / "target" / "generated.pyi").write_text("", encoding="utf-8")
+            self.assertEqual(audit._python_typing_evidence(provider), (False, False))
+
+            (provider / "package").mkdir()
+            (provider / "package" / "py.typed").write_text("", encoding="utf-8")
+            (provider / "package" / "api.pyi").write_text("", encoding="utf-8")
+            self.assertEqual(audit._python_typing_evidence(provider), (True, True))
+
     def test_audit_reports_missing_gil_release_without_claiming_success(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -76,6 +90,8 @@ harmonia = "0.1"
 
         self.assertEqual(report["status"], "fail")
         self.assertIn("no explicit GIL-release site discovered", report["findings"])
+        self.assertIn("no source py.typed marker discovered", report["findings"])
+        self.assertIn("no Python typing stub discovered", report["findings"])
 
     def test_profiles_cover_all_three_integrators(self) -> None:
         self.assertEqual({profile.name for profile in audit.PROFILES}, {"CFDrs", "helios", "kwavers"})

@@ -99,6 +99,7 @@ PROFILES = (
 
 DEPENDENCY_TABLES = {"dependencies", "dev-dependencies", "build-dependencies"}
 SOURCE_SUFFIXES = {".rs", ".py", ".pyi", ".toml", ".md"}
+DERIVED_PYTHON_DIRS = {"target", ".git", "dist", "build", ".venv"}
 RUST_FENCE = re.compile(
     r"^\s*```(?:rust|rs)(?P<attributes>(?:,[^\s]+)*)\s*$", re.MULTILINE
 )
@@ -205,6 +206,22 @@ def _count_matches(files: list[Path], pattern: re.Pattern[str]) -> int:
     return count
 
 
+def _python_typing_evidence(provider: Path) -> tuple[bool, bool]:
+    """Return source-package ``py.typed`` and stub presence."""
+    marker = False
+    stubs = False
+    for path in provider.rglob("*"):
+        if not path.is_file() or DERIVED_PYTHON_DIRS.intersection(path.parts):
+            continue
+        if path.name == "py.typed":
+            marker = True
+        elif path.suffix == ".pyi":
+            stubs = True
+        if marker and stubs:
+            break
+    return marker, stubs
+
+
 def _book_fence_counts(text: str) -> tuple[int, int]:
     """Return all Rust fences and those not marked ``ignore`` or ``no_run``."""
     matches = list(RUST_FENCE.finditer(text))
@@ -260,12 +277,17 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
     pyo3 = _matches_dependency(manifests, "pyo3")
     python_surface = _count_matches(python_files, PYTHON_SURFACE)
     gil_release = _count_matches(python_files, GIL_RELEASE)
+    py_typed, python_stubs = _python_typing_evidence(provider)
     if not pyo3:
         findings.append("no PyO3 dependency")
     if pyo3 and python_surface == 0:
         findings.append("PyO3 dependency has no discovered binding declarations")
     if pyo3 and gil_release == 0:
         findings.append("no explicit GIL-release site discovered")
+    if pyo3 and not py_typed:
+        findings.append("no source py.typed marker discovered")
+    if pyo3 and not python_stubs:
+        findings.append("no Python typing stub discovered")
 
     if not (book_root / "book.toml").is_file():
         findings.append("docs/book/book.toml is missing")
@@ -300,6 +322,8 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
         "pyo3": pyo3,
         "python_surface_declarations": python_surface,
         "gil_release_sites": gil_release,
+        "py_typed_marker": py_typed,
+        "python_typing_stubs": python_stubs,
         "book": book_root.is_dir() and (book_root / "book.toml").is_file(),
         "rust_fences": rust_fences,
         "runnable_rust_fences": runnable_rust_fences,
