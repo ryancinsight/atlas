@@ -6520,9 +6520,19 @@ No repository other than CFDrs and Kwavers imports that family.
 - [x] Found and fixed the real lever instead of forcing relaxations: the scanner
       counted committed test sidecars as production (async_iter_tests.rs held 16
       SeqCst). Fix landed atlas-side at 9828ee8; honest moirai count is 85.
-- [x] Residuals recorded on backlog row -INSTRUMENT: mpmc/channel.rs:172,261
-      waiter-count adds (dedicated mpmc slice); ritk mtime.rs:46 Relaxed tick
-      (own repo, own claim).
+- [x] Family sweep completed over the last unverified files: worker.rs (17
+      sites - quiescence Dekker handshake, wake-bitset store-buffer pairing,
+      single-total-order is_quiescent predicate), scheduler/core.rs (9 -
+      producer/joiner halves with explicit why-Release-fails derivations),
+      futex_mutex.rs (7 - paired SeqCst fences guarding the locked/waiters
+      Dekker pair against waiter stranding), and mpmc/channel.rs:172,261
+      (register-before-recheck waiter halves; independent derivation confirms
+      the inline docs - the store-load race is closed only by SeqCst).
+      Verdict: every honest production site is a recorded KEEP decision;
+      zero undocumented sites remain. Item closes at the instrument-fixed
+      count 85 with no source change.
+- [x] Residual follow-up: ritk crates/ritk-vtk/src/domain/mtime.rs:46 monotonic
+      tick admits Relaxed (own repo, own claim - separate increment).
 - [x] Scratch triage: deleted 11 superseded seqcst/lane/overlay scripts plus
       conformance_full_tmp.json and step5 sha-pin applier (athena+kwavers already
       fully SHA-pinned upstream); removed 3 misdirected root strays (python-ci.yml,

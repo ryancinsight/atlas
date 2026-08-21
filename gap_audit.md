@@ -1,5 +1,67 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-21: print_dbg assessment — not a safe mechanical sweep
+
+The live conformance scan reports `print_dbg = 366` across 11 repos. The
+scanner matches `println!`, `eprintln!`, `print!`, `eprint!`, and `dbg!` in
+production (non-test, non-binary) source regions. A per-site assessment
+found that the 366 sites fall into three categories, **none of which can be
+mechanically swept**:
+
+### Category 1: `build.rs` Cargo protocol (31 sites, false positive)
+
+31 of the 366 sites are `println!("cargo:...")` in `build.rs` files. These
+are the **canonical, required** way to communicate build instructions to
+Cargo (e.g., `cargo:rerun-if-changed`, `cargo:rustc-cfg`). They cannot be
+removed without breaking the build. The scanner counts them because
+`build.rs` is not `main.rs` and not in a `bin/` or `benches/` path.
+
+Affected repos: themis (4), moirai (8), melinoe (6), coeus (2), mnemosyne
+(10), kwavers (1). This is a **scanner false positive** — the detector
+should exempt `build.rs` files whose `println!` arguments start with
+`"cargo:`.
+
+### Category 2: xtask CLI tooling and scratch files (~50 sites)
+
+The scanner's `executable_source_dirs` function marks source dirs with a
+`main.rs` entry point as binary, which exempts them. But `xtask/` source
+files and `scratch/` files that don't have `main.rs` at their root are not
+exempted. These are legitimate CLI tooling that prints diagnostic output.
+
+### Category 3: Library production code (~285 sites, real debt)
+
+The remaining ~285 sites are `println!`/`eprintln!` in production library
+source code. The largest concentrations:
+
+- **CFDrs (257):** `cfd-validation` crate's benchmarking and conservation
+  verification modules print progress output via `println!`. These should
+  use a logging facade (`log` or `tracing`) instead of direct stdout writes.
+- **ritk (17):** `ritk-cli` commands (`viewer`, `stats`, `filter`) print
+  user-facing output via `println!`. These are borderline — a CLI library
+  module printing to stdout is architecturally questionable but may be
+  intentional for user-facing command output.
+- **kwavers (44):** `xtask` migration audit and architecture validation
+  modules, plus a `fallback` visualization module.
+- **hermes (4):** SIMD intrinsic modules print `eprintln!` for hardware
+  capability warnings.
+
+### Classification
+
+`print_dbg` is **not a safe mechanical sweep**. The 31 `build.rs` sites are
+a scanner false positive (the detector should exempt `cargo:` protocol
+writes). The ~50 xtask/scratch sites are legitimate tooling. The ~285
+library sites require per-site provider-level judgment: each `println!`
+must be either migrated to a logging facade, wrapped in a `#[cfg(feature
+= "...")]` gate, or intentionally retained as user-facing CLI output.
+
+### Recommended scanner improvement
+
+The cleanest Atlas-side action is a **scanner fix** rather than a source
+sweep: exempt `build.rs` files from `print_dbg` (or specifically exempt
+`println!` calls whose first argument starts with `"cargo:`). This would
+drop the count from 366 to ~335 and remove the false-positive noise. The
+remaining ~335 sites are genuine provider-level debt.
+
 ## Finding 2026-08-21: conformance instrument counted path-redirected cfg(test) sidecars as production
 
 `declared_cfg_test` consulted only parent-of-entry declarers, so a `#[cfg(test)]`
@@ -17,9 +79,13 @@ ungated-negative-control, and stem-renamed cases; full scripts suite green
 
 Consequence for the ordering ratchet: moirai's remaining 85 production SeqCst
 sites are overwhelmingly documented decisions (Chase-Lev arbitration gate,
-Dekker idle/blocking pair, wake handshakes). Two mpmc waiter-count adds
-(`mpmc/channel.rs:172,261`) remain the only derivation-pending relaxation
-candidates; ritk `mtime.rs:46` is an independent Relaxed candidate.
+Dekker idle/blocking pair, wake handshakes). Subsequent family sweep (worker.rs,
+scheduler/core.rs, futex_mutex.rs, mpmc/channel.rs) found every remaining site
+carrying a mechanism-level SeqCst justification - including the mpmc
+waiter-count adds at channel.rs:172,261, whose register-before-recheck Dekker
+structure was independently re-derived and holds. Zero undocumented production
+sites remain; ritk `mtime.rs:46` (monotonic tick) is the one known Relaxed
+candidate outside moirai.
 
 ## Finding 2026-08-21: tag_pinned_actions — Step 5 SHA-pin overlay, ratchet 68→0
 
