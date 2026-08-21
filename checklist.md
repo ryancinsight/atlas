@@ -39,6 +39,23 @@
       functions, records facade drift, and emits no `Any`/ellipsis stubs. The
       generated artifacts remain provider-local pending the clean-lane hosted
       gate.
+- [x] Add exact Rust-to-Python type/default mapping and a strict typed
+      consumer. Every duck-typed `Bound<'_, PyAny>` parameter resolves through
+      an audited `DUCK_TYPES` table keyed by `(class, function, parameter)`
+      with per-entry extraction-code provenance (Simulation source/sensor
+      unions, Source p0/field/signal, Medium alpha_power, SimulationResult
+      sensor_data, skull transfer-matrix complex return); any future unaudited
+      PyAny parameter fails the generator closed instead of emitting `object`.
+      The stub honors `#[pyfunction(name = ...)]` renames (recovering the
+      previously missing `run_standing_wave_suppression`), escapes Python
+      keyword parameters PyO3-style (`lambda` -> `lambda_`), and types
+      string-keyed result dicts as `Dict[str, object]` (422/422 literal-key
+      set_item sites verified). Zero bare `object` parameters remain; an AST
+      guard test enforces the invariant and the strict typed-consumer fixture
+      exercises each mapped union. Focused suite 23 passed / 1 skipped with a
+      freshly built abi3 wheel installed. Pre-existing finding recorded:
+      `get_array_weighted_mask` returns all zeros for annular elements at
+      lane head `124ef839e27a`; needs its own Rust binding defect increment.
 - [ ] Detach one complete `Simulation::run` slice and prove concurrent Python
       progress plus returned-value correctness before widening the migration.
 - [ ] Land the provider-generic migration in a clean, non-overlapping Kwavers
@@ -76,6 +93,12 @@
       Clippy, doctests 1/1, and warning-denied Rustdoc.
 - [ ] Collect hosted terminal evidence for PR #26 and then advance the Atlas
       gitlink from `a05dbeb` to the resulting merged default.
+- [x] Diagnose the hosted hold: GitHub Actions runs stuck `queued` across
+      horae, kwavers and CFDrs since ~13:00 UTC (status page reports Actions
+      operational — capacity-side backlog). Exact-head `eb0e60b` run
+      `32484613288` and close/reopen-retriggered run `32512526389` are both
+      queued; no head change, so evidence stays attributable once runners
+      pick up.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — current session
 
