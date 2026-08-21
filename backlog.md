@@ -22,6 +22,23 @@ doctests, and Rustdoc pass; the provider H-ORDER item is synchronized.
 provider/root PM records on a new clean lane; the dirty primary remains
 untouched.
 
+**Implementation evidence (2026-08-20):** clean lane branch
+`fix/horae-order-oracle` is based on fetched `origin/main` `a05dbeb` and
+publishes `5df51ad` (test) and `0f7d580` (delivery record). The test
+integrates the closed-form `y' = y` from zero to one at dyadic step counts
+and classifies the measured `log2(e(h)/e(h/2))` by its nearest declared order
+— Euler 1, Midpoint 2, RK4 4, Dormand–Prince 5 — with no tunable tolerance;
+f32 covers the non-embedded tableaus at a coarser range where their
+truncation signal clears the rounding floor. The RK4 output-weight mutation
+control fails the f64 oracle and is restored.
+
+**Verification (2026-08-20):** format, locked all-target check, warning-
+denied Clippy, Nextest 25/25, doctests 1/1, and warning-denied Rustdoc pass
+at the exact lane revision with the committed lock (overlay disabled for the
+gate run and re-enabled; the root `.cargo/config.toml` diff is empty after
+restore). The Atlas gitlink is not advanced: hosted terminal gates are still
+required.
+
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — blocked
 
 The merged Hyperion source-oracle implementation is complete at provider

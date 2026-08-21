@@ -5,14 +5,14 @@
 
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — current session
 
-- [ ] Create a clean Horae lane from fetched `origin/main`; preserve the dirty
+- [x] Create a clean Horae lane from fetched `origin/main`; preserve the dirty
       detached primary checkout and its PM/docs changes.
-- [ ] Add a closed-form refinement oracle for all four declared tableaus with
+- [x] Add a closed-form refinement oracle for all four declared tableaus with
       analytically derived separation and tolerance bounds.
-- [ ] Run exact-lane format, locked checks, Nextest, Clippy, doctests, and
+- [x] Run exact-lane format, locked checks, Nextest, Clippy, doctests, and
       Rustdoc; verify the result against the declared orders and mutation-test
       the oracle.
-- [ ] Publish the provider branch and synchronize provider/Atlas evidence;
+- [x] Publish the provider branch and synchronize provider/Atlas evidence;
       do not advance the gitlink without hosted terminal gates.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — current session
