@@ -17,11 +17,19 @@
   exact head. The Atlas gitlink commit `4ee9128` is held until the provider PR
   merges and its hosted checks complete; the remaining provider sets follow as
   disjoint increments.
-- Eunomia is the next active disjoint slice in provider lane
-  `docs/eunomia-book-figures`; its in-progress diff contains the 17 expected
-  figure assets and their 17 book-page references. Commit and focused gate
-  evidence are still pending, and the peer-dirty Eunomia main checkout is
-  untouched.
+- Eunomia's disjoint provider slice is committed at `01179a9` on branch
+  `docs/eunomia-book-figures` and opened as PR
+  [#73](https://github.com/ryancinsight/eunomia/pull/73). The commit adds the
+  17 expected deterministic SVG outputs, one canonical generator, a local
+  reference checker, reproducibility/negative tests, and a deployment
+  prerequisite for the figure gate. Local generator/checker tests and
+  `mdbook build docs/book` pass. The peer-dirty Eunomia main checkout remains
+  untouched; the Atlas gitlink is held pending exact-head hosted checks and
+  merge.
+- Local `mdbook test` and `cargo build --locked -p eunomia` remain
+  environment-blocked in the isolated lane because the inherited Atlas
+  development overlay re-resolves the provider under `--locked`; this is
+  recorded as a verification limit, not treated as a provider failure.
 - **Hosted hold:** PR #36 remains open and mergeable at
   `4cd0899a301db4a934ae32bf40db00bb56836c64`; Deploy mdBook run
   `32492568641` and CI run `32492568124` are queued, with `recurseml/analysis`
