@@ -219,10 +219,12 @@
   mode does not inspect nested worktree cleanliness, while each snapshot
   revision equals its committed gitlink. The default worktree mode remains a
   separate dirty-checkout diagnostic.
-- **Verification:** `python -m pytest scripts/tests -q` passes 310 tests and
-  77 subtests in 9.67 seconds. The audit output is static evidence; it does
-  not substitute for provider-native Rust/Python gates, hosted CI, wheel,
-  Pages, or live-page verification.
+- **Verification:** `python scripts/atlas-provider-integration-audit.py
+  --provider-set atlas-22` passes structural registration and provider
+  coherence; `python -m pytest scripts/tests -q` passes 310 tests and 77
+  subtests in 37.35 seconds. The audit output is static evidence; it does not
+  substitute for provider-native Rust/Python gates, hosted CI, wheel, Pages,
+  or live-page verification.
 
 ## ATLAS-AUDIT-FALSE-GREEN-2026-08-21 — Close audit attribution gaps `verification` `patch` — done 2026-08-21
 
