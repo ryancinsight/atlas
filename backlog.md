@@ -158,14 +158,35 @@
   These are real provider/integrator gaps, not suppressed findings.
 - **Exact attribution:** `python scripts/atlas-multiphysics-audit.py
   --exact-gitlinks --require-evidence --format json` scans committed text
-  snapshots only; all three reports have `checkout_dirty: false` and exact
-  checkout/gitlink equality. The scan completes in 4.97 seconds and exits 1
-  only for the findings above. The default worktree mode remains a separate
-  dirty-checkout diagnostic.
-- **Verification:** `python -m pytest scripts/tests -q` passes 299 tests and
-  77 subtests in 9.73 seconds. The audit output is static evidence; it does
+  snapshots only; all three reports have `checkout_dirty: null` because exact
+  mode does not inspect nested worktree cleanliness, while each snapshot
+  revision equals its committed gitlink. The default worktree mode remains a
+  separate dirty-checkout diagnostic.
+- **Verification:** `python -m pytest scripts/tests -q` passes 309 tests and
+  77 subtests in 9.92 seconds. The audit output is static evidence; it does
   not substitute for provider-native Rust/Python gates, hosted CI, wheel,
   Pages, or live-page verification.
+
+## ATLAS-AUDIT-FALSE-GREEN-2026-08-21 — Close audit attribution gaps `verification` `patch` — done 2026-08-21
+
+- **Findings fixed:** provider gitlinks now come from `HEAD` rather than the
+  mutable index; current provider-record parsing no longer accepts a historical
+  closed item; dependency aliases resolve their Cargo `package` names; exact
+  snapshots audit only Markdown reachable from `SUMMARY.md`; invalid integrator
+  selections fail without opt-in evidence mode; exact snapshots report
+  `checkout_dirty: null` because nested cleanliness is unobserved; book gates
+  require the canonical Atlas reusable workflow; and missing checkout, summary,
+  or Git-read evidence fails closed instead of becoming omission or vacuous
+  coverage. Exact-head queries also verify nested `origin` against the committed
+  `.gitmodules` URL before reading remote refs.
+- **Evidence:** focused provider, multiphysics, and book-audit tests pass 60/60;
+  the full `python -m pytest scripts/tests -q` suite passes 309 tests and 77
+  subtests. The exact multiphysics audit still reports only the three known
+  integrator/provider findings, while the book audit remains red only for the
+  existing Consus, Gaia, Helios, and Kwavers coverage gaps.
+- **Limits:** these audits establish static attribution and structural evidence;
+  they do not replace provider-native Rust/Python gates, hosted CI, package
+  artifacts, Pages, or live-page verification.
 
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
@@ -181,7 +202,7 @@ publication and GitHub Release creation remain explicitly outside this item;
 the Tyche Atlas pointer is unchanged until default CI/Pages and live-page
 evidence are terminal.
 
-## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence [verification][patch] — in progress
+## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence `verification` `patch` — in progress
 
 Horae's tableaus declare formal orders, but its existing embedded-pair test
 only verifies error-estimate scaling. That does not establish convergence of
@@ -229,6 +250,25 @@ The implementation is published as PR
 run `32441333101` passes at default `d133226725fed76f3cdbec7df30b0df693d01808`.
 Pages run `32441332430` remains queued; no gitlink claim is made until Pages
 and live-page verification are terminal.
+
+## ATLAS-HORAE-STAGE-TIME-ORACLE-2026-08-21 — Verify non-autonomous tableau stages `verification` `patch` — in progress
+
+- **Finding:** the autonomous H-ORDER-001 fixture ignores `Instant<T>`, so a
+  regression in a tableau's stage-time coefficients can pass its convergence
+  oracle. The finding is confirmed against the merged Horae PR #25 review.
+- **Scope:** Horae's fixed-step test and provider PM records on the reused
+  clean lane `fix/horae-stage-time-oracle`; no tableau/API or dirty-primary
+  changes.
+- **Acceptance:** exercise the real stepping path with the exact solution of
+  `y' = t + y`, `y(0) = 1`, whose endpoint at one is `2e - 2`; classify Euler,
+  Midpoint, RK4, and Dormand–Prince by their declared orders without a
+  tunable decimal tolerance; pass provider format, locked warning-denied
+  Clippy, Nextest, doctest, and Rustdoc gates; then collect hosted terminal
+  CI/Pages and live-page evidence before advancing the Atlas gitlink.
+- **Current evidence:** the new generic f64 oracle and the existing five
+  fixed-step tests pass 6/6; warning-denied all-target Clippy passes. Provider
+  doctest/Rustdoc are pending the shared build lock, and no Atlas pointer has
+  changed.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — in progress
 

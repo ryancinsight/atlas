@@ -18,6 +18,7 @@ from dataclasses import dataclass
 import json
 import os
 from pathlib import Path, PurePosixPath
+import posixpath
 import re
 import subprocess
 import sys
@@ -115,6 +116,7 @@ RUST_FENCE = re.compile(
 PYTHON_SURFACE = re.compile(r"#\s*\[(?:pyclass|pyfunction|pymodule)\b")
 GIL_RELEASE = re.compile(r"\b(?:allow_threads|detach)\s*\(")
 TYCHE_SOURCE_REFERENCE = re.compile(r"\btyche_core\b")
+BOOK_LINK = re.compile(r"\]\((?P<target>[^)#]+)(?:#[^)]*)?\)")
 ANALYTICAL = re.compile(
     r"\b(?:analytical|manufactured|closed[- ]form|poiseuille|radon|sinogram|reference)\b",
     re.IGNORECASE,
@@ -275,6 +277,11 @@ def _dependency_names_from_document(document: object) -> set[str]:
             return
         if path and path[-1] in DEPENDENCY_TABLES:
             names.update(str(key) for key in value)
+            for dependency in value.values():
+                if isinstance(dependency, dict):
+                    package = dependency.get("package")
+                    if isinstance(package, str):
+                        names.add(package)
         for key, child in value.items():
             walk(child, (*path, str(key)))
 
@@ -329,6 +336,37 @@ def _read_texts(files: list[Path]) -> list[tuple[Path, str]]:
         except OSError:
             continue
     return texts
+
+
+def _linked_book_texts(entries: list[tuple[Path, str]]) -> list[tuple[Path, str]]:
+    """Return only Markdown sources reachable from a book SUMMARY file."""
+    by_path = {
+        path.as_posix().replace("\\", "/"): text
+        for path, text in entries
+    }
+    summaries = sorted(
+        path for path in by_path if path.startswith("docs/book/") and path.endswith("SUMMARY.md")
+    )
+    reachable: set[str] = set()
+    pending = list(summaries)
+    while pending:
+        current = pending.pop()
+        if current in reachable:
+            continue
+        reachable.add(current)
+        current_dir = posixpath.dirname(current)
+        for match in BOOK_LINK.finditer(by_path[current]):
+            target = match.group("target").strip()
+            if not target or target.startswith(("/", "#")) or target.lower().startswith(
+                ("http://", "https://", "mailto:")
+            ):
+                continue
+            candidate = posixpath.normpath(posixpath.join(current_dir, target))
+            if candidate not in by_path or not candidate.startswith("docs/book/"):
+                continue
+            if candidate not in reachable:
+                pending.append(candidate)
+    return [(Path(path), by_path[path]) for path in sorted(reachable)]
 
 
 def _python_typing_evidence(provider: Path) -> tuple[bool, bool]:
@@ -391,7 +429,12 @@ def _audit_profile(
             else []
         )
         source_texts = _read_texts(source_files)
-        book_texts = _read_texts(book_files)
+        book_texts = _linked_book_texts(
+            [
+                (path.relative_to(provider), text)
+                for path, text in _read_texts(book_files)
+            ]
+        )
         provider_initialized = provider.is_dir()
         book_present = (book_root / "book.toml").is_file()
         py_typed, python_stubs = _python_typing_evidence(provider)
@@ -416,11 +459,12 @@ def _audit_profile(
                     )
                 except tomllib.TOMLDecodeError:
                     continue
-        book_texts = [
+        book_entries = [
             (path, text)
             for path, text in snapshot_entries
             if path.as_posix().startswith("docs/book/") and path.suffix == ".md"
         ]
+        book_texts = _linked_book_texts(book_entries)
         book_files = [path for path, _ in book_texts]
         provider_initialized = True
         book_present = "docs/book/book.toml" in snapshot
@@ -494,7 +538,7 @@ def _audit_profile(
         "findings": findings,
         "checkout_revision": checkout_revision,
         "committed_gitlink": committed_gitlink or _committed_gitlink(profile.name),
-        "checkout_dirty": bool(checkout_status),
+        "checkout_dirty": None if exact else bool(checkout_status),
         "source": "committed_gitlinks" if exact else "worktrees",
         "dependency_count": len(manifests),
         "required_dependencies": list(profile.required_dependencies),
@@ -633,7 +677,8 @@ def _finish(
             print(f"- {report['provider']}: {report['status']}")
             for finding in report.get("findings", []):
                 print(f"  - {finding}")
-    return 1 if args.require_evidence and failed else 0
+    selection_error = not selected or bool(unknown)
+    return 1 if selection_error or (args.require_evidence and failed) else 0
 
 
 if __name__ == "__main__":

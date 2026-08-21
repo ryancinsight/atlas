@@ -151,23 +151,56 @@ def _git_output(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
 
 
 def _gitlink_commits(providers: tuple[str, ...]) -> dict[str, str]:
-    """Return indexed root gitlinks for a provider set using one Git query."""
+    """Return committed root gitlinks for a provider set using one Git query."""
     if not providers:
         return {}
     paths = [f"repos/{provider}" for provider in providers]
-    returncode, stdout, _ = _git_output("ls-files", "--stage", "--", *paths)
+    returncode, stdout, _ = _git_output("ls-tree", "HEAD", "--", *paths)
     if returncode != 0:
         return {}
 
     commits: dict[str, str] = {}
     for line in stdout.splitlines():
-        fields = line.split()
-        if len(fields) < 4 or fields[0] != "160000":
+        fields = line.split(maxsplit=3)
+        if len(fields) < 4 or fields[0] != "160000" or fields[1] != "commit":
             continue
         path = fields[3].replace("\\", "/")
         provider = path.rsplit("/", 1)[-1]
-        commits[provider] = fields[1]
+        commits[provider] = fields[2]
     return commits
+
+
+def _committed_provider_url(provider: str) -> tuple[str | None, str | None]:
+    """Read a provider URL from the committed root submodule manifest."""
+    returncode, text, error = _git_output("show", "HEAD:.gitmodules")
+    if returncode != 0:
+        return None, error or "committed .gitmodules is unavailable"
+    current_path: str | None = None
+    current_url: str | None = None
+    for raw_line in text.splitlines() + ["[end]"]:
+        line = raw_line.strip()
+        header = re.match(r'^\[submodule\s+"([^"]+)"\]$', line)
+        if header:
+            if current_path == f"repos/{provider}" and current_url:
+                return current_url, None
+            current_path = None
+            current_url = None
+            continue
+        if current_path is None and line.startswith("path") and "=" in line:
+            current_path = line.split("=", 1)[1].strip().replace("\\", "/")
+        elif current_path is not None and line.startswith("url") and "=" in line:
+            current_url = line.split("=", 1)[1].strip()
+    return None, f"repos/{provider} has no committed submodule URL"
+
+
+def _normalize_git_url(url: str) -> str:
+    """Normalize equivalent GitHub URL spellings for identity comparison."""
+    normalized = url.strip().lower().rstrip("/")
+    if normalized.startswith("git@github.com:"):
+        normalized = "https://github.com/" + normalized.removeprefix("git@github.com:")
+    if normalized.endswith(".git"):
+        normalized = normalized[:-4]
+    return normalized
 
 
 def _provider_remote_head(provider: str) -> tuple[str | None, str | None, str | None]:
@@ -198,6 +231,22 @@ def _provider_remote_head(provider: str) -> tuple[str | None, str | None, str | 
         except OSError as exc:
             return 127, "", str(exc)
         return process.returncode, process.stdout.strip(), process.stderr.strip()
+
+    expected_url, url_error = _committed_provider_url(provider)
+    if url_error:
+        return None, None, f"repos/{provider}: {url_error}"
+    origin_code, origin_url, origin_error = remote_query(
+        "config", "--get", "remote.origin.url"
+    )
+    if origin_code != 0 or not origin_url:
+        detail = origin_error or "remote.origin.url is unavailable"
+        return None, None, f"repos/{provider}: cannot verify origin URL ({detail})"
+    if expected_url is None or _normalize_git_url(origin_url) != _normalize_git_url(expected_url):
+        return (
+            None,
+            None,
+            f"repos/{provider}: origin URL does not match committed submodule URL",
+        )
 
     symbolic_code, symbolic_output, symbolic_error = remote_query(
         "ls-remote", "--symref", "origin", "HEAD"
@@ -405,17 +454,62 @@ def _coherence_scope_issues_from_json_file(
 
 
 def _record_issues() -> list[str]:
+    def current_item(text: str) -> str | None:
+        heading_pattern = re.compile(
+            rf"(?m)^(?P<marks>\#{{1,6}})[ \t]+[^\n]*{re.escape(AUDIT_ID)}[^\n]*$"
+        )
+        heading_matches = list(heading_pattern.finditer(text))
+        if heading_matches:
+            match = heading_matches[0]
+            level = len(match.group("marks"))
+            boundary_pattern = re.compile(r"(?m)^(?P<marks>\#{1,6})[ \t]+")
+            end = len(text)
+            for boundary in boundary_pattern.finditer(text, match.end()):
+                if len(boundary.group("marks")) <= level:
+                    end = boundary.start()
+                    break
+            next_item = re.search(
+                rf"(?m)^(?:\#{1,6}[ \t]+[^\n]*{re.escape(AUDIT_ID)}[^\n]*|"
+                rf"[ \t]*[-*+][ \t]+(?:\*\*)?{re.escape(AUDIT_ID)})",
+                text[match.end() :],
+            )
+            if next_item is not None:
+                end = min(end, match.end() + next_item.start())
+            return text[match.start() : end]
+
+        item_pattern = re.compile(
+            rf"(?m)^(?P<indent>[ \t]*)[-*+][ \t]+(?:\*\*)?"
+            rf"{re.escape(AUDIT_ID)}"
+        )
+        item_match = item_pattern.search(text)
+        if item_match is None:
+            return None
+        indent = len(item_match.group("indent").expandtabs(4))
+        end = len(text)
+        boundary_pattern = re.compile(
+            r"(?m)^(?P<indent>[ \t]*)(?:[-*+]|\d+[.)])[ \t]+|"
+            r"^(?P<heading>\#{1,6})[ \t]+"
+        )
+        for boundary in boundary_pattern.finditer(text, item_match.end()):
+            if boundary.group("heading") is not None:
+                end = boundary.start()
+                break
+            boundary_indent = len(boundary.group("indent").expandtabs(4))
+            if boundary_indent <= indent:
+                end = boundary.start()
+                break
+        return text[item_match.start() : end]
+
     issues: list[str] = []
     for path in RECORD_FILES:
         text = _read(path)
-        if AUDIT_ID not in text:
-            issues.append(f"{path.name}: missing {AUDIT_ID} marker")
+        item = current_item(text)
+        if item is None:
+            issues.append(f"{path.name}: missing current {AUDIT_ID} item")
             continue
-        if not re.search(
-            rf"{re.escape(AUDIT_ID)}[\s\S]{{0,220}}?\b(done|closed)\b", text
-        ):
+        if not re.search(r"\b(done|closed)\b", item, flags=re.IGNORECASE):
             issues.append(f"{path.name}: {AUDIT_ID} is not marked done/closed")
-        if NAME_NORMALIZATION not in text:
+        if NAME_NORMALIZATION not in item:
             issues.append(f"{path.name}: missing '{NAME_NORMALIZATION}' normalization")
     return issues
 

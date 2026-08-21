@@ -34,6 +34,11 @@ BOOK_MANIFEST = "docs/book/book.toml"
 BOOK_SUMMARY = "docs/book/SUMMARY.md"
 BOOK_WORKFLOW = ".github/workflows/book-pages.yml"
 SHARED_INPUT_RE = re.compile(r"^\s*mdbook-test\s*:\s*true\s*(?:#.*)?$")
+CANONICAL_WORKFLOW_RE = re.compile(
+    r"^\s*uses:\s*ryancinsight/atlas/\.github/workflows/book-pages\.yml@"
+    r"[0-9a-f]{40}\s*(?:#.*)?$",
+    re.IGNORECASE,
+)
 DIRECT_COMMAND_RE = re.compile(
     r"(?:^|(?:&&|\|\||[;|])\s*|(?:if|then)\s+)"
     r"(?:!\s*)?(?:command\s+)?mdbook\s+test(?:\s|$)"
@@ -55,6 +60,19 @@ class BookGate:
     reason: str
     rust_fences: int = 0
     executable_rust_fences: int = 0
+
+
+@dataclass(frozen=True)
+class GitRead:
+    """Result of reading one path from a committed provider revision."""
+
+    text: str | None
+    missing: bool = False
+    error: str | None = None
+
+
+class AuditReadError(RuntimeError):
+    """Raised when committed provider evidence cannot be read."""
 
 
 def _git(*args: str, cwd: Path = ROOT) -> tuple[int, str, str]:
@@ -80,9 +98,20 @@ def _gitlink(member: str) -> str | None:
     return None
 
 
-def _at_gitlink(member: str, gitlink: str, path: str) -> str | None:
-    code, output, _ = _git("-C", str(ROOT / "repos" / member), "show", f"{gitlink}:{path}")
-    return output if code == 0 else None
+def _at_gitlink(member: str, gitlink: str, path: str) -> GitRead:
+    provider = ROOT / "repos" / member
+    if not provider.exists():
+        return GitRead(None, error=f"provider checkout is missing: {provider}")
+    code, output, stderr = _git(
+        "-C", str(provider), "show", f"{gitlink}:{path}"
+    )
+    if code == 0:
+        return GitRead(output)
+    lowered = stderr.lower()
+    if "does not exist in" in lowered or "exists on disk, but not" in lowered:
+        return GitRead(None, missing=True)
+    detail = stderr.strip() or f"git show exited with status {code}"
+    return GitRead(None, error=f"unable to read {path}: {detail}")
 
 
 def _is_direct_run(line: str) -> bool:
@@ -124,8 +153,12 @@ def _direct_command(workflow: str) -> bool:
 
 def classify_workflow(workflow: str) -> tuple[str, str]:
     """Classify a provider workflow as shared, direct, or ungated."""
-    if any(SHARED_INPUT_RE.match(line) for line in workflow.splitlines()):
+    canonical = any(CANONICAL_WORKFLOW_RE.match(line) for line in workflow.splitlines())
+    shared_input = any(SHARED_INPUT_RE.match(line) for line in workflow.splitlines())
+    if canonical and shared_input:
         return "shared-input", "mdbook-test: true"
+    if shared_input and not canonical:
+        return "none", "mdbook-test: true without the canonical Atlas workflow"
     if _direct_command(workflow):
         return "direct-command", "run field invokes mdbook test"
     return "none", "no executable mdbook test gate"
@@ -176,7 +209,8 @@ def _book_fence_counts(member: str, gitlink: str, summary: str) -> tuple[int, in
         "docs/book",
     )
     if code not in {0, 1}:
-        return 0, 0
+        detail = "git grep failed while reading committed book sources"
+        raise AuditReadError(detail)
 
     rust_fences = 0
     executable = 0
@@ -211,8 +245,34 @@ def audit() -> list[BookGate]:
         gitlink = _gitlink(member)
         if gitlink is None:
             continue
-        manifest = _at_gitlink(member, gitlink, BOOK_MANIFEST)
-        workflow = _at_gitlink(member, gitlink, BOOK_WORKFLOW)
+        manifest_read = _at_gitlink(member, gitlink, BOOK_MANIFEST)
+        if manifest_read.error is not None:
+            results.append(
+                BookGate(
+                    member,
+                    gitlink,
+                    False,
+                    False,
+                    "invalid",
+                    manifest_read.error,
+                )
+            )
+            continue
+        workflow_read = _at_gitlink(member, gitlink, BOOK_WORKFLOW)
+        if workflow_read.error is not None:
+            results.append(
+                BookGate(
+                    member,
+                    gitlink,
+                    manifest_read.text is not None,
+                    False,
+                    "invalid",
+                    workflow_read.error,
+                )
+            )
+            continue
+        manifest = manifest_read.text
+        workflow = workflow_read.text
         if manifest is None and workflow is None:
             continue
         if manifest is None or workflow is None:
@@ -228,10 +288,40 @@ def audit() -> list[BookGate]:
                 )
             )
             continue
-        summary = _at_gitlink(member, gitlink, BOOK_SUMMARY)
-        rust_fences, executable = _book_fence_counts(
-            member, gitlink, summary or ""
-        )
+        summary_read = _at_gitlink(member, gitlink, BOOK_SUMMARY)
+        if summary_read.error is not None:
+            results.append(
+                BookGate(
+                    member,
+                    gitlink,
+                    True,
+                    True,
+                    "invalid",
+                    summary_read.error,
+                )
+            )
+            continue
+        if summary_read.missing:
+            results.append(
+                BookGate(
+                    member,
+                    gitlink,
+                    True,
+                    True,
+                    "invalid",
+                    f"missing {BOOK_SUMMARY}",
+                )
+            )
+            continue
+        try:
+            rust_fences, executable = _book_fence_counts(
+                member, gitlink, summary_read.text or ""
+            )
+        except AuditReadError as error:
+            results.append(
+                BookGate(member, gitlink, True, True, "invalid", str(error))
+            )
+            continue
         gate, reason = classify_coverage(
             *classify_workflow(workflow), executable
         )

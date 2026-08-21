@@ -41,11 +41,14 @@ class MultiphysicsAuditTestCase(unittest.TestCase):
 harmonia = { git = "https://example.invalid/harmonia" }
 
 [dependencies]
-hyperion = "0.1"
+hyperion = { package = "hyperion-core", version = "0.1" }
 """,
                 encoding="utf-8",
             )
-            self.assertEqual(audit._dependency_names(manifest), {"harmonia", "hyperion"})
+            self.assertEqual(
+                audit._dependency_names(manifest),
+                {"harmonia", "hyperion", "hyperion-core"},
+            )
 
     def test_dependency_match_accepts_package_prefixes(self) -> None:
         self.assertTrue(audit._matches_dependency({"apollo-fft"}, "apollo"))
@@ -165,6 +168,7 @@ harmonia = "0.1"
             exact_snapshot = {
                 **audit._read_committed_files(provider, revision),
                 "docs/book/book.toml": "[book]\ntitle = 'x'\n",
+                "docs/book/src/SUMMARY.md": "# Summary\n- [Intro](intro.md)\n",
                 "docs/book/src/intro.md": "```rust\nfn main() {}\n```\n",
             }
 
@@ -175,9 +179,40 @@ harmonia = "0.1"
                 snapshot=exact_snapshot,
             )
             self.assertEqual(report["source"], "committed_gitlinks")
-            self.assertFalse(report["checkout_dirty"])
+            self.assertIsNone(report["checkout_dirty"])
             self.assertEqual(report["checkout_revision"], revision)
             self.assertTrue(report["book"])
+
+    def test_orphaned_book_fence_is_not_audited(self) -> None:
+        report = audit._audit_profile(
+            audit.IntegratorProfile("demo", ()),
+            committed_gitlink="a" * 40,
+            snapshot={
+                "Cargo.toml": "[package]\nname='demo'\n",
+                "docs/book/book.toml": "[book]\ntitle='demo'\n",
+                "docs/book/SUMMARY.md": "# Summary\n- [Intro](intro.md)\n",
+                "docs/book/intro.md": "```rust\nfn main() {}\n```\n",
+                "docs/book/orphan.md": "```rust\nfn orphan() {}\n```\n",
+            },
+        )
+        self.assertEqual(report["rust_fences"], 1)
+        self.assertEqual(report["runnable_rust_fences"], 1)
+
+    def test_invalid_integrator_selection_fails_without_evidence_mode(self) -> None:
+        with patch.object(audit, "_audit_profile") as audit_profile:
+            self.assertEqual(
+                audit.main(["--integrators", "does-not-exist", "--format", "json"]),
+                1,
+            )
+            audit_profile.assert_not_called()
+
+    def test_empty_integrator_selection_fails_without_evidence_mode(self) -> None:
+        with patch.object(audit, "_audit_profile") as audit_profile:
+            self.assertEqual(
+                audit.main(["--integrators", "", "--format", "json"]),
+                1,
+            )
+            audit_profile.assert_not_called()
 
 
 if __name__ == "__main__":

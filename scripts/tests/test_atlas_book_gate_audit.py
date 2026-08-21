@@ -28,7 +28,29 @@ class BookGateClassificationTestCase(unittest.TestCase):
             with:
               mdbook-test: true
         """
+        self.assertEqual(audit.classify_workflow(workflow)[0], "none")
+
+    def test_canonical_shared_workflow_is_classified(self) -> None:
+        workflow = """
+        jobs:
+          deploy:
+            uses: ryancinsight/atlas/.github/workflows/book-pages.yml@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            with:
+              mdbook-test: true
+        """
         self.assertEqual(audit.classify_workflow(workflow)[0], "shared-input")
+
+    def test_noncanonical_shared_workflow_is_not_accepted(self) -> None:
+        workflow = """
+        jobs:
+          deploy:
+            uses: example.invalid/book-pages.yml@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+            with:
+              mdbook-test: true
+        """
+        gate, reason = audit.classify_workflow(workflow)
+        self.assertEqual(gate, "none")
+        self.assertIn("canonical Atlas workflow", reason)
 
     def test_inline_direct_run_is_classified(self) -> None:
         workflow = """
@@ -74,7 +96,7 @@ class BookGateClassificationTestCase(unittest.TestCase):
         workflow = """
         jobs:
           deploy:
-            uses: ryancinsight/atlas/.github/workflows/book-pages.yml@abc
+            uses: ryancinsight/atlas/.github/workflows/book-pages.yml@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
             with:
               mdbook-test: true
           extra:
@@ -141,6 +163,42 @@ fn executes() {}
         ):
             self.assertEqual(audit.main(["--check", "--require-gates"]), 1)
         self.assertIn("lack an executable gate", stderr.getvalue())
+
+    def test_missing_provider_checkout_fails_closed(self) -> None:
+        with patch.object(audit, "ROOT", Path("Z:/atlas-missing-checkout")):
+            result = audit._at_gitlink("demo", "a" * 40, audit.BOOK_MANIFEST)
+        self.assertIsNotNone(result.error)
+        self.assertIn("checkout is missing", result.error or "")
+
+    def test_missing_summary_is_invalid_not_vacuous(self) -> None:
+        canonical = (
+            "jobs:\n  build:\n    uses: "
+            "ryancinsight/atlas/.github/workflows/book-pages.yml@"
+            + "a" * 40
+            + "\n    with:\n      mdbook-test: true\n"
+        )
+        reads = {
+            audit.BOOK_MANIFEST: audit.GitRead("[book]\n"),
+            audit.BOOK_WORKFLOW: audit.GitRead(canonical),
+            audit.BOOK_SUMMARY: audit.GitRead(None, missing=True),
+        }
+        with patch.object(audit, "registered_member_names", return_value=("demo",)), patch.object(
+            audit, "_gitlink", return_value="a" * 40
+        ), patch.object(audit, "_at_gitlink", side_effect=lambda _m, _g, path: reads[path]):
+            result = audit.audit()
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].gate, "invalid")
+        self.assertIn("missing docs/book/SUMMARY.md", result[0].reason)
+
+    def test_git_read_error_is_invalid_not_vacuous(self) -> None:
+        read_error = audit.GitRead(None, error="unable to read committed evidence")
+        with patch.object(audit, "registered_member_names", return_value=("demo",)), patch.object(
+            audit, "_gitlink", return_value="a" * 40
+        ), patch.object(audit, "_at_gitlink", return_value=read_error):
+            result = audit.audit()
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].gate, "invalid")
+        self.assertEqual(result[0].reason, "unable to read committed evidence")
 
 
 if __name__ == "__main__":

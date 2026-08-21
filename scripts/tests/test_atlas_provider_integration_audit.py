@@ -513,22 +513,23 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
             audit._exact_scope(audit.REQUIRED_PROVIDERS), 3
         )
 
-    def test_gitlink_reads_index_instead_of_child_checkout_head(self) -> None:
+    def test_gitlink_reads_committed_head_tree_instead_of_index(self) -> None:
         with patch.object(
             audit,
             "_git_output",
-            return_value=(0, "160000 staged-head 0\trepos/tyche", ""),
-        ):
+            return_value=(0, "160000 commit committed-head\trepos/tyche", ""),
+        ) as git_output:
             self.assertEqual(
                 audit._gitlink_commits(("tyche",)),
-                {"tyche": "staged-head"},
+                {"tyche": "committed-head"},
             )
+        git_output.assert_called_once_with("ls-tree", "HEAD", "--", "repos/tyche")
 
     def test_gitlink_commits_parses_batch_ls_files(self) -> None:
         stdout = "\n".join(
             (
-                "160000 head-a 0\trepos/horae",
-                "160000 head-b 0\trepos/hermes",
+                "160000 commit head-a\trepos/horae",
+                "160000 commit head-b\trepos/hermes",
             )
         )
         with patch.object(audit, "_git_output", return_value=(0, stdout, "")):
@@ -540,6 +541,28 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 "horae": "head-a",
                 "hermes": "head-b",
             },
+        )
+
+    def test_record_a_current_open_item_does_not_accept_historical_closed_item(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
+            root = Path(temp)
+            records = tuple(root / filename for filename in ("checklist.md", "backlog.md", "gap_audit.md"))
+            records[0].write_text(
+                "## ATLAS-PROVIDER-INTEGRATION-AUDIT-001 — in progress\n"
+                "Tyche (aka Tychee)\n\n"
+                "- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** closed in an old record\n"
+                "  Tyche (aka Tychee)\n",
+                encoding="utf-8",
+            )
+            for record in records[1:]:
+                _seed_record(record)
+
+            with patch.object(audit, "RECORD_FILES", records):
+                issues = audit._record_issues()
+
+        self.assertIn(
+            "checklist.md: ATLAS-PROVIDER-INTEGRATION-AUDIT-001 is not marked done/closed",
+            issues,
         )
 
     def test_exact_head_issues_uses_batched_gitlink_map(self) -> None:
@@ -563,25 +586,39 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
             provider_path.mkdir(parents=True)
             with patch.object(audit, "ROOT", root):
                 with patch.object(
-                    audit.subprocess,
-                    "run",
-                    side_effect=(
-                        subprocess.CompletedProcess(
-                            args=["git"],
-                            returncode=0,
-                            stdout="ref: refs/heads/master\tHEAD\n"
-                            "abc123\tHEAD\n",
-                            stderr="",
-                        ),
-                        subprocess.CompletedProcess(
-                            args=["git"],
-                            returncode=0,
-                            stdout="abc123\trefs/heads/master\n",
-                            stderr="",
-                        ),
+                    audit,
+                    "_committed_provider_url",
+                    return_value=(
+                        "https://github.com/ryancinsight/hephaestus",
+                        None,
                     ),
-                ) as remote_run:
-                    ref, commit, error = audit._provider_remote_head("hephaestus")
+                ):
+                    with patch.object(
+                        audit.subprocess,
+                        "run",
+                        side_effect=(
+                            subprocess.CompletedProcess(
+                                args=["git"],
+                                returncode=0,
+                                stdout="https://github.com/ryancinsight/hephaestus.git\n",
+                                stderr="",
+                            ),
+                            subprocess.CompletedProcess(
+                                args=["git"],
+                                returncode=0,
+                                stdout="ref: refs/heads/master\tHEAD\n"
+                                "abc123\tHEAD\n",
+                                stderr="",
+                            ),
+                            subprocess.CompletedProcess(
+                                args=["git"],
+                                returncode=0,
+                                stdout="abc123\trefs/heads/master\n",
+                                stderr="",
+                            ),
+                        ),
+                    ) as remote_run:
+                        ref, commit, error = audit._provider_remote_head("hephaestus")
 
         self.assertEqual((ref, commit, error), ("origin/master", "abc123", None))
         self.assertTrue(
@@ -590,6 +627,29 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
                 for call in remote_run.call_args_list
             )
         )
+
+    def test_provider_remote_head_rejects_origin_url_drift(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
+            root = Path(temp)
+            (root / "repos" / "hephaestus").mkdir(parents=True)
+            with patch.object(audit, "ROOT", root), patch.object(
+                audit,
+                "_committed_provider_url",
+                return_value=("https://github.com/ryancinsight/hephaestus", None),
+            ), patch.object(
+                audit.subprocess,
+                "run",
+                return_value=subprocess.CompletedProcess(
+                    args=["git"],
+                    returncode=0,
+                    stdout="https://example.invalid/other.git\n",
+                    stderr="",
+                ),
+            ):
+                ref, commit, error = audit._provider_remote_head("hephaestus")
+        self.assertIsNone(ref)
+        self.assertIsNone(commit)
+        self.assertIn("origin URL does not match", error or "")
 
     def test_requested_provider_set_uses_twenty_scope(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
