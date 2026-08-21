@@ -1,3 +1,8 @@
+# Uncommitted Atlas audit-sweep Step 2 overlay: tighten workflow
+# permissions to least-privilege so the scanned class drops.
+permissions:
+  contents: read
+
 # Atlas Docs Invariant Gate (§7 #4 of docs/mdbook/detector-parity.md)
 #
 # Runs the portable detector plus an mdbook v0.5.4 build across all provider
