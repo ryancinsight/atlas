@@ -57,3 +57,5 @@
 | [0049](0049-book-figure-provenance.md) | Metadata-only book figures are conceptual, not numerical evidence | Accepted |
 | [0050](0050-typed-physical-field-exchange.md) | Typed physical-field exchange at the Harmonia boundary | Accepted |
 | [0051](0051-kwavers-visualization-backend-ownership.md) | Kwavers visualization backend ownership | Accepted |
+| [0053](0053-kwavers-hephaestus-visualization-collaboration.md) | Kwavers–Hephaestus visualization collaboration boundary | Proposed |
+| [0054](0054-kwavers-hephaestus-visualization-contract.md) | Provider-neutral visualization transfer contract | Proposed |
