@@ -152,6 +152,12 @@
 - [x] Merge Apollo #108 at `a0c3da9` and Coeus #340 at
       `5108ed0082fc5c5ed02bc95c4bfa4ad9cdf8133b` after exact-head provider
       and book checks passed; their merged-default CI/book runs remain queued.
+- [x] Merge the next exact-green provider set with expected-head guards:
+      Mnemosyne #67 → `9da9f92`, Aequitas #38 → `14fdd44`, Asclepius #23 →
+      `ce3fea3`, Eunomia #70/#71 → `c7435a2`/`22a02b1`, and Moirai #145/#146
+      → `c186fd9`/`7f75f5e`.
+- [ ] Collect terminal post-merge CI, book, and Pages evidence for that set;
+      keep the Atlas pointers unchanged until the exact merged defaults pass.
 - [x] Repair Hephaestus #214 at exact head `ae4fd6a` after its book examples
       failed to import the traits that provide the called methods; the rerun
       provider and book checks are pending.

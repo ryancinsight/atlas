@@ -548,6 +548,18 @@ Horae `32434846095`/`32434846467`/`32434845162`, Hyperion
 these post-merge runs are terminal and the deployed pages are verified.
 Tyche's superseded duplicate PR #33 was closed and its branch deleted.
 
+**Second integration batch (2026-08-20):** exact-head green PRs merged with
+expected-head guards: Mnemosyne #67 → `9da9f92`, Aequitas #38 → `14fdd44`,
+Asclepius #23 → `ce3fea3`, Eunomia #70 (NumPy feature contract) → `c7435a2`
+followed by #71 (workflow pin) → `22a02b1`, and Moirai #145 (positioned I/O)
+→ `c186fd9` followed by #146 (workflow pin) → `7f75f5e`. Post-merge runs are
+queued at the exact defaults: Mnemosyne CI/Deploy `32435012042`/
+`32435012409`, Aequitas CI/Deploy/Pages `32435015846`/`32435016154`/
+`32435015448`, Asclepius CI/Deploy/Pages `32435020135`/`32435020483`/
+`32435018341`, Eunomia CI/Deploy `32435024973`/`32435025288`, and Moirai
+Python/Deploy `32435032989`/`32435033356`. Atlas pointers remain unchanged
+until terminal post-merge evidence is collected.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
@@ -583,6 +595,12 @@ the repository's declared NumPy test dependency through the existing project
 convention, runs the `numpy` feature's locked check/Clippy/nextest contract,
 and the hosted exact-head job passes. The feature remains optional and the
 consumer binding crates remain the only Python packages.
+
+**Delivery evidence:** PR #70 passed Rust verification, Rust 1.95.0
+all-target, NumPy feature contract, and supply-chain checks at exact head
+`cdc7e68`, then merged as `c7435a2`. The post-merge Eunomia CI run
+`32435024973` and Deploy mdBook run `32435025288` are queued; the Atlas
+pointer remains unchanged pending terminal default verification.
 
 **Owner:** current Atlas session. **Claimed files:** Eunomia
 `.github/workflows/ci.yml`, the existing Eunomia PM entry, and this root item.
