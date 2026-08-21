@@ -632,6 +632,35 @@ The dirty Consus checkout and Atlas gitlink are unchanged until terminal
 post-merge evidence is collected.
 
 
+## ATLAS-EUNOMIA-NAN-CONTRACT-2026-08-21 — Unify scalar NaN and signed-zero laws [major] [arch] — in-progress
+
+Audit found a live scalar contract split in Eunomia `origin/main`: the default
+`NumericElement::min_scalar`/`max_scalar` uses order-dependent `PartialOrd`,
+primitive `f32`/`f64` implementations delegate to native `min`/`max`, and
+reduced-precision wrappers inherit the comparison path. One-NaN behavior is
+therefore operand-order dependent across shipped scalar types; signed-zero
+behavior is unpinned. This is a value-semantic defect that propagates through
+generic `Field::clamp`.
+
+Scope: the Eunomia numeric trait, primitive and wrapper implementations,
+float-order/element conformance tests, and the affected numeric book chapters.
+Define one NaN/±0 contract, implement it for every shipped real scalar type,
+and verify commutativity, wrapper/primitive parity, and `clamp` value semantics.
+Non-goals: consumer rewrites, complex-number ordering, or registry release.
+
+Acceptance: NaN and signed-zero cases are specified in the owning Rustdoc/book;
+all shipped real scalar implementations satisfy the same value table; generic
+tests fail against the old order-dependent behavior; focused and workspace
+gates pass on the clean Eunomia origin base. The clean lane is
+`worktrees/eunomia-numpy-ci`; refresh it from Eunomia `origin/main` before
+editing and preserve the dirty provider checkout.
+
+Owner: codex-primary. Claimed files: Eunomia numeric trait/primitive/wrapper
+implementations, float conformance tests, affected book chapters, and their
+provider PM/ADR artifacts. Dependencies: current Eunomia `origin/main`; no
+consumer dependency. Risk/change class: `[major] [arch]`. Last update:
+2026-08-21.
+
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — in progress
 
 The Eunomia `numpy` feature is a real provider-consumer seam: it implements
