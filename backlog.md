@@ -12370,3 +12370,12 @@ a delivery claim cites the merge, not the authoring hash.
   generated output against shipped x86/scalar/ISA modules, then either restore
   deterministic freshness or remove the stale generator and revise ADR 005 in
   place with its dated evidence.
+- **Implementation:** provider commit `569ed00` deletes the incomplete binary,
+  revises ADR 005 in place, updates the ADR index and ADR 013, and synchronizes
+  Hermes PM records. The branch is pushed as Hermes PR #59 at exact head
+  `569ed00`.
+- **Local evidence:** pinned direct regeneration produced the destructive
+  four-file diff before restoration; Hermes format, warning-denied Clippy,
+  Nextest (465/465), doctests, warning-denied Rustdoc, and examples pass on
+  the provider lane. The Atlas overlay lock limitation is recorded in the
+  provider item; hosted locked CI remains open.
