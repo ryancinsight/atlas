@@ -244,6 +244,24 @@
   is rate-limited. The live Pages site is reachable but older than the PR and
   is not evidence for either head; fresh checks for `124ef839e27a...` are
   required. No pointer advance or bypass is used.
+- **Type-mapping increment (commit `60e871bad`, new PR #590 head):** every
+  duck-typed `Bound<'_, PyAny>` parameter resolves through an audited
+  `DUCK_TYPES` table keyed by `(class, function, parameter)` with per-entry
+  extraction-code provenance; unaudited PyAny parameters fail the generator
+  closed instead of emitting bare `object`. The stub honors
+  `#[pyfunction(name = ...)]` renames (recovering the previously missing
+  `run_standing_wave_suppression`), escapes Python keyword parameters
+  PyO3-style (`lambda` -> `lambda_`), and types string-keyed result dicts as
+  `Dict[str, object]` (422/422 literal-key `set_item` sites verified).
+  Zero bare `object` parameters remain; an AST guard test enforces the
+  invariant and the strict typed-consumer fixture exercises each mapped
+  union. Focused suite 23 passed / 1 skipped with a freshly built abi3 wheel
+  (`kwavers_python-0.1.0-cp38-abi3-win_amd64.whl`) installed. Pre-existing
+  finding recorded, not caused by this increment:
+  `get_array_weighted_mask` returns all zeros for annular elements at lane
+  head `124ef839e27a` (`test_kwave_array_per_element_superposition_reduces_to_shared_signal`
+  fails against the freshly built extension); the Rust binding needs its own
+  defect increment. All prior hosted evidence is stale at the new head.
 
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
