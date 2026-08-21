@@ -1,5 +1,22 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-REMOTE-HEAD-AUDIT-2026-08-21 — Verify provider defaults from remote refs [patch] — in progress
+
+- **Owner:** Atlas integration. **Claimed files:**
+  `scripts/atlas-provider-integration-audit.py`, its focused test, and this
+  item. Provider source, submodule pointers, and peer-owned checkout state
+  are out of scope.
+- **Problem:** the exact-head audit reads local `origin/main` or
+  `origin/master` refs but describes them as fetched defaults. A stale local
+  ref can therefore misattribute provider drift; the current Kwavers remote
+  default is `b72563148b693b04fd94fc6c9daf362db062a6fa`, while the local ref
+  was `cd87aec5`.
+- **Acceptance:** exact-head mode queries each provider's remote default
+  branch directly with a bounded timeout, handles `main` and `master`, keeps
+  the root gitlink comparison and worker behavior, and has a regression test
+  proving the symbolic default branch and remote commit are selected. Output
+  names the source as the remote default, not a fetched local ref.
+
 ## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — in progress
 
 - **Owner:** Atlas integration. **Claimed files:** `backlog.md`,
