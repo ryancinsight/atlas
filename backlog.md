@@ -1,5 +1,20 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HOSTED-POSTMERGE-CONSUS-2026-08-21 — Verify Consus book-gate merge [patch] — in progress
+
+- Consus PR [#53](https://github.com/ryancinsight/consus/pull/53) merged at
+  `2026-08-21T14:12:08Z` from exact head `39da4782780c032f587d406f9e32cd62d62f1557`
+  into provider `main` at merge commit
+  `5fc1443ecee71d90e5f80dd7df419636f1dda1c8`.
+- The PR was non-draft, `MERGEABLE`, and `CLEAN`; its repository CI and book
+  checks were terminal-successful. Fuzz and Pages deploy jobs were skipped by
+  their workflow conditions; the live Consus book probe was HTTP 200 before
+  merge.
+- Acceptance remains post-merge default-branch CI and Pages evidence at the
+  merged commit, followed by a fresh live-page probe. Atlas's nested Consus
+  gitlink remains unchanged until that evidence is terminal and the checkout
+  is safe to update around peer-owned dirt.
+
 ## ATLAS-REMOTE-HEAD-AUDIT-2026-08-21 — Verify provider defaults from remote refs [patch] — done 2026-08-21
 
 - **Owner:** Atlas integration. **Claimed files:**
@@ -1003,7 +1018,7 @@ head guard at provider default `c762c8ad`. The provider's post-merge CI
 queued; the nested Atlas pointer remains unchanged until the current default
 evidence and canonical live-page check are terminal.
 
-## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
+## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — done 2026-08-21
 
 Consus's current default book caller has two real Rust examples but leaves the
 shared `mdbook-test` input disabled. The required change is to enable the gate
@@ -1024,9 +1039,9 @@ two non-standalone prose fences that mdBook attempted to compile: the
 hyperslab formula and the stack diagram. The PR branch now carries those
 boundary repairs at exact head
 `0f4af6cf64828063480f824f301e524a78b6745e`; the current PR head is
-`39da4782` and hosted run `32440567003` remains non-terminal with queued and
-in-progress jobs. No Consus implementation, lockfile, or peer-owned checkout
-changed.
+`39da4782` and hosted run `32440567003` completed the repository CI and book
+checks successfully. The PR merged at `5fc1443e`; no Consus implementation,
+lockfile, or peer-owned checkout changed in Atlas.
 
 Consus PR #52 was verified as a strict subset of #53 and used an intermediate
 workflow pin. It was closed as superseded and its branch deleted; #53 is the
