@@ -49,4 +49,17 @@ echo "[pre-commit] Atlas docs dead-link check (§7 #5, STRICT mode — blocks co
 # new provider books are gated by both automatically.
 python3 scripts/check_mdbook_links.py repos/*/docs/book
 
+# Atlas provider-integration closure guard.
+#
+# This keeps the root integration facts (requested provider activation and
+# audit closure markers) from regressing silently when PM or .gitmodules files
+# change.
+integration_changed=$(git diff --cached --name-only 2>/dev/null \
+  | grep -E '^\.gitmodules$|^checklist\.md$|^backlog\.md$|^gap_audit\.md$|^scripts/atlas-provider-integration-audit\.py$|^scripts/atlas-version-guard-sweep\.py$|^scripts/tests/test_atlas_provider_integration_audit\.py$|^scripts/tests/test_atlas_version_guard_sweep\.py$|^\.github/workflows/version-guard\.yml$' \
+  || true)
+if [ -n "$integration_changed" ]; then
+  echo "[pre-commit] Atlas provider integration closure guard…"
+  python3 scripts/atlas-provider-integration-audit.py --structural-only
+fi
+
 exit 0

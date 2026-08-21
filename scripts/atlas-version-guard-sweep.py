@@ -8,7 +8,8 @@ The version-guard tool has two distinct surfaces:
 
 This wrapper covers the second surface and pairs it with the shared
 toolchain preflight so the sweep fails early when the Rust environment is
-misconfigured. It is intentionally read-only.
+misconfigured. It also runs the Atlas provider-integration closure guard so
+root integration records cannot silently drift. It is intentionally read-only.
 """
 
 from __future__ import annotations
@@ -47,13 +48,17 @@ def main() -> int:
             "--atlas-root",
             str(ROOT),
         ],
+        [sys.executable, str(ROOT / "scripts" / "atlas-provider-integration-audit.py")],
     ]
     env = clean_rust_env()
     for command in steps:
         code = run_step(command, env=env)
         if code != 0:
             return code
-    print("version-guard sweep: OK — toolchain preflight and coherence clean")
+    print(
+        "version-guard sweep: OK - toolchain preflight, coherence,"
+        " and provider integration guard clean"
+    )
     return 0
 
 

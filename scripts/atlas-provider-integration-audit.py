@@ -415,7 +415,7 @@ def _coherence_scope_issues_from_report(
     if not isinstance(findings, list):
         return (["coherence JSON missing findings list"], 0)
 
-    scoped_issues: list[str] = []
+    scoped_groups: dict[tuple[str, str, str, str, str], list[str]] = {}
     out_of_scope = 0
     provider_names = set(providers)
     for finding in findings:
@@ -426,16 +426,26 @@ def _coherence_scope_issues_from_report(
         parts = normalized_manifest.split("/", 2)
         manifest_provider = parts[1] if len(parts) >= 2 and parts[0] == "repos" else None
         if manifest_provider in provider_names:
-            dependency = finding.get("dependency", "?")
-            package = finding.get("package", "?")
-            required = finding.get("required", "?")
-            actual = finding.get("actual", "?")
-            reason = finding.get("reason", "unknown reason")
-            scoped_issues.append(
-                f"{normalized_manifest}: {dependency} ({package}) requires {required}, actual {actual} ({reason})"
-            )
+            dependency = str(finding.get("dependency", "?"))
+            package = str(finding.get("package", "?"))
+            required = str(finding.get("required", "?"))
+            actual = str(finding.get("actual", "?"))
+            reason = str(finding.get("reason", "unknown reason"))
+            key = (dependency, package, required, actual, reason)
+            scoped_groups.setdefault(key, []).append(normalized_manifest)
         else:
             out_of_scope += 1
+    scoped_issues: list[str] = []
+    for key, manifests in sorted(
+        scoped_groups.items(), key=lambda item: len(item[1]), reverse=True
+    ):
+        dependency, package, required, actual, reason = key
+        count = len(manifests)
+        examples = ", ".join(manifests[:3])
+        scoped_issues.append(
+            f"{count}x {dependency} ({package}) requires {required},"
+            f" actual {actual} ({reason}); examples: {examples}"
+        )
     return scoped_issues, out_of_scope
 
 
