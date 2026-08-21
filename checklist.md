@@ -3,6 +3,35 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-R6A-FILELIST-001 — current session
+
+- [x] Re-survey the 12 r6a commits on the 2026-08-21 HEAD with
+      `git show --stat`; observed every commit already touches only
+      `Cargo.toml + Cargo.lock` (CFDrs is the workspace-root exemption
+      with `Cargo.lock` alone).
+- [x] Reconcile the r-series residue removal (commit `96ccc83`, which
+      deleted `scripts/atlas-path-dep-audit2-closure-r6a.py` as
+      closed-audit residue) against the ticket's verifier reference:
+      re-create the verifier as a standalone scripts/ entry with the
+      same algorithm and a workspace-root exemption clause for CFDrs.
+- [x] Add focused regression suite
+      `scripts/tests/test_atlas_path_dep_audit2_closure_r6a.py`
+      covering clean Cargo-only commit, workspace-root
+      Cargo.lock-only commit, extra-non-cargo anomaly, workspace-root
+      with Cargo.toml anomaly, missing worktree, and the live stack
+      regression gate.
+- [x] Run the focused suite: `6 passed`. Live verifier output:
+      `ok=12 anomalies=0 missing=0 total=12`,
+      `Round-6a commit file-list hygiene: PASS`.
+- [x] Update backlog.md with the closing record: premise check (the
+      2026-07-27 anomaly was already corrected in the same cycle
+      that landed the r6a commits, or referred to a draft that never
+      landed), verdict (the verifier locks the rule into the scripts
+      test suite), acceptance evidence (verifier output and the
+      per-commit table), and scope discipline (no parent-side atlas
+      amend; ATLAS-GIT-HYGIENE-001 stays a separate item per the
+      original code review's Q2 blocker).
+
 ## ATLAS-BOARD-COMPACT-PATCH-2026-08-21 — current session
 
 - [x] Reproduce the prior-archive loss: rerun atlas-board-compact.py on a

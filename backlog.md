@@ -5173,35 +5173,6 @@ converter; the existing bilinear differential remains the acceptance oracle.
   directories is destructive to possibly-live peer setups. Confirm before
   deleting rather than reconciling unilaterally.
 
-## ATLAS-R6A-FILELIST-001 — Per-submodule r6a commit file-list hygiene [patch] — todo
-
-- Owner: unclaimed; scope: the 12 r6a submodule commits (apollo,
-  asclepius, CFDrs, coeus, gaia, helios, hephaestus, kwavers,
-  leoneuro-rs, hermes, ritk, athena) whose `git show --stat <r6a_sha>`
-  verifier surfaced a 1-non-cargo-file anomaly on 2026-07-27 (each
-  commit contains exactly 1 file that is neither `Cargo.toml` nor
-  `Cargo.lock`). Per-submodule audit + per-submodule remediation. No
-  atlas manifest edits in this scope.
-- Outcome: each of the 12 r6a submodule commits produces
-  `git show --stat <sha>` showing strictly `Cargo.toml + Cargo.lock`,
-  OR carries an explicit per-consumer exemption row in
-  `D:/atlas/PATH_DEP_AUDIT_001_ENTRY.md` STEP C documenting why the
-  additional file is a deliberate deviation.
-- Acceptance: per-consumer `git show --stat <r6a_sha> | grep -cE
-  'Cargo\.(toml|lock)'` returns 2; the verifier script
-  `scripts/atlas-path-dep-audit2-closure-r6a.py` exits 0 with the
-  "no extras in r6a commits" assertion.
-- Method: per-submodule `git reset --soft HEAD~1 && git restore --staged . && git add Cargo.toml Cargo.lock && git commit -m "build(<repo>): Refresh round-6a atlas-root path resolution — file-list hygiene"` (committed at the per-submodule level; carries a distinct verb (`Refresh` instead of `Apply`) so `git log --grep "Apply round-6a"` continues to surface only the original r6a commits while `git log --grep "Refresh round-6a"` surfaces the cleanup cycle), authorized amend per ticket scope, distinct from the parent-side follow-up amend at `77c60de`); then `cargo update --workspace --offline` per consumer to refresh Cargo.lock post-stick. Twelve follow-up commits land consumer-side; one atlas-side parent commit advances all 12 gitlinks atomically (or twelve separate follow-up commits if atomic amend is unsafe).d9e7db); then `cargo update --workspace --offline` per consumer to refresh Cargo.lock post-stick. Twelve follow-up commits land consumer-side; one atlas-side parent commit advances all 12 gitlinks atomically (or twelve separate follow-up commits if atomic amend is unsafe).
-- Cross-link: ATLAS-PATH-DEP-AUDIT-2 (cycle closed 2026-07-27) parked
-  this follow-up; the audit criterion (ryancinsight=0 / NVlabs
-  preserved) was met but the per-commit file-list hygiene was
-  separately uncovered.
-- Risk/change class: `[patch]`; per-submodule commit rewrite spanning
-  12 consumers + one parent-side gitlink advance. Distinct
-  operational domain from ATLAS-GIT-HYGIENE-001 (which is a
-  single-line atlas config edit only). Bundling the two was rejected
-  by the round-6a code review (Q2 blocker).
-
 ## ATLAS-DOWNSTREAM-COORDINATION-001 — Notify LeoNeuro-INC maintainers about local leoneuro-rs `50bfcd9` [chore] — todo
 
 - Owner: unclaimed; scope: out-of-band coordination with the
@@ -9835,3 +9806,5 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-MIGRATION-PATHDEP-001** Migrate kwavers, CFDrs, helios, ritk to local path deps [patch] (2026-08-03) — `b2ee610`, `c7c3678`
 
 - **ATLAS-BOARD-COMPACT-PATCH-2026-08-21** Preserve prior archive entries in atlas-board-compact.py [patch] (2026-08-21)
+
+- **ATLAS-R6A-FILELIST-001** Per-submodule r6a commit file-list hygiene [patch] (2026-08-21) — `96ccc83`, `b7bb4bc5`, `5414f80`, `ec4e147b`
