@@ -2019,6 +2019,26 @@ book coverage remains a separate open integration item.
   active publish-graph record below; historical ADR counts remain intentionally
   revision-scoped.
 
+## ATLAS-PUBLISH-GRAPH-EXACT-HEAD-2026-08-21 — attribute graph to committed gitlinks [patch] — done 2026-08-21
+
+- **Owner:** current Atlas session; `scripts/publish-order.py` and its focused
+  regression test.
+- **Scope:** add an explicit `--exact-gitlinks` source that reads provider
+  manifests from the commits recorded by the current Atlas `HEAD`, excluding
+  dirty nested worktree edits from release-graph claims. The existing default
+  remains available for development inspection and labels itself as a worktree
+  source.
+- **Acceptance:** exact mode reports `source = committed_gitlinks`, resolves
+  all recorded providers without skipped manifests, and a nested-Git fixture
+  proves a dirty provider manifest cannot change the exact package set.
+- **Evidence:** `python -m unittest scripts/tests/test_publish_order.py` passes;
+  the affected Python audit suite passes `71` tests; exact mode reports 218
+  packages, 34 layers, 14 unpublishable blockers, zero unresolved edges, zero
+  contested names, and zero skipped manifests.
+- **Residual:** the exact graph describes the Atlas committed gitlinks, not
+  provider branches or hosted release readiness; pointer advancement remains
+  gated by provider merge, CI, book, and Pages evidence.
+
 ## ATLAS-HORAE-HYPERION-REVERIFY-2026-08-20 — close clean provider gates [patch] — done 2026-08-20
 
 - **Owner:** current Atlas session; clean Horae and Hyperion provider heads.

@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
 import tomllib
 from collections import defaultdict
@@ -42,13 +43,17 @@ DEP_SECTIONS_ORDERING = ("dependencies", "build-dependencies")
 DEP_SECTIONS_REPORTED = ("dev-dependencies",)
 
 
+def _packages_from_gitmodules(text: str) -> set[str]:
+    """Return recorded member directory names from gitmodules text."""
+    return {Path(m).name for m in re.findall(r"^\s*path\s*=\s*(.+?)\s*$", text, re.M)}
+
+
 def recorded_packages(root: Path) -> set[str]:
     """Return the submodule directory names recorded in .gitmodules."""
     gitmodules = root / ".gitmodules"
     if not gitmodules.is_file():
         raise SystemExit(f"{gitmodules} not found; run from the Atlas root")
-    text = gitmodules.read_text(encoding="utf-8")
-    return {Path(m).name for m in re.findall(r"^\s*path\s*=\s*(.+?)\s*$", text, re.M)}
+    return _packages_from_gitmodules(gitmodules.read_text(encoding="utf-8"))
 
 
 def iter_manifests(root: Path, packages: set[str]):
@@ -62,6 +67,82 @@ def iter_manifests(root: Path, packages: set[str]):
             if "target" in parts or "worktrees" in parts:
                 continue
             yield repo, manifest
+
+
+def _git_output(provider: Path, arguments: list[str]) -> str:
+    """Return UTF-8 output from a provider Git command or raise its error."""
+    process = subprocess.run(
+        ["git", "-C", str(provider), *arguments],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if process.returncode:
+        detail = process.stderr.strip() or "git command failed"
+        raise RuntimeError(detail)
+    return process.stdout
+
+
+def _committed_gitlink(root: Path, repo: str) -> str | None:
+    """Return the provider revision recorded by the Atlas root commit."""
+    process = subprocess.run(
+        ["git", "-C", str(root), "ls-tree", "HEAD", "--", f"repos/{repo}"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if process.returncode:
+        return None
+    fields = process.stdout.strip().split()
+    if len(fields) >= 3 and fields[1] == "commit":
+        return fields[2]
+    return None
+
+
+def _committed_packages(root: Path) -> set[str]:
+    """Return member names from the root commit's .gitmodules blob."""
+    return _packages_from_gitmodules(_git_output(root, ["show", "HEAD:.gitmodules"]))
+
+
+def exact_manifest_entries(
+    root: Path, packages: set[str]
+) -> tuple[list[tuple[str, Path, str]], list[tuple[str, str]]]:
+    """Read manifests from the provider commits recorded by Atlas.
+
+    The normal worktree scan is useful during development but can attribute
+    uncommitted provider edits to a release graph. This source reads each
+    provider's committed gitlink object instead, so dirty nested worktrees are
+    excluded from the result.
+    """
+    entries: list[tuple[str, Path, str]] = []
+    skipped: list[tuple[str, str]] = []
+    for repo in sorted(packages):
+        provider = root / "repos" / repo
+        revision = _committed_gitlink(root, repo)
+        if revision is None:
+            skipped.append((f"repos/{repo}", "no committed gitlink"))
+            continue
+        try:
+            paths = _git_output(provider, ["ls-tree", "-r", "--name-only", revision])
+            manifest_paths = [
+                path
+                for path in paths.splitlines()
+                if (path == "Cargo.toml" or path.endswith("/Cargo.toml"))
+                and "target/" not in path
+                and "worktrees/" not in path
+            ]
+            for manifest_path in manifest_paths:
+                contents = _git_output(
+                    provider, ["show", f"{revision}:{manifest_path}"]
+                )
+                entries.append((repo, root / "repos" / repo / manifest_path, contents))
+        except (OSError, RuntimeError) as exc:
+            skipped.append((f"repos/{repo}", f"{revision}: {exc}"))
+    return entries, skipped
 
 
 def dependency_names(table: dict, sections: tuple[str, ...]) -> set[str]:
@@ -88,18 +169,30 @@ def rel(path: Path, root: Path) -> str:
     return str(path.relative_to(root)).replace("\\", "/")
 
 
-def load_graph(root: Path):
+def load_graph(root: Path, *, exact_gitlinks: bool = False):
     """Return (packages, order_edges, dev_edges, skipped, collisions)."""
     packages: dict[str, dict] = {}
     raw: dict[str, dict] = {}
     skipped: list[tuple[str, str]] = []
     collisions: dict[str, list[dict]] = defaultdict(list)
 
-    for repo, manifest in iter_manifests(root, recorded_packages(root)):
+    if exact_gitlinks:
+        recorded = _committed_packages(root)
+        manifest_entries, exact_skipped = exact_manifest_entries(root, recorded)
+        skipped.extend(exact_skipped)
+        source = ((repo, manifest, contents) for repo, manifest, contents in manifest_entries)
+    else:
+        recorded = recorded_packages(root)
+        source = (
+            (repo, manifest, manifest.read_text(encoding="utf-8"))
+            for repo, manifest in iter_manifests(root, recorded)
+        )
+
+    for repo, manifest, contents in source:
         try:
-            table = tomllib.loads(manifest.read_text(encoding="utf-8"))
+            table = tomllib.loads(contents)
         except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
-            skipped.append((str(manifest.relative_to(root)), f"parse error: {exc}"))
+            skipped.append((manifest, f"parse error: {exc}"))
             continue
         pkg = table.get("package")
         if not pkg or "name" not in pkg:
@@ -170,6 +263,11 @@ def main() -> int:
         action="store_true",
         help="also order crates marked publish = false (shows what a flip would require)",
     )
+    parser.add_argument(
+        "--exact-gitlinks",
+        action="store_true",
+        help="read manifests from the provider commits recorded by Atlas, ignoring dirty worktrees",
+    )
     args = parser.parse_args()
 
     # Windows consoles default to a legacy codepage that mangles non-ASCII output.
@@ -177,7 +275,9 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
 
     root = args.root
-    packages, order_edges, dev_edges, skipped, contested, benign = load_graph(root)
+    packages, order_edges, dev_edges, skipped, contested, benign = load_graph(
+        root, exact_gitlinks=args.exact_gitlinks
+    )
 
     selected = {
         n for n, meta in packages.items() if meta["publishable"] or args.include_unpublishable
@@ -203,6 +303,7 @@ def main() -> int:
                 "contested_names": contested,
                 "benign_duplicate_names": sorted(benign),
                 "dev_only_edges": {k: sorted(v) for k, v in dev_edges.items() if v},
+                "source": "committed_gitlinks" if args.exact_gitlinks else "worktrees",
             },
             sys.stdout,
             indent=2,
@@ -214,6 +315,10 @@ def main() -> int:
     total = len(packages)
     pub = sum(1 for m in packages.values() if m["publishable"])
     print(f"Atlas publish order — {total} packages, {pub} publishable, {total - pub} publish = false")
+    if args.exact_gitlinks:
+        print("Source: provider commits recorded by the Atlas gitlinks")
+    else:
+        print("Source: current provider worktrees (may include uncommitted edits)")
     print()
     print("Wave 0 publishes first; every crate in a wave depends only on earlier waves.")
     print("A wave publishes in any internal order, so it parallelizes.")
