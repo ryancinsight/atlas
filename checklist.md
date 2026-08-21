@@ -11,6 +11,14 @@
       add a decoy-manifest regression fixture; focused suite passes 21/21.
 - [x] Reconcile the stale Athena worktree inference against the detached,
       gitlink-aligned checkout; preserve only verified facts in the audit.
+- [x] Re-apply the Step 4 timeout overlay to the 2 regressed moirai workflow
+      files (`python-ci.yml`, `python-release.yml`) after upstream commit
+      `113a7f9` replaced the overlaid files; `workflow_missing_timeout`
+      returns to 0 and both files parse cleanly under `yaml.safe_load`.
+- [x] Assess `missing_deny_docs = 118` as the natural Step 5: 114 of 118
+      crates have undocumented public items, so the directive cannot be
+      safely added without per-crate provider documentation work. Classified
+      as a provider-level watchpoint, not an Atlas-side editorial sweep.
 - [ ] Re-run the clean-revision ratchet after the provider workflow changes
       land and their parent gitlinks advance; do not baseline the current
       peer-dirty worktree result.
@@ -902,15 +910,6 @@
       and Metal; Pages success and queued jobs are not substituted for failed
       gates.
 
-## ATLAS-RITK-APOLLO-027-RECONCILIATION-2026-08-18 — closed 2026-08-19
-
-- [x] Confirm RITK `main`, `origin/main`, and the Atlas gitlink converge at
-      `6b9092bf`; the workspace and `ritk-filter` require Apollo `0.27.0`.
-- [x] Confirm the committed RITK lock resolves Apollo `0.27.0` at
-      `d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab`.
-- [x] Re-run the exact-head audit, stack overlay, and 27 standalone lock-form
-      checks. All pass; preserve the three unrelated RITK peer lanes.
-
 ## ATLAS-AEQUITAS-STRUCTURE-001 — current provider slice
 
 - [x] Split Aequitas' oversized private derived-unit and dimension-law test
@@ -1491,15 +1490,6 @@
       with exact files, heads, hosted run IDs, evidence limits, and re-open
       triggers.
 
-## ATLAS-TYCHE-DOCS-001 — merged provider documentation correction
-
-- [x] Merge Tyche PR #22 after repository-owned `verify`, `supply-chain`, and
-      CodeRabbit checks pass; record the external `recurseml/analysis` error as
-      report-only.
-- [x] Advance the Atlas Tyche gitlink to merged default `b1c5cc9f` and rerun
-      exact-head/coherence gates; the staged root index passes the exact-head
-      audit with all 21 requested providers coherent.
-
 ## Sequencing constraints (read before claiming)
 
 Three ordering facts came out of the audit and are not obvious from the board:
@@ -1712,20 +1702,6 @@ Three ordering facts came out of the audit and are not obvious from the board:
       head passes provider binding and macOS, Ubuntu, and Windows wheel checks.
       No production source or peer-owned files changed; recurseml remains
       report-only.
-
-## ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete multi-dimensional LayerNorm contract — complete 2026-08-14
-
-- [x] Confirm the provider source and docs disagree: the core/autograd path
-      assumed `[N, D]`, `forward_nd` only flattened leading dimensions, and the
-      PyO3 constructor rejected `normalized_shape` sequences longer than one.
-- [x] Claim the disjoint Coeus lane from fetched `origin/main`; preserve the
-      peer-owned performance branch and its dirty lockfile.
-- [x] Implement provider-owned shape validation, flattening, native backward
-      reductions, thin Python sequence support, focused value-semantic tests,
-      and synchronized Coeus docs.
-- [x] Merge the provider change, advance the Atlas Coeus gitlink, and rerun
-      exact-head/coherence/overlay/lane gates.
-
 
 ## ATLAS-KWAVERS-REAL-COMPUTE-028 — Kwavers identity-path audit
 
@@ -5954,135 +5930,6 @@ weakening assertions. The next implementation slice is selected from the
 returned audit findings and must include value-semantic tests, documentation,
 and the applicable hosted gate.
 
-## Archive — closed checklists
-
-Closed items, one line each. Full prose is in git history; commit SHAs below are the entry points.
-
-- **ATLAS-LIVE-HEAD-SWEEP-026** Reconcile twenty provider CI-pin defaults (2026-08-13) — `5758df93`, `93e83899`, `5febead4`, `5969f1e3`
-- **ATLAS-POSTMERGE-HEAD-RECONCILIATION-030** Reconcile merged caller defaults (2026-08-13) — `1be7768d`, `1a52590c`, `462cf444`
-- **ATLAS-LIVE-CALLER-PINS-027** Refresh requested-provider Atlas workflow pins (2026-08-13) — `d875348197be12ad593f993a6f1b8a62d3b8b195`, `4c31dd753f06dd93b4c04798cf781df253e3e532`, `efde7a6`, `683e2ab5`
-- **ATLAS-HEPHAESTUS-REDUCTION-022** Retire superseded product-axis parity PR (2026-08-13) — `8bc589a`, `c373de19`
-- **ATLAS-APOLLO-ARCH-021** Retire superseded junk-drawer rename (2026-08-13) — `49632c6c`
-- **ATLAS-APOLLO-VALIDATION-020** Converge shared WGPU validation and Mnemosyne boundary (2026-08-13) — `a725fe81`, `fc5648964c8194447ef5deea43a8aa9c0dae7c63`
-- **ATLAS-COEUS-NORM-019** Keep batched Frobenius norms provider-owned (2026-08-13) — `96d8166c3d683eaaf67e45b8bad0c34e33d8b405`, `72372c918d8d6fcbcc006585736126a480a4f5c2`
-- **ATLAS-HELIOS-BOOK-WORKFLOW-018** Converge Helios on the shared Pages workflow (2026-08-13) — `116228c`, `546c199fdd46b8eb8c4176a4250ac261962a45d0`
-- **ATLAS-HERMES-PERMUTE-017** Measure and prune cross-lane NEON overrides (2026-08-13) — `79d7297`, `d1627cd23179595b751c237a67f86cdeafb01310`
-- **ATLAS-APOLLO-REALSH-005** Real symmetric SH basis over scattered directions (2026-08-13) — `33a40bcee4532c9c1a03fee7cef2d852b3419090`, `db2186650f2e0889555120e6a1491ad93897409e`, `36f2f3645610e7c1a681e15f709f70f7e14c1f27`, `be4408d188313e9072e180ae1d214f3aca458997`
-- **ATLAS-CONSUS-TEST-API-001** Make cross-format integration tests consume real Consus APIs (2026-08-13) — `a5b9cfd`, `33c2df0`, `eebe7c0`, `720233a`
-- **ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003** Close Consus no-default storage boundaries (2026-08-13) — `b3ca01c21b2e9bad4c7b7dc23c47083ca79a3307`, `bf46b7cf00ec7a86b51decf31be4eb30b367c397`
-- **ATLAS-CONSUS-NODEF-ARROW-PARQUET-002** Close Arrow/Parquet no-default cfg boundaries (2026-08-13) — `37f835d1`, `731a3ca4`
-- **ATLAS-LIVE-HEAD-SWEEP-015** Reconcile merged provider defaults (2026-08-13) — `18550d9`, `19c205d4`, `beed6da`
-- **ATLAS-COEUS-HEPHAESTUS-F64-015** Restore CUDA f64 comparison seam — `b34b507`, `c373de1`, `aabdec6`, `a4063be1`
-- **ATLAS-HELIOS-CHECKLIST-016** Reconcile binary-MLC roadmap and benchmark gate — `f118214e`, `04fcf46`, `f7ca5dad16bb7c36781bcefe4c90c21377f06110`, `f108dc9b3cf7cc94212fa574219594eab2a0bc4f`
-- **ATLAS-COEUS-CLOSURE-014** Provider deduplication and batched NLLS (2026-08-13) — `d5912200`
-- **ATLAS-MNEMOSYNE-CONSUS-REFRESH-013** Reconcile merged provider PM closeouts (2026-08-13) — `e57e2d6`, `e7fccf7`, `6b0ca43`, `5163eb1`
-- **ATLAS-TYCHE-REFRESH-011** Reconcile merged Tyche PM closeout (2026-08-13) — `5efaee7a`
-- **ATLAS-LETO-LBFGS-023** Replace L-BFGS jagged history with a flat ring (2026-08-13) — `e4d5dfc7`, `6e4a1627aa739d37c5f40ab1ab9e41948352cc54`, `a722fbc8`
-- **ATLAS-LETO-TASK-PARTITIONS-024** Provider-owned disjoint task partitions (2026-08-13) — `6e4a1627`, `508962df`
-- **ATLAS-TYCHE-MULTIOUTPUT-017** Generalize sensitivity estimators (2026-08-13) — `dc96f5ec`, `4a6f8cd4`, `af30ad23dc468349511dff9d1d34ab9b5ab58334`, `2d12dc5e`
-- **ATLAS-LETO-PM-REFRESH-010** Reconcile merged Leto PM closeout (2026-08-13) — `e525d8dd`
-- **ATLAS-LETO-CONVOLUTION-012** Close provider convolution contract (2026-08-13) — `7172b338`, `a722fbc8`, `aabdec67`, `a4063be1`
-- **ATLAS-MOIRAI-NUMA-095** Wire the NUMA policy through the runtime (2026-08-14) — provider `181f87d`, PM closeout `6d42bd3`, default `e972174`; hosted Rust Workspace `31787962637` and Python Bindings `31787962649` pass
-- **ATLAS-MSRV-UNVERIFIED-077 (Eunomia slice)** Verify Eunomia Rust 1.95 MSRV and package gate (2026-08-14) — provider PRs #65/#66, default `84c82fe`; hosted MSRV `31789001841`, Rust verification/supply-chain `31789001920`, exact online dry-run pass
-- **ATLAS-AUDIT-STALE-TIER0-096** Remove closed findings from active Tier 0 (2026-08-14) — Themis `17d3647`, Eunomia `84c82fe`, root PM cleanup
-- **ATLAS-AUDIT-STALE-TIER2-097** Reconcile the landed Moirai bounded default (2026-08-14) — provider `2ea17bb`, merged default `e972174`, focused nextest value-semantic tests pass
-- **ATLAS-AUDIT-STALE-TIER1-2C-098** Remove four closed active rows (2026-08-14) — Gaia `18349bc`, Iris `899d622`, Proteus `671c9fa`, Asclepius `5d528d2`, landed evidence reconciled
-- **ATLAS-AUDIT-STALE-TIER2-099** Reclassify the Moirai cache-line premise (2026-08-14) — provider `2ea17bb`, merged default `e972174`, focused nextest cache-separation tests pass
-- **ATLAS-AUDIT-STALE-TIER2-100** Reconcile the landed Leto Tiles iterator (2026-08-14) — provider `7f80044`, merged default `143696d`, iterator and ragged-edge evidence pass; `048b` remains open for consumers
-- **ATLAS-AUDIT-STALE-TIER2-101** Reconcile the landed Leto SVD collapse (2026-08-14) — provider `58b6eb3`, merged default `143696d`, focused SVD nextest 23/23; remaining dqds performance work is separate
-- **ATLAS-AUDIT-STALE-TIER3-102** Reconcile the landed Helios workflow-artifact cleanup (2026-08-14) — Atlas `0023164`, no tracked output PNGs remain
-- **ATLAS-COEUS-LAYERNORM-SHAPE-031** Close the multi-dimensional LayerNorm contract (2026-08-14) — merged default `a2638c03`, Rust/PyO3 shape and gradient coverage plus hosted backend/book gates pass
-- **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
-- **ATLAS-PROVIDER-INTEGRATION-006** Twenty-one-provider exact-head re-audit
-  (2026-08-14) — closed in root commit `48a257d`; structural, exact-head, and
-      requested-provider coherence checks pass for all 21 providers. Horae now
-      records verified default `f5cd364`, and Hermes records merged closeout
-      `463c6e4` (docs-only default advance after `947283d`). The Leto
-  gitlink now records merged default `7f80044`; peer checkout and overlay
-  lockfile dirt remain preserved. Helios typed DVH work remains external to
-  this root closure until PR #54 head `8b5c29d` completes its benchmark gate.
-  The explicit dirty-tree conformance scan remains a separate cleanup baseline:
-  601 oversized files, 701 implementation-bearing manifests, 1,242 production
-  unwrap sites, 743 allow sites, and 809 existence-only assertions.
-- **ATLAS-LIVE-HEAD-SWEEP-008** Reconcile moving provider defaults (2026-08-12) — `1ad581971d2528e12c0c815fe30e87ce6c121d80`, `578514314bec51815e763f5a8103500bb9498c32`
-- **ATLAS-HEPHAESTUS-REFRESH-007** Integrate cross-entropy PM closeout (2026-08-12) — `9385686ec29fc5a2d168d967df3fae254760aa4b`
-- **ATLAS-PROVIDER-DRIFT-005** Post-merge exact-head convergence (2026-08-12) — `93dbc563`, `32524e37b7697dd37f3cb3b28ee570aa4d0df199`, `e70f597`, `53bb01312222745325f20d36db95aab780ce39b3`
-- **ATLAS-PROVIDER-INTEGRATION-004** Twenty-provider audit and cleanup (2026-08-12) — `ceafa3d951f7db9ffcd93a79e5efbbdd09e199de`, `6852b08`
-- **ATLAS-FOUNDATION-PLANNING-001** Foundation planning completion (2026-08-12)
-- **ATLAS-FOUNDATION-PLANNING-002** Next-tier planning completion (2026-08-12)
-- **ATLAS-PROVIDER-INTEGRATION-003** Nineteen-provider second-pass audit (2026-08-12) — `df899cb1`, `f3c0463`, `d8cd00c`, `acd67a83`
-- **ATLAS-CASCADE-ALIGNMENT-001** Consumer alignment for the 0.42/0.5/0.26/0.19 provider cascade (2026-08-11) — `d9e674f`, `f68045d`, `a68e91f`
-- **ATLAS-BOOK-ANCHOR-PARITY-001** Heading-id parity with mdBook v0.5.4 (2026-08-11)
-- **ATLAS-BOOK-LINK-CI-001** All-provider book link CI gate (2026-08-11)
-- **ATLAS-BOOK-LINK-SWEEP-001** All-provider book link sweep (2026-08-10)
-- **ATLAS-TYCHE-PROVIDER-ESTIMATORS-001** Tyche sensitivity estimators and book closure (2026-08-10)
-- **ATLAS-MNEMOSYNE-BOOK-001** Complete Mnemosyne book closure (2026-08-11) — `c4516df`, `9a143ca`
-- **ATLAS-HORAE-PROVIDER-DOCS-001** Complete Horae book closure (2026-08-11) — `03ad868`, `08cf292`
-- **ATLAS-HORAE-EXACTNESS-069** Horae event and subcycle exactness closure (2026-08-14) — provider PR #12, merged default `41dcf00`; CI `31792859575`, book `31792859919`
-- **ATLAS-HYPERION-INTERP-068** Hyperion NIST interpolation closure (2026-08-14) — provider PR #9, merged default `41ef18e`; CI `31794767546` verify and supply-chain green; recurseml analysis report-only
-- **ATLAS-HEPH-SEAM-043 / ATLAS-HEPH-ACCEL-044 / ATLAS-HEPH-DEADBUILD-060** Hephaestus seam, shared scan, and dead-build closure (2026-08-14) — PR #208, merged default `ff2ab47`; CUDA `31793963123`, ROCm `31793963119`, WGPU `31793963054`, Metal `31793963181` green; independent architectural review approved
-- **ATLAS-LICENSE-FILES-039** License-file audit re-probe (2026-08-14) — premise stale; Moirai, Leto, Gaia, and Helios default heads all contain `LICENSE-APACHE` and `LICENSE-MIT` matching `MIT OR Apache-2.0`
-- **ATLAS-ADR-GOV-058-HYPERION** Hyperion ADR-index slice (2026-08-14) — provider PR #10, merged default `d17e863`; exact-head `31795703287` verify and supply-chain green; recurseml analysis report-only
-- **ATLAS-ADR-GOV-058-IRIS** Iris ADR-index slice (2026-08-14) — provider PR #15, merged default `3c9dc85`; exact-head `31796011010` verify and supply-chain green; recurseml analysis report-only
-- **ATLAS-ADR-GOV-058-PROTEUS** Proteus ADR-index slice (2026-08-14) — provider PR #11, merged default `3c64c8e`; exact-head `31796273743` verify and supply-chain green; recurseml analysis report-only
-- **ATLAS-ADR-GOV-058-AEQUITAS** Aequitas ADR-index slice (2026-08-14) — provider PR #30, merged default `f7c9cf2`; exact-head `31796547009` verify and supply-chain green; recurseml analysis report-only
-- **ATLAS-ADR-GOV-058-HORAE** Horae ADR-index slice (2026-08-14) — provider PR #13, merged default `1b35d3f`; exact-head `31797039383` verify and supply-chain green; recurseml analysis analyzer error remains report-only
-- **ATLAS-ADR-GOV-058-EUNOMIA** Eunomia ADR-index slice (2026-08-14) — provider PR #67, merged default `9c2d972`; exact-head `31797566750` Rust verification and Supply chain green; recurseml analysis analyzer error remains report-only
-- **ATLAS-ADR-GOV-058-THEMIS** Themis ADR-index slice (2026-08-14) — provider PR #25, merged default `8d6e83e`; exact-head `31797905436` compile-fail, Ubuntu, Windows, and Miri green; recurseml analysis analyzer error remains report-only
-- **ATLAS-ADR-GOV-058-RITK** Ritk ADR-index slice (2026-08-14) — provider PR #147 merged at `d1087139`, PM-sync PR #148 merged at `37e46ef`; final exact-head CI `31802349902` and Python CI `31802349905` pass; recurseml analysis remains report-only
-- **ATLAS-MOIRAI-ORDERING-052-SPSC** Moirai SPSC ordering slice (2026-08-14) — provider PR #130, merged default `ac111b3`; exact-head `31798789797` Loom channel models, workspace, bindings, and wheel matrices green; recurseml analysis analyzer error remains report-only
-- **ATLAS-MOIRAI-ORDERING-052-WAKER** Moirai async executor wake-dedup ordering slice (2026-08-14) — provider PR #131, merged default `fd517fe`; exact-head `31800148163` Loom and workspace gates pass, `31800148178` bindings and all wheel smoke tests pass; recurseml analysis remains report-only. The first model revision failed on a non-contractual cross-atomic observer assertion and was corrected before the passing head.
-- **ATLAS-MOIRAI-ORDERING-052-REACTOR** Moirai PAL reactor ordering slice (2026-08-14) — provider PR #132, merged default `8830f1b`; exact-head `31800607186` Loom and workspace gates pass, `31800607152` bindings and all wheel smoke tests pass; recurseml analysis remains report-only.
-- **ATLAS-MOIRAI-ORDERING-052-POOL** Moirai connection-pool reservation ordering slice (2026-08-14) — provider PR #133, merged default `f766c6d`; exact-head `31801180700` Loom and workspace gates pass, `31801180691` bindings and all wheel smoke tests pass; recurseml analysis remains report-only.
-- **ATLAS-HYPERION-PROVIDER-DOCS-001** Complete Hyperion book closure (2026-08-11) — `b8a1124`, `9a8b7d8`
-- **ATLAS-PROTEUS-PROVIDER-DOCS-001** Complete Proteus book closure (2026-08-11) — `30e25f8`, `3d6021e`, `2918e5a`
-- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** twenty-provider integration audit (closed 2026-08-16; Tyche (aka Tychee)) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`, `182083f1aa95ad30565910e432a878c749d06f03`, `cbfff61e392b77232f99a4a4a64fd69002402dcc`, `2beb4f17c35c88c0eade4bd337f161c0cc2cf48f`
-- **ATLAS-AEQUITAS-PROVIDER-DOCS-001** Complete Aequitas book closure (2026-08-11) — `681042b`, `11565d9`
-- **ATLAS-HEPHAESTUS-CLOSURE-001** Hephaestus expression-parity closure record (2026-08-11) — `407938b`, `d4d5906`, `aca9a5a8`, `971fab96`
-- **ATLAS-EUNOMIA-CLOSURE-001** Eunomia 0.8.0 closure record (2026-08-11) — `0c14c2e`, `184ba92`
-- **ATLAS-IRIS-CLOSURE-001** Iris IRIS-003 release-readiness record (2026-08-11) — `e179781`, `ab3eea2`
-- **ATLAS-ASCLEPIUS-BOOK-001** Complete Asclepius book closure (2026-08-11) — `220d713`, `530115a`
-- **ATLAS-COEUS-MLM-PROVIDER-001** Coeus multi_label_margin_loss provider delivery (2026-08-11) — `1ac8118c`, `4491bf19`, `bde7010f`
-- **ATLAS-HELIOS-DICOM-ORIENTATION-001** Helios DICOM oriented-grid boundary delivery (2026-08-11) — `342bbbc83`, `77716bb`, `bde7010f`
-- **ATLAS-LETO-HERMES-REDUCED-PRECISION-001** Leto F16/Bf16 Hermes provider delivery (2026-08-11) — `606e5b5`, `d9e674fc`, `ca93b63c`, `d68095b`
-- **ATLAS-APOLLO-SHARED-VALIDATION-001** Apollo shared WGPU transform validation delivery (2026-08-11) — `b426f2cd`, `0e38d1cc`, `bde7010f`, `eae6b706`
-- **ATLAS-GAIA-PERMISSIONED-ARENA-001** Gaia Melinoe-branded permissioned arena delivery (2026-08-11) — `b5e62c5`, `5ea09cbc`, `a5b0fe72`
-- **ATLAS-CGROUP-CLOSURES-001** C-group closure sweep (melinoe/moirai/proteus/consus) (2026-08-11) — `eab19a6`, `c8e8889`, `6d80c33`, `57c4ec4`
-- **ATLAS-VERSION-GUARD-SCAN-MATRIX-001** per-commit scan matrix (2026-08-11) — `681042b`, `11565d9`, `3d6021e`, `30e25f8`
-- **ATLAS-VERSION-GUARD-002** Stack-wide first-party coherence subcommand + CI sweep (2026-08-08) — `43f8aa2`
-- **ATLAS-TOOLS-STRANDED-001** Land stranded atlas-meta tooling slices (2026-08-07) — `a92a3c6`, `cbc664d`, `fb62549`, `11a67dd`
-- **ATLAS-THEMIS-MELINOE-ADOPTION-002** Deliver Themis Melinoe branded-collection adoption (2026-08-11) — `cad222b`, `038457d`, `47863b1`
-- **ATLAS-THEMIS-MELINOE-ADOPTION-001** Themis/Melinoe source-seam adoption (2026-08-07) — `1493eef3`, `234574c`, `74159afa`, `8bbd92b7`
-- **ATLAS-AEQUITAS-CONSUMERS-008** Kwavers transducer design and propagation metrics — `3f96514d`, `a6cd74547`, `9a6aac1c`
-- **ATLAS-AEQUITAS-CONSUMERS-009** Kwavers 2-D array metric audit (2026-08-03) — `3e053bd56`, `e3389e798`
-- **ATLAS-AEQUITAS-CONSUMERS-010** Kwavers focused-source metric audit (2026-08-04) — `7ae4080b4`, `1217058ebadc2c6be862e31b205898aec93508ac`
-- **ATLAS-AEQUITAS-CONSUMERS-007** Kwavers PAM/neural metric closure — `6456c43a1`, `d5d2d9642ca594100a391a6472c71ddd7b2835a8`
-- **ATLAS-AEQUITAS-CONSUMERS-005** Kwavers ultrafast geometry metric extensions — `8ffb198bc`, `b2c437bab011d99d6403e23b4a373905f7905cde`
-- **ATLAS-AEQUITAS-CONSUMERS-006** Kwavers beamforming and design metric extensions (2026-08-05) — `63cd488ec17279be6d4a459f2785784f816b1c14`, `dc8e5b58b9816bf3a57f2bc47750257d65cd3609`, `c3e0ca39da0c928c83125ca27f9689de49b389f4`, `31482cbadaafda9703fc1f00e9d84e35e4398606`
-- **ATLAS-HYGIENE-BASELINE-001** Board-sweep triage instrument (2026-08-07)
-- **ATLAS-PUB-LOCK-1** Publication lock-form audit (2026-08-13)
-- **ATLAS-INTEGRATION-015** Merged default refresh [patch] — `a833b7fe`, `a2e4f390`, `972fb53e`, `3ac0d203`
-- **ATLAS-INTEGRATION-002** merged-provider pin reconciliation [patch] — `f26369eb`, `04e496b7`, `ec7cb832`, `e3380b6`
-- **ATLAS-MOIRAI-016** Cancellation-safe async wait queues [patch]
-- **TREE-DUP-002** Moirai dual channel consolidation (ADR-0019) [major] (2026-07-18) — `c5b1333b7`, `fa9abb664`, `ddf216ec0`, `01643ed9b`
-- **ATLAS-MOIRAI-DEFAULT-REFRESH-2026-08-18** — advance `repos/moirai` to
-  fetched default `6a98f3f7bd834f46c8120c291362eb260f6cf875` after hosted Rust
-  Workspace `32175287434` and Python Bindings `32175287255` passed; preserve
-  the peer-dirty primary checkout and leave the broader SeqCst audit open.
-- **ATLAS-MNEMOSYNE-CONFORMANCE-002** — provider commit `cb86bfe` merged through
-  PR #60 as default `1c38a1a65d519ebc04ed5f9da2baa31d16b83705`; PR run
-  `32178377690` and post-merge default CI `32180326066` pass Loom, Rust
-  verification, and Miri. Atlas advances only the gitlink; peer Cargo.lock
-  dirt remains untouched.
-- **ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18** — root commit `eaa32fd` fixes
-  nested `[workspace.lints.*]` recognition, updates the derived baseline, and
-  passes `scripts/tests/test_atlas_conformance.py` 12/12; Coeus/RITK remain
-  the only recorded misses for this class.
-- **ATLAS-FINAL-PROVIDER-AUDIT-2026-08-18** — lock form passes for 27 committed
-  locks; exact-head structural residual is Consus only (`34b2507` versus
-  `origin/main` `aafb320`); clean-checkout and six lane residuals are recorded
-  as peer-owned and untouched.
-
 ## 2026-08-19 evidence checkpoint
 
 - [x] Extend the exact-head audit to CFDrs, Kwavers, and Helios. Root commit
@@ -6548,3 +6395,141 @@ No repository other than CFDrs and Kwavers imports that family.
       apply justified weakest-ordering relaxations naming each happens-before
       edge; verify focused nextest + clippy -D warnings + loom where present;
       push branch and record PR evidence. No Atlas pointer move.
+
+## Archive — closed checklists
+
+Closed items, one line each. Full prose is in git history; commit SHAs below are the entry points.
+
+- **ATLAS-RITK-APOLLO-027-RECONCILIATION-2026-08-18** closed 2026-08-19 (2026-08-19) — `6b9092bf`, `d585e0f5c6f6e45e5e551a5ec3ca29f41af5afab`
+- **ATLAS-TYCHE-DOCS-001** merged provider documentation correction — `b1c5cc9f`
+- **ATLAS-COEUS-LAYERNORM-SHAPE-031** Complete multi-dimensional LayerNorm contract (2026-08-14)
+
+<!-- Prior archive preserved verbatim from compaction pre-state; these items
+     predate the current session and would otherwise have been rolled up by
+     atlas-board-compact.py into a single (unnumbered) Archive line. -->
+
+- **ATLAS-LIVE-HEAD-SWEEP-026** Reconcile twenty provider CI-pin defaults (2026-08-13) — `5758df93`, `93e83899`, `5febead4`, `5969f1e3`
+- **ATLAS-POSTMERGE-HEAD-RECONCILIATION-030** Reconcile merged caller defaults (2026-08-13) — `1be7768d`, `1a52590c`, `462cf444`
+- **ATLAS-LIVE-CALLER-PINS-027** Refresh requested-provider Atlas workflow pins (2026-08-13) — `d875348197be12ad593f993a6f1b8a62d3b8b195`, `4c31dd753f06dd93b4c04798cf781df253e3e532`, `efde7a6`, `683e2ab5`
+- **ATLAS-HEPHAESTUS-REDUCTION-022** Retire superseded product-axis parity PR (2026-08-13) — `8bc589a`, `c373de19`
+- **ATLAS-APOLLO-ARCH-021** Retire superseded junk-drawer rename (2026-08-13) — `49632c6c`
+- **ATLAS-APOLLO-VALIDATION-020** Converge shared WGPU validation and Mnemosyne boundary (2026-08-13) — `a725fe81`, `fc5648964c8194447ef5deea43a8aa9c0dae7c63`
+- **ATLAS-COEUS-NORM-019** Keep batched Frobenius norms provider-owned (2026-08-13) — `96d8166c3d683eaaf67e45b8bad0c34e33d8b405`, `72372c918d8d6fcbcc006585736126a480a4f5c2`
+- **ATLAS-HELIOS-BOOK-WORKFLOW-018** Converge Helios on the shared Pages workflow (2026-08-13) — `116228c`, `546c199fdd46b8eb8c4176a4250ac261962a45d0`
+- **ATLAS-HERMES-PERMUTE-017** Measure and prune cross-lane NEON overrides (2026-08-13) — `79d7297`, `d1627cd23179595b751c237a67f86cdeafb01310`
+- **ATLAS-APOLLO-REALSH-005** Real symmetric SH basis over scattered directions (2026-08-13) — `33a40bcee4532c9c1a03fee7cef2d852b3419090`, `db2186650f2e0889555120e6a1491ad93897409e`, `36f2f3645610e7c1a681e15f709f70f7e14c1f27`, `be4408d188313e9072e180ae1d214f3aca458997`
+- **ATLAS-CONSUS-TEST-API-001** Make cross-format integration tests consume real Consus APIs (2026-08-13) — `a5b9cfd`, `33c2df0`, `eebe7c0`, `720233a`
+- **ATLAS-CONSUS-NODEF-FITS-HDF5-NWB-003** Close Consus no-default storage boundaries (2026-08-13) — `b3ca01c21b2e9bad4c7b7dc23c47083ca79a3307`, `bf46b7cf00ec7a86b51decf31be4eb30b367c397`
+- **ATLAS-CONSUS-NODEF-ARROW-PARQUET-002** Close Arrow/Parquet no-default cfg boundaries (2026-08-13) — `37f835d1`, `731a3ca4`
+- **ATLAS-LIVE-HEAD-SWEEP-015** Reconcile merged provider defaults (2026-08-13) — `18550d9`, `19c205d4`, `beed6da`
+- **ATLAS-COEUS-HEPHAESTUS-F64-015** Restore CUDA f64 comparison seam — `b34b507`, `c373de1`, `aabdec6`, `a4063be1`
+- **ATLAS-HELIOS-CHECKLIST-016** Reconcile binary-MLC roadmap and benchmark gate — `f118214e`, `04fcf46`, `f7ca5dad16bb7c36781bcefe4c90c21377f06110`, `f108dc9b3cf7cc94212fa574219594eab2a0bc4f`
+- **ATLAS-COEUS-CLOSURE-014** Provider deduplication and batched NLLS (2026-08-13) — `d5912200`
+- **ATLAS-MNEMOSYNE-CONSUS-REFRESH-013** Reconcile merged provider PM closeouts (2026-08-13) — `e57e2d6`, `e7fccf7`, `6b0ca43`, `5163eb1`
+- **ATLAS-TYCHE-REFRESH-011** Reconcile merged Tyche PM closeout (2026-08-13) — `5efaee7a`
+- **ATLAS-LETO-LBFGS-023** Replace L-BFGS jagged history with a flat ring (2026-08-13) — `e4d5dfc7`, `6e4a1627aa739d37c5f40ab1ab9e41948352cc54`, `a722fbc8`
+- **ATLAS-LETO-TASK-PARTITIONS-024** Provider-owned disjoint task partitions (2026-08-13) — `6e4a1627`, `508962df`
+- **ATLAS-TYCHE-MULTIOUTPUT-017** Generalize sensitivity estimators (2026-08-13) — `dc96f5ec`, `4a6f8cd4`, `af30ad23dc468349511dff9d1d34ab9b5ab58334`, `2d12dc5e`
+- **ATLAS-LETO-PM-REFRESH-010** Reconcile merged Leto PM closeout (2026-08-13) — `e525d8dd`
+- **ATLAS-LETO-CONVOLUTION-012** Close provider convolution contract (2026-08-13) — `7172b338`, `a722fbc8`, `aabdec67`, `a4063be1`
+- **ATLAS-MOIRAI-NUMA-095** Wire the NUMA policy through the runtime (2026-08-14) — provider `181f87d`, PM closeout `6d42bd3`, default `e972174`; hosted Rust Workspace `31787962637` and Python Bindings `31787962649` pass
+- **ATLAS-MSRV-UNVERIFIED-077 (Eunomia slice)** Verify Eunomia Rust 1.95 MSRV and package gate (2026-08-14) — provider PRs #65/#66, default `84c82fe`; hosted MSRV `31789001841`, Rust verification/supply-chain `31789001920`, exact online dry-run pass
+- **ATLAS-AUDIT-STALE-TIER0-096** Remove closed findings from active Tier 0 (2026-08-14) — Themis `17d3647`, Eunomia `84c82fe`, root PM cleanup
+- **ATLAS-AUDIT-STALE-TIER2-097** Reconcile the landed Moirai bounded default (2026-08-14) — provider `2ea17bb`, merged default `e972174`, focused nextest value-semantic tests pass
+- **ATLAS-AUDIT-STALE-TIER1-2C-098** Remove four closed active rows (2026-08-14) — Gaia `18349bc`, Iris `899d622`, Proteus `671c9fa`, Asclepius `5d528d2`, landed evidence reconciled
+- **ATLAS-AUDIT-STALE-TIER2-099** Reclassify the Moirai cache-line premise (2026-08-14) — provider `2ea17bb`, merged default `e972174`, focused nextest cache-separation tests pass
+- **ATLAS-AUDIT-STALE-TIER2-100** Reconcile the landed Leto Tiles iterator (2026-08-14) — provider `7f80044`, merged default `143696d`, iterator and ragged-edge evidence pass; `048b` remains open for consumers
+- **ATLAS-AUDIT-STALE-TIER2-101** Reconcile the landed Leto SVD collapse (2026-08-14) — provider `58b6eb3`, merged default `143696d`, focused SVD nextest 23/23; remaining dqds performance work is separate
+- **ATLAS-AUDIT-STALE-TIER3-102** Reconcile the landed Helios workflow-artifact cleanup (2026-08-14) — Atlas `0023164`, no tracked output PNGs remain
+- **ATLAS-COEUS-LAYERNORM-SHAPE-031** Close the multi-dimensional LayerNorm contract (2026-08-14) — merged default `a2638c03`, Rust/PyO3 shape and gradient coverage plus hosted backend/book gates pass
+- **ATLAS-MOIRAI-PM-REFRESH-009** Reconcile merged Moirai default (2026-08-13) — `ae9a5dfb`
+- **ATLAS-PROVIDER-INTEGRATION-006** Twenty-one-provider exact-head re-audit
+  (2026-08-14) — closed in root commit `48a257d`; structural, exact-head, and
+      requested-provider coherence checks pass for all 21 providers. Horae now
+      records verified default `f5cd364`, and Hermes records merged closeout
+      `463c6e4` (docs-only default advance after `947283d`). The Leto
+  gitlink now records merged default `7f80044`; peer checkout and overlay
+  lockfile dirt remain preserved. Helios typed DVH work remains external to
+  this root closure until PR #54 head `8b5c29d` completes its benchmark gate.
+  The explicit dirty-tree conformance scan remains a separate cleanup baseline:
+  601 oversized files, 701 implementation-bearing manifests, 1,242 production
+  unwrap sites, 743 allow sites, and 809 existence-only assertions.
+- **ATLAS-LIVE-HEAD-SWEEP-008** Reconcile moving provider defaults (2026-08-12) — `1ad581971d2528e12c0c815fe30e87ce6c121d80`, `578514314bec51815e763f5a8103500bb9498c32`
+- **ATLAS-HEPHAESTUS-REFRESH-007** Integrate cross-entropy PM closeout (2026-08-12) — `9385686ec29fc5a2d168d967df3fae254760aa4b`
+- **ATLAS-PROVIDER-DRIFT-005** Post-merge exact-head convergence (2026-08-12) — `93dbc563`, `32524e37b7697dd37f3cb3b28ee570aa4d0df199`, `e70f597`, `53bb01312222745325f20d36db95aab780ce39b3`
+- **ATLAS-PROVIDER-INTEGRATION-004** Twenty-provider audit and cleanup (2026-08-12) — `ceafa3d951f7db9ffcd93a79e5efbbdd09e199de`, `6852b08`
+- **ATLAS-FOUNDATION-PLANNING-001** Foundation planning completion (2026-08-12)
+- **ATLAS-FOUNDATION-PLANNING-002** Next-tier planning completion (2026-08-12)
+- **ATLAS-PROVIDER-INTEGRATION-003** Nineteen-provider second-pass audit (2026-08-12) — `df899cb1`, `f3c0463`, `d8cd00c`, `acd67a83`
+- **ATLAS-CASCADE-ALIGNMENT-001** Consumer alignment for the 0.42/0.5/0.26/0.19 provider cascade (2026-08-11) — `d9e674f`, `f68045d`, `a68e91f`
+- **ATLAS-BOOK-ANCHOR-PARITY-001** Heading-id parity with mdBook v0.5.4 (2026-08-11)
+- **ATLAS-BOOK-LINK-CI-001** All-provider book link CI gate (2026-08-11)
+- **ATLAS-BOOK-LINK-SWEEP-001** All-provider book link sweep (2026-08-10)
+- **ATLAS-TYCHE-PROVIDER-ESTIMATORS-001** Tyche sensitivity estimators and book closure (2026-08-10)
+- **ATLAS-MNEMOSYNE-BOOK-001** Complete Mnemosyne book closure (2026-08-11) — `c4516df`, `9a143ca`
+- **ATLAS-HORAE-PROVIDER-DOCS-001** Complete Horae book closure (2026-08-11) — `03ad868`, `08cf292`
+- **ATLAS-HORAE-EXACTNESS-069** Horae event and subcycle exactness closure (2026-08-14) — provider PR #12, merged default `41dcf00`; CI `31792859575`, book `31792859919`
+- **ATLAS-HYPERION-INTERP-068** Hyperion NIST interpolation closure (2026-08-14) — provider PR #9, merged default `41ef18e`; CI `31794767546` verify and supply-chain green; recurseml analysis report-only
+- **ATLAS-HEPH-SEAM-043 / ATLAS-HEPH-ACCEL-044 / ATLAS-HEPH-DEADBUILD-060** Hephaestus seam, shared scan, and dead-build closure (2026-08-14) — PR #208, merged default `ff2ab47`; CUDA `31793963123`, ROCm `31793963119`, WGPU `31793963054`, Metal `31793963181` green; independent architectural review approved
+- **ATLAS-LICENSE-FILES-039** License-file audit re-probe (2026-08-14) — premise stale; Moirai, Leto, Gaia, and Helios default heads all contain `LICENSE-APACHE` and `LICENSE-MIT` matching `MIT OR Apache-2.0`
+- **ATLAS-ADR-GOV-058-HYPERION** Hyperion ADR-index slice (2026-08-14) — provider PR #10, merged default `d17e863`; exact-head `31795703287` verify and supply-chain green; recurseml analysis report-only
+- **ATLAS-ADR-GOV-058-IRIS** Iris ADR-index slice (2026-08-14) — provider PR #15, merged default `3c9dc85`; exact-head `31796011010` verify and supply-chain green; recurseml analysis report-only
+- **ATLAS-ADR-GOV-058-PROTEUS** Proteus ADR-index slice (2026-08-14) — provider PR #11, merged default `3c64c8e`; exact-head `31796273743` verify and supply-chain green; recurseml analysis report-only
+- **ATLAS-ADR-GOV-058-AEQUITAS** Aequitas ADR-index slice (2026-08-14) — provider PR #30, merged default `f7c9cf2`; exact-head `31796547009` verify and supply-chain green; recurseml analysis report-only
+- **ATLAS-ADR-GOV-058-HORAE** Horae ADR-index slice (2026-08-14) — provider PR #13, merged default `1b35d3f`; exact-head `31797039383` verify and supply-chain green; recurseml analysis analyzer error remains report-only
+- **ATLAS-ADR-GOV-058-EUNOMIA** Eunomia ADR-index slice (2026-08-14) — provider PR #67, merged default `9c2d972`; exact-head `31797566750` Rust verification and Supply chain green; recurseml analysis analyzer error remains report-only
+- **ATLAS-ADR-GOV-058-THEMIS** Themis ADR-index slice (2026-08-14) — provider PR #25, merged default `8d6e83e`; exact-head `31797905436` compile-fail, Ubuntu, Windows, and Miri green; recurseml analysis analyzer error remains report-only
+- **ATLAS-ADR-GOV-058-RITK** Ritk ADR-index slice (2026-08-14) — provider PR #147 merged at `d1087139`, PM-sync PR #148 merged at `37e46ef`; final exact-head CI `31802349902` and Python CI `31802349905` pass; recurseml analysis remains report-only
+- **ATLAS-MOIRAI-ORDERING-052-SPSC** Moirai SPSC ordering slice (2026-08-14) — provider PR #130, merged default `ac111b3`; exact-head `31798789797` Loom channel models, workspace, bindings, and wheel matrices green; recurseml analysis analyzer error remains report-only
+- **ATLAS-MOIRAI-ORDERING-052-WAKER** Moirai async executor wake-dedup ordering slice (2026-08-14) — provider PR #131, merged default `fd517fe`; exact-head `31800148163` Loom and workspace gates pass, `31800148178` bindings and all wheel smoke tests pass; recurseml analysis remains report-only. The first model revision failed on a non-contractual cross-atomic observer assertion and was corrected before the passing head.
+- **ATLAS-MOIRAI-ORDERING-052-REACTOR** Moirai PAL reactor ordering slice (2026-08-14) — provider PR #132, merged default `8830f1b`; exact-head `31800607186` Loom and workspace gates pass, `31800607152` bindings and all wheel smoke tests pass; recurseml analysis remains report-only.
+- **ATLAS-MOIRAI-ORDERING-052-POOL** Moirai connection-pool reservation ordering slice (2026-08-14) — provider PR #133, merged default `f766c6d`; exact-head `31801180700` Loom and workspace gates pass, `31801180691` bindings and all wheel smoke tests pass; recurseml analysis remains report-only.
+- **ATLAS-HYPERION-PROVIDER-DOCS-001** Complete Hyperion book closure (2026-08-11) — `b8a1124`, `9a8b7d8`
+- **ATLAS-PROTEUS-PROVIDER-DOCS-001** Complete Proteus book closure (2026-08-11) — `30e25f8`, `3d6021e`, `2918e5a`
+- **ATLAS-PROVIDER-INTEGRATION-AUDIT-001** twenty-provider integration audit (closed 2026-08-16; Tyche (aka Tychee)) — `2918e5a`, `d25311e`, `342bbbc83d95b33060cc8fc52587f98e9ea5d166`, `82307a77a009fe0c155aacf1dd4456f9480438f`, `182083f1aa95ad30565910e432a878c749d06f03`, `cbfff61e392b77232f99a4a4a64fd69002402dcc`, `2beb4f17c35c88c0eade4bd337f161c0cc2cf48f`
+- **ATLAS-AEQUITAS-PROVIDER-DOCS-001** Complete Aequitas book closure (2026-08-11) — `681042b`, `11565d9`
+- **ATLAS-HEPHAESTUS-CLOSURE-001** Hephaestus expression-parity closure record (2026-08-11) — `407938b`, `d4d5906`, `aca9a5a8`, `971fab96`
+- **ATLAS-EUNOMIA-CLOSURE-001** Eunomia 0.8.0 closure record (2026-08-11) — `0c14c2e`, `184ba92`
+- **ATLAS-IRIS-CLOSURE-001** Iris IRIS-003 release-readiness record (2026-08-11) — `e179781`, `ab3eea2`
+- **ATLAS-ASCLEPIUS-BOOK-001** Complete Asclepius book closure (2026-08-11) — `220d713`, `530115a`
+- **ATLAS-COEUS-MLM-PROVIDER-001** Coeus multi_label_margin_loss provider delivery (2026-08-11) — `1ac8118c`, `4491bf19`, `bde7010f`
+- **ATLAS-HELIOS-DICOM-ORIENTATION-001** Helios DICOM oriented-grid boundary delivery (2026-08-11) — `342bbbc83`, `77716bb`, `bde7010f`
+- **ATLAS-LETO-HERMES-REDUCED-PRECISION-001** Leto F16/Bf16 Hermes provider delivery (2026-08-11) — `606e5b5`, `d9e674fc`, `ca93b63c`, `d68095b`
+- **ATLAS-APOLLO-SHARED-VALIDATION-001** Apollo shared WGPU transform validation delivery (2026-08-11) — `b426f2cd`, `0e38d1cc`, `bde7010f`, `eae6b706`
+- **ATLAS-GAIA-PERMISSIONED-ARENA-001** Gaia Melinoe-branded permissioned arena delivery (2026-08-11) — `b5e62c5`, `5ea09cbc`, `a5b0fe72`
+- **ATLAS-CGROUP-CLOSURES-001** C-group closure sweep (melinoe/moirai/proteus/consus) (2026-08-11) — `eab19a6`, `c8e8889`, `6d80c33`, `57c4ec4`
+- **ATLAS-VERSION-GUARD-SCAN-MATRIX-001** per-commit scan matrix (2026-08-11) — `681042b`, `11565d9`, `3d6021e`, `30e25f8`
+- **ATLAS-VERSION-GUARD-002** Stack-wide first-party coherence subcommand + CI sweep (2026-08-08) — `43f8aa2`
+- **ATLAS-TOOLS-STRANDED-001** Land stranded atlas-meta tooling slices (2026-08-07) — `a92a3c6`, `cbc664d`, `fb62549`, `11a67dd`
+- **ATLAS-THEMIS-MELINOE-ADOPTION-002** Deliver Themis Melinoe branded-collection adoption (2026-08-11) — `cad222b`, `038457d`, `47863b1`
+- **ATLAS-THEMIS-MELINOE-ADOPTION-001** Themis/Melinoe source-seam adoption (2026-08-07) — `1493eef3`, `234574c`, `74159afa`, `8bbd92b7`
+- **ATLAS-AEQUITAS-CONSUMERS-008** Kwavers transducer design and propagation metrics — `3f96514d`, `a6cd74547`, `9a6aac1c`
+- **ATLAS-AEQUITAS-CONSUMERS-009** Kwavers 2-D array metric audit (2026-08-03) — `3e053bd56`, `e3389e798`
+- **ATLAS-AEQUITAS-CONSUMERS-010** Kwavers focused-source metric audit (2026-08-04) — `7ae4080b4`, `1217058ebadc2c6be862e31b205898aec93508ac`
+- **ATLAS-AEQUITAS-CONSUMERS-007** Kwavers PAM/neural metric closure — `6456c43a1`, `d5d2d9642ca594100a391a6472c71ddd7b2835a8`
+- **ATLAS-AEQUITAS-CONSUMERS-005** Kwavers ultrafast geometry metric extensions — `8ffb198bc`, `b2c437bab011d99d6403e23b4a373905f7905cde`
+- **ATLAS-AEQUITAS-CONSUMERS-006** Kwavers beamforming and design metric extensions (2026-08-05) — `63cd488ec17279be6d4a459f2785784f816b1c14`, `dc8e5b58b9816bf3a57f2bc47750257d65cd3609`, `c3e0ca39da0c928c83125ca27f9689de49b389f4`, `31482cbadaafda9703fc1f00e9d84e35e4398606`
+- **ATLAS-HYGIENE-BASELINE-001** Board-sweep triage instrument (2026-08-07)
+- **ATLAS-PUB-LOCK-1** Publication lock-form audit (2026-08-13)
+- **ATLAS-INTEGRATION-015** Merged default refresh [patch] — `a833b7fe`, `a2e4f390`, `972fb53e`, `3ac0d203`
+- **ATLAS-INTEGRATION-002** merged-provider pin reconciliation [patch] — `f26369eb`, `04e496b7`, `ec7cb832`, `e3380b6`
+- **ATLAS-MOIRAI-016** Cancellation-safe async wait queues [patch]
+- **TREE-DUP-002** Moirai dual channel consolidation (ADR-0019) [major] (2026-07-18) — `c5b1333b7`, `fa9abb664`, `ddf216ec0`, `01643ed9b`
+- **ATLAS-MOIRAI-DEFAULT-REFRESH-2026-08-18** — advance `repos/moirai` to
+  fetched default `6a98f3f7bd834f46c8120c291362eb260f6cf875` after hosted Rust
+  Workspace `32175287434` and Python Bindings `32175287255` passed; preserve
+  the peer-dirty primary checkout and leave the broader SeqCst audit open.
+- **ATLAS-MNEMOSYNE-CONFORMANCE-002** — provider commit `cb86bfe` merged through
+  PR #60 as default `1c38a1a65d519ebc04ed5f9da2baa31d16b83705`; PR run
+  `32178377690` and post-merge default CI `32180326066` pass Loom, Rust
+  verification, and Miri. Atlas advances only the gitlink; peer Cargo.lock
+  dirt remains untouched.
+- **ATLAS-CONFORMANCE-LINT-TABLE-2026-08-18** — root commit `eaa32fd` fixes
+  nested `[workspace.lints.*]` recognition, updates the derived baseline, and
+  passes `scripts/tests/test_atlas_conformance.py` 12/12; Coeus/RITK remain
+  the only recorded misses for this class.
+- **ATLAS-FINAL-PROVIDER-AUDIT-2026-08-18** — lock form passes for 27 committed
+  locks; exact-head structural residual is Consus only (`34b2507` versus
+  `origin/main` `aafb320`); clean-checkout and six lane residuals are recorded
+  as peer-owned and untouched.
+
