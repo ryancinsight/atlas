@@ -3117,6 +3117,17 @@ audit remains `20/20` with zero issues, the development overlay reports
 aligned requirements and locks, and registry metadata reports `253` manifests,
 zero violations, and zero unverified entries.
 
+**Tyche standalone gate (2026-08-21):** the clean checkout at exact gitlink
+`10410f2de1ce1529ecbff50fa740b23a1c8f77b9` passes its pinned Rust `1.97.0`
+format, locked `tyche-core` check, workspace all-target/all-feature Clippy
+with `-D warnings`, Nextest `51/51`, doctests (`18/18` executed doctests),
+warning-denied workspace docs, the `reproducible_study` example, and every
+single-iteration `counter_sampling` benchmark case. The commands ran from
+outside the Atlas configuration tree with the shared target directory, so the
+committed lock was not rewritten; Tyche remains clean. This is local provider
+evidence only; hosted CI, Pages, and the fetched-default pointer still remain
+separate delivery gates.
+
 The intentional live conformance scan on the dirty shared tree reports 19
 ratchet increases and 25 decreases. The increases are confined to active
 peer-owned scopes: CFDrs (oversized files, allow sites, existence-only
