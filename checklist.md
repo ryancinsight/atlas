@@ -234,11 +234,12 @@
 - [x] Resolve the board-only conflict by preserving current KW-CI-115 and the
       PR's KW-GPU-200/201/202 records in merge commit `2fa5f4d8`; no dirty
       Kwavers worktree was touched.
-- [ ] Collect terminal merged-default Kwavers evidence at `0e786481`: Pages
+- [x] Collect terminal merged-default Kwavers evidence at `0e786481`: Pages
       `32419107056`, CI `32419106520`, architecture `32419106681`, and legacy
-      audit `32419106514` are queued. PR #439's predecessor runs are
-      superseded; advance the Atlas gitlink only after the current default's
-      full matrix and book evidence are terminal green.
+      audit `32419106514` are all complete with conclusion `success`, and the
+      live page returns HTTP 200. The Atlas gitlink is advanced from
+      `459f18ce` to `0e786481` without touching the dirty detached primary
+      checkout. PR #439's predecessor runs remain superseded.
 - [x] Re-run the exact-head audit after Hyperion and Hermes changed defaults:
       the current pointer drifts are Hyperion `e2dbc9b` versus `4df62f63`,
       RITK `d4a978f` versus `ad508525`, Hermes `c5e4c2d` versus `05441dd`,

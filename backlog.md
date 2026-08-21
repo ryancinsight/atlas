@@ -948,14 +948,15 @@ book coverage remains a separate open integration item.
   `459f18ce8248ea91ace62a2f8f89a02b861a56fe`. Current PR #439 remains at
   exact head `2fa5f4d8a88d2ff16df866f15c5a1c4dd5d58b44` and is now `CLEAN` after
   a merge commit that preserves KW-CI-115 beside KW-GPU-200/201/202. No
-  provider source or dirty worktree was overwritten. The merged-default
-  Pages run `32419107056` and CI/architecture runs `32419106514`,
-  `32419106520`, and `32419106681` are queued; no pointer advance is
-  authorized until the current default's full matrix and book gate reach
-  terminal success.
-  Full exact-head/coherence audit now reports four pointer drifts: Hyperion
-  `e2dbc9b`→`4df62f63`, RITK `d4a978f`→`ad508525`, Hermes
-  `c5e4c2dc`→`05441dd1`, and Kwavers `459f18ce`→`0e786481`. Hermes PR #55
+  provider source or dirty worktree was overwritten.  The merged-default
+  Pages run `32419107056`, CI run `32419106520`, architecture run
+  `32419106681`, and legacy audit run `32419106514` are all terminal
+  `success` at `0e786481`, and the live page returns HTTP 200. The Atlas
+  pointer is advanced `459f18ce`→`0e786481` without switching or modifying
+  the dirty primary checkout.
+  Full exact-head/coherence audit now reports three remaining pointer drifts:
+  RITK `d4a978f`→`ad508525`, Hermes
+  `c5e4c2dc`→`05441dd1`, and Coeus/Apollo as recorded elsewhere. Hermes PR #55
   merged at `05441dd1`; its post-merge CI `32418079699` and Pages
   `32418078426` are queued, so the Atlas Hermes pointer remains unchanged.
 
