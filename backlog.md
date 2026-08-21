@@ -9788,3 +9788,4 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-RITK-CONNECTOME-012** ritk-connectome crate [minor] (2026-08-05)
 - **ATLAS-MIGRATION-PATHDEP-001** Migrate kwavers, CFDrs, helios, ritk to local path deps [patch] (2026-08-03) — `b2ee610`, `c7c3678`
 
+- **ATLAS-BOARD-COMPACT-PATCH-2026-08-21** Preserve prior archive entries in atlas-board-compact.py [patch] (2026-08-21)
