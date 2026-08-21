@@ -3107,9 +3107,15 @@ nested Harmonia checkout remains provider-owned state.
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
 - **Active claim (atlas coordinator):** RITK release-workflow hosted-gate
-  collection; scope is provider PR #194 and the Atlas pointer only after its
-  default head advances. Peer-owned source, consumer, and lane checkouts remain
-  out of scope.
+  collection; the provider PR and Atlas pointer reconciliation are now
+  complete. Peer-owned source, consumer, and lane checkouts remain out of
+  scope.
+- **RITK release-workflow closeout (fresh recheck):** PR [#194](https://github.com/ryancinsight/ritk/pull/194)
+  merged at `337f0dc5` with merge commit `65bee2c2`. The fetched RITK default
+  is `b35c93313c06ea55fffa680a430378dda1df8e41`, exactly matching the Atlas
+  gitlink. The hosted connector returned no workflow records for the merge
+  SHA, so this closes the merged workflow-only claim but does not assert
+  post-merge CI, Pages, or live-release evidence.
 - **RITK claim closeout:** `RITK-DOC-GATE-210` is fixed in provider commit
   `9e1c276a`, which adds a warning-denied rustdoc CI job and corrects five
   public-doc/private-link or broken-link defects. Exact workspace rustdoc
