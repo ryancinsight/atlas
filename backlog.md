@@ -1152,6 +1152,10 @@ exact shape/origin/direction compatibility failures. The clean lane passed
 `c39f12a`; the root commit is pushed. Post-merge CI `32474562236` and Pages
 `32474560873` are queued. No consumer adapter or Atlas pointer advance is
 authorized until those default runs and the live-page check are terminal.
+An independent exact-head review found no implementation or ADR blocker. It
+also records a verification limit: the provider CI omits `--locked` and does
+not run MSRV, release, or SemVer checks; those limits are not replaced by the
+local locked gates or by the queued default runs.
 
 ## ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21 — Execute accelerator routes [major] [arch] — in-progress
 
