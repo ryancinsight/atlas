@@ -73,6 +73,23 @@
   source of truth, no facade compatibility aliases, and no unrelated solver
   redesign.
 
+## ATLAS-HOSTED-RECHECK-2026-08-21 — Reconcile provider release evidence [patch] — done 2026-08-21
+
+- **Owner:** Atlas integration; read-only hosted-run monitor.
+- **Evidence:** Proteus #17 (`632df717`), Asclepius #25 (`2d265d47`),
+  Consus #53 (`39da4782`), Helios #69 (`7a973331`), Hephaestus #216
+  (`42e27877`), Gaia #33 (`39a4f7fb`), and Iris #19 (`2cefce87`) remain open
+  with exact heads reconciled. Their repository-owned verification, book, or
+  package jobs remain pending; no named PR is merge-ready. Current Kwavers
+  `main` is `fdc5fae8` with CI, architecture, legacy-audit, and mdBook runs
+  queued.
+- **Negative evidence:** Helios #55 and Kwavers #439/#440/#443/#444 have
+  terminal validation failures; Kwavers #424 has terminal checks but a stale
+  base. These are not merge candidates.
+- **Delivery rule:** no provider pointer or Atlas gitlink changed. Merge and
+  pointer advancement remain gated by exact-head terminal provider checks,
+  book/Pages evidence, and live-page verification where applicable.
+
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
 Tyche PR #35 documents the completed release/package verification slice. The
