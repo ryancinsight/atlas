@@ -12352,3 +12352,21 @@ a delivery claim cites the merge, not the authoring hash.
   dimension-negative coverage, a book chapter, and synchronized PM/changelog
   evidence. Local root-overlay Cargo compilation remains a known locked-lock
   limitation, not a provider source failure.
+
+## ATLAS-HERMES-CODEGEN-SSOT-2026-08-21 — Resolve SIMD codegen source of truth [arch] [minor] — in-progress
+
+- **Owner / claim:** Codex, `D:/atlas/worktrees/hermes-codegen-ssot`,
+  branch `refactor/hermes-codegen-ssot-hs440`; claimed 2026-08-21.
+- **Scope:** Hermes generator target, checked-in generated-kernel contract,
+  ADR 005, package/build wiring, and provider-local verification. No SIMD
+  kernel behavior changes, no f16/NEON expansion, and no Atlas gitlink move.
+- **Question:** Does the current generator reproduce every shipped kernel, or
+  must the stale generator/decision be retired explicitly?
+- **Acceptance:** one canonical source-of-truth decision; no executable
+  generator whose output cannot represent the shipped surface; ADR 005 and
+  provider PM state match the decision; affected lint, test, doctest, and
+  documentation gates pass on the exact commit.
+- **Evidence plan:** inspect generator coverage and invocation paths, compare
+  generated output against shipped x86/scalar/ISA modules, then either restore
+  deterministic freshness or remove the stale generator and revise ADR 005 in
+  place with its dated evidence.
