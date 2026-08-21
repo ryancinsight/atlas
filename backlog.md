@@ -705,6 +705,18 @@ Eunomia. Claimed scope is their three root gitlinks plus this item in
 `backlog.md`; no provider source, nested checkout, or Consus peer checklist is
 included.
 
+**Fifth integration batch (2026-08-21):** exact current-default evidence is
+now terminal for Themis, Consus, and Eunomia. Themis CI, book, and Pages runs
+`32434855247`, `32434855744`, and `32434854004` all succeeded; Consus CI,
+documentation, and Pages runs `32436374114`, `32436374130`, and
+`32436372915` all satisfied their jobs; Eunomia CI and book/Pages runs
+`32435024973` and `32435025288` succeeded. Live Pages checks return HTTP 200
+with expected titles for `https://ryancinsight.github.io/themis/`,
+`https://ryancinsight.github.io/consus/`, and
+`https://ryancinsight.github.io/eunomia/`. Atlas advances their gitlinks to
+`c441acff`, `1000699f`, and `22a02b18`. No nested checkout or provider source
+is changed. The remaining queued or 404 endpoints stay unadvanced.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
