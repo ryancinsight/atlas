@@ -1,27 +1,43 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert valid stack construction [patch] — in progress
+## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — in progress
 
-The Leto `from_stack_validates_capacity` test asserts only that the valid
-`Array::from_stack` call returns `Ok`. That is an existence-only assertion:
-the test does not prove that the returned array preserves the requested shape
-or inline storage values.
+The Leto `from_stack_validates_capacity` test asserts only `is_ok()` and
+`is_err()` for the two `Array::from_stack` paths. These are existence-only
+assertions: the test does not prove the returned array or the typed failure
+contract.
 
 **Scope:** Leto `crates/leto/tests/core/stack_storage.rs` on a clean lane
 based on fetched `origin/main`, plus provider PM records and these root PM
-entries. Replace the valid-path existence assertion with value-semantic
-checks for the constructed array. Preserve the negative capacity case and do
-not touch the dirty primary checkout or unrelated Leto files.
+entries. Replace both existence assertions with value-semantic checks for the
+constructed array and typed failure. Do not touch the dirty primary checkout
+or unrelated Leto files.
 
 **Acceptance:** the valid result is consumed without a vacuous assertion and
-checks shape, size, and inline values; the invalid result remains a typed
-failure assertion; provider format, locked checks, warning-denied Clippy,
-nextest, doctests, and Rustdoc pass; the conformance scan removes this
-existence-only finding without increasing another class.
+checks shape, size, and nonuniform inline values; the invalid result matches
+the typed `LetoError::StorageError` reason; provider format, locked checks,
+warning-denied Clippy, Nextest, doctests, and Rustdoc pass; the conformance
+scan removes both existence-only findings without increasing another class.
 
 **Owner:** current Atlas session. **Claimed files:** Leto
 `crates/leto/tests/core/stack_storage.rs` in a new clean lane, provider PM
 records for this item, and root `backlog.md`/`checklist.md`.
+
+**Implementation evidence (2026-08-20):** clean lane branch
+`fix/leto-stack-storage-oracle` is based on fetched `origin/main` `c1c8ab2`
+and publishes `b682cd8` (test) and `e07ee64` (delivery record). Format, locked
+all-target check, warning-denied Clippy, focused Nextest (`1/1`), full
+Nextest (`984/984`), doctests, and Rustdoc complete. The conformance scan
+reports `existence_only_assertions: 7` versus `9` on the fetched default, with
+every other class unchanged. A temporary valid-shape rejection mutation
+fails the focused test.
+
+**Publication blocker:** GitHub compare confirms exact base `c1c8ab2` → head
+`e07ee64` is two commits ahead with four intended files. Draft PR creation was
+rejected by the connector with HTTP 403 `Resource not accessible by
+integration`; no hosted gate or merge is claimed. Re-open publication when
+repository write authorization is available. The dirty primary Leto gitlink
+is unchanged.
 
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — Remove fabricated quantitative book figures [arch] — done 2026-08-20
 

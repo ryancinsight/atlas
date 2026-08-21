@@ -5,14 +5,16 @@
 
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — current session
 
-- [ ] Create a clean Leto lane from fetched `origin/main`; preserve the dirty
+- [x] Create a clean Leto lane from fetched `origin/main`; preserve the dirty
       primary checkout and its three-commit lag.
-- [ ] Replace the valid `from_stack` `is_ok()` assertion with shape, size, and
-      storage-value assertions while retaining the invalid-capacity check.
-- [ ] Run exact-lane format, locked checks, nextest, Clippy, doctests, and
+- [x] Replace both `from_stack` existence assertions with shape, size,
+      storage-value, and typed-error assertions.
+- [x] Run exact-lane format, locked checks, nextest, Clippy, doctests, and
       Rustdoc; verify the conformance count decreases without collateral debt.
-- [ ] Publish the exact provider branch and record hosted/publication status
+- [x] Publish the exact provider branch and record the final compare result
       without advancing the dirty Atlas gitlink.
+- [ ] Open the draft PR and collect hosted gates; blocked by connector HTTP
+      403 (`Resource not accessible by integration`).
 
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — current session
 
