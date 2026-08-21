@@ -1178,12 +1178,11 @@ locks; registry metadata reports 253 manifests and zero violations; and the
 standalone lock-form audit reports 27 clean locks, with only the documented
 in-tree Melinoe fixture exemption. The committed book inventory has 25
 book-bearing members; Consus, Hephaestus, and RITK are the three current
-members without an executable mdBook sample gate. The lane audit reports six
-violations: CFDrs has three working trees including detached
-`D:/atlas/worktrees/cfdrs-fmt`; Kwavers has five working trees including
-detached `D:/tmp/kw-verify` outside the canonical lane root; and Leto has three
-trees. The stale merged Hephaestus and Hermes lanes were removed after ancestry
-validation; no peer-owned lane was switched or deleted.
+members without an executable mdBook sample gate. After removing the clean
+merged snapshots and empty husks, the lane audit reports two violations:
+Kwavers has five working trees including detached `D:/tmp/kw-verify` outside
+the canonical lane root, and Leto has three trees. CFDrs, Consus, and RITK are
+at the two-tree bound. No dirty lane was switched or deleted.
 
 The earlier exact-head snapshot matched only Apollo; the current refresh below
 supersedes that count. The other findings remain pointer-update watchpoints
@@ -5082,20 +5081,20 @@ creation precondition, not an aspiration.
 
 | repo | trees | bound |
 |---|---|---|
-| ritk | 5 | 2 |
-| kwavers | 4 | 2 |
-| consus | 3 | 2 |
+| kwavers | 5 | 2 |
+| leto | 3 | 2 |
 
-`worktrees/` holds **26 directories**; 19 are registered lanes across all
-members. Also two structural violations: one consus lane lives at
-`repos/consus/worktrees/consus-adr-0045-p4-benchmark`, outside the single
-canonical lane root, and **eight `kwavers-*` directories are empty husks** —
-zero files, no `.git` — left behind when their worktrees were removed.
+`worktrees/` currently holds **25 directories**, including the sanctioned
+`.archive` metadata directory. The former empty Consus lane directory and
+two empty root Consus husks were removed after confirming zero children. One
+remaining structural violation is the clean detached Kwavers lane at
+`D:/tmp/kw-verify`, outside the single canonical lane root; it remains
+unremoved because it is an external checkout whose ownership is not
+established by this tree.
 
-The husks resist `rmdir` with *device or resource busy*: a live process still
-holds a working directory in each, so eight abandoned agent sessions are
-pinning empty directories. Not force-removed; they are harmless but they make
-the lane census lie.
+The remaining external lane is clean, but its owning process and intended
+lifecycle are not established from Atlas. It remains a recorded residual,
+not a deletion target.
 
 The rule already names the cause: "sprawl is friction's product", and the
 prescribed fix is a committed lane tool making create/re-point/close one
