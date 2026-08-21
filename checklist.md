@@ -78,6 +78,26 @@
       is errored (report-only). Re-open on terminal checks or a hosted
       state transition; no pointer advance or bypass is authorized.
 
+## ATLAS-CFDRS-VALIDATION-TRACING-2026-08-21 — current session
+
+- [x] Inventory 165 `println!` sites in `cfd-validation/src/` across 14
+      files (benchmarking, conservation, edge_case_testing, manufactured,
+      numerical, time_integration, benchmarks).
+- [x] Create clean lane `worktrees/cfdrs-validation-tracing` from fetched
+      `origin/main` `aa54f5cd`.
+- [x] Replace all `println!`/`print!`/`eprintln!` in `src/` (excluding test
+      regions) with `tracing::info!`/`tracing::warn!`; fix empty
+      `tracing::info!()` → `tracing::info!("")`; run `cargo fmt`.
+- [x] Run provider gates: format, check, clippy (`-D warnings`), nextest
+      (435/435), doctests (4 passed, 2 ignored), rustdoc — all pass.
+- [x] Verify `cfd-validation/src/` `print_dbg` count is 0 on the clean
+      lane (was 165).
+- [x] Publish branch `fix/cfdrs-validation-tracing` and open PR
+      [#366](https://github.com/ryancinsight/CFDrs/pull/366) at exact head
+      `69df44da`.
+- [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
+      the post-merge default, then advance the Atlas gitlink.
+
 ## ATLAS-HYGIENE-BASELINE-001 — current conformance increment
 
 - [x] Reproduce the live-scan abort in a provider-local `.pytest_cache` and
@@ -106,6 +126,10 @@
       requiring per-site provider-level migration to a logging facade. Not a
       safe mechanical sweep; recommended scanner fix for the build.rs
       false positives.
+- [x] Fix the conformance scanner to exempt `build.rs` `cargo:` protocol
+      writes from `print_dbg`: add `CARGO_PROTOCOL_PRINT` regex, subtract
+      cargo: hits when `path.name == "build.rs"`. Count drops 366→335 (−31).
+      Focused suite 26/26 (2 new regression tests); full suite 328/77.
 - [ ] Re-run the clean-revision ratchet after the provider workflow changes
       land and their parent gitlinks advance; do not baseline the current
       peer-dirty worktree result.
@@ -6559,6 +6583,15 @@ No repository other than CFDrs and Kwavers imports that family.
       Verdict: every honest production site is a recorded KEEP decision;
       zero undocumented sites remain. Item closes at the instrument-fixed
       count 85 with no source change.
+- [x] Board-reclaim increment: audited the dead-checkout board (462 KB
+      untracked) against current moirai main - twelve open items existed in no
+      tracked artifact. Re-verified each with read-only probes: six admitted
+      DoR-shaped to docs/backlog.md (FLOOR-012 5/19 crates, VER-006 with named
+      unsafe sites, VER-010 proptest, SEC-001 fuzz/restrictions, DOC-009 book,
+      PM-008 index generator), four recorded closed-upstream (miri/loom/PAL/
+      ADR-0015), two held for manual review. Lane branch
+      chore/moirai-board-reclaim -> Moirai PR #150. Archive retirement follows
+      its merge.
 - [x] Landed moirai LF policy from the lane (re-pointed to
       chore/moirai-lf-policy off origin/main; PR #148 branch stays pushed and
       open): commit f415006 adds .gitattributes (* text=auto eol=lf) and
