@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -17,6 +18,17 @@ assert SPEC is not None and SPEC.loader is not None
 audit = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = audit
 SPEC.loader.exec_module(audit)
+
+
+def _git(directory: Path, *arguments: str) -> str:
+    process = subprocess.run(
+        ["git", "-C", str(directory), *arguments],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return process.stdout
 
 
 class MultiphysicsAuditTestCase(unittest.TestCase):
@@ -123,6 +135,49 @@ harmonia = "0.1"
         audit._require_attribution([report])
         self.assertEqual(report["status"], "fail")
         self.assertEqual(len(report["findings"]), 2)
+
+    def test_committed_snapshot_excludes_dirty_provider_edits(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            provider = Path(temp) / "provider"
+            provider.mkdir()
+            _git(provider, "init", "-q")
+            _git(provider, "config", "user.email", "test@example.invalid")
+            _git(provider, "config", "user.name", "Atlas Test")
+            manifest = provider / "Cargo.toml"
+            manifest.write_text(
+                '[package]\nname = "committed-provider"\nversion = "0.1.0"\n',
+                encoding="utf-8",
+            )
+            _git(provider, "add", "Cargo.toml")
+            _git(provider, "commit", "-q", "-m", "initial")
+            revision = _git(provider, "rev-parse", "HEAD").strip()
+            manifest.write_text(
+                '[package]\nname = "dirty-provider"\nversion = "0.1.0"\n',
+                encoding="utf-8",
+            )
+
+            snapshot = Path(temp) / "snapshot"
+            audit._extract_committed_provider(provider, revision, snapshot)
+            manifest_text = (snapshot / "Cargo.toml").read_text(encoding="utf-8")
+            self.assertIn('name = "committed-provider"', manifest_text)
+            self.assertNotIn('name = "dirty-provider"', manifest_text)
+
+            exact_snapshot = {
+                **audit._read_committed_files(provider, revision),
+                "docs/book/book.toml": "[book]\ntitle = 'x'\n",
+                "docs/book/src/intro.md": "```rust\nfn main() {}\n```\n",
+            }
+
+            report = audit._audit_profile(
+                audit.IntegratorProfile("demo", ()),
+                provider=Path(temp) / "unmaterialized-snapshot",
+                committed_gitlink=revision,
+                snapshot=exact_snapshot,
+            )
+            self.assertEqual(report["source"], "committed_gitlinks")
+            self.assertFalse(report["checkout_dirty"])
+            self.assertEqual(report["checkout_revision"], revision)
+            self.assertTrue(report["book"])
 
 
 if __name__ == "__main__":

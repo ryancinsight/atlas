@@ -113,12 +113,20 @@
   21 executable shared gates, three vacuous gates (Gaia, Helios, Kwavers), and
   one missing executable gate (Consus). `--check` passes; `--require-gates`
   remains intentionally red until those provider-owned gaps close.
-- **Integrator findings:** CFDrs passes. Helios lacks a `py.typed` marker,
-  Python stubs, and an executable Rust book fence. Kwavers retains a direct
-  `wgpu` dependency and lacks the same typed Python and executable-book
-  surfaces. These are real provider/integrator gaps, not suppressed findings.
-- **Verification:** `python -m pytest scripts/tests -q` passes 298 tests and
-  77 subtests in 12.37 seconds. The audit output is static evidence; it does
+- **Integrator findings:** the exact committed-source mode reports CFDrs with
+  no explicit GIL-release site, source `py.typed` marker, or Python stub;
+  Helios with no typed Python metadata or executable Rust book fence; and
+  Kwavers with a direct `wgpu` dependency, no typed Python metadata, and no
+  executable Rust book fence. All required provider dependencies are present.
+  These are real provider/integrator gaps, not suppressed findings.
+- **Exact attribution:** `python scripts/atlas-multiphysics-audit.py
+  --exact-gitlinks --require-evidence --format json` scans committed text
+  snapshots only; all three reports have `checkout_dirty: false` and exact
+  checkout/gitlink equality. The scan completes in 4.97 seconds and exits 1
+  only for the findings above. The default worktree mode remains a separate
+  dirty-checkout diagnostic.
+- **Verification:** `python -m pytest scripts/tests -q` passes 299 tests and
+  77 subtests in 9.73 seconds. The audit output is static evidence; it does
   not substitute for provider-native Rust/Python gates, hosted CI, wheel,
   Pages, or live-page verification.
 
@@ -3106,10 +3114,11 @@ nested Harmonia checkout remains provider-owned state.
 
 ## ATLAS-MULTIPHYSICS-ADOPTION-100 — CFDrs/Kwavers/Helios provider adoption and suite closure [major] [arch] — in progress
 
-- **Active claim (atlas coordinator):** exact committed-gitlink source mode for
-  `scripts/atlas-multiphysics-audit.py` and its tests; claimed files are that
-  script, `scripts/tests/test_atlas_multiphysics_audit.py`, and this item.
-  Peer-owned source, consumer, and lane checkouts remain out of scope.
+- **Completed claim (atlas coordinator, 2026-08-21):** exact committed-gitlink
+  source mode for `scripts/atlas-multiphysics-audit.py` and its tests is
+  implemented and verified. The claimed files were that script, its focused
+  test, and this item. Peer-owned source, consumer, and lane checkouts remain
+  out of scope.
 - **RITK release-workflow closeout (fresh recheck):** PR [#194](https://github.com/ryancinsight/ritk/pull/194)
   merged at `337f0dc5` with merge commit `65bee2c2`. The fetched RITK default
   is `b35c93313c06ea55fffa680a430378dda1df8e41`, exactly matching the Atlas

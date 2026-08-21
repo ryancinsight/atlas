@@ -6,18 +6,22 @@ audit checks the next boundary: the three integrators must name their shared
 providers, expose a real Rust-backed Python surface, carry an executable book,
 and retain independent numerical and operational evidence. It is deliberately
 reporting-oriented: missing evidence is a finding, not a synthetic pass.
+The ``--exact-gitlinks`` mode scans text snapshots of the provider commits
+recorded by Atlas, so dirty nested worktrees cannot change the result.
 """
 
 from __future__ import annotations
 
 import argparse
+import io
 from dataclasses import dataclass
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import sys
+import tarfile
 import tomllib
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -124,6 +128,16 @@ PERFORMANCE = re.compile(
     re.IGNORECASE,
 )
 SAFETY = re.compile(r"(?:forbid|deny)\s*\(unsafe_code\)|#!\s*\[forbid\(unsafe_code\)\]")
+AUDIT_ARCHIVE_PATHS = (
+    "*.rs",
+    "*.py",
+    "*.pyi",
+    "*.toml",
+    "*.md",
+    "py.typed",
+    "*/py.typed",
+    "**/py.typed",
+)
 
 
 def _provider_path(name: str) -> Path:
@@ -153,6 +167,91 @@ def _committed_gitlink(name: str) -> str | None:
     return fields[2] if len(fields) >= 3 and fields[1] == "commit" else None
 
 
+def _committed_archive(provider: Path, revision: str) -> bytes:
+    """Return an archive containing only files consumed by this audit."""
+    try:
+        paths = subprocess.run(
+            ["git", "-C", str(provider), "ls-tree", "-r", "--name-only", revision],
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise RuntimeError(f"git tree listing failed: {exc}") from exc
+    if paths.returncode:
+        detail = paths.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or "git tree listing failed")
+    names = paths.stdout.decode("utf-8", errors="replace").splitlines()
+    archive_paths = [
+        pattern
+        for pattern in AUDIT_ARCHIVE_PATHS
+        if any(
+            PurePosixPath(name).name == "py.typed"
+            if "py.typed" in pattern
+            else name.endswith(pattern.removeprefix("*"))
+            for name in names
+        )
+    ]
+
+    if not archive_paths:
+        return b""
+    try:
+        process = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(provider),
+                "archive",
+                "--format=tar",
+                revision,
+                "--",
+                *archive_paths,
+            ],
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        raise RuntimeError(f"git archive failed: {exc}") from exc
+    if process.returncode:
+        detail = process.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(detail or "git archive failed")
+    return process.stdout
+
+
+def _read_committed_files(provider: Path, revision: str) -> dict[str, str]:
+    """Read audit-readable text files from a committed provider snapshot."""
+    contents: dict[str, str] = {}
+    archive_bytes = _committed_archive(provider, revision)
+    if not archive_bytes:
+        return contents
+    with tarfile.open(fileobj=io.BytesIO(archive_bytes), mode="r:") as archive:
+        for member in archive.getmembers():
+            if member.issym() or member.islnk():
+                raise RuntimeError(f"unsupported link in committed snapshot: {member.name}")
+            member_path = PurePosixPath(member.name)
+            if member_path.is_absolute() or ".." in member_path.parts:
+                raise RuntimeError(f"archive path escapes snapshot: {member.name}")
+            if member.isdir():
+                continue
+            if not member.isfile():
+                raise RuntimeError(f"unsupported archive entry: {member.name}")
+            source = archive.extractfile(member)
+            if source is None:
+                raise RuntimeError(f"archive entry has no content: {member.name}")
+            with source:
+                contents[member.name] = source.read().decode("utf-8", errors="replace")
+    return contents
+
+
+def _extract_committed_provider(provider: Path, revision: str, destination: Path) -> None:
+    """Extract a committed provider snapshot for fixture and diagnostic use."""
+    contents = _read_committed_files(provider, revision)
+    destination.mkdir(parents=True, exist_ok=False)
+    for name, text in contents.items():
+        target = destination.joinpath(*PurePosixPath(name).parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+
+
 def _source_files(provider: Path) -> list[Path]:
     paths: list[Path] = []
     for directory, subdirectories, filenames in os.walk(provider):
@@ -167,13 +266,8 @@ def _source_files(provider: Path) -> list[Path]:
     return paths
 
 
-def _dependency_names(manifest: Path) -> set[str]:
-    """Collect dependency keys from all package/workspace dependency tables."""
-    try:
-        document = tomllib.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return set()
-
+def _dependency_names_from_document(document: object) -> set[str]:
+    """Collect dependency keys from a parsed manifest document."""
     names: set[str] = set()
 
     def walk(value: object, path: tuple[str, ...] = ()) -> None:
@@ -186,6 +280,15 @@ def _dependency_names(manifest: Path) -> set[str]:
 
     walk(document)
     return names
+
+
+def _dependency_names(manifest: Path) -> set[str]:
+    """Collect dependency keys from all package/workspace dependency tables."""
+    try:
+        document = tomllib.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return set()
+    return _dependency_names_from_document(document)
 
 
 def _dependency_inventory(provider: Path) -> set[str]:
@@ -217,14 +320,15 @@ def _matches_dependency(names: set[str], provider: str) -> bool:
     return False
 
 
-def _count_matches(files: list[Path], pattern: re.Pattern[str]) -> int:
-    count = 0
+def _read_texts(files: list[Path]) -> list[tuple[Path, str]]:
+    """Read each audit input once for the evidence scans."""
+    texts: list[tuple[Path, str]] = []
     for path in files:
         try:
-            count += len(pattern.findall(path.read_text(encoding="utf-8", errors="replace")))
+            texts.append((path, path.read_text(encoding="utf-8", errors="replace")))
         except OSError:
             continue
-    return count
+    return texts
 
 
 def _python_typing_evidence(provider: Path) -> tuple[bool, bool]:
@@ -256,25 +360,77 @@ def _book_fence_counts(text: str) -> tuple[int, int]:
     return len(matches), runnable
 
 
-def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
-    provider = _provider_path(profile.name)
-    checkout_revision = _git_value("rev-parse", "HEAD", cwd=provider)
-    checkout_status = _git_value(
-        "status", "--porcelain=v1", "--untracked-files=all", cwd=provider
+def _audit_profile(
+    profile: IntegratorProfile,
+    *,
+    provider: Path | None = None,
+    committed_gitlink: str | None = None,
+    snapshot: dict[str, str] | None = None,
+) -> dict[str, object]:
+    provider = provider or _provider_path(profile.name)
+    exact = committed_gitlink is not None
+    checkout_revision = (
+        committed_gitlink
+        if exact
+        else _git_value("rev-parse", "HEAD", cwd=provider)
     )
-    source_files = _source_files(provider) if provider.is_dir() else []
-    manifests = _dependency_inventory(provider) if provider.is_dir() else set()
+    checkout_status = (
+        None
+        if exact
+        else _git_value(
+            "status", "--porcelain=v1", "--untracked-files=all", cwd=provider
+        )
+    )
     book_root = provider / "docs" / "book"
-    book_files = (
-        [path for path in book_root.rglob("*.md") if path.is_file()]
-        if book_root.is_dir()
-        else []
-    )
-    book_text = "\n".join(
-        path.read_text(encoding="utf-8", errors="replace") for path in book_files
-    )
-    python_files = [path for path in source_files if path.suffix in {".rs", ".py", ".pyi"}]
-    rust_files = [path for path in source_files if path.suffix == ".rs"]
+    if snapshot is None:
+        source_files = _source_files(provider) if provider.is_dir() else []
+        manifests = _dependency_inventory(provider) if provider.is_dir() else set()
+        book_files = (
+            [path for path in book_root.rglob("*.md") if path.is_file()]
+            if book_root.is_dir()
+            else []
+        )
+        source_texts = _read_texts(source_files)
+        book_texts = _read_texts(book_files)
+        provider_initialized = provider.is_dir()
+        book_present = (book_root / "book.toml").is_file()
+        py_typed, python_stubs = _python_typing_evidence(provider)
+    else:
+        snapshot_entries = [
+            (Path(name), text)
+            for name, text in snapshot.items()
+            if not any(part in DERIVED_SCAN_DIRS for part in Path(name).parts)
+        ]
+        source_texts = [
+            (path, text)
+            for path, text in snapshot_entries
+            if path.suffix in SOURCE_SUFFIXES or path.name == "py.typed"
+        ]
+        source_files = [path for path, _ in source_texts]
+        manifests = set()
+        for path, text in snapshot_entries:
+            if path.name == "Cargo.toml":
+                try:
+                    manifests.update(
+                        _dependency_names_from_document(tomllib.loads(text))
+                    )
+                except tomllib.TOMLDecodeError:
+                    continue
+        book_texts = [
+            (path, text)
+            for path, text in snapshot_entries
+            if path.as_posix().startswith("docs/book/") and path.suffix == ".md"
+        ]
+        book_files = [path for path, _ in book_texts]
+        provider_initialized = True
+        book_present = "docs/book/book.toml" in snapshot
+        py_typed = any(path.name == "py.typed" for path, _ in snapshot_entries)
+        python_stubs = any(path.suffix == ".pyi" for path, _ in snapshot_entries)
+    book_text = "\n".join(text for _, text in book_texts)
+    python_texts = [
+        text for path, text in source_texts if path.suffix in {".rs", ".py", ".pyi"}
+    ]
+    rust_texts = [text for path, text in source_texts if path.suffix == ".rs"]
     findings: list[str] = []
     missing_dependencies = [
         dependency
@@ -286,7 +442,7 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
         for dependency in profile.forbidden_dependencies
         if _matches_dependency(manifests, dependency)
     ]
-    if not provider.is_dir():
+    if not provider_initialized:
         findings.append("provider checkout is not initialized")
     if missing_dependencies:
         findings.append("missing provider dependencies: " + ", ".join(missing_dependencies))
@@ -294,10 +450,11 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
         findings.append("direct incumbent dependencies: " + ", ".join(forbidden_dependencies))
 
     pyo3 = _matches_dependency(manifests, "pyo3")
-    python_surface = _count_matches(python_files, PYTHON_SURFACE)
-    gil_release = _count_matches(python_files, GIL_RELEASE)
-    tyche_source_references = _count_matches(python_files, TYCHE_SOURCE_REFERENCE)
-    py_typed, python_stubs = _python_typing_evidence(provider)
+    python_surface = sum(len(PYTHON_SURFACE.findall(text)) for text in python_texts)
+    gil_release = sum(len(GIL_RELEASE.findall(text)) for text in python_texts)
+    tyche_source_references = sum(
+        len(TYCHE_SOURCE_REFERENCE.findall(text)) for text in python_texts
+    )
     if not pyo3:
         findings.append("no PyO3 dependency")
     if pyo3 and python_surface == 0:
@@ -311,16 +468,17 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
     if tyche_source_references == 0:
         findings.append("no Tyche source reference discovered")
 
-    if not (book_root / "book.toml").is_file():
+    if not book_present:
         findings.append("docs/book/book.toml is missing")
     rust_fences, runnable_rust_fences = _book_fence_counts(book_text)
     if runnable_rust_fences == 0:
         findings.append("book has no executable Rust fence")
 
-    analytical = _count_matches(source_files + book_files, ANALYTICAL)
-    differential = _count_matches(source_files + book_files, DIFFERENTIAL)
-    performance = _count_matches(source_files + book_files, PERFORMANCE)
-    safety = _count_matches(rust_files, SAFETY)
+    all_texts = [text for _, text in source_texts + book_texts]
+    analytical = sum(len(ANALYTICAL.findall(text)) for text in all_texts)
+    differential = sum(len(DIFFERENTIAL.findall(text)) for text in all_texts)
+    performance = sum(len(PERFORMANCE.findall(text)) for text in all_texts)
+    safety = sum(len(SAFETY.findall(text)) for text in rust_texts)
     if analytical == 0:
         findings.append("no analytical/reference evidence marker discovered")
     if differential == 0:
@@ -335,8 +493,9 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
         "status": "fail" if findings else "ok",
         "findings": findings,
         "checkout_revision": checkout_revision,
-        "committed_gitlink": _committed_gitlink(profile.name),
+        "committed_gitlink": committed_gitlink or _committed_gitlink(profile.name),
         "checkout_dirty": bool(checkout_status),
+        "source": "committed_gitlinks" if exact else "worktrees",
         "dependency_count": len(manifests),
         "required_dependencies": list(profile.required_dependencies),
         "missing_dependencies": missing_dependencies,
@@ -347,7 +506,7 @@ def _audit_profile(profile: IntegratorProfile) -> dict[str, object]:
         "py_typed_marker": py_typed,
         "python_typing_stubs": python_stubs,
         "tyche_source_references": tyche_source_references,
-        "book": book_root.is_dir() and (book_root / "book.toml").is_file(),
+        "book": book_present,
         "rust_fences": rust_fences,
         "runnable_rust_fences": runnable_rust_fences,
         "analytical_reference_markers": analytical,
@@ -365,6 +524,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="comma-separated integrators (default: CFDrs,helios,kwavers)",
     )
     parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument(
+        "--exact-gitlinks",
+        action="store_true",
+        help="audit isolated snapshots of the provider commits recorded by Atlas",
+    )
     parser.add_argument(
         "--require-evidence",
         action="store_true",
@@ -396,7 +560,55 @@ def main(argv: list[str] | None = None) -> int:
     selected = {name.strip() for name in args.integrators.split(",") if name.strip()}
     profiles = tuple(profile for profile in PROFILES if profile.name in selected)
     unknown = selected - {profile.name for profile in PROFILES}
+    if args.exact_gitlinks:
+        reports = []
+        for profile in profiles:
+            revision = _committed_gitlink(profile.name)
+            if revision is None:
+                reports.append(
+                    {
+                        "provider": profile.name,
+                        "status": "fail",
+                        "findings": ["committed gitlink is unavailable"],
+                        "source": "committed_gitlinks",
+                    }
+                )
+                continue
+            provider = _provider_path(profile.name)
+            try:
+                snapshot = _read_committed_files(provider, revision)
+            except RuntimeError as exc:
+                reports.append(
+                    {
+                        "provider": profile.name,
+                        "status": "fail",
+                        "findings": [f"committed snapshot unavailable: {exc}"],
+                        "committed_gitlink": revision,
+                        "source": "committed_gitlinks",
+                    }
+                )
+                continue
+            reports.append(
+                _audit_profile(
+                    profile,
+                    provider=provider,
+                    committed_gitlink=revision,
+                    snapshot=snapshot,
+                )
+            )
+        return _finish(args, selected, unknown, reports)
+
     reports = [_audit_profile(profile) for profile in profiles]
+    return _finish(args, selected, unknown, reports)
+
+
+def _finish(
+    args: argparse.Namespace,
+    selected: set[str],
+    unknown: set[str],
+    reports: list[dict[str, object]],
+) -> int:
+    """Apply selection checks and render an audit result."""
     if not selected:
         reports.append(
             {
@@ -415,7 +627,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.format == "json":
         print(json.dumps({"status": "fail" if failed else "ok", "integrators": reports}, indent=2))
     else:
-        print(f"multiphysics-audit: {'FAIL' if failed else 'OK'}")
+        source = "committed provider snapshots" if args.exact_gitlinks else "provider worktrees"
+        print(f"multiphysics-audit: {'FAIL' if failed else 'OK'} (source: {source})")
         for report in reports:
             print(f"- {report['provider']}: {report['status']}")
             for finding in report.get("findings", []):
