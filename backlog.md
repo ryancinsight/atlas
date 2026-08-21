@@ -850,6 +850,14 @@ Rust-fence coverage in Gaia, Helios, RITK, and Hephaestus; these remain under
 the existing book-gate items. Evidence is static and does not close any build,
 wheel, hosted, or Pages gate.
 
+The book-gate audit was then tightened to inspect committed book content rather
+than workflow wiring alone. Its exact-root run reports 19 valid shared callers,
+three vacuous callers (Gaia's direct workflow, Helios, and Kwavers), and three
+callers with no gate (Consus, Hephaestus, and RITK); `--check` passes while
+`--check --require-gates` fails with those six residuals. The full root Python
+suite passes 216 tests in 6.31 seconds. This closes the audit-tool defect, not
+the provider-owned sample work.
+
 ## ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20 — Ship the typed Python surface [patch] — in progress
 
 The Apollo Python package currently exposes its symbols through `__init__.py`

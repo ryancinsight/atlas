@@ -8,9 +8,10 @@ result.  It distinguishes the shared reusable-workflow input from a provider
 workflow that invokes ``mdbook test`` directly (Gaia's current contract).
 
 Members with neither a book manifest nor a book workflow are outside the
-book-bearing inventory.  A member with only one side is reported as an
-incomplete inventory entry.  The current tree has 25 book-bearing members;
-five callers still require executable sample coverage.
+book-bearing inventory. A member with only one side is reported as an
+incomplete inventory entry. Workflow wiring is not sufficient evidence: a
+book with no executable Rust fence is reported as vacuous coverage. The
+inventory and residual counts are derived from the committed gitlinks.
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ DIRECT_COMMAND_RE = re.compile(
     r"(?:^|(?:&&|\|\||[;|])\s*|(?:if|then)\s+)"
     r"(?:!\s*)?(?:command\s+)?mdbook\s+test(?:\s|$)"
 )
+RUST_FENCE_RE = re.compile(r"^\s*```(?:rust|rs)(?P<attributes>(?:,[^\s]+)*)\s*$")
 RUN_RE = re.compile(r"^(?P<indent>\s*)(?:-\s+)?run:\s*(?P<body>.*)$")
 
 
@@ -47,6 +49,8 @@ class BookGate:
     workflow: bool
     gate: str
     reason: str
+    rust_fences: int = 0
+    executable_rust_fences: int = 0
 
 
 def _git(*args: str, cwd: Path = ROOT) -> tuple[int, str, str]:
@@ -55,6 +59,8 @@ def _git(*args: str, cwd: Path = ROOT) -> tuple[int, str, str]:
         cwd=cwd,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         check=False,
     )
     return process.returncode, process.stdout, process.stderr
@@ -121,6 +127,52 @@ def classify_workflow(workflow: str) -> tuple[str, str]:
     return "none", "no executable mdbook test gate"
 
 
+def classify_coverage(
+    gate: str, reason: str, executable_rust_fences: int
+) -> tuple[str, str]:
+    """Reject workflow gates whose book has no executable Rust sample."""
+    if gate in {"shared-input", "direct-command"} and executable_rust_fences == 0:
+        return (
+            f"vacuous-{gate}",
+            f"{reason}; no executable Rust book fence",
+        )
+    return gate, reason
+
+
+def _book_fence_counts(member: str, gitlink: str) -> tuple[int, int]:
+    """Count Rust fences and executable Rust fences at a committed gitlink."""
+    code, output, _ = _git(
+        "-C",
+        str(ROOT / "repos" / member),
+        "grep",
+        "-I",
+        "-h",
+        "-E",
+        r"^[[:space:]]*```(rust|rs)(,[^[:space:]]+)*[[:space:]]*$",
+        gitlink,
+        "--",
+        "docs/book",
+    )
+    if code not in {0, 1}:
+        return 0, 0
+
+    rust_fences = 0
+    executable = 0
+    for line in output.splitlines():
+        match = RUST_FENCE_RE.match(line)
+        if match is None:
+            continue
+        rust_fences += 1
+        attributes = {
+            value.strip().lower()
+            for value in match.group("attributes").lstrip(",").split(",")
+            if value.strip()
+        }
+        if not attributes.intersection({"ignore", "no_run"}):
+            executable += 1
+    return rust_fences, executable
+
+
 def audit() -> list[BookGate]:
     """Read and classify every member participating in the book inventory."""
     results: list[BookGate] = []
@@ -145,8 +197,22 @@ def audit() -> list[BookGate]:
                 )
             )
             continue
-        gate, reason = classify_workflow(workflow)
-        results.append(BookGate(member, gitlink, True, True, gate, reason))
+        rust_fences, executable = _book_fence_counts(member, gitlink)
+        gate, reason = classify_coverage(
+            *classify_workflow(workflow), executable
+        )
+        results.append(
+            BookGate(
+                member,
+                gitlink,
+                True,
+                True,
+                gate,
+                reason,
+                rust_fences,
+                executable,
+            )
+        )
     return results
 
 
@@ -161,7 +227,8 @@ def _print_text(results: list[BookGate]) -> None:
         f"{len(results)} inventory entries; "
         f"shared={counts.get('shared-input', 0)}, "
         f"direct={counts.get('direct-command', 0)}, "
-        f"missing-or-invalid={counts.get('none', 0) + counts.get('invalid', 0)}"
+        f"vacuous={sum(value for key, value in counts.items() if key.startswith('vacuous-'))}, "
+        f"missing-or-invalid={sum(value for key, value in counts.items() if key not in {'shared-input', 'direct-command'})}"
     )
 
 
@@ -185,7 +252,11 @@ def main(argv: list[str] | None = None) -> int:
     else:
         _print_text(results)
     if args.require_gates:
-        failures = [item for item in results if item.gate in {"none", "invalid"}]
+        failures = [
+            item
+            for item in results
+            if item.gate not in {"shared-input", "direct-command"}
+        ]
         failure_message = (
             f"book-gate-audit: {len(failures)} inventory entry(s) lack an executable gate"
         )

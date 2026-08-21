@@ -83,6 +83,41 @@ class BookGateClassificationTestCase(unittest.TestCase):
         """
         self.assertEqual(audit.classify_workflow(workflow)[0], "shared-input")
 
+    def test_workflow_with_no_executable_rust_fence_is_vacuous(self) -> None:
+        gate, reason = audit.classify_coverage(
+            "shared-input", "mdbook-test: true", 0
+        )
+        self.assertEqual(gate, "vacuous-shared-input")
+        self.assertIn("no executable Rust book fence", reason)
+
+    def test_ignored_and_no_run_fences_do_not_count_as_executable(self) -> None:
+        contents = """
+```rust,ignore
+fn ignored() {}
+```
+```rust,no_run
+fn compiled_only() {}
+```
+```rust
+fn executes() {}
+```
+"""
+        fences = [
+            audit.RUST_FENCE_RE.match(line)
+            for line in contents.splitlines()
+            if audit.RUST_FENCE_RE.match(line)
+        ]
+        self.assertEqual(len(fences), 3)
+        executable = sum(
+            not {
+                value.strip().lower()
+                for value in match.group("attributes").lstrip(",").split(",")
+                if value.strip()
+            }.intersection({"ignore", "no_run"})
+            for match in fences
+        )
+        self.assertEqual(executable, 1)
+
     def test_combined_check_reports_missing_gate(self) -> None:
         result = audit.BookGate("apollo", "abc123", True, True, "none", "no gate")
         stderr = io.StringIO()

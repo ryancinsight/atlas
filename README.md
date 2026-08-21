@@ -918,11 +918,12 @@ caller:
 `aequitas`, `apollo`, `asclepius`, `athena`, `CFDrs`, `coeus`, `consus`,
 `eunomia`, `gaia`, `harmonia`, `helios`, `hephaestus`, `hermes`, `horae`,
 `hyperion`, `iris`, `kwavers`, `leto`, `melinoe`, `mnemosyne`, `moirai`,
-`proteus`, `ritk`, `themis`, and `tyche`. Eighteen callers enable the shared
-`mdbook-test` input, and Gaia's custom Pages workflow runs `mdbook test`
-directly. The six remaining callers are tracked completion work until their
-samples are executable under the shared toolchain: `apollo`, `coeus`, `consus`,
-`hephaestus`, `ritk`, and `themis`.
+`proteus`, `ritk`, `themis`, and `tyche`. Nineteen callers enable the shared
+`mdbook-test` input. Gaia's custom Pages workflow runs `mdbook test` directly,
+but its book has no executable Rust fence; Helios and Kwavers have the same
+vacuous-sample defect under the shared workflow. Consus, Hephaestus, and RITK
+have no executable sample gate. Strict closure therefore tracks six residuals:
+`gaia`, `helios`, `kwavers`, `consus`, `hephaestus`, and `ritk`.
 
 The committed-gitlink inventory and executable-gate classification are checked
 by `python scripts/atlas-book-gate-audit.py --check`; use
