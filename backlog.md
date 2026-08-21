@@ -856,9 +856,21 @@ Current slice: replace Moirai transport's metadata-only accelerator address
 resolution with a typed resolution that preserves the scheduler route and
 accelerator identity while retaining a transport address for the later
 Hephaestus edge. The package lane is `worktrees/moirai-package`, claimed for
-`moirai-transport` route source/tests and its provider ADR only. Dispatch and
-CPU/WGPU execution remain a later Hephaestus/Themis slice after their bases are
-refreshed; this slice does not claim device execution.
+`moirai-transport` route source/tests, benchmark source contracts, the public
+facade re-export, and synchronized provider ADR/checklist artifacts. Dispatch
+and CPU/WGPU execution remain a later Hephaestus/Themis slice after their bases
+are refreshed; this slice does not claim device execution.
+
+Current-slice outcome: Moirai commit `2355d42a39ff85fd3efb075075c9a916f52fc8be`
+(`feat(moirai): Retain accelerator identity`) is pushed on
+`fix/moirai-accelerator-route-identity` as PR
+https://github.com/ryancinsight/Moirai/pull/147. `RouteResolution` keeps the
+full `SchedulerRoute`, transport `Address`, and accelerator placement together;
+`RoutedArchivedSender::send_route` returns that resolution. Exact local
+verification: 807/807 nextest tests passed with 6 skipped, clippy passed,
+format check passed, doctests passed, and rustdoc passed. `cargo-semver-checks`
+is unavailable in the environment. Hosted PR checks remain non-terminal and
+are monitored separately; no merge or submodule-pointer advance is claimed.
 
 Acceptance: accelerator identity survives route resolution; a present device
 executes a real kernel and returns its value-semantic result; a missing device
@@ -867,11 +879,12 @@ a bounded transfer/dispatch smoke pass. Claim only after refreshing the
 provider defaults and reconciling the existing dirty/detached checkouts.
 
 Owner: codex-primary. Claimed scope: `worktrees/moirai-package`,
-`moirai-transport/src/route.rs`, `moirai-transport/src/route/tests.rs`, and
-the provider ADR/index needed for this route-contract replacement. Dependencies:
-current Moirai origin route contract; Hephaestus/Themis clean bases remain a
-dependency for the subsequent dispatch slice. Risk/change class: `[major]
-[arch]`. Last update: 2026-08-21.
+`moirai-transport/src/route.rs`, `moirai-transport/src/route/tests.rs`,
+`benchmarks/tests/benchmark_contracts/`, `moirai/src/lib.rs`, and the provider
+ADR/checklist artifacts needed for this route-contract replacement.
+Dependencies: current Moirai origin route contract; Hephaestus/Themis clean
+bases remain a dependency for the subsequent dispatch slice. Risk/change class:
+`[major] [arch]`. Last update: 2026-08-21.
 
 **Outcome:** close the remaining cross-cutting correctness and evidence
 deficits in the order below, so that a green gate means what it claims.
