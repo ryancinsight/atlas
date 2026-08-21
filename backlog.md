@@ -1,5 +1,28 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-MELINOE-PARTITION-PANIC-ORACLE-2026-08-20 — Assert recovered panic values [patch] — in progress
+
+Melinoe `src/sync/scoped/partition/driver_core.rs` tests panic-mutex
+recovery with two `is_err()` assertions and one `is_none()` assertion. These
+existence-only checks do not prove which panic payload was captured or that
+the recovered mutex is empty after the second panic.
+
+**Scope:** Melinoe `src/sync/scoped/partition/driver_core.rs` test module on a
+clean lane based on fetched `origin/main`, plus provider PM records and these
+root PM entries. Replace the assertions with exact panic-payload and empty
+state checks. Do not touch the dirty detached primary checkout or unrelated
+Melinoe source.
+
+**Acceptance:** both panic closures are matched as `Err` with their exact
+string payloads; the post-recovery payload state is compared as an empty
+value; provider format, locked checks, warning-denied Clippy, Nextest,
+doctests, and Rustdoc pass; the conformance scan removes all three
+existence-only findings without increasing another class.
+
+**Owner:** current Atlas session. **Claimed files:** Melinoe
+`src/sync/scoped/partition/driver_core.rs` in a new clean lane, provider PM
+records for this item, and root `backlog.md`/`checklist.md`.
+
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — in progress
 
 The Leto `from_stack_validates_capacity` test asserts only `is_ok()` and

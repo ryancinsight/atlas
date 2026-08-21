@@ -3,6 +3,17 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-MELINOE-PARTITION-PANIC-ORACLE-2026-08-20 — current session
+
+- [ ] Create a clean Melinoe lane from fetched `origin/main`; preserve the
+      dirty detached primary checkout.
+- [ ] Replace the three panic-recovery existence assertions with exact panic
+      payload and empty-state value checks.
+- [ ] Run exact-lane format, locked checks, Nextest, Clippy, doctests, and
+      Rustdoc; verify no conformance class increases.
+- [ ] Publish the exact provider branch and synchronize Atlas evidence;
+      preserve the primary gitlink.
+
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — current session
 
 - [x] Create a clean Leto lane from fetched `origin/main`; preserve the dirty
