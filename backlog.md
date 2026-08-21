@@ -16,10 +16,10 @@
   the root gitlink comparison and worker behavior, and has a regression test
   proving the symbolic default branch and remote commit are selected. Output
   names the source as the remote default, not a fetched local ref.
-- **Evidence:** `34` focused provider-audit tests pass. The exact-head run
-  queries the current remote default for every selected provider and remains
-  red only for the 13 known gitlink drifts; the live Kwavers remote advanced
-  from `b7256314` during this recheck to `06ab560e`, demonstrating why local
+- **Evidence:** `34` focused provider-audit tests pass. The full `atlas-22`
+  exact-head run queries the current remote default for every selected
+  provider and remains red only for the 13 known gitlink drifts; the current
+  Kwavers remote default is `4d61dbfb`, demonstrating why local
   remote-tracking refs are not a sufficient oracle.
 
 ## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — in progress
@@ -128,12 +128,13 @@
   atlas-provider-integration-audit.py --provider-set requested-2026-08-14
   --exact-heads --exact-head-workers 8` queries remote default branches
   directly, validates each nested `origin` URL against committed `.gitmodules`,
-  and exits 1 with 13 release-boundary mismatches. The current remote defaults
+  and exits 1 with 12 release-boundary mismatches. The current remote defaults
   observed are Horae `d1332267`, Hyperion `3bc0e43d`, Themis `2c074987`, Tyche
   `7d636471`, Helios `e886754d`, Asclepius `a38b8b50`, Eunomia `834bd3b4`,
-  Moirai `ff56d602`, Melinoe `922bd3be`, Leto `fc0648ee`, Apollo `fd9ecd02`,
-  Iris `636a2613`, and Kwavers `3b401139`; each differs from its committed
-  Atlas gitlink at query time.
+  Moirai `ff56d602`, Leto `fc0648ee`, Apollo `fd9ecd02`, Iris `636a2613`, and
+  Kwavers `4d61dbfb`; each differs from its committed Atlas gitlink at query
+  time. Melinoe is no longer a drift after the terminal pointer integration
+  at `922bd3be`.
 - **Interpretation:** the mismatches are release-boundary watchpoints, not
   source defects. Provider refs can advance between local, hosted, and direct
   remote snapshots; no pointer update is safe without terminal provider
@@ -901,21 +902,21 @@ HTTP 200 with the expected titles at
 `9da9f92e3` and `7f75f5e6`. No provider source or nested checkout changes.
 
 **Residual exact-head sweep (2026-08-21):** after refreshing all provider
-remotes, the exact-head audit reports 14 intentional drifts. The held defaults
+remotes, the exact-head audit reports 13 intentional drifts. The held defaults
 are Horae `d1332267`, Hyperion `3bc0e43d`, Themis `2c074987`, Tyche
 `7d636471`, Helios `e886754d`, Harmonia `c762c8ad`, Asclepius `a38b8b50`,
-Eunomia `834bd3b4`, Moirai `ff56d602`, Melinoe `922bd3be`, Leto `fc0648ee`,
-Apollo `fd9ecd02`, Iris `636a2613`, and Kwavers `8fc69970`. The merged-default
-post-merge runs for Themis, Tyche, Harmonia, Eunomia, Moirai, and Apollo are
-queued; the earlier Horae, Hyperion, Asclepius, Melinoe, Leto, and Iris Pages
-runs remain the only evidence for their held defaults. Helios's default CI
+Eunomia `834bd3b4`, Moirai `ff56d602`, Leto `fc0648ee`, Apollo `fd9ecd02`,
+Iris `636a2613`, and Kwavers `4d61dbfb`. The merged-default required runs for
+Themis, Tyche, Eunomia, Moirai, and Apollo are queued; Harmonia CI remains
+queued while its Pages run `32474560873` is cancelled. The earlier Horae,
+Hyperion, Asclepius, Leto, and Iris Pages runs remain the only evidence for
+those held defaults. Helios's default CI
 `32436531185` is terminal, but its current source PR #69 is at stacked head
 `7a973331` and remains queued. Kwavers current-default workflows
-`32476439668`, `32476439654`, `32476439719`, and `32476440288` are queued for
-`8fc69970`; the earlier `d47cfc4e`, `50e199df`, and `150bbd2c` runs are
-stale/cancelled and do not prove the current default. No pointer advances
-until each provider's exact hosted evidence and canonical live-page check
-satisfy the acceptance oracle.
+remain unverified at `4d61dbfb`; the earlier workflows at `8fc69970` and
+older heads do not prove the current default. No pointer advances until each
+provider's exact hosted evidence and canonical live-page check satisfy the
+acceptance oracle.
 The same refresh's structural-only audit remains `status: ok` with zero
 issues across all 22 registered providers; the failure is pointer/hosted
 evidence state, not a detected registration or coherence defect.
