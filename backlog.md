@@ -30,6 +30,12 @@
   merged commit, followed by a fresh live-page probe. Atlas's nested Consus
   gitlink remains unchanged until that evidence is terminal and the checkout
   is safe to update around peer-owned dirt.
+- **Bounded monitor result:** default CI `32490857845`, Deploy mdBook
+  `32490858365`, and Pages `32490856819` remained queued at the ten-minute
+  bound. The merged commit is signature-verified and the live docs URL returns
+  HTTP 200, but its `Last-Modified` predates the merge, so content from the
+  merged commit is not verified. Re-open on terminal provider runs or a new
+  hosted state transition; no rerun or bypass was used.
 
 ## ATLAS-REMOTE-HEAD-AUDIT-2026-08-21 — Verify provider defaults from remote refs [patch] — done 2026-08-21
 
