@@ -122,7 +122,7 @@
   pointer advancement remain gated by exact-head terminal provider checks,
   book/Pages evidence, and live-page verification where applicable.
 
-## ATLAS-EXACT-HEAD-RECHECK-2026-08-21 — Reconcile fetched provider defaults [patch] — done 2026-08-21
+## ATLAS-EXACT-HEAD-RECHECK-2026-08-21 — Reconcile remote provider defaults [patch] — done 2026-08-21
 
 - **Latest evidence:** `python scripts/
   atlas-provider-integration-audit.py --provider-set requested-2026-08-14
