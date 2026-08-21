@@ -1,5 +1,27 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence [verification][patch] — in progress
+
+Horae's tableaus declare formal orders, but its existing embedded-pair test
+only verifies error-estimate scaling. That does not establish convergence of
+the integrated solution. This slice adds an input-sensitive refinement study
+against the closed-form solution of `y' = y` for Euler, Midpoint, RK4, and
+Dormand–Prince.
+
+**Scope:** Horae `tests/` on a clean lane based on fetched `origin/main`, plus
+provider/root PM records. Non-goals are tableau/API changes, stability claims,
+implicit integration, and the dirty detached primary checkout.
+
+**Acceptance:** the measured `log2(e(h)/e(h/2))` recovers each declared order
+within a tolerance derived from the finite-difference truncation/rounding
+separation; the test runs across the supported scalar contract where the
+tableau is implemented; format, locked checks, warning-denied Clippy, Nextest,
+doctests, and Rustdoc pass; the provider H-ORDER item is synchronized.
+
+**Owner:** current Atlas session. **Claimed files:** Horae test modules and
+provider/root PM records on a new clean lane; the dirty primary remains
+untouched.
+
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — blocked
 
 The merged Hyperion source-oracle implementation is complete at provider
