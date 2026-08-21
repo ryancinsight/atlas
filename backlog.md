@@ -1,5 +1,37 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — open
+
+- **Outcome:** `kwavers-analysis` visualization owns no concrete WGPU device,
+  queue, buffer, adapter, or `pollster` runtime. Visualization transfers and
+  renderer resources execute through one provider-owned backend seam, with a
+  real Hephaestus-backed implementation and typed unavailable-capability
+  errors; no CPU fallback is substituted for a requested GPU path.
+- **Evidence:** the fetched Kwavers default still declares `wgpu = 26.0`,
+  `bytemuck`, and `pollster` in `crates/kwavers-analysis/Cargo.toml` and
+  constructs `wgpu::Instance`, adapters, devices, buffers, and queue writes in
+  `crates/kwavers-analysis/src/visualization/data_pipeline/transfer.rs` and
+  `crates/kwavers-analysis/src/visualization/renderer/gpu.rs`. The separate
+  `kwavers-gpu` provider uses WGPU 30 through Hephaestus. The historical
+  `ATLAS-KWAVERS-HEPHAESTUS-VIS-104` closure covers initialization and
+  multi-field error semantics, not this remaining ownership split.
+- **Constraint:** `kwavers-gpu` currently depends on `kwavers-analysis` for
+  beamforming operation contracts, so adding a reverse dependency is a cycle.
+  A re-export or forwarding wrapper is not an acceptable migration. The next
+  design increment must place the visualization role seam at the deepest
+  shared consumer boundary, move the concrete implementation to an owning
+  provider layer, update all callers, and delete the duplicate runtime.
+- **Acceptance:** provider-generic visualization compiles without a direct
+  `wgpu`/`pollster` edge in `kwavers-analysis`; WGPU and unavailable-capability
+  paths have value-semantic differential coverage; the package graph is
+  acyclic; warning-denied checks, Nextest, doctests, Rustdoc, and hosted book
+  gates pass at the exact provider default. **Status:** design/ownership
+  decision required before implementation; no clean, non-overlapping Kwavers
+  lane is currently available to land this major change.
+- **Non-goals:** no change to the already-closed multi-field initialization
+  contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
+  ensemble API invention.
+
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence [verification][patch] — in progress
 
 Horae's tableaus declare formal orders, but its existing embedded-pair test
