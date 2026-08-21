@@ -12,8 +12,10 @@
 - [x] Run exact-lane format, locked checks, Nextest, Clippy, doctests, and
       Rustdoc; verify the result against the declared orders and mutation-test
       the oracle.
-- [x] Publish the provider branch and synchronize provider/Atlas evidence;
-      do not advance the gitlink without hosted terminal gates.
+- [x] Push the provider branch and synchronize provider/Atlas evidence; do not
+      advance the gitlink without hosted terminal gates.
+- [ ] Open the draft PR and collect hosted gates; blocked by GitHub connector
+      HTTP 403 (`Resource not accessible by integration`).
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — current session
 

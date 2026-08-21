@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence [verification][patch] — in progress
+## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence [verification][patch] — blocked
 
 Horae's tableaus declare formal orders, but its existing embedded-pair test
 only verifies error-estimate scaling. That does not establish convergence of
@@ -12,11 +12,13 @@ Dormand–Prince.
 provider/root PM records. Non-goals are tableau/API changes, stability claims,
 implicit integration, and the dirty detached primary checkout.
 
-**Acceptance:** the measured `log2(e(h)/e(h/2))` recovers each declared order
-within a tolerance derived from the finite-difference truncation/rounding
-separation; the test runs across the supported scalar contract where the
-tableau is implemented; format, locked checks, warning-denied Clippy, Nextest,
-doctests, and Rustdoc pass; the provider H-ORDER item is synchronized.
+**Acceptance:** the closed-form refinement study classifies the measured
+`log2(e(h)/e(h/2))` by its nearest declared order with no tunable decimal
+tolerance; f64 covers Euler, Midpoint, RK4, and Dormand–Prince, while f32
+covers the non-embedded tableaus at a range with a resolvable truncation
+signal and retains the existing embedded execution coverage. Format, locked
+checks, warning-denied Clippy, Nextest, doctests, and Rustdoc pass; the
+provider H-ORDER item is synchronized.
 
 **Owner:** current Atlas session. **Claimed files:** Horae test modules and
 provider/root PM records on a new clean lane; the dirty primary remains
@@ -33,11 +35,17 @@ truncation signal clears the rounding floor. The RK4 output-weight mutation
 control fails the f64 oracle and is restored.
 
 **Verification (2026-08-20):** format, locked all-target check, warning-
-denied Clippy, Nextest 25/25, doctests 1/1, and warning-denied Rustdoc pass
-at the exact lane revision with the committed lock (overlay disabled for the
-gate run and re-enabled; the root `.cargo/config.toml` diff is empty after
-restore). The Atlas gitlink is not advanced: hosted terminal gates are still
+denied Clippy, all-feature Nextest 25/25, doctests 1/1, and warning-denied
+Rustdoc pass at the exact lane revision with the committed lock. The locked
+no-default-features check, Clippy, Nextest 25/25, doctests 1/1, and Rustdoc
+also pass. The Atlas gitlink is not advanced: hosted terminal gates are still
 required.
+
+**Publication blocker:** the exact branch compare is base `a05dbeb`
+(`origin/main`) to head `0f7d58014ef9200e1a83febb13f7fc43a08edee3` on
+`fix/horae-order-oracle`, two commits ahead with four intended files. Draft
+PR creation was rejected by the GitHub connector with HTTP 403 `Resource not
+accessible by integration`; no hosted-gate, merge, or gitlink claim is made.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — blocked
 
