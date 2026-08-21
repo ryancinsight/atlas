@@ -608,8 +608,10 @@ failed on two missing standalone `extern crate consus_core` declarations and
 two non-standalone prose fences that mdBook attempted to compile: the
 hyperslab formula and the stack diagram. The PR branch now carries those
 boundary repairs at exact head
-`0f4af6cf64828063480f824f301e524a78b6745e`; the book rerun is queued. No
-Consus implementation, lockfile, or peer-owned checkout changed.
+`0f4af6cf64828063480f824f301e524a78b6745e`; the current PR head is
+`39da4782` and hosted run `32440567003` remains non-terminal with queued and
+in-progress jobs. No Consus implementation, lockfile, or peer-owned checkout
+changed.
 
 Consus PR #52 was verified as a strict subset of #53 and used an intermediate
 workflow pin. It was closed as superseded and its branch deleted; #53 is the
@@ -863,6 +865,13 @@ committed `SUMMARY.md`; orphaned files under `docs/book` cannot satisfy the
 gate. The focused book-audit tests and the full root Python suite remain green
 after this source-boundary correction.
 
+The separate hosted monitor then reconciled 14 open provider PRs: none has
+merged. It reports terminal failures for CFDrs #361 (`Rust workspace gate`,
+run `32408413904`) and Gaia #33 (`Build and verify mesh book`, run
+`32417028130`); Harmonia #9 at `5b1bc287`, Consus #53 at `39da4782`, and the
+other watched PRs remain non-terminal or require provider-side repair. No Atlas
+gitlink advances from this snapshot.
+
 ## ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20 — Ship the typed Python surface [patch] — in progress
 
 The Apollo Python package currently exposes its symbols through `__init__.py`
@@ -928,7 +937,9 @@ The clean lane passed `cargo clippy --all-targets --all-features --locked -- -D 
 `cargo test --doc --locked`, `cargo doc --no-deps --locked`, and
 `cargo check --release --locked`. The root ADR and generated index are in
 `c39f12a`; the root commit is pushed. Hosted PR checks are monitored separately
-and remain non-terminal until collected.
+and remain non-terminal: run `32446563564` has two queued jobs for PR #9 at
+exact head `5b1bc287`. No consumer adapter or Atlas pointer advance is
+authorized until the provider PR reaches a terminal merged-default state.
 
 ## ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21 — Execute accelerator routes [major] [arch] — in-progress
 
@@ -1101,8 +1112,9 @@ API example is included by the book, `mdbook test docs/book` executes it with a
 value-semantic assertion, strict links and `mdbook build` pass, and the change
 is published and verified at its exact provider head. No `rust,ignore` or
 existence-only assertion satisfies the item. PR [#33](https://github.com/ryancinsight/gaia/pull/33)
-is published at exact head `7e3ddeff`; CI run `32417028093` and book run
-`32417028130` are queued. `recurseml/analysis` is report-only.
+is published at exact head `7e3ddeff`; its CI run `32417028093` and book run
+`32417028130` are terminal failures, so the item remains open for provider-side
+book failure diagnosis. `recurseml/analysis` is report-only.
 
 ## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — Restore exact-default formatting gate [patch] — in progress
 
@@ -1121,8 +1133,9 @@ green.
 The current Atlas session owns the bounded lane
 `D:\\atlas\\worktrees\\CFDrs-format-gate`, commit `c9aff82e`, and PR
 [#361](https://github.com/ryancinsight/CFDrs/pull/361). The exact-head provider
-CI result remains pending; no broader CFDrs test, Pages, or allocator closure
-claim is inferred.
+CI run `32408413904` is terminal failure; no broader CFDrs test, Pages, or
+allocator closure claim is inferred. The failure requires a provider-side
+repair before this formatting-only item can close.
 
 ## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — Remove library global allocator [major][arch] — in progress
 

@@ -323,7 +323,8 @@
       build and mdBook test are blocked by the shared overlay lock-form and
       multi-artifact/toolchain state; hosted CI is the clean-runner oracle.
 - [x] Publish PR [#33](https://github.com/ryancinsight/gaia/pull/33) at exact
-      head `7e3ddeff`; CI `32417028093` and book `32417028130` are queued.
+      head `7e3ddeff`; CI `32417028093` and book `32417028130` are terminal
+      failures and remain open for provider-side diagnosis.
 - [ ] Collect terminal exact-head CI/book evidence, merge, verify the
       post-merge default and Pages deployment, then advance the Atlas pointer.
 
