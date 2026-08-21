@@ -80,12 +80,15 @@
   Consus #53 (`39da4782`), Helios #69 (`7a973331`), Hephaestus #216
   (`42e27877`), Gaia #33 (`39a4f7fb`), and Iris #19 (`2cefce87`) remain open
   with exact heads reconciled. Their repository-owned verification, book, or
-  package jobs remain pending; no named PR is merge-ready. Current Kwavers
-  `main` is `fdc5fae8` with CI, architecture, legacy-audit, and mdBook runs
-  queued.
+  package jobs remain pending; no named PR is merge-ready. Current provider
+  defaults are Proteus `73c6c813`, Asclepius `a38b8b50`, Consus `1000699f`,
+  Helios `e886754d`, Hephaestus `7e09efa`, Gaia `dbed97a`, and Iris `636a261`.
+  Kwavers `main` advanced to `ffdba11f`; its CI, architecture, legacy-audit,
+  and mdBook runs are queued.
 - **Negative evidence:** Helios #55 and Kwavers #439/#440/#443/#444 have
   terminal validation failures; Kwavers #424 has terminal checks but a stale
-  base. These are not merge candidates.
+  base. Consus #53 and Helios #69 also target stale bases, and no newly
+  mergeable provider PR appeared. These are not merge candidates.
 - **Delivery rule:** no provider pointer or Atlas gitlink changed. Merge and
   pointer advancement remain gated by exact-head terminal provider checks,
   book/Pages evidence, and live-page verification where applicable.
