@@ -83,3 +83,7 @@ helios_workflow_output/
 # Python bytecode caches (derived state).
 __pycache__/
 *.pyc
+
+# Agent tool-state at the stack root (session-local, never repo content).
+.codex/
+.playwright-mcp/
