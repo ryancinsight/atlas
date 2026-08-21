@@ -860,8 +860,9 @@ book coverage remains a separate open integration item.
   [#108](https://github.com/ryancinsight/apollo/pull/108) merged after its
   exact-head Rust/Python, benchmark, and book runs passed. The provider default
   is now `a0c3da9`; post-merge CI `32421484168`, mdBook `32421484508`, and
-  Pages `32421483175` are queued. The Atlas gitlink remains at `0c6ffb9` until
-  those merged-default workflows are terminal.
+  Pages `32421483175` are terminal `success` at the merged default. The Atlas
+  gitlink is advanced from `0c6ffb9` to `a0c3da9` without switching the dirty
+  primary checkout.
 
 - **Hyperion chromophore provenance:** the source audit disproved the
   unsupported ×4 premise: OMLC presents the retained hemoglobin values as
@@ -918,8 +919,9 @@ book coverage remains a separate open integration item.
   [#340](https://github.com/ryancinsight/Coeus/pull/340) merged after its
   provider-contract and book runs passed. The provider default is now
   `5108ed0082fc5c5ed02bc95c4bfa4ad9cdf8133b`; post-merge backend parity
-  `32421487491` and mdBook `32421487793` are queued. The Atlas gitlink remains
-  at `5adc2d1` until those merged-default workflows are terminal.
+  `32421487491` and mdBook `32421487793` are terminal `success` at the merged
+  default. The Atlas gitlink is advanced from `5adc2d1` to `5108ed00` without
+  switching the detached dirty primary checkout.
 
 - **Live-tree conformance residual:** the local `python
   scripts/atlas-conformance.py check --worktree` sweep at audit revision
@@ -954,11 +956,13 @@ book coverage remains a separate open integration item.
   `success` at `0e786481`, and the live page returns HTTP 200. The Atlas
   pointer is advanced `459f18ce`→`0e786481` without switching or modifying
   the dirty primary checkout.
-  Full exact-head/coherence audit now reports three remaining pointer drifts:
-  RITK `d4a978f`→`ad508525`, Hermes
-  `c5e4c2dc`→`05441dd1`, and Coeus/Apollo as recorded elsewhere. Hermes PR #55
-  merged at `05441dd1`; its post-merge CI `32418079699` and Pages
-  `32418078426` are queued, so the Atlas Hermes pointer remains unchanged.
+  Full exact-head/coherence audit now reports one remaining pointer drift:
+  RITK `d4a978f`→`ad508525` (held: its merged-default Deploy mdBook gate
+  `32404089897` is red on the E0460 hashless-artifact staging defect; the fix
+  is RITK PR #204 at `9bc47d42` adopting Atlas `20c9398`, still open). Hermes
+  PR #55 merged at `05441dd1`; its post-merge CI `32418079699` and Pages
+  `32418078426` are terminal `success`, and the Atlas Hermes pointer is
+  advanced `c5e4c2dc`→`05441dd1`.
 
 - **RITK DTI frame contract:** PR [#198](https://github.com/ryancinsight/ritk/pull/198)
   merged at default `2d159850636a6539db61109533f399d31cc7c6f4`. Post-merge CI

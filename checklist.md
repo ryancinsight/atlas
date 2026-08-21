@@ -304,9 +304,12 @@
 - [x] Fix the shared hashless dependency staging defect at Atlas `20c9398` and
       publish RITK PR #204 at `9bc47d42`; CI `32410451435` and book
       `32410452203` are queued for exact-head validation.
-- [ ] Collect the merged-default Rust, Python, and book runs
-      `32404089256`/`32404089147`/`32404089897`; advance the Atlas gitlink only
-      after terminal passing evidence, and fix forward any failure.
+- [x] Collect the merged-default Rust, Python, and book runs
+      `32404089256`/`32404089147`/`32404089897`: CI and Python CI are
+      `success`, but Deploy mdBook `32404089897` FAILED at `Test book code
+      samples` (the E0460 hashless-artifact staging defect). The Atlas gitlink
+      is therefore NOT advanced from `d4a978f`; the fix is RITK PR #204 at
+      `9bc47d42` (adopting Atlas `20c9398`), still open at collection time.
 
 ## ATLAS-APOLLO-BOOK-TEST-2026-08-20 — current session
 
@@ -324,8 +327,12 @@
       The exact-head rerun has Rust run `32413508286`, Python run
       `32413508286`, benchmark run `32413508303`, and book run
       `32413508691`, all pending at collection time.
-- [ ] Collect terminal exact-head evidence, merge, verify the post-merge
+- [x] Collect terminal exact-head evidence, merge, verify the post-merge
       default, and advance the Atlas gitlink only after those gates pass.
+      Post-merge runs at `a0c3da9` are terminal green: ci `32421484168`,
+      Deploy mdBook `32421484508`, and pages build/deployment `32421483175`
+      all complete with conclusion `success`. The Atlas gitlink is advanced
+      from `0c6ffb9` to `a0c3da9` without touching the dirty primary checkout.
 
 ## ATLAS-HYPERION-CHROMOPHORE-2026-08-20 — current session
 
@@ -404,8 +411,12 @@
 - [x] Repair both examples and repin the shared workflow to Atlas staging
       revision `20c9398`; commit `fc05cb75` is published on PR #340. The exact-
       head book run `32413507328` is pending at collection time.
-- [ ] Collect terminal exact-head evidence, merge, verify the post-merge
+- [x] Collect terminal exact-head evidence, merge, verify the post-merge
       default, and advance the Atlas gitlink only after those gates pass.
+      Post-merge runs at `5108ed00` are terminal green: backend parity
+      `32421487491` and Deploy mdBook `32421487793` both complete with
+      conclusion `success`. The Atlas gitlink is advanced from `5adc2d1` to
+      `5108ed00` without touching the detached dirty primary checkout.
 
 ## ATLAS-KWAVERS-DEFAULT-2026-08-20 — current session
 
