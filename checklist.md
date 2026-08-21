@@ -3,6 +3,19 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — current session
+
+- [x] Reproduce the remaining ownership split against fetched Kwavers default:
+      `kwavers-analysis` owns WGPU 26 visualization resources while
+      `kwavers-gpu` owns the Hephaestus-backed WGPU provider.
+- [x] Confirm the historical visualization closure does not cover the direct
+      analysis runtime and record the finding in `backlog.md`.
+- [x] Draft and index ADR 0051 with the provider-first migration decision.
+- [ ] Land the provider-generic migration in a clean, non-overlapping Kwavers
+      lane; preserve all peer-owned checkout and branch state until then.
+- [ ] Run the exact-head Rust, book, API, and live Pages gates before any Atlas
+      Kwavers gitlink advance.
+
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — current session
 
 - [x] Create a clean Horae lane from fetched `origin/main`; preserve the dirty
