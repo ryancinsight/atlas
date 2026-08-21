@@ -59,6 +59,13 @@
   that exact head. The worker temporarily reused the clean CFDrs format lane;
   after publishing, the lane was restored to `fix/cfdrs-format-gate` at
   `c1e4fdcf`, preserving PR #361's scope. Atlas's CFDrs pointer is unchanged.
+- **Hosted hold:** PR #365 is `mergeable=false`/`dirty` with no Actions runs
+  returned for the exact head; `recurseml/analysis` is errored and CodeRabbit
+  is rate-limited. The live Pages book is HTTP 200, but docs.rs/crates.io have
+  no `cfd-python` artifact and the existing PyPI name belongs to an unrelated
+  package, so release identity remains unresolved. The stale `0.0035` versus
+  `0.00345` test expectation and an unrelated existing Clippy blocker remain
+  provider-side residuals.
 
 ## ATLAS-REMOTE-HEAD-AUDIT-2026-08-21 — Verify provider defaults from remote refs [patch] — done 2026-08-21
 
