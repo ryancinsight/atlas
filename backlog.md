@@ -158,6 +158,13 @@
   Kwavers with a direct `wgpu` dependency, no typed Python metadata, and no
   executable Rust book fence. All required provider dependencies are present.
   These are real provider/integrator gaps, not suppressed findings.
+- **Provider-side closures already in review:** CFDrs PR
+  [#360](https://github.com/ryancinsight/CFDrs/pull/360) at
+  `e7a1c9e8` contains the GIL-detached binding paths, `cfd_python.pyi`, and
+  `py.typed`; Helios PR [#69](https://github.com/ryancinsight/helios/pull/69)
+  at `7a973331` contains its typed metadata and executable Compton book
+  oracle. Neither is root evidence until required hosted checks, merge, and
+  post-merge default/Page verification complete.
 - **Exact attribution:** `python scripts/atlas-multiphysics-audit.py
   --exact-gitlinks --require-evidence --format json` scans committed text
   snapshots only; all three reports have `checkout_dirty: null` because exact
@@ -8005,6 +8012,12 @@ atlas-meta main re-oriented at `abbec58` after peer landed 17 commits in the gap
   run provider formatting and focused Rust checks, compile the binding test
   contract where the local Python/maturin toolchain permits, and validate the
   workflow statically.
+- Provider implementation status: CFDrs commit `e7a1c9e8` on PR #360 already
+  ships the abi3 typed boundary and GIL-release changes. Provider-local
+  evidence is a release wheel containing `cfd_python.pyi` and `py.typed`,
+  installed-wheel pytest `4/4`, strict mypy consumer validation, and complete
+  runtime export coverage. Hosted exact-head verification and the trusted-
+  publishing caller remain open; the Atlas CFDrs gitlink is unchanged.
 
 ### ATLAS-HELIOS-BOOK-TEST-002 — Enable Helios `mdbook test` in the shared Pages caller [patch] — done 2026-08-17
 
