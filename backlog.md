@@ -23,6 +23,23 @@ existence-only findings without increasing another class.
 `src/sync/scoped/partition/driver_core.rs` in a new clean lane, provider PM
 records for this item, and root `backlog.md`/`checklist.md`.
 
+**Implementation evidence (2026-08-20):** clean lane branch
+`fix/melinoe-panic-oracle` is based on fetched `origin/main` `689f562` and
+publishes `67e177d` (test) and `d137d3c` (delivery record). All-feature and
+no-default locked all-target checks and warning-denied Clippy pass. Nextest
+passes `127/127` with all features and `52/52` without defaults; doctests pass
+`31/31` and `20/20`; Rustdoc is warning-free. The conformance scan reports
+`existence_only_assertions: 0` versus `2` on the fetched default, with every
+other class unchanged. A temporary `take_panic_payload = None` mutation fails
+the focused recovery test.
+
+**Publication blocker:** GitHub compare confirms exact base `689f562` → head
+`d137d3c` is two commits ahead with four intended files. Draft PR creation was
+rejected by the connector with HTTP 403 `Resource not accessible by
+integration`; no hosted gate or merge is claimed. Re-open publication when
+repository write authorization is available. The dirty detached primary
+Melinoe checkout and Atlas gitlink are unchanged.
+
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — in progress
 
 The Leto `from_stack_validates_capacity` test asserts only `is_ok()` and

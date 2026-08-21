@@ -5,14 +5,16 @@
 
 ## ATLAS-MELINOE-PARTITION-PANIC-ORACLE-2026-08-20 — current session
 
-- [ ] Create a clean Melinoe lane from fetched `origin/main`; preserve the
+- [x] Create a clean Melinoe lane from fetched `origin/main`; preserve the
       dirty detached primary checkout.
-- [ ] Replace the three panic-recovery existence assertions with exact panic
+- [x] Replace the three panic-recovery existence assertions with exact panic
       payload and empty-state value checks.
-- [ ] Run exact-lane format, locked checks, Nextest, Clippy, doctests, and
+- [x] Run exact-lane format, locked checks, Nextest, Clippy, doctests, and
       Rustdoc; verify no conformance class increases.
-- [ ] Publish the exact provider branch and synchronize Atlas evidence;
+- [x] Publish the exact provider branch and synchronize Atlas evidence;
       preserve the primary gitlink.
+- [ ] Open the draft PR and collect hosted gates; blocked by connector HTTP
+      403 (`Resource not accessible by integration`).
 
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — current session
 
