@@ -162,6 +162,11 @@
 - [ ] Collect terminal post-merge CI, Deploy mdBook, and Pages results at the
       five merge commits, verify deployed pages, rerun the caller audit, and
       record default-pointer changes without touching dirty nested checkouts.
+- [x] Review Helios workflow PR [#64](https://github.com/ryancinsight/helios/pull/64)
+      as a caller-only change; mark it ready and merge exact head `9a590ffa`
+      at default `e886754d` after its substantive checks passed.
+- [ ] Collect Helios post-merge CI `32436531185` and verify the next default
+      Pages deployment before advancing the Helios Atlas gitlink.
 - [x] Merge Apollo #108 at `a0c3da9` and Coeus #340 at
       `5108ed0082fc5c5ed02bc95c4bfa4ad9cdf8133b` after exact-head provider
       and book checks passed; their merged-default CI/book runs remain queued.

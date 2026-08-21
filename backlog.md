@@ -578,6 +578,14 @@ RITK's stacked book adoption is now the same merged-default gate: the prior
 `8196809` snapshot was superseded by #204's `b35c9331`; its three post-merge
 runs above remain uncollected.
 
+**Helios caller integration:** workflow PR
+[#64](https://github.com/ryancinsight/helios/pull/64) was marked ready after
+its Rust workspace, Python bindings, benchmark, and book-build checks passed,
+then merged from exact head `9a590ffaa65b3afc61b36f0aec2239014b6d17ae` at
+default `e886754d369c56925bab558dae7c6cebf94a0df1`. The post-merge CI run
+`32436531185` is queued. The workflow-only change did not trigger a new Pages
+run; the next default book deployment remains the required live-page check.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
