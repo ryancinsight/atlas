@@ -1123,19 +1123,21 @@ hosted CI run `32323543129`; the failure is formatting-only in
 `crates/cfd-2d/src/solvers/cell_tracking/tracker.rs`,
 `crates/cfd-core/src/management/aggregates/parameters.rs`, and
 `crates/cfd-core/src/physics/cavitation/number.rs`. The canonical checkout is
-peer-owned and dirty, so the bounded lane owns only those three source files.
+peer-owned and dirty, so the bounded lane owns those three source files plus
+the provider validation caller required to repair the hosted runtime failure.
 
-**Acceptance:** the exact three-file format correction is committed and pushed;
-the provider's exact-head CI is terminal green, with no peer source or lockfile
-state included. This slice does not claim that other CFDrs gates or Pages are
-green.
+**Acceptance:** the exact three-file format correction and the provider-side
+validation repair are committed and pushed; the provider's exact-head Rust and
+Pages gates are terminal green, with no peer source or lockfile state included.
+This slice does not claim broader CFDrs closure until those gates pass.
 
 The current Atlas session owns the bounded lane
-`D:\\atlas\\worktrees\\CFDrs-format-gate`, commit `c9aff82e`, and PR
+`D:\\atlas\\worktrees\\CFDrs-format-gate`, commit `c1e4fdcf`, and PR
 [#361](https://github.com/ryancinsight/CFDrs/pull/361). The exact-head provider
-CI run `32408413904` is terminal failure; no broader CFDrs test, Pages, or
-allocator closure claim is inferred. The failure requires a provider-side
-repair before this formatting-only item can close.
+CI run `32408413904` at the formatting-only head is terminal failure. The
+provider repair now has local exact nine-test numerical-fidelity evidence;
+replacement hosted Rust and Pages runs are pending. No broader CFDrs or
+allocator closure claim is inferred.
 
 ## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — Remove library global allocator [major][arch] — in progress
 

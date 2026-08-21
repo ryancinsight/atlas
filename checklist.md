@@ -430,8 +430,11 @@
 - [x] Apply the formatter corrections, verify the semantic staged diff contains
       no unrelated hunks, and pass `cargo fmt --all -- --check`.
 - [x] Publish PR [#361](https://github.com/ryancinsight/CFDrs/pull/361) at exact
-      head `c9aff82e`; collect terminal exact-head provider CI before closing
-      the slice. Do not infer Pages, tests, or broader CFDrs closure.
+      head `c9aff82e`; the exact-head Rust run exposed a real GA convergence
+      defect rather than a formatting-only closure. Extend the bounded lane to
+      the provider validation caller, publish repair commit `c1e4fdcf`, and
+      collect replacement terminal Rust and Pages runs before closing. Local
+      exact numerical-fidelity evidence is 9/9; do not infer hosted closure.
 
 ## ATLAS-HEPHAESTUS-BOOK-TEST-2026-08-20 — current session
 
