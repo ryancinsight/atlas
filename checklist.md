@@ -16,8 +16,12 @@
       advance the gitlink without hosted terminal gates.
 - [x] Open Horae PR [#25](https://github.com/ryancinsight/horae/pull/25) at
       exact head `0f7d5801`, based on merged default `d014929f`.
-- [ ] Collect PR and post-merge default gates before advancing the Atlas
-      gitlink.
+- [x] Collect PR #25 exact-head gates (`verify` and `supply-chain` pass;
+      `recurseml/analysis` report-only) and merge at exact head `0f7d5801`
+      with an expected-head guard. The merged default is `d133226`.
+- [x] Collect post-merge CI run `32441333101`; it passes at `d133226`. Pages
+      run `32441332430` remains queued; live-page verification and the gitlink
+      advance remain pending.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — current session
 
@@ -29,8 +33,13 @@
 - [x] Open Hyperion PR
       [#23](https://github.com/ryancinsight/hyperion/pull/23) at exact head
       `87a17439`, based on merged default `91df53e9`.
-- [ ] Collect hosted PR and post-merge default gates; do not advance the
-      Atlas gitlink until this follow-up is merged and hosted-gated.
+- [x] Collect PR #23 exact-head gates (`verify`, `supply-chain`, and
+      `deploy / Build book` pass; `recurseml/analysis` report-only) and merge
+      at exact head `87a17439` with an expected-head guard. The merged default
+      is `3bc0e43`.
+- [x] Collect post-merge CI run `32442891996`; it passes at `3bc0e43`.
+      Deploy mdBook `32442892257` and Pages `32442891128` remain queued; live-
+      page verification and the gitlink advance remain pending.
 
 ## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — current session
 
@@ -57,8 +66,12 @@
       preserve the primary gitlink.
 - [x] Open Melinoe PR [#20](https://github.com/ryancinsight/melinoe/pull/20)
       at exact head `d137d3c1`, based on merged default `8a67d146`.
-- [ ] Collect PR and post-merge default gates before advancing the Atlas
-      gitlink.
+- [x] Collect PR #20 exact-head gates (Rust 1.81.0 check passes;
+      `recurseml/analysis` report-only) and merge at exact head `d137d3c1`
+      with an expected-head guard. The merged default is `922bd3b`.
+- [x] Collect post-merge MSRV run `32441333467`; it passes at `922bd3b`.
+      Pages run `32441332513` remains queued; live-page verification and the
+      gitlink advance remain pending.
 
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — current session
 
@@ -72,8 +85,12 @@
       without advancing the dirty Atlas gitlink.
 - [x] Open Leto PR [#120](https://github.com/ryancinsight/leto/pull/120) at
       exact head `e07ee641`, based on merged default `c1c8ab23`.
-- [ ] Collect PR and post-merge default gates before advancing the Atlas
-      gitlink.
+- [x] Collect PR #120 exact-head gates (Rust verification passes;
+      `recurseml/analysis` report-only) and merge at exact head `e07ee641`
+      with an expected-head guard. The merged default is `fc0648e`.
+- [x] Collect post-merge CI run `32441333581`; it passes at `fc0648e`.
+      Pages run `32441332588` remains queued; live-page verification and the
+      gitlink advance remain pending.
 
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — current session
 

@@ -44,8 +44,10 @@ required.
 The implementation is published as PR
 [#25](https://github.com/ryancinsight/horae/pull/25) at exact head
 `0f7d58014ef9200e1a83febb13f7fc43a08edee3`, based on merged default
-`d014929f0f2afe0284ac786bec43ecb880e1e7e5`. Hosted checks are pending; no
-merge or gitlink claim is made.
+`d014929f0f2afe0284ac786bec43ecb880e1e7e5`. PR #25 is merged; post-merge CI
+run `32441333101` passes at default `d133226725fed76f3cdbec7df30b0df693d01808`.
+Pages run `32441332430` remains queued; no gitlink claim is made until Pages
+and live-page verification are terminal.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — in progress
 
@@ -70,9 +72,11 @@ temporary source-knot mutation fails the source oracle and was restored.
 The hardening is published as PR
 [#23](https://github.com/ryancinsight/hyperion/pull/23) at exact head
 `87a17439cb40aef965941480a0b07dee7d3a3c67`, based on merged default
-`91df53e9b0c95a52040f9a8dca2324f05ac168a0`. Hosted checks are pending; the
-merged `4df62f6` gitlink and its hosted evidence remain authoritative until
-this follow-up is merged and gated.
+`91df53e9b0c95a52040f9a8dca2324f05ac168a0`. PR #23 is merged; post-merge CI
+run `32442891996` passes at default `3bc0e43d7c818ffab7092bde2d11d1750e59009c`.
+Deploy mdBook `32442892257` and Pages `32442891128` remain queued; the merged
+`4df62f6` gitlink remains authoritative until those gates and live-page
+verification are terminal.
 
 **Owner:** current Atlas session. **Claimed files:** provider hardening branch
 and PM records only.
@@ -157,8 +161,11 @@ the focused recovery test.
 The implementation is published as PR
 [#20](https://github.com/ryancinsight/melinoe/pull/20) at exact head
 `d137d3c17d56eb9586812e98ca2861016e711bbb`, based on merged default
-`8a67d1469ce2478fd0fdb333ec71d58779a107bc`. Hosted checks are pending; the
-dirty detached primary Melinoe checkout and Atlas gitlink remain unchanged.
+`8a67d1469ce2478fd0fdb333ec71d58779a107bc`. PR #20 is merged; MSRV run
+`32441333467` passes at default `922bd3bef2a6ed8db1f8074daa12c875e76d54c8`.
+Pages run `32441332513` remains queued; the dirty detached primary Melinoe
+checkout and Atlas gitlink remain unchanged until Pages and live-page
+verification are terminal.
 
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — in progress
 
@@ -195,8 +202,10 @@ fails the focused test.
 The implementation is published as PR
 [#120](https://github.com/ryancinsight/leto/pull/120) at exact head
 `e07ee6417372b368a30e5991f9fbe765ec2a41ef`, based on merged default
-`c1c8ab234559a9f58a34d65c32f6096ee69fc012`. Hosted checks are pending; the
-dirty primary Leto gitlink remains unchanged.
+`c1c8ab234559a9f58a34d65c32f6096ee69fc012`. PR #120 is merged; post-merge CI
+run `32441333581` passes at default `fc0648ee90d211ce8bb065ff023404483f49041b`.
+Pages run `32441332588` remains queued; the dirty primary Leto gitlink remains
+unchanged until Pages and live-page verification are terminal.
 
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — Remove fabricated quantitative book figures [arch] — done 2026-08-20
 
