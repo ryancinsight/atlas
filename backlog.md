@@ -173,6 +173,12 @@
   PR [#590](https://github.com/ryancinsight/kwavers/pull/590) is open at that
   exact head; strict mypy/Ruff/Black are unavailable and locked Cargo gates
   are blocked by the inherited Atlas overlay re-resolving the lockfile.
+- **Hosted hold:** PR #590 is mergeable but `unstable`; CI/CD
+  `32492642895`, legacy audit `32492642913`, Python wheel smoke
+  `32492642908`, architecture validation `32492642942`, and Deploy mdBook
+  `32492643372` remain queued. `recurseml/analysis` is errored and CodeRabbit
+  is rate-limited. The live Pages site is reachable but older than the PR and
+  is not evidence for this head; no pointer advance or bypass is used.
 
 ## ATLAS-HOSTED-RECHECK-2026-08-21 — Reconcile provider release evidence [patch] — done 2026-08-21
 
