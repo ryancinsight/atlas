@@ -940,13 +940,13 @@ caller:
 `proteus`, `ritk`, `themis`, and `tyche`. Nineteen callers enable the shared
 `mdbook-test` input. Gaia's custom Pages workflow runs `mdbook test` directly,
 but its book has no executable Rust fence; Helios and Kwavers have the same
-vacuous-sample defect under the shared workflow. Consus, Hephaestus, and RITK
-have no executable sample gate. Strict closure therefore tracks six residuals:
-`gaia`, `helios`, `kwavers`, `consus`, `hephaestus`, and `ritk`.
+vacuous-sample defect under the shared workflow. Consus has no executable
+sample gate. Strict closure therefore tracks four residuals: `gaia`, `helios`,
+`kwavers`, and `consus`.
 
 The committed-gitlink inventory and executable-gate classification are checked
 by `python scripts/atlas-book-gate-audit.py --check`; use
-`--require-gates` when evaluating closure of the six provider residuals.
+`--require-gates` when evaluating closure of the four provider residuals.
 
 Atlas owns the cross-book invariant gate in
 [`docs.yml`](.github/workflows/docs.yml), which runs the portable dead-link
@@ -1023,7 +1023,13 @@ it by hand:
 ```sh
 python3 scripts/publish-order.py           # wave-partitioned publish order
 python3 scripts/publish-order.py --json    # machine-readable
+python3 scripts/publish-order.py --exact-gitlinks --json  # committed Atlas state
 ```
+
+The default publish scan reads current provider worktrees for development
+inspection. `--exact-gitlinks` reads manifests from the provider commits
+recorded by the current Atlas `HEAD`, so dirty nested worktrees cannot change a
+release-graph claim.
 
 The script builds the first-party graph over normal and build dependencies,
 separates dev-dependency edges (which do not constrain order and legally form
