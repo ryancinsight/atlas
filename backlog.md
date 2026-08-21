@@ -718,6 +718,12 @@ queued. `recurseml/analysis` is report-only.
 
 ## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — todo
 
+**Current claim:** `codex-primary`, 2026-08-21. Scope is the root
+`backlog.md` audit record and the corresponding dated section in
+`gap_audit.md`; method is a fresh provider-graph, lane, conformance, and
+delivery-evidence recheck. No provider source, peer-owned checkout, hosted
+workflow, or Atlas gitlink is changed by this audit increment.
+
 Evidence: `gap_audit.md` Finding 2026-08-20 and each provider's own
 `gap_audit.md`/`backlog.md`, refreshed this cycle by one auditor per submodule.
 24 of 25 repositories reported; Tyche is outstanding. Unweighted mean
