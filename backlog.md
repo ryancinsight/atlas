@@ -3100,15 +3100,16 @@ no confirmed soundness defect in the inspected implementation, but its local
 checkout is stale relative to `origin/main` and needs current-default safety
 evidence.
 
-The new root `scripts/atlas-multiphysics-audit.py` records checkout revision,
-committed gitlink, dirty state, direct provider edges, PyO3/GIL evidence, book
-fences, analytical/differential markers, performance/memory markers, and
-unsafe-code policy. At Atlas `24dfe88`, it finds no CFDrs GIL-release site,
-Kwavers's direct `wgpu` edge, and Helios/Kwavers runnable-book gaps. Blocking
-mode also rejects the dirty, gitlink-drifted provider checkouts;
-`--require-evidence` fails as intended. No provider pointer advances until
-fixes merge to default and exact-head hosted, book, wheel, and Pages evidence
-is terminal.
+The root `scripts/atlas-multiphysics-audit.py` records checkout revision,
+committed gitlink, dirty state, direct provider edges, PyO3/GIL evidence,
+`py.typed`/`.pyi` typing surfaces, book fences, analytical/differential
+markers, performance/memory markers, and unsafe-code policy. At Atlas
+`d1b9e94`, it finds no CFDrs GIL-release site or source typing artifacts; no
+source typing artifacts in Helios or Kwavers; Kwavers's direct `wgpu` edge;
+and Helios/Kwavers runnable-book gaps. Blocking mode also rejects the dirty,
+gitlink-drifted provider checkouts; `--require-evidence` fails as intended.
+No provider pointer advances until fixes merge to default and exact-head
+hosted, book, wheel, and Pages evidence is terminal.
 
 The intentional live conformance scan on the dirty shared tree reports 19
 ratchet increases and 25 decreases. The increases are confined to active
