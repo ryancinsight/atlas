@@ -303,7 +303,8 @@ The hardening is published as PR
 run `32442891996` passes at default `3bc0e43d7c818ffab7092bde2d11d1750e59009c`.
 Deploy mdBook `32442892257` and Pages `32442891128` remain queued; the merged
 `4df62f6` gitlink remains authoritative until those gates and live-page
-verification are terminal.
+verification are terminal. The merged clean lane and its local branch were
+removed after the PR merge; the dirty primary checkout remains untouched.
 
 **Owner:** current Atlas session. **Claimed files:** provider hardening branch
 and PM records only.
@@ -434,7 +435,8 @@ The implementation is published as PR
 `c1c8ab234559a9f58a34d65c32f6096ee69fc012`. PR #120 is merged; post-merge CI
 run `32441333581` passes at default `fc0648ee90d211ce8bb065ff023404483f49041b`.
 Pages run `32441332588` remains queued; the dirty primary Leto gitlink remains
-unchanged until Pages and live-page verification are terminal.
+unchanged until Pages and live-page verification are terminal. The merged clean
+lane and its local branch were removed after the PR merge.
 
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — Remove fabricated quantitative book figures [arch] — done 2026-08-20
 
@@ -609,7 +611,8 @@ The PR's Ubuntu, Windows, MSRV, Miri, compile-fail, Clippy, Nextest, doctest,
 and Rustdoc checks are terminal-successful. Post-merge default runs are
 queued: MSRV `32473974344`, CI `32473974353`, and Pages
 `32473973059`. The dirty primary Themis checkout and Atlas gitlink remain
-unchanged until those runs and the live-page check are terminal.
+unchanged until those runs and the live-page check are terminal. The merged
+clean lane and its local branch were removed after the PR merge.
 
 ## ATLAS-HELIOS-RADON-ORACLE-2026-08-20 — Remove existence-only sinogram assertion [patch] — in progress
 
