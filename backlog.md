@@ -8,19 +8,19 @@
   are out of scope.
 - **Problem:** the exact-head audit reads local `origin/main` or
   `origin/master` refs but describes them as fetched defaults. A stale local
-  ref can therefore misattribute provider drift; the current Kwavers remote
-  default is `b72563148b693b04fd94fc6c9daf362db062a6fa`, while the local ref
-  was `cd87aec5`.
+  ref can therefore misattribute provider drift; at the audit's earlier
+  snapshot the Kwavers remote default was `b72563148b693b04fd94fc6c9daf362db062a6fa`,
+  while the local ref was `cd87aec5`.
 - **Acceptance:** exact-head mode queries each provider's remote default
   branch directly with a bounded timeout, handles `main` and `master`, keeps
   the root gitlink comparison and worker behavior, and has a regression test
   proving the symbolic default branch and remote commit are selected. Output
   names the source as the remote default, not a fetched local ref.
 - **Evidence:** `34` focused provider-audit tests pass. The full `atlas-22`
-  exact-head run queries the current remote default for every selected
-  provider and remains red only for the 13 known gitlink drifts; the current
-  Kwavers remote default is `4d61dbfb`, demonstrating why local
-  remote-tracking refs are not a sufficient oracle.
+  exact-head run queried the remote default for every selected provider and
+  remained red for the release-boundary drifts recorded in the later exact
+  head recheck; the snapshot demonstrated why local remote-tracking refs are
+  not a sufficient oracle.
 
 ## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — in progress
 
@@ -147,7 +147,7 @@
 
 - **Monitor:** the separate hosted snapshot at `2026-08-21T13:34:19Z`
   confirms Horae #26, Proteus #17, Asclepius #25, Hephaestus #216, Gaia #33,
-  Hermes #59, and Iris #19 remain open with queued or pending checks. Helios
+  Hermes #59, and Iris #19 remain open with queued or pending checks. Consus
   #53 targets a stale base; Helios #69 has been refreshed onto current default
   at merge head `9152202` and is awaiting fresh checks. CFDrs #360 has no
   observed workflow run and reports `mergeable=false`.
