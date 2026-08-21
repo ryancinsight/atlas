@@ -3103,8 +3103,9 @@ evidence.
 The new root `scripts/atlas-multiphysics-audit.py` records checkout revision,
 committed gitlink, dirty state, direct provider edges, PyO3/GIL evidence, book
 fences, analytical/differential markers, performance/memory markers, and
-unsafe-code policy. At Atlas `41fe4a9`, it finds CFDrs GIL release and
-Helios/Kwavers runnable-book gaps; `--require-evidence` fails as intended. No
+unsafe-code policy. At Atlas `47b5e2a`, it finds CFDrs GIL release, Kwavers's
+direct `wgpu` edge, and Helios/Kwavers runnable-book gaps;
+`--require-evidence` fails as intended. No
 provider pointer advances until fixes merge to default and exact-head hosted,
 book, wheel, and Pages evidence is terminal.
 
