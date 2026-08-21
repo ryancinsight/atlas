@@ -1,5 +1,86 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-GPU-ACQUISITION-2026-08-21 — Coeus GPU suite restored, Hephaestus diagnostics [patch] — merge pending
+
+- **Owner:** current session; lanes `worktrees/coeus-wgpu-adapter-limits`,
+  `worktrees/hephaestus-book-reground-1`.
+- **Root cause:** `coeus-wgpu`'s `try_get_wgpu_context` set
+  `WGPU_BACKEND=dx12` from library code. Hephaestus takes its explicit
+  DX12-then-Vulkan ladder on Windows *only when no such variable is set*, so the
+  override disabled the path it requested and every acquisition failed with
+  `AdapterUnavailable` on a host with a working RTX 5080. The whole 59-test
+  `coeus-wgpu` GPU suite died at device construction; `hephaestus-wgpu`'s own
+  220/220 passed on the same machine, which is what isolated it.
+- **Result:** Coeus [PR #341](https://github.com/ryancinsight/Coeus/pull/341) —
+  workspace goes from 59 failures to `1340 passed, 0 failed`. Carries a second
+  `[patch]` commit removing a stale `#![expect(clippy::missing_const_for_thread_local)]`
+  in `coeus-autograd` whose reason cites a diagnostic the pinned 1.97.0 clippy
+  does not emit, and which failed `-D warnings` for every dependent target.
+- **Upstream:** Hephaestus [PR #217](https://github.com/ryancinsight/hephaestus/pull/217).
+  `try_default_with_adapter_config` discarded every `request_adapter` and
+  `request_device` error behind `if let Ok(...)`, which is why this needed a
+  bisection rather than an error message. Attempts are now reported
+  individually. The first thing the new message said: **`dx12 support not
+  compiled in`** — the workspace builds `wgpu` with `vulkan`/`metal` only, so
+  the Windows DX12 rung has never run and every Windows build silently lands on
+  Vulkan. Enabling `dx12` is blocked: `gpu-allocator 0.28`'s d3d12 module and
+  the `windows` crate version unified into that graph disagree on
+  `ID3D12Device`, so `wgpu-hal` fails to compile. Recorded at the site.
+- **Bears on the standing finding** that "Apollo, Coeus, and Kwavers GPU suites
+  report green having executed nothing": at least the Coeus half was failing
+  loudly rather than passing vacuously, and the Hephaestus DX12 fact means every
+  Windows GPU result in the stack was produced on Vulkan regardless of what its
+  configuration requested.
+- **Next:** merge order Coeus → Hephaestus. Both are held only by queued hosted
+  runners; `recurseml/analysis` fails on every PR in every repo with "Error
+  occurred during analysis" and is external infrastructure, not a finding.
+
+## ATLAS-KWAVERS-KWAVE-ORACLE-2026-08-21 — k-Wave parity made reproducible [major][arch] — merge pending
+
+- **Owner:** current session; lane `worktrees/kwavers-log` (branch
+  `test/kwavers-kwave-parity-oracle` and its stack).
+- **Gap closed:** the Kwavers README claimed `r >= 0.9999` PSTD parity and
+  located the harness under `external/`, which `.gitignore` excludes and zero
+  tracked files occupy. No reference field was committed anywhere, no Rust test
+  compared against k-Wave, and the Rust-to-pytest bridge hard-sets
+  `KWAVERS_SKIP_KWAVE=1`. The headline validation claim was unreproducible.
+- **Delivered as a patch series:** Kwavers
+  [#597](https://github.com/ryancinsight/kwavers/pull/597) (committed generator,
+  156 KB of reference fields with a provenance manifest, Rust differential test
+  in the default gate, ADR 119),
+  [#599](https://github.com/ryancinsight/kwavers/pull/599) (power-law absorption
+  case), [#600](https://github.com/ryancinsight/kwavers/pull/600) (ADR 120).
+- **Measured:** 2-D `5.50e-7` at `r = 1.000000000`; 3-D `1.06e-4` at
+  `r = 0.999999994`; absorbing 2-D `8.10e-3` at `r = 0.999999924`; FDTD
+  cross-scheme `2.53e-2` at `r = 0.999647`, matching its own fourth-order
+  dispersion error. Five tests, 1.97 s.
+- **Defect the oracle found:** `KW-ABSORPTION-CONFIG-PRECEDENCE` — three sites
+  resolve the power-law coefficient and two disagree. Both callers resolve
+  explicit-wins into `PSTDConfig`; `initialize_absorption_operators` resolves
+  medium-wins and `HomogeneousMedium::new` seeds water's coefficient, which is
+  never zero. A Python caller's `alpha_coeff_db` is therefore silently discarded
+  and the run uses water's value. ADR 120 (Proposed) recommends
+  `alpha_coeff: Option<f64>`; implementation is the item's next increment.
+- **Regeneration** needs `k-wave-python` and its OMP binary, which live outside
+  every stack repo by design. Running the gate needs neither.
+
+## ATLAS-RITK-HEALTH-2026-08-21 — RITK verified; GPU smoother unreachable [patch] — merge pending
+
+- RITK is healthy: `cargo nextest run --workspace` is `5675 passed, 0 failed`
+  with 25 skips, all `#[ignore]`d on downloaded datasets with reasons and
+  re-enable triggers; `cargo clippy --workspace --all-targets -- -D warnings`
+  and `cargo fmt --check` are clean.
+- One substantive gap, filed as RITK
+  [PR #205](https://github.com/ryancinsight/ritk/pull/205):
+  `GpuFieldSmoother<B: Backend>` binds `coeus_core::Backend`, whose only
+  implementors are `SequentialBackend` and `MoiraiBackend` — both CPU.
+  `coeus_wgpu::WgpuBackend` implements `ComputeBackend` and not `Backend`, so
+  the type cannot be instantiated on a device at all; no manifest declares
+  `coeus-wgpu`, no test constructs it, its only doc example is `ignore`d, and its
+  Rustdoc quotes an RTX 3060 timing no reachable path can produce.
+  `ritk-filter` never calls `parallel_for`, so the bound is stronger than the
+  requirement. Decomposes by crate; the device half depends on Coeus #341.
+
 ## ATLAS-KWAVERS-HEPHAESTUS-CONTRACT-2026-08-21 — Define the neutral visualization handoff [major][arch] — in progress
 
 - **Owner:** Atlas integration coordination with Hephaestus provider review.
