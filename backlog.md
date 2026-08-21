@@ -1309,17 +1309,19 @@ API example is included by the book, `mdbook test docs/book` executes it with a
 value-semantic assertion, strict links and `mdbook build` pass, and the change
 is published and verified at its exact provider head. No `rust,ignore` or
 existence-only assertion satisfies the item. PR [#33](https://github.com/ryancinsight/gaia/pull/33)
-is published at exact head `f4e8ddeb0635a79ca48fd5ce45cd2f8e2dbe8f03` after
+is published at exact head `39a4f7fb0349bbd427fd12ddd99b0acc6baa654c` after
 repairing the book workflow to capture only the current Cargo compiler-artifact
 paths before staging them for mdBook. The earlier book run `32417028130`
 tested the pre-repair merge ref and failed with `E0463: can't find crate for
 gaia`; the intermediate run `32459250549` is superseded because its broad
 staging step could select multiple cached Gaia revisions. A local run against
 the shared Atlas cache reproduced that cache-sensitive `E0464: multiple
-candidates` condition. Replacement book run `32473502019` and CI run
-`32473502075` are queued at the exact current head; hosted clean-runner
-execution remains the required staging evidence. Local `mdbook build docs/book`
-and link checking pass at the repaired lane head.
+candidates` condition. The exact-one-library guard is now also enforced.
+Replacement CI run `32473606516` is pending and book run `32473606617` is
+queued at the exact current head; the earlier replacement runs
+`32473502019`/`32473502075` are superseded. Hosted clean-runner execution
+remains the required staging evidence. Local `mdbook build docs/book` and link
+checking pass at the repaired lane head.
 `recurseml/analysis` is report-only.
 
 ## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — Restore exact-default formatting gate [patch] — in progress
