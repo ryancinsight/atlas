@@ -775,6 +775,9 @@ runs remain the only evidence for their held defaults. Helios's default CI
 earlier moving-default run IDs do not prove `d47cfc4e`. No pointer advances
 until each provider's exact hosted evidence and canonical live-page check
 satisfy the acceptance oracle.
+The same refresh's structural-only audit remains `status: ok` with zero
+issues across all 22 registered providers; the failure is pointer/hosted
+evidence state, not a detected registration or coherence defect.
 
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
