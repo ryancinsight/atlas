@@ -716,7 +716,7 @@ Rust/NumPy/supply-chain runs `32423868719` and MSRV run `32423868861` are
 queued. `recurseml/analysis` is report-only.
 
 
-## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — todo
+## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — in progress
 
 **Current claim:** `codex-primary`, 2026-08-21. Scope is the root
 `backlog.md` audit record and the corresponding dated section in
@@ -820,6 +820,27 @@ report-only. No pointer advancement is authorized by this collection.
   No gate result from those trees is attributable to a clean locked revision;
   clean exact-head trees are a prerequisite for the next cross-integrator
   implementation slice.
+
+**Fresh recheck 2026-08-21:** the requested-provider structural audit passes
+20/20 with zero issues; the stack overlay reports aligned requirements and
+locks; registry metadata reports 253 manifests and zero violations; and the
+standalone lock-form audit reports 27 clean locks, with only the documented
+in-tree Melinoe fixture exemption. The committed book inventory has 25
+book-bearing members; Consus, Hephaestus, and RITK are the three current
+members without an executable mdBook sample gate. The lane audit reports four
+violations: Kwavers has five working trees including detached `D:/tmp/kw-verify`
+outside the canonical lane root, and Leto has three trees. No lane was removed
+or switched.
+
+The exact-head provider audit matches only Apollo; the other 19 requested
+gitlinks are behind their fetched provider defaults and remain pointer-update
+watchpoints until the separate hosted monitor supplies terminal PR/default
+CI, Pages, and live-page evidence. Live conformance reports are diagnostic
+only on peer-dirty trees: CFDrs has 88 `allow` sites, 150 existence-only
+assertions, and 139 oversized files; Kwavers has 309 `allow` sites, 265
+existence-only assertions, 229 production unwraps, 111 oversized files, and
+three excess worktrees; Helios has two existence-only assertions and seven
+oversized files. No ratchet baseline was regenerated.
 
 ## ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20 — Ship the typed Python surface [patch] — in progress
 

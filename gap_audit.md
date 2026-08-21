@@ -13519,3 +13519,65 @@ after exact CI `32343473062` and Pages build `32343473408` passed. PM closure PR
 live `https://ryancinsight.github.io/tyche/` HTTP 200 (`Tyche | tyche`) pass.
 The Atlas Tyche gitlink advances to the closure default, and the stale-caller
 inventory is reduced by one.
+
+## Finding 2026-08-21: requested-provider closure recheck
+
+The fresh read-only audit was run against the current Atlas tree and its
+committed provider gitlinks. `atlas-provider-integration-audit.py
+--structural-only --provider-set requested-2026-08-14 --format json` passes for
+all 20 requested providers with zero structural issues. The generated overlay
+check reports aligned requirements and locks. `atlas-registry-metadata.py`
+reports 253 manifests, zero violations, and zero unverified category slugs;
+`atlas-lock-form.py check` reports 27 clean standalone locks, with only the
+documented in-tree Melinoe fixture exemption.
+
+The exact-head audit matches only Apollo. The other 19 committed gitlinks are
+behind fetched defaults:
+
+| Provider | Atlas gitlink | Fetched default |
+| --- | --- | --- |
+| Horae | `a05dbeb` | `d133226` |
+| Hyperion | `4df62f6` | `3bc0e43` |
+| Themis | `c76a55e` | `c441acff` |
+| Tyche | `10410f2` | `89194f3` |
+| Proteus | `8b6321c` | `73c6c81` |
+| Mnemosyne | `6b0e490` | `9da9f92` |
+| Consus | `e121b9d` | `1000699` |
+| Helios | `7ff72e3` | `e886754` |
+| Hermes | `05441dd` | `c647368` |
+| Aequitas | `c0542bf` | `14fdd44` |
+| Asclepius | `2f6959b` | `a38b8b5` |
+| Eunomia | `85e590b` | `22a02b1` |
+| Moirai | `3b81286` | `7f75f5e` |
+| RITK | `d4a978f` | `b35c933` |
+| Melinoe | `689f562` | `922bd3b` |
+| Leto | `c1c8ab2` | `fc0648e` |
+| Hephaestus | `607ce3f` | `7e09efa` (`master`) |
+| Iris | `9672fc0` | `636a261` |
+| Kwavers | `0e78648` | `1d86d64` |
+
+These are delivery watchpoints, not proof that the local provider code is
+wrong: pointers remain unchanged until the separate hosted monitor supplies
+terminal PR/default checks, Pages deployment, and live-page evidence.
+
+The executable-book inventory reports 25 book-bearing members and three
+current missing sample gates at the committed gitlinks: Consus, Hephaestus,
+and RITK. Their provider lanes contain follow-up workflow commits, but their
+committed Atlas revisions do not yet prove the gate; no pointer was advanced.
+
+The lane audit reports four violations: Kwavers has five working trees,
+including detached `D:/tmp/kw-verify` outside the canonical lane root, and Leto
+has three. No lane was switched, removed, or overwritten. Live conformance
+reports are diagnostic because the trees are peer-dirty: CFDrs reports 88
+`allow` sites, 150 existence-only assertions, and 139 oversized files; Kwavers
+reports 309 `allow` sites, 265 existence-only assertions, 229 production
+unwraps, 111 oversized files, and three excess worktrees; Helios reports two
+existence-only assertions and seven oversized files. No baseline was raised.
+
+Next dependency-ordered actions are: collect terminal provider/default/Pages
+evidence; close the Consus, Hephaestus, and RITK book-gate items at their
+provider revisions; merge Harmonia's typed physical-field contract before
+adding CFDrs/Kwavers/Helios adapters; then replace the identified simulated or
+silent backend paths with real dispatch or explicit failure and differential
+tests. Existing backlog items own those actions; this audit adds no duplicate
+implementation item.
