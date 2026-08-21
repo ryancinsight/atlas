@@ -837,6 +837,30 @@ The clean lane passed `cargo clippy --all-targets --all-features --locked -- -D 
 `c39f12a`; the root commit is pushed. Hosted PR checks are monitored separately
 and remain non-terminal until collected.
 
+## ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21 — Execute accelerator routes [major] [arch] — todo
+
+The current Moirai route contract preserves an accelerator label only as
+metadata: `moirai-transport/src/route.rs` maps accelerator routes to the local
+address, and `DevicePayloadRegion` retains a host `Vec<u8>` without device
+allocation or dispatch. Moirai's own gap analysis records that no GPU/TPU/NPU
+backend consumes `SchedulerRoute::Accelerator`.
+
+Scope: a clean, dependency-ordered Hephaestus/Themis integration edge that
+resolves an `AcceleratorId`, dispatches one existing kernel family, and proves
+CPU/WGPU value equivalence plus unavailable-device failure. Preserve the DAG:
+Hephaestus consumes Moirai route/planner contracts; Moirai does not depend on
+Hephaestus. Non-goals: a new accelerator runtime in Moirai, Melinoe stream
+ownership, or broad scheduler redesign.
+
+Acceptance: accelerator identity survives route resolution; a present device
+executes a real kernel and returns its value-semantic result; a missing device
+returns a typed error; CPU/WGPU differential tests, route-identity tests, and
+a bounded transfer/dispatch smoke pass. Claim only after refreshing the
+provider defaults and reconciling the existing dirty/detached checkouts.
+
+Owner: unclaimed. Dependencies: clean Hephaestus/Themis bases and current
+Moirai route contract. Risk/change class: `[major] [arch]`.
+
 **Outcome:** close the remaining cross-cutting correctness and evidence
 deficits in the order below, so that a green gate means what it claims.
 

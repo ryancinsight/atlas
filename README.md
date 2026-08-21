@@ -600,7 +600,7 @@ aequitas quantities ── deposition spine ── every modality:
     transport ─> Intensity / VolumetricPowerDensity ─> bioheat ─> asclepius
 
 proteus ── elastic-property SSOT ── CFDrs / kwavers
-horae ── embedded-step policy ── kwavers chemistry
+horae ── embedded-step policy (consumer-gated; no current caller) ── kwavers chemistry
 
 future, only after the P2-B promotion trigger:
 proteus + leto ── ares ── CFDrs / kwavers
