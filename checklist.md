@@ -3,6 +3,29 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-BOARD-COMPACT-PATCH-2026-08-21 — current session
+
+- [x] Reproduce the prior-archive loss: rerun atlas-board-compact.py on a
+      file that already carries `## Archive — closed items` and observe the
+      body's one-line entries collapse into a single `(unnumbered) Archive`
+      line bounded at four SHA references; the
+      `ATLAS-PROVIDER-INTEGRATION-AUDIT-001` line disappears from the file
+      and the provider-integration audit's structural check fails.
+- [x] Add archive-preservation logic to scripts/atlas-board-compact.py:
+      peel the existing archive heading off before classifying items,
+      dedupe by item ID against the preserved archive, normalize trailing
+      blank padding so successive runs are idempotent.
+- [x] Add focused regression suite scripts/tests/test_atlas_board_compact.py
+      with five cases: verbatim body preservation, run idempotence, the
+      audit record's survival, freshly-classified item archival, and
+      stability on an archive with many items.
+- [x] Run the focused suite: `5 passed`. Provider-integration audit
+      `--structural-only` returns OK with
+      `ATLAS-PROVIDER-INTEGRATION-AUDIT-001 closed across root records`.
+      Atlas-board-compact dry-run on the live trees reports stable counts
+      (`backlog.md 9772 lines, 219 items, 0 would archive`,
+      `checklist.md 6535 lines, 218 items, 0 would archive`).
+
 ## ATLAS-HYGIENE-BASELINE-001 — current conformance increment
 
 - [x] Reproduce the live-scan abort in a provider-local `.pytest_cache` and
@@ -15,10 +38,16 @@
       files (`python-ci.yml`, `python-release.yml`) after upstream commit
       `113a7f9` replaced the overlaid files; `workflow_missing_timeout`
       returns to 0 and both files parse cleanly under `yaml.safe_load`.
-- [x] Assess `missing_deny_docs = 118` as the natural Step 5: 114 of 118
-      crates have undocumented public items, so the directive cannot be
-      safely added without per-crate provider documentation work. Classified
-      as a provider-level watchpoint, not an Atlas-side editorial sweep.
+- [x] Assess `missing_deny_docs = 118` as a natural Step 5 candidate: 114
+      of 118 crates have undocumented public items, so the directive cannot
+      be safely added without per-crate provider documentation work.
+      Classified as a provider-level watchpoint, not an Atlas-side editorial
+      sweep.
+- [x] Resolve `tag_pinned_actions = 68` (athena 6, kwavers 62) as audit-sweep
+      Step 5: resolve 13 unique action+ref pairs to 40-char SHAs via `gh api`,
+      rewrite each `@<ref>` to `@<sha> # <ref>` in 5 workflow files, and verify
+      both repos report 0 with no other class increasing. All overlaid files
+      parse cleanly under `yaml.safe_load`.
 - [ ] Re-run the clean-revision ratchet after the provider workflow changes
       land and their parent gitlinks advance; do not baseline the current
       peer-dirty worktree result.
