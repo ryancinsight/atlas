@@ -695,15 +695,16 @@ Hephaestus, and RITK. The Atlas Python suite passes 277 tests and 77 subtests.
 Peer checkout dirt and queued hosted checks remain outside local green
 evidence.
 
-**Latest fetched exact-head recheck (root `9c5f070`, after refreshing all 20
-provider remotes):** 4/20 requested-provider gitlinks match their fetched
-defaults. The 16 expected post-merge drifts are Horae `a05dbeb`→`d014929`,
+**Latest fetched exact-head recheck (2026-08-20, after refreshing all 20
+provider remotes):** 2/20 requested-provider gitlinks match their fetched
+defaults. The 18 expected post-merge drifts are Horae `a05dbeb`→`d014929`,
 Hyperion `4df62f63`→`91df53e9`, Themis `c76a55e`→`c441acff`, Tyche
 `10410f2`→`89194f39`, Proteus `8b6321c`→`73c6c813`, Mnemosyne
-`6b0e490`→`9da9f92`, Hermes `05441dd`→`c6473688`, Aequitas
+`6b0e490`→`9da9f92`, Consus `e121b9d`→`1000699f`, Helios
+`7ff72e3`→`e886754d`, Hermes `05441dd`→`c6473688`, Aequitas
 `c0542bf`→`14fdd44c`, Asclepius `2f6959b`→`ce3fea35`, Eunomia
 `85e590b`→`22a02b18`, Moirai `3b81286`→`7f75f5e6`, RITK
-`d4a978f`→`81968095`, Melinoe `689f562`→`8a67d146`, Hephaestus
+`d4a978f`→`b35c9331`, Melinoe `689f562`→`8a67d146`, Hephaestus
 `607ce3f`→`7e09efa9` on `master`, and Iris `9672fc0`→`8700418a`;
 Kwavers independently drifts `0e78648`→`85d00716`. These are not local
 implementation failures: the associated post-merge hosted runs are queued,
