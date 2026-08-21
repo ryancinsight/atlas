@@ -651,6 +651,19 @@ class ProviderIntegrationAuditTestCase(unittest.TestCase):
         self.assertIsNone(commit)
         self.assertIn("origin URL does not match", error or "")
 
+    def test_committed_provider_url_reads_the_final_submodule_entry(self) -> None:
+        manifest = (
+            '[submodule "repos/asclepius"]\n'
+            "\tpath = repos/asclepius\n"
+            "\turl = https://github.com/ryancinsight/asclepius.git\n"
+        )
+        with patch.object(
+            audit, "_git_output", return_value=(0, manifest, "")
+        ):
+            url, error = audit._committed_provider_url("asclepius")
+        self.assertEqual(url, "https://github.com/ryancinsight/asclepius.git")
+        self.assertIsNone(error)
+
     def test_requested_provider_set_uses_twenty_scope(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-provider-audit-") as temp:
             root = Path(temp)

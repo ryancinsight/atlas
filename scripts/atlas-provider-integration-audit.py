@@ -177,7 +177,7 @@ def _committed_provider_url(provider: str) -> tuple[str | None, str | None]:
         return None, error or "committed .gitmodules is unavailable"
     current_path: str | None = None
     current_url: str | None = None
-    for raw_line in text.splitlines() + ["[end]"]:
+    for raw_line in text.splitlines():
         line = raw_line.strip()
         header = re.match(r'^\[submodule\s+"([^"]+)"\]$', line)
         if header:
@@ -190,6 +190,8 @@ def _committed_provider_url(provider: str) -> tuple[str | None, str | None]:
             current_path = line.split("=", 1)[1].strip().replace("\\", "/")
         elif current_path is not None and line.startswith("url") and "=" in line:
             current_url = line.split("=", 1)[1].strip()
+    if current_path == f"repos/{provider}" and current_url:
+        return current_url, None
     return None, f"repos/{provider} has no committed submodule URL"
 
 

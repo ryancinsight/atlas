@@ -266,9 +266,13 @@ and live-page verification are terminal.
   Clippy, Nextest, doctest, and Rustdoc gates; then collect hosted terminal
   CI/Pages and live-page evidence before advancing the Atlas gitlink.
 - **Current evidence:** the new generic f64 oracle and the existing five
-  fixed-step tests pass 6/6; warning-denied all-target Clippy passes. Provider
-  doctest/Rustdoc are pending the shared build lock, and no Atlas pointer has
-  changed.
+  fixed-step tests pass 6/6; the locked all-featured provider suite passes
+  26/26; the no-default-features check, warning-denied all-target Clippy,
+  doctest 1/1, and warning-denied Rustdoc pass. PR
+  [#26](https://github.com/ryancinsight/horae/pull/26) is ready at
+  `eb0e60b`; `verify` and `supply-chain` are queued, CodeRabbit is pending,
+  and `recurseml/analysis` is erroring. The live Pages site returns HTTP 200
+  with title `Horae | horae`; no Atlas pointer has changed.
 
 ## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — in progress
 
