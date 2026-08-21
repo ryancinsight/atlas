@@ -837,7 +837,7 @@ The clean lane passed `cargo clippy --all-targets --all-features --locked -- -D 
 `c39f12a`; the root commit is pushed. Hosted PR checks are monitored separately
 and remain non-terminal until collected.
 
-## ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21 — Execute accelerator routes [major] [arch] — todo
+## ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21 — Execute accelerator routes [major] [arch] — in-progress
 
 The current Moirai route contract preserves an accelerator label only as
 metadata: `moirai-transport/src/route.rs` maps accelerator routes to the local
@@ -852,14 +852,26 @@ Hephaestus consumes Moirai route/planner contracts; Moirai does not depend on
 Hephaestus. Non-goals: a new accelerator runtime in Moirai, Melinoe stream
 ownership, or broad scheduler redesign.
 
+Current slice: replace Moirai transport's metadata-only accelerator address
+resolution with a typed resolution that preserves the scheduler route and
+accelerator identity while retaining a transport address for the later
+Hephaestus edge. The package lane is `worktrees/moirai-package`, claimed for
+`moirai-transport` route source/tests and its provider ADR only. Dispatch and
+CPU/WGPU execution remain a later Hephaestus/Themis slice after their bases are
+refreshed; this slice does not claim device execution.
+
 Acceptance: accelerator identity survives route resolution; a present device
 executes a real kernel and returns its value-semantic result; a missing device
 returns a typed error; CPU/WGPU differential tests, route-identity tests, and
 a bounded transfer/dispatch smoke pass. Claim only after refreshing the
 provider defaults and reconciling the existing dirty/detached checkouts.
 
-Owner: unclaimed. Dependencies: clean Hephaestus/Themis bases and current
-Moirai route contract. Risk/change class: `[major] [arch]`.
+Owner: codex-primary. Claimed scope: `worktrees/moirai-package`,
+`moirai-transport/src/route.rs`, `moirai-transport/src/route/tests.rs`, and
+the provider ADR/index needed for this route-contract replacement. Dependencies:
+current Moirai origin route contract; Hephaestus/Themis clean bases remain a
+dependency for the subsequent dispatch slice. Risk/change class: `[major]
+[arch]`. Last update: 2026-08-21.
 
 **Outcome:** close the remaining cross-cutting correctness and evidence
 deficits in the order below, so that a green gate means what it claims.
