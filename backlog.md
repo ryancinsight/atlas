@@ -833,8 +833,8 @@ members without an executable mdBook sample gate. The lane audit reports six
 violations: CFDrs has three working trees including detached
 `D:/atlas/worktrees/cfdrs-fmt`; Kwavers has five working trees including
 detached `D:/tmp/kw-verify` outside the canonical lane root; and Leto has three
-trees. The stale merged Hephaestus lane was removed after ancestry validation;
-no peer-owned lane was switched or deleted.
+trees. The stale merged Hephaestus and Hermes lanes were removed after ancestry
+validation; no peer-owned lane was switched or deleted.
 
 The earlier exact-head snapshot matched only Apollo; the current refresh below
 supersedes that count. The other findings remain pointer-update watchpoints
