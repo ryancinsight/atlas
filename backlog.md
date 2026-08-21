@@ -1,5 +1,28 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert valid stack construction [patch] — in progress
+
+The Leto `from_stack_validates_capacity` test asserts only that the valid
+`Array::from_stack` call returns `Ok`. That is an existence-only assertion:
+the test does not prove that the returned array preserves the requested shape
+or inline storage values.
+
+**Scope:** Leto `crates/leto/tests/core/stack_storage.rs` on a clean lane
+based on fetched `origin/main`, plus provider PM records and these root PM
+entries. Replace the valid-path existence assertion with value-semantic
+checks for the constructed array. Preserve the negative capacity case and do
+not touch the dirty primary checkout or unrelated Leto files.
+
+**Acceptance:** the valid result is consumed without a vacuous assertion and
+checks shape, size, and inline values; the invalid result remains a typed
+failure assertion; provider format, locked checks, warning-denied Clippy,
+nextest, doctests, and Rustdoc pass; the conformance scan removes this
+existence-only finding without increasing another class.
+
+**Owner:** current Atlas session. **Claimed files:** Leto
+`crates/leto/tests/core/stack_storage.rs` in a new clean lane, provider PM
+records for this item, and root `backlog.md`/`checklist.md`.
+
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — Remove fabricated quantitative book figures [arch] — done 2026-08-20
 
 The root figure generator currently renders fixed numerical-looking benchmark,

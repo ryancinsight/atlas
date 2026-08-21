@@ -3,6 +3,17 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — current session
+
+- [ ] Create a clean Leto lane from fetched `origin/main`; preserve the dirty
+      primary checkout and its three-commit lag.
+- [ ] Replace the valid `from_stack` `is_ok()` assertion with shape, size, and
+      storage-value assertions while retaining the invalid-capacity check.
+- [ ] Run exact-lane format, locked checks, nextest, Clippy, doctests, and
+      Rustdoc; verify the conformance count decreases without collateral debt.
+- [ ] Publish the exact provider branch and record hosted/publication status
+      without advancing the dirty Atlas gitlink.
+
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — current session
 
 - [x] Record ADR 0049 and claim the root-owned figure-generator scope.
