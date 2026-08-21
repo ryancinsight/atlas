@@ -506,8 +506,10 @@
       `32413789452` (CUDA), `32413789434` (ROCm), and `32413789435` (Metal),
       queued at collection time. Hardware execution remains intentionally
       skipped.
-- [ ] Collect terminal exact-head evidence, merge, verify the post-merge
-      default, and advance the Atlas gitlink only after those gates pass.
+- [x] Collect terminal exact-head evidence, merge, and verify the post-merge
+      default: WGPU, CUDA, ROCm, Metal, mdBook, and Pages pass; live Pages
+      returns HTTP 200 with the expected title. Advance the Atlas gitlink to
+      provider master `7e09efa` without switching the dirty primary checkout.
 
 ## ATLAS-COEUS-BOOK-TEST-2026-08-20 — current session
 

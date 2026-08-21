@@ -1394,11 +1394,10 @@ book coverage remains a separate open integration item.
   crate declarations, removed two unused imports, and repinned Atlas staging
   to `20c9398`; local diff-check, mdBook build, strict links (14 files/13
   links), and workflow-shape checks passed. PR [#214](https://github.com/ryancinsight/hephaestus/pull/214)
-  merged at provider `master` `7e09efa`. Its clean lane was removed after
-  validating that `ae4fd6a` is an ancestor of the fetched default; no source
-  or Atlas gitlink changed. Post-merge provider/backend/book status remains
-  the acceptance watchpoint, and no pointer advance is inferred from this
-  local cleanup.
+  merged at provider `master` `7e09efa`. Post-merge provider jobs for WGPU,
+  CUDA, ROCm, and Metal pass; the mdBook build and Pages deployment pass; and
+  live Pages returns HTTP 200 with the expected Hephaestus title. The Atlas
+  pointer advances to `7e09efa` without switching the dirty primary checkout.
 
 - **Coeus executable book gate:** current Atlas session claims only
   `coeus/.github/workflows/book-pages.yml` on a clean `coeus-book-test` lane
