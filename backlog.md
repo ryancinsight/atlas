@@ -662,13 +662,17 @@ consumer dependency. Risk/change class: `[major] [arch]`. Last update:
 2026-08-21.
 
 Implementation is complete on Eunomia branch `fix/eunomia-nan-contract` at
-`ba51a16`, with provider evidence recorded at `f6eceb1`. The provider PR is
-[Eunomia #72](https://github.com/ryancinsight/eunomia/pull/72). Local exact-
-head evidence covers format, strict all-target/all-feature Clippy, Nextest
-138/138, doctests 9/9, Rustdoc, locked package listing, workflow-equivalent
-fresh-staged mdBook tests, and mdBook build. Hosted checks and merge remain
-pending; the Atlas `repos/eunomia` gitlink stays unchanged until the provider
-default branch has terminal evidence.
+`c877ea9` (code fix `ba51a16`, evidence/docs follow-ups `f6eceb1`, `8c4510e`,
+`0cf3c7d`, and `c877ea9`). The provider PR is [Eunomia
+#72](https://github.com/ryancinsight/eunomia/pull/72), and the independent
+judge accepts the exact range with no blocking finding. Final-code-head local
+evidence covers format, strict all-target/all-feature Clippy, Nextest 138/138,
+doctests 9/9, Rustdoc, locked package listing, and static mdBook build.
+Workflow-equivalent fresh-staged mdBook tests passed at the unchanged book
+implementation head `ba51a16`; the final local sample rerun is bounded by
+shared-target cache contamination and remains a hosted-build watchpoint.
+Hosted checks and merge remain pending; the Atlas `repos/eunomia` gitlink stays
+unchanged until the provider default branch has terminal post-merge evidence.
 
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — in progress
 
