@@ -737,6 +737,19 @@ HTTP 200 with the expected titles at
 `https://ryancinsight.github.io/Moirai/`. Atlas advances the two gitlinks to
 `9da9f92e3` and `7f75f5e6`. No provider source or nested checkout changes.
 
+**Residual exact-head sweep (2026-08-21):** after the six integration batches,
+the exact-head audit reports only eight intentional drifts. Horae
+`d1332267` is held by queued Pages run `32441332430`; Hyperion `3bc0e43d` has
+nonterminal mdBook/Pages runs `32442892257`/`32442891128`; Helios `e886754d`
+has Rust/Python CI `32436531185` but its benchmark job is skipped and no exact
+book/Pages run exists; Asclepius `a38b8b50`, Melinoe `922bd3be`, Leto
+`fc0648ee`, and Iris `636a2613` each have queued Pages runs
+`32441332866`, `32441332513`, `32441332588`, and `32442164004`; Kwavers
+`e236e07a` has all current CI, architecture, legacy, and mdBook workflows
+queued (`32471837383`, `32471837427`, `32471837399`, `32471837670`). No
+pointer advances until each provider's exact hosted evidence and canonical
+live-page check satisfy the acceptance oracle.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
