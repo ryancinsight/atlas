@@ -1182,10 +1182,10 @@ standalone lock-form audit reports 27 clean locks, with only the documented
 in-tree Melinoe fixture exemption. The committed book inventory has 25
 book-bearing members; Consus, Hephaestus, and RITK are the three current
 members without an executable mdBook sample gate. After removing the clean
-merged snapshots and empty husks, the lane audit reports two violations:
+merged snapshots and empty husks, the lane audit reports one violation:
 Kwavers has five working trees including detached `D:/tmp/kw-verify` outside
-the canonical lane root, and Leto has three trees. CFDrs, Consus, and RITK are
-at the two-tree bound. No dirty lane was switched or deleted.
+the canonical lane root. CFDrs, Consus, Leto, and RITK are at the two-tree
+bound. No dirty lane was switched or deleted.
 
 The earlier exact-head snapshot matched only Apollo; the current refresh below
 supersedes that count. The other findings remain pointer-update watchpoints
@@ -5085,11 +5085,10 @@ creation precondition, not an aspiration.
 | repo | trees | bound |
 |---|---|---|
 | kwavers | 5 | 2 |
-| leto | 3 | 2 |
 
-`worktrees/` currently holds **25 directories**, including the sanctioned
+`worktrees/` currently holds **16 directories**, including the sanctioned
 `.archive` metadata directory. The former empty Consus lane directory and
-two empty root Consus husks were removed after confirming zero children. One
+two empty root Consus husks were removed after confirming zero children. The
 remaining structural violation is the clean detached Kwavers lane at
 `D:/tmp/kw-verify`, outside the single canonical lane root; it remains
 unremoved because it is an external checkout whose ownership is not
