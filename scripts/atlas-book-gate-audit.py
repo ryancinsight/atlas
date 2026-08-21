@@ -45,6 +45,9 @@ DIRECT_COMMAND_RE = re.compile(
 )
 RUST_FENCE_RE = re.compile(r"^\s*```(?:rust|rs)(?P<attributes>(?:,[^\s]+)*)\s*$")
 SUMMARY_LINK_RE = re.compile(r"\]\((?P<target>[^)#]+)(?:#[^)]*)?\)")
+IMAGE_LINK_RE = re.compile(
+    r"!\[[^\]]*\]\((?P<target>[^)\s]+)(?:\s+['\"][^)]*['\"])?\)"
+)
 RUN_RE = re.compile(r"^(?P<indent>\s*)(?:-\s+)?run:\s*(?P<body>.*)$")
 
 
@@ -60,6 +63,7 @@ class BookGate:
     reason: str
     rust_fences: int = 0
     executable_rust_fences: int = 0
+    missing_figures: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -238,6 +242,57 @@ def _book_fence_counts(member: str, gitlink: str, summary: str) -> tuple[int, in
     return rust_fences, executable
 
 
+def _book_figure_gaps(
+    member: str, gitlink: str, sources: tuple[str, ...]
+) -> tuple[str, ...]:
+    """Return rendered-book image targets absent from the committed tree."""
+    if not sources:
+        return ()
+    code, output, _ = _git(
+        "-C",
+        str(ROOT / "repos" / member),
+        "grep",
+        "-I",
+        "-n",
+        "-E",
+        r"!\[[^]]*\]\([^)]+\)",
+        gitlink,
+        "--",
+        "docs/book",
+    )
+    if code not in {0, 1}:
+        raise AuditReadError(
+            "git grep failed while reading committed book figures"
+        )
+
+    source_set = set(sources)
+    missing: set[str] = set()
+    for line in output.splitlines():
+        _, separator, record = line.partition(":")
+        if separator == "":
+            continue
+        path, separator, content = record.partition(":")
+        if separator == "" or path not in source_set:
+            continue
+        for match in IMAGE_LINK_RE.finditer(content):
+            target = match.group("target").split("#", 1)[0].strip()
+            if not target or target.startswith(("#", "/")) or target.lower().startswith(
+                ("http://", "https://", "mailto:", "data:")
+            ):
+                continue
+            resolved = posixpath.normpath(
+                posixpath.join(posixpath.dirname(path), target)
+            )
+            if not resolved.startswith("docs/book/"):
+                continue
+            read = _at_gitlink(member, gitlink, resolved)
+            if read.error is not None:
+                raise AuditReadError(read.error)
+            if read.missing:
+                missing.add(resolved)
+    return tuple(sorted(missing))
+
+
 def audit() -> list[BookGate]:
     """Read and classify every member participating in the book inventory."""
     results: list[BookGate] = []
@@ -317,6 +372,9 @@ def audit() -> list[BookGate]:
             rust_fences, executable = _book_fence_counts(
                 member, gitlink, summary_read.text or ""
             )
+            missing_figures = _book_figure_gaps(
+                member, gitlink, _summary_sources(summary_read.text or "")
+            )
         except AuditReadError as error:
             results.append(
                 BookGate(member, gitlink, True, True, "invalid", str(error))
@@ -325,6 +383,10 @@ def audit() -> list[BookGate]:
         gate, reason = classify_coverage(
             *classify_workflow(workflow), executable
         )
+        if missing_figures:
+            reason = (
+                f"{reason}; {len(missing_figures)} referenced figure(s) missing"
+            )
         results.append(
             BookGate(
                 member,
@@ -335,6 +397,7 @@ def audit() -> list[BookGate]:
                 reason,
                 rust_fences,
                 executable,
+                missing_figures,
             )
         )
     return results
@@ -352,7 +415,8 @@ def _print_text(results: list[BookGate]) -> None:
         f"shared={counts.get('shared-input', 0)}, "
         f"direct={counts.get('direct-command', 0)}, "
         f"vacuous={sum(value for key, value in counts.items() if key.startswith('vacuous-'))}, "
-        f"missing-or-invalid={sum(value for key, value in counts.items() if key not in {'shared-input', 'direct-command'})}"
+        f"missing-or-invalid={sum(value for key, value in counts.items() if key not in {'shared-input', 'direct-command'})}, "
+        f"missing-figures={sum(bool(item.missing_figures) for item in results)}"
     )
 
 
@@ -368,6 +432,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="also fail until every book has an executable sample gate",
     )
+    parser.add_argument(
+        "--require-figures",
+        action="store_true",
+        help="fail when a rendered book references a missing local figure",
+    )
     parser.add_argument("--format", choices=("text", "json"), default="text")
     args = parser.parse_args(argv)
     results = audit()
@@ -375,26 +444,30 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps([asdict(item) for item in results], indent=2, sort_keys=True))
     else:
         _print_text(results)
+    failures: list[BookGate] = []
+    failure_messages: list[str] = []
     if args.require_gates:
         failures = [
             item
             for item in results
             if item.gate not in {"shared-input", "direct-command"}
         ]
-        failure_message = (
+        failure_messages.append(
             f"book-gate-audit: {len(failures)} inventory entry(s) lack an executable gate"
         )
     elif args.check:
         failures = [item for item in results if item.gate == "invalid"]
-        failure_message = f"book-gate-audit: {len(failures)} invalid inventory entry(s)"
-    else:
-        failures = []
-        failure_message = ""
-    if failures:
-        print(
-            failure_message,
-            file=sys.stderr,
+        failure_messages.append(
+            f"book-gate-audit: {len(failures)} invalid inventory entry(s)"
         )
+    if args.require_figures:
+        figure_failures = [item for item in results if item.missing_figures]
+        failures.extend(item for item in figure_failures if item not in failures)
+        failure_messages.append(
+            f"book-gate-audit: {len(figure_failures)} inventory entry(s) reference missing figures"
+        )
+    if failures:
+        print("; ".join(failure_messages), file=sys.stderr)
         return 1
     return 0
 

@@ -155,6 +155,40 @@ fn executes() {}
              "docs/book/examples/sample.md"),
         )
 
+    def test_missing_local_book_figures_are_reported(self) -> None:
+        grep_output = (
+            "a:docs/book/chapter.md:4:![Missing](figures/missing.svg)\n"
+            "a:docs/book/chapter.md:5:![External](https://example.com/figure.svg)\n"
+        )
+        with patch.object(
+            audit, "_git", return_value=(0, grep_output, "")
+        ), patch.object(
+            audit,
+            "_at_gitlink",
+            return_value=audit.GitRead(None, missing=True),
+        ):
+            missing = audit._book_figure_gaps(
+                "demo", "a" * 40, ("docs/book/chapter.md",)
+            )
+        self.assertEqual(missing, ("docs/book/figures/missing.svg",))
+
+    def test_require_figures_fails_on_reported_gap(self) -> None:
+        result = audit.BookGate(
+            "apollo",
+            "abc123",
+            True,
+            True,
+            "shared-input",
+            "mdbook-test: true",
+            missing_figures=("docs/book/figures/missing.svg",),
+        )
+        stderr = io.StringIO()
+        with patch.object(audit, "audit", return_value=[result]), patch(
+            "sys.stderr", stderr
+        ):
+            self.assertEqual(audit.main(["--require-figures"]), 1)
+        self.assertIn("reference missing figures", stderr.getvalue())
+
     def test_combined_check_reports_missing_gate(self) -> None:
         result = audit.BookGate("apollo", "abc123", True, True, "none", "no gate")
         stderr = io.StringIO()

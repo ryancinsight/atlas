@@ -2,10 +2,12 @@
 
 ## ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21 — Restore generated validation figures [patch] — in progress
 
-- **Audit evidence:** the independent book/validation sweep found referenced
-  figures absent from the committed provider trees: RITK `77`, Kwavers `99`,
-  Eunomia `17`, Coeus `12`, and Horae `8`. Tyche has a separate seven-figure
-  gap. Helios's inspected generator dry-run found all `46` referenced figures.
+- **Audit evidence:** the independent provider generator dry-run found expected
+  figure artifacts absent from the committed provider trees: RITK `77`,
+  Kwavers `99`, Eunomia `17`, Coeus `12`, and Horae `8`. Tyche has a separate
+  seven-figure gap. Helios's inspected generator dry-run found all `46`
+  expected artifacts. The root Markdown-link check is a separate oracle and
+  currently reports `missing-figures=0` at the committed Atlas gitlinks.
 - **Acceptance:** each referenced figure is produced by the provider's
   canonical generator, committed at the provider source head, and covered by
   a deterministic existence check in the provider's book gate. No hand-made
