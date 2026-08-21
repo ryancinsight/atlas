@@ -3113,6 +3113,13 @@ gitlink-drifted provider checkouts; `--require-evidence` fails as intended.
 No provider pointer advances until fixes merge to default and exact-head
 hosted, book, wheel, and Pages evidence is terminal.
 
+The Tyche edge is real source consumption, not an unused manifest entry:
+CFDrs imports `tyche_core` in `cfd-optim` sampling, Helios imports
+`Seed`/`SplitMix64`/`StandardNormal` in imaging noise, and Kwavers imports
+Tyche designs, seeds, moments, and conformal calibration in its analysis and
+geometry sampling modules. These references were checked in the live
+provider trees; they do not substitute for clean exact-head or hosted proof.
+
 The checker’s focused suite passes `7/7`; the complete root Python suite at
 Atlas `158aeca` passes `233/233` in `7.5 s`. The requested-provider structural
 audit remains `20/20` with zero issues, the development overlay reports
