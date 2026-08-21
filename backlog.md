@@ -829,10 +829,12 @@ locks; registry metadata reports 253 manifests and zero violations; and the
 standalone lock-form audit reports 27 clean locks, with only the documented
 in-tree Melinoe fixture exemption. The committed book inventory has 25
 book-bearing members; Consus, Hephaestus, and RITK are the three current
-members without an executable mdBook sample gate. The lane audit reports four
-violations: Kwavers has five working trees including detached `D:/tmp/kw-verify`
-outside the canonical lane root, and Leto has three trees. No lane was removed
-or switched.
+members without an executable mdBook sample gate. The lane audit reports six
+violations: CFDrs has three working trees including detached
+`D:/atlas/worktrees/cfdrs-fmt`; Kwavers has five working trees including
+detached `D:/tmp/kw-verify` outside the canonical lane root; and Leto has three
+trees. The stale merged Hephaestus lane was removed after ancestry validation;
+no peer-owned lane was switched or deleted.
 
 The earlier exact-head snapshot matched only Apollo; the current refresh below
 supersedes that count. The other findings remain pointer-update watchpoints
