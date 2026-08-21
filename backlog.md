@@ -143,6 +143,24 @@
   current failed, stale-base, and queued PRs remain filed in the hosted
   recheck above.
 
+## ATLAS-HOSTED-SNAPSHOT-2026-08-21 — Reconcile PR and Pages state [patch] — done 2026-08-21
+
+- **Monitor:** the separate hosted snapshot at `2026-08-21T13:34:19Z`
+  confirms Horae #26, CFDrs #360, Helios #69, and Consus #53 remain open with
+  queued or stale-base checks. Apollo #109, Moirai #147, and Harmonia #9 are
+  merged, but their current-default post-merge checks were not all terminal at
+  the snapshot.
+- **Pointer-ready evidence:** Aequitas `14fdd44c`, Asclepius `a38b8b50`,
+  Hermes `c6473688`, Iris `636a2613`, Melinoe `922bd3be`, and Proteus
+  `73c6c813` have terminal hosted checks and HTTP 200 Pages probes in the
+  snapshot. Root pointer changes are still withheld where the nested checkout
+  is dirty or a peer owns the pointer hunk.
+- **Residual:** Kwavers typed Python and analysis-owned WGPU gaps remain code
+  work. Existing Kwavers lanes are dirty or occupied by open PRs, so no new
+  worktree or overlapping implementation was created. CFDrs and Helios PR
+  heads contain provider-side closures but remain unintegrated until exact
+  hosted merge and post-merge evidence is terminal.
+
 ## ATLAS-INTEGRATOR-AUDIT-2026-08-21 — Recheck cross-provider contracts [patch] — done 2026-08-21
 
 - **Provider registration:** the structural audit passes for all 22 Atlas

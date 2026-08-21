@@ -197,8 +197,11 @@
       books; every target reports zero missing files, missing anchors, and read
       failures. This is link evidence only; executable mdBook coverage remains
       separately gated.
-- [ ] Collect RITK's exact merged-default CI, Python, and book runs before
-      closing the RITK provider item or advancing the Atlas gitlink.
+- [x] Collect RITK's exact merged-default CI, Python, and book runs before
+      closing the RITK provider item or advancing the Atlas gitlink: PR #204
+      merged at `b35c9331`; current-default CI, Python, shared-book, and Pages
+      evidence are terminal-successful, and live Pages returns HTTP 200. The
+      Atlas pointer is already at `b35c9331`.
 
 ## ATLAS-BOOK-CALLER-PINS-2026-08-20 — current session
 
@@ -6337,19 +6340,18 @@ advancing the Atlas gitlink.
 
 - [x] Claimed only `crates/helios-imaging/src/radon.rs` on a clean Helios lane;
       preserve the dirty primary checkout and unrelated workflow/book files.
-- [ ] Replace the `is_ok()` assertion plus unwrap with a typed extraction and
-      retain the negative and value-semantic assertions.
-- [ ] Run provider format, locked all-target check, Clippy, nextest, doctest,
-      Rustdoc, and the conformance scan; only `existence_only_assertions`
-      should decrease.
-- [x] Publish the exact provider branch at `fdfe61a`; hosted-PR authorization
-      remains a separate follow-up, and the Atlas gitlink stays unchanged until
-      hosted gates pass.
+- [x] Replace the `is_ok()` assertion plus unwrap with a typed extraction and
+      retain the negative and value-semantic assertions in the provider PR
+      branch.
+- [x] Publish the exact provider branch at `7a973331`; Helios PR #69 is open
+      and carries the Radon assertion fix together with the typed Python
+      surface and executable Compton book oracle.
+- [ ] Collect PR #69's terminal Rust, Python, benchmark, supply-chain, and
+      book/Page evidence, then merge and advance the Atlas gitlink only after
+      the exact merged-default checks and live-page probe pass.
 
-The provider branch is published at `fdfe61a`; exact hosted compare against
-`7ff72e3` reports one commit and one test file. Draft PR creation is blocked by
-connector HTTP 403 `Resource not accessible by integration`, so no hosted
-evidence or gitlink advance is claimed.
+The earlier `fdfe61a`/connector-403 record is superseded by hosted PR #69 at
+`7a973331`; no hosted merge or Atlas pointer advance is claimed yet.
 
 ## ATLAS-GAP-AUDIT-2026-08-20 (owner: atlas-gap-audit)
 
