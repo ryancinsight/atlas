@@ -12195,7 +12195,7 @@ committed baseline — the overlay config was caught by a build failure instead,
 so this is a complement to, not a replacement for, generated-artifact validation
 (now gated by `atlas-stack-overlay.py check`).
 
-## ATLAS-BOARD-DELIVERY-AUDIT-101 — advisory sweep for undelivered done-claims [patch] — in-progress
+## ATLAS-BOARD-DELIVERY-AUDIT-101 — advisory sweep for undelivered done-claims [patch] — done 2026-08-21
 
 - **Owner / claim:** Codex, `scripts/atlas-board-delivery-audit.py`, its focused
   unittest module, and this board item; claimed 2026-08-21. Scope is report-only
@@ -12204,13 +12204,18 @@ so this is a complement to, not a replacement for, generated-artifact validation
 
 **Outcome.** A committed script that, for every done/merged row of this board,
 resolves each cited commit hash in the owning member and reports those that are
-not ancestors of that member's , with the branch and PR state that
-distinguishes "rebased on merge" from "never delivered".
+not ancestors of that member's fetched default branch, with remote-branch and
+same-subject evidence that distinguishes "rebased on merge" from "never
+delivered". Registered members come from `.gitmodules`; providers using
+`master` rather than `main` are resolved without a hard-coded branch name.
 
 **Non-goal.** Not a CI gate. Measured on the current board (see
-ATLAS-RITK-D2-STRANDED-100): 67 cited hashes, 4 flags, 1 real. A rebase-merge
-re-authors the hash, so most flags are benign and a blocking check would be
-ignored within a week.
+ATLAS-RITK-D2-STRANDED-100). The historical 2026-08-20 snapshot was 67 cited
+hashes, 4 flags, 1 real. The current board is larger and the committed audit
+now reports 307 cited hashes, 12 non-ancestor records, 3 published-but-unmerged
+records, 3 genuinely undelivered records, and 173 unresolved-owner records from
+meta-audit prose. A rebase-merge re-authors the hash, so ancestry alone is not a
+delivery gate.
 
 **Three false delivery signals, each hit and corrected on 2026-08-20.** The
 audit above measured the first; the takeover sweep produced the other two. All
@@ -12242,9 +12247,23 @@ verified work that no gate, review, or CI run would ever have surfaced, because
 nothing was ever pushed. Read-only, runs in seconds, and its natural home is the
 replenishment audit, which already enumerates board state.
 
-**Acceptance.** Run against the current board reproduces the 4/1 result above;
-each flag carries enough context (remote branch present?, PR referencing the
-subject?, same-subject commit on main?) to triage without further commands.
+**Acceptance.** The focused unittest and syntax check pass. The report runs in
+bounded time against the current board, reports all cited hashes in JSON, and
+the text form summarizes verdict classes while showing a bounded sample. Each
+non-ancestor record carries the owning provider, fetched default ref, remote
+branches containing the cited commit, and same-subject commits on that default
+ref. The current run above is the evidence baseline; it is not a CI gate and
+does not infer GitHub pull-request state from a branch name.
+
+**Run evidence 2026-08-21.** `python -m unittest
+scripts/tests/test_atlas_board_delivery_audit.py -v` passes 8/8;
+`python -m py_compile scripts/atlas-board-delivery-audit.py` passes; and the
+full report completes in about 11 seconds. The 3 genuinely undelivered records
+are Gaia `c06504c` and `18349bc`, and Ritk `29b8d4e3`; the 6
+published-but-unmerged records are Coeus `7d671c0e`, Consus `2b8d71a` and
+`2488bbe`, and Ritk `735a30c9`, `86bd9fba`, and `eeca5dfa`. These are findings
+for provider delivery follow-up, not silently cleared by this report-only
+increment.
 
 ## ATLAS-RITK-D2-STRANDED-100 — rescue the unpushed D2 follow-on commit [patch] — done 2026-08-19
 
