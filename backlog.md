@@ -3103,12 +3103,24 @@ evidence.
 The new root `scripts/atlas-multiphysics-audit.py` records checkout revision,
 committed gitlink, dirty state, direct provider edges, PyO3/GIL evidence, book
 fences, analytical/differential markers, performance/memory markers, and
-unsafe-code policy. At Atlas `cacdfad`, it finds CFDrs GIL release, Kwavers's
-direct `wgpu` edge, and Helios/Kwavers runnable-book gaps. Blocking mode also
-rejects the dirty, gitlink-drifted provider checkouts; `--require-evidence`
-fails as intended. No
-provider pointer advances until fixes merge to default and exact-head hosted,
-book, wheel, and Pages evidence is terminal.
+unsafe-code policy. At Atlas `24dfe88`, it finds no CFDrs GIL-release site,
+Kwavers's direct `wgpu` edge, and Helios/Kwavers runnable-book gaps. Blocking
+mode also rejects the dirty, gitlink-drifted provider checkouts;
+`--require-evidence` fails as intended. No provider pointer advances until
+fixes merge to default and exact-head hosted, book, wheel, and Pages evidence
+is terminal.
+
+The intentional live conformance scan on the dirty shared tree reports 19
+ratchet increases and 25 decreases. The increases are confined to active
+peer-owned scopes: CFDrs (oversized files, allow sites, existence-only
+assertions, commented-out code, and one excess worktree), Consus (oversized
+files, manifest implementation, production unwraps, allow sites,
+existence-only assertions, type-suffixed functions, and orphan modules),
+Kwavers (one target fork and one excess worktree), Leto (one excess
+worktree), Moirai (SeqCst sites), and RITK (manifest implementation,
+type-suffixed functions, and commented-out code). No baseline was regenerated;
+these counts require clean exact-head provider attribution before any source
+repair or ratchet update.
 
 **Dependency-ordered re-open triggers:** (1) collect Harmonia PR #9 at its
 merged default, then migrate CFDrs to the native typed field and delete its
@@ -3120,13 +3132,13 @@ memory, and hosted Pages acceptance oracle.
 
 **Book/figure audit refresh (2026-08-20):** strict link validation scans all
 25 current books with zero missing files, anchors, or reads; `mdbook build`
-completes for all 25. The executable-gate inventory is 19 shared callers,
-Gaia's one direct command, and five provider residuals (`apollo`, `coeus`,
-`consus`, `hephaestus`, and `ritk`). Themis is already gated; Leto has a
-committed book and Pages caller. Direct local `mdbook test` on the un-staged
-repositories fails
-with missing `--extern` crates, so it is not treated as provider sample proof;
-the staged package workflow and hosted runs remain authoritative.
+completes for all 25. The executable-gate inventory is 19 shared callers and
+six residuals: Consus has no gate; Gaia, Helios, and Kwavers have vacuous
+or non-executable coverage; and Hephaestus and RITK have no gate. Themis is
+already gated; Leto has a committed book and Pages caller. Direct local
+`mdbook test` on the un-staged repositories fails with missing `--extern`
+crates, so it is not treated as provider sample proof; the staged package
+workflow and hosted runs remain authoritative.
 
 - **Provider-adoption slice:** audit every integrator edge for direct use of
   the owning provider API, deletion of superseded local wrappers, and no
