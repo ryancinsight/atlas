@@ -862,9 +862,9 @@ the provider-owned sample work.
 
 The exact-head run at root `d043b3b` refreshed all fetched provider defaults
 with eight workers. Apollo and Coeus are the only requested-provider gitlinks
-at their fetched defaults. The other 18 requested providers—Horae, Hyperion, Themis,
-Tyche, Proteus, Mnemosyne, Consus, Helios, Hermes, Aequitas, Asclepius,
-Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus, and Iris remain behind their
+at their fetched defaults. The other 18 requested providers—Horae, Hyperion,
+Themis, Tyche, Proteus, Mnemosyne, Consus, Helios, Hermes, Aequitas, Asclepius,
+Eunomia, Moirai, RITK, Melinoe, Leto, Hephaestus, and Iris—remain behind their
 fetched defaults; the separately queried Kwavers integrator is also behind its
 default. The same run reports no requested-provider coherence issue; these
 pointer drifts are expected post-merge watchpoints and remain gated on terminal
