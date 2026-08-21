@@ -1,6 +1,6 @@
 # ADR 0051: Kwavers visualization backend ownership
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-21
 - Class: `[major] [arch]`
 - Refs: `backlog.md#atlas-kwavers-vis-wgpu-2026-08-21` (the mandating item)

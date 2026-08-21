@@ -1,11 +1,16 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — open
+## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — in progress
 
 - **Owner:** Atlas integration. **Claimed files:** `backlog.md`,
   `checklist.md`, and `docs/adr/0051-kwavers-visualization-backend-ownership.md`;
   Kwavers provider source remains unclaimed pending a clean lane.
 - **Decision record:** `docs/adr/0051-kwavers-visualization-backend-ownership.md`
+
+- **Decision accepted (2026-08-21):** ADR 0051 is accepted. The provider
+  migration remains implementation-pending until a clean, non-overlapping
+  Kwavers lane is available; no provider source or Atlas gitlink is changed
+  by this decision increment.
 
 - **Outcome:** `kwavers-analysis` visualization owns no concrete WGPU device,
   queue, buffer, adapter, or `pollster` runtime. Visualization transfers and
@@ -30,9 +35,9 @@
   `wgpu`/`pollster` edge in `kwavers-analysis`; WGPU and unavailable-capability
   paths have value-semantic differential coverage; the package graph is
   acyclic; warning-denied checks, Nextest, doctests, Rustdoc, and hosted book
-  gates pass at the exact provider default. **Status:** design/ownership
-  decision required before implementation; no clean, non-overlapping Kwavers
-  lane is currently available to land this major change.
+  gates pass at the exact provider default. **Status:** implementation
+  pending; no clean, non-overlapping Kwavers lane is currently available to
+  land this major change.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.

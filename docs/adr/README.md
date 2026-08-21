@@ -56,4 +56,4 @@
 | [0048](0048-b-mode-scan-conversion-via-ritk-bridge.md) | B-mode scan conversion is a resample through the ritk CoordinateMap seam | Accepted |
 | [0049](0049-book-figure-provenance.md) | Metadata-only book figures are conceptual, not numerical evidence | Accepted |
 | [0050](0050-typed-physical-field-exchange.md) | Typed physical-field exchange at the Harmonia boundary | Accepted |
-| [0051](0051-kwavers-visualization-backend-ownership.md) | Kwavers visualization backend ownership | Proposed |
+| [0051](0051-kwavers-visualization-backend-ownership.md) | Kwavers visualization backend ownership | Accepted |
