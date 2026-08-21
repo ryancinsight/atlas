@@ -588,6 +588,14 @@ Consus PR [#53](https://github.com/ryancinsight/consus/pull/53), without
 modifying either peer-owned checkout. Its hosted book gate is the acceptance
 oracle; merge only at the exact PR head after terminal required checks.
 
+**Hosted diagnosis and repair:** the first exact-head book run `32420406116`
+failed on two missing standalone `extern crate consus_core` declarations and
+two non-standalone prose fences that mdBook attempted to compile: the
+hyperslab formula and the stack diagram. The PR branch now carries those
+boundary repairs at exact head
+`0f4af6cf64828063480f824f301e524a78b6745e`; the book rerun is queued. No
+Consus implementation, lockfile, or peer-owned checkout changed.
+
 
 ## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — in progress
 

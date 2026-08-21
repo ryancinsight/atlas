@@ -173,8 +173,11 @@
 - [x] Reinspect PR #53 after publication and repair the generated workflow
       revision; the branch now contains only the intended YAML, with the
       exact shared pin, `mdbook-test: true`, and `consus-core` inputs.
-- [ ] Collect PR #53's terminal book gate, merge at its exact head, and rerun
-      the 25-book inventory so Consus leaves the missing-gate set.
+- [x] Diagnose the first book-gate failure (`32420406116`) and repair the two
+      standalone example declarations plus the three non-standalone prose
+      fences; exact PR head is now `0f4af6c`.
+- [ ] Collect PR #53's rerun and terminal book gate, merge at its exact head,
+      and rerun the 25-book inventory so Consus leaves the missing-gate set.
 
 ## ATLAS-TYCHE-BOOK-PIN-2026-08-20 — current session
 
