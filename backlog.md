@@ -3126,7 +3126,11 @@ single-iteration `counter_sampling` benchmark case. The commands ran from
 outside the Atlas configuration tree with the shared target directory, so the
 committed lock was not rewritten; Tyche remains clean. This is local provider
 evidence only; hosted CI, Pages, and the fetched-default pointer still remain
-separate delivery gates.
+separate delivery gates. Direct local `mdbook test` is not counted as green:
+without staged artifacts it reports `E0463`, and the shared target contains
+multiple historical rlibs that produce `E0464`/`E0460` under local staging.
+The reusable Pages workflow's fresh-runner staging path is therefore the
+authoritative Tyche book gate until a clean isolated runner result is collected.
 
 The intentional live conformance scan on the dirty shared tree reports 19
 ratchet increases and 25 decreases. The increases are confined to active
