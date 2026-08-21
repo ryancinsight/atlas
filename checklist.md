@@ -416,11 +416,11 @@
       publish RITK PR #204 at `9bc47d42`; CI `32410451435` and book
       `32410452203` are queued for exact-head validation.
 - [x] Collect the merged-default Rust, Python, and book runs
-      `32404089256`/`32404089147`/`32404089897`: CI and Python CI are
-      `success`, but Deploy mdBook `32404089897` FAILED at `Test book code
-      samples` (the E0460 hashless-artifact staging defect). The Atlas gitlink
-      is therefore NOT advanced from `d4a978f`; the fix is RITK PR #204 at
-      `9bc47d42` (adopting Atlas `20c9398`), still open at collection time.
+      `32404089256`/`32404089147`/`32404089897`: the earlier book failure was
+      the E0460 hashless-artifact staging defect. RITK PR #204 at `9bc47d42`
+      adopts Atlas `20c9398`; its CI and book checks pass, and current default
+      `b35c9331` has terminal CI and Pages success with live HTTP 200. Advance
+      the Atlas pointer from `d4a978f` to `b35c9331`.
 
 ## ATLAS-APOLLO-BOOK-TEST-2026-08-20 — current session
 

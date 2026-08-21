@@ -557,12 +557,12 @@ the changed workflow is adopted by a rerun of the RITK default book gate.
 
 **Owner:** current Atlas session. **Claimed files:**
 `.github/workflows/book-pages.yml`, `docs/adr/0035-shared-publication-pipelines.md`,
-`backlog.md`, `checklist.md`. The RITK gate remains open until a hosted rerun
-at the exact merged default is terminal green. RITK PR
+`backlog.md`, `checklist.md`. RITK PR
 [#204](https://github.com/ryancinsight/ritk/pull/204) merged from exact head
 `9bc47d42f0d6050f4a68661c01d45806d41e583f` at default
-`b35c93313c06ea55fffa680a430378dda1df8e41`; replacement CI, Python, and
-shared-book runs `32435871304`, `32435871403`, and `32435871619` are queued.
+`b35c93313c06ea55fffa680a430378dda1df8e41`. Its CI and book checks pass;
+the current default CI and Pages deployment pass, and live Pages returns HTTP
+200 with the expected RITK title. The Atlas pointer advances to `b35c9331`.
 `recurseml/analysis` is report-only.
 
 Themis's corresponding post-merge evidence is terminal for the build jobs:
@@ -1357,7 +1357,9 @@ book coverage remains a separate open integration item.
   dependency artifact by directory order; root `20c9398` preserves Cargo
   artifact hashes, and RITK PR [#204](https://github.com/ryancinsight/ritk/pull/204)
   adopts it at `9bc47d42`. Its CI and book runs `32410451435`/`32410452203`
-  remain queued.
+  pass; the current default `b35c9331` has terminal CI and Pages deployment
+  success, and live Pages returns HTTP 200. The Atlas pointer advances from
+  `d4a978f` to `b35c9331` without switching the dirty primary checkout.
 
 - **Apollo executable book gate:** current Atlas session claims only
   `apollo/.github/workflows/book-pages.yml` on a clean `apollo-book-test` lane.
