@@ -45,6 +45,21 @@
   merged commit is not verified. Re-open on terminal provider runs or a new
   hosted state transition; no rerun or bypass was used.
 
+## ATLAS-CFDRS-PYTHON-GIL-2026-08-21 — Complete PyO3 solver GIL boundaries [minor] — in progress
+
+- Provider commit `575375e85ef0e4344461e3eb2635d28d10ad5997` adds
+  `Python::detach` around every remaining input-sensitive cfd-python solver
+  computation, keeps NumPy conversion under the GIL, and adds deterministic
+  Python-thread regression coverage. Local formatting, locked check, warning
+  denied Clippy, Rustdoc, abi3 wheel build, and the new concurrency test pass.
+- Full wheel tests pass `4`; one pre-existing dirty-main mismatch remains at
+  the Casson/Newtonian branch constant (`0.0035` versus a peer expectation of
+  `0.00345`). Mypy is unavailable and cdylib doctests are unsupported.
+- PR [#365](https://github.com/ryancinsight/CFDrs/pull/365) is published at
+  that exact head. The worker temporarily reused the clean CFDrs format lane;
+  after publishing, the lane was restored to `fix/cfdrs-format-gate` at
+  `c1e4fdcf`, preserving PR #361's scope. Atlas's CFDrs pointer is unchanged.
+
 ## ATLAS-REMOTE-HEAD-AUDIT-2026-08-21 — Verify provider defaults from remote refs [patch] — done 2026-08-21
 
 - **Owner:** Atlas integration. **Claimed files:**
