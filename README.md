@@ -846,12 +846,20 @@ allocation instrumentation, and crate-level unsafe-code policy:
 ```sh
 python scripts/atlas-multiphysics-audit.py --format json
 python scripts/atlas-multiphysics-audit.py --require-evidence
+python scripts/atlas-multiphysics-audit.py --exact-gitlinks --require-evidence --format json
 ```
 
 The default report is non-blocking so dirty provider checkouts can be inspected
-without being misreported as a clean release state. `--require-evidence` is a
-blocking audit and must be run against clean provider revisions whose gitlinks,
-locks, hosted checks, and Pages artifacts are attributable.
+without being misreported as a clean release state. `--exact-gitlinks` reads
+only text from the provider commits recorded by Atlas, so its result is
+reproducible despite dirty nested worktrees. `--require-evidence` is a blocking
+audit; provider-native gates, hosted checks, wheels, and Pages artifacts remain
+separate evidence categories.
+
+Provider-head reconciliation uses
+`python scripts/atlas-provider-integration-audit.py --exact-heads`; this queries
+the current remote default branch with a bounded timeout rather than trusting a
+possibly stale local `origin/main` or `origin/master` ref.
 
 ### Build cache and debug budget
 
