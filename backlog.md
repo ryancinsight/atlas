@@ -560,6 +560,19 @@ queued at the exact defaults: Mnemosyne CI/Deploy `32435012042`/
 Python/Deploy `32435032989`/`32435033356`. Atlas pointers remain unchanged
 until terminal post-merge evidence is collected.
 
+**Third integration batch (2026-08-20):** the stacked RITK pipeline was
+merged in dependency order: #201 → `3bf61e3`, #203 was retargeted from the
+merged feature branch to `main` and then merged → `8196809`. Hephaestus #214
+→ `7e09efa`, Hermes #58 → `c647368`, Iris #17 → `8700418`, and Melinoe #19
+→ `8a67d14` also merged with expected-head guards. Post-merge runs are queued:
+RITK CI/Python/Deploy `32435204760`/`32435204737`/`32435205077`, Hephaestus
+WGPU/Metal/ROCm/CUDA/Deploy `32435207406`/`32435207407`/`32435207414`/
+`32435207429`/`32435207800`, Hermes CI/Deploy/Pages
+`32435209980`/`32435210250`/`32435209388`, Iris CI/Deploy/Pages
+`32435213271`/`32435213613`/`32435212802`, and Melinoe Deploy/Pages
+`32435216434`/`32435215430`. Atlas pointers remain unchanged until those
+default-head gates are terminal and live pages are checked.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the

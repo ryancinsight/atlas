@@ -158,6 +158,12 @@
       → `c186fd9`/`7f75f5e`.
 - [ ] Collect terminal post-merge CI, book, and Pages evidence for that set;
       keep the Atlas pointers unchanged until the exact merged defaults pass.
+- [x] Merge the next exact-green set, including the stacked RITK dependency:
+      RITK #201/#203 → `3bf61e3`/`8196809`, Hephaestus #214 → `7e09efa`,
+      Hermes #58 → `c647368`, Iris #17 → `8700418`, and Melinoe #19 →
+      `8a67d14`.
+- [ ] Collect terminal post-merge CI, Python, backend, book, and Pages
+      evidence for this set before advancing any Atlas gitlink.
 - [x] Repair Hephaestus #214 at exact head `ae4fd6a` after its book examples
       failed to import the traits that provide the called methods; the rerun
       provider and book checks are pending.
