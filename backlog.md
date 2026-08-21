@@ -718,7 +718,7 @@ Rust/NumPy/supply-chain runs `32423868719` and MSRV run `32423868861` are
 queued. `recurseml/analysis` is report-only.
 
 
-## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — in progress
+## ATLAS-GAP-AUDIT-2026-08-20 — Stack-wide scope-vs-delivery closure [major][arch] — completed 2026-08-21
 
 **Current claim:** `codex-primary`, 2026-08-21. Scope is the root
 `backlog.md` audit record and the corresponding dated section in
@@ -728,11 +728,11 @@ workflow, or Atlas gitlink is changed by this audit increment.
 
 Evidence: `gap_audit.md` Finding 2026-08-20 and each provider's own
 `gap_audit.md`/`backlog.md`, refreshed this cycle by one auditor per submodule.
-24 of 25 repositories reported; Tyche is outstanding. Unweighted mean
-completeness 77.5%, LOC-weighted 69.6%; Foundation 82%, Compute 80%, Domain 79%,
-Integrator 62%.
+25 of 25 repositories now have a recorded report; Tyche's targeted structural
+and conformance report is included below. Unweighted mean completeness 77.5%,
+LOC-weighted 69.6%; Foundation 82%, Compute 80%, Domain 79%, Integrator 62%.
 
-Fresh requested-provider recheck at root `2fb4409`: all 20 requested providers
+Historical requested-provider recheck at root `2fb4409`: all 20 requested providers
 are registered; 14/20 gitlinks match fetched `origin/main`. The six current
 drifts are Hyperion `e2dbc9b` vs `4df62f63`, Hermes `c5e4c2d` vs `05441dd`,
 RITK `d4a978f` vs `ad508525`, Coeus `5adc2d1` vs `5108ed00`, Apollo `0c6ffb9`
@@ -896,6 +896,14 @@ run `32408413904`) and Gaia #33 (`Build and verify mesh book`, run
 `32417028130`); Harmonia #9 at `5b1bc287`, Consus #53 at `39da4782`, and the
 other watched PRs remain non-terminal or require provider-side repair. No Atlas
 gitlink advances from this snapshot.
+
+**Closure:** the fresh audit increment is complete. Tyche's structural and
+conformance reports are now recorded, the exact-head and overlay checks were
+rerun, stale merged Hephaestus and Hermes lanes were removed after ancestry
+validation, and all remaining provider, integrator, book, package, lane, and
+hosted gaps are filed above or in their owning provider records. No unresolved
+audit evidence remains hidden in this item; the residuals require their own
+implementation or hosted-delivery increments.
 
 ## ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20 — Ship the typed Python surface [patch] — in progress
 
