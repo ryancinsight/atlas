@@ -765,14 +765,15 @@ remotes, the exact-head audit reports 14 intentional drifts. The held defaults
 are Horae `d1332267`, Hyperion `3bc0e43d`, Themis `2c074987`, Tyche
 `7d636471`, Helios `e886754d`, Harmonia `542b80b6`, Asclepius `a38b8b50`,
 Eunomia `834bd3b4`, Moirai `ff56d602`, Melinoe `922bd3be`, Leto `fc0648ee`,
-Apollo `fd9ecd02`, Iris `636a2613`, and Kwavers `d47cfc4e`. The merged-default
+Apollo `fd9ecd02`, Iris `636a2613`, and Kwavers `50e199df`. The merged-default
 post-merge runs for Themis, Tyche, Harmonia, Eunomia, Moirai, and Apollo are
 queued; the earlier Horae, Hyperion, Asclepius, Melinoe, Leto, and Iris Pages
 runs remain the only evidence for their held defaults. Helios's default CI
 `32436531185` is terminal, but its current source PR #69 is at stacked head
 `7a973331` and remains queued. Kwavers current-default workflows
-`32475355658`, `32475355317`, `32475355319`, and `32475355330` are queued;
-earlier moving-default run IDs do not prove `d47cfc4e`. No pointer advances
+`32475709583`, `32475708642`, `32475708796`, and `32475708841` are queued for
+`50e199df`; the earlier `d47cfc4e` runs are stale/cancelled and do not prove
+the current default. No pointer advances
 until each provider's exact hosted evidence and canonical live-page check
 satisfy the acceptance oracle.
 The same refresh's structural-only audit remains `status: ok` with zero
