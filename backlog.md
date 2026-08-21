@@ -589,6 +589,12 @@ those runs cannot authorize the stale Atlas pointer `459f18ce`.
 
 ## ATLAS-BOOK-CALLER-PINS-2026-08-20 — Repin provider mdBook callers [patch] — in progress
 
+**Coordinator claim (2026-08-21):** Atlas-Codex owns the root-only pointer and
+evidence synchronization for Proteus, Aequitas, and Hermes. Claimed scope is
+`repos/proteus`, `repos/aequitas`, `repos/hermes`, and this item in
+`backlog.md`; provider source, nested checkout work, and peer PM files are
+excluded.
+
 The provider workflow audit found 20 current `main` callers still pinned to
 pre-fix revisions of the reusable Atlas book workflow. Apollo and Coeus now
 carry the repin on their merged defaults; Hephaestus and RITK carry it in
