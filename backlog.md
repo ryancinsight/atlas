@@ -1,5 +1,19 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-BOOK-FIGURE-CLOSURE-2026-08-21 — Restore generated validation figures [patch] — in progress
+
+- **Audit evidence:** the independent book/validation sweep found referenced
+  figures absent from the committed provider trees: RITK `77`, Kwavers `99`,
+  Eunomia `17`, Coeus `12`, and Horae `8`. Tyche has a separate seven-figure
+  gap. Helios's inspected generator dry-run found all `46` referenced figures.
+- **Acceptance:** each referenced figure is produced by the provider's
+  canonical generator, committed at the provider source head, and covered by
+  a deterministic existence check in the provider's book gate. No hand-made
+  or placeholder assets are accepted.
+- **Execution:** the Tyche figure set and its gate are assigned to an isolated
+  coding sidecar; the remaining provider sets follow as disjoint increments
+  after their current source/hosted claims are reconciled.
+
 ## ATLAS-HOSTED-POSTMERGE-CONSUS-2026-08-21 — Verify Consus book-gate merge [patch] — in progress
 
 - Consus PR [#53](https://github.com/ryancinsight/consus/pull/53) merged at
