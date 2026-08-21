@@ -138,9 +138,15 @@
       failed before job creation: the exact root pin is
       `20c93980f7c98f2e23a89c4a0540f16c8f2d7239`, and all 16 PR branches now
       carry that full commit rather than the invalid initial value.
-- [ ] Collect terminal hosted results and merge the 16 PRs only at their
-      exact heads; then rerun the caller audit and record any default-pointer
-      changes without touching dirty nested checkouts.
+- [x] Collect terminal hosted results for Horae #24, Hyperion #22, Themis #28,
+      Proteus #16, and Tyche #34 at their exact heads; CI and Deploy mdBook
+      pass for each (`32418584339`/`32418584938`,
+      `32418586348`/`32418586803`, `32418600576`/`32418601066`,
+      `32418598026`/`32418598676`, and `32425417532`/`32425418118`).
+- [ ] Merge the exact-green PRs and rerun the caller audit; blocked because
+      the GitHub connector rejects merge calls with HTTP 403 (`Resource not
+      accessible by integration`). Do not advance nested gitlinks without
+      post-merge default verification.
 - [x] Merge Apollo #108 at `a0c3da9` and Coeus #340 at
       `5108ed0082fc5c5ed02bc95c4bfa4ad9cdf8133b` after exact-head provider
       and book checks passed; their merged-default CI/book runs remain queued.
@@ -165,8 +171,10 @@
 - [x] Commits `04c4400`, `5782c69`, and `c481e05` pass workflow-shape,
       strict-link, and mdBook build checks; publish Tyche PR
       [#34](https://github.com/ryancinsight/tyche/pull/34).
-- [ ] Collect exact-head hosted book evidence before advancing the Atlas
-      gitlink.
+- [x] Collect exact-head hosted book evidence: CI `32425417532` and Deploy
+      mdBook `32425418118` pass at `c481e05`.
+- [ ] Merge PR #34 and collect post-merge default evidence; blocked by GitHub
+      connector HTTP 403 (`Resource not accessible by integration`).
 
 ## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — current session
 

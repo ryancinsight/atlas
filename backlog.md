@@ -525,6 +525,21 @@ staging implementation `20c9398`; each provider's required hosted book gate
 is terminal green; then close the PRs and record the merged defaults before
 advancing any Atlas pointer. No source or book behavior changes are in scope.
 
+**Exact-head collection (2026-08-20):** Horae #24 at
+`a3b79fb` has CI `32418584339` and Deploy mdBook `32418584938` green;
+Hyperion #22 at `7dca41e` has CI `32418586348` and Deploy mdBook `32418586803`
+green; Themis #28 at `28bf210` has CI `32418600576` and Deploy mdBook
+`32418601066` green; Proteus #16 at `653772e` has CI `32418598026` and Deploy
+mdBook `32418598676` green; and Tyche #34 at `c481e05` has CI `32425417532`
+and Deploy mdBook `32425418118` green. These results are bound to the exact
+PR heads and do not authorize default-pointer updates.
+
+**Integration blocker:** merge attempts for all five exact-green PRs were
+rejected by the GitHub connector with HTTP 403 `Resource not accessible by
+integration`. Re-open merge and post-merge default verification when
+repository write authorization is available; no provider default or Atlas
+gitlink was changed by this collection.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
@@ -1088,7 +1103,10 @@ book coverage remains a separate open integration item.
   staging revision `20c93980f7c98f2e23a89c4a0540f16c8f2d7239`, while clean Tyche
   default `10410f2de1ce1529ecbff50fa740b23a1c8f77b9` still pins `1fcd17c`.
   Caller-only PR [#34](https://github.com/ryancinsight/tyche/pull/34) is at exact
-  head `c481e05`; hosted checks and the Atlas pointer advance remain open.
+  head `c481e05`; CI `32425417532` and Deploy mdBook `32425418118` pass.
+  The merge call returned connector HTTP 403 `Resource not accessible by
+  integration`, so post-merge verification and the Atlas pointer advance
+  remain open.
 
 ## ATLAS-RITK-WORKFLOW-PIN-2026-08-20 — Refresh shared book workflow pin [patch] — done 2026-08-20
 
