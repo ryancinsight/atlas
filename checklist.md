@@ -26,12 +26,17 @@
 - [x] Complete the independent Python-boundary inventory: 25 classes, 384
       registered functions, missing typed artifacts, facade export drift, and
       long-running GIL-held families.
-- [ ] Add the registration-driven stub generator and exact export inventory;
-      hand-written `Any`/ellipsis declarations are not acceptable.
+- [x] Add the registration-driven Rust/PyO3 inventory generator and generated
+      package artifacts; the generator reports 24 registered classes and 384
+      functions, records facade drift, and emits no `Any`/ellipsis stubs. The
+      generated artifacts remain provider-local pending the clean-lane hosted
+      gate.
 - [ ] Detach one complete `Simulation::run` slice and prove concurrent Python
       progress plus returned-value correctness before widening the migration.
 - [ ] Land the provider-generic migration in a clean, non-overlapping Kwavers
-      lane; preserve all peer-owned checkout and branch state until then.
+      lane; preserve all peer-owned checkout and branch state until then. All
+      concrete GPU runtime code must be owned by Hephaestus; no WGPU implementation
+      may be added to `kwavers-analysis` or a parallel provider crate.
 - [ ] Run the exact-head Rust, book, API, and live Pages gates before any Atlas
       Kwavers gitlink advance.
 
@@ -271,6 +276,17 @@
 - [x] Diagnose the first book-gate failure (`32420406116`) and repair the two
       standalone example declarations plus the three non-standalone prose
       fences; exact PR head is now `0f4af6c`.
+- [x] Diagnose the `0f4af6c` rerun (`32435508761` CI + `32435508238` Format,
+      `32435508761` Deploy mdBook): the `Format` job failed because both
+      included example sources ended with no trailing newline, and `deploy /
+      Build book` failed at `Test book code samples` because the bare fence at
+      `docs/book/array_shapes.md:44` (the memory-layout formula) defaulted to
+      Rust. Repair in two commits pushed to PR #53: `ef1030f` adds the
+      trailing newlines to `book_array_shapes.rs`/`book_hyperslab.rs`, and
+      `39da478` tags that fence `text`. Local evidence: `cargo fmt --all --
+      --check` passes, both example sources compile via `cargo check --example`,
+      and `mdbook build` passes. PR head is now `39da478`; replacement CI
+      `32440567003` and Deploy mdBook `32440567210` are queued.
 - [ ] Collect PR #53's rerun and terminal book gate, merge at its exact head,
       and rerun the 25-book inventory so Consus leaves the missing-gate set.
 - [x] Close superseded Consus PR #52 after verifying that PR #53 contains its
@@ -6501,3 +6517,16 @@ Remaining in the ADR 0033 sequence: stage C (Kwavers, in flight on
 `refactor/kwavers-athena-krylov`), then stage D, which deletes
 `leto-ops/src/application/linalg/iterative/` once B and C have both merged.
 No repository other than CFDrs and Kwavers imports that family.
+
+## ATLAS-STASH-RECONCILE-2026-08-21 - current session
+
+- [x] Reconcile the three discovered stashes before any further tree work:
+      `stash@{0}` (seqcst scanner class + ADR 0045 index row) already landed
+      at HEAD; `stash@{1}` superseded - its gnu `[build] target` pin conflicts
+      with the executed msvc triple pin in the root rust-toolchain.toml, its
+      backlog rows were recorded by the later board reorganization (RITK-081
+      closure under ATLAS-GAP-AUDIT-2026-08-20), and its ADR 0043 note was
+      restored at HEAD; `stash@{2}` (integration-audit guard wiring) salvaged,
+      ported to the refactored `_coherence_scope_issues_from_report`, verified
+      by focused tests, and committed as d62f054. All three stash refs dropped;
+      recoverable via reflog if needed.
