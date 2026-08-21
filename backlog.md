@@ -780,6 +780,12 @@ The same refresh's structural-only audit remains `status: ok` with zero
 issues across all 22 registered providers; the failure is pointer/hosted
 evidence state, not a detected registration or coherence defect.
 
+**Athena workflow repin (2026-08-21):** Athena PR #16 merged with the exact
+head guard at provider default `1c7a7f94`. The change only updates the shared
+book workflow reference. Post-merge CI `32476210608` and Pages `32476211063`
+are queued; the nested Atlas pointer remains unchanged until those runs and
+the canonical live-page check are terminal.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
