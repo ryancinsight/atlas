@@ -64,11 +64,17 @@
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.
 
-## ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21 — Complete typed and concurrent PyO3 surface [minor] — open
+## ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21 — Complete typed and concurrent PyO3 surface [minor] — in progress
 
 - **Owner:** Atlas integration. **Claimed files:** `backlog.md` and
-  `checklist.md`; Kwavers provider source remains unclaimed pending a clean
-  lane and a generator design review.
+  `checklist.md`; provider source is claimed by the isolated Banach coding
+  worktree for the first core-simulation vertical slice. The shared dirty
+  checkout and active PR scopes remain untouched.
+- **Current claim:** `crates/kwavers-python/pyproject.toml`,
+  `python/pykwavers/__init__.py`, typed package artifacts, the core
+  `Simulation.run` binding module and focused binding tests. The claim excludes
+  open PR #439 simulated-GPU files, open PR #443 core-log files, the separate
+  analysis-owned WGPU migration, and all unrelated binding families.
 - **Outcome:** the Kwavers Python wheel exposes every registered Rust class and
   function through one generated, typed package surface; the wheel ships
   `py.typed` and `.pyi` files; long-running binding calls release the GIL; and
