@@ -6467,6 +6467,12 @@ No repository other than CFDrs and Kwavers imports that family.
       fully SHA-pinned upstream); removed 3 misdirected root strays (python-ci.yml,
       python-release.yml byte-identical to archive copies; orphan package-lock.json).
       Preserved the peer's uncommitted gap_audit SHA-pin finding record.
+- [x] Baseline regeneration deferred to the next co-evolution sweep: provider
+      gitlinks drifted ambiently (CFDrs carries a peer Sprint series at a5a92bfc
+      uncommitted; more M/m entries), and generate refuses both dirty roots and
+      --worktree results as gate inputs. The stale baseline is conservative
+      (moirai seqcst recorded 101 > honest 85), so check cannot under-fail;
+      refresh lands when pointers integrate.
 - [ ] Push fix/moirai-seqcst-ordering-ratchet, record PR evidence; collect
       Tyche #36 / Eunomia #73 / Consus hosted states; CFDrs #365 conflict still open.
 
