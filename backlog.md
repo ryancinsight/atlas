@@ -148,8 +148,9 @@
 - **Monitor:** the separate hosted snapshot at `2026-08-21T13:34:19Z`
   confirms Horae #26, Proteus #17, Asclepius #25, Hephaestus #216, Gaia #33,
   Hermes #59, and Iris #19 remain open with queued or pending checks. Helios
-  #69 and Consus #53 target stale bases; CFDrs #360 has no observed workflow
-  run and reports `mergeable=false`.
+  #53 targets a stale base; Helios #69 has been refreshed onto current default
+  at merge head `9152202` and is awaiting fresh checks. CFDrs #360 has no
+  observed workflow run and reports `mergeable=false`.
 - **Merged state:** Apollo #109 and Harmonia #9 have successful required
   checks and HTTP 200 Pages probes. Moirai #147 has successful Rust/Python
   checks, but its live Pages probe returned HTTP 404, so its deployment
@@ -202,10 +203,12 @@
   [#360](https://github.com/ryancinsight/CFDrs/pull/360) at
   `a5a92bfc` contains the GIL-detached binding paths, `cfd_python.pyi`, and
   `py.typed`; Helios PR [#69](https://github.com/ryancinsight/helios/pull/69)
-  at `7a973331` contains its typed metadata and executable Compton book
+  is now at `9152202` after a current-default refresh; its tree is unchanged
+  from `7a973331` and contains its typed metadata and executable Compton book
   oracle. Neither is root evidence until required hosted checks, merge, and
   post-merge default/Page verification complete.
-- **Helios local evidence:** on clean PR head `7a973331`, `cargo fmt --all
+- **Helios local evidence:** on clean PR source tree `7a973331` (now carried
+  by refreshed PR head `9152202`), `cargo fmt --all
   -- --check`, `cargo clippy --workspace --all-targets --all-features --
   -D warnings`, `cargo nextest run --workspace --all-features --profile ci`
   (284 passed, 9 skipped), `cargo test --doc --workspace --all-features`,
