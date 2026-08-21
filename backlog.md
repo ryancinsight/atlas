@@ -865,9 +865,13 @@ read-only run: `python scripts/atlas-provider-integration-audit.py
 --providers tyche --structural-only --format json` returns `status: ok` with
 one active provider and zero issues. The Tyche checkout is clean at gitlink
 `10410f2`; its required README, CHANGELOG, backlog, checklist, and gap-audit
-records are present. The fetched `origin/main` is `89194f3`, so Tyche remains
-an ordinary post-merge pointer watchpoint; this structural result does not
-substitute for provider CI, Pages, or live-page evidence.
+records are present. Its live conformance report is also clean across all 28
+tracked debt classes: zero allow sites, existence-only assertions, production
+unwraps, markers, oversized files, root-sprawl items, missing gates, and
+workflow-bound violations. The fetched `origin/main` is `89194f3`, so Tyche
+remains an ordinary post-merge pointer watchpoint; these local structural and
+conformance results do not substitute for provider CI, Pages, or live-page
+evidence.
 
 The checker also limits fence evidence to Markdown sources linked from each
 committed `SUMMARY.md`; orphaned files under `docs/book` cannot satisfy the
