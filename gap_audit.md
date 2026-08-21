@@ -1,5 +1,40 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-21: print_dbg scanner fix — exempt build.rs cargo: protocol writes
+
+The `print_dbg` assessment (below) identified 31 `println!("cargo:...")` calls
+in `build.rs` files as false positives — these are the canonical, required
+Cargo build-script protocol (rerun-if-changed, rustc-cfg, rustc-link-arg,
+etc.) that cannot be removed without breaking the build. The scanner counted
+them because `build.rs` is not `main.rs` and not in a `bin/` or `benches/`
+path.
+
+The fix adds a `CARGO_PROTOCOL_PRINT` regex matching `println!\s*\(\s*"cargo:'
+and subtracts its count from `PRINT_DBG` hits when `path.name ==
+"build.rs"`. The exemption is scoped to `build.rs` only — a `println!` in a
+library source file whose string argument happens to contain `"cargo:"` is
+not exempted.
+
+**Result:** `print_dbg` drops from **366 → 335** (−31), matching exactly the
+31 false-positive sites identified in the assessment. The per-repo deltas:
+
+| repo | before | after | delta |
+|---|---:|---:|---:|
+| coeus | 2 | 0 | −2 |
+| kwavers | 45 | 44 | −1 |
+| melinoe | 6 | 0 | −6 |
+| mnemosyne | 14 | 4 | −10 |
+| moirai | 12 | 4 | −8 |
+| themis | 4 | 0 | −4 |
+| **total** | **366** | **335** | **−31** |
+
+The remaining 335 sites are genuine library/xtask debt requiring per-site
+provider-level judgment.
+
+**Verification:** the focused scanner suite passes 26/26 (including 2 new
+regression tests), and the full Atlas Python suite passes 328 tests and 77
+subtests.
+
 ## Finding 2026-08-21: print_dbg assessment — not a safe mechanical sweep
 
 The live conformance scan reports `print_dbg = 366` across 11 repos. The

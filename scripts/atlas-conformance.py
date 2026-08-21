@@ -85,6 +85,13 @@ WORKSPACE_LINTS_TABLE = re.compile(
 )
 EXISTENCE_ONLY = re.compile(r"assert!\s*\(\s*[^();]{0,120}\.is_(?:ok|err|some|none)\s*\(\s*\)\s*,?\s*[^();]*\)")
 PRINT_DBG = re.compile(r"\b(?:println!|eprintln!|print!|eprint!|dbg!)")
+# `println!("cargo:...")` is the canonical Cargo build-script protocol: it
+# is the *required* way to emit build instructions (rerun-if-changed,
+# rustc-cfg, rustc-link-arg, etc.) from a `build.rs` file.  Counting it as
+# production print debt is a false positive — the directive cannot be
+# removed without breaking the build.  The scanner exempts these writes
+# only inside files named `build.rs`.
+CARGO_PROTOCOL_PRINT = re.compile(r'\bprintln!\s*\(\s*"cargo:')
 SLEEP = re.compile(r"(?:thread|time)::sleep\b")
 MARKER = re.compile(r"\b(?:TODO|FIXME|HACK|XXX)\b")
 REEXPORT_SHIM = re.compile(r"\bpub\s+use\s+[^;]*\bas\s+\w+\s*;")
@@ -641,7 +648,13 @@ def scan_repo(repo: Path) -> dict[str, int]:
             1 for ln in prod.splitlines() if COMMENTED_CODE.match(ln)
         )
         if not is_bin:
-            c["print_dbg"] += len(PRINT_DBG.findall(prod))
+            hits = len(PRINT_DBG.findall(prod))
+            # Exempt `println!("cargo:...")` in build.rs — the canonical
+            # Cargo build-script protocol.  These are required build
+            # instructions, not debug print debt.
+            if path.name == "build.rs" and hits:
+                hits -= len(CARGO_PROTOCOL_PRINT.findall(prod))
+            c["print_dbg"] += hits
         c["existence_only_assertions"] += len(EXISTENCE_ONLY.findall(test))
         c["sleep_synced_tests"] += len(SLEEP.findall(test))
 

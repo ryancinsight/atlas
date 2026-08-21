@@ -215,6 +215,43 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["print_dbg"], 0)
 
+    def test_build_rs_cargo_protocol_is_exempt_from_print_scan(self) -> None:
+        # `println!("cargo:...")` is the canonical Cargo build-script
+        # protocol (rerun-if-changed, rustc-cfg, rustc-link-arg).  It is
+        # required, not debug debt — the scanner must exempt it inside
+        # build.rs files while still counting non-cargo writes there.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(root, "build.rs",
+                'println!("cargo:rerun-if-changed=build.rs");\n'
+                'println!("cargo:rustc-cfg=nightly");\n'
+                'println!("debug: building");\n'
+            )
+            _write(root, "src/lib.rs", "")
+
+            counts = conformance.scan_repo(root)
+
+        # The two cargo: writes are exempt; the one debug println! counts.
+        self.assertEqual(counts["print_dbg"], 1)
+
+    def test_build_rs_cargo_protocol_exempt_does_not_leak_to_lib(self) -> None:
+        # The exemption must be scoped to build.rs only: a `println!`
+        # in a library source file that happens to contain "cargo:"
+        # in its string argument is NOT exempt.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(
+                root,
+                "src/lib.rs",
+                'pub fn info() { println!("cargo: info"); }\n',
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["print_dbg"], 1)
+
     def test_include_sources_are_not_orphans(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)

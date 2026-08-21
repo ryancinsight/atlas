@@ -133,6 +133,49 @@ acceptance oracle; merge only at the exact PR head after terminal required
 checks. The dirty primary Kwavers checkout and Atlas gitlink remain
 unchanged.
 
+- **Hosted hold (2026-08-21):** PR #598 is `MERGEABLE` but `UNSTABLE`; all
+  25 workflow runs (CI/CD Pipeline `32521893944`, Architecture Validation
+  `32521893980`, benchmark regression `32521893996`, Legacy Migration Audit
+  `32521894011`, Deploy mdBook `32521894392`) remain `queued` after 33
+  minutes of observation. CodeRabbit passed; `recurseml/analysis` is
+  errored (report-only). No pointer advance or bypass is authorized; re-open
+  on terminal provider checks or a hosted state transition.
+
+## ATLAS-CFDRS-VALIDATION-TRACING-2026-08-21 — Migrate println! to tracing [patch] — in progress
+
+The `cfd-validation` crate has 165 `println!`/`print!`/`eprintln!` calls in
+its `src/` tree — the largest concentration of `print_dbg` conformance debt
+in CFDrs. The crate already depends on `tracing` in its `Cargo.toml` but
+doesn't use it. This slice replaces all direct stdout/stderr writes with
+the `tracing` structured-logging facade.
+
+**Scope:** `crates/cfd-validation/src/` on a clean lane based on fetched
+`origin/main` `aa54f5cd`, plus root PM records. No new dependencies.
+
+**Acceptance:** all `println!`/`print!`/`eprintln!` in `src/` (excluding
+test regions) are replaced with `tracing::info!`/`tracing::warn!`; format,
+check, warning-denied Clippy, Nextest, doctests, and Rustdoc pass.
+
+**Implementation evidence (2026-08-21):** clean lane branch
+`fix/cfdrs-validation-tracing` is based on fetched `origin/main`
+`aa54f5cdcdc4e406df0c60ea6c3cb507e968fc97` and publishes commit
+`69df44da`. 15 files modified, 532 insertions, 529 deletions. The mapping:
+`println!(...)` → `tracing::info!(...)`, `println!("Warning: ...")` /
+`eprintln!(...)` → `tracing::warn!(...)`, `println!()` (blank line) →
+`tracing::info!("")`. Test-region `println!` calls are left untouched.
+
+Verified on the clean lane: format, check, clippy (`-D warnings`), nextest
+(435/435 passed), doctests (4 passed, 2 ignored), and rustdoc all pass.
+The `cfd-validation/src/` `print_dbg` count drops from 165 to 0 on the
+clean lane.
+
+Published as PR
+[#366](https://github.com/ryancinsight/CFDrs/pull/366) at exact head
+`69df44dab792ff13f2c829a40fca9321a28e5faa`. Hosted checks are the
+acceptance oracle; merge only at the exact PR head after terminal required
+checks. The dirty primary CFDrs checkout and Atlas gitlink remain
+unchanged.
+
 ## ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21 — Add defaults and NumPy protocols [minor] — in progress
 
 - The generator now records PyO3 defaults and keyword-only markers, translates
