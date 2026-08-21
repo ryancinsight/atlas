@@ -684,6 +684,21 @@ default `e886754d369c56925bab558dae7c6cebf94a0df1`. The post-merge CI run
 `32436531185` is queued. The workflow-only change did not trigger a new Pages
 run; the next default book deployment remains the required live-page check.
 
+**Fourth integration batch (2026-08-21):** the post-merge default gates for
+Proteus, Aequitas, and Hermes are terminal-successful. Proteus run
+`32434857538`, Aequitas run `32435015448`, and Hermes run `32435209388` have
+completed CI, book deployment, and reporting jobs successfully. Their live
+Pages endpoints return HTTP 200 with the expected titles at
+`https://ryancinsight.github.io/proteus/`,
+`https://ryancinsight.github.io/aequitas/`, and
+`https://ryancinsight.github.io/hermes/`. Atlas advances the three gitlinks to
+the exact current defaults `73c6c813`, `14fdd44c`, and `c6473688` respectively.
+No provider source or nested checkout is changed. Themis has terminal build
+jobs but its live endpoint could not complete TLS verification in the audit;
+Horae, Hyperion, Asclepius, Melinoe, Leto, and Iris still have queued deploy
+jobs, while Mnemosyne and Moirai returned 404 at their Pages endpoints. None
+of those pointers advances in this increment.
+
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
 Consus's current default book caller has two real Rust examples but leaves the
