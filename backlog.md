@@ -184,6 +184,22 @@ reduces `existence_only_assertions` by one without another class increasing.
 `crates/helios-imaging/src/radon.rs`, provider PM, and root PM. The branch is
 published separately from the provider's dirty primary checkout.
 
+**Implementation evidence (2026-08-20):** clean lane branch
+`fix/helios-radon-assertion` is based on `origin/main`
+`7ff72e37889594b6592e1f8b8b169834765f7851` and publishes `fdfe61a`. The
+success path now consumes the validated `Sinogram`; the error path matches
+`HeliosError::InvalidDomainValue` and checks its field, rejected value, and
+reason. The lane conformance scan reports `existence_only_assertions: 0`
+versus `1` on the fetched provider default. Locked workspace all-target check,
+format, warning-denied Clippy, nextest (`262/262`, 9 skipped), doctests, and
+Rustdoc pass.
+
+**Publication blocker:** GitHub compare confirms base `7ff72e3` → head
+`fdfe61a` is one commit ahead with one test file changed. Draft PR creation was
+rejected by the GitHub connector with HTTP 403 `Resource not accessible by
+integration`; no PR or hosted result is claimed. Re-open publication when
+repository write authorization is available.
+
 ## ATLAS-ADR0033-STAGES — Krylov ownership unwind, measured status [arch] — in progress
 
 Re-measured 2026-08-20 against the trees rather than the board. ADR 0033's

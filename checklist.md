@@ -6135,8 +6135,14 @@ advance is claimed.
 - [ ] Run provider format, locked all-target check, Clippy, nextest, doctest,
       Rustdoc, and the conformance scan; only `existence_only_assertions`
       should decrease.
-- [ ] Publish the exact provider branch and record hosted-PR authorization as a
-      separate follow-up; do not advance the Atlas gitlink before hosted gates.
+- [x] Publish the exact provider branch at `fdfe61a`; hosted-PR authorization
+      remains a separate follow-up, and the Atlas gitlink stays unchanged until
+      hosted gates pass.
+
+The provider branch is published at `fdfe61a`; exact hosted compare against
+`7ff72e3` reports one commit and one test file. Draft PR creation is blocked by
+connector HTTP 403 `Resource not accessible by integration`, so no hosted
+evidence or gitlink advance is claimed.
 
 ## ATLAS-GAP-AUDIT-2026-08-20 (owner: atlas-gap-audit)
 
