@@ -6473,8 +6473,15 @@ No repository other than CFDrs and Kwavers imports that family.
       --worktree results as gate inputs. The stale baseline is conservative
       (moirai seqcst recorded 101 > honest 85), so check cannot under-fail;
       refresh lands when pointers integrate.
-- [ ] Push fix/moirai-seqcst-ordering-ratchet, record PR evidence; collect
-      Tyche #36 / Eunomia #73 / Consus hosted states; CFDrs #365 conflict still open.
+- [x] Pushed fix/moirai-seqcst-ordering-ratchet; opened Moirai PR #148
+      (ryancinsight/Moirai) for the 30-minute timeout defaults; MERGEABLE,
+      checks registering at collection time.
+- [~] Hosted collection (all still externally queued, zero failures):
+      Tyche #36 MERGEABLE (verify/book-figures/supply-chain QUEUED);
+      Eunomia #73 MERGEABLE (4 checks QUEUED); Consus main CI/Docs/Deploy
+      QUEUED; Moirai #148 MERGEABLE. CFDrs #365 OPEN CONFLICTING/DIRTY with a
+      live peer Sprint series inside the submodule - conflict resolution waits
+      for their series to land (recorded watchpoint, not my claim).
 
 ## Archive — closed checklists
 
