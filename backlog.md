@@ -374,6 +374,17 @@ unchanged.
   head `124ef839e27a` (`test_kwave_array_per_element_superposition_reduces_to_shared_signal`
   fails against the freshly built extension); the Rust binding needs its own
   defect increment. All prior hosted evidence is stale at the new head.
+- **Annular-mask finding resolved (commit `38b54ce82`, PR #590 head):** not a
+  Rust defect. Bowl/annulus surfaces lie one radius from `position` (the
+  focus), matching k-wave-python; the test had placed the focus mid-grid with
+  R = 10 mm on a 14.4 mm grid so the cap fell outside the domain and the BLI
+  horizon correctly rejected every sample. Test now places the focus one
+  radius past mid-grid and asserts both annuli contribute disjoint radial
+  bands. Also fixed in-test: "Rectangular" → canonical "Uniform" alias
+  round-trip expectation in `test_transducer_array.py`. Full local suite
+  triage (898 passed / 90 failed / 62 skipped): remaining failures are
+  environmental (missing external k-wave example utils, long-physics
+  timeouts), no regressions from this lane.
 - **Continuation refinements (uncommitted at `60e871bad`, part of this
   increment):** the generated stubs now pass mypy `--strict` — array aliases
   are `TypeAlias`-annotated, `__init__` returns `None` (PEP 484), and

@@ -137,6 +137,20 @@
       freshly built abi3 wheel installed. Pre-existing finding recorded:
       `get_array_weighted_mask` returns all zeros for annular elements at
       lane head `124ef839e27a`; needs its own Rust binding defect increment.
+- [x] Resolve the annular-mask finding as a test-placement error, not a Rust
+      defect: bowl/annulus surfaces lie one radius from `position` (the focus),
+      matching k-wave-python; the test placed the focus at mid-grid with
+      R = 10 mm on a 14.4 mm grid, putting the cap ~2.8 mm outside the domain
+      where the BLI horizon correctly rejects every sample. Shifted the focus
+      one radius past mid-grid and asserted both annuli contribute disjoint
+      radial bands (`test_bindings_surface.py` 14 passed / 1 skipped).
+- [x] Triage the full local Python suite (898 passed, 90 failed, 62 skipped):
+      failures are environmental or expectation drift, not regressions from
+      this lane — missing external k-wave example utils, long-physics timeouts,
+      and an apodization alias round-trip. Fixed the latter in test only:
+      "Rectangular" is a documented alias of canonical "Uniform"
+      (`parse_apodization_type`), so the getter returns the canonical name;
+      the test now maps each input to its expected canonical value.
 - [x] Harden the generated stubs under strict mypy and wire the CI gates.
       `TypeAlias`-annotated array aliases, `__init__ -> None` (PEP 484), and
       `__eq__(self, other: object)` (Liskov) make the stub pass mypy
