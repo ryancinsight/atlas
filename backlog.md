@@ -760,20 +760,21 @@ HTTP 200 with the expected titles at
 `https://ryancinsight.github.io/Moirai/`. Atlas advances the two gitlinks to
 `9da9f92e3` and `7f75f5e6`. No provider source or nested checkout changes.
 
-**Residual exact-head sweep (2026-08-21):** after the six integration batches,
-the exact-head audit reports only eight intentional drifts. Horae
-`d1332267` is held by queued Pages run `32441332430`; Hyperion `3bc0e43d` has
-nonterminal mdBook/Pages runs `32442892257`/`32442891128`; Helios `e886754d`
-has Rust/Python CI `32436531185` but its benchmark job is skipped and no exact
-book/Pages run exists; Asclepius `a38b8b50`, Melinoe `922bd3be`, Leto
-`fc0648ee`, and Iris `636a2613` each have queued Pages runs
-`32441332866`, `32441332513`, `32441332588`, and `32442164004`; Kwavers
-advanced again to `c180e60c` after the prior queued workflow snapshots. The
-earlier `e236e07a`, `097b9dc9`, and `3c064c27` run IDs therefore do not prove
-the current default. Current-default workflows `32474718636`, `32474717993`,
-`32474718082`, and `32474718086` are queued. No pointer advances until each
-provider's exact hosted evidence and canonical live-page check satisfy the
-acceptance oracle.
+**Residual exact-head sweep (2026-08-21):** after refreshing all provider
+remotes, the exact-head audit reports 14 intentional drifts. The held defaults
+are Horae `d1332267`, Hyperion `3bc0e43d`, Themis `2c074987`, Tyche
+`7d636471`, Helios `e886754d`, Harmonia `542b80b6`, Asclepius `a38b8b50`,
+Eunomia `834bd3b4`, Moirai `ff56d602`, Melinoe `922bd3be`, Leto `fc0648ee`,
+Apollo `fd9ecd02`, Iris `636a2613`, and Kwavers `d47cfc4e`. The merged-default
+post-merge runs for Themis, Tyche, Harmonia, Eunomia, Moirai, and Apollo are
+queued; the earlier Horae, Hyperion, Asclepius, Melinoe, Leto, and Iris Pages
+runs remain the only evidence for their held defaults. Helios's default CI
+`32436531185` is terminal, but its current source PR #69 is at stacked head
+`7a973331` and remains queued. Kwavers current-default workflows
+`32475355658`, `32475355317`, `32475355319`, and `32475355330` are queued;
+earlier moving-default run IDs do not prove `d47cfc4e`. No pointer advances
+until each provider's exact hosted evidence and canonical live-page check
+satisfy the acceptance oracle.
 
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
