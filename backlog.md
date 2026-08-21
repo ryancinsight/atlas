@@ -17,6 +17,12 @@
   exact head. The Atlas gitlink commit `4ee9128` is held until the provider PR
   merges and its hosted checks complete; the remaining provider sets follow as
   disjoint increments.
+- **Hosted hold:** PR #36 remains open and mergeable at
+  `4cd0899a301db4a934ae32bf40db00bb56836c64`; Deploy mdBook run
+  `32492568641` and CI run `32492568124` are queued, with `recurseml/analysis`
+  error and CodeRabbit pending. The live site is HTTP 200 but its
+  `figures/ch01/fig01_1_parameter_spaces.svg` URL is HTTP 404 and its
+  `Last-Modified` predates the PR, so no pointer advance is authorized.
 
 ## ATLAS-HOSTED-POSTMERGE-CONSUS-2026-08-21 — Verify Consus book-gate merge [patch] — in progress
 
