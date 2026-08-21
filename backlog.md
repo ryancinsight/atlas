@@ -47,7 +47,7 @@ The implementation is published as PR
 `d014929f0f2afe0284ac786bec43ecb880e1e7e5`. Hosted checks are pending; no
 merge or gitlink claim is made.
 
-## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — blocked
+## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — in progress
 
 The merged Hyperion source-oracle implementation is complete at provider
 default `4df62f6` and is already recorded by
@@ -67,10 +67,12 @@ with eight intended files. All-feature and no-default locked checks, Clippy,
 Nextest 23/23, doctests 1/1, and warning-denied Rustdoc pass in both modes; a
 temporary source-knot mutation fails the source oracle and was restored.
 
-**Blocker:** draft PR creation was rejected by the GitHub connector with HTTP
-403 `Resource not accessible by integration`. Re-open publication when
-repository write authorization is available; the merged `4df62f6` gitlink and
-its hosted evidence remain authoritative.
+The hardening is published as PR
+[#23](https://github.com/ryancinsight/hyperion/pull/23) at exact head
+`87a17439cb40aef965941480a0b07dee7d3a3c67`, based on merged default
+`91df53e9b0c95a52040f9a8dca2324f05ac168a0`. Hosted checks are pending; the
+merged `4df62f6` gitlink and its hosted evidence remain authoritative until
+this follow-up is merged and gated.
 
 **Owner:** current Atlas session. **Claimed files:** provider hardening branch
 and PM records only.

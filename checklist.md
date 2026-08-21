@@ -26,9 +26,11 @@
       primary checkout.
 - [x] Publish the two-commit hardening branch and verify its exact compare and
       all-feature/no-default provider gates, including mutation control.
-- [ ] Open the draft PR and collect hosted gates; blocked by connector HTTP
-      403 (`Resource not accessible by integration`). Do not advance the Atlas
-      gitlink until this follow-up is merged and hosted-gated.
+- [x] Open Hyperion PR
+      [#23](https://github.com/ryancinsight/hyperion/pull/23) at exact head
+      `87a17439`, based on merged default `91df53e9`.
+- [ ] Collect hosted PR and post-merge default gates; do not advance the
+      Atlas gitlink until this follow-up is merged and hosted-gated.
 
 ## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — current session
 
