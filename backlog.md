@@ -132,7 +132,7 @@
   observed are Horae `d1332267`, Hyperion `3bc0e43d`, Themis `2c074987`, Tyche
   `7d636471`, Helios `e886754d`, Asclepius `a38b8b50`, Eunomia `834bd3b4`,
   Moirai `ff56d602`, Leto `fc0648ee`, Apollo `fd9ecd02`, Iris `636a2613`, and
-  Kwavers `4d61dbfb`; each differs from its committed Atlas gitlink at query
+  Kwavers `7b495780`; each differs from its committed Atlas gitlink at query
   time. Melinoe is no longer a drift after the terminal pointer integration
   at `922bd3be`.
 - **Interpretation:** the mismatches are release-boundary watchpoints, not
