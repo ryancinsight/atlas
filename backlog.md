@@ -2,6 +2,9 @@
 
 ## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — open
 
+- **Owner:** Atlas integration. **Claimed files:** `backlog.md`,
+  `checklist.md`, and `docs/adr/0051-kwavers-visualization-backend-ownership.md`;
+  Kwavers provider source remains unclaimed pending a clean lane.
 - **Decision record:** `docs/adr/0051-kwavers-visualization-backend-ownership.md`
 
 - **Outcome:** `kwavers-analysis` visualization owns no concrete WGPU device,
@@ -36,6 +39,9 @@
 
 ## ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21 — Complete typed and concurrent PyO3 surface [minor] — open
 
+- **Owner:** Atlas integration. **Claimed files:** `backlog.md` and
+  `checklist.md`; Kwavers provider source remains unclaimed pending a clean
+  lane and a generator design review.
 - **Outcome:** the Kwavers Python wheel exposes every registered Rust class and
   function through one generated, typed package surface; the wheel ships
   `py.typed` and `.pyi` files; long-running binding calls release the GIL; and
