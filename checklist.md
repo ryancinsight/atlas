@@ -98,6 +98,32 @@
 - [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
       the post-merge default, then advance the Atlas gitlink.
 
+## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — current session
+
+- [x] Inventory 60 `println!`/`print!` sites in `cfd-2d` turbulence
+      validation modules across 3 files (`validation/mod.rs` 38,
+      `constants_validation/mod.rs` 19, `constants_validation/sensitivity.rs`
+      3).
+- [x] Create clean lane `worktrees/cfdrs-cfd2d-turbulence-tracing` from
+      fetched `origin/main` `aa54f5cd`.
+- [x] Replace all `println!`/`print!` in the 3 turbulence validation files
+      (excluding test regions) with `tracing::info!`/`tracing::warn!`;
+      remove 3 now-unused `#![allow(clippy::print_stdout)]` directives;
+      run `cargo fmt -p cfd-2d`.
+- [x] Run provider gates: `cargo fmt -p cfd-2d --check`, `cargo check
+      -p cfd-2d`, `cargo clippy -p cfd-2d --all-targets --all-features -- -D
+      warnings`, `cargo nextest run -p cfd-2d --all-features` (590/590
+      passed, 27 skipped), `cargo test --doc -p cfd-2d --all-features` (2
+      passed, 2 ignored), `cargo doc -p cfd-2d --no-deps --all-features`
+      (no new warnings from changed files).
+- [x] Verify turbulence validation `print_dbg` count is 0 on the clean lane
+      (was 60).
+- [x] Publish branch `fix/cfdrs-cfd2d-turbulence-tracing` and open PR
+      [#367](https://github.com/ryancinsight/CFDrs/pull/367) at exact head
+      `66fb7566`.
+- [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
+      the post-merge default, then advance the Atlas gitlink.
+
 ## ATLAS-HYGIENE-BASELINE-001 — current conformance increment
 
 - [x] Reproduce the live-scan abort in a provider-local `.pytest_cache` and
@@ -6583,6 +6609,14 @@ No repository other than CFDrs and Kwavers imports that family.
       Verdict: every honest production site is a recorded KEEP decision;
       zero undocumented sites remain. Item closes at the instrument-fixed
       count 85 with no source change.
+- [x] Executed reclaimed MOI-AUDIT-FLOOR-012 immediately: armed
+      #![deny(missing_docs)] in moirai-core/crypto/gpu/python + moirai-tests
+      (the five of nineteen lacking it). Zero surfaced violations - public
+      surface was already documented; lint now enforces by construction.
+      Gates: cargo check clean x5, nextest 143/143 (0.76s), clippy -D
+      warnings exit 0. Lane branch fix/moirai-missing-docs-floor -> Moirai
+      PR #151. Post-merge follow-up: flip FLOOR-012 status line in
+      docs/backlog.md (landed via #150).
 - [x] Board-reclaim increment: audited the dead-checkout board (462 KB
       untracked) against current moirai main - twelve open items existed in no
       tracked artifact. Re-verified each with read-only probes: six admitted
