@@ -167,6 +167,22 @@
   `recurseml/analysis=error` checks remain report-only and are not treated as
   required-gate success.
 
+## ATLAS-CONFORMANCE-LIVE-2026-08-21 — Classify dirty-tree ratchet output [patch] — done 2026-08-21
+
+- **Run:** `python scripts/atlas-conformance.py check --worktree --json`
+  exited 1 against the intentional shared dirty tree. It reported increases
+  in CFDrs, Consus, Kwavers, Moirai, and RITK classes; the largest structural
+  changes include CFDrs/Consus implementation and assertion counts, Kwavers
+  excess worktrees, and active target forks.
+- **Classification:** this is not a clean-revision conformance gate. The
+  changes overlap peer-owned source dirt and active provider builds; target
+  forks and excess worktrees are derived-state residuals while those builds
+  run. No baseline raise, lint suppression, or peer-file cleanup is authorized
+  by this audit increment.
+- **Re-open:** rerun `check` against a clean root and exact provider gitlinks
+  after the active provider lanes commit or are reclaimed. Any regression that
+  remains on a clean revision becomes a separate provider-owned ratchet item.
+
 ## ATLAS-INTEGRATOR-AUDIT-2026-08-21 — Recheck cross-provider contracts [patch] — done 2026-08-21
 
 - **Provider registration:** the structural audit passes for all 22 Atlas
