@@ -351,7 +351,7 @@ default `4df62f63` are terminal green — CI run `32415389400`, Deploy mdBook ru
 from `e2dbc9b` to `4df62f63` without switching or modifying the dirty detached
 primary checkout.
 
-## ATLAS-MELINOE-PARTITION-PANIC-ORACLE-2026-08-20 — Assert recovered panic values [patch] — in progress
+## ATLAS-MELINOE-PARTITION-PANIC-ORACLE-2026-08-20 — Assert recovered panic values [patch] — done 2026-08-21
 
 Melinoe `src/sync/scoped/partition/driver_core.rs` tests panic-mutex
 recovery with two `is_err()` assertions and one `is_none()` assertion. These
@@ -389,9 +389,10 @@ The implementation is published as PR
 `d137d3c17d56eb9586812e98ca2861016e711bbb`, based on merged default
 `8a67d1469ce2478fd0fdb333ec71d58779a107bc`. PR #20 is merged; MSRV run
 `32441333467` passes at default `922bd3bef2a6ed8db1f8074daa12c875e76d54c8`.
-Pages run `32441332513` remains queued; the dirty detached primary Melinoe
-checkout and Atlas gitlink remain unchanged until Pages and live-page
-verification are terminal.
+Pages run `32441332513` passes at `922bd3bef2a6ed8db1f8074daa12c875e76d54c8`.
+The live Pages site returns HTTP 200 with the expected Melinoe title. Atlas
+advances its committed gitlink from `689f562` to `922bd3b` without switching
+or modifying the dirty detached primary checkout.
 
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — in progress
 

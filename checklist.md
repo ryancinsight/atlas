@@ -99,8 +99,10 @@
       `recurseml/analysis` report-only) and merge at exact head `d137d3c1`
       with an expected-head guard. The merged default is `922bd3b`.
 - [x] Collect post-merge MSRV run `32441333467`; it passes at `922bd3b`.
-      Pages run `32441332513` remains queued; live-page verification and the
-      gitlink advance remain pending.
+- [x] Collect Pages run `32441332513`; it passes at `922bd3b`. The live Pages
+      site returns HTTP 200 with the expected Melinoe title, and the Atlas
+      gitlink advances from `689f562` to `922bd3b` without switching or
+      modifying the dirty detached primary checkout.
 
 ## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — current session
 
