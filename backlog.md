@@ -745,10 +745,12 @@ has Rust/Python CI `32436531185` but its benchmark job is skipped and no exact
 book/Pages run exists; Asclepius `a38b8b50`, Melinoe `922bd3be`, Leto
 `fc0648ee`, and Iris `636a2613` each have queued Pages runs
 `32441332866`, `32441332513`, `32441332588`, and `32442164004`; Kwavers
-`e236e07a` has all current CI, architecture, legacy, and mdBook workflows
-queued (`32471837383`, `32471837427`, `32471837399`, `32471837670`). No
-pointer advances until each provider's exact hosted evidence and canonical
-live-page check satisfy the acceptance oracle.
+advanced again to `097b9dc9` after the prior queued workflow snapshot. The
+earlier `e236e07a` run IDs (`32471837383`, `32471837427`, `32471837399`,
+`32471837670`) therefore do not prove the current default. No exact-head
+workflow evidence for `097b9dc9` is collected by the current audit wrapper, so
+the pointer remains unchanged. No pointer advances until each provider's exact
+hosted evidence and canonical live-page check satisfy the acceptance oracle.
 
 ## ATLAS-CONSUS-BOOK-GATE-2026-08-20 — Add executable Consus book coverage [patch] — in progress
 
