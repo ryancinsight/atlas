@@ -363,7 +363,7 @@ def _walk_mods(root: Path, seen: set[Path]) -> None:
             _walk_mods(candidate, seen)
 
 
-def count_orphan_modules(repo: Path) -> int:
+def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int:
     """`.rs` files under a crate `src/` that no source edge reaches.
 
     Cargo compiles only what the module or include graph names, so an undeclared
@@ -373,10 +373,16 @@ def count_orphan_modules(repo: Path) -> int:
     that inflates debt figures and silently rots. Crate roots are the targets
     Cargo builds: `src/lib.rs`, `src/main.rs`, `src/bin/*.rs`, and
     `src/bin/<name>/main.rs`.
+
+    `manifests` is the per-repository inventory collected by [scan_repo].
+    Reusing it avoids a second full directory traversal when the caller has
+    already collected the manifest set.
     """
     sources: set[Path] = set()
     roots: list[Path] = []
-    for manifest in cargo_manifests(repo):
+    if manifests is None:
+        manifests = list(cargo_manifests(repo))
+    for manifest in manifests:
         src = manifest.parent / "src"
         if not src.is_dir():
             continue
@@ -512,15 +518,23 @@ def rust_files(repo: Path):
                 yield entry, testish
 
 
-def executable_source_dirs(repo: Path) -> set[Path]:
+def executable_source_dirs(
+    repo: Path,
+    manifests: list[Path] | None = None,
+) -> set[Path]:
     """Return source roots whose package entry point is a binary.
 
     Binary support modules are executable surfaces even when their own file
     is not named `main.rs`; counting their stdout/stderr as library output
     produces false positives for task runners such as `xtask`.
+
+    `manifests` reuses the inventory collected by [scan_repo] when available;
+    the optional argument preserves the direct helper contract used by tests.
     """
     roots: set[Path] = set()
-    for manifest in cargo_manifests(repo):
+    if manifests is None:
+        manifests = list(cargo_manifests(repo))
+    for manifest in manifests:
         source = manifest.parent / "src"
         if (source / "main.rs").is_file():
             roots.add(source)
@@ -545,7 +559,8 @@ def scan_repo(repo: Path) -> dict[str, int]:
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
-    executable_dirs = executable_source_dirs(repo)
+    manifests = list(cargo_manifests(repo))
+    executable_dirs = executable_source_dirs(repo, manifests)
 
     for path, testish in rust_files(repo):
         text = _cached_text(path)
@@ -607,7 +622,7 @@ def scan_repo(repo: Path) -> dict[str, int]:
     c["excess_worktrees"] = count_excess_worktrees(repo)
     c["target_forks"] = sum(1 for e in repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
-    c["orphan_modules"] = count_orphan_modules(repo)
+    c["orphan_modules"] = count_orphan_modules(repo, manifests)
     if has_cargo:
         nx = repo / ".config" / "nextest.toml"
         if not (nx.is_file() and "slow-timeout" in nx.read_text(errors="replace")):

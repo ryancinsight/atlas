@@ -1,5 +1,25 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-21: conformance scan repeated manifest traversal
+
+The full `python scripts/atlas-conformance.py --worktree --json` scan measured
+150.68 seconds on the shared dirty stack, exceeding the 120-second runtime
+bound. A `cProfile` run attributed the dominant scanner-owned work to
+`count_orphan_modules`, including repeated manifest discovery and module-graph
+filesystem traversal. The scan was not treated as a passing ratchet gate.
+
+`scan_repo` now collects the Cargo manifest inventory once and passes that
+snapshot to `executable_source_dirs` and `count_orphan_modules`. This removes
+two redundant repository-wide manifest walks without changing the detector
+set, source roots, or workload. The same live scan measures 20.55 seconds
+afterward. The focused scanner suite remains 21/21, and the full ratchet still
+exits 1 on 20 provider-dirty regressions; no baseline was changed.
+
+The timing comparison is wall-clock evidence on the current Windows host, not
+a cross-machine performance guarantee. The dirty provider state also limits
+the ratchet result to diagnostic evidence until a clean exact-gitlink revision
+is available.
+
 ## Finding 2026-08-21: conformance walker aborted on derived Python caches
 
 The live `--worktree` conformance scan aborted while descending into
