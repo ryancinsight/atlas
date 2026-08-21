@@ -1,5 +1,31 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — Anchor spectral samples [patch] — in progress
+
+Hyperion's chromophore test oracle still uses a copied Kwavers table. The
+embedded extinction samples therefore remain coupled to the retired consumer
+source and cannot detect a shared transcription error. The provider source
+note also lacks a resolvable URL and retrieval date.
+
+**Scope:** Hyperion `src/coefficient/chromophore.rs`,
+`src/coefficient/chromophore/tests.rs`, and `docs/chromophore_spectra.md` on a
+clean lane based on fetched `origin/main`, plus provider/root PM records.
+Resolve the cited primary source, record its locator and normalization, and
+replace the copied-table-only oracle with independently transcribed source
+checks. Do not touch the lagging dirty primary checkout, NIST tables, or
+consumer repositories.
+
+**Acceptance:** the module citation carries a resolvable URL, retrieval date,
+source section/column, and the per-heme-to-tetramer ×4 normalization; tests
+assert representative embedded samples against independent source values and
+fail when a sample is perturbed; provider format, locked checks, warning-denied
+Clippy, Nextest, doctests, and Rustdoc pass; the provider's source-oracle PM
+item is synchronized.
+
+**Owner:** current Atlas session. **Claimed files:** Hyperion chromophore
+source/tests/book on a new clean lane, provider PM records, and root
+`backlog.md`/`checklist.md`.
+
 ## ATLAS-MELINOE-PARTITION-PANIC-ORACLE-2026-08-20 — Assert recovered panic values [patch] — in progress
 
 Melinoe `src/sync/scoped/partition/driver_core.rs` tests panic-mutex

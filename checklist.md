@@ -3,6 +3,17 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — current session
+
+- [ ] Create a clean Hyperion lane from fetched `origin/main`; preserve the
+      lagging dirty detached primary checkout.
+- [ ] Resolve the cited primary chromophore source and record URL, retrieval
+      date, locator, and normalization in provider docs/source.
+- [ ] Replace copied-table-only assertions with independent source-value
+      checks and a perturbation mutation control.
+- [ ] Run exact-lane format, locked checks, Nextest, Clippy, doctests, and
+      Rustdoc; publish the branch and synchronize Atlas evidence.
+
 ## ATLAS-MELINOE-PARTITION-PANIC-ORACLE-2026-08-20 — current session
 
 - [x] Create a clean Melinoe lane from fetched `origin/main`; preserve the
