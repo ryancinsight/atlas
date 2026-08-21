@@ -71,6 +71,12 @@
       `aa5ab2bc`.
 - [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
       the post-merge default, then advance the Atlas gitlink.
+      **Hosted hold (2026-08-21):** all 25 workflow runs remain `queued` after
+      33 minutes of observation (CI/CD `32521893944`, Architecture
+      `32521893980`, benchmark `32521893996`, legacy audit `32521894011`,
+      Deploy mdBook `32521894392`). CodeRabbit passed; `recurseml/analysis`
+      is errored (report-only). Re-open on terminal checks or a hosted
+      state transition; no pointer advance or bypass is authorized.
 
 ## ATLAS-HYGIENE-BASELINE-001 — current conformance increment
 
@@ -160,8 +166,16 @@
       CI job (with the typed-consumer + generator pytest), and the wheel-smoke
       `kwave-comparison` job runs the runtime export-inventory oracle against
       the installed wheel. The tracked abi3 wheel artifact is removed from git.
-- [ ] Detach one complete `Simulation::run` slice and prove concurrent Python
+- [x] Detach one complete `Simulation::run` slice and prove concurrent Python
       progress plus returned-value correctness before widening the migration.
+      Runtime overlap oracle (`test_simulation_run_releases_gil_with_returned_value_correctness`,
+      lane commit `6616c904e`, PR #590 head): one thread runs a 150-step FDTD
+      slice (window floor 0.5 s enforced) while the main thread performs
+      pure-Python GIL-bound work exceeding 1M increments — only possible with
+      the binding's `py.detach` around `SimulationRunner::run` (static evidence
+      at `simulation_py/mod.rs:791`). Returned-value correctness on the same
+      slice: bit-identical sensor data for identical inputs, amplitude
+      linearity ratio 2.0 within 1e-9.
 - [ ] Land the provider-generic migration in a clean, non-overlapping Kwavers
       lane; preserve all peer-owned checkout and branch state until then. All
       concrete GPU runtime code must be owned by Hephaestus; no WGPU implementation
