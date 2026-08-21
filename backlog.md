@@ -1135,18 +1135,19 @@ Aequitas as quantity SSOT, and the later CFDrs/Kwavers/Helios adapter path.
 Harmonia clean lane only. The Apollo hosted-gate monitor remains separate.
 
 **Current increment:** Harmonia commit `5b1bc28` (on top of
-`944eafebb5045a24b8353964d1a0700a2cb62098`) implements the contract and is
-published as [PR #9](https://github.com/ryancinsight/harmonia/pull/9). The
-follow-up adds negative and non-finite spacing cases, a valid rotated-frame
-round-trip assertion, and exact shape/origin/direction compatibility failures.
-The clean lane passed `cargo clippy --all-targets --all-features --locked -- -D warnings`,
+`944eafebb5045a24b8353964d1a0700a2cb62098`) implemented the contract and
+merged through [PR #9](https://github.com/ryancinsight/harmonia/pull/9) with
+the expected-head guard at default commit
+`542b80b65628d8c4a16fdfd4113a2ff029116a96`. The follow-up adds negative and
+non-finite spacing cases, a valid rotated-frame round-trip assertion, and
+exact shape/origin/direction compatibility failures. The clean lane passed
+`cargo clippy --all-targets --all-features --locked -- -D warnings`,
 `cargo nextest run --locked` (31 passed, 0 skipped),
 `cargo test --doc --locked`, `cargo doc --no-deps --locked`, and
 `cargo check --release --locked`. The root ADR and generated index are in
-`c39f12a`; the root commit is pushed. Hosted PR checks are monitored separately
-and remain non-terminal: run `32446563564` has two queued jobs for PR #9 at
-exact head `5b1bc287`. No consumer adapter or Atlas pointer advance is
-authorized until the provider PR reaches a terminal merged-default state.
+`c39f12a`; the root commit is pushed. Post-merge CI `32474562236` and Pages
+`32474560873` are queued. No consumer adapter or Atlas pointer advance is
+authorized until those default runs and the live-page check are terminal.
 
 ## ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21 — Execute accelerator routes [major] [arch] — in-progress
 
