@@ -3072,6 +3072,50 @@ Hephaestus, and Leto lack complete `pyproject.toml`/typing metadata, and no
 PyPI upload or post-publication install smoke is proven. These are provider-
 owned implementation items; no compatibility shim or registry claim is added.
 
+**Multiphysics boundary audit (2026-08-21):** three independent read-only
+audits now provide the acceptance-driving findings for integrator closure.
+CFDrs still converts coupled-network solve failure to default diagnostics in
+`crates/cfd-2d/src/network/coupled.rs`, silently downgrades requested GPU
+Poisson work in `crates/cfd-2d/src/solvers/accelerated.rs`, installs a
+process-wide validation allocator, and runs domain calculations in its PyO3
+surface without GIL release or complete input validation. Its backward-step
+validation checks residual magnitude without the solver's explicit convergence
+flag. These are correctness and operational-integrity defects.
+
+Kwavers comparative tests use empty/default sources in several solver cases;
+the Python comparator can fall back to the first successful simulator and
+truncate mismatched arrays, while k-Wave tests are opt-in/skipped and cached
+parity artifacts lack provider/oracle provenance. Its comparative FDTD path
+computes but does not use the CFL timestep, and the Python array boundary copies
+inputs and outputs despite a zero-copy claim. A parity claim remains blocked
+until a fresh nonzero-source homogeneous IVP gate uses an analytical
+d'Alembert oracle and a mandatory independent k-wave-python run.
+
+Harmonia's typed `FieldEnvelope`/`GridGeometry` implementation exists only at
+feature branch `5b1bc28792347b660ce653b8946a7c0a618cc649`; the committed
+default still exchanges raw slices. Helios loaders multiply untrusted DICOM
+and HDF5 dimensions before allocation, GPU tests are ignored or adapter-skipped
+by default, and its Python package lacks `py.typed`/stub artifacts. Themis has
+no confirmed soundness defect in the inspected implementation, but its local
+checkout is stale relative to `origin/main` and needs current-default safety
+evidence.
+
+The new root `scripts/atlas-multiphysics-audit.py` records checkout revision,
+committed gitlink, dirty state, direct provider edges, PyO3/GIL evidence, book
+fences, analytical/differential markers, performance/memory markers, and
+unsafe-code policy. At Atlas `2c35f97`, it finds CFDrs GIL release and
+Helios/Kwavers runnable-book gaps; `--require-evidence` fails as intended. No
+provider pointer advances until fixes merge to default and exact-head hosted,
+book, wheel, and Pages evidence is terminal.
+
+**Dependency-ordered re-open triggers:** (1) collect Harmonia PR #9 at its
+merged default, then migrate CFDrs to the native typed field and delete its
+superseded wrapper; (2) implement the Kwavers reproducible IVP parity gate and
+fresh-oracle provenance; (3) harden Helios dimension/resource boundaries;
+(4) complete PyO3 GIL, validation, typing, and installed-wheel evidence; and
+(5) rerun the full Atlas exact-head, overlay, lock, book, figure, performance,
+memory, and hosted Pages acceptance oracle.
+
 **Book/figure audit refresh (2026-08-20):** strict link validation scans all
 25 current books with zero missing files, anchors, or reads; `mdbook build`
 completes for all 25. The executable-gate inventory is 19 shared callers,

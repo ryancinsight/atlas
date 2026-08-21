@@ -671,6 +671,7 @@ atlas/
 ├── scripts/
 │   ├── atlas-board-compact.py       # collapses closed board items to a one-line archive
 │   ├── atlas-conformance.py         # per-repo debt scan + non-increasing ratchet
+│   ├── atlas-multiphysics-audit.py  # integrator boundary and evidence audit
 │   ├── atlas-stack-overlay.py       # generates the [patch] overlay from cargo metadata
 │   ├── atlas-toolchain-bootstrap.*  # clear Rust overrides; prioritize MSYS2 ucrt64
 │   ├── build-all.ps1 / build-all.sh # run one Cargo command across every recorded package
@@ -833,6 +834,23 @@ the bounded run window. These are source/platform-gated follow-ups, not the
 former empty-`RUSTC` `-vV` environment blocker. Cargo-generated lockfile and
 untracked build artifacts in provider worktrees were preserved for owner
 reconciliation; no cleanup/reset was performed by the bootstrap slice.
+
+### Multiphysics contract audit
+
+The integrator boundary audit checks direct provider ownership, forbidden
+incumbent dependencies, PyO3 declarations and GIL release, executable book
+samples, analytical and differential evidence markers, performance or
+allocation instrumentation, and crate-level unsafe-code policy:
+
+```sh
+python scripts/atlas-multiphysics-audit.py --format json
+python scripts/atlas-multiphysics-audit.py --require-evidence
+```
+
+The default report is non-blocking so dirty provider checkouts can be inspected
+without being misreported as a clean release state. `--require-evidence` is a
+blocking audit and must be run against clean provider revisions whose gitlinks,
+locks, hosted checks, and Pages artifacts are attributable.
 
 ### Build cache and debug budget
 
