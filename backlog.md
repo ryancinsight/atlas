@@ -1,5 +1,33 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — blocked
+
+The merged Hyperion source-oracle implementation is complete at provider
+default `4df62f6` and is already recorded by
+`ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20`. A subsequent audit
+identified a documentation/test-evidence hardening increment: make the OMLC
+table-column locator explicit in every affected document and state that the
+independent fixture is not derived from production slices.
+
+**Scope:** Hyperion source/docs/ADR and provider PM records on clean branch
+`fix/hyperion-chromophore-source-oracle`; no Atlas gitlink advance and no
+changes to the dirty primary checkout. This is a follow-up hardening item, not
+a reopened implementation defect.
+
+**Evidence:** branch base `4df62f63eac2683de2983674a4555a32cfc6b9d5`, head
+`87a17439cb40aef965941480a0b07dee7d3a3c67`, exact compare two commits ahead
+with eight intended files. All-feature and no-default locked checks, Clippy,
+Nextest 23/23, doctests 1/1, and warning-denied Rustdoc pass in both modes; a
+temporary source-knot mutation fails the source oracle and was restored.
+
+**Blocker:** draft PR creation was rejected by the GitHub connector with HTTP
+403 `Resource not accessible by integration`. Re-open publication when
+repository write authorization is available; the merged `4df62f6` gitlink and
+its hosted evidence remain authoritative.
+
+**Owner:** current Atlas session. **Claimed files:** provider hardening branch
+and PM records only.
+
 ## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — Anchor spectral samples [patch] — done 2026-08-20
 
 Hyperion's chromophore test oracle still uses a copied Kwavers table. The

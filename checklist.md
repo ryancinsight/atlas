@@ -3,6 +3,17 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — current session
+
+- [x] Reconcile the concurrent merged Hyperion source-oracle item before
+      adding follow-up work; preserve provider default `4df62f6` and the dirty
+      primary checkout.
+- [x] Publish the two-commit hardening branch and verify its exact compare and
+      all-feature/no-default provider gates, including mutation control.
+- [ ] Open the draft PR and collect hosted gates; blocked by connector HTTP
+      403 (`Resource not accessible by integration`). Do not advance the Atlas
+      gitlink until this follow-up is merged and hosted-gated.
+
 ## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — current session
 
 - [x] Create a clean Hyperion lane from fetched `origin/main`; preserve the
