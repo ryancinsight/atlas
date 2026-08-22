@@ -1255,6 +1255,18 @@ remain unverified at `4d61dbfb`; the earlier workflows at `8fc69970` and
 older heads do not prove the current default. No pointer advances until each
 provider's exact hosted evidence and canonical live-page check satisfy the
 acceptance oracle.
+
+**Seventh integration batch (2026-08-22):** Gaia PR #33 merged at default
+`9b476fec` (post-merge CI + mesh book terminal, live Pages 200 with expected
+title) and Harmonia's repin default `c762c8ad` reached terminal main CI,
+Deploy mdBook, and pages-build-deployment success (live Pages 200 with
+expected title). Atlas advanced both gitlinks in commit `0f58972`. A peer's
+staged Moirai pointer to `bd70d29b` was left uncommitted: that default has no
+hosted runs yet and fails its acceptance oracle. Athena `1c7a7f94` still
+holds: its Deploy mdBook succeeded but its push CI run is cancelled with no
+successor. Eunomia `834bd3b4`: MSRV and Deploy mdBook terminal success, but
+its push CI is cancelled with no successor; Apollo `fd9ecd02`: ci terminal
+success but the dynamic pages-build-deployment was cancelled.
 The same refresh's structural-only audit remains `status: ok` with zero
 issues across all 22 registered providers; the failure is pointer/hosted
 evidence state, not a detected registration or coherence defect.
@@ -1645,6 +1657,11 @@ queued at the exact current head; the earlier replacement runs
 remains the required staging evidence. Local `mdbook build docs/book` and link
 checking pass at the repaired lane head.
 `recurseml/analysis` is report-only.
+- **Closed (2026-08-22):** PR #33 merged at Gaia default `9b476fec` with the
+  expected-head guard; both exact-head runs `32473606516`/`32473606617`
+  terminal success, post-merge main CI and mesh book runs terminal success,
+  and live Pages returns HTTP 200 with the expected title. The Atlas gitlink
+  advanced to `9b476fec` (commit `0f58972`).
 
 ## ATLAS-CFDRS-FORMAT-GATE-2026-08-20 — Restore exact-default formatting gate [patch] — in progress
 
