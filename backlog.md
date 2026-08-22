@@ -31,9 +31,19 @@
   loudly rather than passing vacuously, and the Hephaestus DX12 fact means every
   Windows GPU result in the stack was produced on Vulkan regardless of what its
   configuration requested.
-- **Next:** merge order Coeus → Hephaestus. Both are held only by queued hosted
-  runners; `recurseml/analysis` fails on every PR in every repo with "Error
-  occurred during analysis" and is external infrastructure, not a finding.
+- **Merged 2026-08-21 on local hardware evidence, CI still queued.** Coeus main
+  is `2d6f08ab` and Hephaestus master is `655091d`. Both merged defaults were
+  re-verified against their merged tips on an RTX 5080 rather than trusted from
+  the branch: Coeus `1340/1340`, Hephaestus `220/220`. The user authorized
+  merging ahead of CI after the queue passed 2h35m with zero jobs started beyond
+  the macOS one and 43 runs queued across the four repositories — account-wide
+  Actions saturation, not a failure. The only failing check anywhere is
+  `recurseml/analysis`, which fails on every PR in every repository including at
+  base commits, and is external infrastructure rather than a finding.
+- **Unblocks** `RITK-GPU-SMOOTHER-REACH`'s device half: `coeus-wgpu` can now
+  acquire a device, so a RITK consumer binding it has something to bind to.
+- **Residual:** the queued CI runs on both merged branches never executed. If
+  they surface anything the local suites did not, it is a fix-forward item.
 
 ## ATLAS-KWAVERS-KWAVE-ORACLE-2026-08-21 — k-Wave parity made reproducible [major][arch] — merge pending
 
@@ -136,10 +146,11 @@ unchanged.
 - **Hosted hold (2026-08-21):** PR #598 is `MERGEABLE` but `UNSTABLE`; all
   25 workflow runs (CI/CD Pipeline `32521893944`, Architecture Validation
   `32521893980`, benchmark regression `32521893996`, Legacy Migration Audit
-  `32521894011`, Deploy mdBook `32521894392`) remain `queued` after 33
-  minutes of observation. CodeRabbit passed; `recurseml/analysis` is
-  errored (report-only). No pointer advance or bypass is authorized; re-open
-  on terminal provider checks or a hosted state transition.
+  `32521894011`, Deploy mdBook `32521894392`) remain `queued` after 56
+  minutes of observation across two re-check cycles. CodeRabbit passed;
+  `recurseml/analysis` is errored (report-only). No runner has picked up a
+  single job. No pointer advance or bypass is authorized; re-open on
+  terminal provider checks or a hosted state transition.
 
 ## ATLAS-CFDRS-VALIDATION-TRACING-2026-08-21 — Migrate println! to tracing [patch] — in progress
 
@@ -175,6 +186,12 @@ Published as PR
 acceptance oracle; merge only at the exact PR head after terminal required
 checks. The dirty primary CFDrs checkout and Atlas gitlink remain
 unchanged.
+
+- **Hosted hold (2026-08-21):** PR #366 is `MERGEABLE` but `UNSTABLE`; the
+  Rust workspace gate (run `32526664488`) and Check book figures SSOT
+  remain `queued` after 23 minutes of observation. CodeRabbit passed;
+  `recurseml/analysis` is errored (report-only). No runner has picked up a
+  job. No merge is authorized; re-open on terminal required checks.
 
 ## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — Migrate turbulence validation println! to tracing [patch] — in progress
 
