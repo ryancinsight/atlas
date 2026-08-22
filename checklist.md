@@ -92,10 +92,62 @@
       Kwavers
       [PR #606](https://github.com/ryancinsight/kwavers/pull/606) at
       exact head `352b4dc7b4c9d2959ae53cb57eba1796c6ca51b8`;
-      `MERGEABLE` on open.
-- [ ] Collect hosted terminal checks at the exact PR head, then merge and
+      `MERGEABLE` on open.- [ ] Collect hosted terminal checks at the exact PR head, then merge and
       advance the Atlas kwavers gitlink (unblocks the clean-revision
       ratchet, currently hard-blocked on local-only `49d80a4`).
+
+## ATLAS-KWAVERS-IGNOREDORACLE-2026-08-22 — current session
+
+- [x] Confirm `KW-GAP-2026-08-20-IGNOREDORACLE` (#5) is the next unowned
+      ordered item and is group-splittable (GPU / budget / PINN /
+      interop / Marchenko).
+- [x] Enumerate all 46 `#[ignore]` sites (49 attributes minus 3 doc-comment
+      mentions) with the annotated test and reason; flag the 3 bare ones.
+- [x] Measure every budget-group and PINN test locally under the `heavy`
+      profile (serial, 300 s cap): 10 of the ignores were stale — the
+      tests run in 0.6-25 s. Measured: kuznetsov linear 11.8 s; KZK
+      diffraction 6.5 s; PINN ×3 ~20 ms (5/5 stable); probe_coated 3.7 s;
+      multi_bowl 0.6 s; NL-SWE convergence 0.8 s; swe literature 17.5 s;
+      swe scaling 25.4 s; photoacoustic benchmark 1.5 s (failed its
+      underived 1 s threshold). Genuinely heavy: kuznetsov nonlinear
+      162 s, absorption 42 s, nl_swe_workflow 55 s.
+- [x] Re-enable the 10 stale ignores in the default suite; derive the
+      photoacoustic budget (6 s = 4× measured release 1.18 s) at the
+      assertion; route the CPU-saturating re-enabled tests through the
+      `full-grid-sim` nextest group (default + ci overrides).
+- [x] Move the 3 heavy tests to the reviewed `heavy` profile with derived
+      300 s budgets + re-enable triggers; add the `heavy-validation`
+      ci.yml job running them via `--run-ignored ignored-only` (pinned
+      actions, permissions + timeout, mirroring existing job
+      conventions; lane ci.yml rebuilt from origin/main to exclude the
+      main checkout's unrelated SHA-pin overlay).
+- [x] GPU group (27): upgrade every `#[ignore]` to carry a reason + trigger;
+      add scheduled `gpu-parity.yml` on `[self-hosted, linux, x64, cuda]`
+      running them nightly via `--run-ignored` (YAML validated).
+- [x] Re-run the swe_3d volumetric oracles: two real correctness
+      divergences surfaced (background reconstruction error 1648% vs
+      <30%; stiffness above fibrosis range) — documented in the ignore
+      reasons and tracked as `KW-GAP-2026-08-22-SWERECON` in the kwavers
+      backlog; Marchenko tracked as `KW-GAP-2026-08-22-MARCHENKO` with
+      ADR 019 status note.
+- [x] Final state: 36 remaining ignores, zero bare, every one with a
+      reason + re-enable trigger.
+- [x] Run provider gates on the lane: fmt clean; check pass; clippy
+      `--lib -D warnings` clean; nextest physics+therapy+transducer
+      2314/2314, solver 904/904, kwavers 534/534, gpu 9/9; workflow YAML
+      validated. Cargo.lock overlay drift and regenerated test-figures
+      restored.
+- [x] Commit at `443421028` (21 files, +217/-61), publish branch
+      `fix/kwavers-ignoredoracle-rehome` and open Kwavers
+      [PR #609](https://github.com/ryancinsight/kwavers/pull/609) at
+      exact head `443421028fa86cbeab4cf6632ee9b22902534384`;
+      `MERGEABLE` on open.
+- [ ] Collect hosted terminal checks at the exact PR head (incl. the new
+      heavy-validation job), then merge and advance the Atlas kwavers
+      gitlink; also confirm a self-hosted CUDA runner is registered for
+      kwavers so the scheduled gpu-parity job can run.
+
+
 
 ## ATLAS-FMT-CHECK-PARSER-2026-08-21 — current session
 

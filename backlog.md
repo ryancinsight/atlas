@@ -141,6 +141,57 @@
   conformance ratchet on the clean revision (still blocked on #604 + this
   PR landing; gitlink advance also unblocks the clean-revision ratchet).
 
+## ATLAS-KWAVERS-IGNOREDORACLE-2026-08-22 — Re-homed the 46 ignored oracles per group [minor] — in progress
+
+- **Owner:** current session; lane `worktrees/kwavers-ignoredoracle`
+  (branch `fix/kwavers-ignoredoracle-rehome`).
+- **Closes** `KW-GAP-2026-08-20-IGNOREDORACLE`, the #5 ordered item of the
+  2026-08-20 kwavers audit. Handled per group, not as one sweep.
+- **Measured, not trusted:** 10 of the 46 ignores were stale — measured
+  0.6-25 s against claimed 30-60 s+ runtimes. Re-enabled in the default
+  suite: kuznetsov linear energy conservation (11.8 s), KZK Gaussian-beam
+  diffraction (6.5 s), PINN FD-comparison gradients ×3 (20 ms, 5/5
+  stable), passive-dose coated-subharmonic (3.7 s), multi-bowl transducer
+  phases (0.6 s), NL-SWE convergence study (0.8 s), SWE literature
+  benchmark (17.5 s), SWE performance scaling (25.4 s). The photoacoustic
+  performance benchmark got a derived 6 s budget (4× measured release
+  1.18 s) replacing the underived 1 s threshold.
+- **Heavy group (3):** kuznetsov nonlinear harmonic generation (162 s),
+  Treeby-Cox absorption decay (42 s), NL-SWE end-to-end workflow (55 s)
+  keep `#[ignore]` as the headless gate with derived 300 s budgets and
+  re-enable triggers; a new `heavy-validation` job in ci.yml runs them
+  via `--profile heavy --run-ignored ignored-only`.
+- **GPU group (27):** reasons + re-enable triggers added; new scheduled
+  `gpu-parity.yml` on the Atlas self-hosted CUDA label
+  (`[self-hosted, linux, x64, cuda]`, same convention as Coeus
+  backend-parity / Hephaestus cuda) runs them nightly via
+  `--run-ignored` — no longer permanently dark. If the runner label is
+  not yet registered for kwavers the job queues visibly rather than
+  hiding the tests.
+- **Real findings tracked, not deleted:** re-running the swe_3d volumetric
+  oracles surfaced genuine correctness divergences — background
+  reconstruction error 1648% vs <30% asserted, and reconstructed stiffness
+  above the fibrosis-stage range (new kwavers item
+  `KW-GAP-2026-08-22-SWERECON`); Marchenko oracle stays ignored with a
+  re-enable trigger and ADR 019 updated (new item
+  `KW-GAP-2026-08-22-MARCHENKO`). 46 ignores → 36, zero bare.
+- **Gates (clean lane from fetched `origin/main` `377a98c8`):** fmt
+  clean; `cargo check --all-targets` pass; clippy `--lib -D warnings`
+  clean; nextest physics+therapy+transducer 2314/2314, solver 904/904,
+  kwavers 534/534 (incl. the 10 re-enabled tests), gpu 9/9; workflow
+  YAML validated. Cargo.lock overlay drift and regenerated test-figures
+  restored — commit stays code-only. (The main checkout's ci.yml carries
+  an unrelated uncommitted SHA-pin overlay; the lane's ci.yml was rebuilt
+  from origin/main so the PR ships only the heavy-validation job.)
+- **Published 2026-08-22 as Kwavers
+  [PR #609](https://github.com/ryancinsight/kwavers/pull/609)** at exact
+  head `443421028fa86cbeab4cf6632ee9b22902534384`, `MERGEABLE`, based on
+  `origin/main` `377a98c86`. Hosted checks are the acceptance oracle;
+  merge only at the exact PR head after terminal required checks.
+- **Post-merge:** advance the Atlas kwavers gitlink and re-run the
+  conformance ratchet on the clean revision (blocked on #604 + #606 +
+  this PR landing).
+
 ## ATLAS-GPU-ACQUISITION-2026-08-21 — Coeus GPU suite restored, Hephaestus diagnostics [patch] — merge pending
 
 - **Owner:** current session; lanes `worktrees/coeus-wgpu-adapter-limits`,
