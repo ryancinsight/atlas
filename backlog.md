@@ -80,8 +80,19 @@
   with 25 skips, all `#[ignore]`d on downloaded datasets with reasons and
   re-enable triggers; `cargo clippy --workspace --all-targets -- -D warnings`
   and `cargo fmt --check` are clean.
-- One substantive gap, filed as RITK
-  [PR #205](https://github.com/ryancinsight/ritk/pull/205):
+- **Resolved 2026-08-21** by RITK
+  [PR #206](https://github.com/ryancinsight/ritk/pull/206), stacked on the
+  filing. Investigation found the surface was worse than filed: beyond being
+  uninstantiable on a device, `GaussianFilter::apply_tensor` convolves on the
+  *host* regardless of backend — `to_vec()` down, scalar loop, `from_slice` up,
+  no device kernel — so relaxing the bound would have produced a slower CPU path
+  wearing a GPU name. `CpuOrGpu::Gpu` was also never constructed at any site.
+  `GpuFieldSmoother` and `CpuOrGpu` are deleted; the `FieldSmoother` trait stays
+  as the seam and the factory parameters are generic over it, which admits any
+  implementor rather than exactly two. Four unreproducible performance claims
+  removed. Workspace runs `5675 passed` — the identical count to before, which
+  is what shows the deletion took no surviving test with it. ADR 0021.
+- The original filing, for the record:
   `GpuFieldSmoother<B: Backend>` binds `coeus_core::Backend`, whose only
   implementors are `SequentialBackend` and `MoiraiBackend` — both CPU.
   `coeus_wgpu::WgpuBackend` implements `ComputeBackend` and not `Backend`, so
