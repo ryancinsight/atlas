@@ -535,6 +535,18 @@ unchanged.
   (PR #590) and the WGPU provider migration (PR #602) are both completed;
   thermal is the first of the remaining GIL families (thermal, GPU-session,
   bubble, monitor, chirp).
+- **Bubble ODE GIL family (same lane, next vertical increment):**
+  `solve_rayleigh_plesset`, `solve_keller_miksis` (and the Keller–Herring
+  delegation), `solve_gilmore`, and `solve_hodgkin_huxley_like` now run their
+  RK4 / ODE integration compute inside `py.detach`, mirroring the
+  `Simulation::run` / thermal contract. Added the runtime overlap oracle
+  `test_bubble_ode_releases_gil_with_returned_value_correctness`: a 10M-step
+  `solve_keller_miksis` holds a ~1s solve window while the main thread exceeds
+  1M pure-Python GIL increments; returned-value correctness shows bit-identical
+  outputs for identical inputs and a doubled driving amplitude swings the wall
+  strictly farther (higher max / lower min radius). Wheel-backed: 17 passed /
+  1 skipped in `test_bindings_surface.py`; fmt, clippy `-D warnings`, nextest
+  21/21, generator `--check` clean.
 
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 

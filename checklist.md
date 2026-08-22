@@ -309,6 +309,20 @@
       1.0 within 1e-6). Wheel-backed: 16 passed / 1 skipped in
       `test_bindings_surface.py`; fmt, clippy `-D warnings`, and nextest 21/21
       clean.
+- [x] Detach the bubble ODE GIL family: `solve_rayleigh_plesset`,
+      `solve_keller_miksis` (and the Keller–Herring delegation),
+      `solve_gilmore`, and `solve_hodgkin_huxley_like` now run their RK4 /
+      ODE integration compute inside `py.detach`, mirroring the
+      `Simulation::run` / thermal contract (validate + NumPy extraction in the
+      GIL, pure-f64 compute off-GIL, PyArray assembly back in the GIL). Added
+      the runtime overlap oracle
+      `test_bubble_ode_releases_gil_with_returned_value_correctness`: a 10M-step
+      `solve_keller_miksis` holds a ~1s solve window while the main thread
+      exceeds 1M pure-Python GIL increments; returned-value correctness shows
+      bit-identical outputs for identical inputs and a doubled driving
+      amplitude swings the wall strictly farther (higher max / lower min
+      radius). Wheel-backed: 17 passed / 1 skipped in `test_bindings_surface.py`;
+      fmt, clippy `-D warnings`, nextest 21/21, generator `--check` clean.
 - [ ] Run the exact-head Rust, book, API, and live Pages gates before any Atlas
       Kwavers gitlink advance.
 
