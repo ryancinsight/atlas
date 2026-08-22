@@ -242,7 +242,8 @@
       concrete GPU runtime code must be owned by Hephaestus; no WGPU implementation
       may be added to `kwavers-analysis` or a parallel provider crate.
       Lane `feat/provider-generic-vis` from fetched default `377a98c86`, lane
-      commit `baa76ee7c`, PR #602. Replacement, not adapter:
+      commit `baa76ee7c` (head now `a6b04c4e1`, adding the
+      uninitialized-visualization rejection test), PR #602. Replacement, not adapter:
       `kwavers-analysis` keeps configuration, backend-neutral field metadata,
       CPU preprocessing, statistics, and the public contract behind the new
       provider-neutral `VisualizationTransferProvider` seam;
@@ -259,7 +260,9 @@
       multi-field field-identity preservation, distinct-input sensitivity,
       typed unavailable-resource errors, device-backed transfer where an
       adapter exists. Local gates green: fmt, clippy warning-free for the
-      touched surface, analysis 776 tests, gpu 166 tests.
+      touched surface, analysis 776 tests, gpu 166 tests. Lane head
+      `a6b04c4e1` re-validated locally at the advanced head: analysis 777
+      tests, gpu visualization contract tests, fmt, and clippy all green.
 - [ ] Run the exact-head Rust, book, API, and live Pages gates before any Atlas
       Kwavers gitlink advance.
 
