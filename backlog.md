@@ -1607,12 +1607,26 @@ Pages gates are terminal green, with no peer source or lockfile state included.
 This slice does not claim broader CFDrs closure until those gates pass.
 
 The current Atlas session owns the bounded lane
-`D:\\atlas\\worktrees\\CFDrs-format-gate`, commit `c1e4fdcf`, and PR
+`D:\\atlas\\worktrees\\CFDrs-format-gate`, PR
 [#361](https://github.com/ryancinsight/CFDrs/pull/361). The exact-head provider
 CI run `32408413904` at the formatting-only head is terminal failure. The
-provider repair now has local exact nine-test numerical-fidelity evidence;
-replacement hosted Rust and Pages runs are pending. No broader CFDrs or
-allocator closure claim is inferred.
+provider repair now has local exact nine-test numerical-fidelity evidence.
+
+**Timeout increment (2026-08-22, head `c993b906`):** the replacement hosted run
+`32449587886` at `c1e4fdcf` failed on the committed 30s nextest termination
+bound — `cross_fidelity_trifurcation_dominance` terminated at 30.008s. Local
+instrumentation attributes the cost to the Picard assembly/Krylov path (~9s)
+plus SDF meshing (~1s) spread across first-party FEM code and provider-external
+numeric crates (`gaia-mesh`, `leto`, `nalgebra`), so named-package opt-level
+raises measured no effect. Raising the test profile to `opt-level = 2`
+measures 11.4s → 2.0s locally (5.5×), restoring hosted headroom; dev/debug
+profiles are unchanged and no test or workload was reduced. Local evidence at
+`c993b906`: `cfd-validation` nextest 435/435 (10.3s total), doctests 4 passed,
+`cargo fmt --all --check` clean. Replacement hosted Rust/Pages runs pending;
+PR [#363](https://github.com/ryancinsight/CFDrs/pull/363) (ADR-0033 Stage B)
+remains sequenced behind this branch's merge — its red gate is `cargo fmt`
+over the same three files this branch fixes plus its own `twelve_steps.rs`
+import order, resolved by rebase after merge.
 
 ## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — Remove library global allocator [major][arch] — in progress
 
