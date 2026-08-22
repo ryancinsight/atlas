@@ -2070,9 +2070,17 @@ Three ordering facts came out of the audit and are not obvious from the board:
       index.
 - [x] Add a regression test proving navigation files do not become index rows;
       the focused ADR/provider/overlay/version-guard test set passes 17/17.
-- [ ] Complete the peer-owned member repairs in backlog items ADR-025-A through
-      ADR-025-C, then run the full stack ADR index gate from clean exact-head
-      checkouts.
+- [x] Completed and closed 2026-08-22. The referenced backlog items ADR-025-A..C
+      do not exist (dangling reference); repairs were unclaimed. Findings per
+      member: coeus + hephaestus dirt was superseded noise - staged deletions
+      contradicting disk AND pushed origin (revision blobs already landed:
+      coeus 243f3e6 via main, heph 352df1a via codex/hephaestus-fdtd-107);
+      reconciled by unstaging, zero content touched. kwavers carried real
+      generator-version drift on main (row 114 missing NNN. prefix) - landed
+      plumbing commit 42eb062cc off origin/main as PR #605; working tree holds
+      standing regenerated state. Full-stack gate (root + 23 members): exit 0.
+      Residue recorded: coeus detached tree keeps 13 unstaged peer files;
+      kwavers hosts 7 peer lanes (two-tree bound breached pre-existing).
 
 ## ATLAS-US-CAPABILITY-023 — RITK phased-array review residuals
 
