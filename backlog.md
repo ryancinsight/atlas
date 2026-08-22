@@ -1020,8 +1020,20 @@ blocks stage D. The concrete duplication it sustains: `DiagJacobi<T>` in
 `cfd-1d/src/solver/core/linear_system.rs` implements **both** preconditioner
 traits — leto's at line 301 and `athena_core::Preconditioner` at line 311 —
 exactly the duplication stage D names. Remaining consumers are five test/bench
-files plus `IterativeSolverConfig` (56 references). In flight on branch
-`refactor/cfdrs-athena-solver-ssot`.
+files plus `IterativeSolverConfig` (56 references).
+
+**Stage B increment (2026-08-22):** PR
+[#363](https://github.com/ryancinsight/CFDrs/pull/363) at head `27338e95`,
+rebased onto the merged format-gate default `a70faea6`. The branch deletes the
+`pub mod iterative` re-export shim and migrates its callers; the `DiagJacobi`
+dual-trait duplication is already resolved on the branch — only the
+`athena_core::Preconditioner<LetoBackend>` impl remains. Local evidence:
+`cargo fmt --all --check` clean; nextest `-p cfd-math -p cfd-validation`
+675/675; warning-denied Clippy clean for cfd-math, cfd-validation, and
+cfd-1d (the two `needless_update` warnings in `cfd-3d` are pre-existing
+default debt the branch does not touch). Hosted Rust workspace gate run
+`32590225522` in progress; merge only at exact head after terminal required
+checks, then stage C.
 
 **Stage C — migrate Kwavers: not started, and wider than the ADR recorded.**
 Kwavers declares no `athena` dependency in any manifest. It carries **three**
