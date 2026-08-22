@@ -53,12 +53,37 @@ def members(selected: list[str]) -> list[pathlib.Path]:
     return found
 
 
-def unformatted_files(repo: pathlib.Path) -> list[str] | None:
-    """Files rustfmt would change, or None when the member cannot be read.
+def parse_rustfmt_diff_paths(stdout: str, repo: pathlib.Path) -> list[str]:
+    """Extract the unique relative file paths rustfmt would change.
 
     rustfmt reports `Diff in <path>:<line>:` per hunk; one file usually
-    yields several, so the paths are de-duplicated before display.
+    yields several, so the paths are de-duplicated. The Windows
+    extended-length prefix rustfmt emits on Windows is stripped. Paths
+    outside the repo are left absolute — this is unusual but not wrong;
+    the caller surfaces them.
+
+    Returns `["(rustfmt reported changes; see `cargo fmt --all --check`)"]`
+    when rustfmt's exit was nonzero but no per-file diff was parseable,
+    so the caller still reports the member as unformatted.
     """
+    seen: list[str] = []
+    for line in stdout.splitlines():
+        if not line.startswith("Diff in "):
+            continue
+        path = line[len("Diff in "):].rsplit(":", 2)[0]
+        # Strip the Windows extended-length prefix rustfmt emits.
+        path = path.removeprefix("\\\\?\\")
+        try:
+            path = str(pathlib.Path(path).relative_to(repo))
+        except ValueError:
+            pass
+        if path not in seen:
+            seen.append(path)
+    return seen or ["(rustfmt reported changes; see `cargo fmt --all --check`)"]
+
+
+def unformatted_files(repo: pathlib.Path) -> list[str] | None:
+    """Files rustfmt would change, or None when the member cannot be read."""
     try:
         proc = subprocess.run(
             ["cargo", "fmt", "--all", "--check"],
@@ -74,21 +99,7 @@ def unformatted_files(repo: pathlib.Path) -> list[str] | None:
         return None
     if proc.returncode == 0:
         return []
-    seen = []
-    for line in proc.stdout.splitlines():
-        if not line.startswith("Diff in "):
-            continue
-        path = line[len("Diff in "):].rsplit(":", 2)[0]
-        # Strip the Windows extended-length prefix rustfmt emits.
-        path = path.removeprefix("\\\\?\\")
-        try:
-            path = str(pathlib.Path(path).relative_to(repo))
-        except ValueError:
-            pass
-        if path not in seen:
-            seen.append(path)
-    # A nonzero exit with no parseable diff is still a failure; surface it.
-    return seen or ["(rustfmt reported changes; see `cargo fmt --all --check`)"]
+    return parse_rustfmt_diff_paths(proc.stdout, repo)
 
 
 def main() -> int:

@@ -35,6 +35,14 @@ provider-level judgment.
 regression tests), and the full Atlas Python suite passes 328 tests and 77
 subtests.
 
+**Baseline regeneration (2026-08-21):** `python scripts/atlas-conformance.py
+generate --worktree` regenerated `scripts/conformance-baseline.json` to
+match the post-fix counts (generator contract: changing a detector
+regenerates the baseline in the same change). The `check --worktree` mode
+confirms 0 regressions and 0 tightenings — the committed baseline is
+exactly at the new detector output. The `print_dbg` total is now **335**
+(was 366), with coeus/melinoe/themis at 0.
+
 ## Finding 2026-08-21: print_dbg assessment — not a safe mechanical sweep
 
 The live conformance scan reports `print_dbg = 366` across 11 repos. The
