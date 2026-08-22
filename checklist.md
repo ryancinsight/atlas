@@ -71,12 +71,14 @@
       `aa5ab2bc`.
 - [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
       the post-merge default, then advance the Atlas gitlink.
-      **Hosted hold (2026-08-21):** all 25 workflow runs remain `queued` after
-      33 minutes of observation (CI/CD `32521893944`, Architecture
-      `32521893980`, benchmark `32521893996`, legacy audit `32521894011`,
-      Deploy mdBook `32521894392`). CodeRabbit passed; `recurseml/analysis`
-      is errored (report-only). Re-open on terminal checks or a hosted
-      state transition; no pointer advance or bypass is authorized.
+      **Hosted hold (2026-08-21, re-checked):** all 25 workflow runs remain
+      `queued` after 56 minutes of observation across two re-check cycles
+      (CI/CD `32521893944`, Architecture `32521893980`, benchmark
+      `32521893996`, legacy audit `32521894011`, Deploy mdBook `32521894392`).
+      No runner has picked up a single job. CodeRabbit passed;
+      `recurseml/analysis` is errored (report-only). Re-open on terminal
+      checks or a hosted state transition; no pointer advance or bypass is
+      authorized.
 
 ## ATLAS-CFDRS-VALIDATION-TRACING-2026-08-21 — current session
 
@@ -97,6 +99,11 @@
       `69df44da`.
 - [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
       the post-merge default, then advance the Atlas gitlink.
+      **Hosted hold (2026-08-21, re-checked):** the Rust workspace gate
+      (run `32526664488`) and Check book figures SSOT remain `queued` after
+      23 minutes of observation. No runner has picked up a job. CodeRabbit
+      passed; `recurseml/analysis` is errored (report-only). Re-open on
+      terminal checks; no merge is authorized.
 
 ## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — current session
 
@@ -6632,6 +6639,13 @@ No repository other than CFDrs and Kwavers imports that family.
       Verdict: every honest production site is a recorded KEEP decision;
       zero undocumented sites remain. Item closes at the instrument-fixed
       count 85 with no source change.
+- [x] Root-caused PR #148 hosted failure (runs died at parse with no jobs/logs):
+      GitHub defaults.run accepts only shell/working-directory - moved the bound
+      to per-job timeout-minutes (12ff108); reusable-workflow caller jobs accept
+      no timeout key at all - removed it there, bound lives in atlas
+      python-wheels.yml (42dbad0). artifact-metadata scope verified valid via
+      in-production usage at atlas python-wheels.yml:219. Post-fix push: no
+      python-release parse failure, Python Bindings queued on head.
 - [x] Executed reclaimed MOI-AUDIT-FLOOR-012 immediately: armed
       #![deny(missing_docs)] in moirai-core/crypto/gpu/python + moirai-tests
       (the five of nineteen lacking it). Zero surfaced violations - public
