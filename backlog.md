@@ -1,5 +1,60 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — merge pending
+
+- **Owner:** current session; lane `worktrees/kwavers-log`.
+- The differential oracle (ATLAS-KWAVERS-KWAVE-ORACLE) has now surfaced three
+  defects that every existing test passed over, each because the suite compared
+  kwavers against itself rather than against an independent reference.
+- **Plugin sources discarded** — Kwavers
+  [PR #603](https://github.com/ryancinsight/kwavers/pull/603).
+  `PluginManager::execute` threads its source list to every plugin;
+  `PSTDPlugin` and `FdtdPlugin` both ignored it, each constructing its solver
+  with an empty `GridSource`. A caller supplying sources got a run that
+  completed, returned `Ok`, and was never driven. No machinery was missing —
+  `add_source_arc` through `dynamic_sources` is consumed by the stepper — only
+  the plugin's call. `PluginContext::sources` moves `Box` to `Arc` because the
+  stepper queries `amplitude(t)` every step. The driven reference case now
+  validates both routes against one stored field at identical digits, and the
+  two agree with each other to `4.0e-13`.
+- **Absorption coefficient unreachable** — Kwavers
+  [PR #607](https://github.com/ryancinsight/kwavers/pull/607).
+  Callers resolved explicit-wins into the config; the solver resolved
+  medium-wins against a sentinel, and `HomogeneousMedium::new` seeds water's
+  values, so a caller asking for `40 dB/(MHz^1.5 cm)` silently ran at `0.0022`.
+  The exponent had the identical defect against its own sentinel — fixing only
+  the coefficient still left `r = 0.838`, because `alpha_0 f^y` with the
+  coefficient from one owner and the exponent from another evaluates neither
+  party's power law. Both now resolve together from one owner. ADR 120 Accepted.
+- **Axis and memory order** — closed inside
+  [PR #601](https://github.com/ryancinsight/kwavers/pull/601). k-Wave returns
+  fields axis-reversed and `np.savez` stores a transposed array Fortran-ordered;
+  both were invisible to every square symmetric case.
+- **Pattern worth carrying to other members:** each defect was a surface whose
+  output did not depend on an input its signature accepted, and each survived a
+  green suite. The generalisable check is an *independent* oracle — a reference
+  implementation, an analytical solution — not more self-comparison. Members
+  with reference implementations available (RITK against ITK/SimpleITK, CFDrs
+  against analytical benchmarks) are the natural next candidates.
+
+## ATLAS-KWAVERS-PIN-SWEEP-2026-08-22 — advance Kwavers onto the merged stack [patch] — in progress
+
+- Co-evolution sweep following the Coeus and Hephaestus merges. Kwavers' lock
+  pinned Coeus at `5adc2d16` against a merged default of `2d6f08ab`.
+- Lock-only advance across eleven upstreams — Coeus, Hephaestus, Moirai,
+  Mnemosyne, Leto, Apollo, Hermes, Themis, Melinoe, Eunomia, Aequitas — with no
+  manifest requirement changes, so every advance is inside an existing semver
+  range.
+- **Verification constraint, recorded rather than skipped:** the development
+  overlay resolves first-party crates to the local `repos/` trees, so a build
+  under the umbrella does not exercise the new pins at all, and hosted CI has
+  been stalled since 2026-08-21 20:33 UTC. The advance is therefore verified by
+  a standalone `cargo check --locked` run from outside the overlay.
+- **Gitlink advance not attempted:** `repos/coeus` and `repos/hephaestus` both
+  carry peer dirt, and the Hephaestus tree is checked out on a peer's active
+  branch. Moving either would disturb work in progress. The gitlinks stay behind
+  their merged defaults until those trees are free.
+
 ## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — Simulated elastic-SWE GPU surface deleted [major] — in progress
 
 - **Owner:** current session; lane `worktrees/kwavers-gpumock` (branch
