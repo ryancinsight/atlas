@@ -514,7 +514,7 @@
     "commented_out_code": 46,
     "crate_level_allows": 10,
     "excess_worktrees": 5,
-    "existence_only_assertions": 265,
+    "existence_only_assertions": 221,
     "gitattributes_missing": 0,
     "junk_drawer_modules": 22,
     "manifest_implementation": 286,

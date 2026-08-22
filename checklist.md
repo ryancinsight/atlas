@@ -44,6 +44,59 @@
       clean-revision ratchet (currently hard-blocked on local-only
       `49d80a4`).
 
+## ATLAS-KWAVERS-STUBORACLE-2026-08-22 — current session
+
+- [x] Confirm `KW-GAP-2026-08-20-STUBORACLE` is the next unowned ordered
+      item after GPUMOCK and is independent of the k-Wave work.
+- [x] Scope the oracles: `energy_conservation_test.rs:101` asserted only
+      `initial_energy > 0.0` with an unwritten-test comment; the
+      reciprocity test swapped tuples and asserted `source_a ==
+      receiver_b` without invoking a solver. Detector baseline 265 via
+      `scripts/atlas-conformance.py report --repo kwavers`.
+- [x] Establish the solver driver: `PSTDSolver` (StandardPSTD, k-Wave
+      KSpaceFirstOrder split-field leapfrog) with public `fields` and
+      `rhox/rhoy/rhoz`; `update_pressure` recomputes `p = c²·Σρ` every
+      step, so seeds go into the split densities EOS-consistently.
+      `BoundaryConfig::None` + default lossless/anti-aliasing-off = closed
+      lossless periodic box.
+- [x] Diagnose the first energy bound: naive `PE + KE(u_{n+1/2})`
+      observable showed ±1.2e-2 oscillatory drift — the O(ω̄·dt)/2
+      staggering artifact of pairing half-step velocity with
+      integer-step pressure. The staggered-averaged energy removes it:
+      max drift 7.4e-4 vs derived bound `(ω_max·dt)²/6 = 1.7e-3`
+      (2.2× margin, no secular growth over 600 steps).
+- [x] Rewrite `test_energy_conservation_in_closed_domain` (300 steps,
+      48³, σ=8-cell Gaussian, CFL 0.2, staggered-averaged energy,
+      bound derived from integrator order + 4σ spectral cutoff;
+      observed 7.6e-4) and `test_reciprocity_principle` (3 seeds × 3
+      receivers, all crossed pairs compared; agreement 4e-15 vs 1e-6
+      bound, matching the discrete-symmetry derivation).
+- [x] Burn down all 44 detector-counted existence-only sites in the
+      three target crates (physics 20, analysis 15, solver 9):
+      `expect_err` with message checks, `assert_eq!(x, None)`, value use
+      of unwrapped pointers, CPML thickness check, `match` where the Ok
+      type lacks Debug (`PipelineCoordinator`).
+- [x] Ratchet: lane detector count 265 → 221; update
+      `scripts/conformance-baseline.json` kwavers entry to 221 in the
+      same change (no metric regressed: lane-vs-main delta is only
+      `existence_only_assertions`; worktree-only artifacts like
+      `excess_worktrees`/`tag_pinned_actions` are checkout-shape noise).
+- [x] Run provider gates on the lane: fmt clean; `cargo check
+      --all-targets` (4 crates) pass; clippy `--lib -D warnings` clean
+      and zero new test-target clippy warnings after converting
+      `.err().expect()` → `expect_err` (`clippy::err_expect`); nextest
+      physics+analysis 2305/2305, solver 902/902, kwavers 530/530.
+      Cargo.lock overlay drift and regenerated test-figure PNGs
+      restored — commit stays code-only.
+- [x] Publish branch `fix/kwavers-stuboracle-real-oracles` and open
+      Kwavers
+      [PR #606](https://github.com/ryancinsight/kwavers/pull/606) at
+      exact head `352b4dc7b4c9d2959ae53cb57eba1796c6ca51b8`;
+      `MERGEABLE` on open.
+- [ ] Collect hosted terminal checks at the exact PR head, then merge and
+      advance the Atlas kwavers gitlink (unblocks the clean-revision
+      ratchet, currently hard-blocked on local-only `49d80a4`).
+
 ## ATLAS-FMT-CHECK-PARSER-2026-08-21 — current session
 
 - [x] Identify that `scripts/atlas-fmt-check.py` had no focused test
