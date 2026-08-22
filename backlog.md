@@ -598,6 +598,15 @@ unchanged.
   strictly farther (higher max / lower min radius). Wheel-backed: 17 passed /
   1 skipped in `test_bindings_surface.py`; fmt, clippy `-D warnings`, nextest
   21/21, generator `--check` clean.
+- **Published at the rebased lane head (2026-08-22):** the lane (rebased onto
+  `origin/main` `377a98c86`, carrying the thermal and bubble-ODE GIL
+  increments) force-published to PR #590 with a lease guard against the
+  superseded head `6616c904`; PR head is now `a2a3878b` and `MERGEABLE`.
+  Hosted runs are executing rather than queued: Python wheel smoke
+  `32588842603` and Legacy Migration Audit `32588842587` in progress, CI/CD
+  `32588842609` and Deploy mdBook `32588842869` queued. All prior hosted
+  evidence remains stale; merge only at exact head after terminal required
+  checks.
 
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
