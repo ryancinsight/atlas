@@ -305,8 +305,16 @@
 - [x] Collect the stage-time lane's full provider gates: locked all-featured
       Nextest 26/26, no-default-features check, warning-denied all-target
       Clippy, doctests 1/1, and warning-denied Rustdoc.
-- [ ] Collect hosted terminal evidence for PR #26 and then advance the Atlas
+- [x] Collect hosted terminal evidence for PR #26 and then advance the Atlas
       gitlink from `a05dbeb` to the resulting merged default.
+      Done by the concurrent integration session: PR #26 merged at `abe42e5`
+      (MERGEABLE at merge time; CodeRabbit passed, recurseml report-only per
+      established pattern) and the gitlink advanced by `c987fad`
+      (index-level update preserving peer dirty-state). Residual:
+      post-merge default CI run `32520385101` and Pages deployment
+      `32520384152` are queued in the same capacity backlog; combined
+      commit status is `pending` — collect them under the hosted-hold item
+      below once runners resume.
 - [x] Diagnose the hosted hold: GitHub Actions runs stuck `queued` across
       horae, kwavers and CFDrs since ~13:00 UTC (status page reports Actions
       operational — capacity-side backlog). Exact-head `eb0e60b` run
