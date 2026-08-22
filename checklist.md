@@ -194,6 +194,15 @@
 - [ ] Re-run the clean-revision ratchet after the provider workflow changes
       land and their parent gitlinks advance; do not baseline the current
       peer-dirty worktree result.
+      **Blocker confirmed mechanically (2026-08-21):** an isolated clean
+      worktree scan at HEAD fails at submodule materialization — `repos/kwavers`
+      records local-only commit `49d80a465b46...` which the remote rejects
+      (`upload-pack: not our ref`), so a clean revision cannot even check out
+      the recorded kwavers gitlink. The ratchet is therefore hard-blocked on
+      the kwavers PR merge chain (#590/#602 → gitlink advance to a pushed
+      commit), not merely on runner capacity. All other submodules
+      materialize; the scan's dirty-tree and gitlink-match guards work as
+      designed.
 
 ## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — current session
 
