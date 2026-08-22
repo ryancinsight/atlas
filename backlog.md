@@ -1,5 +1,45 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — Simulated elastic-SWE GPU surface deleted [major] — in progress
+
+- **Owner:** current session; lane `worktrees/kwavers-gpumock` (branch
+  `fix/kwavers-gpumock-delete-simulated-gpu`).
+- **Closes** `KW-GAP-2026-08-20-GPUMOCK`, the #1 ordered item of the
+  2026-08-20 kwavers scope-vs-delivery audit ("do this before any further
+  GPU work so no downstream item builds on fabricated timings").
+- **What was deleted:** the whole `swe/gpu/` module (8 files, 861 lines) —
+  `GPUElasticWaveSolver3D::propagate_waves_gpu` and
+  `multidirectional_inversion_gpu` reported modelled kernel times and
+  throughput (10 TFLOPS / 32 GB/s assumptions, `operations_per_thread = 100`,
+  hardcoded `convergence_iterations = 50`, `residual_error = 0.001`) with no
+  shader bound or kernel launched, plus a bare `.unwrap()` on the
+  kernel-cache lookup; `AdaptiveResolution::adaptive_solve` fabricated
+  per-level `computation_time = 0.1 * 4^level` and a simulated
+  `simulate_solve_quality`. The module's own doc comment conceded it was a
+  "performance model" whose production path belongs to the provider-generic
+  `kwavers-gpu` / Hephaestus seam (ADR 0051).
+- **Callers updated in the same change:** `swe/mod.rs` drops the `gpu`
+  module and its re-exports; `crates/kwavers/tests/swe_3d_validation.rs`
+  loses `test_gpu_acceleration_performance` (asserted fabricated
+  throughput) and `test_adaptive_resolution` (asserted simulated
+  quality/timing).
+- **Provider gates (clean lane from fetched `origin/main` `377a98c8`):**
+  fmt clean; `cargo check -p kwavers-solver -p kwavers` pass; clippy
+  `-p kwavers-solver --lib -D warnings` clean; nextest `kwavers-solver`
+  897/897 and `kwavers` 529/529; doctests 7 passed. The pre-existing
+  `print_stdout` debt in test targets is untouched (error count at base
+  drops 123 → 100 with the deletion). No manifest or lockfile change.
+- **Published 2026-08-22 as Kwavers
+  [PR #604](https://github.com/ryancinsight/kwavers/pull/604)** at exact
+  head `17a855d85e4198b39fc45426abdd0576aa2d3d56`, `MERGEABLE`, based on
+  `origin/main` `377a98c86`. Hosted checks are the acceptance oracle;
+  merge only at the exact PR head after terminal required checks. The
+  dirty primary Kwavers checkout and Atlas gitlink `49d80a4` remain
+  unchanged.
+- **Post-merge:** advance the Atlas kwavers gitlink (also unblocks the
+  clean-revision ratchet, currently hard-blocked on local-only `49d80a4`),
+  then re-run the conformance ratchet on the clean revision.
+
 ## ATLAS-GPU-ACQUISITION-2026-08-21 — Coeus GPU suite restored, Hephaestus diagnostics [patch] — merge pending
 
 - **Owner:** current session; lanes `worktrees/coeus-wgpu-adapter-limits`,
