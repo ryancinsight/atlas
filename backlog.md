@@ -520,6 +520,21 @@ unchanged.
   generator staleness / typed-consumer / runtime-inventory tests pass (21
   passed, 3 skipped in source mode; runtime oracle 16/16 against the installed
   wheel).
+- **Thermal GIL family (lane rebased onto `origin/main` `377a98c86`):**
+  `ThermalSimulation::run` now runs its entire diffusion time loop inside
+  `py.detach`, mirroring the `Simulation::run` contract (GIL-phase setup /
+  owned-Rust-data time loop / GIL-phase PyArray assembly). Added the runtime
+  overlap oracle `test_thermal_simulation_run_releases_gil_with_returned_value_correctness`
+  on `test_bindings_surface.py`: a 48³ grid with a constant heat source holds
+  a solve window well past the 0.5 s floor while the main thread exceeds 1M
+  pure-Python GIL increments; returned-value correctness shows bit-identical
+  temperature fields for identical inputs and a doubled heat source raises the
+  temperature rise by exactly 2× (linear diffusion, ratio 1.0 within 1e-6).
+  Wheel-backed: 16 passed / 1 skipped in `test_bindings_surface.py`; fmt,
+  clippy `-D warnings`, nextest 21/21 clean. The `Simulation::run` slice
+  (PR #590) and the WGPU provider migration (PR #602) are both completed;
+  thermal is the first of the remaining GIL families (thermal, GPU-session,
+  bubble, monitor, chirp).
 
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
