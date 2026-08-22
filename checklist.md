@@ -3,6 +3,30 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-FMT-CHECK-PARSER-2026-08-21 — current session
+
+- [x] Identify that `scripts/atlas-fmt-check.py` had no focused test
+      coverage; its only testable surface (diff-line parsing) was
+      inlined inside `unformatted_files` next to the subprocess call.
+- [x] Extract `parse_rustfmt_diff_paths(stdout, repo)` as a pure
+      function: same algorithm, same dedup, same Windows-prefix
+      stripping, same outside-repo pass-through, same placeholder
+      sentinel. `unformatted_files` keeps the subprocess boundary
+      and delegates parsing to the new function.
+- [x] Add `scripts/tests/test_atlas_fmt_check.py` (11 tests) covering
+      empty-stdout placeholder, single-hunk relative path, multi-hunk
+      dedup, distinct-files order preservation, Windows
+      extended-length prefix stripping, paths outside the repo left
+      absolute, non-diff lines ignored, workspace-root normalization,
+      the `members()` unselected filter, the selected-only filter, and
+      the `.gitignore`-respecting member skip via the live git
+      check-ignore contract.
+- [x] Run focused suite: `11 passed`. Run full suite: `339 passed,
+      77 subtests, 13.43s` (was 328 before this increment).
+- [x] Sanity-run the live script against two known-clean members
+      (`aequitas`, `hermes`): both report `ok`, exit 0. Confirms the
+      refactor preserved behaviour.
+
 ## ATLAS-R6A-FILELIST-001 — current session
 
 - [x] Re-survey the 12 r6a commits on the 2026-08-21 HEAD with
