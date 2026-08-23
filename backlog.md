@@ -1,5 +1,39 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-OVERLAY-LOCK-GUARD-2026-08-23 — the overlay strips lockfiles and nothing local catches it [major] — todo
+
+| Outcome | Class | Status | Owner |
+|---------|-------|--------|-------|
+| No commit can land a Cargo.lock whose first-party `source = "git+..."` lines the development overlay stripped. | [major] | todo | unowned |
+
+- **What happened.** Seven stacked Kwavers branches were pushed carrying a
+  `Cargo.lock` with **all 88 `source = "git+..."` lines removed**. CI failed all
+  24 jobs on every one of them with `cannot update the lock file ... because
+  --locked was passed`. The cause is the development overlay: under the umbrella
+  `[patch]` redirects each first-party crate to a local path and cargo records no
+  source, so any `git add` of the lock from inside the stack commits a lock that
+  cannot resolve standalone.
+- **Why local verification missed it.** Every local run was *also* under the
+  overlay, where the stripped lock resolves fine. The lock is the one artifact
+  whose correctness cannot be checked from inside the environment that produces
+  it, and nothing local ran `--locked` from a neutral directory.
+- **It recurred within one session.** The first instance was caught by eye and
+  fixed (`build(kwavers): Restore the lockfile the overlay reordered`); the
+  second went unnoticed through six further commits because the reverting habit
+  — `git checkout -- Cargo.lock` — restores the file to HEAD, and HEAD was
+  already corrupt. A habit is not a guard.
+- **Acceptance:** a committed `pre-push` hook, or an xtask the hook calls, that
+  runs `cargo metadata --locked` with the working directory outside the overlay
+  root and refuses the push on failure. The check is cheap — no build, no network
+  beyond what cargo already has — and it is the exact check CI runs, so a push
+  that would fail never reaches a runner. Filing it here rather than in Kwavers
+  because every member under the overlay has the same exposure; Kwavers is only
+  where it fired first.
+- **Second-order:** the same class covers any derived artifact whose generator
+  runs inside the overlay. The generator contract already requires
+  regenerate-and-diff freshness; this is that rule applied to the lockfile, which
+  currently has no enforcement anywhere.
+
 ## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — merge pending
 
 - **Owner:** current session; lane `worktrees/kwavers-log`.
