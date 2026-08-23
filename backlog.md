@@ -10233,6 +10233,34 @@ one-line change and turns a passed-over log line into a gate.
 
 - **ATLAS-HERMES-CODEGEN-SSOT-2026-08-21** Resolve SIMD codegen source of truth [arch][minor] (2026-08-23; hermes PR #59 merged `78b8745` after all hosted gates passed at exact head `569ed00`; lane removed, branch deleted) — `78b8745`, `569ed00`
 
+## ATLAS-CROSS-MEMBER-SWEEP-108 — cross-member staleness and dirt sweep [patch] (2026-08-23) — in progress
+
+Liveness-measured sweep of all 28 member checkouts. Findings:
+
+- **moirai**: LIVE peer (tree modified mid-sweep) — excluded, never touched.
+- **CFDrs**: the largest anomaly — 53-commit validation/binding series
+  (Sprints 1.96.200-204 try_new validation, typed cfd-python boundary)
+  pushed to `codex/cfdrs-tvd-test-integration` but never merged; main moved
+  20 commits independently; 56 dirty files atop. Uncommitted WIP rescued to
+  `origin/rescue/cfdrs-wip-20260821`; the series is now up for integration
+  as **CFDrs PR #360**. [major]-class: merge holds for review + CI against
+  the resolved tree, not a blind merge.
+- **16 dead-session dirt patches** (aequitas, asclepius, eunomia, gaia,
+  harmonia, horae, hyperion, iris, leto, melinoe, proteus, themis from the
+  2026-08-20 ~14:2x session; helios/apollo/consus from ~16:55; ritk from
+  08-21): PM-artifact updates (+30..+688 lines each), rescue-committed
+  verbatim and pushed to `rescue/pm-sweep-20260820` per member; working
+  trees restored clean at their prior heads. Port-or-drop parked with
+  their author.
+- **leoneuro-rs**: 6 stranded commits on `codex/sim-ct-medium` (patch-block
+  retirement era); needs per-commit supersession judgment before any PR.
+- Clean but stale checkouts (behind origin, no dirt): apollo, consus,
+  eunomia, gaia, harmonia, horae, hyperion, melinoe, ritk, themis, tyche,
+  athena — fast-forward at next touch of each member.
+
+Re-open triggers: CFDrs PR #360 verdict; author decisions on the rescue
+branches; moirai re-check after its live peer's commit lands.
+
 ## Archive — closed items
 
 Closed items, one line each. Full prose is in git history; commit SHAs below are the entry points.
