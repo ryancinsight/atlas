@@ -63,6 +63,19 @@
   closes at the advance commit; hosted CI on the merged branches is a
   fix-forward watchpoint, not a closure gate (recorded in
   `ATLAS-KWAVERS-PIN-SWEEP-2026-08-22`).
+- **Record-vs-tree correction (2026-08-23, atlas commit to be named):** the
+  tree at `befb8e5` recorded coeus `79f05dfd8cc` (an ancestor of the merged
+  default) and hephaestus `d24513a3c31` (a side-branch commit on
+  `codex/hephaestus-fdtd-107`, not an ancestor of the merged default) rather
+  than the `2d6f08ab`/`655091db` the message and this record claim. The
+  pointers are re-advanced to the actual merged defaults `2d6f08ab1ef3`
+  (coeus) and `655091db82d0` (hephaestus), both verified to match each
+  member's `origin HEAD` at correction time; the peer-dirty provider checkouts
+  are untouched. The stale `79f05dfd`/`d24513a3` pins were the sole
+  `gitlink-coherence` defect class that a pointer move could repair; the
+  remaining flagged rows are the tool's `origin/main` naming assumption
+  (hephaestus publishes `master`) and the kwavers pin held behind the merge
+  queue.
 
 ## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — Simulated elastic-SWE GPU surface deleted [major] — in progress
 
