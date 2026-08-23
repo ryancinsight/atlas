@@ -1215,8 +1215,36 @@ cleared stack-wide they became the only remaining `-D warnings` errors, i.e.
 delivery-blocking. Commit `05c025e8` deletes the two no-effect
 `..Default::default()` bases (all three struct fields are specified at both
 sites). Local: workspace clippy `-D warnings` reports zero errors, cfd-3d
-nextest 400/400, fmt clean. Hosted gate re-running at `05c025e8`; merge only
-at exact head after terminal required checks, then stage C.
+nextest 400/400, fmt clean.
+
+**Stage B closed (2026-08-23):** replacement gate terminal success at
+`05c025e8`; PR #363 merged with the expected-head guard at default `c5f9fa2c`;
+post-merge CI `32611718091` collected before further solver work on this
+default.
+
+**Stage C scoping confirmed (2026-08-23):** the Leto Krylov family now has
+**zero stack-wide consumers** (`linalg::iterative` imports: helios, ritk,
+coeus, harmonia, CFDrs, kwavers, moirai, tyche all scan zero), so Stage D's
+consumer precondition is met and only ADR 0033's sequencing (C before D)
+holds deletion. Stage C scope verified present at kwavers origin/main:
+`kwavers-solver/src/forward/bem/gmres.rs` (334 LOC, f64-hardcoded dense
+GMRES), `kwavers-solver/src/integration/nonlinear/gmres/` (419 LOC), and the
+matrix-free operator whose `jacobian_vector_product`
+(`multiphysics/monolithic/residual/jvp.rs:17`) needs the `&mut self` →
+`&self` refactor (scratch-buffer cache is its only mutation). Kwavers uses
+`leto_ops` only for matvec/dot primitives elsewhere — legitimate array ops,
+not Krylov recurrences.
+
+**Stage C claim blocked on lane availability:** all seven registered Kwavers
+worktree lanes hold live published PR branches (#598, #590, #602, and peers);
+the two-tree bound forbids minting a ninth tree, and the primary checkout is
+detached and dirty. This is a genuine contention deferral: re-open when any
+lane completes its hosted collection and merges (its tree then re-points),
+or when a peer releases a lane. DoR is otherwise complete: outcome (one
+Athena-backed Krylov implementation; delete the three Kwavers duplicates),
+acceptance oracle (ADR 0033 Stage C/D acceptance — residue scan finds no
+Krylov recurrence outside Athena; every consumer suite passes against
+Athena), change class `[minor]` breaking internal seam per the ADR.
 
 **Stage C — migrate Kwavers: not started, and wider than the ADR recorded.**
 Kwavers declares no `athena` dependency in any manifest. It carries **three**
