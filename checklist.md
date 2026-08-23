@@ -292,9 +292,11 @@
       migrated that site (PR's plain `tracing::info!` would regress it).
       New head `3dd05e2c` (14 files, 531+/528-); gates on the lane pass:
       fmt, check, clippy `-D warnings`, nextest 435/435.
-- [ ] Collect hosted terminal evidence at the new head `3dd05e2c`, merge
-      at the exact PR head, verify the post-merge default, then advance
-      the Atlas gitlink. `recurseml/analysis` is report-only.
+- [x] Collect hosted terminal evidence at the new head `3dd05e2c` (Rust
+      workspace gate + Check book figures SSOT both `success`), and merge
+      PR #366 at the exact PR head (merged 2026-08-23 at `f5dd8955`).
+- [ ] Verify the post-merge default `f5dd8955` CI is terminal, then
+      advance the Atlas CFDrs gitlink. `recurseml/analysis` is report-only.
 
 ## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — current session
 
@@ -325,9 +327,12 @@
       drift, rebased cleanly with no conflicts. New head `302cba62`;
       gates on the lane pass: fmt, check, clippy `-D warnings`, nextest
       590/590 (27 skipped).
-- [ ] Collect hosted terminal evidence at the new head `302cba62`, merge
-      at the exact PR head, verify the post-merge default, then advance
-      the Atlas gitlink. `recurseml/analysis` is report-only.
+- [x] Collect hosted terminal evidence at the new head `302cba62` (Rust
+      workspace gate and `Check book figures SSOT` both `success`), and
+      merge PR #367 at the exact PR head (merged 2026-08-23 at
+      `51b77bad`).
+- [ ] Verify the post-merge default `51b77bad` CI is terminal, then
+      advance the Atlas CFDrs gitlink. `recurseml/analysis` is report-only.
 
 ## ATLAS-HYGIENE-BASELINE-001 — current conformance increment
 

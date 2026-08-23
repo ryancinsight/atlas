@@ -454,13 +454,19 @@ unchanged.
   `cfd-2d/src/solvers/cell_tracking/tracker.rs` and `cfd-core/*` files
   outside this PR's scope, i.e. base debt on `aa54f5cd` predating the
   format-gate restoration merged at `a70faea6`. The lane was rebased onto
-  the current default `c5f9fa2c`; the single conflict
+  the current default  `c5f9fa2c`; the single conflict
   (`venturi_cross_fidelity.rs`) resolved to main's structured
   `tracing::warn!` because main already migrated that site and the PR's
   plain `tracing::info!` would have regressed it. New head `3dd05e2c` (14
   files, 531+/528-); lane gates pass (fmt, check, clippy `-D warnings`,
   nextest 435/435). Fresh hosted CI is queued at the new head; merge only
   after terminal required checks at `3dd05e2c`.
+- **Merged at the exact head (2026-08-23):** the hosted `Rust workspace
+  gate` and `Check book figures SSOT` runs at `3dd05e2c` both reached
+  terminal `success`; PR #366 merged at that exact head into `f5dd8955`.
+  Post-merge CI at the merged default is queued; the CFDrs gitlink stays
+  at `c5f9fa2c` until that evidence is terminal (fix-forward watchpoint,
+  not a closure gate).
 
 ## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — Migrate turbulence validation println! to tracing [patch] — in progress
 
@@ -515,6 +521,12 @@ unchanged.
   clippy `-D warnings`, nextest 590/590 with 27 skipped). Fresh hosted CI
   is queued at the new head; merge only after terminal required checks at
   `302cba62`.
+- **Merged at the exact head (2026-08-23):** the `Rust workspace gate`
+  and `Check book figures SSOT` runs at `302cba62` reached terminal
+  `success`; PR #367 merged at head at `51b77bad` (on top of the #366
+  merge). Post-merge CI at the merged default is queued; the Atlas
+  gitlink stays at `c5f9fa2c` until that is terminal (fix-forward
+  watchpoint, not a closure gate).
 
 ## ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21 — Add defaults and NumPy protocols [minor] — in progress
 
