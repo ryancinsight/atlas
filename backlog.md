@@ -10124,8 +10124,19 @@ embedded `.tmp-wt-*` scratch-checkout quartet, and an embedded
 - The four `.tmp-wt-*` trees and the embedded `worktrees/` clone were deleted
   after confirming every commit they contained exists on an origin branch.
 
-The stash-triage question from the prior sweep is unaffected by this item; the
-five named stashes remain parked for their author.
+**Coeus sweep (2026-08-23, same class).** HEAD was current; the dirt was an
+evolved autodiff computation-graph-cache WIP mixed with hunks reverting landed
+shape-correct multi-margin/multi-label gather fixes. Salvage-committed verbatim
+to `rescue/coeus-cache-wip` (`c8a213f0`, pushed); the cache layer completed,
+verified, and merged as Coeus PR #342 (`fac64780`, merge `c2f938c0`) with the
+loss-revert hunks excluded. Unported residue kept only on the rescue branch:
+docs/backlog, docs/checklist, docs/gap_audit, CHECKLIST deltas (~613 lines of
+process notes) — port-or-drop decision parked with their author.
+ATLAS-ADR-UNTRACKED-105 correction: coeus ADR 0066 is already tracked on main
+with Status: Accepted; that member's gap is closed upstream.
+
+The stash-triage question from the prior sweep is unaffected by this item;
+the named stashes remain parked for their author (kwavers 5, coeus 6).
 
 
 ## ATLAS-ADR-UNTRACKED-105 — completed ADRs left untracked [patch] — in progress 2026-08-19 (kwavers closed; coeus + hephaestus open)
