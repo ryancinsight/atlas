@@ -22,13 +22,27 @@
   second went unnoticed through six further commits because the reverting habit
   — `git checkout -- Cargo.lock` — restores the file to HEAD, and HEAD was
   already corrupt. A habit is not a guard.
-- **Acceptance:** a committed `pre-push` hook, or an xtask the hook calls, that
-  runs `cargo metadata --locked` with the working directory outside the overlay
-  root and refuses the push on failure. The check is cheap — no build, no network
-  beyond what cargo already has — and it is the exact check CI runs, so a push
-  that would fail never reaches a runner. Filing it here rather than in Kwavers
-  because every member under the overlay has the same exposure; Kwavers is only
-  where it fired first.
+- **Correction: Kwavers already has the tool.** `scripts/lockfile.py` on the
+  Kwavers default branch does exactly this — `--check` and `--regenerate`, run
+  with cargo outside the overlay — and its docstring describes this trap
+  precisely, citing `KW-CI-087`. It is called from `benchmark-regression.yml`
+  and from nowhere else. So the gap is narrower and sharper than first filed:
+  the tool exists, CI calls it from one workflow, and **nothing runs it locally
+  before a push**. That is the whole reason seven branches went out corrupt with
+  a working guard sitting in the repository.
+- **Acceptance, revised:**
+  1. Kwavers wires `scripts/lockfile.py --check` into a committed `pre-push`
+     hook and into the main CI workflow, not only the benchmark one.
+  2. The tool is promoted to the other members. Fifteen repositories carry
+     first-party git sources and none of them has it: CFDrs (64), helios (59),
+     asclepius (41), coeus (41), apollo (36), athena (35), hephaestus (33),
+     consus (24), gaia (22), hermes (11), harmonia (4), hyperion (3), horae (2),
+     aequitas (1), and Kwavers itself. Every one is exposed to the same silent
+     corruption; Kwavers is only where it fired first and where someone already
+     built the fix.
+  3. Promotion is a copy of one file plus one hook line, so this is a
+     consolidation item, not a design one — the reusable form is the shared
+     workflow the CI policy already prefers over per-repo copies.
 - **Second-order:** the same class covers any derived artifact whose generator
   runs inside the overlay. The generator contract already requires
   regenerate-and-diff freshness; this is that rule applied to the lockfile, which
