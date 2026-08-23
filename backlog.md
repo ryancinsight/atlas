@@ -616,7 +616,7 @@ unchanged.
   peer-dirty checkout untouched). Tyche's set of ATLAS-BOOK-FIGURE-CLOSURE
   is closed by this commit.
 
-## ATLAS-HOSTED-POSTMERGE-CONSUS-2026-08-21 — Verify Consus book-gate merge [patch] — in progress
+## ATLAS-HOSTED-POSTMERGE-CONSUS-2026-08-21 — Verify Consus book-gate merge [patch] — closed
 
 - Consus PR [#53](https://github.com/ryancinsight/consus/pull/53) merged at
   `2026-08-21T14:12:08Z` from exact head `39da4782780c032f587d406f9e32cd62d62f1557`
@@ -636,6 +636,15 @@ unchanged.
   HTTP 200, but its `Last-Modified` predates the merge, so content from the
   merged commit is not verified. Re-open on terminal provider runs or a new
   hosted state transition; no rerun or bypass was used.
+- **Closed (2026-08-23):** CI run `32490857845` was cancelled after ~27h by
+  the account-wide runner saturation (not a code failure); the Deploy mdBook,
+  Documentation, and Pages runs had already reached terminal success at the
+  merged commit. The cancelled run was rerun and reached terminal `success`:
+  the merged default `5fc1443e` now shows all required checks green (Check
+  and Test matrices across the crates, Format, MSRV, fuzz build, Deploy/Build
+  book, Pages). The live Consus book probe returns HTTP 200. The Atlas consus
+  gitlink advances `ebc4979` → `5fc1443` (index-level pointer move;
+  peer-dirty checkout untouched).
 
 ## ATLAS-CFDRS-PYTHON-GIL-2026-08-21 — Complete PyO3 solver GIL boundaries [minor] — in progress
 
