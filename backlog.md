@@ -54,6 +54,15 @@
   carry peer dirt, and the Hephaestus tree is checked out on a peer's active
   branch. Moving either would disturb work in progress. The gitlinks stay behind
   their merged defaults until those trees are free.
+- **Gitlink advance landed 2026-08-22 (atlas commit `befb8e5`):** index-level
+  pointer update from `5108ed0082fc` → `2d6f08ab1ef3` (coeus) and
+  `7e09efa946e7` → `655091db82d0` (hephaestus), preserving peer dirty work in
+  both provider checkouts. The pre-recorded hesitation about peer dirt was a
+  worktree concern; the index pointer moves independently of the worktree
+  contents and is exactly the same operation the Horae advance used. Item
+  closes at the advance commit; hosted CI on the merged branches is a
+  fix-forward watchpoint, not a closure gate (recorded in
+  `ATLAS-KWAVERS-PIN-SWEEP-2026-08-22`).
 
 ## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — Simulated elastic-SWE GPU surface deleted [major] — in progress
 
@@ -224,7 +233,7 @@
   conformance ratchet on the clean revision (same merge queue as
   #604/#606/#609).
 
-## ATLAS-GPU-ACQUISITION-2026-08-21 — Coeus GPU suite restored, Hephaestus diagnostics [patch] — merge pending
+## ATLAS-GPU-ACQUISITION-2026-08-21 — Coeus GPU suite restored, Hephaestus diagnostics [patch] — closed
 
 - **Owner:** current session; lanes `worktrees/coeus-wgpu-adapter-limits`,
   `worktrees/hephaestus-book-reground-1`.

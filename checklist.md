@@ -6939,6 +6939,25 @@ No repository other than CFDrs and Kwavers imports that family.
       live peer Sprint series inside the submodule - conflict resolution waits
       for their series to land (recorded watchpoint, not my claim).
 
+## ATLAS-GPU-ACQUISITION-POINTER-ADVANCE-2026-08-22 - current session
+
+- [x] Verified both PRs merged on origin (Coeus #341 at `2d6f08ab1ef3`,
+      Hephaestus #217 at `655091db82d0`); local provider checkouts still carry
+      peer dirty work (coeus peer's autograd caching slice; hephaestus
+      untracked files).
+- [x] Index-level gitlink advance only: `git update-index --add --cacheinfo
+      160000,<sha>,repos/<name>` for both repos. The pre-recorded hesitation
+      about peer dirt applied to a worktree move, not an index pointer, and the
+      pointer operation is exactly the Horae precedent (`5c8a828`).
+- [x] Staged and committed as atlas `befb8e5` ("chore(atlas): advance Coeus
+      and Hephaestus gitlinks to merged PRs"); pushed to origin/main.
+- [x] Updated ATLAS-GPU-ACQUISITION-2026-08-21 row in backlog.md from
+      "merge pending" to "closed" with a closure note pointing at the advance.
+- [x] Conformance per-repo scan against the new pointers (worktree mode, since
+      the pointer advance does not change worktree contents): coeus and
+      hephaestus debt classes match the pre-advance worktree state. No new
+      debt class introduced.
+
 ## Archive — closed checklists
 
 Closed items, one line each. Full prose is in git history; commit SHAs below are the entry points.
