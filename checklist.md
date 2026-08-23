@@ -239,6 +239,22 @@
 - [x] Publish branch `fix/kwavers-alloc-probe-deny-docs` and open PR
       [#598](https://github.com/ryancinsight/kwavers/pull/598) at exact head
       `aa5ab2bc`.
+- [x] DENYDOCS increment 2 — `kwavers-mesh`: add `#![deny(missing_docs)]`
+      and document the 8 uncovered fields (`BoundingBox`, `MeshStatistics`).
+      Commit `489554d3b`.
+- [x] DENYDOCS increment 3 — `kwavers-field`: add `#![deny(missing_docs)]`
+      and write the 39 missing doc items (17 `UnifiedFieldType` variants,
+      6 `BubbleStateFields` fields + constructor, 6 stress-alias constants,
+      5 `FieldStatistics` fields, 2 accessor constructors, `WaveFields`
+      alias, `wave` module header, `leto` re-export). Commit `67b4099cd`.
+- [x] Run provider gates on the extended lane: format, check, clippy
+      (`-D warnings`, all targets), nextest (16 tests), doctests — all
+      pass.
+- [x] Ratchet the detector: `missing_deny_docs` 23 → 20 in
+      `scripts/conformance-baseline.json`; verified on the lane by the
+      same scan the detector runs.
+- [x] Push the extended branch and update PR #598 (title + body) to the
+      three-crate increment at exact head `67b4099cd`.
 - [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
       the post-merge default, then advance the Atlas gitlink.
       **Hosted hold (2026-08-21, re-checked):** all 25 workflow runs remain

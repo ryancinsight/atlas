@@ -521,7 +521,7 @@
     "markers": 2,
     "member_namespace_pollution": 0,
     "missing_cargo_lock": 0,
-    "missing_deny_docs": 23,
+    "missing_deny_docs": 20,
     "nextest_budget_missing": 0,
     "orphan_modules": 0,
     "oversized_files": 111,

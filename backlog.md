@@ -192,6 +192,38 @@
   conformance ratchet on the clean revision (blocked on #604 + #606 +
   this PR landing).
 
+## ATLAS-KWAVERS-DENYDOCS-2026-08-22 — Missing-docs floor on the three smallest crates [minor] — in progress
+
+- **Owner:** current session; lane `worktrees/kwavers-deny-docs` (branch
+  `fix/kwavers-alloc-probe-deny-docs`).
+- **Closes** `KW-GAP-2026-08-20-DENYDOCS` increments 1-3, smallest
+  crates first: `#![deny(missing_docs)]` enabled with the resulting
+  missing docs written — never a blanket `#[allow]`.
+- **alloc-probe** (`aa5ab2bc9`): attribute only; the single-file crate
+  already documented every public item.
+- **kwavers-mesh** (`489554d3b`): 8 fields documented — `BoundingBox`
+  (min/max corners), `MeshStatistics` (node/element/boundary-face
+  counts, total volume, average and minimum quality).
+- **kwavers-field** (`67b4099cd`): 39 items — 17 `UnifiedFieldType`
+  variants, 6 `BubbleStateFields` fields + constructor, 6 stress-alias
+  constants, 5 `FieldStatistics` fields, both accessor constructors, the
+  `WaveFields` alias, the `wave` module header, and the `leto`
+  re-export.
+- **Ratcheted:** detector `missing_deny_docs` 23 → 20
+  (`scripts/conformance-baseline.json` updated in the same change); the
+  kwavers driver crate already denied. Next increment: `kwavers-phantom`.
+- **Gates:** fmt, check, clippy `-D warnings` (all targets), nextest
+  16/16, doctests — all pass on the lane. Cargo.lock overlay drift
+  restored — commits are doc-only.
+- **Published 2026-08-22 as Kwavers
+  [PR #598](https://github.com/ryancinsight/kwavers/pull/598)** (title
+  updated to the three-crate increment) at exact head `67b4099cd`, based
+  on `origin/main` `377a98c86`. Hosted checks are the acceptance oracle;
+  merge only at the exact PR head after terminal required checks.
+- **Post-merge:** advance the Atlas kwavers gitlink and re-run the
+  conformance ratchet on the clean revision (same merge queue as
+  #604/#606/#609).
+
 ## ATLAS-GPU-ACQUISITION-2026-08-21 — Coeus GPU suite restored, Hephaestus diagnostics [patch] — merge pending
 
 - **Owner:** current session; lanes `worktrees/coeus-wgpu-adapter-limits`,
