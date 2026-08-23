@@ -893,7 +893,7 @@ unchanged.
   example/test/bench files under `-D warnings --all-targets` — a ratchet-scale
   burn-down filed below as its own item.
 
-## ATLAS-KWAVERS-ARCH-GATE-2026-08-23 — Repair the repo-wide architecture gate [major] — in progress
+## ATLAS-KWAVERS-ARCH-GATE-2026-08-23 — Repair the repo-wide architecture gate [major] — closed
 
 The Kwavers `Validate Clean Architecture` job fails on every open PR and has
 no terminal-passing run at any recent default (post-merge runs cancelled).
@@ -922,6 +922,28 @@ violations, fixed properly: smoke-binary println behind a reasoned
 unnecessary literal lifetime bounds; three `from_iter` → `.collect()`.
 Local evidence: lib targets clean under full `-D warnings`; scoped
 all-targets pass clean; touched tests 20/20; fmt clean. Hosted runs queued.
+
+**Additional implementation (2026-08-23, second head `568132cf7`):** the
+first hosted gate still failed: the ratchet step lints pinn-gated benches
+under workspace-level `trivially_copy_pass_by_ref = deny`, which the strict
+step's program-target allowances only covered under `full`. Fixed properly
+per the item's own floor-violation doctrine — `adaptive_sampling_opt` and
+`pinn_elastic_2d_training` benches pass the ZST `Backend` by value (`&Backend`
+→ `Backend`), re-borrowing at the `Tensor::from_slice_on` API calls. The
+exact failing hosted command (`cargo clippy -p kwavers --all-targets
+--features full,pinn`) goes clean locally; the pinn test failure
+(`test_validation_result_construction`) reproduces on the pristine head and
+is pre-existing, not introduced by the fix.
+
+**Merged (2026-08-23) at `d13648b9`:** the fresh suite at `568132cf7` reached
+the required terminal green (arch gate success, book build success on rerun —
+the first failure was the known cold-cache timeout, also seen on unrelated
+head `83b29c3c` book pass), and PR #611 merged. Post-merge default CI at
+`d13648b9` is fully terminal (26/26 checks: `Validate Clean Architecture`
+success, book Build/Deploy success, all matrices green). The Atlas kwavers
+gitlink advances `49d80a4` → `d13648b9` (index-level pointer move;
+peer-dirty checkout untouched). The queue that was blocked on the arch gate
+now recomputes against the fixed default.
 
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
