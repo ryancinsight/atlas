@@ -857,6 +857,12 @@ publication and GitHub Release creation remain explicitly outside this item;
 the Tyche Atlas pointer is unchanged until default CI/Pages and live-page
 evidence are terminal.
 
+**Ninth pointer batch (2026-08-23, atlas commit to be named):** the hold
+cleared — `7d6364716f` has terminal `CI` and `pages-build-deployment` runs at
+the exact head, and the live site returns HTTP 200 with title `Tyche | tyche`.
+The Atlas gitlink advances to `7d6364716f`; `recurseml/analysis` remains
+report-only.
+
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence `verification` `patch` — in progress
 
 Horae's tableaus declare formal orders, but its existing embedded-pair test
@@ -1089,6 +1095,12 @@ The implementation is published as PR
 `32441332866` remains queued. The dirty primary Asclepius checkout and Atlas
 gitlink remain unchanged until Pages and live-page verification are terminal.
 The merged lane and remote branch were removed after ancestry verification.
+
+**Ninth pointer batch (2026-08-23, atlas commit to be named):** the Pages
+hold cleared — `a38b8b50d1` has terminal `ci` and `pages-build-deployment`
+runs at the exact head, and the live site returns HTTP 200 with title
+`Asclepius | asclepius`. The Atlas gitlink advances to `a38b8b50d1`;
+`recurseml/analysis` remains report-only.
 
 ## ATLAS-THEMIS-REGION-MODULE-2026-08-20 — Split branded region implementation [arch][patch] — in progress
 
