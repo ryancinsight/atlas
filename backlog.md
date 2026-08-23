@@ -449,6 +449,18 @@ unchanged.
   remain `queued` after 23 minutes of observation. CodeRabbit passed;
   `recurseml/analysis` is errored (report-only). No runner has picked up a
   job. No merge is authorized; re-open on terminal required checks.
+- **Format-gate failure diagnosed and rebased (2026-08-23):** the hosted
+  Rust workspace gate failed only on the Format step — diffs in
+  `cfd-2d/src/solvers/cell_tracking/tracker.rs` and `cfd-core/*` files
+  outside this PR's scope, i.e. base debt on `aa54f5cd` predating the
+  format-gate restoration merged at `a70faea6`. The lane was rebased onto
+  the current default `c5f9fa2c`; the single conflict
+  (`venturi_cross_fidelity.rs`) resolved to main's structured
+  `tracing::warn!` because main already migrated that site and the PR's
+  plain `tracing::info!` would have regressed it. New head `3dd05e2c` (14
+  files, 531+/528-); lane gates pass (fmt, check, clippy `-D warnings`,
+  nextest 435/435). Fresh hosted CI is queued at the new head; merge only
+  after terminal required checks at `3dd05e2c`.
 
 ## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — Migrate turbulence validation println! to tracing [patch] — in progress
 
@@ -494,6 +506,15 @@ Published as PR
 acceptance oracle; merge only at the exact PR head after terminal required
 checks. The dirty primary CFDrs checkout and Atlas gitlink remain
 unchanged.
+
+- **Rebased onto the merged default (2026-08-23):** the lane had been
+  re-pointed to Stage B (`refactor/cfdrs-athena-solver-ssot`, since merged
+  and closed); restored the PR branch, restored the `Cargo.lock` overlay
+  drift, and rebased cleanly onto `c5f9fa2c` with no conflicts. New head
+  `302cba62` (3 files, 62+/63- unchanged); lane gates pass (fmt, check,
+  clippy `-D warnings`, nextest 590/590 with 27 skipped). Fresh hosted CI
+  is queued at the new head; merge only after terminal required checks at
+  `302cba62`.
 
 ## ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21 — Add defaults and NumPy protocols [minor] — in progress
 
@@ -819,6 +840,14 @@ unchanged.
   `--timeout/--benchmark-disable`, whose plugins (pytest-timeout,
   pytest-benchmark) the job did not install. Head `d1281f990` installs both
   declared dependencies; replacement runs pending.
+- **Closed (2026-08-23):** replacement run set at `d1281f990` terminal:
+  CI/CD Pipeline (incl. Python Typed Surface), Python wheel smoke, Deploy
+  mdBook, and Legacy Migration Audit all success. The only failing check is
+  Architecture Validation — the pre-existing repo-wide defect filed below,
+  failing identically on every PR head, not required by any branch
+  protection. PR [#590](https://github.com/ryancinsight/kwavers/pull/590)
+  merged with the expected-head guard at default `ca5c9c93`; post-merge
+  default runs in progress before any Atlas gitlink advance.
   **Not this PR's regression:** the Architecture Validation job fails on every
   open PR head across the repository (12 consecutive failures on unrelated
   branches, main's own post-merge runs cancelled with no terminal baseline).
@@ -842,6 +871,19 @@ No mass `#![allow]` sweep and no weakening of library-target coverage.
 **Acceptance:** one terminal-success architecture run at an exact provider
 default; no increase in any other conformance class; the job then gates all
 open PRs meaningfully.
+
+**Implementation (2026-08-23, PR
+[#611](https://github.com/ryancinsight/kwavers/pull/611) at head on branch
+`fix/kwavers-arch-gate-scoping`, based on default `ca5c9c93`):** strict step
+split — kwavers-core all-targets and kwavers lib/bins keep full `-D
+warnings`; the kwavers all-targets pass denies everything except seven
+documented classes (print output; fixture pedantic doc/style debt at ADR
+116's warn ratchet). The scoped gate then exposed seven real floor
+violations, fixed properly: smoke-binary println behind a reasoned
+`#[expect]`; three reasonless `#[ignore]`s; one ignored unit pattern; two
+unnecessary literal lifetime bounds; three `from_iter` → `.collect()`.
+Local evidence: lib targets clean under full `-D warnings`; scoped
+all-targets pass clean; touched tests 20/20; fmt clean. Hosted runs queued.
 
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 

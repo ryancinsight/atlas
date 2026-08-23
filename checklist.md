@@ -283,13 +283,18 @@
 - [x] Publish branch `fix/cfdrs-validation-tracing` and open PR
       [#366](https://github.com/ryancinsight/CFDrs/pull/366) at exact head
       `69df44da`.
-- [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
-      the post-merge default, then advance the Atlas gitlink.
-      **Hosted hold (2026-08-21, re-checked):** the Rust workspace gate
-      (run `32526664488`) and Check book figures SSOT remain `queued` after
-      23 minutes of observation. No runner has picked up a job. CodeRabbit
-      passed; `recurseml/analysis` is errored (report-only). Re-open on
-      terminal checks; no merge is authorized.
+- [x] Rebase onto the merged default `c5f9fa2c` (2026-08-23): the hosted
+      Rust workspace gate failed only on the Format step — diffs in
+      `cfd-2d/tracker.rs` and `cfd-core/*` files outside this PR's scope,
+      i.e. base debt on `aa54f5cd` predating the format-gate restoration.
+      Rebase is clean; the one conflict (`venturi_cross_fidelity.rs`)
+      resolved to main's structured `tracing::warn!` because main already
+      migrated that site (PR's plain `tracing::info!` would regress it).
+      New head `3dd05e2c` (14 files, 531+/528-); gates on the lane pass:
+      fmt, check, clippy `-D warnings`, nextest 435/435.
+- [ ] Collect hosted terminal evidence at the new head `3dd05e2c`, merge
+      at the exact PR head, verify the post-merge default, then advance
+      the Atlas gitlink. `recurseml/analysis` is report-only.
 
 ## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — current session
 
@@ -314,8 +319,15 @@
 - [x] Publish branch `fix/cfdrs-cfd2d-turbulence-tracing` and open PR
       [#367](https://github.com/ryancinsight/CFDrs/pull/367) at exact head
       `66fb7566`.
-- [ ] Collect hosted terminal evidence, merge at the exact PR head, verify
-      the post-merge default, then advance the Atlas gitlink.
+- [x] Rebase onto the merged default `c5f9fa2c` (2026-08-23): the lane was
+      re-pointed to Stage B during the Krylov migration (now merged and
+      closed); restored the PR branch, restored the `Cargo.lock` overlay
+      drift, rebased cleanly with no conflicts. New head `302cba62`;
+      gates on the lane pass: fmt, check, clippy `-D warnings`, nextest
+      590/590 (27 skipped).
+- [ ] Collect hosted terminal evidence at the new head `302cba62`, merge
+      at the exact PR head, verify the post-merge default, then advance
+      the Atlas gitlink. `recurseml/analysis` is report-only.
 
 ## ATLAS-HYGIENE-BASELINE-001 — current conformance increment
 
