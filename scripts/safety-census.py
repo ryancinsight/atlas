@@ -53,29 +53,33 @@ def contiguous_comment_covers(lines, site_idx):
 def cfg_test_spans(lines):
     """Line spans of top-level `#[cfg(test)] mod ... { ... }` blocks."""
     spans = []
-    depth_at_mod = None
-    depth = 0
-    in_block = False
-    for idx, line in enumerate(lines):
-        if not in_block:
-            if re.match(r"^\s*#\[\s*cfg\s*\(\s*test\s*\)\s*\]", line):
-                nxt = lines[idx + 1] if idx + 1 < len(lines) else ""
-                if re.match(r"^\s*(pub\s+)?mod\b", nxt):
-                    in_block = True
-                    depth_at_mod = None
-                    continue
-        else:
-            opens = line.count("{")
-            closes = line.count("}")
-            if depth_at_mod is None:
-                depth_at_mod = depth
-            depth += opens - closes
-            if depth_at_mod is not None and depth <= depth_at_mod and (opens or closes):
-                if depth <= depth_at_mod and "}" in line:
-                    spans.append((idx, idx))
-                    in_block = False
-                    depth_at_mod = None
-                    depth = max(depth, 0)
+    i = 0
+    while i < len(lines):
+        if re.match(r"^\s*#\[\s*cfg\(\s*test\s*\)\s*\]", lines[i]):
+            j = i + 1
+            # Skip attributes/comments between the gate and the mod item.
+            while j < len(lines) and (
+                lines[j].strip().startswith("#") or lines[j].strip().startswith("//")
+                or lines[j].strip() == ""
+            ):
+                j += 1
+            if j < len(lines) and re.match(
+                r"^\s*(pub(?:\([^)]*\))?\s+)?mod\s+\w+", lines[j]
+            ):
+                depth = 0
+                opened = False
+                k = j
+                while k < len(lines):
+                    depth += lines[k].count("{") - lines[k].count("}")
+                    if "{" in lines[k]:
+                        opened = True
+                    if opened and depth <= 0:
+                        break
+                    k += 1
+                spans.append((i, min(k, len(lines) - 1)))
+                i = k + 1
+                continue
+        i += 1
     return spans
 
 
