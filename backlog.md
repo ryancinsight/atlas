@@ -37,7 +37,7 @@
   with reference implementations available (RITK against ITK/SimpleITK, CFDrs
   against analytical benchmarks) are the natural next candidates.
 
-## ATLAS-KWAVERS-PIN-SWEEP-2026-08-22 — advance Kwavers onto the merged stack [patch] — in progress
+## ATLAS-KWAVERS-PIN-SWEEP-2026-08-22 — advance Kwavers onto the merged stack [patch] — closed 2026-08-23
 
 - Co-evolution sweep following the Coeus and Hephaestus merges. Kwavers' lock
   pinned Coeus at `5adc2d16` against a merged default of `2d6f08ab`.
@@ -76,6 +76,12 @@
   remaining flagged rows are the tool's `origin/main` naming assumption
   (hephaestus publishes `master`) and the kwavers pin held behind the merge
   queue.
+- **Merged 2026-08-23:** the advance landed as Kwavers
+  [PR #608](https://github.com/ryancinsight/kwavers/pull/608), rebased onto
+  the arch-gate-fixed default `d13648b9` at head `8ddc1700d`, merged at that
+  exact head into `f05ea5ca3`. Post-merge CI at the default is terminal
+  (0 open checks). The Atlas kwavers gitlink advance completes the
+  queue-record work once #609 lands.
 
 ## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — Simulated elastic-SWE GPU surface deleted [major] — in progress
 
@@ -117,7 +123,7 @@
   clean-revision ratchet, currently hard-blocked on local-only `49d80a4`),
   then re-run the conformance ratchet on the clean revision.
 
-## ATLAS-KWAVERS-STUBORACLE-2026-08-22 — Real energy/reciprocity oracles + existence-only burn-down [patch] — in progress
+## ATLAS-KWAVERS-STUBORACLE-2026-08-22 — Real energy/reciprocity oracles + existence-only burn-down [patch] — closed 2026-08-23
 
 - **Owner:** current session; lane `worktrees/kwavers-stuboracle` (branch
   `fix/kwavers-stuboracle-real-oracles`).
@@ -159,9 +165,17 @@
   `origin/main` `377a98c86`. Two commits: real oracles, then the
   burn-down. Hosted checks are the acceptance oracle; merge only at the
   exact PR head after terminal required checks.
+- **Rebased 2026-08-23** onto the arch-gate-fixed default `d13648b9`
+  (`fix/kwavers-stuboracle-real-oracles` → head `35e9ef83c`). The rebase
+  needed a `cargo fmt` pass on four `.expect_err` call sites that the
+  newer rustfmt reflows (`style(kwavers): rustfmt the re-homed oracle
+  tests`).
+- **Merged at exact head 2026-08-23:** `35e9ef83c` merged as
+  `2b81fc93a` (on top of #610 `c7521f73` and #608 `f05c3ca5`). All
+  required hosted checks terminal at the head.
 - **Post-merge:** advance the Atlas kwavers gitlink and re-run the
-  conformance ratchet on the clean revision (still blocked on #604 + this
-  PR landing; gitlink advance also unblocks the clean-revision ratchet).
+  conformance ratchet on the clean revision (gitlink advance also
+  unblocks the clean-revision ratchet).
 
 ## ATLAS-KWAVERS-IGNOREDORACLE-2026-08-22 — Re-homed the 46 ignored oracles per group [minor] — in progress
 
@@ -214,7 +228,7 @@
   conformance ratchet on the clean revision (blocked on #604 + #606 +
   this PR landing).
 
-## ATLAS-KWAVERS-DENYDOCS-2026-08-22 — Missing-docs floor on the three smallest crates [minor] — in progress
+## ATLAS-KWAVERS-DENYDOCS-2026-08-22 — Missing-docs floor on the three smallest crates [minor] — closed 2026-08-23
 
 - **Owner:** current session; lane `worktrees/kwavers-deny-docs` (branch
   `fix/kwavers-alloc-probe-deny-docs`).
@@ -236,15 +250,19 @@
   kwavers driver crate already denied. Next increment: `kwavers-phantom`.
 - **Gates:** fmt, check, clippy `-D warnings` (all targets), nextest
   16/16, doctests — all pass on the lane. Cargo.lock overlay drift
-  restored — commits are doc-only.
-- **Published 2026-08-22 as Kwavers
+  restored — commits are doc-only.  - **Published 2026-08-22 as Kwavers
   [PR #598](https://github.com/ryancinsight/kwavers/pull/598)** (title
   updated to the three-crate increment) at exact head `67b4099cd`, based
   on `origin/main` `377a98c86`. Hosted checks are the acceptance oracle;
   merge only at the exact PR head after terminal required checks.
+- **Rebased 2026-08-23** onto the arch-gate-fixed default `d13648b9`
+  (`fix/kwavers-alloc-probe-deny-docs` → head `fe2d4531f`).
+- **Merged at exact head 2026-08-23:** `fe2d4531f` merged at `f910f70b`,
+  making the kwavers default `f910f70bf` at the time; all hosted checks
+  terminal.
 - **Post-merge:** advance the Atlas kwavers gitlink and re-run the
   conformance ratchet on the clean revision (same merge queue as
-  #604/#606/#609).
+  #604/#609).
 
 ## ATLAS-GPU-ACQUISITION-2026-08-21 — Coeus GPU suite restored, Hephaestus diagnostics [patch] — closed
 
