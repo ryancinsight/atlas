@@ -10165,32 +10165,8 @@ file. It exits nonzero only for index drift, so an untracked ADR alone is a
 message nobody fails on. Making that condition part of the nonzero exit is a
 one-line change and turns a passed-over log line into a gate.
 
-## ATLAS-HERMES-CODEGEN-SSOT-2026-08-21 — Resolve SIMD codegen source of truth [arch] [minor] — in-progress
 
-- **Owner / claim:** Codex, `D:/atlas/worktrees/hermes-codegen-ssot`,
-  branch `refactor/hermes-codegen-ssot-hs440`; claimed 2026-08-21.
-- **Scope:** Hermes generator target, checked-in generated-kernel contract,
-  ADR 005, package/build wiring, and provider-local verification. No SIMD
-  kernel behavior changes, no f16/NEON expansion, and no Atlas gitlink move.
-- **Question:** Does the current generator reproduce every shipped kernel, or
-  must the stale generator/decision be retired explicitly?
-- **Acceptance:** one canonical source-of-truth decision; no executable
-  generator whose output cannot represent the shipped surface; ADR 005 and
-  provider PM state match the decision; affected lint, test, doctest, and
-  documentation gates pass on the exact commit.
-- **Evidence plan:** inspect generator coverage and invocation paths, compare
-  generated output against shipped x86/scalar/ISA modules, then either restore
-  deterministic freshness or remove the stale generator and revise ADR 005 in
-  place with its dated evidence.
-- **Implementation:** provider commit `569ed00` deletes the incomplete binary,
-  revises ADR 005 in place, updates the ADR index and ADR 013, and synchronizes
-  Hermes PM records. The branch is pushed as Hermes PR #59 at exact head
-  `569ed00`.
-- **Local evidence:** pinned direct regeneration produced the destructive
-  four-file diff before restoration; Hermes format, warning-denied Clippy,
-  Nextest (465/465), doctests, warning-denied Rustdoc, and examples pass on
-  the provider lane. The Atlas overlay lock limitation is recorded in the
-  provider item; hosted locked CI remains open.
+- **ATLAS-HERMES-CODEGEN-SSOT-2026-08-21** Resolve SIMD codegen source of truth [arch][minor] (2026-08-23; hermes PR #59 merged `78b8745` after all hosted gates passed at exact head `569ed00`; lane removed, branch deleted) — `78b8745`, `569ed00`
 
 ## Archive — closed items
 
