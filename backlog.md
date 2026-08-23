@@ -409,7 +409,7 @@ unchanged.
   single job. No pointer advance or bypass is authorized; re-open on
   terminal provider checks or a hosted state transition.
 
-## ATLAS-CFDRS-VALIDATION-TRACING-2026-08-21 — Migrate println! to tracing [patch] — in progress
+## ATLAS-CFDRS-VALIDATION-TRACING-2026-08-21 — Migrate println! to tracing [patch] — closed
 
 The `cfd-validation` crate has 165 `println!`/`print!`/`eprintln!` calls in
 its `src/` tree — the largest concentration of `print_dbg` conformance debt
@@ -463,12 +463,14 @@ unchanged.
   after terminal required checks at `3dd05e2c`.
 - **Merged at the exact head (2026-08-23):** the hosted `Rust workspace
   gate` and `Check book figures SSOT` runs at `3dd05e2c` both reached
-  terminal `success`; PR #366 merged at that exact head into `f5dd8955`.
-  Post-merge CI at the merged default is queued; the CFDrs gitlink stays
-  at `c5f9fa2c` until that evidence is terminal (fix-forward watchpoint,
-  not a closure gate).
+  terminal `success`; PR #366 merged at that exact head at `f5dd8955`.
+  Post-merge CI at merged default `51b77bad` is terminal (Rust workspace
+  gate + book figures SSOT); the CFDrs gitlink advances `c5f9fa2c` →
+  `51b77bad` (index-level pointer move; an initial `git add` capture of
+  the peer-dirty checkout head `a5a92bfc` was corrected at `271688f`).
+  Item closed.
 
-## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — Migrate turbulence validation println! to tracing [patch] — in progress
+## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — Migrate turbulence validation println! to tracing [patch] — closed
 
 The `cfd-2d` crate's turbulence validation modules have 60
 `println!`/`print!` calls in their `src/` tree — informational output,
@@ -522,11 +524,11 @@ unchanged.
   is queued at the new head; merge only after terminal required checks at
   `302cba62`.
 - **Merged at the exact head (2026-08-23):** the `Rust workspace gate`
-  and `Check book figures SSOT` runs at `302cba62` reached terminal
-  `success`; PR #367 merged at head at `51b77bad` (on top of the #366
-  merge). Post-merge CI at the merged default is queued; the Atlas
-  gitlink stays at `c5f9fa2c` until that is terminal (fix-forward
-  watchpoint, not a closure gate).
+  and `Check book figures SSOT` at `302cba62` reached terminal
+  `success`; PR #367 merged into `51b77bad` (on top of the #366 merge).
+  Post-merge CI at `51b77bad` is terminal and the gitlink advance is
+  recorded under ATLAS-CFDRS-VALIDATION-TRACING (same closing commit).
+  Item closed.
 
 ## ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21 — Add defaults and NumPy protocols [minor] — in progress
 

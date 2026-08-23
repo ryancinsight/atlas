@@ -295,8 +295,13 @@
 - [x] Collect hosted terminal evidence at the new head `3dd05e2c` (Rust
       workspace gate + Check book figures SSOT both `success`), and merge
       PR #366 at the exact PR head (merged 2026-08-23 at `f5dd8955`).
-- [ ] Verify the post-merge default `f5dd8955` CI is terminal, then
-      advance the Atlas CFDrs gitlink. `recurseml/analysis` is report-only.
+- [x] Verify the post-merge default `51b77bad` CI is terminal (Rust
+      workspace + book figures), and advance the Atlas CFDrs gitlink to
+      `51b77bad` (index-level pointer move; corrected at `271688f` after
+      the initial capture recorded the dirty checkout head).
+      `recurseml/analysis` is report-only.
+
+Item closed 2026-08-23.
 
 ## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — current session
 
@@ -330,9 +335,11 @@
 - [x] Collect hosted terminal evidence at the new head `302cba62` (Rust
       workspace gate and `Check book figures SSOT` both `success`), and
       merge PR #367 at the exact PR head (merged 2026-08-23 at
-      `51b77bad`).
-- [ ] Verify the post-merge default `51b77bad` CI is terminal, then
-      advance the Atlas CFDrs gitlink. `recurseml/analysis` is report-only.
+      `51b77bad`).- [x] Verify the post-merge default `51b77bad` CI is terminal, and
+      advance the Atlas CFDrs gitlink (recorded under the #366 item's
+      closing commit). `recurseml/analysis` is report-only.
+
+Item closed 2026-08-23.
 
 ## ATLAS-HYGIENE-BASELINE-001 — current conformance increment
 
