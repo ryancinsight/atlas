@@ -1479,6 +1479,13 @@ older heads do not prove the current default. No pointer advances until each
 provider's exact hosted evidence and canonical live-page check satisfy the
 acceptance oracle.
 
+**Eighth integration batch (2026-08-23):** Horae `abe42e5d`, Hyperion
+`3bc0e43d`, Leto `fc0648ee`, and Iris `636a2613` each carry terminal CI and
+Pages deployment success at the exact current head with live Pages HTTP 200
+and expected titles; Atlas advanced all four gitlinks (commit `d9e7315`).
+CFDrs advanced separately to `a70faea6` (commit `43fe895`) and, after Stage B
+merged, awaits post-merge CI `32611718091` before advancing to `c5f9fa2c`.
+
 **Seventh integration batch (2026-08-22):** Gaia PR #33 merged at default
 `9b476fec` (post-merge CI + mesh book terminal, live Pages 200 with expected
 title) and Harmonia's repin default `c762c8ad` reached terminal main CI,
