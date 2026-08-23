@@ -800,6 +800,35 @@ unchanged.
   `32588842609` and Deploy mdBook `32588842869` queued. All prior hosted
   evidence remains stale; merge only at exact head after terminal required
   checks.
+- **Collection and blocker fix (2026-08-23):** wheel smoke, Legacy Migration
+  Audit, and Deploy mdBook are terminal success; CI/CD Pipeline failed on its
+  `Python Typed Surface` job: the crate's declared pytest addopts pass
+  `--timeout/--benchmark-disable`, whose plugins (pytest-timeout,
+  pytest-benchmark) the job did not install. Head `d1281f990` installs both
+  declared dependencies; replacement runs pending.
+  **Not this PR's regression:** the Architecture Validation job fails on every
+  open PR head across the repository (12 consecutive failures on unrelated
+  branches, main's own post-merge runs cancelled with no terminal baseline).
+  Local reproduction attributes it to ~2,850 warnings across 103
+  example/test/bench files under `-D warnings --all-targets` — a ratchet-scale
+  burn-down filed below as its own item.
+
+## ATLAS-KWAVERS-ARCH-GATE-2026-08-23 — Repair the repo-wide architecture gate [major] — in progress
+
+The Kwavers `Validate Clean Architecture` job fails on every open PR and has
+no terminal-passing run at any recent default (post-merge runs cancelled).
+Local reproduction at lane head `d1281f990`: workspace `print_stdout = warn`
+is promoted to deny by `-D warnings` across `--all-targets`, producing ~2,850
+errors over 103 example/test/bench files whose stdout output is their
+deliverable. This blocks hosted verification for every Kwavers PR.
+
+**Scope:** the architecture-validation workflow's lint scoping plus a
+file-class exemption strategy per the lint doctrine (examples/tests/benches
+are programs; stdout is legitimate there; library targets keep the floor).
+No mass `#![allow]` sweep and no weakening of library-target coverage.
+**Acceptance:** one terminal-success architecture run at an exact provider
+default; no increase in any other conformance class; the job then gates all
+open PRs meaningfully.
 
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
@@ -1178,9 +1207,16 @@ dual-trait duplication is already resolved on the branch — only the
 `cargo fmt --all --check` clean; nextest `-p cfd-math -p cfd-validation`
 675/675; warning-denied Clippy clean for cfd-math, cfd-validation, and
 cfd-1d (the two `needless_update` warnings in `cfd-3d` are pre-existing
-default debt the branch does not touch). Hosted Rust workspace gate run
-`32590225522` in progress; merge only at exact head after terminal required
-checks, then stage C.
+default debt the branch does not touch).
+
+**Rebase and blocker fix (2026-08-23):** hosted run `32590225522` failed on
+exactly those two `needless_update` sites — with every other debt class
+cleared stack-wide they became the only remaining `-D warnings` errors, i.e.
+delivery-blocking. Commit `05c025e8` deletes the two no-effect
+`..Default::default()` bases (all three struct fields are specified at both
+sites). Local: workspace clippy `-D warnings` reports zero errors, cfd-3d
+nextest 400/400, fmt clean. Hosted gate re-running at `05c025e8`; merge only
+at exact head after terminal required checks, then stage C.
 
 **Stage C — migrate Kwavers: not started, and wider than the ADR recorded.**
 Kwavers declares no `athena` dependency in any manifest. It carries **three**
@@ -1853,11 +1889,12 @@ raises measured no effect. Raising the test profile to `opt-level = 2`
 measures 11.4s → 2.0s locally (5.5×), restoring hosted headroom; dev/debug
 profiles are unchanged and no test or workload was reduced. Local evidence at
 `c993b906`: `cfd-validation` nextest 435/435 (10.3s total), doctests 4 passed,
-`cargo fmt --all --check` clean. Replacement hosted Rust/Pages runs pending;
-PR [#363](https://github.com/ryancinsight/CFDrs/pull/363) (ADR-0033 Stage B)
-remains sequenced behind this branch's merge — its red gate is `cargo fmt`
-over the same three files this branch fixes plus its own `twelve_steps.rs`
-import order, resolved by rebase after merge.
+`cargo fmt --all --check` clean. **Closed (2026-08-23):** replacement hosted run
+`32588697868` terminal success at `c993b906`; PR #361 merged with the
+expected-head guard at default `a70faea6`; default CI run `32589906080`
+terminal success; live Pages HTTP 200 (the merge touched no book content, so
+no Pages deployment is expected). The Atlas gitlink advanced to `a70faea6`
+(commit `43fe895`).
 
 ## ATLAS-CFDRS-ALLOCATOR-2026-08-20 — Remove library global allocator [major][arch] — in progress
 
