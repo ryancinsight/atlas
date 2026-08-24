@@ -849,19 +849,19 @@ unchanged.
   repository's event/barrier-only synchronization preference. Re-open on a
   clean CFDrs lane; do not displace PR #361's restored format lane.
 
-## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — in progress
+## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — merge pending
 
 - **Owner:** Atlas integration. **Claimed files:** `backlog.md`,
-  `checklist.md`, and `docs/adr/0051-kwavers-visualization-backend-ownership.md`;
-  Kwavers provider source remains unclaimed pending a clean lane.
+  `checklist.md`, and the visualization ADR records; provider source is
+  implemented in the clean Kwavers lane `feat/provider-generic-vis`.
 - **Decision record:** `docs/adr/0051-kwavers-visualization-backend-ownership.md`
 
 - **Decision accepted (2026-08-21):** ADR 0051 is accepted. The provider
   migration remains implementation-pending until a clean, non-overlapping
   Kwavers lane is available; no provider source or Atlas gitlink is changed
   by this decision increment.
-- **Migration implemented (PR #602, lane `feat/provider-generic-vis` from
-  default `377a98c86`, lane commit `baa76ee7c`):** replacement per the ADR —
+- **Migration implemented (PR #602, lane `feat/provider-generic-vis`, current
+  head `2b9328a12`):** replacement per the ADR —
   analysis keeps config, backend-neutral metadata, CPU preprocessing,
   statistics, and the public contract behind the new provider-neutral
   `VisualizationTransferProvider` seam; concrete device acquisition, typed
@@ -873,36 +873,33 @@ unchanged.
   analysis manifest drops wgpu/bytemuck/hephaestus-core/hephaestus-wgpu
   edges. Static audit: no direct WGPU/raw-device/pollster ownership or
   manifest edge remains under `kwavers-analysis`. Local gates green (fmt,
-  clippy for touched surface, analysis 776 tests, gpu 166 tests). Hosted
-  exact-head Rust/book/API/Pages gates still required before any Atlas
-  Kwavers gitlink advance.
+  locked checks, analysis 778 tests, gpu 166 tests, top-level 39 tests, and
+  doctests). Hosted exact-head Rust/book/API/Pages gates are running before
+  any Atlas Kwavers gitlink advance.
 
 - **Outcome:** `kwavers-analysis` visualization owns no concrete WGPU device,
   queue, buffer, adapter, or `pollster` runtime. Visualization transfers and
   renderer resources execute through one provider-owned backend seam, with a
   real Hephaestus-backed implementation and typed unavailable-capability
   errors; no CPU fallback is substituted for a requested GPU path.
-- **Evidence:** the fetched Kwavers default still declares `wgpu = 26.0`,
-  `bytemuck`, and `pollster` in `crates/kwavers-analysis/Cargo.toml` and
-  constructs `wgpu::Instance`, adapters, devices, buffers, and queue writes in
-  `crates/kwavers-analysis/src/visualization/data_pipeline/transfer.rs` and
-  `crates/kwavers-analysis/src/visualization/renderer/gpu.rs`. The separate
-  `kwavers-gpu` provider uses WGPU 30 through Hephaestus. The historical
-  `ATLAS-KWAVERS-HEPHAESTUS-VIS-104` closure covers initialization and
-  multi-field error semantics, not this remaining ownership split.
-- **Constraint:** `kwavers-gpu` currently depends on `kwavers-analysis` for
-  beamforming operation contracts, so adding a reverse dependency is a cycle.
-  A re-export or forwarding wrapper is not an acceptable migration. The next
-  design increment must place the visualization role seam at the deepest
-  shared consumer boundary, move the concrete implementation to an owning
-  provider layer, update all callers, and delete the duplicate runtime.
+- **Evidence:** before PR #602, the default declared `wgpu = 26.0`,
+  `bytemuck`, and `pollster` in `kwavers-analysis` and constructed concrete
+  WGPU resources in its visualization transfer and renderer modules. The
+  current branch removes those production edges; `kwavers-gpu` uses WGPU 30
+  through Hephaestus. The historical `ATLAS-KWAVERS-HEPHAESTUS-VIS-104`
+  closure covers initialization and multi-field error semantics; this item
+  closes the remaining ownership split.
+- **Constraint resolved:** `kwavers-gpu` still depends on `kwavers-analysis`
+  for beamforming contracts, so the implementation keeps the neutral role in
+  analysis and injects the provider from the consumer boundary. No reverse
+  dependency, re-export shim, or duplicate WGPU implementation was added.
 - **Acceptance:** provider-generic visualization compiles without a direct
   `wgpu`/`pollster` edge in `kwavers-analysis`; WGPU and unavailable-capability
   paths have value-semantic differential coverage; the package graph is
   acyclic; warning-denied checks, Nextest, doctests, Rustdoc, and hosted book
-  gates pass at the exact provider default. **Status:** implementation
-  pending; no clean, non-overlapping Kwavers lane is currently available to
-  land this major change.
+  gates pass at the exact provider default. **Status:** implementation and
+  local verification complete; PR #602 hosted checks are the remaining merge
+  gate.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.

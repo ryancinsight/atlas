@@ -1,7 +1,7 @@
 # ADR 0054: Provider-neutral visualization transfer contract
 
-- Status: Proposed implementation contract
-- Date: 2026-08-21
+- Status: Accepted
+- Date: 2026-08-21 (accepted 2026-08-24)
 - Class: `[major] [arch]`
 - Related: ADR 0051, ADR 0053
 
@@ -42,14 +42,30 @@ kind. It does not expose a WGPU buffer, queue, adapter, or device.
 ## Ownership and dependency direction
 
 - Kwavers analysis owns the data conversion, metadata, and neutral role types.
-- Hephaestus owns the implementation of `VisualizationBackend`, including all
-  WGPU objects and synchronization.
+- `kwavers-gpu` owns the provider adapter and stores all concrete transfer
+  resources through Hephaestus's typed WGPU device and buffer APIs.
+- Hephaestus owns the concrete WGPU objects and synchronization beneath that
+  adapter; Kwavers does not construct raw WGPU resources.
 - The implementation must be injected by the provider boundary; analysis must
   not depend on `kwavers-gpu` while `kwavers-gpu` depends on analysis.
-- If the current graph prevents this direction, move the neutral role types to
-  the deepest existing shared contract crate rather than creating a cycle.
-- Hephaestus may depend on the neutral contract crate and implement the roles;
-  it must not import analysis's concrete visualization modules.
+- The existing dependency direction is retained because the neutral role is
+  already owned by `kwavers-analysis`; introducing a reverse dependency would
+  create a cycle.
+- The adapter must not import analysis's concrete visualization resources.
+
+## Implementation evidence
+
+The accepted implementation is in PR [#602](https://github.com/ryancinsight/kwavers/pull/602),
+head `2b9328a12`. `VisualizationTransferProvider` is the neutral role in
+`kwavers-analysis`; `VisualizationBackend::{Leto, Hephaestus}` selects the
+provider in `kwavers-gpu`, and the top-level `kwavers` feature forwards that
+selection to callers. The analysis crate has no production WGPU, raw-device,
+queue, buffer, or `pollster` ownership.
+
+The contract tests preserve distinct values and field identities, propagate
+provider failures without CPU degradation, and exercise the real Hephaestus
+adapter when a WGPU adapter is available. Local exact-head gates passed; hosted
+checks remain the merge acceptance gate.
 
 ## Required tests
 
