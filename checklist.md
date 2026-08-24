@@ -247,10 +247,10 @@
 - [x] Merge asclepius [#26](https://github.com/ryancinsight/asclepius/pull/26)
       at `6b300cdf` (Lockfile, supply-chain, verify all green after the
       .cargo overlay removal unblocked the default branch).
-- [ ] Collect hosted terminal checks on the remaining PR (consus #54),
-      merge at exact head, then advance its Atlas gitlink (helios done
-      at `f184b28f`, proteus done at `150b2074`, asclepius done at
-      `6b300cdf`).
+- [x] Merge consus [#54](https://github.com/ryancinsight/consus/pull/54)
+      at `3bde52a8` (79 SUCCESS / 1 SKIPPED — the full 80-job matrix
+      drained through the saturated queue; Lockfile 21s, Format 24s).
+- [x] Advance the remaining Atlas gitlink (consus at `3bde52a8`).
 - [x] Closed the stale atlas PR
       [#138](https://github.com/ryancinsight/atlas/pull/138) (kwavers
       attenuation gitlink advance): the kwavers gitlink has advanced

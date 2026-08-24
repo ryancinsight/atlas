@@ -1,10 +1,10 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-OVERLAY-LOCK-GUARD-2026-08-23 — the overlay strips lockfiles and nothing local catches it [major] — in progress
+## ATLAS-OVERLAY-LOCK-GUARD-2026-08-23 — the overlay strips lockfiles and nothing local catches it [major] — done
 
 | Outcome | Class | Status | Owner |
 |---------|-------|--------|-------|
-| No commit can land a Cargo.lock whose first-party `source = "git+..."` lines the development overlay stripped. | [major] | in progress | current session |
+| No commit can land a Cargo.lock whose first-party `source = "git+"` lines the development overlay stripped. | [major] | done — 8 hosted merges, gitlinks advanced | current session |
 
 - **What happened.** Seven stacked Kwavers branches were pushed carrying a
   `Cargo.lock` with **all 88 `source = "git+..."` lines removed**. CI failed all
@@ -137,24 +137,43 @@
      crates.io, so there is nothing for the overlay to strip. The
      backlog's earlier "64 git sources" figure predates the crates.io
      publication of the cfd-* crates. Same skip rationale as harmonia.
-     **All 14 members are now covered or dismissed; this item's
-     promotion is complete pending the seven hosted merges.**
+     **All 14 members are now covered or dismissed; the promotion is
+     complete (see evidence 6).**
 
-  6. **Implementation progress (2026-08-24):** the seven
-     batch-of-7 hosted merges landed for apollo, hephaestus, coeus,
-     and athena (`ff742cff58c6bb7ff294e906266947707a62d6b4`), helios
-     (`e216670049186c4f11c7c0dda561d6c61d5409f8`), and proteus —
-     **proteus was caught in the same failure class as asclepius
-     (committed lock had every `source = "git+"` line stripped)** and
+  6. **Implementation evidence (2026-08-24, final):** all eight
+     remaining hosted merges landed, each at its exact PR head, and
+     every Atlas gitlink was advanced to the merge commit:
+
+     | Repo | PR | Merge | Gitlink advance |
+     |---|---|---|---|
+     | apollo | [#110](https://github.com/ryancinsight/apollo/pull/110) | `424ce4314` | `ff742cff5` |
+     | hephaestus | [#218](https://github.com/ryancinsight/hephaestus/pull/218) | `7b6da5ae` | `ff742cff5` |
+     | coeus | [#343](https://github.com/ryancinsight/Coeus/pull/343) | `43f288a0` | `ff742cff5` |
+     | athena | [#17](https://github.com/ryancinsight/athena/pull/17) | `4c8a9dcd` | `ff742cff5` |
+     | helios | [#70](https://github.com/ryancinsight/helios/pull/70) | `f184b28f` | `e21667004` |
+     | proteus | [#18](https://github.com/ryancinsight/proteus/pull/18) | `150b2074` | `0adf3a540` |
+     | asclepius | [#26](https://github.com/ryancinsight/asclepius/pull/26) | `6b300cdf` | `c155a2e40` |
+     | consus | [#54](https://github.com/ryancinsight/consus/pull/54) | `3bde52a8` | (this commit) |
+
+     Proteus was caught in the same failure class as asclepius
+     (committed lock had every `source = "git+"` line stripped) and
      fixed by the same four-file promotion plus a lockfile
-     regeneration outside the overlay; PR #18 merged at `150b2074`,
-     gitlink advanced `0adf3a540`. Six of eight hosted lock-guard
-     PRs now landed. The consus #54 (22 sources) and asclepius #26
-     (41 sources) lanes are queued on hosted CI: consus 58 checks
-     pass + 22 pending (macos/ubuntu/windows test matrix); asclepius
-     3 checks pending. Both are MERGEABLE; merge at the exact PR
-     head once required checks are terminal, then advance the
-     gitlinks. The atlas PR #138
+     regeneration outside the overlay; its default-branch CI was
+     failing on every run before the merge. Asclepius additionally
+     carried a committed `.cargo/config.toml` overlay (PM-rescue
+     snapshot had landed an Atlas-local Windows `target-dir` on main)
+     that broke every hosted cargo invocation; removed in the same
+     PR. Athena's verify showed a timing-sensitive allocation-count
+     flake (`repeated_gmres_solves_allocate_nothing_after_initialization`)
+     that passes locally, passed the base commit's own green CI, and
+     passed on rerun — recorded, not a code defect. Consus's 80-job
+     matrix drained through the saturated runner queue (79 SUCCESS /
+     1 SKIPPED). CFDrs and harmonia were dismissed (zero first-party
+     git sources; nothing to guard). The atlas PR #138 was closed as
+     superseded by main: the kwavers gitlink has advanced through
+     `9cf62aa9` → `d13648b9` → `8feefe8a` → `dabc779d` since the PR
+     was opened, and the ratchet regressions in its 4-day-old CI run
+     no longer apply against the current committed baseline. The atlas PR #138
      (`build/kwavers-attenuation-gitlink`) was closed as superseded
      by main: the kwavers gitlink has advanced through
      `9cf62aa9` → `d13648b9` → `8feefe8a` → `dabc779d` since the PR
