@@ -551,6 +551,19 @@ Item closed 2026-08-23.
       amplitude swings the wall strictly farther (higher max / lower min
       radius). Wheel-backed: 17 passed / 1 skipped in `test_bindings_surface.py`;
       fmt, clippy `-D warnings`, nextest 21/21, generator `--check` clean.
+- [x] Re-audit the merged visualization call graph. Confirm provider resource
+      ownership is correct, but backend selection remains implemented in
+      `kwavers-gpu` and merely re-exported by `kwavers`; confirm the scheduled
+      GPU workflow does not require a visualization adapter transfer.
+- [ ] Move `VisualizationBackend` and the selection factory to the top-level
+      Kwavers composition boundary. Keep Leto and Hephaestus provider
+      implementations in `kwavers-gpu`; add no compatibility re-export.
+- [ ] Add value-semantic Kwavers-level Leto conformance coverage and a
+      fail-closed ignored Hephaestus transfer oracle selected by the scheduled
+      self-hosted GPU workflow.
+- [ ] Synchronize the Kwavers README, `kwavers-gpu` README, CHANGELOG, and ADR
+      0054; run focused format, checks, Nextest, doctest, Rustdoc, and workflow
+      syntax gates on the exact lane revision.
 - [ ] Run the exact-head Rust, book, API, and live Pages gates before any Atlas
       Kwavers gitlink advance.
 

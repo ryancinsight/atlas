@@ -899,11 +899,12 @@ unchanged.
   repository's event/barrier-only synchronization preference. Re-open on a
   clean CFDrs lane; do not displace PR #361's restored format lane.
 
-## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — complete
+## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — in progress
 
-- **Owner:** Atlas integration. **Claimed files:** `backlog.md`,
-  `checklist.md`, and the visualization ADR records; provider source is
-  implemented in the clean Kwavers lane `feat/provider-generic-vis`.
+- **Owner:** current session. **Claimed files:** `backlog.md`, `checklist.md`,
+  ADR 0054, and the Kwavers visualization selection, provider tests, workflow,
+  and affected README/CHANGELOG surfaces. The next provider increment reuses
+  the clean `kwavers-provider-generic-vis` lane from fetched `origin/main`.
 - **Decision record:** `docs/adr/0051-kwavers-visualization-backend-ownership.md`
 
 - **Decision accepted (2026-08-21):** ADR 0051 is accepted. The provider
@@ -966,6 +967,15 @@ unchanged.
   `5406691fe`. The tracked gitlink therefore remains 19 commits behind the
   remote default; advance it only in a clean integration sweep after the
   submodule's extensive uncommitted peer work is committed or reconciled.
+- **Selection-boundary audit (2026-08-24):** the merged provider ownership is
+  correct, but `kwavers` only re-exports `kwavers-gpu::visualization`; the
+  `VisualizationBackend` enum and selection factory still execute in
+  `kwavers-gpu`. This contradicts the required composition boundary: Kwavers
+  must select Leto or Hephaestus, while `kwavers-gpu` owns only the concrete
+  providers and Hephaestus owns WGPU resources. The scheduled GPU workflow also
+  does not run a visualization test that requires a real adapter. Re-opened for
+  a replacement that moves selection to `kwavers`, adds top-level backend
+  conformance coverage, and makes the hardware gate fail closed.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.
