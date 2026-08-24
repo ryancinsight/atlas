@@ -10303,12 +10303,14 @@ Liveness-measured sweep of all 28 member checkouts. Findings:
   verbatim and pushed to `rescue/pm-sweep-20260820` per member; working
   trees restored clean at their prior heads. Port-or-drop parked with
   their author.
-- **leoneuro-rs**: 6 stranded commits on `codex/sim-ct-medium` — judged NOT
-  superseded but semantically diverged: a trial merge into the default
-  `codex/private-atlas-migration` compiles with 27 typed-units errors in
-  leoneuro-transducer (the series predates the `Quantity` migration).
-  Filed as a port increment: rework the two top commits onto the typed API,
-  then merge. Trial merge discarded locally, nothing pushed.
+- **leoneuro-rs**: RESOLVED 2026-08-23. The series was not the problem —
+  it FIXES the default branch's redness (stale `coeus/coeus-*` paths left
+  the workspace unresolvable; round-6a path resolution corrects them).
+  Merged `codex/sim-ct-medium` into `codex/private-atlas-migration`
+  (`0c268b4`); leoneuro-field builds, 63/63 tests pass. The 27 remaining
+  workspace errors are pre-existing ATLAS-MODALITY-002 Quantity-typed
+  construction debt in leoneuro-transducer — same count before and after
+  the merge — filed as its own port increment.
 - Clean but stale checkouts (behind origin, no dirt): apollo, consus,
   eunomia, gaia, harmonia, horae, hyperion, melinoe, ritk, themis, tyche,
   athena — fast-forward at next touch of each member.
