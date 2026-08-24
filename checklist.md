@@ -38,11 +38,11 @@
       [PR #604](https://github.com/ryancinsight/kwavers/pull/604) at exact
       head `17a855d85e4198b39fc45426abdd0576aa2d3d56`; `MERGEABLE` on
       open.
-- [ ] Collect hosted terminal checks at the exact PR head, then merge and
-      advance the Atlas kwavers gitlink. Do not advance the pointer before
-      terminal required checks; the gitlink advance also unblocks the
-      clean-revision ratchet (currently hard-blocked on local-only
-      `49d80a4`).
+- [x] Merged at the exact PR head (2026-08-23/24); the queue closure —
+      including the Atlas kwavers gitlink advance and clean-revision
+      ratchet re-run — is tracked in backlog
+      `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (advance held pending
+      kwavers PR #618 so the atlas-conformance gate passes).
 
 ## ATLAS-KWAVERS-STUBORACLE-2026-08-22 — current session
 
@@ -92,9 +92,8 @@
       Kwavers
       [PR #606](https://github.com/ryancinsight/kwavers/pull/606) at
       exact head `352b4dc7b4c9d2959ae53cb57eba1796c6ca51b8`;
-      `MERGEABLE` on open.- [ ] Collect hosted terminal checks at the exact PR head, then merge and
-      advance the Atlas kwavers gitlink (unblocks the clean-revision
-      ratchet, currently hard-blocked on local-only `49d80a4`).
+      `MERGEABLE` on open.- [x] Merged at the exact PR head (2026-08-23); the Atlas kwavers gitlink
+      advance is tracked in backlog `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24`.
 
 ## ATLAS-KWAVERS-IGNOREDORACLE-2026-08-22 — current session
 
