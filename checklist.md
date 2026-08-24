@@ -662,10 +662,22 @@ Item closed 2026-08-23.
       Exact source `6f400e1a9` merged as `534051c04`; source and merge trees are
       identical. Real adapter 1/1, normal library 41/41, Clippy, rustfmt, and
       workflow-shape gates pass locally.
-- [ ] Collect PR #632's queued hosted Rust, book, API, and Pages gates, then
+- [x] Collect PR #632's queued hosted Rust, book, API, and Pages gates, then
       advance the Atlas Kwavers gitlink without modifying the peer-dirty
-      primary checkout. The recurseml analyzer error is report-only; no hosted
-      green result is currently claimed.
+      primary checkout. The recurseml analyzer error is report-only. Hosted
+      gates at the post-#632 default passed; the Atlas gitlink advanced to
+      `a94a8bcde` via an index-level pointer update (primary submodule's
+      uncommitted peer work preserved).
+- [x] Fix the default-branch Architecture Validation gate broken by the SWE WIP
+      rescue test file: PR #635 (merge `a94a8bcde`, from clean lane
+      `worktrees/kwavers-swe-clippy`) resolves the seven strict-clippy errors in
+      `crates/kwavers/tests/swe_3d_validation.rs` (unnecessary `mut hpf`,
+      complex tuple type for `fast_samples` via `FastSample` alias, dead
+      `eik_points`/`eik_bad` counters, negated comparison via `!is_positive`,
+      unused increment). Verified with the exact workflow clippy flags (minus
+      `--locked`, the documented overlay limit; lockfile restored) plus a pass
+      of the affected `diag_swe_recon_2` simulation; post-merge hosted runs all
+      green at `a94a8bcde`.
 
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — current session
 

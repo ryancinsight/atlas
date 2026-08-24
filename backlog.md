@@ -347,7 +347,7 @@ unchanged.
   repository's event/barrier-only synchronization preference. Re-open on a
   clean CFDrs lane; do not displace PR #361's restored format lane.
 
-## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — in progress
+## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — done
 
 - **Owner:** current session. **Claimed files:** `backlog.md`, `checklist.md`,
   ADR 0054, and the Kwavers visualization selection, provider tests, workflow,
@@ -402,21 +402,33 @@ unchanged.
 - **Acceptance:** provider-generic visualization compiles without a direct
   `wgpu`/`pollster` edge in `kwavers-analysis`; WGPU and unavailable-capability
   paths have value-semantic differential coverage; the package graph is
-  acyclic; the scoped architecture/feature checks, Nextest, doctests, Rustdoc,
-  and hosted book gates pass at the exact provider default. **Status:** in
-  progress; PRs #602, #626, #628, #630, #631, and #632 are merged. PR #632's
-  hosted matrix remains queued, so Atlas integration is not yet closed.
-- **Verification residual:** package-wide `kwavers-analysis --lib` Clippy with
-  `-D warnings` still reports 45 pre-existing findings outside the changed
-  files, including missing error/panic documentation, stdout fallback output,
-  unused receivers, and unused async wrappers. A no-dependencies `kwavers-gpu`
-  Clippy run likewise reports 28 pre-existing findings outside the changed
-  file. The follow-up does not suppress or widen either gate; the existing
-  warning-ratchet work remains required.
-- **Meta-repo integration residual:** Atlas still tracks `repos/kwavers` at
-  `dabc779d`. Advance the gitlink to the fetched post-merge Kwavers default only
-  after PR #632's required hosted checks pass; preserve the primary submodule's
-  extensive uncommitted peer work through an index-level pointer update.
+  acyclic; the scoped architecture/API/Rustdoc, Nextest, doctests, and hosted
+  book gates pass at the exact provider default. **Status:** done; PRs #602,
+  #626, #628, #630, #631, #632, and #635 are merged. The post-#632 hosted
+  matrix at the gitlink head is terminal green (Architecture Validation,
+  CI/CD Pipeline, Deploy mdBook, Legacy Migration Audit all success at
+  `a94a8bcde`), so Atlas integration is closed.
+- **Verification residual (open, separate ratchet):** package-wide
+  `kwavers-analysis --lib` Clippy with `-D warnings` still reports 45
+  pre-existing findings outside the changed files, including missing
+  error/panic documentation, stdout fallback output, unused receivers, and
+  unused async wrappers. A no-dependencies `kwavers-gpu` Clippy run likewise
+  reports 28 pre-existing findings outside the changed file. The follow-up
+  does not suppress or widen either gate; the warning-ratchet work remains
+  required.
+- **Meta-repo integration residual (2026-08-24):** gitlink advanced to
+  `a94a8bcde` (post-#632 default plus PR #635). PR #635 (merge `a94a8bcde`)
+  fixed the seven strict-clippy errors in the SWE WIP rescue test file
+  `crates/kwavers/tests/swe_3d_validation.rs` that had broken the default's
+  Architecture Validation gate (test-only lint debt; `fast_samples` complex
+  tuple type, dead `eik_points`/`eik_bad` counters, unnecessary `mut hpf`,
+  negated comparison, unused counter increment). Fix verified locally with the
+  exact workflow flags (`clippy --locked -p kwavers --all-targets
+  --no-default-features --features full --no-deps -- -D warnings`, minus
+  `--locked` as the documented overlay limit; lockfile restored) and by a
+  pass of the affected simulation test `diag_swe_recon_2`; post-merge hosted
+  runs at `a94a8bcde` are all green. The primary submodule's uncommitted peer
+  work is preserved through the index-level pointer update.
 - **Selection-boundary audit (2026-08-24):** the merged provider ownership is
   correct, but `kwavers` only re-exports `kwavers-gpu::visualization`; the
   `VisualizationBackend` enum and selection factory still execute in
