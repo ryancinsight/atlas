@@ -244,10 +244,13 @@
       at `150b2074` (Lockfile 8s, supply-chain 40s, verify 40s — the
       regenerated lock with 2 first-party git sources resolves cleanly
       under --locked, fixing the default-branch failure).
-- [ ] Collect hosted terminal checks on the remaining PRs (consus #54,
-      asclepius #26 with the .cargo overlay removal), merge at exact
-      heads, then advance their Atlas gitlinks (helios done at
-      `f184b28f`, proteus done at `150b2074`).
+- [x] Merge asclepius [#26](https://github.com/ryancinsight/asclepius/pull/26)
+      at `6b300cdf` (Lockfile, supply-chain, verify all green after the
+      .cargo overlay removal unblocked the default branch).
+- [ ] Collect hosted terminal checks on the remaining PR (consus #54),
+      merge at exact head, then advance its Atlas gitlink (helios done
+      at `f184b28f`, proteus done at `150b2074`, asclepius done at
+      `6b300cdf`).
 - [x] Closed the stale atlas PR
       [#138](https://github.com/ryancinsight/atlas/pull/138) (kwavers
       attenuation gitlink advance): the kwavers gitlink has advanced
