@@ -849,7 +849,7 @@ unchanged.
   repository's event/barrier-only synchronization preference. Re-open on a
   clean CFDrs lane; do not displace PR #361's restored format lane.
 
-## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — follow-up merge pending
+## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — complete
 
 - **Owner:** Atlas integration. **Claimed files:** `backlog.md`,
   `checklist.md`, and the visualization ADR records; provider source is
@@ -875,11 +875,14 @@ unchanged.
   locked checks, analysis 778 tests, gpu 166 tests, top-level 39 tests, and
   doctests). Hosted Rust/book/API/Pages gates completed sufficiently for the
   merge.
-- **Correctness follow-up (PR #626, source `c8966a986`, commit `f650e17b6`):**
+- **Correctness follow-up merged (PR #626, merge `871341d62`, source
+  `c8966a986`, commit `f650e17b6`):**
   failed provider transfers now leave field metadata, Hephaestus replacement
   buffers, memory accounting, and streaming-buffer selection unchanged. The
-  follow-up is queued for merge; it is the remaining delivery state for this
-  item.
+  transactional correction is in the Kwavers default.
+- **Documentation correction merged (PR #628, merge `c11b64491`, source
+  `e2b6e2d94`, commit `d505b8c46`):** the affected transfer Rustdoc resolves
+  its `KwaversError` links under `rustdoc -D warnings`.
 
 - **Outcome:** `kwavers-analysis` visualization owns no concrete WGPU device,
   queue, buffer, adapter, or `pollster` runtime. Visualization transfers and
@@ -901,9 +904,8 @@ unchanged.
   `wgpu`/`pollster` edge in `kwavers-analysis`; WGPU and unavailable-capability
   paths have value-semantic differential coverage; the package graph is
   acyclic; the scoped architecture/feature checks, Nextest, doctests, Rustdoc,
-  and hosted book gates pass at the exact provider default. **Status:** architectural
-  migration merged; transactional transfer correction locally verified and
-  PR #626 is the remaining merge gate.
+  and hosted book gates pass at the exact provider default. **Status:** complete;
+  PRs #602, #626, and #628 are merged.
 - **Verification residual:** package-wide `kwavers-analysis --lib` Clippy with
   `-D warnings` still reports 45 pre-existing findings outside the changed
   files, including missing error/panic documentation, stdout fallback output,

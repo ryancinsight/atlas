@@ -64,10 +64,12 @@ queue, buffer, or `pollster` ownership.
 
 The contract tests preserve distinct values and field identities, propagate
 provider failures without CPU degradation, and exercise the real Hephaestus
-adapter when a WGPU adapter is available. Follow-up PR [#626](https://github.com/ryancinsight/kwavers/pull/626)
-adds transactional state updates so a failed upload cannot commit metadata,
-buffer replacement, memory accounting, or streaming-buffer selection. Local
-exact-head gates passed; PR #626 remains the hosted merge gate.
+adapter when a WGPU adapter is available. Merged follow-up PR [#626](https://github.com/ryancinsight/kwavers/pull/626)
+(`871341d62`) adds transactional state updates so a failed upload cannot commit
+metadata, buffer replacement, memory accounting, or streaming-buffer selection.
+Merged documentation follow-up PR [#628](https://github.com/ryancinsight/kwavers/pull/628)
+(`c11b64491`) resolves the affected transfer RustDoc links under
+`rustdoc -D warnings`. Local exact-head gates and hosted delivery are complete.
 
 ## Required tests
 
