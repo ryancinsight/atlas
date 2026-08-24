@@ -10949,3 +10949,18 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-BOARD-COMPACT-PATCH-2026-08-21** Preserve prior archive entries in atlas-board-compact.py [patch] (2026-08-21)
 
 - **ATLAS-R6A-FILELIST-001** Per-submodule r6a commit file-list hygiene [patch] (2026-08-21) — `96ccc83`, `b7bb4bc5`, `5414f80`, `ec4e147b`
+
+
+## ATLAS-LINT-CALIB - Calibrate the board-reference lint to corpus conventions [pm-hygiene] [patch] [S]
+
+- Outcome: `scripts/atlas-board-lint.py` fails loudly on references that
+  matter without burying them under archive noise.
+- Measured 2026-08-24: 329 unreconciled ATLAS-* mentions in live-item
+  prose; closure conventions vary by era (heading `- closed DATE`, body
+  Status lines, unmarked); separators include U+FFFD mojibake alongside
+  em dashes. Until normalized, reference findings run report-only while
+  the duplicate-id gate stays hard.
+- Scope: pick one canonical closure encoding; script a one-pass
+  normalization over backlog.md/checklist.md; triage the mentions into
+  file-it / fix-ref / archive-prose; flip the lint to enforcing.
+- Status: todo
