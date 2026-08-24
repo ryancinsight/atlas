@@ -240,10 +240,14 @@
 - [x] Merge helios [#70](https://github.com/ryancinsight/helios/pull/70)
       at `f184b28f` (Lockfile 1m15s, benchmark regression 41m35s, python
       bindings 2m, rust workspace 4m8s, CodeRabbit).
+- [x] Merge proteus [#18](https://github.com/ryancinsight/proteus/pull/18)
+      at `150b2074` (Lockfile 8s, supply-chain 40s, verify 40s — the
+      regenerated lock with 2 first-party git sources resolves cleanly
+      under --locked, fixing the default-branch failure).
 - [ ] Collect hosted terminal checks on the remaining PRs (consus #54,
-      asclepius #26 with the .cargo overlay removal, proteus #18 with
-      the lockfile repair), merge at exact heads, then advance their
-      Atlas gitlinks (helio done, at `f184b28f`).
+      asclepius #26 with the .cargo overlay removal), merge at exact
+      heads, then advance their Atlas gitlinks (helios done at
+      `f184b28f`, proteus done at `150b2074`).
 - [x] Proteus found in the same failure class: committed Cargo.lock had
       every git source stripped (aequitas/eunomia are git deps) and CI
       was failing with the --locked mismatch on every run. Lane
