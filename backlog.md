@@ -290,7 +290,7 @@
   #604 + #606 + #609 block is now lifted; the gitlink advance and
   clean-revision ratchet re-run are tracked there).
 
-## ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24 — merged-default advance held on the ratchet re-run [patch] — in progress
+## ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24 — merged-default advance held on the ratchet re-run [patch] — closed 2026-08-24
 
 - **Owner:** current session.
 - The full kwavers queue has landed: #598 `f910f70b`, #597 `f97a3a0b0`,
@@ -371,12 +371,22 @@
   head `30239aaa2`, based on `origin/main` `e6a903b0`. Hosted checks are
   the acceptance oracle; merge only at the exact PR head after terminal
   required checks.
-- **After #625 merges:** land the Atlas gitlink advance `d13648b9` → the
-  merged default together with the baseline update recording the four
-  tightenings in the same change, then re-run the ratchet on the clean
-  revision. That closes the post-merge steps of ATLAS-KWAVERS-GPUMOCK,
-  ATLAS-KWAVERS-STUBORACLE, ATLAS-KWAVERS-IGNOREDORACLE,
-  ATLAS-KWAVERS-DENYDOCS, and ATLAS-KWAVERS-PIN-SWEEP.
+- **#625 merged 2026-08-24 at the exact head `30239aaa2`** (merge commit
+  `dabc779d`) after all CI jobs reached terminal success.
+- **Gitlink advanced and ratchet recorded 2026-08-24** (Atlas commit
+  `93a555adc`): the peer cross-member sweep (`ce54e39ef`) had already
+  swept the kwavers gitlink to `e6a903b0` before #625 merged; the advance
+  records the merged default `dabc779d` (includes #625). The clean-
+  revision ratchet re-run at `dabc779d` shows zero regressions and the
+  four tightenings are recorded in the same change per the generator
+  contract: `oversized_files` 111 → 110, `unwrap_production` 229 → 226,
+  `root_sprawl` 1 → 0, `crate_level_allows` 10 → 9. The two merged-PR
+  lanes (`kwavers-conformance`, `kwavers-existence`, `kwavers-existence-2`)
+  were removed, holding `excess_worktrees` at baseline 5.
+- **Closed 2026-08-24.** This closes the post-merge steps of
+  ATLAS-KWAVERS-GPUMOCK, ATLAS-KWAVERS-STUBORACLE,
+  ATLAS-KWAVERS-IGNOREDORACLE, ATLAS-KWAVERS-DENYDOCS, and
+  ATLAS-KWAVERS-PIN-SWEEP.
 
 ## ATLAS-KWAVERS-DENYDOCS-2026-08-22 — Missing-docs floor on the three smallest crates [minor] — closed 2026-08-23
 
