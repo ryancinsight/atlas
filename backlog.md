@@ -641,6 +641,42 @@
 - **Residual:** the queued CI runs on both merged branches never executed. If
   they surface anything the local suites did not, it is a fix-forward item.
 
+## ATLAS-HEPHAESTUS-BOOK-REGROUND-2026-08-21 — rebase the stale book-reground PR [patch] — closed 2026-08-24
+
+- **Owner:** current session; lane `worktrees/hephaestus-book-reground-1`
+  (branch `fix/hephaestus-book-reground-1`).
+- **What happened.** Hephaestus PR
+  [#216](https://github.com/ryancinsight/hephaestus/pull/216) (docs:
+  Reground accelerator book) opened 2026-08-21 against base
+  `7e09efa9` had gone stale: the hephaestus master had advanced
+  through 7 commits including the lock-guard merge `7b6da5a`, the
+  GPU-acquisition diagnostics, and the FDTD contract parameterization.
+  The PR's own three commits stayed ahead of the original base but
+  conflicted on `CHANGELOG.md` and could not auto-merge.
+- **Rebase.** `git rebase origin/master` onto the lane
+  `fix/hephaestus-book-reground-1`. The CHANGELOG conflict was
+  resolved by combining the book-reground Unreleased entry with the
+  WGPU device-acquisition diagnostic entry from PR #217 — both
+  patch-level, complementary, no semantic conflict. The lockfile was
+  refreshed outside the overlay with
+  `python scripts/lockfile.py --regenerate` (33 first-party git
+  sources restored, `syn 3.0.3 -> 3.0.4` patch bump); the lane's
+  in-tree `cargo check --locked` cannot validate it from inside the
+  atlas overlay, so the script's external cargo invocation is the
+  oracle. Force-pushed with `--force-with-lease`; PR head advanced
+  `42e2787` -> `8728cf3d`.
+- **Acceptance, recorded.** All required hosted checks terminal at
+  `8728cf3d`: CUDA feature and adapterless contracts 6m24s, ROCm
+  6m10s, WGPU 7m9s, macOS Metal 7m10s, Build book 1m4s, Lockfile
+  integrity 27s, CodeRabbit pass. Hardware contracts (NVIDIA, AMD)
+  skip on hosted runners. `recurseml/analysis` is report-only and
+  fails on every PR in every repository; not a merge blocker.
+- **Merge + gitlink advance landed 2026-08-24:** PR #216 merged as
+  `79f1aa728d65b68f32bedd44d2bda8ad9d5511e0` (squash). Atlas gitlink
+  advanced `7b6da5a` -> `79f1aa72` (atlas commit `2c125941a`). Lane
+  `worktrees/hephaestus-book-reground-1` removed in the same cycle.
+- **Closed 2026-08-24** with checklist and this backlog record.
+
 ## ATLAS-KWAVERS-KWAVE-ORACLE-2026-08-21 — k-Wave parity made reproducible [major][arch] — merge pending
 
 - **Owner:** current session; lane `worktrees/kwavers-log` (branch
