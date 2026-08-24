@@ -265,6 +265,32 @@
       regressions no longer apply against the current committed
       baseline. Local branch `build/kwavers-attenuation-gitlink`
       deleted.
+
+## HEPH-BOOK-REGROUND-1 — rebase the stale book-reground PR [patch] — current session
+
+- [x] Confirm the conflict: hephaestus PR
+      [#216](https://github.com/ryancinsight/hephaestus/pull/216)
+      (docs: Reground accelerator book) was CONFLICTING against
+      `origin/master` `7b6da5a` (the lock-guard merge). The lane
+      `worktrees/hephaestus-book-reground-1` was 3 commits ahead of
+      the PR base, 7 commits behind `origin/master`.
+- [x] Rebase `fix/hephaestus-book-reground-1` onto `origin/master`
+      (CHANGELOG.md conflict resolved: combined the book-reground
+      Unreleased entry with the WGPU device-acquisition diagnostic
+      entry from PR #217 — both patch-level, complementary).
+- [x] Refresh `Cargo.lock` outside the overlay with
+      `python scripts/lockfile.py --regenerate`; 33 first-party git
+      sources present, `cargo check --locked` passes (the lane
+      itself is inside the atlas overlay so the in-tree
+      `--locked` check sees the overlay patches and the lockfile is
+      validated by the script's own external cargo invocation).
+- [x] Commit `8728cf3` (lockfile refresh, 71+/70-).
+- [x] Force-push with `--force-with-lease`; PR head advanced
+      `42e2787` → `8728cf3`; mergeable flipped to `MERGEABLE`.
+      CI re-queued (7 pending, 2 skipping).
+- [ ] Collect hosted terminal checks (CUDA/ROCm/WGPU/Metal
+      contracts, Lockfile integrity, Build book, macOS Metal,
+      CodeRabbit); merge at exact head.
 - [x] Proteus found in the same failure class: committed Cargo.lock had
       every git source stripped (aequitas/eunomia are git deps) and CI
       was failing with the --locked mismatch on every run. Lane
