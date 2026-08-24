@@ -207,8 +207,50 @@
 - [x] Skipped harmonia: 0 first-party git sources, no `Cargo.lock`.
       The guard has nothing to check.
 - [x] Advance Atlas gitlinks for horae, hyperion, hermes, gaia.
-- [ ] Continue promotion to remaining 8 members (consus, hephaestus,
-      athena, apollo, coeus, asclepius, helios, CFDrs).
+- [x] Create clean lanes for consus, hephaestus, athena, apollo, coeus,
+      asclepius, helios; copy scripts/lockfile.py + .githooks/pre-push
+      verbatim; add Lockfile integrity CI (consus/athena/apollo/asclepius/
+      helios add a job to ci.yml; hephaestus/coeus create a dedicated
+      lockfile-guard.yml workflow); document the hook in each README.
+- [x] Verify all 7 lanes: YAML parses, hook executable, bash syntax
+      clean, lockfile.py --check passes (22/33/35/36/41/41/59 sources).
+- [x] Push and open PRs: consus
+      [#54](https://github.com/ryancinsight/consus/pull/54), hephaestus
+      [#218](https://github.com/ryancinsight/hephaestus/pull/218), athena
+      [#17](https://github.com/ryancinsight/athena/pull/17), apollo
+      [#110](https://github.com/ryancinsight/apollo/pull/110), coeus
+      [#343](https://github.com/ryancinsight/Coeus/pull/343), asclepius
+      [#26](https://github.com/ryancinsight/asclepius/pull/26), helios
+      [#70](https://github.com/ryancinsight/helios/pull/70).
+- [x] Merge apollo [#110](https://github.com/ryancinsight/apollo/pull/110)
+      at `424ce4314` (Lockfile 31s, python 1m21s, rust 4m15s, CodeRabbit).
+- [x] Merge hephaestus
+      [#218](https://github.com/ryancinsight/hephaestus/pull/218) at
+      `7b6da5ae` (Lockfile 26s, CUDA 6m, ROCm 6m, WGPU 6m, Metal 8m;
+      hardware jobs skip on the hosted runner).
+- [x] Merge coeus [#343](https://github.com/ryancinsight/Coeus/pull/343)
+      at `43f288a0` (Lockfile 24s, CUDA 20m, Metal 10m, ROCm 9m, WGPU
+      30m).
+- [x] Merge athena [#17](https://github.com/ryancinsight/athena/pull/17)
+      at `4c8a9dcd` (Lockfile 16s, supply-chain 55s; the first verify run
+      failed on `repeated_gmres_solves_allocate_nothing_after_initialization`
+      — a timing-sensitive allocation-count flake that passes locally and
+      passed on rerun; base `1c7a7f94` CI was green).
+- [x] Advance Atlas gitlinks for apollo, hephaestus, coeus, athena.
+- [ ] Collect hosted terminal checks on the remaining PRs (consus #54,
+      helios #70, asclepius #26 with the .cargo overlay removal, proteus
+      #18 with the lockfile repair), merge at exact heads, then advance
+      their Atlas gitlinks.
+- [x] Proteus found in the same failure class: committed Cargo.lock had
+      every git source stripped (aequitas/eunomia are git deps) and CI
+      was failing with the --locked mismatch on every run. Lane
+      `worktrees/proteus-lock-guard` regenerates the lock outside the
+      overlay (2 first-party git sources restored, pins aequitas@dc4bdef),
+      adds the same four-file guard promotion, commit `734612e`.
+- [x] Push and open proteus
+      [PR #18](https://github.com/ryancinsight/proteus/pull/18) at head
+      `734612e`.
+- [ ] Merge proteus PR #18 and advance the proteus gitlink.
 
 ## ATLAS-FMT-CHECK-PARSER-2026-08-21 — current session
 
