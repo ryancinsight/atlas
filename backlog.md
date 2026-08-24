@@ -89,14 +89,34 @@
      report-only. Merge commit `dc4bdef`. Atlas gitlink advanced `14fdd44c`
      → `dc4bdef`.
 
-  3. **Remaining 13 members** (promotion increments 2/14 through 14/14):
-     horae (2), hyperion (3), harmonia (4), hermes (11), gaia (22), consus
-     (24), hephaestus (33), athena (35), apollo (36), coeus (41), asclepius
-     (41), helios (59), CFDrs (64). Each is a copy of `scripts/lockfile.py`
-     plus `.githooks/pre-push` plus one CI job plus one README paragraph, on a
-     clean lane from the fetched default. The tool is generic and needs no
-     per-repo adaptation; the first-party source regex
-     `github.com/ryancinsight/` matches every member.
+  3. **Batch of 4 (promotion increments 2-5/14):** horae, hyperion,
+     hermes, gaia — each on a clean lane from the fetched default, same
+     four-file copy (scripts/lockfile.py + .githooks/pre-push + shared
+     CI caller + README). Harmonia skipped: 0 first-party git sources,
+     no Cargo.lock, nothing to guard.
+     - **horae** (2 git sources): PR
+       [#27](https://github.com/ryancinsight/horae/pull/27) at head
+       `fcf52188`; Lockfile integrity 8s, verify 40s, supply-chain 41s;
+       merged at `9d783479`. Atlas gitlink `abe42e5d` → `9d783479`.
+     - **hyperion** (3 git sources): PR
+       [#24](https://github.com/ancinsight/hyperion/pull/24) at head
+       `13818369`; Lockfile integrity 10s, verify 44s, supply-chain 1m10s;
+       merged at `1e251cb0`. Atlas gitlink `3bc0e43d` → `1e251cb0`.
+     - **hermes** (11 git sources): PR
+       [#60](https://github.com/ryancinsight/hermes/pull/60) at head
+       `b04d9d91`; Lockfile integrity 9s, fmt+clippy+test+doc 55s,
+       aarch64 1m42s, AVX-512-hosted 33s, cargo-deny 22s all pass (heavy
+       SDE/miri/benchmark jobs pending but not required for CI-only
+       change); merged at `e8515b34`. Atlas gitlink `78b87453` →
+       `e8515b34`.
+     - **gaia** (22 git sources): PR
+       [#34](https://github.com/ryancinsight/gaia/pull/34) at head
+       `7ca0ec24`; Lockfile integrity 20s, gate 1m38s; merged at
+       `2ce0984a`. Atlas gitlink `9b476fec` → `2ce0984a`.
+
+  4. **Remaining 8 members** (promotion increments 6-13/14): consus,
+     hephaestus, athena, apollo, coeus, asclepius, helios, CFDrs. Each
+     is the same four-file copy on a clean lane from the fetched default.
 
 ## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — merge pending
 

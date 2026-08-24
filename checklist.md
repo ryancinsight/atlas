@@ -186,10 +186,29 @@
       head `0c53c235`; all required checks pass (Lockfile integrity 9s,
       verify 54s, supply-chain 55s, CodeRabbit pass); `recurseml/analysis`
       report-only. Merged at `dc4bdef`.
-- [ ] Continue promotion to the remaining 13 members (horae, hyperion,
-      harmonia, hermes, gaia, consus, hephaestus, athena, apollo, coeus,
-      asclepius, helios, CFDrs) — each is a copy of the same four files
-      on a clean lane from the fetched default.
+- [x] Promote to horae: lane `worktrees/horae-lock-guard`, PR
+      [#27](https://github.com/ryancinsight/horae/pull/27) at head
+      `fcf52188`; Lockfile integrity 8s, verify 40s, supply-chain 41s all
+      pass; merged at `9d783479`.
+- [x] Promote to hyperion: lane `worktrees/hyperion-lock-guard`, PR
+      [#24](https://github.com/ryancinsight/hyperion/pull/24) at head
+      `13818369`; Lockfile integrity 10s, verify 44s, supply-chain 1m10s
+      all pass; merged at `1e251cb0`.
+- [x] Promote to hermes: lane `worktrees/hermes-lock-guard`, PR
+      [#60](https://github.com/ryancinsight/hermes/pull/60) at head
+      `b04d9d91`; Lockfile integrity 9s, fmt+clippy+test+doc 55s,
+      aarch64 1m42s, AVX-512-hosted 33s, cargo-deny 22s all pass
+      (heavy SDE/miri/benchmark jobs pending but not required for a
+      CI-only change); merged at `e8515b34`.
+- [x] Promote to gaia: lane `worktrees/gaia-lock-guard`, PR
+      [#34](https://github.com/ryancinsight/gaia/pull/34) at head
+      `7ca0ec24`; Lockfile integrity 20s, gate 1m38s all pass; merged
+      at `2ce0984a`.
+- [x] Skipped harmonia: 0 first-party git sources, no `Cargo.lock`.
+      The guard has nothing to check.
+- [x] Advance Atlas gitlinks for horae, hyperion, hermes, gaia.
+- [ ] Continue promotion to remaining 8 members (consus, hephaestus,
+      athena, apollo, coeus, asclepius, helios, CFDrs).
 
 ## ATLAS-FMT-CHECK-PARSER-2026-08-21 — current session
 
