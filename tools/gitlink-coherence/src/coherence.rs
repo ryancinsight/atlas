@@ -197,29 +197,28 @@ pub fn audit_one(
     })?;
 
     if fetch {
-        // Refresh only `refs/heads/main` from origin. Does not touch the
-        // member's working tree or `HEAD` — only the cached
-        // `refs/remotes/origin/main`. Network-bound: caller opt-in via
-        // `--fetch`. The fetch may legitimately fail when the remote has no
-        // `main` branch at all; this is the canonical input for the
-        // `NoOriginMainOnRemote` classification (it cannot be distinguished
-        // from a network failure by the return code alone, but git emits a
-        // distinctive `couldn't find remote ref refs/heads/main` stderr that
-        // uniquely identifies the class). A network failure aborts the audit
-        // via `?` propagation — the user can re-run with `--no-fetch` to
-        // probe against the cached `refs/remotes/origin/main` state, but
-        // silently classifying a transient network failure as
+        // Refresh the member's default branch from origin. Does not touch
+        // the member's working tree or `HEAD` — only the cached remote ref.
+        // Network-bound: caller opt-in via `--fetch`. The fetch may
+        // legitimately fail when the remote lacks the probed branch; this is
+        // the canonical input for the `NoOriginMainOnRemote` classification
+        // (it cannot be distinguished from a network failure by the return
+        // code alone, but git emits a distinctive `couldn't find remote ref`
+        // stderr that uniquely identifies the class). A network failure
+        // aborts the audit via `?` propagation — the user can re-run with
+        // `--no-fetch` to probe against the cached state, but silently
+        // classifying a transient network failure as
         // `NoOriginMainOnRemote` would mask the underlying connectivity
         // problem (integrity: error-handling restraint).
         let fetch_result = run_git(
             &member_git_dir,
-            &["fetch", "origin", "refs/heads/main"],
+            &["fetch", "origin", "--prune", "HEAD"],
             "fetch",
         );
         match fetch_result {
             Ok(_) => {}
             Err(Error::GitExit { ref stderr, .. })
-                if stderr.contains("couldn't find remote ref refs/heads/main") =>
+                if stderr.contains("couldn't find remote ref") =>
             {
                 // Discard — the resolve_ref step below returns `None`,
                 // which propagates through to `NoOriginMainOnRemote`.
@@ -227,7 +226,12 @@ pub fn audit_one(
             Err(err) => return Err(err),
         }
     }
-    let origin_main = resolve_ref(&member_git_dir, "origin/main");
+    // Resolve the member's upstream default ref: prefer the remote's own
+    // HEAD (members may publish `master`, `main`, or something else); fall
+    // back to `origin/main` when `origin/HEAD` is absent.
+    let origin_main =
+        resolve_ref(&member_git_dir, "refs/remotes/origin/HEAD")
+            .or_else(|| resolve_ref(&member_git_dir, "origin/main"));
     let class: DefectClass;
     let note: String;
 
