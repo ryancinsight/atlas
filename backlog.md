@@ -10374,7 +10374,16 @@ Liveness-measured sweep of all 28 member checkouts. Findings:
   eunomia, gaia, harmonia, horae, hyperion, melinoe, ritk, themis, tyche,
   athena — fast-forward at next touch of each member.
 
-Re-open triggers: CFDrs PR #360 verdict; author decisions on the rescue
+**CFDrs PR #360 delivered 2026-08-24.** Hosted workspace gate green
+(15m25s) after one CI-only clippy fix (DES rejection test now constructs
+its config with struct-update syntax; local gates must run with
+`RUSTFLAGS="-D warnings"` to match the hosted floor). Merge `eee77aa2`.
+Lane cleanup: five stale worktrees removed, 24 fully-merged local branches
+deleted, 14 unmerged branches remain — all tips pushed to origin, each a
+stranded series needing per-branch judgment (filed as follow-up).
+Local-only tips preserved via push before any deletion.
+
+Re-open triggers: CFDrs PR #360 verdict [collected]; author decisions on the rescue
 branches; moirai re-check after its live peer's commit lands.
 
 ## Archive — closed items
