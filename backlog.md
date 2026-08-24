@@ -180,6 +180,47 @@
      was opened, and the ratchet regressions in its 4-day-old CI
      run no longer apply against the current committed baseline.
 
+## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch]
+
+- **Owner:** current session; lane will be `worktrees/cfdrs-mdbook-dead-links`.
+- **What happened.** The pre-commit hook flip to strict mdbook-link mode
+  (`feat(atlas): Add board and pointer hygiene guards to pre-commit`,
+  atlas `147588599`) made `scripts/check_mdbook_links.py repos/CFDrs/docs/book`
+  exit non-zero on FILE_MISSING. Two real broken links surfaced, not
+  false positives:
+
+  - `docs/book/examples/cfd_demo.md` (referenced by `foundations.md`,
+    `governing_equations.md`, and `SUMMARY.md`) links to
+    `../../../examples/cfd_demo.rs`, which does not exist in
+    `repos/CFDrs/examples/`. The closest match is
+    `examples/enhanced_cfd_demo.rs`.
+  - `docs/book/examples/matrix_free_demo.md` (referenced by
+    `matrix_free_operators.md`) links to
+    `../../../examples/matrix_free_demo.rs`, which does not exist.
+
+- **Why it slipped through.** The detector's --advisory mode was
+  removed by the same commit; before that, the links were reported but
+  did not block. The atlas workflow `docs.yml` and CI mirror the same
+  detector; CFDrs main is therefore reporting FILE_MISSING in CI as
+  well. The strict gate is now the load-bearing path to keeping
+  every provider book green, so the underlying defect needs fixing.
+- **Scope.** Two options, both in scope of the CFDrs repo (not atlas):
+  1. Create the missing `.rs` source files (minimum stubs that compile
+     and are documented to be illustrative) and re-link.
+  2. Replace the broken links with existing example filenames
+     (e.g. `enhanced_cfd_demo.rs`) and add a note in the book chapter
+     that the original `cfd_demo` was retired in favour of the
+     enhanced variant.
+- **Acceptance.** `python3 scripts/check_mdbook_links.py repos/CFDrs/docs/book`
+  reports `FILE_MISSING : 0`; the strict pre-commit gate passes
+  unconditionally on atlas; CFDrs CI's book gate is green; the
+  affected chapters are coherent (a missing source is not silently
+  elided by a rename).
+- **Pre-write search.** No existing atlas item owns these two
+  specific links; the closest is the CFDrs #360 PR branch judgment
+  (closed 2026-08-24) which did not surface them because the
+  detector was in --advisory mode during that sweep.
+
 ## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — merge pending
 
 - **Owner:** current session; lane `worktrees/kwavers-log`.
