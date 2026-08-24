@@ -998,8 +998,8 @@ unchanged.
   paths have value-semantic differential coverage; the package graph is
   acyclic; the scoped architecture/feature checks, Nextest, doctests, Rustdoc,
   and hosted book gates pass at the exact provider default. **Status:** in
-  progress; PRs #602, #626, and #628 are merged, while selection-boundary PR
-  #630 is enqueued for automatic merge at exact source head `6b344eb5f`.
+  progress; PRs #602, #626, #628, #630, and #631 are merged. PR #631's hosted
+  matrix remains queued, so Atlas integration is not yet closed.
 - **Verification residual:** package-wide `kwavers-analysis --lib` Clippy with
   `-D warnings` still reports 45 pre-existing findings outside the changed
   files, including missing error/panic documentation, stdout fallback output,
@@ -1009,7 +1009,7 @@ unchanged.
   warning-ratchet work remains required.
 - **Meta-repo integration residual:** Atlas still tracks `repos/kwavers` at
   `dabc779d`. Advance the gitlink to the fetched post-merge Kwavers default only
-  after PR #630's required hosted checks pass; preserve the primary submodule's
+  after PR #631's required hosted checks pass; preserve the primary submodule's
   extensive uncommitted peer work through an index-level pointer update.
 - **Selection-boundary audit (2026-08-24):** the merged provider ownership is
   correct, but `kwavers` only re-exports `kwavers-gpu::visualization`; the
@@ -1030,8 +1030,24 @@ unchanged.
   Kwavers Nextest 40/40, hardware Nextest 1/1 on the available adapter,
   kwavers-gpu Nextest 166/166, doctests, warning-denied Rustdoc, formatting,
   and workflow YAML parsing pass. `cargo-semver-checks` confirms the declared
-  major impact from the two removed leaf-crate selection items. Hosted checks
-  and the Atlas gitlink advance remain pending.
+  major impact from the two removed leaf-crate selection items. PR #630 merged
+  at `40e482ee9` from the exact tested source tree.
+- **Static-dispatch correction merged (PR #631, source `a36cb1ea2`, merge
+  `c7db87a74`):** independent review rejected the retained
+  `Box<dyn VisualizationTransferProvider>` because the provider set is closed
+  and the engine invoked its vtable on every transfer. Top-level Kwavers now
+  returns `VisualizationProvider::{Leto, Hephaestus}`; the Hephaestus variant
+  alone is boxed once to bound enum size. `VisualizationEngine<P>` and
+  `DataPipeline<P>` carry the concrete provider type, and the unconfigured
+  engine typestate cannot initialize GPU transfer. Static scan finds no
+  visualization transfer trait object. Exact-source local evidence: GPU
+  analysis Nextest 778/778, default analysis Nextest 744/744, top-level
+  Kwavers 41/41, real Hephaestus adapter transfer 1/1, no-default-features
+  compilation, doctests including the compile-fail typestate proof, and
+  warning-denied Rustdoc pass. Source and merge trees both equal
+  `d95f04a991b7a94c11c41318b469cb556b7190be`. Hosted jobs are still queued;
+  the recurseml analyzer error is report-only. No emitted-code inspection or
+  performance claim is included.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.

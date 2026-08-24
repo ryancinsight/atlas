@@ -80,7 +80,25 @@ construction. The requested Hephaestus path fails closed and performs a real
 device transfer in the scheduled self-hosted GPU gate. Local exact-head Leto
 and Hephaestus contract tests pass. `cargo-semver-checks` reports the two
 removed `kwavers-gpu` selection items and therefore confirms the declared
-major-version impact. Hosted delivery remains pending.
+major-version impact. PR #630 merged as `40e482ee9` from the exact tested
+source tree.
+
+Independent review then found that the factory returned
+`Box<dyn VisualizationTransferProvider>` and retained that vtable through each
+engine-to-pipeline transfer. Fix-forward PR
+[#631](https://github.com/ryancinsight/kwavers/pull/631), source
+`a36cb1ea2`, merge `c7db87a74`, replaces the open trait object with the closed
+`VisualizationProvider::{Leto, Hephaestus}` enum. The large Hephaestus variant
+is boxed once for layout control; transfer dispatch remains exhaustive enum
+dispatch. `VisualizationEngine<P>` and `DataPipeline<P>` retain the concrete
+provider type, and the unconfigured engine typestate cannot initialize GPU
+transfer. No fallback is added: requested Hephaestus acquisition, upload, or
+synchronization failures remain typed errors. The merge and source trees are
+identical (`d95f04a991b7a94c11c41318b469cb556b7190be`). Local full CPU and GPU
+Nextest suites, the real-adapter transfer oracle, doctests including the
+compile-fail typestate proof, warning-denied Rustdoc, and no-default-features
+compilation pass. The hosted PR #631 matrix remains queued; no hosted-green
+claim is made.
 
 ## Required tests
 
@@ -94,6 +112,9 @@ The first implementation must prove:
 - no package graph cycle is introduced;
 - top-level Kwavers selection reaches both concrete providers without a
   compatibility re-export or fallback;
+- the closed provider set dispatches by enum at the operation boundary, with
+  no `dyn VisualizationTransferProvider` retained by the engine or pipeline;
+- an unconfigured engine cannot initialize GPU transfer;
 - the scheduled Hephaestus test requires a real adapter and device transfer;
 - static scans find no `wgpu`, `pollster`, raw device, queue, or buffer symbols
   in the neutral consumer module after migration.

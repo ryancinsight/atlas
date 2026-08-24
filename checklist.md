@@ -587,9 +587,22 @@ Item closed 2026-08-23.
       Nextest 166/166, doctests and warning-denied Rustdoc pass. SemVer reports
       the expected major break; package-wide Clippy remains blocked by 45
       pre-existing analysis and 28 pre-existing GPU findings outside this diff.
-- [ ] Collect PR #630's exact-head Rust, book, API, and Pages gates, merge, then
+- [x] Merge PR #630 at `40e482ee9` from exact tested source `6b344eb5f`.
+- [x] Resolve the independent review finding that the factory retained
+      `Box<dyn VisualizationTransferProvider>` through every transfer. PR #631
+      replaces it with `VisualizationProvider::{Leto, Hephaestus}`, generic
+      `VisualizationEngine<P>` / `DataPipeline<P>` dispatch, and an
+      unconfigured-engine typestate. Exact source `a36cb1ea2` merged as
+      `c7db87a74`; source and merge trees are identical.
+- [x] Verify the correction locally: GPU analysis Nextest 778/778, default
+      analysis 744/744, top-level Kwavers 41/41, real Hephaestus transfer 1/1,
+      no-default-features compilation, doctests including compile-fail
+      typestate coverage, warning-denied Rustdoc, and an independent final
+      review all pass.
+- [ ] Collect PR #631's queued hosted Rust, book, API, and Pages gates, then
       advance the Atlas Kwavers gitlink without modifying the peer-dirty
-      primary checkout.
+      primary checkout. The recurseml analyzer error is report-only; no hosted
+      green result is currently claimed.
 
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — current session
 
