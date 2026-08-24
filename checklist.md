@@ -237,10 +237,13 @@
       — a timing-sensitive allocation-count flake that passes locally and
       passed on rerun; base `1c7a7f94` CI was green).
 - [x] Advance Atlas gitlinks for apollo, hephaestus, coeus, athena.
+- [x] Merge helios [#70](https://github.com/ryancinsight/helios/pull/70)
+      at `f184b28f` (Lockfile 1m15s, benchmark regression 41m35s, python
+      bindings 2m, rust workspace 4m8s, CodeRabbit).
 - [ ] Collect hosted terminal checks on the remaining PRs (consus #54,
-      helios #70, asclepius #26 with the .cargo overlay removal, proteus
-      #18 with the lockfile repair), merge at exact heads, then advance
-      their Atlas gitlinks.
+      asclepius #26 with the .cargo overlay removal, proteus #18 with
+      the lockfile repair), merge at exact heads, then advance their
+      Atlas gitlinks (helio done, at `f184b28f`).
 - [x] Proteus found in the same failure class: committed Cargo.lock had
       every git source stripped (aequitas/eunomia are git deps) and CI
       was failing with the --locked mismatch on every run. Lane
