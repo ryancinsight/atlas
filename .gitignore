@@ -87,3 +87,4 @@ __pycache__/
 # Agent tool-state at the stack root (session-local, never repo content).
 .codex/
 .playwright-mcp/
+.tmp-agent/
