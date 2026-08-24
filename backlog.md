@@ -114,9 +114,31 @@
        `7ca0ec24`; Lockfile integrity 20s, gate 1m38s; merged at
        `2ce0984a`. Atlas gitlink `9b476fec` → `2ce0984a`.
 
-  4. **Remaining 8 members** (promotion increments 6-13/14): consus,
-     hephaestus, athena, apollo, coeus, asclepius, helios, CFDrs. Each
-     is the same four-file copy on a clean lane from the fetched default.
+  4. **Batch of 7 (promotion increments 6-12/14):** consus (22 sources),
+     hephaestus (33), athena (35), apollo (36), coeus (41), asclepius
+     (41), helios (59) — each on a clean lane from the fetched default
+     with the same four-file copy. Repos with a `ci.yml` (consus, athena,
+     apollo, asclepius, helios) get the `lockfile` job in it; hephaestus
+     and coeus have no `ci.yml`, so they get a dedicated
+     `lockfile-guard.yml` calling the same shared workflow. Opened
+     2026-08-24: consus [#54](https://github.com/ryancinsight/consus/pull/54),
+     hephaestus [#218](https://github.com/ryancinsight/hephaestus/pull/218)
+     (base `master`), athena
+     [#17](https://github.com/ryancinsight/athena/pull/17), apollo
+     [#110](https://github.com/ryancinsight/apollo/pull/110), coeus
+     [#343](https://github.com/ryancinsight/Coeus/pull/343), asclepius
+     [#26](https://github.com/ryancinsight/asclepius/pull/26), helios
+     [#70](https://github.com/ryancinsight/helios/pull/70). Hosted checks
+     are the acceptance oracle; merge only at exact heads.
+
+  5. **CFDrs skipped (increment dimissed):** the committed root
+     `Cargo.lock` (verified via `git show HEAD:Cargo.lock`) contains zero
+     `source = "git+..."` lines — every dependency resolves from
+     crates.io, so there is nothing for the overlay to strip. The
+     backlog's earlier "64 git sources" figure predates the crates.io
+     publication of the cfd-* crates. Same skip rationale as harmonia.
+     **All 14 members are now covered or dismissed; this item's
+     promotion is complete pending the seven hosted merges.**
 
 ## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — merge pending
 
@@ -10550,6 +10572,30 @@ GIL-boundary, and blueprint-lint fixes all exist on main in evolved form
 (the test-module-scoped allocator replaced the ungated library static).
 All local branch tips deleted; remote branches retained as archive.
 CFDrs now carries exactly one local branch (main) at the merged head.
+
+**Takeover completed 2026-08-24 (author grant).** All rescue branches
+adjudicated and delivered or retired:
+- kwavers SWE volumetric WIP: integrated via PR #627 (`7bb84b3a`); the
+  fmt gate it tripped is fixed on main (`0e1c92753`).
+- CFDrs post-series WIP: integrated via PR #369 — LF-normalizing
+  .gitattributes landed stack-side, clippy --fix discharged residual
+  findings, 3256 tests green pre-fixup.
+- kwavers imaging ratchet slice: delivered via PR #629 (`bde986c1`);
+  the transducer lint-floor commit was already superseded on main.
+- coeus cache residue: loss-revert hunks rejected (recorded); PM-doc
+  residue superseded by the merged cache delivery — branch retired.
+- PM-sweep snapshots: 8 members merged to defaults directly (asclepius,
+  gaia, harmonia, iris, proteus, helios, ritk + athena untracked set);
+  8 members' snapshots judged stale against heavily-advanced defaults
+  (conflict magnitude/direction evidence) — branches deleted, remotes
+  retained.
+All local+remote rescue refs are gone; every verdict recorded here.
+
+New defect filed by the sweep: asclepius pins aequitas ^0.1.0 / coeus
+^0.9.0 — both no longer resolvable (aequitas serves only 0.2.0; coeus
+dropped aequitas and moved to 0.10.0). Overlay builds of asclepius are
+red for everyone. Filed as the next DoR item: advance asclepius's
+first-party deps through the 0.9→0.10 API surface.
 
 Re-open triggers: CFDrs PR #360 verdict [collected]; author decisions on the rescue
 branches; moirai re-check after its live peer's commit lands.
