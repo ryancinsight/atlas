@@ -599,7 +599,14 @@ Item closed 2026-08-23.
       no-default-features compilation, doctests including compile-fail
       typestate coverage, warning-denied Rustdoc, and an independent final
       review all pass.
-- [ ] Collect PR #631's queued hosted Rust, book, API, and Pages gates, then
+- [x] Close the remaining hardware-evidence gap in PR #632: the scheduled test
+      now routes a distinct field through Kwavers selection and analysis
+      `DataPipeline` before the real Hephaestus upload, asserting exact
+      dimensions, range, logical bytes, and physical double-buffer memory.
+      Exact source `6f400e1a9` merged as `534051c04`; source and merge trees are
+      identical. Real adapter 1/1, normal library 41/41, Clippy, rustfmt, and
+      workflow-shape gates pass locally.
+- [ ] Collect PR #632's queued hosted Rust, book, API, and Pages gates, then
       advance the Atlas Kwavers gitlink without modifying the peer-dirty
       primary checkout. The recurseml analyzer error is report-only; no hosted
       green result is currently claimed.

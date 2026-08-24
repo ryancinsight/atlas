@@ -998,8 +998,8 @@ unchanged.
   paths have value-semantic differential coverage; the package graph is
   acyclic; the scoped architecture/feature checks, Nextest, doctests, Rustdoc,
   and hosted book gates pass at the exact provider default. **Status:** in
-  progress; PRs #602, #626, #628, #630, and #631 are merged. PR #631's hosted
-  matrix remains queued, so Atlas integration is not yet closed.
+  progress; PRs #602, #626, #628, #630, #631, and #632 are merged. PR #632's
+  hosted matrix remains queued, so Atlas integration is not yet closed.
 - **Verification residual:** package-wide `kwavers-analysis --lib` Clippy with
   `-D warnings` still reports 45 pre-existing findings outside the changed
   files, including missing error/panic documentation, stdout fallback output,
@@ -1009,7 +1009,7 @@ unchanged.
   warning-ratchet work remains required.
 - **Meta-repo integration residual:** Atlas still tracks `repos/kwavers` at
   `dabc779d`. Advance the gitlink to the fetched post-merge Kwavers default only
-  after PR #631's required hosted checks pass; preserve the primary submodule's
+  after PR #632's required hosted checks pass; preserve the primary submodule's
   extensive uncommitted peer work through an index-level pointer update.
 - **Selection-boundary audit (2026-08-24):** the merged provider ownership is
   correct, but `kwavers` only re-exports `kwavers-gpu::visualization`; the
@@ -1048,6 +1048,15 @@ unchanged.
   `d95f04a991b7a94c11c41318b469cb556b7190be`. Hosted jobs are still queued;
   the recurseml analyzer error is report-only. No emitted-code inspection or
   performance claim is included.
+- **Pipeline hardware evidence merged (PR #632, source `6f400e1a9`, merge
+  `534051c04`):** the scheduled adapter oracle now routes a distinct field
+  through top-level Kwavers selection and analysis `DataPipeline` conversion
+  before Hephaestus upload. It retains the physical double-buffer memory check
+  and asserts exact dimensions `(2, 2, 1)`, range `(-2.0, 7.0)`, and 16 logical
+  transferred bytes. The real-adapter test passes 1/1; the normal Kwavers
+  library passes 41/41 with the hardware test skipped; warning-denied Clippy,
+  rustfmt, YAML parsing, and diff checks pass. Source and merge trees both equal
+  `6e104e339ed3731fccee8f7192678b39ffe7f192`. Hosted jobs remain queued.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.

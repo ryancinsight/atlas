@@ -100,6 +100,17 @@ compile-fail typestate proof, warning-denied Rustdoc, and no-default-features
 compilation pass. The hosted PR #631 matrix remains queued; no hosted-green
 claim is made.
 
+Evidence follow-up PR
+[#632](https://github.com/ryancinsight/kwavers/pull/632), source
+`6f400e1a9`, merge `534051c04`, extends the scheduled real-adapter oracle
+through top-level Kwavers selection and analysis `DataPipeline` conversion
+before the Hephaestus upload. It preserves the physical double-buffer memory
+assertion and adds exact pipeline dimensions, value range, and logical byte
+count for a distinct second upload. The source and merge trees are identical
+(`6e104e339ed3731fccee8f7192678b39ffe7f192`). Local real-hardware, normal
+library, warning-denied Clippy, formatting, and workflow-shape gates pass; its
+hosted matrix remains queued.
+
 ## Required tests
 
 The first implementation must prove:
