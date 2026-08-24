@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch]
+## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch] — closed 2026-08-24
 
 - **Owner:** current session; lane will be `worktrees/cfdrs-mdbook-dead-links`.
 - **What happened.** The pre-commit hook flip to strict mdbook-link mode
@@ -40,6 +40,33 @@
   specific links; the closest is the CFDrs #360 PR branch judgment
   (closed 2026-08-24) which did not surface them because the
   detector was in --advisory mode during that sweep.
+- **Resolution.** CFDrs PR
+  [#370](https://github.com/ryancinsight/CFDrs/pull/370) (fix: Add
+  the two missing example sources and ground the chapters in real
+  APIs) merged at `3898b96201fbc5ee2958ff4a217786a84b3fba14`. Created
+  `crates/cfd-core/examples/cfd_demo.rs` (70 lines, baseline
+  FlowField / FlowOperations / ReynoldsNumber sanity check) and
+  `crates/cfd-math/examples/matrix_free_demo.rs` (133 lines, 1D
+  diffusion CG with analytic parabola validation). Rewrote both
+  chapters around the actual substrate APIs (csr_math
+  ::linear_solver::krylov::cg, leto_ops::CsrMatrix, the cfd-core
+  primitives) and corrected the chapters' crate attribution / run
+  command.
+- **Scope creep fixed in-flight.** The hosted `Rust workspace gate`
+  tripped on a `clippy::identity_op` regression in
+  `crates/cfd-2d/src/solvers/lbm/streaming.rs:183` (the
+  `boundary_mask[0 * nx + 1] = true` line; the prior
+  `close-residual-clippy` commit `cc66f836` had not promoted this
+  particular lint). Lifted to a named `boundary_node` local with a
+  coordinate-decomposition comment, so the original intent is
+  preserved and 663/663 cfd-2d lib tests still pass.
+- **Atlas pre-commit re-verified at the new head.** `python
+  scripts/check_mdbook_links.py repos/*/docs/book` reports
+  `FILE_MISSING: 0` across every book. The strict-mode gate no
+  longer blocks commits for any member.
+- **Closed 2026-08-24.** Atlas gitlink advanced `170f0095` -> `3898b962`
+  (atlas commit `04df6bad3`). Lane `worktrees/cfdrs-dead-links`
+  removed in the same cycle. Atlas checklist updated (`3faa1bb7b`).
 
 ## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — merge pending
 
