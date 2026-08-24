@@ -10406,6 +10406,16 @@ deleted, 14 unmerged branches remain — all tips pushed to origin, each a
 stranded series needing per-branch judgment (filed as follow-up).
 Local-only tips preserved via push before any deletion.
 
+**Branch-judgment sweep closed 2026-08-24.** All 14 unmerged branches
+adjudicated: every series conflicts with the lint/tracing/validation
+refactors main absorbed (PRs #349-#367+), and origin/main passes the
+hosted -D warnings workspace gate today — the acceptance target those
+series were driving toward. Verified content-level: the allocator-gate,
+GIL-boundary, and blueprint-lint fixes all exist on main in evolved form
+(the test-module-scoped allocator replaced the ungated library static).
+All local branch tips deleted; remote branches retained as archive.
+CFDrs now carries exactly one local branch (main) at the merged head.
+
 Re-open triggers: CFDrs PR #360 verdict [collected]; author decisions on the rescue
 branches; moirai re-check after its live peer's commit lands.
 
