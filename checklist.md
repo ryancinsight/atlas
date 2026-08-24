@@ -266,7 +266,7 @@
       baseline. Local branch `build/kwavers-attenuation-gitlink`
       deleted.
 
-## HEPH-BOOK-REGROUND-1 — rebase the stale book-reground PR [patch] — current session
+## HEPH-BOOK-REGROUND-1 — rebase the stale book-reground PR [patch] — closed 2026-08-24
 
 - [x] Confirm the conflict: hephaestus PR
       [#216](https://github.com/ryancinsight/hephaestus/pull/216)
@@ -288,9 +288,10 @@
 - [x] Force-push with `--force-with-lease`; PR head advanced
       `42e2787` → `8728cf3`; mergeable flipped to `MERGEABLE`.
       CI re-queued (7 pending, 2 skipping).
-- [ ] Collect hosted terminal checks (CUDA/ROCm/WGPU/Metal
-      contracts, Lockfile integrity, Build book, macOS Metal,
-      CodeRabbit); merge at exact head.
+- [x] Collect hosted terminal checks (CUDA 6m24s, ROCm 6m10s,
+      WGPU 7m9s, Metal 7m10s, Lockfile integrity 27s, Build book
+      1m4s, CodeRabbit pass; hardware jobs skip); merge at exact
+      head `8728cf3d`. Atlas gitlink advanced to `79f1aa728d`.
 - [x] Proteus found in the same failure class: committed Cargo.lock had
       every git source stripped (aequitas/eunomia are git deps) and CI
       was failing with the --locked mismatch on every run. Lane
