@@ -7277,3 +7277,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   locks; exact-head structural residual is Consus only (`34b2507` versus
   `origin/main` `aafb320`); clean-checkout and six lane residuals are recorded
   as peer-owned and untouched.
+
+## ATLAS-BASELINE-REFRESH-2026-08-24 - gitlink drift reconciliation verdict - closed
+
+- Verified 2026-08-24: all member pointers match their checked-out
+  trees at origin heads (12 MATCH; hephaestus master 7b6da5a included in
+  peer batch ff742cff5; kwavers excluded - active stream, 28 behind with
+  local WIP). Drift had shrunk 25 to 13 to zero-actionable across the
+  session purely via the peer fleet's continuous sweep cadence. No
+  commit required; residual M markers are submodule-internal untracked
+  files, not pointer deltas. Standing rule going forward: spot-check
+  drift before large batches, but the peer sweep owns this cadence.
