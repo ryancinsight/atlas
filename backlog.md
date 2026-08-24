@@ -330,8 +330,31 @@
   head `711a628b`, based on `origin/main` `8feefe8aa`. Hosted checks are
   the acceptance oracle; merge only at the exact PR head after terminal
   required checks.
-- **After #618 merges:** land the Atlas gitlink advance `d13648b9` →
-  `8feefe8aa` together with the baseline update recording the four
+- **#618 merged 2026-08-24 at the exact head `711a628b`** (merge commit
+  `24b328ca`) after all 28 CI jobs reached terminal success; the only
+  non-passing check was the external `recurseml/analysis` (report-only,
+  fails on every PR). The merged default is now `24b328ca`, which also
+  carries kwavers PR #601 (`5e7da1c4`, k-Wave heterogeneous oracles)
+  that merged just before #618.
+- **Ratchet re-run at `24b328ca`:** the #618 fixes hold
+  (`tag_pinned_actions` 0, `workflow_missing_permissions` 0, `markers`
+  2), but #601's new k-Wave tests added two existence-only assertions
+  (`existence_only_assertions` 221 → 223) and a peer lane `kw-fix`
+  appeared (`excess_worktrees` 5 → 6, transient — not touched).
+- **Follow-up fix lane:** `worktrees/kwavers-existence`, branch
+  `fix/kwavers-kwave-existence-burndown` from `24b328ca` — converts the
+  two guards to value semantics (`let-else` unwraps, the medium builder
+  and driven runner already unwrap at the point of use). Lane scanner:
+  `existence_only_assertions` back to 221, all classes at/below
+  baseline; `cargo check -p kwavers --tests` passes, no clippy warnings
+  in the changed file; Cargo.lock overlay drift restored.
+- **Published 2026-08-24 as Kwavers
+  [PR #619](https://github.com/ryancinsight/kwavers/pull/619)** at exact
+  head `dc4384b6`, based on `origin/main` `24b328ca`. Hosted checks are
+  the acceptance oracle; merge only at the exact PR head after terminal
+  required checks.
+- **After #619 merges:** land the Atlas gitlink advance `d13648b9` →
+  `24b328ca` together with the baseline update recording the four
   tightenings in the same change, then re-run the ratchet on the clean
   revision. That closes the post-merge steps of ATLAS-KWAVERS-GPUMOCK,
   ATLAS-KWAVERS-STUBORACLE, ATLAS-KWAVERS-IGNOREDORACLE,
