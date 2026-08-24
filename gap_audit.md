@@ -15970,3 +15970,50 @@ Evidence is static only: no provider build, nextest, doctest, mdBook test,
 figure render, wheel installation, registry query, hosted workflow, or Pages
 request was performed in this pass. The findings therefore establish surface
 gaps and board routing, not executable or deployment correctness.
+
+## Finding 2026-08-24: Moirai audit campaign — recurring process defects and mechanization targets
+
+Six PRs of audit work surfaced five defect patterns, each hit more than
+once. Recorded here per the slop-pattern rule; mechanizable ones are
+promotion candidates.
+
+1. **Stale item premises.** Three board items claimed "X does not exist"
+   (proptest dep, book.toml/ADR generator, IPC fuzz seam) where X had
+   landed upstream since filing. Every one was caught only by re-grepping
+   the tree at claim time. *Mechanizable:* a claim-time freshness probe —
+   re-verify the item's existence premise by script before flipping status
+   to in-progress.
+
+2. **Dangling board references.** "ADR-025-A..C" (never existed) and
+   SEC-001's "follow-ups filed below" (pointing at nothing) both sent work
+   down wrong paths. *Mechanizable:* board-lint resolving every referenced
+   item id to an actual heading.
+
+3. **Wrong-branch board edits.** Backlog status commits landed on feature
+   branches twice; both relocated by cherry-pick. *Mechanizable:*
+   pre-commit hook rejecting docs/backlog.md changes when the current
+   branch is not the default.
+
+4. **Index-wide commits sweeping staged content.** Three incidents this
+   session alone: a coeus commit swept 33 files of peer staged work under
+   a docs message; a moirai backlog commit carried two abandoned book
+   files; and — while this very entry was being written — an inline-script
+   failure aborted the edit, leaving a peer's staged gitlink advances in
+   the index to receive the audit-entry message and get pushed as
+   df9042208 (content intact, attribution and message wrong). Root cause
+   each time: bare `git commit` trusting whatever the index holds on a
+   shared tree. *Mechanizable:* pre-commit hook comparing staged paths
+   against the paths the commit claims to touch, or a hard rule that
+   shared-tree commits always pass explicit pathspec.
+
+5. **CI toolchain-file precedence.** The scheduled fuzz job built with
+   stable twice because the repo rust-toolchain.toml overrides rustup
+   defaults; fixed by RUSTUP_TOOLCHAIN env plus an assert step encoded in
+   the workflow. *Pattern to reuse:* any job needing a different toolchain
+   than the pin must set RUSTUP_TOOLCHAIN explicitly and assert
+   rustc --version before building.
+
+Correction note: df9042208 carries peer gitlink advances
+(hyperion/proteus/ritk + CFDrs rescue merge) under this entry's working
+message due to incident 4 above; its content is legitimate peer work and
+stands as landed.
