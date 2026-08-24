@@ -353,8 +353,26 @@
   head `dc4384b6`, based on `origin/main` `24b328ca`. Hosted checks are
   the acceptance oracle; merge only at the exact PR head after terminal
   required checks.
-- **After #619 merges:** land the Atlas gitlink advance `d13648b9` →
-  `24b328ca` together with the baseline update recording the four
+- **#619 merged 2026-08-24 at the exact head `dc4384b6`** (merge commit
+  `e6a903b0`) after all CI jobs reached terminal success. Between the
+  #619 lane base and its merge, kwavers PR #613 (`920d36c1`, finite-
+  amplitude k-Wave oracles) merged; its new nonlinear case added a third
+  existence-only assertion (`existence_only_assertions` 221 → 222 at the
+  merged default `e6a903b0`).
+- **Follow-up fix lane:** `worktrees/kwavers-existence-2`, branch
+  `fix/kwavers-kwave-bona-guard` from `e6a903b0` — converts the nonlinear
+  B/A guard (`assert!(case.bona.is_some())`) to the same `let-else` value
+  semantics; the driver maps a missing B/A to linear propagation, so the
+  guard was load-bearing. Lane scanner: `existence_only_assertions` back
+  to 221, all classes at/below baseline; `cargo check -p kwavers --tests`
+  passes.
+- **Published 2026-08-24 as Kwavers
+  [PR #625](https://github.com/ryancinsight/kwavers/pull/625)** at exact
+  head `30239aaa2`, based on `origin/main` `e6a903b0`. Hosted checks are
+  the acceptance oracle; merge only at the exact PR head after terminal
+  required checks.
+- **After #625 merges:** land the Atlas gitlink advance `d13648b9` → the
+  merged default together with the baseline update recording the four
   tightenings in the same change, then re-run the ratchet on the clean
   revision. That closes the post-merge steps of ATLAS-KWAVERS-GPUMOCK,
   ATLAS-KWAVERS-STUBORACLE, ATLAS-KWAVERS-IGNOREDORACLE,
