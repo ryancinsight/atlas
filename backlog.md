@@ -9800,7 +9800,16 @@ first-party deps through the 0.9→0.10 API surface.
 - Remaining open feature PRs (kwavers #424/#439/#440/#443/#617/#620/
   #622–#624, helios #55/#69, proteus #17, hephaestus #216, ritk #144)
   are genuinely diverged series needing per-PR integration engineering;
-  their old CI runs died at the 24h wall. Left open deliberately.
+  their old CI runs died at the 24h wall.
+
+**kwavers #424 delivered 2026-08-25** (oldest diverged PR, taken over):
+the FWI-024-D rotating opposed-linear-array acquisition — the geometry
+ATLAS-FWI-PSTD-BLI-106's BLI extensions were built for. Integrated with
+current main; ADR 116 renumbered to ADR 122 (slot collision with the
+clippy-floor ADR). Its strict-clippy fixups converged with a peer's
+9d8c5f370 on main. Merged as kwavers #634 (`c11dffcf`). Remaining
+diverged feature PRs: helios #55/#69, proteus #17, hephaestus #216,
+ritk #144, kwavers #439/#440/#443/#617/#620/#622-#624.
 
 Re-open triggers: CFDrs PR #360 verdict [collected]; author decisions on the rescue
 branches; moirai re-check after its live peer's commit lands.

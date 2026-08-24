@@ -1081,26 +1081,34 @@ versions; the underlying scheme stays whatever the workspace already uses
 [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md) records the
 practice survey, the naming rule, and the per-package table.
 
-No Atlas crate is published yet. Of 173 publishable names audited on 2026-07-28,
-**165 are free and 8 collide**: `athena`, `gaia`, `helios-core`, `mnemosyne`,
-`mnemosyne-core`, `themis`, `tyche`, and `xtask`. crates.io has no namespaces and
-will not transfer a name without the current owner's approval, so the facade name
-is the bare classical name where it is free and `<name>-<domain>` where it is not.
-There is no `atlas-` prefix and no stack-wide `-rs` suffix — `-rs` is itself
-unavailable for four of the affected names.
+A live 2026-08-24 registry check supersedes the earlier audit: 24 Atlas
+crates are already published (see the backlog's ATLAS-PUB-006 re-measure),
+including `aequitas`, `eunomia`, `asclepius`, `leto`/`leto-ops`, `melinoe`,
+`apollo-fft`, `moirai-core`/`moirai-runtime`, `coeus-core`/`coeus-tensor`/
+`coeus-ops`, `mnemosyne-core`/`mnemosyne-heap`, `themis`, `tyche-core`,
+`gaia-mesh`, `hermes-simd`, `hephaestus-core`/`hephaestus-host`/
+`hephaestus-wgpu`, `ritk-core`/`ritk-image`, and `consus`. crates.io has no
+namespaces and will not transfer a name without the current owner's approval,
+so the facade name is the bare classical name where it is free and
+`<name>-<domain>` where it is not. There is no `atlas-` prefix and no
+stack-wide `-rs` suffix — `-rs` is itself unavailable for four of the affected
+names. The table records the registry name as it exists in the manifests;
+naming deviations found on 2026-08-24 (`athena-krylov` for athena, `iris-viz`
+for iris, `gaia-mesh` for gaia, `themis-topology` for themis) are noted against
+ADR 0037 and tracked in `ATLAS-PUB-006`.
 
 | Facade | Package | | Facade | Package |
 | --- | --- | --- | --- | --- |
 | `aequitas` | aequitas | | `hyperion-photon` | hyperion |
-| `apollo-transforms` | apollo | | `iris` | iris |
+| `apollo-transforms` | apollo | | `iris-viz` | iris |
 | `asclepius` | asclepius | | `kwavers` | kwavers |
-| `athena-solvers` | athena | | `leto` | leto |
+| `athena-krylov` | athena | | `leto` | leto |
 | `cfdrs` | CFDrs | | `melinoe` | melinoe |
 | `coeus` | coeus | | `mnemosyne-alloc` | mnemosyne |
 | `consus` | consus | | `moirai-runtime` | moirai |
 | `eunomia` | eunomia | | `proteus-materials` | proteus |
-| `gaia-geometry` | gaia | | `ritk` | ritk |
-| `harmonia-coupling` | harmonia | | `themis-placement` | themis |
+| `gaia-mesh` | gaia | | `ritk` | ritk |
+| `harmonia-coupling` | harmonia | | `themis-topology` | themis |
 | `helios-radiation` | helios | | `tyche-uq` | tyche |
 | `hephaestus` | hephaestus | | | |
 | `hermes-simd` | hermes | | | |
