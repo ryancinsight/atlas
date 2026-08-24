@@ -946,11 +946,11 @@ unchanged.
   files, including missing error/panic documentation, stdout fallback output,
   unused receivers, and unused async wrappers. The follow-up does not suppress
   or widen that gate; the existing warning-ratchet work remains required.
-- **Meta-repo integration residual:** Atlas `repos/kwavers` still points at
-  `dabc779d`, while Kwavers `origin/main` is `c11b64491`. The submodule has
-  extensive uncommitted peer work and is 17 commits behind its remote default;
-  advance the gitlink only in a clean integration sweep after that work is
-  committed or reconciled.
+- **Meta-repo integration residual:** Atlas still tracks `repos/kwavers` at
+  `dabc779d`, while Kwavers `origin/main` and the dirty checkout are at
+  `5406691fe`. The tracked gitlink therefore remains 19 commits behind the
+  remote default; advance it only in a clean integration sweep after the
+  submodule's extensive uncommitted peer work is committed or reconciled.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.
