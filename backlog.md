@@ -10622,6 +10622,24 @@ dropped aequitas and moved to 0.10.0). Overlay builds of asclepius are
 red for everyone. Filed as the next DoR item: advance asclepius's
 first-party deps through the 0.9→0.10 API surface.
 
+**PR-fleet takeover 2026-08-24.** 25 open PRs audited across 14 members:
+- MERGED: leto #121 (draft → ready → merged), iris #19 (docs record);
+  kwavers #596/#450 and CFDrs #362 closed superseded (verified landed via
+  #629 / #442+556741e / test-module-scoped allocator respectively).
+- DEFECT FOUND + FIXED on asclepius main: the PM-sweep rescue snapshot
+  swept the documented-untracked local Atlas overlay (.cargo/config.toml
+  with absolute D:/atlas target-dir) into git, leaking the host path into
+  CI test binaries and breaking Verify. Untracked + ignored (f8fcea6);
+  CI re-running. ritk has the same leak class with D:/msys64 compiler
+  paths — older (July), pre-existing; fix pushed as ritk PR #207.
+- Lockfile-guard promotion PRs (asclepius #26, athena #17, CFDrs #368,
+  consus #54, helios #70, moirai #162, proteus #18): branches updated
+  with main to absorb fixes; CI re-running.
+- Remaining open feature PRs (kwavers #424/#439/#440/#443/#617/#620/
+  #622–#624, helios #55/#69, proteus #17, hephaestus #216, ritk #144)
+  are genuinely diverged series needing per-PR integration engineering;
+  their old CI runs died at the 24h wall. Left open deliberately.
+
 Re-open triggers: CFDrs PR #360 verdict [collected]; author decisions on the rescue
 branches; moirai re-check after its live peer's commit lands.
 
