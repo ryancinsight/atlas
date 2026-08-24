@@ -900,10 +900,15 @@ unchanged.
 - **Acceptance:** provider-generic visualization compiles without a direct
   `wgpu`/`pollster` edge in `kwavers-analysis`; WGPU and unavailable-capability
   paths have value-semantic differential coverage; the package graph is
-  acyclic; warning-denied checks, Nextest, doctests, Rustdoc, and hosted book
-  gates pass at the exact provider default. **Status:** architectural
+  acyclic; the scoped architecture/feature checks, Nextest, doctests, Rustdoc,
+  and hosted book gates pass at the exact provider default. **Status:** architectural
   migration merged; transactional transfer correction locally verified and
   PR #626 is the remaining merge gate.
+- **Verification residual:** package-wide `kwavers-analysis --lib` Clippy with
+  `-D warnings` still reports 45 pre-existing findings outside the changed
+  files, including missing error/panic documentation, stdout fallback output,
+  unused receivers, and unused async wrappers. The follow-up does not suppress
+  or widen that gate; the existing warning-ratchet work remains required.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.
