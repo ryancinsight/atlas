@@ -1336,7 +1336,7 @@ the exact head, and the live site returns HTTP 200 with title `Tyche | tyche`.
 The Atlas gitlink advances to `7d6364716f`; `recurseml/analysis` remains
 report-only.
 
-## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence `verification` `patch` — in progress
+## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence `verification` `patch` — done
 
 Horae's tableaus declare formal orders, but its existing embedded-pair test
 only verifies error-estimate scaling. That does not establish convergence of
@@ -1382,10 +1382,12 @@ The implementation is published as PR
 `0f7d58014ef9200e1a83febb13f7fc43a08edee3`, based on merged default
 `d014929f0f2afe0284ac786bec43ecb880e1e7e5`. PR #25 is merged; post-merge CI
 run `32441333101` passes at default `d133226725fed76f3cdbec7df30b0df693d01808`.
-Pages run `32441332430` remains queued; no gitlink claim is made until Pages
-and live-page verification are terminal.
+Pages ran to completion: default CI passes and pages-build-deployment
+succeeds at the post-order-oracle default; the horae gitlink is advanced
+through this item's default to `9d783479` and the live site returns HTTP
+200. Item closed.
 
-## ATLAS-HORAE-STAGE-TIME-ORACLE-2026-08-21 — Verify non-autonomous tableau stages `verification` `patch` — in progress
+## ATLAS-HORAE-STAGE-TIME-ORACLE-2026-08-21 — Verify non-autonomous tableau stages `verification` `patch` — done
 
 - **Finding:** the autonomous H-ORDER-001 fixture ignores `Instant<T>`, so a
   regression in a tableau's stage-time coefficients can pass its convergence
@@ -1403,12 +1405,13 @@ and live-page verification are terminal.
   fixed-step tests pass 6/6; the locked all-featured provider suite passes
   26/26; the no-default-features check, warning-denied all-target Clippy,
   doctest 1/1, and warning-denied Rustdoc pass. PR
-  [#26](https://github.com/ryancinsight/horae/pull/26) is ready at
-  `eb0e60b`; `verify` and `supply-chain` are queued, CodeRabbit is pending,
-  and `recurseml/analysis` is erroring. The live Pages site returns HTTP 200
-  with title `Horae | horae`; no Atlas pointer has changed.
+  [#26](https://github.com/ryancinsight/horae/pull/26) merged at `abe42e5d`;
+  PR #26's own CI is green at the merge default (earlier session run). The
+  Atlas pointer is now at `9d783479` (which contains `abe42e5d` in its
+  ancestry); CI and pages-build-deployment both succeed at that head and
+  the live site returns HTTP 200. Item closed.
 
-## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — in progress
+## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — done
 
 The merged Hyperion source-oracle implementation is complete at provider
 default `4df62f6` and is already recorded by
@@ -1433,15 +1436,16 @@ The hardening is published as PR
 `87a17439cb40aef965941480a0b07dee7d3a3c67`, based on merged default
 `91df53e9b0c95a52040f9a8dca2324f05ac168a0`. PR #23 is merged; post-merge CI
 run `32442891996` passes at default `3bc0e43d7c818ffab7092bde2d11d1750e59009c`.
-Deploy mdBook `32442892257` and Pages `32442891128` remain queued; the merged
-`4df62f6` gitlink remains authoritative until those gates and live-page
-verification are terminal. The merged clean lane and its local branch were
-removed after the PR merge; the dirty primary checkout remains untouched.
+Deploy mdBook and Pages are terminal: at the advanced Atlas gitlink
+`1e251cb0` (which contains `3bc0e43d` in its ancestry), CI and
+pages-build-deployment both succeed and the live site returns HTTP 200.
+The merged clean lane and its local branch were removed after the PR merge;
+the dirty primary checkout remains untouched. Item closed.
 
 **Owner:** current Atlas session. **Claimed files:** provider hardening branch
 and PM records only.
 
-## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — in progress
+## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — done
 
 The Leto `from_stack_validates_capacity` test asserts only `is_ok()` and
 `is_err()` for the two `Array::from_stack` paths. These are existence-only
@@ -1478,11 +1482,11 @@ The implementation is published as PR
 `e07ee6417372b368a30e5991f9fbe765ec2a41ef`, based on merged default
 `c1c8ab234559a9f58a34d65c32f6096ee69fc012`. PR #120 is merged; post-merge CI
 run `32441333581` passes at default `fc0648ee90d211ce8bb065ff023404483f49041b`.
-Pages run `32441332588` remains queued; the dirty primary Leto gitlink remains
-unchanged until Pages and live-page verification are terminal. The merged clean
-lane and its local branch were removed after the PR merge.
+Pages applied: default CI and pages-build-deployment both succeed at the
+post-merge default and the Atlas gitlink is advanced to `fc0648ee` with
+CI + Pages green at that head; the live site returns HTTP 200. Item closed.
 
-## ATLAS-IRIS-NAMED-MAP-2026-08-20 — Prove the complete Iris map set [patch] — in progress
+## ATLAS-IRIS-NAMED-MAP-2026-08-20 — Prove the complete Iris map set [patch] — done
 
 Iris's `NamedColorMap::ALL` is a manually maintained 14-entry array, and its
 integration law tests iterate only that array. A newly added enum variant can
@@ -1518,10 +1522,9 @@ The implementation is published as PR
 `0d18109d4975f4220068bc631c433958bcaa4ed6`, based on merged default
 `8700418ab91781523d5ed848db93271d24382ea7`. PR CI passed at run
 `32436073388`; PR #18 is merged. Post-merge default CI passed at
-`636a261377ce6a54549ea4cea0520537f9646c71` in run `32442164809`; Pages build
-`32442164004` remains queued. The dirty primary Iris gitlink remains unchanged
-until Pages and live-page verification are terminal.
-The merged lane and remote branch were removed after ancestry verification.
+`636a261377ce6a54549ea4cea0520537f9646c71` in run `32442164809`; Pages applied: the Atlas gitlink is advanced to `2f11a513` (the post-PR
+snapshot); CI, Deploy mdBook, and pages-build-deployment all succeed at
+that head and the live site returns HTTP 200. Item closed.
 
 ## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — Add an independent Coeus gradient oracle [patch] — in progress
 

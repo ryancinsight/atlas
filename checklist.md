@@ -251,6 +251,12 @@
       at `3bde52a8` (79 SUCCESS / 1 SKIPPED — the full 80-job matrix
       drained through the saturated queue; Lockfile 21s, Format 24s).
 - [x] Advance the remaining Atlas gitlink (consus at `3bde52a8`).
+- [x] Post-merge re-verify default CI at the merged heads: apollo ✅
+      (CI+Pages), hephaestus ✅ (Lockfile + CUDA/ROCm/WGPU/Metal),
+      coeus ✅ (Lockfile + Backend parity), athena ✅ (CI), helios ✅
+      (ci), proteus ✅ (CI+Pages), asclepius ✅ (CI+Pages, default
+      branch unbroken), consus in flight (watch: the 80-job matrix
+      re-queued on main at `3bde52a8`).
 - [x] Closed the stale atlas PR
       [#138](https://github.com/ryancinsight/atlas/pull/138) (kwavers
       attenuation gitlink advance): the kwavers gitlink has advanced
@@ -729,8 +735,9 @@ Item closed 2026-08-23.
       at exact head `87a17439` with an expected-head guard. The merged default
       is `3bc0e43`.
 - [x] Collect post-merge CI run `32442891996`; it passes at `3bc0e43`.
-      Deploy mdBook `32442892257` and Pages `32442891128` remain queued; live-
-      page verification and the gitlink advance remain pending.
+      Deploy mdBook and Pages closed: at the advanced Atlas gitlink
+      `1e251cb0` (ancestry contains `3bc0e43`), CI and pages-build succeed
+      and the live site returns HTTP 200.
 
 ## ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20 — current session
 
@@ -782,8 +789,9 @@ Item closed 2026-08-23.
       `recurseml/analysis` report-only) and merge at exact head `e07ee641`
       with an expected-head guard. The merged default is `fc0648e`.
 - [x] Collect post-merge CI run `32441333581`; it passes at `fc0648e`.
-      Pages run `32441332588` remains queued; live-page verification and the
-      gitlink advance remain pending.
+      Pages and live-page evidence closed: the Atlas gitlink is advanced to
+      `fc0648ee`; CI and pages-build-deployment succeed at that head and the
+      live site returns HTTP 200. Item done.
 
 ## ATLAS-FIGURE-PROVENANCE-2026-08-20 — current session
 
@@ -811,8 +819,9 @@ Item closed 2026-08-23.
       `recurseml/analysis` report-only) and merge at exact head `0d18109d`
       with an expected-head guard. The merged default is `636a261`.
 - [x] Collect post-merge default CI: run `32442164809` passes at
-      `636a2613775f`; Pages build `32442164004` is queued. Live-page evidence
-      and the Atlas gitlink advance remain pending the Pages terminal result.
+      `636a2613775f`; Pages build closed. The Atlas gitlink is advanced to
+      `2f11a513` (the post-PR snapshot); CI, Deploy mdBook, and Pages all
+      succeed at that head and the live site returns HTTP 200.
 - [x] Remove the clean merged lane and remote branch after verifying the
       provider commit is ancestral to `origin/main`.
 
