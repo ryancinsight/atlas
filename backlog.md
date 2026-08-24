@@ -1,10 +1,10 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-OVERLAY-LOCK-GUARD-2026-08-23 — the overlay strips lockfiles and nothing local catches it [major] — todo
+## ATLAS-OVERLAY-LOCK-GUARD-2026-08-23 — the overlay strips lockfiles and nothing local catches it [major] — in progress
 
 | Outcome | Class | Status | Owner |
 |---------|-------|--------|-------|
-| No commit can land a Cargo.lock whose first-party `source = "git+..."` lines the development overlay stripped. | [major] | todo | unowned |
+| No commit can land a Cargo.lock whose first-party `source = "git+..."` lines the development overlay stripped. | [major] | in progress | current session |
 
 - **What happened.** Seven stacked Kwavers branches were pushed carrying a
   `Cargo.lock` with **all 88 `source = "git+..."` lines removed**. CI failed all
@@ -47,6 +47,41 @@
   runs inside the overlay. The generator contract already requires
   regenerate-and-diff freshness; this is that rule applied to the lockfile, which
   currently has no enforcement anywhere.
+
+- **Implementation evidence (2026-08-24):**
+
+  1. **Kwavers (the origin repo):** lane `worktrees/kwavers-lock-guard`, branch
+     `ci/kwavers-wire-lockfile-guard`, commit `9effe25a7` — a committed
+     `.githooks/pre-push` running the existing checker (with
+     `SKIP_LOCKFILE_CHECK` escape hatch and graceful degradation when the tool
+     or a Python interpreter is absent), a `Lockfile integrity` job in `ci.yml`
+     bounded at 5 minutes (needs no toolchain, cache or build), and install
+     instructions in the README's Getting Started section. The `scripts/lockfile.py`
+     tool itself was already on the default branch; the increment wires it into
+     the two places it was missing: the main CI workflow and a local hook.
+     Verified by exercising it: exits 1 on a stripped lock, 0 on a valid one,
+     0 under the bypass. Not yet published as a PR.
+
+  2. **Aequitas (promotion increment 1/14):** lane
+     `worktrees/aequitas-lock-guard`, branch `ci/aequitas-wire-lockfile-guard`,
+     commit `a19ee0c` — `scripts/lockfile.py` copied verbatim (the tool is
+     repo-generic: `REPOSITORY`, `LOCKFILE`, and `MANIFEST` are all derived
+     from `__file__`), `.githooks/pre-push` copied verbatim, `Lockfile
+     integrity` job added to `ci.yml` before the existing `verify` job, and
+     hook install documented in the README's Verification section. Aequitas
+     carries 1 first-party git source (eunomia); the check confirms `1
+     first-party git sources` and resolves under `--locked`. Verified by
+     exercising it: exits 1 on a stripped lock, 0 on a valid one, 0 under the
+     bypass. Not yet published as a PR.
+
+  3. **Remaining 13 members** (promotion increments 2/14 through 14/14):
+     horae (2), hyperion (3), harmonia (4), hermes (11), gaia (22), consus
+     (24), hephaestus (33), athena (35), apollo (36), coeus (41), asclepius
+     (41), helios (59), CFDrs (64). Each is a copy of `scripts/lockfile.py`
+     plus `.githooks/pre-push` plus one CI job plus one README paragraph, on a
+     clean lane from the fetched default. The tool is generic and needs no
+     per-repo adaptation; the first-party source regex
+     `github.com/ryancinsight/` matches every member.
 
 ## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — merge pending
 
@@ -911,6 +946,11 @@ unchanged.
   files, including missing error/panic documentation, stdout fallback output,
   unused receivers, and unused async wrappers. The follow-up does not suppress
   or widen that gate; the existing warning-ratchet work remains required.
+- **Meta-repo integration residual:** Atlas `repos/kwavers` still points at
+  `dabc779d`, while Kwavers `origin/main` is `c11b64491`. The submodule has
+  extensive uncommitted peer work and is 17 commits behind its remote default;
+  advance the gitlink only in a clean integration sweep after that work is
+  committed or reconciled.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.

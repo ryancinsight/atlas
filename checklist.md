@@ -150,7 +150,41 @@
       gitlink; also confirm a self-hosted CUDA runner is registered for
       kwavers so the scheduled gpu-parity job can run.
 
+## ATLAS-OVERLAY-LOCK-GUARD-2026-08-24 — current session
 
+- [x] Confirm `scripts/lockfile.py` exists on the Kwavers default branch
+      and describes the overlay-stripping trap precisely (citing
+      `KW-CI-087`); it is called from `benchmark-regression.yml` and
+      from nowhere else — not the main CI workflow, and no local hook.
+- [x] Create clean lane `worktrees/kwavers-lock-guard` on branch
+      `ci/kwavers-wire-lockfile-guard` from `dabc779d9`.
+- [x] Wire the guard into Kwavers: committed `.githooks/pre-push`
+      (runs `scripts/lockfile.py --check`, `SKIP_LOCKFILE_CHECK`
+      escape hatch, graceful degradation), `Lockfile integrity` job
+      in `ci.yml` (5-min timeout, no toolchain), README install
+      instructions. Commit `9effe25a7`.
+- [x] Verify: YAML parses, hook is executable, bash syntax clean, exits
+      1 on a stripped lock, 0 on a valid one, 0 under the bypass.
+- [ ] Publish the Kwavers lane as a PR, collect hosted terminal checks,
+      and merge at the exact PR head.
+- [x] Create clean lane `worktrees/aequitas-lock-guard` on branch
+      `ci/aequitas-wire-lockfile-guard` from fetched `origin/main`
+      `14fdd44`.
+- [x] Promote the tool to aequitas (increment 1/14): copy
+      `scripts/lockfile.py` verbatim (repo-generic), copy
+      `.githooks/pre-push` verbatim, add `Lockfile integrity` job to
+      `ci.yml` before the existing `verify` job, document hook install
+      in README's Verification section. Commit `a19ee0c`.
+- [x] Verify on the lane: YAML parses, hook executable, bash syntax
+      clean, `scripts/lockfile.py --check` reports `1 first-party git
+      sources` and resolves under `--locked`; exits 1 on a stripped
+      lock, 0 on a valid one, 0 under the bypass.
+- [ ] Publish the aequitas lane as a PR, collect hosted terminal checks,
+      and merge at the exact PR head.
+- [ ] Continue promotion to the remaining 13 members (horae, hyperion,
+      harmonia, hermes, gaia, consus, hephaestus, athena, apollo, coeus,
+      asclepius, helios, CFDrs) — each is a copy of the same four files
+      on a clean lane from the fetched default.
 
 ## ATLAS-FMT-CHECK-PARSER-2026-08-21 — current session
 
