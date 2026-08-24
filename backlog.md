@@ -10454,40 +10454,6 @@ the named stashes remain parked for their author (kwavers 5, coeus 6).
 
 - **ATLAS-ADR-UNTRACKED-105** completed ADRs left untracked [patch] (2026-08-23 closed) — kwavers 112 landed via PR #418; coeus 0066 found already tracked on main (Status: Accepted); hephaestus 0052 + index row delivered from the stranded `codex/hephaestus-fdtd-107` branch via PR #215 (merge `03cadd7`; decomposition suite 41/41, clippy/fmt clean). ADR 0052 remains honestly Proposed — the sliding-window seam is not built. All three members now present in a fresh clone.
 
-## ATLAS-KWAVERS-STALE-TREE-107 — reconcile the kwavers stale checkout and stranded WIP [patch] (2026-08-23) — closed
-
-The kwavers main tree sat on a detached HEAD 453 commits behind `origin/main`,
-carrying 674 files of uncommitted content (a Phase-1 PyO3 run()-decomposition
-that PR #611 landed upstream in a different shape) plus five stashes, an
-embedded `.tmp-wt-*` scratch-checkout quartet, and an embedded
-`worktrees/kwavers-swerecon` clone holding uncommitted SWE volumetric work.
-
-**Disposition (rescue-first, nothing unique destroyed).**
-- Phase-1 slice dirt: rescue-committed verbatim to kwavers
-  `rescue/phase1-slice-wip` (`145e8aaf8`); superseded by the merged
-  concurrent-PyO3 surface (`ca5c9c932`), kept for salvage diffing only.
-- SWE volumetric WIP: rescue-committed inside the swerecon lane and pushed as
-  `origin/rescue/swe-volumetric-wip` (`c899c429f`); base `377a98c86` is merged
-  upstream. Awaiting an author decision on whether the volumetric changes are
-  still wanted.
-- The four `.tmp-wt-*` trees and the embedded `worktrees/` clone were deleted
-  after confirming every commit they contained exists on an origin branch.
-
-**Coeus sweep (2026-08-23, same class).** HEAD was current; the dirt was an
-evolved autodiff computation-graph-cache WIP mixed with hunks reverting landed
-shape-correct multi-margin/multi-label gather fixes. Salvage-committed verbatim
-to `rescue/coeus-cache-wip` (`c8a213f0`, pushed); the cache layer completed,
-verified, and merged as Coeus PR #342 (`fac64780`, merge `c2f938c0`) with the
-loss-revert hunks excluded. Unported residue kept only on the rescue branch:
-docs/backlog, docs/checklist, docs/gap_audit, CHECKLIST deltas (~613 lines of
-process notes) — port-or-drop decision parked with their author.
-ATLAS-ADR-UNTRACKED-105 correction: coeus ADR 0066 is already tracked on main
-with Status: Accepted; that member's gap is closed upstream.
-
-The stash-triage question from the prior sweep is unaffected by this item;
-the named stashes remain parked for their author (kwavers 5, coeus 6).
-
-
 ## ATLAS-ADR-UNTRACKED-105 — completed ADRs left untracked [patch] — in progress 2026-08-19 (kwavers closed; coeus + hephaestus open)
 
 `kwavers/docs/adr/112-convex-array-rasterizer-seam.md` is complete (110 lines,
@@ -10973,12 +10939,21 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 
 - Outcome: `scripts/atlas-board-lint.py` fails loudly on references that
   matter without burying them under archive noise.
-- Measured 2026-08-24: 329 unreconciled ATLAS-* mentions in live-item
-  prose; closure conventions vary by era (heading `- closed DATE`, body
-  Status lines, unmarked); separators include U+FFFD mojibake alongside
-  em dashes. Until normalized, reference findings run report-only while
-  the duplicate-id gate stays hard.
-- Scope: pick one canonical closure encoding; script a one-pass
-  normalization over backlog.md/checklist.md; triage the mentions into
-  file-it / fix-ref / archive-prose; flip the lint to enforcing.
-- Status: todo
+- Measured + triaged 2026-08-24. 565 mentions / 329 unique ids in
+  live-item prose, classified by containing item:
+  CROSS-MEMBER-SWEEP-108 inventory 230, MULTIPHYSICS-ADOPTION-100 101,
+  GPU-ACQUISITION-POINTER-ADVANCE 91, remaining sweeps/books <60 total.
+  Verdict: ~95 percent are scan-inventory listings inside active sweep
+  items - data, not broken pointers - and those blocks leave the lint's
+  scope when the sweeps close. Zero actionable file-it/fix-ref cases.
+- Also fixed en route: ATLAS-KWAVERS-STALE-TREE-107 recorded twice with
+  identical bodies; second block removed (34 lines), ids unique again.
+- Diagnostic note for posterity: two rounds chased "U+FFFD mojibake" that
+  did not exist in the files - it was terminal codepage rendering of em
+  dashes inside python repr output. Verify suspected encoding damage with
+  a character count in python, never by console appearance.
+- Disposition: reference findings stay report-only by design while
+  sweep-style inventory items are a living pattern; the duplicate-id gate
+  stays hard. Revisit enforcing mode only if a non-inventory dangling ref
+  class appears.
+- Status: done (2026-08-24)
