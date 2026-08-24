@@ -11028,3 +11028,15 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   stays hard. Revisit enforcing mode only if a non-inventory dangling ref
   class appears.
 - Status: done (2026-08-24)
+
+
+## ATLAS-CFDRS-STALE-EXAMPLE-PAGES-001 - Book example pages for deleted examples [docs] [patch] [S]
+
+- Outcome: docs/book/example pages reference sources that exist and run.
+- Found 2026-08-24: the strict pre-commit dead-link gate flags
+  cfd_demo.md and matrix_free_demo.md linking
+  ../../../examples/{cfd,matrix_free}_demo.rs - both .rs files no longer
+  exist, so their Run commands fail too. Pages carry generated-figure
+  markers, so the fix belongs in the generating pipeline (skip examples
+  whose source file is absent), not in hand-edited markdown.
+- Status: todo

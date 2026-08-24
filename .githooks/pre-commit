@@ -28,6 +28,63 @@ if [ -z "$ROOT" ]; then
 fi
 cd "$ROOT"
 
+# ---------------------------------------------------------------------------
+# Board and pointer hygiene (gap-audit 2026-08-24 patterns 1-4).
+#
+# Three rules born from real incidents this session:
+#
+#   R1  Board files (backlog.md / checklist.md) are coordination truth and
+#       are committed on the default branch only. Feature-branch edits were
+#       relocated twice by cherry-pick.
+#
+#   R2  A board sync travels alone: no submodule pointers, no lockfiles.
+#       Pointer advances landed under a docs-audit message (df9042208) and
+#       a lockfile sweep rode a docs commit in coeus.
+#
+#   R3  A submodule pointer advance travels alone too - the mirror of R2 -
+#       because mixing pointer deltas with content makes bisect and revert
+#       ambiguous about which moved the build.
+
+staged() { git diff --cached --name-only; }
+
+board_staged="$(staged | grep -E '^(backlog|checklist)\.md$' || true)"
+# A "pointer" is a gitlink-mode delta (mode 160000); ordinary content
+# under repos/<name>/ (books, docs, scripts) must flow freely.
+pointer_staged="$(git diff --cached --raw | awk '$1 == ":160000" || $2 == ":160000" || ($3 == "160000" && $4 != "000000") || ($3 != "160000" && $4 == "160000") {print $6}' || true)"
+pointer_staged="$(echo "$pointer_staged" | grep -E '^repos/' || true)"
+
+branch="$(git symbolic-ref --short -q HEAD || echo DETACHED)"
+
+# R1 - board edits on the default branch only.
+if [ -n "$board_staged" ] && [ "$branch" != "main" ]; then
+  echo "[pre-commit] R1: board files are committed on main only (current branch: $branch)" >&2
+  echo "  Relocate the edit: git restore --staged --worktree <board file>, then reapply on main." >&2
+  exit 1
+fi
+
+# R2 - board sync stays pure.
+if [ -n "$board_staged" ]; then
+  pollution="$(staged | grep -vE '^(backlog|checklist)\.md$' | grep -E '^repos/|Cargo\.lock$|^\.github/workflows/' || true)"
+  if [ -n "$pollution" ]; then
+    echo "[pre-commit] R2: board sync must not carry these staged paths:" >&2
+    printf '  %s\n' $pollution >&2
+    echo "  Split: pointer advances and workflow changes are their own commits." >&2
+    exit 1
+  fi
+fi
+
+# R3 - pointer advances stay pure (content goes in sibling commits).
+if [ -n "$pointer_staged" ]; then
+  non_pointer="$(staged | grep -vFf <(printf '%s\n' $pointer_staged) || true)"
+  if [ -n "$non_pointer" ]; then
+    echo "[pre-commit] R3: pointer-advance commit carries non-pointer paths:" >&2
+    printf '  %s\n' $non_pointer >&2
+    echo "  Commit the pointer delta alone; content changes are siblings." >&2
+    exit 1
+  fi
+fi
+
+
 # Fast-path: only run the detector when docs-relevant files are staged.
 # Avoids paying the cost on every commit (e.g. pure Rust edits).
 changed=$(git diff --cached --name-only 2>/dev/null \
