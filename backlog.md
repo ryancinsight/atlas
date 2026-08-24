@@ -140,6 +140,27 @@
      **All 14 members are now covered or dismissed; this item's
      promotion is complete pending the seven hosted merges.**
 
+  6. **Implementation progress (2026-08-24):** the seven
+     batch-of-7 hosted merges landed for apollo, hephaestus, coeus,
+     and athena (`ff742cff58c6bb7ff294e906266947707a62d6b4`), helios
+     (`e216670049186c4f11c7c0dda561d6c61d5409f8`), and proteus —
+     **proteus was caught in the same failure class as asclepius
+     (committed lock had every `source = "git+"` line stripped)** and
+     fixed by the same four-file promotion plus a lockfile
+     regeneration outside the overlay; PR #18 merged at `150b2074`,
+     gitlink advanced `0adf3a540`. Six of eight hosted lock-guard
+     PRs now landed. The consus #54 (22 sources) and asclepius #26
+     (41 sources) lanes are queued on hosted CI: consus 58 checks
+     pass + 22 pending (macos/ubuntu/windows test matrix); asclepius
+     3 checks pending. Both are MERGEABLE; merge at the exact PR
+     head once required checks are terminal, then advance the
+     gitlinks. The atlas PR #138
+     (`build/kwavers-attenuation-gitlink`) was closed as superseded
+     by main: the kwavers gitlink has advanced through
+     `9cf62aa9` → `d13648b9` → `8feefe8a` → `dabc779d` since the PR
+     was opened, and the ratchet regressions in its 4-day-old CI
+     run no longer apply against the current committed baseline.
+
 ## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — merge pending
 
 - **Owner:** current session; lane `worktrees/kwavers-log`.
@@ -6075,6 +6096,34 @@ converter; the existing bilinear differential remains the acceptance oracle.
   is. Each flip is the final step of that crate's own bootstrap publish, in the
   order `scripts/publish-order.py` derives. Four flips were attempted and reverted
   on this evidence; see [ADR 0037](docs/adr/0037-facade-crates-and-registry-naming.md) §4.
+- **Registry re-measure 2026-08-24 — README is stale, and the naming diverged from
+  ADR 0037 in four places.** A live crates.io check plus the committed manifests
+  correct the record:
+  - **Already published (user's crates):** `aequitas` 0.2.0, `eunomia` 0.8.0,
+    `asclepius` 0.1.0, `leto`+`leto-ops` 0.42.0, `melinoe` 0.9.0, `apollo-fft`
+    0.26.0, `apollo-fft-macros` 0.2.0, `moirai-core`+`runtime` 0.5.0,
+    `coeus-core`+`tensor`+`ops` 0.10.0, `mnemosyne-core` 0.2.0, `mnemosyne-heap`
+    0.4.0, `themis` 0.14.0, `tyche-core` 0.2.0, `gaia-mesh` 0.4.0, `hermes-simd`
+    0.6.0, `hephaestus-core`+`host`+`wgpu` 0.19.0, `ritk-core` 0.10.0,
+    `ritk-image` 0.3.0, `consus` 0.1.0. The README line "No Atlas crate is
+    published yet" (line 1084) is false and must be corrected.
+  - **Naming deviations from ADR 0037, found in the manifests (not the README):**
+    - athena's facade is `athena-krylov` (`[lib] name = "athena"`, `publish =
+      true`), not `athena-solvers` as the README table lists.
+    - iris's package is `iris-viz`, not `iris`; gaia's is `gaia-mesh` (already
+      published 0.4.0), not `gaia-geometry`.
+    - themis's package is `themis-topology` (`[lib] name = "themis"`, publishable),
+      not `themis-placement`; `leto` publishes under the bare name 0.42.0.
+    - tyche root is `publish = false`; mnemosyne root publish is unset.
+  - **Third-party name collisions confirmed:** `hyperion` (patrickisgreige
+    LSystem), `proteus` (rust-playground JSON), `harmonia` (sogh music theory),
+    `gaia` (ucarion terrain), `mnemosyne-core` (bballer03 JVM analyzer), `athena`
+    (unrelated). All five unblocker repos (hyperion, proteus, harmonia, horae,
+    asclepius) are clean at their recorded gitlinks and `publish = false`.
+  - **The unblocker chain is the critical path:** proteus → `proteus-materials`,
+    hyperion → `hyperion-photon` (repoint its `proteus` dep), horae (name free),
+    harmonia → `harmonia-coupling` (repoint `horae`+`athena-core` deps), then
+    asclepius-coeus; athena's family must publish before harmonia.
 - Peer-held at this revision, so not claimable without a staleness sweep:
   `coeus` (`codex/coeus-error-function-parity`, 24 dirty), `ritk`
   (`codex/docs-ritk-n4-figure-only`, 11 dirty, active), `leto`

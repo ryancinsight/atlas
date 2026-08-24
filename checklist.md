@@ -248,6 +248,14 @@
       asclepius #26 with the .cargo overlay removal), merge at exact
       heads, then advance their Atlas gitlinks (helios done at
       `f184b28f`, proteus done at `150b2074`).
+- [x] Closed the stale atlas PR
+      [#138](https://github.com/ryancinsight/atlas/pull/138) (kwavers
+      attenuation gitlink advance): the kwavers gitlink has advanced
+      through `9cf62aa9` → `d13648b9` → `8feefe8a` → `dabc779d` since
+      the PR was opened on 2026-08-20, and the 4-day-old CI ratchet
+      regressions no longer apply against the current committed
+      baseline. Local branch `build/kwavers-attenuation-gitlink`
+      deleted.
 - [x] Proteus found in the same failure class: committed Cargo.lock had
       every git source stripped (aequitas/eunomia are git deps) and CI
       was failing with the --locked mismatch on every run. Lane
