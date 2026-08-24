@@ -10291,8 +10291,11 @@ Liveness-measured sweep of all 28 member checkouts. Findings:
   pushed to `codex/cfdrs-tvd-test-integration` but never merged; main moved
   20 commits independently; 56 dirty files atop. Uncommitted WIP rescued to
   `origin/rescue/cfdrs-wip-20260821`; the series is now up for integration
-  as **CFDrs PR #360**. [major]-class: merge holds for review + CI against
-  the resolved tree, not a blind merge.
+  as **CFDrs PR #360**. Integration resolved locally 2026-08-23: two-file
+  conflict (CHANGELOG unioned; cfd-validation Cargo.toml = series deps +
+  main's athena-leto dev-dep), workspace check/clippy clean, 436+1738 tests
+  green, doctests green, fmt applied. Pushed to the PR branch at `b512f778`;
+  hosted CI running.
 - **16 dead-session dirt patches** (aequitas, asclepius, eunomia, gaia,
   harmonia, horae, hyperion, iris, leto, melinoe, proteus, themis from the
   2026-08-20 ~14:2x session; helios/apollo/consus from ~16:55; ritk from
@@ -10300,8 +10303,12 @@ Liveness-measured sweep of all 28 member checkouts. Findings:
   verbatim and pushed to `rescue/pm-sweep-20260820` per member; working
   trees restored clean at their prior heads. Port-or-drop parked with
   their author.
-- **leoneuro-rs**: 6 stranded commits on `codex/sim-ct-medium` (patch-block
-  retirement era); needs per-commit supersession judgment before any PR.
+- **leoneuro-rs**: 6 stranded commits on `codex/sim-ct-medium` — judged NOT
+  superseded but semantically diverged: a trial merge into the default
+  `codex/private-atlas-migration` compiles with 27 typed-units errors in
+  leoneuro-transducer (the series predates the `Quantity` migration).
+  Filed as a port increment: rework the two top commits onto the typed API,
+  then merge. Trial merge discarded locally, nothing pushed.
 - Clean but stale checkouts (behind origin, no dirt): apollo, consus,
   eunomia, gaia, harmonia, horae, hyperion, melinoe, ritk, themis, tyche,
   athena — fast-forward at next touch of each member.
