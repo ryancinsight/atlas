@@ -574,17 +574,22 @@ Item closed 2026-08-23.
       ownership is correct, but backend selection remains implemented in
       `kwavers-gpu` and merely re-exported by `kwavers`; confirm the scheduled
       GPU workflow does not require a visualization adapter transfer.
-- [ ] Move `VisualizationBackend` and the selection factory to the top-level
+- [x] Move `VisualizationBackend` and the selection factory to the top-level
       Kwavers composition boundary. Keep Leto and Hephaestus provider
       implementations in `kwavers-gpu`; add no compatibility re-export.
-- [ ] Add value-semantic Kwavers-level Leto conformance coverage and a
+- [x] Add value-semantic Kwavers-level Leto conformance coverage and a
       fail-closed ignored Hephaestus transfer oracle selected by the scheduled
       self-hosted GPU workflow.
-- [ ] Synchronize the Kwavers README, `kwavers-gpu` README, CHANGELOG, and ADR
+- [x] Synchronize the Kwavers README, `kwavers-gpu` README, CHANGELOG, and ADR
       0054; run focused format, checks, Nextest, doctest, Rustdoc, and workflow
-      syntax gates on the exact lane revision.
-- [ ] Run the exact-head Rust, book, API, and live Pages gates before any Atlas
-      Kwavers gitlink advance.
+      syntax gates on exact lane revision `6b344eb5f`. Local provider evidence:
+      Kwavers Nextest 40/40, fail-closed hardware transfer 1/1, kwavers-gpu
+      Nextest 166/166, doctests and warning-denied Rustdoc pass. SemVer reports
+      the expected major break; package-wide Clippy remains blocked by 45
+      pre-existing analysis and 28 pre-existing GPU findings outside this diff.
+- [ ] Collect PR #630's exact-head Rust, book, API, and Pages gates, merge, then
+      advance the Atlas Kwavers gitlink without modifying the peer-dirty
+      primary checkout.
 
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — current session
 
@@ -7192,4 +7197,3 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   locks; exact-head structural residual is Consus only (`34b2507` versus
   `origin/main` `aafb320`); clean-checkout and six lane residuals are recorded
   as peer-owned and untouched.
-

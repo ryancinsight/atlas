@@ -57,10 +57,9 @@ kind. It does not expose a WGPU buffer, queue, adapter, or device.
 
 The accepted implementation is in merged PR [#602](https://github.com/ryancinsight/kwavers/pull/602),
 source head `2b9328a12`, merge `41f1c8047`. `VisualizationTransferProvider` is the neutral role in
-`kwavers-analysis`; `VisualizationBackend::{Leto, Hephaestus}` selects the
-provider in `kwavers-gpu`, and the top-level `kwavers` feature forwards that
-selection to callers. The analysis crate has no production WGPU, raw-device,
-queue, buffer, or `pollster` ownership.
+`kwavers-analysis`; `kwavers-gpu` owns the concrete Leto and Hephaestus
+providers. The analysis crate has no production WGPU, raw-device, queue,
+buffer, or `pollster` ownership.
 
 The contract tests preserve distinct values and field identities, propagate
 provider failures without CPU degradation, and exercise the real Hephaestus
@@ -69,7 +68,19 @@ adapter when a WGPU adapter is available. Merged follow-up PR [#626](https://git
 metadata, buffer replacement, memory accounting, or streaming-buffer selection.
 Merged documentation follow-up PR [#628](https://github.com/ryancinsight/kwavers/pull/628)
 (`c11b64491`) resolves the affected transfer RustDoc links under
-`rustdoc -D warnings`. Local exact-head gates and hosted delivery are complete.
+`rustdoc -D warnings`.
+
+Revision 2026-08-24: provider ownership alone did not satisfy the composition
+contract because `kwavers` merely re-exported selection implemented by
+`kwavers-gpu`. Follow-up PR [#630](https://github.com/ryancinsight/kwavers/pull/630),
+source head `6b344eb5f`, moves `VisualizationBackend::{Leto, Hephaestus}` and
+the selection factory to top-level `kwavers`; the provider implementations
+remain in `kwavers-gpu`, and Hephaestus remains the sole owner of WGPU resource
+construction. The requested Hephaestus path fails closed and performs a real
+device transfer in the scheduled self-hosted GPU gate. Local exact-head Leto
+and Hephaestus contract tests pass. `cargo-semver-checks` reports the two
+removed `kwavers-gpu` selection items and therefore confirms the declared
+major-version impact. Hosted delivery remains pending.
 
 ## Required tests
 
@@ -81,8 +92,11 @@ The first implementation must prove:
 - unavailable capability returns the typed error;
 - a failed transfer does not commit backend-neutral or provider-owned state;
 - no package graph cycle is introduced;
+- top-level Kwavers selection reaches both concrete providers without a
+  compatibility re-export or fallback;
+- the scheduled Hephaestus test requires a real adapter and device transfer;
 - static scans find no `wgpu`, `pollster`, raw device, queue, or buffer symbols
   in the neutral consumer module after migration.
 
-These tests are contract tests, not hardware-performance claims. A real
-adapter/device test belongs in the Hephaestus hosted WGPU gate.
+These tests are contract tests, not hardware-performance claims. The real
+adapter/device test runs in the scheduled Hephaestus hosted WGPU gate.

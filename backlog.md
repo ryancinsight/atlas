@@ -975,18 +975,20 @@ unchanged.
   `wgpu`/`pollster` edge in `kwavers-analysis`; WGPU and unavailable-capability
   paths have value-semantic differential coverage; the package graph is
   acyclic; the scoped architecture/feature checks, Nextest, doctests, Rustdoc,
-  and hosted book gates pass at the exact provider default. **Status:** complete;
-  PRs #602, #626, and #628 are merged.
+  and hosted book gates pass at the exact provider default. **Status:** in
+  progress; PRs #602, #626, and #628 are merged, while selection-boundary PR
+  #630 is enqueued for automatic merge at exact source head `6b344eb5f`.
 - **Verification residual:** package-wide `kwavers-analysis --lib` Clippy with
   `-D warnings` still reports 45 pre-existing findings outside the changed
   files, including missing error/panic documentation, stdout fallback output,
-  unused receivers, and unused async wrappers. The follow-up does not suppress
-  or widen that gate; the existing warning-ratchet work remains required.
+  unused receivers, and unused async wrappers. A no-dependencies `kwavers-gpu`
+  Clippy run likewise reports 28 pre-existing findings outside the changed
+  file. The follow-up does not suppress or widen either gate; the existing
+  warning-ratchet work remains required.
 - **Meta-repo integration residual:** Atlas still tracks `repos/kwavers` at
-  `dabc779d`, while Kwavers `origin/main` and the dirty checkout are at
-  `5406691fe`. The tracked gitlink therefore remains 19 commits behind the
-  remote default; advance it only in a clean integration sweep after the
-  submodule's extensive uncommitted peer work is committed or reconciled.
+  `dabc779d`. Advance the gitlink to the fetched post-merge Kwavers default only
+  after PR #630's required hosted checks pass; preserve the primary submodule's
+  extensive uncommitted peer work through an index-level pointer update.
 - **Selection-boundary audit (2026-08-24):** the merged provider ownership is
   correct, but `kwavers` only re-exports `kwavers-gpu::visualization`; the
   `VisualizationBackend` enum and selection factory still execute in
@@ -996,6 +998,18 @@ unchanged.
   does not run a visualization test that requires a real adapter. Re-opened for
   a replacement that moves selection to `kwavers`, adds top-level backend
   conformance coverage, and makes the hardware gate fail closed.
+- **Selection follow-up implemented (PR #630, source head `6b344eb5f`):**
+  top-level `kwavers` now owns `VisualizationBackend::{Leto, Hephaestus}` and
+  the factory; `kwavers-gpu` exposes only the concrete providers. The Leto
+  contract test verifies exact host state, while the ignored Hephaestus oracle
+  fails closed without an adapter and otherwise completes a real blocking
+  transfer with exact double-buffer memory accounting. The scheduled
+  self-hosted GPU workflow selects that oracle. Exact-head local evidence:
+  Kwavers Nextest 40/40, hardware Nextest 1/1 on the available adapter,
+  kwavers-gpu Nextest 166/166, doctests, warning-denied Rustdoc, formatting,
+  and workflow YAML parsing pass. `cargo-semver-checks` confirms the declared
+  major impact from the two removed leaf-crate selection items. Hosted checks
+  and the Atlas gitlink advance remain pending.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.
