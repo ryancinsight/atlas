@@ -167,9 +167,8 @@
   merge only at the exact PR head after terminal required checks. The
   dirty primary Kwavers checkout and Atlas gitlink `49d80a4` remain
   unchanged.
-- **Post-merge:** advance the Atlas kwavers gitlink (also unblocks the
-  clean-revision ratchet, currently hard-blocked on local-only `49d80a4`),
-  then re-run the conformance ratchet on the clean revision.
+- **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (gitlink
+  advance + clean-revision ratchet re-run).
 
 ## ATLAS-KWAVERS-STUBORACLE-2026-08-22 — Real energy/reciprocity oracles + existence-only burn-down [patch] — closed 2026-08-23
 
@@ -221,11 +220,10 @@
 - **Merged at exact head 2026-08-23:** `35e9ef83c` merged as
   `2b81fc93a` (on top of #610 `c7521f73` and #608 `f05c3ca5`). All
   required hosted checks terminal at the head.
-- **Post-merge:** advance the Atlas kwavers gitlink and re-run the
-  conformance ratchet on the clean revision (gitlink advance also
-  unblocks the clean-revision ratchet).
+- **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (gitlink
+  advance + clean-revision ratchet re-run).
 
-## ATLAS-KWAVERS-IGNOREDORACLE-2026-08-22 — Re-homed the 46 ignored oracles per group [minor] — in progress
+## ATLAS-KWAVERS-IGNOREDORACLE-2026-08-22 — Re-homed the 46 ignored oracles per group [minor] — closed 2026-08-24
 
 - **Owner:** current session; lane `worktrees/kwavers-ignoredoracle`
   (branch `fix/kwavers-ignoredoracle-rehome`).
@@ -272,9 +270,72 @@
   head `443421028fa86cbeab4cf6632ee9b22902534384`, `MERGEABLE`, based on
   `origin/main` `377a98c86`. Hosted checks are the acceptance oracle;
   merge only at the exact PR head after terminal required checks.
-- **Post-merge:** advance the Atlas kwavers gitlink and re-run the
-  conformance ratchet on the clean revision (blocked on #604 + #606 +
-  this PR landing).
+- **Rebased 2026-08-23** onto the arch-gate-fixed default `d13648b9`
+  (`fix/kwavers-ignoredoracle-rehome` → head `73287814f`). The rebase
+  resolved #611's reasoned `#[ignore]`s in favor of #609's measured
+  re-enablements (the two converge on the same intent).
+- **Two hosted CI defects fixed on the lane (2026-08-23/24):** the new
+  `heavy-validation` job's 25 min `timeout-minutes` was too tight for the
+  ~31 min cold-cache budget (`000ef259d`, widened to 45 min with an
+  evidence comment); then `test_nl_swe_workflow` exceeded the heavy
+  profile's 300 s per-test cap on the 4-core runner (57.6 s local on a
+  24-core box, ~6× slower there) — fixed with a `profile.heavy`
+  per-test override raising it to 600 s (`d7adf28fc`).
+- **Merged at exact head 2026-08-24:** `d7adf28fc` merged as `e2f5ae2fd`
+  (on top of #610 `c7521f73`, #608 `f05c3ca5`, #606 `2b81fc93`, #598
+  `f910f70b`). All required hosted checks terminal at the head; the
+  non-required `book / Build book` flake (shared-workflow cold-cache 8 m
+  timeout) does not gate merge.
+- **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (the
+  #604 + #606 + #609 block is now lifted; the gitlink advance and
+  clean-revision ratchet re-run are tracked there).
+
+## ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24 — merged-default advance held on the ratchet re-run [patch] — in progress
+
+- **Owner:** current session.
+- The full kwavers queue has landed: #598 `f910f70b`, #597 `f97a3a0b0`,
+  #610 `c7521f73`, #608 `f05c3ca5`, #606 `2b81fc93`, #609 `e2f5ae2fd`,
+  #614 `a9c77cff`, #615 `43301911`, and #600 (ADR 120) `8feefe8a` — the
+  merged default is `8feefe8aa`. The Atlas gitlink advance `d13648b9` →
+  `8feefe8aa` is prepared but **held**: advancing triggers the
+  `atlas-conformance` gate on `repos/**`, and the ratchet re-run at the
+  merged default flags three classes the committed baseline
+  under-records.
+- **Ratchet re-run at the merged default (per-repo scan):** three
+  RATCHET VIOLATION classes and four tightenings:
+  - `tag_pinned_actions` 0 → 32 — **pre-existing**: the recorded gitlink
+    `d13648b9` already carried 53 tag-pinned action uses; the queue
+    *reduced* them. The baseline was recorded before the CI rewrites
+    (`5a231d66`, `2637de69`).
+  - `workflow_missing_permissions` 0 → 1 — `architecture-validation.yml`
+    has never had a `permissions:` block (pre-existing at `d13648b9`).
+  - `markers` 2 → 3 — an xtask comment carries a marker literal
+    (pre-existing at `d13648b9`).
+  - Tightenings to record with the advance: `oversized_files` 111 → 110,
+    `unwrap_production` 229 → 226, `root_sprawl` 1 → 0,
+    `crate_level_allows` 10 → 9. `excess_worktrees` holds at baseline: the
+    two merged-PR lanes (`kwavers-ignoredoracle`, `kwavers-deny-docs`)
+    were removed and the conformance lane opened (net zero).
+- **Fix lane:** `worktrees/kwavers-conformance`, branch
+  `fix/kwavers-conformance-ratchet` from `8feefe8aa` — SHA-pins all 32
+  tag-pinned action uses across the four touched workflows, adds a
+  top-level `permissions: contents: read` to `architecture-validation.yml`,
+  and drops the marker literal from the xtask comment. Lane scanner run:
+  `tag_pinned_actions` 32 → 0, `workflow_missing_permissions` 1 → 0,
+  `markers` 3 → 2, every other class at or below baseline; all workflow
+  YAML parses; `cargo check -p xtask` passes; Cargo.lock overlay drift
+  restored (commit is CI+comment only).
+- **Published 2026-08-24 as Kwavers
+  [PR #618](https://github.com/ryancinsight/kwavers/pull/618)** at exact
+  head `711a628b`, based on `origin/main` `8feefe8aa`. Hosted checks are
+  the acceptance oracle; merge only at the exact PR head after terminal
+  required checks.
+- **After #618 merges:** land the Atlas gitlink advance `d13648b9` →
+  `8feefe8aa` together with the baseline update recording the four
+  tightenings in the same change, then re-run the ratchet on the clean
+  revision. That closes the post-merge steps of ATLAS-KWAVERS-GPUMOCK,
+  ATLAS-KWAVERS-STUBORACLE, ATLAS-KWAVERS-IGNOREDORACLE,
+  ATLAS-KWAVERS-DENYDOCS, and ATLAS-KWAVERS-PIN-SWEEP.
 
 ## ATLAS-KWAVERS-DENYDOCS-2026-08-22 — Missing-docs floor on the three smallest crates [minor] — closed 2026-08-23
 
@@ -308,9 +369,8 @@
 - **Merged at exact head 2026-08-23:** `fe2d4531f` merged at `f910f70b`,
   making the kwavers default `f910f70bf` at the time; all hosted checks
   terminal.
-- **Post-merge:** advance the Atlas kwavers gitlink and re-run the
-  conformance ratchet on the clean revision (same merge queue as
-  #604/#609).
+- **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (gitlink
+  advance + clean-revision ratchet re-run, same merge queue as #604/#609).
 
 ## ATLAS-GPU-ACQUISITION-2026-08-21 — Coeus GPU suite restored, Hephaestus diagnostics [patch] — closed
 
