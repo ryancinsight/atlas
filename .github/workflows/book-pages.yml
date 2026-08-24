@@ -90,13 +90,24 @@ jobs:
   build:
     name: Build book
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Cold: toolchain and mdBook installs, an apt fetch, a workspace compile,
+    # then mdbook test and build. Warm, it is a few minutes; the bound covers
+    # the cold case so a cache miss degrades to slow rather than to red.
+    timeout-minutes: 25
     env:
       # Keep every network/compiler subprocess below the job bound. A hung
       # package manager or documentation sample must terminate with a useful
       # failure instead of consuming the runner until the job timeout.
       BOOK_COMMAND_TIMEOUT: 8m
       BOOK_NETWORK_TIMEOUT: 5m
+      # Compiling the caller's package is the one step whose honest duration is
+      # a workspace compile, not a package fetch. Sharing the 8m network guard
+      # with it killed kwavers mid-`rustc` at exit 124 -- a hang guard applied
+      # to something that was not hanging. Derived from the 25m job bound less
+      # the installs and the book build itself; a warm cache puts the real
+      # figure an order below it, and crossing it is a compile-time defect to
+      # investigate, not a number to raise.
+      BOOK_BUILD_TIMEOUT: 12m
     steps:
       - name: Check out the book source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -153,6 +164,26 @@ jobs:
         with:
           toolchain: ${{ inputs.rust-toolchain }}
 
+      # Without this the book job compiles the caller's workspace from cold on
+      # every run. On a large workspace that exceeds BOOK_COMMAND_TIMEOUT and
+      # the job dies at exit 124 mid-compile, which reads as a book failure and
+      # blocks merges that never touched the book. Restoring artifacts is the
+      # fix; raising the timeout would only absorb the growth.
+      #
+      # `save-if` restricts writes to the caller's default branch, so pull
+      # requests restore but cannot evict each other's entries. The cache is
+      # scoped to the calling repository, so members do not share entries.
+      - name: Restore the Rust build cache
+        if: inputs.mdbook-test
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.8.1
+        with:
+          shared-key: book-pages
+          save-if: ${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+          # A cold workspace can exceed the build bound on its first run. Saving
+          # what it compiled lets the next run finish instead of restarting from
+          # nothing every time, which is the state that made this job unpassable.
+          cache-on-failure: true
+
       - name: Install native fontconfig headers
         if: inputs.mdbook-test
         shell: bash
@@ -168,7 +199,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          timeout --foreground --kill-after=30s "$BOOK_COMMAND_TIMEOUT" \
+          timeout --foreground --kill-after=30s "$BOOK_BUILD_TIMEOUT" \
             cargo build --locked -p "${{ inputs.cargo-package }}"
           # Package and library target names usually differ only by hyphens,
           # but a package may expose an explicit [lib] name.
