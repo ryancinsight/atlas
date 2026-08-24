@@ -60,19 +60,34 @@
      tool itself was already on the default branch; the increment wires it into
      the two places it was missing: the main CI workflow and a local hook.
      Verified by exercising it: exits 1 on a stripped lock, 0 on a valid one,
-     0 under the bypass. Not yet published as a PR.
+     0 under the     bypass. Not yet published as a PR.
+
+     **Merged 2026-08-24** as Kwavers
+     [PR #616](https://github.com/ryancinsight/kwavers/pull/616) at exact
+     head `9effe25a7`; all 25 hosted checks terminal (incl. Lockfile
+     integrity 1m42s). Merge commit `5406691fe`. Atlas gitlink advanced
+     `dabc779d9` → `5406691fe` (atlas `e3d7eaf29`).
 
   2. **Aequitas (promotion increment 1/14):** lane
      `worktrees/aequitas-lock-guard`, branch `ci/aequitas-wire-lockfile-guard`,
-     commit `a19ee0c` — `scripts/lockfile.py` copied verbatim (the tool is
+     commit `0c53c23` — `scripts/lockfile.py` copied verbatim (the tool is
      repo-generic: `REPOSITORY`, `LOCKFILE`, and `MANIFEST` are all derived
      from `__file__`), `.githooks/pre-push` copied verbatim, `Lockfile
-     integrity` job added to `ci.yml` before the existing `verify` job, and
-     hook install documented in the README's Verification section. Aequitas
+     integrity` job added to `ci.yml` (calling the shared Atlas workflow
+     `ryancinsight/atlas/.github/workflows/lockfile-guard.yml@886d85b0e`
+     rather than inlining, per the stack's shared-pipeline form), and hook
+     install documented in the README's Verification section. Aequitas
      carries 1 first-party git source (eunomia); the check confirms `1
      first-party git sources` and resolves under `--locked`. Verified by
-     exercising it: exits 1 on a stripped lock, 0 on a valid one, 0 under the
-     bypass. Not yet published as a PR.
+     exercising it: exits 1 on a stripped lock, 0 on a valid one, 0 under
+     the bypass.
+
+     **Merged 2026-08-24** as aequitas
+     [PR #39](https://github.com/ryancinsight/aequitas/pull/39) at exact
+     head `0c53c235`; all required checks pass (Lockfile integrity 9s,
+     verify 54s, supply-chain 55s, CodeRabbit pass); `recurseml/analysis`
+     report-only. Merge commit `dc4bdef`. Atlas gitlink advanced `14fdd44c`
+     → `dc4bdef`.
 
   3. **Remaining 13 members** (promotion increments 2/14 through 14/14):
      horae (2), hyperion (3), harmonia (4), hermes (11), gaia (22), consus

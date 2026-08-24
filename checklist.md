@@ -165,8 +165,10 @@
       instructions. Commit `9effe25a7`.
 - [x] Verify: YAML parses, hook is executable, bash syntax clean, exits
       1 on a stripped lock, 0 on a valid one, 0 under the bypass.
-- [ ] Publish the Kwavers lane as a PR, collect hosted terminal checks,
-      and merge at the exact PR head.
+- [x] Publish the Kwavers lane as
+      [PR #616](https://github.com/ryancinsight/kwavers/pull/616) at exact
+      head `9effe25a7`; all 25 hosted checks pass (incl. Lockfile integrity
+      1m42s); merged at `5406691fe`. Atlas gitlink advanced.
 - [x] Create clean lane `worktrees/aequitas-lock-guard` on branch
       `ci/aequitas-wire-lockfile-guard` from fetched `origin/main`
       `14fdd44`.
@@ -179,8 +181,11 @@
       clean, `scripts/lockfile.py --check` reports `1 first-party git
       sources` and resolves under `--locked`; exits 1 on a stripped
       lock, 0 on a valid one, 0 under the bypass.
-- [ ] Publish the aequitas lane as a PR, collect hosted terminal checks,
-      and merge at the exact PR head.
+- [x] Publish the aequitas lane as
+      [PR #39](https://github.com/ryancinsight/aequitas/pull/39) at exact
+      head `0c53c235`; all required checks pass (Lockfile integrity 9s,
+      verify 54s, supply-chain 55s, CodeRabbit pass); `recurseml/analysis`
+      report-only. Merged at `dc4bdef`.
 - [ ] Continue promotion to the remaining 13 members (horae, hyperion,
       harmonia, hermes, gaia, consus, hephaestus, athena, apollo, coeus,
       asclepius, helios, CFDrs) — each is a copy of the same four files
