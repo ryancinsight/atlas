@@ -1816,7 +1816,7 @@ rewrite.
   from this run; each requires terminal hosted evidence at the fetched default
   before pointer reconciliation.
 
-## ATLAS-LETO-BOOK-2026-08-20 — complete the missing Leto domain book [minor] — in progress
+## ATLAS-LETO-BOOK-2026-08-20 — complete the missing Leto domain book [minor] — done
 
 - **Owner:** Atlas coordinator; Leto provider scope is separately owned from
   the root inventory audit.
@@ -1845,6 +1845,13 @@ rewrite.
 - **Pending:** post-merge Pages build/deployment `32400623663`/`32400621014`
   must reach terminal success before this item closes. The unrelated dirty
   Leto main-tree edits remain excluded.
+- **Closed 2026-08-24:** the Leto default advanced to `7d6ac26ff` (PR #121,
+  iterative-solver family deletion) with hosted CI and pages-build-deployment
+  both terminal success at that head; live Pages serves the current book
+  (HTTP 200). Atlas gitlink advanced `fc0648ee9` → `7d6ac26ff`; the
+  `atlas-book-gate-audit.py --check` acceptance reports 25 book-bearing
+  members (shared 23, direct 1, vacuous 1, one missing-or-invalid entry
+  tracked separately) and exits 0.
 - **Non-goal:** no placeholder chapter is counted as a completed book and no
   provider dirty worktree is overwritten while this item is active.
 
@@ -9767,8 +9774,26 @@ first-party deps through the 0.9→0.10 API surface.
   swept the documented-untracked local Atlas overlay (.cargo/config.toml
   with absolute D:/atlas target-dir) into git, leaking the host path into
   CI test binaries and breaking Verify. Untracked + ignored (f8fcea6);
-  CI re-running. ritk has the same leak class with D:/msys64 compiler
+  CI re-running.  ritk has the same leak class with D:/msys64 compiler
   paths — older (July), pre-existing; fix pushed as ritk PR #207.
+- **ritk overlay leak fixed 2026-08-24:** PR #207 merged at `e875f2b4`
+  (base `a974573e`, the PM-stranded-snapshot default). `.cargo/config.toml`
+  untracked + ignored; post-merge CI and Python CI both terminal success at
+  `e875f2b4`; live Pages HTTP 200. Atlas gitlink advanced `6daf72b0` →
+  `e875f2b4` (the prior pointer referenced the unmerged fix branch tip, not
+  a main commit).
+- **leto advanced 2026-08-24:** gitlink `fc0648ee9` → `7d6ac26ff` (PR #121
+  iterative-solver family deletion; hosted CI + pages-build-deployment green
+  at head). Closes ATLAS-LETO-BOOK's pending Pages clause.
+- **ritk overlay leak fixed 2026-08-24:** PR #207 merged at `e875f2b4`
+  (base `a974573e`, the PM-stranded-snapshot default). `.cargo/config.toml`
+  untracked + ignored; post-merge CI and Python CI both terminal success at
+  `e875f2b4`; live Pages HTTP 200. Atlas gitlink advanced `6daf72b0` →
+  `e875f2b4` (the prior pointer referenced the unmerged fix branch tip, not
+  a main commit).
+- **leto advanced 2026-08-24:** gitlink `fc0648ee9` → `7d6ac26ff` (PR #121
+  iterative-solver family deletion; hosted CI + pages-build-deployment green
+  at head). Closes ATLAS-LETO-BOOK's pending Pages clause.
 - Lockfile-guard promotion PRs (asclepius #26, athena #17, CFDrs #368,
   consus #54, helios #70, moirai #162, proteus #18): branches updated
   with main to absorb fixes; CI re-running.

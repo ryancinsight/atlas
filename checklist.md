@@ -1103,8 +1103,16 @@ Item closed 2026-08-23.
       both examples at provider head `b500baf`.
 - [x] Collect the rerun PR CI and Pages book gate; merge at green exact head
       `b500baf` and advance the Atlas gitlink to `c1c8ab2`.
-- [ ] Collect the post-merge Pages deployment run `32400623663`/`32400621014`
-      to terminal success before closing the provider item.
+- [x] Collect the post-merge Pages deployment run `32400623663`/`32400621014`
+      to terminal success before closing the provider item. Closed
+      2026-08-24: default `7d6ac26f` (PR #121) has CI and
+      pages-build-deployment both terminal success and live Pages HTTP 200;
+      Atlas gitlink advanced `fc0648ee9` → `7d6ac26ff`; the 25-member
+      book-gate audit exits 0.
+- [x] Advanced the Atlas ritk gitlink `6daf72b0` → `e875f2b4` after ritk PR
+      #207 merged (host-overlay `.cargo/config.toml` untracked + ignored;
+      post-merge CI + Python CI green, live Pages HTTP 200). The prior
+      pointer referenced the unmerged fix-branch tip.
 
 ## ATLAS-RITK-BOOK-TEST-2026-08-20 — current session
 
