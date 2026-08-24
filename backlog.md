@@ -849,7 +849,7 @@ unchanged.
   repository's event/barrier-only synchronization preference. Re-open on a
   clean CFDrs lane; do not displace PR #361's restored format lane.
 
-## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — merge pending
+## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — follow-up merge pending
 
 - **Owner:** Atlas integration. **Claimed files:** `backlog.md`,
   `checklist.md`, and the visualization ADR records; provider source is
@@ -857,11 +857,10 @@ unchanged.
 - **Decision record:** `docs/adr/0051-kwavers-visualization-backend-ownership.md`
 
 - **Decision accepted (2026-08-21):** ADR 0051 is accepted. The provider
-  migration remains implementation-pending until a clean, non-overlapping
-  Kwavers lane is available; no provider source or Atlas gitlink is changed
-  by this decision increment.
-- **Migration implemented (PR #602, lane `feat/provider-generic-vis`, current
-  head `2b9328a12`):** replacement per the ADR —
+  migration was completed in the clean, non-overlapping Kwavers lane; no Atlas
+  Kwavers gitlink advance is made by this documentation-only record.
+- **Migration merged (PR #602, merge `41f1c8047`, source head `2b9328a12`):**
+  replacement per the ADR —
   analysis keeps config, backend-neutral metadata, CPU preprocessing,
   statistics, and the public contract behind the new provider-neutral
   `VisualizationTransferProvider` seam; concrete device acquisition, typed
@@ -874,8 +873,13 @@ unchanged.
   edges. Static audit: no direct WGPU/raw-device/pollster ownership or
   manifest edge remains under `kwavers-analysis`. Local gates green (fmt,
   locked checks, analysis 778 tests, gpu 166 tests, top-level 39 tests, and
-  doctests). Hosted exact-head Rust/book/API/Pages gates are running before
-  any Atlas Kwavers gitlink advance.
+  doctests). Hosted Rust/book/API/Pages gates completed sufficiently for the
+  merge.
+- **Correctness follow-up (PR #626, source `c8966a986`, commit `f650e17b6`):**
+  failed provider transfers now leave field metadata, Hephaestus replacement
+  buffers, memory accounting, and streaming-buffer selection unchanged. The
+  follow-up is queued for merge; it is the remaining delivery state for this
+  item.
 
 - **Outcome:** `kwavers-analysis` visualization owns no concrete WGPU device,
   queue, buffer, adapter, or `pollster` runtime. Visualization transfers and
@@ -897,9 +901,9 @@ unchanged.
   `wgpu`/`pollster` edge in `kwavers-analysis`; WGPU and unavailable-capability
   paths have value-semantic differential coverage; the package graph is
   acyclic; warning-denied checks, Nextest, doctests, Rustdoc, and hosted book
-  gates pass at the exact provider default. **Status:** implementation and
-  local verification complete; PR #602 hosted checks are the remaining merge
-  gate.
+  gates pass at the exact provider default. **Status:** architectural
+  migration merged; transactional transfer correction locally verified and
+  PR #626 is the remaining merge gate.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.

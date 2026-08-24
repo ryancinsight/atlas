@@ -55,8 +55,8 @@ kind. It does not expose a WGPU buffer, queue, adapter, or device.
 
 ## Implementation evidence
 
-The accepted implementation is in PR [#602](https://github.com/ryancinsight/kwavers/pull/602),
-head `2b9328a12`. `VisualizationTransferProvider` is the neutral role in
+The accepted implementation is in merged PR [#602](https://github.com/ryancinsight/kwavers/pull/602),
+source head `2b9328a12`, merge `41f1c8047`. `VisualizationTransferProvider` is the neutral role in
 `kwavers-analysis`; `VisualizationBackend::{Leto, Hephaestus}` selects the
 provider in `kwavers-gpu`, and the top-level `kwavers` feature forwards that
 selection to callers. The analysis crate has no production WGPU, raw-device,
@@ -64,8 +64,10 @@ queue, buffer, or `pollster` ownership.
 
 The contract tests preserve distinct values and field identities, propagate
 provider failures without CPU degradation, and exercise the real Hephaestus
-adapter when a WGPU adapter is available. Local exact-head gates passed; hosted
-checks remain the merge acceptance gate.
+adapter when a WGPU adapter is available. Follow-up PR [#626](https://github.com/ryancinsight/kwavers/pull/626)
+adds transactional state updates so a failed upload cannot commit metadata,
+buffer replacement, memory accounting, or streaming-buffer selection. Local
+exact-head gates passed; PR #626 remains the hosted merge gate.
 
 ## Required tests
 
@@ -75,6 +77,7 @@ The first implementation must prove:
 - two distinct fields do not collapse into one upload;
 - multi-field upload preserves field-kind identity;
 - unavailable capability returns the typed error;
+- a failed transfer does not commit backend-neutral or provider-owned state;
 - no package graph cycle is introduced;
 - static scans find no `wgpu`, `pollster`, raw device, queue, or buffer symbols
   in the neutral consumer module after migration.
