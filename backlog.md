@@ -1,185 +1,5 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-OVERLAY-LOCK-GUARD-2026-08-23 — the overlay strips lockfiles and nothing local catches it [major] — done
-
-| Outcome | Class | Status | Owner |
-|---------|-------|--------|-------|
-| No commit can land a Cargo.lock whose first-party `source = "git+"` lines the development overlay stripped. | [major] | done — 8 hosted merges, gitlinks advanced | current session |
-
-- **What happened.** Seven stacked Kwavers branches were pushed carrying a
-  `Cargo.lock` with **all 88 `source = "git+..."` lines removed**. CI failed all
-  24 jobs on every one of them with `cannot update the lock file ... because
-  --locked was passed`. The cause is the development overlay: under the umbrella
-  `[patch]` redirects each first-party crate to a local path and cargo records no
-  source, so any `git add` of the lock from inside the stack commits a lock that
-  cannot resolve standalone.
-- **Why local verification missed it.** Every local run was *also* under the
-  overlay, where the stripped lock resolves fine. The lock is the one artifact
-  whose correctness cannot be checked from inside the environment that produces
-  it, and nothing local ran `--locked` from a neutral directory.
-- **It recurred within one session.** The first instance was caught by eye and
-  fixed (`build(kwavers): Restore the lockfile the overlay reordered`); the
-  second went unnoticed through six further commits because the reverting habit
-  — `git checkout -- Cargo.lock` — restores the file to HEAD, and HEAD was
-  already corrupt. A habit is not a guard.
-- **Correction: Kwavers already has the tool.** `scripts/lockfile.py` on the
-  Kwavers default branch does exactly this — `--check` and `--regenerate`, run
-  with cargo outside the overlay — and its docstring describes this trap
-  precisely, citing `KW-CI-087`. It is called from `benchmark-regression.yml`
-  and from nowhere else. So the gap is narrower and sharper than first filed:
-  the tool exists, CI calls it from one workflow, and **nothing runs it locally
-  before a push**. That is the whole reason seven branches went out corrupt with
-  a working guard sitting in the repository.
-- **Acceptance, revised:**
-  1. Kwavers wires `scripts/lockfile.py --check` into a committed `pre-push`
-     hook and into the main CI workflow, not only the benchmark one.
-  2. The tool is promoted to the other members. Fifteen repositories carry
-     first-party git sources and none of them has it: CFDrs (64), helios (59),
-     asclepius (41), coeus (41), apollo (36), athena (35), hephaestus (33),
-     consus (24), gaia (22), hermes (11), harmonia (4), hyperion (3), horae (2),
-     aequitas (1), and Kwavers itself. Every one is exposed to the same silent
-     corruption; Kwavers is only where it fired first and where someone already
-     built the fix.
-  3. Promotion is a copy of one file plus one hook line, so this is a
-     consolidation item, not a design one — the reusable form is the shared
-     workflow the CI policy already prefers over per-repo copies.
-- **Second-order:** the same class covers any derived artifact whose generator
-  runs inside the overlay. The generator contract already requires
-  regenerate-and-diff freshness; this is that rule applied to the lockfile, which
-  currently has no enforcement anywhere.
-
-- **Implementation evidence (2026-08-24):**
-
-  1. **Kwavers (the origin repo):** lane `worktrees/kwavers-lock-guard`, branch
-     `ci/kwavers-wire-lockfile-guard`, commit `9effe25a7` — a committed
-     `.githooks/pre-push` running the existing checker (with
-     `SKIP_LOCKFILE_CHECK` escape hatch and graceful degradation when the tool
-     or a Python interpreter is absent), a `Lockfile integrity` job in `ci.yml`
-     bounded at 5 minutes (needs no toolchain, cache or build), and install
-     instructions in the README's Getting Started section. The `scripts/lockfile.py`
-     tool itself was already on the default branch; the increment wires it into
-     the two places it was missing: the main CI workflow and a local hook.
-     Verified by exercising it: exits 1 on a stripped lock, 0 on a valid one,
-     0 under the     bypass. Not yet published as a PR.
-
-     **Merged 2026-08-24** as Kwavers
-     [PR #616](https://github.com/ryancinsight/kwavers/pull/616) at exact
-     head `9effe25a7`; all 25 hosted checks terminal (incl. Lockfile
-     integrity 1m42s). Merge commit `5406691fe`. Atlas gitlink advanced
-     `dabc779d9` → `5406691fe` (atlas `e3d7eaf29`).
-
-  2. **Aequitas (promotion increment 1/14):** lane
-     `worktrees/aequitas-lock-guard`, branch `ci/aequitas-wire-lockfile-guard`,
-     commit `0c53c23` — `scripts/lockfile.py` copied verbatim (the tool is
-     repo-generic: `REPOSITORY`, `LOCKFILE`, and `MANIFEST` are all derived
-     from `__file__`), `.githooks/pre-push` copied verbatim, `Lockfile
-     integrity` job added to `ci.yml` (calling the shared Atlas workflow
-     `ryancinsight/atlas/.github/workflows/lockfile-guard.yml@886d85b0e`
-     rather than inlining, per the stack's shared-pipeline form), and hook
-     install documented in the README's Verification section. Aequitas
-     carries 1 first-party git source (eunomia); the check confirms `1
-     first-party git sources` and resolves under `--locked`. Verified by
-     exercising it: exits 1 on a stripped lock, 0 on a valid one, 0 under
-     the bypass.
-
-     **Merged 2026-08-24** as aequitas
-     [PR #39](https://github.com/ryancinsight/aequitas/pull/39) at exact
-     head `0c53c235`; all required checks pass (Lockfile integrity 9s,
-     verify 54s, supply-chain 55s, CodeRabbit pass); `recurseml/analysis`
-     report-only. Merge commit `dc4bdef`. Atlas gitlink advanced `14fdd44c`
-     → `dc4bdef`.
-
-  3. **Batch of 4 (promotion increments 2-5/14):** horae, hyperion,
-     hermes, gaia — each on a clean lane from the fetched default, same
-     four-file copy (scripts/lockfile.py + .githooks/pre-push + shared
-     CI caller + README). Harmonia skipped: 0 first-party git sources,
-     no Cargo.lock, nothing to guard.
-     - **horae** (2 git sources): PR
-       [#27](https://github.com/ryancinsight/horae/pull/27) at head
-       `fcf52188`; Lockfile integrity 8s, verify 40s, supply-chain 41s;
-       merged at `9d783479`. Atlas gitlink `abe42e5d` → `9d783479`.
-     - **hyperion** (3 git sources): PR
-       [#24](https://github.com/ancinsight/hyperion/pull/24) at head
-       `13818369`; Lockfile integrity 10s, verify 44s, supply-chain 1m10s;
-       merged at `1e251cb0`. Atlas gitlink `3bc0e43d` → `1e251cb0`.
-     - **hermes** (11 git sources): PR
-       [#60](https://github.com/ryancinsight/hermes/pull/60) at head
-       `b04d9d91`; Lockfile integrity 9s, fmt+clippy+test+doc 55s,
-       aarch64 1m42s, AVX-512-hosted 33s, cargo-deny 22s all pass (heavy
-       SDE/miri/benchmark jobs pending but not required for CI-only
-       change); merged at `e8515b34`. Atlas gitlink `78b87453` →
-       `e8515b34`.
-     - **gaia** (22 git sources): PR
-       [#34](https://github.com/ryancinsight/gaia/pull/34) at head
-       `7ca0ec24`; Lockfile integrity 20s, gate 1m38s; merged at
-       `2ce0984a`. Atlas gitlink `9b476fec` → `2ce0984a`.
-
-  4. **Batch of 7 (promotion increments 6-12/14):** consus (22 sources),
-     hephaestus (33), athena (35), apollo (36), coeus (41), asclepius
-     (41), helios (59) — each on a clean lane from the fetched default
-     with the same four-file copy. Repos with a `ci.yml` (consus, athena,
-     apollo, asclepius, helios) get the `lockfile` job in it; hephaestus
-     and coeus have no `ci.yml`, so they get a dedicated
-     `lockfile-guard.yml` calling the same shared workflow. Opened
-     2026-08-24: consus [#54](https://github.com/ryancinsight/consus/pull/54),
-     hephaestus [#218](https://github.com/ryancinsight/hephaestus/pull/218)
-     (base `master`), athena
-     [#17](https://github.com/ryancinsight/athena/pull/17), apollo
-     [#110](https://github.com/ryancinsight/apollo/pull/110), coeus
-     [#343](https://github.com/ryancinsight/Coeus/pull/343), asclepius
-     [#26](https://github.com/ryancinsight/asclepius/pull/26), helios
-     [#70](https://github.com/ryancinsight/helios/pull/70). Hosted checks
-     are the acceptance oracle; merge only at exact heads.
-
-  5. **CFDrs skipped (increment dimissed):** the committed root
-     `Cargo.lock` (verified via `git show HEAD:Cargo.lock`) contains zero
-     `source = "git+..."` lines — every dependency resolves from
-     crates.io, so there is nothing for the overlay to strip. The
-     backlog's earlier "64 git sources" figure predates the crates.io
-     publication of the cfd-* crates. Same skip rationale as harmonia.
-     **All 14 members are now covered or dismissed; the promotion is
-     complete (see evidence 6).**
-
-  6. **Implementation evidence (2026-08-24, final):** all eight
-     remaining hosted merges landed, each at its exact PR head, and
-     every Atlas gitlink was advanced to the merge commit:
-
-     | Repo | PR | Merge | Gitlink advance |
-     |---|---|---|---|
-     | apollo | [#110](https://github.com/ryancinsight/apollo/pull/110) | `424ce4314` | `ff742cff5` |
-     | hephaestus | [#218](https://github.com/ryancinsight/hephaestus/pull/218) | `7b6da5ae` | `ff742cff5` |
-     | coeus | [#343](https://github.com/ryancinsight/Coeus/pull/343) | `43f288a0` | `ff742cff5` |
-     | athena | [#17](https://github.com/ryancinsight/athena/pull/17) | `4c8a9dcd` | `ff742cff5` |
-     | helios | [#70](https://github.com/ryancinsight/helios/pull/70) | `f184b28f` | `e21667004` |
-     | proteus | [#18](https://github.com/ryancinsight/proteus/pull/18) | `150b2074` | `0adf3a540` |
-     | asclepius | [#26](https://github.com/ryancinsight/asclepius/pull/26) | `6b300cdf` | `c155a2e40` |
-     | consus | [#54](https://github.com/ryancinsight/consus/pull/54) | `3bde52a8` | (this commit) |
-
-     Proteus was caught in the same failure class as asclepius
-     (committed lock had every `source = "git+"` line stripped) and
-     fixed by the same four-file promotion plus a lockfile
-     regeneration outside the overlay; its default-branch CI was
-     failing on every run before the merge. Asclepius additionally
-     carried a committed `.cargo/config.toml` overlay (PM-rescue
-     snapshot had landed an Atlas-local Windows `target-dir` on main)
-     that broke every hosted cargo invocation; removed in the same
-     PR. Athena's verify showed a timing-sensitive allocation-count
-     flake (`repeated_gmres_solves_allocate_nothing_after_initialization`)
-     that passes locally, passed the base commit's own green CI, and
-     passed on rerun — recorded, not a code defect. Consus's 80-job
-     matrix drained through the saturated runner queue (79 SUCCESS /
-     1 SKIPPED). CFDrs and harmonia were dismissed (zero first-party
-     git sources; nothing to guard). The atlas PR #138 was closed as
-     superseded by main: the kwavers gitlink has advanced through
-     `9cf62aa9` → `d13648b9` → `8feefe8a` → `dabc779d` since the PR
-     was opened, and the ratchet regressions in its 4-day-old CI run
-     no longer apply against the current committed baseline. The atlas PR #138
-     (`build/kwavers-attenuation-gitlink`) was closed as superseded
-     by main: the kwavers gitlink has advanced through
-     `9cf62aa9` → `d13648b9` → `8feefe8a` → `dabc779d` since the PR
-     was opened, and the ratchet regressions in its 4-day-old CI
-     run no longer apply against the current committed baseline.
-
 ## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch]
 
 - **Owner:** current session; lane will be `worktrees/cfdrs-mdbook-dead-links`.
@@ -258,52 +78,6 @@
   with reference implementations available (RITK against ITK/SimpleITK, CFDrs
   against analytical benchmarks) are the natural next candidates.
 
-## ATLAS-KWAVERS-PIN-SWEEP-2026-08-22 — advance Kwavers onto the merged stack [patch] — closed 2026-08-23
-
-- Co-evolution sweep following the Coeus and Hephaestus merges. Kwavers' lock
-  pinned Coeus at `5adc2d16` against a merged default of `2d6f08ab`.
-- Lock-only advance across eleven upstreams — Coeus, Hephaestus, Moirai,
-  Mnemosyne, Leto, Apollo, Hermes, Themis, Melinoe, Eunomia, Aequitas — with no
-  manifest requirement changes, so every advance is inside an existing semver
-  range.
-- **Verification constraint, recorded rather than skipped:** the development
-  overlay resolves first-party crates to the local `repos/` trees, so a build
-  under the umbrella does not exercise the new pins at all, and hosted CI has
-  been stalled since 2026-08-21 20:33 UTC. The advance is therefore verified by
-  a standalone `cargo check --locked` run from outside the overlay.
-- **Gitlink advance not attempted:** `repos/coeus` and `repos/hephaestus` both
-  carry peer dirt, and the Hephaestus tree is checked out on a peer's active
-  branch. Moving either would disturb work in progress. The gitlinks stay behind
-  their merged defaults until those trees are free.
-- **Gitlink advance landed 2026-08-22 (atlas commit `befb8e5`):** index-level
-  pointer update from `5108ed0082fc` → `2d6f08ab1ef3` (coeus) and
-  `7e09efa946e7` → `655091db82d0` (hephaestus), preserving peer dirty work in
-  both provider checkouts. The pre-recorded hesitation about peer dirt was a
-  worktree concern; the index pointer moves independently of the worktree
-  contents and is exactly the same operation the Horae advance used. Item
-  closes at the advance commit; hosted CI on the merged branches is a
-  fix-forward watchpoint, not a closure gate (recorded in
-  `ATLAS-KWAVERS-PIN-SWEEP-2026-08-22`).
-- **Record-vs-tree correction (2026-08-23, atlas commit to be named):** the
-  tree at `befb8e5` recorded coeus `79f05dfd8cc` (an ancestor of the merged
-  default) and hephaestus `d24513a3c31` (a side-branch commit on
-  `codex/hephaestus-fdtd-107`, not an ancestor of the merged default) rather
-  than the `2d6f08ab`/`655091db` the message and this record claim. The
-  pointers are re-advanced to the actual merged defaults `2d6f08ab1ef3`
-  (coeus) and `655091db82d0` (hephaestus), both verified to match each
-  member's `origin HEAD` at correction time; the peer-dirty provider checkouts
-  are untouched. The stale `79f05dfd`/`d24513a3` pins were the sole
-  `gitlink-coherence` defect class that a pointer move could repair; the
-  remaining flagged rows are the tool's `origin/main` naming assumption
-  (hephaestus publishes `master`) and the kwavers pin held behind the merge
-  queue.
-- **Merged 2026-08-23:** the advance landed as Kwavers
-  [PR #608](https://github.com/ryancinsight/kwavers/pull/608), rebased onto
-  the arch-gate-fixed default `d13648b9` at head `8ddc1700d`, merged at that
-  exact head into `f05ea5ca3`. Post-merge CI at the default is terminal
-  (0 open checks). The Atlas kwavers gitlink advance completes the
-  queue-record work once #609 lands.
-
 ## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — Simulated elastic-SWE GPU surface deleted [major] — in progress
 
 - **Owner:** current session; lane `worktrees/kwavers-gpumock` (branch
@@ -342,340 +116,6 @@
   unchanged.
 - **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (gitlink
   advance + clean-revision ratchet re-run).
-
-## ATLAS-KWAVERS-STUBORACLE-2026-08-22 — Real energy/reciprocity oracles + existence-only burn-down [patch] — closed 2026-08-23
-
-- **Owner:** current session; lane `worktrees/kwavers-stuboracle` (branch
-  `fix/kwavers-stuboracle-real-oracles`).
-- **Closes** `KW-GAP-2026-08-20-STUBORACLE`, the #4 ordered item of the
-  2026-08-20 kwavers scope-vs-delivery audit (independent of the k-Wave
-  work; ran in parallel with PR #604).
-- **Oracle rewrite:** `crates/kwavers/tests/energy_conservation_test.rs`
-  now drives the real PSTD solver. The energy test seeds a Gaussian pulse
-  into the split densities (EOS-consistent `p = c²·Σρ`), runs 300 steps in
-  a closed lossless periodic box (`BoundaryConfig::None`), and asserts
-  relative drift of the staggered-averaged energy
-  `E_k = PE(p_k) + (KE_{k−1/2} + KE_{k+1/2})/2` against
-  `(ω_max·dt)²/6 = 1.7e-3`, derived from the leapfrog integrator's order
-  (single-mode bound `(ω·dt)²/12`, 4σ spectral cutoff of the pulse, 2×
-  safety factor; observed 7.6e-4). The reciprocity test runs three
-  translated seeds, records crossed time series at three positions, and
-  compares the two directions of every pair — agreement 4e-15 (machine
-  precision), asserting ≤ 1e-6. The old tests asserted `initial_energy
-  > 0.0` and `source_a == receiver_b` (a tautology invoking no solver).
-- **Burn-down:** converted all 44 detector-counted existence-only
-  assertions in `kwavers-physics` (20), `kwavers-analysis` (15),
-  `kwavers-solver` (9) to value-semantic oracles (`expect_err` with error
-  message checks, `assert_eq!(x, None)`, value use of unwrapped pointers,
-  CPML thickness check). The Atlas conformance detector's
-  `existence_only_assertions` for kwavers drops 265 → 221; the recorded
-  baseline in `scripts/conformance-baseline.json` is ratcheted down to 221
-  in the same change.
-- **Provider gates (clean lane from fetched `origin/main` `377a98c8`):**
-  fmt clean; `cargo check --all-targets` on the four touched crates pass;
-  clippy `--lib -D warnings` clean and no new test-target clippy warnings
-  (the initial `.err().expect()` pattern was converted to `expect_err`
-  after `clippy::err_expect` flagged it); nextest `kwavers-physics` +
-  `kwavers-analysis` 2305/2305, `kwavers-solver` 902/902, `kwavers`
-  530/530 (incl. the two new oracle tests). No manifest or lockfile
-  change; test-figure PNG artifacts regenerated by the run were restored.
-- **Published 2026-08-22 as Kwavers
-  [PR #606](https://github.com/ryancinsight/kwavers/pull/606)** at exact
-  head `352b4dc7b4c9d2959ae53cb57eba1796c6ca51b8`, `MERGEABLE`, based on
-  `origin/main` `377a98c86`. Two commits: real oracles, then the
-  burn-down. Hosted checks are the acceptance oracle; merge only at the
-  exact PR head after terminal required checks.
-- **Rebased 2026-08-23** onto the arch-gate-fixed default `d13648b9`
-  (`fix/kwavers-stuboracle-real-oracles` → head `35e9ef83c`). The rebase
-  needed a `cargo fmt` pass on four `.expect_err` call sites that the
-  newer rustfmt reflows (`style(kwavers): rustfmt the re-homed oracle
-  tests`).
-- **Merged at exact head 2026-08-23:** `35e9ef83c` merged as
-  `2b81fc93a` (on top of #610 `c7521f73` and #608 `f05c3ca5`). All
-  required hosted checks terminal at the head.
-- **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (gitlink
-  advance + clean-revision ratchet re-run).
-
-## ATLAS-KWAVERS-IGNOREDORACLE-2026-08-22 — Re-homed the 46 ignored oracles per group [minor] — closed 2026-08-24
-
-- **Owner:** current session; lane `worktrees/kwavers-ignoredoracle`
-  (branch `fix/kwavers-ignoredoracle-rehome`).
-- **Closes** `KW-GAP-2026-08-20-IGNOREDORACLE`, the #5 ordered item of the
-  2026-08-20 kwavers audit. Handled per group, not as one sweep.
-- **Measured, not trusted:** 10 of the 46 ignores were stale — measured
-  0.6-25 s against claimed 30-60 s+ runtimes. Re-enabled in the default
-  suite: kuznetsov linear energy conservation (11.8 s), KZK Gaussian-beam
-  diffraction (6.5 s), PINN FD-comparison gradients ×3 (20 ms, 5/5
-  stable), passive-dose coated-subharmonic (3.7 s), multi-bowl transducer
-  phases (0.6 s), NL-SWE convergence study (0.8 s), SWE literature
-  benchmark (17.5 s), SWE performance scaling (25.4 s). The photoacoustic
-  performance benchmark got a derived 6 s budget (4× measured release
-  1.18 s) replacing the underived 1 s threshold.
-- **Heavy group (3):** kuznetsov nonlinear harmonic generation (162 s),
-  Treeby-Cox absorption decay (42 s), NL-SWE end-to-end workflow (55 s)
-  keep `#[ignore]` as the headless gate with derived 300 s budgets and
-  re-enable triggers; a new `heavy-validation` job in ci.yml runs them
-  via `--profile heavy --run-ignored ignored-only`.
-- **GPU group (27):** reasons + re-enable triggers added; new scheduled
-  `gpu-parity.yml` on the Atlas self-hosted CUDA label
-  (`[self-hosted, linux, x64, cuda]`, same convention as Coeus
-  backend-parity / Hephaestus cuda) runs them nightly via
-  `--run-ignored` — no longer permanently dark. If the runner label is
-  not yet registered for kwavers the job queues visibly rather than
-  hiding the tests.
-- **Real findings tracked, not deleted:** re-running the swe_3d volumetric
-  oracles surfaced genuine correctness divergences — background
-  reconstruction error 1648% vs <30% asserted, and reconstructed stiffness
-  above the fibrosis-stage range (new kwavers item
-  `KW-GAP-2026-08-22-SWERECON`); Marchenko oracle stays ignored with a
-  re-enable trigger and ADR 019 updated (new item
-  `KW-GAP-2026-08-22-MARCHENKO`). 46 ignores → 36, zero bare.
-- **Gates (clean lane from fetched `origin/main` `377a98c8`):** fmt
-  clean; `cargo check --all-targets` pass; clippy `--lib -D warnings`
-  clean; nextest physics+therapy+transducer 2314/2314, solver 904/904,
-  kwavers 534/534 (incl. the 10 re-enabled tests), gpu 9/9; workflow
-  YAML validated. Cargo.lock overlay drift and regenerated test-figures
-  restored — commit stays code-only. (The main checkout's ci.yml carries
-  an unrelated uncommitted SHA-pin overlay; the lane's ci.yml was rebuilt
-  from origin/main so the PR ships only the heavy-validation job.)
-- **Published 2026-08-22 as Kwavers
-  [PR #609](https://github.com/ryancinsight/kwavers/pull/609)** at exact
-  head `443421028fa86cbeab4cf6632ee9b22902534384`, `MERGEABLE`, based on
-  `origin/main` `377a98c86`. Hosted checks are the acceptance oracle;
-  merge only at the exact PR head after terminal required checks.
-- **Rebased 2026-08-23** onto the arch-gate-fixed default `d13648b9`
-  (`fix/kwavers-ignoredoracle-rehome` → head `73287814f`). The rebase
-  resolved #611's reasoned `#[ignore]`s in favor of #609's measured
-  re-enablements (the two converge on the same intent).
-- **Two hosted CI defects fixed on the lane (2026-08-23/24):** the new
-  `heavy-validation` job's 25 min `timeout-minutes` was too tight for the
-  ~31 min cold-cache budget (`000ef259d`, widened to 45 min with an
-  evidence comment); then `test_nl_swe_workflow` exceeded the heavy
-  profile's 300 s per-test cap on the 4-core runner (57.6 s local on a
-  24-core box, ~6× slower there) — fixed with a `profile.heavy`
-  per-test override raising it to 600 s (`d7adf28fc`).
-- **Merged at exact head 2026-08-24:** `d7adf28fc` merged as `e2f5ae2fd`
-  (on top of #610 `c7521f73`, #608 `f05c3ca5`, #606 `2b81fc93`, #598
-  `f910f70b`). All required hosted checks terminal at the head; the
-  non-required `book / Build book` flake (shared-workflow cold-cache 8 m
-  timeout) does not gate merge.
-- **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (the
-  #604 + #606 + #609 block is now lifted; the gitlink advance and
-  clean-revision ratchet re-run are tracked there).
-
-## ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24 — merged-default advance held on the ratchet re-run [patch] — closed 2026-08-24
-
-- **Owner:** current session.
-- The full kwavers queue has landed: #598 `f910f70b`, #597 `f97a3a0b0`,
-  #610 `c7521f73`, #608 `f05c3ca5`, #606 `2b81fc93`, #609 `e2f5ae2fd`,
-  #614 `a9c77cff`, #615 `43301911`, and #600 (ADR 120) `8feefe8a` — the
-  merged default is `8feefe8aa`. The Atlas gitlink advance `d13648b9` →
-  `8feefe8aa` is prepared but **held**: advancing triggers the
-  `atlas-conformance` gate on `repos/**`, and the ratchet re-run at the
-  merged default flags three classes the committed baseline
-  under-records.
-- **Ratchet re-run at the merged default (per-repo scan):** three
-  RATCHET VIOLATION classes and four tightenings:
-  - `tag_pinned_actions` 0 → 32 — **pre-existing**: the recorded gitlink
-    `d13648b9` already carried 53 tag-pinned action uses; the queue
-    *reduced* them. The baseline was recorded before the CI rewrites
-    (`5a231d66`, `2637de69`).
-  - `workflow_missing_permissions` 0 → 1 — `architecture-validation.yml`
-    has never had a `permissions:` block (pre-existing at `d13648b9`).
-  - `markers` 2 → 3 — an xtask comment carries a marker literal
-    (pre-existing at `d13648b9`).
-  - Tightenings to record with the advance: `oversized_files` 111 → 110,
-    `unwrap_production` 229 → 226, `root_sprawl` 1 → 0,
-    `crate_level_allows` 10 → 9. `excess_worktrees` holds at baseline: the
-    two merged-PR lanes (`kwavers-ignoredoracle`, `kwavers-deny-docs`)
-    were removed and the conformance lane opened (net zero).
-- **Fix lane:** `worktrees/kwavers-conformance`, branch
-  `fix/kwavers-conformance-ratchet` from `8feefe8aa` — SHA-pins all 32
-  tag-pinned action uses across the four touched workflows, adds a
-  top-level `permissions: contents: read` to `architecture-validation.yml`,
-  and drops the marker literal from the xtask comment. Lane scanner run:
-  `tag_pinned_actions` 32 → 0, `workflow_missing_permissions` 1 → 0,
-  `markers` 3 → 2, every other class at or below baseline; all workflow
-  YAML parses; `cargo check -p xtask` passes; Cargo.lock overlay drift
-  restored (commit is CI+comment only).
-- **Published 2026-08-24 as Kwavers
-  [PR #618](https://github.com/ryancinsight/kwavers/pull/618)** at exact
-  head `711a628b`, based on `origin/main` `8feefe8aa`. Hosted checks are
-  the acceptance oracle; merge only at the exact PR head after terminal
-  required checks.
-- **#618 merged 2026-08-24 at the exact head `711a628b`** (merge commit
-  `24b328ca`) after all 28 CI jobs reached terminal success; the only
-  non-passing check was the external `recurseml/analysis` (report-only,
-  fails on every PR). The merged default is now `24b328ca`, which also
-  carries kwavers PR #601 (`5e7da1c4`, k-Wave heterogeneous oracles)
-  that merged just before #618.
-- **Ratchet re-run at `24b328ca`:** the #618 fixes hold
-  (`tag_pinned_actions` 0, `workflow_missing_permissions` 0, `markers`
-  2), but #601's new k-Wave tests added two existence-only assertions
-  (`existence_only_assertions` 221 → 223) and a peer lane `kw-fix`
-  appeared (`excess_worktrees` 5 → 6, transient — not touched).
-- **Follow-up fix lane:** `worktrees/kwavers-existence`, branch
-  `fix/kwavers-kwave-existence-burndown` from `24b328ca` — converts the
-  two guards to value semantics (`let-else` unwraps, the medium builder
-  and driven runner already unwrap at the point of use). Lane scanner:
-  `existence_only_assertions` back to 221, all classes at/below
-  baseline; `cargo check -p kwavers --tests` passes, no clippy warnings
-  in the changed file; Cargo.lock overlay drift restored.
-- **Published 2026-08-24 as Kwavers
-  [PR #619](https://github.com/ryancinsight/kwavers/pull/619)** at exact
-  head `dc4384b6`, based on `origin/main` `24b328ca`. Hosted checks are
-  the acceptance oracle; merge only at the exact PR head after terminal
-  required checks.
-- **#619 merged 2026-08-24 at the exact head `dc4384b6`** (merge commit
-  `e6a903b0`) after all CI jobs reached terminal success. Between the
-  #619 lane base and its merge, kwavers PR #613 (`920d36c1`, finite-
-  amplitude k-Wave oracles) merged; its new nonlinear case added a third
-  existence-only assertion (`existence_only_assertions` 221 → 222 at the
-  merged default `e6a903b0`).
-- **Follow-up fix lane:** `worktrees/kwavers-existence-2`, branch
-  `fix/kwavers-kwave-bona-guard` from `e6a903b0` — converts the nonlinear
-  B/A guard (`assert!(case.bona.is_some())`) to the same `let-else` value
-  semantics; the driver maps a missing B/A to linear propagation, so the
-  guard was load-bearing. Lane scanner: `existence_only_assertions` back
-  to 221, all classes at/below baseline; `cargo check -p kwavers --tests`
-  passes.
-- **Published 2026-08-24 as Kwavers
-  [PR #625](https://github.com/ryancinsight/kwavers/pull/625)** at exact
-  head `30239aaa2`, based on `origin/main` `e6a903b0`. Hosted checks are
-  the acceptance oracle; merge only at the exact PR head after terminal
-  required checks.
-- **#625 merged 2026-08-24 at the exact head `30239aaa2`** (merge commit
-  `dabc779d`) after all CI jobs reached terminal success.
-- **Gitlink advanced and ratchet recorded 2026-08-24** (Atlas commit
-  `93a555adc`): the peer cross-member sweep (`ce54e39ef`) had already
-  swept the kwavers gitlink to `e6a903b0` before #625 merged; the advance
-  records the merged default `dabc779d` (includes #625). The clean-
-  revision ratchet re-run at `dabc779d` shows zero regressions and the
-  four tightenings are recorded in the same change per the generator
-  contract: `oversized_files` 111 → 110, `unwrap_production` 229 → 226,
-  `root_sprawl` 1 → 0, `crate_level_allows` 10 → 9. The two merged-PR
-  lanes (`kwavers-conformance`, `kwavers-existence`, `kwavers-existence-2`)
-  were removed, holding `excess_worktrees` at baseline 5.
-- **Closed 2026-08-24.** This closes the post-merge steps of
-  ATLAS-KWAVERS-GPUMOCK, ATLAS-KWAVERS-STUBORACLE,
-  ATLAS-KWAVERS-IGNOREDORACLE, ATLAS-KWAVERS-DENYDOCS, and
-  ATLAS-KWAVERS-PIN-SWEEP.
-
-## ATLAS-KWAVERS-DENYDOCS-2026-08-22 — Missing-docs floor on the three smallest crates [minor] — closed 2026-08-23
-
-- **Owner:** current session; lane `worktrees/kwavers-deny-docs` (branch
-  `fix/kwavers-alloc-probe-deny-docs`).
-- **Closes** `KW-GAP-2026-08-20-DENYDOCS` increments 1-3, smallest
-  crates first: `#![deny(missing_docs)]` enabled with the resulting
-  missing docs written — never a blanket `#[allow]`.
-- **alloc-probe** (`aa5ab2bc9`): attribute only; the single-file crate
-  already documented every public item.
-- **kwavers-mesh** (`489554d3b`): 8 fields documented — `BoundingBox`
-  (min/max corners), `MeshStatistics` (node/element/boundary-face
-  counts, total volume, average and minimum quality).
-- **kwavers-field** (`67b4099cd`): 39 items — 17 `UnifiedFieldType`
-  variants, 6 `BubbleStateFields` fields + constructor, 6 stress-alias
-  constants, 5 `FieldStatistics` fields, both accessor constructors, the
-  `WaveFields` alias, the `wave` module header, and the `leto`
-  re-export.
-- **Ratcheted:** detector `missing_deny_docs` 23 → 20
-  (`scripts/conformance-baseline.json` updated in the same change); the
-  kwavers driver crate already denied. Next increment: `kwavers-phantom`.
-- **Gates:** fmt, check, clippy `-D warnings` (all targets), nextest
-  16/16, doctests — all pass on the lane. Cargo.lock overlay drift
-  restored — commits are doc-only.  - **Published 2026-08-22 as Kwavers
-  [PR #598](https://github.com/ryancinsight/kwavers/pull/598)** (title
-  updated to the three-crate increment) at exact head `67b4099cd`, based
-  on `origin/main` `377a98c86`. Hosted checks are the acceptance oracle;
-  merge only at the exact PR head after terminal required checks.
-- **Rebased 2026-08-23** onto the arch-gate-fixed default `d13648b9`
-  (`fix/kwavers-alloc-probe-deny-docs` → head `fe2d4531f`).
-- **Merged at exact head 2026-08-23:** `fe2d4531f` merged at `f910f70b`,
-  making the kwavers default `f910f70bf` at the time; all hosted checks
-  terminal.
-- **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (gitlink
-  advance + clean-revision ratchet re-run, same merge queue as #604/#609).
-
-## ATLAS-GPU-ACQUISITION-2026-08-21 — Coeus GPU suite restored, Hephaestus diagnostics [patch] — closed
-
-- **Owner:** current session; lanes `worktrees/coeus-wgpu-adapter-limits`,
-  `worktrees/hephaestus-book-reground-1`.
-- **Root cause:** `coeus-wgpu`'s `try_get_wgpu_context` set
-  `WGPU_BACKEND=dx12` from library code. Hephaestus takes its explicit
-  DX12-then-Vulkan ladder on Windows *only when no such variable is set*, so the
-  override disabled the path it requested and every acquisition failed with
-  `AdapterUnavailable` on a host with a working RTX 5080. The whole 59-test
-  `coeus-wgpu` GPU suite died at device construction; `hephaestus-wgpu`'s own
-  220/220 passed on the same machine, which is what isolated it.
-- **Result:** Coeus [PR #341](https://github.com/ryancinsight/Coeus/pull/341) —
-  workspace goes from 59 failures to `1340 passed, 0 failed`. Carries a second
-  `[patch]` commit removing a stale `#![expect(clippy::missing_const_for_thread_local)]`
-  in `coeus-autograd` whose reason cites a diagnostic the pinned 1.97.0 clippy
-  does not emit, and which failed `-D warnings` for every dependent target.
-- **Upstream:** Hephaestus [PR #217](https://github.com/ryancinsight/hephaestus/pull/217).
-  `try_default_with_adapter_config` discarded every `request_adapter` and
-  `request_device` error behind `if let Ok(...)`, which is why this needed a
-  bisection rather than an error message. Attempts are now reported
-  individually. The first thing the new message said: **`dx12 support not
-  compiled in`** — the workspace builds `wgpu` with `vulkan`/`metal` only, so
-  the Windows DX12 rung has never run and every Windows build silently lands on
-  Vulkan. Enabling `dx12` is blocked: `gpu-allocator 0.28`'s d3d12 module and
-  the `windows` crate version unified into that graph disagree on
-  `ID3D12Device`, so `wgpu-hal` fails to compile. Recorded at the site.
-- **Bears on the standing finding** that "Apollo, Coeus, and Kwavers GPU suites
-  report green having executed nothing": at least the Coeus half was failing
-  loudly rather than passing vacuously, and the Hephaestus DX12 fact means every
-  Windows GPU result in the stack was produced on Vulkan regardless of what its
-  configuration requested.
-- **Merged 2026-08-21 on local hardware evidence, CI still queued.** Coeus main
-  is `2d6f08ab` and Hephaestus master is `655091d`. Both merged defaults were
-  re-verified against their merged tips on an RTX 5080 rather than trusted from
-  the branch: Coeus `1340/1340`, Hephaestus `220/220`. The user authorized
-  merging ahead of CI after the queue passed 2h35m with zero jobs started beyond
-  the macOS one and 43 runs queued across the four repositories — account-wide
-  Actions saturation, not a failure. The only failing check anywhere is
-  `recurseml/analysis`, which fails on every PR in every repository including at
-  base commits, and is external infrastructure rather than a finding.
-- **Unblocks** `RITK-GPU-SMOOTHER-REACH`'s device half: `coeus-wgpu` can now
-  acquire a device, so a RITK consumer binding it has something to bind to.
-- **Residual:** the queued CI runs on both merged branches never executed. If
-  they surface anything the local suites did not, it is a fix-forward item.
-
-## ATLAS-HEPHAESTUS-BOOK-REGROUND-2026-08-21 — rebase the stale book-reground PR [patch] — closed 2026-08-24
-
-- **Owner:** current session; lane `worktrees/hephaestus-book-reground-1`
-  (branch `fix/hephaestus-book-reground-1`).
-- **What happened.** Hephaestus PR
-  [#216](https://github.com/ryancinsight/hephaestus/pull/216) (docs:
-  Reground accelerator book) opened 2026-08-21 against base
-  `7e09efa9` had gone stale: the hephaestus master had advanced
-  through 7 commits including the lock-guard merge `7b6da5a`, the
-  GPU-acquisition diagnostics, and the FDTD contract parameterization.
-  The PR's own three commits stayed ahead of the original base but
-  conflicted on `CHANGELOG.md` and could not auto-merge.
-- **Rebase.** `git rebase origin/master` onto the lane
-  `fix/hephaestus-book-reground-1`. The CHANGELOG conflict was
-  resolved by combining the book-reground Unreleased entry with the
-  WGPU device-acquisition diagnostic entry from PR #217 — both
-  patch-level, complementary, no semantic conflict. The lockfile was
-  refreshed outside the overlay with
-  `python scripts/lockfile.py --regenerate` (33 first-party git
-  sources restored, `syn 3.0.3 -> 3.0.4` patch bump); the lane's
-  in-tree `cargo check --locked` cannot validate it from inside the
-  atlas overlay, so the script's external cargo invocation is the
-  oracle. Force-pushed with `--force-with-lease`; PR head advanced
-  `42e2787` -> `8728cf3d`.
-- **Acceptance, recorded.** All required hosted checks terminal at
-  `8728cf3d`: CUDA feature and adapterless contracts 6m24s, ROCm
-  6m10s, WGPU 7m9s, macOS Metal 7m10s, Build book 1m4s, Lockfile
-  integrity 27s, CodeRabbit pass. Hardware contracts (NVIDIA, AMD)
-  skip on hosted runners. `recurseml/analysis` is report-only and
-  fails on every PR in every repository; not a merge blocker.
-- **Merge + gitlink advance landed 2026-08-24:** PR #216 merged as
-  `79f1aa728d65b68f32bedd44d2bda8ad9d5511e0` (squash). Atlas gitlink
-  advanced `7b6da5a` -> `79f1aa72` (atlas commit `2c125941a`). Lane
-  `worktrees/hephaestus-book-reground-1` removed in the same cycle.
-- **Closed 2026-08-24** with checklist and this backlog record.
 
 ## ATLAS-KWAVERS-KWAVE-ORACLE-2026-08-21 — k-Wave parity made reproducible [major][arch] — merge pending
 
@@ -795,127 +235,6 @@ unchanged.
   single job. No pointer advance or bypass is authorized; re-open on
   terminal provider checks or a hosted state transition.
 
-## ATLAS-CFDRS-VALIDATION-TRACING-2026-08-21 — Migrate println! to tracing [patch] — closed
-
-The `cfd-validation` crate has 165 `println!`/`print!`/`eprintln!` calls in
-its `src/` tree — the largest concentration of `print_dbg` conformance debt
-in CFDrs. The crate already depends on `tracing` in its `Cargo.toml` but
-doesn't use it. This slice replaces all direct stdout/stderr writes with
-the `tracing` structured-logging facade.
-
-**Scope:** `crates/cfd-validation/src/` on a clean lane based on fetched
-`origin/main` `aa54f5cd`, plus root PM records. No new dependencies.
-
-**Acceptance:** all `println!`/`print!`/`eprintln!` in `src/` (excluding
-test regions) are replaced with `tracing::info!`/`tracing::warn!`; format,
-check, warning-denied Clippy, Nextest, doctests, and Rustdoc pass.
-
-**Implementation evidence (2026-08-21):** clean lane branch
-`fix/cfdrs-validation-tracing` is based on fetched `origin/main`
-`aa54f5cdcdc4e406df0c60ea6c3cb507e968fc97` and publishes commit
-`69df44da`. 15 files modified, 532 insertions, 529 deletions. The mapping:
-`println!(...)` → `tracing::info!(...)`, `println!("Warning: ...")` /
-`eprintln!(...)` → `tracing::warn!(...)`, `println!()` (blank line) →
-`tracing::info!("")`. Test-region `println!` calls are left untouched.
-
-Verified on the clean lane: format, check, clippy (`-D warnings`), nextest
-(435/435 passed), doctests (4 passed, 2 ignored), and rustdoc all pass.
-The `cfd-validation/src/` `print_dbg` count drops from 165 to 0 on the
-clean lane.
-
-Published as PR
-[#366](https://github.com/ryancinsight/CFDrs/pull/366) at exact head
-`69df44dab792ff13f2c829a40fca9321a28e5faa`. Hosted checks are the
-acceptance oracle; merge only at the exact PR head after terminal required
-checks. The dirty primary CFDrs checkout and Atlas gitlink remain
-unchanged.
-
-- **Hosted hold (2026-08-21):** PR #366 is `MERGEABLE` but `UNSTABLE`; the
-  Rust workspace gate (run `32526664488`) and Check book figures SSOT
-  remain `queued` after 23 minutes of observation. CodeRabbit passed;
-  `recurseml/analysis` is errored (report-only). No runner has picked up a
-  job. No merge is authorized; re-open on terminal required checks.
-- **Format-gate failure diagnosed and rebased (2026-08-23):** the hosted
-  Rust workspace gate failed only on the Format step — diffs in
-  `cfd-2d/src/solvers/cell_tracking/tracker.rs` and `cfd-core/*` files
-  outside this PR's scope, i.e. base debt on `aa54f5cd` predating the
-  format-gate restoration merged at `a70faea6`. The lane was rebased onto
-  the current default  `c5f9fa2c`; the single conflict
-  (`venturi_cross_fidelity.rs`) resolved to main's structured
-  `tracing::warn!` because main already migrated that site and the PR's
-  plain `tracing::info!` would have regressed it. New head `3dd05e2c` (14
-  files, 531+/528-); lane gates pass (fmt, check, clippy `-D warnings`,
-  nextest 435/435). Fresh hosted CI is queued at the new head; merge only
-  after terminal required checks at `3dd05e2c`.
-- **Merged at the exact head (2026-08-23):** the hosted `Rust workspace
-  gate` and `Check book figures SSOT` runs at `3dd05e2c` both reached
-  terminal `success`; PR #366 merged at that exact head at `f5dd8955`.
-  Post-merge CI at merged default `51b77bad` is terminal (Rust workspace
-  gate + book figures SSOT); the CFDrs gitlink advances `c5f9fa2c` →
-  `51b77bad` (index-level pointer move; an initial `git add` capture of
-  the peer-dirty checkout head `a5a92bfc` was corrected at `271688f`).
-  Item closed.
-
-## ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21 — Migrate turbulence validation println! to tracing [patch] — closed
-
-The `cfd-2d` crate's turbulence validation modules have 60
-`println!`/`print!` calls in their `src/` tree — informational output,
-bench summaries, and warning/failure messages produced during turbulence
-model and constants validation. These direct stdout writes are `print_dbg`
-conformance debt. The crate already depends on `tracing` in its
-`Cargo.toml`.
-
-**Scope:** `crates/cfd-2d/src/physics/turbulence/validation/mod.rs`,
-`crates/cfd-2d/src/physics/turbulence/constants_validation/mod.rs`, and
-`crates/cfd-2d/src/physics/turbulence/constants_validation/sensitivity.rs`
-on a clean lane based on fetched `origin/main` `aa54f5cd`, plus root PM
-records. No new dependencies.
-
-**Acceptance:** all `println!`/`print!` in the three turbulence validation
-files (excluding test regions) are replaced with `tracing::info!`/
-`tracing::warn!`; the now-unused `#![allow(clippy::print_stdout)]` directives
-are removed; format, check, warning-denied Clippy, Nextest, doctests, and
-Rustdoc pass.
-
-**Implementation evidence (2026-08-21):** clean lane branch
-`fix/cfdrs-cfd2d-turbulence-tracing` is based on fetched `origin/main`
-`aa54f5cd` and publishes commit `66fb7566`. 3 files modified, 62 insertions,
-63 deletions. The mapping: `println!(...)` → `tracing::info!(...)`,
-`println!("⚠️ ...")` → `tracing::warn!(...)`, `println!()` (blank line) →
-`tracing::info!("")`. Three `#![allow(clippy::print_stdout)]` directives
-removed. Test-region code is untouched.
-
-Verified on the clean lane: `cargo fmt -p cfd-2d --check`, `cargo check
--p cfd-2d`, `cargo clippy -p cfd-2d --all-targets --all-features -- -D
-warnings`, `cargo nextest run -p cfd-2d --all-features` (590/590 passed, 27
-skipped), `cargo test --doc -p cfd-2d --all-features` (2 passed, 2
-ignored), and `cargo doc -p cfd-2d --no-deps --all-features` (no new
-warnings from changed files; the pre-existing `NetworkBlueprint` link error
-in `network/mod.rs` is unchanged). The turbulence validation `print_dbg`
-count drops from 60 to 0 on the clean lane.
-
-Published as PR
-[#367](https://github.com/ryancinsight/CFDrs/pull/367) at exact head
-`66fb7566102e110a5ea651a467d4e4abd59723a5`. Hosted checks are the
-acceptance oracle; merge only at the exact PR head after terminal required
-checks. The dirty primary CFDrs checkout and Atlas gitlink remain
-unchanged.
-
-- **Rebased onto the merged default (2026-08-23):** the lane had been
-  re-pointed to Stage B (`refactor/cfdrs-athena-solver-ssot`, since merged
-  and closed); restored the PR branch, restored the `Cargo.lock` overlay
-  drift, and rebased cleanly onto `c5f9fa2c` with no conflicts. New head
-  `302cba62` (3 files, 62+/63- unchanged); lane gates pass (fmt, check,
-  clippy `-D warnings`, nextest 590/590 with 27 skipped). Fresh hosted CI
-  is queued at the new head; merge only after terminal required checks at
-  `302cba62`.
-- **Merged at the exact head (2026-08-23):** the `Rust workspace gate`
-  and `Check book figures SSOT` at `302cba62` reached terminal
-  `success`; PR #367 merged into `51b77bad` (on top of the #366 merge).
-  Post-merge CI at `51b77bad` is terminal and the gitlink advance is
-  recorded under ATLAS-CFDRS-VALIDATION-TRACING (same closing commit).
-  Item closed.
-
 ## ATLAS-KWAVERS-PYTHON-GENERATOR-2026-08-21 — Add defaults and NumPy protocols [minor] — in progress
 
 - The generator now records PyO3 defaults and keyword-only markers, translates
@@ -1001,36 +320,6 @@ unchanged.
   tyche gitlink advances `7d636471` → `e5c6a39` (index-level pointer move;
   peer-dirty checkout untouched). Tyche's set of ATLAS-BOOK-FIGURE-CLOSURE
   is closed by this commit.
-
-## ATLAS-HOSTED-POSTMERGE-CONSUS-2026-08-21 — Verify Consus book-gate merge [patch] — closed
-
-- Consus PR [#53](https://github.com/ryancinsight/consus/pull/53) merged at
-  `2026-08-21T14:12:08Z` from exact head `39da4782780c032f587d406f9e32cd62d62f1557`
-  into provider `main` at merge commit
-  `5fc1443ecee71d90e5f80dd7df419636f1dda1c8`.
-- The PR was non-draft, `MERGEABLE`, and `CLEAN`; its repository CI and book
-  checks were terminal-successful. Fuzz and Pages deploy jobs were skipped by
-  their workflow conditions; the live Consus book probe was HTTP 200 before
-  merge.
-- Acceptance remains post-merge default-branch CI and Pages evidence at the
-  merged commit, followed by a fresh live-page probe. Atlas's nested Consus
-  gitlink remains unchanged until that evidence is terminal and the checkout
-  is safe to update around peer-owned dirt.
-- **Bounded monitor result:** default CI `32490857845`, Deploy mdBook
-  `32490858365`, and Pages `32490856819` remained queued at the ten-minute
-  bound. The merged commit is signature-verified and the live docs URL returns
-  HTTP 200, but its `Last-Modified` predates the merge, so content from the
-  merged commit is not verified. Re-open on terminal provider runs or a new
-  hosted state transition; no rerun or bypass was used.
-- **Closed (2026-08-23):** CI run `32490857845` was cancelled after ~27h by
-  the account-wide runner saturation (not a code failure); the Deploy mdBook,
-  Documentation, and Pages runs had already reached terminal success at the
-  merged commit. The cancelled run was rerun and reached terminal `success`:
-  the merged default `5fc1443e` now shows all required checks green (Check
-  and Test matrices across the crates, Format, MSRV, fuzz build, Deploy/Build
-  book, Pages). The live Consus book probe returns HTTP 200. The Atlas consus
-  gitlink advances `ebc4979` → `5fc1443` (index-level pointer move;
-  peer-dirty checkout untouched).
 
 ## ATLAS-CFDRS-PYTHON-GIL-2026-08-21 — Complete PyO3 solver GIL boundaries [minor] — in progress
 
@@ -1341,58 +630,6 @@ unchanged.
   example/test/bench files under `-D warnings --all-targets` — a ratchet-scale
   burn-down filed below as its own item.
 
-## ATLAS-KWAVERS-ARCH-GATE-2026-08-23 — Repair the repo-wide architecture gate [major] — closed
-
-The Kwavers `Validate Clean Architecture` job fails on every open PR and has
-no terminal-passing run at any recent default (post-merge runs cancelled).
-Local reproduction at lane head `d1281f990`: workspace `print_stdout = warn`
-is promoted to deny by `-D warnings` across `--all-targets`, producing ~2,850
-errors over 103 example/test/bench files whose stdout output is their
-deliverable. This blocks hosted verification for every Kwavers PR.
-
-**Scope:** the architecture-validation workflow's lint scoping plus a
-file-class exemption strategy per the lint doctrine (examples/tests/benches
-are programs; stdout is legitimate there; library targets keep the floor).
-No mass `#![allow]` sweep and no weakening of library-target coverage.
-**Acceptance:** one terminal-success architecture run at an exact provider
-default; no increase in any other conformance class; the job then gates all
-open PRs meaningfully.
-
-**Implementation (2026-08-23, PR
-[#611](https://github.com/ryancinsight/kwavers/pull/611) at head on branch
-`fix/kwavers-arch-gate-scoping`, based on default `ca5c9c93`):** strict step
-split — kwavers-core all-targets and kwavers lib/bins keep full `-D
-warnings`; the kwavers all-targets pass denies everything except seven
-documented classes (print output; fixture pedantic doc/style debt at ADR
-116's warn ratchet). The scoped gate then exposed seven real floor
-violations, fixed properly: smoke-binary println behind a reasoned
-`#[expect]`; three reasonless `#[ignore]`s; one ignored unit pattern; two
-unnecessary literal lifetime bounds; three `from_iter` → `.collect()`.
-Local evidence: lib targets clean under full `-D warnings`; scoped
-all-targets pass clean; touched tests 20/20; fmt clean. Hosted runs queued.
-
-**Additional implementation (2026-08-23, second head `568132cf7`):** the
-first hosted gate still failed: the ratchet step lints pinn-gated benches
-under workspace-level `trivially_copy_pass_by_ref = deny`, which the strict
-step's program-target allowances only covered under `full`. Fixed properly
-per the item's own floor-violation doctrine — `adaptive_sampling_opt` and
-`pinn_elastic_2d_training` benches pass the ZST `Backend` by value (`&Backend`
-→ `Backend`), re-borrowing at the `Tensor::from_slice_on` API calls. The
-exact failing hosted command (`cargo clippy -p kwavers --all-targets
---features full,pinn`) goes clean locally; the pinn test failure
-(`test_validation_result_construction`) reproduces on the pristine head and
-is pre-existing, not introduced by the fix.
-
-**Merged (2026-08-23) at `d13648b9`:** the fresh suite at `568132cf7` reached
-the required terminal green (arch gate success, book build success on rerun —
-the first failure was the known cold-cache timeout, also seen on unrelated
-head `83b29c3c` book pass), and PR #611 merged. Post-merge default CI at
-`d13648b9` is fully terminal (26/26 checks: `Validate Clean Architecture`
-success, book Build/Deploy success, all matrices green). The Atlas kwavers
-gitlink advances `49d80a4` → `d13648b9` (index-level pointer move;
-peer-dirty checkout untouched). The queue that was blocked on the arch gate
-now recomputes against the fixed default.
-
 ## ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21 — Record release gates [patch] — in progress
 
 Tyche PR #35 documents the completed release/package verification slice. The
@@ -1412,196 +649,6 @@ cleared — `7d6364716f` has terminal `CI` and `pages-build-deployment` runs at
 the exact head, and the live site returns HTTP 200 with title `Tyche | tyche`.
 The Atlas gitlink advances to `7d6364716f`; `recurseml/analysis` remains
 report-only.
-
-## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — Verify tableau convergence `verification` `patch` — done
-
-Horae's tableaus declare formal orders, but its existing embedded-pair test
-only verifies error-estimate scaling. That does not establish convergence of
-the integrated solution. This slice adds an input-sensitive refinement study
-against the closed-form solution of `y' = y` for Euler, Midpoint, RK4, and
-Dormand–Prince.
-
-**Scope:** Horae `tests/` on a clean lane based on fetched `origin/main`, plus
-provider/root PM records. Non-goals are tableau/API changes, stability claims,
-implicit integration, and the dirty detached primary checkout.
-
-**Acceptance:** the closed-form refinement study classifies the measured
-`log2(e(h)/e(h/2))` by its nearest declared order with no tunable decimal
-tolerance; f64 covers Euler, Midpoint, RK4, and Dormand–Prince, while f32
-covers the non-embedded tableaus at a range with a resolvable truncation
-signal and retains the existing embedded execution coverage. Format, locked
-checks, warning-denied Clippy, Nextest, doctests, and Rustdoc pass; the
-provider H-ORDER item is synchronized.
-
-**Owner:** current Atlas session. **Claimed files:** Horae test modules and
-provider/root PM records on a new clean lane; the dirty primary remains
-untouched.
-
-**Implementation evidence (2026-08-20):** clean lane branch
-`fix/horae-order-oracle` is based on fetched `origin/main` `a05dbeb` and
-publishes `5df51ad` (test) and `0f7d580` (delivery record). The test
-integrates the closed-form `y' = y` from zero to one at dyadic step counts
-and classifies the measured `log2(e(h)/e(h/2))` by its nearest declared order
-— Euler 1, Midpoint 2, RK4 4, Dormand–Prince 5 — with no tunable tolerance;
-f32 covers the non-embedded tableaus at a coarser range where their
-truncation signal clears the rounding floor. The RK4 output-weight mutation
-control fails the f64 oracle and is restored.
-
-**Verification (2026-08-20):** format, locked all-target check, warning-
-denied Clippy, all-feature Nextest 25/25, doctests 1/1, and warning-denied
-Rustdoc pass at the exact lane revision with the committed lock. The locked
-no-default-features check, Clippy, Nextest 25/25, doctests 1/1, and Rustdoc
-also pass. The Atlas gitlink is not advanced: hosted terminal gates are still
-required.
-
-The implementation is published as PR
-[#25](https://github.com/ryancinsight/horae/pull/25) at exact head
-`0f7d58014ef9200e1a83febb13f7fc43a08edee3`, based on merged default
-`d014929f0f2afe0284ac786bec43ecb880e1e7e5`. PR #25 is merged; post-merge CI
-run `32441333101` passes at default `d133226725fed76f3cdbec7df30b0df693d01808`.
-Pages ran to completion: default CI passes and pages-build-deployment
-succeeds at the post-order-oracle default; the horae gitlink is advanced
-through this item's default to `9d783479` and the live site returns HTTP
-200. Item closed.
-
-## ATLAS-HORAE-STAGE-TIME-ORACLE-2026-08-21 — Verify non-autonomous tableau stages `verification` `patch` — done
-
-- **Finding:** the autonomous H-ORDER-001 fixture ignores `Instant<T>`, so a
-  regression in a tableau's stage-time coefficients can pass its convergence
-  oracle. The finding is confirmed against the merged Horae PR #25 review.
-- **Scope:** Horae's fixed-step test and provider PM records on the reused
-  clean lane `fix/horae-stage-time-oracle`; no tableau/API or dirty-primary
-  changes.
-- **Acceptance:** exercise the real stepping path with the exact solution of
-  `y' = t + y`, `y(0) = 1`, whose endpoint at one is `2e - 2`; classify Euler,
-  Midpoint, RK4, and Dormand–Prince by their declared orders without a
-  tunable decimal tolerance; pass provider format, locked warning-denied
-  Clippy, Nextest, doctest, and Rustdoc gates; then collect hosted terminal
-  CI/Pages and live-page evidence before advancing the Atlas gitlink.
-- **Current evidence:** the new generic f64 oracle and the existing five
-  fixed-step tests pass 6/6; the locked all-featured provider suite passes
-  26/26; the no-default-features check, warning-denied all-target Clippy,
-  doctest 1/1, and warning-denied Rustdoc pass. PR
-  [#26](https://github.com/ryancinsight/horae/pull/26) merged at `abe42e5d`;
-  PR #26's own CI is green at the merge default (earlier session run). The
-  Atlas pointer is now at `9d783479` (which contains `abe42e5d` in its
-  ancestry); CI and pages-build-deployment both succeed at that head and
-  the live site returns HTTP 200. Item closed.
-
-## ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20 — Clarify source oracle [patch] — done
-
-The merged Hyperion source-oracle implementation is complete at provider
-default `4df62f6` and is already recorded by
-`ATLAS-HYPERION-CHROMOPHORE-SOURCE-ORACLE-2026-08-20`. A subsequent audit
-identified a documentation/test-evidence hardening increment: make the OMLC
-table-column locator explicit in every affected document and state that the
-independent fixture is not derived from production slices.
-
-**Scope:** Hyperion source/docs/ADR and provider PM records on clean branch
-`fix/hyperion-chromophore-source-oracle`; no Atlas gitlink advance and no
-changes to the dirty primary checkout. This is a follow-up hardening item, not
-a reopened implementation defect.
-
-**Evidence:** branch base `4df62f63eac2683de2983674a4555a32cfc6b9d5`, head
-`87a17439cb40aef965941480a0b07dee7d3a3c67`, exact compare two commits ahead
-with eight intended files. All-feature and no-default locked checks, Clippy,
-Nextest 23/23, doctests 1/1, and warning-denied Rustdoc pass in both modes; a
-temporary source-knot mutation fails the source oracle and was restored.
-
-The hardening is published as PR
-[#23](https://github.com/ryancinsight/hyperion/pull/23) at exact head
-`87a17439cb40aef965941480a0b07dee7d3a3c67`, based on merged default
-`91df53e9b0c95a52040f9a8dca2324f05ac168a0`. PR #23 is merged; post-merge CI
-run `32442891996` passes at default `3bc0e43d7c818ffab7092bde2d11d1750e59009c`.
-Deploy mdBook and Pages are terminal: at the advanced Atlas gitlink
-`1e251cb0` (which contains `3bc0e43d` in its ancestry), CI and
-pages-build-deployment both succeed and the live site returns HTTP 200.
-The merged clean lane and its local branch were removed after the PR merge;
-the dirty primary checkout remains untouched. Item closed.
-
-**Owner:** current Atlas session. **Claimed files:** provider hardening branch
-and PM records only.
-
-## ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20 — Assert stack construction [patch] — done
-
-The Leto `from_stack_validates_capacity` test asserts only `is_ok()` and
-`is_err()` for the two `Array::from_stack` paths. These are existence-only
-assertions: the test does not prove the returned array or the typed failure
-contract.
-
-**Scope:** Leto `crates/leto/tests/core/stack_storage.rs` on a clean lane
-based on fetched `origin/main`, plus provider PM records and these root PM
-entries. Replace both existence assertions with value-semantic checks for the
-constructed array and typed failure. Do not touch the dirty primary checkout
-or unrelated Leto files.
-
-**Acceptance:** the valid result is consumed without a vacuous assertion and
-checks shape, size, and nonuniform inline values; the invalid result matches
-the typed `LetoError::StorageError` reason; provider format, locked checks,
-warning-denied Clippy, Nextest, doctests, and Rustdoc pass; the conformance
-scan removes both existence-only findings without increasing another class.
-
-**Owner:** current Atlas session. **Claimed files:** Leto
-`crates/leto/tests/core/stack_storage.rs` in a new clean lane, provider PM
-records for this item, and root `backlog.md`/`checklist.md`.
-
-**Implementation evidence (2026-08-20):** clean lane branch
-`fix/leto-stack-storage-oracle` is based on fetched `origin/main` `c1c8ab2`
-and publishes `b682cd8` (test) and `e07ee64` (delivery record). Format, locked
-all-target check, warning-denied Clippy, focused Nextest (`1/1`), full
-Nextest (`984/984`), doctests, and Rustdoc complete. The conformance scan
-reports `existence_only_assertions: 7` versus `9` on the fetched default, with
-every other class unchanged. A temporary valid-shape rejection mutation
-fails the focused test.
-
-The implementation is published as PR
-[#120](https://github.com/ryancinsight/leto/pull/120) at exact head
-`e07ee6417372b368a30e5991f9fbe765ec2a41ef`, based on merged default
-`c1c8ab234559a9f58a34d65c32f6096ee69fc012`. PR #120 is merged; post-merge CI
-run `32441333581` passes at default `fc0648ee90d211ce8bb065ff023404483f49041b`.
-Pages applied: default CI and pages-build-deployment both succeed at the
-post-merge default and the Atlas gitlink is advanced to `fc0648ee` with
-CI + Pages green at that head; the live site returns HTTP 200. Item closed.
-
-## ATLAS-IRIS-NAMED-MAP-2026-08-20 — Prove the complete Iris map set [patch] — done
-
-Iris's `NamedColorMap::ALL` is a manually maintained 14-entry array, and its
-integration law tests iterate only that array. A newly added enum variant can
-therefore compile while remaining absent from the sampled set. The enum is
-`#[non_exhaustive]`, so the completeness match must be inside the Iris crate;
-an external integration test cannot legally be exhaustive.
-
-**Scope:** Iris `src/color/map/named.rs` and its provider test target, on a
-clean lane based on fetched `origin/main`. Do not touch the peer-owned Iris
-primary checkout's Cargo.lock, book, backlog, checklist, or audit files.
-
-**Acceptance:** an in-crate exhaustive match names every current variant;
-the test detects an omitted or duplicated `ALL` entry; the provider's focused
-and full gates pass; the provider change is published for review; Atlas records
-the exact provider head without advancing the dirty primary gitlink.
-
-**Owner:** current Atlas session. **Claimed files:** Iris
-`src/color/map/named.rs` and provider tests in the clean lane
-`worktrees/iris-named-map-all`; root `backlog.md` and `checklist.md`.
-
-**Implementation:** provider commit `0d18109` adds an exhaustive in-crate
-variant-index match and a value-semantic test that rejects omitted or
-duplicated `NamedColorMap::ALL` entries. The branch is published as
-`fix/iris-named-map-all` from base `9672fc0`.
-
-**Verification:** exact-lane locked all-target check, warning-denied Clippy,
-format, and rustdoc pass; nextest passes 18/18 and doctests pass 3/3. Mutation
-controls fail as required: removing `Turbo` fails the fixed array contract,
-and duplicating `Magma` fails with `NamedColorMap::ALL repeats Magma`.
-
-The implementation is published as PR
-[#18](https://github.com/ryancinsight/iris/pull/18) at exact head
-`0d18109d4975f4220068bc631c433958bcaa4ed6`, based on merged default
-`8700418ab91781523d5ed848db93271d24382ea7`. PR CI passed at run
-`32436073388`; PR #18 is merged. Post-merge default CI passed at
-`636a261377ce6a54549ea4cea0520537f9646c71` in run `32442164809`; Pages applied: the Atlas gitlink is advanced to `2f11a513` (the post-PR
-snapshot); CI, Deploy mdBook, and pages-build-deployment all succeed at
-that head and the live site returns HTTP 200. Item closed.
 
 ## ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20 — Add an independent Coeus gradient oracle [patch] — in progress
 
@@ -10566,42 +9613,6 @@ and dirt parking rather than work. The three large ones (1, 9, 10) look like rea
 migration work and want their author.
 
 - **ATLAS-FWI-PSTD-BLI-106** Extend the PSTD projections to band-limited stencils [minor] (2026-08-23; kwavers PR #612, merge `f98acb01b`) — `f6cc385d8`, `f98acb01b`
-## ATLAS-KWAVERS-STALE-TREE-107 — reconcile the kwavers stale checkout and stranded WIP [patch] (2026-08-23) — closed
-
-The kwavers main tree sat on a detached HEAD 453 commits behind `origin/main`,
-carrying 674 files of uncommitted content (a Phase-1 PyO3 run()-decomposition
-that PR #611 landed upstream in a different shape) plus five stashes, an
-embedded `.tmp-wt-*` scratch-checkout quartet, and an embedded
-`worktrees/kwavers-swerecon` clone holding uncommitted SWE volumetric work.
-
-**Disposition (rescue-first, nothing unique destroyed).**
-- Phase-1 slice dirt: rescue-committed verbatim to kwavers
-  `rescue/phase1-slice-wip` (`145e8aaf8`); superseded by the merged
-  concurrent-PyO3 surface (`ca5c9c932`), kept for salvage diffing only.
-- SWE volumetric WIP: rescue-committed inside the swerecon lane and pushed as
-  `origin/rescue/swe-volumetric-wip` (`c899c429f`); base `377a98c86` is merged
-  upstream. Awaiting an author decision on whether the volumetric changes are
-  still wanted.
-- The four `.tmp-wt-*` trees and the embedded `worktrees/` clone were deleted
-  after confirming every commit they contained exists on an origin branch.
-
-**Coeus sweep (2026-08-23, same class).** HEAD was current; the dirt was an
-evolved autodiff computation-graph-cache WIP mixed with hunks reverting landed
-shape-correct multi-margin/multi-label gather fixes. Salvage-committed verbatim
-to `rescue/coeus-cache-wip` (`c8a213f0`, pushed); the cache layer completed,
-verified, and merged as Coeus PR #342 (`fac64780`, merge `c2f938c0`) with the
-loss-revert hunks excluded. Unported residue kept only on the rescue branch:
-docs/backlog, docs/checklist, docs/gap_audit, CHECKLIST deltas (~613 lines of
-process notes) — port-or-drop decision parked with their author.
-ATLAS-ADR-UNTRACKED-105 correction: coeus ADR 0066 is already tracked on main
-with Status: Accepted; that member's gap is closed upstream.
-
-The stash-triage question from the prior sweep is unaffected by this item;
-the named stashes remain parked for their author (kwavers 5, coeus 6).
-
-
-- **ATLAS-ADR-UNTRACKED-105** completed ADRs left untracked [patch] (2026-08-23 closed) — kwavers 112 landed via PR #418; coeus 0066 found already tracked on main (Status: Accepted); hephaestus 0052 + index row delivered from the stranded `codex/hephaestus-fdtd-107` branch via PR #215 (merge `03cadd7`; decomposition suite 41/41, clippy/fmt clean). ADR 0052 remains honestly Proposed — the sliding-window seam is not built. All three members now present in a fresh clone.
-
 ## ATLAS-ADR-UNTRACKED-105 — completed ADRs left untracked [patch] — in progress 2026-08-19 (kwavers closed; coeus + hephaestus open)
 
 `kwavers/docs/adr/112-convex-array-rasterizer-seam.md` is complete (110 lines,
@@ -10756,6 +9767,41 @@ first-party deps through the 0.9→0.10 API surface.
 
 Re-open triggers: CFDrs PR #360 verdict [collected]; author decisions on the rescue
 branches; moirai re-check after its live peer's commit lands.
+
+## ATLAS-LINT-CALIB - Calibrate the board-reference lint to corpus conventions [pm-hygiene] [patch] [S]
+
+- Outcome: `scripts/atlas-board-lint.py` fails loudly on references that
+  matter without burying them under archive noise.
+- Measured + triaged 2026-08-24. 565 mentions / 329 unique ids in
+  live-item prose, classified by containing item:
+  CROSS-MEMBER-SWEEP-108 inventory 230, MULTIPHYSICS-ADOPTION-100 101,
+  GPU-ACQUISITION-POINTER-ADVANCE 91, remaining sweeps/books <60 total.
+  Verdict: ~95 percent are scan-inventory listings inside active sweep
+  items - data, not broken pointers - and those blocks leave the lint's
+  scope when the sweeps close. Zero actionable file-it/fix-ref cases.
+- Also fixed en route: ATLAS-KWAVERS-STALE-TREE-107 recorded twice with
+  identical bodies; second block removed (34 lines), ids unique again.
+- Diagnostic note for posterity: two rounds chased "U+FFFD mojibake" that
+  did not exist in the files - it was terminal codepage rendering of em
+  dashes inside python repr output. Verify suspected encoding damage with
+  a character count in python, never by console appearance.
+- Disposition: reference findings stay report-only by design while
+  sweep-style inventory items are a living pattern; the duplicate-id gate
+  stays hard. Revisit enforcing mode only if a non-inventory dangling ref
+  class appears.
+- Status: done (2026-08-24)
+
+
+## ATLAS-CFDRS-STALE-EXAMPLE-PAGES-001 - Book example pages for deleted examples [docs] [patch] [S]
+
+- Outcome: docs/book/example pages reference sources that exist and run.
+- Found 2026-08-24: the strict pre-commit dead-link gate flags
+  cfd_demo.md and matrix_free_demo.md linking
+  ../../../examples/{cfd,matrix_free}_demo.rs - both .rs files no longer
+  exist, so their Run commands fail too. Pages carry generated-figure
+  markers, so the fix belongs in the generating pipeline (skip examples
+  whose source file is absent), not in hand-edited markdown.
+- Status: todo
 
 ## Archive — closed items
 
@@ -11083,37 +10129,39 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-R6A-FILELIST-001** Per-submodule r6a commit file-list hygiene [patch] (2026-08-21) — `96ccc83`, `b7bb4bc5`, `5414f80`, `ec4e147b`
 
 
-## ATLAS-LINT-CALIB - Calibrate the board-reference lint to corpus conventions [pm-hygiene] [patch] [S]
-
-- Outcome: `scripts/atlas-board-lint.py` fails loudly on references that
-  matter without burying them under archive noise.
-- Measured + triaged 2026-08-24. 565 mentions / 329 unique ids in
-  live-item prose, classified by containing item:
-  CROSS-MEMBER-SWEEP-108 inventory 230, MULTIPHYSICS-ADOPTION-100 101,
-  GPU-ACQUISITION-POINTER-ADVANCE 91, remaining sweeps/books <60 total.
-  Verdict: ~95 percent are scan-inventory listings inside active sweep
-  items - data, not broken pointers - and those blocks leave the lint's
-  scope when the sweeps close. Zero actionable file-it/fix-ref cases.
-- Also fixed en route: ATLAS-KWAVERS-STALE-TREE-107 recorded twice with
-  identical bodies; second block removed (34 lines), ids unique again.
-- Diagnostic note for posterity: two rounds chased "U+FFFD mojibake" that
-  did not exist in the files - it was terminal codepage rendering of em
-  dashes inside python repr output. Verify suspected encoding damage with
-  a character count in python, never by console appearance.
-- Disposition: reference findings stay report-only by design while
-  sweep-style inventory items are a living pattern; the duplicate-id gate
-  stays hard. Revisit enforcing mode only if a non-inventory dangling ref
-  class appears.
-- Status: done (2026-08-24)
+- **ATLAS-OVERLAY-LOCK-GUARD-2026-08-23** the overlay strips lockfiles and nothing local catches it [major] (2026-08-24) — `9effe25a7`, `5406691fe`, `dabc779d9`, `e3d7eaf29`
+- **ATLAS-KWAVERS-PIN-SWEEP-2026-08-22** advance Kwavers onto the merged stack [patch] (2026-08-23) — `5adc2d16`, `2d6f08ab`, `befb8e5`, `5108ed0082fc`
+- **ATLAS-KWAVERS-STUBORACLE-2026-08-22** Real energy/reciprocity oracles + existence-only burn-down [patch] (2026-08-24) — `377a98c8`, `352b4dc7b4c9d2959ae53cb57eba1796c6ca51b8`, `377a98c86`, `d13648b9`
+- **ATLAS-KWAVERS-IGNOREDORACLE-2026-08-22** Re-homed the 46 ignored oracles per group [minor] (2026-08-24) — `377a98c8`, `443421028fa86cbeab4cf6632ee9b22902534384`, `377a98c86`, `d13648b9`
+- **ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24** merged-default advance held on the ratchet re-run [patch] (2026-08-24) — `f910f70b`, `f97a3a0b0`, `c7521f73`, `f05c3ca5`
+- **ATLAS-KWAVERS-DENYDOCS-2026-08-22** Missing-docs floor on the three smallest crates [minor] (2026-08-24) — `aa5ab2bc9`, `489554d3b`, `67b4099cd`, `377a98c86`
+- **ATLAS-GPU-ACQUISITION-2026-08-21** Coeus GPU suite restored, Hephaestus diagnostics [patch] (2026-08-21) — `2d6f08ab`, `655091d`
+- **ATLAS-HEPHAESTUS-BOOK-REGROUND-2026-08-21** rebase the stale book-reground PR [patch] (2026-08-24) — `7e09efa9`, `7b6da5a`, `42e2787`, `8728cf3d`
+- **ATLAS-CFDRS-VALIDATION-TRACING-2026-08-21** Migrate println! to tracing [patch] (2026-08-23) — `aa54f5cd`, `aa54f5cdcdc4e406df0c60ea6c3cb507e968fc97`, `69df44da`, `69df44dab792ff13f2c829a40fca9321a28e5faa`
+- **ATLAS-CFDRS-CFD2D-TURBULENCE-TRACING-2026-08-21** Migrate turbulence validation println! to tracing [patch] (2026-08-23) — `aa54f5cd`, `66fb7566`, `66fb7566102e110a5ea651a467d4e4abd59723a5`, `c5f9fa2c`
+- **ATLAS-HOSTED-POSTMERGE-CONSUS-2026-08-21** Verify Consus book-gate merge [patch] (2026-08-23) — `39da4782780c032f587d406f9e32cd62d62f1557`, `5fc1443ecee71d90e5f80dd7df419636f1dda1c8`, `5fc1443e`, `ebc4979`
+- **ATLAS-KWAVERS-ARCH-GATE-2026-08-23** Repair the repo-wide architecture gate [major] (2026-08-23) — `d1281f990`, `ca5c9c93`, `568132cf7`, `d13648b9`
+- **ATLAS-HORAE-ORDER-ORACLE-2026-08-20** Verify tableau convergence `verification` `patch` (2026-08-20) — `a05dbeb`, `5df51ad`, `0f7d580`, `0f7d58014ef9200e1a83febb13f7fc43a08edee3`
+- **ATLAS-HORAE-STAGE-TIME-ORACLE-2026-08-21** Verify non-autonomous tableau stages `verification` `patch` (2026-08-21) — `abe42e5d`, `9d783479`
+- **ATLAS-HYPERION-CHROMOPHORE-EVIDENCE-HARDENING-2026-08-20** Clarify source oracle [patch] (2026-08-20) — `4df62f6`, `4df62f63eac2683de2983674a4555a32cfc6b9d5`, `87a17439cb40aef965941480a0b07dee7d3a3c67`, `91df53e9b0c95a52040f9a8dca2324f05ac168a0`
+- **ATLAS-LETO-STACK-STORAGE-ORACLE-2026-08-20** Assert stack construction [patch] (2026-08-20) — `c1c8ab2`, `b682cd8`, `e07ee64`, `e07ee6417372b368a30e5991f9fbe765ec2a41ef`
+- **ATLAS-IRIS-NAMED-MAP-2026-08-20** Prove the complete Iris map set [patch] (2026-08-20) — `0d18109`, `9672fc0`, `0d18109d4975f4220068bc631c433958bcaa4ed6`, `8700418ab91781523d5ed848db93271d24382ea7`
+- **ATLAS-KWAVERS-STALE-TREE-107** reconcile the kwavers stale checkout and stranded WIP [patch] (2026-08-23) (2026-08-23) — `145e8aaf8`, `ca5c9c932`, `c899c429f`, `377a98c86`
 
 
-## ATLAS-CFDRS-STALE-EXAMPLE-PAGES-001 - Book example pages for deleted examples [docs] [patch] [S]
+## ATLAS-BOARD-CLOSURE-CANON-001 - Canonicalize historical closure markers [pm-hygiene] [patch] [M]
 
-- Outcome: docs/book/example pages reference sources that exist and run.
-- Found 2026-08-24: the strict pre-commit dead-link gate flags
-  cfd_demo.md and matrix_free_demo.md linking
-  ../../../examples/{cfd,matrix_free}_demo.rs - both .rs files no longer
-  exist, so their Run commands fail too. Pages carry generated-figure
-  markers, so the fix belongs in the generating pipeline (skip examples
-  whose source file is absent), not in hand-edited markdown.
+- Outcome: every closed item carries the one canonical heading marker so
+  atlas-board-compact.py archives at full power and
+  atlas-board-lint.py's reference scope stays accurate.
+- Measured 2026-08-24: compact dry-run archived only 18 of 236 backlog
+  items (8 percent) because closure markers vary by era - heading
+  "- closed DATE", body Status lines, checkmark bullets, unmarked.
+  Full-power archival would collapse thousands of archive-prose lines;
+  today they remain live-scope and feed the 323 reference mentions the
+  lint reports.
+- Scope: pick the canonical form (heading `- closed YYYY-MM-DD`);
+  script a reviewed one-pass normalization; rerun compaction; then flip
+  ATLAS-LINT-CALIB's reference report toward enforcing for items that
+  stay live after normalization.
 - Status: todo

@@ -266,43 +266,6 @@
       baseline. Local branch `build/kwavers-attenuation-gitlink`
       deleted.
 
-## HEPH-BOOK-REGROUND-1 — rebase the stale book-reground PR [patch] — closed 2026-08-24
-
-- [x] Confirm the conflict: hephaestus PR
-      [#216](https://github.com/ryancinsight/hephaestus/pull/216)
-      (docs: Reground accelerator book) was CONFLICTING against
-      `origin/master` `7b6da5a` (the lock-guard merge). The lane
-      `worktrees/hephaestus-book-reground-1` was 3 commits ahead of
-      the PR base, 7 commits behind `origin/master`.
-- [x] Rebase `fix/hephaestus-book-reground-1` onto `origin/master`
-      (CHANGELOG.md conflict resolved: combined the book-reground
-      Unreleased entry with the WGPU device-acquisition diagnostic
-      entry from PR #217 — both patch-level, complementary).
-- [x] Refresh `Cargo.lock` outside the overlay with
-      `python scripts/lockfile.py --regenerate`; 33 first-party git
-      sources present, `cargo check --locked` passes (the lane
-      itself is inside the atlas overlay so the in-tree
-      `--locked` check sees the overlay patches and the lockfile is
-      validated by the script's own external cargo invocation).
-- [x] Commit `8728cf3` (lockfile refresh, 71+/70-).
-- [x] Force-push with `--force-with-lease`; PR head advanced
-      `42e2787` → `8728cf3`; mergeable flipped to `MERGEABLE`.
-      CI re-queued (7 pending, 2 skipping).
-- [x] Collect hosted terminal checks (CUDA 6m24s, ROCm 6m10s,
-      WGPU 7m9s, Metal 7m10s, Lockfile integrity 27s, Build book
-      1m4s, CodeRabbit pass; hardware jobs skip); merge at exact
-      head `8728cf3d`. Atlas gitlink advanced to `79f1aa728d`.
-- [x] Proteus found in the same failure class: committed Cargo.lock had
-      every git source stripped (aequitas/eunomia are git deps) and CI
-      was failing with the --locked mismatch on every run. Lane
-      `worktrees/proteus-lock-guard` regenerates the lock outside the
-      overlay (2 first-party git sources restored, pins aequitas@dc4bdef),
-      adds the same four-file guard promotion, commit `734612e`.
-- [x] Push and open proteus
-      [PR #18](https://github.com/ryancinsight/proteus/pull/18) at head
-      `734612e`.
-- [ ] Merge proteus PR #18 and advance the proteus gitlink.
-
 ## ATLAS-FMT-CHECK-PARSER-2026-08-21 — current session
 
 - [x] Identify that `scripts/atlas-fmt-check.py` had no focused test
@@ -7177,6 +7140,17 @@ No repository other than CFDrs and Kwavers imports that family.
       hephaestus debt classes match the pre-advance worktree state. No new
       debt class introduced.
 
+## ATLAS-BASELINE-REFRESH-2026-08-24 - gitlink drift reconciliation verdict - closed
+
+- Verified 2026-08-24: all member pointers match their checked-out
+  trees at origin heads (12 MATCH; hephaestus master 7b6da5a included in
+  peer batch ff742cff5; kwavers excluded - active stream, 28 behind with
+  local WIP). Drift had shrunk 25 to 13 to zero-actionable across the
+  session purely via the peer fleet's continuous sweep cadence. No
+  commit required; residual M markers are submodule-internal untracked
+  files, not pointer deltas. Standing rule going forward: spot-check
+  drift before large batches, but the peer sweep owns this cadence.
+
 ## Archive — closed checklists
 
 Closed items, one line each. Full prose is in git history; commit SHAs below are the entry points.
@@ -7314,13 +7288,4 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   `origin/main` `aafb320`); clean-checkout and six lane residuals are recorded
   as peer-owned and untouched.
 
-## ATLAS-BASELINE-REFRESH-2026-08-24 - gitlink drift reconciliation verdict - closed
-
-- Verified 2026-08-24: all member pointers match their checked-out
-  trees at origin heads (12 MATCH; hephaestus master 7b6da5a included in
-  peer batch ff742cff5; kwavers excluded - active stream, 28 behind with
-  local WIP). Drift had shrunk 25 to 13 to zero-actionable across the
-  session purely via the peer fleet's continuous sweep cadence. No
-  commit required; residual M markers are submodule-internal untracked
-  files, not pointer deltas. Standing rule going forward: spot-check
-  drift before large batches, but the peer sweep owns this cadence.
+- **HEPH-BOOK-REGROUND-1** rebase the stale book-reground PR [patch] (2026-08-24) — `7b6da5a`, `8728cf3`, `42e2787`, `8728cf3d`
