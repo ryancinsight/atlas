@@ -7309,3 +7309,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   as peer-owned and untouched.
 
 - **HEPH-BOOK-REGROUND-1** rebase the stale book-reground PR [patch] (2026-08-24) — `7b6da5a`, `8728cf3`, `42e2787`, `8728cf3d`
+
+
+- **ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24** fix the strict-mode FILE_MISSING in CFDrs docs [patch] (2026-08-24) — `170f0095`, `a30c9820`, `0b2da716`, `3898b962`, atlas `04df6bad3`
+  - Created `crates/cfd-core/examples/cfd_demo.rs` (70 lines) and `crates/cfd-math/examples/matrix_free_demo.rs` (133 lines) to back the two real broken links in CFDrs/docs/book.
+  - Rewrote both chapters around the actual substrate APIs (csr_math::linear_solver::krylov::cg, leto_ops::CsrMatrix, the cfd-core primitives) and corrected the chapters' crate attribution / run command.
+  - Lifted an identity-op pattern in `cfd-2d/src/solvers/lbm/streaming.rs:183` (a clippy regression from `cc66f836`) so the hosted `Rust workspace gate` stays green.
+  - Hosted PR #370 terminal: Rust workspace gate 15m17s, Check book figures SSOT 1m47s, Build book 4m3s, CodeRabbit pass; `recurseml/analysis` is the always-failing external report.
+  - Atlas strict-mode pre-commit (147588599) now reports FILE_MISSING: 0 across every book.
