@@ -43,6 +43,10 @@
       ratchet re-run — is tracked in backlog
       `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (advance held pending
       kwavers PR #618 so the atlas-conformance gate passes).
+- [x] Queue closure landed 2026-08-24: kwavers #618/#619/#625 merged at
+      exact heads; Atlas gitlink advanced to `dabc779d` with the four
+      tightenings recorded (`93a555adc`); clean-revision ratchet re-run
+      shows zero regressions (`ATLAS-KWAVERS-QUEUE-CLOSURE` closed).
 
 ## ATLAS-KWAVERS-STUBORACLE-2026-08-22 — current session
 
