@@ -10363,14 +10363,13 @@ Liveness-measured sweep of all 28 member checkouts. Findings:
   verbatim and pushed to `rescue/pm-sweep-20260820` per member; working
   trees restored clean at their prior heads. Port-or-drop parked with
   their author.
-- **leoneuro-rs**: RESOLVED 2026-08-23. The series was not the problem —
-  it FIXES the default branch's redness (stale `coeus/coeus-*` paths left
-  the workspace unresolvable; round-6a path resolution corrects them).
-  Merged `codex/sim-ct-medium` into `codex/private-atlas-migration`
-  (`0c268b4`); leoneuro-field builds, 63/63 tests pass. The 27 remaining
-  workspace errors are pre-existing ATLAS-MODALITY-002 Quantity-typed
-  construction debt in leoneuro-transducer — same count before and after
-  the merge — filed as its own port increment.
+- **A downstream private consumer**: RESOLVED 2026-08-23. The stranded
+  series was not the problem — it FIXES the default branch's redness (stale
+  first-party path deps left the workspace unresolvable). Series merged to
+  the consumer's default and the follow-up typed-quantity port delivered via
+  its PR #7 (`3439842`): MODALITY-002 debt discharged, 27 errors to zero,
+  nextest 525 passed on the stack toolchain, fmt/clippy clean. Named per
+  ATLAS-PRIVACY-NAMING-1 only in that org's own tracker, not here.
 - Clean but stale checkouts (behind origin, no dirt): apollo, consus,
   eunomia, gaia, harmonia, horae, hyperion, melinoe, ritk, themis, tyche,
   athena — fast-forward at next touch of each member.
