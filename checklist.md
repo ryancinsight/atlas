@@ -7317,3 +7317,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   - Lifted an identity-op pattern in `cfd-2d/src/solvers/lbm/streaming.rs:183` (a clippy regression from `cc66f836`) so the hosted `Rust workspace gate` stays green.
   - Hosted PR #370 terminal: Rust workspace gate 15m17s, Check book figures SSOT 1m47s, Build book 4m3s, CodeRabbit pass; `recurseml/analysis` is the always-failing external report.
   - Atlas strict-mode pre-commit (147588599) now reports FILE_MISSING: 0 across every book.
+
+- **ATLAS-LSQR-STAGE-C-INCOMPLETE** athena half: Tikhonov damping via +λ² in the Givens rotation [major] (2026-08-25) — `991e786`, `3ff26a1`, `11e0248`, `17aff6d`, athena PR #18, atlas `648936cd4`
+  - Added `Lsqr::solve_damped_into` and `solve_damped_with_observer` with `damping: B::Scalar` parameter; existing `solve_into` / `solve_with_observer` keep their signatures and delegate to the damped path with `damping = 0`. Algorithm change per Paige & Saunders 1982 §4 eqn 4.4: the Givens rotation computes `ρ = sqrt(ρ_bar² + β² + λ²)` instead of `sqrt(ρ_bar² + β²)`.
+  - New `lsqr_damped_contract.rs` covers: λ=0 round-trip to undamped solve, 2×2 augmented-normal-equation match, damped-objective improvement, single-step analytic λ=1 case (x=0.5), f32 parity.
+  - 9/9 pre-existing `lsqr_contract` tests pass unchanged. 5/5 `lsqr_damped_contract` tests pass. `cargo clippy -p athena-core --all-targets -- -D warnings` clean.
+  - PR #18 blocked on pre-existing `athena-leto/tests/allocation.rs` failures (`repeated_*_solves_allocate_nothing_...` report 4-6 allocs / 17 deallocs / 9-11 KB on warm solves, fails on main independently of this PR). Filed as ATLAS-ATHENA-ALLOCATION-CONTRACT below.
+  - kwavers migration is the natural second half but blocked on the Athena PR landing (athena has no published release with damping; the kwavers side would need a git dep on the branch).
+
+- **ATLAS-ATHENA-ALLOCATION-CONTRACT** pre-existing Athena allocation defect [patch] (2026-08-25) — todo
+  - `crates/athena-leto/tests/allocation.rs`: `repeated_cpu_solves_allocate_nothing_after_initialization`, `repeated_bicgstab_solves_allocate_nothing_after_initialization`, `repeated_gmres_solves_allocate_nothing_after_initialization` all report `Stats { allocations: 4-6, deallocations: 17, reallocations: 2-6, bytes_allocated: 9-11 KB, bytes_deallocated: 881 }`. Local Windows passes; hosted Linux fails. Asserts "warm solves must not touch the heap after the first call". Failure is on the unmodified main branch (`4c8a9dc`).
+  - Filed separately so the LSQR damping work can land on its own evidence. Likely source: per-iteration Givens pair or observer-state allocation in GMRES/BiCGSTAB inner loops; needs targeted investigation.
