@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-LSQR-STAGE-C-INCOMPLETE — leto stage D deleted an API its consumer still binds [major] — in progress
+## ATLAS-LSQR-STAGE-C-INCOMPLETE — leto stage D deleted an API its consumer still binds [major] — done
 
 - **Owner:** current session; lane `worktrees/athena-lsqr-damping` first, then `worktrees/kwavers-lsqr-migration`.
 - **Athena half complete (PR ryancinsight/athena#18, 5/5 lsqr_damped_contract tests pass; 9/9 lsqr_contract tests still pass).** See *Pre-existing failures* below.
@@ -101,6 +101,25 @@
   the iterative family landed on main), which is what made the
   kwavers mainline uncompilable under the atlas overlay; the migration
   is the unblocker.
+- **Status 2026-08-25 (merged).** PR
+  [#636](https://github.com/ryancinsight/kwavers/pull/636) merged at
+  `8ef48975cd94ed373c8ea073e2c7bfc94cd96483`. The LSQR migration
+  completes ADR 0033 stage C on the kwavers branch: Athena now owns
+  the LSQR recurrence, the kwavers `MatFreeOperator` is bridged to
+  Athena's `RectangularOperator` seam, and `LsqrConfig` / `LsqrResult`
+  / `LsqrSolver` are no longer re-exported from kwavers-math. The
+  Security Audit `sources FAILED` from the new `athena.git` git source
+  was cured by adding `https://github.com/ryancinsight/athena.git`
+  to the `allow-git` list in `deny.toml` (commit `52420ce6a`); the
+  duplicate `consus` / `gaia` (non-`.git` suffix) entries were removed
+  in the same change to clear `unmatched-source` warnings. Atlas
+  gitlink `repos/kwavers` advanced to `8ef48975c` (atlas commit
+  `610755c00`).
+- **Residual risk.** `crates/kwavers/tests/pstd_finite_window_born.rs`
+  fails on the merge commit (`finite_window_born_rejects_off_grid_ring_geometry`
+  regression). This is a pre-existing PSTD solver defect on the
+  kwavers mainline, not caused by the LSQR migration; it predates
+  PR #636 and is tracked separately as ATLAS-KWAVERS-DEFECTS-2026-08-22.
 
 ## ATLAS-ATHENA-ALLOCATION-CONTRACT — warm solves allocate 4-6 small buffers per call on Linux [patch] — todo
 
