@@ -1,10 +1,16 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-CI-RUNNER-SATURATION-2026-08-25 — Hosted-runner queue depth delays every merge gate [patch] — todo
+## ATLAS-CI-RUNNER-SATURATION-2026-08-25 — Hosted-runner queue depth delays every merge gate [patch] — in progress
 
 - **Outcome:** a merge-gate run starts within its own runtime target, so a merge
   to a default branch is verified in minutes rather than landing unverified for
   the length of a queue.
+- **Claim (2026-08-25, second session):** measurement instrument first.
+  `scripts/atlas-ci-queue-report.py` pulls per-repository workflow-run metrics
+  (queue minutes = created→run_started_at, run minutes = started→updated,
+  event mix, conclusion mix) over a window and writes a gitignored report plus
+  a stdout summary; the capacity-vs-load-shedding decision consumes its output.
+  Kwavers CI scope itself stays with the first session's claims (PRs #641/#642).
 - **Measured 2026-08-25, ~20:00Z:** 27 runs queued across the fleet with one in
   progress — kwavers 14, hermes 7, helios 3, ritk 2, CFDrs 1. Hermes CI on
   `main` sat queued for over 50 minutes. Three merges landed during that window
@@ -428,6 +434,37 @@
   Test Suite Coverage duration and tighten the 45-minute timeout toward
   measured + 20% variance in a follow-up commit (bound tightening follows
   evidence, never precedes it).
+- **Follow-up sweep 2026-08-25 — full pipeline job-time baseline measured**
+  (CI/CD Pipeline run `32877332731`, the successful proteus-mat adoption
+  run; own times, sorted):
+  | job | own time |
+  |---|---|
+  | Heavy Validation (reviewed profile) | 41.6 m |
+  | Code Coverage | 33.4 m |
+  | Build & Test (beta) | 20.2 m |
+  | Build & Test (nightly) | 18.6 m |
+  | Build & Test (stable) | 17.4 m |
+  | PINN Convergence / Benchmark Smoke / Solver Validation / PINN Feature | 11.5–12.9 m each |
+  | Code Quality / Miri / Security Audit / Lockfile / Python Surface | 0.9–5.0 m |
+  Pipeline wall 136 m, Architecture Validation wall 110 m on the same
+  evening — both dominated by hosted-runner queueing (24+ ubuntu-latest
+  jobs per PR across the two workflows), not by any single job's work.
+  Two cache defects found and fixed:
+  - **Heavy Validation** used a private branch-scoped `actions/cache`
+    whose key never matches on PR checkouts — every PR run recompiled the
+    workspace from an empty `target/`, which is exactly the cold-cache
+    budget its 45 m timeout was sized against (the 2026-08-23 note).
+    Switched to the shared-key rust-cache (PR #647, `7cb10de8f`); timeout
+    deliberately unchanged until a warm-cache measurement confirms.
+  - **Code Coverage** had no cache at all: every run compiled tarpaulin
+    0.37.0 from source and refetched registry/git before the instrumented
+    build. Added a coverage-dedicated actions/cache (registry + git +
+    tarpaulin binary, key separate from the uninstrumented shared key) and
+    skip-if-installed (PR #648, `135d1ab89`).
+- nextest timeout topology (`nextest.toml`) audited in the same sweep:
+  default 60 s per-test / 15 m suite, ci 10 m, heavy 300 s with a
+  documented 600 s override for `nl_swe_workflow` — already evidence-based,
+  no change.
 
 ## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch] — closed 2026-08-24
 
