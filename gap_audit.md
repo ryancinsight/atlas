@@ -1,5 +1,87 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-08-25: four consumers carry lane-parallel ISA kernels outside Hermes
+
+The README provider table assigns "CPU lane-parallel kernels and ISA dispatch"
+to `hermes`. A stack-wide scan of `use core::arch` / `use std::arch` imports and
+`#[target_feature]` attributes at the current gitlinks shows the dimension is
+forked in four members, and shows why.
+
+| Repository | files importing `core::arch` | `#[target_feature]` | `hermes-simd` references | Assessment |
+| --- | --- | --- | --- | --- |
+| `hermes` | 14 | 355 | — | Owner. This is its bounded context. |
+| `apollo` | 28 | 90 | 38 | Fork. Twice the owner's file count, one `hermes-simd` call site in `apollo-fft`. |
+| `eunomia` | 4 | 14 | 1 | Mixed — see below. |
+| `moirai` | 3 | 20 | 0 | Fork with a layering caveat — see below. |
+| `kwavers` | 3 | 2 | 11 | Fork. AVX-512 FDTD pressure and velocity stencils. |
+| `CFDrs` | 2 | 6 | 8 | Fork. AVX2/NEON float kernels in `cfd-core/src/compute/simd/`. |
+
+Classification is by what each file actually uses, not by the import alone:
+
+- **Prefetch only** — `moirai-iter/src/cache.rs` and
+  `kwavers-analysis/src/performance/optimization/cache.rs` use `_mm_prefetch`
+  and nothing else. A prefetch hint is a memory-hierarchy concern, not a lane
+  kernel; these are not counted as forks.
+- **Lane-parallel float kernels** — `moirai-utils/src/simd/arch/{x86,aarch64}.rs`
+  (`_mm256_add_ps`, `_mm256_add_pd`, `vld1q_f32`),
+  `CFDrs/crates/cfd-core/src/compute/simd/{x86,aarch64}.rs` (`_mm256_add_ps`,
+  `_mm256_blendv_ps`, `_mm256_cmp_ps`), and
+  `kwavers-solver/src/forward/fdtd/avx512_stencil/{pressure,velocity}.rs`
+  (`_mm512_fmadd_pd`, `_mm512_loadu_pd`). These are exactly the operations the
+  provider table assigns to Hermes.
+- **Numeric conversion and packed unpacking** — `eunomia/src/convert/bulk.rs`
+  uses F16C (`_mm256_cvtph_ps`) for its own precision ladder, which is its
+  bounded context. `eunomia/src/packed/unpack/intrinsics/{avx2,avx512,neon}.rs`
+  is less clear: the provider table gives packed-lane representation to Hermes,
+  the Hermes README lists "packed 4-bit hardware unpacking" as a Hermes feature,
+  and Hermes re-exports these functions from Eunomia. Whether the intrinsics
+  belong upstream of that re-export is an open ownership question, recorded here
+  rather than answered.
+
+`moirai` carries the layering caveat: the README places it below `hermes`
+(`mnemosyne -> moirai -> hermes`), so it cannot take a `hermes` edge without
+inverting that order, and it has none today. Neither crate depends on the other
+in fact, so whether the documented order binds here, or whether the two are
+siblings and `moirai` may consume `hermes`, is a stack-topology question that
+must be settled before its SIMD module can be retired.
+
+### Common cause, recorded upstream
+
+The forks are not four independent preferences. Hermes offers a consumer no
+supported route into a `#[target_feature]` scope: `#[runtime_dispatch]` is
+applied only inside `crates/hermes-simd/src/dispatch/` and is not re-exported,
+and every `BackendKernel<T>` facet method is an `unsafe fn`. Hermes ADR 009
+records what follows — a lane kernel monomorphized outside such a scope cannot
+inline the annotated backend operations, "completely neutralizing SIMD
+throughput advantages". A consumer that writes a generic Hermes kernel
+therefore gets baseline codegen, and one that wants vector throughput writes its
+own intrinsics.
+
+`apollo-fwht` demonstrates both halves in one crate: it writes a generic
+`SimdKernel` kernel and calls it from a crate containing no `#[target_feature]`
+attribute at all, while `apollo-fft` beside it carries 28 files of hand-written
+intrinsics.
+
+The capability is filed in the owner as `HS-FEARLESS-TOKEN-2026-08-25`
+(hermes PR #62), driven by an audit of `linebender/fearless_simd` — whose design
+carries the target-feature capability in a value token so operations are safe
+and the substrate owns the entry point — reached in turn through `QuState/PhastFT`,
+an FFT library that delivers this workload class under `#![forbid(unsafe_code)]`.
+
+### Consequence already measured
+
+Adding PhastFT as an Apollo comparison reference surfaced a correctness defect
+unrelated to SIMD: all three Apollo twiddle-table builders advanced entries by
+multiplicative recurrence, giving `O(N * u)` twiddle error where the FFT
+forward-error bound assumes accurate twiddles. Worst-bin error against a
+compensated direct-DFT oracle fell 144x at N=4096 after the fix, and its growth
+with `N` was removed. Apollo PR #111; details in
+`repos/apollo/gap_audit.md#phastft-2026-08-25`.
+
+That is the argument for external references generally: the defect had survived
+403 passing tests because every existing accuracy assertion used a signal or a
+size at which recurrence error stayed under tolerance.
+
 ## Finding 2026-08-21: print_dbg scanner fix — exempt build.rs cargo: protocol writes
 
 The `print_dbg` assessment (below) identified 31 `println!("cargo:...")` calls

@@ -1,5 +1,75 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-HERMES-CONSUMER-ENTRY-2026-08-25 — Restore Hermes as the stack's lane-kernel owner [arch] — in progress
+
+- **Outcome:** a consumer anywhere in the stack writes one generic lane kernel
+  against `hermes-simd` and gets per-ISA machine code for it, so the provider
+  table's assignment of "CPU lane-parallel kernels and ISA dispatch" to `hermes`
+  holds in fact and not only on paper.
+- **Finding:** four members carry lane-parallel ISA kernels outside Hermes —
+  `apollo` (28 files, 90 `#[target_feature]`), `kwavers` (AVX-512 FDTD
+  stencils), `CFDrs` (`cfd-core/src/compute/simd/`), and `moirai`
+  (`moirai-utils/src/simd/arch/`). The common cause is upstream and is not a
+  preference: Hermes exports no route into a `#[target_feature]` scope, so a
+  consumer's generic kernel compiles at baseline features — the outcome Hermes
+  ADR 009 exists to prevent. Full scan and per-file classification in
+  `gap_audit.md`, finding 2026-08-25.
+- **Sequence** (upstream first; a consumer migrated before the capability exists
+  would have to invent a second abstraction over the first):
+  1. `HS-FEARLESS-TOKEN-2026-08-25` in `hermes` — value-carrying capability
+     token, a `vectorize`-class entry, and a safe operation surface over the
+     existing facets. Filed, hermes PR #62 merged the audit that drives it.
+  2. `ATLAS-APOLLO-ISA-FORK-2026-08-25` in `apollo` — largest consumer, filed
+     and blocked on step 1.
+  3. `kwavers` and `CFDrs` — file per-repo items once step 1 lands and step 2
+     has established the migration shape. Not filed yet on purpose: their
+     migration pattern should follow a worked example, not precede it.
+  4. `moirai` — blocked on a topology question, not on step 1. The README
+     places `moirai` below `hermes`, so it cannot take that edge without
+     inverting the documented order, and neither crate depends on the other
+     today. Settle the direction first; an ADR revision may be the deliverable
+     rather than a migration.
+- **Open ownership question:** `eunomia`'s packed-unpack intrinsics
+  (`packed/unpack/intrinsics/{avx2,avx512,neon}.rs`) sit in Eunomia while the
+  provider table gives packed-lane representation to Hermes, which re-exports
+  them. Resolve when step 1 lands; Eunomia's F16C conversion path is its own
+  bounded context and is not in question.
+- **Acceptance oracle:** the `core::arch` and `#[target_feature]` census in the
+  finding above is re-run and every consumer row is zero or a recorded
+  sanctioned remainder, with each migrated family carrying differential tests
+  against its scalar path and no benchmark regression against a recorded
+  baseline. The census is the tracked metric and ratchets downward.
+- **Risk / change class:** [arch] at stack level; each member's own increment is
+  classified in that member.
+- **Required authority:** Change on allowlisted repositories; no release.
+- **Status:** step 1 filed upstream, step 2 filed and blocked, steps 3 and 4
+  deliberately not yet filed. Re-open trigger for steps 3 and 4:
+  `HS-FEARLESS-TOKEN-2026-08-25` merges.
+
+## ATLAS-EXTERNAL-REFERENCE-VALUE-2026-08-25 — External references are earning their keep [patch] — done 2026-08-25
+
+- **Outcome:** two external reference audits landed this cycle, and one of them
+  found a correctness defect that the tree's own tests could not.
+- **`hermes`** now tracks `linebender/fearless_simd` beside the existing Highway
+  audit, covering consumer-facing kernel authorship rather than operation
+  coverage. Hermes PR #62.
+- **`apollo`** now tracks `QuState/PhastFT` beside the existing RustFFT
+  baseline, covering the power-of-two domain with an independent layout,
+  algorithm, and bit-reversal strategy. Apollo PR #111.
+- **What it bought:** the PhastFT parity test failed on first run and exposed
+  `O(N * u)` twiddle error in all three Apollo twiddle builders — a 144x
+  worst-bin accuracy improvement at N=4096 once fixed, with the growth in `N`
+  removed. 403 existing Apollo tests passed over the defect, because each used a
+  signal or size where recurrence error stayed under tolerance.
+- **Transferable lesson, recorded for other members:** a differential test
+  against an independently authored implementation catches a defect class that
+  self-consistency and small-N analytical fixtures structurally cannot — an
+  error that is correct in form and wrong in growth rate. Members with a
+  numerical core and no external oracle should acquire one. Candidates by
+  domain: `CFDrs` against an established CFD reference, `ritk` against
+  ITK/SimpleITK on registration and resampling, `coeus` against a reference
+  autodiff implementation on gradient checks.
+
 ## ATLAS-STASH-BACKLOG-2026-08-25 — 33 stashes across ten repositories, archived [patch] — done
 
 - **Found:** `git stash list` was non-empty in ten members, 33 entries in total,
