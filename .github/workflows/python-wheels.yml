@@ -25,7 +25,10 @@ on:
         default: "v"
         type: string
       abi3:
-        description: Build one stable-ABI wheel per operating system
+        description: >-
+          Build one stable-ABI wheel per system rather than one per system per
+          interpreter. The systems are glibc and musl Linux on x86_64 and
+          aarch64, Windows x86_64, and macOS universal2.
         required: false
         default: false
         type: boolean
@@ -59,22 +62,54 @@ permissions:
 jobs:
   build-abi3:
     if: inputs.abi3
-    name: ${{ matrix.os }} / abi3
+    name: ${{ matrix.target }} / ${{ matrix.manylinux }} / abi3
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      # One row per system we publish for. `linux` marks the rows maturin
+      # builds inside a manylinux/musllinux container, where the interpreter is
+      # named `pythonX.Y` rather than the runner's `python`; matching on the
+      # runner label instead would silently pick the wrong interpreter the
+      # moment a second Linux row exists. `smoke` selects how the built wheel is
+      # imported: a musllinux wheel will not install on a glibc runner, so it is
+      # exercised in an Alpine container instead of being left untested.
+      #
+      # aarch64 rows run on native ARM runners rather than under emulation, so
+      # the wheel is imported and its tests run on the architecture it targets.
+      # macOS is universal2 and so covers both of its architectures in one file.
       matrix:
         include:
           - os: ubuntu-latest
             target: x86_64
             manylinux: "2_17"
+            linux: true
+            smoke: native
+          - os: ubuntu-24.04-arm
+            target: aarch64
+            manylinux: "2_17"
+            linux: true
+            smoke: native
+          - os: ubuntu-latest
+            target: x86_64
+            manylinux: musllinux_1_2
+            linux: true
+            smoke: alpine
+          - os: ubuntu-24.04-arm
+            target: aarch64
+            manylinux: musllinux_1_2
+            linux: true
+            smoke: alpine
           - os: windows-latest
             target: x86_64
             manylinux: "off"
+            linux: false
+            smoke: native
           - os: macos-latest
             target: universal2-apple-darwin
             manylinux: "off"
+            linux: false
+            smoke: native
 
     steps:
       - name: Checkout release source
@@ -108,9 +143,10 @@ jobs:
             --compatibility pypi
             --manifest-path source/${{ inputs.manifest-path }}
             --out dist
-            -i ${{ matrix.os == 'ubuntu-latest' && format('python{0}', inputs.abi3-python) || 'python' }}
+            -i ${{ matrix.linux && format('python{0}', inputs.abi3-python) || 'python' }}
 
       - name: Install and import wheel
+        if: matrix.smoke == 'native'
         shell: bash
         run: |
           set -euo pipefail
@@ -119,7 +155,7 @@ jobs:
           python -c "import importlib; importlib.import_module('${{ inputs.import-name }}')"
 
       - name: Run provider binding behavior tests
-        if: inputs.python-test-path != ''
+        if: matrix.smoke == 'native' && inputs.python-test-path != ''
         shell: bash
         env:
           PYTEST_VERSION: ${{ inputs.pytest-version }}
@@ -129,24 +165,86 @@ jobs:
           python -m pip install --disable-pip-version-check "pytest==${PYTEST_VERSION}"
           python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "${PYTHON_TEST_PATH}"
 
+      # A musllinux wheel carries a platform tag no glibc runner will install,
+      # so the checks above would skip it and the wheel would ship unexercised.
+      # The Alpine image is musl, matches the runner's architecture, and runs
+      # the same install, import and test sequence. numpy publishes
+      # musllinux_1_2 wheels for both x86_64 and aarch64, so nothing here has to
+      # compile from source.
+      - name: Install, import and test wheel on musl
+        if: matrix.smoke == 'alpine'
+        shell: bash
+        env:
+          PYTEST_VERSION: ${{ inputs.pytest-version }}
+          IMPORT_NAME: ${{ inputs.import-name }}
+          TEST_PATH: ${{ inputs.python-test-path }}
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD:/io" -w /io \
+            -e IMPORT_NAME -e PYTEST_VERSION -e TEST_PATH \
+            "python:${{ inputs.abi3-python }}-alpine" sh -euc '
+              python -m pip install --disable-pip-version-check numpy
+              python -m pip install --disable-pip-version-check --force-reinstall dist/*.whl
+              python -c "import importlib; importlib.import_module(\"$IMPORT_NAME\")"
+              if [ -n "$TEST_PATH" ]; then
+                python -m pip install --disable-pip-version-check "pytest==$PYTEST_VERSION"
+                python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "source/$TEST_PATH"
+              fi
+            '
+
       - name: Upload wheel
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wheel-${{ matrix.os }}-abi3
+          name: wheel-${{ matrix.target }}-${{ matrix.manylinux }}-abi3
           path: dist/*.whl
           if-no-files-found: error
           retention-days: 7
 
   build-cpython:
     if: ${{ !inputs.abi3 }}
-    name: ${{ matrix.os }} / CPython ${{ matrix.python-version }}
+    name: ${{ matrix.target }} / ${{ matrix.manylinux }} / CPython ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      # The same six systems as the abi3 path, crossed with each interpreter.
+      # Kept as an explicit include rather than an `os` list so the two paths
+      # publish for the same set: a platform added to one and not the other is
+      # a gap nobody notices until someone on it cannot install.
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ${{ fromJSON(inputs.python-versions) }}
+        include:
+          - os: ubuntu-latest
+            target: x86_64
+            manylinux: "2_17"
+            linux: true
+            smoke: native
+          - os: ubuntu-24.04-arm
+            target: aarch64
+            manylinux: "2_17"
+            linux: true
+            smoke: native
+          - os: ubuntu-latest
+            target: x86_64
+            manylinux: musllinux_1_2
+            linux: true
+            smoke: alpine
+          - os: ubuntu-24.04-arm
+            target: aarch64
+            manylinux: musllinux_1_2
+            linux: true
+            smoke: alpine
+          - os: windows-latest
+            target: x86_64
+            manylinux: "off"
+            linux: false
+            smoke: native
+          - os: macos-latest
+            target: universal2-apple-darwin
+            manylinux: "off"
+            linux: false
+            smoke: native
 
     steps:
       - name: Checkout release source
@@ -171,8 +269,8 @@ jobs:
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           maturin-version: v1.14.1
-          target: ${{ matrix.os == 'macos-latest' && 'universal2-apple-darwin' || 'x86_64' }}
-          manylinux: ${{ matrix.os == 'ubuntu-latest' && '2_17' || 'off' }}
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
           sccache: true
           args: >-
             --release
@@ -180,9 +278,10 @@ jobs:
             --compatibility pypi
             --manifest-path source/${{ inputs.manifest-path }}
             --out dist
-            -i ${{ matrix.os == 'ubuntu-latest' && format('python{0}', matrix.python-version) || 'python' }}
+            -i ${{ matrix.linux && format('python{0}', matrix.python-version) || 'python' }}
 
       - name: Install and import wheel
+        if: matrix.smoke == 'native'
         shell: bash
         run: |
           set -euo pipefail
@@ -191,7 +290,7 @@ jobs:
           python -c "import importlib; importlib.import_module('${{ inputs.import-name }}')"
 
       - name: Run provider binding behavior tests
-        if: inputs.python-test-path != ''
+        if: matrix.smoke == 'native' && inputs.python-test-path != ''
         shell: bash
         env:
           PYTEST_VERSION: ${{ inputs.pytest-version }}
@@ -201,10 +300,35 @@ jobs:
           python -m pip install --disable-pip-version-check "pytest==${PYTEST_VERSION}"
           python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "${PYTHON_TEST_PATH}"
 
+      # As in the abi3 job: a musllinux wheel will not install on a glibc
+      # runner, so without this the steps above would fail the job outright
+      # rather than skip. The image tracks the interpreter this row builds for.
+      - name: Install, import and test wheel on musl
+        if: matrix.smoke == 'alpine'
+        shell: bash
+        env:
+          PYTEST_VERSION: ${{ inputs.pytest-version }}
+          IMPORT_NAME: ${{ inputs.import-name }}
+          TEST_PATH: ${{ inputs.python-test-path }}
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD:/io" -w /io \
+            -e IMPORT_NAME -e PYTEST_VERSION -e TEST_PATH \
+            "python:${{ matrix.python-version }}-alpine" sh -euc '
+              python -m pip install --disable-pip-version-check numpy
+              python -m pip install --disable-pip-version-check --force-reinstall dist/*.whl
+              python -c "import importlib; importlib.import_module(\"$IMPORT_NAME\")"
+              if [ -n "$TEST_PATH" ]; then
+                python -m pip install --disable-pip-version-check "pytest==$PYTEST_VERSION"
+                python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "source/$TEST_PATH"
+              fi
+            '
+
       - name: Upload wheel
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wheel-${{ matrix.os }}-cp${{ matrix.python-version }}
+          name: wheel-${{ matrix.target }}-${{ matrix.manylinux }}-cp${{ matrix.python-version }}
           path: dist/*.whl
           if-no-files-found: error
           retention-days: 7
@@ -273,13 +397,45 @@ jobs:
           fi
           release_version="${RELEASE_TAG#"$TAG_PREFIX"}"
           mapfile -t wheels < <(find dist -maxdepth 1 -type f -name '*.whl' -print | sort)
+
+          # Assert which systems are present, not just how many wheels arrived.
+          # A count alone cannot tell a missing platform from a duplicated one,
+          # and the failure that matters is a system quietly dropping out of the
+          # matrix -- which nobody notices until someone on it cannot install.
+          # Each pattern is matched against the platform tag maturin writes.
+          platforms=(
+            manylinux_2_17_x86_64
+            manylinux_2_17_aarch64
+            musllinux_1_2_x86_64
+            musllinux_1_2_aarch64
+            win_amd64
+            universal2
+          )
+          built=$(IFS=' '; echo "${wheels[*]}")
+          missing=()
+          for platform in "${platforms[@]}"; do
+            case "$built" in
+              *"$platform"*) ;;
+              *) missing+=("$platform") ;;
+            esac
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "no wheel was built for: ${missing[*]}" >&2
+            echo "built: $built" >&2
+            exit 1
+          fi
+
+          # One wheel per system for abi3; one per system per interpreter
+          # otherwise. This catches a duplicate or a stray that the presence
+          # check above would let through.
           if [[ "$ABI3" == "true" ]]; then
-            expected=3
+            expected=${#platforms[@]}
           else
-            expected=$((3 * $(jq 'length' <<<"$PYTHON_VERSIONS")))
+            expected=$(( ${#platforms[@]} * $(jq 'length' <<<"$PYTHON_VERSIONS") ))
           fi
           if (( ${#wheels[@]} != expected )); then
             echo "expected $expected wheels, found ${#wheels[@]}" >&2
+            echo "built: $built" >&2
             exit 1
           fi
           mapfile -t sdists < <(find dist -maxdepth 1 -type f -name '*.tar.gz' -print | sort)
