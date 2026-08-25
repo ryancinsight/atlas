@@ -58,11 +58,36 @@
   way: `#[runtime_dispatch]` dropped doc comments, which is why no dispatcher in
   that crate could be `pub`.
 
-  Steps 2 through 4 are now unblocked in principle. Step 2
-  (`ATLAS-APOLLO-ISA-FORK-2026-08-25`) is the next claimable increment and
-  should land before steps 3 and 4 are filed, so `kwavers` and `CFDrs` follow a
-  worked migration rather than inventing one. Step 4 (`moirai`) remains gated on
-  the layering question, not on the capability.
+  **Step 2 ran, and changed the campaign.** `apollo-fwht` was migrated onto the
+  entry, measured, and reverted: 1.6x to 8.8x slower than the code it would
+  replace across three dispatch placements (apollo PR #112, measurements in
+  `repos/apollo/gap_audit.md#fwht-vectorize-negative`). Two structural
+  mechanisms, now recorded upstream in hermes ADR 016 and its README:
+
+  - The `#[target_feature]` scope does not follow a closure onto another thread,
+    so wrapping a work-partitioning call applies the ADR 009 penalty by way of
+    the mechanism meant to remove it.
+  - Hermes' `Scalar` backend is a plain array loop the optimizer inlines and
+    auto-vectorizes at the build's baseline ISA. For a bandwidth-bound
+    elementwise kernel it beats an explicit backend path, because there is no
+    arithmetic for wider registers to save and the dispatch boundary is pure
+    overhead.
+
+  **This item is therefore rescoped from a census to a measurement gate.** The
+  `core::arch` counts identify candidates; they do not establish that migrating
+  one is an improvement. Each family needs a before/after measurement, and a
+  family that measures slower stays as it is with the measurement recorded.
+
+  On that criterion `kwavers`' AVX-512 FDTD stencils are the most promising
+  remaining candidate — compute-dense, large per-call work units — and `CFDrs`'
+  elementwise `cfd-core` kernels the least. Steps 3 and 4 stay unfiled: filing
+  them as migrations would presume the conclusion this measurement removed.
+  Step 4 (`moirai`) remains gated on the layering question, not on the
+  capability.
+
+  The acceptance oracle above is revised accordingly: the census ratchets toward
+  zero only for families a measurement supports converting, and a recorded
+  sanctioned remainder now includes "measured slower under the entry".
 
 ## ATLAS-EXTERNAL-REFERENCE-VALUE-2026-08-25 — External references are earning their keep [patch] — done 2026-08-25
 
