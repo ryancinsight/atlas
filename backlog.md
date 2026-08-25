@@ -737,6 +737,18 @@ unchanged.
 - **Risk/dependencies:** `[major]` because two public configuration fields are
   removed. The active Proteus package-rename branch touches only manifests and
   lockfiles; visualization source remains disjoint. No release is authorized.
+- **Delivered evidence:** Kwavers PR #638 merged as `00455130f` from reviewed
+  head `b2a156215`; the independent judge found and then cleared one stale
+  disabled-test block. Nextest passes 783 GPU-feature analysis tests, 744
+  default analysis tests, and the four focused quality regressions after the
+  judge fix. Formatting, doctests, warning-denied Rustdoc, standalone locked
+  metadata, ADR-index validation, and the current-default real Hephaestus
+  hardware test pass. `cargo-semver-checks` against the buildable
+  dependency-only prerequisite baseline reports exactly the two removed fields
+  as a required major change. Post-merge hosted checks remain in collection.
+  Atlas gitlink `repos/kwavers` is held at `8ef48975c` until the post-merge
+  runs at `00455130f` are terminal (currently queued in the known Actions
+  capacity backlog).
 
 ## ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21 — Complete typed and concurrent PyO3 surface [minor] — in progress
 

@@ -684,12 +684,26 @@ Item closed 2026-08-23.
 - [x] Audit backend and configuration call sites across the stack; establish
       that `gpu_enabled` is ignored and `render_quality` diverges from the
       adaptive `quality` field.
-- [ ] Draft and index the breaking-contract ADR in Kwavers.
-- [ ] Remove the two stale public fields and synchronize adaptive quality with
+- [x] Draft and index the breaking-contract ADR in Kwavers.
+- [x] Remove the two stale public fields and synchronize adaptive quality with
       the initialized renderer through one authoritative quality value.
-- [ ] Add focused value-semantic regressions and synchronize affected docs.
-- [ ] Run focused and full applicable gates, SemVer classification, publish the
-      branch/PR, merge, and advance the Atlas gitlink after terminal checks.
+- [x] Add focused value-semantic regressions and synchronize affected docs.
+- [x] Run focused and full applicable gates (2026-08-25, lane
+      `worktrees/kwavers-vis-config` at `bdea8ea71`): fmt clean; `cargo check`
+      for kwavers-analysis and consumers kwavers/kwavers-gpu pass; default-feature
+      Nextest 744/744; `gpu-visualization` Nextest 783/783 including
+      `adaptive_quality_reconfigures_the_initialized_renderer`; doctests 1
+      passed / 21 ignored; Rustdoc `-D warnings` clean. Clippy: changed files
+      clean under both feature sets; standalone `--all-targets` shows 7
+      test-target and `gpu-visualization --lib` 44 findings, all in files the
+      branch does not touch (recorded warning-ratchet debt; untouched here).
+- [x] Publish the branch/PR and merge after hosted checks: merged via Kwavers
+      [PR #638](https://github.com/ryancinsight/kwavers/pull/638) at
+      `00455130f` (reviewed head `b2a156215` plus the confirmed commits
+      `2c2b65792`/`26ff990e2`/`bdea8ea71`). Atlas gitlink advance to
+      `00455130f` is HELD: post-merge runs at the merged default are queued in
+      the known Actions capacity backlog; no pointer move without terminal
+      hosted checks.
 
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — current session
 
