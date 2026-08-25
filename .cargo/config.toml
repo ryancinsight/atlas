@@ -229,7 +229,6 @@ moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
-moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
@@ -239,7 +238,6 @@ moirai-async = { path = "repos/moirai/moirai-async" }
 moirai-core = { path = "repos/moirai/moirai-core" }
 moirai-executor = { path = "repos/moirai/moirai-executor" }
 moirai-gpu = { path = "repos/moirai/moirai-gpu" }
-moirai-http = { path = "repos/moirai/moirai-http" }
 moirai-parallel = { path = "repos/moirai/moirai-parallel" }
 moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
