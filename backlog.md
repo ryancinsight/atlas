@@ -750,6 +750,42 @@ unchanged.
   runs at `00455130f` are terminal (currently queued in the known Actions
   capacity backlog).
 
+## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clear the standalone kwavers-analysis clippy debt [chore] — in progress
+
+- **Owner:** current session; lane `worktrees/kwavers-analysis-clippy` (branch
+  `fix/kwavers-analysis-clippy-ratchet`).
+- **Origin:** the residual recorded at the ATLAS-KWAVERS-VIS-WGPU closure
+  ("a fresh unwaived member-crate measurement remains separate warning-ratchet
+  work"). The vis-config verification re-measured the standalone
+  `kwavers-analysis` probes: 7 test-target findings (default features) and 44
+  `--features gpu-visualization --lib` findings, all in files the vis-config
+  branch did not touch.
+- **Delivered:** one commit `80d120202` on the lane (14 files, +164/−51):
+  doc debt (`# Errors` / `# Panics`) across plotting, `VizStream`/`FramePool`/
+  `SyncCoordinator`/`StagePipeline` docs; `#[must_use]` on the parameter
+  builders and `QualityLevel::downgrade/upgrade`; scoped `#[allow]` with
+  reasons for the GPU MVDR stub (`process_mvdr_3d`, CPU-mirrored signature)
+  and the ASCII fallback renderer (stdout is its render target); private
+  passes refactored to associated functions; `InteractiveControls` Debug
+  `finish_non_exhaustive()` (closure map deliberately unprinted).
+  De-`async`ed `VisualizationEngine::render_field` / `render_multi_field`,
+  `Renderer3D::render_volume` / `render_multi_volume`, `engine.export`, and
+  `StagePipeline::new` — the fns contain no awaits and no workspace caller
+  awaits them; in-crate callers updated to drop `.await`/`pollster::block_on`.
+  No behavior change; the crate is unpublished, so the public-signature
+  adjustment has no external consumer.
+- **Evidence (2026-08-25):** fmt clean; `cargo check` for analysis +
+  consumers `kwavers`/`kwavers-gpu` pass; clippy `--all-targets -D warnings`
+  and `--features gpu-visualization --lib -D warnings` both report 0
+  findings (previously 7 + 44); Nextest 744/744 default and 783/783
+  gpu-visualization (including the vis-config quality regressions); doctests
+  1 passed / 21 ignored; Rustdoc `-D warnings` clean. Lockfile overlay drift
+  restored, so the commit is code-only.
+- **Next gate:** publish the branch, open the PR, collect the hosted matrix
+  at the exact head, merge, and remove the lane. No Atlas gitlink change
+  until kwavers main advances and the post-merge runs at the new default are
+  terminal.
+
 ## ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21 — Complete typed and concurrent PyO3 surface [minor] — in progress
 
 - **Owner:** Atlas integration. **Claimed files:** `backlog.md` and

@@ -705,6 +705,39 @@ Item closed 2026-08-23.
       the known Actions capacity backlog; no pointer move without terminal
       hosted checks.
 
+## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — current session
+
+- [x] Measure the standalone ratchet at the merged default `00455130f`:
+      `kwavers-analysis --all-targets -D warnings` reports 7 test-target
+      findings (manual-assert-eq, must-use, missing-panics-doc,
+      from-iter-instead-of-collect), and `--features gpu-visualization --lib`
+      reports 44 — all in files untouched by the vis-config PR (matches the
+      recorded 45 probe at the earlier head).
+- [x] Fix the findings on clean lane `worktrees/kwavers-analysis-clippy`
+      (branch `fix/kwavers-analysis-clippy-ratchet`, based on fetched merged
+      default): `# Errors`/`# Panics` sections across plotting, stream,
+      pipeline, frame-pool and sync docs; `#[must_use]` on builders and
+      `QualityLevel::downgrade/upgrade`; scoped allows for the GPU MVDR stub
+      (signature mirrors the CPU method) and the ASCII fallback (stdout is its
+      render medium); `render_ascii_slice`/`gradient_magnitude`/
+      `gaussian_smooth` become associated functions; `InteractiveControls`
+      Debug ends `finish_non_exhaustive()` (closure map deliberately
+      unprinted); de-async (`render_field`, `render_multi_field`,
+      `render_volume`, `render_multi_volume`, `StagePipeline::new`, `export`,
+      `PipelineInputSender::send` kept async where flume awaits) with the
+      in-crate `.await`/`pollster::block_on` callers updated.
+- [x] Exact-lane gates: fmt clean; `cargo check` for kwavers-analysis and
+      consumers kwavers/kwavers-gpu pass; clippy `--all-targets -D warnings`
+      and `--features gpu-visualization --lib -D warnings` both 0 findings;
+      Nextest 744/744 default and 783/783 gpu-visualization; doctests 1
+      passed / 21 ignored; Rustdoc `-D warnings` clean. Lockfile overlay drift
+      restored; commit is code-only (14 files, +164/−51).
+- [x] Publish the branch and open the PR: Kwavers
+      [PR #639](https://github.com/ryancinsight/kwavers/pull/639) at exact
+      head `80d120202` (base `main` `00455130f`), `MERGEABLE` on open.
+      Merge after terminal hosted checks; then remove the lane once the
+      gitlink head advances.
+
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — current session
 
 - [x] Create a clean Horae lane from fetched `origin/main`; preserve the dirty
