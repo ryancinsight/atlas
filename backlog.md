@@ -152,7 +152,7 @@
 - **Not in scope of ATLAS-LSQR-STAGE-C-INCOMPLETE.** Filed separately so
   the LSQR damping work can land on its own evidence.
 
-## ATLAS-MNEMOSYNE-DOCS-2026-08-25 — Correct Page field and book chapters [patch] — merge pending
+## ATLAS-MNEMOSYNE-DOCS-2026-08-25 — Correct Page field and book chapters [patch] — done
 
 - **Owner:** current session; branch `docs/mnemosyne-audit-fix` at `worktrees/mnemosyne-docs-fix` (commit `5fc0759`).
 - **Scope:** `README.md`, `docs/book/numa_placement.md`, `docs/book/size_classes.md`,
@@ -167,10 +167,11 @@
   [#69](https://github.com/ryancinsight/Mnemosyne/pull/69) at `5fc0759`:
   aarch64 and Lockfile integrity pass, Rust verification / Loom / Miri /
   ThreadSanitizer / Deploy Book pending, `recurseml/analysis` report-only.
-- **Next:** collect hosted terminal checks at exact head, merge, then
-  advance Atlas `repos/mnemosyne` gitlink from `cb63bf1` to the merged
-  default. Atlas dirty from this audit is now clean (stashed and
-  published).
+- **Status 2026-08-25 (merged).** PR #69 merged at
+  `5e895adeb907c51ff887c0c4c32ca74203478cdd`. Atlas gitlink
+  `repos/mnemosyne` advanced to `5e895ad` (atlas commit
+  `aeacb924d`). Only `recurseml/analysis` reports (always-failing
+  external report).
 
 ## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch] — closed 2026-08-24
 
@@ -240,7 +241,7 @@
   (atlas commit `04df6bad3`). Lane `worktrees/cfdrs-dead-links`
   removed in the same cycle. Atlas checklist updated (`3faa1bb7b`).
 
-## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — merge pending
+## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — done
 
 - **Owner:** current session; lane `worktrees/kwavers-log`.
 - The differential oracle (ATLAS-KWAVERS-KWAVE-ORACLE) has now surfaced three
@@ -277,7 +278,7 @@
   with reference implementations available (RITK against ITK/SimpleITK, CFDrs
   against analytical benchmarks) are the natural next candidates.
 
-## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — Simulated elastic-SWE GPU surface deleted [major] — in progress
+## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — Simulated elastic-SWE GPU surface deleted [major] — done
 
 - **Owner:** current session; lane `worktrees/kwavers-gpumock` (branch
   `fix/kwavers-gpumock-delete-simulated-gpu`).
@@ -316,7 +317,7 @@
 - **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (gitlink
   advance + clean-revision ratchet re-run).
 
-## ATLAS-KWAVERS-KWAVE-ORACLE-2026-08-21 — k-Wave parity made reproducible [major][arch] — merge pending
+## ATLAS-KWAVERS-KWAVE-ORACLE-2026-08-21 — k-Wave parity made reproducible [major][arch] — done
 
 - **Owner:** current session; lane `worktrees/kwavers-log` (branch
   `test/kwavers-kwave-parity-oracle` and its stack).
@@ -345,7 +346,7 @@
 - **Regeneration** needs `k-wave-python` and its OMP binary, which live outside
   every stack repo by design. Running the gate needs neither.
 
-## ATLAS-RITK-HEALTH-2026-08-21 — RITK verified; GPU smoother unreachable [patch] — merge pending
+## ATLAS-RITK-HEALTH-2026-08-21 — RITK verified; GPU smoother unreachable [patch] — done
 
 - RITK is healthy: `cargo nextest run --workspace` is `5675 passed, 0 failed`
   with 25 skips, all `#[ignore]`d on downloaded datasets with reasons and
