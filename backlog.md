@@ -183,6 +183,18 @@
 ## ATLAS-LSQR-STAGE-C-INCOMPLETE — leto stage D deleted an API its consumer still binds [major] — done
 
 - **Owner:** current session; lane `worktrees/athena-lsqr-damping` first, then `worktrees/kwavers-lsqr-migration`.
+- **Closed 2026-08-25.** ADR 0033 stage C is complete and stage D's
+  acceptance holds:
+  - **athena #18** (damping) merged at `21318ae`; kwavers **#636**
+    (LSQR via `RectangularOperator`) and **#440** (both hand-written GMRES
+    implementations deleted; `crate::krylov` restart ladder over Athena's
+    const-generic `Gmres<B, RESTART>`) merged at `8ef48975c` / `44af659be`.
+  - **Stage D residue scan (2026-08-25):** zero code references to
+    `LsqrSolver`/`linalg::iterative` across all 27 member repos; leto's
+    `linalg/iterative/` no longer exists upstream (leto PR #121). Remaining
+    traces are prose only — leto/leto-ops README feature lists and ritk's
+    book chapter `docs/book/leto_linalg.md` still advertise the deleted
+    family — filed as doc-drift follow-ups.
 - **Athena half complete (PR ryancinsight/athena#18, 5/5 lsqr_damped_contract tests pass; 9/9 lsqr_contract tests still pass).** See *Pre-existing failures* below.
 - **Symptom.** `kwavers-math` does not compile against current `leto`:
 
