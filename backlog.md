@@ -707,8 +707,8 @@ unchanged.
   member-crate measurement was completed 2026-08-25 — `kwavers-analysis`
   standalone probes (7 default `--all-targets` + 44 `gpu-visualization --lib`)
   are now 0/0 after commit `80d120202` (PR #639). The `kwavers-gpu` half of
-  the residual (28 pre-existing findings) remains a separate warning-ratchet
-  item, still open.
+  the residual (28 pre-existing findings) is closed 2026-08-25 by commit
+  `6abb06180` (PR #644) — see ATLAS-KWAVERS-GPU-CLIPPY-RATCHET-2026-08-25.
 - **Meta-repo integration residual (2026-08-24):** gitlink advanced to
   `a94a8bcde` (post-#632 default plus PR #635). PR #635 (merge `a94a8bcde`)
   fixed the seven strict-clippy errors in the SWE WIP rescue test file
@@ -855,6 +855,30 @@ unchanged.
   as prebuilt binaries"; MERGEABLE; merge after terminal hosted checks and
   advance the gitlink. (The tentative `ci/kwavers-matrix-toolchain-legs`
   lane was folded into #641 and removed — never pushed.)
+
+## ATLAS-KWAVERS-GPU-CLIPPY-RATCHET-2026-08-25 — Clear the kwavers-gpu pre-existing clippy findings (the residual's second half) [patch] — in progress
+
+- **Owner:** current session; lane `worktrees/kwavers-gpu-clippy` (branch
+  `fix/kwavers-gpu-clippy-ratchet`).
+- **Origin:** the VIZ-CONFIG verification residual left `kwavers-gpu`'s 28
+  pre-existing findings open as the analysis half closed. Re-measured at
+  main `f11d4b99c` with `--all-targets --features gpu`: 28 lib + 5
+  test-target findings.
+- **Fix (commit `6abb06180`):** de-async 7 never-awaiting constructors
+  (`AcousticFieldKernel::new`, `WgpuAcousticFieldProvider::new`,
+  `WaveEquationGpu::new`, `GpuDevice::create`,
+  `GpuDevice::create_with_features_and_limits`, `NeuralNetworkShader::new`,
+  `CoreGpuContext::new`) + `ComputeManager::new` caller; 10 unused-receiver
+  methods → associated fns; `# Errors` ×4; honest `finish_non_exhaustive()`
+  `Debug`; dropped the unfulfilled `#[expect]`; style fixes (saturating_sub,
+  `u32::from`, de-hashed WGSL literals, `eprintln!`, `assert_eq!`).
+- **Gates at head:** clippy 0/0 on default and `--features gpu` probes (the
+  lone remaining warning is the external patched apollo-fft dep, upstream);
+  nextest 163/163 (5 GPU-gated skips); consumers compile with `gpu` and
+  `visualization`; fmt clean; `Cargo.lock` untouched.
+- **Status:** pushed as kwavers PR #644 at exact head `6abb06180`,
+  MERGEABLE on open; merge after terminal hosted checks and record the
+  residual closure.
 
 ## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clippy ratchet item (merged as PR #639 at f11d4b99c; gitlink advanced in 59c5f294e) — done
 
