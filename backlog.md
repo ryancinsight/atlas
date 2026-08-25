@@ -508,6 +508,11 @@
   Pipeline wall 136 m, Architecture Validation wall 110 m on the same
   evening — both dominated by hosted-runner queueing (24+ ubuntu-latest
   jobs per PR across the two workflows), not by any single job's work.
+  Live confirmation the same hour: PR #647's ci.yml run sat queued
+  26 minutes and PR #642's Architecture Validation run 34 minutes
+  before their first job started — with every workflow already carrying
+  cancel-in-progress concurrency. The residual lever is structural:
+  consolidate jobs or add runners; that is a user decision.
   Two cache defects found and fixed:
   - **Heavy Validation** used a private branch-scoped `actions/cache`
     whose key never matches on PR checkouts — every PR run recompiled the
