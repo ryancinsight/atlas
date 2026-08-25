@@ -570,6 +570,17 @@
   default 60 s per-test / 15 m suite, ci 10 m, heavy 300 s with a
   documented 600 s override for `nl_swe_workflow` — already evidence-based,
   no change.
+- **Outcome 2026-08-25 late:** PR #647 (Heavy Validation shared rust-cache)
+  merged at `e78a4e8`; its first hosted run already showed Heavy Validation
+  41.6 m → 33.6 m with the shared entry restored. PR #642 was folded into the
+  peer lane #641 by its owner (`ea504bf`) to avoid a duplicate CI matrix —
+  workload preserved. PR #648 (coverage cache) was briefly auto-closed in the
+  #647 merge race and reopened; checks re-running.
+- **ARCH-008 seventh conversion opened off this sweep** — kwavers conservative
+  interpolator transfer matrix → CSR (PR #650). The bench's byte-parity gate
+  caught that `leto::Array3` indexing is x-major before any timing ran; the
+  per-entry unravel stays. Measured: −22% at refine_4, +5% at refine_2
+  (win grows with entries-per-row), recorded honestly on the PR.
 
 ## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch] — closed 2026-08-24
 
