@@ -4019,7 +4019,7 @@ Both edits made under the mistaken reading were reverted; they were my own,
 no peer state was touched. The remaining work is one clean run of the gate
 from a current checkout, then the CI step.
 
-## ATLAS-CRATE-LEVEL-ALLOWS-217 — 502 blanket suppressions the ratchet never counted [major] — open 2026-08-18, specified 2026-08-19
+## ATLAS-CRATE-LEVEL-ALLOWS-217 — 502 blanket suppressions the ratchet never counted [major] — open 2026-08-18, specified 2026-08-19 (CFDrs member in progress 2026-08-25)
 
 **Specified 2026-08-19, and the severity in the original filing was
 overstated.** Measured with the scanner's own classification rather than a
@@ -4144,6 +4144,21 @@ internal APIs").
 - Acceptance: ratchet burn-down, CFDrs first. Each removal either fixes the
   underlying lint or converts to a per-site `#[expect(lint, reason = "...")]`
   that expires when the site is fixed. No `--accept-raises`.
+
+**CFDrs member — step 1/3 delivered 2026-08-25** (commit `2244e3a1`,
+  branch  `fix/cfdrs-lint-authority-217`, CFDrs PR #372 at exact head,
+  MERGEABLE): removed the in-source `#![warn(clippy::all)]` /
+  `#![warn(clippy::pedantic)]` escalation in **all ten** crates (the
+  previously-claimed nine plus cfd-schematics in combined form), making the
+  47-entry `[workspace.lints.clippy]` table the single authority — the
+  moirai-verified shape. Then deleted **108 blanket allow lines across 31
+  files** whose every lint is already workspace-allowed (pure copies;
+  lines mixing rust lints like `missing_docs` kept). Verified by clippy as
+  the redundancy oracle (all-targets remains zero real warnings; nextest
+  3256/3256, fmt clean; diff is 31 files / 125 pure deletions, CRLF
+  byte-preserved). Next: step 2 (the 42 `print_stdout`/`print_stderr`
+  overrides of the workspace deny) and step 3 (~105 per-crate
+  escalations).
 
 ## ATLAS-BASELINE-DIFF-NOISE-218 — `generate` reformats all 1500 lines, hiding raises [patch] — fixed 2026-08-18
 
