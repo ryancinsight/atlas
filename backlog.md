@@ -59,6 +59,17 @@
 - **Decision inputs now exist; next increment:** pick one non-kwavers heavy
   consumer and apply the cheapest lever with before/after numbers from this
   report as the baseline.
+- **First lever applied (2026-08-25):** hephaestus — the largest unclaimed
+  consumer (14.2kh/wk) — path-filters its four hardware workflows to their own
+  crate + core + manifests + workflow file
+  ([hephaestus PR #220](https://github.com/ryancinsight/hephaestus/pull/220) at
+  `9977801`). Hosted runners skip hardware execution but were compiling each
+  backend stack per unrelated PR (~26 min/PR across four workflows per #218
+  evidence). workflow_dispatch retained for on-demand self-hosted runs;
+  common-surface gates untouched. Before/after rides the report's weekly rerun.
+- **Collected:** Mnemosyne PR #70 merged at `e9adfe8` (all real checks green;
+  only recurseml report-only); Atlas mnemosyne gitlink advanced (`0a926abe3`).
+  leto #123 / ritk #209 doc-drift fixes pending their remaining checks.
 - **Measured 2026-08-25, ~20:00Z:** 27 runs queued across the fleet with one in
   progress — kwavers 14, hermes 7, helios 3, ritk 2, CFDrs 1. Hermes CI on
   `main` sat queued for over 50 minutes. Three merges landed during that window
