@@ -858,9 +858,10 @@ unchanged.
   feature matrix"; MERGEABLE; merge after terminal hosted checks and
   advance the gitlink. (The tentative `ci/kwavers-matrix-toolchain-legs`
   lane was folded into #641 and removed — never pushed.)
-- **Post-push recheck (2026-08-25):** all hosted checks still `pending`
-  (capacity backlog); no terminal evidence at the exact head — merge
-  remains held per policy.
+- **Post-push rechecks (2026-08-25, ×2):** all hosted checks still
+  `pending`/`queued` (capacity backlog); heads unchanged (`516410553` /
+  `6abb06180`), no terminal evidence at either — merges remain held per
+  policy.
 
 ## ATLAS-KWAVERS-GPU-CLIPPY-RATCHET-2026-08-25 — Clear the kwavers-gpu pre-existing clippy findings (the residual's second half) [patch] — in progress
 
@@ -885,9 +886,10 @@ unchanged.
 - **Status:** pushed as kwavers PR #644 at exact head `6abb06180`,
   MERGEABLE on open; merge after terminal hosted checks and record the
   residual closure.
-- **Post-push recheck (2026-08-25):** all hosted checks still `pending`
-  (queue backlog; only the always-report-only `recurseml/analysis` is
-  `fail`); no terminal evidence at the exact head — merge held per policy.
+- **Post-push rechecks (2026-08-25, ×2):** all hosted checks still
+  `pending`/`queued` (queue backlog; only the always-report-only
+  `recurseml/analysis` is `fail`); no terminal evidence at the exact head
+  — merge held per policy.
 
 ## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clippy ratchet item (merged as PR #639 at f11d4b99c; gitlink advanced in 59c5f294e) — done
 
