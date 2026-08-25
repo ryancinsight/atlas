@@ -749,7 +749,7 @@ unchanged.
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.
 
-## ATLAS-KWAVERS-VIS-CONFIG-2026-08-25 — Make visualization selection and quality single-source [major] — in progress
+## ATLAS-KWAVERS-VIS-CONFIG-2026-08-25 — Make visualization selection and quality single-source [major] — blocked
 
 - **Owner:** current session. **Scope:** Kwavers visualization configuration,
   renderer quality propagation, focused tests, Rustdoc/README/CHANGELOG, and an
@@ -776,10 +776,31 @@ unchanged.
   metadata, ADR-index validation, and the current-default real Hephaestus
   hardware test pass. `cargo-semver-checks` against the buildable
   dependency-only prerequisite baseline reports exactly the two removed fields
-  as a required major change. Post-merge hosted checks remain in collection.
-  Atlas gitlink `repos/kwavers` is held at `8ef48975c` until the post-merge
-  runs at `00455130f` are terminal (currently queued in the known Actions
-  capacity backlog).
+  as a required major change. The post-merge matrix is terminal with 33 passes,
+  two expected skips, zero failures, and one cancellation: GPU and CUDA builds,
+  all feature combinations, stable/beta/nightly, Miri, security, docs, coverage,
+  quality, and validation pass; `Benchmark Runtime Smoke` spent 29 minutes in
+  its Criterion command and hit the job's 30-minute timeout. Atlas gitlink
+  `repos/kwavers` remains at `8ef48975c`. **Blocker/re-open trigger:** correct
+  the cold-build benchmark-smoke instrument without raising its bound, then
+  obtain a terminal green run and advance the gitlink to that fix.
+
+## ATLAS-KWAVERS-BENCH-SMOKE-2026-08-25 — Bound cold-build benchmark smoke [patch] — ready
+
+- **Owner:** unclaimed. **Scope:** Kwavers benchmark-smoke command and its
+  directly required CI/cache structure. **Non-goals:** no timeout increase,
+  benchmark deletion, reduced target coverage, or production-kernel change
+  without profile evidence.
+- **Outcome:** every plotting-eligible Criterion target executes once under the
+  existing finite bound on a cold hosted runner; compilation and execution are
+  separated or consolidated so setup cost cannot consume the smoke budget.
+- **Acceptance oracle:** reproduce run `32867271654`, identify the last target
+  reached from its completed log, retain the full target set, verify the cold
+  and warm paths complete below 30 minutes, and obtain terminal green hosted
+  `Benchmark Runtime Smoke` plus the affected fast local gate.
+- **Risk/dependencies:** `[patch]`; depends on the completed-run log becoming
+  available. The visualization implementation is unchanged. Completion
+  re-opens `ATLAS-KWAVERS-VIS-CONFIG-2026-08-25` for its gitlink advance.
 
 ## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clear the standalone kwavers-analysis clippy debt [chore] — in progress
 

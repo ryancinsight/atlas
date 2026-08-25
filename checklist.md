@@ -701,9 +701,11 @@ Item closed 2026-08-23.
       [PR #638](https://github.com/ryancinsight/kwavers/pull/638) at
       `00455130f` (reviewed head `b2a156215` plus the confirmed commits
       `2c2b65792`/`26ff990e2`/`bdea8ea71`). Atlas gitlink advance to
-      `00455130f` is HELD: post-merge runs at the merged default are queued in
-      the known Actions capacity backlog; no pointer move without terminal
-      hosted checks.
+      `00455130f` is HELD: 33 hosted checks pass and two skip as intended, but
+      `Benchmark Runtime Smoke` hit its 30-minute timeout after 29 minutes in
+      the Criterion command.
+- [ ] Advance the Atlas gitlink after the cold-build benchmark-smoke correction
+      lands and its hosted rerun is terminal green.
 
 ## ATLAS-ATHENA-ALLOCATION-CONTRACT-2026-08-25 — current session
 
