@@ -5857,26 +5857,21 @@ converter; the existing bilinear differential remains the acceptance oracle.
     hyperion → `hyperion-photon` (repoint its `proteus` dep), horae (name free),
     harmonia → `harmonia-coupling` (repoint `horae`+`athena-core` deps), then
     asclepius-coeus; athena's family must publish before harmonia.
-- **Delivery 2026-08-24 — unblocker chain first link (proteus → `proteus-mat`),
-  committed, release-authority pending.** Per the 2026-08-24 naming preference
-  (concise `<name>-<abbrev>` rather than ADR 0037's `<name>-<domain>`), the
-  first publishable foundation is renamed to `proteus-mat`:
-  - **proteus** `9e9609d` on `fix/proteus-rename-mat`: `name = "proteus-mat"`,
-    `publish = true`, `[lib] name = "proteus"` preserving the import path.
-    Lock repaired to standalone form (`atlas-lock-form.py regenerate proteus`,
-    HEAD+worktree `ok`). `cargo check` and `cargo package` (57 files, 144.4 KiB)
-    both pass.
-  - **consumers repointed to `package = "proteus-mat"`** (git URL unchanged,
-    import path unchanged): CFDrs `500b3e37`, helios `b4bd6b9`, hyperion
-    `4e9c867` (`proteus/std` feature preserved), kwavers `7cf6ec694` — all on
-    `fix/proteus-mat-adoption`.
-  - **overlay regenerated**: `.cargo/config.toml` patches
-    `proteus-mat = { path = "repos/proteus" }` (44 sections); hyperion metadata
-    resolves `proteus-mat` with `rename: proteus`.
-  - **Release-authority pending (not executed):** pushing the branches, opening
-    the PRs, adding proteus's `rust-release.yml` caller, and the `cargo publish`
-    itself. The next chain links (hyperion → `hyperion-ph`, horae, harmonia →
-    `harmonia-cpl`) follow the same pattern once this link merges and publishes.
+  - **Delivery 2026-08-25 — first link merged across the stack; publish itself
+    still pending.** All five PRs merged to their default branches:
+    proteus #19 (`cd93e67`, later main `cb00193`), CFDrs #371 (`5ebbf1f`),
+    hyperion #25 (`017a669`), kwavers #637 (`f5a996c` → main `cf5852f`),
+    helios #71 (`c2cf177`). Atlas gitlinks advanced in `5c9efcac8` (+ hermes
+    `4a1228ce`); overlay regenerated (44 sections, stack aligned);
+    `atlas-provider-integration-audit.py --exact-heads` green.
+  - **Lockfile lesson (kwavers/helios):** a committed lockfile must be generated
+    *without* the Atlas overlay — the overlay's `[patch]` redirects strip the
+    git `source =` lines from lock entries and inject `[[patch.unused]]`
+    sections, both of which break CI's `--locked` resolution. Helios now enforces
+    this at push time via its pre-push hook (`scripts/lockfile.py --regenerate`).
+    Remaining: the actual `cargo publish` of `proteus-mat` (release authority),
+    then the next links: hyperion → `hyperion-ph`, horae, harmonia →
+    `harmonia-cpl`.
 - Peer-held at this revision, so not claimable without a staleness sweep:
   `coeus` (`codex/coeus-error-function-parity`, 24 dirty), `ritk`
   (`codex/docs-ritk-n4-figure-only`, 11 dirty, active), `leto`
