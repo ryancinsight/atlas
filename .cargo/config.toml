@@ -243,10 +243,10 @@ moirai-runtime = { path = "repos/moirai/moirai" }
 moirai-sync = { path = "repos/moirai/moirai-sync" }
 
 [patch."https://github.com/ryancinsight/proteus"]
-proteus = { path = "repos/proteus" }
+proteus-mat = { path = "repos/proteus" }
 
 [patch."https://github.com/ryancinsight/proteus.git"]
-proteus = { path = "repos/proteus" }
+proteus-mat = { path = "repos/proteus" }
 
 [patch."https://github.com/ryancinsight/ritk"]
 ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }

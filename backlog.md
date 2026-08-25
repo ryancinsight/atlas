@@ -5440,6 +5440,26 @@ converter; the existing bilinear differential remains the acceptance oracle.
     hyperion → `hyperion-photon` (repoint its `proteus` dep), horae (name free),
     harmonia → `harmonia-coupling` (repoint `horae`+`athena-core` deps), then
     asclepius-coeus; athena's family must publish before harmonia.
+- **Delivery 2026-08-24 — unblocker chain first link (proteus → `proteus-mat`),
+  committed, release-authority pending.** Per the 2026-08-24 naming preference
+  (concise `<name>-<abbrev>` rather than ADR 0037's `<name>-<domain>`), the
+  first publishable foundation is renamed to `proteus-mat`:
+  - **proteus** `9e9609d` on `fix/proteus-rename-mat`: `name = "proteus-mat"`,
+    `publish = true`, `[lib] name = "proteus"` preserving the import path.
+    Lock repaired to standalone form (`atlas-lock-form.py regenerate proteus`,
+    HEAD+worktree `ok`). `cargo check` and `cargo package` (57 files, 144.4 KiB)
+    both pass.
+  - **consumers repointed to `package = "proteus-mat"`** (git URL unchanged,
+    import path unchanged): CFDrs `500b3e37`, helios `b4bd6b9`, hyperion
+    `4e9c867` (`proteus/std` feature preserved), kwavers `7cf6ec694` — all on
+    `fix/proteus-mat-adoption`.
+  - **overlay regenerated**: `.cargo/config.toml` patches
+    `proteus-mat = { path = "repos/proteus" }` (44 sections); hyperion metadata
+    resolves `proteus-mat` with `rename: proteus`.
+  - **Release-authority pending (not executed):** pushing the branches, opening
+    the PRs, adding proteus's `rust-release.yml` caller, and the `cargo publish`
+    itself. The next chain links (hyperion → `hyperion-ph`, horae, harmonia →
+    `harmonia-cpl`) follow the same pattern once this link merges and publishes.
 - Peer-held at this revision, so not claimable without a staleness sweep:
   `coeus` (`codex/coeus-error-function-parity`, 24 dirty), `ritk`
   (`codex/docs-ritk-n4-figure-only`, 11 dirty, active), `leto`
