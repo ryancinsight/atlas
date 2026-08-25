@@ -754,12 +754,10 @@ Item closed 2026-08-23.
       [PR #639](https://github.com/ryancinsight/kwavers/pull/639) at exact
       head `80d120202` (base `main` `00455130f`), `MERGEABLE` on open.
       Merge after terminal hosted checks; the lane was removed.
-- [ ] **Gitlink move — BLOCKED (checked 2026-08-25):** kwavers main still at
-      `00455130f`; PR #639 OPEN with all checks pending (`recurseml/analysis`
-      fail is the always-report-only external); one post-merge #638 run still
-      `queued`. Move `repos/kwavers` to the new head only after #639 merges
-      AND its post-merge runs (plus the queued #638 run) are terminal. Do not
-      re-check before the queue clears; re-trigger when runners recover.
+- [x] **Gitlink — DONE (2026-08-25):** PR #639 merged at `f11d4b99c` (exact
+      head `80d120202` after all checks went terminal); `repos/kwavers`
+      advanced to `f11d4b99c` (atlas `59c5f294e`). Post-merge #639 runs start
+      queued (capacity backlog); collect when terminal.
 
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — current session
 
