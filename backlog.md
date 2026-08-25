@@ -1,5 +1,60 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LSQR-STAGE-C-INCOMPLETE — leto stage D deleted an API its consumer still binds [major] — todo
+
+- **Owner:** unclaimed. Two repositories, in order: athena, then kwavers.
+- **Symptom.** `kwavers-math` does not compile against current `leto`:
+
+  ```
+  error[E0432]: unresolved imports `leto_ops::application::linalg::LsqrConfig`,
+  `LsqrResult`, `LsqrSolver`   --> crates/kwavers-math/src/lib.rs:54:41
+  ```
+
+  Every local build of kwavers, and of anything depending on it, is broken
+  under the development overlay. CI is green because it resolves the pinned
+  `leto` from the lockfile, which is why this went unnoticed.
+
+- **Cause.** leto `887639e` (*"refactor(leto-ops)!: Delete the iterative solver
+  family"*, 2026-08-20) removed `LsqrSolver`, `LsqrConfig`, `LsqrResult` and
+  `LinearOperator`. Its message states "no other repository in the stack imports
+  it, so the last consumer is gone". That was not so: `kwavers-math` re-exports
+  all three from `lib.rs:54`, wraps `LsqrSolver` in
+  `linear_algebra/sparse/matfree.rs`, and `kwavers-diagnostics`
+  (`reconstruction/sound_speed_shift/solver/lsqr.rs`) consumes the wrapper.
+
+- **ADR 0033 was not followed.** The ADR requires each stage to land "as its own
+  increment **with its consumers converted in the same change**", and sets stage
+  D acceptance as "a residue scan finds no Krylov recurrence outside Athena, and
+  **every consumer suite passes against Athena**". Neither held. Kwavers PR #440
+  (*"Adopt Athena Krylov"*) is stage C and is still open, three days stale and
+  DIRTY -- and it covers GMRES in `kwavers-solver` only. It does not touch the
+  LSQR surface at all, so landing it would not fix this.
+
+- **The blocking capability gap.** kwavers' wrapper is LSQR *with Tikhonov
+  damping*, and `sound_speed_shift` uses that damping. Athena's `Lsqr`
+  (`athena-core/src/solver/lsqr/`) has no damping parameter --
+  `Lsqr::solve_into` takes backend, operator, right-hand side, solution,
+  workspace and `ConvergencePolicy`, and nothing regularises. So the consumer
+  cannot migrate onto Athena as it stands.
+
+- **Order of work, per upstream ownership** (the gap is implemented in the
+  owning crate, never approximated downstream):
+  1. **athena** -- add damping to `Lsqr`. This is a real numerical change: the
+     damped recurrence augments the Golub-Kahan bidiagonalization with the
+     regularisation parameter rather than post-scaling a solution, and it needs
+     the same conformance the ADR requires of every Athena recurrence
+     (generic over `f32`/`f64`, allocation-stable workspace, value-semantic
+     `Termination`). A differential test against the pre-deletion leto
+     implementation is available from history for as long as it is wanted.
+  2. **kwavers** -- convert `MatFreeOperatorAdapter` to Athena's
+     `RectangularOperator<B>` seam, map `LsqrConfig` onto `ConvergencePolicy`
+     plus the new damping, and delete the leto re-exports from
+     `kwavers-math/src/lib.rs`. No shim at either end; the branch is the
+     isolation layer.
+
+- **Meanwhile.** Nothing here is urgent for CI, which is pinned and green. It is
+  urgent for anyone developing locally against the overlay, which is everyone.
+
 ## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch] — closed 2026-08-24
 
 - **Owner:** current session; lane will be `worktrees/cfdrs-mdbook-dead-links`.
