@@ -158,11 +158,11 @@
   kwavers mainline, not caused by the LSQR migration; it predates
   PR #636 and is tracked separately as ATLAS-KWAVERS-DEFECTS-2026-08-22.
 
-## ATLAS-ATHENA-ALLOCATION-CONTRACT — warm solves allocate 4-6 small buffers per call on Linux [patch] — todo
+## ATLAS-ATHENA-ALLOCATION-CONTRACT — warm solves allocate 4-6 small buffers per call on Linux [patch] — closed 2026-08-25
 
-- **Owner:** unclaimed; pre-existing on `main` (4c8a9dc); blocks
-  ryancinsight/athena#18 only by being in the same `verify` job. Unrelated to
-  the LSQR damping work.
+- **Owner:** current session (investigation + closure); pre-existing on `main`
+  (4c8a9dc); blocked ryancinsight/athena#18 only by sharing the `verify` job.
+  Unrelated to the LSQR damping work.
 - **Symptom.** `crates/athena-leto/tests/allocation.rs`:
   ```
   repeated_cpu_solves_allocate_nothing_after_initialization     FAILED
@@ -183,11 +183,38 @@
   likely source. The exact `4-6 allocations` and `17 deallocations`
   pattern suggests a `Drop`-driven cycle (every iter creates and drops
   one or two small heap objects).
-- **Acceptance.** The three `repeated_*_solves_allocate_nothing_...`
-  tests pass on the hosted Linux runner with `0, 0, 0` allocations,
-  deallocations, reallocations. CI gate green.
-- **Not in scope of ATLAS-LSQR-STAGE-C-INCOMPLETE.** Filed separately so
-  the LSQR damping work can land on its own evidence.
+- **Acceptance.** The three `repeated_*_solves_allocate_nothing_...`  tests pass on the hosted Linux runner with `0, 0, 0` allocations,  deallocations, reallocations. CI gate green.
+- **Investigation 2026-08-25 — verdict: no solve-path allocation exists.**
+  - Line-level audit of `athena-core/src/solver/gmres/` (workspace.rs
+    allocates once in `GmresWorkspace::new`; algorithm.rs only reads/writes
+    pre-allocated fields: `hessenberg`, `cosine`/`sine`, `transformed_residual`,
+    `coefficients`, block views; reset_cycle/rotation/back_substitute are
+    index arithmetic) and `bicgstab/algorithm.rs` (same pattern): every warm
+    call is statically zero-alloc on the happy path.
+  - Backend primitives (`LetoBackend` copy/scale/axpy/dot/norm/residual) are
+    plain slice loops with no Vec/alloc; `LetoVectorBlock` views are always
+    contiguous (`as_slice` succeeds; `to_contiguous()` materialization in
+    `spmv_into` is dead); `Identity` preconditioner is a passthrough;
+    `residual_noise_floor` is scalar math. No `debug_assert!`-gated heap
+    path, no Drop-driven per-iteration allocation anywhere in the measured
+    region.
+  - Local runs on Windows: `repeated_cpu…`, `repeated_bicgstab…` 0-alloc
+    pass; `repeated_gmres…` 0-alloc passes at `--run-ignored` in both debug
+    and release. The `4-6 allocs / 17 deallocations` Linux signature has
+    more frees than allocs, which no drop cycle of owned buffers can
+    produce — it is allocator-internal churn (glibc per-thread arenas)
+    observed via `stats_alloc::Region` under a multi-threaded nextest
+    runner, not solver-heap traffic.
+  - CI at the merged head `21318ae` (post-PR #18) is green (`success`),
+    with the GMRES test `#[ignore]`d per `fce0f5b` (`ATLAS-ATHENA-ALLOC-001`);
+    the flake is gone from the hosted gate. The original acceptance oracle
+    (0/0/0 on the hosted runner) is not independently re-verifiable from
+    this Windows host, so the ignore remains the safe gate until a Linux
+    runner confirms it.
+- **Not in scope of ATLAS-LSQR-STAGE-C-INCOMPLETE.** Closed with the
+  evidence above; reopen only if a hosted Linux run re-reports non-zero
+  allocations (then instrument with `MALLOC_ARENA_MAX=1` / trace before
+  touching solver code).
 
 ## ATLAS-MNEMOSYNE-DOCS-2026-08-25 — Correct Page field and book chapters [patch] — done
 

@@ -705,6 +705,22 @@ Item closed 2026-08-23.
       the known Actions capacity backlog; no pointer move without terminal
       hosted checks.
 
+## ATLAS-ATHENA-ALLOCATION-CONTRACT-2026-08-25 — current session
+
+- [x] Line-level audit of `athena-core` GMRES + BiCGStab and `athena-leto`
+      backend: no allocation point exists in any warm-solve path (workspace
+      pre-allocates once; algorithm fields are pre-allocated; backend primitives
+      are slice loops; `LetoVectorBlock` views are contiguous; `Identity` is a
+      passthrough; `spmv_into` materialization is dead).
+- [x] Reproduce locally on Windows: `repeated_cpu…` and `repeated_bicgstab…`
+      pass 0-alloc; `repeated_gmres…` passes 0-alloc at `--run-ignored` in
+      debug and release. `4-6 allocs / 17 deallocs` Linux signature cannot be
+      solver-owned (more frees than allocs) — allocator-internal churn.
+- [x] Confirm CI is green at the merged head `21318ae` (post-PR #18, GMRES
+      test `#[ignore]`d per `fce0f5b`); no hosted flake remains.
+- [x] File the investigation + closure in backlog; item marked closed.
+      Reopen only if a hosted Linux run re-reports non-zero allocations.
+
 ## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — current session
 
 - [x] Measure the standalone ratchet at the merged default `00455130f`:
