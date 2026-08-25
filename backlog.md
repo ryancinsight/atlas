@@ -325,11 +325,11 @@
   `aeacb924d`). Only `recurseml/analysis` reports (always-failing
   external report).
 
-## ATLAS-KWAVERS-CI-COVERAGE-OPT-2026-08-25 — Full-workspace test job to O3 [perf][patch] — review pending
+## ATLAS-KWAVERS-CI-COVERAGE-OPT-2026-08-25 — Full-workspace test job to O3 [perf][patch] — hosted verification pending
 
 - **Owner:** current session; lane `worktrees/kwavers-ci-coverage-opt`,
   branch `perf/kwavers-test-coverage-profile`, PR
-  [#642](https://github.com/ryancinsight/kwavers/pull/642) at `5c49bb2c`.
+  [#642](https://github.com/ryancinsight/kwavers/pull/642) at `ed44d3d52`.
 - **Evidence (measured on ryancinsight/kwavers main, successful runs):**
   Architecture Validation wall 33–67m across recent runs, with the job's
   own queueing adding ~30m beyond its longest member; inside it,
@@ -339,7 +339,14 @@
 - **Root causes found in Test Suite Coverage:** it executes the
   compute-bound physics suites at dev's `opt-level = 1`, and it has no
   rust-cache so it cold-compiles the workspace every run.
-- **Fix (workload/flags/timeout unchanged):** `[profile.coverage]` now
+- **Hosted falsification and correction:** head `5c49bb2c` completed the
+  5,759-test suite in 9m43s after an 18m53s cold compile, PINN in 4m01s,
+  and bounded full-grid simulations in 4m26s, then exhausted the unchanged
+  45-minute cap rebuilding the disjoint full-feature doctest graph. Commits
+  `63513fca1` + `ed44d3d52` move that doctest to the documentation job, run
+  the workspace suite as two bounded processes with two Rayon workers each,
+  and measure `target/coverage` rather than the nonexistent `target/debug`.
+- **Fix (workload/timeout unchanged):** `[profile.coverage]` now
   sets `opt-level = 3` for workspace crates too — its O1 inheritance was
   justified by a ptrace rationale that died when tarpaulin moved to the
   llvm engine; the job builds via `--cargo-profile coverage` (nextest) /
@@ -347,7 +354,7 @@
   is added.
 - **Local evidence:** kwavers-math lib suite under the new profile
   196/196 in **0.93s vs 7.6s** at O1 (~8x).
-- **Next:** collect PR #642's hosted run; if green, record the new
+- **Next:** collect PR #642's hosted rerun; if green, record the new
   Test Suite Coverage duration and tighten the 45-minute timeout toward
   measured + 20% variance in a follow-up commit (bound tightening follows
   evidence, never precedes it).
@@ -900,9 +907,11 @@ unchanged.
   the cold-build benchmark-smoke instrument without raising its bound, then
   obtain a terminal green run and advance the gitlink to that fix.
 
-## ATLAS-KWAVERS-BENCH-SMOKE-2026-08-25 — Bound cold-build benchmark smoke [patch] — ready
+## ATLAS-KWAVERS-BENCH-SMOKE-2026-08-25 — Bound cold-build benchmark smoke [patch] — hosted verification pending
 
-- **Owner:** unclaimed. **Scope:** Kwavers benchmark-smoke command and its
+- **Owner:** current session; lane `worktrees/kwavers-ci-opt`, branch
+  `ci/kwavers-build-matrix-timings`, PR #641 at `448565dd4`. **Scope:**
+  Kwavers benchmark-smoke command and its
   directly required CI/cache structure. **Non-goals:** no timeout increase,
   benchmark deletion, reduced target coverage, or production-kernel change
   without profile evidence.
@@ -911,25 +920,31 @@ unchanged.
   separated or consolidated so setup cost cannot consume the smoke budget.
 - **Acceptance oracle:** reproduce run `32867271654`, retain the full target
   set, build the bench binaries once as a separately bounded artifact, verify
-  the cold build and bounded smoke phases independently, and obtain terminal
-  green hosted `Benchmark Runtime Smoke` plus the affected fast local gate.
+  the cold build and bounded smoke phases independently, and obtain a terminal
+  green hosted plotting feature-matrix leg containing both benchmark steps.
 - **Risk/dependencies:** `[patch]`; the completed log proves no Criterion target
   executed: the release-profile compile was still building `proptest` at 29
   minutes and the 30-minute job bound then killed Cargo and Rustc. The
   visualization implementation is unchanged. Completion re-opens
   `ATLAS-KWAVERS-VIS-CONFIG-2026-08-25` for its gitlink advance.
+- **Fix:** delete the standalone benchmark job and run one bounded dev-profile
+  build plus one bounded `--test` execution in the already-cached plotting
+  feature-matrix leg. The leg reuses checkout, toolchain, dependency cache, and
+  the exact `--no-default-features --features plotting` graph; static manifest
+  enumeration retains all 19 plotting-eligible targets. Independent review
+  found no remaining issue after duplicate-step and feature-fingerprint checks.
 
-## ATLAS-KWAVERS-CI-MATRIX-TIMEOUT-2026-08-25 — Give the Build & Test matrix real headroom; drop redundant build [patch] — in progress
+## ATLAS-KWAVERS-CI-MATRIX-TIMEOUT-2026-08-25 — Eliminate matrix and validation compile duplication [patch] — hosted verification pending
 
 - **Owner:** current session; lane `worktrees/kwavers-ci-opt` (branch
   `ci/kwavers-build-matrix-timings`).
 - **Observed while watching PR #639:** the `Build & Test` matrix
   (stable/beta/nightly) ran 30m19s on the nightly leg against a 30-minute
-  cap and was cancelled; the re-run passed at 28m19s. The gate is
-  under-provisioned under hosted queue load.
-- **Fix — folded commits `67f09da24` + `9008da3ab` + `516410553`:**
-  (1) raise the matrix `timeout-minutes` to 60 per the coverage-job
-  convention; drop the redundant `cargo build --release` step; **split the
+  cap and was cancelled; the re-run passed at 28m19s. Subsequent logs show
+  duplicate compile graphs, not insufficient timeout, are the defect.
+- **Fix — commits through `448565dd4`:**
+  (1) retain the 30-minute matrix bound; drop the redundant
+  `cargo build --release` step; **split the
   matrix** (stable = full gate; beta/nightly = `cargo check --release
   --all-targets` compat oracle, cutting the measured beta 23m / nightly 28m
   legs to compile-only); (2) replace `cargo install` from source with
@@ -940,16 +955,18 @@ unchanged.
   slowest (~28m) with independent headroom for nl-swe; (4) add the shared
   Swatinem/rust-cache to the five-leg feature-combination matrix
   (architecture-validation.yml), which previously cold-compiled the full
-  dep tree per PR. YAML validated via PyYAML; `--locked` untouched.
-- **Status:** pushed as kwavers PR #641, head `516410553`, title
+  dep tree per PR; (5) reuse the release/plotting graph for stable doctests,
+  consolidate duplicate PINN jobs, cache the five-minute locked resolver,
+  and shallow-checkout touched jobs. YAML, timeout non-increase, target count,
+  lock provenance, and independent-review checks pass.
+- **Status:** pushed as kwavers PR #641, head `448565dd4`, title
   "ci(kwavers): Right-size build matrix, split heavy validation, cache
   feature matrix"; MERGEABLE; merge after terminal hosted checks and
   advance the gitlink. (The tentative `ci/kwavers-matrix-toolchain-legs`
   lane was folded into #641 and removed — never pushed.)
-- **Post-push rechecks (2026-08-25, ×2):** all hosted checks still
-  `pending`/`queued` (capacity backlog); heads unchanged (`516410553` /
-  `6abb06180`), no terminal evidence at either — merges remain held per
-  policy.
+- **Next:** collect the hosted rerun and record per-job execution durations;
+  any bound hit remains a production/test-topology defect, not grounds to
+  increase `timeout-minutes`.
 
 ## ATLAS-KWAVERS-GPU-CLIPPY-RATCHET-2026-08-25 — Clear the kwavers-gpu pre-existing clippy findings (the residual's second half) [patch] — in progress
 
