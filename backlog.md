@@ -608,14 +608,12 @@ unchanged.
   matrix at the gitlink head is terminal green (Architecture Validation,
   CI/CD Pipeline, Deploy mdBook, Legacy Migration Audit all success at
   `a94a8bcde`), so Atlas integration is closed.
-- **Verification residual (open, separate ratchet):** package-wide
-  `kwavers-analysis --lib` Clippy with `-D warnings` still reports 45
-  pre-existing findings outside the changed files, including missing
-  error/panic documentation, stdout fallback output, unused receivers, and
-  unused async wrappers. A no-dependencies `kwavers-gpu` Clippy run likewise
-  reports 28 pre-existing findings outside the changed file. The follow-up
-  does not suppress or widen either gate; the warning-ratchet work remains
-  required.
+- **Verification residual (open, separate ratchet):** the original exact-head
+  package-wide `kwavers-analysis --lib` and `kwavers-gpu` Clippy probes reported
+  45 and 28 pre-existing findings outside the changed files. Those counts are
+  historical, not current-default claims. The current workspace ratchet and
+  strict top-level Clippy gates pass in PR #636; a fresh unwaived member-crate
+  measurement remains separate warning-ratchet work.
 - **Meta-repo integration residual (2026-08-24):** gitlink advanced to
   `a94a8bcde` (post-#632 default plus PR #635). PR #635 (merge `a94a8bcde`)
   fixed the seven strict-clippy errors in the SWE WIP rescue test file
@@ -663,9 +661,10 @@ unchanged.
   Kwavers 41/41, real Hephaestus adapter transfer 1/1, no-default-features
   compilation, doctests including the compile-fail typestate proof, and
   warning-denied Rustdoc pass. Source and merge trees both equal
-  `d95f04a991b7a94c11c41318b469cb556b7190be`. Hosted jobs are still queued;
-  the recurseml analyzer error is report-only. No emitted-code inspection or
-  performance claim is included.
+  `d95f04a991b7a94c11c41318b469cb556b7190be`. The original architecture job
+  failed only on unrelated SWE test lint debt later fixed by PR #635; the
+  unchanged visualization implementation passes the complete PR #636 matrix.
+  No emitted-code inspection or performance claim is included.
 - **Pipeline hardware evidence merged (PR #632, source `6f400e1a9`, merge
   `534051c04`):** the scheduled adapter oracle now routes a distinct field
   through top-level Kwavers selection and analysis `DataPipeline` conversion
@@ -674,7 +673,10 @@ unchanged.
   transferred bytes. The real-adapter test passes 1/1; the normal Kwavers
   library passes 41/41 with the hardware test skipped; warning-denied Clippy,
   rustfmt, YAML parsing, and diff checks pass. Source and merge trees both equal
-  `6e104e339ed3731fccee8f7192678b39ffe7f192`. Hosted jobs remain queued.
+  `6e104e339ed3731fccee8f7192678b39ffe7f192`. Current default `8ef48975c`
+  retains the oracle and passes the complete PR #636 matrix. Local
+  current-default rerun `7079a92b-1564-4ac5-bc4b-96a9afbaca44` passes 1/1 on
+  the available Hephaestus adapter.
 - **Non-goals:** no change to the already-closed multi-field initialization
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.

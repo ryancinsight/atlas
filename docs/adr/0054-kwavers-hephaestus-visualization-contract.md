@@ -97,8 +97,11 @@ synchronization failures remain typed errors. The merge and source trees are
 identical (`d95f04a991b7a94c11c41318b469cb556b7190be`). Local full CPU and GPU
 Nextest suites, the real-adapter transfer oracle, doctests including the
 compile-fail typestate proof, warning-denied Rustdoc, and no-default-features
-compilation pass. The hosted PR #631 matrix remains queued; no hosted-green
-claim is made.
+compilation pass. PR #631's original architecture job was blocked by unrelated
+strict-Clippy debt in `swe_3d_validation.rs`; PR #635 fixed those diagnostics.
+The later complete matrix at Kwavers PR #636 passes Architecture Validation,
+all feature combinations, CUDA build, Miri, coverage, documentation, and the
+book with the visualization implementation unchanged.
 
 Evidence follow-up PR
 [#632](https://github.com/ryancinsight/kwavers/pull/632), source
@@ -108,8 +111,11 @@ before the Hephaestus upload. It preserves the physical double-buffer memory
 assertion and adds exact pipeline dimensions, value range, and logical byte
 count for a distinct second upload. The source and merge trees are identical
 (`6e104e339ed3731fccee8f7192678b39ffe7f192`). Local real-hardware, normal
-library, warning-denied Clippy, formatting, and workflow-shape gates pass; its
-hosted matrix remains queued.
+library, warning-denied Clippy, formatting, and workflow-shape gates pass. The
+current Kwavers default `8ef48975c` retains this oracle and passes the complete
+PR #636 hosted matrix. A current-default local rerun also passes the real
+Kwavers-to-Hephaestus pipeline transfer (Nextest run
+`7079a92b-1564-4ac5-bc4b-96a9afbaca44`, 1/1).
 
 ## Required tests
 
