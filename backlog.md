@@ -4054,7 +4054,7 @@ Both edits made under the mistaken reading were reverted; they were my own,
 no peer state was touched. The remaining work is one clean run of the gate
 from a current checkout, then the CI step.
 
-## ATLAS-CRATE-LEVEL-ALLOWS-217 — 502 blanket suppressions the ratchet never counted [major] — open 2026-08-18, specified 2026-08-19 (CFDrs member in progress 2026-08-25)
+## ATLAS-CRATE-LEVEL-ALLOWS-217 — 502 blanket suppressions the ratchet never counted [major] — open 2026-08-18, specified 2026-08-19 (CFDrs, kwavers, consus members delivered 2026-08-25)
 
 **Specified 2026-08-19, and the severity in the original filing was
 overstated.** Measured with the scanner's own classification rather than a
@@ -4180,20 +4180,59 @@ internal APIs").
   underlying lint or converts to a per-site `#[expect(lint, reason = "...")]`
   that expires when the site is fixed. No `--accept-raises`.
 
-**CFDrs member — step 1/3 delivered 2026-08-25** (commit `2244e3a1`,
-  branch  `fix/cfdrs-lint-authority-217`, CFDrs PR #372 at exact head,
-  MERGEABLE): removed the in-source `#![warn(clippy::all)]` /
-  `#![warn(clippy::pedantic)]` escalation in **all ten** crates (the
-  previously-claimed nine plus cfd-schematics in combined form), making the
-  47-entry `[workspace.lints.clippy]` table the single authority — the
-  moirai-verified shape. Then deleted **108 blanket allow lines across 31
-  files** whose every lint is already workspace-allowed (pure copies;
-  lines mixing rust lints like `missing_docs` kept). Verified by clippy as
-  the redundancy oracle (all-targets remains zero real warnings; nextest
-  3256/3256, fmt clean; diff is 31 files / 125 pure deletions, CRLF
-  byte-preserved). Next: step 2 (the 42 `print_stdout`/`print_stderr`
-  overrides of the workspace deny) and step 3 (~105 per-crate
-  escalations).
+**CFDrs member — steps 1–2/3 delivered 2026-08-25** (branch
+  `fix/cfdrs-lint-authority-217`, CFDrs PR #372 at head `0155d8f4`,
+  MERGEABLE):
+
+  - **Step 1** (`2244e3a1`): removed the in-source `#![warn(clippy::all)]` /
+    `#![warn(clippy::pedantic)]` escalation in **all ten** crates (the
+    previously-claimed nine plus cfd-schematics in combined form), making the
+    47-entry `[workspace.lints.clippy]` table the single authority — the
+    moirai-verified shape. Then deleted **108 blind allow lines across 31
+    files** whose every lint is already workspace-allowed (pure copies;
+    lines mixing rust lints like `missing_docs` kept). Clippy-verified as
+    the redundancy oracle: all-targets zero real warnings, nextest
+    3256/3256, fmt clean, 31 files / 125 pure deletions, CRLF byte-preserved.
+  - **Step 2** (`0155d8f4`): the `print_stdout`/`print_stderr` blanket
+    overrides of the workspace deny → self-expiring `#[expect]`. The
+    detector's "42 sites" undercounted once more (the real surface is
+    ~100 files once tests/examples are included), so each file was
+    classified: src test-sidecars and integration tests narrowed to the
+    lint that actually fires (`print_stderr` for `eprintln!` skip-notes,
+    both where stdout prints exist); cfd-3d `bifurcation/validation.rs` +
+    `venturi/analysis.rs` keep an unconditional file-level expect because
+    `print_summary`/flow diagnostics are real library report APIs;
+    files whose prints live only in doc comments dropped the attribute
+    entirely. Clippy 0 warnings (expects are self-expiring — any stale
+    suppression surfaces as an unfulfilled-expect warning), nextest
+    3256/3256, fmt clean.
+  - Remaining: step 3 (~105 per-crate escalations needing individual
+    adjudication, separate PR).
+
+**kwavers member delivered 2026-08-25** (branch
+  `fix/kwavers-lint-leftover-217`, PR #646 at head `f9c124c53`, MERGEABLE):
+  the last 4 crate-level allows — 3 were pure duplicates of the workspace
+  table (`doc_markdown`, `module_inception`, `needless_range_loop`, all
+  already `allow` in `[workspace.lints.clippy]`) and were deleted; the
+  python-binding `type_complexity` allow became a self-expiring
+  `#[expect]` with the binding-surface reason (`too_many_arguments` stays
+  allowed — documented Python mirror surface). Clippy 0 warnings, fmt
+  clean; the single `pstd_finite_window_born` failure reproduces at main
+  (pre-existing, unrelated).
+
+**consus member removed 2026-08-25** (branch
+  `fix/consus-lint-expect-217`, PR #55 at head `2c97deb`, MERGEABLE):
+  consus's floor is `pedantic = deny`, so every remaining crate-level
+  allow suppresses a genuinely firing lint — converted all 6 to
+  self-expiring `#[expect]` with the documented reason
+  (`empty_line_after_doc_comments`, `too_many_arguments` ×2,
+  `needless_range_loop`, `collapsible_match`, `useless_conversion`).
+  `budget.rs` untouched (already the correct test-scoped pattern). Clippy
+  0 warnings, nextest 2582/2582, fmt clean (CRLF preserved).
+
+  Remaining members: coeus 18 (peer branch `codex/coeus-lint-ratchet`
+  claims it — not actionable), ritk 8, gaia 4, mnemosyne 2, hermes 1,
+  leto 1.
 
 ## ATLAS-BASELINE-DIFF-NOISE-218 — `generate` reformats all 1500 lines, hiding raises [patch] — fixed 2026-08-18
 
