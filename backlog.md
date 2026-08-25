@@ -1,5 +1,42 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-STASH-BACKLOG-2026-08-25 — 33 stashes across ten repositories, archived [patch] — done
+
+- **Found:** `git stash list` was non-empty in ten members, 33 entries in total,
+  the oldest from 2026-06-29 — two months of hidden working state that nothing
+  in the board, the branch list, or CI ever surfaced.
+
+  | repo | stashes | repo | stashes |
+  |---|---|---|---|
+  | CFDrs | 9 | mnemosyne | 3 |
+  | coeus | 6 | hephaestus | 2 |
+  | moirai | 5 | leto | 2 |
+  | apollo | 3 | asclepius, helios, tyche | 1 each |
+
+- **Measured before acting:** each stash was tested with
+  `git stash show -p <ref> | git apply --check -`. **31 of 33 no longer apply**
+  to their repository's current tree. A stash that will not apply is not
+  recoverable work in any practical sense; it is a diff against a tree that no
+  longer exists.
+- **Of the two that still applied:** one was a stripped `Cargo.lock` (the
+  overlay artefact — it removes three `source = "git+..."` lines and adds
+  none), which is regenerable and worthless; the other was a single coeus
+  tensor-ops test file.
+- **Disposition: archived, not discarded.** Every entry is now a ref at
+  `refs/stash-archive/<yyyymmdd>-<short-sha>` in its own repository, and every
+  `git stash list` is empty. Nothing was destroyed — a stash is already a
+  commit, so this only gave each one a name and took it out of a list that no
+  tool reads.
+- **Why this matters beyond tidiness.** Stashing is prohibited by the working
+  agreement precisely because it hides state from the board, from peers, and
+  from diff review. Thirty-three entries is what that prohibition exists to
+  prevent, and the fact that 94% of them had rotted past applying is the
+  evidence for it.
+- **Recovering one:** `git log --all --source refs/stash-archive/` lists them;
+  `git show <ref>` or `git cherry-pick -n <ref>` recovers content. The refs are
+  local, so a clone will not carry them — that is deliberate, since the
+  material is dead by measurement rather than by assumption.
+
 ## ATLAS-LSQR-STAGE-C-INCOMPLETE — leto stage D deleted an API its consumer still binds [major] — done
 
 - **Owner:** current session; lane `worktrees/athena-lsqr-damping` first, then `worktrees/kwavers-lsqr-migration`.
