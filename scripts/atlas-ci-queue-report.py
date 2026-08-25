@@ -89,6 +89,11 @@ def _get(url: str, token: str | None) -> tuple[dict, str]:
                 print(f"  rate limited; sleeping {wait:.0f}s", file=sys.stderr)
                 time.sleep(wait)
                 continue
+            if error.code >= 500 and attempt < 3:
+                # Transient gateway failures on the jobs endpoints retry with
+                # backoff rather than aborting a whole fleet sweep.
+                time.sleep(2**attempt * 2)
+                continue
             raise
         except urllib.error.URLError as error:
             if attempt < 3:
@@ -124,9 +129,9 @@ def collect_runs(repo: str, since: dt.datetime, per_page: int, token: str | None
     return runs
 
 
-def summarise(repo: str, runs: list[dict]) -> dict:
+def summarise(repo: str, runs: list[dict], token: str | None, accurate: bool) -> dict:
     queue_seconds = 0.0
-    run_seconds = 0.0
+    work_seconds = 0.0
     queued_runs = []
     events: dict[str, int] = {}
     conclusions: dict[str, int] = {}
@@ -137,28 +142,36 @@ def summarise(repo: str, runs: list[dict]) -> dict:
         events[run.get("event", "?")] = events.get(run.get("event", "?"), 0) + 1
         conclusion = run.get("conclusion") or run.get("status", "?")
         conclusions[conclusion] = conclusions.get(conclusion, 0) + 1
-        if started:
-            start = _parse(started)
-            q = (start - created).total_seconds()
-            r = (updated - start).total_seconds()
-            queue_seconds += max(q, 0.0)
-            run_seconds += max(r, 0.0)
-            if q >= 300:
-                queued_runs.append(
-                    {
-                        "id": run["id"],
-                        "name": run.get("name"),
-                        "head_branch": run.get("head_branch"),
-                        "event": run.get("event"),
-                        "queue_minutes": round(q / 60, 1),
-                    }
-                )
+        if not started:
+            continue
+        start = _parse(started)
+        q = max((start - created).total_seconds(), 0.0)
+        queue_seconds += q
+        if accurate:
+            # Run wall time overcounts: a GitHub-side hang after jobs finish
+            # (one observed MSRV run sat 24h past its 43s of work) bills none
+            # of it, and sequential job gaps bill nothing either. Summing job
+            # durations gives consumed runner-minutes.
+            work_seconds += _jobs_work_seconds(repo, run["id"], token)
+        else:
+            work_seconds += max((updated - start).total_seconds(), 0.0)
+        if q >= 300:
+            queued_runs.append(
+                {
+                    "id": run["id"],
+                    "name": run.get("name"),
+                    "head_branch": run.get("head_branch"),
+                    "event": run.get("event"),
+                    "queue_minutes": round(q / 60, 1),
+                }
+            )
     queued_runs.sort(key=lambda item: item["queue_minutes"], reverse=True)
     return {
         "repository": repo,
         "runs": len(runs),
         "queue_minutes_total": round(queue_seconds / 60, 1),
-        "run_minutes_total": round(run_seconds / 60, 1),
+        "work_minutes_total": round(work_seconds / 60, 1),
+        "work_minutes_method": "job-sum" if accurate else "run-wall",
         "events": events,
         "conclusions": conclusions,
         "queued_over_5m": len(queued_runs),
@@ -166,10 +179,36 @@ def summarise(repo: str, runs: list[dict]) -> dict:
     }
 
 
+def _jobs_work_seconds(repo: str, run_id: int, token: str | None) -> float:
+    total = 0.0
+    page = 1
+    while True:
+        payload, _ = _get(
+            f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100&page={page}",
+            token,
+        )
+        for job in payload.get("jobs", []):
+            started = job.get("started_at")
+            completed = job.get("completed_at")
+            if started and completed:
+                total += max(
+                    (_parse(completed) - _parse(started)).total_seconds(), 0.0
+                )
+        if len(payload.get("jobs", [])) < 100 or page >= 10:
+            break
+        page += 1
+    return total
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--days", type=int, default=7, help="window size in days")
     parser.add_argument("--per-repo", type=int, default=200, help="max runs per repo")
+    parser.add_argument(
+        "--run-wall",
+        action="store_true",
+        help="use run wall time instead of summing job durations (faster, overcounts hung runs)",
+    )
     args = parser.parse_args()
 
     token = _token()
@@ -182,17 +221,17 @@ def main() -> int:
         except urllib.error.HTTPError as error:
             print(f"{repo}: HTTP {error.code}; skipped", file=sys.stderr)
             continue
-        report = summarise(repo, runs)
+        report = summarise(repo, runs, token, accurate=not args.run_wall)
         reports.append(report)
         print(
             f"{repo.split('/', 1)[1]:12s} runs={report['runs']:4d} "
             f"queue={report['queue_minutes_total']:8.1f}m "
-            f"work={report['run_minutes_total']:8.1f}m "
+            f"work={report['work_minutes_total']:8.1f}m "
             f">5m_queue={report['queued_over_5m']:3d}"
         )
 
     total_q = sum(r["queue_minutes_total"] for r in reports)
-    total_w = sum(r["run_minutes_total"] for r in reports)
+    total_w = sum(r["work_minutes_total"] for r in reports)
     by_event: dict[str, int] = {}
     for r in reports:
         for event, count in r["events"].items():
