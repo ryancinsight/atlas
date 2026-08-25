@@ -10264,7 +10264,13 @@ hephaestus #216 (delivered 8/25), ritk #144, kwavers #439/#440/#443/
 dti/volume eigen evolution (diffusion_eigen/symmetric_eigen) superseded
 the branch's decompose_3x3_symmetric route; the series needs a real
 rebase onto that evolution, not marker resolution. Trial reset;
-branch preserved on origin.
+branch preserved on origin. **Verdict finalized 2026-08-25**: all four
+commits verified content-level superseded — DirectionInterpolation/
+Trilinear lives in maps/volume.rs, svd_decompose replaced the retired
+SVD entry points, the borrowed voxel-view seam evolved into
+ritk-image/src/region/{voxel,rows,iter}.rs, and the CLI
+OrientationSamplingMode is in ritk-cli tract.rs. PR #144 closed
+superseded with that evidence; ritk main verified 5675 tests green.
 
 **helios #69 delivered 2026-08-25** (taken over): Radon input-error
 assertions + executable book oracle + typed extension metadata. Clean
