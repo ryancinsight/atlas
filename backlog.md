@@ -1,5 +1,41 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-CR-PATH-MANGLING-2026-08-25 — Every path renamed with a trailing CR on main [patch] — fixed 2026-08-25
+
+- **Impact:** `main` was unusable for roughly the length of two commits. Every
+  path in the repository carried a trailing carriage return — `repos` was
+  `repos<CR>`, `.gitmodules` was `.gitmodules<CR>` — 274 names across 43 trees,
+  recursively. Nothing resolved at the path it is declared at: no submodule
+  could be read or advanced, and the workflows were not under
+  `.github/workflows` where Actions looks for them.
+- **Introduced by** `67df89bb`. **Not corrected by** `32fed8f7`, whose subject
+  says it de-quotes root file names. The quoting in `git ls-tree` output
+  (`".cargo\r"`) is a *display artifact* of a real CR byte inside the name, so
+  removing quotation marks was never the fix and the tree stayed mangled.
+- **Cause:** paths reaching `git` with a trailing `\r`, which is what a
+  PowerShell pipeline produces when command output is split on `\n` without
+  stripping the `\r` of a CRLF pair. Any `git add`/`update-index` fed from such
+  a pipeline records the CR as part of the name — git accepts it, because a CR
+  is a legal filename byte on the object side.
+- **Fix** (`df375365`): every tree rebuilt with the CR stripped from each entry
+  name, as a forward commit rather than a history rewrite. Content untouched —
+  the repaired tree is byte-identical to the tree at `daadd057`, the last commit
+  before the mangling. That equality also shows the two intervening commits
+  changed no file content at all; whatever board edits `67df89bb` intended were
+  not in the tree either before or after the repair.
+- **Verified before pushing:** zero quoted entries recursively
+  (`git ls-tree -r -t`), and an empty `git diff` against `daadd057`'s tree.
+- **Guard worth adding, not yet filed as work:** a `pre-receive` or CI check
+  rejecting any tree entry whose name contains a control character would have
+  caught this at the push that introduced it, and is a few lines. The local
+  `pre-commit` hooks did not, because they check *which* files are staged rather
+  than what the names contain.
+- **For agents on this stack:** when deriving paths from command output in
+  PowerShell, strip `\r` before handing anything to git. `git status --porcelain`
+  and `git ls-tree -z` are NUL-terminated and safe to parse; line-split output
+  is not.
+
+
 ## ATLAS-LOCKFILE-GUARD-DUPLICATED — twelve copies of one script, one of them fixed [patch] — todo
 
 - **The bug.** `scripts/lockfile.py` runs cargo with
