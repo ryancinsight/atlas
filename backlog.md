@@ -812,13 +812,22 @@ unchanged.
   (stable/beta/nightly) ran 30m19s on the nightly leg against a 30-minute
   cap and was cancelled; the re-run passed at 28m19s. The gate is
   under-provisioned under hosted queue load.
-- **Fix (commit `67f09da24`):** raise the matrix
+- **Fix — folded commit `67f09da24` + `9008da3ab`:** raise the matrix
   `timeout-minutes` to 60, following the coverage job's documented
   convention (exact-head observation + ~20% variance); drop the separate
   `cargo build --release --features=plotting` step since the following
-  `cargo nextest --release` compiles the identical targets.
-- **Status:** pushed as kwavers PR #641 at exact head `67f09da24`,
-  MERGEABLE; merge after terminal hosted checks and advance the gitlink.
+  `cargo nextest --release` compiles the identical targets; **split the
+  matrix** (stable = full gate: release nextest + doctests; beta/nightly =
+  `cargo check --release --all-targets` toolchain-compat oracle, cutting the
+  measured beta 23m / nightly 28m legs to compile-only); replace
+  `cargo install` from source with install-action prebuilt binaries for
+  cargo-deny, cargo-tarpaulin@0.37.0 (same pin), and cargo-audit (also
+  touches `architecture-validation.yml`). YAML validated via PyYAML.
+- **Status:** pushed as kwavers PR #641, head `9008da3ab`, title
+  "ci(kwavers): Right-size the Build & Test matrix and install audit tools
+  as prebuilt binaries"; MERGEABLE; merge after terminal hosted checks and
+  advance the gitlink. (The tentative `ci/kwavers-matrix-toolchain-legs`
+  lane was folded into #641 and removed — never pushed.)
 
 ## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clippy ratchet item (merged as PR #639 at f11d4b99c; gitlink advanced in 59c5f294e) — done
 
