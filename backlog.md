@@ -979,7 +979,7 @@ unchanged.
 ## ATLAS-KWAVERS-BENCH-SMOKE-2026-08-25 — Bound cold-build benchmark smoke [patch] — hosted verification pending
 
 - **Owner:** current session; lane `worktrees/kwavers-ci-opt`, branch
-  `ci/kwavers-build-matrix-timings`, PR #641 at `c80de02a8`. **Scope:**
+  `ci/kwavers-build-matrix-timings`, PR #641 at `84ba553ef`. **Scope:**
   Kwavers benchmark-smoke command and its
   directly required CI/cache structure. **Non-goals:** no timeout increase,
   benchmark deletion, reduced target coverage, or production-kernel change
@@ -1013,7 +1013,7 @@ unchanged.
   (stable/beta/nightly) ran 30m19s on the nightly leg against a 30-minute
   cap and was cancelled; the re-run passed at 28m19s. Subsequent logs show
   duplicate compile graphs, not insufficient timeout, are the defect.
-- **Fix — commits through `c80de02a8`:**
+- **Fix — commits through `84ba553ef`:**
   (1) retain the 30-minute matrix bound; drop the redundant
   `cargo build --release` step; **split the
   matrix** (stable = full gate; beta/nightly = `cargo check --release
@@ -1031,9 +1031,13 @@ unchanged.
   and shallow-checkout touched jobs; (6) shallow-check and cache Code Coverage,
   remove its redundant clean, and cap its two concurrent Cargo/Rayon streams to
   two workers each on the four-core host while retaining one canonical target
-  tree. YAML, timeout non-increase, target count, lock provenance, and
-  independent-review checks pass.
-- **Status:** pushed as kwavers PR #641, head `c80de02a8`, title
+  tree; (7) gate all 11 CI jobs behind Lockfile integrity and all five
+  Architecture jobs behind Validate Clean Architecture. Recent canceled jobs
+  spent 69.5 minutes queued with no runner and no steps; this DAG makes only
+  the two preflights initially runnable while preserving every downstream
+  check, workload, and timeout. YAML, timeout non-increase, target count, lock
+  provenance, DAG cardinality/acyclicity, and independent-review checks pass.
+- **Status:** pushed as kwavers PR #641, head `84ba553ef`, title
   "ci(kwavers): Right-size build matrix, split heavy validation, cache
   feature matrix"; MERGEABLE; merge after terminal hosted checks and
   advance the gitlink. (The tentative `ci/kwavers-matrix-toolchain-legs`
@@ -4310,7 +4314,7 @@ internal APIs").
 
   **Merge status 2026-08-25 (hosted checks, exact-head policy — nothing
   merged yet):** CFDrs #372: lockfile pass, Rust-workspace-gate + book
-  figures still pending. kwavers #641 (`c80de02a8`) and #642 (`27c88e88b`)
+  figures still pending. kwavers #641 (`84ba553ef`) and #642 (`27c88e88b`)
   have fresh hosted matrices queued in the CI capacity backlog; duplicate
   coverage PR #645 is closed as superseded, releasing its queued matrix.
   kwavers #646: no checks observed (fresh push).
