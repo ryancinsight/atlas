@@ -679,6 +679,18 @@ Item closed 2026-08-23.
       of the affected `diag_swe_recon_2` simulation; post-merge hosted runs all
       green at `a94a8bcde`.
 
+## ATLAS-KWAVERS-VIS-CONFIG-2026-08-25 — current session
+
+- [x] Audit backend and configuration call sites across the stack; establish
+      that `gpu_enabled` is ignored and `render_quality` diverges from the
+      adaptive `quality` field.
+- [ ] Draft and index the breaking-contract ADR in Kwavers.
+- [ ] Remove the two stale public fields and synchronize adaptive quality with
+      the initialized renderer through one authoritative quality value.
+- [ ] Add focused value-semantic regressions and synchronize affected docs.
+- [ ] Run focused and full applicable gates, SemVer classification, publish the
+      branch/PR, merge, and advance the Atlas gitlink after terminal checks.
+
 ## ATLAS-HORAE-ORDER-ORACLE-2026-08-20 — current session
 
 - [x] Create a clean Horae lane from fetched `origin/main`; preserve the dirty

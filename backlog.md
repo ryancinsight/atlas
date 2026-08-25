@@ -681,6 +681,26 @@ unchanged.
   contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
   ensemble API invention.
 
+## ATLAS-KWAVERS-VIS-CONFIG-2026-08-25 — Make visualization selection and quality single-source [major] — in progress
+
+- **Owner:** current session. **Scope:** Kwavers visualization configuration,
+  renderer quality propagation, focused tests, Rustdoc/README/CHANGELOG, and an
+  indexed Kwavers ADR. **Non-goals:** no provider ownership change, fallback,
+  rendering algorithm change, or backend-specific configuration in
+  `kwavers-analysis`.
+- **Outcome:** top-level Kwavers `VisualizationBackend::{Leto, Hephaestus}` is
+  the only backend-selection source. The ignored `gpu_enabled` boolean and
+  duplicate `render_quality` field are deleted; adaptive quality changes the
+  renderer configuration that subsequent frames use.
+- **Acceptance oracle:** stack-wide search finds no `gpu_enabled` or
+  `render_quality`; backend conformance and real Hephaestus pipeline tests
+  remain value-correct; focused analysis tests prove quality transition and
+  renderer propagation; formatting, warning-denied Clippy, Nextest, doctests,
+  Rustdoc, and SemVer classification pass on the exact delivered revision.
+- **Risk/dependencies:** `[major]` because two public configuration fields are
+  removed. The active Proteus package-rename branch touches only manifests and
+  lockfiles; visualization source remains disjoint. No release is authorized.
+
 ## ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21 — Complete typed and concurrent PyO3 surface [minor] — in progress
 
 - **Owner:** Atlas integration. **Claimed files:** `backlog.md` and
