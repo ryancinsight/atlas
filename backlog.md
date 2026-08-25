@@ -1,8 +1,8 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-LSQR-STAGE-C-INCOMPLETE — leto stage D deleted an API its consumer still binds [major] — todo
+## ATLAS-LSQR-STAGE-C-INCOMPLETE — leto stage D deleted an API its consumer still binds [major] — in progress
 
-- **Owner:** unclaimed. Two repositories, in order: athena, then kwavers.
+- **Owner:** current session; lane `worktrees/athena-lsqr-damping` first, then `worktrees/kwavers-lsqr-migration`.
 - **Symptom.** `kwavers-math` does not compile against current `leto`:
 
   ```
