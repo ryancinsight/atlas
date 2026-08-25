@@ -1,5 +1,36 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LOCKFILE-GUARD-DUPLICATED — twelve copies of one script, one of them fixed [patch] — todo
+
+- **The bug.** `scripts/lockfile.py` runs cargo with
+  `subprocess.run(..., text=True)` and no explicit encoding, so it decodes with
+  the locale codepage. Cargo emits UTF-8, so on a Windows console (cp1252) the
+  reader thread dies on the first unmappable byte:
+
+  ```
+  Exception in thread Thread-1 (_readerthread):
+  UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 75654
+  ```
+
+- **Why it went unnoticed.** The verdict comes from `returncode`, which is
+  unaffected, so the guard still passes and fails correctly. What is lost is
+  `completed.stderr` -- the message printed to explain *why* cargo refused --
+  at the one moment anyone reads it. A guard that cannot say why it failed.
+- **Fixed in coeus and hephaestus** (`encoding="utf-8", errors="replace"`),
+  because both had open pull requests at the time. The one-line change applies
+  verbatim to the other ten.
+- **The real defect is the duplication.** Atlas owns the *workflow*
+  (`lockfile-guard.yml`) but not the script, and the workflow requires each
+  caller to carry its own `scripts/lockfile.py`. Twelve identical copies now
+  exist, so this fix has to be applied twelve times, and the next one will too.
+- **Shape of the consolidation.** The CI half can centralize: the shared
+  workflow checks out Atlas and runs Atlas's copy, so members carry none. The
+  local half cannot -- the committed `pre-push` hook must run something present
+  in the member's own checkout -- so either the hook fetches the script, or the
+  member keeps a copy that a freshness check compares against Atlas's. The
+  second is the smaller change and matches how the ADR index and the stack
+  overlay are already handled: generated state with a regenerate-and-diff gate.
+
 ## ATLAS-CI-RUNNER-SATURATION-2026-08-25 — Hosted-runner queue depth delays every merge gate [patch] — in progress
 
 - **Outcome:** a merge-gate run starts within its own runtime target, so a merge
