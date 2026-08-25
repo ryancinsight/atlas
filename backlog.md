@@ -839,20 +839,23 @@ unchanged.
   (stable/beta/nightly) ran 30m19s on the nightly leg against a 30-minute
   cap and was cancelled; the re-run passed at 28m19s. The gate is
   under-provisioned under hosted queue load.
-- **Fix — folded commit `67f09da24` + `9008da3ab`:** raise the matrix
-  `timeout-minutes` to 60, following the coverage job's documented
-  convention (exact-head observation + ~20% variance); drop the separate
-  `cargo build --release --features=plotting` step since the following
-  `cargo nextest --release` compiles the identical targets; **split the
-  matrix** (stable = full gate: release nextest + doctests; beta/nightly =
-  `cargo check --release --all-targets` toolchain-compat oracle, cutting the
-  measured beta 23m / nightly 28m legs to compile-only); replace
-  `cargo install` from source with install-action prebuilt binaries for
-  cargo-deny, cargo-tarpaulin@0.37.0 (same pin), and cargo-audit (also
-  touches `architecture-validation.yml`). YAML validated via PyYAML.
-- **Status:** pushed as kwavers PR #641, head `9008da3ab`, title
-  "ci(kwavers): Right-size the Build & Test matrix and install audit tools
-  as prebuilt binaries"; MERGEABLE; merge after terminal hosted checks and
+- **Fix — folded commits `67f09da24` + `9008da3ab` + `516410553`:**
+  (1) raise the matrix `timeout-minutes` to 60 per the coverage-job
+  convention; drop the redundant `cargo build --release` step; **split the
+  matrix** (stable = full gate; beta/nightly = `cargo check --release
+  --all-targets` compat oracle, cutting the measured beta 23m / nightly 28m
+  legs to compile-only); (2) replace `cargo install` from source with
+  install-action prebuilt binaries (cargo-deny, cargo-tarpaulin@0.37.0,
+  cargo-audit); (3) **split Heavy Validation** (37m serial) into three
+  parallel legs — kuznetsov 15m, absorption_decay 15m, nl_swe 40m — each
+  with its own cache and `heavy`-profile test, bounding wall-clock to the
+  slowest (~28m) with independent headroom for nl-swe; (4) add the shared
+  Swatinem/rust-cache to the five-leg feature-combination matrix
+  (architecture-validation.yml), which previously cold-compiled the full
+  dep tree per PR. YAML validated via PyYAML; `--locked` untouched.
+- **Status:** pushed as kwavers PR #641, head `516410553`, title
+  "ci(kwavers): Right-size build matrix, split heavy validation, cache
+  feature matrix"; MERGEABLE; merge after terminal hosted checks and
   advance the gitlink. (The tentative `ci/kwavers-matrix-toolchain-legs`
   lane was folded into #641 and removed — never pushed.)
 
