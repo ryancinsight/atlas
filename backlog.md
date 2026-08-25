@@ -1,5 +1,35 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-CI-RUNNER-SATURATION-2026-08-25 — Hosted-runner queue depth delays every merge gate [patch] — todo
+
+- **Outcome:** a merge-gate run starts within its own runtime target, so a merge
+  to a default branch is verified in minutes rather than landing unverified for
+  the length of a queue.
+- **Measured 2026-08-25, ~20:00Z:** 27 runs queued across the fleet with one in
+  progress — kwavers 14, hermes 7, helios 3, ritk 2, CFDrs 1. Hermes CI on
+  `main` sat queued for over 50 minutes. Three merges landed during that window
+  with their gate runs still unstarted.
+- **Finding:** this is the queue-time rule's case — a job queued past its own
+  runtime target is runner starvation, cured by capacity or load-shedding, and
+  filed rather than absorbed as agent waiting. The dominant consumer is
+  `pull_request`-triggered: kwavers alone had 3 Architecture Validation, 2
+  benchmark regression, 2 Legacy Migration Audit, 2 Deploy mdBook, and 2 CI/CD
+  Pipeline runs queued, several of them on the same PRs.
+- **Scope:** measure per-repository queue depth and minutes over a week, then
+  choose between capacity (a self-hosted runner on owned hardware, which the
+  workflow-hygiene rule already prefers for private repositories and would also
+  give a warm shared `CARGO_TARGET_DIR`) and load-shedding (path- and
+  scope-filtered triggers, draft-PR skipping, moving heavy suites to schedule).
+  **Non-goals:** disabling a gate to shorten a queue.
+- **Acceptance oracle:** queue time for a merge-gate run stays under its own
+  runtime target on a normal fleet day, with the per-repository minutes report
+  showing where the reduction came from.
+- **Risk / change class:** [patch], infrastructure. **Dependencies:** none.
+- **Note:** every increment delivered today was verified locally against its
+  exact tree with the sanctioned runners, so the queue delayed confirmation
+  rather than blocking delivery. That is the tolerable case; a red gate
+  discovered an hour after merge would not be.
+
 ## ATLAS-HERMES-CONSUMER-ENTRY-2026-08-25 — Restore Hermes as the stack's lane-kernel owner [arch] — in progress
 
 - **Outcome:** a consumer anywhere in the stack writes one generic lane kernel
