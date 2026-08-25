@@ -11,6 +11,23 @@
   event mix, conclusion mix) over a window and writes a gitignored report plus
   a stdout summary; the capacity-vs-load-shedding decision consumes its output.
   Kwavers CI scope itself stays with the first session's claims (PRs #641/#642).
+- **Measured, full week ending 2026-08-25T21:00Z (`report-20260825T210157Z.json`,
+  gitignored run output; stdout table reproducible via the script):**
+  - Fleet total **3,164 runs / 491,507 work-minutes (~8,190 runner-hours)**;
+    queue starvation is real but bursty: **4,796 queue-minutes**, concentrated
+    in consus (3,142m), CFDrs (747m), kwavers (629m across 10 runs queued >5m),
+    ritk (92m), Moirai (105m).
+  - **kwavers alone burns ~330,900 work-minutes/week — 67% of the fleet** on
+    ≥1,000 runs. Its consolidation is the first session's live claim (#641/#642
+    preflight stack); no second actor enters that scope.
+  - Next consumers with no active claim: hephaestus 14.2kh, Moirai 11.8kh,
+    CFDrs 9.6kh, eunomia 9.3kh, tyche/horae/helios ~7–7.7kh each.
+  - Event mix: pull_request 1,413 + push 1,195 (+553 dynamic-class); the PR
+    matrix is the dominant consumer, matching load-shedding levers
+    (path filters, draft skipping, scheduled heavy suites) before capacity.
+- **Decision inputs now exist; next increment:** pick one non-kwavers heavy
+  consumer and apply the cheapest lever with before/after numbers from this
+  report as the baseline.
 - **Measured 2026-08-25, ~20:00Z:** 27 runs queued across the fleet with one in
   progress — kwavers 14, hermes 7, helios 3, ritk 2, CFDrs 1. Hermes CI on
   `main` sat queued for over 50 minutes. Three merges landed during that window
