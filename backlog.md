@@ -512,7 +512,12 @@
   26 minutes and PR #642's Architecture Validation run 34 minutes
   before their first job started — with every workflow already carrying
   cancel-in-progress concurrency. The residual lever is structural:
-  consolidate jobs or add runners; that is a user decision.
+  consolidate jobs or add runners; that is a user decision. A same-hour
+  snapshot found **25 active workflow runs across seven concurrent peer
+  branches** (`fix/kwavers-run-compiled-tests`, `test/kwavers-spectral-
+  laplacian`, `ci/kwavers-build-matrix-timings`, and this session's three)
+  — the queue is contention between parallel agent lanes on one repo, so
+  lane scheduling is part of the fix alongside any job consolidation.
   Two cache defects found and fixed:
   - **Heavy Validation** used a private branch-scoped `actions/cache`
     whose key never matches on PR checkouts — every PR run recompiled the
