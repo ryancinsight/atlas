@@ -3,6 +3,7 @@
 ## ATLAS-LSQR-STAGE-C-INCOMPLETE — leto stage D deleted an API its consumer still binds [major] — in progress
 
 - **Owner:** current session; lane `worktrees/athena-lsqr-damping` first, then `worktrees/kwavers-lsqr-migration`.
+- **Athena half complete (PR ryancinsight/athena#18, 5/5 lsqr_damped_contract tests pass; 9/9 lsqr_contract tests still pass).** See *Pre-existing failures* below.
 - **Symptom.** `kwavers-math` does not compile against current `leto`:
 
   ```
@@ -71,6 +72,37 @@
   PR #18 can merge, then open the Kwavers migration lane
   `worktrees/kwavers-lsqr-migration` (convert `MatFreeOperatorAdapter` to
   `RectangularOperator<B>` and delete leto re-exports).
+
+## ATLAS-ATHENA-ALLOCATION-CONTRACT — warm solves allocate 4-6 small buffers per call on Linux [patch] — todo
+
+- **Owner:** unclaimed; pre-existing on `main` (4c8a9dc); blocks
+  ryancinsight/athena#18 only by being in the same `verify` job. Unrelated to
+  the LSQR damping work.
+- **Symptom.** `crates/athena-leto/tests/allocation.rs`:
+  ```
+  repeated_cpu_solves_allocate_nothing_after_initialization     FAILED
+  repeated_bicgstab_solves_allocate_nothing_after_initialization FAILED
+  repeated_gmres_solves_allocate_nothing_after_initialization    FAILED
+  ```
+  Each failure reports `Stats { allocations: 4-6, deallocations: 17,
+  reallocations: 2-6, bytes_allocated: 9-11 KB, bytes_deallocated: 881 }`.
+  Local Windows runs of the same tests in isolation pass; the failure
+  appears on the Linux hosted runner. The test contract is "warm solves
+  must not touch the heap after the first call", which the GMRES and
+  BiCGSTAB solvers do not currently satisfy.
+- **Where to look first.** `crates/athena-core/src/solver/gmres/cycle.rs`
+  (Arnoldi basis construction) and
+  `crates/athena-core/src/solver/bicgstab/algorithm.rs` are the
+  candidates; a `debug_assert!`-gated path or a small per-iteration
+  allocation (rotation scratch, Givens pair, observer state) is the
+  likely source. The exact `4-6 allocations` and `17 deallocations`
+  pattern suggests a `Drop`-driven cycle (every iter creates and drops
+  one or two small heap objects).
+- **Acceptance.** The three `repeated_*_solves_allocate_nothing_...`
+  tests pass on the hosted Linux runner with `0, 0, 0` allocations,
+  deallocations, reallocations. CI gate green.
+- **Not in scope of ATLAS-LSQR-STAGE-C-INCOMPLETE.** Filed separately so
+  the LSQR damping work can land on its own evidence.
 
 ## ATLAS-MNEMOSYNE-DOCS-2026-08-25 — Correct Page field and book chapters [patch] — merge pending
 
