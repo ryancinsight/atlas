@@ -55,6 +55,43 @@
 - **Meanwhile.** Nothing here is urgent for CI, which is pinned and green. It is
   urgent for anyone developing locally against the overlay, which is everyone.
 
+- **Progress 2026-08-25.** Athena damping implemented in PR
+  [#18](https://github.com/ryancinsight/athena/pull/18) at branch
+  `feat/athena-lsqr-damping` (commits `991e786`, `3ff26a1`, `11e0248`,
+  `17aff6d` at `worktrees/athena-lsqr-damping`). The change adds
+  `Lsqr::solve_damped_into` / `solve_damped_with_observer` with
+  `damping: B::Scalar` via `+λ²` in the Givens rotation (Paige & Saunders
+  1982 §4 eqn 4.4); existing `solve_into` delegates with `damping=0`.
+  Local: 9/9 `lsqr_contract` and 5/5 `lsqr_damped_contract` pass, clippy
+  clean. Hosted: Lockfile integrity and supply-chain green; `verify`
+  fails on `repeated_gmres_solves_allocate_nothing_after_initialization`
+  (4 allocs, 900 bytes) — a pre-existing Athena allocation defect that
+  also fails on main (`5-6 allocs` on the base). Next: file the
+  allocation defect as a separate Athena item, fix or gate the test so
+  PR #18 can merge, then open the Kwavers migration lane
+  `worktrees/kwavers-lsqr-migration` (convert `MatFreeOperatorAdapter` to
+  `RectangularOperator<B>` and delete leto re-exports).
+
+## ATLAS-MNEMOSYNE-DOCS-2026-08-25 — Correct Page field and book chapters [patch] — merge pending
+
+- **Owner:** current session; branch `docs/mnemosyne-audit-fix` at `worktrees/mnemosyne-docs-fix` (commit `5fc0759`).
+- **Scope:** `README.md`, `docs/book/numa_placement.md`, `docs/book/size_classes.md`,
+  `backlog.md`, `checklist.md`, `gap_audit.md` — docs/PM only, no source.
+- **What changed:** README `local_free` → `thread_free` and hugepage hint
+  gated on `MNEMOSYNE_ENABLE_HUGEPAGE_HINT`; `numa_placement.md` rewritten
+  against `GlobalSegmentPool` per-node buckets and `mnemosyne-heap` kernel
+  calls; `size_classes.md` replaced non-existent magazine/depot with
+  `MAX_SMALL_ALLOC_SIZE=8KiB` and `free`/`thread_free` pair; backlog/
+  checklist/gap_audit filed the 2026-08-20 scope audit (7 items).
+- **Evidence:** local docs build and `cargo check` pass; hosted PR
+  [#69](https://github.com/ryancinsight/Mnemosyne/pull/69) at `5fc0759`:
+  aarch64 and Lockfile integrity pass, Rust verification / Loom / Miri /
+  ThreadSanitizer / Deploy Book pending, `recurseml/analysis` report-only.
+- **Next:** collect hosted terminal checks at exact head, merge, then
+  advance Atlas `repos/mnemosyne` gitlink from `cb63bf1` to the merged
+  default. Atlas dirty from this audit is now clean (stashed and
+  published).
+
 ## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch] — closed 2026-08-24
 
 - **Owner:** current session; lane will be `worktrees/cfdrs-mdbook-dead-links`.
