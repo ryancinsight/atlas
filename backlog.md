@@ -4234,6 +4234,17 @@ internal APIs").
   claims it — not actionable), ritk 8, gaia 4, mnemosyne 2, hermes 1,
   leto 1.
 
+  **Merge status 2026-08-25 (hosted checks, exact-head policy — nothing
+  merged yet):** CFDrs #372: lockfile pass, Rust-workspace-gate + book
+  figures still pending. kwavers #641: 26/26 checks still queued (CI
+  capacity backlog). kwavers #646: no checks observed (fresh push).
+  consus #55: no checks observed. kwavers #644 (gpu ratchet): **21/31
+  checks SUCCESS** — only the 8 long legs remain pending (Build & Test
+  stable/beta, Heavy Validation, Miri, Lockfile integrity, PINN
+  Convergence, Benchmark smoke, feature-combination plotting); heads all
+  confirmed unchanged and MERGEABLE. Merge each at its exact head the
+  moment its checks go terminal.
+
 ## ATLAS-BASELINE-DIFF-NOISE-218 — `generate` reformats all 1500 lines, hiding raises [patch] — fixed 2026-08-18
 
 Fixed in `4d78c45`. The item assumed a one-time reformat had to land; it did
