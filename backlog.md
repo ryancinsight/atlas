@@ -9991,6 +9991,19 @@ under --all-features, 262 tests green. Merged (ddf282a). Remaining
 diverged: helios #69, proteus #17, hephaestus #216, ritk #144,
 kwavers #439/#440/#443/#617/#620/#622-#624.
 
+**helios #69 delivered 2026-08-25** (taken over): Radon input-error
+assertions + executable book oracle + typed extension metadata. Clean
+fast-forward of the series with current main; 284 tests green.
+Merged (9499501).
+
+**Lane census 2026-08-25**: stack worktree lanes reduced 26 → 15; all
+MERGED lanes removed, unmerged/active lanes retained. A peer's
+proteus-mat-adoption campaign left four member gitlinks pinned to
+unpushed local branches (cat-C: unreachable from any clone) — every
+referenced branch has been pushed to its origin so all atlas pins now
+resolve. Their merges remain that campaign's follow-up; coherence audit:
+0 stale-advanceable, remaining defects are reachable cat-B pins only.
+
 **CFDrs #368 delivered 2026-08-25** (taken over): lockfile-guard
 promotion integrated with current main (one trivial conflict — both
 sides had fixed the erasing 0*nx index in the LBM streaming test).
