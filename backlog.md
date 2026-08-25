@@ -392,35 +392,37 @@
   `aeacb924d`). Only `recurseml/analysis` reports (always-failing
   external report).
 
-## ATLAS-KWAVERS-CI-COVERAGE-OPT-2026-08-25 — Full-workspace test job to O3 [perf][patch] — hosted verification pending
+## ATLAS-KWAVERS-CI-COVERAGE-OPT-2026-08-25 — Bound full-workspace test topology [perf][patch] — hosted verification pending
 
 - **Owner:** current session; lane `worktrees/kwavers-ci-coverage-opt`,
   branch `perf/kwavers-test-coverage-profile`, PR
-  [#642](https://github.com/ryancinsight/kwavers/pull/642) at `ed44d3d52`.
+  [#642](https://github.com/ryancinsight/kwavers/pull/642) at `27c88e88b`.
 - **Evidence (measured on ryancinsight/kwavers main, successful runs):**
   Architecture Validation wall 33–67m across recent runs, with the job's
   own queueing adding ~30m beyond its longest member; inside it,
   **Test Suite Coverage 35m19s** dominates (next: feature-matrix jobs
   9–14m each, Validate Clean Architecture 11m41s). CI/CD Pipeline runs
   ~37m. All far past the five-minute verification target.
-- **Root causes found in Test Suite Coverage:** it executes the
-  compute-bound physics suites at dev's `opt-level = 1`, and it has no
-  rust-cache so it cold-compiles the workspace every run.
+- **Root causes found in Test Suite Coverage:** it had no rust-cache, serialized
+  independent tests to one process, and rebuilt the disjoint full-feature
+  doctest graph after the large workspace suite.
 - **Hosted falsification and correction:** head `5c49bb2c` completed the
   5,759-test suite in 9m43s after an 18m53s cold compile, PINN in 4m01s,
   and bounded full-grid simulations in 4m26s, then exhausted the unchanged
   45-minute cap rebuilding the disjoint full-feature doctest graph. Commits
-  `63513fca1` + `ed44d3d52` move that doctest to the documentation job, run
-  the workspace suite as two bounded processes with two Rayon workers each,
-  and measure `target/coverage` rather than the nonexistent `target/debug`.
-- **Fix (workload/timeout unchanged):** `[profile.coverage]` now
-  sets `opt-level = 3` for workspace crates too — its O1 inheritance was
-  justified by a ptrace rationale that died when tarpaulin moved to the
-  llvm engine; the job builds via `--cargo-profile coverage` (nextest) /
-  `--profile coverage` (doctests); the pinned shared Swatinem/rust-cache
-  is added.
-- **Local evidence:** kwavers-math lib suite under the new profile
-  196/196 in **0.93s vs 7.6s** at O1 (~8x).
+  `63513fca1` + `ed44d3d52` first moved that doctest to Documentation and
+  bounded nextest/Rayon concurrency. Commit `27c88e88b` then corrected the
+  profile strategy: Test Suite Coverage stays on the shared dev graph, both
+  initial nextest invocations run at two processes with two Rayon workers,
+  bounded full-grid binaries retain the default profile's complete
+  `full-grid-sim` grouping, and artifact measurement remains `target/debug`.
+- **Correctness correction (workload/timeout unchanged):** the proposed O3
+  coverage-profile change is removed. Rust instrumentation coverage warns that
+  optimized-out functions can make coverage results unprocessable, so an O3
+  timing win is not coverage-correctness evidence. `Cargo.toml` has no remaining
+  behavior delta; speed comes from the pinned shared cache, bounded 2x2
+  concurrency, and eliminating duplicate doctest compilation. YAML, locked
+  metadata, diff checks, and independent static review pass.
 - **Next:** collect PR #642's hosted rerun; if green, record the new
   Test Suite Coverage duration and tighten the 45-minute timeout toward
   measured + 20% variance in a follow-up commit (bound tightening follows
@@ -977,7 +979,7 @@ unchanged.
 ## ATLAS-KWAVERS-BENCH-SMOKE-2026-08-25 — Bound cold-build benchmark smoke [patch] — hosted verification pending
 
 - **Owner:** current session; lane `worktrees/kwavers-ci-opt`, branch
-  `ci/kwavers-build-matrix-timings`, PR #641 at `448565dd4`. **Scope:**
+  `ci/kwavers-build-matrix-timings`, PR #641 at `c80de02a8`. **Scope:**
   Kwavers benchmark-smoke command and its
   directly required CI/cache structure. **Non-goals:** no timeout increase,
   benchmark deletion, reduced target coverage, or production-kernel change
@@ -998,8 +1000,10 @@ unchanged.
   build plus one bounded `--test` execution in the already-cached plotting
   feature-matrix leg. The leg reuses checkout, toolchain, dependency cache, and
   the exact `--no-default-features --features plotting` graph; static manifest
-  enumeration retains all 19 plotting-eligible targets. Independent review
-  found no remaining issue after duplicate-step and feature-fingerprint checks.
+  enumeration retains all 19 plotting-eligible targets. Cargo's
+  `--no-fail-fast` keeps later targets executing after an individual failure.
+  Independent review found no remaining issue after duplicate-step,
+  feature-fingerprint, and complete-failure-reporting checks.
 
 ## ATLAS-KWAVERS-CI-MATRIX-TIMEOUT-2026-08-25 — Eliminate matrix and validation compile duplication [patch] — hosted verification pending
 
@@ -1009,7 +1013,7 @@ unchanged.
   (stable/beta/nightly) ran 30m19s on the nightly leg against a 30-minute
   cap and was cancelled; the re-run passed at 28m19s. Subsequent logs show
   duplicate compile graphs, not insufficient timeout, are the defect.
-- **Fix — commits through `448565dd4`:**
+- **Fix — commits through `c80de02a8`:**
   (1) retain the 30-minute matrix bound; drop the redundant
   `cargo build --release` step; **split the
   matrix** (stable = full gate; beta/nightly = `cargo check --release
@@ -1024,9 +1028,12 @@ unchanged.
   (architecture-validation.yml), which previously cold-compiled the full
   dep tree per PR; (5) reuse the release/plotting graph for stable doctests,
   consolidate duplicate PINN jobs, cache the five-minute locked resolver,
-  and shallow-checkout touched jobs. YAML, timeout non-increase, target count,
-  lock provenance, and independent-review checks pass.
-- **Status:** pushed as kwavers PR #641, head `448565dd4`, title
+  and shallow-checkout touched jobs; (6) shallow-check and cache Code Coverage,
+  remove its redundant clean, and cap its two concurrent Cargo/Rayon streams to
+  two workers each on the four-core host while retaining one canonical target
+  tree. YAML, timeout non-increase, target count, lock provenance, and
+  independent-review checks pass.
+- **Status:** pushed as kwavers PR #641, head `c80de02a8`, title
   "ci(kwavers): Right-size build matrix, split heavy validation, cache
   feature matrix"; MERGEABLE; merge after terminal hosted checks and
   advance the gitlink. (The tentative `ci/kwavers-matrix-toolchain-legs`
@@ -4303,8 +4310,10 @@ internal APIs").
 
   **Merge status 2026-08-25 (hosted checks, exact-head policy — nothing
   merged yet):** CFDrs #372: lockfile pass, Rust-workspace-gate + book
-  figures still pending. kwavers #641: 26/26 checks still queued (CI
-  capacity backlog). kwavers #646: no checks observed (fresh push).
+  figures still pending. kwavers #641 (`c80de02a8`) and #642 (`27c88e88b`)
+  have fresh hosted matrices queued in the CI capacity backlog; duplicate
+  coverage PR #645 is closed as superseded, releasing its queued matrix.
+  kwavers #646: no checks observed (fresh push).
   consus #55: no checks observed. kwavers #644 (gpu ratchet): **21/31
   checks SUCCESS** — only the 8 long legs remain pending (Build & Test
   stable/beta, Heavy Validation, Miri, Lockfile integrity, PINN
