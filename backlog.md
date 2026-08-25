@@ -237,6 +237,33 @@
   `aeacb924d`). Only `recurseml/analysis` reports (always-failing
   external report).
 
+## ATLAS-KWAVERS-CI-COVERAGE-OPT-2026-08-25 — Full-workspace test job to O3 [perf][patch] — review pending
+
+- **Owner:** current session; lane `worktrees/kwavers-ci-coverage-opt`,
+  branch `perf/kwavers-test-coverage-profile`, PR
+  [#642](https://github.com/ryancinsight/kwavers/pull/642) at `5c49bb2c`.
+- **Evidence (measured on ryancinsight/kwavers main, successful runs):**
+  Architecture Validation wall 33–67m across recent runs, with the job's
+  own queueing adding ~30m beyond its longest member; inside it,
+  **Test Suite Coverage 35m19s** dominates (next: feature-matrix jobs
+  9–14m each, Validate Clean Architecture 11m41s). CI/CD Pipeline runs
+  ~37m. All far past the five-minute verification target.
+- **Root causes found in Test Suite Coverage:** it executes the
+  compute-bound physics suites at dev's `opt-level = 1`, and it has no
+  rust-cache so it cold-compiles the workspace every run.
+- **Fix (workload/flags/timeout unchanged):** `[profile.coverage]` now
+  sets `opt-level = 3` for workspace crates too — its O1 inheritance was
+  justified by a ptrace rationale that died when tarpaulin moved to the
+  llvm engine; the job builds via `--cargo-profile coverage` (nextest) /
+  `--profile coverage` (doctests); the pinned shared Swatinem/rust-cache
+  is added.
+- **Local evidence:** kwavers-math lib suite under the new profile
+  196/196 in **0.93s vs 7.6s** at O1 (~8x).
+- **Next:** collect PR #642's hosted run; if green, record the new
+  Test Suite Coverage duration and tighten the 45-minute timeout toward
+  measured + 20% variance in a follow-up commit (bound tightening follows
+  evidence, never precedes it).
+
 ## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch] — closed 2026-08-24
 
 - **Owner:** current session; lane will be `worktrees/cfdrs-mdbook-dead-links`.

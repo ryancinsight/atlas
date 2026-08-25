@@ -265,6 +265,18 @@
       regressions no longer apply against the current committed
       baseline. Local branch `build/kwavers-attenuation-gitlink`
       deleted.
+- [x] Install `core.hooksPath .githooks` in every member checkout that
+      ships the committed guards (2026-08-25): 21 repos had
+      `.githooks/pre-push` committed but the hook inert because git
+      never applies tracked hooks without config — aequitas, apollo,
+      asclepius, athena, CFDrs, coeus, consus, gaia, helios,
+      hephaestus, hermes, horae, hyperion, kwavers, leto, mnemosyne,
+      moirai, proteus, ritk, themis, tyche. This is local git config
+      per checkout, not version-controlled state; a fresh clone needs
+      the same one-liner. The stripped-lockfile defect class that hit
+      kwavers PRs #440/#637 (overlay flattens Cargo.lock; hosted
+      --locked jobs fail) is exactly what this guard now catches
+      before push.
 
 ## ATLAS-FMT-CHECK-PARSER-2026-08-21 — current session
 
