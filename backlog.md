@@ -396,7 +396,8 @@
 
 - **Owner:** current session; lane `worktrees/kwavers-ci-coverage-opt`,
   branch `perf/kwavers-test-coverage-profile`, PR
-  [#642](https://github.com/ryancinsight/kwavers/pull/642) at `27c88e88b`.
+  [#642](https://github.com/ryancinsight/kwavers/pull/642) at `e1ecdd231`,
+  stacked on PR #641 head `84ba553ef`.
 - **Evidence (measured on ryancinsight/kwavers main, successful runs):**
   Architecture Validation wall 33–67m across recent runs, with the job's
   own queueing adding ~30m beyond its longest member; inside it,
@@ -1037,6 +1038,11 @@ unchanged.
   the two preflights initially runnable while preserving every downstream
   check, workload, and timeout. YAML, timeout non-increase, target count, lock
   provenance, DAG cardinality/acyclicity, and independent-review checks pass.
+- **Hosted scheduler evidence:** after pushing `84ba553ef`, PR #641 exposed
+  only Lockfile integrity, Validate Clean Architecture, the two small migration
+  audits, and review (five visible checks), rather than 26 immediately queued
+  checks. Stacking PR #642 on that head produced the same five-check preflight
+  state and canceled its obsolete full fan-out.
 - **Status:** pushed as kwavers PR #641, head `84ba553ef`, title
   "ci(kwavers): Right-size build matrix, split heavy validation, cache
   feature matrix"; MERGEABLE; merge after terminal hosted checks and
@@ -4314,8 +4320,9 @@ internal APIs").
 
   **Merge status 2026-08-25 (hosted checks, exact-head policy — nothing
   merged yet):** CFDrs #372: lockfile pass, Rust-workspace-gate + book
-  figures still pending. kwavers #641 (`84ba553ef`) and #642 (`27c88e88b`)
-  have fresh hosted matrices queued in the CI capacity backlog; duplicate
+  figures still pending. kwavers #641 (`84ba553ef`) and stacked #642
+  (`e1ecdd231`) each expose five initial preflight/review checks rather than 26
+  immediately queued jobs; duplicate
   coverage PR #645 is closed as superseded, releasing its queued matrix.
   kwavers #646: no checks observed (fresh push).
   consus #55: no checks observed. kwavers #644 (gpu ratchet): **21/31
