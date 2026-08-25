@@ -672,12 +672,16 @@ unchanged.
   matrix at the gitlink head is terminal green (Architecture Validation,
   CI/CD Pipeline, Deploy mdBook, Legacy Migration Audit all success at
   `a94a8bcde`), so Atlas integration is closed.
-- **Verification residual (open, separate ratchet):** the original exact-head
+- **Verification residual (closed 2026-08-25 by ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET):** the original exact-head
   package-wide `kwavers-analysis --lib` and `kwavers-gpu` Clippy probes reported
   45 and 28 pre-existing findings outside the changed files. Those counts are
   historical, not current-default claims. The current workspace ratchet and
-  strict top-level Clippy gates pass in PR #636; a fresh unwaived member-crate
-  measurement remains separate warning-ratchet work.
+  strict top-level Clippy gates pass in PR #636; the fresh unwaived
+  member-crate measurement was completed 2026-08-25 — `kwavers-analysis`
+  standalone probes (7 default `--all-targets` + 44 `gpu-visualization --lib`)
+  are now 0/0 after commit `80d120202` (PR #639). The `kwavers-gpu` half of
+  the residual (28 pre-existing findings) remains a separate warning-ratchet
+  item, still open.
 - **Meta-repo integration residual (2026-08-24):** gitlink advanced to
   `a94a8bcde` (post-#632 default plus PR #635). PR #635 (merge `a94a8bcde`)
   fixed the seven strict-clippy errors in the SWE WIP rescue test file
