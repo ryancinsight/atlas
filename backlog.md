@@ -10508,6 +10508,22 @@ ritk-image/src/region/{voxel,rows,iter}.rs, and the CLI
 OrientationSamplingMode is in ritk-cli tract.rs. PR #144 closed
 superseded with that evidence; ritk main verified 5675 tests green.
 
+**ritk #154 delivered 2026-08-25** (taken over): tract output-format
+series (.trk/.trx writers, Kabsch svd_decompose migration, pedantic
+floor). Integrated with current main across ~90 conflicted files —
+conflicts were uniformly the branch's ratchet-reason annotations vs
+main's plain forms; branch side kept as the ratchet superset. Three
+real gaps fixed during integration: undeclared example submodules,
+unpopulated phantom ground-truth fields, and a bulk-resolution casualty
+(restored main's B-spline dispatch manifest).
+
+**Tooling defect recorded**: rustc E0583 "file not found for module"
+fires for example submodules under \?\-prefixed worktree paths
+(D:/atlas/worktrees/*) while the same tree builds from the canonical
+checkout — a Windows UNC-path rustc limitation to note for all future
+lane-based verification (verify from repos/<member> when example
+submodules are involved).
+
 **helios #69 delivered 2026-08-25** (taken over): Radon input-error
 assertions + executable book oracle + typed extension metadata. Clean
 fast-forward of the series with current main; 284 tests green.
