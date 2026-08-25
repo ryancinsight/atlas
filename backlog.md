@@ -9889,6 +9889,19 @@ the FWI-024-D rotating opposed-linear-array acquisition — the geometry
 ATLAS-FWI-PSTD-BLI-106's BLI extensions were built for. Integrated with
 current main; ADR 116 renumbered to ADR 122 (slot collision with the
 clippy-floor ADR). Its strict-clippy fixups converged with a peer's
+9d8c5f370 on main. Merged as kwavers #634 (c11dffcf).
+
+**helios #55 delivered 2026-08-25** (taken over): typed-slopes series
+(RITK orientation-tag consumption in helios-domain, deny-pedantic floor
+with 11 lint classes fixed outright, ADR casing, package description).
+Integration surfaced that the branch's new floor exposed pre-existing
+main-side findings; all resolved (or-patterns, test-module unwraps →
+expect with invariants, trivially-copy pass-by-ref with a scoped expect
+at its borrow-boundary reason, doc backticks). Workspace clippy clean
+under --all-features, 262 tests green. Merged (ddf282a). Remaining
+diverged: helios #69, proteus #17, hephaestus #216, ritk #144,
+kwavers #439/#440/#443/#617/#620/#622-#624.
+clippy-floor ADR). Its strict-clippy fixups converged with a peer's
 9d8c5f370 on main. Merged as kwavers #634 (`c11dffcf`). Remaining
 diverged feature PRs: helios #55/#69, proteus #17, hephaestus #216,
 ritk #144, kwavers #439/#440/#443/#617/#620/#622-#624.
