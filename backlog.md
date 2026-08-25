@@ -10242,8 +10242,13 @@ main-side findings; all resolved (or-patterns, test-module unwraps →
 expect with invariants, trivially-copy pass-by-ref with a scoped expect
 at its borrow-boundary reason, doc backticks). Workspace clippy clean
 under --all-features, 262 tests green. Merged (ddf282a). Remaining
-diverged: helios #69, proteus #17, hephaestus #216, ritk #144,
-kwavers #439/#440/#443/#617/#620/#622-#624.
+diverged: helios #69 (delivered 8/25), proteus #17 (delivered 8/25),
+hephaestus #216 (delivered 8/25), ritk #144, kwavers #439/#440/#443/
+#617/#620/#622-#624. ritk #144 trial: semantic divergence — main's
+dti/volume eigen evolution (diffusion_eigen/symmetric_eigen) superseded
+the branch's decompose_3x3_symmetric route; the series needs a real
+rebase onto that evolution, not marker resolution. Trial reset;
+branch preserved on origin.
 
 **helios #69 delivered 2026-08-25** (taken over): Radon input-error
 assertions + executable book oracle + typed extension metadata. Clean
