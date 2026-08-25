@@ -42,9 +42,27 @@
 - **Risk / change class:** [arch] at stack level; each member's own increment is
   classified in that member.
 - **Required authority:** Change on allowlisted repositories; no release.
-- **Status:** step 1 filed upstream, step 2 filed and blocked, steps 3 and 4
-  deliberately not yet filed. Re-open trigger for steps 3 and 4:
-  `HS-FEARLESS-TOKEN-2026-08-25` merges.
+- **Status 2026-08-25:** **step 1 delivered** — hermes PR #63 merged as
+  `85655c05`, gitlink advanced. `hermes_simd::vectorize` plus `LaneKernel<T>`
+  give a consumer one route into a `#[target_feature]` scope, and nine safe
+  operations (`mul_add` and the cross-lane permutes) complete `Vector`'s
+  surface for multiply-accumulate kernels. Codegen measured: 41 ymm-bearing
+  instructions including `vfmadd213ps` with no call into the backend
+  operations through the entry, against zero ymm and five outlined calls
+  without it. ADR 016.
+
+  Two things narrowed against the filed plan, both recorded in the hermes audit
+  amendment: the safe surface already existed on `Vector` so only FMA and the
+  permutes were missing, and ADR 011 needed no revision because it already puts
+  the safe layer above unsafe facets. One unforeseen blocker was cleared on the
+  way: `#[runtime_dispatch]` dropped doc comments, which is why no dispatcher in
+  that crate could be `pub`.
+
+  Steps 2 through 4 are now unblocked in principle. Step 2
+  (`ATLAS-APOLLO-ISA-FORK-2026-08-25`) is the next claimable increment and
+  should land before steps 3 and 4 are filed, so `kwavers` and `CFDrs` follow a
+  worked migration rather than inventing one. Step 4 (`moirai`) remains gated on
+  the layering question, not on the capability.
 
 ## ATLAS-EXTERNAL-REFERENCE-VALUE-2026-08-25 — External references are earning their keep [patch] — done 2026-08-25
 
