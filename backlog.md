@@ -10886,3 +10886,28 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   ATLAS-LINT-CALIB's reference report toward enforcing for items that
   stay live after normalization.
 - Status: todo
+
+## KWAVERS-CI-PIPELINE-001 - Consolidate kwavers CI to one verification pipeline [ci] [patch]
+
+- Outcome: one workflow whose jobs carry the stage structure (build-once,
+  cheapest-first, affected-scope filters); mdBook deploy off pull_request
+  events; benchmark regression job removed (benchmarks run locally per
+  policy - CI keeps the single-iteration bench smoke only).
+- Evidence 2026-08-24: six sibling workflows fire per PR event and per
+  main push; queue sat 6-15 min behind one busy runner; one main-push
+  CI/CD Pipeline run ended cancelled, leaving that merge unverified.
+- Status: todo
+
+## ATLAS-RUNNER-CAPACITY-001 - Size runner slots to fleet width [infra] [patch]
+
+- Outcome: no verification job queued past its own runtime target; runner
+  slots sized to fleet width x per-event jobs, or per-event jobs shrunk by
+  affected-scope filters (KWAVERS-CI-PIPELINE-001 is the largest shed).
+- Evidence 2026-08-24: kwavers queue depth ~10 with one in_progress.
+- Status: todo
+
+## ATLAS-OUTPUT-ROOT-001 - Merge duplicate run-output roots [pm-hygiene] [patch]
+
+- Outcome: one gitignored run-output root at the meta level; `output/` and
+  `outputs/` merged, writers and references updated to the survivor.
+- Status: todo
