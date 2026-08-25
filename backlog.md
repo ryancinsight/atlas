@@ -794,13 +794,15 @@ unchanged.
 - **Outcome:** every plotting-eligible Criterion target executes once under the
   existing finite bound on a cold hosted runner; compilation and execution are
   separated or consolidated so setup cost cannot consume the smoke budget.
-- **Acceptance oracle:** reproduce run `32867271654`, identify the last target
-  reached from its completed log, retain the full target set, verify the cold
-  and warm paths complete below 30 minutes, and obtain terminal green hosted
-  `Benchmark Runtime Smoke` plus the affected fast local gate.
-- **Risk/dependencies:** `[patch]`; depends on the completed-run log becoming
-  available. The visualization implementation is unchanged. Completion
-  re-opens `ATLAS-KWAVERS-VIS-CONFIG-2026-08-25` for its gitlink advance.
+- **Acceptance oracle:** reproduce run `32867271654`, retain the full target
+  set, build the bench binaries once as a separately bounded artifact, verify
+  the cold build and bounded smoke phases independently, and obtain terminal
+  green hosted `Benchmark Runtime Smoke` plus the affected fast local gate.
+- **Risk/dependencies:** `[patch]`; the completed log proves no Criterion target
+  executed: the release-profile compile was still building `proptest` at 29
+  minutes and the 30-minute job bound then killed Cargo and Rustc. The
+  visualization implementation is unchanged. Completion re-opens
+  `ATLAS-KWAVERS-VIS-CONFIG-2026-08-25` for its gitlink advance.
 
 ## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clear the standalone kwavers-analysis clippy debt [chore] — in progress
 
