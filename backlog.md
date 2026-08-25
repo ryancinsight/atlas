@@ -7670,7 +7670,17 @@ list updated. `check-drift.sh` reports `4 consumers clean`.
   - peer-asclepius: push local main `47e73d1e` to origin/main; the
     gitlink pin already points to that SHA.
 
-## ATLAS-GMRES-SSOT-001 — Consolidate four GMRES implementations onto one recurrence [major] [arch] — todo
+## ATLAS-GMRES-SSOT-001 — Consolidate four GMRES implementations onto one recurrence [major] [arch] — closed 2026-08-25 (superseded by ADR 0033 execution)
+
+- **Closed 2026-08-25:** the consolidation is done by the ADR 0033 Krylov work.
+  `repos/leto` no longer has `crates/leto-ops/src/application/linalg/iterative/`
+  (the whole family incl. the duplicated `LinearOperator`/`Preconditioner`
+  traits was deleted; LSQR stage C through kwavers PR #636 completed the
+  consumer migration). CFDrs' fork was replaced by leto wrappers then the
+  family itself was deleted; kwavers' fork was ported and migrated to Athena;
+  the remaining `gmres` module is `athena-core/src/solver/gmres/`, the
+  ADR-blessed SSOT. Residue scan: one recurrence remains, in athena.
+  No further action.
 
 - Outcome: one GMRES recurrence in the stack, with the other three call
   sites migrated to it and deleted (no re-export, no forwarding wrapper).
@@ -7964,7 +7974,13 @@ Stale-advanceable (still NOT safely advanceable):
   (rescue the standalone clones under `worktrees/`). Review whether any
   becomes urgent next session.
 
-## ATLAS-GMRES-FORK-CONVERGE-001 — Stages B-D: migrate consumers, delete the Leto family [major] [arch] — todo
+## ATLAS-GMRES-FORK-CONVERGE-001 — Stages B-D: migrate consumers, delete the Leto family [major] [arch] — closed 2026-08-25
+
+- **Closed 2026-08-25:** stages B–D are complete. CFDrs landed the Leto
+  wrappers and then the family deletion; kwavers migrated GMRES and LSQR onto
+  Athena (PRs #634/#636); leto-ops `application/linalg/iterative/` no longer
+  exists (`ls` verified). Stage D's residue scan is clean: only
+  `athena-core/src/solver/gmres/` remains. No action.
 
 - Unblocked 2026-07-28: `ATLAS-ATHENA-KRYLOV-CAPABILITY-001` is done.
 - B: CFDrs from its `6d18a547` Leto-family wrappers to Athena.
@@ -8246,7 +8262,7 @@ blocker on Athena.
   finds no board/commit update; then reclaim the scope and complete the
   integration from the committed branch state.
 
-## ATLAS-CFDRS-TEST-BUDGET — 8 integration tests exceed 30s nextest budget [patch] — in progress
+## ATLAS-CFDRS-TEST-BUDGET — 8 integration tests exceed 30s nextest budget [patch] — closed 2026-08-25 (all within budget)
 
 - Owner: Atlas coordinator (current session); scope:
   `repos/CFDrs/crates/cfd-validation/`, `repos/CFDrs/crates/cfd-3d/`.
@@ -8279,8 +8295,15 @@ blocker on Athena.
   7. `cross_fidelity_stenosis_shear_thinning` — 27.9s (2×1D + 2×2D SIMPLE,
      20000 max iterations, alpha_mu=0.1)
   8. `cross_fidelity_venturi_total_loss_coefficient` — 23.0s (1D+2D+3D legs)
-- Optimization outlook: warm-started Picard, AMG preconditioning, shared solver
-  state across the three microventuri cases, tighter rheology-update scheme.
+- **Closed 2026-08-25 (measured at merged default `5ebbf1f8`):** all eight
+  slow cases now fit the budget. cfd-validation 436/436 in 10.7s (worst
+  `cross_fidelity_trifurcation_dominance` 2.1s); cfd-3d 472/472 in 2.7s
+  (`test_venturi_blood_flow` 1.8s, `test_venturi_flow_3d` <3s); all three
+  microventuri/option2 cases <0.5s. The 30s budget is no longer breached
+  anywhere; the outlook below is superseded by evidence.
+- Optimization outlook (historical, superseded): warm-started Picard, AMG
+  preconditioning, shared solver state across the three microventuri cases,
+  tighter rheology-update scheme.
 - Note: workload/assertion reduction is explicitly NOT an acceptance path
   per `CFDRS-RUNTIME-001`.
 - Immediate slice: profile the two exact failing production paths, implement
@@ -8691,7 +8714,15 @@ increment; for the second it could not run — an in-flight `gaia` change remove
 the `cfdrs-integration` feature cfd-2d depends on, breaking resolution for
 unrelated reasons. **Re-run clippy on cfd-2d once gaia settles.**
 
-## ATLAS-LETO-OWNED-LU-001 — cfd-math consumes an unlanded Leto LU surface [major] — todo
+## ATLAS-LETO-OWNED-LU-001 — cfd-math consumes an unlanded Leto LU surface [major] — closed 2026-08-25 (resolved upstream)
+
+- **Closed 2026-08-25:** `leto-ops` now exports the owned surface —
+  `OwnedNumericLu`, `SymbolicLu`, `factor_symbolic`, `SparseLuSolver` with
+  `factor_sparse_with_symbolic` (verified at
+  `crates/leto-ops/src/lib.rs` 139-142). `cargo check -p cfd-math` passes
+  clean at the merged CFDrs head `5ebbf1f8`. The inverted co-evolution was
+  repaired upstream; the owned-factorization requirement is satisfied.
+  No action.
 
 `cfd-math` does not compile on CFDrs main. Not a toolchain fault — the
 compiler is now coherent and the errors are ordinary resolution failures:
@@ -8891,7 +8922,20 @@ differs by which crates a command pulls, which is exactly why this presents as
 moving, unrelated breakage. `ATLAS-TOOLCHAIN-COHERENCE-001` is the blocker and
 is now the single largest drag on verification.
 
-## ATLAS-NSFVM-SOR-CONVERGENCE-001 — Micro-geometry SIMPLEC continuity stagnation [major] — todo
+## ATLAS-NSFVM-SOR-CONVERGENCE-001 — Micro-geometry SIMPLEC continuity stagnation [major] — closed 2026-08-25 (resolved by later work)
+
+- **Owner:** current session (measured 2026-08-25 at CFDrs main `5ebbf1f8`).
+- **Closed:** re-measured on a clean lane from the merged default. The
+  microventuri cases no longer stagnate or time out:
+  `microventuri_35um_case_produces_converged_informative_2d_result` runs in
+  0.125s; the full `cfd-validation` suite is 436/436 in 10.7s (worst test
+  `cross_fidelity_trifurcation_dominance` 2.1s); `cfd-3d` is 472/472 in 2.7s
+  including `test_venturi_blood_flow` at 1.8s (was >40s). The SOR sweeps stay
+  as-is (ω per blood model, cap 32/200, early exit at 1e-2); the earlier
+  continuity stagnation at 4.59e2 was cured by the accumulated solver
+  optimization slices (e.g. the pressure-CSR borrow in PR #347 and
+  successors), not by a parser/SOR change. No source change is needed;
+  closing with the measured evidence.
 
 - Three `venturi_cross_fidelity` cases time out: the 35um and fallback
   microventuri cases and the 45um option-2 routing case.
