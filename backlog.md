@@ -804,7 +804,23 @@ unchanged.
   visualization implementation is unchanged. Completion re-opens
   `ATLAS-KWAVERS-VIS-CONFIG-2026-08-25` for its gitlink advance.
 
-## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clear the standalone kwavers-analysis clippy debt [chore] — in progress
+## ATLAS-KWAVERS-CI-MATRIX-TIMEOUT-2026-08-25 — Give the Build & Test matrix real headroom; drop redundant build [patch] — in progress
+
+- **Owner:** current session; lane `worktrees/kwavers-ci-opt` (branch
+  `ci/kwavers-build-matrix-timings`).
+- **Observed while watching PR #639:** the `Build & Test` matrix
+  (stable/beta/nightly) ran 30m19s on the nightly leg against a 30-minute
+  cap and was cancelled; the re-run passed at 28m19s. The gate is
+  under-provisioned under hosted queue load.
+- **Fix (commit `67f09da24`):** raise the matrix
+  `timeout-minutes` to 60, following the coverage job's documented
+  convention (exact-head observation + ~20% variance); drop the separate
+  `cargo build --release --features=plotting` step since the following
+  `cargo nextest --release` compiles the identical targets.
+- **Status:** pushed as kwavers PR #641 at exact head `67f09da24`,
+  MERGEABLE; merge after terminal hosted checks and advance the gitlink.
+
+## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clippy ratchet item (merged as PR #639 at f11d4b99c; gitlink advanced in 59c5f294e) — done
 
 - **Owner:** current session; lane `worktrees/kwavers-analysis-clippy` (branch
   `fix/kwavers-analysis-clippy-ratchet`).
