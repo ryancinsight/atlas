@@ -1,5 +1,150 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-APOLLO-BENCH-COMPILE-PROFILE-2026-08-26 [ci][perf]
+
+- [x] Attribute the local Apollo >180s validation signal to the expensive
+      release-profile benchmark artifact build path.
+- [x] Change only benchmark executable compilation from `release` to the
+      existing `bench-quick` profile (`codegen-units = 16`, LTO disabled).
+- [x] Keep benchmark execution, smoke limits, counterbalanced measurements,
+      and production release profile semantics unchanged.
+- [x] Verify workflow assertions, `git diff --check`, and Apollo lock guard
+      (`36` first-party sources) pass.
+- [ ] Measure hosted compile duration and benchmark-result stability at the
+      next exact provider head before considering further CI changes.
+
+> This reduces compile work without sleeping, retrying, raising timeouts,
+> changing workloads, or changing production/runtime memory behavior.
+
+## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-26-R3 [integration][perf]
+
+- [x] Recheck current heads: Apollo `94aabac6`, Hermes `15c1958`, Leto
+      `785debb`, and Hephaestus `bef4b4a`.
+- [x] Detect and repair stale Apollo/Coeus provider locks without touching
+      peer-owned provider lock work.
+- [x] Verify Apollo and Coeus lock guards: `36` and `41` first-party sources.
+- [x] Confirm Coeus core/autograd/ops compile in `1m49s`.
+- [x] Bound Apollo FFT/NUFFT compilation at `180s`; it exceeded the bound.
+      Existing all-feature test coverage and timeout policy were retained.
+- [ ] Collect hosted timing/profile attribution before changing Apollo build
+      partitioning, codegen settings, or test scope.
+
+> No sleeps, retries, timeout increases, workload changes, allocator changes,
+> or production memory-policy changes were introduced.
+
+## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-26 [integration][perf]
+
+## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-26-R2 [integration][perf]
+
+- [x] Confirm current provider heads: Apollo `94aabac6`, Hermes `15c1958`,
+      Leto `785debb`, and Hephaestus `bef4b4a`.
+- [x] Identify stale, non-peer-owned consumer locks: Apollo and Coeus were
+      behind on provider revisions; Hephaestus's active Hermes lock change was
+      preserved as peer-owned.
+- [x] Repin Apollo and Coeus to the current four-provider heads without Cargo
+      regeneration or feature/workload changes.
+- [x] Verify Apollo and Coeus lock guards: `36` and `41` first-party sources,
+      both resolving under `--locked`.
+- [x] Verify Coeus focused compile: core/autograd/ops completed in `1m49s`.
+- [x] Bound Apollo compile validation at `180s`; it exceeded the bound, so no
+      unmeasured profile or timeout change was introduced. Track Apollo's
+      compile graph as the next optimization target.
+- [ ] Collect hosted CI timing and full-workspace confirmation at these heads.
+
+> No sleeps, retries, workload changes, timeout increases, allocator changes,
+> or production memory-policy changes were introduced.
+
+
+- [x] Confirm current merged heads: Apollo `ff8f95eb`, Hermes `c0cb8f7d`,
+      Leto `98486ebd`, and Hephaestus `b9ace296`.
+- [x] Inventory direct consumer locks and repin Apollo/Hermes entries, including
+      Kwavers and URL variants; retain Leto/Hephaestus pins where already current.
+- [x] Validate provider and consumer surfaces with bounded local checks:
+      Hermes benchmark target plus `types_tests` 28/28, Leto 128 + 187 + 8
+      core/assignment/layout tests, Apollo FFT/NUFFT check, and Hephaestus
+      core/WGPU check all pass.
+- [x] Run standalone lock guards for Apollo, Leto, Hephaestus, CFDrs, Coeus,
+      Asclepius, Athena, Helios, Kwavers, and Ritk; all pass with first-party
+      sources.
+- [x] Keep Cargo overlay-generated path churn out of portable locks; preserve
+      the peer-owned Hermes benchmark lock changes and active Leto/Hephaestus
+      worktree changes.
+- [ ] Collect terminal hosted CI evidence after the moving provider heads are
+      consumed by their pipelines.
+
+> No sleeps, retries, workload changes, timeout increases, allocator changes,
+> or production memory-policy changes were introduced.
+
+## ATLAS-LETO-HEPHAESTUS-CONSUMER-REPINS-2026-08-26 [integration][perf]
+
+- [x] Confirm current merged provider heads: Leto `98486ebd` and Hephaestus
+      `b9ace296`, with Hermes `bbc7bdb5` and Apollo `be10c9f2` retained.
+- [x] Inventory direct consumer lockfiles and advance stale Apollo, Hermes,
+      Leto, and Hephaestus source revisions, including URL variants.
+- [x] Regenerate Gaia's lockfile outside the Atlas overlay; retain the
+      Loom-enabled transitive resolution and verify `22` first-party sources.
+- [x] Compile focused surfaces against the live overlay: Gaia, Leto,
+      Hephaestus, CFDrs, and Coeus all pass.
+- [x] Run standalone lock guards for all nine affected repositories; all exit
+      `0` with source counts `64/41/36/41/35/59/33/30/51`.
+- [x] Restore Cargo-generated local-path churn before the final guard sweep;
+      no workload, feature set, timeout, retry, sleep, allocator, or production
+      memory behavior changed.
+- [ ] Collect terminal hosted full-workspace CI evidence after the moving
+      provider heads are consumed by their pipelines.
+
+> Execution steps only. Priority, scope and acceptance oracles live in
+> `backlog.md`; this file carries owner-local tactics and never restates them.
+
+## ATLAS-CFDRS-SCHEMATICS-LAYOUT-ALLOCATION-2026-08-26 [perf]
+
+- [x] Audit automatic schematic layout grouping and identify the nested
+      `Vec<Vec<usize>>` allocation path.
+- [x] Replace per-depth index buckets with flat depth counts and row cursors;
+      preserve authored-order placement and all existing coordinates.
+- [x] Verify the indexed layout and blueprint materialization tests: `1/1`
+      each passed; formatting and diff checks pass.
+- [ ] Collect a controlled allocation/runtime comparison on the hosted or
+      instrumented path before claiming a numeric speedup.
+
+> Execution steps only. Priority, scope and acceptance oracles live in
+> `backlog.md`; this file carries owner-local tactics and never restates them.
+
+## ATLAS-HERMES-NUMA-GEN-ISOLATION-2026-08-26 [test]
+
+- [x] Reproduce the shared-process failure mode: the test compared a
+      process-global generation counter across an unrelated allocation window.
+- [x] Isolate the contract body in a child test process using an environment
+      marker; preserve the allocation-neutrality, deallocation-invalidation,
+      manual-bump, and concurrent-cache assertions.
+- [x] Run the focused Hermes test: `1 passed` with parent and child completing
+      in `0.01s`; no sleep, retry, timeout, runner, allocator, or production
+      cache behavior changed.
+- [ ] Collect terminal hosted full-suite evidence at the current Hermes head.
+
+> Execution steps only. Priority, scope and acceptance oracles live in
+> `backlog.md`; this file carries owner-local tactics and never restates them.
+
+## ATLAS-PROVIDER-API-REPINS-2026-08-26 [integration]
+
+- [x] Confirm tracked Apollo `be10c9f2` and merged Hermes `bbc7bdb5` expose the
+      current capability-argument `LaneKernel::call(self, simd)` contract.
+- [x] Inventory direct consumers and stale lock revisions across the Atlas
+      Rust repositories; no downstream `LaneKernel` implementation requires a
+      source migration.
+- [x] Repin Apollo/Hermes entries in the nine affected consumer lockfiles to
+      Apollo `be10c9f2` and Hermes `bbc7bdb5`:
+      Apollo, CFDrs, Coeus, Asclepius, Athena, Helios, Hephaestus, Leto, and
+      Ritk.
+- [x] Run standalone lock guards for all affected consumers; every guard exits
+      0 and reports first-party Git sources.
+- [x] Compile focused package surfaces against the live Atlas overlay; CFDrs
+      trifurcation tests pass `2/2`, and Asclepius, Athena, Coeus, Helios,
+      Hephaestus, Leto, and Ritk checks pass.
+- [ ] Complete hosted full-workspace verification after the provider pins are
+      consumed by CI; no timeout, workload, numerical assertion, or feature
+      budget was changed in this migration.
+
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
