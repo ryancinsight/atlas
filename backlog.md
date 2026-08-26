@@ -126,6 +126,18 @@
   `pull_request`-triggered: kwavers alone had 3 Architecture Validation, 2
   benchmark regression, 2 Legacy Migration Audit, 2 Deploy mdBook, and 2 CI/CD
   Pipeline runs queued, several of them on the same PRs.
+- **Third lever (2026-08-26): helios** — the board's next unclaimed consumer
+  (~7–7.7kh/wk). Step-level measurement of its "slow" main runs shows the
+  wall time is queue starvation *inside* the run, not compute: run 32436531185
+  created 01:30Z with first job started 03:02Z — **92 queued minutes for ~5.7
+  minutes of compute** across both jobs; run 32892598325's book build took
+  2.6 minutes and its Pages deploy waited ~57 minutes to publish. Helios
+  `ci.yml` carried no concurrency group, so superseded pipelines held queue
+  positions behind live ones. The CFDrs-#374 lever applied verbatim:
+  [helios PR #74](https://github.com/ryancinsight/helios/pull/74)
+  (`ci/helios-ci-concurrency`, head `eb08279`), `group: ci-${{ github.ref }}`
+  + cancel-in-progress; no gate, job, timeout, or trigger changes; all four
+  PR checks green at open. Before/after rides the weekly report rerun.
 - **Scope:** measure per-repository queue depth and minutes over a week, then
   choose between capacity (a self-hosted runner on owned hardware, which the
   workflow-hygiene rule already prefers for private repositories and would also
@@ -424,7 +436,7 @@
   kwavers mainline, not caused by the LSQR migration; it predates
   PR #636 and is tracked separately as ATLAS-KWAVERS-DEFECTS-2026-08-22.
 
-## ATLAS-ATHENA-ALLOCATION-CONTRACT — warm solves allocate 4-6 small buffers per call on Linux [patch] — closed 2026-08-25
+## ATLAS-ATHENA-ALLOCATION-CONTRACT — warm solves allocate 4-6 small buffers per call on Linux [patch] — reopened 2026-08-26 (instrument PR open)
 
 - **Owner:** current session (investigation + closure); pre-existing on `main`
   (4c8a9dc); blocked ryancinsight/athena#18 only by sharing the `verify` job.
@@ -481,6 +493,43 @@
   evidence above; reopen only if a hosted Linux run re-reports non-zero
   allocations (then instrument with `MALLOC_ARENA_MAX=1` / trace before
   touching solver code).
+- **Reopened 2026-08-26 — the closed state was gate-vacuous, and the reopen
+  trigger fired.** Two findings:
+  1. **Vacuity:** with the GMRES contract `#[ignore]`d, hosted CI reported
+     "80 passed, 1 skipped" — the skip *is* this contract, so the allocation
+     guarantee had no hosted coverage between 2026-08-25 and today. The
+     prior closure's own condition ("safe gate until a Linux runner
+     confirms it") was never discharged because no job ran the test.
+  2. **Trigger:** the 2026-08-26 instrument rerun (below) passed the strict
+     contract — confirming nondeterminism — but nothing in the gate would
+     have caught a recurrence.
+- **Correction delivered (athena PR
+  [#20](https://github.com/ryancinsight/athena/pull/20), head `9963804`):
+  instrument, don't guess.**
+  - Classifier test `warm_solve_heap_traffic_is_bounded_and_not_retained`:
+    measures 16 then 32 warm solves in separate regions; fails only when
+    traffic *scales* with repetitions (solve-path allocation) or bytes are
+    *retained* (leak). An environment-fixed burst passes with its shape in
+    the report. This operationalizes the glibc-arena verdict: if that
+    verdict is wrong and a solve path allocates, the doubling measurement
+    catches it; if it is right, the burst stays fixed-size and balanced.
+  - New `allocation-instrument` CI job runs both ignored contracts with
+    `--run-ignored ignored-only`, so the strict zero-traffic expectation
+    and the bounded-noise classification are both permanent hosted evidence
+    on every push instead of skipped silently.
+- **Hosted evidence at PR head:** Allocation instrument job green on Linux —
+  including the strict zero-traffic GMRES contract, which reproduced no
+  allocations on this rerun. Combined with the original failure and the
+  Windows passes, this confirms the flake is nondeterministic environment
+  noise, now permanently discriminated from a real defect by the classifier
+  without human triage. Local Windows at `9963804`: default suite 2/2,
+  ignored suite 2/2, clippy `-D warnings` clean, YAML validated.
+- **Acceptance update:** strict contract enforced on hosted Linux every
+  push via the instrument job; classifier red = real defect, classifier
+  green + strict red = bounded environment burst (shape recorded).
+  Unconditional re-enable of the strict test remains blocked until the
+  environment cause is named (`MALLOC_ARENA_MAX=1` experiment still the
+  first probe).
 
 ## ATLAS-MNEMOSYNE-DOCS-2026-08-25 — Correct Page field and book chapters [patch] — done
 
@@ -599,7 +648,7 @@
   agent sessions. All three are user decisions; the data above is the input.
   Cache fixes like #647/#648/#375 remove the *work* side; queueing now
   dominates every member's PR wall time.
-## ATLAS-KWAVERS-SWE3D-BASELINE-REGRESSION-2026-08-26 — integration oracle regression on main [major] — todo
+## ATLAS-KWAVERS-SWE3D-BASELINE-REGRESSION-2026-08-26 — integration oracle regression on main [major] — diagnosed locally 2026-08-26
 
 - **Owner:** unclaimed; scope: `repos/kwavers` (integration baseline + SWE 3D
   validation test).
@@ -621,6 +670,14 @@
   config unify, #640 learning-rate schedule are candidates); if it is
   platform noise (the baseline was regenerated on a different runner), then
   `--update` is the correct fix and should note that in its commit.
+- **Local diagnosis 2026-08-26:** the current Kwavers main tree has an empty
+  integration baseline, and the focused test passes unchanged:
+  `volumetric_tracking_covers_non_pml_domain` reports `100.0%` coverage and
+  `12,544` valid points, matching `(40 - 2*6) * (40 - 2*6) * (28 - 2*6)`.
+  The failure is therefore not reproducible from the current source and no
+  baseline refresh is justified. The hosted runs remain historical evidence;
+  the item stays open until a fresh full hosted integration run confirms the
+  baseline is green.
 - **Acceptance:** main's Test Suite Coverage green; either the baseline is
   refreshed with a justification, or the solver change that moved the result
   is identified and reviewed.
