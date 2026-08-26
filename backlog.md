@@ -1,5 +1,39 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LOCKFILE-POISONING-GENERATOR-2026-08-26 — Stale branches are downstream of overlay lockfile rewrites [patch] — todo
+
+- **Finding.** Apollo carried 14 local branches with unique commits and zero open
+  PRs. Four existed **only on this disk**: `cascade/hermes-07`,
+  `codex/apollo-arch-006-junk-drawer-rename`, `codex/fix-apollo-package-sources`
+  and `fix/apollo-fft-workspace-buffers` — junk-drawer renames, composite DFT
+  wiring, lint gating, GPU workspace buffers. All four are now pushed to origin,
+  so the work is no longer one cleanup script away from gone.
+- **They share one cause, and it is not carelessness.** Every one of the four is
+  refused by the `pre-push` lockfile guard: its committed `Cargo.lock` has no
+  first-party git sources, because the stack overlay resolved them to local
+  paths. Cargo reads config from the *workspace root* as well as the working
+  directory, so any `cargo` invocation against a tree under `/d/atlas` picks up
+  `/d/atlas/.cargo/config.toml` — including from a worktree lane, and including
+  when the command itself is issued from outside the stack, which is the
+  documented workaround and is **not sufficient**.
+- **So the loop is:** agent builds, the lockfile is silently rewritten, a commit
+  sweeps it in, the push is refused, the branch is abandoned. The stale-branch
+  pile is the visible residue; the rewrite is the generator. Guarding at push
+  time is late — the work is already committed and the agent has moved on.
+- **Outcome:** the rewrite cannot happen silently. Options, cheapest first: a
+  pre-commit guard so a poisoned lockfile never enters a commit; making the
+  overlay not rewrite locks; or a wrapper that regenerates before commit.
+  Whichever lands, `scripts/lockfile.py --regenerate` stays the repair path.
+- **Acceptance oracle:** a build against a tree under the stack root, from any
+  working directory, leaves `Cargo.lock` resolving under `--locked`; and a
+  deliberately poisoned lockfile is refused before it can be committed.
+- **Risk / change class:** [patch], tooling. **Non-goals:** integrating the four
+  preserved branches — separate takeover items, each needing its lockfile
+  regenerated before it can be pushed for merge.
+- **Remaining inventory:** ten further apollo branches carry unique content and
+  are already on origin, so they are visible integration debt rather than loss
+  risk; `codex/apollo-stockham-throughput` is a live peer lane.
+
 ## ATLAS-CR-PATH-MANGLING-2026-08-25 — Every path renamed with a trailing CR on main [patch] — fixed 2026-08-25
 
 - **Impact:** `main` was unusable for roughly the length of two commits. Every
