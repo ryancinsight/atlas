@@ -1,5 +1,39 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — todo
+
+| ID | Outcome | Class | Status | Owner | Scope |
+|----|---------|-------|--------|-------|-------|
+| ATLAS-GITATTRIBUTES-DRIFT | One line-ending policy across the stack, applied to the blobs as well as declared. | [patch] | todo | unowned | every member's `.gitattributes` |
+
+- **Evidence, measured 2026-08-26:** three members carry no `.gitattributes` at
+  all -- apollo, consus, hephaestus -- and the 23 that do run eight distinct
+  variants. Two dominate: `* text=auto eol=lf` (8 members) and `* text=auto`
+  (9). The remaining six are elaborations of the same intent, not exceptions;
+  nothing in the stack protects CRLF. `hermes` and `ritk` list per-extension
+  rules, `ritk` additionally declares binary types.
+- **Why it matters here specifically:** this fleet runs Windows and Linux
+  agents against the same repositories. Without a declared policy the two
+  produce different blobs for identical content, which surfaces as phantom
+  diffs, merge conflicts on untouched files, and `warning: CRLF will be
+  replaced by LF` on every commit. `ATLAS-CR-PATH-MANGLING-2026-08-25` was the
+  same root cause reaching further -- it renamed every path on main with a
+  trailing CR.
+- **The declaration is the cheap half.** The blobs are already CRLF:
+  969 of 1039 tracked files in apollo, 429 of 522 in consus, 641 of 659 in
+  hephaestus. Adding `.gitattributes` without renormalising leaves git wanting
+  to convert each file the next time anything touches it, so the churn arrives
+  scattered through unrelated diffs, which is worse than the status quo.
+- **Shape of the fix, per member:** `.gitattributes` and
+  `git add --renormalize .` in one commit, plus a `.git-blame-ignore-revs`
+  entry so the renormalisation does not bury `git blame`. Roughly 2000 files
+  across the three that have none.
+- **Sequencing:** not while a member has a live lane. apollo had a peer with 23
+  uncommitted files when this was filed; a 969-file renormalisation under them
+  would be hostile. Take each member at a quiet point, and prefer
+  `* text=auto eol=lf` -- the worktree then holds LF on every platform, so
+  tooling never has to detect which it is reading.
+
 ## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-26 [integration][perf] — completed
 
 Apollo advanced to merged stage-fusion head `ff8f95eb`, while Hermes, Leto, and
