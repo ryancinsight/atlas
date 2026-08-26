@@ -1,0 +1,52 @@
+# Weekly fleet CI queue/minutes report (ATLAS-CI-RUNNER-SATURATION-2026-08-25).
+#
+# Runs scripts/atlas-ci-queue-report.py against every registered member and
+# uploads the full JSON as a workflow artifact. The report is the evidence
+# base for the capacity-vs-load-shedding decision; its per-repository numbers
+# are the before/after baseline for each landed load-shedding lever
+# (hephaestus #220, CFDrs #374, moirai #167). Run-output stays out of git:
+# the artifact carries it, stdout summary lands in the run log.
+
+name: ci-queue-report
+
+on:
+  schedule:
+    # Mondays 06:20 UTC — off the hour to avoid the top-of-hour runner rush.
+    - cron: "20 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-queue-report-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  report:
+    name: Fleet queue/minutes report
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Run the fleet report (job-summed minutes)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/atlas-ci-queue-report.py --days 7
+
+      - name: Upload report artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-queue-report
+          path: output/ci-queue-report/report-*.json
+          if-no-files-found: error
+          retention-days: 90

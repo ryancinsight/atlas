@@ -3,6 +3,26 @@
 > Execution steps only. Priority, scope and acceptance oracles live in
 > `backlog.md`; this file carries owner-local tactics and never restates them.
 
+## ATLAS-LOCKFILE-GUARD-UTF8-SWEEP-2026-08-25 — current session
+
+- [x] Re-survey the fleet for the locale-codepage decoding bug: 21 member
+      copies of `scripts/lockfile.py`, coeus/hephaestus fixed, **19** still
+      carrying `text=True` (the backlog's "other ten" undercounted the
+      promotion wave).
+- [x] Confirm all 19 unfixed copies are byte-identical modulo line endings
+      (single md5 after CRLF strip), so the coeus fix applies verbatim.
+- [x] Create clean lanes `worktrees/<repo>-lock-utf8` on branch
+      `ci/lockfile-guard-utf8` from each fetched `origin/main` default.
+- [x] Apply the fix (+8/−1: replace `text=True` with the explanatory comment +
+      `encoding="utf-8", errors="replace"`), preserving each file's native
+      line endings; verify every lane is byte-identical to the fixed canonical
+      copy modulo EOL and `py_compile` clean.
+- [x] Gate each lane with `scripts/lockfile.py --check` (19/19 exit 0, first-party
+      source counts recorded) and publish through the installed pre-push guard.
+- [x] Open the 19 PRs recorded in backlog
+      `ATLAS-LOCKFILE-GUARD-DUPLICATED`; merge after terminal hosted checks,
+      then remove lanes.
+
 ## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — current session
 
 - [x] Confirm the kwavers gap-audit ordering: `KW-GAP-2026-08-20-GPUMOCK`
@@ -2197,6 +2217,16 @@ Item closed 2026-08-23.
       controlled criterion baselines, allocation/buffer-reuse measurements,
       shared-cache checks, and zero-copy boundary verification. Do not change
       workload sizes or budgets to make a gate pass.
+      SWE scaling slice completed 2026-08-26 in `repos/kwavers`: the former
+      wall-clock `test_performance_scaling` measurement is now a bounded
+      Criterion `wave_propagation_scaling` benchmark over geometric 16³/32³/64³
+      sizes, with setup excluded from samples and cell throughput reported.
+      Target compiles offline; hosted Criterion baseline remains to be collected.
+      SWE tracker-memory slice completed 2026-08-26: validation callers that
+      discard history now use the compact tracker-only path, retaining one
+      scalar magnitude per eligible voxel per snapshot. Detector equivalence,
+      end-to-end equivalence, strict solver Clippy, and focused coverage tests
+      pass; hosted RSS/private-byte measurement remains pending.
 - [ ] Execute `ATLAS-CFDRS-TEST-BUDGET` on a clean CFDrs lane: profile the
       exact hosted timeout cases, optimize the production solver path, and
       rerun the unchanged numerical-fidelity tests within the committed
