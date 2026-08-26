@@ -70,7 +70,70 @@
   is not.
 
 
-## ATLAS-LOCKFILE-GUARD-DUPLICATED — twelve copies of one script, one of them fixed [patch] — todo
+## ATLAS-CFDRS-SCHEMATICS-LAYOUT-ALLOCATION-2026-08-26 [perf] — implemented
+
+The automatic schematic layout previously grouped node indices in a
+`Vec<Vec<usize>>`, creating one heap-backed bucket per depth column before
+computing coordinates. `cfd-schematics/src/visualizations/schematic/layout.rs`
+now uses flat per-depth counts and row cursors with a second authored-order
+pass. This preserves the existing depth ordering and every computed position
+while removing the per-column bucket allocations and their index storage.
+The existing indexed-layout and blueprint-materialization tests pass; no
+rendering, topology, or layout semantics changed.
+
+## ATLAS-PROVIDER-API-REPINS-2026-08-26 [integration] - Apollo/Hermes LaneKernel migration completed
+
+Hermes now owns the capability-argument `LaneKernel::call(self, simd)` API,
+and Apollo's merged `81e7de3a` implementation matches it. The downstream
+consumer locks for Apollo, CFDrs, Coeus, Asclepius, Athena, Helios, Hephaestus,
+Leto, and Ritk were repinned to Apollo `81e7de3a4fb36dce87cc2dc25e99420cb7165fd3`
+and Hermes `bbc7bdb593dc0bc95de7c6fb7840f92199c86fea`. The consumer scan found
+no direct downstream `LaneKernel` implementations requiring source edits.
+
+## ATLAS-APOLLO-FFT-LANEKERNEL-SIGNATURE-2026-08-26 [patch] - BatchedStages now matches the capability-arg trait
+
+`apollo-fft` `BatchedStages::call` was implemented with one parameter; the
+`hermes_simd::LaneKernel::call` trait now requires two
+(`fn call(self, simd: Simd<T, A>) -> Self::Output;`). Every consumer that
+compiled against `hermes_simd::vectorize(BatchedStages { ... })` on the new
+trait signature broke at this single mismatch
+(`error[E0050]: method 'call' has 1 parameter but the declaration in trait
+'hermes_simd::LaneKernel::call' has 2`), so the kwavers-solver, hephaestus,
+and coeus provider graphs all stopped compiling on top of the recent
+`81e7de3a4fb36dce87cc2dc25e99420cb7165fd3` Apollo repin. Long-running PRs on
+those providers were already blocked by the queue, and the signature
+mismatch was the next wall behind it.
+
+**Fix (commit `e9e5da80`, merged into apollo main at `2a447209`):** accept
+the `simd: Simd<T, A>` capability token and use it. The implementation was
+already pure-load/pure-store via `Vector::<T, A>::load_unaligned` and
+`store_unaligned`, so the token is the only missing argument. The merge with
+upstream apollo PR #121 (which was independently fixing the same trait
+mismatch) replaced the placeholder with `simd.splat(twr)` for the
+twiddle broadcasts — a clean improvement that the same diff carries.
+
+**Local evidence at `2a447209`:** `apollo-fft --lib` 400/400 pass, all
+`apollo-fft --tests` (5/5) pass, `cargo check -p apollo-fft --lib` clean,
+`cargo check -p kwavers-solver --tests` clean, `cargo check -p kwavers
+--tests --features full` clean. The Windows MSVC linker error in
+`kwavers-solver` test build (`unresolved external symbol ... leto::iter`)
+is a pre-existing kwavers-vs-leto integration issue, not caused by this
+change — `cargo check` and the apollo-fft suite both pass on the same tree.
+
+**Atlas integration:** atlas `repos/apollo` gitlink unchanged from its
+existing `2a447209`; the apollo-fft fix rides the merge that already
+absorbed PR #121.
+
+Standalone lock guards pass for all affected consumers, with first-party source
+counts of `64` (CFDrs), `41` (Coeus), `41` (Asclepius), `35` (Athena), `59`
+(Helios), `33` (Hephaestus), `30` (Leto), and `51` (Ritk). Live-overlay checks
+also pass for CFDrs `cfd-3d` trifurcation tests (`2 passed`), Coeus
+`coeus-autograd/core/ops`, Asclepius, Athena, Helios, Hephaestus, Leto, and
+Ritk focused package surfaces. No solver workload, timeout, numerical assertion,
+or feature budget changed. Hosted full-workspace verification remains the
+normal follow-up after these provider revisions are consumed in CI.
+
+## ATLAS-LOCKFILE-GUARD-DUPLICATED — twelve copies of one script, all 19 members fixed [patch] — done
 
 - **The bug.** `scripts/lockfile.py` runs cargo with
   `subprocess.run(..., text=True)` and no explicit encoding, so it decodes with
@@ -211,6 +274,13 @@
     benchmark keep their lockfile-keyed *source-only* caches (registry+git
     only, no `target/` wipe — correct for benchmark-baseline reproducibility);
     kwavers CI is peer-held (#641 consolidation).
+  - **Starvation event 2026-08-26, ~16:00Z:** both ritk #211 and helios #75
+    first check-runs died to `startup_failure`/`cancelled` with **every job
+    `started_at: null` and no logs** — pure runner starvation, no check ever
+    started, no code touched. This is the queue-time rule's case, not a PR
+    defect; GitHub's auto-requeue has since re-enqueued both runs (helios
+    requeued, ritk `gh run rerun`'d to a fresh attempt). Converge only on a
+    terminal green after a runner is actually acquired.
 - **Scope:** measure per-repository queue depth and minutes over a week, then
   choose between capacity (a self-hosted runner on owned hardware, which the
   workflow-hygiene rule already prefers for private repositories and would also
@@ -1359,7 +1429,7 @@ unchanged.
   Independent review found no remaining issue after duplicate-step,
   feature-fingerprint, and complete-failure-reporting checks.
 
-## ATLAS-KWAVERS-CI-MATRIX-TIMEOUT-2026-08-25 — Eliminate matrix and validation compile duplication [patch] — hosted verification pending
+## ATLAS-KWAVERS-CI-MATRIX-TIMEOUT-2026-08-25 — Eliminate matrix and validation compile duplication [patch] — done
 
 - **Owner:** current session; lane `worktrees/kwavers-ci-opt` (branch
   `ci/kwavers-build-matrix-timings`).
