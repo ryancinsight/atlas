@@ -599,6 +599,32 @@
   agent sessions. All three are user decisions; the data above is the input.
   Cache fixes like #647/#648/#375 remove the *work* side; queueing now
   dominates every member's PR wall time.
+## ATLAS-KWAVERS-SWE3D-BASELINE-REGRESSION-2026-08-26 — integration oracle regression on main [major] — todo
+
+- **Owner:** unclaimed; scope: `repos/kwavers` (integration baseline + SWE 3D
+  validation test).
+- **Symptom.** Architecture Validation → Test Suite Coverage on **main**
+  fails with: `integration regression: kwavers::swe_3d_validation
+  volumetric_tracking_covers_non_pml_domain` (1 of 681 integration tests;
+  "Refresh with: scripts/integration_tests.py --update" suggested by the
+  gate). Present in main runs 32921558574 and 32914486868 — the check has
+  been red on the default branch across at least two runs.
+- **Not caused by any open PR:** kwavers PR #650 (CSR interpolator) shows the
+  identical failure while its 5,764-test lib suite passes; evidence comment
+  recorded on the PR.
+- **Decision needed before mechanical refresh:** the gate offers
+  `--update`, but refreshing an oracle to make a red gate green hides a real
+  numerical change if one occurred. First diff the stored baseline against a
+  local run of `volumetric_tracking_covers_non_pml_domain`: if the delta is a
+  genuine solver-behavior change, find the merging commit that moved it
+  (`git bisect` over recent main merges: #622 run-compiled-tests, #638 viz
+  config unify, #640 learning-rate schedule are candidates); if it is
+  platform noise (the baseline was regenerated on a different runner), then
+  `--update` is the correct fix and should note that in its commit.
+- **Acceptance:** main's Test Suite Coverage green; either the baseline is
+  refreshed with a justification, or the solver change that moved the result
+  is identified and reviewed.
+
 - **ARCH-008 gaia CSG assessment 2026-08-25 — recorded correct-as-jagged.**
   `gaia/src/application/csg/boolean/indexed.rs` sites (`remap_binary_face_soups`
   :254, `components` :1130/:1304) are per-operand face-soup groupings built
