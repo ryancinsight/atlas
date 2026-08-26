@@ -105,7 +105,17 @@
   common-surface gates untouched. Before/after rides the report's weekly rerun.
 - **Collected:** Mnemosyne PR #70 merged at `e9adfe8` (all real checks green;
   only recurseml report-only); Atlas mnemosyne gitlink advanced (`0a926abe3`).
-  leto #123 / ritk #209 doc-drift fixes pending their remaining checks.
+  leto #123 merged (`1d4d687`, gitlink since advanced past it to `98486ebd`).
+- **Second lever wave merged 2026-08-26:** CFDrs **#374** (concurrency
+  cancel — its queue-to-work ratio was the fleet's worst at 828m queued vs
+  741m worked) at `7df28ccd`; Moirai **#167** (Python-bindings path filter,
+  was 61 runs × ~22 min/wk on Rust-only changes) at `a63a7153`; ritk **#209**
+  (leto-linalg chapter → Athena, closing the ADR-0033 residue-scan doc drift)
+  at `f444f3b3`. All three gitlinks advanced in one batch
+  (`c259ddb58`). kwavers **#642** closed-superseded by the first session's
+  #641 stack; its `Cargo.toml` O3 coverage-profile half is on kwavers main
+  (confirmed `opt-level = 3` under `[profile.coverage]`), and the workflow
+  wiring rides the peer's open #641 consolidation.
 - **Measured 2026-08-25, ~20:00Z:** 27 runs queued across the fleet with one in
   progress — kwavers 14, hermes 7, helios 3, ritk 2, CFDrs 1. Hermes CI on
   `main` sat queued for over 50 minutes. Three merges landed during that window
