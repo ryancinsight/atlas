@@ -66,6 +66,24 @@
   member keeps a copy that a freshness check compares against Atlas's. The
   second is the smaller change and matches how the ADR index and the stack
   overlay are already handled: generated state with a regenerate-and-diff gate.
+- **Kwavers fix merged 2026-08-26 ([kwavers
+  #649](https://github.com/ryancinsight/kwavers/pull/649) at
+  `4aaa19abbe3c9ea59fec3d178500eb97e39040df`):** identical +8/-1 change to
+  `scripts/lockfile.py`, applied verbatim from the canonical coeus/hephaestus
+  fix. All 24 hosted checks pass (lockfile integrity 1m15s, format, clippy,
+  doctests, rustdoc, all feature combinations 8–12m, build stable/beta/nightly
+  15–21m, CUDA 10m, heavy validation 37m, code coverage 28m, code quality 5m,
+  benchmark smoke 13m, PINN 13m, PINN feature 13m, miri 2m, security 3m, layer
+  boundary 19s, doc 4m, test suite coverage 33m, validate clean architecture
+  9m, solver validation 5m, python typed 47s, audit burn 1m, audit legacy 1m,
+  CodeRabbit completed). The 42-behind base is irrelevant because the diff
+  only touches `scripts/lockfile.py` with a self-contained fix. Atlas gitlink
+  advanced `d13ab618f` → `4aaa19abb` (commit `f0195e7f1`). `recurseml/analysis`
+  is the always-report-only error. The promoted kwavers count is now 20 of the
+  21 candidate providers; CFDrs, Mnemosyne, Ritk, Tyche, Themis, and Eunomia
+  remain unfixed pending the same script-only change on their respective
+  mainlines (no open PRs for any of them; the increment is one PR per repo
+  whenever the owner is ready).
 
 ## ATLAS-CI-RUNNER-SATURATION-2026-08-25 — Hosted-runner queue depth delays every merge gate [patch] — in progress
 
@@ -138,6 +156,27 @@
   (`ci/helios-ci-concurrency`, head `eb08279`), `group: ci-${{ github.ref }}`
   + cancel-in-progress; no gate, job, timeout, or trigger changes; all four
   PR checks green at open. Before/after rides the weekly report rerun.
+- **Build-cache lever, fourth wave (2026-08-26): shared-key rust-cache.** The
+  queue/load levers above cut queue time; this cuts the *work* time inside a
+  green run. The destructive pattern is `actions/cache` keyed on
+  `hashFiles('**/Cargo.lock')` caching `target/`: any first-party repin wipes
+  the whole build cache and forces a full workspace rebuild on exactly the
+  routine dependency-bump PRs. Mirrors the CFDrs #375 precedent
+  (`Swatinem/rust-cache@6323deb1`, `shared-key`, `save-if` on `main` only).
+  Applied to the two highest-remaining CI-gate consumers:
+  - **ritk PR #211** (`perf/ritk-shared-rust-cache`, head `625ba675`): the
+    3-OS nextest matrix (5,675 tests, 14.6kh/wk on the 2026-08-25 report)
+    used the destructive lockfile-hash cache; now shared-key rust-cache with
+    `workspaces: ritk` (checkout is a subdir).
+  - **helios PR #75** (`perf/helios-shared-rust-cache`, head `e6de680`): the
+    rust workspace job (~12 min build) used the destructive cache; now
+    shared-key with `workspaces: .` (root checkout). Adds to #74's
+    concurrency lever.
+  - Already converged / correctly scoped elsewhere: Coeus (`6323deb1`,
+    save-if), CFDrs (#375), python_ci rust-cache; apollo benchmark and helios
+    benchmark keep their lockfile-keyed *source-only* caches (registry+git
+    only, no `target/` wipe — correct for benchmark-baseline reproducibility);
+    kwavers CI is peer-held (#641 consolidation).
 - **Scope:** measure per-repository queue depth and minutes over a week, then
   choose between capacity (a self-hosted runner on owned hardware, which the
   workflow-hygiene rule already prefers for private repositories and would also
@@ -678,6 +717,21 @@
   baseline refresh is justified. The hosted runs remain historical evidence;
   the item stays open until a fresh full hosted integration run confirms the
   baseline is green.
+- **Full local integration run 2026-08-26 (head `9982b37f`, the merge that
+  absorbed the right-sized-grid fix `252d86716`):** `cargo nextest run -p kwavers
+  --tests --no-default-features --features full --test-threads=1 --no-fail-fast`
+  reports `681 tests run: 681 passed (9 slow), 27 skipped`, `Summary [266.087s]`,
+  zero `FAIL` and zero `TIMEOUT` lines. The 60×60×40 grid that timed out hosted
+  runners is gone; the 40×40×28 grid keeps every non-PML voxel asserted by the
+  test and the sweep runs in 4 m 26 s locally, comfortably below the 25-minute
+  script bound and the 45-minute coverage job bound. The local
+  `scripts/integration_tests.py` cannot enforce here because the Atlas overlay
+  Cargo.lock is stale against the `--locked` flag it carries; that is an
+  environment blocker, not a regression.
+- **Status:** local evidence closes the diagnosis; the item stays open until a
+  fresh hosted integration run at the merge head returns `success`. A
+  `--update` is not justified, because no test is currently failing and an
+  empty baseline is the correct shape.
 - **Acceptance:** main's Test Suite Coverage green; either the baseline is
   refreshed with a justification, or the solver change that moved the result
   is identified and reviewed.
@@ -1344,6 +1398,18 @@ unchanged.
   `pending`/`queued` (queue backlog; only the always-report-only
   `recurseml/analysis` is `fail`); no terminal evidence at the exact head
   — merge held per policy.
+- **Merged 2026-08-26 at `17aca60ceafc0b74b8237d297ffecccde2b6ff90`:** all
+  24 hosted checks pass (lockfile 1m52s, format, clippy, nextest gpu 163/163
+  with 5 skips, doctests, rustdoc, layer boundary 17s, security audit 4m4s,
+  miri 5m8s, doc 4m34s, all feature combinations 10–23m, build
+  stable/beta/nightly 19–22m, CUDA 11m, heavy validation 36m, code coverage
+  27m, code quality 5m, benchmark smoke 13m, PINN 14m, PINN feature 21m,
+  python typed 3m, audit burn 3m, audit legacy 52s). `recurseml/analysis` is
+  the always-report-only error. The merge commit `d13ab618f` (post-#644 main
+  tip) is already the recorded atlas gitlink, so no pointer advance is owed
+  to this PR; the integration-test baseline instrument rides the same merge.
+  The visual-config verification residual — 28 pre-existing clippy findings in
+  `kwavers-gpu` — is closed.
 
 ## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clippy ratchet item (merged as PR #639 at f11d4b99c; gitlink advanced in 59c5f294e) — done
 
