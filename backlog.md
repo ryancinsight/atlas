@@ -1,5 +1,34 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LETO-HEPHAESTUS-CONSUMER-REPINS-2026-08-26 [integration][perf] — completed
+
+The current Leto and Hephaestus provider heads are now consumed consistently
+across the direct Atlas graph: Leto `98486ebd27266068391c7101fff5b074a409877b`
+and Hephaestus `b9ace296881b61bb412f6827463d7fe11f08f603`. Apollo, Hermes,
+CFDrs, Coeus, Asclepius, Athena, Helios, Ritk, Gaia, Leto, and Hephaestus
+lockfiles were checked for stale provider revisions; affected entries were
+advanced without changing feature sets, solver workloads, timeout budgets, or
+numerical assertions.
+
+Gaia required an outside-overlay lock regeneration rather than a one-line
+repin: the current Leto graph adds Loom-backed memory/test dependencies and
+updates compatible transitive registry packages. The resulting lock resolves
+under `--locked` with `22` first-party sources and contains no local-path
+overlay entries.
+
+Focused validation passed against the live provider trees: Gaia `gaia-mesh`,
+Leto `leto`/`leto-ops`, Hephaestus `hephaestus-core`/`hephaestus-wgpu`, CFDrs
+`cfd-3d`/`cfd-math`, and Coeus `coeus-autograd`/`coeus-core`/`coeus-ops`.
+Standalone lock guards also pass for all nine affected repositories with
+first-party source counts `64`, `41`, `36`, `41`, `35`, `59`, `33`, `30`, and
+`51` respectively. Cargo-generated overlay lock churn was restored before the
+final guard sweep; only portable provider pins and Gaia's regenerated portable
+resolution remain.
+
+The remaining hosted item is terminal full-workspace CI evidence on the moving
+provider heads. No sleep, retry, timeout, runner, allocator, memory policy, or
+production execution behavior changed in this increment.
+
 ## ATLAS-LOCKFILE-POISONING-GENERATOR-2026-08-26 — Stale branches are downstream of overlay lockfile rewrites [patch] — todo
 
 - **Finding.** Apollo carried 14 local branches with unique commits and zero open
@@ -84,9 +113,9 @@ rendering, topology, or layout semantics changed.
 ## ATLAS-PROVIDER-API-REPINS-2026-08-26 [integration] - Apollo/Hermes LaneKernel migration completed
 
 Hermes now owns the capability-argument `LaneKernel::call(self, simd)` API,
-and Apollo's merged `81e7de3a` implementation matches it. The downstream
+and Apollo's merged `be10c9f2` implementation matches it. The downstream
 consumer locks for Apollo, CFDrs, Coeus, Asclepius, Athena, Helios, Hephaestus,
-Leto, and Ritk were repinned to Apollo `81e7de3a4fb36dce87cc2dc25e99420cb7165fd3`
+Leto, and Ritk were repinned to Apollo `be10c9f27010435ee1fae2e08284a3e64e5971c3`
 and Hermes `bbc7bdb593dc0bc95de7c6fb7840f92199c86fea`. The consumer scan found
 no direct downstream `LaneKernel` implementations requiring source edits.
 
@@ -278,9 +307,22 @@ normal follow-up after these provider revisions are consumed in CI.
     first check-runs died to `startup_failure`/`cancelled` with **every job
     `started_at: null` and no logs** — pure runner starvation, no check ever
     started, no code touched. This is the queue-time rule's case, not a PR
-    defect; GitHub's auto-requeue has since re-enqueued both runs (helios
-    requeued, ritk `gh run rerun`'d to a fresh attempt). Converge only on a
-    terminal green after a runner is actually acquired.
+    defect; GitHub's auto-requeue has since re-enqueued both runs. Converge
+    only on a terminal green after a runner is actually acquired.
+  - **Recheck 16:35Z:** both PR runs (helios 32985441518, ritk 32985093134)
+    still `queued`, but `ritk main`'s Deploy mdBook and Python CI completed in
+    the same window — capacity is draining unevenly (main-push ahead of PR).
+    Both PRs are MERGEABLE, CodeRabbit-passed, single-file workflow changes
+    with validated YAML; convergence needs only runner capacity, no further
+    code. Merge on terminal green, then delete both `perf/*-shared-rust-cache`
+    lanes/branches.
+  - **Fleet-wide build-cache audit complete (2026-08-26):** the shared-key
+    rust-cache / `save-if` on-main pattern is now correct across every
+    non-peer-held member — CFDrs #375, Coeus, apollo (with its deliberate
+    `cache-targets: false`), plus the in-flight ritk #211 and helios #75.
+    `hashFiles('Cargo.lock')`-keyed `target/`-wiping caches remain only in
+    the correctly-scoped benchmark baselines (apollo, helios — source-only,
+    no `target/`) and kwavers (peer-held #641).
 - **Scope:** measure per-repository queue depth and minutes over a week, then
   choose between capacity (a self-hosted runner on owned hardware, which the
   workflow-hygiene rule already prefers for private repositories and would also
@@ -836,9 +878,30 @@ normal follow-up after these provider revisions are consumed in CI.
   fresh hosted integration run at the merge head returns `success`. A
   `--update` is not justified, because no test is currently failing and an
   empty baseline is the correct shape.
+- **Local escape restored (kwavers PR #653 at `8165488c2`, merged 2026-08-26):**
+  `scripts/integration_tests.py` was made unconditionally `--locked` when the
+  baseline was eliminated, which makes the gate unrunnable on a tree under
+  the Atlas development overlay (the overlay redirects first-party crates to
+  local paths, so cargo refuses before the suite starts). The PR adds an
+  `--unlocked` flag that drops the flag for local runs; CI keeps the locked
+  default, so the committed-lockfile check is unchanged. All 24 real hosted
+  checks pass on the exact head (lockfile 1m36s, audit burn 8m, audit legacy
+  2m, all feature combinations 5–19m, build stable/beta/nightly 1–7m, CUDA
+  10m, code coverage 32m, code quality 10m, doc 14m, heavy validation split
+  legs 7–14m, integration runner windows 1m, layer boundary 21s, miri 4m, PINN
+  feature 12m, python typed 1m, security 2m, solver validation 6m, test suite
+  coverage 40m, validate clean architecture 3m). The local `--unlocked` run
+  reproduces the canonical evidence from the prior diagnosis:
+  `integration suite: 681 tests run, 0 failed; no regressions; 0 known
+  failures unchanged` (matching the empty baseline). The command-form check
+  that earned its place — splitting `--color --locked` at the wrong index
+  produces a silent nonsense value with no `--locked` — is now part of the
+  test surface. `recurseml/analysis` is the always-report-only error.
 - **Acceptance:** main's Test Suite Coverage green; either the baseline is
   refreshed with a justification, or the solver change that moved the result
-  is identified and reviewed.
+  is identified and reviewed. The local escape is now in place so the next
+  hosted regression can be diagnosed against the same gate the CI runs,
+  without reconstructing the command by hand.
 
 - **ARCH-008 gaia CSG assessment 2026-08-25 — recorded correct-as-jagged.**
   `gaia/src/application/csg/boolean/indexed.rs` sites (`remap_binary_face_soups`
@@ -1475,7 +1538,7 @@ unchanged.
   any bound hit remains a production/test-topology defect, not grounds to
   increase `timeout-minutes`.
 
-## ATLAS-KWAVERS-GPU-CLIPPY-RATCHET-2026-08-25 — Clear the kwavers-gpu pre-existing clippy findings (the residual's second half) [patch] — in progress
+## ATLAS-KWAVERS-GPU-CLIPPY-RATCHET-2026-08-25 — Clear the kwavers-gpu pre-existing clippy findings (the residual's second half) [patch] — done
 
 - **Owner:** current session; lane `worktrees/kwavers-gpu-clippy` (branch
   `fix/kwavers-gpu-clippy-ratchet`).
