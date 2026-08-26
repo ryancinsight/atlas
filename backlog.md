@@ -11596,4 +11596,4 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   classifies by patch-id against origin default (rebase/squash-landed
   deletes as landed; unique deltas salvage per takeover) — one
   mechanical sweep per member, proportionate triage.
-- Status: todo
+- Status: in-progress; integrator=claude-prompt-loop-20260826; lease: all members' refs/heads (mechanical sweep, minutes)
