@@ -11602,11 +11602,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - Evidence 2026-08-24: kwavers queue depth ~10 with one in_progress.
 - Status: todo
 
-## ATLAS-OUTPUT-ROOT-001 - Merge duplicate run-output roots [pm-hygiene] [patch]
+## ATLAS-OUTPUT-ROOT-001 - Merge duplicate run-output roots [pm-hygiene] [patch] - closed 2026-08-26
 
-- Outcome: one gitignored run-output root at the meta level; `output/` and
-  `outputs/` merged, writers and references updated to the survivor.
-- Status: todo
+- done — outputs/ folded into output/scratch-consolidated-20260826/;
+  ignore line removed so regrowth is visible. Commit: atlas chore
+  "One run-output root".
 
 ## ATLAS-BRANCH-INVENTORY-001 - Burn down stack branch inventories [git-hygiene] [patch]
 
