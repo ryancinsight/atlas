@@ -11617,4 +11617,14 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   classifies by patch-id against origin default (rebase/squash-landed
   deletes as landed; unique deltas salvage per takeover) — one
   mechanical sweep per member, proportionate triage.
-- Status: in-progress; integrator=claude-prompt-loop-20260826; lease: all members' refs/heads (mechanical sweep, minutes)
+- Sweep done 2026-08-26 — 125 branches deleted across 26 members (merged
+  into origin default, or gone-upstream with cherry-verified empty delta);
+  kwavers stashes cleared by peer. Remainder: kwavers 56, ritk 33,
+  coeus 21, gaia 19, apollo 16 locals — classify each against open PRs
+  and patch-id (open-PR branches stay; rebase-landed delete; unique
+  deltas are takeover items), one member per increment.
+- Blocked substep: repo settings delete_branch_on_merge/allow_auto_merge
+  (leak prevention + enqueue prerequisite) — harness denied `gh api -X
+  PATCH`; user runs: for each member repo,
+  `gh api -X PATCH repos/ryancinsight/<repo> -F delete_branch_on_merge=true -F allow_auto_merge=true`
+- Status: in-progress (remainder classification unclaimed; sweep lease released)
