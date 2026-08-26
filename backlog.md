@@ -589,6 +589,12 @@
   agent sessions. All three are user decisions; the data above is the input.
   Cache fixes like #647/#648/#375 remove the *work* side; queueing now
   dominates every member's PR wall time.
+- **ARCH-008 gaia CSG assessment 2026-08-25 — recorded correct-as-jagged.**
+  `gaia/src/application/csg/boolean/indexed.rs` sites (`remap_binary_face_soups`
+  :254, `components` :1130/:1304) are per-operand face-soup groupings built
+  once per boolean operation, each operand's list growing independently — the
+  moirai `channel_fusion` pattern. No traversal-hot path; conversion would add
+  complexity without a win. Not claimed.
 - **ARCH-008 seventh conversion opened off this sweep** — kwavers conservative
   interpolator transfer matrix → CSR (PR #650). The bench's byte-parity gate
   caught that `leto::Array3` indexing is x-major before any timing ran; the
