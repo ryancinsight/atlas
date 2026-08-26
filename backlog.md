@@ -10781,6 +10781,16 @@ current main; ADR 116 renumbered to ADR 122 (slot collision with the
 clippy-floor ADR). Its strict-clippy fixups converged with a peer's
 9d8c5f370 on main. Merged as kwavers #634 (c11dffcf).
 
+**kwavers #443 delivered 2026-08-26** (taken over): console log sink →
+stderr. Integration required two rounds against a moving main — the
+first CI run exposed a real 60 s TIMEOUT regression in
+swe_3d_validation::volumetric_tracking_covers_non_pml_domain; fixed by
+right-sizing the coverage grid to 40×40×28 / PML 6
+(resolution-independent property, 3× speedup) rather than raising the
+timeout. Second run green; merged (9982b37). CI-duration observation:
+the Test Suite Coverage job ran 38–43 min even green — see
+KWAVERS-CI-PIPELINE-001 for the consolidation fix.
+
 **helios #55 delivered 2026-08-25** (taken over): typed-slopes series
 (RITK orientation-tag consumption in helios-domain, deny-pedantic floor
 with 11 lint classes fixed outright, ADR casing, package description).
