@@ -576,6 +576,19 @@
   peer lane #641 by its owner (`ea504bf`) to avoid a duplicate CI matrix —
   workload preserved. PR #648 (coverage cache) was briefly auto-closed in the
   #647 merge race and reopened; checks re-running.
+- **Queue-time quantified across members 2026-08-25 night.** The bottleneck is
+  not job duration anywhere anymore — it is hosted-runner wait:
+  - athena: wall 30.4 m, own work 3.3 m (queue 15–30 m per job);
+  - CFDrs: max queue 59 m against 15 m of own work;
+  - ritk: max queue 74 m;
+  - coeus: 60 m queue on a single-job run;
+  - kwavers: PR #650's checks sat queued 36+ minutes before first start.
+  Every workflow already carries cancel-in-progress. The levers are (a) job
+  consolidation across the per-member matrices, (b) larger runner quota or
+  self-hosted runners, and (c) lane-scheduling discipline between concurrent
+  agent sessions. All three are user decisions; the data above is the input.
+  Cache fixes like #647/#648/#375 remove the *work* side; queueing now
+  dominates every member's PR wall time.
 - **ARCH-008 seventh conversion opened off this sweep** — kwavers conservative
   interpolator transfer matrix → CSR (PR #650). The bench's byte-parity gate
   caught that `leto::Array3` indexing is x-major before any timing ran; the
