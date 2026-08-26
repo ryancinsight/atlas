@@ -11628,3 +11628,12 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   PATCH`; user runs: for each member repo,
   `gh api -X PATCH repos/ryancinsight/<repo> -F delete_branch_on_merge=true -F allow_auto_merge=true`
 - Status: in-progress (remainder classification unclaimed; sweep lease released)
+
+## ATLAS-OUTPUT-RETENTION-001 - Retention budget for the output root [pm-hygiene] [patch]
+
+- Outcome: committed eviction policy (age/size) mechanized over
+  /d/atlas/output; ci-queue-report converted from an unbounded
+  5-minute timestamped series to latest-plus-ring; keep-worthy
+  results graduated to recorded experiment artifacts before eviction.
+- Measured 2026-08-26: output/ = 52 GB.
+- Status: todo
