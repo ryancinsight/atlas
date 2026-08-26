@@ -1,5 +1,24 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-26 [integration][perf] — completed
+
+Apollo advanced to merged stage-fusion head `ff8f95eb`, while Hermes, Leto, and
+Hephaestus current merged heads are `c0cb8f7d`, `98486ebd`, and `b9ace296`.
+Downstream lockfiles were synchronized for Apollo/Hermes drift and checked for
+Leto/Hephaestus compatibility, including Kwavers and URL variants. No source
+migration was required outside the active provider lanes.
+
+Focused evidence passed: Hermes benchmark compilation and `types_tests` 28/28;
+Leto core, assignment, and layout tests 128 + 187 + 8; Apollo FFT/NUFFT compile;
+and Hephaestus core/WGPU compile. Ten standalone lock guards pass with first-
+party Git sources. Cargo overlay rewrites were treated as generated state and
+removed from portable locks; peer-owned Hermes benchmark and Leto/Hephaestus
+worktree changes remain preserved.
+
+This increment adds no sleep, retry, timeout increase, solver workload,
+allocator, numerical assertion, or production memory-policy change. Hosted
+full-workspace confirmation remains open for the moving heads.
+
 ## ATLAS-LETO-HEPHAESTUS-CONSUMER-REPINS-2026-08-26 [integration][perf] — completed
 
 The current Leto and Hephaestus provider heads are now consumed consistently
@@ -11566,4 +11585,15 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 
 - Outcome: one gitignored run-output root at the meta level; `output/` and
   `outputs/` merged, writers and references updated to the survivor.
+- Status: todo
+
+## ATLAS-BRANCH-INVENTORY-001 - Burn down stack branch inventories [git-hygiene] [patch]
+
+- Outcome: every member's local branches map to an open item or enqueued
+  PR (orient rule); measured 2026-08-26: kwavers 65 (12 merged, 6 gone),
+  moirai 30 (24 merged, 15 gone), coeus 21, apollo 17, hermes 14,
+  helios 16. Merged/gone prune mechanically; the unmerged remainder
+  classifies by patch-id against origin default (rebase/squash-landed
+  deletes as landed; unique deltas salvage per takeover) — one
+  mechanical sweep per member, proportionate triage.
 - Status: todo
