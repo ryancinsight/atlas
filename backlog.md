@@ -3999,6 +3999,27 @@ PR #334 is at default `a8ea12eb`, production `allow_sites=0`, and hosted
 Backend parity run `31989331059` passes. The lane is released without source
 edits.
 
+**Coeus PR #346 merged 2026-08-26 at `dbbdfc82ad06b5b0fb20db0719215ce89fb20f33`:
+clippy backlog cleared, gate now denies.** 41 outstanding clippy warnings
+across the Coeus workspace are gone; the Lint and documentation step now uses
+`-D warnings`. Bulk: 31 `.get(0)` → `.first()` across 23 files via
+`clippy --fix` (identical in meaning). Rest: three deeply nested return
+tuples now have type aliases (the linalg one earns it — the fourth tensor
+is the permutation carrying each CSR slot back to the COO entry it came
+from, and `(Tensor, Tensor, Tensor, Tensor)` said none of that);
+`collect_graph`'s inner `traverse` threaded eight `&mut` accumulators through
+recursion, now a `Traversal` struct; five loops indexed over a range derived
+from that slice's own length, now direct iteration; three expired
+`#[expect]`s removed (one turned out to still be load-bearing — that loop is
+fixed rather than re-suppressed). 78 `#[expect]` sites still cite
+`ATLAS-COEUS-LINT-RATCHET-097` (67 `too_many_arguments`); they stay tracked.
+A *new* diagnostic now fails the build instead of joining a pile. Local
+verification: 1130 tests pass. Hosted: all 7 real checks pass (CUDA 17m38s,
+Metal 8m10s, ROCm 8m29s, WGPU 24m50s, Format 21s, Lint and documentation
+1m24s, Lockfile integrity 33s, Tests 25m2s, CodeRabbit completed);
+`recurseml/analysis` is the always-report-only error. Atlas gitlink advanced
+`b3b1208e` → `dbbdfc82a` (commit `289bb05db`).
+
 ### Current residuals from the 2026-08-16 provider-consumer audit
 
 #### ATLAS-MNEMOSYNE-CONFORMANCE-101 — Close exact-head assertion ratchet [patch, closed 2026-08-17]
