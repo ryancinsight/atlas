@@ -11661,7 +11661,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   (leak prevention + enqueue prerequisite) — harness denied `gh api -X
   PATCH`; user runs: for each member repo,
   `gh api -X PATCH repos/ryancinsight/<repo> -F delete_branch_on_merge=true -F allow_auto_merge=true`
-- Status: in-progress (remainder classification unclaimed; sweep lease released)
+- Status: in-progress; integrator=claude-prompt-loop-20260826; lease: kwavers refs/heads (classification sweep, minutes)
 
 ## ATLAS-OUTPUT-RETENTION-001 - Retention budget for the output root [pm-hygiene] [patch]
 
