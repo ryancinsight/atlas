@@ -11799,10 +11799,10 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   Remaining work: ~98 survivor branches with real deltas are takeover
   material, familied above for kwavers/ritk/coeus/apollo; per-item
   takeover increments, not a sweep.
-- Blocked substep: repo settings delete_branch_on_merge/allow_auto_merge
-  (leak prevention + enqueue prerequisite) — harness denied `gh api -X
-  PATCH`; user runs: for each member repo,
-  `gh api -X PATCH repos/ryancinsight/<repo> -F delete_branch_on_merge=true -F allow_auto_merge=true`
+- Settings done 2026-08-26 (user-authorized): delete_branch_on_merge=true
+  on all 26 members; allow_auto_merge=true on 25/26 — leoneuro-rs
+  declines auto-merge (plan/visibility limit), enqueue falls back to
+  merge-on-green there.
 - Status: in-progress (mechanical phase done stack-wide; survivor takeovers unclaimed, closest-to-done-first)
 
 ## ATLAS-OUTPUT-RETENTION-001 - Retention budget for the output root [pm-hygiene] [patch]
