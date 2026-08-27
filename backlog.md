@@ -11676,12 +11676,19 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   #443 #609, remove-simulated-gpu-swe); 7 recent seams/docs/ci (Aug
   19-25); 12 July-era codex/* WIP (aequitas family, +3..+138 commits —
   largest recoverable value, oldest basis, naming-rule renames due at
-  takeover). Remaining members: ritk 33, coeus 21, gaia 19, apollo 16.
+  takeover).
+- ritk classified 2026-08-26: 33 -> 19 refs (15 deleted: merged tips,
+  cherry-landed, merged). 17 survivors with real deltas: 5 merged-PR
+  tails (+1..+3 past #54 #80 #116 #154 #166); 4 large Aug 1-7 WIP
+  (release-workflow-caller +35, coeus-publishability +29,
+  reconcile-model-coeus +26, gradient-reorientation +20); 8 small
+  recent fixes/docs (Aug 11-19, +1..+3). Remaining members:
+  coeus 21, gaia 19, apollo 16.
 - Blocked substep: repo settings delete_branch_on_merge/allow_auto_merge
   (leak prevention + enqueue prerequisite) — harness denied `gh api -X
   PATCH`; user runs: for each member repo,
   `gh api -X PATCH repos/ryancinsight/<repo> -F delete_branch_on_merge=true -F allow_auto_merge=true`
-- Status: in-progress; integrator=claude-prompt-loop-20260826; lease: ritk refs/heads (classification sweep, minutes)
+- Status: in-progress (kwavers, ritk classified; next member unclaimed — coeus)
 
 ## ATLAS-OUTPUT-RETENTION-001 - Retention budget for the output root [pm-hygiene] [patch]
 
