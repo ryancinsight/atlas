@@ -389,6 +389,18 @@ normal follow-up after these provider revisions are consumed in CI.
     `hashFiles('Cargo.lock')`-keyed `target/`-wiping caches remain only in
     the correctly-scoped benchmark baselines (apollo, helios — source-only,
     no `target/`) and kwavers (peer-held #641).
+  - **Build-cache wave delivered (2026-08-26, ~19:20Z):** both re-triggered
+    (amended SHA against the drained fleet) and merged green on default:
+    - **ritk #211** merged `7b6f22157`; post-merge `main` CI `33002036618`
+      and Python CI `33002034936` both `success` (the cancelled `33000606*`
+      legs were earlier starvation, auto-re-ran on the merged default).
+    - **helios #75** merged `850db7bf`; post-merge gates green (rust
+      workspace, python bindings, Lockfile).
+    Lanes and remote/local branches (`perf/*-shared-rust-cache`) reclaimed.
+    Both defaults now warm their shared-key caches from `main`, so the next
+    first-party dependency-bump PR on each avoids a full `target/` rebuild.
+    Atlas gitlink advancement for ritk/helios is the provider-graph step, done
+    after the recorded post-merge CI is confirmed terminal.
 - **Scope:** measure per-repository queue depth and minutes over a week, then
   choose between capacity (a self-hosted runner on owned hardware, which the
   workflow-hygiene rule already prefers for private repositories and would also
@@ -11682,13 +11694,22 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   tails (+1..+3 past #54 #80 #116 #154 #166); 4 large Aug 1-7 WIP
   (release-workflow-caller +35, coeus-publishability +29,
   reconcile-model-coeus +26, gradient-reorientation +20); 8 small
-  recent fixes/docs (Aug 11-19, +1..+3). Remaining members:
-  coeus 21, gaia 19, apollo 16.
+  recent fixes/docs (Aug 11-19, +1..+3).
+- Mechanical phase closed 2026-08-26, stack-wide: coeus 21->17 (note the
+  coeus-frobenius provider/cherry/rebase/v2 sibling family — consolidate
+  at takeover), gaia 19->2 (cascade/provider-042 held by the tree's
+  checkout bookkeeping), apollo 16->12, and 50 more deletions across the
+  other 21 members (consus 13->5, helios 14->7, moirai 7->4, ...).
+  Session total: ~236 branches deleted, every deletion evidence-backed
+  (merged / cherry-landed / merged-PR tip / content-superseded).
+  Remaining work: ~98 survivor branches with real deltas are takeover
+  material, familied above for kwavers/ritk/coeus/apollo; per-item
+  takeover increments, not a sweep.
 - Blocked substep: repo settings delete_branch_on_merge/allow_auto_merge
   (leak prevention + enqueue prerequisite) — harness denied `gh api -X
   PATCH`; user runs: for each member repo,
   `gh api -X PATCH repos/ryancinsight/<repo> -F delete_branch_on_merge=true -F allow_auto_merge=true`
-- Status: in-progress; integrator=claude-prompt-loop-20260826; lease: coeus+gaia+apollo refs/heads (classification sweep, minutes)
+- Status: in-progress (mechanical phase done stack-wide; survivor takeovers unclaimed, closest-to-done-first)
 
 ## ATLAS-OUTPUT-RETENTION-001 - Retention budget for the output root [pm-hygiene] [patch]
 
