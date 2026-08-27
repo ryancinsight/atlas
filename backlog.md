@@ -35,6 +35,13 @@
   byte-identical to the pilot) and `scripts/deliver-lockfile-guard-wave.sh`
   (the wave driver) are in atlas so the next guard update is one command, and
   serve as the freshness baseline for the member-local copies.
+- **Merged 2026-08-27, same session:** all 21 guard PRs + harmonia #10 + coeus
+  #352 (repin) merged green; atlas gitlinks advanced for all 22 members. All
+  changes are tooling-only (local hook + script flag + one lockfile
+  regeneration), so no downstream consumer lockfile updates are required.
+  Post-merge CI confirmation on the moving heads is the standard hosted
+  follow-up; coeus's post-merge runs were queued on runner starvation at
+  record time, not failing.
 - **Non-goals:** regenerating the other members' locks (none were poisoned);
   adding the lockfile-guard CI job to harmonia/eunomia/iris/kwavers/melinoe
   (separate item; kwavers' is peer-held #641).
@@ -485,7 +492,9 @@ normal follow-up after these provider revisions are consumed in CI.
     shared-key rust-cache lever (one entry per repo, `save-if` on main only):
     eunomia #74, tyche #39, horae #29. themis #32 (the same lever on its
     two-OS verify job) was the fleet's only open PR at session start and merged
-    green — gitlink advanced to `8c2e2cd`.
+    green — gitlink advanced to `8c2e2cd`. All four merged same-session;
+    eunomia's numpy job also gained the shared entry (it cold-compiled the
+    workspace).
 - **Scope:** measure per-repository queue depth and minutes over a week, then
   choose between capacity (a self-hosted runner on owned hardware, which the
   workflow-hygiene rule already prefers for private repositories and would also
