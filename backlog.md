@@ -11653,15 +11653,22 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   mechanical sweep per member, proportionate triage.
 - Sweep done 2026-08-26 — 125 branches deleted across 26 members (merged
   into origin default, or gone-upstream with cherry-verified empty delta);
-  kwavers stashes cleared by peer. Remainder: kwavers 56, ritk 33,
-  coeus 21, gaia 19, apollo 16 locals — classify each against open PRs
-  and patch-id (open-PR branches stay; rebase-landed delete; unique
-  deltas are takeover items), one member per increment.
+  kwavers stashes cleared by peer.
+- kwavers classified 2026-08-26: 56 -> 35 refs (21 more landed branches
+  deleted; every survivor verified to hold real content deltas vs main —
+  content-supersession test on touched files, not just patch-id).
+  Survivor families, takeover material closest-to-done-first: 8
+  PR-scratch (pr-622/623/624/633/646, fix622/fix622-work/fix622b, small
+  deltas); 5 merged-PR leftovers (+1..+8 past merged tips: #364 #434
+  #443 #609, remove-simulated-gpu-swe); 7 recent seams/docs/ci (Aug
+  19-25); 12 July-era codex/* WIP (aequitas family, +3..+138 commits —
+  largest recoverable value, oldest basis, naming-rule renames due at
+  takeover). Remaining members: ritk 33, coeus 21, gaia 19, apollo 16.
 - Blocked substep: repo settings delete_branch_on_merge/allow_auto_merge
   (leak prevention + enqueue prerequisite) — harness denied `gh api -X
   PATCH`; user runs: for each member repo,
   `gh api -X PATCH repos/ryancinsight/<repo> -F delete_branch_on_merge=true -F allow_auto_merge=true`
-- Status: in-progress; integrator=claude-prompt-loop-20260826; lease: kwavers refs/heads (classification sweep, minutes)
+- Status: in-progress (kwavers classified, lease released; next member classification unclaimed — ritk closest)
 
 ## ATLAS-OUTPUT-RETENTION-001 - Retention budget for the output root [pm-hygiene] [patch]
 
