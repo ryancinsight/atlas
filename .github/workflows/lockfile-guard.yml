@@ -9,9 +9,14 @@ name: Lockfile integrity (shared guard)
 # failing all 24 CI jobs on each branch while the guard sat in the repo wired
 # into one benchmark workflow and nowhere else.
 #
-# The caller must carry `scripts/lockfile.py` (the same tool the committed
-# pre-push hook runs) and a Cargo.lock with at least one first-party git
-# source. The check needs no toolchain, cache or build and is bounded at five
+# CI centralization: the shared workflow checks out Atlas and runs Atlas's
+# canonical `scripts/lockfile.py`, so members no longer need to carry the
+# script for CI purposes. Local pre-push hooks still run the member's copy
+# (kept in sync via the freshness check: `python3 <atlas>/scripts/lockfile.py
+# --freshness <member-copy>`).
+#
+# The caller needs a Cargo.lock with at least one first-party git source.
+# The check needs no toolchain, cache or build and is bounded at five
 # minutes, so it fails in seconds rather than after a full matrix.
 
 on:
@@ -27,5 +32,9 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          path: _atlas
       - name: Verify Cargo.lock resolves under --locked
-        run: python3 scripts/lockfile.py --check
+        run: python3 _atlas/scripts/lockfile.py --check --manifest-path Cargo.toml
