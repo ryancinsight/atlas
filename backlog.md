@@ -1,5 +1,26 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-PROVIDER-CHAIN-QUALITY-2026-08-27 — Perf/memory/stability/safety audit + fix wave: apollo provider chain [patch]..[minor] — in-progress
+
+- **Outcome:** adjudicated audit of apollo, hephaestus, leto, hermes, moirai,
+  mnemosyne on four axes (performance, memory efficiency, stability, safety);
+  accepted findings implemented per-repo as vertical increments (branch → gate
+  → PR → merge), rejected/deferred findings filed with reasons on the owning
+  member boards.
+- **Integrator:** claude-fable session 03d80d33 (this claim). Audit fan-out is
+  read-only (6 subagent sweeps, complete). Implementation claims land on each
+  member's own board before that repo's source is touched; atlas-level entry
+  tracks the campaign only.
+- **Constraints honored:** apollo `components/{base128,resident,batched,
+  codelet}` + `test_support.rs` under live lease (ATLAS-APOLLO-BASE-BUTTERFLY-
+  128) — findings there file to apollo's board, no direct edits; hermes tree
+  held by live codex CI claim — hermes source work rides its current branch or
+  a lane, `.github/` untouched.
+- **Acceptance:** per-repo fix PRs merged green under member gates, or
+  findings filed as DoR items with evidence; this entry closes with the ledger
+  of merges + filings.
+- **Last update:** 2026-08-27 18:05 EDT.
+
 ## ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27 — Pre-commit lockfile guard delivered to every member with first-party deps [patch] — delivered 2026-08-27
 
 - **Outcome:** the apollo pilot (`5602a20d`) is now fleet-wide: 21 PRs add the
