@@ -1,5 +1,44 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27 — Pre-commit lockfile guard delivered to every member with first-party deps [patch] — delivered 2026-08-27
+
+- **Outcome:** the apollo pilot (`5602a20d`) is now fleet-wide: 21 PRs add the
+  `check_staged()` surface to each member's `scripts/lockfile.py` (index-only,
+  runs no cargo) plus the `.githooks/pre-commit` hook, so a lock flattened by
+  the stack overlay can never enter a commit (`ATLAS-LOCKFILE-POISONING-
+  GENERATOR-2026-08-26`'s cheapest option). One mechanical PR per member;
+  content byte-identical to the pilot.
+- **Delivered to (21):** hermes #75, leto #126, hephaestus #224, kwavers #662,
+  aequitas #41, asclepius #29, athena #21, CFDrs #378, coeus #351, consus #57,
+  gaia #36, helios #77, horae #30, hyperion #27, Mnemosyne #74, Moirai #169,
+  proteus #22, ritk #213, themis #33, tyche #40, plus the harmonia regeneration
+  #10 below. apollo already carried the pilot. Excluded: eunomia, iris,
+  melinoe — true leaf members with no first-party git deps, so the guard's
+  zero-source signature would false-positive.
+- **Cross-repo defect found and fixed while the wave ran:** coeus main was red
+  (E0432/E0425: `hermes_simd::LaneKernel`/`vectorize` unresolved) because its
+  lock pinned hermes `ef40f43d`, which predates the `LaneKernel` API (hermes
+  `0578c54`). The 2026-08-26 repin to `bbc7bdb5` was undone by coeus #350's
+  later lockfile sweep. `cargo update -p hermes-simd` from outside the overlay
+  advances hermes to `bc48334` plus four sibling providers (eunomia, melinoe,
+  Mnemosyne, themis) to current heads; lock resolves under `--locked` and the
+  full workspace checks clean. coeus #352. coeus #351's guard checks were red
+  only on this pre-existing mainline break and go green once #352 lands.
+- **harmonia was live-poisoned:** its committed `Cargo.lock` had 0 first-party
+  sources against 4 declared git deps — flattened by the overlay and invisible
+  because harmonia CI never passes `--locked` (and has no lockfile-guard job).
+  harmonia #10 regenerates the lock outside the overlay (4 sources restored),
+  adds `scripts/lockfile.py` (canonical Atlas copy) and the pre-commit hook.
+  Harmonia also lacks the shared `lockfile-guard.yml` CI call — follow-up item
+  if it wants CI parity with the fleet.
+- **Tooling kept:** `scripts/apply-lockfile-guard.py` (the splice, verified
+  byte-identical to the pilot) and `scripts/deliver-lockfile-guard-wave.sh`
+  (the wave driver) are in atlas so the next guard update is one command, and
+  serve as the freshness baseline for the member-local copies.
+- **Non-goals:** regenerating the other members' locks (none were poisoned);
+  adding the lockfile-guard CI job to harmonia/eunomia/iris/kwavers/melinoe
+  (separate item; kwavers' is peer-held #641).
+
 ## ATLAS-APOLLO-BENCH-QUICK-DIRT-2026-08-27 — Superseded workflow dirt cleared [patch] — done 2026-08-27
 
 - A 13-line uncommitted edit to apollo's `benchmark-regression.yml` (switch the
@@ -95,7 +134,7 @@ The remaining hosted item is terminal full-workspace CI evidence on the moving
 provider heads. No sleep, retry, timeout, runner, allocator, memory policy, or
 production execution behavior changed in this increment.
 
-## ATLAS-LOCKFILE-POISONING-GENERATOR-2026-08-26 — Stale branches are downstream of overlay lockfile rewrites [patch] — todo
+## ATLAS-LOCKFILE-POISONING-GENERATOR-2026-08-26 — Stale branches are downstream of overlay lockfile rewrites [patch] — delivered 2026-08-27
 
 - **Finding.** Apollo carried 14 local branches with unique commits and zero open
   PRs. Four existed **only on this disk**: `cascade/hermes-07`,
@@ -119,6 +158,9 @@ production execution behavior changed in this increment.
   pre-commit guard so a poisoned lockfile never enters a commit; making the
   overlay not rewrite locks; or a wrapper that regenerates before commit.
   Whichever lands, `scripts/lockfile.py --regenerate` stays the repair path.
+- **Delivered 2026-08-27:** the pre-commit guard is now fleet-wide — see
+  `ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27` for the 21-PR wave, the coeus
+  cross-repo repin it surfaced, and the harmonia live-poisoning repair.
 - **Acceptance oracle:** a build against a tree under the stack root, from any
   working directory, leaves `Cargo.lock` resolving under `--locked`; and a
   deliberately poisoned lockfile is refused before it can be committed.
@@ -424,6 +466,26 @@ normal follow-up after these provider revisions are consumed in CI.
     sequential to ~18min (tests-bounded). Removed unnecessary `fetch-depth: 0`
     from all jobs (nothing reads git history). `python-bindings` and
     `benchmark-regression` unchanged.
+  - **Sixth lever (2026-08-26): kwavers parallel-suite split.** The
+    Architecture Validation `test-coverage` job serially ran the full test
+    suite (lib 1224s + integration baseline 1017s) inside one 2284s ~38min
+    job. Split into two parallel jobs — `test-coverage` (the lib suite) and a
+    new `integration-suite` job — each keyed to the shared `kwavers` cache, so
+    the integration baseline and unit coverage run concurrently. Expected wall
+    ~21min from ~38min. [kwavers PR #661](https://github.com/ryancinsight/kwavers/pull/661)
+    merged `e2485a03e`; distinct from the peer-held #641 consolidation
+    (build-matrix/duplication work), which remains theirs. kwavers build-matrix
+    (~17min) and CUDA (~11min) jobs are follow-up candidates after #661 lands
+    green.
+  - **Seventh lever wave (2026-08-27): the next unclaimed consumers.** The
+    queue report's remaining heavy consumers without a lever were eunomia
+    (9.3kh/wk) and tyche/horae (~7-7.7kh/wk each). eunomia's cache was
+    default-keyed Swatinem (destructive on any lockfile repin) and tyche/horae
+    had **no cache at all** — every PR rebuilt from scratch. All three got the
+    shared-key rust-cache lever (one entry per repo, `save-if` on main only):
+    eunomia #74, tyche #39, horae #29. themis #32 (the same lever on its
+    two-OS verify job) was the fleet's only open PR at session start and merged
+    green — gitlink advanced to `8c2e2cd`.
 - **Scope:** measure per-repository queue depth and minutes over a week, then
   choose between capacity (a self-hosted runner on owned hardware, which the
   workflow-hygiene rule already prefers for private repositories and would also
