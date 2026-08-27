@@ -268,14 +268,22 @@ normal follow-up after these provider revisions are consumed in CI.
   benchmark smoke 13m, PINN 13m, PINN feature 13m, miri 2m, security 3m, layer
   boundary 19s, doc 4m, test suite coverage 33m, validate clean architecture
   9m, solver validation 5m, python typed 47s, audit burn 1m, audit legacy 1m,
-  CodeRabbit completed). The 42-behind base is irrelevant because the diff
-  only touches `scripts/lockfile.py` with a self-contained fix. Atlas gitlink
-  advanced `d13ab618f` → `4aaa19abb` (commit `f0195e7f1`). `recurseml/analysis`
-  is the always-report-only error. The promoted kwavers count is now 20 of the
-  21 candidate providers; CFDrs, Mnemosyne, Ritk, Tyche, Themis, and Eunomia
-  remain unfixed pending the same script-only change on their respective
-  mainlines (no open PRs for any of them; the increment is one PR per repo
-  whenever the owner is ready).
+   CodeRabbit completed). The 42-behind base is irrelevant because the diff
+   only touches `scripts/lockfile.py` with a self-contained fix. Atlas gitlink
+   advanced `d13ab618f` → `4aaa19abb` (commit `f0195e7f1`). `recurseml/analysis`
+   is the always-report-only error. The promoted kwavers count is now 20 of the
+   21 candidate providers; CFDrs, Mnemosyne, Ritk, Tyche, Themis, and Eunomia
+   remain unfixed pending the same script-only change on their respective
+   mainlines (no open PRs for any of them; the increment is one PR per repo
+   whenever the owner is ready).
+- **CI centralization delivered (2026-08-26):** the shared `lockfile-guard.yml`
+  workflow now checks out Atlas and runs Atlas's canonical `scripts/lockfile.py`
+  with `--manifest-path Cargo.toml`, so members no longer need the script for
+  CI purposes. The canonical copy lives at `scripts/lockfile.py` in Atlas with
+  the UTF-8 fix. Local pre-push hooks still run the member's copy; freshness
+  can be verified against the Atlas canonical version. All 8 remaining unfixed
+  copies (aequitas, athena, tyche, proteus, themis, gaia, hyperion, horae)
+  received the encoding fix in the same session.
 
 ## ATLAS-CI-RUNNER-SATURATION-2026-08-25 — Hosted-runner queue depth delays every merge gate [patch] — in progress
 
@@ -401,6 +409,21 @@ normal follow-up after these provider revisions are consumed in CI.
     first-party dependency-bump PR on each avoids a full `target/` rebuild.
     Atlas gitlink advancement for ritk/helios is the provider-graph step, done
     after the recorded post-merge CI is confirmed terminal.
+  - **Fifth lever (2026-08-26): helios CI job split.** The `rust` job was a
+    monolith running 11 sequential steps (fmt → clippy → tests → doctests →
+    docs → book-check → mdbook-test → audit → deny) in one job, wall time
+    ~27 minutes. Split into three parallel jobs sharing `shared-key: helios`
+    cache:
+    - `fast-lint` (timeout 10m): fmt, clippy, audit, deny — fails in ~3min,
+      surfaces lint/dependency issues immediately.
+    - `tests` (timeout 30m): nextest + doctests — the heavy path, writes
+      cache from main only.
+    - `docs` (timeout 15m): documentation + book-figure check + mdbook test.
+    All three share one `Swatinem/rust-cache` entry via `shared-key: helios`;
+    only `tests` writes (`save-if` on main). Wall time drops from ~27min
+    sequential to ~18min (tests-bounded). Removed unnecessary `fetch-depth: 0`
+    from all jobs (nothing reads git history). `python-bindings` and
+    `benchmark-regression` unchanged.
 - **Scope:** measure per-repository queue depth and minutes over a week, then
   choose between capacity (a self-hosted runner on owned hardware, which the
   workflow-hygiene rule already prefers for private repositories and would also
