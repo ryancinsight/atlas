@@ -16,6 +16,21 @@
 > This reduces compile work without sleeping, retrying, raising timeouts,
 > changing workloads, or changing production/runtime memory behavior.
 
+## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-26-R4 [integration][perf]
+
+- [x] Re-scan all nested Cargo.lock files with a path-safe inventory after
+      overlay cleanup exposed reverted pins.
+- [x] Synchronize stale Apollo references in Asclepius, Athena, CFDrs, Helios,
+      Kwavers, and Ritk to Apollo `94aabac6`; all six guards pass with
+      `41/35/64/59/91/51` first-party sources.
+- [x] Preserve active Apollo batched-kernel source edits and the peer-owned
+      Hephaestus lock change.
+- [x] Re-run `git diff --check` successfully.
+- [ ] Collect hosted full-workspace timing and provider-head confirmation.
+
+> No sleeps, retries, timeout increases, workload changes, allocator changes,
+> or production memory-policy changes were introduced.
+
 ## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-26-R3 [integration][perf]
 
 - [x] Recheck current heads: Apollo `94aabac6`, Hermes `15c1958`, Leto
