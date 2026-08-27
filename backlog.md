@@ -1,5 +1,18 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-APOLLO-BENCH-QUICK-DIRT-2026-08-27 — Superseded workflow dirt cleared [patch] — done 2026-08-27
+
+- A 13-line uncommitted edit to apollo's `benchmark-regression.yml` (switch the
+  artifact build from `--profile release` to a `bench-quick` profile) sat in
+  the shared main tree for 8+ hours, blocking `git pull`. Its author completed
+  the same file's rework in their lane and merged it as PR #130 **keeping**
+  `--profile release` and the codegen-unit rationale the dirt deleted — the
+  author's own landed decision supersedes their abandoned experiment, so the
+  dirt was recorded here and cleared rather than carried. If a fast-profile
+  artifact build is wanted later, it needs the profile to exist in
+  apollo-measurement and an answer to the layout-noise rationale, as a fresh
+  item.
+
 ## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — todo
 
 | ID | Outcome | Class | Status | Owner | Scope |
