@@ -516,6 +516,24 @@ normal follow-up after these provider revisions are consumed in CI.
     green — gitlink advanced to `8c2e2cd`. All four merged same-session;
     eunomia's numpy job also gained the shared entry (it cold-compiled the
     workspace).
+  - **Eighth lever (2026-08-27): consus shared-key rust-cache.** The weekly
+    report rerun (`run-wall`) put consus as the fleet's **worst queue consumer —
+    3,374 queue-minutes/wk** (ahead of kwavers' 1,207) plus ~7.7k work-min, the
+    next heavy consumer without a lever (kwavers/hephaestus/CFDrs/Moirai/ritk/
+    helios/eunomia/tyche/horae/themis all already claimed). consus's CI had a
+    `concurrency` group already, but all six `Swatinem/rust-cache` sites were
+    **default-keyed** — the default key hashes `Cargo.lock`, so every first-party
+    provider repin (which consus does routinely via its "Normalize lock onto
+    current provider heads" steps) wiped `target/` and forced a full 15-package
+    rebuild across the 3-OS test matrix on exactly the routine dependency-bump
+    PRs. Applied the shared-key lever (main-only `save-if`): root matrices
+    (`check`/`test`/`msrv`/`test-mat-features`) → `shared-key: consus`, fuzz
+    workspace (`fuzz-build`/`fuzz-run`) → `shared-key: consus-fuzz`
+    ([consus PR #59](https://github.com/ryancinsight/consus/pull/59), head
+    `808c816`, branch `perf/consus-shared-rust-cache`). YAML validated;
+    `recurseml/analysis` report-only, gate jobs pending on the starved runner
+    pool (the queue-time rule; converge on terminal green). Before/after rides
+    the weekly report rerun.
 - **Scope:** measure per-repository queue depth and minutes over a week, then
   choose between capacity (a self-hosted runner on owned hardware, which the
   workflow-hygiene rule already prefers for private repositories and would also
@@ -1095,6 +1113,48 @@ normal follow-up after these provider revisions are consumed in CI.
   is identified and reviewed. The local escape is now in place so the next
   hosted regression can be diagnosed against the same gate the CI runs,
   without reconstructing the command by hand.
+- **Two new integration regressions observed locally 2026-08-26** at
+  the post-`#653` / `apollo-fft`-signature-fix tip `dddb75c12` (the same
+  tip the SWE 3D sweep is run from):
+  1. `pstd_finite_window_born source_phasing_is_frechet_derivative`
+     panics with `full=6.675873e-3, half=1.121181e-2`. The test asserts
+     `half.normalized_residual < full.normalized_residual` (Born residual
+     must converge under contrast refinement) and the half-resolution
+     residual is now larger than the full. The test was added in commit
+     `586f16858 fix(kwavers): Eliminate integration baseline` and has no
+     history of passing, but no prior sweep caught it because the
+     integration runner was only running four named binaries before
+     #653. The PSTD solver has had six recent refactors
+     (`b2cd15d37 fix(kwavers-physics): a caller's absorption coefficient
+     reach the solver`, `b20158763 fix(kwavers-solver): give plugins the
+     sources they are handed`, `247b0e97c refactor(kwavers-solver): slice
+     fill for CPML scratch`, `4ea703892 refactor(kwavers-solver): remove
+     elastic config placeholder`, `a81f8a6e6 refactor(kwavers-solver):
+     complete debug field coverage`, plus the elastic/config placeholder
+     removal); one of these likely changed the source-phasing path
+     without the Born contrast test catching it because the prior runner
+     was only running `swe_3d_validation`/`nl_swe_workflow`/`kuznetsov`/
+     `absorption_decay`. Bisect is the next step, not a `--update`.
+  2. `pinn_ic_validation test_ic_combined_loss_decreases` panics on
+     `kwavers-solver` link errors under the dev overlay — the Windows
+     rust-lld 17.1 link line and `pyo3-ffi 0.29.2` symbol resolution
+     cannot produce the test binary in the local 60s window. The
+     integration runner invokes the same `cargo nextest run` invocation
+     that compiles the test binary, so the same link error is what
+     the CI runner hits. A separate clean-room build with no
+     overlay resolves it; the defect is the overlay, not the test.
+- **Optimisation lever applied in this item: kwavers PR
+  [#664](https://github.com/ryancinsight/kwavers/pull/664) at head
+  `03ca874b` switches `scripts/integration_tests.py` from
+  `--test-threads=1` to `--profile ci --no-fail-fast`. The committed `ci`
+  profile carries `test-threads=4`, the `integration` group cap of
+  `max-threads=2`, and the `full-grid-sim` / `gpu` groups'
+  `max-threads=1`. The 4-core hosted runner's 681-test sweep went from
+  17m28s to (projected) ~8m; the local run was 4m26s of which all but
+  2s was the single-threaded serialization. The no-fail-fast intent is
+  preserved (`--no-fail-fast` overrides the profile's `fail-fast=true`).
+  Re-enable trigger: the test pair above must be passing on the
+  current main before the lever can land.
 
 - **ARCH-008 gaia CSG assessment 2026-08-25 — recorded correct-as-jagged.**
   `gaia/src/application/csg/boolean/indexed.rs` sites (`remap_binary_face_soups`
