@@ -19,7 +19,20 @@
 - **Acceptance:** per-repo fix PRs merged green under member gates, or
   findings filed as DoR items with evidence; this entry closes with the ledger
   of merges + filings.
-- **Last update:** 2026-08-27 18:05 EDT.
+- **Progress 2026-08-28:** hephaestus HEPH-WGPU-STAGING-POOL-DECAY delivered
+  (PR #229, merge `a3553d7`): staging-pool idle decay with a derived 10 s
+  deadline, shadow retained-byte bound + hit/miss counters riding the
+  acquire/recycle paths, sustained hit-rate and idle-decay evidence tests;
+  member CI green (lockfile, host verification, WGPU contracts). hermes #97
+  merged (SPMV short-row masked fix) at head `6382336`. Provider-chain repins
+  after the hermes merge: leto #131 merged (hermes `bbc7bdb5`→`6382336`,
+  Mnemosyne/themis cascade) and coeus #353 merged (hermes/leto/hephaestus/
+  apollo all → current heads, merge `3875a8e`; every prior pin verified an
+  ancestor — clean repins).
+  Remaining repin consumers (CFDrs, athena, asclepius, ritk, helios, gaia,
+  kwavers) hold worktrees on live lanes of parallel sessions — recorded here
+  as pending follow-up, untouched to avoid collisions.
+- **Last update:** 2026-08-28 15:40 EDT.
 
 ## ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27 — Pre-commit lockfile guard delivered to every member with first-party deps [patch] — delivered 2026-08-27
 
