@@ -2,8 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-06-02
-- Revised: 2026-08-18 (relocated from `repos/moirai/docs/adr.md`; status
-  Proposed → Accepted; delivery state recorded — see *Revision note*)
+- Revised: 2026-08-28 (P2 closure recorded; the 2026-08-18 relocation and
+  status revision remain documented below)
 - Driver: backlog ATLAS-CONSUS-ADR015-076
 - Supersedes: `repos/moirai/docs/adr.md` §"ADR-015: Native HTTP/S3 Transport
   Stack (Tokio-Free Object Storage)", which is now a pointer to this record.
@@ -119,18 +119,26 @@ demonstrably built and merged in both repos. A Proposed ADR governing landed
 code is a governance defect; Accepted is what the tree already reflects.
 
 Accepted records the decision's adoption, **not** completion of its phases. As
-built on 2026-08-18 the phases stand as follows. Each claim below is grounded in
-a tree artifact; where the tree does not settle a question this note says so
-rather than asserting.
+built through 2026-08-28 the phases stand as follows. Each claim below is
+grounded in a tree artifact; where the tree does not settle a question this note
+says so rather than asserting.
 
 | Phase | State | Evidence |
 | --- | --- | --- |
 | P0 | Partial — Linux leg evidenced, Windows leg unverified | `moirai/moirai/tests/net_reactor_spike.rs`; `moirai/moirai-tls/tests/handshake.rs`. `moirai/.github/workflows/rust-ci.yml` runs `ubuntu-latest` only, so the ADR's "Linux **and** Windows" exit gate is not verifiable from the tree. |
 | P1 | Delivered, narrower than specified | `moirai/moirai-tls/` exists, `#![forbid(unsafe_code)]`, 2 tests (trusted round-trip, untrusted-root fail-closed). It depends on `futures-rustls` and delegates the byte pump to it rather than moirai owning the `read_tls`/`write_tls` loop as the Decision text describes. Expired-cert and wrong-hostname tests, and the differential against `tokio-rustls`, are absent. |
-| P2 | Delivered, two deliverables missing | `moirai/moirai-http/` with `codec.rs` (httparse head parse, Content-Length and chunked bodies), bounded keep-alive pool, per-request deadline via `moirai_async::timer::timeout`; 9 tests. **Redirect handling is not implemented**, and no idle-eviction timer was found. |
+| P2 | Delivered | Moirai PR [#180](https://github.com/ryancinsight/Moirai/pull/180), merged as `851245fb22db31cf8a8ba4bf1d93cb8631da0b44`, adds capped RFC 9110 redirects, RFC 3986 relative-reference resolution, one deadline over the logical request, destination-aware header filtering, and access-triggered idle connection eviction. Focused Nextest passes 23/23; the final workspace passes 862/862 in 11.762 seconds, and the hosted workspace, fuzz, Loom, supply-chain, bindings, and wheel-smoke gates pass. |
 | P3 | Delivered, with recorded gaps | `consus/crates/consus-io/src/io/async_io/s3_moirai/` (`client.rs`, `sigv4.rs`) — GET/PUT/DELETE/HEAD/ListObjectsV2, `quick-xml` decoding with allocation budgets, 404 → typed `Error::NotFound`. SigV4 carries an AWS-published known-answer test. `consus/crates/consus-zarr/src/store/s3_moirai.rs` provides `S3MoiraiStore`. Gaps: credential resolution from environment and `~/.aws/credentials` is not implemented (`S3Config` takes bare `String` keys); region/endpoint/bucket are `String`, not the validating newtypes this ADR required; `consus-hdf5`'s async tests still use `#[tokio::test]` (11 of them). |
 | P4 | Implementation delivered; hosted measurement collected | `consus/crates/consus-zarr/benches/s3_rusoto_moirai.rs` adds a Criterion comparison of identical ranged reads through `S3MoiraiReader` and `S3Reader`; the `s3-minio` CI job runs it against a deterministic 1 MiB object and uploads `target/criterion/s3_range_read`. The standalone lock repair reports `consus/Cargo.lock: HEAD ok / worktree ok`; isolated locked compilation of the benchmark passes outside the Atlas overlay, and the in-process differential passes 2/2. Hosted run `32178624452` at Consus commit `d15bf793cb4dd86bbb53b966ea5ce2884dd8cab0` is the authoritative comparative result. Its MinIO job passed, uploaded artifact `9340113561`, and the committed 1 MiB / 256 KiB cell measured native median `862,063.015 ns` versus legacy median `828,983.683 ns`, or `0.9616` native/legacy throughput at the `0.9000` threshold. The artifact is available at [the hosted Criterion report](https://github.com/ryancinsight/consus/actions/runs/32178624452/artifacts/9340113561). |
 | P5 | Rejected for Consus package integration; next-breaking-release removal prepared | The current 0.1 feature contract remains unchanged: `s3` is legacy Rusoto and `s3-moirai` is native; neither is a default feature. The next breaking release may make native S3 the default only after the P5 gates below pass. |
+
+**P2 closure — 2026-08-28.** The implementation revision is the PR #180 merge
+above. Moirai PR #181 merged the provider-side closure record as
+`1d1e8ef390b808e35a71da170c9d1004fe715650`; Atlas advances its Moirai gitlink
+to that revision in the same change as this note. The wake-lifecycle correction
+inside PR #180 is part of the closure evidence because it removed the
+deadline-rescued 30-second readiness stall without weakening the HTTP tests or
+their runtime budget.
 
 Two naming facts worth recording, because they make the phase text read as
 inaccurate against the tree:
@@ -215,11 +223,12 @@ package integration. The next release action is downstream migration to an
 application-owned storage adapter, not a default switch.
 
 The moirai-side implementation checklist at
-`repos/moirai/docs/adr-015-checklist.md` is **not** reliable evidence: its header
-claims "P0–P4 done; P5 partial" while every checkbox in the document is
-unchecked, and the commit it cites for P0 (`bcf3ed1`) is in fact
-`fix(moirai-http): include non-default port in Host header`. Reconciling or
-retiring that checklist is follow-up work, not part of this record.
+`repos/moirai/docs/adr-015-checklist.md` remains historical rather than a
+phase-level oracle: its header claims "P0–P4 done; P5 partial" while many
+contract boxes remain unchecked, and the commit it cites for P0 (`bcf3ed1`) is
+in fact `fix(moirai-http): include non-default port in Host header`. PR #180
+updated its two P2 correction boxes; the exact provider revision and gates above
+are the authoritative P2 closure evidence.
 
 ## Consequences
 
