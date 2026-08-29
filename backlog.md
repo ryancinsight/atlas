@@ -81,7 +81,58 @@
   shape is expected to hold, but it is unproven; a contract test pinning that
   consumer shape is being added to leto's own suite rather than left to
   kwavers' next lock sweep to discover.
-- **Last update:** 2026-08-28 21:05 EDT (session 03d80d33).
+- **Performance wave results (2026-08-28, two of three lanes landed):**
+  - **leto #133 merged** (`a7dccf26`): owned-receiver `Add`/`Sub`/`Mul`/`Div`/
+    `Neg` reuse the lhs allocation — 3-term chain 2 allocations → **1**, 5-term
+    4 → **1**, owned scalar+neg 3 → **0**, borrowed tier pinned unchanged.
+    Pinned timing (P-cores, both forms in one run): 3-term 64×64 −12%, 5-term
+    −32% with disjoint CIs; **3-term 256×256 unchanged within CI and reported
+    as such** — it is bandwidth-bound, so the allocation win does not show.
+    Two corrections to this campaign's own filed evidence, both measured:
+    (1) `owned + &b` never compiled before (rustc does not autoref an
+    operator's lhs, `E0369`), so the impls are strictly additive with no
+    coherence risk; (2) **`ATLAS-LETO-REDUCE-SINGLE-WRITE`'s cost premise was
+    wrong** — `VecStorage::fill` is `vec![v; n]`, which hits std's
+    `SpecFromElem`, so a zeroed output is a `calloc` and a large fresh
+    allocation pays no memset at all. The item stays filed, reclassified
+    `[minor]`, with its coverage proof recorded so nobody re-derives it.
+  - **hermes #100 merged** (`5c50d1de`): most of the filed SIMD work had
+    already been delivered by peers (#94 networks, #95 the F16 probe hoist via
+    an `Avx2F16Frame` marker, #98 the AVX-512 f64 network), so the lane wrote
+    only the genuinely missing **AVX-512 f32 16×16 network** — the exact item
+    #98 recorded as its "Not done" follow-on. The larger win was unbriefed and
+    came out of the required codegen inspection: **both** AVX-512 networks
+    indexed their tile as a slice under a `debug_assert`, leaving a panic path
+    per access (24 `ud2` for f32, 30 for f64) where AVX2/NEON already used the
+    `try_into` fixed-array idiom; adopting it drops both to **1** and collapses
+    the f64 body from ~3400 asm lines to **64**. The bit-exactness oracle was
+    falsified before use (a no-op `_mm256_add_ps` injection fails it).
+  - **Evidence standard for un-runnable ISA paths, settled rather than
+    re-litigated:** #94 excluded AVX-512 networks for want of a real-silicon
+    baseline; #98 landed one anyway. That reads as a contradiction but is not
+    — this development host is an Arrow Lake Ultra 9 285K reporting
+    `avx512f: false`, so no AVX-512 timing is *ever* possible here, and
+    requiring it would mean the stack never ships an AVX-512 kernel. The
+    operative split is: a **semantic** claim is verifiable (symbolic
+    permutation algebra + the CI SDE job executing the real intrinsics) and a
+    **performance** claim is not, so the latter is withheld explicitly rather
+    than asserted. Both merged networks state their limits in-tree.
+- **Gitlink hazard hit and corrected in the same cycle:** `git add repos/leto`
+  stages the *submodule worktree HEAD*, which under concurrent agents was a
+  peer's in-flight `perf/leto-matmul-parity-verdict` (`a8d9ae93`), not the
+  merged head — and it silently skipped hermes, whose worktree trailed its
+  published head. Corrected in `15292cb5` by setting both from `origin/main`
+  via `update-index --cacheinfo` and verifying with `ls-tree`. Advancing a
+  gitlink from a worktree HEAD is how an unmerged peer branch becomes the
+  recorded stack revision.
+- **Downstream integration verified, not assumed:** coeus `3875a8e1` is green
+  on `main` with leto pinned at `14394eff`, which contains both leto soundness
+  PRs — so the injectivity gates and window-exclusivity panics hold for the
+  stack's largest leto consumer. The narrower kwavers risk (it filters the
+  **columns** of a C-order array, exactly the interleaved views now gated) is
+  closed by a contract test now in leto's own suite naming kwavers and its two
+  file paths; both shapes pass, no leto defect surfaced.
+- **Last update:** 2026-08-28 21:35 EDT (session 03d80d33).
 
 ## ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27 — Pre-commit lockfile guard delivered to every member with first-party deps [patch] — delivered 2026-08-27
 
