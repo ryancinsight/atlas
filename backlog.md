@@ -1,5 +1,57 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 — Published transforms return silent wrong answers at specific lengths [major] — todo, HIGHEST PRIORITY
+
+| ID | Outcome | Class | Status | Owner | Scope |
+|----|---------|-------|--------|-------|-------|
+| ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 | No transform length returns a wrong answer; unsupported lengths fail loudly or are supported. | [major] | todo | unowned (fault sits in a peer-leased directory) | `apollo-fft` composite-radix kernels; consumers of `apollo-fft`/`apollo-dctdst` |
+
+- **This is a shipped wrong answer, not a slow path, and it is silent** — no
+  error, no panic, no warning. Found by the CWT differential work
+  (`ATLAS-APOLLO-TRANSFORM-ALGOS-2026-08-28`) and filed on apollo's board;
+  raised here because the blast radius crosses repositories.
+- **Independently reproduced by the integrator** (session 03d80d33), not
+  taken on report. A forward-then-normalized-inverse round trip over every
+  length `2..=1500` returns max errors of order 10¹–10² at **361, 722, 841,
+  961, 1083, 1153, 1369, 1444** — matching the original census exactly. At
+  the *public API* level: `DctDstPlan::new(361, RealTransformKind::DctII)`
+  `.forward(..)` returns **relative error 1.0101** against the direct DCT-II
+  definition (n = 722 → 1.0060), while n = 360 and n = 362 are exact to
+  0.0000. The output at an affected length is uncorrelated with the truth.
+- **Full census** (apollo board item, lengths `2..=8200`): **74 lengths wrong,
+  35 panic**, 109 total. 67 of the 74 are divisible by `p²` for a prime
+  `p ∈ 19..97` (361 = 19², 841 = 29², 961 = 31², 1369 = 37²); 1153 is prime,
+  so at least one further class exists. Panics are
+  `unreachable: unsupported radix 19` from
+  `components/radix_composite/arity.rs`.
+- **Why DCT is hit harder than FFT:** the DCT/DST fast paths route through a
+  `2N`-point FFT, so a *correct-looking* `N` inherits the defect whenever `2N`
+  is an affected length. This is also why the audit's separate item to make
+  DCT-I/IV and DST-I/IV fast was **stopped rather than delivered** — routing
+  four more kinds onto this path would convert slow-but-correct kernels into
+  silently-wrong ones.
+- **Consumer exposure is real, not theoretical.** Four registered members
+  consume these crates: **kwavers** (the PSTD propagator FFTs simulation
+  grids, whose extents are user-chosen), **ritk** (block-matching FFT and
+  filters over image patch sizes), **coeus** (autograd), and **CFDrs**. Any
+  of them landing on an affected extent computes a wrong result and reports
+  success. Both crates are published (`apollo-fft` 0.27.0,
+  `apollo-dctdst` 0.10.0).
+- **Not claimed by this session:** the fault sits under
+  `crates/apollo-fft/src/application/execution/kernel/components/`, leased by
+  a live peer on `perf/apollo-base128-arith` (their most recent commit at the
+  time of writing was 38 minutes old). Filed with reproduction rather than
+  fixed concurrently in their active region.
+- **Acceptance oracle:** the census sweep reports zero wrong lengths and zero
+  panics across `2..=8200`, plus a per-length round-trip regression pinned in
+  apollo's own suite. A hand-maintained list of "good" lengths is **not** an
+  acceptable resolution — that is defect masking; either the composite radix
+  supports the length correctly or plan construction rejects it with a typed
+  error.
+- **Interim consumer guidance** until it is fixed: prefer power-of-two
+  extents, and treat any transform at a length divisible by the square of a
+  prime ≥ 19 as unverified.
+
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — todo
 
 | ID | Outcome | Class | Status | Owner | Scope |
