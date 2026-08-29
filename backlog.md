@@ -188,7 +188,55 @@
   must compare against the last release tag and fail only when the manifest
   version does not cover the detected class. Worth checking whether the other
   publishable members share this gap.
-- **Last update:** 2026-08-28 21:50 EDT (session 03d80d33).
+- **Third performance lane landed — the campaign's largest win (moirai #193):**
+  the `ParallelIterator` terminal set stopped routing through `seq_items()`,
+  which collected the whole stream and then ran a std sequential pass. At
+  131072 elements, pinned to 8 P-cores: `par_iter().map(f).sum()`
+  **391.25 µs → 11.18 µs (35×)**, `find_any` with an early match
+  **412.92 µs → 5.13 µs (80×)**, `count`+`min`+`max` **1.156 ms → 36.93 µs
+  (31×)**. The flagship rayon-displacement call was single-threaded with an
+  O(n) allocation; the green comparison benchmarks had never covered it,
+  because they exercise `map_reduce_indexed`, a different API.
+  Terminals left sequential are recorded with reasons rather than quietly
+  skipped (`fold`/`try_reduce` have one threaded accumulator and a doc-stated
+  ordering contract; `position_*` cannot be given a correct logical offset
+  because `Consumer::split_at` carries a *source* split point that a
+  length-changing adapter invalidates). `sum`/`product` merge in index order,
+  so results stay reproducible, but they are re-associated and therefore not
+  bit-identical for floats — stated, not glossed.
+  Measurement discipline worth keeping: the lane **quantified the noise band
+  before claiming anything** (two runs of identical code differed by up to
+  32%, so every ≤1.6× movement in that PR is unresolved and the headline
+  numbers are one to two orders outside it), and **two optimizations were
+  reverted because measurement rejected them** — an `Option`-slot owned split
+  (2.79× slower: `Option<u64>` is 16 bytes where `u64` is 8) and folding
+  `partition`/`unzip` across shards (2.3–2.4× slower, and slower even below
+  the dispatch threshold, locating the cost in the accumulator rather than in
+  parallelism). Both are recorded in-code so the attempts are not repeated.
+- **Audit-contract change reviewed, not waved through:** that PR edited
+  `benchmarks/tests/benchmark_contracts`, which pins parallel-iterator source
+  text — the kind of edit that can quietly retire the guard for the defect
+  being fixed. Verified: the removed markers pinned the *old* shape
+  (`split_off(mid)`, the single-element base case, the reference-vector
+  materialization) and their replacements pin the new one, with the
+  reference-vector rebuild now explicitly prohibited. The `FoldConsumer` ban
+  was narrowed rather than dodged by a rename: `8cd4286` is confirmed to have
+  introduced `pub struct FoldConsumer<T, F>` as a two-field placeholder with
+  **zero** `Consumer` impls, and the contract now bans that exact shape while
+  *requiring* the trait implementation — strictly stronger than the name ban
+  it replaced.
+- **Moirai `main` was intermittently red before this wave, now fixed
+  (moirai #194):** `scheduler_join_waits_for_queued_and_active_work` asserted
+  `has_work()` after scheduling eight atomic increments on a two-worker pool,
+  with nothing ordering the assertion before the workers drained them. It
+  failed PR #191's merge run at `tests.rs:994`, and SHA `ff41a098` appears in
+  the run list as both a success and a failure. The jobs now park on a gate
+  the test holds until it has observed the work. Local repetition could not
+  prove the race (60/60 on this 24-CPU host, which wins where a 2-core runner
+  loses), so the variable was isolated instead: an identical 50 ms delay
+  before the assertion makes the original **fail** and the gated version
+  **pass**.
+- **Last update:** 2026-08-28 22:20 EDT (session 03d80d33).
 
 ## ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27 — Pre-commit lockfile guard delivered to every member with first-party deps [patch] — delivered 2026-08-27
 
