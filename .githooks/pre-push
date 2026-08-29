@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+#
+# Atlas gitlink coherence gate.
+#
+# The recorded gitlink is the reproducible stack revision, so it must name a
+# commit that is reachable from the member's published default branch. Twice in
+# two days it did not: `repos/leto` was recorded at `a8d9ae93`, the tip of an
+# unmerged `perf/leto-matmul-parity-verdict`, once by each of two sessions. Both
+# times the cause was the same — `git add repos/<name>` stages the submodule's
+# *worktree HEAD*, and under concurrent agents that HEAD is routinely a peer's
+# in-flight branch.
+#
+# `tools/gitlink-coherence` already detects exactly this (it calls it
+# category B: "pin reachable from a remote ref other than origin/main") and
+# already exits 1 on any defect. It was wired into nothing. This hook is the
+# wiring.
+#
+# Why pre-push and not pre-commit: the auditor reads the gitlinks from HEAD, so
+# at pre-commit time it would judge the previous commit, not the one being
+# made. Pre-push is also the point where a bad pin would become everyone
+# else's problem.
+#
+# Enable once per clone (same switch as the pre-commit gate):
+#
+#   git config core.hooksPath .githooks
+#
+# The auditor uses local refs and does not fetch, so this costs no network.
+
+set -uo pipefail
+
+atlas_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+binary="${atlas_root}/target/release/gitlink-coherence"
+[ -x "${binary}.exe" ] && binary="${binary}.exe"
+
+if [ ! -x "$binary" ]; then
+    # Not a silent skip: an unbuilt auditor is the difference between a gate and
+    # a decoration, and the last two defects landed while it sat unbuilt.
+    echo "pre-push: gitlink auditor not built — skipping the coherence gate." >&2
+    echo "pre-push: build it once with" >&2
+    echo "  cargo build --release --manifest-path tools/gitlink-coherence/Cargo.toml" >&2
+    exit 0
+fi
+
+report="$("$binary" --atlas-root "$atlas_root" 2>&1)"
+status=$?
+
+case "$status" in
+    0)
+        exit 0
+        ;;
+    1)
+        echo "pre-push: BLOCKED — a recorded gitlink does not name a published commit." >&2
+        echo "$report" >&2
+        echo >&2
+        echo "pre-push: a gitlink must name a commit reachable from the member's" >&2
+        echo "origin default branch. Set it from the ref rather than from a" >&2
+        echo "worktree HEAD, then confirm:" >&2
+        echo "  SHA=\$(git -C repos/<name> rev-parse origin/<default>)" >&2
+        echo "  git update-index --cacheinfo 160000,\$SHA,repos/<name>" >&2
+        echo "  git ls-tree HEAD repos/<name>   # must match \$SHA" >&2
+        exit 1
+        ;;
+    *)
+        # Invocation failure (missing .gitmodules, git plumbing). Report it and
+        # let the push through: this gate exists to catch a specific defect, not
+        # to become a new way for pushes to fail.
+        echo "pre-push: gitlink auditor could not run (exit ${status}); not blocking." >&2
+        echo "$report" >&2
+        exit 0
+        ;;
+esac
