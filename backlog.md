@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 — Published transforms return silent wrong answers at specific lengths [major] — todo, HIGHEST PRIORITY
+## ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 — Published transforms returned silent wrong answers at specific lengths [major] — corruption stopped 2026-08-28; correct routing still owed
 
 | ID | Outcome | Class | Status | Owner | Scope |
 |----|---------|-------|--------|-------|-------|
@@ -48,9 +48,29 @@
   acceptable resolution — that is defect masking; either the composite radix
   supports the length correctly or plan construction rejects it with a typed
   error.
-- **Interim consumer guidance** until it is fixed: prefer power-of-two
-  extents, and treat any transform at a length divisible by the square of a
-  prime ≥ 19 as unverified.
+- **RESOLVED (the corruption, not the capability), apollo #189, merged.** Root
+  cause traced: the strategy chain ended in an *unconditional*
+  `PlanStrategy::Rader` fallback, and Rader is valid only for prime `n` — it
+  maps the transform onto the multiplicative group modulo `n`, cyclic of order
+  `n - 1` exactly when `n` is prime. `components/rader/mod.rs` documents that
+  and guards it with `debug_assert!(is_prime(n))`, **which compiles out of
+  release builds**. So the precondition was enforced only where it could not
+  matter, and every composite length reaching the fallback returned corrupt
+  output. Plan construction now asserts primality before selecting Rader, so
+  these lengths fail loudly at construction naming this item; regressions pin
+  both 361's rejection and 359/360/362 still round-tripping.
+- **Still owed, and why it stayed filed:** the lengths are not *served*. Doing
+  so needs either a general Bluestein strategy — apollo has none, its
+  `bluestein` module is Rader's internal convolution over `n - 1`, not a
+  transform for arbitrary `n` — or a composite path carrying Rader
+  sub-transforms so `361 = 19 x 19` decomposes into two prime stages. Both land
+  in the leased kernel directory.
+- **Consumer note:** a consumer that was silently computing garbage at an
+  affected extent will now fail at plan construction instead. That is the
+  defect surfacing, not a regression; the panic message names this item.
+- **Interim consumer guidance** until the lengths are served: prefer
+  power-of-two extents, and treat any transform at a length divisible by the
+  square of a prime >= 19 as unsupported (it now fails rather than lying).
 
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — todo
 
