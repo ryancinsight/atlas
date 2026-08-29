@@ -1,5 +1,45 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-GITLINK-COHERENCE-GATE-2026-08-29 — Wire the gitlink auditor that already existed [patch] — done 2026-08-29
+
+- **The defect, three times in two days.** A recorded gitlink must name a commit
+  reachable from the member's published default branch, because it *is* the
+  reproducible stack revision. Three did not: `repos/leto` twice (both at the
+  tip of an unmerged `perf/leto-matmul-parity-verdict` — once by this session,
+  once by a peer in `eac82038`) and `repos/eunomia` at the tip of
+  `fix/eunomia-gitattributes-eol`, whose PR #75 is still open. Recording an
+  in-review branch makes the stack irreproducible for anyone without it.
+- **One cause every time:** `git add repos/<name>` stages the submodule's
+  *worktree HEAD*, and under concurrent agents that HEAD is routinely a peer's
+  in-flight branch. The fix is to set the pin from the ref
+  (`git update-index --cacheinfo 160000,$(git -C repos/<n> rev-parse
+  origin/<default>),repos/<n>`) and verify with `git ls-tree`.
+- **The detector already existed and was wired into nothing.**
+  `tools/gitlink-coherence` classifies this precisely — category B, "pin
+  reachable from a remote ref other than `origin/main`" — and already exits 1
+  on any defect. It appeared in no hook, workflow, or script, so it had never
+  once run against the defect it was built for. That gap, not the pins, was the
+  generator.
+- **Delivered:** `.githooks/pre-push` runs the auditor over every recorded
+  member. Pre-push rather than pre-commit because the auditor reads gitlinks
+  from HEAD (at pre-commit it would judge the previous commit) and because a
+  bad pin becomes everyone else's problem at publish. It uses local refs, so it
+  costs no network; if the auditor itself cannot run it reports and does not
+  block, since this gate exists to catch one defect rather than to become a new
+  way for pushes to fail.
+- **Verified both directions, not assumed:** exits 0 on a coherent tree, and
+  exits 1 naming the offending pin when `repos/leto` is reset to the branch tip
+  on a throwaway commit. Both leto and eunomia are corrected; the stack now
+  audits 25 probed, **0 defects**, 22 clean.
+- **Not defects, left alone:** `iris`, `kwavers` and `harmonia` are
+  *stale-advanceable* (behind their origin/main). The auditor reports those
+  separately and they are their owners' to advance.
+- **Enablement:** the hook needs `git config core.hooksPath .githooks` (the
+  same switch the existing pre-commit docs gate uses) and the auditor built
+  once via `cargo build --release --manifest-path tools/gitlink-coherence/Cargo.toml`.
+  An unbuilt auditor prints how to build it rather than failing silently.
+
+
 ## ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 — Published transforms returned silent wrong answers at specific lengths [major] — corruption stopped 2026-08-28; correct routing still owed
 
 | ID | Outcome | Class | Status | Owner | Scope |
