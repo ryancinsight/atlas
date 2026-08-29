@@ -32,7 +32,56 @@
   Remaining repin consumers (CFDrs, athena, asclepius, ritk, helios, gaia,
   kwavers) hold worktrees on live lanes of parallel sessions — recorded here
   as pending follow-up, untouched to avoid collisions.
-- **Last update:** 2026-08-28 15:40 EDT.
+- **Progress 2026-08-28 (integrator session 03d80d33), sixth repo closed:**
+  mnemosyne PR #79 enqueued — the four retag/provenance/cold-branch
+  stragglers (MN-458), each the surviving instance of a pattern the
+  MN-437..MN-456 sweep removed elsewhere. Evidence: Clippy `-D warnings`,
+  `fmt --check`, nextest 289/289, doctests 5/5, and Miri under **both** borrow
+  models over `mnemosyne-local` (84/84) and `mnemosyne-memory-core` (18/18).
+  All six audited repos have now landed or enqueued their fix wave.
+- **Root cause worth keeping (defect generator, not instance):** the surviving
+  `mnemosyne-heap` copy of the int-to-ptr + `&mut Page`-across-segment pattern
+  is explained by that crate sitting **outside the Miri gate** — the sweep that
+  fixed every gated sibling could not see it. Filed as `MN-459` with its
+  blocker measured on unmodified `main`: three pre-existing Miri failures in
+  the crate's *own test helpers*. The general lesson for this stack: a
+  miri/loom/sanitizer-driven sweep is bounded by the gate's crate list, so the
+  sweep's closure claim must be read against that list, not the workspace.
+- **Second process defect, cured:** the local gate sequence used through this
+  campaign omitted `cargo fmt --check`, which reddened leto main once and
+  moirai PR #171 once (both cured fix-forward, `d16542c` / `0584fb0`). `fmt`
+  is now first in every gate invocation and in every agent brief. CI confirms;
+  it must not discover.
+- **Performance wave dispatched 2026-08-28 (three lanes, in flight):** moirai
+  `MOI-PAR-TERMINALS-2026-08-28` (the flagship `par_iter().map(f).sum()` and
+  most terminals run single-threaded through `seq_items()`, plus `Vec::split_off`
+  splitting at O(n log n) copy traffic and non-short-circuiting `find_any`);
+  hermes `HS-SIMD-PERF-2026-08-28` (transpose permute networks for AVX2 f32,
+  AVX-512 f32/f64, NEON f32; F16 dispatch probe hoist per ADR 009); leto
+  `ATLAS-LETO-OP-PERF-2026-08-28` (operator chains allocate n−1 arrays with no
+  owned-lhs reuse; `reduce_axis` zero-fills a fully-overwritten output). Each
+  carries a measurement requirement with the hybrid-core pinning caveat and an
+  allocation/instruction-count signal, since wall-clock alone can invert
+  verdicts on this host.
+- **Apollo algorithmic items remain filed, blocked on tree capacity, not
+  merit:** `ATLAS-APOLLO-CWT-FFT-CONVOLUTION` (O(scales·n²) with n
+  transcendental evaluations *per coefficient* → O(scales·n log n)),
+  `ATLAS-APOLLO-SHT-FFT-FACTORIZATION`, and `ATLAS-APOLLO-DCTDST-FAST-KINDS`
+  (four of eight kinds are O(N²) at every size while the method docs claim
+  O(N log N)) are the largest algorithmic wins the audit found. Apollo is at
+  its two-tree bound with two live peers (main tree on
+  `perf/apollo-base128-arith`, lane on `perf/apollo-dif-stages`, both edited
+  within the last 20 minutes at the time of writing), so no third tree was
+  opened. Re-open trigger: either apollo tree frees.
+- **Consumer contract risk traced and routed:** leto #129's new panics on
+  shared-window views reach a real consumer — kwavers filters the **columns**
+  of a C-order array (`photoacoustic/filters/core.rs:168`), which are exactly
+  the interleaved views now gated, and calls `to_contiguous()` + `assign()` on
+  them. Both are paths the change routes through per-element access, so the
+  shape is expected to hold, but it is unproven; a contract test pinning that
+  consumer shape is being added to leto's own suite rather than left to
+  kwavers' next lock sweep to discover.
+- **Last update:** 2026-08-28 21:05 EDT (session 03d80d33).
 
 ## ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27 — Pre-commit lockfile guard delivered to every member with first-party deps [patch] — delivered 2026-08-27
 
