@@ -40,16 +40,26 @@
   An unbuilt auditor prints how to build it rather than failing silently.
 
 
-## ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 — Published transforms return silent wrong answers at specific lengths [major] — STILL LIVE for most affected lengths (2026-08-28 claim corrected)
+## ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 — Published transforms return silent wrong answers at specific lengths [major] — done 2026-08-29
 
 | ID | Outcome | Class | Status | Owner | Scope |
 |----|---------|-------|--------|-------|-------|
-| ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 | No transform length returns a wrong answer; unsupported lengths fail loudly or are supported. | [major] | todo | unowned (fault sits in a peer-leased directory) | `apollo-fft` composite-radix kernels; consumers of `apollo-fft`/`apollo-dctdst` |
+| ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 | No transform length returns a wrong answer; every length is supported. | [major] | done 2026-08-29 (apollo PR #194) | claude-fable session 03d80d33 | `apollo-fft` composite-radix kernels; consumers of `apollo-fft`/`apollo-dctdst` |
 
-- **This is a shipped wrong answer, not a slow path, and it is silent** — no
+- **Resolved 2026-08-29 (apollo PR #194, #195, #196).** Three faults, not the
+  one recorded: `dispatch_inplace` fell off the end of its strategy chain and
+  returned the input untransformed; four static radix entries did not factor
+  their key (432, 576, 768, 960); and eleven named radix 19, which the
+  composite kernel cannot execute. Bluestein now terminates the chain, so every
+  length routes. A naive-DFT sweep over `2..=2048` plus the tracked lengths
+  above it passes with no wrong answers and no refusals, and two structural
+  tests cover the table. Cross-repo blast radius closed: `apollo-dctdst`'s
+  fast kinds were blocked on this and are now delivered (PR #197).
+
+- **This was a shipped wrong answer, not a slow path, and it was silent** — no
   error, no panic, no warning. Found by the CWT differential work
   (`ATLAS-APOLLO-TRANSFORM-ALGOS-2026-08-28`) and filed on apollo's board;
-  raised here because the blast radius crosses repositories.
+  raised here because the blast radius crossed repositories.
 - **Independently reproduced by the integrator** (session 03d80d33), not
   taken on report. A forward-then-normalized-inverse round trip over every
   length `2..=1500` returns max errors of order 10¹–10² at **361, 722, 841,
@@ -179,6 +189,21 @@
   read-only (6 subagent sweeps, complete). Implementation claims land on each
   member's own board before that repo's source is touched; atlas-level entry
   tracks the campaign only.
+- **Delivered 2026-08-29 (session continuation).**
+  - apollo PR #194/#195/#196 — every FFT length routes correctly. Three faults
+    (dispatcher fall-through, four mis-factored static radix entries, eleven
+    naming an unexecutable radix), Bluestein as the terminal route, a
+    naive-DFT sweep sharded to fit its budget, two structural table tests.
+    Closes the highest-severity finding of this campaign: a silent wrong
+    answer from a published transform.
+  - apollo PR #197 — DCT-I, DCT-IV, DST-I, DST-IV reach O(N log N); the
+    Type-IV pair shares one 2N-point FFT. 5.3 ms -> 38.6 us at N = 4096.
+    Was blocked on the routing fix.
+  - apollo branch inventory swept to zero (eleven branches classified and
+    disposed); the Hephaestus cutover item closed by stale-claim takeover
+    after re-running its own acceptance scan.
+  - hephaestus PR #235 — device-side LU split; host-device traffic for the
+    split falls from 3n^2*4 bytes to zero in each direction.
 - **Constraints honored:** apollo `components/{base128,resident,batched,
   codelet}` + `test_support.rs` under live lease (ATLAS-APOLLO-BASE-BUTTERFLY-
   128) — findings there file to apollo's board, no direct edits; hermes tree
