@@ -132,7 +132,26 @@
   **columns** of a C-order array, exactly the interleaved views now gated) is
   closed by a contract test now in leto's own suite naming kwavers and its two
   file paths; both shapes pass, no leto defect surfaced.
-- **Last update:** 2026-08-28 21:35 EDT (session 03d80d33).
+- **Public-surface audit of the campaign's own output (2026-08-28):** ran
+  `cargo semver-checks` over every crate this campaign touched, against each
+  repo's pre-campaign baseline. `leto`, `leto-ops`, `hermes-simd`, and
+  `hermes-simd-core` all report *no semver update required*. One real break:
+  MN-458's removal of `Segment::is_owned_by` from the publishable
+  `mnemosyne-memory-core` is `inherent_method_missing` — *"semver requires new
+  major version"* — and it shipped labelled `[patch]`. Corrected in mnemosyne
+  #80: recorded under CHANGELOG *Unreleased → Breaking* with the caller
+  migration, item reclassified `[minor]`, no manifest bump (a completed item
+  does not authorize a release). The removal itself stands — a forwarding
+  wrapper keeps the whole-header retag reachable, which is the defect — and a
+  stack-wide source scan finds no caller in any member.
+  The generator is filed as **MN-460**: the repo publishes a crate but runs no
+  semver gate. The item carries why it is not a one-line job — the Unreleased
+  section already holds accepted breaking changes, so a gate diffing `main`
+  against the published baseline is red on its first run and gets ignored; it
+  must compare against the last release tag and fail only when the manifest
+  version does not cover the detected class. Worth checking whether the other
+  publishable members share this gap.
+- **Last update:** 2026-08-28 21:50 EDT (session 03d80d33).
 
 ## ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27 — Pre-commit lockfile guard delivered to every member with first-party deps [patch] — delivered 2026-08-27
 
