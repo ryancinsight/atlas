@@ -369,12 +369,29 @@
   apollo-measurement and an answer to the layout-noise rationale, as a fresh
   item.
 
-## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — todo
+## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — in-progress (7 delivered 2026-08-29)
 
 | ID | Outcome | Class | Status | Owner | Scope |
 |----|---------|-------|--------|-------|-------|
-| ATLAS-GITATTRIBUTES-DRIFT | One line-ending policy across the stack, applied to the blobs as well as declared. | [patch] | todo | unowned | every member's `.gitattributes` |
+| ATLAS-GITATTRIBUTES-DRIFT | One line-ending policy across the stack, applied to the blobs as well as declared. | [patch] | in-progress | unowned | every member's `.gitattributes` |
 
+- **Delivered 2026-08-29 (7 members):** consus #58, gaia #37, helios #78,
+  proteus #23, harmonia #11 — all `Normalize line endings to LF` PRs merged
+  green (`.gitattributes` + renormalize + `.git-blame-ignore-revs`); atlas
+  gitlinks advanced for all five. hephaestus already carries the policy
+  (committed blobs were already 100% LF). Remaining without any policy:
+  **apollo** (969 CRLF blobs, peer lane `perf/apollo-base128-arith` active on
+  the tree — wait for a quiet point) and any member whose variant still
+  differs from `* text=auto eol=lf`.
+- **proteus #23 also fixed two real defects found on the branch:**
+  book-pages.yml pointed `cargo-package` at `proteus` (an unrelated
+  third-party crate on crates.io — package is `proteus-mat`, same root cause
+  as the SemVer fix in proteus #20), and the shared workflow's default crate
+  derivation (`pkg.replace('-','_')` → `proteus_mat`) does not match the
+  `[lib] name = proteus` target, so `mdbook test` staged no rlib and every
+  `extern crate proteus;` sample failed E0463. Fixed with an explicit
+  `cargo-crate: proteus` input. Any other member whose `[lib]` name diverges
+  from its package name needs the same input checked.
 - **Evidence, measured 2026-08-26:** three members carry no `.gitattributes` at
   all -- apollo, consus, hephaestus -- and the 23 that do run eight distinct
   variants. Two dominate: `* text=auto eol=lf` (8 members) and `* text=auto`
