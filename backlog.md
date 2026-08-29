@@ -1,5 +1,42 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — todo
+
+| ID | Outcome | Class | Status | Owner | Scope |
+|----|---------|-------|--------|-------|-------|
+| ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 | Every member that publishes a crate detects public-surface breaks before the break ships. | [patch] | todo | unowned | each registered member's CI + the shared release pipeline |
+
+- **Evidence, measured 2026-08-28 across the 25 registered members:** exactly
+  **two** (`asclepius`, `proteus`) run a `cargo-semver-checks` job. Every other
+  member carrying publishable crates has none — including the ones whose crates
+  are *already on crates.io* (the README records 24 published, among them
+  `leto`/`leto-ops`, `hermes-simd`, `mnemosyne-core`/`mnemosyne-heap`,
+  `moirai-core`/`moirai-runtime`, `apollo-fft`, `coeus-*`, `hephaestus-*`,
+  `ritk-*`, `consus`, `themis`, `melinoe`, `aequitas`, `eunomia`).
+- **How it surfaced, with a real escape:** `MN-458` removed
+  `Segment::is_owned_by`, a `pub unsafe fn` on a public type in the publishable
+  `mnemosyne-memory-core`, and shipped it labelled `[patch]`. Running the tool
+  by hand afterwards reported `inherent_method_missing` — *"semver requires new
+  major version"*. Nothing in the pipeline was positioned to catch it. Recorded
+  and reclassified in mnemosyne #80; the per-repo gate is `MN-460`.
+- **This is the versioning rule's own mechanism missing:** the standing policy
+  makes `cargo-semver-checks` authoritative for Rust public-surface
+  compatibility and requires it on any merge touching `pub` surface and before
+  every release. Two members implement that; twenty-three do not.
+- **Design constraint (do not skip — it is why the naive job fails):** members
+  accumulate accepted breaking changes under CHANGELOG *Unreleased*, so a gate
+  that diffs `main` against the published baseline is red from its first run
+  and gets ignored within a day. The gate must compare against the **last
+  release tag** and fail only when the manifest version does not cover the
+  detected class — gating the *release*, with a non-blocking informational run
+  on PRs so the change-class is visible while the change is still in review.
+- **Shape:** this belongs in the Atlas-owned reusable workflow set beside
+  `crates-publish.yml`, not as 23 hand-rolled copies (a divergent per-repo copy
+  is the duplication defect ADR 0035 exists to prevent). Members adopt it by
+  advancing one `atlas-ref` pin, exactly as the publish pipelines are adopted.
+- **Non-goals:** bumping any manifest version now; retrofitting classifications
+  onto already-merged history beyond `MN-458`, which is corrected.
+
 ## ATLAS-PROVIDER-CHAIN-QUALITY-2026-08-27 — Perf/memory/stability/safety audit + fix wave: apollo provider chain [patch]..[minor] — in-progress
 
 - **Outcome:** adjudicated audit of apollo, hephaestus, leto, hermes, moirai,
