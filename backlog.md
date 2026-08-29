@@ -40,7 +40,7 @@
   An unbuilt auditor prints how to build it rather than failing silently.
 
 
-## ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 — Published transforms returned silent wrong answers at specific lengths [major] — corruption stopped 2026-08-28; correct routing still owed
+## ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 — Published transforms return silent wrong answers at specific lengths [major] — STILL LIVE for most affected lengths (2026-08-28 claim corrected)
 
 | ID | Outcome | Class | Status | Owner | Scope |
 |----|---------|-------|--------|-------|-------|
@@ -88,7 +88,26 @@
   acceptable resolution — that is defect masking; either the composite radix
   supports the length correctly or plan construction rejects it with a typed
   error.
-- **RESOLVED (the corruption, not the capability), apollo #189, merged.** Root
+- **CORRECTION 2026-08-29 — the fix below covers 17 of 109 lengths, not all of
+  them, and this entry previously overstated it.** Re-measured on apollo
+  `origin/main`: **361 panics loudly**, but **722, 1083, 1444 and 1153 still
+  return silent wrong answers** (max errors 2.080e1, 2.079e1, 2.080e1, 8.904e1
+  against inputs of order 1). Those first three are the very examples this item
+  cites as evidence. Of the 109 affected lengths, 17 assert at plan
+  construction, some assert during execution (1153, 2306, 6726), and the rest
+  corrupt silently (722, 1083, 1444, 6727, 6728).
+- **Why:** the assertion guards the terminal Rader arm of the *top-level* plan.
+  A length with a coprime split (722 = 2·361, 1083 = 3·361, 1444 = 4·361) is
+  routed by Good-Thomas, whose sub-transform reaches Rader on its own path and
+  never passes the guard. 1153 is prime and fails by a second mechanism.
+- **Consumer guidance replaces the earlier one:** do **not** probe by catching
+  the construction panic — that looks correct and ships wrong answers. Use
+  `apollo_fft::supports_length` (added 2026-08-29), which verifies one
+  transform against a closed-form oracle and caches the verdict; it is exact
+  for all three failure modes and self-heals when routing is fixed. There is no
+  arithmetic shortcut: 23² is correct while 19² is not, and 19·23 is correct
+  while 6·437 is not.
+- **Partial mitigation (apollo #189, merged).** Root
   cause traced: the strategy chain ended in an *unconditional*
   `PlanStrategy::Rader` fallback, and Rader is valid only for prime `n` — it
   maps the transform onto the multiplicative group modulo `n`, cyclic of order
@@ -109,8 +128,8 @@
   affected extent will now fail at plan construction instead. That is the
   defect surfacing, not a regression; the panic message names this item.
 - **Interim consumer guidance** until the lengths are served: prefer
-  power-of-two extents, and treat any transform at a length divisible by the
-  square of a prime >= 19 as unsupported (it now fails rather than lying).
+  power-of-two extents, and gate any other length through
+  `apollo_fft::supports_length` rather than assuming a failure is loud.
 
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — todo
 
