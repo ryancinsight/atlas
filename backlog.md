@@ -141,6 +141,49 @@
   power-of-two extents, and gate any other length through
   `apollo_fft::supports_length` rather than assuming a failure is loud.
 
+## ATLAS-APOLLO-LANEKERNEL-INLINE-CONTRACT-2026-08-31 — Three large `LaneKernel::call` bodies do not carry the attribute their contract requires [patch] [perf] — todo
+
+- **The contract.** hermes `HS-VECTORIZE-LARGE-KERNEL-2026-08-28` documents a
+  measured ~30x failure: the `#[runtime_dispatch]` expansion's
+  `#[target_feature]` helper is the only feature-carrying frame, and a large
+  kernel body makes LLVM decline to inline the helper into it. The body then
+  codegens in the unattributed inner symbol at baseline — zero FMA, per-operation
+  feature detection. hermes fixed its half and states the consumer half in
+  `LaneKernel`'s docs: **mark large `call` bodies `#[inline(always)]`**, the
+  same contract pulp documents for `WithSimd::with_simd`.
+- **Unmet at three production sites in apollo-fft** (body sizes measured by
+  brace-matching from the `fn call` line):
+
+  | site | body lines | `#[inline(always)]` |
+  |---|---|---|
+  | `batched/mod.rs:106` (`BatchedStages`) | 219 | **no** |
+  | `batched/dif.rs:60` (`BatchedStagesDif`) | 189 | **no** |
+  | `batched/interleaved.rs:163` (`InterleavedStages`) | 111 | **no** |
+
+  For contrast, the sites that do carry it — `batched/boundary.rs` (both),
+  `resident/{mod,planar}.rs` — carry it with an `#[expect(clippy::inline_always)]`
+  whose reason cites this very contract, so the obligation is understood in the
+  crate; these three were missed. `interleaved.rs:93` (21 lines) and
+  `lane_capability.rs` (3 lines) are small enough not to need it.
+- **Not yet known to be live.** The four-step sizes do not currently look 30x
+  slow, so LLVM may be inlining these anyway at present body sizes and
+  optimization settings — which is exactly the fragility the attribute exists to
+  remove, since nothing holds that in place across an edit.
+- **Verification method** (blocked on tree capacity, not on knowledge): add the
+  attribute in a lane, measure the four-step sizes before and after with an
+  interleaved probe, and inspect codegen for FMA in the affected symbols. If the
+  delta is zero the attribute is still correct — it converts a silent
+  size-dependent cliff into a guarantee.
+- **Blocked 2026-08-31:** apollo is at its two-tree bound with both trees held by
+  live peers (`perf/apollo-batched-parallel` in the main tree, editing
+  `batched/mod.rs` and `batched/dif.rs` directly; `perf/apollo-base-line` in the
+  lane). Two of the three sites are inside the live lease. **Re-open trigger:**
+  either peer's lease discharges.
+- **Worth mechanizing.** A source scan asserting that every `LaneKernel::call`
+  body above a line threshold carries `#[inline(always)]` would make this class
+  impossible to reintroduce. It is the same shape as the existing conformance
+  ratchet, and the defect it guards has already cost 30x once.
+
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — todo
 
 | ID | Outcome | Class | Status | Owner | Scope |
@@ -1316,6 +1359,48 @@ normal follow-up after these provider revisions are consumed in CI.
   Unconditional re-enable of the strict test remains blocked until the
   environment cause is named (`MALLOC_ARENA_MAX=1` experiment still the
   first probe).
+- **Investigation 2026-08-31 — full root-cause audit, solver path exonerated.**
+  Line-level audit of every allocation site the warm solve can reach:
+  - `athena-core` is `#![no_std]`; `GmresWorkspace::new` allocates once
+    (hessenberg, cosine, sine, transformed_residual, coefficients, work_basis_dot);
+    `reset_cycle` fills in place; `SolveReport` and `Termination` are
+    `#[derive(Copy)]`; `ConvergencePolicy` is `#[derive(Copy)]`; `SolveError`
+    is a stack enum with no `Vec`/`String`; `NoObserver` is a ZST.
+  - `athena-leto` backend: `LetoPreparedDot`/`LetoPreparedNorm` are ZSTs;
+    `copy`/`scale`/`axpy`/`dot_prepared`/`norm_l2_prepared`/`residual`/
+    `fused_cg_update`/`combine_direction` are plain slice loops with no `Vec`/
+    `format!`/`Box` on the happy path. `LetoVectorBlock` is `VecStorage<T>`
+    (plain `Vec<T>`); `view`/`view_mut` return `as_slice` slices — no alloc.
+  - `leto_ops::dot`: shape comparison is stack (`[usize; N]`), `as_slice`
+    path calls `T::dot_slice`; `ShapeMismatch` allocates `Vec<usize>` only on
+    the error path, never taken in warm solves.
+  - `leto_ops::spmv_into`: shape checks allocate only on error; happy path
+    goes to `spmv_slice_into` (plain row loop); `to_contiguous()` fallback
+    is dead for workspace vectors (always contiguous).
+  - `hermes_simd::dot` via `#[runtime_dispatch]`: generates
+    `std::is_x86_feature_detected!` per dispatch site, cached in
+    `OnceLock<bool>` — no heap allocation (inline storage). `SimdView::new`
+    stores a pointer + `PhantomData`; `is_runtime_supported` calls CPUID
+    directly on x86_64 — no allocation.
+  - `stats_alloc::Region` and `Stats` are `#[derive(Copy)]`; `StatsAlloc`
+    wraps `System::alloc`/`dealloc` with atomic counter increments — no
+    allocation from the instrumentation itself.
+  - **Verdict:** the solver path is provably zero-allocation. The 17
+    deallocs with only 4 allocs (more frees than allocs) cannot be produced
+    by any `Drop` cycle of owned buffers — it is glibc per-thread arena
+    cleanup of pre-region allocations observed through the `stats_alloc`
+    global wrapper. The companion classifier test already discriminates
+    correctly: fixed-size burst = environment noise, scaling = real defect.
+  - **Experiment delivered:** `MALLOC_ARENA_MAX=1` env var added to the
+    `allocation-instrument` CI job (athena `.github/workflows/ci.yml`).
+    Pinning glibc to a single arena eliminates per-thread tcache churn.
+    If the strict zero-traffic contract passes under this pin on hosted
+    Linux, it names glibc arena churn as the environment cause and clears
+    the way for unconditionally re-enabling the strict test. If it still
+    reports non-zero traffic, the investigation reopens with a named
+    non-arena source to trace.
+  - **Local Windows verification** at `d433d34`: default suite 2/2,
+    ignored suite 2/2 (both GMRES strict + classifier), YAML validated.
 
 ## ATLAS-MNEMOSYNE-DOCS-2026-08-25 — Correct Page field and book chapters [patch] — done
 
