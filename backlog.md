@@ -1,5 +1,21 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-CRITERION-FLOAT-ROUNDTRIP-2026-08-31 — Preserve Criterion confidence values [patch] — in progress
+
+- **Outcome:** parse Criterion estimate numbers with exact decimal-to-`f64`
+  round trips so the family-wise confidence gate cannot reject an interval
+  whose recorded confidence equals the derived requirement.
+- **Evidence:** Kwavers PR #681 run `33433562701` completed four 45-case pairs
+  with zero regressions and zero universe mismatches, then rejected all 180
+  intervals as `99.88888889% < 99.88888889%`. Its artifacts serialize
+  `0.9988888888888889`; locked `serde_json` 1.0.151 without
+  `float_roundtrip` reconstructs concise decimals through division by a power
+  of ten and can round this value down by one unit in the last place.
+- **Acceptance:** enable exact float parsing, pin the 45-case escaped value in
+  a value-semantic regression, pass the classifier gates, advance the exact
+  consumer pin, and recollect PR #681 without changing the confidence rule,
+  benchmark workload, or measured production code.
+
 ## ATLAS-GITLINK-COHERENCE-GATE-2026-08-29 — Wire the gitlink auditor that already existed [patch] — done 2026-08-29
 
 - **The defect, three times in two days.** A recorded gitlink must name a commit
