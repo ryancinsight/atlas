@@ -1,5 +1,77 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-31 [integration][perf]
+
+- [x] Confirm current merged provider heads: Apollo `d975ecf6`
+      (origin/main), Hermes `c4f931c5`, Leto `961b3b07`, Hephaestus
+      `73155da1` (origin/master).
+- [x] Apollo worktree is on the active `perf/apollo-batched-parallel`
+      lane at `94600ad1` (ahead of origin/main); its `pinned_probe.rs`
+      test module compiles, passes fmt, clippy `-D warnings`, and 13/13
+      batched tests pass. The lane's batched-parallel work is peer-owned
+      and left untouched.
+- [x] Hephaestus worktree is on the active `perf/heph-qr-device-q`
+      lane at `23aea93a` (3 commits ahead of origin/master); clean
+      worktree, peer-owned, left untouched.
+- [x] Build and run the gitlink coherence auditor: 25 probed, 0 defects,
+      0 stale-advanceable, 25 clean.
+- [x] Detect and repin stale consumer lockfiles across six repos:
+      CFDrs (Apollo→d975ecf6, Hermes→c4f931c5, Hephaestus→73155da1;
+      64 sources), Asclepius (Apollo→d975ecf6, Hermes→c4f931c5,
+      Leto→961b3b07; 41 sources), Coeus (Apollo→d975ecf6,
+      Hermes→c4f931c5, Hephaestus→73155da1; 41 sources), Helios
+      (Apollo→d975ecf6, Hermes→c4f931c5, Hephaestus→73155da1;
+      59 sources), Ritk (Apollo→d975ecf6, Hermes→c4f931c5,
+      Leto→961b3b07; 51 sources), Leto (Hermes→c4f931c5; 30 sources).
+      All six pass the lockfile guard under `--locked`.
+- [x] Focused compile verification at advanced heads: Leto `leto-ops`
+      (6.98s), Coeus `coeus-ops` (12.26s), CFDrs `cfd-core` (20.39s) —
+      all pass.
+- [x] Apollo `ATLAS-APOLLO-SWEEP-STOPS-AT-512-2026-08-31` delivered:
+      `DEFAULT_SIZES` extended from 22 to 26 entries (added 1024, 2048,
+      4096, 8192); per-size measurement budget via `config_for` scales
+      the measurement window by `len / 512` at and above 1024, stabilizing
+      the 100-sample median against scheduler noise. Full sweep completes
+      in 15.59s (within the 30s budget); no 3x swings at large sizes.
+- [x] Collect hosted CI confirmation at the advanced provider heads:
+      24/25 member CI green at their gitlink pins (apollo `f40608f1`,
+      hephaestus `73155da1`, hermes `c4f931c5`, leto `961b3b07`, kwavers
+       `75e31f93`, moirai `18666269`, consus `4ea6453a` ...). helios
+       `6f88cb18` was RED: "fast lint" RustSec audit failed — `chacha20
+       0.10.1` is yanked. Fixed: targeted `cargo update -p chacha20`
+       advanced to `0.10.2` (PR #79, merged to `acbaec21`); helios gitlink
+       advanced to `acbaec21`; lockfile guard + `--locked` resolve pass.
+
+> No sleeps, retries, timeout increases, workload changes, allocator changes,
+> or production memory-policy changes were introduced.
+
+## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-30 [integration][perf]
+
+- [x] Refresh provider heads: Apollo advanced `6da71551` → `fe7bea22`
+      (base-kernel bounds-check fold + dead zero-fill removal), Hephaestus
+      `d38d4df` (QR device-R), Hermes `7e45bef`, Leto `58d264a` already
+      current.
+- [x] Advance the Apollo and Hephaestus gitlinks from their published
+      remote refs (`git update-index --cacheinfo`, not worktree HEAD), and
+      fast-forward the kwavers worktree to its merged `origin/main`
+      `7c710a58` before pinning (its previous HEAD was an unmerged
+      31-commit lane).
+- [x] Repin the Apollo git dependency in all seven direct consumer
+      lockfiles (CFDrs, Asclepius, Coeus, Helios, Kwavers, Leoneuro-rs,
+      Ritk) to `fe7bea22`; every Apollo reference in each lock resolves to
+      the new head.
+- [x] Left alone as peer-owned: kwavers' unmerged 31-commit SWE lane
+      (`codex/kwavers-ci-baseline`, clean merge-tree vs origin/main) and
+      eunomia's open PR #75 branch (`fix/eunomia-gitattributes-eol`) —
+      gitlinks for both stay on their merged heads.
+- [x] `git diff --check` and gitlink auditor pass: 25 probed, **0 defects**.
+- [x] Collect hosted CI confirmation at the new Apollo head: `ci` run
+      completed **success** at `f40608f1` (2026-08-31T17:34:44Z); pages
+      deploy also success.
+
+> No sleeps, retries, timeout increases, workload changes, allocator changes,
+> or production memory-policy changes were introduced.
+
 ## ATLAS-APOLLO-BENCH-COMPILE-PROFILE-2026-08-26 [ci][perf]
 
 - [x] Attribute the local Apollo >180s validation signal to the expensive
@@ -870,6 +942,37 @@ Item closed 2026-08-23.
       `--locked`, the documented overlay limit; lockfile restored) plus a pass
       of the affected `diag_swe_recon_2` simulation; post-merge hosted runs all
       green at `a94a8bcde`.
+
+## ATLAS-ATHENA-ALLOCATION-CONTRACT-2026-08-31 — current session
+
+- [x] Full root-cause audit of the GMRES warm-solve allocation flake:
+      line-level audit of every allocation site the warm solve can reach.
+      `athena-core` is `#![no_std]`; all workspace vectors allocated once
+      in `GmresWorkspace::new`; `SolveReport`, `Termination`,
+      `ConvergencePolicy`, `SolveError` are all stack/Copy; `NoObserver`
+      is a ZST. `athena-leto` backend ops (`copy`/`scale`/`axpy`/
+      `dot_prepared`/`norm_l2_prepared`/`residual`) are plain slice loops;
+      `LetoVectorBlock` views are contiguous `as_slice` — no alloc.
+      `leto_ops::dot` and `spmv_into` allocate only on the error path
+      (never taken in warm solves). `hermes_simd` dispatch via
+      `is_x86_feature_detected!` caches in `OnceLock<bool>` (inline
+      storage); `SimdView::new` stores a pointer; `stats_alloc` itself is
+      Copy/atomic counters.
+- [x] Verdict: the solver path is provably zero-allocation. The 17
+      deallocs with only 4 allocs (more frees than allocs) cannot be
+      produced by any Drop cycle — it is glibc per-thread arena cleanup
+      of pre-region allocations observed through the global wrapper.
+- [x] Experiment delivered: `MALLOC_ARENA_MAX=1` env var added to the
+      `allocation-instrument` CI job (athena `.github/workflows/ci.yml`).
+      Pinning glibc to a single arena eliminates per-thread tcache churn.
+      If the strict zero-traffic contract passes under this pin on hosted
+      Linux, it names glibc arena churn as the environment cause and
+      clears the way for unconditionally re-enabling the strict test.
+- [x] Local Windows verification at `d433d34`: default suite 2/2,
+      ignored suite 2/2 (both GMRES strict + classifier), YAML validated.
+- [ ] Collect hosted Linux `allocation-instrument` evidence at the next
+      push; if the strict contract passes under `MALLOC_ARENA_MAX=1`,
+      un-`#[ignore]` the GMRES test.
 
 ## ATLAS-KWAVERS-VIS-CONFIG-2026-08-25 — current session
 
