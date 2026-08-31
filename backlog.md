@@ -141,6 +141,36 @@
   power-of-two extents, and gate any other length through
   `apollo_fft::supports_length` rather than assuming a failure is loud.
 
+## ATLAS-LETO-PRECISION-ANOMALY-SWEEP-2026-08-31 — Clean pass: leto-ops shows no wrong-sign precision ratio [patch] — done 2026-08-31
+
+- **Method.** The same hunt that found three defects in apollo this week: for
+  each kernel, measure a four-byte scalar against an eight-byte one at equal
+  shape, and walk a size ladder. A four-byte scalar slower than an eight-byte
+  one at equal shape is the wrong sign — it moves half the memory and has twice
+  the lanes — and points at a dispatch one precision reaches and the other does
+  not. A length costing more than twice its double points at a per-size arm.
+- **Result: clean.** Best of 60 blocks of 20 calls, warmed:
+
+  | kernel | n | f32/f64 |
+  |---|---|---|
+  | matmul | 64 / 128 / 256 | 0.65x / 0.58x / 0.47x |
+  | dot | 4096 -> 262144 | 0.48x / 0.42x / 0.46x / 0.34x |
+  | sum | 4096 -> 262144 | 0.44x / 0.36x / 0.50x / 0.48x |
+  | norm_l2 | 4096 -> 262144 | 0.51x / 0.35x / 0.42x / 0.50x |
+
+  Every ratio is well under 1, and the ladders scale sensibly — dot is 4.2x and
+  3.5x across successive 4x length steps, matmul 4.0x and 4.5x across 8x work
+  steps. No non-monotonicity, no wrong-sign cell.
+- **Why record a negative.** The three apollo defects (a missing target-feature
+  frame, a missing native width, a mis-scoped per-length arm) all presented as
+  exactly this signature, and all three sat in a crate nobody had pointed this
+  measurement at. Recording that leto-ops has been pointed at it, and what was
+  seen, is what stops the question being reopened from scratch — and gives a
+  baseline to compare against when its kernels next change.
+- **Not covered.** Decompositions (`qr`, `lu`, `cholesky`, `svd`), strided and
+  non-contiguous views, and the parallel policies. This swept the contiguous
+  hot kernels only.
+
 ## ATLAS-APOLLO-LANEKERNEL-INLINE-CONTRACT-2026-08-31 — Three large `LaneKernel::call` bodies do not carry the attribute their contract requires [patch] [perf] — todo
 
 - **The contract.** hermes `HS-VECTORIZE-LARGE-KERNEL-2026-08-28` documents a
