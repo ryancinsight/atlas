@@ -327,6 +327,32 @@ fn computes_bonferroni_confidence_from_baseline_count() {
 }
 
 #[test]
+fn criterion_confidence_round_trips_without_false_rejection() {
+    let fixture = Fixture::new();
+    let confidence = 1.0_f64 - 0.05 / 45.0;
+    let (forward, reverse) = stable_estimates(confidence);
+
+    for replication in [Replication::First, Replication::Second] {
+        for index in 0..45 {
+            let name = format!("benchmark/{index}");
+            fixture.comparison(replication, &name, &forward, &reverse);
+        }
+    }
+
+    let result = fixture.audit().unwrap();
+
+    assert_eq!(
+        result.first.required_confidence_level.to_bits(),
+        confidence.to_bits()
+    );
+    assert_eq!(result.first.comparisons, 45);
+    assert_eq!(result.second.comparisons, 45);
+    assert!(result.first.insufficient_confidence.is_empty());
+    assert!(result.second.insufficient_confidence.is_empty());
+    assert!(!result.has_failures());
+}
+
+#[test]
 fn rejects_path_traversal_baseline_name() {
     let fixture = Fixture::new();
 

@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-07-20
-- Amended: 2026-07-21
+- Amended: 2026-08-31
 - Closed: 2026-07-22
 - Class: `[arch]` `[patch]`
 
@@ -89,6 +89,13 @@ in the [estimate consumed by the tool][criterion-estimate].
 The consumer pin is an exact Atlas commit. Tool evolution lands in Atlas
 first, then consumers advance that pin through reviewed commits.
 
+Estimate parsing enables `serde_json`'s `float_roundtrip` feature. Criterion
+serializes the configured `f64` confidence level to decimal JSON; the
+classifier must reconstruct the same IEEE-754 value before comparing it with
+the independently derived Bonferroni requirement. Approximate decimal parsing
+can round an equal confidence down by one unit in the last place and falsely
+reject the complete measurement family.
+
 ## Rejected alternatives
 
 - Package-owned copies retain three sources of truth and had already drifted.
@@ -147,6 +154,9 @@ first, then consumers advance that pin through reviewed commits.
   cross-replication benchmark-universe mismatch, insufficient family-wise
   confidence, and malformed input.
 - Boundary tests reject path-traversing baseline names and absent baselines.
+- A 45-case fixture round-trips the exact confidence emitted by Criterion and
+  rejects any parser configuration that reports equal observed and required
+  confidence values as insufficient.
 - The tool passes format, check, warning-denied Clippy, nextest, doctest, and
   rustdoc gates.
 - Each consumer workflow must pass exact-head hosted CI after adopting the
