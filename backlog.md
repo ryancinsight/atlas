@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-CRITERION-FLOAT-ROUNDTRIP-2026-08-31 — Preserve Criterion confidence values [patch] — in progress
+## ATLAS-CRITERION-FLOAT-ROUNDTRIP-2026-08-31 — Preserve Criterion confidence values [patch] — provider delivered; consumer recollection pending
 
 - **Outcome:** parse Criterion estimate numbers with exact decimal-to-`f64`
   round trips so the family-wise confidence gate cannot reject an interval
@@ -15,6 +15,12 @@
   a value-semantic regression, pass the classifier gates, advance the exact
   consumer pin, and recollect PR #681 without changing the confidence rule,
   benchmark workload, or measured production code.
+- **Provider evidence:** source commit
+  `62955b24f1eeb8495372cd85e74eea6046ed21a8`; exact artifact replay accepts
+  both 45-case replications with zero insufficient intervals and zero
+  regressions; Nextest passes 22/22, including the escaped fixture; warning-
+  denied Clippy, fmt, doctests, and warning-denied Rustdoc pass. Consumer pin
+  advancement and exact-head hosted recollection remain open.
 
 ## ATLAS-GITLINK-COHERENCE-GATE-2026-08-29 — Wire the gitlink auditor that already existed [patch] — done 2026-08-29
 
