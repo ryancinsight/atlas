@@ -29,7 +29,9 @@ Modes:
 Run from anywhere: paths are anchored to this file's parent repository.
 The default scan requires a clean checkout whose provider gitlinks match the
 requested root revision. Use --worktree only for an intentional dirty-tree
-audit; such a result is not a reproducible gate input.
+audit; such a result is not a reproducible gate input. Both modes require every
+registered provider checkout to be materialized so an empty gitlink directory
+cannot be mistaken for a zero-debt repository.
 """
 
 from __future__ import annotations
@@ -39,6 +41,8 @@ import json
 import re
 import subprocess
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -60,7 +64,8 @@ SANCTIONED_ROOT = {
     "backlog.md", "checklist.md", "gap_audit.md",
     "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "rustfmt.toml",
     "clippy.toml", "deny.toml", "book.toml", "pyproject.toml",
-    ".gitignore", ".gitattributes", ".gitmodules", ".envrc", ".git",
+    ".gitignore", ".gitattributes", ".gitmodules", ".git-blame-ignore-revs",
+    ".envrc", ".git",
     "Makefile", "justfile", "pytest.ini", ".check_mdbook_links_allowlist",
 }
 
@@ -299,14 +304,33 @@ def cargo_manifests(repo: Path):
                 yield entry
 
 
-_file_text_cache: dict[Path, str | None] = {}
-_cfg_test_decl_cache: dict[Path, tuple[frozenset[str], frozenset[Path]]] = {}
+MAX_SCAN_WORKERS = 4
+
+_scan_local = threading.local()
+
+
+def _file_text_cache() -> dict[Path, str | None]:
+    """Return the current scan worker's source-text cache."""
+    cache = getattr(_scan_local, "file_text", None)
+    if cache is None:
+        cache = {}
+        _scan_local.file_text = cache
+    return cache
+
+
+def _cfg_test_decl_cache() -> dict[Path, tuple[frozenset[str], frozenset[Path]]]:
+    """Return the current scan worker's cfg-test declaration cache."""
+    cache = getattr(_scan_local, "cfg_test_decls", None)
+    if cache is None:
+        cache = {}
+        _scan_local.cfg_test_decls = cache
+    return cache
 
 
 def _clear_scan_caches() -> None:
     """Drop per-scan read caches so repeated scans see fresh content."""
-    _file_text_cache.clear()
-    _cfg_test_decl_cache.clear()
+    _file_text_cache().clear()
+    _cfg_test_decl_cache().clear()
 
 
 def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
@@ -320,7 +344,8 @@ def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
     gates `#[path = "../async_iter_tests.rs"] mod async_iter_tests;` from
     `src/async_iter/mod.rs`.
     """
-    cached = _cfg_test_decl_cache.get(cand)
+    cache = _cfg_test_decl_cache()
+    cached = cache.get(cand)
     if cached is None:
         text = _cached_text(cand)
         if text:
@@ -334,7 +359,7 @@ def _cfg_test_decls(cand: Path) -> tuple[frozenset[str], frozenset[Path]]:
             cached = (frozenset(stems), frozenset(paths))
         else:
             cached = (frozenset(), frozenset())
-        _cfg_test_decl_cache[cand] = cached
+        cache[cand] = cached
     return cached
 
 
@@ -352,12 +377,13 @@ def _cached_text(path: Path) -> str | None:
     transient allocations into one read per file.
     """
     key = path.resolve()
-    if key not in _file_text_cache:
+    cache = _file_text_cache()
+    if key not in cache:
         try:
-            _file_text_cache[key] = key.read_text(encoding="utf-8", errors="replace")
+            cache[key] = key.read_text(encoding="utf-8", errors="replace")
         except OSError:
-            _file_text_cache[key] = None
-    return _file_text_cache[key]
+            cache[key] = None
+    return cache[key]
 
 
 def _walk_mods(root: Path, seen: set[Path]) -> None:
@@ -478,6 +504,30 @@ def registered_member_names_at(root: Path) -> set[str]:
             gm.read_text(encoding="utf-8", errors="replace"),
         )
     }
+
+
+def require_materialized_providers(
+    stack_root: Path,
+    members: set[str],
+) -> list[Path]:
+    """Return registered provider roots after proving each is materialized.
+
+    A linked Atlas worktree contains the registered ``repos/<name>``
+    directories even when their submodules were never initialized. Scanning
+    those empty directories reports false zeroes and can make an incomplete
+    scan appear faster. A real submodule or standalone checkout always owns a
+    ``.git`` file or directory at its root, which is the exact distinction the
+    scan needs before traversing source.
+    """
+    member_root = stack_root / "repos"
+    providers = [member_root / name for name in sorted(members)]
+    missing = [provider.name for provider in providers if not (provider / ".git").exists()]
+    if missing:
+        names = ", ".join(missing)
+        raise RuntimeError(
+            f"provider checkouts are not materialized: {names}; initialize submodules"
+        )
+    return providers
 
 
 def gitlink_revision(root_revision: str, path: str) -> str:
@@ -673,6 +723,7 @@ def scan_repo(repo: Path) -> dict[str, int]:
         if not (repo / "Cargo.lock").is_file():
             c["missing_cargo_lock"] = 1
     scan_workflows(repo, c)
+    _clear_scan_caches()
     return c
 
 
@@ -682,13 +733,23 @@ def scan_stack(stack_root: Path = ROOT) -> dict[str, dict[str, int]]:
     members = registered_member_names_at(stack_root)
     meta = dict.fromkeys(CLASSES, 0)
     if member_root.is_dir():
-        for repo in sorted(member_root.iterdir()):
-            if not repo.is_dir() or repo.name.startswith("."):
-                continue
-            if repo.name in members:
-                out[repo.name] = scan_repo(repo)
-            elif stack_root == ROOT and not is_git_ignored(repo):
-                meta["member_namespace_pollution"] += 1
+        repos = require_materialized_providers(stack_root, members)
+        if repos:
+            # Four workers match the smallest hosted runner while avoiding
+            # unbounded parallel metadata and filesystem traversal.
+            worker_count = min(MAX_SCAN_WORKERS, len(repos))
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                for repo, counts in zip(repos, executor.map(scan_repo, repos), strict=True):
+                    out[repo.name] = counts
+        if stack_root == ROOT:
+            for repo in sorted(member_root.iterdir()):
+                if (
+                    repo.is_dir()
+                    and not repo.name.startswith(".")
+                    and repo.name not in members
+                    and not is_git_ignored(repo)
+                ):
+                    meta["member_namespace_pollution"] += 1
     meta["root_sprawl"] = count_root_sprawl(ROOT)
     meta["gitattributes_missing"] = lf_policy_missing(ROOT)
     scan_workflows(ROOT, meta)
@@ -774,7 +835,7 @@ def main() -> int:
     parser.add_argument(
         "--worktree",
         action="store_true",
-        help="explicitly scan the live worktree, including uncommitted changes",
+        help="scan a fully materialized live worktree, including uncommitted changes",
     )
     parser.add_argument(
         "--json",
@@ -806,6 +867,7 @@ def main() -> int:
             if not member.is_dir():
                 print(f"no such provider repo: {args.repo}", file=sys.stderr)
                 return 2
+            require_materialized_providers(ROOT, {args.repo})
             results = {args.repo: scan_repo(member)}
         else:
             if not args.worktree:

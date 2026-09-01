@@ -312,25 +312,38 @@ editorial sweep. The 118-site count is a watchpoint for provider-level
 doc-discipline adoption, not a mechanical ratchet the Atlas audit-sweep can
 close.
 
-## Finding 2026-08-21: conformance scan repeated manifest traversal
+## Finding 2026-08-21, revised 2026-08-31: conformance scan traversal cost
 
-The full `python scripts/atlas-conformance.py --worktree --json` scan measured
-150.68 seconds on the shared dirty stack, exceeding the 120-second runtime
-bound. A `cProfile` run attributed the dominant scanner-owned work to
-`count_orphan_modules`, including repeated manifest discovery and module-graph
-filesystem traversal. The scan was not treated as a passing ratchet gate.
+The original full `python scripts/atlas-conformance.py --worktree --json`
+scan measured 150.68 seconds on the shared dirty stack. Reusing one Cargo
+manifest inventory per provider removed two redundant repository traversals
+and measured 20.55 seconds on that then-current tree without changing the
+detector set.
 
-`scan_repo` now collects the Cargo manifest inventory once and passes that
-snapshot to `executable_source_dirs` and `count_orphan_modules`. This removes
-two redundant repository-wide manifest walks without changing the detector
-set, source roots, or workload. The same live scan measures 20.55 seconds
-afterward. The focused scanner suite remains 21/21, and the full ratchet still
-exits 1 on 20 provider-dirty regressions; no baseline was changed.
+Provider scans are independent, so `scan_stack` uses a bounded four-worker
+pool. Source and cfg-test caches are worker-local and cleared after each
+provider, retaining repeated-read elimination without cross-provider state or
+retained cache growth. A two-provider fixture pins deterministic result
+attribution.
 
-The timing comparison is wall-clock evidence on the current Windows host, not
-a cross-machine performance guarantee. The dirty provider state also limits
-the ratchet result to diagnostic evidence until a clean exact-gitlink revision
-is available.
+The initial approximately 119-second sequential and 59.03-second parallel
+measurements are retracted. The Atlas lane used for those runs contained all 25
+registered `repos/<name>` directories but no materialized provider checkout;
+the scan therefore measured empty gitlink directories and reported false
+zeroes. The corrected scanner requires a provider-owned `.git` file or
+directory for every registered member before any traversal, including in
+`--worktree` mode, and a regression fixture proves the incomplete state fails
+closed. Replacement timing and classification evidence must come from the
+canonical fully materialized stack. No detector, baseline, or acceptance
+threshold changes as part of this correction.
+
+The replacement same-process A/B run uses the canonical `D:\atlas` checkout
+with all 25 provider repositories materialized. The sequential implementation
+measures 115.113 seconds and the bounded four-worker implementation measures
+16.500 seconds (7.0x); their complete per-provider/per-class result objects are
+equal, including the same 20 regressions and 44 tightenings. The focused suite
+passes 29/29. These are single-run operational wall times on the current
+Windows host; equality of the complete scan result is the correctness evidence.
 
 ## Finding 2026-08-21: conformance walker aborted on derived Python caches
 

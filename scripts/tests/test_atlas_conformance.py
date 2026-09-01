@@ -403,6 +403,8 @@ class AtlasConformanceTestCase(unittest.TestCase):
             second = conformance.scan_repo(root)
 
         self.assertEqual(first, second)
+        self.assertEqual(conformance._file_text_cache(), {})
+        self.assertEqual(conformance._cfg_test_decl_cache(), {})
 
     def test_nested_workspace_lints_table_satisfies_inheritance(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
@@ -457,6 +459,20 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["workflow_missing_timeout"], 1)
 
+    def test_git_blame_ignore_revisions_is_root_configuration(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, ".git-blame-ignore-revs", "# formatting commit\n")
+
+            counts = conformance.scan_repo(root)
+
+            self.assertEqual(counts["root_sprawl"], 0)
+            _write(root, "session-report.txt", "unfiled output\n")
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["root_sprawl"], 1)
+
     def test_cargo_manifests_prune_caches(self) -> None:
         # rglob would crawl target/ and book/; the pruned walker must skip them.
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
@@ -497,6 +513,44 @@ class AtlasConformanceTestCase(unittest.TestCase):
             dirs = conformance.executable_source_dirs(root)
 
         self.assertEqual(len(dirs), 1)
+
+    def test_stack_scan_preserves_registered_member_results(self) -> None:
+        """Parallel provider scans retain deterministic member attribution."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(
+                root,
+                ".gitmodules",
+                "[submodule \"alpha\"]\n\tpath = repos/alpha\n"
+                "[submodule \"beta\"]\n\tpath = repos/beta\n",
+            )
+            _write(root, "repos/alpha/.git", "gitdir: modules/alpha\n")
+            _write(root, "repos/beta/.git", "gitdir: modules/beta\n")
+            _write(root, "repos/alpha/src/lib.rs", "pub fn alpha() {}\n")
+            _write(root, "repos/beta/src/lib.rs", "pub fn beta() {}\n")
+
+            results = conformance.scan_stack(root)
+
+        self.assertEqual(results["alpha"]["oversized_files"], 0)
+        self.assertEqual(results["beta"]["oversized_files"], 0)
+        self.assertEqual(set(results), {"<meta>", "alpha", "beta"})
+
+    def test_stack_scan_rejects_unmaterialized_provider(self) -> None:
+        """An empty gitlink directory cannot masquerade as a clean provider."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(
+                root,
+                ".gitmodules",
+                "[submodule \"alpha\"]\n\tpath = repos/alpha\n",
+            )
+            (root / "repos/alpha").mkdir(parents=True)
+
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"provider checkouts are not materialized: alpha",
+            ):
+                conformance.scan_stack(root)
 
     def test_generate_refuses_to_raise_a_count(self) -> None:
         """`generate` must not launder a regression into the baseline.

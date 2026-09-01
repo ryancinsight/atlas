@@ -1,5 +1,22 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-CONFORMANCE-PARALLEL-SCAN-2026-08-31 [patch][perf]
+
+- [x] Profile the live fleet scan and retain the unchanged detector workload.
+- [x] Isolate source and cfg-test caches per worker and clear them after each
+      provider scan.
+- [x] Run independent providers through a bounded four-worker pool with
+      deterministic output order.
+- [x] Add provider-attribution and incomplete-materialization coverage.
+- [x] Re-run both instruments against the canonical 25-provider checkout:
+      115.113 seconds sequential versus 16.500 seconds with four workers (7.0x),
+      complete result objects equal at 20 regressions and 44 tightenings. The
+      earlier empty-gitlink comparison remains explicitly retracted.
+- [x] Pass the focused scanner suite 29/29, Python byte-compilation, and
+      `git diff --check`.
+- [ ] Commit, publish, independently review, merge, and collect the clean
+      exact-revision ratchet gate.
+
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 [ci]
 
 - [x] Shared `workflow_call` delivered: `.github/workflows/semver-gate.yml`

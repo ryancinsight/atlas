@@ -1,5 +1,21 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-CONFORMANCE-PARALLEL-SCAN-2026-08-31 — Bound fleet scan latency [patch] — in progress
+
+- **Outcome:** scan independent provider trees concurrently while preserving
+  exact per-provider detector results and bounded cache ownership.
+- **Evidence:** the initial 119/59.03-second comparison is retracted because
+  the linked Atlas lane's provider gitlink directories were not materialized.
+  The correction rejects that incomplete state before traversal. On the
+  canonical 25-provider checkout, the same-process A/B run measures 115.113
+  seconds sequential and 16.500 seconds with four workers (7.0x); the complete
+  result objects are equal at 20 regressions and 44 tightenings. Scanner tests
+  pass 29/29.
+- **Acceptance:** worker-local caches, deterministic provider attribution, no
+  detector or baseline change, fail-closed incomplete-checkout handling, a
+  canonical-stack timing comparison, warning-free script tests, exact revision
+  review, and merge. Single-host wall time is operational evidence only.
+
 ## ATLAS-CRITERION-FLOAT-ROUNDTRIP-2026-08-31 — Preserve Criterion confidence values [patch] — provider delivered; consumer recollection pending
 
 - **Outcome:** parse Criterion estimate numbers with exact decimal-to-`f64`
