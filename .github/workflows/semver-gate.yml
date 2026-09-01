@@ -1,0 +1,91 @@
+name: SemVer gate (shared release gate)
+
+# Atlas owns the semver gate once for the whole stack
+# (backlog ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28). Members that publish
+# crates call this workflow instead of hand-rolling a per-repo copy
+# (divergent per-repo copies are the duplication defect ADR 0035 exists to
+# prevent). Members adopt it by advancing one atlas-ref pin, exactly like
+# the publish and lockfile-guard pipelines.
+#
+# Design constraint (why the naive job fails): members accumulate accepted
+# breaking changes under CHANGELOG Unreleased, so a gate that diffs main
+# against the published baseline is red from its first run and gets ignored
+# within a day. This gate therefore:
+#   - on PRs: runs INFORMATIONALLY against the PR base so the detected
+#     change-class is visible while the change is still in review
+#     (continue-on-error: true),
+#   - on release tags: runs BLOCKING against the previous release tag and
+#     fails when the manifest version does not cover the detected class.
+#
+# Inputs:
+#   package        - crate name(s), space-separated (required)
+#   manifest-path  - path to Cargo.toml (default "Cargo.toml")
+#   rust-toolchain - toolchain for semver-checks (default "stable")
+
+name: SemVer gate (shared)
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        description: Crate name(s) to check, space-separated
+        required: true
+        type: string
+      manifest-path:
+        description: Path to the workspace Cargo.toml
+        required: false
+        type: string
+        default: Cargo.toml
+      rust-toolchain:
+        description: Rust toolchain for cargo-semver-checks
+        required: false
+        type: string
+        default: stable
+
+permissions:
+  contents: read
+
+jobs:
+  semver-pr:
+    name: SemVer (informational)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
+        with:
+          package: ${{ inputs.package }}
+          manifest-path: ${{ inputs.manifest-path }}
+          rust-toolchain: ${{ inputs.rust-toolchain }}
+          baseline-rev: ${{ github.event.pull_request.base.sha }}
+          verbose: true
+
+  semver-release:
+    name: SemVer (release gate)
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Resolve previous release tag as baseline
+        id: baseline
+        run: |
+          prev="$(git describe --tags --abbrev=0 "${GITHUB_REF}^" 2>/dev/null || true)"
+          if [ -z "$prev" ]; then
+            echo "No previous release tag found; falling back to the initial commit."
+            prev="$(git rev-list --max-parents=0 HEAD)"
+          fi
+          echo "baseline=$prev" >> "$GITHUB_OUTPUT"
+      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
+        with:
+          package: ${{ inputs.package }}
+          manifest-path: ${{ inputs.manifest-path }}
+          rust-toolchain: ${{ inputs.rust-toolchain }}
+          baseline-rev: ${{ steps.baseline.outputs.baseline }}
+          verbose: true
