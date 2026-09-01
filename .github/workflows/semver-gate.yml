@@ -1,3 +1,5 @@
+name: SemVer gate (shared release gate)
+
 # Atlas owns the semver gate once for the whole stack
 # (backlog ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28). Members that publish
 # crates call this workflow instead of hand-rolling a per-repo copy
