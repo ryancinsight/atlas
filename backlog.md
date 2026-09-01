@@ -236,11 +236,11 @@
   impossible to reintroduce. It is the same shape as the existing conformance
   ratchet, and the defect it guards has already cost 30x once.
 
-## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — todo
+## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — shared workflow delivered; member adoption pending
 
 | ID | Outcome | Class | Status | Owner | Scope |
 |----|---------|-------|--------|-------|-------|
-| ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 | Every member that publishes a crate detects public-surface breaks before the break ships. | [patch] | todo | unowned | each registered member's CI + the shared release pipeline |
+| ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 | Every member that publishes a crate detects public-surface breaks before the break ships. | [patch] | in-progress (shared workflow delivered 2026-09-01; member pin advancement pending) | unowned | each registered member's CI + the shared release pipeline |
 
 - **Evidence, measured 2026-08-28 across the 25 registered members:** exactly
   **two** (`asclepius`, `proteus`) run a `cargo-semver-checks` job. Every other
@@ -270,6 +270,16 @@
   `crates-publish.yml`, not as 23 hand-rolled copies (a divergent per-repo copy
   is the duplication defect ADR 0035 exists to prevent). Members adopt it by
   advancing one `atlas-ref` pin, exactly as the publish pipelines are adopted.
+- **Delivered 2026-09-01:** `.github/workflows/semver-gate.yml` — the shared
+  reusable `workflow_call` with two jobs: `semver-pr` (informational,
+  `continue-on-error`, diffs against the PR base so the change-class is
+  visible in review) and `semver-release` (blocking on tag push, baseline
+  resolved via `git describe --tags --abbrev=0 "TAG^"` with a first-commit
+  fallback, so the gate compares against the **last release tag** and fails
+  only when the manifest version does not cover the detected class). Inputs:
+  `package` (required), `manifest-path`, `rust-toolchain`. Adoption per
+  member is one `workflow_call` + the member's package name — same shape as
+  the lockfile-guard adoption.
 - **Non-goals:** bumping any manifest version now; retrofitting classifications
   onto already-merged history beyond `MN-458`, which is corrected.
 

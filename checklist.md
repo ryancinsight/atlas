@@ -1,5 +1,38 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 [ci]
+
+- [x] Shared `workflow_call` delivered: `.github/workflows/semver-gate.yml`
+      (2026-09-01). Two jobs per the backlog design constraint:
+      `semver-pr` — informational (`continue-on-error: true`), baseline = PR
+      base sha, so the detected change-class is visible during review without
+      reddening the PR; `semver-release` — blocking on tag push, baseline =
+      previous release tag via `git describe --tags --abbrev=0 "TAG^"`
+      (first-commit fallback), failing when the manifest version does not
+      cover the detected class.
+- [x] Inputs: `package` (required, space-separated), `manifest-path`
+      (default `Cargo.toml`), `rust-toolchain` (default `stable`). Member
+      adoption = one `workflow_call` job naming the shared workflow + the
+      member's package name(s), advancing the atlas-ref pin — same adoption
+      shape as `lockfile-guard.yml`.
+- [ ] Member adoption wave: add the `semver` job to each publishable
+      member's CI (23 repos), advancing their atlas-ref pins.
+
+## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-31-R2 [integration][perf]
+
+- [x] Re-audit all 7 consumer gitlinks vs origin refs (CFDrs,
+      asclepius, athena, coeus, helios, ritk, leto): **all 7 recorded
+      pins byte-identical to their origin heads — 0 stale, 0
+      defects, nothing to advance.** The `M repos/*` entries in
+      `git status` are sibling worktree HEADs (active lanes), not
+      recorded pins; per gitlink-hazard rule these stay uncommitted.
+      helios recorded pin `acbaec21` == origin/master (the chacha20
+      fix is already published and recorded).
+- [x] Audit conclusion: the 2026-08-31 head-advance cycle is already
+      fully committed; this session adds no source, no pins, no lock
+      changes. No sleeps, retries, timeout increases, workload,
+      allocator, or production memory-policy changes introduced.
+
 ## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-31 [integration][perf]
 
 - [x] Confirm current merged provider heads: Apollo `d975ecf6`
