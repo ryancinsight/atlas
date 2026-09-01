@@ -23,6 +23,14 @@ as `workflow_malformed_yaml` rather than silently passing the substring
 scans. This is the class that lets a duplicate `name:` key reach a shared
 release pipeline, which is the downstream cost this class exists to avoid.
 
+A large `LaneKernel::call` body that is not `#[inline(always)]` is counted
+as `lane_kernel_uninlined`. The `#[runtime_dispatch]` expansion inlines the
+feature-carrying helper into a *small* body but declines for a large one, so
+the body codegens at the baseline ISA — the ~30x cost hermes
+`HS-VECTORIZE-LARGE-KERNEL-2026-08-28` documents. The detector is a
+line-count heuristic over the body; it is the mechanized form of the manual
+brace-match census so the class cannot be reintroduced silently.
+
 Modes:
     report      per-repo x per-class table (default)
     generate    write scripts/conformance-baseline.json from the clean HEAD
@@ -133,6 +141,7 @@ CLASSES = [
     "workflow_malformed_yaml", "pull_request_target_use",
     "missing_cargo_lock", "orphan_modules",
     "seqcst_production", "crate_level_allows", "excess_worktrees",
+    "lane_kernel_uninlined",
 ]
 
 # Working trees beyond the two a repository may hold: its main tree plus one
@@ -705,6 +714,68 @@ def strip_doc_comments(text: str) -> str:
     )
 
 
+LANE_KERNEL_IMPL = re.compile(r"impl(?:<[^>]*>)?\s+LaneKernel\s*<")
+LANE_KERNEL_CALL = re.compile(r"\bfn\s+call\s*<")
+INLINE_ALWAYS = re.compile(r"#\[\s*inline\s*\(\s*always\s*\)\s*\]")
+# A `LaneKernel::call` body above this many lines must be
+# `#[inline(always)]` (hermes HS-VECTORIZE-LARGE-KERNEL-2026-08-28). The
+# `#[runtime_dispatch]` expansion's `#[target_feature]` helper is the only
+# feature-carrying frame; a large body makes LLVM decline to inline it, and
+# the body then codegens at the baseline ISA — zero FMA, per-operation
+# feature detection, ~30x. Small bodies inline anyway, so they are exempt.
+LANE_KERNEL_INLINE_THRESHOLD = 100
+
+
+def _brace_end(text: str, open_index: int) -> int:
+    """Index just past the `}` matching the `{` at `open_index`."""
+    depth = 0
+    i = open_index
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return n
+
+
+def count_lane_kernel_uninlined(text: str) -> int:
+    """Count `LaneKernel::call` bodies above the threshold without the inline attr.
+
+    A large `#[target_feature]` kernel body that is not `#[inline(always)]`
+    silently compiles at the baseline ISA — the exact ~30x defect hermes
+    `HS-VECTORIZE-LARGE-KERNEL-2026-08-28` documents. This closes the
+    consumer half: hermes owns the kernel entry, but a consumer's large
+    `call` body must still be inlined into the feature-carrying wrapper. The
+    detector is a line-count heuristic, deliberately mirroring the manual
+    brace-match census the backlog records; `#[inline(always)]` is searched
+    in the text immediately preceding the `fn call` within the same impl.
+    """
+    count = 0
+    for impl in LANE_KERNEL_IMPL.finditer(text):
+        brace = text.find("{", impl.end())
+        if brace == -1:
+            continue
+        end = _brace_end(text, brace)
+        impl_body = text[brace:end]
+        for call in LANE_KERNEL_CALL.finditer(impl_body):
+            call_brace = impl_body.find("{", call.start())
+            if call_brace == -1:
+                continue
+            body = impl_body[call_brace:_brace_end(impl_body, call_brace)]
+            lines = body.count("\n") + 1
+            if lines < LANE_KERNEL_INLINE_THRESHOLD:
+                continue
+            preceding = impl_body[max(0, call.start() - 250):call.start()]
+            if not INLINE_ALWAYS.search(preceding):
+                count += 1
+    return count
+
+
 def scan_repo(repo: Path) -> dict[str, int]:
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
@@ -771,6 +842,7 @@ def scan_repo(repo: Path) -> dict[str, int]:
             if path.name == "build.rs" and hits:
                 hits -= len(CARGO_PROTOCOL_PRINT.findall(prod))
             c["print_dbg"] += hits
+        c["lane_kernel_uninlined"] += count_lane_kernel_uninlined(prod)
         c["existence_only_assertions"] += len(EXISTENCE_ONLY.findall(test))
         c["sleep_synced_tests"] += len(SLEEP.findall(test))
 

@@ -275,6 +275,17 @@
   body above a line threshold carries `#[inline(always)]` would make this class
   impossible to reintroduce. It is the same shape as the existing conformance
   ratchet, and the defect it guards has already cost 30x once.
+- **Mechanized 2026-09-01** — delivered as the Atlas conformance class
+  `lane_kernel_uninlined` (`scripts/atlas-conformance.py`). The detector
+  counts `LaneKernel::call` bodies above 100 lines that lack
+  `#[inline(always)]`, measured by brace-match, and the baseline records the
+  true census: apollo = 3 (the `batched/mod.rs:106`, `batched/dif.rs:60`,
+  `batched/interleaved.rs:163` sites named above); every other member 0. Three
+  regression tests cover the large-uninlined / large-inlined / small-uninlined
+  cases; the full scripts suite is green. This closes the "worth mechanizing"
+  half — the class cannot now be reintroduced without a ratchet raise. The
+  source fix itself (adding the attribute at the three apollo sites) remains
+  blocked on the apollo two-tree lease and is tracked separately.
 
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — shared workflow delivered; member adoption pending
 
@@ -12392,7 +12403,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   script a reviewed one-pass normalization; rerun compaction; then flip
   ATLAS-LINT-CALIB's reference report toward enforcing for items that
   stay live after normalization.
-- Status: todo
+- Status: in-progress (integrator: claude session; lease: scripts/atlas-board-canonicalize.py, backlog.md, checklist.md, focused tests)
 
 ## KWAVERS-CI-PIPELINE-001 - Consolidate kwavers CI to one verification pipeline [ci] [patch]
 

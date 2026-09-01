@@ -518,6 +518,48 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["workflow_malformed_yaml"], 0)
 
+    def _large_call_body(self, with_inline: bool) -> int:
+        """Build a LaneKernel impl whose call body is 120 lines."""
+        attr = "#[inline(always)]\n" if with_inline else ""
+        body = "\n".join(f"        let v{i} = value + {i};" for i in range(115))
+        source = (
+            "impl<T> LaneKernel<T> for BigKernel<T> {\n"
+            "    type Output = ();\n"
+            f"    {attr}fn call<A: SimdArch>(self, _simd: Simd<T, A>) {{\n"
+            "        let value = 0;\n"
+            f"{body}\n"
+            "    }\n"
+            "}\n"
+        )
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "src/lib.rs", source)
+            counts = conformance.scan_repo(root)
+        return counts["lane_kernel_uninlined"]
+
+    def test_large_uninlined_lane_kernel_is_flagged(self) -> None:
+        self.assertEqual(self._large_call_body(with_inline=False), 1)
+
+    def test_large_inlined_lane_kernel_is_clean(self) -> None:
+        self.assertEqual(self._large_call_body(with_inline=True), 0)
+
+    def test_small_uninlined_lane_kernel_is_clean(self) -> None:
+        source = (
+            "impl<T> LaneKernel<T> for SmallKernel<T> {\n"
+            "    type Output = ();\n"
+            "    fn call<A: SimdArch>(self, _simd: Simd<T, A>) {\n"
+            "        let _ = 0;\n"
+            "    }\n"
+            "}\n"
+        )
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "src/lib.rs", source)
+            counts = conformance.scan_repo(root)
+        self.assertEqual(counts["lane_kernel_uninlined"], 0)
+
     def test_git_blame_ignore_revisions_is_root_configuration(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
