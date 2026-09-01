@@ -33,12 +33,36 @@ binary="${atlas_root}/target/release/gitlink-coherence"
 [ -x "${binary}.exe" ] && binary="${binary}.exe"
 
 if [ ! -x "$binary" ]; then
-    # Not a silent skip: an unbuilt auditor is the difference between a gate and
-    # a decoration, and the last two defects landed while it sat unbuilt.
-    echo "pre-push: gitlink auditor not built — skipping the coherence gate." >&2
-    echo "pre-push: build it once with" >&2
+    # The auditor lives in a gitignored target tree, so a clean checkout or a
+    # cache eviction removes it without touching a tracked file. Build it here
+    # rather than reporting its absence: an absent checker must not be the
+    # difference between a gate and a decoration.
+    echo "pre-push: gitlink auditor not built — building it now." >&2
+    # Build from outside the stack root on purpose. Cargo discovers config from
+    # the working directory upward, so building under `atlas_root` applies the
+    # stack `[patch]` overlay, whose resolution the committed lockfile does not
+    # describe — `--locked` then fails, and without it the overlay rewrites the
+    # lockfile and dirties the tree on every push. Outside the overlay the lock
+    # resolves standalone, which is the state the lockfile actually records.
+    # CARGO_TARGET_DIR must therefore be explicit, since the overlay is also
+    # what would otherwise supply the shared target path.
+    ( cd "$HOME" 2>/dev/null || cd / ; \
+      CARGO_TARGET_DIR="${atlas_root}/target" cargo build --release --locked \
+          --manifest-path "${atlas_root}/tools/gitlink-coherence/Cargo.toml" ) >&2
+    binary="${atlas_root}/target/release/gitlink-coherence"
+    [ -x "${binary}.exe" ] && binary="${binary}.exe"
+fi
+
+if [ ! -x "$binary" ]; then
+    # Fail closed. This previously exited 0, which is a silent skip in every
+    # way that matters: the push proceeded ungated, and the two defects the
+    # comment above cites are exactly what an ungated push lands. A gate that
+    # cannot run blocks; it does not wave the change through.
+    echo "pre-push: BLOCKED — the gitlink auditor is unavailable and could not" >&2
+    echo "be built, so the coherence gate cannot run. Build it manually with" >&2
     echo "  cargo build --release --manifest-path tools/gitlink-coherence/Cargo.toml" >&2
-    exit 0
+    echo "or push with --no-verify only if you have verified the pins by hand." >&2
+    exit 1
 fi
 
 report="$("$binary" --atlas-root "$atlas_root" 2>&1)"

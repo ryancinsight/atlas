@@ -22,7 +22,31 @@
   denied Clippy, fmt, doctests, and warning-denied Rustdoc pass. Consumer pin
   advancement and exact-head hosted recollection remain open.
 
-## ATLAS-GITLINK-COHERENCE-GATE-2026-08-29 — Wire the gitlink auditor that already existed [patch] — done 2026-08-29
+## ATLAS-GITLINK-COHERENCE-GATE-2026-08-29 — Wire the gitlink auditor that already existed [patch] — done 2026-08-29; gate corrected 2026-09-01
+
+- **Correction (2026-09-01) — the wired gate was not gating.** A push from this
+  session printed `pre-push: gitlink auditor not built — skipping the coherence
+  gate` and proceeded. The hook's own comment reads *"Not a silent skip: an
+  unbuilt auditor is the difference between a gate and a decoration, and the
+  last two defects landed while it sat unbuilt"* — and then `exit 0`, which is
+  a silent skip in every way that matters. The auditor lives in a gitignored
+  target tree, so a clean checkout or a cache eviction disarms the gate without
+  touching a tracked file, and nothing fails.
+- **Second cause.** The binary was in fact built, but into
+  `tools/gitlink-coherence/target/` — a forked cache produced by building the
+  tool standalone — while the hook looks in the shared `atlas_root/target/`.
+  Presence in the wrong tree reads identically to absence.
+- **Fix.** The hook now builds the auditor when it is missing and **fails
+  closed** if it still cannot run. The build runs from outside the stack root
+  deliberately: Cargo discovers config from the working directory upward, so
+  building under `atlas_root` applies the `[patch]` overlay, whose resolution
+  the committed lockfile does not describe — `--locked` then fails, and without
+  it the overlay rewrites the lockfile and dirties the tree on every push.
+- **Proven live, both directions.** With the binary hidden and the build forced
+  to fail, the hook printed `BLOCKED` and exited 1. With the build allowed, it
+  rebuilt the auditor, ran the gate, and exited 0. The auditor's own suite is
+  21/21.
+- **Integrator:** Claude session 03d80d33. **Last-update:** 2026-09-01.
 
 - **The defect, three times in two days.** A recorded gitlink must name a commit
   reachable from the member's published default branch, because it *is* the
