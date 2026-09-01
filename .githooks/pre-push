@@ -85,11 +85,21 @@ case "$status" in
         exit 1
         ;;
     *)
-        # Invocation failure (missing .gitmodules, git plumbing). Report it and
-        # let the push through: this gate exists to catch a specific defect, not
-        # to become a new way for pushes to fail.
-        echo "pre-push: gitlink auditor could not run (exit ${status}); not blocking." >&2
+        # Fail closed. This arm used to let the push through, reasoning that
+        # the gate should not become a new way for pushes to fail. It became
+        # the way a defect got through instead: a gitlink naming a commit that
+        # does not exist in the member at all made `merge-base` exit 128, the
+        # auditor reported that as an invocation error, and this arm waved the
+        # push on -- landing the one pin class the gate exists to stop. The
+        # auditor now classifies that case itself, but an audit that could not
+        # run has judged nothing, and nothing judged is not a pass.
+        echo "pre-push: BLOCKED -- the gitlink auditor could not complete (exit ${status})," >&2
+        echo "so the recorded pins are unverified." >&2
         echo "$report" >&2
-        exit 0
+        echo >&2
+        echo "pre-push: fix the reported plumbing state and push again, or push with" >&2
+        echo "--no-verify only after verifying every changed pin by hand:" >&2
+        echo "  git -C repos/<name> cat-file -e \$(git rev-parse HEAD:repos/<name>)^{commit}" >&2
+        exit 1
         ;;
 esac

@@ -220,6 +220,7 @@ fn class_label(c: &DefectClass) -> &'static str {
         DefectClass::CategoryB => "cat-b",
         DefectClass::CategoryC => "cat-c",
         DefectClass::Unreachable => "unreachable",
+        DefectClass::NotAnObject => "not-an-object",
         DefectClass::ExecutableUnavailable => "git-missing",
     }
 }
@@ -331,6 +332,7 @@ mod tests {
             "no-origin-main"
         );
         assert_eq!(class_label(&DefectClass::Unreachable), "unreachable");
+        assert_eq!(class_label(&DefectClass::NotAnObject), "not-an-object");
         assert_eq!(
             class_label(&DefectClass::ExecutableUnavailable),
             "git-missing"

@@ -58,6 +58,21 @@
   building under `atlas_root` applies the `[patch]` overlay, whose resolution
   the committed lockfile does not describe — `--locked` then fails, and without
   it the overlay rewrites the lockfile and dirties the tree on every push.
+- **Second correction (2026-09-01, later) — the gate had a fail-open arm.** A
+  commit pinned `repos/hephaestus` at `5741822`, a **leto** commit (the shell's
+  working directory had persisted in the leto tree from an earlier tool call,
+  so `git rev-parse HEAD` answered for the wrong repository). The pin reached
+  `origin/main`. Cause: a SHA absent from the member's object store makes
+  `merge-base --is-ancestor` exit 128; the auditor propagated that as an
+  invocation error (exit 2); and the hook's `*)` arm read exit 2 as "could not
+  run, do not block" and exited 0. The one pin class that exists nowhere in the
+  member was the one the gate waved through.
+- **Fix.** The auditor probes `cat-file -e <pin>^{commit}` before any
+  ancestry query and classifies a missing object as `not-an-object`, a defect
+  (exit 1), with a fixture test pinning a gitlink to a SHA the member lacks.
+  The hook fails closed on every non-0/1 exit: an audit that could not run has
+  judged nothing, and nothing judged is not a pass. Fixed forward on the
+  board's pin by `a8fc5d431`.
 - **Proven live, both directions.** With the binary hidden and the build forced
   to fail, the hook printed `BLOCKED` and exited 1. With the build allowed, it
   rebuilt the auditor, ran the gate, and exited 0. The auditor's own suite is

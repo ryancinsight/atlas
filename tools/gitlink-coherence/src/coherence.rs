@@ -83,6 +83,15 @@ pub enum DefectClass {
     /// against a non-fast-forward chain and the object was never published
     /// anywhere. The peer must republish the underlying commit.
     Unreachable,
+    /// The pin is not a commit object in the member's object database at
+    /// all — not on any branch, not unreachable-but-present, simply absent.
+    /// The canonical cause is a SHA taken from the wrong repository (a shell
+    /// whose working directory persisted in a sibling member between
+    /// commands). Before this class existed, the ancestry query failed with
+    /// exit 128 and the audit aborted as an invocation error, which the
+    /// pre-push hook then declined to block on — the one pin class that
+    /// exists nowhere in the member was the one that got through.
+    NotAnObject,
     /// The configured git binary could not be invoked. The auditor reports
     /// `Group::executable_unavailable` once and exits with code 2 via
     /// [`Error`]; this variant is here so callers that batch-probe can flag
@@ -229,11 +238,26 @@ pub fn audit_one(
     // Resolve the member's upstream default ref: prefer the remote's own
     // HEAD (members may publish `master`, `main`, or something else); fall
     // back to `origin/main` when `origin/HEAD` is absent.
-    let origin_main =
-        resolve_ref(&member_git_dir, "refs/remotes/origin/HEAD")
-            .or_else(|| resolve_ref(&member_git_dir, "origin/main"));
+    let origin_main = resolve_ref(&member_git_dir, "refs/remotes/origin/HEAD")
+        .or_else(|| resolve_ref(&member_git_dir, "origin/main"));
     let class: DefectClass;
     let note: String;
+
+    // Establish that the pin is a commit the member actually has before
+    // asking anything about ancestry. `merge-base` and `branch --contains`
+    // both exit 128 on an unknown object; letting that propagate turned the
+    // worst pin class into an invocation error instead of a defect.
+    if !is_commit_object(&member_git_dir, &pin)? {
+        return Ok(RepoProbe {
+            submodule: submodule.clone(),
+            pin,
+            origin_main,
+            class: DefectClass::NotAnObject,
+            note: "pin is not a commit object in the member repository \
+                   (SHA from another repository, or never fetched)"
+                .to_string(),
+        });
+    }
 
     if let Some(origin_main_sha) = &origin_main {
         if is_ancestor(&member_git_dir, &pin, origin_main_sha)? {
@@ -247,54 +271,10 @@ pub fn audit_one(
                 note = "origin/main ahead of pin by some commits".to_string();
             }
         } else {
-            // Not on origin/main. Locate the pin across local and remote
-            // branches to classify A/B/C.
-            let local_branches = branches_containing(&member_git_dir, &pin, false)?;
-            let remote_branches = branches_containing(&member_git_dir, &pin, true)?;
-            let on_local_main = local_branches
-                .iter()
-                .any(|b| b == "main" || b.starts_with("main/"));
-            match (local_branches.is_empty(), remote_branches.is_empty()) {
-                (false, true) => {
-                    class = if local_branches.iter().any(|b| b == "main") {
-                        DefectClass::CategoryA
-                    } else {
-                        DefectClass::CategoryC
-                    };
-                    note = format!(
-                        "pin on local branch(es) [`{}`], no remote branch",
-                        local_branches.join(", ")
-                    );
-                    // If on_local_main but we got here, the local main is
-                    // ahead of origin; downgrade accordingly. (Compiler
-                    // note: if on_local_main is true we already set
-                    // class = CategoryA above.)
-                    let _ = on_local_main;
-                }
-                (true, false) => {
-                    class = DefectClass::CategoryB;
-                    note = format!(
-                        "pin on remote branch(es) [`{}`], not on origin/main",
-                        remote_branches.join(", ")
-                    );
-                }
-                (false, false) => {
-                    class = if local_branches.iter().any(|b| b == "main") {
-                        DefectClass::CategoryA
-                    } else {
-                        DefectClass::CategoryB
-                    };
-                    note = format!(
-                        "pin on local [`{}`] AND remote [`{}`]",
-                        local_branches.join(", "),
-                        remote_branches.join(", ")
-                    );
-                }
-                (true, true) => {
-                    class = DefectClass::Unreachable;
-                    note = "pin not found on any local or remote branch".to_string();
-                }
-            }
+            // Not on origin/main: classify by where the pin does live.
+            let (off_main_class, off_main_note) = classify_off_main(&member_git_dir, &pin)?;
+            class = off_main_class;
+            note = off_main_note;
         }
     } else {
         // No origin/main on the remote at all.
@@ -377,6 +357,87 @@ fn resolve_ref(member_git_dir: &Path, refname: &str) -> Option<String> {
         Some(sha)
     } else {
         None
+    }
+}
+
+/// Classifies a pin that the member has but that is not ancestral to its
+/// published default branch, by locating it across local and remote refs.
+fn classify_off_main(member_git_dir: &Path, pin: &str) -> Result<(DefectClass, String), Error> {
+    let local_branches = branches_containing(member_git_dir, pin, false)?;
+    let remote_branches = branches_containing(member_git_dir, pin, true)?;
+    let on_local_main = local_branches.iter().any(|b| b == "main");
+    Ok(
+        match (local_branches.is_empty(), remote_branches.is_empty()) {
+            (false, true) => (
+                if on_local_main {
+                    DefectClass::CategoryA
+                } else {
+                    DefectClass::CategoryC
+                },
+                format!(
+                    "pin on local branch(es) [`{}`], no remote branch",
+                    local_branches.join(", ")
+                ),
+            ),
+            (true, false) => (
+                DefectClass::CategoryB,
+                format!(
+                    "pin on remote branch(es) [`{}`], not on origin/main",
+                    remote_branches.join(", ")
+                ),
+            ),
+            (false, false) => (
+                if on_local_main {
+                    DefectClass::CategoryA
+                } else {
+                    DefectClass::CategoryB
+                },
+                format!(
+                    "pin on local [`{}`] AND remote [`{}`]",
+                    local_branches.join(", "),
+                    remote_branches.join(", ")
+                ),
+            ),
+            (true, true) => (
+                DefectClass::Unreachable,
+                "pin not found on any local or remote branch".to_string(),
+            ),
+        },
+    )
+}
+
+/// Whether `pin` names a commit object present in the member's object
+/// database. `cat-file -e` exits 0 when the object exists, 1 when it does
+/// not, and 128 when the name cannot be parsed at all; the last two are both
+/// "not a commit the member has", which is the question being asked.
+fn is_commit_object(member_git_dir: &Path, pin: &str) -> Result<bool, Error> {
+    let git_dir = git_dir_arg(member_git_dir);
+    let spec = format!("{pin}^{{commit}}");
+    let output = Command::new("git")
+        .arg("--git-dir")
+        .arg(&git_dir)
+        .arg("cat-file")
+        .arg("-e")
+        .arg(&spec)
+        .output()
+        .map_err(|source| Error::GitInvocation {
+            context: "cat-file",
+            stderr: String::new(),
+            source,
+        })?;
+    match output.status.code() {
+        Some(0) => Ok(true),
+        Some(1 | 128) => Ok(false),
+        Some(code) => Err(Error::GitExit {
+            context: "cat-file",
+            code,
+            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+        }),
+        None => Err(Error::GitInvocation {
+            context: "cat-file",
+            stderr: String::new(),
+            source: std::io::Error::other("git terminated by signal"),
+        }),
     }
 }
 
@@ -593,5 +654,97 @@ mod tests {
         }
         // Cleanup.
         let _ = fs::remove_dir_all(&tmp.0);
+    }
+
+    /// Runs `git` with `args` inside `dir`, asserting success.
+    fn git_in(dir: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .env("GIT_AUTHOR_NAME", "t")
+            .env("GIT_AUTHOR_EMAIL", "t@t")
+            .env("GIT_COMMITTER_NAME", "t")
+            .env("GIT_COMMITTER_EMAIL", "t@t")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "git {args:?} in {}: {}",
+            dir.display(),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).trim().to_string()
+    }
+
+    /// A real member repo with one published commit, and an atlas-meta repo
+    /// whose `.gitmodules` registers it and whose HEAD pins it at `pin`.
+    fn atlas_pinning_member_at(tag: &str, pin: impl Fn(&str) -> String) -> (PathBuf, Submodule) {
+        let root = std::env::temp_dir().join(format!(
+            "gitlink-coherence-object-test-{}-{tag}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let member = root.join("repos/test-member");
+        fs::create_dir_all(&member).unwrap();
+        git_in(&member, &["init", "-q", "-b", "main"]);
+        fs::write(member.join("f"), "x").unwrap();
+        git_in(&member, &["add", "f"]);
+        git_in(&member, &["commit", "-q", "-m", "published"]);
+        let published = git_in(&member, &["rev-parse", "HEAD"]);
+        git_in(
+            &member,
+            &["update-ref", "refs/remotes/origin/main", &published],
+        );
+
+        git_in(&root, &["init", "-q", "-b", "main"]);
+        fs::write(
+            root.join(".gitmodules"),
+            "[submodule \"repos/test-member\"]\n    path = repos/test-member\n    url = https://example/test-member\n",
+        )
+        .unwrap();
+        git_in(&root, &["add", ".gitmodules"]);
+        let cacheinfo = format!("160000,{},repos/test-member", pin(&published));
+        git_in(&root, &["update-index", "--add", "--cacheinfo", &cacheinfo]);
+        git_in(&root, &["commit", "-q", "-m", "pin"]);
+
+        let sub = Submodule {
+            name: "repos/test-member".into(),
+            path: "repos/test-member".into(),
+            url: "https://example/test-member".into(),
+        };
+        (root, sub)
+    }
+
+    #[test]
+    fn a_pin_the_member_does_not_have_is_a_defect_not_an_invocation_error() {
+        // The SHA of a commit that exists in no repository at all — the shape
+        // produced by reading `rev-parse HEAD` in the wrong working directory.
+        let (root, sub) = atlas_pinning_member_at("foreign", |_| {
+            "5741822000000000000000000000000000000000".to_string()
+        });
+
+        let probe = audit_one(&root, &sub, false).expect("a foreign pin must classify, not abort");
+        assert_eq!(probe.class, DefectClass::NotAnObject, "{}", probe.note);
+        let coherence = Coherence {
+            probes: vec![probe],
+        };
+        assert_eq!(
+            coherence.defects().len(),
+            1,
+            "a foreign pin counts as a defect"
+        );
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn a_published_pin_is_still_clean() {
+        // Control for the test above: the same fixture with the real commit
+        // must not be caught by the new object check.
+        let (root, sub) = atlas_pinning_member_at("published", str::to_string);
+
+        let probe = audit_one(&root, &sub, false).unwrap();
+        assert_eq!(probe.class, DefectClass::Clean, "{}", probe.note);
+        let _ = fs::remove_dir_all(root);
     }
 }

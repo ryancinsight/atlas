@@ -41,7 +41,7 @@ each member's remote before probing (no working-tree mutation).
 Exit codes:
   0  all probed gitlinks are coherent (possibly with stale-advanceable rows)
   1  one or more coherence defects detected (categories A/B/C,
-     no-origin-main, unreachable)
+     no-origin-main, unreachable, not-an-object)
   2  invocation error (cli, missing .gitmodules, git plumbing failure)
 ";
 
