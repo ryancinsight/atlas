@@ -16,7 +16,7 @@
 #     fails when the manifest version does not cover the detected class.
 #
 # Inputs:
-#   package        - crate name(s), space-separated (required)
+#   package        - crate name(s), comma-separated (required)
 #   manifest-path  - path to Cargo.toml (default "Cargo.toml")
 #   rust-toolchain - toolchain for semver-checks (default "stable")
 
