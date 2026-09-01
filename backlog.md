@@ -304,6 +304,19 @@
 
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — shared workflow delivered; member adoption pending
 
+- **Consumer breakage found 2026-09-01 (evening).** The first published
+  revision of `semver-gate.yml` (`0253866f8`) carries two top-level `name:`
+  keys; GitHub cannot parse it, every push to atlas spawned a failed run with
+  no jobs ("workflow file issue") until `71fa69658` removed the duplicate, and
+  every caller pinned to that revision fails at load the same way. mnemosyne
+  adopted it at exactly that pin and its main went red (`b75fe12`); aequitas
+  PR #42 pinned a 41-character ref naming no atlas object at all. Both fixed
+  forward to the current atlas head: mnemosyne PR #89, aequitas PR #42
+  (commit pushed onto the peer's branch under takeover). Lesson for the
+  adoption plan: a consumer pin is verified by the consumer's own CI run on
+  the adopting PR, never by the atlas-side run, and a reusable workflow's
+  own repo shows a parse failure as a phantom `push` run of a
+  `workflow_call`-only file.
 | ID | Outcome | Class | Status | Owner | Scope |
 |----|---------|-------|--------|-------|-------|
 | ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 | Every member that publishes a crate detects public-surface breaks before the break ships. | [patch] | in-progress (shared workflow delivered 2026-09-01; member pin advancement pending) | unowned | each registered member's CI + the shared release pipeline |
