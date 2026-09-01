@@ -132,6 +132,43 @@ impl PartialOrd for SemVerKey {
     }
 }
 
+/// Return the byte offset of a TOML `version` key in `rest`, or `None`.
+///
+/// The key must stand alone as a TOML key, not appear as a suffix of a
+/// longer key. A bare `version` key may be preceded by the start of the
+/// line, whitespace, or an inline-table delimiter (`{` or `,`); the same
+/// delimiter test excludes `rust-version` and `package_version` while
+/// accepting `dep = { version = "..." }`. Because `rest` has already been
+/// trimmed, a leading key sits at offset 0.
+fn find_version_key(rest: &str) -> Option<usize> {
+    let mut search_from = 0;
+    while let Some(idx) = rest[search_from..].find("version") {
+        let start = search_from + idx;
+        let end = start + "version".len();
+        // The key must not be the tail of a longer identifier: the char
+        // before `version` must not be an identifier byte (ASCII letter,
+        // digit, `_`, or `-`). The line start, whitespace, and the inline-
+        // table delimiters `{` / `,` all pass; `rust-version` and
+        // `package_version` fail.
+        let preceded = rest[..start].chars().next_back();
+        let prefix_ok = match preceded {
+            None => true,
+            Some(c) => !c.is_ascii_alphanumeric() && c != '_' && c != '-',
+        };
+        // The char(s) after the key must open the `= "..."` value. A key
+        // that is a prefix of a longer one (e.g. `version_x`) is rejected
+        // by requiring the following char to be `=` (after optional spaces).
+        let tail = &rest[end..];
+        let after_ws = tail.trim_start();
+        let followed_by_eq = after_ws.starts_with('=');
+        if prefix_ok && followed_by_eq {
+            return Some(start);
+        }
+        search_from = end;
+    }
+    None
+}
+
 /// Parse a single unified-diff line into a [`VersionLine`] if it carries a
 /// `version = "X.Y.Z"` entry. Returns `None` for any line that does not
 /// match that pattern.
@@ -169,14 +206,24 @@ pub fn parse_diff_line(line: &str, path: &str, line_no: u32) -> Option<VersionLi
     //     — the motivating `87ab265` hermes incident reverted internal
     //     requirements inside precisely this form.
     //
-    // We anchor on the substring `version` so both shapes match with one
-    // scan. After the `version` key, expect `=`, optional whitespace, then
-    // a quoted TOML basic string ("..."). We extract the content between
-    // the first `\"` and the next `\"` rather than relying on
-    // `strip_suffix` — the inline-table form ends in `}`, and the bare
-    // `[package].version = "..."` form ends in `\"`, so suffix-matching
-    // against the line end fails on the former.
-    let version_key = rest.find("version")?;
+    // We anchor on the `version` key so both shapes match with one scan:
+    //   * bare `version = "..."` (workspace / package surface), and
+    //   * `dep = { ..., version = "..." }` (inline-table dep entry).
+    //
+    // The key must be the whole TOML key, not a suffix of a longer one.
+    // `rust-version = "..."` (a different TOML field) and a dep key like
+    // `package_version` both contain `version` as a substring, but neither
+    // is a package-version declaration; treating either as one extracts a
+    // non-semver value from `rust-version` (e.g. `"1.95"`) that classifies
+    // as Backward and raises a false defect. A lone `version` key is
+    // preceded by nothing, whitespace, or `{` / `,` (inside an inline
+    // table), and followed by `=`. After the key, expect optional
+    // whitespace, `=`, optional whitespace, then a quoted TOML basic
+    // string. We extract the content between the first `\"` and the next
+    // `\"` rather than relying on `strip_suffix` — the inline-table form
+    // ends in `}`, and the bare `[package].version = "..."` form ends in
+    // `\"`, so suffix-matching against the line end fails on the former.
+    let version_key = find_version_key(rest)?;
     let after_key = &rest[version_key + "version".len()..];
     let after_eq = after_key.trim_start().strip_prefix('=')?.trim_start();
     let after_open = after_eq.strip_prefix('"')?;
@@ -264,6 +311,46 @@ mod tests {
         // mistaken for one.
         assert!(
             parse_diff_line(r#"+leto-ops = { path = "../leto-ops" }"#, "Cargo.toml", 7,).is_none()
+        );
+    }
+
+    #[test]
+    fn ignores_rust_version_field() {
+        // `rust-version` is a distinct Cargo field, not a package version.
+        // Its value ("1.95") is not SemVer, so matching it would classify a
+        // rust-version bump as a Backward package-version defect.
+        assert!(parse_diff_line(r#"+rust-version = "1.95""#, "Cargo.toml", 1).is_none());
+    }
+
+    #[test]
+    fn ignores_package_version_suffixed_key() {
+        // A dep key that merely contains `version` as a suffix must not be
+        // captured as a version-bearing line.
+        assert!(parse_diff_line(r#"+package_version = "0.1.0""#, "Cargo.toml", 1).is_none());
+    }
+
+    #[test]
+    fn parses_version_key_after_inline_table_delimiter() {
+        // The inline-table form after a comma delimiter — `dep = { path = "...",
+        // version = "0.4.0" }` — must match, since `version` follows `, `.
+        let v = parse_diff_line(
+            r#"+hermes-simd = { path = "../x", version = "0.4.0" }"#,
+            "Cargo.toml",
+            9,
+        )
+        .unwrap();
+        assert_eq!(v.version, "0.4.0");
+        assert_eq!(v.side, DiffSide::Added);
+    }
+
+    #[test]
+    fn ignores_rust_version_suffix_in_inline_key() {
+        // A key named `metadata_rust-version` inside an inline table should
+        // not be captured; the delimiter is `{` before the key but the key
+        // itself still contains `version` only as a suffix.
+        assert!(
+            parse_diff_line(r#"+foo = { metadata_rust-version = "1.95" }"#, "Cargo.toml", 3)
+                .is_none()
         );
     }
 
