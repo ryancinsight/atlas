@@ -349,8 +349,12 @@ mod tests {
         // not be captured; the delimiter is `{` before the key but the key
         // itself still contains `version` only as a suffix.
         assert!(
-            parse_diff_line(r#"+foo = { metadata_rust-version = "1.95" }"#, "Cargo.toml", 3)
-                .is_none()
+            parse_diff_line(
+                r#"+foo = { metadata_rust-version = "1.95" }"#,
+                "Cargo.toml",
+                3
+            )
+            .is_none()
         );
     }
 

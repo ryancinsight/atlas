@@ -397,4 +397,28 @@ diff --git a/crates/hermes-simd-types/Cargo.toml b/crates/hermes-simd-types/Carg
         assert_eq!(findings[0].intent, IntentDeclaration::Declared);
         assert!(!has_defect(&findings, IntentDeclaration::Declared));
     }
+
+    #[test]
+    fn rust_version_bump_does_not_misalign_or_create_false_defect() {
+        // A diff that both bumps `rust-version` (a distinct Cargo field, not
+        // SemVer) and declares a real package-version bump. Before the
+        // `find_version_key` anchor, the `rust-version` line was captured as
+        // a version line, which both (a) classified as Backward (its "1.95"
+        // value is not SemVer) and (b) shifted the ordered-position pairing
+        // so the real version bump was mis-paired. The guard must produce
+        // exactly one finding — the real forward bump — and no defect.
+        let diff = "\
+diff --git a/Cargo.toml b/Cargo.toml
+@@ -10,2 +10,2 @@
+-version = \"0.5.0\"
+-rust-version = \"1.94\"
++version = \"0.6.0\"
++rust-version = \"1.95\"
+";
+        let findings = scan_diff(diff, "chore(release): Bump workspace");
+        assert_eq!(findings.len(), 1, "{findings:?}");
+        assert_eq!(findings[0].direction, Direction::Forward);
+        assert_eq!(findings[0].line_no, 10);
+        assert!(!has_defect(&findings, IntentDeclaration::Declared));
+    }
 }
