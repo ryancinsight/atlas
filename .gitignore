@@ -87,3 +87,4 @@ __pycache__/
 .codex/
 .playwright-mcp/
 .tmp-agent/
+.tmp/
