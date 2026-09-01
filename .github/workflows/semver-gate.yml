@@ -26,7 +26,7 @@ on:
   workflow_call:
     inputs:
       package:
-        description: Crate name(s) to check, space-separated
+        description: Crate name(s) to check, comma-separated (the action's package input is a comma-separated list of package id specs)
         required: true
         type: string
       manifest-path:
