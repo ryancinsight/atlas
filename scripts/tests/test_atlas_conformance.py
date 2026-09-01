@@ -459,6 +459,65 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["workflow_missing_timeout"], 1)
 
+    def test_dup_key_workflow_is_malformed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".github/workflows/release.yml",
+                "name: first\n"
+                "on:\n"
+                "  workflow_call:\n"
+                "name: second\n"
+                "jobs:\n"
+                "  run:\n"
+                "    runs-on: ubuntu-latest\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["workflow_malformed_yaml"], 1)
+
+    def test_valid_workflow_is_not_malformed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".github/workflows/release.yml",
+                "name: release\n"
+                "permissions:\n"
+                "  contents: read\n"
+                "on:\n"
+                "  push:\n"
+                "    tags: ['*']\n"
+                "jobs:\n"
+                "  run:\n"
+                "    runs-on: ubuntu-latest\n"
+                "    timeout-minutes: 10\n"
+                "    steps:\n"
+                "      - run: true\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["workflow_malformed_yaml"], 0)
+
+    def test_missing_pyyaml_does_not_count_as_malformed(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                ".github/workflows/release.yml",
+                "name: release\nname: duplicate\njobs: {}\n",
+            )
+            with patch.object(conformance, "_yaml", None):
+                counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["workflow_malformed_yaml"], 0)
+
     def test_git_blame_ignore_revisions_is_root_configuration(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)

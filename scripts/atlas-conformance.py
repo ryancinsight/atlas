@@ -16,6 +16,13 @@ instrument against itself, so consistency outranks per-class perfection;
 changing a detector regenerates the baseline in the same change (generator
 contract, AGENTS.md architecture_scoping).
 
+Workflow files are additionally checked for structural validity, not just
+string hygiene: a workflow that does not parse as YAML — or that repeats a
+mapping key like `name:` — is rejected by GitHub Actions, so it is counted
+as `workflow_malformed_yaml` rather than silently passing the substring
+scans. This is the class that lets a duplicate `name:` key reach a shared
+release pipeline, which is the downstream cost this class exists to avoid.
+
 Modes:
     report      per-repo x per-class table (default)
     generate    write scripts/conformance-baseline.json from the clean HEAD
@@ -44,6 +51,11 @@ import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+
+try:
+    import yaml as _yaml
+except ImportError:  # pragma: no cover - optional for environments without PyYAML
+    _yaml = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from atlas_stack import ROOT, is_git_ignored, staleness_note
@@ -118,7 +130,8 @@ CLASSES = [
     "nextest_budget_missing", "workspace_lints_missing",
     "member_namespace_pollution", "tag_pinned_actions",
     "workflow_missing_timeout", "workflow_missing_permissions",
-    "pull_request_target_use", "missing_cargo_lock", "orphan_modules",
+    "workflow_malformed_yaml", "pull_request_target_use",
+    "missing_cargo_lock", "orphan_modules",
     "seqcst_production", "crate_level_allows", "excess_worktrees",
 ]
 
@@ -171,6 +184,57 @@ INCLUDE_PATH = re.compile(
 SHA_PIN = re.compile(r"^\s*(?:-\s+)?uses:\s*[^\s@#]+@([A-Za-z0-9._/-]+)", re.MULTILINE)
 
 
+def _yaml_loader():
+    """Build a PyYAML SafeLoader that rejects duplicate mapping keys.
+
+    GitHub Actions rejects a workflow with two `name:` keys even though stock
+    ``yaml.safe_load`` accepts it (last one wins). Adding a duplicate-key
+    constructor makes the detector fail the same way the runner does, so a
+    malformed workflow cannot reach a shared release pipeline. Returns ``None``
+    when PyYAML is not installed, in which case the scan cannot parse the file
+    and treats it as unverifiable.
+    """
+    if _yaml is None:
+        return None
+
+    class UniqueKeyLoader(_yaml.SafeLoader):
+        pass
+
+    def _no_duplicate_keys(loader, node):
+        mapping = {}
+        for key_node, _value_node in node.value:
+            key = loader.construct_object(key_node, deep=True)
+            if key in mapping:
+                raise ValueError(
+                    f"duplicate key {key!r} (line {mapping[key]} and "
+                    f"line {key_node.start_mark.line + 1})"
+                )
+            mapping[key] = key_node.start_mark.line + 1
+        return _yaml.SafeLoader.construct_mapping(loader, node)
+
+    UniqueKeyLoader.add_constructor(
+        _yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _no_duplicate_keys
+    )
+    return UniqueKeyLoader
+
+
+def workflow_yaml_is_valid(text: str) -> bool:
+    """True when a workflow parses as YAML with no duplicate mapping keys.
+
+    Returns True for a file PyYAML is absent to parse (the callers treat an
+    unverifiable file as clean; only a *provably* malformed file is a defect),
+    which keeps the ratchet from counting a missing dependency as debt.
+    """
+    loader = _yaml_loader()
+    if loader is None:
+        return True
+    try:
+        _yaml.load(text, Loader=loader)
+    except Exception:
+        return False
+    return True
+
+
 def is_reusable_workflow_caller(text: str) -> bool:
     """Return whether a workflow delegates all jobs to reusable workflows.
 
@@ -204,6 +268,8 @@ def scan_workflows(repo: Path, c: dict[str, int]) -> None:
             c["workflow_missing_timeout"] += 1
         if "permissions:" not in text:
             c["workflow_missing_permissions"] += 1
+        if not workflow_yaml_is_valid(text):
+            c["workflow_malformed_yaml"] += 1
         if "pull_request_target" in text or "workflow_run" in text:
             c["pull_request_target_use"] += 1
 
