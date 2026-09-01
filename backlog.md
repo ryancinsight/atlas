@@ -12430,4 +12430,5 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   5-minute timestamped series to latest-plus-ring; keep-worthy
   results graduated to recorded experiment artifacts before eviction.
 - Measured 2026-08-26: output/ = 52 GB.
-- Status: todo
+- Status: in-progress (integrator: codex-output-retention; lease: scripts,
+  policy config, CI workflow, and focused tests)
