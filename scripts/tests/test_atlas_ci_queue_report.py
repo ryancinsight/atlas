@@ -153,3 +153,40 @@ def test_worst_queued_reports_top_5_queue_minutes() -> None:
     assert len(report["worst_queued"]) == 3
     for item in report["worst_queued"]:
         assert item["queue_minutes"] == round(600 / 60, 1)
+
+
+def test_prune_report_ring_keeps_latest_plus_configured_ring(tmp_path: Path) -> None:
+    stamps = [
+        "20260825T205657Z",
+        "20260825T210157Z",
+        "20260825T223623Z",
+        "20260827T165507Z",
+        "20260828T165507Z",
+    ]
+    for stamp in stamps:
+        (tmp_path / f"report-{stamp}.json").write_text("{}", encoding="utf-8")
+    (tmp_path / "stdout-latest.txt").write_text("summary", encoding="utf-8")
+
+    stale = _qr.prune_report_ring(tmp_path, ring_size=3)
+
+    assert [path.name for path in stale] == ["report-20260825T205657Z.json"]
+    assert sorted(path.name for path in tmp_path.glob("report-*.json")) == [
+        "report-20260825T210157Z.json",
+        "report-20260825T223623Z.json",
+        "report-20260827T165507Z.json",
+        "report-20260828T165507Z.json",
+    ]
+    assert (tmp_path / "stdout-latest.txt").read_text(encoding="utf-8") == "summary"
+
+
+def test_prune_remote_artifacts_keeps_latest_plus_configured_ring() -> None:
+    artifacts = [
+        {"id": index, "name": "ci-queue-report", "created_at": f"2026-08-{index:02d}T00:00:00Z"}
+        for index in range(1, 6)
+    ]
+    with mock.patch.object(_qr, "_list_report_artifacts", return_value=artifacts):
+        with mock.patch.object(_qr, "_delete") as delete:
+            stale = _qr.prune_remote_artifacts("ryancinsight/atlas", "token", ring_size=3)
+
+    assert [artifact["id"] for artifact in stale] == [1]
+    assert [call.args[0].rsplit("/", 1)[-1] for call in delete.call_args_list] == ["1"]

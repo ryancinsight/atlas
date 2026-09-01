@@ -31,9 +31,10 @@ import datetime as dt
 import json
 import os
 import pathlib
-import subprocess
+import re
 import sys
 import time
+import tomllib
 import urllib.error
 import urllib.request
 
@@ -67,6 +68,8 @@ FLEET = [
 ]
 
 OUTPUT_DIR = pathlib.Path(__file__).resolve().parent.parent / "output" / "ci-queue-report"
+POLICY_PATH = pathlib.Path(__file__).resolve().parent / "data" / "atlas-output-retention.toml"
+REPORT_NAME = re.compile(r"^report-(?P<stamp>\d{8}T\d{6}Z)\.json$")
 
 
 def _token() -> str | None:
@@ -105,6 +108,82 @@ def _get(url: str, token: str | None) -> tuple[dict, str]:
 
 def _parse(ts: str) -> dt.datetime:
     return dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
+def _report_ring_size() -> int:
+    """Read the shared report-ring size from the committed output policy."""
+    document = tomllib.loads(POLICY_PATH.read_text(encoding="utf-8"))
+    size = document["ci_queue_report"]["ring_size"]
+    if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+        raise ValueError("ci_queue_report.ring_size must be a non-negative integer")
+    return size
+
+
+def prune_report_ring(directory: pathlib.Path, ring_size: int) -> list[pathlib.Path]:
+    """Keep the newest report and ``ring_size`` preceding timestamped reports."""
+    if ring_size < 0:
+        raise ValueError("ring_size must be non-negative")
+    reports: list[tuple[dt.datetime, pathlib.Path]] = []
+    if not directory.exists():
+        return []
+    for path in directory.iterdir():
+        if path.is_symlink() or not path.is_file():
+            continue
+        match = REPORT_NAME.fullmatch(path.name)
+        if match:
+            stamp = dt.datetime.strptime(match["stamp"], "%Y%m%dT%H%M%SZ").replace(
+                tzinfo=dt.timezone.utc
+            )
+            reports.append((stamp, path))
+    reports.sort(key=lambda item: (item[0], item[1].name), reverse=True)
+    stale = [path for _, path in reports[ring_size + 1 :]]
+    for path in stale:
+        path.unlink()
+    return stale
+
+
+def _delete(url: str, token: str) -> None:
+    request = urllib.request.Request(url, method="DELETE")
+    request.add_header("Accept", "application/vnd.github+json")
+    request.add_header("Authorization", f"Bearer {token}")
+    with urllib.request.urlopen(request, timeout=60):
+        return
+
+
+def _list_report_artifacts(repo: str, token: str) -> list[dict]:
+    artifacts: list[dict] = []
+    for page in range(1, 11):
+        payload, _ = _get(
+            f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100&page={page}",
+            token,
+        )
+        batch = payload.get("artifacts", [])
+        artifacts.extend(
+            artifact
+            for artifact in batch
+            if artifact.get("name") == "ci-queue-report"
+            or artifact.get("name", "").startswith("ci-queue-report-")
+        )
+        total = payload.get("total_count", 0)
+        if len(batch) < 100 or page * 100 >= total:
+            return artifacts
+    raise RuntimeError("GitHub returned more than 1,000 artifacts; refusing unbounded cleanup")
+
+
+def prune_remote_artifacts(repo: str, token: str, ring_size: int) -> list[dict]:
+    """Delete older CI report artifacts, retaining the latest-plus-ring set."""
+    artifacts = _list_report_artifacts(repo, token)
+    artifacts.sort(
+        key=lambda artifact: (_parse(artifact["created_at"]), int(artifact["id"])),
+        reverse=True,
+    )
+    stale = artifacts[ring_size + 1 :]
+    for artifact in stale:
+        _delete(
+            f"https://api.github.com/repos/{repo}/actions/artifacts/{artifact['id']}",
+            token,
+        )
+    return stale
 
 
 def collect_runs(repo: str, since: dt.datetime, per_page: int, token: str | None) -> list[dict]:
@@ -209,9 +288,26 @@ def main() -> int:
         action="store_true",
         help="use run wall time instead of summing job durations (faster, overcounts hung runs)",
     )
+    parser.add_argument(
+        "--prune-remote-artifacts",
+        action="store_true",
+        help="retain the latest CI report artifact plus the configured ring",
+    )
     args = parser.parse_args()
 
     token = _token()
+    if args.prune_remote_artifacts:
+        repository = os.environ.get("GITHUB_REPOSITORY")
+        if not token:
+            print("--prune-remote-artifacts requires GH_TOKEN or GITHUB_TOKEN", file=sys.stderr)
+            return 2
+        if not repository:
+            print("--prune-remote-artifacts requires GITHUB_REPOSITORY", file=sys.stderr)
+            return 2
+        deleted = prune_remote_artifacts(repository, token, _report_ring_size())
+        print(f"remote CI report artifacts deleted: {len(deleted)}")
+        return 0
+
     since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=args.days)
 
     reports = []
@@ -244,6 +340,9 @@ def main() -> int:
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_path = OUTPUT_DIR / f"report-{stamp}.json"
     out_path.write_text(json.dumps({"window_days": args.days, "generated": stamp, "repos": reports}, indent=2))
+    stale = prune_report_ring(OUTPUT_DIR, _report_ring_size())
+    if stale:
+        print(f"local CI report files evicted: {len(stale)}")
     print(f"full report: {out_path}")
     return 0
 

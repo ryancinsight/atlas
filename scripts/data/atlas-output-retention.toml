@@ -1,0 +1,16 @@
+# The output root is derived state. These limits are deliberately explicit so
+# a cleanup run cannot grow with the number of experiments or CI runs.
+
+[output]
+# Two weeks retains two weekly collection cycles plus late/manual reruns.
+max_age_days = 14
+# 10 GiB bounds transient build and figure output while leaving room for an
+# active run. The size budget is 10 * 1024^3 bytes.
+max_bytes = 10737418240
+# Paths are relative to output/. A result must be graduated to a recorded
+# experiment artifact before its path is added here.
+declared_experiment_artifacts = []
+
+[ci_queue_report]
+# Keep the newest report plus three preceding reports.
+ring_size = 3
