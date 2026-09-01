@@ -1,6 +1,6 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-CONFORMANCE-PARALLEL-SCAN-2026-08-31 — Bound fleet scan latency [patch] — in progress
+## ATLAS-CONFORMANCE-PARALLEL-SCAN-2026-08-31 — Bound fleet scan latency [patch] — done 2026-09-01
 
 - **Outcome:** scan independent provider trees concurrently while preserving
   exact per-provider detector results and bounded cache ownership.
@@ -12463,7 +12463,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   merge-on-green there.
 - Status: in-progress (mechanical phase done stack-wide; survivor takeovers unclaimed, closest-to-done-first)
 
-## ATLAS-OUTPUT-RETENTION-001 - Retention budget for the output root [pm-hygiene] [patch]
+## ATLAS-OUTPUT-RETENTION-001 - Retention budget for the output root [pm-hygiene] [patch] — closed 2026-09-01
 
 - Outcome: committed eviction policy (age/size) mechanized over
   /d/atlas/output; ci-queue-report converted from an unbounded

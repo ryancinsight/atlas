@@ -14,8 +14,9 @@
       earlier empty-gitlink comparison remains explicitly retracted.
 - [x] Pass the focused scanner suite 29/29, Python byte-compilation, and
       `git diff --check`.
-- [ ] Commit, publish, independently review, merge, and collect the clean
-      exact-revision ratchet gate.
+- [x] Commit, publish, independently review, merge, and collect the clean
+      exact-revision ratchet gate (commit `5e3389266`; root pointer
+      `7f8e2f5b4` collected 2026-09-01).
 
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 [ci]
 
