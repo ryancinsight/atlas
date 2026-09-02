@@ -21,9 +21,9 @@
 - **Acceptance oracle:** `grep -E "text=True" scripts/*.py` returns only
   comments; the guard test fails when one call is reverted.
 
-## ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01 — Mechanize the consumer lock advance after a provider merge [minor] — in-progress 2026-09-01
+## ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01 — Mechanize the consumer lock advance after a provider merge [minor] — review 2026-09-01
 
-- **Claim:** integrator claude (this session); branch in place on the umbrella (`chore/atlas-lock-sweep`); lease: `scripts/atlas-lock-sweep.py`, `scripts/tests/test_atlas_lock_sweep.py`, this entry.
+- **Delivered `a1e140f5` (direct to main, the umbrella's convention — the branch named in the claim was never needed):** `scripts/atlas-lock-sweep.py` + 14 unit tests (liveness: breaking `locked_rev` fails exactly one). Shared helpers fixed with it: `lockfile.run_outside_the_overlay(manifest=)`, `atlas_stack.git` UTF-8 decoding. Run on `hermes-simd @ a7055d3f`: apollo current; **helios#80 and leto#140 opened** with `cargo check --workspace --locked` green; CFDrs, coeus, kwavers skipped at their two-worktree bound (peer lanes) and reported. Remaining oracle steps: the two PRs land; a second run opens nothing (idempotence).
 
 - **Finding (2026-09-01, after hermes `6da6d139` landed the Linux processor
   binding):** hermes-simd has six consumers — CFDrs, apollo, coeus, helios,
