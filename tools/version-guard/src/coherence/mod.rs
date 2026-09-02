@@ -129,7 +129,7 @@ impl CoherenceReport {
 ///
 /// # Errors
 ///
-/// Returns [`Error::Manifest`](crate::Error::Manifest) when the member index,
+/// Returns [`Error::Manifest`] when the member index,
 /// a member directory, or a checked-in manifest cannot be read.
 pub fn scan_atlas(atlas_root: &Path) -> Result<CoherenceReport, Error> {
     let members = registered_members(atlas_root)?;

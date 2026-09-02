@@ -7,7 +7,7 @@
 //! `+`, `-`, optional space, and the content after the optional `+`/`-`
 //! marker; the surrounding TOML heading lives in the file pre-image and is
 //! not visible in a unified-diff line, so the kind (workspace / package / dep)
-//! is recorded as the broader [`LineKind::Version`] and refined in a later
+//! is recorded as the broader `LineKind::Version` and refined in a later
 //! sub-delivery when the heading-tracking surface lands.
 //!
 //! Semver parsing recognises `MAJOR.MINOR.PATCH` and optional pre-release /
