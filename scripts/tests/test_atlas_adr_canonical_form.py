@@ -40,6 +40,8 @@ class HeadingFormTests(unittest.TestCase):
             ),
             "#   ADR 0001:   Extra spacing   ": "# ADR 0001: Extra spacing",
             "# Provider default source and MSRV": "# ADR 0001: Provider default source and MSRV",
+            "# ADR: Marker without a number": "# ADR 0001: Marker without a number",
+            "# ADR — Marker, dash separator": "# ADR 0001: Marker, dash separator",
         }
         for heading, expected in cases.items():
             with self.subTest(heading=heading):

@@ -32,7 +32,9 @@ HEADING = re.compile(
     r"^#\s+(?:ADR[- ]?)?(?P<number>\d+)\s*(?:\([^)]*\))?\s*(?:[:.\-]|–|—)\s*(?P<title>.+?)\s*$"
 )
 CANONICAL = re.compile(r"^# ADR (?P<number>\d+): (?P<title>\S.*\S|\S)$")
-BARE_TITLE = re.compile(r"^#\s+(?P<title>.+?)\s*$")
+# A bare title may still carry the record marker without a number (`# ADR: Title`);
+# the marker is form, not title.
+BARE_TITLE = re.compile(r"^#\s+(?:ADR\s*(?:[:\-]|–|—)\s*)?(?P<title>.+?)\s*$")
 
 
 def canonical_heading(line: str, number: str) -> str | None:
