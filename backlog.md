@@ -26,6 +26,12 @@
 - **Acceptance oracle:** the validating generator parses every member's
   `docs/adr` without error and every member's guard runs strict.
 
+## ATLAS-SEMVER-GATE-RELEASE-JOB-UNREACHABLE-2026-09-02 — The shared gate's release job never had an event to fire on [patch] — done 2026-09-02
+
+- **Finding:** `semver-gate.yml`'s release job was gated on `push` + `refs/tags/`, but every adopter (aequitas, mnemosyne; apollo joining in apollo #266) calls it from a CI workflow whose `push` trigger is branch-only, so the release-mode job has never run — only the informational PR job ever executed. Surfaced while closing apollo's `ATLAS-APOLLO-SEMVER-BASELINE-UNBUILDABLE-2026-08-29`.
+- **Delivered (this commit):** the release job runs on any non-`pull_request` event — a tag push, a published release, or a dispatch of the member's release workflow that calls the gate — and the tag baseline (`baseline-source: tag`) resolves from the checked-out revision when `GITHUB_REF` is not a tag. With `378081ec6`'s registry default no tag is needed at all.
+- **Adopter wiring (the reachable half):** the gate must be called from the workflow that runs the release. mnemosyne's `rust-release.yml` (`release: published` / dispatch) gains the call in mnemosyne #99; aequitas and apollo have no release workflow calling the gate yet — tracked under `ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28`.
+
 ## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
 
 - **Refresh (run 33590087496 on `45b2db92`):** 19 regressions, 51 tightenings. New since the finding: athena `tag_pinned_actions` 0→9, ritk `allow_sites` 0→16, hermes `oversized_files` 22→28 / `commented_out_code` 7→10, moirai `existence_only_assertions` 33→38, themis `oversized_files` 1→3; the 51 tightenings (CFDrs `crate_level_allows` 367→6, `print_dbg` 257→26, apollo `allow_sites` 28→19, …) are baseline updates the next green run records.
