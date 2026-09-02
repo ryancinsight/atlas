@@ -187,11 +187,23 @@
 - **Delivered (`7699c0f9`, `45b2db92`; run 33589612704 → green run on `45b2db92`):** `atlas_stack.run_tool` runs every tool binary from its own workspace, whose bare-version pin any runner installs — rustup resolves from cargo's cwd, never `--manifest-path`, and the root's `1.97.0-x86_64-pc-windows-msvc` pin (ATLAS-TOOLCHAIN-TRIPLE-083) is unresolvable on Ubuntu. Both call sites (sweep, provider-integration audit) route through it; test pins cwd and the bare-pin property. Alongside: `lockfile.py` honours `--manifest-path` (`0d688b44`), diagnoses a flattened lock only where first-party deps are declared (`4a1b735d`), and the three tool locks lost their 60 `[[patch.unused]]` overlay entries (`c41bef19`).
 - **Escaped-defect record:** root cause above; the run was red for eight days because orientation reads own PRs and the board, not default-branch workflow verdicts — no collector exists for a red `main` workflow. Check that would have caught it: `ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02`.
 
-## ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02 — Surface failing default-branch workflows at orientation [patch] — todo
+## ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02 — Surface failing default-branch workflows at orientation [patch] — done 2026-09-02
 
-- **Finding (2026-09-02):** `version-guard` failed on every `main` push from 2026-08-25 (`df375365`) to `45b2db92` and no agent collected it; `atlas-conformance` likewise carries 19 uncollected ratchet regressions. Own-PR sweeps (`gh pr status`) never see a default-branch workflow.
-- **Outcome:** one committed script (`scripts/atlas-red-workflows.py`) listing, per allowlisted repository, default-branch workflows whose latest completed run is not green (`gh run list --branch main --json`, one call per repo), with the failing step's first error line; wired into the orientation checklist and the conformance job summary. Method: batched `gh` map, `--limit` explicit.
-- **Acceptance oracle:** running it against the stack at `45b2db92` names `atlas/atlas-conformance` (19 regressions) and nothing else on atlas; a synthetic red workflow in a fixture repository is listed with its first error line.
+- **Delivered (`32fc0244b`):** `scripts/atlas-red-workflows.py` + 8 tests — one batched `gh run list` per allowlisted repository, newest completed run per workflow, a row per non-success conclusion (cancelled/skipped included), `--first-error` and `--fail-on-red`; ~60 s for 25 repositories. Orientation runs it beside `atlas-lane-audit.py`; CI wiring is not possible with the default token (it cannot read other repositories' runs).
+- **First live pass:** 6 rows — atlas's own conformance/CodeQL show *cancelled* because every `main` push cancels the previous run (concurrency `cancel-in-progress` on the default branch leaves each superseded merge unverified until the next completes; the successive pointer/board pushes make that the steady state); the member rows are filed as `ATLAS-DEFAULT-BRANCH-REDS-2026-09-02`.
+
+## ATLAS-DEFAULT-BRANCH-REDS-2026-09-02 — Member default-branch workflows red with no collector [patch] — todo
+
+- **Finding (first `atlas-red-workflows.py` pass, 2026-09-02):** each row is a default-branch workflow whose newest completed run is not green; nobody had collected any of them. Each row is claimable on its own: classify (stale release attempt, rotted job, starved schedule), fix the component or retire the job, and the collector's next pass is the oracle.
+
+| repo | workflow | conclusion | run | link |
+| --- | --- | --- | --- | --- |
+| gaia | Crates.io Release failure | @ | `a5b0fe72` 2026-08-11 | [run](https://github.com/ryancinsight/gaia/actions/runs/31462176421) |
+| gaia | Examples failure | @ | `5d6df7bb` 2026-04-01 | [run](https://github.com/ryancinsight/gaia/actions/runs/23865795918) |
+| iris | Crates.io Release failure | @ | `ab3eea28` 2026-08-11 | [run](https://github.com/ryancinsight/iris/actions/runs/31462174822) |
+| kwavers | GPU Parity (scheduled) cancelled | @ | `bd7e6fa6` 2026-09-01 | [run](https://github.com/ryancinsight/kwavers/actions/runs/33463119860) |
+
+- **Acceptance oracle:** `scripts/atlas-red-workflows.py` reports no member rows (atlas's own cancelled rows are the concurrency finding above, tracked there).
 
 ## ATLAS-GITLINK-COHERENCE-GATE-2026-08-29 — Wire the gitlink auditor that already existed [patch] — done 2026-08-29; gate corrected 2026-09-01
 
