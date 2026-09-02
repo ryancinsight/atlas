@@ -1,27 +1,28 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01 — Thirteen scripts/tests files do not pass under `python -m unittest <file>` on main [patch] — in-progress 2026-09-01
+## ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01 — CI gates one of 35 scripts/tests files, under the wrong runner [patch] — in-progress 2026-09-01
 
-- **Claim:** integrator claude (this session); direct to main; lease: `scripts/tests/**`, `.github/workflows/atlas-conformance.yml` test step, this entry.
-
-- **Finding (2026-09-01, measured on a pristine `origin/main` archive of
-  `scripts/`, so independent of any working-tree change):** of 35 test files,
-  9 end `FAILED (errors=…)` — `test_atlas_scattered_containers_classify`,
-  `test_check_mdbook_links`, `test_find_placeholder_chapters`,
-  `test_generate_book_figures_{idempotence,routing}`, `test_rustdoc_oracle`,
-  `test_safety_census` (3 errors), `test_search_ladder_index`,
-  `test_smoke_fixture` — and 4 report `Ran 0 tests` (`test_atlas_board_canonicalize`,
-  `test_atlas_ci_queue_report`, `test_atlas_output_retention`,
-  `test_book_build`), i.e. they are not collected by `unittest` at all. CI runs
-  only `test_atlas_book_gate_audit.py` (`atlas-conformance.yml`), so none of
-  this is gated; the suite is a checklist that is not checked.
-- **Outcome:** every file either passes under the invocation CI uses or is
-  deleted; the four uncollected files are converted to `unittest` (or the CI
-  command runs the whole directory); CI runs the whole `scripts/tests`
-  directory, not one file — a test nobody runs is documentation's mock.
-- **Acceptance oracle:** `for t in scripts/tests/test_*.py; do python -m
-  unittest $t; done` ends with 35 `OK` lines on a Linux runner and on this
-  Windows host; the CI job runs that loop (or `discover`) and is required.
+- **Corrected finding (2026-09-01):** the earlier text of this item said
+  thirteen files fail on `main`. They fail under `python -m unittest <file>`,
+  which is not the suite's runner: `pytest.ini` and
+  `scripts/requirements-test.txt` (pytest ≥ 8) define it, eight of those files
+  import scripts by module name (`import rustdoc_oracle`) that resolves only
+  under pytest's rootdir path handling, and four are pytest-style functions
+  unittest cannot collect. Under `python -m pytest scripts/tests` the suite
+  is **430 passed, 1 skipped, 77 subtests passed** on this host. The premise
+  was an invocation artifact, recorded here rather than silently replaced.
+- **The real defect:** `atlas-conformance.yml` runs
+  `python3 -m unittest scripts/tests/test_atlas_book_gate_audit.py` — one file
+  of 35, and not through the suite's runner. Thirty-four test files gate
+  nothing; a test nobody runs is documentation's mock.
+- **Outcome:** the workflow installs `scripts/requirements-test.txt` and runs
+  `python -m pytest scripts/tests -q` over the whole directory, path-filtered
+  on `scripts/**`; the single-file unittest step is deleted.
+- **Acceptance oracle:** the job reports 430+ passed on a Linux runner for the
+  commit that adds it; a deliberately failing test in `scripts/tests` turns
+  the job red (prove it bites before trusting it).
+- **Claim:** integrator claude (this session); direct to main; lease:
+  `.github/workflows/atlas-conformance.yml`, this entry.
 
 ## ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01 — Decode subprocess output as UTF-8 in every atlas script [patch] — done 2026-09-01
 
