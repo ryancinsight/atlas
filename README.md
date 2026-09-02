@@ -916,6 +916,51 @@ Moving branch names, duplicated provider lists, wrong-revision reuse, dirty
 reuse, missing provider URLs, missing dependency manifests, and paths outside
 the authorized destination fail closed.
 
+### Shared CI surfaces
+
+Atlas publishes the stack's shared jobs as reusable workflows under
+[`.github/workflows`](.github/workflows); a member calls one with `uses:
+ryancinsight/atlas/.github/workflows/<name>.yml@<atlas commit>` (a full SHA,
+never a branch) as a job of its own workflow, so one definition serves every
+member and a hand-rolled copy is the duplication defect. GitHub forbids
+`timeout-minutes` on such a job; the called workflow owns its bound.
+
+| Workflow | Job it provides | Inputs |
+| --- | --- | --- |
+| `lockfile-guard.yml` | `Cargo.lock` resolves under `--locked` outside the stack overlay, with first-party git sources intact | `manifest-path`, `rust-toolchain` |
+| `adr-index-guard.yml` | `docs/adr/README.md` matches the one generator, `scripts/adr-index.py`; `strict: true` also requires the canonical `# ADR NNNN: Title` heading and heading/filename number agreement | `directory` (default `docs/adr`), `strict` |
+| `semver-gate.yml` | `cargo-semver-checks` over the published surface; the release gate fails a break under a non-major bump, the informational twin reports | `package`, `manifest-path`, `rust-toolchain` |
+| `book-pages.yml` | mdBook build with `mdbook test`, Pages artifact and deploy | book path and Pages inputs |
+| `crates-publish.yml` | dependency-ordered `cargo publish` through OIDC trusted publishing | release inputs |
+| `python-wheels.yml` | maturin wheel matrix, sdist, per-wheel smoke test | package inputs |
+
+The member's own copy of a guard script is retired when it adopts the shared
+workflow; a call pinned to a stale atlas commit is advanced like any pin.
+
+### Orientation tools
+
+Read-only checks that run at session start and before each commit, so state
+nobody is looking at cannot rot silently:
+
+- `python scripts/atlas-red-workflows.py` — every allowlisted repository's
+  default-branch workflows whose newest completed run is not green (cancelled
+  and skipped included: an unfinished merge gate leaves that merge unverified);
+  `--first-error` appends the failing step's first error line, `--fail-on-red`
+  makes it a gate.
+- `python scripts/atlas-lane-audit.py` — the two-tree worktree bound and lane
+  placement per member.
+- `python scripts/atlas-conformance.py check` — the non-increasing debt
+  ratchet over every member at its recorded gitlink (`--worktree` for a live
+  audit, `--repo NAME` for one member); a new detector lands with its baseline
+  in the same change.
+- `python scripts/lockfile.py --check --manifest-path <Cargo.toml>` — a lock
+  regenerated inside the stack overlay has its first-party git sources stripped
+  and fails every `--locked` job; `--regenerate` rewrites it from outside the
+  overlay.
+- `python scripts/adr-index.py check [--directory DIR] [--strict]` and
+  `python scripts/atlas-adr-canonical-form.py --check DIR` — the ADR index and
+  the canonical heading form, for the umbrella or one member directory.
+
 ## Documentation
 
 Each package carries two documentation layers with different jobs. Rustdoc is
