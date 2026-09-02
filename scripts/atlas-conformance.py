@@ -77,6 +77,12 @@ PRUNE_DIRS = {
     ".git", "worktrees", "__pycache__", "node_modules", ".claude", "book",
     ".pytest_cache", ".ruff_cache", ".mypy_cache", ".tox", ".nox", ".venv",
     "venv",
+    # Ad-hoc diagnostic workspaces (`fn main()` programs run by hand, not on
+    # CI). Carrying them as production code would inflate `print_dbg` and
+    # related classes by diagnostic `println!` calls that the ratchet cannot
+    # otherwise distinguish from library output. RITK and Hermes hold one;
+    # exclude by convention.
+    "scratch",
 }
 TEST_PATH_PARTS = {"tests", "benches", "examples", "fuzz"}
 
