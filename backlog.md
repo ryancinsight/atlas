@@ -113,6 +113,10 @@
 
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — shared workflow delivered; member adoption pending
 
+- **Adoption mechanized and run (2026-09-02, integrator: claude-fable session 5050c72a).** `scripts/atlas-semver-gate-adopt.py` (`da9d549bc`, 8 tests) reads a member's own manifests at `origin/<default>` for the publishable crates (`publish = false`/`[]` excluded — the stack's release-ordering guard, no public contract to gate), inserts the informational job into the verification workflow, and inserts the blocking job into the release workflow under that workflow's own release guard, adding `needs: semver` to its other jobs so the gate stops a release rather than racing it. The release list holds only crates the crates.io sparse index already carries, because the default registry baseline resolves the latest published version.
+- **Measured before the run:** 5 of 25 members had a gate (aequitas, apollo, mnemosyne, proteus, asclepius); 3 have no publishable crates at all (horae, hyperion, harmonia — nothing to gate); 17 needed adoption. 115 publishable crates stack-wide, 79 on the registry.
+- **Opened 17 PRs, all from the one tool:** themis#45, melinoe#29, eunomia#82, tyche#44, gaia#41 (merged, gitlinks advanced `4e7169c09`); athena#29, iris#26, helios#86, hephaestus#257, hermes#143, leto#153, Coeus#358, consus#65, Moirai#247, ritk#217, CFDrs#380, kwavers#697 (open). CFDrs and kwavers get the informational job alone — no crate of theirs is on the registry yet, so there is no published baseline; their release gate follows the first publish (ATLAS-PUB-001).
+- **Oracle met on the first wave:** `SemVer gate / SemVer (informational)` passes on each PR and `SemVer (release gate)` correctly skips on a pull-request event.
 - **Consumer breakage found 2026-09-01 (evening).** The first published
   revision of `semver-gate.yml` (`0253866f8`) carries two top-level `name:`
   keys; GitHub cannot parse it, every push to atlas spawned a failed run with
