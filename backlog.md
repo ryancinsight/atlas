@@ -550,7 +550,7 @@
   green (`.gitattributes` + renormalize + `.git-blame-ignore-revs`); atlas
   gitlinks advanced for all five. hephaestus already carries the policy
   (committed blobs were already 100% LF). Remaining without any policy:
-  **apollo** (969 CRLF blobs, peer lane `perf/apollo-base128-arith` active on
+  **apollo** — delivered by apollo#270 on 2026-09-02: the stack `.gitattributes` landed with 0 CRLF-committed blobs at that point (no renormalization commit needed; the figure below predates peers' normalizations) — was: (969 CRLF blobs, peer lane `perf/apollo-base128-arith` active on
   the tree — wait for a quiet point) and any member whose variant still
   differs from `* text=auto eol=lf`.
 - **proteus #23 also fixed two real defects found on the branch:**
@@ -9413,7 +9413,9 @@ increment; for the second it could not run — an in-flight `gaia` change remove
 the `cfdrs-integration` feature cfd-2d depends on, breaking resolution for
 unrelated reasons. **Re-run clippy on cfd-2d once gaia settles.**
 
-## ATLAS-ADR-GOVERNANCE-001 — Retrofit ADR indexes, statuses, and records [patch] — in-progress (indexes landed)
+## ATLAS-ADR-GOVERNANCE-001 — Retrofit ADR indexes, statuses, and records [patch] — done 2026-09-02
+
+- **Done (closed by `ATLAS-ADR-INDEX-GUARD-2026-09-01` and `ATLAS-ADR-FORM-NORMALIZATION-2026-09-02`):** every member with ADRs (24) carries a generated `docs/adr/README.md` byte-identical to the one generator's output, run strict in that member's CI through `adr-index-guard.yml` at one atlas pin; headings are canonical, numbers agree with filenames (no duplicates survive the strict check), statuses are canonical; the freshness check is the guard job itself. Oracle run 2026-09-02: 24/24 exact and strict.
 
 - Policy: AGENTS.md context_and_memory "ADR governance". Census 2026-07-27: 312 ADRs across the meta repo + 20 members; indexes exist in 3 of 21 (meta, ritk, iris); 7 duplicate numbers (kwavers x2, coeus x3, leto, hermes); 104 ADRs without a Status line; casing drift (Accepted vs accepted) plus a non-canonical "investigated"; supersession links on 4 of 312.
 - Scope per repo: (1) generate `docs/adr/README.md` indexes (number, title, status) — mechanize as a committed script deriving the index from ADR headers (toil automation; hand-maintained indexes rot), wired into CI as a regenerate-and-diff freshness check like the overlay; (2) normalize statuses to the canonical set with exact casing, adding Status lines where absent (default: Accepted for implemented decisions, verified against the code); (3) resolve the 7 numbering collisions by renumbering the later ADR and updating its citations; (4) merge audit (rewrite-in-place model per revised ADR governance): where a later ADR replaced an earlier decision, merge into one current record carrying a dated revision note and delete the stale file — git is the archive; canonical statuses are Proposed/Accepted/Rejected; (5) verify board items citing ADRs and ADRs citing items resolve (bidirectional linkage).
@@ -10563,7 +10565,9 @@ hephaestus `codex/hephaestus-fdtd-107`, hermes `codex/hermes-orphan-closure`.
 These are visible on their remotes, so they are not at risk; triaging whether
 each is in-flight or abandoned needs their owners or a PR check, not a takeover.
 
-## ATLAS-KWAVERS-LANE-SPRAWL-104 — five worktrees on one repo [patch] — todo
+## ATLAS-KWAVERS-LANE-SPRAWL-104 — five worktrees on one repo [patch] — done 2026-09-02
+
+- **Done:** verified 2026-09-02 against the oracle — `repos/kwavers` holds one working tree and `git stash list` is empty; the lanes and the eleven stashes were closed by their owners' later sessions (the tables below are the historical finding).
 
 `repos/kwavers` carries five working trees against the two-tree bound
 (main plus one lane):
