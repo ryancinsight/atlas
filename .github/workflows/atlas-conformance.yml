@@ -94,6 +94,10 @@ jobs:
         # The whole suite under its own runner (pytest.ini, requirements-test.txt);
         # the previous single-file unittest call gated 1 of 35 files. No pipe on
         # the pytest line: the step's verdict is pytest's exit code, unmasked.
+        # Reports even when the ratchet step above fails: the test suite and the
+        # debt ratchet are independent verdicts, and a fleet debt regression must
+        # not hide whether the scripts still pass their tests.
+        if: always()
         run: |
           python3 -m pip install --quiet -r scripts/requirements-test.txt
           python3 -m pytest scripts/tests -q -p no:cacheprovider
