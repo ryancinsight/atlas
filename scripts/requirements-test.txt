@@ -1,3 +1,6 @@
 # Test dependencies for scripts/tests/
 # Install with: python -m pip install -r scripts/requirements-test.txt
 pytest>=8.0
+# atlas-conformance.py's malformed-workflow class needs PyYAML; without it the
+# detector degrades silently to zero.
+pyyaml>=6.0

@@ -14,6 +14,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import os
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -79,6 +80,7 @@ class ParseRustfmtDiffPathsTestCase(unittest.TestCase):
             [_rel(repo, "src", "a.rs"), _rel(repo, "src", "b.rs")],
         )
 
+    @unittest.skipUnless(os.name == "nt", "verbatim-prefix stripping is Windows path semantics")
     def test_windows_extended_length_prefix_stripped(self) -> None:
         # Rustfmt on Windows emits the verbatim-path prefix; the parser
         # strips it before path normalization so the result is portable.

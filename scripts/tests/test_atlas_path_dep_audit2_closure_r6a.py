@@ -120,6 +120,17 @@ class R6aVerifierTestCase(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[2] / "repos"
         if not repo_root.is_dir():
             self.skipTest("atlas repo root not present in this environment")
+        # CI initializes members with --depth=1; the r6a commits are history a
+        # shallow clone cannot see, and their absence is not a violation.
+        shallow = [
+            member.name for member in sorted(repo_root.iterdir())
+            if (member / ".git").exists() and subprocess.run(
+                ["git", "-C", str(member), "rev-parse", "--is-shallow-repository"],
+                capture_output=True, encoding="utf-8", errors="replace",
+            ).stdout.strip() == "true"
+        ]
+        if shallow:
+            self.skipTest(f"shallow member checkouts cannot see r6a history: {shallow[:5]}")
         rc = self._run_with_overrides(_mod.R6A_COMMITS, repo_root)
         self.assertEqual(rc, 0, "live r6a commits must remain cargo-only")
 

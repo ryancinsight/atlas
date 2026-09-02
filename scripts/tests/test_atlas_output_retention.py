@@ -131,16 +131,22 @@ def test_apply_plan_removes_only_planned_derived_units(tmp_path: Path) -> None:
 
 
 def test_reparse_points_are_not_traversed_or_removed(tmp_path: Path) -> None:
+    # The link target lives outside the scanned root: inside it, the target is
+    # an ordinary 80-byte directory that a 1-byte budget correctly evicts, which
+    # is what this test asserted against before it ever ran (symlink creation
+    # skips on Windows). Only the link is inside the root.
+    root = tmp_path / "out"
+    root.mkdir()
     target = tmp_path / "outside"
     target.mkdir()
     (target / "payload.bin").write_bytes(b"x" * 80)
-    link = tmp_path / "linked-output"
+    link = root / "linked-output"
     try:
         link.symlink_to(target, target_is_directory=True)
     except OSError as exc:
         pytest.skip(f"symlink creation unavailable: {exc}")
 
-    plan = _retention.plan_retention(tmp_path, _policy(max_bytes=1), dt.datetime.now(dt.timezone.utc))
+    plan = _retention.plan_retention(root, _policy(max_bytes=1), dt.datetime.now(dt.timezone.utc))
 
     assert plan.evictions == ()
     assert link.is_symlink()
