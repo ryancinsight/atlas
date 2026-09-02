@@ -11,9 +11,8 @@
   - athena (3): existence_only_assertions 0→1, oversized_files 1→2,
     tag_pinned_actions 0→9
   - moirai (2): commented_out_code 7→8, existence_only_assertions 33→38
-  - hermes (1): oversized_files 22→29 (`numa/processor.rs` is 579 lines after
-    the Linux binding backend — one of the seven; the file splits into
-    `numa/processor/{windows,linux}.rs` leaf modules)
+  - hermes (1): oversized_files 22->29 - `numa/processor.rs` (579) **split in
+    hermes#130 (`5c3303b9`)**, parent now 369; the other six files are peers'
   - ritk (1): allow_sites 0→16
   - CFDrs, coeus (1 each): oversized_files 139→140, 19→20
   - kwavers (1): manifest_implementation 286→287
@@ -105,7 +104,9 @@
 - **Non-goals:** third-party currency (rides its own grouped update PRs) and
   version-requirement bumps (version-guard's surface).
 
-## ATLAS-ADR-INDEX-GUARD-2026-09-01 — One ADR index generator behind a shared guard [minor] — todo
+## ATLAS-ADR-INDEX-GUARD-2026-09-01 — One ADR index generator behind a shared guard [minor] — in-progress 2026-09-02
+
+- **Claim:** integrator claude (this session); direct to main; lease: `scripts/adr-index.py` (atlas copy), `.github/workflows/adr-index-guard.yml` (new), this entry. Member adoption (hermes, apollo, kwavers) follows as separate member PRs.
 
 - **Finding:** three divergent ADR index generators exist for one concern —
   `atlas/scripts/adr-index.py` (208 lines, meta-repo-root-relative, driven by
