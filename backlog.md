@@ -128,7 +128,7 @@
 - **Revision (2026-09-02):** gaia `Examples` dropped — that workflow no longer exists on `main`; the collector now reports active workflows only (`9235e47d`). mnemosyne `Fuzz` added.
 - **Acceptance oracle:** `scripts/atlas-red-workflows.py` reports no member rows (atlas's own cancelled rows are the concurrency finding above, tracked there).
 
-## ATLAS-APOLLO-LANEKERNEL-INLINE-CONTRACT-2026-08-31 — Three large `LaneKernel::call` bodies do not carry the attribute their contract requires [patch] [perf] — todo
+## ATLAS-APOLLO-LANEKERNEL-INLINE-CONTRACT-2026-08-31 — Three large `LaneKernel::call` bodies do not carry the attribute their contract requires [patch] [perf] — delivered 2026-09-02 (apollo PR #277, pending merge)
 
 - **The contract.** hermes `HS-VECTORIZE-LARGE-KERNEL-2026-08-28` documents a
   measured ~30x failure: the `#[runtime_dispatch]` expansion's
@@ -181,6 +181,19 @@
   half — the class cannot now be reintroduced without a ratchet raise. The
   source fix itself (adding the attribute at the three apollo sites) remains
   blocked on the apollo two-tree lease and is tracked separately.
+- **Delivered 2026-09-02 (apollo PR #277).** The peer leases that blocked
+  the source fix went stale (`perf/apollo-batched-parallel` last commit 17 h,
+  no PR; the lane is gone), so the three sites took the attribute with the
+  same `#[expect(clippy::inline_always)]` reason the boundary kernels carry.
+  Batched pinned ladder, interleaved before/after, two rounds, matched
+  binaries: every efficiency-core size within ±1.4%, performance-core sizes
+  inside the same binary's round-to-round spread (up to 14%). No measurable
+  change — LLVM was already inlining at present body sizes, the fragility
+  the attribute removes. FMA codegen inspection not performed: no x86-64
+  disassembler is installed on this host (no `llvm-tools`, no `dumpbin`);
+  the ladder numbers bound the outcome instead. The `lane_kernel_uninlined`
+  baseline (apollo = 3) tightens to 0 at the gitlink advance after merge.
+
 
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — shared workflow delivered; member adoption pending
 
