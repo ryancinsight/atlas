@@ -1,8 +1,29 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01 — Decode subprocess output as UTF-8 in every atlas script [patch] — in-progress 2026-09-01
+## ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01 — Thirteen scripts/tests files do not pass under `python -m unittest <file>` on main [patch] — todo
 
-- **Claim:** integrator claude (this session); direct to main; lease: `scripts/*.py` subprocess call sites, `scripts/tests/test_subprocess_decoding.py`, this entry.
+- **Finding (2026-09-01, measured on a pristine `origin/main` archive of
+  `scripts/`, so independent of any working-tree change):** of 35 test files,
+  9 end `FAILED (errors=…)` — `test_atlas_scattered_containers_classify`,
+  `test_check_mdbook_links`, `test_find_placeholder_chapters`,
+  `test_generate_book_figures_{idempotence,routing}`, `test_rustdoc_oracle`,
+  `test_safety_census` (3 errors), `test_search_ladder_index`,
+  `test_smoke_fixture` — and 4 report `Ran 0 tests` (`test_atlas_board_canonicalize`,
+  `test_atlas_ci_queue_report`, `test_atlas_output_retention`,
+  `test_book_build`), i.e. they are not collected by `unittest` at all. CI runs
+  only `test_atlas_book_gate_audit.py` (`atlas-conformance.yml`), so none of
+  this is gated; the suite is a checklist that is not checked.
+- **Outcome:** every file either passes under the invocation CI uses or is
+  deleted; the four uncollected files are converted to `unittest` (or the CI
+  command runs the whole directory); CI runs the whole `scripts/tests`
+  directory, not one file — a test nobody runs is documentation's mock.
+- **Acceptance oracle:** `for t in scripts/tests/test_*.py; do python -m
+  unittest $t; done` ends with 35 `OK` lines on a Linux runner and on this
+  Windows host; the CI job runs that loop (or `discover`) and is required.
+
+## ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01 — Decode subprocess output as UTF-8 in every atlas script [patch] — done 2026-09-01
+
+- **Delivered:** 13 call sites in 10 scripts rewritten to `encoding="utf-8", errors="replace"`; `scripts/tests/test_subprocess_decoding.py` guards the class (call-bounded scan, unit-tested on synthetic snippets). Liveness: the guard failed on the live tree before the rewrite and failed again with one site reverted. Suite verdicts after the rewrite match a pristine `origin/main` copy file for file.
 
 - **Finding (2026-09-01):** `atlas_stack.git` ran `subprocess.run(..., text=True)`
   with no encoding. On Windows that decodes as cp1252; a member manifest
