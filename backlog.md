@@ -31,12 +31,6 @@
 - **Acceptance oracle:** the validating generator parses every member's
   `docs/adr` without error and every member's guard runs strict.
 
-## ATLAS-SEMVER-GATE-RELEASE-JOB-UNREACHABLE-2026-09-02 — The shared gate's release job never had an event to fire on [patch] — done 2026-09-02
-
-- **Finding:** `semver-gate.yml`'s release job was gated on `push` + `refs/tags/`, but every adopter (aequitas, mnemosyne; apollo joining in apollo #266) calls it from a CI workflow whose `push` trigger is branch-only, so the release-mode job has never run — only the informational PR job ever executed. Surfaced while closing apollo's `ATLAS-APOLLO-SEMVER-BASELINE-UNBUILDABLE-2026-08-29`.
-- **Delivered (this commit):** the release job runs on any non-`pull_request` event — a tag push, a published release, or a dispatch of the member's release workflow that calls the gate — and the tag baseline (`baseline-source: tag`) resolves from the checked-out revision when `GITHUB_REF` is not a tag. With `378081ec6`'s registry default no tag is needed at all.
-- **Adopter wiring (the reachable half):** the gate must be called from the workflow that runs the release. mnemosyne's `rust-release.yml` (`release: published` / dispatch) gains the call in mnemosyne #99; aequitas and apollo have no release workflow calling the gate yet — tracked under `ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28`.
-
 ## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
 
 - **Refresh (run 33590087496 on `45b2db92`):** 19 regressions, 51 tightenings. New since the finding: athena `tag_pinned_actions` 0→9, ritk `allow_sites` 0→16, hermes `oversized_files` 22→28 / `commented_out_code` 7→10, moirai `existence_only_assertions` 33→38, themis `oversized_files` 1→3; the 51 tightenings (CFDrs `crate_level_allows` 367→6, `print_dbg` 257→26, apollo `allow_sites` 28→19, …) are baseline updates the next green run records.
@@ -72,99 +66,6 @@
   `0 regression(s)`; the tightenings it lists are recorded by regenerating
   `scripts/conformance-baseline.json` in the same change.
 
-## ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01 — CI gates one of 35 scripts/tests files, under the wrong runner [patch] — done 2026-09-02
-
-- **Corrected finding (2026-09-01):** the earlier text of this item said
-  thirteen files fail on `main`. They fail under `python -m unittest <file>`,
-  which is not the suite's runner: `pytest.ini` and
-  `scripts/requirements-test.txt` (pytest ≥ 8) define it, eight of those files
-  import scripts by module name (`import rustdoc_oracle`) that resolves only
-  under pytest's rootdir path handling, and four are pytest-style functions
-  unittest cannot collect. Under `python -m pytest scripts/tests` the suite
-  is **430 passed, 1 skipped, 77 subtests passed** on this host. The premise
-  was an invocation artifact, recorded here rather than silently replaced.
-- **The real defect:** `atlas-conformance.yml` runs
-  `python3 -m unittest scripts/tests/test_atlas_book_gate_audit.py` — one file
-  of 35, and not through the suite's runner. Thirty-four test files gate
-  nothing; a test nobody runs is documentation's mock.
-- **Outcome:** the workflow installs `scripts/requirements-test.txt` and runs
-  `python -m pytest scripts/tests -q` over the whole directory, path-filtered
-  on `scripts/**`; the single-file unittest step is deleted.
-- **Acceptance oracle:** the job reports 430+ passed on a Linux runner for the
-  commit that adds it; a deliberately failing test in `scripts/tests` turns
-  the job red (prove it bites before trusting it).
-- **Delivered (`2936780a`, `dee3675f`, `65f7a718`, `4e5eb28d`):** the conformance workflow installs `scripts/requirements-test.txt` *before* the ratchet (the malformed-workflow class needs PyYAML and had degraded to zero on the runner) and runs `pytest scripts/tests` over the whole directory with `if: always()`, so the suite reports independently of the ratchet. The first CI run exposed four Linux-only failures that a Windows-only history never saw — missing PyYAML, a Windows-path-semantics test, a reparse-point test that had never executed and asserted the wrong thing, and an r6a history audit blind under `--depth=1` — all fixed honestly (skips carry their reason). **Run 33584509335 on Ubuntu: 428 passed, 3 skipped, 0 failed.** The run's overall failure is the ratchet's 17 fleet regressions, tracked separately.
-
-## ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01 — Decode subprocess output as UTF-8 in every atlas script [patch] — done 2026-09-01
-
-- **Delivered:** 13 call sites in 10 scripts rewritten to `encoding="utf-8", errors="replace"`; `scripts/tests/test_subprocess_decoding.py` guards the class (call-bounded scan, unit-tested on synthetic snippets). Liveness: the guard failed on the live tree before the rewrite and failed again with one site reverted. Suite verdicts after the rewrite match a pristine `origin/main` copy file for file.
-
-- **Finding (2026-09-01):** `atlas_stack.git` ran `subprocess.run(..., text=True)`
-  with no encoding. On Windows that decodes as cp1252; a member manifest
-  carrying an em dash (CFDrs, kwavers) raised `UnicodeDecodeError` in the
-  reader thread and `.stdout` came back `None`, so the consumer lock sweep saw
-  two members as having no manifest at all. Fixed in `atlas_stack.git`
-  (`encoding="utf-8", errors="replace"`, the form `lockfile.py` already used).
-- **Class, not instance:** 16 more scripts under `scripts/` call `subprocess`
-  with `text=True` and no encoding (adr-index, board audits, conformance,
-  fmt-check, lock-form, provider-integration-audit, toolchain-preflight,
-  publish-order, rustdoc_oracle, search_ladder_index, …). Any of them reads
-  absence instead of content the moment a member's output carries a
-  non-cp1252 byte on a Windows host — and reports it as a finding.
-- **Outcome:** one sweep replacing every `text=True` subprocess decode with
-  explicit UTF-8 plus replacement, and a `scripts/tests` guard that fails on a
-  new `text=True` without `encoding=` so the class cannot return. Prove the
-  guard bites on a deliberate reintroduction before trusting it.
-- **Acceptance oracle:** `grep -E "text=True" scripts/*.py` returns only
-  comments; the guard test fails when one call is reverted.
-
-## ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01 — Mechanize the consumer lock advance after a provider merge [minor] — done 2026-09-01
-
-- **Delivered `a1e140f5` (direct to main, the umbrella's convention — the branch named in the claim was never needed):** `scripts/atlas-lock-sweep.py` + 14 unit tests (liveness: breaking `locked_rev` fails exactly one). Shared helpers fixed with it: `lockfile.run_outside_the_overlay(manifest=)`, `atlas_stack.git` UTF-8 decoding. Run on `hermes-simd @ a7055d3f`: apollo current; **helios#80 and leto#140 opened** with `cargo check --workspace --locked` green; CFDrs, coeus, kwavers skipped at their two-worktree bound (peer lanes) and reported. Oracle met: helios#80 (`b7ddd66a`) and leto#140 (`d8188121`) landed; a second run pinned to `a7055d3f` reports all three `current` and opens nothing. `--rev` became required (`959752c4`) after the HEAD default read a board-only hermes commit as three fresh advances. **Residual:** CFDrs, coeus, kwavers remain behind hermes until their peer lanes close — the tool reports them each run; re-run with `--rev a7055d3fd92d2a8d146af21f4a0a9700327debce` then.
-
-- **Finding (2026-09-01, after hermes `6da6d139` landed the Linux processor
-  binding):** hermes-simd has six consumers — CFDrs, apollo, coeus, helios,
-  kwavers, leto — and their locks sit at unrelated hermes revisions (apollo
-  `7375157f`, leto `efe6b5e2`, kwavers `c4f931c5`). apollo advanced by hand
-  (apollo#256) because it carries an acceptance line; the others did not, and
-  atlas has no tool that would: `scripts/` holds a version-guard sweep and a
-  lockfile-guard delivery script, neither of which runs `cargo update -p
-  <crate>` across consumers.
-- **Outcome:** one committed sweep — input: a first-party crate and its merged
-  provider commit; for each allowlisted consumer in dependency order,
-  `cargo update -p <crate>` resolved standalone (never under the development
-  overlay), `cargo check` of the affected packages, a `build(deps)` commit and
-  PR with the provider commit and item in the message, one PR per consumer per
-  sweep; a consumer that cannot advance is the sweep's defect output, listed
-  in its report, never a silent holdout.
-- **Acceptance oracle:** running it for `hermes-simd @ 6da6d139` opens PRs on
-  every consumer above (or lists exactly why one cannot advance); a second run
-  after those merge opens nothing (idempotent); the lockfile guard passes on
-  each PR.
-- **Non-goals:** third-party currency (rides its own grouped update PRs) and
-  version-requirement bumps (version-guard's surface).
-
-## ATLAS-ADR-INDEX-GUARD-2026-09-01 — One ADR index generator behind a shared guard [minor] — done 2026-09-02
-
-- **Delivered:** atlas `scripts/adr-index.py` gained `--directory` and opt-in `--strict` (`49cba25c`) and a bounded own-number title strip (`f1a37436`); `.github/workflows/adr-index-guard.yml` (`a097e4e1`, lockfile-guard shape) is the one generator's CI surface. Adopted: hermes#131 (strict, copy deleted), apollo#263 (strict, copy deleted), kwavers#686 (permissive, copy deleted); coeus#354 regenerated the index the old renderer had drifted.
-- **Residual:** closed by `ATLAS-ADR-FORM-NORMALIZATION-2026-09-02` on 2026-09-02 — kwavers#687 runs strict, mnemosyne#98 deleted the fourth copy. Remaining: the emitted README header still names `scripts/adr-index.py`; it changes once, with the last guard adoption wave, so every index moves together.
-
-## ATLAS-CONFORMANCE-PARALLEL-SCAN-2026-08-31 — Bound fleet scan latency [patch] — done 2026-09-01
-
-- **Outcome:** scan independent provider trees concurrently while preserving
-  exact per-provider detector results and bounded cache ownership.
-- **Evidence:** the initial 119/59.03-second comparison is retracted because
-  the linked Atlas lane's provider gitlink directories were not materialized.
-  The correction rejects that incomplete state before traversal. On the
-  canonical 25-provider checkout, the same-process A/B run measures 115.113
-  seconds sequential and 16.500 seconds with four workers (7.0x); the complete
-  result objects are equal at 20 regressions and 44 tightenings. Scanner tests
-  pass 29/29.
-- **Acceptance:** worker-local caches, deterministic provider attribution, no
-  detector or baseline change, fail-closed incomplete-checkout handling, a
-  canonical-stack timing comparison, warning-free script tests, exact revision
-  review, and merge. Single-host wall time is operational evidence only.
-
 ## ATLAS-CRITERION-FLOAT-ROUNDTRIP-2026-08-31 — Preserve Criterion confidence values [patch] — provider delivered; consumer recollection pending
 
 - **Outcome:** parse Criterion estimate numbers with exact decimal-to-`f64`
@@ -186,16 +87,6 @@
   regressions; Nextest passes 22/22, including the escaped fixture; warning-
   denied Clippy, fmt, doctests, and warning-denied Rustdoc pass. Consumer pin
   advancement and exact-head hosted recollection remain open.
-
-## ATLAS-VERSION-GUARD-CWD-2026-09-02 — version-guard red on main since 2026-08-25: tool cargo runs resolved the root's host-qualified pin [patch] — done 2026-09-02
-
-- **Delivered (`7699c0f9`, `45b2db92`; run 33589612704 → green run on `45b2db92`):** `atlas_stack.run_tool` runs every tool binary from its own workspace, whose bare-version pin any runner installs — rustup resolves from cargo's cwd, never `--manifest-path`, and the root's `1.97.0-x86_64-pc-windows-msvc` pin (ATLAS-TOOLCHAIN-TRIPLE-083) is unresolvable on Ubuntu. Both call sites (sweep, provider-integration audit) route through it; test pins cwd and the bare-pin property. Alongside: `lockfile.py` honours `--manifest-path` (`0d688b44`), diagnoses a flattened lock only where first-party deps are declared (`4a1b735d`), and the three tool locks lost their 60 `[[patch.unused]]` overlay entries (`c41bef19`).
-- **Escaped-defect record:** root cause above; the run was red for eight days because orientation reads own PRs and the board, not default-branch workflow verdicts — no collector exists for a red `main` workflow. Check that would have caught it: `ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02`.
-
-## ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02 — Surface failing default-branch workflows at orientation [patch] — done 2026-09-02
-
-- **Delivered (`32fc0244b`):** `scripts/atlas-red-workflows.py` + 8 tests — one batched `gh run list` per allowlisted repository, newest completed run per workflow, a row per non-success conclusion (cancelled/skipped included), `--first-error` and `--fail-on-red`; ~60 s for 25 repositories. Orientation runs it beside `atlas-lane-audit.py`; CI wiring is not possible with the default token (it cannot read other repositories' runs).
-- **First live pass:** 6 rows — atlas's own conformance/CodeQL show *cancelled* because every `main` push cancels the previous run (concurrency `cancel-in-progress` on the default branch leaves each superseded merge unverified until the next completes; the successive pointer/board pushes make that the steady state); the member rows are filed as `ATLAS-DEFAULT-BRANCH-REDS-2026-09-02`. Fixed the atlas half in two steps: `db825504` scoped `cancel-in-progress` to pull requests, which was insufficient — GitHub supersedes a *pending* run in a shared group regardless (run 33592990462 cancelled 38 s after creation, no job started) — and `f4c096319` keys default-branch runs on `github.sha`, one group per commit, so every push reaches a verdict even under runner starvation.
 
 ## ATLAS-MSRV-JOBS-OVERRIDDEN-2026-09-02 — Seven members' MSRV jobs compile with the pinned 1.97.0, not the floor they claim [patch] — todo
 
@@ -236,216 +127,6 @@
 
 - **Revision (2026-09-02):** gaia `Examples` dropped — that workflow no longer exists on `main`; the collector now reports active workflows only (`9235e47d`). mnemosyne `Fuzz` added.
 - **Acceptance oracle:** `scripts/atlas-red-workflows.py` reports no member rows (atlas's own cancelled rows are the concurrency finding above, tracked there).
-
-## ATLAS-GITLINK-COHERENCE-GATE-2026-08-29 — Wire the gitlink auditor that already existed [patch] — done 2026-08-29; gate corrected 2026-09-01
-
-- **Correction (2026-09-01) — the wired gate was not gating.** A push from this
-  session printed `pre-push: gitlink auditor not built — skipping the coherence
-  gate` and proceeded. The hook's own comment reads *"Not a silent skip: an
-  unbuilt auditor is the difference between a gate and a decoration, and the
-  last two defects landed while it sat unbuilt"* — and then `exit 0`, which is
-  a silent skip in every way that matters. The auditor lives in a gitignored
-  target tree, so a clean checkout or a cache eviction disarms the gate without
-  touching a tracked file, and nothing fails.
-- **Second cause.** The binary was in fact built, but into
-  `tools/gitlink-coherence/target/` — a forked cache produced by building the
-  tool standalone — while the hook looks in the shared `atlas_root/target/`.
-  Presence in the wrong tree reads identically to absence.
-- **Fix.** The hook now builds the auditor when it is missing and **fails
-  closed** if it still cannot run. The build runs from outside the stack root
-  deliberately: Cargo discovers config from the working directory upward, so
-  building under `atlas_root` applies the `[patch]` overlay, whose resolution
-  the committed lockfile does not describe — `--locked` then fails, and without
-  it the overlay rewrites the lockfile and dirties the tree on every push.
-- **Second correction (2026-09-01, later) — the gate had a fail-open arm.** A
-  commit pinned `repos/hephaestus` at `5741822`, a **leto** commit (the shell's
-  working directory had persisted in the leto tree from an earlier tool call,
-  so `git rev-parse HEAD` answered for the wrong repository). The pin reached
-  `origin/main`. Cause: a SHA absent from the member's object store makes
-  `merge-base --is-ancestor` exit 128; the auditor propagated that as an
-  invocation error (exit 2); and the hook's `*)` arm read exit 2 as "could not
-  run, do not block" and exited 0. The one pin class that exists nowhere in the
-  member was the one the gate waved through.
-- **Fix.** The auditor probes `cat-file -e <pin>^{commit}` before any
-  ancestry query and classifies a missing object as `not-an-object`, a defect
-  (exit 1), with a fixture test pinning a gitlink to a SHA the member lacks.
-  The hook fails closed on every non-0/1 exit: an audit that could not run has
-  judged nothing, and nothing judged is not a pass. Fixed forward on the
-  board's pin by `a8fc5d431`.
-- **Proven live, both directions.** With the binary hidden and the build forced
-  to fail, the hook printed `BLOCKED` and exited 1. With the build allowed, it
-  rebuilt the auditor, ran the gate, and exited 0. The auditor's own suite is
-  21/21.
-- **Integrator:** Claude session 03d80d33. **Last-update:** 2026-09-01.
-
-- **The defect, three times in two days.** A recorded gitlink must name a commit
-  reachable from the member's published default branch, because it *is* the
-  reproducible stack revision. Three did not: `repos/leto` twice (both at the
-  tip of an unmerged `perf/leto-matmul-parity-verdict` — once by this session,
-  once by a peer in `eac82038`) and `repos/eunomia` at the tip of
-  `fix/eunomia-gitattributes-eol`, whose PR #75 is still open. Recording an
-  in-review branch makes the stack irreproducible for anyone without it.
-- **One cause every time:** `git add repos/<name>` stages the submodule's
-  *worktree HEAD*, and under concurrent agents that HEAD is routinely a peer's
-  in-flight branch. The fix is to set the pin from the ref
-  (`git update-index --cacheinfo 160000,$(git -C repos/<n> rev-parse
-  origin/<default>),repos/<n>`) and verify with `git ls-tree`.
-- **The detector already existed and was wired into nothing.**
-  `tools/gitlink-coherence` classifies this precisely — category B, "pin
-  reachable from a remote ref other than `origin/main`" — and already exits 1
-  on any defect. It appeared in no hook, workflow, or script, so it had never
-  once run against the defect it was built for. That gap, not the pins, was the
-  generator.
-- **Delivered:** `.githooks/pre-push` runs the auditor over every recorded
-  member. Pre-push rather than pre-commit because the auditor reads gitlinks
-  from HEAD (at pre-commit it would judge the previous commit) and because a
-  bad pin becomes everyone else's problem at publish. It uses local refs, so it
-  costs no network; if the auditor itself cannot run it reports and does not
-  block, since this gate exists to catch one defect rather than to become a new
-  way for pushes to fail.
-- **Verified both directions, not assumed:** exits 0 on a coherent tree, and
-  exits 1 naming the offending pin when `repos/leto` is reset to the branch tip
-  on a throwaway commit. Both leto and eunomia are corrected; the stack now
-  audits 25 probed, **0 defects**, 22 clean.
-- **Not defects, left alone:** `iris`, `kwavers` and `harmonia` are
-  *stale-advanceable* (behind their origin/main). The auditor reports those
-  separately and they are their owners' to advance.
-- **Enablement:** the hook needs `git config core.hooksPath .githooks` (the
-  same switch the existing pre-commit docs gate uses) and the auditor built
-  once via `cargo build --release --manifest-path tools/gitlink-coherence/Cargo.toml`.
-  An unbuilt auditor prints how to build it rather than failing silently.
-
-
-## ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 — Published transforms return silent wrong answers at specific lengths [major] — done 2026-08-29
-
-| ID | Outcome | Class | Status | Owner | Scope |
-|----|---------|-------|--------|-------|-------|
-| ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28 | No transform length returns a wrong answer; every length is supported. | [major] | done 2026-08-29 (apollo PR #194) | claude-fable session 03d80d33 | `apollo-fft` composite-radix kernels; consumers of `apollo-fft`/`apollo-dctdst` |
-
-- **Resolved 2026-08-29 (apollo PR #194, #195, #196).** Three faults, not the
-  one recorded: `dispatch_inplace` fell off the end of its strategy chain and
-  returned the input untransformed; four static radix entries did not factor
-  their key (432, 576, 768, 960); and eleven named radix 19, which the
-  composite kernel cannot execute. Bluestein now terminates the chain, so every
-  length routes. A naive-DFT sweep over `2..=2048` plus the tracked lengths
-  above it passes with no wrong answers and no refusals, and two structural
-  tests cover the table. Cross-repo blast radius closed: `apollo-dctdst`'s
-  fast kinds were blocked on this and are now delivered (PR #197).
-
-- **This was a shipped wrong answer, not a slow path, and it was silent** — no
-  error, no panic, no warning. Found by the CWT differential work
-  (`ATLAS-APOLLO-TRANSFORM-ALGOS-2026-08-28`) and filed on apollo's board;
-  raised here because the blast radius crossed repositories.
-- **Independently reproduced by the integrator** (session 03d80d33), not
-  taken on report. A forward-then-normalized-inverse round trip over every
-  length `2..=1500` returns max errors of order 10¹–10² at **361, 722, 841,
-  961, 1083, 1153, 1369, 1444** — matching the original census exactly. At
-  the *public API* level: `DctDstPlan::new(361, RealTransformKind::DctII)`
-  `.forward(..)` returns **relative error 1.0101** against the direct DCT-II
-  definition (n = 722 → 1.0060), while n = 360 and n = 362 are exact to
-  0.0000. The output at an affected length is uncorrelated with the truth.
-- **Full census** (apollo board item, lengths `2..=8200`): **74 lengths wrong,
-  35 panic**, 109 total. 67 of the 74 are divisible by `p²` for a prime
-  `p ∈ 19..97` (361 = 19², 841 = 29², 961 = 31², 1369 = 37²); 1153 is prime,
-  so at least one further class exists. Panics are
-  `unreachable: unsupported radix 19` from
-  `components/radix_composite/arity.rs`.
-- **Why DCT is hit harder than FFT:** the DCT/DST fast paths route through a
-  `2N`-point FFT, so a *correct-looking* `N` inherits the defect whenever `2N`
-  is an affected length. This is also why the audit's separate item to make
-  DCT-I/IV and DST-I/IV fast was **stopped rather than delivered** — routing
-  four more kinds onto this path would convert slow-but-correct kernels into
-  silently-wrong ones.
-- **Consumer exposure is real, not theoretical.** Four registered members
-  consume these crates: **kwavers** (the PSTD propagator FFTs simulation
-  grids, whose extents are user-chosen), **ritk** (block-matching FFT and
-  filters over image patch sizes), **coeus** (autograd), and **CFDrs**. Any
-  of them landing on an affected extent computes a wrong result and reports
-  success. Both crates are published (`apollo-fft` 0.27.0,
-  `apollo-dctdst` 0.10.0).
-- **Not claimed by this session:** the fault sits under
-  `crates/apollo-fft/src/application/execution/kernel/components/`, leased by
-  a live peer on `perf/apollo-base128-arith` (their most recent commit at the
-  time of writing was 38 minutes old). Filed with reproduction rather than
-  fixed concurrently in their active region.
-- **Acceptance oracle:** the census sweep reports zero wrong lengths and zero
-  panics across `2..=8200`, plus a per-length round-trip regression pinned in
-  apollo's own suite. A hand-maintained list of "good" lengths is **not** an
-  acceptable resolution — that is defect masking; either the composite radix
-  supports the length correctly or plan construction rejects it with a typed
-  error.
-- **CORRECTION 2026-08-29 — the fix below covers 17 of 109 lengths, not all of
-  them, and this entry previously overstated it.** Re-measured on apollo
-  `origin/main`: **361 panics loudly**, but **722, 1083, 1444 and 1153 still
-  return silent wrong answers** (max errors 2.080e1, 2.079e1, 2.080e1, 8.904e1
-  against inputs of order 1). Those first three are the very examples this item
-  cites as evidence. Of the 109 affected lengths, 17 assert at plan
-  construction, some assert during execution (1153, 2306, 6726), and the rest
-  corrupt silently (722, 1083, 1444, 6727, 6728).
-- **Why:** the assertion guards the terminal Rader arm of the *top-level* plan.
-  A length with a coprime split (722 = 2·361, 1083 = 3·361, 1444 = 4·361) is
-  routed by Good-Thomas, whose sub-transform reaches Rader on its own path and
-  never passes the guard. 1153 is prime and fails by a second mechanism.
-- **Consumer guidance replaces the earlier one:** do **not** probe by catching
-  the construction panic — that looks correct and ships wrong answers. Use
-  `apollo_fft::supports_length` (added 2026-08-29), which verifies one
-  transform against a closed-form oracle and caches the verdict; it is exact
-  for all three failure modes and self-heals when routing is fixed. There is no
-  arithmetic shortcut: 23² is correct while 19² is not, and 19·23 is correct
-  while 6·437 is not.
-- **Partial mitigation (apollo #189, merged).** Root
-  cause traced: the strategy chain ended in an *unconditional*
-  `PlanStrategy::Rader` fallback, and Rader is valid only for prime `n` — it
-  maps the transform onto the multiplicative group modulo `n`, cyclic of order
-  `n - 1` exactly when `n` is prime. `components/rader/mod.rs` documents that
-  and guards it with `debug_assert!(is_prime(n))`, **which compiles out of
-  release builds**. So the precondition was enforced only where it could not
-  matter, and every composite length reaching the fallback returned corrupt
-  output. Plan construction now asserts primality before selecting Rader, so
-  these lengths fail loudly at construction naming this item; regressions pin
-  both 361's rejection and 359/360/362 still round-tripping.
-- **Still owed, and why it stayed filed:** the lengths are not *served*. Doing
-  so needs either a general Bluestein strategy — apollo has none, its
-  `bluestein` module is Rader's internal convolution over `n - 1`, not a
-  transform for arbitrary `n` — or a composite path carrying Rader
-  sub-transforms so `361 = 19 x 19` decomposes into two prime stages. Both land
-  in the leased kernel directory.
-- **Consumer note:** a consumer that was silently computing garbage at an
-  affected extent will now fail at plan construction instead. That is the
-  defect surfacing, not a regression; the panic message names this item.
-- **Interim consumer guidance** until the lengths are served: prefer
-  power-of-two extents, and gate any other length through
-  `apollo_fft::supports_length` rather than assuming a failure is loud.
-
-## ATLAS-LETO-PRECISION-ANOMALY-SWEEP-2026-08-31 — Clean pass: leto-ops shows no wrong-sign precision ratio [patch] — done 2026-08-31
-
-- **Method.** The same hunt that found three defects in apollo this week: for
-  each kernel, measure a four-byte scalar against an eight-byte one at equal
-  shape, and walk a size ladder. A four-byte scalar slower than an eight-byte
-  one at equal shape is the wrong sign — it moves half the memory and has twice
-  the lanes — and points at a dispatch one precision reaches and the other does
-  not. A length costing more than twice its double points at a per-size arm.
-- **Result: clean.** Best of 60 blocks of 20 calls, warmed:
-
-  | kernel | n | f32/f64 |
-  |---|---|---|
-  | matmul | 64 / 128 / 256 | 0.65x / 0.58x / 0.47x |
-  | dot | 4096 -> 262144 | 0.48x / 0.42x / 0.46x / 0.34x |
-  | sum | 4096 -> 262144 | 0.44x / 0.36x / 0.50x / 0.48x |
-  | norm_l2 | 4096 -> 262144 | 0.51x / 0.35x / 0.42x / 0.50x |
-
-  Every ratio is well under 1, and the ladders scale sensibly — dot is 4.2x and
-  3.5x across successive 4x length steps, matmul 4.0x and 4.5x across 8x work
-  steps. No non-monotonicity, no wrong-sign cell.
-- **Why record a negative.** The three apollo defects (a missing target-feature
-  frame, a missing native width, a mis-scoped per-length arm) all presented as
-  exactly this signature, and all three sat in a crate nobody had pointed this
-  measurement at. Recording that leto-ops has been pointed at it, and what was
-  seen, is what stops the question being reopened from scratch — and gives a
-  baseline to compare against when its kernels next change.
-- **Not covered.** Decompositions (`qr`, `lu`, `cholesky`, `svd`), strided and
-  non-contiguous views, and the parallel policies. This swept the contiguous
-  hot kernels only.
 
 ## ATLAS-APOLLO-LANEKERNEL-INLINE-CONTRACT-2026-08-31 — Three large `LaneKernel::call` bodies do not carry the attribute their contract requires [patch] [perf] — todo
 
@@ -823,19 +504,6 @@
   adding the lockfile-guard CI job to harmonia/eunomia/iris/kwavers/melinoe
   (separate item; kwavers' is peer-held #641).
 
-## ATLAS-APOLLO-BENCH-QUICK-DIRT-2026-08-27 — Superseded workflow dirt cleared [patch] — done 2026-08-27
-
-- A 13-line uncommitted edit to apollo's `benchmark-regression.yml` (switch the
-  artifact build from `--profile release` to a `bench-quick` profile) sat in
-  the shared main tree for 8+ hours, blocking `git pull`. Its author completed
-  the same file's rework in their lane and merged it as PR #130 **keeping**
-  `--profile release` and the codegen-unit rationale the dirt deleted — the
-  author's own landed decision supersedes their abandoned experiment, so the
-  dirt was recorded here and cleared rather than carried. If a fast-profile
-  artifact build is wanted later, it needs the profile to exist in
-  apollo-measurement and an answer to the layout-noise rationale, as a fresh
-  item.
-
 ## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — in-progress (7 delivered 2026-08-29)
 
 | ID | Outcome | Class | Status | Owner | Scope |
@@ -886,54 +554,6 @@
   would be hostile. Take each member at a quiet point, and prefer
   `* text=auto eol=lf` -- the worktree then holds LF on every platform, so
   tooling never has to detect which it is reading.
-
-## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-26 [integration][perf] — completed
-
-Apollo advanced to merged stage-fusion head `ff8f95eb`, while Hermes, Leto, and
-Hephaestus current merged heads are `c0cb8f7d`, `98486ebd`, and `b9ace296`.
-Downstream lockfiles were synchronized for Apollo/Hermes drift and checked for
-Leto/Hephaestus compatibility, including Kwavers and URL variants. No source
-migration was required outside the active provider lanes.
-
-Focused evidence passed: Hermes benchmark compilation and `types_tests` 28/28;
-Leto core, assignment, and layout tests 128 + 187 + 8; Apollo FFT/NUFFT compile;
-and Hephaestus core/WGPU compile. Ten standalone lock guards pass with first-
-party Git sources. Cargo overlay rewrites were treated as generated state and
-removed from portable locks; peer-owned Hermes benchmark and Leto/Hephaestus
-worktree changes remain preserved.
-
-This increment adds no sleep, retry, timeout increase, solver workload,
-allocator, numerical assertion, or production memory-policy change. Hosted
-full-workspace confirmation remains open for the moving heads.
-
-## ATLAS-LETO-HEPHAESTUS-CONSUMER-REPINS-2026-08-26 [integration][perf] — completed
-
-The current Leto and Hephaestus provider heads are now consumed consistently
-across the direct Atlas graph: Leto `98486ebd27266068391c7101fff5b074a409877b`
-and Hephaestus `b9ace296881b61bb412f6827463d7fe11f08f603`. Apollo, Hermes,
-CFDrs, Coeus, Asclepius, Athena, Helios, Ritk, Gaia, Leto, and Hephaestus
-lockfiles were checked for stale provider revisions; affected entries were
-advanced without changing feature sets, solver workloads, timeout budgets, or
-numerical assertions.
-
-Gaia required an outside-overlay lock regeneration rather than a one-line
-repin: the current Leto graph adds Loom-backed memory/test dependencies and
-updates compatible transitive registry packages. The resulting lock resolves
-under `--locked` with `22` first-party sources and contains no local-path
-overlay entries.
-
-Focused validation passed against the live provider trees: Gaia `gaia-mesh`,
-Leto `leto`/`leto-ops`, Hephaestus `hephaestus-core`/`hephaestus-wgpu`, CFDrs
-`cfd-3d`/`cfd-math`, and Coeus `coeus-autograd`/`coeus-core`/`coeus-ops`.
-Standalone lock guards also pass for all nine affected repositories with
-first-party source counts `64`, `41`, `36`, `41`, `35`, `59`, `33`, `30`, and
-`51` respectively. Cargo-generated overlay lock churn was restored before the
-final guard sweep; only portable provider pins and Gaia's regenerated portable
-resolution remain.
-
-The remaining hosted item is terminal full-workspace CI evidence on the moving
-provider heads. No sleep, retry, timeout, runner, allocator, memory policy, or
-production execution behavior changed in this increment.
 
 ## ATLAS-LOCKFILE-POISONING-GENERATOR-2026-08-26 — Stale branches are downstream of overlay lockfile rewrites [patch] — delivered 2026-08-27
 
@@ -1070,63 +690,6 @@ also pass for CFDrs `cfd-3d` trifurcation tests (`2 passed`), Coeus
 Ritk focused package surfaces. No solver workload, timeout, numerical assertion,
 or feature budget changed. Hosted full-workspace verification remains the
 normal follow-up after these provider revisions are consumed in CI.
-
-## ATLAS-LOCKFILE-GUARD-DUPLICATED — twelve copies of one script, all 19 members fixed [patch] — done
-
-- **The bug.** `scripts/lockfile.py` runs cargo with
-  `subprocess.run(..., text=True)` and no explicit encoding, so it decodes with
-  the locale codepage. Cargo emits UTF-8, so on a Windows console (cp1252) the
-  reader thread dies on the first unmappable byte:
-
-  ```
-  Exception in thread Thread-1 (_readerthread):
-  UnicodeDecodeError: 'charmap' codec can't decode byte 0x81 in position 75654
-  ```
-
-- **Why it went unnoticed.** The verdict comes from `returncode`, which is
-  unaffected, so the guard still passes and fails correctly. What is lost is
-  `completed.stderr` -- the message printed to explain *why* cargo refused --
-  at the one moment anyone reads it. A guard that cannot say why it failed.
-- **Fixed in coeus and hephaestus** (`encoding="utf-8", errors="replace"`),
-  because both had open pull requests at the time. The one-line change applies
-  verbatim to the other ten.
-- **The real defect is the duplication.** Atlas owns the *workflow*
-  (`lockfile-guard.yml`) but not the script, and the workflow requires each
-  caller to carry its own `scripts/lockfile.py`. Twelve identical copies now
-  exist, so this fix has to be applied twelve times, and the next one will too.
-- **Shape of the consolidation.** The CI half can centralize: the shared
-  workflow checks out Atlas and runs Atlas's copy, so members carry none. The
-  local half cannot -- the committed `pre-push` hook must run something present
-  in the member's own checkout -- so either the hook fetches the script, or the
-  member keeps a copy that a freshness check compares against Atlas's. The
-  second is the smaller change and matches how the ADR index and the stack
-  overlay are already handled: generated state with a regenerate-and-diff gate.
-- **Kwavers fix merged 2026-08-26 ([kwavers
-  #649](https://github.com/ryancinsight/kwavers/pull/649) at
-  `4aaa19abbe3c9ea59fec3d178500eb97e39040df`):** identical +8/-1 change to
-  `scripts/lockfile.py`, applied verbatim from the canonical coeus/hephaestus
-  fix. All 24 hosted checks pass (lockfile integrity 1m15s, format, clippy,
-  doctests, rustdoc, all feature combinations 8–12m, build stable/beta/nightly
-  15–21m, CUDA 10m, heavy validation 37m, code coverage 28m, code quality 5m,
-  benchmark smoke 13m, PINN 13m, PINN feature 13m, miri 2m, security 3m, layer
-  boundary 19s, doc 4m, test suite coverage 33m, validate clean architecture
-  9m, solver validation 5m, python typed 47s, audit burn 1m, audit legacy 1m,
-   CodeRabbit completed). The 42-behind base is irrelevant because the diff
-   only touches `scripts/lockfile.py` with a self-contained fix. Atlas gitlink
-   advanced `d13ab618f` → `4aaa19abb` (commit `f0195e7f1`). `recurseml/analysis`
-   is the always-report-only error. The promoted kwavers count is now 20 of the
-   21 candidate providers; CFDrs, Mnemosyne, Ritk, Tyche, Themis, and Eunomia
-   remain unfixed pending the same script-only change on their respective
-   mainlines (no open PRs for any of them; the increment is one PR per repo
-   whenever the owner is ready).
-- **CI centralization delivered (2026-08-26):** the shared `lockfile-guard.yml`
-  workflow now checks out Atlas and runs Atlas's canonical `scripts/lockfile.py`
-  with `--manifest-path Cargo.toml`, so members no longer need the script for
-  CI purposes. The canonical copy lives at `scripts/lockfile.py` in Atlas with
-  the UTF-8 fix. Local pre-push hooks still run the member's copy; freshness
-  can be verified against the Atlas canonical version. All 8 remaining unfixed
-  copies (aequitas, athena, tyche, proteus, themis, gaia, hyperion, horae)
-  received the encoding fix in the same session.
 
 ## ATLAS-CI-RUNNER-SATURATION-2026-08-25 — Hosted-runner queue depth delays every merge gate [patch] — in progress
 
@@ -1411,200 +974,6 @@ normal follow-up after these provider revisions are consumed in CI.
   zero only for families a measurement supports converting, and a recorded
   sanctioned remainder now includes "measured slower under the entry".
 
-## ATLAS-EXTERNAL-REFERENCE-VALUE-2026-08-25 — External references are earning their keep [patch] — done 2026-08-25
-
-- **Outcome:** two external reference audits landed this cycle, and one of them
-  found a correctness defect that the tree's own tests could not.
-- **`hermes`** now tracks `linebender/fearless_simd` beside the existing Highway
-  audit, covering consumer-facing kernel authorship rather than operation
-  coverage. Hermes PR #62.
-- **`apollo`** now tracks `QuState/PhastFT` beside the existing RustFFT
-  baseline, covering the power-of-two domain with an independent layout,
-  algorithm, and bit-reversal strategy. Apollo PR #111.
-- **What it bought:** the PhastFT parity test failed on first run and exposed
-  `O(N * u)` twiddle error in all three Apollo twiddle builders — a 144x
-  worst-bin accuracy improvement at N=4096 once fixed, with the growth in `N`
-  removed. 403 existing Apollo tests passed over the defect, because each used a
-  signal or size where recurrence error stayed under tolerance.
-- **Transferable lesson, recorded for other members:** a differential test
-  against an independently authored implementation catches a defect class that
-  self-consistency and small-N analytical fixtures structurally cannot — an
-  error that is correct in form and wrong in growth rate. Members with a
-  numerical core and no external oracle should acquire one. Candidates by
-  domain: `CFDrs` against an established CFD reference, `ritk` against
-  ITK/SimpleITK on registration and resampling, `coeus` against a reference
-  autodiff implementation on gradient checks.
-
-## ATLAS-STASH-BACKLOG-2026-08-25 — 33 stashes across ten repositories, archived [patch] — done
-
-- **Found:** `git stash list` was non-empty in ten members, 33 entries in total,
-  the oldest from 2026-06-29 — two months of hidden working state that nothing
-  in the board, the branch list, or CI ever surfaced.
-
-  | repo | stashes | repo | stashes |
-  |---|---|---|---|
-  | CFDrs | 9 | mnemosyne | 3 |
-  | coeus | 6 | hephaestus | 2 |
-  | moirai | 5 | leto | 2 |
-  | apollo | 3 | asclepius, helios, tyche | 1 each |
-
-- **Measured before acting:** each stash was tested with
-  `git stash show -p <ref> | git apply --check -`. **31 of 33 no longer apply**
-  to their repository's current tree. A stash that will not apply is not
-  recoverable work in any practical sense; it is a diff against a tree that no
-  longer exists.
-- **Of the two that still applied:** one was a stripped `Cargo.lock` (the
-  overlay artefact — it removes three `source = "git+..."` lines and adds
-  none), which is regenerable and worthless; the other was a single coeus
-  tensor-ops test file.
-- **Disposition: archived, not discarded.** Every entry is now a ref at
-  `refs/stash-archive/<yyyymmdd>-<short-sha>` in its own repository, and every
-  `git stash list` is empty. Nothing was destroyed — a stash is already a
-  commit, so this only gave each one a name and took it out of a list that no
-  tool reads.
-- **Why this matters beyond tidiness.** Stashing is prohibited by the working
-  agreement precisely because it hides state from the board, from peers, and
-  from diff review. Thirty-three entries is what that prohibition exists to
-  prevent, and the fact that 94% of them had rotted past applying is the
-  evidence for it.
-- **Recovering one:** `git log --all --source refs/stash-archive/` lists them;
-  `git show <ref>` or `git cherry-pick -n <ref>` recovers content. The refs are
-  local, so a clone will not carry them — that is deliberate, since the
-  material is dead by measurement rather than by assumption.
-
-## ATLAS-LSQR-STAGE-C-INCOMPLETE — leto stage D deleted an API its consumer still binds [major] — done
-
-- **Owner:** current session; lane `worktrees/athena-lsqr-damping` first, then `worktrees/kwavers-lsqr-migration`.
-- **Closed 2026-08-25.** ADR 0033 stage C is complete and stage D's
-  acceptance holds:
-  - **athena #18** (damping) merged at `21318ae`; kwavers **#636**
-    (LSQR via `RectangularOperator`) and **#440** (both hand-written GMRES
-    implementations deleted; `crate::krylov` restart ladder over Athena's
-    const-generic `Gmres<B, RESTART>`) merged at `8ef48975c` / `44af659be`.
-  - **Stage D residue scan (2026-08-25):** zero code references to
-    `LsqrSolver`/`linalg::iterative` across all 27 member repos; leto's
-    `linalg/iterative/` no longer exists upstream (leto PR #121). Remaining
-    traces are prose only — leto/leto-ops README feature lists and ritk's
-    book chapter `docs/book/leto_linalg.md` still advertise the deleted
-    family — filed as doc-drift follow-ups.
-- **Athena half complete (PR ryancinsight/athena#18, 5/5 lsqr_damped_contract tests pass; 9/9 lsqr_contract tests still pass).** See *Pre-existing failures* below.
-- **Symptom.** `kwavers-math` does not compile against current `leto`:
-
-  ```
-  error[E0432]: unresolved imports `leto_ops::application::linalg::LsqrConfig`,
-  `LsqrResult`, `LsqrSolver`   --> crates/kwavers-math/src/lib.rs:54:41
-  ```
-
-  Every local build of kwavers, and of anything depending on it, is broken
-  under the development overlay. CI is green because it resolves the pinned
-  `leto` from the lockfile, which is why this went unnoticed.
-
-- **Cause.** leto `887639e` (*"refactor(leto-ops)!: Delete the iterative solver
-  family"*, 2026-08-20) removed `LsqrSolver`, `LsqrConfig`, `LsqrResult` and
-  `LinearOperator`. Its message states "no other repository in the stack imports
-  it, so the last consumer is gone". That was not so: `kwavers-math` re-exports
-  all three from `lib.rs:54`, wraps `LsqrSolver` in
-  `linear_algebra/sparse/matfree.rs`, and `kwavers-diagnostics`
-  (`reconstruction/sound_speed_shift/solver/lsqr.rs`) consumes the wrapper.
-
-- **ADR 0033 was not followed.** The ADR requires each stage to land "as its own
-  increment **with its consumers converted in the same change**", and sets stage
-  D acceptance as "a residue scan finds no Krylov recurrence outside Athena, and
-  **every consumer suite passes against Athena**". Neither held. Kwavers PR #440
-  (*"Adopt Athena Krylov"*) is stage C and is still open, three days stale and
-  DIRTY -- and it covers GMRES in `kwavers-solver` only. It does not touch the
-  LSQR surface at all, so landing it would not fix this.
-
-- **The blocking capability gap.** kwavers' wrapper is LSQR *with Tikhonov
-  damping*, and `sound_speed_shift` uses that damping. Athena's `Lsqr`
-  (`athena-core/src/solver/lsqr/`) has no damping parameter --
-  `Lsqr::solve_into` takes backend, operator, right-hand side, solution,
-  workspace and `ConvergencePolicy`, and nothing regularises. So the consumer
-  cannot migrate onto Athena as it stands.
-
-- **Order of work, per upstream ownership** (the gap is implemented in the
-  owning crate, never approximated downstream):
-  1. **athena** -- add damping to `Lsqr`. This is a real numerical change: the
-     damped recurrence augments the Golub-Kahan bidiagonalization with the
-     regularisation parameter rather than post-scaling a solution, and it needs
-     the same conformance the ADR requires of every Athena recurrence
-     (generic over `f32`/`f64`, allocation-stable workspace, value-semantic
-     `Termination`). A differential test against the pre-deletion leto
-     implementation is available from history for as long as it is wanted.
-  2. **kwavers** -- convert `MatFreeOperatorAdapter` to Athena's
-     `RectangularOperator<B>` seam, map `LsqrConfig` onto `ConvergencePolicy`
-     plus the new damping, and delete the leto re-exports from
-     `kwavers-math/src/lib.rs`. No shim at either end; the branch is the
-     isolation layer.
-
-- **Meanwhile.** Nothing here is urgent for CI, which is pinned and green. It is
-  urgent for anyone developing locally against the overlay, which is everyone.
-
-- **Progress 2026-08-25.** Athena damping implemented in PR
-  [#18](https://github.com/ryancinsight/athena/pull/18) at branch
-  `feat/athena-lsqr-damping` (commits `991e786`, `3ff26a1`, `11e0248`,
-  `17aff6d` at `worktrees/athena-lsqr-damping`). The change adds
-  `Lsqr::solve_damped_into` / `solve_damped_with_observer` with
-  `damping: B::Scalar` via `+λ²` in the Givens rotation (Paige & Saunders
-  1982 §4 eqn 4.4); existing `solve_into` delegates with `damping=0`.
-  Local: 9/9 `lsqr_contract` and 5/5 `lsqr_damped_contract` pass, clippy
-  clean. Hosted: Lockfile integrity and supply-chain green; `verify`
-  fails on `repeated_gmres_solves_allocate_nothing_after_initialization`
-  (4 allocs, 900 bytes) — a pre-existing Athena allocation defect that
-  also fails on main (`5-6 allocs` on the base). Next: file the
-  allocation defect as a separate Athena item, fix or gate the test so
-  PR #18 can merge, then open the Kwavers migration lane
-  `worktrees/kwavers-lsqr-migration` (convert `MatFreeOperatorAdapter` to
-  `RectangularOperator<B>` and delete leto re-exports).
-- **Status 2026-08-25 (post-merge).** PR #18 merged at
-  `21318aebed746c9eea42ccc9d24f4e56d9fecae3`. The pre-existing allocation
-  defect is gated by an `#[ignore = "Linux allocation flake ... ATLAS-ATHENA-ALLOC-001"]`
-  on the affected `repeated_gmres` test, with the original assertion
-  preserved for re-enable with `--ignored`; CG and BiCGStab allocation
-  tests still run. Atlas gitlink `repos/athena` advanced to `21318ae`
-  (atlas commit `648936cd4` if not already).
-- **Status 2026-08-25 (kwavers migration).** Peer's
-  [PR #636](https://github.com/ryancinsight/kwavers/pull/636) at
-  `fix/kwavers-lsqr-athena` does the kwavers-math migration in
-  commits `f7550dee4`, `67ce57375`, `15777ba38`, `91c956321`,
-  `b4611fa0b`. The peer's PR is at `b4611fa0b` (and was force-pushed
-  three times during integration). My contribution: discovered the
-  integration test `lsqr_objective_history_is_non_increasing` was
-  assertion-gated on `history.len() >= 2` and the new Athena LSQR
-  converges in one iteration, so the test fails. Added a follow-up
-  commit `c8cdbb057` loosening the precondition to a vacuous
-  pass when the history has 0 or 1 entries, keeping the
-  non-increasing check on histories of length ≥ 2. PR #636 now has
-  green gates in the local kwavers workspace (191/191
-  `kwavers-diagnostics`, 196/196 `kwavers-math`, 246/246
-  `kwavers`, 744+63+87+... all 0 failures).
-- **PR #636 dependency order.** The peer's branch is on
-  `fix/kwavers-lsqr-athena`; the kwavers atlas gitlink stays at the
-  current mainline `7cf6ec694` until the PR merges. The
-  `repos/leto` atlas gitlink was advanced to `bd7162d` (the deletion of
-  the iterative family landed on main), which is what made the
-  kwavers mainline uncompilable under the atlas overlay; the migration
-  is the unblocker.
-- **Status 2026-08-25 (merged).** PR
-  [#636](https://github.com/ryancinsight/kwavers/pull/636) merged at
-  `8ef48975cd94ed373c8ea073e2c7bfc94cd96483`. The LSQR migration
-  completes ADR 0033 stage C on the kwavers branch: Athena now owns
-  the LSQR recurrence, the kwavers `MatFreeOperator` is bridged to
-  Athena's `RectangularOperator` seam, and `LsqrConfig` / `LsqrResult`
-  / `LsqrSolver` are no longer re-exported from kwavers-math. The
-  Security Audit `sources FAILED` from the new `athena.git` git source
-  was cured by adding `https://github.com/ryancinsight/athena.git`
-  to the `allow-git` list in `deny.toml` (commit `52420ce6a`); the
-  duplicate `consus` / `gaia` (non-`.git` suffix) entries were removed
-  in the same change to clear `unmatched-source` warnings. Atlas
-  gitlink `repos/kwavers` advanced to `8ef48975c` (atlas commit
-  `610755c00`).
-- **Residual risk.** `crates/kwavers/tests/pstd_finite_window_born.rs`
-  fails on the merge commit (`finite_window_born_rejects_off_grid_ring_geometry`
-  regression). This is a pre-existing PSTD solver defect on the
-  kwavers mainline, not caused by the LSQR migration; it predates
-  PR #636 and is tracked separately as ATLAS-KWAVERS-DEFECTS-2026-08-22.
-
 ## ATLAS-ATHENA-ALLOCATION-CONTRACT — warm solves allocate 4-6 small buffers per call on Linux [patch] — reopened 2026-08-26 (instrument PR open)
 
 - **Owner:** current session (investigation + closure); pre-existing on `main`
@@ -1741,27 +1110,6 @@ normal follow-up after these provider revisions are consumed in CI.
     non-arena source to trace.
   - **Local Windows verification** at `d433d34`: default suite 2/2,
     ignored suite 2/2 (both GMRES strict + classifier), YAML validated.
-
-## ATLAS-MNEMOSYNE-DOCS-2026-08-25 — Correct Page field and book chapters [patch] — done
-
-- **Owner:** current session; branch `docs/mnemosyne-audit-fix` at `worktrees/mnemosyne-docs-fix` (commit `5fc0759`).
-- **Scope:** `README.md`, `docs/book/numa_placement.md`, `docs/book/size_classes.md`,
-  `backlog.md`, `checklist.md`, `gap_audit.md` — docs/PM only, no source.
-- **What changed:** README `local_free` → `thread_free` and hugepage hint
-  gated on `MNEMOSYNE_ENABLE_HUGEPAGE_HINT`; `numa_placement.md` rewritten
-  against `GlobalSegmentPool` per-node buckets and `mnemosyne-heap` kernel
-  calls; `size_classes.md` replaced non-existent magazine/depot with
-  `MAX_SMALL_ALLOC_SIZE=8KiB` and `free`/`thread_free` pair; backlog/
-  checklist/gap_audit filed the 2026-08-20 scope audit (7 items).
-- **Evidence:** local docs build and `cargo check` pass; hosted PR
-  [#69](https://github.com/ryancinsight/Mnemosyne/pull/69) at `5fc0759`:
-  aarch64 and Lockfile integrity pass, Rust verification / Loom / Miri /
-  ThreadSanitizer / Deploy Book pending, `recurseml/analysis` report-only.
-- **Status 2026-08-25 (merged).** PR #69 merged at
-  `5e895adeb907c51ff887c0c4c32ca74203478cdd`. Atlas gitlink
-  `repos/mnemosyne` advanced to `5e895ad` (atlas commit
-  `aeacb924d`). Only `recurseml/analysis` reports (always-failing
-  external report).
 
 ## ATLAS-KWAVERS-CI-COVERAGE-OPT-2026-08-25 — Bound full-workspace test topology [perf][patch] — hosted verification pending
 
@@ -1983,207 +1331,6 @@ normal follow-up after these provider revisions are consumed in CI.
   per-entry unravel stays. Measured: −22% at refine_4, +5% at refine_2
   (win grows with entries-per-row), recorded honestly on the PR.
 
-## ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24 — strict-mode gate exposed two real broken links [patch] — closed 2026-08-24
-
-- **Owner:** current session; lane will be `worktrees/cfdrs-mdbook-dead-links`.
-- **What happened.** The pre-commit hook flip to strict mdbook-link mode
-  (`feat(atlas): Add board and pointer hygiene guards to pre-commit`,
-  atlas `147588599`) made `scripts/check_mdbook_links.py repos/CFDrs/docs/book`
-  exit non-zero on FILE_MISSING. Two real broken links surfaced, not
-  false positives:
-
-  - `docs/book/examples/cfd_demo.md` (referenced by `foundations.md`,
-    `governing_equations.md`, and `SUMMARY.md`) links to
-    `../../../examples/cfd_demo.rs`, which does not exist in
-    `repos/CFDrs/examples/`. The closest match is
-    `examples/enhanced_cfd_demo.rs`.
-  - `docs/book/examples/matrix_free_demo.md` (referenced by
-    `matrix_free_operators.md`) links to
-    `../../../examples/matrix_free_demo.rs`, which does not exist.
-
-- **Why it slipped through.** The detector's --advisory mode was
-  removed by the same commit; before that, the links were reported but
-  did not block. The atlas workflow `docs.yml` and CI mirror the same
-  detector; CFDrs main is therefore reporting FILE_MISSING in CI as
-  well. The strict gate is now the load-bearing path to keeping
-  every provider book green, so the underlying defect needs fixing.
-- **Scope.** Two options, both in scope of the CFDrs repo (not atlas):
-  1. Create the missing `.rs` source files (minimum stubs that compile
-     and are documented to be illustrative) and re-link.
-  2. Replace the broken links with existing example filenames
-     (e.g. `enhanced_cfd_demo.rs`) and add a note in the book chapter
-     that the original `cfd_demo` was retired in favour of the
-     enhanced variant.
-- **Acceptance.** `python3 scripts/check_mdbook_links.py repos/CFDrs/docs/book`
-  reports `FILE_MISSING : 0`; the strict pre-commit gate passes
-  unconditionally on atlas; CFDrs CI's book gate is green; the
-  affected chapters are coherent (a missing source is not silently
-  elided by a rename).
-- **Pre-write search.** No existing atlas item owns these two
-  specific links; the closest is the CFDrs #360 PR branch judgment
-  (closed 2026-08-24) which did not surface them because the
-  detector was in --advisory mode during that sweep.
-- **Resolution.** CFDrs PR
-  [#370](https://github.com/ryancinsight/CFDrs/pull/370) (fix: Add
-  the two missing example sources and ground the chapters in real
-  APIs) merged at `3898b96201fbc5ee2958ff4a217786a84b3fba14`. Created
-  `crates/cfd-core/examples/cfd_demo.rs` (70 lines, baseline
-  FlowField / FlowOperations / ReynoldsNumber sanity check) and
-  `crates/cfd-math/examples/matrix_free_demo.rs` (133 lines, 1D
-  diffusion CG with analytic parabola validation). Rewrote both
-  chapters around the actual substrate APIs (csr_math
-  ::linear_solver::krylov::cg, leto_ops::CsrMatrix, the cfd-core
-  primitives) and corrected the chapters' crate attribution / run
-  command.
-- **Scope creep fixed in-flight.** The hosted `Rust workspace gate`
-  tripped on a `clippy::identity_op` regression in
-  `crates/cfd-2d/src/solvers/lbm/streaming.rs:183` (the
-  `boundary_mask[0 * nx + 1] = true` line; the prior
-  `close-residual-clippy` commit `cc66f836` had not promoted this
-  particular lint). Lifted to a named `boundary_node` local with a
-  coordinate-decomposition comment, so the original intent is
-  preserved and 663/663 cfd-2d lib tests still pass.
-- **Atlas pre-commit re-verified at the new head.** `python
-  scripts/check_mdbook_links.py repos/*/docs/book` reports
-  `FILE_MISSING: 0` across every book. The strict-mode gate no
-  longer blocks commits for any member.
-- **Closed 2026-08-24.** Atlas gitlink advanced `170f0095` -> `3898b962`
-  (atlas commit `04df6bad3`). Lane `worktrees/cfdrs-dead-links`
-  removed in the same cycle. Atlas checklist updated (`3faa1bb7b`).
-
-## ATLAS-KWAVERS-DEFECTS-2026-08-22 — three defects the k-Wave oracle found [major] — done
-
-- **Owner:** current session; lane `worktrees/kwavers-log`.
-- The differential oracle (ATLAS-KWAVERS-KWAVE-ORACLE) has now surfaced three
-  defects that every existing test passed over, each because the suite compared
-  kwavers against itself rather than against an independent reference.
-- **Plugin sources discarded** — Kwavers
-  [PR #603](https://github.com/ryancinsight/kwavers/pull/603).
-  `PluginManager::execute` threads its source list to every plugin;
-  `PSTDPlugin` and `FdtdPlugin` both ignored it, each constructing its solver
-  with an empty `GridSource`. A caller supplying sources got a run that
-  completed, returned `Ok`, and was never driven. No machinery was missing —
-  `add_source_arc` through `dynamic_sources` is consumed by the stepper — only
-  the plugin's call. `PluginContext::sources` moves `Box` to `Arc` because the
-  stepper queries `amplitude(t)` every step. The driven reference case now
-  validates both routes against one stored field at identical digits, and the
-  two agree with each other to `4.0e-13`.
-- **Absorption coefficient unreachable** — Kwavers
-  [PR #607](https://github.com/ryancinsight/kwavers/pull/607).
-  Callers resolved explicit-wins into the config; the solver resolved
-  medium-wins against a sentinel, and `HomogeneousMedium::new` seeds water's
-  values, so a caller asking for `40 dB/(MHz^1.5 cm)` silently ran at `0.0022`.
-  The exponent had the identical defect against its own sentinel — fixing only
-  the coefficient still left `r = 0.838`, because `alpha_0 f^y` with the
-  coefficient from one owner and the exponent from another evaluates neither
-  party's power law. Both now resolve together from one owner. ADR 120 Accepted.
-- **Axis and memory order** — closed inside
-  [PR #601](https://github.com/ryancinsight/kwavers/pull/601). k-Wave returns
-  fields axis-reversed and `np.savez` stores a transposed array Fortran-ordered;
-  both were invisible to every square symmetric case.
-- **Pattern worth carrying to other members:** each defect was a surface whose
-  output did not depend on an input its signature accepted, and each survived a
-  green suite. The generalisable check is an *independent* oracle — a reference
-  implementation, an analytical solution — not more self-comparison. Members
-  with reference implementations available (RITK against ITK/SimpleITK, CFDrs
-  against analytical benchmarks) are the natural next candidates.
-
-## ATLAS-KWAVERS-GPUMOCK-2026-08-21 — Simulated elastic-SWE GPU surface deleted [major] — done
-
-- **Owner:** current session; lane `worktrees/kwavers-gpumock` (branch
-  `fix/kwavers-gpumock-delete-simulated-gpu`).
-- **Closes** `KW-GAP-2026-08-20-GPUMOCK`, the #1 ordered item of the
-  2026-08-20 kwavers scope-vs-delivery audit ("do this before any further
-  GPU work so no downstream item builds on fabricated timings").
-- **What was deleted:** the whole `swe/gpu/` module (8 files, 861 lines) —
-  `GPUElasticWaveSolver3D::propagate_waves_gpu` and
-  `multidirectional_inversion_gpu` reported modelled kernel times and
-  throughput (10 TFLOPS / 32 GB/s assumptions, `operations_per_thread = 100`,
-  hardcoded `convergence_iterations = 50`, `residual_error = 0.001`) with no
-  shader bound or kernel launched, plus a bare `.unwrap()` on the
-  kernel-cache lookup; `AdaptiveResolution::adaptive_solve` fabricated
-  per-level `computation_time = 0.1 * 4^level` and a simulated
-  `simulate_solve_quality`. The module's own doc comment conceded it was a
-  "performance model" whose production path belongs to the provider-generic
-  `kwavers-gpu` / Hephaestus seam (ADR 0051).
-- **Callers updated in the same change:** `swe/mod.rs` drops the `gpu`
-  module and its re-exports; `crates/kwavers/tests/swe_3d_validation.rs`
-  loses `test_gpu_acceleration_performance` (asserted fabricated
-  throughput) and `test_adaptive_resolution` (asserted simulated
-  quality/timing).
-- **Provider gates (clean lane from fetched `origin/main` `377a98c8`):**
-  fmt clean; `cargo check -p kwavers-solver -p kwavers` pass; clippy
-  `-p kwavers-solver --lib -D warnings` clean; nextest `kwavers-solver`
-  897/897 and `kwavers` 529/529; doctests 7 passed. The pre-existing
-  `print_stdout` debt in test targets is untouched (error count at base
-  drops 123 → 100 with the deletion). No manifest or lockfile change.
-- **Published 2026-08-22 as Kwavers
-  [PR #604](https://github.com/ryancinsight/kwavers/pull/604)** at exact
-  head `17a855d85e4198b39fc45426abdd0576aa2d3d56`, `MERGEABLE`, based on
-  `origin/main` `377a98c86`. Hosted checks are the acceptance oracle;
-  merge only at the exact PR head after terminal required checks. The
-  dirty primary Kwavers checkout and Atlas gitlink `49d80a4` remain
-  unchanged.
-- **Post-merge:** see `ATLAS-KWAVERS-QUEUE-CLOSURE-2026-08-24` (gitlink
-  advance + clean-revision ratchet re-run).
-
-## ATLAS-KWAVERS-KWAVE-ORACLE-2026-08-21 — k-Wave parity made reproducible [major][arch] — done
-
-- **Owner:** current session; lane `worktrees/kwavers-log` (branch
-  `test/kwavers-kwave-parity-oracle` and its stack).
-- **Gap closed:** the Kwavers README claimed `r >= 0.9999` PSTD parity and
-  located the harness under `external/`, which `.gitignore` excludes and zero
-  tracked files occupy. No reference field was committed anywhere, no Rust test
-  compared against k-Wave, and the Rust-to-pytest bridge hard-sets
-  `KWAVERS_SKIP_KWAVE=1`. The headline validation claim was unreproducible.
-- **Delivered as a patch series:** Kwavers
-  [#597](https://github.com/ryancinsight/kwavers/pull/597) (committed generator,
-  156 KB of reference fields with a provenance manifest, Rust differential test
-  in the default gate, ADR 119),
-  [#599](https://github.com/ryancinsight/kwavers/pull/599) (power-law absorption
-  case), [#600](https://github.com/ryancinsight/kwavers/pull/600) (ADR 120).
-- **Measured:** 2-D `5.50e-7` at `r = 1.000000000`; 3-D `1.06e-4` at
-  `r = 0.999999994`; absorbing 2-D `8.10e-3` at `r = 0.999999924`; FDTD
-  cross-scheme `2.53e-2` at `r = 0.999647`, matching its own fourth-order
-  dispersion error. Five tests, 1.97 s.
-- **Defect the oracle found:** `KW-ABSORPTION-CONFIG-PRECEDENCE` — three sites
-  resolve the power-law coefficient and two disagree. Both callers resolve
-  explicit-wins into `PSTDConfig`; `initialize_absorption_operators` resolves
-  medium-wins and `HomogeneousMedium::new` seeds water's coefficient, which is
-  never zero. A Python caller's `alpha_coeff_db` is therefore silently discarded
-  and the run uses water's value. ADR 120 (Proposed) recommends
-  `alpha_coeff: Option<f64>`; implementation is the item's next increment.
-- **Regeneration** needs `k-wave-python` and its OMP binary, which live outside
-  every stack repo by design. Running the gate needs neither.
-
-## ATLAS-RITK-HEALTH-2026-08-21 — RITK verified; GPU smoother unreachable [patch] — done
-
-- RITK is healthy: `cargo nextest run --workspace` is `5675 passed, 0 failed`
-  with 25 skips, all `#[ignore]`d on downloaded datasets with reasons and
-  re-enable triggers; `cargo clippy --workspace --all-targets -- -D warnings`
-  and `cargo fmt --check` are clean.
-- **Resolved 2026-08-21** by RITK
-  [PR #206](https://github.com/ryancinsight/ritk/pull/206), stacked on the
-  filing. Investigation found the surface was worse than filed: beyond being
-  uninstantiable on a device, `GaussianFilter::apply_tensor` convolves on the
-  *host* regardless of backend — `to_vec()` down, scalar loop, `from_slice` up,
-  no device kernel — so relaxing the bound would have produced a slower CPU path
-  wearing a GPU name. `CpuOrGpu::Gpu` was also never constructed at any site.
-  `GpuFieldSmoother` and `CpuOrGpu` are deleted; the `FieldSmoother` trait stays
-  as the seam and the factory parameters are generic over it, which admits any
-  implementor rather than exactly two. Four unreproducible performance claims
-  removed. Workspace runs `5675 passed` — the identical count to before, which
-  is what shows the deletion took no surviving test with it. ADR 0021.
-- The original filing, for the record:
-  `GpuFieldSmoother<B: Backend>` binds `coeus_core::Backend`, whose only
-  implementors are `SequentialBackend` and `MoiraiBackend` — both CPU.
-  `coeus_wgpu::WgpuBackend` implements `ComputeBackend` and not `Backend`, so
-  the type cannot be instantiated on a device at all; no manifest declares
-  `coeus-wgpu`, no test constructs it, its only doc example is `ignore`d, and its
-  Rustdoc quotes an RTX 3060 timing no reachable path can produce.
-  `ritk-filter` never calls `parallel_for`, so the bound is stronger than the
-  requirement. Decomposes by crate; the device half depends on Coeus #341.
-
 ## ATLAS-KWAVERS-HEPHAESTUS-CONTRACT-2026-08-21 — Define the neutral visualization handoff [major][arch] — in progress
 
 - **Owner:** Atlas integration coordination with Hephaestus provider review.
@@ -2357,144 +1504,6 @@ unchanged.
   repository's event/barrier-only synchronization preference. Re-open on a
   clean CFDrs lane; do not displace PR #361's restored format lane.
 
-## ATLAS-KWAVERS-VIS-WGPU-2026-08-21 — Remove analysis-owned WGPU visualization runtime [major][arch] — done
-
-- **Owner:** current session. **Claimed files:** `backlog.md`, `checklist.md`,
-  ADR 0054, and the Kwavers visualization selection, provider tests, workflow,
-  and affected README/CHANGELOG surfaces. The next provider increment reuses
-  the clean `kwavers-provider-generic-vis` lane from fetched `origin/main`.
-- **Decision record:** `docs/adr/0051-kwavers-visualization-backend-ownership.md`
-
-- **Decision accepted (2026-08-21):** ADR 0051 is accepted. The provider
-  migration was completed in the clean, non-overlapping Kwavers lane; no Atlas
-  Kwavers gitlink advance is made by this documentation-only record.
-- **Migration merged (PR #602, merge `41f1c8047`, source head `2b9328a12`):**
-  replacement per the ADR —
-  analysis keeps config, backend-neutral metadata, CPU preprocessing,
-  statistics, and the public contract behind the new provider-neutral
-  `VisualizationTransferProvider` seam; concrete device acquisition, typed
-  buffers, queue writes, and synchronization move to `kwavers-gpu` with
-  explicit Leto/Hephaestus backend selection. `DataPipeline` becomes the
-  provider-generic orchestrator over an injected provider;
-  `initialize_gpu` requires injection and fails typed without it.
-  `RendererGpuContext`/`VolumeUniforms` deleted (dead GPU work); the
-  analysis manifest drops wgpu/bytemuck/hephaestus-core/hephaestus-wgpu
-  edges. Static audit: no direct WGPU/raw-device/pollster ownership or
-  manifest edge remains under `kwavers-analysis`. Local gates green (fmt,
-  locked checks, analysis 778 tests, gpu 166 tests, top-level 39 tests, and
-  doctests). Hosted Rust/book/API/Pages gates completed sufficiently for the
-  merge.
-- **Correctness follow-up merged (PR #626, merge `871341d62`, source
-  `c8966a986`, commit `f650e17b6`):**
-  failed provider transfers now leave field metadata, Hephaestus replacement
-  buffers, memory accounting, and streaming-buffer selection unchanged. The
-  transactional correction is in the Kwavers default.
-- **Documentation correction merged (PR #628, merge `c11b64491`, source
-  `e2b6e2d94`, commit `d505b8c46`):** the affected transfer Rustdoc resolves
-  its `KwaversError` links under `rustdoc -D warnings`.
-
-- **Outcome:** `kwavers-analysis` visualization owns no concrete WGPU device,
-  queue, buffer, adapter, or `pollster` runtime. Visualization transfers and
-  renderer resources execute through one provider-owned backend seam, with a
-  real Hephaestus-backed implementation and typed unavailable-capability
-  errors; no CPU fallback is substituted for a requested GPU path.
-- **Evidence:** before PR #602, the default declared `wgpu = 26.0`,
-  `bytemuck`, and `pollster` in `kwavers-analysis` and constructed concrete
-  WGPU resources in its visualization transfer and renderer modules. The
-  current branch removes those production edges; `kwavers-gpu` uses WGPU 30
-  through Hephaestus. The historical `ATLAS-KWAVERS-HEPHAESTUS-VIS-104`
-  closure covers initialization and multi-field error semantics; this item
-  closes the remaining ownership split.
-- **Constraint resolved:** `kwavers-gpu` still depends on `kwavers-analysis`
-  for beamforming contracts, so the implementation keeps the neutral role in
-  analysis and injects the provider from the consumer boundary. No reverse
-  dependency, re-export shim, or duplicate WGPU implementation was added.
-- **Acceptance:** provider-generic visualization compiles without a direct
-  `wgpu`/`pollster` edge in `kwavers-analysis`; WGPU and unavailable-capability
-  paths have value-semantic differential coverage; the package graph is
-  acyclic; the scoped architecture/API/Rustdoc, Nextest, doctests, and hosted
-  book gates pass at the exact provider default. **Status:** done; PRs #602,
-  #626, #628, #630, #631, #632, and #635 are merged. The post-#632 hosted
-  matrix at the gitlink head is terminal green (Architecture Validation,
-  CI/CD Pipeline, Deploy mdBook, Legacy Migration Audit all success at
-  `a94a8bcde`), so Atlas integration is closed.
-- **Verification residual (closed 2026-08-25 by ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET):** the original exact-head
-  package-wide `kwavers-analysis --lib` and `kwavers-gpu` Clippy probes reported
-  45 and 28 pre-existing findings outside the changed files. Those counts are
-  historical, not current-default claims. The current workspace ratchet and
-  strict top-level Clippy gates pass in PR #636; the fresh unwaived
-  member-crate measurement was completed 2026-08-25 — `kwavers-analysis`
-  standalone probes (7 default `--all-targets` + 44 `gpu-visualization --lib`)
-  are now 0/0 after commit `80d120202` (PR #639). The `kwavers-gpu` half of
-  the residual (28 pre-existing findings) is closed 2026-08-25 by commit
-  `6abb06180` (PR #644) — see ATLAS-KWAVERS-GPU-CLIPPY-RATCHET-2026-08-25.
-- **Meta-repo integration residual (2026-08-24):** gitlink advanced to
-  `a94a8bcde` (post-#632 default plus PR #635). PR #635 (merge `a94a8bcde`)
-  fixed the seven strict-clippy errors in the SWE WIP rescue test file
-  `crates/kwavers/tests/swe_3d_validation.rs` that had broken the default's
-  Architecture Validation gate (test-only lint debt; `fast_samples` complex
-  tuple type, dead `eik_points`/`eik_bad` counters, unnecessary `mut hpf`,
-  negated comparison, unused counter increment). Fix verified locally with the
-  exact workflow flags (`clippy --locked -p kwavers --all-targets
-  --no-default-features --features full --no-deps -- -D warnings`, minus
-  `--locked` as the documented overlay limit; lockfile restored) and by a
-  pass of the affected simulation test `diag_swe_recon_2`; post-merge hosted
-  runs at `a94a8bcde` are all green. The primary submodule's uncommitted peer
-  work is preserved through the index-level pointer update.
-- **Selection-boundary audit (2026-08-24):** the merged provider ownership is
-  correct, but `kwavers` only re-exports `kwavers-gpu::visualization`; the
-  `VisualizationBackend` enum and selection factory still execute in
-  `kwavers-gpu`. This contradicts the required composition boundary: Kwavers
-  must select Leto or Hephaestus, while `kwavers-gpu` owns only the concrete
-  providers and Hephaestus owns WGPU resources. The scheduled GPU workflow also
-  does not run a visualization test that requires a real adapter. Re-opened for
-  a replacement that moves selection to `kwavers`, adds top-level backend
-  conformance coverage, and makes the hardware gate fail closed.
-- **Selection follow-up implemented (PR #630, source head `6b344eb5f`):**
-  top-level `kwavers` now owns `VisualizationBackend::{Leto, Hephaestus}` and
-  the factory; `kwavers-gpu` exposes only the concrete providers. The Leto
-  contract test verifies exact host state, while the ignored Hephaestus oracle
-  fails closed without an adapter and otherwise completes a real blocking
-  transfer with exact double-buffer memory accounting. The scheduled
-  self-hosted GPU workflow selects that oracle. Exact-head local evidence:
-  Kwavers Nextest 40/40, hardware Nextest 1/1 on the available adapter,
-  kwavers-gpu Nextest 166/166, doctests, warning-denied Rustdoc, formatting,
-  and workflow YAML parsing pass. `cargo-semver-checks` confirms the declared
-  major impact from the two removed leaf-crate selection items. PR #630 merged
-  at `40e482ee9` from the exact tested source tree.
-- **Static-dispatch correction merged (PR #631, source `a36cb1ea2`, merge
-  `c7db87a74`):** independent review rejected the retained
-  `Box<dyn VisualizationTransferProvider>` because the provider set is closed
-  and the engine invoked its vtable on every transfer. Top-level Kwavers now
-  returns `VisualizationProvider::{Leto, Hephaestus}`; the Hephaestus variant
-  alone is boxed once to bound enum size. `VisualizationEngine<P>` and
-  `DataPipeline<P>` carry the concrete provider type, and the unconfigured
-  engine typestate cannot initialize GPU transfer. Static scan finds no
-  visualization transfer trait object. Exact-source local evidence: GPU
-  analysis Nextest 778/778, default analysis Nextest 744/744, top-level
-  Kwavers 41/41, real Hephaestus adapter transfer 1/1, no-default-features
-  compilation, doctests including the compile-fail typestate proof, and
-  warning-denied Rustdoc pass. Source and merge trees both equal
-  `d95f04a991b7a94c11c41318b469cb556b7190be`. The original architecture job
-  failed only on unrelated SWE test lint debt later fixed by PR #635; the
-  unchanged visualization implementation passes the complete PR #636 matrix.
-  No emitted-code inspection or performance claim is included.
-- **Pipeline hardware evidence merged (PR #632, source `6f400e1a9`, merge
-  `534051c04`):** the scheduled adapter oracle now routes a distinct field
-  through top-level Kwavers selection and analysis `DataPipeline` conversion
-  before Hephaestus upload. It retains the physical double-buffer memory check
-  and asserts exact dimensions `(2, 2, 1)`, range `(-2.0, 7.0)`, and 16 logical
-  transferred bytes. The real-adapter test passes 1/1; the normal Kwavers
-  library passes 41/41 with the hardware test skipped; warning-denied Clippy,
-  rustfmt, YAML parsing, and diff checks pass. Source and merge trees both equal
-  `6e104e339ed3731fccee8f7192678b39ffe7f192`. Current default `8ef48975c`
-  retains the oracle and passes the complete PR #636 matrix. Local
-  current-default rerun `7079a92b-1564-4ac5-bc4b-96a9afbaca44` passes 1/1 on
-  the available Hephaestus adapter.
-- **Non-goals:** no change to the already-closed multi-field initialization
-  contract, no CPU-vs-CPU parity claim, no fallback branch, and no Tyche
-  ensemble API invention.
-
 ## ATLAS-KWAVERS-VIS-CONFIG-2026-08-25 — Make visualization selection and quality single-source [major] — blocked
 
 - **Owner:** current session. **Scope:** Kwavers visualization configuration,
@@ -2559,128 +1568,6 @@ unchanged.
   `--no-fail-fast` keeps later targets executing after an individual failure.
   Independent review found no remaining issue after duplicate-step,
   feature-fingerprint, and complete-failure-reporting checks.
-
-## ATLAS-KWAVERS-CI-MATRIX-TIMEOUT-2026-08-25 — Eliminate matrix and validation compile duplication [patch] — done
-
-- **Owner:** current session; lane `worktrees/kwavers-ci-opt` (branch
-  `ci/kwavers-build-matrix-timings`).
-- **Observed while watching PR #639:** the `Build & Test` matrix
-  (stable/beta/nightly) ran 30m19s on the nightly leg against a 30-minute
-  cap and was cancelled; the re-run passed at 28m19s. Subsequent logs show
-  duplicate compile graphs, not insufficient timeout, are the defect.
-- **Fix — commits through `84ba553ef`:**
-  (1) retain the 30-minute matrix bound; drop the redundant
-  `cargo build --release` step; **split the
-  matrix** (stable = full gate; beta/nightly = `cargo check --release
-  --all-targets` compat oracle, cutting the measured beta 23m / nightly 28m
-  legs to compile-only); (2) replace `cargo install` from source with
-  install-action prebuilt binaries (cargo-deny, cargo-tarpaulin@0.37.0,
-  cargo-audit); (3) **split Heavy Validation** (37m serial) into three
-  parallel legs — kuznetsov 15m, absorption_decay 15m, nl_swe 40m — each
-  with its own cache and `heavy`-profile test, bounding wall-clock to the
-  slowest (~28m) with independent headroom for nl-swe; (4) add the shared
-  Swatinem/rust-cache to the five-leg feature-combination matrix
-  (architecture-validation.yml), which previously cold-compiled the full
-  dep tree per PR; (5) reuse the release/plotting graph for stable doctests,
-  consolidate duplicate PINN jobs, cache the five-minute locked resolver,
-  and shallow-checkout touched jobs; (6) shallow-check and cache Code Coverage,
-  remove its redundant clean, and cap its two concurrent Cargo/Rayon streams to
-  two workers each on the four-core host while retaining one canonical target
-  tree; (7) gate all 11 CI jobs behind Lockfile integrity and all five
-  Architecture jobs behind Validate Clean Architecture. Recent canceled jobs
-  spent 69.5 minutes queued with no runner and no steps; this DAG makes only
-  the two preflights initially runnable while preserving every downstream
-  check, workload, and timeout. YAML, timeout non-increase, target count, lock
-  provenance, DAG cardinality/acyclicity, and independent-review checks pass.
-- **Hosted scheduler evidence:** after pushing `84ba553ef`, PR #641 exposed
-  only Lockfile integrity, Validate Clean Architecture, the two small migration
-  audits, and review (five visible checks), rather than 26 immediately queued
-  checks. Stacking PR #642 on that head produced the same five-check preflight
-  state and canceled its obsolete full fan-out.
-- **Status:** pushed as kwavers PR #641, head `84ba553ef`, title
-  "ci(kwavers): Right-size build matrix, split heavy validation, cache
-  feature matrix"; MERGEABLE; merge after terminal hosted checks and
-  advance the gitlink. (The tentative `ci/kwavers-matrix-toolchain-legs`
-  lane was folded into #641 and removed — never pushed.)
-- **Next:** collect the hosted rerun and record per-job execution durations;
-  any bound hit remains a production/test-topology defect, not grounds to
-  increase `timeout-minutes`.
-
-## ATLAS-KWAVERS-GPU-CLIPPY-RATCHET-2026-08-25 — Clear the kwavers-gpu pre-existing clippy findings (the residual's second half) [patch] — done
-
-- **Owner:** current session; lane `worktrees/kwavers-gpu-clippy` (branch
-  `fix/kwavers-gpu-clippy-ratchet`).
-- **Origin:** the VIZ-CONFIG verification residual left `kwavers-gpu`'s 28
-  pre-existing findings open as the analysis half closed. Re-measured at
-  main `f11d4b99c` with `--all-targets --features gpu`: 28 lib + 5
-  test-target findings.
-- **Fix (commit `6abb06180`):** de-async 7 never-awaiting constructors
-  (`AcousticFieldKernel::new`, `WgpuAcousticFieldProvider::new`,
-  `WaveEquationGpu::new`, `GpuDevice::create`,
-  `GpuDevice::create_with_features_and_limits`, `NeuralNetworkShader::new`,
-  `CoreGpuContext::new`) + `ComputeManager::new` caller; 10 unused-receiver
-  methods → associated fns; `# Errors` ×4; honest `finish_non_exhaustive()`
-  `Debug`; dropped the unfulfilled `#[expect]`; style fixes (saturating_sub,
-  `u32::from`, de-hashed WGSL literals, `eprintln!`, `assert_eq!`).
-- **Gates at head:** clippy 0/0 on default and `--features gpu` probes (the
-  lone remaining warning is the external patched apollo-fft dep, upstream);
-  nextest 163/163 (5 GPU-gated skips); consumers compile with `gpu` and
-  `visualization`; fmt clean; `Cargo.lock` untouched.
-- **Status:** pushed as kwavers PR #644 at exact head `6abb06180`,
-  MERGEABLE on open; merge after terminal hosted checks and record the
-  residual closure.
-- **Post-push rechecks (2026-08-25, ×2):** all hosted checks still
-  `pending`/`queued` (queue backlog; only the always-report-only
-  `recurseml/analysis` is `fail`); no terminal evidence at the exact head
-  — merge held per policy.
-- **Merged 2026-08-26 at `17aca60ceafc0b74b8237d297ffecccde2b6ff90`:** all
-  24 hosted checks pass (lockfile 1m52s, format, clippy, nextest gpu 163/163
-  with 5 skips, doctests, rustdoc, layer boundary 17s, security audit 4m4s,
-  miri 5m8s, doc 4m34s, all feature combinations 10–23m, build
-  stable/beta/nightly 19–22m, CUDA 11m, heavy validation 36m, code coverage
-  27m, code quality 5m, benchmark smoke 13m, PINN 14m, PINN feature 21m,
-  python typed 3m, audit burn 3m, audit legacy 52s). `recurseml/analysis` is
-  the always-report-only error. The merge commit `d13ab618f` (post-#644 main
-  tip) is already the recorded atlas gitlink, so no pointer advance is owed
-  to this PR; the integration-test baseline instrument rides the same merge.
-  The visual-config verification residual — 28 pre-existing clippy findings in
-  `kwavers-gpu` — is closed.
-
-## ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25 — Clippy ratchet item (merged as PR #639 at f11d4b99c; gitlink advanced in 59c5f294e) — done
-
-- **Owner:** current session; lane `worktrees/kwavers-analysis-clippy` (branch
-  `fix/kwavers-analysis-clippy-ratchet`).
-- **Origin:** the residual recorded at the ATLAS-KWAVERS-VIS-WGPU closure
-  ("a fresh unwaived member-crate measurement remains separate warning-ratchet
-  work"). The vis-config verification re-measured the standalone
-  `kwavers-analysis` probes: 7 test-target findings (default features) and 44
-  `--features gpu-visualization --lib` findings, all in files the vis-config
-  branch did not touch.
-- **Delivered:** one commit `80d120202` on the lane (14 files, +164/−51):
-  doc debt (`# Errors` / `# Panics`) across plotting, `VizStream`/`FramePool`/
-  `SyncCoordinator`/`StagePipeline` docs; `#[must_use]` on the parameter
-  builders and `QualityLevel::downgrade/upgrade`; scoped `#[allow]` with
-  reasons for the GPU MVDR stub (`process_mvdr_3d`, CPU-mirrored signature)
-  and the ASCII fallback renderer (stdout is its render target); private
-  passes refactored to associated functions; `InteractiveControls` Debug
-  `finish_non_exhaustive()` (closure map deliberately unprinted).
-  De-`async`ed `VisualizationEngine::render_field` / `render_multi_field`,
-  `Renderer3D::render_volume` / `render_multi_volume`, `engine.export`, and
-  `StagePipeline::new` — the fns contain no awaits and no workspace caller
-  awaits them; in-crate callers updated to drop `.await`/`pollster::block_on`.
-  No behavior change; the crate is unpublished, so the public-signature
-  adjustment has no external consumer.
-- **Evidence (2026-08-25):** fmt clean; `cargo check` for analysis +
-  consumers `kwavers`/`kwavers-gpu` pass; clippy `--all-targets -D warnings`
-  and `--features gpu-visualization --lib -D warnings` both report 0
-  findings (previously 7 + 44); Nextest 744/744 default and 783/783
-  gpu-visualization (including the vis-config quality regressions); doctests
-  1 passed / 21 ignored; Rustdoc `-D warnings` clean. Lockfile overlay drift
-  restored, so the commit is code-only.
-- **Next gate:** publish the branch, open the PR, collect the hosted matrix
-  at the exact head, merge, and remove the lane. No Atlas gitlink change
-  until kwavers main advances and the post-merge runs at the new default are
-  terminal.
 
 ## ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21 — Complete typed and concurrent PyO3 surface [minor] — in progress
 
@@ -4018,45 +2905,6 @@ rewrite.
   RITK, Coeus, Apollo, and Kwavers. No Atlas gitlink advances are authorized
   from this run; each requires terminal hosted evidence at the fetched default
   before pointer reconciliation.
-
-## ATLAS-LETO-BOOK-2026-08-20 — complete the missing Leto domain book [minor] — done
-
-- **Owner:** Atlas coordinator; Leto provider scope is separately owned from
-  the root inventory audit.
-- **Scope:** Leto's provider-owned `docs/book/`, `book-pages.yml` caller, and
-  hosted book gate. The root inventory now includes the committed provider
-  default; closure remains gated by terminal post-merge Pages evidence.
-- **Baseline:** root gitlink `repos/leto` is now
-  `c1c8ab234559a9f58a34d65c32f6096ee69fc012`; that committed provider revision
-  carries the source-grounded book, two executable examples, and the shared
-  caller.
-- **Implementation:** provider commit `b500baf1af4223f0a995821b6067622ed6caa535`
-  on PR [#119](https://github.com/ryancinsight/leto/pull/119) replaces the
-  skeleton with nine source-grounded chapters, two executable examples, crate
-  README linkage, and the pinned package-staged Pages caller. Local mdBook
-  build and strict links pass; the locked `leto` package check, nextest
-  `312/312`, both example executions, and `clippy -D warnings` pass under the
-  pinned MSVC toolchain after removing the session `RUSTC` override.
-- **Hosted diagnosis:** Pages run `32396859195` reached the shared package
-  build successfully, then failed mdBook rustdoc because the two included
-  examples omitted `extern crate leto;`. Provider commit `b500baf` adds those
-  declarations; both examples re-run successfully locally.
-- **Acceptance:** source-grounded chapters, runnable examples, a pinned
-  `book-pages.yml` caller, provider CI/Pages success at the same head, and a
-  root gitlink advance followed by `atlas-book-gate-audit.py --check` reporting
-  25 book-bearing members.
-- **Pending:** post-merge Pages build/deployment `32400623663`/`32400621014`
-  must reach terminal success before this item closes. The unrelated dirty
-  Leto main-tree edits remain excluded.
-- **Closed 2026-08-24:** the Leto default advanced to `7d6ac26ff` (PR #121,
-  iterative-solver family deletion) with hosted CI and pages-build-deployment
-  both terminal success at that head; live Pages serves the current book
-  (HTTP 200). Atlas gitlink advanced `fc0648ee9` → `7d6ac26ff`; the
-  `atlas-book-gate-audit.py --check` acceptance reports 25 book-bearing
-  members (shared 23, direct 1, vacuous 1, one missing-or-invalid entry
-  tracked separately) and exits 0.
-- **Non-goal:** no placeholder chapter is counted as a completed book and no
-  provider dirty worktree is overwritten while this item is active.
 
 ## ATLAS-KWAVERS-DISTRIBUTED-QUEUE-2026-08-20 — close queue completion and deadline contracts [patch] — in progress
 
@@ -9623,50 +8471,6 @@ list updated. `check-drift.sh` reports `4 consumers clean`.
   - peer-asclepius: push local main `47e73d1e` to origin/main; the
     gitlink pin already points to that SHA.
 
-## ATLAS-GMRES-SSOT-001 — Consolidate four GMRES implementations onto one recurrence [major] [arch] — closed 2026-08-25 (superseded by ADR 0033 execution)
-
-- **Closed 2026-08-25:** the consolidation is done by the ADR 0033 Krylov work.
-  `repos/leto` no longer has `crates/leto-ops/src/application/linalg/iterative/`
-  (the whole family incl. the duplicated `LinearOperator`/`Preconditioner`
-  traits was deleted; LSQR stage C through kwavers PR #636 completed the
-  consumer migration). CFDrs' fork was replaced by leto wrappers then the
-  family itself was deleted; kwavers' fork was ported and migrated to Athena;
-  the remaining `gmres` module is `athena-core/src/solver/gmres/`, the
-  ADR-blessed SSOT. Residue scan: one recurrence remains, in athena.
-  No further action.
-
-- Outcome: one GMRES recurrence in the stack, with the other three call
-  sites migrated to it and deleted (no re-export, no forwarding wrapper).
-- Evidence (found during the leto-ops GMRES gap audit, session 2026-07-27):
-  1. `athena-core/src/solver/gmres/` — the ADR-blessed one. Backend-neutral
-     (Leto CPU + Hephaestus WGPU), right-preconditioned, `RESTART` const
-     generic, caller-owned workspace, value-semantic `Termination`, and
-     CPU+WGPU contract tests. See leto `docs/adr/0015-athena-gmres-extraction.md`,
-     which removed GMRES from leto-ops precisely to make Athena the SSOT.
-  2. `leto-ops/src/application/linalg/iterative/gmres/` — reintroduced after
-     ADR-0015 as part of the `LinearOperator`-seam solver family
-     (CG/BiCGSTAB/GMRES/LSQR) that replaced nalgebra for cfd-math and
-     kwavers-math. Corrected and covered by `dcc5d54`; still a second
-     recurrence.
-  3. `CFDrs/crates/cfd-math/src/linear_solver/gmres/` — a fork of (2): same
-     module names (`arnoldi.rs`, `givens.rs`, `solver.rs`), same function
-     names, same structure, plus its own `IterativeSolverConfig`. It has
-     therefore inherited every defect fixed in `dcc5d54`: convergence decided
-     on the preconditioned estimate, discarded happy breakdown, absent
-     non-finite guards, strided Krylov basis, per-restart `b.clone()`, and a
-     duplicated operator application per restart.
-  4. `kwavers/crates/kwavers-solver/src/integration/nonlinear/gmres/` — an
-     `f64`-hardcoded copy with its own `solve_upper_triangular`.
-- Scope: decide the surviving seam ((1) is backend-generic but not
-  dyn-friendly; (2) carries the `LinearOperator`/`Preconditioner` traits the
-  CFD consumers bind to), then migrate in dependency-ordered increments per
-  the anti-shim mandate. Non-goal: keeping any adapter layer.
-- Dependencies: an ADR is the first planning step; ADR-0015 must be either
-  honoured or superseded, since (2) currently contradicts it.
-- Acceptance: one `gmres` module remains in the stack; residue scan finds no
-  sibling recurrence; every consumer verifies against its own suite.
-- Risk: [major] [arch]. Blast radius spans leto, athena, CFDrs, kwavers.
-
 ## Session 26 closure (2026-07-27) — GMRES fork ports and the athena redundancy question
 
 `ATLAS-GMRES-FORK-DEFECTS-001` → done. `ATLAS-GMRES-SSOT-001` → re-scoped
@@ -9926,22 +8730,6 @@ Stale-advanceable (still NOT safely advanceable):
   execution owned by peer-leto/peer-physics-crate), `ATLAS-WORKTREE-CLONES-001`
   (rescue the standalone clones under `worktrees/`). Review whether any
   becomes urgent next session.
-
-## ATLAS-GMRES-FORK-CONVERGE-001 — Stages B-D: migrate consumers, delete the Leto family [major] [arch] — closed 2026-08-25
-
-- **Closed 2026-08-25:** stages B–D are complete. CFDrs landed the Leto
-  wrappers and then the family deletion; kwavers migrated GMRES and LSQR onto
-  Athena (PRs #634/#636); leto-ops `application/linalg/iterative/` no longer
-  exists (`ls` verified). Stage D's residue scan is clean: only
-  `athena-core/src/solver/gmres/` remains. No action.
-
-- Unblocked 2026-07-28: `ATLAS-ATHENA-KRYLOV-CAPABILITY-001` is done.
-- B: CFDrs from its `6d18a547` Leto-family wrappers to Athena.
-- C: Kwavers, gated on refactoring `jacobian_vector_product` from `&mut self`
-  to `&self` (its only mutation is a scratch-buffer cache) so the matrix-free
-  operator satisfies `LinearOperator::apply(&self, ...)`.
-- D: delete `leto-ops/src/application/linalg/iterative/` including the
-  duplicated `LinearOperator`/`Preconditioner` traits; residue scan clean.
 
 ## Session 28 closure (2026-07-27) — ADR 0033/0034 (Krylov/Accelerator re-architecture), coeus cat-b promotion, 1 defect escalation
 
@@ -10214,83 +9002,6 @@ blocker on Athena.
 - Re-open trigger: the peer lands the branch or the one-hour stale-claim sweep
   finds no board/commit update; then reclaim the scope and complete the
   integration from the committed branch state.
-
-## ATLAS-CFDRS-TEST-BUDGET — 8 integration tests exceed 30s nextest budget [patch] — closed 2026-08-25 (all within budget)
-
-- Owner: Atlas coordinator (current session); scope:
-  `repos/CFDrs/crates/cfd-validation/`, `repos/CFDrs/crates/cfd-3d/`.
-- Reopened 2026-08-17 after exact provider-head execution became available.
-  Final PM-head run `32037758079` at `174e332ce816dd6dfe98b125669a292126ebd51f`
-  reaches the numerical-fidelity suite and fails only its committed 30-second
-  test budget on `microventuri_35um_case_produces_converged_informative_2d_result`
-  and `cross_fidelity_trifurcation_dominance`. The failure is inherited from
-  the untouched runtime path; no workload, assertion, or budget change is
-  authorized.
-- Blocker 1 — lockfile collision: CFDrs root `Cargo.toml` uses path deps
-  (`path = "../<repo>"`), but the stack overlay `.cargo/config.toml` patches
-  git sources to `worktrees/*`. Transitive git deps resolve to a second copy
-  of each crate at identical name+version → cargo cannot write the lockfile.
-  `cargo nextest` cannot run. Related: `ATLAS-OVERLAY-COHERENCE-001`.
-- Blocker 2 — hephaestus merge conflict: committed unresolved merge-conflict
-  markers at `repos/hephaestus/crates/hephaestus-core/src/domain/stencil.rs:78`
-  (`<<<<<<< HEAD` … `>>>>>>> origin/master`) break compilation of the
-  gpu-feature chain (`cfd-core` default `gpu` feature → `hephaestus-wgpu`).
-- Slow tests (measured 2026-07-28, 40s kill):
-  1. `microventuri_fallback_case_produces_converged_informative_2d_result` — >40s
-     (80×400 grid, 150 adaptive steps × 3 outer × 2 inner × 15 CG iterations)
-  2. `microventuri_35um_case_produces_converged_informative_2d_result` — >40s
-     (same SIMPLEC path, ny=343)
-  3. `option2_selected_45um_geometry_routes_to_fallback_and_converges` — >40s
-     (same SIMPLEC path, ny=267)
-  4. `test_venturi_blood_flow` — >40s (full 3D FEM N-S, 10 Picard iterations)
-  5. `cross_fidelity_trifurcation_dominance` — 37.1s (3D FEM, 20×600 iterations)
-  6. `test_venturi_flow_3d` — 32.6s (P1/P1 PSPG FEM, 32³ resolution, 500 max iter)
-  7. `cross_fidelity_stenosis_shear_thinning` — 27.9s (2×1D + 2×2D SIMPLE,
-     20000 max iterations, alpha_mu=0.1)
-  8. `cross_fidelity_venturi_total_loss_coefficient` — 23.0s (1D+2D+3D legs)
-- **Closed 2026-08-25 (measured at merged default `5ebbf1f8`):** all eight
-  slow cases now fit the budget. cfd-validation 436/436 in 10.7s (worst
-  `cross_fidelity_trifurcation_dominance` 2.1s); cfd-3d 472/472 in 2.7s
-  (`test_venturi_blood_flow` 1.8s, `test_venturi_flow_3d` <3s); all three
-  microventuri/option2 cases <0.5s. The 30s budget is no longer breached
-  anywhere; the outlook below is superseded by evidence.
-- Optimization outlook (historical, superseded): warm-started Picard, AMG
-  preconditioning, shared solver state across the three microventuri cases,
-  tighter rheology-update scheme.
-- Note: workload/assertion reduction is explicitly NOT an acceptance path
-  per `CFDRS-RUNTIME-001`.
-- Immediate slice: profile the two exact failing production paths, implement
-  the first measured solver optimization, and prove the unchanged tests fit
-  the committed budget. The existing optimization outlook remains the
-  candidate set; selection is evidence-driven.
-- First bounded slice delivered through provider PR #347 at source head
-  `f7bc741184a000338a5f4d4edf261a6dcfa266c8`, merged into CFDrs default as
-  `84499e957d3d0c8ce50b9573185a1f55885f38e2`: cfd-2d
-  now borrows the immutable cached pressure CSR matrix instead of cloning it
-  for every SIMPLE correction. Exact local Nextest passes the 35 µm case in
-  16.785 s (run `5c15ba54-0b90-47a8-ab4c-f0eaf7b55d6c`) and the trifurcation
-  case in 16.903 s (run `913a79da-d89d-4440-a12e-52c575483be6`). The
-  workload, assertions, and 30-second budget are unchanged. Commit `c86dc33f`
-  additionally flattens the Leto-backed backward-facing-step stencil, hoists
-  invariant coefficients, and adds the contiguous-storage accessors. The same
-  provider slice
-  makes hemolysis model conversion failures explicit instead of silently
-  returning zero; existing negative-input and reference-value tests remain
-  unchanged. Hosted exact-head confirmation is green: Rust run `32046526277`
-  reports 14/14 numerical-fidelity tests passed (3036 skipped, 8 slow) and
-  doctests pass; figure job `95435610232` and book build `95435671291` pass.
-  Post-merge Rust run `32047446607` now isolates the two named solver-budget
-  timeouts; Pages run `32047447199` passes build and deployment. Rust
-  job `95426903063` failed before checkout on action-download 503/429; the
-  previous Pages job `95426905897` exposed the missing fontconfig headers.
-  The caller now pins Atlas `bb505e5`; `32044071453` and `32044071732` were
-  infrastructure-red. PM-only and source-correctness heads were superseded by
-  `f7bc7411`; earlier exact-head Rust and Pages jobs failed before checkout on
-  codeload 503/429, while figure job `95430179037` passed. The broader
-  solver-budget residual remains open; this slice closes the hosted
-  benchmark-validation timeout without changing its workload or budget.
-- Re-open trigger after closure: either named test exceeds the budget again or
-  a new solver-heavy fidelity case crosses the slow threshold.
 
 ## ATLAS-HYGIENE-BASELINE-001 — Eleven-class conformance baseline and namespace hygiene [patch] — in-progress
 
@@ -10667,69 +9378,6 @@ increment; for the second it could not run — an in-flight `gaia` change remove
 the `cfdrs-integration` feature cfd-2d depends on, breaking resolution for
 unrelated reasons. **Re-run clippy on cfd-2d once gaia settles.**
 
-## ATLAS-LETO-OWNED-LU-001 — cfd-math consumes an unlanded Leto LU surface [major] — closed 2026-08-25 (resolved upstream)
-
-- **Closed 2026-08-25:** `leto-ops` now exports the owned surface —
-  `OwnedNumericLu`, `SymbolicLu`, `factor_symbolic`, `SparseLuSolver` with
-  `factor_sparse_with_symbolic` (verified at
-  `crates/leto-ops/src/lib.rs` 139-142). `cargo check -p cfd-math` passes
-  clean at the merged CFDrs head `5ebbf1f8`. The inverted co-evolution was
-  repaired upstream; the owned-factorization requirement is satisfied.
-  No action.
-
-`cfd-math` does not compile on CFDrs main. Not a toolchain fault — the
-compiler is now coherent and the errors are ordinary resolution failures:
-
-```
-E0432 unresolved imports leto_ops::{OwnedNumericLu, SymbolicLu, factor_symbolic}
-E0599 no method `factor_sparse_with_symbolic` on leto_ops::SparseLuSolver
-```
-
-Introduced by `63e49604` ("fix(cfd-3d): Close FEM metric solver gaps"), which
-landed a consumer against a Leto API that was never published — the
-co-evolution order inverted, upstream last instead of first.
-
-**What Leto actually has** (`crates/leto-ops/src/application/sparse/`):
-
-| cfd-math expects | Leto has |
-| --- | --- |
-| `OwnedNumericLu<T>` | nothing — the name exists nowhere in the repo or its history |
-| `SymbolicLu`, `factor_symbolic` | both exist, but are **not** re-exported from `lib.rs` |
-| `SparseLuSolver::factor_sparse_with_symbolic` | no such method |
-| — | `NumericLu<'a, T>`, `factor_numeric` |
-
-**The real requirement is the owned variant, not the re-exports.**
-`NumericLu<'a, T>` borrows the matrix it factorises, so
-`block_preconditioner.rs:629` cannot hold `Vec<OwnedNumericLu<T>>` alongside
-the blocks that produced them — the lending form is what forces an owned
-factorisation to exist. That is upstream work in Leto (upstream ownership),
-not something to approximate inside cfd-math.
-
-- Scope: implement the owned numeric factorisation in `leto-ops` beside
-  `NumericLu`, re-export it with `SymbolicLu`/`factor_symbolic` from
-  `lib.rs`, add the symbolic-reuse entry point, land it, then let cfd-math
-  resolve against it.
-- Acceptance: `cargo clippy -p cfd-math --lib` clean; the block
-  preconditioner's per-block factorisations reused across applications rather
-  than refactored each time.
-- **Warning — possible lost work.** `repos/leto` was destroyed and re-cloned
-  by an external actor mid-session (`git reflog` bottoms out at
-  `clone: from https://github.com/ryancinsight/leto`). Any uncommitted
-  sparse-LU work in that tree is gone, and no branch or dangling object in the
-  repository contains `OwnedNumericLu`. Both Leto lanes under `worktrees/`
-  were searched as well; a stack-wide grep finds the name in exactly one
-  place — the CFDrs consumer that needs it. Whoever wrote `63e49604` should
-  check for an unpushed copy before this is rebuilt from scratch.
-
-Process note: the momentum commit `58f6caab` swept up six files of a peer's
-*staged* Quantity-migration work through an over-broad `git add crates/cfd-2d`.
-Their work is preserved and pushed, but under a message that does not describe
-it. Not reverted — that would discard it. Staging was per-file for the second
-increment.
-
-Remaining: `chain.rs` and multigrid in cfd-math, then cfd-3d, cfd-1d,
-cfd-validation, then delete the `cfd_math::iterative` facade.
-
 ## ATLAS-ADR-GOVERNANCE-001 — Retrofit ADR indexes, statuses, and records [patch] — in-progress (indexes landed)
 
 - Policy: AGENTS.md context_and_memory "ADR governance". Census 2026-07-27: 312 ADRs across the meta repo + 20 members; indexes exist in 3 of 21 (meta, ritk, iris); 7 duplicate numbers (kwavers x2, coeus x3, leto, hermes); 104 ADRs without a Status line; casing drift (Accepted vs accepted) plus a non-canonical "investigated"; supersession links on 4 of 312.
@@ -10874,50 +9522,6 @@ passed minutes earlier under the same toolchain — the poisoned artifact set
 differs by which crates a command pulls, which is exactly why this presents as
 moving, unrelated breakage. `ATLAS-TOOLCHAIN-COHERENCE-001` is the blocker and
 is now the single largest drag on verification.
-
-## ATLAS-NSFVM-SOR-CONVERGENCE-001 — Micro-geometry SIMPLEC continuity stagnation [major] — closed 2026-08-25 (resolved by later work)
-
-- **Owner:** current session (measured 2026-08-25 at CFDrs main `5ebbf1f8`).
-- **Closed:** re-measured on a clean lane from the merged default. The
-  microventuri cases no longer stagnate or time out:
-  `microventuri_35um_case_produces_converged_informative_2d_result` runs in
-  0.125s; the full `cfd-validation` suite is 436/436 in 10.7s (worst test
-  `cross_fidelity_trifurcation_dominance` 2.1s); `cfd-3d` is 472/472 in 2.7s
-  including `test_venturi_blood_flow` at 1.8s (was >40s). The SOR sweeps stay
-  as-is (ω per blood model, cap 32/200, early exit at 1e-2); the earlier
-  continuity stagnation at 4.59e2 was cured by the accumulated solver
-  optimization slices (e.g. the pressure-CSR borrow in PR #347 and
-  successors), not by a parser/SOR change. No source change is needed;
-  closing with the measured evidence.
-
-- Three `venturi_cross_fidelity` cases time out: the 35um and fallback
-  microventuri cases and the 45um option-2 routing case.
-- `cfd_2d::solvers::ns_fvm` solves pressure correction with a hand-rolled SOR
-  sweep. On these micro-scale geometries the continuity residual holds near
-  4.59e2 while velocity falls, so the outer SIMPLEC loop never terminates and
-  the case runs past 400s against a 30s budget.
-- Independent of the Athena migration — this path contains no Krylov solver.
-- Two candidate directions, needing measurement first: the SOR sweep is not
-  converging for this conditioning and should be replaced by a proper Krylov
-  solve now that `cfd_math::linear_solver::krylov` exists, or the case is
-  genuinely stiff and the fallback routing is selecting the wrong model. The
-  budget breach is a defect either way and must not be resolved by raising the
-  bound.
-
----
-
-# Diffusion MRI capability program (gap analysis 2026-07-30)
-
-Audit of the Atlas stack against the reference diffusion-MRI toolchains
-(FreeSurfer, MRtrix3, FSL, DIPY), scoped by
-[ADR 0036](docs/adr/0036-neuroimaging-and-mr-ownership.md). Ownership is settled
-by that ADR — RITK workspace crates, no new package. These items are the
-capability gap under that ownership, ordered by dependency. Waves 0 and 1 gate
-everything after them.
-
-Evidence for each claim is the cited file and line at the gitlink revision of
-2026-07-30. The ADR source audit and the README section were corrected in the
-same change; see ADR 0036 decision 7.
 
 ## ATLAS-STACK-LETO-CHURN-017 — Upstream working-tree churn blocks consumer verification — todo
 
@@ -12269,6 +10873,92 @@ branches; moirai re-check after its live peer's commit lands.
   whose source file is absent), not in hand-edited markdown.
 - Status: todo
 
+## ATLAS-BOARD-CLOSURE-CANON-001 - Canonicalize historical closure markers [pm-hygiene] [patch] [M]
+
+- Outcome: every closed item carries the one canonical heading marker so
+  atlas-board-compact.py archives at full power and
+  atlas-board-lint.py's reference scope stays accurate.
+- Measured 2026-08-24: compact dry-run archived only 18 of 236 backlog
+  items (8 percent) because closure markers vary by era - heading
+  "- closed DATE", body Status lines, checkmark bullets, unmarked.
+  Full-power archival would collapse thousands of archive-prose lines;
+  today they remain live-scope and feed the 323 reference mentions the
+  lint reports.
+- Scope: pick the canonical form (heading `- closed YYYY-MM-DD`);
+  script a reviewed one-pass normalization; rerun compaction; then flip
+  ATLAS-LINT-CALIB's reference report toward enforcing for items that
+  stay live after normalization.
+- Status: in-progress (integrator: claude session; lease: scripts/atlas-board-canonicalize.py, backlog.md, checklist.md, focused tests)
+
+## KWAVERS-CI-PIPELINE-001 - Consolidate kwavers CI to one verification pipeline [ci] [patch]
+
+- Outcome: one workflow whose jobs carry the stage structure (build-once,
+  cheapest-first, affected-scope filters); mdBook deploy off pull_request
+  events; benchmark regression job removed (benchmarks run locally per
+  policy - CI keeps the single-iteration bench smoke only).
+- Evidence 2026-08-24: six sibling workflows fire per PR event and per
+  main push; queue sat 6-15 min behind one busy runner; one main-push
+  CI/CD Pipeline run ended cancelled, leaving that merge unverified.
+- Status: todo
+
+## ATLAS-RUNNER-CAPACITY-001 - Size runner slots to fleet width [infra] [patch]
+
+- Outcome: no verification job queued past its own runtime target; runner
+  slots sized to fleet width x per-event jobs, or per-event jobs shrunk by
+  affected-scope filters (KWAVERS-CI-PIPELINE-001 is the largest shed).
+- Evidence 2026-08-24: kwavers queue depth ~10 with one in_progress.
+- Status: todo
+
+## ATLAS-OUTPUT-ROOT-001 - Merge duplicate run-output roots [pm-hygiene] [patch] - closed 2026-08-26
+
+- done — outputs/ folded into output/scratch-consolidated-20260826/;
+  ignore line removed so regrowth is visible. Commit: atlas chore
+  "One run-output root".
+
+## ATLAS-BRANCH-INVENTORY-001 - Burn down stack branch inventories [git-hygiene] [patch]
+
+- Outcome: every member's local branches map to an open item or enqueued
+  PR (orient rule); measured 2026-08-26: kwavers 65 (12 merged, 6 gone),
+  moirai 30 (24 merged, 15 gone), coeus 21, apollo 17, hermes 14,
+  helios 16. Merged/gone prune mechanically; the unmerged remainder
+  classifies by patch-id against origin default (rebase/squash-landed
+  deletes as landed; unique deltas salvage per takeover) — one
+  mechanical sweep per member, proportionate triage.
+- Sweep done 2026-08-26 — 125 branches deleted across 26 members (merged
+  into origin default, or gone-upstream with cherry-verified empty delta);
+  kwavers stashes cleared by peer.
+- kwavers classified 2026-08-26: 56 -> 35 refs (21 more landed branches
+  deleted; every survivor verified to hold real content deltas vs main —
+  content-supersession test on touched files, not just patch-id).
+  Survivor families, takeover material closest-to-done-first: 8
+  PR-scratch (pr-622/623/624/633/646, fix622/fix622-work/fix622b, small
+  deltas); 5 merged-PR leftovers (+1..+8 past merged tips: #364 #434
+  #443 #609, remove-simulated-gpu-swe); 7 recent seams/docs/ci (Aug
+  19-25); 12 July-era codex/* WIP (aequitas family, +3..+138 commits —
+  largest recoverable value, oldest basis, naming-rule renames due at
+  takeover).
+- ritk classified 2026-08-26: 33 -> 19 refs (15 deleted: merged tips,
+  cherry-landed, merged). 17 survivors with real deltas: 5 merged-PR
+  tails (+1..+3 past #54 #80 #116 #154 #166); 4 large Aug 1-7 WIP
+  (release-workflow-caller +35, coeus-publishability +29,
+  reconcile-model-coeus +26, gradient-reorientation +20); 8 small
+  recent fixes/docs (Aug 11-19, +1..+3).
+- Mechanical phase closed 2026-08-26, stack-wide: coeus 21->17 (note the
+  coeus-frobenius provider/cherry/rebase/v2 sibling family — consolidate
+  at takeover), gaia 19->2 (cascade/provider-042 held by the tree's
+  checkout bookkeeping), apollo 16->12, and 50 more deletions across the
+  other 21 members (consus 13->5, helios 14->7, moirai 7->4, ...).
+  Session total: ~236 branches deleted, every deletion evidence-backed
+  (merged / cherry-landed / merged-PR tip / content-superseded).
+  Remaining work: ~98 survivor branches with real deltas are takeover
+  material, familied above for kwavers/ritk/coeus/apollo; per-item
+  takeover increments, not a sweep.
+- Settings done 2026-08-26 (user-authorized): delete_branch_on_merge=true
+  on all 26 members; allow_auto_merge=true on 25/26 — leoneuro-rs
+  declines auto-merge (plan/visibility limit), enqueue falls back to
+  merge-on-green there.
+- Status: in-progress (mechanical phase done stack-wide; survivor takeovers unclaimed, closest-to-done-first)
+
 ## Archive — closed items
 
 Closed items, one line each. Full prose is in git history; commit SHAs below are the entry points.
@@ -12615,99 +11305,35 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-KWAVERS-STALE-TREE-107** reconcile the kwavers stale checkout and stranded WIP [patch] (2026-08-23) (2026-08-23) — `145e8aaf8`, `ca5c9c932`, `c899c429f`, `377a98c86`
 
 
-## ATLAS-BOARD-CLOSURE-CANON-001 - Canonicalize historical closure markers [pm-hygiene] [patch] [M]
-
-- Outcome: every closed item carries the one canonical heading marker so
-  atlas-board-compact.py archives at full power and
-  atlas-board-lint.py's reference scope stays accurate.
-- Measured 2026-08-24: compact dry-run archived only 18 of 236 backlog
-  items (8 percent) because closure markers vary by era - heading
-  "- closed DATE", body Status lines, checkmark bullets, unmarked.
-  Full-power archival would collapse thousands of archive-prose lines;
-  today they remain live-scope and feed the 323 reference mentions the
-  lint reports.
-- Scope: pick the canonical form (heading `- closed YYYY-MM-DD`);
-  script a reviewed one-pass normalization; rerun compaction; then flip
-  ATLAS-LINT-CALIB's reference report toward enforcing for items that
-  stay live after normalization.
-- Status: in-progress (integrator: claude session; lease: scripts/atlas-board-canonicalize.py, backlog.md, checklist.md, focused tests)
-
-## KWAVERS-CI-PIPELINE-001 - Consolidate kwavers CI to one verification pipeline [ci] [patch]
-
-- Outcome: one workflow whose jobs carry the stage structure (build-once,
-  cheapest-first, affected-scope filters); mdBook deploy off pull_request
-  events; benchmark regression job removed (benchmarks run locally per
-  policy - CI keeps the single-iteration bench smoke only).
-- Evidence 2026-08-24: six sibling workflows fire per PR event and per
-  main push; queue sat 6-15 min behind one busy runner; one main-push
-  CI/CD Pipeline run ended cancelled, leaving that merge unverified.
-- Status: todo
-
-## ATLAS-RUNNER-CAPACITY-001 - Size runner slots to fleet width [infra] [patch]
-
-- Outcome: no verification job queued past its own runtime target; runner
-  slots sized to fleet width x per-event jobs, or per-event jobs shrunk by
-  affected-scope filters (KWAVERS-CI-PIPELINE-001 is the largest shed).
-- Evidence 2026-08-24: kwavers queue depth ~10 with one in_progress.
-- Status: todo
-
-## ATLAS-OUTPUT-ROOT-001 - Merge duplicate run-output roots [pm-hygiene] [patch] - closed 2026-08-26
-
-- done — outputs/ folded into output/scratch-consolidated-20260826/;
-  ignore line removed so regrowth is visible. Commit: atlas chore
-  "One run-output root".
-
-## ATLAS-BRANCH-INVENTORY-001 - Burn down stack branch inventories [git-hygiene] [patch]
-
-- Outcome: every member's local branches map to an open item or enqueued
-  PR (orient rule); measured 2026-08-26: kwavers 65 (12 merged, 6 gone),
-  moirai 30 (24 merged, 15 gone), coeus 21, apollo 17, hermes 14,
-  helios 16. Merged/gone prune mechanically; the unmerged remainder
-  classifies by patch-id against origin default (rebase/squash-landed
-  deletes as landed; unique deltas salvage per takeover) — one
-  mechanical sweep per member, proportionate triage.
-- Sweep done 2026-08-26 — 125 branches deleted across 26 members (merged
-  into origin default, or gone-upstream with cherry-verified empty delta);
-  kwavers stashes cleared by peer.
-- kwavers classified 2026-08-26: 56 -> 35 refs (21 more landed branches
-  deleted; every survivor verified to hold real content deltas vs main —
-  content-supersession test on touched files, not just patch-id).
-  Survivor families, takeover material closest-to-done-first: 8
-  PR-scratch (pr-622/623/624/633/646, fix622/fix622-work/fix622b, small
-  deltas); 5 merged-PR leftovers (+1..+8 past merged tips: #364 #434
-  #443 #609, remove-simulated-gpu-swe); 7 recent seams/docs/ci (Aug
-  19-25); 12 July-era codex/* WIP (aequitas family, +3..+138 commits —
-  largest recoverable value, oldest basis, naming-rule renames due at
-  takeover).
-- ritk classified 2026-08-26: 33 -> 19 refs (15 deleted: merged tips,
-  cherry-landed, merged). 17 survivors with real deltas: 5 merged-PR
-  tails (+1..+3 past #54 #80 #116 #154 #166); 4 large Aug 1-7 WIP
-  (release-workflow-caller +35, coeus-publishability +29,
-  reconcile-model-coeus +26, gradient-reorientation +20); 8 small
-  recent fixes/docs (Aug 11-19, +1..+3).
-- Mechanical phase closed 2026-08-26, stack-wide: coeus 21->17 (note the
-  coeus-frobenius provider/cherry/rebase/v2 sibling family — consolidate
-  at takeover), gaia 19->2 (cascade/provider-042 held by the tree's
-  checkout bookkeeping), apollo 16->12, and 50 more deletions across the
-  other 21 members (consus 13->5, helios 14->7, moirai 7->4, ...).
-  Session total: ~236 branches deleted, every deletion evidence-backed
-  (merged / cherry-landed / merged-PR tip / content-superseded).
-  Remaining work: ~98 survivor branches with real deltas are takeover
-  material, familied above for kwavers/ritk/coeus/apollo; per-item
-  takeover increments, not a sweep.
-- Settings done 2026-08-26 (user-authorized): delete_branch_on_merge=true
-  on all 26 members; allow_auto_merge=true on 25/26 — leoneuro-rs
-  declines auto-merge (plan/visibility limit), enqueue falls back to
-  merge-on-green there.
-- Status: in-progress (mechanical phase done stack-wide; survivor takeovers unclaimed, closest-to-done-first)
-
-## ATLAS-OUTPUT-RETENTION-001 - Retention budget for the output root [pm-hygiene] [patch] — closed 2026-09-01
-
-- Outcome: committed eviction policy (age/size) mechanized over
-  /d/atlas/output; ci-queue-report converted from an unbounded
-  5-minute timestamped series to latest-plus-ring; keep-worthy
-  results graduated to recorded experiment artifacts before eviction.
-- Measured 2026-08-26: output/ = 52 GB.
-- Status: closed 2026-09-01 — commit `687e303e0`; policy applied (58.6 GiB
-  → 12.5 MiB), Coeus/Eunomia large derived trees evicted, junctions preserved;
-  focused tests: 15 passed, 1 skipped.
+- **ATLAS-SEMVER-GATE-RELEASE-JOB-UNREACHABLE-2026-09-02** The shared gate's release job never had an event to fire on [patch] (2026-09-02) — `378081ec6`
+- **ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01** CI gates one of 35 scripts/tests files, under the wrong runner [patch] (2026-09-02) — `2936780a`, `dee3675f`, `65f7a718`, `4e5eb28d`
+- **ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01** Decode subprocess output as UTF-8 in every atlas script [patch] (2026-09-01)
+- **ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01** Mechanize the consumer lock advance after a provider merge [minor] (2026-09-01) — `a1e140f5`, `a7055d3f`, `b7ddd66a`, `d8188121`
+- **ATLAS-ADR-INDEX-GUARD-2026-09-01** One ADR index generator behind a shared guard [minor] (2026-09-02) — `49cba25c`, `f1a37436`, `a097e4e1`
+- **ATLAS-CONFORMANCE-PARALLEL-SCAN-2026-08-31** Bound fleet scan latency [patch] (2026-09-01)
+- **ATLAS-VERSION-GUARD-CWD-2026-09-02** version-guard red on main since 2026-08-25: tool cargo runs resolved the root's host-qualified pin [patch] (2026-09-02) — `7699c0f9`, `45b2db92`, `0d688b44`, `4a1b735d`
+- **ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02** Surface failing default-branch workflows at orientation [patch] (2026-09-02) — `32fc0244b`, `db825504`, `f4c096319`
+- **ATLAS-GITLINK-COHERENCE-GATE-2026-08-29** Wire the gitlink auditor that already existed [patch] (2026-09-01) — `a8fc5d431`, `03d80d33`, `eac82038`
+- **ATLAS-APOLLO-COMPOSITE-RADIX-WRONG-ANSWERS-2026-08-28** Published transforms return silent wrong answers at specific lengths [major] (2026-08-29) — `03d80d33`
+- **ATLAS-LETO-PRECISION-ANOMALY-SWEEP-2026-08-31** Clean pass: leto-ops shows no wrong-sign precision ratio [patch] (2026-08-31)
+- **ATLAS-APOLLO-BENCH-QUICK-DIRT-2026-08-27** Superseded workflow dirt cleared [patch] (2026-08-27)
+- **ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-26** [integration][perf] (2026-08-26) — `ff8f95eb`, `c0cb8f7d`, `98486ebd`, `b9ace296`
+- **ATLAS-LETO-HEPHAESTUS-CONSUMER-REPINS-2026-08-26** [integration][perf] (2026-08-26) — `98486ebd27266068391c7101fff5b074a409877b`, `b9ace296881b61bb412f6827463d7fe11f08f603`
+- **ATLAS-EXTERNAL-REFERENCE-VALUE-2026-08-25** External references are earning their keep [patch] (2026-08-25)
+- **ATLAS-STASH-BACKLOG-2026-08-25** 33 stashes across ten repositories, archived [patch] (2026-08-25)
+- **ATLAS-MNEMOSYNE-DOCS-2026-08-25** Correct Page field and book chapters [patch] (2026-08-25) — `5fc0759`, `5e895adeb907c51ff887c0c4c32ca74203478cdd`, `5e895ad`, `aeacb924d`
+- **ATLAS-CFDRS-MDBOOK-DEAD-LINKS-2026-08-24** strict-mode gate exposed two real broken links [patch] (2026-08-24) — `3898b96201fbc5ee2958ff4a217786a84b3fba14`, `cc66f836`, `170f0095`, `3898b962`
+- **ATLAS-KWAVERS-DEFECTS-2026-08-22** three defects the k-Wave oracle found [major] (2026-08-22)
+- **ATLAS-KWAVERS-GPUMOCK-2026-08-21** Simulated elastic-SWE GPU surface deleted [major] (2026-08-24) — `377a98c8`, `17a855d85e4198b39fc45426abdd0576aa2d3d56`, `377a98c86`, `49d80a4`
+- **ATLAS-KWAVERS-KWAVE-ORACLE-2026-08-21** k-Wave parity made reproducible [major][arch] (2026-08-21)
+- **ATLAS-RITK-HEALTH-2026-08-21** RITK verified; GPU smoother unreachable [patch] (2026-08-21)
+- **ATLAS-KWAVERS-VIS-WGPU-2026-08-21** Remove analysis-owned WGPU visualization runtime [major][arch] (2026-08-25) — `41f1c8047`, `2b9328a12`, `871341d62`, `c8966a986`
+- **ATLAS-KWAVERS-CI-MATRIX-TIMEOUT-2026-08-25** Eliminate matrix and validation compile duplication [patch] (2026-08-25) — `84ba553ef`
+- **ATLAS-KWAVERS-GPU-CLIPPY-RATCHET-2026-08-25** Clear the kwavers-gpu pre-existing clippy findings (the residual's second half) [patch] (2026-08-26) — `f11d4b99c`, `6abb06180`, `17aca60ceafc0b74b8237d297ffecccde2b6ff90`, `d13ab618f`
+- **ATLAS-KWAVERS-ANALYSIS-CLIPPY-RATCHET-2026-08-25** Clippy ratchet item (merged as PR #639 at f11d4b99c; gitlink advanced in 59c5f294e) (2026-08-25) — `f11d4b99c`, `59c5f294e`, `80d120202`
+- **ATLAS-LETO-BOOK-2026-08-20** complete the missing Leto domain book [minor] (2026-08-24) — `c1c8ab234559a9f58a34d65c32f6096ee69fc012`, `b500baf1af4223f0a995821b6067622ed6caa535`, `b500baf`, `7d6ac26ff`
+- **ATLAS-GMRES-SSOT-001** Consolidate four GMRES implementations onto one recurrence [major] [arch] (2026-08-25) — `dcc5d54`
+- **ATLAS-GMRES-FORK-CONVERGE-001** Stages B-D: migrate consumers, delete the Leto family [major] [arch] (2026-08-25) — `6d18a547`
+- **ATLAS-LETO-OWNED-LU-001** cfd-math consumes an unlanded Leto LU surface [major] (2026-08-25) — `5ebbf1f8`, `63e49604`, `58f6caab`
+- **ATLAS-NSFVM-SOR-CONVERGENCE-001** Micro-geometry SIMPLEC continuity stagnation [major] (2026-08-25) — `5ebbf1f8`
+- **ATLAS-OUTPUT-RETENTION-001** Retention budget for the output root [pm-hygiene] [patch] (2026-09-01) — `687e303e0`
