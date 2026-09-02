@@ -167,7 +167,9 @@ def compact(path: Path, archive_heading: str) -> tuple[int, int, int]:
                 out.append("")
             out.extend(archived)
 
-    path.write_text("\n".join(out) + "\n", encoding="utf-8")
+    # `newline=""`: text mode on Windows would translate every "\n" to CRLF; the
+    # board is committed LF (`.gitattributes`), and a CRLF working copy is churn.
+    path.write_text("\n".join(out) + "\n", encoding="utf-8", newline="")
     return before, len(out), len(archived)
 
 
