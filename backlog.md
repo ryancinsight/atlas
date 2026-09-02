@@ -190,19 +190,20 @@
 ## ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02 — Surface failing default-branch workflows at orientation [patch] — done 2026-09-02
 
 - **Delivered (`32fc0244b`):** `scripts/atlas-red-workflows.py` + 8 tests — one batched `gh run list` per allowlisted repository, newest completed run per workflow, a row per non-success conclusion (cancelled/skipped included), `--first-error` and `--fail-on-red`; ~60 s for 25 repositories. Orientation runs it beside `atlas-lane-audit.py`; CI wiring is not possible with the default token (it cannot read other repositories' runs).
-- **First live pass:** 6 rows — atlas's own conformance/CodeQL show *cancelled* because every `main` push cancels the previous run (concurrency `cancel-in-progress` on the default branch leaves each superseded merge unverified until the next completes; the successive pointer/board pushes make that the steady state); the member rows are filed as `ATLAS-DEFAULT-BRANCH-REDS-2026-09-02`.
+- **First live pass:** 6 rows — atlas's own conformance/CodeQL show *cancelled* because every `main` push cancels the previous run (concurrency `cancel-in-progress` on the default branch leaves each superseded merge unverified until the next completes; the successive pointer/board pushes make that the steady state); the member rows are filed as `ATLAS-DEFAULT-BRANCH-REDS-2026-09-02`. Fixed the atlas half in `db825504`: `cancel-in-progress` now applies to pull-request runs only, so every default-branch push reaches a verdict.
 
 ## ATLAS-DEFAULT-BRANCH-REDS-2026-09-02 — Member default-branch workflows red with no collector [patch] — todo
 
 - **Finding (first `atlas-red-workflows.py` pass, 2026-09-02):** each row is a default-branch workflow whose newest completed run is not green; nobody had collected any of them. Each row is claimable on its own: classify (stale release attempt, rotted job, starved schedule), fix the component or retire the job, and the collector's next pass is the oracle.
 
-| repo | workflow | conclusion | run | link |
+| repo | workflow | conclusion | run | note |
 | --- | --- | --- | --- | --- |
-| gaia | Crates.io Release failure | @ | `a5b0fe72` 2026-08-11 | [run](https://github.com/ryancinsight/gaia/actions/runs/31462176421) |
-| gaia | Examples failure | @ | `5d6df7bb` 2026-04-01 | [run](https://github.com/ryancinsight/gaia/actions/runs/23865795918) |
-| iris | Crates.io Release failure | @ | `ab3eea28` 2026-08-11 | [run](https://github.com/ryancinsight/iris/actions/runs/31462174822) |
-| kwavers | GPU Parity (scheduled) cancelled | @ | `bd7e6fa6` 2026-09-01 | [run](https://github.com/ryancinsight/kwavers/actions/runs/33463119860) |
+| gaia | Crates.io Release | failure | [`a5b0fe72` 2026-08-11](https://github.com/ryancinsight/gaia/actions/runs/31462176421) |  |
+| iris | Crates.io Release | failure | [`ab3eea28` 2026-08-11](https://github.com/ryancinsight/iris/actions/runs/31462174822) |  |
+| kwavers | GPU Parity (scheduled) | cancelled | [`bd7e6fa6` 2026-09-01](https://github.com/ryancinsight/kwavers/actions/runs/33463119860) | scheduled heavy suite cancelled — starved or superseded; classify per workflow hygiene |
+| mnemosyne | Fuzz | failure | [`247057ed` 2026-09-02 (#97's new workflow, first run)](https://github.com/ryancinsight/Mnemosyne/actions/runs/33591989913) | `E0463: can't find crate for core` — the sanitizer build lacks the nightly target's `rust-src`/std; fix in the fuzz workflow's toolchain step |
 
+- **Revision (2026-09-02):** gaia `Examples` dropped — that workflow no longer exists on `main`; the collector now reports active workflows only (`9235e47d`). mnemosyne `Fuzz` added.
 - **Acceptance oracle:** `scripts/atlas-red-workflows.py` reports no member rows (atlas's own cancelled rows are the concurrency finding above, tracked there).
 
 ## ATLAS-GITLINK-COHERENCE-GATE-2026-08-29 — Wire the gitlink auditor that already existed [patch] — done 2026-08-29; gate corrected 2026-09-01
