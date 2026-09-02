@@ -8,9 +8,12 @@
 //! and reported clean while none of them could resolve gaia at all.
 //!
 //! The audit's premise is that these trees represent the stack. When the
-//! premise fails the verdict is unsound, so a behind tree is reported rather
-//! than silently folded into a clean result. Reading a remote-tracking ref is
-//! local and offline; keeping it current is the caller's `git fetch`.
+//! premise fails a clean result means less than it appears, so behind trees
+//! are named in the report and the clean line says what it is a verdict about.
+//! Staleness is not itself a defect: a submodule checkout sits behind its
+//! remote by design, because the gitlink pins it there, so failing on it alone
+//! would fail every run in CI. Reading a remote-tracking ref is local and
+//! offline; keeping it current is the caller's `git fetch`.
 
 use std::path::Path;
 use std::process::Command;

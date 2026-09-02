@@ -84,9 +84,15 @@ impl CoherenceReport {
     }
 
     /// Return whether at least one coherence mismatch exists.
+    ///
+    /// Stale trees are reported but do not make a defect on their own. A
+    /// submodule checkout legitimately sits behind its remote — the gitlink
+    /// pins it there — so failing on that alone would fail every run. What
+    /// staleness changes is the meaning of a clean result, which the rendered
+    /// report says outright rather than leaving to the reader.
     #[must_use]
     pub const fn has_defect(&self) -> bool {
-        !self.findings.is_empty() || !self.stale.is_empty()
+        !self.findings.is_empty()
     }
 
     fn render_human(&self) -> String {
@@ -104,7 +110,11 @@ impl CoherenceReport {
         if self.findings.is_empty() && self.stale.is_empty() {
             out.push_str("version-guard coherence: clean\n");
         } else if self.findings.is_empty() {
-            out.push_str("version-guard coherence: UNMEASURED (stale trees)\n");
+            let _ = writeln!(
+                out,
+                "version-guard coherence: no mismatch among the trees as checked out; {} of them are behind, so this is not a verdict about what the stack publishes",
+                self.stale.len()
+            );
         } else {
             for finding in &self.findings {
                 let _ = writeln!(
