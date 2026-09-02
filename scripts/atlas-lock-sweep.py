@@ -12,7 +12,10 @@ that the sweep is a tool, never agent choreography. This is the tool.
 
 # What it does
 
-For one first-party crate and one provider commit, in registered-member order:
+For one first-party crate and one named provider commit (`--rev` is required:
+a sweep is a deliberate act after a specific merge — defaulting to the
+provider's HEAD churned three consumer locks on a board-only commit the first
+time the default was exercised), in registered-member order:
 
 1. Find consumers: members whose manifests declare the crate with a
    `git = "https://github.com/ryancinsight/<provider>"` source.
@@ -166,16 +169,14 @@ def find_consumers(crate: str, members: list[Path]) -> list[Consumer]:
     return found
 
 
-def resolve_target(consumers: list[Consumer], rev: str | None) -> str:
-    """The provider's `origin/<default>` HEAD unless `--rev` names a commit."""
+def resolve_target(consumers: list[Consumer], rev: str) -> str:
+    """The full SHA of the provider commit `--rev` names."""
     provider = ROOT / "repos" / provider_repo_name(consumers[0].provider_url)
     git(provider, "fetch", "origin", "--quiet")
-    if rev:
-        full = git(provider, "rev-parse", "--verify", f"{rev}^{{commit}}").strip()
-        if not full:
-            sys.exit(f"error: {rev} is not a commit in {provider.name}")
-        return full
-    return git(provider, "rev-parse", f"origin/{default_branch(provider)}").strip()
+    full = git(provider, "rev-parse", "--verify", f"{rev}^{{commit}}").strip()
+    if not full:
+        sys.exit(f"error: {rev} is not a commit in {provider.name}")
+    return full
 
 
 def plan(crate: str, target: str, consumers: list[Consumer]) -> list[PlanRow]:
@@ -260,7 +261,12 @@ def advance(row: PlanRow, crate: str, open_prs: bool) -> Outcome:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("crate", help="first-party crate name as consumers declare it, e.g. hermes-simd")
-    parser.add_argument("--rev", help="provider commit to pin (default: the provider's origin default HEAD)")
+    parser.add_argument(
+        "--rev",
+        required=True,
+        help="the provider commit the sweep targets — the merge you are propagating; required, because "
+        "defaulting to the provider's HEAD would churn every consumer lock on board-only commits",
+    )
     parser.add_argument("--members", help="comma-separated member names to restrict the sweep to")
     parser.add_argument("--open-prs", action="store_true", help="commit, push, and open one PR per consumer (default: dry run)")
     arguments = parser.parse_args()
