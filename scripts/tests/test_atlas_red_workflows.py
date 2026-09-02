@@ -54,6 +54,11 @@ class SelectionTests(unittest.TestCase):
         ]
         self.assertEqual(sorted(r["workflowName"] for r in red.red_runs(runs)), ["conformance", "docs"])
 
+    def test_a_deleted_workflow_is_not_reported_when_the_active_set_is_known(self) -> None:
+        runs = [run("Examples", "completed", "failure", "a"), run("ci", "completed", "failure", "b")]
+        self.assertEqual([r["workflowName"] for r in red.red_runs(runs, active={"ci"})], ["ci"])
+        self.assertEqual(len(red.red_runs(runs)), 2, "without the active set every red run is reported")
+
     def test_all_green_reports_nothing(self) -> None:
         runs = [run("ci", "completed", "success", "a"), run("ci", "completed", "failure", "b")]
         self.assertEqual(red.red_runs(runs), [])

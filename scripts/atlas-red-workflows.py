@@ -5,8 +5,9 @@ Orientation reads own PRs and the board; nothing reads default-branch workflow
 verdicts, so atlas's `version-guard` stayed red for eight days (2026-08-25 →
 2026-09-02) with no collector (ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02). This
 tool is that collector: one batched `gh run list` per allowlisted repository
-(the umbrella plus every registered member), the latest *completed* run per
-workflow, and a row for each whose conclusion is not success. A cancelled or
+(the umbrella plus every registered member) plus its `gh workflow list`, the
+latest *completed* run per workflow that still exists, and a row for each
+whose conclusion is not success. A cancelled or
 skipped latest run is reported too — a merge-gate run that never finished
 leaves that merge unverified (engineering_gates: workflow hygiene).
 
@@ -15,7 +16,7 @@ leaves that merge unverified (engineering_gates: workflow hygiene).
     atlas-red-workflows.py --first-error   # append the failing step's first error line
 
 `--first-error` costs one `gh run view --log-failed` per red run; the default
-report is one call per repository.
+report is two calls per repository.
 """
 
 from __future__ import annotations
@@ -57,8 +58,14 @@ def latest_completed_per_workflow(runs: list[dict]) -> dict[str, dict]:
     return latest
 
 
-def red_runs(runs: list[dict]) -> list[dict]:
-    return [run for run in latest_completed_per_workflow(runs).values() if run.get("conclusion") not in GREEN]
+def red_runs(runs: list[dict], active: set[str] | None = None) -> list[dict]:
+    """Non-green newest completed runs; with `active`, only workflows that still
+    exist on the default branch (`gh run list` keeps runs of deleted workflows,
+    whose logs expire and which nothing can ever turn green)."""
+    return [
+        run for run in latest_completed_per_workflow(runs).values()
+        if run.get("conclusion") not in GREEN and (active is None or run["workflowName"] in active)
+    ]
 
 
 def first_error_line(log: str) -> str:
@@ -79,6 +86,13 @@ def list_runs(slug: str, branch: str) -> list[dict] | None:
     if completed.returncode != 0:
         return None
     return json.loads(completed.stdout or "[]")
+
+
+def active_workflows(slug: str) -> set[str] | None:
+    completed = gh("workflow", "list", "-R", slug, "--json", "name,state", "--limit", "200")
+    if completed.returncode != 0:
+        return None
+    return {w["name"] for w in json.loads(completed.stdout or "[]") if w.get("state") == "active"}
 
 
 def repositories() -> list[tuple[str, str, str]]:
@@ -108,7 +122,7 @@ def main() -> int:
             print(f"{name}: gh run list failed for {slug} (access or slug)")
             reported += 1
             continue
-        for run in sorted(red_runs(runs), key=lambda r: r["workflowName"]):
+        for run in sorted(red_runs(runs, active_workflows(slug)), key=lambda r: r["workflowName"]):
             reported += 1
             line = f"{name}: {run['workflowName']} {run.get('conclusion') or '-'} @ {run['headSha'][:8]} {run['createdAt'][:10]} {run['url']}"
             if arguments.first_error:
