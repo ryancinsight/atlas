@@ -1,0 +1,55 @@
+# ADR index guard (shared): a member's docs/adr/README.md must be exactly what
+# the stack's one generator renders from the ADR files.
+#
+# Same shape as lockfile-guard.yml: check out the caller, check out atlas into
+# `_atlas`, run atlas's script against the caller's tree. Members therefore
+# carry no copy of the generator (three divergent copies existed before this;
+# ATLAS-ADR-INDEX-GUARD-2026-09-01). `strict` adds the canonical-heading and
+# heading/filename-number checks; it is opt-in until every member conforms
+# (ATLAS-ADR-FORM-NORMALIZATION-2026-09-02).
+#
+# Callers:
+#   adr-index:
+#     uses: ryancinsight/atlas/.github/workflows/adr-index-guard.yml@<sha>
+#     with:
+#       strict: true
+
+name: ADR index (shared guard)
+
+on:
+  workflow_call:
+    inputs:
+      directory:
+        description: ADR directory in the caller's checkout
+        required: false
+        default: docs/adr
+        type: string
+      strict:
+        description: Also require the canonical heading form and number agreement
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  adr-index:
+    name: ADR index is current
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          path: _atlas
+      - name: Check the ADR index against the ADR files
+        shell: bash
+        run: |
+          set -euo pipefail
+          strict=""
+          if [[ "${{ inputs.strict }}" == "true" ]]; then
+            strict="--strict"
+          fi
+          python3 _atlas/scripts/adr-index.py check --directory "${{ inputs.directory }}" $strict
