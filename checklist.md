@@ -33,8 +33,9 @@
       adoption = one `workflow_call` job naming the shared workflow + the
       member's package name(s), advancing the atlas-ref pin — same adoption
       shape as `lockfile-guard.yml`.
-- [ ] Member adoption wave: add the `semver` job to each publishable
-      member's CI (23 repos), advancing their atlas-ref pins.
+- [x] Member adoption wave: every publishable member runs the shared gate
+      (informational on ci, blocking on release). Final two release-gates:
+      CFDrs#382, kwavers#699 (pi session 01a06291).
 
 ## ATLAS-PROVIDER-HEAD-ADVANCE-2026-08-31-R2 [integration][perf]
 

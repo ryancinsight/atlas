@@ -130,7 +130,7 @@
 - **horae row — resolved upstream:** the failing run (07:11 UTC) predates horae `468a900` ("ci: Link the book tests against one artifact per crate"), which stages one rlib per crate into `target/booklibs`; main's CI at `28a13302` (09:46 UTC) is green. No atlas action.
 - **athena row — blocked (2026-09-02):** root cause needs an allocation trace on a Linux host; this host has none (the WSL Ubuntu instance's disk image is missing — `ERROR_PATH_NOT_FOUND` on attach). Re-open trigger: a Linux host with cargo, or the flake recurring on main. The `#[ignore]`d GMRES sibling in `athena-leto/tests/allocation.rs` is the same defect.
 
-## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — shared workflow delivered; member adoption pending
+## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — adopted fleet-wide 2026-09-02
 
 - **Adoption mechanized and run (2026-09-02, integrator: claude-fable session 5050c72a).** `scripts/atlas-semver-gate-adopt.py` (`da9d549bc`, 8 tests) reads a member's own manifests at `origin/<default>` for the publishable crates (`publish = false`/`[]` excluded — the stack's release-ordering guard, no public contract to gate), inserts the informational job into the verification workflow, and inserts the blocking job into the release workflow under that workflow's own release guard, adding `needs: semver` to its other jobs so the gate stops a release rather than racing it. The release list holds only crates the crates.io sparse index already carries, because the default registry baseline resolves the latest published version.
 - **Measured before the run:** 5 of 25 members had a gate (aequitas, apollo, mnemosyne, proteus, asclepius); 3 have no publishable crates at all (horae, hyperion, harmonia — nothing to gate); 17 needed adoption. 115 publishable crates stack-wide, 79 on the registry.
@@ -158,7 +158,7 @@
   `workflow_call`-only file.
 | ID | Outcome | Class | Status | Owner | Scope |
 |----|---------|-------|--------|-------|-------|
-| ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 | Every member that publishes a crate detects public-surface breaks before the break ships. | [patch] | in-progress (shared workflow delivered 2026-09-01; member pin advancement pending) | unowned | each registered member's CI + the shared release pipeline |
+| ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 | Every member that publishes a crate detects public-surface breaks before the break ships. | [patch] | done 2026-09-02 — adopted fleet-wide (final release-gates CFDrs#382, kwavers#699) | pi session 01a06291 | each registered member's CI + the shared release pipeline |
 
 - **Evidence, measured 2026-08-28 across the 25 registered members:** exactly
   **two** (`asclepius`, `proteus`) run a `cargo-semver-checks` job. Every other
