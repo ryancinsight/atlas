@@ -92,7 +92,22 @@ def wait_for(target: str, required: re.Pattern[str], limit_minutes: int, report)
         names = decisive_checks(pr["statusCheckRollup"])
         verdict = gate(names, required)
         if verdict == "red":
-            return report(target, f"{target} RED: {[n for n, s in names.items() if s in FAILED_STATES]}")
+            # Confirm before giving up: for about a minute after a push the
+            # rollup still carries the previous commit's runs, so a failure
+            # already fixed on the new head reads as terminal. Mnemosyne #115
+            # was abandoned that way, one commit after the fix for exactly the
+            # check that reported it.
+            failed = [n for n, s in names.items() if s in FAILED_STATES]
+            time.sleep(POLL_SECONDS)
+            recheck = gh("pr", "view", number, "-R", slug, "--json", "state,statusCheckRollup")
+            try:
+                names = decisive_checks(json.loads(recheck.stdout)["statusCheckRollup"])
+            except (json.JSONDecodeError, KeyError):
+                names = {}
+            if gate(names, required) == "red":
+                return report(target, f"{target} RED: {[n for n, s in names.items() if s in FAILED_STATES]}")
+            report(target, f"{target} red cleared on recheck (was {failed}); still waiting", final=False)
+            continue
         if verdict == "merge":
             merge = gh("pr", "merge", number, "-R", slug, "--rebase", "--delete-branch")
             after = json.loads(gh("pr", "view", number, "-R", slug, "--json", "state,mergeCommit").stdout)
@@ -116,9 +131,10 @@ def main() -> int:
     results: dict[str, str] = {}
     lock = threading.Lock()
 
-    def report(target: str, text: str) -> None:
+    def report(target: str, text: str, final: bool = True) -> None:
         with lock:
-            results[target] = text
+            if final:
+                results[target] = text
             print(text, flush=True)
 
     threads = [threading.Thread(target=wait_for, args=(t, required, arguments.timeout_minutes, report), daemon=True)
