@@ -1,5 +1,29 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-ADR-FORM-NORMALIZATION-2026-09-02 — Twelve members' ADRs lack the canonical heading or status form [patch] — todo
+
+- **Finding (2026-09-02, validating parse over every member's `docs/adr`):**
+  twelve of twenty-four members fail the member-copy generator's checks
+  (canonical `# ADR NNN: Title` or `# NNN — Title` heading; a Proposed /
+  Accepted / Rejected status). First failing file each: aequitas
+  `0013-acceleration-quantity.md` (status), coeus `0001-…interpolation.md`
+  (heading), gaia `0001-…path-construction.md` (heading), hephaestus
+  `0001-cuda-backend.md` (heading), kwavers `001-adaptive-beamforming-…md`
+  (heading), leto `0012-dqds-…md` (heading), melinoe `0001-parallel-executor-…md`
+  (status), mnemosyne `0001-free-list-…md` (heading), moirai
+  `0001-moirai-as-…md` (heading), ritk `0001-coeus-native-…md` (heading),
+  themis `0001-crates-io-…md` (status). The other twelve pass and their indexes
+  are current.
+- **Why it matters:** ADR governance names one canonical form (terminology
+  SSOT); a stack-wide strict index guard (`ATLAS-ADR-INDEX-GUARD-2026-09-01`)
+  cannot be required until these conform, so the guard ships with strictness
+  opt-in and this campaign turns it on member by member.
+- **Outcome:** one PR per member normalizing headings and status lines to the
+  canonical form (content untouched), then that member's guard call switches
+  to `strict: true`. Mechanical; a member's index regenerates in the same PR.
+- **Acceptance oracle:** the validating generator parses every member's
+  `docs/adr` without error and every member's guard runs strict.
+
 ## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
 
 - **Finding (conformance run 33583483834 on `0c129c66`, the first completed
