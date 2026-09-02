@@ -28,7 +28,7 @@ on:
       version:
         description: actionlint release to run
         required: false
-        default: "1.7.7"
+        default: "1.7.12"
         type: string
 
 permissions:
@@ -43,9 +43,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      # Pinned by release tag and verified by checksum: the binary is fetched
-      # from a release asset, so the version input alone would let a retag
-      # change what runs.
+      # Pinned by release tag. The version matters beyond reproducibility:
+      # actionlint carries GitHub's permission scopes and context tables in its
+      # own source, so an older release reports a newer scope as unknown —
+      # 1.7.7 rejected `artifact-metadata: write`, which is valid.
       - name: Install actionlint
         env:
           VERSION: ${{ inputs.version }}
