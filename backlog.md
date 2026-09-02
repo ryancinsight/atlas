@@ -1,6 +1,8 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01 — Thirteen scripts/tests files do not pass under `python -m unittest <file>` on main [patch] — todo
+## ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01 — Thirteen scripts/tests files do not pass under `python -m unittest <file>` on main [patch] — in-progress 2026-09-01
+
+- **Claim:** integrator claude (this session); direct to main; lease: `scripts/tests/**`, `.github/workflows/atlas-conformance.yml` test step, this entry.
 
 - **Finding (2026-09-01, measured on a pristine `origin/main` archive of
   `scripts/`, so independent of any working-tree change):** of 35 test files,
