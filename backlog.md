@@ -189,9 +189,12 @@
   binaries: every efficiency-core size within ±1.4%, performance-core sizes
   inside the same binary's round-to-round spread (up to 14%). No measurable
   change — LLVM was already inlining at present body sizes, the fragility
-  the attribute removes. FMA codegen inspection not performed: no x86-64
-  disassembler is installed on this host (no `llvm-tools`, no `dumpbin`);
-  the ladder numbers bound the outcome instead. The `lane_kernel_uninlined`
+  the attribute removes. Codegen (`llvm-objdump --demangle` over both
+  matched binaries): neither binary carries a standalone symbol for any
+  `BatchedStages`/`InterleavedStages` `call` body — the bodies were already
+  folded into their dispatcher frames before the attribute, which is what
+  the ladder parity shows; the attribute makes that fold a guarantee
+  instead of an optimizer outcome. The `lane_kernel_uninlined`
   baseline (apollo = 3) tightens to 0 at the gitlink advance after merge.
 
 
