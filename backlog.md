@@ -1,6 +1,8 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01 — Mechanize the consumer lock advance after a provider merge [minor] — todo
+## ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01 — Mechanize the consumer lock advance after a provider merge [minor] — in-progress 2026-09-01
+
+- **Claim:** integrator claude (this session); branch in place on the umbrella (`chore/atlas-lock-sweep`); lease: `scripts/atlas-lock-sweep.py`, `scripts/tests/test_atlas_lock_sweep.py`, this entry.
 
 - **Finding (2026-09-01, after hermes `6da6d139` landed the Linux processor
   binding):** hermes-simd has six consumers — CFDrs, apollo, coeus, helios,
