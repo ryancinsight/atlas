@@ -84,10 +84,10 @@ def rewrite(path: str, text: str) -> tuple[str, str]:
         kind = "deploy"
     else:
         group = GROUP_LINE.search(text)
+        if group is not None and "github.sha" in group.group(2):
+            return text, "skip: group already keyed per commit"
         if group is None or "github.ref" not in group.group(2):
             return text, "skip: group line without github.ref"
-        if "github.sha" in group.group(2):
-            return text, "skip: group already keyed per commit"
         value = group.group(2).replace("github.ref", PER_COMMIT, 1)
         result = text[: group.start()] + (
             f"{indent}# Pull requests share one group per ref and cancel superseded runs; default-\n"
