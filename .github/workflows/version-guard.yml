@@ -53,6 +53,17 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # The repository's own rust-toolchain.toml pins the full Windows host
+  # triple so every local writer of the shared target directory tags its
+  # artefacts identically (ATLAS-TOOLCHAIN-TRIPLE-083). rustup rejects a
+  # host-qualified channel on any other host — "target tuple in channel
+  # name" — and a committed pin outranks whatever the toolchain action
+  # installs, so this job's cargo calls failed on Ubuntu from 2026-08-21
+  # until here. RUSTUP_TOOLCHAIN outranks the file and leaves the local
+  # invariant untouched.
+  RUSTUP_TOOLCHAIN: 1.97.0
+
 jobs:
   sweep:
     name: Toolchain preflight + coherence scan
