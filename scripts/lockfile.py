@@ -57,7 +57,7 @@ FIRST_PARTY_SOURCE = re.compile(r'^source = "git\+https://github\.com/ryancinsig
 
 
 def run_outside_the_overlay(
-    arguments: list[str], manifest: Path = MANIFEST
+    arguments: list[str], manifest: Path | None = None
 ) -> subprocess.CompletedProcess[str]:
     """Run cargo with a working directory outside the stack root.
 
@@ -65,9 +65,13 @@ def run_outside_the_overlay(
     directory, never from `--manifest-path`, so this is what excludes the
     overlay. Running from the repository itself would silently include it.
 
-    `manifest` defaults to the umbrella manifest; the consumer lock sweep
-    passes a member's, so one overlay-free runner serves the stack.
+    `manifest` defaults to `MANIFEST` as it stands at call time -- `main`
+    reassigns it under `--manifest-path`, which a definition-time default would
+    never see -- and the consumer lock sweep passes a member's, so one
+    overlay-free runner serves the stack.
     """
+    if manifest is None:
+        manifest = MANIFEST
     with tempfile.TemporaryDirectory() as neutral_directory:
         return subprocess.run(
             ["cargo", *arguments, "--manifest-path", str(manifest)],
