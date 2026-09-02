@@ -1,5 +1,30 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-ADR-INDEX-GUARD-2026-09-01 — One ADR index generator behind a shared guard [minor] — todo
+
+- **Finding:** three divergent ADR index generators exist for one concern —
+  `atlas/scripts/adr-index.py` (208 lines, meta-repo-root-relative, driven by
+  `atlas-conformance.yml`), `apollo/scripts/adr-index.py` (131 lines,
+  four-digit numbering; apollo#254 widens it to three or four), and
+  `kwavers/scripts/adr-index.py` (179 lines). hermes's `docs/adr/README.md`
+  claims generation by a script the repo never had
+  (`HS-ADR-INDEX-GENERATOR-ABSENT-2026-09-01`); leto, themis, mnemosyne,
+  moirai, and hephaestus have no generator at all.
+- **Outcome:** one generator in atlas taking `--root <repo>` (numbering width
+  per repository, `## Status` or inline status forms), exposed to members as
+  `.github/workflows/adr-index-guard.yml` in the `lockfile-guard.yml` shape —
+  caller checkout, atlas checkout into `_atlas`,
+  `python3 _atlas/scripts/adr-index.py check --root .`. Members call the
+  guard and delete their local copies; local regeneration runs the atlas
+  script from the umbrella checkout.
+- **Sequencing:** hermes vendors apollo's generalized copy first (its index is
+  unvalidated today); this item then replaces that copy and apollo's and
+  kwavers's with the guard, so the vendored copy is a bounded, tracked debt
+  rather than a fourth long-lived fork.
+- **Acceptance oracle:** the guard passes on hermes (three-digit), apollo and
+  kwavers (four-digit) and atlas itself; a deliberately desynchronised index
+  in any of them fails it; no member repo retains a `scripts/adr-index.py`.
+
 ## ATLAS-CONFORMANCE-PARALLEL-SCAN-2026-08-31 — Bound fleet scan latency [patch] — done 2026-09-01
 
 - **Outcome:** scan independent provider trees concurrently while preserving
