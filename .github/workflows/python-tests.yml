@@ -19,7 +19,9 @@ on:
 
 concurrency:
   group: python-tests-${{ github.ref }}
-  cancel-in-progress: true
+  # A superseded pull-request run cancels; a default-branch run always reaches
+  # a verdict, else every push cancels the previous merge's verification.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
