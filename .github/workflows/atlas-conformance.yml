@@ -18,6 +18,7 @@ on:
       - 'docs/adr/**'
       - 'scripts/**'
       - '.github/workflows/atlas-conformance.yml'
+      - '.github/workflows/workflow-lint.yml'
       - 'backlog.md'
       - 'checklist.md'
       - 'gap_audit.md'
@@ -44,6 +45,14 @@ permissions:
   contents: read
 
 jobs:
+  # atlas authors the shared workflows the fleet calls, so its own files are
+  # exactly the ones an invalid edit would break fleet-wide.
+  workflow-lint:
+    name: Workflows are valid
+    uses: ./.github/workflows/workflow-lint.yml
+    permissions:
+      contents: read
+
   conformance-check:
     name: Debt-class ratchet (counts non-increasing vs committed baseline)
     runs-on: ubuntu-latest
