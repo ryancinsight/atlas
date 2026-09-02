@@ -136,25 +136,53 @@ def gh(*args: str) -> subprocess.CompletedProcess[str]:
 
 
 def latest_completed_run(slug: str, branch: str, workflow: str | int) -> dict | None:
-    """The newest completed run of one workflow on `branch`, or None."""
+    """The newest completed run of one workflow on `branch`, or None.
+
+    The window is a few runs rather than one so a cancelled row can say
+    whether something newer already exists: GitHub's own CodeQL setup
+    supersedes its runs, so its newest *completed* run is routinely a
+    cancellation with a success behind it and a fresh run ahead of it.
+    """
     completed = gh("run", "list", "-R", slug, "--workflow", str(workflow), "--branch", branch,
-                   "--status", "completed", "--limit", "1", "--json", RUN_FIELDS)
+                   "--limit", "5", "--json", RUN_FIELDS)
     if completed.returncode != 0:
         return None
-    runs = json.loads(completed.stdout or "[]")
-    return runs[0] if runs else None
+    runs = sorted(json.loads(completed.stdout or "[]"),
+                  key=lambda r: r.get("createdAt", ""), reverse=True)
+    for index, run in enumerate(runs):
+        if run.get("status") == "completed":
+            run = dict(run)
+            run["_superseded"] = index > 0
+            return run
+    return None
 
 
 def active_workflows(slug: str) -> list[dict] | None:
-    """Active workflows as `{name, id}`; `gh run list` keeps runs of deleted
-    workflows, whose logs expire and which nothing can ever turn green."""
-    completed = gh("workflow", "list", "-R", slug, "--json", "name,state,id", "--limit", "200")
+    """Active workflows as `{name, id, path}`; `gh run list` keeps runs of
+    deleted workflows, whose logs expire and which nothing can turn green."""
+    completed = gh("workflow", "list", "-R", slug, "--json", "name,state,id,path", "--limit", "200")
     if completed.returncode != 0:
         return None
     return [w for w in json.loads(completed.stdout or "[]") if w.get("state") == "active"]
 
 
-def repository_runs(slug: str, branch: str) -> list[dict] | None:
+def only_trigger_is_workflow_call(text: str) -> bool:
+    """True when the workflow's only trigger is `workflow_call`.
+
+    Such a workflow never runs on the default branch by itself, so its newest
+    run there can never be superseded: atlas's `semver-gate.yml` still
+    reports the phantom failure GitHub recorded while the file carried two
+    `name:` keys, long after the parse error was fixed.
+    """
+    # `(?m)` only: with DOTALL, `.` swallows newlines and the block runs to
+    # the end of the file, so `permissions:` reads as a second trigger.
+    block = re.search(r"(?m)^on:[ \t]*\n((?:(?:[ \t]+\S.*|[ \t]*)\n)*)", text)
+    if not block:
+        return False
+    return re.findall(r"(?m)^  ([a-z_]+):", block.group(1)) == ["workflow_call"]
+
+
+def repository_runs(slug: str, branch: str, repo: Path | None = None) -> list[dict] | None:
     """Each active workflow's newest completed run on the default branch."""
     workflows = active_workflows(slug)
     if workflows is None:
@@ -163,6 +191,10 @@ def repository_runs(slug: str, branch: str) -> list[dict] | None:
     for workflow in workflows:
         if workflow["name"] in PLATFORM_WORKFLOWS:
             continue
+        path = workflow.get("path")
+        if repo is not None and path:
+            if only_trigger_is_workflow_call(git(repo, "show", f"origin/{branch}:{path}") or ""):
+                continue
         run = latest_completed_run(slug, branch, workflow["id"])
         if run is not None:
             runs.append(run)
@@ -190,8 +222,10 @@ def main() -> int:
     parser.add_argument("--first-error", action="store_true", help="fetch each red run's first error line")
     arguments = parser.parse_args()
     reported = 0
+    repo_paths = {member.name: member for member in registered_members()}
+    repo_paths['atlas'] = ROOT
     for name, slug, branch in repositories():
-        runs = repository_runs(slug, branch)
+        runs = repository_runs(slug, branch, repo_paths.get(name))
         if runs is None:
             print(f"{name}: gh workflow list failed for {slug} (access or slug)")
             reported += 1
@@ -210,6 +244,8 @@ def main() -> int:
                 if no_runner_accepted(parsed):
                     line += ("\n    no runner accepted it: queued, then cancelled"
                              " — starved infrastructure, not a defect in the tree")
+                elif run.get("_superseded"):
+                    line += "\n    superseded: a newer run of this workflow already exists"
             if arguments.first_error:
                 log = gh("run", "view", str(run["databaseId"]), "-R", slug, "--log-failed").stdout
                 line += f"\n    {first_error_line(log)}"

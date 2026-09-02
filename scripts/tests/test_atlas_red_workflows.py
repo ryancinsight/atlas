@@ -9,9 +9,12 @@ leaves its merge unverified), in-progress runs never masking a red one.
 from __future__ import annotations
 
 import importlib.util
+import json
+import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parent.parent / "atlas-red-workflows.py"
 SPEC = importlib.util.spec_from_file_location("atlas_red_workflows", SCRIPT)
@@ -141,6 +144,68 @@ class ProvenanceTests(unittest.TestCase):
         self.assertFalse(red.no_runner_accepted([{"name": "a", "runner_name": ""},
                                                  {"name": "b", "runner_name": "gh-hosted-2"}]))
         self.assertFalse(red.no_runner_accepted([]), "no job list is no evidence either way")
+
+
+class TriggerScopeTests(unittest.TestCase):
+    """A workflow that exists only to be called never runs on the default
+    branch, so its newest run there can never be superseded."""
+
+    def test_a_workflow_call_only_workflow_is_recognised(self) -> None:
+        reusable = (
+            "name: SemVer gate (shared)\n"
+            "on:\n"
+            "  workflow_call:\n"
+            "    inputs:\n"
+            "      package:\n"
+            "        required: true\n"
+            "        type: string\n"
+            "permissions:\n"
+            "  contents: read\n"
+        )
+        self.assertTrue(red.only_trigger_is_workflow_call(reusable))
+
+    def test_a_workflow_with_its_own_triggers_is_not(self) -> None:
+        for text in (
+            "on:\n  push:\n    branches: [main]\n  workflow_call:\n",
+            "on:\n  schedule:\n    - cron: '0 6 * * 1'\n  workflow_dispatch:\n",
+            "on: [push]\n",
+            "name: ci\n",
+        ):
+            self.assertFalse(red.only_trigger_is_workflow_call(text), text[:30])
+
+
+class SupersededTests(unittest.TestCase):
+    def test_a_cancelled_run_with_a_newer_one_is_marked_superseded(self) -> None:
+        # GitHub's CodeQL default setup cancels its own run when a newer one
+        # starts, so the newest *completed* run is a cancellation that says
+        # nothing about the tree.
+        listed = json.dumps([
+            {"workflowName": "CodeQL", "status": "queued", "conclusion": None,
+             "headSha": "d" * 8, "databaseId": 4, "createdAt": "2026-09-02T18:25:00Z",
+             "url": "u", "event": "dynamic"},
+            {"workflowName": "CodeQL", "status": "completed", "conclusion": "cancelled",
+             "headSha": "c" * 8, "databaseId": 3, "createdAt": "2026-09-02T18:15:00Z",
+             "url": "u", "event": "dynamic"},
+            {"workflowName": "CodeQL", "status": "completed", "conclusion": "success",
+             "headSha": "b" * 8, "databaseId": 2, "createdAt": "2026-09-02T18:04:00Z",
+             "url": "u", "event": "dynamic"},
+        ])
+        with patch.object(red, "gh", return_value=subprocess.CompletedProcess(
+                [], 0, stdout=listed, stderr="")):
+            run = red.latest_completed_run("owner/repo", "main", 1)
+        self.assertEqual(run["conclusion"], "cancelled")
+        self.assertTrue(run["_superseded"])
+
+    def test_the_newest_run_of_all_is_not_superseded(self) -> None:
+        listed = json.dumps([
+            {"workflowName": "ci", "status": "completed", "conclusion": "failure",
+             "headSha": "a" * 8, "databaseId": 1, "createdAt": "2026-09-02T10:00:00Z",
+             "url": "u", "event": "push"},
+        ])
+        with patch.object(red, "gh", return_value=subprocess.CompletedProcess(
+                [], 0, stdout=listed, stderr="")):
+            run = red.latest_completed_run("owner/repo", "main", 1)
+        self.assertFalse(run["_superseded"])
 
 
 if __name__ == "__main__":
