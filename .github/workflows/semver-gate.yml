@@ -12,13 +12,27 @@
 #   - on PRs: runs INFORMATIONALLY against the PR base so the detected
 #     change-class is visible while the change is still in review
 #     (continue-on-error: true),
-#   - on release tags: runs BLOCKING against the previous release tag and
-#     fails when the manifest version does not cover the detected class.
+#   - on release tags: runs BLOCKING against the previous published
+#     version and fails when the manifest version does not cover the
+#     detected class.
+#
+# Release baseline (why the registry, not the previous tag): a tag baseline
+# is rebuilt from source, and its first-party git dependencies resolve
+# against the branch head — once a dependency has bumped past the
+# requirement the tag recorded, that resolution fails before any verdict
+# (apollo-fft v0.26.0 requires hermes-simd ^0.6 while the git source now
+# publishes 0.7: ATLAS-APOLLO-SEMVER-BASELINE-UNBUILDABLE). The published
+# baseline resolves from the registry, where every dependency the release
+# shipped against still exists, and it is the artifact the semver contract
+# is about. `baseline-source: tag` keeps the tag baseline for crates that
+# are not published.
 #
 # Inputs:
-#   package        - crate name(s), comma-separated (required)
-#   manifest-path  - path to Cargo.toml (default "Cargo.toml")
-#   rust-toolchain - toolchain for semver-checks (default "stable")
+#   package         - crate name(s), comma-separated (required)
+#   manifest-path   - path to Cargo.toml (default "Cargo.toml")
+#   rust-toolchain  - toolchain for semver-checks (default "stable")
+#   baseline-source - release baseline: "registry" (default; the latest
+#                     published version) or "tag" (the previous release tag)
 
 name: SemVer gate (shared)
 
@@ -39,6 +53,11 @@ on:
         required: false
         type: string
         default: stable
+      baseline-source:
+        description: Release baseline — "registry" (latest published version) or "tag" (previous release tag)
+        required: false
+        type: string
+        default: registry
 
 permissions:
   contents: read
@@ -73,6 +92,7 @@ jobs:
           fetch-depth: 0
       - name: Resolve previous release tag as baseline
         id: baseline
+        if: inputs.baseline-source == 'tag'
         run: |
           prev="$(git describe --tags --abbrev=0 "${GITHUB_REF}^" 2>/dev/null || true)"
           if [ -z "$prev" ]; then
@@ -85,5 +105,7 @@ jobs:
           package: ${{ inputs.package }}
           manifest-path: ${{ inputs.manifest-path }}
           rust-toolchain: ${{ inputs.rust-toolchain }}
-          baseline-rev: ${{ steps.baseline.outputs.baseline }}
+          # Empty for the registry baseline: cargo-semver-checks then compares
+          # against the latest published version of each package.
+          baseline-rev: ${{ inputs.baseline-source == 'tag' && steps.baseline.outputs.baseline || '' }}
           verbose: true
