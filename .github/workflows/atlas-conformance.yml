@@ -33,9 +33,11 @@ on:
       - 'gap_audit.md'
 
 concurrency:
-  group: atlas-conformance-${{ github.ref }}
-  # A superseded pull-request run cancels; a default-branch run always reaches
-  # a verdict, else every push cancels the previous merge's verification.
+  # Pull requests share one group per ref and cancel superseded runs. Default-
+  # branch runs get one group per commit: GitHub always supersedes a *pending*
+  # run in a shared group whatever `cancel-in-progress` says, so under runner
+  # starvation every push cancelled the previous merge's verification.
+  group: atlas-conformance-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
