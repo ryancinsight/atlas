@@ -639,17 +639,34 @@ def declared_cfg_test(entry: Path) -> bool:
     moirai-iter gates `../async_iter_tests.rs` from `src/async_iter/mod.rs`,
     which no parent-of-entry lookup reaches. Without these checks such
     files scan as production code.
+
+    A directory module's own gate sits one level up: `src/foo/mod.rs` named
+    by `mod foo;` declares through its *file stem*, but when the directory
+    is declared as `#[cfg(test)] mod codelet;` the file is
+    `src/foo/codelet/mod.rs`, whose entry stem (`mod`) matches nothing —
+    apollo's test-only `codelet` counted as production code (the 4th
+    `lane_kernel_uninlined` site). When the entry is a `mod.rs`, the parent
+    directory's name is the module stem, so the grandparent's declarers are
+    consulted with it.
     """
     parent = entry.parent
     resolved = entry.resolve()
+    stems_to_check = [entry.stem]
+    if entry.name in ("mod.rs", "lib.rs"):
+        stems_to_check.append(parent.name)
     candidates = [parent / "mod.rs", parent / "lib.rs", parent / "main.rs",
                   parent.with_suffix(".rs")]
     candidates.extend(parent.glob("*/mod.rs"))
+    if entry.name in ("mod.rs", "lib.rs"):
+        grandparent = parent.parent
+        candidates.extend([grandparent / "mod.rs", grandparent / "lib.rs",
+                           grandparent / "main.rs", grandparent / f"{parent.name}.rs"])
+        candidates.extend(grandparent.glob("*/mod.rs"))
     for cand in candidates:
         if cand == entry:
             continue
         stems, paths = _cfg_test_decls(cand)
-        if entry.stem in stems or resolved in paths:
+        if any(stem in stems for stem in stems_to_check) or resolved in paths:
             return True
     return False
 

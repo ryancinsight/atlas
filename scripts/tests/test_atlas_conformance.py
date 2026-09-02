@@ -364,6 +364,59 @@ class AtlasConformanceTestCase(unittest.TestCase):
             )
             self.assertEqual(conformance.scan_repo(root)["seqcst_production"], 1)
 
+    def test_directory_module_gated_by_cfg_test_is_not_production(self) -> None:
+        # apollo declares its test-only codelet from a subdirectory:
+        # components/mod.rs gates `#[cfg(test)] mod codelet;`, whose file is
+        # codelet/mod.rs. The entry stem is `mod`, so only a lookup through
+        # the parent directory's *name* as the module stem sees the gate;
+        # without it the codelet's 100+ line `LaneKernel::call` counted as a
+        # production `lane_kernel_uninlined` site.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(root, "src/lib.rs", "pub mod kernel;\n")
+            _write(root, "src/kernel/mod.rs", "pub mod components;\n")
+            _write(
+                root,
+                "src/kernel/components/mod.rs",
+                "#[cfg(test)]\nmod codelet;\n",
+            )
+            _write(
+                root,
+                "src/kernel/components/codelet/mod.rs",
+                "use std::sync::atomic::{AtomicUsize, Ordering};\n"
+                "static WAKES: AtomicUsize = AtomicUsize::new(0);\n"
+                "pub fn wakes() -> usize { WAKES.load(Ordering::SeqCst) }\n",
+            )
+            codelet = root / "src" / "kernel" / "components" / "codelet" / "mod.rs"
+
+            self.assertTrue(conformance.declared_cfg_test(codelet))
+            self.assertEqual(conformance.scan_repo(root)["seqcst_production"], 0)
+
+    def test_ungated_directory_module_stays_in_production(self) -> None:
+        # The gate, not the shape, decides: a directory module declared
+        # without cfg(test) must still count as production code.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(root, "src/lib.rs", "pub mod kernel;\n")
+            _write(root, "src/kernel/mod.rs", "pub mod components;\n")
+            _write(root, "src/kernel/components/mod.rs", "mod codelet;\n")
+            _write(
+                root,
+                "src/kernel/components/codelet/mod.rs",
+                "use std::sync::atomic::{AtomicUsize, Ordering};\n"
+                "static WAKES: AtomicUsize = AtomicUsize::new(0);\n"
+                "pub fn wakes() -> usize { WAKES.load(Ordering::SeqCst) }\n",
+            )
+
+            self.assertFalse(
+                conformance.declared_cfg_test(
+                    root / "src" / "kernel" / "components" / "codelet" / "mod.rs"
+                )
+            )
+            self.assertEqual(conformance.scan_repo(root)["seqcst_production"], 1)
+
     def test_path_match_catches_stem_renamed_sidecar(self) -> None:
         # A #[path] target whose stem differs from the declared module name
         # matches by resolved path, not by stem.
