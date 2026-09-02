@@ -134,7 +134,7 @@
 - **Revision (2026-09-02):** gaia `Examples` dropped — that workflow no longer exists on `main`; the collector now reports active workflows only (`9235e47d`). mnemosyne `Fuzz` added.
 - **Acceptance oracle:** `scripts/atlas-red-workflows.py` reports no member rows (atlas's own cancelled rows are the concurrency finding above, tracked there).
 
-## ATLAS-APOLLO-LANEKERNEL-INLINE-CONTRACT-2026-08-31 — Three large `LaneKernel::call` bodies do not carry the attribute their contract requires [patch] [perf] — delivered 2026-09-02 (apollo PR #277, pending merge)
+## ATLAS-APOLLO-LANEKERNEL-INLINE-CONTRACT-2026-08-31 — Three large `LaneKernel::call` bodies do not carry the attribute their contract requires [patch] [perf] — done 2026-09-02 (apollo PR #277, merged `d649d8657`)
 
 - **The contract.** hermes `HS-VECTORIZE-LARGE-KERNEL-2026-08-28` documents a
   measured ~30x failure: the `#[runtime_dispatch]` expansion's
