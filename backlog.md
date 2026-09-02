@@ -1,5 +1,37 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
+
+- **Finding (conformance run 33583483834 on `0c129c66`, the first completed
+  ratchet run after three were cancelled by successive pushes):**
+  `17 regression(s), 49 tightening(s)`. The regressions, per member:
+  - apollo (7): commented_out_code 5→8, existence_only_assertions 1→8,
+    gitattributes_missing 0→1, manifest_implementation 31→37,
+    oversized_files 34→43, print_dbg 4→10, workflow_missing_timeout 0→1
+  - athena (3): existence_only_assertions 0→1, oversized_files 1→2,
+    tag_pinned_actions 0→9
+  - moirai (2): commented_out_code 7→8, existence_only_assertions 33→38
+  - hermes (1): oversized_files 22→29 (`numa/processor.rs` is 579 lines after
+    the Linux binding backend — one of the seven; the file splits into
+    `numa/processor/{windows,linux}.rs` leaf modules)
+  - ritk (1): allow_sites 0→16
+  - CFDrs, coeus (1 each): oversized_files 139→140, 19→20
+  - kwavers (1): manifest_implementation 286→287
+- **Why the ratchet did not stop them:** the gate lives on the umbrella and
+  fires on gitlink advances, so the debt was already merged in each member
+  before it was measured; three consecutive umbrella runs were then cancelled
+  by the next push (the cancelled-gate class, cf. apollo#246), so no verdict
+  existed until pushes paused. Each member's own CI does not gate these
+  classes.
+- **Outcome:** each row either burns down (fix in the member, ratchet then
+  tightens) or is a measurement artifact corrected in the scanner — never a
+  baseline bump. Attribution per file comes from the scanner's per-file
+  output; contributions by this session (hermes `processor.rs`; apollo
+  `print_dbg` if bench `println!` is counted) are fixed by it first.
+- **Acceptance oracle:** a completed `atlas-conformance` run on `main` reports
+  `0 regression(s)`; the tightenings it lists are recorded by regenerating
+  `scripts/conformance-baseline.json` in the same change.
+
 ## ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01 — CI gates one of 35 scripts/tests files, under the wrong runner [patch] — in-progress 2026-09-01
 
 - **Corrected finding (2026-09-01):** the earlier text of this item said
