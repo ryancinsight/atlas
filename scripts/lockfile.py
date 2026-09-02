@@ -56,16 +56,21 @@ MANIFEST = REPOSITORY / "Cargo.toml"
 FIRST_PARTY_SOURCE = re.compile(r'^source = "git\+https://github\.com/ryancinsight/', re.M)
 
 
-def run_outside_the_overlay(arguments: list[str]) -> subprocess.CompletedProcess[str]:
+def run_outside_the_overlay(
+    arguments: list[str], manifest: Path = MANIFEST
+) -> subprocess.CompletedProcess[str]:
     """Run cargo with a working directory outside the stack root.
 
     Cargo resolves `.cargo/config.toml` by walking up from the working
     directory, never from `--manifest-path`, so this is what excludes the
     overlay. Running from the repository itself would silently include it.
+
+    `manifest` defaults to the umbrella manifest; the consumer lock sweep
+    passes a member's, so one overlay-free runner serves the stack.
     """
     with tempfile.TemporaryDirectory() as neutral_directory:
         return subprocess.run(
-            ["cargo", *arguments, "--manifest-path", str(MANIFEST)],
+            ["cargo", *arguments, "--manifest-path", str(manifest)],
             cwd=neutral_directory,
             capture_output=True,
             # `text=True` alone decodes with the locale codepage. Cargo emits

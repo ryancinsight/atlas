@@ -41,8 +41,15 @@ def registered_members() -> list[Path]:
 
 
 def git(repo: Path, *args: str) -> str:
+    # Explicit UTF-8: with `text=True` alone, Windows decodes as cp1252, a
+    # member manifest carrying an em dash raises in the reader thread, and
+    # `.stdout` silently becomes None. `errors="replace"` keeps a malformed
+    # byte from turning a whole read into absence.
     return subprocess.run(
-        ["git", "-C", str(repo), *args], capture_output=True, text=True
+        ["git", "-C", str(repo), *args],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
     ).stdout
 
 
