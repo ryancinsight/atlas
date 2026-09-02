@@ -28,11 +28,12 @@
   baseline bump. Attribution per file comes from the scanner's per-file
   output; contributions by this session (hermes `processor.rs`; apollo
   `print_dbg` if bench `println!` is counted) are fixed by it first.
+- **Attributions so far (2026-09-02):** apollo `gitattributes_missing` — no `.gitattributes` exists on apollo `main` (the CRLF warnings on every apollo edit are this); apollo `workflow_missing_timeout` — `python-release.yml` job `publish`; apollo `print_dbg` — not the EcoQoS probe: the scanner exempts `benches/`; hermes `oversized_files` — `numa/processor.rs` (579) split into platform leaf modules in hermes#130 (`HS-PROCESSOR-MODULE-SPLIT-2026-09-02`), the other six are peers' files. Remaining rows need per-file attribution in their members.
 - **Acceptance oracle:** a completed `atlas-conformance` run on `main` reports
   `0 regression(s)`; the tightenings it lists are recorded by regenerating
   `scripts/conformance-baseline.json` in the same change.
 
-## ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01 — CI gates one of 35 scripts/tests files, under the wrong runner [patch] — in-progress 2026-09-01
+## ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01 — CI gates one of 35 scripts/tests files, under the wrong runner [patch] — done 2026-09-02
 
 - **Corrected finding (2026-09-01):** the earlier text of this item said
   thirteen files fail on `main`. They fail under `python -m unittest <file>`,
@@ -53,8 +54,7 @@
 - **Acceptance oracle:** the job reports 430+ passed on a Linux runner for the
   commit that adds it; a deliberately failing test in `scripts/tests` turns
   the job red (prove it bites before trusting it).
-- **Claim:** integrator claude (this session); direct to main; lease:
-  `.github/workflows/atlas-conformance.yml`, this entry.
+- **Delivered (`2936780a`, `dee3675f`, `65f7a718`, `4e5eb28d`):** the conformance workflow installs `scripts/requirements-test.txt` *before* the ratchet (the malformed-workflow class needs PyYAML and had degraded to zero on the runner) and runs `pytest scripts/tests` over the whole directory with `if: always()`, so the suite reports independently of the ratchet. The first CI run exposed four Linux-only failures that a Windows-only history never saw — missing PyYAML, a Windows-path-semantics test, a reparse-point test that had never executed and asserted the wrong thing, and an r6a history audit blind under `--depth=1` — all fixed honestly (skips carry their reason). **Run 33584509335 on Ubuntu: 428 passed, 3 skipped, 0 failed.** The run's overall failure is the ratchet's 17 fleet regressions, tracked separately.
 
 ## ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01 — Decode subprocess output as UTF-8 in every atlas script [patch] — done 2026-09-01
 
