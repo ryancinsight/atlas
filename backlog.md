@@ -1,6 +1,8 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01 — Decode subprocess output as UTF-8 in every atlas script [patch] — todo
+## ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01 — Decode subprocess output as UTF-8 in every atlas script [patch] — in-progress 2026-09-01
+
+- **Claim:** integrator claude (this session); direct to main; lease: `scripts/*.py` subprocess call sites, `scripts/tests/test_subprocess_decoding.py`, this entry.
 
 - **Finding (2026-09-01):** `atlas_stack.git` ran `subprocess.run(..., text=True)`
   with no encoding. On Windows that decodes as cp1252; a member manifest
@@ -21,9 +23,9 @@
 - **Acceptance oracle:** `grep -E "text=True" scripts/*.py` returns only
   comments; the guard test fails when one call is reverted.
 
-## ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01 — Mechanize the consumer lock advance after a provider merge [minor] — review 2026-09-01
+## ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01 — Mechanize the consumer lock advance after a provider merge [minor] — done 2026-09-01
 
-- **Delivered `a1e140f5` (direct to main, the umbrella's convention — the branch named in the claim was never needed):** `scripts/atlas-lock-sweep.py` + 14 unit tests (liveness: breaking `locked_rev` fails exactly one). Shared helpers fixed with it: `lockfile.run_outside_the_overlay(manifest=)`, `atlas_stack.git` UTF-8 decoding. Run on `hermes-simd @ a7055d3f`: apollo current; **helios#80 and leto#140 opened** with `cargo check --workspace --locked` green; CFDrs, coeus, kwavers skipped at their two-worktree bound (peer lanes) and reported. Remaining oracle steps: the two PRs land; a second run opens nothing (idempotence).
+- **Delivered `a1e140f5` (direct to main, the umbrella's convention — the branch named in the claim was never needed):** `scripts/atlas-lock-sweep.py` + 14 unit tests (liveness: breaking `locked_rev` fails exactly one). Shared helpers fixed with it: `lockfile.run_outside_the_overlay(manifest=)`, `atlas_stack.git` UTF-8 decoding. Run on `hermes-simd @ a7055d3f`: apollo current; **helios#80 and leto#140 opened** with `cargo check --workspace --locked` green; CFDrs, coeus, kwavers skipped at their two-worktree bound (peer lanes) and reported. Oracle met: helios#80 (`b7ddd66a`) and leto#140 (`d8188121`) landed; a second run pinned to `a7055d3f` reports all three `current` and opens nothing. `--rev` became required (`959752c4`) after the HEAD default read a board-only hermes commit as three fresh advances. **Residual:** CFDrs, coeus, kwavers remain behind hermes until their peer lanes close — the tool reports them each run; re-run with `--rev a7055d3fd92d2a8d146af21f4a0a9700327debce` then.
 
 - **Finding (2026-09-01, after hermes `6da6d139` landed the Linux processor
   binding):** hermes-simd has six consumers — CFDrs, apollo, coeus, helios,
