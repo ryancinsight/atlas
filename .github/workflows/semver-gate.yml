@@ -70,6 +70,17 @@ on:
         required: false
         type: string
         default: registry
+      apt-packages:
+        description: >-
+          System packages the crates' build scripts need, space separated.
+          cargo-semver-checks builds rustdoc for both revisions, so a crate
+          whose build script links a system library (CFDrs reaches
+          yeslogic-fontconfig-sys through its plotting stack) fails here
+          exactly as `cargo doc` would, with the C library's name in the
+          error rather than anything about semver.
+        required: false
+        type: string
+        default: ""
       release-gate:
         description: Run the blocking release comparison — set by the caller's release workflow, whose event is not itself a tag push
         required: false
@@ -90,6 +101,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Install system packages the build scripts need
+        if: inputs.apt-packages != ''
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ${{ inputs.apt-packages }}
       - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
         with:
           package: ${{ inputs.package }}
@@ -110,6 +126,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - name: Install system packages the build scripts need
+        if: inputs.apt-packages != ''
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ${{ inputs.apt-packages }}
       - name: Resolve previous release tag as baseline
         id: baseline
         if: inputs.baseline-source == 'tag'
