@@ -53,6 +53,14 @@ board_staged="$(staged | grep -E '^(backlog|checklist)\.md$' || true)"
 pointer_staged="$(git diff --cached --raw | awk '$1 == ":160000" || $2 == ":160000" || ($3 == "160000" && $4 != "000000") || ($3 != "160000" && $4 == "160000") {print $6}' || true)"
 pointer_staged="$(echo "$pointer_staged" | grep -E '^repos/' || true)"
 
+# Git exports GIT_DIR/GIT_INDEX_FILE/GIT_WORK_TREE to hooks; a bare
+# `git -C <submodule>` then resolves against this superproject's object
+# store instead of the submodule's, so every per-member ref probe below
+# misfires (hephaestus's `origin/master` does not exist in the atlas repo).
+# Unset them: each `git` call re-discovers its own repo from its cwd, and
+# superproject commands fall back to the default `$GIT_DIR/index`.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+
 branch="$(git symbolic-ref --short -q HEAD || echo DETACHED)"
 
 # Staged gitlink coherence.
