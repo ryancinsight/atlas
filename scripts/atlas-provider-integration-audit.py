@@ -23,7 +23,11 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from atlas_stack import run_tool  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 GITMODULES = ROOT / ".gitmodules"
@@ -365,27 +369,13 @@ def _clean_rust_env() -> dict[str, str]:
 
 def _coherence_scope_issues(providers: tuple[str, ...]) -> tuple[list[str], int]:
     """Return requested-scope coherence defects and out-of-scope defect count."""
-    command = [
-        "cargo",
-        "run",
-        "--quiet",
-        "--manifest-path",
-        str(ROOT / "tools" / "version-guard" / "Cargo.toml"),
-        "--",
-        "coherence",
-        "--atlas-root",
-        str(ROOT),
-        "--format",
-        "json",
-    ]
     try:
-        proc = subprocess.run(
-            command,
-            cwd=ROOT,
+        proc = run_tool(
+            "version-guard",
+            ["coherence", "--atlas-root", str(ROOT), "--format", "json"],
             capture_output=True,
             encoding="utf-8", errors="replace",
             env=_clean_rust_env(),
-            check=False,
             timeout=COHERENCE_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired:

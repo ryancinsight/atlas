@@ -18,6 +18,27 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 MEMBER_ROOT = ROOT / "repos"
+TOOL_ROOT = ROOT / "tools"
+
+
+def run_tool(
+    tool: str, arguments: list[str], **run_options: object
+) -> subprocess.CompletedProcess:
+    """Run an atlas tool workspace binary through cargo, from inside its workspace.
+
+    rustup resolves the toolchain from the working directory, never from
+    `--manifest-path`. The stack root pins the host-qualified msvc channel the
+    shared target directory needs (ATLAS-TOOLCHAIN-TRIPLE-083), which no
+    Linux runner can install; each tool workspace carries a bare-version pin
+    for exactly this run. Every cargo invocation of a tool goes through here
+    so no caller can reintroduce the root working directory.
+    """
+    workspace = TOOL_ROOT / tool
+    command = [
+        "cargo", "run", "--quiet", "--manifest-path", str(workspace / "Cargo.toml"),
+        "--", *arguments,
+    ]
+    return subprocess.run(command, cwd=workspace, check=False, **run_options)
 
 
 def registered_member_names() -> set[str]:
