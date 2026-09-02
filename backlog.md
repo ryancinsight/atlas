@@ -8087,7 +8087,9 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
   per `concurrent_agents` disjoint-scope primitive. Next wake triggers
   documented at each rejected-advance entry above.
 
-## ATLAS-GITLINK-COHERENCE-DEFECT-1 — Meta-coordinator audit: 8 atlas-meta gitlink pins target commits NOT on per-member origin/main [patch] [arch] — in-progress
+## ATLAS-GITLINK-COHERENCE-DEFECT-1 — Meta-coordinator audit: 8 atlas-meta gitlink pins target commits NOT on per-member origin/main [patch] [arch] — done 2026-09-02
+
+- **Done:** `tools/gitlink-coherence audit` on 2026-09-02: 25 gitlinks probed, 0 defects, 0 stale-advanceable, 25 clean — every atlas pin sits on its member's `origin/<default>`; the pointer sweeps run at each collection keep it so, and the version-guard sweep (green again since `45b2db92`) checks coherence on every push.
 
 - Owner: Atlas-Codex (atlas-meta coordinator — coordinator-scope
   risk-artifact recording; no member-repo source touched); last-update:
