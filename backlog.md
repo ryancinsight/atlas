@@ -11003,6 +11003,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-KWAVERS-STALE-TREE-107** reconcile the kwavers stale checkout and stranded WIP [patch] (2026-08-23) (2026-08-23) — `145e8aaf8`, `ca5c9c932`, `c899c429f`, `377a98c86`
 
 
+- **ATLAS-SEMVER-GATE-MAIN-PUSH-RED-2026-09-02** The widened release-job condition ran the blocking comparison on every default-branch push, reddening member mains against their published baselines [patch] (2026-09-02)
 - **ATLAS-SEMVER-GATE-RELEASE-JOB-UNREACHABLE-2026-09-02** The shared gate's release job never had an event to fire on [patch] (2026-09-02) — `378081ec6`
 - **ATLAS-SCRIPTS-TESTS-BASELINE-RED-2026-09-01** CI gates one of 35 scripts/tests files, under the wrong runner [patch] (2026-09-02) — `2936780a`, `dee3675f`, `65f7a718`, `4e5eb28d`
 - **ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01** Decode subprocess output as UTF-8 in every atlas script [patch] (2026-09-01)
