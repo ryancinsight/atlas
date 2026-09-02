@@ -16,13 +16,7 @@ on:
     paths:
       - 'repos/**'
       - 'docs/adr/**'
-      - 'scripts/atlas-conformance.py'
-      - 'scripts/adr-index.py'
-      - 'scripts/atlas-lock-form.py'
-      - 'scripts/atlas-registry-metadata.py'
-      - 'scripts/atlas-book-gate-audit.py'
-      - 'scripts/tests/test_atlas_book_gate_audit.py'
-      - 'scripts/conformance-baseline.json'
+      - 'scripts/**'
       - '.github/workflows/atlas-conformance.yml'
       - 'backlog.md'
       - 'checklist.md'
@@ -32,13 +26,7 @@ on:
     paths:
       - 'repos/**'
       - 'docs/adr/**'
-      - 'scripts/atlas-conformance.py'
-      - 'scripts/adr-index.py'
-      - 'scripts/atlas-lock-form.py'
-      - 'scripts/atlas-registry-metadata.py'
-      - 'scripts/atlas-book-gate-audit.py'
-      - 'scripts/tests/test_atlas_book_gate_audit.py'
-      - 'scripts/conformance-baseline.json'
+      - 'scripts/**'
       - '.github/workflows/atlas-conformance.yml'
       - 'backlog.md'
       - 'checklist.md'
@@ -103,7 +91,12 @@ jobs:
 
       - name: Book gate audit regression tests
         shell: bash
-        run: python3 -m unittest scripts/tests/test_atlas_book_gate_audit.py
+        # The whole suite under its own runner (pytest.ini, requirements-test.txt);
+        # the previous single-file unittest call gated 1 of 35 files. No pipe on
+        # the pytest line: the step's verdict is pytest's exit code, unmasked.
+        run: |
+          python3 -m pip install --quiet -r scripts/requirements-test.txt
+          python3 -m pytest scripts/tests -q -p no:cacheprovider
 
       - name: Committed Cargo.lock form (standalone, not overlay-stripped)
         shell: bash
