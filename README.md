@@ -962,6 +962,12 @@ nobody is looking at cannot rot silently:
   merges by rebase only when no check is pending or failed *and* a check matching
   `--require` is green, and echoes `MERGED` only after re-reading the PR. Name the
   changed workflow's own job: a rollup lacking it is the file being rejected.
+- `python scripts/atlas-workflow-concurrency-sweep.py <member> [--dry-run] [--update]`
+  — moves a member's workflows out of the `default_branch_cancel_in_progress`
+  class as an API-authored PR (verification: per-commit group on the default
+  branch, pull-request-only cancellation; deploys: `cancel-in-progress: false`);
+  `--dry-run` prints the diffs, `--update` rebuilds an open branch from current
+  `origin`. A clean fleet reads "nothing to change" for every member.
 - `python scripts/bench_executable_identity.py <baseline-bin> <candidate-bin>` — the
   benchmark gates' identity short-circuit: compares the sections the CPU executes
   (`SHF_EXECINSTR`) and `.rodata`, ignoring build-path artefacts (symbol hashes,
