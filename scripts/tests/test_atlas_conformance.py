@@ -436,6 +436,27 @@ class AtlasConformanceTestCase(unittest.TestCase):
                 conformance.declared_cfg_test(root / "src" / "ai_wake_tests.rs")
             )
 
+    def test_tests_suffix_directory_counts_as_test_path(self) -> None:
+        # `src/lib_tests/cfft_tests.rs` hangs off a cfg-gated `mod lib_tests;`
+        # whose gate the scanner cannot see without building a module graph;
+        # the `<name>_tests` convention classifies such files the way `tests/`
+        # classifies its own, so their println!s stay test output.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(root, "src/lib.rs", "#[cfg(test)]\nmod lib_tests;\n")
+            _write(
+                root,
+                "src/lib_tests/cfft_tests.rs",
+                "#[test]\nfn t() { println!(\"benchmark\"); }\n",
+            )
+            _write(root, "src/plain.rs", "pub fn p() { println!(\"x\"); }\n")
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["print_dbg"], 1)
+        self.assertTrue(conformance._is_testish_path_part("lib_tests"))
+
     def test_pages_target_output_is_not_a_cargo_fork(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)

@@ -80,6 +80,19 @@ PRUNE_DIRS = {
 }
 TEST_PATH_PARTS = {"tests", "benches", "examples", "fuzz"}
 
+
+def _is_testish_path_part(part: str) -> bool:
+    """True for a path component naming test code.
+
+    Beyond the canonical directories, sidecar modules follow the
+    `<module>_tests` convention in both forms the stack uses: the file
+    (`cfft_tests.rs`) and the directory holding such files
+    (`apollo-fft/src/lib_tests/`). A cfg-gated `mod lib_tests;` is the same
+    kind of test sidecar as a cfg-gated `mod tests;`, and its println!s are
+    test output, not library output.
+    """
+    return part in TEST_PATH_PARTS or part.endswith("_tests")
+
 SANCTIONED_ROOT = {
     "README.md", "README", "CHANGELOG.md", "LICENSE", "LICENSE.md",
     "LICENSE-MIT", "LICENSE-APACHE", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md",
@@ -746,8 +759,9 @@ def rust_files(repo: Path):
                 # Match directory parts only: `entry.parts` includes the file
                 # name, so a file literally named `tests.rs` never matched the
                 # `tests` part and was scanned as production.
-                testish = bool(TEST_PATH_PARTS.intersection(entry.parent.parts)) or \
-                    declared_cfg_test(entry)
+                testish = any(
+                    _is_testish_path_part(p) for p in entry.parent.parts
+                ) or declared_cfg_test(entry)
                 yield entry, testish
 
 
