@@ -55,6 +55,42 @@ pointer_staged="$(echo "$pointer_staged" | grep -E '^repos/' || true)"
 
 branch="$(git symbolic-ref --short -q HEAD || echo DETACHED)"
 
+# Staged gitlink coherence.
+#
+# A submodule's checkout in this shared tree routinely sits on a feature
+# branch, and `git commit` without a pathspec records that worktree HEAD for
+# every staged submodule — including ones a peer staged. Three commits on
+# 2026-09-02 pinned apollo and mnemosyne to `test/apollo-stft-leto-sidecar`
+# and `refactor/mnemosyne-free-helpers-split` that way. The pre-push guard
+# catches it, but only once the bad pin is already in history and blocking
+# someone's push, so this refuses it at the commit that creates it.
+#
+# The check reads the staged entry, not HEAD, which is exactly what the
+# pre-push auditor cannot do.
+gitlink_defect=0
+while IFS= read -r path; do
+  [ -n "$path" ] || continue
+  entry=$(git ls-files --stage -- "$path" 2>/dev/null | head -1)
+  [ "${entry%% *}" = "160000" ] || continue
+  sha=$(printf '%s' "$entry" | awk '{print $2}')
+  default=$(git -C "$path" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
+  default=${default:-main}
+  if ! git -C "$path" rev-parse --verify --quiet "origin/${default}" >/dev/null 2>&1; then
+    echo "[pre-commit] $path: no origin/${default} locally; gitlink not checked." >&2
+    continue
+  fi
+  if ! git -C "$path" merge-base --is-ancestor "$sha" "origin/${default}" 2>/dev/null; then
+    echo "[pre-commit] $path is staged at ${sha:0:10}, which is not on origin/${default}." >&2
+    echo "             A gitlink comes from the ref, never from a checkout:" >&2
+    echo "               git update-index --cacheinfo 160000,\$(git -C $path rev-parse origin/${default}),$path" >&2
+    gitlink_defect=1
+  fi
+done < <(git diff --cached --name-only --diff-filter=ACM -- 'repos/*' 2>/dev/null)
+if [ "$gitlink_defect" != 0 ]; then
+  echo "[pre-commit] refusing the commit: a pin the stack cannot resolve from the member's default branch breaks every consumer." >&2
+  exit 1
+fi
+
 # R1 - board edits on the default branch only.
 if [ -n "$board_staged" ] && [ "$branch" != "main" ]; then
   echo "[pre-commit] R1: board files are committed on main only (current branch: $branch)" >&2
