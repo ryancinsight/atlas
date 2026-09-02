@@ -64,6 +64,11 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Install script requirements
+        # Before the ratchet, not only before pytest: the conformance scanner's
+        # malformed-workflow class needs PyYAML and degrades to zero without it.
+        run: python3 -m pip install --quiet -r scripts/requirements-test.txt
+
       - name: Conformance check (ratchet must hold)
         shell: bash
         run: |
@@ -99,7 +104,6 @@ jobs:
         # not hide whether the scripts still pass their tests.
         if: always()
         run: |
-          python3 -m pip install --quiet -r scripts/requirements-test.txt
           python3 -m pytest scripts/tests -q -p no:cacheprovider
 
       - name: Committed Cargo.lock form (standalone, not overlay-stripped)
