@@ -29,30 +29,41 @@ def clean_rust_env() -> dict[str, str]:
     return env
 
 
-def run_step(command: list[str], *, env: dict[str, str] | None = None) -> int:
-    proc = subprocess.run(command, cwd=ROOT, env=env, check=False)
+def run_step(
+    command: list[str], *, env: dict[str, str] | None = None, cwd: Path = ROOT
+) -> int:
+    proc = subprocess.run(command, cwd=cwd, env=env, check=False)
     return proc.returncode
 
 
 def main() -> int:
+    # rustup resolves the toolchain from the working directory, never from
+    # `--manifest-path`. The stack root pins a host-qualified channel for the
+    # shared target directory (ATLAS-TOOLCHAIN-TRIPLE-083), which no Linux
+    # runner can install; the tool workspace carries its own bare-version pin
+    # for exactly this run, so cargo runs from there.
+    tool = ROOT / "tools" / "version-guard"
     steps = [
-        [sys.executable, str(ROOT / "scripts" / "atlas-toolchain-preflight.py")],
-        [
-            "cargo",
-            "run",
-            "--quiet",
-            "--manifest-path",
-            str(ROOT / "tools" / "version-guard" / "Cargo.toml"),
-            "--",
-            "coherence",
-            "--atlas-root",
-            str(ROOT),
-        ],
-        [sys.executable, str(ROOT / "scripts" / "atlas-provider-integration-audit.py")],
+        ([sys.executable, str(ROOT / "scripts" / "atlas-toolchain-preflight.py")], ROOT),
+        (
+            [
+                "cargo",
+                "run",
+                "--quiet",
+                "--manifest-path",
+                str(tool / "Cargo.toml"),
+                "--",
+                "coherence",
+                "--atlas-root",
+                str(ROOT),
+            ],
+            tool,
+        ),
+        ([sys.executable, str(ROOT / "scripts" / "atlas-provider-integration-audit.py")], ROOT),
     ]
     env = clean_rust_env()
-    for command in steps:
-        code = run_step(command, env=env)
+    for command, cwd in steps:
+        code = run_step(command, env=env, cwd=cwd)
         if code != 0:
             return code
     print(
