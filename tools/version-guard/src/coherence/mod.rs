@@ -5,10 +5,19 @@
 //! `.gitmodules` file defines the allowlist, while package manifests define
 //! the current first-party package versions. This keeps the check deterministic
 //! and makes those files the single sources of truth.
+//!
+//! Reading trees rather than remotes has one precondition: the trees must be
+//! current. A member behind its own remote carries the version it had, not the
+//! version the stack publishes, so the scan reports such members and declines
+//! to call the result clean.
 
 mod manifest;
 mod member;
 mod requirement;
+mod staleness;
+#[cfg(test)]
+#[path = "staleness_tests.rs"]
+mod staleness_tests;
 mod toml;
 
 use std::fmt::Write as _;
@@ -24,6 +33,8 @@ use manifest::{
 };
 use member::{collect_manifests, is_first_party_source, registered_members};
 use requirement::matches_requirement;
+pub use staleness::StaleMember;
+use staleness::stale_members;
 
 /// One first-party requirement that does not accept the current package version.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -55,6 +66,11 @@ pub struct CoherenceReport {
     pub requirement_count: usize,
     /// Version requirement mismatches.
     pub findings: Vec<CoherenceFinding>,
+    /// Members whose working tree is behind the branch it tracks. Their
+    /// manifests describe an older state than the stack publishes, so any
+    /// verdict about them — clean included — is measured against versions
+    /// that are not what the stack has.
+    pub stale: Vec<StaleMember>,
 }
 
 impl CoherenceReport {
@@ -70,7 +86,7 @@ impl CoherenceReport {
     /// Return whether at least one coherence mismatch exists.
     #[must_use]
     pub const fn has_defect(&self) -> bool {
-        !self.findings.is_empty()
+        !self.findings.is_empty() || !self.stale.is_empty()
     }
 
     fn render_human(&self) -> String {
@@ -78,8 +94,17 @@ impl CoherenceReport {
             "version-guard coherence: {} manifests, {} packages, {} first-party requirements\n",
             self.manifest_count, self.package_count, self.requirement_count
         );
-        if self.findings.is_empty() {
+        for stale in &self.stale {
+            let _ = writeln!(
+                out,
+                "{}: tree is {} commit(s) behind {}; its manifests are not what the stack publishes",
+                stale.member, stale.behind, stale.upstream
+            );
+        }
+        if self.findings.is_empty() && self.stale.is_empty() {
             out.push_str("version-guard coherence: clean\n");
+        } else if self.findings.is_empty() {
+            out.push_str("version-guard coherence: UNMEASURED (stale trees)\n");
         } else {
             for finding in &self.findings {
                 let _ = writeln!(
@@ -106,6 +131,7 @@ impl CoherenceReport {
             requirement_count: usize,
             defect_count: usize,
             findings: &'a [CoherenceFinding],
+            stale: &'a [StaleMember],
         }
         let view = View {
             manifest_count: self.manifest_count,
@@ -113,6 +139,7 @@ impl CoherenceReport {
             requirement_count: self.requirement_count,
             defect_count: self.findings.len(),
             findings: &self.findings,
+            stale: &self.stale,
         };
         serde_json::to_string(&view)
             .unwrap_or_else(|_| String::from("{\"error\":\"serialization failed\"}"))
@@ -144,6 +171,9 @@ pub fn scan_atlas(atlas_root: &Path) -> Result<CoherenceReport, Error> {
         }
         collect_manifests(&member.path, &mut manifests)?;
     }
+
+    let paths: Vec<&Path> = members.iter().map(|member| member.path.as_path()).collect();
+    let stale = stale_members(atlas_root, &paths)?;
 
     let parsed: Vec<ParsedManifest> = manifests
         .iter()
@@ -189,6 +219,7 @@ pub fn scan_atlas(atlas_root: &Path) -> Result<CoherenceReport, Error> {
         package_count: packages.len(),
         requirement_count,
         findings,
+        stale,
     })
 }
 

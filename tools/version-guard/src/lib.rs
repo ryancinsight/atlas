@@ -70,7 +70,7 @@ pub mod report;
 pub mod scan;
 
 pub use classify::{Direction, IntentDeclaration, classify_pair};
-pub use coherence::{CoherenceFinding, CoherenceReport, scan_atlas};
+pub use coherence::{CoherenceFinding, CoherenceReport, StaleMember, scan_atlas};
 pub use error::Error;
 pub use parse::{VersionLine, parse_diff_line};
 pub use report::{Format, Report, render};
