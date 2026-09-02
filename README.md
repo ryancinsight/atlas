@@ -944,9 +944,18 @@ nobody is looking at cannot rot silently:
 
 - `python scripts/atlas-red-workflows.py` — every allowlisted repository's
   default-branch workflows whose newest completed run is not green (cancelled
-  and skipped included: an unfinished merge gate leaves that merge unverified);
-  `--first-error` appends the failing step's first error line, `--fail-on-red`
-  makes it a gate.
+  and skipped included: an unfinished merge gate leaves that merge unverified).
+  It asks each active workflow for its own newest run rather than reading one
+  page of recent runs, so the report does not depend on how busy the
+  repository is; each row names the trigger, and a cancelled run says whether
+  a runner ever took it. `--first-error` appends the failing step's first
+  error line, `--fail-on-red` makes it a gate.
+- `python scripts/atlas-semver-gate-adopt.py <member>` — adopts the shared
+  SemVer gate in one member as an API pull request: the publishable crates
+  come from the member's own manifests, the informational job goes in the
+  verification workflow, and the blocking job goes in the release workflow
+  under that workflow's own guard with the other jobs waiting on it.
+  `--dry-run` prints the diffs and opens nothing.
 - `python scripts/atlas-lane-audit.py` — the two-tree worktree bound and lane
   placement per member.
 - `python scripts/atlas-conformance.py check` — the non-increasing debt
