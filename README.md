@@ -957,6 +957,11 @@ nobody is looking at cannot rot silently:
   regenerated inside the stack overlay has its first-party git sources stripped
   and fails every `--locked` job; `--regenerate` rewrites it from outside the
   overlay.
+- `python scripts/atlas-pr-waiter.py --require '<check name regex>' owner/repo#N …`
+  — the bounded merge gate: polls each PR up to `--timeout-minutes` (default 60),
+  merges by rebase only when no check is pending or failed *and* a check matching
+  `--require` is green, and echoes `MERGED` only after re-reading the PR. Name the
+  changed workflow's own job: a rollup lacking it is the file being rejected.
 - `python scripts/adr-index.py check [--directory DIR] [--strict]` and
   `python scripts/atlas-adr-canonical-form.py --check DIR` — the ADR index and
   the canonical heading form, for the umbrella or one member directory.
