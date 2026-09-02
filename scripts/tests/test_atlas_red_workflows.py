@@ -63,6 +63,13 @@ class SelectionTests(unittest.TestCase):
         runs = [run("pages-build-deployment", "completed", "cancelled", "a"), run("ci", "completed", "failure", "b")]
         self.assertEqual([r["workflowName"] for r in red.red_runs(runs)], ["ci"])
 
+    def test_selection_orders_by_created_at_not_list_order(self) -> None:
+        # Two live passes returned an August run ahead of the same day's runs.
+        old = {**run("ci", "completed", "failure", "aug"), "createdAt": "2026-08-10T00:00:00Z"}
+        new = {**run("ci", "completed", "success", "sep"), "createdAt": "2026-09-02T08:47:00Z"}
+        self.assertEqual(red.latest_completed_per_workflow([old, new])["ci"]["headSha"], "sep")
+        self.assertEqual(red.red_runs([old, new]), [])
+
     def test_all_green_reports_nothing(self) -> None:
         runs = [run("ci", "completed", "success", "a"), run("ci", "completed", "failure", "b")]
         self.assertEqual(red.red_runs(runs), [])

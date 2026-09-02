@@ -52,9 +52,14 @@ def default_branch_of(repo: Path) -> str:
 
 
 def latest_completed_per_workflow(runs: list[dict]) -> dict[str, dict]:
-    """`gh run list` is newest-first; keep each workflow's newest completed run."""
+    """Keep each workflow's newest completed run.
+
+    `gh run list` is documented newest-first, but on 2026-09-02 two passes
+    (coeus, apollo) surfaced an August run ahead of the same day's; the
+    selection sorts by `createdAt` itself rather than trust the list order.
+    """
     latest: dict[str, dict] = {}
-    for run in runs:
+    for run in sorted(runs, key=lambda r: r.get("createdAt", ""), reverse=True):
         if run.get("status") != "completed":
             continue
         latest.setdefault(run["workflowName"], run)
