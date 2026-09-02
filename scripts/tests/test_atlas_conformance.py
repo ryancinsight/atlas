@@ -117,6 +117,31 @@ class AtlasConformanceTestCase(unittest.TestCase):
             "`generate` is no longer idempotent",
         )
 
+    def test_unconditional_cancel_on_a_push_trigger_is_counted(self) -> None:
+        # Each merge cancelled the previous merge's pending verification; the
+        # conforming form keys default-branch runs per commit and cancels only PRs.
+        offending = (
+            "name: ci\non:\n  push:\n    branches: [main]\n  pull_request:\n"
+            "concurrency:\n  group: ci-${{ github.ref }}\n  cancel-in-progress: true\n"
+            "jobs:\n  a:\n    runs-on: ubuntu-latest\n    steps: []\n"
+        )
+        conforming = offending.replace(
+            "  group: ci-${{ github.ref }}\n  cancel-in-progress: true\n",
+            "  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}\n"
+            "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n",
+        )
+        pull_request_only = offending.replace("  push:\n    branches: [main]\n", "")
+        self.assertTrue(conformance.cancels_default_branch_runs(offending))
+        self.assertFalse(conformance.cancels_default_branch_runs(conforming))
+        self.assertFalse(conformance.cancels_default_branch_runs(pull_request_only))
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write(root, ".github/workflows/ci.yml", offending)
+            _write(root, ".github/workflows/pr-only.yml", pull_request_only)
+            counts: dict[str, int] = {name: 0 for name in conformance.CLASSES}
+            conformance.scan_workflows(root, counts)
+            self.assertEqual(counts["default_branch_cancel_in_progress"], 1)
+
     def test_toolchain_requests_the_committed_pin_outranks_are_counted(self) -> None:
         # Seven members' MSRV jobs installed an older toolchain under a committed
         # 1.97.0 pin and compiled with 1.97.0; RUSTUP_TOOLCHAIN exempts a job.

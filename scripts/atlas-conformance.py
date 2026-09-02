@@ -142,6 +142,7 @@ CLASSES = [
     "missing_cargo_lock", "orphan_modules",
     "seqcst_production", "crate_level_allows", "excess_worktrees",
     "lane_kernel_uninlined", "toolchain_request_overridden",
+    "default_branch_cancel_in_progress",
 ]
 
 # Working trees beyond the two a repository may hold: its main tree plus one
@@ -281,6 +282,26 @@ def same_release(requested: str, pinned: str) -> bool:
     return pinned_version.split(".")[: len(wanted)] == wanted
 
 
+PUSH_TRIGGER = re.compile(r"(?ms)^on:.*?(?=^\S)")
+UNCONDITIONAL_CANCEL = re.compile(r"(?m)^\s+cancel-in-progress:\s*true\s*$")
+
+
+def cancels_default_branch_runs(text: str) -> bool:
+    """A default-branch `push` trigger with an unconditional `cancel-in-progress: true`.
+
+    GitHub supersedes a *pending* run in a shared concurrency group whatever
+    the flag says, so a shared per-ref group on the default branch lets each
+    merge cancel the previous merge's verification under runner starvation.
+    The conforming form keys default-branch runs on `github.sha` and reserves
+    cancellation for pull requests (`cancel-in-progress: ${{ github.event_name
+    == 'pull_request' }}`), which this detector does not match.
+    """
+    trigger = PUSH_TRIGGER.search(text + "\n")
+    if trigger is None or not re.search(r"(?m)^\s+push:", trigger.group(0)):
+        return False
+    return UNCONDITIONAL_CANCEL.search(text) is not None
+
+
 def count_toolchain_requests_overridden(text: str, pinned: str | None) -> int:
     """Jobs whose install step requests a toolchain the committed pin outranks.
 
@@ -316,6 +337,8 @@ def scan_workflows(repo: Path, c: dict[str, int]) -> None:
             continue
         text = wf.read_text(encoding="utf-8", errors="replace")
         c["toolchain_request_overridden"] += count_toolchain_requests_overridden(text, pinned)
+        if cancels_default_branch_runs(text):
+            c["default_branch_cancel_in_progress"] += 1
         c["tag_pinned_actions"] += sum(
             1 for m in SHA_PIN.finditer(text)
             if not re.fullmatch(r"[0-9a-f]{40}", m.group(1))
