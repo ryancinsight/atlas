@@ -131,6 +131,7 @@
 ## ATLAS-ADR-INDEX-GUARD-2026-09-01 — One ADR index generator behind a shared guard [minor] — in-progress 2026-09-02
 
 - **Claim:** integrator claude (this session); direct to main; lease: `scripts/adr-index.py` (atlas copy), `.github/workflows/adr-index-guard.yml` (new), this entry. Member adoption (hermes, apollo, kwavers) follows as separate member PRs.
+- **Progress (2026-09-02):** atlas generator gains `--directory` and opt-in `--strict` (`49cba25c`) and a title-rendering fix (`f1a37436`: a heading's own bare number no longer duplicates into the title column — the cause of apollo's and kwavers's apparent drift and of coeus's committed index, regenerated in coeus#354). `adr-index-guard.yml` published in the lockfile-guard shape. Adoption PRs: hermes#131 (strict), apollo#263 (strict), kwavers#686 (permissive until `ATLAS-ADR-FORM-NORMALIZATION-2026-09-02`). Deferred and noted: the emitted README header still names `scripts/adr-index.py`; changing it drifts every member's index at once, so it moves with the normalization campaign.
 
 - **Finding:** three divergent ADR index generators exist for one concern —
   `atlas/scripts/adr-index.py` (208 lines, meta-repo-root-relative, driven by
