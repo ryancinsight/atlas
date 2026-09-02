@@ -55,7 +55,7 @@ FIRST_PARTY_HOST = "github.com/ryancinsight/"
 
 def run(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
     proc = subprocess.run(
-        args, cwd=None if cwd is None else str(cwd), capture_output=True, text=True
+        args, cwd=None if cwd is None else str(cwd), capture_output=True, encoding="utf-8", errors="replace"
     )
     return proc.returncode, proc.stdout, proc.stderr
 
@@ -393,7 +393,7 @@ def _cargo_outside(manifest: Path, *extra: str) -> subprocess.CompletedProcess:
             ],
             cwd=scratch,
             capture_output=True,
-            text=True,
+            encoding="utf-8", errors="replace",
             env=env,
         )
 

@@ -144,7 +144,7 @@ def _git_output(*args: str, cwd: Path | None = None) -> tuple[int, str, str]:
         ["git", *args],
         cwd=ROOT if cwd is None else cwd,
         capture_output=True,
-        text=True,
+        encoding="utf-8", errors="replace",
         check=False,
     )
     return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
@@ -383,7 +383,7 @@ def _coherence_scope_issues(providers: tuple[str, ...]) -> tuple[list[str], int]
             command,
             cwd=ROOT,
             capture_output=True,
-            text=True,
+            encoding="utf-8", errors="replace",
             env=_clean_rust_env(),
             check=False,
             timeout=COHERENCE_TIMEOUT_SECONDS,

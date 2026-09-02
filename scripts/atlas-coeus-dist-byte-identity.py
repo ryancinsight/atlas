@@ -292,7 +292,7 @@ def run(
     if env:
         full_env.update(env)
     return subprocess.run(
-        cmd, cwd=str(cwd), capture_output=True, text=True, check=check, env=full_env
+        cmd, cwd=str(cwd), capture_output=True, encoding="utf-8", errors="replace", check=check, env=full_env
     )
 
 

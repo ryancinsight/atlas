@@ -71,7 +71,7 @@ def members(selected: list[str]) -> list[pathlib.Path]:
 
 def head_sha(repo: pathlib.Path) -> str:
     proc = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, text=True
+        ["git", "rev-parse", "HEAD"], cwd=repo, capture_output=True, encoding="utf-8", errors="replace"
     )
     return proc.stdout.strip()
 

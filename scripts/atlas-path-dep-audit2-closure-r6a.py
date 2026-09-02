@@ -78,7 +78,7 @@ def main(argv: list[str] | None = None) -> int:
 
         proc = subprocess.run(
             ["git", "-C", str(worktree), "show", "--name-only", "--format=", sha],
-            capture_output=True, text=True, check=False,
+            capture_output=True, encoding="utf-8", errors="replace", check=False,
         )
         if proc.returncode != 0:
             err = proc.stderr.strip().splitlines()[0] if proc.stderr.strip() else "(unknown)"

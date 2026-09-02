@@ -558,7 +558,7 @@ def git_output(*args: str, cwd: Path = ROOT) -> str:
     proc = subprocess.run(
         ["git", "-C", str(cwd), *args],
         capture_output=True,
-        text=True,
+        encoding="utf-8", errors="replace",
         check=False,
     )
     if proc.returncode:

@@ -122,7 +122,7 @@ def tracked_markdown(directory: Path) -> set[str] | None:
     try:
         out = subprocess.run(
             ["git", "-C", str(directory), "ls-tree", "--name-only", "HEAD", "--", "."],
-            capture_output=True, text=True, check=True,
+            capture_output=True, encoding="utf-8", errors="replace", check=True,
         ).stdout
     except (OSError, subprocess.CalledProcessError):
         return None

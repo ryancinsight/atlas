@@ -70,7 +70,7 @@ def check_env_overrides() -> None:
 
 def check_rustup_overrides() -> None:
     result = subprocess.run(
-        ["rustup", "override", "list"], capture_output=True, text=True, check=False
+        ["rustup", "override", "list"], capture_output=True, encoding="utf-8", errors="replace", check=False
     )
     if result.returncode != 0:
         fail(f"`rustup override list` failed: {result.stderr.strip()}")
@@ -98,7 +98,7 @@ def check_member_pins() -> int:
         if channel is None:
             fail(f"{pin} declares no channel")
         result = subprocess.run(
-            ["rustc", "-V"], capture_output=True, text=True, check=False, cwd=member
+            ["rustc", "-V"], capture_output=True, encoding="utf-8", errors="replace", check=False, cwd=member
         )
         if result.returncode != 0:
             fail(

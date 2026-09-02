@@ -152,7 +152,7 @@ def _git_value(*args: str, cwd: Path = ROOT) -> str | None:
             ["git", *args],
             cwd=cwd,
             capture_output=True,
-            text=True,
+            encoding="utf-8", errors="replace",
             check=False,
         )
     except OSError:
