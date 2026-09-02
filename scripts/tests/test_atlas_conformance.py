@@ -30,48 +30,6 @@ def _write(root: Path, rel: str, content: str) -> None:
 
 
 class AtlasConformanceTestCase(unittest.TestCase):
-    def test_clean_revision_classifies_provider_dirt_after_clean_root(self) -> None:
-        root_revision = "a" * 40
-        provider_revision = "b" * 40
-        calls: list[tuple[tuple[str, ...], Path]] = []
-
-        def fake_git_output(*args: str, cwd: Path | None = None) -> str:
-            if cwd is None:
-                cwd = conformance.ROOT
-            calls.append((args, cwd))
-            if args == ("rev-parse", "--verify", "HEAD^{commit}"):
-                return root_revision
-            if args == ("rev-parse", "HEAD") and cwd == conformance.ROOT:
-                return root_revision
-            if args == ("status", "--porcelain", "--ignore-submodules=all"):
-                return ""
-            if args == ("rev-parse", "HEAD"):
-                return provider_revision
-            if args == ("status", "--porcelain"):
-                return "M src/lib.rs"
-            raise AssertionError(f"unexpected git query: {args!r} in {cwd}")
-
-        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
-            root = Path(temp)
-            (root / "repos" / "demo").mkdir(parents=True)
-            with (
-                patch.object(conformance, "ROOT", root),
-                patch.object(conformance, "git_output", side_effect=fake_git_output),
-                patch.object(
-                    conformance,
-                    "registered_member_names_at",
-                    return_value={"demo"},
-                ),
-                patch.object(conformance, "gitlink_revision", return_value=provider_revision),
-            ):
-                with self.assertRaisesRegex(RuntimeError, "repos/demo worktree is dirty"):
-                    conformance.check_clean_revision("HEAD")
-
-            self.assertIn(
-                (("status", "--porcelain", "--ignore-submodules=all"), root),
-                calls,
-            )
-
     def test_json_check_output_is_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             baseline_path = Path(temp) / "baseline.json"
@@ -733,6 +691,178 @@ class AtlasConformanceTestCase(unittest.TestCase):
         previous = {"demo": {"print_dbg": 1}}
         current = {"demo": {"print_dbg": 1, "markers": 7}, "fresh": {"print_dbg": 9}}
         self.assertEqual(conformance.baseline_raises(previous, current), [])
+
+
+class DetectorPrecisionTests(unittest.TestCase):
+    """Prose that begins with a keyword is not commented-out code; absence
+    is not an existence-only assertion; compound cfg predicates gate test
+    regions item by item; comment lines may sit between stacked attributes."""
+
+    def test_keyword_led_prose_is_not_commented_out_code(self) -> None:
+        prose = [
+            "        // for all k1 in 0..n1 and all j in 0..n2 = all N indices).",
+            "        // for `p in 0..ROWS/2` and `g = 2q + mh` with `q in 0..4,",
+            "    // asserted where they are built.",
+            "        // for groups == 2, require the triple writes to scratch",
+            "        // for this: an ISA minimum returns one operand or the other",
+            "            // let a NaN in the first chunk poison its accumulator",
+            "        // let `vbsl`-based masked ops splice operands bit-by-bit.",
+            "        // assertion above upholds its bounds precondition.",
+            "        // if either is NaN, so a NaN in `v` could replace a real minimum",
+            "        // use Align to govern both.",
+            "        // implicit widening keeps the accumulator wide.",
+            "        // return the newest artifact per crate",
+        ]
+        for line in prose:
+            self.assertIsNone(conformance.COMMENTED_CODE.match(line), line)
+
+    def test_code_shaped_comments_are_commented_out_code(self) -> None:
+        code = [
+            "    // let x = 5;",
+            "    // let mut total: f64 = 0.0;",
+            "    // for i in 0..n {",
+            "    // for (a, b) in pairs {",
+            "    // assert_eq!(a, b);",
+            "    // assert!(x > 0);",
+            "    // fn helper(x: u32) -> u32 {",
+            "    // use std::io;",
+            "    // use crate::ops::{Add, Mul};",
+            "    // pub fn old_entry() {}",
+            "    // impl Foo for Bar {",
+            "    // match value {",
+            "    // if let Some(v) = maybe {",
+            "    // while depth > 0 {",
+            "    // struct Legacy {",
+            "    // return Ok(());",
+        ]
+        for line in code:
+            self.assertIsNotNone(conformance.COMMENTED_CODE.match(line), line)
+
+    def test_absence_is_not_an_existence_only_assertion(self) -> None:
+        self.assertIsNone(conformance.EXISTENCE_ONLY.search("assert!(plan.base128.is_none());"))
+        for existence in ("assert!(r.is_ok());", 'assert!(v.is_some(), "present");', "assert!(r.is_err());"):
+            self.assertIsNotNone(conformance.EXISTENCE_ONLY.search(existence), existence)
+
+    def test_cfg_predicates_name_test_outside_not(self) -> None:
+        gated = conformance.cfg_predicate_is_test_gated
+        self.assertTrue(gated("test"))
+        self.assertTrue(gated('all(test, windows, target_arch = "x86_64")'))
+        self.assertTrue(gated("all(test, not(miri))"))
+        self.assertTrue(gated("any(test, all(test, windows))"))
+        self.assertTrue(gated("all(unix, any(test, all(test, miri)))"))
+        self.assertFalse(gated('any(test, feature = "std")'), "production whenever the feature is on")
+        self.assertFalse(gated("not(test)"))
+        self.assertFalse(gated("not(all(test, windows))"))
+        self.assertFalse(gated('feature = "test-utils"'))
+        self.assertFalse(gated("all(unix, not(miri))"))
+        self.assertFalse(gated(""))
+
+    def test_comments_between_stacked_attributes_keep_the_sidecar_gated(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(
+                root,
+                "src/kernel/mod.rs",
+                "#[cfg(test)]\n"
+                "// The footprint instrument installs a global allocator that miri\n"
+                "// rejects, so the instrument stays out of miri runs.\n"
+                "#[cfg(not(miri))]\n"
+                "mod retained_footprint;\n"
+                "pub fn kernel() {}\n",
+            )
+            _write(root, "src/kernel/retained_footprint.rs", 'fn report() { println!("probe"); }\n')
+            self.assertTrue(conformance.declared_cfg_test(root / "src/kernel/retained_footprint.rs"))
+            self.assertEqual(conformance.scan_repo(root)["print_dbg"], 0)
+
+    def test_test_regions_are_scoped_to_their_items(self) -> None:
+        source = (
+            "fn production() {}\n"
+            '#[cfg(all(test, windows, target_arch = "x86_64"))]\n'
+            "macro_rules! sect {\n"
+            "    ($label:literal, $body:block) => {{\n"
+            "        static SECTIONS: std::sync::LazyLock<bool> =\n"
+            '            std::sync::LazyLock::new(|| std::env::var_os("S").is_some());\n'
+            '        if *SECTIONS { eprintln!("RSECT {}", $label); }\n'
+            "    }};\n"
+            "}\n"
+            '#[cfg(not(all(test, windows, target_arch = "x86_64")))]\n'
+            "macro_rules! sect { ($label:literal, $body:block) => { $body }; }\n"
+            'fn after() { println!("library output"); }\n'
+            "#[cfg(test)]\n"
+            "mod tests;\n"
+            "fn trailing() { let v: [u8; 3] = [0; 3]; }\n"
+            "#[cfg(test)]\n"
+            "mod inline_tests {\n"
+            "    #[test]\n"
+            "    fn t() { assert!(x.is_ok()); }\n"
+            "}\n"
+        )
+        production, tests = conformance.split_test_region(source)
+        self.assertIn("RSECT", tests)
+        self.assertNotIn("RSECT", production)
+        self.assertIn("mod tests;", tests)
+        self.assertIn("mod inline_tests", tests)
+        self.assertIn("is_ok()", tests)
+        for kept in ("fn production()", "$body };", "library output", "fn trailing()"):
+            self.assertIn(kept, production, kept)
+            self.assertNotIn(kept, tests, kept)
+        self.assertEqual(len(conformance.PRINT_DBG.findall(production)), 1)
+
+
+class MaterializedMemberTests(unittest.TestCase):
+    """A member checkout that is dirty or behind its recorded gitlink is
+    scanned from an archived snapshot of that gitlink, never from its live
+    state; a clean checkout at the gitlink is scanned in place."""
+
+    def _git(self, repo: Path, *args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], capture_output=True, encoding="utf-8",
+            errors="replace", check=True,
+        ).stdout.strip()
+
+    def _provider(self, temp: Path) -> tuple[Path, str, str]:
+        provider = temp / "repos" / "alpha"
+        provider.mkdir(parents=True)
+        self._git(provider, "init", "-q", "-b", "main")
+        self._git(provider, "config", "user.email", "t@example.invalid")
+        self._git(provider, "config", "user.name", "t")
+        _write(provider, "src/lib.rs", "pub fn alpha() {}\n")
+        self._git(provider, "add", ".")
+        self._git(provider, "commit", "-q", "-m", "one")
+        first = self._git(provider, "rev-parse", "HEAD")
+        _write(provider, "src/lib.rs", 'pub fn alpha() { println!("debt"); }\n')
+        self._git(provider, "commit", "-q", "-am", "two")
+        second = self._git(provider, "rev-parse", "HEAD")
+        return provider, first, second
+
+    def test_clean_checkout_at_the_gitlink_scans_in_place(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            provider, _, second = self._provider(Path(temp))
+            content, live = conformance.materialize_member(provider, second, Path(temp) / "scratch")
+            self.assertEqual((content, live), (provider, provider))
+
+    def test_behind_or_dirty_checkout_scans_the_recorded_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            provider, first, second = self._provider(Path(temp))
+            self._git(provider, "checkout", "-q", first)
+            _write(provider, "src/lib.rs", "pub fn alpha() { dbg!(1); dbg!(2); }\n")
+            scratch = Path(temp) / "scratch"
+            content, live = conformance.materialize_member(provider, second, scratch)
+            self.assertEqual(live, provider)
+            self.assertEqual(content, scratch / "alpha")
+            self.assertEqual(
+                (content / "src/lib.rs").read_text(encoding="utf-8"),
+                'pub fn alpha() { println!("debt"); }\n',
+            )
+            counts = conformance.scan_repo(content, live_repo=provider)
+            self.assertEqual(counts["print_dbg"], 1, "the recorded revision's one print, not the live tree's two dbg!")
+
+    def test_a_gitlink_absent_from_the_object_store_is_an_error(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            provider, first, _ = self._provider(Path(temp))
+            self._git(provider, "checkout", "-q", first)
+            with self.assertRaisesRegex(RuntimeError, "not in the provider's object store"):
+                conformance.materialize_member(provider, "0" * 40, Path(temp) / "scratch")
 
 
 if __name__ == "__main__":

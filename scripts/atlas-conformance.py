@@ -52,10 +52,13 @@ cannot be mistaken for a zero-debt repository.
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import re
 import subprocess
 import sys
+import tarfile
+import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -92,14 +95,19 @@ SANCTIONED_ROOT = {
 # A submodule's `.git` is a gitlink *file*, not a directory, so it would
 # otherwise be counted as unfiled root sprawl in every member repository.
 
+# Stacked attributes may carry comment lines between them — apollo declares
+# `#[cfg(test)]`, a five-line rationale, then `#[cfg(not(miri))] mod
+# retained_footprint;` — so the run of "further attributes" admits `//`
+# lines; without that the sidecar scanned as production and its report
+# `println!`s counted as library output.
 CFG_TEST_MOD = (
     r"#\[cfg\(\s*(?:all\(\s*)?test\b[^\]]*\]\s*"   # #[cfg(test)] / #[cfg(all(test, ...))]
-    r"(?:#\[[^\]]*\]\s*)*"                          # any further attributes
+    r"(?:(?:#\[[^\]]*\]|//[^\n]*)\s*)*"             # further attributes and comment lines
     r"(?:pub(?:\([^)]*\))?\s+)?mod\s+{stem}\s*;"    # [pub] mod <stem>;
 )
 CFG_TEST_MOD_ALL = re.compile(
     r"#\[cfg\(\s*(?:all\(\s*)?test\b[^\]]*\]\s*"
-    r"(?P<attrs>(?:#\[[^\]]*\]\s*)*)"
+    r"(?P<attrs>(?:(?:#\[[^\]]*\]|//[^\n]*)\s*)*)"
     r"(?:pub(?:\([^)]*\))?\s+)?mod\s+(?P<stem>[A-Za-z_][A-Za-z0-9_]*)\s*;"
 )
 
@@ -108,7 +116,11 @@ FN_DEF = re.compile(r"\bfn\s+(\w+)")
 WORKSPACE_LINTS_TABLE = re.compile(
     r"(?m)^\s*\[workspace\.lints(?:\.[^\]]+)?\]\s*$"
 )
-EXISTENCE_ONLY = re.compile(r"assert!\s*\(\s*[^();]{0,120}\.is_(?:ok|err|some|none)\s*\(\s*\)\s*,?\s*[^();]*\)")
+# `is_none()` is not counted: an `Option` carries no value in `None`, so
+# asserting absence is the complete value assertion (`assert_eq!(x, None)`
+# needs `PartialEq` for nothing). `is_ok()`/`is_some()` hide the value and
+# `is_err()` hides the variant; those are the existence-only forms.
+EXISTENCE_ONLY = re.compile(r"assert!\s*\(\s*[^();]{0,120}\.is_(?:ok|err|some)\s*\(\s*\)\s*,?\s*[^();]*\)")
 PRINT_DBG = re.compile(r"\b(?:println!|eprintln!|print!|eprint!|dbg!)")
 # `println!("cargo:...")` is the canonical Cargo build-script protocol: it
 # is the *required* way to emit build instructions (rerun-if-changed,
@@ -120,9 +132,28 @@ CARGO_PROTOCOL_PRINT = re.compile(r'\bprintln!\s*\(\s*"cargo:')
 SLEEP = re.compile(r"(?:thread|time)::sleep\b")
 MARKER = re.compile(r"\b(?:TODO|FIXME|HACK|XXX)\b")
 REEXPORT_SHIM = re.compile(r"\bpub\s+use\s+[^;]*\bas\s+\w+\s*;")
+# Code-shaped, not keyword-led: `// for all k1 in 0..n1`, `// let a NaN in
+# the first chunk`, `// asserted where they are built`, and `// for this: an
+# ISA minimum` are prose that begins with a Rust keyword, and the previous
+# keyword-prefix form counted twelve such comments across apollo and hermes
+# as commented-out code (ATLAS-RATCHET-REGRESSIONS-2026-09-02). Each
+# alternative now demands the syntax that follows the keyword in code.
 COMMENTED_CODE = re.compile(
-    r"^\s*//\s?(?:let\s|fn\s|use\s|pub\s|impl\s|match\s|if\s|for\s|while\s"
-    r"|struct\s|enum\s|return\b|assert)"
+    r"^\s*//\s?(?:"
+    r"let\s+(?:mut\s+)?[A-Za-z_]\w*\s*(?::|=)"                     # let x = / let x:
+    r"|fn\s+[A-Za-z_]\w*\s*[<(]"                                    # fn name(
+    r"|use\s+[\w:]+(?:::\{|::\*|;)"                                 # use a::b;
+    r"|pub(?:\([^)]*\))?\s+(?:fn|struct|enum|mod|use|const|static|type|trait)\b"
+    r"|impl(?:<[^>]*>)?\s+[A-Za-z_][^{]*\{\s*$"                      # impl Foo for Bar {
+    r"|match\s+[^{]+\{\s*$"                                         # match x {
+    r"|if\s+(?:let\s+)?[^{]+\{\s*$"                                 # if cond {
+    r"|for\s+(?:&(?:mut\s+)?)?(?:[A-Za-z_]\w*|\([^)]*\))\s+in\s"  # for i in
+    r"|while\s+[^{]+\{\s*$"                                         # while cond {
+    r"|struct\s+[A-Za-z_]\w*\s*[{<(;]"                              # struct Foo {
+    r"|enum\s+[A-Za-z_]\w*\s*[{<]"                                  # enum Foo {
+    r"|return\b[^;]*;\s*$"                                           # return x;
+    r"|assert(?:_eq|_ne)?!\s*\("                                     # assert!(
+    r")"
 )
 MANIFEST_PASSTHROUGH = re.compile(
     r"^\s*(?:$|//|#\[|#!\[|pub\s+use\b|use\b|pub\s+mod\b|mod\b"
@@ -675,56 +706,12 @@ def require_materialized_providers(
     return providers
 
 
-def gitlink_revision(root_revision: str, path: str) -> str:
+def gitlink_revision(root_revision: str, path: str, root: Path = ROOT) -> str:
     """Return the gitlink commit recorded at *path* in a root revision."""
-    fields = git_output("ls-tree", root_revision, "--", path).strip().split(maxsplit=3)
+    fields = git_output("ls-tree", root_revision, "--", path, cwd=root).strip().split(maxsplit=3)
     if len(fields) != 4 or fields[0] != "160000" or fields[1] != "commit":
         raise RuntimeError(f"{root_revision}:{path} is not a gitlink")
     return fields[2]
-
-
-def check_clean_revision(revision: str) -> None:
-    """Require the live checkout to represent the requested revision exactly.
-
-    A clean checkout is already a materialized revision snapshot. Refusing a
-    dirty or mismatched tree keeps the normal gate reproducible without
-    creating twenty temporary provider checkouts; `--worktree` is the explicit
-    escape hatch for an intentional live-tree audit.
-    """
-    root_revision = git_output(
-        "rev-parse", "--verify", f"{revision}^{{commit}}"
-    ).strip()
-    current_revision = git_output("rev-parse", "HEAD").strip()
-    if root_revision != current_revision:
-        raise RuntimeError(
-            f"root checkout is {current_revision[:12]}, not requested {root_revision[:12]}"
-        )
-    # Submodule dirt is classified below per provider. Including it here
-    # collapses a provider checkout failure into the less actionable generic
-    # root-worktree error, and makes the clean-revision gate depend on Git's
-    # nested-submodule summary rather than the root revision itself.
-    root_status = git_output(
-        "status", "--porcelain", "--ignore-submodules=all"
-    ).strip()
-    if root_status:
-        raise RuntimeError(
-            "root worktree is dirty; rerun with --worktree for live state: "
-            f"{root_status}"
-        )
-    for name in sorted(registered_member_names_at(ROOT)):
-        provider = ROOT / "repos" / name
-        if not provider.is_dir():
-            raise RuntimeError(f"provider checkout missing for {name}; initialize submodules")
-        expected = gitlink_revision(root_revision, f"repos/{name}")
-        actual = git_output("rev-parse", "HEAD", cwd=provider).strip()
-        if actual != expected:
-            raise RuntimeError(
-                f"repos/{name} is {actual[:12]}, not recorded gitlink {expected[:12]}"
-            )
-        if git_output("status", "--porcelain", cwd=provider).strip():
-            raise RuntimeError(
-                f"repos/{name} worktree is dirty; rerun with --worktree for live state"
-            )
 
 
 def rust_files(repo: Path):
@@ -770,10 +757,126 @@ def executable_source_dirs(
     return roots
 
 
+CFG_ATTR_OPEN = re.compile(r"#\[\s*cfg\s*\(")
+CFG_PREDICATE_TOKEN = re.compile(r"[A-Za-z_]\w*|\(|\)")
+
+
+def cfg_predicate_is_test_gated(predicate: str) -> bool:
+    """True when the predicate can only hold under `test`.
+
+    Structural, not textual: `test` requires test; `all(..)` requires it when
+    any conjunct does; `any(..)` only when every branch does — an item under
+    `any(test, feature = "std")` is production whenever the feature is on
+    (consus gates 370 production `unwrap()`s that way); `not(..)` never
+    requires it. String values are blanked so `feature = "test-utils"` names
+    no predicate.
+    """
+    tokens = CFG_PREDICATE_TOKEN.findall(re.sub(r'"[^"]*"', '""', predicate))
+    position = 0
+
+    def parse() -> bool:
+        nonlocal position
+        if position >= len(tokens):
+            return False
+        token = tokens[position]
+        position += 1
+        if token in ("(", ")"):
+            return False
+        if position < len(tokens) and tokens[position] == "(":
+            position += 1
+            branches = []
+            while position < len(tokens) and tokens[position] != ")":
+                branches.append(parse())
+            position += 1  # the closing parenthesis
+            if token == "all":
+                return any(branches)
+            if token == "any":
+                return bool(branches) and all(branches)
+            return False  # `not(..)` and unknown operators
+        return token == "test"
+
+    return parse()
+
+
+def _paren_end(text: str, open_index: int) -> int:
+    """Index just past the `)` matching the `(` at `open_index`."""
+    depth = 0
+    for i in range(open_index, len(text)):
+        c = text[i]
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+    return len(text)
+
+
+def _item_end(text: str, start: int) -> int:
+    """Index just past the item that begins after its attributes at `start`.
+
+    Skips further attributes and comments, then ends the item at the first
+    top-level `{` block (through its matching brace) or `;`; bracket depth
+    keeps a `;` inside `[u8; 3]` or a `{` inside `Lazy::new(|| { .. })`
+    from ending it early.
+    """
+    i, n = start, len(text)
+    while i < n:
+        if text[i].isspace():
+            i += 1
+        elif text.startswith("#[", i) or text.startswith("#![", i):
+            close = text.find("]", i)
+            i = n if close < 0 else close + 1
+        elif text.startswith("//", i):
+            newline = text.find("\n", i)
+            i = n if newline < 0 else newline + 1
+        else:
+            break
+    depth = 0
+    while i < n:
+        c = text[i]
+        if c in "([":
+            depth += 1
+        elif c in ")]":
+            depth -= 1
+        elif c == "{" and depth == 0:
+            return _brace_end(text, i)
+        elif c == ";" and depth == 0:
+            return i + 1
+        i += 1
+    return n
+
+
 def split_test_region(text: str) -> tuple[str, str]:
-    """Split a source file at its inline test module, if any."""
-    idx = text.find("#[cfg(test)]")
-    return (text, "") if idx < 0 else (text[:idx], text[idx:])
+    """Split a source file into its production and test-gated text.
+
+    Every item under a `#[cfg(..)]` whose predicate names `test` outside a
+    `not(...)` is test text — `#[cfg(test)] mod tests { .. }`, a
+    `#[cfg(all(test, windows))] macro_rules!`, a `#[cfg(test)] mod tests;`
+    sidecar declaration — scoped to that item, so production code that
+    follows a test item stays production. The earlier form cut the file at
+    the first literal `#[cfg(test)]`, which missed compound predicates (two
+    apollo timing macros counted as library `eprintln!`) and swept everything
+    after the cut into the test side.
+    """
+    production: list[str] = []
+    tests: list[str] = []
+    cursor = 0
+    for match in CFG_ATTR_OPEN.finditer(text):
+        if match.start() < cursor:
+            continue
+        close = _paren_end(text, match.end() - 1)
+        attribute_end = text.find("]", close)
+        if attribute_end < 0:
+            break
+        if not cfg_predicate_is_test_gated(text[match.end():close - 1]):
+            continue
+        item_end = _item_end(text, attribute_end + 1)
+        production.append(text[cursor:match.start()])
+        tests.append(text[match.start():item_end])
+        cursor = item_end
+    production.append(text[cursor:])
+    return "".join(production), "".join(tests)
 
 
 def strip_doc_comments(text: str) -> str:
@@ -846,7 +949,15 @@ def count_lane_kernel_uninlined(text: str) -> int:
     return count
 
 
-def scan_repo(repo: Path) -> dict[str, int]:
+def scan_repo(repo: Path, live_repo: Path | None = None) -> dict[str, int]:
+    """Count every debt class in `repo`'s content.
+
+    `live_repo` is the checkout whose registration state the two live-only
+    classes read (`excess_worktrees` from `.git/worktrees`, `target_forks`
+    from the directory listing) when `repo` is an archived snapshot of a
+    recorded revision rather than the checkout itself.
+    """
+    live_repo = live_repo or repo
     _clear_scan_caches()
     c = dict.fromkeys(CLASSES, 0)
     has_cargo = (repo / "Cargo.toml").is_file()
@@ -917,8 +1028,8 @@ def scan_repo(repo: Path) -> dict[str, int]:
         c["sleep_synced_tests"] += len(SLEEP.findall(test))
 
     c["root_sprawl"] = count_root_sprawl(repo)
-    c["excess_worktrees"] = count_excess_worktrees(repo)
-    c["target_forks"] = sum(1 for e in repo.iterdir() if is_cargo_target_dir(e))
+    c["excess_worktrees"] = count_excess_worktrees(live_repo)
+    c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
     c["orphan_modules"] = count_orphan_modules(repo, manifests)
     if has_cargo:
@@ -935,7 +1046,58 @@ def scan_repo(repo: Path) -> dict[str, int]:
     return c
 
 
-def scan_stack(stack_root: Path = ROOT) -> dict[str, dict[str, int]]:
+def materialize_member(
+    provider: Path, expected: str, scratch: Path
+) -> tuple[Path, Path]:
+    """Return `(content, live)` for a provider whose recorded gitlink is `expected`.
+
+    A clean checkout at `expected` is its own snapshot. Otherwise the recorded
+    revision is extracted with `git archive` into `scratch` (fetching first
+    when the object is absent), so a peer holding the checkout behind or
+    dirty never blocks a recorded-revision scan and never leaks its state
+    into the counts: members of this stack are routinely behind — eight of
+    twenty-five the day the clean-checkout gate was written.
+    """
+    actual = git_output("rev-parse", "HEAD", cwd=provider).strip()
+    dirty = git_output("status", "--porcelain", "--ignore-submodules=all", cwd=provider).strip()
+    if actual == expected and not dirty:
+        return provider, provider
+    archive = subprocess.run(
+        ["git", "-C", str(provider), "archive", "--format=tar", expected],
+        capture_output=True, check=False,
+    )
+    if archive.returncode:
+        subprocess.run(["git", "-C", str(provider), "fetch", "--quiet", "origin"],
+                       capture_output=True, check=False)
+        archive = subprocess.run(
+            ["git", "-C", str(provider), "archive", "--format=tar", expected],
+            capture_output=True, check=False,
+        )
+    if archive.returncode:
+        raise RuntimeError(
+            f"repos/{provider.name}: recorded gitlink {expected[:12]} is not in the "
+            f"provider's object store: {archive.stderr.decode('utf-8', 'replace').strip()}"
+        )
+    content = scratch / provider.name
+    content.mkdir(parents=True)
+    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+        tar.extractall(content, filter="data")
+    # The provider gate accepts a checkout by its `.git` marker; the snapshot
+    # carries one so the same gate admits it.
+    (content / ".git").write_text(f"gitdir: archived {expected}\n", encoding="utf-8")
+    return content, provider
+
+
+def scan_stack(
+    stack_root: Path = ROOT, root_revision: str | None = None
+) -> dict[str, dict[str, int]]:
+    """Scan every registered member.
+
+    With `root_revision`, each member is scanned at the gitlink that revision
+    records — from the checkout when it is clean and at that commit, else from
+    an archived snapshot (`materialize_member`). Without it, the live trees
+    are scanned as they are (`--worktree`).
+    """
     out = {}
     member_root = stack_root / "repos"
     members = registered_member_names_at(stack_root)
@@ -943,12 +1105,23 @@ def scan_stack(stack_root: Path = ROOT) -> dict[str, dict[str, int]]:
     if member_root.is_dir():
         repos = require_materialized_providers(stack_root, members)
         if repos:
-            # Four workers match the smallest hosted runner while avoiding
-            # unbounded parallel metadata and filesystem traversal.
-            worker_count = min(MAX_SCAN_WORKERS, len(repos))
-            with ThreadPoolExecutor(max_workers=worker_count) as executor:
-                for repo, counts in zip(repos, executor.map(scan_repo, repos), strict=True):
-                    out[repo.name] = counts
+            with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
+                targets = []
+                for repo in repos:
+                    if root_revision is None:
+                        targets.append((repo, repo))
+                    else:
+                        expected = gitlink_revision(root_revision, f"repos/{repo.name}", stack_root)
+                        targets.append(materialize_member(repo, expected, Path(scratch)))
+                # Four workers match the smallest hosted runner while avoiding
+                # unbounded parallel metadata and filesystem traversal.
+                worker_count = min(MAX_SCAN_WORKERS, len(repos))
+                with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                    counts_by_repo = executor.map(
+                        lambda target: scan_repo(target[0], live_repo=target[1]), targets
+                    )
+                    for repo, counts in zip(repos, counts_by_repo, strict=True):
+                        out[repo.name] = counts
         if stack_root == ROOT:
             for repo in sorted(member_root.iterdir()):
                 if (
@@ -1043,7 +1216,8 @@ def main() -> int:
     parser.add_argument(
         "--worktree",
         action="store_true",
-        help="scan a fully materialized live worktree, including uncommitted changes",
+        help="scan the live member trees as they are, including uncommitted "
+             "changes, instead of the gitlinks the root revision records",
     )
     parser.add_argument(
         "--json",
@@ -1077,13 +1251,15 @@ def main() -> int:
                 return 2
             require_materialized_providers(ROOT, {args.repo})
             results = {args.repo: scan_repo(member)}
-        else:
-            if not args.worktree:
-                check_clean_revision(args.revision)
+        elif args.worktree:
             results = scan_stack(ROOT)
+        else:
+            root_revision = git_output(
+                "rev-parse", "--verify", f"{args.revision}^{{commit}}"
+            ).strip()
+            results = scan_stack(ROOT, root_revision)
     except RuntimeError as exc:
         print(f"conformance scan unavailable: {exc}", file=sys.stderr)
-        print("use --worktree only when a live dirty-tree scan is intentional", file=sys.stderr)
         return 2
 
     if mode == "report":
@@ -1144,11 +1320,10 @@ def main() -> int:
         print(f"tightened (update baseline): {t}")
     # A `--worktree` scan measures whatever is checked out, and members of
     # this stack are routinely behind — eight of twenty-five were the day
-    # this was added. The default path is protected by
-    # `check_clean_revision`, but `--worktree` bypasses it and is the mode
-    # actually used while peers hold dirty trees, so every count it produces
-    # needs its provenance attached. Without this, upstream-fixed debt reads
-    # as a fresh regression.
+    # this was added. The default path scans the recorded gitlinks
+    # (`materialize_member`); `--worktree` is the deliberate live audit, so
+    # every count it produces needs its provenance attached. Without this,
+    # upstream-fixed debt reads as a fresh regression.
     stale = {}
     if args.worktree:
         for repo_name in {r.split("/", 1)[0] for r in regressions}:
