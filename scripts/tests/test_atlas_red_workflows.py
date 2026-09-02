@@ -113,5 +113,35 @@ class SlugTests(unittest.TestCase):
             red.git = original
 
 
+class ProvenanceTests(unittest.TestCase):
+    """A red row is a verdict on the code only when a merge produced it."""
+
+    def test_a_merge_run_carries_no_trigger_note(self) -> None:
+        for event in ("push", "merge_group"):
+            self.assertEqual(red.trigger_note({"event": event}), "")
+        self.assertEqual(red.trigger_note({}), "")
+
+    def test_other_triggers_are_named_in_the_row(self) -> None:
+        self.assertEqual(red.trigger_note({"event": "workflow_dispatch"}), " (manual dispatch)")
+        self.assertEqual(red.trigger_note({"event": "schedule"}), " (scheduled)")
+        self.assertEqual(red.trigger_note({"event": "repository_dispatch"}), " (repository_dispatch)")
+
+    def test_a_run_no_runner_accepted_is_recognised(self) -> None:
+        # kwavers's GPU parity job asks for `self-hosted, linux, x64, cuda`,
+        # which matches no registered runner. GitHub stamps the queue time as
+        # `started_at` and cancels 24 hours later, so only the empty
+        # `runner_name` distinguishes this from a job that ran and was killed.
+        self.assertTrue(red.no_runner_accepted([
+            {"name": "GPU/CPU parity oracles", "runner_name": "",
+             "started_at": "2026-09-01T02:35:39Z", "completed_at": "2026-09-02T02:35:39Z"}]))
+        self.assertTrue(red.no_runner_accepted([{"name": "a", "runner_name": None}]))
+
+    def test_a_run_that_reached_a_runner_is_not_starvation(self) -> None:
+        self.assertFalse(red.no_runner_accepted([{"name": "a", "runner_name": "gh-hosted-1"}]))
+        self.assertFalse(red.no_runner_accepted([{"name": "a", "runner_name": ""},
+                                                 {"name": "b", "runner_name": "gh-hosted-2"}]))
+        self.assertFalse(red.no_runner_accepted([]), "no job list is no evidence either way")
+
+
 if __name__ == "__main__":
     unittest.main()
