@@ -198,10 +198,10 @@
 
 | repo | workflow | conclusion | run | note |
 | --- | --- | --- | --- | --- |
-| gaia | Crates.io Release | failure | [`a5b0fe72` 2026-08-11](https://github.com/ryancinsight/gaia/actions/runs/31462176421) |  |
-| iris | Crates.io Release | failure | [`ab3eea28` 2026-08-11](https://github.com/ryancinsight/iris/actions/runs/31462174822) |  |
+| gaia | Crates.io Release | failure | [`a5b0fe72` 2026-08-11](https://github.com/ryancinsight/gaia/actions/runs/31462176421) | manual `workflow_dispatch` release attempt; log carries no failing step. Release is the user's action; the workflow itself is `ATLAS-PUB-001` scope (blocked) |
+| iris | Crates.io Release | failure | [`ab3eea28` 2026-08-11](https://github.com/ryancinsight/iris/actions/runs/31462174822) | same class as gaia's: manual dispatch 2026-08-11, `ATLAS-PUB-001` scope |
 | kwavers | GPU Parity (scheduled) | cancelled | [`bd7e6fa6` 2026-09-01](https://github.com/ryancinsight/kwavers/actions/runs/33463119860) | scheduled heavy suite cancelled — starved or superseded; classify per workflow hygiene |
-| mnemosyne | Fuzz | failure | [`247057ed` 2026-09-02 (#97's new workflow, first run)](https://github.com/ryancinsight/Mnemosyne/actions/runs/33591989913) | `E0463: can't find crate for core` — the sanitizer build lacks the nightly target's `rust-src`/std; fix in the fuzz workflow's toolchain step |
+| mnemosyne | Fuzz | failure | [`247057ed` 2026-09-02 (#97's new workflow, first run)](https://github.com/ryancinsight/Mnemosyne/actions/runs/33591989913) | `E0463: can't find crate for core` — `cargo fuzz` builds std via `-Zbuild-std`, which needs the `rust-src` component dtolnay's action omits; fix open as mnemosyne#102 (`components: rust-src`) |
 
 - **Revision (2026-09-02):** gaia `Examples` dropped — that workflow no longer exists on `main`; the collector now reports active workflows only (`9235e47d`). mnemosyne `Fuzz` added.
 - **Acceptance oracle:** `scripts/atlas-red-workflows.py` reports no member rows (atlas's own cancelled rows are the concurrency finding above, tracked there).
