@@ -1,5 +1,29 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01 — Mechanize the consumer lock advance after a provider merge [minor] — todo
+
+- **Finding (2026-09-01, after hermes `6da6d139` landed the Linux processor
+  binding):** hermes-simd has six consumers — CFDrs, apollo, coeus, helios,
+  kwavers, leto — and their locks sit at unrelated hermes revisions (apollo
+  `7375157f`, leto `efe6b5e2`, kwavers `c4f931c5`). apollo advanced by hand
+  (apollo#256) because it carries an acceptance line; the others did not, and
+  atlas has no tool that would: `scripts/` holds a version-guard sweep and a
+  lockfile-guard delivery script, neither of which runs `cargo update -p
+  <crate>` across consumers.
+- **Outcome:** one committed sweep — input: a first-party crate and its merged
+  provider commit; for each allowlisted consumer in dependency order,
+  `cargo update -p <crate>` resolved standalone (never under the development
+  overlay), `cargo check` of the affected packages, a `build(deps)` commit and
+  PR with the provider commit and item in the message, one PR per consumer per
+  sweep; a consumer that cannot advance is the sweep's defect output, listed
+  in its report, never a silent holdout.
+- **Acceptance oracle:** running it for `hermes-simd @ 6da6d139` opens PRs on
+  every consumer above (or lists exactly why one cannot advance); a second run
+  after those merge opens nothing (idempotent); the lockfile guard passes on
+  each PR.
+- **Non-goals:** third-party currency (rides its own grouped update PRs) and
+  version-requirement bumps (version-guard's surface).
+
 ## ATLAS-ADR-INDEX-GUARD-2026-09-01 — One ADR index generator behind a shared guard [minor] — todo
 
 - **Finding:** three divergent ADR index generators exist for one concern —
