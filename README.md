@@ -962,6 +962,11 @@ nobody is looking at cannot rot silently:
   merges by rebase only when no check is pending or failed *and* a check matching
   `--require` is green, and echoes `MERGED` only after re-reading the PR. Name the
   changed workflow's own job: a rollup lacking it is the file being rejected.
+- `python scripts/bench_executable_identity.py <baseline-bin> <candidate-bin>` — the
+  benchmark gates' identity short-circuit: compares the sections the CPU executes
+  (`SHF_EXECINSTR`) and `.rodata`, ignoring build-path artefacts (symbol hashes,
+  build id); exit 0 identical, 1 differs, 2 malformed. A gate that times identical
+  code reports scheduler noise as a regression.
 - `python scripts/adr-index.py check [--directory DIR] [--strict]` and
   `python scripts/atlas-adr-canonical-form.py --check DIR` — the ADR index and
   the canonical heading form, for the umbrella or one member directory.
