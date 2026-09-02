@@ -59,6 +59,10 @@ class SelectionTests(unittest.TestCase):
         self.assertEqual([r["workflowName"] for r in red.red_runs(runs, active={"ci"})], ["ci"])
         self.assertEqual(len(red.red_runs(runs)), 2, "without the active set every red run is reported")
 
+    def test_githubs_own_pages_build_workflow_is_never_reported(self) -> None:
+        runs = [run("pages-build-deployment", "completed", "cancelled", "a"), run("ci", "completed", "failure", "b")]
+        self.assertEqual([r["workflowName"] for r in red.red_runs(runs)], ["ci"])
+
     def test_all_green_reports_nothing(self) -> None:
         runs = [run("ci", "completed", "success", "a"), run("ci", "completed", "failure", "b")]
         self.assertEqual(red.red_runs(runs), [])

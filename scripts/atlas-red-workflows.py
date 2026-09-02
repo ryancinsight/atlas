@@ -34,6 +34,9 @@ from atlas_stack import ROOT, git, registered_members  # noqa: E402
 RUN_FIELDS = "databaseId,workflowName,status,conclusion,headSha,createdAt,url,event"
 RUN_LIMIT = 80  # covers every workflow's latest completed run on an active repository
 GREEN = {"success"}
+# GitHub's own Pages build workflow; it supersedes itself on every deploy and
+# nothing in the repository configures it, so its cancelled runs carry no signal.
+PLATFORM_WORKFLOWS = {"pages-build-deployment"}
 ERROR_LINE = re.compile(r"(##\[error\]|\berror(\[E\d+\])?:|\bpanicked at\b|FAILED|RATCHET VIOLATION|Process completed with exit code [1-9])")
 
 
@@ -64,7 +67,9 @@ def red_runs(runs: list[dict], active: set[str] | None = None) -> list[dict]:
     whose logs expire and which nothing can ever turn green)."""
     return [
         run for run in latest_completed_per_workflow(runs).values()
-        if run.get("conclusion") not in GREEN and (active is None or run["workflowName"] in active)
+        if run.get("conclusion") not in GREEN
+        and run["workflowName"] not in PLATFORM_WORKFLOWS
+        and (active is None or run["workflowName"] in active)
     ]
 
 
