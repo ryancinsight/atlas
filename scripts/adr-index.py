@@ -41,6 +41,11 @@ TITLE_RE = re.compile(
     r"^#\s+(?:ADR[- ]?\d+\s*(?:[:\-]|–|—)\s*)?(.+?)\s*$", re.MULTILINE
 )
 NUMBER_RE = re.compile(r"^(\d+)")
+# The canonical heading forms ADR governance names; `--strict` requires one
+# and requires its number to match the filename's.
+STRICT_HEADING_RE = re.compile(
+    r"^#\s+(?:ADR\s+(?P<a>\d{3,4})\s*:|(?P<b>\d{3,4})\s+(?:—|–|-)\s+)", re.MULTILINE
+)
 
 HEADER = """# ADR index
 
@@ -129,7 +134,25 @@ def tracked_markdown(directory: Path) -> set[str] | None:
     return {Path(line).name for line in out.splitlines() if line.strip()}
 
 
-def build_index(directory: Path) -> tuple[str, list[str]]:
+def strict_anomalies(path: Path, number: str) -> list[str]:
+    """The member-copy checks: canonical heading form, number agreeing with the
+    filename. Only consulted under `--strict`."""
+    try:
+        head = path.read_text(encoding="utf-8", errors="replace")[:1200]
+    except OSError:
+        return [f"unreadable: {path.name}"]
+    match = STRICT_HEADING_RE.search(head)
+    if match is None:
+        return [f"missing canonical ADR heading: {path.name}"]
+    heading_number = match.group("a") or match.group("b")
+    if number == "—" or heading_number != number:
+        return [
+            f"heading number {heading_number} does not match filename {number}: {path.name}"
+        ]
+    return []
+
+
+def build_index(directory: Path, strict: bool = False) -> tuple[str, list[str]]:
     rows: list[str] = []
     anomalies: list[str] = []
     seen: dict[str, str] = {}
@@ -147,6 +170,8 @@ def build_index(directory: Path) -> tuple[str, list[str]]:
     for f in files:
         number, title, status = parse_adr(f)
         base = status_base(status)
+        if strict:
+            anomalies.extend(strict_anomalies(f, number))
         if status == "—":
             anomalies.append(f"missing status: {f.name}")
         elif base.capitalize() not in CANONICAL:
@@ -165,11 +190,11 @@ def build_index(directory: Path) -> tuple[str, list[str]]:
     return HEADER + "\n".join(rows) + "\n", anomalies
 
 
-def check_indexes(directories: list[Path], mode: str) -> int:
+def check_indexes(directories: list[Path], mode: str, strict: bool = False) -> int:
     """Generate or check indexes and return a gate status for ``mode``."""
     problems = 0
     for directory in directories:
-        content, anomalies = build_index(directory)
+        content, anomalies = build_index(directory, strict=strict)
         try:
             rel = directory.relative_to(ATLAS_ROOT)
         except ValueError:
@@ -199,9 +224,28 @@ def check_indexes(directories: list[Path], mode: str) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("mode", choices=["generate", "check"])
-    mode = parser.parse_args().mode
+    parser.add_argument(
+        "--directory",
+        action="append",
+        type=Path,
+        help="index only this ADR directory (repeatable); default: every registered "
+        "member's docs/adr plus the umbrella's",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="also require the canonical heading form and heading/filename number "
+        "agreement (the member-copy checks)",
+    )
+    arguments = parser.parse_args()
+    mode = arguments.mode
+    directories = [d.resolve() for d in arguments.directory] if arguments.directory else adr_dirs()
+    for directory in directories:
+        if not directory.is_dir():
+            print(f"error: {directory} is not a directory", file=sys.stderr)
+            return 2
 
-    return check_indexes(adr_dirs(), mode)
+    return check_indexes(directories, mode, strict=arguments.strict)
 
 
 if __name__ == "__main__":
