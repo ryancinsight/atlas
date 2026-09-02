@@ -3,6 +3,9 @@ name: Python script tests
 on:
   pull_request:
     paths:
+      # The tools under test live in scripts/*.py; a fix there must re-run
+      # the tests that cover it (09064d28 fixed a red test and produced no run).
+      - 'scripts/*.py'
       - 'scripts/tests/**'
       - 'scripts/.benchmarks/**'
       - 'scripts/generate_book_figures/**'
@@ -11,6 +14,9 @@ on:
   push:
     branches: [main]
     paths:
+      # The tools under test live in scripts/*.py; a fix there must re-run
+      # the tests that cover it (09064d28 fixed a red test and produced no run).
+      - 'scripts/*.py'
       - 'scripts/tests/**'
       - 'scripts/.benchmarks/**'
       - 'scripts/generate_book_figures/**'
