@@ -441,6 +441,10 @@
 
 ## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — in-progress (7 delivered 2026-08-29)
 
+- **Re-measured 2026-09-02: the declaration is not the stored form.** All 25 members now carry a `.gitattributes`, and 21 of them already declare LF (`* text=auto eol=lf` or a commented equivalent) — yet **every one of the 25 stores `.github/workflows/book-pages.yml` with CRLF**, 28 to 121 lines each. `eol=lf` governs checkout; blobs committed before the attribute existed keep their CRLF until someone runs `git add --renormalize`, so the policy and the object store disagree fleet-wide. The cost is the one the policy exists to prevent: every cross-platform edit of that file produces a whole-file diff, which is why this session's concurrency sweep had to preserve CRLF per file rather than write the stack's declared form.
+- **Four members still declare only `* text=auto`** (eunomia, hermes, mnemosyne, asclepius) — no end-of-line at all, so the stored form follows whichever platform committed.
+- **In flight:** eunomia#75 and asclepius#30 (both green, both rebuilt on current main 2026-09-02 after their six-day-old branches could no longer rebase past the workflow's concurrency fix). Each sets `eol=lf` and renormalizes the one CRLF file. The same two-file change applies to the remaining 23 members and is mechanized (`$TEMP/eol_refresh.py` pattern: read the member's `.gitattributes` and the CRLF file at `origin/main`, rewrite both, force the branch, open the PR) — held until the hosted queue recovers, since 23 more pull requests on a starved pool would delay the merge gates in flight (ATLAS-RUNNER-STARVATION-2026-09-02).
+
 | ID | Outcome | Class | Status | Owner | Scope |
 |----|---------|-------|--------|-------|-------|
 | ATLAS-GITATTRIBUTES-DRIFT | One line-ending policy across the stack, applied to the blobs as well as declared. | [patch] | in-progress | unowned | every member's `.gitattributes` |
