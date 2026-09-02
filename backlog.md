@@ -56,7 +56,7 @@
   `0 regression(s)`; the tightenings it lists are recorded by regenerating
   `scripts/conformance-baseline.json` in the same change.
 
-## ATLAS-CRITERION-FLOAT-ROUNDTRIP-2026-08-31 — Preserve Criterion confidence values [patch] — provider delivered; consumer recollection pending
+## ATLAS-CRITERION-FLOAT-ROUNDTRIP-2026-08-31 — Preserve Criterion confidence values [patch] — closed 2026-09-02
 
 - **Outcome:** parse Criterion estimate numbers with exact decimal-to-`f64`
   round trips so the family-wise confidence gate cannot reject an interval
@@ -71,6 +71,7 @@
   a value-semantic regression, pass the classifier gates, advance the exact
   consumer pin, and recollect PR #681 without changing the confidence rule,
   benchmark workload, or measured production code.
+- **Closed 2026-09-02 on the acceptance oracle.** The consumer pin needed no advance: kwavers's benchmark gate already checks atlas out at `9c33b4af`, which carries the exact-parse fix `62955b24f`. Kwavers #681 (`2a930814`) was recollected and merged 2026-09-02 02:32 with all five gates green — the four `benchmark pair` legs and `benchmark regression check` — so the 45-case replications the item was opened on now accept their intervals instead of rejecting all 180 as `99.88888889% < 99.88888889%`. Every benchmark-regression run since (five on 09-02, including kwavers#694/#695/#696) is green. The confidence rule, the benchmark workload, and the measured production code are unchanged; the one later tool commit, `c41bef19f`, regenerates lockfiles and changes no behaviour.
 - **Provider evidence:** source commit
   `62955b24f1eeb8495372cd85e74eea6046ed21a8`; exact artifact replay accepts
   both 45-case replications with zero insufficient intervals and zero
