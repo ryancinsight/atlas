@@ -1,7 +1,9 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-ADR-FORM-NORMALIZATION-2026-09-02 — Twelve members' ADRs lack the canonical heading or status form [patch] — todo
+## ATLAS-ADR-FORM-NORMALIZATION-2026-09-02 — Twelve members' ADRs lack the canonical heading or status form [patch] — in-progress 2026-09-02
 
+- **Claim:** integrator claude (this session); one API-authored PR per member (no shared tree touched); lease per member PR: `docs/adr/**`, the member's ADR workflow (`adr-index.yml` or the guard job in `ci.yml`/`rust-ci.yml`), `scripts/adr-index.py` where a copy remains.
+- **Progress (2026-09-02):** `scripts/atlas-adr-canonical-form.py` (`85a184cc`, 13 tests) rewrites the first heading to `# ADR <filename-number>: Title` and reports unnumbered files. Dry run: coeus 53, kwavers 59, moirai 36, hephaestus 29, ritk 18, apollo 3 (`NNNN —` form, accepted by strict but folded for one form), leto 2 + `sparse-support-design.md` (an Accepted ADR with no number — claims the next number in its PR), mnemosyne 1, gaia 1. The atlas `--strict` check has no status-form rule, so aequitas, melinoe and themis already pass it; iris carries a hand-written `INDEX.md` beside the generated README (duplicate index, its own row). Order: gaia → mnemosyne → ritk → coeus → moirai → hephaestus (no workflows: dedicated `adr-index.yml` created) → kwavers (switch to strict) → leto → apollo.
 - **Finding (2026-09-02, validating parse over every member's `docs/adr`):**
   twelve of twenty-four members fail the member-copy generator's checks
   (canonical `# ADR NNN: Title` or `# NNN — Title` heading; a Proposed /
@@ -25,6 +27,8 @@
   `docs/adr` without error and every member's guard runs strict.
 
 ## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
+
+- **Refresh (run 33590087496 on `45b2db92`):** 19 regressions, 51 tightenings. New since the finding: athena `tag_pinned_actions` 0→9, ritk `allow_sites` 0→16, hermes `oversized_files` 22→28 / `commented_out_code` 7→10, moirai `existence_only_assertions` 33→38, themis `oversized_files` 1→3; the 51 tightenings (CFDrs `crate_level_allows` 367→6, `print_dbg` 257→26, apollo `allow_sites` 28→19, …) are baseline updates the next green run records.
 
 - **Finding (conformance run 33583483834 on `0c129c66`, the first completed
   ratchet run after three were cancelled by successive pushes):**
@@ -128,33 +132,10 @@
 - **Non-goals:** third-party currency (rides its own grouped update PRs) and
   version-requirement bumps (version-guard's surface).
 
-## ATLAS-ADR-INDEX-GUARD-2026-09-01 — One ADR index generator behind a shared guard [minor] — in-progress 2026-09-02
+## ATLAS-ADR-INDEX-GUARD-2026-09-01 — One ADR index generator behind a shared guard [minor] — done 2026-09-02
 
-- **Claim:** integrator claude (this session); direct to main; lease: `scripts/adr-index.py` (atlas copy), `.github/workflows/adr-index-guard.yml` (new), this entry. Member adoption (hermes, apollo, kwavers) follows as separate member PRs.
-- **Progress (2026-09-02):** atlas generator gains `--directory` and opt-in `--strict` (`49cba25c`) and a title-rendering fix (`f1a37436`: a heading's own bare number no longer duplicates into the title column — the cause of apollo's and kwavers's apparent drift and of coeus's committed index, regenerated in coeus#354). `adr-index-guard.yml` published in the lockfile-guard shape. Adoption PRs: hermes#131 (strict), apollo#263 (strict), kwavers#686 (permissive until `ATLAS-ADR-FORM-NORMALIZATION-2026-09-02`). Deferred and noted: the emitted README header still names `scripts/adr-index.py`; changing it drifts every member's index at once, so it moves with the normalization campaign.
-
-- **Finding:** three divergent ADR index generators exist for one concern —
-  `atlas/scripts/adr-index.py` (208 lines, meta-repo-root-relative, driven by
-  `atlas-conformance.yml`), `apollo/scripts/adr-index.py` (131 lines,
-  four-digit numbering; apollo#254 widens it to three or four), and
-  `kwavers/scripts/adr-index.py` (179 lines). hermes's `docs/adr/README.md`
-  claims generation by a script the repo never had
-  (`HS-ADR-INDEX-GENERATOR-ABSENT-2026-09-01`); leto, themis, mnemosyne,
-  moirai, and hephaestus have no generator at all.
-- **Outcome:** one generator in atlas taking `--root <repo>` (numbering width
-  per repository, `## Status` or inline status forms), exposed to members as
-  `.github/workflows/adr-index-guard.yml` in the `lockfile-guard.yml` shape —
-  caller checkout, atlas checkout into `_atlas`,
-  `python3 _atlas/scripts/adr-index.py check --root .`. Members call the
-  guard and delete their local copies; local regeneration runs the atlas
-  script from the umbrella checkout.
-- **Sequencing:** hermes vendors apollo's generalized copy first (its index is
-  unvalidated today); this item then replaces that copy and apollo's and
-  kwavers's with the guard, so the vendored copy is a bounded, tracked debt
-  rather than a fourth long-lived fork.
-- **Acceptance oracle:** the guard passes on hermes (three-digit), apollo and
-  kwavers (four-digit) and atlas itself; a deliberately desynchronised index
-  in any of them fails it; no member repo retains a `scripts/adr-index.py`.
+- **Delivered:** atlas `scripts/adr-index.py` gained `--directory` and opt-in `--strict` (`49cba25c`) and a bounded own-number title strip (`f1a37436`); `.github/workflows/adr-index-guard.yml` (`a097e4e1`, lockfile-guard shape) is the one generator's CI surface. Adopted: hermes#131 (strict, copy deleted), apollo#263 (strict, copy deleted), kwavers#686 (permissive, copy deleted); coeus#354 regenerated the index the old renderer had drifted.
+- **Residual:** kwavers runs permissive and mnemosyne still carries a fourth copy — both close under `ATLAS-ADR-FORM-NORMALIZATION-2026-09-02`; the emitted README header still names `scripts/adr-index.py` and changes with that campaign so every index moves once.
 
 ## ATLAS-CONFORMANCE-PARALLEL-SCAN-2026-08-31 — Bound fleet scan latency [patch] — done 2026-09-01
 
@@ -193,6 +174,17 @@
   regressions; Nextest passes 22/22, including the escaped fixture; warning-
   denied Clippy, fmt, doctests, and warning-denied Rustdoc pass. Consumer pin
   advancement and exact-head hosted recollection remain open.
+
+## ATLAS-VERSION-GUARD-CWD-2026-09-02 — version-guard red on main since 2026-08-25: tool cargo runs resolved the root's host-qualified pin [patch] — done 2026-09-02
+
+- **Delivered (`7699c0f9`, `45b2db92`; run 33589612704 → green run on `45b2db92`):** `atlas_stack.run_tool` runs every tool binary from its own workspace, whose bare-version pin any runner installs — rustup resolves from cargo's cwd, never `--manifest-path`, and the root's `1.97.0-x86_64-pc-windows-msvc` pin (ATLAS-TOOLCHAIN-TRIPLE-083) is unresolvable on Ubuntu. Both call sites (sweep, provider-integration audit) route through it; test pins cwd and the bare-pin property. Alongside: `lockfile.py` honours `--manifest-path` (`0d688b44`), diagnoses a flattened lock only where first-party deps are declared (`4a1b735d`), and the three tool locks lost their 60 `[[patch.unused]]` overlay entries (`c41bef19`).
+- **Escaped-defect record:** root cause above; the run was red for eight days because orientation reads own PRs and the board, not default-branch workflow verdicts — no collector exists for a red `main` workflow. Check that would have caught it: `ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02`.
+
+## ATLAS-RED-WORKFLOW-COLLECTOR-2026-09-02 — Surface failing default-branch workflows at orientation [patch] — todo
+
+- **Finding (2026-09-02):** `version-guard` failed on every `main` push from 2026-08-25 (`df375365`) to `45b2db92` and no agent collected it; `atlas-conformance` likewise carries 19 uncollected ratchet regressions. Own-PR sweeps (`gh pr status`) never see a default-branch workflow.
+- **Outcome:** one committed script (`scripts/atlas-red-workflows.py`) listing, per allowlisted repository, default-branch workflows whose latest completed run is not green (`gh run list --branch main --json`, one call per repo), with the failing step's first error line; wired into the orientation checklist and the conformance job summary. Method: batched `gh` map, `--limit` explicit.
+- **Acceptance oracle:** running it against the stack at `45b2db92` names `atlas/atlas-conformance` (19 regressions) and nothing else on atlas; a synthetic red workflow in a fixture repository is listed with its first error line.
 
 ## ATLAS-GITLINK-COHERENCE-GATE-2026-08-29 — Wire the gitlink auditor that already existed [patch] — done 2026-08-29; gate corrected 2026-09-01
 
