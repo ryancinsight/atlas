@@ -1,5 +1,26 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-SUBPROCESS-UTF8-DECODING-2026-09-01 — Decode subprocess output as UTF-8 in every atlas script [patch] — todo
+
+- **Finding (2026-09-01):** `atlas_stack.git` ran `subprocess.run(..., text=True)`
+  with no encoding. On Windows that decodes as cp1252; a member manifest
+  carrying an em dash (CFDrs, kwavers) raised `UnicodeDecodeError` in the
+  reader thread and `.stdout` came back `None`, so the consumer lock sweep saw
+  two members as having no manifest at all. Fixed in `atlas_stack.git`
+  (`encoding="utf-8", errors="replace"`, the form `lockfile.py` already used).
+- **Class, not instance:** 16 more scripts under `scripts/` call `subprocess`
+  with `text=True` and no encoding (adr-index, board audits, conformance,
+  fmt-check, lock-form, provider-integration-audit, toolchain-preflight,
+  publish-order, rustdoc_oracle, search_ladder_index, …). Any of them reads
+  absence instead of content the moment a member's output carries a
+  non-cp1252 byte on a Windows host — and reports it as a finding.
+- **Outcome:** one sweep replacing every `text=True` subprocess decode with
+  explicit UTF-8 plus replacement, and a `scripts/tests` guard that fails on a
+  new `text=True` without `encoding=` so the class cannot return. Prove the
+  guard bites on a deliberate reintroduction before trusting it.
+- **Acceptance oracle:** `grep -E "text=True" scripts/*.py` returns only
+  comments; the guard test fails when one call is reverted.
+
 ## ATLAS-FIRST-PARTY-LOCK-SWEEP-2026-09-01 — Mechanize the consumer lock advance after a provider merge [minor] — in-progress 2026-09-01
 
 - **Claim:** integrator claude (this session); branch in place on the umbrella (`chore/atlas-lock-sweep`); lease: `scripts/atlas-lock-sweep.py`, `scripts/tests/test_atlas_lock_sweep.py`, this entry.
