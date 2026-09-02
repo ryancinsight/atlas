@@ -117,6 +117,37 @@ class AtlasConformanceTestCase(unittest.TestCase):
             "`generate` is no longer idempotent",
         )
 
+    def test_toolchain_requests_the_committed_pin_outranks_are_counted(self) -> None:
+        # Seven members' MSRV jobs installed an older toolchain under a committed
+        # 1.97.0 pin and compiled with 1.97.0; RUSTUP_TOOLCHAIN exempts a job.
+        workflow = (
+            "name: ci\non: [push]\njobs:\n"
+            "  msrv:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4\n"
+            "        with:\n          toolchain: 1.95.0\n"
+            "  msrv-fixed:\n    runs-on: ubuntu-latest\n    env:\n      RUSTUP_TOOLCHAIN: 1.95.0\n    steps:\n"
+            "      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4\n"
+            "        with:\n          toolchain: 1.95.0\n"
+            "  verify:\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4\n"
+            "        with:\n          toolchain: \"1.97\"\n"
+        )
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write(root, ".github/workflows/ci.yml", workflow)
+            _write(root, "rust-toolchain.toml", '[toolchain]\nchannel = "1.97.0"\n')
+            counts: dict[str, int] = {name: 0 for name in conformance.CLASSES}
+            conformance.scan_workflows(root, counts)
+            self.assertEqual(counts["toolchain_request_overridden"], 1)
+            # Without a committed pin nothing outranks the install step.
+            (root / "rust-toolchain.toml").unlink()
+            counts = {name: 0 for name in conformance.CLASSES}
+            conformance.scan_workflows(root, counts)
+            self.assertEqual(counts["toolchain_request_overridden"], 0)
+        self.assertTrue(conformance.same_release("1.95", "1.95.2"))
+        self.assertTrue(conformance.same_release("1.97.0", "1.97.0-x86_64-pc-windows-msvc"))
+        self.assertFalse(conformance.same_release("1.95.0", "1.97.0"))
+
     def test_excess_worktrees_counts_registered_trees_over_the_bound(self) -> None:
         """The two-tree bound is a precondition, so something must check it.
 

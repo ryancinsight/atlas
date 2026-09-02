@@ -141,7 +141,7 @@ CLASSES = [
     "workflow_malformed_yaml", "pull_request_target_use",
     "missing_cargo_lock", "orphan_modules",
     "seqcst_production", "crate_level_allows", "excess_worktrees",
-    "lane_kernel_uninlined",
+    "lane_kernel_uninlined", "toolchain_request_overridden",
 ]
 
 # Working trees beyond the two a repository may hold: its main tree plus one
@@ -260,15 +260,62 @@ def is_reusable_workflow_caller(text: str) -> bool:
     )
 
 
+TOOLCHAIN_REQUEST = re.compile(r'(?m)^\s+toolchain:\s*"?([0-9][0-9.]*)"?\s*$')
+JOB_KEY = re.compile(r"(?m)^(?=  [A-Za-z_-]+:\s*$)")
+PINNED_CHANNEL = re.compile(r'(?m)^\s*channel\s*=\s*"([^"]+)"')
+
+
+def pinned_channel(repo: Path) -> str | None:
+    """The committed `rust-toolchain.toml` channel, or None when there is none."""
+    pin = repo / "rust-toolchain.toml"
+    if not pin.is_file():
+        return None
+    match = PINNED_CHANNEL.search(pin.read_text(encoding="utf-8", errors="replace"))
+    return match.group(1) if match else None
+
+
+def same_release(requested: str, pinned: str) -> bool:
+    """`1.95` names every 1.95.x; a host-qualified pin compares on its version."""
+    pinned_version = pinned.split("-", 1)[0]
+    wanted = requested.rstrip(".").split(".")
+    return pinned_version.split(".")[: len(wanted)] == wanted
+
+
+def count_toolchain_requests_overridden(text: str, pinned: str | None) -> int:
+    """Jobs whose install step requests a toolchain the committed pin outranks.
+
+    `dtolnay/rust-toolchain` runs `rustup toolchain install` and `rustup
+    default`; a committed `rust-toolchain.toml` ranks above a default, so the
+    job compiles with the pinned channel and an MSRV job verifies nothing.
+    `RUSTUP_TOOLCHAIN` — at workflow or job level — ranks above the file and
+    exempts the job. A request naming the pinned release is not a defect.
+    """
+    if pinned is None or "jobs:" not in text:
+        return 0
+    head, _, jobs = text.partition("jobs:")
+    if "RUSTUP_TOOLCHAIN" in head:
+        return 0
+    count = 0
+    for block in JOB_KEY.split(jobs):
+        if "RUSTUP_TOOLCHAIN" in block:
+            continue
+        count += sum(
+            1 for m in TOOLCHAIN_REQUEST.finditer(block) if not same_release(m.group(1), pinned)
+        )
+    return count
+
+
 def scan_workflows(repo: Path, c: dict[str, int]) -> None:
     """Workflow-hygiene classes (engineering_gates): SHA pins, bounds, tokens."""
     wf_dir = repo / ".github" / "workflows"
     if not wf_dir.is_dir():
         return
+    pinned = pinned_channel(repo)
     for wf in sorted(wf_dir.iterdir()):
         if wf.suffix not in (".yml", ".yaml"):
             continue
         text = wf.read_text(encoding="utf-8", errors="replace")
+        c["toolchain_request_overridden"] += count_toolchain_requests_overridden(text, pinned)
         c["tag_pinned_actions"] += sum(
             1 for m in SHA_PIN.finditer(text)
             if not re.fullmatch(r"[0-9a-f]{40}", m.group(1))
