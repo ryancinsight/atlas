@@ -1,40 +1,5 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-ADR-FORM-NORMALIZATION-2026-09-02 — Twelve members' ADRs lack the canonical heading or status form [patch] — done 2026-09-02
-
-- **Done:** every member with ADRs (24; CFDrs has none) carries the canonical `# ADR NNNN: Title` form, runs atlas's strict index guard from one pinned atlas commit, and its committed index is byte-identical to the current generator's output (oracle: regenerate from `origin` ADRs and compare, plus `check --strict`, 24/24). Pins:      24 adr-index-guard.yml@191617bf. Two members' hand-written duplicate index (iris) and one unnumbered ADR (leto → 0028) were retired on the way; two heading-less kwavers ADRs gained titles.
-
-- **Claim:** integrator claude (this session); one API-authored PR per member (no shared tree touched); lease per member PR: `docs/adr/**`, the member's ADR workflow (`adr-index.yml` or the guard job in `ci.yml`/`rust-ci.yml`), `scripts/adr-index.py` where a copy remains.
-- **Progress (2026-09-02):** `scripts/atlas-adr-canonical-form.py` (`85a184cc`, 13 tests) rewrites the first heading to `# ADR <filename-number>: Title` and reports unnumbered files. Dry run: coeus 53, kwavers 59, moirai 36, hephaestus 29, ritk 18, apollo 3 (`NNNN —` form, accepted by strict but folded for one form), leto 2 + `sparse-support-design.md` (an Accepted ADR with no number — claims the next number in its PR), mnemosyne 1, gaia 1. The atlas `--strict` check has no status-form rule, so aequitas, melinoe and themis already pass it; iris carries a hand-written `INDEX.md` beside the generated README (duplicate index, its own row). Order: gaia → mnemosyne → ritk → coeus → moirai → hephaestus (no workflows: dedicated `adr-index.yml` created) → kwavers (switch to strict) → leto → apollo.
-- **PRs (2026-09-02, API-authored via the campaign orchestrator, each pinning the strict guard):** gaia#38 (merged `70429090`), mnemosyne#98 (fourth generator copy deleted), ritk#214, coeus#355, moirai#237 (`rust-ci.yml`), hephaestus#251 (default branch `master`; `(hephaestus)` heading tags dropped — the old renderer had leaked them into the index titles), kwavers#687 (strict; 037 and 040 had no title heading at all and gain `GPU PSTD output contract` / `GPU PSTD peak-pressure output`, replacing filename slugs in the index), apollo#267 (three `NNNN —` headings; guard already strict), leto#145 (`sparse-support-design.md` → `0028-sparse-array-support.md`, claiming the next number). iris's duplicate `docs/adr/INDEX.md` is iris's own `IRIS-012`. Canonicalizer follow-up `2dc1c5d1`: a numberless `ADR:` marker is form, not title. Closes when all nine land and the umbrella `--strict` pass over every member is clean.
-- **Landed (2026-09-02):** gaia#38 `70429090`, mnemosyne#98 `fd48f92c`, hephaestus#251 `2482a760`, apollo#267 `9ed566e4`, leto#145 `15973db1`, ritk#214 `6ff6d0b5`. moirai#237 `2f24b472` (its `Workspace gate` pinned ADR 0008's old heading text in a contract test — literal folded into the PR commit). Open: coeus#355, kwavers#687 — queued behind runner starvation. Added iris#22 (strict guard adoption; deletes the hand-written duplicate `docs/adr/INDEX.md`, closing iris's IRIS-009 and IRIS-012 in the same PR), so twelve members end on the shared guard.
-- **Heading half done (2026-09-02):** kwavers#687 `ec420a62` landed last; the oracle — atlas `adr-index.py check --strict` over every member's `docs/adr` exported from `origin/<default>` — reads 24 members checked, 24 clean. Strict guard runs on hermes, apollo, kwavers, gaia, mnemosyne, ritk, coeus, moirai, hephaestus, leto, iris. **Wave 2 (remaining):** the members whose ADRs already conform but carry no guard job — aequitas, asclepius, athena, CFDrs, consus, eunomia, harmonia, helios, horae, hyperion, melinoe, proteus, themis, tyche — adopt it via the same orchestrator (guard job only, no heading rewrites), staged behind the in-flight cancel-class and MSRV waves so the starved runner queue is not flooded; the item closes when every member's index check runs strict from atlas.
-- **Wave 2 opened (2026-09-02):** aequitas#44, asclepius#32, athena#23, consus#62, eunomia#78, harmonia#12, helios#81, horae#31, hyperion#29, melinoe#25, proteus#25, themis#41, tyche#41 — each a dedicated `adr-index.yml` calling the guard strict (its path filter keeps the PR off the member's full CI); CFDrs has no `docs/adr`. Gate: each PR's own `ADR index is current` check.
-- **Wave 2 landed (2026-09-02):** athena#23 `d57a4730`, aequitas#44 `430fd772`, eunomia#78 `a7e132c5`, harmonia#12 `2897d106`, melinoe#25 `2af08df9`, themis#41 `65054737`, tyche#41 `2ddbca75`, hyperion#29 `f8d12daa`, proteus#25 `4c5d3e8d`. Open: consus#62, helios#81 (queued); asclepius#32 red on `supply-chain` — the yanked `chacha20 0.10.1` cured by asclepius#33, then #32 re-runs; horae#31 red on `verify` — `mdbook test` hits `E0464: multiple candidates for rmeta dependency aequitas` from a restored cache holding two aequitas artifacts (a horae book-test cache defect, filed as a horae row in `ATLAS-DEFAULT-BRANCH-REDS-2026-09-02`; failed jobs re-run to test the collision hypothesis). consus#62 `007824d7` and asclepius#32 `07f487ce` landed later (asclepius after its yanked-crate fix #33). Open: helios#81 (blocked on the helios benchmark false positive), horae#31 (rebased onto horae#32). horae#31 `2b4453d3` landed after horae#32's book-test fix; helios#81 `b601736d` landed after helios#83 — the strict guard now runs on all 24 members with ADRs (CFDrs has none).
-- **Header (2026-09-02, `9ed3e4d1`):** the generator now writes provenance naming atlas as its home and `adr-index-guard.yml` as its CI surface, with the regenerate command as run from an atlas checkout; `check` compares the index body (everything after the provenance comment), so an index with the old header and a current table passes and no umbrella red window opens. **Sweep (staged behind wave 2):** one PR per member moving every `adr-index-guard.yml@<sha>` pin to one atlas SHA (five distinct pins exist today) and regenerating `docs/adr/README.md` under it — the orchestrator's `--bump-pin` mode. The item closes on that sweep.
-- **Sweep opened (2026-09-02, `--bump-pin`, pin `191617bf`):** aequitas#46 (proved the mode: pin moved, header regenerated, index body unchanged), apollo#280, asclepius#35, athena#25, coeus#357, eunomia#80, gaia#40, harmonia#14, hephaestus#254, hermes#137, horae#34, hyperion#31, iris#25, kwavers#693, leto#148, melinoe#27, mnemosyne#109, moirai#241, proteus#27, ritk#216, themis#43, tyche#43 — every member with ADRs except helios (its guard PR #81 is still open) and consus. consus#64 followed once consus#63 landed; helios#85 followed #81/#82 (helios#84, the wave 2c fix for the same file, rebuilds onto it). 21 of the first 22 merged within the hour; kwavers#693 `396acc56` landed last of the first 22. Byte-exact oracle (regenerate from `origin` ADRs, compare to the committed README): 22 members exact at that pass; helios#85 `dcc39454` landed since (23), consus#64 in flight. helios#84 (wave 2c, same file) rebuilt onto #85 and keeps the new pin. Gate: each PR's own `ADR index is current` check.
-- **Finding (2026-09-02, validating parse over every member's `docs/adr`):**
-  twelve of twenty-four members fail the member-copy generator's checks
-  (canonical `# ADR NNN: Title` or `# NNN — Title` heading; a Proposed /
-  Accepted / Rejected status). First failing file each: aequitas
-  `0013-acceleration-quantity.md` (status), coeus `0001-…interpolation.md`
-  (heading), gaia `0001-…path-construction.md` (heading), hephaestus
-  `0001-cuda-backend.md` (heading), kwavers `001-adaptive-beamforming-…md`
-  (heading), leto `0012-dqds-…md` (heading), melinoe `0001-parallel-executor-…md`
-  (status), mnemosyne `0001-free-list-…md` (heading), moirai
-  `0001-moirai-as-…md` (heading), ritk `0001-coeus-native-…md` (heading),
-  themis `0001-crates-io-…md` (status). The other twelve pass and their indexes
-  are current.
-- **Why it matters:** ADR governance names one canonical form (terminology
-  SSOT); a stack-wide strict index guard (`ATLAS-ADR-INDEX-GUARD-2026-09-01`)
-  cannot be required until these conform, so the guard ships with strictness
-  opt-in and this campaign turns it on member by member.
-- **Outcome:** one PR per member normalizing headings and status lines to the
-  canonical form (content untouched), then that member's guard call switches
-  to `strict: true`. Mechanical; a member's index regenerates in the same PR.
-- **Acceptance oracle:** the validating generator parses every member's
-  `docs/adr` without error and every member's guard runs strict.
-
 ## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
 
 - **Refresh (run 33590087496 on `45b2db92`):** 19 regressions, 51 tightenings. New since the finding: athena `tag_pinned_actions` 0→9, ritk `allow_sites` 0→16, hermes `oversized_files` 22→28 / `commented_out_code` 7→10, moirai `existence_only_assertions` 33→38, themis `oversized_files` 1→3; the 51 tightenings (CFDrs `crate_level_allows` 367→6, `print_dbg` 257→26, apollo `allow_sites` 28→19, …) are baseline updates the next green run records.
@@ -92,38 +57,11 @@
   denied Clippy, fmt, doctests, and warning-denied Rustdoc pass. Consumer pin
   advancement and exact-head hosted recollection remain open.
 
-## ATLAS-MSRV-JOBS-OVERRIDDEN-2026-09-02 — Seven members' MSRV jobs compile with the pinned 1.97.0, not the floor they claim [patch] — done 2026-09-02
-
-- **Done:** every MSRV job in the stack sets `RUSTUP_TOOLCHAIN` and prints `rustc --version`; eight members' floors verified green at their declared versions (melinoe#24, eunomia#77, themis#40, proteus#24, mnemosyne#105, moirai#238, iris#23, asclepius#31) and consus's real floor found and adopted (1.95.0; consus#61 `0f341377`, 80 checks, with the clippy sites the truthful floor un-gated fixed workspace-wide). Detector `toolchain_request_overridden` reads 0 for every fixed member; conformance baseline tightens on the next green run.
-
-- **Finding (2026-09-02, survey of every member workflow naming MSRV):** consus `ci.yml` (msrv job, 1.85.0), eunomia `msrv.yml` (1.95.0), melinoe `msrv.yml` (1.81.0), mnemosyne `msrv.yml` (1.95), themis `msrv.yml` (1.81.0), proteus `ci.yml` (1.95.0), asclepius `ci.yml` (1.95.0) install the floor through `dtolnay/rust-toolchain`, whose `action.yml` (at `4cda84d5`) only runs `rustup toolchain install` and `rustup default` — and every one of these repositories commits `rust-toolchain.toml` with `channel = "1.97.0"`, which rustup ranks above the default. None sets `RUSTUP_TOOLCHAIN`, removes the file, or prints `rustc --version`. Each job therefore compiles with 1.97.0 and the `rust-version` floor is a fictional compatibility claim (engineering_gates: "an untested MSRV claim rots"). iris has no MSRV job at all and its two jobs request `1.95.0` under the same pin (iris `IRIS-013`).
-- **Outcome:** one PR per member: `env: RUSTUP_TOOLCHAIN: <floor>` on the MSRV job (the environment variable outranks the in-tree file) and a `rustc --version` step whose output is the evidence; iris additionally gains the job. Mechanization: a conformance class `msrv_job_overridden` — an MSRV-named job in a repository with a pinned `rust-toolchain.toml` and no `RUSTUP_TOOLCHAIN` — so the class cannot recur.
-- **Acceptance oracle:** each member's MSRV run log prints the floor version, and the conformance class reads 0 stack-wide. A job that then fails is a real MSRV violation to fix in the crate or to reclassify by raising `rust-version` (versioning), never by removing the override.
-- **PRs (2026-09-02, API-authored, one per member; the MSRV job's own `rustc --version` line is each PR's oracle):** mnemosyne#105 (1.95), eunomia#76 (1.95.0), melinoe#23 (1.81.0), themis#40 (1.81.0), consus#61 (1.85.0), proteus#24 (1.95.0), asclepius#31 (1.95.0). A red MSRV job on any of them is a real floor violation surfaced for the first time (melinoe and themis claim 1.81 under edition 2024, which needs 1.85) and becomes that member's `rust-version` decision — never a reason to drop the override. iris: after iris#22 lands (both touch `ci.yml`), an `msrv` job is added under IRIS-013.
-- **Landed with the floor job green (2026-09-02):** melinoe#24 `dda137ab` (1.81 holds), eunomia#77 `652708b0`, themis#40 `1d972ccd`, proteus#24 `808a59be`, mnemosyne#105 `8490eb68`, moirai#238 `845f3804`, iris#23 `13653b2d`. **First real floor violation:** consus — declared 1.85.0, but `consus-mat`/`consus-zarr` use let chains (stable 1.88) and `if let` guards on match arms (stable 1.95.0, rust-lang/rust#141295); consus#61 raises `rust-version` to 1.95.0 with README following — all fifteen MSRV matrix cells green at 1.95.0; the PR waits only on consus's 81-check matrix behind the queue. asclepius#31's MSRV job is green; its `supply-chain` red is the yanked `chacha20 0.10.1`, cured by asclepius#33, after which #31 merges. The truthful floor then un-gated clippy's MSRV-aware `manual_is_multiple_of` on four sites written around the old 1.85 (each carried a comment saying so): consus-core `decode.rs` ×2, consus-zarr `codec/mod.rs`, and consus-parquet's `is_group` becomes `const fn` — fixed on #61's branch, zero guards kept where `is_multiple_of(0)` would change an error class. A second MSRV-gated lint followed: `collapsible_if` on the now-adjacent `if let … { if … }` (let chains, stable 1.88) — collapsed into a let chain. Each floor raise re-runs clippy's MSRV-aware lints over the code that worked around the old floor. CI enumerated them one package per hour (eight more `is_multiple_of` sites in consus-hdf5 on the next pass), so the closure moved to clippy's own machine-applicable fixes: the stale consus lane `worktrees/consus-conformance-ratchet` (on `main`, clean, no claimed item, two days idle) re-pointed to #61's branch — lane reuse under the two-tree bound — and `cargo clippy --fix --workspace --all-features --all-targets` runs from outside the overlay against the shared target; the second pass with `-D warnings` is the oracle before the commit — clean at `29bd4bf` (14 files: nine more `is_multiple_of` sites, let-chain collapses in consus-mat/hdf5/zarr/consus). consus-netcdf stays as authored: its crate-level expectation records that nested `if let` over attribute decodes reads clearer un-collapsed; the floor only moved which lint clippy raises (below 1.88 `collapsible_match`, now mostly `collapsible_if`), so the expectation names both — a stated decision outranks a mechanical rewrite.
-- **Mechanized (`70631345`):** conformance class `toolchain_request_overridden` — a job whose install step requests a toolchain other than the committed pin with no `RUSTUP_TOOLCHAIN` in scope; baseline enters at 11 jobs across 9 repos (the seven above, iris 2, moirai 2). moirai's two are `python-ci.yml` wheel/rust jobs requesting 1.95.0 with no MSRV job anywhere → moirai#238 (merged) states 1.97.0 and adds an `msrv` job on the same override pattern; its first default-branch run is the floor's oracle. iris's two close with its `msrv` job under IRIS-013: iris#22 landed (`0c6f2e60`), iris#23 open (states 1.97.0 on `verify`/`supply-chain`, adds `msrv` with the override, marks IRIS-013 done).
-- **Incident (2026-09-02, own defect):** the per-member orchestrator misplaced the proof step in every one of the seven PRs — two regex slips (a `\s+` indent capture reaching across a blank line; a `with:` matcher that took the line alone) put `- name: Prove the toolchain` inside the install step's `with:` block. GitHub rejects such a file and schedules none of its jobs, so melinoe#23 and eunomia#76 merged on their *other* checks with a broken `msrv.yml` (zero-job `failure` runs on `main` named by file path). Repairs: eunomia#77 and melinoe#24 restore the block; mnemosyne#105, themis#40, consus#61, proteus#24, asclepius#31 rebuilt in place. Gate rule adopted for every workflow-changing PR: the changed workflow's own job must exist and be green — a check list lacking it is the file being rejected. iris#23 merged (`13653b2d`): `msrv` job added, IRIS-013 done.
-- **Escaped-defect record:** the jobs were green for months because 1.97.0 compiles everything; the check that would have caught it is the `rustc --version` proof line the fix adds — a verification job must print the identity of what it verified.
-
 ## ATLAS-RUNNER-STARVATION-2026-09-02 — Hosted runner queue starves every verification run [infra] — todo (Ask-User)
 
 - **Finding (2026-09-02):** with ~25 small PRs and the peers' pushes in flight, every job across the organization sat `queued` for tens of minutes to over an hour: kwavers#687 timed out a 60-minute merge gate with 27/29 checks green and two still queued; kwavers#691 shows 21 of 29 checks pending after an hour; atlas's own conformance runs queued for hours (`fb616d9f`, `7264f91e`). The queue-time rule (engineering_gates: workflow hygiene) makes a job queued past its runtime target an infrastructure defect, not agent waiting — and it is what turned today's shared-group cancellation into a class (`ATLAS-DEFAULT-BRANCH-CANCEL-2026-09-02`): pending runs superseding each other only bites when nothing ever starts.
 - **Cure:** capacity or load-shedding. Load-shedding already applied today: path-filtered adoption workflows, staged waves. Load-shedding still owed by members: consus runs 81 checks per pull request (Check × 15 packages, Test × packages, MSRV × 15, fuzz builds) — a matrix that recompiles per cell instead of one archive sharded across runners (engineering_gates: build-once topology); a consus row. Capacity is the standing policy for private repositories and trusted-contributor stacks: a self-hosted runner on owned hardware with a persistent warm `CARGO_TARGET_DIR`/sccache, so no run pays cold setup or a metered minute. **Ask-User:** register one or more self-hosted runners at the organization level (labels `self-hosted, linux, x64`; the RTX 5080 host can also carry the `cuda` label the kwavers GPU-parity schedule already targets) — `gh` cannot register runners (hosting/security setting). Until then the waves stay staged and merge gates re-launch at their cap.
 - **Acceptance oracle:** `gh run list --json createdAt,startedAt` across the stack shows median queue time under the five-minute job target; the kwavers `GPU Parity (scheduled)` row in `ATLAS-DEFAULT-BRANCH-REDS-2026-09-02` turns green.
-
-## ATLAS-DEFAULT-BRANCH-CANCEL-2026-09-02 — Default-branch verification runs cancel each other fleet-wide [patch] — done 2026-09-02
-
-- **Done:** all 57 workflows across 26 repositories carry the per-commit/pull-request-only form (verification) or `cancel-in-progress: false` (deploys); the conformance class reads 0 at every member's `origin`, and the collector's only remaining `cancelled` row is kwavers's scheduled GPU-parity run — a queued job GitHub expires for want of a self-hosted CUDA runner (`ATLAS-RUNNER-STARVATION-2026-09-02`, Ask-User), not this class. Landed through waves 1, 2a, 2b, 2c, 2d (deploy classification by file name; CRLF-tolerant anchors) plus atlas's own two workflows; the guard template no longer mints the class.
-
-- **Finding (2026-09-02, `scripts/atlas-red-workflows.py`):** kwavers `CI/CD Pipeline` and `Architecture Validation` (my #686 merge `0d0a9d45`), mnemosyne `CI` (`96c9ef6d`), apollo `pages-build-deployment` (`0bdbbe57`) all ended *cancelled* on `main`: their workflows share one concurrency group per ref with `cancel-in-progress: true`, and GitHub supersedes a *pending* run in a shared group regardless of that flag, so under runner starvation each merge cancels the previous merge's verification before a job starts. atlas had the same defect and fixed it in `db825504` + `f4c09631`: pull requests keep a per-ref group and cancellation; default-branch runs key the group on `github.sha`.
-- **Outcome:** one PR per member applying the atlas form to every workflow with a `push` trigger on the default branch and `cancel-in-progress: true` (`group: <name>-${{ github.event_name == 'pull_request' && github.ref || github.sha }}`, `cancel-in-progress: ${{ github.event_name == 'pull_request' }}`). Mechanization: conformance class `default_branch_cancel_in_progress` — a workflow with a default-branch `push` trigger whose `cancel-in-progress` is an unconditional `true` — so the class cannot recur.
-- **Mechanized (`9ca66f3c`):** conformance class `default_branch_cancel_in_progress`; baseline enters at 57 workflows across 26 repositories (hephaestus 6, kwavers 4, mnemosyne 4, coeus/eunomia/melinoe/moirai/ritk/themis 3, …). atlas's own two (`atlas-stack-overlay.yml`, `docs.yml`) closed in `99d50ceb7`. Campaign: one API-authored PR per member rewriting each offending workflow — verification workflows to the per-commit/PR-only form; deploy workflows (Pages, publish) to `cancel-in-progress: false`, since a half-cancelled deploy is worse than a superseded one.
-- **Wave 1 (2026-09-02, the members already showing cancelled verdicts):** kwavers#691 (4 verification), mnemosyne#106 (3 + book-pages deploy), apollo#274 (pages deploy), hephaestus#253 (5 + book-pages), coeus#356 (2 + book-pages). hephaestus#253 `97453c87`, apollo#274 `191a8205`, mnemosyne#106 `8d150b85`, coeus#356 `947de5a4` merged; kwavers#691 (rebased past #687) is blocked by an unrelated red — `Integration Suite`: `pstd_finite_window_born::source_phasing_is_frechet_derivative` demands a GPU adapter on a CPU runner, and `property_based_tests::test_grid_convergence` / `test_plane_wave_injection::…_timing` exceed the 60 s nextest bound — filed as kwavers rows in `ATLAS-DEFAULT-BRANCH-REDS-2026-09-02`; the concurrency form itself is proven on four members, so wave 2 proceeds. Remaining 37 workflows across 20 members follow in waves as these land, so the starved runner queue is not flooded.
-- **Wave 2a (2026-09-02):** eunomia#79 (3 verification), melinoe#26 (3), themis#42 (3 + book-pages), moirai#239 (rust-ci + python-ci verification, book-pages deploy), ritk#215 (ci + python_ci verification, book-pages deploy). The first pass classified ritk's and moirai's CI workflows as deploys on the word `maturin`; the classifier now reads the file name (`release|pages|publish|deploy`) and Pages-deploy actions only, and both branches were rebuilt in place. Remaining after 2a: 22 workflows across 15 members (aequitas, athena, CFDrs, consus, gaia, harmonia, helios, hermes, horae, hyperion, iris, leto, proteus, tyche; kwavers#691 blocked).
-- **Wave 2b (2026-09-02):** aequitas#45, athena#24, CFDrs#379, consus#63, gaia#39, harmonia#13, helios#82, hermes#135 (book-pages deploy only), hyperion#30, iris#24, leto#147, proteus#26, tyche#42 — 22 workflows; horae had nothing left to change. Finding: the dedicated guard workflow the ADR campaign minted carried the shared-group form itself, so the nine guard workflows merged this afternoon were new instances — wave 2b picked them up (aequitas#45 is exactly that file) and the template now emits the per-commit form. **Wave 2c:** the four guard PRs still open when 2b ran (consus#62, helios#81, horae#31, asclepius#32) re-run through the fixer after they land. kwavers#691 remains blocked on its integration-suite red.
-- **Landed (2026-09-02):** wave 2a — melinoe#26 `ebdf3f92`, themis#42 `89ad5b0f`, eunomia#79 `56b947dc`, Moirai#239 `a9de74e6`, ritk#215 `4a1b3e8e`. Wave 2b so far — aequitas#45 `308a83fe`, athena#24 `d87312f1`, CFDrs#379 `aab1f22a`, harmonia#13 `f0f63566`, gaia#39 `3cb8aa34`, hyperion#30 `9ee8015b`, leto#147 `ef0933dd`, proteus#26 `7fc8a935`, iris#24 `8db07d08`. Wave 2c: asclepius#34 (its guard workflow, old template); consus#63 rebuilt in place to carry consus's guard workflow too. horae#32 `468a9001` fixed the book-test link directory, horae#31 rebased onto it. Wave 2b final: eleven of thirteen landed (hermes#135, tyche#42 among them); helios#82 waits with helios#81 on helios#83's identity gate; consus#63 (rebuilt to carry its guard workflow) waits on consus's 81-check matrix. Wave 2c: asclepius#34 `3ca8cc1f` and horae#33 `d4844415` landed; helios follows #81. consus#63 `da9cf302` landed (83 checks); helios#82 `dbfcd37d` landed after #83 (the merge retried once — #81 had moved the base seconds before). Every member now carries the per-commit form on its default-branch workflows except helios's guard workflow, whose fix is helios#84 (rebuilds after helios#85). Wave 2d: six members' CRLF `book-pages.yml` had been flagged and skipped (the fixer's line anchors lacked ` Wave 2d landed: aequitas#47 `2d6a4a87`, horae#35 `28a13302`, melinoe#28 `e3ca88ec`, eunomia#81 `01b75e04`, asclepius#36 `d590f360`; kwavers#691 `9783d8cb` landed too (its integration suite passed this run — the GPU-adapter and 60 s-budget failures are nondeterministic, the kwavers row stands). athena#26 `ef94f385` landed on its re-run. Class at `origin`: 0. Collector oracle met: the only `cancelled` default-branch row left is kwavers's scheduled GPU-parity run (runner starvation, not this class).
-?`) — aequitas#47, athena#26, eunomia#81, horae#35, melinoe#28, asclepius#36 set `cancel-in-progress: false` (deploys queue); kwavers#691 rebuilt to carry its guard workflow too. helios#84 `1f4fc5f9` landed.
-- **Acceptance oracle:** the collector reports no `cancelled` default-branch row that a later run on the same tree did not supersede green; the conformance class reads 0 stack-wide.
 
 ## ATLAS-DEFAULT-BRANCH-REDS-2026-09-02 — Member default-branch workflows red with no collector [patch] — todo
 
@@ -146,76 +84,6 @@
 
 - **Revision (2026-09-02):** gaia `Examples` dropped — that workflow no longer exists on `main`; the collector now reports active workflows only (`9235e47d`). mnemosyne `Fuzz` added.
 - **Acceptance oracle:** `scripts/atlas-red-workflows.py` reports no member rows (atlas's own cancelled rows are the concurrency finding above, tracked there).
-
-## ATLAS-APOLLO-LANEKERNEL-INLINE-CONTRACT-2026-08-31 — Three large `LaneKernel::call` bodies do not carry the attribute their contract requires [patch] [perf] — done 2026-09-02 (apollo PR #277, merged `d649d8657`)
-
-- **The contract.** hermes `HS-VECTORIZE-LARGE-KERNEL-2026-08-28` documents a
-  measured ~30x failure: the `#[runtime_dispatch]` expansion's
-  `#[target_feature]` helper is the only feature-carrying frame, and a large
-  kernel body makes LLVM decline to inline the helper into it. The body then
-  codegens in the unattributed inner symbol at baseline — zero FMA, per-operation
-  feature detection. hermes fixed its half and states the consumer half in
-  `LaneKernel`'s docs: **mark large `call` bodies `#[inline(always)]`**, the
-  same contract pulp documents for `WithSimd::with_simd`.
-- **Unmet at three production sites in apollo-fft** (body sizes measured by
-  brace-matching from the `fn call` line):
-
-  | site | body lines | `#[inline(always)]` |
-  |---|---|---|
-  | `batched/mod.rs:106` (`BatchedStages`) | 219 | **no** |
-  | `batched/dif.rs:60` (`BatchedStagesDif`) | 189 | **no** |
-  | `batched/interleaved.rs:163` (`InterleavedStages`) | 111 | **no** |
-
-  For contrast, the sites that do carry it — `batched/boundary.rs` (both),
-  `resident/{mod,planar}.rs` — carry it with an `#[expect(clippy::inline_always)]`
-  whose reason cites this very contract, so the obligation is understood in the
-  crate; these three were missed. `interleaved.rs:93` (21 lines) and
-  `lane_capability.rs` (3 lines) are small enough not to need it.
-- **Not yet known to be live.** The four-step sizes do not currently look 30x
-  slow, so LLVM may be inlining these anyway at present body sizes and
-  optimization settings — which is exactly the fragility the attribute exists to
-  remove, since nothing holds that in place across an edit.
-- **Verification method** (blocked on tree capacity, not on knowledge): add the
-  attribute in a lane, measure the four-step sizes before and after with an
-  interleaved probe, and inspect codegen for FMA in the affected symbols. If the
-  delta is zero the attribute is still correct — it converts a silent
-  size-dependent cliff into a guarantee.
-- **Blocked 2026-08-31:** apollo is at its two-tree bound with both trees held by
-  live peers (`perf/apollo-batched-parallel` in the main tree, editing
-  `batched/mod.rs` and `batched/dif.rs` directly; `perf/apollo-base-line` in the
-  lane). Two of the three sites are inside the live lease. **Re-open trigger:**
-  either peer's lease discharges.
-- **Worth mechanizing.** A source scan asserting that every `LaneKernel::call`
-  body above a line threshold carries `#[inline(always)]` would make this class
-  impossible to reintroduce. It is the same shape as the existing conformance
-  ratchet, and the defect it guards has already cost 30x once.
-- **Mechanized 2026-09-01** — delivered as the Atlas conformance class
-  `lane_kernel_uninlined` (`scripts/atlas-conformance.py`). The detector
-  counts `LaneKernel::call` bodies above 100 lines that lack
-  `#[inline(always)]`, measured by brace-match, and the baseline records the
-  true census: apollo = 3 (the `batched/mod.rs:106`, `batched/dif.rs:60`,
-  `batched/interleaved.rs:163` sites named above); every other member 0. Three
-  regression tests cover the large-uninlined / large-inlined / small-uninlined
-  cases; the full scripts suite is green. This closes the "worth mechanizing"
-  half — the class cannot now be reintroduced without a ratchet raise. The
-  source fix itself (adding the attribute at the three apollo sites) remains
-  blocked on the apollo two-tree lease and is tracked separately.
-- **Delivered 2026-09-02 (apollo PR #277).** The peer leases that blocked
-  the source fix went stale (`perf/apollo-batched-parallel` last commit 17 h,
-  no PR; the lane is gone), so the three sites took the attribute with the
-  same `#[expect(clippy::inline_always)]` reason the boundary kernels carry.
-  Batched pinned ladder, interleaved before/after, two rounds, matched
-  binaries: every efficiency-core size within ±1.4%, performance-core sizes
-  inside the same binary's round-to-round spread (up to 14%). No measurable
-  change — LLVM was already inlining at present body sizes, the fragility
-  the attribute removes. Codegen (`llvm-objdump --demangle` over both
-  matched binaries): neither binary carries a standalone symbol for any
-  `BatchedStages`/`InterleavedStages` `call` body — the bodies were already
-  folded into their dispatcher frames before the attribute, which is what
-  the ladder parity shows; the attribute makes that fold a guarantee
-  instead of an optimizer outcome. The `lane_kernel_uninlined`
-  baseline (apollo = 3) tightens to 0 at the gitlink advance after merge.
-
 
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — shared workflow delivered; member adoption pending
 
@@ -8087,159 +7955,6 @@ CFDrs PR #316 squash-merged as `5ac713b3` (origin/main).
   per `concurrent_agents` disjoint-scope primitive. Next wake triggers
   documented at each rejected-advance entry above.
 
-## ATLAS-GITLINK-COHERENCE-DEFECT-1 — Meta-coordinator audit: 8 atlas-meta gitlink pins target commits NOT on per-member origin/main [patch] [arch] — done 2026-09-02
-
-- **Done:** `tools/gitlink-coherence audit` on 2026-09-02: 25 gitlinks probed, 0 defects, 0 stale-advanceable, 25 clean — every atlas pin sits on its member's `origin/<default>`; the pointer sweeps run at each collection keep it so, and the version-guard sweep (green again since `45b2db92`) checks coherence on every push.
-
-- Owner: Atlas-Codex (atlas-meta coordinator — coordinator-scope
-  risk-artifact recording; no member-repo source touched); last-update:
-  2026-07-24; scope: this `backlog.md` risk entry only.
-  Coordinator-scope per `interaction_policy` — Change delivery through
-  merge on allowlisted repos is the standing grant; this entry records
-  the defect without mutating any `.gitmodules` gitlink or any
-  member-repo source tree. Per `concurrent_agents` assist-ladder this
-  is the coordinator-safe path: peer-Codex/peer-coeus/peer-kwavers
-  own the publishing-on-origin actions; coordinator publishes evidence.
-- Outcome: surfaced a systemic gitlink-coherence defect across the
-  atlas-meta `origin/main` head `b18cdb4f03b2e65e8be87b6dc51df24e2b1643c3`.
-  Audit pattern: for each submodule `repos/<R>`, verify pinned SHA is
-  ancestral to that member's `origin/main` (`git --git-dir=... --work-tree=...
-  merge-base --is-ancestor <pin> origin/main`). A negative result is a
-  coherence defect: consumers cloning atlas-meta and initializing
-  submodules receive a SHA that the member repo's origin/main never
-  contained, breaking ADR 0020's gitlink-advance contract ("verified
-  peer commits pushed to origin/main").
-- Defect inventory (8 pins, ordered by defect-introduction commit on
-  atlas-meta origin/main):
-
-  | # | Member repo  | Atlas-meta commit | Pin SHA    | Member origin/main | Defect category | Status |
-  |---|--------------|-------------------|------------|--------------------|-----------------|--------|
-  | 1 | `repos/coeus`        | `dc7459a` (prior session) → `dff78e7` (re-affirmed) | `c711dcb4` | `a6dfb2d` | A — peer ahead of origin on feature branch | open |
-  | 2 | `repos/leto`          | `c147d91` | `c6ced81e` | `687b6707` | C — pin on local feature branch only | open |
-  | 3 | `repos/moirai`        | `6b97938` | `f74aa480` | `b613dc3d` | A — peer local main 1 ahead of origin | **closed** (Session 23: peer-moirai published +(Session 22 advance `0979371` re-pointed atlas-meta gitlink to peer-published `2c14b94f`; verifier: `merge-base --is-ancestor 2c14b94f origin/main`) |
-  | 4 | `repos/apollo`        | `63528a5` | `82e67c8f` | `8fb3e4ad` | A — peer local main 2 ahead of origin | open |
-  | 5 | `repos/kwavers`       | `7720163...` (pre-Session 20 state) | `07f60733` | `c19134ec` | B — pin on origin feature branch (PR #325 DIRTY), not on origin/main | open |
-  | 6 | `repos/hephaestus`    | `b18cdb4` (origin HEAD) | `599ff79a` | (no `main` on remote at all) | B — pin on origin feature branch diverged from missing main | open |
-  | 7 | `repos/mnemosyne`     | `7baa847` | `6a4bad71` | `c10e510d` | A — peer local main 1 ahead of origin | open |
-  | 8 | `repos/consus`        | (earlier) | `eae5676c` | `3137c4b8` | A — peer local main 1 ahead of origin | open |
-  | 9 | `repos/asclepius`     | `c2227aa` (Session 23) | `47e73d1e` | `f1b6a8ff` | A — coordinator-authored advance to peer's local-only main | open |
-
-- Recovery action matrix (per-Defect category — coordinator does NOT
-  execute these; peers publish to their own origins and the
-  coordinator advances the atlas-meta gitlink ONLY after verification):
-
-  * **Category A** (peer local main ahead of origin/main; simple
-    `git push origin main` on the member repo recovers → then
-    atlas-meta gitlink becomes valid): coeus (peer operating on
-    `atlas/mnemosyne-0.6-compat` feature branch — 18 unpublished
-    commits — NOT a fast-forward candidate; require peer-coeus to
-    merge their feature branch to coeus origin/main first),
-    mnemosyne (1 commit `6a4bad7`), apollo (2 commits),
-    moirai (1 commit), consus (1 commit).
-  * **Category B** (pin on remote feature branch but origin/main
-    diverged or absent — needs peer to open/merge/rebase PR): kwavers
-    (peer PR #325 DIRTY against newer origin/main — requires rebasing
-    the branch onto `origin/main` or closing/abandoning the PR),
-    hephaestus (peer PR not known — requires peer-pusher to rebase
-    `codex/hephaestus-rocm-sparse-next` onto a (currently absent)
-    origin/main or create `main` first by merging the branch).
-  * **Category C** (pin on peer's LOCAL feature branch only, no remote
-    branch — needs peer to push the branch and open a PR): leto
-    (`codex/leto-real-sparse-lu` is local-only — peer-leto must push
-    the branch to origin, open PR, merge to origin/main).
-
-- Correction cross-links (per-Defect category reclassification of prior
-  `done` entries whose gitlinks are the defects above):
-
-  * `ATLAS-COEUS-DIRTY-RECONCILE-1` at line 3041 (parent commit
-    `dff78e7`) — claims `done` but the pinned coeus HEAD
-    `c711dcb4` is NOT on coeus `origin/main` as of this audit.
-    Status correction: `done (with coherence defect 1, see
-    ATLAS-GITLINK-COHERENCE-DEFECT-1)`.
-  * `ATLAS-LETO-GITLINK-ADVANCE-1` at line 3233 (parent commit
-    `c147d91`) — claims `done` but pinned `c6ced81e` is on local
-    branch `codex/leto-real-sparse-lu` only, no remote branch.
-    Status correction: `done (with coherence defect 2, see
-    ATLAS-GITLINK-COHERENCE-DEFECT-1)`.
-  * `ATLAS-MOIRAI-GITLINK-ADVANCE-1` at line 3269 (parent commit
-    `6b97938`) — claims `done` but pinned `f74aa480` is on peer's
-    local main 1 commit ahead of `origin/main`. Status correction:
-    `done (with coherence defect 3, see
-    ATLAS-GITLINK-COHERENCE-DEFECT-1)`.
-  * `ATLAS-APOLLO-GITLINK-ADVANCE-1` at line 3310 (parent commit
-    `63528a5`) — claims `done` but pinned `82e67c8f` is on peer's
-    local main 2 commits ahead of `origin/main`. Status correction:
-    `done (with coherence defect 4, see
-    ATLAS-GITLINK-COHERENCE-DEFECT-1)`.
-  * `ATLAS-HEPHAESTUS-GITLINK-ADVANCE-1` at line 3362 (parent commit
-    `4c49783`) — claims `done` but a follow-up advance at parent
-    `b18cdb4` (NOT recorded in a ledger entry on origin/main; the
-    ledger entry for that advance was lost in the discarded local
-    `c6ac87f` docs commit during this Session 21 recovery) pinned
-    `599ff79a` on `origin/codex/hephaestus-rocm-sparse-next`, with
-    no `origin/main`.Exists to ancestral-check against. Status
-    correction: add cross-link noting defect 6.
-
-- Recovery closure protocol (when each Defect recovers): peer publishes
-  the pinned SHA to their member-repo `origin/main` (via their own
-  `git push origin main`, branch merge-PR, or branch rebase-PR per
-  category); coordinator then re-runs the
-  `merge-base --is-ancestor <pin> origin/main` check; on a positive
-  result the defect sub-row moves to `closed (verifier: basher
-  merge-base <sha> <origin-main>)`; the parent commit's gitlink is
-  already correct (no `.gitmodules` mutation needed); only the ledger
-  entry's status correction flips back to `done (clean)`.
-
-- Sister cross-links:
-  * `ATLAS-COEUS-DIRTY-RECONCILE-1` [done (with coherence defect 1)]
-    at parent commit `dff78e7`.
-  * `ATLAS-LETO-GITLINK-ADVANCE-1` [done (with coherence defect 2)]
-    at parent commit `c147d91`.
-  * `ATLAS-MOIRAI-GITLINK-ADVANCE-1` [done (with coherence defect 3)]
-    at parent commit `6b97938`.
-  * `ATLAS-APOLLO-GITLINK-ADVANCE-1` [done (with coherence defect 4)]
-    at parent commit `63528a5`.
-
-- Risk/change class: [patch] [arch] — ledger-only commit. The risk is
-  architectural: the atlas-meta `origin/main` HEAD is a state that no
-  fresh clone can reproduce into a working tree, because submodule
-  initialization pulls SHAs not on member origins. Each defect's blast
-  radius is bounded by the consumers of that specific member crate
-  (e.g. `kwavers` consumers in `repos/kwavers` source; `coeus`
-  consumers throughout the stack). The defect is quietly hidden for
-  agents already initialized (whose local `repos/<R>` working trees
-  already have the SHA physically checked out), but breaks any fresh
-  clone, CI checkout from origin, or `git submodule update --remote`.
-
-- Dependencies: recovers when each of the 8 peer-publishing actions
-  per the recovery action matrix completes. No coordinator scope to
-  accelerate; only peers have authority to push to their member repos.
-
-- Evidence limit: basher-verified `git --git-dir=repos/<R>/.git
-  merge-base --is-ancestor <pin> origin/main` for each of the 8
-  defect rows, run during this Session 21 audit. Verification time:
-  2026-07-24 16:24 -0400 (+/-3 min). No perf claim; no type-check
-  oracle; no production-code delta.
-
-- Discovered-by: Session 21 fresh-origin-sync-and-audit; origin sync
-  (per `concurrent_agents`) revealed diverged atlas-meta main and
-  mandated this audit before any further gitlink mutation.
-- Mechanization follow-up filed as
-  `ATLAS-GITLINK-COHERENCE-DEFECT-1-AUDIT-TOOL-1` [patch] [arch]
-  (`todo`): a coordinator-owned `tools/gitlink-coherence/` sister
-  tool that mechanizes this audit pattern (per `operation`
-  toil-automation policy — the manual audit sequence has now run
-  twice, is drift-prone and error-prone, and has clear positive
-  maintenance value at PR-time). Tech preview: read `.gitmodules`,
-  enumerate submodule entries, run
-  `git --git-dir=... --work-tree=... merge-base --is-ancestor
-  <pin> origin/main` per repo, emit JSON/markdown/human output
-  with defect categorization, exit 0 on clean / 1 on defects / 2 on
-  invocation error. Zero external deps (mirror
-  `tools/criterion-regression` `Cargo.toml` template sans
-  `serde`/`serde_json` if a single-pass tool suffices, or
-  re-include `serde` if JSON output is desired).
-
 ## Atlas round-3..5 closure progress (2026-07-27)
 
 - **Round-3** (precision catalog aggregator): `scripts/atlas-path-dep-audit2-closure-r3.py` — extracted per-consumer
@@ -9415,15 +9130,6 @@ increment; for the second it could not run — an in-flight `gaia` change remove
 the `cfdrs-integration` feature cfd-2d depends on, breaking resolution for
 unrelated reasons. **Re-run clippy on cfd-2d once gaia settles.**
 
-## ATLAS-ADR-GOVERNANCE-001 — Retrofit ADR indexes, statuses, and records [patch] — done 2026-09-02
-
-- **Done (closed by `ATLAS-ADR-INDEX-GUARD-2026-09-01` and `ATLAS-ADR-FORM-NORMALIZATION-2026-09-02`):** every member with ADRs (24) carries a generated `docs/adr/README.md` byte-identical to the one generator's output, run strict in that member's CI through `adr-index-guard.yml` at one atlas pin; headings are canonical, numbers agree with filenames (no duplicates survive the strict check), statuses are canonical; the freshness check is the guard job itself. Oracle run 2026-09-02: 24/24 exact and strict.
-
-- Policy: AGENTS.md context_and_memory "ADR governance". Census 2026-07-27: 312 ADRs across the meta repo + 20 members; indexes exist in 3 of 21 (meta, ritk, iris); 7 duplicate numbers (kwavers x2, coeus x3, leto, hermes); 104 ADRs without a Status line; casing drift (Accepted vs accepted) plus a non-canonical "investigated"; supersession links on 4 of 312.
-- Scope per repo: (1) generate `docs/adr/README.md` indexes (number, title, status) — mechanize as a committed script deriving the index from ADR headers (toil automation; hand-maintained indexes rot), wired into CI as a regenerate-and-diff freshness check like the overlay; (2) normalize statuses to the canonical set with exact casing, adding Status lines where absent (default: Accepted for implemented decisions, verified against the code); (3) resolve the 7 numbering collisions by renumbering the later ADR and updating its citations; (4) merge audit (rewrite-in-place model per revised ADR governance): where a later ADR replaced an earlier decision, merge into one current record carrying a dated revision note and delete the stale file — git is the archive; canonical statuses are Proposed/Accepted/Rejected; (5) verify board items citing ADRs and ADRs citing items resolve (bidirectional linkage).
-- Acceptance: every ADR directory carries a current generated index; zero duplicate numbers; every ADR has a canonical status; the freshness check is green in CI; a spot-check of decision recall (pick three active items, confirm governing ADRs discoverable from the index in one step) passes.
-- Update 2026-07-27: `scripts/adr-index.py` landed (generate/check per the generator contract, parsing both inline `Status:` and MADR `## Status` conventions); generated indexes committed and pushed to all 20 member repos plus meta; check mode green and idempotent. The 290-line anomaly report is the burn-down census: 7 numbering collisions itemized with file pairs (coeus 0021 x3-way + 0025, hermes 007, kwavers 037 + 040, leto 0011), missing/non-canonical statuses per repo. Remaining judgment work: status verification against code, collision renumbering with citation updates, the merge audit, content conformance, and per-repo backfill inventories for canonical seams lacking any ADR.
-
 ## ATLAS-CODE-INDEX-001 — Search-ladder infrastructure for context economy [patch] — in-progress
 
 - Owner: opencode-2026-08-05; scope: the atlas meta-repo and its `repos/*` members
@@ -10567,67 +10273,6 @@ hephaestus `codex/hephaestus-fdtd-107`, hermes `codex/hermes-orphan-closure`.
 These are visible on their remotes, so they are not at risk; triaging whether
 each is in-flight or abandoned needs their owners or a PR check, not a takeover.
 
-## ATLAS-KWAVERS-LANE-SPRAWL-104 — five worktrees on one repo [patch] — done 2026-09-02
-
-- **Done:** verified 2026-09-02 against the oracle — `repos/kwavers` holds one working tree and `git stash list` is empty; the lanes and the eleven stashes were closed by their owners' later sessions (the tables below are the historical finding).
-
-`repos/kwavers` carries five working trees against the two-tree bound
-(main plus one lane):
-
-| tree | branch |
-| --- | --- |
-| `repos/kwavers` (main tree) | `build/adopt-aequitas-degree` |
-| `worktrees/kwavers-format` | `feat/kwavers-sonoluminescence` |
-| `worktrees/kwavers-fwi-asm-split-step` | `feat/kwavers-fwi-asm-split-step` |
-| `worktrees/kwavers-gpu-honest` | `feat/d3-consolidate-speckle-tracking` |
-| `worktrees/kwavers-qus-attenuation` | `feat/qus-attenuation-b2` |
-
-Two are named for work they no longer hold (`kwavers-format` holds
-sonoluminescence, `kwavers-gpu-honest` holds the D3 speckle-tracking seam that
-merged as PR #409), which is the tell that lanes are being re-pointed without
-being closed. Each lane is a full checkout of a large workspace.
-
-**Fix.** Sweep per the lane lifecycle: for each, determine whether its branch is
-merged, live, or stale (branch tip time plus board claim), close the merged and
-stale ones with `git worktree remove`, and keep at most one. Not a blind
-deletion — a lane holding unpushed commits or uncommitted work is rescued first
-(ATLAS-RITK-D2-STRANDED-100 is what that looks like when it is not).
-
-**Stashes: eleven, not two, and now pinned (2026-08-20).** The earlier note said
-two; that came from a truncated listing. `git stash list` in `repos/kwavers`
-shows eleven entries, 2 to 11 days old:
-
-| stash | files | message |
-| --- | --- | --- |
-| 0 | 4 | README Quick Start + example off LendingIterator |
-| 1 | 40 | `kwavers-stranded-2` |
-| 2 | 7 | `pre-gitlink-advance-dirt` |
-| 3, 4 | 1 each | `main-cargolock`, `temp-cargolock` |
-| 5, 6 | 1 each | kwavers-optics branch preservation |
-| 7 | 1 | xtask NumPy facade audit |
-| 8 | 0 | empty |
-| 9 | 27 | atlas-migration-context |
-| 10 | 144 | atlas-migration-push-context |
-
-**Action taken — non-destructive.** Every non-empty stash is pinned to
-`refs/rescue/stash-<n>-<slug>` and pushed, so the content survives `git stash
-clear`, gc, or a tree reset, and is visible to peers instead of living in one
-machine's stash list. Nothing was dropped: dropping a stash is irreversible loss
-of uncommitted work, which is not mine to decide.
-
-**What the evidence does not show.** Comparing each stash's blobs against
-`origin/main` gives 8 of 10 "differs", but that is close to meaningless as a
-uniqueness signal — an 11-day-old stash differs because main moved on, not
-because its intent is undelivered. Classifying these needs per-stash judgment
-(is the change already landed under a different shape?), which the message
-alone cannot settle. Recorded so the next pass does not mistake drift for value.
-
-Four are almost certainly disposable by their own names — `main-cargolock`,
-`temp-cargolock`, `pre-gitlink-advance-dirt`, and the empty one — being lockfile
-and dirt parking rather than work. The three large ones (1, 9, 10) look like real
-migration work and want their author.
-
-- **ATLAS-FWI-PSTD-BLI-106** Extend the PSTD projections to band-limited stencils [minor] (2026-08-23; kwavers PR #612, merge `f98acb01b`) — `f6cc385d8`, `f98acb01b`
 ## ATLAS-ADR-UNTRACKED-105 — completed ADRs left untracked [patch] — in progress 2026-08-19 (kwavers closed; coeus + hephaestus open)
 
 `kwavers/docs/adr/112-convex-array-rasterizer-seam.md` is complete (110 lines,
@@ -11378,3 +11023,11 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-LETO-OWNED-LU-001** cfd-math consumes an unlanded Leto LU surface [major] (2026-08-25) — `5ebbf1f8`, `63e49604`, `58f6caab`
 - **ATLAS-NSFVM-SOR-CONVERGENCE-001** Micro-geometry SIMPLEC continuity stagnation [major] (2026-08-25) — `5ebbf1f8`
 - **ATLAS-OUTPUT-RETENTION-001** Retention budget for the output root [pm-hygiene] [patch] (2026-09-01) — `687e303e0`
+
+- **ATLAS-ADR-FORM-NORMALIZATION-2026-09-02** Twelve members' ADRs lack the canonical heading or status form [patch] (2026-09-02) — `191617bf`, `85a184cc`, `2dc1c5d1`, `fd48f92c`
+- **ATLAS-MSRV-JOBS-OVERRIDDEN-2026-09-02** Seven members' MSRV jobs compile with the pinned 1.97.0, not the floor they claim [patch] (2026-09-02) — `0f341377`, `4cda84d5`, `dda137ab`, `652708b0`
+- **ATLAS-DEFAULT-BRANCH-CANCEL-2026-09-02** Default-branch verification runs cancel each other fleet-wide [patch] (2026-09-02) — `0d0a9d45`, `96c9ef6d`, `0bdbbe57`, `db825504`
+- **ATLAS-APOLLO-LANEKERNEL-INLINE-CONTRACT-2026-08-31** Three large `LaneKernel::call` bodies do not carry the attribute their contract requires [patch] [perf] (2026-09-02) — `d649d8657`
+- **ATLAS-GITLINK-COHERENCE-DEFECT-1** Meta-coordinator audit: 8 atlas-meta gitlink pins target commits NOT on per-member origin/main [patch] [arch] (2026-09-02) — `45b2db92`, `b18cdb4f03b2e65e8be87b6dc51df24e2b1643c3`, `dc7459a`, `dff78e7`
+- **ATLAS-ADR-GOVERNANCE-001** Retrofit ADR indexes, statuses, and records [patch] (2026-09-02)
+- **ATLAS-KWAVERS-LANE-SPRAWL-104** five worktrees on one repo [patch] (2026-09-02) — `f98acb01b`, `f6cc385d8`
