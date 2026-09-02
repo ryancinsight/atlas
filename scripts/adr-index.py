@@ -40,6 +40,11 @@ STATUS_HEADING_RE = re.compile(r"^##\s*Status\s*\n+\s*([A-Za-z][^\n]*?)\s*$", re
 TITLE_RE = re.compile(
     r"^#\s+(?:ADR[- ]?\d+\s*(?:[:\-]|–|—)\s*)?(.+?)\s*$", re.MULTILINE
 )
+# A heading may also carry its own number bare: `NNNN — Title`, `NNNN - Title`,
+# `NNN. Title`. The index has a number column, so the title must not repeat
+# it — but only the ADR's own number is stripped (see strip_own_number), so a
+# title that merely begins with digits, like `1-D interpolation`, stays whole.
+OWN_NUMBER_SEPARATOR = re.compile(r"^(?P<number>\d+)\s*(?:[.\-]|–|—)\s+")
 NUMBER_RE = re.compile(r"^(\d+)")
 # The canonical heading forms ADR governance names; `--strict` requires one
 # and requires its number to match the filename's.
@@ -84,6 +89,15 @@ def status_base(status: str) -> str:
     return status.split("-", 1)[0].split(" ", 1)[0].strip("*` ").strip()
 
 
+def strip_own_number(title: str, number: str) -> str:
+    """Drop a leading `<number> —`/`-`/`.` from the title when it is this ADR's
+    own filename number; any other leading digits belong to the title."""
+    match = OWN_NUMBER_SEPARATOR.match(title)
+    if match and number != "—" and match.group("number") == number:
+        return title[match.end():]
+    return title
+
+
 def parse_adr(path: Path) -> tuple[str, str, str]:
     """Return (number, title, status) as recorded, without correcting them."""
     number_match = NUMBER_RE.match(path.name)
@@ -94,6 +108,7 @@ def parse_adr(path: Path) -> tuple[str, str, str]:
         return number, path.stem, "—"
     title_match = TITLE_RE.search(head)
     title = title_match.group(1) if title_match else path.stem
+    title = strip_own_number(title, number)
     status_match = (
         STATUS_RE.search(head)
         or STATUS_BOLD_RE.search(head)

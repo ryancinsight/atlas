@@ -79,6 +79,40 @@ class StrictModeTests(unittest.TestCase):
         self.assertEqual(anomalies, [])
 
 
+class TitleRenderingTests(unittest.TestCase):
+    """The index has a number column; the title column must not repeat the number,
+    whichever heading form carried it. Dash and dot forms once rendered as
+    `0037 — Title` and `106. Title`, which read as drift against the members'
+    own generators."""
+
+    def _title(self, name: str, heading: str) -> str:
+        with tempfile.TemporaryDirectory(prefix="atlas-adr-title-") as temp:
+            directory = Path(temp)
+            _write(directory, name, heading + "\n\n## Status\n\nAccepted\n")
+            content, _ = adr_index.build_index(directory)
+        row = [line for line in content.splitlines() if line.startswith("| [")][0]
+        return row.split(" | ")[1]
+
+    def test_colon_form_strips_the_number(self) -> None:
+        self.assertEqual(self._title("0001-a.md", "# ADR 0001: Colon form"), "Colon form")
+
+    def test_dash_form_strips_the_own_number(self) -> None:
+        self.assertEqual(self._title("0037-b.md", "# 0037 — Dash form"), "Dash form")
+
+    def test_dot_form_strips_the_own_number(self) -> None:
+        self.assertEqual(self._title("106-c.md", "# 106. Dot form"), "Dot form")
+
+    def test_a_bare_title_is_kept_whole(self) -> None:
+        self.assertEqual(
+            self._title("0003-d.md", "# 3D transforms are titles, not numbers"),
+            "3D transforms are titles, not numbers",
+        )
+
+    def test_leading_digits_that_are_not_the_own_number_are_title(self) -> None:
+        # `1-D` is a title, not a number prefix: the ADR's number is 0005.
+        self.assertEqual(self._title("0005-e.md", "# 1-D interpolation on a 2-D grid"), "1-D interpolation on a 2-D grid")
+
+
 class DirectoryOptionTests(unittest.TestCase):
     def test_directory_option_indexes_only_the_named_directory(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-adr-dir-") as temp:
