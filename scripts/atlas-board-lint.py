@@ -34,21 +34,27 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-# `## ATLAS-<ID> — <title> — <status>`; the em dash is the board's own
-# separator, and the title may itself contain one, so only the id is parsed.
-HEADING = re.compile(r"^##\s+(ATLAS-[A-Z0-9-]+?)\s+—\s+(.*)$")
-
-
 def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
-    """Map each duplicated id to its (line number, title) occurrences."""
+    """Map each duplicated id to its (line number, title) occurrences.
+
+    The duplicate-id gate must see every heading form the reference check
+    sees. `_defined_ids` treats a level-2 or level-3 heading as a definition
+    regardless of separator (the board carries em-dash, hyphen, and
+    mojibakeed separators), but this function once matched only the em-dash
+    level-2 form, so a duplicate id defined via a hyphen or level-3 heading
+    escaped the hard gate — the anchor ambiguity the gate exists to prevent.
+    Match the same broad heading surface as `_defined_ids`.
+    """
     seen: dict[str, list[tuple[int, str]]] = {}
     with path.open(encoding="utf-8", errors="replace") as fh:
         for lineno, line in enumerate(fh, 1):
-            m = HEADING.match(line.rstrip("\r\n"))
+            m = HEADING_ANY.match(line.rstrip("\r\n"))
             if not m:
                 continue
-            item_id, rest = m.group(1), m.group(2).strip()
-            seen.setdefault(item_id, []).append((lineno, rest))
+            # Trailing separators vary by era (em dash, hyphen, U+FFFD);
+            # the id ends at the first character outside [A-Z0-9-].
+            item_id = m.group(1).rstrip("-")
+            seen.setdefault(item_id, []).append((lineno, line.strip()))
     return {k: v for k, v in seen.items() if len(v) > 1}
 
 
@@ -57,9 +63,13 @@ def next_free(path: pathlib.Path, prefix: str) -> str:
     used = set()
     with path.open(encoding="utf-8", errors="replace") as fh:
         for line in fh:
-            m = HEADING.match(line.rstrip("\r\n"))
-            if m and m.group(1).startswith(prefix + "-"):
-                tail = m.group(1)[len(prefix) + 1:]
+            m = HEADING_ANY.match(line.rstrip("\r\n"))
+            if m:
+                item_id = m.group(1).rstrip("-")
+            else:
+                continue
+            if item_id.startswith(prefix + "-"):
+                tail = item_id[len(prefix) + 1:]
                 if tail.isdigit():
                     used.add(int(tail))
     n = 1
