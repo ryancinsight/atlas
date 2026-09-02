@@ -141,3 +141,78 @@ class ArchivePreservationTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LiveSectionRecordsTestCase(unittest.TestCase):
+    """Checkbox-bullet records under an open heading are prose, not items.
+
+    hermes keeps its measured-rejection records as `- [x]` bullets in full
+    under a live `## Legacy ...` heading. The collapse unit is the level-2
+    heading, so those bullets — done or open, with their continuation lines —
+    must survive a run byte-for-byte while a closed heading beside them is
+    archived.
+    """
+
+    LEGACY = textwrap.dedent(
+        """\
+        ## Legacy HS-4xx record — open items and measured limits
+
+        In full: the open measurement items and the rejected refactors.
+
+        - [x] [minor] **HS-437 — lane scratch buffers are sized to the workspace
+          maximum.** Closure evidence: release assembly shows no stack allocation
+          (`4af1b25`). Re-open only if a frame shows a non-zero `sub rsp`.
+
+        - [ ] [patch] **HS-441 — measure the AVX-512 tail.** Still open; needs
+          an AVX-512 host.
+        """
+    )
+
+    def _board(self) -> str:
+        return (
+            "# hermes — backlog\n\n"
+            "## HS-DONE-001 — a finished item [patch] — done 2026-09-01\n\n"
+            "- Delivered in `deadbee`.\n\n"
+            + self.LEGACY
+        )
+
+    def test_checkbox_records_under_a_live_heading_are_kept_verbatim(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-compact-") as root:
+            path = Path(root) / "backlog.md"
+            path.write_text(self._board(), encoding="utf-8")
+            _, _, archived = _compact.compact(path, ARCHIVE_HEADING)
+            text = path.read_text(encoding="utf-8")
+        self.assertEqual(archived, 1)
+        self.assertIn(self.LEGACY.rstrip("\n"), text)
+        self.assertIn("- **HS-DONE-001** a finished item [patch] (2026-09-01) — `deadbee`", text)
+        self.assertNotIn("## HS-DONE-001", text)
+
+    def test_second_run_changes_nothing(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-compact-") as root:
+            path = Path(root) / "backlog.md"
+            path.write_text(self._board(), encoding="utf-8")
+            _compact.compact(path, ARCHIVE_HEADING)
+            once = path.read_text(encoding="utf-8")
+            before, after, archived = _compact.compact(path, ARCHIVE_HEADING)
+            twice = path.read_text(encoding="utf-8")
+        self.assertEqual(once, twice)
+        self.assertEqual((before, archived), (after, 0))
+
+
+class RootArgumentTestCase(unittest.TestCase):
+    def test_root_argument_selects_another_repository(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-compact-") as root:
+            board = Path(root) / "backlog.md"
+            board.write_text(
+                "# member — backlog\n\n"
+                "## M-1 — closed [patch] — done 2026-09-02\n\n- `abc1234`\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(_compact.main([root]), 0)
+            text = board.read_text(encoding="utf-8")
+        self.assertIn(ARCHIVE_HEADING, text)
+        self.assertIn("- **M-1** closed [patch] (2026-09-02) — `abc1234`", text)
+
+    def test_missing_root_is_an_error(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-compact-") as root:
+            self.assertEqual(_compact.main([str(Path(root) / "absent")]), 2)

@@ -14,7 +14,13 @@ only when its heading carries an unambiguous closed marker, every commit SHA
 mentioned under the item is carried into the archive line, and anything it
 cannot classify is left untouched in the live board for a human to triage.
 
-Run from anywhere: paths anchor to this file's parent repository.
+Run from anywhere: paths anchor to this file's parent repository unless a
+root is given, so one compactor serves every member board in the stack.
+
+Checkbox-bullet records (`- [x] **ID — title.** ...`) inside a live section
+are part of that section's prose and stay verbatim: the collapse unit is the
+level-2 heading, never a bullet, so a board that keeps measured-rejection
+records in full under an open heading loses nothing.
 """
 from __future__ import annotations
 
@@ -162,23 +168,25 @@ def compact(path: Path, archive_heading: str) -> tuple[int, int, int]:
             out.extend(archived)
 
     path.write_text("\n".join(out) + "\n", encoding="utf-8")
-    new_archived = len(archived)
-    return before, len(out), new_archived
-
-    path.write_text("\n".join(out) + "\n", encoding="utf-8")
-    new_archived = len(archived)
-    return before, len(out), new_archived
+    return before, len(out), len(archived)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true",
                     help="report the counts without writing")
-    args = ap.parse_args()
+    ap.add_argument("root", nargs="?", type=Path, default=ROOT,
+                    help="repository root whose backlog.md/checklist.md to "
+                         "compact (default: the repository holding this script)")
+    args = ap.parse_args(argv)
+    root = args.root.resolve()
+    if not root.is_dir():
+        print(f"error: root is not a directory: {root}", file=sys.stderr)
+        return 2
 
     targets = [
-        (ROOT / "backlog.md", "## Archive — closed items"),
-        (ROOT / "checklist.md", "## Archive — closed checklists"),
+        (root / "backlog.md", "## Archive — closed items"),
+        (root / "checklist.md", "## Archive — closed checklists"),
     ]
     for path, heading in targets:
         if not path.is_file():
