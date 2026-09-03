@@ -105,11 +105,14 @@ def test_summarise_accurate_uses_job_sum() -> None:
         ]}, "5000"
 
     with mock.patch.object(_qr, "_get", side_effect=fake_get):
-        report = _qr.summarise("ryancinsight/x", runs, None, accurate=True)
+        report = _qr.summarise(
+            "ryancinsight/x", runs, None, accurate=True, refine_minimum_seconds=0
+        )
     # queue = 05:00 - 10:00 = 300 s = 5.0 min; work = 120 s = 2.0 min.
     assert report["queue_minutes_total"] == 5.0
     assert report["work_minutes_total"] == 2.0
-    assert report["work_minutes_method"] == "job-sum"
+    assert report["runs_refined"] == 1
+    assert report["work_minutes_upper_bound"] == 5.0, "wall time bounds job-sum from above"
 
 
 def test_summarise_run_wall_uses_updated_minus_started() -> None:
@@ -135,7 +138,9 @@ def test_summarise_skips_unstarted_runs() -> None:
         ]}, "5000"
 
     with mock.patch.object(_qr, "_get", side_effect=fake_get):
-        report = _qr.summarise("ryancinsight/x", runs, None, accurate=True)
+        report = _qr.summarise(
+            "ryancinsight/x", runs, None, accurate=True, refine_minimum_seconds=0
+        )
     # Only the started run contributes queue/work; runs count stays 2.
     assert report["runs"] == 2
     assert report["queue_minutes_total"] == 2.0
@@ -190,3 +195,42 @@ def test_prune_remote_artifacts_keeps_latest_plus_configured_ring() -> None:
 
     assert [artifact["id"] for artifact in stale] == [1]
     assert [call.args[0].rsplit("/", 1)[-1] for call in delete.call_args_list] == ["1"]
+
+
+def test_refinement_skips_short_runs_and_says_so() -> None:
+    # A short run has little overcount to recover, and querying its jobs is one
+    # API call. The default floor skips it, and the report says none was
+    # refined rather than implying a precision it did not pay for.
+    runs = [
+        _run(1, "2026-08-25T10:00:00Z", "2026-08-25T10:00:00Z", "2026-08-25T10:02:00Z"),
+    ]
+    with mock.patch.object(_qr, "_get", side_effect=AssertionError("no network")):
+        report = _qr.summarise("ryancinsight/x", runs, None, accurate=True)
+    assert report["runs_refined"] == 0
+    assert report["work_minutes_total"] == 2.0
+    assert "run-wall elsewhere" in report["work_minutes_method"]
+
+
+def test_refinement_budget_caps_the_api_calls_and_takes_the_longest() -> None:
+    # Twelve long runs, a budget of two: exactly two job queries, and they go
+    # to the two longest, where the recoverable overcount is largest.
+    runs = [
+        _run(i, "2026-08-25T10:00:00Z", "2026-08-25T10:00:00Z",
+             f"2026-08-25T{10 + (i + 1) // 4:02d}:{(i + 1) * 15 % 60:02d}:00Z")
+        for i in range(12)
+    ]
+    queried: list[str] = []
+
+    def fake_get(url, _token):  # noqa: ANN001, ANN202
+        queried.append(url)
+        return {"jobs": []}, "5000"
+
+    with mock.patch.object(_qr, "_get", side_effect=fake_get):
+        report = _qr.summarise(
+            "ryancinsight/x", runs, None, accurate=True, refine_budget=2
+        )
+    assert len(queried) == 2, queried
+    assert report["runs_refined"] == 2
+    longest = sorted(runs, key=lambda r: r["updated_at"], reverse=True)[:2]
+    for run in longest:
+        assert any(f"/runs/{run['id']}/jobs" in url for url in queried), run["id"]

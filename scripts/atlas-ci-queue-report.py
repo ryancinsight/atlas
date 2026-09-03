@@ -208,12 +208,36 @@ def collect_runs(repo: str, since: dt.datetime, per_page: int, token: str | None
     return runs
 
 
-def summarise(repo: str, runs: list[dict], token: str | None, accurate: bool) -> dict:
+def summarise(
+    repo: str,
+    runs: list[dict],
+    token: str | None,
+    accurate: bool,
+    refine_minimum_seconds: float = 1200.0,
+    refine_budget: int = 15,
+) -> dict:
+    """Aggregate one repository's runs into queue and work minutes.
+
+    `accurate` sums job durations rather than trusting run wall time, which
+    overcounts a run that hangs after its jobs finish. That costs one API call
+    per run, and across the fleet it is thousands of serial round trips — the
+    weekly job spent its whole 15-minute budget on them and never wrote a
+    report.
+
+    Wall time bounds job-sum from above (jobs run inside the run's span), so
+    the amount a refinement can recover from a run is at most that run's wall
+    time. The refinement therefore goes to the longest runs first, capped at
+    `refine_budget` per repository and skipping runs under
+    `refine_minimum_seconds` where there is little to recover. The result
+    carries both the refined figure and the all-wall total, so the reader sees
+    the bracket the number sits in.
+    """
     queue_seconds = 0.0
-    work_seconds = 0.0
+    wall_seconds = 0.0
     queued_runs = []
     events: dict[str, int] = {}
     conclusions: dict[str, int] = {}
+    timed: list[tuple[float, int]] = []
     for run in runs:
         created = _parse(run["created_at"])
         started = run.get("run_started_at")
@@ -226,14 +250,9 @@ def summarise(repo: str, runs: list[dict], token: str | None, accurate: bool) ->
         start = _parse(started)
         q = max((start - created).total_seconds(), 0.0)
         queue_seconds += q
-        if accurate:
-            # Run wall time overcounts: a GitHub-side hang after jobs finish
-            # (one observed MSRV run sat 24h past its 43s of work) bills none
-            # of it, and sequential job gaps bill nothing either. Summing job
-            # durations gives consumed runner-minutes.
-            work_seconds += _jobs_work_seconds(repo, run["id"], token)
-        else:
-            work_seconds += max((updated - start).total_seconds(), 0.0)
+        wall = max((updated - start).total_seconds(), 0.0)
+        wall_seconds += wall
+        timed.append((wall, run["id"]))
         if q >= 300:
             queued_runs.append(
                 {
@@ -245,12 +264,30 @@ def summarise(repo: str, runs: list[dict], token: str | None, accurate: bool) ->
                 }
             )
     queued_runs.sort(key=lambda item: item["queue_minutes"], reverse=True)
+
+    work_seconds = wall_seconds
+    refined = 0
+    if accurate:
+        # Longest first: wall time bounds job-sum from above, so a run's wall
+        # time is exactly how much a refinement could recover from it.
+        for wall, run_id in sorted(timed, reverse=True)[:refine_budget]:
+            if wall < refine_minimum_seconds:
+                break
+            work_seconds += _jobs_work_seconds(repo, run_id, token) - wall
+            refined += 1
+
     return {
         "repository": repo,
         "runs": len(runs),
         "queue_minutes_total": round(queue_seconds / 60, 1),
         "work_minutes_total": round(work_seconds / 60, 1),
-        "work_minutes_method": "job-sum" if accurate else "run-wall",
+        "work_minutes_upper_bound": round(wall_seconds / 60, 1),
+        "work_minutes_method": (
+            f"job-sum over the {refined} longest run(s), run-wall elsewhere"
+            if accurate
+            else "run-wall"
+        ),
+        "runs_refined": refined,
         "events": events,
         "conclusions": conclusions,
         "queued_over_5m": len(queued_runs),
@@ -289,6 +326,18 @@ def main() -> int:
         help="use run wall time instead of summing job durations (faster, overcounts hung runs)",
     )
     parser.add_argument(
+        "--refine-budget",
+        type=int,
+        default=15,
+        help="max runs per repository refined by summing job durations",
+    )
+    parser.add_argument(
+        "--refine-minimum-minutes",
+        type=float,
+        default=20.0,
+        help="skip refinement for runs shorter than this; little to recover",
+    )
+    parser.add_argument(
         "--prune-remote-artifacts",
         action="store_true",
         help="retain the latest CI report artifact plus the configured ring",
@@ -317,13 +366,22 @@ def main() -> int:
         except urllib.error.HTTPError as error:
             print(f"{repo}: HTTP {error.code}; skipped", file=sys.stderr)
             continue
-        report = summarise(repo, runs, token, accurate=not args.run_wall)
+        report = summarise(
+            repo,
+            runs,
+            token,
+            accurate=not args.run_wall,
+            refine_minimum_seconds=args.refine_minimum_minutes * 60,
+            refine_budget=args.refine_budget,
+        )
         reports.append(report)
         print(
             f"{repo.split('/', 1)[1]:12s} runs={report['runs']:4d} "
             f"queue={report['queue_minutes_total']:8.1f}m "
             f"work={report['work_minutes_total']:8.1f}m "
-            f">5m_queue={report['queued_over_5m']:3d}"
+            f">5m_queue={report['queued_over_5m']:3d} "
+            f"refined={report['runs_refined']:3d}",
+            flush=True,
         )
 
     total_q = sum(r["queue_minutes_total"] for r in reports)
