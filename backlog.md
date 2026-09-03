@@ -1,6 +1,12 @@
 # atlas — cross-repository integration backlog
 
-## ATLAS-BACKWARD-PIN-GUARD-2026-09-02 — The pin guard refuses branch-tip pins but not backward ones [patch] — todo <a id="backward-pin-guard"></a>
+## ATLAS-BACKWARD-PIN-GUARD-2026-09-02 — The pin guard refuses branch-tip pins but not backward ones [patch] — done 2026-09-02 (commit 99dc33fad) <a id="backward-pin-guard"></a>
+
+- **Fixed 2026-09-02 (pi session 01a06291):** the backward-pin predicate in
+  `.githooks/pre-commit` refuses a staged gitlink that is a proper ancestor of
+  the pin recorded at `HEAD`, naming both SHAs. Acceptance oracle verified:
+  backward → refused with both SHAs named; forward advance and unchanged entry
+  both pass.
 
 - **Finding, 2026-09-03.** The pre-commit hook added earlier today reads the
   *staged* gitlink and refuses a pin to a feature-branch tip. It does not
@@ -210,6 +216,25 @@
   bootstrap's MSYS2-UCRT environment makes the CUDA bindgen check pass; direct Cargo without that documented
   environment remains a caller setup error, not a missing library.
   **Delivery residual:** Hephaestus PR [#266](https://github.com/ryancinsight/hephaestus/pull/266) merged as `b0988107b795310dda416609e856864819925e0c`. Coeus PR [#363](https://github.com/ryancinsight/Coeus/pull/363) remains open with WGPU, CUDA, and Tests in progress; its repository-owned checks completed so far pass, while external `recurseml/analysis` reports an analyzer error. Root gitlink reconciliation remains pending the shared root index's peer-staged submodule pointers.
+- **Branch residue swept: 511 merged branches deleted, the generator closed.** Every one had its commits already on
+  its default branch, so the refs carried nothing — 182 in kwavers, 51 in ritk, 25 in hephaestus, and so on down to
+  two in gaia, mostly `ci/advance-atlas-pin`-class refs from earlier cascades. A further 23 unmerged branches turned
+  out to introduce no content difference against their default at all (`git diff <default>...<branch>` empty) — work
+  that landed by another route — and went with them. Twenty-six of the twenty-seven members already set
+  `delete_branch_on_merge`; atlas did not, and now does, so the class does not regrow.
+- **ATLAS-UNMERGED-BRANCH-TRIAGE-2026-09-03** [patch] status=todo
+  **Scope:** 517 unmerged branches across the fleet still carry a real content diff, so none can be swept mechanically:
+  CFDrs 205, kwavers 189, ritk 24, mnemosyne 9, report 5, and single digits elsewhere. Each either holds work worth
+  landing or was abandoned, and only reading the diff distinguishes them. **Method:** per repository, oldest first —
+  a branch whose tip predates its default by months and whose diff touches files since rewritten is abandoned; one
+  whose diff still applies is a takeover candidate under the stale-claim rule. **Acceptance:** every remaining branch
+  maps to an open item, an open pull request, or a recorded reason to keep it. **Non-goals:** deleting a branch whose
+  diff was never read. **Found:** 2026-09-03 by the merged-branch sweep above, which cleared the mechanical half.
+- **The three held releases are unblocked.** gaia, leto and ritk each failed their `Crates.io Release` run on
+  `cargo-semver-checks` before the bumps: gaia on `constructible_struct_adds_field`, the others likewise. Re-run
+  locally against the published baselines at the new versions, all three report **no semver update required** —
+  gaia-mesh 0.4.0 → 0.5.0, leto 0.42.0 → 0.43.0, ritk-filter 0.3.0 → 0.4.0. Publishing itself is not authorized here
+  and was not attempted; the gate that held them no longer does.
 - **Two build-cache forks and a worktree over the bound, all local.** `repos/mnemosyne/target-standalone` (85 MB) was
   stale and is deleted; `repos/coeus/target` (4.7 GB) is the same defect but was written to minutes ago, so it is
   recorded rather than removed — the stack builds through one shared `CARGO_TARGET_DIR` and a repo-local `target/`
@@ -11193,5 +11218,3 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-GITLINK-COHERENCE-DEFECT-1** Meta-coordinator audit: 8 atlas-meta gitlink pins target commits NOT on per-member origin/main [patch] [arch] (2026-09-02) — `45b2db92`, `b18cdb4f03b2e65e8be87b6dc51df24e2b1643c3`, `dc7459a`, `dff78e7`
 - **ATLAS-ADR-GOVERNANCE-001** Retrofit ADR indexes, statuses, and records [patch] (2026-09-02)
 - **ATLAS-KWAVERS-LANE-SPRAWL-104** five worktrees on one repo [patch] (2026-09-02) — `f98acb01b`, `f6cc385d8`
-
-- **ATLAS-CFDRS-EXIST-ONLY-BURN-2026-09-03** CFDrs existence-only assertion burn, batch 1 [patch] (2026-09-03) — `8f088bce`, `440556ba7`, `30718f6b9`. CFDrs#387 converted the 33 sites in the six largest `existence_only_assertion` files to value/structured-error contracts: cfd-2d energy solver (14, `solve_explicit` results now assert success with context; zero-mu dissipation asserts Phi == 0 exactly), cfd-2d Reynolds-stress (6, dissipation-tensor isotropy value contracts now always run instead of being silently skipped by if-let), cfd-validation benchmark/suite (8, regression alerts must name the benchmark and carry a positive degradation rate), cfd-math ILU (4, non-square rejection must be `InvalidInput` naming the 2x3 shape), cfd-1d component factory (3, exact `InvalidConfiguration` messages). Measured `CFDrs/existence_only_assertions` 123 -> 87 recorded at `30718f6b9`. Next batch: ritk is the remaining diffuse pool (156 sites / 70 files); CFDrs residual 27 sites across 16 files.
