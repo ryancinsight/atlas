@@ -1,5 +1,114 @@
 # atlas — cross-repository integration checklist
 
+## ATLAS-ARES-PROMOTION-2026-09-03 [arch][minor]
+
+Board: [`#ares-promotion`](backlog.md#ares-promotion). Charter:
+[ADR 0057](docs/adr/0057-ares-phase-0-charter.md).
+
+Prerequisites (not Ares work; block A3 onward):
+
+- [ ] CFDrs deletes its elastic copy and composes `proteus::IsotropicModuli`.
+- [ ] Kwavers deletes `lame_from_speeds` and `ElasticPropertyData::{new,
+      try_from_engineering}`; review callers relying on the `lambda >= 0`
+      rejection the provider no longer applies.
+- [ ] `aequitas` stress semantics marker lands, so Phase 0 types stress from
+      the first commit rather than retrofitting a breaking change.
+
+Creation:
+
+- [ ] Verify `ares-solid` is available on crates.io **before** creating the
+      repository; if taken, choose the registry name and record it in ADR 0057
+      before any commit references it.
+- [ ] **Ask-User:** create `ryancinsight/ares`.
+- [ ] Scaffold: `[lib] name = "ares"`, edition 2024, MSRV floor matching the
+      stack, `#![forbid(unsafe_code)]`, `#![deny(missing_docs)]`, pedantic
+      floor with `unwrap_used`, `.config/nextest.toml` at the committed 30s/60s
+      budgets, `rust-toolchain.toml` pinned, committed `Cargo.lock`,
+      `deny.toml` with the ADR 0055 prohibition list, `.gitattributes` LF,
+      tracked `.githooks`, CI via the shared reusable workflow, README,
+      CHANGELOG, `docs/adr/` with a generated index.
+- [ ] Confirm the scaffold passes the full gate and the conformance scan before
+      any physics lands — a repository that starts below the floor never
+      reaches it.
+
+Implementation, each step complete-and-verified before the next:
+
+- [ ] A3 kinematics — symmetric tensors, invariants, small strain. Oracle:
+      rigid-body motion gives exactly zero strain.
+- [ ] A4 constitutive coupling — isotropic Hooke over `IsotropicModuli`, Cauchy
+      stress, von Mises, principal stresses. Oracle: closed-form stress from a
+      known `(E, nu)`. Assert no material constant appears anywhere in `ares`.
+- [ ] A5 FEM assembly — linear simplices, isoparametric mapping, quadrature,
+      Dirichlet and Neumann conditions, Athena assembly. Oracle: **patch test
+      exact to machine precision**, plus hand-computed element matrices.
+- [ ] A6 solve and end-to-end — thick-walled cylinder against Lame; cantilever
+      tip deflection; manufactured solution; `O(h^2)` L2 convergence; strain
+      energy equals external work. Every oracle at `f32` and `f64`.
+
+Registration and delivery:
+
+- [ ] A7 register: `.gitmodules`, stack table, naming table (move `ares` out of
+      provisional), roadmap, dependency order, suite-coverage row, architecture
+      test edge set, package count. One delivery unit.
+- [ ] A8 first consumer: CFDrs FSI structural side across Harmonia, traction in
+      and displacement out per ADR 0050. Oracle: interface work conserved.
+- [ ] A9 **Ask-User:** publish `ares-solid`; verify registry install, smoke, and
+      the docs.rs build.
+
+## ATLAS-PROMETHEUS-PROMOTION-2026-09-03 [arch][minor]
+
+Board: [`#prometheus-promotion`](backlog.md#prometheus-promotion). Charter:
+[ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md).
+
+- [ ] P0 prerequisite: `aequitas` gains `ReactionRate` and `MolarFlux`. Oracle:
+      `MolarConcentration / Time == ReactionRate` resolves at the type level.
+- [ ] Verify `prometheus-kinetics` availability on crates.io. The bare
+      `prometheus` name is the metrics client and is unavailable.
+- [ ] **Ask-User:** create `ryancinsight/prometheus`.
+- [ ] P1 scaffold, identical floor to Ares.
+- [ ] P3 species and stoichiometry — identity, molar mass, validated
+      concentration boundary, sparse stoichiometric matrix over Leto. Oracle:
+      `nu^T M == 0` structurally for a balanced network.
+- [ ] P4 rate laws — mass-action at arbitrary order, equilibrium constants,
+      reverse-rate consistency, Arrhenius through
+      `proteus::TemperatureResponse`. Oracle: first- and second-order closed
+      forms; `ln k` against `1/T` recovers `Ea` and `A`. Assert no temperature
+      response is implemented in `prometheus` (ADR 0055 R4).
+- [ ] P5 net production and reaction enthalpy against hand-computed networks.
+- [ ] P6 0-D integration through Horae including the stiff path. Oracles:
+      equilibrium reaches `K_eq`; **Robertson benchmark against published
+      values**; mass conserved; no negative concentrations; integrator order
+      recovered. These are mandatory — stiff kinetics fail in ways smooth-case
+      tolerance checks do not reveal.
+- [ ] P7 register in atlas, as A7.
+- [ ] P8 first consumer: Kwavers sonodynamic species kinetics under an acoustic
+      dose field, across Harmonia.
+- [ ] P9 **Ask-User:** publish `prometheus-kinetics`.
+
+Standing checks for both repositories:
+
+- [ ] No `nalgebra`, `ndarray`, `rayon`, or `num-traits` in either dependency
+      graph; enforced by `deny.toml` bans, not by review.
+- [ ] Generic over `T: RealField`; every oracle instantiated at `f32` and
+      `f64`.
+- [ ] Every physical value on a public boundary is an `aequitas` quantity.
+- [ ] No dependency on an integrator or on another balance domain; coupling
+      only through Harmonia. Asserted by the architecture test.
+
+## ATLAS-WINDOW-ACCELERATOR-INCOMPLETE-2026-09-03 [arch][patch]
+
+- [x] Move the shared `WindowConfiguration` contract to `coeus-hephaestus` and
+      update the WGPU and CUDA consumers without compatibility shims.
+- [x] Verify the Hephaestus provider contract and Coeus WGPU/CUDA compile paths,
+      including the CUDA bindgen/toolchain failure. Hephaestus window commits
+      `4355571`/`108db9f`; Coeus `c19923d8`; CUDA nextest 118/118 and WGPU
+      nextest 142/142 pass on the local hardware/runtime.
+- [ ] Reconcile the root gitlink and collect the published PRs when the shared
+      index is clear; Hephaestus [#266](https://github.com/ryancinsight/hephaestus/pull/266)
+      merged as `b0988107b795310dda416609e856864819925e0c`. Coeus [#363](https://github.com/ryancinsight/Coeus/pull/363)
+      remains open pending WGPU, CUDA, and Tests completion; external `recurseml/analysis`
+      is failed without a diagnostic.
+
 ## ATLAS-CONFORMANCE-PARALLEL-SCAN-2026-08-31 [patch][perf]
 
 - [x] Profile the live fleet scan and retain the unchanged detector workload.

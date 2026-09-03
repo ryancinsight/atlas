@@ -1,5 +1,131 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-ARES-PROMOTION-2026-09-03 - Create and register `ares` (solid momentum balance) [arch][minor] - todo <a id="ares-promotion"></a>
+
+Charter: [ADR 0057](docs/adr/0057-ares-phase-0-charter.md). Path:
+[ADR 0056](docs/adr/0056-new-construction-promotion-path.md) new-construction.
+Boundary: [ADR 0055](docs/adr/0055-continuum-domain-decomposition.md).
+Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
+
+- **outcome:** `ares` owns small-strain linear elastostatics on Gaia meshes,
+  closed by Proteus and solved by Athena, verified against analytical oracles.
+- **non-goals:** plasticity, contact, finite deformation, dynamics, fracture,
+  fatigue, anisotropy, buckling. No integrator dependency, no material
+  constants, no direct edge to another balance domain.
+- **registry name:** `ares-solid`, import path `ares` via `[lib] name`. Verify
+  availability on crates.io before creating the repository.
+- **required authority:** repository creation (A2) and publication (A9) sit
+  outside the standing Change grant.
+
+| Phase | Deliverable | Acceptance oracle | Depends on |
+| --- | --- | --- | --- |
+| A0 | Prerequisites: Proteus elastic consumer deletions; aequitas stress semantics marker | both closed | `#aequitas-mechanics-semantics` |
+| A1 | Repository scaffold at the full lint and gate floor | fmt, clippy, nextest, doc green; conformance scan clean | A0 |
+| A2 | **Ask-User:** create `ryancinsight/ares` | repository exists, name reserved | A1 |
+| A3 | Kinematics: symmetric tensors, invariants, small strain | rigid-body motion gives exactly zero strain | A2 |
+| A4 | Constitutive coupling: isotropic Hooke over `IsotropicModuli`; Cauchy, von Mises, principal stresses | closed-form stress from a known `(E, nu)`; no material constant in `ares` | A3 |
+| A5 | FEM assembly: linear simplices, isoparametric mapping, quadrature, Dirichlet and Neumann, Athena assembly | **patch test exact to machine precision**; hand-computed element matrices | A4 |
+| A6 | Solve and end-to-end verification | Lame cylinder; cantilever tip deflection; MMS; `O(h^2)` L2 convergence; strain energy equals external work | A5 |
+| A7 | Register in atlas: gitmodules, stack table, naming, roadmap, dependency order, architecture test | inward-only edges asserted | A6 |
+| A8 | First consumer: CFDrs FSI structural side across Harmonia per [ADR 0050](docs/adr/0050-typed-physical-field-exchange.md) | interface work conserved | A7 |
+| A9 | **Ask-User:** publish `ares-solid` | registry install and smoke; docs.rs builds | A8 |
+
+- **risk:** analytical oracles are the only safety net; no reference
+  implementation exists to difference against. Mitigated by oracle breadth and
+  by the exactness of the patch and rigid-body tests.
+- Kwavers elastic-wave migration is Phase 1; Phase 0 does not block on it.
+
+## ATLAS-PROMETHEUS-PROMOTION-2026-09-03 - Create and register `prometheus` (species mass balance) [arch][minor] - todo <a id="prometheus-promotion"></a>
+
+Charter: [ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md). Path:
+[ADR 0056](docs/adr/0056-new-construction-promotion-path.md).
+Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
+
+- **outcome:** `prometheus` owns homogeneous reaction networks - species,
+  stoichiometry, mass-action rate laws, Arrhenius through Proteus, net
+  production rates, reaction enthalpy - integrated 0-D through Horae.
+- **non-goals:** reactive-transport discretization (stays with the balance
+  owner of the field), combustion closure, surface and heterogeneous reactions,
+  plasma chemistry, electrochemistry, phase equilibrium.
+- **registry name:** `prometheus-kinetics`; bare `prometheus` on crates.io is
+  the metrics client and is unavailable.
+
+| Phase | Deliverable | Acceptance oracle | Depends on |
+| --- | --- | --- | --- |
+| P0 | aequitas gains `ReactionRate` and `MolarFlux` | `MolarConcentration / Time == ReactionRate` at the type level | `#aequitas-reaction-quantities` |
+| P1 | Repository scaffold, same floor as A1 | same gate | P0 |
+| P2 | **Ask-User:** create `ryancinsight/prometheus` | repository exists | P1 |
+| P3 | Species and stoichiometry over Leto | transpose(nu) times M equals zero, structurally, for a balanced network | P2 |
+| P4 | Rate laws; Arrhenius via `proteus::TemperatureResponse` | first and second-order closed forms; ln k against 1/T recovers Ea and A | P3 |
+| P5 | Net production and reaction enthalpy | hand-computed networks | P4 |
+| P6 | 0-D integration through Horae, including the stiff path | equilibrium reaches K_eq; **Robertson benchmark**; mass conserved; no negative concentrations; integrator order recovered | P5 |
+| P7 | Register in atlas, as A7 | architecture test green | P6 |
+| P8 | First consumer: Kwavers sonodynamic species kinetics across Harmonia | coupled therapy case runs | P7 |
+| P9 | **Ask-User:** publish `prometheus-kinetics` | registry install and smoke; docs.rs | P8 |
+
+- **historical prerequisite retired:** the Kwavers reaction-vocabulary
+  consolidation existed to produce a deletion ledger; under ADR 0056 that
+  ledger arrives with the P8 consumer migration. It remains worthwhile on its
+  own merits but no longer blocks.
+- Prometheus is the first embedded-stepping consumer for Horae, retiring a
+  capability recorded as consumer-gated with no caller.
+
+## ATLAS-NEXT-STEPS-2026-09-03 - Sequenced plan toward the suite [arch] - planning <a id="next-steps"></a>
+
+Atlas is a shared location; members compose as needed.
+
+**First-party boundary.** First-party ownership targets **stack concerns** -
+scalars, quantities, arrays, allocation, scheduling, placement, accelerators,
+numerics, physics - where a third-party dependency costs correctness control
+and the ability to fix upstream. It does **not** target the **shell boundary**:
+a frontend framework (Tauri, egui) is ecosystem-solved, sits outside the
+safety-relevant core, and reimplementing one enlarges the verification surface
+of a regulated product for no gain. The dual frontend and backend split is the
+asset - it puts document state, validation, units, and solver orchestration on
+the Rust side of the IPC line. That is per-product integrator work, not a stack
+package. The same reasoning admits `wgpu`, DICOM, and format libraries at their
+boundaries and refuses `nalgebra`, `ndarray`, `rayon`, and `num-traits` inside
+the stack (ADR 0055 substrate contract).
+
+| # | Increment | Repo | Class | Status |
+| --- | --- | --- | --- | --- |
+| 1 | Delete the CFDrs elastic copy; compose `proteus::IsotropicModuli` | CFDrs | `[patch]` | ready |
+| 2 | Delete the kwavers elastic copy | kwavers | `[minor]` | ready; widens a domain, negative lambda now admitted |
+| 3 | aequitas stress semantics marker | aequitas | `[minor]` | ready - gates Ares A0 |
+| 4 | aequitas `ReactionRate` and `MolarFlux` | aequitas | `[minor]` | ready - gates Prometheus P0 |
+| 5 | Architecture test R7 and `cargo deny bans` substrate list | atlas | `[patch]` | ready; guards ADR 0055 before the code it guards exists |
+| 6 | Ares A1 through A9 | ares | `[arch]` | after 1, 2, 3 |
+| 7 | Prometheus P1 through P9 | prometheus | `[arch]` | after 4 |
+
+Steps 1 to 5 are mutually independent and can run concurrently on disjoint
+scopes.
+
+**Not in this plan:** no GUI package, no universal model tree, no in-stack UI
+framework. The application layer stays per product behind the IPC boundary of
+each tool.
+
+## ATLAS-APPLICATION-LAYER-GAP-2026-09-03 - Application-layer audit [arch] - closed 2026-09-03 <a id="application-layer-gap"></a>
+
+Audited whether the physics packages suffice before a suite GUI. Two claims
+were **retracted** on verification: (a) "three GUI implementations duplicate a
+shell" rested on a grep for egui matching the substring inside "waveguide" in
+kwavers-math and kwavers-solver - the real footprint is 845 lines of controls
+against a 38k-line clinical application in `ritk-snap`, different products, no
+deletion ledger; (b) a universal stack-wide model tree is speculative
+generality - the document schema of each tool is its own bounded context.
+Surviving item: runtime unit and expression evaluation in aequitas
+(compile-time only today), gated on a second consumer. Pattern recorded for the
+slop library: a dependency-list grep is not a duplication audit.
+
+## ATLAS-STAGED-BACKWARD-PINS-2026-09-03 - Stale staged gitlinks blocked all commits [patch] - resolved 2026-09-03 <a id="staged-backward-pins"></a>
+
+The pre-commit backward-pin guard refused every commit to atlas-meta while 18
+`repos/*` gitlinks were staged behind their recorded pins, after a broad
+`git add` over submodule worktrees never re-checked-out following the pointer
+advance. Every staged SHA was an ancestor of its recorded pin, so no unique
+work was referenced. The peer stream cleared it before the authorized un-stage
+ran; commit `9537b4f4e` landed without needing it.
+
 ## ATLAS-CONTINUUM-DECOMPOSITION-2026-09-03 — Fix the Proteus/Ares/Prometheus design axis [arch] — done 2026-09-03 <a id="continuum-decomposition"></a>
 
 - **integrator:** claude-opus-5 (this session)
