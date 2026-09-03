@@ -57,6 +57,23 @@ class ManifestTests(unittest.TestCase):
         self.assertIsNone(sweep.declared_git_source('hermes-simd = "0.7.0"\n', "hermes-simd"))
         self.assertIsNone(sweep.declared_git_source('hermes-simd = { path = "../hermes" }\n', "hermes-simd"))
 
+    def test_a_renamed_dependency_is_matched_by_its_package_name(self) -> None:
+        """Nine members reach mnemosyne-memory as `mnemosyne = { package = ... }`.
+        Matching the declaration key alone reported no consumers at all while
+        the lock, keyed by real package name, held every one of them."""
+        text = 'mnemosyne = { package = "hermes-simd", version = "0.7.0", git = "%s" }\n' % HERMES
+        self.assertEqual(sweep.declared_git_source(text, "hermes-simd"), HERMES)
+
+    def test_a_renamed_dependency_is_not_matched_by_its_key(self) -> None:
+        """The key is a local alias; the lock never contains it, so a sweep
+        keyed on it would advance nothing."""
+        text = 'mnemosyne = { package = "hermes-simd", version = "0.7.0", git = "%s" }\n' % HERMES
+        self.assertIsNone(sweep.declared_git_source(text, "mnemosyne"))
+
+    def test_a_rename_to_another_package_is_not_matched(self) -> None:
+        text = 'hermes-simd = { package = "hermes-simd-core", git = "%s" }\n' % HERMES
+        self.assertIsNone(sweep.declared_git_source(text, "hermes-simd"))
+
     def test_third_party_git_sources_are_not_first_party_consumers(self) -> None:
         text = 'hermes-simd = { git = "https://github.com/someone-else/hermes.git" }\n'
         self.assertIsNone(sweep.declared_git_source(text, "hermes-simd"))

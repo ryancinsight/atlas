@@ -100,12 +100,28 @@ def provider_repo_name(url: str) -> str:
     return normalize_repo_url(url).rsplit("/", 1)[-1]
 
 
+DEP_LINE = re.compile(r"^\s*(?P<key>[A-Za-z0-9_-]+)\s*=\s*\{(?P<body>.*)\}\s*$", re.M)
+RENAME = re.compile(r'package\s*=\s*"(?P<package>[A-Za-z0-9_-]+)"')
+
+
 def declared_git_source(manifest_text: str, crate: str) -> str | None:
     """The git URL a manifest declares for `crate`, if the line is single-line
-    and first-party. Workspace and per-crate tables share this line shape."""
-    pattern = re.compile(rf"^\s*{re.escape(crate)}\s*=\s*\{{(?P<body>.*)\}}\s*$", re.M)
-    for match in pattern.finditer(manifest_text):
-        source = GIT_SOURCE.search(match.group("body"))
+    and first-party. Workspace and per-crate tables share this line shape.
+
+    A dependency declares `crate` when it renames to it (`package = "crate"`)
+    or, absent a rename, when its own key is `crate`. Matching the key alone
+    misses every renamed declaration -- nine members reach mnemosyne-memory as
+    `mnemosyne = { package = "mnemosyne-memory", ... }`, and the sweep reported
+    that no member consumed it while `locked_rev`, which reads the lock by real
+    package name, saw them all. A consumer this tool cannot see is the silent
+    omission it exists to prevent."""
+    for match in DEP_LINE.finditer(manifest_text):
+        body = match.group("body")
+        rename = RENAME.search(body)
+        declared = rename.group("package") if rename else match.group("key")
+        if declared != crate:
+            continue
+        source = GIT_SOURCE.search(body)
         if source:
             return source.group("url")
     return None
