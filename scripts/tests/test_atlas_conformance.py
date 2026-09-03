@@ -393,6 +393,55 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertTrue(conformance.declared_cfg_test(codelet))
             self.assertEqual(conformance.scan_repo(root)["seqcst_production"], 0)
 
+    def test_a_gate_reaches_modules_below_the_gated_directory(self) -> None:
+        # A cfg(test) gate covers everything under the module it names, but
+        # only that module's own file carries a declaration a lookup can see.
+        # Splitting one gated file into a directory of modules therefore
+        # reclassified all of them as production: apollo's pinned probe turned
+        # 25 measurement `println!`s into print debt without a line of it
+        # changing.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(root, "src/lib.rs", "mod base;\n")
+            _write(root, "src/base/mod.rs", "#[cfg(test)]\nmod probe;\n")
+            _write(root, "src/base/probe/mod.rs", "mod measurement;\n")
+            _write(
+                root,
+                "src/base/probe/measurement.rs",
+                "fn report(value: u64) {\n"
+                "    println!(\"cycles {value}\");\n"
+                "}\n",
+            )
+            child = root / "src" / "base" / "probe" / "measurement.rs"
+
+            self.assertTrue(
+                conformance.declared_cfg_test(child),
+                "a module below a gated directory is test code too",
+            )
+            self.assertEqual(conformance.scan_repo(root)["print_dbg"], 0)
+
+    def test_the_gate_does_not_reach_across_an_ungated_module(self) -> None:
+        # Inheritance follows declarations, not directories: a module that no
+        # gated declaration covers keeps counting as production.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[package]\nname = 'fixture'\n")
+            _write(root, "src/lib.rs", "mod base;\n")
+            _write(root, "src/base/mod.rs", "mod probe;\n")
+            _write(root, "src/base/probe/mod.rs", "mod measurement;\n")
+            _write(
+                root,
+                "src/base/probe/measurement.rs",
+                "fn report(value: u64) {\n"
+                "    println!(\"cycles {value}\");\n"
+                "}\n",
+            )
+            child = root / "src" / "base" / "probe" / "measurement.rs"
+
+            self.assertFalse(conformance.declared_cfg_test(child))
+            self.assertEqual(conformance.scan_repo(root)["print_dbg"], 1)
+
     def test_ungated_directory_module_stays_in_production(self) -> None:
         # The gate, not the shape, decides: a directory module declared
         # without cfg(test) must still count as production code.

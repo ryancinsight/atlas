@@ -647,8 +647,13 @@ def count_orphan_modules(repo: Path, manifests: list[Path] | None = None) -> int
     return len(sources - seen)
 
 
-def declared_cfg_test(entry: Path) -> bool:
-    """True when some module declares this file under `#[cfg(test)]`.
+# Module trees are shallow; the bound only stops a cycle from a `#[path]`
+# attribute pointing a module at its own directory.
+_MAX_MODULE_DEPTH = 16
+
+
+def declared_cfg_test(entry: Path, _depth: int = 0) -> bool:
+    """True when this file is declared under `#[cfg(test)]`, directly or above.
 
     The co-located sidecar convention (`src/foo/tests.rs` declared by
     `src/foo/mod.rs` as `#[cfg(test)] mod tests;`) puts the gate in the
@@ -687,6 +692,16 @@ def declared_cfg_test(entry: Path) -> bool:
         stems, paths = _cfg_test_decls(cand)
         if any(stem in stems for stem in stems_to_check) or resolved in paths:
             return True
+    # A gate is inherited: `#[cfg(test)] mod probe;` makes every module under
+    # `probe/` test code too, and only `probe/mod.rs` carries the declaration
+    # the loop above can see. Splitting one gated file into a directory of
+    # modules therefore reclassified all of them as production — apollo's
+    # pinned probe turned 25 measurement `println!`s into print debt without a
+    # line of it changing. Ask the declaring file the same question.
+    if entry.name != "mod.rs" and _depth < _MAX_MODULE_DEPTH:
+        owner = parent / "mod.rs"
+        if owner.is_file() and owner != entry:
+            return declared_cfg_test(owner, _depth + 1)
     return False
 
 
