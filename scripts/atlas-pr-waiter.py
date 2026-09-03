@@ -57,10 +57,19 @@ def check_name(check: dict) -> str:
     return check.get("name") or check.get("context") or "?"
 
 
-def decisive_checks(rollup: list[dict]) -> dict[str, str]:
-    """Name → state for every non-advisory rollup entry."""
+def decisive_checks(rollup: list[dict], advisory: re.Pattern[str] | None = None) -> dict[str, str]:
+    """Name → state for every non-advisory rollup entry.
+
+    `advisory` additionally excludes checks the caller declares non-blocking.
+    Use it only for a job its own workflow marks `continue-on-error`, where a
+    red is a report rather than a verdict: the shared SemVer gate's
+    informational job builds the *baseline* revision, so during a first-party
+    version sweep it fails on every consumer until the sweep lands — the old
+    baseline can no longer resolve the upstream it pins.
+    """
     return {check_name(c): check_status(c) for c in rollup
-            if not any(bot in check_name(c).lower() for bot in ADVISORY)}
+            if not any(bot in check_name(c).lower() for bot in ADVISORY)
+            and not (advisory and advisory.search(check_name(c)))}
 
 
 def gate(names: dict[str, str], required: re.Pattern[str]) -> str:
@@ -74,7 +83,8 @@ def gate(names: dict[str, str], required: re.Pattern[str]) -> str:
     return "merge"
 
 
-def wait_for(target: str, required: re.Pattern[str], limit_minutes: int, report) -> None:
+def wait_for(target: str, required: re.Pattern[str], limit_minutes: int, report,
+             advisory: re.Pattern[str] | None = None) -> None:
     slug, number = target.split("#")
     deadline = time.time() + limit_minutes * 60
     names: dict[str, str] = {}
@@ -89,7 +99,7 @@ def wait_for(target: str, required: re.Pattern[str], limit_minutes: int, report)
             return report(target, f"{target} MERGED {(pr.get('mergeCommit') or {}).get('oid', '')[:8]} (already)")
         if pr["state"] != "OPEN":
             return report(target, f"{target} is {pr['state']}")
-        names = decisive_checks(pr["statusCheckRollup"])
+        names = decisive_checks(pr["statusCheckRollup"], advisory)
         verdict = gate(names, required)
         if verdict == "red":
             # Confirm before giving up: for about a minute after a push the
@@ -101,7 +111,7 @@ def wait_for(target: str, required: re.Pattern[str], limit_minutes: int, report)
             time.sleep(POLL_SECONDS)
             recheck = gh("pr", "view", number, "-R", slug, "--json", "state,statusCheckRollup")
             try:
-                names = decisive_checks(json.loads(recheck.stdout)["statusCheckRollup"])
+                names = decisive_checks(json.loads(recheck.stdout)["statusCheckRollup"], advisory)
             except (json.JSONDecodeError, KeyError):
                 names = {}
             if gate(names, required) == "red":
@@ -126,8 +136,12 @@ def main() -> int:
     parser.add_argument("--require", required=True, metavar="REGEX",
                         help="case-insensitive pattern a SUCCESS check name must match before merging")
     parser.add_argument("--timeout-minutes", type=int, default=60)
+    parser.add_argument("--advisory", metavar="REGEX", default=None,
+                        help="treat matching checks as non-blocking; only for a job its own "
+                             "workflow marks continue-on-error")
     arguments = parser.parse_args()
     required = re.compile(arguments.require, re.I)
+    advisory = re.compile(arguments.advisory, re.I) if arguments.advisory else None
     results: dict[str, str] = {}
     lock = threading.Lock()
 
@@ -137,7 +151,7 @@ def main() -> int:
                 results[target] = text
             print(text, flush=True)
 
-    threads = [threading.Thread(target=wait_for, args=(t, required, arguments.timeout_minutes, report), daemon=True)
+    threads = [threading.Thread(target=wait_for, args=(t, required, arguments.timeout_minutes, report, advisory), daemon=True)
                for t in arguments.targets]
     for thread in threads:
         thread.start()

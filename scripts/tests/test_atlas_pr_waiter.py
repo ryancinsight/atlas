@@ -66,5 +66,32 @@ class GateTests(unittest.TestCase):
         self.assertEqual(waiter.gate({"MSRV": "SUCCESS", "SemVer": "SKIPPED"}, REQ), "merge")
 
 
+class AdvisoryTests(unittest.TestCase):
+    """A job its own workflow marks continue-on-error reports, it does not veto."""
+
+    def rollup(self):
+        return [
+            {"name": "Lockfile integrity", "status": "COMPLETED", "conclusion": "SUCCESS"},
+            {"name": "SemVer gate / SemVer (informational)", "status": "COMPLETED",
+             "conclusion": "FAILURE"},
+            {"name": "CodeRabbit", "status": "COMPLETED", "conclusion": "FAILURE"},
+        ]
+
+    def test_without_the_flag_the_informational_failure_is_a_verdict(self) -> None:
+        names = waiter.decisive_checks(self.rollup())
+        self.assertIn("SemVer gate / SemVer (informational)", names)
+        self.assertEqual(waiter.gate(names, re.compile("Lockfile")), "red")
+
+    def test_the_flag_excludes_it_and_the_merge_proceeds(self) -> None:
+        advisory = re.compile(r"SemVer \(informational\)", re.I)
+        names = waiter.decisive_checks(self.rollup(), advisory)
+        self.assertEqual(sorted(names), ["Lockfile integrity"], "advisory bots stay excluded too")
+        self.assertEqual(waiter.gate(names, re.compile("Lockfile")), "merge")
+
+    def test_a_real_failure_still_blocks_under_the_flag(self) -> None:
+        rollup = self.rollup() + [{"name": "Tests", "status": "COMPLETED", "conclusion": "FAILURE"}]
+        names = waiter.decisive_checks(rollup, re.compile(r"SemVer \(informational\)", re.I))
+        self.assertEqual(waiter.gate(names, re.compile("Lockfile")), "red")
+
 if __name__ == "__main__":
     unittest.main()
