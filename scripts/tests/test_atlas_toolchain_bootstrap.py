@@ -73,3 +73,21 @@ class ToolchainBootstrapTestCase(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_bash_bootstrap_binds_the_shared_target_dir() -> None:
+    # `.cargo/config.toml` sets `target-dir`, but cargo finds it only by walking
+    # up from the current directory; a build run from outside the stack forks
+    # the cache into the member's own `target/`. Six members grew one within
+    # hours of the last sweep, so the binding belongs to the shell.
+    script = ROOT / "scripts" / "atlas-toolchain-bootstrap.sh"
+    text = script.read_text(encoding="utf-8")
+    assert "export CARGO_TARGET_DIR=" in text
+    assert "${CARGO_TARGET_DIR:-" in text, "an explicit setting must win"
+
+
+def test_powershell_bootstrap_binds_the_shared_target_dir() -> None:
+    script = ROOT / "scripts" / "atlas-toolchain-bootstrap.ps1"
+    text = script.read_text(encoding="utf-8")
+    assert "$env:CARGO_TARGET_DIR" in text
+    assert "if (-not $env:CARGO_TARGET_DIR)" in text, "an explicit setting must win"

@@ -15,6 +15,17 @@
 atlas_bootstrap_toolchain() {
     unset RUSTC RUSTDOC
 
+    # `.cargo/config.toml` sets `target-dir`, but cargo finds that file only by
+    # walking up from the current directory. Running cargo from outside the
+    # stack with `--manifest-path` — which is how a build avoids the overlay
+    # rewriting a member's lockfile — finds no config and falls back to the
+    # member's own `target/`, forking the cache one repository at a time.
+    # Binding it to the shell instead of to where the shell stands is the part
+    # a config file cannot express.
+    local atlas_root
+    atlas_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+    export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$atlas_root/target}"
+
     local current_path="${PATH-}"
     local ucrt_bin="/ucrt64/bin"
     if [[ ! -d "$ucrt_bin" ]]; then
@@ -45,6 +56,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     fi
     printf 'RUSTC=%s\n' "${RUSTC-<unset>}"
     printf 'RUSTDOC=%s\n' "${RUSTDOC-<unset>}"
+    printf 'CARGO_TARGET_DIR=%s\n' "${CARGO_TARGET_DIR-<unset>}"
     printf 'PATH=%s\n' "$PATH"
 fi
 

@@ -14,6 +14,18 @@
 $env:RUSTC = $null
 $env:RUSTDOC = $null
 
+# `.cargo/config.toml` sets `target-dir`, but cargo finds that file only by
+# walking up from the current directory. Running cargo from outside the stack
+# with `--manifest-path` - which is how a build avoids the overlay rewriting a
+# member's lockfile - finds no config and falls back to the member's own
+# `target/`, forking the cache one repository at a time. Binding it to the
+# session instead of to where the session stands is the part a config file
+# cannot express.
+if (-not $env:CARGO_TARGET_DIR) {
+    $atlasRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+    $env:CARGO_TARGET_DIR = Join-Path $atlasRoot 'target'
+}
+
 $ucrtCandidates = @()
 if ($env:MSYS2_ROOT) {
     $ucrtCandidates += (Join-Path $env:MSYS2_ROOT 'ucrt64\bin')
@@ -44,6 +56,7 @@ if ($MyInvocation.InvocationName -ne '.') {
     $rustc = if ($env:RUSTC) { $env:RUSTC } else { '<unset>' }
     $rustdoc = if ($env:RUSTDOC) { $env:RUSTDOC } else { '<unset>' }
     Write-Output "RUSTC=$rustc"
+    Write-Output "CARGO_TARGET_DIR=$env:CARGO_TARGET_DIR"
     Write-Output "RUSTDOC=$rustdoc"
     Write-Output "PATH=$env:Path"
 }
