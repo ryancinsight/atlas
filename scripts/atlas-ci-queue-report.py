@@ -150,9 +150,20 @@ def _delete(url: str, token: str) -> None:
         return
 
 
+# The fleet holds thousands of artifacts (1,636 at 2026-09-03 and growing:
+# every workflow run uploads several `-log` artifacts with 90-day expiry),
+# and our `ci-queue-report-*` matches live anywhere in that newest-first
+# list. The page cap below is a circuit breaker against a lying
+# `total_count`, not a data bound: a fixed 10-page cap refused to list at
+# all past 1,000 total artifacts, which is exactly when retention is most
+# needed (run 33788638464).
+_MAX_ARTIFACT_PAGES = 100  # 10,000 artifacts served; two orders past today.
+
+
 def _list_report_artifacts(repo: str, token: str) -> list[dict]:
     artifacts: list[dict] = []
-    for page in range(1, 11):
+    page = 1
+    while True:
         payload, _ = _get(
             f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100&page={page}",
             token,
@@ -167,7 +178,12 @@ def _list_report_artifacts(repo: str, token: str) -> list[dict]:
         total = payload.get("total_count", 0)
         if len(batch) < 100 or page * 100 >= total:
             return artifacts
-    raise RuntimeError("GitHub returned more than 1,000 artifacts; refusing unbounded cleanup")
+        page += 1
+        if page > _MAX_ARTIFACT_PAGES:
+            raise RuntimeError(
+                f"GitHub reports {total} artifacts past "
+                f"{_MAX_ARTIFACT_PAGES * 100} served; refusing unbounded listing"
+            )
 
 
 def prune_remote_artifacts(repo: str, token: str, ring_size: int) -> list[dict]:

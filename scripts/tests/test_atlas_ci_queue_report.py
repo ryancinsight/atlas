@@ -197,6 +197,49 @@ def test_prune_remote_artifacts_keeps_latest_plus_configured_ring() -> None:
     assert [call.args[0].rsplit("/", 1)[-1] for call in delete.call_args_list] == ["1"]
 
 
+def _artifact_page(ids: list[int], total: int, per_page: int = 100) -> dict:
+    return {
+        "total_count": total,
+        "artifacts": [
+            {"id": index, "name": f"ci-queue-report-{index}",
+             "created_at": "2026-09-01T00:00:00Z"}
+            for index in ids
+        ],
+    }
+
+
+def test_list_report_artifacts_walks_past_ten_pages() -> None:
+    # Regression test for run 33788638464: with 1,050 total artifacts the
+    # old 10-page cap refused to list at all, which is exactly when
+    # retention is most needed. Pagination must run to exhaustion.
+    pages = [
+        _artifact_page(list(range(page * 100, (page + 1) * 100)), 1050)
+        for page in range(10)
+    ]
+    pages.append(_artifact_page(list(range(1000, 1050)), 1050))
+    with mock.patch.object(
+        _qr, "_get", side_effect=[(payload, "") for payload in pages]
+    ):
+        artifacts = _qr._list_report_artifacts("ryancinsight/atlas", "token")
+
+    assert len(artifacts) == 1050
+    assert artifacts[0]["id"] == 0
+    assert artifacts[-1]["id"] == 1049
+
+
+def test_list_report_artifacts_circuit_breaker_fires_on_lying_total() -> None:
+    # Pages that stay full forever with a total that never arrives means
+    # the API is not converging: raise instead of paginating without bound.
+    full = _artifact_page(list(range(100)), 10**9)
+    with mock.patch.object(_qr, "_get", return_value=(full, "")):
+        try:
+            _qr._list_report_artifacts("ryancinsight/atlas", "token")
+        except RuntimeError as error:
+            assert "unbounded listing" in str(error)
+        else:
+            raise AssertionError("expected RuntimeError")
+
+
 def test_refinement_skips_short_runs_and_says_so() -> None:
     # A short run has little overcount to recover, and querying its jobs is one
     # API call. The default floor skips it, and the report says none was
