@@ -168,6 +168,19 @@
   apollo's pre-push guard rejects its `Cargo.lock`, which was regenerated under the stack overlay and carries no
   first-party git sources. Its direction — advancing a mnemosyne `rev` pin — is the pattern this sweep removed from
   Coeus, so triage should establish what in it is still wanted before any of it lands.
+- **Sweep outcome.** Every wave landed: gaia and hephaestus, then apollo and athena, then coeus, ritk, and finally
+  CFDrs, kwavers and helios. Requirement coherence measured at origin went from fifteen incoherent requirements to
+  zero across the twenty-five public members; the private consumer is excluded by name from that audit, since it is
+  owned elsewhere. Four upstream defects surfaced only because the sweep forced a from-scratch resolution: apollo's
+  ungated lane imports (no non-x86 target compiled), coeus's revision pin onto an unmerged mnemosyne branch (an
+  unlinkable `mbind` and a doubled dependency subtree), hephaestus's spatial-window layer with no backend conversion
+  (four Coeus provider-contract jobs), and two files that never saw rustfmt. None was visible from a committed lock.
+- **Two instruments were wrong in the same way: they measured working trees.** `version-guard coherence` compared
+  consumers against a gaia checkout two commits behind its own bump and reported clean; it now names behind trees and
+  says what its verdict covers, without failing on staleness alone, since a submodule sits behind by design. The
+  conformance scanner counted a `cfg(test)` gate only where it was written, so splitting one gated file into a
+  directory turned 25 measurement prints into production debt — the gate is now inherited by the modules below it,
+  which also revealed apollo had 54 fewer production `unwrap()`s than the baseline claimed.
 - **Effect on the release path:** gaia and leto cannot now release until their manifest versions cover the breaks the gate found — the publish job waits on the gate in both. That is the gate working, not a regression, and it is why the campaign's value shows up as blocked releases before it shows up as caught pull requests.
 - **First catch, 2026-09-02 (the gate's first release-gate execution).** A validation dispatch of gaia's release workflow ran the new blocking job and failed: `constructible_struct_adds_field` — `WatertightReport.self_intersections` (`src/application/watertight/check.rs:86`, landed in gaia#30) is a new public field on a struct that was exhaustively constructible through the public API, so every existing struct literal breaks. `gaia-mesh`'s manifest reads 0.4.0, which is exactly the published version, so the break is uncovered and the release would ship it under an unchanged version — the MN-458 class the item was opened on, caught before the release instead of after. Resolution is the owner's release decision (a 0.x breaking change needs 0.5.0), which is why no version is bumped here; `#[non_exhaustive]` on that struct would keep the class from recurring. gaia carries no CHANGELOG.md, so the break has no Unreleased record either.
 - **Oracle met on the first wave:** `SemVer gate / SemVer (informational)` passes on each PR and `SemVer (release gate)` correctly skips on a pull-request event.
