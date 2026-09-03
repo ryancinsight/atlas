@@ -60,6 +60,7 @@ import sys
 import tarfile
 import tempfile
 import threading
+import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -196,7 +197,7 @@ CLASSES = [
     "missing_cargo_lock", "orphan_modules",
     "seqcst_production", "crate_level_allows", "excess_worktrees",
     "lane_kernel_uninlined", "toolchain_request_overridden",
-    "default_branch_cancel_in_progress",
+    "default_branch_cancel_in_progress", "substrate_contract_violations",
 ]
 
 # Working trees beyond the two a repository may hold: its main tree plus one
@@ -1011,6 +1012,74 @@ def count_lane_kernel_uninlined(text: str) -> int:
     return count
 
 
+# Third-party crates that duplicate a capability the stack owns first-party
+# (ADR 0055 substrate contract). Each has a first-party provider: `nalgebra`
+# and `ndarray` against `leto`, `rayon` against `moirai`, `num-traits` against
+# `eunomia`.
+#
+# Runtime dependencies only. These crates stay legitimate as *comparison
+# baselines*: `moirai-parallel` benchmarks itself against `rayon`, which is the
+# interop-or-comparison-target role the first-party supremacy rule sanctions.
+# Forbidding the baseline would forbid measuring the provider against the thing
+# it replaces, so dev-dependencies, build-dependencies, benches, and examples
+# are all outside the check.
+#
+# `[workspace.dependencies]` is likewise outside it: that table declares a
+# version for members to opt into, and declaring one activates nothing. A crate
+# enters the graph only through its own `[dependencies]`.
+PROHIBITED_SUBSTRATE = frozenset({"nalgebra", "ndarray", "rayon", "num-traits"})
+
+
+def is_measurement_harness(parsed: dict) -> bool:
+    """Is this manifest a benchmark harness rather than shipped code?
+
+    A crate that is unpublished and declares bench targets exists to measure,
+    and a measurement harness legitimately depends on the baseline it measures
+    against: `moirai-benchmarks` is unpublished, declares only `[[bench]]`
+    targets named `*_comparison`, and is consumed by nothing. Its `rayon`
+    dependency is the thing Moirai is compared to, which is exactly the role
+    the first-party supremacy rule sanctions.
+
+    Such a crate lists that baseline under `[dependencies]` rather than
+    `[dev-dependencies]`, because a harness crate's own targets are its
+    runtime. Section alone therefore cannot separate a harness baseline from a
+    shipped dependency; the crate's purpose can.
+    """
+    if parsed.get("package", {}).get("publish", True) is not False:
+        return False
+    return bool(parsed.get("bench"))
+
+
+def runtime_dependency_names(manifest_text: str) -> frozenset[str]:
+    """Return the crates a manifest declares as runtime dependencies.
+
+    Covers `[dependencies]` and every `[target.<cfg>.dependencies]`, and
+    deliberately excludes the dev, build, and workspace-declaration tables,
+    and every manifest [`is_measurement_harness`] identifies. Returns an empty
+    set for a manifest that does not parse, so a malformed file is reported by
+    the manifest checks rather than silently counted here.
+    """
+    try:
+        parsed = tomllib.loads(manifest_text)
+    except (tomllib.TOMLDecodeError, ValueError):
+        return frozenset()
+    if is_measurement_harness(parsed):
+        return frozenset()
+
+    names: set[str] = set()
+    section = parsed.get("dependencies")
+    if isinstance(section, dict):
+        names.update(section)
+    targets = parsed.get("target")
+    if isinstance(targets, dict):
+        for cfg in targets.values():
+            if isinstance(cfg, dict):
+                section = cfg.get("dependencies")
+                if isinstance(section, dict):
+                    names.update(section)
+    return frozenset(names)
+
+
 def scan_repo(repo: Path, live_repo: Path | None = None) -> dict[str, int]:
     """Count every debt class in `repo`'s content.
 
@@ -1110,6 +1179,13 @@ def scan_repo(repo: Path, live_repo: Path | None = None) -> dict[str, int]:
             c["workspace_lints_missing"] = 1
         if not (repo / "Cargo.lock").is_file():
             c["missing_cargo_lock"] = 1
+    for manifest in manifests:
+        text = _cached_text(manifest)
+        if text is None:
+            continue
+        c["substrate_contract_violations"] += len(
+            runtime_dependency_names(text) & PROHIBITED_SUBSTRATE
+        )
     scan_workflows(repo, c)
     _clear_scan_caches()
     return c

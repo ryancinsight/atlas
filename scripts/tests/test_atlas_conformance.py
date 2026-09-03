@@ -1035,6 +1035,87 @@ class MaterializedMemberTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "not in the provider's object store"):
                 conformance.materialize_member(provider, "0" * 40, Path(temp) / "scratch")
 
+# Manifest fixtures for SubstrateContractTests.
+RUNTIME_RAYON = "[dependencies]\nrayon = \"1.8\""
+TARGET_NALGEBRA = "[target.'cfg(unix)'.dependencies]\nnalgebra = \"0.33\""
+DEV_RAYON = "[dev-dependencies]\nrayon = \"1.8\""
+BUILD_NDARRAY = "[build-dependencies]\nndarray = \"0.16\""
+WORKSPACE_RAYON = "[workspace.dependencies]\nrayon = \"1.8\""
+HARNESS = (
+    "[package]\nname = \"x-benchmarks\"\nversion = \"0.1.0\"\npublish = false\n\n"
+    "[dependencies]\nrayon = \"1.8\"\n\n"
+    "[[bench]]\nname = \"industry_comparison\""
+)
+PUBLISHED_WITH_BENCH = (
+    "[package]\nname = \"x\"\nversion = \"0.1.0\"\n\n"
+    "[dependencies]\nrayon = \"1.8\"\n\n"
+    "[[bench]]\nname = \"b\""
+)
+UNPUBLISHED_NO_BENCH = (
+    "[package]\nname = \"x\"\nversion = \"0.1.0\"\npublish = false\n\n"
+    "[dependencies]\nrayon = \"1.8\""
+)
+MALFORMED = "[dependencies\nrayon ="
+FIRST_PARTY = "[dependencies]\nleto = \"0.4\"\nmoirai = \"0.5\"\neunomia = \"0.8\""
+
+
+class SubstrateContractTests(unittest.TestCase):
+    """The ADR 0055 substrate contract check, and what it must not flag.
+
+    The check is preventive: the fleet carries zero violations, so every test
+    here guards a discrimination rather than a known defect. A check that
+    cannot tell a shipped dependency from a comparison baseline would either
+    be ignored, or would forbid measuring a first-party provider against the
+    crate it replaces.
+    """
+
+    def names(self, manifest: str) -> set[str]:
+        return set(conformance.runtime_dependency_names(manifest))
+
+    def prohibited(self, manifest: str) -> set[str]:
+        return self.names(manifest) & conformance.PROHIBITED_SUBSTRATE
+
+    def test_runtime_dependency_is_flagged(self):
+        self.assertEqual(self.prohibited(RUNTIME_RAYON), {"rayon"})
+
+    def test_target_specific_runtime_dependency_is_flagged(self):
+        self.assertEqual(self.prohibited(TARGET_NALGEBRA), {"nalgebra"})
+
+    def test_dev_dependency_is_not_flagged(self):
+        # The baseline a first-party provider is measured against lives here.
+        self.assertEqual(self.prohibited(DEV_RAYON), set())
+
+    def test_build_dependency_is_not_flagged(self):
+        self.assertEqual(self.prohibited(BUILD_NDARRAY), set())
+
+    def test_workspace_declaration_is_not_flagged(self):
+        # Declaring a version activates nothing; a crate enters the graph only
+        # through its own [dependencies].
+        self.assertEqual(self.prohibited(WORKSPACE_RAYON), set())
+
+    def test_measurement_harness_is_not_flagged(self):
+        # moirai-benchmarks in miniature: unpublished, bench targets only,
+        # depending on the crate it benchmarks against.
+        self.assertEqual(self.prohibited(HARNESS), set())
+
+    def test_published_crate_with_benches_is_still_flagged(self):
+        # The exemption turns on unpublished *and* bench-declaring. A published
+        # crate does not escape the contract by adding a bench target.
+        self.assertEqual(self.prohibited(PUBLISHED_WITH_BENCH), {"rayon"})
+
+    def test_unpublished_crate_without_benches_is_still_flagged(self):
+        self.assertEqual(self.prohibited(UNPUBLISHED_NO_BENCH), {"rayon"})
+
+    def test_unparseable_manifest_yields_nothing(self):
+        # Malformed manifests are the manifest checks' business, not this one.
+        self.assertEqual(self.names(MALFORMED), set())
+
+    def test_first_party_providers_are_not_prohibited(self):
+        self.assertEqual(self.prohibited(FIRST_PARTY), set())
+
+    def test_the_class_is_registered_for_the_ratchet(self):
+        self.assertIn("substrate_contract_violations", conformance.CLASSES)
+
 
 if __name__ == "__main__":
     unittest.main()
