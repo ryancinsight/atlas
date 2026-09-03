@@ -369,7 +369,7 @@ edit.
   `checkout-path-dependencies`, `criterion-regression`, `gitlink-coherence`,
   and `version-guard`.
 
-## ATLAS-ARCHTEST-BALANCE-EDGES-2026-09-03 — Mechanize the ADR 0055 boundary rules [patch] — todo <a id="archtest-balance-edges"></a>
+## ATLAS-ARCHTEST-BALANCE-EDGES-2026-09-03 — Mechanize the ADR 0055 boundary rules [patch] — substrate half done 2026-09-03; R7 deferred <a id="archtest-balance-edges"></a>
 
 - **outcome:** ADR 0055's rules fail the build instead of awaiting review.
   Extend the existing `cargo metadata` architecture test with R7 (no
@@ -382,6 +382,25 @@ edit.
 - **risk/class:** `[patch]`. **dependencies:** none — the rules are checkable
   against the present stack even before Ares or Prometheus exist, which is the
   point: the guard predates the code it guards.
+
+**Substrate contract: delivered** at `f15418551` as the
+`substrate_contract_violations` ratchet class in the conformance scan, with 11
+tests and a mutation check. Zero violations fleet-wide, so it is preventive.
+Implemented in the scan rather than as `cargo deny [bans]`: cargo-deny has no
+config-include mechanism, so a bans list would need copying into 25 member
+`deny.toml` files - the fleet-scale duplication defect the scan exists to
+catch. The scan checks the property itself (a member's resolved runtime
+dependency tables) rather than checking that 25 config files agree.
+
+**R7 deferred, with cause.** The rule forbids a balance-to-balance dependency
+edge. No balance package exists yet - `ares` and `prometheus` are chartered,
+not created - and no architecture test exists in `tools/` to extend. Writing
+one now would guard an edge set with no edges in it. R7 lands as part of the
+registration phases that create the packages, where the charters already place
+it (`#ares-promotion` A7 and `#prometheus-promotion` P7 both list the
+architecture test as their acceptance oracle). Re-open trigger: the first of
+those packages is created.
+
 - **note:** R1 and R2 are grep-shaped and belong in the conformance scan
   (`scripts/atlas-conformance.py`) rather than the architecture test.
 
