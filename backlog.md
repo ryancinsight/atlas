@@ -1,5 +1,73 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-PREREQ-EXECUTION-2026-09-03 - Prerequisite execution status [minor] - in-progress <a id="prereq-execution"></a>
+
+- **integrator:** claude-opus-5 (this session)
+- **plan:** `#next-steps` steps 1-5.
+
+### Step 3+4 - aequitas quantities: DONE
+
+`ryancinsight/aequitas` PR
+[#50](https://github.com/ryancinsight/aequitas/pull/50), branch
+`feat/mechanics-reaction-quantities`, commit `89a038a`.
+
+Delivered in one increment because both are additive dimension and quantity
+aliases in the same two files: `StressSemantics` plus the `Stress` alias
+(separating Cauchy stress from the pressure dimension it shares), and
+`ReactionRate` plus `MolarFlux`. Gate at that revision: fmt clean, clippy clean
+at the pedantic floor, nextest 135/135 (8 new), doctests 9/9, doc clean.
+
+Both Ares A0 and Prometheus P0 prerequisites are satisfied by this one PR.
+
+### Step 1 - CFDrs elastic deletion: implemented, VERIFICATION BLOCKED
+
+Working tree of `repos/CFDrs`, uncommitted. Changes:
+
+- `physics/material/solid.rs` - `ElasticSolid` now holds a
+  `proteus::IsotropicSolid` and delegates `youngs_modulus`, `poissons_ratio`,
+  `shear_modulus`, and `density` to it. `steel()` and `aluminum()` are deleted;
+  `from_catalog(NamedIsotropicSolid)` replaces them, so every elastic, density,
+  and thermal constant now comes from the provider and none remains in CFDrs.
+- `physics/material/traits.rs` - the `shear_modulus` default body computing
+  `E / (2 (1 + nu))` is **deleted**; the method is now required, since a
+  default here would be a second copy of an identity Proteus owns.
+  `NumericElement` import dropped with it.
+- `physics/material/mod.rs` - the two default-database entries build from the
+  catalog, re-keyed `carbon-steel` and `aluminium-6061` because the old `steel`
+  and `aluminum` keys named grades that differ from what kwavers means by the
+  same words.
+- Dropped the unused `Serialize`/`Deserialize` derives on `ElasticSolid`: it is
+  only ever stored as `Box<dyn SolidProperties>`, which is not serializable, and
+  no call site serializes it.
+
+**Blocker:** `cargo check -p cfd-core` cannot reach cfd-core. A transitive
+dependency, `mnemosyne-arena`, does not compile in the shared working tree:
+`crates/mnemosyne-arena/src/scratch/aligned_vec.rs` is under live peer edit.
+The error changed between two consecutive runs (`Drain` not in scope, then an
+unexpected closing delimiter at line 399), which is a mid-edit signature, and
+the mnemosyne worktree sits at `46c279d2f3` - neither `origin/main` nor the
+recorded pin `d7c93e43e3` - with seven dirty files.
+
+Not diagnosed further and not repaired: this is peer-owned in-flight work, and
+`git submodule update` would destroy it. `--no-default-features` does not route
+around it; cfd-core reaches mnemosyne transitively, not directly.
+
+- **re-open trigger:** `cargo check -p mnemosyne-arena` succeeds in the shared
+  tree, or the peer commits that file. Then run the CFDrs focused gate, commit,
+  and open the PR.
+- **status:** implemented, unverified, uncommitted. Nothing is lost; the diff
+  is in the working tree and tree-mates can see it.
+
+### Step 2 - kwavers elastic deletion: not started
+
+Blocked behind the same mnemosyne redness for the same reason (kwavers depends
+on the same substrate). Starting it would only produce a second unverifiable
+diff.
+
+### Step 5 - architecture test R7 and deny bans: not started
+
+Independent of the mnemosyne blocker; the next increment to take.
+
 ## ATLAS-ARES-PROMOTION-2026-09-03 - Create and register `ares` (solid momentum balance) [arch][minor] - todo <a id="ares-promotion"></a>
 
 Charter: [ADR 0057](docs/adr/0057-ares-phase-0-charter.md). Path:
