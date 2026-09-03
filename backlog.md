@@ -1,5 +1,173 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-CONTINUUM-DECOMPOSITION-2026-09-03 — Fix the Proteus/Ares/Prometheus design axis [arch] — done 2026-09-03 <a id="continuum-decomposition"></a>
+
+- **integrator:** claude-opus-5 (this session)
+- **driver:** an external stack review proposed `prometheus` as the
+  structural-mechanics package, citing the roadmap as confirmation. The names
+  were assigned without a stated decomposition axis, so the stack map was
+  readable backwards from its own documentation.
+- **outcome:** [ADR 0055](docs/adr/0055-continuum-domain-decomposition.md)
+  records one axis — a continuum domain is a conserved quantity, its balance
+  operator, and the constitutive closure that makes the balance well-posed.
+  Proteus closes; Ares balances solid momentum; Prometheus balances species
+  mass. Seven checkable boundary rules, a first-party substrate contract, and a
+  typed-physics quantity ledger.
+- **synchronized in the same unit:** README continuum-decomposition axis,
+  provisional-names table, suite-coverage table, P2-B rows, Ares prerequisite,
+  dependency order, ADR index, doctrine INDEX.
+- **no promotion:** `.gitmodules` and the package count are unchanged. Gate
+  conditions are unchanged; each candidate now has a concrete trigger.
+
+### Follow-on items opened by ADR 0055
+
+| ID | Scope | Class | Gate role |
+| --- | --- | --- | --- |
+| `ATLAS-AEQUITAS-MECHANICS-SEMANTICS` | Add a stress semantics marker so Cauchy stress cannot unify with hydrostatic pressure or an elastic modulus. | `[minor]` | Ares prerequisite |
+| `ATLAS-AEQUITAS-REACTION-QUANTITIES` | Add `ReactionRate` (mol·m⁻³·s⁻¹) and `MolarFlux` (mol·m⁻²·s⁻¹). | `[minor]` | Prometheus prerequisite |
+| `ATLAS-ARCHTEST-BALANCE-EDGES` | Extend the `cargo metadata` architecture test with R7: no balance-to-balance dependency edge; and `cargo deny bans` with the prohibited third-party list from the substrate contract. | `[patch]` | enforces ADR 0055 |
+
+## ATLAS-AEQUITAS-MECHANICS-SEMANTICS-2026-09-03 — Separate stress from pressure in the type system [minor] — todo <a id="aequitas-mechanics-semantics"></a>
+
+- **outcome:** `aequitas` gains a stress semantics marker on the `Pressure`
+  dimension, so Cauchy stress, hydrostatic pressure, and an elastic modulus are
+  three distinct types over one dimension. Mirrors the existing
+  `AbsoluteTemperature`/`TemperatureDifference` and `SpringStiffness` treatment.
+- **scope:** `repos/aequitas` `src/dimension/model.rs` marker plus
+  `src/systems/si/dimensions.rs` and `quantities.rs` aliases. Upstream-only; no
+  consumer change in this item.
+- **non-goals:** tensor-valued stress. This item types the scalar component;
+  rank-2 stress is an Ares concern over `leto`.
+- **acceptance oracle:** a test asserting that assigning a `Pressure` quantity
+  to a stress-typed binding fails to compile (`compile_fail` doctest), and that
+  `proteus::elastic` moduli remain assignable as moduli.
+- **risk/class:** `[minor]`, additive. **dependencies:** none.
+- **verification plan:** aequitas gate (fmt, clippy pedantic, nextest, doc),
+  then `cargo check` of proteus against the updated aequitas before merge.
+- **gate role:** ADR 0055 lists this as an Ares prerequisite — typed physics
+  lands before the operator package, not during it.
+
+## ATLAS-AEQUITAS-REACTION-QUANTITIES-2026-09-03 — Add reaction-rate and molar-flux quantities [minor] — todo <a id="aequitas-reaction-quantities"></a>
+
+- **outcome:** `aequitas` gains `ReactionRate` (mol·m⁻³·s⁻¹) and `MolarFlux`
+  (mol·m⁻²·s⁻¹), completing the species-balance quantity set alongside the
+  existing `MolarConcentration`, `MolarEnergy`, and `MolarHeatCapacity`.
+- **scope:** `repos/aequitas` dimension and quantity aliases only.
+- **acceptance oracle:** dimensional-algebra tests proving
+  `MolarConcentration / Time == ReactionRate` and
+  `MolarFlux / Length == ReactionRate` resolve at the type level.
+- **risk/class:** `[minor]`, additive. **dependencies:** none.
+- **gate role:** ADR 0055 Prometheus prerequisite.
+
+## ATLAS-ARCHTEST-BALANCE-EDGES-2026-09-03 — Mechanize the ADR 0055 boundary rules [patch] — todo <a id="archtest-balance-edges"></a>
+
+- **outcome:** ADR 0055's rules fail the build instead of awaiting review.
+  Extend the existing `cargo metadata` architecture test with R7 (no
+  balance-to-balance dependency edge; coupling routes through `harmonia`), and
+  extend `cargo deny bans` with the substrate-contract prohibition list
+  (`nalgebra`, `ndarray`, `rayon`, `num-traits`) for the continuum packages.
+- **scope:** the atlas architecture test and the shared `deny.toml` surface.
+- **acceptance oracle:** a fixture edge from a balance package to another
+  balance package fails the test; the current stack passes unchanged.
+- **risk/class:** `[patch]`. **dependencies:** none — the rules are checkable
+  against the present stack even before Ares or Prometheus exist, which is the
+  point: the guard predates the code it guards.
+- **note:** R1 and R2 are grep-shaped and belong in the conformance scan
+  (`scripts/atlas-conformance.py`) rather than the architecture test.
+
+## ATLAS-PROTEUS-ELASTIC-SSOT-2026-09-03 — Proteus owns the isotropic modulus conversion contract [minor] — in-progress <a id="proteus-elastic-ssot"></a>
+
+- **integrator:** claude-opus-5 (this session)
+- **regions:** `repos/proteus/src/elastic/**`, `repos/proteus/tests/elastic.rs`
+  (provider). Consumer regions are unleased and unclaimed; both consumer trees
+  verified clean (`git status -s` empty in each).
+- **outcome:** the `(E, nu) <-> (lambda, mu) <-> (c_p, c_s)` contract and the
+  named isotropic-solid catalog land in Proteus, and CFDrs plus Kwavers delete
+  their copies. This is the recorded P2-B `ares` prerequisite in the stack map
+  (README "Required consolidation result"), not a repository promotion.
+- **acceptance oracle:** zero isotropic modulus-conversion arithmetic outside
+  `proteus::elastic`; consumer differentials agree with the provider inside the
+  derived tolerance; `rg 'lame_from_speeds|E / \(2 \* \(1'` returns provider
+  hits only.
+
+### Provider slice — merged
+
+`ryancinsight/proteus` PR #29, merged to `main` as `1726082`. Local gate at the
+identical tree: `cargo fmt --check` clean; `cargo clippy --all-targets` clean at
+the pedantic floor; `cargo nextest run` 44/44 (24 new, 20 pre-existing
+unaffected); `cargo test --doc` 2/2; `cargo doc --no-deps` clean.
+
+**Collection pending:** the merge-gate CI run on proteus `main` was still queued
+at hand-off; collect it at the next orientation and treat a red as the priority
+item.
+
+**Infrastructure finding — proteus has no required status checks.** `gh pr merge
+--auto` landed #29 immediately while `verify`, `MSRV`, `SemVer gate`,
+`supply-chain`, and `Lockfile integrity` were all still QUEUED, so the merge gate
+did not gate anything. This is the same class as
+`ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28` (checks adopted fleet-wide) but at the
+branch-protection layer: adopting the workflow does not enforce it. Ruleset
+configuration is a Change-grant merge-mechanic via `gh api`; audit every member
+for the same gap rather than fixing proteus alone.
+
+**Atlas gitlink:** `repos/proteus` still points at `930208f` and needs advancing
+to `1726082`. Not done here — the meta-repo gitlinks are mid-flight under a live
+peer (`MM repos/*` staged at 2026-09-03 14:30).
+
+### Evidence correction to the stack map
+
+The README P2-B `ares` row records that "CFDrs and Kwavers duplicate isotropic
+modulus conversions **and steel/aluminum catalogs**". The first half holds; the
+second does not. The catalogs name **different alloys**:
+
+| | CFDrs `ElasticSolid` | Kwavers `constants/implants.rs` |
+| --- | --- | --- |
+| "steel" | plain carbon steel, rho 7850, E 200 GPa, nu 0.30 | stainless 316L, rho 8000, c 5960 m/s |
+| aluminium | 6061, rho 2700, E 70 GPa | alumina (a ceramic), rho 3970 |
+
+Kwavers's implant constants carry density and sound speed, not `(E, nu)`, so
+they are not elastic-catalog duplicates at all. Consolidating the two catalogs
+under one "steel" entry would have silently substituted alloy constants. The
+provider therefore keys entries by grade (`CarbonSteel`, `StainlessSteel316L`,
+`Aluminium6061`, `TitaniumGrade5`) and a regression test asserts the two steel
+grades stay distinct. **The genuine duplication is the conversion algebra
+only.** The stack-map row should be corrected when the consumer slices land.
+
+### Remaining — consumer deletion slices
+
+1. `CFDrs`: `crates/cfd-core/src/physics/material/{solid.rs,traits.rs}` — delete
+   the `shear_modulus` default and the `steel()`/`aluminum()` elastic constants;
+   `ElasticSolid` composes `proteus::IsotropicModuli`.
+2. `kwavers`: `crates/kwavers-medium/src/elastic.rs` `lame_from_speeds` and
+   `crates/kwavers-medium/src/properties/elastic/constructors.rs`
+   `try_from_engineering`/`new` — delegate to the provider, keeping the
+   `ElasticProperties`/`ElasticArrayAccess` grid traits, which are operators and
+   stay consumer-side.
+
+**Ordering constraint (co-evolution protocol):** both consumers depend on
+`proteus-mat` by `git`+`version`, so the provider branch must merge to proteus
+`main` before either slice can resolve standalone or in CI. Under the stack
+development overlay the local tree already resolves, which would hide the gap —
+so the slices are sequenced after the provider merge, not run against the
+overlay.
+
+Blast radius measured, not assumed: `cfd-core` already declares
+`proteus.workspace = true`, and `ElasticSolid`/`SolidProperties` have exactly
+one caller outside their defining module
+(`crates/cfd-core/src/physics/mod.rs:81`, a re-export). Slice 2 additionally
+needs a review pass: the provider's positive-definite domain admits `lambda < 0`
+where Kwavers's `ElasticPropertyData::new` rejects it, so any Kwavers caller
+relying on that rejection changes behaviour.
+
+### Non-goals
+
+Creating `prometheus` or `ares`. `prometheus` is the stack's reaction-network
+candidate, not the structural-mechanics one; `ares` is the solid-mechanics
+candidate and its gate stays unmet until a second integrator can consume the
+same solid-kinematics or balance operator. See ADR 0030 and the README P2-B
+table.
+
+
 ## ATLAS-BACKWARD-PIN-GUARD-2026-09-02 — The pin guard refuses branch-tip pins but not backward ones [patch] — done 2026-09-02 (commit 99dc33fad) <a id="backward-pin-guard"></a>
 
 - **Fixed 2026-09-02 (pi session 01a06291):** the backward-pin predicate in
@@ -216,6 +384,28 @@
   bootstrap's MSYS2-UCRT environment makes the CUDA bindgen check pass; direct Cargo without that documented
   environment remains a caller setup error, not a missing library.
   **Delivery residual:** Hephaestus PR [#266](https://github.com/ryancinsight/hephaestus/pull/266) merged as `b0988107b795310dda416609e856864819925e0c`. Coeus PR [#363](https://github.com/ryancinsight/Coeus/pull/363) remains open with WGPU, CUDA, and Tests in progress; its repository-owned checks completed so far pass, while external `recurseml/analysis` reports an analyzer error. Root gitlink reconciliation remains pending the shared root index's peer-staged submodule pointers.
+- **A guard blind to the only event that changes what it measures.** `version-guard` triggered on
+  `repos/**/Cargo.toml`, but a member here is a gitlink: advancing one changes the path `repos/<name>` and matches no
+  such filter. The gate had not run since someone last edited the tool, days of pointer advances earlier, and the
+  requirement incoherence the version bumps introduced never reached it. `repos/**` matches the pointer — what the
+  overlay workflow beside it already used — and the gate now runs green on every advance. Same shape as ritk's ADR
+  guard: the second instance of this class in two days, both found by asking what event the gate actually sees.
+- **The weekly queue report had never produced a report.** It called the jobs endpoint once per run — twenty-six
+  repositories times up to two hundred runs — and was killed at its fifteen-minute bound every week, silently, since
+  stdout was buffered. Wall time bounds job-sum from above, so a run's wall time is exactly what a refinement can
+  recover from it; the refinement now goes to the longest runs first under a per-repository cap and skips runs under
+  twenty minutes, and the report carries both the refined figure and the all-wall bound so the number states its own
+  precision. Full seven-day fleet report: 7m40s, 4,565 runs, 974 queue minutes, 46,990 work minutes.
+- **Two more build-cache forks, 12.7 GB.** `repos/apollo/target` (12 GB) and `repos/eunomia/target` (697 MB), both
+  idle, both deleted. The generator is running cargo with a working directory outside the stack root: the shared
+  `.cargo/config.toml` is then never discovered and cargo defaults to the member's own `target/`. Running from
+  outside is the correct way to avoid the overlay rewriting a member's lockfile, so the technique needs
+  `CARGO_TARGET_DIR` set to the shared tree alongside it, not abandoning.
+- **Conformance regressions closed at their sources.** mnemosyne's growth put two files past the target
+  (`aligned_vec.rs` 604, `segment/alloc.rs` 517) and CFDrs's put one (`generator_impl.rs` 501); each is split by what
+  its parts do rather than by line count — storage from length-changing operations from byte views from trait impls;
+  handing a segment out from taking it back; building a geometry from reading a shape back out of one. Also completed
+  and landed a bench-module split left uncommitted in a worktree whose branch had already merged.
 - **Branch residue swept: 511 merged branches deleted, the generator closed.** Every one had its commits already on
   its default branch, so the refs carried nothing — 182 in kwavers, 51 in ritk, 25 in hephaestus, and so on down to
   two in gaia, mostly `ci/advance-atlas-pin`-class refs from earlier cascades. A further 23 unmerged branches turned
