@@ -311,6 +311,25 @@ Classical names describe bounded contexts rather than implementation variants.
 repositories use a classical name only when the mapping clarifies a stable
 bounded context.
 
+### Provisional names
+
+These name bounded contexts that no repository occupies yet. They are recorded
+so an audit does not reassign them, and none implies a promotion. Mappings
+follow [ADR 0055](docs/adr/0055-continuum-domain-decomposition.md).
+
+`ares` and `prometheus` have left this table: both are chartered under
+[ADR 0057](docs/adr/0057-ares-phase-0-charter.md) and
+[ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md). They enter the stack
+table when their Phase 0 registers, not before.
+
+| Provisional | Classical reference | Bounded context | Gate state |
+| --- | --- | --- | --- |
+| `astrape` | Astrape, personification of lightning | Electromagnetic field balance beyond optical interaction. | Not a candidate; no consumer. |
+| `daedalus` | Daedalus, the archetypal craftsman and designer | Parametric solid modelling: B-rep solids, booleans, sketch constraints, feature history. | Not a candidate; separate product line, starts as a `gaia` extension. |
+
+Ares is force, Prometheus is transformation. A proposal that assigns
+structural mechanics to Prometheus has misread the axis, not found a gap.
+
 ## Future package roadmap
 
 The roadmap optimizes ownership, not package count. A new repository is an
@@ -319,6 +338,54 @@ creates a stable lower-level owner. Names remain provisional until repository
 and crate-name availability is checked. No empty repository should be created
 from this list: promotion requires a real vertical implementation extracted
 from an existing need.
+
+### Suite coverage
+
+The stack targets a general multiphysics suite. Recording coverage explicitly
+keeps gaps tracked rather than rediscovered by each audit.
+
+| Capability | Owner | State |
+| --- | --- | --- |
+| Fluid flow, turbulence, multiphase | `CFDrs` | present |
+| Heat transfer | `CFDrs`, `asclepius` (bioheat) | present |
+| Acoustics and ultrasound | `kwavers` | present |
+| Radiation transport and dose | `helios`, `hyperion` | present |
+| Optical interaction | `hyperion` | present |
+| Biological response | `asclepius` | present |
+| Geometry, meshing, NURBS, topology | `gaia` | present |
+| Linear solvers | `athena` | present |
+| Time integration and subcycling | `horae` | present |
+| Multiphysics coupling | `harmonia` | present |
+| Uncertainty, sensitivity, optimization | `tyche`, `coeus` | present |
+| Solid mechanics | `ares` | chartered, Phase 0 not started ([ADR 0057](docs/adr/0057-ares-phase-0-charter.md)) |
+| Chemical species and reactions | `prometheus` | chartered, Phase 0 not started ([ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md)) |
+| Electromagnetics beyond optical | none | absent, no candidate |
+| Parametric solid modelling (MCAD) | none | absent, separate product line |
+
+**Electromagnetics.** `hyperion` owns photon and optical *interaction
+coefficients*, not field PDEs. Electrostatics, magnetostatics, induction
+heating, and full-wave propagation form a field-balance domain on the same axis
+as Ares and Prometheus. Provisional name `astrape`, the personification of
+lightning. It has no consumer today, so it does not reach the first gate
+condition; it is recorded so the next audit does not widen `hyperion` into it,
+which [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md)
+already declined.
+
+**Parametric solid modelling.** COMSOL-class analysis and SolidWorks- or
+Inventor-class authoring are different product lines, and the suite reaches the
+first by importing geometry rather than authoring it. `gaia` already owns more
+of the foundation than a survey suggests: NURBS basis functions, curves, knot
+vectors, surfaces, and tessellation, plus half-edge topology, manifold
+predicates, orientation, and adjacency. Absent is the authoring half — trimmed
+faces, shells and solids, boolean operations on B-rep solids, a sketch
+constraint solver, a feature history tree, assembly mates, and drawing
+generation. That is a multi-year body of work, not a package extraction.
+Provisional name `daedalus`. It is not a roadmap candidate under the current
+gate, because the gate requires extracting duplicated code from two consumers
+and no consumer implements parametric modelling. If pursued it starts as a
+`gaia` extension for solid B-rep and booleans, where the NURBS and half-edge
+foundation already lives, and separates only if the constraint and feature
+layers outgrow it.
 
 ### Promotion gate
 
@@ -340,6 +407,26 @@ A candidate becomes an Atlas package only when all of these conditions hold:
 7. `.gitmodules`, this stack table, affected provider documentation, and
    cross-package verification move in the same delivery unit.
 
+### New-construction path
+
+The seven conditions above describe **consolidation**: condition 4 requires a
+deletion ledger, so a capability the stack does not yet have cannot pass. That
+is correct for extraction and it cannot say yes to new physics, which is why
+`ares` and `prometheus` accumulated four rounds of identical deferral.
+
+[ADR 0056](docs/adr/0056-new-construction-promotion-path.md) adds a second path
+for new construction. It substitutes two conditions for the deletion ledger:
+Phase 0 must be a complete vertical slice of real computation, and its
+verification oracle must be **analytical** — closed forms, conservation laws,
+manufactured solutions, or published benchmarks, each cited. That is stricter
+than the consolidation path in the dimension that matters, because a
+consolidation promotion can difference against the code it replaces and new
+construction cannot.
+
+The path additionally requires a named product driver and a named first
+consumer before the first commit. A candidate with neither is closed rather
+than re-audited each cycle.
+
 ### P2 consolidation decision
 
 Harmonia graduated from this roadmap through
@@ -359,11 +446,54 @@ three consumer implementations into a lower common owner. Hyperion is now
 published and registered; Helios, Kwavers, and CFDrs have deleted their
 superseded production laws, completing the first-wave deletion ledger.
 
-The second P2 slot is intentionally empty. Ares or Prometheus is selected only
-when a prerequisite cleanup proves a second production consumer and a net-
-deletion result. Until then, creating either repository would add topology
-without consolidating code. The provisional names retain their classical
-mappings: Hyperion to light, Ares to war, and Prometheus to fire and craft.
+The second P2 slot was held empty while the gate had only a consolidation path,
+because neither candidate could produce a deletion ledger for a capability the
+stack did not have. [ADR 0056](docs/adr/0056-new-construction-promotion-path.md)
+adds the new-construction path, and both are now chartered against it — Ares
+under [ADR 0057](docs/adr/0057-ares-phase-0-charter.md), Prometheus under
+[ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md). The classical mappings
+are unchanged: Hyperion to light, Ares to war, Prometheus to fire and craft.
+
+#### Continuum decomposition axis
+
+[ADR 0055](docs/adr/0055-continuum-domain-decomposition.md) fixes the rule that
+separates the material-adjacent packages, because a name table alone proved
+readable backwards: an external stack review proposed Prometheus as the
+structural-mechanics package, citing this roadmap as confirmation.
+
+A continuum domain is a **conserved quantity**, its **balance operator**, and
+the **constitutive closure** that makes the balance well-posed. Closure is a
+pointwise material property; balance is a field operator; they are owned by
+different packages.
+
+| Package | Layer | Conserved quantity | Owns |
+| --- | --- | --- | --- |
+| `proteus` | Closure | none | Pointwise material response: property validity, constitutive contracts, and the response functions that close a balance law. |
+| `ares` | Balance | Solid momentum | Kinematics, stress divergence, equilibrium, contact and constraint enforcement, failure and fatigue. |
+| `prometheus` | Balance | Species mass | Reaction networks, stoichiometry, rate-law assembly, reaction source and enthalpy terms. |
+
+`CFDrs` occupies the same axis for fluid momentum and mass, `kwavers` for
+acoustic momentum, `helios` and `hyperion` for radiative transport, and
+`asclepius` for biological response. `harmonia` couples balance domains and
+owns no physics.
+
+Seven boundary rules make the split checkable rather than arguable — Proteus
+carries no field or mesh type in a public signature; balance owners bind
+`L: ConstitutiveLaw<T>` and name no concrete material; history-variable
+evolution is Proteus while its field storage is the balance owner; temperature
+dependence including Arrhenius is Proteus; kinematics follow the primal field;
+contact splits at geometry between Gaia and Ares; and balance domains never
+depend on each other directly, only through Harmonia. ADR 0055 states each rule
+with its verification.
+
+All three consume the first-party substrate — `eunomia` scalars, `aequitas`
+quantities, `leto` arrays, `hephaestus` accelerators, `moirai` execution,
+`mnemosyne` allocation, `themis` placement, `athena` solvers, `horae` time,
+`gaia` geometry — and add no third-party equivalent of a capability the stack
+already owns. Every physical value crossing a public boundary is an `aequitas`
+quantity carrying a semantics marker wherever a dimension is shared by
+physically distinct concepts, so Cauchy stress cannot silently unify with
+hydrostatic pressure or with an elastic modulus.
 
 An optics, radiofrequency, or photomedicine package is not a third candidate
 for that slot. [ADR 0032](docs/adr/0032-modality-transport-and-therapy-boundaries.md)
@@ -377,8 +507,8 @@ workspace crates — see
 | Track | Decision | Current evidence | Required consolidation result |
 | --- | --- | --- | --- |
 | P2-A `hyperion` | Complete: provider `7b4561b`; Helios `105a093`; Kwavers `5fc6f0419`; CFDrs merge `69323418`; Atlas registration at the recorded `repos/hyperion` gitlink. | All three consumers deleted their parallel coefficient, reduced-scattering, diffusion, effective-attenuation, optical-depth, or transmission production owners. CFDrs retains only its empirical coefficient, path selection, and hematocrit policy. | Delivered: one typed optical-depth/transmission SSOT, direct inward dependencies, one theorem suite, consumer differential oracles, and a closed deletion ledger. |
-| P2-B `ares` | Deferred; promotion gate unmet. | CFDrs and Kwavers duplicate isotropic modulus conversions and steel/aluminum catalogs, but those laws belong to Proteus. Kwavers is the only current solid-mechanics operator owner; CFDrs has no structural displacement/traction/contact solver. | First consolidate elastic properties in Proteus and delete both consumer copies. Reopen Ares only when a second integrator can consume the same solid-kinematics or balance operator in the extraction change. |
-| P2-B `prometheus` | Deferred; promotion gate unmet. | Kwavers has competing reaction representations and a bespoke RK45 implementation. CFDrs has manufactured reactive-flow oracles, not a production reaction-network consumer. Shared rheology temperature response belongs to Proteus. | Consolidate Kwavers reaction vocabulary and move reusable embedded stepping to Horae. Reopen Prometheus only when a second production consumer can delete a matching reaction-network implementation. |
+| P2-B `ares` | **Promoted** under the new-construction path ([ADR 0056](docs/adr/0056-new-construction-promotion-path.md)); Phase 0 chartered by [ADR 0057](docs/adr/0057-ares-phase-0-charter.md): small-strain linear elastostatics. Registry name `ares-solid`. | CFDrs and Kwavers duplicate isotropic modulus conversions; those laws belong to Proteus and now live there. The named catalogs are **not** duplicates — CFDrs carries plain carbon steel and 6061 aluminium, Kwavers stainless 316L and alumina, so a merged entry would substitute alloy constants. Kwavers is the only current solid-mechanics operator owner; CFDrs has no structural displacement/traction/contact solver. | Elastic consolidation proceeds on its own merits and is a Phase 0 prerequisite: provider landed (`proteus::elastic`, proteus `1726082`), consumer deletions outstanding. Ares no longer waits on a second consumer — under ADR 0056 the deletion ledger arrives with the Kwavers elastic-wave migration in Phase 1, and Phase 0 is gated instead on analytical oracles: exact patch test, rigid-body zero stress, Lame cylinder, MMS, `O(h^2)` convergence, energy consistency. |
+| P2-B `prometheus` | **Promoted** under the new-construction path; Phase 0 chartered by [ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md): homogeneous reaction networks — **not** solid mechanics. Registry name `prometheus-kinetics`. | Kwavers has competing reaction representations and a bespoke RK45 implementation. CFDrs has manufactured reactive-flow oracles, not a production reaction-network consumer. Shared rheology temperature response belongs to Proteus. | The Kwavers reaction consolidation is no longer a blocker — it existed to produce a deletion ledger, which under ADR 0056 arrives with the Kwavers consumer migration in Phase 8. It remains worthwhile on its own merits. Phase 0 is gated on analytical oracles: first- and second-order closed forms, `K_eq` convergence, mass conservation, non-negativity, Arrhenius recovery, and the Robertson stiff benchmark. Prometheus becomes Horae's first embedded-stepping consumer. |
 
 `hyperion` Phase 0 is deliberately narrower than the former proposal for all
 electromagnetics, optics, and radiation transport. It owns validated photon and
@@ -442,12 +572,27 @@ plasmonic, Monte Carlo, or dose ownership requires a later independent audit;
 it is not implied by the package name.
 
 The Ares prerequisite is a Proteus elastic-property slice, not a repository
-creation: one validated `(E, nu) <-> (lambda, mu) <-> (c_p, c_s)` contract and
-one named material catalog replace the CFDrs and Kwavers copies, including
-Kwavers's separate `lame_from_speeds` formula. If Ares later qualifies, it owns
-solid kinematics and balance operators. Gaia retains contact geometry;
-Harmonia retains partition transfer, relaxation, subcycling, and fluid-
-structure coupling orchestration.
+creation. The provider half has landed: `proteus::elastic::IsotropicModuli`
+owns one validated `(E, nu) <-> (lambda, mu) <-> (c_p, c_s)` contract over
+`T: RealField`, and `NamedIsotropicSolid` owns a grade-keyed catalog. The
+outstanding half is consumer deletion — the CFDrs `SolidProperties::
+shear_modulus` default and elastic constants, and Kwavers's `lame_from_speeds`
+plus `ElasticPropertyData::{new, try_from_engineering}`.
+
+Two corrections to the original evidence, both from source audit. The named
+catalogs were never duplicates: CFDrs carries plain carbon steel and 6061
+aluminium, Kwavers stainless 316L and alumina, and Kwavers's implant constants
+carry density and sound speed rather than `(E, nu)`. Only the conversion
+algebra was duplicated, so the provider keys catalog entries by grade. Second,
+the provider admits `lambda < 0`, which Kwavers's `ElasticPropertyData::new`
+rejects; negative Lame lambda is physical for auxetic solids, so the consumer
+slice widens a domain rather than preserving one.
+
+If Ares later qualifies, it owns solid kinematics and balance operators, with
+its boundary against Proteus fixed by
+[ADR 0055](docs/adr/0055-continuum-domain-decomposition.md): Proteus closes,
+Ares balances. Gaia retains contact geometry; Harmonia retains partition
+transfer, relaxation, subcycling, and fluid-structure coupling orchestration.
 
 The Prometheus prerequisite is cleanup and upstream work, not a repository
 creation: Kwavers converges on one reaction/species representation and Horae
@@ -599,12 +744,13 @@ eunomia + aequitas + proteus ── hyperion ── helios / kwavers / CFDrs
 aequitas quantities ── deposition spine ── every modality:
     transport ─> Intensity / VolumetricPowerDensity ─> bioheat ─> asclepius
 
-proteus ── elastic-property SSOT ── CFDrs / kwavers
+proteus ── elastic SSOT (landed) ── CFDrs / kwavers consumer slices pending
 horae ── embedded-step policy (consumer-gated; no current caller) ── kwavers chemistry
 
-future, only after the P2-B promotion trigger:
-proteus + leto ── ares ── CFDrs / kwavers
-eunomia + aequitas + horae ── prometheus ── CFDrs / kwavers
+future, only after the P2-B promotion trigger (ADR 0055 decomposition axis):
+aequitas + eunomia + leto + gaia + athena + proteus ── ares ── CFDrs / kwavers
+aequitas + eunomia + leto + horae + proteus ── prometheus ── CFDrs / kwavers
+                          (balance owners couple only through harmonia)
 
 future, only after a second transport consumer appears (ADR 0032):
 hyperion + leto + hephaestus ── hyperion-transport ── kwavers / <second consumer>
@@ -620,8 +766,14 @@ material law or own physics. Its Phase 0 API provides two-partition synchronous
 Jacobi coupling over Horae subcycle plans and Athena Core convergence policy.
 Integrators compose those mechanics with `proteus` or domain-owned
 constitutive models. P2-A is complete through the Hyperion deletion ledger.
-P2-B remains a readiness competition between Ares and Prometheus; neither is
-registered until its explicit consumer trigger fires.
+P2-B is no longer a competition. Both are chartered under the new-construction
+path: [ADR 0057](docs/adr/0057-ares-phase-0-charter.md) for Ares,
+[ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md) for Prometheus. They
+are independent, share no prerequisite, and can proceed concurrently.
+[ADR 0055](docs/adr/0055-continuum-domain-decomposition.md) fixes what each
+owns — Ares balances solid momentum, Prometheus balances species mass, and
+Proteus closes both. Neither enters the stack table until its Phase 0
+registers.
 
 The following concerns are not package gaps:
 
