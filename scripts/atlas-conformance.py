@@ -1072,12 +1072,17 @@ def scan_repo(repo: Path, live_repo: Path | None = None) -> dict[str, int]:
             1 for ln in prod.splitlines() if COMMENTED_CODE.match(ln)
         )
         if not is_bin:
-            hits = len(PRINT_DBG.findall(prod))
+            # Doc-comment bodies are doctests, i.e. test code — the same
+            # reason `unwrap_production` strips them above. A `println!`
+            # inside a `//! ```ignore` example (consus-zarr's chunk-key
+            # loop) is documentation prose, not library debug output.
+            prod_code = strip_doc_comments(prod)
+            hits = len(PRINT_DBG.findall(prod_code))
             # Exempt `println!("cargo:...")` in build.rs — the canonical
             # Cargo build-script protocol.  These are required build
             # instructions, not debug print debt.
             if path.name == "build.rs" and hits:
-                hits -= len(CARGO_PROTOCOL_PRINT.findall(prod))
+                hits -= len(CARGO_PROTOCOL_PRINT.findall(prod_code))
             c["print_dbg"] += hits
         c["lane_kernel_uninlined"] += count_lane_kernel_uninlined(prod)
         c["existence_only_assertions"] += len(EXISTENCE_ONLY.findall(test))

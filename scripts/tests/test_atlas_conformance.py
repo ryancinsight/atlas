@@ -266,6 +266,29 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["print_dbg"], 1)
 
+    def test_doctest_println_is_not_library_output(self) -> None:
+        # Doc-comment bodies are doctests: a `println!` inside `//!`/`///`
+        # is example prose (consus-zarr's ignored chunk-key loop), not
+        # production debug output — the same reason `unwrap_production`
+        # strips doc comments before counting.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(
+                root,
+                "src/lib.rs",
+                "//! ```ignore\n"
+                "//! for key in keys {\n"
+                '//!     println!("chunk key: {key}");\n'
+                "//! }\n"
+                "//! ```\n"
+                "pub fn keys() {}\n",
+            )
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["print_dbg"], 0)
+
     def test_include_sources_are_not_orphans(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
