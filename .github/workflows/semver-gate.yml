@@ -10,8 +10,15 @@
 # against the published baseline is red from its first run and gets ignored
 # within a day. This gate therefore:
 #   - on PRs: runs INFORMATIONALLY against the PR base so the detected
-#     change-class is visible while the change is still in review
-#     (continue-on-error: true),
+#     change-class is visible while the change is still in review. The
+#     continue-on-error sits on the *step*, not the job: a job-level
+#     continue-on-error still reports the job's conclusion as `failure`, so
+#     `gh pr checks` and any bot reading the check list see red on every PR
+#     carrying an accepted break. That is the same desensitisation this header
+#     opens by rejecting, and it also pages PR-watching automation on a check
+#     that cannot pass by design. The step absorbs the failure, the job
+#     concludes green, and the verdict is written to the run summary where a
+#     reviewer actually reads it (ATLAS-SEMVER-INFORMATIONAL-REPORTS-RED),
 #   - on a release event — a published release, a tag push, or a caller
 #     that sets `release-gate: true` (the member's release workflow, which
 #     may run on `workflow_dispatch`) — runs BLOCKING against the previous
@@ -96,7 +103,6 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    continue-on-error: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -106,13 +112,28 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ${{ inputs.apt-packages }}
-      - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
+      - id: semver
+        continue-on-error: true
+        uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
         with:
           package: ${{ inputs.package }}
           manifest-path: ${{ inputs.manifest-path }}
           rust-toolchain: ${{ inputs.rust-toolchain }}
           baseline-rev: ${{ github.event.pull_request.base.sha }}
           verbose: true
+      - name: Report the detected change class
+        run: |
+          if [ "${{ steps.semver.outcome }}" = "success" ]; then
+            echo "### SemVer: no update required" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "No breaking or additive change detected against the PR base." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### SemVer: a version bump is required" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "\`cargo-semver-checks\` detected a change the current manifest version does not cover. Open the step log above for the failing checks." >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "This job stays green on purpose: on a pull request the gate is informational, and members accumulate accepted breaking changes under CHANGELOG \`[Unreleased]\`. Record the break there. The blocking comparison runs at release." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   semver-release:
     name: SemVer (release gate)
