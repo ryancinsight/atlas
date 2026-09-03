@@ -17,6 +17,7 @@ on:
   pull_request:
     paths:
       - '.gitmodules'
+      - 'repos/**'
       - 'repos/**/Cargo.toml'
       - 'repos/**/Cargo.lock'
       - 'repos/**/rust-toolchain.toml'
@@ -27,10 +28,12 @@ on:
       - 'scripts/tests/test_atlas_version_guard_sweep.py'
       - 'tools/_template/**'
       - 'tools/version-guard/**'
+      - '.github/workflows/version-guard.yml'
   push:
     branches: [main]
     paths:
       - '.gitmodules'
+      - 'repos/**'
       - 'repos/**/Cargo.toml'
       - 'repos/**/Cargo.lock'
       - 'repos/**/rust-toolchain.toml'
@@ -41,6 +44,7 @@ on:
       - 'scripts/tests/test_atlas_version_guard_sweep.py'
       - 'tools/_template/**'
       - 'tools/version-guard/**'
+      - '.github/workflows/version-guard.yml'
 
 concurrency:
   # Pull requests share one group per ref and cancel superseded runs. Default-
