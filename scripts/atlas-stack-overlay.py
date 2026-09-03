@@ -189,6 +189,71 @@ def collect_first_party_deps() -> list[tuple[str, str, str | None, Path]]:
     return found
 
 
+def package_repo(path: Path) -> Path:
+    """Return the canonical ``repos/<repository>`` prefix for a package."""
+    parts = path.parts
+    return Path(*parts[:2]) if len(parts) >= 2 else path
+
+
+def local_dependency_lags(
+    packages: dict[str, tuple[Path, str | None]],
+) -> dict[Path, set[str]]:
+    """Find local provider repositories with incompatible workspace edges.
+
+    A package can satisfy its consumer's version pin while its local workspace
+    manifest still requests an older first-party provider. Patching that one
+    package would then mix a local provider graph with the current locked Git
+    graph. Leave the whole repository on Git until its workspace requirements
+    advance together.
+    """
+    lags: dict[Path, set[str]] = {}
+    for _package, (relative, _version) in packages.items():
+        manifest = ATLAS_ROOT / relative / "Cargo.toml"
+        try:
+            data = tomllib.loads(manifest.read_text(encoding="utf-8"))
+        except (tomllib.TOMLDecodeError, OSError):
+            continue
+        workspace_dependencies: dict = {}
+        for parent in (manifest.parent, *manifest.parents):
+            root_manifest = parent / "Cargo.toml"
+            try:
+                root_data = tomllib.loads(root_manifest.read_text(encoding="utf-8"))
+            except (tomllib.TOMLDecodeError, OSError):
+                continue
+            workspace = root_data.get("workspace", {})
+            if isinstance(workspace, dict) and isinstance(
+                workspace.get("dependencies"), dict
+            ):
+                workspace_dependencies = workspace["dependencies"]
+                break
+        if not workspace_dependencies:
+            continue
+        for table in iter_dependency_tables(data):
+            for name, spec in table.items():
+                if not isinstance(spec, dict):
+                    continue
+                resolved = workspace_dependencies.get(name, spec) if spec.get("workspace") else spec
+                if not isinstance(resolved, dict):
+                    continue
+                url = resolved.get("git")
+                requirement = resolved.get("version")
+                dependency = resolved.get("package", name)
+                if (
+                    not isinstance(url, str)
+                    or FIRST_PARTY_HOST not in url
+                    or not isinstance(requirement, str)
+                ):
+                    continue
+                local = packages.get(dependency)
+                if local is None or local[1] is None or satisfies(local[1], requirement):
+                    continue
+                repo = package_repo(relative)
+                lags.setdefault(repo, set()).add(
+                    f"{dependency} {requirement} (local {local[1]})"
+                )
+    return lags
+
+
 def build_overlay(
     packages: dict[str, tuple[Path, str | None]],
 ) -> tuple[str, list[str], list[str]]:
@@ -215,6 +280,13 @@ def build_overlay(
         reqs_by_pkg.setdefault(pkg, []).append(req)
         urls_by_pkg.setdefault(pkg, set()).add(url)
 
+    repository_lags = local_dependency_lags(packages)
+    for repo, edges in sorted(repository_lags.items()):
+        lag_skipped.append(
+            f"{repo.as_posix()}: local workspace edges {sorted(edges)!r}; "
+            "leaving the repository packages on git"
+        )
+
     for pkg, reqs in sorted(reqs_by_pkg.items()):
         if pkg not in packages:
             missing.append(f"{pkg} (declared from {sorted(urls_by_pkg[pkg])[0]})")
@@ -232,6 +304,8 @@ def build_overlay(
                 f"{pkg}: local tree is {local_version}, cannot satisfy "
                 f"{unsatisfied!r}; leaving the edge on git"
             )
+            continue
+        if package_repo(packages[pkg][0]) in repository_lags:
             continue
         for url in urls_by_pkg[pkg]:
             by_url.setdefault(url, set()).add(pkg)

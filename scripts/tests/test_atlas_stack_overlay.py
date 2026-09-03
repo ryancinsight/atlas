@@ -121,6 +121,51 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
         self.assertEqual(len(missing), 1)
         self.assertEqual(lag, [])
 
+    def test_generate_skips_repository_with_incompatible_workspace_edge(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
+            root = Path(root_text)
+            provider = root / "repos" / "provider" / "Cargo.toml"
+            consumer_root = root / "repos" / "consumer" / "Cargo.toml"
+            consumer = root / "repos" / "consumer" / "crates" / "consumer" / "Cargo.toml"
+            provider.parent.mkdir(parents=True)
+            consumer.parent.mkdir(parents=True)
+            provider.write_text(
+                '[package]\nname = "provider"\nversion = "0.43.0"\n',
+                encoding="utf-8",
+            )
+            consumer_root.write_text(
+                '[workspace]\nmembers = ["crates/consumer"]\n\n'
+                '[workspace.dependencies]\nprovider = { version = "0.42.0", git = "https://github.com/ryancinsight/provider" }\n',
+                encoding="utf-8",
+            )
+            consumer.write_text(
+                '[package]\nname = "consumer"\nversion = "1.0.0"\n\n'
+                '[dependencies]\nprovider = { workspace = true }\n',
+                encoding="utf-8",
+            )
+            packages = {
+                "provider": (Path("repos/provider"), "0.43.0"),
+                "consumer": (Path("repos/consumer/crates/consumer"), "1.0.0"),
+            }
+            deps = [
+                (
+                    "consumer",
+                    "https://github.com/ryancinsight/consumer",
+                    "^1.0.0",
+                    consumer,
+                )
+            ]
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "collect_first_party_deps", return_value=deps
+            ):
+                block, missing, lag = _overlay.build_overlay(packages)
+
+            self.assertEqual(block, "\n")
+            self.assertEqual(missing, [])
+            self.assertEqual(len(lag), 1)
+            self.assertIn("repos/consumer", lag[0])
+            self.assertIn("provider 0.42.0", lag[0])
+
 
 class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
     def test_repo_manifests_excludes_worktrees(self) -> None:
