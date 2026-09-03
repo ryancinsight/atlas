@@ -298,6 +298,37 @@ ran; commit `9537b4f4e` landed without needing it.
 - **note:** R1 and R2 are grep-shaped and belong in the conformance scan
   (`scripts/atlas-conformance.py`) rather than the architecture test.
 
+## ATLAS-CATALOG-DUPLICATION-CORRECTION-2026-09-03 - The catalogs are duplicated after all [patch] - done 2026-09-03 <a id="catalog-duplication-correction"></a>
+
+Corrects a claim this session put into the stack map and this board. I recorded
+that the CFDrs and Kwavers material catalogs were **not** duplicates. That was
+wrong, and the error was a search that stopped too early: I audited
+`kwavers-core/constants/implants.rs` (316L, titanium, alumina - acoustic
+constants by density and sound speed, genuinely not elastic-catalog duplicates)
+and never reached `kwavers-medium/properties/elastic/constructors.rs`, which is
+the actual counterpart to `cfd-core` `ElasticSolid`.
+
+Both carry named materials by `(rho, E, nu)`:
+
+| Material | `cfd-core` `ElasticSolid` | `kwavers-medium` `ElasticPropertyData` |
+| --- | --- | --- |
+| steel | 7850, 200 GPa, 0.30 | 7850, 200 GPa, 0.30 - identical |
+| aluminium | 2700, **70** GPa, 0.33 | 2700, **69** GPa, 0.33 - drifted |
+| bone | absent | 1900, 17 GPa, 0.30 |
+
+The drift is the strongest possible argument for consolidation: two copies of
+one catalog that no longer agree, with nothing to say which is right. Neither
+is, for 6061-T6 - the published modulus is 68.9 GPa (10,000 ksi), so the
+provider is corrected to that with its source rather than either consumer value
+being promoted.
+
+**Pattern for the slop library** (second entry today, same root cause): a
+partial search is not an audit. The earlier retraction in
+`#application-layer-gap` came from a grep matching "wave*gui*de"; this one from
+stopping at the first plausible file. Both produced a confident claim that a
+fuller search falsified. The check is cheap - enumerate every candidate site
+before concluding a negative, and state which sites were searched.
+
 ## ATLAS-PROTEUS-ELASTIC-SSOT-2026-09-03 — Proteus owns the isotropic modulus conversion contract [minor] — in-progress <a id="proteus-elastic-ssot"></a>
 
 - **integrator:** claude-opus-5 (this session)
@@ -338,6 +369,9 @@ to `1726082`. Not done here — the meta-repo gitlinks are mid-flight under a li
 peer (`MM repos/*` staged at 2026-09-03 14:30).
 
 ### Evidence correction to the stack map
+
+**SUPERSEDED 2026-09-03 by a fuller source audit — see the correction note at
+the end of this section.** The original text follows.
 
 The README P2-B `ares` row records that "CFDrs and Kwavers duplicate isotropic
 modulus conversions **and steel/aluminum catalogs**". The first half holds; the

@@ -507,7 +507,7 @@ workspace crates — see
 | Track | Decision | Current evidence | Required consolidation result |
 | --- | --- | --- | --- |
 | P2-A `hyperion` | Complete: provider `7b4561b`; Helios `105a093`; Kwavers `5fc6f0419`; CFDrs merge `69323418`; Atlas registration at the recorded `repos/hyperion` gitlink. | All three consumers deleted their parallel coefficient, reduced-scattering, diffusion, effective-attenuation, optical-depth, or transmission production owners. CFDrs retains only its empirical coefficient, path selection, and hematocrit policy. | Delivered: one typed optical-depth/transmission SSOT, direct inward dependencies, one theorem suite, consumer differential oracles, and a closed deletion ledger. |
-| P2-B `ares` | **Promoted** under the new-construction path ([ADR 0056](docs/adr/0056-new-construction-promotion-path.md)); Phase 0 chartered by [ADR 0057](docs/adr/0057-ares-phase-0-charter.md): small-strain linear elastostatics. Registry name `ares-solid`. | CFDrs and Kwavers duplicate isotropic modulus conversions; those laws belong to Proteus and now live there. The named catalogs are **not** duplicates — CFDrs carries plain carbon steel and 6061 aluminium, Kwavers stainless 316L and alumina, so a merged entry would substitute alloy constants. Kwavers is the only current solid-mechanics operator owner; CFDrs has no structural displacement/traction/contact solver. | Elastic consolidation proceeds on its own merits and is a Phase 0 prerequisite: provider landed (`proteus::elastic`, proteus `1726082`), consumer deletions outstanding. Ares no longer waits on a second consumer — under ADR 0056 the deletion ledger arrives with the Kwavers elastic-wave migration in Phase 1, and Phase 0 is gated instead on analytical oracles: exact patch test, rigid-body zero stress, Lame cylinder, MMS, `O(h^2)` convergence, energy consistency. |
+| P2-B `ares` | **Promoted** under the new-construction path ([ADR 0056](docs/adr/0056-new-construction-promotion-path.md)); Phase 0 chartered by [ADR 0057](docs/adr/0057-ares-phase-0-charter.md): small-strain linear elastostatics. Registry name `ares-solid`. | CFDrs and Kwavers duplicate isotropic modulus conversions; those laws belong to Proteus and now live there. The named catalogs **are** duplicated, and have already drifted: `cfd-core` `ElasticSolid` and `kwavers-medium` `ElasticPropertyData` both carry steel and aluminium by `(rho, E, nu)`, agreeing exactly on steel (7850, 200 GPa, 0.30) and disagreeing on aluminium (70 GPa against 69 GPa). Kwavers separately carries acoustic implant constants (316L, titanium, alumina) by density and sound speed; those are not elastic-catalog duplicates and stay put. Kwavers is the only current solid-mechanics operator owner; CFDrs has no structural displacement/traction/contact solver. | Elastic consolidation proceeds on its own merits and is a Phase 0 prerequisite: provider landed (`proteus::elastic`, proteus `1726082`), consumer deletions outstanding. Ares no longer waits on a second consumer — under ADR 0056 the deletion ledger arrives with the Kwavers elastic-wave migration in Phase 1, and Phase 0 is gated instead on analytical oracles: exact patch test, rigid-body zero stress, Lame cylinder, MMS, `O(h^2)` convergence, energy consistency. |
 | P2-B `prometheus` | **Promoted** under the new-construction path; Phase 0 chartered by [ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md): homogeneous reaction networks — **not** solid mechanics. Registry name `prometheus-kinetics`. | Kwavers has competing reaction representations and a bespoke RK45 implementation. CFDrs has manufactured reactive-flow oracles, not a production reaction-network consumer. Shared rheology temperature response belongs to Proteus. | The Kwavers reaction consolidation is no longer a blocker — it existed to produce a deletion ledger, which under ADR 0056 arrives with the Kwavers consumer migration in Phase 8. It remains worthwhile on its own merits. Phase 0 is gated on analytical oracles: first- and second-order closed forms, `K_eq` convergence, mass conservation, non-negativity, Arrhenius recovery, and the Robertson stiff benchmark. Prometheus becomes Horae's first embedded-stepping consumer. |
 
 `hyperion` Phase 0 is deliberately narrower than the former proposal for all
@@ -579,14 +579,23 @@ outstanding half is consumer deletion — the CFDrs `SolidProperties::
 shear_modulus` default and elastic constants, and Kwavers's `lame_from_speeds`
 plus `ElasticPropertyData::{new, try_from_engineering}`.
 
-Two corrections to the original evidence, both from source audit. The named
-catalogs were never duplicates: CFDrs carries plain carbon steel and 6061
-aluminium, Kwavers stainless 316L and alumina, and Kwavers's implant constants
-carry density and sound speed rather than `(E, nu)`. Only the conversion
-algebra was duplicated, so the provider keys catalog entries by grade. Second,
+Two notes on the evidence, both from source audit. The named catalogs are
+duplicated and have measurably drifted: `cfd-core` `ElasticSolid` and
+`kwavers-medium` `ElasticPropertyData` both carry steel and aluminium by
+`(rho, E, nu)`, agree exactly on steel, and disagree on aluminium at 70 GPa
+against 69 GPa. Neither is right for 6061-T6, whose published modulus is
+68.9 GPa, so consolidation resolves the drift rather than picking a side.
+Kwavers's acoustic implant constants (316L, titanium, alumina, by density and
+sound speed) are a different concern and are not part of this ledger. Second,
 the provider admits `lambda < 0`, which Kwavers's `ElasticPropertyData::new`
 rejects; negative Lame lambda is physical for auxetic solids, so the consumer
 slice widens a domain rather than preserving one.
+
+An earlier revision of this section claimed the catalogs were not duplicated.
+That was drawn from `kwavers-core/constants/implants.rs` alone and missed
+`kwavers-medium/properties/elastic/constructors.rs`, which is the actual
+counterpart. Recorded so the audit trail shows the claim was corrected by
+source, not quietly reversed.
 
 If Ares later qualifies, it owns solid kinematics and balance operators, with
 its boundary against Proteus fixed by
