@@ -1,5 +1,34 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-RECURSEML-STATUS-ERROR-2026-09-03 - Third-party analyzer errors on the merge gate [infra] - todo <a id="recurseml-status-error"></a>
+
+- **symptom:** the `recurseml/analysis` commit status reports state `error`,
+  description "Error occurred during analysis", on aequitas PR
+  [#50](https://github.com/ryancinsight/aequitas/pull/50). It surfaces in
+  `gh pr checks` as a failing check.
+- **not caused by the change under review.** The identical status shape appears
+  on unrelated earlier commit `a65ade0c` ("Error occurred during analysis
+  (2d6a4a87..a65ade0c)"), which predates the branch. It is a recurring
+  analyzer-side failure.
+- **nothing to fix in the diff.** It is a commit status, not a check run: no
+  output, no summary, no log, and its target URL is the PR files page rather
+  than a run. There are no findings to act on, and editing code to make a
+  third-party analyzer stop erroring would be gaming a check rather than fixing
+  a defect.
+- **why it matters anyway:** it renders as a red check on every PR it touches,
+  so it trains reviewers and agents to ignore red - the failure mode that makes
+  a merge gate worthless. A status that cannot pass is worse than no status.
+- **options, user decision:** remove the `recurseml` GitHub App from the
+  repositories it is installed on; or keep it and exclude it from required
+  status checks so it cannot gate a merge; or raise it with the vendor. All
+  three are app or repository-settings changes, which is an Ask-User dimension.
+- **related:** the real gates on PR #50 (`verify`, `supply-chain`, `SemVer`,
+  `Lockfile integrity`) were all still queued at hand-off - see
+  `ATLAS-RUNNER-STARVATION-2026-09-02`. Local gate evidence at the exact
+  revision `89a038a` is recorded in the PR body per the hosted-CI-unavailability
+  rule: fmt clean, clippy clean at the pedantic floor, nextest 135/135,
+  doctests 9/9, doc clean.
+
 ## ATLAS-PREREQ-EXECUTION-2026-09-03 - Prerequisite execution status [minor] - in-progress <a id="prereq-execution"></a>
 
 - **integrator:** claude-opus-5 (this session)
