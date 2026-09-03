@@ -149,7 +149,7 @@
 - **The sweep is measured at origin, not at the working trees.** `version-guard coherence` reads the checked-out trees, and gaia's sat two commits behind its own bump, so it compared every consumer against 0.4.0 and reported clean while five consumers could not resolve. Reading the same requirements at `origin/HEAD` found fifteen incoherent requirements: gaia-mesh 0.4.0 against a published 0.5.0 in CFDrs, helios, kwavers and ritk, and leto/leto-ops 0.42.0 against 0.43.0 in CFDrs, coeus, kwavers and ritk. The bump's blast radius was twice what the leto-only sweep covered. Making the coherence tool fetch and read origin is a defect against it.
 - **Coeus depended on a commit that is not on any default branch.** Its `mnemosyne` requirement carried `rev = "fd1ccdd"`, a revision on the unmerged branch `refactor/mnemosyne-free-helpers-split` (18 commits ahead of main, 10 behind, no pull request). Consequences, all of which read as unrelated failures: the graph carried the whole mnemosyne subtree twice, thirty-eight lock entries frozen; the pinned copy declares `extern "C" fn mbind`, which lives in libnuma rather than glibc, so every Linux binary linking it failed with `undefined symbol: mbind` and coeus's `Tests` job was red on main; and no fix landed on mnemosyne's main could ever reach it. The pin existed because main's `AlignedVec` had no way to append — no `push`, `extend_from_slice`, `resize`, no slice or fill constructor, and no `Sync` — while the branch's did. Fixed at the root: Mnemosyne#117 adds that family to main with six tests, after which coeus drops the pin (Coeus#361, which also formats the two files #359 left unformatted).
 - **A guard that cannot run on the files it guards.** ritk's ADR index check was a job in `ci.yml`, which carries `paths-ignore: docs/**`, so a pull request touching only `docs/adr` ran no check at all — the guard executed only when unrelated code dragged it along, which is how a malformed heading reached main and stayed red. Moved to its own trigger (ritk#223), the form four siblings already use; adding the trigger made the guard appear on that very pull request, which is the proof it now runs. ritk was the only member with this shape. Separately, hephaestus and CFDrs have no ADR guard at all — filed below.
-- **ATLAS-WINDOW-ACCELERATOR-INCOMPLETE-2026-09-03** [arch][patch] status=in-progress integrator=codex
+- **ATLAS-WINDOW-ACCELERATOR-INCOMPLETE-2026-09-03** [arch][patch] status=review integrator=codex
   **Lease:** codex — `repos/coeus/crates/coeus-hephaestus`, `repos/coeus/crates/coeus-wgpu`,
   `repos/coeus/crates/coeus-cuda`; bootstrap configuration only if the reproduced CUDA
   loader defect is repository-owned — 2026-09-03.
@@ -164,6 +164,16 @@
   copy — it is already in two backends, so its home is the crate both depend on. **Acceptance:** the four provider-contract
   jobs compile and pass on Coeus main. **Dependencies:** the `From<WindowKey>` impls land upstream in hephaestus first,
   then Coeus's lock advances to them. **Found:** 2026-09-03 while merging Coeus#361, whose own scope was orthogonal.
+  **All three causes fixed and merged, 2026-09-03 (claude session 5050c72a) — the lease above was taken after this
+  work was already in flight, so codex should check before starting: nothing of the three remains.** hephaestus#263
+  (`89e50a9e`) adds `From<WindowKey>` for the CUDA and ROCm cache keys; metal and wgpu implement no `DeviceApi`, so
+  they carry no key to extend. Four tests assert that a difference in operation, host scalar or spatial rank yields a
+  different key, and that the same window converts identically. Coeus#362 (`665f715a`) moves `WindowConfiguration`
+  into `coeus-hephaestus` rather than copying it into the second backend, names `CudaBackendError` where it lives,
+  and advances the lock. Compiling `coeus-cuda` for the first time exposed two items dead under `-D warnings`: an
+  error constructor whose only callers sit under `#[cfg(not(feature = "cuda"))]`, now gated the same way, and a
+  launch helper with no caller in any configuration, deleted. The CUDA job reached 214 passing tests before that lint
+  stopped it. Remaining: the four contract jobs' run on Coeus main, which is the acceptance oracle.
 - **Apollo carries two commits reachable only from a detached HEAD.** `repos/apollo`'s working tree sits detached at
   `e245ef89` with a dirty `Cargo.lock`, `Cargo.toml` and `README.md`; the two commits are not on any branch and not on
   origin (199 insertions, 506 deletions across 25 files, including 87 lines removed from `gap_audit.md`). Preserved under
