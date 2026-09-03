@@ -93,6 +93,19 @@ while IFS= read -r path; do
     echo "               git update-index --cacheinfo 160000,\$(git -C $path rev-parse origin/${default}),$path" >&2
     gitlink_defect=1
   fi
+  # Backward-pin guard (ATLAS-BACKWARD-PIN-GUARD-2026-09-02): a staged entry
+  # strictly behind the pin recorded at HEAD reverts the member out of the
+  # recorded stack state. The branch-tip check above asks only "is this commit
+  # on the default branch?" — which a stale ancestor answers acceptably; this
+  # asks the separate question "is this commit already superseded here?".
+  recorded=$(git rev-parse "HEAD:$path" 2>/dev/null || true)
+  if [ -n "$recorded" ] && [ "$sha" != "$recorded" ] && \
+     git -C "$path" merge-base --is-ancestor "$sha" "$recorded" 2>/dev/null; then
+    echo "[pre-commit] $path: staged ${sha:0:10} is behind recorded ${recorded:0:10}; refusing backward pin." >&2
+    echo "  Advance from origin/${default}, never a stale checkout:" >&2
+    echo "    git update-index --cacheinfo 160000,\$(git -C $path rev-parse origin/${default}),$path" >&2
+    gitlink_defect=1
+  fi
 done < <(git diff --cached --name-only --diff-filter=ACM -- 'repos/*' 2>/dev/null)
 if [ "$gitlink_defect" != 0 ]; then
   echo "[pre-commit] refusing the commit: a pin the stack cannot resolve from the member's default branch breaks every consumer." >&2
