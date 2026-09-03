@@ -180,6 +180,12 @@
   bootstrap's MSYS2-UCRT environment makes the CUDA bindgen check pass; direct Cargo without that documented
   environment remains a caller setup error, not a missing library.
   **Delivery residual:** [Hephaestus PR #266](https://github.com/ryancinsight/hephaestus/pull/266) and [Coeus PR #363](https://github.com/ryancinsight/Coeus/pull/363) are open for review. Root gitlink reconciliation remains pending the shared root index's peer-staged submodule pointers.
+- **Two build-cache forks and a worktree over the bound, all local.** `repos/mnemosyne/target-standalone` (85 MB) was
+  stale and is deleted; `repos/coeus/target` (4.7 GB) is the same defect but was written to minutes ago, so it is
+  recorded rather than removed — the stack builds through one shared `CARGO_TARGET_DIR` and a repo-local `target/`
+  forks it. Two kwavers worktrees under `D:/msys64` were removed after confirming both were exactly their pushed
+  branches with nothing local; apollo now carries three trees again, both extra ones on live peer perf branches.
+  These classes are local-only: a CI checkout has none of them, which is why the conformance gate is green there.
 - **Apollo carries two commits reachable only from a detached HEAD.** `repos/apollo`'s working tree sits detached at
   `e245ef89` with a dirty `Cargo.lock`, `Cargo.toml` and `README.md`; the two commits are not on any branch and not on
   origin (199 insertions, 506 deletions across 25 files, including 87 lines removed from `gap_audit.md`). Preserved under
