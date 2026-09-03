@@ -105,6 +105,10 @@ SANCTIONED_ROOT = {
     "AGENTS.md", "CLAUDE.md", "GEMINI.md", "copilot-instructions.md",
     "backlog.md", "checklist.md", "gap_audit.md",
     "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "rustfmt.toml",
+    # A build script is cargo-required root layout like the manifest, not
+    # sprawl: members use it to emit `rustc-check-cfg` for toolchain-gated
+    # cfgs (e.g. themis/melinoe `nightly_tls_active`).
+    "build.rs",
     "clippy.toml", "deny.toml", "book.toml", "pyproject.toml",
     ".gitignore", ".gitattributes", ".gitmodules", ".git-blame-ignore-revs",
     ".envrc", ".git",

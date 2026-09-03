@@ -711,6 +711,19 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["root_sprawl"], 1)
 
+    def test_build_rs_is_root_configuration(self) -> None:
+        # A build script is cargo-required root layout like the manifest:
+        # themis and melinoe emit `rustc-check-cfg` for `nightly_tls_active`
+        # from it, so it must not count as unfiled sprawl.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "build.rs", "fn main() {}\n")
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["root_sprawl"], 0)
+
     def test_cargo_manifests_prune_caches(self) -> None:
         # rglob would crawl target/ and book/; the pruned walker must skip them.
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
