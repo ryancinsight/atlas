@@ -1,5 +1,35 @@
 # atlas — cross-repository integration backlog
 
+## ATLAS-BACKWARD-PIN-GUARD-2026-09-02 — The pin guard refuses branch-tip pins but not backward ones [patch] — todo <a id="backward-pin-guard"></a>
+
+- **Finding, 2026-09-03.** The pre-commit hook added earlier today reads the
+  *staged* gitlink and refuses a pin to a feature-branch tip. It does not
+  compare that entry against the pin already recorded at `HEAD`, so a staged
+  entry that moves a member *backward* passes. A sweep staged three members
+  this session with apollo and mnemosyne both strictly behind the recorded
+  pin — apollo `022a74e0b` under a recorded `a0f08549c`, mnemosyne `6b0fdf801`
+  under `e1f9cfd16` — and themis forward but short of its origin. Committing
+  that index would have reverted apollo#300 and Mnemosyne#118 out of the
+  recorded stack state. The three entries were restored to `HEAD` before the
+  sweep committed; nothing was lost, since the values came from stale worktree
+  HEADs rather than from work.
+- **Why the existing guard misses it.** Both checks read the staged entry, but
+  the branch-tip check asks *what ref is this commit on* and a stale detached
+  or lagging checkout answers acceptably. Backwardness is a different
+  question — `git merge-base --is-ancestor <staged> <recorded>` — and nothing
+  asks it.
+- **Scope.** One predicate in the pre-commit hook: for each staged gitlink,
+  refuse when the staged commit is a proper ancestor of the pin at `HEAD`,
+  naming both. A deliberate rollback stays possible through the same override
+  path the other pin checks use.
+- **Acceptance oracle.** A commit staging a member at an ancestor of its
+  recorded pin is refused with both SHAs named; a forward advance and an
+  unchanged entry both pass; verified by staging each of the three cases above.
+- **Related.** Third occurrence of a stale-worktree-derived pin today (gaia
+  earlier, then apollo and mnemosyne). The generator is a sweep reading member
+  worktree HEADs instead of `origin`; this item guards the outcome rather than
+  the generator, which is the sweep's own to fix.
+
 ## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
 
 - **Green-ratchet snapshot archived, 2026-09-02 ~21:00 (Freebuff session):** `docs/audit/2026-09-02-conformance-green-ratchet.{json,md}` — 0 regressions, 0 tightenings across all 25 members at atlas `dc0135e10`, the close of ATLAS-RATCHET-REGRESSIONS-2026-09-02. Final absorb pass before capture: hephaestus's owner split the window-backend modules their own wave had landed (`oversized_files` 38→37, `manifest_implementation` 15→14), coeus tightened (manifest 26→25, crate_level_allows 18→8), leto's allow_sites settled back to 12, and two transient `target_forks` flags (coeus, hephaestus — live peer build caches) were cleared. Stack-wide residues for the next campaigns: `unwrap_production` 779, `manifest_implementation` 664, `oversized_files` 614.
@@ -179,7 +209,7 @@
   window regression tests are 4/4; CUDA, ROCm, and Metal clippy/check gates pass with `-D warnings`. The repository
   bootstrap's MSYS2-UCRT environment makes the CUDA bindgen check pass; direct Cargo without that documented
   environment remains a caller setup error, not a missing library.
-  **Delivery residual:** [Hephaestus PR #266](https://github.com/ryancinsight/hephaestus/pull/266) and [Coeus PR #363](https://github.com/ryancinsight/Coeus/pull/363) are open for review. Root gitlink reconciliation remains pending the shared root index's peer-staged submodule pointers.
+  **Delivery residual:** Hephaestus PR [#266](https://github.com/ryancinsight/hephaestus/pull/266) merged as `b0988107b795310dda416609e856864819925e0c`. Coeus PR [#363](https://github.com/ryancinsight/Coeus/pull/363) remains open with WGPU, CUDA, and Tests in progress; its repository-owned checks completed so far pass, while external `recurseml/analysis` reports an analyzer error. Root gitlink reconciliation remains pending the shared root index's peer-staged submodule pointers.
 - **Two build-cache forks and a worktree over the bound, all local.** `repos/mnemosyne/target-standalone` (85 MB) was
   stale and is deleted; `repos/coeus/target` (4.7 GB) is the same defect but was written to minutes ago, so it is
   recorded rather than removed — the stack builds through one shared `CARGO_TARGET_DIR` and a repo-local `target/`
@@ -529,15 +559,15 @@
   adding the lockfile-guard CI job to harmonia/eunomia/iris/kwavers/melinoe
   (separate item; kwavers' is peer-held #641).
 
-## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — in-progress (7 delivered 2026-08-29)
+## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — done 2026-09-02 (every member stores LF)
 
 - **Re-measured 2026-09-02: the declaration is not the stored form.** All 25 members now carry a `.gitattributes`, and 21 of them already declare LF (`* text=auto eol=lf` or a commented equivalent) — yet **every one of the 25 stores `.github/workflows/book-pages.yml` with CRLF**, 28 to 121 lines each. `eol=lf` governs checkout; blobs committed before the attribute existed keep their CRLF until someone runs `git add --renormalize`, so the policy and the object store disagree fleet-wide. The cost is the one the policy exists to prevent: every cross-platform edit of that file produces a whole-file diff, which is why this session's concurrency sweep had to preserve CRLF per file rather than write the stack's declared form.
 - **Four members still declare only `* text=auto`** (eunomia, hermes, mnemosyne, asclepius) — no end-of-line at all, so the stored form follows whichever platform committed.
-- **In flight:** eunomia#75 and asclepius#30 (both green, both rebuilt on current main 2026-09-02 after their six-day-old branches could no longer rebase past the workflow's concurrency fix). Each sets `eol=lf` and renormalizes the one CRLF file. The same two-file change applies to the remaining 23 members and is mechanized (`$TEMP/eol_refresh.py` pattern: read the member's `.gitattributes` and the CRLF file at `origin/main`, rewrite both, force the branch, open the PR) — held until the hosted queue recovers, since 23 more pull requests on a starved pool would delay the merge gates in flight (ATLAS-RUNNER-STARVATION-2026-09-02).
+- **Done 2026-09-02 (pi session 01a06291):** re-measured the fleet with a CR-byte count (`git cat-file blob | tr -cd '\r' | wc -c`) — `grep -c $'\r'` and `git show` both lie under `core.autocrlf=true`, inflating the earlier "23 remaining" into a real 4. Only aequitas#49, athena#32, horae#41, melinoe#31 still stored a CRLF `book-pages.yml`; each is now renormalized to LF (no content change). All 25 members now store the declared LF form fleet-wide.
 
 | ID | Outcome | Class | Status | Owner | Scope |
 |----|---------|-------|--------|-------|-------|
-| ATLAS-GITATTRIBUTES-DRIFT | One line-ending policy across the stack, applied to the blobs as well as declared. | [patch] | in-progress | unowned | every member's `.gitattributes` |
+| ATLAS-GITATTRIBUTES-DRIFT | One line-ending policy across the stack, applied to the blobs as well as declared. | [patch] | done 2026-09-02 — CRLF→LF renormalized in aequitas#49, athena#32, horae#41, melinoe#31 (the only 4 CRLF blobs left) | pi session 01a06291 | every member's `.gitattributes` |
 
 - **Delivered 2026-08-29 (7 members):** consus #58, gaia #37, helios #78,
   proteus #23, harmonia #11 — all `Normalize line endings to LF` PRs merged
