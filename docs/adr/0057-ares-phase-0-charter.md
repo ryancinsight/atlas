@@ -10,8 +10,10 @@
 
 The stack has no owner for mechanical response of solids. Kwavers computes
 elastic wave propagation, which is momentum balance in a solid, but owns it as
-a wave-solver internal rather than as a reusable balance operator. CFDrs has
-fluid-structure coupling hooks and no structural side to couple to.
+a wave-solver internal rather than as a reusable balance operator, and its
+fluid-structure module couples to a solid stress field that solver already
+produces. CFDrs has no structural side and no fluid-structure coupling at all,
+so an FSI deliverable there needs both halves built.
 
 [ADR 0055](0055-continuum-domain-decomposition.md) fixes what a solid-mechanics
 package would own: momentum balance in solids, with Proteus supplying the
@@ -76,18 +78,43 @@ Prohibited: `nalgebra`, `ndarray`, `rayon`, `num-traits`. Generic over
 **Condition 1 — unowned, stated.** No provider owns solid momentum balance.
 Position stated by ADR 0055.
 
-**Condition 2 — product driver.** Fluid-structure interaction for flow devices:
-CFDrs models the flow and has coupling hooks with nothing structural on the
-other side. Vessel and device wall mechanics under pressure loading is the
-named analysis.
+**Condition 2 — product driver.** Fluid-structure interaction for flow devices,
+confirmed as a near-term deliverable. Vessel and device wall mechanics under
+pressure loading is the named analysis.
 
-**Condition 3 — first consumer.** CFDrs, at the Harmonia partition boundary.
-The integration surface is a traction field in and a displacement field out,
+**Condition 3 — first consumer.** CFDrs, at a Harmonia partition boundary. The
+integration surface is a traction field in and a displacement field out,
 exchanged as typed physical fields per
-[ADR 0050](0050-typed-physical-field-exchange.md). Kwavers is the intended
-second consumer, migrating its elastic-wave operators once Phase 1 adds
-dynamics; that migration is the deletion ledger the consolidation path would
-have required, arriving later rather than never.
+[ADR 0050](0050-typed-physical-field-exchange.md).
+
+*Evidence correction (2026-09-03).* An earlier revision of this charter said
+CFDrs "has coupling hooks with nothing structural on the other side". A source
+audit does not support that and it is withdrawn. CFDrs has **no** FSI
+machinery: no fluid-structure module, no traction or displacement exchange, no
+moving-boundary or mesh-motion path. Its only Harmonia use is
+`AitkenRelaxation` inside `cfd-2d` `network/coupled.rs`, which relaxes a
+channel-network solve and is unrelated to fluid-structure coupling. The
+`deform` matches in `cfd-1d` are blood-cell deformability, not mesh
+deformation.
+
+The correction enlarges A8 rather than invalidating the charter: the CFDrs side
+of the coupling is built by this work, not connected to. That is scoped
+explicitly in the phase table.
+
+**Where FSI does exist.** Kwavers carries ~1090 lines of it in
+`kwavers-solver/src/multiphysics/fluid_structure/`, and it is a different
+problem: acoustic-elastic coupling, exchanging ghost cells between a fluid
+pressure field and a solid stress field that its elastodynamic wave solver
+already produces. `apply_interface_conditions` consumes `solid_stress`,
+`solid_velocity`, and `solid_displacement` as fields it operates on; it does
+not compute the solid response.
+
+That makes Kwavers the natural second consumer with a real deletion ledger —
+its elastic-wave operators — once Phase 1 adds dynamics, as the phase list
+already records. It is also the correctness reference for the interface
+conditions: its module states traction balance, pressure continuity, and
+velocity continuity, with an interface energy-conservation theorem. Phase 0
+does not attempt dynamics and so does not consume that yet.
 
 **Condition 4 — vertical slice.** Phase 0 computes a displacement field from a
 mesh, material, and boundary conditions. No mocks, no placeholder bodies, no
@@ -132,8 +159,12 @@ Neither is Ares work, and both are already on the board.
 ## Registry name
 
 `ares` is unavailable on crates.io. Registry name `ares-solid`, import path
-`ares` via `[lib] name`, following `proteus-mat` and `gaia-mesh`. Availability
-is verified before the repository is created.
+`ares` via `[lib] name`, following `proteus-mat` and `gaia-mesh`.
+
+Verified against the registry on 2026-09-03: `ares` returns a crate record and
+is taken; `ares-solid` returns not-found and is free. Checked before the
+repository exists, per the gate, so the name cannot be discovered to be
+unavailable after commits reference it.
 
 ## Later phases, not authorized here
 
