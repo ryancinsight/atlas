@@ -720,6 +720,18 @@ class AtlasConformanceTestCase(unittest.TestCase):
             counts = conformance.scan_repo(root)
         self.assertEqual(counts["lane_kernel_uninlined"], 0)
 
+    def test_file_without_lane_kernel_literal_is_clean(self) -> None:
+        # The substring pre-filter in `count_lane_kernel_uninlined` must not
+        # change the count: a file with neither literal reports 0 the same way
+        # the full regex pass would.
+        source = "pub fn double(value: u64) -> u64 {\n    value + value\n}\n"
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "src/lib.rs", source)
+            counts = conformance.scan_repo(root)
+        self.assertEqual(counts["lane_kernel_uninlined"], 0)
+
     def test_git_blame_ignore_revisions_is_root_configuration(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
