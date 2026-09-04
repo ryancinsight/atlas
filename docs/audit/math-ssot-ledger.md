@@ -134,6 +134,22 @@ reads):
 | `crates/kwavers-math/src/linear_algebra/iterative/mod.rs` | `solve_lsqr_matfree` | **MOVE expected surface into `leto_ops::application::linalg::iterative::LsqrSolver::solve(...)` (already exists). DELETE the local function once call sites are rerouted.** | leto | Already on leto per verification; local wrapper is duplicate. |
 | `crates/kwavers-math/src/linear_algebra/sparse/eigenvalue.rs` | `inverse_power_iteration` + helpers | **DOMAIN-KEEP** (sparse eigenvalue iteration on a particular class of pattern; leto linalg SSOT owns `symmetric_eigen_jacobi`/`hermitian_eigen_jacobi` only). Verify no overlap before deletion; expect NO leto extension. | kwavers-local | Not analogous enough to dense eigen SSOT to consolidate; consideration deferred to ADR slot 4+. |
 | `crates/kwavers-math/src/linear_algebra/complex.rs::ComplexLinearAlgebra::matrix_inverse_complex` | `Complex<f64>` matrix inverse | **DELETE on kwavers (Move 2 below); call sites use `leto_ops::complex_inv` directly.** | leto | Already SSOT. |
+
+> **Closed 2026-09-04 — the four differential-operator rows below are delivered.**
+> `kwavers-math` no longer contains `central_difference_2/4/6`,
+> `staggered_grid`, or `staggered_leapfrog`; the `DifferentialOperator` trait
+> and the Fornberg coefficient derivation went with them (kwavers PR #709,
+> ADR 128, 40 files, +108/-4,970). The rows' "MOVE" verdict understated the
+> provider work: Leto's staggered pair was fixed-order and the FDTD solver runs
+> `spatial_order` up to 8, so the arbitrary-even-order pair had to be built
+> upstream first as `leto_ops::StaggeredLeapfrog3D` (leto PR #169, `6548a00`)
+> before anything could be deleted. `SummationByPartsOperator` stays in kwavers
+> by design — its closure is derived per axis against a norm, not a stencil with
+> a boundary fall-back, and Leto owns no such family. What these rows do **not**
+> deliver is a device path: the call sites now reach one CPU implementation, and
+> the Coeus `FiniteDifference3DOps` seam plus the Hephaestus 3-D device kernels
+> remain open.
+
 | `crates/kwavers-math/src/numerics/operators/differential/central_difference_2/{mod.rs, core.rs}` | `apply_{x,y,z}_into` on `ArrayView3<f64>` (2nd-order central) | **MOVE 3D stencil into `leto_ops::application::diff::FiniteDifference3D<T>` + `FiniteDifference3DScheme { SecondOrder, FourthOrder, SixthOrder, StaggeredForward, StaggeredBackward }`.** | leto | Leto already owns 1D `FiniteDifference`; 3D extension is the natural next step.  See ADR below. |
 | `crates/kwavers-math/src/numerics/operators/differential/central_difference_4/mod.rs` | `apply_{x,y,z}_into` 4th-order central | **MOVE** (same as above) | leto | |
 | `crates/kwavers-math/src/numerics/operators/differential/central_difference_6/core.rs` | `apply_{x,y,z}_into` 6th-order central | **MOVE** (same as above) | leto | |
