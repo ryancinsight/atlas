@@ -149,6 +149,27 @@ reads):
 > deliver is a device path: the call sites now reach one CPU implementation, and
 > the Coeus `FiniteDifference3DOps` seam plus the Hephaestus 3-D device kernels
 > remain open.
+>
+> **Seam delivered 2026-09-04.** `coeus_ops::FiniteDifference3DOps<T>:
+> ComputeBackend` (Coeus PR #369) with a CPU implementation over the Leto
+> provider, deliberately outside `BackendOps` so a backend without stencil
+> kernels is not forced to supply stubs. It became possible only after Leto's
+> 3-D entry points took a mutable-view destination (leto PR #171): a backend
+> hands its CPU kernel a `&mut [T]` out of a `DeviceBuffer`, and the previous
+> `&mut Array3<T>` parameter would have forced an allocation and a copy per
+> sweep — inside an FDTD timestep, the cost the seam exists to remove. Kwavers
+> followed in PR #711. Verified by five contract tests through a real backend,
+> including a bitwise match against the provider (proving the adaptation
+> borrows rather than recomputes) and the negative-adjoint identity with a
+> non-degeneracy guard.
+>
+> Still open: the Hephaestus device implementation of the same trait, and
+> behind it the deletion of `kwavers-gpu`'s FDTD shader copy. Both are
+> currently gated by a stack-wide Eunomia version diamond — two Eunomia
+> versions resolve through the pinned Mnemosyne revision, breaking
+> `coeus-hephaestus` and `kwavers-gpu` on `eunomia::layout::marker::Pod`. It is
+> filed as `KW-EUNOMIA-DIAMOND` on the kwavers board and closes when the
+> in-flight Mnemosyne pin campaign reaches a revision at or after `e8e825f`.
 
 | `crates/kwavers-math/src/numerics/operators/differential/central_difference_2/{mod.rs, core.rs}` | `apply_{x,y,z}_into` on `ArrayView3<f64>` (2nd-order central) | **MOVE 3D stencil into `leto_ops::application::diff::FiniteDifference3D<T>` + `FiniteDifference3DScheme { SecondOrder, FourthOrder, SixthOrder, StaggeredForward, StaggeredBackward }`.** | leto | Leto already owns 1D `FiniteDifference`; 3D extension is the natural next step.  See ADR below. |
 | `crates/kwavers-math/src/numerics/operators/differential/central_difference_4/mod.rs` | `apply_{x,y,z}_into` 4th-order central | **MOVE** (same as above) | leto | |
