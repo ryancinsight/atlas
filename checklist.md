@@ -55,10 +55,12 @@ repository and are tracked separately at `#ares-ci-floor`, which blocks A7.
 - [x] A7 register: `.gitmodules`, stack table, naming table (move `ares` out of
       provisional), roadmap, dependency order, suite-coverage row, architecture
       test edge set, package count. One delivery unit.
-- [ ] A8 first consumer: CFDrs FSI structural side across Harmonia, traction in
+- [x] A8 first consumer: CFDrs FSI structural side across Harmonia, traction in
       and displacement out per ADR 0050. Oracle: interface work conserved.
-- [ ] A9 **Ask-User:** publish `ares-solid`; verify registry install, smoke, and
-      the docs.rs build.
+- [ ] A9 **blocked, not on authority:** publish `ares-solid`. The dependency
+      chain is unpublished - `cargo publish --dry-run` fails on `proteus-mat`
+      missing from crates.io - so release authority is not the binding
+      constraint. Re-open when `proteus-mat` publishes.
 
 ## ATLAS-PROMETHEUS-PROMOTION-2026-09-03 [arch][minor]
 
