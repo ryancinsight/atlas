@@ -165,7 +165,7 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   `substrate_contract_violations = 0` for `ares`, and every other class zero,
   so the member enters the ratchet with no debt. Two gaps found and filed:
   R7 still omits the live balance owners (`#archtest-live-balance-domains`),
-  and `ares` is the only member without a book (`#ares-book`).
+  since closed by a peer; and the book gap (`#ares-book`), closed 2026-09-04.
 - **A8 done 2026-09-04** at ares `64a12f6`: `ares-harmonia` presents the
   structural solve as a Harmonia `Partition`, with no edge to CFDrs or any
   other balance domain. Interface work conservation is exact and mutation
@@ -263,7 +263,7 @@ Parent: [`#archtest-balance-edges`](backlog.md#archtest-balance-edges).
 - **class:** `[patch]`. **risk:** medium - a wrong exemption silently disables
   the rule. **depends on:** nothing.
 
-## ATLAS-ARES-BOOK-2026-09-04 - Write the Ares domain book [minor] - todo <a id="ares-book"></a>
+## ATLAS-ARES-BOOK-2026-09-04 - Write the Ares domain book [minor] - done <a id="ares-book"></a>
 
 Parent: [`#ares-promotion`](backlog.md#ares-promotion).
 

@@ -1175,14 +1175,13 @@ the package's own Actions run through
 dumps: migration guides belong to the package `CHANGELOG.md` and execution state
 belongs to the boards, never to a chapter.
 
-At this revision 25 of the 26 registered members carry a book and a Pages
+At this revision all 26 registered members carry a book and a Pages
 caller:
 `aequitas`, `apollo`, `asclepius`, `athena`, `CFDrs`, `coeus`, `consus`,
 `eunomia`, `gaia`, `harmonia`, `helios`, `hephaestus`, `hermes`, `horae`,
 `hyperion`, `iris`, `kwavers`, `leto`, `melinoe`, `mnemosyne`, `moirai`,
-`proteus`, `ritk`, `themis`, and `tyche`. `ares` registered on 2026-09-04
-without one and is the sole exception, tracked at `#ares-book`. Twenty-one
-callers enable the shared
+`proteus`, `ritk`, `themis`, and `tyche`, joined by `ares` on 2026-09-04.
+Twenty-two callers enable the shared
 `mdbook-test` input. Gaia's custom Pages workflow runs `mdbook test` directly,
 but its book has no executable Rust fence; Helios and Kwavers have the same
 vacuous-sample defect under the shared workflow. Consus has no executable
