@@ -212,13 +212,24 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   link and not a pipeline defect. A deliberate bad-tag dispatch confirmed
   `identify` rejects a package this repository does not ship and skips every
   downstream job.
-- **Remaining, and it is an account action rather than a repository one:** a
-  crates.io Trusted Publishing configuration for the two new crate names, since
-  OIDC has nothing to trust until one exists. Fields per the atlas README:
-  owner `ryancinsight`, repository `proteus` / `ares`, workflow
-  `rust-release.yml`, environment `crates-io`. Then a
-  `crate-proteus-mat-v0.1.0` release, and once that lands a
-  `crate-ares-solid-v0.1.0` one.
+- **Remaining, and Trusted Publishing cannot be the first step.** crates.io's
+  own documentation states the prerequisite outright: *"Your crate must already
+  be published to crates.io (initial publish requires an API token)"*. There is
+  no pending-publisher concept as PyPI has, so a not-yet-published name cannot
+  be configured. Checked against the crates.io source rather than assumed,
+  after two documentation fetches failed.
+- **Therefore the order is:** one token-authenticated first publish per new
+  crate — `cargo publish -p proteus-mat`, then once that is on the index
+  `cargo publish -p ares-solid` — performed by the account owner, since no
+  credential exists in this environment and entering one is out of scope. Then
+  Trusted Publishing is configured on each crate's Settings page (owner
+  `ryancinsight`, repository `proteus` / `ares`, workflow `rust-release.yml`,
+  environment `crates-io`), and every release from the second onward runs
+  through the pipelines already built and validated.
+- **The pipelines are not wasted work by that ordering.** Their `--dry-run`
+  validation is what establishes the package is publishable, and it is green
+  for `proteus-mat` today; they are the mechanism for every subsequent release
+  and for `ares-athena` and `ares-harmonia` when those become publishable.
 - **`ares-athena` and `ares-harmonia` are not part of A9** and cannot publish
   yet regardless: `ares-harmonia` depends on `harmonia`, which the publish scan
   reports as `publish = false`.
