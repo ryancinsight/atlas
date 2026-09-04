@@ -194,6 +194,16 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   rather than a stored token. The `crates-io` deployment environment now exists
   on both repositories. `ares` needed a tag-parsing `identify` job because it
   ships three crates and the SemVer gate's package cannot be a constant.
+- **Found by running the pipeline: the release SemVer gate could not pass a
+  first publication.** It baselines against the latest published version, so
+  for a crate not yet on crates.io `cargo-semver-checks` fails with "not found
+  in registry" — making the gate unpassable for exactly one release per crate,
+  its first, with the only ways past being to delete it or publish around it.
+  Fixed in the shared workflow at atlas `744acdf83`: the gate asks crates.io
+  whether the crate exists and skips only in that case. It asks rather than
+  catching the failure, because "not published" and "registry unreachable"
+  produce the same failure and must not produce the same decision. Both member
+  pins advanced to pick it up (`proteus` `98eade5`, `ares` `677dc84`).
 - **Remaining, and it is an account action rather than a repository one:** a
   crates.io Trusted Publishing configuration for the two new crate names, since
   OIDC has nothing to trust until one exists. Fields per the atlas README:
