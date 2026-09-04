@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
@@ -837,6 +837,50 @@ class AtlasConformanceTestCase(unittest.TestCase):
                 r"provider checkouts are not materialized: alpha",
             ):
                 conformance.scan_stack(root)
+
+    def test_stack_scan_skips_registered_member_without_gitlink(self) -> None:
+        """A promotion mid-flight must not blind the fleet scan.
+
+        When `.gitmodules` names a member but no revision records its
+        gitlink yet (the checkout is a standalone clone, exactly like
+        `repos/ares` during promotion), the recorded-revision scan skips
+        that member with a warning instead of aborting every other
+        member's measurement.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+            _write(
+                root,
+                ".gitmodules",
+                "[submodule \"demo\"]\n\tpath = repos/demo\n"
+                "\turl = https://example.com/demo.git\n",
+            )
+            for argv in (
+                ["init", "-q", "-b", "main"],
+                [*ident, "add", ".gitmodules"],
+                [*ident, "commit", "-q", "-m", "register demo"],
+            ):
+                subprocess.run(["git", "-C", str(root), *argv], check=True)
+            demo = root / "repos" / "demo"
+            demo.mkdir(parents=True)
+            for argv in (
+                ["init", "-q", "-b", "main"],
+                [*ident, "commit", "-q", "--allow-empty", "-m", "seed"],
+            ):
+                subprocess.run(["git", "-C", str(demo), *argv], check=True)
+            _write(demo, "src/lib.rs", "pub fn demo() {}\n")
+            rev = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+
+            err = io.StringIO()
+            with redirect_stderr(err):
+                results = conformance.scan_stack(root, rev)
+
+            self.assertNotIn("demo", results)
+            self.assertIn("demo", err.getvalue())
 
     def test_generate_refuses_to_raise_a_count(self) -> None:
         """`generate` must not launder a regression into the baseline.
