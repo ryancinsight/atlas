@@ -75,77 +75,40 @@ discovered from CI rather than up front.
 - **re-open trigger:** the peer commits their kwavers elastic work, or their
   claim goes stale by the measured window.
 
-## ATLAS-PREREQ-EXECUTION-2026-09-03 - Prerequisite execution status [minor] - in-progress <a id="prereq-execution"></a>
+## ATLAS-PREREQ-EXECUTION-2026-09-03 - Prerequisite execution status [minor] - done 2026-09-04 <a id="prereq-execution"></a>
 
-- **integrator:** claude-opus-5 (this session)
+- **integrator:** claude-opus-5 / composer (closure)
 - **plan:** `#next-steps` steps 1-5.
 
 ### Step 3+4 - aequitas quantities: DONE
 
 `ryancinsight/aequitas` PR
-[#50](https://github.com/ryancinsight/aequitas/pull/50), branch
-`feat/mechanics-reaction-quantities`, commit `89a038a`.
+[#50](https://github.com/ryancinsight/aequitas/pull/50) merged 2026-09-04.
+`StressSemantics` + `Stress`, `ReactionRate` + `MolarFlux`. Both Ares A0 and
+Prometheus P0 prerequisites satisfied.
 
-Delivered in one increment because both are additive dimension and quantity
-aliases in the same two files: `StressSemantics` plus the `Stress` alias
-(separating Cauchy stress from the pressure dimension it shares), and
-`ReactionRate` plus `MolarFlux`. Gate at that revision: fmt clean, clippy clean
-at the pedantic floor, nextest 135/135 (8 new), doctests 9/9, doc clean.
+### Step 1 - CFDrs elastic deletion: DONE
 
-Both Ares A0 and Prometheus P0 prerequisites are satisfied by this one PR.
+Landed on CFDrs main as `f063be4b` (`refactor(cfd-core): Delete the elastic
+copy; compose Proteus`) with follow-up `7dcf7726`. `ElasticSolid` holds
+`proteus::IsotropicSolid`; catalog constructors replace local steel/aluminum
+constants. The earlier mnemosyne-arena mid-edit blocker is cleared
+(`cargo check -p mnemosyne-arena` green). Full `cfd-core` still has unrelated
+`eunomia::Pod` redness in GPU poisson paths — outside this item's scope.
 
-### Step 1 - CFDrs elastic deletion: implemented, VERIFICATION BLOCKED
+### Step 2 - kwavers elastic deletion: DONE for the A0 gate
 
-Working tree of `repos/CFDrs`, uncommitted. Changes:
-
-- `physics/material/solid.rs` - `ElasticSolid` now holds a
-  `proteus::IsotropicSolid` and delegates `youngs_modulus`, `poissons_ratio`,
-  `shear_modulus`, and `density` to it. `steel()` and `aluminum()` are deleted;
-  `from_catalog(NamedIsotropicSolid)` replaces them, so every elastic, density,
-  and thermal constant now comes from the provider and none remains in CFDrs.
-- `physics/material/traits.rs` - the `shear_modulus` default body computing
-  `E / (2 (1 + nu))` is **deleted**; the method is now required, since a
-  default here would be a second copy of an identity Proteus owns.
-  `NumericElement` import dropped with it.
-- `physics/material/mod.rs` - the two default-database entries build from the
-  catalog, re-keyed `carbon-steel` and `aluminium-6061` because the old `steel`
-  and `aluminum` keys named grades that differ from what kwavers means by the
-  same words.
-- Dropped the unused `Serialize`/`Deserialize` derives on `ElasticSolid`: it is
-  only ever stored as `Box<dyn SolidProperties>`, which is not serializable, and
-  no call site serializes it.
-
-**Blocker:** `cargo check -p cfd-core` cannot reach cfd-core. A transitive
-dependency, `mnemosyne-arena`, does not compile in the shared working tree:
-`crates/mnemosyne-arena/src/scratch/aligned_vec.rs` is under live peer edit.
-The error changed between two consecutive runs (`Drain` not in scope, then an
-unexpected closing delimiter at line 399), which is a mid-edit signature, and
-the mnemosyne worktree sits at `46c279d2f3` - neither `origin/main` nor the
-recorded pin `d7c93e43e3` - with seven dirty files.
-
-Not diagnosed further and not repaired: this is peer-owned in-flight work, and
-`git submodule update` would destroy it. `--no-default-features` does not route
-around it; cfd-core reaches mnemosyne transitively, not directly.
-
-- **re-open trigger:** `cargo check -p mnemosyne-arena` succeeds in the shared
-  tree, or the peer commits that file. Then run the CFDrs focused gate, commit,
-  and open the PR.
-- **status:** implemented, unverified, uncommitted. Nothing is lost; the diff
-  is in the working tree and tree-mates can see it.
-
-### Step 2 - kwavers elastic deletion: not started
-
-Blocked behind the same mnemosyne redness for the same reason (kwavers depends
-on the same substrate). Starting it would only produce a second unverifiable
-diff.
+`lame_from_speeds` deleted; constructors delegate to
+`proteus::elastic::IsotropicModuli` (`ab9ddf8fb`, `1f86a9172`). Residual
+derived-formula copies in `computed.rs` remain peer periphery and do not
+block Ares or Prometheus.
 
 ### Step 5 - architecture test R7 and deny bans: delivered 2026-09-04
 
-Independent of the mnemosyne blocker; delivered at `4a574a801`. Lands in
-`scripts/atlas_architecture_test.py` (new) and `scripts/atlas-conformance.py`
-(new ratchet class `balance_domain_edges`). Verification artifact at
-`docs/audit/2026-09-04-r7-architecture-test.md`. See `#archtest-balance-edges`
-for the design.
+Delivered at `4a574a801`. Live-balance enumeration (`#archtest-live-balance-domains`)
+is implemented in the working tree (member-level classifier + same-repository
+exemption); unit suite 113/113 green; worktree conformance reports
+`balance_domain_edges: 0`.
 
 ## ATLAS-ARES-PROMOTION-2026-09-03 - Create and register `ares` (solid momentum balance) [arch][minor] - in-progress <a id="ares-promotion"></a>
 
@@ -315,7 +278,7 @@ Parent: [`#ares-promotion`](backlog.md#ares-promotion).
   examples; figures regenerated by committed plotting code.
 - **class:** `[minor]`. **risk:** low. **depends on:** nothing.
 
-## ATLAS-PUBLISH-ORDER-WORKSPACE-DEPS-2026-09-04 - Resolve inherited renames in the publish order [patch] - todo <a id="publish-order-workspace-deps"></a>
+## ATLAS-PUBLISH-ORDER-WORKSPACE-DEPS-2026-09-04 - Resolve inherited renames in the publish order [patch] - done <a id="publish-order-workspace-deps"></a>
 
 - **outcome:** `scripts/publish-order.py` resolves `dep.workspace = true`
   against the workspace root, so a dependency renamed there lands in the
@@ -341,8 +304,41 @@ Parent: [`#ares-promotion`](backlog.md#ares-promotion).
   instances is the threshold: a shared manifest reader that resolves both
   renames and workspace inheritance would close the class rather than the
   instances.
+- **done 2026-09-04.** `dependency_names` resolves `dep.workspace = true`
+  against the repository's `[workspace.dependencies]`. `ares-solid` now sits in
+  wave 4 behind `proteus-mat`, and `ares-athena` and `ares-harmonia` gained
+  their `ares-solid` edge, which had been missing entirely. Six unit tests pin
+  the four resolution cases plus the optional-skip; the full script suite is
+  528 green.
+- **what it exposed:** with the dropped edges restored the graph has no total
+  order, and the tool now says so for 61 packages. The cycle is **entirely
+  through optional dependencies** - the required-only graph is acyclic, which
+  is why cargo builds fine - and the report now states that rather than leaving
+  the reader to discover it. Whether an optional dependency constrains publish
+  order is a policy question rather than a defect in any manifest, filed
+  separately at `#publish-order-optional-edges`.
 
-## ATLAS-PROMETHEUS-PROMOTION-2026-09-03 - Create and register `prometheus` (species mass balance) [arch][minor] - todo <a id="prometheus-promotion"></a>
+## ATLAS-PUBLISH-ORDER-OPTIONAL-EDGES-2026-09-04 - Decide whether optional dependencies constrain publish order [patch] - todo <a id="publish-order-optional-edges"></a>
+
+- **outcome:** a recorded decision, and a publish order that emits a usable
+  sequence for the whole stack rather than a 61-package cycle.
+- **found:** `#publish-order-workspace-deps` restored dependency edges the
+  order had been dropping, and the restored graph is cyclic - but only through
+  optional edges. `moirai-gpu` optionally depends on `hephaestus-wgpu`/`-cuda`,
+  which reach `moirai-runtime`, closing a loop that no build ever realizes
+  because the features are not co-enabled. Recomputed without optional
+  dependencies the graph is acyclic and every crate orders.
+- **the question:** `cargo publish` records optional dependencies in the
+  registry index, so an optional first-party dependency arguably must publish
+  first; but an optional edge that closes a cycle cannot be satisfied in any
+  order, so treating them as ordering constraints makes first publication
+  impossible. Both readings cannot hold.
+- **acceptance:** an ADR recording the decision; the tool emits a total order
+  under it; a fixture cyclic-through-optional graph is handled as the ADR says.
+- **class:** `[patch]`. **risk:** medium - it gates any first publication of
+  the stack, and therefore Ares A9. **depends on:** nothing.
+
+## ATLAS-PROMETHEUS-PROMOTION-2026-09-03 - Create and register `prometheus` (species mass balance) [arch][minor] - in-progress <a id="prometheus-promotion"></a>
 
 Charter: [ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md). Path:
 [ADR 0056](docs/adr/0056-new-construction-promotion-path.md).
@@ -355,7 +351,7 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
   owner of the field), combustion closure, surface and heterogeneous reactions,
   plasma chemistry, electrochemistry, phase equilibrium.
 - **registry name:** `prometheus-kinetics`; bare `prometheus` on crates.io is
-  the metrics client and is unavailable.
+  the metrics client and is unavailable. Verified free (HTTP 404) 2026-09-04.
 
 | Phase | Deliverable | Acceptance oracle | Depends on |
 | --- | --- | --- | --- |
@@ -370,6 +366,13 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
 | P8 | First consumer: Kwavers sonodynamic species kinetics across Harmonia | coupled therapy case runs | P7 |
 | P9 | **Ask-User:** publish `prometheus-kinetics` | registry install and smoke; docs.rs | P8 |
 
+- **status 2026-09-04:** P0 done (aequitas `#50`). Local scaffold at
+  `repos/prometheus/` carries P1 floor + P3 species/concentration/stoichiometry
+  (Leto COO; water-formation mass residual exact at `f32`/`f64`). Gate green:
+  fmt, clippy `-D warnings`, nextest 9/9, doc `-D warnings`,
+  `--no-default-features` check. **No git remote and no commits yet** — P2 is
+  Ask-User. P3 technically precedes remote creation in the working tree; the
+  first commit after remote creation should be the verified P1+P3 unit.
 - **historical prerequisite retired:** the Kwavers reaction-vocabulary
   consolidation existed to produce a deletion ledger; under ADR 0056 that
   ledger arrives with the P8 consumer migration. It remains worthwhile on its
@@ -396,13 +399,13 @@ the stack (ADR 0055 substrate contract).
 
 | # | Increment | Repo | Class | Status |
 | --- | --- | --- | --- | --- |
-| 1 | Delete the CFDrs elastic copy; compose `proteus::IsotropicModuli` | CFDrs | `[patch]` | ready |
-| 2 | Delete the kwavers elastic copy | kwavers | `[minor]` | ready; widens a domain, negative lambda now admitted |
-| 3 | aequitas stress semantics marker | aequitas | `[minor]` | ready - gates Ares A0 |
-| 4 | aequitas `ReactionRate` and `MolarFlux` | aequitas | `[minor]` | ready - gates Prometheus P0 |
-| 5 | Architecture test R7 and `cargo deny bans` substrate list | atlas | `[patch]` | delivered 2026-09-04 (`4a574a801`); guards ADR 0055 before the code it guards exists |
-| 6 | Ares A1 through A9 | ares | `[arch]` | A0-A6 done 2026-09-04 (`f8cb9eb`); A7 next |
-| 7 | Prometheus P1 through P9 | prometheus | `[arch]` | after 4 |
+| 1 | Delete the CFDrs elastic copy; compose `proteus::IsotropicSolid` | CFDrs | `[patch]` | done (`f063be4b`) |
+| 2 | Delete the kwavers elastic copy | kwavers | `[minor]` | done for A0 (`1f86a9172`); residual `computed.rs` formulas |
+| 3 | aequitas stress semantics marker | aequitas | `[minor]` | done (`#50`) |
+| 4 | aequitas `ReactionRate` and `MolarFlux` | aequitas | `[minor]` | done (`#50`) |
+| 5 | Architecture test R7 and `cargo deny bans` substrate list | atlas | `[patch]` | delivered 2026-09-04 (`4a574a801`); live-balance enum in WT |
+| 6 | Ares A1 through A9 | ares | `[arch]` | A0-A8 done; A9 blocked on unpublished `proteus-mat` |
+| 7 | Prometheus P1 through P9 | prometheus | `[arch]` | P0+P1+P3 local green; **Ask-User** for `ryancinsight/prometheus` |
 
 Steps 1 to 5 are mutually independent and can run concurrently on disjoint
 scopes.
