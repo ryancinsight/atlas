@@ -197,9 +197,8 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   assert the split's edge set, not a single-crate one.
 - **next:** A7 registration - `.gitmodules`, stack table, naming table,
   roadmap, dependency order, architecture test (ADR 0055 R7 edge set).
-- **known gap:** the `ares` repository has no CI workflow or tracked hooks, so
-  every gate so far is local-only evidence against a named revision. Closing it
-  is a prerequisite of A7, filed as `#ares-ci-floor`.
+- **known gap closed:** CI, hooks, and the lockfile guard landed at `45f3eec`
+  under `#ares-ci-floor`, which is in review pending its first hosted run.
 
 [ares ADR 0001]: https://github.com/ryancinsight/ares/blob/main/docs/adr/0001-athena-seam-as-a-separate-crate.md
 
@@ -208,7 +207,7 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   by the exactness of the patch and rigid-body tests.
 - Kwavers elastic-wave migration is Phase 1; Phase 0 does not block on it.
 
-## ATLAS-ARES-CI-FLOOR-2026-09-04 - Bring the `ares` repository to the CI and hook floor [patch] - todo <a id="ares-ci-floor"></a>
+## ATLAS-ARES-CI-FLOOR-2026-09-04 - Bring the `ares` repository to the CI and hook floor [patch] - review <a id="ares-ci-floor"></a>
 
 Parent: [`#ares-promotion`](backlog.md#ares-promotion).
 
@@ -225,6 +224,14 @@ Parent: [`#ares-promotion`](backlog.md#ares-promotion).
   -infrastructure findings.
 - **class:** `[patch]`. **risk:** low. **depends on:** nothing.
 - **blocks:** A7 registration, which asserts member infrastructure.
+- **delivered** `ares` `45f3eec`; **integrator:** claude-opus-5. In review until
+  the first hosted run reports. Running the checks for the first time found two
+  defects the absence had hidden: the committed `Cargo.lock` was flattened by
+  the overlay during the workspace restructure and would have failed every
+  `--locked` job, now regenerated with its 55 git sources; and `cargo deny` had
+  never run, reporting `num-traits` banned through `proptest`, a
+  dev-dependency, so the graph now excludes dev-dependencies to match what ADR
+  0055 governs. No prohibited runtime substrate is present.
 
 ## ATLAS-PROMETHEUS-PROMOTION-2026-09-03 - Create and register `prometheus` (species mass balance) [arch][minor] - todo <a id="prometheus-promotion"></a>
 
