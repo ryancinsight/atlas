@@ -176,13 +176,34 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   other balance domain. Interface work conservation is exact and mutation
   -measured - a lumped load of the same resultant force breaks it and nothing
   else. Two findings against ADR 0059 and Harmonia recorded below.
-- **A9 blocked, and not on authority.** `cargo publish --dry-run -p ares-solid`
-  fails: `no matching package named proteus-mat found` on the crates.io index.
-  Publication needs the whole first-party chain published in wave order, and
-  `ares` sits behind `aequitas`, `eunomia`, and `proteus-mat`, none of which is
-  on the registry. The Ask-User release authority is therefore not the binding
-  constraint and asking for it now would be asking permission for something
-  that cannot be done. Re-open trigger: `proteus-mat` published.
+- **A9 in progress**, authorised 2026-09-04. An earlier note here said the
+  chain needed "the whole first-party stack" published; that was wrong, and it
+  was wrong in a way that made A9 look far larger than it is. It counted the
+  *sizes* of publish waves 0-3 rather than `ares-solid`'s dependency closure.
+  The closure is **five crates**:
+  `eunomia-derive -> eunomia -> aequitas -> proteus-mat -> ares-solid`.
+- **Of those, `eunomia` 0.8.0 and `aequitas` 0.2.0 are already on crates.io**,
+  published 2026-08-02 from this account. `proteus-mat` is the only unpublished
+  link, and `cargo publish --dry-run -p proteus-mat` packages and verifies
+  cleanly against the published `eunomia` and `aequitas`. The optional-edge
+  cycle (`#publish-order-optional-edges`) does not touch this closure, so it
+  does not gate A9 either - an earlier note said it did.
+- **Delivered toward A9:** `rust-release.yml` in `proteus` (`2092f43`) and in
+  `ares` (`30707d7`), matching the pipeline `eunomia` and `aequitas` already
+  run: release-gate SemVer, `--dry-run` validation, and OIDC trusted publishing
+  rather than a stored token. The `crates-io` deployment environment now exists
+  on both repositories. `ares` needed a tag-parsing `identify` job because it
+  ships three crates and the SemVer gate's package cannot be a constant.
+- **Remaining, and it is an account action rather than a repository one:** a
+  crates.io Trusted Publishing configuration for the two new crate names, since
+  OIDC has nothing to trust until one exists. Fields per the atlas README:
+  owner `ryancinsight`, repository `proteus` / `ares`, workflow
+  `rust-release.yml`, environment `crates-io`. Then a
+  `crate-proteus-mat-v0.1.0` release, and once that lands a
+  `crate-ares-solid-v0.1.0` one.
+- **`ares-athena` and `ares-harmonia` are not part of A9** and cannot publish
+  yet regardless: `ares-harmonia` depends on `harmonia`, which the publish scan
+  reports as `publish = false`.
 - **ADR 0059 correction owed:** it states the marshalling contract as
   "interface node index major, component minor" throughout. That is right for
   displacement and wrong for traction, which is per facet because the fluid
