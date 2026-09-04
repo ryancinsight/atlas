@@ -19,33 +19,38 @@ Creation:
 - [ ] Verify `ares-solid` is available on crates.io **before** creating the
       repository; if taken, choose the registry name and record it in ADR 0057
       before any commit references it.
-- [ ] **Ask-User:** create `ryancinsight/ares`.
-- [ ] Scaffold: `[lib] name = "ares"`, edition 2024, MSRV floor matching the
+- [x] **Ask-User:** create `ryancinsight/ares`.
+- [x] Scaffold: `[lib] name = "ares"`, edition 2024, MSRV floor matching the
       stack, `#![forbid(unsafe_code)]`, `#![deny(missing_docs)]`, pedantic
       floor with `unwrap_used`, `.config/nextest.toml` at the committed 30s/60s
       budgets, `rust-toolchain.toml` pinned, committed `Cargo.lock`,
       `deny.toml` with the ADR 0055 prohibition list, `.gitattributes` LF,
       tracked `.githooks`, CI via the shared reusable workflow, README,
       CHANGELOG, `docs/adr/` with a generated index.
-- [ ] Confirm the scaffold passes the full gate and the conformance scan before
+- [x] Confirm the scaffold passes the full gate and the conformance scan before
       any physics lands — a repository that starts below the floor never
       reaches it.
 
 Implementation, each step complete-and-verified before the next:
 
-- [ ] A3 kinematics — symmetric tensors, invariants, small strain. Oracle:
+- [x] A3 kinematics — symmetric tensors, invariants, small strain. Oracle:
       rigid-body motion gives exactly zero strain.
-- [ ] A4 constitutive coupling — isotropic Hooke over `IsotropicModuli`, Cauchy
+- [x] A4 constitutive coupling — isotropic Hooke over `IsotropicModuli`, Cauchy
       stress, von Mises, principal stresses. Oracle: closed-form stress from a
       known `(E, nu)`. Assert no material constant appears anywhere in `ares`.
-- [ ] A5 FEM assembly — linear simplices, isoparametric mapping, quadrature,
+- [x] A5 FEM assembly — linear simplices, isoparametric mapping, quadrature,
       Dirichlet and Neumann conditions, Athena assembly. Oracle: **patch test
       exact to machine precision**, plus hand-computed element matrices.
-- [ ] A6 solve and end-to-end — thick-walled cylinder against Lame; cantilever
+- [x] A6 solve and end-to-end — thick-walled cylinder against Lame; cantilever
       tip deflection; manufactured solution; `O(h^2)` L2 convergence; strain
       energy equals external work. Every oracle at `f32` and `f64`.
 
 Registration and delivery:
+
+A0-A6 delivered 2026-09-04 through `ares` `f8cb9eb`; `ares` is now a workspace
+(`crates/ares` + `crates/ares-athena`, ares ADR 0001), so A7's architecture
+test asserts the two-crate edge set. CI and hooks are absent from the
+repository and are tracked separately at `#ares-ci-floor`, which blocks A7.
 
 - [ ] A7 register: `.gitmodules`, stack table, naming table (move `ares` out of
       provisional), roadmap, dependency order, suite-coverage row, architecture

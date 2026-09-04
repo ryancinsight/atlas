@@ -139,13 +139,15 @@ Blocked behind the same mnemosyne redness for the same reason (kwavers depends
 on the same substrate). Starting it would only produce a second unverifiable
 diff.
 
-### Step 5 - architecture test R7 and deny bans: in progress (this session)
+### Step 5 - architecture test R7 and deny bans: delivered 2026-09-04
 
-Independent of the mnemosyne blocker; taking now. Lands in
-`scripts/atlas-architecture-test.py` (new) and `scripts/atlas-conformance.py`
-(new ratchet class). See `#archtest-balance-edges` for the design.
+Independent of the mnemosyne blocker; delivered at `4a574a801`. Lands in
+`scripts/atlas_architecture_test.py` (new) and `scripts/atlas-conformance.py`
+(new ratchet class `balance_domain_edges`). Verification artifact at
+`docs/audit/2026-09-04-r7-architecture-test.md`. See `#archtest-balance-edges`
+for the design.
 
-## ATLAS-ARES-PROMOTION-2026-09-03 - Create and register `ares` (solid momentum balance) [arch][minor] - todo <a id="ares-promotion"></a>
+## ATLAS-ARES-PROMOTION-2026-09-03 - Create and register `ares` (solid momentum balance) [arch][minor] - in-progress <a id="ares-promotion"></a>
 
 Charter: [ADR 0057](docs/adr/0057-ares-phase-0-charter.md). Path:
 [ADR 0056](docs/adr/0056-new-construction-promotion-path.md) new-construction.
@@ -175,10 +177,54 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
 | A8 | First consumer: CFDrs FSI structural side across Harmonia per [ADR 0050](docs/adr/0050-typed-physical-field-exchange.md) | interface work conserved | A7 |
 | A9 | **Ask-User:** publish `ares-solid` | registry install and smoke; docs.rs builds | A8 |
 
+- **integrator:** claude-opus-5. **A0-A6 done 2026-09-04**, pushed to
+  `ryancinsight/ares` main through `f8cb9eb`. Gate green: fmt, clippy at the
+  pedantic floor, 96 tests, doctests, `cargo doc`.
+- **A5 acceptance met.** Patch test exact to machine precision on distorted 2-D
+  and 3-D patches, under pure shear and pure dilation, at `f32` and `f64`;
+  element stiffness columns agree with hand computation through the Voigt
+  `B^T D B` route, which shares no code with the tensor formulation used.
+- **A6 acceptance met.** Manufactured solution at rates 1.65, 1.88, 1.97
+  approaching second order; Lame cylinder; cantilever approaching beam theory
+  from below; strain energy equals external work. Accuracy and identity oracles
+  also run at `f32` - the rate studies do not, because `f32` reaches its
+  precision floor before the study leaves the asymptotic regime.
+- **[arch] `ares` is now a workspace** ([ares ADR 0001]): `crates/ares` is the
+  `no_std` allocation-free core, `crates/ares-athena` the operator seam.
+  Athena's `LinearOperator` fixes the error to `B::Error` and its views are
+  backend-associated, so the seam is implementable only against a named
+  backend, and the only host backend links `std`. A7's architecture test must
+  assert the split's edge set, not a single-crate one.
+- **next:** A7 registration - `.gitmodules`, stack table, naming table,
+  roadmap, dependency order, architecture test (ADR 0055 R7 edge set).
+- **known gap:** the `ares` repository has no CI workflow or tracked hooks, so
+  every gate so far is local-only evidence against a named revision. Closing it
+  is a prerequisite of A7, filed as `#ares-ci-floor`.
+
+[ares ADR 0001]: https://github.com/ryancinsight/ares/blob/main/docs/adr/0001-athena-seam-as-a-separate-crate.md
+
 - **risk:** analytical oracles are the only safety net; no reference
   implementation exists to difference against. Mitigated by oracle breadth and
   by the exactness of the patch and rigid-body tests.
 - Kwavers elastic-wave migration is Phase 1; Phase 0 does not block on it.
+
+## ATLAS-ARES-CI-FLOOR-2026-09-04 - Bring the `ares` repository to the CI and hook floor [patch] - todo <a id="ares-ci-floor"></a>
+
+Parent: [`#ares-promotion`](backlog.md#ares-promotion).
+
+- **outcome:** `ares` runs the shared reusable verification workflow and the
+  tracked `pre-push` hook, so its gate is hosted evidence rather than a local
+  claim, and the conformance scan can measure it like any other member.
+- **found:** A1 recorded the scaffold as at the gate floor, but the repository
+  has no `.github/` at all - no workflow, no hooks directory. Every A0-A6 gate
+  is therefore local-only evidence against a named revision. That is legitimate
+  under the outage rule but is not the floor A1 claimed.
+- **acceptance:** the workflow runs on pull request and on the default branch
+  and is green on the current head; `git config --get core.hooksPath` resolves
+  in a fresh clone; the atlas conformance scan reports `ares` with no missing
+  -infrastructure findings.
+- **class:** `[patch]`. **risk:** low. **depends on:** nothing.
+- **blocks:** A7 registration, which asserts member infrastructure.
 
 ## ATLAS-PROMETHEUS-PROMOTION-2026-09-03 - Create and register `prometheus` (species mass balance) [arch][minor] - todo <a id="prometheus-promotion"></a>
 
@@ -238,8 +284,8 @@ the stack (ADR 0055 substrate contract).
 | 2 | Delete the kwavers elastic copy | kwavers | `[minor]` | ready; widens a domain, negative lambda now admitted |
 | 3 | aequitas stress semantics marker | aequitas | `[minor]` | ready - gates Ares A0 |
 | 4 | aequitas `ReactionRate` and `MolarFlux` | aequitas | `[minor]` | ready - gates Prometheus P0 |
-| 5 | Architecture test R7 and `cargo deny bans` substrate list | atlas | `[patch]` | in progress (this session); guards ADR 0055 before the code it guards exists |
-| 6 | Ares A1 through A9 | ares | `[arch]` | after 1, 2, 3 |
+| 5 | Architecture test R7 and `cargo deny bans` substrate list | atlas | `[patch]` | delivered 2026-09-04 (`4a574a801`); guards ADR 0055 before the code it guards exists |
+| 6 | Ares A1 through A9 | ares | `[arch]` | A0-A6 done 2026-09-04 (`f8cb9eb`); A7 next |
 | 7 | Prometheus P1 through P9 | prometheus | `[arch]` | after 4 |
 
 Steps 1 to 5 are mutually independent and can run concurrently on disjoint
@@ -371,7 +417,7 @@ edit.
   `checkout-path-dependencies`, `criterion-regression`, `gitlink-coherence`,
   and `version-guard`.
 
-## ATLAS-ARCHTEST-BALANCE-EDGES-2026-09-03 — Mechanize the ADR 0055 boundary rules [patch] — substrate half done 2026-09-03; R7 in progress <a id="archtest-balance-edges"></a>
+## ATLAS-ARCHTEST-BALANCE-EDGES-2026-09-03 — Mechanize the ADR 0055 boundary rules [patch] — substrate delivered 2026-09-03; R7 delivered 2026-09-04 <a id="archtest-balance-edges"></a>
 
 - **outcome:** ADR 0055's rules fail the build instead of awaiting review.
   Extend the existing `cargo metadata` architecture test with R7 (no
@@ -394,22 +440,33 @@ config-include mechanism, so a bans list would need copying into 25 member
 catch. The scan checks the property itself (a member's resolved runtime
 dependency tables) rather than checking that 25 config files agree.
 
-**R7 — in progress (this session, integrator: claude-opus-5).** The prior
+**R7 — delivered 2026-09-04 at `4a574a801` (this session).** The prior
 deferral was a recommendation, not a prohibition, and the substrate-contract
-delivery proved the preventive pattern (a guard that fails fixture violations
-while the live stack still passes — the test earns its keep when the first
-balance package lands, not at its own landing). The check lives in
-`scripts/atlas-architecture-test.py` alongside the substrate scan, exposed as
-a new ratchet class (`balance_domain_edges`) inside `atlas-conformance`, and
-shares the existing `materialize_member` machinery so clean checkouts and
-behind-pin trees both feed it. The balance-domain boundary list is encoded
-directly from ADR 0055's table; the coupling route is `harmonia` per R5/R7.
-Acceptance oracle:
+delivery proved the preventive pattern. The check lives in
+`scripts/atlas_architecture_test.py` alongside the substrate scan, exposed as
+the `balance_domain_edges` ratchet class inside `atlas-conformance`, sharing
+the existing manifest-parsing machinery. The boundary tables encode ADR 0055
+directly: `BALANCE_DOMAINS` (empty today; grows at `ares`/`prometheus`
+registration), `COUPLING_LAYERS` (`harmonia`), `CLOSURE_DOMAINS` (`proteus`).
+Acceptance oracles all green:
 
-- a fixture `ares -> CFDrs` edge fails the rule;
+- fixture `ares -> CFDrs` edge fails the rule (simulated in
+  `FutureBoundarySimulationTests`);
 - the live stack (no balance packages exist yet) passes vacuously;
-- the coupling-routing assertion forbids any direct cross-balance edge and
+- coupling-routing assertion forbids any direct cross-balance edge and
   names `harmonia` as the sanctioned multi-balance coupling layer.
+
+Verification artifact:
+[`docs/audit/2026-09-04-r7-architecture-test.md`](docs/audit/2026-09-04-r7-architecture-test.md).
+Test totals: 27 architecture-test cases, 64 conformance cases (unchanged),
+91 cases pass. End-to-end `report --worktree` and `check --worktree --json`
+both green at zero violations across 25 members. `render_baseline` reproduces
+the committed baseline byte-for-byte (generator contract preserved).
+
+**Future boundary additions.** When `ares` lands, add its `[package] name`
+to `BALANCE_DOMAINS` in `scripts/atlas_architecture_test.py`; the same
+applies to `prometheus`. Both add one line; the rule's discrimination is
+proved in isolation by the simulation class above.
 
 - **note:** R1 and R2 are grep-shaped and belong in the conformance scan
   (`scripts/atlas-conformance.py`) rather than the architecture test.
