@@ -75,12 +75,18 @@ from atlas_stack import ROOT, is_git_ignored, staleness_note
 try:
     from atlas_architecture_test import (
         BALANCE_DOMAINS as _BALANCE_DOMAINS,
+        MEMBER_BALANCE_DOMAINS as _MEMBER_BALANCE_DOMAINS,
+        build_member_for_package as _build_member_for_package,
         classify_edge as _classify_balance_edge,
+        classify_member_edge as _classify_balance_member_edge,
         Edge as _BalanceEdge,
     )
 except ImportError:  # pragma: no cover - the rule module ships with this script
     _BALANCE_DOMAINS = frozenset()
+    _MEMBER_BALANCE_DOMAINS = frozenset()
+    _build_member_for_package = None
     _classify_balance_edge = None
+    _classify_balance_member_edge = None
     _BalanceEdge = None
 
 BASELINE = ROOT / "scripts" / "conformance-baseline.json"
@@ -1082,6 +1088,43 @@ def member_package_name(manifest_text: str) -> str | None:
     return name if isinstance(name, str) else None
 
 
+def member_package_names(repo: Path) -> frozenset[str]:
+    """Every published `[package] name` declared by any manifest under `repo`.
+
+    Used to build the package-to-member mapping the architecture test
+    consumes. Walks every Cargo.toml under the repo (via
+    [`cargo_manifests`]) and returns the union of their `[package].name`
+    values, restricted to crates with `publish != false`. A workspace
+    root's own `[package]` is excluded (it has none), so a single-crate
+    member's set has exactly one entry and a multi-crate member's set
+    has one per published workspace member.
+
+    The publish filter matters because several members carry an
+    `xtask` scaffolding crate (`publish = false`); their `[package]
+    name` is `xtask` in every case, so including them would manufacture
+    a fake cross-member collision. Unpublished scaffolding never enters
+    the registry graph, so it cannot be the endpoint of an R7 edge.
+    """
+    out: set[str] = set()
+    for manifest in cargo_manifests(repo):
+        text = _cached_text(manifest)
+        if text is None:
+            continue
+        try:
+            parsed = tomllib.loads(text)
+        except (tomllib.TOMLDecodeError, ValueError):
+            continue
+        package = parsed.get("package")
+        if not isinstance(package, dict):
+            continue
+        if package.get("publish", True) is False:
+            continue
+        name = package.get("name")
+        if isinstance(name, str):
+            out.add(name)
+    return frozenset(out)
+
+
 def runtime_dependency_names(manifest_text: str) -> frozenset[str]:
     """Return the crates a manifest declares as runtime dependencies.
 
@@ -1112,13 +1155,25 @@ def runtime_dependency_names(manifest_text: str) -> frozenset[str]:
     return frozenset(names)
 
 
-def scan_repo(repo: Path, live_repo: Path | None = None) -> dict[str, int]:
+def scan_repo(
+    repo: Path,
+    live_repo: Path | None = None,
+    member_for_package: dict[str, str] | None = None,
+) -> dict[str, int]:
     """Count every debt class in `repo`'s content.
 
     `live_repo` is the checkout whose registration state the two live-only
     classes read (`excess_worktrees` from `.git/worktrees`, `target_forks`
     from the directory listing) when `repo` is an archived snapshot of a
     recorded revision rather than the checkout itself.
+
+    `member_for_package` maps each `[package] name` to the member
+    repository it lives under; the architecture test uses it to
+    distinguish intra-repository composition (allowed) from
+    cross-balance-member coupling (forbidden). When `None`, the
+    member-level classification is skipped and only the package-level
+    rule runs — the recorded-revision snapshot path passes `None`
+    because it has no archive-wide mapping.
     """
     live_repo = live_repo or repo
     _clear_scan_caches()
@@ -1218,15 +1273,40 @@ def scan_repo(repo: Path, live_repo: Path | None = None) -> dict[str, int]:
         c["substrate_contract_violations"] += len(
             runtime_dependency_names(text) & PROHIBITED_SUBSTRATE
         )
-        if _classify_balance_edge is not None and _BALANCE_DOMAINS:
+        if _classify_balance_edge is not None and (
+            _BALANCE_DOMAINS or _MEMBER_BALANCE_DOMAINS
+        ):
             consumer = member_package_name(text)
             if consumer is not None:
-                edges = runtime_dependency_names(text) & _BALANCE_DOMAINS
-                for provider in edges:
-                    if _classify_balance_edge(
-                        _BalanceEdge(consumer=consumer, provider=provider)
-                    ).is_violation():
-                        c["balance_domain_edges"] += 1
+                deps = runtime_dependency_names(text)
+                # Package-level rule: catch direct edges where both
+                # endpoints are named in `BALANCE_DOMAINS` (the scan's
+                # per-crate keying). The membership test gates the
+                # inner loop on a non-empty boundary set so a stack
+                # with no balance packages spends nothing.
+                if _BALANCE_DOMAINS:
+                    for provider in deps & _BALANCE_DOMAINS:
+                        if _classify_balance_edge(
+                            _BalanceEdge(consumer=consumer, provider=provider)
+                        ).is_violation():
+                            c["balance_domain_edges"] += 1
+                # Member-level rule: catch cross-balance-member edges
+                # that the package-level rule misses because
+                # `CFDrs`/`kwavers`/`helios`/`hyperion`/`asclepius`
+                # are multi-crate workspaces and only one of their
+                # crates sits in `BALANCE_DOMAINS`. The
+                # same-repository exemption in
+                # `classify_member_edge` keeps intra-member composition
+                # edges out of the count.
+                if _classify_balance_member_edge is not None and (
+                    member_for_package is not None
+                ):
+                    for provider in deps:
+                        if _classify_balance_member_edge(
+                            _BalanceEdge(consumer=consumer, provider=provider),
+                            member_for_package,
+                        ).is_violation():
+                            c["balance_domain_edges"] += 1
     scan_workflows(repo, c)
     _clear_scan_caches()
     return c
@@ -1282,7 +1362,10 @@ def scan_stack(
     With `root_revision`, each member is scanned at the gitlink that revision
     records — from the checkout when it is clean and at that commit, else from
     an archived snapshot (`materialize_member`). Without it, the live trees
-    are scanned as they are (`--worktree`).
+    are scanned as they are (`--worktree`). A registered member with no
+    recorded gitlink (promotion mid-flight) is skipped with a stderr
+    warning: it has no pinned revision to measure, and one unlinked member
+    must not abort the fleet scan.
     """
     out = {}
     member_root = stack_root / "repos"
@@ -1293,20 +1376,98 @@ def scan_stack(
         if repos:
             with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
                 targets = []
+                targeted: list[Path] = []
+                skipped = []
                 for repo in repos:
                     if root_revision is None:
                         targets.append((repo, repo))
-                    else:
+                        targeted.append(repo)
+                        continue
+                    try:
                         expected = gitlink_revision(root_revision, f"repos/{repo.name}", stack_root)
-                        targets.append(materialize_member(repo, expected, Path(scratch)))
+                    except RuntimeError:
+                        # A registered member with no recorded gitlink is a
+                        # promotion mid-flight (its `.gitmodules` entry landed
+                        # before the submodule was added). It has no pinned
+                        # revision to archive, so there is nothing honest to
+                        # measure — but that must not blind the whole fleet
+                        # scan. Skip it loudly; the promotion item, not the
+                        # gate, owns registration.
+                        skipped.append(repo.name)
+                        continue
+                    targets.append(materialize_member(repo, expected, Path(scratch)))
+                    targeted.append(repo)
+                if skipped:
+                    print(
+                        f"warning: no recorded gitlink; skipping unmeasured "
+                        f"member(s): {', '.join(sorted(skipped))}",
+                        file=sys.stderr,
+                    )
+                # The architecture test consumes a package-to-member
+                # mapping (every `[package] name` to the repository
+                # that owns it) to distinguish intra-repository
+                # composition from cross-balance-member coupling. The
+                # mapping is built from the live trees (each target's
+                # workspace) before the parallel scan starts, so each
+                # worker receives the same global view — the mapping
+                # is shared read-only and never mutated per-repo. When
+                # the rule module is missing the mapping is empty and
+                # the member-level classification silently no-ops.
+                #
+                # Non-balance packages — anything not in
+                # `MEMBER_BALANCE_DOMAINS` — may legitimately be
+                # duplicated across members (the `xtask` scaffolding
+                # crate is the textbook case: CFDrs and apollo both
+                # carry one). The member-level rule does not classify
+                # edges through non-balance packages, so the
+                # collision does not affect R7. Skip the entry: a
+                # collision among non-balance packages is benign.
+                member_for_package: dict[str, str] = {}
+                balance_only_names: set[str] = set()
+                for target in targets:
+                    content_path = target[0]
+                    member_name = target[1].name
+                    if member_name in _MEMBER_BALANCE_DOMAINS:
+                        balance_only_names.update(member_package_names(content_path))
+                for target in targets:
+                    content_path = target[0]
+                    member_name = target[1].name
+                    for package in member_package_names(content_path):
+                        # Two filters keep the mapping exact:
+                        #
+                        # 1. Only balance-domain members contribute
+                        #    packages to the mapping. A non-balance
+                        #    member (e.g. `apollo`) carrying a
+                        #    duplicate `xtask` does not register,
+                        #    because R7's classification never asks
+                        #    who owns `xtask`.
+                        if member_name not in _MEMBER_BALANCE_DOMAINS:
+                            continue
+                        # 2. The package must appear under exactly one
+                        #    balance member. Two balance members
+                        #    claiming the same `[package] name` would
+                        #    be a registry collision; the scan
+                        #    refuses rather than silently picking one.
+                        existing = member_for_package.get(package)
+                        if existing is not None and existing != member_name:
+                            raise RuntimeError(
+                                f"package {package!r} is published by "
+                                f"both {existing!r} and {member_name!r}"
+                            )
+                        member_for_package[package] = member_name
                 # Four workers match the smallest hosted runner while avoiding
                 # unbounded parallel metadata and filesystem traversal.
                 worker_count = min(MAX_SCAN_WORKERS, len(repos))
                 with ThreadPoolExecutor(max_workers=worker_count) as executor:
                     counts_by_repo = executor.map(
-                        lambda target: scan_repo(target[0], live_repo=target[1]), targets
+                        lambda target: scan_repo(
+                            target[0],
+                            live_repo=target[1],
+                            member_for_package=member_for_package,
+                        ),
+                        targets,
                     )
-                    for repo, counts in zip(repos, counts_by_repo, strict=True):
+                    for repo, counts in zip(targeted, counts_by_repo, strict=True):
                         out[repo.name] = counts
         if stack_root == ROOT:
             for repo in sorted(member_root.iterdir()):

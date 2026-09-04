@@ -70,6 +70,15 @@ class BoundaryTableTests(unittest.TestCase):
         # documentation today and the seed for a future R3/R4 assertion.
         self.assertIn("proteus", arch.CLOSURE_DOMAINS)
 
+    def test_member_balance_domains_constant_exists(self) -> None:
+        # The member-level boundary table is the live-balance-domains
+        # item's fix: `BALANCE_DOMAINS` carries package names (the
+        # scan's per-crate keying), `MEMBER_BALANCE_DOMAINS` carries
+        # member names (the boundary's per-repo intent). The two are
+        # linked but distinct.
+        self.assertIsInstance(arch.MEMBER_BALANCE_DOMAINS, frozenset)
+        self.assertTrue(arch.MEMBER_BALANCE_DOMAINS)  # non-empty now that ares registered
+
 
 class EdgeClassificationTests(unittest.TestCase):
     """Every edge classifies into exactly one kind; forbidden is unique."""
@@ -95,6 +104,32 @@ class EdgeClassificationTests(unittest.TestCase):
                 )
                 self.assertIn(finding.kind, allowed, f"{consumer}->{provider}")
                 self.assertIsInstance(finding, arch.Finding)
+
+    def test_member_edge_kinds_are_total(self) -> None:
+        # Every classify_member_edge call lands in one of six kinds.
+        member_for_package = {
+            "cfd-core": "CFDrs",
+            "cfd-1d": "CFDrs",
+            "kwavers-core": "kwavers",
+            "ares": "ares",
+            "ares-athena": "ares",
+            "proteus": "proteus",
+        }
+        kinds = {
+            "allowed",
+            "forbidden",
+            "closure_consumer",
+            "closure_provider",
+            "intra_member_allowed",
+            "external",
+        }
+        for consumer in ("cfd-core", "kwavers-core", "ares", "unknown"):
+            for provider in ("cfd-1d", "kwavers-core", "ares", "proteus", "rayon"):
+                finding = arch.classify_member_edge(
+                    arch.Edge(consumer=consumer, provider=provider),
+                    member_for_package,
+                )
+                self.assertIn(finding.kind, kinds, f"{consumer}->{provider}")
 
     def test_two_non_balance_packages_are_allowed(self) -> None:
         finding = arch.classify_edge(arch.Edge(consumer="kwavers", provider="proteus"))
@@ -152,6 +187,25 @@ class FindingViolationTests(unittest.TestCase):
         finding = arch.Finding(
             edge=arch.Edge(consumer="CFDrs", provider="proteus"),
             kind="closure_provider",
+        )
+        self.assertFalse(finding.is_violation())
+
+    def test_intra_member_allowed_is_not_a_violation(self) -> None:
+        # A balance repo's own crates depend on each other for
+        # composition, not coupling. R7 forbids cross-balance-member
+        # edges; intra-member edges are composition and stay allowed.
+        finding = arch.Finding(
+            edge=arch.Edge(consumer="cfd-core", provider="cfd-1d"),
+            kind="intra_member_allowed",
+        )
+        self.assertFalse(finding.is_violation())
+
+    def test_external_is_not_a_violation(self) -> None:
+        # Cross-stack dependencies (a third-party crate, or an
+        # unregistered checkout) are outside R7's scope.
+        finding = arch.Finding(
+            edge=arch.Edge(consumer="kwavers-core", provider="rayon"),
+            kind="external",
         )
         self.assertFalse(finding.is_violation())
 
@@ -310,6 +364,189 @@ def _restore_constants(
     # tables for subsequent tests in the same process.
     module.BALANCE_DOMAINS = balance  # type: ignore[attr-defined]
     module.CLOSURE_DOMAINS = closure  # type: ignore[attr-defined]
+
+
+class MemberBoundaryTableTests(unittest.TestCase):
+    """The member-level boundary table; distinct from `BALANCE_DOMAINS`."""
+
+    def test_member_balance_domains_is_a_frozenset(self) -> None:
+        self.assertIsInstance(arch.MEMBER_BALANCE_DOMAINS, frozenset)
+
+    def test_member_balance_domains_names_every_live_balance_owner(self) -> None:
+        # ADR 0055's continuum-domain table lists CFDrs, kwavers,
+        # helios/hyperion, asclepius, ares as balance owners. Every
+        # one must be in the member set or an `ares -> X` edge will
+        # silently fail to trip the rule.
+        expected = {"CFDrs", "kwavers", "helios", "hyperion", "asclepius", "ares"}
+        self.assertEqual(arch.MEMBER_BALANCE_DOMAINS, expected)
+
+    def test_member_balance_domains_excludes_closure_and_coupling(self) -> None:
+        # `proteus` is a closure domain; `harmonia` is the coupling
+        # layer. Neither is itself a balance owner.
+        self.assertNotIn("proteus", arch.MEMBER_BALANCE_DOMAINS)
+        self.assertNotIn("harmonia", arch.MEMBER_BALANCE_DOMAINS)
+
+
+class BuildMemberForPackageTests(unittest.TestCase):
+    """The package-to-member mapping is built once per scan and used by classify_member_edge."""
+
+    def test_invert_member_to_packages(self) -> None:
+        members = {
+            "CFDrs": frozenset({"cfd-core", "cfd-1d", "cfd-2d"}),
+            "kwavers": frozenset({"kwavers-core", "kwavers-math"}),
+        }
+        mapping = arch.build_member_for_package(members)
+        self.assertEqual(mapping["cfd-core"], "CFDrs")
+        self.assertEqual(mapping["kwavers-math"], "kwavers")
+        self.assertEqual(len(mapping), 5)
+
+    def test_duplicate_package_raises(self) -> None:
+        # A package name must belong to exactly one member; a
+        # double-entry is either a manifest parse error or a
+        # publishing-name collision, and the scan refuses to pick.
+        members = {
+            "member-a": frozenset({"shared"}),
+            "member-b": frozenset({"shared"}),
+        }
+        with self.assertRaises(ValueError):
+            arch.build_member_for_package(members)
+
+
+class ClassifyMemberEdgeTests(unittest.TestCase):
+    """R7 at the member level — same-repo exempt, cross-balance forbidden."""
+
+    def setUp(self) -> None:
+        self.member_for_package = {
+            "cfd-core": "CFDrs",
+            "cfd-1d": "CFDrs",
+            "cfd-2d": "CFDrs",
+            "kwavers-core": "kwavers",
+            "kwavers-math": "kwavers",
+            "ares": "ares",
+            "ares-solid": "ares",
+            "ares-athena": "ares",
+            "proteus": "proteus",
+            "harmonia": "harmonia",
+            "rayon": None,  # never appears in the mapping
+        }
+
+    def test_intra_member_edge_is_allowed(self) -> None:
+        # A balance repo's own crates compose the same operator; they
+        # are not R7 violations. `cfd-core -> cfd-1d` is the
+        # textbook case.
+        finding = arch.classify_member_edge(
+            arch.Edge(consumer="cfd-core", provider="cfd-1d"),
+            self.member_for_package,
+        )
+        self.assertEqual(finding.kind, "intra_member_allowed")
+        self.assertFalse(finding.is_violation())
+
+    def test_cross_member_balance_edge_is_forbidden(self) -> None:
+        # The textbook R7 violation: one balance member depending on
+        # another directly, bypassing `harmonia`.
+        finding = arch.classify_member_edge(
+            arch.Edge(consumer="cfd-core", provider="kwavers-core"),
+            self.member_for_package,
+        )
+        self.assertEqual(finding.kind, "forbidden")
+        self.assertTrue(finding.is_violation())
+
+    def test_ares_to_cfdrs_is_forbidden(self) -> None:
+        # ADR 0057's motivating example: solid momentum depending on
+        # fluid momentum is a cross-balance edge that must route
+        # through `harmonia`.
+        finding = arch.classify_member_edge(
+            arch.Edge(consumer="ares", provider="cfd-core"),
+            self.member_for_package,
+        )
+        self.assertEqual(finding.kind, "forbidden")
+        self.assertTrue(finding.is_violation())
+
+    def test_ares_athena_to_ares_is_allowed(self) -> None:
+        # The intra-repository exemption applies to `ares-athena -> ares`
+        # too: both crates belong to the ares member, and `ares-athena`
+        # is the Athena operator seam, not a separate balance owner.
+        finding = arch.classify_member_edge(
+            arch.Edge(consumer="ares-athena", provider="ares"),
+            self.member_for_package,
+        )
+        self.assertEqual(finding.kind, "intra_member_allowed")
+        self.assertFalse(finding.is_violation())
+
+    def test_balance_to_closure_is_provider(self) -> None:
+        # A balance package composing its closure: still allowed.
+        finding = arch.classify_member_edge(
+            arch.Edge(consumer="cfd-core", provider="proteus"),
+            self.member_for_package,
+        )
+        self.assertEqual(finding.kind, "closure_provider")
+        self.assertFalse(finding.is_violation())
+
+    def test_unknown_consumer_is_external(self) -> None:
+        finding = arch.classify_member_edge(
+            arch.Edge(consumer="unregistered-pkg", provider="cfd-core"),
+            self.member_for_package,
+        )
+        self.assertEqual(finding.kind, "external")
+        self.assertFalse(finding.is_violation())
+
+    def test_unknown_provider_is_external(self) -> None:
+        finding = arch.classify_member_edge(
+            arch.Edge(consumer="cfd-core", provider="some-third-party"),
+            self.member_for_package,
+        )
+        self.assertEqual(finding.kind, "external")
+        self.assertFalse(finding.is_violation())
+
+
+class MemberBalanceViolationsTests(unittest.TestCase):
+    """The convenience wrapper that the conformance scan consumes."""
+
+    def setUp(self) -> None:
+        self.member_for_package = {
+            "cfd-core": "CFDrs",
+            "kwavers-core": "kwavers",
+            "ares": "ares",
+            "ares-solid": "ares",
+            "ares-athena": "ares",
+            "proteus": "proteus",
+            "harmonia": "harmonia",
+        }
+
+    def test_returns_only_forbidden(self) -> None:
+        violations = arch.member_balance_violations(
+            "ares",
+            frozenset({"cfd-core", "kwavers-core", "proteus", "harmonia"}),
+            self.member_for_package,
+        )
+        # Cross-balance edges are forbidden; the closure and coupling
+        # edges are allowed.
+        edges = {(v.consumer, v.provider) for v in violations}
+        self.assertIn(("ares", "cfd-core"), edges)
+        self.assertIn(("ares", "kwavers-core"), edges)
+        self.assertNotIn(("ares", "proteus"), edges)
+        self.assertNotIn(("ares", "harmonia"), edges)
+
+    def test_intra_member_edges_are_never_returned(self) -> None:
+        # An `ares-athena` consumer with an intra-member `ares`
+        # provider produces no violations — the exemption is the
+        # entire point of the member-level layer.
+        violations = arch.member_balance_violations(
+            "ares-athena",
+            frozenset({"ares", "proteus", "harmonia"}),
+            self.member_for_package,
+        )
+        self.assertEqual(violations, [])
+
+    def test_sorted_output(self) -> None:
+        # Stable order matters for diffs in CI output.
+        violations = arch.member_balance_violations(
+            "ares",
+            frozenset({"kwavers-core", "cfd-core"}),
+            self.member_for_package,
+        )
+        providers_seen = [v.provider for v in violations]
+        self.assertEqual(providers_seen, sorted(providers_seen))
 
 
 if __name__ == "__main__":

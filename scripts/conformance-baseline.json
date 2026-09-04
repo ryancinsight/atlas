@@ -36,7 +36,7 @@
     "workspace_lints_missing": 0
   },
   "CFDrs": {
-    "allow_sites": 92,
+    "allow_sites": 91,
     "balance_domain_edges": 0,
     "commented_out_code": 4,
     "crate_level_allows": 6,
@@ -53,7 +53,7 @@
     "missing_deny_docs": 11,
     "nextest_budget_missing": 0,
     "orphan_modules": 0,
-    "oversized_files": 141,
+    "oversized_files": 140,
     "print_dbg": 23,
     "pull_request_target_use": 0,
     "reexport_shims": 9,
@@ -334,7 +334,7 @@
     "gitattributes_missing": 0,
     "junk_drawer_modules": 0,
     "lane_kernel_uninlined": 0,
-    "manifest_implementation": 3,
+    "manifest_implementation": 2,
     "markers": 0,
     "member_namespace_pollution": 0,
     "missing_cargo_lock": 0,
@@ -433,7 +433,7 @@
   },
   "helios": {
     "allow_sites": 0,
-    "balance_domain_edges": 0,
+    "balance_domain_edges": 2,
     "commented_out_code": 0,
     "crate_level_allows": 0,
     "default_branch_cancel_in_progress": 0,
@@ -649,7 +649,7 @@
   },
   "kwavers": {
     "allow_sites": 322,
-    "balance_domain_edges": 0,
+    "balance_domain_edges": 2,
     "commented_out_code": 27,
     "crate_level_allows": 7,
     "default_branch_cancel_in_progress": 0,

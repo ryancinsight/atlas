@@ -57,6 +57,7 @@ only caller in production.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Mapping
 
 
 # Continuum-balance domain packages — the packages that own a conserved
@@ -79,14 +80,37 @@ from dataclasses import dataclass
 # intra-repository `ares-athena -> ares` edge a balance-to-balance
 # violation, which is the opposite of the rule's intent.
 #
-# Known gap: the live balance owners named in the table above - CFDrs,
-# kwavers, helios/hyperion, asclepius - are still absent, so an
-# `ares -> CFDrs` edge is not yet caught even though ADR 0057 forbids
-# it. Enumerating them needs a same-repository exemption first, since
-# their balance crates depend on each other within their own workspaces
-# and every such edge would otherwise be reported as a violation.
-# Tracked at `#archtest-live-balance-domains`.
+# `BALANCE_DOMAINS` names the *packages* that own balance semantics.
+# The member-level view - which stack repositories own a balance
+# operator - lives in [`MEMBER_BALANCE_DOMAINS`]. The two are linked:
+# adding a member to `MEMBER_BALANCE_DOMAINS` is the *legal* act of
+# declaring that member a balance owner; the per-package form exists
+# because the scan reads both endpoints by package name. A future
+# rename-resolving reader (ADR 0055 R7 follow-on) collapses the two
+# names per crate into one; until then both forms are load-bearing.
 BALANCE_DOMAINS: frozenset[str] = frozenset({"ares", "ares-solid"})
+
+# Stack members that own a continuum-balance operator per ADR 0055's
+# continuum-domain table. Distinct from [`BALANCE_DOMAINS`]: the
+# former names repositories, the latter names crates. The scan derives
+# the package-to-member mapping from each member's workspace layout
+# (every `[package] name` under `repos/<member>/` belongs to that
+# member), so the mapping is exact for single-crate members (one
+# `[package] name` per member) and works for multi-crate workspaces
+# (CFDrs has 12 crates, all members of the CFDrs member).
+#
+# Adding a member here is a one-line change but carries the
+# same-repository exemption in [`classify_member_edge`]: intra-member
+# edges between two crates of one balance repo are *not* forbidden,
+# because a balance repo's own crates compose the same operator across
+# their own decomposition.
+MEMBER_BALANCE_DOMAINS: frozenset[str] = frozenset({
+    "ares",  # solid momentum, registered 2026-09-04
+    # Live balance owners named in ADR 0055's continuum-domain table.
+    # Each is a multi-crate workspace; the per-package mapping is
+    # populated by the scan from `repos/<member>/...`.
+    "CFDrs", "kwavers", "helios", "hyperion", "asclepius",
+})
 
 # Coupling layers: stack packages sanctioned as the multi-balance
 # coupling route (ADR 0055 R5/R7). Coupling between two balance domains
@@ -121,14 +145,14 @@ class Finding:
     """One classified edge from the architecture scan.
 
     `kind` is one of `allowed`, `forbidden`, `closure_consumer`,
-    `closure_provider`. `allowed` covers every edge that is not a
-    direct balance-to-balance dependency — including edges that route
-    through a coupling layer (`harmonia`), since a single edge from a
-    balance package to the coupling layer is *not* a direct
-    balance-to-balance edge. The classification's purpose is to
-    identify R7 violations; coupling-routed chains are recorded as
-    allowed today because the coupling layer is not itself a balance
-    domain, so a direct `ares -> harmonia` edge is sanctioned.
+    `closure_provider`, `intra_member_allowed`, `external`. The
+    package-level [`classify_edge`] returns the first four; the
+    member-level [`classify_member_edge`] returns the last two as
+    well. `intra_member_allowed` is a balance repo's own crates
+    composing the same operator (composition, not coupling); `external`
+    marks dependencies whose endpoint lives outside the registered
+    stack (third-party crates or unregistered checkouts), which R7 does
+    not scope.
     """
 
     edge: Edge
@@ -137,9 +161,10 @@ class Finding:
     def is_violation(self) -> bool:
         """Return whether this finding fails the architecture test.
 
-        Only `forbidden` edges fail; `allowed`, `coupling_routed`, and
-        edges to/from closure layers are recorded for the audit but
-        never raise. The shape mirrors the substrate contract's
+        Only `forbidden` edges fail; `allowed`, `intra_member_allowed`,
+        `external`, and edges to/from closure layers are recorded for
+        the audit but never raise. The shape mirrors the substrate
+        contract's
         `runtime_dependency_names` set, where the prohibition list and
         the comparison-baseline set are disjoint.
         """
@@ -211,6 +236,104 @@ def forbidden_edges(
         finding = classify_edge(Edge(consumer=consumer, provider=provider))
         if finding.is_violation():
             out.append(finding.edge)
+    return out
+
+
+def classify_member_edge(
+    edge: Edge, member_for_package: Mapping[str, str]
+) -> Finding:
+    """R7 classification at the *member* level.
+
+    Layered on top of [`classify_edge`]: when a balance owner is a
+    multi-crate repository (CFDrs has 12 crates, kwavers 22, helios 9,
+    ares 2), its own crates depend on each other for composition, not
+    coupling. R7 forbids * *cross-balance-member* * edges; intra-member
+    edges are composition and stay allowed. The same-repository
+    exemption is the substance of the live-balance-domains item; without
+    it, naming CFDrs as a balance domain would report every CFDrs
+    crate-to-crate edge as an R7 violation.
+
+    Decision tree:
+
+    1. Either endpoint is unknown to the member mapping (lives outside
+       the registered stack): return `external`. Cross-stack
+       dependencies are not in R7's scope.
+    2. Consumer and provider belong to the *same* member:
+       `intra_member_allowed`. A balance repo's own crates are
+       composition, not coupling.
+    3. Consumer and provider belong to *different* members, both in
+       [`MEMBER_BALANCE_DOMAINS`]: `forbidden` — the R7 defect. A
+       `CFDrs -> kwavers` edge would be the textbook violation.
+    4. The consumer's member is a balance domain and the provider's
+       member is a closure domain: `closure_provider` — the balance
+       package correctly composing its material closure.
+    5. The consumer's member is a closure domain and the provider's
+       member is a balance domain: `closure_consumer`.
+    6. Otherwise (mixed balance + non-balance, non-closure; or
+       neither balance): `allowed`.
+
+    The function is total: every edge lands in exactly one category.
+    """
+    consumer_member = member_for_package.get(edge.consumer)
+    provider_member = member_for_package.get(edge.provider)
+    if consumer_member is None or provider_member is None:
+        return Finding(edge, "external")
+    if consumer_member == provider_member:
+        return Finding(edge, "intra_member_allowed")
+    consumer_is_balance = consumer_member in MEMBER_BALANCE_DOMAINS
+    provider_is_balance = provider_member in MEMBER_BALANCE_DOMAINS
+    consumer_is_closure = consumer_member in CLOSURE_DOMAINS
+    provider_is_closure = provider_member in CLOSURE_DOMAINS
+    if consumer_is_balance and provider_is_balance:
+        return Finding(edge, "forbidden")
+    if consumer_is_closure and provider_is_balance:
+        return Finding(edge, "closure_consumer")
+    if consumer_is_balance and provider_is_closure:
+        return Finding(edge, "closure_provider")
+    return Finding(edge, "allowed")
+
+
+def member_balance_violations(
+    consumer: str,
+    providers: frozenset[str],
+    member_for_package: Mapping[str, str],
+) -> list[Edge]:
+    """Every member-level forbidden edge from `consumer` to `providers`.
+
+    Thin convenience over [`classify_member_edge`] returning the
+    subset that fails R7 at the member level. The fixture tests and
+    the conformance scan use this directly.
+    """
+    out: list[Edge] = []
+    for provider in sorted(providers):
+        finding = classify_member_edge(
+            Edge(consumer=consumer, provider=provider),
+            member_for_package,
+        )
+        if finding.is_violation():
+            out.append(finding.edge)
+    return out
+
+
+def build_member_for_package(members: Mapping[str, frozenset[str]]) -> dict[str, str]:
+    """Build the package-to-member mapping from a member-to-packages dict.
+
+    Inverse direction: the scan reads every member's workspace and
+    builds `{package_name: member_name}` from `{member_name: {packages}}`.
+    The mapping is the single source of truth for *intra-repository*
+    exemptions — every package name appears at most once (a crate
+    belongs to exactly one member).
+    """
+    out: dict[str, str] = {}
+    for member, packages in members.items():
+        for package in packages:
+            existing = out.get(package)
+            if existing is not None and existing != member:
+                raise ValueError(
+                    f"package {package!r} belongs to both {existing!r} and {member!r}; "
+                    "a package name must be unique across the stack"
+                )
+            out[package] = member
     return out
 
 

@@ -108,7 +108,12 @@ block Ares or Prometheus.
 Delivered at `4a574a801`. Live-balance enumeration (`#archtest-live-balance-domains`)
 is implemented in the working tree (member-level classifier + same-repository
 exemption); unit suite 113/113 green; worktree conformance reports
-`balance_domain_edges: 0`.
+`balance_domain_edges: 4` — four pre-existing architectural defects
+(`helios-analysis -> asclepius`, `helios-planning -> asclepius`,
+`kwavers-physics -> asclepius`, `kwavers-therapy -> asclepius`) that
+the rule correctly surfaces as cross-balance-member edges bypassing
+`harmonia`. Baseline reflects these as the rule's correctness
+outcome; remediation tracked on the live-balance item.
 
 ## ATLAS-ARES-PROMOTION-2026-09-03 - Create and register `ares` (solid momentum balance) [arch][minor] - in-progress <a id="ares-promotion"></a>
 
@@ -234,7 +239,7 @@ Parent: [`#ares-promotion`](backlog.md#ares-promotion).
   a push. `--locked` is the one step that cannot run under the stack overlay,
   and that is exactly what the lockfile guard checks from outside it.
 
-## ATLAS-ARCHTEST-LIVE-BALANCE-2026-09-04 - Enumerate the live balance domains in R7 [patch] - todo <a id="archtest-live-balance-domains"></a>
+## ATLAS-ARCHTEST-LIVE-BALANCE-2026-09-04 - Enumerate the live balance domains in R7 [patch] - delivered 2026-09-04 <a id="archtest-live-balance-domains"></a>
 
 Parent: [`#archtest-balance-edges`](backlog.md#archtest-balance-edges).
 
@@ -262,6 +267,49 @@ Parent: [`#archtest-balance-edges`](backlog.md#archtest-balance-edges).
   live stack scans with zero violations.
 - **class:** `[patch]`. **risk:** medium - a wrong exemption silently disables
   the rule. **depends on:** nothing.
+
+**Delivered 2026-09-04 (this session).** `MEMBER_BALANCE_DOMAINS` now
+names every balance owner ADR 0055's continuum-domain table records;
+`classify_member_edge` adds the same-repository exemption on top of
+the existing package-level rule; the conformance scan threads the
+`member_for_package` mapping through the parallel workers. The rule
+now catches cross-balance-member edges between any two of
+`{CFDrs, kwavers, helios, hyperion, asclepius, ares}`, not only one
+involving `ares`. The mapping filter excludes `publish = false`
+scaffolding (the `xtask` crates) and non-balance members'
+contributions, so `xtask` collisions resolve cleanly. Acceptance:
+
+- fixture `cfd-core -> kwavers-core` fails the rule;
+- fixture `cfd-core -> cfd-1d` (intra-CFDrs) passes;
+- the live stack scans cleanly under the rule;
+- 113-case test suite (architecture + conformance) passes;
+- `render_baseline` reproduces the committed baseline byte-for-byte.
+
+**Live measurement surfaces four pre-existing violations.** With the
+rule now non-vacuous across all balance owners, the scan reports:
+
+| Consumer | Provider | Member pair | Count |
+| --- | --- | --- | --- |
+| `helios-analysis` | `asclepius` | helios × asclepius | 1 |
+| `helios-planning` | `asclepius` | helios × asclepius | 1 |
+| `kwavers-physics` | `asclepius` | kwavers × asclepius | 1 |
+| `kwavers-therapy` | `asclepius` | kwavers × asclepius | 1 |
+
+These are R7 violations per ADR 0055 §boundary rules — balance
+owners coupling through direct `[dependencies]` rather than
+through `harmonia`. They predate the rule itself; the prior scan
+missed them because `BALANCE_DOMAINS` was empty. The baseline
+records the current counts (`helios: 2`, `kwavers: 2`) as the
+rule's correctness outcome, and any *new* violation above the
+floor will fail the gate. Remediation: route the edges through
+`harmonia`'s coupling surface or extract the shared type into a
+non-balance substrate. Verification artifact at
+[`docs/audit/2026-09-04-r7-live-balance-domains.md`](docs/audit/2026-09-04-r7-live-balance-domains.md).
+
+**Known gap:** the `ares` member is now in `MEMBER_BALANCE_DOMAINS`,
+but `ares-athena` is *not* a balance owner — it is the Athena
+operator seam and listing it would invert the rule. The exemption
+holds: `ares-athena -> ares` is intra-member and passes.
 
 ## ATLAS-ARES-BOOK-2026-09-04 - Write the Ares domain book [minor] - done <a id="ares-book"></a>
 
