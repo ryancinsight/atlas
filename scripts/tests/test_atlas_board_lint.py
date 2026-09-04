@@ -85,6 +85,40 @@ class CollisionsTestCase(BoardLintUtilTestCase):
         dupes = _lint.collisions(board)
         self.assertEqual(dupes, {})
 
+    def test_original_specification_appendix_does_not_collide(self) -> None:
+        # The board attaches an item's original specification as a second
+        # heading under the SAME id. The id still resolves to one item, so
+        # this is an appendix, not the anchor ambiguity the gate exists for.
+        board = self._board(
+            "## ATLAS-DMRI-IO-001 — Rank-generic acquisition-series I/O [minor] — in-progress\n"
+            "## ATLAS-DMRI-IO-001 original specification\n"
+        )
+        dupes = _lint.collisions(board)
+        self.assertEqual(dupes, {})
+
+    def test_appendix_suffix_must_be_exact(self) -> None:
+        # Only the exact `original specification` suffix is exempt; any other
+        # trailing text keeps the heading a full item definition.
+        board = self._board(
+            "## ATLAS-AUDIT-001 — first — in-progress\n"
+            "## ATLAS-AUDIT-001 original specification and other matter\n"
+        )
+        dupes = _lint.collisions(board)
+        self.assertIn("ATLAS-AUDIT-001", dupes)
+        self.assertEqual(len(dupes["ATLAS-AUDIT-001"]), 2)
+
+    def test_appendix_exempt_id_still_collides_with_a_real_duplicate(self) -> None:
+        # Exempting the appendix must not blind the gate to a genuine second
+        # item reusing the id elsewhere in the board.
+        board = self._board(
+            "## ATLAS-AUDIT-001 — first — in-progress\n"
+            "## ATLAS-AUDIT-001 original specification\n"
+            "## ATLAS-AUDIT-001 — a different item — done\n"
+        )
+        dupes = _lint.collisions(board)
+        self.assertIn("ATLAS-AUDIT-001", dupes)
+        self.assertEqual(len(dupes["ATLAS-AUDIT-001"]), 2)
+
 
 class NextFreeTestCase(BoardLintUtilTestCase):
     def test_next_free_skips_hyphen_and_level_three_forms(self) -> None:

@@ -34,6 +34,16 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
+# Historical boards attach an item's original specification as a second
+# heading under the SAME id (`## ATLAS-DMRI-IO-001 original specification`).
+# The id still resolves to exactly one item, so that appendix is not an
+# anchor collision - and per ATLAS-BOARD-CLOSURE-CANON-001, historical
+# closure markers are being canonicalized, not renumbered. Anything after
+# the id matching this suffix marks an appendix of the item defined above it.
+APPENDIX_SUFFIX = re.compile(
+    r"^\s+(original\s+specification)\s*$", re.IGNORECASE
+)
+
 def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
     """Map each duplicated id to its (line number, title) occurrences.
 
@@ -44,6 +54,9 @@ def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
     level-2 form, so a duplicate id defined via a hyphen or level-3 heading
     escaped the hard gate — the anchor ambiguity the gate exists to prevent.
     Match the same broad heading surface as `_defined_ids`.
+
+    A heading carrying the `original specification` appendix suffix is the
+    same item's archived spec, not a second item: it never collides.
     """
     seen: dict[str, list[tuple[int, str]]] = {}
     with path.open(encoding="utf-8", errors="replace") as fh:
@@ -54,6 +67,8 @@ def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
             # Trailing separators vary by era (em dash, hyphen, U+FFFD);
             # the id ends at the first character outside [A-Z0-9-].
             item_id = m.group(1).rstrip("-")
+            if APPENDIX_SUFFIX.search(line.rstrip("\r\n")[m.end(1):]):
+                continue
             seen.setdefault(item_id, []).append((lineno, line.strip()))
     return {k: v for k, v in seen.items() if len(v) > 1}
 
