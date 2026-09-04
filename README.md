@@ -111,7 +111,7 @@ addition.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 25 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 26 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
@@ -119,6 +119,7 @@ At this revision, [`.gitmodules`](.gitmodules) records 25 packages.
 | Integrator | [`helios`](repos/helios) | Radiation-therapy dose, planning, imaging, and delivery simulation. |
 | Integrator | [`kwavers`](repos/kwavers) | Acoustic, ultrasound, therapy, imaging, and coupled wave simulation. |
 | Domain | [`apollo`](repos/apollo) | Fourier, spectral, wavelet, number-theoretic, and related transforms. |
+| Domain | [`ares`](repos/ares) | Solid momentum balance: small-strain kinematics, stress, equilibrium, and the Dirichlet and Neumann conditions that close them, over a Proteus closure and an Athena solve. |
 | Domain | [`asclepius`](repos/asclepius) | Biological-response, tissue-effect, treatment-response, and therapy-outcome laws over Aequitas quantities and Eunomia scalars, with a one-way Coeus adapter. |
 | Domain | [`athena`](repos/athena) | Backend-neutral PCG and restarted GMRES over Leto CPU and Hephaestus WGPU execution. |
 | Domain | [`coeus`](repos/coeus) | Strided tensors, automatic differentiation, neural networks, optimization, and sparse operations over the Leto CPU and Hephaestus accelerator backends, with Apollo transforms differentiated in place. |
@@ -286,6 +287,7 @@ Classical names describe bounded contexts rather than implementation variants.
 | `atlas` | Atlas, the Titan who bears the heavens | Coordinates the independently versioned stack. |
 | `aequitas` | Aequitas, Roman personification of equity and fair measure | Physical quantities, units, and dimensional law. |
 | `apollo` | Apollo, associated with music and ordered harmony | Spectral and numerical transforms. |
+| `ares` | Ares, god of war, by way of force and stress | Solid momentum balance and the equilibrium of deformable bodies. |
 | `asclepius` | Asclepius, god of medicine and healing | Biological-response and treatment-outcome laws. |
 | `athena` | Athena, goddess of wisdom and strategy | Iterative solver policy over CPU and accelerator providers. |
 | `coeus` | Coeus, Titan associated with intellect and inquiry | Tensor computation and learning systems. |
@@ -319,8 +321,9 @@ follow [ADR 0055](docs/adr/0055-continuum-domain-decomposition.md).
 
 `ares` and `prometheus` have left this table: both are chartered under
 [ADR 0057](docs/adr/0057-ares-phase-0-charter.md) and
-[ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md). They enter the stack
-table when their Phase 0 registers, not before.
+[ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md). `ares` registered its
+Phase 0 on 2026-09-04 and is in the stack table above; `prometheus` enters when
+its Phase 0 registers, not before.
 
 | Provisional | Classical reference | Bounded context | Gate state |
 | --- | --- | --- | --- |
@@ -357,7 +360,7 @@ keeps gaps tracked rather than rediscovered by each audit.
 | Time integration and subcycling | `horae` | present |
 | Multiphysics coupling | `harmonia` | present |
 | Uncertainty, sensitivity, optimization | `tyche`, `coeus` | present |
-| Solid mechanics | `ares` | chartered, Phase 0 not started ([ADR 0057](docs/adr/0057-ares-phase-0-charter.md)) |
+| Solid mechanics | `ares` | present, Phase 0 ([ADR 0057](docs/adr/0057-ares-phase-0-charter.md)): small-strain linear elastostatics |
 | Chemical species and reactions | `prometheus` | chartered, Phase 0 not started ([ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md)) |
 | Electromagnetics beyond optical | none | absent, no candidate |
 | Parametric solid modelling (MCAD) | none | absent, separate product line |
@@ -756,10 +759,11 @@ aequitas quantities ── deposition spine ── every modality:
 proteus ── elastic SSOT (landed) ── CFDrs / kwavers consumer slices pending
 horae ── embedded-step policy (consumer-gated; no current caller) ── kwavers chemistry
 
-future, only after the P2-B promotion trigger (ADR 0055 decomposition axis):
-aequitas + eunomia + leto + gaia + athena + proteus ── ares ── CFDrs / kwavers
-aequitas + eunomia + leto + horae + proteus ── prometheus ── CFDrs / kwavers
+aequitas + eunomia + proteus ── ares-solid ── ares-athena ── athena + leto
                           (balance owners couple only through harmonia)
+
+future, only after the P2-B promotion trigger (ADR 0055 decomposition axis):
+aequitas + eunomia + leto + horae + proteus ── prometheus ── CFDrs / kwavers
 
 future, only after a second transport consumer appears (ADR 0032):
 hyperion + leto + hephaestus ── hyperion-transport ── kwavers / <second consumer>
@@ -781,8 +785,8 @@ path: [ADR 0057](docs/adr/0057-ares-phase-0-charter.md) for Ares,
 are independent, share no prerequisite, and can proceed concurrently.
 [ADR 0055](docs/adr/0055-continuum-domain-decomposition.md) fixes what each
 owns — Ares balances solid momentum, Prometheus balances species mass, and
-Proteus closes both. Neither enters the stack table until its Phase 0
-registers.
+Proteus closes both. Ares registered on 2026-09-04; Prometheus does not enter
+the stack table until its Phase 0 registers.
 
 The following concerns are not package gaps:
 
@@ -1171,12 +1175,14 @@ the package's own Actions run through
 dumps: migration guides belong to the package `CHANGELOG.md` and execution state
 belongs to the boards, never to a chapter.
 
-At this revision 25 book-bearing registered members carry a book and a Pages
+At this revision 25 of the 26 registered members carry a book and a Pages
 caller:
 `aequitas`, `apollo`, `asclepius`, `athena`, `CFDrs`, `coeus`, `consus`,
 `eunomia`, `gaia`, `harmonia`, `helios`, `hephaestus`, `hermes`, `horae`,
 `hyperion`, `iris`, `kwavers`, `leto`, `melinoe`, `mnemosyne`, `moirai`,
-`proteus`, `ritk`, `themis`, and `tyche`. Twenty-one callers enable the shared
+`proteus`, `ritk`, `themis`, and `tyche`. `ares` registered on 2026-09-04
+without one and is the sole exception, tracked at `#ares-book`. Twenty-one
+callers enable the shared
 `mdbook-test` input. Gaia's custom Pages workflow runs `mdbook test` directly,
 but its book has no executable Rust fence; Helios and Kwavers have the same
 vacuous-sample defect under the shared workflow. Consus has no executable

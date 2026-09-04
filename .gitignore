@@ -1,6 +1,9 @@
 # Rust build artifacts (per-submodule targets)
 target/
 **/target/
+# Miri isolation target dir (derived state; untracked since it appeared —
+# same run-output segregation as target/, see backlog ATLAS-TARGET-001)
+target-miri/
 *.rs.bk
 *.pdb
 
@@ -62,7 +65,6 @@ repos/leoneuro-rs/
 # conformance scan reads it as member-namespace pollution. Ignored the way
 # the other two unregistered checkouts are, pending the decision recorded
 # on the board about whether it becomes a stack member.
-repos/ares/
 
 # npm / opencode CLI install artifacts
 node_modules/

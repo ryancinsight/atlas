@@ -8,11 +8,9 @@ dependency edge; coupling routes through `harmonia`* — is the rule this
 module encodes. R1 and R2 are grep-shaped and belong in the conformance
 scan (`scripts/atlas-conformance.py`) rather than here.
 
-The rule is preventive: the boundary list is empty today (no
-balance-domain package exists yet — `ares` and `prometheus` are
-chartered, not created), so the live stack passes vacuously. The test
-earns its keep when the first balance package lands: a forbidden edge
-then fails the build at the merge gate rather than at code review.
+The rule was preventive until 2026-09-04, when `ares` registered its
+Phase 0 and became the first entry in the boundary list. A forbidden
+edge now fails at the merge gate rather than at code review.
 
 Boundary table is encoded directly from ADR 0055's continuum-domain
 table:
@@ -26,11 +24,13 @@ table:
 | Closure | `proteus` | n/a (material response) | live |
 | Coupling | `harmonia` | n/a (multi-balance router) | live |
 
-When `ares` and `prometheus` land, their `BALANCE_DOMAINS` entries go
-here. Until they do, the empty-boundary case is the test's calibration
-point: the live stack must pass with no recorded violations, and the
-fixture tests below must show the rule rejects the same edge set a
-human reviewer would.
+| Balance | `ares` | solid momentum | live (2026-09-04) |
+| Balance | `prometheus` | species mass | chartered, not created |
+
+`prometheus` joins `BALANCE_DOMAINS` at its own registration. The
+calibration point is unchanged: the live stack must pass with no
+recorded violations, and the fixture tests below must show the rule
+rejects the same edge set a human reviewer would.
 
 The function surface stays small so a future rule (R3, R4, R5, R6) can
 sit alongside R7 without disturbing the existing test contracts.
@@ -64,10 +64,29 @@ from dataclasses import dataclass
 # `Cargo.toml` `[package] name` of the package, which is what the
 # runtime-dependency table keys on.
 #
-# `ares` and `prometheus` will be added here at their respective
-# registration phases. Today the list is empty and the live stack
-# passes the rule vacuously — which is the point of a preventive guard.
-BALANCE_DOMAINS: frozenset[str] = frozenset()
+# `ares` registered its Phase 0 on 2026-09-04 and is listed here;
+# `prometheus` joins at its own registration phase.
+#
+# Two names for one crate, because the scan reads the two endpoints from
+# different places. A consumer is identified by its `[package] name`, so
+# `ares` appears as `ares-solid`; a provider is read from a dependency
+# table *key*, and downstream consumers write
+# `ares = { package = "ares-solid" }`, so the same crate appears there as
+# `ares`. Listing one form would leave the other silently unmatched.
+#
+# `ares-athena` is deliberately absent. It is the Athena operator seam
+# (ares ADR 0001) and owns no balance; listing it would make the
+# intra-repository `ares-athena -> ares` edge a balance-to-balance
+# violation, which is the opposite of the rule's intent.
+#
+# Known gap: the live balance owners named in the table above - CFDrs,
+# kwavers, helios/hyperion, asclepius - are still absent, so an
+# `ares -> CFDrs` edge is not yet caught even though ADR 0057 forbids
+# it. Enumerating them needs a same-repository exemption first, since
+# their balance crates depend on each other within their own workspaces
+# and every such edge would otherwise be reported as a violation.
+# Tracked at `#archtest-live-balance-domains`.
+BALANCE_DOMAINS: frozenset[str] = frozenset({"ares", "ares-solid"})
 
 # Coupling layers: stack packages sanctioned as the multi-balance
 # coupling route (ADR 0055 R5/R7). Coupling between two balance domains

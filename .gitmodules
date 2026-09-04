@@ -101,3 +101,7 @@
 	path = repos/asclepius
 	url = https://github.com/ryancinsight/asclepius.git
 	active = true
+[submodule "repos/ares"]
+	path = repos/ares
+	url = https://github.com/ryancinsight/ares
+	active = true

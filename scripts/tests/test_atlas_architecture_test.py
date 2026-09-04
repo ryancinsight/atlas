@@ -29,12 +29,31 @@ class BoundaryTableTests(unittest.TestCase):
     def test_balance_domains_is_a_frozenset(self) -> None:
         self.assertIsInstance(arch.BALANCE_DOMAINS, frozenset)
 
-    def test_balance_domains_is_empty_today(self) -> None:
-        # `ares` and `prometheus` are chartered but unregistered. Until
-        # either lands in `.gitmodules` and `Cargo.toml` [package] name,
-        # BALANCE_DOMAINS stays empty — and that empty set is the
-        # rule's calibration point.
-        self.assertEqual(arch.BALANCE_DOMAINS, frozenset())
+    def test_balance_domains_names_ares_under_both_of_its_names(self) -> None:
+        # `ares` registered its Phase 0 on 2026-09-04. Both names are
+        # required because the scan reads the two endpoints from
+        # different places: a consumer from its `[package] name`
+        # (`ares-solid`), a provider from a dependency table key, which
+        # downstream is `ares` via the `package =` rename. Listing one
+        # form leaves the other silently unmatched.
+        self.assertEqual(arch.BALANCE_DOMAINS, frozenset({"ares", "ares-solid"}))
+
+    def test_the_athena_seam_is_not_a_balance_domain(self) -> None:
+        # `ares-athena` owns no balance; it adapts the assembled
+        # operator to Athena's trait (ares ADR 0001). Listing it would
+        # make the intra-repository `ares-athena -> ares` edge a
+        # balance-to-balance violation, inverting the rule.
+        self.assertNotIn("ares-athena", arch.BALANCE_DOMAINS)
+        self.assertFalse(
+            arch.classify_edge(
+                arch.Edge(consumer="ares-athena", provider="ares")
+            ).is_violation()
+        )
+
+    def test_prometheus_is_not_yet_a_balance_domain(self) -> None:
+        # Chartered under ADR 0058 but not created. It joins at its own
+        # registration phase, not before.
+        self.assertNotIn("prometheus", arch.BALANCE_DOMAINS)
 
     def test_coupling_layers_names_harmonia(self) -> None:
         # ADR 0055 R5/R7: coupling routes through `harmonia`. Any other
@@ -82,7 +101,7 @@ class EdgeClassificationTests(unittest.TestCase):
         self.assertEqual(finding.kind, "allowed")
         self.assertFalse(finding.is_violation())
 
-    def test_empty_balance_set_passes_vacuously(self) -> None:
+    def test_an_unlisted_pair_passes_regardless_of_the_balance_set(self) -> None:
         # Today BALANCE_DOMAINS is empty, so no consumer/provider pair
         # is a balance domain. Even an `ares -> CFDrs` edge classifies
         # as `allowed` because neither side is in the empty set. The
