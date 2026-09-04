@@ -124,15 +124,19 @@ jobs:
       - name: Report the detected change class
         run: |
           if [ "${{ steps.semver.outcome }}" = "success" ]; then
-            echo "### SemVer: no update required" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "No breaking or additive change detected against the PR base." >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "### SemVer: no update required"
+              echo ""
+              echo "No breaking or additive change detected against the PR base."
+            } >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "### SemVer: a version bump is required" >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "\`cargo-semver-checks\` detected a change the current manifest version does not cover. Open the step log above for the failing checks." >> "$GITHUB_STEP_SUMMARY"
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "This job stays green on purpose: on a pull request the gate is informational, and members accumulate accepted breaking changes under CHANGELOG \`[Unreleased]\`. Record the break there. The blocking comparison runs at release." >> "$GITHUB_STEP_SUMMARY"
+            {
+              echo "### SemVer: a version bump is required"
+              echo ""
+              echo "\`cargo-semver-checks\` detected a change the current manifest version does not cover. Open the step log above for the failing checks."
+              echo ""
+              echo "This job stays green on purpose: on a pull request the gate is informational, and members accumulate accepted breaking changes under CHANGELOG \`[Unreleased]\`. Record the break there. The blocking comparison runs at release."
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
   semver-release:
