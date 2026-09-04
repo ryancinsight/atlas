@@ -204,6 +204,14 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   catching the failure, because "not published" and "registry unreachable"
   produce the same failure and must not produce the same decision. Both member
   pins advanced to pick it up (`proteus` `98eade5`, `ares` `677dc84`).
+- **Pipelines verified end to end by dispatch, 2026-09-04.** `proteus-mat`'s
+  release validation is **green**: the SemVer gate skips as a first
+  publication and `cargo publish --dry-run` packages and verifies it, so it is
+  publish-ready. `ares-solid`'s validation reaches the same gate green and
+  fails only at `no matching package named proteus-mat`, which is the registry
+  link and not a pipeline defect. A deliberate bad-tag dispatch confirmed
+  `identify` rejects a package this repository does not ship and skips every
+  downstream job.
 - **Remaining, and it is an account action rather than a repository one:** a
   crates.io Trusted Publishing configuration for the two new crate names, since
   OIDC has nothing to trust until one exists. Fields per the atlas README:
