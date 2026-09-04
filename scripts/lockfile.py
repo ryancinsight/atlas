@@ -57,6 +57,21 @@ MANIFEST = REPOSITORY / "Cargo.toml"
 FIRST_PARTY_SOURCE = re.compile(r'^source = "git\+https://github\.com/ryancinsight/', re.M)
 FIRST_PARTY_GIT = "git+https://github.com/ryancinsight/"
 
+# One `[[package]]` source line for a first-party repository, captured whole so
+# the revision and the URL spelling both take part in the identity comparison.
+FIRST_PARTY_PACKAGE_SOURCE = re.compile(
+    r'^source = "(git\+https://github\.com/ryancinsight/[^"]+)"', re.M
+)
+
+# A member records how many first-party providers its graph currently resolves
+# through more than one source, as a single integer beside its lock. The file is
+# a ratchet: the check fails when the measured excess exceeds it, and the number
+# is lowered as the dependency-ordered unpin sweep closes each fork. Absent, the
+# check reports and does not fail -- a member that has never measured its graph
+# is not failed by a guard it has not adopted.
+PROVIDER_IDENTITY_BASELINE_NAME = ".provider-identity-baseline"
+
+
 
 def run_outside_the_overlay(
     arguments: list[str], manifest: Path | None = None
@@ -156,6 +171,104 @@ def check() -> int:
         print("Cargo.lock resolves under --locked; no first-party dependencies declared.")
     else:
         print(f"Cargo.lock resolves under --locked; {sources} first-party git sources.")
+    return check_provider_identity()
+
+
+def provider_identities(lock_text: str) -> dict[str, set[str]]:
+    """Map each first-party repository to the distinct sources it resolves through.
+
+    The key drops the `.git` suffix and the URL case, so the two spellings of one
+    repository count as the fork they are rather than as two providers.
+    """
+    identities: dict[str, set[str]] = {}
+    for source in FIRST_PARTY_PACKAGE_SOURCE.findall(lock_text):
+        base = source.split("#", 1)[0]
+        repository = base.split("?", 1)[0].removesuffix(".git").lower()
+        identities.setdefault(repository, set()).add(base)
+    return identities
+
+
+def provider_identity_baseline() -> int | None:
+    """Read the member's committed excess-source bound, or `None` when unset."""
+    path = LOCKFILE.parent / PROVIDER_IDENTITY_BASELINE_NAME
+    if not path.is_file():
+        return None
+    try:
+        return int(path.read_text(encoding="utf-8").split("#", 1)[0].strip())
+    except ValueError:
+        print(
+            f"error: {path} must contain a single integer bound.",
+            file=sys.stderr,
+        )
+        return -1
+
+
+def check_provider_identity() -> int:
+    """Bound the first-party providers that resolve through more than one source.
+
+    A provider reached by two sources is compiled twice, so its public types stop
+    matching across the boundary between the consumers that took different
+    routes. Nothing reports this: the build is green, the lock resolves under
+    `--locked`, and the mismatch surfaces only where the two halves meet.
+
+    It is also the reason a merged co-evolution pin cannot be dropped on its own.
+    Removing one while a transitive first-party consumer still pins the older
+    revision adds a source rather than removing one -- measured on apollo, where
+    dropping four merged pins raised the excess from four to eight because
+    `leto-ops` still pinned hermes at `5a399ee`.
+
+    The bound is a ratchet, not a zero: these forks exist today and a check that
+    fails on arrival gets disabled rather than fixed.
+    """
+    identities = provider_identities(LOCKFILE.read_text(encoding="utf-8"))
+    forked = {name: sources for name, sources in identities.items() if len(sources) > 1}
+    excess = sum(len(sources) - 1 for sources in forked.values())
+
+    for name, sources in sorted(forked.items()):
+        print(f"  {name.rsplit('/', 1)[-1]} resolves through {len(sources)} sources:")
+        for source in sorted(sources):
+            print(f"    {source.split('ryancinsight/', 1)[-1]}")
+
+    baseline = provider_identity_baseline()
+    if baseline is None:
+        print(
+            f"Provider identity: {excess} source(s) in excess of one per "
+            f"repository; unbounded (no {PROVIDER_IDENTITY_BASELINE_NAME})."
+        )
+        return 0
+    if baseline < 0:
+        return 1
+
+    if excess > baseline:
+        print(
+            f"error: {excess} first-party provider sources in excess of one per\n"
+            f"repository; the committed bound is {baseline}.\n"
+            f"\n"
+            f"Each extra source is a second copy of that provider in the graph, so\n"
+            f"its public types no longer match across the boundary between the\n"
+            f"consumers that reached it by different routes.\n"
+            f"\n"
+            f"A merged co-evolution pin cannot be removed until every transitive\n"
+            f"first-party consumer of that provider has advanced too; unpinning\n"
+            f"ahead of them adds a source rather than removing one.\n"
+            f"\n"
+            f"Fix: advance the consumers first, or restore the pin. Lower\n"
+            f"{PROVIDER_IDENTITY_BASELINE_NAME} only when a fork actually closes.",
+            file=sys.stderr,
+        )
+        return 1
+
+    if excess < baseline:
+        print(
+            f"Provider identity: {excess} source(s) in excess of one per repository, "
+            f"below the committed bound of {baseline} -- lower it to {excess}."
+        )
+        return 0
+
+    print(
+        f"Provider identity: {excess} source(s) in excess of one per repository "
+        f"(bound {baseline})."
+    )
     return 0
 
 
