@@ -58,6 +58,11 @@ errors[0-9]*.txt
 cargolog*.txt
 *.stderr
 repos/leoneuro-rs/
+# Cloned into the member namespace but not registered in .gitmodules, so the
+# conformance scan reads it as member-namespace pollution. Ignored the way
+# the other two unregistered checkouts are, pending the decision recorded
+# on the board about whether it becomes a stack member.
+repos/ares/
 
 # npm / opencode CLI install artifacts
 node_modules/
