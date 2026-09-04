@@ -7321,9 +7321,17 @@ converter; the existing bilinear differential remains the acceptance oracle.
   `pypi`.
 - Registry verification 2026-07-28: crates.io **cannot bootstrap** a new crate
   through trusted publishing — the crate must already exist and the first publish
-  requires an API token. The account `ryancinsight` (id 383645) has published one
-  crate, `imaginary-rs@0.1.0`; no Atlas crate is published. PyPI **can** bootstrap
-  through a pending publisher configured under the account sidebar.
+  requires an API token. PyPI **can** bootstrap through a pending publisher
+  configured under the account sidebar.
+- **Registry state re-verified 2026-09-04; the 2026-07-28 line "no Atlas crate is
+  published" is stale.** On crates.io: `eunomia` 0.8.0 and `aequitas` 0.2.0 are
+  published from this account, both dated 2026-08-02. On PyPI, **eight of the ten
+  binding distributions are live**: `cfd-python` 0.1.6, `apollo-fft` 0.2.0,
+  `coeus-python` 0.9.0, `consus-python` 0.1.0, `hephaestus-python` 0.18.0,
+  `kwavers-python` 0.1.0, `leto-python` 0.41.0, `moirai-python` 0.4.0. Not
+  published: `helios-python` and `ritk`. So the bootstrap question is settled for
+  most of the stack and the open work is metadata quality, not first publication
+  — see `#python-blank-pypi-pages`.
 - Sequence per crate, therefore: (1) resolve its registry name (ATLAS-PUB-006 for
   the twelve collisions); (2) one manual publish from the local Cargo credential
   store, in workspace dependency order; (3) register the trusted publisher;
