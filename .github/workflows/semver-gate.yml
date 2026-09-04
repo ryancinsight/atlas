@@ -46,6 +46,14 @@
 # is about. `baseline-source: tag` keeps the tag baseline for crates that
 # are not published.
 #
+# First publication: a crate that is not yet on crates.io has no registry
+# baseline, and cannot break a public surface it has never published. The
+# release gate asks crates.io directly and skips the check in that one case,
+# recording a notice. It asks rather than inferring from the check's failure,
+# because "not published" and "registry unreachable" produce the same failure
+# and must not produce the same decision — treating an outage as a first
+# publication would skip the gate on every release during one.
+#
 # Inputs:
 #   package         - crate name(s), comma-separated (required)
 #   manifest-path   - path to Cargo.toml (default "Cargo.toml")
@@ -156,6 +164,33 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends ${{ inputs.apt-packages }}
+      - name: Determine whether a registry baseline exists
+        id: baseline-exists
+        if: inputs.baseline-source == 'registry'
+        env:
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          # A first publication has no published version to compare against,
+          # and cannot break a public surface that has never been published.
+          # Without this the release gate is unpassable for exactly one release
+          # per crate — its first — and the only ways past it would be to
+          # delete the gate or to publish around it, both of which cost the
+          # gate on every release after.
+          set -euo pipefail
+          status="$(curl -sS -o /tmp/crate.json -w '%{http_code}'             -H 'User-Agent: atlas-semver-gate (github.com/ryancinsight/atlas)'             "https://crates.io/api/v1/crates/${PACKAGE}" || echo 000)"
+          if [[ "$status" == "404" ]]; then
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${PACKAGE} is not on crates.io; this is its first publication, so there is no baseline to compare against."
+          elif [[ "$status" == "200" ]]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            # Anything else is the registry being unreachable, not an answer.
+            # Failing here is correct: silently treating an outage as "first
+            # publication" would skip the gate on every release during one.
+            echo "crates.io returned HTTP ${status} for ${PACKAGE}; cannot establish a baseline" >&2
+            exit 1
+          fi
+
       - name: Resolve previous release tag as baseline
         id: baseline
         if: inputs.baseline-source == 'tag'
@@ -173,6 +208,12 @@ jobs:
           fi
           echo "baseline=$prev" >> "$GITHUB_OUTPUT"
       - uses: obi1kenobi/cargo-semver-checks-action@6b69fcf40e9b5fb17adeb57e4b6ecd020649a239
+        # Skipped only for a first publication against the registry baseline,
+        # which the step above established by asking crates.io rather than by
+        # inferring it from a failure.
+        if: >-
+          inputs.baseline-source != 'registry'
+          || steps.baseline-exists.outputs.published == 'true'
         with:
           package: ${{ inputs.package }}
           manifest-path: ${{ inputs.manifest-path }}
