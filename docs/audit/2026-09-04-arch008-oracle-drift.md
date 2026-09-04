@@ -86,3 +86,17 @@ post-gitlink-advance commit, which then also absorbs the shifted kwavers site.
 
 Every red is attributable to documented peer in-flight state, none to this
 session's deliverables; each flips green when its owning stream lands.
+
+### Second sweep (post kwavers PR #708)
+
+Re-ran the full gate set after opening kwavers PR #708 (the delivery now
+lives on `pr/viscoacoustic-dimensional-state`; the temporary PR worktree was
+removed before this sweep): board-lint PASS, 122 script tests PASS, oracle
+drift shape unchanged (same 4 + / 14 −; the kwavers entry is still the single
+`103:20 → 110:20` line shift from the delivery). Conformance moved 6 → 8
+regressions, entirely peer lane motion: `coeus/target_forks 0→1` and
+`kwavers/excess_worktrees 0→1` correspond to new registered worktree lanes
+under the stack worktree root (16 lanes across members, e.g.
+`coeus-autodiff-cache-split`, a second kwavers lane); the session's
+worktree was removed and registers nothing. The earlier tightenings no
+longer appear (consumed by baseline updates in the owning stream).
