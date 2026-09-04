@@ -17,8 +17,11 @@ on:
       - 'repos/**'
       - 'docs/adr/**'
       - 'scripts/**'
-      - '.github/workflows/atlas-conformance.yml'
-      - '.github/workflows/workflow-lint.yml'
+      # This workflow's `Workflows are valid` job lints every file under
+      # `.github/workflows`, so a change to any of them is a change to what
+      # it checks. Naming only some meant a shellcheck finding in another
+      # (`semver-gate.yml`) could not be seen until something else landed.
+      - '.github/workflows/**'
       - 'backlog.md'
       - 'checklist.md'
       - 'gap_audit.md'
@@ -28,7 +31,11 @@ on:
       - 'repos/**'
       - 'docs/adr/**'
       - 'scripts/**'
-      - '.github/workflows/atlas-conformance.yml'
+      # This workflow's `Workflows are valid` job lints every file under
+      # `.github/workflows`, so a change to any of them is a change to what
+      # it checks. Naming only some meant a shellcheck finding in another
+      # (`semver-gate.yml`) could not be seen until something else landed.
+      - '.github/workflows/**'
       - 'backlog.md'
       - 'checklist.md'
       - 'gap_audit.md'
