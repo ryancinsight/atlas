@@ -220,7 +220,7 @@
     "missing_deny_docs": 0,
     "nextest_budget_missing": 0,
     "orphan_modules": 0,
-    "oversized_files": 20,
+    "oversized_files": 19,
     "print_dbg": 0,
     "pull_request_target_use": 0,
     "reexport_shims": 1,
