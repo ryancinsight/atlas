@@ -145,18 +145,56 @@ def exact_manifest_entries(
     return entries, skipped
 
 
-def dependency_names(table: dict, sections: tuple[str, ...]) -> set[str]:
-    """Collect dependency names from the given sections, including target-specific ones."""
+def workspace_dependency_table(table: dict) -> dict:
+    """Return a manifest's `[workspace.dependencies]`, or an empty table."""
+    workspace = table.get("workspace")
+    if not isinstance(workspace, dict):
+        return {}
+    inherited = workspace.get("dependencies")
+    return inherited if isinstance(inherited, dict) else {}
+
+
+def dependency_names(
+    table: dict,
+    sections: tuple[str, ...],
+    inherited: dict | None = None,
+    *,
+    skip_optional: bool = False,
+) -> set[str]:
+    """Collect dependency names from the given sections, including target-specific ones.
+
+    Two indirections separate a dependency table key from the registry name
+    the publish order needs, and missing either drops an edge silently — a
+    dropped edge produces a plausible earlier wave rather than an error.
+
+    The first is `package = "x"`, which renames the crate at the use site. The
+    second is `dep.workspace = true`, which inherits the whole specification —
+    *including* that rename — from the workspace root, leaving the member
+    manifest showing only the bare key. `ares` is the witness: its member
+    manifest says `proteus.workspace = true` while the root says
+    `proteus = { package = "proteus-mat", ... }`, so reading the member alone
+    yields `proteus`, matches no package, and drops the edge to `proteus-mat`
+    that must publish first.
+    """
     names: set[str] = set()
+    inherited = inherited or {}
+
+    def registry_name(name: str, spec: object) -> str:
+        if isinstance(spec, dict):
+            if "package" in spec:
+                return spec["package"]
+            if spec.get("workspace") is True:
+                root_spec = inherited.get(name)
+                if isinstance(root_spec, dict) and "package" in root_spec:
+                    return root_spec["package"]
+        return name
 
     def harvest(container: dict) -> None:
         for section in sections:
             for name, spec in (container.get(section) or {}).items():
-                # `package = "x"` renames the crate; the registry name is what matters.
-                if isinstance(spec, dict) and "package" in spec:
-                    names.add(spec["package"])
-                else:
-                    names.add(name)
+                if skip_optional and isinstance(spec, dict) and spec.get("optional") is True:
+                    continue
+                names.add(registry_name(name, spec))
 
     harvest(table)
     for cfg in (table.get("target") or {}).values():
@@ -173,6 +211,9 @@ def load_graph(root: Path, *, exact_gitlinks: bool = False):
     """Return (packages, order_edges, dev_edges, skipped, collisions)."""
     packages: dict[str, dict] = {}
     raw: dict[str, dict] = {}
+    # `[workspace.dependencies]` per repo, so a member inheriting a renamed
+    # dependency resolves to the registry name rather than the bare key.
+    inherited: dict[str, dict] = {}
     skipped: list[tuple[str, str]] = []
     collisions: dict[str, list[dict]] = defaultdict(list)
 
@@ -194,6 +235,10 @@ def load_graph(root: Path, *, exact_gitlinks: bool = False):
         except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
             skipped.append((manifest, f"parse error: {exc}"))
             continue
+        workspace_deps = workspace_dependency_table(table)
+        if workspace_deps:
+            inherited.setdefault(repo, {}).update(workspace_deps)
+
         pkg = table.get("package")
         if not pkg or "name" not in pkg:
             continue  # virtual workspace root
@@ -212,17 +257,26 @@ def load_graph(root: Path, *, exact_gitlinks: bool = False):
             "manifest": rel(manifest, root),
             "publishable": publishable,
         }
-        raw[name] = table
+        raw[name] = (repo, table)
 
     order_edges = {n: set() for n in packages}
+    required_edges = {n: set() for n in packages}
     dev_edges = {n: set() for n in packages}
-    for name, table in raw.items():
+    for name, (repo, table) in raw.items():
         first_party = set(packages)
-        order_edges[name] = dependency_names(table, DEP_SECTIONS_ORDERING) & first_party
+        root = inherited.get(repo, {})
+        order_edges[name] = (
+            dependency_names(table, DEP_SECTIONS_ORDERING, root) & first_party
+        )
+        required_edges[name] = (
+            dependency_names(table, DEP_SECTIONS_ORDERING, root, skip_optional=True)
+            & first_party
+        )
         dev_edges[name] = (
-            dependency_names(table, DEP_SECTIONS_REPORTED) & first_party
+            dependency_names(table, DEP_SECTIONS_REPORTED, root) & first_party
         ) - order_edges[name]
         order_edges[name].discard(name)
+        required_edges[name].discard(name)
         dev_edges[name].discard(name)
 
     contested = {
@@ -231,7 +285,7 @@ def load_graph(root: Path, *, exact_gitlinks: bool = False):
         if len(entries) > 1 and sum(1 for e in entries if e["publishable"]) > 0
     }
     benign = {name for name, entries in collisions.items() if len(entries) > 1} - set(contested)
-    return packages, order_edges, dev_edges, skipped, contested, benign
+    return packages, order_edges, required_edges, dev_edges, skipped, contested, benign
 
 
 def topo_layers(nodes: set[str], edges: dict[str, set[str]]):
@@ -275,7 +329,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8")
 
     root = args.root
-    packages, order_edges, dev_edges, skipped, contested, benign = load_graph(
+    packages, order_edges, required_edges, dev_edges, skipped, contested, benign = load_graph(
         root, exact_gitlinks=args.exact_gitlinks
     )
 
@@ -338,7 +392,24 @@ def main() -> int:
         print()
 
     if unresolved:
-        print("CYCLE — no total order over normal/build dependencies for:")
+        # A cycle that closes only through optional edges is a different
+        # diagnosis from one in the required graph, and the difference decides
+        # what to do about it. Recompute without optional dependencies and say
+        # which kind this is, rather than leaving the reader to find out.
+        _, required_unresolved = topo_layers(selected, required_edges)
+        if required_unresolved:
+            print("CYCLE — no total order over normal/build dependencies for:")
+        else:
+            print(
+                "CYCLE — no total order, and it closes entirely through OPTIONAL "
+                "dependencies:"
+            )
+            print(
+                "  The required-only graph is acyclic, so the cycle exists"
+                " only when the feature-gated edges are counted. Whether an"
+                " optional dependency constrains publish order is a policy"
+                " question, not a defect in these manifests."
+            )
         for name in unresolved:
             print(f"  {name} <- {', '.join(sorted(order_edges[name] & selected))}")
         print()

@@ -87,5 +87,84 @@ class PublishOrderTestCase(unittest.TestCase):
             )
 
 
+class InheritedRenameTests(unittest.TestCase):
+    """A workspace-inherited `package = "x"` rename must reach the order.
+
+    Two indirections separate a dependency-table key from the registry name,
+    and missing either drops an edge *silently* - a dropped edge produces a
+    plausible earlier wave rather than an error, so the failure surfaces at
+    publish time. `ares` is the witness that found this: its member manifest
+    says `proteus.workspace = true` while the workspace root carries
+    `package = "proteus-mat"`, so reading the member alone placed `ares-solid`
+    a wave ahead of the crate it depends on.
+    """
+
+    ROOT = {
+        "workspace": {
+            "dependencies": {
+                "proteus": {"package": "proteus-mat", "version": "0.1.0"},
+                "plain": {"version": "1.0"},
+            }
+        }
+    }
+
+    def test_inherited_rename_resolves_to_the_registry_name(self) -> None:
+        member = {"dependencies": {"proteus": {"workspace": True}}}
+        names = publish_order.dependency_names(
+            member, ("dependencies",), publish_order.workspace_dependency_table(self.ROOT)
+        )
+        self.assertEqual(names, {"proteus-mat"})
+
+    def test_inherited_dependency_without_a_rename_keeps_its_key(self) -> None:
+        member = {"dependencies": {"plain": {"workspace": True}}}
+        names = publish_order.dependency_names(
+            member, ("dependencies",), publish_order.workspace_dependency_table(self.ROOT)
+        )
+        self.assertEqual(names, {"plain"})
+
+    def test_a_site_local_rename_still_wins(self) -> None:
+        # `package` written at the use site is not inherited and must not be
+        # overridden by the root's entry for the same key.
+        member = {"dependencies": {"proteus": {"package": "other", "workspace": True}}}
+        names = publish_order.dependency_names(
+            member, ("dependencies",), publish_order.workspace_dependency_table(self.ROOT)
+        )
+        self.assertEqual(names, {"other"})
+
+    def test_an_unknown_inherited_key_falls_back_to_itself(self) -> None:
+        member = {"dependencies": {"absent": {"workspace": True}}}
+        names = publish_order.dependency_names(
+            member, ("dependencies",), publish_order.workspace_dependency_table(self.ROOT)
+        )
+        self.assertEqual(names, {"absent"})
+
+    def test_optional_dependencies_are_skippable(self) -> None:
+        # The required-only graph is what distinguishes a feature-gated cycle
+        # from one in the dependencies every consumer gets.
+        member = {
+            "dependencies": {
+                "proteus": {"workspace": True},
+                "plain": {"workspace": True, "optional": True},
+            }
+        }
+        root = publish_order.workspace_dependency_table(self.ROOT)
+        self.assertEqual(
+            publish_order.dependency_names(member, ("dependencies",), root),
+            {"proteus-mat", "plain"},
+        )
+        self.assertEqual(
+            publish_order.dependency_names(
+                member, ("dependencies",), root, skip_optional=True
+            ),
+            {"proteus-mat"},
+        )
+
+    def test_a_manifest_without_a_workspace_table_yields_no_inheritance(self) -> None:
+        self.assertEqual(publish_order.workspace_dependency_table({}), {})
+        self.assertEqual(
+            publish_order.workspace_dependency_table({"workspace": {"members": ["a"]}}), {}
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
