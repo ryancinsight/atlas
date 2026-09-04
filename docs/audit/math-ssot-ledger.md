@@ -163,9 +163,22 @@ reads):
 > borrows rather than recomputes) and the negative-adjoint identity with a
 > non-degeneracy guard.
 >
-> Still open: the Hephaestus device implementation of the same trait, and
-> behind it the deletion of `kwavers-gpu`'s FDTD shader copy. Both are
-> currently gated by a stack-wide Eunomia version diamond — two Eunomia
+> **Device half delivered 2026-09-04.** Hephaestus PR #275 adds
+> `Staggered3DOps<D>` with WGSL kernels and Metal delegation, verified on a
+> live adapter (187/187 contract cases with `HEPHAESTUS_WGPU_REQUIRE_DEVICE=1`,
+> up from 179). The device divergence gathers a hand-derived transpose because
+> a GPU cannot scatter without atomics, so it is checked three ways — against
+> the CPU pair on every axis at orders 2/4/6/8, by the adjoint identity on the
+> device's own outputs, and by a constant field's exactly-zero gradient — and
+> the suite was shown to bite by mutation rather than assumed to. ADR 0057
+> records the three decisions and the one documented capability difference
+> (`extent >= 2N` on the swept axis, rejected with a typed error rather than
+> silently diverging).
+>
+> Still open: CUDA and ROCm kernels for that trait, the `coeus-hephaestus`
+> implementation binding it, and behind those the deletion of `kwavers-gpu`'s
+> FDTD shader copy. The Coeus binding is gated by a stack-wide Eunomia version
+> diamond — two Eunomia
 > versions resolve through the pinned Mnemosyne revision, breaking
 > `coeus-hephaestus` and `kwavers-gpu` on `eunomia::layout::marker::Pod`. It is
 > filed as `KW-EUNOMIA-DIAMOND` on the kwavers board and closes when the
