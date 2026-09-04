@@ -39,4 +39,50 @@ Re-open trigger: the in-flight gitlink advance lands (member heads pinned).
 Then regenerate in a commit whose subject says
 `chore(oracle): Regenerate the ARCH-008 site list after CFDrs/coeus conversions`,
 recording the three conversions and the 249 → 239 site tightening. This is a
-tightening, not baseline laundering: zero new sites entered the set.
+tightening, not baseline laundering: zero new files entered the set.
+
+## Handoff re-verification — 2026-09-04, post-delivery
+
+All meta gates re-run after the kwavers delivery landed:
+
+| Gate | Result |
+| --- | --- |
+| `make board-lint` | PASS — all item ids unique (appendix fix holds); 375-mention prose note is the calibrated warning |
+| board-lint test suite | 9/9 |
+| architecture-test suite | 29/29 |
+| conformance test suite | 65/65 |
+| `make verify-scattered-oracle` | FAIL — expected; drift re-measured below |
+| `atlas-conformance.py check` | exit 1 — 6 ratchet regressions, decomposed below |
+
+### Re-measured oracle drift (18 site entries)
+
+Same shape as the orientation measurement — **no new file enters the set** —
+now decomposed by owner:
+
+- Line shift from this session's delivery:
+  `kwavers-solver/src/forward/viscoacoustic/solver.rs:103:20 → 110:20` (one
+  site, same file, same classification). The kwavers branch worktree is ahead
+  of its recorded pin, so the scan reads the delivery tree.
+- Peer line shifts in trees ahead of their pins:
+  `interpolator.rs:30/212 → 238`, `consus-mat matrix.rs:289 → 292`.
+- New peer conversions since orientation: CFDrs
+  `channel_system.rs:15:24/52:6 → 16:24`, `detection.rs:95:22`.
+
+The pinned-oracle disposition above is unchanged: regenerate only in the
+post-gitlink-advance commit, which then also absorbs the shifted kwavers site.
+
+### Conformance check decomposition (peer in-flight state)
+
+- `apollo/oversized_files 38→39`, `root_sprawl 0→1`, `target_forks 0→1`,
+  `moirai/manifest_implementation 25→26`, `moirai/crate_level_allows 16→20`:
+  uncommitted in-flight work in those members' trees observed all session
+  (apollo's AVX edit mid-iteration this session).
+- `<meta>/member_namespace_pollution 0→1`: `repos/prometheus/` — a checkout
+  created/touched mid-session (12:36 today), neither registered nor ignored.
+  Same promotion-mid-flight pattern as `ares` before its
+  register-and-ignore commit; left untouched for the owning stream.
+- The three tightenings (CFDrs oversized 141→140, allow_sites 92→91, eunomia
+  manifest 3→2) are peer progress in the right direction.
+
+Every red is attributable to documented peer in-flight state, none to this
+session's deliverables; each flips green when its owning stream lands.
