@@ -72,6 +72,17 @@ except ImportError:  # pragma: no cover - optional for environments without PyYA
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from atlas_stack import ROOT, is_git_ignored, staleness_note
 
+try:
+    from atlas_architecture_test import (
+        BALANCE_DOMAINS as _BALANCE_DOMAINS,
+        classify_edge as _classify_balance_edge,
+        Edge as _BalanceEdge,
+    )
+except ImportError:  # pragma: no cover - the rule module ships with this script
+    _BALANCE_DOMAINS = frozenset()
+    _classify_balance_edge = None
+    _BalanceEdge = None
+
 BASELINE = ROOT / "scripts" / "conformance-baseline.json"
 
 PRUNE_DIRS = {
@@ -198,6 +209,7 @@ CLASSES = [
     "seqcst_production", "crate_level_allows", "excess_worktrees",
     "lane_kernel_uninlined", "toolchain_request_overridden",
     "default_branch_cancel_in_progress", "substrate_contract_violations",
+    "balance_domain_edges",
 ]
 
 # Working trees beyond the two a repository may hold: its main tree plus one
@@ -1050,6 +1062,26 @@ def is_measurement_harness(parsed: dict) -> bool:
     return bool(parsed.get("bench"))
 
 
+def member_package_name(manifest_text: str) -> str | None:
+    """Return the `[package] name` declared by a manifest, or `None` when absent.
+
+    Used to label the architecture-test consumer. Workspace-member crates
+    carry their name in `[package].name`; a workspace root (no `[package]`
+    table) returns `None` so the architecture-test skips it — a workspace
+    root has no published `[dependencies]` of its own, so it cannot
+    introduce an R7 violation in isolation.
+    """
+    try:
+        parsed = tomllib.loads(manifest_text)
+    except (tomllib.TOMLDecodeError, ValueError):
+        return None
+    package = parsed.get("package")
+    if not isinstance(package, dict):
+        return None
+    name = package.get("name")
+    return name if isinstance(name, str) else None
+
+
 def runtime_dependency_names(manifest_text: str) -> frozenset[str]:
     """Return the crates a manifest declares as runtime dependencies.
 
@@ -1186,6 +1218,15 @@ def scan_repo(repo: Path, live_repo: Path | None = None) -> dict[str, int]:
         c["substrate_contract_violations"] += len(
             runtime_dependency_names(text) & PROHIBITED_SUBSTRATE
         )
+        if _classify_balance_edge is not None and _BALANCE_DOMAINS:
+            consumer = member_package_name(text)
+            if consumer is not None:
+                edges = runtime_dependency_names(text) & _BALANCE_DOMAINS
+                for provider in edges:
+                    if _classify_balance_edge(
+                        _BalanceEdge(consumer=consumer, provider=provider)
+                    ).is_violation():
+                        c["balance_domain_edges"] += 1
     scan_workflows(repo, c)
     _clear_scan_caches()
     return c
