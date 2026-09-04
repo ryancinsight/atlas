@@ -530,6 +530,43 @@ candidate and its gate stays unmet until a second integrator can consume the
 same solid-kinematics or balance operator. See ADR 0030 and the README P2-B
 table.
 
+### Kwavers slice — pushed
+
+`ryancinsight/kwavers` branch `refactor/elastic-ssot-consumer`, commits
+`ab9ddf8fb` and `051afb1e2` (Cargo.lock regen), PR #707 open. Deletes
+`lame_from_speeds` in `kwavers-medium/src/elastic.rs`; delegates
+`ElasticPropertyData::new` to `IsotropicModuli::from_lame` and
+`try_from_engineering` to `from_young_poisson`; updates the three call
+sites in `homogeneous/implementation/constructors.rs`,
+`heterogeneous/factory/general/elastic.rs`, and the elastic_plugin test.
+The `elastic_homogeneous` constructor preserves its `c_shear * c_shear *
+2.0 > c_compression * c_compression` rejection (kept at the call site,
+not delegated) so auxetic solids stay rejected there; the heterogeneous
+constructor's per-voxel rejection agrees on the same boundary; the fluid
+limit `c_s = 0 ⇒ μ = 0, λ = ρ·c_p²` short-circuits before the provider
+because `from_wave_speeds` requires finite-positive shear-wave speed.
+`ElasticPropertyData::new` accepts `lambda < 0` (provider's positive-
+definite domain is `K = lambda + 2mu/3 > 0`, wider than kwavers's old
+`lambda >= 0`); callers that need the stricter bound check at the call
+site or use `set_lame_parameters`, which still rejects. Gates: 215/215
+`kwavers-medium` tests, 1562/1562 `kwavers-physics` tests, 4/4
+`elastic_plugin` tests. Acceptance oracle `rg 'lame_from_speeds|E /
+\(2 \* \(1'` in `repos/kwavers/crates` and `repos/CFDrs/crates` returns
+zero hits; the only remaining reference is the kwavers-bodied
+differential test comment in `proteus/tests/elastic.rs` (kwavers's
+`lame_from_speeds` body that this test replaced).
+
+### Collection pending — CFDrs slice + atlas gitlinks
+
+The CFDrs slice (`f063be4b refactor(cfd-core): Delete the elastic copy;
+compose Proteus`) sits on `refactor/elastic-ssot-consumer` in
+`ryancinsight/CFDrs`, unmerged to CFDrs `main`. Atlas's recorded
+`repos/CFDrs` pin is still pre-slice (`f7fb9b5f`); advancing it requires
+the CFDrs PR to merge first. The atlas gitlink for `repos/proteus`
+already advanced to `1726082` via `7224f505f chore(atlas): Advance the
+members that moved`. Both atlas pin advances land in the same co-
+evolution unit when CFDrs merges.
+
 
 ## ATLAS-BACKWARD-PIN-GUARD-2026-09-02 — The pin guard refuses branch-tip pins but not backward ones [patch] — done 2026-09-02 (commit 99dc33fad) <a id="backward-pin-guard"></a>
 
