@@ -52,7 +52,7 @@ A0-A6 delivered 2026-09-04 through `ares` `f8cb9eb`; `ares` is now a workspace
 test asserts the two-crate edge set. CI and hooks are absent from the
 repository and are tracked separately at `#ares-ci-floor`, which blocks A7.
 
-- [ ] A7 register: `.gitmodules`, stack table, naming table (move `ares` out of
+- [x] A7 register: `.gitmodules`, stack table, naming table (move `ares` out of
       provisional), roadmap, dependency order, suite-coverage row, architecture
       test edge set, package count. One delivery unit.
 - [ ] A8 first consumer: CFDrs FSI structural side across Harmonia, traction in
