@@ -1278,8 +1278,19 @@ release-graph claim.
 The script builds the first-party graph over normal and build dependencies,
 separates dev-dependency edges (which do not constrain order and legally form
 cycles), and fails when one registry name is claimed by more than one manifest.
-At this revision it reports 180 publishable crates across 34 waves with no
-ordering cycle.
+At this revision it reports 185 publishable crates across 14 waves, and **no
+total order**: 61 packages sit in a cycle.
+
+That cycle appeared when the script stopped dropping edges rather than when the
+manifests changed. It previously resolved a `package = "x"` rename written at
+a use site but not one inherited through `[workspace.dependencies]`, so any
+member writing `dep.workspace = true` against a renamed root entry lost that
+edge silently — `ares-solid` was placed a wave ahead of `proteus-mat`, which it
+depends on. Restoring those edges revealed a cycle that closes **entirely
+through optional dependencies**; the required-only graph is acyclic, which is
+why cargo builds fine. Whether an optional dependency constrains publish order
+is an open decision, tracked at `#publish-order-optional-edges`, and it gates
+any first publication of the stack.
 
 For crates.io, under the crate's **Settings → Trusted Publishing**:
 
