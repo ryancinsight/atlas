@@ -11809,3 +11809,25 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-ADR-GOVERNANCE-001** Retrofit ADR indexes, statuses, and records [patch] (2026-09-02)
 - **ATLAS-KWAVERS-LANE-SPRAWL-104** five worktrees on one repo [patch] (2026-09-02) — `f98acb01b`, `f6cc385d8`
 - **ritk existence-only burn, batch 1 landed (2026-09-03, this session):** ritk#226 (`0489aab8`) burned the two largest `existence_only_assertion` files — 22 of 183 sites. ritk-vtk `io/unstructured_xml/reader/tests/error.rs` (12): eleven redundant `is_err()` asserts deleted above existing `unwrap_err()` message contracts; the nonexistent-path test gained a real `expect_err` pinning `cannot open VTU` + path. ritk-cli `segment/tests/level_set.rs` (10): four bare `is_err()` collapsed into their `unwrap_err()` message checks, three `--initial-phi` guards keep message pins, three success paths use `.expect(context)`. 503/503 tests green. Baseline 156→134 absorbed at `2c521c4bb` (with athena's oversized 1→0). Remaining ritk pool: 134 sites / ~80 files — next batch should take the 9+6 site pair (region_growing, dicom rt_dose). **Note:** absorbing the baseline clobbered an unstaged peer edit to `scripts/conformance-baseline.json` that was sitting in the shared worktree; re-apply if it wasn't committed in 7224f505f.
+
+## ATLAS-MNEMOSYNE-SCRATCH-RELEASE-2026-09-04 - mnemosyne ships quiescent scratch reclaim [done] - landed <a id="mnemosyne-scratch-release"></a>
+
+- **landed:** mnemosyne#127 (merged `3da22b30`) gives `AlignedVec` a real
+  `shrink_to` (realloc-down with the zero-capacity sentinel handled) and
+  `ScratchPool`/`ScratchBank` a `with_scratch_bounded` + `release` pair:
+  release reclaims every idle slot above its recorded provision, so 24
+  long-lived executor workers no longer retain ~7.2 MB of high-water scratch
+  for the process lifetime. Doubling growth was preserved (peer correction
+  `MN-SCRATCH-GROWTH-COST-2026-09-04` on the same branch) - reclamation happens
+  through release at quiescence, not by taxing incremental growth. The
+  SAFETY-comment ratchet was restored to 60/60 in passing (the Upper-band
+  block in `huge_pool.rs` sat outside the scanner's 14-line window since the
+  huge-cache band work).
+- **gates:** Loom, Miri (Stacked + Tree Borrows), TSan, pedantic clippy,
+  nextest 364/364, fmt - all green at `7cf0d6a`; Miri's decay failures were
+  pre-existing MN-467, fixed on main (`0f39631`) between my branch points and
+  absorbed by merge.
+- **next:** the apollo half - route the mixed-radix scratch dispatch through
+  `with_scratch_bounded`, register a bank-release idle hook once moirai#257
+  (worker idle hooks) lands, bump the mnemosyne pin to `3da22b30`, and rerun
+  the `worker_scratch_retention` probe to verify retention falls.
