@@ -216,8 +216,15 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   own documentation states the prerequisite outright: *"Your crate must already
   be published to crates.io (initial publish requires an API token)"*. There is
   no pending-publisher concept as PyPI has, so a not-yet-published name cannot
-  be configured. Checked against the crates.io source rather than assumed,
-  after two documentation fetches failed.
+  be configured.
+- **This was already documented, and I did not read it.** The atlas README's
+  Publication section carries the same fact in a two-registry comparison table
+  — crates.io "**No.** The crate must already exist; the first publish requires
+  an API token", against PyPI's "**Yes**, through a *pending publisher*". I
+  established it from the crates.io source after two failed documentation
+  fetches instead of reading the stack's own map first, which is the first rung
+  of the comprehension ladder. The finding is right; the route to it was waste,
+  and the same table answers the Python-side ordering question directly.
 - **Therefore the order is:** one token-authenticated first publish per new
   crate — `cargo publish -p proteus-mat`, then once that is on the index
   `cargo publish -p ares-solid` — performed by the account owner, since no
@@ -416,7 +423,7 @@ Parent: [`#ares-promotion`](backlog.md#ares-promotion).
   order is a policy question rather than a defect in any manifest, filed
   separately at `#publish-order-optional-edges`.
 
-## ATLAS-PUBLISH-ORDER-OPTIONAL-EDGES-2026-09-04 - Decide whether optional dependencies constrain publish order [patch] - todo <a id="publish-order-optional-edges"></a>
+## ATLAS-PUBLISH-ORDER-OPTIONAL-EDGES-2026-09-04 - Decide whether optional dependencies constrain publish order [patch] - in-progress <a id="publish-order-optional-edges"></a>
 
 - **outcome:** a recorded decision, and a publish order that emits a usable
   sequence for the whole stack rather than a 61-package cycle.
@@ -435,6 +442,30 @@ Parent: [`#ares-promotion`](backlog.md#ares-promotion).
   under it; a fixture cyclic-through-optional graph is handled as the ADR says.
 - **class:** `[patch]`. **risk:** medium - it gates any first publication of
   the stack, and therefore Ares A9. **depends on:** nothing.
+
+- **integrator:** claude-opus-5 (this session). **Drafting ADR 0060
+  `0060-publish-order-optional-dependencies.md`**; the decision is that
+  optional dependencies are *not* ordering constraints for first publication
+  because (a) `cargo publish` does not require an optional dependency to be on
+  the registry at publish time — the published metadata records the dep string
+  and an `optional` flag, and the dependency is unresolved while the feature
+  is off, which is the entire purpose of `optional = true`; (b) the
+  cycle-through-optional is a fixture of feature co-activation patterns that
+  no real build ever co-enables (the peer-recorded case is `moirai-gpu →
+  hephaestus-wgpu → moirai-runtime`, where `moirai-gpu`'s GPU feature and
+  `moirai-runtime`'s GPU transport are independently gated and never on in
+  the same `cargo build`); (c) the required-only graph is already acyclic, so
+  the cycle only exists when feature-gated edges are *counted* as ordering
+  constraints. The script's exit code should be 0 when the only unresolved
+  SCCs are reachable exclusively through optional dependencies; today it is
+  1, which makes the tool refuse the legitimate order it printed.
+
+- **expected fixture behavior:** the optional-edges cycle's member count is
+  `len(order_edges[n] & selected) > 0` for every `n in unresolved`, AND every
+  edge in the SCC carries `optional = true` in its source manifest. The
+  script separates the two cases today (it prints different messages for
+  required-only vs required-and-optional cycles); it just does not act on
+  the separation at the exit code.
 
 ## ATLAS-PROMETHEUS-PROMOTION-2026-09-03 - Create and register `prometheus` (species mass balance) [arch][minor] - in-progress <a id="prometheus-promotion"></a>
 
