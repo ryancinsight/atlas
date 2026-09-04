@@ -235,7 +235,7 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   by the exactness of the patch and rigid-body tests.
 - Kwavers elastic-wave migration is Phase 1; Phase 0 does not block on it.
 
-## ATLAS-ARES-CI-FLOOR-2026-09-04 - Bring the `ares` repository to the CI and hook floor [patch] - review <a id="ares-ci-floor"></a>
+## ATLAS-ARES-CI-FLOOR-2026-09-04 - Bring the `ares` repository to the CI and hook floor [patch] - done <a id="ares-ci-floor"></a>
 
 Parent: [`#ares-promotion`](backlog.md#ares-promotion).
 
@@ -252,14 +252,24 @@ Parent: [`#ares-promotion`](backlog.md#ares-promotion).
   -infrastructure findings.
 - **class:** `[patch]`. **risk:** low. **depends on:** nothing.
 - **blocks:** A7 registration, which asserts member infrastructure.
-- **delivered** `ares` `45f3eec`; **integrator:** claude-opus-5. In review until
-  the first hosted run reports. Running the checks for the first time found two
+- **done 2026-09-04**, `ares` `45f3eec` through `caff140`, CI green in 1m33s.
+  **integrator:** claude-opus-5. Running the checks for the first time found two
   defects the absence had hidden: the committed `Cargo.lock` was flattened by
   the overlay during the workspace restructure and would have failed every
   `--locked` job, now regenerated with its 55 git sources; and `cargo deny` had
   never run, reporting `num-traits` banned through `proptest`, a
   dev-dependency, so the graph now excludes dev-dependencies to match what ADR
   0055 governs. No prohibited runtime substrate is present.
+- **escaped defect, recorded as process debt.** Two pushes after the workflow
+  landed were red while I had reported the gate green. The cause was one
+  mistake with two faces: the gate run locally was not the gate CI runs. It
+  omitted `cargo deny` entirely - so a new dependency's transitive git sources
+  went unchecked when `ares-harmonia` pulled in Harmonia's substrate - and ran
+  `cargo doc` without the `-D warnings` CI sets, so two intra-doc links broken
+  by a file split passed locally. The check that would have caught both is
+  running the committed workflow's own step list, which is now what runs before
+  a push. `--locked` is the one step that cannot run under the stack overlay,
+  and that is exactly what the lockfile guard checks from outside it.
 
 ## ATLAS-ARCHTEST-LIVE-BALANCE-2026-09-04 - Enumerate the live balance domains in R7 [patch] - todo <a id="archtest-live-balance-domains"></a>
 
