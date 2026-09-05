@@ -337,6 +337,10 @@ def main() -> int:
         n for n, meta in packages.items() if meta["publishable"] or args.include_unpublishable
     }
     layers, unresolved = topo_layers(selected, order_edges)
+    # ADR 0060: a cycle that closes only through optional dependencies
+    # is informational, not a blocker. The required-only run separates
+    # the two cycle shapes; its result gates the exit code below.
+    _, required_unresolved = topo_layers(selected, required_edges)
 
     # A publishable crate depending on an unpublishable one can never publish as-is.
     blocked_by_unpublishable = {
@@ -351,6 +355,14 @@ def main() -> int:
             {
                 "layers": layers,
                 "unresolved": unresolved,
+                # The discriminator ADR 0060 names: True iff at least
+                # one unresolved crate carries a required (non-optional)
+                # dependency edge that closes a cycle. False means the
+                # cycle is entirely through optional edges, which cargo
+                # does not require to be on the registry at publish
+                # time; only a True here fails the gate.
+                "unresolved_includes_required": bool(required_unresolved),
+                "required_unresolved": required_unresolved,
                 "blocked_by_unpublishable": blocked_by_unpublishable,
                 "packages": packages,
                 "skipped": skipped,
@@ -364,7 +376,12 @@ def main() -> int:
             sort_keys=True,
         )
         print()
-        return 1 if unresolved else 0
+        # Exit 0 when the cycle (if any) is entirely through optional
+        # edges; ADR 0060 records the decision. A real cycle in the
+        # required graph still fails the gate at exit 1, and a contested
+        # registry name still fails at exit 1 — those are not the
+        # optional-edge case.
+        return 1 if (required_unresolved or contested) else 0
 
     total = len(packages)
     pub = sum(1 for m in packages.values() if m["publishable"])
@@ -443,7 +460,7 @@ def main() -> int:
         for path, why in skipped:
             print(f"  {path}: {why}")
 
-    return 1 if (unresolved or contested) else 0
+    return 1 if (required_unresolved or contested) else 0
 
 
 if __name__ == "__main__":

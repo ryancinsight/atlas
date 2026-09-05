@@ -67,3 +67,4 @@
 | [0057](0057-ares-phase-0-charter.md) | Ares Phase 0 — small-strain linear elastostatics | Accepted |
 | [0058](0058-prometheus-phase-0-charter.md) | Prometheus Phase 0 — homogeneous reaction networks | Accepted |
 | [0059](0059-fluid-structure-coupling-phase-0.md) | Fluid-structure coupling, Phase 0 — one-way traction loading | Proposed |
+| [0060](0060-publish-order-optional-dependencies.md) | Optional dependencies are not publish-order constraints | Accepted |
