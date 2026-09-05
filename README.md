@@ -759,7 +759,7 @@ aequitas quantities ── deposition spine ── every modality:
 proteus ── elastic SSOT (landed) ── CFDrs / kwavers consumer slices pending
 horae ── embedded-step policy (consumer-gated; no current caller) ── kwavers chemistry
 
-aequitas + eunomia + proteus ── ares-solid ── ares-athena ── athena + leto
+aequitas + eunomia + proteus ── ares-solid ── ares-operator ── athena + leto
                           (balance owners couple only through harmonia)
 
 future, only after the P2-B promotion trigger (ADR 0055 decomposition axis):

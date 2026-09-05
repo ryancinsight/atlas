@@ -158,7 +158,7 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   also run at `f32` - the rate studies do not, because `f32` reaches its
   precision floor before the study leaves the asymptotic regime.
 - **[arch] `ares` is now a workspace** ([ares ADR 0001]): `crates/ares` is the
-  `no_std` allocation-free core, `crates/ares-athena` the operator seam.
+  `no_std` allocation-free core, `crates/ares-operator` the operator seam.
   Athena's `LinearOperator` fixes the error to `B::Error` and its views are
   backend-associated, so the seam is implementable only against a named
   backend, and the only host backend links `std`. A7's architecture test must
@@ -171,7 +171,7 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   so the member enters the ratchet with no debt. Two gaps found and filed:
   R7 still omits the live balance owners (`#archtest-live-balance-domains`),
   since closed by a peer; and the book gap (`#ares-book`), closed 2026-09-04.
-- **A8 done 2026-09-04** at ares `64a12f6`: `ares-harmonia` presents the
+- **A8 done 2026-09-04** at ares `64a12f6`: `ares-coupling` presents the
   structural solve as a Harmonia `Partition`, with no edge to CFDrs or any
   other balance domain. Interface work conservation is exact and mutation
   -measured - a lumped load of the same resultant force breaks it and nothing
@@ -236,9 +236,9 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
 - **The pipelines are not wasted work by that ordering.** Their `--dry-run`
   validation is what establishes the package is publishable, and it is green
   for `proteus-mat` today; they are the mechanism for every subsequent release
-  and for `ares-athena` and `ares-harmonia` when those become publishable.
-- **`ares-athena` and `ares-harmonia` are not part of A9** and cannot publish
-  yet regardless: `ares-harmonia` depends on `harmonia`, which the publish scan
+  and for `ares-operator` and `ares-coupling` when those become publishable.
+- **`ares-operator` and `ares-coupling` are not part of A9** and cannot publish
+  yet regardless: `ares-coupling` depends on `harmonia`, which the publish scan
   reports as `publish = false`.
 - **ADR 0059 correction owed:** it states the marshalling contract as
   "interface node index major, component minor" throughout. That is right for
@@ -247,7 +247,7 @@ Execution steps: `checklist.md` `ATLAS-ARES-PROMOTION-2026-09-03`.
   ADR should be revised to match rather than the code bent to it.
 - **Harmonia finding:** `Substep` has no public constructor, so an external
   partition's `advance` is reachable only through Harmonia's own two-partition
-  driver. `ares-harmonia` routes the work through an inherent method so a test
+  driver. `ares-coupling` routes the work through an inherent method so a test
   about the physics need not stand up a driver first; a public test constructor
   or a single-partition driver would remove the workaround.
 - **known gap closed:** CI, hooks, and the lockfile guard landed at `45f3eec`
@@ -289,7 +289,7 @@ Parent: [`#ares-promotion`](backlog.md#ares-promotion).
   landed were red while I had reported the gate green. The cause was one
   mistake with two faces: the gate run locally was not the gate CI runs. It
   omitted `cargo deny` entirely - so a new dependency's transitive git sources
-  went unchecked when `ares-harmonia` pulled in Harmonia's substrate - and ran
+  went unchecked when `ares-coupling` pulled in Harmonia's substrate - and ran
   `cargo doc` without the `-D warnings` CI sets, so two intra-doc links broken
   by a file split passed locally. The check that would have caught both is
   running the committed workflow's own step list, which is now what runs before
@@ -364,9 +364,9 @@ non-balance substrate. Verification artifact at
 [`docs/audit/2026-09-04-r7-live-balance-domains.md`](docs/audit/2026-09-04-r7-live-balance-domains.md).
 
 **Known gap:** the `ares` member is now in `MEMBER_BALANCE_DOMAINS`,
-but `ares-athena` is *not* a balance owner — it is the Athena
+but `ares-operator` is *not* a balance owner — it is the Athena
 operator seam and listing it would invert the rule. The exemption
-holds: `ares-athena -> ares` is intra-member and passes.
+holds: `ares-operator -> ares` is intra-member and passes.
 
 ## ATLAS-ARES-BOOK-2026-09-04 - Write the Ares domain book [minor] - done <a id="ares-book"></a>
 
@@ -411,7 +411,7 @@ Parent: [`#ares-promotion`](backlog.md#ares-promotion).
   instances.
 - **done 2026-09-04.** `dependency_names` resolves `dep.workspace = true`
   against the repository's `[workspace.dependencies]`. `ares-solid` now sits in
-  wave 4 behind `proteus-mat`, and `ares-athena` and `ares-harmonia` gained
+  wave 4 behind `proteus-mat`, and `ares-operator` and `ares-coupling` gained
   their `ares-solid` edge, which had been missing entirely. Six unit tests pin
   the four resolution cases plus the optional-skip; the full script suite is
   528 green.
@@ -12204,3 +12204,59 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **ATLAS-ADR-GOVERNANCE-001** Retrofit ADR indexes, statuses, and records [patch] (2026-09-02)
 - **ATLAS-KWAVERS-LANE-SPRAWL-104** five worktrees on one repo [patch] (2026-09-02) — `f98acb01b`, `f6cc385d8`
 - **ritk existence-only burn, batch 1 landed (2026-09-03, this session):** ritk#226 (`0489aab8`) burned the two largest `existence_only_assertion` files — 22 of 183 sites. ritk-vtk `io/unstructured_xml/reader/tests/error.rs` (12): eleven redundant `is_err()` asserts deleted above existing `unwrap_err()` message contracts; the nonexistent-path test gained a real `expect_err` pinning `cannot open VTU` + path. ritk-cli `segment/tests/level_set.rs` (10): four bare `is_err()` collapsed into their `unwrap_err()` message checks, three `--initial-phi` guards keep message pins, three success paths use `.expect(context)`. 503/503 tests green. Baseline 156→134 absorbed at `2c521c4bb` (with athena's oversized 1→0). Remaining ritk pool: 134 sites / ~80 files — next batch should take the 9+6 site pair (region_growing, dicom rt_dose). **Note:** absorbing the baseline clobbered an unstaged peer edit to `scripts/conformance-baseline.json` that was sitting in the shared worktree; re-apply if it wasn't committed in 7224f505f.
+
+## ATLAS-SIBLING-NAMED-CRATES-2026-09-04 - Nine crates are named after a sibling member, not a concern [arch] [major] - todo <a id="sibling-named-crates"></a>
+
+- **outcome:** no crate in the stack carries a `<host>-<sibling>` name, and
+  the required-dependency graph over publishable crates is closed and
+  acyclic. Each renamed crate is named for the concern it owns; the
+  dependency stays a manifest fact.
+- **conflict, stated:** AGENTS.md `standards: Naming prohibition` and
+  `architecture_scoping: Upstream ownership` prohibit the
+  `<host>-<sibling>` shape, and `engineering_gates: Publish pipelines`
+  makes a `publish = true` crate depending on a `publish = false` crate a
+  topology defect. Both rules postdate the crates below and ares
+  [ADR 0001](repos/ares/docs/adr/0001-athena-seam-as-a-separate-crate.md),
+  which records `ares-athena` by name. Per `instruction_hierarchy` the
+  higher-priority source wins and the ADR is revised, not the rule.
+- **the nine, measured** (`scripts/publish-order.py` + crate-name scan, `769b044`):
+
+  | Crate | Host | Sibling | Also closure-blocked |
+  | --- | --- | --- | --- |
+  | ~~`ares-athena`~~ → `ares-operator` | ares | athena | no — **renamed** |
+  | ~~`ares-harmonia`~~ → `ares-coupling` | ares | harmonia | yes (`harmonia` is `publish = false`) — **renamed**; closure open |
+  | `asclepius-coeus` | asclepius | coeus | no |
+  | `athena-hephaestus` | athena | hephaestus | no |
+  | `athena-leto` | athena | leto | no |
+  | `coeus-hephaestus` | coeus | hephaestus | no |
+  | `coeus-leto` | coeus | leto | no |
+  | `tyche-consus` | tyche | consus | no |
+  | `tyche-moirai` | tyche | moirai | no |
+
+- **closure defect is wider than the naming one:** 14 publishable crates
+  depend on a `publish = false` crate — `ares-harmonia`, `cfd-2d`,
+  `cfd-optim`, five `helios-*`, five `kwavers-*` — blocked on `harmonia`,
+  `hyperion`, `horae`, and `asclepius-coeus`. Graduating those four
+  providers resolves 13 of the 14 without any rename.
+- **acceptance:** the crate-name scan reports zero `<host>-<sibling>`
+  names; `publish-order.py` reports an empty BLOCKED section; both
+  checks land in `scripts/atlas-conformance.py` as counted classes so the
+  ratchet holds them at zero.
+- **method:** meta ADR first (the rename is a public-API break for any
+  published member and the graduation decision per provider is not
+  mechanical), then per-member items in dependency order. `ares` is the
+  first increment — both its seam crates were created 2026-09-04 in this
+  session, are unpublished, and have no external consumers, so they
+  rename at zero migration cost.
+- **ares delivered 2026-09-05:** `ares-athena` → `ares-operator` (it presents
+  a linear operator), `ares-harmonia` → `ares-coupling` (it presents a coupling
+  partition). Item names were already concern-named and did not move. ares
+  ADR 0001 carries a dated revision note; the atlas architecture test, its
+  fixtures, the stack diagram, and this board moved with it. Full ares gate
+  green — fmt, no-default-features check, clippy `-D warnings`, 102 nextest,
+  doctests, warning-clean rustdoc, `cargo deny`, mdbook build and link check —
+  and the lock regenerated in standalone form.
+- **remaining:** seven crates in `asclepius`, `athena`, `coeus`, and `tyche`,
+  each with published or consuming surface, so each needs the meta ADR first.
+  Plus the closure work: graduate `harmonia`, `hyperion`, `horae`, and
+  `asclepius-coeus` to publishable, which clears 13 of the 14 blocked crates.

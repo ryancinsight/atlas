@@ -39,14 +39,14 @@ class BoundaryTableTests(unittest.TestCase):
         self.assertEqual(arch.BALANCE_DOMAINS, frozenset({"ares", "ares-solid"}))
 
     def test_the_athena_seam_is_not_a_balance_domain(self) -> None:
-        # `ares-athena` owns no balance; it adapts the assembled
+        # `ares-operator` owns no balance; it adapts the assembled
         # operator to Athena's trait (ares ADR 0001). Listing it would
-        # make the intra-repository `ares-athena -> ares` edge a
+        # make the intra-repository `ares-operator -> ares` edge a
         # balance-to-balance violation, inverting the rule.
-        self.assertNotIn("ares-athena", arch.BALANCE_DOMAINS)
+        self.assertNotIn("ares-operator", arch.BALANCE_DOMAINS)
         self.assertFalse(
             arch.classify_edge(
-                arch.Edge(consumer="ares-athena", provider="ares")
+                arch.Edge(consumer="ares-operator", provider="ares")
             ).is_violation()
         )
 
@@ -112,7 +112,7 @@ class EdgeClassificationTests(unittest.TestCase):
             "cfd-1d": "CFDrs",
             "kwavers-core": "kwavers",
             "ares": "ares",
-            "ares-athena": "ares",
+            "ares-operator": "ares",
             "proteus": "proteus",
         }
         kinds = {
@@ -424,7 +424,7 @@ class ClassifyMemberEdgeTests(unittest.TestCase):
             "kwavers-math": "kwavers",
             "ares": "ares",
             "ares-solid": "ares",
-            "ares-athena": "ares",
+            "ares-operator": "ares",
             "proteus": "proteus",
             "harmonia": "harmonia",
             "rayon": None,  # never appears in the mapping
@@ -462,12 +462,12 @@ class ClassifyMemberEdgeTests(unittest.TestCase):
         self.assertEqual(finding.kind, "forbidden")
         self.assertTrue(finding.is_violation())
 
-    def test_ares_athena_to_ares_is_allowed(self) -> None:
-        # The intra-repository exemption applies to `ares-athena -> ares`
-        # too: both crates belong to the ares member, and `ares-athena`
+    def test_ares_operator_to_ares_is_allowed(self) -> None:
+        # The intra-repository exemption applies to `ares-operator -> ares`
+        # too: both crates belong to the ares member, and `ares-operator`
         # is the Athena operator seam, not a separate balance owner.
         finding = arch.classify_member_edge(
-            arch.Edge(consumer="ares-athena", provider="ares"),
+            arch.Edge(consumer="ares-operator", provider="ares"),
             self.member_for_package,
         )
         self.assertEqual(finding.kind, "intra_member_allowed")
@@ -508,7 +508,7 @@ class MemberBalanceViolationsTests(unittest.TestCase):
             "kwavers-core": "kwavers",
             "ares": "ares",
             "ares-solid": "ares",
-            "ares-athena": "ares",
+            "ares-operator": "ares",
             "proteus": "proteus",
             "harmonia": "harmonia",
         }
@@ -528,11 +528,11 @@ class MemberBalanceViolationsTests(unittest.TestCase):
         self.assertNotIn(("ares", "harmonia"), edges)
 
     def test_intra_member_edges_are_never_returned(self) -> None:
-        # An `ares-athena` consumer with an intra-member `ares`
+        # An `ares-operator` consumer with an intra-member `ares`
         # provider produces no violations — the exemption is the
         # entire point of the member-level layer.
         violations = arch.member_balance_violations(
-            "ares-athena",
+            "ares-operator",
             frozenset({"ares", "proteus", "harmonia"}),
             self.member_for_package,
         )

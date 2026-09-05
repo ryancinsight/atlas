@@ -75,9 +75,9 @@ from typing import Mapping
 # `ares = { package = "ares-solid" }`, so the same crate appears there as
 # `ares`. Listing one form would leave the other silently unmatched.
 #
-# `ares-athena` is deliberately absent. It is the Athena operator seam
+# `ares-operator` is deliberately absent. It is the Athena operator seam
 # (ares ADR 0001) and owns no balance; listing it would make the
-# intra-repository `ares-athena -> ares` edge a balance-to-balance
+# intra-repository `ares-operator -> ares` edge a balance-to-balance
 # violation, which is the opposite of the rule's intent.
 #
 # `BALANCE_DOMAINS` names the *packages* that own balance semantics.
