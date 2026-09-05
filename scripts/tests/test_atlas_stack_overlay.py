@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import tempfile
 import tomllib
 import unittest
@@ -188,8 +189,16 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             self.assertIn("provider 0.42.0", lag[0])
 
     def test_cargo_unifies_current_closure_and_retains_old_git_revision(self) -> None:
-        toolchain = tomllib.loads((SCRIPT.parent.parent / "rust-toolchain.toml").read_text(
+        channel = tomllib.loads((SCRIPT.parent.parent / "rust-toolchain.toml").read_text(
             encoding="utf-8"))["toolchain"]["channel"]
+        # The repo pin carries the full Windows host triple so every local
+        # worktree shares one compiler-versioned cache bucket
+        # (ATLAS-TOOLCHAIN-TRIPLE-083), but a `cargo +<triple>` override
+        # cannot provision on Ubuntu CI where this suite also runs.
+        # Dependency resolution is version-determined, so use the bare
+        # version and let rustup resolve it natively on each platform.
+        version = re.match(r"\d+\.\d+\.\d+", channel)
+        toolchain = version.group(0) if version else channel
         with tempfile.TemporaryDirectory(prefix="atlas-overlay-resolution-") as directory:
             root = Path(directory)
             fixture = _fixture.CargoOverlayFixture(root)
