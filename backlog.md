@@ -495,13 +495,17 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
 | P8 | First consumer: Kwavers sonodynamic species kinetics across Harmonia | coupled therapy case runs | P7 |
 | P9 | **Ask-User:** publish `prometheus-kinetics` | registry install and smoke; docs.rs | P8 |
 
-- **status 2026-09-04:** P0 done (aequitas `#50`). Local scaffold at
-  `repos/prometheus/` carries P1 floor + P3 species/concentration/stoichiometry
-  (Leto COO; water-formation mass residual exact at `f32`/`f64`). Gate green:
-  fmt, clippy `-D warnings`, nextest 9/9, doc `-D warnings`,
-  `--no-default-features` check. **No git remote and no commits yet** — P2 is
-  Ask-User. P3 technically precedes remote creation in the working tree; the
-  first commit after remote creation should be the verified P1+P3 unit.
+- **status 2026-09-04:** P0 done (aequitas `#50`). The local `repos/prometheus/`
+  tree carries P1 floor, P3 species/concentration/stoichiometry, P4 typed
+  mass-action rates, P5 net-production/reaction-enthalpy, and P6 integration
+  (first- and second-order decay, reversible equilibrium, convergence order,
+  mass conservation, non-negativity). Gate green: fmt, clippy `-D warnings`, 31
+  tests, doc `-D warnings`, `--no-default-features` check. Nine local commits
+  `aea52ff..f5f60fb`. **P2 (create `ryancinsight/prometheus`) is still
+  Ask-User**; the commits push once it exists. The remaining P6 oracle — the
+  Robertson stiff benchmark — is blocked on Horae: every tableau is explicit
+  (Euler/Midpoint/Rk4/Dormand–Prince), so an implicit tableau (BDF/Radau) is an
+  upstream Horae requirement before the stiff path can be exercised honestly.
 - **historical prerequisite retired:** the Kwavers reaction-vocabulary
   consolidation existed to produce a deletion ledger; under ADR 0056 that
   ledger arrives with the P8 consumer migration. It remains worthwhile on its
@@ -534,7 +538,7 @@ the stack (ADR 0055 substrate contract).
 | 4 | aequitas `ReactionRate` and `MolarFlux` | aequitas | `[minor]` | done (`#50`) |
 | 5 | Architecture test R7 and `cargo deny bans` substrate list | atlas | `[patch]` | delivered 2026-09-04 (`4a574a801`); live-balance enum in WT |
 | 6 | Ares A1 through A9 | ares | `[arch]` | A0-A8 done; A9 blocked on unpublished `proteus-mat` |
-| 7 | Prometheus P1 through P9 | prometheus | `[arch]` | P0+P1+P3 local green; **Ask-User** for `ryancinsight/prometheus` |
+| 7 | Prometheus P1 through P9 | prometheus | `[arch]` | P0-P6 computation green locally (9 commits); Robertson stiff needs a Horae implicit tableau; **Ask-User** for `ryancinsight/prometheus` |
 
 Steps 1 to 5 are mutually independent and can run concurrently on disjoint
 scopes.
