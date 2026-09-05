@@ -12315,3 +12315,49 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   author-based provenance in atlas is unreliable before this commit and correct
   after it.
 - **also present in `report`,** which is gitignored and outside the stack.
+
+## ATLAS-PYTHON-BLANK-PYPI-2026-09-04 - Binding distributions ship without PyPI metadata [patch] - in-progress <a id="python-blank-pypi-pages"></a>
+
+- **outcome:** every published binding distribution has a PyPI page a reader
+  can act on: a rendered README written in the Python reader's language, a
+  summary, classifiers, `requires-python` matching the wheel matrix, and
+  repository/issue URLs (`documentation_discipline`: the binding package's
+  README is its PyPI landing page).
+- **surfaced by** the 2026-09-04 registry survey recorded at
+  [`#atlas-pub-003`](backlog.md#atlas-pub-003).
+- **three blank pages, delivered 2026-09-05.** Each had no `pyproject.toml` at
+  all, so the wheel carried no summary, description, classifiers,
+  `requires-python`, or URLs:
+
+  | Distribution | Live before | PR | Landed |
+  | --- | --- | --- | --- |
+  | `leto-python` | 0.41.0 | [leto#172](https://github.com/ryancinsight/leto/pull/172) | `a2006ad` |
+  | `coeus-python` | 0.9.0 | [Coeus#370](https://github.com/ryancinsight/Coeus/pull/370) | `dbdb78f6` |
+  | `hephaestus-python` | 0.18.0 | [hephaestus#276](https://github.com/ryancinsight/hephaestus/pull/276) | `3aee4fc` |
+
+  Each verified by `maturin sdist` reading back Metadata-Version 2.4 with the
+  full field set; each README's example checked against the binding signatures
+  rather than written from the test docstring or from memory.
+
+- **two defects found while doing it, both fixed in the same PRs:**
+  1. `hephaestus-python`'s README told readers `pip install pyhephaestus`.
+     That distribution does not exist — `pyhephaestus` is the *import* name.
+     The one instruction on the page failed for every reader who followed it.
+  2. **44 MB of built binaries were tracked in git**, contradicting the
+     2026-09-04 audit note that recorded them as untracked: a 22 MB
+     `coeus_python-0.5.1-cp313-cp313-win_amd64.whl` under `coeus-python/tests/`,
+     and `pyhephaestus.pyd` (19 MB) plus `leto_python.pyd` (2.9 MB) — a
+     *different package's* extension — in `hephaestus-python/`. All deleted;
+     `*.whl`, `*.pyd`, `*.so` now ignored in both repositories. The audit's
+     untracked finding was measured on `.venv/` contents and generalised to
+     these, which it should not have been.
+
+- **remaining:** `consus-python` 0.1.0 and `moirai-python` 0.4.0 are live with
+  zero classifiers; `consus-python` also has zero project URLs. Both have a
+  `pyproject.toml` already, so this is field completion rather than creation.
+- **also remaining, filed separately:** `coeus-python` ships a 910-line
+  `pycoeus.pyi` that `mypy` cannot see, because a single top-level extension
+  module has no package directory for a PEP 561 `py.typed` marker. Making it a
+  genuinely typed distribution means restructuring to a `pycoeus/` package
+  around a `pycoeus._pycoeus` extension — a change to the import surface of an
+  already-published package, deliberately kept out of a metadata fix.
