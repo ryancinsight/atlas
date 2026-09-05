@@ -513,6 +513,33 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
 - Prometheus is the first embedded-stepping consumer for Horae, retiring a
   capability recorded as consumer-gated with no caller.
 
+## ATLAS-HORAE-IMPLICIT-SEAM-2026-09-04 - Add a stiff-capable implicit seam to Horae [arch][minor] - todo <a id="horae-implicit-seam"></a>
+
+- **outcome:** Horae gains `ImplicitSystem<T>` — an `ExplicitSystem` supertrait
+  adding a `jacobian` method — plus a first implicit tableau `BackwardEuler`
+  (A-stable) and a damped-Newton `step_implicit_into`, so the Prometheus P6
+  Robertson benchmark ([#prometheus-promotion](#prometheus-promotion)) is
+  exercisable honestly rather than with a tiny explicit step.
+- **design:** [ADR 0002](repos/horae/docs/adr/0002-implicit-system-seam.md)
+  (drafted, uncommitted). Capability is upstream Horae, never a Prometheus-local
+  stiff stepper.
+- **scope:** Horae `system` and `integration` modules — one trait, one tableau,
+  one recurrence, allocation-free over the step workspace. Explicit consumers
+  are untouched.
+- **acceptance oracle:** Robertson (1966) steps at the slow timescale to within
+  the published reference; a non-stiff problem still integrates through an
+  explicit tableau unchanged; `ImplicitSystem: ExplicitSystem` so a stiff system
+  remains steerable by both families.
+- **risk/class:** `[arch][minor]`. **dependencies:** none (Horae-internal).
+- **blocked on:** Horae is checked out detached at the overlay pin (origin/main
+  `47739ae`). Implementation lands in a Horae worktree lane
+  (`worktrees/horae-implicit-seam`) so the overlay's main checkout is never
+  branch-switched under concurrent builds. Re-open trigger: lane opened, and
+  ADR 0002 committed with its index regeneration.
+- **sub-tasks (vertical):** `ImplicitSystem` + `jacobian`; `BackwardEuler`
+  tableau; `step_implicit_into` damped Newton; Robertson benchmark with cited
+  reference values; Prometheus consumes it to close P6.
+
 ## ATLAS-NEXT-STEPS-2026-09-03 - Sequenced plan toward the suite [arch] - planning <a id="next-steps"></a>
 
 Atlas is a shared location; members compose as needed.
