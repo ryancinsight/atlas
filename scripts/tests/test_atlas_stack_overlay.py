@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -15,10 +16,16 @@ assert _SPEC is not None and _SPEC.loader is not None
 _overlay = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(_overlay)
 
+_FIXTURE_SPEC = importlib.util.spec_from_file_location(
+    "overlay_resolution", Path(__file__).parent / "fixtures" / "overlay_resolution.py"
+)
+assert _FIXTURE_SPEC is not None and _FIXTURE_SPEC.loader is not None
+_fixture = importlib.util.module_from_spec(_FIXTURE_SPEC)
+_FIXTURE_SPEC.loader.exec_module(_fixture)
+
 
 class LagAwarePatchEmissionTestCase(unittest.TestCase):
-    """generate must not patch a git dep to a local version that conflicts
-    with a member's manifest pin; lagging edges resolve from git instead."""
+    """Compatible consumers share local candidates; lagging edges retain Git."""
 
     def test_generate_skips_edge_that_violates_a_member_pin(self) -> None:
         packages = {"ritk-image": (Path("repos/ritk/crates/ritk-image"), "0.4.0")}
@@ -59,7 +66,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             'ritk-image = { path = "repos/ritk/crates/ritk-image" }', block
         )
 
-    def test_generate_blocks_patch_when_any_declaration_is_unsatisfied(self) -> None:
+    def test_generate_keeps_patch_for_current_consumer_despite_older_requirement(self) -> None:
         packages = {"ritk-image": (Path("repos/ritk/crates/ritk-image"), "0.4.0")}
         deps = [
             (
@@ -77,7 +84,7 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
         ]
         with patch.object(_overlay, "collect_first_party_deps", return_value=deps):
             block, missing, lag = _overlay.build_overlay(packages)
-        self.assertEqual(block, "\n")
+        self.assertIn('ritk-image = { path = "repos/ritk/crates/ritk-image" }', block)
         self.assertEqual(len(lag), 1)
 
     def test_generate_keeps_satisfying_siblings_when_one_edge_lags(self) -> None:
@@ -104,6 +111,20 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
         self.assertEqual(len(lag), 1)
         self.assertIn("ritk-core", block)
         self.assertNotIn("ritk-image", block)
+
+    def test_compatibility_is_selected_per_declared_source(self) -> None:
+        packages = {"provider": (Path("repos/provider"), "0.6.0")}
+        current = "https://github.com/ryancinsight/Provider"
+        previous = "https://github.com/ryancinsight/provider"
+        dependencies = [("provider", current, "^0.6", Path("repos/current/Cargo.toml")),
+                        ("provider", previous, "^0.5", Path("repos/previous/Cargo.toml"))]
+        with patch.object(_overlay, "collect_first_party_deps", return_value=dependencies):
+            block, missing, lag = _overlay.build_overlay(packages)
+        self.assertIn(f'[patch."{current}"]', block)
+        self.assertNotIn(f'[patch."{previous}"]', block)
+        self.assertEqual(missing, [])
+        self.assertEqual(len(lag), 1)
+        self.assertIn(previous, lag[0])
 
     def test_generate_missing_package_still_reported(self) -> None:
         packages: dict[str, tuple[Path, str | None]] = {}
@@ -165,6 +186,35 @@ class LagAwarePatchEmissionTestCase(unittest.TestCase):
             self.assertEqual(len(lag), 1)
             self.assertIn("repos/consumer", lag[0])
             self.assertIn("provider 0.42.0", lag[0])
+
+    def test_cargo_unifies_current_closure_and_retains_old_git_revision(self) -> None:
+        toolchain = tomllib.loads((SCRIPT.parent.parent / "rust-toolchain.toml").read_text(
+            encoding="utf-8"))["toolchain"]["channel"]
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-resolution-") as directory:
+            root = Path(directory)
+            fixture = _fixture.CargoOverlayFixture(root)
+            packages = {f"overlay-{name}": (Path(f"repos/provider/{name}"), "0.6.0")
+                        for name in ("core", "transport")}
+            dependencies = [("overlay-core", fixture.url, "^0.5", fixture.consumer / "Cargo.toml"),
+                            ("overlay-core", fixture.url, "^0.6", fixture.consumer / "Cargo.toml"),
+                            ("overlay-transport", fixture.url, "^0.6", fixture.consumer / "Cargo.toml")]
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "collect_first_party_deps", return_value=dependencies
+            ):
+                block, missing, lag = _overlay.build_overlay(packages)
+            metadata = fixture.resolve(block, toolchain, SCRIPT.parent.parent)
+            cores = [package for package in metadata["packages"] if package["name"] == "overlay-core"]
+            self.assertEqual(missing, [])
+            self.assertEqual(len(lag), 1)
+            self.assertEqual(sorted(package["version"] for package in cores), ["0.5.0", "0.6.0"])
+            old, current = sorted(cores, key=lambda package: package["version"])
+            self.assertTrue(old["source"].startswith("git+file:"))
+            self.assertIsNone(current["source"])
+            transport = next(package for package in metadata["packages"] if package["name"] == "overlay-transport")
+            nodes = {node["id"]: node for node in metadata["resolve"]["nodes"]}
+            self.assertEqual(nodes[transport["id"]]["dependencies"], [current["id"]])
+            self.assertIn(current["id"], nodes[metadata["resolve"]["root"]]["dependencies"])
+            fixture.check(toolchain, SCRIPT.parent.parent)
 
 
 class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):

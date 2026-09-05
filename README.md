@@ -111,13 +111,15 @@ addition.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 26 packages.
+At this revision, [`.gitmodules`](.gitmodules) records 26 packages. Metis is a local
+workspace awaiting repository visibility and remote registration.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |
 | Integrator | [`CFDrs`](repos/CFDrs) | Computational fluid dynamics, coupled flow simulation, validation, and scientific output. |
 | Integrator | [`helios`](repos/helios) | Radiation-therapy dose, planning, imaging, and delivery simulation. |
 | Integrator | [`kwavers`](repos/kwavers) | Acoustic, ultrasound, therapy, imaging, and coupled wave simulation. |
+| Integrator | [`metis`](repos/metis) | Rust desktop presentation and isolated backend sessions over Moirai execution/process transport and Iris rendering contracts; native windows and OS permission restriction remain under development. |
 | Domain | [`apollo`](repos/apollo) | Fourier, spectral, wavelet, number-theoretic, and related transforms. |
 | Domain | [`ares`](repos/ares) | Solid momentum balance: small-strain kinematics, stress, equilibrium, and the Dirichlet and Neumann conditions that close them, over a Proteus closure and an Athena solve. |
 | Domain | [`asclepius`](repos/asclepius) | Biological-response, tissue-effect, treatment-response, and therapy-outcome laws over Aequitas quantities and Eunomia scalars, with a one-way Coeus adapter. |
@@ -152,6 +154,7 @@ flowchart TB
         CFDrs
         helios
         kwavers
+        metis
     end
 
     subgraph Domains["Reusable scientific domains"]
@@ -205,6 +208,8 @@ flowchart TB
     kwavers --> hyperion
     ritk --> iris
     CFDrs --> iris
+    metis --> iris
+    metis --> moirai
     coeus --> apollo
     coeus --> leto
     coeus --> hephaestus

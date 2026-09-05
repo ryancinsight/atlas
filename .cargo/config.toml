@@ -58,11 +58,11 @@ debug = false
 # block is inert for every downstream consumer while making the member
 # unconsumable as a clean git dependency.
 #
-# An edge is emitted only when the local tree version satisfies every declared
-# requirement for that package. A lagging edge (local version vs a member's
-# `version` pin) is left on git so the member still builds -- patching it would
-# make Cargo refuse with a misleading resolver error. `check` reports such lag
-# for the consumer to advance its pin.
+# A local candidate is emitted for each source with a compatible consumer.
+# Cargo keeps incompatible requirements on their original git version; one
+# lagging consumer must not prevent current consumers from sharing local types.
+# Providers whose own workspace edges lag remain quarantined on git. `check`
+# reports all incompatible requirements so their consumers can advance them.
 #
 # Local builds rewrite member `Cargo.lock` files (the `source` line is dropped
 # and `[[patch.unused]]` entries appear). That churn is a development artifact:
@@ -77,16 +77,6 @@ aequitas = { path = "repos/aequitas" }
 
 [patch."https://github.com/ryancinsight/aequitas.git"]
 aequitas = { path = "repos/aequitas" }
-
-[patch."https://github.com/ryancinsight/apollo"]
-apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
-apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
-apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
-
-[patch."https://github.com/ryancinsight/apollo.git"]
-apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
-apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
-apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
 
 [patch."https://github.com/ryancinsight/asclepius"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
@@ -103,42 +93,6 @@ athena-leto = { path = "repos/athena/crates/athena-leto" }
 [patch."https://github.com/ryancinsight/athena.git"]
 athena-core = { path = "repos/athena/crates/athena-core" }
 athena-leto = { path = "repos/athena/crates/athena-leto" }
-
-[patch."https://github.com/ryancinsight/Coeus"]
-coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
-coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-leto = { path = "repos/coeus/crates/coeus-leto" }
-coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
-coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
-coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
-coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
-
-[patch."https://github.com/ryancinsight/Coeus.git"]
-coeus-autograd = { path = "repos/coeus/crates/coeus-autograd" }
-coeus-core = { path = "repos/coeus/crates/coeus-core" }
-coeus-leto = { path = "repos/coeus/crates/coeus-leto" }
-coeus-nn = { path = "repos/coeus/crates/coeus-nn" }
-coeus-ops = { path = "repos/coeus/crates/coeus-ops" }
-coeus-optim = { path = "repos/coeus/crates/coeus-optim" }
-coeus-tensor = { path = "repos/coeus/crates/coeus-tensor" }
-
-[patch."https://github.com/ryancinsight/consus"]
-consus-compression = { path = "repos/consus/crates/consus-compression" }
-consus-core = { path = "repos/consus/crates/consus-core" }
-consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
-consus-io = { path = "repos/consus/crates/consus-io" }
-consus-npy = { path = "repos/consus/crates/consus-npy" }
-consus-onnx = { path = "repos/consus/crates/consus-onnx" }
-consus-zarr = { path = "repos/consus/crates/consus-zarr" }
-
-[patch."https://github.com/ryancinsight/consus.git"]
-consus-compression = { path = "repos/consus/crates/consus-compression" }
-consus-core = { path = "repos/consus/crates/consus-core" }
-consus-hdf5 = { path = "repos/consus/crates/consus-hdf5" }
-consus-io = { path = "repos/consus/crates/consus-io" }
-consus-npy = { path = "repos/consus/crates/consus-npy" }
-consus-onnx = { path = "repos/consus/crates/consus-onnx" }
-consus-zarr = { path = "repos/consus/crates/consus-zarr" }
 
 [patch."https://github.com/ryancinsight/eunomia"]
 eunomia = { path = "repos/eunomia/crates/eunomia" }
@@ -157,20 +111,6 @@ harmonia = { path = "repos/harmonia" }
 
 [patch."https://github.com/ryancinsight/harmonia.git"]
 harmonia = { path = "repos/harmonia" }
-
-[patch."https://github.com/ryancinsight/hephaestus"]
-hephaestus-core = { path = "repos/hephaestus/crates/hephaestus-core" }
-hephaestus-cuda = { path = "repos/hephaestus/crates/hephaestus-cuda" }
-hephaestus-metal = { path = "repos/hephaestus/crates/hephaestus-metal" }
-hephaestus-rocm = { path = "repos/hephaestus/crates/hephaestus-rocm" }
-hephaestus-wgpu = { path = "repos/hephaestus/crates/hephaestus-wgpu" }
-
-[patch."https://github.com/ryancinsight/hephaestus.git"]
-hephaestus-core = { path = "repos/hephaestus/crates/hephaestus-core" }
-hephaestus-cuda = { path = "repos/hephaestus/crates/hephaestus-cuda" }
-hephaestus-metal = { path = "repos/hephaestus/crates/hephaestus-metal" }
-hephaestus-rocm = { path = "repos/hephaestus/crates/hephaestus-rocm" }
-hephaestus-wgpu = { path = "repos/hephaestus/crates/hephaestus-wgpu" }
 
 [patch."https://github.com/ryancinsight/hermes"]
 hermes-simd = { path = "repos/hermes/crates/hermes-simd" }
@@ -196,14 +136,6 @@ iris-viz = { path = "repos/iris" }
 [patch."https://github.com/ryancinsight/iris.git"]
 iris-viz = { path = "repos/iris" }
 
-[patch."https://github.com/ryancinsight/leto"]
-leto = { path = "repos/leto/crates/leto" }
-leto-ops = { path = "repos/leto/crates/leto-ops" }
-
-[patch."https://github.com/ryancinsight/leto.git"]
-leto = { path = "repos/leto/crates/leto" }
-leto-ops = { path = "repos/leto/crates/leto-ops" }
-
 [patch."https://github.com/ryancinsight/melinoe"]
 melinoe = { path = "repos/melinoe" }
 
@@ -224,59 +156,15 @@ mnemosyne-heap = { path = "repos/mnemosyne/crates/mnemosyne-heap" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
-[patch."https://github.com/ryancinsight/Moirai"]
-moirai-async = { path = "repos/moirai/moirai-async" }
-moirai-core = { path = "repos/moirai/moirai-core" }
-moirai-executor = { path = "repos/moirai/moirai-executor" }
-moirai-gpu = { path = "repos/moirai/moirai-gpu" }
-moirai-parallel = { path = "repos/moirai/moirai-parallel" }
-moirai-runtime = { path = "repos/moirai/moirai" }
-moirai-sync = { path = "repos/moirai/moirai-sync" }
-
-[patch."https://github.com/ryancinsight/Moirai.git"]
-moirai-async = { path = "repos/moirai/moirai-async" }
-moirai-core = { path = "repos/moirai/moirai-core" }
-moirai-executor = { path = "repos/moirai/moirai-executor" }
-moirai-gpu = { path = "repos/moirai/moirai-gpu" }
-moirai-parallel = { path = "repos/moirai/moirai-parallel" }
-moirai-runtime = { path = "repos/moirai/moirai" }
-moirai-sync = { path = "repos/moirai/moirai-sync" }
-
 [patch."https://github.com/ryancinsight/proteus"]
 proteus-mat = { path = "repos/proteus" }
 
 [patch."https://github.com/ryancinsight/proteus.git"]
 proteus-mat = { path = "repos/proteus" }
 
-[patch."https://github.com/ryancinsight/ritk"]
-ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
-ritk-core = { path = "repos/ritk/crates/ritk-core" }
-ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
-ritk-image = { path = "repos/ritk/crates/ritk-image" }
-ritk-io = { path = "repos/ritk/crates/ritk-io" }
-ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
-ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
-ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
-
-[patch."https://github.com/ryancinsight/ritk.git"]
-ritk-block-matching = { path = "repos/ritk/crates/ritk-block-matching" }
-ritk-core = { path = "repos/ritk/crates/ritk-core" }
-ritk-dicom = { path = "repos/ritk/crates/ritk-dicom" }
-ritk-image = { path = "repos/ritk/crates/ritk-image" }
-ritk-io = { path = "repos/ritk/crates/ritk-io" }
-ritk-registration = { path = "repos/ritk/crates/ritk-registration" }
-ritk-spatial = { path = "repos/ritk/crates/ritk-spatial" }
-ritk-vtk = { path = "repos/ritk/crates/ritk-vtk" }
-
 [patch."https://github.com/ryancinsight/themis"]
 themis-topology = { path = "repos/themis" }
 
 [patch."https://github.com/ryancinsight/themis.git"]
 themis-topology = { path = "repos/themis" }
-
-[patch."https://github.com/ryancinsight/tyche"]
-tyche-core = { path = "repos/tyche/crates/tyche-core" }
-
-[patch."https://github.com/ryancinsight/tyche.git"]
-tyche-core = { path = "repos/tyche/crates/tyche-core" }
 # <<< atlas stack development overlay (generated) <<<

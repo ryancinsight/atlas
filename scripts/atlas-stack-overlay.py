@@ -14,9 +14,9 @@ consumable as git dependencies; this file owns local resolution.
 Two modes:
 
     generate  rewrite the overlay block in .cargo/config.toml from the real
-              repository layout (never hand-curated); an edge whose local
-              version violates a declared requirement is left on git so the
-              member still builds
+              repository layout (never hand-curated); emit compatible local
+              candidates while older incompatible requirements retain git
+              resolution
     check     report version lag -- every first-party requirement that the
               current local trees cannot satisfy. A patch only unifies when the
               local version satisfies the declared requirement, so lag is what
@@ -59,11 +59,11 @@ HEADER = f"""{BEGIN}
 # block is inert for every downstream consumer while making the member
 # unconsumable as a clean git dependency.
 #
-# An edge is emitted only when the local tree version satisfies every declared
-# requirement for that package. A lagging edge (local version vs a member's
-# `version` pin) is left on git so the member still builds -- patching it would
-# make Cargo refuse with a misleading resolver error. `check` reports such lag
-# for the consumer to advance its pin.
+# A local candidate is emitted for each source with a compatible consumer.
+# Cargo keeps incompatible requirements on their original git version; one
+# lagging consumer must not prevent current consumers from sharing local types.
+# Providers whose own workspace edges lag remain quarantined on git. `check`
+# reports all incompatible requirements so their consumers can advance them.
 #
 # Local builds rewrite member `Cargo.lock` files (the `source` line is dropped
 # and `[[patch.unused]]` entries appear). That churn is a development artifact:
@@ -259,55 +259,56 @@ def build_overlay(
 ) -> tuple[str, list[str], list[str]]:
     """Emit the `[patch]` block, grouping local packages under each git URL.
 
-    A package is redirected to its local tree only when the local version can
-    satisfy *every* declared requirement for it. Patching a local version that
-    violates a member's manifest pin (e.g. local 0.4.0 against a consumer's
-    ``^0.3.0``) makes Cargo refuse the patch with a misleading resolver error
-    ("candidate versions found which didn't match") instead of building. A
-    lagging edge is therefore left to resolve from git -- the member still
-    builds, other packages from the same repository still unify locally, and
-    `check` reports the lag so the consumer can advance its pin.
+    Cargo adds patched versions to a source's candidates; it does not replace
+    incompatible versions. Emit a package for a source when at least one of
+    that source's declared requirements accepts the local version. Report
+    incompatible consumers without letting them split a current consumer's
+    direct Git and transitive local copies of the same package.
+
+    Cargo Book, "Prepublishing a breaking change":
+    https://doc.rust-lang.org/cargo/reference/overriding-dependencies.html#prepublishing-a-breaking-change
+    The real Cargo fixture in test_atlas_stack_overlay.py resolves ^0.5 at its
+    old Git revision alongside one local ^0.6 identity shared by the current
+    direct dependency and its local transport dependency. Provider-workspace
+    lag quarantine remains separate: those path edges change the local graph.
     """
     by_url: dict[str, set[str]] = {}
     missing: list[str] = []
-    lag_skipped: list[str] = []
+    lag: list[str] = []
 
-    # Aggregate every declaring requirement per package: the patch applies
-    # stack-wide, so one unsatisfied consumer is enough to block the edge.
-    reqs_by_pkg: dict[str, list[str | None]] = {}
-    urls_by_pkg: dict[str, set[str]] = {}
+    reqs_by_pkg: dict[str, dict[str, list[str | None]]] = {}
     for pkg, url, req, _manifest in collect_first_party_deps():
-        reqs_by_pkg.setdefault(pkg, []).append(req)
-        urls_by_pkg.setdefault(pkg, set()).add(url)
+        reqs_by_pkg.setdefault(pkg, {}).setdefault(url, []).append(req)
 
     repository_lags = local_dependency_lags(packages)
     for repo, edges in sorted(repository_lags.items()):
-        lag_skipped.append(
+        lag.append(
             f"{repo.as_posix()}: local workspace edges {sorted(edges)!r}; "
             "leaving the repository packages on git"
         )
 
-    for pkg, reqs in sorted(reqs_by_pkg.items()):
+    for pkg, sources in sorted(reqs_by_pkg.items()):
         if pkg not in packages:
-            missing.append(f"{pkg} (declared from {sorted(urls_by_pkg[pkg])[0]})")
+            missing.append(f"{pkg} (declared from {sorted(sources)[0]})")
             continue
         local_version = packages[pkg][1]
-        unsatisfied = [
-            req
-            for req in reqs
-            if req is not None
-            and local_version is not None
-            and not satisfies(local_version, req)
-        ]
-        if unsatisfied:
-            lag_skipped.append(
-                f"{pkg}: local tree is {local_version}, cannot satisfy "
-                f"{unsatisfied!r}; leaving the edge on git"
-            )
-            continue
-        if package_repo(packages[pkg][0]) in repository_lags:
-            continue
-        for url in urls_by_pkg[pkg]:
+        for url, reqs in sorted(sources.items()):
+            unsatisfied = [
+                req
+                for req in reqs
+                if req is not None
+                and local_version is not None
+                and not satisfies(local_version, req)
+            ]
+            if unsatisfied:
+                lag.append(
+                    f"{pkg} ({url}): local tree is {local_version}, cannot satisfy "
+                    f"{unsatisfied!r}; those requirements retain git resolution"
+                )
+            if len(unsatisfied) == len(reqs):
+                continue
+            if package_repo(packages[pkg][0]) in repository_lags:
+                continue
             by_url.setdefault(url, set()).add(pkg)
 
     # Cargo matches the source URL literally, so a repo referenced both with and
@@ -326,7 +327,7 @@ def build_overlay(
         for pkg in sorted(by_url[url]):
             rel = packages[pkg][0].as_posix()
             lines.append(f'{pkg} = {{ path = "{rel}" }}')
-    return "\n".join(lines) + "\n", sorted(set(missing)), sorted(set(lag_skipped))
+    return "\n".join(lines) + "\n", sorted(set(missing)), sorted(set(lag))
 
 
 def write_overlay(block: str) -> None:
@@ -551,14 +552,14 @@ def main() -> int:
                   "once the provider-graph refresh is committed")
         return 0
     if args.mode == "generate":
-        block, missing, lag_skipped = build_overlay(packages)
+        block, missing, lag = build_overlay(packages)
         write_overlay(block)
         count = block.count("[patch.")
         print(f"wrote {count} patch sections to {CONFIG.relative_to(ATLAS_ROOT)}")
         for item in missing:
             print(f"skipped (no local tree): {item}")
-        for item in lag_skipped:
-            print(f"skipped (version lag - consumer must advance): {item}")
+        for item in lag:
+            print(f"version lag (consumer must advance): {item}")
         return 0
     return check(packages)
 
