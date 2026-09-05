@@ -12297,3 +12297,21 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 - **Ask-User (batched):** create `ryancinsight/metis` and
   `ryancinsight/prometheus`. Repository creation is an account action outside
   the Change grant.
+
+## ATLAS-META-AUTHOR-OVERRIDE-2026-09-05 - A repo-local identity attributed every agent's atlas commits to one author [patch] - done 2026-09-05 <a id="meta-author-override"></a>
+
+- **outcome:** `atlas` carried `user.name = Copilot` / `user.email =
+  copilot@github.com` in `.git/config`, so every agent committing in the shared
+  meta tree — not only Copilot — was recorded as that author. Removed; each
+  agent now falls back to its own global identity, which is what the other 25
+  members already do.
+- **why it matters:** `concurrent_agents` partitions a shared branch by author
+  (`git log --author=<peer> -p -- <paths>`, lease liveness, takeover) and
+  `git_discipline` calls authorship the provenance channel. One identity for
+  every agent in the one repository where coordination happens defeats both.
+- **measured:** 953 of 4568 atlas commits carry `copilot@github.com`, including
+  six landed this session (`e40e28d6e`..`16b44daed`) and the 2026-09-04 apollo
+  gitlink advances. History is pushed and shared, so it is not rewritten;
+  author-based provenance in atlas is unreliable before this commit and correct
+  after it.
+- **also present in `report`,** which is gitignored and outside the stack.
