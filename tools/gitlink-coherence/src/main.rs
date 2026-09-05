@@ -39,7 +39,9 @@ against the member's `origin/main`. By default the probe is fully read-only
 each member's remote before probing (no working-tree mutation).
 
 Exit codes:
-  0  all probed gitlinks are coherent (possibly with stale-advanceable rows)
+  0  all probed gitlinks are coherent (possibly with stale-advanceable or
+     unlinked rows; unlinked members have no pin yet, so there is nothing
+     to cohere)
   1  one or more coherence defects detected (categories A/B/C,
      no-origin-main, unreachable, not-an-object)
   2  invocation error (cli, missing .gitmodules, git plumbing failure)

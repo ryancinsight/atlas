@@ -65,6 +65,8 @@ pub struct Report {
     pub stale_advanceable: usize,
     /// Clean count (pin == origin/main or pin ancestral).
     pub clean: usize,
+    /// Unlinked count (registered but no gitlink recorded yet; informational).
+    pub unlinked: usize,
     /// The full probe vector (ordered by `.gitmodules`).
     pub probes: Vec<RepoProbe>,
 }
@@ -74,10 +76,12 @@ impl From<&Coherence> for Report {
         let mut defects = 0_usize;
         let mut stale = 0_usize;
         let mut clean = 0_usize;
+        let mut unlinked = 0_usize;
         for p in &c.probes {
             match p.class {
                 DefectClass::Clean => clean += 1,
                 DefectClass::StaleAdvanceable => stale += 1,
+                DefectClass::Unlinked => unlinked += 1,
                 _ => defects += 1,
             }
         }
@@ -86,6 +90,7 @@ impl From<&Coherence> for Report {
             defects,
             stale_advanceable: stale,
             clean,
+            unlinked,
             probes: c.probes.clone(),
         }
     }
@@ -111,7 +116,7 @@ impl Report {
             self.total, self.defects, self.stale_advanceable, self.clean
         )
         .ok();
-        if !self.defects() && !self.stale_advanceable() {
+        if !self.defects() && !self.stale_advanceable() && self.unlinked == 0 {
             writeln!(out, "(no coherence defects and no stale pins)").ok();
             return out;
         }
@@ -128,6 +133,12 @@ impl Report {
                     short_sha(origin_or_empty(p))
                 )
                 .ok();
+            }
+        }
+        if self.unlinked > 0 {
+            writeln!(out, "unlinked (registered, no gitlink recorded yet):").ok();
+            for p in self.unlinked_rows() {
+                writeln!(out, "  {} — {}", p.submodule.name, p.note).ok();
             }
         }
         if self.defects > 0 {
@@ -189,9 +200,17 @@ impl Report {
         self.stale_advanceable > 0
     }
     fn defect_rows(&self) -> impl Iterator<Item = &RepoProbe> {
+        self.probes.iter().filter(|p| {
+            !matches!(
+                p.class,
+                DefectClass::Clean | DefectClass::StaleAdvanceable | DefectClass::Unlinked
+            )
+        })
+    }
+    fn unlinked_rows(&self) -> impl Iterator<Item = &RepoProbe> {
         self.probes
             .iter()
-            .filter(|p| !matches!(p.class, DefectClass::Clean | DefectClass::StaleAdvanceable))
+            .filter(|p| matches!(p.class, DefectClass::Unlinked))
     }
     fn stale_rows(&self) -> impl Iterator<Item = &RepoProbe> {
         self.probes
@@ -222,6 +241,7 @@ fn class_label(c: &DefectClass) -> &'static str {
         DefectClass::Unreachable => "unreachable",
         DefectClass::NotAnObject => "not-an-object",
         DefectClass::ExecutableUnavailable => "git-missing",
+        DefectClass::Unlinked => "unlinked",
     }
 }
 
@@ -302,6 +322,26 @@ mod tests {
             "missing table header: {md}"
         );
         assert!(md.contains("**summary:**"));
+    }
+
+    #[test]
+    fn unlinked_counts_separately_and_never_blocks() {
+        let c = Coherence {
+            probes: vec![
+                mk_probe("a", DefectClass::Clean, "1111111", Some("1111111")),
+                mk_probe("b", DefectClass::Unlinked, "", None),
+            ],
+        };
+        let r = Report::from(&c);
+        assert_eq!(r.unlinked, 1);
+        assert_eq!(r.defects, 0);
+        assert!(c.defects().is_empty());
+        let human = r.render(Format::Human);
+        assert!(
+            human.contains("unlinked (registered, no gitlink recorded yet):"),
+            "missing unlinked section: {human}"
+        );
+        assert!(human.contains("  b — "), "missing unlinked row: {human}");
     }
 
     #[test]

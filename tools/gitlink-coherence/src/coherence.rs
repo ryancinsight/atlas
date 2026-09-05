@@ -60,6 +60,14 @@ pub enum DefectClass {
     /// condition, not a defect. The auditor reports it so the coordinator
     /// can decide whether to bump the gitlink.
     StaleAdvanceable,
+    /// The submodule is registered in `.gitmodules` but no gitlink is
+    /// recorded for its path yet — a promotion mid-flight (the registration
+    /// entry landed before the submodule was added). There is no pinned
+    /// revision to probe and nothing references a pin that does not exist
+    /// yet, so this is informational, not a defect: the probe carries an
+    /// empty pin and the audit continues with every other member instead
+    /// of aborting the whole run.
+    Unlinked,
     /// The member has no `origin/main` ref at all (Category B-side: the
     /// remote diverged or has never published `main`). Any pinned SHA is
     /// unanchored w.r.t. the canonical contract.
@@ -126,13 +134,18 @@ pub struct Coherence {
 
 impl Coherence {
     /// Returns the probes that constitute coherence defects (i.e. the
-    /// non-`Clean`, non-`StaleAdvanceable` rows). Used to decide the exit
-    /// code and to summarize the report.
+    /// non-`Clean`, non-`StaleAdvanceable`, non-`Unlinked` rows). Used to
+    /// decide the exit code and to summarize the report.
     #[must_use]
     pub fn defects(&self) -> Vec<&RepoProbe> {
         self.probes
             .iter()
-            .filter(|p| !matches!(p.class, DefectClass::Clean | DefectClass::StaleAdvanceable))
+            .filter(|p| {
+                !matches!(
+                    p.class,
+                    DefectClass::Clean | DefectClass::StaleAdvanceable | DefectClass::Unlinked
+                )
+            })
             .collect()
     }
 
@@ -195,15 +208,23 @@ pub fn audit_one(
     // form, so the member-git-dir resolution here handles both shapes.
     let member_git_dir = atlas_root.join(&submodule.path).join(".git");
 
-    let pin = read_recorded_pin(&atlas_git_dir, &submodule.path)?;
-    let pin = pin.ok_or_else(|| Error::GitExit {
-        context: "ls-tree",
-        code: 0,
-        stderr: format!(
-            "atlas-meta tree has no submodule entry for path `{}`",
-            submodule.path
-        ),
-    })?;
+    let recorded = read_recorded_pin(&atlas_git_dir, &submodule.path)?;
+    let Some(pin) = recorded else {
+        // Registered but never linked: resolve what upstream state exists
+        // for the diagnostic without fetching (a network abort here would
+        // reintroduce the whole-run fragility this early return removes).
+        let origin_main = resolve_ref(&member_git_dir, "refs/remotes/origin/HEAD")
+            .or_else(|| resolve_ref(&member_git_dir, "origin/main"));
+        return Ok(RepoProbe {
+            submodule: submodule.clone(),
+            pin: String::new(),
+            origin_main,
+            class: DefectClass::Unlinked,
+            note: "registered in `.gitmodules` but no gitlink recorded yet \
+                   (promotion mid-flight; add the submodule to clear)"
+                .to_string(),
+        });
+    };
 
     if fetch {
         // Refresh the member's default branch from origin. Does not touch
@@ -714,6 +735,48 @@ mod tests {
             url: "https://example/test-member".into(),
         };
         (root, sub)
+    }
+
+    #[test]
+    fn a_registered_member_without_gitlink_is_unlinked_not_an_abort() {
+        // The promotion-mid-flight shape: `.gitmodules` names the member
+        // but no revision records its gitlink yet. The probe must classify
+        // (so the aggregate audit continues with every other member),
+        // never abort the run.
+        let root = std::env::temp_dir().join(format!(
+            "gitlink-coherence-object-test-unlinked-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let member = root.join("repos/test-member");
+        fs::create_dir_all(&member).unwrap();
+        git_in(&member, &["init", "-q", "-b", "main"]);
+        fs::write(member.join("f"), "x").unwrap();
+        git_in(&member, &["add", "f"]);
+        git_in(&member, &["commit", "-q", "-m", "published"]);
+
+        git_in(&root, &["init", "-q", "-b", "main"]);
+        fs::write(
+            root.join(".gitmodules"),
+            "[submodule \"repos/test-member\"]\n    path = repos/test-member\n    url = https://example/test-member\n",
+        )
+        .unwrap();
+        git_in(&root, &["add", ".gitmodules"]);
+        git_in(&root, &["commit", "-q", "-m", "register"]);
+        let sub = Submodule {
+            name: "repos/test-member".into(),
+            path: "repos/test-member".into(),
+            url: "https://example/test-member".into(),
+        };
+
+        let probe = audit_one(&root, &sub, false).expect("unlinked must classify, not abort");
+        assert_eq!(probe.class, DefectClass::Unlinked, "{}", probe.note);
+        assert!(probe.pin.is_empty());
+        let coherence = Coherence {
+            probes: vec![probe],
+        };
+        assert!(coherence.defects().is_empty());
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
