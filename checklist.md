@@ -7,12 +7,14 @@ Board: [`#ares-promotion`](backlog.md#ares-promotion). Charter:
 
 Prerequisites (not Ares work; block A3 onward):
 
-- [ ] CFDrs deletes its elastic copy and composes `proteus::IsotropicModuli`.
-- [ ] Kwavers deletes `lame_from_speeds` and `ElasticPropertyData::{new,
-      try_from_engineering}`; review callers relying on the `lambda >= 0`
-      rejection the provider no longer applies.
-- [ ] `aequitas` stress semantics marker lands, so Phase 0 types stress from
-      the first commit rather than retrofitting a breaking change.
+- [x] CFDrs deletes its elastic copy and composes `proteus::IsotropicSolid`
+      (`f063be4b` on CFDrs main; follow-up `7dcf7726` tests relay fidelity).
+- [x] Kwavers deletes `lame_from_speeds` and delegates constructors to
+      `proteus::elastic::IsotropicModuli` (`ab9ddf8fb` / `1f86a9172` on
+      kwavers). Residual: `computed.rs` still hosts the six derived formulas
+      that Proteus also owns — tracked under the peer elastic claim, not a
+      blocker for Ares.
+- [x] `aequitas` stress semantics marker lands (`#50` merged 2026-09-04).
 
 Creation:
 
@@ -48,7 +50,7 @@ Implementation, each step complete-and-verified before the next:
 Registration and delivery:
 
 A0-A6 delivered 2026-09-04 through `ares` `f8cb9eb`; `ares` is now a workspace
-(`crates/ares` + `crates/ares-athena`, ares ADR 0001), so A7's architecture
+(`crates/ares` + `crates/ares-operator`, ares ADR 0001), so A7's architecture
 test asserts the two-crate edge set. CI and hooks are absent from the
 repository and are tracked separately at `#ares-ci-floor`, which blocks A7.
 
@@ -67,15 +69,22 @@ repository and are tracked separately at `#ares-ci-floor`, which blocks A7.
 Board: [`#prometheus-promotion`](backlog.md#prometheus-promotion). Charter:
 [ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md).
 
-- [ ] P0 prerequisite: `aequitas` gains `ReactionRate` and `MolarFlux`. Oracle:
-      `MolarConcentration / Time == ReactionRate` resolves at the type level.
-- [ ] Verify `prometheus-kinetics` availability on crates.io. The bare
-      `prometheus` name is the metrics client and is unavailable.
-- [ ] **Ask-User:** create `ryancinsight/prometheus`.
-- [ ] P1 scaffold, identical floor to Ares.
-- [ ] P3 species and stoichiometry — identity, molar mass, validated
-      concentration boundary, sparse stoichiometric matrix over Leto. Oracle:
-      `nu^T M == 0` structurally for a balanced network.
+- [x] P0 prerequisite: `aequitas` gains `ReactionRate` and `MolarFlux`
+      (aequitas `#50` merged 2026-09-04).
+- [x] Verify `prometheus-kinetics` availability on crates.io (404; bare
+      `prometheus` remains the metrics client at 200).
+- [ ] **Ask-User:** create `ryancinsight/prometheus`. Local tree exists at
+      `repos/prometheus/` with no remote and no commits yet.
+- [x] P1 scaffold floor (local): `[lib] name = "prometheus"`, edition 2024,
+      MSRV 1.95 / toolchain 1.97.0, `forbid(unsafe_code)`, `deny(missing_docs)`,
+      pedantic + unwrap/print/dbg floor, nextest 30s/60s, `deny.toml` ADR 0055
+      bans, README, CHANGELOG, committed-ready `Cargo.lock`. CI/hooks deferred
+      to the first push after remote creation (same shape as ares `45f3eec`).
+- [x] P3 species and stoichiometry (local, uncommitted): `Species` +
+      `Concentration` boundaries; sparse `StoichiometricMatrix` over Leto COO;
+      oracle `transpose(nu) * M = 0` exact at `f32`/`f64` on water formation.
+      Gate: fmt, clippy `-D warnings`, nextest 9/9, doc `-D warnings`,
+      `--no-default-features` check (species/concentration only).
 - [ ] P4 rate laws — mass-action at arbitrary order, equilibrium constants,
       reverse-rate consistency, Arrhenius through
       `proteus::TemperatureResponse`. Oracle: first- and second-order closed
