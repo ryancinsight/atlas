@@ -12260,3 +12260,40 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   each with published or consuming surface, so each needs the meta ADR first.
   Plus the closure work: graduate `harmonia`, `hyperion`, `horae`, and
   `asclepius-coeus` to publishable, which clears 13 of the 14 blocked crates.
+
+## ATLAS-METIS-UNREGISTERED-MEMBER-2026-09-05 - metis is on the stack map but has no remote and no gitlink [patch] - blocked <a id="metis-unregistered-member"></a>
+
+- **outcome:** `repos/metis` is a real submodule pinned to a commit on its own
+  `origin/main`, so a fresh clone of atlas resolves it — or it leaves the stack
+  map entirely. Today it is neither: [README.md:121](README.md) lists it as an
+  integrator member with a `repos/metis` link, `.gitmodules` in `HEAD` has no
+  entry for it, and the local tree is an untracked clone owned by a peer
+  sandbox account (`Son-RC-Aurora/CodexSandboxOffline`).
+- **blocker:** `ryancinsight/metis` does not exist. `git ls-remote` and
+  `gh api repos/ryancinsight/metis` both 404 while authenticated as
+  `ryancinsight`, so this is absence rather than a permission gap.
+- **re-open trigger:** the remote exists. Then pin from the ref
+  (`git update-index --cacheinfo 160000,$(git ls-remote <url> main | cut -f1),repos/metis`),
+  not from the peer's checkout.
+- **what was backed out and why:** a working-tree `.gitmodules` stanza adding
+  `repos/metis` → `https://github.com/ryancinsight/metis.git` was reverted at
+  `0d75fab41`. It blocked the gitlink auditor on every push and, had it landed,
+  would have broken `git clone --recursive` for every consumer of the stack —
+  a submodule URL that 404s fails the clone, not just that member. The stanza
+  is recorded verbatim here so completing this item is re-adding it, not
+  rediscovering it:
+
+  ```
+  [submodule "repos/metis"]
+  	path = repos/metis
+  	url = https://github.com/ryancinsight/metis.git
+  	active = true
+  ```
+
+- **same shape as prometheus:** `repos/prometheus` is likewise a local tree
+  with no remote, tracked under [`#prometheus-promotion`](backlog.md#prometheus-promotion)
+  and blocked on the same Ask-User step. Both remotes should be created in one
+  batch rather than as two interruptions.
+- **Ask-User (batched):** create `ryancinsight/metis` and
+  `ryancinsight/prometheus`. Repository creation is an account action outside
+  the Change grant.
