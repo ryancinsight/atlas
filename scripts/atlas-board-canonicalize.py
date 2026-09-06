@@ -250,7 +250,13 @@ def main() -> int:
         print(f"{args.path}: {len(changes)} heading(s) canonicalized (dry run)")
         return 0
 
-    Path(args.path).write_text(new_text, encoding="utf-8")
+    # `newline=""` keeps the LF the board stores. `write_text` translates
+    # every line ending to the platform's on Windows, so the tool would
+    # rewrite the whole file's endings on the host it most often runs on --
+    # the churn class `.gitattributes` exists to prevent, arriving through
+    # the formatter rather than the author.
+    with Path(args.path).open("w", encoding="utf-8", newline="") as handle:
+        handle.write(new_text)
     print(f"{args.path}: {len(changes)} heading(s) canonicalized")
     return 0
 

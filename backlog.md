@@ -927,7 +927,9 @@ members that moved`. Both atlas pin advances land in the same co-
 evolution unit when CFDrs merges.
 
 
-## ATLAS-BACKWARD-PIN-GUARD-2026-09-02 — The pin guard refuses branch-tip pins but not backward ones [patch] — done 2026-09-02 (commit 99dc33fad) <a id="backward-pin-guard"></a>
+## ATLAS-BACKWARD-PIN-GUARD-2026-09-02 — The pin guard refuses branch-tip pins but not backward ones [patch] — done 2026-09-02 <a id="backward-pin-guard"></a>
+_Closure note (moved from heading):_ commit 99dc33fad
+
 
 - **Fixed 2026-09-02 (pi session 01a06291):** the backward-pin predicate in
   `.githooks/pre-commit` refuses a staged gitlink that is a proper ancestor of
@@ -1027,7 +1029,7 @@ evolution unit when CFDrs merges.
   `0 regression(s)`; the tightenings it lists are recorded by regenerating
   `scripts/conformance-baseline.json` in the same change.
 
-## ATLAS-CRITERION-FLOAT-ROUNDTRIP-2026-08-31 — Preserve Criterion confidence values [patch] — closed 2026-09-02
+## ATLAS-CRITERION-FLOAT-ROUNDTRIP-2026-08-31 — Preserve Criterion confidence values [patch] — done 2026-09-02
 
 - **Outcome:** parse Criterion estimate numbers with exact decimal-to-`f64`
   round trips so the family-wise confidence gate cannot reject an interval
@@ -1505,7 +1507,7 @@ evolution unit when CFDrs merges.
   **pass**.
 - **Last update:** 2026-08-28 22:20 EDT (session 03d80d33).
 
-## ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27 — Pre-commit lockfile guard delivered to every member with first-party deps [patch] — delivered 2026-08-27
+## ATLAS-LOCKFILE-GUARD-FLEETWIDE-2026-08-27 — Pre-commit lockfile guard delivered to every member with first-party deps [patch] — done 2026-08-27
 
 - **Outcome:** the apollo pilot (`5602a20d`) is now fleet-wide: 21 PRs add the
   `check_staged()` surface to each member's `scripts/lockfile.py` (index-only,
@@ -1551,7 +1553,9 @@ evolution unit when CFDrs merges.
   adding the lockfile-guard CI job to harmonia/eunomia/iris/kwavers/melinoe
   (separate item; kwavers' is peer-held #641).
 
-## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — done 2026-09-02 (every member stores LF)
+## ATLAS-GITATTRIBUTES-DRIFT — line-ending policy differs across 26 members [patch] — done 2026-09-02
+_Closure note (moved from heading):_ every member stores LF
+
 
 - **Re-measured 2026-09-02: the declaration is not the stored form.** All 25 members now carry a `.gitattributes`, and 21 of them already declare LF (`* text=auto eol=lf` or a commented equivalent) — yet **every one of the 25 stores `.github/workflows/book-pages.yml` with CRLF**, 28 to 121 lines each. `eol=lf` governs checkout; blobs committed before the attribute existed keep their CRLF until someone runs `git add --renormalize`, so the policy and the object store disagree fleet-wide. The cost is the one the policy exists to prevent: every cross-platform edit of that file produces a whole-file diff, which is why this session's concurrency sweep had to preserve CRLF per file rather than write the stack's declared form.
 - **Four members still declare only `* text=auto`** (eunomia, hermes, mnemosyne, asclepius) — no end-of-line at all, so the stored form follows whichever platform committed.
@@ -1606,7 +1610,7 @@ evolution unit when CFDrs merges.
   `* text=auto eol=lf` -- the worktree then holds LF on every platform, so
   tooling never has to detect which it is reading.
 
-## ATLAS-LOCKFILE-POISONING-GENERATOR-2026-08-26 — Stale branches are downstream of overlay lockfile rewrites [patch] — delivered 2026-08-27
+## ATLAS-LOCKFILE-POISONING-GENERATOR-2026-08-26 — Stale branches are downstream of overlay lockfile rewrites [patch] — done 2026-08-27
 
 - **Finding.** Apollo carried 14 local branches with unique commits and zero open
   PRs. Four existed **only on this disk**: `cascade/hermes-07`,
@@ -3308,7 +3312,7 @@ The dirty Consus checkout and Atlas gitlink are unchanged until terminal
 post-merge evidence is collected.
 
 
-## ATLAS-EUNOMIA-NAN-CONTRACT-2026-08-21 — Unify scalar NaN and signed-zero laws [major] [arch] — done <a id="atlas-eunomia-nan-contract"></a>
+## ATLAS-EUNOMIA-NAN-CONTRACT-2026-08-21 — Unify scalar NaN and signed-zero laws [major] [arch] — done 2026-08-21 <a id="atlas-eunomia-nan-contract"></a>
 
 - One real-scalar table for one/two NaNs and `±0` governs the `NumericElement`
   min/max default, the primitive overrides, the reduced-precision wrappers and
@@ -3317,7 +3321,7 @@ post-merge evidence is collected.
   `02397fa` reports **Rust verification — success**. The `repos/eunomia`
   gitlink held for exactly this and now reads `8e18d6d`. Member item:
   [`repos/eunomia/backlog.md#atlas-eunomia-nan-contract`](repos/eunomia/backlog.md#atlas-eunomia-nan-contract).
-## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — done <a id="atlas-eunomia-numpy-ci"></a>
+## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — done 2026-08-20 <a id="atlas-eunomia-numpy-ci"></a>
 
 - Collected: Eunomia CI run `33840122785` at default head `02397fa`, job
   **NumPy feature contract — success**, with pinned Python 3.13, NumPy 2.5.1
