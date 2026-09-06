@@ -131,6 +131,10 @@ SANCTIONED_ROOT = {
     ".gitignore", ".gitattributes", ".gitmodules", ".git-blame-ignore-revs",
     ".envrc", ".git",
     "Makefile", "justfile", "pytest.ini", ".check_mdbook_links_allowlist",
+    # Committed budget state a committed script reads, the same genre as the
+    # mdbook link allowlist: `lockfile.py` bounds a member's provider-source
+    # count against it, and reports the bound as unbounded where it is absent.
+    ".provider-identity-baseline",
 }
 
 # A submodule's `.git` is a gitlink *file*, not a directory, so it would
