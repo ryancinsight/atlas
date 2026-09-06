@@ -12552,8 +12552,31 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   resolving to a commit outside the provider's default branch. Either
   mnemosyne's `feat/phase10-improvements` lands, or both members repoint at
   `e8e825f`. Each repoint carries a lockfile regeneration.
-- **next increment:** decide `feat/phase10-improvements` — merge it or retire
-  it — then repoint `coeus` and `kwavers` accordingly.
+- **resolved 2026-09-06.** mnemosyne #123 is *closed*, not pending, so there
+  was nothing to wait for. Both members repointed to `e8e825f4`:
+  [Coeus#376](https://github.com/ryancinsight/Coeus/pull/376) and
+  [kwavers#723](https://github.com/ryancinsight/kwavers/pull/723), each with its
+  lock regenerated outside the overlay and verified under `--locked`.
+- **the kwavers pin was breaking the build, not only the provenance.** Resolving
+  `03fe32f4` needed a network fetch that libgit2 could not complete, so
+  `cargo check -p kwavers-medium` failed with `class=Net (12); code=Eof (-20)`
+  while `git ls-remote` against the same URL succeeded. The error named the
+  network; the cause was a rev on a dead branch. Worth recording as a
+  diagnostic signature: a cargo transport error on a first-party git source is
+  a pin question before it is a connectivity question.
+- **a two-day-old increment was recovered on the way.** Both kwavers checkouts
+  held byte-identical uncommitted work delegating the six derived elastic
+  identities to `proteus::elastic::IsotropicModuli` — the residual copy
+  [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot) is about.
+  Committed as `f9afe9c54` on `refactor/elastic-computed-delegate-on-lock` so
+  it stops being ownerless dirt duplicated across two trees. It is *not*
+  verified: that branch still carries 23 stranded phase commits and the dead
+  pin. Next increment there is rebasing the one commit onto the repointed
+  `main` and running the gate.
+- **remaining branches** (`hermes` 17, `leto` 17, `athena` 2, and kwavers's 23)
+  are phase series with no PR. gaia's turned out to be superseded rather than
+  stalled, so each of these needs the same check — does `main` already pin the
+  merged result? — before anyone rebases 17 commits.
 - **then:** a PR per remaining member, in dependency order, each gated by its
   own lockfile check — these branches change dependency resolution, so that
   check is the one that matters and must not be skipped.
