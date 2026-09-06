@@ -12606,8 +12606,45 @@ Parent: [`#atlas-hygiene-baseline-001`](backlog.md#atlas-hygiene-baseline-001).
   would be worse code. The detector cannot tell those from a forked generic
   dimension, so this class needs an exemption mechanism before its count means
   anything.
-- **not resolvable today, recorded:** `coeus/target_forks` — a 37 GB fork with
-  live `cargo` processes writing to it; deleting it would pull the cache out
-  from under a running build. `apollo/excess_worktrees` — three trees, two of
-  them held by peers with commits in the last twenty minutes; a lane migrates
-  at its item's completion, never under a running process.
+- **`coeus/target_forks` is resolved, and not the way it was first recorded.**
+  It was written up as deferred because 37 GB of it was being written to by
+  live `cargo` processes. That judgement was correct but arrived late: a
+  background deletion launched before it had already been running and completed
+  the removal. All four forks are gone. No harm done — a build cache is derived
+  state and any interrupted build re-runs — but the deferral note was wrong
+  about what had happened, and the sequencing error is the real lesson: a
+  destructive action was in flight while the decision not to take it was being
+  made.
+- **`apollo/excess_worktrees` genuinely stands:** three trees, two held by peers
+  with commits in the last twenty minutes. A lane migrates at its item's
+  completion, never under a running process.
+- **the shared cache is 779 GB.** `performance_engineering` makes build and
+  artifact size a tracked budget with eviction on a committed cadence, and
+  there is no such cadence here — the four forks were the visible symptom of an
+  unbounded store, not the store itself. Filed as
+  [`#shared-cache-unbounded`](backlog.md#shared-cache-unbounded).
+
+
+## ATLAS-SHARED-CACHE-UNBOUNDED-2026-09-06 - The shared build cache has no eviction policy [patch] - todo <a id="shared-cache-unbounded"></a>
+
+Parent: [`#slop-burndown`](backlog.md#slop-burndown).
+
+- **outcome:** `target/` evicts on a committed cadence and its size is a
+  reported budget, so growth is bounded rather than discovered.
+- **measured 2026-09-06:** the shared `target/` at the stack root is **779 GB**,
+  alongside four repo-local forks totalling ~37 GB that have now been deleted.
+- **why it is a defect and not just disk:** `performance_engineering` makes
+  build and artifact size a tracked budget alongside the perf baseline, and
+  `engineering_gates` requires stale-artifact eviction on a repository-defined
+  cadence. Neither exists here. The debt class that was measured — repo-local
+  forks — is the visible symptom; an unbounded shared store is the generator,
+  and cleaning symptoms without a cadence means measuring the regrowth rate
+  later (`context_and_memory`: slop pattern library).
+- **method:** a committed eviction job (age- and size-bounded, `cargo sweep`
+  class), the debuginfo budget audited against
+  `[profile.*]` in the root `.cargo/config.toml` since dependency debuginfo
+  dominates a tree this size, and the size reported alongside the other
+  conformance counts so it ratchets like them.
+- **not a bare `rm -rf`:** the tree is the shared cache for 26 members and
+  every lane; deleting it wholesale costs a full cold rebuild of the stack.
+  Eviction is selective and scheduled, which is the point of having a policy.
