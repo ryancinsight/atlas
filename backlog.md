@@ -12532,8 +12532,30 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   (`architecture_scoping`: pin discipline) — it lands per member in dependency
   order or it is not a sweep, and a per-member branch that accumulates phases
   without merging is the sweep's defect output.
-- **first increment:** land gaia#47, which unblocks the atlas gitlink advance
-  that is currently unpushable. It needs a rebase onto gaia `main` first.
+- **correction, 2026-09-06: the framing above is wrong for gaia, and the
+  rebase is what showed it.** gaia's branch chased `f532b0e`, the pre-merge tip
+  of mnemosyne's `perf/mnemosyne-scratch-release`. That branch has since landed
+  — mnemosyne PR #128, merged to `main` as `e8e825f` — and gaia's `main`
+  already pins `e8e825f`. So the single `Cargo.toml` conflict was `main`
+  holding the published commit against the branch holding an unpublished
+  ancestor of it, and merging would have moved gaia *off* mnemosyne's default
+  branch. gaia#47 is closed, the branch deleted, the atlas gitlink repointed at
+  gaia `origin/main` (`ba5a8fd83`). Nothing lost: every earlier phase is an
+  ancestor of the same landed work.
+- **the real defect the campaign left behind.** Two members' *default branches*
+  pin a mnemosyne rev that is not on mnemosyne's `main`:
+
+  | Member | Pinned rev | Lives on |
+  | --- | --- | --- |
+  | `coeus` | `03fe32f4` | `feat/phase10-improvements`, unmerged |
+  | `kwavers` | `03fe32f4` | `feat/phase10-improvements`, unmerged |
+
+  This is the metis and gaia-gitlink defect one level down: a dependency
+  resolving to a commit outside the provider's default branch. Either
+  mnemosyne's `feat/phase10-improvements` lands, or both members repoint at
+  `e8e825f`. Each repoint carries a lockfile regeneration.
+- **next increment:** decide `feat/phase10-improvements` — merge it or retire
+  it — then repoint `coeus` and `kwavers` accordingly.
 - **then:** a PR per remaining member, in dependency order, each gated by its
   own lockfile check — these branches change dependency resolution, so that
   check is the one that matters and must not be skipped.
