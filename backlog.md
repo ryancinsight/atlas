@@ -1069,6 +1069,40 @@ _Closure note (moved from heading):_ commit 99dc33fad
 - **Cure:** capacity or load-shedding. Load-shedding already applied today: path-filtered adoption workflows, staged waves. Load-shedding still owed by members: consus runs 81 checks per pull request (Check × 15 packages, Test × packages, MSRV × 15, fuzz builds) — a matrix that recompiles per cell instead of one archive sharded across runners (engineering_gates: build-once topology); a consus row. Capacity is the standing policy for private repositories and trusted-contributor stacks: a self-hosted runner on owned hardware with a persistent warm `CARGO_TARGET_DIR`/sccache, so no run pays cold setup or a metered minute. **Ask-User:** register one or more self-hosted runners at the organization level (labels `self-hosted, linux, x64`; the RTX 5080 host can also carry the `cuda` label the kwavers GPU-parity schedule already targets) — `gh` cannot register runners (hosting/security setting). Until then the waves stay staged and merge gates re-launch at their cap.
 - **Acceptance oracle:** `gh run list --json createdAt,startedAt` across the stack shows median queue time under the five-minute job target; the kwavers `GPU Parity (scheduled)` row in `ATLAS-DEFAULT-BRANCH-REDS-2026-09-02` turns green.
 
+<a id="atlas-overlay-worktree-keyed"></a>
+
+## ATLAS-OVERLAY-WORKTREE-KEYED-2026-09-06 — The overlay gate compares a committed artifact against a generation from uncommitted inputs [arch] — in-progress
+
+- **Integrator:** claude-opus-5; **branch:** none (atlas main);
+  **lease:** `scripts/atlas-stack-overlay.py` 2026-09-06T21:40Z.
+- **Last-update:** 2026-09-06.
+- **Measured.** `atlas-stack-overlay` has failed on main at `57e2a81b`,
+  `81dc17a9` and `be2d1444`, every time with the same body: `OVERLAY: overlay
+  differs from a fresh generation`, `0 lagging requirement(s), 0 repo(s) with
+  pin drift`. Regenerating locally and committing the result (`81dc17a9`, which
+  added the missing Moirai `[patch]` sections) did not clear it.
+- **Why it cannot clear.** The generator discovers the closure by globbing
+  `**/Cargo.toml` under each `repos/<member>` **worktree**, and emits a patch
+  entry only where the local version satisfies the consumer requirement
+  (`LagAwarePatchEmissionTestCase`). CI checks the submodules out at their
+  recorded gitlinks. Every member tree ahead of its gitlink — the normal state
+  during development; nine of ten were ahead when this was measured — feeds the
+  generator different versions than CI validates against, so a developer's
+  regeneration and CI's disagree by construction. The gate is unsatisfiable in
+  steady state, and each gitlink advance re-reds it.
+- **Outcome.** Key the closure to the revision, as `atlas-conformance.py`
+  already does with `--revision`: read each member's manifests at its recorded
+  gitlink (`git show <sha>:<path>`) rather than from its worktree, so the
+  overlay is a pure function of the superproject commit and both CI and any
+  developer generate the same bytes. The emitted paths stay `repos/<name>` —
+  the overlay still points at local trees, which is its purpose; only closure
+  *discovery* becomes revision-keyed.
+- **Acceptance oracle.** `atlas-stack-overlay` green on main, and a local
+  `generate` on a stack with trees ahead of their gitlinks produces a file
+  identical to one generated at the gitlinks.
+- **Risk / change class:** [arch] [patch]; derived-state definition, no
+  member change.
+
 ## ATLAS-DEFAULT-BRANCH-REDS-2026-09-02 — Member default-branch workflows red with no collector [patch] — todo
 
 - **Finding (first `atlas-red-workflows.py` pass, 2026-09-02):** each row is a default-branch workflow whose newest completed run is not green; nobody had collected any of them. Each row is claimable on its own: classify (stale release attempt, rotted job, starved schedule), fix the component or retire the job, and the collector's next pass is the oracle.
