@@ -189,8 +189,27 @@ reads):
 > `b3e7549d`. The first diagnosis blamed kwavers' own pin and was wrong; the
 > trace to Moirai came from measuring a bump that changed nothing.
 >
-> **The Coeus binding is blocked again, by two things the closed diamond was
-> hiding (found 2026-09-06 taking the item's first step).** First,
+> **The seam is complete 2026-09-06: one call site, either device.**
+> `coeus_ops::StaggeredPairOps` is implemented for the CPU backend over Leto and
+> for the WGPU backend over Hephaestus (Coeus PR #377), verified on a live
+> adapter by calling the same trait methods on both and comparing — gradient and
+> divergence on every axis at orders 2 and 4, the adjoint identity on the
+> device's own outputs, and the typed thin-grid rejection, 4/4, with the axis
+> mapping mutation-checked. The trait was split rather than extended:
+> `FiniteDifference3DOps` had bundled the fixed central/Yee schemes with the
+> pair, and the provider has the pair and not the fixed 3-D family, so bundled
+> the accelerator backend would have had to supply a body for what it cannot do.
+>
+> Both blockers below were cleared on the way (Coeus PR #374): the `cutile`
+> requirement that froze the lock, and 230 `eunomia::Pod` bound errors closed at
+> the root by one supertrait line on `coeus_core::Scalar`.
+>
+> Remaining: CUDA and Metal provider wiring in Coeus
+> (`COEUS-STAGGERED-VENDOR-WIRING`, deferred pending ADR 0071's vendor-crate
+> thinning so it is one impl rather than three), ROCm kernels upstream, and the
+> deletion of `kwavers-gpu`'s FDTD shader copy once kwavers binds the seam.
+>
+> **Historical — the two blockers, found 2026-09-06 taking the item's first step.** First,
 > `coeus-cuda` requires `cutile`/`cuda-core`/`cuda-async` at `^0.2.0` from the
 > `NVlabs/cutile-rs` git repo whose tip now publishes `0.3.1`, so the Coeus lock
 > cannot be regenerated at all — and the repository's own `pre-push` hook
