@@ -175,9 +175,25 @@ reads):
 > (`extent >= 2N` on the swept axis, rejected with a typed error rather than
 > silently diverging).
 >
-> Still open: CUDA and ROCm kernels for that trait, the `coeus-hephaestus`
-> implementation binding it, and behind those the deletion of `kwavers-gpu`'s
-> FDTD shader copy. The Coeus binding is gated by a stack-wide Eunomia version
+> **CUDA delivered 2026-09-06** (hephaestus PR #279), verified on a live RTX
+> 5080 by the same three oracles plus the sign-flip mutation check: 5/5, with
+> the CPU differential covering every axis at orders 2/4/6/8.
+>
+> **The Eunomia diamond is closed at its root, 2026-09-06.** The pinner was
+> Moirai, carrying `Mnemosyne.git rev = "7f173751"` behind a comment stating its
+> own removal trigger, which Mnemosyne PR #128 had satisfied; `7f173751` pins
+> `eunomia rev = fdbf1227` and the current default does not. Moirai PR #260
+> removed the expired quarantine and kwavers PR #718 advanced the lock: one
+> Eunomia entry instead of two, `kwavers-gpu` compiling under `--features full`,
+> and the kwavers CI suite at 5746/5746 — the red that had stood since
+> `b3e7549d`. The first diagnosis blamed kwavers' own pin and was wrong; the
+> trace to Moirai came from measuring a bump that changed nothing.
+>
+> Still open: ROCm kernels for the trait — parked for want of an AMD device to
+> run the differential against, and requiring the kernel source to consolidate
+> to one shared home rather than a second copy — the `coeus-hephaestus`
+> implementation binding the trait, and behind it the deletion of
+> `kwavers-gpu`'s FDTD shader copy. The Coeus binding was gated by the Eunomia
 > diamond — two Eunomia
 > versions resolve through the pinned Mnemosyne revision, breaking
 > `coeus-hephaestus` and `kwavers-gpu` on `eunomia::layout::marker::Pod`. It is
