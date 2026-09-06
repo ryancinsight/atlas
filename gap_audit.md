@@ -1,5 +1,36 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-09-04: Prometheus P1+P3 green locally; remote creation is the gate
+
+`repos/prometheus/` carries the Phase 0 scaffold and the first physics slice
+without a GitHub remote or an initial commit.
+
+**Delivered locally (gate green):**
+
+- Registry name `prometheus-kinetics` free on crates.io; import path
+  `prometheus` via `[lib] name`.
+- Pedantic floor, `unwrap_used`/`print_*`/`dbg_macro` denied, nextest 30s/60s,
+  ADR 0055 `deny.toml` bans, pinned 1.97.0 toolchain.
+- `Species` / `Concentration` boundaries with type-level molar-mass oracle.
+- `StoichiometricMatrix` over Leto COO (`default-features = false`, `std`
+  only); mass residual `transpose(nu) * M` exact at `f32` and `f64` on the
+  water-formation network with binary-exact molar masses (2, 32, 18).
+- Verification: fmt, clippy `-D warnings` (all-targets/all-features), nextest
+  9/9, doc `-D warnings`, `--no-default-features` check.
+
+**Open:**
+
+- **Ask-User:** create `ryancinsight/prometheus`. Until then nothing can be
+  pushed, registered in `.gitmodules`, or CI-wired.
+- P4–P9 remain; Arrhenius must route through `proteus::TemperatureResponse`
+  with no temperature response implemented in prometheus (ADR 0055 R4).
+- Stoichiometry is gated behind the `std` feature because Leto is not
+  `no_std`; species and concentration remain available with default features
+  off.
+
+**Prerequisite closure (same day):** aequitas `#50` merged (P0); CFDrs
+`f063be4b` and kwavers `1f86a9172` close the Ares A0 elastic deletions.
+
 ## Finding 2026-08-25: four consumers carry lane-parallel ISA kernels outside Hermes
 
 The README provider table assigns "CPU lane-parallel kernels and ISA dispatch"
@@ -16112,3 +16143,132 @@ Correction note: df9042208 carries peer gitlink advances
 (hyperion/proteus/ritk + CFDrs rescue merge) under this entry's working
 message due to incident 4 above; its content is legitimate peer work and
 stands as landed.
+
+## Finding 2026-09-03: new oversized crossings at the fc4b6c463 pointer advance
+
+`atlas-conformance check` at `fc4b6c463` reports two real code rows (the
+rest is live-environment: peer lanes and `target/` build caches). Both
+members are on live owner lanes; recorded here for the owners, not fixed
+from the umbrella.
+
+- **CFDrs `oversized_files` 140 → 141.** Exactly one new crossing since
+  `8f088bce`: `crates/cfd-schematics/src/geometry/generator/generator_impl.rs`
+  (502 lines, 2 over target). Also grown but already counted:
+  `geometry/generator/selective/mod.rs` 570 → 631. Owner lane:
+  `perf/cfd-schematics-serpentine-shape-scan`.
+- **mnemosyne `oversized_files` 6 → 7–8 plus `manifest_implementation` 8 → 9.**
+  New ~500-line arena files (`scratch/aligned_vec`, `segment/alloc`,
+  `backends/unix`, plus manifest bodies in the new `scratch`,
+  `segment/alloc`, `segment/pool`, `cuda` and `page` manifests) arriving
+  with the owner's Phase 10–14 AlignedVec/scratch-bank work — the exact
+  file set churns per advance, so consult the instrument, not this entry,
+  for the current list. Owner lanes active nightly; the user is landing
+  this wave personally (`#127` and follow-ups).
+
+## Finding 2026-09-04: apollo main red — triple-versioned mnemosyne in one graph
+
+`apollo/ci` run `33871853343` (`59f202c6`, merge #320) fails `rust workspace`
+(plus cascading `python bindings` and 4 `rustdoc` shards, all downstream of
+the same broken build) with `E0277: eunomia::Complex<f64>:
+mnemosyne::scratch::ScratchElement is not satisfied` at
+`apollo-fft/.../radix_composite/cache.rs:118` (`TL_COMPOSITE_SCRATCH_64`)
+and `winograd/traits.rs:33`. The compiler note is explicit: **three
+different `mnemosyne_arena` revisions coexist** —
+`af7a23a` (expected trait), `da5c6be`, `7f1737513c` (found trait).
+
+Requirement map from `59f202c6:Cargo.lock` (all `mnemosyne-memory 0.7.0`):
+
+- `af7a23a` — apollo workspace pin (`Cargo.toml:67`, temporary
+  co-evolution pin for Mnemosyne PR #128). This rev HAS the
+  `ScratchElement for Complex` impls (`element.rs:59/66`), gated on
+  `all(feature = "eunomia", not(feature = "bytemuck"))`.
+- `da5c6be` — required by `hermes-simd-core` and `leto` (their manifests
+  still pin the older rev).
+- `7f1737513c` — required by `moirai-core/-executor/-runtime/-scheduler`.
+- eunomia is likewise dual-versioned: branch pin `02397fa4` alongside the
+  workspace `rev = "fdbf122"`.
+
+No manifest in apollo declares `da5c6be` — it arrives transitively, so the
+fix is a forward sweep, not a local edit: advance the hermes/leto/moirai
+mnemosyne pins to the workspace rev, unify the eunomia pins, regenerate
+apollo's lock (which prunes the stale copies). Reverting #320 instead
+would need explicit user instruction (fix-forward rule) and would only
+hide the drift until the next Complex-scratch use. This is the
+requirement-lag sweep defect class: a `rev =` quarantine that outlived
+its removal trigger now fractures trait identity graph-wide.
+
+Re-open trigger: apollo `ci` green on main. All four consumers hot
+(apollo `perf/apollo-rader-width-probe` + `apollo-f16` lanes, hermes
+dirty tree, leto PRs #159/#164, moirai PR #256) — recorded for the
+owners, not fixed from the umbrella.
+
+**Resolved 2026-09-04:** apollo `ci` green on main at `8ce18e57`
+(success 19:21 UTC) via the Eunomia source unification (#324: the
+workspace `rev = "fdbf122"` eunomia pin is gone, back to branch pin)
+plus follow-up perf landings. The E0277 fracture is closed.
+**Residual watchpoint (not a finding):** apollo still carries the
+temporary co-evolution pin `mnemosyne rev = "af7a23a"` whose own
+comment orders its removal after Mnemosyne PR #128 — if that PR has
+merged and the pin remains, the quarantine has outlived its trigger
+and the sweep should re-fire. Verify against mnemosyne's merge log,
+not this entry.
+
+## Finding 2026-09-04: conformance gate down on in-flight architecture check
+
+`atlas-conformance check` aborts fleet-wide with `package 'xtask' is
+published by both 'CFDrs' and 'helios'` from uncommitted work in
+`scripts/atlas-conformance.py` (R7 architecture-test integration:
+`member_package_names` + package-to-member mapping, ~+174/-13 in the
+worktree). The raise path refuses two balance-domain members claiming
+one `[package] name` rather than silently picking one — correct shape,
+but it fires on two `xtask` scaffolding crates that both declare
+`publish = false` (verified at both members' worktree HEADs), which the
+mapping's own docstring says must be excluded. Discriminating evidence
+for the author: either the raise path bypasses the `publish is False`
+filter in `member_package_names`, or it measures revisions where the
+marker postdates the pin (check reads recorded gitlinks, not worktree
+HEADs — verify which `xtask/Cargo.toml` the archived snapshot carries).
+Do NOT "fix" by deleting either xtask: both are live scaffolding, and
+the collision among non-balance packages is documented benign in the
+surrounding comments. Re-open trigger: a clean `check` run at HEAD.
+Author active (file moving every few minutes); not touched from here.
+Superseded note: the skip fix landed via the R7 author's commit and the
+pinning test via `47ae8975b` (suite 65/65) — nothing of mine remains
+unlanded in that file.
+
+## Finding 2026-09-04: ares release dispatch failed on package allowlist
+
+`ares/Crates.io Release` run `33906716343` (manual `workflow_dispatch`
+on main) fails at `Resolve release identity / Parse the release tag`.
+Read of `rust-release.yml` at `origin/main`: the dispatch path takes
+`inputs.package`/`inputs.version` verbatim and the ONLY exit-1 on that
+path is the allowlist `^(ares-solid|ares-athena|ares-harmonia)$`. The
+dispatcher almost certainly typed the import name `ares` instead of the
+registry name `ares-solid` (the dual naming the promotion item itself
+flags). The pipeline behaved correctly — invalid input rejected, publish
+never attempted — so this is operator input, not a tree defect.
+Suggested owner follow-up (2 lines, their file): accept `ares` as an
+alias for `ares-solid`, and list the valid values in the
+`unknown package` error. Re-open trigger: a green validation dispatch.
+Not touched from here (promotion worktree dirty and active).
+
+## Finding 2026-09-05: committed stack overlay missing moirai sections
+
+`atlas-stack-overlay` runs `33944350581`/`33944286154` fail with
+"overlay differs from a fresh generation" at 0 lagging requirements
+and 0 pin drift. The staleness is in the committed FILE, not the
+requirements: `.cargo/config.toml` carries no `moirai-*` patch
+sections, while at the recorded links moirai is 0.5.0 (`4db2dc19`)
+which satisfies every consumer `^0.5` requirement — so a clean-tree
+generation emits them and the committed file mismatches. (Local
+reproduction is polluted the other way: lane worktrees sit at moirai
+0.6.0, which ADDS sections; verify only against recorded-link state,
+never a dirty tree.) The generator itself is idempotent (two
+consecutive runs byte-identical). Fix is regenerate-from-clean-links
+plus commit — which requires quiescing or parking 27 shared worktrees
+and belongs to the migration owner driving moirai 0.6.0 (their #147
+"Unify" merge is the surrounding work; the follow-up consumer-bump
+campaign across ~15 members is the actual frontier). Do NOT "fix" by
+hand-editing sections into the config (generator contract: never
+hand-curated) and do NOT commit a dirty-tree generation. Re-open
+trigger: a green `atlas-stack-overlay` run. Not touched from here.
