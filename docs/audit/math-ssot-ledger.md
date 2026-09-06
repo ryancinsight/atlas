@@ -189,6 +189,24 @@ reads):
 > `b3e7549d`. The first diagnosis blamed kwavers' own pin and was wrong; the
 > trace to Moirai came from measuring a bump that changed nothing.
 >
+> **The Coeus binding is blocked again, by two things the closed diamond was
+> hiding (found 2026-09-06 taking the item's first step).** First,
+> `coeus-cuda` requires `cutile`/`cuda-core`/`cuda-async` at `^0.2.0` from the
+> `NVlabs/cutile-rs` git repo whose tip now publishes `0.3.1`, so the Coeus lock
+> cannot be regenerated at all — and the repository's own `pre-push` hook
+> refuses every push, including documentation-only ones, once the committed lock
+> goes stale against upstream tips. Widening the three requirements to `0.3.1`
+> does make the lock resolvable, verified. Second, with the lock regenerated,
+> `coeus-hephaestus` fails to compile with **230 errors** of ``the trait bound
+> `T: eunomia::layout::marker::Pod` is not satisfied`` across roughly fifteen
+> files: `hephaestus_core::ComputeDevice::Buffer<T: Pod>` now requires Eunomia's
+> marker and Coeus's generic bounds have not followed. That is a co-evolution
+> gap, not the diamond — the regenerated lock holds exactly one Eunomia. Both
+> are recorded here because the Coeus board itself cannot currently accept the
+> filing; the drafted entries wait on the unpushed branch
+> `fix/coeus-cutile-requirement`. The remaining increment is one unit: widen the
+> requirement, regenerate, and propagate the `Pod` bound.
+>
 > Still open: ROCm kernels for the trait — parked for want of an AMD device to
 > run the differential against, and requiring the kernel source to consolidate
 > to one shared home rather than a second copy — the `coeus-hephaestus`
