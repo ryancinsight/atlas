@@ -12499,3 +12499,45 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   and are running no guard. Deployment is one commit per member.
 - **acceptance:** `atlas-lock-form.py sync-hooks --check` exits zero across the
   fleet and runs in CI.
+
+## ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06 - A provider-pin campaign stalled undelivered in five members [patch] - todo <a id="mnemosyne-pin-campaign-stranded"></a>
+
+- **outcome:** the mnemosyne pin advances land on each member's default branch,
+  or are deliberately discarded as superseded. No member sits on an unmerged
+  provider-pin branch, and the atlas gitlinks that depend on them stop being
+  unpushable.
+- **surfaced from the far end.** An atlas commit advancing gaia's gitlink pinned
+  `8060ef0e`, which is on `fix/gaia-lock-stale-rev` and not on gaia's
+  `origin/main`. The meta-repo's gitlink guard refused the push — correctly: a
+  gitlink naming a commit outside the member's default branch breaks resolution
+  for every consumer. The pin was not the defect; the undelivered branch was.
+- **measured 2026-09-06**, pushed branches with no merge:
+
+  | Member | Branch | Commits ahead of main | PR |
+  | --- | --- | --- | --- |
+  | gaia | `fix/gaia-lock-stale-rev` | 25 | [#47](https://github.com/ryancinsight/gaia/pull/47) opened 2026-09-06, **conflicting** |
+  | hermes | `build/mnemosyne-phase12` | 17 | none |
+  | leto | `build/leto-mnemosyne-source-identity` | 17 | none |
+  | kwavers | `chore/kwavers-xtask-mnemosyne-allocator` | 8 | none |
+  | athena | `feat/mnemosyne-global-allocator-integration` | 2 | none |
+
+  69 commits of provider-pin work across five members, none of it delivered,
+  four of them without even a pull request. `git_discipline: cadence` calls an
+  unmerged branch integration debt precisely because it compounds: gaia's is
+  now conflicting with its own `main`, so the first cost of the delay is a
+  rebase that did not exist when the work was done.
+- **the shape is one campaign, not five coincidences.** Each branch is a run of
+  `build(deps): Advance mnemosyne rev to <sha> (Phase N)` commits. Advancing a
+  provider across the stack is a co-evolution sweep
+  (`architecture_scoping`: pin discipline) — it lands per member in dependency
+  order or it is not a sweep, and a per-member branch that accumulates phases
+  without merging is the sweep's defect output.
+- **first increment:** land gaia#47, which unblocks the atlas gitlink advance
+  that is currently unpushable. It needs a rebase onto gaia `main` first.
+- **then:** a PR per remaining member, in dependency order, each gated by its
+  own lockfile check — these branches change dependency resolution, so that
+  check is the one that matters and must not be skipped.
+- **open question for the ADR:** whether these advances should ride per-member
+  branches at all, or be produced by the mechanized integration sweep
+  (`toil automation`) that pin discipline already calls for. Five stalled
+  branches is evidence for the latter.
