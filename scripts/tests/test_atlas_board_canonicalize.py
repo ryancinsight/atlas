@@ -2,6 +2,13 @@
 
 Each test exercises a single canonicalization rule and asserts the new heading
 plus body match the canonical form (heading) plus moved-note form (body).
+
+The expected status word changed from `closed` to `done` because the original
+assertions encoded a wrong spec, not because they were hard to satisfy: the
+board's status set is todo / in-progress / blocked / review / done (AGENTS.md
+`context_and_memory`), so canonicalizing onto `closed` — and preserving
+`merged` and `delivered` besides — moved the corpus off the vocabulary the
+board lint exists to enforce.
 """
 
 from __future__ import annotations
@@ -20,12 +27,13 @@ abc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(abc)
 
 
-def test_canonical_done_with_date() -> None:
+def test_canonical_done_with_date_is_already_canonical() -> None:
+    """`done` plus a date is the canonical form, so the pass is a no-op."""
     heading = "## ATLAS-X-001 — Title [patch] — done 2026-08-29"
     body: list[str] = []
     new_h, new_b, changed = abc.canonicalize_heading(heading, body)
-    assert changed
-    assert new_h == "## ATLAS-X-001 — Title [patch] — closed 2026-08-29"
+    assert not changed
+    assert new_h == "## ATLAS-X-001 — Title [patch] — done 2026-08-29"
     assert new_b is None
 
 
@@ -34,7 +42,7 @@ def test_canonical_completed_no_date_uses_body_date() -> None:
     body = ["Done on 2026-08-26 by `abcd123`.", "Some prose."]
     new_h, new_b, changed = abc.canonicalize_heading(heading, body)
     assert changed
-    assert new_h == "## ATLAS-X-002 [integration][perf] — closed 2026-08-26"
+    assert new_h == "## ATLAS-X-002 [integration][perf] — done 2026-08-26"
     assert new_b is None
 
 
@@ -43,7 +51,7 @@ def test_canonical_parens_extract_to_body() -> None:
     body = ["Original prose."]
     new_h, new_b, changed = abc.canonicalize_heading(heading, body)
     assert changed
-    assert new_h == "## ATLAS-X-003 — Title [patch] — closed 2026-08-25"
+    assert new_h == "## ATLAS-X-003 — Title [patch] — done 2026-08-25"
     assert new_b is not None
     assert new_b[0] == "_Closure note (moved from heading):_ resolved upstream"
     assert new_b[2] == "Original prose."
@@ -54,7 +62,7 @@ def test_canonical_semicolon_extract_to_body() -> None:
     body: list[str] = []
     new_h, new_b, changed = abc.canonicalize_heading(heading, body)
     assert changed
-    assert new_h == "## ATLAS-X-004 — Title [patch] — closed 2026-08-29"
+    assert new_h == "## ATLAS-X-004 — Title [patch] — done 2026-08-29"
     assert new_b is not None
     assert new_b[0] == "_Closure note (moved from heading):_ gate corrected 2026-09-01"
 
@@ -83,28 +91,56 @@ def test_todo_not_canonicalized() -> None:
 
 
 def test_already_canonical_no_change() -> None:
-    heading = "## ATLAS-X-007 — Title [patch] — closed 2026-08-25"
+    heading = "## ATLAS-X-007 — Title [patch] — done 2026-08-25"
     body: list[str] = []
     new_h, new_b, changed = abc.canonicalize_heading(heading, body)
     assert not changed
 
 
-def test_merged_preserved() -> None:
+def test_merged_normalizes_to_done() -> None:
     heading = "## ATLAS-X-008 — Title [patch] — merged 2026-08-25"
     body: list[str] = []
     new_h, new_b, changed = abc.canonicalize_heading(heading, body)
-    # Already canonical: status word `merged` is in KEEP_AS_IS and date is present.
-    assert not changed
-    assert new_h == heading
+    # `merged` is a closure synonym, not a status: the set has one closed word.
+    assert changed
+    assert new_h == "## ATLAS-X-008 — Title [patch] — done 2026-08-25"
 
 
-def test_delivered_preserved() -> None:
+def test_delivered_normalizes_to_done() -> None:
     heading = "## ATLAS-X-009 — Title [patch] — delivered 2026-08-27"
     body: list[str] = []
     new_h, new_b, changed = abc.canonicalize_heading(heading, body)
-    # Already canonical: `delivered` is in KEEP_AS_IS and date is present.
-    assert not changed
-    assert new_h == heading
+    assert changed
+    assert new_h == "## ATLAS-X-009 — Title [patch] — done 2026-08-27"
+
+
+def test_trailing_anchor_survives_canonicalization() -> None:
+    """The anchor is how ADRs, `Refs:` trailers and cross-board links address
+    the item; dropping it while rewriting the status is exactly the edit that
+    breaks every inbound reference."""
+    heading = (
+        "## ATLAS-X-020 — Title [patch] — closed 2026-08-25 "
+        '<a id="atlas-x-020"></a>'
+    )
+    body: list[str] = []
+    new_h, _, changed = abc.canonicalize_heading(heading, body)
+    assert changed
+    assert new_h == (
+        '## ATLAS-X-020 — Title [patch] — done 2026-08-25 <a id="atlas-x-020"></a>'
+    )
+
+
+def test_anchor_survives_when_a_note_moves_to_the_body() -> None:
+    heading = (
+        "## ATLAS-X-021 — Title [patch] — closed 2026-08-25 (superseded) "
+        '<a id="atlas-x-021"></a>'
+    )
+    new_h, new_b, changed = abc.canonicalize_heading(heading, [])
+    assert changed
+    assert new_h == (
+        '## ATLAS-X-021 — Title [patch] — done 2026-08-25 <a id="atlas-x-021"></a>'
+    )
+    assert new_b is not None and "superseded" in new_b[0]
 
 
 def test_split_items_handles_archive_preamble() -> None:
@@ -131,7 +167,7 @@ def test_split_items_handles_archive_preamble() -> None:
 def test_full_board_processing_smoke() -> None:
     text = (
         "# board\n\n"
-        "## ATLAS-X-001 — T1 [patch] — done 2026-08-29\n\n"
+        "## ATLAS-X-001 — T1 [patch] — merged 2026-08-29\n\n"
         "Prose.\n\n"
         "## ATLAS-X-002 — T2 [patch] — completed\n\n"
         "Done 2026-08-26.\n\n"
@@ -143,17 +179,17 @@ def test_full_board_processing_smoke() -> None:
     ids = [c[0] for c in changes]
     assert ids == ["ATLAS-X-001", "ATLAS-X-002"]
     assert "ATLAS-X-003" not in new_text or "in-progress" in new_text.split("ATLAS-X-003")[1].split("## ")[0]
-    assert "closed 2026-08-29" in new_text
-    assert "closed 2026-08-26" in new_text
+    assert "done 2026-08-29" in new_text
+    assert "done 2026-08-26" in new_text
 
 
-def test_no_date_no_body_date_keeps_status_word() -> None:
-    heading = "## ATLAS-X-010 — Title [patch] — done"
+def test_no_date_anywhere_leaves_the_status_word_bare() -> None:
+    """A closure synonym still normalizes; the date is simply not invented."""
+    heading = "## ATLAS-X-010 — Title [patch] — completed"
     body: list[str] = []
-    new_h, new_b, changed = abc.canonicalize_heading(heading, body)
+    new_h, _, changed = abc.canonicalize_heading(heading, body)
     assert changed
-    # No date available; canonical form is `— closed` (no trailing date)
-    assert new_h == "## ATLAS-X-010 — Title [patch] — closed"
+    assert new_h == "## ATLAS-X-010 — Title [patch] — done"
 
 
 if __name__ == "__main__":

@@ -25,7 +25,9 @@ Date derivation for items missing one:
   2. First ISO date in the body content (commit dates, audit dates)
   3. Empty (left for human triage; not auto-closed)
 
-Status word selection: ``closed`` is canonical. ``done`` and ``completed`` map
+Status word selection: ``done`` is canonical -- it is the closed member of the
+board status set the schema names (AGENTS.md ``context_and_memory``). ``closed``,
+``complete``, ``completed``, ``merged`` and ``delivered`` map
   to it. ``merged`` stays ``merged`` (the closure was a merge, not a fix);
   ``delivered`` and other variants stay as-is but flagged for review.
 
@@ -49,8 +51,27 @@ ITEM_ID_RE = re.compile(r"^##\s+([A-Z][A-Z0-9\-]*-\d+[A-Z0-9\-]*)")
 NOT_SHA = {"decade", "faceted", "defaced", "accede", "efface", "deface"}
 
 # Canonical status choice (lowercased)
-CANONICAL = {"done": "closed", "complete": "closed", "completed": "closed"}
-KEEP_AS_IS = {"closed", "merged", "delivered"}
+# `done` is the closed member of the board's status set (AGENTS.md
+# `context_and_memory`: todo, in-progress, blocked, review, done), so every
+# closure synonym normalizes onto it. An earlier revision of this script chose
+# `closed` and mapped `done` onto *that*, which would have moved the whole
+# corpus off the vocabulary the board lint is specified to enforce; `merged`
+# and `delivered` were additionally kept as-is, so three non-canonical words
+# survived canonicalization.
+CANONICAL = {
+    "closed": "done",
+    "complete": "done",
+    "completed": "done",
+    "merged": "done",
+    "delivered": "done",
+}
+KEEP_AS_IS = {"done"}
+
+# A trailing `<a id="..."></a>` on a heading is the item's anchor: repo ADRs,
+# commit `Refs:` trailers and cross-board links address items through it, and a
+# heading-slug link breaks the moment the title or status changes — which is
+# exactly what this script changes. It is carried through rather than parsed.
+ANCHOR_RE = re.compile(r"<a\s+id=\"[^\"]+\"\s*></a>\s*$")
 
 
 def is_closed(heading: str) -> bool:
@@ -83,6 +104,10 @@ def canonicalize_heading(heading: str, body: list[str]) -> tuple[str, list[str] 
 
     head_tail = heading.rsplit("—", 1)
     prefix, tail = head_tail[0], head_tail[1].strip()
+    anchor_match = ANCHOR_RE.search(tail)
+    anchor = anchor_match.group(0).strip() if anchor_match else ""
+    if anchor:
+        tail = tail[: anchor_match.start()].strip()
     m = STATUS_RE.match(tail)
     if not m:
         return heading, None, False
@@ -91,7 +116,7 @@ def canonicalize_heading(heading: str, body: list[str]) -> tuple[str, list[str] 
 
     # Pick canonical status
     if status in CANONICAL:
-        canonical_status = "closed"
+        canonical_status = CANONICAL[status]
     elif status in KEEP_AS_IS:
         canonical_status = status
     else:
@@ -135,6 +160,8 @@ def canonicalize_heading(heading: str, body: list[str]) -> tuple[str, list[str] 
         parts.append(date)
     # The prefix already ends with the title; join with single em-dash+space
     new_heading = f"{parts[0]} — {' '.join(parts[1:])}"
+    if anchor:
+        new_heading = f"{new_heading} {anchor}"
 
     # If we extracted a note, prepend it to the body
     new_body: list[str] | None = None
