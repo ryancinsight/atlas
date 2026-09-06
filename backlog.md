@@ -1,5 +1,18 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-retained-benchmark-execution"></a>
+## ATLAS-RETAINED-BENCHMARK-EXECUTION — Run retained benchmark executables under the committed supervisor — review
+- Outcome: select a retained executable without rebuilding or swapping shared-cache artifacts.
+- Scope: `tools/criterion-regression`; retained artifact selection and CLI organization, with unchanged runtime budgets and supervision.
+- Acceptance: existing compile mode remains unchanged; retained execution uses metadata-resolved layout, mode arguments, and the same bounded runner; CLI rejects incomplete selections.
+- Class: [patch]; dependencies: none; authority: coordinator-authorized reversible workspace edits.
+- Integrator: root; verification: formatting, warning-denied Clippy and 31/31 bounded Nextest tests pass (`04b4bb45`); retained-path, failure, deadline and physical-directory contracts hold.
+- Last update: 2026-09-05; tool built and in use for [Apollo's comparison](repos/apollo/backlog.md#apollo-four-step-profile); publication awaits the requested shared-root branch authorization after automatic approval review rejected the switch.
+
+<a id="atlas-cuda-driver-boundary"></a>
+## ATLAS-CUDA-DRIVER-BOUNDARY — Own a correct dynamically loaded CUDA ABI — in-progress
+- [Hephaestus provider](repos/hephaestus/backlog.md#heph-cuda-driver-boundary) → [Apollo integration](repos/apollo/backlog.md#apollo-cuda-crt-linkage); [ADR 0001](docs/adr/0001-gpu-accelerator-substrate.md) records the corrected stack contract.
+
 ## ATLAS-RECURSEML-STATUS-ERROR-2026-09-03 - Third-party analyzer errors on the merge gate [infra] - todo <a id="recurseml-status-error"></a>
 
 - **symptom:** the `recurseml/analysis` commit status reports state `error`,
@@ -12347,7 +12360,7 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   after it.
 - **also present in `report`,** which is gitignored and outside the stack.
 
-## ATLAS-PYTHON-BLANK-PYPI-2026-09-04 - Binding distributions ship without PyPI metadata [patch] - in-progress <a id="python-blank-pypi-pages"></a>
+## ATLAS-PYTHON-BLANK-PYPI-2026-09-04 - Binding distributions ship without PyPI metadata [patch] - done 2026-09-06 <a id="python-blank-pypi-pages"></a>
 
 - **outcome:** every published binding distribution has a PyPI page a reader
   can act on: a rendered README written in the Python reader's language, a
@@ -12383,9 +12396,21 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
      untracked finding was measured on `.venv/` contents and generalised to
      these, which it should not have been.
 
-- **remaining:** `consus-python` 0.1.0 and `moirai-python` 0.4.0 are live with
-  zero classifiers; `consus-python` also has zero project URLs. Both have a
-  `pyproject.toml` already, so this is field completion rather than creation.
+- **two thin pages, delivered 2026-09-06.** Both had a `pyproject.toml` but no
+  classifiers, and READMEs that documented the release pipeline instead of the
+  package:
+
+  | Distribution | Was | PR | Landed |
+  | --- | --- | --- | --- |
+  | `consus-python` | 0.1.0, 0 classifiers, 0 URLs | [consus#67](https://github.com/ryancinsight/consus/pull/67) | `50b947a` |
+  | `moirai-python` | 0.4.0, 0 classifiers, 1 URL | [Moirai#261](https://github.com/ryancinsight/Moirai/pull/261) | merged |
+
+  `moirai-python` additionally gained `py.typed`. It is the one binding package
+  where the marker is honest: `moirai_python` is a real package directory under
+  `python-source`, so the `Typing :: Typed` classifier states a fact.
+
+- **all five published distributions with defective metadata are now fixed.**
+  `helios-python` and `ritk` remain unpublished, so they carry no live defect.
 - **also remaining, filed separately:** `coeus-python` ships a 910-line
   `pycoeus.pyi` that `mypy` cannot see, because a single top-level extension
   module has no package directory for a PEP 561 `py.typed` marker. Making it a
