@@ -41,6 +41,7 @@ discovery.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import json
 import subprocess
@@ -72,6 +73,35 @@ FIRST_PARTY_PACKAGE_SOURCE = re.compile(
 PROVIDER_IDENTITY_BASELINE_NAME = ".provider-identity-baseline"
 
 
+def shared_target_dir(manifest: Path) -> Path | None:
+    """The `target-dir` a stack config above `manifest` declares, if any.
+
+    The neutral working directory below disables cargo's config discovery on
+    purpose — that is what excludes the `[patch]` overlay. It excludes the rest
+    of the config with it, and `target-dir` is in the rest: cargo then falls
+    back to `<manifest dir>/target` and writes a repo-local cache inside the
+    member. That is the `target_forks` debt class the conformance ratchet
+    counts, produced by the tooling that measures it.
+
+    Walking up from the manifest rather than from the cwd is the correction:
+    the overlay is excluded because of *where cargo runs*, and the target
+    directory is restored because of *what is being built*.
+    """
+    for directory in [manifest.parent, *manifest.parent.parents]:
+        config = directory / ".cargo" / "config.toml"
+        if not config.is_file():
+            continue
+        for line in config.read_text(encoding="utf-8").splitlines():
+            stripped = line.split("#", 1)[0].strip()
+            if not stripped.startswith("target-dir"):
+                continue
+            _, _, value = stripped.partition("=")
+            value = value.strip().strip('"').strip("'")
+            if value:
+                return (directory / value).resolve()
+    return None
+
+
 
 def run_outside_the_overlay(
     arguments: list[str], manifest: Path | None = None
@@ -86,13 +116,27 @@ def run_outside_the_overlay(
     reassigns it under `--manifest-path`, which a definition-time default would
     never see -- and the consumer lock sweep passes a member's, so one
     overlay-free runner serves the stack.
+
+    Excluding the overlay excludes the whole config, `target-dir` included, so
+    the shared cache is restored explicitly from the stack config above the
+    manifest ([`shared_target_dir`]). Without it every check writes a
+    repo-local `target/` into the member it inspects, which is the
+    `target_forks` class the conformance ratchet counts. An inherited
+    `CARGO_TARGET_DIR` wins, so CI -- where there is no stack config and each
+    job is isolated anyway -- is unaffected.
     """
     if manifest is None:
         manifest = MANIFEST
+    environment = dict(os.environ)
+    if "CARGO_TARGET_DIR" not in environment:
+        shared = shared_target_dir(manifest)
+        if shared is not None:
+            environment["CARGO_TARGET_DIR"] = str(shared)
     with tempfile.TemporaryDirectory() as neutral_directory:
         return subprocess.run(
             ["cargo", *arguments, "--manifest-path", str(manifest)],
             cwd=neutral_directory,
+            env=environment,
             capture_output=True,
             # `text=True` alone decodes with the locale codepage. Cargo emits
             # UTF-8, so on a Windows console (cp1252) subprocess's reader thread
