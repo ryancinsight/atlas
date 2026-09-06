@@ -426,6 +426,55 @@ def cmd_regenerate(args) -> int:
     return 1 if failed else 0
 
 
+def cmd_sync_hooks(args) -> int:
+    """Deploy the stack-owned hooks into every member's `.githooks/`.
+
+    The hooks have to exist inside the member for a standalone clone -- one
+    checked out on its own, or on a CI runner -- to run them at all, so
+    `core.hooksPath` pointing back into the Atlas tree cannot be the only
+    mechanism. That is why each member carries a copy. What it must not be is
+    twenty-two hand-maintained copies: this stack's measurement found two
+    divergent versions of `pre-push` across twenty-two members, and the fix
+    that only one of them carried was the one that mattered on a worktree owned
+    by another account.
+
+    So the copies stay and stop being authored: `scripts/git-hooks/` is the
+    single source and this writes it outward. `--check` reports drift without
+    writing, which is what CI runs.
+    """
+    source_dir = Path(__file__).resolve().parent / "git-hooks"
+    hooks = sorted(p for p in source_dir.iterdir() if p.is_file())
+    drifted, written, absent = [], 0, []
+    for member in sorted(registered_member_names()):
+        repo = REPOS / member
+        if not repo.is_dir():
+            continue
+        target_dir = repo / ".githooks"
+        if not target_dir.is_dir():
+            absent.append(member)
+            continue
+        for hook in hooks:
+            target = target_dir / hook.name
+            want = hook.read_bytes()
+            have = target.read_bytes() if target.exists() else None
+            if have == want:
+                continue
+            if args.check:
+                drifted.append(f"{member}/.githooks/{hook.name}")
+                continue
+            target.write_bytes(want)
+            written += 1
+    if args.check:
+        for d in drifted:
+            print(f"drift: {d}")
+        if absent:
+            print(f"no .githooks directory: {', '.join(absent)}")
+        print(f"{len(drifted)} hook(s) differ from scripts/git-hooks")
+        return 1 if drifted else 0
+    print(f"wrote {written} hook file(s); {len(absent)} member(s) without .githooks")
+    return 0
+
+
 def cmd_install_hooks(_args) -> int:
     """Point every member's `core.hooksPath` at the committed guard.
 
@@ -464,6 +513,10 @@ def cmd_install_hooks(_args) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="mode", required=True)
+    sync = sub.add_parser("sync-hooks")
+    sync.add_argument("--check", action="store_true",
+                      help="report drift instead of writing")
+    sync.set_defaults(func=cmd_sync_hooks)
     sub.add_parser("check").set_defaults(func=cmd_check)
     sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("restore").set_defaults(func=cmd_restore)

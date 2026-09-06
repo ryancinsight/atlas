@@ -12461,3 +12461,41 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   so the sweep cannot be dry-run. The first release per member is the
   verification, and the pin change is reviewed as a diff against the shared
   workflow's declared inputs.
+
+## ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06 - Twenty-two hand-maintained copies of two git hooks [patch] - in-progress <a id="hook-fleet-duplication"></a>
+
+- **outcome:** `scripts/git-hooks/` is the one source for the member-side
+  `pre-commit` and `pre-push` guards, deployed outward by
+  `atlas-lock-form.py sync-hooks` under the generator contract, with
+  `sync-hooks --check` failing CI on drift.
+- **measured 2026-09-06:** 22 members carry `.githooks/pre-push` in **two**
+  versions and `.githooks/pre-commit` in **two** versions. In both cases the
+  minority version is `hephaestus`, and in both cases hephaestus is the one
+  that is *correct*: it injects `safe.directory` so the hook's child git calls
+  work in a checkout owned by a different filesystem account. Twenty-one
+  members are missing that fix. The copies were the divergence, and the
+  canonical copy in `scripts/git-hooks/` was staler than all of them — its
+  `pre-commit` was 34 lines against the members' 61, missing the whole
+  commit-time guard added under
+  `ATLAS-LOCKFILE-POISONING-GENERATOR-2026-08-26`.
+- **why the copies cannot simply be deleted:** `install-hooks` points
+  `core.hooksPath` at the Atlas tree, which only resolves inside the stack
+  checkout. A member cloned standalone would then run no hooks at all. So the
+  copies stay and stop being *authored*: one source, written outward,
+  drift-checked.
+- **a behaviour fix rides with it.** `pre-push` ran `lockfile.py --check`
+  against the *working tree* on every push, regardless of what the push
+  contained. Those differ whenever the pushed commits were not checked out — a
+  plumbing push, or a push from a tree sitting on another branch — and the hook
+  then refused a push on the strength of state that push did not contain. It
+  blocked four of the nine wheel-pin pushes today
+  ([`#python-pipeline-pin-divergence`](backlog.md#python-pipeline-pin-divergence)),
+  none of which touched a manifest or a lock. It now reads the revision range
+  git supplies on stdin and skips when nothing in it is a `Cargo.toml` or
+  `Cargo.lock`. Verified both directions: a workflow-only range skips, a range
+  containing a lockfile change runs the real check, a branch deletion skips.
+- **remaining:** 45 hook files across 22 members still differ; four members
+  (`eunomia`, `iris`, `melinoe`, `metis`) have no `.githooks` directory at all
+  and are running no guard. Deployment is one commit per member.
+- **acceptance:** `atlas-lock-form.py sync-hooks --check` exits zero across the
+  fleet and runs in CI.
