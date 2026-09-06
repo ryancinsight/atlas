@@ -1071,7 +1071,7 @@ _Closure note (moved from heading):_ commit 99dc33fad
 
 <a id="atlas-overlay-worktree-keyed"></a>
 
-## ATLAS-OVERLAY-WORKTREE-KEYED-2026-09-06 — The overlay gate compares a committed artifact against a generation from uncommitted inputs [arch] — in-progress
+## ATLAS-OVERLAY-WORKTREE-KEYED-2026-09-06 — The overlay gate compares a committed artifact against a generation from uncommitted inputs [arch] — blocked
 
 - **Integrator:** claude-opus-5; **branch:** none (atlas main);
   **lease:** `scripts/atlas-stack-overlay.py` 2026-09-06T21:40Z.
@@ -1097,9 +1097,41 @@ _Closure note (moved from heading):_ commit 99dc33fad
   developer generate the same bytes. The emitted paths stay `repos/<name>` —
   the overlay still points at local trees, which is its purpose; only closure
   *discovery* becomes revision-keyed.
-- **Acceptance oracle.** `atlas-stack-overlay` green on main, and a local
-  `generate` on a stack with trees ahead of their gitlinks produces a file
-  identical to one generated at the gitlinks.
+- **The stated outcome was built and falsified, 2026-09-06.** Revision-keyed
+  closure was implemented (manifests via `git show <gitlink>:<path>`, listing
+  via `ls-tree`, worktree fallback on an unreadable gitlink) and generated a
+  deterministic overlay — 104 lines different from the committed one, because
+  at the gitlinks Moirai is 0.5.0 where the worktree is 0.6.0, which flips
+  every lag verdict that depends on it.
+  
+  That determinism is bought at the cost of the overlay's purpose. Its emission
+  decision is "can the local tree satisfy this requirement", and cargo answers
+  that question against the **worktree** when it resolves. Keying the decision
+  to the gitlink makes the file describe a state cargo does not see: it can
+  emit a patch the worktree cannot unify (a resolution failure) and, more
+  commonly, withhold a patch that would have worked — so the overlay stops
+  pointing at local trees exactly while those trees are being developed, which
+  is the one case it exists for. The change is reverted, unlanded.
+- **What this leaves: a contradiction, not a bug.** The overlay cannot be both
+  a worktree-accurate development view and a deterministic committed artifact.
+  The gate asserts the second; the file's purpose is the first. Its other two
+  clauses — requirement lag and pin drift — are revision-meaningful and both
+  report 0, so only the regenerate-and-diff clause is unsatisfiable.
+- **Recommended option (ADR-shaped, for the owner's veto).** Drop the
+  equality clause and keep the lag and pin-drift clauses: the artifact stays
+  committed for resolution, and the gate keeps the guard it was built for
+  (`ATLAS-VERSION-GUARD-001`, a silent backward version revert), which is
+  carried entirely by the two revision-meaningful clauses. The alternatives
+  considered were regenerating in the gitlink-advance step (the trees are ahead
+  again immediately, so it only narrows the window) and making the overlay a
+  gitignored build-time artifact (removes the diff, but also removes the
+  reviewable record of what the umbrella resolves to).
+- **Acceptance oracle.** `atlas-stack-overlay` green on main without any clause
+  being silenced by exclusion: the equality clause is removed by decision with
+  its rationale recorded, or a design that satisfies both properties is found.
+- **Blocker / re-open trigger:** the decision above is the owner's to take or
+  veto; re-open on that decision, or on evidence that a design satisfies both
+  properties.
 - **Risk / change class:** [arch] [patch]; derived-state definition, no
   member change.
 
