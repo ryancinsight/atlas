@@ -156,6 +156,16 @@ mnemosyne-heap = { path = "repos/mnemosyne/crates/mnemosyne-heap" }
 mnemosyne-memory = { path = "repos/mnemosyne/crates/mnemosyne" }
 mnemosyne-memory-core = { path = "repos/mnemosyne/crates/mnemosyne-core" }
 
+[patch."https://github.com/ryancinsight/Moirai"]
+moirai-core = { path = "repos/moirai/moirai-core" }
+moirai-executor = { path = "repos/moirai/moirai-executor" }
+moirai-transport = { path = "repos/moirai/moirai-transport" }
+
+[patch."https://github.com/ryancinsight/Moirai.git"]
+moirai-core = { path = "repos/moirai/moirai-core" }
+moirai-executor = { path = "repos/moirai/moirai-executor" }
+moirai-transport = { path = "repos/moirai/moirai-transport" }
+
 [patch."https://github.com/ryancinsight/proteus"]
 proteus-mat = { path = "repos/proteus" }
 
