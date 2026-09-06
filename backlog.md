@@ -3308,93 +3308,21 @@ The dirty Consus checkout and Atlas gitlink are unchanged until terminal
 post-merge evidence is collected.
 
 
-## ATLAS-EUNOMIA-NAN-CONTRACT-2026-08-21 — Unify scalar NaN and signed-zero laws [major] [arch] — in-progress
+## ATLAS-EUNOMIA-NAN-CONTRACT-2026-08-21 — Unify scalar NaN and signed-zero laws [major] [arch] — done <a id="atlas-eunomia-nan-contract"></a>
 
-Audit found a live scalar contract split in Eunomia `origin/main`: the default
-`NumericElement::min_scalar`/`max_scalar` uses order-dependent `PartialOrd`,
-primitive `f32`/`f64` implementations delegate to native `min`/`max`, and
-reduced-precision wrappers inherit the comparison path. One-NaN behavior is
-therefore operand-order dependent across shipped scalar types; signed-zero
-behavior is unpinned. This is a value-semantic defect that propagates through
-generic `Field::clamp`.
+- One real-scalar table for one/two NaNs and `±0` governs the `NumericElement`
+  min/max default, the primitive overrides, the reduced-precision wrappers and
+  `RealField::clamp`. Landed `834bd3b`; docs `8c4510e`.
+- Terminal default evidence collected: Eunomia CI run `33840122785` at head
+  `02397fa` reports **Rust verification — success**. The `repos/eunomia`
+  gitlink held for exactly this and now reads `8e18d6d`. Member item:
+  [`repos/eunomia/backlog.md#atlas-eunomia-nan-contract`](repos/eunomia/backlog.md#atlas-eunomia-nan-contract).
+## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — done <a id="atlas-eunomia-numpy-ci"></a>
 
-Scope: the Eunomia numeric trait, primitive and wrapper implementations,
-float-order/element conformance tests, and the affected numeric book chapters.
-Define one NaN/±0 contract, implement it for every shipped real scalar type,
-and verify commutativity, wrapper/primitive parity, and `clamp` value semantics.
-Non-goals: consumer rewrites, complex-number ordering, or registry release.
-
-Acceptance: NaN and signed-zero cases are specified in the owning Rustdoc/book;
-all shipped real scalar implementations satisfy the same value table; generic
-tests fail against the old order-dependent behavior; focused and workspace
-gates pass on the clean Eunomia origin base. The clean lane is
-`worktrees/eunomia-numpy-ci`; refresh it from Eunomia `origin/main` before
-editing and preserve the dirty provider checkout.
-
-Owner: codex-primary. Claimed files: Eunomia numeric trait/primitive/wrapper
-implementations, float conformance tests, affected book chapters, and their
-provider PM/ADR artifacts. Dependencies: current Eunomia `origin/main`; no
-consumer dependency. Risk/change class: `[major] [arch]`. Last update:
-2026-08-21.
-
-Implementation is complete on Eunomia branch `fix/eunomia-nan-contract` at
-`c877ea9` (code fix `ba51a16`, evidence/docs follow-ups `f6eceb1`, `8c4510e`,
-`0cf3c7d`, and `c877ea9`). The provider PR is [Eunomia
-#72](https://github.com/ryancinsight/eunomia/pull/72), and the independent
-judge accepted the exact range with no blocking finding. Final-code-head local
-evidence covers format, strict all-target/all-feature Clippy, Nextest 138/138,
-doctests 9/9, Rustdoc, locked package listing, and static mdBook build.
-Workflow-equivalent fresh-staged mdBook tests passed at the unchanged book
-implementation head `ba51a16`; the final local sample rerun is bounded by
-shared-target cache contamination and remains a hosted-build watchpoint. PR
-#72 merged with the expected-head guard at default commit
-`834bd3b443dd050e9a1ec0c5d837645db33ac787`. Post-merge CI
-`32475224630`, MSRV `32475224791`, and Deploy mdBook `32475225502` are queued;
-the Atlas `repos/eunomia` gitlink stays unchanged until terminal default
-evidence is collected.
-
-## ATLAS-EUNOMIA-NUMPY-CI-2026-08-20 — Verify the optional NumPy boundary [patch] — in progress
-
-The Eunomia `numpy` feature is a real provider-consumer seam: it implements
-NumPy element conversions for `Complex32` and `Complex64`, and Hephaestus and
-Kwavers enable it from their Python binding crates. Eunomia's current CI
-explicitly excludes that feature because no Python runtime is provisioned.
-This is a verification gap, not a request for a standalone Eunomia wheel;
-the Atlas inventory now records the binding ownership in the consumer crates.
-
-**Scope:** Eunomia's provider CI workflow and its owner-local PM entry. Add a
-Python/NumPy-backed locked feature check and runtime dtype contract test for
-both complex element types. **Non-goals:** new Eunomia packaging, changes to
-the complex implementation, or changes to Hephaestus/Kwavers bindings.
-
-**Acceptance:** the provider CI provisions a pinned supported Python, installs
-the repository's declared NumPy test dependency through the existing project
-convention, runs the `numpy` feature's locked check/Clippy/nextest contract,
-and the hosted exact-head job passes. The feature remains optional and the
-consumer binding crates remain the only Python packages.
-
-**Delivery evidence:** PR #70 passed Rust verification, Rust 1.95.0
-all-target, NumPy feature contract, and supply-chain checks at exact head
-`cdc7e68`, then merged as `c7435a2`. The post-merge Eunomia CI run
-`32435024973` and Deploy mdBook run `32435025288` are queued; the Atlas
-pointer remains unchanged pending terminal default verification.
-
-**Owner:** current Atlas session. **Claimed files:** Eunomia
-`.github/workflows/ci.yml`, the existing Eunomia PM entry, and this root item.
-The clean provider lane must be based on Eunomia `origin/main`
-`85e590b789505c66f5174043c2e7e851c20547a5`; the dirty primary checkout is
-peer-owned and remains untouched. The first hosted attempt at exact head
-`da355aa082108ebd4ec854c034ea5c0b74cc9120` compiled and linted the NumPy
-feature but failed before the contract tests because the NumPy job did not
-install `cargo-nextest` (`32412277378`, job `96565207307`). Commit
-`cdc7e68a504411b38d3402e24dc71a1b625197ef` installs the same pinned
-`nextest@0.9.140` used by the general verification job and updates the
-provider-local checklist. PR [#70](https://github.com/ryancinsight/eunomia/pull/70)
-is now at exact head `cdc7e68a504411b38d3402e24dc71a1b625197ef`; replacement
-Rust/NumPy/supply-chain runs `32423868719` and MSRV run `32423868861` are
-queued. `recurseml/analysis` is report-only.
-
-
+- Collected: Eunomia CI run `33840122785` at default head `02397fa`, job
+  **NumPy feature contract — success**, with pinned Python 3.13, NumPy 2.5.1
+  and the pinned Nextest binary. Member item:
+  [`repos/eunomia/backlog.md#atlas-eunomia-numpy-ci`](repos/eunomia/backlog.md#atlas-eunomia-numpy-ci).
 ## ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20 — Ship the typed Python surface [patch] — in progress
 
 The Apollo Python package currently exposes its symbols through `__init__.py`
