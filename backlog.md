@@ -1099,6 +1099,35 @@ _Closure note (moved from heading):_ commit 99dc33fad
 
 ## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
 
+- **Burn-down (2026-09-06, integrator: claude-opus-5).** Measured 17 regressions
+  at 23:20. Closed or attributed:
+  - `apollo/target_forks 0 → 1` — **closed**. `repos/apollo/target/nextest`,
+    created by this session's own standalone `cargo nextest` runs against a
+    `--manifest-path` from a neutral cwd. Removed. The guard that stops the
+    canonical lock script doing the same landed as `4a5ac5612`; ad-hoc cargo
+    invocations from a neutral cwd remain the open half of that generator.
+  - `apollo/root_sprawl 0 → 1` and `apollo/excess_worktrees 0 → 1` — **closed
+    upstream**: the sanction for `.provider-identity-baseline` landed in the
+    scan, and `D:/tmp/apollo-codegen` is gone.
+  - `coeus/target_forks 0 → 1` — **closed**; the fork was a live
+    `doc`/`semver-checks` build that has since finished and been removed.
+  - `moirai/crate_level_allows 16 → 20` — **taken over and finished**, Moirai
+    #263. The stale lane's expect-migration is rebased and gated; what blocked
+    it was two benchmark contract tests pinning `0.5.0` as a string, which this
+    morning's 0.6.0 bump reddened on `main` independently of the branch. Both
+    now assert their contract rather than the literal. One assertion remains,
+    correctly: no `## [0.6.0]` changelog section — the release's own unfinished
+    half, left with its owner.
+  - `aequitas/target_forks 0 → 1` — live build in flight at measurement
+    (`target/doc` twelve minutes old, 9 rustc processes); left alone.
+  - `ritk/excess_worktrees 0 → 1`, `kwavers/excess_worktrees 0 → 1` — filed as
+    [`#atlas-tmp-lane-sprawl`](#atlas-tmp-lane-sprawl): both lanes live under
+    `D:/tmp`, outside the canonical root, where they cannot inherit the stack
+    `target-dir` and so fork the cache by construction (3.5 GB in one).
+  - Remaining and untouched, each needing a member tree that a live peer or
+    in-flight WIP holds: `apollo/oversized_files`, `apollo/existence_only_
+    assertions`, `coeus/reexport_shims`, `hephaestus` ×2, `kwavers` ×2,
+    `mnemosyne` ×2, `moirai/manifest_implementation`, `ritk` ×2.
 - **Green-ratchet snapshot archived, 2026-09-02 ~21:00 (Freebuff session):** `docs/audit/2026-09-02-conformance-green-ratchet.{json,md}` — 0 regressions, 0 tightenings across all 25 members at atlas `dc0135e10`, the close of ATLAS-RATCHET-REGRESSIONS-2026-09-02. Final absorb pass before capture: hephaestus's owner split the window-backend modules their own wave had landed (`oversized_files` 38→37, `manifest_implementation` 15→14), coeus tightened (manifest 26→25, crate_level_allows 18→8), leto's allow_sites settled back to 12, and two transient `target_forks` flags (coeus, hephaestus — live peer build caches) were cleared. Stack-wide residues for the next campaigns: `unwrap_production` 779, `manifest_implementation` 664, `oversized_files` 614.
 - **Ratchet clear of file-size rows, 2026-09-02 19:30.** Every `oversized_files` and `manifest_implementation` regression is closed (athena, leto ×2, themis, kwavers, mnemosyne, apollo, hermes). The one remaining row is live-only and not a code defect: `ritk/excess_worktrees 0 → 1`. ritk has three working trees — its main plus two harness lanes under `.codex/worktrees/` holding `feat/tractography-dti-volume` and `feat/ritk-tractography-library`, both unmerged, last touched 17:11 and 17:17 UTC. They are their owner's to land or close; deleting another agent's unmerged work is not a bound fix. **Closed 2026-09-02 late (Freebuff session):** PR #218 merged and its series absorbed `feat/tractography-dti-volume` (verified by `git cherry` — the worktree lane was removable with nothing lost; its branch deleted as fully merged). `feat/ritk-tractography-library`'s two unpushed commits ("Reuse DTI seeding pipeline", "Close library slice"; 17 files, +662) survive on their branch for the owner to PR — both worktree lanes are gone, one working tree remains, and `ritk/excess_worktrees` tightened 1 → 0 in the baseline. No PR was ever opened for the library slice; the ratchet row closes because the live harness lanes are gone, not because the slice landed. `worktrees/kwavers-log` remains an unregistered directory a peer process still holds open.
 
