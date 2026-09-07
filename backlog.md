@@ -12679,3 +12679,30 @@ Parent: [`#slop-burndown`](backlog.md#slop-burndown).
 - **not a bare `rm -rf`:** the tree is the shared cache for 26 members and
   every lane; deleting it wholesale costs a full cold rebuild of the stack.
   Eviction is selective and scheduled, which is the point of having a policy.
+
+## ATLAS-KWAVERS-ELASTIC-CONSTRUCTORS-2026-09-06 - kwavers#707 is red on real errors and conflicting [patch] - todo <a id="kwavers-elastic-constructors"></a>
+
+Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
+
+- **outcome:** the construction half of the Proteus elastic delegation lands,
+  completing the item whose accessor half landed as
+  [kwavers#724](https://github.com/ryancinsight/kwavers/pull/724).
+- **state:** [kwavers#707](https://github.com/ryancinsight/kwavers/pull/707),
+  open since 2026-09-04, `CONFLICTING`, every CI job red. It covers
+  `constructors.rs`, `elastic.rs`, the heterogeneous factory, and the
+  homogeneous implementation — disjoint from #724's `computed.rs` and
+  `mod.rs`, so the two are complementary halves rather than duplicates.
+- **the red is not the pin.** It was worth checking, since the dead mnemosyne
+  rev broke every kwavers build until #723; but the log shows real compile
+  errors: `E0277` (`T: eunomia::traits::field::RealField` unsatisfied) and
+  several `E0034` (multiple applicable items in scope). The second is the
+  characteristic hazard of exactly this delegation — provider trait methods
+  colliding with the type's inherent methods of the same name — so the
+  diagnosis points at the design, not at the environment.
+- **method:** rebase onto current `main` (which now carries both the repoint
+  and #724), then resolve `E0034` by choosing at each site whether the inherent
+  or the provider method is the intended one rather than disambiguating
+  mechanically. The bound failure is likely a missing `RealField` on a generic
+  parameter the delegation newly requires.
+- **why it is takeover and not a wait:** two days with no movement is past the
+  stale-claim window, and #724 already changed the base under it.
