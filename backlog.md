@@ -38,8 +38,12 @@
   member states a git+version requirement and lets the lock hold the commit —
   which is already Apollo's own model, and the reason Apollo's 18 crates share
   one identity.
-  1. Hermes: pin removed, lock re-resolved to a single identity
-     (`3ebc4da1`), 1 `mnemosyne-arena` entry. Verification in flight.
+  1. Hermes: **done** — pin removed, standalone lock re-resolved to one
+     identity (`3ebc4da1`), 1 `mnemosyne-arena` entry, gates green under
+     `--locked` (clippy `-D warnings`, 548/548 nextest, 26 doctests,
+     examples, no-default-features). Merged as `b51e873`
+     ([hermes#159](https://github.com/ryancinsight/hermes/pull/159)); the
+     Atlas pin advanced with it.
   2. Moirai: still `rev=7f173751`; also blocked behind
      [`#atlas-moirai-06-forward-sweep`](#atlas-moirai-06-forward-sweep).
   3. Apollo: pins hermes `rev=e6e08211` and moirai `rev=83aa411`; both
