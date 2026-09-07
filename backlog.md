@@ -25,15 +25,25 @@
   observe what the integrator resolves. The oracle for a source-identity item
   has to be the integrator's graph, and `26726d2` and `7f17375` are two points
   on the same chain — Hermes advanced, Moirai did not.
-- **Cost, separated by evidence tier.** Established: three copies of the crate
-  set in Apollo's normal graph, hence three codegen'd copies in the linked
-  image. Hypothesis, not yet measured: each copy carries its own statics and
-  `thread_local!` state, so segment caches and retained free segments are
-  per-copy rather than shared — which would mean the retained-scratch
-  accounting in
-  [`#atlas-apollo-worker-retention`](backlog.md#atlas-apollo-worker-retention)
-  covers one of three. Stated as a mechanism argument; it needs a measurement
-  before it is a finding.
+- **Cost — measured 2026-09-07, and it corrects what this item first claimed.**
+  The original entry asserted "three codegen'd copies in the linked image" and
+  hypothesised per-copy statics and `thread_local!` state inflating retained
+  memory. Both are wrong, and the measurement is unambiguous: the release
+  `engine_census` executable built against a three-copy lock and against a
+  two-copy lock is **6,861,312 bytes either way — a zero-byte difference**.
+  Artifacts identified from `cargo build --message-format=json` rather than by
+  mtime, and the crate metadata hashes differ (`2565f298` vs `5d401c26`), so
+  these are genuinely the two configurations and not one binary counted twice.
+  - The linker already drops the duplicate copies: nothing Apollo's binary
+    executes reaches hermes' or moirai's Mnemosyne instances, so they
+    contribute no code, no statics and no thread-local state. The retained
+    memory hypothesis falls with the size claim — there is no second or third
+    pool to account for.
+  - What the triplication does cost is real but narrower: compile time and
+    `target/` space for the extra crate set, lockfile complexity, and the
+    standing hazard that a *future* call path could reach a second allocator
+    instance without anyone noticing. Those justify finishing the convergence;
+    a runtime memory saving does not, and must not be claimed for it.
 - **Fix, dependency-ordered.** Remove the `rev =` quarantine pins so each
   member states a git+version requirement and lets the lock hold the commit —
   which is already Apollo's own model, and the reason Apollo's 18 crates share
@@ -50,7 +60,9 @@
      advance once 1 and 2 land, which is what actually collapses the three.
 - **Acceptance.** `cargo tree -p apollo-fft -e normal -i mnemosyne-arena`
   resolves unambiguously — one package, not three. Ratchet metric: the count
-  of distinct `mnemosyne-arena` entries in Apollo's lock, 3 today, target 1.
+  of distinct `mnemosyne-arena` entries in Apollo's lock, **2 now** (was 3),
+  target 1. Reclassified [patch] hygiene on the measurement above: this is
+  graph and build-time cleanliness, not a runtime memory item.
 - **Non-goals.** No API change, no compatibility layer, and no removal of a
   pin that carries a live, recorded quarantine reason — none of these three
   do; they are advance points that were never cleaned up.
