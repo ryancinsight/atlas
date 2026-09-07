@@ -1,5 +1,36 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-moirai-06-forward-sweep"></a>
+## ATLAS-MOIRAI-06-FORWARD-SWEEP — Moirai 0.6.0 landed without its forward sweep [arch] — in-progress
+
+- **Symptom:** every first-party graph that must re-resolve now fails.
+  `moirai-runtime` went 0.5.0 → 0.6.0 on Moirai `main` at 2026-09-06 21:34
+  (`feat(transport)!`), while ten members still require `^0.5.0` from the same
+  branch source. Cargo cannot satisfy both, so `--locked` jobs and every lock
+  regeneration die on `failed to select a version for the requirement
+  moirai-runtime = "^0.5.0"`. Reproduced on kwavers: `scripts/lockfile.py
+  --check` and `cargo metadata --locked` both fail, naming `ritk-io` first.
+- **Cause, not the symptom:** the co-evolution protocol makes the version
+  advance and the consumer sweep one unit. The bump landed alone.
+- **Branch-sourced requirements still at 0.5** (these break resolution):
+  ritk, leto, coeus, gaia, helios, CFDrs, hephaestus (`moirai-sync`).
+  `rev`-pinned consumers (apollo `83aa411`, consus `b548bc9`, tyche) resolve
+  to their pinned 0.5 revision and do not conflict — they are sweep debt, not
+  blockers.
+- **Order is forced:** each member's lock regeneration resolves its siblings
+  from *their* default branches, so the sweep runs bottom-up —
+  leto → hephaestus → coeus → gaia → ritk → helios/CFDrs → kwavers. A
+  downstream bump cannot be verified before its upstream lands.
+- **In flight:** leto `build/leto-moirai-06` (`b6ed8cd`, peer),
+  ritk `build/ritk-moirai-06` (peer, working tree).
+- **Consequence:** kwavers `main` is red and unpushable — its pre-push gate
+  refuses a lock that cannot resolve — which blocks every kwavers item behind
+  a dependency defect it did not cause.
+- **Guard:** the version advance should have fired the coherence check
+  (`tools/version-guard`). That it did not is the mechanization gap to close
+  once the sweep lands.
+
+
 <a id="atlas-retained-benchmark-execution"></a>
 ## ATLAS-RETAINED-BENCHMARK-EXECUTION — Run retained benchmark executables under the committed supervisor — review
 - Outcome: select a retained executable without rebuilding or swapping shared-cache artifacts.
