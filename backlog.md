@@ -72,8 +72,18 @@
   from *their* default branches, so the sweep runs bottom-up —
   leto → hephaestus → coeus → gaia → ritk → helios/CFDrs → kwavers. A
   downstream bump cannot be verified before its upstream lands.
-- **In flight:** leto `build/leto-moirai-06` (`b6ed8cd`, peer),
-  ritk `build/ritk-moirai-06` (peer, working tree).
+- **Landed (2026-09-06/07):** tyche [#46](https://github.com/ryancinsight/tyche/pull/46),
+  consus [#69](https://github.com/ryancinsight/consus/pull/69) (also dropped its
+  undocumented `rev = "b548bc9"` quarantine), leto
+  [#176](https://github.com/ryancinsight/leto/pull/176) (peer-authored, merged
+  on its decisive checks — its only red was the SemVer *informational* job,
+  which fails identically on unrelated leto PRs), hephaestus
+  [#282](https://github.com/ryancinsight/hephaestus/pull/282), gaia
+  [#48](https://github.com/ryancinsight/gaia/pull/48).
+- **Remaining:** coeus (verifying), then ritk (peer holds
+  `build/ritk-moirai-06`, blocked on coeus), then helios, CFDrs, kwavers.
+  apollo stays `rev`-pinned at `83aa411` — sweep debt, not a blocker, and both
+  its trees are peer-held.
 - **Consequence:** kwavers `main` is red and unpushable — its pre-push gate
   refuses a lock that cannot resolve — which blocks every kwavers item behind
   a dependency defect it did not cause.
