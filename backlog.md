@@ -1,5 +1,23 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-squash-merge-disabled-fleetwide"></a>
+## ATLAS-SQUASH-MERGE-DISABLED-FLEETWIDE — Merge methods configured at the platform [patch] — done 2026-09-07
+
+- **Measured before:** all 28 registered members had `allow_squash_merge=true`.
+  A squash collapses a PR's atomic commits into one and breaks the
+  commit-to-trunk trace, so the setting is a standing invitation for the
+  platform's or a tool's default to erase history that the local policy
+  forbids.
+- **Applied to every member** (`gh api -X PATCH`, idempotent):
+  `allow_squash_merge=false`, `allow_merge_commit=true`,
+  `allow_rebase_merge=true`, `allow_auto_merge=true`,
+  `delete_branch_on_merge=true`. The last two were additionally off on ares,
+  metis and prometheus, so those three could not enqueue an auto-merge at all.
+- **Effect:** the flag now fails at the platform rather than depending on the
+  agent passing `--merge`, and the merge queue — which uses the repository's
+  configured method — cannot squash either. Verified by re-reading all 28
+  settings after the write.
+
 <a id="atlas-mnemosyne-source-triplication"></a>
 ## ATLAS-MNEMOSYNE-SOURCE-TRIPLICATION — Apollo links three Mnemosyne stacks [patch] [arch] — in-progress
 
