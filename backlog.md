@@ -54,14 +54,22 @@
      examples, no-default-features). Merged as `b51e873`
      ([hermes#159](https://github.com/ryancinsight/hermes/pull/159)); the
      Atlas pin advanced with it.
-  2. Moirai: still `rev=7f173751`; also blocked behind
-     [`#atlas-moirai-06-forward-sweep`](#atlas-moirai-06-forward-sweep).
-  3. Apollo: pins hermes `rev=e6e08211` and moirai `rev=83aa411`; both
-     advance once 1 and 2 land, which is what actually collapses the three.
+  2. Moirai: **blocked**, re-verified 2026-09-07 rather than carried on its
+     recorded word — the manifest now pins `rev=2eb49c1a` (main advanced but
+     still pins by rev), the repo has a live peer on `feat/crypto-primitives`,
+     and [`#atlas-moirai-06-forward-sweep`](#atlas-moirai-06-forward-sweep) is
+     open. Re-open when the sweep lands and that claim goes stale.
+  3. Apollo: **done for the hermes half.** Its hermes requirement was already
+     unpinned, so `cargo update -p hermes-simd` sufficed — an entire crate set
+     (arena, backend, build-util, decay, local, memory, memory-core, prof) left
+     the graph and the lockfile shed 80 net lines.
+     [apollo#345](https://github.com/ryancinsight/apollo/pull/345), merged.
+     Apollo's `rev = "83aa411"` moirai pin is what still admits the second
+     copy, and it moves with step 2.
 - **Acceptance.** `cargo tree -p apollo-fft -e normal -i mnemosyne-arena`
   resolves unambiguously — one package, not three. Ratchet metric: the count
-  of distinct `mnemosyne-arena` entries in Apollo's lock, **2 now** (was 3),
-  target 1. Reclassified [patch] hygiene on the measurement above: this is
+  of distinct `mnemosyne-arena` entries in Apollo's lock — **2 on `main` as of
+  `7d193b5`, read off the merged lockfile**, was 3, target 1. Reclassified [patch] hygiene on the measurement above: this is
   graph and build-time cleanliness, not a runtime memory item.
 - **Non-goals.** No API change, no compatibility layer, and no removal of a
   pin that carries a live, recorded quarantine reason — none of these three
