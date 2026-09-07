@@ -126,10 +126,17 @@
   which fails identically on unrelated leto PRs), hephaestus
   [#282](https://github.com/ryancinsight/hephaestus/pull/282), gaia
   [#48](https://github.com/ryancinsight/gaia/pull/48).
-- **Remaining:** coeus (verifying), then ritk (peer holds
-  `build/ritk-moirai-06`, blocked on coeus), then helios, CFDrs, kwavers.
-  apollo stays `rev`-pinned at `83aa411` — sweep debt, not a blocker, and both
-  its trees are peer-held.
+  coeus [#379](https://github.com/ryancinsight/Coeus/pull/379) (carrying a
+  rustdoc-warning fix `main` needed anyway — CI denies them).
+- **Remaining:** ritk (peer authored the requirement commit `7b1cc5b3` and
+  stopped at the lock, which could not regenerate until coeus landed; that
+  half is now done and verifying), then helios, CFDrs, kwavers. apollo stays
+  `rev`-pinned at `83aa411` — sweep debt, not a blocker, and both its trees
+  are peer-held.
+- **Superseded by the sweep:** kwavers `build/pin-ritk-fixed-rev`
+  (`f50f77f25`) pins ritk at `1b9d4d86` to dodge the break. It cannot work:
+  ritk at that revision still requires moirai `^0.5.0`, so the pin moves the
+  conflict without resolving it. Drop the branch once the sweep lands.
 - **Consequence:** kwavers `main` is red and unpushable — its pre-push gate
   refuses a lock that cannot resolve — which blocks every kwavers item behind
   a dependency defect it did not cause.
