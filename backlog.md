@@ -12859,93 +12859,45 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
 - **outcome:** every first-party requirement on a `moirai-*` crate resolves
   against Moirai's current workspace version, and each member's lock is
   regenerated and green.
-- **the defect:** Moirai's workspace version is **0.6.0**; six members still
-  require `^0.5.0`. `architecture_scoping` (pin discipline) says a first-party
-  version advance fires the forward sweep *in the same co-evolution unit*,
-  because "a patch unifies only when the local version satisfies the declared
-  requirement" — requirement lag is exactly the resolver failure it names. The
-  sweep never fired.
+- **the defect:** Moirai's workspace version is **0.6.0**; members still
+  require `^0.5.0`, so the resolver rejects the only version that exists.
+  `architecture_scoping` (pin discipline) makes the forward sweep part of the
+  same co-evolution unit as the version advance, precisely because "a patch
+  unifies only when the local version satisfies the declared requirement".
+  It never fired. The second cost is quieter: under the stack overlay a local
+  crate replaces a git one only when the version satisfies the requirement, so
+  the lag silently disables the `[patch]` beneath it.
+- **measured 2026-09-06, third attempt, and the first two were wrong.** Scan
+  one read only root manifests (6 members). Scan two added nested manifests but
+  its pattern required `version` immediately after `{`, so it missed every
+  dependency written `git = ..., version = ...` — including coeus, the one
+  blocking three others (10 members). An order-independent parse of every
+  `Cargo.toml` in every member's default branch gives the real set. Recording
+  the method, not just the number, because the number moves as peers land legs:
 
-  | Member | Requirement(s) |
-  | --- | --- |
-  | CFDrs | `moirai` |
-  | apollo | `moirai-runtime` |
-  | consus | `moirai-runtime`, `moirai-async` |
-  | gaia | `moirai-runtime` |
-  | helios | `moirai`, `moirai-parallel` |
-  | hephaestus | `moirai-sync` |
-  | kwavers | `moirai-parallel` |
-  | leto | `moirai-runtime` |
-  | ritk | `moirai-runtime` |
-  | tyche | `moirai-core`, `moirai-executor` |
+  | Member | Requirements | State |
+  | --- | --- | --- |
+  | leto | `moirai-runtime` | landed, [leto#176](https://github.com/ryancinsight/leto/pull/176) |
+  | coeus | `moirai-runtime`, `moirai-async` | peer holds it, bump applied uncommitted |
+  | helios | `moirai-runtime`, `moirai-parallel` | bumped `75aab40`, blocked on coeus |
+  | ritk | `moirai-runtime` | bumped `7b1cc5b3`, blocked on coeus |
+  | kwavers | `moirai-parallel` | blocked on ritk |
+  | apollo, CFDrs | `moirai-runtime` | unclaimed |
 
-  **Corrected 2026-09-06:** the first count here said six members and seven
-  requirements. That scan read only each member's *root* `Cargo.toml` with too
-  narrow a pattern. Scanning every manifest for both the plain and
-  `package = "moirai-…"` rename forms gives **ten members and thirteen
-  requirements**.
-
-- **how it surfaced:** `cargo update -p ritk-model` in kwavers failed with
-  `failed to select a version for the requirement moirai-parallel = "^0.5.0";
-  candidate versions found which didn't match: 0.6.0`. Bumping kwavers alone
-  then failed one level deeper on `ritk-io`'s own `^0.5.0`. The lag is
-  transitive, so a partial sweep does not resolve — which is why it is one
-  item across six members rather than six independent fixes.
-- **it is currently blocking real work.** kwavers cannot advance its resolved
-  `ritk` revision, so it cannot pick up ritk#238 — the fix for a
-  `coeus_leto::RandomScalar` break — and `cargo check --workspace` on kwavers
-  `main` is red for that reason today.
-- **Corrected 2026-09-06 (codex session, RandomScalar incident round):** the
-  claim that kwavers cannot pick up ritk#238 before this sweep lands is
-  falsified. `cargo update -p <pkg> --precise` against the pinned target
-  re-selects only the mismatched git source and leaves every other locked rev
-  (including moirai 0.5) untouched — no global re-resolution, so the
-  `^0.5.0` requirements never get consulted. kwavers #725 pins all six ritk
-  deps at the #238 rev with the lock in canonical `?rev=` form, and its
-  integration suite compiles and `solver_test` passes 3/3 under
-  `--locked`. The requirement lag this item tracks is real for any
-  *wholesale* `cargo update`, but it does not block targeted rev advances.
+  gaia, hephaestus, consus, tyche were in an earlier count and are already
+  clean — peers swept them in parallel.
 - **the order is forced, not a preference.** A member's lock resolves its
   first-party git dependencies from their `origin/main`, so a bump cannot be
-  verified until every dependency it pulls has already landed its own. Bumping
-  `ritk` alone failed on `coeus-core`'s `^0.5.0` at the revision ritk resolves;
-  bumping `kwavers` alone failed on `ritk-io`'s. So this is a serialised chain
-  of ten deliveries, deepest first — `leto`, then the crates above it — and not
-  ten independent fixes that can be batched.
-
-- **This codex session (2026-09-06, RandomScalar alias incident — cross-repo rename without a forward-sweep check)**: Coeus #378
-  (`c4b3dc50`, ATLAS-HYGIENE-BASELINE-001, "Delete two re-export aliases") deleted
-  `coeus_leto::RandomScalar`; its grep-to-zero audit could only see in-repo call
-  sites, and the alias had external consumers. kwavers' #723/#724 lock
-  re-resolution floated the Coeus git dep onto the deletion, and main's
-  Integration Suite went red with `E0405: cannot find trait RandomScalar in
-  crate coeus_leto` inside pinned `ritk-model@89e619f` (`affine/network.rs:77`).
-  Audit of all atlas members found exactly two external consumers: ritk and
-  leoneuro-rs (the second alias deleted in the same commit,
-  `coeus_ops::FiniteDifferenceAxis`, has none). Repairs, all measured:
-  - **ritk #238 (merged `1b9d4d86`)**: `ritk-model` bounds on
-    `leto_ops::RealScalar` — the same trait (same def-id) the alias
-    re-exported, exported by BOTH pre- and post-deletion Coeus generations, so
-    the bound compiles against either and cannot regress on the next float.
-    `leto-ops` promoted to direct dep (one lock line). 50/50 lib tests, fmt,
-    clippy clean. Note: the naive rename (`coeus_leto::RealScalar`) does NOT
-    compile against the pre-deletion generation — the two generations export
-    mutually exclusive names; only the def-id-stable `leto_ops::` path works.
-  - **kwavers #725 (open)**: pins all six ritk deps at the #238 rev following
-    the #723 mnemosyne-pin precedent; lock re-selected surgically (see the
-    correction inside ATLAS-MOIRAI-06-SWEEP above). Full integration set
-    compiles under `--locked`; `solver_test` 3/3.
-  - **leoneuro-rs #24 (open, prophylactic)**: same def-id-stable fix at both
-    call sites; its committed lock is pre-deletion so CI is green today, but
-    its Coeus dep floats and the next re-resolution would break identically.
-    NOTE: leoneuro-rs' default branch is `codex/private-atlas-migration`, not
-    `main`; PRs must target it.
-  - **Mechanism lesson (cross-repo rename hygiene):** deleting a re-export
-    alias in a repo consumed as a git dependency requires grepping the
-    *ecosystem*, not the repo — the co-evolution unit for a rename is the set
-    of members whose locks resolve the package, not its own tree. Def-id-stable
-    re-exports (or a deprecation window) are the two known-safe alternatives.
-    The git-submodule worktree caveat hit en route: adding a linked worktree to
-    the ritk submodule yields a broken root resolution (module-dir junk surfaces
-    as the worktree root); fresh clones of the member repo are the reliable
-    workspace for ritk-side edits.
+  verified until every dependency it pulls has landed its own. Bumping `ritk`
+  alone fails on `coeus-core`'s `^0.5.0`; bumping `kwavers` alone fails on
+  `ritk-io`'s; bumping `helios` alone fails on `coeus-core`'s. **coeus unblocks
+  three of the remaining five.**
+- **bumps are committed before they can be verified**, deliberately: the
+  manifest edit is the executable remainder and the lock regeneration is the
+  blocked substep. Leaving the edit as uncommitted state in a shared tree is
+  what produced the two-day-old duplicated dirt found in kwavers earlier today.
+- **it is blocking real work:** kwavers cannot advance its resolved `ritk`
+  revision, so it cannot pick up ritk#238, so `cargo check --workspace` on
+  kwavers `main` is red and
+  [kwavers#727](https://github.com/ryancinsight/kwavers/pull/727) cannot run
+  `clippy --all-targets` and stays draft.
