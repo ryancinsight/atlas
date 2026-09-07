@@ -111,8 +111,7 @@ addition.
 
 ## Current stack
 
-At this revision, [`.gitmodules`](.gitmodules) records 26 packages. Metis is a local
-workspace awaiting repository visibility and remote registration.
+At this revision, [`.gitmodules`](.gitmodules) records 27 packages.
 
 | Layer | Repository | Canonical role |
 | --- | --- | --- |

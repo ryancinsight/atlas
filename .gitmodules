@@ -105,6 +105,10 @@
 	path = repos/ares
 	url = https://github.com/ryancinsight/ares
 	active = true
+[submodule "repos/metis"]
+	path = repos/metis
+	url = https://github.com/ryancinsight/metis.git
+	active = true
 [submodule "repos/prometheus"]
 	path = repos/prometheus
 	url = https://github.com/ryancinsight/prometheus
