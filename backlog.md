@@ -12779,6 +12779,16 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
   `ritk` revision, so it cannot pick up ritk#238 — the fix for a
   `coeus_leto::RandomScalar` break — and `cargo check --workspace` on kwavers
   `main` is red for that reason today.
+- **Corrected 2026-09-06 (codex session, RandomScalar incident round):** the
+  claim that kwavers cannot pick up ritk#238 before this sweep lands is
+  falsified. `cargo update -p <pkg> --precise` against the pinned target
+  re-selects only the mismatched git source and leaves every other locked rev
+  (including moirai 0.5) untouched — no global re-resolution, so the
+  `^0.5.0` requirements never get consulted. kwavers #725 pins all six ritk
+  deps at the #238 rev with the lock in canonical `?rev=` form, and its
+  integration suite compiles and `solver_test` passes 3/3 under
+  `--locked`. The requirement lag this item tracks is real for any
+  *wholesale* `cargo update`, but it does not block targeted rev advances.
 - **the order is forced, not a preference.** A member's lock resolves its
   first-party git dependencies from their `origin/main`, so a bump cannot be
   verified until every dependency it pulls has already landed its own. Bumping
@@ -12786,3 +12796,40 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
   bumping `kwavers` alone failed on `ritk-io`'s. So this is a serialised chain
   of ten deliveries, deepest first — `leto`, then the crates above it — and not
   ten independent fixes that can be batched.
+
+- **This codex session (2026-09-06, RandomScalar alias incident — cross-repo rename without a forward-sweep check)**: Coeus #378
+  (`c4b3dc50`, ATLAS-HYGIENE-BASELINE-001, "Delete two re-export aliases") deleted
+  `coeus_leto::RandomScalar`; its grep-to-zero audit could only see in-repo call
+  sites, and the alias had external consumers. kwavers' #723/#724 lock
+  re-resolution floated the Coeus git dep onto the deletion, and main's
+  Integration Suite went red with `E0405: cannot find trait RandomScalar in
+  crate coeus_leto` inside pinned `ritk-model@89e619f` (`affine/network.rs:77`).
+  Audit of all atlas members found exactly two external consumers: ritk and
+  leoneuro-rs (the second alias deleted in the same commit,
+  `coeus_ops::FiniteDifferenceAxis`, has none). Repairs, all measured:
+  - **ritk #238 (merged `1b9d4d86`)**: `ritk-model` bounds on
+    `leto_ops::RealScalar` — the same trait (same def-id) the alias
+    re-exported, exported by BOTH pre- and post-deletion Coeus generations, so
+    the bound compiles against either and cannot regress on the next float.
+    `leto-ops` promoted to direct dep (one lock line). 50/50 lib tests, fmt,
+    clippy clean. Note: the naive rename (`coeus_leto::RealScalar`) does NOT
+    compile against the pre-deletion generation — the two generations export
+    mutually exclusive names; only the def-id-stable `leto_ops::` path works.
+  - **kwavers #725 (open)**: pins all six ritk deps at the #238 rev following
+    the #723 mnemosyne-pin precedent; lock re-selected surgically (see the
+    correction inside ATLAS-MOIRAI-06-SWEEP above). Full integration set
+    compiles under `--locked`; `solver_test` 3/3.
+  - **leoneuro-rs #24 (open, prophylactic)**: same def-id-stable fix at both
+    call sites; its committed lock is pre-deletion so CI is green today, but
+    its Coeus dep floats and the next re-resolution would break identically.
+    NOTE: leoneuro-rs' default branch is `codex/private-atlas-migration`, not
+    `main`; PRs must target it.
+  - **Mechanism lesson (cross-repo rename hygiene):** deleting a re-export
+    alias in a repo consumed as a git dependency requires grepping the
+    *ecosystem*, not the repo — the co-evolution unit for a rename is the set
+    of members whose locks resolve the package, not its own tree. Def-id-stable
+    re-exports (or a deprecation window) are the two known-safe alternatives.
+    The git-submodule worktree caveat hit en route: adding a linked worktree to
+    the ritk submodule yields a broken root resolution (module-dir junk surfaces
+    as the worktree root); fresh clones of the member repo are the reliable
+    workspace for ritk-side edits.
