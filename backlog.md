@@ -12822,8 +12822,23 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
   or the provider method is the intended one rather than disambiguating
   mechanically. The bound failure is likely a missing `RealField` on a generic
   parameter the delegation newly requires.
-- **why it is takeover and not a wait:** two days with no movement is past the
-  stale-claim window, and #724 already changed the base under it.
+- **taken over 2026-09-06** as
+  [kwavers#727](https://github.com/ryancinsight/kwavers/pull/727); #707 closed
+  with the diagnosis recorded on it.
+- **the red was against a stale base, not a defect in the change.** Rebased
+  onto current `main` — which now carries the mnemosyne repoint (#723) and the
+  accessor half (#724) — the `E0277` and `E0034` errors are gone. Worth
+  recording as a pattern: a long-open PR's red is a claim about a base that no
+  longer exists, and re-measuring it costs one rebase.
+- **#727 is a draft, deliberately.** `cargo clippy --all-targets` cannot run:
+  its dev-dependencies reach `ritk`, whose resolution fails on the Moirai
+  requirement lag ([`#moirai-06-sweep`](backlog.md#moirai-06-sweep)). It has
+  package-scoped verification only — check, lib clippy, 215 tests, fmt — and
+  says so rather than implying a gate it did not get. It leaves draft when the
+  sweep reaches kwavers.
+- **the seven mnemosyne phase commits were not carried over:** they chase
+  revisions on a closed pull request's branch and `main` pins the merged
+  result, the same finding as gaia's series.
 
 ## ATLAS-MOIRAI-06-SWEEP-2026-09-06 - Moirai 0.6.0 landed without its forward sweep [patch] - in-progress <a id="moirai-06-sweep"></a>
 
