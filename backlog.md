@@ -132,11 +132,17 @@
   contributors: a peer authored the requirement commit `7b1cc5b3` and stopped
   at the lock, which could not regenerate until leto, hephaestus and coeus had
   landed; that half completed here.
+  kwavers [#728](https://github.com/ryancinsight/kwavers/pull/728) — the last
+  consumer, and the one whose pre-push gate surfaced the whole defect. Its
+  `main` is resolvable again, which also clears the `coeus_leto::RandomScalar`
+  red (CI was compiling ritk-model at `89e619fe`).
 - **Remaining:** helios (`build/helios-moirai-06`, peer) and CFDrs
-  (`build/cfdrs-moirai-06`, peer) are claimed and in flight; kwavers carries
-  its own `moirai-parallel` bump on
-  `chore/kwavers-gpu-fdtd-shader-copy`. apollo stays `rev`-pinned at
-  `83aa411` — sweep debt, not a blocker, and both its trees are peer-held.
+  (`build/cfdrs-moirai-06`, peer) are claimed and in flight. apollo stays
+  `rev`-pinned at `83aa411` — sweep debt, not a blocker, and both its trees
+  are peer-held.
+- **Gitlink advance is deliberately not done yet:** advancing atlas's
+  submodule pins now would make the pinned-snapshot coherence gate fail
+  correctly on helios, CFDrs and apollo. Advance once those land.
 - **Superseded by the sweep:** kwavers `build/pin-ritk-fixed-rev`
   (`f50f77f25`) pins ritk at `1b9d4d86` to dodge the break. It cannot work:
   ritk at that revision still requires moirai `^0.5.0`, so the pin moves the
