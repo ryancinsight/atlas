@@ -12551,8 +12551,8 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 
 ## ATLAS-METIS-UNREGISTERED-MEMBER-2026-09-05 - metis is on the stack map but has no remote and no gitlink [patch] - done <a id="metis-unregistered-member"></a>
 
-- **outcome:** Public `ryancinsight/metis` is registered in `.gitmodules`, and `repos/metis` is pinned to `fd72eb327a28753762c67f79becfa150c5f7660a` on `feat/process-foundation`; the stack map records 27 packages. Metis consumes Moirai's merged dialog provider at `8f02b8b7de6cf6361b519bd79759d8508568fbdb`.
-- **verification:** The Metis standalone gate passes on `fd72eb3`, including native/WASM checks, the generated browser build and pixel-identical visual stages; Moirai PR #275 and its board/ADR evidence are merged at `8f62855`. The Atlas pointer and recursive-submodule metadata remain separate meta-repo commits. Prometheus remains separately blocked.
+- **outcome:** Public `ryancinsight/metis` is registered in `.gitmodules`, and `repos/metis` is pinned to `07229a6e472fa9d6d67a066e0fe90126e0a31f4` on `feat/process-foundation`; the stack map records 27 packages. Metis consumes Moirai's merged dialog provider at `8f02b8b7de6cf6361b519bd79759d8508568fbdb`.
+- **verification:** The Metis standalone gate passes on `07229a6`, including native/WASM checks, the generated browser build and pixel-identical visual stages; Moirai PR #275 and its board/ADR evidence are merged at `8f62855`. The Atlas pointer and recursive-submodule metadata remain separate meta-repo commits. Prometheus remains separately blocked.
 
 ## ATLAS-META-AUTHOR-OVERRIDE-2026-09-05 - A repo-local identity attributed every agent's atlas commits to one author [patch] - done 2026-09-05 <a id="meta-author-override"></a>
 
