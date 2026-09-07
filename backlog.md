@@ -55,6 +55,36 @@
   pin that carries a live, recorded quarantine reason — none of these three
   do; they are advance points that were never cleaned up.
 
+<a id="atlas-coherence-measures-gitlinks-not-branches"></a>
+## ATLAS-COHERENCE-MEASURES-GITLINKS-NOT-BRANCHES — The coherence guard cannot see the breakage members actually hit [arch] — todo
+
+- **Evidence:** `version-guard coherence --atlas-root D:/atlas` run locally on
+  2026-09-07 reports the Moirai 0.6 lag correctly and exits 1 — 30+ rows across
+  CFDrs, apollo, coeus, kwavers. The guard works. It did not fire on the bump
+  because of *when* and *against what* it runs.
+- **Diagnosis:** `.github/workflows/version-guard.yml` triggers on `.gitmodules`
+  and `repos/**` changes and checks members out at their **gitlink revisions**
+  (`submodule update --init --depth=1`). At those pins every requirement is
+  satisfied, so the scan is clean and stays clean until someone advances the
+  Moirai gitlink. But members do not resolve gitlinks — their manifests name
+  Moirai's **default branch**, so the moment Moirai's `main` moved, every
+  member's own CI broke while atlas still measured a coherent snapshot. The
+  guard measures the state atlas records; the breakage lives in the state
+  members resolve.
+- **Consequence measured:** ~2.5 hours between Moirai's 0.6.0 bump
+  (2026-09-06 21:34) and its discovery, found by a kwavers pre-push gate rather
+  than by any check — with every dependent member unpushable in between.
+- **Proposed:** a `--against-remotes` mode that fetches each registered
+  member's tracked default branch and compares consumer requirements against
+  the versions published there, run on a schedule at the atlas root. That is
+  the comparison members experience. Keep the gitlink-pinned scan as the
+  advance gate it already is; the two answer different questions and both are
+  wanted.
+- **Not a substitute:** raising this in each member's CI cannot work — a member
+  repository cannot see the stack.
+- **Dependencies:** `tools/version-guard/src/coherence/` is under active peer
+  edit (staleness reporting). File first, implement when that lands.
+
 <a id="atlas-moirai-06-forward-sweep"></a>
 ## ATLAS-MOIRAI-06-FORWARD-SWEEP — Moirai 0.6.0 landed without its forward sweep [arch] — in-progress
 
