@@ -1,5 +1,56 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-mnemosyne-source-triplication"></a>
+## ATLAS-MNEMOSYNE-SOURCE-TRIPLICATION — Apollo links three Mnemosyne stacks [patch] [arch] — in-progress
+
+- **Integrator:** claude-opus-5; **last-update:** 2026-09-06.
+- **Finding, measured 2026-09-06 from Apollo's resolved graph** (not from
+  lockfile presence — `cargo tree -p apollo-fft -e normal -i` on each spec,
+  so every chain below is a normal, feature-activated edge):
+
+  | source | reaches apollo-fft via |
+  | --- | --- |
+  | `rev=26726d20` | hermes-simd-core ← hermes-simd ← apollo-fft (also via leto-ops) |
+  | `rev=7f173751` | moirai-core ← moirai-async ← moirai-runtime ← apollo-fft |
+  | unpinned (`e8e825f4`) | apollo's own 18 crates, leto, xtask |
+
+  Cargo itself refuses `-p mnemosyne-arena` as ambiguous and names all three
+  `mnemosyne-arena@0.4.0` packages. So Apollo compiles and links three
+  complete copies of the arena, backend, decay, local and memory-core crates.
+- **Why the per-repo work did not catch it.** Hermes'
+  [`#hermes-mnemosyne-identity-2026-09-03`](repos/hermes/backlog.md#hermes-mnemosyne-identity-2026-09-03)
+  has exactly this outcome — "one first-party memory source identity" — but
+  its acceptance reads *"standalone lock resolves only Mnemosyne 26726d2"*.
+  A member's standalone lock resolves one identity by construction; it cannot
+  observe what the integrator resolves. The oracle for a source-identity item
+  has to be the integrator's graph, and `26726d2` and `7f17375` are two points
+  on the same chain — Hermes advanced, Moirai did not.
+- **Cost, separated by evidence tier.** Established: three copies of the crate
+  set in Apollo's normal graph, hence three codegen'd copies in the linked
+  image. Hypothesis, not yet measured: each copy carries its own statics and
+  `thread_local!` state, so segment caches and retained free segments are
+  per-copy rather than shared — which would mean the retained-scratch
+  accounting in
+  [`#atlas-apollo-worker-retention`](backlog.md#atlas-apollo-worker-retention)
+  covers one of three. Stated as a mechanism argument; it needs a measurement
+  before it is a finding.
+- **Fix, dependency-ordered.** Remove the `rev =` quarantine pins so each
+  member states a git+version requirement and lets the lock hold the commit —
+  which is already Apollo's own model, and the reason Apollo's 18 crates share
+  one identity.
+  1. Hermes: pin removed, lock re-resolved to a single identity
+     (`3ebc4da1`), 1 `mnemosyne-arena` entry. Verification in flight.
+  2. Moirai: still `rev=7f173751`; also blocked behind
+     [`#atlas-moirai-06-forward-sweep`](#atlas-moirai-06-forward-sweep).
+  3. Apollo: pins hermes `rev=e6e08211` and moirai `rev=83aa411`; both
+     advance once 1 and 2 land, which is what actually collapses the three.
+- **Acceptance.** `cargo tree -p apollo-fft -e normal -i mnemosyne-arena`
+  resolves unambiguously — one package, not three. Ratchet metric: the count
+  of distinct `mnemosyne-arena` entries in Apollo's lock, 3 today, target 1.
+- **Non-goals.** No API change, no compatibility layer, and no removal of a
+  pin that carries a live, recorded quarantine reason — none of these three
+  do; they are advance points that were never cleaned up.
+
 <a id="atlas-moirai-06-forward-sweep"></a>
 ## ATLAS-MOIRAI-06-FORWARD-SWEEP — Moirai 0.6.0 landed without its forward sweep [arch] — in-progress
 
