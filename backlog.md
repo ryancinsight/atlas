@@ -996,6 +996,42 @@ _Closure note (moved from heading):_ commit 99dc33fad
   worktree HEADs instead of `origin`; this item guards the outcome rather than
   the generator, which is the sweep's own to fix.
 
+<a id="atlas-tmp-lane-sprawl"></a>
+
+## ATLAS-TMP-LANE-SPRAWL-2026-09-06 — Lanes minted under `D:/tmp` fork the cache and inflate two ratchet classes [patch] — todo
+
+- **Integrator:** unclaimed; **branch:** none; **lease:** none.
+- **Last-update:** 2026-09-06.
+- **Measured (2026-09-06 23:20).** Three working trees outside the canonical
+  lane root, one per member, each registered and so each counted:
+  `D:/tmp/apollo-codegen` (`perf/f32-short-winograd-width`, live, since gone),
+  `D:/tmp/ritk-alias` (`fix/real-scalar-name`), `D:/tmp/kw-unrun-verify`
+  (`build/pin-ritk-fixed-rev`, reflog 7 minutes — live). They carry
+  `ritk/excess_worktrees 0 → 1` and `kwavers/excess_worktrees 0 → 1`.
+- **Why the location matters, beyond the count.** A lane under `D:/tmp` sits
+  outside `/d/atlas`, so cargo's upward config walk never reaches the stack
+  `.cargo/config.toml` and never sees its `target-dir`. Every build in such a
+  lane therefore forks the cache by construction: `D:/tmp/ritk-alias/target`
+  is **3.5 GB**. That is the second ratchet class (`target_forks`) produced by
+  the first one's cause, which is why the canonical-root rule is a rule and not
+  a preference.
+- **`D:/tmp/ritk-alias` is not a checkout.** Its working tree shows 5,468
+  tracked files deleted and eighteen untracked entries that are a git
+  directory's contents — `HEAD`, `config`, `objects/`, `refs/`, `packed-refs`,
+  `logs/`, `index`, `worktrees/`. Its branch `fix/real-scalar-name` has **zero
+  commits ahead of `origin/main`** and is not on origin, so nothing unique is
+  at stake; but the directory may be a real object store, so removing it is not
+  a cleanup an agent should take unasked. Its reflog was 58 minutes old at
+  measurement — inside the staleness window, so it was left untouched.
+- **Outcome.** Both out-of-root lanes consolidated into `worktrees/` or closed,
+  their forks removed with them, and the two `excess_worktrees` rows back to 0.
+  `kw-unrun-verify` is live and migrates at its item's completion, per the lane
+  rule; `ritk-alias` needs its directory identified before anything is removed.
+- **Acceptance oracle.** `atlas-conformance` reports no `excess_worktrees` or
+  `target_forks` row, and `git worktree list` on every member shows only trees
+  under the canonical root.
+- **Risk / change class:** [patch]; environment state, no member code change.
+
 ## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
 
 - **Green-ratchet snapshot archived, 2026-09-02 ~21:00 (Freebuff session):** `docs/audit/2026-09-02-conformance-green-ratchet.{json,md}` — 0 regressions, 0 tightenings across all 25 members at atlas `dc0135e10`, the close of ATLAS-RATCHET-REGRESSIONS-2026-09-02. Final absorb pass before capture: hephaestus's owner split the window-backend modules their own wave had landed (`oversized_files` 38→37, `manifest_implementation` 15→14), coeus tightened (manifest 26→25, crate_level_allows 18→8), leto's allow_sites settled back to 12, and two transient `target_forks` flags (coeus, hephaestus — live peer build caches) were cleared. Stack-wide residues for the next campaigns: `unwrap_production` 779, `manifest_implementation` 664, `oversized_files` 614.
