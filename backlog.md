@@ -12706,3 +12706,37 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
   parameter the delegation newly requires.
 - **why it is takeover and not a wait:** two days with no movement is past the
   stale-claim window, and #724 already changed the base under it.
+
+## ATLAS-MOIRAI-06-SWEEP-2026-09-06 - Moirai 0.6.0 landed without its forward sweep [patch] - in-progress <a id="moirai-06-sweep"></a>
+
+- **outcome:** every first-party requirement on a `moirai-*` crate resolves
+  against Moirai's current workspace version, and each member's lock is
+  regenerated and green.
+- **the defect:** Moirai's workspace version is **0.6.0**; six members still
+  require `^0.5.0`. `architecture_scoping` (pin discipline) says a first-party
+  version advance fires the forward sweep *in the same co-evolution unit*,
+  because "a patch unifies only when the local version satisfies the declared
+  requirement" — requirement lag is exactly the resolver failure it names. The
+  sweep never fired.
+
+  | Member | Requirement |
+  | --- | --- |
+  | consus | `moirai-async = "0.5.0"` |
+  | helios | `moirai-parallel = "0.5.0"` |
+  | hephaestus | `moirai-sync = "0.5.0"` |
+  | kwavers | `moirai-parallel = "0.5.0"` |
+  | ritk | `moirai-runtime = "0.5.0"` |
+  | tyche | `moirai-core`, `moirai-executor` = `"0.5.0"` |
+
+- **how it surfaced:** `cargo update -p ritk-model` in kwavers failed with
+  `failed to select a version for the requirement moirai-parallel = "^0.5.0";
+  candidate versions found which didn't match: 0.6.0`. Bumping kwavers alone
+  then failed one level deeper on `ritk-io`'s own `^0.5.0`. The lag is
+  transitive, so a partial sweep does not resolve — which is why it is one
+  item across six members rather than six independent fixes.
+- **it is currently blocking real work.** kwavers cannot advance its resolved
+  `ritk` revision, so it cannot pick up ritk#238 — the fix for a
+  `coeus_leto::RandomScalar` break — and `cargo check --workspace` on kwavers
+  `main` is red for that reason today.
+- **order:** ritk, then kwavers (which consumes it), then consus, helios,
+  hephaestus, tyche in any order.
