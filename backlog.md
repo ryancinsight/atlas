@@ -509,16 +509,16 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
 | P9 | **Ask-User:** publish `prometheus-kinetics` | registry install and smoke; docs.rs | P8 |
 
 - **status 2026-09-04:** P0 done (aequitas `#50`). The local `repos/prometheus/`
-  tree carries P1 floor, P3 species/concentration/stoichiometry, P4 typed
-  mass-action rates, P5 net-production/reaction-enthalpy, and P6 integration
-  (first- and second-order decay, reversible equilibrium, convergence order,
-  mass conservation, non-negativity). Gate green: fmt, clippy `-D warnings`, 31
-  tests, doc `-D warnings`, `--no-default-features` check. Nine local commits
-  `aea52ff..f5f60fb`. **P2 (create `ryancinsight/prometheus`) is still
-  Ask-User**; the commits push once it exists. The remaining P6 oracle — the
-  Robertson stiff benchmark — is blocked on Horae: every tableau is explicit
-  (Euler/Midpoint/Rk4/Dormand–Prince), so an implicit tableau (BDF/Radau) is an
-  upstream Horae requirement before the stiff path can be exercised honestly.
+  tree carries the full Phase 0 computation — P1 floor, P3
+  species/concentration/stoichiometry, P4 typed mass-action rates, P5
+  net-production/reaction-enthalpy, P6 integration (first-/second-order decay,
+  reversible equilibrium, convergence order, conservation, non-negativity, and
+  the Robertson stiff benchmark against cited INdAM-Bari reference values via
+  the Horae implicit seam). Gate green: fmt, clippy `-D warnings`, 33 tests,
+  doc `-D warnings`. Eleven local commits `aea52ff..4c176ef`. **P2 (create
+  `ryancinsight/prometheus`) is still Ask-User**; the commits push once it
+  exists. Phase 0 computation is complete; the remainder is P2/P7/P9 delivery
+  and the P8 Kwavers consumer.
 - **historical prerequisite retired:** the Kwavers reaction-vocabulary
   consolidation existed to produce a deletion ledger; under ADR 0056 that
   ledger arrives with the P8 consumer migration. It remains worthwhile on its
@@ -526,7 +526,7 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
 - Prometheus is the first embedded-stepping consumer for Horae, retiring a
   capability recorded as consumer-gated with no caller.
 
-## ATLAS-HORAE-IMPLICIT-SEAM-2026-09-04 - Add a stiff-capable implicit seam to Horae [arch][minor] - todo <a id="horae-implicit-seam"></a>
+## ATLAS-HORAE-IMPLICIT-SEAM-2026-09-04 - Add a stiff-capable implicit seam to Horae [arch][minor] - done 2026-09-04 <a id="horae-implicit-seam"></a>
 
 - **outcome:** Horae gains `ImplicitSystem<T>` — an `ExplicitSystem` supertrait
   adding a `jacobian` method — plus a first implicit tableau `BackwardEuler`
@@ -534,8 +534,8 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
   Robertson benchmark ([#prometheus-promotion](#prometheus-promotion)) is
   exercisable honestly rather than with a tiny explicit step.
 - **design:** [ADR 0002](repos/horae/docs/adr/0002-implicit-system-seam.md)
-  (drafted, uncommitted). Capability is upstream Horae, never a Prometheus-local
-  stiff stepper.
+  (accepted). Capability is upstream Horae, never a Prometheus-local stiff
+  stepper.
 - **scope:** Horae `system` and `integration` modules — one trait, one tableau,
   one recurrence, allocation-free over the step workspace. Explicit consumers
   are untouched.
@@ -544,11 +544,11 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
   explicit tableau unchanged; `ImplicitSystem: ExplicitSystem` so a stiff system
   remains steerable by both families.
 - **risk/class:** `[arch][minor]`. **dependencies:** none (Horae-internal).
-- **blocked on:** Horae is checked out detached at the overlay pin (origin/main
-  `47739ae`). Implementation lands in a Horae worktree lane
-  (`worktrees/horae-implicit-seam`) so the overlay's main checkout is never
-  branch-switched under concurrent builds. Re-open trigger: lane opened, and
-  ADR 0002 committed with its index regeneration.
+- **delivered 2026-09-04:** the Horae lane fast-forwarded `main` and pushed
+  (`47739ae..e5785c6`); the atlas gitlink advanced (`ec22ab6f8`); Prometheus
+  builds against the advanced pin; the lane worktree and branch were removed.
+  The Prometheus-side Robertson benchmark lands as `4c176ef` with cited
+  reference values.
 - **sub-tasks (vertical):** `ImplicitSystem` + `jacobian`; `BackwardEuler`
   tableau; `step_implicit_into` damped Newton; Robertson benchmark with cited
   reference values; Prometheus consumes it to close P6.
@@ -578,7 +578,7 @@ the stack (ADR 0055 substrate contract).
 | 4 | aequitas `ReactionRate` and `MolarFlux` | aequitas | `[minor]` | done (`#50`) |
 | 5 | Architecture test R7 and `cargo deny bans` substrate list | atlas | `[patch]` | delivered 2026-09-04 (`4a574a801`); live-balance enum in WT |
 | 6 | Ares A1 through A9 | ares | `[arch]` | A0-A8 done; A9 blocked on unpublished `proteus-mat` |
-| 7 | Prometheus P1 through P9 | prometheus | `[arch]` | P0-P6 computation green locally (9 commits); Robertson stiff needs a Horae implicit tableau; **Ask-User** for `ryancinsight/prometheus` |
+| 7 | Prometheus P1 through P9 | prometheus | `[arch]` | Phase 0 computation done (11 commits, Robertson included via the Horae implicit seam); **Ask-User** for `ryancinsight/prometheus` |
 
 Steps 1 to 5 are mutually independent and can run concurrently on disjoint
 scopes.
