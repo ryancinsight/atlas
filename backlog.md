@@ -12568,11 +12568,19 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   held byte-identical uncommitted work delegating the six derived elastic
   identities to `proteus::elastic::IsotropicModuli` — the residual copy
   [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot) is about.
-  Committed as `f9afe9c54` on `refactor/elastic-computed-delegate-on-lock` so
-  it stops being ownerless dirt duplicated across two trees. It is *not*
-  verified: that branch still carries 23 stranded phase commits and the dead
-  pin. Next increment there is rebasing the one commit onto the repointed
-  `main` and running the gate.
+  Rebased onto the repointed `main` and delivered as
+  [kwavers#724](https://github.com/ryancinsight/kwavers/pull/724). Only
+  `CHANGELOG.md` conflicted — an append against an append — and both entries
+  were kept. The gate it could never run then passes now: clippy clean, 215
+  nextest, 4 doctests.
+
+  Clippy earned its place on the way. Delegating made the accessors
+  fallible-underneath, so six public functions gained a reachable panic and
+  none documented it; `missing_panics_doc` caught the two with `expect`
+  directly in their own body, and the other four differ only in that the panic
+  is one call deeper. All six now carry `# Panics`. The duplicate copy in the
+  second kwavers checkout was verified superseded by what landed — a strict
+  subset — and cleared.
 - **remaining branches** (`hermes` 17, `leto` 17, `athena` 2, and kwavers's 23)
   are phase series with no PR. gaia's turned out to be superseded rather than
   stalled, so each of these needs the same check — does `main` already pin the
@@ -12654,7 +12662,7 @@ Parent: [`#slop-burndown`](backlog.md#slop-burndown).
 
 - **outcome:** `target/` evicts on a committed cadence and its size is a
   reported budget, so growth is bounded rather than discovered.
-- **measured 2026-09-06:** the shared `target/` at the stack root is **779 GB**,
+- **measured 2026-09-06:** the shared `target/` at the stack root is **795 GB**,
   alongside four repo-local forks totalling ~37 GB that have now been deleted.
 - **why it is a defect and not just disk:** `performance_engineering` makes
   build and artifact size a tracked budget alongside the perf baseline, and
