@@ -12719,14 +12719,24 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
   requirement" — requirement lag is exactly the resolver failure it names. The
   sweep never fired.
 
-  | Member | Requirement |
+  | Member | Requirement(s) |
   | --- | --- |
-  | consus | `moirai-async = "0.5.0"` |
-  | helios | `moirai-parallel = "0.5.0"` |
-  | hephaestus | `moirai-sync = "0.5.0"` |
-  | kwavers | `moirai-parallel = "0.5.0"` |
-  | ritk | `moirai-runtime = "0.5.0"` |
-  | tyche | `moirai-core`, `moirai-executor` = `"0.5.0"` |
+  | CFDrs | `moirai` |
+  | apollo | `moirai-runtime` |
+  | consus | `moirai-runtime`, `moirai-async` |
+  | gaia | `moirai-runtime` |
+  | helios | `moirai`, `moirai-parallel` |
+  | hephaestus | `moirai-sync` |
+  | kwavers | `moirai-parallel` |
+  | leto | `moirai-runtime` |
+  | ritk | `moirai-runtime` |
+  | tyche | `moirai-core`, `moirai-executor` |
+
+  **Corrected 2026-09-06:** the first count here said six members and seven
+  requirements. That scan read only each member's *root* `Cargo.toml` with too
+  narrow a pattern. Scanning every manifest for both the plain and
+  `package = "moirai-…"` rename forms gives **ten members and thirteen
+  requirements**.
 
 - **how it surfaced:** `cargo update -p ritk-model` in kwavers failed with
   `failed to select a version for the requirement moirai-parallel = "^0.5.0";
@@ -12738,5 +12748,10 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
   `ritk` revision, so it cannot pick up ritk#238 — the fix for a
   `coeus_leto::RandomScalar` break — and `cargo check --workspace` on kwavers
   `main` is red for that reason today.
-- **order:** ritk, then kwavers (which consumes it), then consus, helios,
-  hephaestus, tyche in any order.
+- **the order is forced, not a preference.** A member's lock resolves its
+  first-party git dependencies from their `origin/main`, so a bump cannot be
+  verified until every dependency it pulls has already landed its own. Bumping
+  `ritk` alone failed on `coeus-core`'s `^0.5.0` at the revision ritk resolves;
+  bumping `kwavers` alone failed on `ritk-io`'s. So this is a serialised chain
+  of ten deliveries, deepest first — `leto`, then the crates above it — and not
+  ten independent fixes that can be batched.
