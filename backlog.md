@@ -12735,9 +12735,27 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
   git supplies on stdin and skips when nothing in it is a `Cargo.toml` or
   `Cargo.lock`. Verified both directions: a workflow-only range skips, a range
   containing a lockfile change runs the real check, a branch deletion skips.
-- **remaining:** 45 hook files across 22 members still differ; four members
-  (`eunomia`, `iris`, `melinoe`, `metis`) have no `.githooks` directory at all
-  and are running no guard. Deployment is one commit per member.
+- **deployed 2026-09-08.** Twenty-three members synced and three more
+  (`eunomia`, `iris`, `melinoe`) given hooks they had never had. Twenty landed
+  immediately; `apollo`, `coeus`, `hephaestus` and the three new ones are
+  enqueued behind required checks. Verified against each member's *default
+  branch* rather than its working tree — 20 of 23 confirmed byte-identical to
+  `scripts/git-hooks/` at the time of writing.
+- **a verification trap worth recording.** `sync-hooks --check` reads working
+  trees, and most member trees sit on peer branches, so it still reported 45
+  drifted files after twenty deliveries had merged. The instrument was
+  measuring checkouts, not delivered state — the same class of blind spot as
+  the conformance ratchet measuring pinned gitlinks. Confirming delivery took
+  comparing blob hashes at `origin/<default>` directly.
+- **and a shell trap under it.** The first such comparison reported *zero*
+  members in sync, because Git Bash rewrote `origin/main:.githooks/pre-push`
+  into `origin\main;.githooks\pre-push` — MSYS path conversion mangling the
+  revision:path argument. Every `rev-parse` failed and the loop counted the
+  failures as mismatches. `MSYS_NO_PATHCONV=1` fixes it. A measurement that
+  reports total failure deserves suspicion before its subject does.
+- **`metis` and `prometheus`** are unregistered members without remotes and are
+  out of scope until [`#metis-unregistered-member`](backlog.md#metis-unregistered-member)
+  clears.
 - **acceptance:** `atlas-lock-form.py sync-hooks --check` exits zero across the
   fleet and runs in CI.
 
