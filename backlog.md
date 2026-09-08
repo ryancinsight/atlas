@@ -10225,8 +10225,13 @@ blocker on Athena.
 - Baseline 2026-07-25 (per-repo counts recorded; the ratchet gate holds these non-increasing): files >500 lines: 574 (CFDrs 137, kwavers 91, consus 89); implementation-bearing lib.rs/mod.rs: 402 (kwavers 145); production `unwrap()`: 5833 (kwavers 3119, ritk 719); `#[allow]`: 798 (kwavers 330); print/dbg in src: 1082 (CFDrs 428); existence-only assertions: 444 (coeus 104, leto 79); type-suffixed fns: 380 (apollo 111); junk-drawer modules: 66 (kwavers 28); crates missing deny(missing_docs): 107/208; unsanctioned root files: 120 (kwavers 40); markers: 18.
 - Scope: (1) extend the committed conformance scan script to all eleven classes and record this baseline as its first output; (2) burn-down items per repo by triage (kwavers is the epicenter: unwraps, fat manifests, junk modules, root clutter); (3) `repos/parity_artefacts` (untracked run-output dump in the member namespace — det_*.log, url/target lists) relocates to a gitignored verification output root or deletes at the parity stream's item completion (owner: parity stream; regenerable evidence, rescue-first if any file proves unique); (4) kwavers root files triage per the Root manifest rule.
 - Acceptance: scan script covers all eleven classes with committed baseline; member namespace holds registered members only; per-repo burn-down items filed DoR-shaped.
-- **Burn-down 2026-09-08 (peer contribution, scope 2).** Fleet check is at
-  **0 regressions**, down from 26 on 2026-09-06. This session closed
+- **Burn-down 2026-09-08 (peer contribution, scope 2).** Against the
+  committed baseline the fleet stands at **13 regressions**, down from 26 on
+  2026-09-06. (An earlier line here read "0 regressions": that number came
+  from `check` run against the owner's uncommitted baseline regeneration,
+  which had already absorbed all thirteen. Measuring against a baseline
+  being rewritten in the working tree is the same defect recorded on
+  2026-09-06; the committed file is the ratchet.) This session closed
   `moirai/crate_level_allows` (20 -> 16, Moirai #295) and deleted a stale
   539 MB `repos/aequitas/target` fork created by a cargo invocation that ran
   outside the overlay. Landing #295 required first restoring moirai's gate:
