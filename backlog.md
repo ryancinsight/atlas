@@ -1,5 +1,10 @@
 # atlas — cross-repository integration backlog
 
+<a id="ATLAS-RITK-DICOMDIR-001"></a>
+## ATLAS-RITK-DICOMDIR-001 — Integrate bounded DICOMDIR record validation [patch] — done
+- Status: done; [RITK PR #240](https://github.com/ryancinsight/ritk/pull/240) merged at `4f1a8822`; Atlas pointer `a6dd7c790`; member item [RITK-SNAP-DIRECTORY-001](repos/ritk/backlog.md#RITK-SNAP-DIRECTORY-001).
+- Evidence: RITK validates active reachable record links and referenced SOP identities before membership; locked `ritk-io` Nextest 430/430 and warning-denied Clippy pass. Parent-directory handle traversal remains open in the member resource item.
+
 <a id="atlas-squash-merge-disabled-fleetwide"></a>
 ## ATLAS-SQUASH-MERGE-DISABLED-FLEETWIDE — Merge methods configured at the platform [patch] — done 2026-09-07
 
