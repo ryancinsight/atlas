@@ -10242,6 +10242,26 @@ blocker on Athena.
   lint-floor repair but recorded a gitlink predating it -- that branch had
   never been opened as a PR and its reported number belonged to an
   unrelated peer PR; `020a2f4da` records the correction.
+- **Burn-down 2026-09-08 continued.** 13 -> 8 regressions. Closed:
+  `moirai/{manifest_implementation 27->25, oversized_files 35->33}` (#296,
+  splitting `schedule/queue/mod.rs`, `process/windows/mod.rs`, and the two
+  largest test modules), `helios/target_forks` (5.6 GB stale tree deleted;
+  no nested cargo config -- an ad-hoc invocation outside the overlay, same
+  generator as the aequitas fork), and `mnemosyne/{seqcst_production 2->0,
+  manifest_implementation 9->8}` (Mnemosyne #134). Remaining eight:
+  `apollo/existence_only_assertions`, `hephaestus/{allow_sites,
+  manifest_implementation}`, `kwavers/oversized_files`,
+  `mnemosyne/{oversized_files, reexport_shims}`, `ritk/{oversized_files,
+  type_suffixed_fns}`.
+- **Detector finding 2026-09-08 (scope 1, owner's file).** `reexport_shims`
+  counts `cfg`-exclusive arms of one alias once per arm:
+  mnemosyne's `backends/mod.rs` declares `DefaultBackend` three times
+  (windows/unix/wasm32), of which exactly one compiles per target, and the
+  row moved 2 -> 3 when the wasm arm landed. That is one alias, not three
+  shims, and it is a legitimate platform-selection seam rather than the
+  compat alias the class targets. The fix belongs in the detector (count a
+  `cfg`-gated re-export group once), with the baseline regenerated in the
+  same change; churning the code to satisfy the regex would be gaming.
 - Observed 2026-09-08, not acted on (owner's claimed scope): the working
   tree carries uncommitted scanner work adding `bare_git_dependency` and
   `cache_retention_policy_missing` with a regenerated baseline. It runs and
