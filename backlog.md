@@ -8,11 +8,24 @@
 
   | member | sites | | member | sites |
   |---|---:|---|---|---:|
-  | ritk | 141 | | hephaestus | 14 |
+  | ~~ritk~~ | ~~141~~ → 0 | | hephaestus | 14 |
   | CFDrs | 88 | | coeus | 7 |
   | consus | 78 | | leto | 6 |
   | gaia | 29 | | mnemosyne | 5 |
   | moirai | 20 | | metis, eunomia, apollo | 1 each |
+
+- **ritk closed 2026-09-08** ([#245](https://github.com/ryancinsight/ritk/pull/245),
+  141 → 0). Two findings worth carrying to the other members: the rejection
+  messages must be *harvested* (run each test with its assertion replaced by a
+  probe) rather than read off the call site, because an `anyhow` chain's outer
+  context is shared by every failure of that entry point — five ritk-mgh tests
+  all asserted `Failed to parse MGH file` and were mutually interchangeable;
+  and roughly a fifth of the sites turn out to be redundant rather than weak,
+  collapsing into an `expect_err` the test already performed on the next line.
+  Landing it also required fixing a pre-existing red on ritk main
+  ([#244](https://github.com/ryancinsight/ritk/pull/244)): a DICOMDIR fixture
+  the reader had outgrown, invisible because the suite fails fast and stopped
+  earlier.
 
 - **kwavers is closed** (123 → 0, PRs #731, #733, #734, #747). What that sweep
   found is the reason to run it elsewhere rather than treat the class as
