@@ -13018,6 +13018,16 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
   kwavers `main` is red and
   [kwavers#727](https://github.com/ryancinsight/kwavers/pull/727) cannot run
   `clippy --all-targets` and stays draft.
+- **Corrected 2026-09-08 (kwavers#725 landed):** the rev-advance path is open
+  *now*, without waiting on the Moirai 0.6 sweep. [ritk#238](https://github.com/ryancinsight/ritk/pull/238)
+  merged (`1b9d4d86`) and [kwavers#725](https://github.com/ryancinsight/kwavers/pull/725)
+  pinned the fixed rev and landed (`56ea403d`); kwavers `main` CI is green at
+  `96819eae`, Integration Suite included. The blocker above applies to
+  *version-requirement* bumps (Moirai `^0.5.0` → `0.6.0`), which do force
+  global re-resolution; a bare git *rev* re-selection moves one source and
+  leaves the rest of the lock untouched, so it clears the `RandomScalar`
+  break independently of the sweep. kwavers#727's premise should be
+  re-judged against the green main.
 
 ## ATLAS-BARE-GIT-PIN-STALENESS-2026-09-08 - A version-less git dependency freezes at its first resolution [patch] - todo <a id="bare-git-pin-staleness"></a>
 
