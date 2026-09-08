@@ -10262,6 +10262,31 @@ blocker on Athena.
   manifest_implementation}`, `kwavers/oversized_files`,
   `mnemosyne/{oversized_files, reexport_shims}`, `ritk/{oversized_files,
   type_suffixed_fns}`.
+- **Generator finding 2026-09-08 (scope 1, owner's file) — the ratchet can
+  loosen.** Between atlas `5cd73a335` and `abc7ba8e3` the committed
+  baseline RAISED eight rows: `apollo/existence_only_assertions` 0->1,
+  `hephaestus/{allow_sites 13->14, manifest_implementation 14->15}`,
+  `kwavers/oversized_files` 107->109, `mnemosyne/{oversized_files 6->10,
+  reexport_shims 2->3}`, `ritk/{oversized_files 44->45, type_suffixed_fns
+  69->76}`. Those are exactly the rows that were open regressions at
+  `5cd73a335`, so the burn-down target was absorbed into the baseline
+  rather than paid down. Two mechanical causes, both fixable in the
+  instrument:
+  1. `generate` writes whatever it measures. "It can only lower" holds
+     only when nothing is regressed; where the live count exceeds the
+     baseline it raises the row silently. `generate` should refuse to
+     raise a row without an explicit flag naming the reason.
+  2. `check` reads `scripts/conformance-baseline.json` from the working
+     copy (`BASELINE = ROOT / ...`), so a run right after `generate`
+     compares the tree against itself and reports zero. Both commits that
+     raised rows state "none regressed" for that reason. `check` should
+     read the committed blob (`git show HEAD:scripts/...`) or refuse to
+     run against a dirty baseline.
+  Attempting the restore here hit a live write race -- the file changed
+  under an in-flight edit twice -- so the rows are recorded rather than
+  rewritten. The values above are the restore targets, with
+  `hephaestus/allow_sites` restorable to 8 and `mnemosyne/oversized_files`
+  to 6 (both now measured below their pre-raise values).
 - **Detector finding 2026-09-08 (scope 1, owner's file).** `reexport_shims`
   counts `cfg`-exclusive arms of one alias once per arm:
   mnemosyne's `backends/mod.rs` declares `DefaultBackend` three times
