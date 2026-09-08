@@ -13051,3 +13051,48 @@ Parent: [`#slop-burndown`](backlog.md#slop-burndown).
   invisible until a consumer needs something the frozen revision lacks. Both
   are the same defect in width. The scan should count version-less first-party
   git dependencies, and the sweep should treat them as it treats an `=` pin.
+
+## ATLAS-APOLLO-QUARANTINE-LIFT-2026-09-08 - Apollo's moirai rev pin can now be removed [patch] - todo <a id="apollo-quarantine-lift"></a>
+
+Parent: [`#moirai-06-sweep`](backlog.md#moirai-06-sweep).
+
+- **outcome:** `apollo/Cargo.toml` drops `rev = "83aa411"` from its `moirai`
+  dependency, requires `0.6.0`, and regenerates its lock — closing the last
+  item in the Moirai 0.6 sweep.
+- **the trigger has fired.** The pin's own comment says *"remove `rev` after
+  Moirai's hook lands on main and regenerate Cargo.lock."* The hook landed as
+  [moirai#290](https://github.com/ryancinsight/Moirai/pull/290) on 2026-09-08,
+  a takeover of #257 which had sat four days behind a CI webhook that never
+  delivered.
+- **this is a quarantine expiring on schedule, not debt.** Worth recording as
+  the positive case: the pin carried its removal trigger in a comment beside
+  it, so lifting it required reading one line rather than reconstructing intent
+  — which is exactly why pin discipline asks for the trigger to be written
+  down.
+- **blocked only on a tree.** Apollo is at its two-worktree bound: the main
+  tree holds a live peer (commits within the last few minutes) and the lane
+  holds abandoned work ([`#apollo-lane-abandoned-work`](backlog.md#apollo-lane-abandoned-work)).
+  The change itself is a manifest edit plus a lock regeneration, and the lock
+  regeneration needs a checkout.
+
+## ATLAS-APOLLO-LANE-ABANDONED-WORK-2026-09-08 - 34-hour-old uncommitted composite-schedule work in the apollo lane [patch] - todo <a id="apollo-lane-abandoned-work"></a>
+
+- **outcome:** the work is completed and committed, or triaged as superseded
+  and discarded deliberately. Either way the lane returns to its lifecycle.
+- **inventory,** `worktrees/apollo-route` on `perf/f64-split-core-routing`,
+  last commit 34 hours ago, 13 uncommitted paths:
+
+  | Kind | Paths |
+  | --- | --- |
+  | New | `docs/adr/0051-composite-phase-schedules.md`, `apollo-fft-macros/src/phase_emission.rs`, `winograd/composite/{schedule,tests}.rs` |
+  | Modified | four `apollo-fft-macros` sources, three `apollo-fft` kernel sources, `backlog.md` |
+
+  Net `+97/-365` across the modified files — a deletion-heavy shape, so it
+  reads as a consolidation behind a new ADR rather than an addition.
+- **not discarded on sight.** It carries an unnumbered-elsewhere ADR and three
+  new source files; the diff is coherent, not scratch. It needs the same
+  treatment the kwavers elastic delegation got: commit it under its branch so
+  it stops being ownerless dirt, then decide whether it survives on a current
+  base.
+- **it is also what blocks** [`#apollo-quarantine-lift`](backlog.md#apollo-quarantine-lift),
+  since apollo is at its two-tree bound and this lane is the reclaimable one.
