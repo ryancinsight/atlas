@@ -13264,3 +13264,32 @@ Parent: [`#slop-burndown`](backlog.md#slop-burndown).
   Whether the blobs match it is a different question and is not currently
   measured. Worth adding as a counted class before doing the renormalisation,
   so the ratchet holds it at zero afterwards.
+
+## ATLAS-PLATFORM-DEPENDENT-TESTS-2026-09-08 - A test passed on Windows for the wrong reason [patch] - done 2026-09-08 <a id="platform-dependent-tests"></a>
+
+Parent: [`#slop-burndown`](backlog.md#slop-burndown).
+
+- **found while landing an unrelated change.** `ritk#242` (existence-only
+  assertions in `ritk-cli`/`ritk-io`) went red on `Test Suite (ubuntu-latest)`
+  and `(macos-latest)` in a crate it does not touch: `ritk-dicom`'s
+  `file_identity_detects_replaced_path`.
+- **the test asserted a property it did not exercise.** It wrote new bytes to
+  the same path and asserted the TOCTOU guard saw a *different* file. On Unix
+  that is false — `std::fs::write` truncates in place, the inode is unchanged,
+  and identity is `(dev, ino)`, so the guard correctly reported the same file.
+  It passed on Windows only because that platform's identity includes file size
+  and last-write time, both of which a rewrite changes. **The test was
+  detecting modification and calling it replacement**, and one platform's
+  identity definition happened to make that indistinguishable.
+- **fixed by renaming a sibling over the path** (`585bb0b4`), which genuinely
+  changes the inode and is also the real TOCTOU sequence the guard exists to
+  catch — the test now exercises the threat model rather than a proxy for it.
+- **the class:** a test that passes on the development platform and fails
+  elsewhere is not a flake; it is a test whose oracle is platform-defined.
+  Worth watching for wherever a guard compares platform metadata — the
+  `#[cfg(unix)]`/`#[cfg(windows)]` split in `same_file_identity` is exactly the
+  shape where a single test cannot cover both definitions without saying which
+  it means.
+- **it also cost an unrelated PR two CI cycles**, which is the practical
+  argument for the local gate matching CI's platform matrix, or at minimum for
+  reading *which crate* failed before assuming the change caused it.
