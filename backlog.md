@@ -774,6 +774,10 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
   `chemical_reaction.rs`, sonoluminescence `spectrum.rs`), and the
   `kwavers-therapy` orchestrator (`chemical.rs`, `initialization/modalities.rs`).
   `diffusion/` and the `Array3` transport stay in Kwavers.
+  **Queued:** the migration lands in a Kwavers lane, but Kwavers is at the
+  two-tree bound — main plus a live `kwavers-elastic-computed` lane on
+  `docs/kw-branch-inventory` (active seconds ago). Re-open when that lane's
+  item completes or goes stale.
 - **historical prerequisite retired:** the Kwavers reaction-vocabulary
   consolidation existed to produce a deletion ledger; under ADR 0056 that
   ledger arrives with the P8 consumer migration. It remains worthwhile on its
