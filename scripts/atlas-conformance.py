@@ -242,14 +242,9 @@ CLASSES = [
     "lane_kernel_uninlined", "toolchain_request_overridden",
     "default_branch_cancel_in_progress", "substrate_contract_violations",
     "balance_domain_edges", "bare_git_dependency",
-    "cache_retention_policy_missing",
+    "cache_retention_policy_missing", "crlf_stored_blobs",
 ]
 
-# The shared build directory routed through the root `.cargo/config.toml`.
-# The cache-retention policy must cover this directory by name.
-TARGET_DIR_SETTING = re.compile(
-    r"(?m)^target-dir\s*=\s*[\"']([^\"']+)[\"']"
-)
 #
 # The bound is a creation precondition, so it only holds if something checks
 # it. Nothing did, and the count reached five on one member and 26 lane
@@ -553,6 +548,33 @@ def count_excess_worktrees(repo: Path) -> int:
 def lf_policy_missing(repo: Path) -> int:
     ga = repo / ".gitattributes"
     return 0 if ga.is_file() and "text=auto" in ga.read_text(errors="replace") else 1
+
+
+def count_crlf_stored_blobs(repo: Path) -> int:
+    """Tracked text files whose stored blob disagrees with the declared policy.
+
+    A `text=auto eol=lf` policy only helps review when the stored blobs follow
+    it; blobs that predate the policy stay CRLF, so the next edit by any
+    LF-writing tool turns a small change into a whole-file rewrite. Counted
+    from the index (`ls-files --eol`), so it is what a checkout will produce,
+    not what the worktree happens to contain right now.
+    """
+    if lf_policy_missing(repo):
+        # Without a policy there is nothing for a blob to contradict; the
+        # absence itself is the counted defect (`gitattributes_missing`).
+        return 0
+    output = subprocess.run(
+        ["git", "-C", str(repo), "ls-files", "--eol"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    return sum(
+        1
+        for line in output.splitlines()
+        # "i/" is the index (stored blob) form; worktree form is "w/".
+        if line.startswith("i/crlf") or line.startswith("i/mixed")
+    )
 
 
 def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path]:
@@ -1323,6 +1345,7 @@ def scan_repo(
     c["excess_worktrees"] = count_excess_worktrees(live_repo)
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
+    c["crlf_stored_blobs"] = count_crlf_stored_blobs(repo)
     # The shared-cache budget is stack-level, not per-member: the policy file
     # must exist and name this member's routed target dir (the root
     # `.cargo/config.toml` [build] target-dir) for the member to count as
