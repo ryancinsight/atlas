@@ -1,0 +1,21 @@
+# The shared build cache is derived state. These limits are deliberately
+# explicit so a cleanup run cannot grow with the number of lanes or packages.
+# Measured 2026-09-08: target/ held 162.1 GiB, of which 109.2 GiB was
+# target/debug/incremental (per-package incremental cache generations cargo
+# never garbage-collects), 39.4 GiB target/debug/deps.
+
+[cache]
+# Two weeks retains every cache generation an active lane can touch; older
+# generations are recompiled on demand when a fingerprint next needs them.
+max_age_days = 14
+# 64 GiB bounds the cache while leaving the live host build untouched: the
+# budget is selected to evict the stale incremental tail first (age-then-size,
+# oldest unit evicted first) and never a protected host profile container.
+max_bytes = 68719476736
+# Scan roots are relative to the Atlas root. The cargo build dir plus the
+# miri tool's separate target directory.
+roots = ["target", "target-miri"]
+# Containers are never evicted as units under these names: they are the live
+# host build profiles. Their growth surface is the incremental children
+# planned beneath them instead.
+protected_names = ["debug", "release"]

@@ -1,5 +1,5 @@
 # Atlas workspace conveniences
-.PHONY: help check-mdbook-links build-mdbooks fmt-check board-lint verify-scattered-oracle search-index search-index-check search-lookup rustdoc-index rustdoc-check api-lookup output-retention
+.PHONY: help check-mdbook-links build-mdbooks fmt-check board-lint verify-scattered-oracle search-index search-index-check search-lookup rustdoc-index rustdoc-check api-lookup output-retention cache-retention
 
 BOOKS = repos/CFDrs/docs/book repos/helios/docs/book repos/kwavers/docs/book repos/ritk/docs/book
 
@@ -17,6 +17,7 @@ help:
 	@echo "  make rustdoc-check       Verify rustdoc oracles match their members' current HEAD"
 	@echo "  make api-lookup QUERY=SparseLuSolver  rustdoc API oracle lookup"
 	@echo "  make output-retention   Apply the bounded output eviction policy"
+	@echo "  make cache-retention    Apply the bounded shared build-cache eviction policy"
 
 check-mdbook-links:
 	python3 scripts/check_mdbook_links.py $(BOOKS)
@@ -57,4 +58,7 @@ api-lookup:
 
 output-retention:
 	@python scripts/atlas-output-retention.py --apply
+
+cache-retention:
+	@python scripts/atlas-cache-retention.py --apply
 
