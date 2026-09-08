@@ -1,5 +1,36 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-existence-only-assertions"></a>
+## ATLAS-EXISTENCE-ONLY-ASSERTIONS — Tests that cannot fail on the defect they name [arch] — in-progress
+
+- **Measured 2026-09-08** with the conformance detector's own regex over every
+  registered member: 392 sites remain outside kwavers.
+
+  | member | sites | | member | sites |
+  |---|---:|---|---|---:|
+  | ritk | 141 | | hephaestus | 14 |
+  | CFDrs | 88 | | coeus | 7 |
+  | consus | 78 | | leto | 6 |
+  | gaia | 29 | | mnemosyne | 5 |
+  | moirai | 20 | | metis, eunomia, apollo | 1 each |
+
+- **kwavers is closed** (123 → 0, PRs #731, #733, #734, #747). What that sweep
+  found is the reason to run it elsewhere rather than treat the class as
+  cosmetic: three tests exercised a different branch than the one they were
+  named for and would have passed against the defect they existed to catch —
+  an AVX-512 dimension test that passed on every host without AVX-512, and two
+  loader tests that passed paths which do not exist, so the "single file" and
+  "unsupported format" branches were never reached by any test.
+- **Pattern to reuse:** a `test-util`-gated `test_support` module in the
+  workspace's error-owning crate exports `assert_invalid_input` (variant +
+  cause) and `assert_rejects` (cause only, for other typed variants);
+  consumers take it as a path dev-dependency. One commit per crate, and each
+  conversion mutation-checked — swap the guard's variant or message and the
+  converted test must fail where the old one passed.
+- **Order:** by count, largest first, but each member is independent — no
+  dependency edges between them. ritk, CFDrs and consus are two thirds of the
+  total.
+
 <a id="atlas-build-source-identity"></a>
 ## ATLAS-BUILD-SOURCE-IDENTITY — Detect stale artifacts across source trees [patch] — todo
 - **Outcome:** shared-cache gates consume artifacts from their recorded source tree and revision.
