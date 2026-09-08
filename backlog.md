@@ -10297,6 +10297,35 @@ blocker on Athena.
   Until (1) lands, measure with `git show HEAD:scripts/conformance-baseline.json`
   rather than the working copy; three separate readings in this session
   were wrong for exactly that reason.
+- **Burn-down close 2026-09-08.** Fleet check (committed instrument,
+  committed baseline) stands at 6 violations, from 26 on 2026-09-06 and 16
+  at this session's start. Closed this session: moirai `crate_level_allows`
+  20->16, `manifest_implementation` 27->25, `oversized_files` 35->33
+  (Moirai #295, #296); mnemosyne `seqcst_production` 2->0,
+  `manifest_implementation` 9->8, `oversized_files` 10->6 (Mnemosyne #134,
+  #135); hephaestus `allow_sites` 14->8, `manifest_implementation` 15->14
+  (hephaestus #292); aequitas `manifest_implementation` 2->0 (aequitas
+  #60); helios and aequitas `target_forks` (6.1 GB of stale trees, both
+  from cargo invocations outside the overlay); CFDrs `excess_worktrees`
+  (a four-day-stale lane whose branch had no delta). Landing the moirai
+  rows first required restoring that repo's gate: main was red on
+  `cargo fmt --all -- --check` (140 files unformatted since the edition-2024
+  move), a stale ADR index, and an example that no longer compiled under
+  2024 match ergonomics (Moirai #293, #294).
+  The six that remain, with why each is not closable from here:
+  `ritk/{oversized_files, type_suffixed_fns}` — proven stale baseline: the
+  ritk source is byte-identical across the two gitlinks whose recorded
+  counts differ, and most `type_suffixed_fns` hits are byte-format
+  accessors (`read_u16`, `write_le_f32`) whose type is the format contract,
+  which the naming rule exempts; `kwavers/oversized_files` — one of the two
+  is the same staleness, the other real, and kwavers holds two trees with a
+  live peer in the lane; `kwavers/target_forks` — a live peer's build
+  directory, not disposable while they build; `apollo/{manifest_implementation,
+  existence_only_assertions}` — apollo holds two trees, one live (last
+  commit 32 minutes before this note) and one carrying a dead session's
+  uncommitted board edit, so there is no lane to take and no clean tree to
+  branch in. Skip recorded per the peer-assist ladder rather than opening a
+  third tree.
 - **Detector finding 2026-09-08 (scope 1, owner's file).** `reexport_shims`
   counts `cfg`-exclusive arms of one alias once per arm:
   mnemosyne's `backends/mod.rs` declares `DefaultBackend` three times
