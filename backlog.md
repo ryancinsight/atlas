@@ -186,6 +186,16 @@
   once the sweep lands.
 
 
+- **Second unswept break on the same chain, found 2026-09-08.** leto's
+  `refactor(layout)!` moved `transpose_complex_matrices` off the `leto-ops`
+  root behind a trait and made the free function `pub(super)`. `apollo-fft`
+  still imports it from the root at every revision including its current
+  default branch, so any consumer that re-resolves now fails to compile
+  apollo. No leto revision resolves it: `coeus-ops` requires the newer leto
+  for `leto_ops::ctc`, apollo the older one for the root transpose export,
+  and they sit on opposite sides of that refactor. This blocks helios
+  `--all-features` (PR #92) independently of moirai; apollo's migration to
+  the new trait is the fix, upstream.
 <a id="atlas-retained-benchmark-execution"></a>
 ## ATLAS-RETAINED-BENCHMARK-EXECUTION — Run retained benchmark executables under the committed supervisor — review
 - Outcome: select a retained executable without rebuilding or swapping shared-cache artifacts.
