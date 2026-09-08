@@ -1225,5 +1225,41 @@ class SubstrateContractTests(unittest.TestCase):
         self.assertIn("substrate_contract_violations", conformance.CLASSES)
 
 
+class BareGitDependencyTestCase(unittest.TestCase):
+    def count(self, manifest: str) -> int:
+        return conformance.count_bare_git_dependencies(manifest)
+
+    def test_version_less_git_dependency_is_counted(self):
+        self.assertEqual(
+            self.count('eunomia = { git = "https://example.com/eunomia" }'), 1
+        )
+
+    def test_version_requirement_clears_the_class(self):
+        self.assertEqual(
+            self.count(
+                'eunomia = { version = "0.5", git = "https://example.com/eunomia" }'
+            ),
+            0,
+        )
+
+    def test_rev_pin_is_deliberate_width_not_neglect(self):
+        # The sanctioned quarantine form: pin discipline requires the removal
+        # trigger in a comment beside it, so the pin is recorded intent.
+        self.assertEqual(
+            self.count('moirai = { git = "https://example.com/Moirai", rev = "83aa411" }'),
+            0,
+        )
+
+    def test_non_git_inline_tables_are_ignored(self):
+        self.assertEqual(
+            self.count('dep = { version = "1.0", features = ["a"] }'),
+            0,
+        )
+
+    def test_the_class_is_registered_for_the_ratchet(self):
+        self.assertIn("bare_git_dependency", conformance.CLASSES)
+        self.assertIn("cache_retention_policy_missing", conformance.CLASSES)
+
+
 if __name__ == "__main__":
     unittest.main()

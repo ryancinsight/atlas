@@ -1,5 +1,14 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-build-source-identity"></a>
+## ATLAS-BUILD-SOURCE-IDENTITY — Detect stale artifacts across source trees [patch] — todo
+- **Outcome:** shared-cache gates consume artifacts from their recorded source tree and revision.
+- **Scope:** Atlas build entry points and checkout coordination; preserve one shared target directory and peer work.
+- **Evidence:** Apollo's release macro DLL contains a scratch-checkout path and the old parser diagnostic while the canonical source accepts `scheduled_pairs`; [retained artifacts](output/apollo-square-transpose/integration/composite-schedules/macro-artifact/) establish the mismatch.
+- **Acceptance:** reproduce the source-tree transition, detect stale package artifacts before accepting a gate, rebuild only affected packages, and retain source/artifact identities without changing workloads or cache roots.
+- **Dependencies:** reconcile the live scratch-checkout producer without discarding its unique work; [Apollo integration](repos/apollo/backlog.md#apollo-codelet-schedule-controls) repairs its affected release artifact now.
+- **Verification:** deterministic source-transition regression, ordinary shared-cache reuse, and concurrent-owner preservation checks.
+
 <a id="ATLAS-RITK-DICOMDIR-001"></a>
 ## ATLAS-RITK-DICOMDIR-001 — Integrate bounded DICOMDIR record validation [patch] — done
 - Status: done; [RITK PR #240](https://github.com/ryancinsight/ritk/pull/240) merged at `4f1a8822`; Atlas pointer `a6dd7c790`; member item [RITK-SNAP-DIRECTORY-001](repos/ritk/backlog.md#RITK-SNAP-DIRECTORY-001).
@@ -10242,6 +10251,26 @@ blocker on Athena.
   lint-floor repair but recorded a gitlink predating it -- that branch had
   never been opened as a PR and its reported number belonged to an
   unrelated peer PR; `020a2f4da` records the correction.
+- **Burn-down 2026-09-08 continued.** 13 -> 8 regressions. Closed:
+  `moirai/{manifest_implementation 27->25, oversized_files 35->33}` (#296,
+  splitting `schedule/queue/mod.rs`, `process/windows/mod.rs`, and the two
+  largest test modules), `helios/target_forks` (5.6 GB stale tree deleted;
+  no nested cargo config -- an ad-hoc invocation outside the overlay, same
+  generator as the aequitas fork), and `mnemosyne/{seqcst_production 2->0,
+  manifest_implementation 9->8}` (Mnemosyne #134). Remaining eight:
+  `apollo/existence_only_assertions`, `hephaestus/{allow_sites,
+  manifest_implementation}`, `kwavers/oversized_files`,
+  `mnemosyne/{oversized_files, reexport_shims}`, `ritk/{oversized_files,
+  type_suffixed_fns}`.
+- **Detector finding 2026-09-08 (scope 1, owner's file).** `reexport_shims`
+  counts `cfg`-exclusive arms of one alias once per arm:
+  mnemosyne's `backends/mod.rs` declares `DefaultBackend` three times
+  (windows/unix/wasm32), of which exactly one compiles per target, and the
+  row moved 2 -> 3 when the wasm arm landed. That is one alias, not three
+  shims, and it is a legitimate platform-selection seam rather than the
+  compat alias the class targets. The fix belongs in the detector (count a
+  `cfg`-gated re-export group once), with the baseline regenerated in the
+  same change; churning the code to satisfy the regex would be gaming.
 - Observed 2026-09-08, not acted on (owner's claimed scope): the working
   tree carries uncommitted scanner work adding `bare_git_dependency` and
   `cache_retention_policy_missing` with a regenerated baseline. It runs and
@@ -12941,7 +12970,7 @@ Parent: [`#atlas-hygiene-baseline-001`](backlog.md#atlas-hygiene-baseline-001).
   [`#shared-cache-unbounded`](backlog.md#shared-cache-unbounded).
 
 
-## ATLAS-SHARED-CACHE-UNBOUNDED-2026-09-06 - The shared build cache has no eviction policy [patch] - todo <a id="shared-cache-unbounded"></a>
+## ATLAS-SHARED-CACHE-UNBOUNDED-2026-09-06 - The shared build cache has no eviction policy [patch] - done 2026-09-08 <a id="shared-cache-unbounded"></a>
 
 Parent: [`#slop-burndown`](backlog.md#slop-burndown).
 
@@ -12964,6 +12993,32 @@ Parent: [`#slop-burndown`](backlog.md#slop-burndown).
 - **not a bare `rm -rf`:** the tree is the shared cache for 26 members and
   every lane; deleting it wholesale costs a full cold rebuild of the stack.
   Eviction is selective and scheduled, which is the point of having a policy.
+- **done 2026-09-08.** `scripts/atlas-cache-retention.py` (sibling-shaped to
+  `atlas-output-retention.py`: policy TOML, dry-run default, `--apply` gate,
+  pytest coverage) plus `scripts/data/atlas-cache-retention.toml` and a
+  `make cache-retention` target. The unit taxonomy protects the live host
+  build (`debug`/`release` containers are never evicted) and bounds exactly
+  the growth surface: stale per-package `incremental` generations cargo never
+  GCs, plus abandoned whole containers (stale triples, `target-miri`).
+- **measured 2026-09-08 (re-measured, item premise updated):** the shared
+  cache held **162.1 GiB**, not 795 GB — the repo-local forks the item
+  recorded were already gone, and 109.2 GiB of the remainder was
+  `target/debug/incremental`. One conservative pass (age 14 d, budget 64 GiB,
+  age-then-size) evicted 5,715 units / ~98 GiB with 0 failures; steady state
+  is **64.0 GiB**, under budget, and the planner trims the regrowth tail on
+  every run.
+- **conformance seam, as amended:** the debuginfo budget was already
+  implemented in the committed `.cargo/config.toml` (line-tables-only for
+  dev/test, none for deps), so the remaining check is policy presence: a new
+  `cache_retention_policy_missing` class fails any member scan when the
+  committed policy does not cover its target dir, and `bare_git_dependency`
+  counts version-less, un-pinned git deps (helios = 23, the real incident
+  repo) so pin discipline ratchets. A machine-local byte count deliberately
+  does **not** ratchet across CI/local hosts; the budget itself is committed
+  and enforced by the tool.
+- **apply semantics:** unlike the output tool, per-unit removal failures are
+  tolerated — a shared live cache is being written by other lanes
+  concurrently, and one locked directory must not abort the remaining plan.
 
 ## ATLAS-KWAVERS-ELASTIC-CONSTRUCTORS-2026-09-06 - kwavers#707 is red on real errors and conflicting [patch] - todo <a id="kwavers-elastic-constructors"></a>
 
