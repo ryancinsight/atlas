@@ -738,6 +738,11 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
   transport layer (`Array3` spatial fields, `diffusion/` — the field owner's
   discretization per ADR 0058). The raw `constants/chemistry.rs` values and the
   bubble-dynamics Arrhenius are two inputs to the same module, not the whole.
+  Consumer closure (the Species swap must convert atomically): the `chemistry/`
+  network files themselves, two `kwavers-physics` callers (bubble-dynamics
+  `chemical_reaction.rs`, sonoluminescence `spectrum.rs`), and the
+  `kwavers-therapy` orchestrator (`chemical.rs`, `initialization/modalities.rs`).
+  `diffusion/` and the `Array3` transport stay in Kwavers.
 - **historical prerequisite retired:** the Kwavers reaction-vocabulary
   consolidation existed to produce a deletion ledger; under ADR 0056 that
   ledger arrives with the P8 consumer migration. It remains worthwhile on its
