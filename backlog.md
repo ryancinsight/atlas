@@ -195,7 +195,9 @@
   for `leto_ops::ctc`, apollo the older one for the root transpose export,
   and they sit on opposite sides of that refactor. This blocks helios
   `--all-features` (PR #92) independently of moirai; apollo's migration to
-  the new trait is the fix, upstream.
+  the new trait is the fix, and it is already in
+  flight as apollo#338 (draft), whose branch carries the trait-qualified
+  call. helios #92 unblocks when that lands.
 <a id="atlas-retained-benchmark-execution"></a>
 ## ATLAS-RETAINED-BENCHMARK-EXECUTION — Run retained benchmark executables under the committed supervisor — review
 - Outcome: select a retained executable without rebuilding or swapping shared-cache artifacts.
