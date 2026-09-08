@@ -12968,11 +12968,29 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
   | coeus | `moirai-runtime`, `moirai-async` | peer holds it, bump applied uncommitted |
   | helios | `moirai-runtime`, `moirai-parallel` | bumped `75aab40`, blocked on coeus |
   | ritk | `moirai-runtime` | bumped `7b1cc5b3`, blocked on coeus |
-  | kwavers | `moirai-parallel` | blocked on ritk |
-  | apollo, CFDrs | `moirai-runtime` | unclaimed |
+  | kwavers | `moirai-parallel` | landed |
+  | CFDrs | `moirai-runtime` | landed, [CFDrs#419](https://github.com/ryancinsight/CFDrs/pull/419) |
+  | apollo | `moirai-runtime` | **not sweep debt — see below** |
 
   gaia, hephaestus, consus, tyche were in an earlier count and are already
   clean — peers swept them in parallel.
+
+- **2026-09-08: two members remain, and one of them should not be swept.**
+  `apollo` pins `rev = "83aa411"` under a comment that names its own removal
+  trigger: *"Temporary co-evolution pin for the worker-idle reclamation seam;
+  remove `rev` after Moirai's hook lands on main."* That commit is not on
+  moirai's `main`, and the pull request carrying it —
+  [moirai#257](https://github.com/ryancinsight/Moirai/pull/257), open since
+  2026-09-04 — is `CONFLICTING` with no CI ever run. So apollo is a documented
+  quarantine whose trigger has not fired, exactly as pin discipline prescribes,
+  and bumping it would break its dependency on an unlanded hook. Counting it as
+  sweep debt was my error: the scan cannot tell a quarantine from a lag, and I
+  did not read the comment above the line before listing it as unclaimed.
+- **the real remaining work is moirai#257**, not apollo. Landing it fires
+  apollo's trigger; until then apollo is correct as it stands.
+- **helios** carries the last plain lag: the requirement bump and lock are
+  committed on `build/helios-moirai-06` ([helios#92](https://github.com/ryancinsight/helios/pull/92)),
+  held by one remaining `helios-gpu` error that a peer is mid-edit on.
 - **the order is forced, not a preference.** A member's lock resolves its
   first-party git dependencies from their `origin/main`, so a bump cannot be
   verified until every dependency it pulls has landed its own. Bumping `ritk`
