@@ -10267,31 +10267,36 @@ blocker on Athena.
   manifest_implementation}`, `kwavers/oversized_files`,
   `mnemosyne/{oversized_files, reexport_shims}`, `ritk/{oversized_files,
   type_suffixed_fns}`.
-- **Generator finding 2026-09-08 (scope 1, owner's file) — the ratchet can
-  loosen.** Between atlas `5cd73a335` and `abc7ba8e3` the committed
-  baseline RAISED eight rows: `apollo/existence_only_assertions` 0->1,
-  `hephaestus/{allow_sites 13->14, manifest_implementation 14->15}`,
-  `kwavers/oversized_files` 107->109, `mnemosyne/{oversized_files 6->10,
-  reexport_shims 2->3}`, `ritk/{oversized_files 44->45, type_suffixed_fns
-  69->76}`. Those are exactly the rows that were open regressions at
-  `5cd73a335`, so the burn-down target was absorbed into the baseline
-  rather than paid down. Two mechanical causes, both fixable in the
-  instrument:
-  1. `generate` writes whatever it measures. "It can only lower" holds
-     only when nothing is regressed; where the live count exceeds the
-     baseline it raises the row silently. `generate` should refuse to
-     raise a row without an explicit flag naming the reason.
-  2. `check` reads `scripts/conformance-baseline.json` from the working
+- **Generator finding 2026-09-08 (scope 1, owner's file) — corrected.** An
+  earlier revision of this entry read that the wholesale `generate` in
+  `a123358c1` "absorbed eight open regressions". Re-measured, that is
+  wrong for most of them: running the instrument at the gitlinks recorded
+  by `bbdbf3ae9` shows the committed baseline of that same commit already
+  disagreed with its own revision -- apollo/existence_only 0 recorded vs 1
+  measured, kwavers/oversized_files 107 vs 108, mnemosyne/oversized_files
+  6 vs 10, mnemosyne/reexport_shims 2 vs 3, ritk 69/44 vs 76/45, and in
+  the other direction kwavers/existence_only 73 recorded vs 13 measured.
+  The baseline had drifted from the instrument in both directions, so the
+  regeneration corrected stale rows rather than absorbing new debt, and
+  the later restore to the lower numbers put the fiction back. ritk's rows
+  are the clearest case: its source is byte-identical across the two
+  gitlinks (the only commits between them touch `.githooks/`), so the
+  69 -> 76 move cannot be code growth.
+  The real defects are narrower and both mechanical:
+  1. `check` reads `scripts/conformance-baseline.json` from the working
      copy (`BASELINE = ROOT / ...`), so a run right after `generate`
-     compares the tree against itself and reports zero. Both commits that
-     raised rows state "none regressed" for that reason. `check` should
-     read the committed blob (`git show HEAD:scripts/...`) or refuse to
-     run against a dirty baseline.
-  Attempting the restore here hit a live write race -- the file changed
-  under an in-flight edit twice -- so the rows are recorded rather than
-  rewritten. The values above are the restore targets, with
-  `hephaestus/allow_sites` restorable to 8 and `mnemosyne/oversized_files`
-  to 6 (both now measured below their pre-raise values).
+     compares the tree against itself and reports zero. Every commit that
+     moved rows today states "none regressed" for that reason. `check`
+     should read the committed blob or refuse to run against a dirty
+     baseline.
+  2. `generate` cannot distinguish correcting a stale row from absorbing
+     new debt. It should print every row it raises with its previous
+     value, so the commit that runs it carries the evidence a reviewer
+     needs -- the rule "the baseline only decreases" is unenforceable
+     while the generator is silent about increases.
+  Until (1) lands, measure with `git show HEAD:scripts/conformance-baseline.json`
+  rather than the working copy; three separate readings in this session
+  were wrong for exactly that reason.
 - **Detector finding 2026-09-08 (scope 1, owner's file).** `reexport_shims`
   counts `cfg`-exclusive arms of one alias once per arm:
   mnemosyne's `backends/mod.rs` declares `DefaultBackend` three times
