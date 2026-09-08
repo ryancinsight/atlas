@@ -16272,3 +16272,34 @@ campaign across ~15 members is the actual frontier). Do NOT "fix" by
 hand-editing sections into the config (generator contract: never
 hand-curated) and do NOT commit a dirty-tree generation. Re-open
 trigger: a green `atlas-stack-overlay` run. Not touched from here.
+## Slop pattern: "ownerless" answered from filesystem metadata instead of the board
+
+**Recorded 2026-09-08.** Twice in one session I classified a peer's in-flight
+work as abandoned by reading the wrong instruments.
+
+- **kwavers**, correctly: two checkouts held byte-identical uncommitted work,
+  two days old, with no lease on the board. Takeover was right, and the work
+  landed as kwavers#724.
+- **apollo**, wrongly: the lane's uncommitted work looked identical in shape —
+  old branch commit, uncommitted files — so I filed it as "34-hour-old
+  ownerless dirt" needing takeover. Its board block carried a lease dated that
+  same day, naming precisely the regions I was about to commit, plus a
+  contributor lease inside it. I had read the file mtimes and `git log -1`; I
+  had not read the board.
+
+**The failure is using half an instrument.** `concurrent_agents` defines
+staleness as *board last-update plus the last commit touching the claimed
+regions* — two signals, and the lease line is the one that actually excludes.
+Filesystem metadata cannot distinguish "nobody owns this" from "someone owns
+this and is thinking". The two cases above are indistinguishable by mtime and
+opposite by lease.
+
+**Check before any takeover:** does a board item's block name these regions in
+a `Lease:` or `Contributor lease:` line, and is it fresh? A `git status` in the
+lane shows the dirt; the lane's own `backlog.md` diff shows who holds it, and
+that diff is often *part of the uncommitted work itself* — which is exactly
+where I found apollo's, after filing against it.
+
+**Mechanizable:** the takeover path could refuse when `git diff backlog.md` in
+the target tree contains a `Lease:` line covering a path in the dirty set.
+Filed under the conformance scan's remit rather than left as a habit.
