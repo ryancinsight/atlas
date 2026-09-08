@@ -176,7 +176,29 @@ PRINT_DBG = re.compile(r"\b(?:println!|eprintln!|print!|eprint!|dbg!)")
 CARGO_PROTOCOL_PRINT = re.compile(r'\bprintln!\s*\(\s*"cargo:')
 SLEEP = re.compile(r"(?:thread|time)::sleep\b")
 MARKER = re.compile(r"\b(?:TODO|FIXME|HACK|XXX)\b")
-REEXPORT_SHIM = re.compile(r"\bpub\s+use\s+[^;]*\bas\s+\w+\s*;")
+REEXPORT_SHIM = re.compile(r"\bpub\s+use\s+([^;]*?)\bas\s+\w+\s*;")
+# A workspace facade -- `pub use consus_hdf5 as hdf5;` in the umbrella crate
+# -- matches the same syntax as an alias shim and is not one. It maps a
+# sibling crate onto the module path the umbrella publishes
+# (`consus::hdf5`), which is the crate's public structure, not a second name
+# for a concept. The prohibition in AGENTS.md is about aliases that simulate
+# domain separation, hide a boundary mistake, preserve an obsolete name, or
+# create a parallel mental model; a facade does none of those. Counting them
+# made the class unreachable: 15 of 40 fleet-wide sites were facades, so the
+# ratchet could never hold it at zero however much real aliasing was removed.
+# The other 25 -- `EdgeKind as EdgeType`, `Error as StateManagementError`,
+# `eunomia::RealField as Scalar` -- are the defect this class exists to count.
+FACADE_REEXPORT = re.compile(r"^[a-z][a-z0-9]*_[a-z0-9_]*$")
+
+
+def reexport_shims(text: str) -> int:
+    """Alias re-exports, excluding umbrella-crate facades."""
+    return sum(
+        1
+        for path in REEXPORT_SHIM.findall(text)
+        if not FACADE_REEXPORT.fullmatch(path.strip())
+    )
+
 # Code-shaped, not keyword-led: `// for all k1 in 0..n1`, `// let a NaN in
 # the first chunk`, `// asserted where they are built`, and `// for this: an
 # ISA minimum` are prose that begins with a Rust keyword, and the previous
@@ -219,11 +241,15 @@ CLASSES = [
     "seqcst_production", "crate_level_allows", "excess_worktrees",
     "lane_kernel_uninlined", "toolchain_request_overridden",
     "default_branch_cancel_in_progress", "substrate_contract_violations",
-    "balance_domain_edges",
+    "balance_domain_edges", "bare_git_dependency",
+    "cache_retention_policy_missing",
 ]
 
-# Working trees beyond the two a repository may hold: its main tree plus one
-# linked lane (AGENTS.md `git_discipline: Worktrees`).
+# The shared build directory routed through the root `.cargo/config.toml`.
+# The cache-retention policy must cover this directory by name.
+TARGET_DIR_SETTING = re.compile(
+    r"(?m)^target-dir\s*=\s*[\"']([^\"']+)[\"']"
+)
 #
 # The bound is a creation precondition, so it only holds if something checks
 # it. Nothing did, and the count reached five on one member and 26 lane
@@ -231,6 +257,14 @@ CLASSES = [
 # audit mechanical: the ratchet then refuses a third tree the same way it
 # refuses any other debt increase.
 WORKTREE_BOUND = 2
+
+# The shared build directory routed through the root `.cargo/config.toml`.
+# The cache-retention policy must cover this directory by name: a member
+# that builds into an unmanaged directory is outside every eviction cadence
+# by construction.
+TARGET_DIR_SETTING = re.compile(
+    r"(?m)^target-dir\s*=\s*[\"']([^\"']+)[\"']"
+)
 
 # Crate- and module-level `#![allow(...)]`, counted separately from the
 # per-item `#[allow(...)]` that `allow_sites` tracks.
@@ -255,6 +289,35 @@ CRATE_LEVEL_ALLOW = re.compile(r"^\s*#!\[allow\(", re.MULTILINE)
 # count enforces. Test code is excluded: `SeqCst` on a drop counter costs
 # nothing and proves nothing.
 SEQCST = re.compile("SeqCst")
+
+# Inline-table dependency declarations (`name = { ... }`), scanned for the
+# bare-git class below.
+INLINE_TABLE_DEP = re.compile(r"(?m)^[ \t]*[A-Za-z0-9_\-]+[ \t]*=\s*\{[^}]*\}")
+
+
+def count_bare_git_dependencies(manifest: str) -> int:
+    """Count git dependencies with neither a version requirement nor a rev pin.
+
+    Cargo freezes such a dependency at whatever revision resolved first, and
+    no requirement will ever move it -- see ATLAS-BARE-GIT-PIN-STALENESS
+    -2026-09-08: helios's `eunomia = { git = ... }` sat at a revision
+    predating `eunomia-derive`, and the resulting `cannot find derive macro
+    Pod` read as an upstream defect while the provider crate was absent from
+    the lock entirely. A `rev =` pin is not counted: it is the sanctioned
+    quarantine form (pin discipline requires its removal trigger in a
+    comment beside it), deliberate width, not neglect. Table-style
+    `[dependencies.x]` declarations are not scanned; inline tables are the
+    house form in every member manifest.
+    """
+    total = 0
+    for match in INLINE_TABLE_DEP.finditer(manifest):
+        body = match.group(0)
+        if not re.search(r"\bgit\s*=", body):
+            continue
+        if re.search(r"\bversion\s*=", body) or re.search(r"\brev\s*=", body):
+            continue
+        total += 1
+    return total
 
 MOD_DECL = re.compile(r"\bmod\s+(r#[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)\s*[;{]")
 PATH_ATTR = re.compile(
@@ -1232,7 +1295,7 @@ def scan_repo(
         c["crate_level_allows"] += len(CRATE_LEVEL_ALLOW.findall(prod))
         c["seqcst_production"] += len(SEQCST.findall(prod))
         c["markers"] += len(MARKER.findall(prod))
-        c["reexport_shims"] += len(REEXPORT_SHIM.findall(prod))
+        c["reexport_shims"] += reexport_shims(prod)
         c["type_suffixed_fns"] += sum(
             1 for m in FN_DEF.finditer(prod) if TYPE_NAME.search(m.group(1))
         )
@@ -1260,6 +1323,20 @@ def scan_repo(
     c["excess_worktrees"] = count_excess_worktrees(live_repo)
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
+    # The shared-cache budget is stack-level, not per-member: the policy file
+    # must exist and name this member's routed target dir (the root
+    # `.cargo/config.toml` [build] target-dir) for the member to count as
+    # covered. A member that builds into an unmanaged directory is outside
+    # every eviction cadence by construction.
+    if has_cargo:
+        config = ROOT / ".cargo" / "config.toml"
+        routed = False
+        if config.is_file():
+            match = TARGET_DIR_SETTING.search(config.read_text(errors="replace"))
+            routed = match is not None and Path(match.group(1)).name == "target"
+        policy = ROOT / "scripts" / "data" / "atlas-cache-retention.toml"
+        if not routed or not policy.is_file():
+            c["cache_retention_policy_missing"] = 1
     c["orphan_modules"] = count_orphan_modules(repo, manifests)
     if has_cargo:
         nx = repo / ".config" / "nextest.toml"
@@ -1277,6 +1354,7 @@ def scan_repo(
         c["substrate_contract_violations"] += len(
             runtime_dependency_names(text) & PROHIBITED_SUBSTRATE
         )
+        c["bare_git_dependency"] += count_bare_git_dependencies(text)
         if _classify_balance_edge is not None and (
             _BALANCE_DOMAINS or _MEMBER_BALANCE_DOMAINS
         ):
