@@ -1365,16 +1365,39 @@ def scan_stack(
 
     With `root_revision`, each member is scanned at the gitlink that revision
     records — from the checkout when it is clean and at that commit, else from
-    an archived snapshot (`materialize_member`). Without it, the live trees
+    an archived snapshot (`materialize_member`).     Without it, the live trees
     are scanned as they are (`--worktree`). A registered member with no
     recorded gitlink (promotion mid-flight) is skipped with a stderr
-    warning: it has no pinned revision to measure, and one unlinked member
-    must not abort the fleet scan.
+    warning before the materialization gate: it has no pinned revision
+    to measure, a clean checkout has no directory for it at all, and one
+    unlinked member must not abort the fleet scan.
     """
     out = {}
     member_root = stack_root / "repos"
     members = registered_member_names_at(stack_root)
     meta = dict.fromkeys(CLASSES, 0)
+    if member_root.is_dir() and root_revision is not None:
+        # Drop registered-but-never-linked members BEFORE the
+        # materialization gate below: a promotion mid-flight has no pinned
+        # revision to archive, and a clean checkout has no directory for it
+        # at all, so the gate would abort the whole fleet scan on the
+        # missing checkout. Only the "not a gitlink" case skips — a git
+        # failure still raises, so a broken object store can never pass
+        # as an unlinked member.
+        linked = set()
+        for name in sorted(members):
+            try:
+                gitlink_revision(root_revision, f"repos/{name}", stack_root)
+                linked.add(name)
+            except RuntimeError as exc:
+                if "is not a gitlink" not in str(exc):
+                    raise
+                print(
+                    f"warning: no recorded gitlink; skipping unmeasured "
+                    f"member: {name}",
+                    file=sys.stderr,
+                )
+        members = linked
     if member_root.is_dir():
         repos = require_materialized_providers(stack_root, members)
         if repos:

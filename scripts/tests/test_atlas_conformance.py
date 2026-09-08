@@ -882,6 +882,70 @@ class AtlasConformanceTestCase(unittest.TestCase):
             self.assertNotIn("demo", results)
             self.assertIn("demo", err.getvalue())
 
+    def test_stack_scan_skips_unlinked_member_before_materialization_gate(
+        self,
+    ) -> None:
+        """A clean checkout has no directory for an unlinked member at all.
+
+        The materialization gate aborts on a missing checkout, so the
+        recorded-revision scan must drop never-linked members first —
+        otherwise one promotion mid-flight fails the gate on machines
+        without the standalone clone. The linked member still scans.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
+            # `demo` is registered but has neither a gitlink nor even a
+            # directory — the clean-checkout shape of a promotion
+            # mid-flight, where the materialization gate would abort.
+            provider = root / "provider"
+            provider.mkdir(parents=True)
+            for argv in (
+                ["init", "-q", "-b", "main"],
+                [*ident, "commit", "-q", "--allow-empty", "-m", "seed"],
+            ):
+                subprocess.run(["git", "-C", str(provider), *argv], check=True)
+            _write(
+                root,
+                ".gitmodules",
+                "[submodule \"linked\"]\n\tpath = repos/linked\n"
+                "\turl = https://example.com/linked.git\n"
+                "[submodule \"demo\"]\n\tpath = repos/demo\n"
+                "\turl = https://example.com/demo.git\n",
+            )
+            linked_sha = subprocess.run(
+                ["git", "-C", str(provider), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            # A materialized checkout of the linked member, as a submodule
+            # clone would provide: clean and exactly at the recorded pin,
+            # so the scan reads it live with no archiving involved.
+            subprocess.run(
+                ["git", "clone", "-q", str(provider),
+                 str(root / "repos" / "linked")],
+                check=True,
+            )
+            for argv in (
+                ["init", "-q", "-b", "main"],
+                [*ident, "add", ".gitmodules"],
+                ["update-index", "--add", "--cacheinfo",
+                 f"160000,{linked_sha},repos/linked"],
+                [*ident, "commit", "-q", "-m", "register"],
+            ):
+                subprocess.run(["git", "-C", str(root), *argv], check=True)
+            rev = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "HEAD"],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+
+            err = io.StringIO()
+            with redirect_stderr(err):
+                results = conformance.scan_stack(root, rev)
+
+            self.assertIn("linked", results)
+            self.assertNotIn("demo", results)
+            self.assertIn("demo", err.getvalue())
+
     def test_generate_refuses_to_raise_a_count(self) -> None:
         """`generate` must not launder a regression into the baseline.
 
