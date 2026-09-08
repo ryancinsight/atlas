@@ -13097,30 +13097,47 @@ Parent: [`#moirai-06-sweep`](backlog.md#moirai-06-sweep).
   it, so lifting it required reading one line rather than reconstructing intent
   — which is exactly why pin discipline asks for the trigger to be written
   down.
-- **blocked only on a tree.** Apollo is at its two-worktree bound: the main
-  tree holds a live peer (commits within the last few minutes) and the lane
-  holds abandoned work ([`#apollo-lane-abandoned-work`](backlog.md#apollo-lane-abandoned-work)).
-  The change itself is a manifest edit plus a lock regeneration, and the lock
-  regeneration needs a checkout.
+- **blocked on a lease, not on a tree.** Both apollo trees are held by live
+  peers, and the lane's board block explicitly leases its regions to
+  `codex/main_integration` with a contributor lease inside it, dated
+  2026-09-08. More to the point, that item's own dependency line reads
+  *"preserve each tree's dependency lock"* — and this lift is exactly a
+  manifest edit plus a lock regeneration. Taking it now would break the
+  condition their in-flight work states it needs.
+- **re-open trigger:** `APOLLO-CODELET-SCHEDULE-CONTROLS` completes, or its
+  integrator confirms the lock may move. This is a genuine wait on a peer's
+  stated precondition rather than a scheduling inconvenience, so it parks
+  rather than being worked around.
 
-## ATLAS-APOLLO-LANE-ABANDONED-WORK-2026-09-08 - 34-hour-old uncommitted composite-schedule work in the apollo lane [patch] - todo <a id="apollo-lane-abandoned-work"></a>
+## ATLAS-APOLLO-LANE-ABANDONED-WORK-2026-09-08 - Retracted: the work is leased, not abandoned [patch] - done 2026-09-08 <a id="apollo-lane-abandoned-work"></a>
 
-- **outcome:** the work is completed and committed, or triaged as superseded
-  and discarded deliberately. Either way the lane returns to its lifecycle.
-- **inventory,** `worktrees/apollo-route` on `perf/f64-split-core-routing`,
-  last commit 34 hours ago, 13 uncommitted paths:
+- **This item was filed on a false premise and is retracted.** It described the
+  uncommitted work in `worktrees/apollo-route` as "34-hour-old", "ownerless
+  dirt" needing takeover. It is none of those things.
+- **What I actually checked, and what I skipped.** I measured the branch's last
+  commit (2 days) and the file mtimes, and concluded from those alone. I did
+  not read the board — which is the coordination truth, and which the working
+  tree's own `backlog.md` diff carries:
 
-  | Kind | Paths |
-  | --- | --- |
-  | New | `docs/adr/0051-composite-phase-schedules.md`, `apollo-fft-macros/src/phase_emission.rs`, `winograd/composite/{schedule,tests}.rs` |
-  | Modified | four `apollo-fft-macros` sources, three `apollo-fft` kernel sources, `backlog.md` |
+  > **Lease:** codex/main_integration macro CT/GT generation and phase-emission
+  > plumbing, Winograd composite/schedule/tests/traits, `mixed_radix/traits.rs`,
+  > and existing composite split probe; 2026-09-08.
+  > **Contributor lease:** codex/root `crates/apollo-fft-macros/src/cooley_tukey.rs`
+  > …; 2026-09-08T14:32Z.
 
-  Net `+97/-365` across the modified files — a deletion-heavy shape, so it
-  reads as a consolidation behind a new ADR rather than an addition.
-- **not discarded on sight.** It carries an unnumbered-elsewhere ADR and three
-  new source files; the diff is coherent, not scratch. It needs the same
-  treatment the kwavers elastic delegation got: commit it under its branch so
-  it stops being ownerless dirt, then decide whether it survives on a current
-  base.
-- **it is also what blocks** [`#apollo-quarantine-lift`](backlog.md#apollo-quarantine-lift),
-  since apollo is at its two-tree bound and this lane is the reclaimable one.
+  A live lease dated today, naming precisely the regions I was about to commit,
+  with a second contributor leasing inside it. `concurrent_agents` makes the
+  lease the only exclusion primitive and the board the place it lives; a branch
+  commit date and an mtime measure neither.
+- **the work itself is coherent and in flight:** a private compile-time schedule
+  parameter (`Fused` / test-only `Split`) for the 50-point Good–Thomas and
+  144-point Cooley–Tukey composite codelets, so a benchmark can force a control
+  without cloning the generated bodies. It carries its own
+  [ADR 0051](repos/apollo/docs/adr/0051-composite-phase-schedules.md), status
+  Accepted, and an item block with scope, acceptance, evidence and
+  verification. Committing it under my own message would have taken someone
+  else's designed increment.
+- **the generator to guard:** "is this ownerless?" was answered from filesystem
+  and git metadata when the answer lives on the board. The stale-claim sweep
+  reads *board last-update plus commits touching the regions* — I used half of
+  that and neither of the lease lines. Recorded in the slop pattern library.
