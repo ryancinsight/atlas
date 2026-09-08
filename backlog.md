@@ -12955,12 +12955,18 @@ Parent: [`#proteus-elastic-ssot`](backlog.md#proteus-elastic-ssot).
   accessor half (#724) — the `E0277` and `E0034` errors are gone. Worth
   recording as a pattern: a long-open PR's red is a claim about a base that no
   longer exists, and re-measuring it costs one rebase.
-- **#727 is a draft, deliberately.** `cargo clippy --all-targets` cannot run:
-  its dev-dependencies reach `ritk`, whose resolution fails on the Moirai
-  requirement lag ([`#moirai-06-sweep`](backlog.md#moirai-06-sweep)). It has
-  package-scoped verification only — check, lib clippy, 215 tests, fmt — and
-  says so rather than implying a gate it did not get. It leaves draft when the
-  sweep reaches kwavers.
+- **merged 2026-09-08.** #727 was a draft because `cargo clippy --all-targets`
+  could not run at all: its dev-dependencies reach `ritk`, whose resolution
+  failed on the Moirai requirement lag. That same lag was what the SemVer gate
+  failed on — that job runs `cargo update` per crate, and every crate failed
+  identically. Once kwavers' sweep leg landed on `main`, merging the base in
+  (not rebasing, so the PR history stayed reviewable) picked up the `0.6.0`
+  requirement and unblocked both. Full gate then: check, `clippy --all-targets
+  -- -D warnings`, 215 tests, fmt — all clean, including the check that had
+  never been able to run.
+- **the two halves of `#proteus-elastic-ssot` are now both on kwavers `main`**,
+  so `lame_from_speeds` and the duplicated Lamé conversion algebra are gone
+  from the consumer.
 - **the seven mnemosyne phase commits were not carried over:** they chase
   revisions on a closed pull request's branch and `main` pins the merged
   result, the same finding as gaia's series.
