@@ -31,10 +31,21 @@ pub(crate) fn registered_members(atlas_root: &Path) -> Result<Vec<Member>, Error
         }
         if let Some(path) = path.take() {
             if !path.is_dir() {
-                return Err(Error::Manifest {
-                    path: path.display().to_string(),
-                    message: String::from("registered member directory is missing"),
-                });
+                // Registered in `.gitmodules` but not materialized: a
+                // promotion mid-flight (the entry landed before the
+                // submodule was added), so a clean checkout has no
+                // directory here at all. There are no manifests to
+                // check, so skipping is sound — and failing closed
+                // would hold the fleet gate hostage to one
+                // registration. The promotion item owns the follow-up.
+                eprintln!(
+                    "warning: registered member directory is missing, skipping: {}",
+                    path.display()
+                );
+                // Drop the pending url with the skipped entry: otherwise the
+                // next section inherits it if it declares no url of its own.
+                url.take();
+                continue;
             }
             members.push(Member {
                 path,
@@ -113,4 +124,40 @@ pub(crate) fn collect_manifests(root: &Path, output: &mut Vec<PathBuf>) -> Resul
     }
     output.sort();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn missing_member_directory_skips_instead_of_aborting() {
+        let root =
+            std::env::temp_dir().join(format!("version-guard-member-test-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("repos/present")).unwrap();
+        fs::create_dir_all(root.join("repos/bare")).unwrap();
+        fs::write(
+            root.join(".gitmodules"),
+            "[submodule \"repos/missing\"]\n\tpath = repos/missing\n\turl = https://example/missing\n\n[submodule \"repos/present\"]\n\tpath = repos/present\n\turl = https://example/present\n\n[submodule \"repos/bare\"]\n\tpath = repos/bare\n",
+        )
+        .unwrap();
+
+        let members = registered_members(&root).expect("missing dir must skip, not abort");
+        assert_eq!(members.len(), 2);
+        let by_path = |name: &str| {
+            members
+                .iter()
+                .find(|member| member.path == root.join("repos").join(name))
+                .unwrap_or_else(|| panic!("expected member {name}"))
+        };
+        // `present` keeps its own url …
+        assert_eq!(by_path("present").url, "https://example/present");
+        // … and the skipped entry's url must not leak into the url-less one.
+        assert!(by_path("bare").url.is_empty());
+        let _ = fs::remove_dir_all(root);
+    }
 }
