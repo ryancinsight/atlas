@@ -717,6 +717,17 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
   `ryancinsight/prometheus`) is still Ask-User**; the commits push once it
   exists. Phase 0 computation is complete; the remainder is P2/P7/P9 delivery
   and the P8 Kwavers consumer.
+- **P8 audit 2026-09-06:** Kwavers carries two genuine reaction sites —
+  `kwavers-core/constants/chemistry.rs` (raw `f64` species weights and Arrhenius
+  rate constants) and
+  `kwavers-physics/.../bubble_dynamics/energy/chemical_reaction.rs` (a
+  hand-rolled water-dissociation Arrhenius + energy rate). The therapy/ROS dose
+  models are scattered across `kwavers-analysis` ML and `kwavers-physics`
+  therapy modules with no consolidated network. Migration maps them onto
+  `prometheus::{Species, ReactionNetwork}` with Arrhenius through
+  `proteus::TemperatureResponse` (ADR 0055 R4). `driver/reactive.rs` (electrical
+  reactive power) and `five_level.rs` (pulser circuit) matched the search but
+  are not chemistry.
 - **historical prerequisite retired:** the Kwavers reaction-vocabulary
   consolidation existed to produce a deletion ledger; under ADR 0056 that
   ledger arrives with the P8 consumer migration. It remains worthwhile on its
