@@ -12551,8 +12551,8 @@ Closed items, one line each. Full prose is in git history; commit SHAs below are
 
 ## ATLAS-METIS-UNREGISTERED-MEMBER-2026-09-05 - metis is on the stack map but has no remote and no gitlink [patch] - done <a id="metis-unregistered-member"></a>
 
-- **outcome:** Public `ryancinsight/metis` is registered in `.gitmodules`, and `repos/metis` is pinned to `ad00f9d` on `feat/process-foundation`; the stack map records 27 packages. Metis consumes Moirai's merged dialog, pointer-capture, pointer-metadata and wheel-metadata providers at `e8daf67`.
-- **verification:** The Metis standalone gate passes on `ad00f9d`, including native/WASM checks, the generated browser build, pixel-identical visual stages, MSI distribution, and live pointer and wheel traces with modifier, changed-button and direction-sensitive delta coverage; Moirai PRs #275–#278 plus their board/ADR evidence are merged on main at `e8daf67`. The Atlas pointer and recursive-submodule metadata remain separate meta-repo commits. Prometheus remains separately blocked.
+- **outcome:** Public `ryancinsight/metis` is registered in `.gitmodules`, and `repos/metis` is pinned to `639beee` on `feat/process-foundation`; the stack map records 27 packages. Metis consumes Moirai's merged dialog, pointer-capture, pointer-metadata and wheel-metadata providers at `e8daf67` and applies a native-tested bounded gesture policy.
+- **verification:** The Metis standalone gate passes on `639beee`, including native/WASM checks, the generated browser build, pixel-identical visual stages, MSI distribution, and live pointer, wheel and drag-transform traces with modifier, changed-button, direction-sensitive delta and bounded zoom coverage; Moirai PRs #275–#278 plus their board/ADR evidence are merged on main at `e8daf67`. The Atlas pointer and recursive-submodule metadata remain separate meta-repo commits. Prometheus remains separately blocked.
 
 ## ATLAS-META-AUTHOR-OVERRIDE-2026-09-05 - A repo-local identity attributed every agent's atlas commits to one author [patch] - done 2026-09-05 <a id="meta-author-override"></a>
 
