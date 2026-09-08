@@ -326,8 +326,8 @@ follow [ADR 0055](docs/adr/0055-continuum-domain-decomposition.md).
 `ares` and `prometheus` have left this table: both are chartered under
 [ADR 0057](docs/adr/0057-ares-phase-0-charter.md) and
 [ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md). `ares` registered its
-Phase 0 on 2026-09-04 and is in the stack table above; `prometheus` enters when
-its Phase 0 registers, not before.
+Phase 0 on 2026-09-04 and is in the stack table above; `prometheus` registered
+its Phase 0 on 2026-09-06 and joins it.
 
 | Provisional | Classical reference | Bounded context | Gate state |
 | --- | --- | --- | --- |
@@ -365,7 +365,7 @@ keeps gaps tracked rather than rediscovered by each audit.
 | Multiphysics coupling | `harmonia` | present |
 | Uncertainty, sensitivity, optimization | `tyche`, `coeus` | present |
 | Solid mechanics | `ares` | present, Phase 0 ([ADR 0057](docs/adr/0057-ares-phase-0-charter.md)): small-strain linear elastostatics |
-| Chemical species and reactions | `prometheus` | chartered, Phase 0 not started ([ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md)) |
+| Chemical species and reactions | `prometheus` | present, Phase 0 ([ADR 0058](docs/adr/0058-prometheus-phase-0-charter.md)) |
 | Electromagnetics beyond optical | none | absent, no candidate |
 | Parametric solid modelling (MCAD) | none | absent, separate product line |
 
@@ -789,8 +789,8 @@ path: [ADR 0057](docs/adr/0057-ares-phase-0-charter.md) for Ares,
 are independent, share no prerequisite, and can proceed concurrently.
 [ADR 0055](docs/adr/0055-continuum-domain-decomposition.md) fixes what each
 owns — Ares balances solid momentum, Prometheus balances species mass, and
-Proteus closes both. Ares registered on 2026-09-04; Prometheus does not enter
-the stack table until its Phase 0 registers.
+Proteus closes both. Ares registered on 2026-09-04; Prometheus registered on
+2026-09-06.
 
 The following concerns are not package gaps:
 
