@@ -10225,6 +10225,25 @@ blocker on Athena.
 - Baseline 2026-07-25 (per-repo counts recorded; the ratchet gate holds these non-increasing): files >500 lines: 574 (CFDrs 137, kwavers 91, consus 89); implementation-bearing lib.rs/mod.rs: 402 (kwavers 145); production `unwrap()`: 5833 (kwavers 3119, ritk 719); `#[allow]`: 798 (kwavers 330); print/dbg in src: 1082 (CFDrs 428); existence-only assertions: 444 (coeus 104, leto 79); type-suffixed fns: 380 (apollo 111); junk-drawer modules: 66 (kwavers 28); crates missing deny(missing_docs): 107/208; unsanctioned root files: 120 (kwavers 40); markers: 18.
 - Scope: (1) extend the committed conformance scan script to all eleven classes and record this baseline as its first output; (2) burn-down items per repo by triage (kwavers is the epicenter: unwraps, fat manifests, junk modules, root clutter); (3) `repos/parity_artefacts` (untracked run-output dump in the member namespace — det_*.log, url/target lists) relocates to a gitignored verification output root or deletes at the parity stream's item completion (owner: parity stream; regenerable evidence, rescue-first if any file proves unique); (4) kwavers root files triage per the Root manifest rule.
 - Acceptance: scan script covers all eleven classes with committed baseline; member namespace holds registered members only; per-repo burn-down items filed DoR-shaped.
+- **Burn-down 2026-09-08 (peer contribution, scope 2).** Fleet check is at
+  **0 regressions**, down from 26 on 2026-09-06. This session closed
+  `moirai/crate_level_allows` (20 -> 16, Moirai #295) and deleted a stale
+  539 MB `repos/aequitas/target` fork created by a cargo invocation that ran
+  outside the overlay. Landing #295 required first restoring moirai's gate:
+  main's CI had been red on `cargo fmt --all -- --check` (140 files
+  unformatted since the edition-2024 move), a stale ADR index, and an
+  example that no longer compiled under 2024 match ergonomics (Moirai #293,
+  #294). Reconciliation: the atlas advance `4887c3191` claimed the
+  lint-floor repair but recorded a gitlink predating it -- that branch had
+  never been opened as a PR and its reported number belonged to an
+  unrelated peer PR; `020a2f4da` records the correction.
+- Observed 2026-09-08, not acted on (owner's claimed scope): the working
+  tree carries uncommitted scanner work adding `bare_git_dependency` and
+  `cache_retention_policy_missing` with a regenerated baseline. It runs and
+  its counts are self-consistent, but `TARGET_DIR_SETTING` is defined twice
+  from a double paste, and the regeneration predates today's tightenings
+  (apollo/allow_sites 23->19, apollo/existence_only_assertions 2->1,
+  kwavers and ritk excess_worktrees 1->0, moirai/crate_level_allows 20->16).
 
 ## Session 30 closure (2026-07-28) — atlas-stack-overlay CI wiring + peer math-SSOT PR 0008 audit artifacts tracked
 
