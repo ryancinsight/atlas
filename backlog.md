@@ -204,8 +204,8 @@
 - Scope: `tools/criterion-regression`; retained artifact selection and CLI organization, with unchanged runtime budgets and supervision.
 - Acceptance: existing compile mode remains unchanged; retained execution uses metadata-resolved layout, mode arguments, and the same bounded runner; CLI rejects incomplete selections.
 - Class: [patch]; dependencies: none; authority: coordinator-authorized reversible workspace edits.
-- Integrator: root; verification: formatting, warning-denied Clippy and 31/31 bounded Nextest tests pass (`04b4bb45`); retained-path, failure, deadline and physical-directory contracts hold.
-- Last update: 2026-09-05; tool built and in use for [Apollo's comparison](repos/apollo/backlog.md#apollo-four-step-profile); publication awaits the requested shared-root branch authorization after automatic approval review rejected the switch.
+- Integrator: root; verification: formatting, warning-denied Clippy, 32/32 bounded Nextest tests and two doctests pass; [current collection](output/apollo-square-transpose/integration/retained-runner-gates/collection.json) binds all 21 unchanged inputs. Marker/exit-code and deadline tests exercise retained execution; Windows PowerShell reads require the elevated test context. Linux remains unexecuted.
+- Last update: 2026-09-08; [reviewed patch](output/apollo-square-transpose/integration/retained-runner-gates/change.diff) preserves immediate-child supervision and documents its descendant limits. Publication awaits the requested shared-root branch authorization after automatic approval review rejected the switch; the asynchronous question remains pending.
 
 <a id="atlas-cuda-driver-boundary"></a>
 ## ATLAS-CUDA-DRIVER-BOUNDARY — Own a correct dynamically loaded CUDA ABI — in-progress
@@ -717,17 +717,18 @@ Execution steps: `checklist.md` `ATLAS-PROMETHEUS-PROMOTION-2026-09-03`.
   `ryancinsight/prometheus`) is still Ask-User**; the commits push once it
   exists. Phase 0 computation is complete; the remainder is P2/P7/P9 delivery
   and the P8 Kwavers consumer.
-- **P8 audit 2026-09-06:** Kwavers carries two genuine reaction sites —
-  `kwavers-core/constants/chemistry.rs` (raw `f64` species weights and Arrhenius
-  rate constants) and
-  `kwavers-physics/.../bubble_dynamics/energy/chemical_reaction.rs` (a
-  hand-rolled water-dissociation Arrhenius + energy rate). The therapy/ROS dose
-  models are scattered across `kwavers-analysis` ML and `kwavers-physics`
-  therapy modules with no consolidated network. Migration maps them onto
-  `prometheus::{Species, ReactionNetwork}` with Arrhenius through
-  `proteus::TemperatureResponse` (ADR 0055 R4). `driver/reactive.rs` (electrical
-  reactive power) and `five_level.rs` (pulser circuit) matched the search but
-  are not chemistry.
+- **P8 audit 2026-09-06 (corrected):** the two-file claim was a partial search.
+  The real network is `kwavers-physics/src/chemistry/` — a full hand-rolled
+  implementation: `reactions.rs` (`ChemicalReaction`, `Species`, `ReactionRate`
+  as raw structs), `reaction_kinetics/`, `integrator/` (bespoke),
+  `ros_species/` (a `ROSSpecies` enum + `ROSConcentrations` of `Array3` fields),
+  `photochemistry/`, `radical_initiation/`, `ros_plasma/`, `validation/`.
+  Prometheus replaces the network layer (`Species`, `ChemicalReaction` →
+  `ReactionNetwork`, kinetics → mass-action + Arrhenius through
+  `proteus::TemperatureResponse`, integrator → Horae); Kwavers keeps the
+  transport layer (`Array3` spatial fields, `diffusion/` — the field owner's
+  discretization per ADR 0058). The raw `constants/chemistry.rs` values and the
+  bubble-dynamics Arrhenius are two inputs to the same module, not the whole.
 - **historical prerequisite retired:** the Kwavers reaction-vocabulary
   consolidation existed to produce a deletion ledger; under ADR 0056 that
   ledger arrives with the P8 consumer migration. It remains worthwhile on its
