@@ -54,6 +54,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import re
 import subprocess
 import sys
@@ -550,7 +551,54 @@ def lf_policy_missing(repo: Path) -> int:
     return 0 if ga.is_file() and "text=auto" in ga.read_text(errors="replace") else 1
 
 
-def count_crlf_stored_blobs(repo: Path) -> int:
+def _count_index_crlf(output: str) -> int:
+    """Count `i/crlf` and `i/mixed` rows in an `ls-files --eol` listing."""
+    return sum(
+        1
+        for line in output.splitlines()
+        # "i/" is the index (stored blob) form; worktree form is "w/".
+        if line.startswith("i/crlf") or line.startswith("i/mixed")
+    )
+
+
+def _crlf_blobs_at_revision(repo: Path, revision: str) -> int:
+    """Count stored-CRLF blobs in `revision`'s tree via a temporary index.
+
+    `GIT_INDEX_FILE` points `read-tree`/`ls-files` at a scratch index, so the
+    query never touches the checkout's real index and never cares that the
+    worktree is behind, ahead, or dirty — exactly the snapshot semantics the
+    recorded-revision scan promises.
+    """
+    fd, index_path = tempfile.mkstemp(prefix="atlas-eol-index-")
+    os.close(fd)
+    try:
+        env = dict(os.environ, GIT_INDEX_FILE=index_path)
+        subprocess.run(
+            ["git", "-C", str(repo), "read-tree", revision],
+            check=True,
+            capture_output=True,
+            env=env,
+        )
+        output = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "--eol"],
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            env=env,
+        ).stdout
+    finally:
+        try:
+            os.unlink(index_path)
+        except OSError:
+            pass
+    return _count_index_crlf(output)
+
+
+def count_crlf_stored_blobs(
+    repo: Path, live_repo: Path | None = None, revision: str | None = None
+) -> int:
     """Tracked text files whose stored blob disagrees with the declared policy.
 
     A `text=auto eol=lf` policy only helps review when the stored blobs follow
@@ -563,18 +611,31 @@ def count_crlf_stored_blobs(repo: Path) -> int:
         # Without a policy there is nothing for a blob to contradict; the
         # absence itself is the counted defect (`gitattributes_missing`).
         return 0
+    if revision is not None and live_repo is not None:
+        # Recorded-revision scan: measure the pinned tree through the live
+        # object store. The content path may be an archived snapshot with a
+        # `.git` marker that resolves nowhere, and the checkout itself may be
+        # at any state — neither may leak into the count.
+        return _crlf_blobs_at_revision(live_repo, revision)
+    # Worktree scan: measure the checkout directly. Materialized or broken
+    # copies whose plumbing cannot answer cannot substantiate the defect, so
+    # they contribute none — the same convention as `count_excess_worktrees`.
+    probe = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", "--git-dir"],
+        check=False,
+        capture_output=True,
+    )
+    if probe.returncode != 0:
+        return 0
     output = subprocess.run(
         ["git", "-C", str(repo), "ls-files", "--eol"],
         check=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     ).stdout
-    return sum(
-        1
-        for line in output.splitlines()
-        # "i/" is the index (stored blob) form; worktree form is "w/".
-        if line.startswith("i/crlf") or line.startswith("i/mixed")
-    )
+    return _count_index_crlf(output)
 
 
 def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path]:
@@ -1248,6 +1309,7 @@ def scan_repo(
     repo: Path,
     live_repo: Path | None = None,
     member_for_package: dict[str, str] | None = None,
+    revision: str | None = None,
 ) -> dict[str, int]:
     """Count every debt class in `repo`'s content.
 
@@ -1345,7 +1407,9 @@ def scan_repo(
     c["excess_worktrees"] = count_excess_worktrees(live_repo)
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
-    c["crlf_stored_blobs"] = count_crlf_stored_blobs(repo)
+    c["crlf_stored_blobs"] = count_crlf_stored_blobs(
+        repo, live_repo=live_repo, revision=revision
+    )
     # The shared-cache budget is stack-level, not per-member: the policy file
     # must exist and name this member's routed target dir (the root
     # `.cargo/config.toml` [build] target-dir) for the member to count as
@@ -1508,7 +1572,7 @@ def scan_stack(
                 skipped = []
                 for repo in repos:
                     if root_revision is None:
-                        targets.append((repo, repo))
+                        targets.append((repo, repo, None))
                         targeted.append(repo)
                         continue
                     try:
@@ -1523,7 +1587,8 @@ def scan_stack(
                         # gate, owns registration.
                         skipped.append(repo.name)
                         continue
-                    targets.append(materialize_member(repo, expected, Path(scratch)))
+                    materialized = materialize_member(repo, expected, Path(scratch))
+                    targets.append((*materialized, expected))
                     targeted.append(repo)
                 if skipped:
                     print(
@@ -1592,6 +1657,7 @@ def scan_stack(
                             target[0],
                             live_repo=target[1],
                             member_for_package=member_for_package,
+                            revision=target[2],
                         ),
                         targets,
                     )
@@ -1608,6 +1674,7 @@ def scan_stack(
                     meta["member_namespace_pollution"] += 1
     meta["root_sprawl"] = count_root_sprawl(ROOT)
     meta["gitattributes_missing"] = lf_policy_missing(ROOT)
+    meta["crlf_stored_blobs"] = count_crlf_stored_blobs(ROOT)
     scan_workflows(ROOT, meta)
     out["<meta>"] = meta
     return out

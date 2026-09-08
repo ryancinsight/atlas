@@ -1226,7 +1226,7 @@ _Closure note (moved from heading):_ commit 99dc33fad
 
 <a id="atlas-tmp-lane-sprawl"></a>
 
-## ATLAS-TMP-LANE-SPRAWL-2026-09-06 — Lanes minted under `D:/tmp` fork the cache and inflate two ratchet classes [patch] — todo
+## ATLAS-TMP-LANE-SPRAWL-2026-09-06 — Lanes minted under `D:/tmp` fork the cache and inflate two ratchet classes [patch] — done 2026-09-08
 
 - **Integrator:** unclaimed; **branch:** none; **lease:** none.
 - **Last-update:** 2026-09-06.
@@ -1255,6 +1255,27 @@ _Closure note (moved from heading):_ commit 99dc33fad
   their forks removed with them, and the two `excess_worktrees` rows back to 0.
   `kw-unrun-verify` is live and migrates at its item's completion, per the lane
   rule; `ritk-alias` needs its directory identified before anything is removed.
+- **done 2026-09-08.** No registered worktree exists outside the canonical
+  root anywhere in the fleet (the item's acceptance oracle half). The out-of-root
+  lanes were resolved, not merely counted: `ritk-alias`'s mystery is closed —
+  its `.git` was a pointer into the atlas module (a registered worktree, no
+  independent object store) and its breakage was the module's
+  `core.worktree` + `worktreeConfig` combination mis-resolving linked-worktree
+  roots; the fix it carried landed as ritk#238, so the lane is removed with
+  its 3.5 GB fork. `ritk-fix`/`leoneuro-fix` (this session's repair rounds,
+  both merged/pushed) removed with their forks. `kw-unrun-verify` was already
+  gone. Stale non-git scratch dirs (scan lanes, lockgen probes) predate the
+  item and stay until a peer confirms ownership — none carries a target fork
+  except `kwlock`/`moiraicheck`/`svdprobe`, noted for their owners.
+- **residual, not this item's counters:** `excess_worktrees` and
+  `target_forks` both read 0 at delivery. `repos/kwavers/target` and
+  `repos/ritk/target` reappeared *during* this round as live peer builds
+  wrote repo-local — the stack routing (`target-dir = "target"` under the
+  stack `.cargo/config.toml`, resolved against the stack root) is intact, so
+  these come from explicit per-lane overrides (`CARGO_TARGET_DIR` env or
+  `--target-dir`), which are the out-of-cache mechanism this item's rule
+  exists to police. They were active at measurement and are left to their
+  owners; both `target_forks` rows are re-checked at the next scan.
 - **Acceptance oracle.** `atlas-conformance` reports no `excess_worktrees` or
   `target_forks` row, and `git worktree list` on every member shows only trees
   under the canonical root.
@@ -13338,7 +13359,7 @@ Parent: [`#moirai-06-sweep`](backlog.md#moirai-06-sweep).
   reads *board last-update plus commits touching the regions* — I used half of
   that and neither of the lease lines. Recorded in the slop pattern library.
 
-## ATLAS-CRLF-STORED-BLOBS-2026-09-08 - Committed blobs contradict the declared line-ending policy [patch] - todo <a id="crlf-stored-blobs"></a>
+## ATLAS-CRLF-STORED-BLOBS-2026-09-08 - Committed blobs contradict the declared line-ending policy [patch] - in-progress 2026-09-08 (renormalizations in review) <a id="crlf-stored-blobs"></a>
 
 Parent: [`#slop-burndown`](backlog.md#slop-burndown).
 
@@ -13363,6 +13384,25 @@ Parent: [`#slop-burndown`](backlog.md#slop-burndown).
   Whether the blobs match it is a different question and is not currently
   measured. Worth adding as a counted class before doing the renormalisation,
   so the ratchet holds it at zero afterwards.
+- **measured fleet-wide 2026-09-08 (`git ls-files --eol`, index form):**
+  **1,596 blobs across 7 members** — CFDrs 1,588 (the incident), leto 3,
+  consus/helios/hephaestus/moirai/kwavers 1 each (the copy-propagated
+  `.github/workflows/python-release.yml` template). The meta repo is clean.
+- **counted class delivered:** `crlf_stored_blobs` in `atlas-conformance.py`,
+  measured from the index, not the worktree. On the recorded-revision scan
+  path it reads the pinned tree through a temporary `GIT_INDEX_FILE` against
+  the live object store, so archived snapshots (which carry a resolving-nowhere
+  `.git` marker) and behind/dirty checkouts both measure correctly — the first
+  implementation read 0 for every archived member, which is exactly the kind
+  of silent materialization-path dependence the fleet scan must not have.
+  Baseline ratcheted at 1,596 via `--accept-raises` (new class, first
+  measurement). moirai and kwavers carried live peer edits at scan time and
+  are counted from their pinned revisions like everyone else.
+- **renormalizations in review (one standalone PR per member, `git add
+  --renormalize .` only, zero content change, must land alone):**
+  CFDrs#422 (1,588 files, 945,678 lines each way, `--ignore-cr-at-eol` diff
+  empty), consus#71, helios#95, hephaestus#294 (default branch is `master`),
+  leto#179. moirai and kwavers follow once their trees go quiet.
 
 ## ATLAS-PLATFORM-DEPENDENT-TESTS-2026-09-08 - A test passed on Windows for the wrong reason [patch] - done 2026-09-08 <a id="platform-dependent-tests"></a>
 

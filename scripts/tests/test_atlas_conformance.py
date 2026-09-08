@@ -6,6 +6,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -1259,6 +1260,55 @@ class BareGitDependencyTestCase(unittest.TestCase):
     def test_the_class_is_registered_for_the_ratchet(self):
         self.assertIn("bare_git_dependency", conformance.CLASSES)
         self.assertIn("cache_retention_policy_missing", conformance.CLASSES)
+
+
+class CrlfStoredBlobsTestCase(unittest.TestCase):
+    """The detector reads the index, so its fixture is a real commit."""
+
+    def _repo(self, attributes: str | None) -> Path:
+        root = Path(tempfile.mkdtemp(prefix="crlf-detector-"))
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        subprocess.run(["git", "init", "-q", str(root)], check=True)
+        # Commit WITHOUT the policy in effect: with `text=auto eol=lf` already
+        # present, git normalizes on the way into the index and a contradicting
+        # blob cannot exist. The defect class is historical — blobs committed
+        # before the policy, exactly what the board item measured.
+        (root / "keep.txt").write_bytes(b"lf blob\nsecond line\n")
+        (root / "legacy.txt").write_bytes(b"crlf blob\r\nsecond line\r\n")
+        # Raw-byte semantics: the host default (`core.autocrlf=true` on
+        # Windows) would normalize at checkin and make the defect unfixturable.
+        subprocess.run(
+            ["git", "-C", str(root), "-c", "core.autocrlf=false", "add", "."],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(root), "-c", "core.autocrlf=false",
+             "commit", "-q", "-m", "blobs"], check=True
+        )
+        if attributes is not None:
+            (root / ".gitattributes").write_text(attributes)
+        return root
+
+    def count(self, repo: Path) -> int:
+        return conformance.count_crlf_stored_blobs(repo)
+
+    def test_stored_crlf_blob_contradicting_the_policy_is_counted(self):
+        repo = self._repo("* text=auto eol=lf\n")
+        self.assertEqual(self.count(repo), 1)
+
+    def test_renormalized_blob_clears_the_class(self):
+        repo = self._repo("* text=auto eol=lf\n")
+        subprocess.run(
+            ["git", "-C", str(repo), "add", "--renormalize", "."], check=True
+        )
+        self.assertEqual(self.count(repo), 0)
+
+    def test_without_a_policy_there_is_nothing_to_contradict(self):
+        repo = self._repo(None)
+        self.assertEqual(self.count(repo), 0)
+
+    def test_the_class_is_registered_for_the_ratchet(self):
+        self.assertIn("crlf_stored_blobs", conformance.CLASSES)
 
 
 if __name__ == "__main__":
