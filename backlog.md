@@ -1728,6 +1728,26 @@ _Closure note (moved from heading):_ commit 99dc33fad
 
 ## ATLAS-RUNNER-STARVATION-2026-09-02 — Hosted runner queue starves every verification run [infra] — todo (Ask-User)
 
+- **Re-measured 2026-09-09 17:48 UTC -- the queue is no longer slow, it is
+  stopped.** Every one of the last nine kwavers runs is `queued` with zero jobs
+  started; the oldest was created 16:44 and had waited **64 minutes** at the
+  time of reading, the newest 17 minutes. The only non-queued run in the window
+  is `cancelled`. `gh api repos/ryancinsight/kwavers/actions/runners` reports
+  `total_count: 0`, so nothing self-hosted can absorb this, and every workflow
+  targets `ubuntu-latest`. The 2026-09-02 numbers below measured a slow queue;
+  this is a stationary one, which reads as a spending cap, a billing stop, or a
+  platform outage rather than depth -- `gh` cannot tell which, because the
+  billing endpoint needs a `user` token scope this session does not carry
+  (refreshing auth scope is itself an Ask-User change).
+- **Consequence for delivery, per the standing unavailability rule:** the venue
+  is down, not the verification. Code work continues on the local pre-push gate
+  (kwavers#754 landed it: fmt, clippy, and affected tests in 9s). The exception
+  is a change *to* a workflow, whose only real gate is CI itself -- kwavers#755
+  is held open rather than admin-merged for exactly that reason, since no local
+  evidence can stand in for it.
+- **Ask-User, second question alongside the runner registration below:** is
+  there a spending cap or billing stop on the account? Nothing merges through
+  hosted verification until it lifts.
 - **Measured 2026-09-02 17:40 UTC, job-level queue wait (job `started_at` minus run `created_at`), 56 jobs across atlas and kwavers:**
   median 447 s, p90 2146 s, max 44.7 min. The longest waits are kwavers's own gates — Memory Safety (Miri) and Solver Validation Suite
   both 44.7 min, Heavy Validation 39.7, Code Quality 37.4. Stack-wide at that moment: 10 runs queued, 3 running.
