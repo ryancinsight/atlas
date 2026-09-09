@@ -295,6 +295,27 @@ fi
 # says otherwise.
 #
 # Echoes 'ours', 'environment', or 'ok'.
+normalise_diagnostic_path() {
+  local value="$1"
+  value="$(printf '%s' "$value" | tr 'A-Z\' 'a-z/' 2>/dev/null)"
+
+  # Git Bash can expose the repository through its long path while cargo's
+  # diagnostics use an equivalent DOS 8.3 path (for example, RYANCL~1). Use
+  # one Windows spelling for both sides when cygpath is available; POSIX
+  # runners retain the normalized slash form above.
+  if command -v cygpath >/dev/null 2>&1; then
+    case "$value" in
+      [a-z]:/*|/*)
+        local short_value
+        if short_value="$(cygpath -m -s "$value" 2>/dev/null)"; then
+          value="$short_value"
+        fi
+        ;;
+    esac
+  fi
+  printf '%s' "$value"
+}
+
 classify_gate_step() {
   local log="$1"
   shift
@@ -304,7 +325,7 @@ classify_gate_step() {
   fi
 
   local root_normalised inside=0 outside=0 location foreign_crate=0
-  root_normalised="$(printf '%s' "$repo_root" | tr 'A-Z\' 'a-z/' 2>/dev/null)"
+  root_normalised="$(normalise_diagnostic_path "$repo_root")"
 
   # Only locations under an `error` header count. A crate that fails to compile
   # still emits warnings for whatever did compile, and counting those made the
@@ -315,7 +336,7 @@ classify_gate_step() {
   # pipeline -- every verdict then degrades to 'ours'.
   while IFS= read -r location; do
     [ -n "$location" ] || continue
-    location="$(printf '%s' "$location" | tr 'A-Z\' 'a-z/' 2>/dev/null)"
+    location="$(normalise_diagnostic_path "$location")"
     case "$location" in
       /*|[a-z]:/*)
         case "$location" in
