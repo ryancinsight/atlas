@@ -5,7 +5,7 @@
 - Scope: stack-level (atlas topology); drivers `coeus` and `apollo`
 - Class: [arch]
 
-- Index: docs/adr/INDEX.md#ADR-0001
+- Item: [ATLAS-CUDA-DRIVER-BOUNDARY](../../backlog.md#atlas-cuda-driver-boundary)
 ## Context
 
 Both `apollo` (spectral transforms) and `coeus` (tensor/autodiff) need GPU
@@ -31,10 +31,11 @@ must sit at or below the infrastructure tier; it cannot live in `coeus`.
    `hermes`, and `mnemosyne`. It owns: device/context/queue, device buffers, and
    a `ComputeBackend`-style dispatch seam with two backends:
    - **wgpu** — portable.
-   - **CUDA** — **composing `cuda-oxide` and `cutile`** (they coexist):
-     `cuda-oxide` for driver/runtime/device-memory/stream management, `cutile`
-     for tile/PTX kernel authoring. Preserve the dynamic-load /
-     no-toolkit-to-compile property.
+   - **CUDA** — Hephaestus owns the driver ABI, runtime loading, context,
+     device-memory and stream operations. Kernel authoring remains a separate
+     concern. Driver acquisition compiles without a CUDA toolkit and loads
+     the installed driver at runtime; runtime CUDA source compilation may
+     separately require NVRTC.
 
    Rejected alternatives: putting the substrate in `coeus` (would force an
    `apollo`→`coeus` edge or duplication); putting it inside `leto` core
@@ -64,8 +65,8 @@ must sit at or below the infrastructure tier; it cannot live in `coeus`.
 
 - `apollo`'s `-wgpu` crates re-base their device plumbing onto `hephaestus`,
   keeping their WGSL kernels; a new CUDA transform path becomes possible.
-- `coeus-wgpu`/`coeus-cuda` re-base onto `hephaestus`; the CUDA backend gains
-  `cuda-oxide` alongside `cutile`.
+- `coeus-wgpu`/`coeus-cuda` re-base onto `hephaestus`; consumers do not own
+  a second driver ABI or duplicate its device/context lifetime.
 - Adding `hephaestus` updates this topology SSOT (done) and is a coordinated
   cross-repo unit per the co-evolution protocol: scaffold `hephaestus` →
   consumers pin it → integration verified in `apollo` and `coeus`.
@@ -82,5 +83,29 @@ differential contract tests green on real hardware. First consumer slice
 delivered: `apollo-wgpu-helpers` delegates device acquisition to hephaestus
 (public API preserved; apollo GPU FFT tests pass on the hephaestus-acquired
 device). Next: strided-layout-aware dispatch over leto metadata, the composed
-CUDA backend (cuda-oxide + cutile), mnemosyne device pools, and the coeus
+CUDA backend, mnemosyne device pools, and the coeus
 re-base at its wgpu 26 bump.
+
+## 2026-09-05 revision: provider-owned CUDA driver boundary
+
+The original `cuda-oxide` prescription contradicts the decision's dynamic-load
+contract. Version 0.4.0 links the toolkit's CUDA import library; on Windows
+CUDA 13.3 that library also requests LIBCMT. Its generated `size_t = c_ulong`
+is 32 bits on Windows x64, whereas `cuMemGetInfo_v2` writes pointer-sized
+outputs. The replaced Hephaestus boundary supplies those undersized locals. Apollo's
+all-feature dependency audit additionally rejects the dependency's license.
+
+Replace that dependency in its owning provider with curated declarations
+verified against the installed NVIDIA header and a library-owning function
+table. Contexts, buffers and modules preserve that library lifetime; resolve
+symbols at initialization, never inside numerical loops. Distinguish driver
+absence, missing symbols and driver faults. The public compute seam, kernel
+semantics and license policy remain unchanged. Hephaestus ADR 0001 owns the
+implementation contract and its ABI, device and consumer verification.
+
+Hephaestus `242520e` delivers this boundary; `59436b5` removes the CI-injected
+stub driver so Linux adapterless contracts exercise actual driver absence.
+Required-device Windows tests, release tests and Linux adapterless CI pass.
+Apollo `1de31e26` adopts the provider with all-feature native tests and the
+unchanged dependency policy passing. These runs establish tested behavior and
+ABI-layout checks, not a formal proof or Miri coverage of CUDA FFI.
