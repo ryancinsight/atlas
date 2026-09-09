@@ -107,7 +107,7 @@
   | ~~ritk~~ | ~~141~~ → 0 | | hephaestus | 14 |
   | CFDrs | 88 | | coeus | 7 |
   | ~~consus~~ | ~~78~~ → 0 | | leto | 6 |
-  | gaia | 29 | | mnemosyne | 5 |
+  | ~~gaia~~ | ~~29~~ → 0 | | mnemosyne | 5 |
   | moirai | 20 | | metis, eunomia, apollo | 1 each |
 
 - **ritk closed 2026-09-08** ([#245](https://github.com/ryancinsight/ritk/pull/245),
@@ -146,8 +146,15 @@
   indices before primary placement and both placement fixtures carried the
   wrong index, so two production branches had no test that reached them and the
   tests named for them passed on the ordering check instead.
-- **Integrator:** claude-opus-5; **lease:** gaia `src/**` test modules,
-  2026-09-09T17:45Z. CFDrs is skipped for now, not deferred: a peer holds
+- **gaia closed 2026-09-09** ([#50](https://github.com/ryancinsight/gaia/pull/50),
+  29 -> 0), verified against merged main `b1a6e78`. Half its sites were
+  `Option`/`Ok` checks standing beside a value the test never read: segment
+  intersections that returned parameters nobody asserted, a `find_edge` a
+  constant `Some(EdgeId(0))` would have satisfied, and quality histograms
+  asserted only to exist. The transferable point is that `is_some` sites are
+  not the cheap half of this class -- they are where the unread values are.
+- **Integrator:** claude-opus-5; **lease:** moirai `src/**` test modules,
+  2026-09-09T18:05Z. CFDrs is skipped for now, not deferred: a peer holds
   `cfd-core/src/compute` (uncommitted SIMD-module deletion, edited 12:50 today)
   on a stale local branch whose origin is gone, and its working `Cargo.lock` is
   overlay-flattened (101 git sources to 16). Its 88 sites are claimable once
