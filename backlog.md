@@ -208,6 +208,17 @@ epos\consus	arget` |
   The guard follows: any invocation leaving the overlay carries
   `CARGO_TARGET_DIR`, and the mechanical check belongs in the stack-owned gate
   script (leased by another session as of 17:40Z, so not touched here).
+- **The escapes arrive in a rolling sweep, not one at a time (2026-09-09).**
+  Four members forked within forty minutes while this session watched:
+  `apollo` 13:07, `consus` 13:18, `gaia` 13:39, `moirai` 13:45, each a real
+  cargo cache. One process walking `repos/*` from a neutral working
+  directory produces exactly that sequence, which narrows the remaining
+  suspect from "ad-hoc invocations" to a fleet sweep taking the
+  outside-the-overlay route without `CARGO_TARGET_DIR`. The committed
+  sweepers are not it: `atlas-fmt-check`, `atlas-semver-gate-adopt`,
+  `atlas-coeus-dist-byte-identity` and `atlas-stack-overlay` all run cargo
+  with `cwd` inside the stack, which resolves correctly. All four trees were
+  left in place; each was written within minutes of the reading.
 - **Class evidence for the second acceptance clause.** Today's two fresh forks
   are real cargo caches, not tool output: `repos/apollo/target` (4.0 GB) and
   `repos/consus/target` (11 GB) both hold `CACHEDIR.TAG`, `debug/` and
