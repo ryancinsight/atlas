@@ -125,9 +125,9 @@
 - **Risk / change class:** [patch]; repository integration settings only.
 
 <a id="atlas-member-registration-defects"></a>
-## ATLAS-MEMBER-REGISTRATION-DEFECTS-2026-09-09 — Two registered members the umbrella cannot resolve [patch] — in-progress
+## ATLAS-MEMBER-REGISTRATION-DEFECTS-2026-09-09 — Three registered members the umbrella cannot resolve [patch] — in-progress
 
-- **Integrator:** root; **branch:** `fix/atlas-member-registration`; **lease:** `backlog.md`, `repos/metis`, `repos/prometheus` 2026-09-09T18:00:00-04:00. Found while advancing gitlinks.
+- **Integrator:** root; **branch:** `fix/atlas-member-registration`; **lease:** `backlog.md`, `repos/metis`, `repos/prometheus`, `repos/apollo` 2026-09-09T18:00:00-04:00. Found while advancing gitlinks.
 - **prometheus is declared but has no gitlink.** `.gitmodules` carries the
   entry and the tree exists locally at `b66b9de`, but `git ls-tree HEAD
   repos/prometheus` returns nothing — the submodule was registered without its
@@ -143,6 +143,11 @@
   member's default branch, so the member currently has no coherent state to
   record. Resolve by promoting the branch's content to `main` and repointing
   the remote default, not by pinning the feature branch.
+- **apollo's recorded pin is orphaned.** The Atlas pointer `b0eebf0` is absent
+  from every Apollo remote branch; Apollo's default `main` is `6e58bf8`. The
+  pointer is advanced to that published default so the umbrella's coherence
+  gate can validate all registered members. Apollo's source and its documented
+  Moirai quarantine remain unchanged.
 - **Acceptance:** `git ls-tree HEAD repos/prometheus` names a commit reachable
   from prometheus's default branch; metis's remote default is a non-feature
   branch and its gitlink advances to it; a fresh `git submodule update
