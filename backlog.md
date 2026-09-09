@@ -2269,11 +2269,20 @@ Ritk focused package surfaces. No solver workload, timeout, numerical assertion,
 or feature budget changed. Hosted full-workspace verification remains the
 normal follow-up after these provider revisions are consumed in CI.
 
-## ATLAS-CI-RUNNER-SATURATION-2026-08-25 — Hosted-runner queue depth delays every merge gate [patch] — in progress
+## ATLAS-CI-RUNNER-SATURATION-2026-08-25 — Hosted-runner queue depth delays every merge gate [patch] — in-progress
 
 - **Outcome:** a merge-gate run starts within its own runtime target, so a merge
   to a default branch is verified in minutes rather than landing unverified for
   the length of a queue.
+- **Still unmet, measured 2026-09-09 10:46 EDT.** Nine atlas runs queued and
+  none started, the oldest waiting sixteen minutes — against the five-minute
+  per-job target, the queue is longer than the work. Every push in this
+  session's atlas sequence (`8631521a`, `ed333d5b`, `9a94bd74`) sits behind it,
+  so `atlas-stack-overlay`, `atlas-conformance` and `version-guard` verify the
+  landed tree well after it lands. Six member merges in this session proceeded
+  on committed-gate evidence read from the pull requests rather than on a
+  merge-gate run, which is the sanctioned path when the venue is unavailable
+  and is also the measurement: unavailability here is a queue, not an outage.
 - **Claim (2026-08-25, second session):** measurement instrument first.
   `scripts/atlas-ci-queue-report.py` pulls per-repository workflow-run metrics
   (queue minutes = created→run_started_at, run minutes = started→updated,
