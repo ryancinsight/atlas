@@ -1268,6 +1268,10 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
     def _repo(self, attributes: str | None) -> Path:
         root = Path(tempfile.mkdtemp(prefix="crlf-detector-"))
         self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        # Identity travels with the command, not the machine: CI runners
+        # carry no global git identity, so a bare `commit` fails there
+        # while passing on any developer box.
+        ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
         subprocess.run(["git", "init", "-q", str(root)], check=True)
         # Commit WITHOUT the policy in effect: with `text=auto eol=lf` already
         # present, git normalizes on the way into the index and a contradicting
@@ -1282,7 +1286,7 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
             check=True,
         )
         subprocess.run(
-            ["git", "-C", str(root), "-c", "core.autocrlf=false",
+            ["git", "-C", str(root), "-c", "core.autocrlf=false", *ident,
              "commit", "-q", "-m", "blobs"], check=True
         )
         if attributes is not None:
