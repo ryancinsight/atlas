@@ -1436,7 +1436,7 @@ _Closure note (moved from heading):_ commit 99dc33fad
 
 <a id="atlas-overlay-worktree-keyed"></a>
 
-## ATLAS-OVERLAY-WORKTREE-KEYED-2026-09-06 — The overlay gate compares a committed artifact against a generation from uncommitted inputs [arch] — blocked
+## ATLAS-OVERLAY-WORKTREE-KEYED-2026-09-06 — The overlay gate compares a committed artifact against a generation from uncommitted inputs [arch] — review
 
 - **Integrator:** claude-opus-5; **branch:** none (atlas main);
   **lease:** `scripts/atlas-stack-overlay.py` 2026-09-06T21:40Z.
@@ -1477,26 +1477,31 @@ _Closure note (moved from heading):_ commit 99dc33fad
   commonly, withhold a patch that would have worked — so the overlay stops
   pointing at local trees exactly while those trees are being developed, which
   is the one case it exists for. The change is reverted, unlanded.
-- **What this leaves: a contradiction, not a bug.** The overlay cannot be both
-  a worktree-accurate development view and a deterministic committed artifact.
-  The gate asserts the second; the file's purpose is the first. Its other two
-  clauses — requirement lag and pin drift — are revision-meaningful and both
-  report 0, so only the regenerate-and-diff clause is unsatisfiable.
-- **Recommended option (ADR-shaped, for the owner's veto).** Drop the
-  equality clause and keep the lag and pin-drift clauses: the artifact stays
-  committed for resolution, and the gate keeps the guard it was built for
-  (`ATLAS-VERSION-GUARD-001`, a silent backward version revert), which is
-  carried entirely by the two revision-meaningful clauses. The alternatives
-  considered were regenerating in the gitlink-advance step (the trees are ahead
-  again immediately, so it only narrows the window) and making the overlay a
-  gitignored build-time artifact (removes the diff, but also removes the
-  reviewable record of what the umbrella resolves to).
-- **Acceptance oracle.** `atlas-stack-overlay` green on main without any clause
-  being silenced by exclusion: the equality clause is removed by decision with
-  its rationale recorded, or a design that satisfies both properties is found.
-- **Blocker / re-open trigger:** the decision above is the owner's to take or
-  veto; re-open on that decision, or on evidence that a design satisfies both
-  properties.
+- **The unsatisfiability premise is falsified, 2026-09-09.** The claim above
+  was that dev worktrees feed the generator different versions than CI
+  validates against, so the gate can never clear. Measured directly across all
+  26 members — every non-output `Cargo.toml`, worktree content against the same
+  path at the member's `origin/HEAD`, comparing the generator's actual inputs
+  (manifest path, package name, version) — **zero members differ**, with several
+  trees sitting on feature branches at the time. Feature work does not move
+  package versions or manifest paths; only a deliberate release bump does, and
+  a bump is pushed. So developer and CI regenerations agree, and the earlier
+  gitlink-keyed experiment was falsified for the right reason but generalized
+  to the wrong conclusion: the gate is keyed to member *default heads*
+  (`submodule update --remote`), not to gitlinks, and default heads are what
+  the worktrees track.
+- **What the gate was actually reporting.** The committed overlay carried no
+  `[patch]` section for leto, ritk, coeus, hephaestus, consus or tyche. Each had
+  been withheld by lag-aware emission while its local tree could not satisfy a
+  consumer requirement, and nothing regenerated the file once the Moirai sweep
+  made them satisfiable. Every local build in the stack was therefore resolving
+  those six providers from git rather than the local trees — the overlay not
+  applying to six of the providers it exists for, silently. Regenerated and
+  committed at `49d633852`; the equality clause is kept, because it is the only
+  clause that detects this state.
+- **Standing risk this leaves.** A developer holding an unpushed version bump
+  regenerates differently from CI. That is the gate working — the bump has to
+  be pushed — not a contradiction, and it is transient by construction.
 - **Risk / change class:** [arch] [patch]; derived-state definition, no
   member change.
 
