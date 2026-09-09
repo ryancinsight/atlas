@@ -8,3 +8,5 @@
 # check them out CRLF on Windows, where the shebang then fails to resolve. A
 # hook that cannot execute is a gate that does not gate.
 .githooks/** text eol=lf
+# The owned hook source lives outside `.githooks/`; same shebang rule.
+scripts/git-hooks/** text eol=lf
