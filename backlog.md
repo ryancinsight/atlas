@@ -146,8 +146,12 @@
   clause asserts it. **This is the strongest argument for running the sweep on
   the remaining members**: on a multi-backend seam, an error-only assertion
   hides conformance gaps, not just weak tests.
-- **Integrator:** claude-opus-5; **lease:** none held; CFDrs is next by count
-  but its tree has a live peer (see below). CFDrs is skipped for now, not deferred: a peer holds
+- **Integrator:** claude-opus-5; **lease:** CFDrs test modules **excluding**
+  `cfd-math/src/simd/**` and `cfd-2d/src/solvers/simd_kernels.rs`,
+  2026-09-09T18:35Z. A live peer holds those for CFDRS-GA-004's remaining
+  legs (they are the two live SIMD implementations being ported onto
+  hermes-simd); 2 of CFDrs's 88 sites fall in `simd_kernels.rs` and are left
+  to that port rather than converted underneath it. The other 86 are disjoint. CFDrs is skipped for now, not deferred: a peer holds
   `cfd-core/src/compute` (uncommitted SIMD-module deletion, edited 12:50 today)
   on a stale local branch whose origin is gone, and its working `Cargo.lock` is
   overlay-flattened (101 git sources to 16). Its 88 sites are claimable once
