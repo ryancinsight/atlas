@@ -80,7 +80,7 @@
 
   | member | sites | | member | sites |
   |---|---:|---|---|---:|
-  | ~~ritk~~ | ~~141~~ → 0 | | hephaestus | 14 |
+  | ~~ritk~~ | ~~141~~ → 0 | | ~~hephaestus~~ | ~~14~~ → 0 |
   | CFDrs | 88 | | coeus | 7 |
   | ~~consus~~ | ~~78~~ → 0 | | leto | 6 |
   | ~~gaia~~ | ~~29~~ → 0 | | mnemosyne | 5 |
@@ -129,8 +129,25 @@
   constant `Some(EdgeId(0))` would have satisfied, and quality histograms
   asserted only to exist. The transferable point is that `is_some` sites are
   not the cheap half of this class -- they are where the unread values are.
-- **Integrator:** claude-opus-5; **lease:** moirai `src/**` test modules,
-  2026-09-09T18:05Z. CFDrs is skipped for now, not deferred: a peer holds
+- **moirai closed 2026-09-09** ([#301](https://github.com/ryancinsight/Moirai/pull/301),
+  20 -> 0). Ten of its sites guarded caught panics, where `is_err` cannot tell
+  the panic under test from any other unwind, and one of them was asserting
+  something that does not happen: the fan-out converts a chunk panic to a spawn
+  error and re-panics with its own invariant, so the chunk's payload never
+  reaches the caller. `test_reactor_creation` was deleted rather than converted
+  -- the test directly below it already built a reactor and asserted its state.
+- **hephaestus closed 2026-09-09** ([#296](https://github.com/ryancinsight/hephaestus/pull/296),
+  14 -> 0). The harvest caught a backend divergence the assertions were hiding:
+  the full-reduction conformance clause runs against every backend and returned
+  two messages from one site -- CUDA and ROCm reject with "must have exactly 1
+  element", wgpu with "must have length 1". One contract, two diagnostics, in
+  the crate that exists so a seam's contract is not set by whichever backend's
+  author wrote the most tests. wgpu now carries the agreed message and the
+  clause asserts it. **This is the strongest argument for running the sweep on
+  the remaining members**: on a multi-backend seam, an error-only assertion
+  hides conformance gaps, not just weak tests.
+- **Integrator:** claude-opus-5; **lease:** none held; CFDrs is next by count
+  but its tree has a live peer (see below). CFDrs is skipped for now, not deferred: a peer holds
   `cfd-core/src/compute` (uncommitted SIMD-module deletion, edited 12:50 today)
   on a stale local branch whose origin is gone, and its working `Cargo.lock` is
   overlay-flattened (101 git sources to 16). Its 88 sites are claimable once
