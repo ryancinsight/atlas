@@ -1,5 +1,38 @@
 # atlas — cross-repository integration gap audit
 
+## Finding 2026-09-09: auto-merge stalls behind `strict` protection, and six members enforce nothing
+
+Two facts about merge mechanics across the stack, one fixed and one open.
+
+**Fixed — the stall was a generator, not incidents.** Apollo and Hephaestus set
+`required_status_checks.strict = true` ("require branches to be up to date").
+With several PRs open, every merge invalidates its siblings: they go
+`mergeStateStatus: BEHIND`, and an armed auto-merge then sits indefinitely
+because auto-merge does not update a behind branch. Observed on
+hephaestus#293 (a day), then on apollo #355/#356/#359 twice in one afternoon —
+hand-fixed with `gh pr update-branch` four times before the pattern was
+root-caused rather than treated.
+
+Cure applied: `allow_update_branch = true` on both repositories, which is what
+lets GitHub update an auto-merge PR's branch when its base moves. The gate is
+not weakened — `strict` stays on, and the required contexts (`rust workspace`,
+`Lockfile integrity`) are unchanged. Setting `strict = false` would have been
+the cheaper fix and the wrong one: it merges code never tested against the
+trunk it lands on.
+
+The other six members (hermes, eunomia, leto, mnemosyne, moirai, themis) have
+no protection, so nothing stalls there — and nothing gates there either, which
+is the second finding.
+
+**Open — six members enforce no merge gate.** They carry neither branch
+protection nor rulesets, so a PR merges whatever CI reports. Their green
+history is a property of who has been merging, not of the repository. Adding
+protection is not a mechanical sweep: each needs its required contexts named
+from its own workflow, and turning on `strict` without `allow_update_branch`
+would import the stall this finding just cured. Re-open trigger: any member
+merging a red PR, or the next authorized pass over merge mechanics.
+
+
 ## Finding 2026-09-04: Prometheus P1+P3 green locally; remote creation is the gate
 
 `repos/prometheus/` carries the Phase 0 scaffold and the first physics slice
