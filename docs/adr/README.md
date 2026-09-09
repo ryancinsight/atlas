@@ -68,3 +68,4 @@
 | [0058](0058-prometheus-phase-0-charter.md) | Prometheus Phase 0 — homogeneous reaction networks | Accepted |
 | [0059](0059-fluid-structure-coupling-phase-0.md) | Fluid-structure coupling, Phase 0 — one-way traction loading | Proposed |
 | [0060](0060-publish-order-optional-dependencies.md) | Optional dependencies are not publish-order constraints | Accepted |
+| [0061](0061-closure-surfaces-of-balance-members.md) | Balance members expose their closure vocabulary as its own crate | Proposed |
