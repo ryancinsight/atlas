@@ -101,7 +101,7 @@
   |---|---:|---|---|---:|
   | ~~ritk~~ | ~~141~~ → 0 | | hephaestus | 14 |
   | CFDrs | 88 | | coeus | 7 |
-  | consus | 78 | | leto | 6 |
+  | ~~consus~~ | ~~78~~ → 0 | | leto | 6 |
   | gaia | 29 | | mnemosyne | 5 |
   | moirai | 20 | | metis, eunomia, apollo | 1 each |
 
@@ -134,8 +134,15 @@
 - **Order:** by count, largest first, but each member is independent — no
   dependency edges between them. ritk, CFDrs and consus are two thirds of the
   total.
-- **Integrator:** claude-opus-5; **lease:** consus `crates/**` test modules,
-  2026-09-09T12:55Z. CFDrs is skipped for now, not deferred: a peer holds
+- **consus closed 2026-09-09** ([#72](https://github.com/ryancinsight/consus/pull/72),
+  78 -> 0), verified against merged main `b3fc749`. Its transferable finding is
+  that a shared rendered message is the tell for unreachable coverage: three
+  FITS sites harvested the same text because the sequence validator checks
+  indices before primary placement and both placement fixtures carried the
+  wrong index, so two production branches had no test that reached them and the
+  tests named for them passed on the ordering check instead.
+- **Integrator:** claude-opus-5; **lease:** gaia `src/**` test modules,
+  2026-09-09T17:45Z. CFDrs is skipped for now, not deferred: a peer holds
   `cfd-core/src/compute` (uncommitted SIMD-module deletion, edited 12:50 today)
   on a stale local branch whose origin is gone, and its working `Cargo.lock` is
   overlay-flattened (101 git sources to 16). Its 88 sites are claimable once
