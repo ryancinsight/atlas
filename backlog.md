@@ -37,9 +37,24 @@
   per-repo hand-rolled copy.
 - **Risk:** the 73-line variants may lack the lockfile guard entirely; confirm
   before assuming a uniform upgrade, and coeus needs a gate, not a merge.
+- **Found 2026-09-09 while pushing the consus sweep: the lockfile guard is
+  vacuous on every new-branch push, in all six versions that carry it.** For a
+  new branch the remote sha is zero, and the hook then computes its comparison
+  base as `git merge-base "$local_sha" HEAD`. Pushing the branch you are on
+  makes `local_sha` equal `HEAD`, so the base is the pushed tip itself, the
+  range is empty, and the hook reports "no Cargo.lock or Cargo.toml in the
+  pushed range" and exits 0. Measured on consus `797b1b4`: that base yields 0
+  changed files where `origin/main` yields 7, all of them manifests. The gate
+  section kwavers added gets this right at its own line 203
+  (`merge-base "$origin_main" HEAD`); the lockfile guard above it does not.
+  So the escapes this item cites had a lockfile guard that could not have run.
+- **Integrator:** unclaimed; the finding above is contributed by
+  claude-opus-5, who holds no lease here.
 - **Acceptance:** one owned gate script in the meta-repo; every member's
   `.githooks/pre-push` resolves to it; the conformance scan counts distinct
-  member gate versions and the count is 1; coeus included.
+  member gate versions and the count is 1; coeus included; and a new-branch
+  push whose range changes a manifest runs the lockfile check rather than
+  skipping it.
 
 <a id="atlas-closure-surface-split"></a>
 ## ATLAS-CLOSURE-SURFACE-SPLIT — Balance members publish their closure vocabulary as its own crate [arch] [minor] — todo
