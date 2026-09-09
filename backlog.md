@@ -1,5 +1,16 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-moirai-gitlink-webview2-2026-09-09"></a>
+## ATLAS-MOIRAI-GITLINK-WEBVIEW2-2026-09-09 — Advance Moirai WebView2 provider pointer [minor] — in-progress
+
+- **Outcome:** Atlas points `repos/moirai` at the pushed public `main` revision
+  containing the merged bounded WebView2 provider and its delivered evidence.
+- **Scope:** advance only the `repos/moirai` gitlink and this item; preserve all
+  peer-dirty member checkouts and the unrelated tool lockfile.
+- **Acceptance:** `gitlink-coherence` reports 28 probed and 0 defects; the
+  recorded Moirai revision resolves on `origin/main` and its locked full gate is green.
+- **Integrator:** root; **lease:** `repos/moirai` gitlink, 2026-09-09T13:25-04:00.
+
 <a id="atlas-metis-gitlink-evidence-2026-09-09"></a>
 ## ATLAS-METIS-GITLINK-EVIDENCE-2026-09-09 — Advance Metis to committed Windows evidence [patch] — done
 
