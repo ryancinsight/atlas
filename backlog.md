@@ -44,6 +44,38 @@
   dependency edges between them. ritk, CFDrs and consus are two thirds of the
   total.
 
+<a id="atlas-target-fork-regression-2026-09-09"></a>
+## ATLAS-TARGET-FORK-REGRESSION-2026-09-09 — Four ratchet regressions, generator not yet identified [patch] — todo
+
+- **Integrator:** unclaimed; **lease:** none.
+- **Measured 2026-09-09** by `atlas-conformance.py check`: `apollo/excess_worktrees`
+  0 -> 1 and `target_forks` 0 -> 1 in hermes, kwavers and ritk. The apollo one is
+  the third working tree its two live lanes hold and is tracked with
+  [the quarantine item](#atlas-apollo-moirai-quarantine-lift); the three forks are
+  this item.
+- **Two candidate generators ruled out, with evidence.** (1) The stack config's
+  `target-dir = "target"` is a relative path, which would fork per working
+  directory if cargo resolved it against the cwd. It does not: `cargo metadata`
+  run from inside `repos/themis` reports `D:tlas	arget`, the same as from the
+  stack root, so the relative form is config-relative and correct. (2)
+  `lockfile.run_outside_the_overlay` deliberately drops the whole config, target
+  directory included, and restores it from `shared_target_dir`; that lookup
+  resolves to `D:tlas	arget` for every member and lane manifest tested, so
+  the overlay-free runner is not writing these either.
+- **What the trees actually hold.** hermes and kwavers carry real cargo caches
+  (`CACHEDIR.TAG`, `debug/`). `repos/iris/target` holds only `book`, and the lane
+  fork under `worktrees/ritk-registration-soft-tissue` holds `book`,
+  `semver-checks` and `tmp` — so the scan's `target_forks` class is counting at
+  least two different things, and a tool that writes beside the cargo cache
+  (mdBook, cargo-semver-checks) is the next hypothesis to test.
+- **Not swept, deliberately.** `repos/hermes/target` is 1.8 GB and was created at
+  10:59 today by a live peer. Deleting a cache someone is building against is the
+  error this session already made once; find the generator first, per the
+  slop-pattern rule that a cleanup repeated in place of a root cause is the
+  defect.
+- **Acceptance:** the generator is named and guarded, the three forks are gone,
+  and the class distinguishes a cargo cache from a tool's output directory.
+
 <a id="atlas-lock-form-skips-tools"></a>
 ## ATLAS-LOCK-FORM-SKIPS-TOOLS-2026-09-09 — The lock-form guard does not cover the meta-repo's own tools [patch] — todo
 
