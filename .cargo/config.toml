@@ -74,9 +74,11 @@ debug = false
 
 [patch."https://github.com/ryancinsight/aequitas"]
 aequitas = { path = "repos/aequitas" }
+aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 
 [patch."https://github.com/ryancinsight/aequitas.git"]
 aequitas = { path = "repos/aequitas" }
+aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 
 [patch."https://github.com/ryancinsight/asclepius"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
