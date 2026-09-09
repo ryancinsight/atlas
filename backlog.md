@@ -273,6 +273,16 @@
   `semver-checks` and `tmp` — so the scan's `target_forks` class is counting at
   least two different things, and a tool that writes beside the cargo cache
   (mdBook, cargo-semver-checks) is the next hypothesis to test.
+- **Regrowth measured 2026-09-09, ~19:45.** After the seven-gitlink sweep the
+  scan reported `metis/target_forks` 0 -> 1. `repos/metis/target` was 466 MB,
+  held no `.cargo-lock`, and its newest write was ten minutes old, so it was
+  swept along with the `iris` and `melinoe` trees (1.1 MB and 1.7 MB, both
+  `book`-only). It reappeared with a fresh `.rustc_info.json` before the next
+  scan finished. That is the regrowth rate the slop-pattern rule asks for: a
+  nonzero rate proves the generator is live, so the class is not cleaned again
+  in place -- the guard is the only remaining action, and the sweep above is
+  recorded as the last one taken without it.
+
 - **Not swept, deliberately.** `repos/hermes/target` is 1.8 GB and was created at
   10:59 today by a live peer. Deleting a cache someone is building against is the
   error this session already made once; find the generator first, per the
