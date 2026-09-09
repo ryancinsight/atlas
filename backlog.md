@@ -44,6 +44,27 @@
   dependency edges between them. ritk, CFDrs and consus are two thirds of the
   total.
 
+<a id="atlas-third-party-check-always-red"></a>
+## ATLAS-THIRD-PARTY-CHECK-ALWAYS-RED-2026-09-09 — A check that fails on every pull request [patch] — todo
+
+- **Integrator:** unclaimed; **lease:** none.
+- **Measured 2026-09-09.** The most recently merged pull request in nine of ten
+  sampled members — CFDrs #422, consus #71, helios #95, hephaestus #295, leto
+  #179, kwavers #751, ares #2, asclepius #40, ritk #246 — carries a failing
+  `recurseml/analysis`, every one reporting "Error occurred during analysis".
+  The tenth (coeus #384) does not. It is a third-party app, not a committed
+  gate, and it is not a required check, so nothing was blocked.
+- **Why it is worth an item anyway.** Every pull request in the fleet displays a
+  red X that means nothing, and the judgement each reviewer then has to make —
+  human or agent — is "which red do I ignore". That is the habit the merge gate
+  depends on not existing. Six pull requests were merged in this session over
+  exactly this signal, each after opening the check list to confirm the
+  committed gates were green; the confirmation is the cost.
+- **Acceptance:** either the app reports a real verdict on Rust workspaces of
+  this size, or its integration is removed from the members so the check list
+  carries only checks whose colour is load-bearing.
+- **Risk / change class:** [patch]; repository integration settings only.
+
 <a id="atlas-member-registration-defects"></a>
 ## ATLAS-MEMBER-REGISTRATION-DEFECTS-2026-09-09 — Two registered members the umbrella cannot resolve [patch] — todo
 
