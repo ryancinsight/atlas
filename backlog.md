@@ -62,39 +62,15 @@
   skipping it.
 
 <a id="atlas-closure-surface-split"></a>
-## ATLAS-CLOSURE-SURFACE-SPLIT — Balance members publish their closure vocabulary as its own crate [arch] [minor] — todo
+## ATLAS-CLOSURE-SURFACE-SPLIT — Hyperion and Asclepius are closure domains [arch] — done 2026-09-09
 
-- **Outcome:** `kwavers -> hyperion` and `kwavers -> asclepius` read as
-  `closure_provider` rather than `forbidden`, because the closure vocabulary
-  each balance member owns lives in its own crate and only that crate is
-  registered in `CLOSURE_DOMAINS`.
-- **Evidence:** the conformance scan reports `kwavers/balance_domain_edges`
-  0 -> 2 at the recorded gitlink (8 in the live tree, across seven manifests).
-  The edges arrived deliberately -- `737ab04fb` retired `kwavers-optics` for
-  hyperion's spectra, `f00513e9c` migrated the optical module -- and every
-  symbol crossing either boundary is a coefficient, a quantity, or a pointwise
-  response law: `hyperion::{coefficient,quantity}`, `transport::{reduced_scattering,
-  DiffusionCoefficients}`, `asclepius::response::thermal::{Cem43, ArrheniusDamage}`,
-  `DamageIntegral`. No solver, field, or balance operator crosses. ADR 0055's own
-  R4 already calls Arrhenius rate coefficients closure.
-- **Decision:** [ADR 0061](docs/adr/0061-closure-surfaces-of-balance-members.md)
-  (Proposed) -- R7 is unchanged; the crate boundary is moved so the rule keys on
-  what the manifests can express.
-- **Scope:** hyperion splits its coefficient/quantity/derivation surface from the
-  crate owning radiative transport; asclepius splits its response-law surface;
-  kwavers retargets seven manifests; `scripts/atlas_architecture_test.py`
-  registers the two closure crates and the baseline regenerates in that change.
-  Non-goals: relaxing R7, routing coefficient lookups through `harmonia`.
-- **Decomposition (dependency-ordered):** (1) hyperion closure crate; (2)
-  asclepius closure crate; (3) kwavers retarget; (4) atlas registration + scan
-  fixtures. Each is its own member item filed at that member's board when its
-  predecessor lands.
-- **Acceptance:** `balance_domain_edges` at 0 for kwavers with no baseline
-  increase; a scan fixture covers a closure-crate edge (allowed) beside a
-  balance-crate edge (forbidden) from the same member; each member's suites and
-  the consumer verification per the co-evolution protocol.
-- **Until it lands:** the two edges stay on the scan as open regressions rather
-  than being absorbed into the baseline, so the count states the remaining work.
+- Decision: [ADR 0061](docs/adr/0061-closure-surfaces-of-balance-members.md),
+  Accepted. `kwavers/balance_domain_edges` returns to 0 with no baseline change.
+- The item opened recommending a crate split, on the assumption that each
+  member owned a balance operator beside a closure vocabulary. Reading the
+  surfaces removed the premise: neither owns one, so the registration was the
+  whole fix. `scripts/atlas_architecture_test.py` moves both into
+  `CLOSURE_DOMAINS`; fixtures cover the decided edges in both directions.
 
 <a id="atlas-existence-only-assertions"></a>
 ## ATLAS-EXISTENCE-ONLY-ASSERTIONS — Tests that cannot fail on the defect they name [arch] — in-progress

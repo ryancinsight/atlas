@@ -373,18 +373,42 @@ class MemberBoundaryTableTests(unittest.TestCase):
         self.assertIsInstance(arch.MEMBER_BALANCE_DOMAINS, frozenset)
 
     def test_member_balance_domains_names_every_live_balance_owner(self) -> None:
-        # ADR 0055's continuum-domain table lists CFDrs, kwavers,
-        # helios/hyperion, asclepius, ares as balance owners. Every
-        # one must be in the member set or an `ares -> X` edge will
-        # silently fail to trip the rule.
-        expected = {"CFDrs", "kwavers", "helios", "hyperion", "asclepius", "ares"}
+        # Every member that advances a field must be here or an
+        # `ares -> X` edge will silently fail to trip the rule.
+        # `hyperion` and `asclepius` were listed until ADR 0061 read
+        # their surfaces and found no balance operator in either.
+        expected = {"CFDrs", "kwavers", "helios", "ares"}
         self.assertEqual(arch.MEMBER_BALANCE_DOMAINS, expected)
 
     def test_member_balance_domains_excludes_closure_and_coupling(self) -> None:
-        # `proteus` is a closure domain; `harmonia` is the coupling
-        # layer. Neither is itself a balance owner.
-        self.assertNotIn("proteus", arch.MEMBER_BALANCE_DOMAINS)
+        # Closure members own no balance operator; `harmonia` is the
+        # coupling layer. Neither is itself a balance owner.
+        for member in arch.CLOSURE_DOMAINS:
+            self.assertNotIn(member, arch.MEMBER_BALANCE_DOMAINS)
         self.assertNotIn("harmonia", arch.MEMBER_BALANCE_DOMAINS)
+
+    def test_an_integrator_may_consume_a_closure_member(self) -> None:
+        # The edge ADR 0061 is about: kwavers reads hyperion's
+        # coefficients and asclepius's response laws. Neither is
+        # coupling, so neither routes through `harmonia`.
+        member_for_package = {
+            "kwavers-physics": "kwavers",
+            "hyperion": "hyperion",
+            "asclepius": "asclepius",
+            "cfd-3d": "CFDrs",
+        }
+        for provider in ("hyperion", "asclepius"):
+            finding = arch.classify_member_edge(
+                arch.Edge(consumer="kwavers-physics", provider=provider),
+                member_for_package,
+            )
+            self.assertFalse(finding.is_violation(), provider)
+        # Two balance members still may not depend on each other.
+        forbidden = arch.classify_member_edge(
+            arch.Edge(consumer="cfd-3d", provider="kwavers-physics"),
+            member_for_package,
+        )
+        self.assertTrue(forbidden.is_violation())
 
 
 class BuildMemberForPackageTests(unittest.TestCase):

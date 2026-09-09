@@ -49,12 +49,14 @@ This yields the three roles without residual overlap:
 | `ares` | Balance | Linear and angular momentum in solids | Solid kinematics, stress divergence, equilibrium, contact and constraint enforcement, failure and fatigue measures. |
 | `prometheus` | Balance | Species mass | Reaction networks, stoichiometry, rate-law assembly, reaction source and enthalpy terms. |
 
-> **Revision note, 2026-09-09.** R7 as enforced keys on member granularity, and
-> a balance member may also own a closure vocabulary: `hyperion`'s coefficients
-> and `asclepius`'s response laws are consumed by `kwavers` without any balance
-> operator crossing. [ADR 0061](0061-closure-surfaces-of-balance-members.md)
-> records how that vocabulary is published so the rule keys on it. R7 itself is
-> unchanged.
+> **Revision note, 2026-09-09.** The sentence below places `hyperion` and
+> `asclepius` on the balance axis by subject matter. Reading their surfaces
+> found no balance operator in either -- hyperion is Beer-Lambert algebra,
+> deposition and coefficient derivations, asclepius is response laws over a
+> sample series, which R3 below already calls closure -- so
+> [ADR 0061](0061-closure-surfaces-of-balance-members.md) reclassifies both as
+> closure domains. Membership is read from the public surface, not assigned by
+> subject. R7 itself is unchanged.
 
 `CFDrs` already occupies the same axis for fluid momentum and mass, `kwavers`
 for acoustic momentum, `helios` and `hyperion` for radiative transport, and

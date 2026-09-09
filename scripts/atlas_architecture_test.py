@@ -109,7 +109,7 @@ MEMBER_BALANCE_DOMAINS: frozenset[str] = frozenset({
     # Live balance owners named in ADR 0055's continuum-domain table.
     # Each is a multi-crate workspace; the per-package mapping is
     # populated by the scan from `repos/<member>/...`.
-    "CFDrs", "kwavers", "helios", "hyperion", "asclepius",
+    "CFDrs", "kwavers", "helios",
 })
 
 # Coupling layers: stack packages sanctioned as the multi-balance
@@ -117,11 +117,15 @@ MEMBER_BALANCE_DOMAINS: frozenset[str] = frozenset({
 # through a non-coupling layer is the defect.
 COUPLING_LAYERS: frozenset[str] = frozenset({"harmonia"})
 
-# Closure-layer packages (ADR 0055's Proteus role) are never a balance
-# domain, so a balance-to-closure edge is allowed by R7. The set is
-# named for documentation and future rule expansion; it carries no
-# runtime assertion today.
-CLOSURE_DOMAINS: frozenset[str] = frozenset({"proteus"})
+# Closure-layer members (ADR 0055's Proteus role) own no balance
+# operator, so an edge into one is `closure_provider` rather than the R7
+# defect. Membership is decided by reading the public surface, not by the
+# subject matter: `hyperion`'s `transport` module is Beer-Lambert algebra,
+# deposition from a fluence, and the diffusion-coefficient derivation --
+# closed-form and pointwise, with no field, grid, or state advance --
+# and `asclepius` is response laws over a sample series, which ADR 0055's
+# own R3 assigns to closure. ADR 0061 records the reading.
+CLOSURE_DOMAINS: frozenset[str] = frozenset({"proteus", "hyperion", "asclepius"})
 
 
 @dataclass(frozen=True)
