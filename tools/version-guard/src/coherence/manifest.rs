@@ -41,7 +41,17 @@ pub(crate) fn parse_manifest(path: &Path, atlas_root: &Path) -> Result<ParsedMan
         path: path.display().to_string(),
         message: source.to_string(),
     })?;
-    let section = sections(&text);
+    Ok(parse_manifest_content(&text, path, atlas_root))
+}
+
+/// Parse a manifest from in-memory content.
+///
+/// Used by the coherence scan to read a behind member's manifests at the ref
+/// the stack publishes (its origin) rather than at the possibly-stale working
+/// tree. `path` is still the on-disk manifest path — it derives the consumer
+/// and report path — but the parsed content comes from the caller.
+pub(crate) fn parse_manifest_content(text: &str, path: &Path, atlas_root: &Path) -> ParsedManifest {
+    let section = sections(text);
     let package_name = section_value(&section, "package", "name");
     let package_version_raw = section_value(&section, "package", "version");
     let package_version_workspace = section_flag(&section, "package", "version.workspace")
@@ -59,7 +69,7 @@ pub(crate) fn parse_manifest(path: &Path, atlas_root: &Path) -> Result<ParsedMan
             |c| c.as_os_str().to_string_lossy().into_owned(),
         );
     let is_root = section.contains_key("workspace") || section.contains_key("workspace.package");
-    Ok(ParsedManifest {
+    ParsedManifest {
         consumer,
         display_path: path
             .strip_prefix(atlas_root)
@@ -74,7 +84,7 @@ pub(crate) fn parse_manifest(path: &Path, atlas_root: &Path) -> Result<ParsedMan
         package_version_workspace,
         dependencies,
         workspace_dependencies,
-    })
+    }
 }
 
 pub(crate) fn package_index(

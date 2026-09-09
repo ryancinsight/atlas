@@ -31,6 +31,10 @@ pub struct StaleMember {
     pub upstream: String,
     /// Commits present on the upstream branch and absent from the tree.
     pub behind: usize,
+    /// The upstream commit the tree is measured against, when known. Used by
+    /// the scanner to read a member's manifests at the ref the stack
+    /// publishes rather than at the possibly-behind working tree.
+    pub upstream_commit: Option<String>,
 }
 
 fn git(repo: &Path, args: &[&str]) -> Result<Option<String>, Error> {
@@ -85,6 +89,10 @@ pub(crate) fn stale_members(
         };
         let behind: usize = count.parse().unwrap_or(0);
         if behind > 0 {
+            let upstream_commit = git(
+                member,
+                &["rev-parse", "--verify", &format!("{upstream}^{{commit}}")],
+            )?;
             stale.push(StaleMember {
                 member: member
                     .strip_prefix(atlas_root)
@@ -94,6 +102,7 @@ pub(crate) fn stale_members(
                     .replace('\\', "/"),
                 upstream,
                 behind,
+                upstream_commit,
             });
         }
     }

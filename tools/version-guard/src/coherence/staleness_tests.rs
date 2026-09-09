@@ -41,6 +41,19 @@ fn commit(repo: &Path, file: &str, body: &str) {
     assert!(git(repo, &["commit", "-m", file]), "git commit");
 }
 
+/// Resolve a ref to its full commit SHA.
+fn git_show_sha(repo: &Path, reference: &str) -> Option<String> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["rev-parse", "--verify", reference])
+        .output()
+        .ok()?;
+    out.status
+        .success()
+        .then(|| String::from_utf8_lossy(&out.stdout).trim().to_owned())
+}
+
 /// A clone that has fetched a commit it does not hold is behind by exactly
 /// that many commits, which is the case the scan must refuse to measure.
 #[test]
@@ -67,11 +80,17 @@ fn a_tree_behind_its_upstream_is_reported() {
     commit(&upstream, "second.txt", "two\n");
     assert!(git(&member, &["fetch", "--quiet", "origin"]), "git fetch");
 
+    let upstream_sha = git_show_sha(&member, "origin/main").expect("upstream tip sha");
     let stale = stale_members(&root, &[member.as_path()]).expect("scan");
     assert_eq!(stale.len(), 1, "one member is behind: {stale:?}");
     assert_eq!(stale[0].behind, 1);
     assert_eq!(stale[0].member, "repos/member");
     assert!(stale[0].upstream.ends_with("main"), "{}", stale[0].upstream);
+    assert_eq!(
+        stale[0].upstream_commit.as_deref(),
+        Some(upstream_sha.as_str()),
+        "a behind member carries its upstream commit so the scanner can read it"
+    );
 
     let _ = std::fs::remove_dir_all(&root);
 }
