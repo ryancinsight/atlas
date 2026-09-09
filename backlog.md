@@ -131,11 +131,10 @@
 - **Acceptance:** pre-push auditor `28 probed | 0 defects`; fresh long-path recursive checkout `registered=28 checked_out=28 unresolved=0`.
 
 <a id="atlas-metis-gitlink-advance-2026-09-09"></a>
-## ATLAS-METIS-GITLINK-ADVANCE-2026-09-09 — Advance Metis to its current public default [patch] — in-progress
+## ATLAS-METIS-GITLINK-ADVANCE-2026-09-09 — Advance Metis to its current public default [patch] — done
 
-- **Integrator:** root; **branch:** `fix/atlas-metis-pointer`; **lease:** `backlog.md`, `repos/metis` 2026-09-09T19:00:00-04:00.
-- **Scope:** co-evolve the Atlas gitlink with Metis `main` `3c0b216` after the verified documentation update; preserve all other member pointers and peer worktrees.
-- **Acceptance:** staged pointer is reachable from Metis `origin/main`; Atlas pre-push coherence remains clean; the Metis locked gate passes at the pinned revision.
+- **Integrator:** root; **commit:** `b67d8d680`; **outcome:** Atlas pins `repos/metis` to public `main` `3c0b216c`; the locked Metis gate passes all stages at that revision.
+- **Acceptance:** `gitlink-coherence` reports `28 probed | 0 defects`; one unrelated `aequitas` stale-advanceable pointer remains reachable and was not changed.
 
 <a id="atlas-apollo-moirai-quarantine-lift"></a>
 ## ATLAS-APOLLO-MOIRAI-QUARANTINE-LIFT — Apollo's `rev` pin is the whole remaining stack incoherence [patch] — blocked
