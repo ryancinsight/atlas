@@ -703,7 +703,7 @@
   },
   "kwavers": {
     "allow_sites": 320,
-    "balance_domain_edges": 2,
+    "balance_domain_edges": 0,
     "bare_git_dependency": 0,
     "cache_retention_policy_missing": 0,
     "commented_out_code": 27,
