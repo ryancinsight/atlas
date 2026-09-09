@@ -44,6 +44,31 @@
   dependency edges between them. ritk, CFDrs and consus are two thirds of the
   total.
 
+<a id="atlas-member-registration-defects"></a>
+## ATLAS-MEMBER-REGISTRATION-DEFECTS-2026-09-09 — Two registered members the umbrella cannot resolve [patch] — todo
+
+- **Integrator:** unclaimed; **lease:** none. Found while advancing gitlinks.
+- **prometheus is declared but has no gitlink.** `.gitmodules` carries the
+  entry and the tree exists locally at `b66b9de`, but `git ls-tree HEAD
+  repos/prometheus` returns nothing — the submodule was registered without its
+  pointer ever being committed. A fresh clone therefore reads a `.gitmodules`
+  naming a member that `git submodule update` cannot check out, and every
+  fleet tool that iterates registered members either skips it silently or
+  fails on the missing directory.
+- **metis has no default branch to pin.** Its only remote branch is
+  `feat/process-foundation`, which `origin/HEAD` also points at, so advancing
+  its gitlink to the published head would pin the umbrella to a feature
+  branch — and any consumer declaring `git = ".../metis"` without a branch
+  already resolves feature-branch code. Gitlink coherence is defined against a
+  member's default branch, so the member currently has no coherent state to
+  record. Resolve by promoting the branch's content to `main` and repointing
+  the remote default, not by pinning the feature branch.
+- **Acceptance:** `git ls-tree HEAD repos/prometheus` names a commit reachable
+  from prometheus's default branch; metis's remote default is a non-feature
+  branch and its gitlink advances to it; a fresh `git submodule update
+  --init --recursive` checks out all 28 registered members.
+- **Risk / change class:** [patch]; registration and remote settings only.
+
 <a id="atlas-apollo-moirai-quarantine-lift"></a>
 ## ATLAS-APOLLO-MOIRAI-QUARANTINE-LIFT — Apollo's `rev` pin is the whole remaining stack incoherence [patch] — blocked
 
