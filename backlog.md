@@ -78,6 +78,12 @@
 - **Order:** by count, largest first, but each member is independent — no
   dependency edges between them. ritk, CFDrs and consus are two thirds of the
   total.
+- **Integrator:** claude-opus-5; **lease:** consus `crates/**` test modules,
+  2026-09-09T12:55Z. CFDrs is skipped for now, not deferred: a peer holds
+  `cfd-core/src/compute` (uncommitted SIMD-module deletion, edited 12:50 today)
+  on a stale local branch whose origin is gone, and its working `Cargo.lock` is
+  overlay-flattened (101 git sources to 16). Its 88 sites are claimable once
+  that lands; consus is next by count and uncontended.
 
 <a id="atlas-target-fork-regression-2026-09-09"></a>
 ## ATLAS-TARGET-FORK-REGRESSION-2026-09-09 — Four ratchet regressions, generator not yet identified [patch] — todo
@@ -434,13 +440,21 @@
   flight as apollo#338 (draft), whose branch carries the trait-qualified
   call. helios #92 unblocks when that lands.
 <a id="atlas-retained-benchmark-execution"></a>
-## ATLAS-RETAINED-BENCHMARK-EXECUTION — Run retained benchmark executables under the committed supervisor — review
+## ATLAS-RETAINED-BENCHMARK-EXECUTION — Run retained benchmark executables under the committed supervisor — done
 - Outcome: select a retained executable without rebuilding or swapping shared-cache artifacts.
 - Scope: `tools/criterion-regression`; retained artifact selection and CLI organization, with unchanged runtime budgets and supervision.
 - Acceptance: existing compile mode remains unchanged; retained execution uses metadata-resolved layout, mode arguments, and the same bounded runner; CLI rejects incomplete selections.
 - Class: [patch]; dependencies: none; authority: coordinator-authorized reversible workspace edits.
 - Integrator: root; verification: formatting, warning-denied Clippy, 32/32 bounded Nextest tests and two doctests pass; [current collection](output/apollo-square-transpose/integration/retained-runner-gates/collection.json) binds all 21 unchanged inputs. Marker/exit-code and deadline tests exercise retained execution; Windows PowerShell reads require the elevated test context. Linux remains unexecuted.
-- Last update: 2026-09-08; [reviewed patch](output/apollo-square-transpose/integration/retained-runner-gates/change.diff) preserves immediate-child supervision and documents its descendant limits. Publication awaits the requested shared-root branch authorization after automatic approval review rejected the switch; the asynchronous question remains pending.
+- Status: done 2026-09-09. Landed on atlas `main` as `811baccfa` (feature) and
+  `fd637c699` (tool lockfile churn strip), pushed; `repos/` gitlinks untouched.
+  The shared-root branch switch was authorized and landed. Verified gate on the
+  committed tree: fmt clean, warning-denied Clippy clean, 32/32 tests and two
+  doctests pass — retained marker/exit-code, deadline-breach, and
+  immediate-child supervision exercise retained execution. The
+  [reviewed patch](output/apollo-square-transpose/integration/retained-runner-gates/change.diff)
+  preserves immediate-child supervision and documents its descendant limits;
+  Linux execution remains unverified (accepted residual).
 
 <a id="atlas-cuda-driver-boundary"></a>
 ## ATLAS-CUDA-DRIVER-BOUNDARY — Own a correct dynamically loaded CUDA ABI — in-progress
