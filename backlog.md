@@ -125,9 +125,9 @@
 - **Risk / change class:** [patch]; repository integration settings only.
 
 <a id="atlas-member-registration-defects"></a>
-## ATLAS-MEMBER-REGISTRATION-DEFECTS-2026-09-09 — Two registered members the umbrella cannot resolve [patch] — todo
+## ATLAS-MEMBER-REGISTRATION-DEFECTS-2026-09-09 — Two registered members the umbrella cannot resolve [patch] — in-progress
 
-- **Integrator:** unclaimed; **lease:** none. Found while advancing gitlinks.
+- **Integrator:** root; **branch:** `fix/atlas-member-registration`; **lease:** `backlog.md`, `repos/metis`, `repos/prometheus` 2026-09-09T18:00:00-04:00. Found while advancing gitlinks.
 - **prometheus is declared but has no gitlink.** `.gitmodules` carries the
   entry and the tree exists locally at `b66b9de`, but `git ls-tree HEAD
   repos/prometheus` returns nothing — the submodule was registered without its
