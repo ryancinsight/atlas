@@ -10,16 +10,20 @@
 //! kernel to optimize) — never resolved by deleting the artifact or raising
 //! the bound in the offending diff.
 //!
-//! Enforcement runs in two phases: an unbounded compile phase (build cost is
-//! shared-cache state, never charged against the artifact), then direct
-//! bounded execution of each produced binary. Executing the binary directly
-//! rather than through `cargo` makes termination reliable — killing `cargo`
-//! can orphan the grandchild benchmark, which would keep running and holding
-//! the shared build lock.
+//! Enforcement prepares targets by compiling current source or resolving a
+//! retained executable, then directly bounds each binary's execution. The
+//! compile phase is unbounded (shared-cache build cost is never charged
+//! against the artifact). Executing the binary directly
+//! rather than through `cargo` lets the supervisor terminate and reap the
+//! benchmark itself. Killing `cargo` can orphan that benchmark. Descendants
+//! spawned by an artifact are outside this immediate-child boundary.
 
 mod error;
 mod runner;
 mod targets;
+
+#[cfg(test)]
+mod tests;
 
 use std::path::Path;
 use std::time::Duration;
@@ -27,6 +31,18 @@ use std::time::Duration;
 pub use error::BudgetError;
 pub use runner::Outcome;
 pub use targets::{PreparedTarget, WorkspaceLayout};
+
+/// Selects whether execution uses current sources or an already retained binary.
+#[derive(Debug, PartialEq, Eq)]
+pub enum TargetSource {
+    /// Compile every target selected by the mode, applying the named exclusions.
+    Compile {
+        /// Targets excluded by name after compilation.
+        skip: Vec<String>,
+    },
+    /// Execute this exact artifact without compiling the workspace.
+    Retained(PreparedTarget),
+}
 
 /// Enforcement mode selecting the target kind and execution arguments.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -108,25 +124,33 @@ impl Enforcement {
     }
 }
 
-/// Compiles the mode's targets and executes each under `bound`.
+/// Prepares the selected targets and executes each under `bound`.
+///
+/// Retained paths resolve relative to the invoking process before execution
+/// changes to the metadata-resolved workspace directory. The caller owns the
+/// artifact's provenance and its correspondence to the recorded target identity.
 ///
 /// # Errors
 ///
 /// Returns [`BudgetError`] when the bound is zero, workspace metadata or the
-/// compile phase fails, or a child process cannot be spawned or supervised;
+/// compile phase fails, a retained path is invalid, or a child process cannot
+/// be spawned or supervised;
 /// per-target breaches and failures are data in the returned
 /// [`Enforcement`], not errors.
 pub fn enforce(
     manifest_path: &Path,
     mode: Mode,
     bound: Duration,
-    skip: &[String],
+    source: TargetSource,
 ) -> Result<Enforcement, BudgetError> {
     if bound.is_zero() {
         return Err(BudgetError::ZeroBound);
     }
     let layout = targets::workspace_layout(manifest_path)?;
-    let prepared = targets::compile_targets(manifest_path, mode)?;
+    let (prepared, skip) = match source {
+        TargetSource::Compile { skip } => (targets::compile_targets(manifest_path, mode)?, skip),
+        TargetSource::Retained(target) => (vec![targets::retained_target(target)?], Vec::new()),
+    };
 
     let mut results = Vec::new();
     let mut skipped = Vec::new();

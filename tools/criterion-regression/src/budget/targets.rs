@@ -6,7 +6,7 @@ use serde::Deserialize;
 use super::Mode;
 use super::error::BudgetError;
 
-/// Executable produced by the unbounded compile phase.
+/// Executable selected for bounded execution, with its recorded target identity.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PreparedTarget {
     /// Package that owns the target.
@@ -15,6 +15,32 @@ pub struct PreparedTarget {
     pub name: String,
     /// Compiled binary to execute under the bound.
     pub executable: PathBuf,
+}
+
+/// Resolves a retained artifact before the runner changes working directory.
+pub(super) fn retained_target(mut target: PreparedTarget) -> Result<PreparedTarget, BudgetError> {
+    let executable = std::fs::canonicalize(&target.executable).map_err(|source| {
+        BudgetError::RetainedExecutable {
+            executable: target.executable.clone(),
+            source,
+        }
+    })?;
+    let metadata =
+        std::fs::metadata(&executable).map_err(|source| BudgetError::RetainedExecutable {
+            executable: executable.clone(),
+            source,
+        })?;
+    if !metadata.is_file() {
+        return Err(BudgetError::RetainedExecutable {
+            executable,
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "retained executable is not a regular file",
+            ),
+        });
+    }
+    target.executable = executable;
+    Ok(target)
 }
 
 /// Workspace facts the runner needs from `cargo metadata`.
@@ -164,6 +190,69 @@ mod tests {
     #![allow(clippy::unwrap_used)]
 
     use super::*;
+
+    #[test]
+    fn retained_artifact_preserves_identity_and_resolves_path() {
+        let executable = std::env::current_exe().unwrap();
+        let prepared = retained_target(PreparedTarget {
+            package: "recorded-package".to_owned(),
+            name: "recorded-target".to_owned(),
+            executable: executable.clone(),
+        })
+        .unwrap();
+        assert_eq!(
+            prepared,
+            PreparedTarget {
+                package: "recorded-package".to_owned(),
+                name: "recorded-target".to_owned(),
+                executable: executable.canonicalize().unwrap(),
+            }
+        );
+    }
+
+    #[test]
+    fn retained_artifact_rejects_directory_and_missing_file() {
+        let directory = std::env::current_exe()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .to_path_buf();
+        for executable in [
+            directory.clone(),
+            directory.join(format!("missing-retained-bench-{}", std::process::id())),
+        ] {
+            let error = retained_target(PreparedTarget {
+                package: "apollo".to_owned(),
+                name: "fft".to_owned(),
+                executable: executable.clone(),
+            })
+            .unwrap_err();
+            let BudgetError::RetainedExecutable {
+                executable: rejected,
+                source,
+            } = error
+            else {
+                panic!("expected retained executable validation error");
+            };
+            let is_directory = executable == directory;
+            assert_eq!(
+                rejected,
+                if is_directory {
+                    executable.canonicalize().unwrap()
+                } else {
+                    executable
+                }
+            );
+            assert_eq!(
+                source.kind(),
+                if is_directory {
+                    std::io::ErrorKind::InvalidInput
+                } else {
+                    std::io::ErrorKind::NotFound
+                }
+            );
+        }
+    }
 
     #[test]
     fn extracts_bench_artifacts_with_executables() {

@@ -139,6 +139,61 @@ mod tests {
     }
 
     #[test]
+    fn direct_execution_receives_workspace_and_shared_target_directory() {
+        let directory =
+            std::env::temp_dir().join(format!("atlas-budget-layout-{}", std::process::id()));
+        std::fs::create_dir(&directory).unwrap();
+        let layout = WorkspaceLayout {
+            workspace_root: directory.join("workspace"),
+            target_directory: directory.join("target"),
+        };
+        std::fs::create_dir(&layout.workspace_root).unwrap();
+        std::fs::create_dir(&layout.target_directory).unwrap();
+        std::fs::write(
+            layout.workspace_root.join("workspace.marker"),
+            "workspace-root",
+        )
+        .unwrap();
+        std::fs::write(
+            layout.target_directory.join("target.marker"),
+            "shared-target-root",
+        )
+        .unwrap();
+        // Directory contents identify the locations even when Windows renders
+        // their short and long path spellings differently.
+        #[cfg(windows)]
+        let (executable, arguments) = (
+            Path::new("powershell"),
+            vec![
+                "-NoProfile",
+                "-Command",
+                "if ((Get-Content -LiteralPath workspace.marker -Raw) -eq 'workspace-root' -and (Get-Content -LiteralPath (Join-Path $env:CARGO_TARGET_DIR target.marker) -Raw) -eq 'shared-target-root') { exit 17 }; exit 18",
+            ],
+        );
+        #[cfg(not(windows))]
+        let (executable, arguments) = (
+            Path::new("sh"),
+            vec![
+                "-c",
+                "test \"$(cat workspace.marker)\" = workspace-root && test \"$(cat \"$CARGO_TARGET_DIR/target.marker\")\" = shared-target-root && exit 17; exit 18",
+            ],
+        );
+        let outcome = run_bounded(
+            "layout",
+            executable,
+            &arguments,
+            &layout,
+            Duration::from_secs(30),
+        );
+        std::fs::remove_dir_all(&directory).unwrap();
+        let outcome = outcome.unwrap();
+        let Outcome::RunFailure { code, .. } = outcome else {
+            panic!("expected the child to report its layout check");
+        };
+        assert_eq!(code, Some(17));
+    }
+
+    #[test]
     fn breaching_child_is_terminated() {
         #[cfg(windows)]
         let child = shell("Start-Sleep -Seconds 30");

@@ -9,6 +9,13 @@ use std::path::PathBuf;
 pub enum BudgetError {
     /// The requested wall-clock bound is zero.
     ZeroBound,
+    /// A retained executable could not be resolved to a regular file.
+    RetainedExecutable {
+        /// Caller-selected artifact path.
+        executable: PathBuf,
+        /// Underlying filesystem or validation failure.
+        source: io::Error,
+    },
     /// `cargo metadata` could not be spawned or exited unsuccessfully.
     Metadata {
         /// Manifest the metadata query was issued for.
@@ -54,6 +61,16 @@ pub enum BudgetError {
 impl Display for BudgetError {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         match self {
+            Self::RetainedExecutable {
+                executable,
+                source: _,
+            } => {
+                write!(
+                    formatter,
+                    "invalid retained executable {}",
+                    executable.display()
+                )
+            }
             Self::ZeroBound => {
                 write!(
                     formatter,
@@ -110,7 +127,9 @@ impl Error for BudgetError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::MetadataJson { source } | Self::ArtifactJson { source } => Some(source),
-            Self::Spawn { source, .. } | Self::Supervise { source, .. } => Some(source),
+            Self::Spawn { source, .. }
+            | Self::Supervise { source, .. }
+            | Self::RetainedExecutable { source, .. } => Some(source),
             Self::ZeroBound | Self::Metadata { .. } | Self::Compile { .. } => None,
         }
     }
