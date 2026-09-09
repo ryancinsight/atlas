@@ -1,5 +1,11 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-metis-framework-matrix-2026-09-09"></a>
+## ATLAS-METIS-FRAMEWORK-MATRIX-2026-09-09 — Advance Metis after framework-matrix merge [patch] — done
+
+- **Status:** done; **Integrator:** root; **Commit:** `3d658b063`; **Acceptance:** child main full gate passes at `bca14a4`; Metis-specific coherence is `1 probed | 0 defects`.
+- **Outcome:** Atlas pins `repos/metis` to merged main `bca14a4`; fleet coherence is `28 probed | 0 defects` with nine unrelated stale-advanceable peer pins preserved.
+
 <a id="atlas-metis-coevolution-2026-09-09"></a>
 ## ATLAS-METIS-COEVOLUTION-2026-09-09 — Advance Metis after the Moirai sweep [patch] — done
 
@@ -244,7 +250,7 @@
   -- it is a dead peer's work, not scratch.
 
 <a id="atlas-target-fork-regression-2026-09-09"></a>
-## ATLAS-TARGET-FORK-REGRESSION-2026-09-09 — Cargo outside the overlay forks the cache [patch] — in-progress
+## ATLAS-TARGET-FORK-REGRESSION-2026-09-09 — Cargo outside the overlay forks the cache [patch] — review
 
 - **Integrator:** claude-opus-5 (generator identified 2026-09-09); **lease:** none -- the guard belongs to the gate-script session's lease.
 - **Measured 2026-09-09** by `atlas-conformance.py check`: `apollo/excess_worktrees`
@@ -291,6 +297,16 @@ epos\consus	arget` |
   The guard follows: any invocation leaving the overlay carries
   `CARGO_TARGET_DIR`, and the mechanical check belongs in the stack-owned gate
   script (leased by another session as of 17:40Z, so not touched here).
+- **Swept 2026-09-09 17:16, generator first as this item required.** Nine
+  forks, ~90 GB: CFDrs 58.6, consus 10.5, hephaestus 5.7, apollo 4.0, gaia
+  3.9, leto 2.9, metis 2.9, eunomia 0.9, moirai 0.3. Every one was a real
+  cargo cache and every one was idle at least 1h39 at deletion (oldest write
+  13:07, newest 15:37, against a 17:16 sweep), so none was taken from under a
+  running build. All nine `target_forks` rows return to zero.
+  What remains of this item is the guard, which belongs to the gate-script
+  lease: an invocation that leaves the overlay carries `CARGO_TARGET_DIR`, and
+  a `repos/*/target` check in the committed pre-push script turns the escape
+  into a local failure instead of a ratchet row found days later.
 - **The escapes arrive in a rolling sweep, not one at a time (2026-09-09).**
   Four members forked within forty minutes while this session watched:
   `apollo` 13:07, `consus` 13:18, `gaia` 13:39, `moirai` 13:45, each a real
