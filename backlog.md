@@ -517,6 +517,20 @@ epos\consus	arget` |
   (`build/cfdrs-moirai-06`, peer) are claimed and in flight. apollo stays
   `rev`-pinned at `83aa411` — sweep debt, not a blocker, and both its trees
   are peer-held.
+- **Correction 2026-09-09: apollo's lag is sweep debt for CI and a hard
+  blocker locally.** "Not a blocker" holds for hosted resolution, where every
+  first-party crate comes from git at coherent locked versions. Under the
+  development overlay it does not: `atlas-stack-overlay.py check` reports
+  `repos/apollo/Cargo.toml requires moirai-runtime = "0.5.0" but the local tree
+  is 0.6.0 -- the overlay cannot unify this edge`, so apollo alone stays
+  git-sourced while its own dependencies resolve local. The halves then
+  disagree, and any in-overlay build reaching apollo-fft dies at
+  `unresolved import leto_ops::transpose_complex_matrices` -- an error inside a
+  `~/.cargo/git/checkouts` path that names a symbol the local `leto-ops` no
+  longer exports. Measured today on `cargo check -p kwavers-gpu --features
+  gpu`, which cannot be built in-overlay at all until apollo's requirement
+  advances. Local verification for those crates currently has to run outside
+  the overlay with `--manifest-path`, the way CI resolves.
 - **Gitlink advance is deliberately not done yet:** advancing atlas's
   submodule pins now would make the pinned-snapshot coherence gate fail
   correctly on helios, CFDrs and apollo. Advance once those land.
