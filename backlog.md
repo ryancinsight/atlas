@@ -44,6 +44,27 @@
   dependency edges between them. ritk, CFDrs and consus are two thirds of the
   total.
 
+<a id="atlas-lock-form-skips-tools"></a>
+## ATLAS-LOCK-FORM-SKIPS-TOOLS-2026-09-09 — The lock-form guard does not cover the meta-repo's own tools [patch] — todo
+
+- **Integrator:** unclaimed; **lease:** none.
+- **Measured 2026-09-09, by committing the defect twice.** `tools/version-guard`
+  and `tools/criterion-regression` each landed a `Cargo.lock` carrying 61
+  `[[patch.unused]]` tables — the development overlay's rewrite, not a
+  resolution. Cargo discovers `.cargo/config.toml` by walking up from its
+  working directory, so any build under `tools/` inherits the stack overlay and
+  every first-party patch lands in that tool's lock, even though no tool depends
+  on a first-party crate. Repaired at `fd637c699` (492 lines removed; both
+  workspaces verify with `--locked` run outside the stack).
+- **Why it passed.** `scripts/atlas-lock-form.py` hardwires `REPOS = ROOT /
+  "repos"` in every mode, including `staged` — which is the pre-commit hook. A
+  churned lock under `tools/` is therefore invisible to the guard, the hook and
+  the CI gate alike. The rule is not repo-specific; only its implementation is.
+- **Acceptance:** `check`, `restore` and `staged` measure every Cargo workspace
+  under the stack root, `tools/` included, and a deliberately churned tool lock
+  fails the pre-commit hook.
+- **Risk / change class:** [patch]; guard scope only, no member change.
+
 <a id="atlas-third-party-check-always-red"></a>
 ## ATLAS-THIRD-PARTY-CHECK-ALWAYS-RED-2026-09-09 — A check that fails on every pull request [patch] — todo
 
