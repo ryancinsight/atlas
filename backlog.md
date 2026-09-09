@@ -413,8 +413,15 @@ epos\consus	arget` |
      copy, and it moves with step 2.
 - **Acceptance.** `cargo tree -p apollo-fft -e normal -i mnemosyne-arena`
   resolves unambiguously — one package, not three. Ratchet metric: the count
-  of distinct `mnemosyne-arena` entries in Apollo's lock — **2 on `main` as of
-  `7d193b5`, read off the merged lockfile**, was 3, target 1. Reclassified [patch] hygiene on the measurement above: this is
+  of distinct `mnemosyne-arena` entries in Apollo's lock — **3 again as of
+  2026-09-09, regressed from the 2 measured at `7d193b5`**, target 1. The
+  regression is not a reversal of the hermes step: that still holds. Apollo now
+  resolves *two* Moirai stacks — 0.5.0 at `rev=83aa411` and 0.6.0 unpinned at
+  `5c8a9e8b` — because cargo cannot unify a `rev =` source with an unpinned
+  one, and each drags its own Mnemosyne. Step 2 is therefore the binding
+  constraint and its cure is
+  [`#atlas-moirai-06-forward-sweep`](#atlas-moirai-06-forward-sweep), not a
+  separate action here. Reclassified [patch] hygiene on the measurement above: this is
   graph and build-time cleanliness, not a runtime memory item.
 - **Non-goals.** No API change, no compatibility layer, and no removal of a
   pin that carries a live, recorded quarantine reason — none of these three
@@ -467,6 +474,16 @@ epos\consus	arget` |
   `rev`-pinned consumers (apollo `83aa411`, consus `b548bc9`, tyche) resolve
   to their pinned 0.5 revision and do not conflict — they are sweep debt, not
   blockers.
+- **What that debt costs, measured in Apollo's graph 2026-09-09.** A pinned
+  consumer does not merely lag: cargo cannot unify a `rev =` source with the
+  unpinned one, so both resolve side by side. Apollo's `main` lockfile carries
+  **`moirai-core` 0.5.0 at `rev=83aa411` and `moirai-core` 0.6.0 at
+  `5c8a9e8b` simultaneously** — two entries each for `moirai-core`,
+  `moirai-executor`, `moirai-runtime` and `moirai-scheduler`. Each stack drags
+  its own Mnemosyne, which is why
+  [`#atlas-mnemosyne-source-triplication`](#atlas-mnemosyne-source-triplication)
+  regressed from two arena entries back to three. The pin is therefore a
+  duplicated dependency stack for as long as it stands, not a dormant lag.
 - **Order is forced:** each member's lock regeneration resolves its siblings
   from *their* default branches, so the sweep runs bottom-up —
   leto → hephaestus → coeus → gaia → ritk → helios/CFDrs → kwavers. A
