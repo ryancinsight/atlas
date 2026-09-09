@@ -53,11 +53,43 @@
   section kwavers added gets this right at its own line 203
   (`merge-base "$origin_main" HEAD`); the lockfile guard above it does not.
   So the escapes this item cites had a lockfile guard that could not have run.
-- **Integrator:** claude-opus-5; **lease:** `scripts/git-hooks/pre-push`,
-  `repos/*/.githooks/pre-push`, 2026-09-09T20:10Z. Scope taken is the **base
-  computation only** -- the defect recorded above, which makes the guard skip
-  every new-branch push. Unifying the six versions onto one owner stays open on
-  this item and is not claimed.
+- **Integrator:** unclaimed; **lease released 2026-09-09.** A peer already
+  holds `scripts/git-hooks/pre-push` and `scripts/tests/test_atlas_pre_push_gate.py`
+  uncommitted, and their working copy already carries the base-computation fix
+  recorded above. I withdrew a duplicate shell harness on finding their
+  387-line Python one, and hand over three measured results instead.
+- **Measured against three hook versions** by driving each with a real stdin
+  ref line in throwaway repositories (reproduction kept out of tree; it is
+  three cases their existing fixture can absorb):
+
+  | | lockfile base | gate reached on a source-only push | gate base on a non-`main` default |
+  |---|---|---|---|
+  | committed `scripts/git-hooks/pre-push` | **broken** | no gate | no gate |
+  | `repos/kwavers/.githooks/pre-push` | **broken** | ok | **broken** |
+  | peer's uncommitted working copy | ok | **broken** | **broken** |
+
+  The two live versions are complementary -- each has what the other lacks --
+  and both share the third defect.
+- **Two defects the in-flight fix does not close:**
+  1. **The gate half resolves only `origin/main`.** `gate_base` tries
+     `@{upstream}`, then `origin/main`, then prints
+     `no upstream or origin/main to diff against; local gate skipped` and
+     exits 0. A first push has no upstream yet, so on a repository whose
+     default branch is not `main` the gate runs nothing at all -- no fmt, no
+     clippy, no tests. **hephaestus's default branch is `master`**, confirmed
+     2026-09-09. Unlike the lockfile half, an unresolved base here fails
+     *open*. `origin/HEAD` resolves the real default; `origin/main` is an
+     assumption the fleet does not satisfy.
+  2. **The lockfile half still `exit 0`s** at its "not needed" and
+     "not present" paths (lines 96 and 125 of the working copy), so a push
+     that changes no manifest never reaches the gate -- the common case.
+     kwavers' copy already restructured these to `return`, and its own comment
+     names this as "the one that has escaped"; the port has not carried it
+     across yet.
+- **The peer's test cannot catch the first of these:** its fixture pushes
+  `HEAD:main` and sets upstream to `origin/main` throughout, so every case runs
+  on a `main` default. One more fixture parameterised on the default branch
+  covers it.
 - **Acceptance:** one owned gate script in the meta-repo; every member's
   `.githooks/pre-push` resolves to it; the conformance scan counts distinct
   member gate versions and the count is 1; coeus included; and a new-branch
