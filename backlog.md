@@ -1,5 +1,18 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-metis-gitlink-evidence-2026-09-09"></a>
+## ATLAS-METIS-GITLINK-EVIDENCE-2026-09-09 — Advance Metis to committed Windows evidence [patch] — in-progress
+
+- **Outcome:** Atlas points `repos/metis` at the merged public `main` revision
+  carrying the native/WebView2 capture manifest and bounded runtime environment
+  policy; no registry token or private key enters the tree.
+- **Scope:** advance only the `repos/metis` gitlink and this item; preserve all
+  peer-dirty member checkouts and the unrelated tool lockfile.
+- **Acceptance:** `gitlink-coherence` reports 28 probed and 0 defects; the
+  recorded Metis revision is the merged public default and its locked gate is
+  green at that revision.
+- **Integrator:** root; **lease:** `repos/metis` gitlink, 2026-09-09T13:10-04:00.
+
 <a id="atlas-closure-surface-split"></a>
 ## ATLAS-CLOSURE-SURFACE-SPLIT — Balance members publish their closure vocabulary as its own crate [arch] [minor] — todo
 
