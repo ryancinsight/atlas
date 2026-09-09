@@ -50,7 +50,7 @@ staged() { git diff --cached --name-only; }
 board_staged="$(staged | grep -E '^(backlog|checklist)\.md$' || true)"
 # A "pointer" is a gitlink-mode delta (mode 160000); ordinary content
 # under repos/<name>/ (books, docs, scripts) must flow freely.
-pointer_staged="$(git diff --cached --raw | awk '$1 == ":160000" || $2 == ":160000" || ($3 == "160000" && $4 != "000000") || ($3 != "160000" && $4 == "160000") {print $6}' || true)"
+pointer_staged="$(git diff --cached --raw | awk '$1 == ":160000" || $2 == "160000" || ($3 == "160000" && $4 != "000000") || ($3 != "160000" && $4 == "160000") {print $6}' || true)"
 pointer_staged="$(echo "$pointer_staged" | grep -E '^repos/' || true)"
 
 # Git exports GIT_DIR/GIT_INDEX_FILE/GIT_WORK_TREE to hooks; a bare
