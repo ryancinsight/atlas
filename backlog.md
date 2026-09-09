@@ -1,5 +1,17 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-metis-coevolution-2026-09-09"></a>
+## ATLAS-METIS-COEVOLUTION-2026-09-09 — Advance Metis after the Moirai sweep [patch] — in-progress
+
+- **Outcome:** Atlas points `repos/metis` at pushed public `main` `e25d607`,
+  including the standalone Moirai main dependency graph and ratchet merge.
+- **Scope:** advance only the `repos/metis` gitlink and this item; preserve the
+  peer-owned backlog and gap-audit edits plus the unrelated tool lockfile.
+- **Acceptance:** `gitlink-coherence` reports 28 probed and 0 defects; Metis
+  `e25d607c4fcf4852dab80136797006bc586dbe0c` resolves on `origin/main` and its
+  locked full gate is green.
+- **Integrator:** root; **lease:** `repos/metis` gitlink, 2026-09-09T13:45-04:00.
+
 <a id="atlas-moirai-gitlink-webview2-2026-09-09"></a>
 ## ATLAS-MOIRAI-GITLINK-WEBVIEW2-2026-09-09 — Advance Moirai WebView2 provider pointer [minor] — done
 
