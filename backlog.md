@@ -44,6 +44,13 @@
   dependency edges between them. ritk, CFDrs and consus are two thirds of the
   total.
 
+<a id="atlas-version-guard-origin-measurement"></a>
+## ATLAS-VERSION-GUARD-ORIGIN-MEASUREMENT — Coherence measured at origin, and a scan that survives an unreadable tree [patch] — done
+
+- Status: done; `version-guard coherence` reads each behind member's manifests at its origin tip instead of its working tree, so a member sitting behind its own bump no longer makes every consumer compare against a stale number.
+- Second defect, found by running it: the manifest walk aborted the whole fleet scan on one `read_dir` failure — an ACL-denied `pytest` cache under `repos/coeus/test_output/` stopped all 26 members from being measured. The walk now steps over output and dotted trees, records what it could not read, and says so in the report; an unreadable directory qualifies a clean verdict rather than deciding it.
+- Evidence: 67 + 4 tests pass, warning-denied Clippy and `cargo fmt --check` clean; the end-to-end run completes and reports 19 apollo crates requiring `moirai-runtime 0.5.0` against an actual 0.6.0 — the guard firing on the bump it was built for.
+
 <a id="atlas-build-source-identity"></a>
 ## ATLAS-BUILD-SOURCE-IDENTITY — Detect stale artifacts across source trees [patch] — todo
 - **Outcome:** shared-cache gates consume artifacts from their recorded source tree and revision.
