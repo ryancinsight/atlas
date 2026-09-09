@@ -44,6 +44,39 @@
   dependency edges between them. ritk, CFDrs and consus are two thirds of the
   total.
 
+<a id="atlas-apollo-moirai-quarantine-lift"></a>
+## ATLAS-APOLLO-MOIRAI-QUARANTINE-LIFT — Apollo's `rev` pin is the whole remaining stack incoherence [patch] — blocked
+
+- **Integrator:** unclaimed; **branch:** none; **lease:** none. Apollo is at its
+  tree bound with two live lanes (`apollo-route` edited 2026-09-09T10:07Z,
+  `apollo-ecore` committed 10:44Z), so this is filed rather than taken.
+- **The removal trigger has fired, verified at source.** Apollo's own manifest
+  comment states it: "remove `rev` after Moirai's hook lands on main and
+  regenerate Cargo.lock". Moirai `9a0af648` (`feat(executor)!: Bound idle-hook
+  admission`) is on `origin/main` — confirmed by `merge-base --is-ancestor` —
+  and it is the correction apollo's dependency note required: registration now
+  returns `Result<(), IdleHookRegistrationError>` against a public
+  `MAX_IDLE_HOOKS`, replacing the `Vec` that accepted unlimited registrations
+  while a 16-slot `zip` silently executed only the first sixteen.
+- **Blast radius, measured 2026-09-09.** The stack overlay gate is red on every
+  push to main, and after regenerating the overlay (`49d633852`) its failure
+  reduces to exactly this pin: one requirement lag (`repos/apollo/Cargo.toml`
+  requires `moirai-runtime = "0.5.0"`, local tree 0.6.0) and eight members whose
+  locks carry the transitive `rev=83aa411` moirai tree — CFDrs, apollo,
+  asclepius, athena, coeus, helios, kwavers, ritk, twelve entries each. It is
+  not only drift: athena's lock cannot regenerate at all, failing with
+  `failed to select a version for the requirement moirai-runtime = "^0.5.0"`.
+- **The change.** In apollo, drop `rev = "83aa411"` and move the requirement
+  0.5.0 → 0.6.0 on the root manifest and the nineteen crate manifests that
+  declare it, then regenerate the lock outside the overlay. Downstream, one
+  `atlas-lock-sweep.py apollo-fft --rev <new head>` clears the eight.
+- **Acceptance:** `python scripts/atlas-stack-overlay.py check` prints
+  `stack aligned:` and the `atlas-stack-overlay` workflow is green on main.
+- **Blocker / re-open trigger:** apollo tree availability — re-open when either
+  apollo lane closes or its holder takes the change; it is disjoint from both
+  lanes' regions, which are confined to
+  `crates/apollo-fft/src/application/execution/kernel/components/batched/`.
+
 <a id="atlas-version-guard-origin-measurement"></a>
 ## ATLAS-VERSION-GUARD-ORIGIN-MEASUREMENT — Coherence measured at origin, and a scan that survives an unreadable tree [patch] — done
 
@@ -1502,6 +1535,14 @@ _Closure note (moved from heading):_ commit 99dc33fad
 - **Standing risk this leaves.** A developer holding an unpushed version bump
   regenerates differently from CI. That is the gate working — the bump has to
   be pushed — not a contradiction, and it is transient by construction.
+- **Confirmed by the gate itself, 2026-09-09.** The run on `49d633852` no
+  longer emits the `OVERLAY:` clause at all; its failure is now one requirement
+  lag and eight locks, both revision-meaningful and both owned by
+  [the apollo pin](#atlas-apollo-moirai-quarantine-lift). CI's regeneration and
+  the worktree regeneration agree byte for byte, which is what the equality
+  clause asserts — so it is kept. Dropping it, as this item previously
+  recommended, would have removed the only clause that detects an overlay
+  silently withholding providers.
 - **Risk / change class:** [arch] [patch]; derived-state definition, no
   member change.
 
