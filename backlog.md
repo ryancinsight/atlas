@@ -76,15 +76,17 @@
 ## ATLAS-EXISTENCE-ONLY-ASSERTIONS — Tests that cannot fail on the defect they name [arch] — in-progress
 
 - **Measured 2026-09-08** with the conformance detector's own regex over every
-  registered member: 392 sites remain outside kwavers.
+  registered member: 392 sites remained outside kwavers. **377 of those are
+  now closed** (2026-09-09); the 15 that remain are held by other agents'
+  work, not by the sweep.
 
   | member | sites | | member | sites |
   |---|---:|---|---|---:|
   | ~~ritk~~ | ~~141~~ → 0 | | ~~hephaestus~~ | ~~14~~ → 0 |
-  | ~~CFDrs~~ | ~~88~~ → 2 | | coeus | 7 |
-  | ~~consus~~ | ~~78~~ → 0 | | leto | 6 |
-  | ~~gaia~~ | ~~29~~ → 0 | | mnemosyne | 5 |
-  | moirai | 20 | | metis, eunomia, apollo | 1 each |
+  | ~~CFDrs~~ | ~~88~~ → 2 | | coeus | 7 (tree blocked) |
+  | ~~consus~~ | ~~78~~ → 0 | | ~~leto~~ | ~~6~~ → 0 |
+  | ~~gaia~~ | ~~29~~ → 0 | | mnemosyne | 5 (live peer) |
+  | ~~moirai~~ | ~~20~~ → 0 | | ~~metis~~, ~~eunomia~~ → 0; apollo | 1 (peer PR) |
 
 - **ritk closed 2026-09-08** ([#245](https://github.com/ryancinsight/ritk/pull/245),
   141 → 0). Two findings worth carrying to the other members: the rejection
@@ -156,6 +158,22 @@
   carrying an error and a failure carrying none. Converting an `is_ok` guard
   to `expect` is also a diagnostic fix: `assert!` discards the error, so the
   failure said something went wrong without saying what.
+- **Closed 2026-09-09, remaining 15 and why each is held:**
+  leto ([#181](https://github.com/ryancinsight/leto/pull/181), 6 -> 0),
+  eunomia ([#91](https://github.com/ryancinsight/eunomia/pull/91), 1 -> 0),
+  metis ([#33](https://github.com/ryancinsight/metis/pull/33), 1 -> 0).
+  leto's two drop-safety tests caught an unwind and asserted only that one
+  happened, so they passed on any panic the operation raised on its own rather
+  than the clone panic they provoke. eunomia's single site was the coverage for
+  the RUSTSEC-2026-0235 bounds check and accepted any validation error.
+  metis's single site was **not a test**: a `debug_assert!` inside a `Drop`
+  impl, which is a latent abort-on-unwind in debug and compiles to nothing in
+  release, so the invariant it named was never checked where it mattered.
+- **The 15 remaining are held by other agents, not by this sweep:** CFDrs 2
+  (leased to the hermes-simd port), mnemosyne 5 (live peer, 61 dirty files),
+  apollo 1 (its tree hosts a peer's open PR #359), coeus 7 (see
+  [the coeus tree item](#atlas-coeus-abandoned-wip-2026-09-09)).
+- **Integrator:** claude-opus-5; **lease:** none held.
 - **Previous integrator lease (now discharged):** CFDrs test modules excluding
   `cfd-math/src/simd/**` and `cfd-2d/src/solvers/simd_kernels.rs`,
   2026-09-09T18:35Z. A live peer holds those for CFDRS-GA-004's remaining
@@ -166,6 +184,29 @@
   on a stale local branch whose origin is gone, and its working `Cargo.lock` is
   overlay-flattened (101 git sources to 16). Its 88 sites are claimable once
   that lands; consus is next by count and uncontended.
+
+<a id="atlas-coeus-abandoned-wip-2026-09-09"></a>
+## ATLAS-COEUS-ABANDONED-WIP-2026-09-09 — 61 files of stale unique work in the coeus tree [patch] — todo
+
+- **Integrator:** unclaimed; **lease:** none.
+- **Outcome:** the coeus working tree holds only work someone owns, so the
+  member can be verified and changed again.
+- **Measured 2026-09-09:** `repos/coeus` sits on `fix/coeus-backend-write-ownership`,
+  whose PR [#384](https://github.com/ryancinsight/Coeus/pull/384) is **merged**,
+  with 67 uncommitted paths (59 modified, 7 untracked, 1 deleted). The newest
+  edit is roughly 24 hours old, so the claim is dead by the stale-claim window.
+- **It is not superseded:** 61 of those paths differ from `origin/main`, so
+  this is unique work, not a duplicate of what #384 landed. It spans the CUDA
+  and wgpu backends, the workspace manifest, and `backend-parity.yml`.
+- **Why it blocks other items:** nothing in coeus can be gated while the tree
+  carries an unreviewed 61-file delta on a landed branch, and the branch it
+  sits on no longer exists to receive it. The existence-only sweep skipped
+  coeus's 7 sites for this reason rather than working on top of it.
+- **Acceptance:** the delta is inferred from the diff and either completed and
+  landed under its own item, or shown superseded and removed; the tree is on a
+  live branch with a clean status; coeus's committed gate passes at that head.
+- **Do not** revert or discard it without establishing which of the two it is
+  -- it is a dead peer's work, not scratch.
 
 <a id="atlas-target-fork-regression-2026-09-09"></a>
 ## ATLAS-TARGET-FORK-REGRESSION-2026-09-09 — Cargo outside the overlay forks the cache [patch] — in-progress
