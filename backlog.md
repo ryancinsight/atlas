@@ -77,7 +77,7 @@
   and the class distinguishes a cargo cache from a tool's output directory.
 
 <a id="atlas-lock-form-skips-tools"></a>
-## ATLAS-LOCK-FORM-SKIPS-TOOLS-2026-09-09 — The lock-form guard does not cover the meta-repo's own tools [patch] — todo
+## ATLAS-LOCK-FORM-SKIPS-TOOLS-2026-09-09 — The lock-form guard does not cover the meta-repo's own tools [patch] — done
 
 - **Integrator:** unclaimed; **lease:** none.
 - **Measured 2026-09-09, by committing the defect twice.** `tools/version-guard`
@@ -92,9 +92,15 @@
   "repos"` in every mode, including `staged` — which is the pre-commit hook. A
   churned lock under `tools/` is therefore invisible to the guard, the hook and
   the CI gate alike. The rule is not repo-specific; only its implementation is.
-- **Acceptance:** `check`, `restore` and `staged` measure every Cargo workspace
-  under the stack root, `tools/` included, and a deliberately churned tool lock
-  fails the pre-commit hook.
+- **Closed at `82f64d324` / `69fcc72f3`.** `lock_units` carries each unit's
+  repository path instead of a member name its consumers re-derived, and yields
+  the superproject beside the members; hook deployment stays members-only, since
+  those modes target git repositories and the tools are not. Two cases pin it,
+  each failing when the superproject line is removed. The first run found a
+  third instance — `tools/checkout-path-dependencies/Cargo.lock`, 57 residue
+  tables — now regenerated and `--locked`-verified. The end-to-end cases had
+  patched `REPOS` but not `ROOT`, so with the superproject in scope they read
+  the real tree; both harnesses now own both roots.
 - **Risk / change class:** [patch]; guard scope only, no member change.
 
 <a id="atlas-third-party-check-always-red"></a>
