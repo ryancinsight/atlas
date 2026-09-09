@@ -53,8 +53,11 @@
   section kwavers added gets this right at its own line 203
   (`merge-base "$origin_main" HEAD`); the lockfile guard above it does not.
   So the escapes this item cites had a lockfile guard that could not have run.
-- **Integrator:** unclaimed; the finding above is contributed by
-  claude-opus-5, who holds no lease here.
+- **Integrator:** claude-opus-5; **lease:** `scripts/git-hooks/pre-push`,
+  `repos/*/.githooks/pre-push`, 2026-09-09T20:10Z. Scope taken is the **base
+  computation only** -- the defect recorded above, which makes the guard skip
+  every new-branch push. Unifying the six versions onto one owner stays open on
+  this item and is not claimed.
 - **Acceptance:** one owned gate script in the meta-repo; every member's
   `.githooks/pre-push` resolves to it; the conformance scan counts distinct
   member gate versions and the count is 1; coeus included; and a new-branch
