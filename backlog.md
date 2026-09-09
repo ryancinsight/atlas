@@ -12,6 +12,35 @@
 - **Status:** done; **Commit:** [`da4680cc8`](https://github.com/ryancinsight/atlas/commit/da4680cc8); **PR:** [Metis #29](https://github.com/ryancinsight/metis/pull/29).
 - **Outcome:** Atlas records merged Metis `main` `4f53533d`; the locked Metis gate is green and coherence reports 28 probed, 0 defects. Runtime credentials remain outside the tree.
 
+<a id="atlas-prepush-hook-forked-across-members-2026-09-09"></a>
+## ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09 — One gate, twenty-three copies, six versions [patch] [ci] — todo
+
+- **Outcome:** the member `pre-push` gate has one stack-level owner the members
+  consume, so a fix to it reaches every member instead of one.
+- **Measured 2026-09-09**, `sha256` of `repos/*/.githooks/pre-push`, 23 members
+  carrying six distinct versions of the same file:
+  - 118 lines, 12 members (CFDrs, aequitas, ares, consus, eunomia, helios,
+    hephaestus, horae, leto, moirai, proteus, ritk)
+  - 118 lines, a second variant, 2 members (apollo, hermes)
+  - 73 lines, 5 members (asclepius, gaia, hyperion, mnemosyne, themis)
+  - 73 lines, a second variant, 2 members (athena, tyche)
+  - 2 lines, 1 member (coeus) -- a stub, so coeus has no gate at all
+  - 323 lines, 1 member (kwavers)
+- **Why it matters now:** kwavers#754 gave the hook the fmt/clippy/test gate it
+  was missing, after two defects escaped a lockfile-only hook in one merge
+  (#749, #750). Twenty-two members still run the lockfile-only version, and the
+  73-line variants predate even that. The fix landed once; the defect class it
+  closes is open everywhere else.
+- **Same generator as the workflow copies:** this is the fleet-scale
+  duplication the lint floor already counts for workflows and scripts -- one
+  owner in the meta-repo's `scripts/`, consumed by members, rather than a
+  per-repo hand-rolled copy.
+- **Risk:** the 73-line variants may lack the lockfile guard entirely; confirm
+  before assuming a uniform upgrade, and coeus needs a gate, not a merge.
+- **Acceptance:** one owned gate script in the meta-repo; every member's
+  `.githooks/pre-push` resolves to it; the conformance scan counts distinct
+  member gate versions and the count is 1; coeus included.
+
 <a id="atlas-closure-surface-split"></a>
 ## ATLAS-CLOSURE-SURFACE-SPLIT — Balance members publish their closure vocabulary as its own crate [arch] [minor] — todo
 
