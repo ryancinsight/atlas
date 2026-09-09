@@ -323,6 +323,21 @@
 - **Guard:** the version advance should have fired the coherence check
   (`tools/version-guard`). That it did not is the mechanization gap to close
   once the sweep lands.
+- **Sweep progress, 2026-09-09.** The leto-ops lock sweep landed in
+  [ares #2](https://github.com/ryancinsight/ares/pull/2),
+  [hephaestus #295](https://github.com/ryancinsight/hephaestus/pull/295) and
+  [coeus #386](https://github.com/ryancinsight/Coeus/pull/386), and
+  [ritk #246](https://github.com/ryancinsight/ritk/pull/246) advanced its
+  apollo-fft pin — that one repaired a `main` that had not compiled since
+  apollo moved `transpose_complex_matrices` behind the `ComplexLayout` trait,
+  a break that surfaced as E0432 inside the vendored dependency and so read as
+  unrelated. Everything still outstanding is
+  [the apollo quarantine](#atlas-apollo-moirai-quarantine-lift): one requirement
+  lag and eight locks, with athena additionally unable to regenerate at all.
+- **The guard now exists.** `version-guard coherence` reads member manifests at
+  their origin tips and reports the nineteen apollo crates requiring
+  `moirai-runtime 0.5.0` against an actual 0.6.0 — the check that should have
+  fired on the bump ([item](#atlas-version-guard-origin-measurement)).
 
 
 - **Second unswept break on the same chain, found 2026-09-08.** leto's
