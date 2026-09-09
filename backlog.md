@@ -488,15 +488,19 @@ epos\consus	arget` |
      copy, and it moves with step 2.
 - **Acceptance.** `cargo tree -p apollo-fft -e normal -i mnemosyne-arena`
   resolves unambiguously — one package, not three. Ratchet metric: the count
-  of distinct `mnemosyne-arena` entries in Apollo's lock — **3 again as of
-  2026-09-09, regressed from the 2 measured at `7d193b5`**, target 1. The
-  regression is not a reversal of the hermes step: that still holds. Apollo now
-  resolves *two* Moirai stacks — 0.5.0 at `rev=83aa411` and 0.6.0 unpinned at
-  `5c8a9e8b` — because cargo cannot unify a `rev =` source with an unpinned
-  one, and each drags its own Mnemosyne. Step 2 is therefore the binding
-  constraint and its cure is
-  [`#atlas-moirai-06-forward-sweep`](#atlas-moirai-06-forward-sweep), not a
-  separate action here. Reclassified [patch] hygiene on the measurement above: this is
+  of distinct `mnemosyne-arena` entries in Apollo's lock — **2 on `main` as of
+  `4e061ba`**, target 1. It had regressed to 3 earlier the same day because
+  Apollo resolved *two* Moirai stacks (0.5.0 at `rev=83aa411` and 0.6.0
+  unpinned), cargo being unable to unify a `rev =` source with an unpinned one,
+  and each dragging its own Mnemosyne. Dropping Apollo's Moirai pin
+  ([apollo#358](https://github.com/ryancinsight/apollo/pull/358)) collapsed the
+  Moirai duplication to one and took this ratchet back to 2. The hermes step
+  was never reversed.
+- **The last entry is Moirai's own `rev=2eb49c1a` Mnemosyne pin.** Mnemosyne
+  `main` carries exactly the versions Moirai requires (`mnemosyne-memory`
+  0.7.0, `mnemosyne-memory-core` 0.2.0), so dropping that pin resolves the same
+  way [hermes#159](https://github.com/ryancinsight/hermes/pull/159) did and
+  takes this item to its target of 1. Reclassified [patch] hygiene on the measurement above: this is
   graph and build-time cleanliness, not a runtime memory item.
 - **Non-goals.** No API change, no compatibility layer, and no removal of a
   pin that carries a live, recorded quarantine reason — none of these three
