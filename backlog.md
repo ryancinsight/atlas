@@ -81,7 +81,7 @@
   | member | sites | | member | sites |
   |---|---:|---|---|---:|
   | ~~ritk~~ | ~~141~~ → 0 | | ~~hephaestus~~ | ~~14~~ → 0 |
-  | CFDrs | 88 | | coeus | 7 |
+  | ~~CFDrs~~ | ~~88~~ → 2 | | coeus | 7 |
   | ~~consus~~ | ~~78~~ → 0 | | leto | 6 |
   | ~~gaia~~ | ~~29~~ → 0 | | mnemosyne | 5 |
   | moirai | 20 | | metis, eunomia, apollo | 1 each |
@@ -146,7 +146,17 @@
   clause asserts it. **This is the strongest argument for running the sweep on
   the remaining members**: on a multi-backend seam, an error-only assertion
   hides conformance gaps, not just weak tests.
-- **Integrator:** claude-opus-5; **lease:** CFDrs test modules **excluding**
+- **CFDrs closed to its leased remainder 2026-09-09**
+  ([#424](https://github.com/ryancinsight/CFDrs/pull/424), 88 -> 2). Only 29
+  sites were `is_err`; the other 57 were `is_ok`/`is_some`, and they are where
+  the unread values were -- a metadata `remove` that any return value would
+  have satisfied, a venturi whose throat was never compared to its inlet, a
+  momentum coupling never checked for being non-zero, and a
+  `passed || error_message.is_some()` disjunction that accepted both a pass
+  carrying an error and a failure carrying none. Converting an `is_ok` guard
+  to `expect` is also a diagnostic fix: `assert!` discards the error, so the
+  failure said something went wrong without saying what.
+- **Previous integrator lease (now discharged):** CFDrs test modules excluding
   `cfd-math/src/simd/**` and `cfd-2d/src/solvers/simd_kernels.rs`,
   2026-09-09T18:35Z. A live peer holds those for CFDRS-GA-004's remaining
   legs (they are the two live SIMD implementations being ported onto
