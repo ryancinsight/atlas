@@ -158,20 +158,37 @@ def violations(lock_text: str, local: set[str], git_deps: set[str]) -> list[str]
     return found
 
 
-def lock_units() -> list[tuple[str, str, set[str], set[str], bool]]:
-    """(member, lock path relative to the member, local, git deps, is fixture)."""
+def _units_under(label: str, repo: Path) -> list[tuple[str, Path, str, set[str], set[str], bool]]:
+    """Every tracked lock in one git repository, with the facts to judge it."""
+    locks = tracked_locks(repo)
+    roots = [(repo / lock).parent for lock in locks]
+    units = []
+    for lock in locks:
+        ws_root = (repo / lock).parent
+        nested = [r for r in roots if r != ws_root and ws_root in r.parents]
+        local, git_deps, fixture = workspace_facts(ws_root, nested, repo)
+        units.append((label, repo, lock, local, git_deps, fixture))
+    return units
+
+
+def lock_units() -> list[tuple[str, Path, str, set[str], set[str], bool]]:
+    """(label, repository, lock path relative to it, local, git deps, fixture).
+
+    Covers the registered members and the superproject itself. The
+    superproject matters because its own tool workspaces live under the stack
+    root, so a cargo run inside one walks up into the development overlay
+    exactly as a member's does and its lock is rewritten the same way -- while
+    being tracked here rather than in a submodule, which is how two tool locks
+    reached `main` carrying sixty-one `[[patch.unused]]` tables each before
+    this looked at them.
+    """
     units = []
     for member in sorted(registered_member_names()):
         repo = REPOS / member
         if not repo.is_dir():
             continue
-        locks = tracked_locks(repo)
-        roots = [(repo / lock).parent for lock in locks]
-        for lock in locks:
-            ws_root = (repo / lock).parent
-            nested = [r for r in roots if r != ws_root and ws_root in r.parents]
-            local, git_deps, fixture = workspace_facts(ws_root, nested, repo)
-            units.append((member, lock, local, git_deps, fixture))
+        units.extend(_units_under(member, repo))
+    units.extend(_units_under("atlas", ROOT))
     return units
 
 
@@ -183,8 +200,7 @@ def committed_text(repo: Path, lock: str) -> str | None:
 def cmd_check(_args) -> int:
     failures = 0
     checked = 0
-    for member, lock, local, git_deps, fixture in lock_units():
-        repo = REPOS / member
+    for member, repo, lock, local, git_deps, fixture in lock_units():
         text = committed_text(repo, lock)
         if text is None:
             print(f"::warning::{member}/{lock}: not readable at HEAD; skipped")
@@ -226,8 +242,8 @@ def cmd_staged(args) -> int:
         return 0
     units = {
         lock: (local, deps, fixture)
-        for member, lock, local, deps, fixture in lock_units()
-        if (REPOS / member).resolve() == repo
+        for _member, unit_repo, lock, local, deps, fixture in lock_units()
+        if unit_repo.resolve() == repo
     }
     failures = 0
     for lock in sorted(staged):
@@ -257,8 +273,7 @@ def cmd_staged(args) -> int:
 
 def cmd_status(_args) -> int:
     print(f"{'member/lock':<44} {'HEAD':<10} {'worktree':<10}")
-    for member, lock, local, git_deps, fixture in lock_units():
-        repo = REPOS / member
+    for member, repo, lock, local, git_deps, fixture in lock_units():
         head = committed_text(repo, lock)
         path = repo / lock
         work = path.read_text(encoding="utf-8") if path.exists() else None
@@ -341,8 +356,7 @@ def _strip_only(head_text: str, work_text: str) -> bool:
 
 def cmd_restore(_args) -> int:
     restored, kept = [], []
-    for member, lock, local, git_deps, fixture in lock_units():
-        repo = REPOS / member
+    for member, repo, lock, local, git_deps, fixture in lock_units():
         path = repo / lock
         head = committed_text(repo, lock)
         if head is None or not path.exists() or fixture:

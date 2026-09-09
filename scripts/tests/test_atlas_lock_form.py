@@ -231,11 +231,63 @@ class EndToEndCheckTestCase(unittest.TestCase):
             self._member(root, lock_text)
             with (
                 patch.object(_lock_form, "REPOS", root / "repos"),
+                # The superproject's own workspaces are scanned too, so the
+                # fixture must own that root as well; otherwise the case reads
+                # the real Atlas tree and its verdict depends on the checkout.
+                patch.object(_lock_form, "ROOT", root),
                 patch.object(
                     _lock_form, "registered_member_names", lambda: {"synthetic"}
                 ),
             ):
                 return _lock_form.cmd_check(None)
+
+    def _tool_root(self, root: Path, lock_text: str) -> None:
+        """A workspace under the superproject's own `tools/`, tracked here."""
+        tool = root / "tools" / "synthetic-tool"
+        tool.mkdir(parents=True)
+        (tool / "Cargo.toml").write_text(
+            textwrap.dedent(
+                """                [package]
+                name = "synthetic-tool"
+                version = "0.1.0"
+
+                [dependencies]
+                eunomia = { version = "0.8", git = "https://github.com/ryancinsight/eunomia" }
+                """
+            ),
+            encoding="utf-8",
+        )
+        (tool / "Cargo.lock").write_text(lock_text, encoding="utf-8")
+        for args in (
+            ["init", "-q", "-b", "main"],
+            ["add", "tools/synthetic-tool/Cargo.toml", "tools/synthetic-tool/Cargo.lock"],
+            ["-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "seed"],
+        ):
+            subprocess.run(["git", "-C", str(root), *args], check=True)
+
+    def _run_check_tool_only(self, lock_text: str) -> int:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._tool_root(root, lock_text)
+            with (
+                patch.object(_lock_form, "REPOS", root / "repos"),
+                patch.object(_lock_form, "ROOT", root),
+                patch.object(_lock_form, "registered_member_names", set),
+            ):
+                return _lock_form.cmd_check(None)
+
+    def test_a_stripped_lock_in_the_superprojects_own_tools_is_flagged(self) -> None:
+        """The guard covers `tools/`, not only `repos/`.
+
+        A cargo run inside a tool workspace walks up into the stack overlay
+        exactly as a member's does, so its lock is rewritten the same way --
+        and it is tracked in the superproject, which is how two such locks
+        reached `main` while every mode of this guard looked only at members.
+        """
+        self.assertEqual(self._run_check_tool_only(STRIPPED), 1)
+
+    def test_a_standalone_lock_in_the_superprojects_own_tools_passes(self) -> None:
+        self.assertEqual(self._run_check_tool_only(STANDALONE), 0)
 
     def test_check_fails_on_a_committed_stripped_lock(self) -> None:
         self.assertEqual(self._run_check(STRIPPED), 1)
@@ -256,6 +308,10 @@ class StagedGateTestCase(EndToEndCheckTestCase):
             subprocess.run(["git", "-C", str(repo), "add", "Cargo.lock"], check=True)
             with (
                 patch.object(_lock_form, "REPOS", root / "repos"),
+                # The superproject's own workspaces are scanned too, so the
+                # fixture must own that root as well; otherwise the case reads
+                # the real Atlas tree and its verdict depends on the checkout.
+                patch.object(_lock_form, "ROOT", root),
                 patch.object(
                     _lock_form, "registered_member_names", lambda: {"synthetic"}
                 ),
