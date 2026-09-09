@@ -49,6 +49,7 @@ import lockfile  # noqa: E402  (overlay-free cargo runner; shared, not copied)
 from atlas_stack import ROOT, git, registered_members  # noqa: E402
 
 LANE_ROOT = ROOT / "worktrees"
+LOG_ROOT = ROOT / "output" / "lock-sweep"
 GIT_SOURCE = re.compile(r'git\s*=\s*"(?P<url>https://github\.com/ryancinsight/[^"\s]+)"')
 
 
@@ -134,6 +135,31 @@ def locked_rev(lock_text: str, crate: str) -> str | None:
             source = re.search(r'^source = "git\+[^"#]+#(?P<rev>[0-9a-f]+)"$', block, re.M)
             return source.group("rev") if source else None
     return None
+
+
+def failure_detail(member_name: str, stage: str, stderr: str) -> str:
+    """Name the failure, and keep the whole diagnostic on disk.
+
+    A cargo resolver error states the unsatisfiable requirement on its first
+    `error:` line and spends the remaining lines narrating the dependency
+    chain that reached it. Reporting the *last* line therefore named the far
+    end of that chain -- "which satisfies git dependency `hephaestus-wgpu`
+    (locked to 0.19.0)" -- and every conflict read as a mystery about a
+    package that was not the constraint. The first error line is the
+    constraint; the rest is written beside it so the chain is still readable.
+    """
+    lines = stderr.strip().splitlines()
+    head = next((line.strip() for line in lines if line.strip().startswith("error")), "")
+    if not head:
+        head = lines[-1].strip() if lines else "no diagnostic"
+    slug = stage.replace(" ", "-")
+    log = LOG_ROOT / f"{member_name}-{slug}.log"
+    try:
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text(stderr, encoding="utf-8")
+        return f"{stage}: {head} [full: {log.relative_to(ROOT).as_posix()}]"
+    except OSError:
+        return f"{stage}: {head}"
 
 
 def branch_name(crate: str, rev: str) -> str:
@@ -228,11 +254,10 @@ def advance(row: PlanRow, crate: str, open_prs: bool) -> Outcome:
     try:
         update = cargo(lane, "update", "-p", crate, "--precise", target)
         if update.returncode != 0:
-            return Outcome(consumer, "failed", f"cargo update: {update.stderr.strip().splitlines()[-1]}", False)
+            return Outcome(consumer, "failed", failure_detail(consumer.name, "cargo update", update.stderr), False)
         check = cargo(lane, "check", "--workspace", "--locked")
         if check.returncode != 0:
-            error = next((l for l in check.stderr.splitlines() if l.startswith("error")), check.stderr.strip()[-200:])
-            return Outcome(consumer, "failed", f"cargo check: {error}", False)
+            return Outcome(consumer, "failed", failure_detail(consumer.name, "cargo check", check.stderr), False)
         after = locked_rev((lane / "Cargo.lock").read_text(encoding="utf-8"), crate)
         if not after or not target.startswith(after):
             return Outcome(consumer, "failed", f"lock did not move to {target[:8]} (now {after})", False)
