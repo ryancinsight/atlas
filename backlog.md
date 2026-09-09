@@ -125,34 +125,10 @@
 - **Risk / change class:** [patch]; repository integration settings only.
 
 <a id="atlas-member-registration-defects"></a>
-## ATLAS-MEMBER-REGISTRATION-DEFECTS-2026-09-09 — Three registered members the umbrella cannot resolve [patch] — in-progress
+## ATLAS-MEMBER-REGISTRATION-DEFECTS-2026-09-09 — Three registered members the umbrella cannot resolve [patch] — done
 
-- **Integrator:** root; **branch:** `fix/atlas-member-registration`; **lease:** `backlog.md`, `repos/metis`, `repos/prometheus`, `repos/apollo` 2026-09-09T18:00:00-04:00. Found while advancing gitlinks.
-- **prometheus is declared but has no gitlink.** `.gitmodules` carries the
-  entry and the tree exists locally at `b66b9de`, but `git ls-tree HEAD
-  repos/prometheus` returns nothing — the submodule was registered without its
-  pointer ever being committed. A fresh clone therefore reads a `.gitmodules`
-  naming a member that `git submodule update` cannot check out, and every
-  fleet tool that iterates registered members either skips it silently or
-  fails on the missing directory.
-- **metis has no default branch to pin.** Its only remote branch is
-  `feat/process-foundation`, which `origin/HEAD` also points at, so advancing
-  its gitlink to the published head would pin the umbrella to a feature
-  branch — and any consumer declaring `git = ".../metis"` without a branch
-  already resolves feature-branch code. Gitlink coherence is defined against a
-  member's default branch, so the member currently has no coherent state to
-  record. Resolve by promoting the branch's content to `main` and repointing
-  the remote default, not by pinning the feature branch.
-- **apollo's recorded pin is orphaned.** The Atlas pointer `b0eebf0` is absent
-  from every Apollo remote branch; Apollo's default `main` is `6e58bf8`. The
-  pointer is advanced to that published default so the umbrella's coherence
-  gate can validate all registered members. Apollo's source and its documented
-  Moirai quarantine remain unchanged.
-- **Acceptance:** `git ls-tree HEAD repos/prometheus` names a commit reachable
-  from prometheus's default branch; metis's remote default is a non-feature
-  branch and its gitlink advances to it; a fresh `git submodule update
-  --init --recursive` checks out all 28 registered members.
-- **Risk / change class:** [patch]; registration and remote settings only.
+- **Integrator:** root; **commit:** `2f15de4b9`; **outcome:** Prometheus `b66b9de`, Metis `3b7fd3e`, and Apollo `6e58bf8` resolve from their public defaults; Metis default is `main`.
+- **Acceptance:** pre-push auditor `28 probed | 0 defects`; fresh long-path recursive checkout `registered=28 checked_out=28 unresolved=0`.
 
 <a id="atlas-apollo-moirai-quarantine-lift"></a>
 ## ATLAS-APOLLO-MOIRAI-QUARANTINE-LIFT — Apollo's `rev` pin is the whole remaining stack incoherence [patch] — blocked
