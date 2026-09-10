@@ -224,9 +224,11 @@ melinoe = { path = "repos/melinoe" }
 
 [patch."https://github.com/ryancinsight/metis"]
 metis-platform = { path = "repos/metis/crates/metis-platform" }
+metis-web = { path = "repos/metis/crates/metis-web" }
 
 [patch."https://github.com/ryancinsight/metis.git"]
 metis-platform = { path = "repos/metis/crates/metis-platform" }
+metis-web = { path = "repos/metis/crates/metis-web" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne"]
 mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }
