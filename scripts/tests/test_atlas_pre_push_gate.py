@@ -62,7 +62,12 @@ def _path_without_cargo(extra_first: str) -> str:
 class GateFixture:
     """A member-like git repo with a stub toolchain and lockfile checker."""
 
-    def __init__(self, root: pathlib.Path, layout: str = "crates") -> None:
+    def __init__(
+        self,
+        root: pathlib.Path,
+        layout: str = "crates",
+        default_branch: str = "main",
+    ) -> None:
         self.root = root
         self.bin = root / "bin"
         self.bin.mkdir(parents=True)
@@ -103,10 +108,12 @@ class GateFixture:
             ["git", "-C", str(root), *_IDENT, "commit", "-q", "-m", "seed"],
             check=True,
         )
-        # An origin with main pushed, so upstream/origin-main logic resolves.
+        # An origin with the default branch pushed, so upstream/default
+        # logic resolves the way a real clone does -- including `origin/HEAD`,
+        # which is what the gate reads on a first push with no upstream yet.
         subprocess.run(
-            ["git", "init", "-q", "-b", "main", str(root / "upstream.git"),
-             "--bare"],
+            ["git", "init", "-q", "-b", default_branch,
+             str(root / "upstream.git"), "--bare"],
             check=True,
         )
         subprocess.run(
@@ -116,12 +123,17 @@ class GateFixture:
         )
         subprocess.run(
             ["git", "-C", str(root), *_IDENT, "push", "-q", "origin",
-             "HEAD:main"],
+             f"HEAD:{default_branch}"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(root), "remote", "set-head", "origin",
+             "--auto"],
             check=True,
         )
         subprocess.run(
             ["git", "-C", str(root), "branch", "--set-upstream-to",
-             "origin/main"],
+             f"origin/{default_branch}"],
             check=True,
         )
 
@@ -387,6 +399,42 @@ class MissingToolchainTestCase(unittest.TestCase):
             )
             self.assertEqual(code, 0)
             self.assertIn("no cargo toolchain found", stderr)
+
+
+class DefaultBranchTestCase(unittest.TestCase):
+    """The gate follows the remote's default branch, not `main`.
+
+    On a repository whose default branch is not `main` (hephaestus uses
+    `master`), a first push has no upstream yet, so `origin/main` resolves
+    nothing and the gate used to skip everything -- failing open.
+    """
+
+    def test_first_push_on_master_default_gates(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(
+                pathlib.Path(temp), default_branch="master"
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+                 "-b", "feat"],
+                check=True,
+            )
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// tweak\n"
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add",
+                 "crates/foo/src/lib.rs"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                 "-m", "src"],
+                check=True,
+            )
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+            self.assertEqual(code, 0)
+            self.assertIn("gating foo", stderr)
 
 
 class LockRestoreTestCase(unittest.TestCase):

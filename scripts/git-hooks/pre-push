@@ -53,6 +53,24 @@ export GIT_CONFIG_COUNT=1
 export GIT_CONFIG_KEY_0=safe.directory
 export GIT_CONFIG_VALUE_0="$repo_root"
 
+# The remote's default branch is whatever the remote says it is: `origin/HEAD`
+# follows a rename, `origin/main` does not (hephaestus defaults to `master`).
+# Echoes the merge-base of `$1` with that branch, or nothing when neither
+# ref resolves.
+default_branch_base() {
+  local tip="$1" ref ref_sha base
+  for ref in origin/HEAD origin/main; do
+    ref_sha="$(git rev-parse --verify --quiet "$ref" 2>/dev/null || true)"
+    [ -n "$ref_sha" ] || continue
+    base="$(git merge-base "$ref_sha" "$tip" 2>/dev/null || true)"
+    if [ -n "$base" ]; then
+      printf '%s' "$base"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # The check measures the *working tree*, but the push carries a revision range.
 # Those differ whenever the pushed commits were not checked out -- a plumbing
 # push, or a push from a tree sitting on another branch -- and then the hook
@@ -74,11 +92,7 @@ if [ ! -t 0 ]; then
       # against HEAD instead is vacuous exactly when it matters: pushing
       # the checked-out branch makes the base the pushed tip itself, the
       # range is empty, and a manifest-changing push skips the check.
-      if origin_main="$(git rev-parse --verify --quiet origin/main 2>/dev/null)"; then
-        base="$(git merge-base "$origin_main" "$local_sha" 2>/dev/null || true)"
-      else
-        base=""
-      fi
+      base="$(default_branch_base "$local_sha" || true)"
       [ -z "$base" ] && { touches_dependency_state=unknown; break; }
     else
       base="$remote_sha"
@@ -215,14 +229,14 @@ fi
 gate_base=""
 if upstream="$(git rev-parse --verify --quiet '@{upstream}' 2>/dev/null)"; then
   gate_base="$upstream"
-elif origin_main="$(git rev-parse --verify --quiet origin/main 2>/dev/null)"; then
-  # A branch pushed for the first time has no upstream yet; its own commits are
-  # what the default branch does not have.
-  gate_base="$(git merge-base "$origin_main" HEAD 2>/dev/null || true)"
+else
+  # A branch pushed for the first time has no upstream yet; its own commits
+  # are what the default branch does not have.
+  gate_base="$(default_branch_base HEAD || true)"
 fi
 
 if [ -z "$gate_base" ]; then
-  echo "pre-push: no upstream or origin/main to diff against; local gate skipped" >&2
+  echo "pre-push: no upstream or remote default branch to diff against; local gate skipped" >&2
   exit 0
 fi
 

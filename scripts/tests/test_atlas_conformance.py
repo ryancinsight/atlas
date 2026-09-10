@@ -822,6 +822,38 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(results["beta"]["oversized_files"], 0)
         self.assertEqual(set(results), {"<meta>", "alpha", "beta"})
 
+    def test_stack_scan_counts_distinct_gate_versions(self) -> None:
+        """`member_gate_versions` converges to 1 as the rollout lands.
+
+        Distinct `.githooks/pre-push` contents across members plus the
+        owned source: alpha matches the source, beta carries a fork, gamma
+        has no hook at all, and delta carries the source with CRLF endings
+        (a clean Windows checkout reads CRLF where an archive reads LF) --
+        still three versions, one rollout.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(
+                root,
+                ".gitmodules",
+                "[submodule \"alpha\"]\n\tpath = repos/alpha\n"
+                "[submodule \"beta\"]\n\tpath = repos/beta\n"
+                "[submodule \"gamma\"]\n\tpath = repos/gamma\n"
+                "[submodule \"delta\"]\n\tpath = repos/delta\n",
+            )
+            _write(root, "scripts/git-hooks/pre-push", "owned\n")
+            for member in ("alpha", "beta", "gamma", "delta"):
+                _write(root, f"repos/{member}/.git", "gitdir: elsewhere\n")
+            _write(root, "repos/alpha/.githooks/pre-push", "owned\n")
+            _write(root, "repos/beta/.githooks/pre-push", "forked\n")
+            delta_hook = root / "repos/delta/.githooks/pre-push"
+            delta_hook.parent.mkdir(parents=True, exist_ok=True)
+            delta_hook.write_bytes(b"owned\r\n")
+
+            results = conformance.scan_stack(root)
+
+        self.assertEqual(results["<meta>"]["member_gate_versions"], 3)
+
     def test_stack_scan_rejects_unmaterialized_provider(self) -> None:
         """An empty gitlink directory cannot masquerade as a clean provider."""
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
