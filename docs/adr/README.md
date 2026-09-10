@@ -9,8 +9,8 @@
 
 | ADR | Title | Status |
 | --- | ----- | ------ |
-| [0001](0001-gpu-accelerator-substrate.md) | Shared GPU/accelerator substrate — `hephaestus` | Accepted |
-| [0002](0002-heterogeneous-topology-law.md) | Heterogeneous compute & memory topology law | Accepted |
+| [0001](0001-gpu-accelerator-substrate.md) | ADR 0001 (atlas): Shared GPU/accelerator substrate — `hephaestus` | Accepted |
+| [0002](0002-heterogeneous-topology-law.md) | ADR 0002 (atlas): Heterogeneous compute & memory topology law | Accepted |
 | [0003](0003-secure-accelerator-parallelization.md) | Secure parallelization of accelerator device access | Proposed |
 | [0004](0004-hephaestus-kernel-seam.md) | Hephaestus custom-kernel seam (consumer-authored kernels over wgpu + CUDA) | Accepted |
 | [0005](0005-eunomia-scalar-ssot.md) | `eunomia::NumericElement` as the single scalar-vocabulary SSOT (CR-4) | Accepted |
@@ -46,7 +46,7 @@
 | [0035](0035-shared-publication-pipelines.md) | Atlas owns the release and documentation publication pipelines | Proposed |
 | [0036](0036-neuroimaging-and-mr-ownership.md) | Neuroimaging, diffusion MRI, and MR physics ownership | Proposed |
 | [0037](0037-facade-crates-and-registry-naming.md) | Workspace facade crates and crates.io registry naming | Proposed |
-| [0038](0038-compute-backend-conformance-crate.md) | One generic conformance suite owns the ComputeBackend contract | Proposed |
+| [0038](0038-compute-backend-conformance-crate.md) | One generic conformance suite owns the ComputeBackend contract | Accepted |
 | [0039](0039-compute-substrate-topology.md) | Compute-substrate topology across Apollo, Leto, Hephaestus, and Coeus | Accepted |
 | [0040](0040-first-party-zero-copy-archives.md) | Zero-copy archival is first-party, and Consus owns it | Proposed |
 | [0041](0041-closed-set-enum-dispatch.md) | Closed-set per-timestep `dyn` dispatch converts to exhaustive enum dispatch | Proposed |
@@ -69,3 +69,4 @@
 | [0059](0059-fluid-structure-coupling-phase-0.md) | Fluid-structure coupling, Phase 0 — one-way traction loading | Proposed |
 | [0060](0060-publish-order-optional-dependencies.md) | Optional dependencies are not publish-order constraints | Accepted |
 | [0061](0061-closure-surfaces-of-balance-members.md) | Hyperion and Asclepius are closure domains | Accepted |
+| [0062](0062-iterative-solver-and-preconditioner-ownership.md) | Iterative solvers and preconditioners are Athena policy over Leto kernels | Accepted |
