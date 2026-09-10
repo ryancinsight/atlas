@@ -854,6 +854,17 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(manifests, ["pkg/Cargo.toml"])
         self.assertEqual(sources, ["pkg/src/lib.rs"])
 
+    def test_type_suffixed_clone_exempts_conversions(self) -> None:
+        """Conversion-lattice methods name their target type, not a clone.
+
+        `F16::to_f32` and `Bf16::to_f32` cannot consolidate into one generic
+        entry point (the receivers differ); `process_f32` can.
+        """
+        for name in ("to_f32", "from_f32", "from_f64", "to_u8"):
+            self.assertFalse(conformance._is_type_suffixed_clone(name))
+        for name in ("process_f32", "widen_f16", "fill_f64", "next_f32"):
+            self.assertTrue(conformance._is_type_suffixed_clone(name))
+
     def test_executable_source_dirs_prune_target(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)

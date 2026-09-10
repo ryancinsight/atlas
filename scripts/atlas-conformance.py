@@ -159,6 +159,24 @@ CFG_TEST_MOD_ALL = re.compile(
 )
 
 TYPE_NAME = re.compile(r"(?:^|_)(?:f16|bf16|f32|f64|u8|u16|u32|u64|i8|i16|i32|i64)(?:_|$)")
+# Conversion-lattice methods name their *target* type (`F16::to_f32`,
+# `Bf16::from_f32`): the receivers differ per type and the shared math already
+# lives in the const-generic kernel, so no single generic entry point exists
+# to consolidate them into. Exempting exactly these names keeps the class
+# aimed at real clones (`process_f32`, `widen_f16`). A duplicated conversion
+# body hiding under one of these names would escape the count; review watches
+# this spot on change.
+CONVERSION_METHOD = re.compile(
+    r"^(?:to|from)_(?:f16|bf16|f32|f64|u8|u16|u32|u64|i8|i16|i32|i64)$"
+)
+
+
+def _is_type_suffixed_clone(name: str) -> bool:
+    """Whether a function name marks a per-type clone worth counting."""
+    return (
+        TYPE_NAME.search(name) is not None
+        and CONVERSION_METHOD.fullmatch(name) is None
+    )
 FN_DEF = re.compile(r"\bfn\s+(\w+)")
 WORKSPACE_LINTS_TABLE = re.compile(
     r"(?m)^\s*\[workspace\.lints(?:\.[^\]]+)?\]\s*$"
@@ -1412,7 +1430,8 @@ def scan_repo(
         c["markers"] += len(MARKER.findall(prod))
         c["reexport_shims"] += reexport_shims(prod)
         c["type_suffixed_fns"] += sum(
-            1 for m in FN_DEF.finditer(prod) if TYPE_NAME.search(m.group(1))
+            1 for m in FN_DEF.finditer(prod)
+            if _is_type_suffixed_clone(m.group(1))
         )
         c["commented_out_code"] += sum(
             1 for ln in prod.splitlines() if COMMENTED_CODE.match(ln)
