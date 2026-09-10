@@ -772,90 +772,18 @@ epos\consus	arget` |
   settings after the write.
 
 <a id="atlas-mnemosyne-source-triplication"></a>
-## ATLAS-MNEMOSYNE-SOURCE-TRIPLICATION — Apollo links three Mnemosyne stacks [patch] [arch] — in-progress
+## ATLAS-MNEMOSYNE-SOURCE-TRIPLICATION — Apollo links three Mnemosyne stacks [patch] [arch] — done 2026-09-10
 
-- **Integrator:** claude-opus-5; **last-update:** 2026-09-06.
-- **Finding, measured 2026-09-06 from Apollo's resolved graph** (not from
-  lockfile presence — `cargo tree -p apollo-fft -e normal -i` on each spec,
-  so every chain below is a normal, feature-activated edge):
-
-  | source | reaches apollo-fft via |
-  | --- | --- |
-  | `rev=26726d20` | hermes-simd-core ← hermes-simd ← apollo-fft (also via leto-ops) |
-  | `rev=7f173751` | moirai-core ← moirai-async ← moirai-runtime ← apollo-fft |
-  | unpinned (`e8e825f4`) | apollo's own 18 crates, leto, xtask |
-
-  Cargo itself refuses `-p mnemosyne-arena` as ambiguous and names all three
-  `mnemosyne-arena@0.4.0` packages. So Apollo compiles and links three
-  complete copies of the arena, backend, decay, local and memory-core crates.
-- **Why the per-repo work did not catch it.** Hermes'
-  [`#hermes-mnemosyne-identity-2026-09-03`](repos/hermes/backlog.md#hermes-mnemosyne-identity-2026-09-03)
-  has exactly this outcome — "one first-party memory source identity" — but
-  its acceptance reads *"standalone lock resolves only Mnemosyne 26726d2"*.
-  A member's standalone lock resolves one identity by construction; it cannot
-  observe what the integrator resolves. The oracle for a source-identity item
-  has to be the integrator's graph, and `26726d2` and `7f17375` are two points
-  on the same chain — Hermes advanced, Moirai did not.
-- **Cost — measured 2026-09-07, and it corrects what this item first claimed.**
-  The original entry asserted "three codegen'd copies in the linked image" and
-  hypothesised per-copy statics and `thread_local!` state inflating retained
-  memory. Both are wrong, and the measurement is unambiguous: the release
-  `engine_census` executable built against a three-copy lock and against a
-  two-copy lock is **6,861,312 bytes either way — a zero-byte difference**.
-  Artifacts identified from `cargo build --message-format=json` rather than by
-  mtime, and the crate metadata hashes differ (`2565f298` vs `5d401c26`), so
-  these are genuinely the two configurations and not one binary counted twice.
-  - The linker already drops the duplicate copies: nothing Apollo's binary
-    executes reaches hermes' or moirai's Mnemosyne instances, so they
-    contribute no code, no statics and no thread-local state. The retained
-    memory hypothesis falls with the size claim — there is no second or third
-    pool to account for.
-  - What the triplication does cost is real but narrower: compile time and
-    `target/` space for the extra crate set, lockfile complexity, and the
-    standing hazard that a *future* call path could reach a second allocator
-    instance without anyone noticing. Those justify finishing the convergence;
-    a runtime memory saving does not, and must not be claimed for it.
-- **Fix, dependency-ordered.** Remove the `rev =` quarantine pins so each
-  member states a git+version requirement and lets the lock hold the commit —
-  which is already Apollo's own model, and the reason Apollo's 18 crates share
-  one identity.
-  1. Hermes: **done** — pin removed, standalone lock re-resolved to one
-     identity (`3ebc4da1`), 1 `mnemosyne-arena` entry, gates green under
-     `--locked` (clippy `-D warnings`, 548/548 nextest, 26 doctests,
-     examples, no-default-features). Merged as `b51e873`
-     ([hermes#159](https://github.com/ryancinsight/hermes/pull/159)); the
-     Atlas pin advanced with it.
-  2. Moirai: **blocked**, re-verified 2026-09-07 rather than carried on its
-     recorded word — the manifest now pins `rev=2eb49c1a` (main advanced but
-     still pins by rev), the repo has a live peer on `feat/crypto-primitives`,
-     and [`#atlas-moirai-06-forward-sweep`](#atlas-moirai-06-forward-sweep) is
-     open. Re-open when the sweep lands and that claim goes stale.
-  3. Apollo: **done for the hermes half.** Its hermes requirement was already
-     unpinned, so `cargo update -p hermes-simd` sufficed — an entire crate set
-     (arena, backend, build-util, decay, local, memory, memory-core, prof) left
-     the graph and the lockfile shed 80 net lines.
-     [apollo#345](https://github.com/ryancinsight/apollo/pull/345), merged.
-     Apollo's `rev = "83aa411"` moirai pin is what still admits the second
-     copy, and it moves with step 2.
-- **Acceptance.** `cargo tree -p apollo-fft -e normal -i mnemosyne-arena`
-  resolves unambiguously — one package, not three. Ratchet metric: the count
-  of distinct `mnemosyne-arena` entries in Apollo's lock — **2 on `main` as of
-  `4e061ba`**, target 1. It had regressed to 3 earlier the same day because
-  Apollo resolved *two* Moirai stacks (0.5.0 at `rev=83aa411` and 0.6.0
-  unpinned), cargo being unable to unify a `rev =` source with an unpinned one,
-  and each dragging its own Mnemosyne. Dropping Apollo's Moirai pin
-  ([apollo#358](https://github.com/ryancinsight/apollo/pull/358)) collapsed the
-  Moirai duplication to one and took this ratchet back to 2. The hermes step
-  was never reversed.
-- **The last entry is Moirai's own `rev=2eb49c1a` Mnemosyne pin.** Mnemosyne
-  `main` carries exactly the versions Moirai requires (`mnemosyne-memory`
-  0.7.0, `mnemosyne-memory-core` 0.2.0), so dropping that pin resolves the same
-  way [hermes#159](https://github.com/ryancinsight/hermes/pull/159) did and
-  takes this item to its target of 1. Reclassified [patch] hygiene on the measurement above: this is
-  graph and build-time cleanliness, not a runtime memory item.
-- **Non-goals.** No API change, no compatibility layer, and no removal of a
-  pin that carries a live, recorded quarantine reason — none of these three
-  do; they are advance points that were never cleaned up.
+- Target met: `cargo tree -p apollo-fft -e normal -i mnemosyne-arena` resolves
+  unambiguously to one package (`01f0bc59`), down from three. Delivered by
+  dropping `rev =` quarantine pins in dependency order — hermes
+  ([#159](https://github.com/ryancinsight/hermes/pull/159)), apollo's Moirai
+  edge ([#358](https://github.com/ryancinsight/apollo/pull/358)), then Moirai's
+  own Mnemosyne pin.
+- Correction retained for the next reader: the duplication cost **zero linked
+  bytes** — the census executable measured 6,861,312 either way. The linker
+  drops copies nothing reaches, so this was build-time and graph hygiene, not
+  a runtime memory win, and was reclassified [patch] once measured.
 
 <a id="atlas-coherence-measures-gitlinks-not-branches"></a>
 ## ATLAS-COHERENCE-MEASURES-GITLINKS-NOT-BRANCHES — The coherence guard cannot see the breakage members actually hit [arch] — done
