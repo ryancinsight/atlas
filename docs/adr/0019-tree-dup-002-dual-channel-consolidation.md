@@ -1,4 +1,4 @@
-# ADR 0019 — TREE-DUP-002: Dual channel consolidation (moirai-core)
+# ADR 0019: TREE-DUP-002: Dual channel consolidation (moirai-core)
 
 - Status: **Accepted**
 - Date: 2026-07-16

@@ -99,15 +99,18 @@ class RunTests(unittest.TestCase):
             (directory / "0001-a.md").write_text("# ADR-0001: A" + BODY, encoding="utf-8")
             (directory / "0002-b.md").write_text("# ADR 0002: B" + BODY, encoding="utf-8")
             (directory / "README.md").write_text("# ADR-index: not an ADR\n", encoding="utf-8")
+            (directory / "INDEX.md").write_text("# Atlas-meta ADR Index\n", encoding="utf-8")
             code, output = self._run(directory, write=False)
             self.assertEqual(code, 1)
             self.assertIn("0001-a.md", output)
             self.assertNotIn("0002-b.md", output)
             self.assertNotIn("README.md", output)
+            self.assertNotIn("INDEX.md", output)
             code, _ = self._run(directory, write=True)
             self.assertEqual(code, 0)
             self.assertEqual((directory / "0001-a.md").read_text(encoding="utf-8"), "# ADR 0001: A" + BODY)
             self.assertEqual((directory / "README.md").read_text(encoding="utf-8"), "# ADR-index: not an ADR\n")
+            self.assertEqual((directory / "INDEX.md").read_text(encoding="utf-8"), "# Atlas-meta ADR Index\n")
             self.assertEqual(self._run(directory, write=False), (0, ""))
 
     def test_an_unnumbered_file_is_reported_and_never_rewritten(self) -> None:

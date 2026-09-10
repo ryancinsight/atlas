@@ -1,4 +1,4 @@
-# ADR 0014 — `kwavers` Batch #1 closeout-tag ceremony (`kwavers/atlas-migration-push/batch1` + KW-CV-001 watchpoint retirement)
+# ADR 0014: `kwavers` Batch #1 closeout-tag ceremony (`kwavers/atlas-migration-push/batch1` + KW-CV-001 watchpoint retirement)
 
 - Status: **Proposed** — Achievement of the closeout-tag ceremony depends on the kwavers peer stream emitting the 3 inner commits (items `a` + `b` + closeout-style commit) referenced in §Sequencing. The Status flips to `Accepted` once (i) the 3 inner commits land on the kwavers peer stream, AND (ii) the atlas-meta pointer-advance chore commit (item `c`) has retired the KW-CV-001 watchpoint by removing it from `atlas/backlog.md` §In-flight claims per the §Sequencing withdrawal block.
 - Date: 2026-07-09.

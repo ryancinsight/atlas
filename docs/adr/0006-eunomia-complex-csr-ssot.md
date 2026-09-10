@@ -1,4 +1,4 @@
-# ADR 0006 — `eunomia::ComplexField` as the kwavers-math `CsrScalar` SSOT (CR-EUNOMIA-COMPLEX)
+# ADR 0006: `eunomia::ComplexField` as the kwavers-math `CsrScalar` SSOT (CR-EUNOMIA-COMPLEX)
 
 - Status: **Accepted** (signed off 2026-07-05).
 - Date: 2026-07-05.

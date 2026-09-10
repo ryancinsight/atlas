@@ -1,4 +1,4 @@
-# ADR 0007 — `eunomia::Complex<T>` as the kwavers-solver / `kwavers-{physics,transducer,diagnostics,analysis}` `num_complex::Complex<T>` SSOT (CR-EUNOMIA-COMPLEX §3 follow-up)
+# ADR 0007: `eunomia::Complex<T>` as the kwavers-solver / `kwavers-{physics,transducer,diagnostics,analysis}` `num_complex::Complex<T>` SSOT (CR-EUNOMIA-COMPLEX §3 follow-up)
 
 - **Status**: Proposed (drafted 2026-07-06, awaiting user sign-off).
 - **Date**: 2026-07-06.

@@ -1,4 +1,4 @@
-# ADR 0004 — Hephaestus custom-kernel seam (consumer-authored kernels over wgpu + CUDA)
+# ADR 0004: Hephaestus custom-kernel seam (consumer-authored kernels over wgpu + CUDA)
 
 - Status: **Accepted** (user sign-off 2026-07-02: "proceed with recommendations completely and with monomorphization"); implementation in progress on hephaestus branch `arch/kernel-seam`
 - Date: 2026-07-02

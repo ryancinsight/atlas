@@ -1,4 +1,4 @@
-# ADR 0016 — `kwavers-math` Block #5 (Phase-3/Phase-4 ndarray → leto) resolution design-spec on kwavers peer stream
+# ADR 0016: `kwavers-math` Block #5 (Phase-3/Phase-4 ndarray → leto) resolution design-spec on kwavers peer stream
 
 - Status: **Proposed** — Achievement of Block #5 resolution depends on (i) the kwavers peer stream emitting the 3 atomic commits per §Sequencing §Decision §3-commit breakdown — kwavers claim stream owns the implementation commits per disjoint-scope (ADR 0011 §Leg 2); atlas-meta orchestrates only with this ADR as the SSOT. Status flips to `Accepted` once AC-1 §Verification plan returns rc=0 (`cargo check -p kwavers-solver --lib --no-default-features` cleared) AND the kwavers claim stream's 3 commits land on `codex/kwavers-core-moirai-parallel`.
 - Date: 2026-07-09.

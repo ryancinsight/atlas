@@ -1,4 +1,4 @@
-# ADR 0013 — `kwavers` Batch #1 source-side closure (Zip-migration final state across slices 1-9)
+# ADR 0013: `kwavers` Batch #1 source-side closure (Zip-migration final state across slices 1-9)
 
 - Status: **Accepted** — Closure ceremony recorded 2026-07-09; `kwavers` peer tree at inner HEAD `949e5a39` (slice 9 final); 9 source files migrated; `cargo check -p kwavers-solver --lib --no-default-features` rc=0 verified against the slice 9 working tree.
 - Date: 2026-07-09.

@@ -813,8 +813,9 @@ atlas/
 ├── .cargo/
 │   └── config.toml                  # shared target dir, debug budget, stack [patch] overlay
 ├── .githooks/
-│   └── pre-commit                    # docs dead-link gate; enable with
-│                                     #   git config core.hooksPath .githooks
+│   ├── pre-commit                    # docs dead-link and board/pointer-hygiene gate;
+│   │                                 #   enable with git config core.hooksPath .githooks
+│   └── pre-push                      # gitlink-coherence gate
 ├── .github/
 │   ├── actions/
 │   │   └── checkout-path-dependencies/   # provider materialization from one gitlink graph

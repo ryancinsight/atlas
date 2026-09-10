@@ -9,8 +9,8 @@
 
 | ADR | Title | Status |
 | --- | ----- | ------ |
-| [0001](0001-gpu-accelerator-substrate.md) | ADR 0001 (atlas): Shared GPU/accelerator substrate — `hephaestus` | Accepted |
-| [0002](0002-heterogeneous-topology-law.md) | ADR 0002 (atlas): Heterogeneous compute & memory topology law | Accepted |
+| [0001](0001-gpu-accelerator-substrate.md) | Shared GPU/accelerator substrate — `hephaestus` | Accepted |
+| [0002](0002-heterogeneous-topology-law.md) | Heterogeneous compute & memory topology law | Accepted |
 | [0003](0003-secure-accelerator-parallelization.md) | Secure parallelization of accelerator device access | Proposed |
 | [0004](0004-hephaestus-kernel-seam.md) | Hephaestus custom-kernel seam (consumer-authored kernels over wgpu + CUDA) | Accepted |
 | [0005](0005-eunomia-scalar-ssot.md) | `eunomia::NumericElement` as the single scalar-vocabulary SSOT (CR-4) | Accepted |

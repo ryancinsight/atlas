@@ -1,4 +1,4 @@
-# ADR 0003 — Secure parallelization of accelerator device access
+# ADR 0003: Secure parallelization of accelerator device access
 
 Status: Proposed
 Date: 2026-06-16

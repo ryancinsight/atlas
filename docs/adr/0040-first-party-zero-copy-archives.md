@@ -1,4 +1,4 @@
-# ADR 0040 — Zero-copy archival is first-party, and Consus owns it
+# ADR 0040: Zero-copy archival is first-party, and Consus owns it
 
 - Status: Proposed
 - Date: 2026-08-04

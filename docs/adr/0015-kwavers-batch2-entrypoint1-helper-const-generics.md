@@ -1,4 +1,4 @@
-# ADR 0015 — `kwavers-solver` Batch #2 Entry Point #1: `with_zip_standard_layout` const-generics arity extension (N=6/7/8/9 immuts)
+# ADR 0015: `kwavers-solver` Batch #2 Entry Point #1: `with_zip_standard_layout` const-generics arity extension (N=6/7/8/9 immuts)
 
 - Status: **Proposed** — Achievement of the Entry Point #1 acceptance criteria depends on (i) Block #5 (kwavers-math Phase-3/Phase-4 ndarray → leto migration) gate clearance (per ADR 0013 §Out of scope #5 + ADR 0014 §Out of scope #5, reclassified 2026-07-09 per Blocker-triage chore briefs row 5), AND (ii) the kwavers peer stream emitting the helper extension commit + slice 6b backport fixture per disjoint-scope (ADR 0011 §Leg 2 — atlas-meta is FORBIDDEN from `D:/atlas/repos/kwavers/**` source edits). Status flips to `Accepted` once Block #5 gate clears + the acceptance criteria in §Verification plan all return rc=0 + bitwise-identical.
 - Date: 2026-07-09.

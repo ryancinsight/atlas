@@ -35,6 +35,10 @@ CANONICAL = re.compile(r"^# ADR (?P<number>\d+): (?P<title>\S.*\S|\S)$")
 # A bare title may still carry the record marker without a number (`# ADR: Title`);
 # the marker is form, not title.
 BARE_TITLE = re.compile(r"^#\s+(?:ADR\s*(?:[:\-]|–|—)\s*)?(?P<title>.+?)\s*$")
+# Index files live in an ADR directory but are not ADRs; `adr-index.py` already
+# treats both as non-ADR markdown (`NON_ADR_MARKDOWN`), so the heading-form
+# check must agree or it flags a navigation file as an unnumbered ADR forever.
+NON_ADR_MARKDOWN = frozenset({"readme.md", "index.md"})
 
 
 def canonical_heading(line: str, number: str) -> str | None:
@@ -75,7 +79,9 @@ def normalize(text: str, number: str) -> str:
 
 
 def adr_files(directory: Path) -> list[Path]:
-    return sorted(p for p in directory.glob("*.md") if p.name != "README.md")
+    return sorted(
+        p for p in directory.glob("*.md") if p.name.lower() not in NON_ADR_MARKDOWN
+    )
 
 
 def run(directories: list[Path], write: bool) -> int:

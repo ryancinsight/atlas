@@ -1,4 +1,4 @@
-# ADR 0008 — kwavers-math CsrScalar migration push (per-subcrate [minor] — adopts ADR 0006 ComplexField doctrine + ADR 0007 per-subcrate `[patch]` sweep + ADR 0010 Per-batch tag convention)
+# ADR 0008: kwavers-math CsrScalar migration push (per-subcrate [minor] — adopts ADR 0006 ComplexField doctrine + ADR 0007 per-subcrate `[patch]` sweep + ADR 0010 Per-batch tag convention)
 
 - Status: **Proposed — Phase-1A pre-landed via peer (commit `1dc47028a`, 2026-07-05 22:16); Phase-1B gated on eunomia `csr.rs` non-sealed `Scalar` trait for `num_complex::Complex<f64>`**; per `D:/atlas/AGENTS.md` `interaction_policy` autonomy-mode + `documentation_discipline` provisions (`[minor]` class default Proposed unless user sign-off). Phase-1B gate is the formal closure prerequisite per §Decision §0.
 - Date: 2026-07-06.

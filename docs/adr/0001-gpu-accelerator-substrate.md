@@ -1,4 +1,4 @@
-# ADR 0001 (atlas): Shared GPU/accelerator substrate — `hephaestus`
+# ADR 0001: Shared GPU/accelerator substrate — `hephaestus`
 
 - Status: Accepted
 - Date: 2026-06-10

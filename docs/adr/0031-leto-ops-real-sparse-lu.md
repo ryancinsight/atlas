@@ -1,4 +1,4 @@
-# ADR 0031 — Real sparse LU factorization for `leto-ops::SparseLuSolver`
+# ADR 0031: Real sparse LU factorization for `leto-ops::SparseLuSolver`
 
 - **Status**: Accepted (2026-07-23; SparsLU landed at leto `687b670`) — was Proposed
 - **Date**: 2026-07-23

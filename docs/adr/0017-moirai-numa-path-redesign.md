@@ -1,4 +1,4 @@
-# ADR 0017 — Moirai NUMA path integrity redesign
+# ADR 0017: Moirai NUMA path integrity redesign
 
 - Status: **Accepted**
 - Date: 2026-07-15

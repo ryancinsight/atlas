@@ -1,4 +1,4 @@
-# ADR 0011 — Atlas-root working-tree hygiene ritual (delegate-cleanup-by-class + disjoint-scope + OOS-record cadence)
+# ADR 0011: Atlas-root working-tree hygiene ritual (delegate-cleanup-by-class + disjoint-scope + OOS-record cadence)
 
 - Status: **Accepted** — implementation closed 2026-07-06 (cleanup chore commit `0b60c330783013f9e60102d01376ccca117a0611` deleted 3 of 4 untracked items, 4-pattern `.gitignore` defense in place, `D:/atlas/backlog.md` `## Out-of-scope (explicit) ## Atlas-root working-tree dirty triage` §A/§B subsections retracted to past-tense, §C/§D tables preserved, §E updated to carry the remaining forward-looking hooks).
 - Date: 2026-07-06.

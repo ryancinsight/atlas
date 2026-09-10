@@ -1,4 +1,4 @@
-# ADR 0045 — Native HTTP/S3 transport stack (moirai transport, consus S3)
+# ADR 0045: Native HTTP/S3 transport stack (moirai transport, consus S3)
 
 - Status: Accepted
 - Date: 2026-06-02

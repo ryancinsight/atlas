@@ -1,4 +1,4 @@
-# ADR 0043 — Pin the toolchain host triple, not just the version
+# ADR 0043: Pin the toolchain host triple, not just the version
 
 - Status: Proposed
 - Date: 2026-08-14

@@ -1,4 +1,4 @@
-# ADR 0018 — TREE-SRP-001: Melinoe/Themis/Moirai module hierarchy cleanup
+# ADR 0018: TREE-SRP-001: Melinoe/Themis/Moirai module hierarchy cleanup
 
 - Status: **Accepted**
 - Date: 2026-07-15

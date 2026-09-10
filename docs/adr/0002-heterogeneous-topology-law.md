@@ -1,4 +1,4 @@
-# ADR 0002 (atlas): Heterogeneous compute & memory topology law
+# ADR 0002: Heterogeneous compute & memory topology law
 
 - Status: Accepted
 - Date: 2026-06-11

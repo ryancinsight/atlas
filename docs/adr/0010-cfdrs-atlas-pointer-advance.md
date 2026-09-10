@@ -1,4 +1,4 @@
-# ADR 0010 — Atlas-parent pointer advance + tag for the 771-file CFDrs provider migration push (Batch #2 closure)
+# ADR 0010: Atlas-parent pointer advance + tag for the 771-file CFDrs provider migration push (Batch #2 closure)
 
 - Status: **Accepted** — implementation closed 2026-07-05 (CFDrs HEAD `d58d1fe320d046816425e1d20d16735fcfee7995`; Atlas-parent pointer advance `51922a56c4d4acab3dbe786b90cc5acf92e22277`; Atlas-parent docs-rounding `dd676d13`; this ADR authoring commit TBD).
 - Date: 2026-07-05.

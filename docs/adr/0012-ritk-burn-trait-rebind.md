@@ -1,4 +1,4 @@
-# ADR 0012 — `ritk` Burn-trait rebind to Atlas-typed parallel trait surface (Batch #3, 6 atomic sub-batches)
+# ADR 0012: `ritk` Burn-trait rebind to Atlas-typed parallel trait surface (Batch #3, 6 atomic sub-batches)
 
 - Status: **Accepted** — Sub-batch #1 (`RITK Atlas-typed parallel trait surface, additive`) **closed** 2026-07-06. Sub-batch #2 (`RITK Atlas trait soft deprecation, docstring-only`) **closed** 2026-07-06. Sub-batches #3-#6 reserved per the §Sequencing / atomic-boundary discipline below.
 - Date: 2026-07-06.

@@ -1,4 +1,4 @@
-# ADR 0009 — Cadence-Tactic-Exercise (CTE) on Batch #1 (kwavers-solver / kwavers-physics Rayon → Moirai) as a `[patch]` roll-forward decision
+# ADR 0009: Cadence-Tactic-Exercise (CTE) on Batch #1 (kwavers-solver / kwavers-physics Rayon → Moirai) as a `[patch]` roll-forward decision
 
 - Status: **Proposed** — implementation pending next codex-session authorship per `D:/atlas/AGENTS.md` `interaction_policy` + `documentation_discipline` provisions (`[patch]` class default Proposed unless user sign-off).
 - Date: 2026-07-06.

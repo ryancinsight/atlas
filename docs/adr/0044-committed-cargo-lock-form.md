@@ -1,4 +1,4 @@
-# ADR 0044 — Committed Cargo.lock is the standalone form
+# ADR 0044: Committed Cargo.lock is the standalone form
 
 - Status: Accepted
 - Date: 2026-08-17
