@@ -1,5 +1,13 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-prepush-safety-ratchet-2026-09-11"></a>
+## ATLAS-PREPUSH-SAFETY-RATCHET-2026-09-11 — The stack pre-push gate skips the SAFETY ratchet CI runs [patch] — todo
+
+- **Evidence:** apollo [#397](https://github.com/ryancinsight/apollo/pull/397) passed the local pre-push gate (fmt, clippy, nextest on the pushed crates) and failed CI's `rust workspace` job on `python scripts/safety_ratchet.py check` (a `// SAFETY:` comment two lines above its block); `scripts/git-hooks/pre-push` never invokes the ratchet, so a CI failure the local gate could have caught is a hook defect (engineering_gates: workflow hygiene).
+- **Scope:** the stack-owned `scripts/git-hooks/pre-push` runs `python scripts/safety_ratchet.py check` where the member carries the script (apollo, and every member the conformance scan lists with `scripts/safety_ratchet.py`), scoped like the other gates; the sync lands it in every member. Non-goals: the ratchet's baseline policy.
+- **Acceptance:** a push with an uncommented new unsafe block is refused locally with the ratchet's message; the hook test (`scripts/tests/test_atlas_pre_push_gate.py`) covers the ratchet arm; members' hooks re-synced.
+- **Dependencies:** [prepush hook forked](#atlas-prepush-hook-forked-across-members-2026-09-09) owns the hook source. **Verification:** the hook test and one member push.
+
 <a id="atlas-ratchet-red-main-2026-09-10"></a>
 ## ATLAS-RATCHET-RED-MAIN-2026-09-10 — Five debt-class violations standing on main [patch] — done
 
