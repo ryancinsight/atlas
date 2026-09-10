@@ -1,5 +1,24 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-ratchet-red-main-2026-09-10"></a>
+## ATLAS-RATCHET-RED-MAIN-2026-09-10 — Five debt-class violations standing on main [patch] — done
+
+- **Status:** done; **Integrator:** claude-opus-5; **Delivery:** [#166](https://github.com/ryancinsight/atlas/pull/166), [#167](https://github.com/ryancinsight/atlas/pull/167), [#169](https://github.com/ryancinsight/atlas/pull/169); atlas main `692cc2016`.
+- **Outcome:** every violating member is back at its recorded baseline and its pin advanced. The ratchet reads the gitlink, so a member's cure clears nothing until the pin moves; these three PRs are that half.
+
+| member | class | recorded → pinned | cure |
+| --- | --- | --- | --- |
+| ritk | `oversized_files` | 45 → 49 | [ritk#276](https://github.com/ryancinsight/ritk/pull/276) split four `ritk-snap` files |
+| moirai | `manifest_implementation` | 25 → 26 | [moirai#315](https://github.com/ryancinsight/moirai/pull/315) |
+| metis | `manifest_implementation` | 0 → 2 | [metis#50](https://github.com/ryancinsight/metis/pull/50) |
+| metis | `type_suffixed_fns` | 0 → 4 | [metis#50](https://github.com/ryancinsight/metis/pull/50) |
+| coeus | `manifest_implementation` | 25 → 26 | [coeus#394](https://github.com/ryancinsight/coeus/pull/394) |
+
+- **Method:** counts were measured at the old and new revisions with the conformance scan's own `rust_files`, `MANIFEST_PASSTHROUGH`, and testish rules imported from `scripts/atlas-conformance.py`, run against `git archive` exports — the members' checkouts were held by peers on other branches, so the scan's live-checkout path was unavailable. The tool reproduces the ratchet's published ritk numbers, which is what qualifies it as the oracle.
+- **Finding (instrument):** the umbrella write path accepts a fabricated gitlink. A SHA completed by hand from a short prefix produced a `repos/metis` pin that resolves in no repository, and the GitHub git API created the tree entry without complaint. The pin-advance tool now resolves each SHA against the member's object database before it becomes a tree entry.
+- **Finding (takeover):** a coeus tree dirty for 71 minutes past a local-only claim commit read as a dead peer by every measured signal, but the same split had already landed on main from another branch. Uncommitted dirt is evidence only that nothing committed *there*; the takeover check has to diff against fetched origin.
+
+
 <a id="atlas-metis-framework-matrix-2026-09-09"></a>
 ## ATLAS-METIS-FRAMEWORK-MATRIX-2026-09-09 — Advance Metis after framework-matrix merge [patch] — done
 
