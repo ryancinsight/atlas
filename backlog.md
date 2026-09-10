@@ -184,8 +184,25 @@
   `CLOSURE_DOMAINS`; fixtures cover the decided edges in both directions.
 
 <a id="atlas-existence-only-assertions"></a>
-## ATLAS-EXISTENCE-ONLY-ASSERTIONS — Tests that cannot fail on the defect they name [arch] — in-progress
+## ATLAS-EXISTENCE-ONLY-ASSERTIONS — Tests that cannot fail on the defect they name [arch] — done
 
+- **Done 2026-09-10: the detector reports 0 sites across all 28 members.**
+  The last one was mnemosyne-heap's branded-vector test
+  ([#142](https://github.com/ryancinsight/Mnemosyne/pull/142)), whose own
+  comment already named the weakness -- `is_some` passes on a vector that
+  popped the wrong element or the same one twice -- but could not be fixed
+  as written, because every element was an indistinguishable
+  `DropTracker`. Giving the pushed index a ride made the value assertable
+  without reshaping a type three other test modules share.
+- **What the class was worth, across the whole sweep:** two production
+  branches in consus with no test that reached them; a backend divergence
+  in hephaestus where one conformance clause accepted two different
+  rejection messages; a moirai test asserting a panic that never travels;
+  a metis `debug_assert!` inside a `Drop` impl that was a latent
+  abort-on-unwind in debug and nothing at all in release; and in CFDrs a
+  `passed || error_message.is_some()` that accepted both a pass carrying
+  an error and a failure carrying none. None of these were visible to a
+  green suite.
 - **Measured 2026-09-08** with the conformance detector's own regex over every
   registered member: 392 sites remained outside kwavers. **377 of those are
   now closed** (2026-09-09); the 15 that remain are held by other agents'
