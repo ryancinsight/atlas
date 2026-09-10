@@ -554,7 +554,7 @@ epos\consus	arget` |
 - **Risk / change class:** [patch]; guard scope only, no member change.
 
 <a id="atlas-third-party-check-always-red"></a>
-## ATLAS-THIRD-PARTY-CHECK-ALWAYS-RED-2026-09-09 — A check that fails on every pull request [patch] — blocked (Ask-User)
+## ATLAS-THIRD-PARTY-CHECK-ALWAYS-RED-2026-09-09 — A check that fails on every pull request [patch] — blocked (decided 2026-09-10; awaiting the uninstall)
 
 - **Integrator:** unclaimed; **lease:** none.
 - **Measured 2026-09-09.** The most recently merged pull request in nine of ten
@@ -604,6 +604,18 @@ epos\consus	arget` |
   reviewers to skim red, which is the one habit a merge gate cannot survive.
 - **Re-open trigger:** the app is uninstalled or scoped, or the vendor's
   analyzer starts returning a verdict on a member workspace.
+- **Decided 2026-09-10: option (1), uninstall.** The question was put with all
+  three options and the 403 that made it a request rather than a judgement
+  call; the answer was to uninstall the app from the account. Nothing in the
+  repositories changes -- the check gates nothing, so there is no required
+  status to unwire first, and no member workflow references it.
+- **Not executable by an agent session.** Uninstalling is an account-level
+  GitHub App operation and this session's token is not authorized to a GitHub
+  App at all, so it cannot even enumerate installations. The step is
+  Settings -> Applications -> Installed GitHub Apps -> recurseml -> Uninstall.
+- **Close when** a pull request opened after the uninstall shows no
+  `recurseml/analysis` entry in `gh pr checks`. Until then the item stays open
+  so the next session does not re-litigate a settled decision.
 - **Risk / change class:** [patch]; repository integration settings only.
 
 <a id="atlas-member-registration-defects"></a>
