@@ -1857,6 +1857,16 @@ _Closure note (moved from heading):_ commit 99dc33fad
   `scripts/manifest-split.py` + `scripts/narrow-imports.py` were rescued
   aside during the branch merge and restored byte-identical; they ride the
   tree as uncommitted peer WIP, not this item.
+- **Close-out ~04:00Z:** mnemosyne's owner merged the regression close (#139)
+  and both rows cleared on the pin advance (branch and main converged on
+  `39c49f2`, no new rows from the new content). One row remains, fully
+  attributed: `ritk/oversized_files` 45 → 46 is
+  `crates/ritk-io/src/format/dicom/multiframe/reader.rs` at 521 lines, grown
+  today by the snap owner's own `26074f36` (DICOM multiframe volumes for the
+  snap feature; no open PR, dirty tree on `feat/snap-coordinates-001`) — the
+  file is their live work, so the row clears on their landing plus the atlas
+  advance, never on a parallel split. Fleet check otherwise clean with the
+  baseline recording decreases only.
 - **Burn-down (2026-09-06, integrator: claude-opus-5).** Measured 17 regressions
   at 23:20. Closed or attributed:
   - `apollo/target_forks 0 → 1` — **closed**. `repos/apollo/target/nextest`,
