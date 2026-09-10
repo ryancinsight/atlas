@@ -139,9 +139,13 @@ SANCTIONED_ROOT = {
     ".provider-identity-baseline",
 }
 
-# Metis's manifest-driven application declares its executable and explicit
-# resources at the repository root, alongside Cargo.toml.
-REPOSITORY_SANCTIONED_ROOT = {"metis": frozenset({"metis.json"})}
+# The Metis and RITK manifest-driven applications declare their executables
+# and explicit resources at the repository root, alongside Cargo.toml.
+APPLICATION_MANIFEST_ROOT = frozenset({"metis.json"})
+REPOSITORY_SANCTIONED_ROOT = {
+    "metis": APPLICATION_MANIFEST_ROOT,
+    "ritk": APPLICATION_MANIFEST_ROOT,
+}
 
 
 def sanctioned_root_names(repo: Path) -> set[str]:

@@ -851,22 +851,23 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["root_sprawl"], 0)
 
-    def test_metis_application_manifest_is_root_configuration(self) -> None:
+    def test_application_manifests_are_root_configuration_for_owners(self) -> None:
         # Application manifests are the explicit payload inventory for the
-        # executable and installer, so a repository-level metis.json is
-        # configuration rather than an unfiled report.
+        # Metis and RITK executables and installers, so a repository-level
+        # metis.json is configuration rather than an unfiled report for either
+        # owning repository.
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
-            root = Path(temp) / "metis"
-            _write(root, "Cargo.toml", "[workspace]\n")
-            _write(root, "metis.json", "{}\n")
+            for name in ("metis", "ritk"):
+                root = Path(temp) / name
+                _write(root, "Cargo.toml", "[workspace]\n")
+                _write(root, "metis.json", "{}\n")
 
-            counts = conformance.scan_repo(root)
+                counts = conformance.scan_repo(root)
+                self.assertEqual(counts["root_sprawl"], 0)
 
-        self.assertEqual(counts["root_sprawl"], 0)
-
-    def test_metis_application_manifest_is_sprawl_for_other_repositories(self) -> None:
+    def test_application_manifest_is_sprawl_for_other_repositories(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
-            root = Path(temp) / "ritk"
+            root = Path(temp) / "apollo"
             _write(root, "Cargo.toml", "[workspace]\n")
             _write(root, "metis.json", "{}\n")
 
