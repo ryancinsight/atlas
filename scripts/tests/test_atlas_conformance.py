@@ -788,6 +788,38 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(manifests, ["Cargo.toml"])
 
+    def test_walkers_skip_unreadable_directories(self) -> None:
+        """A directory denying reads contributes nothing, never an abort.
+
+        Stale build residue can carry cross-account ACLs; the fleet scan
+        measures trees, it does not audit their permissions.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "pkg/Cargo.toml", "[package]\nname = 'pkg'\n")
+            _write(root, "pkg/src/lib.rs", "pub fn f() {}\n")
+            _write(root, "locked/Cargo.toml", "[package]\nname = 'locked'\n")
+            locked = root / "locked"
+            real_iterdir = Path.iterdir
+
+            def gated(self: Path):
+                if self == locked:
+                    raise PermissionError(13, "denied")
+                return real_iterdir(self)
+
+            with patch.object(Path, "iterdir", gated):
+                manifests = sorted(
+                    p.relative_to(root).as_posix()
+                    for p in conformance.cargo_manifests(root)
+                )
+                sources = sorted(
+                    p.relative_to(root).as_posix()
+                    for p, _ in conformance.rust_files(root)
+                )
+
+        self.assertEqual(manifests, ["pkg/Cargo.toml"])
+        self.assertEqual(sources, ["pkg/src/lib.rs"])
+
     def test_executable_source_dirs_prune_target(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)

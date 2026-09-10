@@ -668,6 +668,20 @@ def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path
     return [base / f"{file_name}.rs", base / file_name / "mod.rs"]
 
 
+def _iterdir_or_empty(d: Path):
+    """`iterdir` that skips unreadable directories.
+
+    Stale build residue can carry cross-account ACLs (a dead pytest's
+    `pytest-cache` denying even reads); the fleet scan measures trees, it
+    does not audit their permissions, so an unreadable directory contributes
+    nothing instead of aborting the scan.
+    """
+    try:
+        yield from d.iterdir()
+    except PermissionError:
+        return
+
+
 def cargo_manifests(repo: Path):
     """Yield Cargo.toml paths under a repo, pruning caches and lanes.
 
@@ -679,7 +693,7 @@ def cargo_manifests(repo: Path):
     stack = [repo]
     while stack:
         d = stack.pop()
-        for entry in d.iterdir():
+        for entry in _iterdir_or_empty(d):
             name = entry.name
             if entry.is_dir():
                 if name in PRUNE_DIRS or name.startswith("target"):
@@ -960,7 +974,7 @@ def rust_files(repo: Path):
     stack = [repo]
     while stack:
         d = stack.pop()
-        for entry in d.iterdir():
+        for entry in _iterdir_or_empty(d):
             name = entry.name
             if entry.is_dir():
                 if name in PRUNE_DIRS or name.startswith("target"):
