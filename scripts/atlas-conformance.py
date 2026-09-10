@@ -251,7 +251,8 @@ CLASSES = [
     "oversized_files", "manifest_implementation", "unwrap_production",
     "allow_sites", "print_dbg", "existence_only_assertions",
     "type_suffixed_fns", "junk_drawer_modules", "missing_deny_docs",
-    "root_sprawl", "markers", "reexport_shims", "sleep_synced_tests",
+    "root_sprawl", "root_sprawl_untracked",
+    "markers", "reexport_shims", "sleep_synced_tests",
     "commented_out_code", "target_forks", "gitattributes_missing",
     "nextest_budget_missing", "workspace_lints_missing",
     "member_namespace_pollution", "tag_pinned_actions",
@@ -545,10 +546,52 @@ def is_cargo_target_dir(entry: Path) -> bool:
     return any((entry / marker).exists() for marker in markers)
 
 
-def count_root_sprawl(repo: Path) -> int:
-    return sum(
-        1 for e in repo.iterdir() if e.is_file() and e.name not in SANCTIONED_ROOT
+def untracked_root_names(repo: Path) -> set[str]:
+    """Names of root-level files git does not track in `repo`.
+
+    Empty when `repo` is not a git checkout -- an archived snapshot of a
+    recorded revision contains that revision's content by construction, so
+    nothing in it is untracked.
+    """
+    listing = subprocess.run(
+        ["git", "-C", str(repo), "ls-files", "--others", "--exclude-standard"],
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
     )
+    if listing.returncode != 0:
+        return set()
+    return {
+        name for name in listing.stdout.split("\n") if name and "/" not in name
+    }
+
+
+def count_root_sprawl(repo: Path, live_repo: Path | None = None) -> tuple[int, int]:
+    """Unsanctioned root files, split by whether the repository carries them.
+
+    The first count is the repository's: files a revision contains. The second
+    is this checkout's: a scratch patch, a stray log, a downloaded archive --
+    real debt to file or delete, but not a statement about repository content,
+    and absent from any fresh checkout. Counting them together made the class
+    answer differently depending on where it ran.
+    """
+    live_repo = live_repo or repo
+    untracked_here = untracked_root_names(repo)
+    carried = sum(
+        1
+        for e in repo.iterdir()
+        if e.is_file()
+        and e.name not in SANCTIONED_ROOT
+        and e.name not in untracked_here
+    )
+    untracked = sum(
+        1
+        for e in live_repo.iterdir()
+        if e.is_file()
+        and e.name not in SANCTIONED_ROOT
+        and e.name in untracked_root_names(live_repo)
+    )
+    return carried, untracked
 
 
 def count_excess_worktrees(repo: Path) -> int:
@@ -1453,7 +1496,9 @@ def scan_repo(
         c["existence_only_assertions"] += len(EXISTENCE_ONLY.findall(test))
         c["sleep_synced_tests"] += len(SLEEP.findall(test))
 
-    c["root_sprawl"] = count_root_sprawl(repo)
+    c["root_sprawl"], c["root_sprawl_untracked"] = count_root_sprawl(
+        repo, live_repo
+    )
     c["excess_worktrees"] = count_excess_worktrees(live_repo)
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
     c["gitattributes_missing"] = lf_policy_missing(repo)
@@ -1738,7 +1783,7 @@ def scan_stack(
                     and not is_git_ignored(repo)
                 ):
                     meta["member_namespace_pollution"] += 1
-    meta["root_sprawl"] = count_root_sprawl(ROOT)
+    meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(ROOT)
     meta["gitattributes_missing"] = lf_policy_missing(ROOT)
     meta["crlf_stored_blobs"] = count_crlf_stored_blobs(ROOT)
     scan_workflows(ROOT, meta)
@@ -1803,7 +1848,11 @@ def baseline_raises(
 # still fail a local run; they are simply not a statement about repository
 # content, and reporting them in the same list made a forked cache read as a
 # ratchet regression.
-HOST_OBSERVED_CLASSES = ("target_forks", "excess_worktrees")
+HOST_OBSERVED_CLASSES = (
+    "target_forks",
+    "excess_worktrees",
+    "root_sprawl_untracked",
+)
 
 
 def ratchet_delta(
@@ -1903,9 +1952,23 @@ def main() -> int:
         # changing a detector regenerates the baseline in the same change),
         # so the escape hatch exists -- but it is explicit, it names a reason,
         # and it is loud.
+        # The host-observed classes describe this machine, not the stack.
+        # They have been zero in every committed baseline only because
+        # generation happened to run on a fresh checkout; generating from a
+        # developer's tree would otherwise record one lane or one forked cache
+        # as the stack's permitted debt, and the ratchet would then defend it.
+        # Zeroing them before the raise check also keeps a peer's scratch file
+        # from blocking every tightening the stack has earned.
+        recorded = {
+            repo: {
+                cls: (0 if cls in HOST_OBSERVED_CLASSES else value)
+                for cls, value in counts.items()
+            }
+            for repo, counts in results.items()
+        }
         raises = []
         if BASELINE.is_file():
-            raises = baseline_raises(json.loads(BASELINE.read_text()), results)
+            raises = baseline_raises(json.loads(BASELINE.read_text()), recorded)
         if raises and not args.accept_raises:
             print("refusing to raise the baseline; the ratchet only decreases:",
                   file=sys.stderr)
@@ -1919,7 +1982,7 @@ def main() -> int:
             print(f"baseline raised, reason: {args.accept_raises}")
             for repo, cls, was, value in raises:
                 print(f"  RAISE {repo}/{cls}: {was} -> {value}")
-        BASELINE.write_text(render_baseline(results), newline="\n")
+        BASELINE.write_text(render_baseline(recorded), newline="\n")
         print(f"baseline written: {BASELINE.relative_to(ROOT)}")
         if args.json:
             print(render_baseline(results), end="")

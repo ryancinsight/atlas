@@ -57,6 +57,63 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(payload["regressions"], ["demo/markers: 0 -> 1"])
         self.assertEqual(payload["tightenings"], ["demo/print_dbg: 2 -> 1"])
 
+    def test_untracked_root_files_are_host_state_not_repository_debt(self) -> None:
+        """A scratch file at the root is this checkout's, not the repo's.
+
+        `count_root_sprawl` walks the live directory, so a peer's `.mine.patch`
+        counted exactly like a committed stray file -- and because `generate`
+        refuses while any raise stands, one scratch file blocked recording
+        every tightening the stack had earned.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-root-sprawl-") as temp:
+            repo = Path(temp)
+            subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+            (repo / "README.md").write_text("sanctioned\n", encoding="utf-8")
+            (repo / "stray-committed.txt").write_text("debt\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+            subprocess.run(
+                ["git", "-C", str(repo), "-c", "user.email=t@example.com",
+                 "-c", "user.name=t", "commit", "-q", "-m", "seed"],
+                check=True,
+            )
+            (repo / ".mine.patch").write_text("scratch\n", encoding="utf-8")
+
+            carried, untracked = conformance.count_root_sprawl(repo)
+
+        self.assertEqual(carried, 1, "the committed stray file is repository debt")
+        self.assertEqual(untracked, 1, "the scratch file is measured, as host state")
+        self.assertIn("root_sprawl_untracked", conformance.HOST_OBSERVED_CLASSES)
+
+    def test_generate_records_zero_for_host_observed_classes(self) -> None:
+        """A generated baseline never carries this machine's state.
+
+        Those classes read the live checkout, so generating from a developer's
+        tree would record one lane or one forked cache as the stack's
+        permitted debt -- and the ratchet would then defend it.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            baseline_path = Path(temp) / "baseline.json"
+            measured = {
+                "demo": {"markers": 2, "target_forks": 3, "excess_worktrees": 1}
+            }
+            with (
+                patch.object(conformance, "BASELINE", baseline_path),
+                # `generate` reports the baseline path relative to the root.
+                patch.object(conformance, "ROOT", Path(temp)),
+                patch.object(conformance, "scan_stack", return_value=measured),
+                # `--json` renders the written baseline; the plain form calls
+                # `report`, which indexes every class this fixture omits.
+                patch.object(sys, "argv", [str(SCRIPT), "generate", "--json"]),
+                redirect_stdout(io.StringIO()),
+            ):
+                result = conformance.main()
+            written = json.loads(baseline_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(written["demo"]["markers"], 2, "repository debt is recorded")
+        self.assertEqual(written["demo"]["target_forks"], 0)
+        self.assertEqual(written["demo"]["excess_worktrees"], 0)
+
     def test_host_state_is_reported_apart_from_repository_debt(self) -> None:
         """A forked cache is not a regression in any repository.
 
