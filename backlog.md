@@ -134,6 +134,16 @@
   version, coeus and kwavers one each, 4 hookless (iris, melinoe, metis,
   prometheus), owned source distinct from all. `sync-hooks --check` reports
   32 differing hooks. Rollout (sync into members, 23 member commits) open.
+- **Rollout slice claimed 2026-09-10T20:10Z** by claude-opus-5; **regions:**
+  `repos/*/.githooks/**` only -- disjoint from prepush-slice2, which holds the
+  owned source, its test and the conformance scan. Verified before claiming:
+  the landed hook passes all six cases of the independent reproduction that
+  first surfaced these two defects (a `master`-default fixture and a
+  source-only push, driven through real stdin ref lines), and **0 of 24**
+  member copies match it, so no member yet runs either fix.
+- **Rollout order:** one member first, with a real push exercising the gate,
+  before the fleet -- the hook runs fmt, clippy and tests on every push, so a
+  fault in it stops 23 repositories rather than one.
 
 <a id="atlas-closure-surface-split"></a>
 ## ATLAS-CLOSURE-SURFACE-SPLIT — Hyperion and Asclepius are closure domains [arch] — done 2026-09-09
