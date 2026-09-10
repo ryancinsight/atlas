@@ -115,6 +115,10 @@ def main():
     path = pathlib.Path(args.file)
     lines = io.open(path, encoding="utf-8").read().replace(chr(13), "").split(NL)
     plan = json.load(io.open(args.plan, encoding="utf-8"))
+    # `foo/mod.rs` and `lib.rs` own their directory, so their leaves are
+    # siblings. `foo.rs` owns `foo/` instead, and leaves written beside it
+    # would land in the parent module, out of reach of the `mod` lines below.
+    leaf_dir = path.parent if path.stem in ("mod", "lib") else path.with_suffix("")
     items = read_items(lines)
     # A plan entry is a bare name where that is unambiguous, or `kind name`
     # when it is not -- `mod transform;` and `fn transform` share a name, and
@@ -174,21 +178,43 @@ def main():
             siblings.add(match.group(1))
 
     def rebase(line):
-        if line.startswith("use super::"):
-            return "use super::super::" + line[len("use super::"):]
+        indent = line[: len(line) - len(line.lstrip())]
+        stripped = line[len(indent):]
+        if stripped.startswith("use super::"):
+            return indent + "use super::super::" + stripped[len("use super::"):]
+        if stripped.startswith("super::"):
+            return indent + "super::super::" + stripped[len("super::"):]
         for sibling in siblings:
             prefix = f"use {sibling}::"
-            if line.startswith(prefix):
-                return f"use super::{sibling}::" + line[len(prefix):]
+            if stripped.startswith(prefix):
+                return indent + f"use super::{sibling}::" + stripped[len(prefix):]
+            prefix = f"{sibling}::"
+            if stripped.startswith(prefix):
+                return indent + f"super::{sibling}::" + stripped[len(prefix):]
         return line
 
     # `use super::*;` first: whatever the manifest re-exports (`pub use`)
     # is part of the module's own surface, and a leaf reads it through the
     # parent rather than reaching past it into the sibling that defines it.
-    inherited = NL.join(
-        ["use super::*;"]
-        + [rebase(lines[k]) for k in kept if lines[k].startswith("use ")]
-    )
+    def use_statements():
+        """Whole `use` items, brace-balanced -- one may span several lines."""
+        index = 0
+        while index < len(kept):
+            line = lines[kept[index]]
+            if not line.startswith("use "):
+                index += 1
+                continue
+            statement = [rebase(line)]
+            depth = line.count("{") - line.count("}")
+            while (depth > 0 or not statement[-1].rstrip().endswith(";")) and index + 1 < len(kept):
+                index += 1
+                nxt = lines[kept[index]]
+                statement.append(rebase(nxt))
+                depth += nxt.count("{") - nxt.count("}")
+            index += 1
+            yield NL.join(statement)
+
+    inherited = NL.join(["use super::*;"] + list(use_statements()))
 
     outputs = {}
     for name, (module, spans) in sections.items():
@@ -197,7 +223,7 @@ def main():
         text = module["doc"] + NL * 2
         if module.get("use"):
             text += module["use"] + NL * 2
-        outputs[path.parent / f"{name}.rs"] = text + body.strip(NL) + NL
+        outputs[leaf_dir / f"{name}.rs"] = text + body.strip(NL) + NL
 
     manifest = NL.join(lines[k] for k in kept).rstrip() + NL * 2
     manifest += NL.join(f"mod {n};" for n in sorted(sections)) + NL
@@ -221,6 +247,8 @@ def main():
             f"error: {source} source lines in, {written - extra} out -- refusing to write"
         )
 
+    if not args.dry_run:
+        leaf_dir.mkdir(exist_ok=True)
     for out, text in sorted(outputs.items()):
         if not args.dry_run:
             io.open(out, "w", encoding="utf-8", newline=NL).write(text)
