@@ -46,8 +46,8 @@ Artefacts under `parity_artefacts/`:
 - `det_kwavers_targets.txt` — pre-fix2 verbatim noise + real targets
 - `det_kwavers_targets_postfix2.txt` — post-fix2 verbatim (1 row)
 
-Cross-references: `MDBOOK_DETECTOR_PARITY.md` §1 for the parent
-methodology, `MDBOOK_LINK_WARNINGS.md` for Patterns A–F.
+Cross-references: `detector-parity.md` §1 for the parent
+methodology, [`link-warnings.md`](link-warnings.md) for Patterns A–F.
 
 ---
 
@@ -178,7 +178,7 @@ a future sister-book named `cfd-validation` or `cmake-rs` (with
 hyphens) now classifies as Pattern C correctly.  Today's kwavers
 classification benefit is zero (no such book exists yet), but the fix
 is cheap and prevents a future regression.  See
-`MDBOOK_LINK_WARNINGS.md` § PATTERN C for the updated spec.
+[`link-warnings.md`](link-warnings.md) § PATTERN C for the updated spec.
 
 ### Post-fix delta across all three books
 
@@ -197,7 +197,7 @@ the href (verifiable from `parity_artefacts/det_cfdrs_final.log` and
 
 ## 4. Why mdbook is silent (kwavers-specific)
 
-Identical rationale to CFDrs/helios (see `MDBOOK_DETECTOR_PARITY.md`
+Identical rationale to CFDrs/helios (see `detector-parity.md`
 §4): `mdbook build` does not validate file-existence on content
 hyperlinks.  Per Issue B, the kwavers `[n+1](x)` was actually a
 finite-difference recurrence (`p[n+1]` = "pressure array at step n+1"
@@ -229,7 +229,7 @@ only to all-three (kwavers included) is now safe.
 **STATUS — §7 #5 LANDED.**  All three original recommendations are
 resolved:
 
-1. ~~Bootstrap Pattern G in `MDBOOK_LINK_WARNINGS.md`~~.  Withdrawn
+1. ~~Bootstrap Pattern G in [`link-warnings.md`](link-warnings.md)~~.  Withdrawn
    per §3.3 — Pattern G is no longer needed because the single-char
    href filter (`SINGLE_CHAR_HREF_RE`) silently drops the underlying
    false positive.
@@ -307,5 +307,5 @@ of this report.
 
 Pattern G as proposed in earlier versions of this report is **withdrawn**;
 the kwavers [n+1](x) match was an FDTD-recurrence false positive handled
-by `SINGLE_CHAR_HREF_RE`.  `MDBOOK_LINK_WARNINGS.md`'s A–F taxonomy
+by `SINGLE_CHAR_HREF_RE`.  [`link-warnings.md`](link-warnings.md)'s A–F taxonomy
 remains intact (no A→G augmentation needed).

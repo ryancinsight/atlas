@@ -34,7 +34,7 @@ Artefacts persisted under `parity_artefacts/`:
 - `url_overlap.txt` — `comm -12` of detector ∩ mdbook `.md` URLs
 
 Cross-referenced source of truth for the bulk-fix taxonomy:
-`MDBOOK_LINK_WARNINGS.md` (Patterns A–F).
+[`link-warnings.md`](link-warnings.md) (Patterns A–F).
 
 ---
 
@@ -94,7 +94,7 @@ for atlas curators, while the summary is the canonical metric for
 CI-gating. Readers unsure which to trust should defer to the summary
 block.
 
-Per `MDBOOK_LINK_WARNINGS.md`, the 12 residual issues fall into Patterns
+Per [`link-warnings.md`](link-warnings.md), the 12 residual issues fall into Patterns
 **C, D, E, F** (Pattern A & B were cleared by the earlier bulk fix).
 
 ### CFDrs (`docs/book`) — 6 FILE_MISSING
@@ -227,7 +227,7 @@ for book in repos/*/docs/book; do mdbook build "$book"; done
 
 ### Caveats
 
-- The detector now targets **every provider book** (`repos/*/docs/book` — 24 books as of 2026-08-11), not just the original CFDrs + helios + kwavers physics trio; kwavers parity re-validated via [`MDBOOK_DETECTOR_PARITY_KWAVERS.md`](MDBOOK_DETECTOR_PARITY_KWAVERS.md). ATLAS-BOOK-LINK-SWEEP-001 fixed the last outstanding rows (six stale ADR hrefs and the em-dash CSD anchor in ritk), so the full-stack strict gate is green.
+- The detector now targets **every provider book** (`repos/*/docs/book` — 24 books as of 2026-08-11), not just the original CFDrs + helios + kwavers physics trio; kwavers parity re-validated via [`detector-parity-kwavers.md`](detector-parity-kwavers.md). ATLAS-BOOK-LINK-SWEEP-001 fixed the last outstanding rows (six stale ADR hrefs and the em-dash CSD anchor in ritk), so the full-stack strict gate is green.
 - **Heading-id parity is now exact** (ATLAS-BOOK-ANCHOR-PARITY-001, 2026-08-11): `heading_slug`/`heading_ids` mirror mdBook v0.5.4's `normalize_id` and were cross-validated against the built HTML of every chapter in all 24 books — 346/346 pages reproduce mdBook's heading ids byte-for-byte. The former em-dash divergence class is eliminated at the root (see §8), so the ritk `{#csd-constrained-spherical-deconvolution}`-style explicit anchors from SWEEP-001 are no longer *required* for parity — they remain valid and stable, and are kept as intentional stable ids.
 - All 13 originally-known FILE_MISSING (12 CFDrs+helios Patterns C/D/E/F
   + 1 kwavers FDTD-recurrence false positive) are now resolved
@@ -257,7 +257,7 @@ for book in repos/*/docs/book; do mdbook build "$book"; done
 ## 7. Follow-up Tasks
 
 1. ✅ **DONE** — Re-run parity report against `repos/kwavers/docs/book`.
-   See [`MDBOOK_DETECTOR_PARITY_KWAVERS.md`](MDBOOK_DETECTOR_PARITY_KWAVERS.md).
+   See [`detector-parity-kwavers.md`](detector-parity-kwavers.md).
    Detector ⊇ mdbook **HOLDS** (mdbook reports ∅; detector reports 1 real
    row post-fix3 after the LATEX_HREF_RE LaTeX-noise filter culled 9
    false-positive math brackets).  Total FILE_MISSING across all three
@@ -272,12 +272,12 @@ for book in repos/*/docs/book; do mdbook build "$book"; done
    *not* a real broken link — it was an FDTD-recurrence `[n+1](x)`
    false positive that the detector's inline-link regex
    over-gripped.  The follow-up is documented as
-   [`MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2 Issue B`](MDBOOK_DETECTOR_PARITY_KWAVERS.md)
+   [`detector-parity-kwavers.md §3.2 Issue B`](detector-parity-kwavers.md)
    (FDTD-recurrence single-char href filter), and was **landed as
    part of §7 #5** (the strict-mode gate flip) via the
    `SINGLE_CHAR_HREF_RE = re.compile(r"^[a-zA-Z]$")` filter in
    `scripts/check_mdbook_links.py`.  Future readers tracing the
-   13→0 FILE_MISSING history should land on `MDBOOK_DETECTOR_PARITY_KWAVERS.md
+   13→0 FILE_MISSING history should land on `detector-parity-kwavers.md
    §3.2 Issue B` immediately — not on this §7 #2 row.
 3. ✅ **Detector-side machinery** — LANDED in `scripts/check_mdbook_links.py`:
    - exit-code bump on FILE_MISSING > 0
@@ -312,7 +312,7 @@ for book in repos/*/docs/book; do mdbook build "$book"; done
      Pattern G FILE_MISSING (after §7 #2 cleared 12 CFDrs+helios
      Patterns C/D/E/F); post-§7-#5 strict flip resolved it via Issue B
      (`SINGLE_CHAR_HREF_RE` filter; see
-     `MDBOOK_DETECTOR_PARITY_KWAVERS.md §3.2 Issue B`).
+     `detector-parity-kwavers.md §3.2 Issue B`).
    - Activation: `chmod +x .git/hooks/pre-commit` per clone, or mirror
      via `git config core.hooksPath .githooks` for version-controlled
      hook distribution
@@ -321,7 +321,7 @@ for book in repos/*/docs/book; do mdbook build "$book"; done
      positive** (FDTD-recurrence math, not a markdown link).  New filter
      `SINGLE_CHAR_HREF_RE = re.compile(r"^[a-zA-Z]$")` in
      `scripts/check_mdbook_links.py` mirrors the `LATEX_HREF_RE`
-     precedent.  See `MDBOOK_DETECTOR_PARITY_KWAVERS.md` §3.2 Issue B.
+     precedent.  See `detector-parity-kwavers.md` §3.2 Issue B.
    - **Workflow YAML — `.github/workflows/docs.yml`**: `Detector (advisory
      mode)` step renamed to `Detector (STRICT mode — §7 #5 flipped)`;
      `--advisory` removed; the detector's `exit 1` on FILE_MISSING > 0
