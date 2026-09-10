@@ -829,7 +829,7 @@ epos\consus	arget` |
   do; they are advance points that were never cleaned up.
 
 <a id="atlas-coherence-measures-gitlinks-not-branches"></a>
-## ATLAS-COHERENCE-MEASURES-GITLINKS-NOT-BRANCHES — The coherence guard cannot see the breakage members actually hit [arch] — todo
+## ATLAS-COHERENCE-MEASURES-GITLINKS-NOT-BRANCHES — The coherence guard cannot see the breakage members actually hit [arch] — done
 
 - **Evidence:** `version-guard coherence --atlas-root D:/atlas` run locally on
   2026-09-07 reports the Moirai 0.6 lag correctly and exits 1 — 30+ rows across
@@ -857,6 +857,23 @@ epos\consus	arget` |
   repository cannot see the stack.
 - **Dependencies:** `tools/version-guard/src/coherence/` is under active peer
   edit (staleness reporting). File first, implement when that lands.
+- **Status: done 2026-09-10.** The staleness work landed, unblocking the
+  implementation. `scan_atlas` now takes a `View`; `--against-remotes` resolves
+  each member's default branch — `origin/HEAD` when present, else
+  `git ls-remote --symref origin HEAD`, which is what a submodule cloned at a
+  gitlink actually has — refreshes the remote-tracking ref, and reads every
+  manifest from that commit. First-party classification gained a tree-view
+  counterpart (lexical containment folding `.`/`..`, plus shared git-URL
+  matching), because a manifest read at a commit need not exist on disk. A
+  member whose remote cannot be resolved is reported `unmeasured`, so a clean
+  verdict is qualified rather than silently narrowed. Verified: 72 lib + 7 CLI
+  tests, including a git fixture that pins a provider at 0.5.0 while its remote
+  publishes 0.6.0 and a consumer requires `^0.5.0` — the worktree view is clean
+  and the remotes view reports the break; fmt, clippy and rustdoc `-D warnings`
+  clean. The scheduled collector is wired: `version-guard.yml` gains a daily
+  cron and the sweep wrapper takes `--against-remotes`, with pushes and pull
+  requests keeping the recorded-state scan. The gitlink-pinned scan is retained
+  unchanged as the advance gate.
 
 <a id="atlas-moirai-06-forward-sweep"></a>
 ## ATLAS-MOIRAI-06-FORWARD-SWEEP — Moirai 0.6.0 landed without its forward sweep [arch] — done 2026-09-10
