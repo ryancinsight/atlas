@@ -5,7 +5,7 @@
 - Drivers: 500+ line files in operation-family modules; dual channel systems in moirai-core (`channel/` + `unified_channel/`); tests interleaved with source in themis; junk-drawer `constants.rs` in moirai-core.
 - Anchors: `repos/melinoe/crates/halo/src/collections/branded_deque.rs` (~600 L); `repos/themis/src/branded/sync_region.rs` (~540 L); `repos/moirai/moirai-core/src/channel/{hybrid,mpmc}.rs` (~620, ~580 L); `repos/moirai/moirai-core/src/constants.rs`; `repos/themis/src/topology/tests/` + `repos/themis/src/branded/tests.rs`.
 - See also: ADR 0002 (topology law — names the provider ownership map that these module boundaries reflect); `AGENTS.md` §standards (500-line target, operation-family leaf modules, no junk drawers, consolidation discipline).
-- Index: docs/adr/INDEX.md#ADR-0018
+- Index: docs/adr/README.md
 
 ## Context
 

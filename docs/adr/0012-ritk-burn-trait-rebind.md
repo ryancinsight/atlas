@@ -6,7 +6,7 @@
 - Anchors: `atlas/docs/adr/0005-eunomia-scalar-ssot.md` (Accepted 2026-07-05) — confirms `coeus_core::Scalar: eunomia::NumericElement` (universal SSOT) and `coeus_core::ComputeBackend` as the Atlas-side backend seam; `atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` (Accepted 2026-07-05) — anchors the Atlas-pointer-advance + tag ritual that this ADR's commit chain follows (reserved inner tag: `ritk/atlas-migration-push/batch3`).
 - Supersedes: the per-batch cron in `atlas/checklist.md` §Batch #3 §Plan (which captured the rebind's boundary intent at high level) and the §ritk entry in `atlas/gap_audit.md` Migration evidence inventory (which captured the rebind's pre-implementation scope). The 6-sub-batch atomic-boundary discipline recorded below formalises that intent into additive / non-breaking increments.
 
-- Index: docs/adr/INDEX.md#ADR-0012
+- Index: docs/adr/README.md
 
 ## Context
 

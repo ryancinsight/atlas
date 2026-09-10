@@ -5,7 +5,7 @@
 - Drivers: ADR-0018 Phase 4 (deferred); two competing channel implementations in `moirai-core/src/` (`channel/` + `unified_channel/`) with completely disjoint consumer sets; the `channel/` module has 7 consumers, `unified_channel/` has 1 (`moirai-iter`); no file in the workspace imports from both.
 - Anchors: `repos/moirai/moirai-core/src/channel/` (SPSC/MPMC/Hybrid/Select + `Channel<T>` trait); `repos/moirai/moirai-core/src/unified_channel/` (UnifiedChannel + sender/receiver/config/stats); `repos/moirai/moirai-iter/src/advanced_patterns.rs` (sole unified_channel consumer); `repos/moirai/moirai-core/src/lib.rs` (re-exports both).
 - See also: ADR-0018 §Phase 4 (defines TREE-DUP-002 as a deferred `[major]` item); `AGENTS.md` §consolidation_discipline (duplicate abstraction families merge into one authoritative home).
-- Index: docs/adr/INDEX.md#ADR-0019
+- Index: docs/adr/README.md
 
 ## Context
 

@@ -6,7 +6,7 @@
 - Anchors: `atlas/docs/adr/0011-atlas-root-working-tree-hygiene-ritual.md` (disjoint-scope rule §Decision §Leg 2 — atlas-meta is PM-only across this chore; source work lives on kwavers peer stream); `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §1 atomic-boundary discipline (strict additive OR strict subtractive per sub-batch); `atlas/docs/adr/0013-kwavers-batch1-source-side-closure.md` (immediate predecessor — captures the slice 1-9 source-side closure mark + Entry Point #1 narrative); `atlas/docs/adr/0014-kwavers-batch1-closeout-tag.md` (Block #5 gate explicit prerequisite for Batch #2 start); the helper SSOT surface itself at `D:/atlas/repos/kwavers/crates/kwavers-solver/src/safety/mod.rs:84-130` (current signature); the slice 6b 9-immut heterogeneous Phase 2 site at `D:/atlas/repos/kwavers/crates/kwavers-solver/src/forward/nonlinear/kuznetsov/solver/rhs.rs:compute_rhs` (`is_heterogeneous` branch — Phase 2 closure body).
 - Supersedes: ADR 0013 §Open Batch #2 Entry Point #1 (the high-level entry-point narrative) is refined (not replaced) by this ADR with a concrete const-generics arity design + acceptance criteria + dispatch discipline. ADR 0013 Entry Point #1 paragraph stays as the strategic framing; this ADR extends it with the tactical implementation contract.
 
-- Index: docs/adr/INDEX.md#ADR-0015
+- Index: docs/adr/README.md
 
 ## Context
 

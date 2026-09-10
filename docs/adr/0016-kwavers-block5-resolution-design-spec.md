@@ -6,7 +6,7 @@
 - Anchors: `atlas/docs/adr/0011-atlas-root-working-tree-hygiene-ritual.md` (disjoint-scope rule §Decision §Leg 2 — atlas-meta is FORBIDDEN from `D:/atlas/repos/kwavers/**` source edits; the design-spec is the atlas-meta-only deliverable); `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` §Decision §1 atomic-boundary discipline (strict additive OR strict subtractive per sub-batch); `atlas/docs/adr/0013-kwavers-batch1-source-side-closure.md` §Out of scope #5 (original carried-forward blocker); `atlas/docs/adr/0014-kwavers-batch1-closeout-tag.md` §Out of scope #5 (cross-walk); `atlas/docs/adr/0015-kwavers-batch2-entrypoint1-helper-const-generics.md` §Verification plan AC-1 (Block #5 gate is the AC-1 prerequisite for ADR 0015 acceptance); the kwavers peer stream commits `445ab9b2a` (`fix(kwavers-math): linear algebra import/API mismatches`) + `e2e1e180f` (`fix(kwavers-math): grid/transducer compilation issues`) — both already landed but did not close the gate; the leto crate at `/d/atlas/repos/leto` HEAD `86d366bc` exposed via `kwavers/Cargo.toml` with `ndarray-compat` feature enabled.
 - Supersedes: the carried-forward "phantom-blocker" framing of Block #5 in prior atlas-meta artifacts; Block #5 is now confirmed as a real + active workstream with a deterministic 3-commit resolution strategy rather than a phantom.
 
-- Index: docs/adr/INDEX.md#ADR-0016
+- Index: docs/adr/README.md
 
 ## Context
 

@@ -6,7 +6,7 @@
 - Anchors: `atlas/docs/adr/0009-batch1-rayon-to-moirai-cte.md` (Batch #1 ancestor closure-gate logic, slice-side); `atlas/docs/adr/0010-cfdrs-atlas-pointer-advance.md` (Per-batch name pattern + tag convention — the SSOT reservation `kwavers/atlas-migration-push/batch1`); `atlas/docs/adr/0011-atlas-root-working-tree-hygiene-ritual.md` (disjoint-scope rule §Decision §Leg 2 — atlas-meta touches ONLY `atlas/**` files; the chore implementation commits live on the kwavers peer stream); `atlas/docs/adr/0012-ritk-burn-trait-rebind.md` (atomic-boundary discipline §Decision §1 — strict additive OR strict subtractive per sub-batch, joint alignment with the helper SSOT `crates/kwavers-solver/src/safety/mod.rs:84-130`); `atlas/docs/adr/0013-kwavers-batch1-source-side-closure.md` (immediate predecessor — captures the slice 1-9 source-side closure mark that ADR 0014 elevates to full closure).
 - Supersedes: the `slice 9 partial-closure-mark 2026-07-09` limbo state in `atlas/backlog.md` §In-flight claims (already SUPERSEDED 2026-07-09 by ADR 0013 §Supersedes field, but the post-ADR-0013 limbo persists while the kwavers peer stream's closeout-style commit has not landed); the per-slice partial-closure marks recorded by the prior ATLAS-META chore commits (`4f344f8` through `91541b1b`) are secondarily superseded once item (c)'s pointer advance lands the kwavers peer stream closeout commit.
 
-- Index: docs/adr/INDEX.md#ADR-0014
+- Index: docs/adr/README.md
 
 ## Context
 

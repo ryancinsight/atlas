@@ -8,7 +8,7 @@
   - The `slice 1 partial-closure-mark 2026-07-08` entry in `atlas/backlog.md` §In-flight claims (now upgraded to full Batch #1 source-side closure; the partial marker is revoked in the same commit that lands this ADR).
   - The "Carrier-forward" inventory of pre-existing blockers in `atlas/backlog.md` §In-flight claims `risks #1 / etc.` for the 3 blockers this ADR carries forward as out-of-Batch-#1 closure scope (formally recorded below in §"Out of scope (explicit non-goals)").
 
-- Index: docs/adr/INDEX.md#ADR-0013
+- Index: docs/adr/README.md
 
 ## Context
 

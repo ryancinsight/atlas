@@ -7,7 +7,7 @@
 - See also: ADR 0010 (`docs/adr/0010-cfdrs-atlas-pointer-advance.md`, Accepted 2026-07-05) — anchors the Atlas-parent pointer-advance + tag ritual for the 771-file CFDrs provider migration push (Batch #2) that consumed this numeric SSOT rebind. Tag: `cfdrs/atlas-migration-push/batch2` on inner CFDrs commit `d58d1fe320d046816425e1d20d16735fcfee7995`; Atlas-parent pointer advance `51922a56c4d4acab3dbe786b90cc5acf92e22277`; Atlas-parent docs-rounding `dd676d13`.
 - See also: ADR 0012 (`docs/adr/0012-ritk-burn-trait-rebind.md`, Accepted 2026-07-06) — consumes this numeric SSOT rebind by binding the ritk Burn-keyed trait surface (`Transform<B: Backend, D>`, `Interpolator<B>`, `Resampleable<B, D>`) to Atlas-typed parallels (`TransformAtlas<T: Scalar, B: ComputeBackend, D>`, etc.) across a 6-sub-batch atomic-commit cadence. Sub-batch #1 (Atlas-typed parallel trait surface, additive) closed 2026-07-06; sub-batches #2-#6 reserved per `atlas/backlog.md` §In-flight claims.
 
-- Index: docs/adr/INDEX.md#ADR-0005
+- Index: docs/adr/README.md
 ## Context
 
 Three independent backend `Scalar` traits redeclare vocabulary that already lives on `eunomia::NumericElement`:

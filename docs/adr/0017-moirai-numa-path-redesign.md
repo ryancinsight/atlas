@@ -5,7 +5,7 @@
 - Drivers: P0 integrity defects in `moirai-iter/src/numa.rs` (4 distinct violations); zero external consumers of this API surface; redundant infrastructure already exists in Themis (topology/placement), Mnemosyne (NUMA-aware allocation), and Moirai executor (NUMA-aware work-stealing).
 - Anchors: `atlas/docs/adr/0002-heterogeneous-topology-law.md` (Themis owns topology vocabulary, Mnemosyne owns allocation, Moirai owns execution); `repos/moirai/moirai-iter/src/numa.rs` (target); `repos/mnemosyne/crates/mnemosyne-arena/src/numa.rs` (existing NUMA node query); `repos/mnemosyne/crates/mnemosyne-arena/src/segment/pool/numa_bucket.rs` (NUMA-aware segment pools); `repos/themis/src/branded/sync_region.rs` (NumaNodePlacement split); `repos/themis/src/branded/thread_local.rs` (ThreadLocalPlacement pin_local); `repos/moirai/moirai-executor/src/schedule/runtime/types.rs:162` (worker_numa_nodes).
 - Supersedes: the implicit assumption in `moirai-iter` that an iterator crate owns raw `mmap`+`mbind` allocation and NUMA-aware iteration.
-- Index: docs/adr/INDEX.md#ADR-0017
+- Index: docs/adr/README.md
 
 ## Context
 

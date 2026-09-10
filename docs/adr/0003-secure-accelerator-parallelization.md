@@ -5,7 +5,7 @@ Date: 2026-06-16
 Relates to: ADR 0001 (GPU/accelerator substrate), ADR 0002 (heterogeneous topology law)
 Affected crates: moirai, melinoe, hephaestus (primary); themis, mnemosyne (supporting)
 
-- Index: docs/adr/INDEX.md#ADR-0003
+- Index: docs/adr/README.md
 ## Context
 
 Real-GPU validation of `hephaestus-cuda` (the only place in the stack where CUDA
