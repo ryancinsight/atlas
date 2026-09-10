@@ -163,14 +163,26 @@ by macro. So every domain function bounded by `T: RealField` silently excludes
 the entire reduced-precision half of the datatype law. Either implement it or
 document the exclusion — today it is neither.
 
-Also: ADR 0005 is mis-cited. `eunomia`'s own `docs/adr/0005-…` is about NaN and
-signed-zero min/max; the "`NumericElement` is the universal `Scalar` supertrait"
-doctrine exists only in Atlas README prose. And two parallel `Scalar` traits
-survive — `leto-ops::Scalar` (`domain/scalar/contract.rs:17`) and
-`coeus-core::Scalar` (`dtype/traits.rs:342`) — carrying **overlapping slice-kernel
-default methods** (`add_slice`, `dot_slice`, `axpy_slice`, …), with a comment at
-`coeus-core:378` asserting they must stay off `NumericElement`. Two layers own the
-same backend seam.
+Also: **ADR numbers are not namespaced.** Atlas `docs/adr/0005-…` is the
+`NumericElement` SSOT (Accepted, closed 2026-07-05); `repos/eunomia/docs/adr/0005-…`
+is `Real-scalar minimum and maximum special values` (Accepted 2026-08-21) — a
+different document with the same number. **Fifteen** repos carry their own
+`0001…` ADR sequence (`aequitas`, `apollo`, `coeus`, `eunomia`, `helios`,
+`hephaestus`, `leto`, `metis`, `mnemosyne`, `moirai`, `ritk`, `themis`, `tyche`, …),
+and `docs/adr/INDEX.md` carries no rule for telling them apart. Bare "ADR 0005"
+in prose is therefore unresolvable without opening the file.
+
+And two parallel `Scalar` traits survive — `leto-ops::Scalar`
+(`domain/scalar/contract.rs:17`, `pub trait Scalar: NumericElement`) and
+`coeus-core::Scalar` (`crates/coeus-core/src/dtype/traits.rs:342`,
+`Scalar: NumericElement + CpuUnaryDispatch + Pod + EunomiaPod + Rem + Clone`) —
+both correctly rebased per ADR 0005, but carrying **overlapping slice-kernel
+default methods** (`add_slice` at `contract.rs:23` / `traits.rs:392`, `sub_slice`
+`:33`/`:400`, `dot_slice` `traits.rs:430`, `axpy_slice` `traits.rs:460`, …), with a
+comment at `traits.rs:382-387` asserting they must stay off `NumericElement`.
+That overlap is ADR 0005's own decision, so it is not drift — but it does mean two
+layers own the same backend seam, which is what ADR 0038's single conformance
+suite is meant to settle.
 
 ### F5 — `hermes` declares ISA targets it does not implement
 
@@ -312,16 +324,52 @@ has not been done.
 13. **Stale board rows:** `backlog.md:1385` and `:1405` (aequitas mechanics and
     reaction quantities, both done); `backlog.md:738` (CUDA driver boundary, done
     at PR #277).
-14. **ADR 0005 citation** — either author the `NumericElement` supertrait ADR or
-    stop citing `eunomia`'s 0005, which is about NaN min/max.
+14. **ADR number namespaces collide** *(corrected 2026-09-10 — the original note
+    claimed the `NumericElement` ADR did not exist; it does, at
+    `docs/adr/0005-eunomia-scalar-ssot.md`, and it has landed).* The real defect is
+    that "ADR 0005" is ambiguous: 15 repos each ship their own `0001…` sequence.
+    Fix = add a qualification convention (`atlas:0005` vs `eunomia:0005`) to
+    `docs/adr/INDEX.md` and a disambiguation header on Atlas ADR 0005. No ADR
+    needs authoring; the doctrine is already recorded and already implemented.
 
 ### Tier D — unwired declarations and hygiene
 
-15. `coeus-ops` dead `melinoe` dependency; `melinoe`'s `nightly` feature with zero
-    cfg sites; `contracts/atlas-device`'s own `[workspace]`; `themis::TpuTopology`
-    — for each, wire it or remove it.
-16. Moirai forward sweep: **helios and CFDrs**; and unblock helios
-    `--all-features` via apollo#338 (`transpose_complex_matrices`).
+15. **Four suspected unwired declarations — re-measured 2026-09-10: one is real,
+    three are false alarms.** Do not act on this item as originally written.
+
+    | Claim | Verdict | Measured evidence |
+    |-------|---------|-------------------|
+    | `coeus-ops` dead `melinoe` dep | **REAL** | `crates/coeus-ops/Cargo.toml:25` `melinoe = { workspace = true }`; **0** occurrences of `melinoe` anywhere under `crates/coeus-ops/src/`. |
+    | `melinoe` `nightly` feature dead | **FALSE ALARM** | The measurement (0 `feature = "nightly"` cfg sites repo-wide) is right but the inference is wrong: the feature is consumed by the **build script**, not by cfg. `build.rs:15` reads `CARGO_FEATURE_NIGHTLY` and `:34` gates `doc_cfg_active` on `(is_nightly_compiler && is_nightly_feature) \|\| is_docsrs`. Deleting the feature would silently disable `doc_cfg` on every nightly build that is not docs.rs — a real regression, not a cleanup. |
+    | `contracts/atlas-device` own `[workspace]` | **FALSE ALARM** | Path is `repos/melinoe/contracts/atlas-device/`. The `[workspace]` is load-bearing: `melinoe`'s own workspace is `members = ["."]` (`Cargo.toml:16`), so this crate is **not** a member; `[patch]` tables only apply at a workspace root, and it carries a 30-line `[patch]` block with depth-adjusted paths that is the only thing unifying `mnemosyne`/`moirai` local checkouts. Removing the `[workspace]` breaks type identity across that boundary. |
+    | `themis::TpuTopology` unwired | **FALSE ALARM** | Fully implemented: `src/topology/tpu.rs:13` struct, `:18` `from_provider`, 5 `#[must_use]` accessors, re-exported at `src/topology/mod.rs:12` and `src/lib.rs:39`, and **tested** at `tests/tpu.rs:14,23`. It has no *producer* because no TPU backend exists yet — the doc comment states this is by design ("themis stays stateless law, so there is no `detect()` here"). Absence of a caller is not unwiredness. |
+
+    **The one real item, and why it is not deleted here.** `coeus-ops` has no
+    `build.rs` and no `CARGO_FEATURE_*` reads, so there is no build-script
+    consumer that a source grep would miss — the declaration has no referent at
+    all. But removing it is a `Cargo.toml` edit in a peer repo whose `Cargo.lock`
+    lists `melinoe` under the `coeus-ops` package entry and would need pruning for
+    `--locked` to keep passing. Regenerating by running `cargo` under the stack
+    overlay is the known ADR 0044 hazard — it silently rewrites committed `git+`
+    sources to the stripped form and is the direct cause of the `--locked`
+    failures this stack is currently fighting. Worse, **coeus sits on the forced
+    sweep order** (`leto → hephaestus → coeus → gaia → ritk → helios/CFDrs →
+    kwavers`), so its lock is load-bearing for four downstream repos mid-sweep.
+    Land the manifest edit together with a lock prune performed outside the
+    overlay, and sequence it after the sweep.
+16. Moirai forward sweep: **helios and CFDrs**, plus the **apollo quarantine** and
+    **athena**, which cannot regenerate its lock at all. Current state is tracked
+    authoritatively at
+    [`#atlas-moirai-06-forward-sweep`](../../backlog.md#atlas-moirai-06-forward-sweep)
+    — landed for tyche, consus, leto, hephaestus, gaia, coeus, ritk (partial) and
+    kwavers. Also unblock helios `--all-features` via apollo#338
+    (`transpose_complex_matrices`), which is a **second, independent break**: leto's
+    `refactor(layout)!` moved that symbol off the `leto-ops` root behind
+    `ComplexLayout` and made the free function `pub(super)`, and no single leto
+    revision satisfies both `coeus-ops` (needs new leto for `leto_ops::ctc`) and
+    apollo (needs old leto for the root export).
+    **Do not advance atlas's submodule gitlinks yet** — advancing now would make the
+    pinned-snapshot coherence gate fail, correctly, on helios, CFDrs and apollo.
 17. `mnemosyne`: execute or formally decline the three recommended structural
     refactors, and close AR-2 against `hephaestus`.
 18. `apollo`: give the 37 hand-run perf instruments a CI home, and resolve the two

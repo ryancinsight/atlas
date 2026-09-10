@@ -4,6 +4,31 @@
 >
 > This page is auto-anchored from `D:/atlas/AGENTS.md` `documentation_discipline` + `D:/atlas/backlog.md` `## Cross-repo architect coordination ledger` + `D:/atlas/checklist.md` `## Per-batch Atlas-provider tag reservations` + `D:/atlas/concurrent_agents` contract.
 
+> **ADR numbers are per-repository, not global.** The rows below are **Atlas-meta**
+> ADRs (`docs/adr/NNNN-*.md`). Almost every provider repo also ships its own
+> independent `0001…` sequence at `repos/<repo>/docs/adr/NNNN-*.md`. At this
+> revision **fifteen** repos do so — `aequitas`, `apollo`, `coeus`, `eunomia`,
+> `helios`, `hephaestus`, `leto`, `metis`, `mnemosyne`, `moirai`, `ritk`,
+> `themis`, `tyche`, and others — so a bare "ADR 0005" has more than a dozen
+> possible referents.
+>
+> **Citation rule:** qualify every ADR reference that is not an Atlas-meta ADR.
+> - Atlas-meta: `ADR 0005` (unqualified is fine here and in `docs/` prose) — or
+>   write `atlas:0005` when a sentence also mentions a repo-local ADR.
+> - Repo-local: **always** `eunomia:0005`, `apollo:0005`, `hephaestus:0277`, …
+>
+> **Worked example of the collision:** `atlas:0005`
+> (`docs/adr/0005-eunomia-scalar-ssot.md`, Accepted 2026-07-04) is the
+> `eunomia::NumericElement` universal-`Scalar`-supertrait doctrine (CR-4 rebind,
+> implementation closed 2026-07-05). `eunomia:0005`
+> (`repos/eunomia/docs/adr/0005-real-scalar-min-max-special-values.md`, Accepted
+> 2026-08-21) is the real-scalar `min`/`max` NaN and signed-zero contract. Same
+> number, unrelated doctrine — both currently live, both load-bearing.
+>
+> **When authoring a new Atlas-meta ADR:** claim the next free number in *this*
+> index only. Do not attempt to keep Atlas numbers in step with any repo's local
+> sequence.
+
 ## Listing by ID (one-line summary + status)
 
 | ID | One-line summary | Status | Date | Class | Driver(s) | Topic tag |
@@ -44,6 +69,8 @@
 | <a id="ADR-0038"></a>**0038** | One generic `ComputeBackend` conformance suite in a new `hephaestus-conformance` workspace crate — 15 939 lines of per-backend `contract.rs` with only 5 test names common to all four backends (cuda/wgpu share 87 by copy-paste; rocm/wgpu share 7; metal held to 40 assertions vs wgpu's 130); triage into contract / capability-gated / backend-intrinsic; suite generic over `<B: ComputeBackend, T: Scalar>`; Leto runs it as the CPU reference | Proposed | 2026-07-28 | `[arch]` `[minor]` | hephaestus / leto / atlas-meta | gpu-substrate |
 | <a id="ADR-0037"></a>**0037** | Workspace facade crates and crates.io registry naming — every package publishes one facade crate re-exporting its sub-crates (the `burn`/`bevy`/`polars` shape: users depend on `coeus`, not `coeus-core`) pinning exact sub-crate versions while each workspace keeps its existing versioning scheme (6 lockstep, 6 independent — an earlier lockstep mandate was corrected on measurement); facade name is the bare classical name where free and `<name>-<domain>` where taken (no `atlas-` prefix, no stack-wide `-rs`); 165 of 173 publishable names free, 8 collide, 14 packages have no facade yet | Proposed | 2026-07-28 | `[arch]` `[minor]` | atlas-meta / all publishing packages | publication-pipelines |
 | <a id="ADR-0036"></a>**0036** | Neuroimaging, diffusion MRI, tractography, and connectomics land as RITK workspace crates (`ritk-diffusion` / `ritk-tractography` / `ritk-connectome`), not a new package — gate 1/2/4/5/6 unmet; cohort studies stay in Tyche; MR acquisition simulation is a closed, demand-gated integrator question; "RF" splits into deposition-spine SAR and Larmor-frequency encoding, neither a package | Proposed | 2026-07-28 | `[arch]` | ritk / coeus / gaia / tyche / atlas-meta | boundary-decision |
+| <a id="ADR-0061"></a>**0061** | `hyperion` and `asclepius` are closure domains, not balance domains: membership in the ADR 0055 axis is read from the public surface for a balance operator, not assigned by subject matter; both move to `CLOSURE_DOMAINS` so an integrator consuming them is `closure_provider` and R7 permits the edge | Accepted | 2026-09-09 | `[arch]` | hyperion / asclepius / kwavers / atlas-meta | domain-boundary |
+| <a id="ADR-0062"></a>**0062** | Iterative solvers and preconditioners are Athena policy over Leto kernels: policy and composition (block, chain, cycle, multigrid) to `athena`, sparse kernels (triangular solve, ILU numeric, SpMV) and direct sparse solve to `leto`, and no integrator keeps a local copy — completes ADR 0033's third leg, which left the Krylov forks and the stack's only multigrid inside `cfd-math` | Accepted | 2026-09-10 | `[arch]` `[major]` | athena / leto / CFDrs / kwavers / atlas-meta | solver-ownership |
 
 The ADR sequence numbers carry semantic meaning: 0001-0004 are pre-Atlas-foundation doctrine (GPU substrate stack + heterogeneous topology); 0005-0008 are the CR-4 + CR-EUNOMIA-COMPLEX SSOT rebind chain; ADR 0009 is the Batch #1 Cadence-Tactic-Exercise `[patch]` roll-forward; 0010-0011 are the Atlas-provider ceremony counterparts; 0017-0031 record subsequent provider, hierarchy, graph, quantity-law, simulation-provider, coupling-promotion, verification, material-property, uncertainty-quantification, provider-checkout, biological-response, visualization-contract, photon/optical-transport, and upstream-algorithm decisions; 0033-0034 amend the Athena solver ownership and fix its accelerator-backend shape. ADR 0032 and ADR 0036 are the two boundary decisions that scope future packages against the promotion gate — 0032 for optics, RF/EM, and therapy integrators, 0036 for neuroimaging, diffusion MRI, and MR physics. ADR 0035 moves publication (crates.io, PyPI, GitHub Pages) into Atlas-owned reusable workflows, and ADR 0037 settles the facade-crate shape and registry names those pipelines publish. ADR 0038 gives the `ComputeBackend` seam one conformance owner. The index now carries the authored sequence through ADR 0038.
 

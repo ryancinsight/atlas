@@ -710,9 +710,9 @@ Existing owners are not duplicated by this decision:
 
 | Concern | Owner | Boundary |
 | --- | --- | --- |
-| Nonlinear model fitting | `coeus` | Diffusion fits use Coeus autodiff and optimizers; RITK adds no local optimizer. Upstream gap: `coeus-optim` has only first-order stochastic optimizers, so Gauss-Newton/Levenberg-Marquardt lands there before nonlinear models are fitted. |
+| Nonlinear model fitting | `coeus` | Diffusion fits use Coeus autodiff and optimizers; RITK adds no local optimizer. Delivered: `coeus-optim::least_squares` carries damped Gauss-Newton and `levenberg_marquardt` / `batched_levenberg_marquardt`. Residual gap: the solver is dense-only and requires a caller-supplied analytic Jacobian with no `coeus-autograd` bridge, so it fits small dense models; a sparse or autograd-backed variant belongs in `coeus`, never in RITK. |
 | Dense linear least squares | `leto` | Log-linear tensor estimation solves through `leto-ops`; RITK assembles the design matrix and does not implement a solve. |
-| Spherical harmonic basis | `apollo` | Orientation distribution functions are SH expansions owned by `apollo-sht`. Upstream gap: the real even-order symmetric basis over scattered gradient directions does not exist yet; it lands in Apollo, never in RITK. |
+| Spherical harmonic basis | `apollo` | Orientation distribution functions are SH expansions owned by `apollo-sht`. Delivered: `RealSphericalHarmonicBasis` evaluates the real even-order symmetric basis over scattered gradient directions (`MAX_REAL_SH_DEGREE = 85`, MRtrix3 orthonormal convention) and returns a `design_matrix`; RITK consumes it. |
 | Streamline geometry | `gaia` | Streamlines are polyline geometry and topology typed in Gaia primitives; RITK owns the integration policy that produces them. Upstream gap: Gaia has meshes and topology but no polyline type. |
 | Population and group statistics | `tyche` | Cohort sampling, ensembles, sensitivity, and reproducible study vocabulary stay in Tyche; RITK supplies per-subject image measures. |
 | Rendering and color | `iris` | Tract and connectome display uses Iris color law and view contracts through `ritk-snap` / `ritk-vtk`. |

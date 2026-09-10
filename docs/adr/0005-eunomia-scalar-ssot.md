@@ -8,6 +8,16 @@
 - See also: ADR 0012 (`docs/adr/0012-ritk-burn-trait-rebind.md`, Accepted 2026-07-06) — consumes this numeric SSOT rebind by binding the ritk Burn-keyed trait surface (`Transform<B: Backend, D>`, `Interpolator<B>`, `Resampleable<B, D>`) to Atlas-typed parallels (`TransformAtlas<T: Scalar, B: ComputeBackend, D>`, etc.) across a 6-sub-batch atomic-commit cadence. Sub-batch #1 (Atlas-typed parallel trait surface, additive) closed 2026-07-06; sub-batches #2-#6 reserved per `atlas/backlog.md` §In-flight claims.
 
 - Index: docs/adr/INDEX.md#ADR-0005
+
+> **Disambiguation (2026-09-10).** This is the **Atlas-meta** ADR 0005
+> (`atlas:0005`) — the `NumericElement` universal-`Scalar`-supertrait doctrine.
+> It is **not** `eunomia:0005`, which is
+> `repos/eunomia/docs/adr/0005-real-scalar-min-max-special-values.md` (Accepted
+> 2026-08-21, the `min_scalar`/`max_scalar` NaN and signed-zero value contract).
+> ADR numbers are per-repository; see the citation rule at the head of
+> `docs/adr/INDEX.md`. Cite this document as `atlas:0005` wherever a repo-local
+> ADR number could be confused with it.
+
 ## Context
 
 Three independent backend `Scalar` traits redeclare vocabulary that already lives on `eunomia::NumericElement`:
