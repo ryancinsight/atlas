@@ -68,8 +68,58 @@ fi
 report="$("$binary" --atlas-root "$atlas_root" 2>&1)"
 status=$?
 
+# Second stage, and only for a push that moves a pin: a gitlink can name a
+# published commit -- everything the auditor checks -- and still import debt
+# the member grew since the last advance. That is the loop this exists to
+# break; every ratchet regression traced today was found after the pin moved,
+# never before. `check` reads HEAD's gitlinks, which is exactly the state
+# being pushed, and `--repo` keeps the scan to the members that actually
+# changed, so an ordinary push costs nothing and an advance costs about ten
+# seconds per moved member.
+debt_gate() {
+    local changed python_bin member output base
+    # A branch on its first push has no upstream, and that is exactly when
+    # a pin advance is most likely; falling through to "nothing changed"
+    # there would skip the gate on the pushes it most needs to see.
+    base="$(git -C "$atlas_root" rev-parse --verify --quiet @{upstream} 2>/dev/null)"
+    [ -z "$base" ] && base="$(git -C "$atlas_root" rev-parse --verify --quiet origin/main 2>/dev/null)"
+    [ -z "$base" ] && return 0
+    changed="$(git -C "$atlas_root" diff --name-only "$base"..HEAD -- repos/ 2>/dev/null | awk -F/ 'NF > 1 { print $2 }' | sort -u)"
+    [ -z "$changed" ] && return 0
+
+    python_bin="${PYTHON:-}"
+    if [ -z "$python_bin" ]; then
+        for candidate in python3 python; do
+            if command -v "$candidate" >/dev/null 2>&1; then
+                python_bin="$candidate"
+                break
+            fi
+        done
+    fi
+    if [ -z "$python_bin" ]; then
+        echo "pre-push: BLOCKED -- gitlinks moved and no python interpreter is" >&2
+        echo "available, so the debt they carry is unmeasured." >&2
+        return 1
+    fi
+
+    for member in $changed; do
+        [ -d "${atlas_root}/repos/${member}" ] || continue
+        if ! output="$("$python_bin" "${atlas_root}/scripts/atlas-conformance.py" \
+                check --repo "$member" 2>&1)"; then
+            echo "pre-push: BLOCKED -- advancing ${member} raises a debt class." >&2
+            echo "$output" >&2
+            echo >&2
+            echo "pre-push: fix it in ${member} and advance the pin to the fix, or" >&2
+            echo "push with --no-verify if the raise is deliberate and recorded." >&2
+            return 1
+        fi
+    done
+    return 0
+}
+
 case "$status" in
     0)
+        debt_gate || exit 1
         exit 0
         ;;
     1)
