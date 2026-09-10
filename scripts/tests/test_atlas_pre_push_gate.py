@@ -42,24 +42,70 @@ def _write(path: pathlib.Path, text: str, executable: bool = False) -> None:
         path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP)
 
 
-def _path_without_python(extra_first: str) -> str:
-    """PATH minus any entry holding a python interpreter, git retained.
+# Every external command the hook runs before and inside its lockfile section.
+# The interpreter-free PATH is built from these by name, so a command added to
+# the hook without being added here fails the test loudly rather than changing
+# which branch the test observes.
+_HOOK_COMMANDS = (
+    "bash",
+    "git",
+    "seq",
+    "sed",
+    "grep",
+    "awk",
+    "cat",
+    "head",
+    "sort",
+    "tr",
+    "mktemp",
+    "rm",
+)
 
-    The hook needs git to resolve its own repository before it looks for an
-    interpreter, so emptying PATH tests the wrong failure.
+
+def _path_without_python(extra_first: str, root: pathlib.Path) -> str:
+    """A PATH carrying the hook's own commands and no python interpreter.
+
+    The hook resolves its repository with git and runs coreutils before it
+    searches for an interpreter, so an empty PATH tests the wrong failure --
+    but so does dropping every PATH entry that holds a python binary, because
+    on Linux that entry is `/usr/bin`, which holds `bash` and the coreutils
+    too. Linking the named commands into a fresh directory keeps exactly what
+    the hook needs and nothing that would answer its search.
+
+    Windows keeps its interpreter in its own directory, so the filter is
+    correct there, and symlink creation needs a privilege the runner may not
+    have -- hence the split.
     """
-    entries = [extra_first]
-    for entry in os.environ.get("PATH", "").split(os.pathsep):
-        if not entry or entry in entries:
+    if os.name == "nt":
+        entries = [extra_first]
+        for entry in os.environ.get("PATH", "").split(os.pathsep):
+            if not entry or entry in entries:
+                continue
+            probe = pathlib.Path(entry)
+            if any(
+                (probe / name).exists()
+                for name in ("python.exe", "python3.exe", "python", "python3")
+            ):
+                continue
+            entries.append(entry)
+        return os.pathsep.join(entries)
+
+    tools = root / "interpreter-free-tools"
+    tools.mkdir(exist_ok=True)
+    for name in _HOOK_COMMANDS:
+        found = shutil.which(name)
+        if found is None:
             continue
-        probe = pathlib.Path(entry)
-        if any(
-            (probe / name).exists()
-            for name in ("python.exe", "python3.exe", "python", "python3")
-        ):
-            continue
-        entries.append(entry)
-    return os.pathsep.join(entries)
+        link = tools / name
+        if not link.exists():
+            link.symlink_to(found)
+    absent = [name for name in ("bash", "git") if not (tools / name).exists()]
+    if absent:
+        raise AssertionError(
+            f"interpreter-free PATH is missing {absent}; the fixture would test "
+            "a missing shell rather than a missing interpreter"
+        )
+    return os.pathsep.join([extra_first, str(tools)])
 
 
 def _path_without_cargo(extra_first: str) -> str:
@@ -562,7 +608,7 @@ class UnverifiableLockTestCase(unittest.TestCase):
                 push_line,
                 extra_env={
                     "PYTHON": "",
-                    "PATH": _path_without_python(str(fixture.bin)),
+                    "PATH": _path_without_python(str(fixture.bin), fixture.root),
                 },
             )
             self.assertNotEqual(code, 0)
