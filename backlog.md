@@ -631,7 +631,7 @@ epos\consus	arget` |
 - **Acceptance:** `gitlink-coherence` reports `28 probed | 0 defects`; one unrelated `aequitas` stale-advanceable pointer remains reachable and was not changed.
 
 <a id="atlas-apollo-moirai-quarantine-lift"></a>
-## ATLAS-APOLLO-MOIRAI-QUARANTINE-LIFT — Apollo's `rev` pin is the whole remaining stack incoherence [patch] — blocked
+## ATLAS-APOLLO-MOIRAI-QUARANTINE-LIFT — Apollo's `rev` pin is the whole remaining stack incoherence [patch] — todo
 
 - **Integrator:** unclaimed; **branch:** none; **lease:** none. Apollo is at its
   tree bound with two live lanes (`apollo-route` edited 2026-09-09T10:07Z,
@@ -662,6 +662,32 @@ epos\consus	arget` |
   apollo lane closes or its holder takes the change; it is disjoint from both
   lanes' regions, which are confined to
   `crates/apollo-fft/src/application/execution/kernel/components/batched/`.
+- **Re-opened 2026-09-10: the tree blocker expired.** `apollo-ecore` is gone;
+  apollo now holds its main tree (on `main`, clean) plus one lane,
+  `apollo-route`, whose branch is [apollo#385](https://github.com/ryancinsight/apollo/pull/385)
+  — one commit, docs only, every required check green. The bound is real but
+  the lane is one merge from free, which is the lifecycle, not a blocker.
+- **Why the four apollo pull requests sat open with auto-merge armed.** Branch
+  protection sets `strict: true` (branch must be up to date) and requires no
+  review; `main` had moved to `f8085085`, so #382, #383, #384 and #385 were all
+  BEHIND and auto-merge cannot update a behind branch. `gh pr update-branch
+  --rebase` on each; they land on their re-run checks. Nothing was failing —
+  `recurseml/analysis` is the fleet-wide meaningless red
+  ([#atlas-third-party-check-always-red-2026-09-09](#atlas-third-party-check-always-red-2026-09-09)).
+- **The overlay gate red on `main` is this pin and nothing else, re-measured
+  2026-09-10.** `atlas-stack-overlay.py check` reports 0 lagging requirements
+  and 5 repos with pin drift — CFDrs, asclepius, athena, helios, and one
+  downstream consumer outside the stack — every row a moirai crate `locked
+  0.5.0, local tree 0.6.0`. Those are the transitive `rev=83aa411` entries:
+  CFDrs's lock carries `moirai-runtime` 0.5.0 at `rev=83aa411` *and* 0.6.0
+  unpinned, and the pinned half cannot move while apollo pins it. Advancing
+  the unpinned half changes nothing the gate measures, so the sweep's order
+  stands: apollo first.
+- **The sweep tool reached the same wall and now says so.** `atlas-lock-sweep.py`
+  failed every such consumer at `cargo update`, because a bare package name is
+  ambiguous when two versions are locked; it now retries with the specs cargo
+  suggests (`d2fe3b8ad`) and fails one step later on the pin itself, which is
+  the honest report.
 
 <a id="atlas-version-guard-origin-measurement"></a>
 ## ATLAS-VERSION-GUARD-ORIGIN-MEASUREMENT — Coherence measured at origin, and a scan that survives an unreadable tree [patch] — done
