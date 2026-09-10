@@ -1771,6 +1771,18 @@ _Closure note (moved from heading):_ commit 99dc33fad
 ## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
 
 - **Main red again, 2026-09-10 01:06Z (atlas `8fdf24ab`), three rows through gitlink advances:** `apollo/oversized_files 38 → 41` (`bf2b6742`, `e2856faa`: `batched/sweep.rs` 505 with apollo#373, one file each with #374 and #377; apollo#375 splits the batched files and lands at 38, the gitlink then advances); `CFDrs/type_suffixed_fns 45 → 46` (`1c38c6`: `next_f32`, `next_f64`, `fill_f32`, `fill_f64` in `cfd-2d/src/solvers/simd_kernels.rs` and `cfd-math/src/simd/tests.rs`, test RNG helpers, the owner's to make generic); `coeus/oversized_files 19 → 20` (`2ad993`, coeus#388: `coeus-nn/tests/nn_ops/attention/nn_attention_tests/mod.rs` 512, the owner's to split). atlas#160's ratchet check reads the same rows through its merge ref.
+- **Green round 2026-09-10 ~03:00Z (integrator: prepush-slice2):** all three
+  rows above resolved without touching a member: apollo's split advance took
+  `oversized_files` 41 → 37 (baseline tightened, plus `manifest_implementation`
+  24 → 23); CFDrs's row cleared on its own advance; coeus's split landed and
+  the gitlink advance took `oversized_files` 20 → 19 (lane tip measured 19
+  before the advance). `apollo/target_forks` and `metis/target_forks` were
+  stale build caches from dead evening builds (no live pids) and were removed
+  per the one-cache policy; `mnemosyne/target_forks` is a live peer build
+  (rustc 22:43Z) and stays until it lands. Fleet walkers now skip unreadable
+  directories instead of aborting (coeus's dead-pytest `pytest-cache` denies
+  even reads). kwavers tightened 108 → 107 / 282 → 281 on the split advance;
+  baseline records decreases only, no raises absorbed.
 - **Burn-down (2026-09-06, integrator: claude-opus-5).** Measured 17 regressions
   at 23:20. Closed or attributed:
   - `apollo/target_forks 0 → 1` — **closed**. `repos/apollo/target/nextest`,
