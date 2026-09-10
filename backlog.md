@@ -1832,7 +1832,7 @@ _Closure note (moved from heading):_ commit 99dc33fad
   under the canonical root.
 - **Risk / change class:** [patch]; environment state, no member code change.
 
-## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — todo
+## ATLAS-RATCHET-REGRESSIONS-2026-09-02 — Seventeen debt-class regressions landed on main through gitlink advances [patch] — done 2026-09-10
 
 - **Main red again, 2026-09-10 01:06Z (atlas `8fdf24ab`), three rows through gitlink advances:** `apollo/oversized_files 38 → 41` (`bf2b6742`, `e2856faa`: `batched/sweep.rs` 505 with apollo#373, one file each with #374 and #377; apollo#375 splits the batched files and lands at 38, the gitlink then advances); `CFDrs/type_suffixed_fns 45 → 46` (`1c38c6`: `next_f32`, `next_f64`, `fill_f32`, `fill_f64` in `cfd-2d/src/solvers/simd_kernels.rs` and `cfd-math/src/simd/tests.rs`, test RNG helpers, the owner's to make generic); `coeus/oversized_files 19 → 20` (`2ad993`, coeus#388: `coeus-nn/tests/nn_ops/attention/nn_attention_tests/mod.rs` 512, the owner's to split). atlas#160's ratchet check reads the same rows through its merge ref.
 - **Green round 2026-09-10 ~03:00Z (integrator: prepush-slice2):** all three
@@ -1867,6 +1867,45 @@ _Closure note (moved from heading):_ commit 99dc33fad
   file is their live work, so the row clears on their landing plus the atlas
   advance, never on a parallel split. Fleet check otherwise clean with the
   baseline recording decreases only.
+- **Closed 2026-09-10. The last row cleared on a parallel split, which the
+  note above ruled out.** Waiting on the owner was the wrong call, and it was
+  wrong for a reason worth keeping: the owner had already landed the growth
+  and moved to their next claim, so there was nothing pending to wait for --
+  a fresh claim on the next item is not a claim on the file the last one
+  grew. The correction is that a stale row is takeover material by the same
+  test as anything else (last commit touching the regions, board last-update),
+  and "their live work" was a reading of the author, not of the regions.
+- **What the two splits found.** `ritk#256` split
+  `crates/ritk-io/src/format/dicom/multiframe/reader.rs` (520 lines) at the
+  point pixel data becomes necessary: `reader/header.rs` answers what a
+  multi-frame object is from its tags, `reader/volume.rs` decodes it. It also
+  found ritk `main` red on a test nobody had run:
+  `read_dicom_color_multiframe_rejects_hostile_dimensions_without_oom`
+  asserted the per-frame "out of range" message, while the decoded-workspace
+  budget that arrived with the volume path reads the declared dimensions and
+  refuses first -- the test's own property satisfied by the rejection it
+  rejected.
+- **Advancing the pin then exposed the next row, not the fix.** `ritk/
+  oversized_files` stayed at 46: `crates/ritk-snap/src/ui/view_transform/mod.rs`
+  had crossed 500 in the same window, a `mod.rs` carrying implementation, so
+  two classes at once. `ritk#257` split it into `transform` (orientation as a
+  value) and `image_ops` (what applies it), and consumed the section banner
+  between them -- a module boundary is what a banner rule approximates. The
+  pin then advanced to 45 and the job went green.
+- **Both mnemosyne rows closed the same day** by mnemosyne#139, and the #137
+  review's two surviving findings by mnemosyne#140: the hardened free-list
+  tamper test now allocates through the tampered link in a child process and
+  requires abnormal termination, where before it read the link back, saw it
+  decode differently, and repaired it -- a property of any XOR, green with
+  every guard in `pop_block` deleted.
+- **Baseline recorded** the resulting tightening (`ritk/manifest_implementation`
+  105 -> 104) plus two rows the committed file predated: the
+  `member_gate_versions` class, and `prometheus`, registered since. Both enter
+  at their current counts.
+- **Measured before each advance** rather than after: 45 files over target at
+  the target revision, which is the recorded baseline, so no advance in this
+  sequence carried new debt into main.
+
 - **Burn-down (2026-09-06, integrator: claude-opus-5).** Measured 17 regressions
   at 23:20. Closed or attributed:
   - `apollo/target_forks 0 → 1` — **closed**. `repos/apollo/target/nextest`,
