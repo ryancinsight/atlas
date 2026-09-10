@@ -264,7 +264,7 @@
   -- it is a dead peer's work, not scratch.
 
 <a id="atlas-target-fork-regression-2026-09-09"></a>
-## ATLAS-TARGET-FORK-REGRESSION-2026-09-09 — Cargo outside the overlay forks the cache [patch] — review
+## ATLAS-TARGET-FORK-REGRESSION-2026-09-09 — Cargo inside a member forks the cache [patch] — done 2026-09-09
 
 - **Integrator:** claude-opus-5 (generator identified 2026-09-09); **lease:** none -- the guard belongs to the gate-script session's lease.
 - **Measured 2026-09-09** by `atlas-conformance.py check`: `apollo/excess_worktrees`
@@ -294,12 +294,38 @@
   the target this session was compiling at that minute -- which narrows the
   generator to one invocation instead of a session's worth. Record the
   fingerprint before sweeping; the evidence goes with the tree.
-- **A second, committed generator exists.** `repos/asclepius/.cargo/config.toml`
-  carries five `target-dir` lines of its own. A member config that re-declares
-  `target-dir` overrides the stack config for every invocation inside that
-  member, whatever the cwd -- which is the config-layer ownership rule
-  (AGENTS.md `performance_engineering`) violated in tracked form. It is not
-  what produced the forks measured above, and it is its own fix.
+- **Correction: the asclepius config is the fix, not a generator.** An earlier
+  note here called `repos/asclepius/.cargo/config.toml` a committed violation
+  of config-layer ownership. It is neither committed nor a violation: it is
+  untracked by design, its own header says so, and it pins an absolute
+  `target-dir` precisely to stop the fork this item is about. A peer had found
+  the mechanism and written it down there before this item started guessing.
+- **The mechanism, from that header and consistent with the table above.**
+  Cargo resolves `build.target-dir` relative to the **workspace root**, not to
+  the config that declares it. The stack root's `target-dir = "target"`
+  therefore reaches `D:/atlas/target` only for invocations whose workspace root
+  is the stack root; inside `repos/<member>` the workspace root is the member
+  and the same line resolves to that member's own `target/`. This supersedes
+  this item's earlier cwd-based reading: the cwd matters only because it
+  decides which workspace cargo selects. It also explains the regrowth -- every
+  `cargo fmt` or package-scoped `clippy` run inside a member made a fork, which
+  is the ordinary thing to do, not an outside-the-overlay workaround.
+- **Closed 2026-09-09 by `scripts/atlas-member-target-dir.py`.** One gitignored
+  `repos/.cargo/config.toml` holds an absolute `target-dir`. Cargo merges
+  configs from the invocation directory upward, so that file sits between every
+  member and the stack root: closer than the root, and outside every member --
+  which matters, because ten members carry a tracked `.cargo/config.toml` of
+  their own that must not be touched. An absolute path is machine-specific, so
+  it is generated rather than committed, following asclepius's precedent.
+  `check` exits nonzero when the pin is missing or stale and names any member
+  declaring its own `target-dir`, keeping that one exception visible.
+- **Verified:** with the pin in place, `cargo metadata` from inside kwavers,
+  apollo, metis, mnemosyne and moirai each reports `D:/atlas/target`; with it
+  removed, each reports its own `target/`.
+- **Remaining, small:** the stack config's comment still claims cargo resolves
+  `target-dir` "from the parent of `.cargo`". That sentence is what kept this
+  item open through three rounds of cleanup, and correcting it belongs with
+  whoever next touches that file.
 
 - **Regrowth measured 2026-09-09, ~19:45.** After the seven-gitlink sweep the
   scan reported `metis/target_forks` 0 -> 1. `repos/metis/target` was 466 MB,
