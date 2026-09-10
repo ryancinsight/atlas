@@ -169,9 +169,30 @@
     tree when the rollout ran; deploying would have swept a peer's changes
     into the hook commit. Re-run the sync for these when their trees are
     clean.
-- **`member_gate_versions` will not reach 1 until eunomia and the four
-  hookless members are resolved**, so the acceptance above needs the checker
-  question answered, not just the sync repeated.
+- **coeus is not a drift case, and its PR was closed unmerged**
+  ([Coeus #395](https://github.com/ryancinsight/Coeus/pull/395)). Its hooks
+  source a shared `.githooks/lockfile.sh` and are covered by its own
+  `scripts/tests/test_hooks.py`, which asserts that *both* hooks reject when
+  the checker, the shared entry, or the interpreter is missing. Syncing the
+  owned copy over them removed that design and failed 8 of those tests -- the
+  only real failure in the whole rollout, and it surfaced because coeus is the
+  only member that tests its hooks at all. Checked: no other member has
+  `test_hooks.py` or `lockfile.sh`, so the rest of the rollout is unaffected.
+  **This needs a decision, not a sync:** either coeus adopts the owned hook and
+  retires its shared entry and tests, or the owned hook absorbs the
+  shared-entry design coeus already has. The second is worth weighing -- coeus
+  is the one member that noticed the guard could fail open, and its tests are
+  the only executable statement of what the guard owes its caller.
+- **`member_gate_versions` will not reach 1 until eunomia, the four hookless
+  members and the coeus decision are resolved**, so the acceptance above needs
+  the checker question answered, not just the sync repeated.
+- **Merged so far:** asclepius, athena, consus, gaia, leto, aequitas, apollo,
+  ares. Ten more are enqueued on auto-merge behind pending checks
+  (harmonia, helios, hephaestus, hermes, horae, hyperion, proteus, ritk,
+  themis, tyche); the three merged administratively had every owned check green
+  with only the always-red third-party check failing
+  ([its item](#atlas-third-party-check-always-red-2026-09-09) is decided and
+  awaiting the uninstall).
 
 <a id="atlas-closure-surface-split"></a>
 ## ATLAS-CLOSURE-SURFACE-SPLIT — Hyperion and Asclepius are closure domains [arch] — done 2026-09-09
