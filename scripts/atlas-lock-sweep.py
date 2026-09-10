@@ -35,6 +35,7 @@ API breaks before a runner is spent.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -160,6 +161,19 @@ def failure_detail(member_name: str, stage: str, stderr: str) -> str:
         return f"{stage}: {head} [full: {log.relative_to(ROOT).as_posix()}]"
     except OSError:
         return f"{stage}: {head}"
+
+
+def coauthor() -> str:
+    """The agent this run should be attributed to.
+
+    The trailer names who wrote the commit, and the commit is written by
+    whichever agent invokes the sweep -- not by whichever one wrote this
+    template. `ATLAS_SWEEP_COAUTHOR` carries it; the default keeps the
+    original attribution for a run that does not set it.
+    """
+    return os.environ.get(
+        "ATLAS_SWEEP_COAUTHOR", "Claude Fable 5.1 <noreply@anthropic.com>"
+    )
 
 
 def ambiguous_specs(crate: str, stderr: str) -> list[str]:
@@ -300,7 +314,7 @@ def advance(row: PlanRow, crate: str, open_prs: bool) -> Outcome:
             f"Resolved outside the stack overlay; `cargo check --workspace --locked`\n"
             f"passed before this push. Opened by scripts/atlas-lock-sweep.py.\n\n"
             f"Refs: {provider_repo_name(consumer.provider_url)}@{target}\n\n"
-            f"Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
+            f"Co-Authored-By: {coauthor()}"
         )
         for args in (["add", "Cargo.lock"], ["commit", "-q", "-m", message]):
             done = subprocess.run(["git", "-C", str(lane), *args], capture_output=True, encoding="utf-8", errors="replace")
