@@ -2079,8 +2079,19 @@ _Closure note (moved from heading):_ commit 99dc33fad
   in the const-generic kernel, so no generic entry point exists; eunomia
   75 → 39 at unchanged code with the real clones (`widen_f16`,
   `unpack_*`) retained. Fleet-wide tightening (11 keys, all decreases);
-  unit test pins the boundary. A duplicated conversion body under an exempt
-  name would escape — review watches that spot.
+   unit test pins the boundary. A duplicated conversion body under an exempt
+   name would escape — review watches that spot.
+ - **Consus clone survey (~05:30Z, 46 files):** the next-highest count after
+   the exemption, triaged family by family — all irreducible: h5py/parquet
+   roundtrip *tests* carry per-dtype interop expectations (coverage semantics,
+   not clones); thrift `zigzag_i16/i32/i64` are 1-line formulas over distinct
+   protocol type codes (genericizing saves 2 lines for a new trait — negative
+   value); `dataset.rs`/`attribute.rs` readers are FFI-shaped per-dtype
+   adapters. The class now fires only on protocol adapters, coverage tests,
+   and conversions — any true-clone remainder needs per-file judgment, not
+   another blanket rule. Two candidates for a closer look:
+   `consus-core/.../decode.rs` (`decode_to_f64` family) and
+   `consus-hdmf/.../storage.rs` (`decode_as_*` triple).
 - **Follow-up ~05:00Z:** the confined split traded one row for another:
   `confined/mod.rs` kept the entry point, validation, and inline tests, so
   `moirai/manifest_implementation` went 25 → 26. Completed in Moirai#315
