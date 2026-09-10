@@ -56,7 +56,38 @@ Constraints observed:
 
 ## 3. Leto SSOT surface — what is already owned
 
-Verified against `repos/leto/crates/leto-ops/src/lib.rs` (2026-07):
+> **Correction 2026-09-09 — one row in the table below is stale. Do not scope
+> work from it without reading this.**
+>
+> The `application::linalg::iterative` row is wrong. It lists `leto-ops` as
+> owning `ConjugateGradient`, `BiCGSTAB`, `GMRES`, `LsqrSolver`,
+> `Preconditioner`, and the `Identity`/`Jacobi`/`ILU`/`SSOR` preconditioners.
+> **None of that is in `leto` at this revision.** [ADR 0033](../adr/0033-krylov-ownership-reaffirmation.md)
+> reassigned Krylov ownership to `athena` and the recurrences were removed from
+> `leto`; `crates/leto-ops/src/application/linalg/` now contains only direct and
+> dense decompositions, and there is no `Preconditioner` type anywhere in the
+> crate. The only file in `leto` that still names `ConjugateGradient` or
+> `BiCGSTAB` is `application/linalg/mod.rs`, in a doc comment that is itself a
+> false capability claim.
+>
+> The solvers and preconditioners in that row live in `athena`:
+> `athena-core/src/solver/` (`Cg`, `Gmres<_, RESTART>`, `BiCgStab`, `Lsqr`) and
+> the `Preconditioner` trait at `athena-core/src/preconditioner/traits.rs` with
+> `Jacobi`, `IncompleteLu`, `SuccessiveOverRelaxation` and triangular impls in
+> `athena-leto/src/preconditioner/`.
+>
+> Preconditioning is therefore **not** a `leto` extension target. A consolidation
+> move that adds a preconditioner to `leto-ops` would re-create the duplication
+> ADR 0033 exists to prevent.
+>
+> Sections 4–7 below are unaffected: they inventory *consumer* duplication and
+> rank the moves, and moves 1–4 were verified delivered on both sides at this
+> revision. See
+> [`2026-09-09-foundation-layer-next-steps.md`](2026-09-09-foundation-layer-next-steps.md)
+> §F2.
+
+Verified against `repos/leto/crates/leto-ops/src/lib.rs` (2026-07); see the
+correction above for the one row that no longer holds:
 
 | Submodule | SSOT surface (cube contracts already published by `leto-ops`) |
 | --- | --- |

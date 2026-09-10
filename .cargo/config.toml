@@ -88,6 +88,16 @@ aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 aequitas = { path = "repos/aequitas" }
 aequitas-python = { path = "repos/aequitas/crates/aequitas-python" }
 
+[patch."https://github.com/ryancinsight/apollo"]
+apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
+apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
+apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
+
+[patch."https://github.com/ryancinsight/apollo.git"]
+apollo-fft = { path = "repos/apollo/crates/apollo-fft" }
+apollo-nufft = { path = "repos/apollo/crates/apollo-nufft" }
+apollo-sht = { path = "repos/apollo/crates/apollo-sht" }
+
 [patch."https://github.com/ryancinsight/asclepius"]
 asclepius = { path = "repos/asclepius/crates/asclepius" }
 asclepius-coeus = { path = "repos/asclepius/crates/asclepius-coeus" }
@@ -211,6 +221,14 @@ melinoe = { path = "repos/melinoe" }
 
 [patch."https://github.com/ryancinsight/melinoe.git"]
 melinoe = { path = "repos/melinoe" }
+
+[patch."https://github.com/ryancinsight/metis"]
+metis-platform = { path = "repos/metis/crates/metis-platform" }
+metis-web = { path = "repos/metis/crates/metis-web" }
+
+[patch."https://github.com/ryancinsight/metis.git"]
+metis-platform = { path = "repos/metis/crates/metis-platform" }
+metis-web = { path = "repos/metis/crates/metis-web" }
 
 [patch."https://github.com/ryancinsight/Mnemosyne"]
 mnemosyne-arena = { path = "repos/mnemosyne/crates/mnemosyne-arena" }

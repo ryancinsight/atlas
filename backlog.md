@@ -858,27 +858,6 @@ epos\consus	arget` |
 - **Dependencies:** `tools/version-guard/src/coherence/` is under active peer
   edit (staleness reporting). File first, implement when that lands.
 
-<a id="atlas-moirai-confined-manifest-pin"></a>
-## ATLAS-MOIRAI-CONFINED-MANIFEST-PIN-2026-09-10 — The ratchet red on main is a peer's in-flight split [patch] — blocked
-
-- **Integrator:** unclaimed; **lease:** none. Skipped rather than taken: the
-  cure is a live peer's, twelve minutes old when measured.
-- **Measured 2026-09-10:** `moirai/manifest_implementation: 25 -> 26` fails the
-  debt-class ratchet on every atlas push. Attributed by diffing the manifest
-  set between the recorded gitlink `8d0fbf99` and the current `7c9a8322`: one
-  new file, `moirai-pal/src/fs/confined/mod.rs`, 223 lines carrying two
-  functions and a 110-line test module.
-- **Already fixed upstream, not yet landed.** moirai `f5fda832` on
-  `refactor/moirai-confined-manifest` splits it into `open.rs` and `tests.rs`
-  and reduces the manifest by 208 lines —
-  [moirai#315](https://github.com/ryancinsight/moirai/pull/315), auto-merge
-  armed. Nothing to add to it; a second split would collide.
-- **The part atlas owns:** the ratchet reads the recorded gitlink, so the row
-  clears only when `repos/moirai` advances past that merge. That advance is
-  this item.
-- **Re-open trigger:** moirai#315 merges. Then advance the gitlink and confirm
-  `atlas-conformance.py check --revision origin/main` exits 0.
-
 <a id="atlas-moirai-06-forward-sweep"></a>
 ## ATLAS-MOIRAI-06-FORWARD-SWEEP — Moirai 0.6.0 landed without its forward sweep [arch] — done 2026-09-10
 
