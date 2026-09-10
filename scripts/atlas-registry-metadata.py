@@ -156,7 +156,7 @@ def manifests() -> list[Path]:
     if not repos.is_dir():
         return found
     for manifest in repos.glob("*/**/Cargo.toml"):
-        parts = set(manifest.parts)
+        parts = set(manifest.relative_to(REPO_ROOT).parts)
         if parts & {"target", "worktrees", ".git", "vendor"}:
             continue
         found.append(manifest)

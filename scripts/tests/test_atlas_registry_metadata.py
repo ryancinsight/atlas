@@ -23,6 +23,17 @@ def _write(path: Path, content: str) -> None:
 
 
 class RegistryMetadataTestCase(unittest.TestCase):
+    def test_manifest_discovery_ignores_only_relative_build_paths(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-registry-") as temp:
+            root = Path(temp) / "worktrees" / "atlas"
+            manifest = root / "repos" / "metis" / "Cargo.toml"
+            _write(manifest, "[package]\nname = \"metis\"\n")
+
+            with patch.object(registry, "REPO_ROOT", root):
+                discovered = registry.manifests()
+
+        self.assertEqual(discovered, [manifest])
+
     def test_root_package_resolves_its_workspace_metadata(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-registry-") as temp:
             root = Path(temp)
