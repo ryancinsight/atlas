@@ -287,6 +287,20 @@
   `semver-checks` and `tmp` — so the scan's `target_forks` class is counting at
   least two different things, and a tool that writes beside the cargo cache
   (mdBook, cargo-semver-checks) is the next hypothesis to test.
+- **How to attribute one (2026-09-09).** A fork's newest
+  `target/debug/.fingerprint/<crate>-<hash>/` entry names the exact target
+  that built into it. A `mnemosyne/target` that appeared at 22:35 was
+  identified this way as `test-integration-test-policy_integration_tests` --
+  the target this session was compiling at that minute -- which narrows the
+  generator to one invocation instead of a session's worth. Record the
+  fingerprint before sweeping; the evidence goes with the tree.
+- **A second, committed generator exists.** `repos/asclepius/.cargo/config.toml`
+  carries five `target-dir` lines of its own. A member config that re-declares
+  `target-dir` overrides the stack config for every invocation inside that
+  member, whatever the cwd -- which is the config-layer ownership rule
+  (AGENTS.md `performance_engineering`) violated in tracked form. It is not
+  what produced the forks measured above, and it is its own fix.
+
 - **Regrowth measured 2026-09-09, ~19:45.** After the seven-gitlink sweep the
   scan reported `metis/target_forks` 0 -> 1. `repos/metis/target` was 466 MB,
   held no `.cargo-lock`, and its newest write was ten minutes old, so it was
