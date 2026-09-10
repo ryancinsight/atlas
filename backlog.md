@@ -2009,6 +2009,16 @@ _Closure note (moved from heading):_ commit 99dc33fad
   file is their live work, so the row clears on their landing plus the atlas
   advance, never on a parallel split. Fleet check otherwise clean with the
   baseline recording decreases only.
+- **Follow-up ~05:00Z:** the confined split traded one row for another:
+  `confined/mod.rs` kept the entry point, validation, and inline tests, so
+  `moirai/manifest_implementation` went 25 → 26. Completed in Moirai#315
+  (entry + validation to `confined/open.rs`, tests to `confined/tests.rs`,
+  platform files importing std directly; mod.rs is docs, four declarations,
+  one re-export; moirai-pal 71 passed) with auto-merge enqueued. Two stray
+  `.tmp` PR-body drafts in the atlas live root removed (root_sprawl back to
+  0). `leto/target_forks` + `ritk/target_forks` are live builds in flight,
+  untouched. `metis/*` (fragment/mod.rs 122, five suffixed fns) and the three
+  `ritk-snap` files stay owner-held with the file-level triggers above.
 - **Burn-down ~04:30Z (integrator: prepush-slice2):** `metis/target_forks` and
   `ritk/target_forks` were pre-pin stale caches; the `repos/.cargo` pin is
   deployed and current, so both were removed and both rows cleared. Remaining
