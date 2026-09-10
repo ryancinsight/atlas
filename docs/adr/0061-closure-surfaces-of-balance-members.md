@@ -4,7 +4,7 @@
 - Date: 2026-09-09
 - Relates to: [ADR 0055](0055-continuum-domain-decomposition.md) (R7 and the
   balance/closure axis), [ADR 0030](0030-hyperion-photon-optical-promotion.md)
-- Board: [ATLAS-CLOSURE-SURFACE-SPLIT](../backlog.md#atlas-closure-surface-split)
+- Board: [ATLAS-CLOSURE-SURFACE-SPLIT](../../backlog.md#atlas-closure-surface-split)
 
 ## Context
 

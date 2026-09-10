@@ -10,7 +10,7 @@
 ## Context
 
 The first-publication sweep needs a total publish order for the stack, and
-[`scripts/publish-order.py`](../scripts/publish-order.py) computes one from
+[`scripts/publish-order.py`](../../scripts/publish-order.py) computes one from
 the resolved dependency graph over member manifests. After
 [`#publish-order-workspace-deps`](../../backlog.md#publish-order-workspace-deps)
 restored the dependency edges the order had been dropping through
@@ -146,7 +146,7 @@ fails on) keeps the existing `exit 1` and continues to gate the order.
 - Changing the rule for **dev-dependency** cycles. Dev deps are not
   recorded in the registry; the script already reports them as
   informational, and they are documented at
-  [`scripts/publish-order.py`](../scripts/publish-order.py). This ADR
+  [`scripts/publish-order.py`](../../scripts/publish-order.py). This ADR
   addresses the *optional-dependency* cycle only.
 - Splitting `optional` into a stronger form. The Cargo feature is
   the registry's contract, and the decision operates at that level.
