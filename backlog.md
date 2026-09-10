@@ -2073,6 +2073,14 @@ _Closure note (moved from heading):_ commit 99dc33fad
   file is their live work, so the row clears on their landing plus the atlas
   advance, never on a parallel split. Fleet check otherwise clean with the
   baseline recording decreases only.
+- **Detector refinement (STRONG-DEFAULT override, recorded):**
+  `type_suffixed_fns` exempted exact `to_<T>`/`from_<T>` conversion methods —
+  `F16::to_f32` names its target type across differing receivers with the math
+  in the const-generic kernel, so no generic entry point exists; eunomia
+  75 → 39 at unchanged code with the real clones (`widen_f16`,
+  `unpack_*`) retained. Fleet-wide tightening (11 keys, all decreases);
+  unit test pins the boundary. A duplicated conversion body under an exempt
+  name would escape — review watches that spot.
 - **Follow-up ~05:00Z:** the confined split traded one row for another:
   `confined/mod.rs` kept the entry point, validation, and inline tests, so
   `moirai/manifest_implementation` went 25 → 26. Completed in Moirai#315
