@@ -287,6 +287,64 @@
   be expensive to prove so.
 - **Acceptance:** zero coeus branches without an open item or enqueued pull
   request, each closed by integration or by a recorded supersession.
+- **Seven closed 2026-09-10, 15 -> 8 local.** Each verdict names what
+  superseded it, so the next sweep reads rather than re-derives.
+  - `refactor/coeus-autodiff-cache-leaves` -- **integrated** as PR #389, with
+    three review findings fixed on the way in (a non-atomic `reset_stats`, an
+    eviction that ran after the purge already freed the room, and a
+    fingerprint blind to repeated creator edges).
+  - `refactor/coeus-autodiff-cache-modules` -- **superseded twice over.** Its
+    decomposition of `autodiff_cache.rs` is answered by main's leaf set
+    (`cache`, `config`, `fingerprint`, `key`, `plan`, `plans`, `stats`), and
+    its cutile 0.3.1 pin raise by main deleting the direct `cutile`,
+    `cuda-core` and `cuda-async` dependencies from `coeus-cuda` outright --
+    CUDA now routes through `hephaestus-cuda/cuda`, so there is no pin to
+    raise. Deleted local and remote.
+  - `rescue/coeus-cache-wip` -- **superseded.** A verbatim snapshot of the
+    pre-split `autodiff_cache.rs` (1021 lines) and `backward_cache.rs` (727),
+    both since landed and then split; `var.rs`'s thread-local cache accessors
+    are on main; the two loss ops moved *further* on main than the snapshot.
+    Its one genuinely unique hunk is an uncommitted workflow overlay setting
+    `defaults.run.timeout-minutes`, which is not a key GitHub Actions accepts.
+  - `fix/adr-canonicalize` -- **superseded.** Main carries 42 ADRs, every one
+    `Status: Accepted`, and zero duplicate numbers; the branch's renumbering
+    also conflicts, since main resolved the five collisions to different
+    targets (`0063` is the comparison providers there, the parity record
+    here).
+  - `fix/coeus-linear-init` -- **superseded.** ADR 0067 is on main at 139
+    lines, Accepted, carrying measured results; the branch holds the 96-line
+    Proposed draft.
+  - `pr-344` -- **superseded.** Its premise ("this repository ran no general
+    verification") is two weeks stale: `.github/workflows/ci.yml` is on main,
+    and so are all seven `[fn@gradcheck]` disambiguations it carried.
+  - `codex/coeus-unary-math-parity` -- **dropped.** One commit, adding four
+    more `[patch]` path entries to the committed root `Cargo.toml`. That is
+    the overlay leaking into a member mainline, a counted class; the branch
+    deepens it rather than closing it.
+- **One filed rather than ported: `coeus-frobenius-v2`.** Its `81f5573c`
+  measured a real defect (dropping a `TcpStream` on Windows with unread buffer
+  data sends RST, aborting the peer's receive; idle Moirai workers accumulate
+  because the runtime is never stopped) and fixed it three prohibited ways --
+  a `block_on` in `Drop`, a committed `RUST_TEST_THREADS=1`, and a sleep for
+  "TCP state to settle". The diagnosis is what survives, filed as
+  `COEUS-TCPMESH-GRACEFUL-SHUTDOWN` (Coeus PR #391) with the shape the fix has
+  to take; the branch stays until that closes, which satisfies acceptance. Its
+  sibling commit is already satisfied on main --
+  `coeus_ops::frobenius_norm_batched` composes on `BackendOps` per ADR 0060.
+- **Method note for the remaining eight.** A three-dot diff
+  (`origin/main...branch`) shows the branch against the *merge base*, so a
+  removed line in it is what the base had, not what main has. Read that way,
+  `fix/adr-canonicalize` looks like unlanded work against a main that lost
+  it; measured against main directly, it is entirely landed. Every verdict
+  above was taken against `origin/main` content, not against a three-dot stat.
+- **Remaining, oldest and largest last:** `perf/coeus-ops-index-decode` (2
+  commits), `codex/coeus-provider-deletion-cuda` (1),
+  `codex/coeus-provider-deletion-wgpu` (3), `docs/coeus-book-closure-audit`
+  (4), `fix/coeus-autograd-honest-cache` (4),
+  `codex/coeus-frobenius-provider` (5, one commit already ruled landed),
+  `codex/coeus-comparison-parity-comparisons` (5, 6 weeks). Three exist only
+  on origin and were not in the local count: `feat/coeus-ctc-alignedvec`,
+  `fix/coeus-clippy-get-first`, `refactor/coeus-hephaestus-wgpu-001`.
 
 <a id="atlas-target-fork-regression-2026-09-09"></a>
 ## ATLAS-TARGET-FORK-REGRESSION-2026-09-09 — Cargo inside a member forks the cache [patch] — done 2026-09-09
