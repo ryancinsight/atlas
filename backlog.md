@@ -331,6 +331,49 @@
   to take; the branch stays until that closes, which satisfies acceptance. Its
   sibling commit is already satisfied on main --
   `coeus_ops::frobenius_norm_batched` composes on `BackendOps` per ADR 0060.
+- **All eight remaining closed the same day, 15 -> 5, every survivor mapped.**
+  - `codex/coeus-provider-deletion-cuda` and `-wgpu` -- **superseded.** Every
+    file they delete (`coeus-cuda/src/backend/ops/math/elementwise*`,
+    `kernels/launch_ops*`) is already absent from main, whose
+    `backend/ops/impls/elementwise.rs` routes through `ElementwiseProvider`
+    and `hephaestus_cuda` exactly as the branches proposed; both bridge
+    error-mapping tests the wgpu branch adds are on main verbatim.
+  - `docs/coeus-book-closure-audit` -- **superseded.** Its ten rewritten book
+    chapters are byte-identical to main's.
+  - `codex/coeus-frobenius-provider` -- **superseded.** Main's `huber.rs` is
+    strictly further along (provider-resident quadratic mask, retained shape
+    and mean scale, 238 lines differing), and its batched-norm commit was
+    already satisfied per ADR 0060.
+  - `codex/coeus-comparison-parity-comparisons` -- **superseded**, the
+    six-week 560-file one the item expected to be expensive. It was not: each
+    of its five subjects corresponds to a decision Accepted *and* delivered on
+    main -- fallible provider boundary (ADR 0042/0045, `Var::backward` returns
+    `Result`), device-local COW (ADR 0036, coeus PR #384). The cheap proof was
+    the ADR index plus the board's own outcome lines, not a 560-file diff.
+  - `fix/coeus-clippy-get-first` -- **superseded.** Main's CI already runs
+    `clippy --workspace --all-targets -- -D warnings` and is green.
+  - `feat/coeus-ctc-alignedvec` -- **superseded**, and misnamed: all six
+    commits are mnemosyne `rev` advances, no CTC work. Main is already past
+    them (`e8e825f4` against the branch's `e26ee02`).
+  - `refactor/coeus-hephaestus-wgpu-001` -- **merged**; zero commits ahead.
+  - `fix/coeus-autograd-honest-cache` and `perf/coeus-ops-index-decode` --
+    their one still-valid commit is re-derived rather than ported, as
+    [Coeus PR #392](https://github.com/ryancinsight/Coeus/pull/392); both
+    delete when it lands. `b40bf9b8`'s own subject no longer describes main:
+    the "dead cache stub" is now a live `topological_sort_with_cache` call and
+    the "30% overhead" README claim it corrects is already gone.
+- **Survivors, all mapped:** `ci/sync-stack-hooks` (PR #385, analysis
+  recorded on it), `coeus-frobenius-v2` (COEUS-TCPMESH-GRACEFUL-SHUTDOWN),
+  `docs/coeus-tcpmesh-shutdown-item` (PR #391), `fix/coeus-pedantic-floor`
+  (PR #392), and the two above. Acceptance is met.
+- **Adjacent finding, filed here rather than acted on.** Coeus's root manifest
+  pins `mnemosyne` by `rev` (`e8e825f4`) alongside its version requirement.
+  A `rev` pin is explicit quarantine and carries a removal trigger; this one
+  has none, and a first-party dependency should resolve by git+version so the
+  overlay and the co-evolution sweep can move it. Same class as
+  [the apollo quarantine](#atlas-apollo-moirai-quarantine-lift), one member
+  further; dropping it changes resolution, so it wants its own increment with
+  a lock update and a verified build rather than a drive-by edit.
 - **Method note for the remaining eight.** A three-dot diff
   (`origin/main...branch`) shows the branch against the *merge base*, so a
   removed line in it is what the base had, not what main has. Read that way,
