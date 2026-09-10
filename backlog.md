@@ -241,27 +241,51 @@
   that lands; consus is next by count and uncontended.
 
 <a id="atlas-coeus-abandoned-wip-2026-09-09"></a>
-## ATLAS-COEUS-ABANDONED-WIP-2026-09-09 — 61 files of stale unique work in the coeus tree [patch] — todo
+## ATLAS-COEUS-ABANDONED-WIP-2026-09-09 — 61 files of stale unique work in the coeus tree [patch] — done
+
+- **Landed, not discarded.** Verified 2026-09-09: the delta went in as
+  [Coeus #387](https://github.com/ryancinsight/Coeus/pull/387), commit
+  `9f897f2e refactor(coeus)!: Give CUDA and WGPU generic provider storage` --
+  73 files spanning the CUDA and wgpu backends, `Cargo.toml`, and
+  `backend-parity.yml`, which is the delta this item described. The item's own
+  warning was not to discard without establishing which; the evidence says
+  completed.
+- **Tree state:** `repos/coeus` was left on `test/coeus-attention-test-split`,
+  itself merged as #390, so it held a landed branch. Returned to `main`
+  (`49188365`), status clean, which closes the acceptance's last clause.
+- **Adjacent finding filed:** ATLAS-COEUS-BRANCH-INVENTORY-2026-09-09.
+
+<a id="atlas-coeus-branch-inventory-2026-09-09"></a>
+
+## ATLAS-COEUS-BRANCH-INVENTORY-2026-09-09 — Fifteen coeus branches hold unique work nobody is finishing [patch] — todo
 
 - **Integrator:** unclaimed; **lease:** none.
-- **Outcome:** the coeus working tree holds only work someone owns, so the
-  member can be verified and changed again.
-- **Measured 2026-09-09:** `repos/coeus` sits on `fix/coeus-backend-write-ownership`,
-  whose PR [#384](https://github.com/ryancinsight/Coeus/pull/384) is **merged**,
-  with 67 uncommitted paths (59 modified, 7 untracked, 1 deleted). The newest
-  edit is roughly 24 hours old, so the claim is dead by the stale-claim window.
-- **It is not superseded:** 61 of those paths differ from `origin/main`, so
-  this is unique work, not a duplicate of what #384 landed. It spans the CUDA
-  and wgpu backends, the workspace manifest, and `backend-parity.yml`.
-- **Why it blocks other items:** nothing in coeus can be gated while the tree
-  carries an unreviewed 61-file delta on a landed branch, and the branch it
-  sits on no longer exists to receive it. The existence-only sweep skipped
-  coeus's 7 sites for this reason rather than working on top of it.
-- **Acceptance:** the delta is inferred from the diff and either completed and
-  landed under its own item, or shown superseded and removed; the tree is on a
-  live branch with a clean status; coeus's committed gate passes at that head.
-- **Do not** revert or discard it without establishing which of the two it is
-  -- it is a dead peer's work, not scratch.
+- **Outcome:** every coeus branch maps to an open item or an enqueued pull
+  request, per the branch-inventory rule.
+- **Measured 2026-09-09** in `repos/coeus`, after deleting the four branches
+  already merged into `main`: **15 unmerged local branches**, ages 2 days to
+  **6 weeks**. `git cherry origin/main <branch>` reports **zero** commits
+  superseded by an equivalent patch on any of them, so none can be dropped as
+  already-landed -- each holds work that exists nowhere else.
+  - Largest deltas: `codex/coeus-comparison-parity-comparisons` (5 commits,
+    560 files, 6 weeks), `fix/coeus-autograd-honest-cache` (4 commits, 246
+    files, 3 weeks), `perf/coeus-ops-index-decode` (2 commits, 234 files, 4
+    weeks).
+  - `refactor/coeus-autodiff-cache-leaves` is hours old and also on origin:
+    live peer work, not debt.
+- **Five existed only on this disk** -- `coeus-frobenius-v2`,
+  `docs/coeus-book-closure-audit`, `fix/coeus-autograd-honest-cache`,
+  `fix/coeus-linear-init`, `pr-344` -- carrying 12 unique commits between them
+  with no remote copy, weeks old. **Pushed to origin as preservation** (no
+  merge, no pull request), because a local-only branch is one cleanup script
+  away from gone and this stack has lost lanes that way before.
+- **Not a sweep item.** Each branch is its own takeover, worked
+  closest-to-done first: rebase onto a current base, verify, integrate under
+  its item -- or establish it is superseded and delete it. The 6-week-old
+  560-file one is the likeliest to be genuinely obsolete and the likeliest to
+  be expensive to prove so.
+- **Acceptance:** zero coeus branches without an open item or enqueued pull
+  request, each closed by integration or by a recorded supersession.
 
 <a id="atlas-target-fork-regression-2026-09-09"></a>
 ## ATLAS-TARGET-FORK-REGRESSION-2026-09-09 — Cargo inside a member forks the cache [patch] — done 2026-09-09
