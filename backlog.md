@@ -257,9 +257,10 @@
 
 <a id="atlas-coeus-branch-inventory-2026-09-09"></a>
 
-## ATLAS-COEUS-BRANCH-INVENTORY-2026-09-09 — Fifteen coeus branches hold unique work nobody is finishing [patch] — todo
+## ATLAS-COEUS-BRANCH-INVENTORY-2026-09-09 — Fifteen coeus branches hold unique work nobody is finishing [patch] — in-progress
 
-- **Integrator:** unclaimed; **lease:** none.
+- **Integrator:** claude-opus-5 (2026-09-10); **lease:** `repos/coeus` refs only
+  -- no source regions, so a peer editing coeus files collides with nothing here.
 - **Outcome:** every coeus branch maps to an open item or an enqueued pull
   request, per the branch-inventory rule.
 - **Measured 2026-09-09** in `repos/coeus`, after deleting the four branches
