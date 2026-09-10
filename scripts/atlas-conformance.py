@@ -1776,20 +1776,35 @@ def baseline_raises(
     return raises
 
 
+# The classes `count_debt` reads from the live checkout rather than from the
+# scanned revision. A fresh CI checkout has neither a stray `target/` nor a
+# linked worktree, so these measure zero there by construction -- every
+# committed baseline records zero for both -- while one lane or one forked
+# cache makes them nonzero on a developer's machine. They are real debt and
+# still fail a local run; they are simply not a statement about repository
+# content, and reporting them in the same list made a forked cache read as a
+# ratchet regression.
+HOST_OBSERVED_CLASSES = ("target_forks", "excess_worktrees")
+
+
 def ratchet_delta(
     baseline: dict[str, dict[str, int]],
     results: dict[str, dict[str, int]],
-) -> tuple[list[str], list[str]]:
-    """Return baseline regressions and tightening candidates."""
-    regressions, tightenings = [], []
+) -> tuple[list[str], list[str], list[str]]:
+    """Return repository regressions, host-observed regressions, tightenings."""
+    regressions, host, tightenings = [], [], []
     for repo, counts in results.items():
         for class_name, value in counts.items():
             previous = baseline.get(repo, {}).get(class_name, 0)
             if value > previous:
-                regressions.append(f"{repo}/{class_name}: {previous} -> {value}")
+                row = f"{repo}/{class_name}: {previous} -> {value}"
+                if class_name in HOST_OBSERVED_CLASSES:
+                    host.append(row)
+                else:
+                    regressions.append(row)
             elif value < previous:
                 tightenings.append(f"{repo}/{class_name}: {previous} -> {value}")
-    return regressions, tightenings
+    return regressions, host, tightenings
 
 
 def main() -> int:
@@ -1897,14 +1912,15 @@ def main() -> int:
         print("no committed baseline; run `generate` first", file=sys.stderr)
         return 1
     base = json.loads(BASELINE.read_text())
-    regressions, tightenings = ratchet_delta(base, results)
+    regressions, host, tightenings = ratchet_delta(base, results)
     if args.json:
         print(json.dumps({
             "results": results,
             "regressions": regressions,
+            "host_regressions": host,
             "tightenings": tightenings,
         }, indent=1, sort_keys=True))
-        return 1 if regressions else 0
+        return 1 if regressions or host else 0
     for t in tightenings:
         print(f"tightened (update baseline): {t}")
     # A `--worktree` scan measures whatever is checked out, and members of
@@ -1923,8 +1939,20 @@ def main() -> int:
                     stale[repo_name] = note
     for r in regressions:
         print(f"RATCHET VIOLATION: {r}{stale.get(r.split('/', 1)[0], '')}")
-    print(f"{len(regressions)} regression(s), {len(tightenings)} tightening(s)")
-    return 1 if regressions else 0
+    for r in host:
+        print(f"HOST STATE: {r}")
+    if host:
+        print(
+            "Host state is this machine's, not the repository's -- a CI "
+            "checkout has neither, so these never reach the hosted gate. "
+            "Sweep the tree or close the lane; do not regenerate the "
+            "baseline over them."
+        )
+    print(
+        f"{len(regressions)} regression(s), {len(host)} host-state row(s), "
+        f"{len(tightenings)} tightening(s)"
+    )
+    return 1 if regressions or host else 0
 
 
 if __name__ == "__main__":

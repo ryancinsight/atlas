@@ -57,6 +57,40 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(payload["regressions"], ["demo/markers: 0 -> 1"])
         self.assertEqual(payload["tightenings"], ["demo/print_dbg: 2 -> 1"])
 
+    def test_host_state_is_reported_apart_from_repository_debt(self) -> None:
+        """A forked cache is not a regression in any repository.
+
+        `target_forks` and `excess_worktrees` read the live checkout, so a CI
+        runner measures zero for both by construction and every committed
+        baseline records zero. Reporting them beside the revision-measured
+        classes made 1.2 GB of stray `target/` read as a ratchet violation
+        while the hosted gate that never sees them reported green. They still
+        fail the run -- host debt is debt -- under their own heading.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            baseline_path = Path(temp) / "baseline.json"
+            baseline_path.write_text(
+                json.dumps({"demo": {"markers": 0, "target_forks": 0}}),
+                encoding="utf-8",
+            )
+            output = io.StringIO()
+            with (
+                patch.object(conformance, "BASELINE", baseline_path),
+                patch.object(
+                    conformance,
+                    "scan_stack",
+                    return_value={"demo": {"markers": 0, "target_forks": 1}},
+                ),
+                patch.object(sys, "argv", [str(SCRIPT), "check", "--json"]),
+                redirect_stdout(output),
+            ):
+                result = conformance.main()
+
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["regressions"], [])
+        self.assertEqual(payload["host_regressions"], ["demo/target_forks: 0 -> 1"])
+        self.assertEqual(result, 1, "host debt still fails the run it is measured on")
+
     def test_render_baseline_reproduces_the_committed_file(self) -> None:
         """The generator must reproduce its own committed artifact byte for byte.
 
