@@ -120,38 +120,69 @@ gained `fd_extensions.rs` with `pub mod fd` / `pub mod interp` re-exports. Moves
 The defect is narrow and dangerous: anyone scoping work from §3 will plan against
 a capability that does not exist.
 
-### F3 — Two ADRs Proposed since 2026-07-28 with no driver
+### F3 — Two ADRs whose status had drifted from their substance
 
-**ADR 0038 (one generic conformance suite).** `crates/hephaestus-conformance`
-exists — 21 modules, 7,020 LOC, `publish = false`. It is **additive, not a
-replacement**:
+*(Corrected 2026-09-10. The original heading called these "Two ADRs Proposed
+since 2026-07-28 with no driver." Both are in fact `Accepted`, and two of the
+three ADR-0039 complaints below rested on a wrong premise.)*
 
-- Per-backend `contract.rs` totals **16,391 lines, up from 15,939** at the ADR's
-  writing (cuda 4,098 / wgpu 5,585 / rocm 4,879 / metal 1,829). wgpu's file alone
-  holds 352 `assert`s.
-- Not generic over `<T: Scalar>`: the seam is `ComputeDevice`, and signatures read
-  `assert_dense_vector_contract<D, E: DenseVectorOps<D, f32>>` — the scalar is
-  concrete. 579 `f32` mentions against 98 `f64`. No `ComputeBackend` trait exists.
-- No one-call `assert_backend_contract::<B>()`; a backend that omits one of the 21
-  functions loses that coverage silently.
-- The crate has no `tests/` of its own, so "a deliberately broken backend fails
-  only that backend" has no home.
+**ADR 0038 (one generic conformance suite) — Accepted 2026-07-28; flipped from
+`Proposed` 2026-09-10.** `crates/hephaestus-conformance` exists: 22 files,
+7,020 LOC, `publish = false`, **21 public `assert_*_contract` free functions**,
+generic over `ComputeDevice`. It is a **dev-dependency of all four backends**,
+each calling it from 18–19 test files. The crate is therefore *not* dead — but
+it remains **additive rather than a replacement**:
 
-**ADR 0039 (topology, no consumer re-forks the vendor dimension).** Seams landed —
-`hephaestus-core` defines 72 traits and all four backends implement the main
-families. But:
+- Per-backend `contract.rs` totals **16,391 lines, up from 15,939** at the
+  ADR's writing (cuda 4,098 / wgpu 5,585 / rocm 4,879 / metal 1,829). The drain
+  the ADR asked for has not happened.
+- **Scalar genericity is partial, not absent.** The seam is `ComputeDevice`, and
+  most clauses pin the scalar via `where f32: DialectScalar<E::Dialect>`
+  (measured **616 `f32` vs 110 `f64`** mentions). But the convolution module
+  *is* scalar-generic through a local `ContractScalar: Scalar + Pod + PartialEq
+  + Debug` (implemented for both `f32` and `f64`), and `typed_elementwise.rs:78`
+  takes `<D, T>`. The real deviation is that the ADR's `<B: ComputeBackend, T:
+  Scalar>` shape was never built — **no `ComputeBackend` trait exists** — not
+  that the crate is un-generic.
+- **No one-call entry.** Zero matches for `assert_backend_contract` /
+  `assert_full_contract` / `assert_all_contracts`. A backend that omits one of
+  the 21 functions loses that coverage silently. *(Re-confirmed still open.)*
+- **No `tests/` of its own** — 0 `#[test]` in the crate and no `tests/`
+  directory, so the ADR's negative control ("a deliberately broken backend fails
+  only that backend") has no home. *(Re-confirmed still open.)*
 
-- `coeus-rocm` / `coeus-metal` are **not deleted**. `src/` is correctly reduced to
-  device acquisition, but `tests/` is still cloned: `elementwise.rs` 431 vs 428,
-  `reduction.rs` 156 vs 155, `attention.rs` 92 vs 79, `cross_entropy.rs` 69 vs 62
-  — ~1,528 lines no deletion ledger ever counted.
-- `leto` is the oracle but runs nothing: `assert_leto_differential_contract`
-  covers **9 of the 14** entry points. `svd_decompose`, `svd_rank_revealing`,
-  `schur`, `hessenberg`, `bidiagonalize` have analytical invariants only. `leto`
-  implements no role trait, so "Leto *and* each backend as implementors" is half done.
+**ADR 0039 (topology, no consumer re-forks the vendor dimension) — Accepted
+2026-07-28, revised 2026-08-12.** Two of the three original complaints were
+wrong:
+
+- ~~"`coeus-rocm` / `coeus-metal` are not deleted"~~ — **wrong premise.** All
+  four `coeus-<vendor>` crates declare `hephaestus-<vendor>` + `hephaestus-core`
+  + `coeus-hephaestus` as dependencies, i.e. they are now thin *bindings* over
+  the Hephaestus backends, not re-forks. `src/` measures rocm **152** / metal
+  **163** lines. The 2026-08-12 "Metal/ROCm provider collapse" is real: the
+  vendor dimension is **not** re-forked.
+- The ADR's own revision names the residual, and measurement agrees: **CUDA/WGPU
+  duplication remains open** — `coeus-cuda` **2,204** and `coeus-wgpu` **2,356**
+  lines of `src`, an order of magnitude more than the collapsed pair.
+- The ~1,528-line figure was real but **misattributed**: it is *test*
+  duplication, not a vendor re-fork. `coeus-rocm` + `coeus-metal` `tests/`
+  (776 + 752 = **1,528** lines) are hand-rolled clones — each defines its own
+  `assert_close`, and neither dev-depends on `hephaestus-conformance`. Across
+  all four coeus backends the hand-rolled test surface is **10,837 lines**,
+  none of it wired to the shared suite.
+- ~~"`leto` is the oracle but runs nothing: 9 of 14 entry points"~~ — **wrong.**
+  `assert_leto_differential_contract` is a private helper at
+  `hephaestus-conformance/src/decomposition.rs:87` that **is** invoked, from the
+  public `assert_decomposition_contract` at line 50. The 9 is a *deliberate
+  closed set*, documented in-source as "the decomposition operations with an
+  independent Leto oracle"; the other **6 of 15** carry analytical-invariant
+  clauses by design (`svd_recovers_exact_spectra`,
+  `general_spectral_reductions_hold_their_invariants`). The genuine gap is
+  narrower than claimed: `leto` implements no role trait, so "Leto *and* each
+  backend as implementors" is still half done.
 - Apollo's scaffold consolidation: **16 of 23 crates** still carry both
-  `application/execution/plan/` and `domain/contracts/` (baseline was 19-of-23).
-  No generic layer, and no `trait …Plan` exists anywhere.
+  `application/execution/plan/` and `domain/contracts/`; no `trait …Plan` exists
+  anywhere in the repo. *(Re-measured 2026-09-10, unchanged.)*
 
 ### F4 — `eunomia`'s `RealField` excludes half the charter
 
@@ -288,14 +319,41 @@ has not been done.
    files. This is the best single item on the list: it simultaneously removes a
    fork and gives `athena` the multigrid and block preconditioner the stack
    currently lacks entirely.
-2. **Finish ADR 0039.** Delete the ~1,528-line `coeus-rocm`/`coeus-metal` test
-   clone (the `src/` half is already done); build the generic plan layer for
-   Apollo's 16 remaining crates; make `leto` a real `DecompositionOps`
-   implementor with a role trait; add the five missing Leto oracles.
-3. **Finish ADR 0038.** Make the conformance suite generic over `<T: Scalar>`, add
-   `assert_backend_contract::<B>()`, give the crate its own tests including the
-   deliberately-broken-backend case — and only then delete the per-backend
-   `contract.rs`. Deleting first is how the suite lost its own rationale.
+2. **Finish ADR 0039** *(corrected 2026-09-10 — the original item said "delete the
+   ~1,528-line coeus-rocm/coeus-metal test clone" and "add the five missing Leto
+   oracles"; neither survives re-measurement)*. The vendor dimension is **not**
+   re-forked — all four `coeus-<vendor>` crates are thin bindings over
+   `hephaestus-<vendor>`. What remains, in priority order:
+   - **CUDA/WGPU duplication** — `coeus-cuda` 2,204 / `coeus-wgpu` 2,356 lines of
+     `src`, versus 152/163 for the already-collapsed rocm/metal pair. This is the
+     item the ADR's own 2026-08-12 revision left open.
+   - **10,837 lines of hand-rolled coeus backend tests** consume no shared suite.
+     Note these are *coverage*, not dead weight: do not delete them into a hole.
+     First decide whether `hephaestus-conformance` (generic over
+     `hephaestus_core::ComputeDevice`) can be applied to coeus-level APIs at all;
+     if not, the fix is a coeus-level shared suite, not a retrofit.
+   - Build the generic plan layer for Apollo's **16 of 23** remaining crates
+     (re-measured, unchanged; no `trait …Plan` exists anywhere).
+   - Make `leto` a real `DecompositionOps` implementor with a role trait — the one
+     surviving half of the original "Leto runs nothing" complaint.
+   - ~~Add the five missing Leto oracles~~ — **withdrawn.** The 9-of-15 split is a
+     deliberate closed set documented in-source
+     (`hephaestus-conformance/src/decomposition.rs:50-87`); the other 6 are
+     covered by analytical-invariant clauses by design.
+3. **Finish ADR 0038** *(corrected 2026-09-10)*. The crate is Accepted and wired to
+   all four backends, so this is now residual work, not construction:
+   - Add **`assert_backend_contract::<B>()`** — 21 free functions with no aggregate
+     entry, so an omitted function loses coverage silently. *(Still open.)*
+   - Give the crate **its own `tests/`**, including the deliberately-broken-backend
+     negative control. It currently has 0 `#[test]`. *(Still open.)*
+   - **Scalar genericity is partial**: bulk clauses pin `f32` via
+     `DialectScalar` (616 `f32` vs 110 `f64`), while `convolution` is already
+     generic over `ContractScalar` and `typed_elementwise` takes `<D, T>`. The
+     decision to take is whether to build the ADR's `ComputeBackend` trait — it
+     does not exist, and `ComputeDevice` is the de facto seam — not to
+     "genericize from scratch."
+   - Only then delete the per-backend `contract.rs` (16,391 lines). Deleting first
+     is how the suite lost its own rationale.
 4. **Collapse the `hermes` consumer forks** (apollo 22 files, eunomia 4, moirai 3,
    kwavers 5) and answer the moirai-below-hermes topology question by decision
    rather than by leaving it open.

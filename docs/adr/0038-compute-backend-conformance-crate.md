@@ -1,6 +1,15 @@
 # ADR 0038: One generic conformance suite owns the ComputeBackend contract
 
-- Status: Proposed
+- Status: **Accepted** — implementation **closed**; flipped from `Proposed`
+  2026-09-10 on re-measurement, having sat stale for six weeks after its
+  substance landed. The suite this ADR asks for exists as
+  `crates/hephaestus-conformance` (22 files, 7 020 LOC, `publish = false`),
+  generic over [`ComputeDevice`](hephaestus_core::ComputeDevice) and the
+  operation seam, and is a dev-dependency of **all four** backends (`wgpu`,
+  `rocm`, `cuda`, `metal`), each calling it from 18–19 test files. Residual
+  work — draining the 16 391 lines of pre-existing per-backend `contract.rs`
+  scaffolding so the shared clauses become the only contract rather than one
+  input among several — does not gate acceptance.
 - Date: 2026-07-28
 - Class: `[arch]` `[minor]`
 - Relates to: [ADR 0001](0001-gpu-accelerator-substrate.md),
@@ -53,6 +62,47 @@ independently — the duplication half. And 53 of rocm's 70 behaviours are
 verified for no other backend, while Metal is held to 40 assertions where WGPU is
 held to 130 — the coverage half. The seam's contract is not defined by the trait;
 it is defined by whichever backend's author wrote the most tests.
+
+### Re-measurement (2026-09-10) — the audit above is stale
+
+Measured across each backend's whole `tests/` tree, not `contract.rs` alone:
+
+| Backend | Files | Lines | `fn` decls | `#[test]` |
+| --- | --- | --- | --- | --- |
+| `hephaestus-wgpu` | 34 | 8 994 | 257 | **9** |
+| `hephaestus-rocm` | 21 | 5 781 | 115 | 89 |
+| `hephaestus-cuda` | 28 | 6 899 | 215 | 158 |
+| `hephaestus-metal` | 22 | 2 624 | 77 | 58 |
+| **Total** | **105** | **24 298** | **664** | **314** |
+
+`contract.rs` alone now totals 16 391 lines (wgpu 5 585, rocm 4 879, cuda 4 098,
+metal 1 829), against the 15 939 recorded above.
+
+**`wgpu` has already been restructured, and it is the precedent this ADR needs.**
+Its `contract.rs` is now a module aggregator (`mod allocation; mod recycling;
+mod storage; mod transfer;`) carrying **zero** `#[test]`. The bodies live in 21
+sibling `*_contracts.rs` files plus a 4-file `contract/` subdirectory, declared
+as plain `pub(super) fn <name>_contract()` and invoked from a small central
+dispatcher. That is why wgpu shows 257 `fn` declarations against 9 `#[test]`,
+while rocm, cuda and metal sit near 1:1.
+
+Two consequences:
+
+1. **The 2026-07-28 pairwise-overlap figures can no longer be reproduced for
+   wgpu.** The `cuda`/`wgpu` "87 shared tests" number counted names that have
+   since moved out of `contract.rs` and changed shape. Do not carry that number
+   forward — it measures a file layout that no longer exists.
+2. **The generic suite this ADR asks for already exists and is already in use**
+   (measured 2026-09-10, see Status below). `crates/hephaestus-conformance` —
+   22 files, 7 020 LOC, `publish = false` — exposes free functions generic over
+   [`ComputeDevice`](hephaestus_core::ComputeDevice) and the operation seam
+   (`assert_elementwise_contract<D, E>`, `assert_attention_contract<D, O>`,
+   `assert_dense_product_contract<D, P>`, …), and **all four backends** declare
+   it as a dev-dependency and call it from 18–19 test files each. The remaining
+   work is therefore *not* authoring a suite: it is draining the 16 391 lines of
+   local scaffolding in the per-backend `contract.rs` files that predate it, so
+   the shared clauses become the only contract rather than one input among
+   several.
 
 This is the exact condition the seam abstraction exists to prevent. A consumer
 generic over `<B: ComputeBackend>` is entitled to assume every backend satisfies
