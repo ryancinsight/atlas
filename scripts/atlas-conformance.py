@@ -130,6 +130,9 @@ SANCTIONED_ROOT = {
     # cfgs (e.g. themis/melinoe `nightly_tls_active`).
     "build.rs",
     "clippy.toml", "deny.toml", "book.toml", "pyproject.toml",
+    # A manifest-driven application declares its executable and explicit
+    # resources at the repository root, alongside Cargo.toml.
+    "metis.json",
     ".gitignore", ".gitattributes", ".gitmodules", ".git-blame-ignore-revs",
     ".envrc", ".git",
     "Makefile", "justfile", "pytest.ini", ".check_mdbook_links_allowlist",
