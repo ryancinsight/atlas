@@ -144,6 +144,33 @@
 - **Rollout order:** one member first, with a real push exercising the gate,
   before the fleet -- the hook runs fmt, clippy and tests on every push, so a
   fault in it stops 23 repositories rather than one.
+- **Rollout done 2026-09-10 for 19 of 28 members.** leto was the pilot
+  ([#189](https://github.com/ryancinsight/leto/pull/189)); its push printed
+  both `lockfile check not needed` **and** `local gate not needed`, and the
+  second line is the fall-through fix -- the old hook exited after the first
+  and never reached the gate. Every deployed copy was then checked to be
+  byte-identical to the owned source, line endings aside. 4 merged
+  (asclepius, athena, consus, gaia); 15 enqueued on auto-merge behind a queue
+  that had not started a run 20 minutes in.
+- **Nine members not deployed, each for a stated reason:**
+  - **eunomia -- blocked, and this one is a finding.** The owned `pre-commit`
+    now *fails closed* when `scripts/lockfile.py` is missing, so installing it
+    in a member that lacks that script refuses every commit there. eunomia is
+    the only member with a `.githooks/` directory and no checker; the deploy
+    refused its own commit, which is how this surfaced. The member copies of
+    `lockfile.py` are **not** stack-synced -- all five sampled differ from the
+    meta-repo's -- so it cannot be supplied by copying. eunomia needs a
+    member-appropriate checker before the fail-closed guard can land there.
+  - **iris, melinoe, prometheus** -- no `.githooks/` directory, and all three
+    also lack `scripts/lockfile.py`, so they need the checker first for the
+    same reason.
+  - **CFDrs, kwavers, metis, mnemosyne, moirai** -- uncommitted work in the
+    tree when the rollout ran; deploying would have swept a peer's changes
+    into the hook commit. Re-run the sync for these when their trees are
+    clean.
+- **`member_gate_versions` will not reach 1 until eunomia and the four
+  hookless members are resolved**, so the acceptance above needs the checker
+  question answered, not just the sync repeated.
 
 <a id="atlas-closure-surface-split"></a>
 ## ATLAS-CLOSURE-SURFACE-SPLIT — Hyperion and Asclepius are closure domains [arch] — done 2026-09-09
