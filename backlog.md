@@ -1971,6 +1971,22 @@ _Closure note (moved from heading):_ commit 99dc33fad
   file is their live work, so the row clears on their landing plus the atlas
   advance, never on a parallel split. Fleet check otherwise clean with the
   baseline recording decreases only.
+- **Burn-down ~04:30Z (integrator: prepush-slice2):** `metis/target_forks` and
+  `ritk/target_forks` were pre-pin stale caches; the `repos/.cargo` pin is
+  deployed and current, so both were removed and both rows cleared. Remaining
+  four rows, all attributed with files: `moirai/oversized_files` 33 → 34 is
+  `moirai-pal/src/fs/confined.rs` (507; the `unix`/`windows` backends move to
+  leaf files, moirai-pal 71 passed) — Moirai#314 open, auto-merge enqueued;
+  `metis/manifest_implementation` 0 → 2 is `metis-python/src/lib.rs` (32) and
+  `metis-core/.../fragment/mod.rs` (122); `metis/type_suffixed_fns` 0 → 4 is
+  `encode_string_u32`/`take_string_u32`, `utf16_length`/`is_utf16_boundary`/
+  `unicode_values_preserve_utf16_selection_coordinates`, `read_u32` — both
+  metis rows sit with the live codex session (workflow-pin branch, landing
+  every ~30 min; renames need owner judgment, untouched); `ritk/oversized`
+  45 → 48 is three `ritk-snap` files from the owner's viewer merges
+  (`action_adapter` tests 704, `dicom/loader` tests 540, `render/fusion` 528;
+  the old `reader.rs` row left as a 17-line shim) — snap owner's live area,
+  untouched. Row clears on their landing plus the atlas advance in each case.
 - **Closed 2026-09-10. The last row cleared on a parallel split, which the
   note above ruled out.** Waiting on the owner was the wrong call, and it was
   wrong for a reason worth keeping: the owner had already landed the growth
