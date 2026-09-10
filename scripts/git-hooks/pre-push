@@ -322,7 +322,9 @@ normalise_diagnostic_path() {
       [a-z]:/*|/*)
         local short_value
         if short_value="$(cygpath -m -s "$value" 2>/dev/null)"; then
-          value="$short_value"
+          # cygpath spells the drive letter upper case; the classifier's
+          # drive-path case is lower case, as the first pass left it.
+          value="$(printf '%s' "$short_value" | tr 'A-Z' 'a-z')"
         fi
         ;;
     esac

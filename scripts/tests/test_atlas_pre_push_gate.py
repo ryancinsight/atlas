@@ -365,6 +365,26 @@ class BlameClassifierTestCase(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("dependency graph is broken", stderr)
 
+    @unittest.skipUnless(shutil.which("cygpath"), "needs cygpath")
+    def test_windows_drive_path_outside_repo_reports_environment(self) -> None:
+        """cygpath spells a converted path with an upper-case drive letter
+        while the classifier's drive-path case is lower case, so an existing
+        registry file outside the repo read as inside and blamed the push.
+        The file must exist: cygpath declines a short name for one that
+        does not, and the path then never reaches the conversion."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp, \
+                tempfile.TemporaryDirectory(prefix="atlas-registry-") as registry:
+            source = pathlib.Path(registry).resolve() / "x.rs"
+            source.write_text("fn broken() {}\n", encoding="utf-8")
+            log = (
+                "error: something broke\n"
+                f"  --> {str(source).replace(chr(92), '/')}:1:1\n"
+                "error: could not compile `foreign-crate`\n"
+            )
+            code, stderr = self._gate(GateFixture(pathlib.Path(temp)), log)
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("dependency graph is broken", stderr)
+
 
 class MissingToolchainTestCase(unittest.TestCase):
     """No cargo on PATH skips the gate loudly instead of failing."""
