@@ -856,13 +856,23 @@ class AtlasConformanceTestCase(unittest.TestCase):
         # executable and installer, so a repository-level metis.json is
         # configuration rather than an unfiled report.
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
-            root = Path(temp)
+            root = Path(temp) / "metis"
             _write(root, "Cargo.toml", "[workspace]\n")
             _write(root, "metis.json", "{}\n")
 
             counts = conformance.scan_repo(root)
 
         self.assertEqual(counts["root_sprawl"], 0)
+
+    def test_metis_application_manifest_is_sprawl_for_other_repositories(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp) / "ritk"
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "metis.json", "{}\n")
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["root_sprawl"], 1)
 
     def test_cargo_manifests_prune_caches(self) -> None:
         # rglob would crawl target/ and book/; the pruned walker must skip them.
