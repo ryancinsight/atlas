@@ -52,6 +52,7 @@ cannot be mistaken for a zero-debt repository.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import io
 import json
 import os
@@ -244,6 +245,7 @@ CLASSES = [
     "default_branch_cancel_in_progress", "substrate_contract_violations",
     "balance_domain_edges", "bare_git_dependency",
     "cache_retention_policy_missing", "crlf_stored_blobs",
+    "member_gate_versions",
 ]
 
 #
@@ -261,6 +263,21 @@ WORKTREE_BOUND = 2
 TARGET_DIR_SETTING = re.compile(
     r"(?m)^target-dir\s*=\s*[\"']([^\"']+)[\"']"
 )
+
+
+def _hook_version(data: bytes) -> str:
+    """Content hash of a gate hook, insensitive to line endings.
+
+    A clean checkout on Windows reads CRLF from disk while an archived
+    snapshot of the same pin reads LF; hashing raw bytes would count one
+    logical version twice depending on which path materialized it, and the
+    count would wobble with checkout dirt instead of commits. Byte hygiene
+    stays with `crlf_stored_blobs`; this class counts forks.
+    """
+    return hashlib.sha256(
+        data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    ).hexdigest()
+
 
 # Crate- and module-level `#![allow(...)]`, counted separately from the
 # per-item `#[allow(...)]` that `allow_sites` tracks.
@@ -651,6 +668,20 @@ def _child_candidates(owner: Path, name: str, explicit: str | None) -> list[Path
     return [base / f"{file_name}.rs", base / file_name / "mod.rs"]
 
 
+def _iterdir_or_empty(d: Path):
+    """`iterdir` that skips unreadable directories.
+
+    Stale build residue can carry cross-account ACLs (a dead pytest's
+    `pytest-cache` denying even reads); the fleet scan measures trees, it
+    does not audit their permissions, so an unreadable directory contributes
+    nothing instead of aborting the scan.
+    """
+    try:
+        yield from d.iterdir()
+    except PermissionError:
+        return
+
+
 def cargo_manifests(repo: Path):
     """Yield Cargo.toml paths under a repo, pruning caches and lanes.
 
@@ -662,7 +693,7 @@ def cargo_manifests(repo: Path):
     stack = [repo]
     while stack:
         d = stack.pop()
-        for entry in d.iterdir():
+        for entry in _iterdir_or_empty(d):
             name = entry.name
             if entry.is_dir():
                 if name in PRUNE_DIRS or name.startswith("target"):
@@ -943,7 +974,7 @@ def rust_files(repo: Path):
     stack = [repo]
     while stack:
         d = stack.pop()
-        for entry in d.iterdir():
+        for entry in _iterdir_or_empty(d):
             name = entry.name
             if entry.is_dir():
                 if name in PRUNE_DIRS or name.startswith("target"):
@@ -1663,6 +1694,22 @@ def scan_stack(
                     )
                     for repo, counts in zip(targeted, counts_by_repo, strict=True):
                         out[repo.name] = counts
+                # One owned gate: distinct `.githooks/pre-push` contents
+                # across members plus the owned source. The rollout drives
+                # this to 1; anything above is fork drift. Read from the
+                # materialized content paths so a recorded-revision scan
+                # measures pinned state, never live dirt.
+                gate_hashes = set()
+                owned_gate = stack_root / "scripts" / "git-hooks" / "pre-push"
+                if owned_gate.is_file():
+                    gate_hashes.add(_hook_version(owned_gate.read_bytes()))
+                for target in targets:
+                    hook = target[0] / ".githooks" / "pre-push"
+                    if hook.is_file():
+                        gate_hashes.add(_hook_version(hook.read_bytes()))
+                    else:
+                        gate_hashes.add("<absent>")
+                meta["member_gate_versions"] = len(gate_hashes)
         if stack_root == ROOT:
             for repo in sorted(member_root.iterdir()):
                 if (

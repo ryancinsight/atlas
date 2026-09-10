@@ -788,6 +788,38 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(manifests, ["Cargo.toml"])
 
+    def test_walkers_skip_unreadable_directories(self) -> None:
+        """A directory denying reads contributes nothing, never an abort.
+
+        Stale build residue can carry cross-account ACLs; the fleet scan
+        measures trees, it does not audit their permissions.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "pkg/Cargo.toml", "[package]\nname = 'pkg'\n")
+            _write(root, "pkg/src/lib.rs", "pub fn f() {}\n")
+            _write(root, "locked/Cargo.toml", "[package]\nname = 'locked'\n")
+            locked = root / "locked"
+            real_iterdir = Path.iterdir
+
+            def gated(self: Path):
+                if self == locked:
+                    raise PermissionError(13, "denied")
+                return real_iterdir(self)
+
+            with patch.object(Path, "iterdir", gated):
+                manifests = sorted(
+                    p.relative_to(root).as_posix()
+                    for p in conformance.cargo_manifests(root)
+                )
+                sources = sorted(
+                    p.relative_to(root).as_posix()
+                    for p, _ in conformance.rust_files(root)
+                )
+
+        self.assertEqual(manifests, ["pkg/Cargo.toml"])
+        self.assertEqual(sources, ["pkg/src/lib.rs"])
+
     def test_executable_source_dirs_prune_target(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
             root = Path(temp)
@@ -821,6 +853,38 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(results["alpha"]["oversized_files"], 0)
         self.assertEqual(results["beta"]["oversized_files"], 0)
         self.assertEqual(set(results), {"<meta>", "alpha", "beta"})
+
+    def test_stack_scan_counts_distinct_gate_versions(self) -> None:
+        """`member_gate_versions` converges to 1 as the rollout lands.
+
+        Distinct `.githooks/pre-push` contents across members plus the
+        owned source: alpha matches the source, beta carries a fork, gamma
+        has no hook at all, and delta carries the source with CRLF endings
+        (a clean Windows checkout reads CRLF where an archive reads LF) --
+        still three versions, one rollout.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(
+                root,
+                ".gitmodules",
+                "[submodule \"alpha\"]\n\tpath = repos/alpha\n"
+                "[submodule \"beta\"]\n\tpath = repos/beta\n"
+                "[submodule \"gamma\"]\n\tpath = repos/gamma\n"
+                "[submodule \"delta\"]\n\tpath = repos/delta\n",
+            )
+            _write(root, "scripts/git-hooks/pre-push", "owned\n")
+            for member in ("alpha", "beta", "gamma", "delta"):
+                _write(root, f"repos/{member}/.git", "gitdir: elsewhere\n")
+            _write(root, "repos/alpha/.githooks/pre-push", "owned\n")
+            _write(root, "repos/beta/.githooks/pre-push", "forked\n")
+            delta_hook = root / "repos/delta/.githooks/pre-push"
+            delta_hook.parent.mkdir(parents=True, exist_ok=True)
+            delta_hook.write_bytes(b"owned\r\n")
+
+            results = conformance.scan_stack(root)
+
+        self.assertEqual(results["<meta>"]["member_gate_versions"], 3)
 
     def test_stack_scan_rejects_unmaterialized_provider(self) -> None:
         """An empty gitlink directory cannot masquerade as a clean provider."""

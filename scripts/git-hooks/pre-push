@@ -53,6 +53,24 @@ export GIT_CONFIG_COUNT=1
 export GIT_CONFIG_KEY_0=safe.directory
 export GIT_CONFIG_VALUE_0="$repo_root"
 
+# The remote's default branch is whatever the remote says it is: `origin/HEAD`
+# follows a rename, `origin/main` does not (hephaestus defaults to `master`).
+# Echoes the merge-base of `$1` with that branch, or nothing when neither
+# ref resolves.
+default_branch_base() {
+  local tip="$1" ref ref_sha base
+  for ref in origin/HEAD origin/main; do
+    ref_sha="$(git rev-parse --verify --quiet "$ref" 2>/dev/null || true)"
+    [ -n "$ref_sha" ] || continue
+    base="$(git merge-base "$ref_sha" "$tip" 2>/dev/null || true)"
+    if [ -n "$base" ]; then
+      printf '%s' "$base"
+      return 0
+    fi
+  done
+  return 1
+}
+
 # The check measures the *working tree*, but the push carries a revision range.
 # Those differ whenever the pushed commits were not checked out -- a plumbing
 # push, or a push from a tree sitting on another branch -- and then the hook
@@ -74,11 +92,7 @@ if [ ! -t 0 ]; then
       # against HEAD instead is vacuous exactly when it matters: pushing
       # the checked-out branch makes the base the pushed tip itself, the
       # range is empty, and a manifest-changing push skips the check.
-      if origin_main="$(git rev-parse --verify --quiet origin/main 2>/dev/null)"; then
-        base="$(git merge-base "$origin_main" "$local_sha" 2>/dev/null || true)"
-      else
-        base=""
-      fi
+      base="$(default_branch_base "$local_sha" || true)"
       [ -z "$base" ] && { touches_dependency_state=unknown; break; }
     else
       base="$remote_sha"
@@ -139,12 +153,17 @@ if [ -z "$python_bin" ]; then
 fi
 
 if [ ! -f "$checker" ]; then
-  # Nothing to enforce on a checkout that predates the tool; say so rather than
-  # passing silently, so a missing guard is visible instead of assumed.
-  # The code gate below needs no checker, so it still runs.
+  # A guard that reports its own absence and lets the push through is the
+  # absence. The code gate below would still have run, but the lock is what
+  # this section is for, and an unverified lock is the failure it exists to
+  # stop -- so refuse here and name the one deliberate way through.
   echo "pre-push: scripts/lockfile.py not present; lockfile not verified" >&2
+  echo "pre-push: push anyway with SKIP_LOCKFILE_CHECK=1 git push" >&2
+  exit 1
 elif [ -z "$python_bin" ]; then
   echo "pre-push: no python interpreter found; lockfile not verified" >&2
+  echo "pre-push: push anyway with SKIP_LOCKFILE_CHECK=1 git push" >&2
+  exit 1
 elif ! "$python_bin" "$checker" --check; then
   cat >&2 <<'MESSAGE'
 
@@ -215,14 +234,14 @@ fi
 gate_base=""
 if upstream="$(git rev-parse --verify --quiet '@{upstream}' 2>/dev/null)"; then
   gate_base="$upstream"
-elif origin_main="$(git rev-parse --verify --quiet origin/main 2>/dev/null)"; then
-  # A branch pushed for the first time has no upstream yet; its own commits are
-  # what the default branch does not have.
-  gate_base="$(git merge-base "$origin_main" HEAD 2>/dev/null || true)"
+else
+  # A branch pushed for the first time has no upstream yet; its own commits
+  # are what the default branch does not have.
+  gate_base="$(default_branch_base HEAD || true)"
 fi
 
 if [ -z "$gate_base" ]; then
-  echo "pre-push: no upstream or origin/main to diff against; local gate skipped" >&2
+  echo "pre-push: no upstream or remote default branch to diff against; local gate skipped" >&2
   exit 0
 fi
 
@@ -295,6 +314,29 @@ fi
 # says otherwise.
 #
 # Echoes 'ours', 'environment', or 'ok'.
+normalise_diagnostic_path() {
+  local value="$1"
+  value="$(printf '%s' "$value" | tr 'A-Z\' 'a-z/' 2>/dev/null)"
+
+  # Git Bash can expose the repository through its long path while cargo's
+  # diagnostics use an equivalent DOS 8.3 path (for example, RYANCL~1). Use
+  # one Windows spelling for both sides when cygpath is available; POSIX
+  # runners retain the normalized slash form above.
+  if command -v cygpath >/dev/null 2>&1; then
+    case "$value" in
+      [a-z]:/*|/*)
+        local short_value
+        if short_value="$(cygpath -m -s "$value" 2>/dev/null)"; then
+          # cygpath spells the drive letter upper case; the classifier's
+          # drive-path case is lower case, as the first pass left it.
+          value="$(printf '%s' "$short_value" | tr 'A-Z' 'a-z')"
+        fi
+        ;;
+    esac
+  fi
+  printf '%s' "$value"
+}
+
 classify_gate_step() {
   local log="$1"
   shift
@@ -304,7 +346,7 @@ classify_gate_step() {
   fi
 
   local root_normalised inside=0 outside=0 location foreign_crate=0
-  root_normalised="$(printf '%s' "$repo_root" | tr 'A-Z\' 'a-z/' 2>/dev/null)"
+  root_normalised="$(normalise_diagnostic_path "$repo_root")"
 
   # Only locations under an `error` header count. A crate that fails to compile
   # still emits warnings for whatever did compile, and counting those made the
@@ -315,7 +357,7 @@ classify_gate_step() {
   # pipeline -- every verdict then degrades to 'ours'.
   while IFS= read -r location; do
     [ -n "$location" ] || continue
-    location="$(printf '%s' "$location" | tr 'A-Z\' 'a-z/' 2>/dev/null)"
+    location="$(normalise_diagnostic_path "$location")"
     case "$location" in
       /*|[a-z]:/*)
         case "$location" in
