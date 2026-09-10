@@ -6,7 +6,7 @@
 //! # Synopsis
 //!
 //! ```text
-//! version-guard coherence --atlas-root <path> [--format human|json]
+//! version-guard coherence --atlas-root <path> [--against-remotes] [--format human|json]
 //! version-guard scan --repo <path> [--range <git-rev-spec>] \
 //!                   [--format human|json] [--commit-msg <path>]
 //! ```
@@ -22,6 +22,12 @@
 //! <path>` is supplied, the message body is read from that path; otherwise
 //! `scan` reads `git log -1 --format=%B <range>` to fetch the commit message
 //! of the head of the range.
+//!
+//! `--against-remotes` switches `coherence` from the checked-out trees to each
+//! member's remote default tip: it resolves (and refreshes) `origin/<default>`
+//! per member and reads every manifest at that commit. That is the state a
+//! consumer actually resolves, and the state a gitlink-pinned scan cannot see;
+//! it is the mode a scheduled audit runs. It reaches the network.
 
 use std::env;
 use std::ffi::OsString;
@@ -29,19 +35,22 @@ use std::path::PathBuf;
 use std::process::{Command, ExitCode};
 
 use atlas_version_guard::classify::classify_intent;
-use atlas_version_guard::coherence::scan_atlas;
+use atlas_version_guard::coherence::{View, scan_atlas};
 use atlas_version_guard::error::Error;
 use atlas_version_guard::report::{Format, Report};
 use atlas_version_guard::scan::{has_defect, scan_diff};
 
 const USAGE: &str = "\
 usage:
-  version-guard coherence --atlas-root <path> [--format human|json]
+  version-guard coherence --atlas-root <path> [--against-remotes] [--format human|json]
   version-guard scan --repo <path> [--range <git-rev-spec>] \
                      [--format human|json] [--commit-msg <path>]
 
 `coherence` scans checked-in manifests under the Atlas root and reports
-first-party requirement/version mismatches. `scan` reads the diff over
+first-party requirement/version mismatches. `--against-remotes` reads each
+member at its remote default tip instead of its checkout, which is the state a
+consumer resolves; it fetches, so it is a mode for a scheduled audit rather
+than a push gate. `scan` reads the diff over
 `<range>` (default HEAD~1..HEAD) of `*.toml` files in `<repo>` and
 classifies every touched `version =` line as Identical, Forward, or
 Backward. A Forward bump without a declared release intent
@@ -82,6 +91,7 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
         range,
         format,
         commit_msg_path,
+        against_remotes,
     } = parsed;
     match subcommand {
         Subcommand::Scan => {
@@ -110,7 +120,12 @@ fn run(arguments: impl Iterator<Item = OsString>) -> Result<ExitCode, Error> {
                 path: String::from("argv"),
                 message: String::from("missing required --atlas-root <path>"),
             })?;
-            let report = scan_atlas(&atlas_root)?;
+            let view = if against_remotes {
+                View::Remotes
+            } else {
+                View::Worktree
+            };
+            let report = scan_atlas(&atlas_root, view)?;
             print!("{}", report.render(format));
             if report.has_defect() {
                 Ok(ExitCode::from(1))
@@ -134,6 +149,7 @@ struct Parsed {
     range: Option<String>,
     format: Format,
     commit_msg_path: Option<PathBuf>,
+    against_remotes: bool,
 }
 
 fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, Error> {
@@ -143,6 +159,7 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
     let mut range: Option<String> = None;
     let mut format: Format = Format::Human;
     let mut commit_msg_path: Option<PathBuf> = None;
+    let mut against_remotes = false;
     let mut subcommand: Option<Subcommand> = None;
     let mut idx = 0;
     while idx < args.len() {
@@ -170,6 +187,7 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
                 let value = git_flag_value(&args, &mut idx, "--commit-msg")?;
                 commit_msg_path = Some(PathBuf::from(value));
             }
+            "--against-remotes" => against_remotes = true,
             "scan" => subcommand = Some(choose_subcommand(subcommand, Subcommand::Scan)?),
             "coherence" => subcommand = Some(choose_subcommand(subcommand, Subcommand::Coherence)?),
             other => {
@@ -198,6 +216,12 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
             message: String::from("missing required --atlas-root <path>"),
         });
     }
+    if against_remotes && !matches!(subcommand, Subcommand::Coherence) {
+        return Err(Error::Git {
+            command: "argv".to_string(),
+            stderr: "--against-remotes requires the coherence subcommand".to_string(),
+        });
+    }
     Ok(Parsed {
         subcommand,
         repo,
@@ -205,6 +229,7 @@ fn parse_arguments(arguments: impl Iterator<Item = OsString>) -> Result<Parsed, 
         range,
         format,
         commit_msg_path,
+        against_remotes,
     })
 }
 
@@ -335,6 +360,50 @@ mod tests {
         assert_eq!(parsed.subcommand, Subcommand::Coherence);
         assert_eq!(parsed.atlas_root, Some(PathBuf::from("/tmp/atlas")));
         assert!(parsed.repo.is_none());
+    }
+
+    #[test]
+    fn parse_accepts_against_remotes_for_coherence() {
+        let parsed = parse_arguments(
+            [
+                "coherence".into(),
+                "--atlas-root".into(),
+                "/tmp/atlas".into(),
+                "--against-remotes".into(),
+            ]
+            .into_iter(),
+        )
+        .unwrap();
+        assert_eq!(parsed.subcommand, Subcommand::Coherence);
+        assert!(parsed.against_remotes);
+    }
+
+    #[test]
+    fn parse_defaults_to_the_worktree_view() {
+        let parsed = parse_arguments(
+            [
+                "coherence".into(),
+                "--atlas-root".into(),
+                "/tmp/atlas".into(),
+            ]
+            .into_iter(),
+        )
+        .unwrap();
+        assert!(!parsed.against_remotes);
+    }
+
+    #[test]
+    fn parse_rejects_against_remotes_on_scan() {
+        let err = parse_arguments(
+            [
+                "scan".into(),
+                "--repo".into(),
+                "/tmp/x".into(),
+                "--against-remotes".into(),
+            ]
+            .into_iter(),
+        );
+        assert!(err.is_err());
     }
 
     #[test]

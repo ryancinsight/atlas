@@ -13,6 +13,7 @@
 
 mod manifest;
 mod member;
+mod remote;
 mod requirement;
 mod staleness;
 #[cfg(test)]
@@ -34,10 +35,30 @@ use manifest::{
     ParsedManifest, dependency_specs, package_index, parse_manifest, parse_manifest_content,
     workspace_dependency_index,
 };
-use member::{UnreadableDir, collect_manifests, is_first_party_source, registered_members};
+use member::{
+    UnreadableDir, collect_manifests, is_first_party_source, is_first_party_source_in_tree,
+    registered_members, remote_manifest_paths,
+};
 use requirement::matches_requirement;
 pub use staleness::StaleMember;
 use staleness::stale_members;
+
+/// Which state of the stack a coherence scan measures.
+///
+/// The two answer different questions and neither subsumes the other.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum View {
+    /// The manifests as they sit on disk. This is the advance gate: it reports
+    /// whether the recorded stack is internally consistent at the revisions
+    /// Atlas pins.
+    Worktree,
+    /// The manifests as published at each member's remote default tip. This is
+    /// the scheduled audit: a member resolves a first-party dependency by name
+    /// against that dependency's default branch, so this is the state consumers
+    /// actually resolve, and the state that broke when a provider bumped
+    /// without its consumer sweep.
+    Remotes,
+}
 
 /// One first-party requirement that does not accept the current package version.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -77,6 +98,10 @@ pub struct CoherenceReport {
     /// Directories the walk could not read, and so did not measure. Empty in
     /// the ordinary case; a non-empty list means some tree went unscanned.
     pub unscanned: Vec<UnreadableDir>,
+    /// Members whose remote default tip could not be resolved while measuring
+    /// [`View::Remotes`], so their published manifests went unmeasured. Always
+    /// empty for [`View::Worktree`], which needs no remote.
+    pub unmeasured: Vec<String>,
 }
 
 impl CoherenceReport {
@@ -121,14 +146,25 @@ impl CoherenceReport {
                 skipped.reason
             );
         }
-        if self.findings.is_empty() && self.stale.is_empty() && self.unscanned.is_empty() {
+        for member in &self.unmeasured {
+            let _ = writeln!(
+                out,
+                "{member}: no remote default tip could be resolved; its published manifests went unmeasured"
+            );
+        }
+        if self.findings.is_empty()
+            && self.stale.is_empty()
+            && self.unscanned.is_empty()
+            && self.unmeasured.is_empty()
+        {
             out.push_str("version-guard coherence: clean\n");
         } else if self.findings.is_empty() {
             let _ = writeln!(
                 out,
-                "version-guard coherence: no mismatch among the trees as checked out; {} of them are behind and {} director(ies) went unread, so this is not a verdict about what the stack publishes",
+                "version-guard coherence: no mismatch among the trees as checked out; {} of them are behind, {} director(ies) went unread, and {} member(s) were unmeasured, so this is not a verdict about what the stack publishes",
                 self.stale.len(),
-                self.unscanned.len()
+                self.unscanned.len(),
+                self.unmeasured.len()
             );
         } else {
             for finding in &self.findings {
@@ -158,6 +194,7 @@ impl CoherenceReport {
             findings: &'a [CoherenceFinding],
             stale: &'a [StaleMember],
             unscanned: &'a [UnreadableDir],
+            unmeasured: &'a [String],
         }
         let view = View {
             manifest_count: self.manifest_count,
@@ -167,56 +204,82 @@ impl CoherenceReport {
             findings: &self.findings,
             stale: &self.stale,
             unscanned: &self.unscanned,
+            unmeasured: &self.unmeasured,
         };
         serde_json::to_string(&view)
             .unwrap_or_else(|_| String::from("{\"error\":\"serialization failed\"}"))
     }
 }
 
-/// Scan all checked-in Cargo manifests under registered Atlas members.
+/// Scan first-party manifests under registered Atlas members and report every
+/// requirement the current stack does not satisfy.
 ///
-/// The scan is offline and read-only. A requirement is checked only when its
-/// dependency key or explicit `package =` target names an indexed first-party
-/// package and the requirement contains a `version =` value. Path-only
-/// dependencies are valid Cargo declarations but carry no version assertion
-/// for this particular guard to evaluate.
+/// `view` selects which state of the stack is measured; see [`View`]. The scan
+/// is read-only with respect to the members' histories. A requirement is
+/// checked only when its dependency key or explicit `package =` target names an
+/// indexed first-party package, the dependency names a first-party source (a
+/// `path` or `git` target, so a same-named third-party crate is not confused
+/// with a member), and the requirement contains a `version =` value. Path-only
+/// dependencies are valid Cargo declarations but carry no version assertion for
+/// this particular guard to evaluate.
 ///
 /// # Errors
 ///
-/// Returns [`Error::Manifest`] when the member index,
-/// a member directory, or a checked-in manifest cannot be read.
-pub fn scan_atlas(atlas_root: &Path) -> Result<CoherenceReport, Error> {
+/// Returns [`Error::Manifest`] when the member index, a member directory, or a
+/// checked-in manifest cannot be read, and [`Error::Git`] when a member's tree
+/// cannot be listed in [`View::Remotes`].
+pub fn scan_atlas(atlas_root: &Path, view: View) -> Result<CoherenceReport, Error> {
     let members = registered_members(atlas_root)?;
     let mut unscanned: Vec<UnreadableDir> = Vec::new();
-    let mut manifests = Vec::new();
-    for member in &members {
-        let root_manifest = member.path.join("Cargo.toml");
-        if !root_manifest.is_file() {
-            return Err(Error::Manifest {
-                path: root_manifest.display().to_string(),
-                message: String::from("registered member has no Cargo.toml"),
-            });
+    let mut manifests: Vec<PathBuf> = Vec::new();
+    let mut unmeasured: Vec<String> = Vec::new();
+    let mut stale: Vec<StaleMember> = Vec::new();
+    // Names, per member root, the commit whose tree the manifest reader must use
+    // instead of the working tree.
+    let origin_ref_of: BTreeMap<PathBuf, String> = match view {
+        View::Worktree => {
+            for member in &members {
+                let root_manifest = member.path.join("Cargo.toml");
+                if !root_manifest.is_file() {
+                    return Err(Error::Manifest {
+                        path: root_manifest.display().to_string(),
+                        message: String::from("registered member has no Cargo.toml"),
+                    });
+                }
+                collect_manifests(&member.path, &mut manifests, &mut unscanned)?;
+            }
+            // A behind member's working tree holds the version it had, not the
+            // version the stack publishes, so every requirement compared against
+            // it is measured against a stale number (the gaia 0.4.0 → 0.5.0
+            // case). Read such a member's manifests at its origin tip instead,
+            // so the verdict describes what a consumer would resolve.
+            let paths: Vec<&Path> = members.iter().map(|member| member.path.as_path()).collect();
+            stale = stale_members(atlas_root, &paths)?;
+            stale
+                .iter()
+                .filter_map(|entry| {
+                    let member_path = atlas_root.join(&entry.member);
+                    let commit = entry.upstream_commit.as_ref()?;
+                    Some((member_path, commit.clone()))
+                })
+                .collect()
         }
-        collect_manifests(&member.path, &mut manifests, &mut unscanned)?;
-    }
-
-    let paths: Vec<&Path> = members.iter().map(|member| member.path.as_path()).collect();
-    let stale = stale_members(atlas_root, &paths)?;
-
-    // A behind member's working tree holds the version it had, not the
-    // version the stack publishes, so every requirement compared against it
-    // is measured against a stale number (the gaia 0.4.0 → 0.5.0 case). When
-    // the member's origin tip is available, read that member's manifests at
-    // that commit instead of the working tree, so the verdict describes what a
-    // consumer would actually resolve.
-    let origin_ref_of: BTreeMap<PathBuf, String> = stale
-        .iter()
-        .filter_map(|entry| {
-            let member_path = atlas_root.join(&entry.member);
-            let commit = entry.upstream_commit.as_ref()?;
-            Some((member_path, commit.clone()))
-        })
-        .collect();
+        View::Remotes => {
+            let mut refs = BTreeMap::new();
+            for member in &members {
+                match remote::default_tip(&member.path)? {
+                    Some(commit) => {
+                        manifests.extend(remote_manifest_paths(member, &commit)?);
+                        refs.insert(member.path.clone(), commit);
+                    }
+                    // A member whose remote cannot be resolved is not evidence
+                    // of coherence. Name it so a clean verdict is qualified.
+                    None => unmeasured.push(display_member(atlas_root, &member.path)),
+                }
+            }
+            refs
+        }
+    };
 
     let parsed = manifests
         .iter()
@@ -236,7 +299,15 @@ pub fn scan_atlas(atlas_root: &Path) -> Result<CoherenceReport, Error> {
             let Some(package) = packages.get(&package_name) else {
                 continue;
             };
-            if !is_first_party_source(manifest, &dependency, &members, atlas_root) {
+            let first_party = match view {
+                View::Worktree => {
+                    is_first_party_source(manifest, &dependency, &members, atlas_root)
+                }
+                // The tree view cannot canonicalize a path that is newer than
+                // the checkout, so it confirms membership lexically instead.
+                View::Remotes => is_first_party_source_in_tree(manifest, &dependency, &members),
+            };
+            if !first_party {
                 continue;
             }
             let Some(required) = dependency.version.as_deref() else {
@@ -264,7 +335,18 @@ pub fn scan_atlas(atlas_root: &Path) -> Result<CoherenceReport, Error> {
         findings,
         stale,
         unscanned,
+        unmeasured,
     })
+}
+
+/// A member path as the report names it: relative to the Atlas root, with
+/// forward slashes, matching [`StaleMember::member`].
+fn display_member(atlas_root: &Path, path: &Path) -> String {
+    path.strip_prefix(atlas_root)
+        .unwrap_or(path)
+        .display()
+        .to_string()
+        .replace('\\', "/")
 }
 
 /// Read and parse one manifest, using the member's origin content when it is
@@ -363,10 +445,116 @@ mod tests {
             "[package]\nname = \"consumer\"\nversion.workspace = true\n[dependencies]\nprovider = { workspace = true }\n",
         )
         .expect("inherited consumer manifest");
-        let report = scan_atlas(&temp).expect("scan fixture");
+        let report = scan_atlas(&temp, View::Worktree).expect("scan fixture");
         assert_eq!(report.findings.len(), 1);
         assert_eq!(report.findings[0].actual, "0.1.0");
         let _ = std::fs::remove_dir_all(temp);
+    }
+
+    #[test]
+    fn remotes_view_sees_a_provider_bump_the_pinned_trees_hide() {
+        // The failure this view exists for: a provider publishes a break on its
+        // default branch while every gitlink-pinned checkout still satisfies the
+        // consumer's requirement, so the working-tree scan is clean. A submodule
+        // cloned at a gitlink has no `origin/HEAD`, which is exactly why
+        // `stale_members` cannot fall back to the remote there.
+        let temp = scratch("remotes");
+        let root = temp.join("atlas");
+
+        // Provider history: 0.5.0 (the pin) then 0.6.0 (the published tip).
+        let provider_upstream = temp.join("provider-upstream");
+        std::fs::create_dir_all(&provider_upstream).expect("provider upstream");
+        git(&provider_upstream, &["init", "-b", "main"]);
+        write_package(&provider_upstream, "provider", "0.5.0");
+        git(&provider_upstream, &["add", "."]);
+        git(&provider_upstream, &["commit", "-m", "0.5.0"]);
+        let pinned = git(&provider_upstream, &["rev-parse", "HEAD"]).expect("pinned sha");
+        write_package(&provider_upstream, "provider", "0.6.0");
+        git(&provider_upstream, &["add", "."]);
+        git(&provider_upstream, &["commit", "-m", "0.6.0"]);
+
+        // Consumer expects ^0.5.0 and is not swept.
+        let consumer_upstream = temp.join("consumer-upstream");
+        std::fs::create_dir_all(&consumer_upstream).expect("consumer upstream");
+        git(&consumer_upstream, &["init", "-b", "main"]);
+        std::fs::write(
+            consumer_upstream.join("Cargo.toml"),
+            "[package]\nname = \"consumer\"\nversion = \"0.1.0\"\n[dependencies]\nprovider = { package = \"provider\", version = \"0.5.0\", git = \"https://example/provider\" }\n",
+        )
+        .expect("consumer manifest");
+        git(&consumer_upstream, &["add", "."]);
+        git(&consumer_upstream, &["commit", "-m", "consumer"]);
+
+        std::fs::create_dir_all(root.join("repos")).expect("repos dir");
+        std::fs::write(
+            root.join(".gitmodules"),
+            "[submodule \"repos/provider\"]\n\tpath = repos/provider\n\turl = https://example/provider\n\n[submodule \"repos/consumer\"]\n\tpath = repos/consumer\n\turl = https://example/consumer\n",
+        )
+        .expect("gitmodules");
+
+        // Both members are gitlink-shaped: fetch the tip, check out a detached
+        // commit, and never create `origin/HEAD`.
+        let provider = root.join("repos").join("provider");
+        std::fs::create_dir_all(&provider).expect("provider dir");
+        git(&provider, &["init", "-b", "main"]);
+        git(
+            &provider,
+            &["remote", "add", "origin", &file_url(&provider_upstream)],
+        );
+        git(&provider, &["fetch", "--quiet", "origin", "main"]);
+        git(&provider, &["checkout", "--quiet", "--detach", &pinned]);
+
+        let consumer = root.join("repos").join("consumer");
+        std::fs::create_dir_all(&consumer).expect("consumer dir");
+        git(&consumer, &["init", "-b", "main"]);
+        git(
+            &consumer,
+            &["remote", "add", "origin", &file_url(&consumer_upstream)],
+        );
+        git(&consumer, &["fetch", "--quiet", "origin", "main"]);
+        let _ = git(
+            &consumer,
+            &["checkout", "--quiet", "--detach", "origin/main"],
+        );
+
+        // The recorded state is coherent: the pinned provider satisfies ^0.5.0.
+        let worktree = scan_atlas(&root, View::Worktree).expect("worktree scan");
+        assert_eq!(
+            worktree.findings.len(),
+            0,
+            "the pinned trees satisfy the requirement, so the working-tree view is clean"
+        );
+
+        // The published state is not: the provider now publishes 0.6.0.
+        let remotes = scan_atlas(&root, View::Remotes).expect("remotes scan");
+        assert!(
+            remotes.unmeasured.is_empty(),
+            "both members must resolve: {:?}",
+            remotes.unmeasured
+        );
+        assert_eq!(
+            remotes.findings.len(),
+            1,
+            "the provider bump must be reported"
+        );
+        assert_eq!(remotes.findings[0].package, "provider");
+        assert_eq!(remotes.findings[0].actual, "0.6.0");
+        assert!(remotes.has_defect());
+
+        let _ = std::fs::remove_dir_all(&temp);
+    }
+
+    fn write_package(repo: &Path, name: &str, version: &str) {
+        std::fs::write(
+            repo.join("Cargo.toml"),
+            format!("[package]\nname = \"{name}\"\nversion = \"{version}\"\n"),
+        )
+        .expect("package manifest");
+    }
+
+    /// A local path usable as a git remote URL on Windows (forward slashes).
+    fn file_url(path: &Path) -> String {
+        path.to_string_lossy().replace('\\', "/")
     }
 
     #[test]

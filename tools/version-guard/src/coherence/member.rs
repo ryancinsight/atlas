@@ -1,5 +1,6 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
+use std::process::Command;
 
 use serde::Serialize;
 
@@ -91,12 +92,136 @@ pub(crate) fn is_first_party_source(
         });
     }
     if let Some(git) = dependency.git.as_deref() {
-        let normalized = git.trim_end_matches(".git").to_ascii_lowercase();
-        return members
-            .iter()
-            .any(|member| !member.url.is_empty() && member.url.to_ascii_lowercase() == normalized);
+        return git_url_names_member(git, members);
     }
     false
+}
+
+/// Whether a `git =` URL names one of the registered members.
+///
+/// The comparison is by URL, so it needs no filesystem: a manifest read from a
+/// git tree classifies the same as one read from a working tree.
+fn git_url_names_member(git: &str, members: &[Member]) -> bool {
+    let normalized = git.trim_end_matches(".git").to_ascii_lowercase();
+    members
+        .iter()
+        .any(|member| !member.url.is_empty() && member.url.to_ascii_lowercase() == normalized)
+}
+
+/// Fold `.` and `..` out of a path without touching the filesystem.
+///
+/// `Path::canonicalize` is the wrong tool for a manifest read from a git tree:
+/// a crate added since the checkout has no on-disk directory to canonicalize,
+/// and a `..` that escapes the tree must not silently resolve to an unrelated
+/// directory that happens to exist.
+fn normalize_lexically(path: &Path) -> PathBuf {
+    let mut folded: Vec<Component> = Vec::new();
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if matches!(folded.last(), Some(Component::Normal(_))) {
+                    folded.pop();
+                } else {
+                    // A `..` above a root or prefix has nowhere to go; keep it
+                    // so the result cannot be mistaken for a location inside
+                    // the tree.
+                    folded.push(component);
+                }
+            }
+            other => folded.push(other),
+        }
+    }
+    folded.iter().collect()
+}
+
+/// True when `candidate` resolves under `base` after lexical folding.
+pub(crate) fn lexically_under(base: &Path, candidate: &Path) -> bool {
+    normalize_lexically(candidate).starts_with(normalize_lexically(base))
+}
+
+/// First-party detection that does not require the dependency to exist on disk.
+///
+/// This is the tree-view counterpart to [`is_first_party_source`]. A path
+/// dependency is judged by lexical containment in a member root rather than by
+/// `canonicalize`, so a manifest read at a remote tip classifies correctly even
+/// when the crate it names is newer than the local checkout.
+pub(crate) fn is_first_party_source_in_tree(
+    manifest: &ParsedManifest,
+    dependency: &DependencySpec,
+    members: &[Member],
+) -> bool {
+    if let Some(path) = dependency.path.as_deref() {
+        let base = if dependency.workspace {
+            members
+                .iter()
+                .find(|member| manifest.path.starts_with(&member.path))
+                .map_or_else(
+                    || manifest.path.parent(),
+                    |member| Some(member.path.as_path()),
+                )
+        } else {
+            manifest.path.parent()
+        };
+        let Some(base) = base else {
+            return false;
+        };
+        let resolved = base.join(path);
+        return members
+            .iter()
+            .any(|member| lexically_under(&member.path, &resolved));
+    }
+    if let Some(git) = dependency.git.as_deref() {
+        return git_url_names_member(git, members);
+    }
+    false
+}
+
+/// List a member's `Cargo.toml` paths as recorded at `commit`.
+///
+/// The returned paths are rooted at the member's own directory so the caller
+/// can reuse the same manifest reader and report path as the working-tree scan.
+/// Build and run-output trees are excluded by the same predicate the working
+/// tree walk uses, so a `target/`-resident manifest cannot be read from a tree
+/// either.
+///
+/// # Errors
+///
+/// Returns [`Error::Git`] when `git ls-tree` cannot be executed or fails.
+pub(crate) fn remote_manifest_paths(member: &Member, commit: &str) -> Result<Vec<PathBuf>, Error> {
+    let output = Command::new("git")
+        .arg("--no-pager")
+        .arg("-C")
+        .arg(&member.path)
+        .args(["ls-tree", "-r", "--name-only", commit])
+        .output()?;
+    if !output.status.success() {
+        return Err(Error::Git {
+            command: format!(
+                "git -C {} ls-tree -r --name-only {commit}",
+                member.path.display()
+            ),
+            stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+        });
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut paths = Vec::new();
+    for line in stdout.lines() {
+        let relative = Path::new(line.trim());
+        if relative.file_name().and_then(|name| name.to_str()) != Some("Cargo.toml") {
+            continue;
+        }
+        let skipped = relative.components().any(|component| match component {
+            Component::Normal(name) => name.to_str().is_some_and(is_not_source_tree),
+            _ => false,
+        });
+        if skipped {
+            continue;
+        }
+        paths.push(member.path.join(relative));
+    }
+    paths.sort();
+    Ok(paths)
 }
 
 /// A directory the manifest walk could not read.
@@ -193,6 +318,85 @@ mod tests {
         // … and the skipped entry's url must not leak into the url-less one.
         assert!(by_path("bare").url.is_empty());
         let _ = fs::remove_dir_all(root);
+    }
+}
+
+#[cfg(test)]
+mod tree_tests {
+    #![allow(clippy::unwrap_used)]
+
+    use super::*;
+    use std::fs;
+    use std::process::Command;
+
+    fn git(repo: &Path, args: &[&str]) {
+        let ran = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(["-c", "user.email=t@atlas.test"])
+            .args(["-c", "user.name=T"])
+            .args(args)
+            .status()
+            .unwrap()
+            .success();
+        assert!(ran, "git {args:?} failed in {repo:?}");
+    }
+
+    fn git_stdout(repo: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "git {args:?} failed");
+        String::from_utf8_lossy(&output.stdout).trim().to_owned()
+    }
+
+    #[test]
+    fn lexical_folding_accepts_descent_and_rejects_escapes() {
+        assert!(lexically_under(Path::new("/a/b"), Path::new("/a/b")));
+        assert!(lexically_under(Path::new("/a/b"), Path::new("/a/b/c/../d")));
+        // A `..` that leaves the base must not fold into a false match, and a
+        // sibling sharing a textual prefix must not either.
+        assert!(!lexically_under(Path::new("/a/b"), Path::new("/a/b/../c")));
+        assert!(!lexically_under(Path::new("/a/b"), Path::new("/a/bb")));
+    }
+
+    #[test]
+    fn remote_manifest_paths_takes_cargo_manifests_and_skips_output_trees() {
+        let root = std::env::temp_dir().join(format!("version-guard-tree-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("crates/x")).unwrap();
+        fs::create_dir_all(root.join("target")).unwrap();
+        fs::create_dir_all(root.join("output")).unwrap();
+        fs::write(root.join("Cargo.toml"), "[workspace]\n").unwrap();
+        fs::write(
+            root.join("crates/x/Cargo.toml"),
+            "[package]\nname = \"x\"\n",
+        )
+        .unwrap();
+        // A manifest under an output tree is committed state but not measured
+        // state: the working-tree walk skips these trees, so a tree read must
+        // agree, or the two views would not be comparable.
+        fs::write(root.join("target/Cargo.toml"), "[package]\nname = \"t\"\n").unwrap();
+        fs::write(root.join("output/Cargo.toml"), "[package]\nname = \"o\"\n").unwrap();
+        fs::write(root.join("README.md"), "x\n").unwrap();
+        git(&root, &["init", "-b", "main"]);
+        git(&root, &["add", "."]);
+        git(&root, &["commit", "-m", "fixture"]);
+        let commit = git_stdout(&root, &["rev-parse", "HEAD"]);
+
+        let member = Member {
+            path: root.clone(),
+            url: String::new(),
+        };
+        let paths = remote_manifest_paths(&member, &commit).unwrap();
+        assert_eq!(
+            paths,
+            vec![root.join("Cargo.toml"), root.join("crates/x/Cargo.toml")]
+        );
+        let _ = fs::remove_dir_all(&root);
     }
 }
 
