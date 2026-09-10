@@ -2,7 +2,7 @@
 
 **Generated:** post-§7-#1 re-validation pass; kwavers appended after
 the CFDrs/helios runs were complete.  Cross-references the parent
-report at `MDBOOK_DETECTOR_PARITY.md`; this document records only
+report at `detector-parity.md`; this document records only
 what is kwavers-specific.
 
 ---
