@@ -631,7 +631,7 @@ epos\consus	arget` |
 - **Acceptance:** `gitlink-coherence` reports `28 probed | 0 defects`; one unrelated `aequitas` stale-advanceable pointer remains reachable and was not changed.
 
 <a id="atlas-apollo-moirai-quarantine-lift"></a>
-## ATLAS-APOLLO-MOIRAI-QUARANTINE-LIFT — Apollo's `rev` pin is the whole remaining stack incoherence [patch] — todo
+## ATLAS-APOLLO-MOIRAI-QUARANTINE-LIFT — Apollo's `rev` pin is the whole remaining stack incoherence [patch] — done 2026-09-10
 
 - **Integrator:** unclaimed; **branch:** none; **lease:** none. Apollo is at its
   tree bound with two live lanes (`apollo-route` edited 2026-09-09T10:07Z,
@@ -683,6 +683,20 @@ epos\consus	arget` |
   unpinned, and the pinned half cannot move while apollo pins it. Advancing
   the unpinned half changes nothing the gate measures, so the sweep's order
   stands: apollo first.
+- **Closed 2026-09-10: the pin was already gone, and the item was measuring
+  its own shadow.** Apollo's root manifest requires `moirai-runtime` at
+  `version = "0.6.0"` from Moirai's default branch with no `rev`, and its lock
+  resolves that at the provider head; `cargo metadata --locked` agrees. What
+  remained was a *comment* above the requirement still instructing the next
+  reader to remove a `rev` and regenerate -- a removal trigger for a
+  quarantine that had already fired, which is why a grep for outstanding pins
+  kept returning it. Removed in
+  [apollo#387](https://github.com/ryancinsight/apollo/pull/387).
+- **The five drift rows were never apollo's requirement; they were consumer
+  locks nothing had re-resolved.** With the pin gone, each consumer still
+  carried the old `rev=83aa411` moirai tree in its own lock, because a lock
+  does not move until something moves it. That is the sweep's job, not this
+  item's, and it is recorded there.
 - **The sweep tool reached the same wall and now says so.** `atlas-lock-sweep.py`
   failed every such consumer at `cargo update`, because a bare package name is
   ambiguous when two versions are locked; it now retries with the specs cargo
@@ -845,7 +859,7 @@ epos\consus	arget` |
   edit (staleness reporting). File first, implement when that lands.
 
 <a id="atlas-moirai-06-forward-sweep"></a>
-## ATLAS-MOIRAI-06-FORWARD-SWEEP — Moirai 0.6.0 landed without its forward sweep [arch] — in-progress
+## ATLAS-MOIRAI-06-FORWARD-SWEEP — Moirai 0.6.0 landed without its forward sweep [arch] — done 2026-09-10
 
 - **Symptom:** every first-party graph that must re-resolve now fails.
   `moirai-runtime` went 0.5.0 → 0.6.0 on Moirai `main` at 2026-09-06 21:34
@@ -921,6 +935,39 @@ epos\consus	arget` |
 - **Consequence:** kwavers `main` is red and unpushable — its pre-push gate
   refuses a lock that cannot resolve — which blocks every kwavers item behind
   a dependency defect it did not cause.
+- **Closed 2026-09-10 with the last four consumers.** The overlay gate had
+  been red on `main` since the bump; `atlas-stack-overlay.py check` named five
+  repos, and each is now landed or accounted for:
+  - CFDrs [#429](https://github.com/ryancinsight/CFDrs/pull/429) and helios
+    [#96](https://github.com/ryancinsight/helios/pull/96) -- one
+    `apollo-fft` advance each. Both locks carried moirai-runtime **twice**,
+    0.5.0 at `rev=83aa411` beside 0.6.0 unpinned, and the advance collapsed
+    them to one 0.6.0 entry. That duplication is what the board measured in
+    apollo's graph; it was in every apollo consumer.
+  - asclepius [#41](https://github.com/ryancinsight/asclepius/pull/41) -- not
+    an apollo consumer at all. Its `coeus-core` pin sat at Coeus `665f715a`,
+    which still required `^0.5.0`, so the moirai advance was unreachable until
+    coeus moved.
+  - athena [#37](https://github.com/ryancinsight/athena/pull/37) -- its
+    hephaestus pin at `6cc9d065` still required `^0.5.0`, and advancing it
+    surfaced a genuine API break rather than a lock edit: hephaestus tightened
+    `DenseVectorOps`, `SparseOperatorOps` and `ComputeDevice::Buffer` to
+    require `eunomia::Pod` beside bytemuck's, so five athena bounds needed the
+    second trait written out. Verified outside the overlay: check, clippy and
+    nextest all green.
+  - The fifth is a downstream consumer outside the stack, on a peer's feature
+    branch with uncommitted work; its lock is local state CI never reads.
+- **Two lessons the tool now carries.** It found consumers only by manifest
+  declaration, so asclepius and athena -- which reach moirai through siblings
+  -- were invisible to every sweep while their locks were exactly what the
+  gate measured; discovery now falls back to the lock. And `cargo update -p
+  <crate>` fails outright when two versions are locked, which is precisely the
+  state this item's duplication produced, so the retry uses the specs cargo
+  suggests. Both landed with the sweep (`d2fe3b8ad`, and the transitive
+  discovery beside it).
+- **Order held.** Advancing the unpinned half of a duplicated lock changes
+  nothing the gate measures; the pinned half only moves when the provider that
+  pins it moves. Bottom-up was not a preference.
 - **Guard:** the version advance should have fired the coherence check
   (`tools/version-guard`). That it did not is the mechanization gap to close
   once the sweep lands.
