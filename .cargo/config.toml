@@ -3,12 +3,20 @@
 # Per the workspace build-budget policy, every repo routes its build through
 # one CARGO_TARGET_DIR so shared dependency artifacts (themis, moirai,
 # mnemosyne, half, …) are compiled once into a single cache instead of being
-# duplicated into per-repo `target/` directories. Cargo resolves this path from
-# the parent of `.cargo`, so `target` maps to the Atlas target directory on
-# both Windows and WSL. Owning the configuration at the stack root covers
-# package worktrees beneath `worktrees/`; an Atlas-meta worktree contains its
-# own copy of this file, so its tools must be built from the primary root until
-# a portable root-worktree route can preserve this exact cache path.
+# duplicated into per-repo `target/` directories.
+#
+# This relative path only reaches the Atlas target directory for builds whose
+# *workspace root* is this directory -- that is what cargo resolves
+# `build.target-dir` against, not the parent of `.cargo`. Inside
+# `repos/<member>` the workspace root is the member, and this same line would
+# resolve to that member's own `target/`. `repos/.cargo/config.toml`, generated
+# by `scripts/atlas-member-target-dir.py`, carries an absolute path for exactly
+# that case; without it, a `cargo fmt` run inside a member forks the cache.
+#
+# Owning the configuration at the stack root covers package worktrees beneath
+# `worktrees/`; an Atlas-meta worktree contains its own copy of this file, so
+# its tools must be built from the primary root until a portable root-worktree
+# route can preserve this exact cache path.
 #
 # Tradeoff (intentional, see the build-budget rule): concurrent builds across
 # repos serialize on the shared build lock — disk size outranks build
