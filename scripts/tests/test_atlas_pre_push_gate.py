@@ -42,6 +42,26 @@ def _write(path: pathlib.Path, text: str, executable: bool = False) -> None:
         path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP)
 
 
+def _path_without_python(extra_first: str) -> str:
+    """PATH minus any entry holding a python interpreter, git retained.
+
+    The hook needs git to resolve its own repository before it looks for an
+    interpreter, so emptying PATH tests the wrong failure.
+    """
+    entries = [extra_first]
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if not entry or entry in entries:
+            continue
+        probe = pathlib.Path(entry)
+        if any(
+            (probe / name).exists()
+            for name in ("python.exe", "python3.exe", "python", "python3")
+        ):
+            continue
+        entries.append(entry)
+    return os.pathsep.join(entries)
+
+
 def _path_without_cargo(extra_first: str) -> str:
     """PATH minus any entry holding a cargo binary.
 
@@ -486,3 +506,77 @@ class LockRestoreTestCase(unittest.TestCase):
             code, _ = fixture.run_hook(fixture.push_line_new_branch())
             self.assertEqual(code, 0)
             self.assertEqual(lock.read_bytes(), before)
+
+
+class UnverifiableLockTestCase(unittest.TestCase):
+    """A lockfile guard that cannot run must refuse, not announce and pass.
+
+    Both arms previously printed their reason and exited 0, which is the
+    absence of the guard with a message in front of it: the push carried an
+    unverified lock exactly as if no hook were installed, and the line
+    scrolled past in the push output.
+    """
+
+    def _branch_touching_the_lock(self, fixture: GateFixture) -> str:
+        """A never-pushed branch whose range changes `Cargo.lock`.
+
+        The lockfile section is skipped when the range touches no manifest and
+        no lock, so a fixture that does not commit one tests nothing.
+        """
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+             "-b", "feat"],
+            check=True,
+        )
+        (fixture.root / "Cargo.lock").write_text("# lock\n# touched\n")
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "add", "Cargo.lock"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+             "-m", "lock"],
+            check=True,
+        )
+        return fixture.push_line_new_branch()
+
+    def test_absent_checker_refuses_the_push(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            push_line = self._branch_touching_the_lock(fixture)
+            (fixture.root / "scripts" / "lockfile.py").unlink()
+            code, stderr = fixture.run_hook(push_line)
+            self.assertNotEqual(code, 0)
+            self.assertIn("lockfile.py not present", stderr)
+            self.assertIn("SKIP_LOCKFILE_CHECK=1", stderr)
+
+    def test_absent_interpreter_refuses_the_push(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            push_line = self._branch_touching_the_lock(fixture)
+            # `PYTHON=""` forces the hook's own search, and a PATH holding
+            # only the fixture's stub bin makes that search fail. An
+            # explicit-but-absent interpreter would instead fall through to
+            # the checker invocation and fail there, testing the wrong branch.
+            code, stderr = fixture.run_hook(
+                push_line,
+                extra_env={
+                    "PYTHON": "",
+                    "PATH": _path_without_python(str(fixture.bin)),
+                },
+            )
+            self.assertNotEqual(code, 0)
+            self.assertIn("no python interpreter found", stderr)
+            self.assertIn("SKIP_LOCKFILE_CHECK=1", stderr)
+
+    def test_the_deliberate_bypass_still_passes(self) -> None:
+        """`SKIP_LOCKFILE_CHECK=1` remains the one way through, and says so."""
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            push_line = self._branch_touching_the_lock(fixture)
+            (fixture.root / "scripts" / "lockfile.py").unlink()
+            code, stderr = fixture.run_hook(
+                push_line, extra_env={"SKIP_LOCKFILE_CHECK": "1"}
+            )
+            self.assertEqual(code, 0, stderr)
+            self.assertIn("skipped by SKIP_LOCKFILE_CHECK", stderr)
