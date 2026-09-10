@@ -452,7 +452,7 @@ epos\consus	arget` |
 - **Risk / change class:** [patch]; guard scope only, no member change.
 
 <a id="atlas-third-party-check-always-red"></a>
-## ATLAS-THIRD-PARTY-CHECK-ALWAYS-RED-2026-09-09 — A check that fails on every pull request [patch] — todo
+## ATLAS-THIRD-PARTY-CHECK-ALWAYS-RED-2026-09-09 — A check that fails on every pull request [patch] — blocked (Ask-User)
 
 - **Integrator:** unclaimed; **lease:** none.
 - **Measured 2026-09-09.** The most recently merged pull request in nine of ten
@@ -470,6 +470,38 @@ epos\consus	arget` |
 - **Acceptance:** either the app reports a real verdict on Rust workspaces of
   this size, or its integration is removed from the members so the check list
   carries only checks whose colour is load-bearing.
+- **Absorbed `ATLAS-RECURSEML-STATUS-ERROR-2026-09-03`,** which measured the
+  same thing from the other end and is deleted below. What it established and
+  this did not: the failure is a *commit status*, not a check run -- no
+  output, no summary, no log, and a target URL pointing at the PR files page
+  rather than at a run, so there is nothing to read and nothing to act on. It
+  also predates any branch it appears on (aequitas `a65ade0c`, CFDrs
+  `2561f8d0` and `39a0f45a`, all on their default branches), which is what
+  rules out "a finding about this diff" without having to trust the message.
+- **Still true 2026-09-10,** on every pull request opened today: mnemosyne
+  #139 and #140, atlas #159 and #160. Each merged on the committed gates after
+  opening the check list to confirm which red meant something.
+- **The attempt, and why this is blocked rather than todo.** Removing or
+  reconfiguring the app is an installation change, and the session's token
+  cannot see installations at all:
+
+      gh api user/installations
+      403: You must authenticate with an access token authorized to a
+      GitHub App in order to list installations
+
+  That is an authorization failure on the attempt, not a judgement call, so
+  it files as the request rather than as more analysis.
+- **The request, one of three, in preference order.** (1) Uninstall the
+  `recurseml` GitHub App from the `ryancinsight` account -- Settings ->
+  Applications -> Installed GitHub Apps -> recurseml -> Uninstall; it gates
+  nothing, so nothing is lost. (2) Keep it and restrict its repository access
+  to a single member, so one repository carries the noise and the other
+  twenty-seven do not. (3) Raise the analyzer error with the vendor and leave
+  it installed meanwhile, accepting that every check list keeps a red X that
+  means nothing. Recommendation is (1): a status that cannot pass trains
+  reviewers to skim red, which is the one habit a merge gate cannot survive.
+- **Re-open trigger:** the app is uninstalled or scoped, or the vendor's
+  analyzer starts returning a verdict on a member workspace.
 - **Risk / change class:** [patch]; repository integration settings only.
 
 <a id="atlas-member-registration-defects"></a>
@@ -801,36 +833,6 @@ epos\consus	arget` |
 <a id="atlas-cuda-driver-boundary"></a>
 ## ATLAS-CUDA-DRIVER-BOUNDARY — Own a correct dynamically loaded CUDA ABI — in-progress
 - [Hephaestus provider](repos/hephaestus/backlog.md#heph-cuda-driver-boundary) → [Apollo integration](repos/apollo/backlog.md#apollo-cuda-crt-linkage); [ADR 0001](docs/adr/0001-gpu-accelerator-substrate.md) records the corrected stack contract.
-
-## ATLAS-RECURSEML-STATUS-ERROR-2026-09-03 - Third-party analyzer errors on the merge gate [infra] - todo <a id="recurseml-status-error"></a>
-
-- **symptom:** the `recurseml/analysis` commit status reports state `error`,
-  description "Error occurred during analysis", on aequitas PR
-  [#50](https://github.com/ryancinsight/aequitas/pull/50). It surfaces in
-  `gh pr checks` as a failing check.
-- **not caused by the change under review, now confirmed across two
-  repositories.** In aequitas the identical status appears on unrelated commit
-  `a65ade0c`, predating the branch. In CFDrs it appears on `2561f8d0` and
-  `39a0f45a`, both on `main` and both predating PR #414. Two repositories, four
-  commits, one message shape: analyzer-side, not a finding about any diff.
-- **nothing to fix in the diff.** It is a commit status, not a check run: no
-  output, no summary, no log, and its target URL is the PR files page rather
-  than a run. There are no findings to act on, and editing code to make a
-  third-party analyzer stop erroring would be gaming a check rather than fixing
-  a defect.
-- **why it matters anyway:** it renders as a red check on every PR it touches,
-  so it trains reviewers and agents to ignore red - the failure mode that makes
-  a merge gate worthless. A status that cannot pass is worse than no status.
-- **options, user decision:** remove the `recurseml` GitHub App from the
-  repositories it is installed on; or keep it and exclude it from required
-  status checks so it cannot gate a merge; or raise it with the vendor. All
-  three are app or repository-settings changes, which is an Ask-User dimension.
-- **related:** the real gates on PR #50 (`verify`, `supply-chain`, `SemVer`,
-  `Lockfile integrity`) were all still queued at hand-off - see
-  `ATLAS-RUNNER-STARVATION-2026-09-02`. Local gate evidence at the exact
-  revision `89a038a` is recorded in the PR body per the hosted-CI-unavailability
-  rule: fmt clean, clippy clean at the pedantic floor, nextest 135/135,
-  doctests 9/9, doc clean.
 
 ## ATLAS-KWAVERS-ELASTIC-COLLISION-2026-09-03 - Step 2b is peer-owned; I collided with it [patch] - stood down <a id="kwavers-elastic-collision"></a>
 
