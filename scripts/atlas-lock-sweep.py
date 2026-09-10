@@ -162,6 +162,21 @@ def failure_detail(member_name: str, stage: str, stderr: str) -> str:
         return f"{stage}: {head}"
 
 
+def ambiguous_specs(crate: str, stderr: str) -> list[str]:
+    """The `name@version` specs cargo suggests when a bare name is ambiguous.
+
+    Cargo lists them one per indented line under its help text; anything else
+    in the message is prose, so the filter is the crate name and the `@`.
+    """
+    prefix = f"{crate}@"
+    specs = []
+    for line in stderr.splitlines():
+        candidate = line.strip()
+        if candidate.startswith(prefix) and candidate not in specs:
+            specs.append(candidate)
+    return specs
+
+
 def branch_name(crate: str, rev: str) -> str:
     return f"build/{crate}-{rev[:8]}"
 
@@ -253,7 +268,23 @@ def advance(row: PlanRow, crate: str, open_prs: bool) -> Outcome:
         return Outcome(consumer, "failed", f"worktree add: {added.stderr.strip().splitlines()[-1]}", False)
     try:
         update = cargo(lane, "update", "-p", crate, "--precise", target)
-        if update.returncode != 0:
+        if update.returncode != 0 and "is ambiguous" in update.stderr:
+            # Two versions of the crate are locked at once -- the state a
+            # `rev`-pinned sibling produces, since cargo cannot unify a
+            # `rev =` source with the unpinned one and resolves both. The bare
+            # package name then names neither, and cargo prints the specs it
+            # will accept; advancing each in turn moves whichever entries are
+            # not already at the target.
+            advanced = False
+            for spec in ambiguous_specs(crate, update.stderr):
+                retry = cargo(lane, "update", "-p", spec, "--precise", target)
+                if retry.returncode == 0:
+                    advanced = True
+                else:
+                    update = retry
+            if advanced:
+                update = None
+        if update is not None and update.returncode != 0:
             return Outcome(consumer, "failed", failure_detail(consumer.name, "cargo update", update.stderr), False)
         check = cargo(lane, "check", "--workspace", "--locked")
         if check.returncode != 0:
