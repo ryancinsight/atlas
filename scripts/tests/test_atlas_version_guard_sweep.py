@@ -55,6 +55,46 @@ class VersionGuardSweepTestCase(unittest.TestCase):
         self.assertNotIn("RUSTC", calls[1][1] or {})
         self.assertNotIn("RUSTDOC", calls[1][1] or {})
 
+    def test_main_selects_the_remotes_view_when_asked(self) -> None:
+        calls: list[tuple[list[str], dict[str, str] | None]] = []
+
+        def fake_run(command: list[str], *, cwd: Path, env: dict[str, str] | None, check: bool) -> object:
+            calls.append((command, env))
+            return subprocess.CompletedProcess(command, 0)
+
+        with patch.object(_sweep.subprocess, "run", side_effect=fake_run):
+            exit_code = _sweep.main(["--against-remotes"])
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("--against-remotes", calls[1][0])
+        self.assertIn("coherence", calls[1][0])
+
+    def test_the_default_view_does_not_pass_against_remotes(self) -> None:
+        calls: list[tuple[list[str], dict[str, str] | None]] = []
+
+        def fake_run(command: list[str], *, cwd: Path, env: dict[str, str] | None, check: bool) -> object:
+            calls.append((command, env))
+            return subprocess.CompletedProcess(command, 0)
+
+        with patch.object(_sweep.subprocess, "run", side_effect=fake_run):
+            exit_code = _sweep.main([])
+
+        self.assertEqual(exit_code, 0)
+        self.assertNotIn("--against-remotes", calls[1][0])
+
+    def test_an_unknown_flag_is_an_invocation_error(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run(command: list[str], *, cwd: Path, env: dict[str, str] | None, check: bool) -> object:
+            calls.append(command)
+            return subprocess.CompletedProcess(command, 0)
+
+        with patch.object(_sweep.subprocess, "run", side_effect=fake_run):
+            exit_code = _sweep.main(["--against-remotes", "--nonsense"])
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(calls, [], "no step runs when an argument is unrecognized")
+
 
 if __name__ == "__main__":
     unittest.main()
