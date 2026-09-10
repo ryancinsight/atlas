@@ -24,7 +24,7 @@
 - **Outcome:** Atlas records merged Metis `main` `4f53533d`; the locked Metis gate is green and coherence reports 28 probed, 0 defects. Runtime credentials remain outside the tree.
 
 <a id="atlas-prepush-hook-forked-across-members-2026-09-09"></a>
-## ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09 — One gate, twenty-three copies, six versions [patch] [ci] — todo
+## ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09 — One gate, twenty-three copies, six versions [patch] [ci] — in-progress
 
 - **Outcome:** the member `pre-push` gate has one stack-level owner the members
   consume, so a fix to it reaches every member instead of one.
@@ -101,6 +101,20 @@
   member gate versions and the count is 1; coeus included; and a new-branch
   push whose range changes a manifest runs the lockfile check rather than
   skipping it.
+- **Status:** in-progress; **Integrator:** prepush-slice2 (regions:
+  `scripts/git-hooks/pre-push`, `scripts/tests/test_atlas_pre_push_gate.py`,
+  `scripts/atlas-conformance.py`, `scripts/conformance-baseline.json`).
+- **2026-09-10 slice:** defect 2 (lockfile-half `exit 0`) closed by
+  `a4673d25a` (fall-through, kwavers' `return` shape in port); defect 1
+  (gate base assumes `origin/main`) closed by resolving `origin/HEAD` first
+  through one `default_branch_base` helper shared by both halves, with a
+  `master`-default fixture case that fails on the old hook (8/8 gate tests).
+  `member_gate_versions` counts distinct hook contents -- members plus owned
+  source, CRLF-blind so a clean Windows checkout and an archive of one pin
+  never count twice -- and enters the baseline at 5: 22 members share one
+  version, coeus and kwavers one each, 4 hookless (iris, melinoe, metis,
+  prometheus), owned source distinct from all. `sync-hooks --check` reports
+  32 differing hooks. Rollout (sync into members, 23 member commits) open.
 
 <a id="atlas-closure-surface-split"></a>
 ## ATLAS-CLOSURE-SURFACE-SPLIT — Hyperion and Asclepius are closure domains [arch] — done 2026-09-09
