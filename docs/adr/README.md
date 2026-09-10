@@ -69,3 +69,4 @@
 | [0059](0059-fluid-structure-coupling-phase-0.md) | Fluid-structure coupling, Phase 0 — one-way traction loading | Proposed |
 | [0060](0060-publish-order-optional-dependencies.md) | Optional dependencies are not publish-order constraints | Accepted |
 | [0061](0061-closure-surfaces-of-balance-members.md) | Hyperion and Asclepius are closure domains | Accepted |
+| [0062](0062-iterative-solver-and-preconditioner-ownership.md) | Iterative solvers and preconditioners are Athena policy over Leto kernels | Accepted |
