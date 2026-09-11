@@ -124,16 +124,47 @@ Two consequences:
    the shared clauses become the only contract rather than one input among
    several — and closing the wiring gaps below.
 
-   **Re-measured coverage gaps (2026-09-10).** The suite's opt-in shape lets a
-   backend implement a seam and never run its clause:
+   **Re-measured coverage gaps (2026-09-10, corrected same day).** The suite's
+   opt-in shape lets a backend implement a seam and never run its clause. The
+   first version of this table was wrong in both directions, so the method is
+   stated: for each consumer it checks *whether the seam is implemented* and
+   *whether the clause is referenced anywhere in that crate* (in-crate
+   `#[cfg(test)]` modules count — they are compiled and run by `cargo test`):
 
    | Consumer | Clauses wired | Gap |
    | --- | --- | --- |
    | `hephaestus-cuda` | 21 of 21 | none |
-   | `hephaestus-wgpu` | 20 of 21 | `assert_cross_entropy_contract` — `WgpuCrossEntropyOps` implements `CrossEntropyOps` (`src/application/loss/seam.rs:41`) and is unit-tested in-crate, but no integration test runs the clause |
-   | `hephaestus-rocm` | 20 of 21 | `assert_staggered_3d_contract` |
-   | `hephaestus-metal` | 20 of 21 | `assert_staggered_3d_contract` |
+   | `hephaestus-wgpu` | 21 of 21 | none |
+   | `hephaestus-rocm` | 19 of 21 | `assert_staggered_3d_contract` — **no gap**: rocm implements no `Staggered3DOps`, so there is no seam to run it against |
+   | `hephaestus-metal` | 21 of 21 | none — **closed 2026-09-10**; `tests/staggered_contracts.rs` wires `assert_staggered_3d_contract` for the `Staggered3DOps` impl at `src/application/stencil.rs:131` |
    | `hephaestus-host` | **2 of 22** | 20 clauses; 18 of them have no seam to run against — see below |
+
+   **Two corrections to what this table said before.** Both were errors of
+   measurement, and both were caught by checking the seam as well as the clause:
+
+   - `hephaestus-wgpu` was recorded as missing the cross-entropy clause because
+     "no integration test runs it". The clause *is* run —
+     `src/application/loss/tests.rs:41` calls it from the crate's own `#[cfg(test)]`
+     module, registered in the case table at `:12-16`. Nothing about the clause's
+     coverage depends on that module being inside the crate rather than under
+     `tests/`: `cargo test` compiles and runs both. The claim was technically
+     true and substantively wrong.
+   - `hephaestus-rocm` was recorded as having a wiring gap on the same clause as
+     metal. It has no such gap and cannot: rocm's staggered support does not
+     exist (`grep -r Staggered3D crates/hephaestus-rocm/` returns nothing), so
+     the missing clause follows from the missing seam. That is a capability
+     difference between backends, which is a different kind of fact and belongs
+     in a different record — it is not work the conformance suite can close.
+
+   Also worth recording, because it makes the remaining gap *invisible* rather
+   than merely absent: wgpu's clause runs behind `device_or_skip()`
+   (`src/application/loss/tests.rs:250`), which returns early when no adapter is
+   available. 174 such early returns exist across the crate. Locally that means
+   a green run with the clause executing nothing — but CI is not fooled:
+   `.github/workflows/wgpu.yml` runs a "software-adapter contracts" job with
+   `HEPHAESTUS_WGPU_REQUIRE_DEVICE: "1"`, and `acquisition/tests.rs:37` turns a
+   skip into a failure when it is set. The pattern is sound; a reader of the
+   clause call site alone would not know that.
 
    **The `hephaestus-host` row is an implementation gap, not a wiring gap
    (measured 2026-09-10).** The other four consumers are missing one clause
