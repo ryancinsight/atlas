@@ -139,6 +139,21 @@ SANCTIONED_ROOT = {
     ".provider-identity-baseline",
 }
 
+# The Metis and RITK manifest-driven applications declare their executables
+# and explicit resources at the repository root, alongside Cargo.toml.
+APPLICATION_MANIFEST_ROOT = frozenset({"metis.json"})
+REPOSITORY_SANCTIONED_ROOT = {
+    "metis": APPLICATION_MANIFEST_ROOT,
+    "ritk": APPLICATION_MANIFEST_ROOT,
+}
+
+
+def sanctioned_root_names(repo: Path) -> set[str]:
+    """Return root configuration names sanctioned for one repository."""
+    return SANCTIONED_ROOT | REPOSITORY_SANCTIONED_ROOT.get(
+        repo.name.casefold(), frozenset()
+    )
+
 # A submodule's `.git` is a gitlink *file*, not a directory, so it would
 # otherwise be counted as unfiled root sprawl in every member repository.
 
@@ -576,19 +591,21 @@ def count_root_sprawl(repo: Path, live_repo: Path | None = None) -> tuple[int, i
     answer differently depending on where it ran.
     """
     live_repo = live_repo or repo
+    sanctioned = sanctioned_root_names(repo)
+    live_sanctioned = sanctioned_root_names(live_repo)
     untracked_here = untracked_root_names(repo)
     carried = sum(
         1
         for e in repo.iterdir()
         if e.is_file()
-        and e.name not in SANCTIONED_ROOT
+        and e.name not in sanctioned
         and e.name not in untracked_here
     )
     untracked = sum(
         1
         for e in live_repo.iterdir()
         if e.is_file()
-        and e.name not in SANCTIONED_ROOT
+        and e.name not in live_sanctioned
         and e.name in untracked_root_names(live_repo)
     )
     return carried, untracked

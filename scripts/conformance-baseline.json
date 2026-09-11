@@ -886,7 +886,7 @@
     "print_dbg": 0,
     "pull_request_target_use": 0,
     "reexport_shims": 0,
-    "root_sprawl": 1,
+    "root_sprawl": 0,
     "root_sprawl_untracked": 0,
     "seqcst_production": 0,
     "sleep_synced_tests": 0,
