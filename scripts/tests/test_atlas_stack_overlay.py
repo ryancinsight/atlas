@@ -261,6 +261,35 @@ class CanonicalOverlayDiscoveryTestCase(unittest.TestCase):
 
             self.assertEqual(manifests, [registered])
 
+    def test_check_locks_ignores_unregistered_private_checkout(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
+            root = Path(root_text)
+            registered = root / "repos" / "registered" / "Cargo.lock"
+            unregistered = root / "repos" / "private" / "Cargo.lock"
+            for lock in (registered, unregistered):
+                lock.parent.mkdir(parents=True, exist_ok=True)
+                lock.write_text(
+                    "[[package]]\n"
+                    'name = "moirai-core"\n'
+                    'version = "0.5.0"\n'
+                    'source = "git+https://github.com/ryancinsight/Moirai"\n',
+                    encoding="utf-8",
+                )
+            packages = {
+                "moirai-core": (Path("repos/moirai"), "0.6.0"),
+            }
+            with patch.object(_overlay, "ATLAS_ROOT", root), patch.object(
+                _overlay, "REPOS", root / "repos"
+            ), patch.object(
+                _overlay, "registered_member_names", return_value={"registered"}
+            ):
+                drift = _overlay.check_locks(packages)
+
+            self.assertEqual(
+                drift,
+                ["repos/registered/Cargo.lock: `moirai-core` locked 0.5.0, local tree 0.6.0"],
+            )
+
     def test_workspace_inherited_version_is_resolved_from_registered_root(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-overlay-") as root_text:
             root = Path(root_text)
