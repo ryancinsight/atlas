@@ -128,10 +128,12 @@ three ADR-0039 complaints below rested on a wrong premise.)*
 
 **ADR 0038 (one generic conformance suite) — Accepted 2026-07-28; flipped from
 `Proposed` 2026-09-10.** `crates/hephaestus-conformance` exists: 22 files,
-7,020 LOC, `publish = false`, **21 public `assert_*_contract` free functions**,
-generic over `ComputeDevice`. It is a **dev-dependency of all four backends**,
-each calling it from 18–19 test files. The crate is therefore *not* dead — but
-it remains **additive rather than a replacement**:
+7,020 LOC, `publish = false`, **22 public `assert_*_contract` free functions**
+(twenty take a seam, one — `assert_transfer_contract` — takes only
+`ComputeDevice`, and `convolution` ships two), generic over `ComputeDevice`. It
+is a **dev-dependency of five crates** — the four accelerator backends, each
+calling it from 18–19 test files, plus `hephaestus-host`. The crate is therefore
+*not* dead — but it remains **additive rather than a replacement**:
 
 - Per-backend `contract.rs` totals **16,391 lines, up from 15,939** at the
   ADR's writing (cuda 4,098 / wgpu 5,585 / rocm 4,879 / metal 1,829). The drain
@@ -144,12 +146,17 @@ it remains **additive rather than a replacement**:
   takes `<D, T>`. The real deviation is that the ADR's `<B: ComputeBackend, T:
   Scalar>` shape was never built — **no `ComputeBackend` trait exists** — not
   that the crate is un-generic.
-- **No one-call entry.** Zero matches for `assert_backend_contract` /
-  `assert_full_contract` / `assert_all_contracts`. A backend that omits one of
-  the 21 functions loses that coverage silently. *(Re-confirmed still open.)*
+- ~~**No one-call entry.**~~ — **delivered 2026-09-10.** `assert_backend_contract`
+  over `BackendUnderTest` names all twenty seam clauses in one signature, so a
+  consumer that omits a seam fails to compile at the call site
+  (`hephaestus-conformance/src/assert_backend.rs`, `hephaestus@f2aaf64`). It is a
+  struct, not a function: the workspace denies `too_many_arguments`, so twenty
+  parameters cannot be a signature.
 - **No `tests/` of its own** — 0 `#[test]` in the crate and no `tests/`
   directory, so the ADR's negative control ("a deliberately broken backend fails
-  only that backend") has no home. *(Re-confirmed still open.)*
+  only that backend") has no home. *(Still open, and correctly sequenced later:
+  the control needs a device that reaches the seams, and the only candidate host
+  implements one of nineteen — see Tier A item 3.)*
 
 **ADR 0039 (topology, no consumer re-forks the vendor dimension) — Accepted
 2026-07-28, revised 2026-08-12.** Two of the three original complaints were
@@ -411,18 +418,33 @@ has not been done.
      deliberate closed set documented in-source
      (`hephaestus-conformance/src/decomposition.rs:50-87`); the other 6 are
      covered by analytical-invariant clauses by design.
-3. **Finish ADR 0038** *(corrected 2026-09-10)*. The crate is Accepted and wired to
-   all four backends, so this is now residual work, not construction:
-   - Add **`assert_backend_contract::<B>()`** — 21 free functions with no aggregate
-     entry, so an omitted function loses coverage silently. *(Still open.)*
+3. **Finish ADR 0038** *(corrected 2026-09-10, second pass)*. The crate is Accepted
+   and wired to all four accelerator backends, so this is residual work, not
+   construction:
+   - ~~Add **`assert_backend_contract::<B>()`**~~ — **delivered 2026-09-10** as
+     `assert_backend_contract` over `BackendUnderTest`
+     (`hephaestus-conformance/src/assert_backend.rs`, `hephaestus@f2aaf64`). It is
+     a struct of twenty seam references rather than a twenty-parameter function,
+     because the workspace denies `too_many_arguments`; and it names the twenty
+     clauses directly rather than through a `ComputeBackend` trait, because the
+     clauses' marker bounds (`SumOp: CombineExpr<R::Dialect>`, `f32:
+     OpIdentity<SumOp>`, …) resolve from the concrete seam type at the call site.
    - Give the crate **its own `tests/`**, including the deliberately-broken-backend
-     negative control. It currently has 0 `#[test]`. *(Still open.)*
+     negative control. *(Still open — see the blocker below.)*
+   - **`hephaestus-host` is not the near-term home for that control.** The ADR
+     previously read "19 clauses not run against the host." Measured: the host
+     implements **one** of the nineteen seam traits (`DecompositionOps`), so 18
+     of the missing 20 clauses have no seam to run against and cannot be wired.
+     The host is the right *eventual* oracle — it is the second full
+     instantiation of the suite and the only one debuggable directly — but
+     closing its row is eighteen seam implementations, not eighteen test
+     additions. Sequencing it behind the accelerator backends is correct.
    - **Scalar genericity is partial**: bulk clauses pin `f32` via
      `DialectScalar` (616 `f32` vs 110 `f64`), while `convolution` is already
      generic over `ContractScalar` and `typed_elementwise` takes `<D, T>`. The
      decision to take is whether to build the ADR's `ComputeBackend` trait — it
-     does not exist, and `ComputeDevice` is the de facto seam — not to
-     "genericize from scratch."
+     does not exist, and the aggregate entry point's failure to be tractable
+     without concrete seams is now measured evidence that it should not.
    - Only then delete the per-backend `contract.rs` (16,391 lines). Deleting first
      is how the suite lost its own rationale.
 4. **Collapse the `hermes` consumer forks** (apollo 22 files, eunomia 4, moirai 3,
