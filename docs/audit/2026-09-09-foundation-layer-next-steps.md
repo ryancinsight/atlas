@@ -184,15 +184,42 @@ wrong:
   `application/execution/plan/` and `domain/contracts/`; no `trait …Plan` exists
   anywhere in the repo. *(Re-measured 2026-09-10, unchanged.)*
 
-### F4 — `eunomia`'s `RealField` excludes half the charter
+### F4 — `eunomia`'s scalar layering is deliberate (finding withdrawn)
 
-`RealField` is implemented for `f32` and `f64` only
-(`crates/eunomia/src/impls/field.rs:11,30`); `ComplexField` inherits the
-restriction. `UnitScalar` covers all ten real storage types (`f32`, `f64`, `F16`,
-`F32`, `F64`, `F4`, `F8`, `Bf4`, `Bf8`, `Bf16`) and `NumericElement` reaches them
-by macro. So every domain function bounded by `T: RealField` silently excludes
-the entire reduced-precision half of the datatype law. Either implement it or
-document the exclusion — today it is neither.
+*(Corrected 2026-09-10. The original finding read: "`eunomia`'s `RealField`
+excludes half the charter … So every domain function bounded by `T: RealField`
+silently excludes the entire reduced-precision half of the datatype law. Either
+implement it or document the exclusion — today it is neither." **That is
+wrong.** The exclusion is documented, intentional, and load-bearing.)*
+
+What is actually there:
+
+- `RealField` is implemented for `f32` and `f64`
+  (`crates/eunomia/src/impls/field.rs:11,30`), and `ComplexField` builds on it
+  (`:51`, `:118`). The scope is stated in the trait's own doc:
+  *"The `nalgebra::RealField` analogue. Implemented for `f32`/`f64`."*
+- `FloatElement` covers **all ten** storage types — `f32`, `f64`, and the eight
+  reduced-precision ones (`impls/wrappers/float.rs:32-199`,
+  `impls/unit.rs:19`). So the arithmetic surface is **not** truncated; only the
+  *field* vocabulary is.
+- The split is principled. `RealField` demands the mathematical constants
+  (`PI`, `TAU`, `E`, `LN_2`, `SQRT_2`, …) as `const`s, which the sub-byte
+  formats cannot meaningfully supply. `FloatElement` instead carries an
+  `Accumulator` policy with a full numerical-analysis justification
+  (`traits/float.rs:8-52`): identity for `f32`/`f64`, `f32` for reduced
+  precision, widened to lift them off their **stagnation** point (`n ≈ 1/ε`,
+  i.e. `n ≈ 256` for `bf16`) rather than for accuracy — since the widening is
+  exact for any ≤11-bit significand.
+- The exclusion is **relied upon**. `coeus-autograd/src/gradcheck.rs:114-118`
+  derives machine epsilon from `T`'s own arithmetic *specifically to keep*
+  `RealField` out of `gradcheck`'s public bound, "excluding the
+  reduced-precision types that implement `Float` but not `RealField`." Widening
+  `RealField` would break that decision.
+
+The real, smaller note this finding should have carried: `gradcheck.rs` calls
+`eunomia` a **dev-dependency** of `coeus-autograd`. If accurate, any future
+cross-layer widening needs `eunomia` promoted to a true dependency first — an
+unrecorded cost, and the only actionable thread here.
 
 Also: **ADR numbers are not namespaced.** Atlas `docs/adr/0005-…` is the
 `NumericElement` SSOT (Accepted, closed 2026-07-05); `repos/eunomia/docs/adr/0005-…`
@@ -305,6 +332,50 @@ symmetric SH basis exists at
   divergence) and `:746` (radix-table disagreement). The practical cost is that
   apollo's performance evidence is not reproducible in CI.
 
+### F8 — `hephaestus-metal` is retired doctrine sitting on an unrun removal
+*(Added 2026-09-10.)*
+
+The crate still exists (8,583 lines: 5,959 `src` + 2,624 `tests`) although its
+own manifest says it is dead: `crates/hephaestus-metal/Cargo.toml:9` reads
+*"Retired by ADR 0047: a forwarding layer over `hephaestus-wgpu` with the Metal
+adapter selected."* That citation is **wrong** — `docs/adr/0047-…` is the
+`SliceSeries` coordinate-map decision. The retirement is actually mandated by
+the board item **`ATLAS-ARCH-011`** (`backlog.md:7836`), which itself cites ADR
+0047; the mis-citation appears to be inherited from that row. Fix the citation
+regardless of what happens to the crate.
+
+The removal is **done work that was reverted**, not pending work.
+`ATLAS-ARCH-011` records the hephaestus-side deletion as mechanically complete
+and verified — member entry, workspace dep, facade optional dep and its three
+`?/` feature entries, the `metal` feature re-pointed to `["wgpu"]`, the
+`pub use hephaestus_metal as metal` re-export, and the crate itself, with zero
+residual references under `repos/hephaestus`. It was reverted solely because
+`repos/coeus` still declared the crate (`coeus/Cargo.toml:64`; re-verified
+2026-09-10 — **the blocker is still live**), and the stack overlay emits a
+`[patch]` for a then-nonexistent directory, failing every build beneath the
+stack root.
+
+Why this is worth landing rather than re-deferring: this is the *same* topology
+law as ADR 0039. Metal's native path is already gone and the delegation is a
+pure forwarding layer, so deleting it costs no capability, and
+`coeus-metal` — the sole reason the blocker persists — measures **915 lines with
+zero in-repo dependents**, reproducing nothing that `coeus-hephaestus` does not
+already do generically. One co-evolution unit closes both.
+
+Corrections to the `ATLAS-ARCH-011` row (all figures now measured):
+
+| Row says | Actually |
+| --- | --- |
+| "5 449 forwarding lines plus 2 606 test lines" | **5,959** `src` + **2,624** `tests` = **8,583** |
+| "`coeus-metal` is 1 233 lines" | **915** |
+| "a file-for-file copy of `coeus-rocm`" | Weaker than claimed: a `find`-order diff shows only 2 same-position pairs, and the `src` trees are 152 vs 163 lines. The *test* bodies are near-identical (431/428) — that part holds |
+| "no `hephaestus_metal` reference outside Coeus's tracked item" | Consistent with what I measure |
+| "`coeus-hephaestus` implements the whole op surface generically" | Consistent |
+
+Sequencing: run this **after** the `coeus` lock prune, not before — it is a
+manifest edit in a peer-claimed repo, and the AC-011 replay note already says a
+~15-minute mechanical re-apply.
+
 ## 3. Next steps
 
 ### Tier A — ownership on disk (deletions and moves, no new algorithms)
@@ -360,8 +431,30 @@ has not been done.
 
 ### Tier B — capability holes nobody has recorded
 
-5. **`eunomia`: implement `RealField` for the reduced-precision types**, or
-   document the exclusion. Nothing else in the law layer gates as much.
+5. **`eunomia`: `RealField`'s f32/f64 scope is a design decision, not a hole**
+   *(corrected 2026-09-10 — the original item read "implement `RealField` for the
+   reduced-precision types, or document the exclusion. Nothing else in the law
+   layer gates as much." That is **wrong on both halves**, and acting on it would
+   have caused harm.)*
+   - It is **already documented**: `traits/float.rs:16` reads "The
+     `nalgebra::RealField` analogue. Implemented for `f32`/`f64`."
+   - Implementing it more widely is **not wanted**. `RealField` requires the
+     mathematical constants to be representable as `const`s, which is not true
+     for the sub-byte formats; and `coeus-autograd/src/gradcheck.rs:114-118`
+     records the exclusion as load-bearing, deriving machine epsilon from `T`'s
+     own arithmetic *precisely so that* `RealField` stays out of the public bound
+     and the reduced-precision types remain usable. Implementing `RealField` for
+     them would either fail to compile or silently pull them out of `gradcheck`.
+   - That file also calls `eunomia` a **dev-dependency** of `coeus-autograd`.
+     Verify that before any cross-layer widening argument — it would mean a
+     promote-to-`[dependencies]` is the real (and unrecorded) cost.
+   - The genuine coverage question is different and smaller: `FloatElement` does
+     cover all ten types (`impls/wrappers/float.rs:32-199`) with a documented
+     `Accumulator` policy, so the arithmetic surface is intact. Whether anything
+     *should* consume the reduced-precision half is a demand question, and no
+     consumer currently asks (zero `F16`/`Bf16` uses in `gaia`; `coeus` uses it
+     only in tests plus internal float handling). **Recommendation: close this as
+     working-as-intended; do not implement.**
 6. **`coeus`: second-order autodiff** — `jvp`/`hvp`, `double_backward`,
    `hessian`. Unblocks kwavers' PINN work. Then bridge `LevenbergMarquardt` to
    `coeus-autograd` and add a sparse/iterative variant.
