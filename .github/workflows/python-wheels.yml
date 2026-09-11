@@ -42,6 +42,37 @@ on:
         required: false
         default: '["3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]'
         type: string
+      free-threaded:
+        description: >-
+          Build version-specific free-threaded CPython wheels. The values must
+          use the CPython t suffix, for example 3.13t and 3.14t. These rows
+          cover glibc Linux, Windows and macOS; the official Python Alpine
+          images do not provide matching free-threaded images.
+        required: false
+        default: false
+        type: boolean
+      free-threaded-versions:
+        description: JSON array of free-threaded CPython versions
+        required: false
+        default: '["3.14t", "3.15t"]'
+        type: string
+      abi3t:
+        description: Build Python 3.15 stable free-threaded ABI wheels
+        required: false
+        default: false
+        type: boolean
+      abi3t-python:
+        description: Free-threaded Python interpreter used for abi3t wheels
+        required: false
+        default: "3.15t"
+        type: string
+      abi3t-features:
+        description: >-
+          Comma-separated Cargo features that activate the provider's PyO3
+          abi3t and abi3t-py315 features. Required when abi3t is enabled.
+        required: false
+        default: ""
+        type: string
       python-test-path:
         description: >-
           Optional provider-owned pytest path run after wheel installation.
@@ -159,11 +190,11 @@ jobs:
         shell: bash
         env:
           PYTEST_VERSION: ${{ inputs.pytest-version }}
-          PYTHON_TEST_PATH: source/${{ inputs.python-test-path }}
+          PYTHON_TEST_PATH: ${{ inputs.python-test-path }}
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check "pytest==${PYTEST_VERSION}"
-          python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "${PYTHON_TEST_PATH}"
+          python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "source/${PYTHON_TEST_PATH}"
 
       # A musllinux wheel carries a platform tag no glibc runner will install,
       # so the checks above would skip it and the wheel would ship unexercised.
@@ -214,33 +245,40 @@ jobs:
       # a gap nobody notices until someone on it cannot install.
       matrix:
         python-version: ${{ fromJSON(inputs.python-versions) }}
+        platform: [glibc-x86, glibc-arm, musl-x86, musl-arm, windows, macos]
         include:
           - os: ubuntu-latest
+            platform: glibc-x86
             target: x86_64
             manylinux: "2_17"
             linux: true
             smoke: native
           - os: ubuntu-24.04-arm
+            platform: glibc-arm
             target: aarch64
             manylinux: "2_17"
             linux: true
             smoke: native
           - os: ubuntu-latest
+            platform: musl-x86
             target: x86_64
             manylinux: musllinux_1_2
             linux: true
             smoke: alpine
           - os: ubuntu-24.04-arm
+            platform: musl-arm
             target: aarch64
             manylinux: musllinux_1_2
             linux: true
             smoke: alpine
           - os: windows-latest
+            platform: windows
             target: x86_64
             manylinux: "off"
             linux: false
             smoke: native
           - os: macos-latest
+            platform: macos
             target: universal2-apple-darwin
             manylinux: "off"
             linux: false
@@ -294,11 +332,11 @@ jobs:
         shell: bash
         env:
           PYTEST_VERSION: ${{ inputs.pytest-version }}
-          PYTHON_TEST_PATH: source/${{ inputs.python-test-path }}
+          PYTHON_TEST_PATH: ${{ inputs.python-test-path }}
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check "pytest==${PYTEST_VERSION}"
-          python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "${PYTHON_TEST_PATH}"
+          python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "source/${PYTHON_TEST_PATH}"
 
       # As in the abi3 job: a musllinux wheel will not install on a glibc
       # runner, so without this the steps above would fail the job outright
@@ -333,10 +371,225 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  build-free-threaded:
+    if: inputs.free-threaded
+    name: ${{ matrix.target }} / ${{ matrix.manylinux }} / CPython ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # Official Python Alpine images currently do not provide the t builds.
+      # The free-threaded artifact matrix therefore covers every platform for
+      # which the build and install interpreter are available: glibc Linux,
+      # Windows and macOS. Musl remains in the ordinary GIL matrix until an
+      # official t image exists to exercise its install path.
+      matrix:
+        python-version: ${{ fromJSON(inputs.free-threaded-versions) }}
+        platform: [glibc-x86, glibc-arm, windows, macos]
+        include:
+          - os: ubuntu-latest
+            platform: glibc-x86
+            target: x86_64
+            manylinux: "2_17"
+            linux: true
+            smoke: native
+          - os: ubuntu-24.04-arm
+            platform: glibc-arm
+            target: aarch64
+            manylinux: "2_17"
+            linux: true
+            smoke: native
+          - os: windows-latest
+            platform: windows
+            target: x86_64
+            manylinux: "off"
+            linux: false
+            smoke: native
+          - os: macos-latest
+            platform: macos
+            target: universal2-apple-darwin
+            manylinux: "off"
+            linux: false
+            smoke: native
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+
+      - name: Checkout exact Atlas provider graph
+        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@cd6a78e8c9a9816b0fa5ff22ad9166edbb713894
+        with:
+          manifest: source/Cargo.toml
+          destination: .
+          atlas_ref: ${{ inputs.atlas-ref }}
+
+      - name: Set up free-threaded Python ${{ matrix.python-version }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+
+      - name: Assert free-threaded interpreter
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c "import sys; assert sys._is_gil_enabled() is False"
+
+      - name: Build free-threaded wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: v1.14.1
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          sccache: true
+          args: >-
+            --release
+            --locked
+            --compatibility pypi
+            --manifest-path source/${{ inputs.manifest-path }}
+            --out dist
+            -i ${{ matrix.linux && format('python{0}', matrix.python-version) || 'python' }}
+
+      - name: Install and import free-threaded wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --force-reinstall dist/*.whl
+          python -c "import importlib, sys; importlib.import_module('${{ inputs.import-name }}'); assert sys._is_gil_enabled() is False"
+
+      - name: Run provider free-threaded behavior tests
+        if: inputs.python-test-path != ''
+        shell: bash
+        env:
+          PYTHON_GIL: "0"
+          PYTEST_VERSION: ${{ inputs.pytest-version }}
+          PYTHON_TEST_PATH: ${{ inputs.python-test-path }}
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "pytest==${PYTEST_VERSION}"
+          python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "source/${PYTHON_TEST_PATH}"
+
+      - name: Upload free-threaded wheel
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wheel-${{ matrix.target }}-${{ matrix.manylinux }}-cp${{ matrix.python-version }}
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
+  build-abi3t:
+    if: inputs.abi3t
+    name: ${{ matrix.target }} / ${{ matrix.manylinux }} / abi3t
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # abi3t starts at Python 3.15 and uses the same four installable
+      # platforms as the version-specific free-threaded matrix.
+      matrix:
+        platform: [glibc-x86, glibc-arm, windows, macos]
+        include:
+          - os: ubuntu-latest
+            platform: glibc-x86
+            target: x86_64
+            manylinux: "2_17"
+            linux: true
+          - os: ubuntu-24.04-arm
+            platform: glibc-arm
+            target: aarch64
+            manylinux: "2_17"
+            linux: true
+          - os: windows-latest
+            platform: windows
+            target: x86_64
+            manylinux: "off"
+            linux: false
+          - os: macos-latest
+            platform: macos
+            target: universal2-apple-darwin
+            manylinux: "off"
+            linux: false
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+
+      - name: Checkout exact Atlas provider graph
+        uses: ryancinsight/atlas/.github/actions/checkout-path-dependencies@cd6a78e8c9a9816b0fa5ff22ad9166edbb713894
+        with:
+          manifest: source/Cargo.toml
+          destination: .
+          atlas_ref: ${{ inputs.atlas-ref }}
+
+      - name: Set up Python ${{ inputs.abi3t-python }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ inputs.abi3t-python }}
+          allow-prereleases: true
+
+      - name: Assert free-threaded interpreter
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -c "import sys; assert sys._is_gil_enabled() is False"
+
+      - name: Require PyO3 abi3t feature selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ inputs.abi3t-features }}" ]]; then
+            echo "abi3t-features must activate PyO3 abi3t and abi3t-py315" >&2
+            exit 1
+          fi
+
+      - name: Build abi3t wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          maturin-version: v1.14.1
+          target: ${{ matrix.target }}
+          manylinux: ${{ matrix.manylinux }}
+          sccache: true
+          args: >-
+            --release
+            --locked
+            --compatibility pypi
+            --manifest-path source/${{ inputs.manifest-path }}
+            --out dist
+            --features ${{ inputs.abi3t-features }}
+            -i ${{ matrix.linux && format('python{0}', inputs.abi3t-python) || 'python' }}
+
+      - name: Install and test abi3t wheel
+        shell: bash
+        env:
+          PYTEST_VERSION: ${{ inputs.pytest-version }}
+          PYTHON_TEST_PATH: ${{ inputs.python-test-path }}
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --force-reinstall dist/*.whl
+          python -c "import importlib, sys; importlib.import_module('${{ inputs.import-name }}'); assert sys._is_gil_enabled() is False"
+          if [[ -n "$PYTHON_TEST_PATH" ]]; then
+            python -m pip install --disable-pip-version-check "pytest==${PYTEST_VERSION}"
+            python -m pytest --import-mode=importlib --disable-warnings --maxfail=1 "source/$PYTHON_TEST_PATH"
+          fi
+
+      - name: Upload abi3t wheel
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wheel-${{ matrix.target }}-${{ matrix.manylinux }}-abi3t
+          path: dist/*.whl
+          if-no-files-found: error
+          retention-days: 7
+
   release-assets:
     if: ${{ always() && !failure() && !cancelled() }}
     name: Validate and attach release distributions
-    needs: [build-abi3, build-cpython]
+    needs: [build-abi3, build-cpython, build-free-threaded, build-abi3t]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -359,6 +612,14 @@ jobs:
           manifest: source/Cargo.toml
           destination: .
           atlas_ref: ${{ inputs.atlas-ref }}
+
+      - name: Checkout Atlas wheel validator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          ref: ${{ inputs.atlas-ref }}
+          path: atlas-tools
+          persist-credentials: false
 
       - name: Set up Python for source distribution
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -385,7 +646,12 @@ jobs:
         shell: bash
         env:
           ABI3: ${{ inputs.abi3 }}
+          ABI3T: ${{ inputs.abi3t }}
+          ABI3T_PYTHON: ${{ inputs.abi3t-python }}
+          ABI3_PYTHON: ${{ inputs.abi3-python }}
           DISTRIBUTION: ${{ inputs.distribution }}
+          FREE_THREADED: ${{ inputs.free-threaded }}
+          FREE_THREADED_VERSIONS: ${{ inputs.free-threaded-versions }}
           PYTHON_VERSIONS: ${{ inputs.python-versions }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           TAG_PREFIX: ${{ inputs.tag-prefix }}
@@ -398,46 +664,24 @@ jobs:
           release_version="${RELEASE_TAG#"$TAG_PREFIX"}"
           mapfile -t wheels < <(find dist -maxdepth 1 -type f -name '*.whl' -print | sort)
 
-          # Assert which systems are present, not just how many wheels arrived.
-          # A count alone cannot tell a missing platform from a duplicated one,
-          # and the failure that matters is a system quietly dropping out of the
-          # matrix -- which nobody notices until someone on it cannot install.
-          # Each pattern is matched against the platform tag maturin writes.
-          platforms=(
-            manylinux_2_17_x86_64
-            manylinux_2_17_aarch64
-            musllinux_1_2_x86_64
-            musllinux_1_2_aarch64
-            win_amd64
-            universal2
-          )
-          built=$(IFS=' '; echo "${wheels[*]}")
-          missing=()
-          for platform in "${platforms[@]}"; do
-            case "$built" in
-              *"$platform"*) ;;
-              *) missing+=("$platform") ;;
-            esac
-          done
-          if (( ${#missing[@]} > 0 )); then
-            echo "no wheel was built for: ${missing[*]}" >&2
-            echo "built: $built" >&2
-            exit 1
-          fi
-
-          # One wheel per system for abi3; one per system per interpreter
-          # otherwise. This catches a duplicate or a stray that the presence
-          # check above would let through.
+          validator_args=()
           if [[ "$ABI3" == "true" ]]; then
-            expected=${#platforms[@]}
+            validator_args+=(--abi3 --abi3-python "$ABI3_PYTHON")
           else
-            expected=$(( ${#platforms[@]} * $(jq 'length' <<<"$PYTHON_VERSIONS") ))
+            mapfile -t cpython_versions < <(jq -r '.[]' <<<"$PYTHON_VERSIONS")
+            validator_args+=(--cpython "${cpython_versions[@]}")
           fi
-          if (( ${#wheels[@]} != expected )); then
-            echo "expected $expected wheels, found ${#wheels[@]}" >&2
-            echo "built: $built" >&2
-            exit 1
+          if [[ "$FREE_THREADED" == "true" ]]; then
+            mapfile -t free_versions < <(jq -r '.[]' <<<"$FREE_THREADED_VERSIONS")
+            validator_args+=(--free "${free_versions[@]}")
           fi
+          if [[ "$ABI3T" == "true" ]]; then
+            validator_args+=(--abi3t --abi3t-python "$ABI3T_PYTHON")
+          fi
+          for wheel in "${wheels[@]}"; do
+            validator_args+=(--wheel "$wheel")
+          done
+          python atlas-tools/scripts/validate-python-wheels.py "${validator_args[@]}"
           mapfile -t sdists < <(find dist -maxdepth 1 -type f -name '*.tar.gz' -print | sort)
           if (( ${#sdists[@]} != 1 )); then
             echo "expected one source distribution, found ${#sdists[@]}" >&2

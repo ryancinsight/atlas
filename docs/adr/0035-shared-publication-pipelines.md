@@ -11,6 +11,16 @@
   [ADR 0024](0024-criterion-regression-gate.md),
   [ADR 0011](0011-atlas-root-hygiene-ritual.md)
 
+Revision 2026-09-10: the shared wheel caller now admits explicit free-threaded
+CPython artifacts. Version-specific `cp3XXt` wheels and the Python 3.15
+`abi3t` wheel use the same checkout, pinned maturin action, installation smoke
+and provider-owned value tests as the GIL path. The free-threaded matrix is
+limited to glibc Linux, Windows and macOS because the official Python Alpine
+images do not currently provide matching `t` images; musl coverage remains in
+the ordinary CPython matrix. Release aggregation validates the additional
+artifact tags and counts only when a caller opts in. No registry credential or
+private key is introduced.
+
 ## Context
 
 Three publication concerns exist across the stack: crates to crates.io, wheels to
@@ -49,6 +59,14 @@ five callers above, not root-gate registration for the existing books.
 `workflow_call` workflow, and package `python-release.yml` files are thin callers
 pinned to an exact Atlas commit. This ADR generalizes that proven shape to the
 other two concerns rather than inventing one.
+
+The workflow also exposes opt-in version-specific free-threaded wheels for
+CPython 3.14t and newer, plus a Python 3.15 `abi3t` matrix. The latter requires
+the caller to pass Cargo features that activate PyO3's `abi3t` and
+`abi3t-py315` features; the workflow refuses an `abi3t` build without that
+explicit selection and validates the resulting wheel tags. This follows
+[PyO3's feature contract](https://pyo3.rs/main/features#abi3t) and keeps
+experimental 3.13t support available only through an explicit caller input.
 
 **Authentication.** Both registries already authenticate by OIDC trusted
 publishing — `rust-lang/crates-io-auth-action` for crates.io and
