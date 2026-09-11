@@ -152,11 +152,19 @@ calling it from 18–19 test files, plus `hephaestus-host`. The crate is therefo
   (`hephaestus-conformance/src/assert_backend.rs`, `hephaestus@f2aaf64`). It is a
   struct, not a function: the workspace denies `too_many_arguments`, so twenty
   parameters cannot be a signature.
-- **No `tests/` of its own** — 0 `#[test]` in the crate and no `tests/`
-  directory, so the ADR's negative control ("a deliberately broken backend fails
-  only that backend") has no home. *(Still open, and correctly sequenced later:
-  the control needs a device that reaches the seams, and the only candidate host
-  implements one of nineteen — see Tier A item 3.)*
+- ~~**No `tests/` of its own**~~ — **delivered 2026-09-10.** The crate now has
+  `tests/negative_control.rs` (5 tests, all passing) over
+  `hephaestus_core::test_support::FaultyDevice`, a `ComputeDevice` that violates
+  the contract in one named way. Each case requires the clause to panic *and*
+  the panic message to name the specific property that fault should trip — so a
+  clause that failed for an unrelated reason does not count as covered.
+  *Scope, stated rather than implied:* every fault modelled is a transfer
+  concern, and `assert_transfer_contract` is the only clause generic over
+  `ComputeDevice` alone. A control for the seam-generic clauses needs a correct
+  seam implementor first; eighteen of nineteen seams have none anywhere in the
+  stack (`ATLAS-HEPHAESTUS-HOST-SEAM-COVERAGE`), so that coverage cannot exist
+  yet. What this does **not** catch: a clause in another seam that ignores its
+  inputs.
 
 **ADR 0039 (topology, no consumer re-forks the vendor dimension) — Accepted
 2026-07-28, revised 2026-08-12.** Two of the three original complaints were
@@ -429,8 +437,20 @@ has not been done.
      clauses directly rather than through a `ComputeBackend` trait, because the
      clauses' marker bounds (`SumOp: CombineExpr<R::Dialect>`, `f32:
      OpIdentity<SumOp>`, …) resolve from the concrete seam type at the call site.
-   - Give the crate **its own `tests/`**, including the deliberately-broken-backend
-     negative control. *(Still open — see the blocker below.)*
+   - ~~Give the crate **its own `tests/`**, including the
+     deliberately-broken-backend negative control.~~ — **delivered 2026-09-10**:
+     `tests/negative_control.rs`, 5 tests, over a fault-injecting
+     `ComputeDevice` in `hephaestus_core::test_support` (behind the existing
+     `test-util` feature, whose stated purpose is exposing test scaffolding to
+     this crate). The control is exact rather than nominal: each case requires
+     the panic message to name the property the injected fault should trip, so a
+     clause failing on an unrelated assertion is not counted. It covers the
+     transfer clause only — the one clause needing no seam implementor.
+   - **The remaining coverage needs a seam implementor per clause, not a
+     test-file addition.** This is why the control above is seam-limited, and it
+     is the same fact that makes `hephaestus-host` the wrong near-term home (next
+     bullet): a clause generic over an `*Ops` trait cannot be run against a
+     device that does not implement it.
    - **`hephaestus-host` is not the near-term home for that control.** The ADR
      previously read "19 clauses not run against the host." Measured: the host
      implements **one** of the nineteen seam traits (`DecompositionOps`), so 18

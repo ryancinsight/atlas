@@ -159,6 +159,20 @@ Two consequences:
    correct, and closing this row is a body of work in its own right rather than
    an item in a cleanup pass.
 
+   **The negative control landed elsewhere, and does not need the host
+   (2026-09-10).** This ADR's residual asked the crate for its own `tests/`
+   carrying a deliberately broken backend. That now exists as
+   `hephaestus-conformance/tests/negative_control.rs` (5 tests), built on
+   `hephaestus_core::test_support::FaultyDevice` — a `ComputeDevice` that
+   violates the contract in one named way, behind the existing `test-util`
+   feature whose stated purpose is exposing test scaffolding to this crate. The
+   design is exact rather than nominal: each case requires the panic message to
+   name the *property* the injected fault should trip, so a clause that failed
+   for an unrelated reason is not credited. Its scope is the transfer clause,
+   because that is the one clause generic over `ComputeDevice` alone; a control
+   for the seam-generic clauses needs a correct seam implementor first, which is
+   the same fact that makes the host's row above what it is.
+
    Each backend carries a case-count guard (wgpu asserts
    `CONTRACT_CASES.len() == 127 / 186 / 139 / 188` by feature set), but a count
    cannot detect a dropped seam: removing one seam's cases and adding unrelated
