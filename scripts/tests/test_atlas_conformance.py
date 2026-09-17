@@ -851,6 +851,30 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(counts["root_sprawl"], 0)
 
+    def test_application_manifests_are_root_configuration_for_owners(self) -> None:
+        # Application manifests are the explicit payload inventory for the
+        # Metis and RITK executables and installers, so a repository-level
+        # metis.json is configuration rather than an unfiled report for either
+        # owning repository.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            for name in ("metis", "ritk"):
+                root = Path(temp) / name
+                _write(root, "Cargo.toml", "[workspace]\n")
+                _write(root, "metis.json", "{}\n")
+
+                counts = conformance.scan_repo(root)
+                self.assertEqual(counts["root_sprawl"], 0)
+
+    def test_application_manifest_is_sprawl_for_other_repositories(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp) / "apollo"
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "metis.json", "{}\n")
+
+            counts = conformance.scan_repo(root)
+
+        self.assertEqual(counts["root_sprawl"], 1)
+
     def test_cargo_manifests_prune_caches(self) -> None:
         # rglob would crawl target/ and book/; the pruned walker must skip them.
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:

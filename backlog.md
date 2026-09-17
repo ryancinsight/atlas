@@ -1,5 +1,13 @@
 # atlas — cross-repository integration backlog
 
+<a id="atlas-prepush-safety-ratchet-2026-09-11"></a>
+## ATLAS-PREPUSH-SAFETY-RATCHET-2026-09-11 — The stack pre-push gate skips the SAFETY ratchet CI runs [patch] — todo
+
+- **Evidence:** apollo [#397](https://github.com/ryancinsight/apollo/pull/397) passed the local pre-push gate (fmt, clippy, nextest on the pushed crates) and failed CI's `rust workspace` job on `python scripts/safety_ratchet.py check` (a `// SAFETY:` comment two lines above its block); `scripts/git-hooks/pre-push` never invokes the ratchet, so a CI failure the local gate could have caught is a hook defect (engineering_gates: workflow hygiene).
+- **Scope:** the stack-owned `scripts/git-hooks/pre-push` runs `python scripts/safety_ratchet.py check` where the member carries the script (apollo, and every member the conformance scan lists with `scripts/safety_ratchet.py`), scoped like the other gates; the sync lands it in every member. Non-goals: the ratchet's baseline policy.
+- **Acceptance:** a push with an uncommented new unsafe block is refused locally with the ratchet's message; the hook test (`scripts/tests/test_atlas_pre_push_gate.py`) covers the ratchet arm; members' hooks re-synced.
+- **Dependencies:** [prepush hook forked](#atlas-prepush-hook-forked-across-members-2026-09-09) owns the hook source. **Verification:** the hook test and one member push.
+
 <a id="atlas-ratchet-red-main-2026-09-10"></a>
 ## ATLAS-RATCHET-RED-MAIN-2026-09-10 — Five debt-class violations standing on main [patch] — done
 
@@ -16,6 +24,7 @@
 
 - **Method:** counts were measured at the old and new revisions with the conformance scan's own `rust_files`, `MANIFEST_PASSTHROUGH`, and testish rules imported from `scripts/atlas-conformance.py`, run against `git archive` exports — the members' checkouts were held by peers on other branches, so the scan's live-checkout path was unavailable. The tool reproduces the ratchet's published ritk numbers, which is what qualifies it as the oracle.
 - **Finding (instrument):** the umbrella write path accepts a fabricated gitlink. A SHA completed by hand from a short prefix produced a `repos/metis` pin that resolves in no repository, and the GitHub git API created the tree entry without complaint. The pin-advance tool now resolves each SHA against the member's object database before it becomes a tree entry.
+- **Finding (instrument, second):** `root_sprawl` counted untracked root files, so one peer's scratch `.mine.patch` read as repository debt and — because `generate` refuses while any raise stands — blocked recording every tightening the stack had earned. The class now splits into what a revision carries and what only this checkout has, and a generated baseline records zero for every host-observed class rather than baking one lane or one forked cache into the ratchet. Delivered in `e9d00be4c` with four held tightenings.
 - **Finding (takeover):** a coeus tree dirty for 71 minutes past a local-only claim commit read as a dead peer by every measured signal, but the same split had already landed on main from another branch. Uncommitted dirt is evidence only that nothing committed *there*; the takeover check has to diff against fetched origin.
 
 
@@ -168,9 +177,30 @@
     tree when the rollout ran; deploying would have swept a peer's changes
     into the hook commit. Re-run the sync for these when their trees are
     clean.
-- **`member_gate_versions` will not reach 1 until eunomia and the four
-  hookless members are resolved**, so the acceptance above needs the checker
-  question answered, not just the sync repeated.
+- **coeus is not a drift case, and its PR was closed unmerged**
+  ([Coeus #395](https://github.com/ryancinsight/Coeus/pull/395)). Its hooks
+  source a shared `.githooks/lockfile.sh` and are covered by its own
+  `scripts/tests/test_hooks.py`, which asserts that *both* hooks reject when
+  the checker, the shared entry, or the interpreter is missing. Syncing the
+  owned copy over them removed that design and failed 8 of those tests -- the
+  only real failure in the whole rollout, and it surfaced because coeus is the
+  only member that tests its hooks at all. Checked: no other member has
+  `test_hooks.py` or `lockfile.sh`, so the rest of the rollout is unaffected.
+  **This needs a decision, not a sync:** either coeus adopts the owned hook and
+  retires its shared entry and tests, or the owned hook absorbs the
+  shared-entry design coeus already has. The second is worth weighing -- coeus
+  is the one member that noticed the guard could fail open, and its tests are
+  the only executable statement of what the guard owes its caller.
+- **`member_gate_versions` will not reach 1 until eunomia, the four hookless
+  members and the coeus decision are resolved**, so the acceptance above needs
+  the checker question answered, not just the sync repeated.
+- **Merged so far:** asclepius, athena, consus, gaia, leto, aequitas, apollo,
+  ares. Ten more are enqueued on auto-merge behind pending checks
+  (harmonia, helios, hephaestus, hermes, horae, hyperion, proteus, ritk,
+  themis, tyche); the three merged administratively had every owned check green
+  with only the always-red third-party check failing
+  ([its item](#atlas-third-party-check-always-red-2026-09-09) is decided and
+  awaiting the uninstall).
 
 <a id="atlas-closure-surface-split"></a>
 ## ATLAS-CLOSURE-SURFACE-SPLIT — Hyperion and Asclepius are closure domains [arch] — done 2026-09-09
@@ -2414,6 +2444,13 @@ _Closure note (moved from heading):_ commit 99dc33fad
 - **kwavers 60 s timeouts — in progress (same lane, branch `perf/kwavers-fdtd-staggered-kernels`).** Measured here: `test_grid_convergence` 19.4 s, `test_plane_wave_boundary_injection_timing` 24.9 s (the hosted runner is ~15x slower). Both bottom out in `FdtdSolver::step_forward`: 32.7 ms per 64³ step in release, the same at the tests' opt-level 1 — structural, not the profile: `StaggeredLeapfrogOperator::{gradient_into,divergence_into}` addressed every tap through bounds-checked linear indices and the staggered velocity update gathered neighbour densities per component per cell. Fix: slice-form kernels (windows along the contiguous axis, block zips along the others, `reflect` for walls, indexed path kept as the differential reference — gradient and wall cells bit-identical, gathered interior within `2·halo·ε`) plus face densities precomputed once. criterion (release, 64³): order 2 32.7 → 2.3 ms/step, order 4 33.7 → 3.4 ms/step. Instruments: `test_grid_convergence` enumerates its 16-point domain once (was 256 proptest draws); the plane-wave test monitors the window its assertion reads (was +500 steps). Re-timed: 0.34 s and 1.0 s; 85 solver FDTD tests and 25 FDTD integration tests green. The FDTD propagation bench was unregistered and rotted (no `criterion_main!`) — registered and repaired, 64³ step group added.
 - **horae row — resolved upstream:** the failing run (07:11 UTC) predates horae `468a900` ("ci: Link the book tests against one artifact per crate"), which stages one rlib per crate into `target/booklibs`; main's CI at `28a13302` (09:46 UTC) is green. No atlas action.
 - **athena row — blocked (2026-09-02):** root cause needs an allocation trace on a Linux host; this host has none (the WSL Ubuntu instance's disk image is missing — `ERROR_PATH_NOT_FOUND` on attach). Re-open trigger: a Linux host with cargo, or the flake recurring on main. The `#[ignore]`d GMRES sibling in `athena-leto/tests/allocation.rs` is the same defect.
+
+- **Second collector pass (2026-09-10, basis atlas `1efd2f11e`):** ten rows, of which two were live member defects and both are fixed.
+  - horae `CI` — `SolveError::NonConvergence` documented a link to the private `MAX_NEWTON_ITERATIONS`, so `cargo doc` under `-D warnings` failed `rustdoc::private_intra_doc_links`; red since 2026-09-09. Publishing the constant would be the wrong cure — its own doc says the bound is a guard, not a tuning knob — so the variant states the condition and marks the value an implementation detail. [horae#44](https://github.com/ryancinsight/horae/pull/44), merged.
+  - kwavers `ADR index` — `docs/adr/130-…` opened `# 130. Title`, which matches neither canonical form (`# ADR NNN:` or `# NNN —`); every other ADR there uses the first. Red since #752 merged. The generated index does not change, because its title extraction already strips a leading `NNN.` — which is why the drift stayed invisible until the strict heading check ran over it. [kwavers#767](https://github.com/ryancinsight/kwavers/pull/767), enqueued.
+  - moirai `Python Bindings` — already fixed on main by `5f901c47` (the oversized-open refusal is asserted per platform); the row survives only because that workflow has not run since. **Finding:** the collector reports each workflow's newest completed run, so a path-filtered workflow keeps a stale red row after its fix lands. The oracle is honest only if a row also carries whether a newer default-branch commit exists that the workflow never ran on.
+  - ritk `CI` — mine, and an escaped defect: `cargo fmt` ran before the last of five file splits, so the commit I pushed was never gated and rustfmt rejected a double blank line. A peer landed the correction as `6a09f8ecf` twelve minutes later. ritk's committed `pre-push` hook gained its `cargo fmt --check` about an hour after that push, under [ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09](#atlas-prepush-hook-forked-across-members-2026-09-09) — the generator is already being closed there.
+  - Unchanged and not defects in the trees: atlas `CodeQL` and kwavers `GPU Parity` (both starved infrastructure), and the `Crates.io Release` rows for ares, gaia, leto, and ritk (stale manual dispatches; release is the user's authority).
 
 ## ATLAS-SEMVER-GATE-FLEETWIDE-2026-08-28 — Publishable members run no semver gate [patch] — adopted fleet-wide 2026-09-02
 

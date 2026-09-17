@@ -156,7 +156,7 @@ def manifests() -> list[Path]:
     if not repos.is_dir():
         return found
     for manifest in repos.glob("*/**/Cargo.toml"):
-        parts = set(manifest.parts)
+        parts = set(manifest.relative_to(REPO_ROOT).parts)
         if parts & {"target", "worktrees", ".git", "vendor"}:
             continue
         found.append(manifest)
@@ -200,17 +200,22 @@ def check_manifest(
 
     workspace = {}
     ws_manifest = manifest
-    for _ in range(6):  # walk up to the workspace root for inherited fields
-        ws_manifest = ws_manifest.parent.parent / "Cargo.toml"
-        if not ws_manifest.is_file():
-            continue
-        try:
-            ws_data = tomllib.loads(ws_manifest.read_text(encoding="utf-8"))
-        except (OSError, tomllib.TOMLDecodeError):
-            continue
-        if "workspace" in ws_data:
-            workspace = ws_data["workspace"].get("package", {})
+    for _ in range(7):  # include a root package's own workspace table
+        if ws_manifest.is_file():
+            try:
+                ws_data = tomllib.loads(ws_manifest.read_text(encoding="utf-8"))
+            except (OSError, tomllib.TOMLDecodeError):
+                ws_data = {}
+            workspace_table = ws_data.get("workspace")
+            if isinstance(workspace_table, dict):
+                package = workspace_table.get("package")
+                if isinstance(package, dict):
+                    workspace = package
+                    break
+        parent = ws_manifest.parent.parent / "Cargo.toml"
+        if parent == ws_manifest:
             break
+        ws_manifest = parent
 
     if not is_publishable(pkg, workspace):
         return [], []
