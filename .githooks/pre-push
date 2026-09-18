@@ -1,5 +1,84 @@
 #!/usr/bin/env bash
 #
+# Atlas hook trampoline (ATLAS-HOOKS-FOLLOW-CHECKOUT-2026-09-18).
+#
+# `core.hooksPath=.githooks` resolves inside the working tree, so the gate
+# that actually runs on a push is whatever branch the tree happens to have
+# checked out -- under concurrent agents sharing one tree, routinely a
+# peer's. On 2026-09-18 the tree held `foundation-f3-correction-2026-09-10`,
+# whose `.githooks/pre-push` predated a pushed-range fix; three pushes of
+# main-based branches were refused for a moirai pin they never touched, and
+# were pushed through only via a transient `-c core.hooksPath` override.
+#
+# This prelude makes the default branch's committed copy of this same file
+# authoritative regardless of what is checked out: it compares this file's
+# on-disk bytes (as `git hash-object` would stage them, so line-ending
+# filters do not cause false mismatches) against
+# `origin/HEAD:.githooks/pre-push` -- falling back to `origin/main` when
+# `origin/HEAD` is unset -- and, on any difference, execs that blob's
+# content instead of continuing, passing argv and stdin straight through
+# (stdin carries git's ref-update protocol lines, read further down). When
+# the two already match -- the ordinary case, since this prelude ships as
+# part of the very file it guards -- there is nothing to fetch and
+# execution falls through to the gate below in the same process. A stale
+# checkout that already carries some version of this same prelude therefore
+# self-corrects the moment its content diverges from origin's default
+# branch, without anyone re-running `git config`.
+#
+# Fails closed: an unresolvable origin ref or a missing blob refuses the
+# push rather than silently running whatever this checkout happens to hold.
+#
+# Cost: one local ref lookup and one blob read per push, both against the
+# already-fetched remote-tracking ref -- no network beyond what the push
+# itself performs.
+#
+# The re-exec'd content is this same file, so it re-defines and re-runs this
+# same prelude -- against the same on-disk path, which never changes mid-
+# process. Without a way to say "already resolved", that second pass would
+# find the same mismatch and re-exec forever. `_ATLAS_HOOK_TRAMPOLINE_DEFERRED`
+# is that marker: set only immediately before the exec below, inherited by
+# the child, and checked first on every entry.
+_atlas_hook_trampoline() {
+    [ -n "${_ATLAS_HOOK_TRAMPOLINE_DEFERRED:-}" ] && return 0
+
+    local hook_path=".githooks/pre-push"
+    local root ref blob_sha self_sha
+
+    # Git Bash on Windows mangles a `ref:path` argument that contains `/` --
+    # MSYS's argv-to-native-path heuristic rewrites it to `ref\path` (and `:`
+    # to `;`) before exec'ing git.exe, so the revision never resolves.
+    # `local -x` scopes the export to this function's dynamic extent, so it
+    # never leaks into the gate below when the checkout is already current.
+    local -x MSYS_NO_PATHCONV=1
+
+    root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
+        echo "pre-push: BLOCKED -- not inside a git work tree; the committed" >&2
+        echo "default-branch hook cannot be resolved." >&2
+        return 1
+    }
+
+    ref="$(git -C "$root" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)"
+    [ -n "$ref" ] || ref="origin/main"
+
+    if ! blob_sha="$(git -C "$root" rev-parse --verify --quiet "${ref}:${hook_path}" 2>/dev/null)"; then
+        echo "pre-push: BLOCKED -- ${ref}:${hook_path} does not resolve, so the" >&2
+        echo "default branch's committed hook is unavailable. Fetch origin, or" >&2
+        echo "confirm ${ref} exists, before pushing." >&2
+        return 1
+    fi
+
+    self_sha="$(git -C "$root" hash-object "${root}/${hook_path}" 2>/dev/null)" || self_sha=""
+    if [ "$self_sha" = "$blob_sha" ]; then
+        return 0
+    fi
+
+    export _ATLAS_HOOK_TRAMPOLINE_DEFERRED=1
+    exec bash <(git -C "$root" cat-file -p "$blob_sha") "$@"
+}
+
+_atlas_hook_trampoline "$@" || exit 1
+
+#
 # Atlas gitlink coherence gate.
 #
 # The recorded gitlink is the reproducible stack revision, so it must name a
