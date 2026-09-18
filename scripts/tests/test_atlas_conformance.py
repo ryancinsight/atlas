@@ -84,6 +84,33 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(untracked, 1, "the scratch file is measured, as host state")
         self.assertIn("root_sprawl_untracked", conformance.HOST_OBSERVED_CLASSES)
 
+    def test_ignored_root_files_are_host_state_not_repository_debt(self) -> None:
+        """A gitignored root file is no more the repository's than an unignored one.
+
+        `f64w.pdb` -- ignored by `*.pdb` -- raised atlas `root_sprawl` 0 -> 1:
+        the untracked listing used `--exclude-standard` alone, so ignored files
+        fell into neither bucket and were counted as carried.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-root-ignored-") as temp:
+            repo = Path(temp)
+            subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+            (repo / "README.md").write_text("sanctioned\n", encoding="utf-8")
+            (repo / ".gitignore").write_text("*.pdb\ntarget/\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+            subprocess.run(
+                ["git", "-C", str(repo), "-c", "user.email=t@example.com",
+                 "-c", "user.name=t", "commit", "-q", "-m", "seed"],
+                check=True,
+            )
+            (repo / "scratch.pdb").write_text("symbols\n", encoding="utf-8")
+            (repo / "target").mkdir()
+            (repo / "target" / "artifact.rlib").write_text("x\n", encoding="utf-8")
+
+            carried, untracked = conformance.count_root_sprawl(repo)
+
+        self.assertEqual(carried, 0, "an ignored file is not repository content")
+        self.assertEqual(untracked, 1, "measured as host state; an ignored directory is not a root file")
+
     def test_generate_records_zero_for_host_observed_classes(self) -> None:
         """A generated baseline never carries this machine's state.
 

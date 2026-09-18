@@ -562,23 +562,34 @@ def is_cargo_target_dir(entry: Path) -> bool:
 
 
 def untracked_root_names(repo: Path) -> set[str]:
-    """Names of root-level files git does not track in `repo`.
+    """Names of root-level files git does not track in `repo`, ignored included.
+
+    An ignored file is untracked too: a `*.pdb` beside a scratch build is this
+    checkout's state exactly as an unignored `.mine.patch` is. Listing only
+    `--exclude-standard` output left ignored files in neither bucket, so the
+    caller counted them as repository-carried and a gitignored debugger symbol
+    file raised `root_sprawl` for content no revision contains. Ignored entries
+    are listed with `--directory`, which collapses an ignored tree such as
+    `target/` to one path instead of enumerating it.
 
     Empty when `repo` is not a git checkout -- an archived snapshot of a
     recorded revision contains that revision's content by construction, so
     nothing in it is untracked.
     """
-    listing = subprocess.run(
-        ["git", "-C", str(repo), "ls-files", "--others", "--exclude-standard"],
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    if listing.returncode != 0:
-        return set()
-    return {
-        name for name in listing.stdout.split("\n") if name and "/" not in name
-    }
+    names: set[str] = set()
+    for extra in ((), ("--ignored", "--directory")):
+        listing = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "--others", "--exclude-standard", *extra],
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if listing.returncode != 0:
+            return set()
+        names.update(
+            name for name in listing.stdout.split("\n") if name and "/" not in name
+        )
+    return names
 
 
 def count_root_sprawl(repo: Path, live_repo: Path | None = None) -> tuple[int, int]:
