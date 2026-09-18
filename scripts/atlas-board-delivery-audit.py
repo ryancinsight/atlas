@@ -13,6 +13,11 @@ Usage::
 Exit status is zero for a completed report, one when an auditable hash is not
 an ancestor of its provider's fetched default branch (including benign
 rewritten delivery), and two for an invocation or repository-read error.
+
+Past the per-item-file migration (`atlas-board-index.py`), a board's items
+live one-per-file under a sibling `backlog/` directory instead of inline in
+`backlog.md`; `parse_board_root` covers both layouts, and `audit` always
+calls it rather than the single-file `parse_board`.
 """
 
 from __future__ import annotations
@@ -276,10 +281,28 @@ def classify(
     return "undelivered"
 
 
+def parse_board_root(board: Path) -> list[BoardItem]:
+    """`parse_board`, extended for the per-item-file layout.
+
+    Past the per-item-file migration (`atlas-board-index.py`), `backlog.md`
+    holds only a generated index -- no `## ` headings -- and each item's
+    heading and body live in their own `backlog/<anchor>.md` file. When
+    such a sibling directory exists beside `board`, this parses every item
+    file the same way `parse_board` parses one big file and concatenates
+    the results; a board not in this layout parses exactly as before.
+    """
+    items = list(parse_board(board.read_text(encoding="utf-8")))
+    item_dir = board.parent / "backlog"
+    if board.name == "backlog.md" and item_dir.is_dir():
+        for item_path in sorted(item_dir.glob("*.md")):
+            items.extend(parse_board(item_path.read_text(encoding="utf-8")))
+    return items
+
+
 def audit(root: Path, board: Path) -> dict[str, Any]:
     """Run the report-only audit and return JSON-compatible evidence."""
     members = member_paths(root)
-    items = completed_items(parse_board(board.read_text(encoding="utf-8")))
+    items = completed_items(parse_board_root(board))
     hash_items: dict[str, list[BoardItem]] = {}
     for item in items:
         for commit in item.hashes:

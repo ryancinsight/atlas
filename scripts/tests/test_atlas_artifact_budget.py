@@ -197,7 +197,12 @@ class ReportTest(unittest.TestCase):
             _commit(root, "fixture")
             got = budget.counts(root, line_budget=100, image_budget=1024)
             self.assertEqual(
-                got, {"pm_lines_over_budget": 40, "oversized_tracked_images": 1}
+                got,
+                {
+                    "pm_lines_over_budget": 40,
+                    "oversized_tracked_images": 1,
+                    "items_over_budget": 0,
+                },
             )
 
     def test_cli_check_exit_status(self) -> None:
@@ -213,6 +218,93 @@ class ReportTest(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
             self.assertIn("within budget", proc.stdout)
+
+
+class PerItemFileLayoutTest(unittest.TestCase):
+    """Past about forty open items a board moves bodies to `backlog/<anchor>.md`
+    with `backlog.md` as their generated index (`atlas-board-index.py`); the
+    1,000-line board budget must still bound the whole board, and each item
+    file carries its own report-only fifteen-line budget."""
+
+    def test_board_lines_folds_in_item_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "backlog.md").write_text(_lines(10), encoding="utf-8")
+            item_dir = root / "backlog"
+            item_dir.mkdir()
+            (item_dir / "one.md").write_text(_lines(20), encoding="utf-8")
+            (item_dir / "two.md").write_text(_lines(30), encoding="utf-8")
+            _commit(root, "fixture")
+            lines = budget.board_lines(root)
+            self.assertEqual(lines["backlog.md"], 60)  # 10 + 20 + 30
+
+    def test_board_lines_without_item_dir_is_unaffected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "backlog.md").write_text(_lines(10), encoding="utf-8")
+            _commit(root, "fixture")
+            lines = budget.board_lines(root)
+            self.assertEqual(lines["backlog.md"], 10)
+
+    def test_board_lines_at_a_revision_reads_item_files_from_git(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "backlog.md").write_text(_lines(5), encoding="utf-8")
+            item_dir = root / "backlog"
+            item_dir.mkdir()
+            (item_dir / "one.md").write_text(_lines(7), encoding="utf-8")
+            rev = _commit(root, "fixture")
+            self.assertEqual(budget.board_lines(root, rev)["backlog.md"], 12)
+
+    def test_oversized_item_files_reports_over_budget_files_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "backlog.md").write_text(_lines(2), encoding="utf-8")
+            item_dir = root / "backlog"
+            item_dir.mkdir()
+            (item_dir / "small.md").write_text(_lines(5), encoding="utf-8")
+            (item_dir / "big.md").write_text(_lines(20), encoding="utf-8")
+            _commit(root, "fixture")
+            over = budget.oversized_item_files(root, item_budget=15)
+            self.assertEqual(over, {"backlog/big.md": 20})
+
+    def test_counts_reports_items_over_budget(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "backlog.md").write_text(_lines(2), encoding="utf-8")
+            item_dir = root / "backlog"
+            item_dir.mkdir()
+            (item_dir / "big-one.md").write_text(_lines(16), encoding="utf-8")
+            (item_dir / "big-two.md").write_text(_lines(30), encoding="utf-8")
+            _commit(root, "fixture")
+            got = budget.counts(root, line_budget=1000, image_budget=1024)
+            self.assertEqual(got["items_over_budget"], 2)
+
+    def test_oversized_item_files_never_fails_check(self) -> None:
+        # The per-item budget is a report, not a gate (context_and_memory:
+        # Boards) -- an over-budget item file must never fail `check` on its
+        # own, unlike the board-total line budget.
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            _repo(root)
+            (root / "backlog.md").write_text(_lines(2), encoding="utf-8")
+            item_dir = root / "backlog"
+            item_dir.mkdir()
+            (item_dir / "huge.md").write_text(_lines(500), encoding="utf-8")
+            _commit(root, "fixture")
+            proc = subprocess.run(
+                [sys.executable, str(SCRIPT), "check", "--root", str(root),
+                 "--line-budget", "1000"],
+                capture_output=True, text=True, env=GIT_ENV,
+            )
+            self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+            self.assertIn("INFO", proc.stdout)
+            self.assertIn("backlog/huge.md", proc.stdout)
 
 
 if __name__ == "__main__":

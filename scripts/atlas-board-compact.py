@@ -38,6 +38,17 @@ is the level-2 heading, so an open item that keeps measured-rejection
 records in full loses nothing. The open-checkbox exception above applies
 only to narrative (non-id) sections, which have no other record of their
 own.
+
+Per-item-file layout (`backlog.md` + `backlog/<anchor>.md`, past the
+forty-item threshold, `atlas-board-index.py`): a `backlog.md` with a
+sibling `backlog/` directory is in this layout, and compaction there works
+at file granularity instead of line ranges -- a closed item's
+`backlog/<anchor>.md` is deleted outright and the index is regenerated to
+drop its line, while narrative sections (which stay inline in `backlog.md`'s
+preamble under this layout, per the migration) are classified exactly as
+above. A board with no sibling `backlog/` directory (checklist.md,
+gap_audit.md, a member repository's own backlog.md) compacts by the
+original inline logic, unchanged.
 """
 from __future__ import annotations
 
@@ -47,6 +58,14 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from atlas_board_items import (  # noqa: E402
+    ANCHOR_OWN_LINE,
+    INDEX_LINE,
+    ITEM_ID,
+    top_level_separators as _top_level_separators,
+)
 
 # A heading is closed only when its FINAL separator's segment is a status
 # clause. Matching anywhere after a separator would archive live items whose
@@ -70,60 +89,10 @@ CLOSED = re.compile(
 )
 # Bare-tick form used by a handful of older kwavers entries.
 CLOSED_TICK = re.compile(r"✓\s*DONE\b", re.I)
-# 2026-09-18: no digit requirement — several genuine ids on this board are
-# purely alphabetic (`ATLAS-CUDA-DRIVER-BOUNDARY`,
-# `ATLAS-SOLVER-OWNERSHIP-CONSOLIDATION`). The digit requirement forced every
-# such id to a shared empty label, and since MULTIPLE distinct no-digit ids
-# then collided on that one literal key, an id-matching step keyed on the
-# label (as the prior archive-dedup step was) silently conflated unrelated
-# items. Requiring only "id-like" (a capitalized token with at least one
-# hyphen) keeps narrative, non-item headings (`## Tier 0 — ...`, `## Session
-# 17 closure ...`) out, since those start with a plain word, not a
-# hyphenated all-caps token.
-ITEM_ID = re.compile(r"^##\s+([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)")
-# An anchor on its own line immediately (blank lines aside) above a heading,
-# or inline at the tail of the heading itself.
-ANCHOR_OWN_LINE = re.compile(r'^<a id="[^"]+"></a>\s*$')
-ANCHOR_INLINE = re.compile(r'\s*(<a id="[^"]+"></a>)\s*')
 # Narrative-section keep exception: an unfiled open TODO, or a reference to
 # an item id that is still open elsewhere on the board.
 CHECKBOX_OPEN = re.compile(r"^\s*-\s*\[ \]", re.M)
 ID_TOKEN = re.compile(r"\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b")
-
-
-def _top_level_separators(heading: str) -> list[tuple[int, int]]:
-    """Positions of every ' — ' / ' - ' at parenthesis/bracket depth 0.
-
-    A trailing parenthetical can itself contain a dash — `"✅ closed
-    (2026-07-23 Session 17 — migrated from peer draft)"` — and a plain
-    rsplit on the last dash anywhere lands inside it, missing the real
-    status clause that precedes the parenthetical. Skipping nested spans
-    finds the separator that actually divides title from status.
-    """
-    spans = []
-    depth = 0
-    i, n = 0, len(heading)
-    while i < n:
-        c = heading[i]
-        if c in "([":
-            depth += 1
-            i += 1
-            continue
-        if c in ")]":
-            depth = max(0, depth - 1)
-            i += 1
-            continue
-        if depth == 0:
-            if heading[i : i + 3] == " — ":
-                spans.append((i, i + 3))
-                i += 3
-                continue
-            if i + 2 < n and heading[i] == " " and heading[i + 1] == "-" and heading[i + 2] == " ":
-                spans.append((i, i + 3))
-                i += 3
-                continue
-        i += 1
-    return spans
 
 
 def _status_split(heading: str) -> tuple[str, str] | None:
@@ -200,8 +169,8 @@ def narrative_keep_reason(body: list[str], open_ids: set[str]) -> str | None:
 
 
 def compact(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
-    """Rewrite `path` in place. Returns (lines_before, lines_after,
-    items_deleted, narrative_sections_deleted)."""
+    """Rewrite `path` in place (inline-item layout). Returns (lines_before,
+    lines_after, items_deleted, narrative_sections_deleted)."""
     lines = path.read_text(encoding="utf-8").splitlines()
     before = len(lines)
     preamble, items = split_items(lines)
@@ -265,6 +234,127 @@ def compact(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
     return before, len(out), items_deleted, narrative_deleted
 
 
+def is_indexed_board(path: Path) -> bool:
+    """True when `path` is a per-item-file board (a sibling `backlog/` dir)."""
+    return path.name == "backlog.md" and (path.parent / "backlog").is_dir()
+
+
+def _load_index_module():
+    """Import `atlas-board-index.py` (hyphenated: not a plain `import`)."""
+    import importlib.util
+
+    script = Path(__file__).resolve().parent / "atlas-board-index.py"
+    spec = importlib.util.spec_from_file_location("atlas_board_index", script)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _total_lines(board: Path, item_dir: Path) -> int:
+    total = len(board.read_text(encoding="utf-8").splitlines()) if board.is_file() else 0
+    if item_dir.is_dir():
+        total += sum(
+            len(p.read_text(encoding="utf-8").splitlines()) for p in item_dir.glob("*.md")
+        )
+    return total
+
+
+def compact_indexed(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
+    """Rewrite the per-item-file board rooted at `path` in place.
+
+    Returns (lines_before, lines_after, items_deleted,
+    narrative_sections_deleted), counted across `backlog.md` and every
+    `backlog/*.md` file combined -- the same "board total" the artifact
+    budget gate measures.
+    """
+    item_dir = path.parent / "backlog"
+    before = _total_lines(path, item_dir)
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    first_index_at = next(
+        (i for i, ln in enumerate(lines) if INDEX_LINE.match(ln)), len(lines)
+    )
+    preamble_lines = lines[:first_index_at]
+
+    # Pass 1: delete closed item files, collecting which ids stay open (for
+    # the preamble's narrative-section cross-reference exception below).
+    items_deleted = 0
+    open_ids: set[str] = set()
+    for item_path in sorted(item_dir.glob("*.md")):
+        text = item_path.read_text(encoding="utf-8")
+        heading = next((ln for ln in text.splitlines() if ln.startswith("## ")), "")
+        m = ITEM_ID.match(heading)
+        if not m:
+            continue
+        if is_closed(heading):
+            item_path.unlink()
+            items_deleted += 1
+        else:
+            open_ids.add(m.group(1))
+
+    # Pass 2: narrative sections stay inline in the preamble under this
+    # layout (the migration moved only id-bearing items to files) -- same
+    # keep/delete rule as the inline board.
+    pre_preamble, narrative_items = split_items(preamble_lines)
+    kept_narrative_blocks: list[list[str]] = []
+    narrative_deleted = 0
+    for anchor_line, prefix_blanks, heading, body in narrative_items:
+        if heading.startswith(archive_heading):
+            narrative_deleted += 1
+            continue
+        reason = narrative_keep_reason(body, open_ids)
+        if reason is None:
+            narrative_deleted += 1
+            continue
+        block = []
+        if anchor_line is not None:
+            block.append(anchor_line)
+        block.extend(prefix_blanks)
+        block.append(heading)
+        block.extend(body)
+        kept_narrative_blocks.append(block)
+
+    new_preamble = list(pre_preamble)
+    for block in kept_narrative_blocks:
+        new_preamble.extend(block)
+    while len(new_preamble) > 1 and not new_preamble[-1].strip() and not new_preamble[-2].strip():
+        new_preamble.pop()
+    path.write_text("\n".join(new_preamble) + "\n", encoding="utf-8", newline="")
+
+    # Regenerate the index over whichever item files survived.
+    index_mod = _load_index_module()
+    new_text = index_mod.generate_text(path.parent)
+    path.write_text(new_text, encoding="utf-8", newline="")
+
+    after = _total_lines(path, item_dir)
+    return before, after, items_deleted, narrative_deleted
+
+
+def _dry_run_indexed(path: Path, archive_heading: str) -> None:
+    item_dir = path.parent / "backlog"
+    lines = path.read_text(encoding="utf-8").splitlines()
+    before = _total_lines(path, item_dir)
+    item_count = 0
+    closed = 0
+    for item_path in sorted(item_dir.glob("*.md")):
+        text = item_path.read_text(encoding="utf-8")
+        heading = next((ln for ln in text.splitlines() if ln.startswith("## ")), "")
+        if not ITEM_ID.match(heading):
+            continue
+        item_count += 1
+        if is_closed(heading):
+            closed += 1
+    first_index_at = next(
+        (i for i, ln in enumerate(lines) if INDEX_LINE.match(ln)), len(lines)
+    )
+    _, narrative_items = split_items(lines[:first_index_at])
+    narrative = len(narrative_items)
+    print(f"{path.name}: {before} lines (index + {len(list(item_dir.glob('*.md')))} item "
+          f"files), {item_count} items ({closed} would delete), "
+          f"{narrative} narrative sections")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true",
@@ -286,22 +376,29 @@ def main(argv: list[str] | None = None) -> int:
         if not path.is_file():
             print(f"skip (absent): {path.name}")
             continue
+        indexed = is_indexed_board(path)
         if args.dry_run:
-            lines = path.read_text(encoding="utf-8").splitlines()
-            _, items = split_items(lines)
-            kept = [
-                (a, p, h, b) for a, p, h, b in items
-                if not h.startswith(heading)
-            ]
-            item_count = sum(1 for _, _, h, _ in kept if ITEM_ID.match(h))
-            closed = sum(
-                1 for _, _, h, _ in kept if ITEM_ID.match(h) and is_closed(h)
-            )
-            narrative = len(kept) - item_count
-            print(f"{path.name}: {len(lines)} lines, {item_count} items "
-                  f"({closed} would delete), {narrative} narrative sections")
+            if indexed:
+                _dry_run_indexed(path, heading)
+            else:
+                lines = path.read_text(encoding="utf-8").splitlines()
+                _, items = split_items(lines)
+                kept = [
+                    (a, p, h, b) for a, p, h, b in items
+                    if not h.startswith(heading)
+                ]
+                item_count = sum(1 for _, _, h, _ in kept if ITEM_ID.match(h))
+                closed = sum(
+                    1 for _, _, h, _ in kept if ITEM_ID.match(h) and is_closed(h)
+                )
+                narrative = len(kept) - item_count
+                print(f"{path.name}: {len(lines)} lines, {item_count} items "
+                      f"({closed} would delete), {narrative} narrative sections")
             continue
-        before, after, n_items, n_narrative = compact(path, heading)
+        if indexed:
+            before, after, n_items, n_narrative = compact_indexed(path, heading)
+        else:
+            before, after, n_items, n_narrative = compact(path, heading)
         print(f"{path.name}: {before} -> {after} lines "
               f"({n_items} items deleted, {n_narrative} narrative sections deleted)")
     return 0
