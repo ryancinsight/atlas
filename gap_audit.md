@@ -6033,7 +6033,7 @@ coeus PR#305 (batched norms on provider) merged — all GPU backends pass.
 
 ### Atlas gitlink advances (2026-08-12 second pass)
 
-Pushed on uild/atlas-eunomia-moirai-gitlinks, PR#124:
+Pushed on build/atlas-eunomia-moirai-gitlinks, PR#124:
 
 | Repo | From | To | Reason |
 |------|------|-----|--------|
@@ -6074,7 +6074,7 @@ Pushed on uild/atlas-eunomia-moirai-gitlinks, PR#124:
 ### Final state
 
 - provider-integration-audit.py: **OK** (19 providers, coherence clean)
-- ersion-guard coherence: **clean** (235/215/1038, 0 defects)
+- version-guard coherence: **clean** (235/215/1038, 0 defects)
 - Provider alignment: 18/19 ALIGNED, 1 AHEAD (horae PR#7 pending)
 
 ## ATLAS-PROVIDER-AUDIT-2026-08-12 — Nineteen-provider audit, book-closure PRs, and tyche 0.2.0 cascade — 2026-08-12
@@ -9146,7 +9146,7 @@ Scope: ATLAS-ARCH-002, ATLAS-ARCH-003, ATLAS-ARCH-004, ATLAS-ARCH-006 partial.
 
 ### ATLAS-ARCH-003 closed — Make leto-ops statistics generic [minor]
 
-All nine 64-concrete statistics functions in `leto-ops::application::statistics`
+All nine f64-concrete statistics functions in `leto-ops::application::statistics`
 are now generic over `T: RealField`: `pearson`, `normalized_rmse`, `nrmse`,
 `rmse`, `psnr`, `percentile_range`, `phase_shift_correlation_curve`,
 `phase_error_degrees_for_correlation`, `validation_psnr_from_relative_rmse`.
