@@ -38,11 +38,18 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # The ratchet compares against the pull request base; a blobless
-          # fetch of the base ref is enough to read the boards and image sizes.
-          fetch-depth: 0
-          filter: blob:none
+      - name: Fetch the base revision the ratchet compares against
+        # A blobless full-history checkout cannot lazily fetch the transient
+        # pull-request merge commit ("upload-pack: not our ref"), so the base
+        # arrives by its own shallow fetch instead; GitHub serves any reachable
+        # commit by full SHA.
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha || github.event.before || '' }}"
+          if [[ -n "$base" && "$base" != "0000000000000000000000000000000000000000" ]]; then
+            git fetch --no-tags --depth=1 origin "$base"
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ryancinsight/atlas
