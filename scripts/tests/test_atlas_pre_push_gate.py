@@ -487,6 +487,68 @@ class MissingToolchainTestCase(unittest.TestCase):
             self.assertIn("no cargo toolchain found", stderr)
 
 
+class SafetyRatchetTestCase(unittest.TestCase):
+    """The member's SAFETY ratchet runs in the local gate, as CI runs it.
+
+    apollo#397 passed this gate and failed CI's workspace job on the ratchet:
+    nothing local ran it, so CI discovered what the gate should have.
+    """
+
+    def _push_source_change(self, ratchet_exit: int | None) -> tuple:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            if ratchet_exit is not None:
+                _write(
+                    fixture.root / "scripts" / "safety_ratchet.py",
+                    "#!/usr/bin/env python3\n"
+                    "import pathlib, sys\n"
+                    "assert sys.argv[1:] == ['check'], sys.argv\n"
+                    "pathlib.Path('ratchet-calls.log').write_text('called')\n"
+                    f"sys.exit({ratchet_exit})\n",
+                    executable=True,
+                )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+                 "-b", "feat"],
+                check=True,
+            )
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// tweak\n"
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add", "crates", "scripts"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                 "-m", "src"],
+                check=True,
+            )
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+            ran = (fixture.root / "ratchet-calls.log").is_file()
+            calls = fixture.calls.read_text() if fixture.calls.is_file() else ""
+            return code, stderr, ran, calls
+
+    def test_a_failing_ratchet_refuses_the_push_before_compiling(self) -> None:
+        code, stderr, ran, calls = self._push_source_change(ratchet_exit=1)
+        self.assertTrue(ran, "the ratchet was not invoked")
+        self.assertEqual(code, 1)
+        self.assertIn("the SAFETY ratchet fails", stderr)
+        self.assertNotIn("clippy", calls, "the text scan gates before the compile steps")
+
+    def test_a_passing_ratchet_continues_to_the_compile_steps(self) -> None:
+        code, stderr, ran, calls = self._push_source_change(ratchet_exit=0)
+        self.assertTrue(ran, "the ratchet was not invoked")
+        self.assertEqual(code, 0, stderr)
+        self.assertIn("clippy", calls)
+
+    def test_a_member_without_the_ratchet_is_not_gated_on_it(self) -> None:
+        code, stderr, ran, calls = self._push_source_change(ratchet_exit=None)
+        self.assertFalse(ran)
+        self.assertEqual(code, 0, stderr)
+        self.assertNotIn("SAFETY ratchet", stderr)
+
+
 class DefaultBranchTestCase(unittest.TestCase):
     """The gate follows the remote's default branch, not `main`.
 
