@@ -59,6 +59,7 @@ _HOOK_COMMANDS = (
     "tr",
     "mktemp",
     "rm",
+    "tar",
 )
 
 
@@ -205,7 +206,7 @@ class GateFixture:
 
     def set_cargo_behavior(self, mode: str) -> None:
         """Install a stub `cargo`: `pass`, `fail-fmt`, `fail-clippy-ours`,
-        `fail-clippy-environment`, or `missing` (no stub on PATH).
+        `fail-clippy-environment`, `fail-deny`, or `missing` (no stub on PATH).
 
         A failing clippy prints `$CARGO_FAIL_LOG`, supplied by the caller
         through the hook's environment: embedding the log in the stub would
@@ -218,7 +219,18 @@ class GateFixture:
         if mode == "missing":
             return
         if mode == "pass":
-            body = 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\nexit 0\n'
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'if [ "$1" = "deny" ] && [ "$2" != "--version" ]; then\n'
+                '  pwd >> "$FIXTURE_ROOT/deny-cwd.log"\n'
+                "fi\nexit 0\n"
+            )
+        elif mode == "fail-deny":
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'if [ "$1" = "deny" ] && [ "$2" != "--version" ]; then exit 1; fi\n'
+                "exit 0\n"
+            )
         elif mode == "fail-fmt":
             body = (
                 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
@@ -688,3 +700,58 @@ class UnverifiableLockTestCase(unittest.TestCase):
             )
             self.assertEqual(code, 0, stderr)
             self.assertIn("skipped by SKIP_LOCKFILE_CHECK", stderr)
+
+
+class DenySourcesTestCase(unittest.TestCase):
+    """A lock-changing push checks dependency sources on an export."""
+
+    def _push(self, mode: str, change: str) -> tuple:
+        temp = tempfile.TemporaryDirectory(prefix="pre-push-deny-")
+        self.addCleanup(temp.cleanup)
+        fixture = GateFixture(pathlib.Path(temp.name))
+        _write(fixture.root / "deny.toml", "[sources]\nallow-git = []\n")
+        subprocess.run(["git", "-C", str(fixture.root), *_IDENT, "add", "deny.toml"], check=True)
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "deny"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "push", "-q", "origin", "HEAD:main"],
+            check=True,
+        )
+        subprocess.run(["git", "-C", str(fixture.root), "switch", "-q", "-c", "feat"], check=True)
+        target = fixture.root / change
+        _write(target, target.read_text(encoding="utf-8") + "# changed\n")
+        subprocess.run(["git", "-C", str(fixture.root), *_IDENT, "add", "-A"], check=True)
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "change"], check=True
+        )
+        fixture.set_cargo_behavior(mode)
+        lock_before = (fixture.root / "Cargo.lock").read_bytes()
+        code, err = fixture.run_hook(
+            fixture.push_line_new_branch(), {"SKIP_LOCAL_GATE": "1"}
+        )
+        self.assertEqual((fixture.root / "Cargo.lock").read_bytes(), lock_before)
+        calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.exists() else ""
+        cwd_log = fixture.root / "deny-cwd.log"
+        cwd = cwd_log.read_text(encoding="utf-8").strip() if cwd_log.exists() else ""
+        return code, err, calls, cwd, fixture.root
+
+    def test_a_lock_change_checks_sources_on_an_export_outside_the_member(self) -> None:
+        code, err, calls, cwd, root = self._push("pass", "Cargo.lock")
+        self.assertEqual(code, 0, err)
+        self.assertIn("deny --locked check sources", calls)
+        self.assertTrue(cwd, "cargo deny must have run")
+        self.assertNotIn(
+            os.path.normcase(str(root.resolve())), os.path.normcase(cwd),
+            "the check runs on an export, never in the member's tree",
+        )
+
+    def test_a_disallowed_source_refuses_the_push(self) -> None:
+        code, err, _, _, _ = self._push("fail-deny", "Cargo.lock")
+        self.assertEqual(code, 1, err)
+        self.assertIn("resolves a source deny.toml does not allow", err)
+
+    def test_a_push_without_a_dependency_change_skips_the_check(self) -> None:
+        code, err, calls, _, _ = self._push("fail-deny", "crates/foo/src/lib.rs")
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("deny --locked check sources", calls)

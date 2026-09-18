@@ -184,6 +184,42 @@ then stage the result. To push anyway: SKIP_LOCKFILE_CHECK=1 git push
 MESSAGE
   exit 1
 fi
+
+# Dependency sources. A lock advance can bring in git sources `deny.toml`
+# does not allow, and nothing above reads them: harmonia#19 merged on a green
+# `--locked` build and left CI red until harmonia#21 allowed three new
+# first-party sources. cargo-deny cannot run in this checkout -- it resolves
+# from the workspace root, so inside the stack the development overlay
+# answers, every git source reads as unencountered, `sources ok` is vacuous,
+# and the lock is rewritten -- so it runs on an export of the pushed revision
+# outside the stack, which is exactly what CI resolves. The working tree is
+# never touched.
+if [ -f "$repo_root/deny.toml" ]; then
+  if ! cargo deny --version >/dev/null 2>&1; then
+    echo "pre-push: cargo-deny is not installed, so the dependency sources of this" >&2
+    echo "lock change are unverified. Install it (cargo install --locked cargo-deny)," >&2
+    echo "or push anyway with SKIP_LOCKFILE_CHECK=1 git push" >&2
+    exit 1
+  fi
+  deny_export="$(mktemp -d "${TMPDIR:-/tmp}/pre-push-deny.XXXXXX")"
+  if ! git archive "$pushed_tip" | tar -x -C "$deny_export"; then
+    rm -rf "$deny_export"
+    echo "pre-push: could not export $pushed_tip for the dependency-source check" >&2
+    exit 1
+  fi
+  if ! (cd "$deny_export" && cargo deny --locked check sources >&2); then
+    rm -rf "$deny_export"
+    cat >&2 <<MESSAGE
+
+pre-push: the pushed Cargo.lock resolves a source deny.toml does not allow,
+so the CI supply-chain job would fail on this push. Allow the source in
+deny.toml (a first-party git source goes under [sources] allow-git) or drop
+the dependency. To push anyway: SKIP_LOCKFILE_CHECK=1 git push
+MESSAGE
+    exit 1
+  fi
+  rm -rf "$deny_export"
+fi
 fi
 # End of the lockfile section; the code gate below runs unconditionally.
 
