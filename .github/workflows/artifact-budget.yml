@@ -11,12 +11,18 @@
 # Callers:
 #   artifact-budget:
 #     uses: ryancinsight/atlas/.github/workflows/artifact-budget.yml@<sha>
+#     with:
+#       atlas-ref: <sha>
 
 name: Artifact budget (shared gate)
 
 on:
   workflow_call:
     inputs:
+      atlas-ref:
+        description: Exact Atlas revision matching the caller's uses reference
+        required: true
+        type: string
       line-budget:
         description: Maximum lines per PM board (backlog.md, checklist.md, gap_audit.md)
         required: false
@@ -54,11 +60,10 @@ jobs:
         with:
           repository: ryancinsight/atlas
           path: _atlas
-          # The script version must match this workflow file's version: a
-          # default-branch checkout runs main's scripts under a pinned
-          # workflow, and the first call from a member found no script at all
-          # because the pinned commit had not merged yet.
-          ref: ${{ github.workflow_sha }}
+          # In a called workflow, the github context belongs to the caller;
+          # github.workflow_sha therefore identifies the caller revision, not
+          # this repository. The caller supplies the exact Atlas ref instead.
+          ref: ${{ inputs.atlas-ref }}
       - name: Check boards and tracked images against their budgets
         shell: bash
         run: |
