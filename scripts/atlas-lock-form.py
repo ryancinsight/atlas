@@ -489,6 +489,109 @@ def cmd_sync_hooks(args) -> int:
     return 0
 
 
+HOOK_MODE = "100755"
+PUBLISH_BRANCH = "ci/sync-stack-hooks"
+
+
+def git_in(repo: Path, *args: str, stdin: bytes | None = None, index: Path | None = None) -> str:
+    """Run git in `repo`, bytes in, text out; raise with git's message on failure.
+
+    `index` points git at a private index file, so a commit can be built from a
+    member's fetched default without reading or touching its working tree or
+    its real index -- which may belong to a peer mid-edit.
+    """
+    env = dict(os.environ)
+    if index is not None:
+        env["GIT_INDEX_FILE"] = str(index)
+    proc = subprocess.run(
+        ["git", "-C", str(repo), *args], input=stdin, capture_output=True, env=env
+    )
+    if proc.returncode != 0:
+        detail = proc.stderr.decode("utf-8", errors="replace").strip()
+        raise RuntimeError(f"git {' '.join(args)} in {repo.name}: {detail}")
+    return proc.stdout.decode("utf-8", errors="replace").strip()
+
+
+def hook_commit(repo: Path, base: str, hooks: list[Path], message: str) -> str | None:
+    """A commit on `base` whose `.githooks/` carries `hooks`, or None if current.
+
+    The blobs are the source files' bytes, so line endings are exactly the
+    owned copy's whatever this checkout's `core.autocrlf` says, and the mode is
+    executable so the hook runs on a Unix clone.
+    """
+    with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as scratch:
+        index = Path(scratch) / "index"
+        git_in(repo, "read-tree", base, index=index)
+        for hook in hooks:
+            blob = git_in(repo, "hash-object", "-w", "--stdin", stdin=hook.read_bytes())
+            git_in(
+                repo, "update-index", "--add", "--cacheinfo",
+                f"{HOOK_MODE},{blob},.githooks/{hook.name}", index=index,
+            )
+        tree = git_in(repo, "write-tree", index=index)
+    if tree == git_in(repo, "rev-parse", f"{base}^{{tree}}"):
+        return None
+    return git_in(repo, "commit-tree", tree, "-p", base, stdin=message.encode("utf-8"))
+
+
+def cmd_publish_hooks(args) -> int:
+    """Publish the owned hooks to every member's default branch, one PR each.
+
+    `sync-hooks` writes into each member's working tree, which is whatever
+    branch -- often a peer's, often dirty -- happens to be checked out there, so
+    a fleet deployment through it either waits on every tree or edits someone
+    else's branch. This builds each member's commit on its freshly fetched
+    default instead, with a private index, touching no tree. Members are the
+    registered ones only: iterating the `repos/` directory would include
+    anything else checked out there, a private consumer among them.
+
+    Without `--push` it reports what it would publish.
+    """
+    source_dir = Path(__file__).resolve().parent / "git-hooks"
+    hooks = sorted(p for p in source_dir.iterdir() if p.is_file())
+    source = git_in(ROOT, "rev-parse", "--short", "HEAD")
+    subject = "ci: Sync the stack-owned git hooks"
+    message = (
+        f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"
+        "source every member's `.githooks/` copies; a copy that differs is the\n"
+        "gate-version drift the conformance scan counts.\n"
+    )
+    failures = 0
+    for member in sorted(registered_member_names()):
+        repo = REPOS / member
+        if not repo.is_dir():
+            continue
+        try:
+            git_in(repo, "fetch", "-q", "origin")
+            default = git_in(repo, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+            commit = hook_commit(repo, git_in(repo, "rev-parse", default), hooks, message)
+            if commit is None:
+                print(f"current: {member}")
+                continue
+            if not args.push:
+                print(f"would publish: {member} onto {default}")
+                continue
+            branch = args.branch
+            git_in(repo, "push", "-q", "--force-with-lease", "origin", f"{commit}:refs/heads/{branch}")
+            created = subprocess.run(
+                ["gh", "pr", "create", "--head", branch, "--base", default.removeprefix("origin/"),
+                 "--title", subject, "--body", message],
+                cwd=str(repo), capture_output=True, encoding="utf-8", errors="replace",
+            )
+            if created.returncode != 0:
+                raise RuntimeError(f"gh pr create in {member}: {created.stderr.strip()}")
+            queued = subprocess.run(
+                ["gh", "pr", "merge", branch, "--merge", "--auto"],
+                cwd=str(repo), capture_output=True, encoding="utf-8", errors="replace",
+            )
+            state = "enqueued" if queued.returncode == 0 else f"open ({queued.stderr.strip()})"
+            print(f"published: {member} {created.stdout.strip()} {state}")
+        except RuntimeError as error:
+            failures += 1
+            print(f"FAILED: {error}")
+    return 1 if failures else 0
+
+
 def cmd_install_hooks(_args) -> int:
     """Point every member's `core.hooksPath` at the committed guard.
 
@@ -531,6 +634,10 @@ def main() -> int:
     sync.add_argument("--check", action="store_true",
                       help="report drift instead of writing")
     sync.set_defaults(func=cmd_sync_hooks)
+    publish = sub.add_parser("publish-hooks")
+    publish.add_argument("--push", action="store_true", help="push and open the pull requests")
+    publish.add_argument("--branch", default=PUBLISH_BRANCH)
+    publish.set_defaults(func=cmd_publish_hooks)
     sub.add_parser("check").set_defaults(func=cmd_check)
     sub.add_parser("status").set_defaults(func=cmd_status)
     sub.add_parser("restore").set_defaults(func=cmd_restore)
