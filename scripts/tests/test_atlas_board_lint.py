@@ -131,6 +131,116 @@ class NextFreeTestCase(BoardLintUtilTestCase):
         self.assertEqual(suggestion, "ATLAS-ARCH-003")
 
 
+class IndexedLayoutTestCase(BoardLintUtilTestCase):
+    """Past about forty open items a board moves bodies to
+    `backlog/<anchor>.md` with `backlog.md` as their generated index
+    (`atlas-board-index.py`); every check must see ids and control
+    characters wherever the migration put them."""
+
+    def _item_dir(self) -> Path:
+        item_dir = Path(self._tmp.name) / "backlog"
+        item_dir.mkdir(exist_ok=True)
+        return item_dir
+
+    def test_collisions_across_finds_a_duplicate_id_in_two_item_files(self) -> None:
+        item_dir = self._item_dir()
+        (item_dir / "a.md").write_text(
+            '<a id="a"></a>\n## ATLAS-DUP-100 — first [patch] — todo\n', encoding="utf-8"
+        )
+        (item_dir / "b.md").write_text(
+            '<a id="b"></a>\n## ATLAS-DUP-100 — second [patch] — done\n', encoding="utf-8"
+        )
+        dupes = _lint.collisions_across([item_dir / "a.md", item_dir / "b.md"])
+        self.assertIn("ATLAS-DUP-100", dupes)
+        self.assertEqual(len(dupes["ATLAS-DUP-100"]), 2)
+
+    def test_collisions_across_unique_ids_across_files_are_not_flagged(self) -> None:
+        item_dir = self._item_dir()
+        (item_dir / "a.md").write_text(
+            '<a id="a"></a>\n## ATLAS-UNIQ-100 — first [patch] — todo\n', encoding="utf-8"
+        )
+        (item_dir / "b.md").write_text(
+            '<a id="b"></a>\n## ATLAS-UNIQ-101 — second [patch] — todo\n', encoding="utf-8"
+        )
+        dupes = _lint.collisions_across([item_dir / "a.md", item_dir / "b.md"])
+        self.assertEqual(dupes, {})
+
+    def test_next_free_across_scans_every_item_file(self) -> None:
+        item_dir = self._item_dir()
+        (item_dir / "a.md").write_text("## ATLAS-FAM-001 — one\n", encoding="utf-8")
+        (item_dir / "b.md").write_text("## ATLAS-FAM-002 — two\n", encoding="utf-8")
+        suggestion = _lint.next_free_across([item_dir / "a.md", item_dir / "b.md"], "ATLAS-FAM")
+        self.assertEqual(suggestion, "ATLAS-FAM-003")
+
+    def test_main_finds_duplicate_id_across_item_files(self) -> None:
+        item_dir = self._item_dir()
+        (item_dir / "a.md").write_text(
+            '<a id="a"></a>\n## ATLAS-DUP-200 — first [patch] — todo\n', encoding="utf-8"
+        )
+        (item_dir / "b.md").write_text(
+            '<a id="b"></a>\n## ATLAS-DUP-200 — second [patch] — done\n', encoding="utf-8"
+        )
+        board = Path(self._tmp.name) / "backlog.md"
+        board.write_text(
+            '<a id="a"></a>- [ATLAS-DUP-200](backlog/a.md) — first [patch] — todo\n'
+            '<a id="b"></a>- [ATLAS-DUP-200](backlog/b.md) — second [patch] — done\n',
+            encoding="utf-8",
+        )
+        old_argv = sys.argv
+        old_root = _lint.ROOT
+        sys.argv = ["atlas-board-lint.py", "--file", "backlog.md"]
+        _lint.ROOT = Path(self._tmp.name)
+        try:
+            rc = _lint.main()
+        finally:
+            sys.argv = old_argv
+            _lint.ROOT = old_root
+        self.assertEqual(rc, 1)
+
+    def test_main_reports_unique_ids_for_a_clean_indexed_board(self) -> None:
+        item_dir = self._item_dir()
+        (item_dir / "a.md").write_text(
+            '<a id="a"></a>\n## ATLAS-CLEAN-100 — first [patch] — todo\n', encoding="utf-8"
+        )
+        board = Path(self._tmp.name) / "backlog.md"
+        board.write_text(
+            '<a id="a"></a>- [ATLAS-CLEAN-100](backlog/a.md) — first [patch] — todo\n',
+            encoding="utf-8",
+        )
+        old_argv = sys.argv
+        old_root = _lint.ROOT
+        sys.argv = ["atlas-board-lint.py", "--file", "backlog.md"]
+        _lint.ROOT = Path(self._tmp.name)
+        try:
+            rc = _lint.main()
+        finally:
+            sys.argv = old_argv
+            _lint.ROOT = old_root
+        self.assertEqual(rc, 0)
+
+    def test_main_reports_control_characters_in_an_item_file(self) -> None:
+        item_dir = self._item_dir()
+        (item_dir / "a.md").write_bytes(
+            b'<a id="a"></a>\n## ATLAS-CTRL-100 \xe2\x80\x94 item [patch] \xe2\x80\x94 todo\n'
+            b"- Path D:\x07tlas\\repos\n"
+        )
+        board = Path(self._tmp.name) / "backlog.md"
+        board.write_text(
+            '<a id="a"></a>- [ATLAS-CTRL-100](backlog/a.md) \u2014 item [patch] \u2014 todo\n',
+            encoding="utf-8",
+        )
+        old_argv = sys.argv
+        old_root = _lint.ROOT
+        sys.argv = ["atlas-board-lint.py", "--file", "backlog.md"]
+        _lint.ROOT = Path(self._tmp.name)
+        try:
+            rc = _lint.main()
+        finally:
+            sys.argv = old_argv
+            _lint.ROOT = old_root
+        self.assertEqual(rc, 1)
+
+
 class ControlCharacterTestCase(unittest.TestCase):
     """A board line carrying an interpreted escape fails the lint."""
 

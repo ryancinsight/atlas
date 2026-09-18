@@ -1,0 +1,8 @@
+<a id="atlas-apollo-python-surface-2026-08-20"></a>
+## ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20 — Ship the typed Python surface [patch] — in-progress
+
+outcome: the Apollo Python package ships a `py.typed` marker and matching `.pyi` stub surface covering every re-exported binding/plan, wheel metadata declares typing-inclusive classifiers, and the installed-wheel test resolves public names with a value-semantic FFT smoke. Heavy Rust binding compute paths retain `Python::detach`.
+
+status: implemented and merged — PR [#109](https://github.com/ryancinsight/apollo/pull/109), commit `4e055407`, merged at default `fd9ecd0206c2b4ee3993a42eec65a1703d592ac2` with the expected-head guard. Local evidence: format, locked check, clippy, nextest, release `cp38-abi3` wheel build, 35 installed-wheel pytest cases.
+
+next: confirm post-merge default-branch CI (`32474434108`) and Pages (`32474432640`) go terminal-successful before advancing the Atlas gitlink/pointer; `recurseml/analysis` is a pre-existing report-only error, not a blocker.

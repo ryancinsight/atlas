@@ -1,0 +1,10 @@
+<a id="atlas-kwavers-ci-coverage-opt-2026-08-25"></a>
+## ATLAS-KWAVERS-CI-COVERAGE-OPT-2026-08-25 — Bound full-workspace test topology [perf][patch] — in-progress
+
+outcome: kwavers CI job wall-times (Architecture Validation, Test Suite Coverage, CI/CD Pipeline — all far past the five-minute verification target) are bounded by fixing root causes (missing rust-cache, serialized independent tests, redundant full-feature doctest rebuild), never by widening timeouts or by an unverified O3 coverage-profile change (rejected: optimized-out functions make instrumentation coverage unprocessable).
+
+delivered: PR #642 moved the disjoint doctest graph to Documentation and bounded nextest/Rayon to 2x2 concurrency (folded into peer PR #641 by its owner to avoid a duplicate CI matrix; workload preserved). PR #647 (`e78a4e8`, merged) gave Heavy Validation a shared-key rust-cache: 41.6m → 33.6m on first hosted run. PR #648 added a coverage-dedicated cache for tarpaulin (checks re-running after an auto-close/reopen race). nextest timeout topology (`nextest.toml`) audited: already evidence-based, no change needed.
+
+next: confirm PR #648's rerun green; tighten Heavy Validation's 45-minute timeout toward measured+20% once a warm-cache measurement confirms (bound tightening follows evidence, never precedes it).
+
+residual, user decision: hosted-runner queue time (15–74 min per job across members, worse than any single job's own work) now dominates wall time everywhere caches are fixed — the levers are job consolidation, larger runner quota/self-hosted runners, and lane-scheduling discipline between concurrent agent sessions (a same-hour snapshot found 25 active runs across 7 concurrent peer branches on kwavers alone).

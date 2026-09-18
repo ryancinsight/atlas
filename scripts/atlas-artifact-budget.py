@@ -21,9 +21,18 @@ repository whose history already exceeds it:
 * a tracked image over the byte budget may not be added or modified; an
   existing oversized image passes until touched.
 
+A board past about forty open items moves its item bodies to per-item
+files (`backlog/<anchor>.md`) with `backlog.md` as their generated index
+(`atlas-board-index.py`); `backlog.md`'s line count here folds in every
+`backlog/*.md` file so the 1,000-line board budget still bounds the whole
+board. Each item file additionally carries its own fifteen-line budget,
+reported (never gated -- a real item can legitimately run long) as
+`items_over_budget` and, under `check`, as `INFO` lines.
+
 Without `--base` there is nothing to ratchet against, and every overage
-fails. `report` prints the two counts the conformance scanner records per
-member (`pm_lines_over_budget`, `oversized_tracked_images`).
+fails. `report` prints the three counts the conformance scanner records per
+member (`pm_lines_over_budget`, `oversized_tracked_images`,
+`items_over_budget`).
 
     python scripts/atlas-artifact-budget.py check --base origin/main --rev HEAD
     python scripts/atlas-artifact-budget.py check --root repos/ritk --base "$base"
@@ -45,6 +54,13 @@ IMAGE_SUFFIXES = frozenset(
 )
 LINE_BUDGET = 1000
 IMAGE_BUDGET_BYTES = 200 * 1024
+# Past about forty open items a board moves its bodies to per-item files
+# (`backlog/<anchor>.md`) and `backlog.md` becomes their generated index
+# (context_and_memory: Boards). Fifteen lines is that per-item budget --
+# report-only, never a gate: an item narrating real delivered work
+# legitimately runs long, and the board's own 1,000-line ceiling (below)
+# already bounds the total.
+ITEM_BUDGET = 15
 
 
 def _git(root: Path, *args: str) -> str:
@@ -75,8 +91,43 @@ def _is_git_checkout(root: Path) -> bool:
     return (root / target).exists() or Path(target).exists()
 
 
+def _line_count(text: str) -> int:
+    return text.count("\n") + (0 if text.endswith("\n") or not text else 1)
+
+
+def _item_file_paths(root: Path, ref: str | None) -> list[str]:
+    """Relative paths of `backlog/*.md` at `ref` (or the working tree)."""
+    if ref is None:
+        item_dir = root / "backlog"
+        if not item_dir.is_dir():
+            return []
+        return [f"backlog/{p.name}" for p in sorted(item_dir.glob("*.md"))]
+    try:
+        listing = _git(root, "ls-tree", "-r", "--name-only", ref, "--", "backlog/")
+    except subprocess.CalledProcessError:
+        return []
+    return [line for line in listing.splitlines() if line.endswith(".md")]
+
+
+def _read_text(root: Path, relpath: str, ref: str | None) -> str:
+    if ref is None:
+        path = root / relpath
+        return path.read_text(encoding="utf-8", errors="replace") if path.is_file() else ""
+    try:
+        return _git(root, "show", f"{ref}:{relpath}")
+    except subprocess.CalledProcessError:
+        return ""
+
+
 def board_lines(root: Path, ref: str | None = None) -> dict[str, int]:
-    """Line count per PM file present at `ref` (or in the tree when None)."""
+    """Line count per PM file present at `ref` (or in the tree when None).
+
+    `backlog.md`'s count folds in its per-item files under `backlog/`
+    (`backlog/<anchor>.md`): the board-compaction migration moved item
+    bodies there, so the 1,000-line board budget bounds the index plus its
+    items together -- the same total a pre-migration single-file board
+    would have carried, measured across the files it now spans.
+    """
     counts: dict[str, int] = {}
     for name in PM_FILES:
         if ref is None:
@@ -89,8 +140,25 @@ def board_lines(root: Path, ref: str | None = None) -> dict[str, int]:
                 text = _git(root, "show", f"{ref}:{name}")
             except subprocess.CalledProcessError:
                 continue
-        counts[name] = text.count("\n") + (0 if text.endswith("\n") or not text else 1)
+        total = _line_count(text)
+        if name == "backlog.md":
+            for item_path in _item_file_paths(root, ref):
+                total += _line_count(_read_text(root, item_path, ref))
+        counts[name] = total
     return counts
+
+
+def oversized_item_files(
+    root: Path, ref: str | None = None, item_budget: int = ITEM_BUDGET
+) -> dict[str, int]:
+    """Line count for every `backlog/*.md` item file over the per-item
+    budget. Report-only: see `ITEM_BUDGET`."""
+    result: dict[str, int] = {}
+    for item_path in _item_file_paths(root, ref):
+        n = _line_count(_read_text(root, item_path, ref))
+        if n > item_budget:
+            result[item_path] = n
+    return result
 
 
 def tracked_images(root: Path, ref: str | None = None) -> dict[str, int]:
@@ -134,11 +202,17 @@ def tracked_images(root: Path, ref: str | None = None) -> dict[str, int]:
 
 
 def counts(root: Path, line_budget: int = LINE_BUDGET,
-           image_budget: int = IMAGE_BUDGET_BYTES) -> dict[str, int]:
-    """The two conformance classes for `root`."""
+           image_budget: int = IMAGE_BUDGET_BYTES,
+           item_budget: int = ITEM_BUDGET) -> dict[str, int]:
+    """The conformance classes for `root`."""
     over = sum(max(0, n - line_budget) for n in board_lines(root).values())
     big = sum(1 for size in tracked_images(root).values() if size > image_budget)
-    return {"pm_lines_over_budget": over, "oversized_tracked_images": big}
+    items_over = len(oversized_item_files(root, item_budget=item_budget))
+    return {
+        "pm_lines_over_budget": over,
+        "oversized_tracked_images": big,
+        "items_over_budget": items_over,
+    }
 
 
 def evaluate(root: Path, base: str | None, line_budget: int = LINE_BUDGET,
@@ -202,13 +276,16 @@ def main() -> int:
                         help="evaluate this revision's tree instead of the working tree")
     parser.add_argument("--line-budget", type=int, default=LINE_BUDGET)
     parser.add_argument("--image-budget-bytes", type=int, default=IMAGE_BUDGET_BYTES)
+    parser.add_argument("--item-budget", type=int, default=ITEM_BUDGET)
     args = parser.parse_args()
     root = args.root.resolve()
     if not root.is_dir():
         print(f"no such directory: {root}", file=sys.stderr)
         return 2
     if args.mode == "report":
-        print(json.dumps(counts(root, args.line_budget, args.image_budget_bytes)))
+        print(json.dumps(
+            counts(root, args.line_budget, args.image_budget_bytes, args.item_budget)
+        ))
         return 0
     failures, warnings = evaluate(root, args.base, args.line_budget,
                                   args.image_budget_bytes, rev=args.rev)
@@ -216,6 +293,15 @@ def main() -> int:
         print(f"artifact-budget: WARN {line}")
     for line in failures:
         print(f"artifact-budget: FAIL {line}")
+    # Per-item-file report: visibility only, never a gate (ITEM_BUDGET).
+    oversized_items = oversized_item_files(root, args.rev, args.item_budget)
+    if oversized_items:
+        print(
+            f"artifact-budget: INFO {len(oversized_items)} item file(s) over the "
+            f"{args.item_budget}-line per-item budget:"
+        )
+        for path, lines in sorted(oversized_items.items()):
+            print(f"  {path}: {lines} lines")
     if failures:
         sys.stdout.flush()
         print(

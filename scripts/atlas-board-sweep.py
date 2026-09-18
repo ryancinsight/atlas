@@ -9,6 +9,11 @@ The board uses both ``in progress`` and ``in-progress`` spellings. Status is
 read from the final em-dash segment of each level-two item heading, while the
 item body supplies owner and trigger context.
 
+Past the per-item-file migration (``atlas-board-index.py``), a board's items
+live one-per-file under a sibling ``backlog/`` directory instead of inline in
+``backlog.md``; ``parse_board_root`` covers both layouts, so ``main`` always
+calls it rather than the single-file ``parse_board``.
+
     python scripts/atlas-board-sweep.py
     python scripts/atlas-board-sweep.py --file repos/kwavers/backlog.md
 
@@ -50,6 +55,12 @@ class BacklogItem:
     status: str
     line: int
     body: list[str] = field(default_factory=list)
+    # Display label for `line`'s file -- None means "the file `parse_board`
+    # was pointed at" (unchanged single-file behavior); a per-item-file
+    # layout (`parse_board_root`) stamps each item with its own file's name,
+    # since `line` alone is otherwise ambiguous once items live in
+    # `backlog/<anchor>.md` rather than at some line in `backlog.md`.
+    source_label: str | None = None
 
     @property
     def normalized_status(self) -> str:
@@ -119,6 +130,28 @@ def parse_board(path: Path) -> list[BacklogItem]:
     return items
 
 
+def parse_board_root(path: Path) -> list[BacklogItem]:
+    """`parse_board`, extended for the per-item-file layout.
+
+    Past the per-item-file migration (`atlas-board-index.py`), `backlog.md`
+    holds only a generated index -- no `## ` headings, so `parse_board`
+    alone would silently see zero items -- and each item's heading and body
+    live in their own `backlog/<anchor>.md` file. When such a sibling
+    directory exists beside *path*, this parses every item file the same
+    way `parse_board` parses one big file and concatenates the results;
+    anything `parse_board` finds directly in *path* (a board not yet
+    migrated, or a stray inline item) is included too.
+    """
+    items = list(parse_board(path))
+    item_dir = path.parent / "backlog"
+    if path.name == "backlog.md" and item_dir.is_dir():
+        for item_path in sorted(item_dir.glob("*.md")):
+            for item in parse_board(item_path):
+                item.source_label = f"backlog/{item_path.name}"
+                items.append(item)
+    return items
+
+
 def report(items: list[BacklogItem], display_path: str) -> int:
     """Print the sweep report and return the report-only exit status."""
     active = [
@@ -134,13 +167,16 @@ def report(items: list[BacklogItem], display_path: str) -> int:
     ]
 
     print(f"Backlog sweep: {display_path}")
+    def _where(item: BacklogItem) -> str:
+        return f"{item.source_label or display_path}:{item.line}"
+
     print(f"In-progress claims ({len(active)}):")
     if active:
         for item in active:
             owner = item.owner or "<missing>"
             dates = ", ".join(item.claim_dates) or "<no explicit date>"
             print(
-                f"  {item.item_id} (line {item.line}): "
+                f"  {item.item_id} ({_where(item)}): "
                 f"owner={owner}; claim_dates={dates}"
             )
     else:
@@ -152,7 +188,7 @@ def report(items: list[BacklogItem], display_path: str) -> int:
     )
     if blocked_without_trigger:
         for item in blocked_without_trigger:
-            print(f"  {item.item_id} (line {item.line}): {item.title}")
+            print(f"  {item.item_id} ({_where(item)}): {item.title}")
     else:
         print("  none")
 
@@ -175,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
     if not path.is_absolute():
         path = ROOT / path
     try:
-        items = parse_board(path)
+        items = parse_board_root(path)
     except OSError as error:
         print(f"cannot read board file {path}: {error}", file=sys.stderr)
         return 2

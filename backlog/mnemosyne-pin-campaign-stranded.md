@@ -1,0 +1,12 @@
+<a id="mnemosyne-pin-campaign-stranded"></a>
+## ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06 - A provider-pin campaign stalled undelivered in five members [patch] - todo
+
+outcome: the mnemosyne pin advances land on each member's default branch, or are deliberately discarded as superseded; no member sits on an unmerged provider-pin branch, and dependent Atlas gitlinks stop being unpushable.
+
+resolved: gaia's branch was superseded (closed, `main` already pinned the landed `e8e825f`, gitlink repointed `ba5a8fd83`). coeus and kwavers repointed off-default-branch pins to `e8e825f4` via [Coeus#376](https://github.com/ryancinsight/Coeus/pull/376) and [kwavers#723](https://github.com/ryancinsight/kwavers/pull/723); kwavers's recovered elastic-identity work landed as [kwavers#724](https://github.com/ryancinsight/kwavers/pull/724).
+
+open — remaining phase-series branches with no PR, each needing "does `main` already pin the merged result?" checked before rebasing: hermes `build/mnemosyne-phase12` (17 commits), leto `build/leto-mnemosyne-source-identity` (17), athena `feat/mnemosyne-global-allocator-integration` (2), kwavers `chore/kwavers-xtask-mnemosyne-allocator` (8 — likely superseded by #723/#724, verify before acting).
+
+then: one PR per remaining member, dependency order, each gated by its own lockfile check (these branches change dependency resolution).
+
+open question for the ADR: whether pin advances should ride per-member branches at all, or come from the mechanized integration sweep (`toil automation`) that pin discipline already calls for — five stalled branches is evidence for the latter.

@@ -382,6 +382,148 @@ class IdempotenceTestCase(unittest.TestCase):
         self.assertEqual((before, n_items, n_narr), (after, 0, 0))
 
 
+class IndexedLayoutTestCase(unittest.TestCase):
+    """Past about forty open items a board moves bodies to
+    `backlog/<anchor>.md` with `backlog.md` as their generated index
+    (`atlas-board-index.py`). Compaction there deletes a closed item's file
+    outright and regenerates the index, rather than deleting a line range."""
+
+    def _indexed_root(self, index_lines: str, items: dict[str, str], preamble: str = "# atlas — backlog") -> Path:
+        tmp = tempfile.TemporaryDirectory(prefix="atlas-compact-indexed-")
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        item_dir = root / "backlog"
+        item_dir.mkdir()
+        for name, text in items.items():
+            (item_dir / name).write_text(text, encoding="utf-8")
+        (root / "backlog.md").write_text(
+            preamble + "\n\n" + index_lines, encoding="utf-8"
+        )
+        return root
+
+    def test_is_indexed_board_requires_sibling_directory(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-compact-plain-") as root:
+            board = Path(root) / "backlog.md"
+            board.write_text("# atlas\n", encoding="utf-8")
+            self.assertFalse(_compact.is_indexed_board(board))
+            (Path(root) / "backlog").mkdir()
+            self.assertTrue(_compact.is_indexed_board(board))
+
+    def test_closed_item_file_is_deleted_and_index_regenerated(self) -> None:
+        root = self._indexed_root(
+            index_lines=(
+                '<a id="done-one"></a>- [ATLAS-DONE-070](backlog/done-one.md) — closed one [patch] — done\n'
+                '<a id="live-one"></a>- [ATLAS-LIVE-070](backlog/live-one.md) — open one [patch] — todo\n'
+            ),
+            items={
+                "done-one.md": '<a id="done-one"></a>\n## ATLAS-DONE-070 — closed one [patch] — done\n\n- delivered\n',
+                "live-one.md": '<a id="live-one"></a>\n## ATLAS-LIVE-070 — open one [patch] — todo\n\n- body\n',
+            },
+        )
+        board = root / "backlog.md"
+        before, after, n_items, n_narr = _compact.compact_indexed(board, "## Archive — closed items")
+        self.assertEqual(n_items, 1)
+        self.assertEqual(n_narr, 0)
+        self.assertLess(after, before)
+        self.assertFalse((root / "backlog" / "done-one.md").exists())
+        self.assertTrue((root / "backlog" / "live-one.md").exists())
+        index_text = board.read_text(encoding="utf-8")
+        self.assertNotIn("ATLAS-DONE-070", index_text)
+        self.assertIn("ATLAS-LIVE-070", index_text)
+
+    def test_index_stays_fresh_after_compaction(self) -> None:
+        """The regenerated backlog.md must already be what
+        `atlas-board-index.py generate` would produce -- a `check` right
+        after compaction passes with no further edit."""
+        root = self._indexed_root(
+            index_lines=(
+                '<a id="done-two"></a>- [ATLAS-DONE-071](backlog/done-two.md) — closed two [patch] — done\n'
+                '<a id="live-two"></a>- [ATLAS-LIVE-071](backlog/live-two.md) — open two [patch] — todo\n'
+            ),
+            items={
+                "done-two.md": '<a id="done-two"></a>\n## ATLAS-DONE-071 — closed two [patch] — done\n\n- delivered\n',
+                "live-two.md": '<a id="live-two"></a>\n## ATLAS-LIVE-071 — open two [patch] — todo\n\n- body\n',
+            },
+        )
+        board = root / "backlog.md"
+        _compact.compact_indexed(board, "## Archive — closed items")
+
+        index_mod = _compact._load_index_module()
+        self.assertEqual(
+            board.read_text(encoding="utf-8"), index_mod.generate_text(root)
+        )
+
+    def test_no_closed_items_is_a_no_op(self) -> None:
+        root = self._indexed_root(
+            index_lines='<a id="live-three"></a>- [ATLAS-LIVE-072](backlog/live-three.md) — open three [patch] — in-progress\n',
+            items={
+                "live-three.md": '<a id="live-three"></a>\n## ATLAS-LIVE-072 — open three [patch] — in-progress\n\n- body\n',
+            },
+        )
+        board = root / "backlog.md"
+        before_text = board.read_text(encoding="utf-8")
+        before, after, n_items, n_narr = _compact.compact_indexed(board, "## Archive — closed items")
+        self.assertEqual((n_items, n_narr), (0, 0))
+        self.assertEqual(before, after)
+        self.assertEqual(board.read_text(encoding="utf-8"), before_text)
+
+    def test_preamble_narrative_section_without_signal_is_deleted(self) -> None:
+        root = self._indexed_root(
+            preamble=(
+                "# atlas — backlog\n\n"
+                "## Tier 0 — unsoundness and wrong numbers shipping\n\n"
+                "Plain prose, no checkbox, no id reference."
+            ),
+            index_lines='<a id="live-four"></a>- [ATLAS-LIVE-073](backlog/live-four.md) — open four [patch] — todo\n',
+            items={
+                "live-four.md": '<a id="live-four"></a>\n## ATLAS-LIVE-073 — open four [patch] — todo\n\n- body\n',
+            },
+        )
+        board = root / "backlog.md"
+        _, _, n_items, n_narr = _compact.compact_indexed(board, "## Archive — closed items")
+        self.assertEqual(n_narr, 1)
+        self.assertNotIn("Tier 0", board.read_text(encoding="utf-8"))
+
+    def test_preamble_narrative_section_referencing_open_id_is_kept(self) -> None:
+        root = self._indexed_root(
+            preamble=(
+                "# atlas — backlog\n\n"
+                "## Session 17 closure — notes\n\n"
+                "See ATLAS-LIVE-074 for the residual."
+            ),
+            index_lines='<a id="live-five"></a>- [ATLAS-LIVE-074](backlog/live-five.md) — open five [patch] — todo\n',
+            items={
+                "live-five.md": '<a id="live-five"></a>\n## ATLAS-LIVE-074 — open five [patch] — todo\n\n- body\n',
+            },
+        )
+        board = root / "backlog.md"
+        _, _, _, n_narr = _compact.compact_indexed(board, "## Archive — closed items")
+        self.assertEqual(n_narr, 0)
+        self.assertIn("## Session 17 closure", board.read_text(encoding="utf-8"))
+
+    def test_main_dispatches_to_indexed_layout(self) -> None:
+        root = self._indexed_root(
+            index_lines='<a id="done-eighty"></a>- [ATLAS-DONE-080](backlog/done-eighty.md) — closed [patch] — done\n',
+            items={
+                "done-eighty.md": '<a id="done-eighty"></a>\n## ATLAS-DONE-080 — closed [patch] — done\n\n- delivered\n',
+            },
+        )
+        self.assertEqual(_compact.main([str(root)]), 0)
+        self.assertFalse((root / "backlog" / "done-eighty.md").exists())
+
+    def test_dry_run_does_not_write(self) -> None:
+        root = self._indexed_root(
+            index_lines='<a id="done-ninety"></a>- [ATLAS-DONE-090](backlog/done-ninety.md) — closed [patch] — done\n',
+            items={
+                "done-ninety.md": '<a id="done-ninety"></a>\n## ATLAS-DONE-090 — closed [patch] — done\n\n- delivered\n',
+            },
+        )
+        before_text = (root / "backlog.md").read_text(encoding="utf-8")
+        self.assertEqual(_compact.main(["--dry-run", str(root)]), 0)
+        self.assertEqual((root / "backlog.md").read_text(encoding="utf-8"), before_text)
+        self.assertTrue((root / "backlog" / "done-ninety.md").exists())
+
+
 class RootArgumentTestCase(unittest.TestCase):
     def test_root_argument_selects_another_repository(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-compact-") as root:

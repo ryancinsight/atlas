@@ -1,0 +1,8 @@
+<a id="atlas-overlay-gen-stale-1"></a>
+## ATLAS-OVERLAY-GEN-STALE-1 — Cross-repo path deps on member mainlines [arch] — todo (needs user decision)
+
+- **outcome:** exactly one of the two contradicting mechanisms governs local resolution — either all committed cross-repo path deps convert back to `git+version` and the root `[patch]` overlay stays authoritative, or the overlay is deliberately narrowed and the generator's freshness check updated so `generate` stops looking like a regression.
+- **Measured (committed state only, not worktrees):** `athena` carries 36 committed cross-repo path deps plus a committed `[patch]` (`Cargo.toml:119-120`) that is unresolvable on a single-repo CI runner — this keeps athena red. A private downstream consumer carries 25 more, untracked. Every other member's committed manifests are clean `git+version`.
+- **Why not fixed unilaterally:** converting back is a 6-repo revert of another agent's deliberate, stated migration (`b2ee610`), and three of those repos (coeus, CFDrs, ritk) have live peer branches — reverting a peer's intentional migration at that blast radius is a call for the user.
+- **Blocked on:** Ask-User decision between the two mechanisms (see outcome). athena additionally needs the ATLAS-PUB-LOCK-1 lock repair before its CI goes green either way.
+- **Method note:** always measure committed state via `git show HEAD:<path>` or an isolated clone — working trees under the overlay routinely diverge from HEAD (this item's own prior 163-count measurement was withdrawn for exactly that reason).

@@ -1,0 +1,14 @@
+<a id="atlas-kwavers-swe3d-baseline-regression-2026-08-26"></a>
+## ATLAS-KWAVERS-SWE3D-BASELINE-REGRESSION-2026-08-26 — integration oracle regression on main [major] — in-progress
+
+outcome: kwavers main's Architecture Validation → Test Suite Coverage integration suite is green; any baseline refresh is justified by a diagnosed cause (platform noise vs. a genuine solver-behavior change), never a mechanical `--update`.
+
+status: the original `swe_3d_validation::volumetric_tracking_covers_non_pml_domain` failure is not reproducible from current source (local full integration run: 681/681 passed) — an empty baseline is correct. kwavers PR #653 (`8165488c2`, merged) restored an `--unlocked` local escape for `scripts/integration_tests.py` so future regressions can be diagnosed against the same gate CI runs.
+
+open: `pstd_finite_window_born::source_phasing_is_frechet_derivative` fails locally at tip `dddb75c12` — half-resolution Born residual now exceeds full-resolution, violating the convergence-under-refinement assertion. Needs `git bisect` across six recent PSTD solver refactors, not a baseline `--update`.
+
+blocked on above: kwavers PR [#664](https://github.com/ryancinsight/kwavers/pull/664) (switches the integration runner to `--profile ci --no-fail-fast`, ~17m→~8m projected) — re-enable trigger is the failing test pair passing on current main first.
+
+note: a second apparent failure (`pinn_ic_validation::test_ic_combined_loss_decreases`) is a dev-overlay link-resolution defect, not a test defect — reproduces only under the Atlas overlay, not in a clean-room build.
+
+closed in this sweep: gaia CSG boolean face-soup grouping assessed correct-as-jagged, not claimed. kwavers conservative-interpolator transfer-matrix → CSR conversion (PR #650): −22% at refine_4, +5% at refine_2, recorded on the PR.

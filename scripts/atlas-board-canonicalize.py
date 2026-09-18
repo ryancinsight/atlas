@@ -236,28 +236,48 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    text = Path(args.path).read_text(encoding="utf-8")
-    new_text, changes = process_board(text)
+    path = Path(args.path)
+    # Past the per-item-file migration (`atlas-board-index.py`), backlog.md
+    # holds only the generated index -- no `## ` headings to canonicalize --
+    # and each item's heading lives in its own `backlog/<anchor>.md` file.
+    # Canonicalize each of those individually rather than the (now header-
+    # free) index; a board with no sibling `backlog/` directory canonicalizes
+    # exactly as before, unchanged.
+    item_dir = path.parent / "backlog"
+    targets = (
+        sorted(item_dir.glob("*.md"))
+        if path.name == "backlog.md" and item_dir.is_dir()
+        else [path]
+    )
 
-    if args.show:
-        for item_id, old, new in changes:
-            print(f"[{item_id}]")
-            print(f"  - {old.strip()}")
-            print(f"  + {new.strip()}")
-            print()
+    total_changes = 0
+    for target in targets:
+        text = target.read_text(encoding="utf-8")
+        new_text, changes = process_board(text)
+        total_changes += len(changes)
+
+        if args.show:
+            for item_id, old, new in changes:
+                print(f"[{item_id}]")
+                print(f"  - {old.strip()}")
+                print(f"  + {new.strip()}")
+                print()
+
+        if args.dry_run or not changes:
+            continue
+
+        # `newline=""` keeps the LF the board stores. `write_text` translates
+        # every line ending to the platform's on Windows, so the tool would
+        # rewrite the whole file's endings on the host it most often runs on --
+        # the churn class `.gitattributes` exists to prevent, arriving through
+        # the formatter rather than the author.
+        with target.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(new_text)
 
     if args.dry_run:
-        print(f"{args.path}: {len(changes)} heading(s) canonicalized (dry run)")
-        return 0
-
-    # `newline=""` keeps the LF the board stores. `write_text` translates
-    # every line ending to the platform's on Windows, so the tool would
-    # rewrite the whole file's endings on the host it most often runs on --
-    # the churn class `.gitattributes` exists to prevent, arriving through
-    # the formatter rather than the author.
-    with Path(args.path).open("w", encoding="utf-8", newline="") as handle:
-        handle.write(new_text)
-    print(f"{args.path}: {len(changes)} heading(s) canonicalized")
+        print(f"{args.path}: {total_changes} heading(s) canonicalized (dry run)")
+    else:
+        print(f"{args.path}: {total_changes} heading(s) canonicalized")
     return 0
 
 
