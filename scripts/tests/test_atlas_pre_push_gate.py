@@ -221,6 +221,7 @@ class GateFixture:
         if mode == "pass":
             body = (
                 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'pwd >> "$FIXTURE_ROOT/cwd.log"\n'
                 'if [ "$1" = "deny" ] && [ "$2" != "--version" ]; then\n'
                 '  pwd >> "$FIXTURE_ROOT/deny-cwd.log"\n'
                 "fi\nexit 0\n"
@@ -235,6 +236,15 @@ class GateFixture:
             body = (
                 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
                 'if [ "$1" = "fmt" ]; then exit 1; fi\nexit 0\n'
+            )
+        elif mode == "fail-collision":
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'if [ "$1" = "clippy" ]; then\n'
+                '  echo "error: package collision in the lockfile: packages foo v0.1.0 '
+                '(/stack/repos/foo) and foo v0.1.0 (/stack/worktrees/foo-lane)" >&2\n'
+                "  exit 101\n"
+                "fi\nexit 0\n"
             )
         elif mode.startswith("fail-clippy"):
             body = (
@@ -755,3 +765,66 @@ class DenySourcesTestCase(unittest.TestCase):
         code, err, calls, _, _ = self._push("fail-deny", "crates/foo/src/lib.rs")
         self.assertEqual(code, 0, err)
         self.assertNotIn("deny --locked check sources", calls)
+
+
+class LaneGateTestCase(unittest.TestCase):
+    """A lane of an overlaid member gates outside the overlay."""
+
+    def _lane(self, overlay: bool) -> tuple:
+        temp = tempfile.TemporaryDirectory(prefix="pre-push-lane-")
+        self.addCleanup(temp.cleanup)
+        stack = pathlib.Path(temp.name)
+        fixture = GateFixture(stack / "repos" / "foo")
+        if overlay:
+            _write(stack / ".cargo" / "config.toml", '[build]\ntarget-dir = "target"\n')
+        lane = stack / "worktrees" / "foo-lane"
+        subprocess.run(
+            ["git", "-C", str(fixture.root), "worktree", "add", "-q", "-b", "lane", str(lane)],
+            check=True,
+        )
+        _write(lane / "crates" / "foo" / "src" / "lib.rs", "pub fn g() {}\n")
+        subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-qam", "lane"], check=True)
+        return stack, fixture, lane
+
+    def _run_in_lane(self, fixture: GateFixture, lane: pathlib.Path) -> tuple:
+        env = dict(os.environ)
+        env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+        env.pop("CARGO_TARGET_DIR", None)
+        env["SKIP_LOCKFILE_CHECK"] = "1"
+        sha = _git(lane, "rev-parse", "HEAD")
+        proc = subprocess.run(
+            ["bash", str(SCRIPT)],
+            input=f"refs/heads/lane {sha} refs/heads/lane {ZERO}\n".encode("utf-8"),
+            cwd=str(lane),
+            env=env,
+            capture_output=True,
+        )
+        return proc.returncode, proc.stderr.decode("utf-8", errors="replace")
+
+    def test_a_lane_gates_from_outside_the_stack_with_its_manifest(self) -> None:
+        stack, fixture, lane = self._lane(overlay=True)
+        code, err = self._run_in_lane(fixture, lane)
+        self.assertEqual(code, 0, err)
+        self.assertIn("gating outside the stack overlay", err)
+        calls = fixture.calls.read_text(encoding="utf-8")
+        self.assertIn("--manifest-path", calls)
+        self.assertIn("foo-lane", calls)
+        for cwd in (fixture.root / "cwd.log").read_text(encoding="utf-8").split():
+            self.assertNotIn(
+                os.path.normcase(str(stack.resolve())), os.path.normcase(str(pathlib.Path(cwd).resolve())),
+                "cargo must not run inside the stack",
+            )
+
+    def test_a_lane_without_an_overlay_gates_in_place(self) -> None:
+        _, fixture, lane = self._lane(overlay=False)
+        code, err = self._run_in_lane(fixture, lane)
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("gating outside the stack overlay", err)
+        self.assertNotIn("--manifest-path", fixture.calls.read_text(encoding="utf-8"))
+
+    def test_a_lockfile_package_collision_is_the_environment(self) -> None:
+        _, fixture, lane = self._lane(overlay=False)
+        fixture.set_cargo_behavior("fail-collision")
+        code, err = self._run_in_lane(fixture, lane)
+        self.assertNotIn("clippy fails for", err)
+        self.assertIn("NOT verified", err)

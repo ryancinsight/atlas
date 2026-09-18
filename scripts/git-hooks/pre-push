@@ -411,8 +411,15 @@ normalise_diagnostic_path() {
 classify_gate_step() {
   local log="$1"
   shift
-  if (cd "$repo_root" && "$@" >"$log" 2>&1); then
+  if (cd "$gate_cwd" && "$@" >"$log" 2>&1); then
     echo ok
+    return 0
+  fi
+
+  # Two workspaces defining one package is the overlay meeting a lane, never
+  # the change: see the lane selection above `gate_specs`.
+  if grep -q 'package collision in the lockfile' "$log"; then
+    echo environment
     return 0
   fi
 
@@ -483,7 +490,44 @@ Check with `python scripts/atlas-stack-overlay.py check` at the stack root.
 MESSAGE
 }
 
-gate_specs=""
+# Where cargo runs. A member's main tree runs inside the stack, so the gate
+# builds against the local working trees the overlay provides. A lane (a
+# linked worktree) cannot: the overlay patches this member's packages to its
+# main tree while the lane's workspace defines the same packages, and cargo
+# stops with "package collision in the lockfile" -- a moirai lane push was
+# refused that way as a clippy failure. A lane therefore runs from a directory
+# outside the stack, naming its manifest and the stack's shared target
+# directory, which resolves the committed lock exactly as CI does.
+gate_cwd="$repo_root"
+gate_manifest=""
+if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
+  overlay_config=""
+  search_dir="$(dirname "$repo_root")"
+  while [ "$search_dir" != "/" ] && [ "$search_dir" != "." ]; do
+    if [ -f "$search_dir/.cargo/config.toml" ]; then
+      overlay_config="$search_dir/.cargo/config.toml"
+      break
+    fi
+    parent="$(dirname "$search_dir")"
+    [ "$parent" = "$search_dir" ] && break
+    search_dir="$parent"
+  done
+  if [ -n "$overlay_config" ]; then
+    if [ -z "${CARGO_TARGET_DIR:-}" ]; then
+      stack_target="$(sed -n 's/^[[:space:]]*target-dir[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' "$overlay_config" | head -1)"
+      case "$stack_target" in
+        "") ;;
+        /*|[A-Za-z]:*) export CARGO_TARGET_DIR="$stack_target" ;;
+        *) export CARGO_TARGET_DIR="$(dirname "$(dirname "$overlay_config")")/$stack_target" ;;
+      esac
+    fi
+    gate_cwd="$(mktemp -d "${TMPDIR:-/tmp}/pre-push-lane.XXXXXX")"
+    gate_manifest="--manifest-path $repo_root/Cargo.toml"
+    echo "pre-push: lane of an overlaid member; gating outside the stack overlay" >&2
+  fi
+fi
+
+gate_specs="$gate_manifest"
 for package_name in $gate_packages; do
   gate_specs="$gate_specs -p $package_name"
 done
@@ -510,13 +554,16 @@ restore_gate_lock() {
     rm -f "$gate_lock_backup" || true
   fi
   rm -f "${gate_log:-}" 2>/dev/null || true
+  if [ "$gate_cwd" != "$repo_root" ]; then
+    rm -rf "$gate_cwd" 2>/dev/null || true
+  fi
 }
 
 trap restore_gate_lock EXIT INT TERM
 
 # Formatting is workspace-wide and near-instant, and its failure is the
 # cheapest one to find here rather than on a runner.
-if ! (cd "$repo_root" && cargo fmt -- --check >/dev/null); then
+if ! (cd "$gate_cwd" && cargo fmt $gate_manifest -- --check >/dev/null); then
   cat >&2 <<'MESSAGE'
 
 pre-push: `cargo fmt --check` fails, so the architecture validation would.
