@@ -188,6 +188,36 @@ fi
 # End of the lockfile section; the code gate below runs unconditionally.
 
 # ---------------------------------------------------------------------------
+# Artifact budgets: PM boards under their line budget, tracked images under
+# their byte budget (scripts/atlas-artifact-budget.py, ratchet-to-budget: an
+# over-budget board may not grow, an oversized image may not be added or
+# touched). Boards reached 6,325/7,609/7,570 lines and screenshots 1.5 MB in
+# one member before anything measured either. The script lives in the stack
+# root; a standalone clone outside the stack reports and continues, since the
+# shared CI workflow (artifact-budget.yml) is the authoritative gate there.
+# The gate judges HEAD, the revision being pushed, never the working tree a
+# peer may hold dirty.
+budget_checker="$repo_root/../../scripts/atlas-artifact-budget.py"
+if [ -f "$budget_checker" ] && [ -n "$python_bin" ]; then
+  budget_base=""
+  if upstream="$(git rev-parse --verify --quiet '@{upstream}' 2>/dev/null)"; then
+    budget_base="$upstream"
+  else
+    budget_base="$(default_branch_base HEAD || true)"
+  fi
+  budget_args=()
+  [ -n "$budget_base" ] && budget_args=(--base "$budget_base")
+  if ! "$python_bin" "$budget_checker" check --root "$repo_root" --rev HEAD "${budget_args[@]}"; then
+    echo "pre-push: BLOCKED -- a PM board grew past its line budget or a tracked" >&2
+    echo "image exceeds the byte budget. Compact the board (done items delete)," >&2
+    echo "move evidence captures out of git, and push again." >&2
+    exit 1
+  fi
+else
+  echo "pre-push: artifact-budget checker not reachable from this clone; CI enforces it" >&2
+fi
+
+# ---------------------------------------------------------------------------
 # Fast local gate, scoped to the pushed range.
 #
 # The lockfile guard above is one third of what CI runs, and the other two
