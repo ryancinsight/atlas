@@ -512,21 +512,42 @@ def git_in(repo: Path, *args: str, stdin: bytes | None = None, index: Path | Non
     return proc.stdout.decode("utf-8", errors="replace").strip()
 
 
-def hook_commit(repo: Path, base: str, hooks: list[Path], message: str) -> str | None:
+def committed_hooks(atlas: Path, ref: str) -> list[tuple[str, bytes]]:
+    """The owned hooks as committed at `ref`: (file name, exact bytes) pairs.
+
+    Read from the commit, never the working tree: in a shared checkout the
+    tree holds whatever branch a peer has checked out, so a publish sourced
+    from `scripts/git-hooks/` on disk would deploy that branch's copy -- a
+    stale hook reached every member that way before this read the commit.
+    """
+    listing = git_in(atlas, "ls-tree", "--name-only", f"{ref}:scripts/git-hooks")
+    hooks = []
+    for name in sorted(listing.splitlines()):
+        blob = subprocess.run(
+            ["git", "-C", str(atlas), "cat-file", "blob", f"{ref}:scripts/git-hooks/{name}"],
+            capture_output=True, check=True,
+        ).stdout
+        hooks.append((name, blob))
+    return hooks
+
+
+def hook_commit(
+    repo: Path, base: str, hooks: list[tuple[str, bytes]], message: str
+) -> str | None:
     """A commit on `base` whose `.githooks/` carries `hooks`, or None if current.
 
-    The blobs are the source files' bytes, so line endings are exactly the
-    owned copy's whatever this checkout's `core.autocrlf` says, and the mode is
+    `hooks` are (file name, bytes) pairs, so line endings are exactly the
+    owned copy's whatever any checkout's `core.autocrlf` says, and the mode is
     executable so the hook runs on a Unix clone.
     """
     with tempfile.TemporaryDirectory(prefix="atlas-hooks-") as scratch:
         index = Path(scratch) / "index"
         git_in(repo, "read-tree", base, index=index)
-        for hook in hooks:
-            blob = git_in(repo, "hash-object", "-w", "--stdin", stdin=hook.read_bytes())
+        for name, content in hooks:
+            blob = git_in(repo, "hash-object", "-w", "--stdin", stdin=content)
             git_in(
                 repo, "update-index", "--add", "--cacheinfo",
-                f"{HOOK_MODE},{blob},.githooks/{hook.name}", index=index,
+                f"{HOOK_MODE},{blob},.githooks/{name}", index=index,
             )
         tree = git_in(repo, "write-tree", index=index)
     if tree == git_in(repo, "rev-parse", f"{base}^{{tree}}"):
@@ -547,9 +568,10 @@ def cmd_publish_hooks(args) -> int:
 
     Without `--push` it reports what it would publish.
     """
-    source_dir = Path(__file__).resolve().parent / "git-hooks"
-    hooks = sorted(p for p in source_dir.iterdir() if p.is_file())
-    source = git_in(ROOT, "rev-parse", "--short", "HEAD")
+    git_in(ROOT, "fetch", "-q", "origin")
+    atlas_default = git_in(ROOT, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+    hooks = committed_hooks(ROOT, atlas_default)
+    source = git_in(ROOT, "rev-parse", "--short", atlas_default)
     subject = "ci: Sync the stack-owned git hooks"
     message = (
         f"{subject}\n\nDeploys atlas `scripts/git-hooks` at {source}, the single\n"

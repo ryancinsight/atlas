@@ -362,7 +362,9 @@ class HookCommitTestCase(unittest.TestCase):
             hooks.mkdir()
             (hooks / "pre-push").write_bytes(b"#!/bin/sh\r\nexit 0\n")
 
-            commit = _lock_form.hook_commit(repo, base, [hooks / "pre-push"], "ci: sync\n")
+            commit = _lock_form.hook_commit(
+                repo, base, [("pre-push", (hooks / "pre-push").read_bytes())], "ci: sync\n"
+            )
 
             self.assertIsNotNone(commit)
             self.assertEqual(self._git(repo, "rev-parse", f"{commit}^"), base)
@@ -377,6 +379,24 @@ class HookCommitTestCase(unittest.TestCase):
             self.assertEqual(self._git(repo, "show", f"{commit}:lib.rs"), "one")
             self.assertEqual(self._git(repo, "status", "--porcelain"), status_before)
             self.assertEqual(self._git(repo, "rev-parse", "--abbrev-ref", "HEAD"), "peer")
+
+    def test_publish_reads_the_committed_hooks_not_the_checkout(self) -> None:
+        """A peer's uncommitted edit to the hook in a shared atlas checkout must
+        not be what reaches the members."""
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-") as temp:
+            atlas = Path(temp) / "atlas"
+            hook = atlas / "scripts" / "git-hooks" / "pre-push"
+            hook.parent.mkdir(parents=True)
+            self._git(atlas, "init", "-q", "-b", "main")
+            self._git(atlas, "config", "core.autocrlf", "false")
+            hook.write_bytes(b"#!/bin/sh\nexit 0\n")
+            self._git(atlas, "add", ".")
+            self._git(atlas, "commit", "-q", "-m", "hooks")
+            hook.write_bytes(b"#!/bin/sh\necho peer edit\n")
+
+            hooks = _lock_form.committed_hooks(atlas, "main")
+
+            self.assertEqual(hooks, [("pre-push", b"#!/bin/sh\nexit 0\n")])
 
     def test_a_member_already_carrying_the_hooks_needs_no_commit(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-publish-") as temp:
@@ -393,7 +413,10 @@ class HookCommitTestCase(unittest.TestCase):
             (hooks / "pre-push").write_bytes(b"#!/bin/sh\nexit 0\n")
 
             commit = _lock_form.hook_commit(
-                repo, self._git(repo, "rev-parse", "HEAD"), [hooks / "pre-push"], "ci: sync\n"
+                repo,
+                self._git(repo, "rev-parse", "HEAD"),
+                [("pre-push", (hooks / "pre-push").read_bytes())],
+                "ci: sync\n",
             )
 
             self.assertIsNone(commit)
