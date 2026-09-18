@@ -1,18 +1,10 @@
 <a id="atlas-coeus-nlls-004"></a>
 ## ATLAS-COEUS-NLLS-004 — original specification — todo
 
-- **Evidence of gap**: `coeus-optim` ships `SGD`, `Adam`, `AdamW`, `RMSProp`,
-  and `Adagrad` only — all first-order stochastic, sized for network training.
-- **Why it blocks**: per-voxel diffusion fitting is millions of independent
-  small dense residual problems. A damped Gauss-Newton step with an analytic
-  Jacobian converges in single-digit iterations; a first-order stochastic
-  optimizer is the wrong instrument by orders of magnitude. Log-linear DTI is
-  unaffected — it routes through `leto-ops` (`pinv`, `qr_decompose`,
-  `cholesky_solve`), which already exist.
-- **Blocks**: DKI, NODDI, IVIM, free-water, and every other nonlinear model.
-- **Acceptance**: batched over a leading problem axis; verified against an
-  analytical oracle with a known minimum and against a published test problem
-  set; convergence criterion is a derived relative-residual bound, never a fixed
-  iteration count.
-- **Class**: `[minor]`, repository `repos/coeus`.
+outcome: `coeus-optim` gains a damped Gauss-Newton (or equivalent second-order) nonlinear least-squares optimizer batched over a leading problem axis, for per-voxel diffusion fitting (millions of independent small dense residual problems) where first-order stochastic optimizers (`SGD`, `Adam`, `AdamW`, `RMSProp`, `Adagrad` — all it currently ships) are the wrong instrument by orders of magnitude. Log-linear DTI is unaffected (already routes through `leto-ops`).
 
+blocks: DKI, NODDI, IVIM, free-water, and every other nonlinear diffusion model.
+
+acceptance: verified against an analytical oracle with a known minimum and against a published test problem set; convergence criterion is a derived relative-residual bound, never a fixed iteration count.
+
+Class: `[minor]`, repository `repos/coeus`.

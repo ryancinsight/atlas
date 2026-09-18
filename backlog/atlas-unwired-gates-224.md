@@ -1,31 +1,8 @@
 <a id="atlas-unwired-gates-224"></a>
 ## ATLAS-UNWIRED-GATES-224 — Instruments that exist, pass, and are never run [patch] — in-progress
 
-**`atlas-registry-metadata.py` had never been invoked by any workflow.** It
-was written, committed, and green — and on the single day it was run by hand
-it found kwavers declaring six keywords against a cap of five, plus the
-category slug `medical`, which does not exist in the crates.io taxonomy.
-crates.io enforces both **at upload**, after the version number is spent, so
-the rejection is not retryable under that version. Wired in `572a585`; the
-defect it found is fixed in kwavers `1aa24beb7`.
+outcome: every committed verification script is either actually wired into a workflow, or deliberately documented as an orient-time/local-only check — so a green, unrun gate can't hide a real defect. Pattern to keep applying: "a gate that has never failed may never have run" — check `grep -ohE "scripts/[a-z-]+\.py" .github/workflows/*.yml` against `ls scripts/*.py`.
 
-An unreachable taxonomy degrades to `UNVERIFIED` at exit 0 and the slug
-snapshot is committed, so it cannot flake on crates.io availability.
+delivered: `atlas-registry-metadata.py` wired in `572a585` (had never run; on first run found kwavers exceeding the crates.io keyword cap and using a nonexistent category slug, fixed in kwavers `1aa24beb7`; degrades to `UNVERIFIED` at exit 0 on unreachable taxonomy so it can't flake on crates.io availability). `atlas-lane-audit.py` confirmed deliberately unwired — a CI clone has one working tree so it would pass vacuously in CI; it stays an orient-time/replenishment-time check, findings carried on the board via `-222`.
 
-**`atlas-lane-audit.py` is deliberately left unwired.** It already implements
-`-222`'s whole audit half — tree bound, canonical lane root, named branch,
-prune freshness, standalone-clone detection — and currently reports the same
-four violations. But a CI clone has one working tree, so in CI it would pass
-unconditionally and prove nothing. It is an orient-time and
-replenishment-time check by its own contract; its findings belong on the
-board, which is where `-222` now carries them.
-
-- Residual: `atlas_scattered_containers_classify.py` is also unwired. Assess
-  whether it is CI-valid (like the registry check) or inherently local (like
-  the lane audit) before deciding — those are the only two answers, and
-  "wire everything" is the wrong one.
-- The pattern, worth keeping: **a gate that has never failed may never have
-  run.** Three instruments were built during this sweep; one was silently
-  inert. Checking `grep -ohE "scripts/[a-z-]+\.py" .github/workflows/*.yml`
-  against `ls scripts/*.py` is the ten-second version of that audit.
-
+open: `atlas_scattered_containers_classify.py` — assess whether it's CI-valid (wire it) or inherently local (document it like the lane audit); those are the only two valid answers.

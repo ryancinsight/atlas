@@ -850,8 +850,6 @@ Final gitlink-coherence state at Session 30 close: **25 probed | 4 defects | 1 s
 <a id="atlas-kwavers-vis-config-2026-08-25"></a>- [ATLAS-KWAVERS-VIS-CONFIG-2026-08-25](backlog/atlas-kwavers-vis-config-2026-08-25.md) — Make visualization selection and quality single-source [major] — blocked
 <a id="atlas-kwavers-bench-smoke-2026-08-25"></a>- [ATLAS-KWAVERS-BENCH-SMOKE-2026-08-25](backlog/atlas-kwavers-bench-smoke-2026-08-25.md) — Bound cold-build benchmark smoke [patch] — in-progress
 <a id="atlas-kwavers-python-surface-2026-08-21"></a>- [ATLAS-KWAVERS-PYTHON-SURFACE-2026-08-21](backlog/atlas-kwavers-python-surface-2026-08-21.md) — Complete typed and concurrent PyO3 surface [minor] — in-progress
-<a id="atlas-tyche-release-verification-2026-08-21"></a>- [ATLAS-TYCHE-RELEASE-VERIFICATION-2026-08-21](backlog/atlas-tyche-release-verification-2026-08-21.md) — Record release gates [patch] — in-progress
-<a id="atlas-asclepius-geud-gradient-2026-08-20"></a>- [ATLAS-ASCLEPIUS-GEUD-GRADIENT-2026-08-20](backlog/atlas-asclepius-geud-gradient-2026-08-20.md) — Add an independent Coeus gradient oracle [patch] — in-progress
 <a id="atlas-themis-region-module-2026-08-20"></a>- [ATLAS-THEMIS-REGION-MODULE-2026-08-20](backlog/atlas-themis-region-module-2026-08-20.md) — Split branded region implementation [arch][patch] — in-progress
 <a id="atlas-helios-radon-oracle-2026-08-20"></a>- [ATLAS-HELIOS-RADON-ORACLE-2026-08-20](backlog/atlas-helios-radon-oracle-2026-08-20.md) — Remove existence-only sinogram assertion [patch] — in-progress
 <a id="atlas-adr0033-stages"></a>- [ATLAS-ADR0033-STAGES](backlog/atlas-adr0033-stages.md) — Krylov ownership unwind, measured status [arch] — in-progress
@@ -861,8 +859,6 @@ Final gitlink-coherence state at Session 30 close: **25 probed | 4 defects | 1 s
 <a id="atlas-apollo-python-surface-2026-08-20"></a>- [ATLAS-APOLLO-PYTHON-SURFACE-2026-08-20](backlog/atlas-apollo-python-surface-2026-08-20.md) — Ship the typed Python surface [patch] — in-progress
 <a id="atlas-harmonia-field-exchange-050-2026-08-21"></a>- [ATLAS-HARMONIA-FIELD-EXCHANGE-050-2026-08-21](backlog/atlas-harmonia-field-exchange-050-2026-08-21.md) — Add typed physical-field exchange [major] [arch] — in-progress
 <a id="atlas-moirai-accelerator-route-2026-08-21"></a>- [ATLAS-MOIRAI-ACCELERATOR-ROUTE-2026-08-21](backlog/atlas-moirai-accelerator-route-2026-08-21.md) — Execute accelerator routes [major] [arch] — in-progress
-<a id="atlas-gaia-book-gate-2026-08-20"></a>- [ATLAS-GAIA-BOOK-GATE-2026-08-20](backlog/atlas-gaia-book-gate-2026-08-20.md) — Add value-semantic book execution [patch] — in-progress
-<a id="atlas-cfdrs-format-gate-2026-08-20"></a>- [ATLAS-CFDRS-FORMAT-GATE-2026-08-20](backlog/atlas-cfdrs-format-gate-2026-08-20.md) — Restore exact-default formatting gate [patch] — in-progress
 <a id="atlas-cfdrs-allocator-2026-08-20"></a>- [ATLAS-CFDRS-ALLOCATOR-2026-08-20](backlog/atlas-cfdrs-allocator-2026-08-20.md) — Remove library global allocator [major][arch] — in-progress
 <a id="atlas-substrate-003-2026-08-20"></a>- [ATLAS-SUBSTRATE-003-2026-08-20](backlog/atlas-substrate-003-2026-08-20.md) — Give the Leto/Hephaestus decomposition pair one seam and one oracle [minor][arch] — in-progress
 <a id="atlas-provider-closure-2026-08-20"></a>- [ATLAS-PROVIDER-CLOSURE-2026-08-20](backlog/atlas-provider-closure-2026-08-20.md) — Complete active provider slices [major][arch] — in-progress
@@ -870,7 +866,6 @@ Final gitlink-coherence state at Session 30 close: **25 probed | 4 defects | 1 s
 <a id="atlas-cfdrs-hosted-fmt-2026-08-20"></a>- [ATLAS-CFDRS-HOSTED-FMT-2026-08-20](backlog/atlas-cfdrs-hosted-fmt-2026-08-20.md) — repair required Rust format gate [patch] — in-progress
 <a id="atlas-hosted-recheck-2026-08-19-2"></a>- [ATLAS-HOSTED-RECHECK-2026-08-19-2](backlog/atlas-hosted-recheck-2026-08-19-2.md) — current provider state [patch] — in-progress
 <a id="atlas-ritk-default-reconciliation-2026-08-19"></a>- [ATLAS-RITK-DEFAULT-RECONCILIATION-2026-08-19](backlog/atlas-ritk-default-reconciliation-2026-08-19.md) — docs-only merge [patch] — in-progress
-<a id="atlas-provider-merge-reconciliation-2026-08-19"></a>- [ATLAS-PROVIDER-MERGE-RECONCILIATION-2026-08-19](backlog/atlas-provider-merge-reconciliation-2026-08-19.md) — verified provider slices [patch] — in-progress
 <a id="atlas-horae-consumer-audit-2026-08-19"></a>- [ATLAS-HORAE-CONSUMER-AUDIT-2026-08-19](backlog/atlas-horae-consumer-audit-2026-08-19.md) — boundary finding [patch] — blocked
 <a id="atlas-hosted-recheck-2026-08-19"></a>- [ATLAS-HOSTED-RECHECK-2026-08-19](backlog/atlas-hosted-recheck-2026-08-19.md) — moving-default evidence — in-progress
 <a id="atlas-publish-graph-2026-08-19"></a>- [ATLAS-PUBLISH-GRAPH-2026-08-19](backlog/atlas-publish-graph-2026-08-19.md) — crates.io dependency closure — blocked
@@ -962,7 +957,6 @@ Final gitlink-coherence state at Session 30 close: **25 probed | 4 defects | 1 s
 <a id="hook-fleet-duplication"></a>- [ATLAS-HOOK-FLEET-DUPLICATION-2026-09-06](backlog/hook-fleet-duplication.md) — Twenty-two hand-maintained copies of two git hooks [patch] — in-progress
 <a id="mnemosyne-pin-campaign-stranded"></a>- [ATLAS-MNEMOSYNE-PIN-CAMPAIGN-STRANDED-2026-09-06](backlog/mnemosyne-pin-campaign-stranded.md) — A provider-pin campaign stalled undelivered in five members [patch] — todo
 <a id="slop-burndown"></a>- [ATLAS-SLOP-BURNDOWN-2026-09-06](backlog/slop-burndown.md) — Measured debt burn-down against the conformance ratchet [patch] — in-progress
-<a id="kwavers-elastic-constructors"></a>- [ATLAS-KWAVERS-ELASTIC-CONSTRUCTORS-2026-09-06](backlog/kwavers-elastic-constructors.md) — kwavers#707 is red on real errors and conflicting [patch] — todo
 <a id="moirai-06-sweep"></a>- [ATLAS-MOIRAI-06-SWEEP-2026-09-06](backlog/moirai-06-sweep.md) — Moirai 0.6.0 landed without its forward sweep [patch] — in-progress
 <a id="bare-git-pin-staleness"></a>- [ATLAS-BARE-GIT-PIN-STALENESS-2026-09-08](backlog/bare-git-pin-staleness.md) — A version-less git dependency freezes at its first resolution [patch] — todo
 <a id="apollo-quarantine-lift"></a>- [ATLAS-APOLLO-QUARANTINE-LIFT-2026-09-08](backlog/apollo-quarantine-lift.md) — Apollo's moirai rev pin can now be removed [patch] — todo
