@@ -232,6 +232,14 @@ class GateFixture:
                 'if [ "$1" = "deny" ] && [ "$2" != "--version" ]; then exit 1; fi\n'
                 "exit 0\n"
             )
+        elif mode == "fail-doc":
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'if [ "$1" = "doc" ]; then\n'
+                '  printf "%s\\n" "$CARGO_FAIL_LOG" >&2\n'
+                "  exit 1\n"
+                "fi\nexit 0\n"
+            )
         elif mode == "fail-fmt":
             body = (
                 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
@@ -392,6 +400,7 @@ class PackageMapperTestCase(unittest.TestCase):
             self.assertIn("gating solo", stderr)
             calls = (fixture.root / "calls.log").read_text(encoding="utf-8")
             self.assertIn("-p solo", calls)
+            self.assertIn("doc --no-deps -p solo", calls)
 
 
 class BlameClassifierTestCase(unittest.TestCase):
@@ -436,6 +445,36 @@ class BlameClassifierTestCase(unittest.TestCase):
             fixture.push_line_new_branch(),
             extra_env={"CARGO_FAIL_LOG": log.format(root=root)},
         )
+
+    def test_rustdoc_failure_inside_repo_blocks(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+                 "-b", "feat"],
+                check=True,
+            )
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// tweak\n"
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add",
+                 "crates/foo/src/lib.rs"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                 "-m", "src"],
+                check=True,
+            )
+            root = str(fixture.root).replace("\\", "/")
+            fixture.set_cargo_behavior("fail-doc")
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(),
+                extra_env={"CARGO_FAIL_LOG": self.inside_log.format(root=root)},
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("rustdoc fails for", stderr)
 
     def test_clippy_failure_inside_repo_blocks(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
