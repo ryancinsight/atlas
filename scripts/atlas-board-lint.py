@@ -44,6 +44,27 @@ APPENDIX_SUFFIX = re.compile(
     r"^\s+(original\s+specification)\s*$", re.IGNORECASE
 )
 
+# C0 controls and DEL, less LF and CR. A Windows path written into a
+# non-raw string has its escapes interpreted -- `D:\atlas` becomes BEL and
+# `tlas`, `\target` a TAB -- and eight such spans reached the board across
+# two authors' merged commits (ATLAS-BOARD-CONTROL-CHARACTERS-2026-09-18),
+# because nothing read the board for them. TAB is included: the boards
+# indent with spaces, so a TAB is always an interpreted `\t`.
+CONTROL = re.compile(r"[\x00-\x09\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def control_characters(path: pathlib.Path) -> list[tuple[int, str]]:
+    """Return (line number, escaped line excerpt) for every line holding a
+    control character, reading bytes so no decoder normalizes them away."""
+    found = []
+    text = path.read_bytes().decode("utf-8", errors="replace")
+    for lineno, line in enumerate(text.split("\n"), start=1):
+        body = line[:-1] if line.endswith("\r") else line
+        if CONTROL.search(body):
+            found.append((lineno, body.encode("unicode_escape").decode("ascii")[:120]))
+    return found
+
+
 def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
     """Map each duplicated id to its (line number, title) occurrences.
 
@@ -195,6 +216,19 @@ def main() -> int:
     dupes = collisions(path)
 
     status = 0
+    controls = control_characters(path)
+    if controls:
+        print(f"{args.file}: {len(controls)} line(s) carry control characters\n")
+        for lineno, excerpt in controls:
+            print(f"  line {lineno}: {excerpt}")
+        print(
+            "\nA control character in a board is an escape interpreted in a "
+            "non-raw string (\\a, \\t, \\r from a Windows path). Restore "
+            "the original text.\n",
+            file=sys.stderr,
+        )
+        status = 1
+
     if refs:
         # Report-only until ATLAS-LINT-CALIB normalizes the corpus
         # (closure markers vary by board era; separator mojibake). The

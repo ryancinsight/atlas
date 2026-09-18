@@ -131,5 +131,32 @@ class NextFreeTestCase(BoardLintUtilTestCase):
         self.assertEqual(suggestion, "ATLAS-ARCH-003")
 
 
+class ControlCharacterTestCase(unittest.TestCase):
+    """A board line carrying an interpreted escape fails the lint."""
+
+    def test_a_bel_from_an_escaped_windows_path_is_named_by_line(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="board-lint-") as temp:
+            board = Path(temp) / "backlog.md"
+            board.write_bytes(
+                b"# Backlog\n\n## ATLAS-X-1 \xe2\x80\x94 Item [patch] \xe2\x80\x94 todo\n"
+                b"- Path D:\x07tlas\\repos\r\n"
+            )
+            found = _lint.control_characters(board)
+        self.assertEqual([lineno for lineno, _ in found], [4])
+        self.assertIn("\\x07", found[0][1])
+
+    def test_line_endings_and_plain_text_pass(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="board-lint-") as temp:
+            board = Path(temp) / "backlog.md"
+            board.write_bytes(b"# Backlog\r\n\r\n- D:\\atlas\\repos\n")
+            self.assertEqual(_lint.control_characters(board), [])
+
+    def test_a_tab_is_an_interpreted_escape(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="board-lint-") as temp:
+            board = Path(temp) / "backlog.md"
+            board.write_bytes(b"- D:\\atlas\target\n")
+            self.assertEqual([lineno for lineno, _ in _lint.control_characters(board)], [1])
+
+
 if __name__ == "__main__":
     unittest.main()
