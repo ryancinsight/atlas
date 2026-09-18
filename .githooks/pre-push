@@ -65,6 +65,39 @@ if [ ! -x "$binary" ]; then
     exit 1
 fi
 
+# The revisions being pushed, from git's stdin protocol. HEAD is whatever
+# branch the shared tree happens to hold -- under concurrent agents routinely a
+# peer's -- so a gate that reads HEAD judges the wrong commit: one push of a
+# main-based branch was refused for a gitlink a peer's checked-out branch had
+# moved. Each gate below judges the pushed tip.
+pushed_tips=()
+pushed_bases=()
+if [ ! -t 0 ]; then
+    while read -r _local_ref local_sha _remote_ref remote_sha; do
+        [ "$local_sha" = "0000000000000000000000000000000000000000" ] && continue
+        pushed_tips+=("$local_sha")
+        pushed_bases+=("$remote_sha")
+    done
+fi
+if [ "${#pushed_tips[@]}" -eq 0 ]; then
+    pushed_tips=(HEAD)
+    pushed_bases=("0000000000000000000000000000000000000000")
+fi
+# The base each gate diffs against: the remote tip being replaced, or for a
+# new branch its merge-base with the default -- never the checked-out
+# branch's upstream, which belongs to whatever a peer holds in the tree.
+gate_base_for() {
+    local tip="$1" remote="$2" base
+    if [ "$remote" != "0000000000000000000000000000000000000000" ]; then
+        if git -C "$atlas_root" cat-file -e "$remote^{commit}" 2>/dev/null; then
+            printf '%s' "$remote"
+            return 0
+        fi
+    fi
+    base="$(git -C "$atlas_root" merge-base origin/main "$tip" 2>/dev/null || true)"
+    printf '%s' "$base"
+}
+
 report="$("$binary" --atlas-root "$atlas_root" 2>&1)"
 status=$?
 
@@ -77,14 +110,13 @@ status=$?
 # changed, so an ordinary push costs nothing and an advance costs about ten
 # seconds per moved member.
 debt_gate() {
-    local changed python_bin member output base
+    local tip="$1" changed python_bin member output base
     # A branch on its first push has no upstream, and that is exactly when
     # a pin advance is most likely; falling through to "nothing changed"
     # there would skip the gate on the pushes it most needs to see.
-    base="$(git -C "$atlas_root" rev-parse --verify --quiet @{upstream} 2>/dev/null)"
-    [ -z "$base" ] && base="$(git -C "$atlas_root" rev-parse --verify --quiet origin/main 2>/dev/null)"
+    base="$gate_base"
     [ -z "$base" ] && return 0
-    changed="$(git -C "$atlas_root" diff --name-only "$base"..HEAD -- repos/ 2>/dev/null | awk -F/ 'NF > 1 { print $2 }' | sort -u)"
+    changed="$(git -C "$atlas_root" diff --name-only "$base".."$tip" -- repos/ 2>/dev/null | awk -F/ 'NF > 1 { print $2 }' | sort -u)"
     [ -z "$changed" ] && return 0
 
     python_bin="${PYTHON:-}"
@@ -117,9 +149,42 @@ debt_gate() {
     return 0
 }
 
+# Atlas's own PM boards and tracked images, under the same budget gate the
+# members run (scripts/atlas-artifact-budget.py): an over-budget board may
+# not grow, an oversized image may not be added or touched.
+budget_gate() {
+    local tip="$1" base python_bin candidate
+    base="$gate_base"
+    python_bin="${PYTHON:-}"
+    if [ -z "$python_bin" ]; then
+        for candidate in python3 python; do
+            command -v "$candidate" >/dev/null 2>&1 && { python_bin="$candidate"; break; }
+        done
+    fi
+    if [ -z "$python_bin" ]; then
+        echo "pre-push: BLOCKED -- no python interpreter; artifact budgets unverified." >&2
+        return 1
+    fi
+    local args=()
+    [ -n "$base" ] && args=(--base "$base")
+    # The checker comes from the revision being pushed, so a shared tree that
+    # lacks or predates it (a peer's checkout) still judges by the right code;
+    # a revision without the script predates the gate and has nothing to run.
+    if ! git -C "$atlas_root" cat-file -e "$tip:scripts/atlas-artifact-budget.py" 2>/dev/null; then
+        return 0
+    fi
+    git -C "$atlas_root" show "$tip:scripts/atlas-artifact-budget.py"         | "$python_bin" - check --root "$atlas_root" --rev "$tip" "${args[@]}"         || { echo "pre-push: BLOCKED -- a board grew past its budget or an oversized image was added." >&2; return 1; }
+    return 0
+}
+
 case "$status" in
     0)
-        debt_gate || exit 1
+        for i in "${!pushed_tips[@]}"; do
+            tip="${pushed_tips[$i]}"
+            gate_base="$(gate_base_for "$tip" "${pushed_bases[$i]}")"
+            debt_gate "$tip" || exit 1
+            budget_gate "$tip" || exit 1
+        done
         exit 0
         ;;
     1)

@@ -74,6 +74,25 @@ except ImportError:  # pragma: no cover - optional for environments without PyYA
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from atlas_stack import ROOT, is_git_ignored, staleness_note
 
+
+def _load_sibling(name: str, module: str):
+    """Import a sibling script whose file name is not an identifier."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        module, Path(__file__).resolve().parent / name
+    )
+    assert spec is not None and spec.loader is not None
+    loaded = importlib.util.module_from_spec(spec)
+    sys.modules[module] = loaded
+    spec.loader.exec_module(loaded)
+    return loaded
+
+
+# PM-board line budget and tracked-image byte budget: hard gates at the
+# member (scripts/atlas-artifact-budget.py in pre-push and CI), measured here
+# fleet-wide so the meta board sees the counts and the ratchet refuses growth.
+artifact_budget = _load_sibling("atlas-artifact-budget.py", "atlas_artifact_budget")
+
 try:
     from atlas_architecture_test import (
         BALANCE_DOMAINS as _BALANCE_DOMAINS,
@@ -280,6 +299,7 @@ CLASSES = [
     "balance_domain_edges", "bare_git_dependency",
     "cache_retention_policy_missing", "crlf_stored_blobs",
     "member_gate_versions",
+    "pm_lines_over_budget", "oversized_tracked_images",
 ]
 
 #
@@ -1533,6 +1553,7 @@ def scan_repo(
     c["crlf_stored_blobs"] = count_crlf_stored_blobs(
         repo, live_repo=live_repo, revision=revision
     )
+    c.update(artifact_budget.counts(repo))
     # The shared-cache budget is stack-level, not per-member: the policy file
     # must exist and name this member's routed target dir (the root
     # `.cargo/config.toml` [build] target-dir) for the member to count as
@@ -1814,6 +1835,7 @@ def scan_stack(
     meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(ROOT)
     meta["gitattributes_missing"] = lf_policy_missing(ROOT)
     meta["crlf_stored_blobs"] = count_crlf_stored_blobs(ROOT)
+    meta.update(artifact_budget.counts(ROOT))
     scan_workflows(ROOT, meta)
     out["<meta>"] = meta
     return out
