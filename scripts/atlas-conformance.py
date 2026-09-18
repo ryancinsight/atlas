@@ -1667,6 +1667,26 @@ def materialize_member(
     return content, provider
 
 
+def scan_member(
+    stack_root: Path, name: str, root_revision: str | None
+) -> dict[str, int]:
+    """Scan one registered member at the gitlink `root_revision` records.
+
+    `None` scans the live checkout as it is (`--worktree`). A pre-push gate
+    judging a pin advance passes the pushed tip: the live checkout in a
+    shared tree holds whatever a peer left there, so scanning it judged a
+    revision nobody was pushing (2026-09-18: a moirai advance that cleared
+    both of its ratchet violations was refused for the stale pin's).
+    """
+    member = stack_root / "repos" / name
+    if root_revision is None:
+        return scan_repo(member)
+    expected = gitlink_revision(root_revision, f"repos/{name}", stack_root)
+    with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
+        content, live = materialize_member(member, expected, Path(scratch))
+        return scan_repo(content, live_repo=live, revision=expected)
+
+
 def scan_stack(
     stack_root: Path = ROOT, root_revision: str | None = None
 ) -> dict[str, dict[str, int]]:
@@ -1949,7 +1969,8 @@ def main() -> int:
     parser.add_argument(
         "--repo",
         metavar="NAME",
-        help="scan only this provider repo (live tree, bypasses the clean-stack gate)",
+        help="scan only this provider repo, at the gitlink --revision records "
+             "(its live tree with --worktree); bypasses the clean-stack gate",
     )
     parser.add_argument(
         "--accept-raises",
@@ -1972,7 +1993,10 @@ def main() -> int:
                 print(f"no such provider repo: {args.repo}", file=sys.stderr)
                 return 2
             require_materialized_providers(ROOT, {args.repo})
-            results = {args.repo: scan_repo(member)}
+            root_revision = None if args.worktree else git_output(
+                "rev-parse", "--verify", f"{args.revision}^{{commit}}"
+            ).strip()
+            results = {args.repo: scan_member(ROOT, args.repo, root_revision)}
         elif args.worktree:
             results = scan_stack(ROOT)
         else:

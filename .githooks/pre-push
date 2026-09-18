@@ -105,10 +105,11 @@ status=$?
 # published commit -- everything the auditor checks -- and still import debt
 # the member grew since the last advance. That is the loop this exists to
 # break; every ratchet regression traced today was found after the pin moved,
-# never before. `check` reads HEAD's gitlinks, which is exactly the state
-# being pushed, and `--repo` keeps the scan to the members that actually
-# changed, so an ordinary push costs nothing and an advance costs about ten
-# seconds per moved member.
+# never before. `check --revision <tip>` scans each moved member at the
+# gitlink the pushed tip records -- never the member's live checkout, which in
+# a shared tree holds whatever a peer left there -- and `--repo` keeps the scan
+# to the members that actually changed, so an ordinary push costs nothing and
+# an advance costs about ten seconds per moved member.
 debt_gate() {
     local tip="$1" changed python_bin member output base
     # A branch on its first push has no upstream, and that is exactly when
@@ -137,7 +138,7 @@ debt_gate() {
     for member in $changed; do
         [ -d "${atlas_root}/repos/${member}" ] || continue
         if ! output="$("$python_bin" "${atlas_root}/scripts/atlas-conformance.py" \
-                check --repo "$member" 2>&1)"; then
+                check --repo "$member" --revision "$tip" 2>&1)"; then
             echo "pre-push: BLOCKED -- advancing ${member} raises a debt class." >&2
             echo "$output" >&2
             echo >&2
