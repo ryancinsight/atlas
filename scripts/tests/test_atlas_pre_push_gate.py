@@ -809,6 +809,8 @@ class LaneGateTestCase(unittest.TestCase):
         calls = fixture.calls.read_text(encoding="utf-8")
         self.assertIn("--manifest-path", calls)
         self.assertIn("foo-lane", calls)
+        fmt = [line for line in calls.splitlines() if line.startswith("fmt ")]
+        self.assertTrue(fmt and all(line.startswith("fmt --all ") for line in fmt), fmt)
         for cwd in (fixture.root / "cwd.log").read_text(encoding="utf-8").split():
             self.assertNotIn(
                 os.path.normcase(str(stack.resolve())), os.path.normcase(str(pathlib.Path(cwd).resolve())),
@@ -821,6 +823,7 @@ class LaneGateTestCase(unittest.TestCase):
         self.assertEqual(code, 0, err)
         self.assertNotIn("gating outside the stack overlay", err)
         self.assertNotIn("--manifest-path", fixture.calls.read_text(encoding="utf-8"))
+        self.assertIn("fmt -- --check\n", fixture.calls.read_text(encoding="utf-8"))
 
     def test_a_lockfile_package_collision_is_the_environment(self) -> None:
         _, fixture, lane = self._lane(overlay=False)

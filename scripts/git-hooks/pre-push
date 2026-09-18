@@ -500,6 +500,10 @@ MESSAGE
 # directory, which resolves the committed lock exactly as CI does.
 gate_cwd="$repo_root"
 gate_manifest=""
+# `cargo fmt` finds no targets in a virtual manifest named by path, so a lane
+# names every member; in place it reads the workspace from the working
+# directory, and `--all` there would also reach the overlay's patched trees.
+gate_fmt_scope=""
 if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
   overlay_config=""
   search_dir="$(dirname "$repo_root")"
@@ -523,6 +527,7 @@ if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
     fi
     gate_cwd="$(mktemp -d "${TMPDIR:-/tmp}/pre-push-lane.XXXXXX")"
     gate_manifest="--manifest-path $repo_root/Cargo.toml"
+    gate_fmt_scope="--all"
     echo "pre-push: lane of an overlaid member; gating outside the stack overlay" >&2
   fi
 fi
@@ -563,7 +568,7 @@ trap restore_gate_lock EXIT INT TERM
 
 # Formatting is workspace-wide and near-instant, and its failure is the
 # cheapest one to find here rather than on a runner.
-if ! (cd "$gate_cwd" && cargo fmt $gate_manifest -- --check >/dev/null); then
+if ! (cd "$gate_cwd" && cargo fmt $gate_fmt_scope $gate_manifest -- --check >/dev/null); then
   cat >&2 <<'MESSAGE'
 
 pre-push: `cargo fmt --check` fails, so the architecture validation would.
