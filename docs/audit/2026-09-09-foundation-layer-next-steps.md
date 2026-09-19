@@ -122,6 +122,9 @@ a capability that does not exist.
 
 ### F3 — Two ADRs whose status had drifted from their substance
 
+The following counts describe the 2026-09-10 snapshot. Subsequent host seam
+implementations are tracked in [the coverage item](../../backlog/atlas-hephaestus-host-seam-coverage.md).
+
 *(Corrected 2026-09-10. The original heading called these "Two ADRs Proposed
 since 2026-07-28 with no driver." Both are in fact `Accepted`, and two of the
 three ADR-0039 complaints below rested on a wrong premise.)*
@@ -426,7 +429,8 @@ has not been done.
      deliberate closed set documented in-source
      (`hephaestus-conformance/src/decomposition.rs:50-87`); the other 6 are
      covered by analytical-invariant clauses by design.
-3. **Finish ADR 0038** *(corrected 2026-09-10, second pass)*. The crate is Accepted
+3. **Finish ADR 0038** *(historical worklist, corrected 2026-09-10)*. Current host
+   work is tracked in [the coverage item](../../backlog/atlas-hephaestus-host-seam-coverage.md). The crate is Accepted
    and wired to all four accelerator backends, so this is residual work, not
    construction:
    - ~~Add **`assert_backend_contract::<B>()`**~~ — **delivered 2026-09-10** as

@@ -1,20 +1,13 @@
 # ADR 0038: One generic conformance suite owns the ComputeBackend contract
 
-- Status: **Accepted** — implementation **closed**; flipped from `Proposed`
-  2026-09-10 on re-measurement, having sat stale for six weeks after its
-  substance landed. The suite this ADR asks for exists as
-  `crates/hephaestus-conformance` (22 files, 7 020 LOC, `publish = false`),
-  generic over [`ComputeDevice`](hephaestus_core::ComputeDevice) and the
-  operation seam, and is a dev-dependency of **five** crates — the four
-  accelerator backends (`wgpu`, `rocm`, `cuda`, `metal`), each calling it from
-  18–19 test files, plus `hephaestus-host`, the CPU reference device, which
-  calls only **2 of 22** clauses — and whose remaining gap is 18 missing seam
-  implementations, not missing test wiring (see the coverage table). Residual
-  work — draining the 16 391 lines of
-  pre-existing per-backend `contract.rs` scaffolding so the shared clauses
-  become the only contract rather than one input among several, and closing the
-  per-consumer wiring gaps — does not gate acceptance.
-  **Advance 2026-09-10:** the aggregate entry point the ADR's
+- Status: **Accepted** — the shared suite is delivered; consolidation and
+  host coverage remain open. The measurements below describe 2026-09-10,
+  not current host coverage. Subsequent seam implementations are tracked in
+  [the host coverage item](../../backlog/atlas-hephaestus-host-seam-coverage.md).
+- Revision 2026-09-18: distinguish acceptance of the shared-suite ownership
+  decision from completion of every consumer migration. The old host counts
+  are historical; they do not describe the subsequent implementation work.
+  **Historical advance, measured 2026-09-10:** the aggregate entry point the ADR's
   `<B: ComputeBackend, T: Scalar>` intent implied now exists as
   `assert_backend_contract` over `BackendUnderTest`
   (`src/assert_backend.rs`), which names all 20 seam clauses in one signature so
@@ -124,7 +117,7 @@ Two consequences:
    the shared clauses become the only contract rather than one input among
    several — and closing the wiring gaps below.
 
-   **Re-measured coverage gaps (2026-09-10, corrected same day).** The suite's
+   **Historical coverage snapshot (2026-09-10, corrected same day).** The suite's
    opt-in shape lets a backend implement a seam and never run its clause. The
    first version of this table was wrong in both directions, so the method is
    stated: for each consumer it checks *whether the seam is implemented* and
@@ -137,7 +130,7 @@ Two consequences:
    | `hephaestus-wgpu` | 21 of 21 | none |
    | `hephaestus-rocm` | 19 of 21 | `assert_staggered_3d_contract` — **no gap**: rocm implements no `Staggered3DOps`, so there is no seam to run it against |
    | `hephaestus-metal` | 21 of 21 | none — **closed 2026-09-10**; `tests/staggered_contracts.rs` wires `assert_staggered_3d_contract` for the `Staggered3DOps` impl at `src/application/stencil.rs:131` |
-   | `hephaestus-host` | **2 of 22** | 20 clauses; 18 of them have no seam to run against — see below |
+   | `hephaestus-host` | **2 of 22 on 2026-09-10** | Historical baseline; subsequent implementations are tracked in the host coverage item |
 
    **Two corrections to what this table said before.** Both were errors of
    measurement, and both were caught by checking the seam as well as the clause:
@@ -166,7 +159,7 @@ Two consequences:
    skip into a failure when it is set. The pattern is sound; a reader of the
    clause call site alone would not know that.
 
-   **The `hephaestus-host` row is an implementation gap, not a wiring gap
+   **At the 2026-09-10 snapshot, the `hephaestus-host` row was an implementation gap, not a wiring gap
    (measured 2026-09-10).** The other four consumers are missing one clause
    each; the host is missing the seams themselves. Of the 19 seam traits the
    suite's clauses are generic over, `hephaestus-host` implements **one** —
