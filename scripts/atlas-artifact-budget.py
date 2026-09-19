@@ -95,13 +95,29 @@ def _line_count(text: str) -> int:
     return text.count("\n") + (0 if text.endswith("\n") or not text else 1)
 
 
+def _exact_path(root: Path, relative: str) -> Path | None:
+    """Match Git's case-sensitive names on case-insensitive filesystems too."""
+    current = root
+    for name in relative.split("/"):
+        if not current.is_dir():
+            return None
+        match = next((entry for entry in current.iterdir() if entry.name == name), None)
+        if match is None:
+            return None
+        current = match
+    return current
+
+
 def _item_file_paths(root: Path, ref: str | None) -> list[str]:
     """Relative paths of `backlog/*.md` at `ref` (or the working tree)."""
     if ref is None:
-        item_dir = root / "backlog"
-        if not item_dir.is_dir():
+        item_dir = _exact_path(root, "backlog")
+        if item_dir is None or not item_dir.is_dir():
             return []
-        return [f"backlog/{p.name}" for p in sorted(item_dir.glob("*.md"))]
+        return [
+            f"backlog/{p.name}" for p in sorted(item_dir.iterdir())
+            if p.is_file() and p.suffix == ".md"
+        ]
     try:
         listing = _git(root, "ls-tree", "-r", "--name-only", ref, "--", "backlog/")
     except subprocess.CalledProcessError:
@@ -111,8 +127,11 @@ def _item_file_paths(root: Path, ref: str | None) -> list[str]:
 
 def _read_text(root: Path, relpath: str, ref: str | None) -> str:
     if ref is None:
-        path = root / relpath
-        return path.read_text(encoding="utf-8", errors="replace") if path.is_file() else ""
+        path = _exact_path(root, relpath)
+        return (
+            path.read_text(encoding="utf-8", errors="replace")
+            if path is not None and path.is_file() else ""
+        )
     try:
         return _git(root, "show", f"{ref}:{relpath}")
     except subprocess.CalledProcessError:
@@ -131,8 +150,8 @@ def board_lines(root: Path, ref: str | None = None) -> dict[str, int]:
     counts: dict[str, int] = {}
     for name in PM_FILES:
         if ref is None:
-            path = root / name
-            if not path.is_file():
+            path = _exact_path(root, name)
+            if path is None or not path.is_file():
                 continue
             text = path.read_text(encoding="utf-8", errors="replace")
         else:

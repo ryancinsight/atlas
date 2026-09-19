@@ -54,6 +54,22 @@ def _image(size: int) -> bytes:
 
 
 class BoardBudgetTest(unittest.TestCase):
+    def test_filesystem_board_names_match_git_tree_names(self) -> None:
+        for relative in ("CHECKLIST.md", "BACKLOG/item.md", "backlog/item.MD"):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                _repo(root)
+                (root / "backlog.md").write_text(_lines(5), encoding="utf-8")
+                other = root / relative
+                other.parent.mkdir(exist_ok=True)
+                other.write_text(_lines(120), encoding="utf-8")
+                _commit(root, "case-distinct board path")
+                expected = {"backlog.md": 5}
+                self.assertEqual(budget.board_lines(root, "HEAD"), expected)
+                self.assertEqual(budget.board_lines(root), expected)
+                self.assertEqual(budget.oversized_item_files(root), {})
+                self.assertEqual(budget.counts(root)["pm_lines_over_budget"], 0)
+
     def test_under_budget_board_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
