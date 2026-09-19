@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "atlas_stack.py"
@@ -22,7 +24,7 @@ IDENT = ["-c", "user.email=t@t", "-c", "user.name=t"]
 
 
 def _git(repo: Path, *argv: str) -> None:
-    subprocess.run(["git", "-C", str(repo), *argv], check=True)
+    subprocess.run(["git", "-C", str(repo), *argv], check=True, env=atlas_stack.clean_git_env())
 
 
 class StalenessTestCase(unittest.TestCase):
@@ -35,6 +37,42 @@ class StalenessTestCase(unittest.TestCase):
     whose missing row `origin/main` had carried for six commits.
     """
 
+    def test_git_preserves_configuration_and_clears_repository_selection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory) / "repo"
+            repo.mkdir()
+            _git(repo, "init", "-q", "-b", "main")
+            (repo / "tracked.txt").write_text("tracked\n", encoding="utf-8")
+            _git(repo, "add", "tracked.txt")
+            foreign_index = Path(directory) / "foreign-index"
+            foreign_index.write_bytes(b"invalid index")
+            configuration = {
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "atlas.fixture",
+                "GIT_CONFIG_VALUE_0": "caller-setting",
+                "GIT_CONFIG_GLOBAL": str(repo / "isolated-config"),
+                "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_DIR": str(repo / "not-a-repository"),
+                "GIT_WORK_TREE": str(repo / "not-a-worktree"),
+                "GIT_INDEX_FILE": str(foreign_index),
+            }
+            with patch.dict(os.environ, configuration):
+                before = dict(os.environ)
+                self.assertEqual(
+                    atlas_stack.git(repo, "config", "--get", "atlas.fixture").strip(),
+                    "caller-setting",
+                )
+                self.assertEqual(atlas_stack.git(repo, "ls-files"), "tracked.txt\n")
+                self.assertEqual(
+                    Path(atlas_stack.git(repo, "rev-parse", "--show-toplevel").strip()).resolve(),
+                    repo.resolve(),
+                )
+                cleaned = atlas_stack.clean_git_env()
+                self.assertEqual(cleaned["GIT_CONFIG_GLOBAL"], configuration["GIT_CONFIG_GLOBAL"])
+                self.assertEqual(cleaned["GIT_CONFIG_NOSYSTEM"], "1")
+                self.assertEqual(dict(os.environ), before)
+                self.assertFalse({"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"} & cleaned.keys())
+
     def _clone_one_behind(self, root: Path) -> Path:
         """A clone whose HEAD is one commit behind its fetched origin."""
         origin, clone = root / "origin", root / "clone"
@@ -43,7 +81,11 @@ class StalenessTestCase(unittest.TestCase):
         _git(origin, "init", "-q", "-b", "main")
         _git(origin, *IDENT, "add", "a.md")
         _git(origin, *IDENT, "commit", "-q", "-m", "one")
-        subprocess.run(["git", "clone", "-q", str(origin), str(clone)], check=True)
+        subprocess.run(
+            ["git", "clone", "-q", str(origin), str(clone)],
+            check=True,
+            env=atlas_stack.clean_git_env(),
+        )
         (origin / "b.md").write_text("second\n", encoding="utf-8")
         _git(origin, *IDENT, "add", "b.md")
         _git(origin, *IDENT, "commit", "-q", "-m", "two")

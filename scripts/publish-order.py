@@ -36,6 +36,8 @@ import tomllib
 from collections import defaultdict
 from pathlib import Path
 
+from atlas_stack import clean_git_env
+
 # Directories under repos/ that are not part of the recorded stack. Anything not
 # in .gitmodules is local work (README "Revision contract"); the private
 # consumer is additionally never named in stack artifacts.
@@ -78,6 +80,7 @@ def _git_output(provider: Path, arguments: list[str]) -> str:
         encoding="utf-8",
         errors="replace",
         check=False,
+        env=clean_git_env(),
     )
     if process.returncode:
         detail = process.stderr.strip() or "git command failed"
@@ -94,6 +97,7 @@ def _committed_gitlink(root: Path, repo: str) -> str | None:
         encoding="utf-8",
         errors="replace",
         check=False,
+        env=clean_git_env(),
     )
     if process.returncode:
         return None
