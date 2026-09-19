@@ -327,5 +327,99 @@ class StagedGateTestCase(EndToEndCheckTestCase):
         self.assertEqual(self._run_staged(STANDALONE, repinned), 0)
 
 
+
+class HookCommitTestCase(unittest.TestCase):
+    """`publish-hooks` builds on the default branch and touches no tree."""
+
+    def _git(self, repo: Path, *args: str) -> str:
+        return subprocess.run(
+            ["git", "-C", str(repo), "-c", "user.email=t@t", "-c", "user.name=t", *args],
+            check=True, capture_output=True, encoding="utf-8",
+        ).stdout.strip()
+
+    def test_commit_carries_the_hooks_and_leaves_the_checkout_alone(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-") as temp:
+            root = Path(temp)
+            repo = root / "member"
+            repo.mkdir()
+            self._git(repo, "init", "-q", "-b", "main")
+            self._git(repo, "config", "core.autocrlf", "false")
+            # `hook_commit` runs `commit-tree` without the `-c` identity this
+            # helper passes; a CI runner has no global identity to fall back on.
+            self._git(repo, "config", "user.email", "t@t")
+            self._git(repo, "config", "user.name", "t")
+            (repo / "lib.rs").write_text("one\n", encoding="utf-8")
+            self._git(repo, "add", "lib.rs")
+            self._git(repo, "commit", "-q", "-m", "seed")
+            base = self._git(repo, "rev-parse", "HEAD")
+            # A peer mid-edit: an unrelated branch checked out, dirt, and staging.
+            self._git(repo, "switch", "-q", "-c", "peer")
+            (repo / "lib.rs").write_text("peer dirt\n", encoding="utf-8")
+            (repo / "staged.rs").write_text("staged\n", encoding="utf-8")
+            self._git(repo, "add", "staged.rs")
+            status_before = self._git(repo, "status", "--porcelain")
+            hooks = root / "hooks"
+            hooks.mkdir()
+            (hooks / "pre-push").write_bytes(b"#!/bin/sh\r\nexit 0\n")
+
+            commit = _lock_form.hook_commit(
+                repo, base, [("pre-push", (hooks / "pre-push").read_bytes())], "ci: sync\n"
+            )
+
+            self.assertIsNotNone(commit)
+            self.assertEqual(self._git(repo, "rev-parse", f"{commit}^"), base)
+            listing = self._git(repo, "ls-tree", commit, ".githooks/pre-push")
+            self.assertTrue(listing.startswith("100755 blob "), listing)
+            blob = subprocess.run(
+                ["git", "-C", str(repo), "cat-file", "blob", f"{commit}:.githooks/pre-push"],
+                check=True, capture_output=True,
+            ).stdout
+            self.assertEqual(blob, b"#!/bin/sh\r\nexit 0\n", "bytes, not a re-encoded copy")
+            self.assertEqual(self._git(repo, "ls-tree", "--name-only", commit, "lib.rs"), "lib.rs")
+            self.assertEqual(self._git(repo, "show", f"{commit}:lib.rs"), "one")
+            self.assertEqual(self._git(repo, "status", "--porcelain"), status_before)
+            self.assertEqual(self._git(repo, "rev-parse", "--abbrev-ref", "HEAD"), "peer")
+
+    def test_publish_reads_the_committed_hooks_not_the_checkout(self) -> None:
+        """A peer's uncommitted edit to the hook in a shared atlas checkout must
+        not be what reaches the members."""
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-") as temp:
+            atlas = Path(temp) / "atlas"
+            hook = atlas / "scripts" / "git-hooks" / "pre-push"
+            hook.parent.mkdir(parents=True)
+            self._git(atlas, "init", "-q", "-b", "main")
+            self._git(atlas, "config", "core.autocrlf", "false")
+            hook.write_bytes(b"#!/bin/sh\nexit 0\n")
+            self._git(atlas, "add", ".")
+            self._git(atlas, "commit", "-q", "-m", "hooks")
+            hook.write_bytes(b"#!/bin/sh\necho peer edit\n")
+
+            hooks = _lock_form.committed_hooks(atlas, "main")
+
+            self.assertEqual(hooks, [("pre-push", b"#!/bin/sh\nexit 0\n")])
+
+    def test_a_member_already_carrying_the_hooks_needs_no_commit(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-publish-") as temp:
+            root = Path(temp)
+            repo = root / "member"
+            (repo / ".githooks").mkdir(parents=True)
+            self._git(repo, "init", "-q", "-b", "main")
+            (repo / ".githooks" / "pre-push").write_bytes(b"#!/bin/sh\nexit 0\n")
+            self._git(repo, "add", ".githooks/pre-push")
+            self._git(repo, "update-index", "--chmod=+x", ".githooks/pre-push")
+            self._git(repo, "commit", "-q", "-m", "seed")
+            hooks = root / "hooks"
+            hooks.mkdir()
+            (hooks / "pre-push").write_bytes(b"#!/bin/sh\nexit 0\n")
+
+            commit = _lock_form.hook_commit(
+                repo,
+                self._git(repo, "rev-parse", "HEAD"),
+                [("pre-push", (hooks / "pre-push").read_bytes())],
+                "ci: sync\n",
+            )
+
+            self.assertIsNone(commit)
+
 if __name__ == "__main__":
     unittest.main()

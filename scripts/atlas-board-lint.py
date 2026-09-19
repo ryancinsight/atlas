@@ -23,6 +23,18 @@ incidents sent work chasing ids that were never filed. A reference is
 dangling when its exact id appears as prose in either board but no
 heading defines it. Non-ATLAS tokens (crate names, ISSUE-220) are
 ignored.
+
+Per-item-file layout (`backlog.md` + `backlog/<anchor>.md`,
+`atlas-board-index.py`): past the per-item-file migration, a board's items
+live one-per-file under a sibling `backlog/` directory and `backlog.md`
+itself carries only the generated index (no `## ` headings to scan). Every
+check here generalizes to that layout by treating each `backlog/*.md` file
+the way it previously treated one heading's slice of a single big file --
+`collisions`/`next_free`/`control_characters` already take one path and
+work unchanged when pointed at an item file; `_defined_ids`/`dangling_refs`
+already take a *list* of paths, so the item files simply join the list.
+`main` detects the layout (a `backlog/` directory beside `backlog.md`) and
+switches the file set it scans; nothing about the checks themselves differs.
 """
 
 from __future__ import annotations
@@ -43,6 +55,27 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 APPENDIX_SUFFIX = re.compile(
     r"^\s+(original\s+specification)\s*$", re.IGNORECASE
 )
+
+# C0 controls and DEL, less LF and CR. A Windows path written into a
+# non-raw string has its escapes interpreted -- `D:\atlas` becomes BEL and
+# `tlas`, `\target` a TAB -- and eight such spans reached the board across
+# two authors' merged commits (ATLAS-BOARD-CONTROL-CHARACTERS-2026-09-18),
+# because nothing read the board for them. TAB is included: the boards
+# indent with spaces, so a TAB is always an interpreted `\t`.
+CONTROL = re.compile(r"[\x00-\x09\x0b\x0c\x0e-\x1f\x7f]")
+
+
+def control_characters(path: pathlib.Path) -> list[tuple[int, str]]:
+    """Return (line number, escaped line excerpt) for every line holding a
+    control character, reading bytes so no decoder normalizes them away."""
+    found = []
+    text = path.read_bytes().decode("utf-8", errors="replace")
+    for lineno, line in enumerate(text.split("\n"), start=1):
+        body = line[:-1] if line.endswith("\r") else line
+        if CONTROL.search(body):
+            found.append((lineno, body.encode("unicode_escape").decode("ascii")[:120]))
+    return found
+
 
 def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
     """Map each duplicated id to its (line number, title) occurrences.
@@ -73,6 +106,32 @@ def collisions(path: pathlib.Path) -> dict[str, list[tuple[int, str]]]:
     return {k: v for k, v in seen.items() if len(v) > 1}
 
 
+def collisions_across(
+    paths: list[pathlib.Path],
+) -> dict[str, list[tuple[pathlib.Path, int, str]]]:
+    """Same rule as `collisions`, generalized across several files.
+
+    Under the per-item-file layout (`atlas-board-index.py`) an id is
+    defined by exactly one `backlog/<anchor>.md` file's heading, so a
+    genuine collision is now two *files* (or a file and a checklist.md
+    heading) claiming the same id rather than two headings inside one
+    file -- the source path travels with each occurrence so a report can
+    name which files collide.
+    """
+    seen: dict[str, list[tuple[pathlib.Path, int, str]]] = {}
+    for path in paths:
+        with path.open(encoding="utf-8", errors="replace") as fh:
+            for lineno, line in enumerate(fh, 1):
+                m = HEADING_ANY.match(line.rstrip("\r\n"))
+                if not m:
+                    continue
+                item_id = m.group(1).rstrip("-")
+                if APPENDIX_SUFFIX.search(line.rstrip("\r\n")[m.end(1):]):
+                    continue
+                seen.setdefault(item_id, []).append((path, lineno, line.strip()))
+    return {k: v for k, v in seen.items() if len(v) > 1}
+
+
 def next_free(path: pathlib.Path, prefix: str) -> str:
     """Suggest the next unused numeric id for a prefix, e.g. ATLAS-ARCH."""
     used = set()
@@ -91,6 +150,28 @@ def next_free(path: pathlib.Path, prefix: str) -> str:
     while n in used:
         n += 1
     return f"{prefix}-{n:03d}"
+
+
+def next_free_across(paths: list[pathlib.Path], prefix: str) -> str:
+    """`next_free`, generalized across several files (the per-item-file
+    layout's ids are scattered one per `backlog/<anchor>.md` file)."""
+    used: set[int] = set()
+    for path in paths:
+        with path.open(encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                m = HEADING_ANY.match(line.rstrip("\r\n"))
+                if not m:
+                    continue
+                item_id = m.group(1).rstrip("-")
+                if item_id.startswith(prefix + "-"):
+                    tail = item_id[len(prefix) + 1:]
+                    if tail.isdigit():
+                        used.add(int(tail))
+    n = 1
+    while n in used:
+        n += 1
+    return f"{prefix}-{n:03d}"
+
 
 REF_PATTERN = re.compile(r"\bATLAS-[A-Z0-9]+(?:-[A-Z0-9]+)*\b")
 HEADING_ANY = re.compile(r"^#{2,3}\s+(ATLAS-[A-Z0-9-]+)")
@@ -169,6 +250,14 @@ def dangling_refs(
     return found
 
 
+def _item_files(board: pathlib.Path) -> list[pathlib.Path]:
+    """`backlog/*.md` beside `board`, or [] when it is not that layout."""
+    item_dir = board.parent / "backlog"
+    if board.name != "backlog.md" or not item_dir.is_dir():
+        return []
+    return sorted(item_dir.glob("*.md"))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--file", default="backlog.md", help="board file to lint")
@@ -183,18 +272,56 @@ def main() -> int:
         print(f"no such board file: {path}", file=sys.stderr)
         return 2
 
+    item_files = _item_files(path)
+    indexed = bool(item_files) or (path.name == "backlog.md" and (path.parent / "backlog").is_dir())
+
     if args.next:
-        print(next_free(path, args.next.rstrip("-")))
+        prefix = args.next.rstrip("-")
+        if indexed:
+            print(next_free_across(item_files, prefix))
+        else:
+            print(next_free(path, prefix))
         return 0
 
-    boards = [ROOT / "backlog.md", ROOT / "checklist.md"]
+    # Definitions and dangling-reference scope: the per-item-file layout
+    # moves backlog.md's headings into backlog/*.md, so that file set
+    # stands in for backlog.md wherever it previously contributed headings.
+    boards = [
+        *(item_files if indexed else ([path] if path.name == "backlog.md" else [])),
+        ROOT / "checklist.md",
+    ]
+    if path.name != "backlog.md":
+        boards.append(path)
     boards = [b for b in boards if b.is_file()]
 
     defined = _defined_ids(boards)
     refs = dangling_refs(boards, defined)
-    dupes = collisions(path)
+    dupes = collisions_across(item_files) if indexed else collisions(path)
 
     status = 0
+    # Control characters: the index/preamble file itself, plus every item
+    # file when the board is in the per-item-file layout.
+    control_targets = [(args.file, path)] + [
+        (f"backlog/{f.name}", f) for f in item_files
+    ]
+    total_controls = 0
+    for label, target in control_targets:
+        controls = control_characters(target)
+        if not controls:
+            continue
+        total_controls += len(controls)
+        print(f"{label}: {len(controls)} line(s) carry control characters\n")
+        for lineno, excerpt in controls:
+            print(f"  line {lineno}: {excerpt}")
+    if total_controls:
+        print(
+            "\nA control character in a board is an escape interpreted in a "
+            "non-raw string (\\a, \\t, \\r from a Windows path). Restore "
+            "the original text.\n",
+            file=sys.stderr,
+        )
+        status = 1
+
     if refs:
         # Report-only until ATLAS-LINT-CALIB normalizes the corpus
         # (closure markers vary by board era; separator mojibake). The
@@ -211,11 +338,19 @@ def main() -> int:
     print(f"{args.file}: {len(dupes)} duplicated item id(s)\n")
     for item_id, uses in sorted(dupes.items()):
         print(f"  {item_id}")
-        for lineno, title in uses:
-            print(f"    line {lineno}: {title}")
+        for use in uses:
+            if len(use) == 3:
+                use_path, lineno, title = use
+                print(f"    {use_path.name}:{lineno}: {title}")
+            else:
+                lineno, title = use
+                print(f"    line {lineno}: {title}")
         prefix = item_id.rsplit("-", 1)[0]
         if item_id.rsplit("-", 1)[1].isdigit():
-            print(f"    -> a free id for this family is {next_free(path, prefix)}")
+            suggestion = (
+                next_free_across(item_files, prefix) if indexed else next_free(path, prefix)
+            )
+            print(f"    -> a free id for this family is {suggestion}")
         print()
     print(
         "Each id is an anchor cited by ADRs, commits and claims. Renumber the "

@@ -21,7 +21,10 @@ class RootHookGuardTests(unittest.TestCase):
     def test_pre_push_runs_the_pin_advance_debt_gate(self) -> None:
         text = PRE_PUSH.read_text(encoding="utf-8")
         self.assertIn("debt_gate()", text)
-        self.assertIn("debt_gate || exit 1", text)
+        # Both gates judge each pushed tip, never HEAD (a peer's branch in a
+        # shared tree), so the guarded form carries the tip argument.
+        self.assertIn('debt_gate "$tip" || exit 1', text)
+        self.assertIn('budget_gate "$tip" || exit 1', text)
 
     def test_pre_commit_cites_the_detector_parity_rationale(self) -> None:
         text = PRE_COMMIT.read_text(encoding="utf-8")

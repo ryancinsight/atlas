@@ -1,26 +1,54 @@
 #!/usr/bin/env python3
-"""Compact a PM board: keep live items in full, collapse closed ones to an index.
+"""Compact a PM board: keep live items in full, delete closed ones outright.
 
-`context_and_memory` (artifact compaction) requires the board to stay compact and
-link-navigable: "completed items collapse to one-line entries with links to
-commits/CHANGELOG rather than retained prose". At the time this script was
-written `backlog.md` was 13,399 lines of which 8,872 (66%) sat under items
-already marked complete/done, and `checklist.md` was 5,810 lines with 65% of its
-items carrying no status at all.
+`context_and_memory` (Boards) states the board's own law: "a board is a
+queue, never a ledger". A closed item's record is the PR that closed it plus
+its `Item:` trailer (`git log --grep='^Item: <id>'` recovers it) — the board
+entry is not the record, so once an item closes it deletes, not archives.
+Report genre (an `## Archive — closed items` ledger, session/wave/tier/batch
+narratives, coordination and watchpoint logs) is the same kind of stale
+duplicate state and deletes with it: it duplicates what git history already
+holds and rots the moment nothing regenerates it.
 
-This is the mechanical half of that rule, so the collapse is reproducible rather
-than a one-off hand edit. It is deliberately conservative: an item is archived
-only when its heading carries an unambiguous closed marker, every commit SHA
-mentioned under the item is carried into the archive line, and anything it
-cannot classify is left untouched in the live board for a human to triage.
+Closed items and non-item narrative sections delete outright: heading,
+its anchor (own-line or inline), and its body. The one exception is a
+narrative section whose body still carries live signal a plain `git log`
+search would not surface as directly: an open checkbox (`- [ ]`) or a
+reference to an item id that is still open elsewhere on the board. That
+section is kept verbatim and reported for triage at its next touch.
+
+This is the mechanical half of that rule, so the deletion is reproducible
+rather than a one-off hand edit. It is deliberately conservative on
+classification: an item deletes only when its heading carries an
+unambiguous closed marker, and anything the classifier cannot place is left
+untouched in the live board for a human to triage. Conservative and
+irreversible are different axes — under-classifying a closed item as "leave
+it" costs a stale line; over-classifying a live item as "delete it" costs
+the item, so the classifier only ever loosens what counts as a *separator*
+between title and status (em-dash, hyphen, or one nested inside a trailing
+parenthetical), never what counts as a *status word* once split from it.
 
 Run from anywhere: paths anchor to this file's parent repository unless a
 root is given, so one compactor serves every member board in the stack.
 
-Checkbox-bullet records (`- [x] **ID — title.** ...`) inside a live section
-are part of that section's prose and stay verbatim: the collapse unit is the
-level-2 heading, never a bullet, so a board that keeps measured-rejection
-records in full under an open heading loses nothing.
+Checkbox-bullet records (`- [x] **ID — title.** ...`) inside a *live,
+id-bearing* item's body are part of that item's prose, not a narrative
+section, and stay verbatim regardless of checkbox state: the collapse unit
+is the level-2 heading, so an open item that keeps measured-rejection
+records in full loses nothing. The open-checkbox exception above applies
+only to narrative (non-id) sections, which have no other record of their
+own.
+
+Per-item-file layout (`backlog.md` + `backlog/<anchor>.md`, past the
+forty-item threshold, `atlas-board-index.py`): a `backlog.md` with a
+sibling `backlog/` directory is in this layout, and compaction there works
+at file granularity instead of line ranges -- a closed item's
+`backlog/<anchor>.md` is deleted outright and the index is regenerated to
+drop its line, while narrative sections (which stay inline in `backlog.md`'s
+preamble under this layout, per the migration) are classified exactly as
+above. A board with no sibling `backlog/` directory (checklist.md,
+gap_audit.md, a member repository's own backlog.md) compacts by the
+original inline logic, unchanged.
 """
 from __future__ import annotations
 
@@ -30,147 +58,301 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-# A heading is closed only when its FINAL em-dash segment is a status clause.
-# Matching anywhere after an em-dash archives live items whose *title* contains
-# a status word — e.g. "ATLAS-COEUS-LAYERNORM-SHAPE-031 — Complete
-# multi-dimensional LayerNorm contract [minor] — in-progress" is in-progress,
-# not complete. Under-collapsing is safe; over-collapsing loses a live item.
+from atlas_board_items import (  # noqa: E402
+    ANCHOR_OWN_LINE,
+    INDEX_LINE,
+    ITEM_ID,
+    top_level_separators as _top_level_separators,
+)
+
+# A heading is closed only when its FINAL separator's segment is a status
+# clause. Matching anywhere after a separator would archive live items whose
+# *title* merely contains a status word — e.g. "ATLAS-COEUS-LAYERNORM-
+# SHAPE-031 — Complete multi-dimensional LayerNorm contract [minor] —
+# in-progress" is in-progress, not complete. Under-classifying (leaving a
+# closed item live) is safe; over-classifying (deleting a live item) is not.
+#
+# 2026-09-18 extension: this board also carries delivered/resolved/superseded/
+# landed/fixed/implemented/adopted/rejected as terminal statuses, and a large
+# older stratum separates the status with " - " (hyphen) instead of an em-dash
+# (`ATLAS-PREREQ-EXECUTION-2026-09-03 - ... [minor] - done 2026-09-04`). Both
+# gaps under-classified real closed items rather than over-classifying
+# anything, so widening them keeps the conservative direction: a heading only
+# closes when its final separator segment STARTS WITH one of these words,
+# never when the word merely appears inside the title.
 CLOSED = re.compile(
-    r"^\s*(?:✅\s*)?(?:complete|completed|done|closed|merged)\b", re.I
+    r"^\s*(?:✅\s*)?(?:complete|completed|done|closed|merged|delivered|"
+    r"resolved|superseded|landed|fixed|implemented|adopted|rejected)\b",
+    re.I,
 )
 # Bare-tick form used by a handful of older kwavers entries.
 CLOSED_TICK = re.compile(r"✓\s*DONE\b", re.I)
-DATE = re.compile(r"\b(20\d\d-\d\d-\d\d)\b")
-SHA = re.compile(r"\b([0-9a-f]{7,40})\b")
-ITEM_ID = re.compile(r"^##\s+([A-Z][A-Z0-9\-]*-\d+[A-Z0-9\-]*)")
-# Words that look like hex but are prose, so they never become fake SHAs.
-NOT_SHA = {"decade", "faceted", "defaced", "accede", "efface", "deface"}
+# Narrative-section keep exception: an unfiled open TODO, or a reference to
+# an item id that is still open elsewhere on the board.
+CHECKBOX_OPEN = re.compile(r"^\s*-\s*\[ \]", re.M)
+ID_TOKEN = re.compile(r"\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b")
+
+
+def _status_split(heading: str) -> tuple[str, str] | None:
+    """Split on the LAST top-level separator, if that tail is a status
+    clause. Returns (before, status_tail) or None when it is not."""
+    spans = _top_level_separators(heading)
+    if not spans:
+        return None
+    before, tail = heading[: spans[-1][0]], heading[spans[-1][1] :]
+    if CLOSED.match(tail.strip()):
+        return before, tail
+    return None
 
 
 def is_closed(heading: str) -> bool:
-    """Closed only when the last em-dash-delimited segment is a status clause."""
+    """Closed only when the last top-level separator's segment is a status clause."""
     if CLOSED_TICK.search(heading):
         return True
-    tail = heading.rsplit("—", 1)
-    return len(tail) == 2 and bool(CLOSED.match(tail[1]))
+    return _status_split(heading) is not None
 
 
-def split_items(lines: list[str]) -> tuple[list[str], list[tuple[str, list[str]]]]:
-    """Return (preamble, [(heading, body_lines), ...]) split on level-2 headings."""
+def split_items(
+    lines: list[str],
+) -> tuple[list[str], list[tuple[str | None, list[str], str, list[str]]]]:
+    """Return (preamble, [(anchor_line, prefix_blanks, heading, body_lines), ...])
+    split on level-2 headings.
+
+    An `<a id="...">` line directly above a heading (blank lines permitted
+    between them) belongs to THAT heading's item, not to the previous one's
+    body — otherwise deleting the predecessor silently drops the
+    successor's anchor along with it (a deleted item contributes nothing to
+    the output, so any line misattributed to it vanishes too).
+    """
     starts = [i for i, ln in enumerate(lines) if ln.startswith("## ")]
     if not starts:
         return lines, []
-    preamble = lines[: starts[0]]
+    block_starts = []
+    for s in starts:
+        j = s - 1
+        while j >= 0 and lines[j].strip() == "":
+            j -= 1
+        if j >= 0 and ANCHOR_OWN_LINE.match(lines[j]):
+            block_starts.append(j)
+        else:
+            block_starts.append(s)
+    preamble = lines[: block_starts[0]]
     items = []
-    for n, i in enumerate(starts):
-        end = starts[n + 1] if n + 1 < len(starts) else len(lines)
-        items.append((lines[i], lines[i + 1 : end]))
+    for n, bstart in enumerate(block_starts):
+        bend = block_starts[n + 1] if n + 1 < len(block_starts) else len(lines)
+        heading_idx = starts[n]
+        anchor_line = lines[bstart] if bstart != heading_idx else None
+        prefix_blanks = lines[bstart + 1 : heading_idx] if anchor_line else []
+        body = lines[heading_idx + 1 : bend]
+        items.append((anchor_line, prefix_blanks, lines[heading_idx], body))
     return preamble, items
 
 
-def archive_line(heading: str, body: list[str]) -> str:
-    """One-line archive entry: id, title, date, and every SHA found under the item."""
-    text = heading.lstrip("#").strip()
-    m = ITEM_ID.match(heading)
-    item_id = m.group(1) if m else ""
-    title = text
-    if item_id:
-        title = text[len(item_id) :].lstrip(" —-")
-    # Strip the trailing status/date clause; the date is re-attached explicitly.
-    title = re.sub(r"—\s*(?:✅\s*)?(?:complete|completed|done|closed|merged)\b.*$", "",
-                   title, flags=re.I).strip(" —-")
-    title = CLOSED_TICK.sub("", title).strip(" —-")
+def narrative_keep_reason(body: list[str], open_ids: set[str]) -> str | None:
+    """Why a narrative (non-id) section survives deletion, or None to delete it.
 
-    blob = "\n".join([heading, *body])
-    date = ""
-    dates = DATE.findall(blob)
-    if dates:
-        date = max(dates)
-    shas = []
-    for s in SHA.findall(blob):
-        sl = s.lower()
-        if sl in NOT_SHA or sl.isdigit() or len(set(sl)) <= 2:
-            continue
-        if sl not in shas:
-            shas.append(sl)
-    ref = f" — {', '.join('`' + s + '`' for s in shas[:4])}" if shas else ""
-    stamp = f" ({date})" if date else ""
-    label = f"**{item_id}**" if item_id else "**(unnumbered)**"
-    return f"- {label} {title}{stamp}{ref}"
+    A narrative section is report genre by default (Tier/Wave/Session/
+    Watchpoints/ledger prose): it duplicates git history and rots. It stays
+    only when it carries signal nothing else holds — an open checkbox, or a
+    mention of an item id that is still open elsewhere on the board (a
+    cross-reference a human should see before the section is dropped).
+    """
+    text = "\n".join(body)
+    if CHECKBOX_OPEN.search(text):
+        return "open checkbox"
+    for tok in ID_TOKEN.findall(text):
+        if tok in open_ids:
+            return f"references open {tok}"
+    return None
 
 
-def compact(path: Path, archive_heading: str) -> tuple[int, int, int]:
+def compact(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
+    """Rewrite `path` in place (inline-item layout). Returns (lines_before,
+    lines_after, items_deleted, narrative_sections_deleted)."""
     lines = path.read_text(encoding="utf-8").splitlines()
     before = len(lines)
     preamble, items = split_items(lines)
 
-    # If the file already carries the archive section, peel it off before
-    # classifying items so its body is preserved verbatim. A subsequent run
-    # would otherwise roll the existing one-line entries into a single
-    # `(unnumbered) Archive` line and lose the per-item navigability the
-    # AGENTS compaction rule is meant to preserve.
-    preserved_archive: list[str] = []
-    kept_items: list[tuple[str, list[str]]] = []
-    for heading, body in items:
-        if heading.startswith(archive_heading):
-            preserved_archive = body
-            # Strip the introductory paragraph (one or more blank-prefixed
-            # lines) so we don't double-print the heading's leading blurb.
-            while preserved_archive and not preserved_archive[0].startswith("- "):
-                preserved_archive.pop(0)
-            if preserved_archive and not preserved_archive[0]:
-                preserved_archive.pop(0)
-        else:
-            kept_items.append((heading, body))
+    # The old archive/ledger section is report genre like any other
+    # narrative section — delete it outright rather than special-casing its
+    # preservation. Its per-item lines carried no id git can't already
+    # resolve, and it is exactly the growing-ledger shape the board-is-a-
+    # queue rule now forbids.
+    kept_items = [it for it in items if not it[2].startswith(archive_heading)]
 
-    live: list[str] = []
-    archived: list[str] = []
-    for heading, body in kept_items:
-        if is_closed(heading):
-            archived.append(archive_line(heading, body))
-        else:
-            live.append(heading)
-            live.extend(body)
+    # Pass 1: classify every id-bearing heading and collect which ids stay
+    # open, so pass 2's narrative exception can check cross-references.
+    classified: list[tuple[str | None, list[str], str, list[str], bool, bool]] = []
+    open_ids: set[str] = set()
+    for anchor_line, prefix_blanks, heading, body in kept_items:
+        m = ITEM_ID.match(heading)
+        is_item = m is not None
+        closed = is_item and is_closed(heading)
+        if is_item and not closed:
+            open_ids.add(m.group(1))
+        classified.append((anchor_line, prefix_blanks, heading, body, is_item, closed))
 
-    # Drop any item IDs already covered by the preserved archive so the
-    # merged section stays deduplicated.
-    preserved_ids: set[str] = set()
-    for line in preserved_archive:
-        m = re.match(r"^\s*-\s+\*\*([^*]+)\*\*", line)
-        if m:
-            preserved_ids.add(m.group(1))
-    if preserved_ids:
-        archived = [
-            line for line in archived
-            if not (m := re.match(r"^\s*-\s+\*\*([^*]+)\*\*", line))
-            or m.group(1) not in preserved_ids
-        ]
+    # Pass 2: assemble the surviving blocks in original order.
+    out_blocks: list[list[str]] = []
+    items_deleted = 0
+    narrative_deleted = 0
+    kept_narrative: list[tuple[str, str]] = []
+    for anchor_line, prefix_blanks, heading, body, is_item, closed in classified:
+        if is_item:
+            if closed:
+                items_deleted += 1
+                continue
+            keep = True
+        else:
+            reason = narrative_keep_reason(body, open_ids)
+            if reason is None:
+                narrative_deleted += 1
+                continue
+            kept_narrative.append((heading, reason))
+            keep = True
+        if keep:
+            block = []
+            if anchor_line is not None:
+                block.append(anchor_line)
+            block.extend(prefix_blanks)
+            block.append(heading)
+            block.extend(body)
+            out_blocks.append(block)
 
     out = list(preamble)
-    out.extend(live)
-    if preserved_archive or archived:
-        # Trim trailing blanks so successive runs don't accumulate padding.
-        while out and not out[-1].strip():
-            out.pop()
-        out.append("")
-        out.append(archive_heading)
-        out.append("")
-        out.append(
-            "Closed items, one line each. Full prose is in git history; commit "
-            "SHAs below are the entry points."
-        )
-        out.append("")
-        out.extend(preserved_archive)
-        if archived:
-            if preserved_archive and preserved_archive[-1].strip():
-                out.append("")
-            out.extend(archived)
+    for block in out_blocks:
+        out.extend(block)
+    # Trim trailing blanks the deleted tail may have left behind.
+    while len(out) > 1 and not out[-1].strip() and not out[-2].strip():
+        out.pop()
 
     # `newline=""`: text mode on Windows would translate every "\n" to CRLF; the
     # board is committed LF (`.gitattributes`), and a CRLF working copy is churn.
     path.write_text("\n".join(out) + "\n", encoding="utf-8", newline="")
-    return before, len(out), len(archived)
+    return before, len(out), items_deleted, narrative_deleted
+
+
+def is_indexed_board(path: Path) -> bool:
+    """True when `path` is a per-item-file board (a sibling `backlog/` dir)."""
+    return path.name == "backlog.md" and (path.parent / "backlog").is_dir()
+
+
+def _load_index_module():
+    """Import `atlas-board-index.py` (hyphenated: not a plain `import`)."""
+    import importlib.util
+
+    script = Path(__file__).resolve().parent / "atlas-board-index.py"
+    spec = importlib.util.spec_from_file_location("atlas_board_index", script)
+    mod = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _total_lines(board: Path, item_dir: Path) -> int:
+    total = len(board.read_text(encoding="utf-8").splitlines()) if board.is_file() else 0
+    if item_dir.is_dir():
+        total += sum(
+            len(p.read_text(encoding="utf-8").splitlines()) for p in item_dir.glob("*.md")
+        )
+    return total
+
+
+def compact_indexed(path: Path, archive_heading: str) -> tuple[int, int, int, int]:
+    """Rewrite the per-item-file board rooted at `path` in place.
+
+    Returns (lines_before, lines_after, items_deleted,
+    narrative_sections_deleted), counted across `backlog.md` and every
+    `backlog/*.md` file combined -- the same "board total" the artifact
+    budget gate measures.
+    """
+    item_dir = path.parent / "backlog"
+    before = _total_lines(path, item_dir)
+
+    lines = path.read_text(encoding="utf-8").splitlines()
+    first_index_at = next(
+        (i for i, ln in enumerate(lines) if INDEX_LINE.match(ln)), len(lines)
+    )
+    preamble_lines = lines[:first_index_at]
+
+    # Pass 1: delete closed item files, collecting which ids stay open (for
+    # the preamble's narrative-section cross-reference exception below).
+    items_deleted = 0
+    open_ids: set[str] = set()
+    for item_path in sorted(item_dir.glob("*.md")):
+        text = item_path.read_text(encoding="utf-8")
+        heading = next((ln for ln in text.splitlines() if ln.startswith("## ")), "")
+        m = ITEM_ID.match(heading)
+        if not m:
+            continue
+        if is_closed(heading):
+            item_path.unlink()
+            items_deleted += 1
+        else:
+            open_ids.add(m.group(1))
+
+    # Pass 2: narrative sections stay inline in the preamble under this
+    # layout (the migration moved only id-bearing items to files) -- same
+    # keep/delete rule as the inline board.
+    pre_preamble, narrative_items = split_items(preamble_lines)
+    kept_narrative_blocks: list[list[str]] = []
+    narrative_deleted = 0
+    for anchor_line, prefix_blanks, heading, body in narrative_items:
+        if heading.startswith(archive_heading):
+            narrative_deleted += 1
+            continue
+        reason = narrative_keep_reason(body, open_ids)
+        if reason is None:
+            narrative_deleted += 1
+            continue
+        block = []
+        if anchor_line is not None:
+            block.append(anchor_line)
+        block.extend(prefix_blanks)
+        block.append(heading)
+        block.extend(body)
+        kept_narrative_blocks.append(block)
+
+    new_preamble = list(pre_preamble)
+    for block in kept_narrative_blocks:
+        new_preamble.extend(block)
+    while len(new_preamble) > 1 and not new_preamble[-1].strip() and not new_preamble[-2].strip():
+        new_preamble.pop()
+    path.write_text("\n".join(new_preamble) + "\n", encoding="utf-8", newline="")
+
+    # Regenerate the index over whichever item files survived.
+    index_mod = _load_index_module()
+    new_text = index_mod.generate_text(path.parent)
+    path.write_text(new_text, encoding="utf-8", newline="")
+
+    after = _total_lines(path, item_dir)
+    return before, after, items_deleted, narrative_deleted
+
+
+def _dry_run_indexed(path: Path, archive_heading: str) -> None:
+    item_dir = path.parent / "backlog"
+    lines = path.read_text(encoding="utf-8").splitlines()
+    before = _total_lines(path, item_dir)
+    item_count = 0
+    closed = 0
+    for item_path in sorted(item_dir.glob("*.md")):
+        text = item_path.read_text(encoding="utf-8")
+        heading = next((ln for ln in text.splitlines() if ln.startswith("## ")), "")
+        if not ITEM_ID.match(heading):
+            continue
+        item_count += 1
+        if is_closed(heading):
+            closed += 1
+    first_index_at = next(
+        (i for i, ln in enumerate(lines) if INDEX_LINE.match(ln)), len(lines)
+    )
+    _, narrative_items = split_items(lines[:first_index_at])
+    narrative = len(narrative_items)
+    print(f"{path.name}: {before} lines (index + {len(list(item_dir.glob('*.md')))} item "
+          f"files), {item_count} items ({closed} would delete), "
+          f"{narrative} narrative sections")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -194,19 +376,31 @@ def main(argv: list[str] | None = None) -> int:
         if not path.is_file():
             print(f"skip (absent): {path.name}")
             continue
+        indexed = is_indexed_board(path)
         if args.dry_run:
-            lines = path.read_text(encoding="utf-8").splitlines()
-            _, items = split_items(lines)
-            kept = [
-                (h, b) for h, b in items
-                if not h.startswith(heading)
-            ]
-            closed = sum(1 for h, _ in kept if is_closed(h))
-            print(f"{path.name}: {len(lines)} lines, {len(kept)} items, "
-                  f"{closed} would archive, {len(kept) - closed} stay live")
+            if indexed:
+                _dry_run_indexed(path, heading)
+            else:
+                lines = path.read_text(encoding="utf-8").splitlines()
+                _, items = split_items(lines)
+                kept = [
+                    (a, p, h, b) for a, p, h, b in items
+                    if not h.startswith(heading)
+                ]
+                item_count = sum(1 for _, _, h, _ in kept if ITEM_ID.match(h))
+                closed = sum(
+                    1 for _, _, h, _ in kept if ITEM_ID.match(h) and is_closed(h)
+                )
+                narrative = len(kept) - item_count
+                print(f"{path.name}: {len(lines)} lines, {item_count} items "
+                      f"({closed} would delete), {narrative} narrative sections")
             continue
-        before, after, n = compact(path, heading)
-        print(f"{path.name}: {before} -> {after} lines ({n} items archived)")
+        if indexed:
+            before, after, n_items, n_narrative = compact_indexed(path, heading)
+        else:
+            before, after, n_items, n_narrative = compact(path, heading)
+        print(f"{path.name}: {before} -> {after} lines "
+              f"({n_items} items deleted, {n_narrative} narrative sections deleted)")
     return 0
 
 

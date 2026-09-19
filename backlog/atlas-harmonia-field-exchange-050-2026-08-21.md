@@ -1,0 +1,10 @@
+<a id="atlas-harmonia-field-exchange-050-2026-08-21"></a>
+## ATLAS-HARMONIA-FIELD-EXCHANGE-050-2026-08-21 — Add typed physical-field exchange [major] [arch] — in-progress
+
+outcome: Harmonia's boundary exchange gains a no-unsafe, zero-copy field envelope typed as `aequitas::Quantity<T, D>` with validated grid shape/spacing/origin/orientation metadata, replacing runtime-only dimension and time checks that let CFDrs/Kwavers/Helios connect incompatible quantities or grid frames. First slice owns the contract only; consumer adapters and source terms follow as dependency-ordered items.
+
+Acceptance: constructor rejects zero dimensions, non-finite/non-positive spacing, non-finite origins/directions, non-orthonormal direction cosines, and value-count mismatches; a valid envelope borrows without allocation; compile-time dimensions block e.g. an `Intensity`/`VolumetricPowerDensity` interchange; property/boundary tests cover validation and orientation identity/round-trip laws. ADR `docs/adr/0050-typed-physical-field-exchange.md` records Harmonia as orchestration owner, Aequitas as quantity SSOT, and the consumer adapter path.
+
+Delivered and merged: [PR #9](https://github.com/ryancinsight/harmonia/pull/9) plus negative/non-finite spacing cases, a rotated-frame round-trip, and exact shape/origin/direction failure coverage, at `5b1bc28`. Local locked Clippy/nextest(31)/doctest/doc/release gates pass.
+
+Open: post-merge CI `32474562236` and Pages `32474560873` are queued — no consumer adapter or Atlas pointer advance until those and the live-page check are terminal. Independent review notes provider CI omits `--locked` and runs no MSRV/release/SemVer checks; that gap is not covered by the local locked gates.

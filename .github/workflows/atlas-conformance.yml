@@ -74,6 +74,10 @@ jobs:
           # scan can run. Direct members are sufficient for this job.
           submodules: false
           lfs: false
+          # The artifact-budget step ratchets against the PR base, so the
+          # base ref must be reachable; blobless keeps the fetch small.
+          fetch-depth: 0
+          filter: blob:none
 
       - name: Initialize direct Atlas members
         shell: bash
@@ -109,6 +113,23 @@ jobs:
         # as baseline-update candidates and pass. Fix new debt at the source —
         # never by editing the baseline upward (that edit is the gamed ratchet
         # the gate exists to catch in review).
+
+      - name: Artifact budgets (atlas boards and tracked images, ratchet-to-budget)
+        shell: bash
+        # Members run the same script through the shared artifact-budget.yml
+        # workflow; this step gates atlas's own root boards. An over-budget
+        # board may not grow against the base; an oversized image may not be
+        # added or touched.
+        run: |
+          base=""
+          if [ -n "${{ github.event.pull_request.base.sha || '' }}" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            base="${{ github.event.before }}"
+          fi
+          args=()
+          [ -n "$base" ] && args=(--base "$base")
+          python3 scripts/atlas-artifact-budget.py check --root . "${args[@]}"
 
       - name: Book gate audit (committed provider revisions)
         shell: bash

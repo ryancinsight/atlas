@@ -1,0 +1,82 @@
+# Artifact budget (shared gate): PM boards under their line budget, tracked
+# images under their byte budget.
+#
+# Same shape as adr-index-guard.yml: check out the caller, check out atlas into
+# `_atlas`, run atlas's one script against the caller's tree. Ratchet-to-budget
+# semantics (scripts/atlas-artifact-budget.py): a board under budget stays
+# under it, a board over budget may not grow, and an oversized image may not be
+# added or modified -- so a member whose history already exceeds the budget is
+# not blocked outright, only from growing, and every touching PR shrinks it.
+#
+# Callers:
+#   artifact-budget:
+#     uses: ryancinsight/atlas/.github/workflows/artifact-budget.yml@<sha>
+#     with:
+#       atlas-ref: <sha>
+
+name: Artifact budget (shared gate)
+
+on:
+  workflow_call:
+    inputs:
+      atlas-ref:
+        description: Exact Atlas revision matching the caller's uses reference
+        required: true
+        type: string
+      line-budget:
+        description: Maximum lines per PM board (backlog.md, checklist.md, gap_audit.md)
+        required: false
+        default: 1000
+        type: number
+      image-budget-bytes:
+        description: Maximum bytes per tracked image
+        required: false
+        default: 204800
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  artifact-budget:
+    name: Boards and tracked images within budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Fetch the base revision the ratchet compares against
+        # A blobless full-history checkout cannot lazily fetch the transient
+        # pull-request merge commit ("upload-pack: not our ref"), so the base
+        # arrives by its own shallow fetch instead; GitHub serves any reachable
+        # commit by full SHA.
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${{ github.event.pull_request.base.sha || github.event.before || '' }}"
+          if [[ -n "$base" && "$base" != "0000000000000000000000000000000000000000" ]]; then
+            git fetch --no-tags --depth=1 origin "$base"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ryancinsight/atlas
+          path: _atlas
+          # In a called workflow, the github context belongs to the caller;
+          # github.workflow_sha therefore identifies the caller revision, not
+          # this repository. The caller supplies the exact Atlas ref instead.
+          ref: ${{ inputs.atlas-ref }}
+      - name: Check boards and tracked images against their budgets
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=""
+          if [[ -n "${{ github.event.pull_request.base.sha || '' }}" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          elif [[ -n "${{ github.event.before || '' }}" && "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]]; then
+            base="${{ github.event.before }}"
+          fi
+          args=()
+          [[ -n "$base" ]] && args=(--base "$base")
+          python3 _atlas/scripts/atlas-artifact-budget.py check \
+            --line-budget "${{ inputs.line-budget }}" \
+            --image-budget-bytes "${{ inputs.image-budget-bytes }}" \
+            "${args[@]}"

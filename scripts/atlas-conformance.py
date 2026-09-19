@@ -74,6 +74,25 @@ except ImportError:  # pragma: no cover - optional for environments without PyYA
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from atlas_stack import ROOT, is_git_ignored, staleness_note
 
+
+def _load_sibling(name: str, module: str):
+    """Import a sibling script whose file name is not an identifier."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        module, Path(__file__).resolve().parent / name
+    )
+    assert spec is not None and spec.loader is not None
+    loaded = importlib.util.module_from_spec(spec)
+    sys.modules[module] = loaded
+    spec.loader.exec_module(loaded)
+    return loaded
+
+
+# PM-board line budget and tracked-image byte budget: hard gates at the
+# member (scripts/atlas-artifact-budget.py in pre-push and CI), measured here
+# fleet-wide so the meta board sees the counts and the ratchet refuses growth.
+artifact_budget = _load_sibling("atlas-artifact-budget.py", "atlas_artifact_budget")
+
 try:
     from atlas_architecture_test import (
         BALANCE_DOMAINS as _BALANCE_DOMAINS,
@@ -280,6 +299,7 @@ CLASSES = [
     "balance_domain_edges", "bare_git_dependency",
     "cache_retention_policy_missing", "crlf_stored_blobs",
     "member_gate_versions",
+    "pm_lines_over_budget", "oversized_tracked_images",
 ]
 
 #
@@ -562,23 +582,34 @@ def is_cargo_target_dir(entry: Path) -> bool:
 
 
 def untracked_root_names(repo: Path) -> set[str]:
-    """Names of root-level files git does not track in `repo`.
+    """Names of root-level files git does not track in `repo`, ignored included.
+
+    An ignored file is untracked too: a `*.pdb` beside a scratch build is this
+    checkout's state exactly as an unignored `.mine.patch` is. Listing only
+    `--exclude-standard` output left ignored files in neither bucket, so the
+    caller counted them as repository-carried and a gitignored debugger symbol
+    file raised `root_sprawl` for content no revision contains. Ignored entries
+    are listed with `--directory`, which collapses an ignored tree such as
+    `target/` to one path instead of enumerating it.
 
     Empty when `repo` is not a git checkout -- an archived snapshot of a
     recorded revision contains that revision's content by construction, so
     nothing in it is untracked.
     """
-    listing = subprocess.run(
-        ["git", "-C", str(repo), "ls-files", "--others", "--exclude-standard"],
-        capture_output=True,
-        encoding="utf-8",
-        errors="replace",
-    )
-    if listing.returncode != 0:
-        return set()
-    return {
-        name for name in listing.stdout.split("\n") if name and "/" not in name
-    }
+    names: set[str] = set()
+    for extra in ((), ("--ignored", "--directory")):
+        listing = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "--others", "--exclude-standard", *extra],
+            capture_output=True,
+            encoding="utf-8",
+            errors="replace",
+        )
+        if listing.returncode != 0:
+            return set()
+        names.update(
+            name for name in listing.stdout.split("\n") if name and "/" not in name
+        )
+    return names
 
 
 def count_root_sprawl(repo: Path, live_repo: Path | None = None) -> tuple[int, int]:
@@ -1522,6 +1553,7 @@ def scan_repo(
     c["crlf_stored_blobs"] = count_crlf_stored_blobs(
         repo, live_repo=live_repo, revision=revision
     )
+    c.update(artifact_budget.counts(repo))
     # The shared-cache budget is stack-level, not per-member: the policy file
     # must exist and name this member's routed target dir (the root
     # `.cargo/config.toml` [build] target-dir) for the member to count as
@@ -1633,6 +1665,26 @@ def materialize_member(
     # carries one so the same gate admits it.
     (content / ".git").write_text(f"gitdir: archived {expected}\n", encoding="utf-8")
     return content, provider
+
+
+def scan_member(
+    stack_root: Path, name: str, root_revision: str | None
+) -> dict[str, int]:
+    """Scan one registered member at the gitlink `root_revision` records.
+
+    `None` scans the live checkout as it is (`--worktree`). A pre-push gate
+    judging a pin advance passes the pushed tip: the live checkout in a
+    shared tree holds whatever a peer left there, so scanning it judged a
+    revision nobody was pushing (2026-09-18: a moirai advance that cleared
+    both of its ratchet violations was refused for the stale pin's).
+    """
+    member = stack_root / "repos" / name
+    if root_revision is None:
+        return scan_repo(member)
+    expected = gitlink_revision(root_revision, f"repos/{name}", stack_root)
+    with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as scratch:
+        content, live = materialize_member(member, expected, Path(scratch))
+        return scan_repo(content, live_repo=live, revision=expected)
 
 
 def scan_stack(
@@ -1803,6 +1855,7 @@ def scan_stack(
     meta["root_sprawl"], meta["root_sprawl_untracked"] = count_root_sprawl(ROOT)
     meta["gitattributes_missing"] = lf_policy_missing(ROOT)
     meta["crlf_stored_blobs"] = count_crlf_stored_blobs(ROOT)
+    meta.update(artifact_budget.counts(ROOT))
     scan_workflows(ROOT, meta)
     out["<meta>"] = meta
     return out
@@ -1916,7 +1969,8 @@ def main() -> int:
     parser.add_argument(
         "--repo",
         metavar="NAME",
-        help="scan only this provider repo (live tree, bypasses the clean-stack gate)",
+        help="scan only this provider repo, at the gitlink --revision records "
+             "(its live tree with --worktree); bypasses the clean-stack gate",
     )
     parser.add_argument(
         "--accept-raises",
@@ -1939,7 +1993,10 @@ def main() -> int:
                 print(f"no such provider repo: {args.repo}", file=sys.stderr)
                 return 2
             require_materialized_providers(ROOT, {args.repo})
-            results = {args.repo: scan_repo(member)}
+            root_revision = None if args.worktree else git_output(
+                "rev-parse", "--verify", f"{args.revision}^{{commit}}"
+            ).strip()
+            results = {args.repo: scan_member(ROOT, args.repo, root_revision)}
         elif args.worktree:
             results = scan_stack(ROOT)
         else:

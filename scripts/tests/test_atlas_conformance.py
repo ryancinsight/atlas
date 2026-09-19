@@ -84,6 +84,33 @@ class AtlasConformanceTestCase(unittest.TestCase):
         self.assertEqual(untracked, 1, "the scratch file is measured, as host state")
         self.assertIn("root_sprawl_untracked", conformance.HOST_OBSERVED_CLASSES)
 
+    def test_ignored_root_files_are_host_state_not_repository_debt(self) -> None:
+        """A gitignored root file is no more the repository's than an unignored one.
+
+        `f64w.pdb` -- ignored by `*.pdb` -- raised atlas `root_sprawl` 0 -> 1:
+        the untracked listing used `--exclude-standard` alone, so ignored files
+        fell into neither bucket and were counted as carried.
+        """
+        with tempfile.TemporaryDirectory(prefix="atlas-root-ignored-") as temp:
+            repo = Path(temp)
+            subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
+            (repo / "README.md").write_text("sanctioned\n", encoding="utf-8")
+            (repo / ".gitignore").write_text("*.pdb\ntarget/\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+            subprocess.run(
+                ["git", "-C", str(repo), "-c", "user.email=t@example.com",
+                 "-c", "user.name=t", "commit", "-q", "-m", "seed"],
+                check=True,
+            )
+            (repo / "scratch.pdb").write_text("symbols\n", encoding="utf-8")
+            (repo / "target").mkdir()
+            (repo / "target" / "artifact.rlib").write_text("x\n", encoding="utf-8")
+
+            carried, untracked = conformance.count_root_sprawl(repo)
+
+        self.assertEqual(carried, 0, "an ignored file is not repository content")
+        self.assertEqual(untracked, 1, "measured as host state; an ignored directory is not a root file")
+
     def test_generate_records_zero_for_host_observed_classes(self) -> None:
         """A generated baseline never carries this machine's state.
 
@@ -1326,6 +1353,28 @@ class MaterializedMemberTests(unittest.TestCase):
             )
             counts = conformance.scan_repo(content, live_repo=provider)
             self.assertEqual(counts["print_dbg"], 1, "the recorded revision's one print, not the live tree's two dbg!")
+
+    def test_a_single_member_scan_judges_the_recorded_gitlink(self) -> None:
+        """`check --repo` under a pre-push gate: the root commit records the
+        member's second revision while the checkout sits dirty on the first,
+        and the scan must count the recorded revision's debt, not the tree's."""
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            stack = Path(temp)
+            provider, first, second = self._provider(stack)
+            self._git(provider, "checkout", "-q", first)
+            _write(provider, "src/lib.rs", "pub fn alpha() { dbg!(1); dbg!(2); }\n")
+            self._git(stack, "init", "-q", "-b", "main")
+            self._git(stack, "config", "user.email", "t@example.invalid")
+            self._git(stack, "config", "user.name", "t")
+            self._git(stack, "update-index", "--add", "--cacheinfo", f"160000,{second},repos/alpha")
+            tree = self._git(stack, "write-tree")
+            root_commit = self._git(stack, "commit-tree", tree, "-m", "pin alpha")
+
+            recorded = conformance.scan_member(stack, "alpha", root_commit)
+            live = conformance.scan_member(stack, "alpha", None)
+
+            self.assertEqual(recorded["print_dbg"], 1, "the pinned revision's one println!")
+            self.assertEqual(live["print_dbg"], 2, "the live tree's two dbg!")
 
     def test_a_gitlink_absent_from_the_object_store_is_an_error(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:

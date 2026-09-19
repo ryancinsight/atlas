@@ -59,6 +59,7 @@ _HOOK_COMMANDS = (
     "tr",
     "mktemp",
     "rm",
+    "tar",
 )
 
 
@@ -205,7 +206,7 @@ class GateFixture:
 
     def set_cargo_behavior(self, mode: str) -> None:
         """Install a stub `cargo`: `pass`, `fail-fmt`, `fail-clippy-ours`,
-        `fail-clippy-environment`, or `missing` (no stub on PATH).
+        `fail-clippy-environment`, `fail-deny`, or `missing` (no stub on PATH).
 
         A failing clippy prints `$CARGO_FAIL_LOG`, supplied by the caller
         through the hook's environment: embedding the log in the stub would
@@ -218,11 +219,40 @@ class GateFixture:
         if mode == "missing":
             return
         if mode == "pass":
-            body = 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\nexit 0\n'
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'pwd >> "$FIXTURE_ROOT/cwd.log"\n'
+                'if [ "$1" = "deny" ] && [ "$2" != "--version" ]; then\n'
+                '  pwd >> "$FIXTURE_ROOT/deny-cwd.log"\n'
+                "fi\nexit 0\n"
+            )
+        elif mode == "fail-deny":
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'if [ "$1" = "deny" ] && [ "$2" != "--version" ]; then exit 1; fi\n'
+                "exit 0\n"
+            )
+        elif mode == "fail-doc":
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'if [ "$1" = "doc" ]; then\n'
+                '  printf "%s\\n" "$CARGO_FAIL_LOG" >&2\n'
+                "  exit 1\n"
+                "fi\nexit 0\n"
+            )
         elif mode == "fail-fmt":
             body = (
                 'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
                 'if [ "$1" = "fmt" ]; then exit 1; fi\nexit 0\n'
+            )
+        elif mode == "fail-collision":
+            body = (
+                'echo "$@" >> "$FIXTURE_ROOT/calls.log"\n'
+                'if [ "$1" = "clippy" ]; then\n'
+                '  echo "error: package collision in the lockfile: packages foo v0.1.0 '
+                '(/stack/repos/foo) and foo v0.1.0 (/stack/worktrees/foo-lane)" >&2\n'
+                "  exit 101\n"
+                "fi\nexit 0\n"
             )
         elif mode.startswith("fail-clippy"):
             body = (
@@ -370,6 +400,7 @@ class PackageMapperTestCase(unittest.TestCase):
             self.assertIn("gating solo", stderr)
             calls = (fixture.root / "calls.log").read_text(encoding="utf-8")
             self.assertIn("-p solo", calls)
+            self.assertIn("doc --no-deps -p solo", calls)
 
 
 class BlameClassifierTestCase(unittest.TestCase):
@@ -414,6 +445,36 @@ class BlameClassifierTestCase(unittest.TestCase):
             fixture.push_line_new_branch(),
             extra_env={"CARGO_FAIL_LOG": log.format(root=root)},
         )
+
+    def test_rustdoc_failure_inside_repo_blocks(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+                 "-b", "feat"],
+                check=True,
+            )
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// tweak\n"
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add",
+                 "crates/foo/src/lib.rs"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                 "-m", "src"],
+                check=True,
+            )
+            root = str(fixture.root).replace("\\", "/")
+            fixture.set_cargo_behavior("fail-doc")
+            code, stderr = fixture.run_hook(
+                fixture.push_line_new_branch(),
+                extra_env={"CARGO_FAIL_LOG": self.inside_log.format(root=root)},
+            )
+            self.assertEqual(code, 1, stderr)
+            self.assertIn("rustdoc fails for", stderr)
 
     def test_clippy_failure_inside_repo_blocks(self) -> None:
         with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
@@ -485,6 +546,68 @@ class MissingToolchainTestCase(unittest.TestCase):
             )
             self.assertEqual(code, 0)
             self.assertIn("no cargo toolchain found", stderr)
+
+
+class SafetyRatchetTestCase(unittest.TestCase):
+    """The member's SAFETY ratchet runs in the local gate, as CI runs it.
+
+    apollo#397 passed this gate and failed CI's workspace job on the ratchet:
+    nothing local ran it, so CI discovered what the gate should have.
+    """
+
+    def _push_source_change(self, ratchet_exit: int | None) -> tuple:
+        with tempfile.TemporaryDirectory(prefix="atlas-gate-") as temp:
+            fixture = GateFixture(pathlib.Path(temp))
+            if ratchet_exit is not None:
+                _write(
+                    fixture.root / "scripts" / "safety_ratchet.py",
+                    "#!/usr/bin/env python3\n"
+                    "import pathlib, sys\n"
+                    "assert sys.argv[1:] == ['check'], sys.argv\n"
+                    "pathlib.Path('ratchet-calls.log').write_text('called')\n"
+                    f"sys.exit({ratchet_exit})\n",
+                    executable=True,
+                )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "checkout", "-q",
+                 "-b", "feat"],
+                check=True,
+            )
+            (fixture.root / "crates" / "foo" / "src" / "lib.rs").write_text(
+                "pub fn f() {}\n// tweak\n"
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "add", "crates", "scripts"],
+                check=True,
+            )
+            subprocess.run(
+                ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q",
+                 "-m", "src"],
+                check=True,
+            )
+            code, stderr = fixture.run_hook(fixture.push_line_new_branch())
+            ran = (fixture.root / "ratchet-calls.log").is_file()
+            calls = fixture.calls.read_text() if fixture.calls.is_file() else ""
+            return code, stderr, ran, calls
+
+    def test_a_failing_ratchet_refuses_the_push_before_compiling(self) -> None:
+        code, stderr, ran, calls = self._push_source_change(ratchet_exit=1)
+        self.assertTrue(ran, "the ratchet was not invoked")
+        self.assertEqual(code, 1)
+        self.assertIn("the SAFETY ratchet fails", stderr)
+        self.assertNotIn("clippy", calls, "the text scan gates before the compile steps")
+
+    def test_a_passing_ratchet_continues_to_the_compile_steps(self) -> None:
+        code, stderr, ran, calls = self._push_source_change(ratchet_exit=0)
+        self.assertTrue(ran, "the ratchet was not invoked")
+        self.assertEqual(code, 0, stderr)
+        self.assertIn("clippy", calls)
+
+    def test_a_member_without_the_ratchet_is_not_gated_on_it(self) -> None:
+        code, stderr, ran, calls = self._push_source_change(ratchet_exit=None)
+        self.assertFalse(ran)
+        self.assertEqual(code, 0, stderr)
+        self.assertNotIn("SAFETY ratchet", stderr)
 
 
 class DefaultBranchTestCase(unittest.TestCase):
@@ -626,3 +749,124 @@ class UnverifiableLockTestCase(unittest.TestCase):
             )
             self.assertEqual(code, 0, stderr)
             self.assertIn("skipped by SKIP_LOCKFILE_CHECK", stderr)
+
+
+class DenySourcesTestCase(unittest.TestCase):
+    """A lock-changing push checks dependency sources on an export."""
+
+    def _push(self, mode: str, change: str) -> tuple:
+        temp = tempfile.TemporaryDirectory(prefix="pre-push-deny-")
+        self.addCleanup(temp.cleanup)
+        fixture = GateFixture(pathlib.Path(temp.name))
+        _write(fixture.root / "deny.toml", "[sources]\nallow-git = []\n")
+        subprocess.run(["git", "-C", str(fixture.root), *_IDENT, "add", "deny.toml"], check=True)
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "deny"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "push", "-q", "origin", "HEAD:main"],
+            check=True,
+        )
+        subprocess.run(["git", "-C", str(fixture.root), "switch", "-q", "-c", "feat"], check=True)
+        target = fixture.root / change
+        _write(target, target.read_text(encoding="utf-8") + "# changed\n")
+        subprocess.run(["git", "-C", str(fixture.root), *_IDENT, "add", "-A"], check=True)
+        subprocess.run(
+            ["git", "-C", str(fixture.root), *_IDENT, "commit", "-q", "-m", "change"], check=True
+        )
+        fixture.set_cargo_behavior(mode)
+        lock_before = (fixture.root / "Cargo.lock").read_bytes()
+        code, err = fixture.run_hook(
+            fixture.push_line_new_branch(), {"SKIP_LOCAL_GATE": "1"}
+        )
+        self.assertEqual((fixture.root / "Cargo.lock").read_bytes(), lock_before)
+        calls = fixture.calls.read_text(encoding="utf-8") if fixture.calls.exists() else ""
+        cwd_log = fixture.root / "deny-cwd.log"
+        cwd = cwd_log.read_text(encoding="utf-8").strip() if cwd_log.exists() else ""
+        return code, err, calls, cwd, fixture.root
+
+    def test_a_lock_change_checks_sources_on_an_export_outside_the_member(self) -> None:
+        code, err, calls, cwd, root = self._push("pass", "Cargo.lock")
+        self.assertEqual(code, 0, err)
+        self.assertIn("deny --locked check sources", calls)
+        self.assertTrue(cwd, "cargo deny must have run")
+        self.assertNotIn(
+            os.path.normcase(str(root.resolve())), os.path.normcase(cwd),
+            "the check runs on an export, never in the member's tree",
+        )
+
+    def test_a_disallowed_source_refuses_the_push(self) -> None:
+        code, err, _, _, _ = self._push("fail-deny", "Cargo.lock")
+        self.assertEqual(code, 1, err)
+        self.assertIn("resolves a source deny.toml does not allow", err)
+
+    def test_a_push_without_a_dependency_change_skips_the_check(self) -> None:
+        code, err, calls, _, _ = self._push("fail-deny", "crates/foo/src/lib.rs")
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("deny --locked check sources", calls)
+
+
+class LaneGateTestCase(unittest.TestCase):
+    """A lane of an overlaid member gates outside the overlay."""
+
+    def _lane(self, overlay: bool) -> tuple:
+        temp = tempfile.TemporaryDirectory(prefix="pre-push-lane-")
+        self.addCleanup(temp.cleanup)
+        stack = pathlib.Path(temp.name)
+        fixture = GateFixture(stack / "repos" / "foo")
+        if overlay:
+            _write(stack / ".cargo" / "config.toml", '[build]\ntarget-dir = "target"\n')
+        lane = stack / "worktrees" / "foo-lane"
+        subprocess.run(
+            ["git", "-C", str(fixture.root), "worktree", "add", "-q", "-b", "lane", str(lane)],
+            check=True,
+        )
+        _write(lane / "crates" / "foo" / "src" / "lib.rs", "pub fn g() {}\n")
+        subprocess.run(["git", "-C", str(lane), *_IDENT, "commit", "-qam", "lane"], check=True)
+        return stack, fixture, lane
+
+    def _run_in_lane(self, fixture: GateFixture, lane: pathlib.Path) -> tuple:
+        env = dict(os.environ)
+        env["PATH"] = str(fixture.bin) + os.pathsep + env.get("PATH", "")
+        env.pop("CARGO_TARGET_DIR", None)
+        env["SKIP_LOCKFILE_CHECK"] = "1"
+        sha = _git(lane, "rev-parse", "HEAD")
+        proc = subprocess.run(
+            ["bash", str(SCRIPT)],
+            input=f"refs/heads/lane {sha} refs/heads/lane {ZERO}\n".encode("utf-8"),
+            cwd=str(lane),
+            env=env,
+            capture_output=True,
+        )
+        return proc.returncode, proc.stderr.decode("utf-8", errors="replace")
+
+    def test_a_lane_gates_from_outside_the_stack_with_its_manifest(self) -> None:
+        stack, fixture, lane = self._lane(overlay=True)
+        code, err = self._run_in_lane(fixture, lane)
+        self.assertEqual(code, 0, err)
+        self.assertIn("gating outside the stack overlay", err)
+        calls = fixture.calls.read_text(encoding="utf-8")
+        self.assertIn("--manifest-path", calls)
+        self.assertIn("foo-lane", calls)
+        fmt = [line for line in calls.splitlines() if line.startswith("fmt ")]
+        self.assertTrue(fmt and all(line.startswith("fmt --all ") for line in fmt), fmt)
+        for cwd in (fixture.root / "cwd.log").read_text(encoding="utf-8").split():
+            self.assertNotIn(
+                os.path.normcase(str(stack.resolve())), os.path.normcase(str(pathlib.Path(cwd).resolve())),
+                "cargo must not run inside the stack",
+            )
+
+    def test_a_lane_without_an_overlay_gates_in_place(self) -> None:
+        _, fixture, lane = self._lane(overlay=False)
+        code, err = self._run_in_lane(fixture, lane)
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("gating outside the stack overlay", err)
+        self.assertNotIn("--manifest-path", fixture.calls.read_text(encoding="utf-8"))
+        self.assertIn("fmt -- --check\n", fixture.calls.read_text(encoding="utf-8"))
+
+    def test_a_lockfile_package_collision_is_the_environment(self) -> None:
+        _, fixture, lane = self._lane(overlay=False)
+        fixture.set_cargo_behavior("fail-collision")
+        code, err = self._run_in_lane(fixture, lane)
+        self.assertNotIn("clippy fails for", err)
+        self.assertIn("NOT verified", err)
