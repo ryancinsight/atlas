@@ -875,7 +875,7 @@ Final gitlink-coherence state at Session 30 close: **25 probed | 4 defects | 1 s
 <a id="atlas-cfdrs-crlf-085"></a>- [ATLAS-CFDRS-CRLF-085](backlog/atlas-cfdrs-crlf-085.md) — CFDrs commits CRLF with no `.gitattributes` [patch] — blocked
 <a id="ritk-views-047"></a>- [RITK-VIEWS-047](backlog/ritk-views-047.md) — Collapse seven data accessors to two [major] — blocked
 <a id="ritk-shared-tree-stale-basis-213"></a>- [RITK-SHARED-TREE-STALE-BASIS-213](backlog/ritk-shared-tree-stale-basis-213.md) — ritk's shared tree is checked out 58 commits behind origin [patch] — in-progress
-<a id="ritk-doc-gate-210"></a>- [RITK-DOC-GATE-210](backlog/ritk-doc-gate-210.md) — `cargo doc` is red on ritk's default branch [patch] — in-progress
+<a id="ritk-doc-gate-210"></a>- [RITK-DOC-GATE-210](backlog/ritk-doc-gate-210.md) — `cargo doc` is red on ritk's default branch [patch] — done
 <a id="atlas-crate-level-allows-217"></a>- [ATLAS-CRATE-LEVEL-ALLOWS-217](backlog/atlas-crate-level-allows-217.md) — 502 blanket suppressions the ratchet never counted [major] — in-progress
 <a id="atlas-lane-sprawl-222"></a>- [ATLAS-LANE-SPRAWL-222](backlog/atlas-lane-sprawl-222.md) — 26 lane directories against a two-per-repo bound [patch] — in-progress
 <a id="ritk-peer-ratchet-211"></a>- [RITK-PEER-RATCHET-211](backlog/ritk-peer-ratchet-211.md) — Peer commits regressed three ratchet classes on ritk [patch] — todo
