@@ -26,9 +26,11 @@ that need hosted build, installation, value-test, and wheel-tag evidence before
 a release is authorized. Validation mode reuses the complete matrix and
 metadata validator, derives one version across wheels and the source
 distribution, uploads a retained verification artifact, and skips GitHub
-Release attachment. The published-release path remains unchanged and still
-performs the release-tag identity check; no registry credential or private key
-is introduced.
+Release attachment. The validator accepts compressed macOS universal2 tags that
+carry x86_64, arm64 and universal2 tokens together, while rejecting an
+incomplete single-architecture tag. The published-release path remains
+unchanged and still performs the release-tag identity check; no registry
+credential or private key is introduced.
 
 ## Context
 
