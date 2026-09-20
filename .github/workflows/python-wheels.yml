@@ -719,7 +719,7 @@ jobs:
               exit 1
             fi
           done
-          sdist_metadata=$(tar -xOf "${sdists[0]}" '*/PKG-INFO')
+          sdist_metadata=$(tar -xOf "${sdists[0]}" "$(tar -tf "${sdists[0]}" | awk '/(^|\/)PKG-INFO$/ { print; exit }')")
           sdist_name=$(sed -n 's/^Name: //p' <<<"$sdist_metadata" | head -n 1 | tr -d '\r')
           sdist_version=$(sed -n 's/^Version: //p' <<<"$sdist_metadata" | head -n 1 | tr -d '\r')
           normalized_sdist_name=$(tr '[:upper:]' '[:lower:]' <<<"$sdist_name" | sed -E 's/[-_.]+/-/g' | tr -d '\r\n')

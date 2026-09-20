@@ -89,6 +89,14 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
         self.assertIn("--abi3-python", run)
         self.assertNotIn('PYTHON_GIL: "0"', run)
 
+    def test_release_validation_reads_sdist_metadata_from_tar_listing(self) -> None:
+        validation = next(
+            step for step in self.workflow["jobs"]["release-assets"]["steps"]
+            if step.get("name") == "Validate release identity and wheel set"
+        )
+        self.assertIn('tar -tf "${sdists[0]}"', validation["run"])
+        self.assertIn("awk '/(^|\\/)PKG-INFO$/", validation["run"])
+
     def test_actual_release_validator_handles_compressed_tags_and_wrong_floor(self) -> None:
         valid = [
             "pkg-1-cp315-abi3.abi3t-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl",

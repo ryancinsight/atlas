@@ -32,6 +32,13 @@ incomplete single-architecture tag. The published-release path remains
 unchanged and still performs the release-tag identity check; no registry
 credential or private key is introduced.
 
+Revision 2026-09-20 (follow-up): aggregate validation reads `PKG-INFO` by
+listing the source archive and selecting its member with `awk`. This keeps the
+metadata check portable across GNU and BSD `tar`; wildcard extraction flags are
+not available on every runner. A missing member remains a hard validation
+failure, and the verification path still creates no release or registry
+upload.
+
 ## Context
 
 Three publication concerns exist across the stack: crates to crates.io, wheels to
