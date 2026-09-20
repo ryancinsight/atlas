@@ -21,6 +21,15 @@ the ordinary CPython matrix. Release aggregation validates the additional
 artifact tags and counts only when a caller opts in. No registry credential or
 private key is introduced.
 
+Revision 2026-09-20: the wheel workflow adds a `verification` input for callers
+that need hosted build, installation, value-test, and wheel-tag evidence before
+a release is authorized. Validation mode reuses the complete matrix and
+metadata validator, derives one version across wheels and the source
+distribution, uploads a retained verification artifact, and skips GitHub
+Release attachment. The published-release path remains unchanged and still
+performs the release-tag identity check; no registry credential or private key
+is introduced.
+
 ## Context
 
 Three publication concerns exist across the stack: crates to crates.io, wheels to

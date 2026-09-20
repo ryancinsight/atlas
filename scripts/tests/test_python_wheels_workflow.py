@@ -40,6 +40,25 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
         self.assertEqual(inputs["abi3t-python"]["default"], "3.15t")
         self.assertEqual(inputs["abi3t-features"]["default"], "")
 
+    def test_validation_mode_skips_release_identity_and_attachment(self) -> None:
+        inputs = self.workflow[True]["workflow_call"]["inputs"]
+        self.assertFalse(inputs["verification"]["default"])
+        validation = next(
+            step for step in self.workflow["jobs"]["release-assets"]["steps"]
+            if step.get("name") == "Validate release identity and wheel set"
+        )
+        self.assertEqual(validation["env"]["VERIFICATION"], "${{ inputs.verification }}")
+        self.assertIn('if [[ "$VERIFICATION" != "true" ]]', validation["run"])
+        self.assertIn(
+            "name: ${{ inputs.verification && 'verification-wheels' || 'release-wheels' }}",
+            self.source,
+        )
+        attachment = next(
+            step for step in self.workflow["jobs"]["release-assets"]["steps"]
+            if step.get("name") == "Attach wheels to GitHub Release"
+        )
+        self.assertEqual(attachment["if"], "${{ !inputs.verification }}")
+
     def test_free_threaded_jobs_use_the_shared_build_and_test_contract(self) -> None:
         jobs = self.workflow["jobs"]
         for job in ("build-free-threaded", "build-abi3t"):
