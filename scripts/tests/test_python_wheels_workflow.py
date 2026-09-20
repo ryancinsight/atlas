@@ -91,7 +91,7 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
 
     def test_actual_release_validator_handles_compressed_tags_and_wrong_floor(self) -> None:
         valid = [
-            "pkg-1-cp315-abi3.abi3t-macosx_11_0_universal2.macosx_10_9_universal2.whl",
+            "pkg-1-cp315-abi3.abi3t-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl",
             "pkg-1-cp315-abi3t-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
             "pkg-1-cp315-abi3t-manylinux_2_17_aarch64.whl",
             "pkg-1-cp315-abi3t-win_amd64.whl",
@@ -101,12 +101,13 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
             command.extend(("--wheel", wheel))
         self.assertEqual(subprocess.run(command, check=False).returncode, 0)
         wrong = command.copy()
-        wrong[wrong.index("pkg-1-cp315-abi3.abi3t-macosx_11_0_universal2.macosx_10_9_universal2.whl")] = "pkg-1-cp314-abi3.abi3t-macosx_11_0_universal2.whl"
+        wrong[wrong.index(valid[0])] = "pkg-1-cp314-abi3.abi3t-macosx_11_0_universal2.whl"
         self.assertNotEqual(subprocess.run(wrong, check=False).returncode, 0)
         for malformed, index in (
             ("pkg-1-cp315-abi3t-manylinux_2_17_x86_64.win_amd64.whl", 1),
             ("pkg-1-cp315-abi3t-manylinux_2_17_x86_64.not_a_platform.whl", 1),
             ("pkg-1-cp315-abi3t-macosx___universal2.whl", 0),
+            ("pkg-1-cp315-abi3t-macosx_11_0_arm64.whl", 0),
         ):
             invalid_set = valid.copy()
             invalid_set[index] = malformed
@@ -115,6 +116,16 @@ class PythonWheelsWorkflowTests(unittest.TestCase):
             for wheel in invalid_set:
                 invalid.extend(("--wheel", wheel))
             self.assertNotEqual(subprocess.run(invalid, check=False).returncode, 0)
+        free = [
+            "metis_rs-0.1.0-cp314-cp314t-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl",
+            "metis_rs-0.1.0-cp314-cp314t-manylinux_2_17_x86_64.whl",
+            "metis_rs-0.1.0-cp314-cp314t-manylinux_2_17_aarch64.whl",
+            "metis_rs-0.1.0-cp314-cp314t-win_amd64.whl",
+        ]
+        free_command = [sys.executable, str(VALIDATOR), "--free", "3.14t"]
+        for wheel in free:
+            free_command.extend(("--wheel", wheel))
+        self.assertEqual(subprocess.run(free_command, check=False).returncode, 0)
 
     def test_actual_release_validator_checks_cpython_and_abi3_floor(self) -> None:
         base = [
