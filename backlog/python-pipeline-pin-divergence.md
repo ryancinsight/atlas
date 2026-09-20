@@ -1,7 +1,7 @@
 <a id="python-pipeline-pin-divergence"></a>
 ## ATLAS-PYTHON-PIPELINE-PINS-2026-09-04 - No published wheel covers ARM Linux or musl [patch] - in-progress
 
-integrator: root; branch: fix/python-wheel-platform-tags; last-update: 2026-09-20
+integrator: root; branch: fix/python-wheel-sdist-metadata; last-update: 2026-09-20
 outcome: every member consuming the shared `python-wheels.yml` pins the same Atlas commit carrying the six-system platform matrix (glibc+musl Linux x86_64/aarch64, Windows, macOS); `ritk` stops hand-rolling its own release pipeline.
 
 defect: `bfb720121` (2026-08-26) expanded the shared workflow from 3 to 6 wheel targets; all 9 consuming members are pinned before it (newest `5b43d5513`, 2026-08-20), so no Atlas PyPI wheel installs on ARM Linux or musl — `pip` falls back to sdist there, requiring a Rust toolchain. Measured 2026-09-06: 4 distinct workflow pins and 6 distinct `atlas-ref` values across 9 members (CFDrs, apollo, coeus, consus, helios, hephaestus, kwavers, leto, moirai); five resolve first-party providers through a gitlink graph a month stale.
@@ -9,4 +9,4 @@ defect: `bfb720121` (2026-08-26) expanded the shared workflow from 3 to 6 wheel 
 separate finding: `ritk` runs its own hand-rolled `release.yml` (3-wheel matrix, MSYS2-dependent) instead of the shared workflow — the fleet-scale duplication defect, and why it missed the platform fix too.
 
 acceptance: all consumers pin one identical SHA carrying `bfb720121`; `ritk/.github/workflows/release.yml` deleted in favor of the shared `workflow_call`; the conformance scan counts distinct pins across members so the next divergence fails the gate.
-verification limit: release callers still attach artifacts only on a published tag; `verification=true` now reuses the matrix and metadata validator without release authority or registry upload. Current increment (2026-09-20) also accepts compressed macOS universal2 tags emitted by CPython 3.14t; a downstream caller must adopt it before hosted evidence is claimed.
+verification limit: release callers still attach artifacts only on a published tag; `verification=true` reuses the matrix and metadata validator without release authority or registry upload. The 2026-09-20 Metis run `35505675256` completed all 19 wheel jobs but exposed GNU `tar` wildcard extraction in aggregate metadata validation; this correction selects `PKG-INFO` from `tar -tf` output (portable GNU/BSD behavior), with 12/12 local workflow tests. Hosted rerun and the retained aggregate artifact remain pending.
