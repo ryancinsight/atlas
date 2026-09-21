@@ -1678,5 +1678,35 @@ class MemberPathScanTests(unittest.TestCase):
                 self.assertEqual(conformance.main(), 2)
 
 
+class RootAllowanceFollowsTheMemberTests(unittest.TestCase):
+    """A member's sanctioned root files travel with the member's name."""
+
+    def sprawl(self, directory_name: str, member: str | None):
+        with tempfile.TemporaryDirectory(prefix="atlas-root-allowance-") as temp:
+            repo = Path(temp) / directory_name
+            repo.mkdir()
+            (repo / "Cargo.toml").write_text("[package]\n", encoding="utf-8")
+            (repo / "metis.json").write_text("{}\n", encoding="utf-8")
+            carried, _ = conformance.count_root_sprawl(repo, member=member)
+            return carried
+
+    def test_the_allowance_applies_when_the_member_is_named(self) -> None:
+        """An export, or any checkout whose directory is named otherwise."""
+        self.assertEqual(self.sprawl("metis-pr-322-export", member="metis"), 0)
+
+    def test_the_directory_name_still_works_as_the_proxy(self) -> None:
+        """`repos/<name>` keeps resolving without a caller passing it."""
+        self.assertEqual(self.sprawl("metis", member=None), 0)
+
+    def test_an_unsanctioned_root_file_still_counts(self) -> None:
+        """The allowance is per name, not an exemption for the member."""
+        with tempfile.TemporaryDirectory(prefix="atlas-root-allowance-") as temp:
+            repo = Path(temp) / "anywhere"
+            repo.mkdir()
+            (repo / "scratch.patch").write_text("diff\n", encoding="utf-8")
+            carried, _ = conformance.count_root_sprawl(repo, member="metis")
+            self.assertEqual(carried, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
