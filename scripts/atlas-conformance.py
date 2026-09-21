@@ -1112,7 +1112,8 @@ def git_ignored_paths(repo: Path) -> frozenset[Path]:
     result = subprocess.run(
         ["git", "-C", str(repo), "ls-files", "--others", "--ignored",
          "--exclude-standard", "--directory"],
-        capture_output=True, text=True, check=False,
+        capture_output=True, text=True,
+        encoding="utf-8", errors="replace", check=False,
     )
     if result.returncode:
         return frozenset()
