@@ -167,11 +167,16 @@ REPOSITORY_SANCTIONED_ROOT = {
 }
 
 
-def sanctioned_root_names(repo: Path) -> set[str]:
-    """Return root configuration names sanctioned for one repository."""
-    return SANCTIONED_ROOT | REPOSITORY_SANCTIONED_ROOT.get(
-        repo.name.casefold(), frozenset()
-    )
+def sanctioned_root_names(repo: Path, member: str | None = None) -> set[str]:
+    """Return root configuration names sanctioned for one repository.
+
+    `member` names the stack member when the caller knows it. The directory
+    basename is only a proxy for that -- true under `repos/<name>`, false for
+    an export or any checkout whose directory is named something else -- and
+    the allowance has to follow the member, not where its files happen to sit.
+    """
+    key = (member or repo.name).casefold()
+    return SANCTIONED_ROOT | REPOSITORY_SANCTIONED_ROOT.get(key, frozenset())
 
 # A submodule's `.git` is a gitlink *file*, not a directory, so it would
 # otherwise be counted as unfiled root sprawl in every member repository.
@@ -624,7 +629,9 @@ def untracked_root_names(repo: Path) -> set[str]:
     return names
 
 
-def count_root_sprawl(repo: Path, live_repo: Path | None = None) -> tuple[int, int]:
+def count_root_sprawl(
+    repo: Path, live_repo: Path | None = None, member: str | None = None
+) -> tuple[int, int]:
     """Unsanctioned root files, split by whether the repository carries them.
 
     The first count is the repository's: files a revision contains. The second
@@ -634,8 +641,8 @@ def count_root_sprawl(repo: Path, live_repo: Path | None = None) -> tuple[int, i
     answer differently depending on where it ran.
     """
     live_repo = live_repo or repo
-    sanctioned = sanctioned_root_names(repo)
-    live_sanctioned = sanctioned_root_names(live_repo)
+    sanctioned = sanctioned_root_names(repo, member)
+    live_sanctioned = sanctioned_root_names(live_repo, member)
     untracked_here = untracked_root_names(repo)
     carried = sum(
         1
@@ -1462,6 +1469,7 @@ def scan_repo(
     live_repo: Path | None = None,
     member_for_package: dict[str, str] | None = None,
     revision: str | None = None,
+    member: str | None = None,
 ) -> dict[str, int]:
     """Count every debt class in `repo`'s content.
 
@@ -1557,7 +1565,7 @@ def scan_repo(
         c["sleep_synced_tests"] += len(SLEEP.findall(test))
 
     c["root_sprawl"], c["root_sprawl_untracked"] = count_root_sprawl(
-        repo, live_repo
+        repo, live_repo, member
     )
     c["excess_worktrees"] = count_excess_worktrees(live_repo)
     c["target_forks"] = sum(1 for e in live_repo.iterdir() if is_cargo_target_dir(e))
@@ -2034,7 +2042,7 @@ def main() -> int:
             # The member's own checkout is the content; no gitlink is involved,
             # so neither the provider-materialisation gate nor a root revision
             # applies here.
-            results = {args.repo: scan_repo(member)}
+            results = {args.repo: scan_repo(member, member=args.repo)}
         elif args.repo:
             member = ROOT / "repos" / args.repo
             if not member.is_dir():
