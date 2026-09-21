@@ -10,8 +10,8 @@ Consus owns `consus-raster`, the shared JPEG byte decoder and bounded EXIF
 interpreter consumed by Metis and RITK. It remains separate from Consus's
 exact-roundtrip compression trait because JPEG DCT encoding is lossy.
 
-RITK already has first-party sequential and lossless JPEG computation. Metis's
-new progressive JPEG and EXIF implementation exposes overlapping format work.
+RITK previously supplied first-party sequential and lossless JPEG computation.
+Metis's progressive JPEG and EXIF addition exposed overlapping format work.
 The migration combines those capabilities upstream; it does not replace a
 first-party implementation with a parallel third-party decoder. Integer sample
 precision is preserved at the provider boundary. EXIF orientation is metadata,
@@ -44,3 +44,9 @@ independent progressive and orientation fixtures, malformed and resource-limit
 rejections, and removal of duplicate decoders. The dependency graph must remain
 acyclic. Source review establishes the ownership decision; it does not establish
 the decoder's behavior or native display correctness.
+
+Consumer gates resolve committed Git sources outside the local stack overlay.
+Concurrent member pre-push hooks currently snapshot and restore the same lockfile
+without serialization; one can restore another hook's temporary overlay state.
+After such contention, verify the committed lock separately before accepting a
+consumer result. Hook serialization remains an integration-tooling requirement.
