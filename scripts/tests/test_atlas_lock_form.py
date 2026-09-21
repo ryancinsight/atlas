@@ -468,5 +468,31 @@ class HookDeploymentTestCase(unittest.TestCase):
                 self.assertEqual(list(repos.iterdir()), [])
 
 
+class PublishRequestTests(unittest.TestCase):
+    """One member, one hook request, and a re-run that reuses it."""
+
+    def test_publish_hooks_takes_no_branch_of_its_own(self) -> None:
+        """A 14:47 run named `ci/sync-stack-hooks-20260921` and a 16:03 run the
+        default, leaving thirteen members two open requests that deployed
+        different hook revisions -- and a date marker on a ref."""
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotIn("--branch", source)
+        self.assertIn("branch = PUBLISH_BRANCH", source)
+
+    def test_an_open_request_is_the_idempotent_case(self) -> None:
+        """A re-run force-pushes the same branch, so `gh pr create` refuses; the
+        request it names already points at the commit just pushed. Raising there
+        skipped the `--auto` enqueue for exactly the members that needed it."""
+        self.assertTrue(_lock_form.request_already_open(
+            1, 'a pull request for branch "ci/sync-stack-hooks" already exists:\n'))
+
+    def test_any_other_refusal_still_fails(self) -> None:
+        self.assertFalse(
+            _lock_form.request_already_open(1, "could not resolve to a Repository"))
+
+    def test_a_created_request_is_not_mistaken_for_an_existing_one(self) -> None:
+        self.assertFalse(_lock_form.request_already_open(0, ""))
+
+
 if __name__ == "__main__":
     unittest.main()
