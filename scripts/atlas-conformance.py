@@ -1097,13 +1097,51 @@ def gitlink_revision(root_revision: str, path: str, root: Path = ROOT) -> str:
     return fields[2]
 
 
+def git_ignored_paths(repo: Path) -> frozenset[Path]:
+    """Absolute paths this checkout's git ignores, collapsed at the directory.
+
+    A live scan walks the filesystem, so anything a member's `.gitignore`
+    covers is scanned as if it were the repository's own source. It is not:
+    it is this machine's, a CI checkout has none of it, and no commit can
+    change what it counts -- the same argument the scan already makes for
+    `target_forks` and `root_sprawl_untracked`. apollo's ignored
+    `/artifacts/` held four identical copies of a probe script, and their
+    eight `println!` calls were reported as library print debt on a
+    repository whose committed tree contains none.
+
+    `--directory` collapses a wholly ignored directory into one entry, so
+    the walk below prunes at the top rather than testing every file. An
+    archived snapshot of a recorded revision has no `.git` and contains only
+    tracked content, so the empty set is the right answer there.
+    """
+    if not (repo / ".git").exists():
+        return frozenset()
+    result = subprocess.run(
+        ["git", "-C", str(repo), "ls-files", "--others", "--ignored",
+         "--exclude-standard", "--directory"],
+        capture_output=True, text=True,
+        encoding="utf-8", errors="replace", check=False,
+    )
+    if result.returncode:
+        return frozenset()
+    paths = set()
+    for line in result.stdout.splitlines():
+        entry = line.strip().rstrip("/")
+        if entry:
+            paths.add((repo / entry).resolve())
+    return frozenset(paths)
+
+
 def rust_files(repo: Path):
     """Yield (path, is_testish) for every .rs file, pruning caches and lanes."""
+    ignored = git_ignored_paths(repo)
     stack = [repo]
     while stack:
         d = stack.pop()
         for entry in _iterdir_or_empty(d):
             name = entry.name
+            if entry.resolve() in ignored:
+                continue
             if entry.is_dir():
                 if name in PRUNE_DIRS or name.startswith("target"):
                     continue
