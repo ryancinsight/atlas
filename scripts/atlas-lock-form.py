@@ -441,7 +441,7 @@ def cmd_regenerate(args) -> int:
 
 
 def cmd_sync_hooks(args) -> int:
-    """Deploy the stack-owned hooks into every member's `.githooks/`.
+    """Deploy stack-owned hooks into selected members, or all by default.
 
     The hooks have to exist inside the member for a standalone clone -- one
     checked out on its own, or on a CI runner -- to run them at all, so
@@ -458,8 +458,14 @@ def cmd_sync_hooks(args) -> int:
     """
     source_dir = Path(__file__).resolve().parent / "git-hooks"
     hooks = sorted(p for p in source_dir.iterdir() if p.is_file())
+    registered = set(registered_member_names())
+    members = set(args.members) if args.members else registered
+    unknown = members - registered
+    if unknown:
+        print(f"unregistered members: {', '.join(sorted(unknown))}", file=sys.stderr)
+        return 2
     drifted, written, absent = [], 0, []
-    for member in sorted(registered_member_names()):
+    for member in sorted(members):
         repo = REPOS / member
         if not repo.is_dir():
             continue
@@ -653,6 +659,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="mode", required=True)
     sync = sub.add_parser("sync-hooks")
+    sync.add_argument("members", nargs="*", help="registered members; defaults to all")
     sync.add_argument("--check", action="store_true",
                       help="report drift instead of writing")
     sync.set_defaults(func=cmd_sync_hooks)
