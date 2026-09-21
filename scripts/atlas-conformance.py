@@ -1997,6 +1997,16 @@ def main() -> int:
              "(its live tree with --worktree); bypasses the clean-stack gate",
     )
     parser.add_argument(
+        "--member-path",
+        metavar="DIR",
+        type=Path,
+        help="with --repo, scan DIR as that member instead of repos/<name>. "
+             "This is how a member gates itself: its own checkout is the "
+             "content, and atlas's committed baseline row for --repo is what "
+             "the counts are judged against, so a raise fails the member's "
+             "own pull request instead of the stack's next pin advance",
+    )
+    parser.add_argument(
         "--accept-raises",
         metavar="REASON",
         help="permit `generate` to raise counts above the committed baseline, "
@@ -2006,12 +2016,26 @@ def main() -> int:
     )
     args = parser.parse_args()
     mode = args.mode
+    if args.member_path is not None and not args.repo:
+        print("--member-path names the member's content; --repo names whose "
+              "baseline row to judge it against, so both are required",
+              file=sys.stderr)
+        return 2
     if mode == "generate" and args.repo:
         print("refusing to generate a baseline from a single repo; omit --repo",
               file=sys.stderr)
         return 2
     try:
-        if args.repo:
+        if args.repo and args.member_path is not None:
+            member = args.member_path.resolve()
+            if not member.is_dir():
+                print(f"no such member path: {member}", file=sys.stderr)
+                return 2
+            # The member's own checkout is the content; no gitlink is involved,
+            # so neither the provider-materialisation gate nor a root revision
+            # applies here.
+            results = {args.repo: scan_repo(member)}
+        elif args.repo:
             member = ROOT / "repos" / args.repo
             if not member.is_dir():
                 print(f"no such provider repo: {args.repo}", file=sys.stderr)
