@@ -219,7 +219,19 @@ WORKSPACE_LINTS_TABLE = re.compile(
 # asserting absence is the complete value assertion (`assert_eq!(x, None)`
 # needs `PartialEq` for nothing). `is_ok()`/`is_some()` hide the value and
 # `is_err()` hides the variant; those are the existence-only forms.
-EXISTENCE_ONLY = re.compile(r"assert!\s*\(\s*[^();]{0,120}\.is_(?:ok|err|some)\s*\(\s*\)\s*,?\s*[^();]*\)")
+# The condition must be the whole of the assertion, not one term of it:
+# `assert!(classified[i] || map.is_some(), ...)` asserts a real property
+# (every point is a C-point or a mapped F-point) and was counted as
+# existence-only because the prefix pattern swallowed the disjunction.
+# Excluding the boolean and comparison operators keeps the receiver
+# expression and rejects compound predicates.  The same rule applies on the
+# right: the call must be followed by the closing paren or the message
+# argument, never a trailing `&&`/`||`/comparison that turns it into one
+# term of a larger predicate (`assert!(a.is_ok() && b)`).
+EXISTENCE_ONLY = re.compile(
+    r"assert!\s*\(\s*[^();&|=<>]{0,120}\.is_(?:ok|err|some)\s*\(\s*\)"
+    r"\s*(?:,\s*[^();]*)?\s*\)"
+)
 PRINT_DBG = re.compile(r"\b(?:println!|eprintln!|print!|eprint!|dbg!)")
 # `println!("cargo:...")` is the canonical Cargo build-script protocol: it
 # is the *required* way to emit build instructions (rerun-if-changed,

@@ -1585,5 +1585,45 @@ class CrlfStoredBlobsTestCase(unittest.TestCase):
         self.assertIn("crlf_stored_blobs", conformance.CLASSES)
 
 
+class ExistenceOnlyAssertionTests(unittest.TestCase):
+    """The condition has to be the whole assertion, not one term of it."""
+
+    def matches(self, source: str) -> int:
+        return len(conformance.EXISTENCE_ONLY.findall(source))
+
+    def test_a_bare_result_check_counts(self) -> None:
+        self.assertEqual(self.matches("assert!(result.is_ok());"), 1)
+        self.assertEqual(self.matches('assert!(missing.is_err(), "msg");'), 1)
+        self.assertEqual(
+            self.matches('assert!(result.is_ok(), "failed: {:?}", err);'), 1
+        )
+
+    def test_a_compound_predicate_does_not_count(self) -> None:
+        """A disjunction is a property; a defect can fail it."""
+        self.assertEqual(
+            self.matches(
+                'assert!(\n    classified[i] || map.is_some(),\n'
+                '    "point {i} is neither C-point nor mapped F-point"\n)'
+            ),
+            0,
+        )
+        self.assertEqual(
+            self.matches("assert!(count > 0 && handle.is_some());"), 0
+        )
+
+    def test_the_pattern_still_spans_wrapped_source(self) -> None:
+        """The four real sites were written across lines."""
+        self.assertEqual(
+            self.matches('assert!(\n    result.is_ok(),\n    "must succeed"\n)'),
+            1,
+        )
+
+    def test_a_trailing_conjunction_does_not_count(self) -> None:
+        """The call must be the whole condition, not its first term either."""
+        self.assertEqual(self.matches("assert!(result.is_ok() && other);"), 0)
+        self.assertEqual(self.matches("assert!(handle.is_some() || fallback);"), 0)
+        self.assertEqual(self.matches("assert!(result.is_ok() == expected);"), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
