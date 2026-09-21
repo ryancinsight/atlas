@@ -496,7 +496,21 @@ def cmd_sync_hooks(args) -> int:
 
 
 HOOK_MODE = "100755"
+# One branch per member, named for the work and fixed: a member's hook request
+# is the single place its `.githooks/` copy is updated from, so a run that
+# names its own branch opens a second request carrying a different revision of
+# the same file. Thirteen members carried exactly that pair on 2026-09-21.
 PUBLISH_BRANCH = "ci/sync-stack-hooks"
+
+
+def request_already_open(returncode: int, stderr: str) -> bool:
+    """Whether `gh pr create` refused because the branch's request exists.
+
+    A re-run force-pushes the same branch, so the open request already points
+    at the commit just pushed. Refusing to create a second one is the correct
+    outcome, and treating it as a failure skips the enqueue that follows.
+    """
+    return returncode != 0 and "already exists" in (stderr or "")
 
 
 def git_in(repo: Path, *args: str, stdin: bytes | None = None, index: Path | None = None) -> str:
@@ -599,21 +613,27 @@ def cmd_publish_hooks(args) -> int:
             if not args.push:
                 print(f"would publish: {member} onto {default}")
                 continue
-            branch = args.branch
+            branch = PUBLISH_BRANCH
             git_in(repo, "push", "-q", "--force-with-lease", "origin", f"{commit}:refs/heads/{branch}")
             created = subprocess.run(
                 ["gh", "pr", "create", "--head", branch, "--base", default.removeprefix("origin/"),
                  "--title", subject, "--body", message],
                 cwd=str(repo), capture_output=True, encoding="utf-8", errors="replace",
             )
+            opened = created.stdout.strip()
             if created.returncode != 0:
-                raise RuntimeError(f"gh pr create in {member}: {created.stderr.strip()}")
+                if not request_already_open(created.returncode, created.stderr):
+                    raise RuntimeError(f"gh pr create in {member}: {created.stderr.strip()}")
+                opened = subprocess.run(
+                    ["gh", "pr", "view", branch, "--json", "url", "-q", ".url"],
+                    cwd=str(repo), capture_output=True, encoding="utf-8", errors="replace",
+                ).stdout.strip()
             queued = subprocess.run(
                 ["gh", "pr", "merge", branch, "--merge", "--auto"],
                 cwd=str(repo), capture_output=True, encoding="utf-8", errors="replace",
             )
             state = "enqueued" if queued.returncode == 0 else f"open ({queued.stderr.strip()})"
-            print(f"published: {member} {created.stdout.strip()} {state}")
+            print(f"published: {member} {opened} {state}")
         except RuntimeError as error:
             failures += 1
             print(f"FAILED: {error}")
@@ -665,7 +685,6 @@ def main() -> int:
     sync.set_defaults(func=cmd_sync_hooks)
     publish = sub.add_parser("publish-hooks")
     publish.add_argument("--push", action="store_true", help="push and open the pull requests")
-    publish.add_argument("--branch", default=PUBLISH_BRANCH)
     publish.set_defaults(func=cmd_publish_hooks)
     sub.add_parser("check").set_defaults(func=cmd_check)
     sub.add_parser("status").set_defaults(func=cmd_status)
