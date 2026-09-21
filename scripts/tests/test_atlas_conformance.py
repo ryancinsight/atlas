@@ -990,6 +990,29 @@ class AtlasConformanceTestCase(unittest.TestCase):
 
         self.assertEqual(manifests, ["Cargo.toml"])
 
+    def test_walkers_prune_reusable_workflow_overlay(self) -> None:
+        # The member workflow checks out Atlas at `_atlas` beside the member
+        # checkout. Scanning that overlay would import Atlas's own debt into
+        # the member baseline.
+        with tempfile.TemporaryDirectory(prefix="atlas-conformance-") as temp:
+            root = Path(temp)
+            _write(root, "Cargo.toml", "[workspace]\n")
+            _write(root, "src/lib.rs", "pub fn f() {}\n")
+            _write(root, "_atlas/Cargo.toml", "[workspace]\n")
+            _write(root, "_atlas/src/lib.rs", "pub fn atlas() {}\n")
+
+            manifests = sorted(
+                p.relative_to(root).as_posix()
+                for p in conformance.cargo_manifests(root)
+            )
+            sources = sorted(
+                p.relative_to(root).as_posix()
+                for p, _ in conformance.rust_files(root)
+            )
+
+        self.assertEqual(manifests, ["Cargo.toml"])
+        self.assertEqual(sources, ["src/lib.rs"])
+
     def test_walkers_skip_unreadable_directories(self) -> None:
         """A directory denying reads contributes nothing, never an abort.
 

@@ -115,7 +115,9 @@ BASELINE = ROOT / "scripts" / "conformance-baseline.json"
 PRUNE_DIRS = {
     ".git", "worktrees", "__pycache__", "node_modules", ".claude", "book",
     ".pytest_cache", ".ruff_cache", ".mypy_cache", ".tox", ".nox", ".venv",
-    "venv",
+    "venv", "_atlas",
+    # The reusable member conformance workflow checks out Atlas beside the
+    # member at `_atlas`; it is gate tooling, never member source content.
     # Ad-hoc diagnostic workspaces (`fn main()` programs run by hand, not on
     # CI). Carrying them as production code would inflate `print_dbg` and
     # related classes by diagnostic `println!` calls that the ratchet cannot
