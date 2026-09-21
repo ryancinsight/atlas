@@ -1,8 +1,6 @@
 <a id="atlas-solver-ownership-consolidation"></a>
 ## ATLAS-SOLVER-OWNERSHIP-CONSOLIDATION — Complete ADR 0033: the Krylov forks and the only multigrid in the stack live in CFDrs [arch][major] — todo
-
 Decision: [ADR 0062](docs/adr/0062-iterative-solver-and-preconditioner-ownership.md), **Accepted 2026-09-10** — Phase 1 sequenced after the forced Moirai 0.6.0 sweep (touches `repos/CFDrs` and `repos/kwavers`). Opened from [2026-09-09 foundation audit](docs/audit/2026-09-09-foundation-layer-next-steps.md) finding F1.
-
 - **outcome:** `athena` owns iterative policy and preconditioner composition, `leto` owns the sparse kernels, no integrator keeps a local copy.
 - **Measured 2026-09-09:** ADR 0033's first two legs landed (athena owns `Cg`/`Gmres<_,RESTART>`/`BiCgStab`/`Lsqr`/`Preconditioner`; leto has neither). The third leg has not: `cfd-math/src/linear_solver/` still carries krylov/preconditioners/multigrid/chain/dense_bridge; kwavers carries one more Krylov file. `multigrid` exists nowhere but `cfd-math` — the member chartered to own solver policy cannot offer it.
 - **next (Phase 1, once the Moirai sweep lands):** move `cfd-math/src/linear_solver/` and the kwavers Krylov file to `athena`+`leto` with a differential oracle (reproduce prior output on existing fixtures at `f32`/`f64`, not a rewrite); delete the false doc comment at `leto-ops/src/application/linalg/mod.rs`.

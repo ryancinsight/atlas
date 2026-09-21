@@ -1,5 +1,7 @@
 # atlas — cross-repository integration backlog
 
+<!-- Compacted 2026-09-21 under the 1,000-line board budget: a board is a queue, never a ledger, so closed sections and delivery narrative are gone -- the record of a closed item is the PR that closed it and its `Item:` trailer. Live items, open checkboxes, anchors and open-marked findings are kept. Recover removed narrative with `git log -p -- <this file>`. -->
+
 ## Tier 0 — unsoundness and wrong numbers shipping
 
 | ID | Outcome | Class | Acceptance oracle |
@@ -13,8 +15,6 @@ The removed rows are closed findings, retained in the landed table above: Themis
 `ATLAS-APOLLO-FAKEGEN-036`, and Eunomia `ATLAS-EUNOMIA-F64-SPECIALS-062`,
 `ATLAS-EUNOMIA-SUBBYTE-ORD-063`, and `ATLAS-EUNOMIA-ACCUMULATOR-064`.
 Their current provider source and evidence are not active Tier 0 work.
-
-
 
 ## Tier 3 — mechanical floor and stack hygiene
 
@@ -38,8 +38,6 @@ real benchmark artifacts. The Atlas scanner classifies only `main.rs` and
 production library output. No Apollo source change is authorized by this
 finding; the instrument correction is tracked separately.
 
-
-
 ## Tier 2b — small domain repos (athena, harmonia, horae, hyperion)
 
 These four are the cleanest in the stack on every mechanical axis — zero `dyn`
@@ -53,8 +51,6 @@ about documentation truth and numerical evidence, not debt.
 | ATLAS-ATHENA-UNDOC-066 — **closed 2026-08-14** | **athena ships two undocumented solver families.** BiCGStab (575 lines) and LSQR (487) are implemented and publicly re-exported from `athena-core/src/lib.rs`, yet appear **zero times** in the README, whose headline (`:5`) calls PCG and GMRES "its complete vertical contracts". Compounding it, the architecture tree names a crate that does not exist (`:62` `athena-wgpu` vs the real `athena-hephaestus`), a feature that does not exist (`:71` `wgpu` vs the real `accelerator`), and asserts a 500-line ceiling (`:69`) that BiCGStab breaks. | [patch] | `rg 'athena-wgpu' README.md` → 0; README documents BiCGStab and LSQR; the line-count claim is removed or true per `wc -l` Verified 2026-08-14 at athena HEAD: `rg 'athena-wgpu' README.md` = 0, BiCGStab and LSQR both documented, and the line-count claim now names `bicgstab/algorithm.rs` (575 lines) as the sole stated exception. |
 | ATLAS-BOOK-PLACEHOLDER-067 — **closed 2026-08-14** | **Placeholder chapters are shipped as books.** athena has 6 chapters and harmonia 3 — every one is the 3-line string `*Chapter prose deferred.*`. A placeholder chapter is documentation's mock: a chapter exists when its teaching content does. Separately, the shared Pages callers default `mdbook-test` to `false`, so books without a compiled-sample gate can rot. | [patch] | No `Chapter prose deferred` anywhere; athena and harmonia now contain source-grounded prose. The placeholder half is closed: athena's six stubs plus a seventh LSQR chapter landed in `39b6f0b`, harmonia's three plus its two-line introduction in `10e15ae`, and the stack scan is zero. Sample-gate work remains tracked independently in ATLAS-PUB-005; callers are not represented as tested unless they pass `mdbook-test: true`. |
 | ATLAS-ATHENA-KRYLOV-070 — **closed 2026-08-14** | `gmres/workspace.rs:15-16` holds the Arnoldi basis as `Vec<B::Vector>` — on Leto that is `2·RESTART+1` scattered allocations, while every scalar array in the same struct is already flat (`hessenberg` is one `Vec<Scalar>` with an index fn). The only pointer-scattering instance found across these four repos. Allocated once at construction and natural per-buffer on WGPU, so this is a CPU-side layout defect, not a hot-loop allocation. Also: non-convergence returns `Ok(SolveReport)` with `Termination::MaxIterations` rather than a typed error, `SolveError` carries no residual history, and stagnation/divergence detection is absent entirely. | [minor] | `Vec<B::Vector>` gone from `gmres/workspace.rs` behind the existing `KrylovBackend` seam; the existing allocation-stability and f32/f64 contract tests unchanged and green; a stalling operator yields a `Termination::Stagnated`-class value with non-empty history Closed 2026-08-14. The layout half landed earlier in `d3a4afe` behind `KrylovBackend::VectorBlock`; the only remaining `Vec<B::Vector>` in `gmres/workspace.rs` is a doc comment explaining the type is no longer that. The correctness half landed in `39b6f0b`: `Termination::Stagnated`/`Diverged` detected per restart cycle against a derived floor `sqrt(n)*eps*||b||`, with the two rejected sub-requests argued in ADR 0004. |
-
-
 
 ## Deferred with a recorded reason
 

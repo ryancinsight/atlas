@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Compact Atlas's own PM boards under the 1,000-line budget: `checklist.md`
+  2,312 → 853 and `gap_audit.md` 10,274 → 772, keeping all 113 open
+  checkboxes and all 15 open-marked findings. `backlog.md` 1,896 → 1,100 keeps
+  all 147 live items and stays 100 lines over: 147 items need 147 generated
+  index lines, 147 own-line anchors and 147 headings before any body.
+
 - Merge Tyche PR #28 and PM closure PR #29 at defaults
   `46f4829ef648cec2b9e44bad3a75aef8ef3c34af` and
   `a2d15f058a29142844396c934362d84ce207d32f`. Exact CI/Pages, post-merge CI

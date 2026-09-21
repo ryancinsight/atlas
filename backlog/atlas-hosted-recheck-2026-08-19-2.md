@@ -1,6 +1,5 @@
 <a id="atlas-hosted-recheck-2026-08-19-2"></a>
 ## ATLAS-HOSTED-RECHECK-2026-08-19-2 — current provider state [patch] — in-progress
-
 outcome: a verified, current record of each provider's hosted/package gate state so Atlas gitlink advances only follow terminal exact-head evidence.
 - Moirai PR #143 open, mergeable; Ubuntu wheel smoke (`32328186717`) pending — gitlink holds until it completes and merges.
 - RITK package blocked: `apollo-fft ^0.27.0` has no matching crates.io release (release-order blocker on Apollo 0.27 publication).

@@ -5,4 +5,3 @@
 - Remaining value seams: Attention, Convolution. Seven operator-generic families (full/axis reduction, scan, elementwise, typed elementwise, parameterized unary, stateful update) implement [hephaestus ADR 0061](repos/hephaestus/docs/adr/0061-operator-value-semantics.md): eunomia's 13 scalar functions first, then the core value traits and Host dialect, then the host impls.
 - Acceptance: the host instantiates the aggregate entry point; ADR 0038's host row records every clause; rendering corrections tracked in `repos/hephaestus/backlog.md#heph-kernel-tail-accuracy`.
 - Integrator: claude session c15a9301; lane `worktrees/hephaestus-host-dense-product`; last-update: 2026-09-18.
-

@@ -1,6 +1,5 @@
 <a id="atlas-branch-inventory-001"></a>
 ## ATLAS-BRANCH-INVENTORY-001 - Burn down stack branch inventories [git-hygiene] [patch] — in-progress
-
 - Outcome: every member's local branches map to an open item or enqueued PR; merged or gone-upstream branches prune mechanically, survivors salvage via takeover judged on content supersession, not patch-id.
 - Mechanical phase closed stack-wide 2026-08-26: ~236 branches deleted across 26 members, each evidence-backed. `delete_branch_on_merge=true` on all 26; `allow_auto_merge=true` on 25 (leoneuro-rs declines: plan limit, falls back to merge-on-green).
 - Next: ~98 survivor branches are takeover material, closest-to-done first — kwavers (35 refs), ritk (17), coeus (17, incl. the coeus-frobenius family), apollo (11), ~21 other members. Per-item increments, never a sweep.

@@ -1,8 +1,5 @@
 <a id="moirai-06-sweep"></a>
 ## ATLAS-MOIRAI-06-SWEEP-2026-09-06 - Moirai 0.6.0 landed without its forward sweep [patch] - in-progress
-
 outcome: every first-party requirement on a `moirai-*` crate resolves against Moirai's current workspace version (0.6.0; members still required `^0.5.0`), and each member's lock is regenerated and green — restoring the stack-overlay `[patch]` the version lag silently disabled.
-
 Delivered: leto, coeus (bump applied uncommitted), kwavers, and CFDrs ([#419](https://github.com/ryancinsight/CFDrs/pull/419)) landed or bumped; gaia/hephaestus/consus/tyche already clean.
-
 Open: helios — bump+lock committed on `build/helios-moirai-06` ([helios#92](https://github.com/ryancinsight/helios/pull/92)), held by one remaining `helios-gpu` error a peer is mid-edit on. The real remaining work is [moirai#257](https://github.com/ryancinsight/Moirai/pull/257) (open since 2026-09-04, `CONFLICTING`, no CI run) — apollo's `rev = "83aa411"` pin is a correct, documented quarantine on this PR landing, **not** sweep debt. kwavers's independent rev-advance (ritk#238, kwavers#725) already landed and unblocked `cargo check --workspace`; draft kwavers#727 should be re-judged against the now-green main.

@@ -1,12 +1,7 @@
 <a id="bare-git-pin-staleness"></a>
 ## ATLAS-BARE-GIT-PIN-STALENESS-2026-09-08 - A version-less git dependency freezes at its first resolution [patch] - todo
-
 Parent: [`#slop-burndown`](backlog.md#slop-burndown).
-
 outcome: no first-party dependency is declared as a bare `git = "..."` without a version requirement, so `cargo update` can advance it and the conformance scan counts any that reappear.
-
 mechanism: `helios` declared `eunomia = { git = "..." }` with no `version`, so Cargo locked at first resolution (`3a8836e3`, predating `eunomia-derive`) with nothing to ever force movement — invisible until a consumer needed what the frozen revision lacked. `hephaestus-core` used eunomia's `Pod`/`Zeroable` derives, so helios's build failed *inside a dependency* in a way that looked like a broken upstream but was a resolution defect. Diagnostic signature worth keeping: a derive macro missing from a dependency's build is a resolution question before an upstream one — check whether the providing crate appears in the lock at all.
-
 fixed for helios: `cargo update -p eunomia` (`b525e8a`) advances to `8e18d6d8`, adds `eunomia-derive`, clears 4/5 `helios-gpu` errors.
-
 acceptance (stack-wide, still open): the conformance scan counts version-less first-party `git =` dependencies and treats them as it treats an `=` over-pin (`architecture_scoping`: pin discipline) — the opposite failure mode of the same width defect.

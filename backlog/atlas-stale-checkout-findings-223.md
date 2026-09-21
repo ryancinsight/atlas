@@ -1,10 +1,6 @@
 <a id="atlas-stale-checkout-findings-223"></a>
 ## ATLAS-STALE-CHECKOUT-FINDINGS-223 — Gates measure the checkout, and 8 of 25 members are behind [patch] — in-progress
-
 outcome: every gate that reports against a checkout states that checkout's distance from its upstream, or refuses to report — so a stale local checkout can never masquerade as current-default evidence.
-
 background: four false findings this session traced to gates reading whichever revision was checked out (a `main` 58 commits behind, an ADR-index drift that was really the checkout, not the source). Fixed in `7481561` for the ADR gate; the fallback-to-`origin/main` case is the one that matters, since a detached HEAD (no `@{upstream}`) is exactly the stale case.
-
 open: `atlas-conformance.py --worktree` has the same exposure — it bypasses `check_clean_revision`'s clean-tree/gitlink-match guard, and is what runs while peers hold dirty trees (every conformance number this session came from it).
-
 acceptance: any checkout-reporting gate states distance-from-upstream or refuses; the 8 members currently behind (CFDrs 5, coeus 6, consus 3, gaia 2, themis 2, aequitas 1, apollo 1, tyche 1) are brought current — tracked under `-213`.

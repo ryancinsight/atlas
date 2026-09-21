@@ -1,8 +1,6 @@
 <a id="atlas-default-branch-reds-2026-09-02"></a>
 ## ATLAS-DEFAULT-BRANCH-REDS-2026-09-02 — Member default-branch workflows red with no collector [patch] — todo
-
 outcome: every member default-branch workflow row from `scripts/atlas-red-workflows.py` is classified and either fixed or filed with its own re-open trigger. Acceptance oracle: the script reports no member rows (atlas's own cancelled rows are a separate concurrency finding, tracked elsewhere).
-
 open:
 - kwavers `GPU Parity` — cancelled by runner starvation, no self-hosted CUDA runner registered for the `17 2 * * *` schedule. **Ask-User:** register a runner, or pause the schedule.
 - apollo `ci` / mnemosyne `CI` — SemVer gate fails on public-surface breaks (`WgpuError` in apollo-mellin/apollo-ntt vs published; mnemosyne's #107 merge). **Ask-User:** bump to next major per crate, or record a gate baseline for the intended break.
@@ -10,5 +8,4 @@ open:
 - kwavers ADR index heading format (`docs/adr/130-…`) — fix [kwavers#767](https://github.com/ryancinsight/kwavers/pull/767), enqueued.
 - athena allocation-contract flake (`repeated_cpu_solves_allocate_nothing_after_initialization`) — blocked, needs a Linux allocation trace and no Linux host is available; re-open trigger: a Linux host, or recurrence on main. Same defect class as the already-`#[ignore]`d GMRES sibling in that file.
 - collector honesty gap: a path-filtered workflow (e.g. moirai `Python Bindings`, already fixed on `main`) keeps a stale red row until it next runs — the oracle should also report whether a newer default-branch commit exists that the workflow never ran on.
-
 resolved, no action: mnemosyne `Fuzz`; kwavers PSTD backend (kwavers#694); horae book-link staging and `verify` doc-link CI (horae#44); ritk fmt escape (peer-fixed, prepush hook closing the generator under [ATLAS-PREPUSH-HOOK-FORKED-ACROSS-MEMBERS-2026-09-09](#atlas-prepush-hook-forked-across-members-2026-09-09)); atlas `CodeQL`/kwavers `GPU Parity` (starved infra) and stale manual `Crates.io Release` dispatches for ares/gaia/leto/ritk (release is the user's authority).

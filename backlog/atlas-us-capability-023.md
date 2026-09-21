@@ -1,8 +1,5 @@
 <a id="atlas-us-capability-023"></a>
 ## ATLAS-US-CAPABILITY-023 — ITKUltrasound capability parity [arch] — in-progress
-
 outcome: ITK-ultrasound capability parity delivered natively across ritk/kwavers via the ADR 0042 coordinate-map seam. Full item history and DoR-shaped dependency order at `gap_audit.md#atlas-us-capability-023`; all rows but the two below are done.
-
 Open: RITK-CI-1 [major] todo — restore SimpleITK parity for `InverseDisplacementField` 2-D/3-D and `IterativeInverseDisplacementField`. Diagnosed (`gap_audit.md#atlas-ritk-ci-diag-035`): `3aa73ba0` (ADR 0020)'s 2-D Gram-Schmidt in-plane basis must reduce to world axes exactly under identity direction and does not; owner is `3aa73ba0`'s author. Oracle: the three `test_simpleitk_cmake_data.py` parity tests pass.
-
 US-023-A2 [minor] review — PR #188 merged the batch/single-point origin-direction compose (65/65 tests), but review found `Image::transform_*`/`physical_points_to_continuous_indices` remain Cartesian-only elsewhere, the phased-array path is exercised only at zero origin/identity direction, and it narrows generic scalar indices to `f64` for trigonometry then back to `T` — findings remain open against the merged default.

@@ -1,15 +1,4 @@
 <a id="atlas-themis-region-module-2026-08-20"></a>
 ## ATLAS-THEMIS-REGION-MODULE-2026-08-20 — Split branded region implementation [arch][patch] — in-progress
-
-- **outcome:** Themis `src/branded/region/mod.rs` (481-line file) splits
-  into a manifest (declarations + curated re-exports) and a leaf module
-  (`region/scope.rs`); public exports/safety arguments unchanged;
-  `manifest_implementation` conformance class drops by one.
-- **delivered:** PR [#29](https://github.com/ryancinsight/themis/pull/29)
-  merged at default `2c0749873c4860257ba912ff8494937021a79aa1`. All PR
-  checks terminal-successful; scan confirms `manifest_implementation: 1`
-  vs. 2 on fetched default.
-- **open:** post-merge default runs (MSRV `32473974344`, CI
-  `32473974353`, Pages `32473973059`) were queued at recording. Gitlink
-  and dirty primary checkout stay unchanged until those and the
-  live-page check are terminal.
+- **outcome:** Themis `src/branded/region/mod.rs` (481-line file) splits into a manifest (declarations + curated re-exports) and a leaf module (`region/scope.rs`); public exports/safety arguments unchanged; `manifest_implementation` conformance class drops by one.
+- **open:** post-merge default runs (MSRV `32473974344`, CI `32473974353`, Pages `32473973059`) were queued at recording. Gitlink and dirty primary checkout stay unchanged until those and the live-page check are terminal.

@@ -6,4 +6,3 @@
 - **Acceptance:** reproduce the source-tree transition, detect stale package artifacts before accepting a gate, rebuild only affected packages, and retain source/artifact identities without changing workloads or cache roots.
 - **Dependencies:** reconcile the live scratch-checkout producer without discarding its unique work; [Apollo integration](repos/apollo/backlog.md#apollo-codelet-schedule-controls) repairs its affected release artifact now.
 - **Verification:** deterministic source-transition regression, ordinary shared-cache reuse, and concurrent-owner preservation checks.
-

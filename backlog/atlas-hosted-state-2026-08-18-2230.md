@@ -1,8 +1,5 @@
 <a id="atlas-hosted-state-2026-08-18-2230"></a>
 ## ATLAS-HOSTED-STATE-2026-08-18-2230 — exact-head gate recheck [patch] — in-progress
-
 outcome: every tracked provider's default-branch hosted gates are green at its exact recorded head.
-
 Open per provider: RITK — source already merged (#167 at `f9d04a79`); local exact/overlay failure is a stale initialized checkout (`86bd9fba`, old lock), needing a refresh not a source change; CI `32192759850`/Python CI `32192759832` queued; preceding Python run failed 3 SimpleITK inverse-displacement parity assertions (behavioral evidence, not grounds to widen tolerances). Consus — Documentation `32184845179` fails before rustdoc: `consus-zarr` declares a missing `s3_rusoto_moirai` benchmark target. Coeus — Backend parity `32147262055` fails all contract jobs: locked graph requests Apollo FFT 0.27 while Apollo supplies 0.26 (provider-owned; no compatibility path to add). Hephaestus — no default-branch Actions run exists, an evidence gap.
-
 Themis resolved: PR #26 merged at `0484a333`; post-merge MSRV/CI/Pages all pass at that head.
